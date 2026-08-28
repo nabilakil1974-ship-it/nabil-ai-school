@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     OPENAI_API_KEY: str = ""
-    DATABASE_URL: str = ""
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///nabilai_local.db")
     ENVIRONMENT: str = "development"
     SECRET_KEY: str = "dev-secret-change-me"
     PROJECT_NAME: str = "NabilAI"
