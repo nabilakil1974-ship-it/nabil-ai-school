@@ -3,8 +3,13 @@ from datetime import datetime
 
 from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
+from pgvector.sqlalchemy import Vector
 
 from app.db.session import Base
+
+# طول متجه الـ embeddings - يجب أن يطابق نموذج OpenAI المستخدم
+# text-embedding-3-small = 1536 بعد
+EMBEDDING_DIM = 1536
 
 
 def gen_uuid():
@@ -72,3 +77,31 @@ class Message(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     conversation = relationship("Conversation", back_populates="messages")
+
+
+class BookChunk(Base):
+    """
+    مقطع نصي من كتاب (عادة صفحة واحدة أو نصف صفحة) مع الـ embedding تبعه.
+    هاد الجدول هو أساس البحث الدلالي (RAG) - كل صف مربوط بكتاب محدد
+    ورقم صفحة مطبوع حقيقي، عشان لما نبحث ما نلخبط بين الكتب أو الصفحات.
+    """
+    __tablename__ = "book_chunks"
+
+    id = Column(String, primary_key=True, default=gen_uuid)
+    book_id = Column(String, ForeignKey("books.id"), nullable=False)
+
+    # فهرسة صارمة - كل بحث لازم يمرّ من هاي الحقول الأربعة قبل المقارنة بالمعنى
+    subject = Column(String, nullable=False)     # رياضيات / فيزياء ...
+    grade = Column(String, nullable=False)        # الصف السابع ...
+    curriculum = Column(String, nullable=False)   # CRDP-FR / CRDP-EN / Building Up
+
+    printed_page_number = Column(Integer, nullable=False)  # الرقم المطبوع بالكتاب فعلياً
+    chunk_index_in_page = Column(Integer, default=0)       # لو الصفحة انقسمت لأكثر من مقطع
+
+    text_content = Column(Text, nullable=False)
+    embedding = Column(Vector(EMBEDDING_DIM), nullable=False)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    book = relationship("Book")
+

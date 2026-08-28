@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     SECRET_KEY: str = "dev-secret-change-me"
     PROJECT_NAME: str = "NabilAI"
+    GOOGLE_DRIVE_CREDENTIALS_JSON: str = ""
 
 
 settings = Settings()

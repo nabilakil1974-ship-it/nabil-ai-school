@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>فهرسة كتاب - NabilAI</title>
+<style>
+  body { font-family: Tahoma, Arial; background:#111; color:#eee; padding:2rem; max-width:600px; margin:auto; }
+  label { display:block; margin-top:1rem; margin-bottom:.3rem; }
+  input { width:100%; padding:.6rem; border-radius:6px; border:1px solid #444; background:#222; color:#eee; box-sizing:border-box; }
+  button { margin-top:1.5rem; padding:.8rem 1.5rem; background:#6c5ce7; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:1rem; }
+  #result { margin-top:1.5rem; padding:1rem; border-radius:6px; background:#222; white-space:pre-wrap; }
+</style>
+</head>
+<body>
+  <h2>➕ فهرسة كتاب جديد</h2>
+  <p>عبّي البيانات وحدد الكتاب - العملية بتصير بالخلفية وممكن تاخد وقت حسب حجم الكتاب.</p>
+
+  <label>مفتاح الإدارة (نفس SECRET_KEY)</label>
+  <input id="admin_key" type="password">
+
+  <label>معرّف ملف Drive (Google Drive File ID)</label>
+  <input id="file_id" placeholder="مثال: 1AbCDefGhIjkLmnOPQrstuVWxyz">
+
+  <label>اسم الكتاب</label>
+  <input id="title" placeholder="مثال: رياضيات - الصف السابع - الفصل الأول">
+
+  <label>المادة</label>
+  <input id="subject" placeholder="مثال: رياضيات">
+
+  <label>الصف</label>
+  <input id="grade" placeholder="مثال: الصف السابع">
+
+  <label>المنهج</label>
+  <input id="curriculum" placeholder="مثال: CRDP-FR">
+
+  <label>إزاحة الصفحات (page offset) - اتركها 0 إذا مش متأكد</label>
+  <input id="page_offset" type="number" value="0">
+
+  <button onclick="submitIndex()">ابلّش الفهرسة</button>
+
+  <div id="result"></div>
+
+<script>
+async function submitIndex() {
+  const body = {
+    admin_key: document.getElementById('admin_key').value,
+    file_id: document.getElementById('file_id').value,
+    title: document.getElementById('title').value,
+    subject: document.getElementById('subject').value,
+    grade: document.getElementById('grade').value,
+    curriculum: document.getElementById('curriculum').value,
+    page_offset: parseInt(document.getElementById('page_offset').value || '0'),
+  };
+  document.getElementById('result').innerText = 'عم يبعت الطلب...';
+  try {
+    const res = await fetch('/api/admin/index-book', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    document.getElementById('result').innerText = JSON.stringify(data, null, 2);
+  } catch (e) {
+    document.getElementById('result').innerText = 'صار خطأ: ' + e;
+  }
+}
+</script>
+</body>
+</html>
