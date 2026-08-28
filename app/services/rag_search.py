@@ -1,31 +1,28 @@
 """
-خدمة البحث الدلالي بالكتب (RAG).
+خدمة البحث الدلالي بالكتب (RAG) - تستخدم Gemini المجاني من Google لتوليد
+البصمات الرقمية (embeddings)، وليس OpenAI (عشان ما يحتاج بطاقة دفع).
 
 القواعد الصارمة يلي بتضمن الدقة وعدم اللخبطة:
 1. أي بحث لازم يكون "محصور" مسبقاً بمادة + صف + منهج محددين (فلترة SQL عادية)
-   قبل ما نستخدم البحث بالمعنى (vector search) - هيك ما بيصير خلط بين كتاب
-   رياضيات صف سابع وكتاب فيزياء صف تاسع مثلاً، حتى لو تشابهت الكلمات.
-2. البحث بالمعنى بيصير بس جوّا هالنطاق المحصور (WHERE ثم ORDER BY المسافة)،
-   يعني سريع لأنو ما بيقارن مع كل كتب المكتبة، بس مع صفحات الكتاب المطلوب.
-3. كل نتيجة مرجعة معها رقم الصفحة المطبوع الحقيقي، فالأستاذ نبيل دائماً
-   بقدر يقول "هاد موجود صفحة كذا بالكتاب" بدقة.
+   قبل ما نستخدم البحث بالمعنى (vector search).
+2. البحث بالمعنى بيصير بس جوّا هالنطاق المحصور، يعني سريع.
+3. كل نتيجة مرجعة معها رقم الصفحة المطبوع الحقيقي.
 """
 
-from openai import OpenAI
-from sqlalchemy import select
+import google.generativeai as genai
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.models import Book, BookChunk
 
-client = OpenAI(api_key=settings.OPENAI_API_KEY)
+genai.configure(api_key=settings.GEMINI_API_KEY)
 
-EMBEDDING_MODEL = "text-embedding-3-small"
+EMBEDDING_MODEL = "models/text-embedding-004"  # مجاني، 768 بعد
 
 
-def embed_text(text: str) -> list[float]:
-    resp = client.embeddings.create(model=EMBEDDING_MODEL, input=text)
-    return resp.data[0].embedding
+def embed_text(text: str, task_type: str = "retrieval_document") -> list[float]:
+    result = genai.embed_content(model=EMBEDDING_MODEL, content=text, task_type=task_type)
+    return result["embedding"]
 
 
 def search_book_pages(
@@ -40,7 +37,7 @@ def search_book_pages(
     يرجّع أفضل top_k مقاطع مرتبطة بسؤال الطالب، محصورة حصراً بمادة/صف/منهج
     محددين، مرتبة بالصفحة الأقرب دلالياً لسؤاله.
     """
-    query_vector = embed_text(query)
+    query_vector = embed_text(query, task_type="retrieval_query")
 
     results = (
         db.query(BookChunk)
@@ -66,11 +63,6 @@ def search_book_pages(
 
 
 def build_context_block(chunks: list[dict]) -> str:
-    """
-    يحوّل نتائج البحث لنص واحد جاهز يُضاف لبرومبت الأستاذ نبيل، مع ذكر
-    اسم الكتاب ورقم الصفحة بوضوح لكل مقطع - عشان يقدر يستشهد فيها بدقة
-    وما يخترع صفحات غير موجودة.
-    """
     if not chunks:
         return ""
 

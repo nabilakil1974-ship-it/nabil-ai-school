@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from openai import OpenAI
+import google.generativeai as genai
 
 from app.core.config import settings
 from app.db.session import get_db
@@ -39,8 +39,8 @@ class ChatResponse(BaseModel):
 
 @router.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest, db: Session = Depends(get_db)):
-    if not settings.OPENAI_API_KEY:
-        raise HTTPException(500, "OPENAI_API_KEY غير مضبوط بإعدادات السيرفر")
+    if not settings.GEMINI_API_KEY:
+        raise HTTPException(500, "GEMINI_API_KEY غير مضبوط بإعدادات السيرفر")
 
     conversation = None
     if req.conversation_id:
@@ -70,15 +70,13 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
     if context_block:
         user_content = f"{context_block}\n\nسؤال الطالب: {req.message}"
 
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
-    completion = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_content},
-        ],
+    genai.configure(api_key=settings.GEMINI_API_KEY)
+    model = genai.GenerativeModel(
+        model_name="gemini-1.5-flash",
+        system_instruction=SYSTEM_PROMPT,
     )
-    reply_text = completion.choices[0].message.content
+    response = model.generate_content(user_content)
+    reply_text = response.text
 
     db.add(Message(conversation_id=conversation.id, role="teacher", content=reply_text))
     db.commit()
