@@ -1,13 +1,6 @@
 """
 سكربت فهرسة الكتب - يشتغل مرة وحدة (أو كل ما نضيف كتاب جديد) وليس أثناء
 محادثة الطالب، عشان البحث اللحظي يضل سريع.
-
-طريقة التشغيل (من Railway، تبويب "Console" بخدمة web):
-    python -m scripts.index_books --drive-folder-id <ID> --subject "رياضيات" \
-        --grade "الصف السابع" --curriculum "CRDP-FR"
-
-كل كتاب لازم يتفهرس لحاله (مادة/صف/منهج محددين بوضوح بسطر الأوامر)
-عشان ما يصير خلط تلقائي - هيدا قرار مقصود لضمان الدقة.
 """
 
 import argparse
@@ -25,7 +18,6 @@ from app.services.rag_search import embed_text
 
 SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 
-# طول المقطع الأقصى بالحروف قبل ما نقسم الصفحة لأكثر من مقطع
 MAX_CHUNK_CHARS = 1800
 
 
@@ -79,11 +71,6 @@ def index_book(
     curriculum: str,
     printed_page_offset: int = 0,
 ):
-    """
-    printed_page_offset: الفرق بين رقم صفحة الـ PDF ورقم الصفحة المطبوع
-    بالكتاب (مثلاً إذا الغلاف والفهرس ياخدو 3 صفحات قبل ما تبلش الصفحة "1"
-    المطبوعة، بيصير printed_page_offset = 3).
-    """
     db = SessionLocal()
     service = get_drive_service()
 
@@ -91,6 +78,7 @@ def index_book(
     pdf_bytes = download_pdf(service, file_id)
     reader = PdfReader(io.BytesIO(pdf_bytes))
     total_pages = len(reader.pages)
+    print(f"📄 عدد صفحات الملف: {total_pages}")
 
     book = Book(
         title=title,
@@ -104,17 +92,20 @@ def index_book(
     db.commit()
     db.refresh(book)
 
-      for pdf_index, page in enumerate(reader.pages):
-        print(f"  🔎 معالجة صفحة PDF رقم {pdf_index + 1}...")
+    for pdf_index, page in enumerate(reader.pages):
+        print(f"  🔎 معالجة صفحة PDF رقم {pdf_index + 1}...", flush=True)
         text = (page.extract_text() or "").strip()
-        print(f"  📝 استخرج {len(text)} حرف من صفحة {pdf_index + 1}")
+        print(f"  📝 استخرج {len(text)} حرف من صفحة {pdf_index + 1}", flush=True)
+
         if not text:
-            continue  # صفحة صور/فارغة - رح نضيف OCR لاحقاً لهالحالةلاحقاً لهالحالة
+            print(f"  ⏭️ صفحة {pdf_index + 1} فاضية أو صورة - تخطّيناها", flush=True)
+            continue
 
         printed_page = pdf_index + 1 - printed_page_offset
         chunks = split_into_chunks(text)
 
         for i, chunk_text in enumerate(chunks):
+            print(f"    🧮 حساب embedding للمقطع {i + 1}/{len(chunks)}...", flush=True)
             vector = embed_text(chunk_text)
             db.add(BookChunk(
                 book_id=book.id,
@@ -127,17 +118,16 @@ def index_book(
                 embedding=vector,
             ))
 
-            db.commit()
-        print(f"  ✅ خزّنت صفحة {pdf_index + 1}/{total_pages}")
+        db.commit()
+        print(f"  ✅ خزّنت صفحة {pdf_index + 1}/{total_pages}", flush=True)
 
-    db.commit()
     db.close()
     print(f"✅ خلصت فهرسة: {title} ({total_pages} صفحة)")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--file-id", required=True, help="Google Drive file ID للكتاب")
+    parser.add_argument("--file-id", required=True)
     parser.add_argument("--title", required=True)
     parser.add_argument("--subject", required=True)
     parser.add_argument("--grade", required=True)
