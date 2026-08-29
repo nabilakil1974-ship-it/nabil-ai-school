@@ -34,6 +34,13 @@ app.include_router(routes_health.router, prefix="/api", tags=["health"])
 app.include_router(routes_chat.router, prefix="/api", tags=["chat"])
 app.include_router(routes_admin.router, prefix="/api", tags=["admin"])
 
+@app.on_event("startup")
+def preload_embedding_model():
+    print("⏳ تحميل موديل الفهم اللغوي (مرة وحدة فقط)...")
+    from app.services.rag_search import get_model
+    get_model()
+    print("✅ الموديل جاهز بالذاكرة.")
+
 
 @app.get("/")
 def root():
