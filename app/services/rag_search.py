@@ -17,11 +17,17 @@ from app.db.models import Book, BookChunk
 
 genai.configure(api_key=settings.GEMINI_API_KEY)
 
-EMBEDDING_MODEL = "models/embedding-001"  # مجاني، 768 بعد، مدعوم بكل الحسابات
+EMBEDDING_MODEL = "models/gemini-embedding-001"  # الموديل الحالي المدعوم
+EMBEDDING_OUTPUT_DIM = 768  # نطلب 768 بعد عشان يطابق قاعدة البيانات
 
 
 def embed_text(text: str, task_type: str = "retrieval_document") -> list[float]:
-    result = genai.embed_content(model=EMBEDDING_MODEL, content=text, task_type=task_type)
+    result = genai.embed_content(
+        model=EMBEDDING_MODEL,
+        content=text,
+        task_type=task_type,
+        output_dimensionality=EMBEDDING_OUTPUT_DIM,
+    )
     return result["embedding"]
 
 
