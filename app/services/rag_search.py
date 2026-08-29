@@ -17,7 +17,7 @@ from app.db.models import Book, BookChunk
 
 genai.configure(api_key=settings.GEMINI_API_KEY)
 
-EMBEDDING_MODEL = "models/text-embedding-004"  # مجاني، 768 بعد
+EMBEDDING_MODEL = "models/embedding-001"  # مجاني، 768 بعد، مدعوم بكل الحسابات
 
 
 def embed_text(text: str, task_type: str = "retrieval_document") -> list[float]:
