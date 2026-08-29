@@ -104,10 +104,12 @@ def index_book(
     db.commit()
     db.refresh(book)
 
-    for pdf_index, page in enumerate(reader.pages):
+      for pdf_index, page in enumerate(reader.pages):
+        print(f"  🔎 معالجة صفحة PDF رقم {pdf_index + 1}...")
         text = (page.extract_text() or "").strip()
+        print(f"  📝 استخرج {len(text)} حرف من صفحة {pdf_index + 1}")
         if not text:
-            continue  # صفحة صور/فارغة - رح نضيف OCR لاحقاً لهالحالة
+            continue  # صفحة صور/فارغة - رح نضيف OCR لاحقاً لهالحالةلاحقاً لهالحالة
 
         printed_page = pdf_index + 1 - printed_page_offset
         chunks = split_into_chunks(text)
@@ -125,9 +127,8 @@ def index_book(
                 embedding=vector,
             ))
 
-        if pdf_index % 20 == 0:
             db.commit()
-            print(f"  ...صفحة {pdf_index + 1}/{total_pages}")
+        print(f"  ✅ خزّنت صفحة {pdf_index + 1}/{total_pages}")
 
     db.commit()
     db.close()
