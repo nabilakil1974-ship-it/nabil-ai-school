@@ -11,6 +11,7 @@ class Settings(BaseSettings):
 
     OPENAI_API_KEY: str = ""
     GEMINI_API_KEY: str = ""
+    GROQ_API_KEY: str = ""
     DATABASE_URL: str = "sqlite:///./nabilai_local.db"
     ENVIRONMENT: str = "development"
     SECRET_KEY: str = "dev-secret-change-me"

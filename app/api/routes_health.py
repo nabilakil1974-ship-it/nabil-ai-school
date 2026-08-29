@@ -6,4 +6,4 @@ router = APIRouter()
 @router.get("/health")
 def health_check():
     """للتأكد إنو السيرفر شغّال بعد النشر."""
-    return {"status": "ok", "service": "NabilAI backend (Gemini)"}
+    return {"status": "ok", "service": "NabilAI backend (local embeddings + Groq)"}

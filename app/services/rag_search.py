@@ -1,34 +1,38 @@
 """
-خدمة البحث الدلالي بالكتب (RAG) - تستخدم Gemini المجاني من Google لتوليد
-البصمات الرقمية (embeddings)، وليس OpenAI (عشان ما يحتاج بطاقة دفع).
+خدمة البحث الدلالي بالكتب (RAG).
+
+البصمات الرقمية (embeddings) تتولّد محلياً على السيرفر نفسه (مكتبة
+sentence-transformers) - بدون أي اتصال بأي API خارجي. هيك النظام:
+- مجاني 100% وبدون أي حدود يومية
+- ما بيتعطل بسبب مشاكل خارجية (انقطاع خدمة، حصص استخدام، إلخ)
+- أبطأ شوي من خدمة سحابية، بس مقبول جداً لحجم الاستخدام هون
 
 القواعد الصارمة يلي بتضمن الدقة وعدم اللخبطة:
-1. أي بحث لازم يكون "محصور" مسبقاً بمادة + صف + منهج محددين (فلترة SQL عادية)
-   قبل ما نستخدم البحث بالمعنى (vector search).
+1. أي بحث لازم يكون "محصور" مسبقاً بمادة + صف + منهج محددين (فلترة SQL).
 2. البحث بالمعنى بيصير بس جوّا هالنطاق المحصور، يعني سريع.
 3. كل نتيجة مرجعة معها رقم الصفحة المطبوع الحقيقي.
 """
 
-import google.generativeai as genai
+from functools import lru_cache
+
+from sentence_transformers import SentenceTransformer
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
 from app.db.models import Book, BookChunk
 
-genai.configure(api_key=settings.GEMINI_API_KEY)
+MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"  # يدعم العربي والفرنسي والإنكليزي
 
-EMBEDDING_MODEL = "models/gemini-embedding-001"  # الموديل الحالي المدعوم
-EMBEDDING_OUTPUT_DIM = 768  # نطلب 768 بعد عشان يطابق قاعدة البيانات
+
+@lru_cache(maxsize=1)
+def get_model() -> SentenceTransformer:
+    # يتحمّل مرة وحدة بس ويضل بالذاكرة (lru_cache) بدل ما يعاد تحميله كل استدعاء
+    return SentenceTransformer(MODEL_NAME)
 
 
 def embed_text(text: str, task_type: str = "retrieval_document") -> list[float]:
-    result = genai.embed_content(
-        model=EMBEDDING_MODEL,
-        content=text,
-        task_type=task_type,
-        output_dimensionality=EMBEDDING_OUTPUT_DIM,
-    )
-    return result["embedding"]
+    model = get_model()
+    vector = model.encode(text, normalize_embeddings=True)
+    return vector.tolist()
 
 
 def search_book_pages(

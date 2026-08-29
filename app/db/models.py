@@ -7,9 +7,9 @@ from pgvector.sqlalchemy import Vector
 
 from app.db.session import Base
 
-# طول متجه الـ embeddings - يجب أن يطابق نموذج Gemini المجاني المستخدم
-# models/text-embedding-004 = 768 بعد
-EMBEDDING_DIM = 768
+# طول متجه الـ embeddings - يجب أن يطابق نموذج التضمين المحلي المستخدم
+# paraphrase-multilingual-MiniLM-L12-v2 = 384 بعد
+EMBEDDING_DIM = 384
 
 
 def gen_uuid():
