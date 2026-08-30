@@ -1,9 +1,13 @@
 """
 سكربت فهرسة الكتب - يشتغل مرة وحدة (أو كل ما نضيف كتاب جديد) وليس أثناء
 محادثة الطالب، عشان البحث اللحظي يضل سريع.
+
+هالنسخة "قابلة للاستئناف" (resumable): إذا صار كراش أو Restart بمنتصف
+الفهرسة، إعادة تشغيل نفس الأمر بترجع تكمل من آخر صفحة محفوظة، مش من الصفر.
 """
 
 import argparse
+import gc
 import io
 
 from googleapiclient.discovery import build
@@ -72,27 +76,52 @@ def index_book(
     printed_page_offset: int = 0,
 ):
     db = SessionLocal()
-    service = get_drive_service()
 
-    print(f"⏳ تحميل الكتاب: {title}")
+    # نتحقق: هل الكتاب هيدا اتفهرس (كلياً أو جزئياً) من قبل؟
+    book = db.query(Book).filter(Book.drive_file_id == file_id).first()
+    already_indexed_pdf_pages = 0
+
+    if book:
+        print(f"📚 الكتاب موجود أصلاً بالداتابيز (id={book.id}) - رح نتحقق وين وقفنا", flush=True)
+        last_chunk = (
+            db.query(BookChunk)
+            .filter(BookChunk.book_id == book.id)
+            .order_by(BookChunk.printed_page_number.desc())
+            .first()
+        )
+        if last_chunk:
+            already_indexed_pdf_pages = last_chunk.printed_page_number + printed_page_offset
+            print(f"⏩ آخر صفحة محفوظة: {already_indexed_pdf_pages} - رح نكمل من بعدها", flush=True)
+    else:
+        service = get_drive_service()
+        print(f"⏳ تحميل الكتاب: {title}", flush=True)
+        pdf_bytes = download_pdf(service, file_id)
+        reader = PdfReader(io.BytesIO(pdf_bytes))
+        total_pages = len(reader.pages)
+        book = Book(
+            title=title,
+            subject=subject,
+            grade=grade,
+            curriculum=curriculum,
+            drive_file_id=file_id,
+            total_pages=total_pages,
+        )
+        db.add(book)
+        db.commit()
+        db.refresh(book)
+
+    # نحمّل الملف دايماً (خفيف نسبياً، وبيضمن عندنا reader صالح بكل الحالات)
+    service = get_drive_service()
+    print(f"⏳ تحميل ملف PDF: {title}", flush=True)
     pdf_bytes = download_pdf(service, file_id)
     reader = PdfReader(io.BytesIO(pdf_bytes))
     total_pages = len(reader.pages)
-    print(f"📄 عدد صفحات الملف: {total_pages}")
-
-    book = Book(
-        title=title,
-        subject=subject,
-        grade=grade,
-        curriculum=curriculum,
-        drive_file_id=file_id,
-        total_pages=total_pages,
-    )
-    db.add(book)
-    db.commit()
-    db.refresh(book)
+    print(f"📄 عدد صفحات الملف: {total_pages}", flush=True)
 
     for pdf_index, page in enumerate(reader.pages):
+        if pdf_index + 1 <= already_indexed_pdf_pages:
+            continue  # هاي الصفحة اتفهرست بمحاولة سابقة - نتخطاها
+
         print(f"  🔎 معالجة صفحة PDF رقم {pdf_index + 1}...", flush=True)
         text = (page.extract_text() or "").strip()
         print(f"  📝 استخرج {len(text)} حرف من صفحة {pdf_index + 1}", flush=True)
@@ -105,7 +134,6 @@ def index_book(
         chunks = split_into_chunks(text)
 
         for i, chunk_text in enumerate(chunks):
-            print(f"    🧮 حساب embedding للمقطع {i + 1}/{len(chunks)}...", flush=True)
             vector = embed_text(chunk_text)
             db.add(BookChunk(
                 book_id=book.id,
@@ -119,10 +147,14 @@ def index_book(
             ))
 
         db.commit()
+        db.expire_all()  # يحرر ذاكرة الكائنات المخزّنة بجلسة SQLAlchemy
         print(f"  ✅ خزّنت صفحة {pdf_index + 1}/{total_pages}", flush=True)
 
+        if pdf_index % 10 == 0:
+            gc.collect()  # تنظيف دوري للذاكرة كل 10 صفحات
+
     db.close()
-    print(f"✅ خلصت فهرسة: {title} ({total_pages} صفحة)")
+    print(f"✅ خلصت فهرسة: {title} ({total_pages} صفحة)", flush=True)
 
 
 if __name__ == "__main__":
