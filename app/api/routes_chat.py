@@ -101,8 +101,9 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_content},
         ],
-        max_tokens=180,
+               max_tokens=600,
         temperature=0.6,
+        reasoning_effort="low",
     )
     reply_text = clean_reply(completion.choices[0].message.content)
 
