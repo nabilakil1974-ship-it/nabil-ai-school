@@ -72,7 +72,7 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
 
     client = Groq(api_key=settings.GROQ_API_KEY)
     completion = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model="openai/gpt-oss-120b",
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_content},
