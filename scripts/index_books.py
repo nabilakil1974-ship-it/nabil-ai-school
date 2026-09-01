@@ -92,12 +92,19 @@ def index_book(
         if last_chunk:
             already_indexed_pdf_pages = last_chunk.printed_page_number + printed_page_offset
             print(f"⏩ آخر صفحة محفوظة: {already_indexed_pdf_pages} - رح نكمل من بعدها", flush=True)
-    else:
-        service = get_drive_service()
-        print(f"⏳ تحميل الكتاب: {title}", flush=True)
-        pdf_bytes = download_pdf(service, file_id)
-        reader = PdfReader(io.BytesIO(pdf_bytes))
-        total_pages = len(reader.pages)
+
+    # نحمّل الملف مرة وحدة بس (كان قبل عم يتحمّل مرتين - مرة لحساب عدد
+    # الصفحات ومرة تانية للمعالجة - وهيدا كان يضاعف استهلاك الذاكرة بلا داعي)
+    service = get_drive_service()
+    print(f"⏳ تحميل ملف PDF: {title}", flush=True)
+    pdf_bytes = download_pdf(service, file_id)
+    reader = PdfReader(io.BytesIO(pdf_bytes))
+    total_pages = len(reader.pages)
+    print(f"📄 عدد صفحات الملف: {total_pages}", flush=True)
+    del pdf_bytes  # ما عاد لازمنا البايتات الخام بعد ما صار عند reader نسخته الخاصة
+    gc.collect()
+
+    if not book:
         book = Book(
             title=title,
             subject=subject,
@@ -109,14 +116,6 @@ def index_book(
         db.add(book)
         db.commit()
         db.refresh(book)
-
-    # نحمّل الملف دايماً (خفيف نسبياً، وبيضمن عندنا reader صالح بكل الحالات)
-    service = get_drive_service()
-    print(f"⏳ تحميل ملف PDF: {title}", flush=True)
-    pdf_bytes = download_pdf(service, file_id)
-    reader = PdfReader(io.BytesIO(pdf_bytes))
-    total_pages = len(reader.pages)
-    print(f"📄 عدد صفحات الملف: {total_pages}", flush=True)
 
     for pdf_index, page in enumerate(reader.pages):
         if pdf_index + 1 <= already_indexed_pdf_pages:
