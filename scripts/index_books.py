@@ -2,8 +2,12 @@
 سكربت فهرسة الكتب - يشتغل مرة وحدة (أو كل ما نضيف كتاب جديد) وليس أثناء
 محادثة الطالب، عشان البحث اللحظي يضل سريع.
 
-هالنسخة "قابلة للاستئناف" (resumable): إذا صار كراش أو Restart بمنتصف
-الفهرسة، إعادة تشغيل نفس الأمر بترجع تكمل من آخر صفحة محفوظة، مش من الصفر.
+هالنسخة:
+- تحمّل كل ملف مرة وحدة بس (مش مرتين متل قبل) لتخفيف الذاكرة
+- قابلة للاستئناف (resumable): كراش بمنتصف كتاب بيكمل من آخر صفحة، مش من الصفر
+- تستخدم PyMuPDF (fitz) لاستخراج النص بدل pypdf - أدق وأقوى بكتير مع
+  ملفات فيها ترميز خطوط معقّد (كانت pypdf عم ترجع نص فاضي بالغلط لملفات
+  فيها محتوى حقيقي)
 """
 
 import argparse
@@ -13,7 +17,7 @@ import io
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 from google.oauth2 import service_account
-from pypdf import PdfReader
+import fitz  # PyMuPDF
 
 from app.core.config import settings
 from app.db.session import SessionLocal
@@ -77,7 +81,6 @@ def index_book(
 ):
     db = SessionLocal()
 
-    # نتحقق: هل الكتاب هيدا اتفهرس (كلياً أو جزئياً) من قبل؟
     book = db.query(Book).filter(Book.drive_file_id == file_id).first()
     already_indexed_pdf_pages = 0
 
@@ -93,15 +96,14 @@ def index_book(
             already_indexed_pdf_pages = last_chunk.printed_page_number + printed_page_offset
             print(f"⏩ آخر صفحة محفوظة: {already_indexed_pdf_pages} - رح نكمل من بعدها", flush=True)
 
-    # نحمّل الملف مرة وحدة بس (كان قبل عم يتحمّل مرتين - مرة لحساب عدد
-    # الصفحات ومرة تانية للمعالجة - وهيدا كان يضاعف استهلاك الذاكرة بلا داعي)
     service = get_drive_service()
     print(f"⏳ تحميل ملف PDF: {title}", flush=True)
     pdf_bytes = download_pdf(service, file_id)
-    reader = PdfReader(io.BytesIO(pdf_bytes))
-    total_pages = len(reader.pages)
+
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    total_pages = doc.page_count
     print(f"📄 عدد صفحات الملف: {total_pages}", flush=True)
-    del pdf_bytes  # ما عاد لازمنا البايتات الخام بعد ما صار عند reader نسخته الخاصة
+    del pdf_bytes
     gc.collect()
 
     if not book:
@@ -117,12 +119,13 @@ def index_book(
         db.commit()
         db.refresh(book)
 
-    for pdf_index, page in enumerate(reader.pages):
+    for pdf_index in range(total_pages):
         if pdf_index + 1 <= already_indexed_pdf_pages:
-            continue  # هاي الصفحة اتفهرست بمحاولة سابقة - نتخطاها
+            continue
 
         print(f"  🔎 معالجة صفحة PDF رقم {pdf_index + 1}...", flush=True)
-        text = (page.extract_text() or "").strip()
+        page = doc.load_page(pdf_index)
+        text = (page.get_text() or "").strip()
         print(f"  📝 استخرج {len(text)} حرف من صفحة {pdf_index + 1}", flush=True)
 
         if not text:
@@ -146,12 +149,13 @@ def index_book(
             ))
 
         db.commit()
-        db.expire_all()  # يحرر ذاكرة الكائنات المخزّنة بجلسة SQLAlchemy
+        db.expire_all()
         print(f"  ✅ خزّنت صفحة {pdf_index + 1}/{total_pages}", flush=True)
 
         if pdf_index % 10 == 0:
-            gc.collect()  # تنظيف دوري للذاكرة كل 10 صفحات
+            gc.collect()
 
+    doc.close()
     db.close()
     print(f"✅ خلصت فهرسة: {title} ({total_pages} صفحة)", flush=True)
 
