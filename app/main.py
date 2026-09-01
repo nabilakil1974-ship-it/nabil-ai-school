@@ -41,10 +41,9 @@ def preload_embedding_model():
     get_model()
     print("✅ الموديل جاهز بالذاكرة.")
 
-
 @app.get("/")
 def root():
-    return {"message": "NabilAI backend يعمل بنجاح 🎓"}
+    return FileResponse("app/static/chat.html")
 
 
 @app.get("/admin")
