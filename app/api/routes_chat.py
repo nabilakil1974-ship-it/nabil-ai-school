@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from groq import Groq
 from app.core.config import settings
 from app.db.session import get_db
-from app.db.models import Conversation, Message
+from app.db.models import Conversation, Message, Student
 from app.services.rag_search import search_book_pages, build_context_block
 
 router = APIRouter()
@@ -76,6 +76,17 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
     conversation = None
     if req.conversation_id:
         conversation = db.query(Conversation).filter_by(id=req.conversation_id).first()
+
+       student = db.query(Student).filter_by(id=req.student_id).first()
+    if student is None:
+        student = Student(
+            id=req.student_id,
+            name=req.student_id,
+            grade=req.grade or "غير محدد",
+            preferred_language="ar-LB",
+        )
+        db.add(student)
+        db.commit()
 
     if conversation is None:
         conversation = Conversation(student_id=req.student_id, subject=req.subject)
