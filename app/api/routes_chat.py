@@ -35,7 +35,12 @@ SYSTEM_PROMPT = """
 9. إذا ما انعطتلك مقاطع من كتاب، وضحلو بجملة بسيطة إنو هيدا الشرح مش من كتابه بالتحديد.
 
 10. خليك دايماً مشجع، صبور، ودافئ - متل أستاذ بيحب شغله ومبسوط لما الطالب يسأل.
+
+11. إذا الطالب بعتلك صورة (متل صورة تمرين أو مسألة من كتابه أو دفتره)، افهم شو مكتوب/مرسوم فيها منيح، واشتغل عليها بنفس الأسلوب السقراطي: ما تعطي الحل جاهز، ساعدو يفهم شو المطلوب منها أول.
 """
+
+VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
+TEXT_MODEL = "openai/gpt-oss-120b"
 
 
 def clean_reply(text: str) -> str:
@@ -54,6 +59,7 @@ class ChatRequest(BaseModel):
     subject: str | None = None
     grade: str | None = None
     curriculum: str | None = None
+    image_base64: str | None = None  # data URI كامل، متل "data:image/jpeg;base64,...."
 
 
 class ChatResponse(BaseModel):
@@ -77,8 +83,6 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(conversation)
 
-    # نجيب آخر 10 رسائل من هالمحادثة (قبل ما نضيف رسالة الطالب الجديدة)
-    # عشان نبني تاريخ المحادثة ونعطيه للموديل، هيك بيتذكر السياق
     previous_messages = (
         db.query(Message)
         .filter(Message.conversation_id == conversation.id)
@@ -87,12 +91,13 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
         .all()
     )
 
-    db.add(Message(conversation_id=conversation.id, role="student", content=req.message))
+    saved_message_content = req.message if req.message else "[صورة]"
+    db.add(Message(conversation_id=conversation.id, role="student", content=saved_message_content))
     db.commit()
 
     context_block = ""
     source_chunks = []
-    if req.subject and req.grade and req.curriculum:
+    if req.subject and req.grade and req.curriculum and req.message:
         source_chunks = search_book_pages(
             db=db,
             query=req.message,
@@ -102,20 +107,29 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
         )
         context_block = build_context_block(source_chunks)
 
-    user_content = req.message
+    text_part = req.message or "شو في بهالصورة؟ ساعدني افهمها."
     if context_block:
-        user_content = f"{context_block}\n\nسؤال الطالب: {req.message}"
+        text_part = f"{context_block}\n\nسؤال الطالب: {text_part}"
 
-    # نبني قائمة الرسائل: التعليمات + تاريخ المحادثة السابق + السؤال الحالي
     role_map = {"student": "user", "teacher": "assistant"}
     history_messages = [
         {"role": role_map[m.role], "content": m.content}
         for m in previous_messages
     ]
 
+    if req.image_base64:
+        model = VISION_MODEL
+        user_content = [
+            {"type": "text", "text": text_part},
+            {"type": "image_url", "image_url": {"url": req.image_base64}},
+        ]
+    else:
+        model = TEXT_MODEL
+        user_content = text_part
+
     client = Groq(api_key=settings.GROQ_API_KEY)
     completion = client.chat.completions.create(
-        model="openai/gpt-oss-120b",
+        model=model,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             *history_messages,
