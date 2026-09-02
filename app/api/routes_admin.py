@@ -79,3 +79,23 @@ def trigger_index_books_batch(req: BatchIndexRequest, background_tasks: Backgrou
         raise HTTPException(403, "admin_key غلط")
     background_tasks.add_task(run_batch, req.books)
     return {"status": f"بلّشت فهرسة دفعة من {len(req.books)} كتاب بالخلفية - راقب اللوغز بـ Railway"}
+
+
+@router.get("/admin/books")
+def list_books(admin_key: str = Query(...), db: Session = Depends(get_db)):
+    if admin_key != settings.SECRET_KEY:
+        raise HTTPException(403, "admin_key غلط")
+    from app.db.models import BookChunk
+    books = db.query(Book).all()
+    result = []
+    for b in books:
+        chunk_count = db.query(BookChunk).filter(BookChunk.book_id == b.id).count()
+        result.append({
+            "title": b.title,
+            "subject": b.subject,
+            "grade": b.grade,
+            "curriculum": b.curriculum,
+            "total_pages": b.total_pages,
+            "chunks_indexed": chunk_count,
+        })
+    return result
