@@ -40,7 +40,6 @@
     background:transparent;
   }
 
-  /* الهيدر */
   header{
     background:var(--chalkboard);
     color:var(--paper);
@@ -69,7 +68,9 @@
     font-family:'Cairo',sans-serif;font-weight:800;font-size:20px;
     color:var(--chalkboard);
     flex-shrink:0;
+    overflow:hidden;
   }
+  .avatar img{ width:100%; height:100%; object-fit:cover; }
   h1{
     font-family:'Cairo', sans-serif;
     font-weight:800;
@@ -100,7 +101,6 @@
     font-size:13px;
   }
 
-  /* المحادثة */
   .chat-area{
     flex:1;
     padding:22px 18px 10px;
@@ -148,6 +148,12 @@
     color:#fff;
     border-radius:16px 4px 16px 16px;
   }
+  .msg img.attached{
+    display:block;
+    max-width:100%;
+    border-radius:10px;
+    margin-bottom:8px;
+  }
   .msg .page-ref{
     display:block;
     margin-top:8px;
@@ -155,6 +161,24 @@
     color:var(--muted);
     border-top:1px dashed var(--paper-line);
     padding-top:6px;
+  }
+  .msg .speak-btn{
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    margin-top:8px;
+    background:var(--plum-soft);
+    color:var(--plum);
+    border:none;
+    border-radius:20px;
+    padding:5px 12px;
+    font-size:12px;
+    font-family:'Tajawal',sans-serif;
+    cursor:pointer;
+  }
+  .msg .speak-btn.speaking{
+    background:var(--plum);
+    color:#fff;
   }
 
   .typing{
@@ -175,14 +199,41 @@
   .typing span:nth-child(3){animation-delay:.3s;}
   @keyframes bounce{ 0%,60%,100%{transform:translateY(0);opacity:.5;} 30%{transform:translateY(-4px);opacity:1;} }
 
-  /* شريط الإدخال */
+  .preview-row{
+    padding:0 16px;
+    display:none;
+    align-items:center;
+    gap:10px;
+  }
+  .preview-row.active{ display:flex; }
+  .preview-row img{
+    width:52px;height:52px;object-fit:cover;
+    border-radius:10px;
+    border:1px solid var(--paper-line);
+  }
+  .preview-row button{
+    background:none;border:none;color:var(--muted);
+    font-size:13px; cursor:pointer; text-decoration:underline;
+  }
+
   .composer{
-    padding:14px 16px calc(14px + env(safe-area-inset-bottom));
+    padding:12px 16px calc(14px + env(safe-area-inset-bottom));
     background:var(--paper);
     border-top:1px solid var(--paper-line);
     display:flex;
-    gap:10px;
+    gap:8px;
     align-items:flex-end;
+  }
+  .icon-btn{
+    width:44px;height:44px;
+    border-radius:50%;
+    border:1.5px solid var(--paper-line);
+    background:#fff;
+    color:var(--chalkboard);
+    font-size:18px;
+    cursor:pointer;
+    flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
   }
   .composer textarea{
     flex:1;
@@ -224,7 +275,7 @@
 
   <header>
     <div class="header-row">
-      <div class="avatar">ن</div>
+      <div class="avatar" id="avatarBox">ن</div>
       <div>
         <h1>الأستاذ نبيل</h1>
         <div class="subtitle">منجاوب على أسئلتك بكل المواد، خطوة خطوة</div>
@@ -240,11 +291,18 @@
   <div class="chat-area" id="chatArea">
     <div class="empty-state" id="emptyState">
       <b>يلا نبلش؟</b>
-      اختار صفك ومادتك فوق، واكتبلي سؤالك بالأسفل — منشتغل عليه سوا لحتى تفهمو منيح.
+      اختار صفك ومادتك فوق، واكتبلي سؤالك بالأسفل — أو ابعتلي صورة السؤال مباشرة.
     </div>
   </div>
 
+  <div class="preview-row" id="previewRow">
+    <img id="previewImg" src="" alt="">
+    <button id="removeImageBtn">إزالة الصورة</button>
+  </div>
+
   <div class="composer">
+    <input type="file" id="imageInput" accept="image/*" style="display:none">
+    <button class="icon-btn" id="attachBtn" aria-label="إرفاق صورة">📎</button>
     <textarea id="messageInput" rows="1" placeholder="اكتب سؤالك هون..."></textarea>
     <button class="send-btn" id="sendBtn" aria-label="إرسال">➤</button>
   </div>
@@ -276,23 +334,92 @@
   }
 
   let conversationId = localStorage.getItem("nabilai_conversation_id") || null;
+  let pendingImage = null;
 
   const chatArea = document.getElementById("chatArea");
   const emptyState = document.getElementById("emptyState");
   const input = document.getElementById("messageInput");
   const sendBtn = document.getElementById("sendBtn");
+  const attachBtn = document.getElementById("attachBtn");
+  const imageInput = document.getElementById("imageInput");
+  const previewRow = document.getElementById("previewRow");
+  const previewImg = document.getElementById("previewImg");
+  const removeImageBtn = document.getElementById("removeImageBtn");
 
-  function addMessage(role, text, sources){
+  attachBtn.addEventListener("click", () => imageInput.click());
+
+  imageInput.addEventListener("change", () => {
+    const file = imageInput.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      pendingImage = reader.result;
+      previewImg.src = pendingImage;
+      previewRow.classList.add("active");
+    };
+    reader.readAsDataURL(file);
+  });
+
+  removeImageBtn.addEventListener("click", () => {
+    pendingImage = null;
+    imageInput.value = "";
+    previewRow.classList.remove("active");
+  });
+
+  function speak(text, btn){
+    if(!("speechSynthesis" in window)){
+      alert("المتصفح هذا ما بيدعم القراءة الصوتية");
+      return;
+    }
+    if(speechSynthesis.speaking){
+      speechSynthesis.cancel();
+      document.querySelectorAll(".speak-btn.speaking").forEach(b => {
+        b.classList.remove("speaking");
+        b.textContent = "🔊 اسمع الجواب";
+      });
+      if(btn && btn.dataset.wasSpeaking === "1") return;
+    }
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = "ar-LB";
+    utter.rate = 0.95;
+    utter.onstart = () => { if(btn){ btn.classList.add("speaking"); btn.textContent = "⏸ وقف"; } };
+    utter.onend = () => { if(btn){ btn.classList.remove("speaking"); btn.textContent = "🔊 اسمع الجواب"; } };
+    speechSynthesis.speak(utter);
+  }
+
+  function addMessage(role, text, sources, imageDataUri){
     if(emptyState) emptyState.remove();
     const div = document.createElement("div");
     div.className = "msg " + role;
-    div.textContent = text;
+
+    if(imageDataUri){
+      const img = document.createElement("img");
+      img.className = "attached";
+      img.src = imageDataUri;
+      div.appendChild(img);
+    }
+
+    if(text){
+      const p = document.createElement("div");
+      p.textContent = text;
+      div.appendChild(p);
+    }
+
     if(sources && sources.length){
       const ref = document.createElement("span");
       ref.className = "page-ref";
       ref.textContent = "المصدر: " + sources.map(s => `${s.book} - صفحة ${s.page}`).join(" / ");
       div.appendChild(ref);
     }
+
+    if(role === "teacher" && text){
+      const speakBtn = document.createElement("button");
+      speakBtn.className = "speak-btn";
+      speakBtn.textContent = "🔊 اسمع الجواب";
+      speakBtn.addEventListener("click", () => speak(text, speakBtn));
+      div.appendChild(speakBtn);
+    }
+
     chatArea.appendChild(div);
     chatArea.scrollTop = chatArea.scrollHeight;
   }
@@ -312,11 +439,15 @@
 
   async function sendMessage(){
     const text = input.value.trim();
-    if(!text) return;
+    if(!text && !pendingImage) return;
 
-    addMessage("student", text);
+    addMessage("student", text, null, pendingImage);
+    const imageToSend = pendingImage;
     input.value = "";
     input.style.height = "auto";
+    pendingImage = null;
+    imageInput.value = "";
+    previewRow.classList.remove("active");
     sendBtn.disabled = true;
     showTyping();
 
@@ -327,6 +458,7 @@
       subject: document.getElementById("subjectSelect").value,
       grade: document.getElementById("gradeSelect").value,
       curriculum: document.getElementById("curriculumSelect").value,
+      image_base64: imageToSend,
     };
 
     try{
