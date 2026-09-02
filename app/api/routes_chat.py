@@ -59,7 +59,7 @@ class ChatRequest(BaseModel):
     subject: str | None = None
     grade: str | None = None
     curriculum: str | None = None
-    image_base64: str | None = None  # data URI كامل، متل "data:image/jpeg;base64,...."
+    image_base64: str | None = None
 
 
 class ChatResponse(BaseModel):
@@ -77,7 +77,7 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
     if req.conversation_id:
         conversation = db.query(Conversation).filter_by(id=req.conversation_id).first()
 
-       student = db.query(Student).filter_by(id=req.student_id).first()
+    student = db.query(Student).filter_by(id=req.student_id).first()
     if student is None:
         student = Student(
             id=req.student_id,
