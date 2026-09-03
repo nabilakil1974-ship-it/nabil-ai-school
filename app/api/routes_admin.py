@@ -53,12 +53,6 @@ def run_batch(books: list[BookItem]):
     for i, b in enumerate(books):
         print(f"📚 [{i + 1}/{len(books)}] بدء فهرسة: {b.title}", flush=True)
         try:
-            db = SessionLocal()
-            already = db.query(Book).filter(Book.drive_file_id == b.file_id).first()
-            db.close()
-            if already:
-                print(f"⏭️ [{i + 1}/{len(books)}] {b.title} موجود أصلاً - تخطّي", flush=True)
-                continue
             index_book(
                 file_id=b.file_id,
                 title=b.title,
