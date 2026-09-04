@@ -1,548 +1,161 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>الأستاذ نبيل</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;800&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
-<style>
-  :root{
-    --paper:#FAF6EC;
-    --paper-line:#E7DFC9;
-    --chalkboard:#223B2E;
-    --chalkboard-2:#1A2F24;
-    --chalk-yellow:#E8B94D;
-    --plum:#B5697A;
-    --plum-soft:#F3E3E6;
-    --ink:#26241F;
-    --muted:#7A7563;
-  }
-  *{box-sizing:border-box;}
-  html,body{height:100%;}
-  body{
-    margin:0;
-    background:var(--paper);
-    background-image:
-      linear-gradient(var(--paper-line) 1px, transparent 1px);
-    background-size: 100% 42px;
-    font-family:'Tajawal', sans-serif;
-    color:var(--ink);
-    display:flex;
-    justify-content:center;
-  }
-  .app{
-    width:100%;
-    max-width:720px;
-    min-height:100vh;
-    display:flex;
-    flex-direction:column;
-    background:transparent;
-  }
+import re
 
-  header{
-    background:var(--chalkboard);
-    color:var(--paper);
-    padding:22px 20px 18px;
-    position:relative;
-    overflow:hidden;
-    border-bottom:6px solid var(--chalk-yellow);
-  }
-  header::after{
-    content:"";
-    position:absolute;
-    inset:0;
-    background:
-      repeating-linear-gradient(100deg, rgba(255,255,255,0.02) 0 2px, transparent 2px 6px);
-    pointer-events:none;
-  }
-  .header-row{
-    display:flex;
-    align-items:center;
-    gap:14px;
-  }
-  .avatar{
-    width:52px;height:52px;border-radius:50%;
-    background:var(--chalk-yellow);
-    display:flex;align-items:center;justify-content:center;
-    font-family:'Cairo',sans-serif;font-weight:800;font-size:20px;
-    color:var(--chalkboard);
-    flex-shrink:0;
-    overflow:hidden;
-  }
-  .avatar img{ width:100%; height:100%; object-fit:cover; }
-  h1{
-    font-family:'Cairo', sans-serif;
-    font-weight:800;
-    font-size:20px;
-    margin:0;
-  }
-  .subtitle{
-    font-size:13px;
-    color:#C9D6CC;
-    margin-top:2px;
-  }
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from groq import Groq
+from app.core.config import settings
+from app.db.session import get_db
+from app.db.models import Conversation, Message, Student
+from app.services.rag_search import search_book_pages, build_context_block
 
-  .setup-row{
-    display:flex;
-    gap:8px;
-    margin-top:16px;
-    flex-wrap:wrap;
-  }
-  .setup-row select{
-    flex:1;
-    min-width:110px;
-    background:var(--chalkboard-2);
-    color:var(--paper);
-    border:1px solid #375243;
-    border-radius:10px;
-    padding:9px 10px;
-    font-family:'Tajawal',sans-serif;
-    font-size:13px;
-  }
+router = APIRouter()
 
-  .chat-area{
-    flex:1;
-    padding:22px 18px 10px;
-    display:flex;
-    flex-direction:column;
-    gap:14px;
-    overflow-y:auto;
-  }
-  .empty-state{
-    margin:auto;
-    text-align:center;
-    color:var(--muted);
-    max-width:320px;
-    line-height:1.9;
-    font-size:14.5px;
-  }
-  .empty-state b{
-    display:block;
-    font-family:'Cairo',sans-serif;
-    color:var(--ink);
-    font-size:17px;
-    margin-bottom:6px;
-  }
+SYSTEM_PROMPT = """
+انت الأستاذ نبيل، معلم رقمي بيشرح للطلاب متل ما بيحكي معلم حقيقي وجهاً لوجه، مش متل كتاب أو مقال.
 
-  .msg{
-    max-width:78%;
-    padding:12px 16px;
-    line-height:1.85;
-    font-size:15px;
-    position:relative;
-    animation: rise .25s ease;
-  }
-  @keyframes rise{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+قواعد صارمة لازم تلتزم فيها دايماً:
 
-  .msg.teacher{
-    align-self:flex-start;
-    background:#fff;
-    border:1px solid var(--paper-line);
-    border-radius:4px 16px 16px 16px;
-    box-shadow:0 1px 0 rgba(0,0,0,0.03);
-  }
-  .msg.student{
-    align-self:flex-end;
-    background:var(--plum);
-    color:#fff;
-    border-radius:16px 4px 16px 16px;
-  }
-  .msg img.attached{
-    display:block;
-    max-width:100%;
-    border-radius:10px;
-    margin-bottom:8px;
-  }
-  .msg .page-ref{
-    display:block;
-    margin-top:8px;
-    font-size:12px;
-    color:var(--muted);
-    border-top:1px dashed var(--paper-line);
-    padding-top:6px;
-  }
-  .msg .speak-btn{
-    display:inline-flex;
-    align-items:center;
-    gap:4px;
-    margin-top:8px;
-    background:var(--plum-soft);
-    color:var(--plum);
-    border:none;
-    border-radius:20px;
-    padding:5px 12px;
-    font-size:12px;
-    font-family:'Tajawal',sans-serif;
-    cursor:pointer;
-  }
-  .msg .speak-btn.speaking{
-    background:var(--plum);
-    color:#fff;
-  }
+1. احكي عربي لبناني محكي 100% (متل ما بيحكي أي أستاذ لبناني بالصف) - ممنوع الفصحى نهائياً. مثال: قول "شو" مش "ماذا"، "هيدا" مش "هذا"، "منقدر" مش "نستطيع"، "كتير" مش "كثير".
 
-  .typing{
-    align-self:flex-start;
-    display:flex;
-    gap:5px;
-    padding:14px 16px;
-    background:#fff;
-    border:1px solid var(--paper-line);
-    border-radius:4px 16px 16px 16px;
-  }
-  .typing span{
-    width:6px;height:6px;border-radius:50%;
-    background:var(--muted);
-    animation:bounce 1.1s infinite ease-in-out;
-  }
-  .typing span:nth-child(2){animation-delay:.15s;}
-  .typing span:nth-child(3){animation-delay:.3s;}
-  @keyframes bounce{ 0%,60%,100%{transform:translateY(0);opacity:.5;} 30%{transform:translateY(-4px);opacity:1;} }
+2. مهم جداً: المقاطع يلي رح تنعطالك من الكتاب المرجعي ممكن تكون مكتوبة بالإنكليزي أو الفرنسي. لازم تفهم المحتوى منها وتشرحو بلهجتك اللبنانية بالكامل - ممنوع تنقل جمل أو مصطلحات إنكليزية/فرنسية حرفياً داخل شرحك، إلا إذا كان المصطلح العلمي نفسو ما إلو مقابل عربي شائع (متل DNA مثلاً)، وبهالحالة اذكر المصطلح مرة وفسّرو فوراً بكلامك.
 
-  .preview-row{
-    padding:0 16px;
-    display:none;
-    align-items:center;
-    gap:10px;
-  }
-  .preview-row.active{ display:flex; }
-  .preview-row img{
-    width:52px;height:52px;object-fit:cover;
-    border-radius:10px;
-    border:1px solid var(--paper-line);
-  }
-  .preview-row button{
-    background:none;border:none;color:var(--muted);
-    font-size:13px; cursor:pointer; text-decoration:underline;
-  }
+3. استخدم أسلوب تدريس حقيقي: شبّه الفكرة بشي من حياة الطالب اليومية، اسأل "فهمت عليي؟" أو "تمام؟" بعد ما توضح فكرة، وكرر النقطة المهمة بطريقة بسيطة إذا حسيت إنها معقدة.
 
-  .composer{
-    padding:12px 16px calc(14px + env(safe-area-inset-bottom));
-    background:var(--paper);
-    border-top:1px solid var(--paper-line);
-    display:flex;
-    gap:8px;
-    align-items:flex-end;
-  }
-  .icon-btn{
-    width:44px;height:44px;
-    border-radius:50%;
-    border:1.5px solid var(--paper-line);
-    background:#fff;
-    color:var(--chalkboard);
-    font-size:18px;
-    cursor:pointer;
-    flex-shrink:0;
-    display:flex;align-items:center;justify-content:center;
-  }
-  .composer textarea{
-    flex:1;
-    resize:none;
-    border:1.5px solid var(--paper-line);
-    border-radius:16px;
-    padding:12px 16px;
-    font-family:'Tajawal',sans-serif;
-    font-size:15px;
-    max-height:110px;
-    background:#fff;
-    color:var(--ink);
-  }
-  .composer textarea:focus{
-    outline:none;
-    border-color:var(--plum);
-  }
-  .send-btn{
-    width:46px;height:46px;
-    border-radius:50%;
-    border:none;
-    background:var(--chalkboard);
-    color:var(--chalk-yellow);
-    font-size:18px;
-    cursor:pointer;
-    flex-shrink:0;
-    display:flex;align-items:center;justify-content:center;
-    transition:transform .12s ease;
-  }
-  .send-btn:active{ transform:scale(0.92); }
-  .send-btn:disabled{ opacity:.4; cursor:default; }
+4. مهم جداً: انتبه لتاريخ المحادثة السابق مع الطالب. إذا الطالب قال "ما فهمت" أو "احكيلي أبسط" أو أي رد متابعة، لازم ترجع لنفس الموضوع يلي كنتوا عم تحكوا فيه وتوضحو بطريقة أبسط - ممنوع تنطلق لموضوع جديد كليًا.
 
-  ::-webkit-scrollbar{ width:6px; }
-  ::-webkit-scrollbar-thumb{ background:var(--paper-line); border-radius:6px; }
-</style>
-</head>
-<body>
-<div class="app">
+5. ممنوع نهائياً استخدام أي تنسيق Markdown: لا عناوين، لا نجوم للتشديد، لا قوائم مرقمة أو نقطية، لا خطوط فاصلة. اكتب فقرات عادية بسيطة متل ما بتحكي.
 
-  <header>
-    <div class="header-row">
-      <div class="avatar" id="avatarBox">ن</div>
-      <div>
-        <h1>الأستاذ نبيل</h1>
-        <div class="subtitle">منجاوب على أسئلتك بكل المواد، خطوة خطوة</div>
-      </div>
-    </div>
-    <div class="setup-row">
-      <select id="gradeSelect"></select>
-      <select id="subjectSelect"></select>
-      <select id="curriculumSelect"></select>
-    </div>
-  </header>
+6. رد قصير جداً - جملتين لتلاتة بالكثير، وممنوع تطرح أكتر من سؤال وحد بكل مرة. ممنوع نهائياً كتابة أرقام متسلسلة أو أكتر من فكرة بنفس الرسالة. لو حسيت الموضوع طويل، احكي جزء صغير بس وانتظر رد الطالب قبل ما تكمل.
 
-  <div class="chat-area" id="chatArea">
-    <div class="empty-state" id="emptyState">
-      <b>يلا نبلش؟</b>
-      اختار صفك ومادتك فوق، واكتبلي سؤالك بالأسفل — أو ابعتلي صورة السؤال مباشرة.
-    </div>
-  </div>
+7. اعتمد أسلوب سقراطي: ابلش بسؤال بسيط يوجه تفكير الطالب، ولا تعطي الجواب النهائي مباشرة. خليه يفكر ويجرب يوصل للجواب بنفسه، وبعدين أكدلو أو صححلو بلطف.
 
-  <div class="preview-row" id="previewRow">
-    <img id="previewImg" src="" alt="">
-    <button id="removeImageBtn">إزالة الصورة</button>
-  </div>
+8. إذا انعطتلك مقاطع من كتاب مرجعي، اعتمد عليها حصراً بالمعلومات، واذكر رقم الصفحة بشكل طبيعي جوا كلامك، مش كملاحظة منفصلة بالآخر.
 
-  <div class="composer">
-    <input type="file" id="imageInput" accept="image/*" style="display:none">
-    <button class="icon-btn" id="attachBtn" aria-label="إرفاق صورة">📎</button>
-    <button class="icon-btn" id="micBtn" aria-label="تسجيل صوتي">🎤</button>
-    <textarea id="messageInput" rows="1" placeholder="اكتب سؤالك هون..."></textarea>
-    <button class="send-btn" id="sendBtn" aria-label="إرسال">➤</button>
-  </div>
+9. إذا ما انعطتلك مقاطع من كتاب، وضحلو بجملة بسيطة إنو هيدا الشرح مش من كتابه بالتحديد.
 
-</div>
+10. خليك دايماً مشجع، صبور، ودافئ - متل أستاذ بيحب شغله ومبسوط لما الطالب يسأل.
 
-<script>
-(function(){
-  const API_BASE = window.location.origin;
+11. إذا الطالب بعتلك صورة (متل صورة تمرين أو مسألة من كتابه أو دفتره)، افهم شو مكتوب/مرسوم فيها منيح، واشتغل عليها بنفس الأسلوب السقراطي: ما تعطي الحل جاهز، ساعدو يفهم شو المطلوب منها أول.
+"""
 
-  const GRADES = ["الصف الأول","الصف الثاني","الصف الثالث","الصف الرابع","الصف الخامس","الصف السادس","الصف السابع","الصف الثامن","الصف التاسع","الصف الأول ثانوي","الصف الحادي عشر","الصف الثاني عشر"];
-  const SUBJECTS = ["لغة عربية","لغة إنكليزية","لغة فرنسية","رياضيات","علوم","فيزياء","كيمياء","تاريخ","جغرافيا","التربية المدنية"];
-  const CURRICULA = ["المنهج اللبناني الرسمي","Building Up","المنهج الفرنسي (CRDP)"];
+VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
+TEXT_MODEL = "openai/gpt-oss-120b"
 
-  function fillSelect(el, items){
-    el.innerHTML = items.map(v => `<option value="${v}">${v}</option>`).join("");
-  }
-  fillSelect(document.getElementById("gradeSelect"), GRADES);
-  fillSelect(document.getElementById("subjectSelect"), SUBJECTS);
-  fillSelect(document.getElementById("curriculumSelect"), CURRICULA);
 
-  function getStudentId(){
-    let id = localStorage.getItem("nabilai_student_id");
-    if(!id){
-      id = "student-" + Math.random().toString(36).slice(2, 10);
-      localStorage.setItem("nabilai_student_id", id);
-    }
-    return id;
-  }
+def clean_reply(text: str) -> str:
+    text = re.sub(r"#{1,6}\s*", "", text)
+    text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
+    text = re.sub(r"\*(.+?)\*", r"\1", text)
+    text = re.sub(r"^-{3,}$", "", text, flags=re.MULTILINE)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
 
-  let conversationId = localStorage.getItem("nabilai_conversation_id") || null;
-  let pendingImage = null;
 
-  const chatArea = document.getElementById("chatArea");
-  const emptyState = document.getElementById("emptyState");
-  const input = document.getElementById("messageInput");
-  const sendBtn = document.getElementById("sendBtn");
-  const attachBtn = document.getElementById("attachBtn");
-  const micBtn = document.getElementById("micBtn");
-  let lastMessageWasVoice = false;
-  const imageInput = document.getElementById("imageInput");
-  const previewRow = document.getElementById("previewRow");
-  const previewImg = document.getElementById("previewImg");
-  const removeImageBtn = document.getElementById("removeImageBtn");
+class ChatRequest(BaseModel):
+    student_id: str
+    conversation_id: str | None = None
+    message: str
+    subject: str | None = None
+    grade: str | None = None
+    curriculum: str | None = None
+    image_base64: str | None = None
 
-  attachBtn.addEventListener("click", () => imageInput.click());
 
-  imageInput.addEventListener("change", () => {
-    const file = imageInput.files[0];
-    if(!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      pendingImage = reader.result;
-      previewImg.src = pendingImage;
-      previewRow.classList.add("active");
-    };
-    reader.readAsDataURL(file);
-  });
+class ChatResponse(BaseModel):
+    conversation_id: str
+    reply: str
+    sources: list[dict] = []
 
-  removeImageBtn.addEventListener("click", () => {
-    pendingImage = null;
-    imageInput.value = "";
-    previewRow.classList.remove("active");
-  });
 
-  let currentUtterance = null;
-  function speak(text, btn){
-    if(!("speechSynthesis" in window)){
-      alert("المتصفح هذا ما بيدعم القراءة الصوتية");
-      return;
-    }
-    if(speechSynthesis.speaking || speechSynthesis.pending){
-      speechSynthesis.cancel();
-      document.querySelectorAll(".speak-btn.speaking").forEach(b => {
-        b.classList.remove("speaking");
-        b.textContent = "🔊 اسمع الجواب";
-      });
-      if(btn && btn.classList.contains("__was_speaking")){
-        btn.classList.remove("__was_speaking");
-        return;
-      }
-    }
-    if(btn) btn.classList.add("__was_speaking");
-    currentUtterance = new SpeechSynthesisUtterance(text);
-    currentUtterance.lang = "ar";
-    currentUtterance.rate = 0.95;
-    const utter = currentUtterance;
-    utter.onstart = () => { if(btn){ btn.classList.add("speaking"); btn.textContent = "⏸ وقف"; } };
-    utter.onend = () => { if(btn){ btn.classList.remove("speaking"); btn.textContent = "🔊 اسمع الجواب"; btn.classList.remove("__was_speaking"); } };
-    speechSynthesis.speak(utter);
-  }
+@router.post("/chat", response_model=ChatResponse)
+def chat(req: ChatRequest, db: Session = Depends(get_db)):
+    if not settings.GROQ_API_KEY:
+        raise HTTPException(500, "GROQ_API_KEY غير مضبوط بإعدادات السيرفر")
 
-  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if(SpeechRec){
-    const recognizer = new SpeechRec();
-    recognizer.lang = "ar";
-    recognizer.interimResults = false;
-    recognizer.maxAlternatives = 1;
+    conversation = None
+    if req.conversation_id:
+        conversation = db.query(Conversation).filter_by(id=req.conversation_id).first()
 
-    micBtn.addEventListener("click", () => {
-      micBtn.textContent = "⏺";
-      micBtn.style.background = "#B5697A";
-      micBtn.style.color = "#fff";
-      recognizer.start();
-    });
+    student = db.query(Student).filter_by(id=req.student_id).first()
+    if student is None:
+        student = Student(
+            id=req.student_id,
+            name=req.student_id,
+            grade=req.grade or "غير محدد",
+            preferred_language="ar-LB",
+        )
+        db.add(student)
+        db.commit()
 
-    recognizer.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      input.value = transcript;
-      lastMessageWasVoice = true;
-      sendMessage();
-    };
+    if conversation is None:
+        conversation = Conversation(student_id=req.student_id, subject=req.subject)
+        db.add(conversation)
+        db.commit()
+        db.refresh(conversation)
 
-    recognizer.onerror = () => {
-      alert("ما قدرت افهم الصوت، جرب كمان مرة");
-    };
+    previous_messages = (
+        db.query(Message)
+        .filter(Message.conversation_id == conversation.id)
+        .order_by(Message.created_at.asc())
+        .limit(10)
+        .all()
+    )
 
-    recognizer.onend = () => {
-      micBtn.textContent = "🎤";
-      micBtn.style.background = "";
-      micBtn.style.color = "";
-    };
-  } else {
-    micBtn.style.display = "none";
-  }
+    saved_message_content = req.message if req.message else "[صورة]"
+    db.add(Message(conversation_id=conversation.id, role="student", content=saved_message_content))
+    db.commit()
 
-  function addMessage(role, text, sources, imageDataUri){
-    if(emptyState) emptyState.remove();
-    const div = document.createElement("div");
-    div.className = "msg " + role;
+    context_block = ""
+    source_chunks = []
+    if req.subject and req.grade and req.curriculum and req.message:
+        source_chunks = search_book_pages(
+            db=db,
+            query=req.message,
+            subject=req.subject,
+            grade=req.grade,
+            curriculum=req.curriculum,
+        )
+        context_block = build_context_block(source_chunks)
 
-    if(imageDataUri){
-      const img = document.createElement("img");
-      img.className = "attached";
-      img.src = imageDataUri;
-      div.appendChild(img);
-    }
+    text_part = req.message or "شو في بهالصورة؟ ساعدني افهمها."
+    if context_block:
+        text_part = f"{context_block}\n\nسؤال الطالب: {text_part}"
 
-    if(text){
-      const p = document.createElement("div");
-      p.textContent = text;
-      div.appendChild(p);
-    }
+    role_map = {"student": "user", "teacher": "assistant"}
+    history_messages = [
+        {"role": role_map[m.role], "content": m.content}
+        for m in previous_messages
+    ]
 
-    if(sources && sources.length){
-      const ref = document.createElement("span");
-      ref.className = "page-ref";
-      ref.textContent = "المصدر: " + sources.map(s => `${s.book} - صفحة ${s.page}`).join(" / ");
-      div.appendChild(ref);
-    }
+    if req.image_base64:
+        model = VISION_MODEL
+        user_content = [
+            {"type": "text", "text": text_part},
+            {"type": "image_url", "image_url": {"url": req.image_base64}},
+        ]
+    else:
+        model = TEXT_MODEL
+        user_content = text_part
 
-    if(role === "teacher" && text){
-      const speakBtn = document.createElement("button");
-      speakBtn.className = "speak-btn";
-      speakBtn.textContent = "🔊 اسمع الجواب";
-      speakBtn.addEventListener("click", () => speak(text, speakBtn));
-      div.appendChild(speakBtn);
-      if(lastMessageWasVoice){
-        lastMessageWasVoice = false;
-        speak(text, speakBtn);
-      }
-    }
+    client = Groq(api_key=settings.GROQ_API_KEY)
+    completion = client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            *history_messages,
+            {"role": "user", "content": user_content},
+        ],
+        max_tokens=600,
+        temperature=0.6,
+    )
+    reply_text = clean_reply(completion.choices[0].message.content)
 
-    chatArea.appendChild(div);
-    chatArea.scrollTop = chatArea.scrollHeight;
-  }
+    db.add(Message(conversation_id=conversation.id, role="teacher", content=reply_text))
+    db.commit()
 
-  function showTyping(){
-    const div = document.createElement("div");
-    div.className = "typing";
-    div.id = "typingIndicator";
-    div.innerHTML = "<span></span><span></span><span></span>";
-    chatArea.appendChild(div);
-    chatArea.scrollTop = chatArea.scrollHeight;
-  }
-  function hideTyping(){
-    const el = document.getElementById("typingIndicator");
-    if(el) el.remove();
-  }
-
-  async function sendMessage(){
-    const text = input.value.trim();
-    if(!text && !pendingImage) return;
-
-    addMessage("student", text, null, pendingImage);
-    const imageToSend = pendingImage;
-    input.value = "";
-    input.style.height = "auto";
-    pendingImage = null;
-    imageInput.value = "";
-    previewRow.classList.remove("active");
-    sendBtn.disabled = true;
-    showTyping();
-
-    const payload = {
-      student_id: getStudentId(),
-      conversation_id: conversationId,
-      message: text,
-      subject: document.getElementById("subjectSelect").value,
-      grade: document.getElementById("gradeSelect").value,
-      curriculum: document.getElementById("curriculumSelect").value,
-      image_base64: imageToSend,
-    };
-
-    try{
-      const res = await fetch(API_BASE + "/api/chat", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(payload),
-      });
-      if(!res.ok) throw new Error("HTTP " + res.status);
-      const data = await res.json();
-
-      conversationId = data.conversation_id;
-      localStorage.setItem("nabilai_conversation_id", conversationId);
-
-      hideTyping();
-      addMessage("teacher", data.reply, data.sources);
-    }catch(err){
-      hideTyping();
-      addMessage("teacher", "صار في مشكلة تقنية بسيطة، جرب ابعت السؤال كمان مرة بعد شوي 🙏");
-      console.error(err);
-    }finally{
-      sendBtn.disabled = false;
-    }
-  }
-
-  sendBtn.addEventListener("click", sendMessage);
-  input.addEventListener("keydown", (e) => {
-    if(e.key === "Enter" && !e.shiftKey){
-      e.preventDefault();
-      sendMessage();
-    }
-  });
-  input.addEventListener("input", () => {
-    input.style.height = "auto";
-    input.style.height = Math.min(input.scrollHeight, 110) + "px";
-  });
-})();
-</script>
-</body>
-</html>
+    return ChatResponse(
+        conversation_id=conversation.id,
+        reply=reply_text,
+        sources=[{"book": c["book_title"], "page": c["page"]} for c in source_chunks],
+    )
