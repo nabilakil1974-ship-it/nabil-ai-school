@@ -1,9 +1,10 @@
 import re
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from typing import Optional
 from groq import Groq
+
 from app.core.config import settings
 from app.db.session import get_db
 from app.db.models import Conversation, Message, Student
@@ -17,9 +18,9 @@ SYSTEM_PROMPT = """
 قواعد صارمة لازم تلتزم فيها دايماً:
 
 1. احكي عربي لبناني محكي لطيف بالشرح البسيط، ولكن في أسئلة الهندسة، الجبر، والمسائل البرهانية الرياضية، يجب أن تقدم الإجابة بالنمط العلمي والمنظم التالي:
-   - **Geometric Analysis & Given Data:** تفصيل المعطيات بدقة.
-   - **Key Theorem Application:** ذكر النظريات الهندسية المستخدمة بوضوح (مثل خواص المماسات والدوائر).
-   - **Proving & Step-by-Step Conclusion:** كتابة البرهان الرياضي خطوة بخطوة للوصول إلى النتيجة المطلوبة.
+   - Geometric Analysis & Given Data: تفصيل المعطيات بدقة.
+   - Key Theorem Application: ذكر النظريات الهندسية المستخدمة بوضوح (مثل خواص المماسات والدوائر).
+   - Proving & Step-by-Step Conclusion: كتابة البرهان الرياضي خطوة بخطوة للوصول إلى النتيجة المطلوبة.
 
 2. مقاطع الكتاب المرجعي قد تكون بالإنكليزي أو الفرنسي؛ افهمها وشرحها بلهجتك اللبنانية مع ذكر المصطلحات العلمية الضرورية وتفسيرها فوراً.
 
@@ -47,12 +48,12 @@ def clean_reply(text: str) -> str:
 
 class ChatRequest(BaseModel):
     student_id: str
-    conversation_id: str | None = None
+    conversation_id: Optional[str] = None
     message: str
-    subject: str | None = None
-    grade: str | None = None
-    curriculum: str | None = None
-    image_base64: str | None = None
+    subject: Optional[str] = None
+    grade: Optional[str] = None
+    curriculum: Optional[str] = None
+    image_base64: Optional[str] = None
 
 
 class ChatResponse(BaseModel):
@@ -139,8 +140,8 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
             *history_messages,
             {"role": "user", "content": user_content},
         ],
-        max_tokens=800,
-        temperature=0.4,
+        max_tokens=1200,
+        temperature=0.3,
     )
     reply_text = clean_reply(completion.choices[0].message.content)
 
