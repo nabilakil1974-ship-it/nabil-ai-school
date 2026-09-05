@@ -37,7 +37,6 @@ app.include_router(routes_health.router, prefix="/api", tags=["health"])
 app.include_router(routes_chat.router, prefix="/api", tags=["chat"])
 app.include_router(routes_admin.router, prefix="/api", tags=["admin"])
 
-# عميل Gemini المباشر والمستقر
 client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
 class ImageChatRequest(BaseModel):
@@ -53,37 +52,25 @@ class ImageChatRequest(BaseModel):
 async def chat_with_image_endpoint(req: ImageChatRequest):
     try:
         contents = []
-        
         if req.image:
             header, encoded = req.image.split(",", 1) if "," in req.image else ("", req.image)
             image_bytes = base64.b64decode(encoded)
-            
-            mime_type = "image/jpeg"
-            if "png" in header:
-                mime_type = "image/png"
-            elif "webp" in header:
-                mime_type = "image/webp"
-
-            contents.append(
-                types.Part.from_bytes(
-                    data=image_bytes,
-                    mime_type=mime_type,
-                )
-            )
+            mime_type = "image/png" if "png" in header else "image/webp" if "webp" in header else "image/jpeg"
+            contents.append(types.Part.from_bytes(data=image_bytes, mime_type=mime_type))
 
         prompt_text = f"""
         أنت "الأستاذ نبيل"، مدرس خبير في المنهج اللبناني الرسمي (CRDP).
         المادة: {req.subject}، الصف: {req.grade}.
-        مهمتك هي قراءة المسألة من الصورة (أو النص) وحلها بأسلوب تربوي مبسط، خطوة بخطوة باللغة العربية:
-        {req.message}
+        اشرح المسألة خطوة بخطوة باللغة العربية: {req.message}
+        إذا طلب رسماً هندسياً أو شكلاً، ادرج في نهاية ردك كود SVG صالح وبسيط ليعرض على البروجكتور.
         """
         contents.append(prompt_text)
 
         response = client.models.generate_content(
-            model='gemini-2.5-flash',  # موديل مستقر وخفيف وسريع جداً
+            model='gemini-2.5-flash',
             contents=contents,
             config=types.GenerateContentConfig(
-                system_instruction="أنت أستاذ لبناني ودي، تشرح بوضوح وبدون تعقيد، وتراعي المنهج اللبناني."
+                system_instruction="أنت أستاذ لبناني ودي، تشرح بوضوح حسب المنهج اللبناني (CRDP)، وترسم الأشكال الهندسية بدقة عبر كود SVG."
             )
         )
 
@@ -91,13 +78,11 @@ async def chat_with_image_endpoint(req: ImageChatRequest):
             "conversation_id": req.conversation_id or "conv_123",
             "reply": response.text
         }
-
     except Exception as e:
-        print(f"Error handling image chat: {e}")
-        # رد ذكي ومباشر في حال الضغط المؤقت لئلا يتعطل السيرفر أبداً
+        print(f"Error: {e}")
         return {
             "conversation_id": req.conversation_id or "conv_123",
-            "reply": "أهلاً بك يا بطل! حدث ضغط مؤقت في الشبكة، أعد إرسال السؤال وسأجيبك فوراً وبكل وضوح!"
+            "reply": "أهلاً بك يا بطل! حدث ضغط مؤقت، أعد إرسال السؤال وسأجيبك فوراً!"
         }
 
 @app.get("/")
