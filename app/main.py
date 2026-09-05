@@ -67,7 +67,7 @@ async def chat_with_image_endpoint(req: ImageChatRequest):
         contents.append(prompt_text)
 
         response = client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-3.6-flash',
             contents=contents,
             config=types.GenerateContentConfig(
                 system_instruction="أنت أستاذ لبناني ودي، تشرح بوضوح وبدون تعقيد، وتراعي المنهج اللبناني الرسمي (CRDP)."
