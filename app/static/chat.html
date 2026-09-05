@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>الأستاذ نبيل - المنصة التعليمية اللبنانية</title>
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -46,7 +45,7 @@
                     </div>
                     <div>
                         <h1 class="text-xl font-bold text-[#f3e9dc]">الأستاذ نبيل</h1>
-                        <p class="text-xs text-[#b8c5bd]">منجاوب على أسئلتك بكل المواد، خطوة بخطوة</p>
+                        <p class="text-xs text-[#b8c5bd]">جاهز لحل أي مسألة أو صورة سؤال!</p>
                     </div>
                 </div>
                 <div class="flex items-center space-x-2 space-x-reverse">
@@ -71,38 +70,40 @@
                     <option value="لغة فرنسية">لغة فرنسية (Français)</option>
                 </select>
             </div>
-            <div class="w-full">
-                <select id="curriculumSelect" class="w-full bg-[#162e23] text-[#f3e9dc] text-xs p-2 rounded-lg border border-[#2c5e4a] focus:outline-none">
-                    <option value="CRDP">المنهج اللبناني الرسمي (CRDP)</option>
-                </select>
-            </div>
         </div>
     </header>
 
     <!-- Chat Container -->
-    <main id="chatContainer" class="flex-1 max-w-3xl w-full mx-auto p-4 overflow-y-auto space-y-4 mb-28">
+    <main id="chatContainer" class="flex-1 max-w-3xl w-full mx-auto p-4 overflow-y-auto space-y-4 mb-32">
         <div class="text-center py-6">
-            <h2 class="text-xl font-bold text-[#1e3d2f] mb-2">يلا نبلش؟</h2>
-            <p class="text-sm text-slate-600">اختر صفك ومادتك فوق، واكتب سؤالك أو اضغط على المايكروفون للتحدث وسيحول صوتك لنص تلقائياً.</p>
+            <h2 class="text-xl font-bold text-[#1e3d2f] mb-2">أهلاً بك يا بطل!</h2>
+            <p class="text-sm text-slate-600">اكتب سؤالك، اضغط المايكروفون، أو ارفع صورة المسألة وسأقوم بحلها لك خطوة بخطوة.</p>
         </div>
     </main>
 
     <!-- Footer Input -->
     <footer class="fixed bottom-0 left-0 right-0 bg-[#f7f3eb] border-t border-[#e2d9cc] p-3 shadow-lg">
         <div class="max-w-3xl mx-auto flex flex-col space-y-2">
-            <div class="flex justify-center">
-                <button id="urgencyBtn" onclick="toggleUrgency()" class="bg-white hover:bg-[#f3e9dc] text-[#b48a3d] text-xs px-4 py-1.5 rounded-full border border-[#d8c5a0] shadow-sm flex items-center space-x-1.5 space-x-reverse transition">
-                    <span>⚡</span>
-                    <span id="urgencyText">أنا مستعجل - بدي حل مباشر</span>
-                </button>
+            <!-- Image Preview Box -->
+            <div id="imagePreviewContainer" class="hidden relative w-20 h-20 bg-white border border-[#d8c5a0] rounded-xl p-1 shadow">
+                <img id="imagePreview" src="" alt="Preview" class="w-full h-full object-cover rounded-lg">
+                <button onclick="removeImage()" class="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center shadow">✕</button>
             </div>
 
             <div class="flex items-center space-x-2 space-x-reverse">
-                <!-- Mic Button (Speech-to-Text) -->
+                <!-- Image Upload Button -->
+                <button onclick="document.getElementById('imageInput').click()" title="رفع صورة سؤال" class="bg-[#1e3d2f] hover:bg-[#2c5e4a] text-white p-3 rounded-xl transition shrink-0 flex items-center justify-center w-11 h-11 shadow">
+                    📷
+                </button>
+                <input type="file" id="imageInput" accept="image/*" class="hidden" onchange="handleImageSelect(event)">
+
+                <!-- Mic Button -->
                 <button id="micBtn" onclick="toggleVoiceRecognition()" title="التحدث الصوتي" class="bg-[#1e3d2f] hover:bg-[#2c5e4a] text-white p-3 rounded-xl transition shrink-0 flex items-center justify-center w-11 h-11 shadow">
                     🎤
                 </button>
-                <textarea id="userInput" rows="1" placeholder="اكتب سؤالك أو اضغط المايكروفون للتحدث..." class="flex-1 bg-white border border-[#d8c5a0] rounded-xl px-4 py-2.5 text-slate-800 focus:outline-none focus:border-[#1e3d2f] resize-none text-sm shadow-inner"></textarea>
+
+                <textarea id="userInput" rows="1" placeholder="اكتب سؤالك، ارفع صورة، أو تحدث..." class="flex-1 bg-white border border-[#d8c5a0] rounded-xl px-4 py-2.5 text-slate-800 focus:outline-none focus:border-[#1e3d2f] resize-none text-sm shadow-inner"></textarea>
+                
                 <button onclick="sendMessage()" class="bg-[#1e3d2f] hover:bg-[#2c5e4a] text-white p-3 rounded-xl transition shrink-0 font-bold flex items-center justify-center w-11 h-11 shadow">
                     ➤
                 </button>
@@ -113,55 +114,40 @@
     <!-- JavaScript Logic -->
     <script>
         const BACKEND_URL = "/api/chat";
-
         let studentId = localStorage.getItem('nabil_student_id') || 'student_' + Math.random().toString(36).substring(2, 9);
         localStorage.setItem('nabil_student_id', studentId);
 
         let conversationId = localStorage.getItem('nabil_conv_id') || null;
-        let isUrgent = false;
+        let base64Image = null;
         let recognition = null;
         let isListening = false;
 
-        // إعداد خاصية تحويل الصوت إلى نص الحقيقية
+        // إعداد Speech Recognition
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             recognition = new SpeechRecognition();
-            recognition.lang = 'ar-LB'; // محاولة مطابقة اللهجة أو العربية العامة
+            recognition.lang = 'ar-LB';
             recognition.continuous = false;
             recognition.interimResults = false;
 
             recognition.onresult = (event) => {
-                const speechText = event.results[0][0].transcript;
-                document.getElementById('userInput').value = speechText;
+                document.getElementById('userInput').value = event.results[0][0].transcript;
                 stopListeningUI();
             };
-
-            recognition.onerror = (event) => {
-                console.error("Speech recognition error", event.error);
-                stopListeningUI();
-            };
-
-            recognition.onend = () => {
-                stopListeningUI();
-            };
+            recognition.onerror = () => stopListeningUI();
+            recognition.onend = () => stopListeningUI();
         }
 
         function toggleVoiceRecognition() {
             if (!recognition) {
-                alert("متصفحك لا يدعم التحويل المباشر للصوت إلى نص. يرجى استخدام متصفح حديث مثل كروم.");
+                alert("متصفحك لا يدعم التحويل المباشر للصوت إلى نص.");
                 return;
             }
-
             if (!isListening) {
-                try {
-                    recognition.start();
-                    isListening = true;
-                    document.getElementById('micBtn').classList.add('bg-red-600', 'animate-pulse');
-                    setAvatarState('listening');
-                } catch (e) {
-                    console.error(e);
-                    stopListeningUI();
-                }
+                recognition.start();
+                isListening = true;
+                document.getElementById('micBtn').classList.add('bg-red-600', 'animate-pulse');
+                setAvatarState('listening');
             } else {
                 recognition.stop();
                 stopListeningUI();
@@ -175,17 +161,23 @@
             setAvatarState('idle');
         }
 
-        function toggleUrgency() {
-            isUrgent = !isUrgent;
-            const btn = document.getElementById('urgencyBtn');
-            const textSpan = document.getElementById('urgencyText');
-            if (isUrgent) {
-                btn.classList.add('bg-[#d8c5a0]', 'text-white', 'font-bold');
-                textSpan.textContent = "تم تفعيل الاستعجال: سيتم إعطاء الحل المباشر!";
-            } else {
-                btn.classList.remove('bg-[#d8c5a0]', 'text-white', 'font-bold');
-                textSpan.textContent = "أنا مستعجل - بدي حل مباشر";
-            }
+        function handleImageSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                base64Image = e.target.result;
+                document.getElementById('imagePreview').src = base64Image;
+                document.getElementById('imagePreviewContainer').classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeImage() {
+            base64Image = null;
+            document.getElementById('imageInput').value = '';
+            document.getElementById('imagePreviewContainer').classList.add('hidden');
         }
 
         function resetConversation() {
@@ -194,7 +186,7 @@
             document.getElementById('chatContainer').innerHTML = `
                 <div class="text-center py-6">
                     <h2 class="text-xl font-bold text-[#1e3d2f] mb-2">يلا نبلش سؤال جديد؟</h2>
-                    <p class="text-sm text-slate-600">تم تصفير السياق. تفضل بطرح سؤالك الجديد!</p>
+                    <p class="text-sm text-slate-600">تم تصفير السياق. تفضل بطرح سؤالك أو رفع صورة جديدة!</p>
                 </div>
             `;
         }
@@ -203,18 +195,18 @@
             const inputField = document.getElementById('userInput');
             const grade = document.getElementById('gradeSelect').value;
             const subject = document.getElementById('subjectSelect').value;
-            const curriculum = document.getElementById('curriculumSelect').value;
-            let text = inputField.value.trim();
+            const text = inputField.value.trim();
             
-            if (!text) return;
+            if (!text && !base64Image) return;
 
-            if (isUrgent) {
-                text = "[بدي الحل المباشر بلا خطوات تدريجية] " + text;
-            }
+            // عرض رسالة المستخدم في الشات (نص و/أو صورة)
+            appendMessage(text, 'user', base64Image);
+            
+            const payloadText = text || "حل هذه المسألة الموجودة في الصورة خطوة بخطوة وحسب المنهج اللبناني.";
+            const currentImage = base64Image;
 
-            appendMessage(inputField.value.trim(), 'user');
             inputField.value = '';
-
+            removeImage();
             setAvatarState('thinking');
 
             try {
@@ -224,10 +216,11 @@
                     body: JSON.stringify({
                         student_id: studentId,
                         conversation_id: conversationId,
-                        message: text,
+                        message: payloadText,
+                        image: currentImage, // إرسال الصورة كـ Base64
                         subject: subject,
                         grade: grade,
-                        curriculum: curriculum
+                        curriculum: "CRDP"
                     })
                 });
 
@@ -237,28 +230,30 @@
                 conversationId = data.conversation_id;
                 localStorage.setItem('nabil_conv_id', conversationId);
 
-                const replyText = data.reply || "عذراً، حدث خطأ في معالجة الإجابة.";
-
+                const replyText = data.reply || "عذراً، لم أتمكن من قراءة المسألة في الصورة بدقة.";
                 appendMessage(replyText, 'bot');
                 speakText(replyText);
 
             } catch (error) {
-                const fallbackReply = "أهلاً بك يا بطل! لم يتمكن التطبيق من الاتصال بالخادم، تأكد من الإنترنت.";
+                const fallbackReply = "حدث خطأ في الاتصال، يرجى المحاولة مرة أخرى.";
                 appendMessage(fallbackReply, 'bot');
-                speakText(fallbackReply);
+                speakText(fallbackFallbackReply = fallbackReply);
             }
         }
 
-        function appendMessage(text, sender) {
+        function appendMessage(text, sender, imgUrl = null) {
             const chatContainer = document.getElementById('chatContainer');
             const isUser = sender === 'user';
             
             const messageDiv = document.createElement('div');
             messageDiv.className = `flex items-start space-x-2 space-x-reverse mb-4 ${isUser ? 'flex-row-reverse space-x-reverse' : ''}`;
             
+            let imgHtml = imgUrl ? `<img src="${imgUrl}" class="max-w-full h-auto rounded-lg mb-2 max-h-48 object-contain">` : '';
+            
             messageDiv.innerHTML = `
                 <div class="w-8 h-8 rounded-full ${isUser ? 'bg-[#2c5e4a] text-white' : 'bg-[#1e3d2f] text-white'} flex items-center justify-center shrink-0 text-xs font-bold shadow">${isUser ? 'أنت' : 'نبيل'}</div>
                 <div class="${isUser ? 'bg-[#1e3d2f] text-white' : 'bg-white border border-[#e2d9cc] text-slate-800'} rounded-2xl p-3.5 max-w-[80%] shadow-sm leading-relaxed text-sm">
+                    ${imgHtml}
                     ${escapeHtml(text).replace(/\n/g, '<br>')}
                 </div>
             `;
@@ -269,14 +264,13 @@
         function setAvatarState(state) {
             const avatar = document.getElementById('avatarContainer');
             const face = document.getElementById('avatarFace');
-            
             avatar.className = "w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl text-white transition-all duration-300 shadow-inner";
 
             if (state === 'speaking') {
                 avatar.classList.add('bg-emerald-600', 'anim-speaking');
                 face.textContent = "🗣️";
             } else if (state === 'listening') {
-                avatar.classList.add('bg-red-600', 'anim-listening');
+                avatar.classList.add('bg-red-600', 'animate-pulse');
                 face.textContent = "👂";
             } else {
                 avatar.classList.add('bg-[#c5a059]', 'anim-idle');
@@ -288,20 +282,11 @@
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel();
                 const utterance = new SpeechSynthesisUtterance(text);
-                
-                if (/[a-zA-Z]/.test(text)) {
-                    utterance.lang = 'en-US';
-                } else if (/[àâäéèêëîïôöùûüç]/.test(text)) {
-                    utterance.lang = 'fr-FR';
-                } else {
-                    utterance.lang = 'ar-SA';
-                }
-
+                utterance.lang = 'ar-SA';
                 utterance.rate = 1.0;
                 utterance.onstart = () => setAvatarState('speaking');
                 utterance.onend = () => setAvatarState('idle');
                 utterance.onerror = () => setAvatarState('idle');
-
                 window.speechSynthesis.speak(utterance);
             }
         }
