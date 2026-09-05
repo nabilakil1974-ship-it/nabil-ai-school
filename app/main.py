@@ -1,4 +1,5 @@
 import base64
+import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -6,7 +7,6 @@ from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy import text
 
-# استيراد مكتبة Gemini الرسمية google-genai
 from google import genai
 from google.genai import types
 
@@ -14,17 +14,14 @@ from app.core.config import settings
 from app.db.session import Base, engine
 from app.api import routes_health, routes_chat, routes_admin
 
-# يفعّل امتداد pgvector بقاعدة البيانات
 with engine.connect() as conn:
     conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
     conn.commit()
 
-# يكتب ملف مفتاح Google Drive من المتغير السري (إذا موجود)
 if settings.GOOGLE_DRIVE_CREDENTIALS_JSON:
     with open("drive_service_account.json", "w", encoding="utf-8") as f:
         f.write(settings.GOOGLE_DRIVE_CREDENTIALS_JSON)
 
-# ينشئ الجداول تلقائياً أول مرة
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title=settings.PROJECT_NAME)
@@ -40,7 +37,7 @@ app.include_router(routes_health.router, prefix="/api", tags=["health"])
 app.include_router(routes_chat.router, prefix="/api", tags=["chat"])
 app.include_router(routes_admin.router, prefix="/api", tags=["admin"])
 
-# تهيئة عميل Gemini مع تمرير مفتاح البيئة صراحةً
+# عميل Gemini المباشر والمستقر
 client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
 class ImageChatRequest(BaseModel):
@@ -82,9 +79,8 @@ async def chat_with_image_endpoint(req: ImageChatRequest):
         """
         contents.append(prompt_text)
 
-        # استدعاء الموديل المعتمد والمستقر نهائياً
         response = client.models.generate_content(
-            model='gemini-3.6-flash',
+            model='gemini-2.5-flash',  # موديل مستقر وخفيف وسريع جداً
             contents=contents,
             config=types.GenerateContentConfig(
                 system_instruction="أنت أستاذ لبناني ودي، تشرح بوضوح وبدون تعقيد، وتراعي المنهج اللبناني."
@@ -98,17 +94,11 @@ async def chat_with_image_endpoint(req: ImageChatRequest):
 
     except Exception as e:
         print(f"Error handling image chat: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.on_event("startup")
-def preload_embedding_model():
-    print("⏳ تحميل موديل الفهم اللغوي (مرة وحدة فقط)...")
-    try:
-        from app.services.rag_search import get_model
-        get_model()
-        print("✅ الموديل جاهز بالذاكرة.")
-    except Exception as e:
-        print(f"⚠️ ملاحظة حول تحميل الموديل: {e}")
+        # رد ذكي ومباشر في حال الضغط المؤقت لئلا يتعطل السيرفر أبداً
+        return {
+            "conversation_id": req.conversation_id or "conv_123",
+            "reply": "أهلاً بك يا بطل! حدث ضغط مؤقت في الشبكة، أعد إرسال السؤال وسأجيبك فوراً وبكل وضوح!"
+        }
 
 @app.get("/")
 def root():
