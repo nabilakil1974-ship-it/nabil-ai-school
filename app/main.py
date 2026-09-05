@@ -61,8 +61,8 @@ async def chat_with_image_endpoint(req: ImageChatRequest):
         prompt_text = f"""
         أنت "الأستاذ نبيل"، مدرس خبير في المنهج اللبناني الرسمي (CRDP).
         المادة: {req.subject}، الصف: {req.grade}.
-        اشرح المسألة خطوة بخطوة باللغة العربية: {req.message}
-        إذا طلب رسماً هندسياً أو شكلاً، ادرج في نهاية ردك كود SVG صالح وبسيط ليعرض على البروجكتور.
+        مهمتك هي حل المسألة التالية بدقة ووضوح خطوة بخطوة باللغة العربية:
+        {req.message if req.message else "اشرح وحل هذه المسألة الرياضية بالتفصيل"}
         """
         contents.append(prompt_text)
 
@@ -70,19 +70,20 @@ async def chat_with_image_endpoint(req: ImageChatRequest):
             model='gemini-2.5-flash',
             contents=contents,
             config=types.GenerateContentConfig(
-                system_instruction="أنت أستاذ لبناني ودي، تشرح بوضوح حسب المنهج اللبناني (CRDP)، وترسم الأشكال الهندسية بدقة عبر كود SVG."
+                system_instruction="أنت أستاذ لبناني ودي، تشرح بوضوح وبدون تعقيد، وتراعي المنهج اللبناني الرسمي (CRDP)."
             )
         )
 
         return {
             "conversation_id": req.conversation_id or "conv_123",
-            "reply": response.text
+            "reply": response.text if response.text else "عذراً، لم أستطع توليد الإجابة."
         }
+
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error handling image chat: {e}")
         return {
             "conversation_id": req.conversation_id or "conv_123",
-            "reply": "أهلاً بك يا بطل! حدث ضغط مؤقت، أعد إرسال السؤال وسأجيبك فوراً!"
+            "reply": f"عذراً يا بطل، حدث خطأ تقني في المعالجة: {str(e)}"
         }
 
 @app.get("/")
