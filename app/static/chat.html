@@ -422,6 +422,23 @@
   });
 
   let currentUtterance = null;
+  let cachedArabicVoice = null;
+
+  function pickBestArabicVoice(){
+    const voices = speechSynthesis.getVoices();
+    const arabicVoices = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith("ar"));
+    if(arabicVoices.length === 0) return null;
+    const local = arabicVoices.find(v => v.localService);
+    if(local) return local;
+    const nonDefault = arabicVoices.find(v => !v.default);
+    return nonDefault || arabicVoices[0];
+  }
+
+  if("speechSynthesis" in window){
+    speechSynthesis.onvoiceschanged = () => { cachedArabicVoice = pickBestArabicVoice(); };
+    cachedArabicVoice = pickBestArabicVoice();
+  }
+
   function speak(text, btn){
     if(!("speechSynthesis" in window)){
       alert("المتصفح هذا ما بيدعم القراءة الصوتية");
@@ -440,7 +457,12 @@
     }
     if(btn) btn.classList.add("__was_speaking");
     currentUtterance = new SpeechSynthesisUtterance(text);
-    currentUtterance.lang = "ar";
+    if(cachedArabicVoice){
+      currentUtterance.voice = cachedArabicVoice;
+      currentUtterance.lang = cachedArabicVoice.lang;
+    } else {
+      currentUtterance.lang = "ar";
+    }
     currentUtterance.rate = 0.95;
     const utter = currentUtterance;
     utter.onstart = () => { if(btn){ btn.classList.add("speaking"); btn.textContent = "⏸ وقف"; } avatarBox.classList.add("speaking"); };
