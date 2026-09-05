@@ -4,7 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>الأستاذ نبيل - المنصة التعليمية اللبنانية</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- MathJax for Mathematical & Scientific Equations Rendering -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <style>
         body {
             background-color: #f7f3eb;
@@ -45,7 +49,7 @@
                     </div>
                     <div>
                         <h1 class="text-xl font-bold text-[#f3e9dc]">الأستاذ نبيل</h1>
-                        <p class="text-xs text-[#b8c5bd]">جاهز لحل أي مسألة أو صورة سؤال!</p>
+                        <p class="text-xs text-[#b8c5bd]">معك خطوة بخطوة لكل المواد والمسائل!</p>
                     </div>
                 </div>
                 <div class="flex items-center space-x-2 space-x-reverse">
@@ -77,7 +81,7 @@
     <main id="chatContainer" class="flex-1 max-w-3xl w-full mx-auto p-4 overflow-y-auto space-y-4 mb-32">
         <div class="text-center py-6">
             <h2 class="text-xl font-bold text-[#1e3d2f] mb-2">أهلاً بك يا بطل!</h2>
-            <p class="text-sm text-slate-600">اكتب سؤالك، اضغط المايكروفون، أو ارفع صورة المسألة وسأقوم بحلها لك خطوة بخطوة.</p>
+            <p class="text-sm text-slate-600">اكتب سؤالك، تحدث بالصوت، أو ارفع صورة المسألة لنقوم بحلها بالرموز والشرح الواضح.</p>
         </div>
     </main>
 
@@ -102,7 +106,7 @@
                     🎤
                 </button>
 
-                <textarea id="userInput" rows="1" placeholder="اكتب سؤالك، ارفع صورة، أو تحدث..." class="flex-1 bg-white border border-[#d8c5a0] rounded-xl px-4 py-2.5 text-slate-800 focus:outline-none focus:border-[#1e3d2f] resize-none text-sm shadow-inner"></textarea>
+                <textarea id="userInput" rows="1" placeholder="اكتب سؤالك أو ارفع صورة المسألة..." class="flex-1 bg-white border border-[#d8c5a0] rounded-xl px-4 py-2.5 text-slate-800 focus:outline-none focus:border-[#1e3d2f] resize-none text-sm shadow-inner"></textarea>
                 
                 <button onclick="sendMessage()" class="bg-[#1e3d2f] hover:bg-[#2c5e4a] text-white p-3 rounded-xl transition shrink-0 font-bold flex items-center justify-center w-11 h-11 shadow">
                     ➤
@@ -113,7 +117,7 @@
 
     <!-- JavaScript Logic -->
     <script>
-        const BACKEND_URL = "/api/chat";
+        const BACKEND_URL = "/api/chat-with-image";
         let studentId = localStorage.getItem('nabil_student_id') || 'student_' + Math.random().toString(36).substring(2, 9);
         localStorage.setItem('nabil_student_id', studentId);
 
@@ -199,10 +203,9 @@
             
             if (!text && !base64Image) return;
 
-            // عرض رسالة المستخدم في الشات (نص و/أو صورة)
             appendMessage(text, 'user', base64Image);
             
-            const payloadText = text || "حل هذه المسألة الموجودة في الصورة خطوة بخطوة وحسب المنهج اللبناني.";
+            const payloadText = text || "حل هذه المسألة الموجودة في الصورة خطوة بخطوة حسب المنهج اللبناني.";
             const currentImage = base64Image;
 
             inputField.value = '';
@@ -217,7 +220,7 @@
                         student_id: studentId,
                         conversation_id: conversationId,
                         message: payloadText,
-                        image: currentImage, // إرسال الصورة كـ Base64
+                        image: currentImage,
                         subject: subject,
                         grade: grade,
                         curriculum: "CRDP"
@@ -230,14 +233,13 @@
                 conversationId = data.conversation_id;
                 localStorage.setItem('nabil_conv_id', conversationId);
 
-                const replyText = data.reply || "عذراً، لم أتمكن من قراءة المسألة في الصورة بدقة.";
+                const replyText = data.reply || "عذراً، لم أتمكن من معالجة الطلب.";
                 appendMessage(replyText, 'bot');
                 speakText(replyText);
 
             } catch (error) {
-                const fallbackReply = "حدث خطأ في الاتصال، يرجى المحاولة مرة أخرى.";
+                const fallbackReply = "حدث خطأ في الاتصال بالسيرفر، يرجى المحاولة لاحقاً.";
                 appendMessage(fallbackReply, 'bot');
-                speakText(fallbackFallbackReply = fallbackReply);
             }
         }
 
@@ -250,15 +252,50 @@
             
             let imgHtml = imgUrl ? `<img src="${imgUrl}" class="max-w-full h-auto rounded-lg mb-2 max-h-48 object-contain">` : '';
             
+            // معرف فريد للرسالة لتمكين زر النسخ
+            const msgId = 'msg_' + Math.random().toString(36).substring(2, 9);
+
+            let copyBtnHtml = !isUser ? `
+                <div class="mt-2 pt-2 border-t border-slate-100 flex justify-end">
+                    <button onclick="copyMessageText('${msgId}')" class="text-xs text-[#1e3d2f] hover:text-[#c5a059] flex items-center space-x-1 space-x-reverse transition">
+                        <span>📋</span>
+                        <span id="${msgId}_btn_text">نسخ الشرح</span>
+                    </button>
+                </div>
+            ` : '';
+
             messageDiv.innerHTML = `
                 <div class="w-8 h-8 rounded-full ${isUser ? 'bg-[#2c5e4a] text-white' : 'bg-[#1e3d2f] text-white'} flex items-center justify-center shrink-0 text-xs font-bold shadow">${isUser ? 'أنت' : 'نبيل'}</div>
-                <div class="${isUser ? 'bg-[#1e3d2f] text-white' : 'bg-white border border-[#e2d9cc] text-slate-800'} rounded-2xl p-3.5 max-w-[80%] shadow-sm leading-relaxed text-sm">
+                <div class="${isUser ? 'bg-[#1e3d2f] text-white' : 'bg-white border border-[#e2d9cc] text-slate-800'} rounded-2xl p-3.5 max-w-[85%] shadow-sm leading-relaxed text-sm">
                     ${imgHtml}
-                    ${escapeHtml(text).replace(/\n/g, '<br>')}
+                    <div id="${msgId}" class="message-content">${formatMessageText(text)}</div>
+                    ${copyBtnHtml}
                 </div>
             `;
             chatContainer.appendChild(messageDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            // تحديث عرض المعادلات الرياضية عبر MathJax إن وجدت
+            if (window.MathJax) {
+                window.MathJax.typesetPromise();
+            }
+        }
+
+        function formatMessageText(text) {
+            return escapeHtml(text).replace(/\n/g, '<br>');
+        }
+
+        function copyMessageText(msgId) {
+            const el = document.getElementById(msgId);
+            if (!el) return;
+            const textToCopy = el.innerText;
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                const btnText = document.getElementById(`${msgId}_btn_text`);
+                if (btnText) {
+                    btnText.textContent = "تم النسخ بنجاح! ✓";
+                    setTimeout(() => { btnText.textContent = "نسخ الشرح"; }, 2000);
+                }
+            });
         }
 
         function setAvatarState(state) {
