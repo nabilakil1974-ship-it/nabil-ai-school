@@ -1,19 +1,23 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from sqlalchemy import text
-from app.db.session import engine, Base
 
-# تجربة الاتصال بقاعدة البيانات وتفعيل الـ Vector
-try:
-    with engine.connect() as conn:
-        conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-        conn.commit()
-    Base.metadata.create_all(bind=engine)
-    db_status = "Connected & Tables Created"
-except Exception as e:
-    db_status = f"DB Error: {str(e)}"
+from app.core.config import settings
+from app.db.session import Base, engine
+from app.api import routes_health, routes_chat, routes_admin
 
-app = FastAPI(title="Step 2 Test")
+with engine.connect() as conn:
+    conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+    conn.commit()
+
+if settings.GOOGLE_DRIVE_CREDENTIALS_JSON:
+    with open("drive_service_account.json", "w", encoding="utf-8") as f:
+        f.write(settings.GOOGLE_DRIVE_CREDENTIALS_JSON)
+
+Base.metadata.create_all(bind=engine)
+
+app = FastAPI(title=settings.PROJECT_NAME)
 
 app.add_middleware(
     CORSMiddleware,
@@ -22,6 +26,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(routes_health.router, prefix="/api", tags=["health"])
+app.include_router(routes_chat.router, prefix="/api", tags=["chat"])
+app.include_router(routes_admin.router, prefix="/api", tags=["admin"])
+
 @app.get("/")
 def root():
-    return {"status": "running", "database": db_status}
+    return FileResponse("app/static/chat.html")
