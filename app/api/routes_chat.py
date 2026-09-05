@@ -30,7 +30,7 @@ SYSTEM_PROMPT = """
 4. ممنوع نهائياً استخدام أي تنسيق Markdown معقد يفسد الشكل البصري، واستخدم الرموز الرياضية الواضحة.
 """
 
-VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
+VISION_MODEL = "qwen/qwen3.6-27b"
 TEXT_MODEL = "openai/gpt-oss-120b"
 
 
