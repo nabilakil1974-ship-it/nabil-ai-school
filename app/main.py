@@ -38,31 +38,34 @@ app.include_router(routes_health.router, prefix="/api", tags=["health"])
 app.include_router(routes_chat.router, prefix="/api", tags=["chat"])
 app.include_router(routes_admin.router, prefix="/api", tags=["admin"])
 
-# تجمع المفاتيح الذكي لتجاوز حظر الـ 429 تلقائياً
-api_keys_pool = []
-if settings.GEMINI_API_KEY:
-    api_keys_pool.append(settings.GEMINI_API_KEY)
-
-# جلب أي مفاتيح احتياطية إضافية إن وجدت في المتغيرات (مثل GEMINI_API_KEY_2, GEMINI_API_KEY_3)
-for i in range(2, 6):
-    extra_key = os.environ.get(f"GEMINI_API_KEY_{i}")
-    if extra_key:
-        api_keys_pool.append(extra_key)
+# تجميع المفاتيح الخمسة وتعبئتها تلقائياً
+def get_active_keys():
+    keys = []
+    if settings.GEMINI_API_KEY:
+        keys.append(settings.GEMINI_API_KEY)
+    for i in range(2, 6):
+        k = os.environ.get(f"GEMINI_API_KEY_{i}")
+        if k:
+            keys.append(k)
+    return keys
 
 current_key_index = 0
 
 def get_gemini_client():
     global current_key_index
-    if not api_keys_pool:
-        return genai.Client(api_key=settings.GEMINI_API_KEY)
-    key = api_keys_pool[current_key_index]
-    return genai.Client(api_key=key)
+    keys = get_active_keys()
+    if not keys:
+        raise HTTPException(status_code=500, detail="لا توجد مفاتيح API معرفة في النظام!")
+    current_key_index = current_key_index % len(keys)
+    active_key = keys[current_key_index]
+    return genai.Client(api_key=active_key)
 
 def rotate_key():
     global current_key_index
-    if len(api_keys_pool) > 1:
-        current_key_index = (current_key_index + 1) % len(api_keys_pool)
-        print(f"🔄 Switched to backup Gemini API Key index: {current_key_index}")
+    keys = get_active_keys()
+    if len(keys) > 1:
+        current_key_index = (current_key_index + 1) % len(keys)
+        print(f"🔄 Switched to API Key index: {current_key_index}")
 
 class ImageChatRequest(BaseModel):
     student_id: str
@@ -76,8 +79,8 @@ class ImageChatRequest(BaseModel):
 
 @app.post("/api/chat-with-image")
 async def chat_with_image_endpoint(req: ImageChatRequest):
-    global api_keys_pool
-    max_attempts = max(1, len(api_keys_pool) * 2)
+    keys = get_active_keys()
+    max_attempts = max(1, len(keys))
     attempt = 0
     
     while attempt < max_attempts:
@@ -106,7 +109,7 @@ async def chat_with_image_endpoint(req: ImageChatRequest):
             contents.append(prompt_text)
 
             response = client.models.generate_content(
-                model='gemini-3.6-flash',
+                model='gemini-2.5-flash',
                 contents=contents,
                 config=types.GenerateContentConfig(
                     system_instruction="أنت الأستاذ نبيل، أستاذ لبناني خبير وودي، تشرح بوضوح وبدون تعقيد، وتلتزم حصرياً بالهيكلية المنهجية المعتمدة (المعطيات، القاعدة، الحل خطوة بخطوة، والمصطلحات الأجنبية) وفق المنهج اللبناني الرسمي (CRDP)."
@@ -121,11 +124,10 @@ async def chat_with_image_endpoint(req: ImageChatRequest):
         except Exception as e:
             err_str = str(e)
             print(f"Error encountered: {err_str}")
-            # إذا ظهر خطأ نفاد الحصة (429)، نقوم بتبديل المفتاح أو المحاولة بذكاء لتجاوز العطل
-            if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+            if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "quota" in err_str.lower():
                 rotate_key()
                 attempt += 1
-                time.sleep(1) # استراحة ثانية قبل إعادة المحاولة بالمفتاح الجديد
+                time.sleep(0.5)
                 continue
             else:
                 return {
@@ -135,7 +137,7 @@ async def chat_with_image_endpoint(req: ImageChatRequest):
                 
     return {
         "conversation_id": req.conversation_id or "conv_123",
-        "reply": "عذراً يا بطل، لقد استنفدنا الحصة المؤقتة للطلبات. يرجى الانتظار ثوانٍ معدودة والمحاولة مرة أخرى."
+        "reply": "عذراً يا بطل، لقد استنفدنا الحصة المؤقتة للطلبات على جميع المفاتيح حالياً. يرجى الانتظار دقيقة والمحاولة مرة أخرى."
     }
 
 @app.get("/")
