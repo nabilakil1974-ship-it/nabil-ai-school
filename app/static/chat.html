@@ -3,378 +3,309 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>الأستاذ نبيل - المنصة التعليمية اللبنانية</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- MathJax for Mathematical & Scientific Equations Rendering -->
-    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <title>الأستاذ نبيل - محادثة تفاعلية</title>
     <style>
         body {
-            background-color: #f7f3eb;
-            background-image: linear-gradient(#e5ddd0 1px, transparent 1px);
-            background-size: 100% 32px;
-            color: #2c2c2c;
-            font-family: system-ui, -apple-system, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e2923;
+            color: #f3f4f6;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
         }
-
-        @keyframes avatarIdle {
-            0%, 100% { transform: scale(1); box-shadow: 0 0 10px rgba(197, 160, 89, 0.4); }
-            50% { transform: scale(1.05); box-shadow: 0 0 20px rgba(197, 160, 89, 0.8); }
+        header {
+            background-color: #132219;
+            padding: 15px;
+            text-align: center;
+            border-bottom: 2px solid #285430;
         }
-        @keyframes avatarSpeaking {
-            0% { transform: scale(1); box-shadow: 0 0 15px rgba(16, 185, 129, 0.6); }
-            50% { transform: scale(1.1); box-shadow: 0 0 30px rgba(16, 185, 129, 1); }
-            100% { transform: scale(1); box-shadow: 0 0 15px rgba(16, 185, 129, 0.6); }
+        h1 { margin: 0; font-size: 22px; color: #a3e635; }
+        #chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
         }
-        @keyframes avatarListening {
-            0%, 100% { transform: scale(1); box-shadow: 0 0 15px rgba(239, 68, 68, 0.6); }
-            50% { transform: scale(1.12); box-shadow: 0 0 35px rgba(239, 68, 68, 1); }
+        .message {
+            max-width: 75%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            line-height: 1.6;
+            word-wrap: break-word;
         }
-
-        .anim-idle { animation: avatarIdle 3s infinite ease-in-out; }
-        .anim-speaking { animation: avatarSpeaking 0.8s infinite ease-in-out; }
-        .anim-listening { animation: avatarListening 1.2s infinite ease-in-out; }
+        .user-msg {
+            background-color: #285430;
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+        }
+        .bot-msg {
+            background-color: #2d3748;
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
+            border: 1px solid #4a5568;
+        }
+        #input-container {
+            padding: 15px;
+            background-color: #132219;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            border-top: 1px solid #285430;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #4a5568;
+            background-color: #2d3748;
+            color: white;
+            font-size: 16px;
+        }
+        button {
+            background-color: #285430;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.2s;
+        }
+        button:hover { background-color: #3b7a46; }
+        button.recording { background-color: #dc2626 !important; animation: pulse 1.5s infinite; }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        .preview-box {
+            padding: 5px 20px;
+            background: #132219;
+            font-size: 13px;
+            color: #a3e635;
+        }
     </style>
 </head>
-<body class="min-h-screen flex flex-col justify-between">
+<body>
 
-    <!-- Header & Selections -->
-    <header class="bg-[#1e3d2f] text-white p-4 shadow-md">
-        <div class="max-w-3xl mx-auto flex flex-col space-y-3">
-            <div class="flex justify-between items-center">
-                <div class="flex items-center space-x-3 space-x-reverse">
-                    <div id="avatarContainer" class="w-12 h-12 rounded-full bg-[#c5a059] flex items-center justify-center font-bold text-xl text-white anim-idle transition-all duration-300 shadow-inner">
-                        <span id="avatarFace">👨‍🏫</span>
-                    </div>
-                    <div>
-                        <h1 class="text-xl font-bold text-[#f3e9dc]">الأستاذ نبيل</h1>
-                        <p class="text-xs text-[#b8c5bd]">محادثة صوتية تفاعلية حية!</p>
-                    </div>
-                </div>
-                <div class="flex items-center space-x-2 space-x-reverse">
-                    <button onclick="resetConversation()" title="سؤال جديد" class="bg-[#2c5e4a] hover:bg-[#1e3d2f] text-xs px-3 py-2 rounded-lg text-white transition border border-[#c5a059]/40 flex items-center space-x-1 space-x-reverse">
-                        <span>🔄</span>
-                        <span class="hidden sm:inline">سؤال جديد</span>
-                    </button>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2 pt-2">
-                <select id="gradeSelect" class="bg-[#162e23] text-[#f3e9dc] text-xs p-2 rounded-lg border border-[#2c5e4a] focus:outline-none">
-                    <option value="الصف الأول">الصف الأول</option>
-                    <option value="الصف السابع" selected>الصف السابع (Grade 7)</option>
-                    <option value="الصف التاسع">الصف التاسع (Brevet)</option>
-                    <option value="الصف الثالث ثانوي">التوجيهي / البكالوريا</option>
-                </select>
-                <select id="subjectSelect" class="bg-[#162e23] text-[#f3e9dc] text-xs p-2 rounded-lg border border-[#2c5e4a] focus:outline-none">
-                    <option value="لغة عربية">لغة عربية</option>
-                    <option value="رياضيات" selected>رياضيات (Maths)</option>
-                    <option value="علوم / فيزياء">علوم / فيزياء (Sciences)</option>
-                    <option value="لغة فرنسية">لغة فرنسية (Français)</option>
-                </select>
-            </div>
-        </div>
+    <header>
+        <h1>👨‍🏫 الأستاذ نبيل - المنهاج اللبناني الرسمي</h1>
     </header>
 
-    <!-- Chat Container -->
-    <main id="chatContainer" class="flex-1 max-w-3xl w-full mx-auto p-4 overflow-y-auto space-y-4 mb-32">
-        <div class="text-center py-6">
-            <h2 class="text-xl font-bold text-[#1e3d2f] mb-2">أهلاً بك يا بطل!</h2>
-            <p class="text-sm text-slate-600">اضغط على المايك وابدأ الحديث بحرية؛ سيستمع إليك الأستاذ نبيل، يرسل رسالتك تلقائياً، ويرد عليك صوتياً.</p>
-        </div>
-    </main>
+    <div id="chat-container">
+        <div class="message bot-msg">أهلاً بك يا بطل! معك الأستاذ نبيل. تفضل اطرح سؤالك أو ارفع صورة المسألة لنحلها سوياً خطوة بخطوة.</div>
+    </div>
 
-    <!-- Footer Input -->
-    <footer class="fixed bottom-0 left-0 right-0 bg-[#f7f3eb] border-t border-[#e2d9cc] p-3 shadow-lg">
-        <div class="max-w-3xl mx-auto flex flex-col space-y-2">
-            <!-- Image Preview Box -->
-            <div id="imagePreviewContainer" class="hidden relative w-20 h-20 bg-white border border-[#d8c5a0] rounded-xl p-1 shadow">
-                <img id="imagePreview" src="" alt="Preview" class="w-full h-full object-cover rounded-lg">
-                <button onclick="removeImage()" class="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center shadow">✕</button>
-            </div>
+    <div id="preview-container" class="preview-box" style="display:none;">🖼️ تم اختيار صورة للمسألة</div>
 
-            <div class="flex items-center space-x-2 space-x-reverse">
-                <!-- Image Upload Button -->
-                <button onclick="document.getElementById('imageInput').click()" title="رفع صورة سؤال" class="bg-[#1e3d2f] hover:bg-[#2c5e4a] text-white p-3 rounded-xl transition shrink-0 flex items-center justify-center w-11 h-11 shadow">
-                    📷
-                </button>
-                <input type="file" id="imageInput" accept="image/*" class="hidden" onchange="handleImageSelect(event)">
+    <div id="input-container">
+        <input type="text" id="user-input" placeholder="اكتب سؤالك أو استخدم المايك..." />
+        <input type="file" id="image-input" accept="image/*" style="display: none;" />
+        <button id="image-btn" title="رفع صورة">📷</button>
+        <button id="mic-btn" title="تحدث بالمايك">🎤</button>
+        <button id="send-btn">إرسال</button>
+    </div>
 
-                <!-- Mic Button -->
-                <button id="micBtn" onclick="toggleVoiceRecognition()" title="التحدث الصوتي المباشر" class="bg-[#1e3d2f] hover:bg-[#2c5e4a] text-white p-3 rounded-xl transition shrink-0 flex items-center justify-center w-11 h-11 shadow">
-                    🎤
-                </button>
-
-                <textarea id="userInput" rows="1" placeholder="اكتب سؤالك أو استخدم المايك للمحادثة المباشرة..." class="flex-1 bg-white border border-[#d8c5a0] rounded-xl px-4 py-2.5 text-slate-800 focus:outline-none focus:border-[#1e3d2f] resize-none text-sm shadow-inner"></textarea>
-                
-                <button onclick="sendMessage()" class="bg-[#1e3d2f] hover:bg-[#2c5e4a] text-white p-3 rounded-xl transition shrink-0 font-bold flex items-center justify-center w-11 h-11 shadow">
-                    ➤
-                </button>
-            </div>
-        </div>
-    </footer>
-
-    <!-- JavaScript Logic -->
     <script>
-        const BACKEND_URL = "/api/chat-with-image";
-        let studentId = localStorage.getItem('nabil_student_id') || 'student_' + Math.random().toString(36).substring(2, 9);
-        localStorage.setItem('nabil_student_id', studentId);
+        const chatContainer = document.getElementById('chat-container');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const micBtn = document.getElementById('mic-btn');
+        const imageBtn = document.getElementById('image-btn');
+        const imageInput = document.getElementById('image-input');
+        const previewContainer = document.getElementById('preview-container');
 
-        let conversationId = localStorage.getItem('nabil_conv_id') || null;
         let base64Image = null;
         let recognition = null;
         let isListening = false;
-        let continuousMode = true; // وضع الأخذ والرد المستمر
+        let silenceTimer = null;
+        let finalTranscriptBuffer = "";
 
-        // إعداد Speech Recognition بمدة أطول ودعم الاستمرار
-        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        // تهيئة محرك التعرف على الصوت (Speech Recognition) المتوافق مع الهواتف
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
             recognition = new SpeechRecognition();
-            recognition.lang = 'ar-LB';
-            recognition.continuous = true; // السماح بالكلام الطويل دون أن يغلق لوحده بسرعة
-            recognition.interimResults = true; // إظهار النتائج لحظياً
-
-            let finalTranscript = '';
+            recognition.lang = 'ar-LB'; // لهجة عربية تدعم اللبناني والفصحى
+            recognition.continuous = true; // استمرار الاستماع وعدم الإغلاق فورا
+            recognition.interimResults = true;
 
             recognition.onresult = (event) => {
                 let interimTranscript = '';
+                let currentSessionText = '';
+
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    currentSessionText += event.results[i][0].transcript;
                     if (event.results[i].isFinal) {
-                        finalTranscript += event.results[i][0].transcript;
-                    } else {
-                        interimTranscript += event.results[i][0].transcript;
+                        finalTranscriptBuffer += event.results[i][0].transcript + " ";
                     }
                 }
-                document.getElementById('userInput').value = finalTranscript || interimTranscript;
+
+                // تنظيف التكرار المزعج على الهواتف
+                let cleanedText = cleanRepeatedWords(finalTranscriptBuffer + currentSessionText);
+                userInput.value = cleanedText;
+
+                // نظام مهلة السكوت (Silence Timeout): إذا توقف المستخدم عن الكلام لثانيتين، يرسل الرسالة تلقائياً
+                clearTimeout(silenceTimer);
+                silenceTimer = setTimeout(() => {
+                    if (userInput.value.trim().length > 2 && isListening) {
+                        sendMessage();
+                        stopMic();
+                    }
+                }, 2000);
             };
 
             recognition.onerror = (event) => {
-                console.error("Speech recognition error", event.error);
-                stopListeningUI();
+                console.error("خطأ بالمايك:", event.error);
             };
 
             recognition.onend = () => {
-                // إذا انتهى الكلام وسجلنا نصاً، نقوم بإرساله تلقائياً فوراً دون الحاجة لضغط زر!
-                const textToSend = document.getElementById('userInput').value.trim();
-                if (textToSend) {
-                    stopListeningUI();
-                    sendMessage(); // إرسال تلقائي!
-                } else if (isListening && continuousMode) {
-                    // إعادة فتح المايك تلقائياً للبقاء في وضع الأخذ والرد (خذ وعطى)
-                    try {
-                        recognition.start();
-                    } catch(e) {
-                        stopListeningUI();
-                    }
-                } else {
-                    stopListeningUI();
+                if (isListening) {
+                    try { recognition.start(); } catch(e) {} // إعادة تشغيله إذا قطع الهاتف لوحده
                 }
             };
         }
 
-        function toggleVoiceRecognition() {
+        // دالة تنظيف التكرار المتراكم من المايك
+        function cleanRepeatedWords(text) {
+            let words = text.trim().split(/\s+/);
+            let uniqueWords = [];
+            for (let i = 0; i < words.length; i++) {
+                // إزالة الكلمات المتتالية المكررة فوراً
+                if (i === 0 || words[i] !== words[i - 1]) {
+                    uniqueWords.push(words[i]);
+                }
+            }
+            return uniqueWords.join(' ');
+        }
+
+        micBtn.addEventListener('click', () => {
             if (!recognition) {
-                alert("متصفحك لا يدعم التحويل المباشر للصوت إلى نص.");
+                alert('عذراً، متصفحك لا يدعم الإدخال الصوتي.');
                 return;
             }
-            if (!isListening) {
-                finalTranscript = '';
-                try {
-                    recognition.start();
-                    isListening = true;
-                    document.getElementById('micBtn').classList.add('bg-red-600', 'animate-pulse');
-                    setAvatarState('listening');
-                } catch(e) {
-                    console.error(e);
-                }
+            if (isListening) {
+                stopMic();
             } else {
-                continuousMode = false;
-                recognition.stop();
-                stopListeningUI();
+                startMic();
             }
+        });
+
+        function startMic() {
+            isListening = true;
+            finalTranscriptBuffer = "";
+            micBtn.classList.add('recording');
+            micBtn.textContent = '🛑';
+            try { recognition.start(); } catch(e) {}
         }
 
-        function stopListeningUI() {
+        function stopMic() {
             isListening = false;
-            continuousMode = true;
-            const micBtn = document.getElementById('micBtn');
-            if (micBtn) micBtn.classList.remove('bg-red-600', 'animate-pulse');
-            setAvatarState('idle');
+            clearTimeout(silenceTimer);
+            micBtn.classList.remove('recording');
+            micBtn.textContent = '🎤';
+            try { recognition.stop(); } catch(e) {}
         }
 
-        function handleImageSelect(event) {
-            const file = event.target.files[0];
-            if (!file) return;
+        imageBtn.addEventListener('click', () => imageInput.click());
 
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                base64Image = e.target.result;
-                document.getElementById('imagePreview').src = base64Image;
-                document.getElementById('imagePreviewContainer').classList.remove('hidden');
-            };
-            reader.readAsDataURL(file);
-        }
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(uploadEvent) {
+                    base64Image = uploadEvent.target.result;
+                    previewContainer.style.display = 'block';
+                    previewContainer.textContent = `🖼️ تم إرفاق الصورة: ${file.name}`;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
 
-        function removeImage() {
-            base64Image = null;
-            document.getElementById('imageInput').value = '';
-            document.getElementById('imagePreviewContainer').classList.add('hidden');
-        }
-
-        function resetConversation() {
-            localStorage.removeItem('nabil_conv_id');
-            conversationId = null;
-            document.getElementById('chatContainer').innerHTML = `
-                <div class="text-center py-6">
-                    <h2 class="text-xl font-bold text-[#1e3d2f] mb-2">يلا نبلش سؤال جديد؟</h2>
-                    <p class="text-sm text-slate-600">تم تصفير السياق. تفضل بالمحادثة الصوتية أو رفع صورة جديدة!</p>
-                </div>
-            `;
-        }
+        sendBtn.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
 
         async function sendMessage() {
-            const inputField = document.getElementById('userInput');
-            const grade = document.getElementById('gradeSelect').value;
-            const subject = document.getElementById('subjectSelect').value;
-            const text = inputField.value.trim();
-            
+            const text = userInput.value.trim();
             if (!text && !base64Image) return;
 
-            appendMessage(text, 'user', base64Image);
-            
-            const payloadText = text || "حل هذه المسألة الموجودة في الصورة خطوة بخطوة حسب المنهج اللبناني.";
-            const currentImage = base64Image;
+            appendMessage(text || "أرسل صورة المسألة", 'user-msg');
+            userInput.value = '';
+            finalTranscriptBuffer = "";
 
-            inputField.value = '';
-            removeImage();
-            setAvatarState('thinking');
+            const currentImage = base64Image;
+            base64Image = null;
+            previewContainer.style.display = 'none';
+            imageInput.value = '';
+
+            // إظهار حالة التحميل
+            const loadingId = appendMessage("الأستاذ نبيل يقرأ المسألة ويفكر بالحل...", 'bot-msg');
 
             try {
-                const response = await fetch(BACKEND_URL, {
+                const response = await fetch('/api/chat-with-image', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        student_id: studentId,
-                        conversation_id: conversationId,
-                        message: payloadText,
-                        image: currentImage,
-                        subject: subject,
-                        grade: grade,
-                        curriculum: "CRDP"
+                        student_id: "student_1",
+                        message: text,
+                        image: currentImage
                     })
                 });
 
-                if (!response.ok) throw new Error('Network error');
-
                 const data = await response.json();
-                conversationId = data.conversation_id;
-                localStorage.setItem('nabil_conv_id', conversationId);
+                removeMessage(loadingId);
 
-                const replyText = data.reply || "عذراً، لم أتمكن من معالجة الطلب.";
-                appendMessage(replyText, 'bot');
-                speakText(replyText);
-
-            } catch (error) {
-                const fallbackReply = "حدث خطأ في الاتصال بالسيرفر، يرجى المحاولة لاحقاً.";
-                appendMessage(fallbackReply, 'bot');
-                setAvatarState('idle');
-            }
-        }
-
-        function appendMessage(text, sender, imgUrl = null) {
-            const chatContainer = document.getElementById('chatContainer');
-            const isUser = sender === 'user';
-            
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `flex items-start space-x-2 space-x-reverse mb-4 ${isUser ? 'flex-row-reverse space-x-reverse' : ''}`;
-            
-            let imgHtml = imgUrl ? `<img src="${imgUrl}" class="max-w-full h-auto rounded-lg mb-2 max-h-48 object-contain">` : '';
-            
-            const msgId = 'msg_' + Math.random().toString(36).substring(2, 9);
-
-            let copyBtnHtml = !isUser ? `
-                <div class="mt-2 pt-2 border-t border-slate-100 flex justify-end">
-                    <button onclick="copyMessageText('${msgId}')" class="text-xs text-[#1e3d2f] hover:text-[#c5a059] flex items-center space-x-1 space-x-reverse transition">
-                        <span>📋</span>
-                        <span id="${msgId}_btn_text">نسخ الشرح</span>
-                    </button>
-                </div>
-            ` : '';
-
-            messageDiv.innerHTML = `
-                <div class="w-8 h-8 rounded-full ${isUser ? 'bg-[#2c5e4a] text-white' : 'bg-[#1e3d2f] text-white'} flex items-center justify-center shrink-0 text-xs font-bold shadow">${isUser ? 'أنت' : 'نبيل'}</div>
-                <div class="${isUser ? 'bg-[#1e3d2f] text-white' : 'bg-white border border-[#e2d9cc] text-slate-800'} rounded-2xl p-3.5 max-w-[85%] shadow-sm leading-relaxed text-sm">
-                    ${imgHtml}
-                    <div id="${msgId}" class="message-content">${formatMessageText(text)}</div>
-                    ${copyBtnHtml}
-                </div>
-            `;
-            chatContainer.appendChild(messageDiv);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-
-            if (window.MathJax) {
-                window.MathJax.typesetPromise();
-            }
-        }
-
-        function formatMessageText(text) {
-            return escapeHtml(text).replace(/\n/g, '<br>');
-        }
-
-        function copyMessageText(msgId) {
-            const el = document.getElementById(msgId);
-            if (!el) return;
-            const textToCopy = el.innerText;
-            navigator.clipboard.writeText(textToCopy).then(() => {
-                const btnText = document.getElementById(`${msgId}_btn_text`);
-                if (btnText) {
-                    btnText.textContent = "تم النسخ بنجاح! ✓";
-                    setTimeout(() => { btnText.textContent = "نسخ الشرح"; }, 2000);
+                if (response.ok) {
+                    appendMessage(data.reply, 'bot-msg');
+                    speakText(data.reply); // قراءة الرد بصوت واضح
+                } else {
+                    appendMessage("حدث خطأ في الاتصال بالسيرفر، يرجى المحاولة لاحقاً.", 'bot-msg');
                 }
-            });
-        }
-
-        function setAvatarState(state) {
-            const avatar = document.getElementById('avatarContainer');
-            const face = document.getElementById('avatarFace');
-            avatar.className = "w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl text-white transition-all duration-300 shadow-inner";
-
-            if (state === 'speaking') {
-                avatar.classList.add('bg-emerald-600', 'anim-speaking');
-                face.textContent = "🗣️";
-            } else if (state === 'listening') {
-                avatar.classList.add('bg-red-600', 'animate-pulse');
-                face.textContent = "👂";
-            } else {
-                avatar.classList.add('bg-[#c5a059]', 'anim-idle');
-                face.textContent = "👨‍🏫";
+            } catch (err) {
+                removeMessage(loadingId);
+                appendMessage("حدث خطأ في الشبكة.", 'bot-msg');
             }
         }
 
+        function appendMessage(text, className) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${className}`;
+            msgDiv.innerHTML = text.replace(/\n/g, '<br>');
+            chatContainer.appendChild(msgDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            const id = 'msg_' + Date.now();
+            msgDiv.id = id;
+            return id;
+        }
+
+        function removeMessage(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        }
+
+        // دالة تنظيف النص الرياضي وقراءته بطلاقة بالعربية بدون رموز معقدة
         function speakText(text) {
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel();
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = 'ar-SA';
-                utterance.rate = 1.0;
-                utterance.onstart = () => setAvatarState('speaking');
-                utterance.onend = () => {
-                    setAvatarState('idle');
-                    // بمجرد أن ينتهي الأستاذ نبيل من الكلام، نفتح المايك تلقائياً ليجيب الطالب (خذ وعطى)
-                    if (isListening) {
-                        try {
-                            recognition.start();
-                        } catch(e) {}
-                    }
-                };
-                utterance.onerror = () => setAvatarState('idle');
-                window.speechSynthesis.speak(utterance);
-            }
-        }
+            if (!('speechSynthesis' in window)) return;
+            window.speechSynthesis.cancel(); // إيقاف أي صوت قديم
 
-        function escapeHtml(string) {
-            return String(string).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            // تنظيف رموز LaTeX والرموز الرياضية لتناسب النطق الصوتي الطبيعي
+            let cleanText = text
+                .replace(/\$\$(.*?)\$\$/g, ' معادلة رياضية ')
+                .replace(/\$(.*?)\/g, ' ')
+                .replace(/[\*\_\#\$\^\\\{\}]/g, ' ')
+                .replace(/OM/g, 'أو إم')
+                .replace(/O'M/g, 'أو فتحه إم')
+                .replace(/OO'/g, 'أو أو فتحه');
+
+            const utterance = new SpeechSynthesisUtterance(cleanText);
+            utterance.lang = 'ar-SA'; // أو ar-EG لنطق عربي واضح ومستقر
+            utterance.rate = 1.0;
+            window.speechSynthesis.speak(utterance);
         }
     </script>
 </body>
