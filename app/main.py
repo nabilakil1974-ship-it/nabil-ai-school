@@ -46,6 +46,7 @@ class ImageChatRequest(BaseModel):
     image: Optional[str] = None
     subject: Optional[str] = "رياضيات"
     grade: Optional[str] = "الصف السابع"
+    language: Optional[str] = "العربية"
     curriculum: Optional[str] = "CRDP"
 
 @app.post("/api/chat-with-image")
@@ -58,19 +59,27 @@ async def chat_with_image_endpoint(req: ImageChatRequest):
             mime_type = "image/png" if "png" in header else "image/webp" if "webp" in header else "image/jpeg"
             contents.append(types.Part.from_bytes(data=image_bytes, mime_type=mime_type))
 
+        # التعليمات البرمجية الصارمة لهيكلية الأستاذ نبيل المنهجية
         prompt_text = f"""
-        أنت "الأستاذ نبيل"، مدرس خبير في المنهج اللبناني الرسمي (CRDP).
-        المادة: {req.subject}، الصف: {req.grade}.
-        مهمتك هي حل المسألة التالية بدقة ووضوح خطوة بخطوة باللغة العربية:
-        {req.message if req.message else "اشرح وحل هذه المسألة الرياضية بالتفصيل"}
+        أنت "الأستاذ نبيل"، مدرس خبير ومعتمد في المنهج اللبناني الرسمي (CRDP).
+        الصف: {req.grade} | المادة: {req.subject} | لغة الشرح المطلوبة: {req.language}.
+        
+        يجب أن تلتزم التزاماً تاما صارماً بالهيكلية التالية في إجابتك:
+        1. المعطيات (Given / Données): استخراج المعطيات بوضوح من المسألة.
+        2. القاعدة أو القانون (Formula / Formule): كتابة القانون أو القاعدة الأساسية المطلوبة.
+        3. التطبيق والحل خطوة بخطوة (Step-by-Step Solution): شرح الحل تدريجياً وببساطة.
+        4. المصطلحات والمفاتيح باللغة الأجنبية (Keywords): كتابة المصطلحات باللغة الأجنبية (إنجليزي أو فرنسي حسب لغة الطالب) ليتمكن من حفظها وكتابتها بدقة في امتحانه.
+
+        سؤال الطالب أو نص المسألة المرفقة:
+        {req.message if req.message else "اشرح وحل هذه المسألة بالتفصيل المنهجي"}
         """
         contents.append(prompt_text)
 
         response = client.models.generate_content(
-            model='gemini-3.6-flash',
+            model='gemini-2.5-flash', # تم ضبط الموديل ليناسب الأداء السريع والمستقر
             contents=contents,
             config=types.GenerateContentConfig(
-                system_instruction="أنت أستاذ لبناني ودي، تشرح بوضوح وبدون تعقيد، وتراعي المنهج اللبناني الرسمي (CRDP)."
+                system_instruction="أنت الأستاذ نبيل، أستاذ لبناني خبير وودي، تشرح بوضوح وبدون تعقيد، وتلتزم حصرياً بالهيكلية المنهجية المعتمدة (المعطيات، القاعدة، الحل خطوة بخطوة، والمصطلحات الأجنبية) وفق المنهج اللبناني الرسمي (CRDP)."
             )
         )
 
