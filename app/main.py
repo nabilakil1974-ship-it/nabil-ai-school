@@ -86,12 +86,10 @@ async def chat_with_image_endpoint(req: ImageChatRequest):
         contents.append(prompt_text)
 
         # 3. استدعاء نموذج Gemini القادر على معالجة الصور والنصوص
-        response = client.models.generate_content(
+     response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=contents,
-            config=types.GenerateContentConfig(
-                system_instruction="أنت أستاذ لبناني ودي، تشرح بوضوح وبدون تعقيد، وتراعي المنهج اللبناني."
-            )
+            ...
         )
 
         return {
