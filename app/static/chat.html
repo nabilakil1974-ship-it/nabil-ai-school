@@ -256,28 +256,6 @@
     flex-shrink:0;
     display:flex;align-items:center;justify-content:center;
   }
-  .quick-toggle{
-    display:flex;
-    align-items:center;
-    gap:6px;
-    padding:8px 14px;
-    margin:0 16px 8px;
-    border-radius:20px;
-    border:1.5px solid var(--paper-line);
-    background:#fff;
-    color:var(--muted);
-    font-family:'Tajawal',sans-serif;
-    font-size:13px;
-    cursor:pointer;
-    width:fit-content;
-    transition:all .2s ease;
-  }
-  .quick-toggle.active{
-    background:var(--chalk-yellow);
-    border-color:var(--chalk-yellow);
-    color:var(--chalkboard);
-    font-weight:700;
-  }
   .composer textarea{
     flex:1;
     resize:none;
@@ -343,8 +321,6 @@
     <button id="removeImageBtn">إزالة الصورة</button>
   </div>
 
-  <button class="quick-toggle" id="quickToggle">⚡ أنا مستعجل - بدي حل مباشر</button>
-
   <div class="composer">
     <input type="file" id="imageInput" accept="image/*" style="display:none">
     <button class="icon-btn" id="attachBtn" aria-label="إرفاق صورة">📎</button>
@@ -390,12 +366,6 @@
   const micBtn = document.getElementById("micBtn");
   let lastMessageWasVoice = false;
   const avatarBox = document.getElementById("avatarBox");
-  const quickToggle = document.getElementById("quickToggle");
-  let quickMode = false;
-  quickToggle.addEventListener("click", () => {
-    quickMode = !quickMode;
-    quickToggle.classList.toggle("active", quickMode);
-  });
   const imageInput = document.getElementById("imageInput");
   const previewRow = document.getElementById("previewRow");
   const previewImg = document.getElementById("previewImg");
@@ -566,9 +536,7 @@
 
     addMessage("student", text, null, pendingImage);
     const imageToSend = pendingImage;
-    const messageToSend = quickMode
-      ? text + " [بدي الحل المباشر بلا خطوات تدريجية، أنا مستعجل]"
-      : text;
+    const messageToSend = text;
     input.value = "";
     input.style.height = "auto";
     pendingImage = null;
