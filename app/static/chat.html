@@ -97,21 +97,25 @@
             background: #3b82f6;
             color: #fff;
         }
-        .copy-btn {
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 3px;
+            align-self: flex-start;
+        }
+        .copy-btn, .speak-btn {
             background: transparent;
             border: none;
             color: #94a3b8;
             font-size: 11px;
             cursor: pointer;
-            margin-top: 3px;
-            align-self: flex-start;
             display: flex;
             align-items: center;
             gap: 4px;
-            padding: 2px 4px;
+            padding: 2px 6px;
             border-radius: 4px;
         }
-        .copy-btn:hover {
+        .copy-btn:hover, .speak-btn:hover {
             background: #334155;
             color: #38bdf8;
         }
@@ -242,7 +246,10 @@
             <div class="message bot">
                 أهلاً بك يا بطل! معك <b>الأستاذ نبيل</b> 👨‍🏫. اختر صفك، مادَتَك ولغتك، وارفع صورة التمرين لنبدأ الحل المنهجي (المعطيات، القاعدة، الحل، المصطلحات).
             </div>
-            <button class="copy-btn" onclick="copyText(this)">📋 نسخ النص</button>
+            <div class="action-buttons">
+                <button class="copy-btn" onclick="copyText(this)">📋 نسخ النص</button>
+                <button class="speak-btn" onclick="speakText(this)">🔊 استمع</button>
+            </div>
         </div>
     </div>
 
@@ -270,7 +277,7 @@
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         recognition = new SpeechRecognition();
         recognition.lang = 'ar-LB';
-        recognition.continuous = true;  // منع الإيقاف التلقائي السريع
+        recognition.continuous = true;
         recognition.interimResults = true;
 
         recognition.onresult = (e) => {
@@ -288,7 +295,7 @@
         recognition.onend = () => {
             if (isRecording && !manualStop) {
                 try {
-                    recognition.start(); // إعادة التشغيل تلقائياً إذا انقطع بسبب الصمت المؤقت
+                    recognition.start();
                 } catch (err) {
                     stopMicUI();
                 }
@@ -341,7 +348,7 @@
     }
 
     function copyText(button) {
-        const messageDiv = button.previousElementSibling;
+        const messageDiv = button.closest('.message-container').querySelector('.message');
         const textToCopy = messageDiv.innerText;
         navigator.clipboard.writeText(textToCopy).then(() => {
             button.innerHTML = "✅ تم";
@@ -349,12 +356,35 @@
         });
     }
 
+    function speakText(button) {
+        if (!('speechSynthesis' in window)) {
+            alert("متصفحك لا يدعم خاصية القراءة الصوتية.");
+            return;
+        }
+        window.speechSynthesis.cancel(); // إيقاف أي قراءة سابقة
+        const messageDiv = button.closest('.message-container').querySelector('.message');
+        const textToSpeak = messageDiv.innerText;
+        
+        const utterance = new SpeechSynthesisUtterance(textToSpeak);
+        utterance.lang = 'ar-SA';
+        utterance.rate = 1.0;
+        
+        button.innerHTML = "🔊 جاري القراءة...";
+        utterance.onend = () => {
+            button.innerHTML = "🔊 استمع";
+        };
+        utterance.onerror = () => {
+            button.innerHTML = "🔊 استمع";
+        };
+
+        window.speechSynthesis.speak(utterance);
+    }
+
     async function sendMessage() {
         const input = document.getElementById('userInput');
         const text = input.value.trim();
         if (!text && !base64Image) return;
 
-        // إذا كان الميكروفون شغال وقت الإرسال، نوقفه يدوياً
         if (isRecording) {
             manualStop = true;
             isRecording = false;
@@ -415,14 +445,20 @@
             chatMessages.innerHTML += `
                 <div class="message-container bot">
                     <div class="message bot">${formattedReply}</div>
-                    <button class="copy-btn" onclick="copyText(this)">📋 نسخ النص</button>
+                    <div class="action-buttons">
+                        <button class="copy-btn" onclick="copyText(this)">📋 نسخ النص</button>
+                        <button class="speak-btn" onclick="speakText(this)">🔊 استمع</button>
+                    </div>
                 </div>`;
         } catch (err) {
             document.getElementById(loadingId).remove();
             chatMessages.innerHTML += `
                 <div class="message-container bot">
                     <div class="message bot">عذراً، حدث خطأ في الاتصال. أعد المحاولة!</div>
-                    <button class="copy-btn" onclick="copyText(this)">📋 نسخ النص</button>
+                    <div class="action-buttons">
+                        <button class="copy-btn" onclick="copyText(this)">📋 نسخ النص</button>
+                        <button class="speak-btn" onclick="speakText(this)">🔊 استمع</button>
+                    </div>
                 </div>`;
         }
         chatMessages.scrollTop = chatMessages.scrollHeight;
