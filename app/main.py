@@ -35,7 +35,6 @@ app.include_router(routes_health.router, prefix="/api", tags=["health"])
 app.include_router(routes_chat.router, prefix="/api", tags=["chat"])
 app.include_router(routes_admin.router, prefix="/api", tags=["admin"])
 
-# تهيئة عميل Groq باستخدام المفتاح الآمن
 def get_groq_client():
     if not settings.GROQ_API_KEY:
         raise HTTPException(status_code=500, detail="مفتاح GROQ_API_KEY غير معرّف في النظام!")
