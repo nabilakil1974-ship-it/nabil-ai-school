@@ -5,144 +5,282 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>منصة الأستاذ نبيل - المعلم الافتراضي للمنهج اللبناني 📚</title>
     <style>
+        * { box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: radial-gradient(circle at center, #1e293b, #0f172a);
+            background: #0f172a;
             color: #f8fafc;
             margin: 0;
-            padding: 0;
+            padding: 10px;
             height: 100vh;
             display: flex;
-            flex-direction: column;
-            align-items: center;
             justify-content: center;
+            align-items: center;
             overflow: hidden;
         }
         .main-wrapper {
-            width: 95%; max-width: 1100px; height: 96vh;
-            background: rgba(30, 41, 59, 0.95);
-            border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.8);
-            display: flex; flex-direction: column; overflow: hidden;
-            border: 2px solid #3b82f6;
+            width: 100%;
+            max-width: 1000px;
+            height: 98vh;
+            background: #1e293b;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid #334155;
         }
         .teacher-stage {
-            background: linear-gradient(180deg, #0f172a, #1e293b);
-            padding: 25px; display: flex; align-items: center; gap: 25px;
-            border-bottom: 3px solid #3b82f6;
+            background: #0f172a;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            border-bottom: 2px solid #3b82f6;
+            flex-shrink: 0;
         }
         .teacher-avatar-box {
-            width: 110px; height: 110px; border-radius: 50%;
-            background: linear-gradient(135deg, #2563eb, #1d4ed8);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 60px; box-shadow: 0 0 35px rgba(59, 130, 246, 0.9);
-            border: 4px solid #60a5fa; position: relative; flex-shrink: 0;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 35px;
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.7);
+            border: 2px solid #60a5fa;
+            flex-shrink: 0;
         }
-        .teacher-info h1 { margin: 0; font-size: 28px; color: #38bdf8; }
-        .teacher-info p { margin: 8px 0 0; font-size: 16px; color: #cbd5e1; }
+        .teacher-info h1 {
+            margin: 0;
+            font-size: 20px;
+            color: #38bdf8;
+        }
+        .teacher-info p {
+            margin: 4px 0 0;
+            font-size: 13px;
+            color: #94a3b8;
+        }
         .chat-messages {
-            flex: 1; padding: 25px; overflow-y: auto; display: flex;
-            flex-direction: column; gap: 20px; background: #0b0f19;
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            background: #0f172a;
         }
         .message {
-            max-width: 80%; padding: 16px 20px; border-radius: 16px;
-            font-size: 17px; line-height: 1.7; word-wrap: break-word;
+            max-width: 85%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 15px;
+            line-height: 1.6;
+            word-wrap: break-word;
         }
-        .message.bot { background: #1e293b; color: #f1f5f9; align-self: flex-start; border-right: 6px solid #3b82f6; }
-        .message.user { background: #3b82f6; color: #fff; align-self: flex-end; }
-        .svg-container {
-            background: #0f172a; border: 2px solid #3b82f6; border-radius: 12px;
-            padding: 20px; margin-top: 15px; display: flex; justify-content: center;
+        .message.bot {
+            background: #1e293b;
+            color: #f1f5f9;
+            align-self: flex-start;
+            border-right: 4px solid #3b82f6;
+        }
+        .message.user {
+            background: #3b82f6;
+            color: #fff;
+            align-self: flex-end;
         }
         .chat-input-area {
-            padding: 20px; background: #1e293b; display: flex; gap: 15px; align-items: center;
-            border-top: 2px solid #334155;
+            padding: 15px;
+            background: #1e293b;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            border-top: 1px solid #334155;
+            flex-shrink: 0;
         }
         .chat-input-area input[type="text"] {
-            flex: 1; background: #0f172a; border: 2px solid #475569; border-radius: 12px;
-            padding: 16px; color: #fff; font-size: 16px; outline: none;
+            flex: 1;
+            background: #0f172a;
+            border: 1px solid #475569;
+            border-radius: 8px;
+            padding: 12px;
+            color: #fff;
+            font-size: 14px;
+            outline: none;
         }
-        .btn { background: #3b82f6; color: white; border: none; padding: 14px 28px; border-radius: 12px; cursor: pointer; font-weight: bold; }
-        .icon-btn { background: #334155; color: #fff; border: none; width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 22px; }
+        .btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn:hover { background: #2563eb; }
+        .icon-btn {
+            background: #334155;
+            color: #fff;
+            border: none;
+            width: 42px;
+            height: 42px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 18px;
+        }
+        .icon-btn:hover { background: #475569; }
         .icon-btn.recording { background: #ef4444; }
-        #imagePreview { max-height: 65px; display: none; border-radius: 8px; margin-right: 10px; border: 2px solid #3b82f6; }
+        #imagePreview {
+            max-height: 45px;
+            display: none;
+            border-radius: 6px;
+            border: 1px solid #3b82f6;
+        }
+        svg { max-width: 100%; height: auto; margin-top: 10px; background: #fff; border-radius: 8px; padding: 5px; }
     </style>
 </head>
 <body>
+
 <div class="main-wrapper">
     <div class="teacher-stage">
-        <div class="teacher-avatar-box" id="teacherAvatar">👨‍🏫</div>
+        <div class="teacher-avatar-box">👨‍🏫</div>
         <div class="teacher-info">
             <h1>الأستاذ نبيل - المنهاج اللبناني الذكي (CRDP)</h1>
-            <p>معلمك الافتراضي التفاعلي لشرح الرياضيات والعلوم</p>
+            <p>معلمك الافتراضي لشرح الرياضيات والعلوم - متصل ودائم</p>
         </div>
     </div>
+
     <div class="chat-messages" id="chatMessages">
-        <div class="message bot">أهلاً بك يا بطل! معك <b>الأستاذ نبيل</b> 👨‍🏫. أنا جاهز لشرح دروسك وحل المسائل ورسم الهندسة!</div>
+        <div class="message bot">
+            أهلاً بك يا بطل! معك <b>الأستاذ نبيل</b> 👨‍🏫. جاهز لمساعدتك في حل مسائل المنهاج اللبناني وشرحها خطوة بخطوة. ارفع صورة التمرين أو اكتب سؤالك!
+        </div>
     </div>
+
     <div class="chat-input-area">
-        <label class="icon-btn" title="رفع صورة">📷<input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="previewImage(event)"></label>
+        <label class="icon-btn" title="رفع صورة مسألة">
+            📷
+            <input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="previewImage(event)">
+        </label>
         <img id="imagePreview" alt="معاينة">
-        <input type="text" id="userInput" placeholder="اكتب سؤالك أو تحدث بالميكروفون..." onkeypress="handleKeyPress(event)">
+        
+        <input type="text" id="userInput" placeholder="اكتب سؤالك أو ارفع صورة التمرين هنا..." onkeypress="handleKeyPress(event)">
+        
         <button class="icon-btn" id="micBtn" onclick="toggleMic()" title="التسجيل الصوتي">🎤</button>
         <button class="btn" onclick="sendMessage()">إرسال</button>
     </div>
 </div>
+
 <script>
-    let base64Image = null, recognition = null, isRecording = false;
+    let base64Image = null;
+    let recognition = null;
+    let isRecording = false;
+
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         recognition = new SpeechRecognition();
         recognition.lang = 'ar-LB';
-        recognition.onresult = (e) => { document.getElementById('userInput').value = e.results[0][0].transcript; stopMicUI(); sendMessage(); };
+        recognition.onresult = (e) => {
+            document.getElementById('userInput').value = e.results[0][0].transcript;
+            stopMicUI();
+            sendMessage();
+        };
         recognition.onerror = recognition.onend = () => stopMicUI();
     }
+
     function toggleMic() {
-        if (!recognition) { alert("المتصفح لا يدعم الصوت المباشر"); return; }
+        if (!recognition) { alert("متصفحك لا يدعم التسجيل الصوتي المباشر."); return; }
         const micBtn = document.getElementById('micBtn');
-        if (!isRecording) { recognition.start(); isRecording = true; micBtn.classList.add('recording'); micBtn.innerHTML = "⏹️"; }
-        else { recognition.stop(); stopMicUI(); }
-    }
-    function stopMicUI() { isRecording = false; const m = document.getElementById('micBtn'); m.classList.remove('recording'); m.innerHTML = "🎤"; }
-    function previewImage(e) {
-        const file = e.target.files[0];
-        if (file) {
-            const r = new FileReader();
-            r.onload = (ev) => { base64Image = ev.target.result; const p = document.getElementById('imagePreview'); p.src = base64Image; p.style.display = 'block'; };
-            r.readAsDataURL(file);
+        if (!isRecording) {
+            recognition.start();
+            isRecording = true;
+            micBtn.classList.add('recording');
+            micBtn.innerHTML = "⏹️";
+        } else {
+            recognition.stop();
+            stopMicUI();
         }
     }
+
+    function stopMicUI() {
+        isRecording = false;
+        const micBtn = document.getElementById('micBtn');
+        micBtn.classList.remove('recording');
+        micBtn.innerHTML = "🎤";
+    }
+
+    function previewImage(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                base64Image = e.target.result;
+                const preview = document.getElementById('imagePreview');
+                preview.src = base64Image;
+                preview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
     async function sendMessage() {
-        const input = document.getElementById('userInput'), text = input.value.trim();
+        const input = document.getElementById('userInput');
+        const text = input.value.trim();
         if (!text && !base64Image) return;
-        const chat = document.getElementById('chatMessages');
+
+        const chatMessages = document.getElementById('chatMessages');
+
         let userHtml = `<div class="message user">${text}`;
-        if (base64Image) userHtml += `<br><img src="${base64Image}" style="max-width:180px; margin-top:10px; border-radius:8px;">`;
+        if (base64Image) {
+            userHtml += `<br><img src="${base64Image}" style="max-width:150px; margin-top:5px; border-radius:6px;">`;
+        }
         userHtml += `</div>`;
-        chat.innerHTML += userHtml;
-        const cText = text, cImg = base64Image;
-        input.value = ''; base64Image = null; document.getElementById('imagePreview').style.display = 'none';
-        chat.scrollTop = chat.scrollHeight;
-        const loadingId = 'load_' + Date.now();
-        chat.innerHTML += `<div class="message bot" id="${loadingId}">الأستاذ نبيل يجهز الشرح... 👨‍🏫✍️</div>`;
+        chatMessages.innerHTML += userHtml;
+
+        const currentText = text;
+        const currentImage = base64Image;
+
+        input.value = '';
+        base64Image = null;
+        document.getElementById('imagePreview').style.display = 'none';
+        document.getElementById('imageInput').value = '';
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        const loadingId = 'loading_' + Date.now();
+        chatMessages.innerHTML += `<div class="message bot" id="${loadingId}">الأستاذ نبيل يدرس التمرين ويجهز الشرح... 👨‍🏫⏳</div>`;
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+
         try {
-            const res = await fetch('/api/chat-with-image', {
+            const response = await fetch('/api/chat-with-image', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ student_id: "student_pro", message: cText, image: cImg, subject: "رياضيات", grade: "الصف السابع" })
+                body: JSON.stringify({
+                    student_id: "student_pro",
+                    message: currentText,
+                    image: currentImage,
+                    subject: "رياضيات",
+                    grade: "الصف السابع"
+                })
             });
-            const data = await res.json();
+
+            const data = await response.json();
             document.getElementById(loadingId).remove();
-            let reply = data.reply, svg = '';
-            const match = reply.match(/<svg[\s\S]*?<\/svg>/);
-            if (match) { svg = `<div class="svg-container">${match[0]}</div>`; reply = reply.replace(match[0], ''); }
-            chat.innerHTML += `<div class="message bot">${reply.replace(/\n/g, '<br>')}${svg}</div>`;
-        } catch(err) {
+
+            chatMessages.innerHTML += `<div class="message bot">${data.reply.replace(/\n/g, '<br>')}</div>`;
+        } catch (err) {
             document.getElementById(loadingId).remove();
-            chat.innerHTML += `<div class="message bot">عذراً، حدث خطأ بسيط، أعد الإرسال!</div>`;
+            chatMessages.innerHTML += `<div class="message bot">عذراً يا بطل، حدث خطأ في الاتصال. أعد المحاولة وسأجيبك فوراً!</div>`;
         }
-        chat.scrollTop = chat.scrollHeight;
+        chatMessages.scrollTop = chatMessages.scrollHeight;
     }
-    function handleKeyPress(e) { if (e.key === 'Enter') sendMessage(); }
+
+    function handleKeyPress(e) {
+        if (e.key === 'Enter') sendMessage();
+    }
 </script>
+
 </body>
 </html>
