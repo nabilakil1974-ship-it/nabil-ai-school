@@ -1,22 +1,14 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
+import os
+from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
-    """
-    إعدادات المشروع - تُقرأ تلقائياً من متغيرات البيئة (.env محلياً، أو
-    من إعدادات Railway مباشرة عند النشر).
-    """
+    PROJECT_NAME: str = "منصة الأستاذ نبيل - المنهاج اللبناني"
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    GOOGLE_DRIVE_CREDENTIALS_JSON: str = os.getenv("GOOGLE_DRIVE_CREDENTIALS_JSON", "")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./nabil_school.db")
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
-
-    OPENAI_API_KEY: str = ""
-    GEMINI_API_KEY: str = ""
-    GROQ_API_KEY: str = ""
-    DATABASE_URL: str = "sqlite:///./nabilai_local.db"
-    ENVIRONMENT: str = "development"
-    SECRET_KEY: str = "dev-secret-change-me"
-    PROJECT_NAME: str = "NabilAI"
-    GOOGLE_DRIVE_CREDENTIALS_JSON: str = ""
-
+    class Config:
+        env_file = ".env"
+        extra = "ignore"
 
 settings = Settings()
