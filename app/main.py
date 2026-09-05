@@ -35,7 +35,7 @@ app.include_router(routes_health.router, prefix="/api", tags=["health"])
 app.include_router(routes_chat.router, prefix="/api", tags=["chat"])
 app.include_router(routes_admin.router, prefix="/api", tags=["admin"])
 
-# تهيئة عميل Groq باستخدام المفتاح الآمن من الإعدادات
+# تهيئة عميل Groq باستخدام المفتاح الآمن
 def get_groq_client():
     if not settings.GROQ_API_KEY:
         raise HTTPException(status_code=500, detail="مفتاح GROQ_API_KEY غير معرّف في النظام!")
@@ -82,7 +82,6 @@ async def chat_with_image_endpoint(req: ImageChatRequest):
             {"role": "user", "content": prompt_text}
         ]
 
-        # استخدام موديل Groq الداعم للرؤية والنصوص
         completion = client.chat.completions.create(
             model="meta-llama/llama-3.2-11b-vision-preview",
             messages=messages,
