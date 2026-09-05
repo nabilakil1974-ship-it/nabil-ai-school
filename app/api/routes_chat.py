@@ -20,14 +20,14 @@ SYSTEM_PROMPT = """
 
 1. الأسلوب واللغة: احكي دايماً عربي لبناني محكي لطيف ودافي بالشرح البسيط (مثل: "أهلاً بك يا بطل!"، "خليني اشرحلك ياه...").
 2. الهيكلية والشرح للدروس والمسائل: عندما يسألك الطالب عن درس (مثل القوى، الجبر، أو الهندسة) أو يطلب حل مسألة، يجب أن تقسم إجابتك بشكل دقيق ومرتب كالتالي:
-   - **مقدمة مبسطة وشرح المفاهيم**: شرح فكرة الدرس بأسلوب سلس ومثال واضح مع تحديد الأساس والأس (Base & Exponent) إن وجد.
-   - **حالات خاصة وقواعد ذهبية**: ذكر القواعد الأساسية التي لا غنى عنها في المنهاج اللبناني.
-   - **العمليات والخطوات بالأمثلة**: تفصيل الخطوات الرياضية (ضرب، قسمة، برهان) مع الأمثلة المرقمة.
-   - **الخلاصة والتشجيع**: ختم الإجابة بعبارة تشجيعية دافئة.
+   - مقدمة مبسطة وشرح المفاهيم: شرح فكرة الدرس بأسلوب سلس ومثال واضح مع تحديد الأساس والأس (Base & Exponent) إن وجد.
+   - حالات خاصة وقواعد ذهبية: ذكر القواعد الأساسية التي لا غنى عنها في المنهاج اللبناني.
+   - العمليات والخطوات بالأمثلة: تفصيل الخطوات الرياضية (ضرب، قسمة، برهان) مع الأمثلة المرقمة.
+   - الخلاصة والتشجيع: ختم الإجابة بعبارة تشجيعية دافئة.
 
 3. في أسئلة الهندسة والبرهان: التزم بالنمط العلمي (Geometric Analysis, Key Theorem Application, Step-by-Step Conclusion) ولكن بلغة واضحة.
 
-4. ممنوع نهائياً استخدام أي تنسيق Markdown معقد يفسد الشكل البصري، واستخدم الرموز الرياضية الواضحة.
+4. ممنوع نهائياً استخدام أي تنسيق Markdown معقد يفسد الشكل البصري، واستخدم الرموز الرياضية الواضحة. وفورا أجب بالحل النهائي بدون أي كتابة لعمليات التفكير الداخلية أو وسوم think.
 """
 
 VISION_MODEL = "qwen/qwen3.6-27b"
@@ -35,6 +35,16 @@ TEXT_MODEL = "openai/gpt-oss-120b"
 
 
 def clean_reply(text: str) -> str:
+    if not text:
+        return ""
+    
+    # إزالة وسوم التفكير تماماً من بدايتها لنهايتها
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    if "</think>" in text:
+        text = text.split("</think>")[-1]
+    if "<think>" in text:
+        text = text.split("<think>")[0]
+
     text = re.sub(r"#{1,6}\s*", "", text)
     text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
     text = re.sub(r"\*(.+?)\*", r"\1", text)
@@ -137,10 +147,12 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
             *history_messages,
             {"role": "user", "content": user_content},
         ],
-        max_tokens=1500,  # رفعنا الحد ليتسع لشرح الدروس الكاملة بدون انقطاع
+        max_tokens=1500,
         temperature=0.4,
     )
-    reply_text = clean_reply(completion.choices[0].message.content)
+    
+    raw_content = completion.choices[0].message.content or ""
+    reply_text = clean_reply(raw_content)
 
     db.add(Message(conversation_id=conversation.id, role="teacher", content=reply_text))
     db.commit()
