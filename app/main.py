@@ -40,8 +40,8 @@ app.include_router(routes_health.router, prefix="/api", tags=["health"])
 app.include_router(routes_chat.router, prefix="/api", tags=["chat"])
 app.include_router(routes_admin.router, prefix="/api", tags=["admin"])
 
-# تهيئة عميل Gemini لاستخدام نموذج قراءة الصور والنصوص
-client = genai.Client()
+# تهيئة عميل Gemini مع تمرير مفتاح البيئة صراحةً لضمان العمل بنجاح
+client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
 class ImageChatRequest(BaseModel):
     student_id: str
@@ -52,7 +52,7 @@ class ImageChatRequest(BaseModel):
     grade: Optional[str] = "الصف السابع"
     curriculum: Optional[str] = "CRDP"
 
-# نقطة النهاية (Endpoint) الجديدة لمعالجة الأسئلة مع الصور المرفوعة مباشرة بالذكاء الاصطناعي
+# نقطة النهاية (Endpoint) لمعالجة الأسئلة مع الصور المرفوعة مباشرة بالذكاء الاصطناعي
 @app.post("/api/chat-with-image")
 async def chat_with_image_endpoint(req: ImageChatRequest):
     try:
@@ -85,7 +85,7 @@ async def chat_with_image_endpoint(req: ImageChatRequest):
         """
         contents.append(prompt_text)
 
-        # 3. استدعاء نموذج Gemini القادر على معالجة الصور
+        # 3. استدعاء نموذج Gemini القادر على معالجة الصور والنصوص
         response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=contents,
