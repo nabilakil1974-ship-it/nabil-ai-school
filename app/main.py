@@ -1,20 +1,22 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from sqlalchemy import text
 
 from app.core.config import settings
 from app.db.session import Base, engine
-from app.api import routes_health, routes_chat, routes_admin
 
+# 1. تفعيل امتداد Vector في قاعدة البيانات
 with engine.connect() as conn:
     conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
     conn.commit()
 
+# 2. كتابة ملف إعدادات Google Drive من متغيرات البيئة
 if settings.GOOGLE_DRIVE_CREDENTIALS_JSON:
     with open("drive_service_account.json", "w", encoding="utf-8") as f:
         f.write(settings.GOOGLE_DRIVE_CREDENTIALS_JSON)
 
+# 3. إنشاء الجداول في قاعدة البيانات
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title=settings.PROJECT_NAME)
@@ -26,8 +28,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(routes_health.router, prefix="/api", tags=["health"])
+# 4. تعريف راوت الصحة مباشرة هنا لتجنب أي مشاكل في الاستيراد
+health_router = APIRouter()
 
+@health_router.get("/health")
+def health_check():
+    return {"status": "ok", "service": "NabilAI backend (local embeddings + Groq)"}
+
+app.include_router(health_router, prefix="/api", tags=["health"])
 
 @app.get("/")
 def root():
