@@ -27,8 +27,7 @@ app.add_middleware(
 )
 
 app.include_router(routes_health.router, prefix="/api", tags=["health"])
-app.include_router(routes_chat.router, prefix="/api", tags=["chat"])
-app.include_router(routes_admin.router, prefix="/api", tags=["admin"])
+
 
 @app.get("/")
 def root():
