@@ -82,14 +82,28 @@ async def chat_with_image_endpoint(req: ImageChatRequest):
         """
         contents.append(prompt_text)
 
-        # استخدام الموديل الصحيح والمطلوب من جوجل
-        response = client.models.generate_content(
-            model='gemini-3.6-flash',
-            contents=contents,
-            config=types.GenerateContentConfig(
-                system_instruction="أنت أستاذ لبناني ودي، تشرح بوضوح وبدون تعقيد، وتراعي المنهج اللبناني."
-            )
-        )
+        # قائمة الموديلات التي سيجربها الكود تلقائياً (من الأحدث للأقدم) لضمان عدم توقف المنصة أبداً
+        models_to_try = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash']
+        response = None
+        last_error = None
+
+        for model_name in models_to_try:
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=contents,
+                    config=types.GenerateContentConfig(
+                        system_instruction="أنت أستاذ لبناني ودي، تشرح بوضوح وبدون تعقيد، وتراعي المنهج اللبناني."
+                    )
+                )
+                if response and response.text:
+                    break # نجح الاتصال، نخرج من الحلقة
+            except Exception as model_err:
+                last_error = model_err
+                continue
+
+        if not response or not response.text:
+            raise last_error or HTTPException(status_code=500, detail="فشل الاتصال بنماذج الذكاء الاصطناعي.")
 
         return {
             "conversation_id": req.conversation_id or "conv_123",
