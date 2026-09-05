@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>منصة الأستاذ نبيل - المنهاج اللبناني</title>
+    <title>منصة الأستاذ نبيل - المنهاج اللبناني الذكي 📚</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -13,15 +13,15 @@
             direction: rtl;
         }
         .chat-container {
-            max-width: 600px;
-            margin: 30px auto;
+            max-width: 650px;
+            margin: 20px auto;
             background: #ffffff;
             border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            height: 85vh;
+            height: 90vh;
         }
         .chat-header {
             background-color: #2c3e50;
@@ -42,8 +42,8 @@
         .message {
             padding: 12px 16px;
             border-radius: 8px;
-            max-width: 80%;
-            line-height: 1.5;
+            max-width: 85%;
+            line-height: 1.6;
             word-wrap: break-word;
         }
         .message.student {
@@ -63,10 +63,11 @@
             border-top: 1px solid #ddd;
             display: flex;
             gap: 10px;
+            align-items: center;
         }
         .chat-input-area input {
             flex: 1;
-            padding: 10px 15px;
+            padding: 12px 15px;
             border: 1px solid #ccc;
             border-radius: 6px;
             font-size: 14px;
@@ -76,7 +77,7 @@
             background-color: #27ae60;
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 12px 20px;
             border-radius: 6px;
             cursor: pointer;
             font-weight: bold;
@@ -84,12 +85,26 @@
         .chat-input-area button:hover {
             background-color: #219653;
         }
-        .speak-btn {
+        .action-btn {
             background: none;
             border: none;
             cursor: pointer;
             font-size: 16px;
-            margin-top: 5px;
+            margin-top: 8px;
+            color: #27ae60;
+            font-weight: bold;
+        }
+        .mic-btn {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 10px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .mic-btn:hover {
+            background-color: #c0392b;
         }
     </style>
 </head>
@@ -102,78 +117,121 @@
         
         <div class="chat-messages" id="chatMessages">
             <div class="message teacher">
-                أهلاً بك يا بطل! أنا الأستاذ نبيل، جاهز لأساعدك بأي سؤال رياضيات أو فيزياء بالمنهاج اللبناني. تفضل اطرح سؤالك أو ارفع صورتك!
+                أهلاً بك يا بطل! أنا الأستاذ نبيل، جاهز لأساعدك بأي درس أو مسألة رياضية بالمنهاج اللبناني. تفضل اطرح سؤالك!
                 <br>
-                <button class="speak-btn" onclick="speakText(this.parentElement.innerText)">🔊 استمع للشرح</button>
+                <button class="action-btn" onclick="speakText(this.parentElement.innerText)">🔊 استمع للشرح</button>
             </div>
         </div>
 
         <div class="chat-input-area">
-            <input type="text" id="userInput" placeholder="اكتب سؤالك هنا أو ارفع صورة..." onkeypress="if(event.key === 'Enter') sendMessage()">
+            <input type="text" id="userInput" placeholder="اكتب سؤالك هنا (مثلاً: اشرح لي درس القوى والأسس)..." onkeypress="if(event.key === 'Enter') sendMessage()">
+            <button class="mic-btn" id="micBtn" onclick="toggleSpeechRecognition()" title="التحدث بالصوت">🎤</button>
             <button onclick="sendMessage()">إرسال</button>
         </div>
     </div>
 
     <script>
-        // دالة نطق النص مع تنظيف الرموز والشرطات المزعجة تماماً قبل القراءة
+        // دالة تنظيف ونطق النص الصوتي بدون رموز مزعجة
         function speakText(text) {
             if (!('speechSynthesis' in window)) return;
             window.speechSynthesis.cancel();
 
-            // تنظيف النص تماماً من الشرطات، النجوم، والرموز البرمجية المزعجة
             let cleanText = text
-                .replace(/[_#*`~>-]/g, ' ') // إزالة الشرطات والرموز
+                .replace(/[_#*`~>-]/g, ' ')
                 .replace(/\$\$(.*?)\$\$/g, ' نقطة ')
                 .replace(/\$(.*?)\$/, ' ')
                 .replace(/OM/g, 'أو إم')
                 .replace(/O'M/g, 'أو فتحه إم')
                 .replace(/OO'/g, 'أو أو فتحه');
 
-            // ترتيب الجمل لنطقها بسلاسة وبدون إطالة مزعجة
             let sentences = cleanText.split(/[.،؟\n]/);
             let shortText = sentences.filter(s => s.trim().length > 0).slice(0, 5).join('. ');
 
             const utterance = new SpeechSynthesisUtterance(shortText);
-            utterance.lang = 'ar-SA'; // لغة النطق
+            utterance.lang = 'ar-SA';
             utterance.rate = 1.0;
             window.speechSynthesis.speak(utterance);
         }
 
+        // دعم الإدخال الصوتي (المايك) إذا كان متوفراً في المتصفح
+        function toggleSpeechRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                alert("متصفحك لا يدعم الإدخال الصوتي المباشر، يرجى استخدام الكتابة.");
+                return;
+            }
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'ar-SA';
+            recognition.interimResults = false;
+            
+            recognition.onstart = function() {
+                document.getElementById('micBtn').style.backgroundColor = '#f39c12';
+            };
+            
+            recognition.onresult = function(event) {
+                const speechToText = event.results[0][0].transcript;
+                document.getElementById('userInput').value = speechToText;
+                document.getElementById('micBtn').style.backgroundColor = '#e74c3c';
+                sendMessage();
+            };
+            
+            recognition.onerror = function() {
+                document.getElementById('micBtn').style.backgroundColor = '#e74c3c';
+            };
+            
+            recognition.onend = function() {
+                document.getElementById('micBtn').style.backgroundColor = '#e74c3c';
+            };
+            
+            recognition.start();
+        }
+
+        // دالة إرسال الرسالة إلى مسار الـ API الصحيح في السيرفر
         function sendMessage() {
             const input = document.getElementById('userInput');
             const messages = document.getElementById('chatMessages');
-            if (!input.value.trim()) return;
+            const query = input.value.trim();
+            if (!query) return;
 
-            // إضافة رسالة الطالب
+            // إضافة رسالة الطالب لواجهة المستخدم
             const studentDiv = document.createElement('div');
             studentDiv.className = 'message student';
-            studentDiv.innerText = input.value;
+            studentDiv.innerText = query;
             messages.appendChild(studentDiv);
 
-            const userQuery = input.value;
             input.value = '';
             messages.scrollTop = messages.scrollHeight;
 
-            // إرسال الطلب للسيرفر الخلفي (FastAPI)
-            fetch('/chat', {
+            // إرسال الطلب إلى مسار الـ API الموجود في السيرفر (chat_with_image_endpoint)
+            fetch('/api/chat-with-image', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     student_id: "student_1",
-                    message: userQuery
+                    message: query,
+                    subject: "رياضيات",
+                    grade: "الصف السابع",
+                    curriculum: "CRDP"
                 })
             })
             .then(res => res.json())
             .then(data => {
                 const teacherDiv = document.createElement('div');
                 teacherDiv.className = 'message teacher';
-                teacherDiv.innerHTML = data.reply.replace(/\n/g, '<br>') + 
-                    '<br><button class="speak-btn" onclick="speakText(this.parentElement.innerText)">🔊 استمع للشرح</button>';
+                
+                const replyText = data.reply || "عذراً، حدث خطأ في معالجة الطلب.";
+                teacherDiv.innerHTML = replyText.replace(/\n/g, '<br>') + 
+                    '<br><button class="action-btn" onclick="speakText(this.parentElement.innerText)">🔊 استمع للشرح</button>';
+                
                 messages.appendChild(teacherDiv);
                 messages.scrollTop = messages.scrollHeight;
             })
             .catch(err => {
-                console.error("خطأ بالاتصال:", err);
+                console.error("خطأ بالاتصال بالسيرفر:", err);
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'message teacher';
+                errorDiv.innerText = "عذراً، تعذر الاتصال بالسيرفر حالياً. تأكد من عمل التطبيق.";
+                messages.appendChild(errorDiv);
             });
         }
     </script>
