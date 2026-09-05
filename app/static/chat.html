@@ -107,7 +107,7 @@
             <!-- Input Row -->
             <div class="flex items-center space-x-2 space-x-reverse">
                 <!-- WhatsApp Style Mic Button -->
-                <button id="micBtn" onclick="toggleSpeechRecognition()" title="تسجيل صوتي (مثل الواتساب)" class="bg-[#1e3d2f] hover:bg-[#2c5e4a] text-white p-3 rounded-full transition shrink-0 flex items-center justify-center w-11 h-11 shadow">
+                <button id="micBtn" onclick="toggleSpeechRecognition()" title="تسجيل صوتي" class="bg-[#1e3d2f] hover:bg-[#2c5e4a] text-white p-3 rounded-full transition shrink-0 flex items-center justify-center w-11 h-11 shadow">
                     🎤
                 </button>
                 <!-- Textarea -->
@@ -156,25 +156,21 @@
             `;
         }
 
-        // إعداد التعرف الصوتي (سلوك الواتساب: كتابة في الحقل دون إرسال آلي)
+        // إعداد التعرف الصوتي (تم ضبطه لمنع التكرار المستمر)
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             recognition = new SpeechRecognition();
-            recognition.continuous = true;
-            recognition.interimResults = true;
+            recognition.continuous = false; // تم التعديل لمنع الاستماع المفتوح والتكرار
+            recognition.interimResults = false; // تم التعديل لمنع النتائج المؤقتة المتكررة
             recognition.lang = 'ar-LB';
 
             recognition.onresult = (event) => {
-                let finalTranscript = '';
-                for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    if (event.results[i].isFinal) {
-                        finalTranscript += event.results[i][0].transcript;
-                    }
-                }
+                const transcript = event.results[0][0].transcript;
                 const userInput = document.getElementById('userInput');
-                if (finalTranscript !== '') {
-                    userInput.value += (userInput.value ? ' ' : '') + finalTranscript;
+                if (transcript !== '') {
+                    userInput.value += (userInput.value ? ' ' : '') + transcript;
                 }
+                stopRecordingUI();
             };
             recognition.onerror = () => stopRecordingUI();
             recognition.onend = () => stopRecordingUI();
@@ -187,13 +183,18 @@
             }
             if (!isRecording) {
                 try {
-                    recognition.start();
                     isRecording = true;
                     document.getElementById('micBtn').classList.add('bg-red-600');
                     setAvatarState('listening');
-                } catch(e) { console.error(e); }
+                    recognition.start();
+                } catch(e) { 
+                    console.error(e);
+                    stopRecordingUI();
+                }
             } else {
-                recognition.stop();
+                try {
+                    recognition.stop();
+                } catch(e) {}
                 stopRecordingUI();
             }
         }
