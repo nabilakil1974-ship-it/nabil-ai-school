@@ -1,147 +1,437 @@
-import base64
-import os
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from pydantic import BaseModel
-from typing import Optional
-from sqlalchemy import text
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منصة الأستاذ نبيل - المعلم الافتراضي للمنهج اللبناني (CRDP) 📚</title>
+    <style>
+        * { box-sizing: border-box; }
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background: #0f172a;
+            color: #f8fafc;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+        .main-wrapper {
+            width: 100%;
+            height: 100%;
+            max-width: 1100px;
+            margin: 0 auto;
+            background: #1e293b;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .teacher-stage {
+            background: #0f172a;
+            padding: 10px 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            border-bottom: 2px solid #3b82f6;
+            flex-shrink: 0;
+        }
+        .teacher-info h1 {
+            margin: 0;
+            font-size: 16px;
+            color: #38bdf8;
+        }
+        .teacher-info p {
+            margin: 2px 0 0;
+            font-size: 11px;
+            color: #94a3b8;
+        }
+        .selectors-bar {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .selectors-bar select {
+            background: #1e293b;
+            color: #f8fafc;
+            border: 1px solid #475569;
+            padding: 4px 6px;
+            border-radius: 6px;
+            font-size: 11px;
+            outline: none;
+            cursor: pointer;
+            flex: 1;
+            min-width: 90px;
+        }
+        .selectors-bar select:hover { border-color: #3b82f6; }
+        .lang-select { border-color: #38bdf8 !important; color: #38bdf8 !important; font-weight: bold; }
 
-from google import genai
-from google.genai import types
+        .chat-messages {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: #0f172a;
+        }
+        .message-container {
+            display: flex;
+            flex-direction: column;
+            max-width: 90%;
+        }
+        .message-container.bot { align-self: flex-start; }
+        .message-container.user { align-self: flex-end; }
 
-from app.core.config import settings
-from app.db.session import Base, engine
-from app.api import routes_health, routes_chat, routes_admin
+        .message {
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 14px;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+        .message.bot {
+            background: #1e293b;
+            color: #f1f5f9;
+            border-right: 4px solid #3b82f6;
+        }
+        .message.user {
+            background: #3b82f6;
+            color: #fff;
+        }
+        .copy-btn {
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            font-size: 11px;
+            cursor: pointer;
+            margin-top: 3px;
+            align-self: flex-start;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+        .copy-btn:hover {
+            background: #334155;
+            color: #38bdf8;
+        }
 
-with engine.connect() as conn:
-    conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-    conn.commit()
+        /* شريط الإدخال السفلي الثابت والواضح على الهواتف */
+        .chat-input-area {
+            padding: 10px 12px;
+            background: #1e293b;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            border-top: 1px solid #334155;
+            flex-shrink: 0;
+            min-height: 60px;
+        }
+        .chat-input-area input[type="text"] {
+            flex: 1;
+            background: #0f172a;
+            border: 1px solid #475569;
+            border-radius: 8px;
+            padding: 10px;
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+            min-width: 0;
+        }
+        .btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 13px;
+            flex-shrink: 0;
+        }
+        .btn:hover { background: #2563eb; }
+        .icon-btn {
+            background: #334155;
+            color: #fff;
+            border: none;
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+        .icon-btn:hover { background: #475569; }
+        .icon-btn.recording { background: #ef4444; animation: pulse 1.5s infinite; }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
 
-if settings.GOOGLE_DRIVE_CREDENTIALS_JSON:
-    with open("drive_service_account.json", "w", encoding="utf-8") as f:
-        f.write(settings.GOOGLE_DRIVE_CREDENTIALS_JSON)
+        #imagePreview {
+            max-height: 38px;
+            display: none;
+            border-radius: 6px;
+            border: 1px solid #3b82f6;
+        }
+    </style>
+</head>
+<body>
 
-Base.metadata.create_all(bind=engine)
+<div class="main-wrapper">
+    <div class="teacher-stage">
+        <div class="teacher-info">
+            <h1>منصة الأستاذ نبيل - المنهاج اللبناني (CRDP)</h1>
+            <p>لجميع الصفوف والمواد ولغة الشرح المطلوبة</p>
+        </div>
+        <div class="selectors-bar">
+            <select id="gradeSelect">
+                <optgroup label="الروضات والابتدائية">
+                    <option value="روضة أولى (KG1)">روضة أولى</option>
+                    <option value="روضة ثانية (KG2)">روضة ثانية</option>
+                    <option value="روضة ثالثة (KG3)">روضة ثالثة</option>
+                    <option value="الأول الأساسي">الأول الأساسي</option>
+                    <option value="الثاني الأساسي">الثاني الأساسي</option>
+                    <option value="الثالث الأساسي">الثالث الأساسي</option>
+                    <option value="الرابع الأساسي">الرابع الأساسي</option>
+                    <option value="الخامس الأساسي">الخامس الأساسي</option>
+                    <option value="السادس الأساسي">السادس الأساسي</option>
+                </optgroup>
+                <optgroup label="المتوسطة والثانوية">
+                    <option value="السابع الأساسي">السابع الأساسي</option>
+                    <option value="الثامن الأساسي">الثامن الأساسي</option>
+                    <option value="التاسع الأساسي (بريفيه)" selected>التاسع (بريفيه)</option>
+                    <option value="الأول ثانوي">الأول ثانوي</option>
+                    <option value="الثاني ثانوي (علوم عامة / حياة)">ثاني ثانوي (علوم/حياة)</option>
+                    <option value="الثالث ثانوي - علوم عامة (SG)">ثالث ثانوي (SG)</option>
+                    <option value="الثالث ثانوي - علوم حياة (SV)">ثالث ثانوي (SV)</option>
+                    <option value="الثالث ثانوي - اقتصاد واجتماع (SE)">ثالث ثانوي (SE)</option>
+                    <option value="الثالث ثانوي - آداب وانسانيات (LH)">ثالث ثانوي (LH)</option>
+                </optgroup>
+            </select>
 
-app = FastAPI(title=settings.PROJECT_NAME)
+            <select id="subjectSelect">
+                <option value="رياضيات" selected>رياضيات</option>
+                <option value="فيزياء">فيزياء</option>
+                <option value="كيمياء">كيمياء</option>
+                <option value="علوم الحياة والأرض">علوم (SVT)</option>
+                <option value="اللغة العربية وآدابها">عربي</option>
+                <option value="اللغة الفرنسية (Français)">فرنسي</option>
+                <option value="اللغة الإنجليزية (English)">إنجليزي</option>
+                <option value="تاريخ">تاريخ</option>
+                <option value="جغرافيا">جغرافيا</option>
+                <option value="فلسفة وحضارات">فلسفة</option>
+                <option value="اقتصاد">اقتصاد</option>
+            </select>
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+            <select id="langSelect" class="lang-select">
+                <option value="العربية" selected>عربي</option>
+                <option value="الفرنسية">Français</option>
+                <option value="الإنجليزية">English</option>
+            </select>
+        </div>
+    </div>
 
-app.include_router(routes_health.router, prefix="/api", tags=["health"])
-app.include_router(routes_chat.router, prefix="/api", tags=["chat"])
-app.include_router(routes_admin.router, prefix="/api", tags=["admin"])
+    <div class="chat-messages" id="chatMessages">
+        <div class="message-container bot">
+            <div class="message bot">
+                أهلاً بك يا بطل! معك <b>الأستاذ نبيل</b> 👨‍🏫. اختر صفك، مادَتَك ولغتك، وارفع صورة التمرين لنبدأ الحل المنهجي (المعطيات، القاعدة، الحل، المصطلحات).
+            </div>
+            <button class="copy-btn" onclick="copyText(this)">📋 نسخ النص</button>
+        </div>
+    </div>
 
-# نظام تدوير المفاتيح التلقائي (Key Pool Rotation) لمنع توقف المنصة عند انتهاء الحصة
-api_keys_pool = []
-# جلب المفتاح الرئيسي
-if settings.GEMINI_API_KEY:
-    api_keys_pool.append(settings.GEMINI_API_KEY)
+    <div class="chat-input-area">
+        <label class="icon-btn" title="صورة">
+            📷
+            <input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="previewImage(event)">
+        </label>
+        <img id="imagePreview" alt="معاينة">
+        
+        <input type="text" id="userInput" placeholder="اكتب سؤالك أو ارفع صورة..." onkeypress="handleKeyPress(event)">
+        
+        <button class="icon-btn" id="micBtn" onclick="toggleMic()" title="صوت">🎤</button>
+        <button class="btn" onclick="sendMessage()">إرسال</button>
+    </div>
+</div>
 
-# جلب أي مفاتيح إضافية محتملة مخزنة بمتغيرات البيئة مثل GEMINI_API_KEY_2, GEMINI_API_KEY_3
-for i in range(2, 6):
-    extra_key = os.environ.get(f"GEMINI_API_KEY_{i}")
-    if extra_key:
-        api_keys_pool.append(extra_key)
+<script>
+    let base64Image = null;
+    let recognition = null;
+    let isRecording = false;
+    let manualStop = false;
 
-current_key_index = 0
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SpeechRecognition();
+        recognition.lang = 'ar-LB';
+        recognition.continuous = true;  // منع الإيقاف التلقائي السريع
+        recognition.interimResults = true;
 
-def get_gemini_client():
-    global current_key_index
-    if not api_keys_pool:
-        return genai.Client(api_key=settings.GEMINI_API_KEY)
-    
-    key = api_keys_pool[current_key_index]
-    return genai.Client(api_key=key)
-
-def rotate_key():
-    global current_key_index
-    if len(api_keys_pool) > 1:
-        current_key_index = (current_key_index + 1) % len(api_keys_pool)
-        print(f"🔄 Switched to backup Gemini API Key index: {current_key_index}")
-
-class ImageChatRequest(BaseModel):
-    student_id: str
-    conversation_id: Optional[str] = None
-    message: str
-    image: Optional[str] = None
-    subject: Optional[str] = "رياضيات"
-    grade: Optional[str] = "الصف السابع"
-    language: Optional[str] = "العربية"
-    curriculum: Optional[str] = "CRDP"
-
-@app.post("/api/chat-with-image")
-async def chat_with_image_endpoint(req: ImageChatRequest):
-    global api_keys_pool
-    max_retries = max(1, len(api_keys_pool))
-    attempt = 0
-    
-    while attempt < max_retries:
-        try:
-            client = get_gemini_client()
-            contents = []
-            if req.image:
-                header, encoded = req.image.split(",", 1) if "," in req.image else ("", req.image)
-                image_bytes = base64.b64decode(encoded)
-                mime_type = "image/png" if "png" in header else "image/webp" if "webp" in header else "image/jpeg"
-                contents.append(types.Part.from_bytes(data=image_bytes, mime_type=mime_type))
-
-            prompt_text = f"""
-            أنت "الأستاذ نبيل"، مدرس خبير ومعتمد في المنهج اللبناني الرسمي (CRDP).
-            الصف: {req.grade} | المادة: {req.subject} | لغة الشرح المطلوبة: {req.language}.
-            
-            يجب أن تلتزم التزاماً تاماً بالهيكلية التالية في إجابتك:
-            1. المعطيات (Given / Données).
-            2. القاعدة أو القانون (Formula / Formule).
-            3. التطبيق والحل خطوة بخطوة (Step-by-Step Solution).
-            4. المصطلحات والمفاتيح باللغة الأجنبية (Keywords).
-
-            سؤال الطالب أو نص المسألة المرفقة:
-            {req.message if req.message else "اشرح وحل هذه المسألة بالتفصيل المنهجي"}
-            """
-            contents.append(prompt_text)
-
-            response = client.models.generate_content(
-                model='gemini-3.6-flash',
-                contents=contents,
-                config=types.GenerateContentConfig(
-                    system_instruction="أنت الأستاذ نبيل، أستاذ لبناني خبير وودي، تشرح بوضوح وبدون تعقيد، وتلتزم حصرياً بالهيكلية المنهجية المعتمدة (المعطيات، القاعدة، الحل خطوة بخطوة، والمصطلحات الأجنبية) وفق المنهج اللبناني الرسمي (CRDP)."
-                )
-            )
-
-            return {
-                "conversation_id": req.conversation_id or "conv_123",
-                "reply": response.text if response.text else "عذراً، لم أستطع توليد الإجابة."
+        recognition.onresult = (e) => {
+            let finalTranscript = '';
+            for (let i = e.resultIndex; i < e.results.length; ++i) {
+                finalTranscript += e.results[i][0].transcript;
             }
+            document.getElementById('userInput').value = finalTranscript;
+        };
 
-        except Exception as e:
-            err_str = str(e)
-            print(f"Error with key index {current_key_index}: {err_str}")
-            # إذا كان الخطأ متعلق بتجاوز الحصة (429)، نقوم بالتبديل تلقائياً للمفتاح التالي ونعيد المحاولة
-            if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
-                rotate_key()
-                attempt += 1
-                continue
-            else:
-                return {
-                    "conversation_id": req.conversation_id or "conv_123",
-                    "reply": f"عذراً يا بطل، حدث خطأ تقني في المعالجة: {err_str}"
+        recognition.onerror = (e) => {
+            console.log("Speech error:", e.error);
+        };
+
+        recognition.onend = () => {
+            if (isRecording && !manualStop) {
+                try {
+                    recognition.start(); // إعادة التشغيل تلقائياً إذا انقطع بسبب الصمت المؤقت
+                } catch (err) {
+                    stopMicUI();
                 }
-                
-    return {
-        "conversation_id": req.conversation_id or "conv_123",
-        "reply": "عذراً يا بطل، لقد استنفدنا كافة الحصص اليومية للمفاتيح المتاحة حالياً. يرجى محاولة لاحقاً."
+            } else {
+                stopMicUI();
+            }
+        };
     }
 
-@app.get("/")
-def root():
-    return FileResponse("app/static/chat.html")
+    function toggleMic() {
+        if (!recognition) { alert("متصفحك لا يدعم التسجيل الصوتي."); return; }
+        const micBtn = document.getElementById('micBtn');
+        if (!isRecording) {
+            manualStop = false;
+            try {
+                recognition.start();
+                isRecording = true;
+                micBtn.classList.add('recording');
+                micBtn.innerHTML = "⏹️";
+            } catch (e) {
+                console.log(e);
+            }
+        } else {
+            manualStop = true;
+            isRecording = false;
+            recognition.stop();
+            stopMicUI();
+        }
+    }
 
-@app.get("/admin")
-def admin_page():
-    return FileResponse("app/static/admin.html")
+    function stopMicUI() {
+        isRecording = false;
+        const micBtn = document.getElementById('micBtn');
+        micBtn.classList.remove('recording');
+        micBtn.innerHTML = "🎤";
+    }
+
+    function previewImage(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                base64Image = e.target.result;
+                const preview = document.getElementById('imagePreview');
+                preview.src = base64Image;
+                preview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function copyText(button) {
+        const messageDiv = button.previousElementSibling;
+        const textToCopy = messageDiv.innerText;
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            button.innerHTML = "✅ تم";
+            setTimeout(() => { button.innerHTML = "📋 نسخ النص"; }, 2000);
+        });
+    }
+
+    async function sendMessage() {
+        const input = document.getElementById('userInput');
+        const text = input.value.trim();
+        if (!text && !base64Image) return;
+
+        // إذا كان الميكروفون شغال وقت الإرسال، نوقفه يدوياً
+        if (isRecording) {
+            manualStop = true;
+            isRecording = false;
+            if(recognition) recognition.stop();
+            stopMicUI();
+        }
+
+        const selectedGrade = document.getElementById('gradeSelect').value;
+        const selectedSubject = document.getElementById('subjectSelect').value;
+        const selectedLang = document.getElementById('langSelect').value;
+
+        const chatMessages = document.getElementById('chatMessages');
+
+        let userHtml = `
+            <div class="message-container user">
+                <div class="message user"><small style="display:block; color:#bae6fd; margin-bottom:2px;">📌 ${selectedGrade} - ${selectedSubject}</small>${text}`;
+        if (base64Image) {
+            userHtml += `<br><img src="${base64Image}" style="max-width:130px; margin-top:4px; border-radius:6px;">`;
+        }
+        userHtml += `</div></div>`;
+        chatMessages.innerHTML += userHtml;
+
+        const currentText = text;
+        const currentImage = base64Image;
+
+        input.value = '';
+        base64Image = null;
+        document.getElementById('imagePreview').style.display = 'none';
+        document.getElementById('imageInput').value = '';
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        const loadingId = 'loading_' + Date.now();
+        chatMessages.innerHTML += `
+            <div class="message-container bot" id="${loadingId}">
+                <div class="message bot">الأستاذ نبيل يجهز الحل المنهجي... 👨‍🏫⏳</div>
+            </div>`;
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        try {
+            const response = await fetch('/api/chat-with-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    student_id: "student_pro",
+                    message: currentText,
+                    image: currentImage,
+                    subject: selectedSubject,
+                    grade: selectedGrade,
+                    language: selectedLang,
+                    curriculum: "CRDP"
+                })
+            });
+
+            const data = await response.json();
+            document.getElementById(loadingId).remove();
+
+            const formattedReply = data.reply.replace(/\n/g, '<br>');
+            chatMessages.innerHTML += `
+                <div class="message-container bot">
+                    <div class="message bot">${formattedReply}</div>
+                    <button class="copy-btn" onclick="copyText(this)">📋 نسخ النص</button>
+                </div>`;
+        } catch (err) {
+            document.getElementById(loadingId).remove();
+            chatMessages.innerHTML += `
+                <div class="message-container bot">
+                    <div class="message bot">عذراً، حدث خطأ في الاتصال. أعد المحاولة!</div>
+                    <button class="copy-btn" onclick="copyText(this)">📋 نسخ النص</button>
+                </div>`;
+        }
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function handleKeyPress(e) {
+        if (e.key === 'Enter') sendMessage();
+    }
+</script>
+
+</body>
+</html>
