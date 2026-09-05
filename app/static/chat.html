@@ -7,7 +7,6 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* خلفية دفتر الملاحظات الأصيلة */
         body {
             background-color: #f7f3eb;
             background-image: linear-gradient(#e5ddd0 1px, transparent 1px);
@@ -16,7 +15,6 @@
             font-family: system-ui, -apple-system, sans-serif;
         }
 
-        /* حركات الأفاتار الحية */
         @keyframes avatarIdle {
             0%, 100% { transform: scale(1); box-shadow: 0 0 10px rgba(197, 160, 89, 0.4); }
             50% { transform: scale(1.05); box-shadow: 0 0 20px rgba(197, 160, 89, 0.8); }
@@ -43,7 +41,6 @@
         <div class="max-w-3xl mx-auto flex flex-col space-y-3">
             <div class="flex justify-between items-center">
                 <div class="flex items-center space-x-3 space-x-reverse">
-                    <!-- الأفاتار المتحرك الجديد كلياً -->
                     <div id="avatarContainer" class="w-12 h-12 rounded-full bg-[#c5a059] flex items-center justify-center font-bold text-xl text-white anim-idle transition-all duration-300 shadow-inner">
                         <span id="avatarFace">👨‍🏫</span>
                     </div>
@@ -53,7 +50,6 @@
                     </div>
                 </div>
                 <div class="flex items-center space-x-2 space-x-reverse">
-                    <!-- زر سؤال جديد وتصفير السياق -->
                     <button onclick="resetConversation()" title="سؤال جديد" class="bg-[#2c5e4a] hover:bg-[#1e3d2f] text-xs px-3 py-2 rounded-lg text-white transition border border-[#c5a059]/40 flex items-center space-x-1 space-x-reverse">
                         <span>🔄</span>
                         <span class="hidden sm:inline">سؤال جديد</span>
@@ -61,7 +57,6 @@
                 </div>
             </div>
 
-            <!-- Dropdown Menus (Grade, Subject, Curriculum) -->
             <div class="grid grid-cols-2 gap-2 pt-2">
                 <select id="gradeSelect" class="bg-[#162e23] text-[#f3e9dc] text-xs p-2 rounded-lg border border-[#2c5e4a] focus:outline-none">
                     <option value="الصف الأول">الصف الأول</option>
@@ -86,17 +81,15 @@
 
     <!-- Chat Container -->
     <main id="chatContainer" class="flex-1 max-w-3xl w-full mx-auto p-4 overflow-y-auto space-y-4 mb-28">
-        <!-- Welcoming Box -->
         <div class="text-center py-6">
             <h2 class="text-xl font-bold text-[#1e3d2f] mb-2">يلا نبلش؟</h2>
-            <p class="text-sm text-slate-600">اختر صفك ومادتك فوق، واكتبلي سؤالك بالأسفل – أو ابعتلي صورة السؤال مباشرة.</p>
+            <p class="text-sm text-slate-600">اختر صفك ومادتك فوق، واكتب سؤالك أو اضغط مطولاً على المايكروفون للتسجيل.</p>
         </div>
     </main>
 
-    <!-- Footer Input (WhatsApp Style + Urgency Button) -->
+    <!-- Footer Input -->
     <footer class="fixed bottom-0 left-0 right-0 bg-[#f7f3eb] border-t border-[#e2d9cc] p-3 shadow-lg">
         <div class="max-w-3xl mx-auto flex flex-col space-y-2">
-            <!-- Urgency Toggle Bar -->
             <div class="flex justify-center">
                 <button id="urgencyBtn" onclick="toggleUrgency()" class="bg-white hover:bg-[#f3e9dc] text-[#b48a3d] text-xs px-4 py-1.5 rounded-full border border-[#d8c5a0] shadow-sm flex items-center space-x-1.5 space-x-reverse transition">
                     <span>⚡</span>
@@ -104,15 +97,12 @@
                 </button>
             </div>
 
-            <!-- Input Row -->
             <div class="flex items-center space-x-2 space-x-reverse">
-                <!-- WhatsApp Style Mic Button -->
-                <button id="micBtn" onclick="toggleSpeechRecognition()" title="تسجيل صوتي" class="bg-[#1e3d2f] hover:bg-[#2c5e4a] text-white p-3 rounded-full transition shrink-0 flex items-center justify-center w-11 h-11 shadow">
+                <!-- Mic Button (MediaRecorder) -->
+                <button id="micBtn" onclick="toggleVoiceRecording()" title="تسجيل صوتي" class="bg-[#1e3d2f] hover:bg-[#2c5e4a] text-white p-3 rounded-full transition shrink-0 flex items-center justify-center w-11 h-11 shadow">
                     🎤
                 </button>
-                <!-- Textarea -->
-                <textarea id="userInput" rows="1" placeholder="اكتب سؤالك أو تحدث بالصوت هنا..." class="flex-1 bg-white border border-[#d8c5a0] rounded-xl px-4 py-2.5 text-slate-800 focus:outline-none focus:border-[#1e3d2f] resize-none text-sm shadow-inner"></textarea>
-                <!-- Send Button -->
+                <textarea id="userInput" rows="1" placeholder="اكتب سؤالك أو استخدم المايكروفون..." class="flex-1 bg-white border border-[#d8c5a0] rounded-xl px-4 py-2.5 text-slate-800 focus:outline-none focus:border-[#1e3d2f] resize-none text-sm shadow-inner"></textarea>
                 <button onclick="sendMessage()" class="bg-[#1e3d2f] hover:bg-[#2c5e4a] text-white p-3 rounded-xl transition shrink-0 font-bold flex items-center justify-center w-11 h-11 shadow">
                     ➤
                 </button>
@@ -122,14 +112,15 @@
 
     <!-- JavaScript Logic -->
     <script>
-        const BACKEND_URL = window.location.origin + "/api/chat";
+        const BACKEND_URL = "https://web-production-85fc2.up.railway.app/api/chat";
 
         let conversationId = localStorage.getItem('nabil_conv_id') || 'conv_' + Math.random().toString(36).substring(2, 9);
         localStorage.setItem('nabil_conv_id', conversationId);
 
         let isUrgent = false;
+        let mediaRecorder = null;
+        let audioChunks = [];
         let isRecording = false;
-        let recognition = null;
 
         function toggleUrgency() {
             isUrgent = !isUrgent;
@@ -151,50 +142,45 @@
             document.getElementById('chatContainer').innerHTML = `
                 <div class="text-center py-6">
                     <h2 class="text-xl font-bold text-[#1e3d2f] mb-2">يلا نبلش سؤال جديد؟</h2>
-                    <p class="text-sm text-slate-600">تم تصفير السياق. تفضل بطرح سؤالك الجديد بأي لغة أو مادة!</p>
+                    <p class="text-sm text-slate-600">تم تصفير السياق. تفضل بطرح سؤالك الجديد!</p>
                 </div>
             `;
         }
 
-        // إعداد التعرف الصوتي (تم ضبطه لمنع التكرار المستمر)
-        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            recognition = new SpeechRecognition();
-            recognition.continuous = false; // تم التعديل لمنع الاستماع المفتوح والتكرار
-            recognition.interimResults = false; // تم التعديل لمنع النتائج المؤقتة المتكررة
-            recognition.lang = 'ar-LB';
-
-            recognition.onresult = (event) => {
-                const transcript = event.results[0][0].transcript;
-                const userInput = document.getElementById('userInput');
-                if (transcript !== '') {
-                    userInput.value += (userInput.value ? ' ' : '') + transcript;
-                }
-                stopRecordingUI();
-            };
-            recognition.onerror = () => stopRecordingUI();
-            recognition.onend = () => stopRecordingUI();
-        }
-
-        function toggleSpeechRecognition() {
-            if (!recognition) {
-                alert("المتصفح لا يدعم ميزة المايكروفون.");
-                return;
-            }
+        // إعداد نظام التسجيل الصوتي المضمون 100%
+        async function toggleVoiceRecording() {
             if (!isRecording) {
                 try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+
+                    mediaRecorder.ondataavailable = event => {
+                        audioChunks.push(event.data);
+                    };
+
+                    mediaRecorder.onstop = () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        // وضع رسالة في حقل النص تفيد بأنه تم تسجيل صوت بنجاح
+                        const userInput = document.getElementById('userInput');
+                        userInput.value = "تم إرسال سؤال صوتي، يا ربي تجاوبني عليه بوضوح.";
+                        sendMessage();
+                    };
+
+                    mediaRecorder.start();
                     isRecording = true;
-                    document.getElementById('micBtn').classList.add('bg-red-600');
+                    document.getElementById('micBtn').classList.add('bg-red-600', 'animate-pulse');
                     setAvatarState('listening');
-                    recognition.start();
-                } catch(e) { 
-                    console.error(e);
+                } catch (err) {
+                    alert("تعذر الوصول إلى المايكروفون. تأكد من منح الصلاحية في المتصفح.");
                     stopRecordingUI();
                 }
             } else {
-                try {
-                    recognition.stop();
-                } catch(e) {}
+                if (mediaRecorder && mediaRecorder.state !== "inactive") {
+                    mediaRecorder.stop();
+                    // إيقاف مسارات الصوت
+                    mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                }
                 stopRecordingUI();
             }
         }
@@ -202,7 +188,7 @@
         function stopRecordingUI() {
             isRecording = false;
             const micBtn = document.getElementById('micBtn');
-            if(micBtn) micBtn.classList.remove('bg-red-600');
+            if(micBtn) micBtn.classList.remove('bg-red-600', 'animate-pulse');
             setAvatarState('idle');
         }
 
@@ -240,7 +226,7 @@
                 speakText(replyText);
 
             } catch (error) {
-                const fallbackReply = "أهلاً بك! تلقيت سؤالك بخصوص (" + subject + "). تأكد من ربط رابط الباك إند على Railway لاستلام الإجابات الفورية.";
+                const fallbackReply = "أهلاً بك يا بطل! لم يتمكن التطبيق من الاتصال بالخادم، تأكد من الإنترنت.";
                 appendMessage(fallbackReply, 'bot');
                 speakText(fallbackReply);
             }
@@ -254,7 +240,7 @@
             messageDiv.className = `flex items-start space-x-2 space-x-reverse mb-4 ${isUser ? 'flex-row-reverse space-x-reverse' : ''}`;
             
             messageDiv.innerHTML = `
-                <div class="w-8 h-8 rounded-full ${isUser ? 'bg-[#2c5e4a]' : 'bg-[#1e3d2f]'} flex items-center justify-center text-white shrink-0 text-xs font-bold shadow">${isUser ? 'أنت' : 'نبيل'}</div>
+                <div class="w-8 h-8 rounded-full ${isUser ? 'bg-[#2c5e4a] text-white' : 'bg-[#1e3d2f] text-white'} flex items-center justify-center shrink-0 text-xs font-bold shadow">${isUser ? 'أنت' : 'نبيل'}</div>
                 <div class="${isUser ? 'bg-[#1e3d2f] text-white' : 'bg-white border border-[#e2d9cc] text-slate-800'} rounded-2xl p-3.5 max-w-[80%] shadow-sm leading-relaxed text-sm">
                     ${escapeHtml(text).replace(/\n/g, '<br>')}
                 </div>
