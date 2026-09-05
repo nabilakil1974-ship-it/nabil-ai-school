@@ -82,7 +82,7 @@ async def chat_with_image_endpoint(req: ImageChatRequest):
         """
         contents.append(prompt_text)
 
-        # استخدام موديل الفلاش القياسي المدعوم للرؤية والنصوص
+        # استخدام النماذج المعتمدة حالياً من جوجل
         response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=contents,
