@@ -1,22 +1,36 @@
-function speakText(text) {
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منصة الأستاذ نبيل - المنهاج اللبناني</title>
+    <!-- هنا تصميم الواجهة والأنساق CSS -->
+</head>
+<body>
+    <!-- هنا محتوى الشات والأزرار -->
+
+    <script>
+        // دالة نطق النص مع تنظيف الرموز المزعجة والشرطات
+        function speakText(text) {
             if (!('speechSynthesis' in window)) return;
             window.speechSynthesis.cancel();
 
-            // تنظيف النص تماماً من الشرطات، النجوم، والرموز المزعجة قبل القراءة
             let cleanText = text
-                .replace(/[_#*`~>-]/g, ' ') // إزالة الشرطات السفلية والنجوم والرموز البرمجية
+                .replace(/[_#*`~>-]/g, ' ')
                 .replace(/\$\$(.*?)\$\$/g, ' نقطة ')
                 .replace(/\$(.*?)\$/, ' ')
                 .replace(/OM/g, 'أو إم')
                 .replace(/O'M/g, 'أو فتحه إم')
                 .replace(/OO'/g, 'أو أو فتحه');
 
-            // ترتيب الجمل لنطقها بسلاسة
             let sentences = cleanText.split(/[.،؟\n]/);
             let shortText = sentences.filter(s => s.trim().length > 0).slice(0, 5).join('. ');
 
             const utterance = new SpeechSynthesisUtterance(shortText);
-            utterance.lang = 'ar-SA'; // أو ar-LB حسب توفرها في متصفح الهاتف
+            utterance.lang = 'ar-SA';
             utterance.rate = 1.0;
             window.speechSynthesis.speak(utterance);
         }
+    </script>
+</body>
+</html>
