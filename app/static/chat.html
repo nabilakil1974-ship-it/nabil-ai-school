@@ -72,7 +72,7 @@
                 </select>
             </div>
             <div class="w-full">
-                <select class="w-full bg-[#162e23] text-[#f3e9dc] text-xs p-2 rounded-lg border border-[#2c5e4a] focus:outline-none">
+                <select id="curriculumSelect" class="w-full bg-[#162e23] text-[#f3e9dc] text-xs p-2 rounded-lg border border-[#2c5e4a] focus:outline-none">
                     <option value="CRDP">المنهج اللبناني الرسمي (CRDP)</option>
                 </select>
             </div>
@@ -83,7 +83,7 @@
     <main id="chatContainer" class="flex-1 max-w-3xl w-full mx-auto p-4 overflow-y-auto space-y-4 mb-28">
         <div class="text-center py-6">
             <h2 class="text-xl font-bold text-[#1e3d2f] mb-2">يلا نبلش؟</h2>
-            <p class="text-sm text-slate-600">اختر صفك ومادتك فوق، واكتب سؤالك أو اضغط مطولاً على المايكروفون للتسجيل.</p>
+            <p class="text-sm text-slate-600">اختر صفك ومادتك فوق، واكتب سؤالك أو اضغط على المايكروفون للتحدث وسيحول صوتك لنص تلقائياً.</p>
         </div>
     </main>
 
@@ -98,11 +98,11 @@
             </div>
 
             <div class="flex items-center space-x-2 space-x-reverse">
-                <!-- Mic Button (MediaRecorder) -->
-                <button id="micBtn" onclick="toggleVoiceRecording()" title="تسجيل صوتي" class="bg-[#1e3d2f] hover:bg-[#2c5e4a] text-white p-3 rounded-full transition shrink-0 flex items-center justify-center w-11 h-11 shadow">
+                <!-- Mic Button (Speech-to-Text) -->
+                <button id="micBtn" onclick="toggleVoiceRecognition()" title="التحدث الصوتي" class="bg-[#1e3d2f] hover:bg-[#2c5e4a] text-white p-3 rounded-xl transition shrink-0 flex items-center justify-center w-11 h-11 shadow">
                     🎤
                 </button>
-                <textarea id="userInput" rows="1" placeholder="اكتب سؤالك أو استخدم المايكروفون..." class="flex-1 bg-white border border-[#d8c5a0] rounded-xl px-4 py-2.5 text-slate-800 focus:outline-none focus:border-[#1e3d2f] resize-none text-sm shadow-inner"></textarea>
+                <textarea id="userInput" rows="1" placeholder="اكتب سؤالك أو اضغط المايكروفون للتحدث..." class="flex-1 bg-white border border-[#d8c5a0] rounded-xl px-4 py-2.5 text-slate-800 focus:outline-none focus:border-[#1e3d2f] resize-none text-sm shadow-inner"></textarea>
                 <button onclick="sendMessage()" class="bg-[#1e3d2f] hover:bg-[#2c5e4a] text-white p-3 rounded-xl transition shrink-0 font-bold flex items-center justify-center w-11 h-11 shadow">
                     ➤
                 </button>
@@ -112,15 +112,68 @@
 
     <!-- JavaScript Logic -->
     <script>
-        const BACKEND_URL = "https://web-production-85fc2.up.railway.app/api/chat";
+        const BACKEND_URL = "/api/chat";
 
-        let conversationId = localStorage.getItem('nabil_conv_id') || 'conv_' + Math.random().toString(36).substring(2, 9);
-        localStorage.setItem('nabil_conv_id', conversationId);
+        let studentId = localStorage.getItem('nabil_student_id') || 'student_' + Math.random().toString(36).substring(2, 9);
+        localStorage.setItem('nabil_student_id', studentId);
 
+        let conversationId = localStorage.getItem('nabil_conv_id') || null;
         let isUrgent = false;
-        let mediaRecorder = null;
-        let audioChunks = [];
-        let isRecording = false;
+        let recognition = null;
+        let isListening = false;
+
+        // إعداد خاصية تحويل الصوت إلى نص الحقيقية
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'ar-LB'; // محاولة مطابقة اللهجة أو العربية العامة
+            recognition.continuous = false;
+            recognition.interimResults = false;
+
+            recognition.onresult = (event) => {
+                const speechText = event.results[0][0].transcript;
+                document.getElementById('userInput').value = speechText;
+                stopListeningUI();
+            };
+
+            recognition.onerror = (event) => {
+                console.error("Speech recognition error", event.error);
+                stopListeningUI();
+            };
+
+            recognition.onend = () => {
+                stopListeningUI();
+            };
+        }
+
+        function toggleVoiceRecognition() {
+            if (!recognition) {
+                alert("متصفحك لا يدعم التحويل المباشر للصوت إلى نص. يرجى استخدام متصفح حديث مثل كروم.");
+                return;
+            }
+
+            if (!isListening) {
+                try {
+                    recognition.start();
+                    isListening = true;
+                    document.getElementById('micBtn').classList.add('bg-red-600', 'animate-pulse');
+                    setAvatarState('listening');
+                } catch (e) {
+                    console.error(e);
+                    stopListeningUI();
+                }
+            } else {
+                recognition.stop();
+                stopListeningUI();
+            }
+        }
+
+        function stopListeningUI() {
+            isListening = false;
+            const micBtn = document.getElementById('micBtn');
+            if (micBtn) micBtn.classList.remove('bg-red-600', 'animate-pulse');
+            setAvatarState('idle');
+        }
 
         function toggleUrgency() {
             isUrgent = !isUrgent;
@@ -137,8 +190,7 @@
 
         function resetConversation() {
             localStorage.removeItem('nabil_conv_id');
-            conversationId = 'conv_' + Math.random().toString(36).substring(2, 9);
-            localStorage.setItem('nabil_conv_id', conversationId);
+            conversationId = null;
             document.getElementById('chatContainer').innerHTML = `
                 <div class="text-center py-6">
                     <h2 class="text-xl font-bold text-[#1e3d2f] mb-2">يلا نبلش سؤال جديد؟</h2>
@@ -147,65 +199,20 @@
             `;
         }
 
-        // إعداد نظام التسجيل الصوتي المضمون 100%
-        async function toggleVoiceRecording() {
-            if (!isRecording) {
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    mediaRecorder = new MediaRecorder(stream);
-                    audioChunks = [];
-
-                    mediaRecorder.ondataavailable = event => {
-                        audioChunks.push(event.data);
-                    };
-
-                    mediaRecorder.onstop = () => {
-                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                        // وضع رسالة في حقل النص تفيد بأنه تم تسجيل صوت بنجاح
-                        const userInput = document.getElementById('userInput');
-                        userInput.value = "تم إرسال سؤال صوتي، يا ربي تجاوبني عليه بوضوح.";
-                        sendMessage();
-                    };
-
-                    mediaRecorder.start();
-                    isRecording = true;
-                    document.getElementById('micBtn').classList.add('bg-red-600', 'animate-pulse');
-                    setAvatarState('listening');
-                } catch (err) {
-                    alert("تعذر الوصول إلى المايكروفون. تأكد من منح الصلاحية في المتصفح.");
-                    stopRecordingUI();
-                }
-            } else {
-                if (mediaRecorder && mediaRecorder.state !== "inactive") {
-                    mediaRecorder.stop();
-                    // إيقاف مسارات الصوت
-                    mediaRecorder.stream.getTracks().forEach(track => track.stop());
-                }
-                stopRecordingUI();
-            }
-        }
-
-        function stopRecordingUI() {
-            isRecording = false;
-            const micBtn = document.getElementById('micBtn');
-            if(micBtn) micBtn.classList.remove('bg-red-600', 'animate-pulse');
-            setAvatarState('idle');
-        }
-
         async function sendMessage() {
             const inputField = document.getElementById('userInput');
             const grade = document.getElementById('gradeSelect').value;
             const subject = document.getElementById('subjectSelect').value;
+            const curriculum = document.getElementById('curriculumSelect').value;
             let text = inputField.value.trim();
             
             if (!text) return;
 
-            let fullMessage = `[الصف: ${grade} | المادة: ${subject}] ` + text;
             if (isUrgent) {
-                fullMessage = "[بدي الحل المباشر بلا خطوات تدريجية] " + fullMessage;
+                text = "[بدي الحل المباشر بلا خطوات تدريجية] " + text;
             }
 
-            appendMessage(text, 'user');
+            appendMessage(inputField.value.trim(), 'user');
             inputField.value = '';
 
             setAvatarState('thinking');
@@ -214,12 +221,22 @@
                 const response = await fetch(BACKEND_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: fullMessage, conversation_id: conversationId })
+                    body: JSON.stringify({
+                        student_id: studentId,
+                        conversation_id: conversationId,
+                        message: text,
+                        subject: subject,
+                        grade: grade,
+                        curriculum: curriculum
+                    })
                 });
 
                 if (!response.ok) throw new Error('Network error');
 
                 const data = await response.json();
+                conversationId = data.conversation_id;
+                localStorage.setItem('nabil_conv_id', conversationId);
+
                 const replyText = data.reply || "عذراً، حدث خطأ في معالجة الإجابة.";
 
                 appendMessage(replyText, 'bot');
