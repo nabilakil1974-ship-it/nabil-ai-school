@@ -535,8 +535,9 @@
     if(!text && !pendingImage) return;
 
     addMessage("student", text, null, pendingImage);
-    const imageToSend = pendingImage;
+    const imageFile = imageInput.files[0];
     const messageToSend = text;
+    
     input.value = "";
     input.style.height = "auto";
     pendingImage = null;
@@ -545,27 +546,30 @@
     sendBtn.disabled = true;
     showTyping();
 
-    const payload = {
-      student_id: getStudentId(),
-      conversation_id: conversationId,
-      message: messageToSend,
-      subject: document.getElementById("subjectSelect").value,
-      grade: document.getElementById("gradeSelect").value,
-      curriculum: document.getElementById("curriculumSelect").value,
-      image_base64: imageToSend,
-    };
+    const formData = new FormData();
+    formData.append("student_id", getStudentId());
+    if(conversationId) formData.append("conversation_id", conversationId);
+    if(messageToSend) formData.append("message", messageToSend);
+    formData.append("subject", document.getElementById("subjectSelect").value);
+    formData.append("grade", document.getElementById("gradeSelect").value);
+    formData.append("curriculum", document.getElementById("curriculumSelect").value);
+    
+    if(imageFile){
+      formData.append("image", imageFile);
+    }
 
     try{
       const res = await fetch(API_BASE + "/api/chat", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(payload),
+        body: formData,
       });
       if(!res.ok) throw new Error("HTTP " + res.status);
       const data = await res.json();
 
       conversationId = data.conversation_id;
-      localStorage.setItem("nabilai_conversation_id", conversationId);
+      if(conversationId){
+        localStorage.setItem("nabilai_conversation_id", conversationId);
+      }
 
       hideTyping();
       addMessage("teacher", data.reply, data.sources);
