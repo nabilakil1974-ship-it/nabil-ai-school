@@ -134,7 +134,8 @@
 
         <input type="text" id="message-input" placeholder="اكتب سؤالك هنا أو ارفع صورة/صوتاً..." />
         
-        <button class="action-btn" onclick="sendMessage()">إرسال 🚀</button>
+        <!-- زر الإرسال المرتبط بدالة الإرسال -->
+        <button type="button" class="action-btn" onclick="sendMessage()">إرسال 🚀</button>
     </div>
 
     <script>
@@ -175,34 +176,34 @@
             const text = input.value.trim();
             const imageFile = imageInput.files[0];
 
-            if (!text && !imageFile) return;
+            if (!text && !imageFile) {
+                alert('الرجاء كتابة سؤال أو اختيار صورة أولاً!');
+                return;
+            }
 
+            // تفريغ الحقول بعد البدء بالإرسال
             input.value = '';
             imageInput.value = '';
+            
             await sendDataToServer(text, imageFile, null);
         }
 
         async function sendDataToServer(text, imageFile, audioBlob) {
             const container = document.getElementById('chat-container');
 
-            // إظهار رسالة الطالب محلياً
+            // إظهار رسالة الطالب أو معاينة الصورة محلياً
+            const studentDiv = document.createElement('div');
+            studentDiv.className = 'message student-message';
+            studentDiv.setAttribute('dir', 'auto');
+
             if (text) {
-                const studentDiv = document.createElement('div');
-                studentDiv.className = 'message student-message';
-                studentDiv.setAttribute('dir', 'auto');
                 studentDiv.innerText = text;
-                container.appendChild(studentDiv);
             } else if (imageFile) {
-                const studentDiv = document.createElement('div');
-                studentDiv.className = 'message student-message';
-                studentDiv.innerText = '[صورة مرفقة للتمرين 📷]';
-                container.appendChild(studentDiv);
+                studentDiv.innerText = `[صورة مرفقة: ${imageFile.name}] 📷`;
             } else if (audioBlob) {
-                const studentDiv = document.createElement('div');
-                studentDiv.className = 'message student-message';
                 studentDiv.innerText = '[رسالة صوتية مسجلة 🎙️]';
-                container.appendChild(studentDiv);
             }
+            container.appendChild(studentDiv);
             container.scrollTop = container.scrollHeight;
 
             const formData = new FormData();
@@ -226,7 +227,7 @@
                 // إظهار رد الأستاذ نبيل مع أزرار (نسخ وقراءة صوتية)
                 const teacherDiv = document.createElement('div');
                 teacherDiv.className = 'message teacher-message';
-                teacherDiv.setAttribute('dir', 'auto'); // لدعم اللغات الأجنبية واليسار لليمين تلقائياً
+                teacherDiv.setAttribute('dir', 'auto'); // دعم اتجاه النصوص اللغوية والرياضيات تلقائياً
                 
                 const textContent = document.createElement('div');
                 textContent.innerText = data.reply;
@@ -261,6 +262,11 @@
 
             } catch (error) {
                 console.error("خطأ في الاتصال:", error);
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'message teacher-message';
+                errorDiv.style.color = 'red';
+                errorDiv.innerText = 'عذراً يا بطل، حدث خطأ في الاتصال بالسيرفر.';
+                container.appendChild(errorDiv);
             }
         }
     </script>
