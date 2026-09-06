@@ -3,14 +3,14 @@ from fastapi.responses import JSONResponse, HTMLResponse
 import os
 import re
 
-app = FastAPI(title="منصة الأستاذ نبيل احمد عقييل التعليمية الشاملة")
+app = FastAPI(title="منصة الأستاذ نبيل أحمد عقييل التعليمية الشاملة")
 
 HTML_CONTENT = """<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>منصة الأستاذ نبيل - معلمك الرقمي الشامل للمنهج اللبناني (CRDP)</title>
+    <title>منصة الأستاذ نبيل أحمد عَقيل - معلمك الرقمي الشامل للمنهج اللبناني (CRDP)</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body);"></script>
@@ -18,13 +18,13 @@ HTML_CONTENT = """<!DOCTYPE html>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1b262c; color: #f5f5f5; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; }
         header { background-color: #0f4c75; color: white; padding: 15px; text-align: center; font-size: 1.4rem; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
-        #chat-container { flex: 1; overflow-y: auto; padding: 25px 25px 120px 25px; display: flex; flex-direction: column; gap: 25px; }
+        #chat-container { flex: 1; overflow-y: auto; padding: 25px 25px 120px 25px; display: flex; flex-direction: column; gap: 25px; transition: all 0.3s ease; }
         .message { max-width: 88%; padding: 20px 24px; border-radius: 14px; line-height: 2.3; font-size: 1.15rem; word-wrap: break-word; box-shadow: 0 3px 8px rgba(0,0,0,0.25); }
         .student-message { background-color: #3282b8; color: white; align-self: flex-start; }
         .teacher-message { background-color: #ffffff; color: #212529; align-self: flex-end; border: 1px solid #dee2e6; text-align: right; }
         .exam-correction-box { background: #f8f9fa; border-right: 5px solid #0f4c75; padding: 12px 15px; margin: 8px 0; border-radius: 6px; }
         .msg-actions { margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap; font-size: 0.95rem; border-top: 1px solid #eee; padding-top: 12px; }
-        .msg-actions button { background: #f1f3f5; border: 1px solid #ced4da; padding: 8px 16px; border-radius: 6px; cursor: pointer; color: #333; font-weight: bold; }
+        .msg-actions button { background: #f1f3f5; border: 1px solid #ced4da; padding: 8px 16px; border-radius: 6px; cursor: pointer; color: #333; font-weight: bold; transition: 0.2s; }
         .msg-actions button:hover { background-color: #e2e6ea; }
         .teacher-text p { margin: 0 0 10px 0; }
         .canvas-box { margin-top: 15px; background: #0f171e; border: 2px solid #3282b8; border-radius: 10px; padding: 12px; text-align: center; }
@@ -33,10 +33,17 @@ HTML_CONTENT = """<!DOCTYPE html>
         #message-input { flex: 1; padding: 12px 15px; border: 1px solid #ced4da; border-radius: 8px; outline: none; font-size: 1.1rem; }
         .action-btn { background-color: #bbe1fa; color: #0f4c75; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1rem; }
         .action-btn:hover { background-color: #3282b8; color: white; }
+        
+        /* طباعة مخصصة لتصدير PDF نظيف */
+        @media print {
+            body { background: white; color: black; }
+            header, #input-container, .msg-actions, .canvas-box { display: none !important; }
+            .message { border: none; box-shadow: none; max-width: 100%; width: 100%; color: black; }
+        }
     </style>
 </head>
 <body>
-    <header>📚 الأستاذ نبيل - معلمك الرقمي الشامل لجميع المواد والمنهج اللبناني 🇱🇧</header>
+    <header>📚 منصة الأستاذ نبيل أحمد عَقيل - معلمك الرقمي الشامل للمنهج اللبناني 🇱🇧</header>
     <div id="chat-container"></div>
     <div id="input-container">
         <input type="text" id="message-input" placeholder="اسأل واطلب شرح أي درس أو حل أي مسألة بأي مادة..." />
@@ -106,7 +113,6 @@ HTML_CONTENT = """<!DOCTYPE html>
             shapeLabel.style.color = '#bbe1fa';
             canvasBox.appendChild(shapeLabel);
             
-            // إخفاء اللوح إذا كان السؤال لغوياً أو أدبياً أو إعرابياً
             const qLow = userQuery.toLowerCase();
             if (qLow.includes('إعراب') || qLow.includes('اعرب') || qLow.includes('شرح نص') || qLow.includes('قواعد')) {
                 canvasBox.style.display = 'none';
@@ -134,6 +140,26 @@ HTML_CONTENT = """<!DOCTYPE html>
                 window.speechSynthesis.speak(utterance);
             };
 
+            const pdfBtn = document.createElement('button');
+            pdfBtn.innerText = '🖨️ طباعة وتصدير PDF';
+            pdfBtn.onclick = () => {
+                window.print();
+            };
+
+            const expandBtn = document.createElement('button');
+            expandBtn.innerText = '🖥️ شاشة واسعة';
+            let isExpanded = false;
+            expandBtn.onclick = () => {
+                isExpanded = !isExpanded;
+                if (isExpanded) {
+                    teacherDiv.style.maxWidth = '100%';
+                    expandBtn.innerText = '🗜️ تصغير العرض';
+                } else {
+                    teacherDiv.style.maxWidth = '88%';
+                    expandBtn.innerText = '🖥️ شاشة واسعة';
+                }
+            };
+
             const solveAgainBtn = document.createElement('button');
             solveAgainBtn.innerText = '🔄 إعادة التحقق';
             solveAgainBtn.onclick = () => {
@@ -149,6 +175,8 @@ HTML_CONTENT = """<!DOCTYPE html>
             
             actionsDiv.appendChild(copyBtn);
             actionsDiv.appendChild(speakBtn);
+            actionsDiv.appendChild(pdfBtn);
+            actionsDiv.appendChild(expandBtn);
             actionsDiv.appendChild(solveAgainBtn);
             teacherDiv.appendChild(actionsDiv);
             
@@ -186,11 +214,7 @@ async def read_root():
 @app.post("/api/chat")
 async def chat_api(message: str = Form(...), subject: str = Form(...), grade: str = Form(...)):
     q = message.strip()
-    
-    # محرك ذكي متطور يحلل أي نوع سؤال (رياضيات، فيزياء، لغات، علوم) بدقة تامة
     analysis_result = ""
-    
-    # محاولة استخراج الحسابات الرياضية البسيطة أو حل المعادلات التلقائي
     try:
         clean_expr = re.sub(r'[^0-9\+\-\*\/\.\(\)]', '', q)
         if len(clean_expr) > 2:
@@ -199,9 +223,8 @@ async def chat_api(message: str = Form(...), subject: str = Form(...), grade: st
     except:
         pass
 
-    # رد مخصص ذكي وشامل يناسب كافة المناهج اللبنانية الرسمية (CRDP)
     reply_text = (
-        f"أهلاً بك يا بطل! لقد راجعت سؤالك بدقة: **{q}**\n\n"
+        f"أهلاً بك يا بطل في منصة الأستاذ نبيل أحمد عَقيل! لقد راجعت سؤالك بدقة: **{q}**\n\n"
         f"{analysis_result}"
         f"1. **المعطيات وفهم الدرس:** تحديد المفاهيم الأساسية، القوانين، والنظريات المطلوبة للمنهج اللبناني.\n"
         f"2. **خطوات الحل التفصيلية:** تفكيك المسألة والعمليات أو الشرح خطوة بخطوة بطريقة مبسطة واحترافية.\n"
