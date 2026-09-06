@@ -1,95 +1,70 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
-from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from app.core.config import settings
-from app.db.session import get_db, SessionLocal
-from app.db.models import Book
-from scripts.index_books import index_book
+import os
+import base64
+from fastapi import APIRouter, File, UploadFile, Form, HTTPException
+from groq import Groq
+from dotenv import load_dotenv
+
+load_dotenv()
 
 router = APIRouter()
 
+# تهيئة عميل Groq
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-class IndexRequest(BaseModel):
-    admin_key: str
-    file_id: str
-    title: str
-    subject: str
-    grade: str
-    curriculum: str
-    page_offset: int = 0
+@router.post("/chat")
+async def chat(
+    message: str = Form(None),
+    image: UploadFile = File(None)
+):
+    try:
+        # تحديد النموذج المناسب حسب وجود صورة أو عدمه
+        if image and image.filename:
+            model_name = "llama-3.2-11b-vision-preview"
+            image_bytes = await image.read()
+            encoded_image = base64.b64encode(image_bytes).decode('utf-8')
+            
+            messages = [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text", 
+                            "text": message if message else "اشرح هذه الصورة بالتفصيل لل curriculum اللبناني."
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{encoded_image}"
+                            }
+                        }
+                    ]
+                }
+            ]
+        else:
+            # استخدمنا النموذج الأقوى للنصوص مع شخصية أستاذ نبيل
+            model_name = "llama-3.3-70b-versatile"
+            messages = [
+                {
+                    "role": "system",
+                    "content": "أنت أستاذ نبيل، مرشد تعليمي وخبير بالمنهج اللبناني. حافظ على ردود دقيقة، واضحة ومباشرة."
+                },
+                {
+                    "role": "user", 
+                    "content": message if message else "مرحباً"
+                }
+            ]
 
+        # تم رفع max_tokens إلى 4000 لتفادي أي اقتطاع أو تفريغ للاستجابة بسبب وسوم التفكير
+        response = client.chat.completions.create(
+            model=model_name,
+            messages=messages,
+            temperature=0.7,
+            max_tokens=4000
+        )
+        
+        reply = response.choices[0].message.content
+        return {"reply": reply}
 
-@router.post("/admin/index-book")
-def trigger_index_book(req: IndexRequest, background_tasks: BackgroundTasks):
-    if req.admin_key != settings.SECRET_KEY:
-        raise HTTPException(403, "admin_key غلط")
-    background_tasks.add_task(
-        index_book,
-        file_id=req.file_id,
-        title=req.title,
-        subject=req.subject,
-        grade=req.grade,
-        curriculum=req.curriculum,
-        printed_page_offset=req.page_offset,
-    )
-    return {"status": "بلّشت الفهرسة بالخلفية - راقب اللوغز (Logs) بـ Railway لتتابع التقدم"}
-
-
-class BookItem(BaseModel):
-    file_id: str
-    title: str
-    subject: str
-    grade: str
-    curriculum: str
-    page_offset: int = 0
-
-
-class BatchIndexRequest(BaseModel):
-    admin_key: str
-    books: list[BookItem]
-
-
-def run_batch(books: list[BookItem]):
-    for i, b in enumerate(books):
-        print(f"📚 [{i + 1}/{len(books)}] بدء فهرسة: {b.title}", flush=True)
-        try:
-            index_book(
-                file_id=b.file_id,
-                title=b.title,
-                subject=b.subject,
-                grade=b.grade,
-                curriculum=b.curriculum,
-                printed_page_offset=b.page_offset,
-            )
-        except Exception as e:
-            print(f"❌ [{i + 1}/{len(books)}] فشلت فهرسة {b.title}: {e}", flush=True)
-            continue
-    print(f"🎉 خلصت الدفعة الكاملة ({len(books)} كتاب)", flush=True)
-
-
-@router.post("/admin/index-books-batch")
-def trigger_index_books_batch(req: BatchIndexRequest, background_tasks: BackgroundTasks):
-    if req.admin_key != settings.SECRET_KEY:
-        raise HTTPException(403, "admin_key غلط")
-    background_tasks.add_task(run_batch, req.books)
-    return {"status": f"بلّشت فهرسة دفعة من {len(req.books)} كتاب بالخلفية - راقب اللوغز بـ Railway"}
-
-
-@router.get("/admin/books")
-def list_books(admin_key: str = Query(...), db: Session = Depends(get_db)):
-    if admin_key != settings.SECRET_KEY:
-        raise HTTPException(403, "admin_key غلط")
-    from app.db.models import BookChunk
-    books = db.query(Book).all()
-    result = []
-    for b in books:
-        chunk_count = db.query(BookChunk).filter(BookChunk.book_id == b.id).count()
-        result.append({
-            "title": b.title,
-            "subject": b.subject,
-            "grade": b.grade,
-            "curriculum": b.curriculum,
-            "total_pages": b.total_pages,
-            "chunks_indexed": chunk_count,
-        })
-    return result
+    except Exception as e:
+        print(f"Error occurred: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
