@@ -373,7 +373,7 @@
   <div class="composer">
     <input type="file" id="imageInput" accept="image/*" style="display:none">
     <button class="icon-btn" id="attachBtn" aria-label="إرفاق صورة">📎</button>
-    <button class="icon-btn" id="micBtn" aria-label="تسجيل صوتي مستمر">🎤</button>
+    <button class="icon-btn" id="micBtn" aria-label="تسجيل صوتي">🎤</button>
     <textarea id="messageInput" rows="1" placeholder="اكتب سؤالك الهندسي أو الرياضي..."></textarea>
     <button class="send-btn" id="sendBtn" aria-label="إرسال">➤</button>
   </div>
@@ -481,36 +481,25 @@
     speechSynthesis.speak(currentUtterance);
   }
 
-  // --- نظام التسجيل الصوتي المستمر ---
+  // --- نظام التسجيل الصوتي المعدل لمنع التكرار ---
   let recognition = null;
   let isListening = false;
-  let manualStop = false;
-  let accumulatedTranscript = '';
 
   if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = 'ar-LB';
+    recognition.continuous = false; // لمنع التكرار والحلقات
+    recognition.interimResults = false; // أخذ النتيجة النهائية الصافية مباشرة
+    recognition.lang = 'ar-LB'; // لغة عربية مع دعم المصطلحات الإنجليزية
 
     recognition.onresult = (event) => {
-      let interim = '';
-      let final = '';
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) final += event.results[i][0].transcript;
-        else interim += event.results[i][0].transcript;
-      }
-      if (final) accumulatedTranscript += (accumulatedTranscript ? ' ' : '') + final;
-      input.value = accumulatedTranscript + (interim ? ' ' + interim : '');
+      const transcript = event.results[0][0].transcript;
+      input.value = (input.value ? input.value + ' ' : '') + transcript;
       input.style.height = 'auto';
       input.style.height = Math.min(input.scrollHeight, 110) + 'px';
     };
 
     recognition.onend = () => {
-      if (isListening && !manualStop) {
-        try { recognition.start(); return; } catch(e){}
-      }
       stopListeningUI();
     };
   }
@@ -518,8 +507,6 @@
   function startListening(){
     if (!recognition) { alert("متصفحك لا يدعم التعرف الصوتي."); return; }
     try {
-      manualStop = false;
-      accumulatedTranscript = input.value ? input.value + ' ' : '';
       recognition.start();
       isListening = true;
       micBtn.classList.add("recording");
@@ -529,13 +516,13 @@
   }
 
   function stopListening(){
-    manualStop = true;
     isListening = false;
     if (recognition) { try { recognition.stop(); } catch(e){} }
     stopListeningUI();
   }
 
   function stopListeningUI(){
+    isListening = false;
     micBtn.classList.remove("recording");
     micBtn.textContent = "🎤";
     avatarBox.classList.remove("listening");
@@ -568,13 +555,12 @@
     const ctx = canvas.getContext("2d");
     const lower = contextText.toLowerCase();
 
-    // إذا كان سياق السؤال عن دوائر ومماسات
     if (lower.includes("دائرة") || lower.includes("سيركل") || lower.includes("c") || lower.includes("tangent")) {
       const nums = extractNumbers(contextText, [3, 4]);
       let r1 = Math.min(nums[0] || 3, 6) * 15;
       let r2 = Math.min(nums[1] || 4, 6) * 15;
 
-      caption.textContent = `رسم تفاعلي: دائرة (R=${nums[0] || 3}) ودائرة (R'=${nums[1] || 4}) مع المماسات`;
+      caption.textContent = `رسم تفاعلي: دائرة (R=${nums[0] || 3}) ودائرة (R'=${nums[1] || 4})`;
 
       ctx.fillStyle = "#1a2f24";
       ctx.fillRect(0, 0, 400, 220);
@@ -603,14 +589,6 @@
       ctx.stroke();
       ctx.setLineDash([]);
 
-      let M = {x: 180, y: 110};
-      ctx.strokeStyle = "#50fa7b";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(180, 40);
-      ctx.lineTo(180, 180);
-      ctx.stroke();
-
       ctx.fillStyle = "#E8B94D";
       ctx.beginPath(); ctx.arc(O.x, O.y, 4, 0, Math.PI*2); ctx.fill();
       ctx.fillText(`O (R=${nums[0] || 3})`, O.x - 30, O.y - 15);
@@ -622,7 +600,6 @@
       return container;
     }
 
-    // الرسم البياني الافتراضي (للدوال والمعادلات)
     caption.textContent = "رسم بياني إحداثي تفاعلي للدالة";
     ctx.strokeStyle = "#2c4c3b";
     ctx.lineWidth = 1;
@@ -678,14 +655,12 @@
       const actionsRow = document.createElement("div");
       actionsRow.className = "actions-row";
 
-      // زر الاستماع الصوتي
       const speakBtn = document.createElement("button");
       speakBtn.className = "action-btn";
       speakBtn.textContent = "🔊 اسمع الجواب";
       speakBtn.addEventListener("click", () => speak(text, speakBtn));
       actionsRow.appendChild(speakBtn);
 
-      // زر نسخ الحل
       const copyBtn = document.createElement("button");
       copyBtn.className = "action-btn";
       copyBtn.textContent = "📋 نسخ الحل";
@@ -697,7 +672,6 @@
       });
       actionsRow.appendChild(copyBtn);
 
-      // زر الرسم التفاعلي الجديد (يظهر فقط تحت إجابة المعلم)
       const drawBtn = document.createElement("button");
       drawBtn.className = "action-btn";
       drawBtn.textContent = "📐 ارسم لي الشكل";
@@ -715,11 +689,7 @@
           const existingCanvas = div.querySelector(".math-canvas-container");
           if (existingCanvas) {
             existingCanvas.style.display = existingCanvas.style.display === "none" ? "block" : "none";
-            if (existingCanvas.style.display === "none") {
-              drawBtn.textContent = "📐 عرض الرسمة";
-            } else {
-              drawBtn.textContent = "🙈 إخفاء الرسمة";
-            }
+            drawBtn.textContent = existingCanvas.style.display === "none" ? "📐 عرض الرسمة" : "🙈 إخفاء الرسمة";
           }
         }
       });
@@ -780,10 +750,7 @@
       conversationId = data.conversation_id;
       if(conversationId) localStorage.setItem("nabilai_conversation_id", conversationId);
 
-      hideTyp0 = true;
       hideTyping();
-      
-      // نمرر نص الطالب مع رد المعلم لكي يستخدمه زر الرسم إذا طلب الطالب ذلك
       addMessage("teacher", data.reply, data.sources, null, messageToSend);
     }catch(err){
       hideTyping();
