@@ -18,17 +18,17 @@ SYSTEM_PROMPT = """
 
 قواعد صارمة لازم تلتزم فيها دايماً بكل الإجابات:
 
-1. الأسلوب واللغة: احكي دايماً عربي لبناني محكي لطيف ودافي بالشرح البسيط (مثل: "أهلاً بك يا بطل!"، "خليني اشرحلك ياه...").
+1. كشف اللغة والتكيف الفوري (مهم جداً): 
+   - التزم دائماً بالرد على الطالب **بنفس اللغة التي استخدمها في سؤاله**:
+     * إذا سأل باللغة **الإنجليزية**، أجب بالكامل باللغة **الإنجليزية** بأسلوب تربوي لطيف.
+     * إذا سأل باللغة **الفرنسية**، أجب بالكامل باللغة **الفرنسية**.
+     * إذا سأل باللغة **العربية**، أجب باللغة العربية بلهجة لبنانية محكية لطيفة ودافئة (مثل: "أهلاً بك يا بطل!").
 
-2. التمييز الذكي بين السؤال والجواب (مهم جداً عند استقبال الصور بخط اليد أو النصوص):
-   - الحالة الأولى (الصورة أو النص عبارة عن سؤال جديد): إذا طرح الطالب مسألة أو درس جديد، قم بشرحها وتقسيمها حسب هيكلية الدروس (مقدمة مبسطة، قواعد ذهبية، خطوات بالأمثلة، وخلاصة تشجيعية).
-   - الحالة الثانية (الصورة أو النص عبارة عن إجابة طالب أو محاولة حل بخط يده): إذا بعث الطالب ورقة مكتوبة بخط يده فيها محاولة حل أو جواب لمسألة، يجب أن تفهم أنه حل طالب وليس سؤالاً:
-     * اقرأ خطه اليدوي بدقة شديدة وتتبع خطواته خطوة بخطوة.
-     * قارن بين طريقه وصوله للحل وبين الحل الصحيح للمنهج اللبناني.
-     * إذا كان حله صح، شجّعه واثنِ على جهده.
-     * إذا كان عنده خطأ (سواء بالإشارة، بالحساب، أو بالقاعدة)، دلّه بلطف على مكان الخطأ بالتحديد واشرح له كيف يصلحه، ولا تعطه الجواب الجاهز فوراً بل اجعله يكتشف خطأه بمحبة.
+2. التمييز الذكي بين السؤال والجواب:
+   - إذا كان سؤاله مسألة جديدة، اشرحها خطوة بخطوة بالاستناد للمنهج.
+   - إذا كان حلاً مقترحاً بخط يده أو بصوته، دقق خطواته وتأكد منها، وإذا وجد خطأ دلّه عليه بمحبة ولطف.
 
-3. في أسئلة الهندسة والبرهان: التزم بالنمط العلمي (Geometric Analysis, Key Theorem Application, Step-by-Step Conclusion) ولكن بلغة واضحة.
+3. في أسئلة الهندسة والبرهان: التزم بالنمط العلمي بوضوح يتناسب مع لغة السؤال.
 
 4. ممنوع نهائياً استخدام أي تنسيق Markdown معقد يفسد الشكل البصري، واستخدم الرموز الرياضية الواضحة. وفورا أجب بالحل النهائي بدون أي كتابة لعمليات التفكير الداخلية أو وسوم think.
 """
@@ -36,17 +36,14 @@ SYSTEM_PROMPT = """
 VISION_MODEL = "qwen/qwen3.6-27b"
 TEXT_MODEL = "openai/gpt-oss-120b"
 
-
 def clean_reply(text: str) -> str:
     if not text:
         return ""
-
     text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
     if "</think>" in text:
         text = text.split("</think>")[-1]
     if "<think>" in text:
         text = text.split("<think>")[0]
-
     text = re.sub(r"#{1,6}\s*", "", text)
     text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
     text = re.sub(r"\*(.+?)\*", r"\1", text)
@@ -54,32 +51,48 @@ def clean_reply(text: str) -> str:
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
 
-
 class ChatResponse(BaseModel):
     conversation_id: str
     reply: str
     sources: list[dict] = []
+    transcribed_text: Optional[str] = None
 
 
-@router.post("/chat", response_model=ChatResponse)
-async def chat(
+# نقطة النهاية (Endpoint) الخاصة باستقبال الرسائل الصوتية من المايك
+@router.post("/voice-chat", response_model=ChatResponse)
+async def voice_chat(
+    audio: UploadFile = File(...),
     student_id: str = Form(...),
-    message: str = Form(...),
     conversation_id: Optional[str] = Form(None),
     subject: Optional[str] = Form(None),
     grade: Optional[str] = Form(None),
     curriculum: Optional[str] = Form(None),
-    image: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
     if not settings.GROQ_API_KEY:
         raise HTTPException(500, "GROQ_API_KEY غير مضبوط بإعدادات السيرفر")
 
-    image_base64 = None
-    if image:
-        contents = await image.read()
-        image_base64 = f"data:{image.content_type};base64,{base64.b64encode(contents).decode('utf-8')}"
+    client = Groq(api_key=settings.GROQ_API_KEY)
+    
+    # 1. قراءة الملف الصوتي المرفق من الواجهة الأمامية
+    audio_bytes = await audio.read()
+    
+    # 2. تفريغ الصوت وتحويله لنص باستخدام نموذج Whisper (يدعم الإنجليزية والفرنسية والعربية تلقائياً وبدقة مذهلة)
+    try:
+        transcription = client.audio.transcriptions.create(
+            file=(audio.filename or "voice.webm", audio_bytes),
+            model="whisper-large-v3",
+            prompt="Educational math and science context, supporting English, French, and Arabic.",
+            response_format="text"
+        )
+        message = transcription.strip()
+    except Exception as e:
+        raise HTTPException(500, f"خطأ في معالجة الصوت: {str(e)}")
 
+    if not message:
+        message = "Hello teacher, please help me."
+
+    # 3. متابعة نفس منطق الشات الطبيعي بعد استخراج النص الصوتي
     conversation = None
     if conversation_id:
         conversation = db.query(Conversation).filter_by(id=conversation_id).first()
@@ -109,8 +122,7 @@ async def chat(
         .all()
     )
 
-    saved_message_content = message if message else "[صورة]"
-    db.add(Message(conversation_id=conversation.id, role="student", content=saved_message_content))
+    db.add(Message(conversation_id=conversation.id, role="student", content=f"[صوت] {message}"))
     db.commit()
 
     context_block = ""
@@ -125,7 +137,7 @@ async def chat(
         )
         context_block = build_context_block(source_chunks)
 
-    text_part = message or "شو في بهالصورة؟ ساعدني افهمها."
+    text_part = message
     if context_block:
         text_part = f"{context_block}\n\nسؤال الطالب: {text_part}"
 
@@ -135,23 +147,12 @@ async def chat(
         for m in previous_messages
     ]
 
-    if image_base64:
-        model = VISION_MODEL
-        user_content = [
-            {"type": "text", "text": text_part},
-            {"type": "image_url", "image_url": {"url": image_base64}},
-        ]
-    else:
-        model = TEXT_MODEL
-        user_content = text_part
-
-    client = Groq(api_key=settings.GROQ_API_KEY)
     completion = client.chat.completions.create(
-        model=model,
+        model=TEXT_MODEL,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             *history_messages,
-            {"role": "user", "content": user_content},
+            {"role": "user", "content": text_part},
         ],
         max_tokens=4000,
         temperature=0.4,
@@ -167,4 +168,5 @@ async def chat(
         conversation_id=conversation.id,
         reply=reply_text,
         sources=[{"book": c["book_title"], "page": c["page"]} for c in source_chunks],
+        transcribed_text=message
     )
