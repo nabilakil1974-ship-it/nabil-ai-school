@@ -481,16 +481,15 @@
     speechSynthesis.speak(currentUtterance);
   }
 
-  // --- نظام التسجيل الصوتي المعدل لمنع التكرار ---
   let recognition = null;
   let isListening = false;
 
   if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     recognition = new SpeechRecognition();
-    recognition.continuous = false; // لمنع التكرار والحلقات
-    recognition.interimResults = false; // أخذ النتيجة النهائية الصافية مباشرة
-    recognition.lang = 'ar-LB'; // لغة عربية مع دعم المصطلحات الإنجليزية
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'ar-LB';
 
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript;
@@ -532,13 +531,13 @@
     if (!isListening) startListening(); else stopListening();
   });
 
-  // --- مفسر واستخراج الأرقام للرسم الديناميكي ---
   function extractNumbers(text, defaultVals) {
     const matches = text.match(/\d+(\.\d+)?/g);
     if (!matches || matches.length === 0) return defaultVals;
     return matches.map(Number);
   }
 
+  // --- دالة الرسم الذكية والمصححة (تفرق بين دائرة مفردة ودائرتين) ---
   function generateCanvasElement(contextText) {
     const container = document.createElement("div");
     container.className = "math-canvas-container";
@@ -554,73 +553,83 @@
 
     const ctx = canvas.getContext("2d");
     const lower = contextText.toLowerCase();
+    const nums = extractNumbers(contextText, [5]);
 
-    if (lower.includes("دائرة") || lower.includes("سيركل") || lower.includes("c") || lower.includes("tangent")) {
-      const nums = extractNumbers(contextText, [3, 4]);
-      let r1 = Math.min(nums[0] || 3, 6) * 15;
-      let r2 = Math.min(nums[1] || 4, 6) * 15;
+    // التحقق هل السؤال لدائرة واحدة مفردة أم لدائرتين متماستين
+    const isSingleCircle = lower.includes("قطرها") || lower.includes("شعاعها") || lower.includes("مساحة الدائرة") || lower.includes("محيط الدائرة") || (nums.length === 1 && !lower.includes("tangent") && !lower.includes("مماستان"));
 
-      caption.textContent = `رسم تفاعلي: دائرة (R=${nums[0] || 3}) ودائرة (R'=${nums[1] || 4})`;
+    ctx.fillStyle = "#1a2f24";
+    ctx.fillRect(0, 0, 400, 220);
 
-      ctx.fillStyle = "#1a2f24";
-      ctx.fillRect(0, 0, 400, 220);
+    if (isSingleCircle) {
+      let radiusVal = nums[0] || 5;
+      let rPixels = (lower.includes("قطر") ? radiusVal / 2 : radiusVal) * 18;
+      if (rPixels > 90) rPixels = 90;
 
-      let O = {x: 130, y: 110};
-      let O_prime = {x: 270, y: 110};
+      let cx = 200, cy = 110;
+
+      caption.textContent = `رسم تفاعلي: دائرة مفردة (القياس المعطى: ${radiusVal})`;
 
       ctx.strokeStyle = "#E8B94D";
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.arc(O.x, O.y, r1, 0, Math.PI * 2);
+      ctx.arc(cx, cy, rPixels, 0, Math.PI * 2);
       ctx.stroke();
-
-      ctx.strokeStyle = "#B5697A";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(O_prime.x, O_prime.y, r2, 0, Math.PI * 2);
-      ctx.stroke();
-
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([3, 3]);
-      ctx.beginPath();
-      ctx.moveTo(O.x, O.y);
-      ctx.lineTo(O_prime.x, O_prime.y);
-      ctx.stroke();
-      ctx.setLineDash([]);
 
       ctx.fillStyle = "#E8B94D";
-      ctx.beginPath(); ctx.arc(O.x, O.y, 4, 0, Math.PI*2); ctx.fill();
-      ctx.fillText(`O (R=${nums[0] || 3})`, O.x - 30, O.y - 15);
+      ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI*2); ctx.fill();
+      ctx.fillText("O", cx - 12, cy - 8);
 
-      ctx.fillStyle = "#B5697A";
-      ctx.beginPath(); ctx.arc(O_prime.x, O_prime.y, 4, 0, Math.PI*2); ctx.fill();
-      ctx.fillText(`O' (R'=${nums[1] || 4})`, O_prime.x - 30, O_prime.y - 15);
+      ctx.strokeStyle = "#B5697A";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + rPixels, cy);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillText(`R = ${radiusVal}`, cx + (rPixels / 2) - 15, cy - 8);
 
       return container;
     }
 
-    caption.textContent = "رسم بياني إحداثي تفاعلي للدالة";
-    ctx.strokeStyle = "#2c4c3b";
-    ctx.lineWidth = 1;
-    for(let x=0; x<400; x+=40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,220); ctx.stroke(); }
-    for(let y=0; y<220; y+=40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(400,y); ctx.stroke(); }
+    // الرسم الافتراضي للدائرتين المتماستين (في حال أسئلة الهندسة والـ Tangent)
+    let r1 = Math.min(nums[0] || 4, 6) * 15;
+    let r2 = Math.min(nums[1] || 2, 6) * 15;
+
+    caption.textContent = `رسم تفاعلي: دائرتان متماستان (R=${nums[0] || 4}, R'=${nums[1] || 2})`;
+
+    let O = {x: 130, y: 110};
+    let O_prime = {x: 270, y: 110};
 
     ctx.strokeStyle = "#E8B94D";
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(0, 180); ctx.lineTo(400, 180); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(200, 0); ctx.lineTo(200, 220); ctx.stroke();
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(O.x, O.y, r1, 0, Math.PI * 2);
+    ctx.stroke();
 
     ctx.strokeStyle = "#B5697A";
     ctx.lineWidth = 3;
     ctx.beginPath();
-    for (let px = 0; px <= 400; px += 2) {
-      let x = (px - 200) / 40;
-      let y_val = x * x - 2 * x; 
-      let py = 180 - (y_val * 15);
-      if (px === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-    }
+    ctx.arc(O_prime.x, O_prime.y, r2, 0, Math.PI * 2);
     ctx.stroke();
+
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(O.x, O.y);
+    ctx.lineTo(O_prime.x, O_prime.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = "#E8B94D";
+    ctx.beginPath(); ctx.arc(O.x, O.y, 4, 0, Math.PI*2); ctx.fill();
+    ctx.fillText(`O (R=${nums[0] || 4})`, O.x - 30, O.y - 15);
+
+    ctx.fillStyle = "#B5697A";
+    ctx.beginPath(); ctx.arc(O_prime.x, O_prime.y, 4, 0, Math.PI*2); ctx.fill();
+    ctx.fillText(`O' (R'=${nums[1] || 2})`, O_prime.x - 30, O_prime.y - 15);
 
     return container;
   }
