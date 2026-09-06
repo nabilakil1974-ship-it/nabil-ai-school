@@ -5,18 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>الأستاذ نبيل - المنهاج اللبناني</title>
     <style>
-        body { font-family: Tahoma, sans-serif; background: #f0f2f5; margin: 0; padding: 20px; direction: rtl; }
-        .chat-container { max-width: 700px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .chat-box { height: 400px; overflow-y: auto; border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin-bottom: 15px; background: #fafafa; }
-        .message { margin-bottom: 12px; padding: 10px 14px; border-radius: 8px; line-height: 1.5; max-width: 80%; }
-        .student { background: #dcf8c6; margin-left: auto; text-align: right; }
-        .teacher { background: #e2e8f0; margin-right: auto; text-align: right; }
-        .input-area { display: flex; gap: 10px; align-items: center; }
-        input[type="text"] { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 6px; }
-        button { padding: 10px 18px; background: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; }
-        button:hover { background: #0056b3; }
-        .controls { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
-        select { padding: 8px; border-radius: 6px; border: 1px solid #ccc; }
+        body { font-family: Tahoma, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 20px; direction: rtl; }
+        .chat-container { max-width: 750px; margin: auto; background: #1e293b; padding: 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); border: 1px solid #334155; }
+        h2 { text-align: center; color: #38bdf8; margin-top: 0; }
+        .chat-box { height: 450px; overflow-y: auto; border: 1px solid #334155; padding: 15px; border-radius: 8px; margin-bottom: 15px; background: #0f172a; }
+        .message { margin-bottom: 15px; padding: 12px 16px; border-radius: 10px; line-height: 1.6; max-width: 85%; position: relative; }
+        .student { background: #0369a1; color: white; margin-left: auto; text-align: right; border-top-left-radius: 2px; }
+        .teacher { background: #334155; color: #f1f5f9; margin-right: auto; text-align: right; border-top-right-radius: 2px; }
+        .input-area { display: flex; gap: 8px; align-items: center; background: #0f172a; padding: 10px; border-radius: 8px; border: 1px solid #334155; }
+        input[type="text"] { flex: 1; padding: 10px; background: #1e293b; border: 1px solid #475569; color: white; border-radius: 6px; font-size: 14px; }
+        button { padding: 10px 16px; background: #0284c7; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
+        button:hover { background: #0369a1; }
+        .controls { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; justify-content: center; }
+        select { padding: 8px 12px; border-radius: 6px; border: 1px solid #475569; background: #1e293b; color: white; font-size: 14px; }
+        .canvas-container { display: none; margin-bottom: 15px; background: white; padding: 10px; border-radius: 8px; text-align: center; }
+        canvas { border: 2px dashed #cbd5e1; cursor: crosshair; touch-action: none; background: #ffffff; }
+        .action-btns { display: flex; gap: 5px; margin-top: 8px; justify-content: flex-end; }
+        .btn-sm { padding: 4px 8px; font-size: 12px; background: #475569; }
+        .btn-sm:hover { background: #64748b; }
     </style>
 </head>
 <body>
@@ -37,50 +43,144 @@
         <select id="curriculum">
             <option value="المنهج اللبناني">المنهج اللبناني</option>
         </select>
+        <button class="btn-sm" onclick="toggleCanvas()" style="background: #0d9488;">✏️ لوح الرسم</button>
+    </div>
+
+    <!-- لوحة الرسم -->
+    <div class="canvas-container" id="canvasContainer">
+        <canvas id="drawCanvas" width="500" height="250"></canvas>
+        <div style="margin-top: 8px;">
+            <button class="btn-sm" onclick="clearCanvas()" style="background: #dc2626;">مسح اللوحة</button>
+            <button class="btn-sm" onclick="sendCanvasImage()" style="background: #16a34a;">إرسال الرسمة للأستاذ</button>
+            <button class="btn-sm" onclick="toggleCanvas()" style="background: #64748b;">إغلاق</button>
+        </div>
     </div>
 
     <div class="chat-box" id="chatBox"></div>
 
     <div class="input-area">
         <input type="file" id="imageInput" accept="image/*" style="display:none;" onchange="previewImage()">
-        <button onclick="document.getElementById('imageInput').click()" title="ارفاق صورة">📷</button>
-        <input type="text" id="messageInput" placeholder="اكتب سؤالك أو ارفع صورة التمرين هنا..." onkeypress="if(event.key==='Enter') sendMessage()">
+        <button onclick="document.getElementById('imageInput').click()" title="إرفاق صورة">📷</button>
+        <button id="micBtn" onclick="toggleRecord()" title="تسجيل صوتي" style="background: #475569;">🎤</button>
+        <input type="text" id="messageInput" placeholder="اكتب سؤالك، ارفع صورة، أو ارسم التمرين..." onkeypress="if(event.key==='Enter') sendMessage()">
         <button onclick="sendMessage()">إرسال</button>
     </div>
-    <div id="imagePreview" style="margin-top: 5px; font-size: 12px; color: #666;"></div>
+    <div id="imagePreview" style="margin-top: 5px; font-size: 12px; color: #38bdf8;"></div>
 </div>
 
 <script>
     let selectedImage = null;
+    let recordedAudioBlob = null;
+    let mediaRecorder;
+    let audioChunks = [];
+    let isRecording = false;
+
     const studentId = "student_" + Math.random().toString(36).substring(2, 9);
     let conversationId = null;
+
+    // إعداد لوحة الرسم (Canvas)
+    const canvas = document.getElementById('drawCanvas');
+    const ctx = canvas.getContext('2d');
+    let painting = false;
+
+    function startPosition(e) { painting = true; draw(e); }
+    function finishedPosition() { painting = false; ctx.beginPath(); }
+    function draw(e) {
+        if (!painting) return;
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = '#000000';
+        
+        const rect = canvas.getBoundingClientRect();
+        const x = (e.clientX || e.touches[0].clientX) - rect.left;
+        const y = (e.clientY || e.touches[0].clientY) - rect.top;
+
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+    }
+
+    canvas.addEventListener('mousedown', startPosition);
+    canvas.addEventListener('mouseup', finishedPosition);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('touchstart', startPosition);
+    canvas.addEventListener('touchend', finishedPosition);
+    canvas.addEventListener('touchmove', draw);
+
+    function toggleCanvas() {
+        const ctn = document.getElementById('canvasContainer');
+        ctn.style.display = ctn.style.display === 'block' ? 'none' : 'block';
+    }
+
+    function clearCanvas() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function sendCanvasImage() {
+        canvas.toBlob(blob => {
+            selectedImage = new File([blob], "canvas_drawing.png", { type: "image/png" });
+            document.getElementById('imagePreview').innerText = "تمت إضافة الرسمة بنجاح!";
+            toggleCanvas();
+            sendMessage();
+        }, 'image/png');
+    }
 
     function previewImage() {
         const fileInput = document.getElementById('imageInput');
         if (fileInput.files && fileInput.files[0]) {
             selectedImage = fileInput.files[0];
-            document.getElementById('imagePreview').innerText = "تم اختيار صورة: " + selectedImage.name;
+            document.getElementById('imagePreview').innerText = "صورة مرفقة: " + selectedImage.name;
         }
     }
 
-    async function sendMessage() {
+    // التسجيل الصوتي
+    async function toggleRecord() {
+        const micBtn = document.getElementById('micBtn');
+        if (!isRecording) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                mediaRecorder.onstop = () => {
+                    recordedAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    sendMessage(true);
+                };
+                mediaRecorder.start();
+                isRecording = true;
+                micBtn.style.background = '#dc2626';
+                micBtn.innerText = '⏹️';
+                document.getElementById('imagePreview').innerText = "جاري التسجيل الصوتي...";
+            } catch (err) {
+                alert("تعذر الوصول إلى الميكروفون!");
+            }
+        } else {
+            mediaRecorder.stop();
+            isRecording = false;
+            micBtn.style.background = '#475569';
+            micBtn.innerText = '🎤';
+        }
+    }
+
+    async function sendMessage(isAudio = false) {
         const input = document.getElementById('messageInput');
         const chatBox = document.getElementById('chatBox');
         const text = input.value.trim();
 
-        if (!text && !selectedImage) return;
+        if (!text && !selectedImage && !recordedAudioBlob) return;
 
-        // عرض رسالة الطالب
         let displayHtml = text;
-        if (selectedImage) {
-            displayHtml += `<br><small>[صورة مرفقة: ${selectedImage.name}]</small>`;
-        }
+        if (selectedImage) displayHtml += `<br><small>[صورة/رسمة مرفقة]</small>`;
+        if (isAudio) displayHtml += `<br><small>[رسالة صوتية 🎤]</small>`;
+        
         chatBox.innerHTML += `<div class="message student"><b>أنت:</b> ${displayHtml}</div>`;
         
         const formData = new FormData();
         formData.append("student_id", studentId);
         if (text) formData.append("message", text);
         if (selectedImage) formData.append("image", selectedImage);
+        if (recordedAudioBlob) formData.append("audio", recordedAudioBlob, "voice.webm");
         if (conversationId) formData.append("conversation_id", conversationId);
         
         formData.append("subject", document.getElementById('subject').value);
@@ -91,25 +191,43 @@
         document.getElementById('imageInput').value = "";
         document.getElementById('imagePreview').innerText = "";
         selectedImage = null;
+        recordedAudioBlob = null;
         chatBox.scrollTop = chatBox.scrollHeight;
 
         try {
-            const response = await fetch('/api/chat', {
-                method: 'POST',
-                body: formData
-            });
+            const response = await fetch('/api/chat', { method: 'POST', body: formData });
             const data = await response.json();
             
             if (response.ok) {
                 conversationId = data.conversation_id;
-                chatBox.innerHTML += `<div class="message teacher"><b>الأستاذ نبيل:</b> ${data.reply}</div>`;
+                let replyText = data.reply;
+                if(data.transcribed_text && isAudio) {
+                    replyText = `<small style="color:#38bdf8;">(النص الصوتي: ${data.transcribed_text})</small><br>` + replyText;
+                }
+                
+                // زر نسخ النص
+                const msgId = 'msg_' + Math.random().toString(36).substring(2);
+                chatBox.innerHTML += `
+                    <div class="message teacher">
+                        <b>الأستاذ نبيل:</b> <div id="${msgId}" style="margin-top:5px; white-space: pre-wrap;">${replyText}</div>
+                        <div class="action-btns">
+                            <button class="btn-sm" onclick="copyText('${msgId}')">📋 نسخ</button>
+                        </div>
+                    </div>`;
             } else {
-                chatBox.innerHTML += `<div class="message teacher" style="color:red;">عذراً، حدث خطأ في السيرفر.</div>`;
+                chatBox.innerHTML += `<div class="message teacher" style="color:#fca5a5;">عذراً، حدث خطأ في السيرفر.</div>`;
             }
         } catch (err) {
-            chatBox.innerHTML += `<div class="message teacher" style="color:red;">تعذر الاتصال بالسيرفر.</div>`;
+            chatBox.innerHTML += `<div class="message teacher" style="color:#fca5a5;">تعذر الاتصال بالسيرفر.</div>`;
         }
         chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function copyText(id) {
+        const text = document.getElementById(id).innerText;
+        navigator.clipboard.writeText(text).then(() => {
+            alert('تم نسخ النص بنجاح!');
+        });
     }
 </script>
 
