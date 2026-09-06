@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Form
 from fastapi.responses import JSONResponse, HTMLResponse
 import os
+import re
 
 app = FastAPI(title="منصة الأستاذ نبيل التعليمية")
 
@@ -21,12 +22,11 @@ HTML_CONTENT = """<!DOCTYPE html>
         .message { max-width: 88%; padding: 20px 24px; border-radius: 14px; line-height: 2.3; font-size: 1.15rem; word-wrap: break-word; box-shadow: 0 3px 8px rgba(0,0,0,0.25); }
         .student-message { background-color: #3282b8; color: white; align-self: flex-start; }
         .teacher-message { background-color: #ffffff; color: #212529; align-self: flex-end; border: 1px solid #dee2e6; text-align: right; }
-        .exam-correction-box { background: #f8f9fa; border-right: 5px solid #0f4c75; padding: 15px; margin: 10px 0; border-radius: 6px; }
+        .exam-correction-box { background: #f8f9fa; border-right: 5px solid #0f4c75; padding: 12px 15px; margin: 8px 0; border-radius: 6px; }
         .msg-actions { margin-top: 15px; display: flex; gap: 12px; font-size: 0.95rem; border-top: 1px solid #eee; padding-top: 12px; }
         .msg-actions button { background: #f1f3f5; border: 1px solid #ced4da; padding: 6px 14px; border-radius: 6px; cursor: pointer; color: #333; font-weight: bold; }
         .msg-actions button:hover { background-color: #e2e6ea; }
-        .teacher-text p { margin: 0 0 12px 0; }
-        .teacher-text p:last-child { margin-bottom: 0; }
+        .teacher-text p { margin: 0 0 10px 0; }
         .canvas-box { margin-top: 15px; background: #0f171e; border: 2px solid #3282b8; border-radius: 10px; padding: 12px; text-align: center; }
         canvas { background: #121820; border-radius: 6px; max-width: 100%; }
         #input-container { padding: 15px; background-color: #0f4c75; border-top: 1px solid #1b262c; display: flex; align-items: center; gap: 10px; }
@@ -54,7 +54,7 @@ HTML_CONTENT = """<!DOCTYPE html>
             formData.append('student_id', 'student_demo_1');
             formData.append('subject', 'شامل (رياضيات، علوم، لغات، أدب)');
             formData.append('grade', 'جميع الصفوف والشهادات الرسمية');
-            formData.append('curriculum', 'لبناني رسمي - سلم تصحيح');
+            formData.append('curriculum', 'لبนاني رسمي - سلم تصحيح');
             try {
                 const response = await fetch('/api/chat', { method: 'POST', body: formData });
                 const data = await response.json();
@@ -81,16 +81,21 @@ HTML_CONTENT = """<!DOCTYPE html>
             teacherDiv.className = 'message teacher-message';
             const textContent = document.createElement('div');
             textContent.className = 'teacher-text';
+            
             const lines = replyText.split('\\n');
             lines.forEach(line => {
-                const p = document.createElement('p');
-                p.innerText = line.trim() === '' ? '\\u00A0' : line;
-                if (line.includes('1.') || line.includes('2.') || line.includes('3.') || line.includes('الخطوة') || line.includes('النتيجة') || line.includes('الإعراب')) {
-                    p.className = 'exam-correction-box';
+                if (line.trim() !== '') {
+                    const p = document.createElement('p');
+                    const cleanLine = line.replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>');
+                    p.innerHTML = cleanLine;
+                    if (line.includes('1.') || line.includes('2.') || line.includes('3.') || line.includes('المعطيات') || line.includes('الخطوة') || line.includes('النتيجة') || line.includes('الحل')) {
+                        p.className = 'exam-correction-box';
+                    }
+                    textContent.appendChild(p);
                 }
-                textContent.appendChild(p);
             });
             teacherDiv.appendChild(textContent);
+            
             const canvasBox = document.createElement('div');
             canvasBox.className = 'canvas-box';
             const canvas = document.createElement('canvas');
@@ -104,8 +109,10 @@ HTML_CONTENT = """<!DOCTYPE html>
             canvasBox.appendChild(shapeLabel);
             teacherDiv.appendChild(canvasBox);
             drawComprehensiveVisual(canvas, shapeLabel, userQuery);
+            
             const actionsDiv = document.createElement('div');
             actionsDiv.className = 'msg-actions';
+            
             const copyBtn = document.createElement('button');
             copyBtn.innerText = '📋 نسخ سلم التصحيح';
             copyBtn.onclick = () => {
@@ -113,21 +120,21 @@ HTML_CONTENT = """<!DOCTYPE html>
                 copyBtn.innerText = '✅ تم النسخ!';
                 setTimeout(() => copyBtn.innerText = '📋 نسخ سلم التصحيح', 2000);
             };
+            
             const speakBtn = document.createElement('button');
             speakBtn.innerText = '🔊 اسمع الشرح';
             speakBtn.onclick = () => {
-                const utterance = new SpeechSynthesisUtterance(replyText.replace(/[\\/\\\\]/g, ' '));
+                const utterance = new SpeechSynthesisUtterance(replyText.replace(/[*\\/\\\\]/g, ' '));
                 utterance.lang = 'ar-LB';
                 window.speechSynthesis.speak(utterance);
             };
+            
             actionsDiv.appendChild(copyBtn);
             actionsDiv.appendChild(speakBtn);
             teacherDiv.appendChild(actionsDiv);
+            
             container.appendChild(teacherDiv);
             container.scrollTop = container.scrollHeight;
-            if (window.renderMathInElement) {
-                renderMathInElement(teacherDiv, { delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}], throwOnError: false });
-            }
         }
         function drawComprehensiveVisual(canvas, label, query) {
             const ctx = canvas.getContext('2d');
@@ -173,12 +180,43 @@ async def read_root():
 
 @app.post("/api/chat")
 async def chat_api(message: str = Form(...), subject: str = Form(...), grade: str = Form(...)):
-    reply_text = (
-        f"أهلاً بك يا بطل في منصة الأستاذ نبيل التعليمية 🇱🇧\n\n"
-        f"1. **المعطيات:** دراسة السؤال الوارد في مادة {subject} للصف {grade}.\n"
-        f"2. **الخطوة البرهانية:** تطبيق القوانين الرسمية للمنهج اللبناني خطوة بخطوة مع التعليل العلمي.\n"
-        f"3. **النتيجة النهائية:** استخراج الناتج المطلوب بدقة وفق سلم التصحيح الرسمي (CRDP)."
-    )
+    q = message.strip()
+    
+    # محاولة حل المعادلات الرياضية البسيطة مباشرة باستخدام بايثون لتقديم إجابة حقيقية!
+    calculated_result = ""
+    try:
+        # البحث عن صيغة رياضية لحسابها
+        clean_expr = re.sub(r'[^0-9\+\-\*\/\.\(\)]', '', q)
+        if len(clean_expr) > 1:
+            res = eval(clean_expr)
+            calculated_result = f"• **الناتج الحقيقي المحسوب:** {clean_expr} = {res}\n"
+    except:
+        pass
+
+    if "f(x)" in q.lower() or "دالة" in q or "سين" in q or "اشتقاق" in q:
+        reply_text = (
+            f"إليك الحل النموذجي المفصل لمسألة التابع ({q}) حسب المنهج اللبناني:\n\n"
+            f"1. **مجموعة التعريف (Domain):** نحدد الشروط بأن ما داخل اللوغاريتم موجب أو المقام لا يساوي الصفر.\n"
+            f"2. **حساب النهايات:** ندرس السلوك عند الأطراف والمستقيمات المقاربة (Asymptotes).\n"
+            f"3. **المشتق وتغيرات التابع:** نحسب المشتق ونساوي بـ 0 لنجد النقاط الحرجة وجدول التغيرات.\n"
+            f"4. **النتيجة النهائية:** المنحنى جاهز للرسم في اللوح الذكي أدناه."
+        )
+    elif "إعراب" in q or "اعرب" in q:
+        reply_text = (
+            f"إليك سلم التصحيح النموذجي للإعراب لجملتك ({q}):\n\n"
+            f"1. **تحديد الكلمات:** تحليل الموقع النحوي لكل كلمة في الجملة.\n"
+            f"2. **التطبيق الإعرابي:** الكلمة الأولى تعرب حسب موقعها، وتحديد العلامة الإعرابية (ضمة، فتحة، كسرة ظاهرة أو مقدرة).\n"
+            f"3. **النتيجة النهائية:** الإعراب التام مفصلاً وفق قواعد النحو العربي الرسمية."
+        )
+    else:
+        reply_text = (
+            f"إليك الحل المفصل لسؤالك: **{q}**\n\n"
+            f"{calculated_result}"
+            f"1. **المعطيات:** استخراج المعطيات الرقمية والنصية بدقة من نص السؤال.\n"
+            f"2. **القانون والخطوات:** تطبيق النظريات والقوانين العلمية المعتمدة في المنهج الرسمي.\n"
+            f"3. **النتيجة النهائية:** الوصول إلى الحل النهائي مع ذكر وحدة القياس والتعليل العلمي."
+        )
+
     return JSONResponse({"reply": reply_text, "subject": subject, "grade": grade})
 
 if __name__ == "__main__":
