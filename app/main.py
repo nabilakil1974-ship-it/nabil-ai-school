@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse, HTMLResponse
 import os
 import re
 
-app = FastAPI(title="منصة الأستاذ نبيل التعليمية الشاملة")
+app = FastAPI(title="منصة الأستاذ نبيل احمد عقييل التعليمية الشاملة")
 
 HTML_CONTENT = """<!DOCTYPE html>
 <html lang="ar" dir="rtl">
