@@ -1,7 +1,7 @@
 import re
-from fastapi import APIRouter, Depends, HTTPException
+import base64
+from fastapi import APIRouter, Depends, HTTPException, Form, File, UploadFile
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
 from typing import Optional
 from groq import Groq
 
@@ -51,16 +51,6 @@ def clean_reply(text: str) -> str:
     return text.strip()
 
 
-class ChatRequest(BaseModel):
-    student_id: str
-    conversation_id: Optional[str] = None
-    message: str
-    subject: Optional[str] = None
-    grade: Optional[str] = None
-    curriculum: Optional[str] = None
-    image_base64: Optional[str] = None
-
-
 class ChatResponse(BaseModel):
     conversation_id: str
     reply: str
@@ -68,27 +58,41 @@ class ChatResponse(BaseModel):
 
 
 @router.post("/chat", response_model=ChatResponse)
-def chat(req: ChatRequest, db: Session = Depends(get_db)):
+async def chat(
+    student_id: str = Form(...),
+    message: str = Form(...),
+    conversation_id: Optional[str] = Form(None),
+    subject: Optional[str] = Form(None),
+    grade: Optional[str] = Form(None),
+    curriculum: Optional[str] = Form(None),
+    image: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db)
+):
     if not settings.GROQ_API_KEY:
         raise HTTPException(500, "GROQ_API_KEY غير مضبوط بإعدادات السيرفر")
 
-    conversation = None
-    if req.conversation_id:
-        conversation = db.query(Conversation).filter_by(id=req.conversation_id).first()
+    image_base64 = None
+    if image:
+        contents = await image.read()
+        image_base64 = f"data:{image.content_type};base64,{base64.b64encode(contents).decode('utf-8')}"
 
-    student = db.query(Student).filter_by(id=req.student_id).first()
+    conversation = None
+    if conversation_id:
+        conversation = db.query(Conversation).filter_by(id=conversation_id).first()
+
+    student = db.query(Student).filter_by(id=student_id).first()
     if student is None:
         student = Student(
-            id=req.student_id,
-            name=req.student_id,
-            grade=req.grade or "غير محدد",
+            id=student_id,
+            name=student_id,
+            grade=grade or "غير محدد",
             preferred_language="ar-LB",
         )
         db.add(student)
         db.commit()
 
     if conversation is None:
-        conversation = Conversation(student_id=req.student_id, subject=req.subject)
+        conversation = Conversation(student_id=student_id, subject=subject)
         db.add(conversation)
         db.commit()
         db.refresh(conversation)
@@ -101,23 +105,23 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
         .all()
     )
 
-    saved_message_content = req.message if req.message else "[صورة]"
+    saved_message_content = message if message else "[صورة]"
     db.add(Message(conversation_id=conversation.id, role="student", content=saved_message_content))
     db.commit()
 
     context_block = ""
     source_chunks = []
-    if req.subject and req.grade and req.curriculum and req.message:
+    if subject and grade and curriculum and message:
         source_chunks = search_book_pages(
             db=db,
-            query=req.message,
-            subject=req.subject,
-            grade=req.grade,
-            curriculum=req.curriculum,
+            query=message,
+            subject=subject,
+            grade=grade,
+            curriculum=curriculum,
         )
         context_block = build_context_block(source_chunks)
 
-    text_part = req.message or "شو في بهالصورة؟ ساعدني افهمها."
+    text_part = message or "شو في بهالصورة؟ ساعدني افهمها."
     if context_block:
         text_part = f"{context_block}\n\nسؤال الطالب: {text_part}"
 
@@ -127,11 +131,11 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
         for m in previous_messages
     ]
 
-    if req.image_base64:
+    if image_base64:
         model = VISION_MODEL
         user_content = [
             {"type": "text", "text": text_part},
-            {"type": "image_url", "image_url": {"url": req.image_base64}},
+            {"type": "image_url", "image_url": {"url": image_base64}},
         ]
     else:
         model = TEXT_MODEL
