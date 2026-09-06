@@ -6,7 +6,10 @@ from app.core.config import settings
 from app.db.session import Base, engine
 from app.api import routes_health, routes_chat, routes_admin
 
-
+# تم إزالة كود الـ CREATE EXTENSION لأنه يسبب انهيار السيرفر على الاستضافة
+#with engine.connect() as conn:
+    #conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+#conn.commit()
 if settings.GOOGLE_DRIVE_CREDENTIALS_JSON:
     with open("drive_service_account.json", "w", encoding="utf-8") as f:
         f.write(settings.GOOGLE_DRIVE_CREDENTIALS_JSON)
