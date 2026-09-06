@@ -59,7 +59,7 @@ async def chat(
             model=model_name,
             messages=messages,
             temperature=0.7,
-            max_tokens=4000
+            max_tokens=1500
         )
         
         reply = response.choices[0].message.content
