@@ -12,7 +12,6 @@ from app.services.rag_search import search_book_pages, build_context_block
 
 router = APIRouter()
 
-# النظام والتعليمات المحسنة لضمان نفس أسلوب الشرح والترتيب
 SYSTEM_PROMPT = """
 انت الأستاذ نبيل، معلم رقمي خبير بالمنهج اللبناني الرسمي (CRDP). 
 
@@ -37,8 +36,7 @@ TEXT_MODEL = "openai/gpt-oss-120b"
 def clean_reply(text: str) -> str:
     if not text:
         return ""
-    
-    # إزالة وسوم التفكير تماماً من بدايتها لنهايتها
+
     text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
     if "</think>" in text:
         text = text.split("</think>")[-1]
@@ -147,10 +145,10 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
             *history_messages,
             {"role": "user", "content": user_content},
         ],
-        max_tokens=1500,
+        max_tokens=900,
         temperature=0.4,
     )
-    
+
     raw_content = completion.choices[0].message.content or ""
     reply_text = clean_reply(raw_content)
 
