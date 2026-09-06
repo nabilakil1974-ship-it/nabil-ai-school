@@ -1,70 +1,162 @@
-import os
-import base64
-from fastapi import APIRouter, File, UploadFile, Form, HTTPException
+import re
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from typing import Optional
 from groq import Groq
-from dotenv import load_dotenv
 
-load_dotenv()
+from app.core.config import settings
+from app.db.session import get_db
+from app.db.models import Conversation, Message, Student
+from app.services.rag_search import search_book_pages, build_context_block
 
 router = APIRouter()
 
-# تهيئة عميل Groq
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+SYSTEM_PROMPT = """
+انت الأستاذ نبيل، معلم رقمي خبير بالمنهج اللبناني الرسمي (CRDP). 
 
-@router.post("/chat")
-async def chat(
-    message: str = Form(None),
-    image: UploadFile = File(None)
-):
-    try:
-        # تحديد النموذج المناسب حسب وجود صورة أو عدمه
-        if image and image.filename:
-            model_name = "llama-3.2-11b-vision-preview"
-            image_bytes = await image.read()
-            encoded_image = base64.b64encode(image_bytes).decode('utf-8')
-            
-            messages = [
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text", 
-                            "text": message if message else "اشرح هذه الصورة بالتفصيل لل curriculum اللبناني."
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{encoded_image}"
-                            }
-                        }
-                    ]
-                }
-            ]
-        else:
-            # استخدمنا النموذج الأقوى للنصوص مع شخصية أستاذ نبيل
-            model_name = "llama-3.3-70b-versatile"
-            messages = [
-                {
-                    "role": "system",
-                    "content": "أنت أستاذ نبيل، مرشد تعليمي وخبير بالمنهج اللبناني. حافظ على ردود دقيقة، واضحة ومباشرة."
-                },
-                {
-                    "role": "user", 
-                    "content": message if message else "مرحباً"
-                }
-            ]
+قواعد صارمة لازم تلتزم فيها دايماً بكل الإجابات:
 
-        # تم رفع max_tokens إلى 4000 لتفادي أي اقتطاع أو تفريغ للاستجابة بسبب وسوم التفكير
-        response = client.chat.completions.create(
-            model=model_name,
-            messages=messages,
-            temperature=0.7,
-            max_tokens=1500
+1. الأسلوب واللغة: احكي دايماً عربي لبناني محكي لطيف ودافي بالشرح البسيط (مثل: "أهلاً بك يا بطل!"، "خليني اشرحلك ياه...").
+2. الهيكلية والشرح للدروس والمسائل: عندما يسألك الطالب عن درس (مثل القوى، الجبر، أو الهندسة) أو يطلب حل مسألة، يجب أن تقسم إجابتك بشكل دقيق ومرتب كالتالي:
+   - مقدمة مبسطة وشرح المفاهيم: شرح فكرة الدرس بأسلوب سلس ومثال واضح مع تحديد الأساس والأس (Base & Exponent) إن وجد.
+   - حالات خاصة وقواعد ذهبية: ذكر القواعد الأساسية التي لا غنى عنها في المنهاج اللبناني.
+   - العمليات والخطوات بالأمثلة: تفصيل الخطوات الرياضية (ضرب، قسمة، برهان) مع الأمثلة المرقمة.
+   - الخلاصة والتشجيع: ختم الإجابة بعبارة تشجيعية دافئة.
+
+3. في أسئلة الهندسة والبرهان: التزم بالنمط العلمي (Geometric Analysis, Key Theorem Application, Step-by-Step Conclusion) ولكن بلغة واضحة.
+
+4. ممنوع نهائياً استخدام أي تنسيق Markdown معقد يفسد الشكل البصري، واستخدم الرموز الرياضية الواضحة. وفورا أجب بالحل النهائي بدون أي كتابة لعمليات التفكير الداخلية أو وسوم think.
+"""
+
+VISION_MODEL = "qwen/qwen3.6-27b"
+TEXT_MODEL = "openai/gpt-oss-120b"
+
+
+def clean_reply(text: str) -> str:
+    if not text:
+        return ""
+
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    if "</think>" in text:
+        text = text.split("</think>")[-1]
+    if "<think>" in text:
+        text = text.split("<think>")[0]
+
+    text = re.sub(r"#{1,6}\s*", "", text)
+    text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
+    text = re.sub(r"\*(.+?)\*", r"\1", text)
+    text = re.sub(r"^-{3,}$", "", text, flags=re.MULTILINE)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
+class ChatRequest(BaseModel):
+    student_id: str
+    conversation_id: Optional[str] = None
+    message: str
+    subject: Optional[str] = None
+    grade: Optional[str] = None
+    curriculum: Optional[str] = None
+    image_base64: Optional[str] = None
+
+
+class ChatResponse(BaseModel):
+    conversation_id: str
+    reply: str
+    sources: list[dict] = []
+
+
+@router.post("/chat", response_model=ChatResponse)
+def chat(req: ChatRequest, db: Session = Depends(get_db)):
+    if not settings.GROQ_API_KEY:
+        raise HTTPException(500, "GROQ_API_KEY غير مضبوط بإعدادات السيرفر")
+
+    conversation = None
+    if req.conversation_id:
+        conversation = db.query(Conversation).filter_by(id=req.conversation_id).first()
+
+    student = db.query(Student).filter_by(id=req.student_id).first()
+    if student is None:
+        student = Student(
+            id=req.student_id,
+            name=req.student_id,
+            grade=req.grade or "غير محدد",
+            preferred_language="ar-LB",
         )
-        
-        reply = response.choices[0].message.content
-        return {"reply": reply}
+        db.add(student)
+        db.commit()
 
-    except Exception as e:
-        print(f"Error occurred: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    if conversation is None:
+        conversation = Conversation(student_id=req.student_id, subject=req.subject)
+        db.add(conversation)
+        db.commit()
+        db.refresh(conversation)
+
+    previous_messages = (
+        db.query(Message)
+        .filter(Message.conversation_id == conversation.id)
+        .order_by(Message.created_at.asc())
+        .limit(10)
+        .all()
+    )
+
+    saved_message_content = req.message if req.message else "[صورة]"
+    db.add(Message(conversation_id=conversation.id, role="student", content=saved_message_content))
+    db.commit()
+
+    context_block = ""
+    source_chunks = []
+    if req.subject and req.grade and req.curriculum and req.message:
+        source_chunks = search_book_pages(
+            db=db,
+            query=req.message,
+            subject=req.subject,
+            grade=req.grade,
+            curriculum=req.curriculum,
+        )
+        context_block = build_context_block(source_chunks)
+
+    text_part = req.message or "شو في بهالصورة؟ ساعدني افهمها."
+    if context_block:
+        text_part = f"{context_block}\n\nسؤال الطالب: {text_part}"
+
+    role_map = {"student": "user", "teacher": "assistant"}
+    history_messages = [
+        {"role": role_map[m.role], "content": m.content}
+        for m in previous_messages
+    ]
+
+    if req.image_base64:
+        model = VISION_MODEL
+        user_content = [
+            {"type": "text", "text": text_part},
+            {"type": "image_url", "image_url": {"url": req.image_base64}},
+        ]
+    else:
+        model = TEXT_MODEL
+        user_content = text_part
+
+    client = Groq(api_key=settings.GROQ_API_KEY)
+    completion = client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            *history_messages,
+            {"role": "user", "content": user_content},
+        ],
+        max_tokens=1500,
+        temperature=0.4,
+    )
+
+    raw_content = completion.choices[0].message.content or ""
+    reply_text = clean_reply(raw_content)
+
+    db.add(Message(conversation_id=conversation.id, role="teacher", content=reply_text))
+    db.commit()
+
+    return ChatResponse(
+        conversation_id=conversation.id,
+        reply=reply_text,
+        sources=[{"book": c["book_title"], "page": c["page"]} for c in source_chunks],
+    )
