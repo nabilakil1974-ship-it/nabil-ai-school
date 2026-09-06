@@ -145,7 +145,7 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
             *history_messages,
             {"role": "user", "content": user_content},
         ],
-        max_tokens=1500,
+        max_tokens=900,
         temperature=0.4,
     )
 
