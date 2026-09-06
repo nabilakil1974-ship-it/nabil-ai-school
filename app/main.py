@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>منصة الأستاذ نبيل - معلمك الرقمي للمنهج اللبناني الرسمي (CRDP)</title>
+    <title>منصة الأستاذ نبيل - معلمك الرقمي الشامل للمنهج اللبناني (CRDP)</title>
     <!-- مكتبة KaTeX لتنسيق المعادلات الرياضية -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body);"></script>
-    <!-- مكتبة Math.js لفهم وحساب أي دالة رياضية يطلبها الطالب -->
+    <!-- مكتبة Math.js لفهم وحساب أي دالة أو صيغة رياضية وعلمية -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
 
     <style>
@@ -43,8 +43,8 @@
             max-width: 88%;
             padding: 20px 24px;
             border-radius: 14px;
-            line-height: 2.3; /* مسافات واسعة ومريحة جداً للقراءة */
-            font-size: 1.15rem;
+            line-height: 2.3; /* مسافات واسعة ومريحة جداً بين الأسطر لتسهيل القراءة */
+            font-size: 1.15rem; /* خط كبير وواضح كأنه مكتوب على السبورة */
             word-wrap: break-word;
             box-shadow: 0 3px 8px rgba(0,0,0,0.25);
         }
@@ -60,7 +60,7 @@
             border: 1px solid #dee2e6;
             text-align: right;
         }
-        /* تنسيق يشبه أسس التصحيح الرسمية (Official Exam Correction Scheme) */
+        /* تنسيق يشبه أسس التصحيح الرسمية وسلم الامتحانات */
         .exam-correction-box {
             background: #f8f9fa;
             border-right: 5px solid #0f4c75;
@@ -94,7 +94,7 @@
         .teacher-text p:last-child {
             margin-bottom: 0;
         }
-        /* منطقة الرسم التفاعلي */
+        /* منطقة اللوح الذكي للرسومات (رياضيات، فيزياء، كيمياء، أدب) */
         .canvas-box {
             margin-top: 15px;
             background: #0f171e;
@@ -143,13 +143,13 @@
 <body>
 
     <header>
-        📚 الأستاذ نبيل - معلمك الرقمي للمنهج اللبناني الرسمي (CRDP) 🇱🇧
+        📚 الأستاذ نبيل - معلمك الرقمي الشامل لجميع المواد والمنهج اللبناني 🇱🇧
     </header>
 
     <div id="chat-container"></div>
 
     <div id="input-container">
-        <input type="text" id="message-input" placeholder="اكتب دالتك أو سؤالك (مثال: draw f(x) = x^2 - 4 أو draw ln(x)/x)..." />
+        <input type="text" id="message-input" placeholder="اسأل في أي مادة (مثال: رياضيات f(x)=x^2، إعراب جملة، فيزياء دائرة كهربائية)..." />
         <button type="button" class="action-btn" onclick="sendMessage()">إرسال 🚀</button>
     </div>
 
@@ -165,8 +165,8 @@
             const formData = new FormData();
             formData.append('message', text);
             formData.append('student_id', 'student_demo_1');
-            formData.append('subject', 'رياضيات');
-            formData.append('grade', 'التاسع الأساسي / الثانوي');
+            formData.append('subject', 'شامل (رياضيات، علوم، لغات، أدب)');
+            formData.append('grade', 'جميع الصفوف والشهادات الرسمية');
             formData.append('curriculum', 'لبناني رسمي - سلم تصحيح');
 
             try {
@@ -205,12 +205,12 @@
             const textContent = document.createElement('div');
             textContent.className = 'teacher-text';
             
-            // تقسيم النص إلى أسطر وتنسيقها لتشبه أسس التصحيح الرسمية
+            // تقسيم النص إلى أسطر لضمان التباعد والترتيب كأنها أسس تصحيح
             const lines = replyText.split('\n');
             lines.forEach(line => {
                 const p = document.createElement('p');
                 p.innerText = line.trim() === '' ? '\u00A0' : line;
-                if (line.includes('1.') || line.includes('2.') || line.includes('3.') || line.includes('الخطوة') || line.includes('النتيجة')) {
+                if (line.includes('1.') || line.includes('2.') || line.includes('3.') || line.includes('الخطوة') || line.includes('النتيجة') || line.includes('الإعراب')) {
                     p.className = 'exam-correction-box';
                 }
                 textContent.appendChild(p);
@@ -218,7 +218,7 @@
             
             teacherDiv.appendChild(textContent);
 
-            // صندوق الرسم الشامل لأي دالة
+            // صندوق اللوح الذكي التفاعلي للرسومات الشاملة
             const canvasBox = document.createElement('div');
             canvasBox.className = 'canvas-box';
             
@@ -234,7 +234,7 @@
             canvasBox.appendChild(shapeLabel);
 
             teacherDiv.appendChild(canvasBox);
-            drawAnyFunction(canvas, shapeLabel, userQuery);
+            drawComprehensiveVisual(canvas, shapeLabel, userQuery);
 
             // أزرار التفاعل
             const actionsDiv = document.createElement('div');
@@ -276,102 +276,118 @@
             }
         }
 
-        // 🧠 محرك الرسم الشامل القادر على رسم أي دالة رياضية باستخدام Math.js
-        function drawAnyFunction(canvas, label, query) {
+        // 🧠 اللوح الذكي الشامل: يرسم الدوال الرياضية، أو الدوائر الكهربائية (فيزياء)، أو المخططات حسب السؤال
+        function drawComprehensiveVisual(canvas, label, query) {
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             const qLower = query.toLowerCase();
 
-            // رسم شبكة الإحداثيات الديزارتية (Cartesian Grid)
-            const originX = 180;
-            const originY = 130;
-            const scale = 30; // وحدة القياس بالبيكسل لكل وحدة رياضيات
+            if (qLower.includes('فيزياء') || qLower.includes('دائرة') || qLower.includes('كهرباء') || qLower.includes('circuit')) {
+                // رسم توضيحي لدائرة كهربائية في الفيزياء
+                label.innerText = "مخطط توضيحي: دائرة كهربائية (فيزياء المنهج الرسمي)";
+                
+                ctx.strokeStyle = '#3282b8';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(80, 50, 200, 160);
 
-            ctx.strokeStyle = '#2c3e50';
-            ctx.lineWidth = 1;
-            for (let x = 0; x < canvas.width; x += scale) {
-                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
-            }
-            for (let y = 0; y < canvas.height; y += scale) {
-                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
-            }
+                // رسم بطارية
+                ctx.fillStyle = '#ffcc00';
+                ctx.fillRect(170, 42, 20, 16);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '14px Segoe UI';
+                ctx.fillText('Battery (E, r)', 140, 30);
 
-            // المحاور الرئيسية X و Y
-            ctx.strokeStyle = '#95a5a6';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(0, originY); ctx.lineTo(canvas.width, originY); // محور السينات
-            ctx.moveTo(originX, 0); ctx.lineTo(originX, canvas.height); // محور الصادات
-            ctx.stroke();
+                // رسم مقاومة
+                ctx.strokeStyle = '#e74c3c';
+                ctx.beginPath();
+                ctx.moveTo(80, 120);
+                ctx.lineTo(80, 100);
+                ctx.lineTo(75, 95); ctx.lineTo(85, 85); ctx.lineTo(75, 75); ctx.lineTo(85, 65);
+                ctx.lineTo(80, 60); ctx.lineTo(80, 50);
+                ctx.stroke();
+                ctx.fillText('Resistor (R)', 20, 95);
 
-            // محاولة استخراج صيغة الدالة من نص طلب الطالب ورسمها ديناميكياً
-            try {
-                let exprStr = "x";
-                if (qLower.includes('x^2') || qLower.includes('x²')) exprStr = "x^2 - 4";
-                else if (qLower.includes('ln') && qLower.includes('/')) exprStr = "ln(x)/x";
-                else if (qLower.includes('sin')) exprStr = "sin(x)";
-                else if (qLower.includes('cos')) exprStr = "cos(x)";
-                else if (qLower.includes('x')) {
-                    // استخراج النص بعد كلمة f(x) أو draw
-                    let parts = query.split('=');
-                    if (parts.length > 1) exprStr = parts[1].trim();
+            } else if (qLower.includes('كيمياء') || qLower.includes('ذرة') || qLower.includes('tabel') || qLower.includes('element')) {
+                // رسم توضيحي لذرة أو تفاعل في الكيمياء
+                label.innerText = "نموذج توضيحي: بنية الذرة ومستويات الطاقة (كيمياء)";
+                
+                ctx.strokeStyle = '#bbe1fa';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(180, 130, 40, 0, Math.PI * 2);
+                ctx.arc(180, 130, 80, 0, Math.PI * 2);
+                ctx.stroke();
+
+                ctx.fillStyle = '#e74c3c';
+                ctx.beginPath(); ctx.arc(180, 130, 12, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText('نواة الذرة', 150, 135);
+
+            } else {
+                // الرسم الافتراضي الشامل للدوال الرياضية باستخدام Math.js
+                const originX = 180;
+                const originY = 130;
+                const scale = 30;
+
+                ctx.strokeStyle = '#2c3e50';
+                ctx.lineWidth = 1;
+                for (let x = 0; x < canvas.width; x += scale) {
+                    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+                }
+                for (let y = 0; y < canvas.height; y += scale) {
+                    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
                 }
 
-                const compiledFn = math.compile(exprStr);
-
-                label.innerText = `منحنى الدالة التفاعلي: f(x) = ${exprStr} (سلم التصحيح الرسمي)`;
-
-                ctx.strokeStyle = '#ffcc00';
-                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#95a5a6';
+                ctx.lineWidth = 2;
                 ctx.beginPath();
-                let firstPoint = true;
+                ctx.moveTo(0, originY); ctx.lineTo(canvas.width, originY);
+                ctx.moveTo(originX, 0); ctx.lineTo(originX, canvas.height);
+                ctx.stroke();
 
-                for (let px = 0; px < canvas.width; px += 2) {
-                    let xVal = (px - originX) / scale;
-                    try {
-                        let yVal = compiledFn.evaluate({ x: xVal });
-                        if (typeof yVal === 'number' && !isNaN(yVal) && isFinite(yVal)) {
-                            let py = originY - (yVal * scale);
-                            if (py >= 0 && py <= canvas.height) {
-                                if (firstPoint) {
-                                    ctx.moveTo(px, py);
-                                    firstPoint = false;
-                                } else {
-                                    ctx.lineTo(px, py);
-                                }
-                            } else {
-                                firstPoint = true;
-                            }
-                        }
-                    } catch (e) {
-                        firstPoint = true;
+                try {
+                    let exprStr = "x^2 - 4";
+                    if (qLower.includes('ln')) exprStr = "ln(x)";
+                    else if (qLower.includes('sin')) exprStr = "sin(x)";
+                    else if (qLower.includes('cos')) exprStr = "cos(x)";
+                    else if (qLower.includes('=')) {
+                        let parts = query.split('=');
+                        if (parts.length > 1) exprStr = parts[1].trim();
                     }
-                }
-                ctx.stroke();
 
-            } catch (err) {
-                // دالة افتراضية في حال لم يتم التعرف على الصيغة بدقة
-                label.innerText = "منحنى بياني توضيحي للدالة";
-                ctx.strokeStyle = '#ffcc00';
-                ctx.lineWidth = 3;
-                ctx.beginPath();
-                for (let px = 20; px < canvas.width - 20; px++) {
-                    let x = (px - originX) / scale;
-                    let y = Math.sin(x);
-                    let py = originY - (y * scale);
-                    if (px === 20) ctx.moveTo(px, py);
-                    else ctx.lineTo(px, py);
+                    const compiledFn = math.compile(exprStr);
+                    label.innerText = `التمثيل البياني المعتمد في سلم التصحيح: f(x) = ${exprStr}`;
+
+                    ctx.strokeStyle = '#ffcc00';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    let firstPoint = true;
+
+                    for (let px = 0; px < canvas.width; px += 2) {
+                        let xVal = (px - originX) / scale;
+                        try {
+                            let yVal = compiledFn.evaluate({ x: xVal });
+                            if (typeof yVal === 'number' && !isNaN(yVal) && isFinite(yVal)) {
+                                let py = originY - (yVal * scale);
+                                if (py >= 0 && py <= canvas.height) {
+                                    if (firstPoint) { ctx.moveTo(px, py); firstPoint = false; }
+                                    else { ctx.lineTo(px, py); }
+                                } else { firstPoint = true; }
+                            }
+                        } catch (e) { firstPoint = true; }
+                    }
+                    ctx.stroke();
+                } catch (err) {
+                    label.innerText = "منحنى دراسي توضيحي (سلم التصحيح الرسمي)";
                 }
-                ctx.stroke();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '12px Segoe UI';
+                ctx.fillText('0', originX - 12, originY + 15);
+                ctx.fillText('X', canvas.width - 15, originY - 8);
+                ctx.fillText('Y', originX + 8, 15);
             }
-
-            // كتابة تسميات المحاور
-            ctx.fillStyle = '#ffffff';
-            ctx.font = '12px Segoe UI';
-            ctx.fillText('0', originX - 12, originY + 15);
-            ctx.fillText('X', canvas.width - 15, originY - 8);
-            ctx.fillText('Y', originX + 8, 15);
         }
     </script>
 </body>
