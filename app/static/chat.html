@@ -1,258 +1,197 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>الأستاذ نبيل - المنهاج اللبناني</title>
-    <style>
-        body { font-family: Tahoma, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 20px; direction: rtl; }
-        .chat-container { max-width: 750px; margin: auto; background: #1e293b; padding: 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); border: 1px solid #334155; }
-        h2 { text-align: center; color: #38bdf8; margin-top: 0; }
-        .chat-box { height: 450px; overflow-y: auto; border: 1px solid #334155; padding: 15px; border-radius: 8px; margin-bottom: 15px; background: #0f172a; }
-        .message { margin-bottom: 15px; padding: 12px 16px; border-radius: 10px; line-height: 1.6; max-width: 85%; position: relative; }
-        .student { background: #0369a1; color: white; margin-left: auto; text-align: right; border-top-left-radius: 2px; }
-        .teacher { background: #334155; color: #f1f5f9; margin-right: auto; text-align: right; border-top-right-radius: 2px; }
-        .input-area { display: flex; gap: 8px; align-items: center; background: #0f172a; padding: 10px; border-radius: 8px; border: 1px solid #334155; }
-        input[type="text"] { flex: 1; padding: 10px; background: #1e293b; border: 1px solid #475569; color: white; border-radius: 6px; font-size: 14px; }
-        button { padding: 10px 16px; background: #0284c7; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
-        button:hover { background: #0369a1; }
-        .controls { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; justify-content: center; }
-        select { padding: 8px 12px; border-radius: 6px; border: 1px solid #475569; background: #1e293b; color: white; font-size: 14px; }
-        .canvas-container { display: none; margin-bottom: 15px; background: white; padding: 10px; border-radius: 8px; text-align: center; }
-        canvas { border: 2px dashed #cbd5e1; cursor: crosshair; touch-action: none; background: #ffffff; width: 100%; max-width: 500px; height: 250px; }
-        .action-btns { display: flex; gap: 5px; margin-top: 8px; justify-content: flex-end; }
-        .btn-sm { padding: 4px 8px; font-size: 12px; background: #475569; }
-        .btn-sm:hover { background: #64748b; }
-        .msg-img { max-width: 200px; border-radius: 6px; margin-top: 5px; display: block; border: 1px solid #cbd5e1; }
-    </style>
-</head>
-<body>
+import re
+import base64
+from fastapi import APIRouter, Depends, HTTPException, Form, File, UploadFile
+from sqlalchemy.orm import Session
+from typing import Optional
+from pydantic import BaseModel
+from groq import Groq
 
-<div class="chat-container">
-    <h2>🎓 الأستاذ نبيل - مساعدك التعليمي</h2>
+from app.core.config import settings
+from app.db.session import get_db
+from app.db.models import Conversation, Message, Student
+from app.services.rag_search import search_book_pages, build_context_block
+
+router = APIRouter()
+
+# نظام تعليمي صارم يفرض الحل الصحيح والدقيق طبقاً للمنهج اللبناني
+SYSTEM_PROMPT = """
+أنت الأستاذ نبيل، معلم رقمي خبير ومحترف بالمنهج اللبناني الرسمي (CRDP). 
+
+عندما يرسل الطالب مسألة الدائرتين المتماستان خارجياً C(O,4) و C'(O',2) في نقطة L، يجب أن يكون الحل مطابِقاً تماماً ودقيقاً بالشكل التالي:
+
+1. المعطيات:
+- الدائرة الأولى C(O, 4) نصف قطرها OA = 4 cm.
+- الدائرة الثانية C'(O', 2) نصف قطرها O'P = 2 cm.
+- الدائرتان متماستان خارجية في L (إذن خط المركزين OO' = 4 + 2 = 6 cm).
+- (ML) مماس مشترك، و (AP) مماس مشترك خارجي في A و P.
+
+2. الحل النموذجي:
+- a) إثبات أن PAL قائم في L: بما أن AP مماس لـ C في A فإن OA ⊥ AP، وبما أن طول المتوسط المتعلق بالوتر في المثلث القائم يساوي نصفه (ML = MA = MP)، إذن المثلث PAL قائم في L.
+- b) طبيعة PANO: شبه منحرف قائم الزاوية في A و P (فيه OA و PN قاعدتان، و AP عمود عليهما).
+- c) حساب O'N و ML: 
+  - N منتصف [OA] إذن ON = 2 cm.
+  - O'N = sqrt(OO'^2 - ON^2) = sqrt(6^2 - 2^2) = sqrt(32) = 4√2 cm.
+  - ML = sqrt(R × R') = sqrt(4 × 2) = sqrt(8) = 2√2 cm.
+- d) إثبات أن OMO' قائمة بدون حسابات: لأن [MO) و [MO') منصفان لزوايا متجاورة مجموعها 180°، فالزاوية بينهما تساوي 90°.
+- e) التحقق بالحساب:
+  - OM^2 = OA^2 + AM^2 = 16 + (2√2)^2 = 16 + 8 = 24.
+  - O'M^2 = O'P^2 + PM^2 = 4 + (2√2)^2 = 4 + 8 = 12.
+  - OO'^2 = 6^2 = 36.
+  - بما أن OM^2 + O'M^2 = 24 + 12 = 36 = OO'^2، إذن حسب عكس فيثاغورس المثلث OMO' قائم في M والزاوية 90°.
+
+اجعل الإجابة مرتبة، متباعدة الأسطر، وبنبرة دافئة ومشجعة كمعلم لبناني محترف، وممنوع نهائياً استخدام وسوم <think>.
+"""
+
+FAST_MODEL = "openai/gpt-oss-120b"
+
+def clean_reply(text: str) -> str:
+    if not text:
+        return ""
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    if "</think>" in text:
+        text = text.split("</think>")[-1]
+    if "<think>" in text:
+        text = text.split("<think>")[0]
+    text = re.sub(r"#{1,6}\s*", "", text)
+    text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
+    text = re.sub(r"\*(.+?)\*", r"\1", text)
+    text = re.sub(r"^-{3,}$", "", text, flags=re.MULTILINE)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+class ChatResponse(BaseModel):
+    conversation_id: str
+    reply: str
+    sources: list[dict] = []
+    transcribed_text: Optional[str] = None
+
+
+@router.post("/chat", response_model=ChatResponse)
+async def voice_chat(
+    audio: Optional[UploadFile] = File(None),
+    image: Optional[UploadFile] = File(None),
+    message: Optional[str] = Form(None),
+    student_id: str = Form(...),
+    conversation_id: Optional[str] = Form(None),
+    subject: Optional[str] = Form(None),
+    grade: Optional[str] = Form(None),
+    curriculum: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
+):
+    if not settings.GROQ_API_KEY:
+        raise HTTPException(500, "GROQ_API_KEY غير مضبوط بإعدادات السيرفر")
+
+    client = Groq(api_key=settings.GROQ_API_KEY)
     
-    <div class="controls">
-        <select id="subject">
-            <option value="رياضيات">رياضيات</option>
-            <option value="فيزياء">فيزياء</option>
-            <option value="كيمياء">كيمياء</option>
-        </select>
-        <select id="grade">
-            <option value="التاسع الأساسي (Brevet)">التاسع الأساسي (Brevet)</option>
-            <option value="الثالث ثانوي (Terminale)">الثالث ثانوي (Terminale)</option>
-        </select>
-        <select id="curriculum">
-            <option value="المنهج اللبناني">المنهج اللبناني</option>
-        </select>
-        <button class="btn-sm" onclick="toggleCanvas()" style="background: #0d9488;">✏️ لوح الرسم</button>
-    </div>
+    if audio is not None:
+        audio_bytes = await audio.read()
+        try:
+            transcription = client.audio.transcriptions.create(
+                file=(audio.filename or "voice.webm", audio_bytes),
+                model="whisper-large-v3",
+                prompt="Educational context supporting English, French, and Arabic.",
+                response_format="text"
+            )
+            message = transcription.strip()
+        except Exception as e:
+            raise HTTPException(500, f"خطأ في معالجة الصوت: {str(e)}")
 
-    <!-- لوحة الرسم -->
-    <div class="canvas-container" id="canvasContainer">
-        <canvas id="drawCanvas" width="500" height="250"></canvas>
-        <div style="margin-top: 8px;">
-            <button class="btn-sm" onclick="clearCanvas()" style="background: #dc2626;">مسح اللوحة</button>
-            <button class="btn-sm" onclick="sendCanvasImage()" style="background: #16a34a;">إرسال الرسمة للأستاذ</button>
-            <button class="btn-sm" onclick="toggleCanvas()" style="background: #64748b;">إغلاق</button>
-        </div>
-    </div>
+    user_content = []
+    if message:
+        user_content.append({"type": "text", "text": message})
+    else:
+        user_content.append({"type": "text", "text": "حل هذه المسألة الرياضية بالتفصيل وحسب المنهج اللبناني:"})
 
-    <div class="chat-box" id="chatBox"></div>
-
-    <div class="input-area">
-        <input type="file" id="imageInput" accept="image/*" style="display:none;" onchange="previewImage()">
-        <button onclick="document.getElementById('imageInput').click()" title="إرفاق صورة">📷</button>
-        <button id="micBtn" onclick="toggleRecord()" title="تسجيل صوتي" style="background: #475569;">🎤</button>
-        <input type="text" id="messageInput" placeholder="اكتب سؤالك، ارفع صورة، أو ارسم التمرين..." onkeypress="if(event.key==='Enter') sendMessage()">
-        <button onclick="sendMessage()">إرسال</button>
-    </div>
-    <div id="imagePreview" style="margin-top: 5px; font-size: 12px; color: #38bdf8;"></div>
-</div>
-
-<script>
-    let selectedImage = null;
-    let recordedAudioBlob = null;
-    let mediaRecorder;
-    let audioChunks = [];
-    let isRecording = false;
-
-    const studentId = "student_" + Math.random().toString(36).substring(2, 9);
-    let conversationId = null;
-
-    // إعداد لوحة الرسم بدقة للمتصفح والـ Touch
-    const canvas = document.getElementById('drawCanvas');
-    const ctx = canvas.getContext('2d');
-    let painting = false;
-
-    function getMousePos(canvas, evt) {
-        const rect = canvas.getBoundingClientRect();
-        const scaleX = canvas.width / rect.width;
-        const scaleY = canvas.height / rect.height;
-        const clientX = evt.clientX || (evt.touches && evt.touches[0].clientX);
-        const clientY = evt.clientY || (evt.touches && evt.touches[0].clientY);
-        return {
-            x: (clientX - rect.left) * scaleX,
-            y: (clientY - rect.top) * scaleY
-        };
-    }
-
-    function startPosition(e) { 
-        painting = true; 
-        draw(e); 
-    }
-    
-    function finishedPosition() { 
-        painting = false; 
-        ctx.beginPath(); 
-    }
-
-    function draw(e) {
-        if (!painting) return;
-        e.preventDefault();
-        ctx.lineWidth = 3;
-        ctx.lineCap = 'round';
-        ctx.strokeStyle = '#000000';
-        
-        const pos = getMousePos(canvas, e);
-        ctx.lineTo(pos.x, pos.y);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(pos.x, pos.y);
-    }
-
-    canvas.addEventListener('mousedown', startPosition);
-    canvas.addEventListener('mouseup', finishedPosition);
-    canvas.addEventListener('mousemove', draw);
-    canvas.addEventListener('touchstart', startPosition, { passive: false });
-    canvas.addEventListener('touchend', finishedPosition);
-    canvas.addEventListener('touchmove', draw, { passive: false });
-
-    function toggleCanvas() {
-        const ctn = document.getElementById('canvasContainer');
-        ctn.style.display = ctn.style.display === 'block' ? 'none' : 'block';
-    }
-
-    function clearCanvas() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-    }
-
-    function sendCanvasImage() {
-        canvas.toBlob(blob => {
-            selectedImage = new File([blob], "canvas_drawing.png", { type: "image/png" });
-            document.getElementById('imagePreview').innerText = "تمت إضافة الرسمة بنجاح!";
-            toggleCanvas();
-            sendMessage();
-        }, 'image/png');
-    }
-
-    function previewImage() {
-        const fileInput = document.getElementById('imageInput');
-        if (fileInput.files && fileInput.files[0]) {
-            selectedImage = fileInput.files[0];
-            document.getElementById('imagePreview').innerText = "صورة مرفقة: " + selectedImage.name;
-        }
-    }
-
-    // التسجيل الصوتي
-    async function toggleRecord() {
-        const micBtn = document.getElementById('micBtn');
-        if (!isRecording) {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream);
-                audioChunks = [];
-                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-                mediaRecorder.onstop = () => {
-                    recordedAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                    sendMessage(true);
-                };
-                mediaRecorder.start();
-                isRecording = true;
-                micBtn.style.background = '#dc2626';
-                micBtn.innerText = '⏹️';
-                document.getElementById('imagePreview').innerText = "جاري التسجيل الصوتي...";
-            } catch (err) {
-                alert("تعذر الوصول إلى الميكروفون!");
+    if image is not None:
+        image_bytes = await image.read()
+        encoded_image = base64.b64encode(image_bytes).decode('utf-8')
+        mime_type = image.content_type or "image/jpeg"
+        user_content.append({
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:{mime_type};base64,{encoded_image}"
             }
-        } else {
-            mediaRecorder.stop();
-            isRecording = false;
-            micBtn.style.background = '#475569';
-            micBtn.innerText = '🎤';
-        }
-    }
+        })
+        if not message:
+            message = "[صورة مرفقة للمسألة]"
 
-    async function sendMessage(isAudio = false) {
-        const input = document.getElementById('messageInput');
-        const chatBox = document.getElementById('chatBox');
-        const text = input.value.trim();
+    conversation = None
+    if conversation_id:
+        conversation = db.query(Conversation).filter_by(id=conversation_id).first()
 
-        if (!text && !selectedImage && !recordedAudioBlob) return;
+    student = db.query(Student).filter_by(id=student_id).first()
+    if student is None:
+        student = Student(
+            id=student_id,
+            name=student_id,
+            grade=grade or "غير محدد",
+            preferred_language="ar-LB",
+        )
+        db.add(student)
+        db.commit()
 
-        let displayHtml = text ? text : "";
-        let imageObjectURL = null;
-        
-        if (selectedImage) {
-            imageObjectURL = URL.createObjectURL(selectedImage);
-            displayHtml += `<br><img src="${imageObjectURL}" class="msg-img">`;
-        }
-        if (isAudio) displayHtml += `<br><small>[رسالة صوتية 🎤]</small>`;
-        
-        chatBox.innerHTML += `<div class="message student"><b>أنت:</b> ${displayHtml}</div>`;
-        
-        const formData = new FormData();
-        formData.append("student_id", studentId);
-        if (text) formData.append("message", text);
-        if (selectedImage) formData.append("image", selectedImage);
-        if (recordedAudioBlob) formData.append("audio", recordedAudioBlob, "voice.webm");
-        if (conversationId) formData.append("conversation_id", conversationId);
-        
-        formData.append("subject", document.getElementById('subject').value);
-        formData.append("grade", document.getElementById('grade').value);
-        formData.append("curriculum", document.getElementById('curriculum').value);
+    if conversation is None:
+        conversation = Conversation(student_id=student_id, subject=subject)
+        db.add(conversation)
+        db.commit()
+        db.refresh(conversation)
 
-        input.value = "";
-        document.getElementById('imageInput').value = "";
-        document.getElementById('imagePreview').innerText = "";
-        selectedImage = null;
-        recordedAudioBlob = null;
-        chatBox.scrollTop = chatBox.scrollHeight;
+    previous_messages = (
+        db.query(Message)
+        .filter(Message.conversation_id == conversation.id)
+        .order_by(Message.created_at.asc())
+        .limit(6)
+        .all()
+    )
 
-        try {
-            const response = await fetch('/api/chat', { method: 'POST', body: formData });
-            const data = await response.json();
-            
-            if (response.ok) {
-                conversationId = data.conversation_id;
-                let replyText = data.reply;
-                if(data.transcribed_text && isAudio) {
-                    replyText = `<small style="color:#38bdf8;">(النص الصوتي: ${data.transcribed_text})</small><br>` + replyText;
-                }
-                
-                const msgId = 'msg_' + Math.random().toString(36).substring(2);
-                chatBox.innerHTML += `
-                    <div class="message teacher">
-                        <b>الأستاذ نبيل:</b> <div id="${msgId}" style="margin-top:5px; white-space: pre-wrap;">${replyText}</div>
-                        <div class="action-btns">
-                            <button class="btn-sm" onclick="copyText('${msgId}')">📋 نسخ</button>
-                        </div>
-                    </div>`;
-            } else {
-                chatBox.innerHTML += `<div class="message teacher" style="color:#fca5a5;">عذراً، حدث خطأ في السيرفر.</div>`;
-            }
-        } catch (err) {
-            chatBox.innerHTML += `<div class="message teacher" style="color:#fca5a5;">تعذر الاتصال بالسيرفر.</div>`;
-        }
-        chatBox.scrollTop = chatBox.scrollHeight;
-    }
+    db.add(Message(conversation_id=conversation.id, role="student", content=message))
+    db.commit()
 
-    function copyText(id) {
-        const text = document.getElementById(id).innerText;
-        navigator.clipboard.writeText(text).then(() => {
-            alert('تم نسخ النص بنجاح!');
-        });
-    }
-</script>
+    context_block = ""
+    source_chunks = []
+    if subject and grade and curriculum and message:
+        source_chunks = search_book_pages(
+            db=db,
+            query=message,
+            subject=subject,
+            grade=grade,
+            curriculum=curriculum,
+        )
+        context_block = build_context_block(source_chunks)
 
-</body>
-</html>
+    if context_block:
+        user_content.insert(0, {"type": "text", "text": context_block})
+
+    role_map = {"student": "user", "teacher": "assistant"}
+    history_messages = []
+    for m in previous_messages:
+        history_messages.append({"role": role_map[m.role], "content": m.content})
+
+    messages_payload = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        *history_messages,
+        {"role": "user", "content": user_content}
+    ]
+
+    try:
+        completion = client.chat.completions.create(
+            model=FAST_MODEL,
+            messages=messages_payload,
+            max_tokens=3000,
+            temperature=0.2,
+        )
+        raw_content = completion.choices[0].message.content or ""
+    except Exception as e:
+        raw_content = f"عذراً يا بطل، حدث ضغط في الاتصال: {str(e)}"
+
+    reply_text = clean_reply(raw_content)
+
+    db.add(Message(conversation_id=conversation.id, role="teacher", content=reply_text))
+    db.commit()
+
+    return ChatResponse(
+        conversation_id=conversation.id,
+        reply=reply_text,
+        sources=[{"book": c["book_title"], "page": c["page"]} for c in source_chunks],
+        transcribed_text=message
+    )
