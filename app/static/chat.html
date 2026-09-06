@@ -178,15 +178,17 @@
     padding-top:6px;
   }
   
-  /* نافذة الرسم الهندسي والبياني التفاعلي */
   .math-canvas-container {
-    margin-top: 10px;
+    margin-top: 12px;
     background: #111d15;
     border-radius: 12px;
-    padding: 8px;
+    padding: 10px;
     text-align: center;
     border: 2px solid var(--chalk-yellow);
+    animation: fadeIn 0.3s ease;
   }
+  @keyframes fadeIn { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
+  
   .math-canvas-container canvas {
     width: 100%;
     max-width: 400px;
@@ -199,36 +201,42 @@
   .canvas-caption {
     font-size: 12px;
     color: var(--chalk-yellow);
-    margin-top: 5px;
+    margin-top: 6px;
     font-family: 'Cairo', sans-serif;
   }
 
   .msg .actions-row{
     display:flex;
     gap:8px;
-    margin-top:8px;
+    margin-top:10px;
     align-items:center;
     flex-wrap: wrap;
   }
-  .msg .speak-btn, .msg .copy-btn{
+  .msg .action-btn{
     display:inline-flex;
     align-items:center;
-    gap:4px;
+    gap:5px;
     background:var(--plum-soft);
     color:var(--plum);
     border:none;
     border-radius:20px;
-    padding:5px 12px;
-    font-size:12px;
+    padding:6px 14px;
+    font-size:12.5px;
     font-family:'Tajawal',sans-serif;
     cursor:pointer;
+    transition: background 0.2s;
   }
-  .msg .speak-btn.speaking{
+  .msg .action-btn.speaking{
     background:var(--plum);
     color:#fff;
   }
-  .msg .copy-btn:hover{
-    background:#e6d2d6;
+  .msg .action-btn.draw-active{
+    background: var(--chalk-yellow);
+    color: var(--chalkboard);
+    font-weight: 700;
+  }
+  .msg .action-btn:hover{
+    opacity: 0.9;
   }
 
   .typing{
@@ -340,7 +348,7 @@
       <div class="avatar" id="avatarBox">ن</div>
       <div>
         <h1>الأستاذ نبيل</h1>
-        <div class="subtitle">المعلم الذكي مع التسجيل المستمر والرسومات التفاعلية</div>
+        <div class="subtitle">المعلم الذكي مع زر الرسم التفاعلي الديناميكي</div>
       </div>
     </div>
     <div class="setup-row">
@@ -352,8 +360,8 @@
 
   <div class="chat-area" id="chatArea">
     <div class="empty-state" id="emptyState">
-      <b>جاهز لكل شي يا بطل!</b>
-      استخدم المايك المستمر 🎤، اطلب رسم الدوال والمنصفات الهندسية، أو انسخ الحلول مباشرة بضغطة زر.
+      <b>جاهز لكل الأسئلة يا بطل!</b>
+      اكتب سؤالك، وتحت إجابة الأستاذ نبيل ستجد زر <b>"📐 ارسم لي الشكل"</b> لتوليد الرسمة بدقة حسب أرقامك متى ما أردت!
     </div>
   </div>
 
@@ -366,7 +374,7 @@
     <input type="file" id="imageInput" accept="image/*" style="display:none">
     <button class="icon-btn" id="attachBtn" aria-label="إرفاق صورة">📎</button>
     <button class="icon-btn" id="micBtn" aria-label="تسجيل صوتي مستمر">🎤</button>
-    <textarea id="messageInput" rows="1" placeholder="اكتب سؤالك أو اطلب رسمة أو تحدث عبر المايك..."></textarea>
+    <textarea id="messageInput" rows="1" placeholder="اكتب سؤالك الهندسي أو الرياضي..."></textarea>
     <button class="send-btn" id="sendBtn" aria-label="إرسال">➤</button>
   </div>
 
@@ -452,7 +460,7 @@
     if(!("speechSynthesis" in window)) return;
     if(speechSynthesis.speaking || speechSynthesis.pending){
       speechSynthesis.cancel();
-      document.querySelectorAll(".speak-btn.speaking").forEach(b => {
+      document.querySelectorAll(".action-btn.speaking").forEach(b => {
         b.classList.remove("speaking");
         b.textContent = "🔊 اسمع الجواب";
       });
@@ -473,7 +481,7 @@
     speechSynthesis.speak(currentUtterance);
   }
 
-  // --- نظام التسجيل المستمر (مثل الواتساب: اضغط للبدء واضغط للإيقاف مع تراكم الكلام) ---
+  // --- نظام التسجيل الصوتي المستمر ---
   let recognition = null;
   let isListening = false;
   let manualStop = false;
@@ -537,8 +545,14 @@
     if (!isListening) startListening(); else stopListening();
   });
 
-  // --- نظام الرسم الهندسي والبياني التفاعلي المجاني ---
-  function createMathDrawing(type) {
+  // --- مفسر واستخراج الأرقام للرسم الديناميكي ---
+  function extractNumbers(text, defaultVals) {
+    const matches = text.match(/\d+(\.\d+)?/g);
+    if (!matches || matches.length === 0) return defaultVals;
+    return matches.map(Number);
+  }
+
+  function generateCanvasElement(contextText) {
     const container = document.createElement("div");
     container.className = "math-canvas-container";
     
@@ -552,69 +566,89 @@
     container.appendChild(caption);
 
     const ctx = canvas.getContext("2d");
+    const lower = contextText.toLowerCase();
 
-    if (type === 'quadratic') {
-      caption.textContent = "رسم بياني للدالة: f(x) = 3x² - 2x + 1";
-      // الشبكة الإحداثية
-      ctx.strokeStyle = "#2c4c3b";
-      ctx.lineWidth = 1;
-      for(let x=0; x<400; x+=40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,220); ctx.stroke(); }
-      for(let y=0; y<220; y+=40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(400,y); ctx.stroke(); }
+    // إذا كان سياق السؤال عن دوائر ومماسات
+    if (lower.includes("دائرة") || lower.includes("سيركل") || lower.includes("c") || lower.includes("tangent")) {
+      const nums = extractNumbers(contextText, [3, 4]);
+      let r1 = Math.min(nums[0] || 3, 6) * 15;
+      let r2 = Math.min(nums[1] || 4, 6) * 15;
 
-      // المحاور
+      caption.textContent = `رسم تفاعلي: دائرة (R=${nums[0] || 3}) ودائرة (R'=${nums[1] || 4}) مع المماسات`;
+
+      ctx.fillStyle = "#1a2f24";
+      ctx.fillRect(0, 0, 400, 220);
+
+      let O = {x: 130, y: 110};
+      let O_prime = {x: 270, y: 110};
+
       ctx.strokeStyle = "#E8B94D";
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(0, 180); ctx.lineTo(400, 180); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(200, 0); ctx.lineTo(200, 220); ctx.stroke();
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(O.x, O.y, r1, 0, Math.PI * 2);
+      ctx.stroke();
 
-      // رسم الدالة بخط ملون بارز
       ctx.strokeStyle = "#B5697A";
       ctx.lineWidth = 3;
       ctx.beginPath();
-      for (let px = 0; px <= 400; px += 2) {
-        let x = (px - 200) / 40;
-        let y_val = 3*(x*x) - 2*x + 1;
-        let py = 180 - (y_val * 15);
-        if (px === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-      }
+      ctx.arc(O_prime.x, O_prime.y, r2, 0, Math.PI * 2);
       ctx.stroke();
 
-    } else if (type === 'bisector') {
-      caption.textContent = "رسم هندسي: المنصف العمودي (Perpendicular Bisector)";
-      ctx.fillStyle = "#1a2f24";
-      ctx.fillRect(0,0,400,220);
-
-      // القطعة المستقيمة [AB]
-      ctx.strokeStyle = "#E8B94D";
-      ctx.lineWidth = 4;
-      ctx.beginPath(); ctx.moveTo(80, 110); ctx.lineTo(320, 110); ctx.stroke();
-      
-      ctx.fillStyle = "#fff";
-      ctx.font = "14px Tajawal";
-      ctx.fillText("A", 70, 95);
-      ctx.fillText("B", 310, 95);
-
-      // المنصف العمودي بخط متقطع ملون
-      ctx.strokeStyle = "#B5697A";
-      ctx.lineWidth = 3;
-      ctx.setLineDash([5, 5]);
-      ctx.beginPath(); ctx.moveTo(200, 20); ctx.lineTo(200, 200); ctx.stroke();
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(O.x, O.y);
+      ctx.lineTo(O_prime.x, O_prime.y);
+      ctx.stroke();
       ctx.setLineDash([]);
 
-      ctx.fillStyle = "#B5697A";
-      ctx.fillText("المنصف العمودي (Δ) - زاوية 90°", 170, 40);
+      let M = {x: 180, y: 110};
+      ctx.strokeStyle = "#50fa7b";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(180, 40);
+      ctx.lineTo(180, 180);
+      ctx.stroke();
 
-      // نقطة المنتصف
       ctx.fillStyle = "#E8B94D";
-      ctx.beginPath(); ctx.arc(200, 110, 6, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = "#fff";
-      ctx.fillText("M (المنتصف)", 210, 130);
+      ctx.beginPath(); ctx.arc(O.x, O.y, 4, 0, Math.PI*2); ctx.fill();
+      ctx.fillText(`O (R=${nums[0] || 3})`, O.x - 30, O.y - 15);
+
+      ctx.fillStyle = "#B5697A";
+      ctx.beginPath(); ctx.arc(O_prime.x, O_prime.y, 4, 0, Math.PI*2); ctx.fill();
+      ctx.fillText(`O' (R'=${nums[1] || 4})`, O_prime.x - 30, O_prime.y - 15);
+
+      return container;
     }
+
+    // الرسم البياني الافتراضي (للدوال والمعادلات)
+    caption.textContent = "رسم بياني إحداثي تفاعلي للدالة";
+    ctx.strokeStyle = "#2c4c3b";
+    ctx.lineWidth = 1;
+    for(let x=0; x<400; x+=40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,220); ctx.stroke(); }
+    for(let y=0; y<220; y+=40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(400,y); ctx.stroke(); }
+
+    ctx.strokeStyle = "#E8B94D";
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, 180); ctx.lineTo(400, 180); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(200, 0); ctx.lineTo(200, 220); ctx.stroke();
+
+    ctx.strokeStyle = "#B5697A";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    for (let px = 0; px <= 400; px += 2) {
+      let x = (px - 200) / 40;
+      let y_val = x * x - 2 * x; 
+      let py = 180 - (y_val * 15);
+      if (px === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
 
     return container;
   }
 
-  function addMessage(role, text, sources, imageDataUri, drawType){
+  function addMessage(role, text, sources, imageDataUri, studentPromptText){
     if(emptyState) emptyState.remove();
     const div = document.createElement("div");
     div.className = "msg " + role;
@@ -633,10 +667,6 @@
       div.appendChild(p);
     }
 
-    if(drawType) {
-      div.appendChild(createMathDrawing(drawType));
-    }
-
     if(sources && sources.length){
       const ref = document.createElement("span");
       ref.className = "page-ref";
@@ -648,14 +678,16 @@
       const actionsRow = document.createElement("div");
       actionsRow.className = "actions-row";
 
+      // زر الاستماع الصوتي
       const speakBtn = document.createElement("button");
-      speakBtn.className = "speak-btn";
+      speakBtn.className = "action-btn";
       speakBtn.textContent = "🔊 اسمع الجواب";
       speakBtn.addEventListener("click", () => speak(text, speakBtn));
       actionsRow.appendChild(speakBtn);
 
+      // زر نسخ الحل
       const copyBtn = document.createElement("button");
-      copyBtn.className = "copy-btn";
+      copyBtn.className = "action-btn";
       copyBtn.textContent = "📋 نسخ الحل";
       copyBtn.addEventListener("click", () => {
         navigator.clipboard.writeText(text).then(() => {
@@ -664,6 +696,34 @@
         });
       });
       actionsRow.appendChild(copyBtn);
+
+      // زر الرسم التفاعلي الجديد (يظهر فقط تحت إجابة المعلم)
+      const drawBtn = document.createElement("button");
+      drawBtn.className = "action-btn";
+      drawBtn.textContent = "📐 ارسم لي الشكل";
+      
+      let canvasRendered = false;
+      drawBtn.addEventListener("click", () => {
+        if (!canvasRendered) {
+          const combinedContext = (studentPromptText || "") + " " + text;
+          const canvasEl = generateCanvasElement(combinedContext);
+          div.insertBefore(canvasEl, actionsRow);
+          drawBtn.textContent = "🙈 إخفاء الرسمة";
+          drawBtn.classList.add("draw-active");
+          canvasRendered = true;
+        } else {
+          const existingCanvas = div.querySelector(".math-canvas-container");
+          if (existingCanvas) {
+            existingCanvas.style.display = existingCanvas.style.display === "none" ? "block" : "none";
+            if (existingCanvas.style.display === "none") {
+              drawBtn.textContent = "📐 عرض الرسمة";
+            } else {
+              drawBtn.textContent = "🙈 إخفاء الرسمة";
+            }
+          }
+        }
+      });
+      actionsRow.appendChild(drawBtn);
 
       div.appendChild(actionsRow);
     }
@@ -703,29 +763,6 @@
     sendBtn.disabled = true;
     showTyping();
 
-    // فحص ذكي محلي للرسومات البيانية والهندسية المطلوبة مجاناً وبسرعة فائقة
-    let detectedDrawType = null;
-    let localReply = "";
-    const lowerTxt = messageToSend.toLowerCase();
-    
-    if (lowerTxt.includes("دالة") || lowerTxt.includes("f(x)") || lowerTxt.includes("سكوير") || lowerTxt.includes("تربعية") || lowerTxt.includes("3x")) {
-      detectedDrawType = 'quadratic';
-      localReply = "إليك رسم الدالة البيانية f(x) = 3x² - 2x + 1 خطوة بخطوة بالخطوط الملونة، لتتأكد من شكل المنحنى تماماً كما في الآلات الحاسبة المتقدمة!";
-    } else if (lowerTxt.includes("بيربنديكولر") || lowerTxt.includes("منصف") || lowerTxt.includes("bisector")) {
-      detectedDrawType = 'bisector';
-      localReply = "تفضل يا بطل رسم المنصف العمودي (Perpendicular Bisector) للقطعة المستقيمة [AB]. الخط المتقطع الزهري يمثل المنصف العمودي الذي يصنع زاوية قائمة ويمر من المنتصف!";
-    }
-
-    if (detectedDrawType) {
-      setTimeout(() => {
-        hideTyping();
-        addMessage("teacher", localReply, [{ book: "الرياضيات المتطورة - التفاعلية", page: "42" }], null, detectedDrawType);
-        sendBtn.disabled = false;
-      }, 700);
-      return;
-    }
-
-    // الإرسال العادي للخادم
     const formData = new FormData();
     formData.append("student_id", getStudentId());
     if(conversationId) formData.append("conversation_id", conversationId);
@@ -743,8 +780,11 @@
       conversationId = data.conversation_id;
       if(conversationId) localStorage.setItem("nabilai_conversation_id", conversationId);
 
+      hideTyp0 = true;
       hideTyping();
-      addMessage("teacher", data.reply, data.sources);
+      
+      // نمرر نص الطالب مع رد المعلم لكي يستخدمه زر الرسم إذا طلب الطالب ذلك
+      addMessage("teacher", data.reply, data.sources, null, messageToSend);
     }catch(err){
       hideTyping();
       addMessage("teacher", "صار في مشكلة تقنية بسيطة، جرب ابعت السؤال كمان مرة بعد شوي 🙏");
