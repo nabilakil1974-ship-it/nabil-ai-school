@@ -16,10 +16,11 @@ if settings.GOOGLE_DRIVE_CREDENTIALS_JSON:
 
 Base.metadata.create_all(bind=engine)
 
-from app.services.rag_search import get_model
-print("⏳ تحميل موديل الفهم اللغوي (مرة وحدة فقط)...", flush=True)
-get_model()
-print("✅ الموديل جاهز بالذاكرة.", flush=True)
+# قم بإزالة أو التعليق على هذين السطرين من main.py:
+# from app.services.rag_search import get_model
+# print("⏳ تحميل موديل الفهم اللغوي (مرة وحدة فقط)...", flush=True)
+# get_model()
+# print("✅ الموديل جاهز بالذاكرة.", flush=True)
 
 app = FastAPI(title=settings.PROJECT_NAME)
 
