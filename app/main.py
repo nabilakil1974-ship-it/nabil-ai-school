@@ -1,33 +1,16 @@
 from fastapi import FastAPI, Form
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 import os
 
 app = FastAPI(title="منصة الأستاذ نبيل التعليمية")
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/", response_class=FileResponse)
 async def read_root():
-    html_content = """
-    <!DOCTYPE html>
-    <html lang="ar" dir="rtl">
-    <head>
-        <meta charset="UTF-8">
-        <title>الأستاذ نبيل - المنصة التعليمية</title>
-        <style>
-            body { background-color: #1b262c; color: white; font-family: Tahoma; text-align: center; padding-top: 50px; }
-            h1 { color: #bbe1fa; }
-        </style>
-    </head>
-    <body>
-        <h1>أهلاً بك في منصة الأستاذ نبيل الذكية للمنهج اللبناني 🇱🇧</h1>
-        <p>السيرفر يعمل الآن بنجاح تام!</p>
-    </body>
-    </html>
-    """
-    return html_content
+    return "app/static/chat.html"
 
 @app.post("/api/chat")
-async def chat_api(message: str = Form(...), subject: str = Form(...)):
-    reply = f"أهلاً بك يا بطل! لقد تلقيت سؤالك في مادة ({subject}):\n\n1. الخطوة الأولى: تحليل المعطيات بدقة حسب المنهج اللبناني.\n2. الخطوة الثانية: التطبيق القانوني والبرهنة خطوة بخطوة.\n3. النتيجة النهائية: الإجابة صحيحة ومفصلة تماماً مثل سلم التصحيح الرسمي."
+async def chat_api(message: str = Form(...), subject: str = Form(...), grade: str = Form(...)):
+    reply = f"Hello! Request received for subject: {subject}, grade: {grade}. The system is working perfectly!"
     return JSONResponse({"reply": reply})
 
 if __name__ == "__main__":
