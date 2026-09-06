@@ -1,7 +1,67 @@
+import re
+import base64
+from fastapi import APIRouter, Depends, HTTPException, Form, File, UploadFile
+from sqlalchemy.orm import Session
+from typing import Optional
+from pydantic import BaseModel
+from groq import Groq
+
+from app.core.config import settings
+from app.db.session import get_db
+from app.db.models import Conversation, Message, Student
+from app.services.rag_search import search_book_pages, build_context_block
+
+router = APIRouter()
+
+SYSTEM_PROMPT = """
+انت الأستاذ نبيل، معلم رقمي خبير بالمنهج اللبناني الرسمي (CRDP). 
+
+قواعد صارمة لازم تلتزم فيها دايماً بكل الإجابات:
+
+1. كشف اللغة والتكيف الفوري (مهم جداً): 
+    - التزم دائماً بالرد على الطالب **بنفس اللغة التي استخدمها في سؤاله**:
+      * إذا سأل باللغة **الإنجليزية**, أجب بالكامل باللغة **الإنجليزية** بأسلوب تربوي لطيف.
+      * إذا سأل باللغة **الفرنسية**, أجب بالكامل باللغة **فرنسية**.
+      * إذا سأل باللغة **العربية**, أجب باللغة العربية بلهجة لبنانية محكية لطيفة ودافئة (مثل: "أهلاً بك يا بطل!").
+
+2. التمييز الذكي بين السؤال والجواب:
+    - إذا كان سؤاله مسألة جديدة, اشرحها خطوة بخطوة بالاستناد للمنهج.
+    - إذا كان حلاً مقترحاً بخط يده أو بصوته, دقق خطواته وتأكد منها, وإذا وجد خطأ دلّه عليه بمحبة ولطف.
+
+3. في أسئلة الهندسة والبرهان: التزم بالنمط العلمي بوضوح يتناسب مع لغة السؤال.
+
+4. ممنوع نهائياً استخدام أي تنسيق Markdown معقد يفسد الشكل البصري، واستخدم الرموز الرياضية الواضحة. وفورا أجب بالحل النهائي بدون أي كتابة لعمليات التفكير الداخلية أو وسوم think.
+"""
+
+VISION_MODEL = "qwen/qwen3.6-27b"
+TEXT_MODEL = "openai/gpt-oss-120b"
+
+def clean_reply(text: str) -> str:
+    if not text:
+        return ""
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    if "</think>" in text:
+        text = text.split("</think>")[-1]
+    if "<think>" in text:
+        text = text.split("<think>")[0]
+    text = re.sub(r"#{1,6}\s*", "", text)
+    text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
+    text = re.sub(r"\*(.+?)\*", r"\1", text)
+    text = re.sub(r"^-{3,}$", "", text, flags=re.MULTILINE)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+class ChatResponse(BaseModel):
+    conversation_id: str
+    reply: str
+    sources: list[dict] = []
+    transcribed_text: Optional[str] = None
+
+
 @router.post("/chat", response_model=ChatResponse)
 async def voice_chat(
     audio: Optional[UploadFile] = File(None),
-    image: Optional[UploadFile] = File(None),  # <--- أضفنا استقبال الصورة هون
+    image: Optional[UploadFile] = File(None),
     message: Optional[str] = Form(None),
     student_id: str = Form(...),
     conversation_id: Optional[str] = Form(None),
@@ -15,7 +75,6 @@ async def voice_chat(
 
     client = Groq(api_key=settings.GROQ_API_KEY)
     
-    # 1. معالجة الصوت في حال وجد
     if audio is not None:
         audio_bytes = await audio.read()
         try:
@@ -29,11 +88,9 @@ async def voice_chat(
         except Exception as e:
             raise HTTPException(500, f"خطأ في معالجة الصوت: {str(e)}")
 
-    # 2. معالجة الصورة في حال تم إرسالها (استخراج النص أو فهم السؤال بالرؤية)
     if image is not None:
         image_bytes = await image.read()
         encoded_image = base64.b64encode(image_bytes).decode('utf-8')
-        # تحديد نوع الملف (افتراضياً jpeg أو png)
         mime_type = image.content_type or "image/jpeg"
         
         try:
@@ -56,7 +113,6 @@ async def voice_chat(
                 max_tokens=500
             ]
             extracted_text = vision_response.choices[0].message.content or ""
-            # دمج النص المستخرج مع رسالة الطالب إن وجدت
             if message:
                 message = f"{message}\n{extracted_text}"
             else:
@@ -67,7 +123,6 @@ async def voice_chat(
     if not message:
         message = "Hello teacher, please help me."
 
-    # (باقي الكود يبقى كما هو دون تغيير...)
     conversation = None
     if conversation_id:
         conversation = db.query(Conversation).filter_by(id=conversation_id).first()
