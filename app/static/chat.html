@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>منصة الأستاذ نبيل - التعليمية اللبنانية الرسمية (CRDP)</title>
+    <title>منصة الأستاذ نبيل - معلمك الرقمي للمنهج اللبناني (CRDP)</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f7f6;
+            background-color: #f0f2f5;
             margin: 0;
             padding: 0;
             display: flex;
@@ -19,8 +19,9 @@
             color: white;
             padding: 15px;
             text-align: center;
-            font-size: 1.2rem;
+            font-size: 1.3rem;
             font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
         #chat-container {
             flex: 1;
@@ -31,11 +32,13 @@
             gap: 15px;
         }
         .message {
-            max-width: 75%;
-            padding: 12px 16px;
+            max-width: 80%;
+            padding: 12px 18px;
             border-radius: 12px;
-            line-height: 1.5;
+            line-height: 1.6;
             word-wrap: break-word;
+            position: relative;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
         .student-message {
             background-color: #d1e7dd;
@@ -47,79 +50,172 @@
             color: #212529;
             align-self: flex-end;
             border: 1px solid #dee2e6;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .msg-actions {
+            margin-top: 8px;
+            display: flex;
+            gap: 10px;
+            font-size: 0.85rem;
+        }
+        .msg-actions button {
+            background: none;
+            border: 1px solid #ccc;
+            padding: 3px 8px;
+            border-radius: 5px;
+            cursor: pointer;
+            color: #555;
+        }
+        .msg-actions button:hover {
+            background-color: #f1f1f1;
         }
         #input-container {
             padding: 15px;
             background-color: white;
             border-top: 1px solid #dee2e6;
             display: flex;
+            align-items: center;
             gap: 10px;
         }
         #message-input {
             flex: 1;
-            padding: 10px 15px;
+            padding: 12px 15px;
             border: 1px solid #ced4da;
             border-radius: 8px;
             outline: none;
             font-size: 1rem;
         }
-        button {
+        .action-btn {
             background-color: #1b4d3e;
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 10px 16px;
             border-radius: 8px;
             cursor: pointer;
             font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
-        button:hover {
+        .action-btn:hover {
             background-color: #14382c;
+        }
+        .file-label {
+            cursor: pointer;
+            background-color: #6c757d;
+            color: white;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        .file-label:hover {
+            background-color: #5a6268;
+        }
+        input[type="file"] {
+            display: none;
         }
     </style>
 </head>
 <body>
 
     <header>
-        الأستاذ نبيل - معلمك الرقمي للمنهج اللبناني الرسمي (CRDP) 📚🇱🇧
+        📚 الأستاذ نبيل - معلمك الرقمي للمنهج اللبناني الرسمي (CRDP) 🇱🇧
     </header>
 
-    <div id="chat-container" id="chatContainer">
-        <!-- تظهر الرسائل هنا ديناميكياً مع خاصية dir="auto" لدعم اللغات المختلفة -->
-    </div>
+    <div id="chat-container"></div>
 
     <div id="input-container">
+        <!-- زر رفع صورة -->
+        <label class="file-label" title="رفع صورة مسألة">
+            📷 صورة <input type="file" id="image-input" accept="image/*">
+        </label>
+
+        <!-- زر تسجيل الصوت -->
+        <button type="button" id="mic-btn" class="action-btn" onclick="toggleRecording()" style="background-color: #dc3545;">🎙️ تسطيل صوت</button>
+
         <input type="text" id="message-input" placeholder="اكتب سؤالك هنا أو ارفع صورة/صوتاً..." />
-        <button onclick="sendMessage()">إرسال</button>
+        
+        <button class="action-btn" onclick="sendMessage()">إرسال 🚀</button>
     </div>
 
     <script>
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+
+        async function toggleRecording() {
+            const micBtn = document.getElementById('mic-btn');
+            if (!isRecording) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+                    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                    mediaRecorder.onstop = async () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        await sendDataToServer(null, null, audioBlob);
+                    };
+                    mediaRecorder.start();
+                    isRecording = true;
+                    micBtn.style.backgroundColor = '#28a745';
+                    micBtn.innerText = '⏹️ إيقاف وإرسال';
+                } catch (err) {
+                    alert('تعذر الوصول إلى الميكروفون!');
+                }
+            } else {
+                mediaRecorder.stop();
+                isRecording = false;
+                micBtn.style.backgroundColor = '#dc3545';
+                micBtn.innerText = '🎙️ تسجيل صوت';
+            }
+        }
+
         async function sendMessage() {
             const input = document.getElementById('message-input');
-            const container = document.getElementById('chat-container');
+            const imageInput = document.getElementById('image-input');
             const text = input.value.trim();
-            
-            if (!text) return;
+            const imageFile = imageInput.files[0];
 
-            // إظهار رسالة الطالب
-            const studentDiv = document.createElement('div');
-            studentDiv.className = 'message student-message';
-            studentDiv.setAttribute('dir', 'auto');
-            studentDiv.innerText = text;
-            container.appendChild(studentDiv);
+            if (!text && !imageFile) return;
 
             input.value = '';
+            imageInput.value = '';
+            await sendDataToServer(text, imageFile, null);
+        }
+
+        async function sendDataToServer(text, imageFile, audioBlob) {
+            const container = document.getElementById('chat-container');
+
+            // إظهار رسالة الطالب محلياً
+            if (text) {
+                const studentDiv = document.createElement('div');
+                studentDiv.className = 'message student-message';
+                studentDiv.setAttribute('dir', 'auto');
+                studentDiv.innerText = text;
+                container.appendChild(studentDiv);
+            } else if (imageFile) {
+                const studentDiv = document.createElement('div');
+                studentDiv.className = 'message student-message';
+                studentDiv.innerText = '[صورة مرفقة للتمرين 📷]';
+                container.appendChild(studentDiv);
+            } else if (audioBlob) {
+                const studentDiv = document.createElement('div');
+                studentDiv.className = 'message student-message';
+                studentDiv.innerText = '[رسالة صوتية مسجلة 🎙️]';
+                container.appendChild(studentDiv);
+            }
             container.scrollTop = container.scrollHeight;
 
-            // إرسال الطلب للسيرفر (FastAPI Backend)
-            try {
-                const formData = new FormData();
-                formData.append('message', text);
-                formData.append('student_id', 'student_demo_1');
-                formData.append('subject', 'رياضيات');
-                formData.append('grade', 'التاسع الأساسي');
-                formData.append('curriculum', 'لبناني');
+            const formData = new FormData();
+            if (text) formData.append('message', text);
+            if (imageFile) formData.append('image', imageFile);
+            if (audioBlob) formData.append('audio', audioBlob, 'voice.webm');
+            
+            formData.append('student_id', 'student_demo_1');
+            formData.append('subject', 'رياضيات');
+            formData.append('grade', 'التاسع الأساسي');
+            formData.append('curriculum', 'لبناني');
 
+            try {
                 const response = await fetch('/chat', {
                     method: 'POST',
                     body: formData
@@ -127,14 +223,42 @@
 
                 const data = await response.json();
 
-                // إظهار رد الأستاذ نبيل مع دعم الاتجاه التلقائي dir="auto"
+                // إظهار رد الأستاذ نبيل مع أزرار (نسخ وقراءة صوتية)
                 const teacherDiv = document.createElement('div');
                 teacherDiv.className = 'message teacher-message';
-                teacherDiv.setAttribute('dir', 'auto'); // يحل مشكلة اتجاه النصوص الإنجليزية والفرنسية تلقائياً
-                teacherDiv.innerText = data.reply;
-                container.appendChild(teacherDiv);
+                teacherDiv.setAttribute('dir', 'auto'); // لدعم اللغات الأجنبية واليسار لليمين تلقائياً
+                
+                const textContent = document.createElement('div');
+                textContent.innerText = data.reply;
+                teacherDiv.appendChild(textContent);
 
+                // شريط الأزرار (نسخ وقراءة)
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'msg-actions';
+
+                const copyBtn = document.createElement('button');
+                copyBtn.innerText = '📋 نسخ الحل';
+                copyBtn.onclick = () => {
+                    navigator.clipboard.writeText(data.reply);
+                    copyBtn.innerText = '✅ تم النسخ!';
+                    setTimeout(() => copyBtn.innerText = '📋 نسخ الحل', 2000);
+                };
+
+                const speakBtn = document.createElement('button');
+                speakBtn.innerText = '🔊 قراءة صوتية';
+                speakBtn.onclick = () => {
+                    const utterance = new SpeechSynthesisUtterance(data.reply);
+                    utterance.lang = 'ar-LB';
+                    window.speechSynthesis.speak(utterance);
+                };
+
+                actionsDiv.appendChild(copyBtn);
+                actionsDiv.appendChild(speakBtn);
+                teacherDiv.appendChild(actionsDiv);
+
+                container.appendChild(teacherDiv);
                 container.scrollTop = container.scrollHeight;
+
             } catch (error) {
                 console.error("خطأ في الاتصال:", error);
             }
