@@ -19,10 +19,11 @@
         .controls { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; justify-content: center; }
         select { padding: 8px 12px; border-radius: 6px; border: 1px solid #475569; background: #1e293b; color: white; font-size: 14px; }
         .canvas-container { display: none; margin-bottom: 15px; background: white; padding: 10px; border-radius: 8px; text-align: center; }
-        canvas { border: 2px dashed #cbd5e1; cursor: crosshair; touch-action: none; background: #ffffff; }
+        canvas { border: 2px dashed #cbd5e1; cursor: crosshair; touch-action: none; background: #ffffff; width: 100%; max-width: 500px; height: 250px; }
         .action-btns { display: flex; gap: 5px; margin-top: 8px; justify-content: flex-end; }
         .btn-sm { padding: 4px 8px; font-size: 12px; background: #475569; }
         .btn-sm:hover { background: #64748b; }
+        .msg-img { max-width: 200px; border-radius: 6px; margin-top: 5px; display: block; border: 1px solid #cbd5e1; }
     </style>
 </head>
 <body>
@@ -78,35 +79,53 @@
     const studentId = "student_" + Math.random().toString(36).substring(2, 9);
     let conversationId = null;
 
-    // إعداد لوحة الرسم (Canvas)
+    // إعداد لوحة الرسم بدقة للمتصفح والـ Touch
     const canvas = document.getElementById('drawCanvas');
     const ctx = canvas.getContext('2d');
     let painting = false;
 
-    function startPosition(e) { painting = true; draw(e); }
-    function finishedPosition() { painting = false; ctx.beginPath(); }
+    function getMousePos(canvas, evt) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const clientX = evt.clientX || (evt.touches && evt.touches[0].clientX);
+        const clientY = evt.clientY || (evt.touches && evt.touches[0].clientY);
+        return {
+            x: (clientX - rect.left) * scaleX,
+            y: (clientY - rect.top) * scaleY
+        };
+    }
+
+    function startPosition(e) { 
+        painting = true; 
+        draw(e); 
+    }
+    
+    function finishedPosition() { 
+        painting = false; 
+        ctx.beginPath(); 
+    }
+
     function draw(e) {
         if (!painting) return;
+        e.preventDefault();
         ctx.lineWidth = 3;
         ctx.lineCap = 'round';
         ctx.strokeStyle = '#000000';
         
-        const rect = canvas.getBoundingClientRect();
-        const x = (e.clientX || e.touches[0].clientX) - rect.left;
-        const y = (e.clientY || e.touches[0].clientY) - rect.top;
-
-        ctx.lineTo(x, y);
+        const pos = getMousePos(canvas, e);
+        ctx.lineTo(pos.x, pos.y);
         ctx.stroke();
         ctx.beginPath();
-        ctx.moveTo(x, y);
+        ctx.moveTo(pos.x, pos.y);
     }
 
     canvas.addEventListener('mousedown', startPosition);
     canvas.addEventListener('mouseup', finishedPosition);
     canvas.addEventListener('mousemove', draw);
-    canvas.addEventListener('touchstart', startPosition);
+    canvas.addEventListener('touchstart', startPosition, { passive: false });
     canvas.addEventListener('touchend', finishedPosition);
-    canvas.addEventListener('touchmove', draw);
+    canvas.addEventListener('touchmove', draw, { passive: false });
 
     function toggleCanvas() {
         const ctn = document.getElementById('canvasContainer');
@@ -170,8 +189,13 @@
 
         if (!text && !selectedImage && !recordedAudioBlob) return;
 
-        let displayHtml = text;
-        if (selectedImage) displayHtml += `<br><small>[صورة/رسمة مرفقة]</small>`;
+        let displayHtml = text ? text : "";
+        let imageObjectURL = null;
+        
+        if (selectedImage) {
+            imageObjectURL = URL.createObjectURL(selectedImage);
+            displayHtml += `<br><img src="${imageObjectURL}" class="msg-img">`;
+        }
         if (isAudio) displayHtml += `<br><small>[رسالة صوتية 🎤]</small>`;
         
         chatBox.innerHTML += `<div class="message student"><b>أنت:</b> ${displayHtml}</div>`;
@@ -205,7 +229,6 @@
                     replyText = `<small style="color:#38bdf8;">(النص الصوتي: ${data.transcribed_text})</small><br>` + replyText;
                 }
                 
-                // زر نسخ النص
                 const msgId = 'msg_' + Math.random().toString(36).substring(2);
                 chatBox.innerHTML += `
                     <div class="message teacher">
