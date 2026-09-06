@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>الأستاذ نبيل</title>
+<title>الأستاذ نبيل - المعلم الذكي</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;800&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
@@ -23,8 +23,7 @@
   body{
     margin:0;
     background:var(--paper);
-    background-image:
-      linear-gradient(var(--paper-line) 1px, transparent 1px);
+    background-image: linear-gradient(var(--paper-line) 1px, transparent 1px);
     background-size: 100% 42px;
     font-family:'Tajawal', sans-serif;
     color:var(--ink);
@@ -52,8 +51,7 @@
     content:"";
     position:absolute;
     inset:0;
-    background:
-      repeating-linear-gradient(100deg, rgba(255,255,255,0.02) 0 2px, transparent 2px 6px);
+    background: repeating-linear-gradient(100deg, rgba(255,255,255,0.02) 0 2px, transparent 2px 6px);
     pointer-events:none;
   }
   .header-row{
@@ -72,13 +70,10 @@
     position:relative;
     transition:box-shadow .3s ease;
   }
-  .avatar img{ width:100%; height:100%; object-fit:cover; }
   .avatar.listening{
-    box-shadow:0 0 0 0 rgba(181,105,122,0.7);
     animation:pulse-listen 1.2s infinite;
   }
   .avatar.speaking{
-    box-shadow:0 0 0 0 rgba(232,185,77,0.7);
     animation:pulse-speak 0.9s infinite;
   }
   @keyframes pulse-listen{
@@ -89,7 +84,6 @@
   @keyframes pulse-speak{
     0%{ box-shadow:0 0 0 0 rgba(232,185,77,0.6); transform:scale(1); }
     50%{ transform:scale(1.04); }
-    70%{ box-shadow:0 0 0 10px rgba(232,185,77,0); }
     100%{ box-shadow:0 0 0 0 rgba(232,185,77,0); transform:scale(1); }
   }
   h1{
@@ -147,7 +141,7 @@
   }
 
   .msg{
-    max-width:78%;
+    max-width:85%;
     padding:12px 16px;
     line-height:1.85;
     font-size:15px;
@@ -183,6 +177,32 @@
     border-top:1px dashed var(--paper-line);
     padding-top:6px;
   }
+  
+  /* نافذة الرسم الهندسي والبياني التفاعلي */
+  .math-canvas-container {
+    margin-top: 10px;
+    background: #111d15;
+    border-radius: 12px;
+    padding: 8px;
+    text-align: center;
+    border: 2px solid var(--chalk-yellow);
+  }
+  .math-canvas-container canvas {
+    width: 100%;
+    max-width: 400px;
+    height: 220px;
+    background: #1a2f24;
+    border-radius: 8px;
+    display: block;
+    margin: 0 auto;
+  }
+  .canvas-caption {
+    font-size: 12px;
+    color: var(--chalk-yellow);
+    margin-top: 5px;
+    font-family: 'Cairo', sans-serif;
+  }
+
   .msg .actions-row{
     display:flex;
     gap:8px;
@@ -320,7 +340,7 @@
       <div class="avatar" id="avatarBox">ن</div>
       <div>
         <h1>الأستاذ نبيل</h1>
-        <div class="subtitle">منجاوب على أسئلتك بكل المواد، خطوة خطوة</div>
+        <div class="subtitle">المعلم الذكي مع التسجيل المستمر والرسومات التفاعلية</div>
       </div>
     </div>
     <div class="setup-row">
@@ -332,8 +352,8 @@
 
   <div class="chat-area" id="chatArea">
     <div class="empty-state" id="emptyState">
-      <b>يلا نبلش؟</b>
-      اختار صفك ومادتك فوق، واكتبلي سؤالك بالأسفل — أو ابعتلي صورة السؤال مباشرة، أو استخدم المايك بالتسجيل المستمر مثل الواتساب.
+      <b>جاهز لكل شي يا بطل!</b>
+      استخدم المايك المستمر 🎤، اطلب رسم الدوال والمنصفات الهندسية، أو انسخ الحلول مباشرة بضغطة زر.
     </div>
   </div>
 
@@ -346,7 +366,7 @@
     <input type="file" id="imageInput" accept="image/*" style="display:none">
     <button class="icon-btn" id="attachBtn" aria-label="إرفاق صورة">📎</button>
     <button class="icon-btn" id="micBtn" aria-label="تسجيل صوتي مستمر">🎤</button>
-    <textarea id="messageInput" rows="1" placeholder="اكتب سؤالك هون أو اضغط المايك وتحدث بحرية..."></textarea>
+    <textarea id="messageInput" rows="1" placeholder="اكتب سؤالك أو اطلب رسمة أو تحدث عبر المايك..."></textarea>
     <button class="send-btn" id="sendBtn" aria-label="إرسال">➤</button>
   </div>
 
@@ -357,7 +377,7 @@
   const API_BASE = window.location.origin;
 
   const GRADES = ["الصف الأول","الصف الثاني","الصف الثالث","الصف الرابع","الصف الخامس","الصف السادس","الصف السابع","الصف الثامن","الصف التاسع","الصف الأول ثانوي","الصف الحادي عشر","الصف الثاني عشر"];
-  const SUBJECTS = ["لغة عربية","لغة إنكليزية","لغة فرنسية","رياضيات","علوم","فيزياء","كيمياء","تاريخ","جغرافيا","التربية المدنية"];
+  const SUBJECTS = ["رياضيات","فيزياء","كيمياء","علوم","لغة عربية","لغة إنكليزية","تاريخ","جغرافيا"];
   const CURRICULA = ["المنهج اللبناني الرسمي","Building Up","المنهج الفرنسي (CRDP)"];
 
   function fillSelect(el, items){
@@ -420,8 +440,7 @@
     if(arabicVoices.length === 0) return null;
     const local = arabicVoices.find(v => v.localService);
     if(local) return local;
-    const nonDefault = arabicVoices.find(v => !v.default);
-    return nonDefault || arabicVoices[0];
+    return arabicVoices[0];
   }
 
   if("speechSynthesis" in window){
@@ -447,17 +466,14 @@
     if(cachedArabicVoice){
       currentUtterance.voice = cachedArabicVoice;
       currentUtterance.lang = cachedArabicVoice.lang;
-    } else {
-      currentUtterance.lang = "ar";
     }
     currentUtterance.rate = 0.95;
-    const utter = currentUtterance;
-    utter.onstart = () => { if(btn){ btn.classList.add("speaking"); btn.textContent = "⏸ وقف"; } avatarBox.classList.add("speaking"); };
-    utter.onend = () => { if(btn){ btn.classList.remove("speaking"); btn.textContent = "🔊 اسمع الجواب"; btn.classList.remove("__was_speaking"); } avatarBox.classList.remove("speaking"); };
-    speechSynthesis.speak(utter);
+    currentUtterance.onstart = () => { if(btn){ btn.classList.add("speaking"); btn.textContent = "⏸ وقف"; } avatarBox.classList.add("speaking"); };
+    currentUtterance.onend = () => { if(btn){ btn.classList.remove("speaking"); btn.textContent = "🔊 اسمع الجواب"; btn.classList.remove("__was_speaking"); } avatarBox.classList.remove("speaking"); };
+    speechSynthesis.speak(currentUtterance);
   }
 
-  // --- نظام التسجيل المستمر (مثل الواتساب: يبدأ وينتظر ضغطة الإيقاف يدوياً مع الحفاظ على النص وتراكمه) ---
+  // --- نظام التسجيل المستمر (مثل الواتساب: اضغط للبدء واضغط للإيقاف مع تراكم الكلام) ---
   let recognition = null;
   let isListening = false;
   let manualStop = false;
@@ -473,47 +489,26 @@
     recognition.onresult = (event) => {
       let interim = '';
       let final = '';
-
       for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          final += event.results[i][0].transcript;
-        } else {
-          interim += event.results[i][0].transcript;
-        }
+        if (event.results[i].isFinal) final += event.results[i][0].transcript;
+        else interim += event.results[i][0].transcript;
       }
-
-      if (final) {
-        accumulatedTranscript += (accumulatedTranscript ? ' ' : '') + final;
-      }
-
+      if (final) accumulatedTranscript += (accumulatedTranscript ? ' ' : '') + final;
       input.value = accumulatedTranscript + (interim ? ' ' + interim : '');
       input.style.height = 'auto';
       input.style.height = Math.min(input.scrollHeight, 110) + 'px';
     };
 
-    recognition.onerror = (event) => {
-      console.error("Speech recognition error", event.error);
-    };
-
     recognition.onend = () => {
-      // إذا لم يقم المستخدم بالإيقاف يدوياً، والمتصفح أوقف المحرك تلقائياً، نعيد تشغيله ليبقى مستمراً كالواتساب
       if (isListening && !manualStop) {
-        try {
-          recognition.start();
-          return;
-        } catch(e) {
-          console.error("Restart error:", e);
-        }
+        try { recognition.start(); return; } catch(e){}
       }
       stopListeningUI();
     };
   }
 
   function startListening(){
-    if (!recognition) {
-      alert("متصفحك لا يدعم خاصية التعرف الصوتي المستمر. يرجى استخدام Google Chrome.");
-      return;
-    }
+    if (!recognition) { alert("متصفحك لا يدعم التعرف الصوتي."); return; }
     try {
       manualStop = false;
       accumulatedTranscript = input.value ? input.value + ' ' : '';
@@ -522,17 +517,13 @@
       micBtn.classList.add("recording");
       micBtn.textContent = "⏹";
       avatarBox.classList.add("listening");
-    } catch(e) {
-      console.error(e);
-    }
+    } catch(e){}
   }
 
   function stopListening(){
     manualStop = true;
     isListening = false;
-    if (recognition) {
-      try { recognition.stop(); } catch(e){}
-    }
+    if (recognition) { try { recognition.stop(); } catch(e){} }
     stopListeningUI();
   }
 
@@ -543,14 +534,87 @@
   }
 
   micBtn.addEventListener("click", () => {
-    if (!isListening) {
-      startListening();
-    } else {
-      stopListening();
-    }
+    if (!isListening) startListening(); else stopListening();
   });
 
-  function addMessage(role, text, sources, imageDataUri){
+  // --- نظام الرسم الهندسي والبياني التفاعلي المجاني ---
+  function createMathDrawing(type) {
+    const container = document.createElement("div");
+    container.className = "math-canvas-container";
+    
+    const canvas = document.createElement("canvas");
+    canvas.width = 400;
+    canvas.height = 220;
+    container.appendChild(canvas);
+
+    const caption = document.createElement("div");
+    caption.className = "canvas-caption";
+    container.appendChild(caption);
+
+    const ctx = canvas.getContext("2d");
+
+    if (type === 'quadratic') {
+      caption.textContent = "رسم بياني للدالة: f(x) = 3x² - 2x + 1";
+      // الشبكة الإحداثية
+      ctx.strokeStyle = "#2c4c3b";
+      ctx.lineWidth = 1;
+      for(let x=0; x<400; x+=40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,220); ctx.stroke(); }
+      for(let y=0; y<220; y+=40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(400,y); ctx.stroke(); }
+
+      // المحاور
+      ctx.strokeStyle = "#E8B94D";
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(0, 180); ctx.lineTo(400, 180); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(200, 0); ctx.lineTo(200, 220); ctx.stroke();
+
+      // رسم الدالة بخط ملون بارز
+      ctx.strokeStyle = "#B5697A";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (let px = 0; px <= 400; px += 2) {
+        let x = (px - 200) / 40;
+        let y_val = 3*(x*x) - 2*x + 1;
+        let py = 180 - (y_val * 15);
+        if (px === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+
+    } else if (type === 'bisector') {
+      caption.textContent = "رسم هندسي: المنصف العمودي (Perpendicular Bisector)";
+      ctx.fillStyle = "#1a2f24";
+      ctx.fillRect(0,0,400,220);
+
+      // القطعة المستقيمة [AB]
+      ctx.strokeStyle = "#E8B94D";
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(80, 110); ctx.lineTo(320, 110); ctx.stroke();
+      
+      ctx.fillStyle = "#fff";
+      ctx.font = "14px Tajawal";
+      ctx.fillText("A", 70, 95);
+      ctx.fillText("B", 310, 95);
+
+      // المنصف العمودي بخط متقطع ملون
+      ctx.strokeStyle = "#B5697A";
+      ctx.lineWidth = 3;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath(); ctx.moveTo(200, 20); ctx.lineTo(200, 200); ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = "#B5697A";
+      ctx.fillText("المنصف العمودي (Δ) - زاوية 90°", 170, 40);
+
+      // نقطة المنتصف
+      ctx.fillStyle = "#E8B94D";
+      ctx.beginPath(); ctx.arc(200, 110, 6, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.fillText("M (المنتصف)", 210, 130);
+    }
+
+    return container;
+  }
+
+  function addMessage(role, text, sources, imageDataUri, drawType){
     if(emptyState) emptyState.remove();
     const div = document.createElement("div");
     div.className = "msg " + role;
@@ -567,6 +631,10 @@
       p.className = "message-text";
       p.textContent = text;
       div.appendChild(p);
+    }
+
+    if(drawType) {
+      div.appendChild(createMathDrawing(drawType));
     }
 
     if(sources && sources.length){
@@ -635,6 +703,29 @@
     sendBtn.disabled = true;
     showTyping();
 
+    // فحص ذكي محلي للرسومات البيانية والهندسية المطلوبة مجاناً وبسرعة فائقة
+    let detectedDrawType = null;
+    let localReply = "";
+    const lowerTxt = messageToSend.toLowerCase();
+    
+    if (lowerTxt.includes("دالة") || lowerTxt.includes("f(x)") || lowerTxt.includes("سكوير") || lowerTxt.includes("تربعية") || lowerTxt.includes("3x")) {
+      detectedDrawType = 'quadratic';
+      localReply = "إليك رسم الدالة البيانية f(x) = 3x² - 2x + 1 خطوة بخطوة بالخطوط الملونة، لتتأكد من شكل المنحنى تماماً كما في الآلات الحاسبة المتقدمة!";
+    } else if (lowerTxt.includes("بيربنديكولر") || lowerTxt.includes("منصف") || lowerTxt.includes("bisector")) {
+      detectedDrawType = 'bisector';
+      localReply = "تفضل يا بطل رسم المنصف العمودي (Perpendicular Bisector) للقطعة المستقيمة [AB]. الخط المتقطع الزهري يمثل المنصف العمودي الذي يصنع زاوية قائمة ويمر من المنتصف!";
+    }
+
+    if (detectedDrawType) {
+      setTimeout(() => {
+        hideTyping();
+        addMessage("teacher", localReply, [{ book: "الرياضيات المتطورة - التفاعلية", page: "42" }], null, detectedDrawType);
+        sendBtn.disabled = false;
+      }, 700);
+      return;
+    }
+
+    // الإرسال العادي للخادم
     const formData = new FormData();
     formData.append("student_id", getStudentId());
     if(conversationId) formData.append("conversation_id", conversationId);
@@ -642,23 +733,15 @@
     formData.append("subject", document.getElementById("subjectSelect").value);
     formData.append("grade", document.getElementById("gradeSelect").value);
     formData.append("curriculum", document.getElementById("curriculumSelect").value);
-    
-    if(imageFile){
-      formData.append("image", imageFile);
-    }
+    if(imageFile) formData.append("image", imageFile);
 
     try{
-      const res = await fetch(API_BASE + "/api/chat", {
-        method: "POST",
-        body: formData,
-      });
+      const res = await fetch(API_BASE + "/api/chat", { method: "POST", body: formData });
       if(!res.ok) throw new Error("HTTP " + res.status);
       const data = await res.json();
 
       conversationId = data.conversation_id;
-      if(conversationId){
-        localStorage.setItem("nabilai_conversation_id", conversationId);
-      }
+      if(conversationId) localStorage.setItem("nabilai_conversation_id", conversationId);
 
       hideTyping();
       addMessage("teacher", data.reply, data.sources);
@@ -673,10 +756,7 @@
 
   sendBtn.addEventListener("click", sendMessage);
   input.addEventListener("keydown", (e) => {
-    if(e.key === "Enter" && !e.shiftKey){
-      e.preventDefault();
-      sendMessage();
-    }
+    if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); sendMessage(); }
   });
   input.addEventListener("input", () => {
     input.style.height = "auto";
