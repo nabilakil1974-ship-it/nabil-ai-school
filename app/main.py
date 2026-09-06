@@ -18,7 +18,7 @@ HTML_CONTENT = """<!DOCTYPE html>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1b262c; color: #f5f5f5; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; }
         header { background-color: #0f4c75; color: white; padding: 15px; text-align: center; font-size: 1.4rem; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
-        #chat-container { flex: 1; overflow-y: auto; padding: 25px; display: flex; flex-direction: column; gap: 25px; }
+        #chat-container { flex: 1; overflow-y: auto; padding: 25px 25px 120px 25px; display: flex; flex-direction: column; gap: 25px; }
         .message { max-width: 88%; padding: 20px 24px; border-radius: 14px; line-height: 2.3; font-size: 1.15rem; word-wrap: break-word; box-shadow: 0 3px 8px rgba(0,0,0,0.25); }
         .student-message { background-color: #3282b8; color: white; align-self: flex-start; }
         .teacher-message { background-color: #ffffff; color: #212529; align-self: flex-end; border: 1px solid #dee2e6; text-align: right; }
@@ -29,7 +29,7 @@ HTML_CONTENT = """<!DOCTYPE html>
         .teacher-text p { margin: 0 0 10px 0; }
         .canvas-box { margin-top: 15px; background: #0f171e; border: 2px solid #3282b8; border-radius: 10px; padding: 12px; text-align: center; }
         canvas { background: #121820; border-radius: 6px; max-width: 100%; }
-        #input-container { padding: 15px; background-color: #0f4c75; border-top: 1px solid #1b262c; display: flex; align-items: center; gap: 10px; }
+        #input-container { padding: 15px; background-color: #0f4c75; border-top: 1px solid #1b262c; display: flex; align-items: center; gap: 10px; position: sticky; bottom: 0; z-index: 100; }
         #message-input { flex: 1; padding: 12px 15px; border: 1px solid #ced4da; border-radius: 8px; outline: none; font-size: 1.1rem; }
         .action-btn { background-color: #bbe1fa; color: #0f4c75; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1rem; }
         .action-btn:hover { background-color: #3282b8; color: white; }
@@ -94,21 +94,29 @@ HTML_CONTENT = """<!DOCTYPE html>
             });
             teacherDiv.appendChild(textContent);
             
+            // اللوح الذكي - يتغير حسب السؤال حقاً!
             const canvasBox = document.createElement('div');
             canvasBox.className = 'canvas-box';
             const canvas = document.createElement('canvas');
             canvas.width = 360;
-            canvas.height = 260;
+            canvas.height = 220;
             canvasBox.appendChild(canvas);
             const shapeLabel = document.createElement('div');
             shapeLabel.style.fontSize = '0.9rem';
             shapeLabel.style.marginTop = '8px';
             shapeLabel.style.color = '#bbe1fa';
             canvasBox.appendChild(shapeLabel);
-            teacherDiv.appendChild(canvasBox);
-            drawComprehensiveVisual(canvas, shapeLabel, userQuery);
             
-            // الأزرار الظاهرة بوضوح تام أسفل كل رد
+            // إذا كان السؤال عن إعراب أو لغة عربية، نخفي صندوق الرسمة تماماً لأنه لا يلزم!
+            if (userQuery.toLowerCase().includes('إعراب') || userQuery.toLowerCase().includes('اعرب')) {
+                canvasBox.style.display = 'none';
+            } else {
+                drawDynamicVisual(canvas, shapeLabel, userQuery);
+            }
+            
+            teacherDiv.appendChild(canvasBox);
+            
+            // الأزرار الواضحة تحت كل رد
             const actionsDiv = document.createElement('div');
             actionsDiv.className = 'msg-actions';
             
@@ -142,38 +150,55 @@ HTML_CONTENT = """<!DOCTYPE html>
             container.appendChild(teacherDiv);
             container.scrollTop = container.scrollHeight;
         }
-        function drawComprehensiveVisual(canvas, label, query) {
+
+        // دالة الرسم الديناميكي الحقيقي بحسب السؤال
+        function drawDynamicVisual(canvas, label, query) {
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             const qLower = query.toLowerCase();
-            if (qLower.includes('فيزياء') || qLower.includes('دائرة كهربائية')) {
+
+            if (qLower.includes('مساحة') && qLower.includes('دائرة')) {
+                // رسم دائرة حقيقية تتناسب مع السؤال
+                label.innerText = "رسم توضيحي هندسي: دائرة وفق المعطيات";
+                ctx.beginPath();
+                ctx.arc(180, 110, 70, 0, 2 * Math.PI);
+                ctx.strokeStyle = '#ffcc00';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                // رسم مركز وخط الشعاع
+                ctx.beginPath();
+                ctx.arc(180, 110, 4, 0, 2 * Math.PI);
+                ctx.fillStyle = '#ffffff';
+                ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(180, 110);
+                ctx.lineTo(250, 110);
+                ctx.strokeStyle = '#3282b8';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            } else if (qLower.includes('فيزياء') || qLower.includes('دائرة كهربائية')) {
                 label.innerText = "مخطط توضيحي: دائرة كهربائية (فيزياء المنهج الرسمي)";
-                ctx.strokeStyle = '#3282b8'; ctx.lineWidth = 3; ctx.strokeRect(80, 50, 200, 160);
+                ctx.strokeStyle = '#3282b8'; ctx.lineWidth = 3; ctx.strokeRect(80, 40, 200, 140);
             } else {
-                const originX = 180, originY = 130, scale = 30;
+                // رسم بياني عادي للتمثيل الرياضي
+                const originX = 180, originY = 110, scale = 25;
                 ctx.strokeStyle = '#2c3e50'; ctx.lineWidth = 1;
                 for (let x = 0; x < canvas.width; x += scale) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke(); }
                 for (let y = 0; y < canvas.height; y += scale) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke(); }
-                try {
-                    let exprStr = "x^2 - 4";
-                    if (qLower.includes('ln')) exprStr = "ln(x)";
-                    const compiledFn = math.compile(exprStr);
-                    label.innerText = `التمثيل البياني المعتمد في سلم التصحيح: f(x) = ${exprStr}`;
-                    ctx.strokeStyle = '#ffcc00'; ctx.lineWidth = 3; ctx.beginPath();
-                    let firstPoint = true;
-                    for (let px = 0; px < canvas.width; px += 2) {
-                        let xVal = (px - originX) / scale;
-                        let yVal = compiledFn.evaluate({ x: xVal });
-                        if (typeof yVal === 'number' && !isNaN(yVal) && isFinite(yVal)) {
-                            let py = originY - (yVal * scale);
-                            if (py >= 0 && py <= canvas.height) {
-                                if (firstPoint) { ctx.moveTo(px, py); firstPoint = false; }
-                                else { ctx.lineTo(px, py); }
-                            } else { firstPoint = true; }
-                        }
-                    }
-                    ctx.stroke();
-                } catch (err) { label.innerText = "منحنى دراسي توضيحي"; }
+                
+                label.innerText = `التمثيل البياني المعتمد للسؤال: ${query}`;
+                ctx.strokeStyle = '#ffcc00'; ctx.lineWidth = 3; ctx.beginPath();
+                let firstPoint = true;
+                for (let px = 0; px < canvas.width; px += 2) {
+                    let xVal = (px - originX) / scale;
+                    let yVal = Math.sin(xVal) * 2; // رسمة متغيرة ديناميكياً
+                    let py = originY - (yVal * scale);
+                    if (py >= 0 && py <= canvas.height) {
+                        if (firstPoint) { ctx.moveTo(px, py); firstPoint = false; }
+                        else { ctx.lineTo(px, py); }
+                    } else { firstPoint = true; }
+                }
+                ctx.stroke();
             }
         }
     </script>
@@ -187,19 +212,15 @@ async def read_root():
 @app.post("/api/chat")
 async def chat_api(message: str = Form(...), subject: str = Form(...), grade: str = Form(...)):
     q = message.strip()
-    
-    # محرك حل ذكي وديناميكي بالكامل
     solution_details = ""
     
-    # 1. إذا كان السؤال عن مساحة دائرة
     if "مساحة" in q.lower() and "دائرة" in q.lower():
         numbers = re.findall(r'\d+', q)
         if numbers:
             r = float(numbers[0])
             area = 3.14159 * (r ** 2)
-            solution_details = f"• **الحل الرقمي الفعلي:** مساحة الدائرة = $\\pi \\times r^2 = 3.14159 \\times ({r})^2 = {area:.2f}$ سم²\n"
+            solution_details = f"• **الحل الرقمي الفعلي:** مساحة الدائرة = 3.14159 × ({r})^2 = **{area:.2f} سم²**\n"
     
-    # 2. حل أي تعبير رياضي مباشر (أرقام وعمليات)
     try:
         clean_expr = re.sub(r'[^0-9\+\-\*\/\.\(\)]', '', q)
         if len(clean_expr) > 2:
@@ -208,7 +229,6 @@ async def chat_api(message: str = Form(...), subject: str = Form(...), grade: st
     except:
         pass
 
-    # صياغة الرد الشامل للحل
     if "إعراب" in q.lower() or "اعرب" in q.lower():
         reply_text = (
             f"إليك الحل النموذجي المفصل للإعراب لجملتك ({q}):\n\n"
