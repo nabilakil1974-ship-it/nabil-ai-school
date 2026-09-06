@@ -14,16 +14,27 @@ from app.services.rag_search import search_book_pages, build_context_block
 router = APIRouter()
 
 SYSTEM_PROMPT = """
-أنت الأستاذ نبيل، معلم رقمي خبير ومحترف بالمنهج اللبناني الرسمي (CRDP). 
+انت الأستاذ نبيل، معلم رقمي خبير بالمنهج اللبناني الرسمي (CRDP). 
 
-قواعد صارمة وإجبارية لكل إجابة:
-1. الشرح والتفاعل: ابدأ الشرح والتفاعل مع الطالب بلغة التوجيه أو اللهجة اللبنانية الدافئة واللطيفة.
-2. الحل المفصل: قدم الحل خطوة بخطوة وبدقة رياضية تامة دون أي أخطاء حسابية، مع ذكر النظريات والقوانين.
-3. الخلاصة للدفتر (إجبارية في النهاية): في نهاية الإجابة، ضع قسماً مختصراً للحل النهائي باللغة الأصلية للسؤال أو التمرين (سواء كان إنجليزياً، فرنسياً، أو عربياً فصحى) لكي يتمكن الطالب من نقله على دفتره المدرسي فوراً وبشكل دقيق.
-4. ممنوع منعاً باتاً استخدام أي وسوم تفكير مثل <think>.
+قواعد صارمة لازم تلتزم فيها دايماً بكل الإجابات:
+
+1. كشف اللغة والتكيف الفوري (مهم جداً): 
+    - التزم دائماً بالرد على الطالب **بنفس اللغة التي استخدمها في سؤاله**:
+      * إذا سأل باللغة **الإنجليزية**, أجب بالكامل باللغة **الإنجليزية** بأسلوب تربوي لطيف.
+      * إذا سأل باللغة **الفرنسية**, أجب بالكامل باللغة **فرنسية**.
+      * إذا سأل باللغة **العربية**, أجب باللغة العربية بلهجة لبنانية محكية لطيفة ودافئة (مثل: "أهلاً بك يا بطل!").
+
+2. التمييز الذكي بين السؤال والجواب:
+    - إذا كان سؤاله مسألة جديدة, اشرحها خطوة بخطوة بالاستناد للمنهج.
+    - إذا كان حلاً مقترحاً بخط يده أو بصوته, دقق خطواته وتأكد منها, وإذا وجد خطأ دلّه عليه بمحبة ولطف.
+
+3. في أسئلة الهندسة والبرهان: التزم بالنمط العلمي بوضوح يتناسب مع لغة السؤال.
+
+4. ممنوع نهائياً استخدام أي تنسيق Markdown معقد يفسد الشكل البصري، واستخدم الرموز الرياضية الواضحة. وفورا أجب بالحل النهائي بدون أي كتابة لعمليات التفكير الداخلية أو وسوم think.
 """
 
-FAST_MODEL = "openai/gpt-oss-120b"
+VISION_MODEL = "qwen/qwen3.6-27b"
+TEXT_MODEL = "openai/gpt-oss-120b"
 
 def clean_reply(text: str) -> str:
     if not text:
@@ -63,38 +74,54 @@ async def voice_chat(
         raise HTTPException(500, "GROQ_API_KEY غير مضبوط بإعدادات السيرفر")
 
     client = Groq(api_key=settings.GROQ_API_KEY)
-    
+
     if audio is not None:
         audio_bytes = await audio.read()
         try:
             transcription = client.audio.transcriptions.create(
                 file=(audio.filename or "voice.webm", audio_bytes),
                 model="whisper-large-v3",
-                prompt="Educational context supporting English, French, and Arabic.",
+                prompt="Educational math and science context, supporting English, French, and Arabic.",
                 response_format="text"
             )
             message = transcription.strip()
         except Exception as e:
             raise HTTPException(500, f"خطأ في معالجة الصوت: {str(e)}")
 
-    user_content = []
-    if message:
-        user_content.append({"type": "text", "text": message})
-    else:
-        user_content.append({"type": "text", "text": "حل هذه المسألة بالتفصيل واكتب الخلاصة للدفتر بلغة السؤال الأصلية:"})
-
     if image is not None:
         image_bytes = await image.read()
         encoded_image = base64.b64encode(image_bytes).decode('utf-8')
         mime_type = image.content_type or "image/jpeg"
-        user_content.append({
-            "type": "image_url",
-            "image_url": {
-                "url": f"data:{mime_type};base64,{encoded_image}"
-            }
-        })
-        if not message:
-            message = "[صورة مرفقة للتمرين]"
+
+        try:
+            vision_response = client.chat.completions.create(
+                model=VISION_MODEL,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": "استخرج بدقة نص الأسئلة أو التمرين الموجود في هذه الصورة لكي يتم حله حسب المنهج اللبناني. اكتب النص المستخرج فقط دون مقدمات."},
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:{mime_type};base64,{encoded_image}"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                max_tokens=500,
+            )
+            extracted_text = vision_response.choices[0].message.content or ""
+            if message:
+                message = f"{message}\n{extracted_text}"
+            else:
+                message = extracted_text
+        except Exception as e:
+            print(f"⚠️ خطأ في قراءة الصورة عبر نموذج الرؤية: {e}", flush=True)
+
+    if not message:
+        message = "Hello teacher, please help me."
 
     conversation = None
     if conversation_id:
@@ -121,7 +148,7 @@ async def voice_chat(
         db.query(Message)
         .filter(Message.conversation_id == conversation.id)
         .order_by(Message.created_at.asc())
-        .limit(6)
+        .limit(10)
         .all()
     )
 
@@ -140,31 +167,28 @@ async def voice_chat(
         )
         context_block = build_context_block(source_chunks)
 
+    text_part = message
     if context_block:
-        user_content.insert(0, {"type": "text", "text": context_block})
+        text_part = f"{context_block}\n\nسؤال الطالب: {text_part}"
 
     role_map = {"student": "user", "teacher": "assistant"}
-    history_messages = []
-    for m in previous_messages:
-        history_messages.append({"role": role_map[m.role], "content": m.content})
-
-    messages_payload = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        *history_messages,
-        {"role": "user", "content": user_content}
+    history_messages = [
+        {"role": role_map[m.role], "content": m.content}
+        for m in previous_messages
     ]
 
-    try:
-        completion = client.chat.completions.create(
-            model=FAST_MODEL,
-            messages=messages_payload,
-            max_tokens=3000,
-            temperature=0.2,
-        )
-        raw_content = completion.choices[0].message.content or ""
-    except Exception as e:
-        raw_content = f"عذراً يا بطل، حدث ضغط في الاتصال: {str(e)}"
+    completion = client.chat.completions.create(
+        model=TEXT_MODEL,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            *history_messages,
+            {"role": "user", "content": text_part},
+        ],
+        max_tokens=2000,
+        temperature=0.4,
+    )
 
+    raw_content = completion.choices[0].message.content or ""
     reply_text = clean_reply(raw_content)
 
     db.add(Message(conversation_id=conversation.id, role="teacher", content=reply_text))
