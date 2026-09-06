@@ -21,7 +21,7 @@ SYSTEM_PROMPT = """
 1. كشف اللغة والتكيف الفوري (مهم جداً): 
     - التزم دائماً بالرد على الطالب **بنفس اللغة التي استخدمها في سؤاله**:
       * إذا سأل باللغة **الإنجليزية**، أجب بالكامل باللغة **الإنجليزية** بأسلوب تربوي لطيف.
-      * إذا سأل باللغة **الفرنسية**، أجب بالكامل باللغة **الفرنسية**.
+      * إذا سأل باللغة **الفرنسية**، أجب بالكامل باللغة **فرنسية**.
       * إذا سأل باللغة **العربية**، أجب باللغة العربية بلهجة لبنانية محكية لطيفة ودافئة (مثل: "أهلاً بك يا بطل!").
 
 2. التمييز الذكي بين السؤال والجواب:
@@ -58,10 +58,11 @@ class ChatResponse(BaseModel):
     transcribed_text: Optional[str] = None
 
 
-# نقطة النهاية (Endpoint) الخاصة باستقبال الرسائل الصوتية من المايك
-@router.post("/voice-chat", response_model=ChatResponse)
+# تم تعديل المسار هنا إلى "/chat" ليطابق طلبات الواجهة الأمامية تماماً
+@router.post("/chat", response_model=ChatResponse)
 async def voice_chat(
-    audio: UploadFile = File(...),
+    audio: Optional[UploadFile] = File(None),
+    message: Optional[str] = Form(None),
     student_id: str = Form(...),
     conversation_id: Optional[str] = Form(None),
     subject: Optional[str] = Form(None),
@@ -74,25 +75,23 @@ async def voice_chat(
 
     client = Groq(api_key=settings.GROQ_API_KEY)
     
-    # 1. قراءة الملف الصوتي المرفق من الواجهة الأمامية
-    audio_bytes = await audio.read()
-    
-    # 2. تفريغ الصوت وتحويله لنص باستخدام نموذج Whisper (يدعم الإنجليزية والفرنسية والعربية تلقائياً وبدقة مذهلة)
-    try:
-        transcription = client.audio.transcriptions.create(
-            file=(audio.filename or "voice.webm", audio_bytes),
-            model="whisper-large-v3",
-            prompt="Educational math and science context, supporting English, French, and Arabic.",
-            response_format="text"
-        )
-        message = transcription.strip()
-    except Exception as e:
-        raise HTTPException(500, f"خطأ في معالجة الصوت: {str(e)}")
+    # تفريغ الصوت في حال تم إرسال ملف صوتي، أو استخدام النص المباشر
+    if audio is not None:
+        audio_bytes = await audio.read()
+        try:
+            transcription = client.audio.transcriptions.create(
+                file=(audio.filename or "voice.webm", audio_bytes),
+                model="whisper-large-v3",
+                prompt="Educational math and science context, supporting English, French, and Arabic.",
+                response_format="text"
+            )
+            message = transcription.strip()
+        except Exception as e:
+            raise HTTPException(500, f"خطأ في معالجة الصوت: {str(e)}")
 
     if not message:
         message = "Hello teacher, please help me."
 
-    # 3. متابعة نفس منطق الشات الطبيعي بعد استخراج النص الصوتي
     conversation = None
     if conversation_id:
         conversation = db.query(Conversation).filter_by(id=conversation_id).first()
@@ -122,7 +121,7 @@ async def voice_chat(
         .all()
     )
 
-    db.add(Message(conversation_id=conversation.id, role="student", content=f"[صوت] {message}"))
+    db.add(Message(conversation_id=conversation.id, role="student", content=message))
     db.commit()
 
     context_block = ""
