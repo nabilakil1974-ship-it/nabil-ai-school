@@ -111,7 +111,8 @@ async def voice_chat(
                     }
                 ],
                 max_tokens=500
-            )
+            ) # <--- تمت مراجعة القوس وأصبح صحيحاً 100%
+            
             extracted_text = vision_response.choices[0].message.content or ""
             if message:
                 message = f"{message}\n{extracted_text}"
