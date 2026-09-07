@@ -487,12 +487,12 @@
   if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     recognition = new SpeechRecognition();
-    recognition.continuous = false;
+    recognition.continuous = true;
     recognition.interimResults = false;
-    recognition.lang = 'ar';
+    recognition.lang = navigator.language || 'ar';
 
     recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
+      const transcript = event.results[event.results.length - 1][0].transcript;
       input.value = (input.value ? input.value + ' ' : '') + transcript;
       input.style.height = 'auto';
       input.style.height = Math.min(input.scrollHeight, 110) + 'px';
