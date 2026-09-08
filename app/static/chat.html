@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>الأستاذ نبيل - النظام الذكي المدمج (Super-Nabil AI)</title>
+<title>الأستاذ نبيل - النظام الأكاديمي الخارق والمصحح</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;800&family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
 <style>
@@ -155,7 +155,7 @@
     border: 1px solid var(--border-color);
   }
 
-  /* نظام البطاقات المدمجة (Claude + ChatGPT + Gemini) */
+  /* بطاقة الحل الدقيقة علمياً */
   .super-card {
     background: #FFFFFF;
     border-radius: 12px;
@@ -313,7 +313,7 @@
       <div class="avatar" id="avatarBox">ن</div>
       <div>
         <h1>الأستاذ نبيل</h1>
-        <div class="subtitle">النظام الذكي المدمج (قوة Claude + ChatGPT + Gemini)</div>
+        <div class="subtitle">النظام التعليمي المطور (حل كامل + دقة علمية + تثبيت بالفهم)</div>
       </div>
     </div>
     <div class="setup-row">
@@ -325,8 +325,8 @@
 
   <div class="chat-area" id="chatArea">
     <div class="empty-state" id="emptyState">
-      <b>جاهز لتدريسك بأعلى مستوى ذكاء على الإطلاق!</b>
-      ارفع أسئلتك وصور الدروس، وسيقوم النظام بتقديم الشرح الأكاديمي، القوانين الدقيقة، والحل الرياضي النموذجي.
+      <b>جاهز لتدريسك بأعلى دقة علمية وتنسيق!</b>
+      ارفع أسئلتك، وسيقوم الأستاذ نبيل بتقديم الشرح الأكاديمي المصحح والنموذجي.
     </div>
   </div>
 
@@ -504,19 +504,18 @@
     if (!isListening) startListening(); else stopListening();
   });
 
-  // صياغة البطاقة الخارقة المدمجة
   function buildSuperCard(rawText) {
     const card = document.createElement("div");
     card.className = "super-card";
 
     card.innerHTML = `
       <div class="super-header">
-        <span>⚡ النظام الذكي المدمج (Claude + ChatGPT + Gemini)</span>
-        <span style="font-size:12px; font-weight:500; color:#F4D06F;">شرح أكاديمي فائق</span>
+        <span>⚡ الأستاذ نبيل - الحل الأكاديمي الدقيق والمصحح</span>
+        <span style="font-size:12px; font-weight:500; color:#F4D06F;">شرح + فهم + تثبيت</span>
       </div>
       <div class="super-body">
         <div class="super-section">
-          <div class="super-sec-title">📌 فهم المعطيات والتحليل</div>
+          <div class="super-sec-title">📌 التحليل العلمي والخطوات النموذجية</div>
           <div>${rawText}</div>
         </div>
       </div>
@@ -640,7 +639,7 @@
       addMessage("teacher", data.reply, data.sources, null);
     }catch(err){
       hideTyping();
-      addMessage("teacher", "عذراً يا بطل، حدث خطأ في النظام الخارق، جرب إرسال السؤال مرة أخرى 🙏");
+      addMessage("teacher", "عذراً يا بطل، حدث خطأ في النظام التعليمي، جرب إرسال السؤال مرة أخرى 🙏");
       console.error(err);
     }finally{
       sendBtn.disabled = false;
