@@ -181,13 +181,15 @@ async def voice_chat(
         db.commit()
         db.refresh(conversation)
 
-    # 4. استرجاع كامل رسائل المحادثة السابقة لضمان استمرارية السياق
+    # 4. استرجاع آخر 6 رسائل فقط من المحادثة لضمان عدم تجاوز حدود التوكنات (Rate Limit / TPM)
     previous_messages = (
         db.query(Message)
         .filter(Message.conversation_id == conversation.id)
-        .order_by(Message.created_at.asc())
+        .order_by(Message.created_at.desc())
+        .limit(6)
         .all()
     )
+    previous_messages.reverse()  # إعادة ترتيبها لتصبح من الأقدم للأحدث
 
     # حفظ رسالة الطالب الجديدة في قاعدة البيانات
     db.add(Message(conversation_id=conversation.id, role="student", content=message))
