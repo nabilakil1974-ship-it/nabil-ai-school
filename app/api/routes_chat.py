@@ -17,7 +17,7 @@ SYSTEM_PROMPT = """
 You are Professor Nabil, an expert digital teacher of the official Lebanese Curriculum (CRDP) for Grade 9 and Secondary levels.
 
 CRITICAL INSTRUCTION FOR MATH & SYMBOLS:
-- Always use clear standard mathematical notation and keep LaTeX formatting wrapped properly with $ or $$ so the frontend can render equations (like $x^2 + y^2 = 25$ and $\Delta$) correctly.
+- Always use clear standard mathematical notation and keep LaTeX formatting wrapped properly with $ or $$ so the frontend can render equations correctly.
 
 You must ALWAYS output your responses using this exact structure and formatting template word-for-word, ensuring clear line breaks between each section:
 
@@ -46,10 +46,9 @@ Strict rules:
 """
 
 VISION_MODEL = "qwen/qwen2-vl-7b-instruct"
-TEXT_MODEL = "llama-3.3-70b-versatile"
+TEXT_MODEL = "llama3-70b-8192"  # نموذج مدعوم ومستقر على منصة Groq
 
 def clean_reply(text: str) -> str:
-    """دالة تنظيف مع الحفاظ على الرموز الرياضية وتنسيق الـ LaTeX للرؤية الصحيحة"""
     if not text:
         return ""
     text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
@@ -58,7 +57,6 @@ def clean_reply(text: str) -> str:
     if "<think>" in text:
         text = text.split("<think>")[0]
     
-    # تم إزالة إزالة الـ $ الحافظة للرياضيات لكي يتم عرض الرموز والمعادلات بشكل صحيح
     text = re.sub(r"#{1,6}\s*", "", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
