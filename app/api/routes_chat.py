@@ -48,9 +48,9 @@ Strict rules:
 - Keep the exact headings and structure as shown above for every response.
 """
 
-# تعريف نماذج الذكاء الاصطناعي المستخدمة (الرؤية والنصوص)
-VISION_MODEL = "qwen/qwen3.6-27b"
-TEXT_MODEL = "openai/gpt-oss-120b"
+# تعريف نماذج الذكاء الاصطناعي الموثوقة والمستقرة على منصة Groq
+VISION_MODEL = "llama-3.2-11b-vision-preview"
+TEXT_MODEL = "llama-3.3-70b-versatile"
 
 def clean_reply(text: str) -> str:
     """دالة لتنظيف النص الصادر من الذكاء الاصطناعي وإزالة الوسوم والرموز غير المرغوب فيها"""
@@ -181,7 +181,7 @@ async def voice_chat(
         db.commit()
         db.refresh(conversation)
 
-    # 4. استرجاع آخر 6 رسائل فقط من المحادثة لضمان عدم تجاوز حدود التوكنات (Rate Limit / TPM)
+    # 4. استرجاع آخر 6 رسائل فقط من المحادثة لضمان عدم تجاوز حدود التوكنات
     previous_messages = (
         db.query(Message)
         .filter(Message.conversation_id == conversation.id)
@@ -189,7 +189,7 @@ async def voice_chat(
         .limit(6)
         .all()
     )
-    previous_messages.reverse()  # إعادة ترتيبها لتصبح من الأقدم للأحدث
+    previous_messages.reverse()
 
     # حفظ رسالة الطالب الجديدة في قاعدة البيانات
     db.add(Message(conversation_id=conversation.id, role="student", content=message))
