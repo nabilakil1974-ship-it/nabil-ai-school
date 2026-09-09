@@ -11,16 +11,10 @@ from app.db.session import get_db
 from app.db.models import Conversation, Message, Student
 from app.services.rag_search import search_book_pages, build_context_block
 
-# إنشاء موجه المسارات الخاص بـ FastAPI
 router = APIRouter()
 
-# البرومبت الأساسي الذي يحدد شخصية وقواعد الأستاذ نبيل وتنسيق البطاقة الأكاديمية مع قسم الرسم الهندسي
 SYSTEM_PROMPT = """
 You are Professor Nabil, an expert digital teacher of the official Lebanese Curriculum (CRDP) for Grade 9 and Secondary levels.
-
-CRITICAL DRAWING & GEOMETRIC INSTRUCTION:
-- Whenever a student asks a geometry problem involving shapes (like a circle with diameter AB, tangent lines at point A, external points like M, and secants/tangents), you MUST include a clear geometric construction or precise step-by-step layout breakdown in your response.
-- Ensure the description and layout strictly adhere to the exact names of points, diameters, and tangent conditions given in the student's question without altering any labels.
 
 You must ALWAYS output your responses using this exact structure and formatting template word-for-word, ensuring clear line breaks between each section:
 
@@ -30,7 +24,7 @@ You must ALWAYS output your responses using this exact structure and formatting 
 - [Write the given information here]
 
 **الرسم التوضيحي الهندسي (Geometric Construction):**  
-- [Describe the exact geometrical layout and figures matching the question, e.g., Circle with diameter AB, tangent at A, point M, etc.]
+- [Describe the exact geometrical layout and figures matching the question]
 
 **القانون المستخدم / النظريات (Formula / Property):**  
 - [Write formulas or properties here]
@@ -48,20 +42,13 @@ Strict rules:
 - Keep the exact headings and structure as shown above for every response.
 """
 
-# تعريف نماذج الذكاء الاصطناعي المستخدمة (الرؤية والنصوص)
-VISION_MODEL = "qwen/qwen3.6-27b"
-TEXT_MODEL = "openai/gpt-oss-120b"
+VISION_MODEL = "qwen/qwen2-vl-7b-instruct"
+TEXT_MODEL = "llama-3.3-70b-versatile"  # نموذج يدعم سياقاً مرناً على منصة Groq
 
 def clean_reply(text: str) -> str:
-    """دالة لتنظيف النص الصادر من الذكاء الاصطناعي وإزالة الوسوم والرموز غير المرغوب فيها"""
     if not text:
         return ""
     text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
-    if "</think>" in text:
-        text = text.split("</think>")[-1]
-    if "<think>" in text:
-        text = text.split("<think>")[0]
-
     text = re.sub(r"\\text\{([^}]*)\}", r"\1", text)
     text = re.sub(r"\\\((.*?)\\\)", r"\1", text, flags=re.DOTALL)
     text = re.sub(r"\\\[(.*?)\\\]", r"\1", text, flags=re.DOTALL)
@@ -75,7 +62,6 @@ def clean_reply(text: str) -> str:
     return text.strip()
 
 class ChatResponse(BaseModel):
-    """نموذج بيانات الاستجابة المُرسلة إلى الواجهة الأمامية"""
     conversation_id: str
     reply: str
     sources: list[dict] = []
@@ -84,37 +70,33 @@ class ChatResponse(BaseModel):
 
 @router.post("/chat", response_model=ChatResponse)
 async def voice_chat(
-    audio: Optional[UploadFile] = File(None),              # استقبال ملف الصوت (إن وجد)
-    image: Optional[UploadFile] = File(None),              # استقبال الصورة المرفقة (إن وجدت)
-    message: Optional[str] = Form(None),                   # النص المكتوب من المستخدم
-    student_id: str = Form(...),                           # معرف الطالب
-    conversation_id: Optional[str] = Form(None),           # معرف المحادثة الحالي للحفاظ على الذاكرة
-    subject: Optional[str] = Form(None),                   # المادة الدراسية
-    grade: Optional[str] = Form(None),                     # الصف الدراسي
-    curriculum: Optional[str] = Form(None),                # المنهج المعتمد
-    db: Session = Depends(get_db)                          # اتصال قاعدة البيانات
+    audio: Optional[UploadFile] = File(None),
+    image: Optional[UploadFile] = File(None),
+    message: Optional[str] = Form(None),
+    student_id: str = Form(...),
+    conversation_id: Optional[str] = Form(None),
+    subject: Optional[str] = Form(None),
+    grade: Optional[str] = Form(None),
+    curriculum: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
 ):
-    # التحقق من وجود مفتاح API الخاص بـ Groq
     if not settings.GROQ_API_KEY:
         raise HTTPException(500, "GROQ_API_KEY غير مضبوط بإعدادات السيرفر")
 
     client = Groq(api_key=settings.GROQ_API_KEY)
 
-    # 1. معالجة الملف الصوتي وتحويله لنص عبر Whisper
     if audio is not None:
         audio_bytes = await audio.read()
         try:
             transcription = client.audio.transcriptions.create(
                 file=(audio.filename or "voice.webm", audio_bytes),
                 model="whisper-large-v3",
-                prompt="Educational math and science context, supporting English, French, and Arabic.",
                 response_format="text"
             )
             message = transcription.strip()
         except Exception as e:
             raise HTTPException(500, f"خطأ في معالجة الصوت: {str(e)}")
 
-    # 2. معالجة الصورة المرفقة واستخراج التمارين منها عبر نموذج الرؤية (مع تقليص الـ max_tokens لمنع تجاوز الحد)
     if image is not None:
         image_bytes = await image.read()
         encoded_image = base64.b64encode(image_bytes).decode('utf-8')
@@ -127,51 +109,28 @@ async def voice_chat(
                     {
                         "role": "user",
                         "content": [
-                            {
-                                "type": "text", 
-                                "text": (
-                                    "Analyze this image thoroughly as an expert Lebanese curriculum mathematics teacher. "
-                                    "1. Extract all given information and hypotheses (Given). "
-                                    "2. Describe the geometric diagram and figures shown in the image (circles, lines, tangent points, angles, labels). "
-                                    "3. Read all sub-questions (Part a, Part b, Part c, etc.). "
-                                    "Provide a structured transcription of the entire exercise so Professor Nabil can solve it directly step-by-step."
-                                )
-                            },
-                            {
-                                "image_url": {
-                                    "url": f"data:{mime_type};base64,{encoded_image}"
-                                },
-                                "type": "image_url"
-                            }
+                            {"type": "text", "text": "Extract problem text briefly."},
+                            {"image_url": {"url": f"data:{mime_type};base64,{encoded_image}"}, "type": "image_url"}
                         ]
                     }
                 ],
-                max_tokens=500,  # تم التقليص لمنع استهلاك رموز ضخمة
+                max_tokens=150,
             )
             extracted_text = vision_response.choices[0].message.content or ""
-            if message:
-                message = f"{message}\n{extracted_text}"
-            else:
-                message = extracted_text
+            message = f"{message}\n{extracted_text}" if message else extracted_text
         except Exception as e:
-            print(f"⚠️ خطأ في قراءة الصورة عبر نموذج الرؤية: {e}", flush=True)
+            print(f"⚠️ خطأ في قراءة الصورة: {e}", flush=True)
 
     if not message:
-        message = "Hello teacher, please help me."
+        message = "مرحباً أستاذ، يرجى مساعدتي في هذا التمرين."
 
-    # 3. إدارة جلسات المحادثة والطلاب في قاعدة البيانات
     conversation = None
     if conversation_id:
         conversation = db.query(Conversation).filter_by(id=conversation_id).first()
 
     student = db.query(Student).filter_by(id=student_id).first()
     if student is None:
-        student = Student(
-            id=student_id,
-            name=student_id,
-            grade=grade or "غير محدد",
-            preferred_language="ar-LB",
-        )
+        student = Student(id=student_id, name=student_id, grade=grade or "غير محدد", preferred_language="ar-LB")
         db.add(student)
         db.commit()
 
@@ -181,45 +140,39 @@ async def voice_chat(
         db.commit()
         db.refresh(conversation)
 
-    # 4. استرجاع آخر الرسائل السابقة فقط (آخر 6 رسائل) لتجنب تضخم الـ Tokens وتجاوز الحدود
+    # تقليص الذاكرة السابقة لآخر رسالة واحدة فقط لمنع أي تضخم في الـ Tokens
     previous_messages = (
         db.query(Message)
         .filter(Message.conversation_id == conversation.id)
         .order_by(Message.created_at.desc())
-        .limit(6)
+        .limit(1)
         .all()
     )
-    previous_messages.reverse()  # إعادة ترتيبها لتصبح بالتسلسل الزمني الصحيح
+    previous_messages.reverse()
 
-    # حفظ رسالة الطالب الجديدة في قاعدة البيانات
     db.add(Message(conversation_id=conversation.id, role="student", content=message))
     db.commit()
 
-    # 5. البحث في الكتب المدرسية (RAG) لإحضار الصفحات والمصادر ذات الصلة
+    # البحث في الكتب مع تقليص النتيجة لتكون آمنة جداً ضد الـ 413
     context_block = ""
     source_chunks = []
     if subject and grade and curriculum and message:
-        source_chunks = search_book_pages(
-            db=db,
-            query=message,
-            subject=subject,
-            grade=grade,
-            curriculum=curriculum,
-        )
+        source_chunks = search_book_pages(db=db, query=message, subject=subject, grade=grade, curriculum=curriculum)
+        # أخذ أول نتيجة فقط أو تقليص حجم الـ Context المضاف لمنع تجاوز السقف
+        if source_chunks:
+            source_chunks = source_chunks[:1] 
         context_block = build_context_block(source_chunks)
 
     text_part = message
     if context_block:
         text_part = f"{context_block}\n\nStudent Question: {text_part}"
 
-    # تجهيز سجل المحادثات لإرساله إلى نموذج الذكاء الاصطناعي
     role_map = {"student": "user", "teacher": "assistant"}
     history_messages = [
         {"role": role_map[m.role], "content": m.content}
         for m in previous_messages
     ]
 
-    # 6. إرسال الطلب والسياق المحدود إلى نموذج النصوص لتوليد الرد الأكاديمي
     completion = client.chat.completions.create(
         model=TEXT_MODEL,
         messages=[
@@ -227,18 +180,16 @@ async def voice_chat(
             *history_messages,
             {"role": "user", "content": text_part},
         ],
-        max_tokens=2000,
-        temperature=0.4,
+        max_tokens=800,  # تقليل الحد الأقصى لرد النموذج لكي يتوافق مع قيود الـ TPM المجانية
+        temperature=0.3,
     )
 
     raw_content = completion.choices[0].message.content or ""
     reply_text = clean_reply(raw_content)
 
-    # حفظ رد الأستاذ نبيل في قاعدة البيانات
     db.add(Message(conversation_id=conversation.id, role="teacher", content=reply_text))
     db.commit()
 
-    # إرجاع الاستجابة النهائية للواجهة
     return ChatResponse(
         conversation_id=conversation.id,
         reply=reply_text,
