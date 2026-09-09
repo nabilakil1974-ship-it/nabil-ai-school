@@ -87,7 +87,7 @@ async def voice_chat(
     audio: Optional[UploadFile] = File(None),              # استقبال ملف الصوت (إن وجد)
     image: Optional[UploadFile] = File(None),              # استقبال الصورة المرفقة (إن وجدت)
     message: Optional[str] = Form(None),                   # النص المكتوب من المستخدم
-    student_id: str = Form(...),                         # معرف الطالب
+    student_id: str = Form(...),                           # معرف الطالب
     conversation_id: Optional[str] = Form(None),           # معرف المحادثة الحالي للحفاظ على الذاكرة
     subject: Optional[str] = Form(None),                   # المادة الدراسية
     grade: Optional[str] = Form(None),                     # الصف الدراسي
@@ -114,7 +114,7 @@ async def voice_chat(
         except Exception as e:
             raise HTTPException(500, f"خطأ في معالجة الصوت: {str(e)}")
 
-    # 2. معالجة الصورة المرفقة واستخراج التمارين منها عبر نموذج الرؤية (معدل ليقرأ الرسمة والأسئلة الفرعية بالكامل)
+    # 2. معالجة الصورة المرفقة واستخراج التمارين منها عبر نموذج الرؤية (مع تقليص الـ max_tokens لمنع تجاوز الحد)
     if image is not None:
         image_bytes = await image.read()
         encoded_image = base64.b64encode(image_bytes).decode('utf-8')
@@ -146,7 +146,7 @@ async def voice_chat(
                         ]
                     }
                 ],
-                max_tokens=1000,
+                max_tokens=500,  # تم التقليص لمنع استهلاك رموز ضخمة
             )
             extracted_text = vision_response.choices[0].message.content or ""
             if message:
@@ -181,13 +181,15 @@ async def voice_chat(
         db.commit()
         db.refresh(conversation)
 
-    # 4. استرجاع كامل رسائل المحادثة السابقة (بدون حد أقصى) لضمان تذكر كل الصور والتمارين السابقة
+    # 4. استرجاع آخر الرسائل السابقة فقط (آخر 6 رسائل) لتجنب تضخم الـ Tokens وتجاوز الحدود
     previous_messages = (
         db.query(Message)
         .filter(Message.conversation_id == conversation.id)
-        .order_by(Message.created_at.asc())
-        .all()  # جلب كافة سجل المحادثة لضمان استمرارية السياق
+        .order_by(Message.created_at.desc())
+        .limit(6)
+        .all()
     )
+    previous_messages.reverse()  # إعادة ترتيبها لتصبح بالتسلسل الزمني الصحيح
 
     # حفظ رسالة الطالب الجديدة في قاعدة البيانات
     db.add(Message(conversation_id=conversation.id, role="student", content=message))
@@ -217,7 +219,7 @@ async def voice_chat(
         for m in previous_messages
     ]
 
-    # 6. إرسال الطلب والسياق الكامل إلى نموذج النصوص لتوليد الرد الأكاديمي
+    # 6. إرسال الطلب والسياق المحدود إلى نموذج النصوص لتوليد الرد الأكاديمي
     completion = client.chat.completions.create(
         model=TEXT_MODEL,
         messages=[
