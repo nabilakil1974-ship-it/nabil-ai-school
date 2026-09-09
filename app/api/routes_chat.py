@@ -114,7 +114,7 @@ async def voice_chat(
         except Exception as e:
             raise HTTPException(500, f"خطأ في معالجة الصوت: {str(e)}")
 
-    # 2. معالجة الصورة المرفقة واستخراج التمارين منها عبر نموذج الرؤية
+    # 2. معالجة الصورة المرفقة واستخراج التمارين منها عبر نموذج الرؤية (معدل ليقرأ الرسمة والأسئلة الفرعية بالكامل)
     if image is not None:
         image_bytes = await image.read()
         encoded_image = base64.b64encode(image_bytes).decode('utf-8')
@@ -127,7 +127,16 @@ async def voice_chat(
                     {
                         "role": "user",
                         "content": [
-                            {"type": "text", "text": "Extract precisely the text of the exercise from this image according to the Lebanese curriculum. Write only the extracted text."},
+                            {
+                                "type": "text", 
+                                "text": (
+                                    "Analyze this image thoroughly as an expert Lebanese curriculum mathematics teacher. "
+                                    "1. Extract all given information and hypotheses (Given). "
+                                    "2. Describe the geometric diagram and figures shown in the image (circles, lines, tangent points, angles, labels). "
+                                    "3. Read all sub-questions (Part a, Part b, Part c, etc.). "
+                                    "Provide a structured transcription of the entire exercise so Professor Nabil can solve it directly step-by-step."
+                                )
+                            },
                             {
                                 "image_url": {
                                     "url": f"data:{mime_type};base64,{encoded_image}"
@@ -137,7 +146,7 @@ async def voice_chat(
                         ]
                     }
                 ],
-                max_tokens=500,
+                max_tokens=1000,
             )
             extracted_text = vision_response.choices[0].message.content or ""
             if message:
