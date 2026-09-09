@@ -4,8 +4,8 @@ from fastapi.responses import FileResponse
 from sqlalchemy import text
 from app.core.config import settings
 from app.db.session import Base, engine
-from app.api import routes_health, routes_chat, routes_admin
 
+# 1. تهيئة قاعدة البيانات والإعدادات أولاً
 with engine.connect() as conn:
     conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
     conn.commit()
@@ -16,11 +16,7 @@ if settings.GOOGLE_DRIVE_CREDENTIALS_JSON:
 
 Base.metadata.create_all(bind=engine)
 
-from app.services.rag_search import get_model
-print("⏳ تحميل موديل الفهم اللغوي (مرة وحدة فقط)...", flush=True)
-get_model()
-print("✅ الموديل جاهز بالذاكرة.", flush=True)
-
+# 2. إنشاء تطبيق FastAPI أولاً (قبل استيراد أي راوتر لكسر حلقة الاستيراد الدائري)
 app = FastAPI(title=settings.PROJECT_NAME)
 
 app.add_middleware(
@@ -29,6 +25,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 3. استيراد الروترات وربطها بعد إنشاء app مباشرة
+from app.api import routes_health, routes_chat, routes_admin
 
 app.include_router(routes_health.router, prefix="/api", tags=["health"])
 app.include_router(routes_chat.router, prefix="/api", tags=["chat"])
