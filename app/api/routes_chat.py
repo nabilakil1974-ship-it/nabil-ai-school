@@ -48,9 +48,9 @@ Strict rules:
 - Keep the exact headings and structure as shown above for every response.
 """
 
-# تعريف نماذج الذكاء الاصطناعي الموثوقة والمستقرة على منصة Groq
+# استخدام النموذج القديم الذي كان شغالاً معك بدون أخطاء 404
 VISION_MODEL = "llama-3.2-11b-vision-preview"
-TEXT_MODEL = "llama-3.3-70b-versatile"
+TEXT_MODEL = "llama3-70b-8192"
 
 def clean_reply(text: str) -> str:
     """دالة لتنظيف النص الصادر من الذكاء الاصطناعي وإزالة الوسوم والرموز غير المرغوب فيها"""
@@ -195,18 +195,23 @@ async def voice_chat(
     db.add(Message(conversation_id=conversation.id, role="student", content=message))
     db.commit()
 
-    # 5. البحث في الكتب المدرسية (RAG) لإحضار الصفحات والمصادر ذات الصلة
+    # 5. البحث في الكتب المدرسية (RAG) بشكل آمن تماماً
     context_block = ""
     source_chunks = []
-    if subject and grade and curriculum and message:
-        source_chunks = search_book_pages(
-            db=db,
-            query=message,
-            subject=subject,
-            grade=grade,
-            curriculum=curriculum,
-        )
-        context_block = build_context_block(source_chunks)
+    try:
+        if subject and grade and curriculum and message:
+            source_chunks = search_book_pages(
+                db=db,
+                query=message,
+                subject=subject,
+                grade=grade,
+                curriculum=curriculum,
+            )
+            context_block = build_context_block(source_chunks)
+    except Exception as e:
+        print(f"⚠️ تنبيه RAG: {e}", flush=True)
+        context_block = ""
+        source_chunks = []
 
     text_part = message
     if context_block:
@@ -219,7 +224,7 @@ async def voice_chat(
         for m in previous_messages
     ]
 
-    # 6. إرسال الطلب والسياق الكامل إلى نموذج النصوص لتوليد الرد الأكاديمي
+    # 6. إرسال الطلب والسياق الكامل إلى نموذج النصوص المعتمد القديم
     completion = client.chat.completions.create(
         model=TEXT_MODEL,
         messages=[
