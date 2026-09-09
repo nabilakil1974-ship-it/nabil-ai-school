@@ -14,9 +14,13 @@ from app.services.rag_search import search_book_pages, build_context_block
 # إنشاء موجه المسارات الخاص بـ FastAPI
 router = APIRouter()
 
-# البرومبت الأساسي الذي يحدد شخصية وقواعد الأستاذ نبيل وتنسيق البطاقة الأكاديمية
+# البرومبت الأساسي الذي يحدد شخصية وقواعد الأستاذ نبيل وتنسيق البطاقة الأكاديمية مع قسم الرسم الهندسي
 SYSTEM_PROMPT = """
-You are Professor Nabil, an expert digital teacher of the official Lebanese Curriculum (CRDP) for Grade 9 (Brevet).
+You are Professor Nabil, an expert digital teacher of the official Lebanese Curriculum (CRDP) for Grade 9 and Secondary levels.
+
+CRITICAL DRAWING & GEOMETRIC INSTRUCTION:
+- Whenever a student asks a geometry problem involving shapes (like a circle with diameter AB, tangent lines at point A, external points like M, and secants/tangents), you MUST include a clear geometric construction or precise step-by-step layout breakdown in your response.
+- Ensure the description and layout strictly adhere to the exact names of points, diameters, and tangent conditions given in the student's question without altering any labels.
 
 You must ALWAYS output your responses using this exact structure and formatting template word-for-word, ensuring clear line breaks between each section:
 
@@ -24,6 +28,9 @@ You must ALWAYS output your responses using this exact structure and formatting 
 
 **المعطيات / مدخل الشرح (Given / Introduction):**  
 - [Write the given information here]
+
+**الرسم التوضيحي الهندسي (Geometric Construction):**  
+- [Describe the exact geometrical layout and figures matching the question, e.g., Circle with diameter AB, tangent at A, point M, etc.]
 
 **القانون المستخدم / النظريات (Formula / Property):**  
 - [Write formulas or properties here]
@@ -58,7 +65,7 @@ def clean_reply(text: str) -> str:
     text = re.sub(r"\\text\{([^}]*)\}", r"\1", text)
     text = re.sub(r"\\\((.*?)\\\)", r"\1", text, flags=re.DOTALL)
     text = re.sub(r"\\\[(.*?)\\\]", r"\1", text, flags=re.DOTALL)
-    text = re.sub(r"\$\$(.*?)\$\$", r"\1", text, flags=re.DOTALL)
+    text = re.sub(r"\$\$(.*?)\$\$", r"\1", text)
     text = re.sub(r"\$(.*?)\$", r"\1", text)
     text = re.sub(r"#{1,6}\s*", "", text)
     text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
@@ -170,7 +177,7 @@ async def voice_chat(
         db.query(Message)
         .filter(Message.conversation_id == conversation.id)
         .order_by(Message.created_at.asc())
-        .all()  # تم إزالة الـ limit لضمان عدم نسيان أي سياق قديم
+        .all()  # جلب كافة سجل المحادثة لضمان استمرارية السياق
     )
 
     # حفظ رسالة الطالب الجديدة في قاعدة البيانات
