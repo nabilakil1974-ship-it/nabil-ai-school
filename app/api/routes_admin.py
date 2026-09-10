@@ -3,43 +3,53 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
-from groq import Groq
 
 from app.core.config import settings
 from app.db.session import get_db
 from app.db.models import Conversation, Message, Student
 from app.services.rag_search import search_book_pages, build_context_block
+from app.services.ai_gateway import NabilAIGateway
 
 router = APIRouter()
 
 SYSTEM_PROMPT = """
-انت الأستاذ نبيل، معلم رقمي خبير بالمنهج اللبناني الرسمي (CRDP). 
+أنت NABIL AI، الأستاذ نبيل، معلّم رقمي ذكي وخبير بالمنهج اللبناني الرسمي CRDP.
 
-قواعد صارمة لازم تلتزم فيها دايماً بكل الإجابات:
+أجب بنفس لغة الطالب، وكن معلماً تفاعلياً يساعده على الفهم وليس مجرد إعطاء الإجابة.
 
-1. الأسلوب واللغة: احكي دايماً عربي لبناني محكي لطيف ودافي بالشرح البسيط (مثل: "أهلاً بك يا بطل!"، "خليني اشرحلك ياه...").
-2. الهيكلية والشرح للدروس والمسائل: عندما يسألك الطالب عن درس (مثل القوى، الجبر، أو الهندسة) أو يطلب حل مسألة، يجب أن تقسم إجابتك بشكل دقيق ومرتب كالتالي:
-   - مقدمة مبسطة وشرح المفاهيم: شرح فكرة الدرس بأسلوب سلس ومثال واضح مع تحديد الأساس والأس (Base & Exponent) إن وجد.
-   - حالات خاصة وقواعد ذهبية: ذكر القواعد الأساسية التي لا غنى عنها في المنهاج اللبناني.
-   - العمليات والخطوات بالأمثلة: تفصيل الخطوات الرياضية (ضرب، قسمة، برهان) مع الأمثلة المرقمة.
-   - الخلاصة والتشجيع: ختم الإجابة بعبارة تشجيعية دافئة.
+إذا توفر محتوى CRDP/RAG فاعتبره المرجع الأساسي، ولا تخترع محتوى منهجياً.
 
-3. في أسئلة الهندسة والبرهان: التزم بالنمط العلمي (Geometric Analysis, Key Theorem Application, Step-by-Step Conclusion) ولكن بلغة واضحة.
+في الرياضيات:
+- ابدأ بالمعطيات عند الحاجة.
+- اذكر القاعدة أو القانون.
+- اعرض خطوات الحل بوضوح.
+- أعط النتيجة النهائية.
+- استخدم الرموز الرياضية الواضحة.
 
-4. ممنوع نهائياً استخدام أي تنسيق Markdown معقد يفسد الشكل البصري، واستخدم الرموز الرياضية الواضحة. وفورا أجب بالحل النهائي بدون أي كتابة لعمليات التفكير الداخلية أو وسوم think.
+في الهندسة والبرهان:
+- التحليل الهندسي.
+- تحديد النظرية المناسبة.
+- خطوات البرهان.
+- النتيجة.
+
+إذا أرسل الطالب صورة:
+- اقرأ المسألة بدقة.
+- استخرج المعلومات الظاهرة في الصورة.
+- لا تفترض معلومات غير موجودة.
+- ساعد الطالب في الحل خطوة بخطوة.
+
+لا تعرض عمليات التفكير الداخلية.
 """
-
-VISION_MODEL = "qwen/qwen3.6-27b"
-TEXT_MODEL = "openai/gpt-oss-120b"
-
 
 def clean_reply(text: str) -> str:
     if not text:
         return ""
 
     text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+
     if "</think>" in text:
         text = text.split("</think>")[-1]
+
     if "<think>" in text:
         text = text.split("<think>")[0]
 
@@ -48,6 +58,7 @@ def clean_reply(text: str) -> str:
     text = re.sub(r"\*(.+?)\*", r"\1", text)
     text = re.sub(r"^-{3,}$", "", text, flags=re.MULTILINE)
     text = re.sub(r"\n{3,}", "\n\n", text)
+
     return text.strip()
 
 
@@ -69,14 +80,30 @@ class ChatResponse(BaseModel):
 
 @router.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest, db: Session = Depends(get_db)):
-    if not settings.GROQ_API_KEY:
-        raise HTTPException(500, "GROQ_API_KEY غير مضبوط بإعدادات السيرفر")
+
+    try:
+        ai = NabilAIGateway()
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"خطأ في إعداد NABIL AI: {str(e)}",
+        )
 
     conversation = None
-    if req.conversation_id:
-        conversation = db.query(Conversation).filter_by(id=req.conversation_id).first()
 
-    student = db.query(Student).filter_by(id=req.student_id).first()
+    if req.conversation_id:
+        conversation = (
+            db.query(Conversation)
+            .filter_by(id=req.conversation_id)
+            .first()
+        )
+
+    student = (
+        db.query(Student)
+        .filter_by(id=req.student_id)
+        .first()
+    )
+
     if student is None:
         student = Student(
             id=req.student_id,
@@ -84,79 +111,183 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
             grade=req.grade or "غير محدد",
             preferred_language="ar-LB",
         )
+
         db.add(student)
         db.commit()
 
     if conversation is None:
-        conversation = Conversation(student_id=req.student_id, subject=req.subject)
+        conversation = Conversation(
+            student_id=req.student_id,
+            subject=req.subject,
+        )
+
         db.add(conversation)
         db.commit()
         db.refresh(conversation)
 
     previous_messages = (
         db.query(Message)
-        .filter(Message.conversation_id == conversation.id)
+        .filter(
+            Message.conversation_id == conversation.id
+        )
         .order_by(Message.created_at.asc())
         .limit(10)
         .all()
     )
 
-    saved_message_content = req.message if req.message else "[صورة]"
-    db.add(Message(conversation_id=conversation.id, role="student", content=saved_message_content))
+    saved_message_content = (
+        req.message
+        if req.message
+        else "[صورة]"
+    )
+
+    db.add(
+        Message(
+            conversation_id=conversation.id,
+            role="student",
+            content=saved_message_content,
+        )
+    )
+
     db.commit()
 
     context_block = ""
     source_chunks = []
-    if req.subject and req.grade and req.curriculum and req.message:
-        source_chunks = search_book_pages(
-            db=db,
-            query=req.message,
-            subject=req.subject,
-            grade=req.grade,
-            curriculum=req.curriculum,
-        )
-        context_block = build_context_block(source_chunks)
 
-    text_part = req.message or "شو في بهالصورة؟ ساعدني افهمها."
+    if (
+        req.subject
+        and req.grade
+        and req.curriculum
+        and req.message
+    ):
+        try:
+            source_chunks = search_book_pages(
+                db=db,
+                query=req.message,
+                subject=req.subject,
+                grade=req.grade,
+                curriculum=req.curriculum,
+            )
+
+            context_block = build_context_block(
+                source_chunks
+            )
+
+        except Exception as e:
+            print(
+                f"RAG warning: {e}",
+                flush=True,
+            )
+
+    text_part = (
+        req.message
+        or "ساعدني في فهم هذه الصورة."
+    )
+
     if context_block:
-        text_part = f"{context_block}\n\nسؤال الطالب: {text_part}"
+        text_part = (
+            f"{context_block}\n\n"
+            f"سؤال الطالب: {text_part}"
+        )
 
-    role_map = {"student": "user", "teacher": "assistant"}
+    role_map = {
+        "student": "user",
+        "teacher": "assistant",
+    }
+
     history_messages = [
-        {"role": role_map[m.role], "content": m.content}
+        {
+            "role": role_map.get(
+                m.role,
+                "user",
+            ),
+            "content": m.content,
+        }
         for m in previous_messages
     ]
 
-    if req.image_base64:
-        model = VISION_MODEL
-        user_content = [
-            {"type": "text", "text": text_part},
-            {"type": "image_url", "image_url": {"url": req.image_base64}},
-        ]
-    else:
-        model = TEXT_MODEL
-        user_content = text_part
+    image_bytes = None
+    image_mime_type = "image/jpeg"
 
-    client = Groq(api_key=settings.GROQ_API_KEY)
-    completion = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            *history_messages,
-            {"role": "user", "content": user_content},
-        ],
-        max_tokens=900,
-        temperature=0.4,
+    if req.image_base64:
+        try:
+            if "," in req.image_base64:
+                header, encoded_data = (
+                    req.image_base64.split(",", 1)
+                )
+
+                if "image/" in header:
+                    image_mime_type = (
+                        header.split("image/", 1)[1]
+                        .split(";", 1)[0]
+                    )
+
+                import base64
+
+                image_bytes = base64.b64decode(
+                    encoded_data
+                )
+            else:
+                import base64
+
+                image_bytes = base64.b64decode(
+                    req.image_base64
+                )
+
+        except Exception as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"خطأ في قراءة الصورة: {str(e)}",
+            )
+
+    history_messages.append(
+        {
+            "role": "user",
+            "content": text_part,
+        }
     )
 
-    raw_content = completion.choices[0].message.content or ""
-    reply_text = clean_reply(raw_content)
+    try:
+        reply_text = ai.generate(
+            instructions=SYSTEM_PROMPT,
+            messages=history_messages,
+            image_bytes=image_bytes,
+            image_mime_type=image_mime_type,
+            max_output_tokens=2000,
+        )
 
-    db.add(Message(conversation_id=conversation.id, role="teacher", content=reply_text))
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"خطأ في NABIL AI: {str(e)}",
+        )
+
+    reply_text = clean_reply(reply_text)
+
+    if not reply_text:
+        raise HTTPException(
+            status_code=500,
+            detail="NABIL AI لم يُرجع إجابة.",
+        )
+
+    db.add(
+        Message(
+            conversation_id=conversation.id,
+            role="teacher",
+            content=reply_text,
+        )
+    )
+
     db.commit()
 
     return ChatResponse(
-        conversation_id=conversation.id,
+        conversation_id=str(conversation.id),
         reply=reply_text,
-        sources=[{"book": c["book_title"], "page": c["page"]} for c in source_chunks],
+        sources=[
+            {
+                "book": c.get("book_title"),
+                "page": c.get("page"),
+            }
+            for c in source_chunks
+        ],
     )
