@@ -1,6 +1,8 @@
 import re
+import json
 import base64
 from fastapi import APIRouter, Depends, HTTPException, Form, File, UploadFile
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import Optional
 from pydantic import BaseModel
@@ -14,21 +16,38 @@ from app.services.rag_search import search_book_pages, build_context_block
 router = APIRouter()
 
 SYSTEM_PROMPT = """
-انت الأستاذ نبيل، معلم رقمي خبير بالمنهج اللبناني الرسمي (CRDP). 
+انت الأستاذ نبيل، معلم رقمي خبير بالمنهج اللبناني الرسمي (CRDP).
 
 قواعد صارمة لازم تلتزم فيها دايماً بكل الإجابات:
 
-1. كشف اللغة والتكيف الفوري: 
-    - التزم دائماً بالرد على الطالب بنفس اللغة التي استخدمها في سؤاله (عربي بلهجة لبنانية محكية لطيفة ودافئة، إنجليزي، أو فرنسي).
+1. كشف اللغة والتكيف الفوري:
+   - التزم دائماً بالرد على الطالب بنفس اللغة التي استخدمها في سؤاله (عربي بلهجة لبنانية محكية لطيفة ودافئة، إنجليزي، أو فرنسي).
 
-2. الدخول المباشر وتنظيم الحل: ابدأ بالإجابة أو الشرح فوراً بدون مقدمات طويلة. رتب الحل دايماً بهالترتيب: المعطيات أولاً، بعدين القانون أو القاعدة المستخدمة، بعدين خطوات الحل تفصيلياً، وأخيراً النتيجة النهائية بارزة. ممنوع كتابة رموز LaTeX خام مثل \\text{} أو $...$ - اكتب المعادلات بشكل نص عادي مقروء.
+2. الدخول المباشر وتنظيم الحل: ابدأ بالإجابة أو الشرح فوراً بدون مقدمات طويلة. رتب حل أي مسألة دايماً بهالترتيب: المعطيات أولاً، بعدين القانون أو القاعدة المستخدمة، بعدين خطوات الحل مرقّمة وواضحة، وأخيراً النتيجة النهائية.
+
+3. الرموز الرياضية (LaTeX مسموح ومطلوب): اكتب كل تعبير رياضي بصيغة LaTeX صحيحة:
+   - المعادلات ضمن السطر بين \\( و \\)
+   - المعادلات المهمة بسطر لحالها بين \\[ و \\]
+   - النتيجة النهائية أو القاعدة الأهم دايماً لفّها بـ \\boxed{...}
+   لا تكتب المعادلات كنص عادي (متل "x تربيع") — استخدم الرموز الصحيحة (x^2، \\frac{}{}، \\perp، إلخ).
+
+4. شرح الدروس الكاملة: إذا الطالب كتب بس اسم درس/فصل وصف (متلاً "صف تاسع - فصل الخطوط والدوائر")، اعتبرها طلب شرح كامل للدرس، واتبع هالبنية بالضبط:
+   ## التعريفات الأساسية
+   ## النظريات المهمة (كل نظرية بصندوق \\boxed{})
+   ## الإنشاءات الهندسية (إذا الدرس هندسة، اشرح خطوة خطوة)
+   ## أمثلة محلولة
+   ## خلاصة للامتحان ⭐
+   اعتمد حصراً على المحتوى المعطى لك من الكتاب المفهرس (إذا موجود) قبل معرفتك العامة، وحافظ على نفس المصطلحات والترتيب.
+
+5. استخدم عناوين Markdown (##)، **Bold** للمصطلحات المهمة، وجداول لما يفيد الشرح.
 """
 
-# أسماء النماذج الحقيقية والصحيحة المدعومة في Groq
 VISION_MODEL = "llama-3.2-11b-vision-preview"
 TEXT_MODEL = "llama3-70b-8192"
 
+
 def clean_reply(text: str) -> str:
+    """يشيل فقط تفكير الموديل الداخلي <think>، ويحافظ على LaTeX والتنسيق كامل."""
     if not text:
         return ""
     text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
@@ -36,16 +55,8 @@ def clean_reply(text: str) -> str:
         text = text.split("</think>")[-1]
     if "<think>" in text:
         text = text.split("<think>")[0]
-
-    text = re.sub(r"\\text\{([^}]*)\}", r"\1", text)
-    text = re.sub(r"\\\((.*?)\\\)", r"\1", text, flags=re.DOTALL)
-    text = re.sub(r"\\\[(.*?)\\\]", r"\1", text, flags=re.DOTALL)
-    text = re.sub(r"\$\$(.*?)\$\$", r"\1", text, flags=re.DOTALL)
-    text = re.sub(r"\$(.*?)\$", r"\1", text)
-    text = text.replace("\\,", " ").replace("\\perp", "⊥").replace("\\parallel", "∥")
-    text = text.replace("\\sqrt", "جذر").replace("\\times", "×").replace("\\cdot", "×")
-    text = re.sub(r"\\[a-zA-Z]+", "", text)
     return text.strip()
+
 
 class ChatResponse(BaseModel):
     conversation_id: str
@@ -54,7 +65,7 @@ class ChatResponse(BaseModel):
     transcribed_text: Optional[str] = None
 
 
-@router.post("/chat", response_model=ChatResponse)
+@router.post("/chat")
 async def voice_chat(
     audio: Optional[UploadFile] = File(None),
     image: Optional[UploadFile] = File(None),
@@ -149,25 +160,44 @@ async def voice_chat(
     role_map = {"student": "user", "teacher": "assistant"}
     history_messages = [{"role": role_map[m.role], "content": m.content} for m in previous_messages]
 
-    completion = client.chat.completions.create(
-        model=TEXT_MODEL,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            *history_messages,
-            {"role": "user", "content": text_part},
-        ],
-        max_tokens=2000,
-        temperature=0.4,
-    )
+    conv_id = conversation.id
+    sources_payload = [{"book": c["book_title"], "page": c["page"]} for c in source_chunks]
 
-    reply_text = clean_reply(completion.choices[0].message.content or "")
+    def sse(event: dict) -> str:
+        return f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 
-    db.add(Message(conversation_id=conversation.id, role="teacher", content=reply_text))
-    db.commit()
+    async def generate():
+        full_raw = ""
+        try:
+            stream = client.chat.completions.create(
+                model=TEXT_MODEL,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    *history_messages,
+                    {"role": "user", "content": text_part},
+                ],
+                max_tokens=2000,
+                temperature=0.4,
+                stream=True,
+            )
+            for chunk in stream:
+                delta = chunk.choices[0].delta.content or ""
+                if delta:
+                    full_raw += delta
+                    yield sse({"delta": delta})
+        except Exception as e:
+            yield sse({"error": str(e)})
+            return
 
-    return ChatResponse(
-        conversation_id=conversation.id,
-        reply=reply_text,
-        sources=[{"book": c["book_title"], "page": c["page"]} for c in source_chunks],
-        transcribed_text=message
-    )
+        cleaned = clean_reply(full_raw)
+        db.add(Message(conversation_id=conv_id, role="teacher", content=cleaned))
+        db.commit()
+
+        yield sse({
+            "done": True,
+            "conversation_id": conv_id,
+            "sources": sources_payload,
+            "transcribed_text": message,
+        })
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
