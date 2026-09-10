@@ -6,6 +6,17 @@
 <title>الأستاذ نبيل - النظام الأكاديمي المرتب بفواصل وعناوين واضحة</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;800&family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script>
+  window.MathJax = {
+    tex: {
+      inlineMath: [['\\(', '\\)']],
+      displayMath: [['\\[', '\\]']]
+    },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
 <style>
   :root{
     --paper:#F7F4EB;
@@ -196,6 +207,12 @@
     border-bottom: 2px dashed var(--border-color);
     padding-bottom: 4px;
   }
+
+  .live-text h2{ font-family:'Cairo',sans-serif; font-size:15.5px; color:var(--plum); margin:10px 0 6px; }
+  .live-text table{ border-collapse:collapse; width:100%; margin:8px 0; font-size:13.5px; }
+  .live-text th, .live-text td{ border:1px solid var(--border-color); padding:6px 8px; text-align:right; }
+  .live-text ul, .live-text ol{ padding-right:20px; margin:6px 0; }
+  .live-text p{ margin:6px 0; }
 
   .msg .page-ref{
     display:block;
@@ -561,26 +578,10 @@
     if (!isListening) startListening(); else stopListening();
   });
 
+  // --- بطاقة الرد القديمة (تُستخدم فقط لرسائل الخطأ البسيطة) ---
   function buildSuperCard(rawText) {
     const card = document.createElement("div");
     card.className = "super-card";
-
-    const formattedHtml = rawText
-      .split('\n')
-      .map(line => {
-        line = line.trim();
-        if(!line) return '<div style="height: 8px;"></div>';
-        
-        if(line.includes('رقم التمرين') || line.includes('المعطيات') || line.includes('القانون') || line.includes('خطوات الحل') || line.includes('النتيجة النهائية') || line.includes('أ)') || line.includes('ب)') || line.includes('ج)') || line.includes('د)') || line.includes('هـ)')) {
-          return `<div class="super-sec-title" style="margin-top: 10px; color: #8E3B46; border-bottom: 2px dashed var(--border-color); padding-bottom: 4px;">🔹 ${line}</div>`;
-        }
-        if(line.startsWith('-') || line.startsWith('*')) {
-          return `<div style="padding-right: 12px; margin-bottom: 4px; font-weight: 500;">• ${line.substring(1).trim()}</div>`;
-        }
-        return `<div style="margin-bottom: 3px;">${line}</div>`;
-      })
-      .join('');
-
     card.innerHTML = `
       <div class="super-header">
         <span>⚡ الأستاذ نبيل - الشرح الأكاديمي الشامل</span>
@@ -589,7 +590,7 @@
       <div class="super-body">
         <div class="super-section">
           <div class="super-sec-title">📌 التحليل العلمي والدرس المطلوب</div>
-          <div style="line-height: 1.8; font-size: 14.5px;">${formattedHtml}</div>
+          <div class="live-text" style="line-height: 1.8; font-size: 14.5px; white-space: pre-wrap;">${rawText}</div>
         </div>
       </div>
     `;
@@ -630,31 +631,91 @@
       div.appendChild(ref);
     }
 
-    if(role === "teacher" && text){
-      const actionsRow = document.createElement("div");
-      actionsRow.className = "actions-row";
+    chatArea.appendChild(div);
+    chatArea.scrollTop = chatArea.scrollHeight;
+  }
 
-      const speakBtn = document.createElement("button");
-      speakBtn.className = "action-btn";
-      speakBtn.textContent = "🔊 استماع للشرح";
-      speakBtn.addEventListener("click", () => speak(text, speakBtn));
-      actionsRow.appendChild(speakBtn);
+  // --- بطاقة الرد الحية (streaming) مع دعم Markdown + LaTeX ---
+  function addStreamingMessage(){
+    if(emptyState) emptyState.remove();
+    const div = document.createElement("div");
+    div.className = "msg teacher";
+    const card = document.createElement("div");
+    card.className = "super-card";
+    card.innerHTML = `
+      <div class="super-header">
+        <span>⚡ الأستاذ نبيل - الشرح الأكاديمي الشامل</span>
+        <span style="font-size:11.5px; font-weight:500; color:#F4D06F;">عناوين وفواصل واضحة</span>
+      </div>
+      <div class="super-body">
+        <div class="super-section">
+          <div class="super-sec-title">📌 التحليل العلمي والدرس المطلوب</div>
+          <div class="live-text" style="line-height: 1.8; font-size: 14.5px; white-space: pre-wrap;"></div>
+        </div>
+      </div>
+    `;
+    div.appendChild(card);
+    chatArea.appendChild(div);
+    chatArea.scrollTop = chatArea.scrollHeight;
+    return div;
+  }
 
-      const copyBtn = document.createElement("button");
-      copyBtn.className = "action-btn";
-      copyBtn.textContent = "📋 نسخ الشرح";
-      copyBtn.addEventListener("click", () => {
-        navigator.clipboard.writeText(text).then(() => {
-          copyBtn.textContent = "✅ تم النسخ";
-          setTimeout(() => { copyBtn.textContent = "📋 نسخ الشرح"; }, 2000);
-        });
-      });
-      actionsRow.appendChild(copyBtn);
+  function updateStreamingMessage(div, text){
+    const liveText = div.querySelector(".live-text");
+    if(liveText) liveText.textContent = text;
+    chatArea.scrollTop = chatArea.scrollHeight;
+  }
 
-      div.appendChild(actionsRow);
+  function removeStreamingMessage(div){
+    if(div && div.parentNode) div.parentNode.removeChild(div);
+  }
+
+  function finalizeStreamingMessage(div, text, sources){
+    const liveText = div.querySelector(".live-text");
+    const superBody = div.querySelector(".super-body");
+
+    if(liveText){
+      liveText.style.whiteSpace = "normal";
+      if(window.marked){
+        liveText.innerHTML = marked.parse(text || "");
+      } else {
+        liveText.textContent = text;
+      }
     }
 
-    chatArea.appendChild(div);
+    if(sources && sources.length){
+      const ref = document.createElement("span");
+      ref.className = "page-ref";
+      ref.textContent = "المصدر المنهجي: " + sources.map(s => `${s.book} - صفحة ${s.page}`).join(" / ");
+      superBody.appendChild(ref);
+    }
+
+    const actionsRow = document.createElement("div");
+    actionsRow.className = "actions-row";
+
+    const speakBtn = document.createElement("button");
+    speakBtn.className = "action-btn";
+    speakBtn.textContent = "🔊 استماع للشرح";
+    speakBtn.addEventListener("click", () => speak(text, speakBtn));
+    actionsRow.appendChild(speakBtn);
+
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "action-btn";
+    copyBtn.textContent = "📋 نسخ الشرح";
+    copyBtn.addEventListener("click", () => {
+      navigator.clipboard.writeText(text).then(() => {
+        copyBtn.textContent = "✅ تم النسخ";
+        setTimeout(() => { copyBtn.textContent = "📋 نسخ الشرح"; }, 2000);
+      });
+    });
+    actionsRow.appendChild(copyBtn);
+
+    superBody.appendChild(actionsRow);
+
+    if(window.MathJax && window.MathJax.typesetPromise){
+      window.MathJax.typesetPromise([div]).catch(err => console.error("MathJax error:", err));
+    }
+
     chatArea.scrollTop = chatArea.scrollHeight;
   }
 
@@ -697,21 +758,66 @@
     formData.append("subject", document.getElementById("subjectSelect").value);
     formData.append("grade", document.getElementById("gradeSelect").value);
     formData.append("curriculum", document.getElementById("curriculumSelect").value);
-    
+
     filesToSend.forEach(file => { formData.append("image", file); });
+
+    let streamDiv = null;
+    let fullText = "";
+    let typingHidden = false;
 
     try{
       const res = await fetch(API_BASE + "/api/chat", { method: "POST", body: formData });
       if(!res.ok) throw new Error("HTTP " + res.status);
-      const data = await res.json();
+      if(!res.body) throw new Error("الرد لا يدعم القراءة الحية");
 
-      conversationId = data.conversation_id;
-      if(conversationId) localStorage.setItem("nabilai_conversation_id", conversationId);
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let buffer = "";
+      let finalSources = null;
+
+      while(true){
+        const { value, done } = await reader.read();
+        if(done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop();
+
+        for(const part of parts){
+          const line = part.trim();
+          if(!line.startsWith("data:")) continue;
+          const jsonStr = line.slice(5).trim();
+          if(!jsonStr) continue;
+
+          let evt;
+          try { evt = JSON.parse(jsonStr); } catch(e){ continue; }
+
+          if(evt.error){
+            throw new Error(evt.error);
+          }
+
+          if(evt.delta){
+            if(!typingHidden){ hideTyping(); typingHidden = true; }
+            if(!streamDiv) streamDiv = addStreamingMessage();
+            fullText += evt.delta;
+            updateStreamingMessage(streamDiv, fullText);
+          }
+
+          if(evt.done){
+            conversationId = evt.conversation_id;
+            if(conversationId) localStorage.setItem("nabilai_conversation_id", conversationId);
+            finalSources = evt.sources;
+          }
+        }
+      }
 
       hideTyping();
-      addMessage("teacher", data.reply, data.sources, null);
+      if(!streamDiv) streamDiv = addStreamingMessage();
+      finalizeStreamingMessage(streamDiv, fullText, finalSources);
+
     }catch(err){
       hideTyping();
+      if(streamDiv) removeStreamingMessage(streamDiv);
       addMessage("teacher", "عذراً يا بطل، حدث خطأ في النظام التعليمي، جرب إرسال السؤال مرة أخرى 🙏");
       console.error(err);
     }finally{
