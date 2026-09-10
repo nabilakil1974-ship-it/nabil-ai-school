@@ -1,0 +1,11 @@
+OPENAI_API_KEY=
+
+OPENAI_TEXT_MODEL=gpt-5.5
+OPENAI_VISION_MODEL=gpt-5.5
+OPENAI_TRANSCRIPTION_MODEL=gpt-4o-transcribe
+
+SECRET_KEY=change-this-secret-key
+
+DATABASE_URL=sqlite:///./nabil_school.db
+
+GOOGLE_DRIVE_CREDENTIALS_JSON=
