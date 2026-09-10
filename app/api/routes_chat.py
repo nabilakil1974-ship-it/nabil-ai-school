@@ -42,9 +42,11 @@ SYSTEM_PROMPT = """
 5. استخدم عناوين Markdown (##)، **Bold** للمصطلحات المهمة، وجداول لما يفيد الشرح.
 """
 
-VISION_MODEL = "llama-3.2-11b-vision-preview"
+#VISION_MODEL = "llama-3.2-11b-vision-preview"
+#TEXT_MODEL = "llama3-70b-8192"
+# استخدام نموذج الرؤية المحدث والمدعوم حالياً في Groq
+VISION_MODEL = "llama-3.2-90b-vision-preview"
 TEXT_MODEL = "llama3-70b-8192"
-
 
 def clean_reply(text: str) -> str:
     """يشيل فقط تفكير الموديل الداخلي <think>، ويحافظ على LaTeX والتنسيق كامل."""
