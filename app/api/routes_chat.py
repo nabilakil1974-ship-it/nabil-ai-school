@@ -1,53 +1,130 @@
 import re
-import base64
-from fastapi import APIRouter, Depends, HTTPException, Form, File, UploadFile
-from sqlalchemy.orm import Session
 from typing import Optional
-from pydantic import BaseModel
-from groq import Groq
 
-from app.core.config import settings
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Form,
+    File,
+    UploadFile,
+)
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
 from app.db.session import get_db
 from app.db.models import Conversation, Message, Student
-from app.services.rag_search import search_book_pages, build_context_block
+from app.services.rag_search import (
+    search_book_pages,
+    build_context_block,
+)
+from app.services.ai_gateway import NabilAIGateway
+
 
 router = APIRouter()
 
+
 SYSTEM_PROMPT = """
-انت الأستاذ نبيل، معلم رقمي خبير بالمنهج اللبناني الرسمي (CRDP).
+أنت NABIL AI، الأستاذ نبيل، معلّم رقمي ذكي وخبير بالمنهج اللبناني الرسمي CRDP.
 
-قواعد صارمة لازم تلتزم فيها دايماً بكل الإجابات:
+أنت معلّم تفاعلي ولست مجرد chatbot.
 
-1. كشف اللغة والتكيف الفوري:
-   - التزم دائماً بالرد على الطالب بنفس اللغة التي استخدمها في سؤاله (عربي بلهجة لبنانية محكية لطيفة ودافئة، إنجليزي، أو فرنسي).
+هدفك الأساسي هو مساعدة الطالب على الفهم والتعلّم، وليس إعطاء الإجابة فقط.
 
-2. الدخول المباشر وتنظيم الحل: ابدأ بالإجابة أو الشرح فوراً بدون مقدمات طويلة. رتب حل أي مسألة دايماً بهالترتيب: المعطيات أولاً، بعدين القانون أو القاعدة المستخدمة، بعدين خطوات الحل مرقّمة وواضحة، وأخيراً النتيجة النهائية.
+قواعدك:
 
-3. الرموز الرياضية (LaTeX مسموح ومطلوب): اكتب كل تعبير رياضي بصيغة LaTeX صحيحة:
-   - المعادلات ضمن السطر بين \\( و \\)
-   - المعادلات المهمة بسطر لحالها بين \\[ و \\]
-   - النتيجة النهائية أو القاعدة الأهم دايماً لفّها بـ \\boxed{...}
+1. اللغة:
+- أجب بنفس لغة الطالب.
+- العربية: عربية واضحة ودافئة.
+- English: أجب بالإنجليزية.
+- Français: أجب بالفرنسية.
 
-4. شرح الدروس الكاملة: إذا الطالب كتب بس اسم درس/فصل وصف، اعتبرها طلب شرح كامل للدرس، واتبع هالبنية بالضبط:
-   ## التعريفات الأساسية
-   ## النظريات المهمة (كل نظرية بصندوق \\boxed{})
-   ## الإنشاءات الهندسية (إذا الدرس هندسة)
-   ## أمثلة محلولة
-   ## خلاصة للامتحان ⭐
+2. السياق التعليمي:
+- احترم الصف والمادة واللغة والمنهج والدرس المحددين.
+- إذا تم توفير محتوى من CRDP/RAG، اعتبره المرجع الأساسي.
+- لا تنسب معلومة إلى CRDP إذا لم تكن موجودة في السياق.
+- لا تخترع محتوى منهجيًا.
+
+3. طريقة التعليم:
+- ساعد الطالب على الفهم.
+- استخدم أسلوب السؤال والجواب عند الحاجة.
+- إذا كانت المسألة تحتاج تفكيرًا، ساعد الطالب خطوة خطوة.
+- لا تعطِ الحل النهائي مباشرة إذا كان من الأفضل تربويًا أن تجعل الطالب يفكر.
+- إذا طلب الطالب الحل الكامل صراحة، أعطه الحل الكامل.
+- إذا أخطأ الطالب، وضّح الخطأ بلطف وساعده على تصحيحه.
+
+4. الرياضيات:
+رتّب الحل عند الحاجة:
+المعطيات
+القانون أو القاعدة
+خطوات الحل
+النتيجة النهائية
+
+استخدم LaTeX:
+\\( ... \\)
+\\[ ... \\]
+
+والنتيجة النهائية أو القاعدة المهمة:
+\\boxed{...}
+
+5. شرح الدروس:
+إذا كتب الطالب اسم درس فقط، اعتبره طلبًا لشرح الدرس.
+
+استخدم عند الحاجة:
+## التعريفات الأساسية
+## النظريات والقواعد
+## أمثلة محلولة
+## تدريب للطالب
+## خلاصة للامتحان ⭐
+
+6. الحوار:
+يمكنك التحدث مع الطالب بطريقة طبيعية.
+اطرح سؤالًا واحدًا أو سؤالين في كل مرة للتحقق من فهمه.
+لا تحوّل المحادثة إلى محاضرة طويلة دون تفاعل.
+
+7. الصور:
+إذا أرسل الطالب صورة لتمرين:
+- اقرأها بدقة.
+- استخرج السؤال.
+- لا تفترض معلومات غير ظاهرة.
+- ساعد الطالب في الحل.
+
+8. الصوت:
+تعامل مع كلام الطالب بعد تحويله من الصوت إلى نص كما لو أنه كتبه بنفسه.
+
+9. الخصوصية والتقنية:
+لا تطلب من الطالب أو المعلم أي API Key.
+لا تطلب OpenAI Key أو Groq Key أو Gemini Key.
+المفاتيح التقنية موجودة على الخادم فقط.
+
+10. الهوية:
+اسمك أمام الطالب:
+NABIL AI
+الأستاذ نبيل
+
+أنت معلّم رقمي يساعد الطالب على التعلم والفهم والتقدم.
 """
 
-VISION_MODEL = "llama-3.2-90b-vision-preview"
-TEXT_MODEL = "llama3-70b-8192"
 
 def clean_reply(text: str) -> str:
     if not text:
         return ""
-    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+
+    text = re.sub(
+        r"<think>.*?</think>",
+        "",
+        text,
+        flags=re.DOTALL,
+    )
+
     if "</think>" in text:
         text = text.split("</think>")[-1]
+
     if "<think>" in text:
         text = text.split("<think>")[0]
+
     return text.strip()
+
 
 class ChatResponse(BaseModel):
     conversation_id: str
@@ -66,114 +143,266 @@ async def voice_chat(
     subject: Optional[str] = Form(None),
     grade: Optional[str] = Form(None),
     curriculum: Optional[str] = Form(None),
-    db: Session = Depends(get_db)
+    language: Optional[str] = Form(None),
+    lesson: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
 ):
-    if not settings.GROQ_API_KEY:
-        raise HTTPException(500, "GROQ_API_KEY غير مضبوط بإعدادات السيرفر")
+    try:
+        ai = NabilAIGateway()
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"خطأ في إعداد NABIL AI: {str(e)}",
+        )
 
-    client = Groq(api_key=settings.GROQ_API_KEY)
+    image_bytes = None
+    image_mime_type = "image/jpeg"
+    original_message = message
 
+    # =========================
+    # VOICE
+    # =========================
     if audio is not None:
-        audio_bytes = await audio.read()
         try:
-            transcription = client.audio.transcriptions.create(
-                file=(audio.filename or "voice.webm", audio_bytes),
-                model="whisper-large-v3",
-                response_format="text"
-            )
-            message = transcription.strip()
-        except Exception as e:
-            raise HTTPException(500, f"خطأ في معالجة الصوت: {str(e)}")
+            audio_bytes = await audio.read()
 
+            message = ai.transcribe(
+                audio_bytes=audio_bytes,
+                filename=audio.filename or "voice.webm",
+            )
+
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"خطأ في معالجة الصوت: {str(e)}",
+            )
+
+    # =========================
+    # IMAGE
+    # =========================
     if image is not None:
-        image_bytes = await image.read()
-        encoded_image = base64.b64encode(image_bytes).decode('utf-8')
-        mime_type = image.content_type or "image/jpeg"
-
         try:
-            vision_response = client.chat.completions.create(
-                model=VISION_MODEL,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": "استخرج بدقة نص الأسئلة أو التمرين الموجود في هذه الصورة."},
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:{mime_type};base64,{encoded_image}"
-                                }
-                            }
-                        ]
-                    }
-                ],
-                max_tokens=500,
+            image_bytes = await image.read()
+
+            image_mime_type = (
+                image.content_type or "image/jpeg"
             )
-            extracted_text = vision_response.choices[0].message.content or ""
-            message = f"{message}\n{extracted_text}" if message else extracted_text
+
         except Exception as e:
-            print(f"⚠️ خطأ في قراءة الصورة: {e}", flush=True)
+            raise HTTPException(
+                status_code=500,
+                detail=f"خطأ في قراءة الصورة: {str(e)}",
+            )
 
     if not message:
-        message = "Hello teacher, please help me."
+        message = "ساعدني في هذا التمرين."
 
-    conversation = db.query(Conversation).filter_by(id=conversation_id).first() if conversation_id else None
-    student = db.query(Student).filter_by(id=student_id).first()
+    # =========================
+    # STUDENT
+    # =========================
+    student = (
+        db.query(Student)
+        .filter_by(id=student_id)
+        .first()
+    )
+
     if student is None:
-        student = Student(id=student_id, name=student_id, grade=grade or "غير محدد", preferred_language="ar-LB")
+        student = Student(
+            id=student_id,
+            name=student_id,
+            grade=grade or "غير محدد",
+            preferred_language=language or "ar-LB",
+        )
+
         db.add(student)
         db.commit()
+        db.refresh(student)
+
+    # =========================
+    # CONVERSATION
+    # =========================
+    conversation = None
+
+    if conversation_id:
+        conversation = (
+            db.query(Conversation)
+            .filter_by(id=conversation_id)
+            .first()
+        )
 
     if conversation is None:
-        conversation = Conversation(student_id=student_id, subject=subject)
+        conversation = Conversation(
+            student_id=student_id,
+            subject=subject,
+        )
+
         db.add(conversation)
         db.commit()
         db.refresh(conversation)
 
+    # =========================
+    # HISTORY
+    # =========================
     previous_messages = (
         db.query(Message)
-        .filter(Message.conversation_id == conversation.id)
+        .filter(
+            Message.conversation_id == conversation.id
+        )
         .order_by(Message.created_at.asc())
-        .limit(10)
+        .limit(20)
         .all()
     )
 
-    db.add(Message(conversation_id=conversation.id, role="student", content=message))
-    db.commit()
-
-    context_block = ""
-    source_chunks = []
-    if subject and grade and curriculum and message:
-        source_chunks = search_book_pages(db=db, query=message, subject=subject, grade=grade, curriculum=curriculum)
-        context_block = build_context_block(source_chunks)
-
-    text_part = f"{context_block}\n\nسؤال الطالب: {message}" if context_block else message
-    role_map = {"student": "user", "teacher": "assistant"}
-    history_messages = [{"role": role_map[m.role], "content": m.content} for m in previous_messages]
-
-    try:
-        completion = client.chat.completions.create(
-            model=TEXT_MODEL,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                *history_messages,
-                {"role": "user", "content": text_part},
-            ],
-            max_tokens=2000,
-            temperature=0.4,
+    db.add(
+        Message(
+            conversation_id=conversation.id,
+            role="student",
+            content=message,
         )
-        raw_content = completion.choices[0].message.content or ""
-    except Exception as e:
-        raise HTTPException(500, f"خطأ في نموذج الذكاء الاصطناعي: {str(e)}")
+    )
 
-    reply_text = clean_reply(raw_content)
-
-    db.add(Message(conversation_id=conversation.id, role="teacher", content=reply_text))
     db.commit()
+
+    # =========================
+    # RAG / CRDP
+    # =========================
+    source_chunks = []
+    context_block = ""
+
+    if (
+        subject
+        and grade
+        and curriculum
+        and message
+    ):
+        try:
+            source_chunks = search_book_pages(
+                db=db,
+                query=message,
+                subject=subject,
+                grade=grade,
+                curriculum=curriculum,
+            )
+
+            context_block = build_context_block(
+                source_chunks
+            )
+
+        except Exception as e:
+            print(
+                f"RAG warning: {e}",
+                flush=True,
+            )
+
+    # =========================
+    # EDUCATIONAL CONTEXT
+    # =========================
+    educational_context = f"""
+السياق التعليمي الحالي:
+
+الصف: {grade or "غير محدد"}
+المادة: {subject or "غير محددة"}
+اللغة: {language or "غير محددة"}
+المنهج: {curriculum or "المنهج اللبناني"}
+الدرس: {lesson or "غير محدد"}
+
+محتوى CRDP/RAG:
+{context_block or "لا يوجد محتوى RAG متوفر لهذا السؤال."}
+"""
+
+    # =========================
+    # MESSAGE HISTORY
+    # =========================
+    history_messages = []
+
+    for msg in previous_messages:
+        role = (
+            "assistant"
+            if msg.role == "teacher"
+            else "user"
+        )
+
+        history_messages.append(
+            {
+                "role": role,
+                "content": msg.content,
+            }
+        )
+
+    current_prompt = f"""
+{educational_context}
+
+سؤال الطالب:
+
+{message}
+"""
+
+    history_messages.append(
+        {
+            "role": "user",
+            "content": current_prompt,
+        }
+    )
+
+    # =========================
+    # NABIL AI
+    # =========================
+    try:
+        reply_text = ai.generate(
+            instructions=SYSTEM_PROMPT,
+            messages=history_messages,
+            image_bytes=image_bytes,
+            image_mime_type=image_mime_type,
+            max_output_tokens=2500,
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"خطأ في NABIL AI: {str(e)}",
+        )
+
+    reply_text = clean_reply(reply_text)
+
+    if not reply_text:
+        raise HTTPException(
+            status_code=500,
+            detail="NABIL AI لم يُرجع إجابة.",
+        )
+
+    # =========================
+    # SAVE RESPONSE
+    # =========================
+    db.add(
+        Message(
+            conversation_id=conversation.id,
+            role="teacher",
+            content=reply_text,
+        )
+    )
+
+    db.commit()
+
+    # =========================
+    # SOURCES
+    # =========================
+    sources = []
+
+    for chunk in source_chunks:
+        sources.append(
+            {
+                "book": chunk.get("book_title"),
+                "page": chunk.get("page"),
+            }
+        )
 
     return ChatResponse(
-        conversation_id=conversation.id,
+        conversation_id=str(conversation.id),
         reply=reply_text,
-        sources=[{"book": c["book_title"], "page": c["page"]} for c in source_chunks],
-        transcribed_text=message
+        sources=sources,
+        transcribed_text=(
+            message
+            if audio is not None
+            else None
+        ),
     )
