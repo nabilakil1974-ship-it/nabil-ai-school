@@ -1,8 +1,6 @@
 import re
-import json
 import base64
 from fastapi import APIRouter, Depends, HTTPException, Form, File, UploadFile
-from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import Optional
 from pydantic import BaseModel
@@ -29,27 +27,19 @@ SYSTEM_PROMPT = """
    - المعادلات ضمن السطر بين \\( و \\)
    - المعادلات المهمة بسطر لحالها بين \\[ و \\]
    - النتيجة النهائية أو القاعدة الأهم دايماً لفّها بـ \\boxed{...}
-   لا تكتب المعادلات كنص عادي (متل "x تربيع") — استخدم الرموز الصحيحة (x^2، \\frac{}{}، \\perp، إلخ).
 
-4. شرح الدروس الكاملة: إذا الطالب كتب بس اسم درس/فصل وصف (متلاً "صف تاسع - فصل الخطوط والدوائر")، اعتبرها طلب شرح كامل للدرس، واتبع هالبنية بالضبط:
+4. شرح الدروس الكاملة: إذا الطالب كتب بس اسم درس/فصل وصف، اعتبرها طلب شرح كامل للدرس، واتبع هالبنية بالضبط:
    ## التعريفات الأساسية
    ## النظريات المهمة (كل نظرية بصندوق \\boxed{})
-   ## الإنشاءات الهندسية (إذا الدرس هندسة، اشرح خطوة خطوة)
+   ## الإنشاءات الهندسية (إذا الدرس هندسة)
    ## أمثلة محلولة
    ## خلاصة للامتحان ⭐
-   اعتمد حصراً على المحتوى المعطى لك من الكتاب المفهرس (إذا موجود) قبل معرفتك العامة، وحافظ على نفس المصطلحات والترتيب.
-
-5. استخدم عناوين Markdown (##)، **Bold** للمصطلحات المهمة، وجداول لما يفيد الشرح.
 """
 
-#VISION_MODEL = "llama-3.2-11b-vision-preview"
-#TEXT_MODEL = "llama3-70b-8192"
-# استخدام نموذج الرؤية المحدث والمدعوم حالياً في Groq
 VISION_MODEL = "llama-3.2-90b-vision-preview"
 TEXT_MODEL = "llama3-70b-8192"
 
 def clean_reply(text: str) -> str:
-    """يشيل فقط تفكير الموديل الداخلي <think>، ويحافظ على LaTeX والتنسيق كامل."""
     if not text:
         return ""
     text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
@@ -59,7 +49,6 @@ def clean_reply(text: str) -> str:
         text = text.split("<think>")[0]
     return text.strip()
 
-
 class ChatResponse(BaseModel):
     conversation_id: str
     reply: str
@@ -67,7 +56,7 @@ class ChatResponse(BaseModel):
     transcribed_text: Optional[str] = None
 
 
-@router.post("/chat")
+@router.post("/chat", response_model=ChatResponse)
 async def voice_chat(
     audio: Optional[UploadFile] = File(None),
     image: Optional[UploadFile] = File(None),
@@ -162,44 +151,29 @@ async def voice_chat(
     role_map = {"student": "user", "teacher": "assistant"}
     history_messages = [{"role": role_map[m.role], "content": m.content} for m in previous_messages]
 
-    conv_id = conversation.id
-    sources_payload = [{"book": c["book_title"], "page": c["page"]} for c in source_chunks]
+    try:
+        completion = client.chat.completions.create(
+            model=TEXT_MODEL,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                *history_messages,
+                {"role": "user", "content": text_part},
+            ],
+            max_tokens=2000,
+            temperature=0.4,
+        )
+        raw_content = completion.choices[0].message.content or ""
+    except Exception as e:
+        raise HTTPException(500, f"خطأ في نموذج الذكاء الاصطناعي: {str(e)}")
 
-    def sse(event: dict) -> str:
-        return f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+    reply_text = clean_reply(raw_content)
 
-    async def generate():
-        full_raw = ""
-        try:
-            stream = client.chat.completions.create(
-                model=TEXT_MODEL,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    *history_messages,
-                    {"role": "user", "content": text_part},
-                ],
-                max_tokens=2000,
-                temperature=0.4,
-                stream=True,
-            )
-            for chunk in stream:
-                delta = chunk.choices[0].delta.content or ""
-                if delta:
-                    full_raw += delta
-                    yield sse({"delta": delta})
-        except Exception as e:
-            yield sse({"error": str(e)})
-            return
+    db.add(Message(conversation_id=conversation.id, role="teacher", content=reply_text))
+    db.commit()
 
-        cleaned = clean_reply(full_raw)
-        db.add(Message(conversation_id=conv_id, role="teacher", content=cleaned))
-        db.commit()
-
-        yield sse({
-            "done": True,
-            "conversation_id": conv_id,
-            "sources": sources_payload,
-            "transcribed_text": message,
-        })
-
-    return StreamingResponse(generate(), media_type="text/event-stream")
+    return ChatResponse(
+        conversation_id=conversation.id,
+        reply=reply_text,
+        sources=[{"book": c["book_title"], "page": c["page"]} for c in source_chunks],
+        transcribed_text=message
+    )
