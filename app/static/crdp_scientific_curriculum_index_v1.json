@@ -1,0 +1,337 @@
+{
+  "meta": {
+    "curriculum": "Lebanese official curriculum - CRDP",
+    "subjects": [
+      "رياضيات",
+      "علوم",
+      "فيزياء",
+      "كيمياء",
+      "علوم الحياة"
+    ],
+    "policy": "lesson_title_is_hard_boundary",
+    "note": "Only verified lesson/topic titles are to be added. Missing content must not be invented."
+  },
+  "subject_availability": {
+    "الصف الأول": [
+      "رياضيات",
+      "علوم"
+    ],
+    "الصف الثاني": [
+      "رياضيات",
+      "علوم"
+    ],
+    "الصف الثالث": [
+      "رياضيات",
+      "علوم"
+    ],
+    "الصف الرابع": [
+      "رياضيات",
+      "علوم"
+    ],
+    "الصف الخامس": [
+      "رياضيات",
+      "علوم"
+    ],
+    "الصف السادس": [
+      "رياضيات",
+      "علوم"
+    ],
+    "الصف السابع": [
+      "رياضيات",
+      "فيزياء",
+      "كيمياء",
+      "علوم الحياة"
+    ],
+    "الصف الثامن": [
+      "رياضيات",
+      "فيزياء",
+      "كيمياء",
+      "علوم الحياة"
+    ],
+    "الصف التاسع": [
+      "رياضيات",
+      "فيزياء",
+      "كيمياء",
+      "علوم الحياة"
+    ],
+    "الأول ثانوي": [
+      "رياضيات",
+      "فيزياء",
+      "كيمياء",
+      "علوم الحياة"
+    ],
+    "الثاني ثانوي": [
+      "رياضيات",
+      "فيزياء",
+      "كيمياء",
+      "علوم الحياة"
+    ],
+    "الثالث ثانوي": [
+      "رياضيات",
+      "فيزياء",
+      "كيمياء",
+      "علوم الحياة"
+    ]
+  },
+  "verified_index": {
+    "علوم": {
+      "الصف الأول": {
+        "English": [
+          "Growth and needs of plants",
+          "Growth and needs of animals",
+          "Growth and needs of children",
+          "Senses",
+          "Keeping clean",
+          "The sun",
+          "Clouds",
+          "Air and water",
+          "Day and night",
+          "The four seasons"
+        ]
+      },
+      "الصف الثاني": {
+        "English": [
+          "Parts of a garden",
+          "Seasonal plants",
+          "Similarity, variation and difference in animals",
+          "Body movements",
+          "Food groups",
+          "Clean vegetables and fruits",
+          "Nonliving things",
+          "Water cycle",
+          "States of water",
+          "Apparent movements of the sun",
+          "Movement of shadows",
+          "Times of day"
+        ]
+      },
+      "الصف الثالث": {
+        "English": [
+          "Parts of a plant",
+          "Forest, desert and sea plants",
+          "Forest, desert and sea animals",
+          "Sea pollution",
+          "General functions in the human body",
+          "Body protection",
+          "Heat sources",
+          "Properties of states of matter",
+          "Force concept",
+          "Phases of the moon",
+          "Temperature",
+          "Breakdown of rocks"
+        ]
+      },
+      "الصف الرابع": {
+        "English": [
+          "Fresh water habitat and its plants",
+          "Classification of plants",
+          "Classification of animals",
+          "Support and movement systems",
+          "Food pyramid",
+          "Properties of matter",
+          "Mixture",
+          "Magnets",
+          "Electricity",
+          "Sound",
+          "Soil",
+          "Formation of soil",
+          "Clay",
+          "Rocks",
+          "Fossils"
+        ]
+      },
+      "الصف الخامس": {
+        "English": [
+          "Nutrition in plants and photosynthesis",
+          "Nutrition in animals",
+          "Adaptation and behavior",
+          "Food chain",
+          "Nutrients",
+          "Digestive system",
+          "Respiratory system",
+          "Circulatory system",
+          "Protection from disease",
+          "Propagation of light",
+          "Flow of electricity",
+          "Electric circuits",
+          "Chemical substances",
+          "Solar system",
+          "Spheres of the earth",
+          "Atmospheric pressure"
+        ]
+      },
+      "الصف السادس": {
+        "English": [
+          "Plant cell",
+          "Reproduction in plants",
+          "Animal cell",
+          "Reproduction in animals",
+          "Body structure",
+          "Nervous system",
+          "Excretory system",
+          "Effects of smoking",
+          "Interaction between man and environment",
+          "Pollution",
+          "Insecticides",
+          "Chemical reaction",
+          "Simple machines",
+          "Energy",
+          "Sustainable development",
+          "Earth movements",
+          "Rotation of the moon",
+          "Satellites"
+        ]
+      }
+    },
+    "فيزياء": {
+      "الصف السابع": {
+        "English": [
+          "Solid and liquid states",
+          "Gaseous state",
+          "Structure of matter",
+          "Change of state and expansion",
+          "Electric circuit",
+          "Measurement of current and potential difference",
+          "Grouping of lamps",
+          "Magnets and coils"
+        ]
+      },
+      "الصف الثامن": {
+        "English": [
+          "Motion and speed",
+          "Force: effects and classification",
+          "Work, power and forms of energy",
+          "Characteristics of waves",
+          "Sound waves",
+          "Electromagnetic waves and colors",
+          "Rectilinear propagation of light",
+          "Reflection of light and plane mirror"
+        ]
+      },
+      "الصف التاسع": {
+        "English": [
+          "Equilibrium of a body under the action of two forces",
+          "Hooke's law",
+          "Pressure in liquids",
+          "Archimedes' principle",
+          "Alternating current",
+          "Ohm's law",
+          "Grouping of resistors",
+          "Power and energy",
+          "Quantity of heat and transfer of heat",
+          "Thermal equilibrium",
+          "Refraction of light",
+          "Lenses and eye"
+        ]
+      }
+    },
+    "كيمياء": {
+      "الصف السابع": {
+        "English": [
+          "Classification of matter",
+          "Separation techniques",
+          "Environmental applications",
+          "Solutions",
+          "Suspensions and colloids",
+          "Reactants and products",
+          "Conservation of matter",
+          "Energy and chemical reactions",
+          "Combustion"
+        ]
+      },
+      "الصف الثامن": {
+        "English": [
+          "Elements",
+          "Compounds",
+          "Atoms, molecules and ions",
+          "Symbols and formulas",
+          "Allotropes: diamond and graphite",
+          "Electrification",
+          "Electric discharge",
+          "Conductors and insulators",
+          "Electricity and safety",
+          "Chemical equations",
+          "Types of chemical reactions",
+          "Rate of chemical reactions",
+          "Acidic and basic solutions",
+          "pH",
+          "Salts"
+        ]
+      },
+      "الصف التاسع": {
+        "English": [
+          "Structure of the atom",
+          "The mole concept",
+          "Periodic table",
+          "Stability of inert gases",
+          "Formation of a chemical bond",
+          "Electron-dot symbols",
+          "Covalent bond",
+          "Ionic bond",
+          "Electric energy from chemical reactions",
+          "Using electric energy to produce chemical reactions",
+          "Oxidation-reduction reactions",
+          "Hydrocarbons",
+          "Petroleum, natural gas and coal",
+          "Esterification and saponification",
+          "Synthetic materials",
+          "Chemistry and environment"
+        ]
+      }
+    },
+    "علوم الحياة": {
+      "الصف السابع": {
+        "English": [
+          "Feeding behavior of animals",
+          "Nutritional needs of plants",
+          "Respiration in living things",
+          "Relations between environmental conditions, body activities and nutrition",
+          "Nutrition and respiration: vital requirements",
+          "Animal reproduction",
+          "Plant reproduction",
+          "Study of an ecosystem",
+          "Relations between organisms in ecosystems",
+          "Food web in an ecosystem",
+          "Man and natural equilibrium"
+        ]
+      },
+      "الصف الثامن": {
+        "English": [
+          "Puberty and adolescence",
+          "Reproductive organs",
+          "Functioning of the reproductive system",
+          "Fertilization, development and birth",
+          "Birth control",
+          "Sexually transmitted diseases",
+          "Immunological specificity",
+          "Deficiency and disorder of the immune system",
+          "Preventive and curative methods",
+          "Geology: earth science",
+          "Manifestations of earth activities",
+          "Structure and dynamics of the earth",
+          "Circulation of matter on earth",
+          "Geology and human responsibilities"
+        ]
+      },
+      "الصف التاسع": {
+        "English": [
+          "Digestion",
+          "Respiration",
+          "Blood circulation",
+          "Utilization of nutrients and oxygen",
+          "Urinary function",
+          "Nutrition and health",
+          "Chromosomes and genetic information",
+          "Mitosis",
+          "Meiosis and gene assortment",
+          "Mendel's work",
+          "Genetic engineering",
+          "Nervous coordination and human behavior",
+          "Response of organisms to environmental stimuli",
+          "Tactile sensation",
+          "Substance abuse"
+        ]
+      }
+    }
+  }
+}
