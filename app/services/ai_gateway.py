@@ -65,17 +65,10 @@ class NabilAIGateway:
                     value
                 )
 
-        self.gemini_text_model = getattr(
-            settings,
-            "GEMINI_TEXT_MODEL",
-            "gemini-3.8-flash",
-        )
-
-        self.gemini_vision_model = getattr(
-            settings,
-            "GEMINI_VISION_MODEL",
-            "gemini-3.8-flash",
-        )
+        # Gemini model is fixed here intentionally.
+        # This avoids an old/stale setting overriding the deployed model.
+        self.gemini_text_model = "gemini-3.6-flash"
+        self.gemini_vision_model = "gemini-3.6-flash"
 
         # =====================================================
         # Groq
