@@ -430,6 +430,36 @@
             display: block;
         }
  
+        .drawing-item {
+            margin-top: 14px;
+        }
+ 
+        .drawing-item + .drawing-item {
+            padding-top: 14px;
+            border-top: 1px dashed #cbd5e1;
+        }
+ 
+        .drawing-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+ 
+        .drawing-actions button {
+            min-height: 36px;
+            padding: 7px 12px;
+            border-radius: 8px;
+            background: #263341;
+            color: white;
+            font-weight: 800;
+            cursor: pointer;
+        }
+ 
+        .drawing-actions .draw-answer-btn.active {
+            background: #1672e8;
+        }
+ 
         .drawing-title {
             margin: 0;
             padding: 12px 16px;
@@ -2301,34 +2331,111 @@ function readAnswer(
  
 function functionY(
     kind,
-    x
+    x,
+    drawing = {}
 ) {
+ 
+    const coefficient =
+        Number(
+            drawing.coefficient ??
+            1
+        );
+ 
+    const xShift =
+        Number(
+            drawing.x_shift ??
+            0
+        );
+ 
+    const yShift =
+        Number(
+            drawing.y_shift ??
+            0
+        );
  
     switch(kind) {
  
-        case "ln":
+        case "ln": {
+ 
+            const inside =
+                x - xShift;
+ 
             return (
-                x > 0
-                    ? Math.log(x)
+                inside > 0
+                    ? coefficient *
+                      Math.log(inside) +
+                      yShift
                     : null
             );
+        }
  
-        case "exp":
-            return Math.exp(x);
+        case "exp": {
+ 
+            const base =
+                Number(
+                    drawing.base ??
+                    Math.E
+                );
+ 
+            if (
+                !Number.isFinite(base) ||
+                base <= 0 ||
+                Math.abs(base - 1) <
+                    0.0000001
+            ) {
+                return null;
+            }
+ 
+            return (
+                coefficient *
+                Math.pow(
+                    base,
+                    x - xShift
+                ) +
+                yShift
+            );
+        }
  
         case "square":
-            return x * x;
+ 
+            return (
+                coefficient *
+                Math.pow(
+                    x - xShift,
+                    2
+                ) +
+                yShift
+            );
  
         case "linear":
-            return x;
  
-        case "inverse":
             return (
-                Math.abs(x) <
-                    0.0001
-                    ? null
-                    : 1 / x
+                Number(
+                    drawing.slope ??
+                    1
+                ) *
+                x +
+                Number(
+                    drawing.intercept ??
+                    0
+                )
             );
+ 
+        case "inverse": {
+ 
+            const denominator =
+                x - xShift;
+ 
+            return (
+                Math.abs(
+                    denominator
+                ) < 0.0001
+                    ? null
+                    : coefficient /
+                      denominator +
+                      yShift
+            );
+        }
  
         default:
             return null;
@@ -2460,7 +2567,8 @@ function renderFunction(
         const y =
             functionY(
                 drawing.function,
-                x
+                x,
+                drawing
             );
  
         if (
@@ -3961,7 +4069,7 @@ async function shareDrawing(
 function addMessage(
     role,
     text,
-    drawing = null
+    drawings = null
 ) {
  
     if (welcome) {
@@ -3969,6 +4077,7 @@ function addMessage(
         welcome.style.display =
             "none";
     }
+ 
  
     const wrapper =
         document.createElement(
@@ -3979,6 +4088,7 @@ function addMessage(
         "message " +
         role;
  
+ 
     const bubble =
         document.createElement(
             "div"
@@ -3987,12 +4097,14 @@ function addMessage(
     bubble.className =
         "bubble";
  
+ 
     const selectedLanguage =
         languageSelect.value;
  
     const isLTR =
         selectedLanguage === "English" ||
         selectedLanguage === "Français";
+ 
  
     bubble.classList.add(
         isLTR
@@ -4006,6 +4118,7 @@ function addMessage(
             ? "ltr"
             : "rtl"
     );
+ 
  
     if (
         role ===
@@ -4023,6 +4136,7 @@ function addMessage(
         bubble.textContent =
             text;
     }
+ 
  
     if (
         role ===
@@ -4058,6 +4172,26 @@ function addMessage(
             };
  
  
+        const wordButton =
+            document.createElement(
+                "button"
+            );
+ 
+        wordButton.type =
+            "button";
+ 
+        wordButton.textContent =
+            "📝 نسخ إلى Word";
+ 
+        wordButton.onclick =
+            () => {
+                copyAnswerForWord(
+                    text,
+                    wordButton
+                );
+            };
+ 
+ 
         const readButton =
             document.createElement(
                 "button"
@@ -4082,25 +4216,6 @@ function addMessage(
             copyButton
         );
  
-        const wordButton =
-            document.createElement(
-                "button"
-            );
- 
-        wordButton.type =
-            "button";
- 
-        wordButton.textContent =
-            "📝 نسخ إلى Word";
- 
-        wordButton.onclick =
-            () => {
-                copyAnswerForWord(
-                    text,
-                    wordButton
-                );
-            };
- 
         tools.appendChild(
             wordButton
         );
@@ -4109,237 +4224,307 @@ function addMessage(
             readButton
         );
  
- 
-        if (drawing) {
- 
-            const drawingBox =
-                document.createElement(
-                    "div"
-                );
- 
-            drawingBox.className =
-                "answer-drawing";
+        bubble.appendChild(
+            tools
+        );
  
  
-            function ensureDrawingRendered() {
+        const drawingList =
+            Array.isArray(
+                drawings
+            )
+                ? drawings
+                    .filter(
+                        Boolean
+                    )
+                    .slice(
+                        0,
+                        3
+                    )
+                : drawings
+                    ? [drawings]
+                    : [];
  
-                if (
-                    !drawingBox
-                        .dataset
-                        .rendered
-                ) {
  
-                    drawingBox.innerHTML =
-                        renderDrawing(
-                            drawing
-                        );
+        drawingList.forEach(
+            (
+                drawing,
+                drawingIndex
+            ) => {
  
-                    drawingBox
-                        .dataset
-                        .rendered =
-                        "true";
+                const drawingItem =
+                    document.createElement(
+                        "div"
+                    );
+ 
+                drawingItem.className =
+                    "drawing-item";
+ 
+ 
+                const drawingActions =
+                    document.createElement(
+                        "div"
+                    );
+ 
+                drawingActions.className =
+                    "drawing-actions";
+ 
+ 
+                const drawingBox =
+                    document.createElement(
+                        "div"
+                    );
+ 
+                drawingBox.className =
+                    "answer-drawing";
+ 
+ 
+                function ensureDrawingRendered() {
  
                     if (
-                        window.MathJax &&
-                        typeof
-                        MathJax.typesetPromise ===
-                        "function"
+                        !drawingBox
+                            .dataset
+                            .rendered
                     ) {
  
-                        MathJax
-                            .typesetPromise(
-                                [
-                                    drawingBox
-                                ]
-                            )
-                            .catch(
-                                console.error
+                        drawingBox.innerHTML =
+                            renderDrawing(
+                                drawing
                             );
+ 
+                        drawingBox
+                            .dataset
+                            .rendered =
+                            "true";
+ 
+ 
+                        if (
+                            window.MathJax &&
+                            typeof
+                            MathJax.typesetPromise ===
+                            "function"
+                        ) {
+ 
+                            MathJax
+                                .typesetPromise(
+                                    [
+                                        drawingBox
+                                    ]
+                                )
+                                .catch(
+                                    console.error
+                                );
+                        }
                     }
                 }
-            }
  
  
-            const drawButton =
-                document.createElement(
-                    "button"
-                );
- 
-            drawButton.type =
-                "button";
- 
-            drawButton.className =
-                "draw-answer-btn";
- 
-            drawButton.textContent =
-                "📐 إظهار الرسمة";
- 
-            drawButton.onclick =
-                () => {
- 
-                    ensureDrawingRendered();
- 
-                    const visible =
-                        drawingBox
-                            .classList
-                            .contains(
-                                "visible"
-                            );
- 
-                    if (visible) {
- 
-                        drawingBox
-                            .classList
-                            .remove(
-                                "visible"
-                            );
- 
-                        drawButton
-                            .classList
-                            .remove(
-                                "active"
-                            );
- 
-                        drawButton.textContent =
-                            "📐 إظهار الرسمة";
-                    }
- 
-                    else {
- 
-                        drawingBox
-                            .classList
-                            .add(
-                                "visible"
-                            );
- 
-                        drawButton
-                            .classList
-                            .add(
-                                "active"
-                            );
- 
-                        drawButton.textContent =
-                            "📐 إخفاء الرسمة";
-                    }
-                };
+                const numberLabel =
+                    drawingList.length >
+                        1
+                        ? (
+                            " " +
+                            (
+                                drawingIndex +
+                                1
+                            )
+                        )
+                        : "";
  
  
-            const downloadButton =
-                document.createElement(
-                    "button"
-                );
+                const drawButton =
+                    document.createElement(
+                        "button"
+                    );
  
-            downloadButton.type =
-                "button";
+                drawButton.type =
+                    "button";
  
-            downloadButton.textContent =
-                "⬇️ تنزيل الرسمة";
+                drawButton.className =
+                    "draw-answer-btn";
  
-            downloadButton.onclick =
-                async () => {
+                drawButton.textContent =
+                    "📐 إظهار الرسمة" +
+                    numberLabel;
  
-                    ensureDrawingRendered();
  
-                    downloadButton.disabled =
-                        true;
+                drawButton.onclick =
+                    () => {
  
-                    const oldText =
-                        downloadButton.textContent;
+                        ensureDrawingRendered();
  
-                    downloadButton.textContent =
-                        "⏳ تجهيز الصورة";
  
-                    try {
- 
-                        await downloadDrawing(
+                        const visible =
                             drawingBox
-                        );
+                                .classList
+                                .contains(
+                                    "visible"
+                                );
  
-                    }
  
-                    finally {
+                        if (visible) {
+ 
+                            drawingBox
+                                .classList
+                                .remove(
+                                    "visible"
+                                );
+ 
+                            drawButton
+                                .classList
+                                .remove(
+                                    "active"
+                                );
+ 
+                            drawButton.textContent =
+                                "📐 إظهار الرسمة" +
+                                numberLabel;
+                        }
+ 
+                        else {
+ 
+                            drawingBox
+                                .classList
+                                .add(
+                                    "visible"
+                                );
+ 
+                            drawButton
+                                .classList
+                                .add(
+                                    "active"
+                                );
+ 
+                            drawButton.textContent =
+                                "📐 إخفاء الرسمة" +
+                                numberLabel;
+                        }
+                    };
+ 
+ 
+                const downloadButton =
+                    document.createElement(
+                        "button"
+                    );
+ 
+                downloadButton.type =
+                    "button";
+ 
+                downloadButton.textContent =
+                    "⬇️ تنزيل" +
+                    numberLabel;
+ 
+ 
+                downloadButton.onclick =
+                    async () => {
+ 
+                        ensureDrawingRendered();
  
                         downloadButton.disabled =
-                            false;
+                            true;
+ 
+                        const oldText =
+                            downloadButton
+                                .textContent;
  
                         downloadButton.textContent =
-                            oldText;
-                    }
-                };
+                            "⏳ تجهيز الصورة";
  
  
-            const shareButton =
-                document.createElement(
-                    "button"
-                );
+                        try {
  
-            shareButton.type =
-                "button";
+                            await downloadDrawing(
+                                drawingBox
+                            );
+                        }
  
-            shareButton.textContent =
-                "📤 مشاركة الرسمة";
+                        finally {
  
-            shareButton.onclick =
-                async () => {
+                            downloadButton.disabled =
+                                false;
  
-                    ensureDrawingRendered();
+                            downloadButton.textContent =
+                                oldText;
+                        }
+                    };
  
-                    shareButton.disabled =
-                        true;
  
-                    const oldText =
-                        shareButton.textContent;
+                const shareButton =
+                    document.createElement(
+                        "button"
+                    );
  
-                    shareButton.textContent =
-                        "⏳ تجهيز المشاركة";
+                shareButton.type =
+                    "button";
  
-                    try {
+                shareButton.textContent =
+                    "📤 مشاركة" +
+                    numberLabel;
  
-                        await shareDrawing(
-                            drawingBox
-                        );
  
-                    }
+                shareButton.onclick =
+                    async () => {
  
-                    finally {
+                        ensureDrawingRendered();
  
                         shareButton.disabled =
-                            false;
+                            true;
+ 
+                        const oldText =
+                            shareButton
+                                .textContent;
  
                         shareButton.textContent =
-                            oldText;
-                    }
-                };
+                            "⏳ تجهيز المشاركة";
  
  
-            tools.appendChild(
-                drawButton
-            );
+                        try {
  
-            tools.appendChild(
-                downloadButton
-            );
+                            await shareDrawing(
+                                drawingBox
+                            );
+                        }
  
-            tools.appendChild(
-                shareButton
-            );
+                        finally {
  
-            bubble.appendChild(
-                tools
-            );
+                            shareButton.disabled =
+                                false;
  
-            bubble.appendChild(
-                drawingBox
-            );
-        }
+                            shareButton.textContent =
+                                oldText;
+                        }
+                    };
  
-        else {
  
-            bubble.appendChild(
-                tools
-            );
-        }
+                drawingActions.appendChild(
+                    drawButton
+                );
+ 
+                drawingActions.appendChild(
+                    downloadButton
+                );
+ 
+                drawingActions.appendChild(
+                    shareButton
+                );
+ 
+ 
+                drawingItem.appendChild(
+                    drawingActions
+                );
+ 
+                drawingItem.appendChild(
+                    drawingBox
+                );
+ 
+ 
+                bubble.appendChild(
+                    drawingItem
+                );
+            }
+        );
     }
+ 
  
     wrapper.appendChild(
         bubble
@@ -4349,8 +4534,10 @@ function addMessage(
         wrapper
     );
  
+ 
     chat.scrollTop =
         chat.scrollHeight;
+ 
  
     if (
         role ===
@@ -4363,7 +4550,9 @@ function addMessage(
  
         MathJax
             .typesetPromise(
-                [bubble]
+                [
+                    bubble
+                ]
             )
             .catch(
                 console.error
@@ -4552,8 +4741,20 @@ async function sendToAI(
             "teacher",
             data.reply ||
             "لم يصل جواب.",
-            data.drawing ||
-            null
+            (
+                Array.isArray(
+                    data.drawings
+                ) &&
+                data.drawings.length
+            )
+                ? data.drawings
+                : (
+                    data.drawing
+                        ? [
+                            data.drawing
+                        ]
+                        : []
+                )
         );
  
         selectedImage =
@@ -4651,7 +4852,7 @@ startLesson.addEventListener(
 ابدأ بتمهيد قصير.
 اشرح الفكرة الأولى بطريقة واضحة.
 استخدم مثالًا مناسبًا.
-إذا كان الرسم مفيدًا أرسل DRAWING_JSON.
+إذا كان الرسم مفيدًا أرسل DRAWINGS_JSON ويمكنك إرسال من رسمة واحدة إلى 3 رسومات مختلفة عند الحاجة.
 لا تستخدم رسومات ASCII.
 إذا كانت الإجابة بالعربية فاستخدم العربية فقط باستثناء الرموز والمصطلحات الرياضية الضرورية.
 لا تستخدم كلمات صينية أو بولندية أو فرنسية أو إنجليزية داخل الشرح العربي بلا ضرورة.
