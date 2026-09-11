@@ -1,1344 +1,524 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-
 <head>
-
-    <meta charset="UTF-8">
-
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
-
-    <title>منصة النبيل التعليمية الذكية</title>
-
-    <!-- ==================================================
-         MATHJAX
-    ================================================== -->
-
-    <script>
-        window.MathJax = {
-            tex: {
-                inlineMath: [
-                    ['\\(', '\\)'],
-                    ['$', '$']
-                ],
-                displayMath: [
-                    ['\\[', '\\]'],
-                    ['$$', '$$']
-                ]
-            },
-            svg: {
-                fontCache: 'global'
-            }
-        };
-    </script>
-
-    <script
-        src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"
-        async>
-    </script>
-
-
-    <style>
-
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            margin: 0;
-            font-family: Arial, Tahoma, sans-serif;
-            background: #f4f7fb;
-            color: #1f2937;
-        }
-
-        /* =========================
-           HEADER
-        ========================= */
-
-        .header {
-            background: linear-gradient(
-                135deg,
-                #173b6c,
-                #2563eb
-            );
-
-            color: white;
-
-            padding: 20px;
-
-            box-shadow:
-                0 3px 12px rgba(0,0,0,.15);
-        }
-
-        .header-title {
-            text-align: center;
-
-            font-size: 27px;
-
-            font-weight: bold;
-
-            margin-bottom: 20px;
-        }
-
-        .controls {
-            max-width: 1250px;
-
-            margin: auto;
-
-            display: grid;
-
-            grid-template-columns:
-                repeat(5, 1fr)
-                auto;
-
-            gap: 10px;
-
-            align-items: end;
-        }
-
-        .control {
-            display: flex;
-
-            flex-direction: column;
-
-            gap: 6px;
-        }
-
-        .control label {
-            font-size: 14px;
-
-            font-weight: bold;
-        }
-
-        select {
-            width: 100%;
-
-            padding: 12px;
-
-            border: none;
-
-            border-radius: 8px;
-
-            font-size: 15px;
-
-            background: white;
-
-            color: #222;
-
-            outline: none;
-
-            cursor: pointer;
-        }
-
-        select:focus {
-            box-shadow:
-                0 0 0 2px rgba(255,255,255,.5);
-        }
-
-        #startLesson {
-            border: none;
-
-            border-radius: 8px;
-
-            padding: 12px 18px;
-
-            background: #16a34a;
-
-            color: white;
-
-            font-size: 16px;
-
-            font-weight: bold;
-
-            cursor: pointer;
-
-            min-height: 44px;
-
-            white-space: nowrap;
-        }
-
-        #startLesson:hover {
-            background: #15803d;
-        }
-
-        #startLesson:disabled {
-            opacity: .6;
-
-            cursor: not-allowed;
-        }
-
-
-        /* =========================
-           MAIN
-        ========================= */
-
-        .container {
-            max-width: 1000px;
-
-            margin: 25px auto;
-
-            padding: 0 15px;
-        }
-
-
-        /* =========================
-           LESSON INFO
-        ========================= */
-
-        .lesson-info {
-            background: white;
-
-            border-radius: 12px;
-
-            padding: 15px 20px;
-
-            margin-bottom: 15px;
-
-            box-shadow:
-                0 2px 8px rgba(0,0,0,.08);
-
-            display: none;
-
-            line-height: 1.8;
-        }
-
-        .lesson-info strong {
-            color: #173b6c;
-        }
-
-
-        /* =========================
-           CHAT
-        ========================= */
-
-        .chat {
-            background: white;
-
-            min-height: 500px;
-
-            border-radius: 14px;
-
-            padding: 20px;
-
-            box-shadow:
-                0 2px 10px rgba(0,0,0,.08);
-
-            overflow-y: auto;
-        }
-
-        .welcome {
-            text-align: center;
-
-            padding: 70px 20px;
-
-            color: #64748b;
-        }
-
-        .welcome h2 {
-            color: #173b6c;
-
-            margin-bottom: 10px;
-        }
-
-
-        /* =========================
-           MESSAGES
-        ========================= */
-
-        .message {
-            display: flex;
-
-            margin: 12px 0;
-        }
-
-        .message.student {
-            justify-content: flex-start;
-        }
-
-        .message.teacher {
-            justify-content: flex-end;
-        }
-
-        .bubble {
-            max-width: 80%;
-
-            padding: 13px 16px;
-
-            border-radius: 14px;
-
-            line-height: 1.8;
-
-            word-wrap: break-word;
-
-            overflow-wrap: anywhere;
-        }
-
-        .student .bubble {
-            background: #e0ecff;
-        }
-
-        .teacher .bubble {
-            background: #eef8ee;
-        }
-
-
-        /* =========================
-           MATH
-        ========================= */
-
-        .bubble mjx-container {
-            direction: ltr !important;
-
-            margin: 8px 0 !important;
-        }
-
-        .bubble mjx-container[display="true"] {
-            margin: 14px 0 !important;
-
-            overflow-x: auto;
-
-            overflow-y: hidden;
-
-            max-width: 100%;
-        }
-
-        .bubble mjx-container[jax="SVG"] {
-            max-width: 100%;
-        }
-
-
-        /* =========================
-           TEACHER TOOLS
-        ========================= */
-
-        .teacher-tools {
-            display: flex;
-
-            gap: 7px;
-
-            margin-top: 10px;
-
-            direction: rtl;
-
-            flex-wrap: wrap;
-        }
-
-        .copy-answer-btn {
-            background: #ffffff;
-
-            border:
-                1px solid #cbd5e1;
-
-            color: #334155;
-
-            border-radius: 7px;
-
-            padding: 6px 10px;
-
-            font-size: 13px;
-
-            cursor: pointer;
-        }
-
-        .copy-answer-btn:hover {
-            background: #f1f5f9;
-        }
-
-        .copy-answer-btn.copied {
-            background: #dcfce7;
-
-            color: #166534;
-
-            border-color: #86efac;
-        }
-
-
-        /* =========================
-           LESSON DIAGRAM
-        ========================= */
-
-        .lesson-diagram {
-            background: #ffffff;
-
-            border-radius: 14px;
-
-            padding: 18px;
-
-            margin: 15px 0;
-
-            box-shadow:
-                0 2px 8px rgba(0,0,0,.08);
-
-            text-align: center;
-
-            border:
-                1px solid #e2e8f0;
-        }
-
-        .lesson-diagram-title {
-            font-weight: bold;
-
-            color: #173b6c;
-
-            margin-bottom: 10px;
-
-            font-size: 17px;
-        }
-
-        .lesson-diagram svg {
-            max-width: 100%;
-
-            height: auto;
-        }
-
-        .diagram-label {
-            font-family:
-                Arial,
-                Tahoma,
-                sans-serif;
-
-            font-size: 16px;
-
-            font-weight: bold;
-        }
-
-
-        /* =========================
-           INPUT
-        ========================= */
-
-        .input-area {
-            margin-top: 15px;
-
-            display: flex;
-
-            gap: 8px;
-        }
-
-        textarea {
-            flex: 1;
-
-            resize: none;
-
-            min-height: 55px;
-
-            padding: 12px;
-
-            border:
-                1px solid #cbd5e1;
-
-            border-radius: 10px;
-
-            font-size: 16px;
-
-            font-family: inherit;
-
-            outline: none;
-        }
-
-        textarea:focus {
-            border-color: #2563eb;
-        }
-
-        button {
-            border: none;
-
-            border-radius: 10px;
-
-            padding: 0 20px;
-
-            cursor: pointer;
-
-            font-weight: bold;
-        }
-
-        #sendBtn {
-            background: #2563eb;
-
-            color: white;
-        }
-
-        #sendBtn:hover {
-            background: #1d4ed8;
-        }
-
-        #sendBtn:disabled {
-            opacity: .6;
-
-            cursor: not-allowed;
-        }
-
-        #imageBtn {
-            background: #64748b;
-
-            color: white;
-        }
-
-        #imageBtn:hover {
-            background: #475569;
-        }
-
-        #micBtn {
-            background: #7c3aed;
-
-            color: white;
-        }
-
-        #micBtn:hover {
-            background: #6d28d9;
-        }
-
-        #imageInput {
-            display: none;
-        }
-
-
-        /* =========================
-           SOURCES
-        ========================= */
-
-        .sources {
-            margin-top: 8px;
-
-            font-size: 12px;
-
-            color: #64748b;
-        }
-
-
-        /* =========================
-           RESPONSIVE
-        ========================= */
-
-        @media (max-width: 1000px) {
-
-            .controls {
-                grid-template-columns:
-                    repeat(3, 1fr);
-            }
-
-            #startLesson {
-                width: 100%;
-            }
-        }
-
-
-        @media (max-width: 700px) {
-
-            .controls {
-                grid-template-columns:
-                    repeat(2, 1fr);
-            }
-
-            .header-title {
-                font-size: 22px;
-            }
-
-            .bubble {
-                max-width: 90%;
-            }
-        }
-
-
-        @media (max-width: 600px) {
-
-            .controls {
-                grid-template-columns: 1fr;
-            }
-
-            .input-area {
-                flex-wrap: wrap;
-            }
-
-            textarea {
-                width: 100%;
-
-                flex-basis: 100%;
-            }
-
-            .bubble {
-                max-width: 95%;
-            }
-
-        }
-
-    </style>
-
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>منصة النبيل التعليمية الذكية</title>
+
+<script>
+window.MathJax={
+    tex:{
+        inlineMath:[['\\(','\\)'],['$','$']],
+        displayMath:[['\\[','\\]'],['$$','$$']]
+    },
+    svg:{fontCache:'global'}
+};
+</script>
+
+<script
+    src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"
+    async>
+</script>
+
+<style>
+*{box-sizing:border-box}
+
+body{
+    margin:0;
+    font-family:Arial,Tahoma,sans-serif;
+    background:#f4f7fb;
+    color:#1f2937
+}
+
+.header{
+    background:linear-gradient(135deg,#173b6c,#2563eb);
+    color:#fff;
+    padding:20px;
+    box-shadow:0 3px 12px rgba(0,0,0,.15)
+}
+
+.header-title{
+    text-align:center;
+    font-size:27px;
+    font-weight:bold;
+    margin-bottom:20px
+}
+
+.controls{
+    max-width:1250px;
+    margin:auto;
+    display:grid;
+    grid-template-columns:repeat(5,1fr) auto;
+    gap:10px;
+    align-items:end
+}
+
+.control{
+    display:flex;
+    flex-direction:column;
+    gap:6px
+}
+
+.control label{
+    font-size:14px;
+    font-weight:bold
+}
+
+select{
+    width:100%;
+    padding:12px;
+    border:none;
+    border-radius:8px;
+    font-size:15px;
+    background:#fff;
+    color:#222;
+    outline:none;
+    cursor:pointer
+}
+
+#startLesson{
+    border:none;
+    border-radius:8px;
+    padding:12px 18px;
+    background:#16a34a;
+    color:#fff;
+    font-size:16px;
+    font-weight:bold;
+    cursor:pointer;
+    min-height:44px;
+    white-space:nowrap
+}
+
+#startLesson:hover{
+    background:#15803d
+}
+
+#startLesson:disabled{
+    opacity:.6;
+    cursor:not-allowed
+}
+
+.container{
+    max-width:1000px;
+    margin:25px auto;
+    padding:0 15px
+}
+
+.lesson-info{
+    background:#fff;
+    border-radius:12px;
+    padding:15px 20px;
+    margin-bottom:15px;
+    box-shadow:0 2px 8px rgba(0,0,0,.08);
+    display:none;
+    line-height:1.8
+}
+
+.lesson-info strong{
+    color:#173b6c
+}
+
+.chat{
+    background:#fff;
+    min-height:500px;
+    border-radius:14px;
+    padding:20px;
+    box-shadow:0 2px 10px rgba(0,0,0,.08);
+    overflow-y:auto
+}
+
+.welcome{
+    text-align:center;
+    padding:70px 20px;
+    color:#64748b
+}
+
+.welcome h2{
+    color:#173b6c;
+    margin-bottom:10px
+}
+
+.message{
+    display:flex;
+    margin:12px 0
+}
+
+.message.student{
+    justify-content:flex-start
+}
+
+.message.teacher{
+    justify-content:flex-end
+}
+
+.bubble{
+    max-width:80%;
+    padding:13px 16px;
+    border-radius:14px;
+    line-height:1.8;
+    word-wrap:break-word;
+    overflow-wrap:anywhere
+}
+
+.student .bubble{
+    background:#e0ecff
+}
+
+.teacher .bubble{
+    background:#eef8ee
+}
+
+.bubble mjx-container{
+    direction:ltr!important;
+    margin:8px 0!important
+}
+
+.bubble mjx-container[display=true]{
+    margin:14px 0!important;
+    overflow-x:auto;
+    max-width:100%
+}
+
+.teacher-tools{
+    display:flex;
+    gap:7px;
+    margin-top:10px;
+    direction:rtl;
+    flex-wrap:wrap
+}
+
+.copy-answer-btn,
+.read-answer-btn{
+    background:#fff;
+    border:1px solid #cbd5e1;
+    color:#334155;
+    border-radius:7px;
+    padding:6px 10px;
+    font-size:13px;
+    cursor:pointer
+}
+
+.copy-answer-btn:hover,
+.read-answer-btn:hover{
+    background:#f1f5f9
+}
+
+.copy-answer-btn.copied,
+.read-answer-btn.reading{
+    background:#dcfce7;
+    color:#166534;
+    border-color:#86efac
+}
+
+.lesson-diagram{
+    background:#fff;
+    border-radius:14px;
+    padding:18px;
+    margin:15px 0;
+    box-shadow:0 2px 8px rgba(0,0,0,.08);
+    text-align:center;
+    border:1px solid #e2e8f0
+}
+
+.lesson-diagram-title{
+    font-weight:bold;
+    color:#173b6c;
+    margin-bottom:10px;
+    font-size:17px
+}
+
+.lesson-diagram svg{
+    max-width:100%;
+    height:auto
+}
+
+.diagram-label{
+    font-family:Arial,Tahoma,sans-serif;
+    font-size:16px;
+    font-weight:bold
+}
+
+.input-area{
+    margin-top:15px;
+    display:flex;
+    gap:8px
+}
+
+textarea{
+    flex:1;
+    resize:none;
+    min-height:55px;
+    padding:12px;
+    border:1px solid #cbd5e1;
+    border-radius:10px;
+    font-size:16px;
+    font-family:inherit;
+    outline:none
+}
+
+textarea:focus{
+    border-color:#2563eb
+}
+
+button{
+    border:none;
+    border-radius:10px;
+    padding:0 20px;
+    cursor:pointer;
+    font-weight:bold
+}
+
+#sendBtn{
+    background:#2563eb;
+    color:#fff
+}
+
+#sendBtn:hover{
+    background:#1d4ed8
+}
+
+#sendBtn:disabled{
+    opacity:.6;
+    cursor:not-allowed
+}
+
+#imageBtn{
+    background:#64748b;
+    color:#fff
+}
+
+#imageBtn:hover{
+    background:#475569
+}
+
+#micBtn{
+    background:#7c3aed;
+    color:#fff
+}
+
+#micBtn:hover{
+    background:#6d28d9
+}
+
+#imageInput{
+    display:none
+}
+
+.sources{
+    margin-top:8px;
+    font-size:12px;
+    color:#64748b
+}
+
+.status-note{
+    margin-top:8px;
+    font-size:13px;
+    color:#64748b
+}
+
+@media(max-width:1000px){
+    .controls{
+        grid-template-columns:repeat(3,1fr)
+    }
+
+    #startLesson{
+        width:100%
+    }
+}
+
+@media(max-width:700px){
+    .controls{
+        grid-template-columns:repeat(2,1fr)
+    }
+
+    .header-title{
+        font-size:22px
+    }
+
+    .bubble{
+        max-width:90%
+    }
+}
+
+@media(max-width:600px){
+    .controls{
+        grid-template-columns:1fr
+    }
+
+    .input-area{
+        flex-wrap:wrap
+    }
+
+    textarea{
+        width:100%;
+        flex-basis:100%
+    }
+
+    .bubble{
+        max-width:95%
+    }
+}
+</style>
 </head>
-
 
 <body>
 
-
 <header class="header">
 
-    <div class="header-title">
-        منصة النبيل التعليمية الذكية
-    </div>
+<div class="header-title">
+منصة النبيل التعليمية الذكية
+</div>
 
+<div class="controls">
 
-    <div class="controls">
+<div class="control">
+<label for="gradeSelect">الصف</label>
+<select id="gradeSelect"></select>
+</div>
 
+<div class="control">
+<label for="subjectSelect">المادة</label>
+<select id="subjectSelect"></select>
+</div>
 
-        <div class="control">
+<div class="control">
+<label for="languageSelect">اللغة</label>
 
-            <label for="gradeSelect">
-                الصف
-            </label>
+<select id="languageSelect">
+<option value="العربية">العربية</option>
+<option value="Français">Français</option>
+<option value="English">English</option>
+</select>
 
-            <select id="gradeSelect">
-            </select>
+</div>
 
-        </div>
+<div class="control">
+<label for="curriculumSelect">المنهج</label>
 
+<select id="curriculumSelect">
+<option value="المنهج اللبناني الرسمي">
+المنهج اللبناني الرسمي
+</option>
+</select>
 
-        <div class="control">
+</div>
 
-            <label for="subjectSelect">
-                المادة
-            </label>
+<div class="control">
+<label for="lessonSelect">الدرس</label>
+<select id="lessonSelect"></select>
+</div>
 
-            <select id="subjectSelect">
-            </select>
+<button
+    id="startLesson"
+    type="button">
+    ▶ ابدأ الدرس
+</button>
 
-        </div>
-
-
-        <div class="control">
-
-            <label for="languageSelect">
-                اللغة
-            </label>
-
-            <select id="languageSelect">
-
-                <option value="العربية">
-                    العربية
-                </option>
-
-                <option value="Français">
-                    Français
-                </option>
-
-                <option value="English">
-                    English
-                </option>
-
-            </select>
-
-        </div>
-
-
-        <div class="control">
-
-            <label for="curriculumSelect">
-                المنهج
-            </label>
-
-            <select id="curriculumSelect">
-            </select>
-
-        </div>
-
-
-        <div class="control">
-
-            <label for="lessonSelect">
-                الدرس
-            </label>
-
-            <select id="lessonSelect">
-            </select>
-
-        </div>
-
-
-        <button id="startLesson"
-                type="button">
-
-            ▶ ابدأ الدرس
-
-        </button>
-
-    </div>
-
+</div>
 </header>
-
-
 
 <main class="container">
 
+<div
+    id="lessonInfo"
+    class="lesson-info">
 
-    <div id="lessonInfo"
-         class="lesson-info">
+<strong>
+الدرس الحالي:
+</strong>
 
-        <strong>
-            الدرس الحالي:
-        </strong>
+<span id="currentLesson"></span>
 
-        <span id="currentLesson"></span>
+<div
+    id="indexStatus"
+    class="status-note">
+</div>
 
-    </div>
+</div>
 
+<section
+    id="chat"
+    class="chat">
 
-    <section id="chat"
-             class="chat">
+<div
+    id="welcome"
+    class="welcome">
 
-        <div id="welcome"
-             class="welcome">
+<h2>
+مرحباً بك في NABIL AI 👨‍🏫
+</h2>
 
-            <h2>
-                مرحباً بك في NABIL AI 👨‍🏫
-            </h2>
+<p>
+اختر الصف والمادة واللغة والمنهج والدرس،
+ثم اضغط
+<strong>▶ ابدأ الدرس</strong>.
+</p>
 
-            <p>
-                اختر الصف والمادة واللغة والمنهج والدرس،
-                ثم اضغط
-                <strong>▶ ابدأ الدرس</strong>.
-            </p>
+</div>
 
-        </div>
+</section>
 
-    </section>
+<div class="input-area">
 
+<textarea
+    id="messageInput"
+    placeholder="اكتب سؤالك هنا..."
+></textarea>
 
-    <div class="input-area">
+<button
+    id="imageBtn"
+    type="button">
+    🖼️
+</button>
 
+<input
+    id="imageInput"
+    type="file"
+    accept="image/*"
+>
 
-        <textarea
-            id="messageInput"
-            placeholder="اكتب سؤالك هنا..."
-        ></textarea>
+<button
+    id="micBtn"
+    type="button">
+    🎤
+</button>
 
+<button
+    id="sendBtn"
+    type="button">
+    إرسال
+</button>
 
-        <button id="imageBtn"
-                type="button">
-
-            🖼️
-
-        </button>
-
-
-        <input
-            id="imageInput"
-            type="file"
-            accept="image/*"
-        >
-
-
-        <button id="micBtn"
-                type="button">
-
-            🎤
-
-        </button>
-
-
-        <button id="sendBtn"
-                type="button">
-
-            إرسال
-
-        </button>
-
-    </div>
+</div>
 
 </main>
 
-
-
 <script>
-
-
-// ==================================================
-// API
-// ==================================================
 
 const API_BASE = "";
 
-
-// ==================================================
-// GRADES
-// ==================================================
-
 const GRADES = [
-
     "الصف الأول",
-
     "الصف الثاني",
-
     "الصف الثالث",
-
     "الصف الرابع",
-
     "الصف الخامس",
-
     "الصف السادس",
-
     "الصف السابع",
-
     "الصف الثامن",
-
     "الصف التاسع",
-
-    "الصف الأول ثانوي",
-
-    "الصف الحادي عشر",
-
-    "الصف الثاني عشر"
-
+    "الأول ثانوي",
+    "الثاني ثانوي",
+    "الثالث ثانوي"
 ];
-
-
-// ==================================================
-// SUBJECTS
-// ==================================================
 
 const SUBJECTS = [
-
     "رياضيات",
-
     "فيزياء",
-
     "كيمياء",
-
     "علوم",
-
-    "لغة عربية",
-
-    "لغة إنكليزية",
-
-    "تاريخ",
-
-    "جغرافيا"
-
+    "علوم الحياة"
 ];
-
-
-// ==================================================
-// CURRICULA
-// ==================================================
-
-const CURRICULA = [
-
-    "المنهج اللبناني الرسمي",
-
-    "Building Up",
-
-    "المنهج الفرنسي (CRDP)"
-
-];
-
-
-// ==================================================
-// LESSONS
-// ==================================================
-
-const LESSONS = {
-
-    "الصف التاسع": {
-
-        "رياضيات": [
-
-            "نظرية فيثاغورس",
-
-            "عكس نظرية فيثاغورس",
-
-            "النشر والتحليل",
-
-            "المعادلات من الدرجة الأولى",
-
-            "الدائرة والمماس",
-
-            "الوضع النسبي لمستقيم ودائرة",
-
-            "المماسات المرسومة من نقطة إلى دائرة",
-
-            "المواضع النسبية والمسافة",
-
-            "الإنشاءات الهندسية",
-
-            "المحل الهندسي للنقاط",
-
-            "التمثيل البياني للمستقيم",
-
-            "التوازي والتعامد"
-
-        ],
-
-        "فيزياء": [
-
-            "التيار الكهربائي",
-
-            "التوتر الكهربائي",
-
-            "قانون أوم",
-
-            "الدارة الكهربائية",
-
-            "الطاقة الكهربائية"
-
-        ],
-
-        "كيمياء": [
-
-            "الذرة",
-
-            "العناصر الكيميائية",
-
-            "الجزيئات",
-
-            "التفاعلات الكيميائية"
-
-        ],
-
-        "علوم": [
-
-            "الخلية",
-
-            "الوراثة",
-
-            "الجهاز العصبي",
-
-            "التوازن البيئي"
-
-        ],
-
-        "لغة عربية": [
-
-            "القراءة والفهم",
-
-            "النحو",
-
-            "الصرف",
-
-            "البلاغة",
-
-            "التعبير الكتابي"
-
-        ],
-
-        "لغة إنكليزية": [
-
-            "Reading",
-
-            "Grammar",
-
-            "Vocabulary",
-
-            "Writing",
-
-            "Comprehension"
-
-        ],
-
-        "تاريخ": [
-
-            "لبنان والعالم العربي",
-
-            "التاريخ الحديث",
-
-            "الحرب العالمية الأولى",
-
-            "الحرب العالمية الثانية"
-
-        ],
-
-        "جغرافيا": [
-
-            "السكان",
-
-            "الموارد الطبيعية",
-
-            "المناخ",
-
-            "الجغرافيا الاقتصادية"
-
-        ]
-
-    },
-
-
-    "الصف الثامن": {
-
-        "رياضيات": [
-
-            "الأعداد النسبية",
-
-            "القوى",
-
-            "الجذور",
-
-            "المعادلات",
-
-            "المثلثات",
-
-            "الدائرة",
-
-            "المساحات والحجوم"
-
-        ],
-
-        "فيزياء": [
-
-            "الحركة",
-
-            "القوة",
-
-            "الطاقة",
-
-            "الضغط"
-
-        ],
-
-        "كيمياء": [
-
-            "المادة",
-
-            "الذرات",
-
-            "الجزيئات",
-
-            "المخاليط"
-
-        ],
-
-        "علوم": [
-
-            "الخلية",
-
-            "أجهزة جسم الإنسان",
-
-            "التغذية",
-
-            "البيئة"
-
-        ]
-
-    },
-
-
-    "الصف السابع": {
-
-        "رياضيات": [
-
-            "الأعداد الصحيحة",
-
-            "الكسور",
-
-            "التناسب",
-
-            "المعادلات",
-
-            "المثلث",
-
-            "الزوايا",
-
-            "المحيط والمساحة"
-
-        ],
-
-        "علوم": [
-
-            "المادة",
-
-            "الخلية",
-
-            "التغذية",
-
-            "البيئة"
-
-        ]
-
-    },
-
-
-    "الصف السادس": {
-
-        "رياضيات": [
-
-            "الأعداد الطبيعية",
-
-            "العمليات الحسابية",
-
-            "الكسور",
-
-            "الأعداد العشرية",
-
-            "الهندسة",
-
-            "المحيط والمساحة",
-
-            "النسب والتناسب"
-
-        ],
-
-        "علوم": [
-
-            "الكائنات الحية",
-
-            "النباتات",
-
-            "الحيوانات",
-
-            "البيئة"
-
-        ]
-
-    },
-
-
-    "الصف الخامس": {
-
-        "رياضيات": [
-
-            "الأعداد الطبيعية",
-
-            "العمليات الأربع",
-
-            "الكسور",
-
-            "الأعداد العشرية",
-
-            "القياس",
-
-            "الهندسة",
-
-            "المساحة والمحيط"
-
-        ]
-
-    },
-
-
-    "الصف الرابع": {
-
-        "رياضيات": [
-
-            "الأعداد",
-
-            "الجمع والطرح",
-
-            "الضرب والقسمة",
-
-            "الكسور",
-
-            "الهندسة",
-
-            "القياس"
-
-        ]
-
-    },
-
-
-    "الصف الثالث": {
-
-        "رياضيات": [
-
-            "الأعداد",
-
-            "الجمع",
-
-            "الطرح",
-
-            "الضرب",
-
-            "القسمة",
-
-            "الأشكال الهندسية",
-
-            "القياس"
-
-        ]
-
-    },
-
-
-    "الصف الثاني": {
-
-        "رياضيات": [
-
-            "الأعداد",
-
-            "الجمع",
-
-            "الطرح",
-
-            "الضرب",
-
-            "الأشكال الهندسية",
-
-            "القياس"
-
-        ]
-
-    },
-
-
-    "الصف الأول": {
-
-        "رياضيات": [
-
-            "الأعداد",
-
-            "العد",
-
-            "الجمع",
-
-            "الطرح",
-
-            "الأشكال",
-
-            "الأحجام"
-
-        ]
-
-    },
-
-
-    "الصف الأول ثانوي": {
-
-        "رياضيات": [
-
-            "الجبر",
-
-            "المعادلات",
-
-            "الدوال",
-
-            "الهندسة",
-
-            "المثلثات",
-
-            "الإحصاء"
-
-        ],
-
-        "فيزياء": [
-
-            "الحركة",
-
-            "القوة",
-
-            "الطاقة",
-
-            "الكهرباء"
-
-        ],
-
-        "كيمياء": [
-
-            "الذرة",
-
-            "الجدول الدوري",
-
-            "الروابط الكيميائية",
-
-            "التفاعلات الكيميائية"
-
-        ]
-
-    },
-
-
-    "الصف الحادي عشر": {
-
-        "رياضيات": [
-
-            "الدوال",
-
-            "المعادلات",
-
-            "المتتاليات",
-
-            "الهندسة",
-
-            "الاحتمالات",
-
-            "الإحصاء"
-
-        ],
-
-        "فيزياء": [
-
-            "الميكانيك",
-
-            "الطاقة",
-
-            "الكهرباء",
-
-            "الموجات"
-
-        ],
-
-        "كيمياء": [
-
-            "البنية الذرية",
-
-            "الروابط الكيميائية",
-
-            "التفاعلات",
-
-            "المحاليل"
-
-        ]
-
-    },
-
-
-    "الصف الثاني عشر": {
-
-        "رياضيات": [
-
-            "الدوال",
-
-            "النهايات",
-
-            "الاشتقاق",
-
-            "التكامل",
-
-            "المتتاليات",
-
-            "الاحتمالات",
-
-            "الإحصاء"
-
-        ],
-
-        "فيزياء": [
-
-            "الميكانيك",
-
-            "الكهرباء",
-
-            "المغناطيسية",
-
-            "الموجات"
-
-        ],
-
-        "كيمياء": [
-
-            "التفاعلات الكيميائية",
-
-            "الحموض والقواعد",
-
-            "الكيمياء العضوية",
-
-            "الكهروكيمياء"
-
-        ]
-
-    }
-
-};
-
-
-// ==================================================
-// ELEMENTS
-// ==================================================
 
 const gradeSelect =
     document.getElementById("gradeSelect");
@@ -1370,6 +550,9 @@ const lessonInfo =
 const currentLesson =
     document.getElementById("currentLesson");
 
+const indexStatus =
+    document.getElementById("indexStatus");
+
 const messageInput =
     document.getElementById("messageInput");
 
@@ -1385,10 +568,14 @@ const imageInput =
 const micBtn =
     document.getElementById("micBtn");
 
+let curriculumIndex = {};
 
-// ==================================================
-// FILL SELECT
-// ==================================================
+let conversationId = null;
+
+let selectedImage = null;
+
+let recognition = null;
+
 
 function fillSelect(
     select,
@@ -1408,26 +595,25 @@ function fillSelect(
 
     select.appendChild(first);
 
+    items.forEach(
+        item => {
 
-    items.forEach(item => {
+            const option =
+                document.createElement("option");
 
-        const option =
-            document.createElement("option");
+            option.value =
+                item;
 
-        option.value = item;
+            option.textContent =
+                item;
 
-        option.textContent = item;
+            select.appendChild(option);
 
-        select.appendChild(option);
-
-    });
+        }
+    );
 
 }
 
-
-// ==================================================
-// INITIALIZE SELECTS
-// ==================================================
 
 fillSelect(
     gradeSelect,
@@ -1435,17 +621,13 @@ fillSelect(
     "اختر الصف"
 );
 
+
 fillSelect(
     subjectSelect,
     SUBJECTS,
     "اختر المادة"
 );
 
-fillSelect(
-    curriculumSelect,
-    CURRICULA,
-    "اختر المنهج"
-);
 
 fillSelect(
     lessonSelect,
@@ -1454,9 +636,54 @@ fillSelect(
 );
 
 
-// ==================================================
-// UPDATE LESSONS
-// ==================================================
+async function loadCurriculum() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/static/crdp_scientific_curriculum_index.json",
+                {
+                    cache: "no-store"
+                }
+            );
+
+        if (!response.ok) {
+
+            throw new Error(
+                "تعذر تحميل فهرس CRDP"
+            );
+
+        }
+
+        const data =
+            await response.json();
+
+        curriculumIndex =
+            data.verified_index || {};
+
+        indexStatus.textContent =
+            "تم تحميل فهرس المحتوى المتاح من CRDP.";
+
+        updateLessons();
+
+    }
+    catch (error) {
+
+        console.error(
+            "CRDP INDEX ERROR:",
+            error
+        );
+
+        indexStatus.textContent =
+            "فهرس CRDP غير متاح حاليًا.";
+
+        updateLessons();
+
+    }
+
+}
+
 
 function updateLessons() {
 
@@ -1466,75 +693,85 @@ function updateLessons() {
     const subject =
         subjectSelect.value;
 
+    const language =
+        languageSelect.value;
 
     let lessons = [];
 
+    const gradeData =
+        curriculumIndex?.[subject]?.[grade];
 
-    if (
-        LESSONS[grade] &&
-        LESSONS[grade][subject]
-    ) {
+    if (gradeData) {
 
-        lessons =
-            LESSONS[grade][subject];
+        const languageData =
+            gradeData[language];
 
-    }
+        if (
+            Array.isArray(
+                languageData
+            )
+        ) {
 
-
-    lessonSelect.innerHTML = "";
-
-
-    const first =
-        document.createElement("option");
-
-
-    first.value = "";
-
-
-    if (lessons.length > 0) {
-
-        first.textContent =
-            "اختر الدرس";
-
-    }
-    else {
-
-        first.textContent =
-            "اكتب اسم الدرس في سؤالك";
-
-    }
-
-
-    lessonSelect.appendChild(first);
-
-
-    lessons.forEach(
-        lesson => {
-
-            const option =
-                document.createElement(
-                    "option"
-                );
-
-            option.value =
-                lesson;
-
-            option.textContent =
-                lesson;
-
-            lessonSelect.appendChild(
-                option
-            );
+            lessons =
+                languageData;
 
         }
+        else if (
+            languageData &&
+            typeof languageData === "object"
+        ) {
+
+            for (
+                const value
+                of Object.values(
+                    languageData
+                )
+            ) {
+
+                if (
+                    Array.isArray(value)
+                ) {
+
+                    lessons.push(
+                        ...value
+                    );
+
+                }
+
+            }
+
+        }
+
+    }
+
+    fillSelect(
+        lessonSelect,
+        lessons,
+        "اختر الدرس"
     );
+
+    if (
+        lessons.length === 0
+    ) {
+
+        const option =
+            document.createElement("option");
+
+        option.value = "";
+
+        option.textContent =
+            "المحتوى قيد الفهرسة";
+
+        lessonSelect.innerHTML = "";
+
+        lessonSelect.appendChild(
+            option
+        );
+
+    }
 
 }
 
-
-// ==================================================
-// EVENTS
-// ==================================================
 
 gradeSelect.addEventListener(
     "change",
@@ -1546,10 +783,11 @@ subjectSelect.addEventListener(
     updateLessons
 );
 
+languageSelect.addEventListener(
+    "change",
+    updateLessons
+);
 
-// ==================================================
-// STUDENT ID
-// ==================================================
 
 function getStudentId() {
 
@@ -1557,7 +795,6 @@ function getStudentId() {
         localStorage.getItem(
             "nabil_student_id"
         );
-
 
     if (!id) {
 
@@ -1569,7 +806,6 @@ function getStudentId() {
                 .toString(36)
                 .substring(2, 8);
 
-
         localStorage.setItem(
             "nabil_student_id",
             id
@@ -1577,24 +813,10 @@ function getStudentId() {
 
     }
 
-
     return id;
 
 }
 
-
-// ==================================================
-// CONVERSATION
-// ==================================================
-
-let conversationId = null;
-
-let selectedImage = null;
-
-
-// ==================================================
-// RENDER AI TEXT
-// ==================================================
 
 function renderAIText(text) {
 
@@ -1604,29 +826,30 @@ function renderAIText(text) {
 
     }
 
-
     const mathBlocks = [];
 
+    const saveMath =
+        match => {
 
-    function saveMath(match) {
+            const index =
+                mathBlocks.length;
 
-        const index =
-            mathBlocks.length;
+            mathBlocks.push(
+                match
+            );
 
-        mathBlocks.push(match);
+            return (
+                "___NABIL_MATH_" +
+                index +
+                "___"
+            );
 
-        return `___NABIL_MATH_${index}___`;
-
-    }
+        };
 
 
     let content =
         String(text);
 
-
-    // ==============================================
-    // حفظ المعادلات قبل HTML
-    // ==============================================
 
     content =
         content.replace(
@@ -1656,10 +879,6 @@ function renderAIText(text) {
         );
 
 
-    // ==============================================
-    // حماية HTML
-    // ==============================================
-
     content =
         content
             .replace(
@@ -1684,10 +903,6 @@ function renderAIText(text) {
             );
 
 
-    // ==============================================
-    // العناوين
-    // ==============================================
-
     content =
         content.replace(
             /^### (.+)$/gm,
@@ -1709,31 +924,12 @@ function renderAIText(text) {
         );
 
 
-    // ==============================================
-    // Bold
-    // ==============================================
-
     content =
         content.replace(
             /\*\*(.+?)\*\*/g,
             "<strong>$1</strong>"
         );
 
-
-    // ==============================================
-    // Italic
-    // ==============================================
-
-    content =
-        content.replace(
-            /\*(.+?)\*/g,
-            "<em>$1</em>"
-        );
-
-
-    // ==============================================
-    // القوائم
-    // ==============================================
 
     content =
         content.replace(
@@ -1742,10 +938,6 @@ function renderAIText(text) {
         );
 
 
-    // ==============================================
-    // الأسطر
-    // ==============================================
-
     content =
         content.replace(
             /\n/g,
@@ -1753,19 +945,14 @@ function renderAIText(text) {
         );
 
 
-    // ==============================================
-    // إعادة المعادلات
-    // ==============================================
-
     mathBlocks.forEach(
         (math, index) => {
 
-            const token =
-                `___NABIL_MATH_${index}___`;
-
             content =
                 content.replace(
-                    token,
+                    "___NABIL_MATH_" +
+                    index +
+                    "___",
                     math
                 );
 
@@ -1778,99 +965,278 @@ function renderAIText(text) {
 }
 
 
-// ==================================================
-// COPY ANSWER
-// ==================================================
+function speechText(text) {
 
-async function copyAnswer(
+    let content =
+        String(text || "");
+
+
+    content =
+        content.replace(
+            /\$\$[\s\S]*?\$\$/g,
+            ""
+        );
+
+
+    content =
+        content.replace(
+            /\\\[[\s\S]*?\\\]/g,
+            ""
+        );
+
+
+    content =
+        content.replace(
+            /\\\([\s\S]*?\\\)/g,
+            ""
+        );
+
+
+    content =
+        content.replace(
+            /\\frac\{([^{}]+)\}\{([^{}]+)\}/g,
+            "$1 على $2"
+        );
+
+
+    content =
+        content.replace(
+            /\\sqrt\{([^{}]+)\}/g,
+            "الجذر التربيعي لـ $1"
+        );
+
+
+    content =
+        content.replace(
+            /\^2/g,
+            " تربيع"
+        );
+
+
+    content =
+        content.replace(
+            /\^3/g,
+            " تكعيب"
+        );
+
+
+    content =
+        content.replace(
+            /\\boxed\{([^{}]+)\}/g,
+            "$1"
+        );
+
+
+    content =
+        content.replace(
+            /\\text\{([^{}]+)\}/g,
+            "$1"
+        );
+
+
+    content =
+        content.replace(
+            /\\[a-zA-Z]+/g,
+            ""
+        );
+
+
+    content =
+        content.replace(
+            /[*_#>`]/g,
+            ""
+        );
+
+
+    content =
+        content.replace(
+            /\s+/g,
+            " "
+        );
+
+
+    return content.trim();
+
+}
+
+
+function copyAnswer(
     text,
     button
 ) {
 
-    try {
+    const completed =
+        () => {
 
-        if (
-            navigator.clipboard &&
-            navigator.clipboard.writeText
-        ) {
+            button.textContent =
+                "✅ تم النسخ";
 
-            await navigator.clipboard.writeText(
-                text
+            button.classList.add(
+                "copied"
             );
 
-        }
-        else {
+            setTimeout(
+                () => {
 
-            const textarea =
-                document.createElement(
-                    "textarea"
-                );
+                    button.textContent =
+                        "📋 نسخ الإجابة";
 
-            textarea.value =
-                text;
+                    button.classList.remove(
+                        "copied"
+                    );
 
-            document.body.appendChild(
-                textarea
+                },
+                1500
             );
 
-            textarea.select();
+        };
 
-            document.execCommand(
-                "copy"
+
+    if (
+        navigator.clipboard &&
+        navigator.clipboard.writeText
+    ) {
+
+        navigator.clipboard
+            .writeText(text)
+            .then(completed)
+            .catch(
+                fallback
             );
-
-            textarea.remove();
-
-        }
-
-
-        const oldText =
-            button.textContent;
-
-
-        button.textContent =
-            "✅ تم النسخ";
-
-
-        button.classList.add(
-            "copied"
-        );
-
-
-        setTimeout(
-            function () {
-
-                button.textContent =
-                    oldText;
-
-                button.classList.remove(
-                    "copied"
-                );
-
-            },
-            1500
-        );
 
     }
-    catch (error) {
+    else {
 
-        console.error(
-            "Copy error:",
-            error
+        fallback();
+
+    }
+
+
+    function fallback() {
+
+        const textarea =
+            document.createElement(
+                "textarea"
+            );
+
+        textarea.value =
+            text;
+
+        document.body.appendChild(
+            textarea
         );
 
-        alert(
-            "تعذر نسخ الإجابة."
+        textarea.select();
+
+        document.execCommand(
+            "copy"
         );
+
+        textarea.remove();
+
+        completed();
 
     }
 
 }
 
 
-// ==================================================
-// ADD MESSAGE
-// ==================================================
+function readAnswer(
+    text,
+    button
+) {
+
+    if (
+        !("speechSynthesis" in window)
+    ) {
+
+        alert(
+            "ميزة القراءة الصوتية غير مدعومة في هذا المتصفح."
+        );
+
+        return;
+
+    }
+
+
+    if (
+        speechSynthesis.speaking
+    ) {
+
+        speechSynthesis.cancel();
+
+        button.textContent =
+            "🔊 اقرأ الإجابة";
+
+        button.classList.remove(
+            "reading"
+        );
+
+        return;
+
+    }
+
+
+    const utterance =
+        new SpeechSynthesisUtterance(
+            speechText(text)
+        );
+
+
+    const language =
+        languageSelect.value;
+
+
+    utterance.lang =
+        language === "English"
+            ? "en-US"
+            : language === "Français"
+                ? "fr-FR"
+                : "ar-LB";
+
+
+    utterance.rate =
+        0.92;
+
+
+    utterance.volume =
+        1;
+
+
+    button.textContent =
+        "⏹ إيقاف القراءة";
+
+
+    button.classList.add(
+        "reading"
+    );
+
+
+    utterance.onend =
+        () => {
+
+            button.textContent =
+                "🔊 اقرأ الإجابة";
+
+            button.classList.remove(
+                "reading"
+            );
+
+        };
+
+
+    utterance.onerror =
+        utterance.onend;
+
+
+    speechSynthesis.cancel();
+
+    speechSynthesis.speak(
+        utterance
+    );
+
+}
+
 
 function addMessage(
     role,
@@ -1878,16 +1244,14 @@ function addMessage(
     sources = []
 ) {
 
-    if (welcome) {
-
-        welcome.style.display =
-            "none";
-
-    }
+    welcome.style.display =
+        "none";
 
 
     const wrapper =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
 
 
     wrapper.className =
@@ -1895,14 +1259,18 @@ function addMessage(
 
 
     const bubble =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
 
 
     bubble.className =
         "bubble";
 
 
-    if (role === "teacher") {
+    if (
+        role === "teacher"
+    ) {
 
         bubble.innerHTML =
             renderAIText(text);
@@ -1916,17 +1284,15 @@ function addMessage(
     }
 
 
-    // ==============================================
-    // COPY BUTTON
-    // ==============================================
-
     if (
         role === "teacher" &&
         text
     ) {
 
         const tools =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
 
 
         tools.className =
@@ -1934,7 +1300,9 @@ function addMessage(
 
 
         const copyButton =
-            document.createElement("button");
+            document.createElement(
+                "button"
+            );
 
 
         copyButton.type =
@@ -1949,21 +1317,49 @@ function addMessage(
             "📋 نسخ الإجابة";
 
 
-        copyButton.addEventListener(
-            "click",
-            function () {
+        copyButton.onclick =
+            () => {
 
                 copyAnswer(
                     text,
                     copyButton
                 );
 
-            }
-        );
+            };
 
 
-        tools.appendChild(
-            copyButton
+        const readButton =
+            document.createElement(
+                "button"
+            );
+
+
+        readButton.type =
+            "button";
+
+
+        readButton.className =
+            "read-answer-btn";
+
+
+        readButton.textContent =
+            "🔊 اقرأ الإجابة";
+
+
+        readButton.onclick =
+            () => {
+
+                readAnswer(
+                    text,
+                    readButton
+                );
+
+            };
+
+
+        tools.append(
+            copyButton,
+            readButton
         );
 
 
@@ -1973,10 +1369,6 @@ function addMessage(
 
     }
 
-
-    // ==============================================
-    // SOURCES
-    // ==============================================
 
     if (
         sources &&
@@ -1993,51 +1385,26 @@ function addMessage(
             "sources";
 
 
-        const sourceText =
+        sourceDiv.textContent =
+            "المصادر: " +
             sources
                 .map(
-                    source => {
-
-                        if (
-                            typeof source ===
-                            "string"
-                        ) {
-
-                            return source;
-
-                        }
-
-
-                        if (
-                            source &&
-                            source.title
-                        ) {
-
-                            return source.title;
-
-                        }
-
-
-                        return "";
-
-                    }
+                    source =>
+                        typeof source ===
+                        "string"
+                            ? source
+                            : (
+                                source?.title ||
+                                ""
+                            )
                 )
                 .filter(Boolean)
                 .join("، ");
 
 
-        if (sourceText) {
-
-            sourceDiv.textContent =
-                "المصادر: " +
-                sourceText;
-
-
-            bubble.appendChild(
-                sourceDiv
-            );
-
-        }
+        bubble.appendChild(
+            sourceDiv
+        );
 
     }
 
@@ -2056,28 +1423,16 @@ function addMessage(
         chat.scrollHeight;
 
 
-    // ==============================================
-    // MATHJAX
-    // ==============================================
-
     if (
         role === "teacher" &&
         window.MathJax &&
-        typeof MathJax.typesetPromise ===
-            "function"
+        MathJax.typesetPromise
     ) {
 
         MathJax.typesetPromise(
             [bubble]
         ).catch(
-            error => {
-
-                console.error(
-                    "MathJax error:",
-                    error
-                );
-
-            }
+            console.error
         );
 
     }
@@ -2085,22 +1440,9 @@ function addMessage(
 }
 
 
-// ==================================================
-// LESSON DIAGRAMS
-// ==================================================
-
 function addLessonDiagram(
     lesson
 ) {
-
-    if (!lesson) {
-
-        return;
-
-    }
-
-
-    // حذف الرسم السابق
 
     const oldDiagram =
         document.getElementById(
@@ -2115,213 +1457,174 @@ function addLessonDiagram(
     }
 
 
-    let html = "";
+    if (!lesson) {
 
-
-    // ==============================================
-    // PYTHAGORAS
-    // ==============================================
-
-    if (
-        lesson.includes(
-            "فيثاغورس"
-        )
-    ) {
-
-        html = `
-
-            <div
-                id="activeLessonDiagram"
-                class="lesson-diagram"
-            >
-
-                <div class="lesson-diagram-title">
-                    📐 المثلث القائم الزاوية
-                </div>
-
-
-                <svg
-                    viewBox="0 0 520 330"
-                    role="img"
-                    aria-label="مثلث قائم الزاوية يوضح الساقين والوتر"
-                >
-
-                    <polygon
-                        points="100,250 100,70 420,250"
-                        fill="#eff6ff"
-                        stroke="#173b6c"
-                        stroke-width="4"
-                    />
-
-
-                    <polyline
-                        points="100,220 130,220 130,250"
-                        fill="none"
-                        stroke="#dc2626"
-                        stroke-width="4"
-                    />
-
-
-                    <text
-                        x="65"
-                        y="165"
-                        class="diagram-label"
-                        fill="#173b6c"
-                    >
-                        a
-                    </text>
-
-
-                    <text
-                        x="255"
-                        y="282"
-                        class="diagram-label"
-                        fill="#173b6c"
-                    >
-                        b
-                    </text>
-
-
-                    <text
-                        x="295"
-                        y="135"
-                        class="diagram-label"
-                        fill="#dc2626"
-                    >
-                        c (الوتر)
-                    </text>
-
-
-                    <text
-                        x="112"
-                        y="238"
-                        class="diagram-label"
-                        fill="#dc2626"
-                    >
-                        90°
-                    </text>
-
-                </svg>
-
-
-                <div>
-
-                    \\[
-                    a^2+b^2=c^2
-                    \\]
-
-                </div>
-
-            </div>
-
-        `;
+        return;
 
     }
 
 
-    // ==============================================
-    // CIRCLE + TANGENT
-    // ==============================================
+    let html = "";
 
-    else if (
-        lesson.includes(
-            "الدائرة"
-        ) ||
-        lesson.includes(
-            "المماس"
-        )
+
+    if (
+        lesson.includes("فيثاغورس") ||
+        lesson.toLowerCase()
+            .includes("pythag")
     ) {
 
         html = `
 
-            <div
-                id="activeLessonDiagram"
-                class="lesson-diagram"
-            >
+<div
+    id="activeLessonDiagram"
+    class="lesson-diagram">
 
-                <div class="lesson-diagram-title">
-                    ⭕ الدائرة والمماس
-                </div>
+<div class="lesson-diagram-title">
+📐 المثلث القائم الزاوية
+</div>
 
+<svg
+    viewBox="0 0 520 330"
+    role="img">
 
-                <svg
-                    viewBox="0 0 520 330"
-                    role="img"
-                    aria-label="دائرة ومستقيم مماس"
-                >
+<polygon
+    points="100,250 100,70 420,250"
+    fill="#eff6ff"
+    stroke="#173b6c"
+    stroke-width="4"/>
 
-                    <circle
-                        cx="240"
-                        cy="165"
-                        r="90"
-                        fill="#eff6ff"
-                        stroke="#173b6c"
-                        stroke-width="4"
-                    />
+<polyline
+    points="100,220 130,220 130,250"
+    fill="none"
+    stroke="#dc2626"
+    stroke-width="4"/>
 
+<text
+    x="65"
+    y="165"
+    class="diagram-label"
+    fill="#173b6c">
+a
+</text>
 
-                    <line
-                        x1="240"
-                        y1="165"
-                        x2="330"
-                        y2="165"
-                        stroke="#dc2626"
-                        stroke-width="4"
-                    />
+<text
+    x="255"
+    y="282"
+    class="diagram-label"
+    fill="#173b6c">
+b
+</text>
 
+<text
+    x="300"
+    y="135"
+    class="diagram-label"
+    fill="#dc2626">
+c (الوتر)
+</text>
 
-                    <line
-                        x1="330"
-                        y1="60"
-                        x2="330"
-                        y2="270"
-                        stroke="#16a34a"
-                        stroke-width="5"
-                    />
+<text
+    x="112"
+    y="238"
+    class="diagram-label"
+    fill="#dc2626">
+90°
+</text>
 
+</svg>
 
-                    <circle
-                        cx="240"
-                        cy="165"
-                        r="6"
-                        fill="#dc2626"
-                    />
+<div>
+\\[
+a^2+b^2=c^2
+\\]
+</div>
 
+</div>
 
-                    <text
-                        x="218"
-                        y="150"
-                        class="diagram-label"
-                        fill="#dc2626"
-                    >
-                        O
-                    </text>
+`;
 
-
-                    <text
-                        x="275"
-                        y="150"
-                        class="diagram-label"
-                        fill="#dc2626"
-                    >
-                        r
-                    </text>
+    }
 
 
-                    <text
-                        x="342"
-                        y="165"
-                        class="diagram-label"
-                        fill="#16a34a"
-                    >
-                        المماس
-                    </text>
+    else if (
+        lesson.includes("الدائرة") ||
+        lesson.includes("المماس") ||
+        lesson.toLowerCase()
+            .includes("tangent") ||
+        lesson.toLowerCase()
+            .includes("circle")
+    ) {
 
-                </svg>
+        html = `
 
-            </div>
+<div
+    id="activeLessonDiagram"
+    class="lesson-diagram">
 
-        `;
+<div class="lesson-diagram-title">
+⭕ الدائرة والمماس
+</div>
+
+<svg
+    viewBox="0 0 520 330">
+
+<circle
+    cx="240"
+    cy="165"
+    r="90"
+    fill="#eff6ff"
+    stroke="#173b6c"
+    stroke-width="4"/>
+
+<line
+    x1="240"
+    y1="165"
+    x2="330"
+    y2="165"
+    stroke="#dc2626"
+    stroke-width="4"/>
+
+<line
+    x1="330"
+    y1="60"
+    x2="330"
+    y2="270"
+    stroke="#16a34a"
+    stroke-width="5"/>
+
+<circle
+    cx="240"
+    cy="165"
+    r="6"
+    fill="#dc2626"/>
+
+<text
+    x="218"
+    y="150"
+    class="diagram-label">
+O
+</text>
+
+<text
+    x="275"
+    y="150"
+    class="diagram-label">
+r
+</text>
+
+<text
+    x="342"
+    y="165"
+    class="diagram-label"
+    fill="#16a34a">
+المماس
+</text>
+
+</svg>
+
+</div>
+
+`;
 
     }
 
@@ -2352,21 +1655,13 @@ function addLessonDiagram(
     if (
         diagram &&
         window.MathJax &&
-        typeof MathJax.typesetPromise ===
-            "function"
+        MathJax.typesetPromise
     ) {
 
         MathJax.typesetPromise(
             [diagram]
         ).catch(
-            error => {
-
-                console.error(
-                    "Diagram MathJax error:",
-                    error
-                );
-
-            }
+            console.error
         );
 
     }
@@ -2374,182 +1669,10 @@ function addLessonDiagram(
 }
 
 
-// ==================================================
-// START LESSON
-// ==================================================
-
-startLesson.addEventListener(
-    "click",
-    async function () {
-
-
-        const grade =
-            gradeSelect.value;
-
-
-        const subject =
-            subjectSelect.value;
-
-
-        const language =
-            languageSelect.value;
-
-
-        const curriculum =
-            curriculumSelect.value;
-
-
-        const lesson =
-            lessonSelect.value;
-
-
-        if (!grade) {
-
-            alert(
-                "اختر الصف أولاً."
-            );
-
-            return;
-
-        }
-
-
-        if (!subject) {
-
-            alert(
-                "اختر المادة أولاً."
-            );
-
-            return;
-
-        }
-
-
-        if (!language) {
-
-            alert(
-                "اختر اللغة."
-            );
-
-            return;
-
-        }
-
-
-        if (!curriculum) {
-
-            alert(
-                "اختر المنهج."
-            );
-
-            return;
-
-        }
-
-
-        if (!lesson) {
-
-            alert(
-                "اختر الدرس أولاً."
-            );
-
-            return;
-
-        }
-
-
-        currentLesson.textContent =
-            lesson;
-
-
-        lessonInfo.style.display =
-            "block";
-
-
-        addLessonDiagram(
-            lesson
-        );
-
-
-        /*
-         * هذا النص داخلي فقط.
-         * سيتم إرساله إلى NABIL AI
-         * لكنه لن يظهر للطالب.
-         */
-
-        const prompt =
-
-            `ابدأ الآن درسًا تفاعليًا في:
-
-الصف: ${grade}
-المادة: ${subject}
-اللغة: ${language}
-المنهج: ${curriculum}
-الدرس: ${lesson}
-
-ابدأ بتمهيد بسيط مناسب لمستوى الطالب، ثم قدم الفكرة الأولى فقط، وراعِ التدرج والتفاعل وانتظار إجابة الطالب قبل الانتقال.
-
-في الرياضيات:
-استخدم المصطلحات الرياضية الصحيحة.
-اكتب الكسور والقوى والجذور والمعادلات بصيغة LaTeX صحيحة.
-استخدم \\frac للكسور، و^ للقوى، و\\sqrt للجذور.
-لا تكتب LaTeX كنص مشوه.
-
-ابدأ الدرس الآن.`;
-
-
-        // مهم:
-        // false = لا تعرض الـprompt الداخلي
-        await sendToAI(
-            prompt,
-            false
-        );
-
-    }
-);
-
-
-// ==================================================
-// SEND BUTTON
-// ==================================================
-
-sendBtn.addEventListener(
-    "click",
-    async function () {
-
-
-        const message =
-            messageInput.value.trim();
-
-
-        if (
-            !message &&
-            !selectedImage
-        ) {
-
-            return;
-
-        }
-
-
-        await sendToAI(
-            message,
-            true
-        );
-
-    }
-);
-
-
-// ==================================================
-// SEND TO AI
-// ==================================================
-
 async function sendToAI(
     message,
     showStudentMessage = true
 ) {
-
 
     const grade =
         gradeSelect.value;
@@ -2571,7 +1694,10 @@ async function sendToAI(
         lessonSelect.value;
 
 
-    if (!grade || !subject) {
+    if (
+        !grade ||
+        !subject
+    ) {
 
         alert(
             "اختر الصف والمادة أولاً."
@@ -2582,11 +1708,9 @@ async function sendToAI(
     }
 
 
-    // ==============================================
-    // عرض رسالة الطالب فقط عند الحاجة
-    // ==============================================
-
-    if (showStudentMessage) {
+    if (
+        showStudentMessage
+    ) {
 
         if (message) {
 
@@ -2596,7 +1720,9 @@ async function sendToAI(
             );
 
         }
-        else if (selectedImage) {
+        else if (
+            selectedImage
+        ) {
 
             addMessage(
                 "student",
@@ -2608,7 +1734,8 @@ async function sendToAI(
     }
 
 
-    messageInput.value = "";
+    messageInput.value =
+        "";
 
 
     const formData =
@@ -2621,7 +1748,9 @@ async function sendToAI(
     );
 
 
-    if (conversationId) {
+    if (
+        conversationId
+    ) {
 
         formData.append(
             "conversation_id",
@@ -2667,7 +1796,9 @@ async function sendToAI(
     );
 
 
-    if (selectedImage) {
+    if (
+        selectedImage
+    ) {
 
         formData.append(
             "image",
@@ -2678,7 +1809,6 @@ async function sendToAI(
 
 
     try {
-
 
         sendBtn.disabled =
             true;
@@ -2697,8 +1827,8 @@ async function sendToAI(
                 API_BASE +
                 "/api/chat",
                 {
-                    method: "POST",
-                    body: formData
+                    method:"POST",
+                    body:formData
                 }
             );
 
@@ -2712,7 +1842,7 @@ async function sendToAI(
                 await response.json();
 
         }
-        catch (error) {
+        catch {
 
             throw new Error(
                 "الخادم لم يُرجع JSON صالحًا."
@@ -2721,17 +1851,17 @@ async function sendToAI(
         }
 
 
-        if (!response.ok) {
+        if (
+            !response.ok
+        ) {
 
             throw new Error(
-
                 data.detail ||
-
                 data.error ||
-
-                "HTTP " +
-                response.status
-
+                (
+                    "HTTP " +
+                    response.status
+                )
             );
 
         }
@@ -2748,15 +1878,10 @@ async function sendToAI(
 
 
         addMessage(
-
             "teacher",
-
             data.reply ||
-
             "لم يصل جواب من NABIL AI.",
-
             data.sources || []
-
         );
 
 
@@ -2771,10 +1896,8 @@ async function sendToAI(
         messageInput.placeholder =
             "اكتب سؤالك هنا...";
 
-
     }
     catch (error) {
-
 
         console.error(
             "NABIL AI ERROR:",
@@ -2783,17 +1906,13 @@ async function sendToAI(
 
 
         addMessage(
-
             "teacher",
-
             "حدث خطأ في الاتصال بـ NABIL AI:\n" +
             error.message
-
         );
 
     }
     finally {
-
 
         sendBtn.disabled =
             false;
@@ -2811,9 +1930,154 @@ async function sendToAI(
 }
 
 
-// ==================================================
-// IMAGE
-// ==================================================
+startLesson.addEventListener(
+    "click",
+    async function () {
+
+        const grade =
+            gradeSelect.value;
+
+        const subject =
+            subjectSelect.value;
+
+        const language =
+            languageSelect.value;
+
+        const curriculum =
+            curriculumSelect.value;
+
+        const lesson =
+            lessonSelect.value;
+
+
+        if (!grade) {
+
+            alert(
+                "اختر الصف أولاً."
+            );
+
+            return;
+
+        }
+
+
+        if (!subject) {
+
+            alert(
+                "اختر المادة أولاً."
+            );
+
+            return;
+
+        }
+
+
+        if (!language) {
+
+            alert(
+                "اختر اللغة."
+            );
+
+            return;
+
+        }
+
+
+        if (!curriculum) {
+
+            alert(
+                "اختر المنهج أولاً."
+            );
+
+            return;
+
+        }
+
+
+        if (
+            !lesson ||
+            lesson ===
+            "المحتوى قيد الفهرسة"
+        ) {
+
+            alert(
+                "اختر درسًا مفهرسًا أولاً."
+            );
+
+            return;
+
+        }
+
+
+        currentLesson.textContent =
+            lesson;
+
+
+        lessonInfo.style.display =
+            "block";
+
+
+        indexStatus.textContent =
+            "المصدر: فهرس CRDP المحمّل من الخادم.";
+
+
+        addLessonDiagram(
+            lesson
+        );
+
+
+        const prompt =
+
+            `ابدأ الآن درسًا تفاعليًا في:
+
+الصف: ${grade}
+المادة: ${subject}
+اللغة: ${language}
+المنهج: ${curriculum}
+الدرس: ${lesson}
+
+ابدأ بتمهيد قصير مناسب للصف.
+قدم الفكرة الأولى فقط.
+استخدم المصطلحات العلمية والرياضية القياسية.
+إذا كان الدرس رياضيات، استخدم LaTeX صحيحًا للمعادلات والكسور والقوى والجذور.
+لا تعرض التعليمات الداخلية أو الـprompt للطالب.
+اطرح سؤال تحقق واحدًا وانتظر إجابة الطالب.`;
+
+        await sendToAI(
+            prompt,
+            false
+        );
+
+    }
+);
+
+
+sendBtn.addEventListener(
+    "click",
+    function () {
+
+        const message =
+            messageInput.value.trim();
+
+
+        if (
+            !message &&
+            !selectedImage
+        ) {
+
+            return;
+
+        }
+
+
+        sendToAI(
+            message,
+            true
+        );
+
+    }
+);
+
 
 imageBtn.addEventListener(
     "click",
@@ -2829,12 +2093,10 @@ imageInput.addEventListener(
     "change",
     function () {
 
-
         if (
             this.files &&
             this.files[0]
         ) {
-
 
             selectedImage =
                 this.files[0];
@@ -2849,23 +2111,16 @@ imageInput.addEventListener(
 );
 
 
-// ==================================================
-// ENTER
-// ==================================================
-
 messageInput.addEventListener(
     "keydown",
     function (event) {
-
 
         if (
             event.key === "Enter" &&
             !event.shiftKey
         ) {
 
-
             event.preventDefault();
-
 
             sendBtn.click();
 
@@ -2875,23 +2130,13 @@ messageInput.addEventListener(
 );
 
 
-// ==================================================
-// SPEECH RECOGNITION
-// ==================================================
-
-let recognition = null;
-
-
 if (
     "webkitSpeechRecognition" in window ||
     "SpeechRecognition" in window
 ) {
 
-
     const SpeechRecognition =
-
         window.SpeechRecognition ||
-
         window.webkitSpeechRecognition;
 
 
@@ -2910,14 +2155,9 @@ if (
     recognition.onresult =
         function (event) {
 
-
-            const text =
+            messageInput.value =
                 event.results[0][0]
                     .transcript;
-
-
-            messageInput.value =
-                text;
 
         };
 
@@ -2935,14 +2175,9 @@ if (
 }
 
 
-// ==================================================
-// MICROPHONE
-// ==================================================
-
 micBtn.addEventListener(
     "click",
     function () {
-
 
         if (!recognition) {
 
@@ -2959,30 +2194,12 @@ micBtn.addEventListener(
             languageSelect.value;
 
 
-        if (
-            language ===
-            "English"
-        ) {
-
-            recognition.lang =
-                "en-US";
-
-        }
-        else if (
-            language ===
-            "Français"
-        ) {
-
-            recognition.lang =
-                "fr-FR";
-
-        }
-        else {
-
-            recognition.lang =
-                "ar-LB";
-
-        }
+        recognition.lang =
+            language === "English"
+                ? "en-US"
+                : language === "Français"
+                    ? "fr-FR"
+                    : "ar-LB";
 
 
         recognition.start();
@@ -2991,8 +2208,9 @@ micBtn.addEventListener(
 );
 
 
+loadCurriculum();
+
 </script>
 
 </body>
-
 </html>
