@@ -6,18 +6,11 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "NabilAI"
 
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
-    OPENAI_TEXT_MODEL: str = os.getenv(
-        "OPENAI_TEXT_MODEL",
-        "gpt-5.5"
-    )
-    OPENAI_VISION_MODEL: str = os.getenv(
-        "OPENAI_VISION_MODEL",
-        "gpt-5.5"
-    )
-    OPENAI_TRANSCRIPTION_MODEL: str = os.getenv(
-        "OPENAI_TRANSCRIPTION_MODEL",
-        "gpt-4o-transcribe"
-    )
+
+    OPENAI_TEXT_MODEL: str = "gpt-5.6"
+    OPENAI_VISION_MODEL: str = "gpt-5.6"
+
+    OPENAI_TRANSCRIPTION_MODEL: str = "gpt-4o-transcribe"
 
     SECRET_KEY: str = os.getenv("SECRET_KEY", "")
 
