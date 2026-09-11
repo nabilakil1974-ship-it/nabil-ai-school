@@ -41,25 +41,29 @@ class NabilAIGateway:
         )
 
         # =====================================================
-        # Gemini fallback
+        # Gemini key pool
         # =====================================================
 
-        self.gemini_api_key = getattr(
-            settings,
+        self.gemini_api_keys = []
+
+        for key_name in [
             "GEMINI_API_KEY",
-            "",
-        )
+            "GEMINI_API_KEY_2",
+            "GEMINI_API_KEY_3",
+            "GEMINI_API_KEY_4",
+            "GEMINI_API_KEY_5",
+        ]:
 
-        self.gemini_client = None
-
-        if self.gemini_api_key:
-            self.gemini_client = OpenAI(
-                base_url=(
-                    "https://generativelanguage.googleapis.com/"
-                    "v1beta/openai/"
-                ),
-                api_key=self.gemini_api_key,
+            value = getattr(
+                settings,
+                key_name,
+                "",
             )
+
+            if value:
+                self.gemini_api_keys.append(
+                    value
+                )
 
         self.gemini_text_model = getattr(
             settings,
@@ -74,7 +78,7 @@ class NabilAIGateway:
         )
 
         # =====================================================
-        # Groq optional third fallback
+        # Groq
         # =====================================================
 
         self.groq_api_key = getattr(
@@ -103,16 +107,15 @@ class NabilAIGateway:
 
         if (
             self.openrouter_client is None
-            and self.gemini_client is None
+            and not self.gemini_api_keys
             and self.groq_client is None
         ):
             raise RuntimeError(
-                "لا يوجد أي مفتاح AI مضبوط. "
-                "أضف OPENROUTER_API_KEY أو GEMINI_API_KEY."
+                "لا يوجد أي مفتاح AI مضبوط في إعدادات السيرفر."
             )
 
     # =========================================================
-    # استخراج النص من الرد
+    # استخراج النص
     # =========================================================
 
     def _extract_content(
@@ -222,20 +225,16 @@ class NabilAIGateway:
 
         for msg in messages:
 
-            role = msg.get(
-                "role",
-                "user",
-            )
-
-            content = msg.get(
-                "content",
-                "",
-            )
-
             chat_messages.append(
                 {
-                    "role": role,
-                    "content": content,
+                    "role": msg.get(
+                        "role",
+                        "user",
+                    ),
+                    "content": msg.get(
+                        "content",
+                        "",
+                    ),
                 }
             )
 
@@ -255,18 +254,13 @@ class NabilAIGateway:
                             "type": "text",
                             "text": (
                                 "اقرأ الصورة كاملة بدقة. "
-                                "حدد أولًا نوع المحتوى. "
-                                "إذا كانت الصورة سؤالًا أو تمرينًا، "
-                                "استخرج السؤال كما هو ثم حلّه "
-                                "خطوة خطوة وفق مستوى الطالب. "
-                                "إذا كانت الصورة صفحة درس، "
-                                "استخرج الأفكار والمفاهيم الأساسية "
-                                "واشرحها تدريجيًا. "
-                                "إذا كانت تحتوي على رسم هندسي "
-                                "أو منحنى أو جدول أو مخطط، "
+                                "إذا كانت سؤالًا أو تمرينًا، "
+                                "استخرج السؤال كما هو ثم حلّه خطوة خطوة. "
+                                "إذا كانت صفحة درس، "
+                                "اشرح محتواها تدريجيًا. "
+                                "إذا كانت تحتوي على رسم أو جدول أو مخطط، "
                                 "اقرأ عناصره واستعملها في الحل. "
-                                "لا تخترع أي رقم أو رمز أو معلومة "
-                                "غير واضحة في الصورة."
+                                "لا تخترع أي معلومة غير واضحة."
                             ),
                         },
                         {
@@ -285,7 +279,7 @@ class NabilAIGateway:
         return chat_messages
 
     # =========================================================
-    # تنفيذ الطلب عند مزود محدد
+    # تنفيذ طلب لمزود واحد
     # =========================================================
 
     def _call_provider(
@@ -296,11 +290,6 @@ class NabilAIGateway:
         max_output_tokens: int,
         provider_name: str,
     ) -> str:
-
-        if client is None:
-            raise RuntimeError(
-                f"{provider_name} غير مضبوط."
-            )
 
         response = (
             client
@@ -325,7 +314,7 @@ class NabilAIGateway:
         return content
 
     # =========================================================
-    # تحديد هل الخطأ مناسب للانتقال إلى fallback
+    # هل الخطأ يستحق الانتقال للمفتاح التالي؟
     # =========================================================
 
     def _is_retryable_error(
@@ -337,10 +326,12 @@ class NabilAIGateway:
             error
         ).lower()
 
-        retryable_markers = [
+        markers = [
             "429",
             "rate limit",
             "rate_limit",
+            "quota",
+            "resource exhausted",
             "temporarily",
             "timeout",
             "timed out",
@@ -356,8 +347,59 @@ class NabilAIGateway:
 
         return any(
             marker in text
-            for marker in retryable_markers
+            for marker in markers
         )
+
+    # =========================================================
+    # Gemini key rotation
+    # =========================================================
+
+    def _try_gemini_keys(
+        self,
+        chat_messages: list[dict],
+        image_bytes: Optional[bytes],
+        max_output_tokens: int,
+        errors: list[str],
+    ) -> Optional[str]:
+
+        model = (
+            self.gemini_vision_model
+            if image_bytes is not None
+            else self.gemini_text_model
+        )
+
+        for index, api_key in enumerate(
+            self.gemini_api_keys,
+            start=1,
+        ):
+
+            client = OpenAI(
+                base_url=(
+                    "https://generativelanguage.googleapis.com/"
+                    "v1beta/openai/"
+                ),
+                api_key=api_key,
+            )
+
+            try:
+
+                return self._call_provider(
+                    client=client,
+                    model=model,
+                    chat_messages=chat_messages,
+                    max_output_tokens=max_output_tokens,
+                    provider_name=f"Gemini #{index}",
+                )
+
+            except Exception as exc:
+
+                errors.append(
+                    f"Gemini #{index}: {exc}"
+                )
+
+                continue
+
+        return None
 
     # =========================================================
     # generate
@@ -382,7 +424,7 @@ class NabilAIGateway:
         errors = []
 
         # =====================================================
-        # 1. OpenRouter
+        # 1) OpenRouter
         # =====================================================
 
         if self.openrouter_client is not None:
@@ -409,42 +451,25 @@ class NabilAIGateway:
                     f"OpenRouter: {exc}"
                 )
 
-                # إذا الخطأ ليس rate limit أو provider error
-                # ما زلنا نسمح بـ Gemini كاحتياط
-                pass
-
         # =====================================================
-        # 2. Gemini fallback
-        # يدعم النص والصور
+        # 2) Gemini key rotation
         # =====================================================
 
-        if self.gemini_client is not None:
+        if self.gemini_api_keys:
 
-            try:
+            result = self._try_gemini_keys(
+                chat_messages=chat_messages,
+                image_bytes=image_bytes,
+                max_output_tokens=max_output_tokens,
+                errors=errors,
+            )
 
-                model = (
-                    self.gemini_vision_model
-                    if image_bytes is not None
-                    else self.gemini_text_model
-                )
-
-                return self._call_provider(
-                    client=self.gemini_client,
-                    model=model,
-                    chat_messages=chat_messages,
-                    max_output_tokens=max_output_tokens,
-                    provider_name="Gemini",
-                )
-
-            except Exception as exc:
-
-                errors.append(
-                    f"Gemini: {exc}"
-                )
+            if result:
+                return result
 
         # =====================================================
-        # 3. Groq fallback
-        # حاليًا للنص فقط
+        # 3) Groq
+        # النص فقط
         # =====================================================
 
         if (
@@ -474,13 +499,12 @@ class NabilAIGateway:
 
         if errors:
 
-            clean_errors = "\n".join(
-                errors
-            )
-
             raise RuntimeError(
-                "تعذر الحصول على إجابة من مزودي الذكاء الاصطناعي.\n"
-                f"{clean_errors}"
+                "تعذر الحصول على إجابة من جميع مزودي الذكاء الاصطناعي.\n"
+                +
+                "\n".join(
+                    errors
+                )
             )
 
         raise RuntimeError(
@@ -498,6 +522,5 @@ class NabilAIGateway:
     ) -> str:
 
         raise RuntimeError(
-            "تحويل الصوت غير متاح حاليًا "
-            "في هذا المسار."
+            "تحويل الصوت غير متاح حاليًا في هذا المسار."
         )
