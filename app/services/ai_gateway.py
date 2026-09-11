@@ -9,11 +9,10 @@ from app.core.config import settings
 class NabilAIGateway:
 
     def __init__(self):
-
         api_key = getattr(
             settings,
             "OPENROUTER_API_KEY",
-            ""
+            "",
         )
 
         if not api_key:
@@ -29,25 +28,25 @@ class NabilAIGateway:
         self.text_model = "openrouter/free"
         self.vision_model = "openrouter/free"
 
-
     def _extract_content(self, response) -> str:
-
-        if not response:
+        if response is None:
             return ""
 
-        if not getattr(
+        choices = getattr(
             response,
             "choices",
-            None
-        ):
+            None,
+        )
+
+        if not choices:
             return ""
 
-        choice = response.choices[0]
+        choice = choices[0]
 
         message = getattr(
             choice,
             "message",
-            None
+            None,
         )
 
         if message is None:
@@ -56,52 +55,29 @@ class NabilAIGateway:
         content = getattr(
             message,
             "content",
-            None
+            None,
         )
 
-        if isinstance(
-            content,
-            str
-        ):
-
+        if isinstance(content, str):
             return content.strip()
 
-        if isinstance(
-            content,
-            list
-        ):
-
+        if isinstance(content, list):
             parts = []
 
             for item in content:
-
-                if isinstance(
-                    item,
-                    str
-                ):
-
+                if isinstance(item, str):
                     parts.append(item)
+                    continue
 
-                elif isinstance(
-                    item,
-                    dict
-                ):
-
-                    text = item.get(
-                        "text"
-                    )
+                if isinstance(item, dict):
+                    text = item.get("text")
 
                     if text:
-                        parts.append(
-                            str(text)
-                        )
+                        parts.append(str(text))
 
-            return "\n".join(
-                parts
-            ).strip()
+            return "\n".join(parts).strip()
 
         return ""
-
 
     def generate(
         self,
@@ -109,7 +85,7 @@ class NabilAIGateway:
         messages: list[dict],
         image_bytes: Optional[bytes] = None,
         image_mime_type: str = "image/jpeg",
-        max_output_tokens: int = 2000,
+        max_output_tokens: int = 2500,
     ) -> str:
 
         chat_messages = [
@@ -119,29 +95,24 @@ class NabilAIGateway:
             }
         ]
 
-
         for msg in messages:
-
             chat_messages.append(
                 {
                     "role": msg.get(
                         "role",
-                        "user"
+                        "user",
                     ),
                     "content": msg.get(
                         "content",
-                        ""
+                        "",
                     ),
                 }
             )
 
-
-        if image_bytes:
-
+        if image_bytes is not None:
             encoded = base64.b64encode(
                 image_bytes
             ).decode("utf-8")
-
 
             chat_messages.append(
                 {
@@ -150,7 +121,7 @@ class NabilAIGateway:
                         {
                             "type": "text",
                             "text": (
-                                "اقرأ الصورة بدقة. "
+                                "حلّل الصورة بدقة. "
                                 "إذا كانت سؤالًا أو تمرينًا، "
                                 "استخرج السؤال وحلّه خطوة خطوة. "
                                 "إذا كانت صفحة درس أو شرحًا، "
@@ -172,47 +143,36 @@ class NabilAIGateway:
                 }
             )
 
-
         try:
-
             response = self.client.chat.completions.create(
                 model=(
                     self.vision_model
-                    if image_bytes
+                    if image_bytes is not None
                     else self.text_model
                 ),
                 messages=chat_messages,
                 max_tokens=max_output_tokens,
             )
 
-        except Exception as e:
-
+        except Exception as exc:
             raise RuntimeError(
-                f"خطأ في الاتصال بـ OpenRouter: {str(e)}"
-            ) from e
+                f"خطأ في الاتصال بـ OpenRouter: {exc}"
+            ) from exc
 
-
-        content = self._extract_content(
-            response
-        )
-
+        content = self._extract_content(response)
 
         if content:
-
             return content
-
 
         raise RuntimeError(
             "NABIL AI لم يُرجع إجابة نصية."
         )
-
 
     def transcribe(
         self,
         audio_bytes: bytes,
         filename: str = "voice.webm",
     ) -> str:
-
         raise RuntimeError(
             "تحويل الصوت غير متاح حاليًا "
             "في المسار المجاني."
