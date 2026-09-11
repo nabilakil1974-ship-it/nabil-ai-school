@@ -44,56 +44,31 @@
             --blue-dark: #173b6c;
             --blue: #2563eb;
             --blue-light: #3b82f6;
-
             --green: #16a34a;
-
             --text: #111827;
             --muted: #64748b;
-
             --border: #d9e3ef;
-
             --page: #f6f9fd;
-
             --teacher: #f1fff5;
             --student: #e8f1ff;
         }
-
 
         * {
             box-sizing: border-box;
         }
 
-
         html,
         body {
             margin: 0;
-
             min-height: 100%;
-
-            background:
-                var(--page)
-                !important;
-
-            color:
-                var(--text)
-                !important;
-
-            color-scheme:
-                only light;
+            background: var(--page) !important;
+            color: var(--text) !important;
+            color-scheme: only light;
         }
-
 
         body {
-            font-family:
-                Arial,
-                Tahoma,
-                sans-serif;
+            font-family: Arial, Tahoma, sans-serif;
         }
-
-
-        /* =========================================
-           HEADER
-        ========================================= */
 
         .header {
             background:
@@ -104,30 +79,22 @@
                 );
 
             color: white;
-
-            padding:
-                18px 22px;
+            padding: 18px 22px;
 
             box-shadow:
                 0 3px 12px
                 rgba(15, 23, 42, .16);
         }
 
-
         .header-title {
             text-align: center;
-
             font-size: 29px;
-
             font-weight: 800;
-
             margin-bottom: 20px;
         }
 
-
         .controls {
             max-width: 1450px;
-
             margin: auto;
 
             display: grid;
@@ -140,36 +107,25 @@
                 auto;
 
             gap: 14px;
-
             align-items: end;
         }
 
-
         .control {
             display: flex;
-
             flex-direction: column;
-
             gap: 7px;
         }
 
-
         .control label {
             font-size: 15px;
-
             font-weight: 800;
-
             color: white;
         }
 
-
         select {
             width: 100%;
-
             min-height: 48px;
-
-            padding:
-                10px 13px;
+            padding: 10px 13px;
 
             border:
                 1px solid #d4dfec;
@@ -177,22 +133,17 @@
             border-radius: 9px;
 
             background:
-                white
-                !important;
+                white !important;
 
             color:
-                #172033
-                !important;
+                #172033 !important;
 
             font-size: 15px;
-
             outline: none;
         }
 
-
         select:focus {
-            border-color:
-                #60a5fa;
+            border-color: #60a5fa;
 
             box-shadow:
                 0 0 0 3px
@@ -204,15 +155,10 @@
                 );
         }
 
-
         #startLesson {
             min-height: 48px;
-
-            padding:
-                11px 24px;
-
+            padding: 11px 24px;
             border: none;
-
             border-radius: 9px;
 
             background:
@@ -223,11 +169,8 @@
                 );
 
             color: white;
-
             font-size: 17px;
-
             font-weight: 800;
-
             cursor: pointer;
 
             box-shadow:
@@ -240,45 +183,27 @@
                 );
         }
 
-
         #startLesson:disabled {
             opacity: .6;
-
-            cursor:
-                not-allowed;
+            cursor: not-allowed;
         }
-
-
-        /* =========================================
-           MAIN
-        ========================================= */
 
         .container {
             max-width: 1180px;
-
-            margin:
-                18px auto;
-
-            padding:
-                0 15px 90px;
+            margin: 18px auto;
+            padding: 0 15px 90px;
         }
-
 
         .lesson-info {
             display: none;
-
-            background:
-                white;
-
-            padding:
-                14px 18px;
+            background: white;
+            padding: 14px 18px;
 
             border:
                 1px solid
                 var(--border);
 
             border-radius: 12px;
-
             margin-bottom: 12px;
 
             box-shadow:
@@ -291,38 +216,22 @@
                 );
         }
 
-
         .lesson-info strong {
-            color:
-                var(--blue-dark);
+            color: var(--blue-dark);
         }
-
 
         .index-status {
             margin-top: 6px;
-
             font-size: 13px;
-
-            color:
-                var(--muted);
+            color: var(--muted);
         }
-
-
-        /* =========================================
-           CHAT
-        ========================================= */
 
         .chat {
             min-height: 520px;
-
             max-height: 720px;
-
             overflow-y: auto;
-
             padding: 18px;
-
-            background:
-                white;
+            background: white;
 
             border:
                 1px solid
@@ -340,72 +249,47 @@
                 );
         }
 
-
         .welcome {
             text-align: center;
-
-            padding:
-                75px 20px;
-
-            color:
-                var(--muted);
+            padding: 75px 20px;
+            color: var(--muted);
         }
-
 
         .welcome h2 {
-            color:
-                var(--blue-dark);
+            color: var(--blue-dark);
         }
-
 
         .message {
             display: flex;
-
-            margin:
-                12px 0;
+            margin: 12px 0;
         }
-
 
         .message.student {
-            justify-content:
-                flex-start;
+            justify-content: flex-start;
         }
-
 
         .message.teacher {
-            justify-content:
-                stretch;
+            justify-content: stretch;
         }
-
 
         .bubble {
-            padding:
-                15px 18px;
-
+            padding: 15px 18px;
             border-radius: 15px;
-
             line-height: 1.9;
-
-            overflow-wrap:
-                anywhere;
+            overflow-wrap: anywhere;
         }
-
 
         .student .bubble {
             max-width: 82%;
-
-            background:
-                var(--student);
+            background: var(--student);
 
             border:
                 1px solid
                 #cfe1ff;
         }
 
-
         .teacher .bubble {
             width: 100%;
-
             max-width: 100%;
 
             background:
@@ -429,103 +313,64 @@
                 );
         }
 
-
         .teacher .bubble h2,
         .teacher .bubble h3,
         .teacher .bubble h4 {
-            color:
-                #123c2a;
+            color: #123c2a;
         }
-
 
         .bubble mjx-container {
-            direction:
-                ltr !important;
-
-            color:
-                #111827 !important;
+            direction: ltr !important;
+            color: #111827 !important;
         }
-
-
-        /* =========================================
-           TOOLS
-        ========================================= */
 
         .teacher-tools {
             display: flex;
-
             gap: 8px;
-
             margin-top: 14px;
-
             flex-wrap: wrap;
         }
 
-
         .teacher-tools button {
             min-height: 38px;
-
-            padding:
-                8px 14px;
+            padding: 8px 14px;
 
             border:
                 1px solid
                 #35475a;
 
             border-radius: 8px;
-
-            background:
-                #263341;
-
-            color:
-                white;
-
+            background: #263341;
+            color: white;
             font-weight: 800;
-
             cursor: pointer;
         }
 
-
         .teacher-tools button:hover {
-            filter:
-                brightness(1.08);
+            filter: brightness(1.08);
         }
-
 
         .draw-answer-btn.active {
-            background:
-                #1672e8;
-
-            border-color:
-                #1672e8;
+            background: #1672e8;
+            border-color: #1672e8;
         }
-
-
-        /* =========================================
-           DRAWING
-        ========================================= */
 
         .answer-drawing {
             display: none;
-
             margin-top: 14px;
-
             padding: 0;
 
             background:
-                white
-                !important;
+                white !important;
 
             color:
-                #111827
-                !important;
+                #111827 !important;
 
             border:
                 1px solid
                 #a8c8ef;
 
             border-radius: 13px;
-
             overflow: hidden;
 
             box-shadow:
@@ -538,26 +383,17 @@
                 );
         }
 
-
         .answer-drawing.visible {
             display: block;
         }
 
-
         .drawing-title {
             margin: 0;
-
-            padding:
-                12px 16px;
-
+            padding: 12px 16px;
             text-align: center;
-
             font-size: 19px;
-
             font-weight: 800;
-
-            color:
-                white;
+            color: white;
 
             background:
                 linear-gradient(
@@ -567,14 +403,10 @@
                 );
         }
 
-
         .graph-shell {
             padding: 16px;
-
-            background:
-                white;
+            background: white;
         }
-
 
         .graph-layout {
             display: grid;
@@ -584,26 +416,18 @@
                 230px;
 
             gap: 16px;
-
             direction: ltr;
         }
 
-
         .graph-canvas {
-            background:
-                white;
-
+            background: white;
             border-radius: 8px;
-
             overflow: hidden;
         }
 
-
         .graph-properties {
             direction: rtl;
-
-            padding:
-                14px 15px;
+            padding: 14px 15px;
 
             background:
                 linear-gradient(
@@ -617,84 +441,48 @@
                 #f2c94c;
 
             border-radius: 10px;
-
-            color:
-                #111827;
-
+            color: #111827;
             font-size: 14px;
-
             line-height: 1.85;
         }
 
-
         .graph-properties strong {
             display: block;
-
             margin-bottom: 7px;
-
             font-size: 16px;
-
             text-align: center;
         }
 
-
         .answer-drawing svg {
             display: block;
-
             width: 100%;
-
             height: auto;
-
             max-width: none;
-
             min-width: 0;
-
-            background:
-                white
-                !important;
+            background: white !important;
         }
-
 
         .graph-label,
         .graph-tick {
             font-size: 14px;
-
             font-weight: 700;
-
-            fill:
-                #111827;
+            fill: #111827;
         }
-
 
         .graph-axis-label {
             font-size: 18px;
-
             font-weight: 800;
-
             font-style: italic;
-
-            fill:
-                #111827;
+            fill: #111827;
         }
-
-
-        /* =========================================
-           INPUT
-        ========================================= */
 
         .input-area {
             position: sticky;
-
             bottom: 0;
-
             z-index: 10;
-
             display: flex;
-
             gap: 8px;
-
             margin-top: 14px;
-
             padding: 10px;
 
             background:
@@ -709,42 +497,28 @@
                 1px solid
                 #dfe8f2;
 
-            backdrop-filter:
-                blur(8px);
+            backdrop-filter: blur(8px);
         }
-
 
         textarea {
             flex: 1;
-
             min-height: 56px;
-
             resize: none;
-
-            padding:
-                13px 15px;
+            padding: 13px 15px;
 
             border:
                 1px solid
                 #cbd5e1;
 
             border-radius: 10px;
-
-            background:
-                white;
-
-            color:
-                #111827;
-
+            background: white;
+            color: #111827;
             font-size: 16px;
-
             outline: none;
         }
 
-
         textarea:focus {
-            border-color:
-                #60a5fa;
+            border-color: #60a5fa;
 
             box-shadow:
                 0 0 0 3px
@@ -756,88 +530,58 @@
                 );
         }
 
-
         button {
             border: none;
-
             font-weight: bold;
-
             cursor: pointer;
         }
-
 
         #sendBtn,
         #imageBtn,
         #micBtn {
             min-width: 62px;
-
             border-radius: 10px;
-
             color: white;
         }
 
-
         #sendBtn {
-            background:
-                #0f67e8;
-
-            padding:
-                0 22px;
+            background: #0f67e8;
+            padding: 0 22px;
         }
-
 
         #imageBtn {
-            background:
-                #8da0b4;
-
-            padding:
-                0 18px;
+            background: #8da0b4;
+            padding: 0 18px;
         }
-
 
         #micBtn {
-            background:
-                #7c2bd4;
-
-            padding:
-                0 18px;
+            background: #7c2bd4;
+            padding: 0 18px;
         }
-
 
         #imageInput {
             display: none;
         }
 
-
         @media(max-width:900px) {
-
             .graph-layout {
-                grid-template-columns:
-                    1fr;
+                grid-template-columns: 1fr;
             }
-
         }
 
-
         @media(max-width:700px) {
-
             .controls {
-                grid-template-columns:
-                    1fr 1fr;
+                grid-template-columns: 1fr 1fr;
             }
 
             .student .bubble {
                 max-width: 96%;
             }
-
         }
 
-
         @media(max-width:550px) {
-
             .controls {
-                grid-template-columns:
-                    1fr;
+                grid-template-columns: 1fr;
             }
 
             .input-area {
@@ -847,15 +591,12 @@
             textarea {
                 flex-basis: 100%;
             }
-
         }
 
     </style>
 </head>
 
-
 <body>
-
 
 <header class="header">
 
@@ -863,66 +604,32 @@
         منصة النبيل التعليمية الذكية
     </div>
 
-
     <div class="controls">
 
         <div class="control">
-
-            <label>
-                الصف
-            </label>
-
+            <label>الصف</label>
             <select id="gradeSelect"></select>
-
         </div>
 
-
         <div class="control">
-
-            <label>
-                المادة
-            </label>
-
+            <label>المادة</label>
             <select id="subjectSelect"></select>
-
         </div>
 
-
         <div class="control">
-
-            <label>
-                اللغة
-            </label>
+            <label>اللغة</label>
 
             <select id="languageSelect">
-
-                <option value="العربية">
-                    العربية
-                </option>
-
-                <option value="Français">
-                    Français
-                </option>
-
-                <option value="English">
-                    English
-                </option>
-
+                <option value="العربية">العربية</option>
+                <option value="Français">Français</option>
+                <option value="English">English</option>
             </select>
-
         </div>
-
 
         <div class="control">
-
-            <label>
-                الدرس
-            </label>
-
+            <label>الدرس</label>
             <select id="lessonSelect"></select>
-
         </div>
-
 
         <button
             id="startLesson"
@@ -935,16 +642,12 @@
 
 </header>
 
-
-
 <main class="container">
-
 
     <div
         id="lessonInfo"
         class="lesson-info"
     >
-
         <strong>
             الدرس الحالي:
         </strong>
@@ -955,21 +658,16 @@
             id="indexStatus"
             class="index-status"
         ></div>
-
     </div>
-
-
 
     <section
         id="chat"
         class="chat"
     >
-
         <div
             id="welcome"
             class="welcome"
         >
-
             <h2>
                 مرحباً بك في NABIL AI 👨‍🏫
             </h2>
@@ -977,12 +675,8 @@
             <p>
                 اختر الصف والمادة واللغة والدرس ثم ابدأ.
             </p>
-
         </div>
-
     </section>
-
-
 
     <div class="input-area">
 
@@ -991,7 +685,6 @@
             placeholder="اكتب سؤالك هنا..."
         ></textarea>
 
-
         <button
             id="imageBtn"
             type="button"
@@ -999,13 +692,11 @@
             🖼️
         </button>
 
-
         <input
             id="imageInput"
             type="file"
             accept="image/*"
         >
-
 
         <button
             id="micBtn"
@@ -1013,7 +704,6 @@
         >
             🎤
         </button>
-
 
         <button
             id="sendBtn"
@@ -1026,216 +716,574 @@
 
 </main>
 
-
-
 <script>
 
-
 const API_BASE = "";
-
 
 const FIXED_CURRICULUM =
     "المنهج اللبناني الرسمي";
 
-
 const GRADES = [
-
     "الصف الأول",
-
     "الصف الثاني",
-
     "الصف الثالث",
-
     "الصف الرابع",
-
     "الصف الخامس",
-
     "الصف السادس",
-
     "الصف السابع",
-
     "الصف الثامن",
-
     "الصف التاسع",
-
     "الأول ثانوي",
-
     "الثاني ثانوي",
-
     "الثالث ثانوي"
-
 ];
-
 
 const SUBJECTS = [
-
     "رياضيات",
-
     "فيزياء",
-
     "كيمياء",
-
     "علوم",
-
     "علوم الحياة"
-
 ];
 
-
 const gradeSelect =
-    document.getElementById(
-        "gradeSelect"
-    );
-
+    document.getElementById("gradeSelect");
 
 const subjectSelect =
-    document.getElementById(
-        "subjectSelect"
-    );
-
+    document.getElementById("subjectSelect");
 
 const languageSelect =
-    document.getElementById(
-        "languageSelect"
-    );
-
+    document.getElementById("languageSelect");
 
 const lessonSelect =
-    document.getElementById(
-        "lessonSelect"
-    );
-
+    document.getElementById("lessonSelect");
 
 const startLesson =
-    document.getElementById(
-        "startLesson"
-    );
-
+    document.getElementById("startLesson");
 
 const chat =
-    document.getElementById(
-        "chat"
-    );
-
+    document.getElementById("chat");
 
 const welcome =
-    document.getElementById(
-        "welcome"
-    );
-
+    document.getElementById("welcome");
 
 const lessonInfo =
-    document.getElementById(
-        "lessonInfo"
-    );
-
+    document.getElementById("lessonInfo");
 
 const currentLesson =
-    document.getElementById(
-        "currentLesson"
-    );
-
+    document.getElementById("currentLesson");
 
 const indexStatus =
-    document.getElementById(
-        "indexStatus"
-    );
-
+    document.getElementById("indexStatus");
 
 const messageInput =
-    document.getElementById(
-        "messageInput"
-    );
-
+    document.getElementById("messageInput");
 
 const sendBtn =
-    document.getElementById(
-        "sendBtn"
-    );
-
+    document.getElementById("sendBtn");
 
 const imageBtn =
-    document.getElementById(
-        "imageBtn"
-    );
-
+    document.getElementById("imageBtn");
 
 const imageInput =
-    document.getElementById(
-        "imageInput"
-    );
-
+    document.getElementById("imageInput");
 
 const micBtn =
-    document.getElementById(
-        "micBtn"
-    );
-
+    document.getElementById("micBtn");
 
 let curriculumIndex = {};
-
 let conversationId = null;
-
 let selectedImage = null;
-
 let recognition = null;
+ /* =========================================================
+   فهرسة احتياطية مدمجة
+   تعمل حتى لو لم يوجد ملف JSON خارجي
+========================================================= */
+
+const FALLBACK_CURRICULUM_INDEX = {
+    "رياضيات": {
+        "الصف السابع": {
+            "العربية": [
+                "الأعداد الطبيعية",
+                "الأعداد الأولية",
+                "الكسور",
+                "الأعداد العشرية",
+                "الأعداد الموجبة والسالبة",
+                "القوى",
+                "النسبة المئوية والتناسب",
+                "العبارات الجبرية",
+                "المعلم المتعامد وإحداثيات نقطة",
+                "المحال الهندسية والبناءات",
+                "المثلثات المتطابقة",
+                "منصف قطعة مستقيمة",
+                "منصف زاوية"
+            ],
+            "English": [
+                "Natural integers",
+                "Prime numbers",
+                "Fractions",
+                "Decimals",
+                "Positive and negative numbers",
+                "Powers",
+                "Percentage and proportionality",
+                "Algebraic expressions",
+                "Orthogonal system and coordinates of a point",
+                "Geometric loci and constructions",
+                "Congruent triangles",
+                "Perpendicular bisector",
+                "Angle bisector"
+            ],
+            "Français": [
+                "Nombres naturels",
+                "Nombres premiers",
+                "Fractions",
+                "Nombres décimaux",
+                "Nombres positifs et négatifs",
+                "Puissances",
+                "Pourcentage et proportionnalité",
+                "Expressions algébriques",
+                "Repère orthogonal et coordonnées d'un point",
+                "Lieux géométriques et constructions",
+                "Triangles isométriques",
+                "Médiatrice",
+                "Bissectrice"
+            ]
+        },
+
+        "الصف الثامن": {
+            "العربية": [
+                "الأعداد الحقيقية",
+                "الجذور التربيعية",
+                "القوى",
+                "العبارات الجبرية",
+                "المعادلات والمتراجحات",
+                "التناسب",
+                "الموقع النسبي لدائرتين",
+                "المحال الهندسية والبناءات",
+                "إحداثيات منتصف قطعة مستقيمة",
+                "الأسطوانة والمخروط والكرة",
+                "نظرية فيثاغورس",
+                "المثلثات"
+            ],
+            "English": [
+                "Real numbers",
+                "Square roots",
+                "Powers",
+                "Algebraic expressions",
+                "Equations and inequalities",
+                "Proportionality",
+                "Relative positions of two circles",
+                "Geometric loci and constructions",
+                "Coordinates of the midpoint of a segment",
+                "Cylinder, cone and sphere",
+                "Pythagoras theorem",
+                "Triangles"
+            ],
+            "Français": [
+                "Nombres réels",
+                "Racines carrées",
+                "Puissances",
+                "Expressions algébriques",
+                "Équations et inéquations",
+                "Proportionnalité",
+                "Positions relatives de deux cercles",
+                "Lieux géométriques et constructions",
+                "Coordonnées du milieu d'un segment",
+                "Cylindre, cône et sphère",
+                "Théorème de Pythagore",
+                "Triangles"
+            ]
+        },
+
+        "الصف التاسع": {
+            "العربية": [
+                "الأعداد الحقيقية",
+                "الحساب على الأعداد الحقيقية",
+                "التناسبية والتوابع الخطية",
+                "العبارات الجبرية المشتملة على الجذور",
+                "كثيرة الحدود ذات المتغير الواحد",
+                "المعادلات",
+                "نظم المعادلات من الدرجة الأولى ذات مجهولين",
+                "المتراجحات",
+                "المماسات والدوائر",
+                "المحال الهندسية والبناءات",
+                "التمثيل البياني لمستقيم",
+                "التوازي والتعامد بين مستقيمين",
+                "طول قطعة مستقيمة في معلم متعامد",
+                "حل نظام معادلتين بيانيًا"
+            ],
+            "English": [
+                "Real numbers",
+                "Calculations on real numbers",
+                "Linear functions and proportionality",
+                "Algebraic expressions with radicals",
+                "Polynomial in one variable",
+                "Equations",
+                "Systems of first degree equations in two unknowns",
+                "Inequalities",
+                "Tangents and circles",
+                "Geometric loci and constructions",
+                "Graphic representation of a straight line",
+                "Parallel and orthogonal straight lines",
+                "Length of a segment in an orthonormal system",
+                "Graphical solution of linear systems"
+            ],
+            "Français": [
+                "Nombres réels",
+                "Calcul sur les réels",
+                "Fonctions linéaires et proportionnalité",
+                "Expressions algébriques avec radicaux",
+                "Polynôme à une variable",
+                "Équations",
+                "Systèmes d'équations du premier degré à deux inconnues",
+                "Inéquations",
+                "Tangentes et cercles",
+                "Lieux géométriques et constructions",
+                "Représentation graphique d'une droite",
+                "Parallélisme et orthogonalité de deux droites",
+                "Longueur d'un segment dans un repère orthonormé",
+                "Résolution graphique d'un système linéaire"
+            ]
+        },
+
+        "الأول ثانوي": {
+            "العربية": [
+                "المجموعات",
+                "الجداء الديكارتي",
+                "التطبيق والتقابل",
+                "الجذور التربيعية وقوى الأعداد الحقيقية",
+                "الترتيب على R والفترات",
+                "القيمة المطلقة",
+                "التقريب والتسوير",
+                "المعادلات من الدرجة الأولى",
+                "المعادلات والمتراجحات بالقيمة المطلقة",
+                "نظام معادلتين خطيتين",
+                "كثيرات الحدود",
+                "جذر كثيرة الحدود",
+                "المتجهات في المستوى",
+                "المعلم في المستوى",
+                "معادلة مستقيم في المستوى",
+                "الجداء السلمي",
+                "الدوال والتمثيل البياني",
+                "حل المعادلات والمتراجحات بيانيًا",
+                "دراسة الدوال",
+                "الدائرة المثلثية",
+                "الإحصاء"
+            ],
+            "English": [
+                "Sets",
+                "Cartesian product",
+                "Mappings and bijections",
+                "Square roots and powers",
+                "Order on R and intervals",
+                "Absolute value",
+                "Approximation",
+                "First degree equations",
+                "Equations and inequalities with absolute value",
+                "Systems of linear equations",
+                "Polynomials",
+                "Root of a polynomial",
+                "Vectors in the plane",
+                "Reference frame in the plane",
+                "Equation of a straight line",
+                "Scalar product",
+                "Functions and graphical representation",
+                "Graphical solution of equations and inequalities",
+                "Study of functions",
+                "Trigonometric circle",
+                "Statistics"
+            ],
+            "Français": [
+                "Ensembles",
+                "Produit cartésien",
+                "Applications et bijections",
+                "Racines carrées et puissances",
+                "Ordre sur R et intervalles",
+                "Valeur absolue",
+                "Encadrement et approximation",
+                "Équations du premier degré",
+                "Équations et inéquations avec valeur absolue",
+                "Systèmes d'équations linéaires",
+                "Polynômes",
+                "Racine d'un polynôme",
+                "Vecteurs du plan",
+                "Repère du plan",
+                "Équation d'une droite",
+                "Produit scalaire",
+                "Fonctions et représentation graphique",
+                "Résolution graphique d'équations et d'inéquations",
+                "Étude de fonctions",
+                "Cercle trigonométrique",
+                "Statistique"
+            ]
+        },
+
+        "الثاني ثانوي": {
+            "العربية": [
+                "العلاقات الثنائية",
+                "الترتيبات والتباديل",
+                "البرمجة الخطية",
+                "المعادلات من الدرجة الثانية",
+                "القسمة الإقليدية لكثيرات الحدود",
+                "التحليل إلى عوامل",
+                "المتجهات في الفضاء",
+                "المعلم في الفضاء",
+                "مركز الثقل",
+                "الجداء المتجهي",
+                "نهاية دالة",
+                "المقاربات",
+                "المتتاليات العددية",
+                "المتتاليات الحسابية",
+                "المتتاليات الهندسية",
+                "الاستمرارية",
+                "مشتقة دالة عند نقطة",
+                "الدالة المشتقة",
+                "دراسة الدوال كثيرات الحدود",
+                "دراسة الدوال الكسرية",
+                "الدوال الأصلية"
+            ],
+            "English": [
+                "Binary relations",
+                "Arrangements and permutations",
+                "Linear programming",
+                "Quadratic equations",
+                "Euclidean division of polynomials",
+                "Factorization",
+                "Vectors in space",
+                "Reference frame in space",
+                "Barycenter",
+                "Vector product",
+                "Limit of a function",
+                "Asymptotes",
+                "Numerical sequences",
+                "Arithmetic sequences",
+                "Geometric sequences",
+                "Continuity",
+                "Derivative at a point",
+                "Derivative function",
+                "Polynomial functions",
+                "Rational functions",
+                "Primitives"
+            ],
+            "Français": [
+                "Relations binaires",
+                "Arrangements et permutations",
+                "Programmation linéaire",
+                "Équations du second degré",
+                "Division euclidienne des polynômes",
+                "Factorisation",
+                "Vecteurs dans l'espace",
+                "Repère dans l'espace",
+                "Barycentre",
+                "Produit vectoriel",
+                "Limite d'une fonction",
+                "Asymptotes",
+                "Suites numériques",
+                "Suites arithmétiques",
+                "Suites géométriques",
+                "Continuité",
+                "Dérivée en un point",
+                "Fonction dérivée",
+                "Fonctions polynomiales",
+                "Fonctions rationnelles",
+                "Primitives"
+            ]
+        },
+
+        "الثالث ثانوي": {
+            "العربية": [
+                "الدوال غير النسبية",
+                "الدالة العكسية",
+                "الدوال المثلثية العكسية",
+                "الدالة اللوغاريتمية الطبيعية ln(x)",
+                "الدوال اللوغاريتمية",
+                "الدوال الأسية",
+                "دوال القوى",
+                "نهايات المتتاليات",
+                "الاستمرارية",
+                "تمديد دالة بالاستمرارية",
+                "مشتقة الدوال المركبة",
+                "مشتقة الدالة العكسية",
+                "المشتقة الثانية",
+                "نظرية رول",
+                "نظرية القيمة المتوسطة",
+                "قاعدة لوبيتال",
+                "التكامل",
+                "خصائص التكامل",
+                "قواعد التكامل",
+                "تطبيقات التكامل",
+                "المعادلات التفاضلية",
+                "المخروطيات"
+            ],
+            "English": [
+                "Irrational functions",
+                "Inverse function",
+                "Inverse trigonometric functions",
+                "Natural logarithmic function ln(x)",
+                "Logarithmic functions",
+                "Exponential functions",
+                "Power functions",
+                "Limits of sequences",
+                "Continuity",
+                "Extension by continuity",
+                "Derivative of composite functions",
+                "Derivative of an inverse function",
+                "Second derivative",
+                "Rolle's theorem",
+                "Mean value theorem",
+                "L'Hospital's rule",
+                "Integral",
+                "Properties of integrals",
+                "Integration rules",
+                "Applications of integration",
+                "Differential equations",
+                "Conics"
+            ],
+            "Français": [
+                "Fonctions irrationnelles",
+                "Fonction réciproque",
+                "Fonctions trigonométriques réciproques",
+                "Fonction logarithme népérien ln(x)",
+                "Fonctions logarithmiques",
+                "Fonctions exponentielles",
+                "Fonctions puissances",
+                "Limites des suites",
+                "Continuité",
+                "Prolongement par continuité",
+                "Dérivée des fonctions composées",
+                "Dérivée d'une fonction réciproque",
+                "Dérivée seconde",
+                "Théorème de Rolle",
+                "Théorème des accroissements finis",
+                "Règle de L'Hospital",
+                "Intégrale",
+                "Propriétés des intégrales",
+                "Règles d'intégration",
+                "Applications du calcul intégral",
+                "Équations différentielles",
+                "Coniques"
+            ]
+        }
+    }
+};
 
 
-/* ================================================
-   SELECTS
-================================================ */
+/* =========================================================
+   دمج الفهرسة الداخلية مع الخارجية
+========================================================= */
 
+function mergeCurriculumIndexes(
+    baseIndex,
+    remoteIndex
+) {
+    const merged =
+        JSON.parse(
+            JSON.stringify(
+                baseIndex || {}
+            )
+        );
+
+    Object.entries(
+        remoteIndex || {}
+    ).forEach(
+        ([subject, subjectData]) => {
+
+            if (!merged[subject]) {
+                merged[subject] = {};
+            }
+
+            Object.entries(
+                subjectData || {}
+            ).forEach(
+                ([grade, gradeData]) => {
+
+                    if (
+                        !merged[subject][grade]
+                    ) {
+                        merged[subject][grade] = {};
+                    }
+
+                    Object.entries(
+                        gradeData || {}
+                    ).forEach(
+                        ([language, lessons]) => {
+
+                            if (
+                                Array.isArray(
+                                    lessons
+                                )
+                            ) {
+
+                                const current =
+                                    Array.isArray(
+                                        merged[subject][grade][language]
+                                    )
+                                    ? merged[subject][grade][language]
+                                    : [];
+
+                                merged[subject][grade][language] =
+                                    [
+                                        ...new Set(
+                                            [
+                                                ...current,
+                                                ...lessons
+                                            ]
+                                        )
+                                    ];
+                            }
+                        }
+                    );
+                }
+            );
+        }
+    );
+
+    return merged;
+}
+
+
+/* =========================================================
+   القوائم
+========================================================= */
 
 function fillSelect(
     select,
     items,
     placeholder
 ) {
-
     select.innerHTML = "";
-
 
     const first =
         document.createElement(
             "option"
         );
 
-
     first.value = "";
-
     first.textContent =
         placeholder;
-
 
     select.appendChild(
         first
     );
 
-
     items.forEach(
         item => {
-
             const option =
                 document.createElement(
                     "option"
                 );
 
-
             option.value =
                 item;
-
 
             option.textContent =
                 item;
 
-
             select.appendChild(
                 option
             );
-
         }
     );
-
 }
 
 
@@ -1245,13 +1293,11 @@ fillSelect(
     "اختر الصف"
 );
 
-
 fillSelect(
     subjectSelect,
     SUBJECTS,
     "اختر المادة"
 );
-
 
 fillSelect(
     lessonSelect,
@@ -1260,15 +1306,19 @@ fillSelect(
 );
 
 
-/* ================================================
-   CURRICULUM INDEX
-================================================ */
-
+/* =========================================================
+   تحميل الفهرسة
+========================================================= */
 
 async function loadCurriculumIndex() {
 
-    try {
+    curriculumIndex =
+        mergeCurriculumIndexes(
+            {},
+            FALLBACK_CURRICULUM_INDEX
+        );
 
+    try {
         const response =
             await fetch(
                 "/static/crdp_scientific_curriculum_index.json",
@@ -1278,128 +1328,80 @@ async function loadCurriculumIndex() {
                 }
             );
 
+        if (response.ok) {
 
-        if (!response.ok) {
+            const data =
+                await response.json();
 
-            throw new Error(
-                "HTTP " +
-                response.status
-            );
+            curriculumIndex =
+                mergeCurriculumIndexes(
+                    curriculumIndex,
+                    data.verified_index ||
+                    {}
+                );
+
+            indexStatus.textContent =
+                "تم تحميل فهرس الدروس.";
 
         }
 
+        else {
 
-        const data =
-            await response.json();
+            indexStatus.textContent =
+                "تم تشغيل الفهرس الداخلي.";
 
-
-        curriculumIndex =
-            data.verified_index ||
-            {};
-
-
-        indexStatus.textContent =
-            "تم تحميل فهرس الدروس.";
-
-
-        updateLessons();
-
+        }
     }
 
     catch(error) {
 
-        console.error(
-            "INDEX ERROR:",
+        console.warn(
+            "INDEX:",
             error
         );
 
-
-        curriculumIndex = {};
-
-
         indexStatus.textContent =
-            "تعذر تحميل فهرس الدروس.";
-
-
-        updateLessons();
-
+            "تم تشغيل الفهرس الداخلي.";
     }
 
+    updateLessons();
 }
 
 
-/* ================================================
-   UPDATE LESSONS
-================================================ */
-
+/* =========================================================
+   تحديث الدروس
+========================================================= */
 
 function updateLessons() {
 
     const grade =
         gradeSelect.value;
 
-
     const subject =
         subjectSelect.value;
-
 
     const language =
         languageSelect.value;
 
-
     let lessons = [];
-
 
     const gradeData =
         curriculumIndex?.[subject]?.[grade];
-
 
     if (gradeData) {
 
         const languageData =
             gradeData[language];
 
-
         if (
             Array.isArray(
                 languageData
             )
         ) {
-
             lessons.push(
                 ...languageData
             );
-
         }
-
-        else if (
-            languageData &&
-            typeof languageData ===
-                "object"
-        ) {
-
-            Object.values(
-                languageData
-            ).forEach(
-                value => {
-
-                    if (
-                        Array.isArray(
-                            value
-                        )
-                    ) {
-
-                        lessons.push(
-                            ...value
-                        );
-
-                    }
-
-                }
-            );
-
-        }
-
 
         if (
             lessons.length === 0
@@ -1415,19 +1417,16 @@ function updateLessons() {
                             value
                         )
                     ) {
-
                         lessons.push(
                             ...value
                         );
-
                     }
 
                     else if (
                         value &&
                         typeof value ===
-                            "object"
+                        "object"
                     ) {
-
                         Object.values(
                             value
                         ).forEach(
@@ -1438,56 +1437,43 @@ function updateLessons() {
                                         nested
                                     )
                                 ) {
-
                                     lessons.push(
                                         ...nested
                                     );
-
                                 }
-
                             }
                         );
-
                     }
-
                 }
             );
-
         }
-
     }
 
-
-    lessons = [
-        ...new Set(
-            lessons
-        )
-    ];
-
+    lessons =
+        [
+            ...new Set(
+                lessons
+            )
+        ];
 
     lessonSelect.innerHTML =
         "";
-
 
     const first =
         document.createElement(
             "option"
         );
 
-
     first.value = "";
-
 
     first.textContent =
         lessons.length
             ? "اختر الدرس"
             : "لا توجد دروس مفهرسة بعد";
 
-
     lessonSelect.appendChild(
         first
     );
-
 
     lessons.forEach(
         lesson => {
@@ -1497,22 +1483,17 @@ function updateLessons() {
                     "option"
                 );
 
-
             option.value =
                 lesson;
-
 
             option.textContent =
                 lesson;
 
-
             lessonSelect.appendChild(
                 option
             );
-
         }
     );
-
 }
 
 
@@ -1521,12 +1502,10 @@ gradeSelect.addEventListener(
     updateLessons
 );
 
-
 subjectSelect.addEventListener(
     "change",
     updateLessons
 );
-
 
 languageSelect.addEventListener(
     "change",
@@ -1534,10 +1513,9 @@ languageSelect.addEventListener(
 );
 
 
-/* ================================================
+/* =========================================================
    STUDENT ID
-================================================ */
-
+========================================================= */
 
 function getStudentId() {
 
@@ -1545,7 +1523,6 @@ function getStudentId() {
         localStorage.getItem(
             "nabil_student_id"
         );
-
 
     if (!id) {
 
@@ -1555,62 +1532,48 @@ function getStudentId() {
             "_" +
             Math.random()
                 .toString(36)
-                .substring(2,8);
-
+                .substring(2, 8);
 
         localStorage.setItem(
             "nabil_student_id",
             id
         );
-
     }
 
-
     return id;
-
 }
 
 
-/* ================================================
-   TEXT RENDER
-================================================ */
-
+/* =========================================================
+   عرض النص
+========================================================= */
 
 function renderAIText(text) {
 
     if (!text) {
-
         return "";
-
     }
 
-
     const mathBlocks = [];
-
 
     function saveMath(match) {
 
         const i =
             mathBlocks.length;
 
-
         mathBlocks.push(
             match
         );
-
 
         return (
             "___NABIL_MATH_" +
             i +
             "___"
         );
-
     }
-
 
     let content =
         String(text);
-
 
     content =
         content.replace(
@@ -1618,13 +1581,11 @@ function renderAIText(text) {
             saveMath
         );
 
-
     content =
         content.replace(
             /\\\[[\s\S]*?\\\]/g,
             saveMath
         );
-
 
     content =
         content.replace(
@@ -1632,13 +1593,11 @@ function renderAIText(text) {
             saveMath
         );
 
-
     content =
         content.replace(
             /\$[^$\n]+\$/g,
             saveMath
         );
-
 
     content =
         content
@@ -1655,13 +1614,11 @@ function renderAIText(text) {
                 "&gt;"
             );
 
-
     content =
         content.replace(
             /^### (.+)$/gm,
             "<h4>$1</h4>"
         );
-
 
     content =
         content.replace(
@@ -1669,13 +1626,11 @@ function renderAIText(text) {
             "<h3>$1</h3>"
         );
 
-
     content =
         content.replace(
             /^# (.+)$/gm,
             "<h2>$1</h2>"
         );
-
 
     content =
         content.replace(
@@ -1683,13 +1638,11 @@ function renderAIText(text) {
             "<strong>$1</strong>"
         );
 
-
     content =
         content.replace(
             /\n/g,
             "<br>"
         );
-
 
     mathBlocks.forEach(
         (math, i) => {
@@ -1701,20 +1654,16 @@ function renderAIText(text) {
                     "___",
                     math
                 );
-
         }
     );
 
-
     return content;
-
 }
 
 
-/* ================================================
-   COPY
-================================================ */
-
+/* =========================================================
+   النسخ
+========================================================= */
 
 async function copyAnswer(text) {
 
@@ -1734,70 +1683,56 @@ async function copyAnswer(text) {
             "COPY ERROR:",
             error
         );
-
     }
-
 }
 
 
-/* ================================================
-   SPEECH
-================================================ */
-
+/* =========================================================
+   القراءة الصوتية
+========================================================= */
 
 function cleanSpeechText(text) {
 
     return String(
         text || ""
     )
-
         .replace(
             /\\frac\{([^{}]+)\}\{([^{}]+)\}/g,
             "$1 على $2"
         )
-
         .replace(
             /\\sqrt\{([^{}]+)\}/g,
             "الجذر التربيعي لـ $1"
         )
-
         .replace(
             /\^2/g,
             " تربيع"
         )
-
         .replace(
             /\^3/g,
             " تكعيب"
         )
-
         .replace(
             /\\boxed\{([^{}]+)\}/g,
             "$1"
         )
-
         .replace(
             /\\text\{([^{}]+)\}/g,
             "$1"
         )
-
         .replace(
             /\\[a-zA-Z]+/g,
             ""
         )
-
         .replace(
             /[*_#>`$]/g,
             ""
         )
-
         .replace(
             /\s+/g,
             " "
         )
-
         .trim();
-
 }
 
 
@@ -1815,12 +1750,9 @@ function readAnswer(text) {
         );
 
         return;
-
     }
 
-
     speechSynthesis.cancel();
-
 
     const utterance =
         new SpeechSynthesisUtterance(
@@ -1829,40 +1761,30 @@ function readAnswer(text) {
             )
         );
 
-
     const language =
         languageSelect.value;
-
 
     utterance.lang =
         language ===
             "English"
-
             ? "en-US"
-
             : language ===
                 "Français"
-
                 ? "fr-FR"
-
                 : "ar-LB";
 
-
     utterance.rate =
-        .92;
-
+        0.92;
 
     speechSynthesis.speak(
         utterance
     );
-
 }
 
 
-/* ================================================
-   GRAPH FUNCTIONS
-================================================ */
-
+/* =========================================================
+   دوال الرسم الرياضي
+========================================================= */
 
 function functionY(
     kind,
@@ -1872,72 +1794,50 @@ function functionY(
     switch(kind) {
 
         case "ln":
-
             return (
                 x > 0
                     ? Math.log(x)
                     : null
             );
 
-
         case "exp":
-
             return Math.exp(x);
 
-
         case "square":
-
             return x * x;
 
-
         case "linear":
-
             return x;
 
-
         case "inverse":
-
             return (
                 Math.abs(x) <
                     0.0001
-
                     ? null
-
                     : 1 / x
             );
 
-
         default:
-
             return null;
-
     }
-
 }
 
 
-/* ================================================
-   FUNCTION GRAPH
-================================================ */
-
+/* =========================================================
+   رسم الدوال
+========================================================= */
 
 function renderFunction(
     drawing
 ) {
 
     const width = 820;
-
     const height = 430;
 
-
     const left = 58;
-
     const right = 28;
-
     const top = 28;
-
     const bottom = 48;
-
 
     let xMin =
         Number(
@@ -1945,13 +1845,11 @@ function renderFunction(
             -1
         );
 
-
     let xMax =
         Number(
             drawing.x_max ??
             7
         );
-
 
     let yMin =
         Number(
@@ -1959,13 +1857,11 @@ function renderFunction(
             -3.5
         );
 
-
     let yMax =
         Number(
             drawing.y_max ??
             2.5
         );
-
 
     if (
         drawing.function ===
@@ -1978,13 +1874,11 @@ function renderFunction(
                 -1
             );
 
-
         xMax =
             Math.max(
                 xMax,
                 6.5
             );
-
 
         yMin =
             Math.min(
@@ -1992,30 +1886,24 @@ function renderFunction(
                 -3.5
             );
 
-
         yMax =
             Math.max(
                 yMax,
                 2.5
             );
-
     }
-
 
     const plotWidth =
         width -
         left -
         right;
 
-
     const plotHeight =
         height -
         top -
         bottom;
 
-
     function sx(x) {
-
         return (
             left +
             (
@@ -2024,12 +1912,9 @@ function renderFunction(
             ) *
             plotWidth
         );
-
     }
 
-
     function sy(y) {
-
         return (
             top +
             (
@@ -2038,19 +1923,12 @@ function renderFunction(
             ) *
             plotHeight
         );
-
     }
 
-
     let path = "";
+    let penDown = false;
 
-    let penDown =
-        false;
-
-
-    const steps =
-        850;
-
+    const steps = 850;
 
     for (
         let i = 0;
@@ -2066,58 +1944,39 @@ function renderFunction(
                 steps
             );
 
-
         const y =
             functionY(
                 drawing.function,
                 x
             );
 
-
         if (
             y === null ||
             !Number.isFinite(y)
         ) {
 
-            penDown =
-                false;
-
+            penDown = false;
             continue;
-
         }
-
 
         if (
-            y <
-                yMin - 1 ||
-            y >
-                yMax + 1
+            y < yMin - 1 ||
+            y > yMax + 1
         ) {
 
-            penDown =
-                false;
-
+            penDown = false;
             continue;
-
         }
 
-
-        const px =
-            sx(x);
-
-
-        const py =
-            sy(y);
-
+        const px = sx(x);
+        const py = sy(y);
 
         if (!penDown) {
 
             path +=
                 `M ${px} ${py} `;
 
-
-            penDown =
-                true;
+            penDown = true;
 
         }
 
@@ -2125,16 +1984,11 @@ function renderFunction(
 
             path +=
                 `L ${px} ${py} `;
-
         }
-
     }
 
-
     let grid = "";
-
     let ticks = "";
-
 
     for (
         let x =
@@ -2144,9 +1998,7 @@ function renderFunction(
         x++
     ) {
 
-        const px =
-            sx(x);
-
+        const px = sx(x);
 
         grid += `
             <line
@@ -2158,7 +2010,6 @@ function renderFunction(
                 stroke-width="1"
             />
         `;
-
 
         if (x !== 0) {
 
@@ -2172,11 +2023,8 @@ function renderFunction(
                     ${x}
                 </text>
             `;
-
         }
-
     }
-
 
     for (
         let y =
@@ -2186,9 +2034,7 @@ function renderFunction(
         y++
     ) {
 
-        const py =
-            sy(y);
-
+        const py = sy(y);
 
         grid += `
             <line
@@ -2201,7 +2047,6 @@ function renderFunction(
             />
         `;
 
-
         ticks += `
             <text
                 x="${sx(0) - 18}"
@@ -2212,12 +2057,7 @@ function renderFunction(
                 ${y}
             </text>
         `;
-
     }
-
-
-    let points = "";
-
 
     const pointList =
         Array.isArray(
@@ -2226,41 +2066,31 @@ function renderFunction(
         ? [...drawing.points]
         : [];
 
-
     if (
         drawing.function ===
         "ln"
     ) {
 
         const specialPoints = [
-
             {
                 x: 1,
                 y: 0,
                 label: "(1, 0)",
                 color: "#15803d"
             },
-
             {
-                x:
-                    Math.E,
+                x: Math.E,
                 y: 1,
                 label: "(e, 1)",
                 color: "#7e22ce"
             },
-
             {
-                x:
-                    1 / Math.E,
+                x: 1 / Math.E,
                 y: -1,
-                label:
-                    "(1/e, -1)",
-                color:
-                    "#dc2626"
+                label: "(1/e, -1)",
+                color: "#dc2626"
             }
-
         ];
-
 
         specialPoints.forEach(
             p => {
@@ -2273,31 +2103,24 @@ function renderFunction(
                                     item.x
                                 ) -
                                 p.x
-                            ) <
-                            0.01 &&
+                            ) < 0.01
+                            &&
                             Math.abs(
                                 Number(
                                     item.y
                                 ) -
                                 p.y
-                            ) <
-                            0.01
+                            ) < 0.01
                     );
-
 
                 if (!exists) {
-
-                    pointList.push(
-                        p
-                    );
-
+                    pointList.push(p);
                 }
-
             }
         );
-
     }
 
+    let points = "";
 
     pointList.forEach(
         point => {
@@ -2309,7 +2132,6 @@ function renderFunction(
                     )
                 );
 
-
             const py =
                 sy(
                     Number(
@@ -2317,11 +2139,9 @@ function renderFunction(
                     )
                 );
 
-
             const color =
                 point.color ||
                 "#dc2626";
-
 
             points += `
                 <circle
@@ -2334,24 +2154,19 @@ function renderFunction(
                 <text
                     x="${px + 10}"
                     y="${py - 12}"
-                    class="graph-label"
-                    fill="${color}"
                     style="
-                        fill:${color}
-                        !important;
+                        fill:${color};
+                        font-size:14px;
+                        font-weight:700;
                     "
                 >
                     ${point.label || ""}
                 </text>
             `;
-
         }
     );
 
-
-    let asymptote =
-        "";
-
+    let asymptote = "";
 
     if (
         drawing.vertical_asymptote !==
@@ -2365,10 +2180,8 @@ function renderFunction(
                 drawing.vertical_asymptote
             );
 
-
         const px =
             sx(value);
-
 
         asymptote = `
             <line
@@ -2384,19 +2197,16 @@ function renderFunction(
             <text
                 x="${px + 14}"
                 y="${height-bottom-10}"
-                class="graph-label"
-                fill="#dc2626"
                 style="
-                    fill:#dc2626
-                    !important;
+                    fill:#dc2626;
+                    font-size:14px;
+                    font-weight:700;
                 "
             >
                 x = ${value}
             </text>
         `;
-
     }
-
 
     const xAxisY =
         (
@@ -2404,9 +2214,7 @@ function renderFunction(
             yMax >= 0
         )
         ? sy(0)
-        : height -
-          bottom;
-
+        : height - bottom;
 
     const yAxisX =
         (
@@ -2416,10 +2224,7 @@ function renderFunction(
         ? sx(0)
         : left;
 
-
-    let properties =
-        "";
-
+    let properties = "";
 
     if (
         drawing.function ===
@@ -2427,30 +2232,28 @@ function renderFunction(
     ) {
 
         properties = `
-
             <strong>
-                خصائص الدالة
-                ln(x)
+                خصائص الدالة ln(x)
             </strong>
 
             <div>
                 • المجال:
-                \(]0,+\infty[\)
+                \\(]0,+\\infty[\\)
             </div>
 
             <div>
                 • المدى:
-                \(\mathbb{R}\)
+                \\(\\mathbb{R}\\)
             </div>
 
             <div>
                 • تمر بالنقطة:
-                \((1,0)\)
+                \\((1,0)\\)
             </div>
 
             <div>
                 • تمر بالنقطة:
-                \((e,1)\)
+                \\((e,1)\\)
             </div>
 
             <div>
@@ -2463,18 +2266,15 @@ function renderFunction(
 
             <div>
                 • المستقيم
-                \(x=0\)
+                \\(x=0\\)
                 مقارب رأسي
             </div>
-
         `;
-
     }
 
     else {
 
         properties = `
-
             <strong>
                 خصائص الرسم
             </strong>
@@ -2483,14 +2283,10 @@ function renderFunction(
                 الدالة:
                 ${drawing.expression || ""}
             </div>
-
         `;
-
     }
 
-
     return `
-
         <div class="drawing-title">
             📊
             ${
@@ -2500,28 +2296,18 @@ function renderFunction(
             }
         </div>
 
-
         <div class="graph-shell">
-
 
             <div class="graph-layout">
 
-
                 <div class="graph-canvas">
 
-
                     <svg
-                        viewBox="
-                            0 0
-                            ${width}
-                            ${height}
-                        "
+                        viewBox="0 0 ${width} ${height}"
                         role="img"
                     >
 
-
                         <defs>
-
                             <marker
                                 id="arrowX"
                                 markerWidth="8"
@@ -2530,24 +2316,14 @@ function renderFunction(
                                 refY="3"
                                 orient="auto"
                             >
-
                                 <path
-                                    d="
-                                        M0,0
-                                        L0,6
-                                        L7,3
-                                        z
-                                    "
+                                    d="M0,0 L0,6 L7,3 z"
                                     fill="#111827"
                                 />
-
                             </marker>
-
                         </defs>
 
-
                         ${grid}
-
 
                         <line
                             x1="${left}"
@@ -2556,11 +2332,8 @@ function renderFunction(
                             y2="${xAxisY}"
                             stroke="#111827"
                             stroke-width="2"
-                            marker-end="
-                                url(#arrowX)
-                            "
+                            marker-end="url(#arrowX)"
                         />
-
 
                         <line
                             x1="${yAxisX}"
@@ -2569,17 +2342,12 @@ function renderFunction(
                             y2="${top}"
                             stroke="#111827"
                             stroke-width="2"
-                            marker-end="
-                                url(#arrowX)
-                            "
+                            marker-end="url(#arrowX)"
                         />
-
 
                         ${ticks}
 
-
                         ${asymptote}
-
 
                         <path
                             d="${path}"
@@ -2590,63 +2358,42 @@ function renderFunction(
                             stroke-linejoin="round"
                         />
 
-
                         ${points}
-
 
                         <text
                             x="${width-right-12}"
                             y="${xAxisY-11}"
-                            class="
-                                graph-axis-label
-                            "
+                            class="graph-axis-label"
                         >
                             x
                         </text>
 
-
                         <text
                             x="${yAxisX+13}"
                             y="${top+17}"
-                            class="
-                                graph-axis-label
-                            "
+                            class="graph-axis-label"
                         >
                             y
                         </text>
 
-
                     </svg>
 
-
                 </div>
 
-
-                <div
-                    class="
-                        graph-properties
-                    "
-                >
-
+                <div class="graph-properties">
                     ${properties}
-
                 </div>
-
 
             </div>
 
-
         </div>
-
     `;
-
 }
 
 
-/* ================================================
-   RIGHT TRIANGLE
-================================================ */
-
+/* =========================================================
+   المثلث القائم
+========================================================= */
 
 function renderTriangle(
     drawing
@@ -2657,42 +2404,30 @@ function renderTriangle(
         drawing.a ??
         "a";
 
-
     const b =
         drawing.labels?.b ??
         drawing.b ??
         "b";
-
 
     const c =
         drawing.labels?.c ??
         drawing.c ??
         "c";
 
-
     return `
-
         <div class="drawing-title">
-
             📐
             ${
                 drawing.title ||
                 "مثلث قائم الزاوية"
             }
-
         </div>
-
 
         <div class="graph-shell">
 
-
             <svg
-                viewBox="
-                    0 0
-                    720 420
-                "
+                viewBox="0 0 720 420"
             >
-
 
                 <polygon
                     points="
@@ -2705,7 +2440,6 @@ function renderTriangle(
                     stroke-width="5"
                 />
 
-
                 <polyline
                     points="
                         145,292
@@ -2717,7 +2451,6 @@ function renderTriangle(
                     stroke-width="5"
                 />
 
-
                 <text
                     x="92"
                     y="210"
@@ -2725,7 +2458,6 @@ function renderTriangle(
                 >
                     ${a}
                 </text>
-
 
                 <text
                     x="355"
@@ -2735,7 +2467,6 @@ function renderTriangle(
                     ${b}
                 </text>
 
-
                 <text
                     x="385"
                     y="180"
@@ -2743,7 +2474,6 @@ function renderTriangle(
                 >
                     ${c}
                 </text>
-
 
                 <text
                     x="152"
@@ -2753,21 +2483,16 @@ function renderTriangle(
                     90°
                 </text>
 
-
             </svg>
 
-
         </div>
-
     `;
-
 }
 
 
-/* ================================================
-   CIRCLE / TANGENT
-================================================ */
-
+/* =========================================================
+   الدائرة والمماس
+========================================================= */
 
 function renderCircle(
     drawing
@@ -2777,40 +2502,28 @@ function renderCircle(
         drawing.center ||
         "O";
 
-
     const tangent =
         drawing.tangent_point ||
         "A";
-
 
     const external =
         drawing.external_point ||
         "M";
 
-
     return `
-
         <div class="drawing-title">
-
             ⭕
             ${
                 drawing.title ||
                 "الدائرة والمماس"
             }
-
         </div>
-
 
         <div class="graph-shell">
 
-
             <svg
-                viewBox="
-                    0 0
-                    720 420
-                "
+                viewBox="0 0 720 420"
             >
-
 
                 <circle
                     cx="280"
@@ -2821,14 +2534,12 @@ function renderCircle(
                     stroke-width="5"
                 />
 
-
                 <circle
                     cx="280"
                     cy="210"
                     r="6"
                     fill="#dc2626"
                 />
-
 
                 <line
                     x1="280"
@@ -2839,7 +2550,6 @@ function renderCircle(
                     stroke-width="4"
                 />
 
-
                 <line
                     x1="405"
                     y1="60"
@@ -2849,7 +2559,6 @@ function renderCircle(
                     stroke-width="5"
                 />
 
-
                 <circle
                     cx="405"
                     cy="210"
@@ -2857,14 +2566,12 @@ function renderCircle(
                     fill="#111827"
                 />
 
-
                 <circle
                     cx="405"
                     cy="100"
                     r="6"
                     fill="#111827"
                 />
-
 
                 <text
                     x="255"
@@ -2874,7 +2581,6 @@ function renderCircle(
                     ${center}
                 </text>
 
-
                 <text
                     x="420"
                     y="215"
@@ -2882,7 +2588,6 @@ function renderCircle(
                 >
                     ${tangent}
                 </text>
-
 
                 <text
                     x="420"
@@ -2892,28 +2597,22 @@ function renderCircle(
                     ${external}
                 </text>
 
-
             </svg>
 
-
         </div>
-
     `;
-
 }
 
 
-/* ================================================
-   PHYSICS FORCES
-================================================ */
-
+/* =========================================================
+   مخطط القوى
+========================================================= */
 
 function renderForces(
     drawing
 ) {
 
     let arrows = "";
-
 
     (
         drawing.forces ||
@@ -2922,52 +2621,37 @@ function renderForces(
         force => {
 
             let x2 = 360;
-
             let y2 = 210;
-
 
             if (
                 force.direction ===
                 "up"
             ) {
-
                 y2 = 70;
-
             }
-
 
             if (
                 force.direction ===
                 "down"
             ) {
-
                 y2 = 350;
-
             }
-
 
             if (
                 force.direction ===
                 "left"
             ) {
-
                 x2 = 165;
-
             }
-
 
             if (
                 force.direction ===
                 "right"
             ) {
-
                 x2 = 555;
-
             }
 
-
             arrows += `
-
                 <line
                     x1="360"
                     y1="210"
@@ -2977,14 +2661,12 @@ function renderForces(
                     stroke-width="5"
                 />
 
-
                 <circle
                     cx="${x2}"
                     cy="${y2}"
                     r="5"
                     fill="#dc2626"
                 />
-
 
                 <text
                     x="${x2 + 12}"
@@ -2993,36 +2675,24 @@ function renderForces(
                 >
                     ${force.label || "F"}
                 </text>
-
             `;
-
         }
     );
 
-
     return `
-
         <div class="drawing-title">
-
             ⚙️
             ${
                 drawing.title ||
                 "مخطط القوى"
             }
-
         </div>
-
 
         <div class="graph-shell">
 
-
             <svg
-                viewBox="
-                    0 0
-                    720 420
-                "
+                viewBox="0 0 720 420"
             >
-
 
                 <rect
                     x="305"
@@ -3034,7 +2704,6 @@ function renderForces(
                     stroke="#2563eb"
                     stroke-width="4"
                 />
-
 
                 <text
                     x="360"
@@ -3048,24 +2717,18 @@ function renderForces(
                     }
                 </text>
 
-
                 ${arrows}
-
 
             </svg>
 
-
         </div>
-
     `;
-
 }
 
 
-/* ================================================
-   CHEMISTRY MOLECULE
-================================================ */
-
+/* =========================================================
+   الكيمياء
+========================================================= */
 
 function renderMolecule(
     drawing
@@ -3075,48 +2738,32 @@ function renderMolecule(
         drawing.atoms ||
         [];
 
-
     if (!atoms.length) {
-
         return "";
-
     }
 
-
-    const width =
-        720;
-
-
-    const centerY =
-        210;
-
+    const width = 720;
+    const centerY = 210;
 
     const gap =
         atoms.length > 1
-
             ? 470 /
               (
-                atoms.length - 1
+                  atoms.length - 1
               )
-
             : 0;
 
-
     let output = "";
-
 
     atoms.forEach(
         (atom, index) => {
 
             const x =
                 atoms.length === 1
-
                     ? 360
-
                     : 125 +
                       gap *
                       index;
-
 
             if (
                 index <
@@ -3130,9 +2777,7 @@ function renderMolecule(
                         index + 1
                     );
 
-
                 output += `
-
                     <line
                         x1="${x + 38}"
                         y1="${centerY}"
@@ -3141,14 +2786,10 @@ function renderMolecule(
                         stroke="#334155"
                         stroke-width="6"
                     />
-
                 `;
-
             }
 
-
             output += `
-
                 <circle
                     cx="${x}"
                     cy="${centerY}"
@@ -3157,7 +2798,6 @@ function renderMolecule(
                     stroke="#2563eb"
                     stroke-width="4"
                 />
-
 
                 <text
                     x="${x}"
@@ -3170,53 +2810,35 @@ function renderMolecule(
                         "X"
                     }
                 </text>
-
             `;
-
         }
     );
 
-
     return `
-
         <div class="drawing-title">
-
             🧪
             ${
                 drawing.title ||
                 "البنية الجزيئية"
             }
-
         </div>
-
 
         <div class="graph-shell">
 
-
             <svg
-                viewBox="
-                    0 0
-                    ${width}
-                    420
-                "
+                viewBox="0 0 ${width} 420"
             >
-
                 ${output}
-
             </svg>
 
-
         </div>
-
     `;
-
 }
 
 
-/* ================================================
-   DRAWING DISPATCH
-================================================ */
-
+/* =========================================================
+   اختيار محرّك الرسم
+========================================================= */
 
 function renderDrawing(
     drawing
@@ -3228,18 +2850,11 @@ function renderDrawing(
     ) {
 
         return `
-
             <div class="drawing-title">
-
-                لا توجد رسمة مرتبطة
-                بهذا الجواب.
-
+                لا توجد رسمة مرتبطة بهذا الجواب.
             </div>
-
         `;
-
     }
-
 
     switch(
         drawing.type
@@ -3251,13 +2866,11 @@ function renderDrawing(
                 drawing
             );
 
-
         case "right_triangle":
 
             return renderTriangle(
                 drawing
             );
-
 
         case "circle_tangent":
 
@@ -3265,13 +2878,11 @@ function renderDrawing(
                 drawing
             );
 
-
         case "forces":
 
             return renderForces(
                 drawing
             );
-
 
         case "molecule":
 
@@ -3279,29 +2890,334 @@ function renderDrawing(
                 drawing
             );
 
-
         default:
 
             return `
-
                 <div class="drawing-title">
-
-                    لا يوجد محرّك رسم
-                    لهذا النوع بعد.
-
+                    لا يوجد محرّك رسم لهذا النوع بعد.
                 </div>
-
             `;
-
     }
-
 }
 
 
-/* ================================================
-   ADD MESSAGE
-================================================ */
+/* =========================================================
+   تحميل html2canvas عند الحاجة
+========================================================= */
 
+function ensureHtml2Canvas() {
+
+    return new Promise(
+        (resolve, reject) => {
+
+            if (
+                window.html2canvas
+            ) {
+                resolve(
+                    window.html2canvas
+                );
+
+                return;
+            }
+
+            const existing =
+                document.querySelector(
+                    'script[data-nabil-html2canvas="1"]'
+                );
+
+            if (existing) {
+
+                existing.addEventListener(
+                    "load",
+                    () =>
+                        resolve(
+                            window.html2canvas
+                        )
+                );
+
+                existing.addEventListener(
+                    "error",
+                    reject
+                );
+
+                return;
+            }
+
+            const script =
+                document.createElement(
+                    "script"
+                );
+
+            script.src =
+                "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js";
+
+            script.async = true;
+
+            script.dataset
+                .nabilHtml2canvas =
+                "1";
+
+            script.onload =
+                () =>
+                    resolve(
+                        window.html2canvas
+                    );
+
+            script.onerror =
+                () =>
+                    reject(
+                        new Error(
+                            "تعذر تحميل أداة إنشاء الصورة."
+                        )
+                    );
+
+            document.head
+                .appendChild(
+                    script
+                );
+        }
+    );
+}
+
+
+/* =========================================================
+   تحويل الرسمة إلى PNG
+========================================================= */
+
+async function drawingToPngBlob(
+    drawingBox
+) {
+
+    await ensureHtml2Canvas();
+
+    const wasVisible =
+        drawingBox
+            .classList
+            .contains(
+                "visible"
+            );
+
+    if (!wasVisible) {
+
+        drawingBox
+            .classList
+            .add(
+                "visible"
+            );
+    }
+
+    await new Promise(
+        resolve =>
+            setTimeout(
+                resolve,
+                120
+            )
+    );
+
+    const canvas =
+        await window.html2canvas(
+            drawingBox,
+            {
+                backgroundColor:
+                    "#ffffff",
+
+                scale:
+                    2,
+
+                useCORS:
+                    true,
+
+                logging:
+                    false
+            }
+        );
+
+    if (!wasVisible) {
+
+        drawingBox
+            .classList
+            .remove(
+                "visible"
+            );
+    }
+
+    return new Promise(
+        (resolve, reject) => {
+
+            canvas.toBlob(
+                blob => {
+
+                    if (blob) {
+
+                        resolve(blob);
+
+                    }
+
+                    else {
+
+                        reject(
+                            new Error(
+                                "تعذر إنشاء ملف PNG."
+                            )
+                        );
+                    }
+                },
+
+                "image/png",
+                1
+            );
+        }
+    );
+}
+
+
+/* =========================================================
+   تنزيل الرسمة
+========================================================= */
+
+async function downloadDrawing(
+    drawingBox
+) {
+
+    try {
+
+        const blob =
+            await drawingToPngBlob(
+                drawingBox
+            );
+
+        const url =
+            URL.createObjectURL(
+                blob
+            );
+
+        const link =
+            document.createElement(
+                "a"
+            );
+
+        link.href = url;
+
+        link.download =
+            "NABIL-AI-drawing.png";
+
+        document.body
+            .appendChild(
+                link
+            );
+
+        link.click();
+
+        link.remove();
+
+        setTimeout(
+            () =>
+                URL.revokeObjectURL(
+                    url
+                ),
+            1000
+        );
+    }
+
+    catch(error) {
+
+        console.error(
+            "DOWNLOAD DRAWING:",
+            error
+        );
+
+        alert(
+            "تعذر تنزيل الرسمة."
+        );
+    }
+}
+
+
+/* =========================================================
+   مشاركة الرسمة
+========================================================= */
+
+async function shareDrawing(
+    drawingBox
+) {
+
+    try {
+
+        const blob =
+            await drawingToPngBlob(
+                drawingBox
+            );
+
+        const file =
+            new File(
+                [blob],
+                "NABIL-AI-drawing.png",
+                {
+                    type:
+                        "image/png"
+                }
+            );
+
+        if (
+            navigator.share &&
+            navigator.canShare &&
+            navigator.canShare(
+                {
+                    files:
+                        [file]
+                }
+            )
+        ) {
+
+            await navigator.share(
+                {
+                    title:
+                        "NABIL AI",
+
+                    text:
+                        "رسمة تعليمية من منصة النبيل التعليمية الذكية",
+
+                    files:
+                        [file]
+                }
+            );
+
+            return;
+        }
+
+        await downloadDrawing(
+            drawingBox
+        );
+
+        alert(
+            "المشاركة المباشرة غير مدعومة على هذا الجهاز، لذلك تم تنزيل الرسمة."
+        );
+
+    }
+
+    catch(error) {
+
+        if (
+            error.name !==
+            "AbortError"
+        ) {
+
+            console.error(
+                "SHARE DRAWING:",
+                error
+            );
+
+            alert(
+                "تعذر مشاركة الرسمة."
+            );
+        }
+    }
+}
+
+
+/* =========================================================
+   إضافة رسالة
+========================================================= */
 
 function addMessage(
     role,
@@ -3313,30 +3229,24 @@ function addMessage(
 
         welcome.style.display =
             "none";
-
     }
-
 
     const wrapper =
         document.createElement(
             "div"
         );
 
-
     wrapper.className =
         "message " +
         role;
-
 
     const bubble =
         document.createElement(
             "div"
         );
 
-
     bubble.className =
         "bubble";
-
 
     if (
         role ===
@@ -3347,16 +3257,13 @@ function addMessage(
             renderAIText(
                 text
             );
-
     }
 
     else {
 
         bubble.textContent =
             text;
-
     }
-
 
     if (
         role ===
@@ -3369,7 +3276,6 @@ function addMessage(
                 "div"
             );
 
-
         tools.className =
             "teacher-tools";
 
@@ -3379,22 +3285,17 @@ function addMessage(
                 "button"
             );
 
-
         copyButton.type =
             "button";
-
 
         copyButton.textContent =
             "📋 نسخ الإجابة";
 
-
         copyButton.onclick =
             () => {
-
                 copyAnswer(
                     text
                 );
-
             };
 
 
@@ -3403,29 +3304,23 @@ function addMessage(
                 "button"
             );
 
-
         readButton.type =
             "button";
-
 
         readButton.textContent =
             "🔊 اقرأ الإجابة";
 
-
         readButton.onclick =
             () => {
-
                 readAnswer(
                     text
                 );
-
             };
 
 
         tools.appendChild(
             copyButton
         );
-
 
         tools.appendChild(
             readButton
@@ -3439,9 +3334,47 @@ function addMessage(
                     "div"
                 );
 
-
             drawingBox.className =
                 "answer-drawing";
+
+
+            function ensureDrawingRendered() {
+
+                if (
+                    !drawingBox
+                        .dataset
+                        .rendered
+                ) {
+
+                    drawingBox.innerHTML =
+                        renderDrawing(
+                            drawing
+                        );
+
+                    drawingBox
+                        .dataset
+                        .rendered =
+                        "true";
+
+                    if (
+                        window.MathJax &&
+                        typeof
+                        MathJax.typesetPromise ===
+                        "function"
+                    ) {
+
+                        MathJax
+                            .typesetPromise(
+                                [
+                                    drawingBox
+                                ]
+                            )
+                            .catch(
+                                console.error
+                            );
+                    }
+                }
+            }
 
 
             const drawButton =
@@ -3449,21 +3382,19 @@ function addMessage(
                     "button"
                 );
 
-
             drawButton.type =
                 "button";
-
 
             drawButton.className =
                 "draw-answer-btn";
 
-
             drawButton.textContent =
                 "📐 إظهار الرسمة";
 
-
             drawButton.onclick =
                 () => {
+
+                    ensureDrawingRendered();
 
                     const visible =
                         drawingBox
@@ -3471,7 +3402,6 @@ function addMessage(
                             .contains(
                                 "visible"
                             );
-
 
                     if (visible) {
 
@@ -3481,60 +3411,17 @@ function addMessage(
                                 "visible"
                             );
 
-
                         drawButton
                             .classList
                             .remove(
                                 "active"
                             );
 
-
                         drawButton.textContent =
                             "📐 إظهار الرسمة";
-
                     }
 
                     else {
-
-                        if (
-                            !drawingBox
-                                .dataset
-                                .rendered
-                        ) {
-
-                            drawingBox.innerHTML =
-                                renderDrawing(
-                                    drawing
-                                );
-
-
-                            drawingBox
-                                .dataset
-                                .rendered =
-                                "true";
-
-
-                            if (
-                                window.MathJax &&
-                                typeof
-                                MathJax.typesetPromise ===
-                                    "function"
-                            ) {
-
-                                MathJax
-                                    .typesetPromise(
-                                        [
-                                            drawingBox
-                                        ]
-                                    )
-                                    .catch(
-                                        console.error
-                                    );
-
-                            }
-
-                        }
-
 
                         drawingBox
                             .classList
@@ -3542,19 +3429,103 @@ function addMessage(
                                 "visible"
                             );
 
-
                         drawButton
                             .classList
                             .add(
                                 "active"
                             );
 
-
                         drawButton.textContent =
                             "📐 إخفاء الرسمة";
+                    }
+                };
+
+
+            const downloadButton =
+                document.createElement(
+                    "button"
+                );
+
+            downloadButton.type =
+                "button";
+
+            downloadButton.textContent =
+                "⬇️ تنزيل الرسمة";
+
+            downloadButton.onclick =
+                async () => {
+
+                    ensureDrawingRendered();
+
+                    downloadButton.disabled =
+                        true;
+
+                    const oldText =
+                        downloadButton.textContent;
+
+                    downloadButton.textContent =
+                        "⏳ تجهيز الصورة";
+
+                    try {
+
+                        await downloadDrawing(
+                            drawingBox
+                        );
 
                     }
 
+                    finally {
+
+                        downloadButton.disabled =
+                            false;
+
+                        downloadButton.textContent =
+                            oldText;
+                    }
+                };
+
+
+            const shareButton =
+                document.createElement(
+                    "button"
+                );
+
+            shareButton.type =
+                "button";
+
+            shareButton.textContent =
+                "📤 مشاركة الرسمة";
+
+            shareButton.onclick =
+                async () => {
+
+                    ensureDrawingRendered();
+
+                    shareButton.disabled =
+                        true;
+
+                    const oldText =
+                        shareButton.textContent;
+
+                    shareButton.textContent =
+                        "⏳ تجهيز المشاركة";
+
+                    try {
+
+                        await shareDrawing(
+                            drawingBox
+                        );
+
+                    }
+
+                    finally {
+
+                        shareButton.disabled =
+                            false;
+
+                        shareButton.textContent =
+                            oldText;
+                    }
                 };
 
 
@@ -3562,16 +3533,21 @@ function addMessage(
                 drawButton
             );
 
+            tools.appendChild(
+                downloadButton
+            );
+
+            tools.appendChild(
+                shareButton
+            );
 
             bubble.appendChild(
                 tools
             );
 
-
             bubble.appendChild(
                 drawingBox
             );
-
         }
 
         else {
@@ -3579,30 +3555,26 @@ function addMessage(
             bubble.appendChild(
                 tools
             );
-
         }
-
     }
-
 
     wrapper.appendChild(
         bubble
     );
 
-
     chat.appendChild(
         wrapper
     );
 
-
     chat.scrollTop =
         chat.scrollHeight;
 
-
     if (
-        role === "teacher" &&
+        role ===
+            "teacher" &&
         window.MathJax &&
-        typeof MathJax.typesetPromise ===
+        typeof
+        MathJax.typesetPromise ===
             "function"
     ) {
 
@@ -3613,16 +3585,13 @@ function addMessage(
             .catch(
                 console.error
             );
-
     }
-
 }
 
 
-/* ================================================
-   SEND TO AI
-================================================ */
-
+/* =========================================================
+   الإرسال إلى NABIL AI
+========================================================= */
 
 async function sendToAI(
     message,
@@ -3632,18 +3601,14 @@ async function sendToAI(
     const grade =
         gradeSelect.value;
 
-
     const subject =
         subjectSelect.value;
-
 
     const language =
         languageSelect.value;
 
-
     const lesson =
         lessonSelect.value;
-
 
     if (
         !grade ||
@@ -3655,9 +3620,7 @@ async function sendToAI(
         );
 
         return;
-
     }
-
 
     if (
         showStudentMessage
@@ -3669,7 +3632,6 @@ async function sendToAI(
                 "student",
                 message
             );
-
         }
 
         else if (
@@ -3680,21 +3642,16 @@ async function sendToAI(
                 "student",
                 "🖼️ صورة"
             );
-
         }
-
     }
-
 
     const formData =
         new FormData();
-
 
     formData.append(
         "student_id",
         getStudentId()
     );
-
 
     if (
         conversationId
@@ -3704,45 +3661,37 @@ async function sendToAI(
             "conversation_id",
             conversationId
         );
-
     }
-
 
     formData.append(
         "message",
         message || ""
     );
 
-
     formData.append(
         "grade",
         grade
     );
-
 
     formData.append(
         "subject",
         subject
     );
 
-
     formData.append(
         "language",
         language
     );
-
 
     formData.append(
         "curriculum",
         FIXED_CURRICULUM
     );
 
-
     formData.append(
         "lesson",
         lesson || ""
     );
-
 
     if (
         selectedImage
@@ -3752,23 +3701,18 @@ async function sendToAI(
             "image",
             selectedImage
         );
-
     }
-
 
     try {
 
         sendBtn.disabled =
             true;
 
-
         startLesson.disabled =
             true;
 
-
         sendBtn.textContent =
             "جاري التفكير...";
-
 
         const response =
             await fetch(
@@ -3783,9 +3727,7 @@ async function sendToAI(
                 }
             );
 
-
         let data = {};
-
 
         try {
 
@@ -3799,9 +3741,7 @@ async function sendToAI(
             throw new Error(
                 "الخادم لم يُرجع JSON صالحًا."
             );
-
         }
-
 
         if (
             !response.ok
@@ -3815,9 +3755,7 @@ async function sendToAI(
                     response.status
                 )
             );
-
         }
-
 
         if (
             data.conversation_id
@@ -3825,32 +3763,24 @@ async function sendToAI(
 
             conversationId =
                 data.conversation_id;
-
         }
-
 
         addMessage(
             "teacher",
-
             data.reply ||
             "لم يصل جواب.",
-
             data.drawing ||
             null
         );
 
-
         selectedImage =
             null;
-
 
         imageInput.value =
             "";
 
-
         messageInput.value =
             "";
-
 
         messageInput.placeholder =
             "اكتب سؤالك هنا...";
@@ -3864,14 +3794,11 @@ async function sendToAI(
             error
         );
 
-
         addMessage(
             "teacher",
-
             "حدث خطأ في الاتصال بـ NABIL AI:\n" +
             error.message
         );
-
     }
 
     finally {
@@ -3879,44 +3806,34 @@ async function sendToAI(
         sendBtn.disabled =
             false;
 
-
         startLesson.disabled =
             false;
 
-
         sendBtn.textContent =
             "إرسال";
-
     }
-
 }
 
 
-/* ================================================
-   START LESSON
-================================================ */
-
+/* =========================================================
+   بدء الدرس
+========================================================= */
 
 startLesson.addEventListener(
     "click",
-
     async () => {
 
         const grade =
             gradeSelect.value;
 
-
         const subject =
             subjectSelect.value;
-
 
         const language =
             languageSelect.value;
 
-
         const lesson =
             lessonSelect.value;
-
 
         if (
             !grade ||
@@ -3929,21 +3846,16 @@ startLesson.addEventListener(
             );
 
             return;
-
         }
-
 
         currentLesson.textContent =
             lesson;
 
-
         lessonInfo.style.display =
             "block";
 
-
         indexStatus.textContent =
             "المنهج اللبناني الرسمي";
-
 
         const prompt =
 `ابدأ درسًا تفاعليًا مع الطالب.
@@ -3958,27 +3870,24 @@ startLesson.addEventListener(
 استخدم مثالًا مناسبًا.
 إذا كان الرسم مفيدًا أرسل DRAWING_JSON.
 لا تستخدم رسومات ASCII.
-إذا كانت الإجابة بالعربية فلا تخلط كلمات أجنبية غير ضرورية.
+إذا كانت الإجابة بالعربية فاستخدم العربية فقط باستثناء الرموز والمصطلحات الرياضية الضرورية.
+لا تستخدم كلمات صينية أو بولندية أو فرنسية أو إنجليزية داخل الشرح العربي بلا ضرورة.
 اطرح سؤال تحقق واحدًا في النهاية.`;
-
 
         await sendToAI(
             prompt,
             false
         );
-
     }
 );
 
 
-/* ================================================
-   SEND BUTTON
-================================================ */
-
+/* =========================================================
+   زر الإرسال
+========================================================= */
 
 sendBtn.addEventListener(
     "click",
-
     async () => {
 
         const message =
@@ -3986,45 +3895,37 @@ sendBtn.addEventListener(
                 .value
                 .trim();
 
-
         if (
             !message &&
             !selectedImage
         ) {
 
             return;
-
         }
-
 
         await sendToAI(
             message,
             true
         );
-
     }
 );
 
 
-/* ================================================
-   IMAGE
-================================================ */
-
+/* =========================================================
+   رفع الصورة
+========================================================= */
 
 imageBtn.addEventListener(
     "click",
-
     () => {
 
         imageInput.click();
-
     }
 );
 
 
 imageInput.addEventListener(
     "change",
-
     function() {
 
         if (
@@ -4035,24 +3936,19 @@ imageInput.addEventListener(
             selectedImage =
                 this.files[0];
 
-
             messageInput.placeholder =
                 "تم اختيار صورة. اكتب طلبك أو اضغط إرسال.";
-
         }
-
     }
 );
 
 
-/* ================================================
+/* =========================================================
    ENTER
-================================================ */
-
+========================================================= */
 
 messageInput.addEventListener(
     "keydown",
-
     event => {
 
         if (
@@ -4063,24 +3959,19 @@ messageInput.addEventListener(
 
             event.preventDefault();
 
-
             sendBtn.click();
-
         }
-
     }
 );
 
 
-/* ================================================
-   SPEECH INPUT
-================================================ */
-
+/* =========================================================
+   التعرف الصوتي
+========================================================= */
 
 if (
     "webkitSpeechRecognition"
         in window ||
-
     "SpeechRecognition"
         in window
 ) {
@@ -4089,18 +3980,14 @@ if (
         window.SpeechRecognition ||
         window.webkitSpeechRecognition;
 
-
     recognition =
         new SpeechRecognition();
-
 
     recognition.continuous =
         false;
 
-
     recognition.interimResults =
         false;
-
 
     recognition.onresult =
         event => {
@@ -4108,9 +3995,7 @@ if (
             messageInput.value =
                 event.results[0][0]
                     .transcript;
-
         };
-
 
     recognition.onerror =
         event => {
@@ -4119,15 +4004,12 @@ if (
                 "SPEECH ERROR:",
                 event.error
             );
-
         };
-
 }
 
 
 micBtn.addEventListener(
     "click",
-
     () => {
 
         if (!recognition) {
@@ -4137,37 +4019,27 @@ micBtn.addEventListener(
             );
 
             return;
-
         }
-
 
         recognition.lang =
             languageSelect.value ===
                 "English"
-
                 ? "en-US"
-
                 : languageSelect.value ===
                     "Français"
-
                     ? "fr-FR"
-
                     : "ar-LB";
 
-
         recognition.start();
-
     }
 );
 
 
-/* ================================================
-   START
-================================================ */
-
+/* =========================================================
+   تشغيل
+========================================================= */
 
 loadCurriculumIndex();
-
 
 </script>
 
