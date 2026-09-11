@@ -2,6 +2,7 @@ import json
 import re
 from pathlib import Path
 from typing import Optional
+from datetime import datetime
  
 from fastapi import (
     APIRouter,
@@ -16,6 +17,7 @@ from sqlalchemy.orm import Session
  
 from app.db.session import get_db
 from app.db.models import Conversation, Message, Student
+from app.db.student_learning import StudentLearningProfile
 from app.services.ai_gateway import NabilAIGateway
  
  
@@ -334,6 +336,34 @@ right
 - فرّق بوضوح بين 5^x-2 و 5^(x-2).
 - لا تذكر إمكانية إبقاء الجواب كسرًا إلا إذا كان السؤال ينتج كسرًا.
 - تحقق من الجواب المتوقع قبل إرسال السؤال.
+
+==================================================
+10. ملف تقدم الطالب - بروتوكول داخلي
+==================================================
+
+في نهاية كل إجابة تعليمية أضف كتلة داخلية واحدة فقط:
+
+<PROGRESS_JSON>
+{
+  "lesson_completed": false,
+  "strengths": [],
+  "weaknesses": [],
+  "mistakes": [],
+  "concepts_to_review": [],
+  "assessment": {
+    "name": "",
+    "score": null,
+    "out_of": null
+  }
+}
+</PROGRESS_JSON>
+
+قواعد PROGRESS_JSON:
+- لا تعرض هذه الكتلة للطالب.
+- لا تسجل قوة أو ضعفًا بلا دليل من تفاعل الطالب.
+- lesson_completed=true فقط عند اكتمال الدرس فعلًا.
+- assessment يُملأ فقط عند تصحيح اختبار واضح.
+- إذا لا يوجد تقييم اترك score و out_of بقيمة null.
 
 ==================================================
 11. الهوية
@@ -657,6 +687,302 @@ def build_curriculum_guardrail(
     )
 
 
+
+def extract_progress_metadata(text: str):
+    if not text:
+        return text, {}
+
+    pattern = r"<PROGRESS_JSON>\s*(.*?)\s*</PROGRESS_JSON>"
+
+    match = re.search(
+        pattern,
+        text,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+
+    metadata = {}
+
+    if match:
+        try:
+            parsed = json.loads(
+                match.group(1).strip()
+            )
+
+            if isinstance(parsed, dict):
+                metadata = parsed
+
+        except Exception:
+            metadata = {}
+
+    text = re.sub(
+        pattern,
+        "",
+        text,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+
+    return text.strip(), metadata
+
+
+def _merge_unique_strings(current, new_items, limit=50):
+    output = []
+
+    for item in list(current or []) + list(new_items or []):
+        value = str(item).strip()
+
+        if value and value not in output:
+            output.append(value)
+
+    return output[-limit:]
+
+
+def get_or_create_learning_profile(
+    db: Session,
+    student_id: str,
+):
+    profile = (
+        db.query(StudentLearningProfile)
+        .filter_by(student_id=student_id)
+        .first()
+    )
+
+    if profile is None:
+        profile = StudentLearningProfile(
+            student_id=student_id,
+        )
+
+        db.add(profile)
+        db.commit()
+        db.refresh(profile)
+
+    return profile
+
+
+def profile_to_dict(profile):
+    return {
+        "student_id": profile.student_id,
+        "current_grade": profile.current_grade,
+        "current_branch": profile.current_branch,
+        "current_subject": profile.current_subject,
+        "current_lesson": profile.current_lesson,
+        "lessons_studied": StudentLearningProfile.loads_list(
+            profile.lessons_studied_json
+        ),
+        "strengths": StudentLearningProfile.loads_list(
+            profile.strengths_json
+        ),
+        "weaknesses": StudentLearningProfile.loads_list(
+            profile.weaknesses_json
+        ),
+        "frequent_mistakes": StudentLearningProfile.loads_list(
+            profile.frequent_mistakes_json
+        ),
+        "concepts_to_review": StudentLearningProfile.loads_list(
+            profile.concepts_to_review_json
+        ),
+        "test_results": StudentLearningProfile.loads_list(
+            profile.test_results_json
+        ),
+        "overall_progress_percent": float(
+            profile.overall_progress_percent or 0
+        ),
+        "mastered_lessons_count": int(
+            profile.mastered_lessons_count or 0
+        ),
+        "total_learning_minutes": int(
+            profile.total_learning_minutes or 0
+        ),
+        "interaction_count": int(
+            profile.interaction_count or 0
+        ),
+        "last_active_activity": profile.last_active_activity,
+        "trial_started_at": (
+            profile.trial_started_at.isoformat()
+            if profile.trial_started_at
+            else None
+        ),
+        "trial_ends_at": (
+            profile.trial_ends_at.isoformat()
+            if profile.trial_ends_at
+            else None
+        ),
+        "subscription_status": profile.subscription_status,
+        "subscription_started_at": (
+            profile.subscription_started_at.isoformat()
+            if profile.subscription_started_at
+            else None
+        ),
+        "subscription_ends_at": (
+            profile.subscription_ends_at.isoformat()
+            if profile.subscription_ends_at
+            else None
+        ),
+    }
+
+
+def update_learning_profile(
+    db: Session,
+    profile,
+    grade,
+    branch,
+    subject,
+    lesson,
+    message,
+    metadata,
+):
+    metadata = metadata if isinstance(metadata, dict) else {}
+
+    profile.current_grade = grade or profile.current_grade
+    profile.current_branch = branch or profile.current_branch
+    profile.current_subject = subject or profile.current_subject
+    profile.current_lesson = lesson or profile.current_lesson
+
+    profile.interaction_count = int(
+        profile.interaction_count or 0
+    ) + 1
+
+    profile.total_learning_minutes = int(
+        profile.total_learning_minutes or 0
+    ) + 1
+
+    profile.last_active_activity = (
+        f"{subject or ''} | {lesson or ''} | {message[:180]}"
+    ).strip(" |")
+
+    lessons = StudentLearningProfile.loads_list(
+        profile.lessons_studied_json
+    )
+
+    if lesson:
+        lesson_key = {
+            "grade": grade or "",
+            "branch": branch or "",
+            "subject": subject or "",
+            "lesson": lesson,
+        }
+
+        if lesson_key not in lessons:
+            lessons.append(lesson_key)
+
+    profile.lessons_studied_json = json.dumps(
+        lessons[-200:],
+        ensure_ascii=False,
+    )
+
+    profile.strengths_json = StudentLearningProfile.dumps_list(
+        _merge_unique_strings(
+            StudentLearningProfile.loads_list(
+                profile.strengths_json
+            ),
+            metadata.get("strengths", []),
+        )
+    )
+
+    profile.weaknesses_json = StudentLearningProfile.dumps_list(
+        _merge_unique_strings(
+            StudentLearningProfile.loads_list(
+                profile.weaknesses_json
+            ),
+            metadata.get("weaknesses", []),
+        )
+    )
+
+    profile.frequent_mistakes_json = StudentLearningProfile.dumps_list(
+        _merge_unique_strings(
+            StudentLearningProfile.loads_list(
+                profile.frequent_mistakes_json
+            ),
+            metadata.get("mistakes", []),
+        )
+    )
+
+    profile.concepts_to_review_json = StudentLearningProfile.dumps_list(
+        _merge_unique_strings(
+            StudentLearningProfile.loads_list(
+                profile.concepts_to_review_json
+            ),
+            metadata.get("concepts_to_review", []),
+        )
+    )
+
+    tests = StudentLearningProfile.loads_list(
+        profile.test_results_json
+    )
+
+    assessment = metadata.get("assessment")
+
+    if isinstance(assessment, dict):
+        score = assessment.get("score")
+        out_of = assessment.get("out_of")
+
+        if (
+            isinstance(score, (int, float))
+            and isinstance(out_of, (int, float))
+            and out_of > 0
+        ):
+            tests.append(
+                {
+                    "name": str(
+                        assessment.get("name")
+                        or lesson
+                        or "Assessment"
+                    ),
+                    "score": float(score),
+                    "out_of": float(out_of),
+                    "percent": round(
+                        float(score)
+                        / float(out_of)
+                        * 100,
+                        2,
+                    ),
+                    "grade": grade or "",
+                    "branch": branch or "",
+                    "subject": subject or "",
+                    "lesson": lesson or "",
+                    "date": datetime.utcnow().isoformat(),
+                }
+            )
+
+            profile.test_results_json = (
+                StudentLearningProfile.dumps_list(
+                    tests[-100:]
+                )
+            )
+
+    if metadata.get("lesson_completed") is True:
+        profile.mastered_lessons_count = int(
+            profile.mastered_lessons_count or 0
+        ) + 1
+
+    percentages = [
+        float(item.get("percent", 0))
+        for item in tests
+        if isinstance(item, dict)
+        and isinstance(
+            item.get("percent"),
+            (int, float),
+        )
+    ]
+
+    if percentages:
+        recent = percentages[-10:]
+
+        profile.overall_progress_percent = round(
+            sum(recent) / len(recent),
+            2,
+        )
+
+    elif lessons:
+        profile.overall_progress_percent = min(
+            100.0,
+            round(len(lessons) * 2.0, 2),
+        )
+
+    db.add(profile)
+    db.commit()
+    db.refresh(profile)
+
+
 def clean_reply(text: str) -> str:
     if not text:
         return ""
@@ -786,8 +1112,26 @@ class ChatResponse(BaseModel):
     transcribed_text: Optional[str] = None
     drawings: list[dict] = Field(default_factory=list)
     drawing: Optional[dict] = None
+    student_profile: Optional[dict] = None
  
  
+@router.get(
+    "/student-profile/{student_id}"
+)
+def get_student_profile(
+    student_id: str,
+    db: Session = Depends(get_db),
+):
+    profile = get_or_create_learning_profile(
+        db=db,
+        student_id=student_id,
+    )
+
+    return profile_to_dict(
+        profile
+    )
+
+
 @router.post(
     "/chat",
     response_model=ChatResponse,
@@ -920,6 +1264,21 @@ async def voice_chat(
         db.add(student)
         db.commit()
         db.refresh(student)
+    else:
+        if grade:
+            student.grade = grade
+
+        if language:
+            student.preferred_language = language
+
+        db.add(student)
+        db.commit()
+
+    learning_profile = get_or_create_learning_profile(
+        db=db,
+        student_id=student_id,
+    )
+
  
     # ==========================================
     # CONVERSATION
@@ -988,7 +1347,24 @@ async def voice_chat(
         subject=subject,
         lesson=lesson,
     )
- 
+
+    lesson_policy = get_lesson_policy(
+        grade=grade,
+        branch=branch,
+        subject=subject,
+        lesson_title=lesson,
+    )
+
+    lesson_policy_text = (
+        format_lesson_policy_for_prompt(
+            lesson_policy
+        )
+    )
+
+    student_profile_context = profile_to_dict(
+        learning_profile
+    )
+
     educational_context = f"""
 السياق التعليمي الحالي:
  
@@ -1007,6 +1383,8 @@ async def voice_chat(
  
 تعليمات تنفيذية:
 - لا تنتقل إلى مفهوم من صف أعلى.
+- إذا كان جزء من الدرس معلّقًا أو محذوفًا رسميًا فلا تشرحه كجزء مطلوب ولا تختبر الطالب فيه.
+- استخدم ملف الطالب للاستمرار من مستواه الحالي فقط، ولا تخترع نقاط قوة أو ضعف.
 - لا تخترع مثالًا عدديًا متقدمًا إذا لم يطلبه الطالب.
 - لا تخترع إحداثيات أو معادلات أو نقاطًا غير موجودة في السؤال.
 - إذا كنت تشرح درسًا، ابدأ بالمفهوم والخاصية المناسبة للصف ثم مثال مناسب.
@@ -1096,6 +1474,18 @@ async def voice_chat(
     )
  
     db.commit()
+
+    update_learning_profile(
+        db=db,
+        profile=learning_profile,
+        grade=grade,
+        branch=branch,
+        subject=subject,
+        lesson=lesson,
+        message=message,
+        metadata=progress_metadata,
+    )
+
  
     # ==========================================
     # RESPONSE
@@ -1113,5 +1503,8 @@ async def voice_chat(
             drawings[0]
             if drawings
             else None
+        ),
+        student_profile=profile_to_dict(
+            learning_profile
         ),
     )
