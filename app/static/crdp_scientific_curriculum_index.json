@@ -1,370 +1,335 @@
 {
+  "meta": {
+    "curriculum": "Lebanese official curriculum - CRDP",
+    "subjects": [
+      "رياضيات",
+      "علوم",
+      "فيزياء",
+      "كيمياء",
+      "علوم الحياة"
+    ],
+    "policy": "lesson_title_is_hard_boundary",
+    "note": "Only verified lesson/topic titles are to be added. Missing content must not be invented."
+  },
+  "subject_availability": {
+    "الصف الأول": [
+      "رياضيات",
+      "علوم"
+    ],
+    "الصف الثاني": [
+      "رياضيات",
+      "علوم"
+    ],
+    "الصف الثالث": [
+      "رياضيات",
+      "علوم"
+    ],
+    "الصف الرابع": [
+      "رياضيات",
+      "علوم"
+    ],
+    "الصف الخامس": [
+      "رياضيات",
+      "علوم"
+    ],
+    "الصف السادس": [
+      "رياضيات",
+      "علوم"
+    ],
+    "الصف السابع": [
+      "رياضيات",
+      "فيزياء",
+      "كيمياء",
+      "علوم الحياة"
+    ],
+    "الصف الثامن": [
+      "رياضيات",
+      "فيزياء",
+      "كيمياء",
+      "علوم الحياة"
+    ],
+    "الصف التاسع": [
+      "رياضيات",
+      "فيزياء",
+      "كيمياء",
+      "علوم الحياة"
+    ],
+    "الأول ثانوي": [
+      "رياضيات",
+      "فيزياء",
+      "كيمياء",
+      "علوم الحياة"
+    ],
+    "الثاني ثانوي": [
+      "رياضيات",
+      "فيزياء",
+      "كيمياء",
+      "علوم الحياة"
+    ],
+    "الثالث ثانوي": [
+      "رياضيات",
+      "فيزياء",
+      "كيمياء",
+      "علوم الحياة"
+    ]
+  },
   "verified_index": {
-    "رياضيات": {
+    "علوم": {
+      "الصف الأول": {
+        "English": [
+          "Growth and needs of plants",
+          "Growth and needs of animals",
+          "Growth and needs of children",
+          "Senses",
+          "Keeping clean",
+          "The sun",
+          "Clouds",
+          "Air and water",
+          "Day and night",
+          "The four seasons"
+        ]
+      },
+      "الصف الثاني": {
+        "English": [
+          "Parts of a garden",
+          "Seasonal plants",
+          "Similarity, variation and difference in animals",
+          "Body movements",
+          "Food groups",
+          "Clean vegetables and fruits",
+          "Nonliving things",
+          "Water cycle",
+          "States of water",
+          "Apparent movements of the sun",
+          "Movement of shadows",
+          "Times of day"
+        ]
+      },
+      "الصف الثالث": {
+        "English": [
+          "Parts of a plant",
+          "Forest, desert and sea plants",
+          "Forest, desert and sea animals",
+          "Sea pollution",
+          "General functions in the human body",
+          "Body protection",
+          "Heat sources",
+          "Properties of states of matter",
+          "Force concept",
+          "Phases of the moon",
+          "Temperature",
+          "Breakdown of rocks"
+        ]
+      },
+      "الصف الرابع": {
+        "English": [
+          "Fresh water habitat and its plants",
+          "Classification of plants",
+          "Classification of animals",
+          "Support and movement systems",
+          "Food pyramid",
+          "Properties of matter",
+          "Mixture",
+          "Magnets",
+          "Electricity",
+          "Sound",
+          "Soil",
+          "Formation of soil",
+          "Clay",
+          "Rocks",
+          "Fossils"
+        ]
+      },
+      "الصف الخامس": {
+        "English": [
+          "Nutrition in plants and photosynthesis",
+          "Nutrition in animals",
+          "Adaptation and behavior",
+          "Food chain",
+          "Nutrients",
+          "Digestive system",
+          "Respiratory system",
+          "Circulatory system",
+          "Protection from disease",
+          "Propagation of light",
+          "Flow of electricity",
+          "Electric circuits",
+          "Chemical substances",
+          "Solar system",
+          "Spheres of the earth",
+          "Atmospheric pressure"
+        ]
+      },
+      "الصف السادس": {
+        "English": [
+          "Plant cell",
+          "Reproduction in plants",
+          "Animal cell",
+          "Reproduction in animals",
+          "Body structure",
+          "Nervous system",
+          "Excretory system",
+          "Effects of smoking",
+          "Interaction between man and environment",
+          "Pollution",
+          "Insecticides",
+          "Chemical reaction",
+          "Simple machines",
+          "Energy",
+          "Sustainable development",
+          "Earth movements",
+          "Rotation of the moon",
+          "Satellites"
+        ]
+      }
+    },
+    "فيزياء": {
       "الصف السابع": {
-        "العربية": [
-          "الأعداد الطبيعية",
-          "الأعداد الأولية",
-          "القواسم والمضاعفات",
-          "الكسور",
-          "الأعداد العشرية",
-          "الأعداد الموجبة والسالبة",
-          "القوى",
-          "النسبة المئوية والتناسب",
-          "العبارات الجبرية",
-          "المعلم المتعامد وإحداثيات نقطة",
-          "المحال الهندسية والبناءات",
-          "المثلثات المتطابقة",
-          "منصف قطعة مستقيمة",
-          "منصف زاوية"
-        ],
         "English": [
-          "Natural integers",
-          "Prime numbers",
-          "Fractions",
-          "Decimals",
-          "Positive and negative numbers",
-          "Powers",
-          "Percentage and proportionality",
-          "Algebraic expressions",
-          "Orthogonal system and coordinates of a point",
-          "Geometric loci and constructions",
-          "Congruent triangles",
-          "Perpendicular bisector",
-          "Angle bisector"
-        ],
-        "Français": [
-          "Nombres naturels",
-          "Nombres premiers",
-          "Fractions",
-          "Nombres décimaux",
-          "Nombres positifs et négatifs",
-          "Puissances",
-          "Pourcentage et proportionnalité",
-          "Expressions algébriques",
-          "Repère orthogonal et coordonnées d'un point",
-          "Lieux géométriques et constructions",
-          "Triangles isométriques",
-          "Médiatrice",
-          "Bissectrice"
+          "Solid and liquid states",
+          "Gaseous state",
+          "Structure of matter",
+          "Change of state and expansion",
+          "Electric circuit",
+          "Measurement of current and potential difference",
+          "Grouping of lamps",
+          "Magnets and coils"
         ]
       },
-
       "الصف الثامن": {
-        "العربية": [
-          "الأعداد الحقيقية",
-          "الجذور التربيعية",
-          "القوى",
-          "العبارات الجبرية",
-          "المعادلات والمتراجحات",
-          "التناسب",
-          "الموقع النسبي لدائرتين",
-          "المحال الهندسية والبناءات",
-          "إحداثيات منتصف قطعة مستقيمة",
-          "الأسطوانة والمخروط والكرة",
-          "نظرية فيثاغورس",
-          "المثلثات"
-        ],
         "English": [
-          "Real numbers",
-          "Square roots",
-          "Powers",
-          "Algebraic expressions",
-          "Equations and inequalities",
-          "Proportionality",
-          "Relative positions of two circles",
-          "Geometric loci and constructions",
-          "Coordinates of the midpoint of a segment",
-          "Cylinder, cone and sphere",
-          "Pythagoras theorem",
-          "Triangles"
-        ],
-        "Français": [
-          "Nombres réels",
-          "Racines carrées",
-          "Puissances",
-          "Expressions algébriques",
-          "Équations et inéquations",
-          "Proportionnalité",
-          "Positions relatives de deux cercles",
-          "Lieux géométriques et constructions",
-          "Coordonnées du milieu d'un segment",
-          "Cylindre, cône et sphère",
-          "Théorème de Pythagore",
-          "Triangles"
+          "Motion and speed",
+          "Force: effects and classification",
+          "Work, power and forms of energy",
+          "Characteristics of waves",
+          "Sound waves",
+          "Electromagnetic waves and colors",
+          "Rectilinear propagation of light",
+          "Reflection of light and plane mirror"
         ]
       },
-
       "الصف التاسع": {
-        "العربية": [
-          "الأعداد الحقيقية",
-          "إنطاق مقام كسر",
-          "الحساب على الأعداد الحقيقية",
-          "التناسبية والتوابع الخطية",
-          "العبارات الجبرية المشتملة على الجذور",
-          "كثيرة الحدود ذات المتغير الواحد",
-          "المعادلات",
-          "نظم المعادلات من الدرجة الأولى ذات مجهولين",
-          "المتراجحات",
-          "المماسات والدوائر",
-          "المحال الهندسية والبناءات",
-          "التمثيل البياني لمستقيم",
-          "التوازي والتعامد بين مستقيمين",
-          "طول قطعة مستقيمة في معلم متعامد",
-          "حل نظام معادلتين بيانيًا"
-        ],
         "English": [
-          "Real numbers",
-          "Rationalizing the denominator",
-          "Calculations on real numbers",
-          "Linear functions and proportionality",
-          "Algebraic expressions with radicals",
-          "Polynomial in one variable",
-          "Equations",
-          "Systems of first degree equations in two unknowns",
-          "Inequalities",
-          "Tangents and circles",
-          "Geometric loci and constructions",
-          "Graphic representation of a straight line",
-          "Parallel and orthogonal straight lines",
-          "Length of a segment in an orthonormal system",
-          "Graphical solution of linear systems"
-        ],
-        "Français": [
-          "Nombres réels",
-          "Rationalisation du dénominateur",
-          "Calcul sur les réels",
-          "Fonctions linéaires et proportionnalité",
-          "Expressions algébriques avec radicaux",
-          "Polynôme à une variable",
-          "Équations",
-          "Systèmes d'équations du premier degré à deux inconnues",
-          "Inéquations",
-          "Tangentes et cercles",
-          "Lieux géométriques et constructions",
-          "Représentation graphique d'une droite",
-          "Parallélisme et orthogonalité de deux droites",
-          "Longueur d'un segment dans un repère orthonormé",
-          "Résolution graphique d'un système linéaire"
+          "Equilibrium of a body under the action of two forces",
+          "Hooke's law",
+          "Pressure in liquids",
+          "Archimedes' principle",
+          "Alternating current",
+          "Ohm's law",
+          "Grouping of resistors",
+          "Power and energy",
+          "Quantity of heat and transfer of heat",
+          "Thermal equilibrium",
+          "Refraction of light",
+          "Lenses and eye"
+        ]
+      }
+    },
+    "كيمياء": {
+      "الصف السابع": {
+        "English": [
+          "Classification of matter",
+          "Separation techniques",
+          "Environmental applications",
+          "Solutions",
+          "Suspensions and colloids",
+          "Reactants and products",
+          "Conservation of matter",
+          "Energy and chemical reactions",
+          "Combustion"
         ]
       },
-
-      "الأول ثانوي": {
-        "العربية": [
-          "المجموعات",
-          "الجداء الديكارتي",
-          "التطبيق والتقابل",
-          "الجذور التربيعية وقوى الأعداد الحقيقية",
-          "الترتيب على R والفترات",
-          "القيمة المطلقة",
-          "التقريب والتسوير",
-          "المعادلات من الدرجة الأولى",
-          "المعادلات والمتراجحات بالقيمة المطلقة",
-          "نظام معادلتين خطيتين",
-          "كثيرات الحدود",
-          "جذر كثيرة الحدود",
-          "المتجهات في المستوى",
-          "المعلم في المستوى",
-          "معادلة مستقيم في المستوى",
-          "الجداء السلمي",
-          "الدوال والتمثيل البياني",
-          "حل المعادلات والمتراجحات بيانيًا",
-          "دراسة الدوال",
-          "الدائرة المثلثية",
-          "الإحصاء"
-        ],
+      "الصف الثامن": {
         "English": [
-          "Sets",
-          "Cartesian product",
-          "Mappings and bijections",
-          "Square roots and powers",
-          "Order on R and intervals",
-          "Absolute value",
-          "Approximation",
-          "First degree equations",
-          "Equations and inequalities with absolute value",
-          "Systems of linear equations",
-          "Polynomials",
-          "Root of a polynomial",
-          "Vectors in the plane",
-          "Reference frame in the plane",
-          "Equation of a straight line",
-          "Scalar product",
-          "Functions and graphical representation",
-          "Graphical solution of equations and inequalities",
-          "Study of functions",
-          "Trigonometric circle",
-          "Statistics"
-        ],
-        "Français": [
-          "Ensembles",
-          "Produit cartésien",
-          "Applications et bijections",
-          "Racines carrées et puissances",
-          "Ordre sur R et intervalles",
-          "Valeur absolue",
-          "Encadrement et approximation",
-          "Équations du premier degré",
-          "Équations et inéquations avec valeur absolue",
-          "Systèmes d'équations linéaires",
-          "Polynômes",
-          "Racine d'un polynôme",
-          "Vecteurs du plan",
-          "Repère du plan",
-          "Équation d'une droite",
-          "Produit scalaire",
-          "Fonctions et représentation graphique",
-          "Résolution graphique d'équations et d'inéquations",
-          "Étude de fonctions",
-          "Cercle trigonométrique",
-          "Statistique"
+          "Elements",
+          "Compounds",
+          "Atoms, molecules and ions",
+          "Symbols and formulas",
+          "Allotropes: diamond and graphite",
+          "Electrification",
+          "Electric discharge",
+          "Conductors and insulators",
+          "Electricity and safety",
+          "Chemical equations",
+          "Types of chemical reactions",
+          "Rate of chemical reactions",
+          "Acidic and basic solutions",
+          "pH",
+          "Salts"
         ]
       },
-
-      "الثاني ثانوي": {
-        "العربية": [
-          "العلاقات الثنائية",
-          "الترتيبات والتباديل",
-          "البرمجة الخطية",
-          "المعادلات من الدرجة الثانية",
-          "القسمة الإقليدية لكثيرات الحدود",
-          "التحليل إلى عوامل",
-          "المتجهات في الفضاء",
-          "المعلم في الفضاء",
-          "مركز الثقل",
-          "الجداء المتجهي",
-          "نهاية دالة",
-          "المقاربات",
-          "المتتاليات العددية",
-          "المتتاليات الحسابية",
-          "المتتاليات الهندسية",
-          "الاستمرارية",
-          "مشتقة دالة عند نقطة",
-          "الدالة المشتقة",
-          "دراسة الدوال كثيرات الحدود",
-          "دراسة الدوال الكسرية",
-          "الدوال الأصلية"
-        ],
+      "الصف التاسع": {
         "English": [
-          "Binary relations",
-          "Arrangements and permutations",
-          "Linear programming",
-          "Quadratic equations",
-          "Euclidean division of polynomials",
-          "Factorization",
-          "Vectors in space",
-          "Reference frame in space",
-          "Barycenter",
-          "Vector product",
-          "Limit of a function",
-          "Asymptotes",
-          "Numerical sequences",
-          "Arithmetic sequences",
-          "Geometric sequences",
-          "Continuity",
-          "Derivative at a point",
-          "Derivative function",
-          "Polynomial functions",
-          "Rational functions",
-          "Primitives"
-        ],
-        "Français": [
-          "Relations binaires",
-          "Arrangements et permutations",
-          "Programmation linéaire",
-          "Équations du second degré",
-          "Division euclidienne des polynômes",
-          "Factorisation",
-          "Vecteurs dans l'espace",
-          "Repère dans l'espace",
-          "Barycentre",
-          "Produit vectoriel",
-          "Limite d'une fonction",
-          "Asymptotes",
-          "Suites numériques",
-          "Suites arithmétiques",
-          "Suites géométriques",
-          "Continuité",
-          "Dérivée en un point",
-          "Fonction dérivée",
-          "Fonctions polynomiales",
-          "Fonctions rationnelles",
-          "Primitives"
+          "Structure of the atom",
+          "The mole concept",
+          "Periodic table",
+          "Stability of inert gases",
+          "Formation of a chemical bond",
+          "Electron-dot symbols",
+          "Covalent bond",
+          "Ionic bond",
+          "Electric energy from chemical reactions",
+          "Using electric energy to produce chemical reactions",
+          "Oxidation-reduction reactions",
+          "Hydrocarbons",
+          "Petroleum, natural gas and coal",
+          "Esterification and saponification",
+          "Synthetic materials",
+          "Chemistry and environment"
+        ]
+      }
+    },
+    "علوم الحياة": {
+      "الصف السابع": {
+        "English": [
+          "Feeding behavior of animals",
+          "Nutritional needs of plants",
+          "Respiration in living things",
+          "Relations between environmental conditions, body activities and nutrition",
+          "Nutrition and respiration: vital requirements",
+          "Animal reproduction",
+          "Plant reproduction",
+          "Study of an ecosystem",
+          "Relations between organisms in ecosystems",
+          "Food web in an ecosystem",
+          "Man and natural equilibrium"
         ]
       },
-
-      "الثالث ثانوي": {
-        "العربية": [
-          "الدوال غير النسبية",
-          "الدالة العكسية",
-          "الدوال المثلثية العكسية",
-          "الدالة اللوغاريتمية الطبيعية ln(x)",
-          "الدوال اللوغاريتمية",
-          "الدوال الأسية",
-          "دوال القوى",
-          "نهايات المتتاليات",
-          "الاستمرارية",
-          "تمديد دالة بالاستمرارية",
-          "مشتقة الدوال المركبة",
-          "مشتقة الدالة العكسية",
-          "المشتقة الثانية",
-          "نظرية رول",
-          "نظرية القيمة المتوسطة",
-          "قاعدة لوبيتال",
-          "التكامل",
-          "خصائص التكامل",
-          "قواعد التكامل",
-          "تطبيقات التكامل",
-          "المعادلات التفاضلية",
-          "المخروطيات"
-        ],
+      "الصف الثامن": {
         "English": [
-          "Irrational functions",
-          "Inverse function",
-          "Inverse trigonometric functions",
-          "Natural logarithmic function ln(x)",
-          "Logarithmic functions",
-          "Exponential functions",
-          "Power functions",
-          "Limits of sequences",
-          "Continuity",
-          "Extension by continuity",
-          "Derivative of composite functions",
-          "Derivative of an inverse function",
-          "Second derivative",
-          "Rolle's theorem",
-          "Mean value theorem",
-          "L'Hospital's rule",
-          "Integral",
-          "Properties of integrals",
-          "Integration rules",
-          "Applications of integration",
-          "Differential equations",
-          "Conics"
-        ],
-        "Français": [
-          "Fonctions irrationnelles",
-          "Fonction réciproque",
-          "Fonctions trigonométriques réciproques",
-          "Fonction logarithme népérien ln(x)",
-          "Fonctions logarithmiques",
-          "Fonctions exponentielles",
-          "Fonctions puissances",
-          "Limites des suites",
-          "Continuité",
-          "Prolongement par continuité",
-          "Dérivée des fonctions composées",
-          "Dérivée d'une fonction réciproque",
-          "Dérivée seconde",
-          "Théorème de Rolle",
-          "Théorème des accroissements finis",
-          "Règle de L'Hospital",
-          "Intégrale",
-          "Propriétés des intégrales",
-          "Règles d'intégration",
-          "Applications du calcul intégral",
-          "Équations différentielles",
-          "Coniques"
+          "Puberty and adolescence",
+          "Reproductive organs",
+          "Functioning of the reproductive system",
+          "Fertilization, development and birth",
+          "Birth control",
+          "Sexually transmitted diseases",
+          "Immunological specificity",
+          "Deficiency and disorder of the immune system",
+          "Preventive and curative methods",
+          "Geology: earth science",
+          "Manifestations of earth activities",
+          "Structure and dynamics of the earth",
+          "Circulation of matter on earth",
+          "Geology and human responsibilities"
+        ]
+      },
+      "الصف التاسع": {
+        "English": [
+          "Digestion",
+          "Respiration",
+          "Blood circulation",
+          "Utilization of nutrients and oxygen",
+          "Urinary function",
+          "Nutrition and health",
+          "Chromosomes and genetic information",
+          "Mitosis",
+          "Meiosis and gene assortment",
+          "Mendel's work",
+          "Genetic engineering",
+          "Nervous coordination and human behavior",
+          "Response of organisms to environmental stimuli",
+          "Tactile sensation",
+          "Substance abuse"
         ]
       }
     }
