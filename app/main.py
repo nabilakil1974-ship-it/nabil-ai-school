@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 from app.core.config import settings
@@ -32,6 +33,7 @@ with engine.connect() as conn:
             )
         )
         conn.commit()
+
     except Exception:
         # SQLite/local development does not support pgvector.
         pass
@@ -67,7 +69,8 @@ def migrate_student_learning_profiles():
     - adds only missing columns
     """
 
-    # This migration is for PostgreSQL/Railway.
+    # Railway currently uses PostgreSQL.
+    # For local SQLite development we skip this migration.
     if engine.dialect.name != "postgresql":
         return
 
@@ -183,7 +186,7 @@ def migrate_student_learning_profiles():
 
     with engine.begin() as conn:
 
-        # Check whether the old table already exists.
+        # Check whether the table already exists.
         table_exists = conn.execute(
             text(
                 """
@@ -194,19 +197,17 @@ def migrate_student_learning_profiles():
             )
         ).scalar()
 
-        # Fresh database:
-        # create_all below will create the complete table.
+        # On a fresh database, create_all below will create the table.
         if not table_exists:
             return
 
-        # Add only missing columns.
+        # Add only columns that are missing.
         for statement in statements:
             conn.execute(
                 text(statement)
             )
 
-        # Existing student records:
-        # give missing trial end dates a 30-day duration.
+        # Give old rows a trial end date when one is missing.
         conn.execute(
             text(
                 """
@@ -227,7 +228,7 @@ migrate_student_learning_profiles()
 
 
 # ==========================================================
-# Create tables
+# Create database tables
 # ==========================================================
 
 Base.metadata.create_all(
@@ -243,6 +244,23 @@ app = FastAPI(
     title=settings.PROJECT_NAME
 )
 
+
+# ==========================================================
+# Static files
+# ==========================================================
+
+app.mount(
+    "/static",
+    StaticFiles(
+        directory="app/static"
+    ),
+    name="static",
+)
+
+
+# ==========================================================
+# CORS
+# ==========================================================
 
 app.add_middleware(
     CORSMiddleware,
