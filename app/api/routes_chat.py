@@ -14,10 +14,6 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.db.models import Conversation, Message, Student
-from app.services.rag_search import (
-    search_book_pages,
-    build_context_block,
-)
 from app.services.ai_gateway import NabilAIGateway
 
 
@@ -41,9 +37,8 @@ SYSTEM_PROMPT = """
 
 2. السياق التعليمي:
 - احترم الصف والمادة واللغة والمنهج والدرس المحددين.
-- إذا تم توفير محتوى من CRDP/RAG، اعتبره المرجع الأساسي.
-- لا تنسب معلومة إلى CRDP إذا لم تكن موجودة في السياق.
 - لا تخترع محتوى منهجيًا.
+- إذا لم تكن لديك معلومات كافية، وضّح ذلك للطالب بدل اختلاق المعلومات.
 
 3. طريقة التعليم:
 - ساعد الطالب على الفهم.
@@ -70,12 +65,9 @@ SYSTEM_PROMPT = """
 5. شرح الدروس:
 إذا كتب الطالب اسم درس فقط، اعتبره طلبًا لشرح الدرس.
 
-استخدم عند الحاجة:
-## التعريفات الأساسية
-## النظريات والقواعد
-## أمثلة محلولة
-## تدريب للطالب
-## خلاصة للامتحان ⭐
+لا تعطِ الدرس كله دفعة واحدة.
+
+ابدأ بتمهيد بسيط، ثم اشرح الفكرة الأولى، ثم أعطِ مثالًا مناسبًا، ثم اسأل الطالب سؤالًا قصيرًا وانتظر إجابته.
 
 6. الحوار:
 يمكنك التحدث مع الطالب بطريقة طبيعية.
@@ -157,7 +149,6 @@ async def voice_chat(
 
     image_bytes = None
     image_mime_type = "image/jpeg"
-    original_message = message
 
     # =========================
     # VOICE
@@ -195,7 +186,7 @@ async def voice_chat(
             )
 
     if not message:
-        message = "ساعدني في هذا التمرين."
+        message = "ابدأ الدرس معي."
 
     # =========================
     # STUDENT
@@ -264,37 +255,6 @@ async def voice_chat(
     db.commit()
 
     # =========================
-    # RAG / CRDP
-    # =========================
-    source_chunks = []
-    context_block = ""
-
-    if (
-        subject
-        and grade
-        and curriculum
-        and message
-    ):
-        try:
-            source_chunks = search_book_pages(
-                db=db,
-                query=message,
-                subject=subject,
-                grade=grade,
-                curriculum=curriculum,
-            )
-
-            context_block = build_context_block(
-                source_chunks
-            )
-
-        except Exception as e:
-            print(
-                f"RAG warning: {e}",
-                flush=True,
-            )
-
-    # =========================
     # EDUCATIONAL CONTEXT
     # =========================
     educational_context = f"""
@@ -306,8 +266,11 @@ async def voice_chat(
 المنهج: {curriculum or "المنهج اللبناني"}
 الدرس: {lesson or "غير محدد"}
 
-محتوى CRDP/RAG:
-{context_block or "لا يوجد محتوى RAG متوفر لهذا السؤال."}
+تعليمات مهمة:
+- التزم بالصف والدرس المحددين.
+- ابدأ بالتدرج.
+- لا تعطِ الدرس كاملًا دفعة واحدة.
+- اجعل الطالب يشارك في التعلم.
 """
 
     # =========================
@@ -387,14 +350,6 @@ async def voice_chat(
     # SOURCES
     # =========================
     sources = []
-
-    for chunk in source_chunks:
-        sources.append(
-            {
-                "book": chunk.get("book_title"),
-                "page": chunk.get("page"),
-            }
-        )
 
     return ChatResponse(
         conversation_id=str(conversation.id),
