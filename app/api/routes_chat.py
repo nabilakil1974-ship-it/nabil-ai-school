@@ -107,14 +107,14 @@ a^2+b^2=c^2
  
 إذا كان الجواب يستفيد فعلاً من رسم، أضف في نهاية الإجابة
 كتلة رسومات واحدة فقط بالشكل التالي:
- 
+
 <DRAWINGS_JSON>
 [
   {JSON_OBJECT_1},
   {JSON_OBJECT_2}
 ]
 </DRAWINGS_JSON>
- 
+
 قواعد الرسومات:
 - الرسمة الواحدة هي الافتراضية.
 - استخدم أكثر من رسمة فقط إذا احتاج الشرح إلى أفكار بصرية مختلفة فعلًا.
@@ -125,7 +125,7 @@ a^2+b^2=c^2
 - لا تعرض كتلة JSON للطالب كنص.
 - للتوافق مع الإجابات القديمة يستطيع الخادم فهم DRAWING_JSON المفرد أيضًا.
 - في الإجابات الجديدة استخدم DRAWINGS_JSON.
- 
+
 الأنواع المدعومة:
  
 --------------------------------------------------
@@ -154,24 +154,24 @@ exp
 square
 linear
 inverse
- 
+
 عند function = "exp" يجب تحديد أساس الدالة الحقيقي في "base".
 أمثلة:
 - 2^x => "base": 2
 - 5^x => "base": 5
 - (1/2)^x => "base": 0.5
 - e^x => "base": 2.718281828459045
- 
+
 يمكن أيضًا استعمال:
 - "coefficient"
 - "x_shift"
 - "y_shift"
 - "slope"
 - "intercept"
- 
+
 ممنوع رسم e^x بدل دالة بأساس آخر.
 كل نقطة في points يجب أن تحقق الدالة حسابيًا.
- 
+
  
 --------------------------------------------------
 ب) مثلث قائم
@@ -311,13 +311,13 @@ right
 ==================================================
 10. سير الدرس والاختبار النهائي
 ==================================================
- 
+
 عند شرح درس كامل:
 - اشرح مفهومًا ثم مثالًا ثم سؤال تحقق قصيرًا.
 - بعد إجابة الطالب صحح باختصار ثم تابع للمفهوم التالي.
 - لا تكرر Quick Check بلا نهاية.
 - عند اكتمال المفاهيم الأساسية أعلن انتهاء الشرح الأساسي.
- 
+
 بعد اكتمال الدرس:
 - ابدأ اختبارًا نهائيًا من 5 أسئلة فقط.
 - اعرض سؤالًا واحدًا في كل مرة.
@@ -327,13 +327,13 @@ right
 - اذكر نقطتي قوة ونقطتي ضعف كحد أقصى.
 - أقل من 70%: اقترح مراجعة مركزة.
 - 70% أو أكثر: اعتبر الحد الأدنى من الإتقان متحققًا.
- 
+
 قواعد الأسئلة:
 - يجب أن تكون غير ملتبسة.
 - فرّق بوضوح بين 5^x-2 و 5^(x-2).
 - لا تذكر إمكانية إبقاء الجواب كسرًا إلا إذا كان السؤال ينتج كسرًا.
 - تحقق من الجواب المتوقع قبل إرسال السؤال.
- 
+
 ==================================================
 11. الهوية
 ==================================================
@@ -353,109 +353,148 @@ def build_curriculum_guardrail(
     lesson: Optional[str],
 ) -> str:
     """
-    يبني تعليمات إضافية صارمة حسب الصف والدرس.
-    الهدف منع NABIL AI من القفز إلى أدوات من صفوف أعلى.
+    حارس منهجي عام لجميع الصفوف والمواد.
+    الصف + المادة + الدرس = حدود إلزامية لا يجوز تجاوزها.
     """
- 
+
     grade_text = (grade or "").strip()
     subject_text = (subject or "").strip()
-    lesson_text = (lesson or "").strip().lower()
- 
+    lesson_text = (lesson or "").strip()
+    lower_lesson = lesson_text.lower()
+
     rules = [
-        "استخدم فقط الأدوات والمفاهيم المناسبة للصف المحدد.",
-        "لا تخترع معطيات أو نقاطًا أو إحداثيات غير موجودة في سؤال الطالب.",
-        "إذا كان الدرس محددًا، ابقَ داخل نطاقه ولا تستبدله بموضوع أكثر تقدمًا.",
+        "الصف المحدد قيد إلزامي على مستوى الشرح والمصطلحات وطريقة الحل.",
+        "المادة المحددة قيد إلزامي: لا تنتقل إلى مادة أخرى إلا إذا كان الربط ضروريًا لفهم نفس الدرس.",
+        "الدرس المحدد هو الحد الأعلى للمحتوى في هذه المحادثة التعليمية.",
+        "لا تضف نظرية أو قاعدة أو مفهومًا من درس آخر لمجرد أنه مفيد أو صحيح.",
+        "لا تستخدم طريقة من صف أعلى إذا كانت خارج محتوى الدرس الحالي.",
+        "لا تخترع معطيات أو نقاطًا أو إحداثيات أو تجارب أو أرقامًا غير موجودة في السؤال.",
+        "إذا احتجت مثالًا من عندك، اجعله بسيطًا ومباشرًا ويختبر نفس مهارة الدرس فقط.",
+        "إذا طلب الطالب شيئًا خارج الدرس، أخبره باختصار أنه خارج نطاق الدرس الحالي ثم اسأله إن كان يريد الانتقال إلى الدرس المناسب.",
+        "لا تعتبر المعرفة العامة للنموذج بديلًا عن فهرسة المنهج؛ التزم بعنوان الدرس وسياق المنهج المرسل إليك.",
+        "أسئلة التحقق والاختبار النهائي يجب أن تقيس محتوى الدرس نفسه فقط.",
+        "لا تكرر نفس الفكرة بصيغ مختلفة على أنها مفاهيم جديدة.",
     ]
- 
-    # المرحلة الابتدائية
-    if grade_text in {
+
+    primary = {
         "الصف الأول",
         "الصف الثاني",
         "الصف الثالث",
         "الصف الرابع",
         "الصف الخامس",
         "الصف السادس",
-    }:
-        rules.extend([
-            "استخدم لغة بسيطة جدًا وأمثلة محسوسة ومباشرة.",
-            "تجنب الرموز والجبر المتقدم ما لم يكن ضمن الدرس المحدد.",
-            "لا تستخدم أي مفهوم من المرحلة المتوسطة أو الثانوية.",
-        ])
- 
-    # الحلقة الثالثة
-    if grade_text in {
+    }
+
+    intermediate = {
         "الصف السابع",
         "الصف الثامن",
         "الصف التاسع",
-    }:
+    }
+
+    if grade_text in primary:
         rules.extend([
-            "استخدم طرق الحلقة الثالثة فقط.",
-            "تجنب التفاضل والتكامل والمتجهات والأساليب الثانوية المتقدمة.",
-            "في الهندسة، فضّل البرهان والخواص الهندسية المدرسية على الطرق التحليلية.",
+            "استخدم لغة بسيطة جدًا وجملًا قصيرة وأمثلة محسوسة.",
+            "لا تستخدم أي أداة من الحلقة الثالثة أو المرحلة الثانوية.",
+            "تجنب الرموز المجردة إذا لم تكن جزءًا من الدرس نفسه.",
         ])
- 
-    # الصف التاسع - رياضيات
-    is_grade_9 = grade_text == "الصف التاسع"
-    is_math = subject_text == "رياضيات"
- 
-    tangent_keywords = (
-        "مماس" in lesson_text
-        or "دائر" in lesson_text
-        or "tangent" in lesson_text
-        or "circle" in lesson_text
-        or "tangente" in lesson_text
-        or "cercle" in lesson_text
-    )
- 
-    coordinate_keywords = (
-        "إحداث" in lesson_text
-        or "معلم" in lesson_text
-        or "تمثيل بياني" in lesson_text
-        or "graphic" in lesson_text
-        or "coordinate" in lesson_text
-        or "repère" in lesson_text
-        or "graphique" in lesson_text
-    )
- 
-    if is_grade_9 and is_math and tangent_keywords and not coordinate_keywords:
+
+    if grade_text in intermediate:
         rules.extend([
-            "هذا درس هندسة إقليدية للصف التاسع، وليس درس هندسة تحليلية.",
-            "اعتمد خاصية: نصف القطر عند نقطة التماس عمودي على المماس.",
-            "يمكن استخدام تساوي المماسين من نقطة خارجية عند الحاجة.",
-            "يمكن استخدام فيثاغورس فقط داخل مثلث قائم ناتج طبيعيًا من الشكل.",
-            "ممنوع استخدام معادلة الدائرة x^2 + y^2 = r^2 في هذا الدرس.",
-            "ممنوع اختراع إحداثيات أو نقطة خارجية رقمية لم يذكرها السؤال.",
-            "اجعل سؤال التحقق الختامي هندسيًا ومن مستوى الصف التاسع.",
+            "استخدم أدوات الحلقة الثالثة فقط.",
+            "لا تستخدم التفاضل أو التكامل أو المتجهات أو المصفوفات أو أي تقنية ثانوية متقدمة.",
+            "في الهندسة استخدم الخواص والبراهين المدرسية المناسبة للصف قبل أي معالجة تحليلية.",
         ])
- 
-    # الثانوي الأول
+
     if grade_text == "الأول ثانوي":
         rules.extend([
             "استخدم مفاهيم الأول ثانوي فقط.",
-            "لا تستخدم التفاضل أو التكامل قبل ظهورها في الصفوف اللاحقة.",
+            "لا تستخدم التفاضل أو التكامل قبل أن يكونا ضمن الدرس المحدد.",
         ])
- 
-    # الثانوي الثاني
+
     if grade_text == "الثاني ثانوي":
         rules.extend([
             "استخدم مفاهيم الثاني ثانوي فقط.",
-            "يمكن استخدام النهايات والمشتقات عندما يكون الدرس متعلقًا بها.",
-            "لا تستخدم أدوات الثالث ثانوي إلا إذا طلبها الطالب كإضافة منفصلة.",
+            "لا تستخدم أدوات الثالث ثانوي إلا إذا كانت مذكورة صراحة في الدرس الحالي.",
         ])
- 
-    # الثانوي الثالث
+
     if grade_text == "الثالث ثانوي":
         rules.extend([
-            "يمكن استخدام أدوات الثالث ثانوي المرتبطة بالدرس الحالي فقط.",
-            "لا تقحم موضوعات جامعية أو تقنيات تتجاوز المنهج المدرسي.",
+            "استخدم أدوات الثالث ثانوي المرتبطة بالدرس الحالي فقط.",
+            "لا تقحم موضوعات جامعية أو تقنيات خارج المنهج المدرسي.",
         ])
- 
+
+    if subject_text == "رياضيات":
+        rules.extend([
+            "لا تحوّل درسًا هندسيًا إلى هندسة تحليلية إلا إذا كان الدرس نفسه عن الإحداثيات أو المعادلات.",
+            "لا تستخدم اشتقاقًا أو تكاملًا أو لوغاريتمات أو مثلثات إلا إذا كان عنوان الدرس يسمح بذلك.",
+        ])
+
+    elif subject_text == "فيزياء":
+        rules.extend([
+            "استخدم القوانين والمفاهيم الفيزيائية الخاصة بالدرس الحالي فقط.",
+            "لا تدخل قانونًا من فصل آخر لتسريع الحل.",
+            "لا تستخدم حساب التفاضل أو المتجهات المتقدمة إذا لم تكن ضمن مستوى الصف والدرس.",
+        ])
+
+    elif subject_text == "كيمياء":
+        rules.extend([
+            "التزم بالتفاعلات والمفاهيم الكيميائية المندرجة ضمن الدرس الحالي فقط.",
+            "لا تدخل بنى ذرية أو روابط أو حسابات مولية إذا لم تكن ضمن درس الطالب الحالي.",
+            "لا تفترض مادة كيميائية أو تجربة لم يذكرها السؤال إلا كمثال تعليمي واضح ومناسب للدرس.",
+        ])
+
+    elif subject_text == "علوم":
+        rules.extend([
+            "التزم بالمفهوم العلمي المحدد في الدرس وبمستوى المرحلة الابتدائية.",
+            "لا تحول درس العلوم إلى شرح تخصصي في الفيزياء أو الكيمياء أو الأحياء يفوق مستوى الصف.",
+        ])
+
+    elif subject_text == "علوم الحياة":
+        rules.extend([
+            "التزم بالبنية أو الوظيفة أو الظاهرة الحيوية المحددة في الدرس.",
+            "لا تدخل في الوراثة أو المناعة أو الفسيولوجيا المتقدمة إلا إذا كانت ضمن عنوان الدرس الحالي.",
+        ])
+
+    tangent_keywords = (
+        "مماس" in lower_lesson
+        or "دائر" in lower_lesson
+        or "tangent" in lower_lesson
+        or "circle" in lower_lesson
+        or "tangente" in lower_lesson
+        or "cercle" in lower_lesson
+    )
+
+    coordinate_keywords = (
+        "إحداث" in lower_lesson
+        or "معلم" in lower_lesson
+        or "تمثيل بياني" in lower_lesson
+        or "coordinate" in lower_lesson
+        or "graphic" in lower_lesson
+        or "repère" in lower_lesson
+        or "graphique" in lower_lesson
+    )
+
+    if (
+        grade_text == "الصف التاسع"
+        and subject_text == "رياضيات"
+        and tangent_keywords
+        and not coordinate_keywords
+    ):
+        rules.extend([
+            "هذا درس هندسة إقليدية للصف التاسع، وليس هندسة تحليلية.",
+            "اعتمد خاصية أن نصف القطر عند نقطة التماس عمودي على المماس.",
+            "يمكن استخدام تساوي المماسين من نقطة خارجية عند الحاجة.",
+            "يمكن استخدام فيثاغورس فقط داخل مثلث قائم ينشأ طبيعيًا من الشكل.",
+            "ممنوع استخدام معادلة الدائرة x^2+y^2=r^2 في هذا الدرس.",
+            "ممنوع اختراع إحداثيات أو نقاط رقمية لم يذكرها السؤال.",
+        ])
+
     return "\n".join(
         f"- {rule}"
         for rule in rules
     )
- 
- 
+
+
 def clean_reply(text: str) -> str:
     if not text:
         return ""
@@ -479,105 +518,105 @@ def clean_reply(text: str) -> str:
 def _normalize_drawing(drawing):
     if not isinstance(drawing, dict):
         return None
- 
+
     if drawing.get("type") == "function":
         kind = drawing.get("function")
- 
+
         if kind == "exp":
             drawing.setdefault("base", 2.718281828459045)
             drawing.setdefault("coefficient", 1)
             drawing.setdefault("x_shift", 0)
             drawing.setdefault("y_shift", 0)
- 
+
         elif kind in {"ln", "square", "inverse"}:
             drawing.setdefault("coefficient", 1)
             drawing.setdefault("x_shift", 0)
             drawing.setdefault("y_shift", 0)
- 
+
         elif kind == "linear":
             drawing.setdefault("slope", 1)
             drawing.setdefault("intercept", 0)
- 
+
     return drawing
- 
- 
+
+
 def extract_drawings(text: str):
     if not text:
         return text, []
- 
+
     drawings = []
- 
+
     multi_pattern = (
         r"<DRAWINGS_JSON>\s*(.*?)\s*</DRAWINGS_JSON>"
     )
- 
+
     multi_match = re.search(
         multi_pattern,
         text,
         flags=re.DOTALL | re.IGNORECASE,
     )
- 
+
     if multi_match:
         try:
             parsed = json.loads(
                 multi_match.group(1).strip()
             )
- 
+
             if isinstance(parsed, list):
                 for item in parsed[:3]:
                     normalized = _normalize_drawing(item)
                     if normalized is not None:
                         drawings.append(normalized)
- 
+
             elif isinstance(parsed, dict):
                 normalized = _normalize_drawing(parsed)
                 if normalized is not None:
                     drawings.append(normalized)
- 
+
         except Exception:
             drawings = []
- 
+
         text = re.sub(
             multi_pattern,
             "",
             text,
             flags=re.DOTALL | re.IGNORECASE,
         )
- 
+
     legacy_pattern = (
         r"<DRAWING_JSON>\s*(.*?)\s*</DRAWING_JSON>"
     )
- 
+
     legacy_matches = re.findall(
         legacy_pattern,
         text,
         flags=re.DOTALL | re.IGNORECASE,
     )
- 
+
     for raw in legacy_matches:
         if len(drawings) >= 3:
             break
- 
+
         try:
             item = json.loads(raw.strip())
             normalized = _normalize_drawing(item)
- 
+
             if normalized is not None:
                 drawings.append(normalized)
- 
+
         except Exception:
             pass
- 
+
     text = re.sub(
         legacy_pattern,
         "",
         text,
         flags=re.DOTALL | re.IGNORECASE,
     )
- 
+
     return text.strip(), drawings
- 
- 
+
+
 class ChatResponse(BaseModel):
     conversation_id: str
     reply: str
