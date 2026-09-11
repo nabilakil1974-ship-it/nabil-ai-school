@@ -18,6 +18,7 @@ class StudentLearningProfile(Base):
     current_lesson = Column(String(255), nullable=True)
 
     lessons_studied_json = Column(Text, nullable=False, default="[]")
+    lesson_mastery_json = Column(Text, nullable=False, default="[]")
     strengths_json = Column(Text, nullable=False, default="[]")
     weaknesses_json = Column(Text, nullable=False, default="[]")
     frequent_mistakes_json = Column(Text, nullable=False, default="[]")
