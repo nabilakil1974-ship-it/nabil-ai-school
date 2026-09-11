@@ -7,10 +7,14 @@ from sqlalchemy import text
 from app.core.config import settings
 from app.db.session import Base, engine
 
-# Import models before create_all so SQLAlchemy knows all tables.
+# ==========================================================
+# Import database models before create_all
+# ==========================================================
+
 from app.db import models  # noqa: F401
 from app.db import student_learning  # noqa: F401
 from app.db import subscription  # noqa: F401
+from app.db import ai_usage  # noqa: F401
 
 from app.api import (
     routes_health,
@@ -69,8 +73,6 @@ def migrate_student_learning_profiles():
     - adds only missing columns
     """
 
-    # Railway currently uses PostgreSQL.
-    # For local SQLite development we skip this migration.
     if engine.dialect.name != "postgresql":
         return
 
@@ -197,17 +199,19 @@ def migrate_student_learning_profiles():
             )
         ).scalar()
 
-        # On a fresh database, create_all below will create the table.
+        # Fresh database:
+        # create_all below will create the complete table.
         if not table_exists:
             return
 
-        # Add only columns that are missing.
+        # Add only missing columns.
         for statement in statements:
             conn.execute(
                 text(statement)
             )
 
-        # Give old rows a trial end date when one is missing.
+        # Existing students without a trial end date
+        # receive a 30-day trial period.
         conn.execute(
             text(
                 """
@@ -230,6 +234,14 @@ migrate_student_learning_profiles()
 # ==========================================================
 # Create database tables
 # ==========================================================
+
+# SQLAlchemy now knows:
+# - existing application models
+# - student_learning
+# - subscription
+# - ai_usage
+#
+# Therefore ai_usage_logs will also be created automatically.
 
 Base.metadata.create_all(
     bind=engine
