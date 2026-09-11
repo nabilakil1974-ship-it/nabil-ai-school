@@ -17,23 +17,9 @@ class NabilAIGateway:
             api_key=settings.OPENAI_API_KEY
         )
 
-        self.text_model = getattr(
-            settings,
-            "OPENAI_TEXT_MODEL",
-            "gpt-5.5"
-        )
-
-        self.vision_model = getattr(
-            settings,
-            "OPENAI_VISION_MODEL",
-            "gpt-5.5"
-        )
-
-        self.transcription_model = getattr(
-            settings,
-            "OPENAI_TRANSCRIPTION_MODEL",
-            "gpt-4o-transcribe"
-        )
+        self.text_model = "gpt-5.6"
+        self.vision_model = "gpt-5.6"
+        self.transcription_model = "gpt-4o-transcribe"
 
     def generate(
         self,
@@ -47,35 +33,39 @@ class NabilAIGateway:
         input_items = []
 
         for msg in messages:
-            input_items.append({
-                "role": msg.get("role", "user"),
-                "content": msg.get("content", ""),
-            })
+            input_items.append(
+                {
+                    "role": msg.get("role", "user"),
+                    "content": msg.get("content", ""),
+                }
+            )
 
         if image_bytes:
             encoded = base64.b64encode(
                 image_bytes
             ).decode("utf-8")
 
-            input_items.append({
-                "role": "user",
-                "content": [
-                    {
-                        "type": "input_text",
-                        "text": (
-                            "اقرأ الصورة بدقة، واستخرج "
-                            "المسألة أو السؤال الموجود فيها "
-                            "ثم ساعد الطالب في حله."
-                        ),
-                    },
-                    {
-                        "type": "input_image",
-                        "image_url": (
-                            f"data:{image_mime_type};base64,{encoded}"
-                        ),
-                    },
-                ],
-            })
+            input_items.append(
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": (
+                                "اقرأ الصورة بدقة، واستخرج "
+                                "المسألة أو السؤال الموجود فيها "
+                                "ثم ساعد الطالب في حله."
+                            ),
+                        },
+                        {
+                            "type": "input_image",
+                            "image_url": (
+                                f"data:{image_mime_type};base64,{encoded}"
+                            ),
+                        },
+                    ],
+                }
+            )
 
         response = self.client.responses.create(
             model=(
@@ -99,7 +89,6 @@ class NabilAIGateway:
         result = self.client.audio.transcriptions.create(
             model=self.transcription_model,
             file=(filename, audio_bytes),
-            response_format="text",
         )
 
-        return str(result).strip()
+        return str(result.text).strip()
