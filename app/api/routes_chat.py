@@ -1,5 +1,6 @@
 import json
 import re
+from pathlib import Path
 from typing import Optional
  
 from fastapi import (
@@ -347,6 +348,165 @@ NABIL AI
 """
  
  
+
+CURRICULUM_INDEX_PATH = Path(
+    "app/static/crdp_scientific_curriculum_index.json"
+)
+
+
+def load_curriculum_index() -> dict:
+    try:
+        if not CURRICULUM_INDEX_PATH.exists():
+            return {}
+
+        return json.loads(
+            CURRICULUM_INDEX_PATH.read_text(
+                encoding="utf-8"
+            )
+        )
+
+    except Exception:
+        return {}
+
+
+def get_lesson_policy(
+    grade: Optional[str],
+    branch: Optional[str],
+    subject: Optional[str],
+    lesson_title: Optional[str],
+) -> Optional[dict]:
+
+    grade_text = (grade or "").strip()
+    branch_text = (branch or "").strip()
+    subject_text = (subject or "").strip()
+    lesson_text = (lesson_title or "").strip().lower()
+
+    if not all(
+        [
+            grade_text,
+            subject_text,
+            lesson_text,
+        ]
+    ):
+        return None
+
+    index = load_curriculum_index()
+
+    details = (
+        index
+        .get(
+            "annual_curriculum_details",
+            {}
+        )
+        .get(
+            "الثانوي",
+            {}
+        )
+        .get(
+            grade_text,
+            {}
+        )
+    )
+
+    if branch_text:
+        details = details.get(
+            branch_text,
+            {}
+        )
+
+    subject_lessons = details.get(
+        subject_text,
+        []
+    )
+
+    for item in subject_lessons:
+
+        title = str(
+            item.get(
+                "title",
+                ""
+            )
+        ).strip().lower()
+
+        if (
+            title == lesson_text
+            or lesson_text in title
+            or title in lesson_text
+        ):
+            return item
+
+    return None
+
+
+def format_lesson_policy_for_prompt(
+    policy: Optional[dict],
+) -> str:
+
+    if not policy:
+        return (
+            "لا توجد تفاصيل سنوية دقيقة "
+            "لهذا الدرس في ملف الفهرسة الحالي. "
+            "التزم بعنوان الدرس فقط ولا تخترع "
+            "أي فقرة فرعية غير مؤكدة."
+        )
+
+    included = policy.get(
+        "included_sections",
+        []
+    )
+
+    suspended = policy.get(
+        "suspended_sections",
+        []
+    )
+
+    status = policy.get(
+        "status",
+        "maintained"
+    )
+
+    lines = [
+        f"حالة الدرس الرسمية: {status}.",
+        (
+            "مسموح شرح الدرس ضمن الحدود "
+            "المذكورة في الفهرسة السنوية فقط."
+        ),
+    ]
+
+    if included:
+        lines.append(
+            "الأجزاء المطلوبة حصراً:"
+        )
+
+        lines.extend(
+            f"- {item}"
+            for item in included
+        )
+
+    if suspended:
+        lines.append(
+            "الأجزاء المعلّقة/المحذوفة "
+            "وممنوع شرحها كجزء مطلوب:"
+        )
+
+        lines.extend(
+            f"- {item}"
+            for item in suspended
+        )
+
+    if policy.get("notes"):
+        lines.append(
+            "ملاحظة رسمية:"
+        )
+        lines.append(
+            str(
+                policy["notes"]
+            )
+        )
+
+    return "\n".join(lines)
+
+
 def build_curriculum_guardrail(
     grade: Optional[str],
     subject: Optional[str],
