@@ -56,12 +56,12 @@ class Settings(BaseSettings):
 
     GEMINI_TEXT_MODEL: str = os.getenv(
         "GEMINI_TEXT_MODEL",
-        "gemini-2.5-flash"
+        "gemini-3.6-flash"
     )
 
     GEMINI_VISION_MODEL: str = os.getenv(
         "GEMINI_VISION_MODEL",
-        "gemini-2.5-flash"
+        "gemini-3.6-flash"
     )
 
     # ==========================================
@@ -76,6 +76,48 @@ class Settings(BaseSettings):
     GROQ_TEXT_MODEL: str = os.getenv(
         "GROQ_TEXT_MODEL",
         "openai/gpt-oss-120b"
+    )
+
+    # ==========================================
+    # OpenAI - Fallback
+    # ==========================================
+
+    OPENAI_API_KEY: str = os.getenv(
+        "OPENAI_API_KEY",
+        ""
+    )
+
+    OPENAI_TEXT_MODEL: str = os.getenv(
+        "OPENAI_TEXT_MODEL",
+        "gpt-5.5"
+    )
+
+    OPENAI_VISION_MODEL: str = os.getenv(
+        "OPENAI_VISION_MODEL",
+        "gpt-5.5"
+    )
+
+    # ==========================================
+    # Subscription / Trial
+    # ==========================================
+
+    NABIL_TRIAL_DAYS: int = int(
+        os.getenv(
+            "NABIL_TRIAL_DAYS",
+            "30"
+        )
+    )
+
+    NABIL_MONTHLY_PRICE_USD: float = float(
+        os.getenv(
+            "NABIL_MONTHLY_PRICE_USD",
+            "5"
+        )
+    )
+
+    WHISH_RECEIVER_NUMBER: str = os.getenv(
+        "WHISH_RECEIVER_NUMBER",
+        ""
     )
 
     # ==========================================
