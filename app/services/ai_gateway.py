@@ -1,3 +1,4 @@
+import os
 import base64
 from typing import Optional
 
@@ -71,6 +72,55 @@ class NabilAIGateway:
         self.gemini_vision_model = "gemini-3.6-flash"
 
         # =====================================================
+        # OpenAI fallback
+        # =====================================================
+
+        self.openai_api_key = (
+            os.getenv(
+                "OPENAI_API_KEY",
+                "",
+            )
+            or getattr(
+                settings,
+                "OPENAI_API_KEY",
+                "",
+            )
+        )
+
+        self.openai_client = None
+
+        if self.openai_api_key:
+            self.openai_client = OpenAI(
+                api_key=self.openai_api_key,
+            )
+
+        self.openai_text_model = (
+            os.getenv(
+                "OPENAI_TEXT_MODEL",
+                "",
+            )
+            or getattr(
+                settings,
+                "OPENAI_TEXT_MODEL",
+                "gpt-5.5",
+            )
+            or "gpt-5.5"
+        )
+
+        self.openai_vision_model = (
+            os.getenv(
+                "OPENAI_VISION_MODEL",
+                "",
+            )
+            or getattr(
+                settings,
+                "OPENAI_VISION_MODEL",
+                self.openai_text_model,
+            )
+            or self.openai_text_model
+        )
+
+        # =====================================================
         # Groq
         # =====================================================
 
@@ -102,6 +152,7 @@ class NabilAIGateway:
             self.openrouter_client is None
             and not self.gemini_api_keys
             and self.groq_client is None
+            and self.openai_client is None
         ):
             raise RuntimeError(
                 "لا يوجد أي مفتاح AI مضبوط في إعدادات السيرفر."
@@ -484,6 +535,34 @@ class NabilAIGateway:
 
                 errors.append(
                     f"Groq: {exc}"
+                )
+
+        # =====================================================
+        # 4) OpenAI fallback
+        # =====================================================
+
+        if self.openai_client is not None:
+
+            try:
+
+                model = (
+                    self.openai_vision_model
+                    if image_bytes is not None
+                    else self.openai_text_model
+                )
+
+                return self._call_provider(
+                    client=self.openai_client,
+                    model=model,
+                    chat_messages=chat_messages,
+                    max_output_tokens=max_output_tokens,
+                    provider_name="OpenAI",
+                )
+
+            except Exception as exc:
+
+                errors.append(
+                    f"OpenAI: {exc}"
                 )
 
         # =====================================================
