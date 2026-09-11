@@ -183,6 +183,41 @@
                 );
         }
  
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .quick-action-btn {
+            border: 0;
+            border-radius: 10px;
+            padding: 11px 16px;
+            cursor: pointer;
+            font-weight: 700;
+            color: #ffffff;
+            white-space: nowrap;
+        }
+
+        #progressBtn {
+            background: #2563eb;
+        }
+
+        #quizBtn {
+            background: #7c3aed;
+        }
+
+        #quizBtn.active {
+            background: #b45309;
+        }
+
+        .quick-action-btn:disabled {
+            opacity: .55;
+            cursor: not-allowed;
+        }
+
         #startLesson:disabled {
             opacity: .6;
             cursor: not-allowed;
@@ -772,6 +807,24 @@
         >
             ▶ ابدأ الدرس
         </button>
+
+        <div class="header-actions">
+            <button
+                id="quizBtn"
+                class="quick-action-btn"
+                type="button"
+            >
+                📝 اختبار الدرس
+            </button>
+
+            <button
+                id="progressBtn"
+                class="quick-action-btn"
+                type="button"
+            >
+                📊 تقدّمي
+            </button>
+        </div>
  
     </div>
  
@@ -901,6 +954,12 @@ const lessonSelect =
  
 const startLesson =
     document.getElementById("startLesson");
+
+const quizBtn =
+    document.getElementById("quizBtn");
+
+const progressBtn =
+    document.getElementById("progressBtn");
  
 const chat =
     document.getElementById("chat");
@@ -937,6 +996,7 @@ let secondaryStructure = {};
 let conversationId = null;
 let selectedImage = null;
 let recognition = null;
+let quizActive = false;
  /* =========================================================
    فهرسة احتياطية مدمجة
    تعمل حتى لو لم يوجد ملف JSON خارجي
@@ -1527,6 +1587,7 @@ async function loadCurriculumIndex() {
 function resetCurrentLessonState() {
 
     conversationId = null;
+    setQuizMode(false);
 
     currentLesson.textContent = "";
 
@@ -1699,6 +1760,102 @@ function getStudentId() {
 }
  
  
+
+function saveLatestStudentProfile(
+    profile
+) {
+    if (!profile) {
+        return;
+    }
+
+    localStorage.setItem(
+        "nabil_student_profile",
+        JSON.stringify(profile)
+    );
+}
+
+
+function openStudentDashboard() {
+    const studentId =
+        getStudentId();
+
+    localStorage.setItem(
+        "nabil_student_id",
+        studentId
+    );
+
+    window.location.href =
+        "/dashboard";
+}
+
+
+function setQuizMode(
+    enabled
+) {
+    quizActive =
+        Boolean(enabled);
+
+    if (quizBtn) {
+        quizBtn.classList.toggle(
+            "active",
+            quizActive
+        );
+
+        quizBtn.textContent =
+            quizActive
+                ? "🟠 الاختبار جارٍ"
+                : "📝 اختبار الدرس";
+    }
+}
+
+
+function buildLessonQuizPrompt() {
+
+    const grade =
+        gradeSelect.value;
+
+    const branch =
+        branchSelect.value || "";
+
+    const subject =
+        subjectSelect.value;
+
+    const language =
+        languageSelect.value;
+
+    const lesson =
+        lessonSelect.value;
+
+    return `
+[ASSESSMENT_MODE]
+
+أنشئ اختبارًا قصيرًا من 5 أسئلة فقط عن الدرس الحالي.
+
+بيانات الطالب:
+الصف: ${grade}
+الفرع: ${branch}
+المادة: ${subject}
+اللغة: ${language}
+الدرس: ${lesson}
+
+قواعد الاختبار:
+1. التزم بالدرس الحالي فقط وبالمحتوى المسموح في الفهرسة السنوية.
+2. لا تدخل أي جزء معلّق أو محذوف.
+3. اجعل المستوى مناسبًا تمامًا للصف.
+4. نوّع الأسئلة بين فهم وتطبيق وحساب/استنتاج عند ملاءمة المادة.
+5. لا تعرض الحلول أو الإجابات الآن.
+6. رقّم الأسئلة من 1 إلى 5.
+7. اطلب من الطالب أن يرسل إجاباته الخمس في رسالة واحدة.
+8. بعد أن يجيب الطالب:
+   - صحح كل سؤال باختصار.
+   - أعط علامة من 5.
+   - اذكر نقطة قوة واحدة إن وُجدت.
+   - اذكر مفهومًا يحتاج مراجعة إن وُجد.
+   - املأ PROGRESS_JSON في الخلفية مع assessment score و out_of=5.
+9. لا تبدأ درسًا جديدًا أثناء الاختبار.
+`;
+}
+
 /* =========================================================
    عرض النص
 ========================================================= */
@@ -4816,6 +4973,8 @@ async function sendToAI(
 startLesson.addEventListener(
     "click",
     async () => {
+
+        setQuizMode(false);
  
         const grade =
             gradeSelect.value;
@@ -4876,6 +5035,67 @@ startLesson.addEventListener(
 );
  
  
+
+/* =========================================================
+   لوحة التقدم
+========================================================= */
+
+progressBtn.addEventListener(
+    "click",
+    () => {
+        openStudentDashboard();
+    }
+);
+
+
+/* =========================================================
+   اختبار الدرس
+========================================================= */
+
+quizBtn.addEventListener(
+    "click",
+    async () => {
+
+        const grade =
+            gradeSelect.value;
+
+        const subject =
+            subjectSelect.value;
+
+        const lesson =
+            lessonSelect.value;
+
+        if (
+            !grade ||
+            !subject ||
+            !lesson
+        ) {
+            alert(
+                "اختر الصف والمادة والدرس أولاً."
+            );
+
+            return;
+        }
+
+        currentLesson.textContent =
+            lesson;
+
+        lessonInfo.style.display =
+            "block";
+
+        indexStatus.textContent =
+            "اختبار قصير مرتبط بملف الطالب";
+
+        setQuizMode(true);
+
+        await sendToAI(
+            buildLessonQuizPrompt(),
+            false
+        );
+    }
+);
+
+
 /* =========================================================
    زر الإرسال
 ========================================================= */
@@ -4897,8 +5117,16 @@ sendBtn.addEventListener(
             return;
         }
  
+        const outgoingMessage =
+            quizActive
+                ? (
+                    "[ASSESSMENT_ANSWER]\n" +
+                    message
+                )
+                : message;
+
         await sendToAI(
-            message,
+            outgoingMessage,
             true
         );
     }
