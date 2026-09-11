@@ -638,6 +638,7 @@ async def voice_chat(
     conversation_id: Optional[str] = Form(None),
     subject: Optional[str] = Form(None),
     grade: Optional[str] = Form(None),
+    branch: Optional[str] = Form(None),
     curriculum: Optional[str] = Form(None),
     language: Optional[str] = Form(None),
     lesson: Optional[str] = Form(None),
@@ -830,12 +831,14 @@ async def voice_chat(
 السياق التعليمي الحالي:
  
 الصف: {grade or "غير محدد"}
+الفرع: {branch or "غير مطبق"}
 المادة: {subject or "غير محددة"}
 اللغة الإلزامية: {selected_language}
 المنهج: {curriculum or "المنهج اللبناني الرسمي"}
 الدرس: {lesson or "غير محدد"}
  
 هذه البيانات إلزامية وليست اختيارية.
+إذا كان الفرع محددًا فهو قيد منهجي إلزامي، ولا يجوز استخدام محتوى فرع ثانوي آخر.
  
 قواعد المستوى لهذا الطلب:
 {curriculum_guardrail}
