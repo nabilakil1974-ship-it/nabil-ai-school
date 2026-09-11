@@ -3621,6 +3621,388 @@ function renderMolecule(
 }
  
  
+
+/* =========================================================
+   مثلث عام
+========================================================= */
+
+function renderGenericTriangle(drawing) {
+    const labels = drawing.labels || {};
+    const A = labels.a || "A";
+    const B = labels.b || "B";
+    const C = labels.c || "C";
+
+    return `
+        <div class="drawing-title">
+            📐 ${drawing.title || "مثلث"}
+        </div>
+        <div class="graph-shell">
+            <svg viewBox="0 0 600 380">
+                <polygon
+                    points="110,310 490,310 300,70"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="4"
+                />
+                <circle cx="110" cy="310" r="5" fill="currentColor"/>
+                <circle cx="490" cy="310" r="5" fill="currentColor"/>
+                <circle cx="300" cy="70" r="5" fill="currentColor"/>
+                <text x="78" y="340" font-size="24">${A}</text>
+                <text x="500" y="340" font-size="24">${B}</text>
+                <text x="295" y="48" font-size="24">${C}</text>
+                ${
+                    drawing.side_ab
+                        ? `<text x="275" y="345" font-size="20">${drawing.side_ab}</text>`
+                        : ""
+                }
+                ${
+                    drawing.side_ac
+                        ? `<text x="175" y="185" font-size="20">${drawing.side_ac}</text>`
+                        : ""
+                }
+                ${
+                    drawing.side_bc
+                        ? `<text x="400" y="185" font-size="20">${drawing.side_bc}</text>`
+                        : ""
+                }
+            </svg>
+        </div>
+    `;
+}
+
+
+/* =========================================================
+   مستوى إحداثي ونقاط
+========================================================= */
+
+function renderCoordinatePoints(drawing) {
+    const points = Array.isArray(drawing.points)
+        ? drawing.points
+        : [];
+
+    const width = 600;
+    const height = 420;
+    const ox = width / 2;
+    const oy = height / 2;
+    const scale = 35;
+
+    let output = `
+        <line x1="30" y1="${oy}" x2="570" y2="${oy}"
+              stroke="currentColor" stroke-width="2"/>
+        <line x1="${ox}" y1="30" x2="${ox}" y2="390"
+              stroke="currentColor" stroke-width="2"/>
+        <text x="560" y="${oy - 10}" font-size="18">x</text>
+        <text x="${ox + 10}" y="45" font-size="18">y</text>
+    `;
+
+    for (let i = -7; i <= 7; i++) {
+        if (i === 0) continue;
+        const x = ox + i * scale;
+        output += `
+            <line x1="${x}" y1="${oy - 5}" x2="${x}" y2="${oy + 5}"
+                  stroke="currentColor"/>
+            <text x="${x - 7}" y="${oy + 24}" font-size="13">${i}</text>
+        `;
+    }
+
+    for (let i = -5; i <= 5; i++) {
+        if (i === 0) continue;
+        const y = oy - i * scale;
+        output += `
+            <line x1="${ox - 5}" y1="${y}" x2="${ox + 5}" y2="${y}"
+                  stroke="currentColor"/>
+            <text x="${ox + 10}" y="${y + 5}" font-size="13">${i}</text>
+        `;
+    }
+
+    points.forEach((p, index) => {
+        const px = ox + Number(p.x || 0) * scale;
+        const py = oy - Number(p.y || 0) * scale;
+        const label = p.label || String.fromCharCode(65 + index);
+
+        output += `
+            <circle cx="${px}" cy="${py}" r="6" fill="currentColor"/>
+            <text x="${px + 10}" y="${py - 10}" font-size="18">
+                ${label}(${p.x}, ${p.y})
+            </text>
+        `;
+    });
+
+    return `
+        <div class="drawing-title">
+            📍 ${drawing.title || "المستوى الإحداثي"}
+        </div>
+        <div class="graph-shell">
+            <svg viewBox="0 0 ${width} ${height}">
+                ${output}
+            </svg>
+        </div>
+    `;
+}
+
+
+/* =========================================================
+   مستقيم الأعداد
+========================================================= */
+
+function renderNumberLine(drawing) {
+    const min = Number.isFinite(Number(drawing.min))
+        ? Number(drawing.min)
+        : -5;
+    const max = Number.isFinite(Number(drawing.max))
+        ? Number(drawing.max)
+        : 5;
+    const marks = Array.isArray(drawing.marks)
+        ? drawing.marks
+        : [];
+
+    const width = 650;
+    const left = 45;
+    const right = 605;
+    const y = 150;
+    const span = Math.max(1, max - min);
+
+    const toX = value =>
+        left + ((Number(value) - min) / span) * (right - left);
+
+    let output = `
+        <line x1="${left}" y1="${y}" x2="${right}" y2="${y}"
+              stroke="currentColor" stroke-width="3"/>
+        <polygon points="${right},${y} ${right-14},${y-8} ${right-14},${y+8}"
+                 fill="currentColor"/>
+    `;
+
+    for (let value = min; value <= max; value++) {
+        const x = toX(value);
+        output += `
+            <line x1="${x}" y1="${y-8}" x2="${x}" y2="${y+8}"
+                  stroke="currentColor"/>
+            <text x="${x-8}" y="${y+32}" font-size="16">${value}</text>
+        `;
+    }
+
+    marks.forEach(mark => {
+        const x = toX(mark.value);
+        output += `
+            <circle cx="${x}" cy="${y}" r="8" fill="currentColor"/>
+            <text x="${x-10}" y="${y-25}" font-size="18">
+                ${mark.label || mark.value}
+            </text>
+        `;
+    });
+
+    return `
+        <div class="drawing-title">
+            ↔ ${drawing.title || "مستقيم الأعداد"}
+        </div>
+        <div class="graph-shell">
+            <svg viewBox="0 0 ${width} 260">
+                ${output}
+            </svg>
+        </div>
+    `;
+}
+
+
+
+/* =========================================================
+   محرّك الهندسة التحليلية والمتجهات
+========================================================= */
+
+function renderAnalyticPlane(drawing) {
+    const width = 700;
+    const height = 520;
+    const pad = 55;
+
+    const xmin = Number(drawing.xmin ?? -6);
+    const xmax = Number(drawing.xmax ?? 6);
+    const ymin = Number(drawing.ymin ?? -5);
+    const ymax = Number(drawing.ymax ?? 5);
+
+    const sx = (width - 2 * pad) / Math.max(1, xmax - xmin);
+    const sy = (height - 2 * pad) / Math.max(1, ymax - ymin);
+
+    const X = x => pad + (Number(x) - xmin) * sx;
+    const Y = y => height - pad - (Number(y) - ymin) * sy;
+
+    const ox = X(0);
+    const oy = Y(0);
+
+    let svg = `
+        <defs>
+            <marker id="arrowHead"
+                markerWidth="10" markerHeight="10"
+                refX="8" refY="3"
+                orient="auto"
+                markerUnits="strokeWidth">
+                <path d="M0,0 L0,6 L9,3 z" fill="currentColor"/>
+            </marker>
+        </defs>
+    `;
+
+    // grid
+    if (drawing.grid !== false) {
+        for (let x = Math.ceil(xmin); x <= Math.floor(xmax); x++) {
+            svg += `<line x1="${X(x)}" y1="${pad}" x2="${X(x)}" y2="${height-pad}"
+                stroke="currentColor" stroke-opacity=".10" stroke-width="1"/>`;
+        }
+        for (let y = Math.ceil(ymin); y <= Math.floor(ymax); y++) {
+            svg += `<line x1="${pad}" y1="${Y(y)}" x2="${width-pad}" y2="${Y(y)}"
+                stroke="currentColor" stroke-opacity=".10" stroke-width="1"/>`;
+        }
+    }
+
+    // axes
+    svg += `
+        <line x1="${pad}" y1="${oy}" x2="${width-pad}" y2="${oy}"
+            stroke="currentColor" stroke-width="2.5" marker-end="url(#arrowHead)"/>
+        <line x1="${ox}" y1="${height-pad}" x2="${ox}" y2="${pad}"
+            stroke="currentColor" stroke-width="2.5" marker-end="url(#arrowHead)"/>
+        <text x="${width-pad-18}" y="${oy-12}" font-size="18">x</text>
+        <text x="${ox+12}" y="${pad+16}" font-size="18">y</text>
+        <text x="${ox+8}" y="${oy+22}" font-size="15">O</text>
+    `;
+
+    // orthonormal ticks
+    for (let x = Math.ceil(xmin); x <= Math.floor(xmax); x++) {
+        if (x === 0) continue;
+        svg += `
+            <line x1="${X(x)}" y1="${oy-5}" x2="${X(x)}" y2="${oy+5}"
+                stroke="currentColor"/>
+            <text x="${X(x)-5}" y="${oy+22}" font-size="12">${x}</text>
+        `;
+    }
+    for (let y = Math.ceil(ymin); y <= Math.floor(ymax); y++) {
+        if (y === 0) continue;
+        svg += `
+            <line x1="${ox-5}" y1="${Y(y)}" x2="${ox+5}" y2="${Y(y)}"
+                stroke="currentColor"/>
+            <text x="${ox+9}" y="${Y(y)+4}" font-size="12">${y}</text>
+        `;
+    }
+
+    // lines: ax + by + c = 0
+    (drawing.lines || []).forEach(line => {
+        const a = Number(line.a ?? 0);
+        const b = Number(line.b ?? 1);
+        const c = Number(line.c ?? 0);
+
+        let x1, y1, x2, y2;
+
+        if (Math.abs(b) > 1e-9) {
+            x1 = xmin;
+            y1 = -(a * x1 + c) / b;
+            x2 = xmax;
+            y2 = -(a * x2 + c) / b;
+        } else if (Math.abs(a) > 1e-9) {
+            x1 = x2 = -c / a;
+            y1 = ymin;
+            y2 = ymax;
+        } else {
+            return;
+        }
+
+        svg += `
+            <line x1="${X(x1)}" y1="${Y(y1)}"
+                  x2="${X(x2)}" y2="${Y(y2)}"
+                  stroke="currentColor" stroke-width="2.5"/>
+        `;
+
+        if (line.label) {
+            svg += `<text x="${X(x2)-70}" y="${Y(y2)+20}" font-size="16">${line.label}</text>`;
+        }
+    });
+
+    // circles
+    (drawing.circles || []).forEach(circle => {
+        const cx = Number(circle.cx ?? 0);
+        const cy = Number(circle.cy ?? 0);
+        const r = Number(circle.r ?? 1);
+
+        svg += `
+            <ellipse cx="${X(cx)}" cy="${Y(cy)}"
+                rx="${Math.abs(r*sx)}" ry="${Math.abs(r*sy)}"
+                fill="none" stroke="currentColor" stroke-width="2.5"/>
+        `;
+
+        if (circle.label) {
+            svg += `<text x="${X(cx+r)+8}" y="${Y(cy)}" font-size="16">${circle.label}</text>`;
+        }
+    });
+
+    // segments
+    (drawing.segments || []).forEach(seg => {
+        svg += `
+            <line x1="${X(seg.x1)}" y1="${Y(seg.y1)}"
+                  x2="${X(seg.x2)}" y2="${Y(seg.y2)}"
+                  stroke="currentColor" stroke-width="3"/>
+        `;
+        if (seg.label) {
+            const mx = (X(seg.x1)+X(seg.x2))/2;
+            const my = (Y(seg.y1)+Y(seg.y2))/2;
+            svg += `<text x="${mx+8}" y="${my-8}" font-size="16">${seg.label}</text>`;
+        }
+    });
+
+    // vectors
+    (drawing.vectors || []).forEach(v => {
+        const x1 = Number(v.x1 ?? 0);
+        const y1 = Number(v.y1 ?? 0);
+        const x2 = Number(v.x2 ?? v.x ?? 0);
+        const y2 = Number(v.y2 ?? v.y ?? 0);
+
+        svg += `
+            <line x1="${X(x1)}" y1="${Y(y1)}"
+                  x2="${X(x2)}" y2="${Y(y2)}"
+                  stroke="currentColor" stroke-width="3"
+                  marker-end="url(#arrowHead)"/>
+        `;
+        if (v.label) {
+            svg += `<text x="${(X(x1)+X(x2))/2+8}"
+                         y="${(Y(y1)+Y(y2))/2-10}"
+                         font-size="17">${v.label}</text>`;
+        }
+    });
+
+    // projections
+    (drawing.projections || []).forEach(p => {
+        const px = X(p.x);
+        const py = Y(p.y);
+
+        svg += `
+            <line x1="${px}" y1="${py}" x2="${px}" y2="${oy}"
+                stroke="currentColor" stroke-width="1.5"
+                stroke-dasharray="7 6" stroke-opacity=".7"/>
+            <line x1="${px}" y1="${py}" x2="${ox}" y2="${py}"
+                stroke="currentColor" stroke-width="1.5"
+                stroke-dasharray="7 6" stroke-opacity=".7"/>
+        `;
+    });
+
+    // points
+    (drawing.points || []).forEach((p, index) => {
+        const label = p.label || String.fromCharCode(65 + index);
+        svg += `
+            <circle cx="${X(p.x)}" cy="${Y(p.y)}" r="5.5" fill="currentColor"/>
+            <text x="${X(p.x)+9}" y="${Y(p.y)-9}" font-size="17">
+                ${label}${p.show_coordinates === false ? "" : `(${p.x}, ${p.y})`}
+            </text>
+        `;
+    });
+
+    return `
+        <div class="drawing-title">
+            📐 ${drawing.title || "Orthonormal System"}
+        </div>
+        <div class="graph-shell">
+            <svg viewBox="0 0 ${width} ${height}">
+                ${svg}
+            </svg>
+        </div>
+    `;
+}
+
+
 /* =========================================================
    اختيار محرّك الرسم
 ========================================================= */
