@@ -1,11 +1,17 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
     <title>منصة النبيل التعليمية الذكية</title>
 
     <style>
+
         * {
             box-sizing: border-box;
         }
@@ -17,61 +23,109 @@
             color: #1f2937;
         }
 
+        /* =========================
+           HEADER
+        ========================= */
+
         .header {
-            background: linear-gradient(135deg, #173b6c, #2563eb);
+            background: linear-gradient(
+                135deg,
+                #173b6c,
+                #2563eb
+            );
+
             color: white;
+
             padding: 20px;
-            box-shadow: 0 3px 12px rgba(0,0,0,.15);
+
+            box-shadow:
+                0 3px 12px rgba(0,0,0,.15);
         }
 
         .header-title {
             text-align: center;
-            font-size: 26px;
+
+            font-size: 27px;
+
             font-weight: bold;
-            margin-bottom: 18px;
+
+            margin-bottom: 20px;
         }
 
         .controls {
-            max-width: 1200px;
+            max-width: 1250px;
+
             margin: auto;
+
             display: grid;
-            grid-template-columns: repeat(5, 1fr) auto;
+
+            grid-template-columns:
+                repeat(5, 1fr)
+                auto;
+
             gap: 10px;
+
             align-items: end;
         }
 
         .control {
             display: flex;
+
             flex-direction: column;
+
             gap: 6px;
         }
 
         .control label {
             font-size: 14px;
+
             font-weight: bold;
         }
 
         select {
             width: 100%;
+
             padding: 12px;
+
             border: none;
+
             border-radius: 8px;
+
             font-size: 15px;
+
             background: white;
+
             color: #222;
+
             outline: none;
+
+            cursor: pointer;
+        }
+
+        select:focus {
+            box-shadow:
+                0 0 0 2px rgba(255,255,255,.5);
         }
 
         #startLesson {
             border: none;
+
             border-radius: 8px;
+
             padding: 12px 18px;
+
             background: #16a34a;
+
             color: white;
+
             font-size: 16px;
+
             font-weight: bold;
+
             cursor: pointer;
+
             min-height: 44px;
+
             white-space: nowrap;
         }
 
@@ -79,46 +133,93 @@
             background: #15803d;
         }
 
+        #startLesson:disabled {
+            opacity: .6;
+
+            cursor: not-allowed;
+        }
+
+
+        /* =========================
+           MAIN
+        ========================= */
+
         .container {
             max-width: 1000px;
+
             margin: 25px auto;
+
             padding: 0 15px;
         }
 
+
+        /* =========================
+           LESSON INFO
+        ========================= */
+
         .lesson-info {
             background: white;
+
             border-radius: 12px;
+
             padding: 15px 20px;
+
             margin-bottom: 15px;
-            box-shadow: 0 2px 8px rgba(0,0,0,.08);
+
+            box-shadow:
+                0 2px 8px rgba(0,0,0,.08);
+
             display: none;
+
+            line-height: 1.8;
         }
 
         .lesson-info strong {
             color: #173b6c;
         }
 
+
+        /* =========================
+           CHAT
+        ========================= */
+
         .chat {
             background: white;
+
             min-height: 500px;
+
             border-radius: 14px;
+
             padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,.08);
+
+            box-shadow:
+                0 2px 10px rgba(0,0,0,.08);
+
+            overflow-y: auto;
         }
 
         .welcome {
             text-align: center;
+
             padding: 70px 20px;
+
             color: #64748b;
         }
 
         .welcome h2 {
             color: #173b6c;
+
             margin-bottom: 10px;
         }
 
+
+        /* =========================
+           MESSAGES
+        ========================= */
+
         .message {
             display: flex;
+
             margin: 12px 0;
         }
 
@@ -132,9 +233,13 @@
 
         .bubble {
             max-width: 80%;
+
             padding: 13px 16px;
+
             border-radius: 14px;
+
             line-height: 1.7;
+
             white-space: pre-wrap;
         }
 
@@ -146,33 +251,59 @@
             background: #eef8ee;
         }
 
+
+        /* =========================
+           INPUT
+        ========================= */
+
         .input-area {
             margin-top: 15px;
+
             display: flex;
+
             gap: 8px;
         }
 
         textarea {
             flex: 1;
+
             resize: none;
+
             min-height: 55px;
+
             padding: 12px;
-            border: 1px solid #cbd5e1;
+
+            border:
+                1px solid #cbd5e1;
+
             border-radius: 10px;
+
             font-size: 16px;
+
             font-family: inherit;
+
+            outline: none;
+        }
+
+        textarea:focus {
+            border-color: #2563eb;
         }
 
         button {
             border: none;
+
             border-radius: 10px;
+
             padding: 0 20px;
+
             cursor: pointer;
+
             font-weight: bold;
         }
 
         #sendBtn {
             background: #2563eb;
+
             color: white;
         }
 
@@ -180,29 +311,59 @@
             background: #1d4ed8;
         }
 
+        #sendBtn:disabled {
+            opacity: .6;
+
+            cursor: not-allowed;
+        }
+
         #imageBtn {
             background: #64748b;
+
             color: white;
+        }
+
+        #imageBtn:hover {
+            background: #475569;
         }
 
         #micBtn {
             background: #7c3aed;
+
             color: white;
+        }
+
+        #micBtn:hover {
+            background: #6d28d9;
         }
 
         #imageInput {
             display: none;
         }
 
+
+        /* =========================
+           SOURCES
+        ========================= */
+
         .sources {
             margin-top: 8px;
+
             font-size: 12px;
+
             color: #64748b;
         }
 
-        @media (max-width: 900px) {
+
+        /* =========================
+           RESPONSIVE
+        ========================= */
+
+        @media (max-width: 1000px) {
+
             .controls {
-                grid-template-columns: repeat(2, 1fr);
+                grid-template-columns:
+                    repeat(3, 1fr);
             }
 
             #startLesson {
@@ -210,7 +371,22 @@
             }
         }
 
+
+        @media (max-width: 700px) {
+
+            .controls {
+                grid-template-columns:
+                    repeat(2, 1fr);
+            }
+
+            .header-title {
+                font-size: 22px;
+            }
+        }
+
+
         @media (max-width: 600px) {
+
             .controls {
                 grid-template-columns: 1fr;
             }
@@ -221,17 +397,23 @@
 
             textarea {
                 width: 100%;
+
                 flex-basis: 100%;
             }
 
             .bubble {
                 max-width: 95%;
             }
+
         }
+
     </style>
+
 </head>
 
+
 <body>
+
 
 <header class="header">
 
@@ -239,45 +421,112 @@
         منصة النبيل التعليمية الذكية
     </div>
 
+
     <div class="controls">
 
-        <!-- الصف -->
-        <div class="control">
-            <label for="gradeSelect">الصف</label>
-            <select id="gradeSelect"></select>
-        </div>
 
-        <!-- المادة -->
-        <div class="control">
-            <label for="subjectSelect">المادة</label>
-            <select id="subjectSelect"></select>
-        </div>
+        <!-- =========================
+             الصف
+        ========================== -->
 
-        <!-- اللغة -->
         <div class="control">
-            <label for="languageSelect">اللغة</label>
-            <select id="languageSelect">
-                <option value="العربية">العربية</option>
-                <option value="Français">Français</option>
-                <option value="English">English</option>
+
+            <label for="gradeSelect">
+                الصف
+            </label>
+
+            <select id="gradeSelect">
             </select>
+
         </div>
 
-        <!-- المنهج -->
+
+        <!-- =========================
+             المادة
+        ========================== -->
+
         <div class="control">
-            <label for="curriculumSelect">المنهج</label>
-            <select id="curriculumSelect"></select>
+
+            <label for="subjectSelect">
+                المادة
+            </label>
+
+            <select id="subjectSelect">
+            </select>
+
         </div>
 
-        <!-- الدرس -->
+
+        <!-- =========================
+             اللغة
+        ========================== -->
+
         <div class="control">
-            <label for="lessonSelect">الدرس</label>
-            <select id="lessonSelect"></select>
+
+            <label for="languageSelect">
+                اللغة
+            </label>
+
+            <select id="languageSelect">
+
+                <option value="العربية">
+                    العربية
+                </option>
+
+                <option value="Français">
+                    Français
+                </option>
+
+                <option value="English">
+                    English
+                </option>
+
+            </select>
+
         </div>
 
-        <!-- ابدأ الدرس -->
-        <button id="startLesson">
+
+        <!-- =========================
+             المنهج
+        ========================== -->
+
+        <div class="control">
+
+            <label for="curriculumSelect">
+                المنهج
+            </label>
+
+            <select id="curriculumSelect">
+            </select>
+
+        </div>
+
+
+        <!-- =========================
+             الدرس
+        ========================== -->
+
+        <div class="control">
+
+            <label for="lessonSelect">
+                الدرس
+            </label>
+
+            <select id="lessonSelect">
+            </select>
+
+        </div>
+
+
+        <!-- =========================
+             START
+        ========================== -->
+
+        <button id="startLesson"
+                type="button">
+
             ▶ ابدأ الدرس
+
         </button>
 
     </div>
@@ -285,35 +534,71 @@
 </header>
 
 
+
 <main class="container">
 
-    <div id="lessonInfo" class="lesson-info">
-        <strong>الدرس الحالي:</strong>
+
+    <!-- =========================
+         CURRENT LESSON
+    ========================== -->
+
+    <div id="lessonInfo"
+         class="lesson-info">
+
+        <strong>
+            الدرس الحالي:
+        </strong>
+
         <span id="currentLesson"></span>
+
     </div>
 
-    <section id="chat" class="chat">
 
-        <div id="welcome" class="welcome">
-            <h2>مرحباً بك في NABIL AI 👨‍🏫</h2>
+    <!-- =========================
+         CHAT
+    ========================== -->
+
+    <section id="chat"
+             class="chat">
+
+        <div id="welcome"
+             class="welcome">
+
+            <h2>
+                مرحباً بك في NABIL AI 👨‍🏫
+            </h2>
+
             <p>
                 اختر الصف والمادة واللغة والمنهج والدرس،
-                ثم اضغط <strong>▶ ابدأ الدرس</strong>.
+                ثم اضغط
+                <strong>▶ ابدأ الدرس</strong>.
             </p>
+
         </div>
 
     </section>
 
+
+    <!-- =========================
+         INPUT
+    ========================== -->
+
     <div class="input-area">
+
 
         <textarea
             id="messageInput"
             placeholder="اكتب سؤالك هنا..."
         ></textarea>
 
-        <button id="imageBtn" type="button">
+
+        <button id="imageBtn"
+                type="button">
+
             🖼️
+
         </button>
+
 
         <input
             id="imageInput"
@@ -321,12 +606,20 @@
             accept="image/*"
         >
 
-        <button id="micBtn" type="button">
+
+        <button id="micBtn"
+                type="button">
+
             🎤
+
         </button>
 
-        <button id="sendBtn" type="button">
+
+        <button id="sendBtn"
+                type="button">
+
             إرسال
+
         </button>
 
     </div>
@@ -334,103 +627,1579 @@
 </main>
 
 
+
 <script>
+
+
+// ==================================================
+// API
+// ==================================================
 
 const API_BASE = "";
 
 
-// ===============================
-// البيانات الأساسية
-// ===============================
+// ==================================================
+// GRADES
+// ==================================================
 
 const GRADES = [
+
     "الصف الأول",
+
     "الصف الثاني",
+
     "الصف الثالث",
+
     "الصف الرابع",
+
     "الصف الخامس",
+
     "الصف السادس",
+
     "الصف السابع",
+
     "الصف الثامن",
+
     "الصف التاسع",
+
     "الصف الأول ثانوي",
+
     "الصف الحادي عشر",
+
     "الصف الثاني عشر"
+
 ];
+
+
+// ==================================================
+// SUBJECTS
+// ==================================================
 
 const SUBJECTS = [
+
     "رياضيات",
+
     "فيزياء",
+
     "كيمياء",
+
     "علوم",
+
     "لغة عربية",
+
     "لغة إنكليزية",
+
     "تاريخ",
+
     "جغرافيا"
+
 ];
+
+
+// ==================================================
+// CURRICULA
+// ==================================================
 
 const CURRICULA = [
+
     "المنهج اللبناني الرسمي",
+
     "Building Up",
+
     "المنهج الفرنسي (CRDP)"
+
 ];
 
 
-// ===============================
-// الدروس
-// ===============================
+// ==================================================
+// LESSONS
+// ==================================================
 
 const LESSONS = {
+
+
+    // ==============================================
+    // الصف التاسع
+    // ==============================================
 
     "الصف التاسع": {
 
         "رياضيات": [
+
             "نظرية فيثاغورس",
+
             "عكس نظرية فيثاغورس",
+
             "النشر والتحليل",
+
             "المعادلات من الدرجة الأولى",
+
             "الدائرة والمماس",
+
             "الوضع النسبي لمستقيم ودائرة",
+
             "المماسات المرسومة من نقطة إلى دائرة",
+
             "المواضع النسبية والمسافة",
+
             "الإنشاءات الهندسية",
+
             "المحل الهندسي للنقاط",
+
             "التمثيل البياني للمستقيم",
+
             "التوازي والتعامد"
+
         ],
+
 
         "فيزياء": [
+
             "التيار الكهربائي",
+
             "التوتر الكهربائي",
+
             "قانون أوم",
+
             "الدارة الكهربائية",
+
             "الطاقة الكهربائية"
+
         ],
+
 
         "كيمياء": [
+
             "الذرة",
+
             "العناصر الكيميائية",
+
             "الجزيئات",
+
             "التفاعلات الكيميائية"
+
         ],
 
+
         "علوم": [
+
             "الخلية",
+
             "الوراثة",
+
             "الجهاز العصبي",
+
             "التوازن البيئي"
+
+        ],
+
+
+        "لغة عربية": [
+
+            "القراءة والفهم",
+
+            "النحو",
+
+            "الصرف",
+
+            "البلاغة",
+
+            "التعبير الكتابي"
+
+        ],
+
+
+        "لغة إنكليزية": [
+
+            "Reading",
+
+            "Grammar",
+
+            "Vocabulary",
+
+            "Writing",
+
+            "Comprehension"
+
+        ],
+
+
+        "تاريخ": [
+
+            "لبنان والعالم العربي",
+
+            "التاريخ الحديث",
+
+            "الحرب العالمية الأولى",
+
+            "الحرب العالمية الثانية"
+
+        ],
+
+
+        "جغرافيا": [
+
+            "السكان",
+
+            "الموارد الطبيعية",
+
+            "المناخ",
+
+            "الجغرافيا الاقتصادية"
+
         ]
+
     },
+
+
+    // ==============================================
+    // الصف الثامن
+    // ==============================================
 
     "الصف الثامن": {
 
         "رياضيات": [
+
             "الأعداد النسبية",
+
             "القوى",
+
             "الجذور",
+
             "المعادلات",
+
             "المثلثات",
+
             "الدائرة",
+
             "المساحات والحجوم"
+
+        ],
+
+        "فيزياء": [
+
+            "الحركة",
+
+            "القوة",
+
+            "الطاقة",
+
+            "الضغط"
+
+        ],
+
+        "كيمياء": [
+
+            "المادة",
+
+            "الذرات",
+
+            "الجزيئات",
+
+            "المخاليط"
+
+        ],
+
+        "علوم": [
+
+            "الخلية",
+
+            "أجهزة جسم الإنسان",
+
+            "التغذية",
+
+            "البيئة"
+
         ]
-   
+
+    },
+
+
+    // ==============================================
+    // الصف السابع
+    // ==============================================
+
+    "الصف السابع": {
+
+        "رياضيات": [
+
+            "الأعداد الصحيحة",
+
+            "الكسور",
+
+            "التناسب",
+
+            "المعادلات",
+
+            "المثلث",
+
+            "الزوايا",
+
+            "المحيط والمساحة"
+
+        ],
+
+        "علوم": [
+
+            "المادة",
+
+            "الخلية",
+
+            "التغذية",
+
+            "البيئة"
+
+        ]
+
+    },
+
+
+    // ==============================================
+    // الصف السادس
+    // ==============================================
+
+    "الصف السادس": {
+
+        "رياضيات": [
+
+            "الأعداد الطبيعية",
+
+            "العمليات الحسابية",
+
+            "الكسور",
+
+            "الأعداد العشرية",
+
+            "الهندسة",
+
+            "المحيط والمساحة",
+
+            "النسب والتناسب"
+
+        ],
+
+        "علوم": [
+
+            "الكائنات الحية",
+
+            "النباتات",
+
+            "الحيوانات",
+
+            "البيئة"
+
+        ]
+
+    },
+
+
+    // ==============================================
+    // الصف الخامس
+    // ==============================================
+
+    "الصف الخامس": {
+
+        "رياضيات": [
+
+            "الأعداد الطبيعية",
+
+            "العمليات الأربع",
+
+            "الكسور",
+
+            "الأعداد العشرية",
+
+            "القياس",
+
+            "الهندسة",
+
+            "المساحة والمحيط"
+
+        ]
+
+    },
+
+
+    // ==============================================
+    // الصف الرابع
+    // ==============================================
+
+    "الصف الرابع": {
+
+        "رياضيات": [
+
+            "الأعداد",
+
+            "الجمع والطرح",
+
+            "الضرب والقسمة",
+
+            "الكسور",
+
+            "الهندسة",
+
+            "القياس"
+
+        ]
+
+    },
+
+
+    // ==============================================
+    // الصف الثالث
+    // ==============================================
+
+    "الصف الثالث": {
+
+        "رياضيات": [
+
+            "الأعداد",
+
+            "الجمع",
+
+            "الطرح",
+
+            "الضرب",
+
+            "القسمة",
+
+            "الأشكال الهندسية",
+
+            "القياس"
+
+        ]
+
+    },
+
+
+    // ==============================================
+    // الصف الثاني
+    // ==============================================
+
+    "الصف الثاني": {
+
+        "رياضيات": [
+
+            "الأعداد",
+
+            "الجمع",
+
+            "الطرح",
+
+            "الضرب",
+
+            "الأشكال الهندسية",
+
+            "القياس"
+
+        ]
+
+    },
+
+
+    // ==============================================
+    // الصف الأول
+    // ==============================================
+
+    "الصف الأول": {
+
+        "رياضيات": [
+
+            "الأعداد",
+
+            "العد",
+
+            "الجمع",
+
+            "الطرح",
+
+            "الأشكال",
+
+            "الأحجام"
+
+        ]
+
+    },
+
+
+    // ==============================================
+    // الثانوي الأول
+    // ==============================================
+
+    "الصف الأول ثانوي": {
+
+        "رياضيات": [
+
+            "الجبر",
+
+            "المعادلات",
+
+            "الدوال",
+
+            "الهندسة",
+
+            "المثلثات",
+
+            "الإحصاء"
+
+        ],
+
+        "فيزياء": [
+
+            "الحركة",
+
+            "القوة",
+
+            "الطاقة",
+
+            "الكهرباء"
+
+        ],
+
+        "كيمياء": [
+
+            "الذرة",
+
+            "الجدول الدوري",
+
+            "الروابط الكيميائية",
+
+            "التفاعلات الكيميائية"
+
+        ]
+
+    },
+
+
+    // ==============================================
+    // الحادي عشر
+    // ==============================================
+
+    "الصف الحادي عشر": {
+
+        "رياضيات": [
+
+            "الدوال",
+
+            "المعادلات",
+
+            "المتتاليات",
+
+            "الهندسة",
+
+            "الاحتمالات",
+
+            "الإحصاء"
+
+        ],
+
+        "فيزياء": [
+
+            "الميكانيك",
+
+            "الطاقة",
+
+            "الكهرباء",
+
+            "الموجات"
+
+        ],
+
+        "كيمياء": [
+
+            "البنية الذرية",
+
+            "الروابط الكيميائية",
+
+            "التفاعلات",
+
+            "المحاليل"
+
+        ]
+
+    },
+
+
+    // ==============================================
+    // الثاني عشر
+    // ==============================================
+
+    "الصف الثاني عشر": {
+
+        "رياضيات": [
+
+            "الدوال",
+
+            "النهايات",
+
+            "الاشتقاق",
+
+            "التكامل",
+
+            "المتتاليات",
+
+            "الاحتمالات",
+
+            "الإحصاء"
+
+        ],
+
+        "فيزياء": [
+
+            "الميكانيك",
+
+            "الكهرباء",
+
+            "المغناطيسية",
+
+            "الموجات"
+
+        ],
+
+        "كيمياء": [
+
+            "التفاعلات الكيميائية",
+
+            "الحموض والقواعد",
+
+            "الكيمياء العضوية",
+
+            "الكهروكيمياء"
+
+        ]
+
+    }
+
+};
+
+
+// ==================================================
+// ELEMENTS
+// ==================================================
+
+const gradeSelect =
+    document.getElementById("gradeSelect");
+
+const subjectSelect =
+    document.getElementById("subjectSelect");
+
+const languageSelect =
+    document.getElementById("languageSelect");
+
+const curriculumSelect =
+    document.getElementById("curriculumSelect");
+
+const lessonSelect =
+    document.getElementById("lessonSelect");
+
+const startLesson =
+    document.getElementById("startLesson");
+
+const chat =
+    document.getElementById("chat");
+
+const welcome =
+    document.getElementById("welcome");
+
+const lessonInfo =
+    document.getElementById("lessonInfo");
+
+const currentLesson =
+    document.getElementById("currentLesson");
+
+const messageInput =
+    document.getElementById("messageInput");
+
+const sendBtn =
+    document.getElementById("sendBtn");
+
+const imageBtn =
+    document.getElementById("imageBtn");
+
+const imageInput =
+    document.getElementById("imageInput");
+
+const micBtn =
+    document.getElementById("micBtn");
+
+
+// ==================================================
+// FILL SELECT
+// ==================================================
+
+function fillSelect(
+    select,
+    items,
+    placeholder
+) {
+
+    select.innerHTML = "";
+
+    const first =
+        document.createElement("option");
+
+    first.value = "";
+
+    first.textContent =
+        placeholder;
+
+    select.appendChild(first);
+
+
+    items.forEach(item => {
+
+        const option =
+            document.createElement("option");
+
+        option.value = item;
+
+        option.textContent = item;
+
+        select.appendChild(option);
+
+    });
+
+}
+
+
+// ==================================================
+// INITIALIZE SELECTS
+// ==================================================
+
+fillSelect(
+    gradeSelect,
+    GRADES,
+    "اختر الصف"
+);
+
+fillSelect(
+    subjectSelect,
+    SUBJECTS,
+    "اختر المادة"
+);
+
+fillSelect(
+    curriculumSelect,
+    CURRICULA,
+    "اختر المنهج"
+);
+
+fillSelect(
+    lessonSelect,
+    [],
+    "اختر الدرس"
+);
+
+
+// ==================================================
+// UPDATE LESSONS
+// ==================================================
+
+function updateLessons() {
+
+    const grade =
+        gradeSelect.value;
+
+    const subject =
+        subjectSelect.value;
+
+
+    let lessons = [];
+
+
+    if (
+        LESSONS[grade] &&
+        LESSONS[grade][subject]
+    ) {
+
+        lessons =
+            LESSONS[grade][subject];
+
+    }
+
+
+    lessonSelect.innerHTML = "";
+
+
+    const first =
+        document.createElement("option");
+
+
+    first.value = "";
+
+
+    if (lessons.length > 0) {
+
+        first.textContent =
+            "اختر الدرس";
+
+    } else {
+
+        first.textContent =
+            "اكتب اسم الدرس في سؤالك";
+
+    }
+
+
+    lessonSelect.appendChild(first);
+
+
+    lessons.forEach(
+        lesson => {
+
+            const option =
+                document.createElement(
+                    "option"
+                );
+
+            option.value =
+                lesson;
+
+            option.textContent =
+                lesson;
+
+            lessonSelect.appendChild(
+                option
+            );
+
+        }
+    );
+
+}
+
+
+// ==================================================
+// EVENTS
+// ==================================================
+
+gradeSelect.addEventListener(
+    "change",
+    updateLessons
+);
+
+subjectSelect.addEventListener(
+    "change",
+    updateLessons
+);
+
+
+// ==================================================
+// STUDENT ID
+// ==================================================
+
+function getStudentId() {
+
+    let id =
+        localStorage.getItem(
+            "nabil_student_id"
+        );
+
+
+    if (!id) {
+
+        id =
+            "student_" +
+            Date.now() +
+            "_" +
+            Math.random()
+                .toString(36)
+                .substring(2, 8);
+
+
+        localStorage.setItem(
+            "nabil_student_id",
+            id
+        );
+
+    }
+
+
+    return id;
+
+}
+
+
+// ==================================================
+// CONVERSATION
+// ==================================================
+
+let conversationId = null;
+
+let selectedImage = null;
+
+
+// ==================================================
+// ADD MESSAGE
+// ==================================================
+
+function addMessage(
+    role,
+    text,
+    sources = []
+) {
+
+    if (welcome) {
+
+        welcome.style.display =
+            "none";
+
+    }
+
+
+    const wrapper =
+        document.createElement("div");
+
+    wrapper.className =
+        "message " + role;
+
+
+    const bubble =
+        document.createElement("div");
+
+    bubble.className =
+        "bubble";
+
+
+    bubble.textContent =
+        text;
+
+
+    if (
+        sources &&
+        sources.length
+    ) {
+
+        const sourceDiv =
+            document.createElement(
+                "div"
+            );
+
+        sourceDiv.className =
+            "sources";
+
+        sourceDiv.textContent =
+            "المصادر: " +
+            sources.join("، ");
+
+        bubble.appendChild(
+            sourceDiv
+        );
+
+    }
+
+
+    wrapper.appendChild(
+        bubble
+    );
+
+
+    chat.appendChild(
+        wrapper
+    );
+
+
+    chat.scrollTop =
+        chat.scrollHeight;
+
+}
+
+
+// ==================================================
+// START LESSON
+// ==================================================
+
+startLesson.addEventListener(
+    "click",
+    async function () {
+
+
+        const grade =
+            gradeSelect.value;
+
+        const subject =
+            subjectSelect.value;
+
+        const language =
+            languageSelect.value;
+
+        const curriculum =
+            curriculumSelect.value;
+
+        const lesson =
+            lessonSelect.value;
+
+
+        if (!grade) {
+
+            alert(
+                "اختر الصف أولاً."
+            );
+
+            return;
+
+        }
+
+
+        if (!subject) {
+
+            alert(
+                "اختر المادة أولاً."
+            );
+
+            return;
+
+        }
+
+
+        if (!language) {
+
+            alert(
+                "اختر اللغة."
+            );
+
+            return;
+
+        }
+
+
+        if (!curriculum) {
+
+            alert(
+                "اختر المنهج."
+            );
+
+            return;
+
+        }
+
+
+        if (!lesson) {
+
+            alert(
+                "اختر الدرس."
+            );
+
+            return;
+
+        }
+
+
+        currentLesson.textContent =
+            lesson;
+
+
+        lessonInfo.style.display =
+            "block";
+
+
+        const prompt =
+
+            `أنت الآن الأستاذ NABIL AI.
+
+ابدأ درسًا تفاعليًا مع الطالب.
+
+الصف: ${grade}
+المادة: ${subject}
+اللغة: ${language}
+المنهج: ${curriculum}
+الدرس: ${lesson}
+
+قواعد التدريس:
+
+1. استخدم اللغة التي اختارها الطالب.
+2. التزم بمستوى الطالب وصفه.
+3. اعتمد على محتوى المنهج عند توفره.
+4. لا تعطِ الدرس كله دفعة واحدة.
+5. ابدأ بتمهيد بسيط.
+6. اشرح الفكرة الأولى بوضوح.
+7. أعطِ مثالًا مناسبًا.
+8. اسأل الطالب سؤالًا قصيرًا.
+9. انتظر إجابته قبل الانتقال.
+10. إذا أخطأ الطالب، صحح الخطأ وفسره بلطف.
+11. لا تعطِ الإجابة مباشرة عندما يكون الهدف تدريب الطالب.
+12. استخدم الرموز والمعادلات الرياضية عند الحاجة.
+
+ابدأ الآن بالدرس.`;
+
+
+
+        await sendToAI(
+            prompt
+        );
+
+    }
+);
+
+
+// ==================================================
+// SEND BUTTON
+// ==================================================
+
+sendBtn.addEventListener(
+    "click",
+    async function () {
+
+        const message =
+            messageInput.value.trim();
+
+
+        if (
+            !message &&
+            !selectedImage
+        ) {
+
+            return;
+
+        }
+
+
+        await sendToAI(
+            message
+        );
+
+    }
+);
+
+
+// ==================================================
+// SEND TO AI
+// ==================================================
+
+async function sendToAI(
+    message
+) {
+
+
+    const grade =
+        gradeSelect.value;
+
+    const subject =
+        subjectSelect.value;
+
+    const language =
+        languageSelect.value;
+
+    const curriculum =
+        curriculumSelect.value;
+
+    const lesson =
+        lessonSelect.value;
+
+
+    if (!grade || !subject) {
+
+        alert(
+            "اختر الصف والمادة أولاً."
+        );
+
+        return;
+
+    }
+
+
+    if (message) {
+
+        addMessage(
+            "student",
+            message
+        );
+
+    }
+    else if (selectedImage) {
+
+        addMessage(
+            "student",
+            "🖼️ صورة"
+        );
+
+    }
+
+
+    messageInput.value = "";
+
+
+    const formData =
+        new FormData();
+
+
+    formData.append(
+        "student_id",
+        getStudentId()
+    );
+
+
+    if (conversationId) {
+
+        formData.append(
+            "conversation_id",
+            conversationId
+        );
+
+    }
+
+
+    formData.append(
+        "message",
+        message || ""
+    );
+
+
+    formData.append(
+        "grade",
+        grade
+    );
+
+
+    formData.append(
+        "subject",
+        subject
+    );
+
+
+    formData.append(
+        "language",
+        language
+    );
+
+
+    formData.append(
+        "curriculum",
+        curriculum
+    );
+
+
+    formData.append(
+        "lesson",
+        lesson || ""
+    );
+
+
+    if (selectedImage) {
+
+        formData.append(
+            "image",
+            selectedImage
+        );
+
+    }
+
+
+    try {
+
+
+        sendBtn.disabled =
+            true;
+
+
+        startLesson.disabled =
+            true;
+
+
+        sendBtn.textContent =
+            "جاري التفكير...";
+
+
+        const response =
+            await fetch(
+                API_BASE +
+                "/api/chat",
+                {
+                    method: "POST",
+                    body: formData
+                }
+            );
+
+
+        let data = {};
+
+
+        try {
+
+            data =
+                await response.json();
+
+        }
+        catch (error) {
+
+            throw new Error(
+                "الخادم لم يُرجع JSON صالحًا."
+            );
+
+        }
+
+
+        if (!response.ok) {
+
+            throw new Error(
+
+                data.detail ||
+
+                data.error ||
+
+                "HTTP " +
+                response.status
+
+            );
+
+        }
+
+
+        if (
+            data.conversation_id
+        ) {
+
+            conversationId =
+                data.conversation_id;
+
+        }
+
+
+        addMessage(
+
+            "teacher",
+
+            data.reply ||
+
+            "لم يصل جواب من NABIL AI.",
+
+            data.sources || []
+
+        );
+
+
+        selectedImage =
+            null;
+
+
+        imageInput.value =
+            "";
+
+
+        messageInput.placeholder =
+            "اكتب سؤالك هنا...";
+
+
+    }
+    catch (error) {
+
+
+        console.error(
+            "NABIL AI ERROR:",
+            error
+        );
+
+
+        addMessage(
+
+            "teacher",
+
+            "حدث خطأ في الاتصال بـ NABIL AI:\n" +
+            error.message
+
+        );
+
+    }
+    finally {
+
+
+        sendBtn.disabled =
+            false;
+
+
+        startLesson.disabled =
+            false;
+
+
+        sendBtn.textContent =
+            "إرسال";
+
+    }
+
+}
+
+
+// ==================================================
+// IMAGE
+// ==================================================
+
+imageBtn.addEventListener(
+    "click",
+    function () {
+
+        imageInput.click();
+
+    }
+);
+
+
+imageInput.addEventListener(
+    "change",
+    function () {
+
+
+        if (
+            this.files &&
+            this.files[0]
+        ) {
+
+
+            selectedImage =
+                this.files[0];
+
+
+            messageInput.placeholder =
+                "تم اختيار صورة. اكتب سؤالك أو اضغط إرسال.";
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// ENTER
+// ==================================================
+
+messageInput.addEventListener(
+    "keydown",
+    function (event) {
+
+
+        if (
+            event.key === "Enter" &&
+            !event.shiftKey
+        ) {
+
+
+            event.preventDefault();
+
+
+            sendBtn.click();
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// SPEECH RECOGNITION
+// ==================================================
+
+let recognition = null;
+
+
+if (
+    "webkitSpeechRecognition" in window ||
+    "SpeechRecognition" in window
+) {
+
+
+    const SpeechRecognition =
+
+        window.SpeechRecognition ||
+
+        window.webkitSpeechRecognition;
+
+
+    recognition =
+        new SpeechRecognition();
+
+
+    recognition.continuous =
+        false;
+
+
+    recognition.interimResults =
+        false;
+
+
+    recognition.onresult =
+        function (event) {
+
+
+            const text =
+                event.results[0][0]
+                    .transcript;
+
+
+            messageInput.value =
+                text;
+
+        };
+
+
+    recognition.onerror =
+        function (event) {
+
+            console.error(
+                "Speech error:",
+                event.error
+            );
+
+        };
+
+}
+
+
+// ==================================================
+// MICROPHONE
+// ==================================================
+
+micBtn.addEventListener(
+    "click",
+    function () {
+
+
+        if (!recognition) {
+
+            alert(
+                "التعرف الصوتي غير مدعوم في هذا المتصفح."
+            );
+
+            return;
+
+        }
+
+
+        const language =
+            languageSelect.value;
+
+
+        if (
+            language ===
+            "English"
+        ) {
+
+            recognition.lang =
+                "en-US";
+
+        }
+        else if (
+            language ===
+            "Français"
+        ) {
+
+            recognition.lang =
+                "fr-FR";
+
+        }
+        else {
+
+            recognition.lang =
+                "ar-LB";
+
+        }
+
+
+        recognition.start();
+
+    }
+);
+
+
+</script>
+
+</body>
+
+</html>
