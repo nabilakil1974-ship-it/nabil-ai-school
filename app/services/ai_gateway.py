@@ -8,18 +8,24 @@ from app.core.config import settings
 
 class NabilAIGateway:
     def __init__(self):
-        if not settings.OPENAI_API_KEY:
+        api_key = getattr(
+            settings,
+            "OPENROUTER_API_KEY",
+            ""
+        )
+
+        if not api_key:
             raise RuntimeError(
-                "OPENAI_API_KEY غير مضبوط في إعدادات السيرفر"
+                "OPENROUTER_API_KEY غير مضبوط في إعدادات السيرفر"
             )
 
         self.client = OpenAI(
-            api_key=settings.OPENAI_API_KEY
+            base_url="https://openrouter.ai/api/v1",
+            api_key=api_key,
         )
 
-        self.text_model = "gpt-5.6"
-        self.vision_model = "gpt-5.6"
-        self.transcription_model = "gpt-4o-transcribe"
+        self.text_model = "openrouter/free"
+        self.vision_model = "openrouter/free"
 
     def generate(
         self,
@@ -30,10 +36,15 @@ class NabilAIGateway:
         max_output_tokens: int = 2000,
     ) -> str:
 
-        input_items = []
+        chat_messages = [
+            {
+                "role": "system",
+                "content": instructions,
+            }
+        ]
 
         for msg in messages:
-            input_items.append(
+            chat_messages.append(
                 {
                     "role": msg.get("role", "user"),
                     "content": msg.get("content", ""),
@@ -45,12 +56,12 @@ class NabilAIGateway:
                 image_bytes
             ).decode("utf-8")
 
-            input_items.append(
+            chat_messages.append(
                 {
                     "role": "user",
                     "content": [
                         {
-                            "type": "input_text",
+                            "type": "text",
                             "text": (
                                 "اقرأ الصورة بدقة، واستخرج "
                                 "المسألة أو السؤال الموجود فيها "
@@ -58,37 +69,40 @@ class NabilAIGateway:
                             ),
                         },
                         {
-                            "type": "input_image",
-                            "image_url": (
-                                f"data:{image_mime_type};base64,{encoded}"
-                            ),
+                            "type": "image_url",
+                            "image_url": {
+                                "url": (
+                                    f"data:{image_mime_type};"
+                                    f"base64,{encoded}"
+                                )
+                            },
                         },
                     ],
                 }
             )
 
-        response = self.client.responses.create(
+        response = self.client.chat.completions.create(
             model=(
                 self.vision_model
                 if image_bytes
                 else self.text_model
             ),
-            instructions=instructions,
-            input=input_items,
-            max_output_tokens=max_output_tokens,
+            messages=chat_messages,
+            max_tokens=max_output_tokens,
         )
 
-        return (response.output_text or "").strip()
+        if not response.choices:
+            return ""
+
+        content = response.choices[0].message.content
+
+        return (content or "").strip()
 
     def transcribe(
         self,
         audio_bytes: bytes,
         filename: str = "voice.webm",
     ) -> str:
-
-        result = self.client.audio.transcriptions.create(
-            model=self.transcription_model,
-            file=(filename, audio_bytes),
+        raise RuntimeError(
+            "تحويل الصوت غير متاح حاليًا في المسار المجاني."
         )
-
-        return str(result.text).strip()
