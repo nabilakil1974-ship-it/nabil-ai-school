@@ -692,38 +692,54 @@ def extract_progress_metadata(text: str):
     if not text:
         return text, {}
 
-    pattern = r"<PROGRESS_JSON>\s*(.*?)\s*</PROGRESS_JSON>"
+    metadata = {}
+
+    complete_pattern = (
+        r"<PROGRESS_JSON>\s*(.*?)\s*</PROGRESS_JSON>"
+    )
 
     match = re.search(
-        pattern,
+        complete_pattern,
         text,
         flags=re.DOTALL | re.IGNORECASE,
     )
 
-    metadata = {}
-
     if match:
+        raw_json = match.group(1).strip()
+
         try:
-            parsed = json.loads(
-                match.group(1).strip()
-            )
+            parsed = json.loads(raw_json)
 
             if isinstance(parsed, dict):
                 metadata = parsed
 
         except Exception:
+            # Invalid progress metadata must never break the lesson.
             metadata = {}
 
+        text = re.sub(
+            complete_pattern,
+            "",
+            text,
+            flags=re.DOTALL | re.IGNORECASE,
+        )
+
+    # Hide malformed/incomplete internal metadata from the student.
     text = re.sub(
-        pattern,
+        r"<PROGRESS_JSON>.*$",
         "",
         text,
         flags=re.DOTALL | re.IGNORECASE,
     )
 
+    text = re.sub(
+        r"</?PROGRESS_JSON>",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    )
+
     return text.strip(), metadata
-
-
 def _merge_unique_strings(current, new_items, limit=50):
     output = []
 
@@ -1446,10 +1462,13 @@ async def voice_chat(
             detail=f"خطأ في NABIL AI: {exc}",
         ) from exc
  
+    raw_reply, progress_metadata = extract_progress_metadata(
+        raw_reply
+    )
+
     raw_reply = clean_reply(
         raw_reply
     )
- 
     reply_text, drawings = extract_drawings(
         raw_reply
     )
@@ -1474,20 +1493,26 @@ async def voice_chat(
     )
  
     db.commit()
+    try:
+        update_learning_profile(
+            db=db,
+            profile=learning_profile,
+            grade=grade,
+            branch=branch,
+            subject=subject,
+            lesson=lesson,
+            message=message,
+            metadata=progress_metadata,
+        )
 
-    update_learning_profile(
-        db=db,
-        profile=learning_profile,
-        grade=grade,
-        branch=branch,
-        subject=subject,
-        lesson=lesson,
-        message=message,
-        metadata=progress_metadata,
-    )
+    except Exception:
+        # Progress saving is secondary; never fail the lesson because of it.
+        try:
+            db.rollback()
+        except Exception:
+            pass
 
- 
-    # ==========================================
+# ==========================================
     # RESPONSE
     # ==========================================
  
