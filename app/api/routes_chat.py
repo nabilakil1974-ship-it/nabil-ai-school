@@ -353,6 +353,8 @@ CURRICULUM_INDEX_PATH = Path(
     "app/static/crdp_scientific_curriculum_index.json"
 )
 
+CURRICULUM_SCHEMA_VERSION = "6"
+
 
 def load_curriculum_index() -> dict:
     try:
