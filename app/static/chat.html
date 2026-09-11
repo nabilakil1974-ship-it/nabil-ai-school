@@ -1,18 +1,18 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-
+ 
 <head>
     <meta charset="UTF-8">
-
+ 
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
     >
-
+ 
     <meta name="color-scheme" content="light">
-
+ 
     <title>منصة النبيل التعليمية الذكية</title>
-
+ 
     <script>
         window.MathJax = {
             tex: {
@@ -30,17 +30,17 @@
             }
         };
     </script>
-
+ 
     <script
         src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"
         async
     ></script>
-
+ 
     <style>
-
+ 
         :root {
             color-scheme: only light;
-
+ 
             --blue-dark: #173b6c;
             --blue: #2563eb;
             --blue-light: #3b82f6;
@@ -52,11 +52,11 @@
             --teacher: #f1fff5;
             --student: #e8f1ff;
         }
-
+ 
         * {
             box-sizing: border-box;
         }
-
+ 
         html,
         body {
             margin: 0;
@@ -65,11 +65,11 @@
             color: var(--text) !important;
             color-scheme: only light;
         }
-
+ 
         body {
             font-family: Arial, Tahoma, sans-serif;
         }
-
+ 
         .header {
             background:
                 linear-gradient(
@@ -77,74 +77,74 @@
                     #2e78c9,
                     #173b6c
                 );
-
+ 
             color: white;
             padding: 18px 22px;
-
+ 
             box-shadow:
                 0 3px 12px
                 rgba(15, 23, 42, .16);
         }
-
+ 
         .header-title {
             text-align: center;
             font-size: 29px;
             font-weight: 800;
             margin-bottom: 20px;
         }
-
+ 
         .controls {
             max-width: 1450px;
             margin: auto;
-
+ 
             display: grid;
-
+ 
             grid-template-columns:
                 repeat(
                     4,
                     minmax(150px, 1fr)
                 )
                 auto;
-
+ 
             gap: 14px;
             align-items: end;
         }
-
+ 
         .control {
             display: flex;
             flex-direction: column;
             gap: 7px;
         }
-
+ 
         .control label {
             font-size: 15px;
             font-weight: 800;
             color: white;
         }
-
+ 
         select {
             width: 100%;
             min-height: 48px;
             padding: 10px 13px;
-
+ 
             border:
                 1px solid #d4dfec;
-
+ 
             border-radius: 9px;
-
+ 
             background:
                 white !important;
-
+ 
             color:
                 #172033 !important;
-
+ 
             font-size: 15px;
             outline: none;
         }
-
+ 
         select:focus {
             border-color: #60a5fa;
-
+ 
             box-shadow:
                 0 0 0 3px
                 rgba(
@@ -154,25 +154,25 @@
                     .14
                 );
         }
-
+ 
         #startLesson {
             min-height: 48px;
             padding: 11px 24px;
             border: none;
             border-radius: 9px;
-
+ 
             background:
                 linear-gradient(
                     180deg,
                     #22c55e,
                     #16a34a
                 );
-
+ 
             color: white;
             font-size: 17px;
             font-weight: 800;
             cursor: pointer;
-
+ 
             box-shadow:
                 0 4px 12px
                 rgba(
@@ -182,30 +182,30 @@
                     .22
                 );
         }
-
+ 
         #startLesson:disabled {
             opacity: .6;
             cursor: not-allowed;
         }
-
+ 
         .container {
             max-width: 1180px;
             margin: 18px auto;
             padding: 0 15px 90px;
         }
-
+ 
         .lesson-info {
             display: none;
             background: white;
             padding: 14px 18px;
-
+ 
             border:
                 1px solid
                 var(--border);
-
+ 
             border-radius: 12px;
             margin-bottom: 12px;
-
+ 
             box-shadow:
                 0 2px 8px
                 rgba(
@@ -215,30 +215,30 @@
                     .06
                 );
         }
-
+ 
         .lesson-info strong {
             color: var(--blue-dark);
         }
-
+ 
         .index-status {
             margin-top: 6px;
             font-size: 13px;
             color: var(--muted);
         }
-
+ 
         .chat {
             min-height: 520px;
             max-height: 720px;
             overflow-y: auto;
             padding: 18px;
             background: white;
-
+ 
             border:
                 1px solid
                 #e2eaf3;
-
+ 
             border-radius: 16px;
-
+ 
             box-shadow:
                 0 8px 28px
                 rgba(
@@ -248,53 +248,53 @@
                     .07
                 );
         }
-
+ 
         .welcome {
             text-align: center;
             padding: 75px 20px;
             color: var(--muted);
         }
-
+ 
         .welcome h2 {
             color: var(--blue-dark);
         }
-
+ 
         .message {
             display: flex;
             margin: 12px 0;
         }
-
+ 
         .message.student {
             justify-content: flex-start;
         }
-
+ 
         .message.teacher {
             justify-content: stretch;
         }
-
+ 
         .bubble {
             padding: 15px 18px;
             border-radius: 15px;
             line-height: 1.9;
             overflow-wrap: anywhere;
         }
-
+ 
         .bubble.ltr-content {
             direction: ltr;
             text-align: left;
         }
-
+ 
         .bubble.rtl-content {
             direction: rtl;
             text-align: right;
         }
-
+ 
         .bubble.ltr-content,
         .bubble.ltr-content *:not(mjx-container):not(mjx-container *) {
             direction: ltr;
             text-align: left;
         }
-
+ 
         .bubble.ltr-content ul,
         .bubble.ltr-content ol {
             direction: ltr;
@@ -302,7 +302,7 @@
             padding-left: 24px;
             padding-right: 0;
         }
-
+ 
         .bubble.rtl-content h2,
         .bubble.rtl-content h3,
         .bubble.rtl-content h4,
@@ -311,41 +311,41 @@
             direction: rtl;
             text-align: right;
         }
-
+ 
         .bubble.ltr-content .teacher-tools {
             direction: ltr;
             justify-content: flex-start;
         }
-
+ 
         .bubble.rtl-content .teacher-tools {
             direction: rtl;
             justify-content: flex-start;
         }
-
+ 
         .student .bubble {
             max-width: 82%;
             background: var(--student);
-
+ 
             border:
                 1px solid
                 #cfe1ff;
         }
-
+ 
         .teacher .bubble {
             width: 100%;
             max-width: 100%;
-
+ 
             background:
                 linear-gradient(
                     180deg,
                     #f6fff8,
                     #effcf3
                 );
-
+ 
             border:
                 1px solid
                 #cbead3;
-
+ 
             box-shadow:
                 0 3px 14px
                 rgba(
@@ -355,67 +355,67 @@
                     .06
                 );
         }
-
+ 
         .teacher .bubble h2,
         .teacher .bubble h3,
         .teacher .bubble h4 {
             color: #123c2a;
         }
-
+ 
         .bubble mjx-container {
             direction: ltr !important;
             color: #111827 !important;
         }
-
+ 
         .teacher-tools {
             display: flex;
             gap: 8px;
             margin-top: 14px;
             flex-wrap: wrap;
         }
-
+ 
         .teacher-tools button {
             min-height: 38px;
             padding: 8px 14px;
-
+ 
             border:
                 1px solid
                 #35475a;
-
+ 
             border-radius: 8px;
             background: #263341;
             color: white;
             font-weight: 800;
             cursor: pointer;
         }
-
+ 
         .teacher-tools button:hover {
             filter: brightness(1.08);
         }
-
+ 
         .draw-answer-btn.active {
             background: #1672e8;
             border-color: #1672e8;
         }
-
+ 
         .answer-drawing {
             display: none;
             margin-top: 14px;
             padding: 0;
-
+ 
             background:
                 white !important;
-
+ 
             color:
                 #111827 !important;
-
+ 
             border:
                 1px solid
                 #a8c8ef;
-
+ 
             border-radius: 13px;
             overflow: hidden;
-
+ 
             box-shadow:
                 0 4px 18px
                 rgba(
@@ -425,11 +425,11 @@
                     .08
                 );
         }
-
+ 
         .answer-drawing.visible {
             display: block;
         }
-
+ 
         .drawing-title {
             margin: 0;
             padding: 12px 16px;
@@ -437,7 +437,7 @@
             font-size: 19px;
             font-weight: 800;
             color: white;
-
+ 
             background:
                 linear-gradient(
                     180deg,
@@ -445,58 +445,58 @@
                     #283848
                 );
         }
-
+ 
         .graph-shell {
             padding: 16px;
             background: white;
         }
-
+ 
         .graph-layout {
             display: grid;
-
+ 
             grid-template-columns:
                 minmax(0, 1fr)
                 230px;
-
+ 
             gap: 16px;
             direction: ltr;
         }
-
+ 
         .graph-canvas {
             background: white;
             border-radius: 8px;
             overflow: hidden;
         }
-
+ 
         .graph-properties {
             direction: rtl;
             padding: 11px 12px;
-
+ 
             background:
                 linear-gradient(
                     180deg,
                     #fffbea,
                     #fff6cf
                 );
-
+ 
             border:
                 1px solid
                 #f2c94c;
-
+ 
             border-radius: 10px;
             color: #111827;
             font-size: 12px;
             line-height: 1.55;
             overflow: hidden;
         }
-
+ 
         .graph-properties strong {
             display: block;
             margin-bottom: 7px;
             font-size: 13px;
             text-align: center;
         }
-
+ 
         .graph-properties .property-row {
             display: flex;
             align-items: center;
@@ -506,7 +506,7 @@
             font-size: 12px;
             line-height: 1.45;
         }
-
+ 
         .graph-properties .property-value {
             direction: ltr;
             unicode-bidi: isolate;
@@ -514,13 +514,13 @@
             font-size: 12px;
             white-space: nowrap;
         }
-
+ 
         .graph-properties mjx-container,
         .graph-properties mjx-container svg {
             max-width: 100% !important;
             font-size: 12px !important;
         }
-
+ 
         .answer-drawing svg {
             display: block;
             width: 100%;
@@ -529,21 +529,21 @@
             min-width: 0;
             background: white !important;
         }
-
+ 
         .graph-label,
         .graph-tick {
             font-size: 14px;
             font-weight: 700;
             fill: #111827;
         }
-
+ 
         .graph-axis-label {
             font-size: 18px;
             font-weight: 800;
             font-style: italic;
             fill: #111827;
         }
-
+ 
         .input-area {
             position: sticky;
             bottom: 0;
@@ -552,7 +552,7 @@
             gap: 8px;
             margin-top: 14px;
             padding: 10px;
-
+ 
             background:
                 rgba(
                     247,
@@ -560,34 +560,34 @@
                     255,
                     .97
                 );
-
+ 
             border-top:
                 1px solid
                 #dfe8f2;
-
+ 
             backdrop-filter: blur(8px);
         }
-
+ 
         textarea {
             flex: 1;
             min-height: 56px;
             resize: none;
             padding: 13px 15px;
-
+ 
             border:
                 1px solid
                 #cbd5e1;
-
+ 
             border-radius: 10px;
             background: white;
             color: #111827;
             font-size: 16px;
             outline: none;
         }
-
+ 
         textarea:focus {
             border-color: #60a5fa;
-
+ 
             box-shadow:
                 0 0 0 3px
                 rgba(
@@ -597,13 +597,13 @@
                     .12
                 );
         }
-
+ 
         button {
             border: none;
             font-weight: bold;
             cursor: pointer;
         }
-
+ 
         #sendBtn,
         #imageBtn,
         #micBtn {
@@ -611,56 +611,56 @@
             border-radius: 10px;
             color: white;
         }
-
+ 
         #sendBtn {
             background: #0f67e8;
             padding: 0 22px;
         }
-
+ 
         #imageBtn {
             background: #8da0b4;
             padding: 0 18px;
         }
-
+ 
         #micBtn {
             background: #7c2bd4;
             padding: 0 18px;
         }
-
+ 
         #imageInput {
             display: none;
         }
-
+ 
         @media(max-width:900px) {
             .graph-layout {
                 grid-template-columns: 1fr;
             }
         }
-
+ 
         @media(max-width:700px) {
             .controls {
                 grid-template-columns: 1fr 1fr;
             }
-
+ 
             .student .bubble {
                 max-width: 96%;
             }
         }
-
+ 
         @media(max-width:550px) {
             .controls {
                 grid-template-columns: 1fr;
             }
-
+ 
             .input-area {
                 flex-wrap: wrap;
             }
-
+ 
             textarea {
                 flex-basis: 100%;
             }
         }
-
+ 
     
         /* ===== NABIL AI header portrait ===== */
         .brand-title-with-photo {
@@ -669,7 +669,7 @@
             justify-content: center;
             gap: 12px;
         }
-
+ 
         .nabil-profile-photo {
             width: 54px;
             height: 54px;
@@ -681,12 +681,12 @@
             flex: 0 0 54px;
             background: #ffffff;
         }
-
+ 
         @media (max-width: 700px) {
             .brand-title-with-photo {
                 gap: 8px;
             }
-
+ 
             .nabil-profile-photo {
                 width: 44px;
                 height: 44px;
@@ -694,56 +694,56 @@
                 border-width: 2px;
             }
         }
-
+ 
     </style>
 </head>
-
+ 
 <body>
-
+ 
 <header class="header">
-
+ 
     <div class="header-title"><span class="brand-title-with-photo"><img class="nabil-profile-photo" src="/static/nabil-profile.jpg" alt="صورة الأستاذ نبيل" onerror="this.style.display='none'"><span>منصة النبيل التعليمية الذكية</span></span></div>
-
+ 
     <div class="controls">
-
+ 
         <div class="control">
             <label>الصف</label>
             <select id="gradeSelect"></select>
         </div>
-
+ 
         <div class="control">
             <label>المادة</label>
             <select id="subjectSelect"></select>
         </div>
-
+ 
         <div class="control">
             <label>اللغة</label>
-
+ 
             <select id="languageSelect">
                 <option value="العربية">العربية</option>
                 <option value="Français">Français</option>
                 <option value="English">English</option>
             </select>
         </div>
-
+ 
         <div class="control">
             <label>الدرس</label>
             <select id="lessonSelect"></select>
         </div>
-
+ 
         <button
             id="startLesson"
             type="button"
         >
             ▶ ابدأ الدرس
         </button>
-
+ 
     </div>
-
+ 
 </header>
-
+ 
 <main class="container">
-
+ 
     <div
         id="lessonInfo"
         class="lesson-info"
@@ -751,15 +751,15 @@
         <strong>
             الدرس الحالي:
         </strong>
-
+ 
         <span id="currentLesson"></span>
-
+ 
         <div
             id="indexStatus"
             class="index-status"
         ></div>
     </div>
-
+ 
     <section
         id="chat"
         class="chat"
@@ -771,58 +771,58 @@
             <h2>
                 مرحباً بك في NABIL AI 👨🏫
             </h2>
-
+ 
             <p>
                 اختر الصف والمادة واللغة والدرس ثم ابدأ.
             </p>
         </div>
     </section>
-
+ 
     <div class="input-area">
-
+ 
         <textarea
             id="messageInput"
             placeholder="اكتب سؤالك هنا..."
         ></textarea>
-
+ 
         <button
             id="imageBtn"
             type="button"
         >
             🖼️
         </button>
-
+ 
         <input
             id="imageInput"
             type="file"
             accept="image/*"
         >
-
+ 
         <button
             id="micBtn"
             type="button"
         >
             🎤
         </button>
-
+ 
         <button
             id="sendBtn"
             type="button"
         >
             إرسال
         </button>
-
+ 
     </div>
-
+ 
 </main>
-
+ 
 <script>
-
+ 
 const API_BASE = "";
-
+ 
 const FIXED_CURRICULUM =
     "المنهج اللبناني الرسمي";
-
+ 
 const GRADES = [
     "الصف الأول",
     "الصف الثاني",
@@ -837,7 +837,7 @@ const GRADES = [
     "الثاني ثانوي",
     "الثالث ثانوي"
 ];
-
+ 
 const SUBJECTS = [
     "رياضيات",
     "فيزياء",
@@ -845,52 +845,52 @@ const SUBJECTS = [
     "علوم",
     "علوم الحياة"
 ];
-
+ 
 const gradeSelect =
     document.getElementById("gradeSelect");
-
+ 
 const subjectSelect =
     document.getElementById("subjectSelect");
-
+ 
 const languageSelect =
     document.getElementById("languageSelect");
-
+ 
 const lessonSelect =
     document.getElementById("lessonSelect");
-
+ 
 const startLesson =
     document.getElementById("startLesson");
-
+ 
 const chat =
     document.getElementById("chat");
-
+ 
 const welcome =
     document.getElementById("welcome");
-
+ 
 const lessonInfo =
     document.getElementById("lessonInfo");
-
+ 
 const currentLesson =
     document.getElementById("currentLesson");
-
+ 
 const indexStatus =
     document.getElementById("indexStatus");
-
+ 
 const messageInput =
     document.getElementById("messageInput");
-
+ 
 const sendBtn =
     document.getElementById("sendBtn");
-
+ 
 const imageBtn =
     document.getElementById("imageBtn");
-
+ 
 const imageInput =
     document.getElementById("imageInput");
-
+ 
 const micBtn =
     document.getElementById("micBtn");
-
+ 
 let curriculumIndex = {};
 let conversationId = null;
 let selectedImage = null;
@@ -899,7 +899,7 @@ let recognition = null;
    فهرسة احتياطية مدمجة
    تعمل حتى لو لم يوجد ملف JSON خارجي
 ========================================================= */
-
+ 
 const FALLBACK_CURRICULUM_INDEX = {
     "رياضيات": {
         "الصف السابع": {
@@ -949,7 +949,7 @@ const FALLBACK_CURRICULUM_INDEX = {
                 "Bissectrice"
             ]
         },
-
+ 
         "الصف الثامن": {
             "العربية": [
                 "الأعداد الحقيقية",
@@ -994,7 +994,7 @@ const FALLBACK_CURRICULUM_INDEX = {
                 "Triangles"
             ]
         },
-
+ 
         "الصف التاسع": {
             "العربية": [
                 "الأعداد الحقيقية",
@@ -1045,7 +1045,7 @@ const FALLBACK_CURRICULUM_INDEX = {
                 "Résolution graphique d'un système linéaire"
             ]
         },
-
+ 
         "الأول ثانوي": {
             "العربية": [
                 "المجموعات",
@@ -1117,7 +1117,7 @@ const FALLBACK_CURRICULUM_INDEX = {
                 "Statistique"
             ]
         },
-
+ 
         "الثاني ثانوي": {
             "العربية": [
                 "العلاقات الثنائية",
@@ -1189,7 +1189,7 @@ const FALLBACK_CURRICULUM_INDEX = {
                 "Primitives"
             ]
         },
-
+ 
         "الثالث ثانوي": {
             "العربية": [
                 "الدوال غير النسبية",
@@ -1266,12 +1266,12 @@ const FALLBACK_CURRICULUM_INDEX = {
         }
     }
 };
-
-
+ 
+ 
 /* =========================================================
    دمج الفهرسة الداخلية مع الخارجية
 ========================================================= */
-
+ 
 function mergeCurriculumIndexes(
     baseIndex,
     remoteIndex
@@ -1282,45 +1282,45 @@ function mergeCurriculumIndexes(
                 baseIndex || {}
             )
         );
-
+ 
     Object.entries(
         remoteIndex || {}
     ).forEach(
         ([subject, subjectData]) => {
-
+ 
             if (!merged[subject]) {
                 merged[subject] = {};
             }
-
+ 
             Object.entries(
                 subjectData || {}
             ).forEach(
                 ([grade, gradeData]) => {
-
+ 
                     if (
                         !merged[subject][grade]
                     ) {
                         merged[subject][grade] = {};
                     }
-
+ 
                     Object.entries(
                         gradeData || {}
                     ).forEach(
                         ([language, lessons]) => {
-
+ 
                             if (
                                 Array.isArray(
                                     lessons
                                 )
                             ) {
-
+ 
                                 const current =
                                     Array.isArray(
                                         merged[subject][grade][language]
                                     )
                                     ? merged[subject][grade][language]
                                     : [];
-
+ 
                                 merged[subject][grade][language] =
                                     [
                                         ...new Set(
@@ -1337,87 +1337,87 @@ function mergeCurriculumIndexes(
             );
         }
     );
-
+ 
     return merged;
 }
-
-
+ 
+ 
 /* =========================================================
    القوائم
 ========================================================= */
-
+ 
 function fillSelect(
     select,
     items,
     placeholder
 ) {
     select.innerHTML = "";
-
+ 
     const first =
         document.createElement(
             "option"
         );
-
+ 
     first.value = "";
     first.textContent =
         placeholder;
-
+ 
     select.appendChild(
         first
     );
-
+ 
     items.forEach(
         item => {
             const option =
                 document.createElement(
                     "option"
                 );
-
+ 
             option.value =
                 item;
-
+ 
             option.textContent =
                 item;
-
+ 
             select.appendChild(
                 option
             );
         }
     );
 }
-
-
+ 
+ 
 fillSelect(
     gradeSelect,
     GRADES,
     "اختر الصف"
 );
-
+ 
 fillSelect(
     subjectSelect,
     SUBJECTS,
     "اختر المادة"
 );
-
+ 
 fillSelect(
     lessonSelect,
     [],
     "اختر الدرس"
 );
-
-
+ 
+ 
 /* =========================================================
    تحميل الفهرسة
 ========================================================= */
-
+ 
 async function loadCurriculumIndex() {
-
+ 
     curriculumIndex =
         mergeCurriculumIndexes(
             {},
             FALLBACK_CURRICULUM_INDEX
         );
-
+ 
     try {
         const response =
             await fetch(
@@ -1427,72 +1427,72 @@ async function loadCurriculumIndex() {
                         "no-store"
                 }
             );
-
+ 
         if (response.ok) {
-
+ 
             const data =
                 await response.json();
-
+ 
             curriculumIndex =
                 mergeCurriculumIndexes(
                     curriculumIndex,
                     data.verified_index ||
                     {}
                 );
-
+ 
             indexStatus.textContent =
                 "تم تحميل فهرس الدروس.";
-
+ 
         }
-
+ 
         else {
-
+ 
             indexStatus.textContent =
                 "تم تشغيل الفهرس الداخلي.";
-
+ 
         }
     }
-
+ 
     catch(error) {
-
+ 
         console.warn(
             "INDEX:",
             error
         );
-
+ 
         indexStatus.textContent =
             "تم تشغيل الفهرس الداخلي.";
     }
-
+ 
     updateLessons();
 }
-
-
+ 
+ 
 /* =========================================================
    تحديث الدروس
 ========================================================= */
-
+ 
 function updateLessons() {
-
+ 
     const grade =
         gradeSelect.value;
-
+ 
     const subject =
         subjectSelect.value;
-
+ 
     const language =
         languageSelect.value;
-
+ 
     let lessons = [];
-
+ 
     const gradeData =
         curriculumIndex?.[subject]?.[grade];
-
+ 
     if (gradeData) {
-
+ 
         const languageData =
             gradeData[language];
-
+ 
         if (
             Array.isArray(
                 languageData
@@ -1502,16 +1502,16 @@ function updateLessons() {
                 ...languageData
             );
         }
-
+ 
         if (
             lessons.length === 0
         ) {
-
+ 
             Object.values(
                 gradeData
             ).forEach(
                 value => {
-
+ 
                     if (
                         Array.isArray(
                             value
@@ -1521,7 +1521,7 @@ function updateLessons() {
                             ...value
                         );
                     }
-
+ 
                     else if (
                         value &&
                         typeof value ===
@@ -1531,7 +1531,7 @@ function updateLessons() {
                             value
                         ).forEach(
                             nested => {
-
+ 
                                 if (
                                     Array.isArray(
                                         nested
@@ -1548,104 +1548,104 @@ function updateLessons() {
             );
         }
     }
-
+ 
     lessons =
         [
             ...new Set(
                 lessons
             )
         ];
-
+ 
     lessonSelect.innerHTML =
         "";
-
+ 
     const first =
         document.createElement(
             "option"
         );
-
+ 
     first.value = "";
-
+ 
     first.textContent =
         lessons.length
             ? "اختر الدرس"
             : "لا توجد دروس مفهرسة بعد";
-
+ 
     lessonSelect.appendChild(
         first
     );
-
+ 
     lessons.forEach(
         lesson => {
-
+ 
             const option =
                 document.createElement(
                     "option"
                 );
-
+ 
             option.value =
                 lesson;
-
+ 
             option.textContent =
                 lesson;
-
+ 
             lessonSelect.appendChild(
                 option
             );
         }
     );
 }
-
-
+ 
+ 
 gradeSelect.addEventListener(
     "change",
     updateLessons
 );
-
+ 
 subjectSelect.addEventListener(
     "change",
     updateLessons
 );
-
+ 
 languageSelect.addEventListener(
     "change",
     updateLessons
 );
-
-
+ 
+ 
 function updateInputDirection() {
     const isLTR =
         languageSelect.value === "English" ||
         languageSelect.value === "Français";
-
+ 
     messageInput.dir =
         isLTR ? "ltr" : "rtl";
-
+ 
     messageInput.style.textAlign =
         isLTR ? "left" : "right";
 }
-
+ 
 languageSelect.addEventListener(
     "change",
     updateInputDirection
 );
-
+ 
 updateInputDirection();
-
-
+ 
+ 
 /* =========================================================
    STUDENT ID
 ========================================================= */
-
+ 
 function getStudentId() {
-
+ 
     let id =
         localStorage.getItem(
             "nabil_student_id"
         );
-
+ 
     if (!id) {
-
+ 
         id =
             "student_" +
             Date.now() +
@@ -1653,72 +1653,72 @@ function getStudentId() {
             Math.random()
                 .toString(36)
                 .substring(2, 8);
-
+ 
         localStorage.setItem(
             "nabil_student_id",
             id
         );
     }
-
+ 
     return id;
 }
-
-
+ 
+ 
 /* =========================================================
    عرض النص
 ========================================================= */
-
+ 
 function renderAIText(text) {
-
+ 
     if (!text) {
         return "";
     }
-
+ 
     const mathBlocks = [];
-
+ 
     function saveMath(match) {
-
+ 
         const i =
             mathBlocks.length;
-
+ 
         mathBlocks.push(
             match
         );
-
+ 
         return (
             "___NABIL_MATH_" +
             i +
             "___"
         );
     }
-
+ 
     let content =
         String(text);
-
+ 
     content =
         content.replace(
             /\$\$[\s\S]*?\$\$/g,
             saveMath
         );
-
+ 
     content =
         content.replace(
             /\\\[[\s\S]*?\\\]/g,
             saveMath
         );
-
+ 
     content =
         content.replace(
             /\\\([\s\S]*?\\\)/g,
             saveMath
         );
-
+ 
     content =
         content.replace(
             /\$[^$\n]+\$/g,
             saveMath
         );
-
+ 
     content =
         content
             .replace(
@@ -1733,40 +1733,40 @@ function renderAIText(text) {
                 />/g,
                 "&gt;"
             );
-
+ 
     content =
         content.replace(
             /^### (.+)$/gm,
             "<h4>$1</h4>"
         );
-
+ 
     content =
         content.replace(
             /^## (.+)$/gm,
             "<h3>$1</h3>"
         );
-
+ 
     content =
         content.replace(
             /^# (.+)$/gm,
             "<h2>$1</h2>"
         );
-
+ 
     content =
         content.replace(
             /\*\*(.+?)\*\*/g,
             "<strong>$1</strong>"
         );
-
+ 
     content =
         content.replace(
             /\n/g,
             "<br>"
         );
-
+ 
     mathBlocks.forEach(
         (math, i) => {
-
+ 
             content =
                 content.replace(
                     "___NABIL_MATH_" +
@@ -1776,17 +1776,17 @@ function renderAIText(text) {
                 );
         }
     );
-
+ 
     return content;
 }
-
-
+ 
+ 
 /* =========================================================
    النسخ
 ========================================================= */
-
+ 
 function toUnicodeSuperscript(value) {
-
+ 
     const map = {
         "0": "⁰",
         "1": "¹",
@@ -1805,7 +1805,7 @@ function toUnicodeSuperscript(value) {
         ")": "⁾",
         "n": "ⁿ"
     };
-
+ 
     return String(value)
         .split("")
         .map(
@@ -1814,13 +1814,13 @@ function toUnicodeSuperscript(value) {
         )
         .join("");
 }
-
-
+ 
+ 
 function formatAnswerForSharing(text) {
-
+ 
     let value =
         String(text || "");
-
+ 
     // إزالة محددات LaTeX مع الإبقاء على المحتوى
     value = value
         .replace(/\\\[/g, "")
@@ -1829,7 +1829,7 @@ function formatAnswerForSharing(text) {
         .replace(/\\\)/g, "")
         .replace(/\$\$/g, "")
         .replace(/\$/g, "");
-
+ 
     // أوامر شائعة
     const replacements = [
         [/\\times/g, "×"],
@@ -1859,10 +1859,10 @@ function formatAnswerForSharing(text) {
         [/\\mathbb\{Z\}/g, "ℤ"],
         [/\\mathbb\{Q\}/g, "ℚ"]
     ];
-
+ 
     replacements.forEach(
         ([pattern, replacement]) => {
-
+ 
             value =
                 value.replace(
                     pattern,
@@ -1870,26 +1870,26 @@ function formatAnswerForSharing(text) {
                 );
         }
     );
-
+ 
     // الكسور البسيطة والمتداخلة على عدة دورات
     for (
         let i = 0;
         i < 5;
         i++
     ) {
-
+ 
         value = value.replace(
             /\\frac\{([^{}]+)\}\{([^{}]+)\}/g,
             "($1)⁄($2)"
         );
     }
-
+ 
     // الجذور
     value = value.replace(
         /√\{([^{}]+)\}/g,
         "√($1)"
     );
-
+ 
     // الأسس الرقمية
     value = value.replace(
         /\^\{([0-9+\-=()n]+)\}/g,
@@ -1898,7 +1898,7 @@ function formatAnswerForSharing(text) {
                 exp
             )
     );
-
+ 
     value = value.replace(
         /\^([0-9])/g,
         (_, exp) =>
@@ -1906,7 +1906,7 @@ function formatAnswerForSharing(text) {
                 exp
             )
     );
-
+ 
     // تنظيف أوامر التنسيق
     value = value
         .replace(
@@ -1923,71 +1923,227 @@ function formatAnswerForSharing(text) {
         .replace(/[ \t]+\n/g, "\n")
         .replace(/\n{3,}/g, "\n\n")
         .trim();
-
+ 
     return value;
 }
-
-
+ 
+ 
+ 
+/* =========================================================
+   النسخ المنسق إلى Microsoft Word
+   - يحول جداول Markdown إلى جداول HTML حقيقية
+   - ينظف أوامر LaTeX غير المناسبة عند اللصق
+========================================================= */
+ 
+function escapeWordHtml(value) {
+    return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+}
+ 
+function isMarkdownTableSeparator(line) {
+    const cells = String(line || "")
+        .trim()
+        .replace(/^\|/, "")
+        .replace(/\|$/, "")
+        .split("|")
+        .map(v => v.trim());
+ 
+    return cells.length > 0 && cells.every(cell => /^:?-{3,}:?$/.test(cell));
+}
+ 
+function splitMarkdownTableRow(line) {
+    return String(line || "")
+        .trim()
+        .replace(/^\|/, "")
+        .replace(/\|$/, "")
+        .split("|")
+        .map(v => v.trim());
+}
+ 
+function wordInlineHtml(text) {
+    let value = formatAnswerForSharing(text);
+    value = escapeWordHtml(value);
+ 
+    value = value
+        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*(.+?)\*/g, "<em>$1</em>");
+ 
+    return value;
+}
+ 
+function formatAnswerForWord(text) {
+    const raw = String(text || "").replace(/\r/g, "");
+    const lines = raw.split("\n");
+    let html = "";
+    let i = 0;
+ 
+    while (i < lines.length) {
+        const line = lines[i];
+ 
+        // جدول Markdown: سطر عناوين + سطر --- + البيانات
+        if (
+            line.includes("|") &&
+            i + 1 < lines.length &&
+            isMarkdownTableSeparator(lines[i + 1])
+        ) {
+            const headers = splitMarkdownTableRow(line);
+            i += 2;
+            const rows = [];
+ 
+            while (i < lines.length && lines[i].includes("|") && lines[i].trim()) {
+                rows.push(splitMarkdownTableRow(lines[i]));
+                i++;
+            }
+ 
+            html += '<table style="border-collapse:collapse;width:auto;margin:10px 0;font-family:Arial,sans-serif;font-size:11pt;">';
+            html += "<thead><tr>" + headers.map(cell =>
+                '<th style="border:1px solid #666;padding:6px 10px;text-align:center;font-weight:bold;background:#f2f2f2;">' +
+                wordInlineHtml(cell) + "</th>"
+            ).join("") + "</tr></thead><tbody>";
+ 
+            rows.forEach(row => {
+                html += "<tr>" + row.map(cell =>
+                    '<td style="border:1px solid #666;padding:6px 10px;text-align:center;vertical-align:middle;">' +
+                    wordInlineHtml(cell) + "</td>"
+                ).join("") + "</tr>";
+            });
+ 
+            html += "</tbody></table>";
+            continue;
+        }
+ 
+        const trimmed = line.trim();
+ 
+        if (!trimmed) {
+            html += '<div style="height:7px"></div>';
+            i++;
+            continue;
+        }
+ 
+        if (/^###\s+/.test(trimmed)) {
+            html += '<h3 style="margin:10px 0 5px;font-size:13pt;">' + wordInlineHtml(trimmed.replace(/^###\s+/, "")) + "</h3>";
+        } else if (/^##\s+/.test(trimmed)) {
+            html += '<h2 style="margin:12px 0 6px;font-size:14pt;">' + wordInlineHtml(trimmed.replace(/^##\s+/, "")) + "</h2>";
+        } else if (/^#\s+/.test(trimmed)) {
+            html += '<h1 style="margin:12px 0 6px;font-size:16pt;">' + wordInlineHtml(trimmed.replace(/^#\s+/, "")) + "</h1>";
+        } else if (/^[-*]\s+/.test(trimmed)) {
+            html += '<div style="margin:3px 0;">• ' + wordInlineHtml(trimmed.replace(/^[-*]\s+/, "")) + "</div>";
+        } else {
+            html += '<div style="margin:4px 0;">' + wordInlineHtml(line) + "</div>";
+        }
+ 
+        i++;
+    }
+ 
+    const dir = languageSelect.value === "العربية" ? "rtl" : "ltr";
+    const align = dir === "rtl" ? "right" : "left";
+ 
+    return '<div dir="' + dir + '" style="font-family:Arial,sans-serif;font-size:11pt;line-height:1.5;text-align:' + align + ';">' + html + "</div>";
+}
+ 
+async function copyAnswerForWord(text, button = null) {
+    const html = formatAnswerForWord(text);
+    const plain = formatAnswerForSharing(text);
+ 
+    try {
+        if (navigator.clipboard && typeof ClipboardItem !== "undefined") {
+            const item = new ClipboardItem({
+                "text/html": new Blob([html], { type: "text/html" }),
+                "text/plain": new Blob([plain], { type: "text/plain" })
+            });
+            await navigator.clipboard.write([item]);
+        } else {
+            const holder = document.createElement("div");
+            holder.innerHTML = html;
+            holder.style.position = "fixed";
+            holder.style.left = "-99999px";
+            document.body.appendChild(holder);
+ 
+            const range = document.createRange();
+            range.selectNodeContents(holder);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            document.execCommand("copy");
+            selection.removeAllRanges();
+            holder.remove();
+        }
+ 
+        if (button) {
+            const old = button.textContent;
+            button.textContent = "✅ تم النسخ إلى Word";
+            setTimeout(() => button.textContent = old, 1800);
+        }
+    } catch (error) {
+        console.error("WORD COPY ERROR:", error);
+        await copyAnswer(text);
+        alert("تم نسخ نسخة نصية. إذا لم يحافظ Word على الجدول استخدم متصفح Chrome أو Edge ثم أعد المحاولة.");
+    }
+}
+ 
 async function copyAnswer(text) {
-
+ 
     const shareText =
         formatAnswerForSharing(
             text
         );
-
+ 
     try {
-
+ 
         await navigator
             .clipboard
             .writeText(
                 shareText
             );
-
+ 
     }
-
+ 
     catch(error) {
-
+ 
         console.error(
             "COPY ERROR:",
             error
         );
-
+ 
         const area =
             document.createElement(
                 "textarea"
             );
-
+ 
         area.value =
             shareText;
-
+ 
         area.style.position =
             "fixed";
-
+ 
         area.style.opacity =
             "0";
-
+ 
         document.body
             .appendChild(
                 area
             );
-
+ 
         area.select();
-
+ 
         document.execCommand(
             "copy"
         );
-
+ 
         area.remove();
     }
 }
-
-
+ 
+ 
 /* =========================================================
    القراءة الصوتية
 ========================================================= */
-
+ 
 function cleanSpeechText(text) {
-
+ 
     return String(
         text || ""
     )
@@ -2029,77 +2185,77 @@ function cleanSpeechText(text) {
         )
         .trim();
 }
-
-
+ 
+ 
 let activeReadButton = null;
 let activeUtterance = null;
-
-
+ 
+ 
 function stopReading() {
-
+ 
     if (
         "speechSynthesis"
         in window
     ) {
-
+ 
         speechSynthesis.cancel();
     }
-
+ 
     if (activeReadButton) {
-
+ 
         activeReadButton.textContent =
             "🔊 اقرأ الإجابة";
-
+ 
         activeReadButton.dataset.reading =
             "false";
     }
-
+ 
     activeReadButton = null;
     activeUtterance = null;
 }
-
-
+ 
+ 
 function readAnswer(
     text,
     button = null
 ) {
-
+ 
     if (
         !(
             "speechSynthesis"
             in window
         )
     ) {
-
+ 
         alert(
             "القراءة الصوتية غير مدعومة."
         );
-
+ 
         return;
     }
-
+ 
     if (
         button &&
         button.dataset.reading ===
             "true"
     ) {
-
+ 
         stopReading();
         return;
     }
-
+ 
     stopReading();
-
+ 
     const utterance =
         new SpeechSynthesisUtterance(
             cleanSpeechText(
                 text
             )
         );
-
+ 
     const language =
         languageSelect.value;
-
+ 
     utterance.lang =
         language ===
             "English"
@@ -2108,64 +2264,64 @@ function readAnswer(
                 "Français"
                 ? "fr-FR"
                 : "ar-LB";
-
+ 
     utterance.rate =
         0.92;
-
+ 
     if (button) {
-
+ 
         activeReadButton =
             button;
-
+ 
         button.dataset.reading =
             "true";
-
+ 
         button.textContent =
             "⏹ إيقاف القراءة";
     }
-
+ 
     activeUtterance =
         utterance;
-
+ 
     utterance.onend =
         stopReading;
-
+ 
     utterance.onerror =
         stopReading;
-
+ 
     speechSynthesis.speak(
         utterance
     );
 }
-
-
+ 
+ 
 /* =========================================================
    دوال الرسم الرياضي
 ========================================================= */
-
+ 
 function functionY(
     kind,
     x
 ) {
-
+ 
     switch(kind) {
-
+ 
         case "ln":
             return (
                 x > 0
                     ? Math.log(x)
                     : null
             );
-
+ 
         case "exp":
             return Math.exp(x);
-
+ 
         case "square":
             return x * x;
-
+ 
         case "linear":
             return x;
-
+ 
         case "inverse":
             return (
                 Math.abs(x) <
@@ -2173,93 +2329,93 @@ function functionY(
                     ? null
                     : 1 / x
             );
-
+ 
         default:
             return null;
     }
 }
-
-
+ 
+ 
 /* =========================================================
    رسم الدوال
 ========================================================= */
-
+ 
 function renderFunction(
     drawing
 ) {
-
+ 
     const width = 820;
     const height = 430;
-
+ 
     const left = 58;
     const right = 28;
     const top = 28;
     const bottom = 48;
-
+ 
     let xMin =
         Number(
             drawing.x_min ??
             -1
         );
-
+ 
     let xMax =
         Number(
             drawing.x_max ??
             7
         );
-
+ 
     let yMin =
         Number(
             drawing.y_min ??
             -3.5
         );
-
+ 
     let yMax =
         Number(
             drawing.y_max ??
             2.5
         );
-
+ 
     if (
         drawing.function ===
         "ln"
     ) {
-
+ 
         xMin =
             Math.min(
                 xMin,
                 -1
             );
-
+ 
         xMax =
             Math.max(
                 xMax,
                 6.5
             );
-
+ 
         yMin =
             Math.min(
                 yMin,
                 -3.5
             );
-
+ 
         yMax =
             Math.max(
                 yMax,
                 2.5
             );
     }
-
+ 
     const plotWidth =
         width -
         left -
         right;
-
+ 
     const plotHeight =
         height -
         top -
         bottom;
-
+ 
     function sx(x) {
         return (
             left +
@@ -2270,7 +2426,7 @@ function renderFunction(
             plotWidth
         );
     }
-
+ 
     function sy(y) {
         return (
             top +
@@ -2281,18 +2437,18 @@ function renderFunction(
             plotHeight
         );
     }
-
+ 
     let path = "";
     let penDown = false;
-
+ 
     const steps = 850;
-
+ 
     for (
         let i = 0;
         i <= steps;
         i++
     ) {
-
+ 
         const x =
             xMin +
             (
@@ -2300,53 +2456,53 @@ function renderFunction(
                 i /
                 steps
             );
-
+ 
         const y =
             functionY(
                 drawing.function,
                 x
             );
-
+ 
         if (
             y === null ||
             !Number.isFinite(y)
         ) {
-
+ 
             penDown = false;
             continue;
         }
-
+ 
         if (
             y < yMin - 1 ||
             y > yMax + 1
         ) {
-
+ 
             penDown = false;
             continue;
         }
-
+ 
         const px = sx(x);
         const py = sy(y);
-
+ 
         if (!penDown) {
-
+ 
             path +=
                 `M ${px} ${py} `;
-
+ 
             penDown = true;
-
+ 
         }
-
+ 
         else {
-
+ 
             path +=
                 `L ${px} ${py} `;
         }
     }
-
+ 
     let grid = "";
     let ticks = "";
-
+ 
     for (
         let x =
             Math.ceil(xMin);
@@ -2354,9 +2510,9 @@ function renderFunction(
             Math.floor(xMax);
         x++
     ) {
-
+ 
         const px = sx(x);
-
+ 
         grid += `
             <line
                 x1="${px}"
@@ -2367,9 +2523,9 @@ function renderFunction(
                 stroke-width="1"
             />
         `;
-
+ 
         if (x !== 0) {
-
+ 
             ticks += `
                 <text
                     x="${px}"
@@ -2382,7 +2538,7 @@ function renderFunction(
             `;
         }
     }
-
+ 
     for (
         let y =
             Math.ceil(yMin);
@@ -2390,9 +2546,9 @@ function renderFunction(
             Math.floor(yMax);
         y++
     ) {
-
+ 
         const py = sy(y);
-
+ 
         grid += `
             <line
                 x1="${left}"
@@ -2403,7 +2559,7 @@ function renderFunction(
                 stroke-width="1"
             />
         `;
-
+ 
         ticks += `
             <text
                 x="${sx(0) - 18}"
@@ -2415,19 +2571,19 @@ function renderFunction(
             </text>
         `;
     }
-
+ 
     const pointList =
         Array.isArray(
             drawing.points
         )
         ? [...drawing.points]
         : [];
-
+ 
     if (
         drawing.function ===
         "ln"
     ) {
-
+ 
         const specialPoints = [
             {
                 x: 1,
@@ -2448,10 +2604,10 @@ function renderFunction(
                 color: "#dc2626"
             }
         ];
-
+ 
         specialPoints.forEach(
             p => {
-
+ 
                 const exists =
                     pointList.some(
                         item =>
@@ -2469,37 +2625,37 @@ function renderFunction(
                                 p.y
                             ) < 0.01
                     );
-
+ 
                 if (!exists) {
                     pointList.push(p);
                 }
             }
         );
     }
-
+ 
     let points = "";
-
+ 
     pointList.forEach(
         point => {
-
+ 
             const px =
                 sx(
                     Number(
                         point.x
                     )
                 );
-
+ 
             const py =
                 sy(
                     Number(
                         point.y
                     )
                 );
-
+ 
             const color =
                 point.color ||
                 "#dc2626";
-
+ 
             points += `
                 <circle
                     cx="${px}"
@@ -2507,7 +2663,7 @@ function renderFunction(
                     r="6"
                     fill="${color}"
                 />
-
+ 
                 <text
                     x="${px + 10}"
                     y="${py - 12}"
@@ -2522,24 +2678,24 @@ function renderFunction(
             `;
         }
     );
-
+ 
     let asymptote = "";
-
+ 
     if (
         drawing.vertical_asymptote !==
             undefined &&
         drawing.vertical_asymptote !==
             null
     ) {
-
+ 
         const value =
             Number(
                 drawing.vertical_asymptote
             );
-
+ 
         const px =
             sx(value);
-
+ 
         asymptote = `
             <line
                 x1="${px}"
@@ -2550,7 +2706,7 @@ function renderFunction(
                 stroke-width="3"
                 stroke-dasharray="8 6"
             />
-
+ 
             <text
                 x="${px + 14}"
                 y="${height-bottom-10}"
@@ -2564,7 +2720,7 @@ function renderFunction(
             </text>
         `;
     }
-
+ 
     const xAxisY =
         (
             yMin <= 0 &&
@@ -2572,7 +2728,7 @@ function renderFunction(
         )
         ? sy(0)
         : height - bottom;
-
+ 
     const yAxisX =
         (
             xMin <= 0 &&
@@ -2580,49 +2736,49 @@ function renderFunction(
         )
         ? sx(0)
         : left;
-
+ 
     let properties = "";
-
+ 
     if (
         drawing.function ===
         "ln"
     ) {
-
+ 
         properties = `
             <strong>
                 خصائص الدالة ln(x)
             </strong>
-
+ 
             <div class="property-row">
                 <span>• المجال:</span>
                 <span class="property-value">]0, +∞[</span>
             </div>
-
+ 
             <div class="property-row">
                 <span>• المدى:</span>
                 <span class="property-value">ℝ</span>
             </div>
-
+ 
             <div class="property-row">
                 <span>• تمر بالنقطة:</span>
                 <span class="property-value">(1, 0)</span>
             </div>
-
+ 
             <div class="property-row">
                 <span>• تمر بالنقطة:</span>
                 <span class="property-value">(e, 1)</span>
             </div>
-
+ 
             <div class="property-row">
                 <span>• التغيّر:</span>
                 <span>متزايدة على مجالها</span>
             </div>
-
+ 
             <div class="property-row">
                 <span>• التقعّر:</span>
                 <span>مقعّرة نحو الأسفل</span>
             </div>
-
+ 
             <div class="property-row">
                 <span>• المقارب:</span>
                 <span class="property-value">x = 0</span>
@@ -2630,21 +2786,21 @@ function renderFunction(
             </div>
         `;
     }
-
+ 
     else {
-
+ 
         properties = `
             <strong>
                 خصائص الرسم
             </strong>
-
+ 
             <div>
                 الدالة:
                 ${drawing.expression || ""}
             </div>
         `;
     }
-
+ 
     return `
         <div class="drawing-title">
             📊
@@ -2654,18 +2810,18 @@ function renderFunction(
                 "الرسم البياني"
             }
         </div>
-
+ 
         <div class="graph-shell">
-
+ 
             <div class="graph-layout">
-
+ 
                 <div class="graph-canvas">
-
+ 
                     <svg
                         viewBox="0 0 ${width} ${height}"
                         role="img"
                     >
-
+ 
                         <defs>
                             <marker
                                 id="arrowX"
@@ -2681,9 +2837,9 @@ function renderFunction(
                                 />
                             </marker>
                         </defs>
-
+ 
                         ${grid}
-
+ 
                         <line
                             x1="${left}"
                             y1="${xAxisY}"
@@ -2693,7 +2849,7 @@ function renderFunction(
                             stroke-width="2"
                             marker-end="url(#arrowX)"
                         />
-
+ 
                         <line
                             x1="${yAxisX}"
                             y1="${height-bottom}"
@@ -2703,11 +2859,11 @@ function renderFunction(
                             stroke-width="2"
                             marker-end="url(#arrowX)"
                         />
-
+ 
                         ${ticks}
-
+ 
                         ${asymptote}
-
+ 
                         <path
                             d="${path}"
                             fill="none"
@@ -2716,9 +2872,9 @@ function renderFunction(
                             stroke-linecap="round"
                             stroke-linejoin="round"
                         />
-
+ 
                         ${points}
-
+ 
                         <text
                             x="${width-right-12}"
                             y="${xAxisY-11}"
@@ -2726,7 +2882,7 @@ function renderFunction(
                         >
                             x
                         </text>
-
+ 
                         <text
                             x="${yAxisX+13}"
                             y="${top+17}"
@@ -2734,45 +2890,45 @@ function renderFunction(
                         >
                             y
                         </text>
-
+ 
                     </svg>
-
+ 
                 </div>
-
+ 
                 <div class="graph-properties">
                     ${properties}
                 </div>
-
+ 
             </div>
-
+ 
         </div>
     `;
 }
-
-
+ 
+ 
 /* =========================================================
    المثلث القائم
 ========================================================= */
-
+ 
 function renderTriangle(
     drawing
 ) {
-
+ 
     const a =
         drawing.labels?.a ??
         drawing.a ??
         "a";
-
+ 
     const b =
         drawing.labels?.b ??
         drawing.b ??
         "b";
-
+ 
     const c =
         drawing.labels?.c ??
         drawing.c ??
         "c";
-
+ 
     return `
         <div class="drawing-title">
             📐
@@ -2781,13 +2937,13 @@ function renderTriangle(
                 "مثلث قائم الزاوية"
             }
         </div>
-
+ 
         <div class="graph-shell">
-
+ 
             <svg
                 viewBox="0 0 720 420"
             >
-
+ 
                 <polygon
                     points="
                         145,330
@@ -2798,7 +2954,7 @@ function renderTriangle(
                     stroke="#2563eb"
                     stroke-width="5"
                 />
-
+ 
                 <polyline
                     points="
                         145,292
@@ -2809,7 +2965,7 @@ function renderTriangle(
                     stroke="#ef4444"
                     stroke-width="5"
                 />
-
+ 
                 <text
                     x="92"
                     y="210"
@@ -2817,7 +2973,7 @@ function renderTriangle(
                 >
                     ${a}
                 </text>
-
+ 
                 <text
                     x="355"
                     y="368"
@@ -2825,7 +2981,7 @@ function renderTriangle(
                 >
                     ${b}
                 </text>
-
+ 
                 <text
                     x="385"
                     y="180"
@@ -2833,7 +2989,7 @@ function renderTriangle(
                 >
                     ${c}
                 </text>
-
+ 
                 <text
                     x="152"
                     y="320"
@@ -2841,34 +2997,34 @@ function renderTriangle(
                 >
                     90°
                 </text>
-
+ 
             </svg>
-
+ 
         </div>
     `;
 }
-
-
+ 
+ 
 /* =========================================================
    الدائرة والمماس
 ========================================================= */
-
+ 
 function renderCircle(
     drawing
 ) {
-
+ 
     const center =
         drawing.center ||
         "O";
-
+ 
     const tangent =
         drawing.tangent_point ||
         "A";
-
+ 
     const external =
         drawing.external_point ||
         "M";
-
+ 
     return `
         <div class="drawing-title">
             ⭕
@@ -2877,13 +3033,13 @@ function renderCircle(
                 "الدائرة والمماس"
             }
         </div>
-
+ 
         <div class="graph-shell">
-
+ 
             <svg
                 viewBox="0 0 720 420"
             >
-
+ 
                 <circle
                     cx="280"
                     cy="210"
@@ -2892,14 +3048,14 @@ function renderCircle(
                     stroke="#2563eb"
                     stroke-width="5"
                 />
-
+ 
                 <circle
                     cx="280"
                     cy="210"
                     r="6"
                     fill="#dc2626"
                 />
-
+ 
                 <line
                     x1="280"
                     y1="210"
@@ -2908,7 +3064,7 @@ function renderCircle(
                     stroke="#dc2626"
                     stroke-width="4"
                 />
-
+ 
                 <line
                     x1="405"
                     y1="60"
@@ -2917,21 +3073,21 @@ function renderCircle(
                     stroke="#16a34a"
                     stroke-width="5"
                 />
-
+ 
                 <circle
                     cx="405"
                     cy="210"
                     r="6"
                     fill="#111827"
                 />
-
+ 
                 <circle
                     cx="405"
                     cy="100"
                     r="6"
                     fill="#111827"
                 />
-
+ 
                 <text
                     x="255"
                     y="190"
@@ -2939,7 +3095,7 @@ function renderCircle(
                 >
                     ${center}
                 </text>
-
+ 
                 <text
                     x="420"
                     y="215"
@@ -2947,7 +3103,7 @@ function renderCircle(
                 >
                     ${tangent}
                 </text>
-
+ 
                 <text
                     x="420"
                     y="105"
@@ -2955,61 +3111,61 @@ function renderCircle(
                 >
                     ${external}
                 </text>
-
+ 
             </svg>
-
+ 
         </div>
     `;
 }
-
-
+ 
+ 
 /* =========================================================
    مخطط القوى
 ========================================================= */
-
+ 
 function renderForces(
     drawing
 ) {
-
+ 
     let arrows = "";
-
+ 
     (
         drawing.forces ||
         []
     ).forEach(
         force => {
-
+ 
             let x2 = 360;
             let y2 = 210;
-
+ 
             if (
                 force.direction ===
                 "up"
             ) {
                 y2 = 70;
             }
-
+ 
             if (
                 force.direction ===
                 "down"
             ) {
                 y2 = 350;
             }
-
+ 
             if (
                 force.direction ===
                 "left"
             ) {
                 x2 = 165;
             }
-
+ 
             if (
                 force.direction ===
                 "right"
             ) {
                 x2 = 555;
             }
-
+ 
             arrows += `
                 <line
                     x1="360"
@@ -3019,14 +3175,14 @@ function renderForces(
                     stroke="#dc2626"
                     stroke-width="5"
                 />
-
+ 
                 <circle
                     cx="${x2}"
                     cy="${y2}"
                     r="5"
                     fill="#dc2626"
                 />
-
+ 
                 <text
                     x="${x2 + 12}"
                     y="${y2 - 10}"
@@ -3037,7 +3193,7 @@ function renderForces(
             `;
         }
     );
-
+ 
     return `
         <div class="drawing-title">
             ⚙️
@@ -3046,13 +3202,13 @@ function renderForces(
                 "مخطط القوى"
             }
         </div>
-
+ 
         <div class="graph-shell">
-
+ 
             <svg
                 viewBox="0 0 720 420"
             >
-
+ 
                 <rect
                     x="305"
                     y="160"
@@ -3063,7 +3219,7 @@ function renderForces(
                     stroke="#2563eb"
                     stroke-width="4"
                 />
-
+ 
                 <text
                     x="360"
                     y="220"
@@ -3075,35 +3231,35 @@ function renderForces(
                         "m"
                     }
                 </text>
-
+ 
                 ${arrows}
-
+ 
             </svg>
-
+ 
         </div>
     `;
 }
-
-
+ 
+ 
 /* =========================================================
    الكيمياء
 ========================================================= */
-
+ 
 function renderMolecule(
     drawing
 ) {
-
+ 
     const atoms =
         drawing.atoms ||
         [];
-
+ 
     if (!atoms.length) {
         return "";
     }
-
+ 
     const width = 720;
     const centerY = 210;
-
+ 
     const gap =
         atoms.length > 1
             ? 470 /
@@ -3111,31 +3267,31 @@ function renderMolecule(
                   atoms.length - 1
               )
             : 0;
-
+ 
     let output = "";
-
+ 
     atoms.forEach(
         (atom, index) => {
-
+ 
             const x =
                 atoms.length === 1
                     ? 360
                     : 125 +
                       gap *
                       index;
-
+ 
             if (
                 index <
                 atoms.length - 1
             ) {
-
+ 
                 const nextX =
                     125 +
                     gap *
                     (
                         index + 1
                     );
-
+ 
                 output += `
                     <line
                         x1="${x + 38}"
@@ -3147,7 +3303,7 @@ function renderMolecule(
                     />
                 `;
             }
-
+ 
             output += `
                 <circle
                     cx="${x}"
@@ -3157,7 +3313,7 @@ function renderMolecule(
                     stroke="#2563eb"
                     stroke-width="4"
                 />
-
+ 
                 <text
                     x="${x}"
                     y="${centerY + 8}"
@@ -3172,7 +3328,7 @@ function renderMolecule(
             `;
         }
     );
-
+ 
     return `
         <div class="drawing-title">
             🧪
@@ -3181,76 +3337,76 @@ function renderMolecule(
                 "البنية الجزيئية"
             }
         </div>
-
+ 
         <div class="graph-shell">
-
+ 
             <svg
                 viewBox="0 0 ${width} 420"
             >
                 ${output}
             </svg>
-
+ 
         </div>
     `;
 }
-
-
+ 
+ 
 /* =========================================================
    اختيار محرّك الرسم
 ========================================================= */
-
+ 
 function renderDrawing(
     drawing
 ) {
-
+ 
     if (
         !drawing ||
         !drawing.type
     ) {
-
+ 
         return `
             <div class="drawing-title">
                 لا توجد رسمة مرتبطة بهذا الجواب.
             </div>
         `;
     }
-
+ 
     switch(
         drawing.type
     ) {
-
+ 
         case "function":
-
+ 
             return renderFunction(
                 drawing
             );
-
+ 
         case "right_triangle":
-
+ 
             return renderTriangle(
                 drawing
             );
-
+ 
         case "circle_tangent":
-
+ 
             return renderCircle(
                 drawing
             );
-
+ 
         case "forces":
-
+ 
             return renderForces(
                 drawing
             );
-
+ 
         case "molecule":
-
+ 
             return renderMolecule(
                 drawing
             );
-
+ 
         default:
-
+ 
             return `
                 <div class="drawing-title">
                     لا يوجد محرّك رسم لهذا النوع بعد.
@@ -3258,34 +3414,34 @@ function renderDrawing(
             `;
     }
 }
-
-
+ 
+ 
 /* =========================================================
    تحميل html2canvas عند الحاجة
 ========================================================= */
-
+ 
 function ensureHtml2Canvas() {
-
+ 
     return new Promise(
         (resolve, reject) => {
-
+ 
             if (
                 window.html2canvas
             ) {
                 resolve(
                     window.html2canvas
                 );
-
+ 
                 return;
             }
-
+ 
             const existing =
                 document.querySelector(
                     'script[data-nabil-html2canvas="1"]'
                 );
-
+ 
             if (existing) {
-
+ 
                 existing.addEventListener(
                     "load",
                     () =>
@@ -3293,35 +3449,35 @@ function ensureHtml2Canvas() {
                             window.html2canvas
                         )
                 );
-
+ 
                 existing.addEventListener(
                     "error",
                     reject
                 );
-
+ 
                 return;
             }
-
+ 
             const script =
                 document.createElement(
                     "script"
                 );
-
+ 
             script.src =
                 "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js";
-
+ 
             script.async = true;
-
+ 
             script.dataset
                 .nabilHtml2canvas =
                 "1";
-
+ 
             script.onload =
                 () =>
                     resolve(
                         window.html2canvas
                     );
-
+ 
             script.onerror =
                 () =>
                     reject(
@@ -3329,7 +3485,7 @@ function ensureHtml2Canvas() {
                             "تعذر تحميل أداة إنشاء الصورة."
                         )
                     );
-
+ 
             document.head
                 .appendChild(
                     script
@@ -3337,34 +3493,34 @@ function ensureHtml2Canvas() {
         }
     );
 }
-
-
+ 
+ 
 /* =========================================================
    تحويل الرسمة إلى PNG
 ========================================================= */
-
+ 
 async function drawingToPngBlob(
     drawingBox
 ) {
-
+ 
     await ensureHtml2Canvas();
-
+ 
     const wasVisible =
         drawingBox
             .classList
             .contains(
                 "visible"
             );
-
+ 
     if (!wasVisible) {
-
+ 
         drawingBox
             .classList
             .add(
                 "visible"
             );
     }
-
+ 
     await new Promise(
         resolve =>
             setTimeout(
@@ -3372,72 +3528,72 @@ async function drawingToPngBlob(
                 120
             )
     );
-
+ 
     const exportClone =
         drawingBox.cloneNode(
             true
         );
-
+ 
     exportClone.classList.add(
         "visible"
     );
-
+ 
     exportClone.style.position =
         "fixed";
-
+ 
     exportClone.style.left =
         "-10000px";
-
+ 
     exportClone.style.top =
         "0";
-
+ 
     exportClone.style.width =
         "980px";
-
+ 
     exportClone.style.maxWidth =
         "980px";
-
+ 
     exportClone.style.background =
         "#ffffff";
-
+ 
     const cloneLayout =
         exportClone.querySelector(
             ".graph-layout"
         );
-
+ 
     if (cloneLayout) {
-
+ 
         cloneLayout.style.display =
             "grid";
-
+ 
         cloneLayout.style.gridTemplateColumns =
             "minmax(0, 1fr) 220px";
-
+ 
         cloneLayout.style.direction =
             "ltr";
     }
-
+ 
     const cloneProperties =
         exportClone.querySelector(
             ".graph-properties"
         );
-
+ 
     if (cloneProperties) {
-
+ 
         cloneProperties.style.fontSize =
             "12px";
-
+ 
         cloneProperties.style.lineHeight =
             "1.45";
-
+ 
         cloneProperties.style.direction =
             "rtl";
     }
-
+ 
     document.body.appendChild(
         exportClone
     );
-
+ 
     await new Promise(
         resolve =>
             setTimeout(
@@ -3445,59 +3601,59 @@ async function drawingToPngBlob(
                 80
             )
     );
-
+ 
     const canvas =
         await window.html2canvas(
             exportClone,
             {
                 backgroundColor:
                     "#ffffff",
-
+ 
                 scale:
                     2,
-
+ 
                 useCORS:
                     true,
-
+ 
                 logging:
                     false,
-
+ 
                 width:
                     exportClone.scrollWidth,
-
+ 
                 height:
                     exportClone.scrollHeight,
-
+ 
                 windowWidth:
                     1200
             }
         );
-
+ 
     exportClone.remove();
-
+ 
     if (!wasVisible) {
-
+ 
         drawingBox
             .classList
             .remove(
                 "visible"
             );
     }
-
+ 
     return new Promise(
         (resolve, reject) => {
-
+ 
             canvas.toBlob(
                 blob => {
-
+ 
                     if (blob) {
-
+ 
                         resolve(blob);
-
+ 
                     }
-
+ 
                     else {
-
+ 
                         reject(
                             new Error(
                                 "تعذر إنشاء ملف PNG."
@@ -3505,54 +3661,54 @@ async function drawingToPngBlob(
                         );
                     }
                 },
-
+ 
                 "image/png",
                 1
             );
         }
     );
 }
-
-
+ 
+ 
 /* =========================================================
    تنزيل الرسمة
 ========================================================= */
-
+ 
 async function downloadDrawing(
     drawingBox
 ) {
-
+ 
     try {
-
+ 
         const blob =
             await drawingToPngBlob(
                 drawingBox
             );
-
+ 
         const url =
             URL.createObjectURL(
                 blob
             );
-
+ 
         const link =
             document.createElement(
                 "a"
             );
-
+ 
         link.href = url;
-
+ 
         link.download =
             "NABIL-AI-drawing.png";
-
+ 
         document.body
             .appendChild(
                 link
             );
-
+ 
         link.click();
-
+ 
         link.remove();
-
+ 
         setTimeout(
             () =>
                 URL.revokeObjectURL(
@@ -3561,36 +3717,36 @@ async function downloadDrawing(
             1000
         );
     }
-
+ 
     catch(error) {
-
+ 
         console.error(
             "DOWNLOAD DRAWING:",
             error
         );
-
+ 
         alert(
             "تعذر تنزيل الرسمة."
         );
     }
 }
-
-
+ 
+ 
 /* =========================================================
    مشاركة الرسمة
 ========================================================= */
-
+ 
 async function shareDrawing(
     drawingBox
 ) {
-
+ 
     try {
-
+ 
         const blob =
             await drawingToPngBlob(
                 drawingBox
             );
-
+ 
         const file =
             new File(
                 [blob],
@@ -3600,7 +3756,7 @@ async function shareDrawing(
                         "image/png"
                 }
             );
-
+ 
         // 1) المشاركة الأصلية للملف على الهاتف والأجهزة التي تدعم Web Share
         if (
             typeof navigator.share === "function" &&
@@ -3611,34 +3767,34 @@ async function shareDrawing(
                 }
             )
         ) {
-
+ 
             await navigator.share(
                 {
                     title:
                         "NABIL AI",
-
+ 
                     text:
                         "رسمة تعليمية من منصة النبيل التعليمية الذكية",
-
+ 
                     files:
                         [file]
                 }
             );
-
+ 
             return;
         }
-
+ 
         // 2) على بعض الأجهزة يمكن فتح نافذة المشاركة لكن من دون ملفات
         // نشارك رابط المنصة وننسخ الصورة للحافظة إن أمكن
         let copiedToClipboard = false;
-
+ 
         if (
             navigator.clipboard &&
             typeof ClipboardItem !== "undefined"
         ) {
-
+ 
             try {
-
+ 
                 await navigator.clipboard.write(
                     [
                         new ClipboardItem(
@@ -3648,87 +3804,87 @@ async function shareDrawing(
                         )
                     ]
                 );
-
+ 
                 copiedToClipboard = true;
-
+ 
             }
-
+ 
             catch(copyError) {
-
+ 
                 console.warn(
                     "COPY IMAGE TO CLIPBOARD:",
                     copyError
                 );
             }
         }
-
+ 
         if (
             typeof navigator.share === "function"
         ) {
-
+ 
             try {
-
+ 
                 await navigator.share(
                     {
                         title:
                             "NABIL AI",
-
+ 
                         text:
                             copiedToClipboard
                                 ? "تم نسخ الرسمة إلى الحافظة. الصقها في المحادثة التي تريد إرسالها إليها."
                                 : "رسمة تعليمية من منصة النبيل التعليمية الذكية",
-
+ 
                         url:
                             window.location.href
                     }
                 );
-
+ 
                 return;
-
+ 
             }
-
+ 
             catch(shareError) {
-
+ 
                 if (
                     shareError.name ===
                     "AbortError"
                 ) {
                     return;
                 }
-
+ 
                 console.warn(
                     "TEXT SHARE FALLBACK:",
                     shareError
                 );
             }
         }
-
+ 
         // 3) الحل المضمون على الكمبيوتر:
         // تنزيل الصورة كـ PNG ليتم إرسالها عبر واتساب أو أي تطبيق
         const url =
             URL.createObjectURL(
                 blob
             );
-
+ 
         const link =
             document.createElement(
                 "a"
             );
-
+ 
         link.href =
             url;
-
+ 
         link.download =
             "NABIL-AI-drawing.png";
-
+ 
         document.body.appendChild(
             link
         );
-
+ 
         link.click();
-
+ 
         link.remove();
-
+ 
         setTimeout(
             () =>
                 URL.revokeObjectURL(
@@ -3736,183 +3892,183 @@ async function shareDrawing(
                 ),
             1000
         );
-
+ 
         if (
             copiedToClipboard
         ) {
-
+ 
             alert(
                 "تم نسخ الرسمة إلى الحافظة وتنزيلها أيضًا. يمكنك لصقها مباشرة في واتساب أو أي محادثة."
             );
-
+ 
         }
-
+ 
         else {
-
+ 
             alert(
                 "المشاركة المباشرة غير مدعومة على هذا المتصفح، لذلك تم تنزيل الرسمة كصورة PNG لتتمكن من إرسالها."
             );
         }
-
+ 
     }
-
+ 
     catch(error) {
-
+ 
         if (
             error.name ===
             "AbortError"
         ) {
             return;
         }
-
+ 
         console.error(
             "SHARE DRAWING:",
             error
         );
-
+ 
         // كحل أخير، نحاول تنزيل الرسمة بدل إظهار خطأ فقط
         try {
-
+ 
             await downloadDrawing(
                 drawingBox
             );
-
+ 
             alert(
                 "تعذرت المشاركة المباشرة، لذلك تم تنزيل الرسمة كصورة PNG."
             );
-
+ 
         }
-
+ 
         catch(downloadError) {
-
+ 
             console.error(
                 "FINAL DOWNLOAD FALLBACK:",
                 downloadError
             );
-
+ 
             alert(
                 "تعذر تجهيز الرسمة للمشاركة. جرّب زر تنزيل الرسمة."
             );
         }
     }
 }
-
-
+ 
+ 
 /* =========================================================
    إضافة رسالة
 ========================================================= */
-
+ 
 function addMessage(
     role,
     text,
     drawing = null
 ) {
-
+ 
     if (welcome) {
-
+ 
         welcome.style.display =
             "none";
     }
-
+ 
     const wrapper =
         document.createElement(
             "div"
         );
-
+ 
     wrapper.className =
         "message " +
         role;
-
+ 
     const bubble =
         document.createElement(
             "div"
         );
-
+ 
     bubble.className =
         "bubble";
-
+ 
     const selectedLanguage =
         languageSelect.value;
-
+ 
     const isLTR =
         selectedLanguage === "English" ||
         selectedLanguage === "Français";
-
+ 
     bubble.classList.add(
         isLTR
             ? "ltr-content"
             : "rtl-content"
     );
-
+ 
     bubble.setAttribute(
         "dir",
         isLTR
             ? "ltr"
             : "rtl"
     );
-
+ 
     if (
         role ===
         "teacher"
     ) {
-
+ 
         bubble.innerHTML =
             renderAIText(
                 text
             );
     }
-
+ 
     else {
-
+ 
         bubble.textContent =
             text;
     }
-
+ 
     if (
         role ===
             "teacher" &&
         text
     ) {
-
+ 
         const tools =
             document.createElement(
                 "div"
             );
-
+ 
         tools.className =
             "teacher-tools";
-
-
+ 
+ 
         const copyButton =
             document.createElement(
                 "button"
             );
-
+ 
         copyButton.type =
             "button";
-
+ 
         copyButton.textContent =
             "📋 نسخ الإجابة";
-
+ 
         copyButton.onclick =
             () => {
                 copyAnswer(
                     text
                 );
             };
-
-
+ 
+ 
         const readButton =
             document.createElement(
                 "button"
             );
-
+ 
         readButton.type =
             "button";
-
+ 
         readButton.textContent =
             "🔊 اقرأ الإجابة";
-
+ 
         readButton.onclick =
             () => {
                 readAnswer(
@@ -3920,53 +4076,76 @@ function addMessage(
                     readButton
                 );
             };
-
-
+ 
+ 
         tools.appendChild(
             copyButton
         );
-
+ 
+        const wordButton =
+            document.createElement(
+                "button"
+            );
+ 
+        wordButton.type =
+            "button";
+ 
+        wordButton.textContent =
+            "📝 نسخ إلى Word";
+ 
+        wordButton.onclick =
+            () => {
+                copyAnswerForWord(
+                    text,
+                    wordButton
+                );
+            };
+ 
+        tools.appendChild(
+            wordButton
+        );
+ 
         tools.appendChild(
             readButton
         );
-
-
+ 
+ 
         if (drawing) {
-
+ 
             const drawingBox =
                 document.createElement(
                     "div"
                 );
-
+ 
             drawingBox.className =
                 "answer-drawing";
-
-
+ 
+ 
             function ensureDrawingRendered() {
-
+ 
                 if (
                     !drawingBox
                         .dataset
                         .rendered
                 ) {
-
+ 
                     drawingBox.innerHTML =
                         renderDrawing(
                             drawing
                         );
-
+ 
                     drawingBox
                         .dataset
                         .rendered =
                         "true";
-
+ 
                     if (
                         window.MathJax &&
                         typeof
                         MathJax.typesetPromise ===
                         "function"
                     ) {
-
+ 
                         MathJax
                             .typesetPromise(
                                 [
@@ -3979,200 +4158,200 @@ function addMessage(
                     }
                 }
             }
-
-
+ 
+ 
             const drawButton =
                 document.createElement(
                     "button"
                 );
-
+ 
             drawButton.type =
                 "button";
-
+ 
             drawButton.className =
                 "draw-answer-btn";
-
+ 
             drawButton.textContent =
                 "📐 إظهار الرسمة";
-
+ 
             drawButton.onclick =
                 () => {
-
+ 
                     ensureDrawingRendered();
-
+ 
                     const visible =
                         drawingBox
                             .classList
                             .contains(
                                 "visible"
                             );
-
+ 
                     if (visible) {
-
+ 
                         drawingBox
                             .classList
                             .remove(
                                 "visible"
                             );
-
+ 
                         drawButton
                             .classList
                             .remove(
                                 "active"
                             );
-
+ 
                         drawButton.textContent =
                             "📐 إظهار الرسمة";
                     }
-
+ 
                     else {
-
+ 
                         drawingBox
                             .classList
                             .add(
                                 "visible"
                             );
-
+ 
                         drawButton
                             .classList
                             .add(
                                 "active"
                             );
-
+ 
                         drawButton.textContent =
                             "📐 إخفاء الرسمة";
                     }
                 };
-
-
+ 
+ 
             const downloadButton =
                 document.createElement(
                     "button"
                 );
-
+ 
             downloadButton.type =
                 "button";
-
+ 
             downloadButton.textContent =
                 "⬇️ تنزيل الرسمة";
-
+ 
             downloadButton.onclick =
                 async () => {
-
+ 
                     ensureDrawingRendered();
-
+ 
                     downloadButton.disabled =
                         true;
-
+ 
                     const oldText =
                         downloadButton.textContent;
-
+ 
                     downloadButton.textContent =
                         "⏳ تجهيز الصورة";
-
+ 
                     try {
-
+ 
                         await downloadDrawing(
                             drawingBox
                         );
-
+ 
                     }
-
+ 
                     finally {
-
+ 
                         downloadButton.disabled =
                             false;
-
+ 
                         downloadButton.textContent =
                             oldText;
                     }
                 };
-
-
+ 
+ 
             const shareButton =
                 document.createElement(
                     "button"
                 );
-
+ 
             shareButton.type =
                 "button";
-
+ 
             shareButton.textContent =
                 "📤 مشاركة الرسمة";
-
+ 
             shareButton.onclick =
                 async () => {
-
+ 
                     ensureDrawingRendered();
-
+ 
                     shareButton.disabled =
                         true;
-
+ 
                     const oldText =
                         shareButton.textContent;
-
+ 
                     shareButton.textContent =
                         "⏳ تجهيز المشاركة";
-
+ 
                     try {
-
+ 
                         await shareDrawing(
                             drawingBox
                         );
-
+ 
                     }
-
+ 
                     finally {
-
+ 
                         shareButton.disabled =
                             false;
-
+ 
                         shareButton.textContent =
                             oldText;
                     }
                 };
-
-
+ 
+ 
             tools.appendChild(
                 drawButton
             );
-
+ 
             tools.appendChild(
                 downloadButton
             );
-
+ 
             tools.appendChild(
                 shareButton
             );
-
+ 
             bubble.appendChild(
                 tools
             );
-
+ 
             bubble.appendChild(
                 drawingBox
             );
         }
-
+ 
         else {
-
+ 
             bubble.appendChild(
                 tools
             );
         }
     }
-
+ 
     wrapper.appendChild(
         bubble
     );
-
+ 
     chat.appendChild(
         wrapper
     );
-
+ 
     chat.scrollTop =
         chat.scrollHeight;
-
+ 
     if (
         role ===
             "teacher" &&
@@ -4181,7 +4360,7 @@ function addMessage(
         MathJax.typesetPromise ===
             "function"
     ) {
-
+ 
         MathJax
             .typesetPromise(
                 [bubble]
@@ -4191,133 +4370,133 @@ function addMessage(
             );
     }
 }
-
-
+ 
+ 
 /* =========================================================
    الإرسال إلى NABIL AI
 ========================================================= */
-
+ 
 async function sendToAI(
     message,
     showStudentMessage = true
 ) {
-
+ 
     const grade =
         gradeSelect.value;
-
+ 
     const subject =
         subjectSelect.value;
-
+ 
     const language =
         languageSelect.value;
-
+ 
     const lesson =
         lessonSelect.value;
-
+ 
     if (
         !grade ||
         !subject
     ) {
-
+ 
         alert(
             "اختر الصف والمادة أولاً."
         );
-
+ 
         return;
     }
-
+ 
     if (
         showStudentMessage
     ) {
-
+ 
         if (message) {
-
+ 
             addMessage(
                 "student",
                 message
             );
         }
-
+ 
         else if (
             selectedImage
         ) {
-
+ 
             addMessage(
                 "student",
                 "🖼️ صورة"
             );
         }
     }
-
+ 
     const formData =
         new FormData();
-
+ 
     formData.append(
         "student_id",
         getStudentId()
     );
-
+ 
     if (
         conversationId
     ) {
-
+ 
         formData.append(
             "conversation_id",
             conversationId
         );
     }
-
+ 
     formData.append(
         "message",
         message || ""
     );
-
+ 
     formData.append(
         "grade",
         grade
     );
-
+ 
     formData.append(
         "subject",
         subject
     );
-
+ 
     formData.append(
         "language",
         language
     );
-
+ 
     formData.append(
         "curriculum",
         FIXED_CURRICULUM
     );
-
+ 
     formData.append(
         "lesson",
         lesson || ""
     );
-
+ 
     if (
         selectedImage
     ) {
-
+ 
         formData.append(
             "image",
             selectedImage
         );
     }
-
+ 
     try {
-
+ 
         sendBtn.disabled =
             true;
-
+ 
         startLesson.disabled =
             true;
-
+ 
         sendBtn.textContent =
             "جاري التفكير...";
-
+ 
         const response =
             await fetch(
                 API_BASE +
@@ -4325,32 +4504,32 @@ async function sendToAI(
                 {
                     method:
                         "POST",
-
+ 
                     body:
                         formData
                 }
             );
-
+ 
         let data = {};
-
+ 
         try {
-
+ 
             data =
                 await response.json();
-
+ 
         }
-
+ 
         catch {
-
+ 
             throw new Error(
                 "الخادم لم يُرجع JSON صالحًا."
             );
         }
-
+ 
         if (
             !response.ok
         ) {
-
+ 
             throw new Error(
                 data.detail ||
                 data.error ||
@@ -4360,15 +4539,15 @@ async function sendToAI(
                 )
             );
         }
-
+ 
         if (
             data.conversation_id
         ) {
-
+ 
             conversationId =
                 data.conversation_id;
         }
-
+ 
         addMessage(
             "teacher",
             data.reply ||
@@ -4376,99 +4555,99 @@ async function sendToAI(
             data.drawing ||
             null
         );
-
+ 
         selectedImage =
             null;
-
+ 
         imageInput.value =
             "";
-
+ 
         messageInput.value =
             "";
-
+ 
         messageInput.placeholder =
             "اكتب سؤالك هنا...";
-
+ 
     }
-
+ 
     catch(error) {
-
+ 
         console.error(
             "NABIL AI ERROR:",
             error
         );
-
+ 
         addMessage(
             "teacher",
             "حدث خطأ في الاتصال بـ NABIL AI:\n" +
             error.message
         );
     }
-
+ 
     finally {
-
+ 
         sendBtn.disabled =
             false;
-
+ 
         startLesson.disabled =
             false;
-
+ 
         sendBtn.textContent =
             "إرسال";
     }
 }
-
-
+ 
+ 
 /* =========================================================
    بدء الدرس
 ========================================================= */
-
+ 
 startLesson.addEventListener(
     "click",
     async () => {
-
+ 
         const grade =
             gradeSelect.value;
-
+ 
         const subject =
             subjectSelect.value;
-
+ 
         const language =
             languageSelect.value;
-
+ 
         const lesson =
             lessonSelect.value;
-
+ 
         if (
             !grade ||
             !subject ||
             !lesson
         ) {
-
+ 
             alert(
                 "اختر الصف والمادة والدرس."
             );
-
+ 
             return;
         }
-
+ 
         currentLesson.textContent =
             lesson;
-
+ 
         lessonInfo.style.display =
             "block";
-
+ 
         indexStatus.textContent =
             "المنهج اللبناني الرسمي";
-
+ 
         const prompt =
 `ابدأ درسًا تفاعليًا مع الطالب.
-
+ 
 الصف: ${grade}
 المادة: ${subject}
 اللغة: ${language}
 الدرس: ${lesson}
-
+ 
 ابدأ بتمهيد قصير.
 اشرح الفكرة الأولى بطريقة واضحة.
 استخدم مثالًا مناسبًا.
@@ -4477,154 +4656,154 @@ startLesson.addEventListener(
 إذا كانت الإجابة بالعربية فاستخدم العربية فقط باستثناء الرموز والمصطلحات الرياضية الضرورية.
 لا تستخدم كلمات صينية أو بولندية أو فرنسية أو إنجليزية داخل الشرح العربي بلا ضرورة.
 اطرح سؤال تحقق واحدًا في النهاية.`;
-
+ 
         await sendToAI(
             prompt,
             false
         );
     }
 );
-
-
+ 
+ 
 /* =========================================================
    زر الإرسال
 ========================================================= */
-
+ 
 sendBtn.addEventListener(
     "click",
     async () => {
-
+ 
         const message =
             messageInput
                 .value
                 .trim();
-
+ 
         if (
             !message &&
             !selectedImage
         ) {
-
+ 
             return;
         }
-
+ 
         await sendToAI(
             message,
             true
         );
     }
 );
-
-
+ 
+ 
 /* =========================================================
    رفع الصورة
 ========================================================= */
-
+ 
 imageBtn.addEventListener(
     "click",
     () => {
-
+ 
         imageInput.click();
     }
 );
-
-
+ 
+ 
 imageInput.addEventListener(
     "change",
     function() {
-
+ 
         if (
             this.files &&
             this.files[0]
         ) {
-
+ 
             selectedImage =
                 this.files[0];
-
+ 
             messageInput.placeholder =
                 "تم اختيار صورة. اكتب طلبك أو اضغط إرسال.";
         }
     }
 );
-
-
+ 
+ 
 /* =========================================================
    ENTER
 ========================================================= */
-
+ 
 messageInput.addEventListener(
     "keydown",
     event => {
-
+ 
         if (
             event.key ===
                 "Enter" &&
             !event.shiftKey
         ) {
-
+ 
             event.preventDefault();
-
+ 
             sendBtn.click();
         }
     }
 );
-
-
+ 
+ 
 /* =========================================================
    التعرف الصوتي
 ========================================================= */
-
+ 
 if (
     "webkitSpeechRecognition"
         in window ||
     "SpeechRecognition"
         in window
 ) {
-
+ 
     const SpeechRecognition =
         window.SpeechRecognition ||
         window.webkitSpeechRecognition;
-
+ 
     recognition =
         new SpeechRecognition();
-
+ 
     recognition.continuous =
         false;
-
+ 
     recognition.interimResults =
         false;
-
+ 
     recognition.onresult =
         event => {
-
+ 
             messageInput.value =
                 event.results[0][0]
                     .transcript;
         };
-
+ 
     recognition.onerror =
         event => {
-
+ 
             console.error(
                 "SPEECH ERROR:",
                 event.error
             );
         };
 }
-
-
+ 
+ 
 micBtn.addEventListener(
     "click",
     () => {
-
+ 
         if (!recognition) {
-
+ 
             alert(
                 "التعرف الصوتي غير مدعوم في هذا المتصفح."
             );
-
+ 
             return;
         }
-
+ 
         recognition.lang =
             languageSelect.value ===
                 "English"
@@ -4633,20 +4812,20 @@ micBtn.addEventListener(
                     "Français"
                     ? "fr-FR"
                     : "ar-LB";
-
+ 
         recognition.start();
     }
 );
-
-
+ 
+ 
 /* =========================================================
    تشغيل
 ========================================================= */
-
+ 
 loadCurriculumIndex();
-
+ 
 </script>
-
+ 
 </body>
-
+ 
 </html>
