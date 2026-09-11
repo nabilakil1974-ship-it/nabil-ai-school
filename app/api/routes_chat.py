@@ -784,6 +784,9 @@ def profile_to_dict(profile):
         "lessons_studied": StudentLearningProfile.loads_list(
             profile.lessons_studied_json
         ),
+        "lesson_mastery": StudentLearningProfile.loads_list(
+            profile.lesson_mastery_json
+        ),
         "strengths": StudentLearningProfile.loads_list(
             profile.strengths_json
         ),
@@ -834,6 +837,120 @@ def profile_to_dict(profile):
             else None
         ),
     }
+
+
+def update_lesson_mastery(
+    profile,
+    grade,
+    branch,
+    subject,
+    lesson,
+    metadata,
+):
+    if not lesson:
+        return
+
+    mastery = StudentLearningProfile.loads_list(
+        profile.lesson_mastery_json
+    )
+
+    key = {
+        "grade": grade or "",
+        "branch": branch or "",
+        "subject": subject or "",
+        "lesson": lesson,
+    }
+
+    current = None
+
+    for item in mastery:
+        if (
+            item.get("grade") == key["grade"]
+            and item.get("branch") == key["branch"]
+            and item.get("subject") == key["subject"]
+            and item.get("lesson") == key["lesson"]
+        ):
+            current = item
+            break
+
+    if current is None:
+        current = {
+            **key,
+            "status": "learning",
+            "best_score_percent": 0.0,
+            "attempts": 0,
+        }
+        mastery.append(current)
+
+    assessment = (
+        metadata.get("assessment")
+        if isinstance(metadata, dict)
+        else None
+    )
+
+    if isinstance(assessment, dict):
+        score = assessment.get("score")
+        out_of = assessment.get("out_of")
+
+        if (
+            isinstance(score, (int, float))
+            and isinstance(out_of, (int, float))
+            and out_of > 0
+        ):
+            percent = round(
+                float(score) / float(out_of) * 100,
+                2,
+            )
+
+            current["attempts"] = int(
+                current.get("attempts", 0)
+            ) + 1
+
+            current["best_score_percent"] = max(
+                float(current.get("best_score_percent", 0)),
+                percent,
+            )
+
+            if percent >= 80:
+                current["status"] = "mastered"
+            elif percent < 60:
+                current["status"] = "needs_review"
+            else:
+                current["status"] = "learning"
+
+    if metadata.get("lesson_completed") is True:
+        if current.get("status") != "needs_review":
+            current["status"] = "mastered"
+
+    profile.lesson_mastery_json = (
+        StudentLearningProfile.dumps_list(
+            mastery[-300:]
+        )
+    )
+
+    started = [
+        item
+        for item in mastery
+        if item.get("status") in {
+            "learning",
+            "mastered",
+            "needs_review",
+        }
+    ]
+
+    mastered = [
+        item
+        for item in mastery
+        if item.get("status") == "mastered"
+    ]
+
+    profile.mastered_lessons_count = len(mastered)
+
+    if started:
+        profile.overall_progress_percent = round(
+            len(mastered) / len(started) * 100,
+            2,
+        )
 
 
 def update_learning_profile(
@@ -993,6 +1110,15 @@ def update_learning_profile(
             100.0,
             round(len(lessons) * 2.0, 2),
         )
+
+    update_lesson_mastery(
+        profile=profile,
+        grade=grade,
+        branch=branch,
+        subject=subject,
+        lesson=lesson,
+        metadata=metadata,
+    )
 
     db.add(profile)
     db.commit()
