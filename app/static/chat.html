@@ -10,6 +10,34 @@
 
     <title>منصة النبيل التعليمية الذكية</title>
 
+    <!-- ==================================================
+         MATHJAX
+    ================================================== -->
+
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [
+                    ['\\(', '\\)'],
+                    ['$', '$']
+                ],
+                displayMath: [
+                    ['\\[', '\\]'],
+                    ['$$', '$$']
+                ]
+            },
+            svg: {
+                fontCache: 'global'
+            }
+        };
+    </script>
+
+    <script
+        src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"
+        async>
+    </script>
+
+
     <style>
 
         * {
@@ -238,9 +266,11 @@
 
             border-radius: 14px;
 
-            line-height: 1.7;
+            line-height: 1.8;
 
-            white-space: pre-wrap;
+            word-wrap: break-word;
+
+            overflow-wrap: anywhere;
         }
 
         .student .bubble {
@@ -249,6 +279,121 @@
 
         .teacher .bubble {
             background: #eef8ee;
+        }
+
+        /* =========================
+           MATH
+        ========================= */
+
+        .bubble mjx-container {
+            direction: ltr !important;
+            margin: 8px 0 !important;
+        }
+
+        .bubble mjx-container[display="true"] {
+            margin: 14px 0 !important;
+            overflow-x: auto;
+            overflow-y: hidden;
+            max-width: 100%;
+        }
+
+        .bubble code {
+            direction: ltr;
+        }
+
+        /* =========================
+           TEACHER TOOLS
+        ========================= */
+
+        .teacher-tools {
+            display: flex;
+
+            gap: 7px;
+
+            margin-top: 10px;
+
+            direction: rtl;
+
+            flex-wrap: wrap;
+        }
+
+        .copy-answer-btn {
+            background: #ffffff;
+
+            border:
+                1px solid #cbd5e1;
+
+            color: #334155;
+
+            border-radius: 7px;
+
+            padding: 6px 10px;
+
+            font-size: 13px;
+
+            cursor: pointer;
+        }
+
+        .copy-answer-btn:hover {
+            background: #f1f5f9;
+        }
+
+        .copy-answer-btn.copied {
+            background: #dcfce7;
+
+            color: #166534;
+
+            border-color: #86efac;
+        }
+
+
+        /* =========================
+           LESSON DIAGRAM
+        ========================= */
+
+        .lesson-diagram {
+            background: #ffffff;
+
+            border-radius: 14px;
+
+            padding: 18px;
+
+            margin: 15px 0;
+
+            box-shadow:
+                0 2px 8px rgba(0,0,0,.08);
+
+            text-align: center;
+
+            border:
+                1px solid #e2e8f0;
+        }
+
+        .lesson-diagram-title {
+            font-weight: bold;
+
+            color: #173b6c;
+
+            margin-bottom: 10px;
+
+            font-size: 17px;
+        }
+
+        .lesson-diagram svg {
+            max-width: 100%;
+
+            height: auto;
+        }
+
+        .diagram-label {
+            font-family:
+                Arial,
+                Tahoma,
+                sans-serif;
+
+            font-size: 16px;
+
+            font-weight: bold;
         }
 
 
@@ -381,6 +526,10 @@
 
             .header-title {
                 font-size: 22px;
+            }
+
+            .bubble {
+                max-width: 90%;
             }
         }
 
@@ -1529,6 +1678,256 @@ let selectedImage = null;
 
 
 // ==================================================
+// RENDER AI TEXT
+// ==================================================
+
+function renderAIText(text) {
+
+    if (!text) {
+        return "";
+    }
+
+
+    const mathBlocks = [];
+
+
+    function saveMath(match) {
+
+        const index =
+            mathBlocks.length;
+
+        mathBlocks.push(match);
+
+        return `___NABIL_MATH_${index}___`;
+
+    }
+
+
+    let content =
+        String(text);
+
+
+    // حفظ المعادلات قبل معالجة النص
+    content =
+        content.replace(
+            /\$\$[\s\S]*?\$\$/g,
+            saveMath
+        );
+
+
+    content =
+        content.replace(
+            /\\\[[\s\S]*?\\\]/g,
+            saveMath
+        );
+
+
+    content =
+        content.replace(
+            /\\\([\s\S]*?\\\)/g,
+            saveMath
+        );
+
+
+    content =
+        content.replace(
+            /\$[^$\n]+\$/g,
+            saveMath
+        );
+
+
+    // حماية HTML
+    content =
+        content
+            .replace(
+                /&/g,
+                "&amp;"
+            )
+            .replace(
+                /</g,
+                "&lt;"
+            )
+            .replace(
+                />/g,
+                "&gt;"
+            )
+            .replace(
+                /"/g,
+                "&quot;"
+            )
+            .replace(
+                /'/g,
+                "&#039;"
+            );
+
+
+    // عناوين Markdown
+    content =
+        content.replace(
+            /^### (.+)$/gm,
+            "<h4>$1</h4>"
+        );
+
+
+    content =
+        content.replace(
+            /^## (.+)$/gm,
+            "<h3>$1</h3>"
+        );
+
+
+    content =
+        content.replace(
+            /^# (.+)$/gm,
+            "<h2>$1</h2>"
+        );
+
+
+    // Bold
+    content =
+        content.replace(
+            /\*\*(.+?)\*\*/g,
+            "<strong>$1</strong>"
+        );
+
+
+    // Italic
+    content =
+        content.replace(
+            /\*(.+?)\*/g,
+            "<em>$1</em>"
+        );
+
+
+    // القوائم
+    content =
+        content.replace(
+            /^[-•] (.+)$/gm,
+            "• $1"
+        );
+
+
+    // الأسطر
+    content =
+        content.replace(
+            /\n/g,
+            "<br>"
+        );
+
+
+    // إعادة المعادلات
+    mathBlocks.forEach(
+        (math, index) => {
+
+            const token =
+                `___NABIL_MATH_${index}___`;
+
+            content =
+                content.replace(
+                    token,
+                    math
+                );
+
+        }
+    );
+
+
+    return content;
+
+}
+
+
+// ==================================================
+// COPY ANSWER
+// ==================================================
+
+async function copyAnswer(
+    text,
+    button
+) {
+
+    try {
+
+        if (
+            navigator.clipboard &&
+            navigator.clipboard.writeText
+        ) {
+
+            await navigator.clipboard.writeText(
+                text
+            );
+
+        }
+        else {
+
+            const textarea =
+                document.createElement(
+                    "textarea"
+                );
+
+            textarea.value =
+                text;
+
+            document.body.appendChild(
+                textarea
+            );
+
+            textarea.select();
+
+            document.execCommand(
+                "copy"
+            );
+
+            textarea.remove();
+
+        }
+
+
+        const oldText =
+            button.textContent;
+
+
+        button.textContent =
+            "✅ تم النسخ";
+
+
+        button.classList.add(
+            "copied"
+        );
+
+
+        setTimeout(
+            function () {
+
+                button.textContent =
+                    oldText;
+
+                button.classList.remove(
+                    "copied"
+                );
+
+            },
+            1500
+        );
+
+    }
+    catch (error) {
+
+        console.error(
+            "Copy error:",
+            error
+        );
+
+        alert(
+            "تعذر نسخ الإجابة."
+        );
+
+    }
+
+}
+
+
+// ==================================================
 // ADD MESSAGE
 // ==================================================
 
@@ -1560,9 +1959,77 @@ function addMessage(
         "bubble";
 
 
-    bubble.textContent =
-        text;
+    if (role === "teacher") {
 
+        bubble.innerHTML =
+            renderAIText(text);
+
+    }
+    else {
+
+        bubble.textContent =
+            text;
+
+    }
+
+
+    // =========================
+    // COPY BUTTON
+    // =========================
+
+    if (
+        role === "teacher" &&
+        text
+    ) {
+
+        const tools =
+            document.createElement("div");
+
+        tools.className =
+            "teacher-tools";
+
+
+        const copyButton =
+            document.createElement("button");
+
+        copyButton.type =
+            "button";
+
+        copyButton.className =
+            "copy-answer-btn";
+
+        copyButton.textContent =
+            "📋 نسخ الإجابة";
+
+
+        copyButton.addEventListener(
+            "click",
+            function () {
+
+                copyAnswer(
+                    text,
+                    copyButton
+                );
+
+            }
+        );
+
+
+        tools.appendChild(
+            copyButton
+        );
+
+
+        bubble.appendChild(
+            tools
+        );
+
+    }
+
+
+    // =========================
+    // SOURCES
+    // =========================
 
     if (
         sources &&
@@ -1577,13 +2044,52 @@ function addMessage(
         sourceDiv.className =
             "sources";
 
-        sourceDiv.textContent =
-            "المصادر: " +
-            sources.join("، ");
 
-        bubble.appendChild(
-            sourceDiv
-        );
+        const sourceText =
+            sources
+                .map(
+                    source => {
+
+                        if (
+                            typeof source ===
+                            "string"
+                        ) {
+
+                            return source;
+
+                        }
+
+
+                        if (
+                            source &&
+                            source.title
+                        ) {
+
+                            return source.title;
+
+                        }
+
+
+                        return "";
+
+                    }
+                )
+                .filter(Boolean)
+                .join("، ");
+
+
+        if (sourceText) {
+
+            sourceDiv.textContent =
+                "المصادر: " +
+                sourceText;
+
+
+            bubble.appendChild(
+                sourceDiv
+            );
+
+        }
 
     }
 
@@ -1600,6 +2106,341 @@ function addMessage(
 
     chat.scrollTop =
         chat.scrollHeight;
+
+
+    // =========================
+    // MATHJAX
+    // =========================
+
+    if (
+        role === "teacher" &&
+        window.MathJax &&
+        typeof MathJax.typesetPromise ===
+            "function"
+    ) {
+
+        MathJax.typesetPromise(
+            [bubble]
+        ).catch(
+            error => {
+
+                console.error(
+                    "MathJax error:",
+                    error
+                );
+
+            }
+        );
+
+    }
+
+}
+
+
+// ==================================================
+// LESSON DIAGRAMS
+// ==================================================
+
+function addLessonDiagram(
+    lesson
+) {
+
+    if (!lesson) {
+        return;
+    }
+
+
+    // حذف الرسم السابق
+    const oldDiagram =
+        document.getElementById(
+            "activeLessonDiagram"
+        );
+
+
+    if (oldDiagram) {
+
+        oldDiagram.remove();
+
+    }
+
+
+    let html = "";
+
+
+    // ==============================================
+    // PYTHAGORAS
+    // ==============================================
+
+    if (
+        lesson.includes(
+            "فيثاغورس"
+        )
+    ) {
+
+        html = `
+
+            <div
+                id="activeLessonDiagram"
+                class="lesson-diagram"
+            >
+
+                <div class="lesson-diagram-title">
+                    📐 المثلث القائم الزاوية
+                </div>
+
+
+                <svg
+                    viewBox="0 0 520 330"
+                    role="img"
+                    aria-label="مثلث قائم الزاوية يوضح الساقين والوتر"
+                >
+
+                    <!-- المثلث -->
+
+                    <polygon
+                        points="100,250 100,70 420,250"
+                        fill="#eff6ff"
+                        stroke="#173b6c"
+                        stroke-width="4"
+                    />
+
+
+                    <!-- علامة الزاوية القائمة -->
+
+                    <polyline
+                        points="100,220 130,220 130,250"
+                        fill="none"
+                        stroke="#dc2626"
+                        stroke-width="4"
+                    />
+
+
+                    <!-- الساق a -->
+
+                    <text
+                        x="65"
+                        y="165"
+                        class="diagram-label"
+                        fill="#173b6c"
+                    >
+                        a
+                    </text>
+
+
+                    <!-- الساق b -->
+
+                    <text
+                        x="255"
+                        y="282"
+                        class="diagram-label"
+                        fill="#173b6c"
+                    >
+                        b
+                    </text>
+
+
+                    <!-- الوتر -->
+
+                    <text
+                        x="295"
+                        y="135"
+                        class="diagram-label"
+                        fill="#dc2626"
+                    >
+                        c (الوتر)
+                    </text>
+
+
+                    <!-- 90 درجة -->
+
+                    <text
+                        x="112"
+                        y="238"
+                        class="diagram-label"
+                        fill="#dc2626"
+                    >
+                        90°
+                    </text>
+
+                </svg>
+
+
+                <div>
+
+                    \\[
+                    a^2+b^2=c^2
+                    \\]
+
+                </div>
+
+            </div>
+
+        `;
+
+    }
+
+
+    // ==============================================
+    // الدائرة والمماس
+    // ==============================================
+
+    else if (
+        lesson.includes(
+            "الدائرة"
+        ) ||
+        lesson.includes(
+            "المماس"
+        )
+    ) {
+
+        html = `
+
+            <div
+                id="activeLessonDiagram"
+                class="lesson-diagram"
+            >
+
+                <div class="lesson-diagram-title">
+                    ⭕ الدائرة والمماس
+                </div>
+
+
+                <svg
+                    viewBox="0 0 520 330"
+                    role="img"
+                    aria-label="دائرة ومستقيم مماس"
+                >
+
+                    <!-- الدائرة -->
+
+                    <circle
+                        cx="240"
+                        cy="165"
+                        r="90"
+                        fill="#eff6ff"
+                        stroke="#173b6c"
+                        stroke-width="4"
+                    />
+
+
+                    <!-- نصف القطر -->
+
+                    <line
+                        x1="240"
+                        y1="165"
+                        x2="330"
+                        y2="165"
+                        stroke="#dc2626"
+                        stroke-width="4"
+                    />
+
+
+                    <!-- المماس -->
+
+                    <line
+                        x1="330"
+                        y1="60"
+                        x2="330"
+                        y2="270"
+                        stroke="#16a34a"
+                        stroke-width="5"
+                    />
+
+
+                    <!-- المركز -->
+
+                    <circle
+                        cx="240"
+                        cy="165"
+                        r="6"
+                        fill="#dc2626"
+                    />
+
+
+                    <text
+                        x="218"
+                        y="150"
+                        class="diagram-label"
+                        fill="#dc2626"
+                    >
+                        O
+                    </text>
+
+
+                    <!-- نصف القطر -->
+
+                    <text
+                        x="275"
+                        y="150"
+                        class="diagram-label"
+                        fill="#dc2626"
+                    >
+                        r
+                    </text>
+
+
+                    <!-- المماس -->
+
+                    <text
+                        x="342"
+                        y="165"
+                        class="diagram-label"
+                        fill="#16a34a"
+                    >
+                        المماس
+                    </text>
+
+                </svg>
+
+            </div>
+
+        `;
+
+    }
+
+
+    if (!html) {
+        return;
+    }
+
+
+    chat.insertAdjacentHTML(
+        "beforeend",
+        html
+    );
+
+
+    chat.scrollTop =
+        chat.scrollHeight;
+
+
+    const diagram =
+        document.getElementById(
+            "activeLessonDiagram"
+        );
+
+
+    if (
+        diagram &&
+        window.MathJax &&
+        typeof MathJax.typesetPromise ===
+            "function"
+    ) {
+
+        MathJax.typesetPromise(
+            [diagram]
+        ).catch(
+            error => {
+
+                console.error(
+                    "Diagram MathJax error:",
+                    error
+                );
+
+            }
+        );
+
+    }
 
 }
 
@@ -1676,7 +2517,7 @@ startLesson.addEventListener(
         if (!lesson) {
 
             alert(
-                "اختر الدرس."
+                "اختر الدرس أولاً."
             );
 
             return;
@@ -1690,6 +2531,12 @@ startLesson.addEventListener(
 
         lessonInfo.style.display =
             "block";
+
+
+        // إظهار الرسم المناسب
+        addLessonDiagram(
+            lesson
+        );
 
 
         const prompt =
@@ -1718,9 +2565,14 @@ startLesson.addEventListener(
 10. إذا أخطأ الطالب، صحح الخطأ وفسره بلطف.
 11. لا تعطِ الإجابة مباشرة عندما يكون الهدف تدريب الطالب.
 12. استخدم الرموز والمعادلات الرياضية عند الحاجة.
+13. عند استخدام الرياضيات، اكتب الكسور والقوى والجذور والمعادلات بصيغة LaTeX صحيحة.
+14. لا تكتب رموز LaTeX داخل كلمات أو بطريقة مشوهة.
+15. استخدم \\frac للكسور، و ^ للقوى، و \\sqrt للجذور عند الحاجة.
+16. لا تكتب المعادلات الرياضية داخل علامات اقتباس.
+17. عندما يحتاج الشرح إلى شكل هندسي، صف العناصر الهندسية بوضوح وبمصطلحات صحيحة.
+18. لا تخترع أي معلومة غير موجودة في السؤال أو الدرس.
 
 ابدأ الآن بالدرس.`;
-
 
 
         await sendToAI(
