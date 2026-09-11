@@ -1,55 +1,58 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 from app.core.config import settings
 from app.db.session import Base, engine
-from app.api import routes_health, routes_chat, routes_admin
 
+# Import models before create_all so SQLAlchemy knows all tables.
+from app.db import models  # noqa: F401
+from app.db import student_learning  # noqa: F401
+from app.db import subscription  # noqa: F401
 
-# =========================================================
-# Database
-# =========================================================
+from app.api import (
+    routes_health,
+    routes_chat,
+    routes_admin,
+    routes_student,
+    routes_platform_admin,
+)
+
 
 with engine.connect() as conn:
-    conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-    conn.commit()
+    try:
+        conn.execute(
+            text(
+                "CREATE EXTENSION IF NOT EXISTS vector"
+            )
+        )
+        conn.commit()
+    except Exception:
+        # SQLite/local development does not support pgvector extension.
+        pass
 
-
-# =========================================================
-# Google Drive credentials
-# =========================================================
 
 if settings.GOOGLE_DRIVE_CREDENTIALS_JSON:
     with open(
         "drive_service_account.json",
         "w",
-        encoding="utf-8"
+        encoding="utf-8",
     ) as f:
-        f.write(settings.GOOGLE_DRIVE_CREDENTIALS_JSON)
+        f.write(
+            settings.GOOGLE_DRIVE_CREDENTIALS_JSON
+        )
 
 
-# =========================================================
-# Create database tables
-# =========================================================
+Base.metadata.create_all(
+    bind=engine
+)
 
-Base.metadata.create_all(bind=engine)
-
-
-# =========================================================
-# FastAPI application
-# =========================================================
 
 app = FastAPI(
     title=settings.PROJECT_NAME
 )
 
-
-# =========================================================
-# CORS
-# =========================================================
 
 app.add_middleware(
     CORSMiddleware,
@@ -59,47 +62,46 @@ app.add_middleware(
 )
 
 
-# =========================================================
-# Static files
-# مهم جداً:
-# هذا يجعل الصور والملفات الموجودة داخل app/static
-# متاحة من خلال /static
-# =========================================================
-
-app.mount(
-    "/static",
-    StaticFiles(directory="app/static"),
-    name="static"
-)
-
-
-# =========================================================
-# API Routes
-# =========================================================
-
 app.include_router(
     routes_health.router,
     prefix="/api",
-    tags=["health"]
+    tags=["health"],
 )
 
 app.include_router(
     routes_chat.router,
     prefix="/api",
-    tags=["chat"]
+    tags=["chat"],
 )
 
 app.include_router(
     routes_admin.router,
     prefix="/api",
-    tags=["admin"]
+    tags=["admin"],
+)
+
+app.include_router(
+    routes_student.router,
+    prefix="/api",
+    tags=["student"],
+)
+
+app.include_router(
+    routes_platform_admin.router,
+    prefix="/api/admin",
+    tags=["platform-admin"],
 )
 
 
-# =========================================================
-# Main page
-# =========================================================
-
 @app.get("/")
 def root():
-    return FileResponse("app/static/chat.html")
+    return FileResponse(
+        "app/static/chat.html"
+    )
+
+
+@app.get("/dashboard")
+def student_dashboard_page():
+    return FileResponse(
+        "app/static/student_dashboard.html"
+    )
