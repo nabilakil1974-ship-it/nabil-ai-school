@@ -1,5 +1,11 @@
+import asyncio
+import hashlib
 import json
+import os
 import re
+import threading
+import time
+from collections import defaultdict, deque
 from pathlib import Path
 from typing import Optional
 from datetime import datetime
@@ -14,6 +20,7 @@ from fastapi import (
 )
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
  
 from app.db.session import get_db
 from app.db.models import Conversation, Message, Student
@@ -21,7 +28,249 @@ from app.db.student_learning import StudentLearningProfile
 from app.services.ai_gateway import NabilAIGateway
  
  
+
 router = APIRouter()
+
+
+# ==========================================================
+# Production traffic protection
+# ==========================================================
+
+RATE_LIMIT_REQUESTS = int(
+    os.getenv("NABIL_RATE_LIMIT_REQUESTS", "8")
+)
+
+RATE_LIMIT_WINDOW_SECONDS = int(
+    os.getenv("NABIL_RATE_LIMIT_WINDOW_SECONDS", "60")
+)
+
+RATE_LIMIT_MIN_INTERVAL_SECONDS = float(
+    os.getenv("NABIL_RATE_LIMIT_MIN_INTERVAL_SECONDS", "1.5")
+)
+
+AI_MAX_CONCURRENCY = int(
+    os.getenv("NABIL_AI_MAX_CONCURRENCY", "30")
+)
+
+AI_QUEUE_TIMEOUT_SECONDS = float(
+    os.getenv("NABIL_AI_QUEUE_TIMEOUT_SECONDS", "4")
+)
+
+LESSON_CACHE_TTL_SECONDS = int(
+    os.getenv("NABIL_LESSON_CACHE_TTL_SECONDS", "1800")
+)
+
+LESSON_CACHE_MAX_ITEMS = int(
+    os.getenv("NABIL_LESSON_CACHE_MAX_ITEMS", "500")
+)
+
+_rate_lock = threading.Lock()
+_student_request_times = defaultdict(deque)
+_student_last_request = {}
+
+_cache_lock = threading.Lock()
+_lesson_cache = {}
+
+_ai_gateway_lock = threading.Lock()
+_ai_gateway_instance = None
+
+_ai_concurrency = asyncio.Semaphore(
+    max(1, AI_MAX_CONCURRENCY)
+)
+
+
+def get_shared_ai_gateway() -> NabilAIGateway:
+    global _ai_gateway_instance
+
+    if _ai_gateway_instance is not None:
+        return _ai_gateway_instance
+
+    with _ai_gateway_lock:
+        if _ai_gateway_instance is None:
+            _ai_gateway_instance = NabilAIGateway()
+
+    return _ai_gateway_instance
+
+
+def enforce_student_rate_limit(
+    student_id: str,
+) -> None:
+
+    now = time.monotonic()
+
+    with _rate_lock:
+        queue = _student_request_times[
+            student_id
+        ]
+
+        while (
+            queue
+            and now - queue[0]
+            >= RATE_LIMIT_WINDOW_SECONDS
+        ):
+            queue.popleft()
+
+        last = _student_last_request.get(
+            student_id
+        )
+
+        if (
+            last is not None
+            and now - last
+            < RATE_LIMIT_MIN_INTERVAL_SECONDS
+        ):
+            wait_for = max(
+                1,
+                round(
+                    RATE_LIMIT_MIN_INTERVAL_SECONDS
+                    - (now - last)
+                ),
+            )
+
+            raise HTTPException(
+                status_code=429,
+                detail=(
+                    "أرسلت الطلبات بسرعة كبيرة. "
+                    f"انتظر نحو {wait_for} ثانية ثم أعد المحاولة."
+                ),
+            )
+
+        if len(queue) >= RATE_LIMIT_REQUESTS:
+            retry_after = max(
+                1,
+                round(
+                    RATE_LIMIT_WINDOW_SECONDS
+                    - (now - queue[0])
+                ),
+            )
+
+            raise HTTPException(
+                status_code=429,
+                detail=(
+                    "وصلت إلى الحد المؤقت للطلبات. "
+                    f"أعد المحاولة بعد نحو {retry_after} ثانية."
+                ),
+            )
+
+        queue.append(now)
+        _student_last_request[
+            student_id
+        ] = now
+
+
+def _is_cacheable_lesson_start(
+    message: str,
+    image_bytes: Optional[bytes],
+) -> bool:
+
+    if image_bytes is not None:
+        return False
+
+    normalized = (
+        message
+        .strip()
+        .lower()
+    )
+
+    return normalized.startswith(
+        "ابدأ درسًا تفاعليًا"
+    )
+
+
+def _lesson_cache_key(
+    *,
+    grade: Optional[str],
+    branch: Optional[str],
+    subject: Optional[str],
+    language: Optional[str],
+    lesson: Optional[str],
+    curriculum: Optional[str],
+    message: str,
+) -> str:
+
+    raw = "|".join(
+        [
+            grade or "",
+            branch or "",
+            subject or "",
+            language or "",
+            lesson or "",
+            curriculum or "",
+            " ".join(message.split()),
+        ]
+    )
+
+    return hashlib.sha256(
+        raw.encode("utf-8")
+    ).hexdigest()
+
+
+def _get_cached_lesson(
+    cache_key: str,
+) -> Optional[str]:
+
+    now = time.monotonic()
+
+    with _cache_lock:
+        item = _lesson_cache.get(
+            cache_key
+        )
+
+        if item is None:
+            return None
+
+        expires_at, value = item
+
+        if expires_at <= now:
+            _lesson_cache.pop(
+                cache_key,
+                None,
+            )
+            return None
+
+        return value
+
+
+def _store_cached_lesson(
+    cache_key: str,
+    value: str,
+) -> None:
+
+    now = time.monotonic()
+
+    with _cache_lock:
+        expired = [
+            key
+            for key, item
+            in _lesson_cache.items()
+            if item[0] <= now
+        ]
+
+        for key in expired:
+            _lesson_cache.pop(
+                key,
+                None,
+            )
+
+        if len(_lesson_cache) >= LESSON_CACHE_MAX_ITEMS:
+            oldest_key = min(
+                _lesson_cache,
+                key=lambda key: _lesson_cache[key][0],
+            )
+
+            _lesson_cache.pop(
+                oldest_key,
+                None,
+            )
+
+        _lesson_cache[
+            cache_key
+        ] = (
+            now + LESSON_CACHE_TTL_SECONDS,
+            value,
+        )
+
+
  
  
 SYSTEM_PROMPT = """
@@ -1393,15 +1642,19 @@ async def voice_chat(
     lesson: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
- 
+    enforce_student_rate_limit(
+        student_id
+    )
+
     try:
-        ai = NabilAIGateway()
- 
+        ai = get_shared_ai_gateway()
+
     except Exception as exc:
         raise HTTPException(
-            status_code=500,
-            detail=f"خطأ في إعداد NABIL AI: {exc}",
+            status_code=503,
+            detail="خدمة NABIL AI غير جاهزة مؤقتًا.",
         ) from exc
+
  
     image_bytes = None
     image_mime_type = "image/jpeg"
@@ -1671,23 +1924,75 @@ async def voice_chat(
     # ==========================================
     # AI
     # ==========================================
- 
-    try:
- 
-        raw_reply = ai.generate(
-            instructions=SYSTEM_PROMPT,
-            messages=history_messages,
-            image_bytes=image_bytes,
-            image_mime_type=image_mime_type,
-            max_output_tokens=3000,
+    cache_key = None
+    raw_reply = None
+
+    if _is_cacheable_lesson_start(
+        message=message,
+        image_bytes=image_bytes,
+    ):
+        cache_key = _lesson_cache_key(
+            grade=grade,
+            branch=branch,
+            subject=subject,
+            language=selected_language,
+            lesson=lesson,
+            curriculum=curriculum,
+            message=message,
         )
- 
-    except Exception as exc:
- 
-        raise HTTPException(
-            status_code=500,
-            detail=f"خطأ في NABIL AI: {exc}",
-        ) from exc
+
+        raw_reply = _get_cached_lesson(
+            cache_key
+        )
+
+    if raw_reply is None:
+        acquired = False
+
+        try:
+            await asyncio.wait_for(
+                _ai_concurrency.acquire(),
+                timeout=AI_QUEUE_TIMEOUT_SECONDS,
+            )
+            acquired = True
+
+        except asyncio.TimeoutError as exc:
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "هناك ضغط مرتفع على NABIL AI الآن. "
+                    "حاول مرة أخرى بعد لحظات."
+                ),
+            ) from exc
+
+        try:
+            raw_reply = await run_in_threadpool(
+                ai.generate,
+                instructions=SYSTEM_PROMPT,
+                messages=history_messages,
+                image_bytes=image_bytes,
+                image_mime_type=image_mime_type,
+                max_output_tokens=3000,
+            )
+
+        except Exception as exc:
+            raise HTTPException(
+                status_code=503,
+                detail=str(exc),
+            ) from exc
+
+        finally:
+            if acquired:
+                _ai_concurrency.release()
+
+        if (
+            cache_key
+            and raw_reply
+        ):
+            _store_cached_lesson(
+                cache_key,
+                raw_reply,
+            )
+
  
     raw_reply, progress_metadata = extract_progress_metadata(
         raw_reply
