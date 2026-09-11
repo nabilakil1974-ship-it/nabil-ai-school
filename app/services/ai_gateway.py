@@ -7,7 +7,9 @@ from app.core.config import settings
 
 
 class NabilAIGateway:
+
     def __init__(self):
+
         api_key = getattr(
             settings,
             "OPENROUTER_API_KEY",
@@ -27,6 +29,7 @@ class NabilAIGateway:
         self.text_model = "openrouter/free"
         self.vision_model = "openrouter/free"
 
+
     def generate(
         self,
         instructions: str,
@@ -43,18 +46,29 @@ class NabilAIGateway:
             }
         ]
 
+
         for msg in messages:
+
             chat_messages.append(
                 {
-                    "role": msg.get("role", "user"),
-                    "content": msg.get("content", ""),
+                    "role": msg.get(
+                        "role",
+                        "user"
+                    ),
+                    "content": msg.get(
+                        "content",
+                        ""
+                    ),
                 }
             )
 
+
         if image_bytes:
+
             encoded = base64.b64encode(
                 image_bytes
             ).decode("utf-8")
+
 
             chat_messages.append(
                 {
@@ -64,8 +78,8 @@ class NabilAIGateway:
                             "type": "text",
                             "text": (
                                 "اقرأ الصورة بدقة، واستخرج "
-                                "المسألة أو السؤال الموجود فيها "
-                                "ثم ساعد الطالب في حله."
+                                "المسألة أو السؤال الموجود "
+                                "فيها ثم ساعد الطالب في حله."
                             ),
                         },
                         {
@@ -81,28 +95,121 @@ class NabilAIGateway:
                 }
             )
 
-        response = self.client.chat.completions.create(
-            model=(
-                self.vision_model
-                if image_bytes
-                else self.text_model
-            ),
-            messages=chat_messages,
-            max_tokens=max_output_tokens,
-        )
+
+        try:
+
+            response = self.client.chat.completions.create(
+                model=(
+                    self.vision_model
+                    if image_bytes
+                    else self.text_model
+                ),
+                messages=chat_messages,
+                max_tokens=max_output_tokens,
+            )
+
+        except Exception as e:
+
+            raise RuntimeError(
+                f"خطأ في الاتصال بـ OpenRouter: {str(e)}"
+            ) from e
+
 
         if not response.choices:
-            return ""
 
-        content = response.choices[0].message.content
+            raise RuntimeError(
+                "OpenRouter لم يُرجع أي اختيار."
+            )
 
-        return (content or "").strip()
+
+        message = response.choices[0].message
+
+
+        content = getattr(
+            message,
+            "content",
+            None
+        )
+
+
+        # ==========================================
+        # النص العادي
+        # ==========================================
+
+        if isinstance(
+            content,
+            str
+        ):
+
+            content = content.strip()
+
+            if content:
+
+                return content
+
+
+        # ==========================================
+        # بعض النماذج قد تعيد المحتوى كقائمة
+        # ==========================================
+
+        if isinstance(
+            content,
+            list
+        ):
+
+            parts = []
+
+            for item in content:
+
+                if isinstance(
+                    item,
+                    str
+                ):
+
+                    parts.append(item)
+
+                elif isinstance(
+                    item,
+                    dict
+                ):
+
+                    text = item.get(
+                        "text"
+                    )
+
+                    if text:
+
+                        parts.append(
+                            str(text)
+                        )
+
+
+            result = "\n".join(
+                parts
+            ).strip()
+
+
+            if result:
+
+                return result
+
+
+        # ==========================================
+        # لا يوجد نص
+        # ==========================================
+
+        raise RuntimeError(
+            "NABIL AI لم يُرجع إجابة نصية."
+        )
+
 
     def transcribe(
         self,
         audio_bytes: bytes,
         filename: str = "voice.webm",
     ) -> str:
+
         raise RuntimeError(
-            "تحويل الصوت غير متاح حاليًا في المسار المجاني."
+            "تحويل الصوت غير متاح حاليًا "
+            "في المسار المجاني."
         )
