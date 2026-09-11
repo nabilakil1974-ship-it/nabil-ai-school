@@ -30,6 +30,79 @@ class NabilAIGateway:
         self.vision_model = "openrouter/free"
 
 
+    def _extract_content(self, response) -> str:
+
+        if not response:
+            return ""
+
+        if not getattr(
+            response,
+            "choices",
+            None
+        ):
+            return ""
+
+        choice = response.choices[0]
+
+        message = getattr(
+            choice,
+            "message",
+            None
+        )
+
+        if message is None:
+            return ""
+
+        content = getattr(
+            message,
+            "content",
+            None
+        )
+
+        if isinstance(
+            content,
+            str
+        ):
+
+            return content.strip()
+
+        if isinstance(
+            content,
+            list
+        ):
+
+            parts = []
+
+            for item in content:
+
+                if isinstance(
+                    item,
+                    str
+                ):
+
+                    parts.append(item)
+
+                elif isinstance(
+                    item,
+                    dict
+                ):
+
+                    text = item.get(
+                        "text"
+                    )
+
+                    if text:
+                        parts.append(
+                            str(text)
+                        )
+
+            return "\n".join(
+                parts
+            ).strip()
+
+        return ""
+
+
     def generate(
         self,
         instructions: str,
@@ -77,9 +150,13 @@ class NabilAIGateway:
                         {
                             "type": "text",
                             "text": (
-                                "اقرأ الصورة بدقة، واستخرج "
-                                "المسألة أو السؤال الموجود "
-                                "فيها ثم ساعد الطالب في حله."
+                                "اقرأ الصورة بدقة. "
+                                "إذا كانت سؤالًا أو تمرينًا، "
+                                "استخرج السؤال وحلّه خطوة خطوة. "
+                                "إذا كانت صفحة درس أو شرحًا، "
+                                "اشرح محتواها للطالب بطريقة "
+                                "واضحة وتفاعلية. "
+                                "لا تخترع أي معلومة غير ظاهرة."
                             ),
                         },
                         {
@@ -115,88 +192,15 @@ class NabilAIGateway:
             ) from e
 
 
-        if not response.choices:
-
-            raise RuntimeError(
-                "OpenRouter لم يُرجع أي اختيار."
-            )
-
-
-        message = response.choices[0].message
-
-
-        content = getattr(
-            message,
-            "content",
-            None
+        content = self._extract_content(
+            response
         )
 
 
-        # ==========================================
-        # النص العادي
-        # ==========================================
+        if content:
 
-        if isinstance(
-            content,
-            str
-        ):
+            return content
 
-            content = content.strip()
-
-            if content:
-
-                return content
-
-
-        # ==========================================
-        # بعض النماذج قد تعيد المحتوى كقائمة
-        # ==========================================
-
-        if isinstance(
-            content,
-            list
-        ):
-
-            parts = []
-
-            for item in content:
-
-                if isinstance(
-                    item,
-                    str
-                ):
-
-                    parts.append(item)
-
-                elif isinstance(
-                    item,
-                    dict
-                ):
-
-                    text = item.get(
-                        "text"
-                    )
-
-                    if text:
-
-                        parts.append(
-                            str(text)
-                        )
-
-
-            result = "\n".join(
-                parts
-            ).strip()
-
-
-            if result:
-
-                return result
-
-
-        # ==========================================
-        # لا يوجد نص
-        # ==========================================
 
         raise RuntimeError(
             "NABIL AI لم يُرجع إجابة نصية."
