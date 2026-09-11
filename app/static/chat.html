@@ -2,613 +2,519 @@
 <html lang="ar" dir="rtl">
 
 <head>
-    <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <title>منصة النبيل التعليمية الذكية</title>
-
-    <!-- =========================
-         MATHJAX
-    ========================== -->
-
-    <script>
-        window.MathJax = {
-            tex: {
-                inlineMath: [
-                    ['\\(', '\\)'],
-                    ['$', '$']
-                ],
-                displayMath: [
-                    ['\\[', '\\]'],
-                    ['$$', '$$']
-                ]
-            },
-            svg: {
-                fontCache: 'global'
-            }
-        };
-    </script>
-
-    <script
-        src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"
-        async
-    ></script>
-
-    <style>
-
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            margin: 0;
-            font-family: Arial, Tahoma, sans-serif;
-            background: #f4f7fb;
-            color: #1f2937;
-        }
-
-        /* =========================
-           HEADER
-        ========================== */
-
-        .header {
-            background: linear-gradient(
-                135deg,
-                #173b6c,
-                #2563eb
-            );
-
-            color: white;
-            padding: 20px;
-
-            box-shadow:
-                0 3px 12px rgba(0,0,0,.15);
-        }
-
-        .header-title {
-            text-align: center;
-            font-size: 27px;
-            font-weight: bold;
-            margin-bottom: 20px;
-        }
-
-        .controls {
-            max-width: 1250px;
-            margin: auto;
-
-            display: grid;
-
-            grid-template-columns:
-                repeat(4, 1fr)
-                auto;
-
-            gap: 10px;
-            align-items: end;
-        }
-
-        .control {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .control label {
-            font-size: 14px;
-            font-weight: bold;
-        }
 
-        select {
-            width: 100%;
-            padding: 12px;
+<meta charset="UTF-8">
+
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
+
+<title>منصة النبيل التعليمية الذكية</title>
+
+<script>
+window.MathJax = {
+    tex: {
+        inlineMath: [
+            ['\\(', '\\)'],
+            ['$', '$']
+        ],
+        displayMath: [
+            ['\\[', '\\]'],
+            ['$$', '$$']
+        ]
+    },
+    svg: {
+        fontCache: 'global'
+    }
+};
+</script>
+
+<script
+    src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"
+    async
+></script>
+
+<style>
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, Tahoma, sans-serif;
+    background: #f4f7fb;
+    color: #1f2937;
+}
+
+.header {
+    background:
+        linear-gradient(
+            135deg,
+            #173b6c,
+            #2563eb
+        );
+
+    color: white;
+    padding: 20px;
+}
+
+.header-title {
+    text-align: center;
+    font-size: 27px;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+.controls {
+    max-width: 1250px;
+    margin: auto;
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(4, 1fr)
+        auto;
+
+    gap: 10px;
+    align-items: end;
+}
+
+.control {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.control label {
+    font-size: 14px;
+    font-weight: bold;
+}
+
+select {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    background: white;
+    font-size: 15px;
+}
+
+#startLesson {
+    padding: 12px 18px;
+    min-height: 44px;
 
-            border: none;
-            border-radius: 8px;
+    border: none;
+    border-radius: 8px;
 
-            font-size: 15px;
+    background: #16a34a;
+    color: white;
 
-            background: white;
-            color: #222;
+    font-size: 16px;
+    font-weight: bold;
 
-            outline: none;
-            cursor: pointer;
-        }
+    cursor: pointer;
+}
 
-        #startLesson {
-            border: none;
-            border-radius: 8px;
+#startLesson:disabled {
+    opacity: .6;
+}
 
-            padding: 12px 18px;
+.container {
+    max-width: 1000px;
+    margin: 25px auto;
+    padding: 0 15px;
+}
 
-            background: #16a34a;
-            color: white;
+.lesson-info {
+    display: none;
 
-            font-size: 16px;
-            font-weight: bold;
+    background: white;
 
-            cursor: pointer;
+    padding: 15px 20px;
 
-            min-height: 44px;
-            white-space: nowrap;
-        }
+    border-radius: 12px;
 
-        #startLesson:hover {
-            background: #15803d;
-        }
+    margin-bottom: 15px;
 
-        #startLesson:disabled {
-            opacity: .6;
-            cursor: not-allowed;
-        }
+    box-shadow:
+        0 2px 8px rgba(0,0,0,.08);
+}
 
-        /* =========================
-           MAIN
-        ========================== */
+.index-status {
+    font-size: 13px;
+    color: #64748b;
+    margin-top: 6px;
+}
 
-        .container {
-            max-width: 1000px;
-            margin: 25px auto;
-            padding: 0 15px;
-        }
+.chat {
+    min-height: 500px;
+    max-height: 650px;
 
-        /* =========================
-           LESSON INFO
-        ========================== */
+    overflow-y: auto;
 
-        .lesson-info {
-            background: white;
+    background: white;
 
-            border-radius: 12px;
+    padding: 20px;
 
-            padding: 15px 20px;
+    border-radius: 14px;
 
-            margin-bottom: 15px;
+    box-shadow:
+        0 2px 10px rgba(0,0,0,.08);
+}
 
-            box-shadow:
-                0 2px 8px rgba(0,0,0,.08);
+.welcome {
+    text-align: center;
+    padding: 70px 20px;
+    color: #64748b;
+}
 
-            display: none;
+.welcome h2 {
+    color: #173b6c;
+}
 
-            line-height: 1.8;
-        }
+.message {
+    display: flex;
+    margin: 12px 0;
+}
 
-        .lesson-info strong {
-            color: #173b6c;
-        }
+.message.student {
+    justify-content: flex-start;
+}
 
-        .index-status {
-            margin-top: 6px;
-            font-size: 13px;
-            color: #64748b;
-        }
+.message.teacher {
+    justify-content: flex-end;
+}
 
-        /* =========================
-           CHAT
-        ========================== */
-
-        .chat {
-            background: white;
-
-            min-height: 500px;
-            max-height: 650px;
-
-            border-radius: 14px;
-
-            padding: 20px;
-
-            box-shadow:
-                0 2px 10px rgba(0,0,0,.08);
-
-            overflow-y: auto;
-        }
-
-        .welcome {
-            text-align: center;
-            padding: 70px 20px;
-            color: #64748b;
-        }
-
-        .welcome h2 {
-            color: #173b6c;
-            margin-bottom: 10px;
-        }
-
-        /* =========================
-           MESSAGES
-        ========================== */
-
-        .message {
-            display: flex;
-            margin: 12px 0;
-        }
-
-        .message.student {
-            justify-content: flex-start;
-        }
-
-        .message.teacher {
-            justify-content: flex-end;
-        }
-
-        .bubble {
-            max-width: 82%;
-            padding: 13px 16px;
-            border-radius: 14px;
-            line-height: 1.8;
-            word-wrap: break-word;
-            overflow-wrap: anywhere;
-        }
-
-        .student .bubble {
-            background: #e0ecff;
-        }
-
-        .teacher .bubble {
-            background: #eef8ee;
-        }
-
-        /* =========================
-           MATH
-        ========================== */
-
-        .bubble mjx-container {
-            direction: ltr !important;
-            margin: 8px 0 !important;
-        }
-
-        .bubble mjx-container[display="true"] {
-            margin: 14px 0 !important;
-            overflow-x: auto;
-            overflow-y: hidden;
-            max-width: 100%;
-        }
-
-        /* =========================
-           TEACHER TOOLS
-        ========================== */
-
-        .teacher-tools {
-            display: flex;
-            gap: 7px;
-            margin-top: 10px;
-            direction: rtl;
-            flex-wrap: wrap;
-        }
-
-        .copy-answer-btn,
-        .read-answer-btn,
-        .draw-answer-btn {
-            background: #ffffff;
-            border: 1px solid #cbd5e1;
-            color: #334155;
-            border-radius: 7px;
-            padding: 6px 10px;
-            font-size: 13px;
-            cursor: pointer;
-        }
-
-        .copy-answer-btn:hover,
-        .read-answer-btn:hover,
-        .draw-answer-btn:hover {
-            background: #f1f5f9;
-        }
-
-        .copy-answer-btn.copied {
-            background: #dcfce7;
-            color: #166534;
-            border-color: #86efac;
-        }
-
-        .read-answer-btn.reading {
-            background: #ede9fe;
-            color: #6d28d9;
-            border-color: #c4b5fd;
-        }
-
-        .draw-answer-btn.active {
-            background: #dbeafe;
-            color: #1d4ed8;
-            border-color: #93c5fd;
-        }
-
-        /* =========================
-           DRAWING AREA
-        ========================== */
-
-        .answer-drawing {
-            display: none;
-            margin-top: 12px;
-            padding: 14px;
-            border: 1px solid #dbe4ef;
-            background: #ffffff;
-            border-radius: 12px;
-            overflow-x: auto;
-        }
-
-        .answer-drawing.visible {
-            display: block;
-        }
-
-        .drawing-title {
-            font-weight: bold;
-            color: #173b6c;
-            margin-bottom: 10px;
-        }
-
-        .answer-drawing svg {
-            max-width: 100%;
-            height: auto;
-        }
-
-        .diagram-label {
-            font-family:
-                Arial,
-                Tahoma,
-                sans-serif;
-
-            font-size: 16px;
-            font-weight: bold;
-        }
-
-        /* =========================
-           INPUT
-        ========================== */
-
-        .input-area {
-            margin-top: 15px;
-            display: flex;
-            gap: 8px;
-        }
-
-        textarea {
-            flex: 1;
-            resize: none;
-            min-height: 55px;
-            padding: 12px;
-            border:
-                1px solid #cbd5e1;
-            border-radius: 10px;
-            font-size: 16px;
-            font-family: inherit;
-            outline: none;
-        }
-
-        textarea:focus {
-            border-color: #2563eb;
-        }
-
-        button {
-            border: none;
-            border-radius: 10px;
-            padding: 0 20px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-        #sendBtn {
-            background: #2563eb;
-            color: white;
-        }
-
-        #sendBtn:hover {
-            background: #1d4ed8;
-        }
-
-        #sendBtn:disabled {
-            opacity: .6;
-            cursor: not-allowed;
-        }
-
-        #imageBtn {
-            background: #64748b;
-            color: white;
-        }
-
-        #imageBtn:hover {
-            background: #475569;
-        }
-
-        #micBtn {
-            background: #7c3aed;
-            color: white;
-        }
-
-        #micBtn:hover {
-            background: #6d28d9;
-        }
-
-        #imageInput {
-            display: none;
-        }
-
-        /* =========================
-           RESPONSIVE
-        ========================== */
-
-        @media (max-width: 1000px) {
-            .controls {
-                grid-template-columns:
-                    repeat(2, 1fr);
-            }
-
-            #startLesson {
-                width: 100%;
-            }
-        }
-
-        @media (max-width: 600px) {
-            .controls {
-                grid-template-columns: 1fr;
-            }
-
-            .input-area {
-                flex-wrap: wrap;
-            }
-
-            textarea {
-                width: 100%;
-                flex-basis: 100%;
-            }
-
-            .bubble {
-                max-width: 95%;
-            }
-        }
-
-    </style>
+.bubble {
+    max-width: 84%;
+
+    padding: 13px 16px;
+
+    border-radius: 14px;
+
+    line-height: 1.8;
+
+    overflow-wrap: anywhere;
+}
+
+.student .bubble {
+    background: #e0ecff;
+}
+
+.teacher .bubble {
+    background: #eef8ee;
+}
+
+.bubble mjx-container {
+    direction: ltr !important;
+}
+
+.teacher-tools {
+    display: flex;
+
+    gap: 7px;
+
+    margin-top: 12px;
+
+    flex-wrap: wrap;
+}
+
+.teacher-tools button {
+    padding: 7px 11px;
+
+    background: white;
+
+    color: #334155;
+
+    border:
+        1px solid #cbd5e1;
+
+    border-radius: 7px;
+
+    cursor: pointer;
+}
+
+.draw-answer-btn.active {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.answer-drawing {
+    display: none;
+
+    margin-top: 14px;
+    padding: 16px;
+
+    background: white;
+
+    border:
+        1px solid #cbd5e1;
+
+    border-radius: 12px;
+
+    overflow-x: auto;
+}
+
+.answer-drawing.visible {
+    display: block;
+}
+
+.drawing-title {
+    font-size: 17px;
+    font-weight: bold;
+    color: #173b6c;
+    margin-bottom: 12px;
+}
+
+.answer-drawing svg {
+    width: 100%;
+    max-width: 720px;
+    min-width: 500px;
+    height: auto;
+}
+
+.graph-label {
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.input-area {
+    display: flex;
+    gap: 8px;
+    margin-top: 15px;
+}
+
+textarea {
+    flex: 1;
+
+    min-height: 55px;
+
+    resize: none;
+
+    padding: 12px;
+
+    border:
+        1px solid #cbd5e1;
+
+    border-radius: 10px;
+
+    font-size: 16px;
+}
+
+button {
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+#sendBtn {
+    background: #2563eb;
+    color: white;
+
+    border-radius: 10px;
+
+    padding: 0 20px;
+}
+
+#imageBtn {
+    background: #64748b;
+    color: white;
+
+    padding: 0 20px;
+
+    border-radius: 10px;
+}
+
+#micBtn {
+    background: #7c3aed;
+    color: white;
+
+    padding: 0 20px;
+
+    border-radius: 10px;
+}
+
+#imageInput {
+    display: none;
+}
+
+@media(max-width:700px) {
+
+    .controls {
+        grid-template-columns:
+            1fr 1fr;
+    }
+
+    .bubble {
+        max-width: 96%;
+    }
+
+}
+
+@media(max-width:550px) {
+
+    .controls {
+        grid-template-columns: 1fr;
+    }
+
+    .input-area {
+        flex-wrap: wrap;
+    }
+
+    textarea {
+        flex-basis: 100%;
+    }
+
+}
+
+</style>
+
 </head>
+
 
 <body>
 
+
 <header class="header">
 
-    <div class="header-title">
-        منصة النبيل التعليمية الذكية
-    </div>
+<div class="header-title">
+منصة النبيل التعليمية الذكية
+</div>
 
-    <div class="controls">
+<div class="controls">
 
-        <div class="control">
-            <label for="gradeSelect">
-                الصف
-            </label>
+<div class="control">
+<label>الصف</label>
+<select id="gradeSelect"></select>
+</div>
 
-            <select id="gradeSelect"></select>
-        </div>
+<div class="control">
+<label>المادة</label>
+<select id="subjectSelect"></select>
+</div>
 
-        <div class="control">
-            <label for="subjectSelect">
-                المادة
-            </label>
+<div class="control">
+<label>اللغة</label>
 
-            <select id="subjectSelect"></select>
-        </div>
+<select id="languageSelect">
 
-        <div class="control">
-            <label for="languageSelect">
-                اللغة
-            </label>
+<option value="العربية">
+العربية
+</option>
 
-            <select id="languageSelect">
+<option value="Français">
+Français
+</option>
 
-                <option value="العربية">
-                    العربية
-                </option>
+<option value="English">
+English
+</option>
 
-                <option value="Français">
-                    Français
-                </option>
+</select>
 
-                <option value="English">
-                    English
-                </option>
+</div>
 
-            </select>
-        </div>
+<div class="control">
+<label>الدرس</label>
+<select id="lessonSelect"></select>
+</div>
 
-        <div class="control">
-            <label for="lessonSelect">
-                الدرس
-            </label>
+<button
+    id="startLesson"
+    type="button"
+>
+▶ ابدأ الدرس
+</button>
 
-            <select id="lessonSelect"></select>
-        </div>
-
-        <button
-            id="startLesson"
-            type="button"
-        >
-            ▶ ابدأ الدرس
-        </button>
-
-    </div>
+</div>
 
 </header>
 
+
 <main class="container">
 
-    <div
-        id="lessonInfo"
-        class="lesson-info"
-    >
+<div
+    id="lessonInfo"
+    class="lesson-info"
+>
 
-        <strong>
-            الدرس الحالي:
-        </strong>
+<strong>
+الدرس الحالي:
+</strong>
 
-        <span id="currentLesson"></span>
+<span id="currentLesson"></span>
 
-        <div
-            id="indexStatus"
-            class="index-status"
-        ></div>
+<div
+    id="indexStatus"
+    class="index-status"
+></div>
 
-    </div>
+</div>
 
-    <section
-        id="chat"
-        class="chat"
-    >
 
-        <div
-            id="welcome"
-            class="welcome"
-        >
+<section
+    id="chat"
+    class="chat"
+>
 
-            <h2>
-                مرحباً بك في NABIL AI 👨‍🏫
-            </h2>
+<div
+    id="welcome"
+    class="welcome"
+>
 
-            <p>
-                اختر الصف والمادة واللغة والدرس،
-                ثم اضغط
-                <strong>▶ ابدأ الدرس</strong>.
-            </p>
+<h2>
+مرحباً بك في NABIL AI 👨‍🏫
+</h2>
 
-        </div>
+<p>
+اختر الصف والمادة واللغة والدرس ثم ابدأ.
+</p>
 
-    </section>
+</div>
 
-    <div class="input-area">
+</section>
 
-        <textarea
-            id="messageInput"
-            placeholder="اكتب سؤالك هنا..."
-        ></textarea>
 
-        <button
-            id="imageBtn"
-            type="button"
-        >
-            🖼️
-        </button>
+<div class="input-area">
 
-        <input
-            id="imageInput"
-            type="file"
-            accept="image/*"
-        >
+<textarea
+    id="messageInput"
+    placeholder="اكتب سؤالك هنا..."
+></textarea>
 
-        <button
-            id="micBtn"
-            type="button"
-        >
-            🎤
-        </button>
+<button
+    id="imageBtn"
+    type="button"
+>
+🖼️
+</button>
 
-        <button
-            id="sendBtn"
-            type="button"
-        >
-            إرسال
-        </button>
+<input
+    id="imageInput"
+    type="file"
+    accept="image/*"
+>
 
-    </div>
+<button
+    id="micBtn"
+    type="button"
+>
+🎤
+</button>
+
+<button
+    id="sendBtn"
+    type="button"
+>
+إرسال
+</button>
+
+</div>
 
 </main>
+
 
 <script>
 
@@ -644,49 +550,79 @@ const SUBJECTS = [
 
 
 const gradeSelect =
-    document.getElementById("gradeSelect");
+    document.getElementById(
+        "gradeSelect"
+    );
 
 const subjectSelect =
-    document.getElementById("subjectSelect");
+    document.getElementById(
+        "subjectSelect"
+    );
 
 const languageSelect =
-    document.getElementById("languageSelect");
+    document.getElementById(
+        "languageSelect"
+    );
 
 const lessonSelect =
-    document.getElementById("lessonSelect");
+    document.getElementById(
+        "lessonSelect"
+    );
 
 const startLesson =
-    document.getElementById("startLesson");
+    document.getElementById(
+        "startLesson"
+    );
 
 const chat =
-    document.getElementById("chat");
+    document.getElementById(
+        "chat"
+    );
 
 const welcome =
-    document.getElementById("welcome");
+    document.getElementById(
+        "welcome"
+    );
 
 const lessonInfo =
-    document.getElementById("lessonInfo");
+    document.getElementById(
+        "lessonInfo"
+    );
 
 const currentLesson =
-    document.getElementById("currentLesson");
+    document.getElementById(
+        "currentLesson"
+    );
 
 const indexStatus =
-    document.getElementById("indexStatus");
+    document.getElementById(
+        "indexStatus"
+    );
 
 const messageInput =
-    document.getElementById("messageInput");
+    document.getElementById(
+        "messageInput"
+    );
 
 const sendBtn =
-    document.getElementById("sendBtn");
+    document.getElementById(
+        "sendBtn"
+    );
 
 const imageBtn =
-    document.getElementById("imageBtn");
+    document.getElementById(
+        "imageBtn"
+    );
 
 const imageInput =
-    document.getElementById("imageInput");
+    document.getElementById(
+        "imageInput"
+    );
 
 const micBtn =
-    document.getElementById("micBtn");
+    document.getElementById(
+        "micBtn"
+    );
 
 
 let curriculumIndex = {};
@@ -695,9 +631,9 @@ let selectedImage = null;
 let recognition = null;
 
 
-/* ==================================================
+/* ================================================
    SELECTS
-================================================== */
+================================================ */
 
 function fillSelect(
     select,
@@ -708,19 +644,26 @@ function fillSelect(
     select.innerHTML = "";
 
     const first =
-        document.createElement("option");
+        document.createElement(
+            "option"
+        );
 
     first.value = "";
+
     first.textContent =
         placeholder;
 
-    select.appendChild(first);
+    select.appendChild(
+        first
+    );
 
     items.forEach(
         item => {
 
             const option =
-                document.createElement("option");
+                document.createElement(
+                    "option"
+                );
 
             option.value =
                 item;
@@ -728,10 +671,13 @@ function fillSelect(
             option.textContent =
                 item;
 
-            select.appendChild(option);
+            select.appendChild(
+                option
+            );
 
         }
     );
+
 }
 
 
@@ -754,9 +700,9 @@ fillSelect(
 );
 
 
-/* ==================================================
-   LOAD INDEX
-================================================== */
+/* ================================================
+   INDEX
+================================================ */
 
 async function loadCurriculumIndex() {
 
@@ -783,10 +729,8 @@ async function loadCurriculumIndex() {
             await response.json();
 
         curriculumIndex =
-            data.verified_index || {};
-
-        indexStatus.textContent =
-            "تم تحميل فهرس الدروس.";
+            data.verified_index ||
+            {};
 
         updateLessons();
 
@@ -795,24 +739,18 @@ async function loadCurriculumIndex() {
     catch (error) {
 
         console.error(
-            "INDEX ERROR:",
+            "INDEX ERROR",
             error
         );
 
         curriculumIndex = {};
 
-        indexStatus.textContent =
-            "تعذر تحميل فهرس الدروس.";
-
         updateLessons();
 
     }
+
 }
 
-
-/* ==================================================
-   UPDATE LESSONS
-================================================== */
 
 function updateLessons() {
 
@@ -836,17 +774,21 @@ function updateLessons() {
             gradeData[language];
 
         if (
-            Array.isArray(languageData)
+            Array.isArray(
+                languageData
+            )
         ) {
 
-            lessons =
-                [...languageData];
+            lessons.push(
+                ...languageData
+            );
 
         }
 
         else if (
             languageData &&
-            typeof languageData === "object"
+            typeof languageData ===
+                "object"
         ) {
 
             Object.values(
@@ -855,7 +797,9 @@ function updateLessons() {
                 value => {
 
                     if (
-                        Array.isArray(value)
+                        Array.isArray(
+                            value
+                        )
                     ) {
 
                         lessons.push(
@@ -879,7 +823,9 @@ function updateLessons() {
                 value => {
 
                     if (
-                        Array.isArray(value)
+                        Array.isArray(
+                            value
+                        )
                     ) {
 
                         lessons.push(
@@ -890,7 +836,8 @@ function updateLessons() {
 
                     else if (
                         value &&
-                        typeof value === "object"
+                        typeof value ===
+                            "object"
                     ) {
 
                         Object.values(
@@ -899,7 +846,9 @@ function updateLessons() {
                             nested => {
 
                                 if (
-                                    Array.isArray(nested)
+                                    Array.isArray(
+                                        nested
+                                    )
                                 ) {
 
                                     lessons.push(
@@ -921,10 +870,13 @@ function updateLessons() {
     }
 
     lessons = [
-        ...new Set(lessons)
+        ...new Set(
+            lessons
+        )
     ];
 
-    lessonSelect.innerHTML = "";
+    lessonSelect.innerHTML =
+        "";
 
     const first =
         document.createElement(
@@ -933,21 +885,10 @@ function updateLessons() {
 
     first.value = "";
 
-    if (
-        lessons.length > 0
-    ) {
-
-        first.textContent =
-            "اختر الدرس";
-
-    }
-
-    else {
-
-        first.textContent =
-            "لا توجد دروس مفهرسة لهذا الاختيار بعد";
-
-    }
+    first.textContent =
+        lessons.length
+            ? "اختر الدرس"
+            : "لا توجد دروس مفهرسة بعد";
 
     lessonSelect.appendChild(
         first
@@ -973,6 +914,7 @@ function updateLessons() {
 
         }
     );
+
 }
 
 
@@ -992,9 +934,9 @@ languageSelect.addEventListener(
 );
 
 
-/* ==================================================
-   STUDENT ID
-================================================== */
+/* ================================================
+   STUDENT
+================================================ */
 
 function getStudentId() {
 
@@ -1011,7 +953,7 @@ function getStudentId() {
             "_" +
             Math.random()
                 .toString(36)
-                .substring(2, 8);
+                .substring(2,8);
 
         localStorage.setItem(
             "nabil_student_id",
@@ -1021,12 +963,13 @@ function getStudentId() {
     }
 
     return id;
+
 }
 
 
-/* ==================================================
-   RENDER AI TEXT
-================================================== */
+/* ================================================
+   TEXT RENDER
+================================================ */
 
 function renderAIText(text) {
 
@@ -1038,16 +981,19 @@ function renderAIText(text) {
 
     function saveMath(match) {
 
-        const index =
+        const i =
             mathBlocks.length;
 
-        mathBlocks.push(match);
+        mathBlocks.push(
+            match
+        );
 
         return (
-            "___NABIL_MATH_" +
-            index +
+            "___MATH_" +
+            i +
             "___"
         );
+
     }
 
     let content =
@@ -1090,14 +1036,6 @@ function renderAIText(text) {
             .replace(
                 />/g,
                 "&gt;"
-            )
-            .replace(
-                /"/g,
-                "&quot;"
-            )
-            .replace(
-                /'/g,
-                "&#039;"
             );
 
     content =
@@ -1131,12 +1069,12 @@ function renderAIText(text) {
         );
 
     mathBlocks.forEach(
-        (math, index) => {
+        (math,i) => {
 
             content =
                 content.replace(
-                    "___NABIL_MATH_" +
-                    index +
+                    "___MATH_" +
+                    i +
                     "___",
                     math
                 );
@@ -1145,17 +1083,15 @@ function renderAIText(text) {
     );
 
     return content;
+
 }
 
 
-/* ==================================================
+/* ================================================
    COPY
-================================================== */
+================================================ */
 
-async function copyAnswer(
-    text,
-    button
-) {
+async function copyAnswer(text) {
 
     try {
 
@@ -1163,142 +1099,87 @@ async function copyAnswer(
             text
         );
 
-        button.textContent =
-            "✅ تم النسخ";
-
-        button.classList.add(
-            "copied"
-        );
-
-        setTimeout(
-            () => {
-
-                button.textContent =
-                    "📋 نسخ الإجابة";
-
-                button.classList.remove(
-                    "copied"
-                );
-
-            },
-            1500
-        );
-
     }
 
     catch (error) {
 
         console.error(
-            "COPY ERROR:",
             error
         );
 
     }
+
 }
 
 
-/* ==================================================
+/* ================================================
    SPEECH
-================================================== */
+================================================ */
 
 function cleanSpeechText(text) {
 
-    let clean =
-        String(text || "");
-
-    clean =
-        clean.replace(
+    return String(text || "")
+        .replace(
             /\\frac\{([^{}]+)\}\{([^{}]+)\}/g,
             "$1 على $2"
-        );
-
-    clean =
-        clean.replace(
+        )
+        .replace(
             /\\sqrt\{([^{}]+)\}/g,
             "الجذر التربيعي لـ $1"
-        );
-
-    clean =
-        clean.replace(
+        )
+        .replace(
             /\^2/g,
             " تربيع"
-        );
-
-    clean =
-        clean.replace(
+        )
+        .replace(
             /\^3/g,
             " تكعيب"
-        );
-
-    clean =
-        clean.replace(
+        )
+        .replace(
             /\\boxed\{([^{}]+)\}/g,
             "$1"
-        );
-
-    clean =
-        clean.replace(
-            /\\text\{([^{}]+)\}/g,
-            "$1"
-        );
-
-    clean =
-        clean.replace(
+        )
+        .replace(
             /\\[a-zA-Z]+/g,
             ""
-        );
-
-    clean =
-        clean.replace(
+        )
+        .replace(
             /[*_#>`$]/g,
             ""
-        );
-
-    clean =
-        clean.replace(
+        )
+        .replace(
             /\s+/g,
             " "
-        );
+        )
+        .trim();
 
-    return clean.trim();
 }
 
 
-function readAnswer(
-    text,
-    button
-) {
+function readAnswer(text) {
 
     if (
-        !("speechSynthesis" in window)
+        !(
+            "speechSynthesis"
+            in window
+        )
     ) {
 
         alert(
-            "ميزة القراءة الصوتية غير مدعومة."
+            "القراءة الصوتية غير مدعومة."
         );
 
         return;
+
     }
 
-    if (
-        speechSynthesis.speaking
-    ) {
-
-        speechSynthesis.cancel();
-
-        button.classList.remove(
-            "reading"
-        );
-
-        button.textContent =
-            "🔊 اقرأ الإجابة";
-
-        return;
-    }
+    speechSynthesis.cancel();
 
     const utterance =
         new SpeechSynthesisUtterance(
-            cleanSpeechText(text)
+            cleanSpeechText(
+                text
+            )
         );
 
     const language =
@@ -1312,543 +1193,882 @@ function readAnswer(
                 : "ar-LB";
 
     utterance.rate =
-        0.92;
-
-    utterance.volume =
-        1;
-
-    button.classList.add(
-        "reading"
-    );
-
-    button.textContent =
-        "⏹ إيقاف القراءة";
-
-    utterance.onend =
-        function () {
-
-            button.classList.remove(
-                "reading"
-            );
-
-            button.textContent =
-                "🔊 اقرأ الإجابة";
-
-        };
-
-    utterance.onerror =
-        utterance.onend;
-
-    speechSynthesis.cancel();
+        .92;
 
     speechSynthesis.speak(
         utterance
     );
+
 }
 
 
-/* ==================================================
-   DRAWING HELPERS
-================================================== */
+/* ================================================
+   GRAPH ENGINE
+================================================ */
 
-function escapeSvgText(text) {
-
-    return String(text || "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
-}
-
-
-function buildDrawing(
-    subject,
-    text
+function functionY(
+    kind,
+    x
 ) {
 
-    const lower =
-        String(text || "")
-            .toLowerCase();
-
-    /* =========================
-       PYTHAGORAS / TRIANGLE
-    ========================== */
-
-    if (
-        lower.includes("فيثاغورس") ||
-        lower.includes("pythag") ||
-        lower.includes("مثلث قائم") ||
-        lower.includes("right triangle")
-    ) {
-
-        return `
-<div class="drawing-title">
-📐 رسم توضيحي
-</div>
-
-<svg viewBox="0 0 520 330">
-
-    <polygon
-        points="100,250 100,70 420,250"
-        fill="#eff6ff"
-        stroke="#173b6c"
-        stroke-width="4"
-    />
-
-    <polyline
-        points="100,220 130,220 130,250"
-        fill="none"
-        stroke="#dc2626"
-        stroke-width="4"
-    />
-
-    <text
-        x="65"
-        y="165"
-        class="diagram-label"
-    >
-        a
-    </text>
-
-    <text
-        x="255"
-        y="285"
-        class="diagram-label"
-    >
-        b
-    </text>
-
-    <text
-        x="295"
-        y="135"
-        class="diagram-label"
-    >
-        c
-    </text>
-
-    <text
-        x="112"
-        y="240"
-        class="diagram-label"
-    >
-        90°
-    </text>
-
-</svg>
-
-\\[
-a^2+b^2=c^2
-\\]
-`;
-    }
-
-    /* =========================
-       CIRCLE / TANGENT
-    ========================== */
-
-    if (
-        lower.includes("دائرة") ||
-        lower.includes("مماس") ||
-        lower.includes("circle") ||
-        lower.includes("tangent")
-    ) {
-
-        return `
-<div class="drawing-title">
-⭕ رسم الدائرة والمماس
-</div>
-
-<svg viewBox="0 0 520 330">
-
-    <circle
-        cx="230"
-        cy="165"
-        r="90"
-        fill="#eff6ff"
-        stroke="#173b6c"
-        stroke-width="4"
-    />
-
-    <line
-        x1="230"
-        y1="165"
-        x2="320"
-        y2="165"
-        stroke="#dc2626"
-        stroke-width="4"
-    />
-
-    <line
-        x1="320"
-        y1="55"
-        x2="320"
-        y2="275"
-        stroke="#16a34a"
-        stroke-width="5"
-    />
-
-    <circle
-        cx="230"
-        cy="165"
-        r="5"
-        fill="#dc2626"
-    />
-
-    <text
-        x="210"
-        y="148"
-        class="diagram-label"
-    >
-        O
-    </text>
-
-    <text
-        x="268"
-        y="150"
-        class="diagram-label"
-    >
-        r
-    </text>
-
-    <text
-        x="335"
-        y="165"
-        class="diagram-label"
-    >
-        tangent
-    </text>
-
-</svg>
-`;
-    }
-
-    /* =========================
-       FUNCTION / GRAPH
-    ========================== */
-
-    if (
-        lower.includes("ln") ||
-        lower.includes("دالة") ||
-        lower.includes("function") ||
-        lower.includes("graph") ||
-        lower.includes("منحنى")
-    ) {
-
-        return `
-<div class="drawing-title">
-📈 نظام متعامد ومنحنى توضيحي
-</div>
-
-<svg viewBox="0 0 560 360">
-
-    <line
-        x1="50"
-        y1="180"
-        x2="520"
-        y2="180"
-        stroke="#334155"
-        stroke-width="2"
-    />
-
-    <line
-        x1="280"
-        y1="25"
-        x2="280"
-        y2="335"
-        stroke="#334155"
-        stroke-width="2"
-    />
-
-    <text
-        x="510"
-        y="170"
-        class="diagram-label"
-    >
-        x
-    </text>
-
-    <text
-        x="292"
-        y="35"
-        class="diagram-label"
-    >
-        y
-    </text>
-
-    <path
-        d="
-            M 300 310
-            C 315 265,
-              340 225,
-              375 190
-            C 415 150,
-              460 125,
-              505 105
-        "
-        fill="none"
-        stroke="#2563eb"
-        stroke-width="4"
-    />
-
-    <line
-        x1="280"
-        y1="25"
-        x2="280"
-        y2="335"
-        stroke="#dc2626"
-        stroke-width="1"
-        stroke-dasharray="6 6"
-    />
-
-    <text
-        x="395"
-        y="115"
-        class="diagram-label"
-    >
-        y = ln(x)
-    </text>
-
-</svg>
-`;
-    }
-
-    /* =========================
-       PHYSICS
-    ========================== */
-
-    if (
-        subject === "فيزياء"
-    ) {
-
-        return `
-<div class="drawing-title">
-⚙️ مخطط فيزيائي توضيحي
-</div>
-
-<svg viewBox="0 0 560 300">
-
-    <rect
-        x="220"
-        y="120"
-        width="120"
-        height="80"
-        rx="10"
-        fill="#eff6ff"
-        stroke="#173b6c"
-        stroke-width="3"
-    />
-
-    <line
-        x1="280"
-        y1="120"
-        x2="280"
-        y2="55"
-        stroke="#dc2626"
-        stroke-width="4"
-    />
-
-    <polygon
-        points="280,40 270,60 290,60"
-        fill="#dc2626"
-    />
-
-    <text
-        x="295"
-        y="75"
-        class="diagram-label"
-    >
-        F
-    </text>
-
-    <line
-        x1="280"
-        y1="200"
-        x2="280"
-        y2="265"
-        stroke="#16a34a"
-        stroke-width="4"
-    />
-
-    <polygon
-        points="280,280 270,260 290,260"
-        fill="#16a34a"
-    />
-
-    <text
-        x="295"
-        y="255"
-        class="diagram-label"
-    >
-        mg
-    </text>
-
-</svg>
-`;
-    }
-
-    /* =========================
-       CHEMISTRY
-    ========================== */
-
-    if (
-        subject === "كيمياء"
-    ) {
-
-        return `
-<div class="drawing-title">
-🧪 مخطط كيميائي توضيحي
-</div>
-
-<svg viewBox="0 0 560 300">
-
-    <circle
-        cx="220"
-        cy="150"
-        r="42"
-        fill="#eff6ff"
-        stroke="#173b6c"
-        stroke-width="3"
-    />
-
-    <circle
-        cx="340"
-        cy="150"
-        r="42"
-        fill="#fef2f2"
-        stroke="#dc2626"
-        stroke-width="3"
-    />
-
-    <line
-        x1="262"
-        y1="150"
-        x2="298"
-        y2="150"
-        stroke="#334155"
-        stroke-width="6"
-    />
-
-    <text
-        x="206"
-        y="157"
-        class="diagram-label"
-    >
-        A
-    </text>
-
-    <text
-        x="326"
-        y="157"
-        class="diagram-label"
-    >
-        B
-    </text>
-
-    <text
-        x="265"
-        y="215"
-        class="diagram-label"
-    >
-        A—B
-    </text>
-
-</svg>
-`;
-    }
-
-    return `
-<div class="drawing-title">
-📊 رسم توضيحي
-</div>
-
-<p>
-لا توجد بعد رسمة تلقائية متخصصة لهذا الجواب.
-سنربط هذا الزر لاحقًا برسومات يولدها NABIL AI حسب السؤال نفسه.
-</p>
-`;
-}
-
-
-/* ==================================================
-   TOGGLE DRAWING
-================================================== */
-
-function toggleDrawing(
-    subject,
-    text,
-    drawingBox,
-    button
-) {
-
-    const isVisible =
-        drawingBox.classList.contains(
-            "visible"
-        );
-
-    if (isVisible) {
-
-        drawingBox.classList.remove(
-            "visible"
-        );
-
-        button.classList.remove(
-            "active"
-        );
-
-        button.textContent =
-            "📐 إظهار الرسمة";
-
-        return;
-    }
-
-    if (
-        !drawingBox.dataset.rendered
-    ) {
-
-        drawingBox.innerHTML =
-            buildDrawing(
-                subject,
-                text
+    switch(kind) {
+
+        case "ln":
+            return (
+                x > 0
+                    ? Math.log(x)
+                    : null
             );
 
-        drawingBox.dataset.rendered =
-            "true";
+        case "exp":
+            return Math.exp(x);
+
+        case "square":
+            return x * x;
+
+        case "linear":
+            return x;
+
+        case "inverse":
+            return (
+                Math.abs(x) < .0001
+                    ? null
+                    : 1 / x
+            );
+
+        default:
+            return null;
+
+    }
+
+}
+
+
+function renderFunction(
+    drawing
+) {
+
+    const width = 700;
+    const height = 420;
+
+    const left = 65;
+    const right = 30;
+    const top = 30;
+    const bottom = 55;
+
+    const xMin =
+        Number(
+            drawing.x_min ?? -5
+        );
+
+    const xMax =
+        Number(
+            drawing.x_max ?? 5
+        );
+
+    const yMin =
+        Number(
+            drawing.y_min ?? -5
+        );
+
+    const yMax =
+        Number(
+            drawing.y_max ?? 5
+        );
+
+    const plotWidth =
+        width -
+        left -
+        right;
+
+    const plotHeight =
+        height -
+        top -
+        bottom;
+
+    function sx(x) {
+
+        return (
+            left +
+            (
+                (x - xMin) /
+                (xMax - xMin)
+            ) *
+            plotWidth
+        );
+
+    }
+
+    function sy(y) {
+
+        return (
+            top +
+            (
+                (yMax - y) /
+                (yMax - yMin)
+            ) *
+            plotHeight
+        );
+
+    }
+
+    let path = "";
+
+    let penDown = false;
+
+    const steps = 550;
+
+    for (
+        let i = 0;
+        i <= steps;
+        i++
+    ) {
+
+        const x =
+            xMin +
+            (
+                (xMax - xMin) *
+                i /
+                steps
+            );
+
+        const y =
+            functionY(
+                drawing.function,
+                x
+            );
 
         if (
-            window.MathJax &&
-            typeof MathJax.typesetPromise ===
-                "function"
+            y === null ||
+            !Number.isFinite(y) ||
+            y < yMin - 5 ||
+            y > yMax + 5
         ) {
 
-            MathJax.typesetPromise(
-                [drawingBox]
-            ).catch(
-                console.error
-            );
+            penDown =
+                false;
+
+            continue;
+
+        }
+
+        const px =
+            sx(x);
+
+        const py =
+            sy(y);
+
+        if (!penDown) {
+
+            path +=
+                `M ${px} ${py} `;
+
+            penDown =
+                true;
+
+        }
+
+        else {
+
+            path +=
+                `L ${px} ${py} `;
 
         }
 
     }
 
-    drawingBox.classList.add(
-        "visible"
+    let grid = "";
+
+    for (
+        let x =
+            Math.ceil(xMin);
+        x <= Math.floor(xMax);
+        x++
+    ) {
+
+        const px =
+            sx(x);
+
+        grid += `
+<line
+    x1="${px}"
+    y1="${top}"
+    x2="${px}"
+    y2="${height-bottom}"
+    stroke="#e2e8f0"
+    stroke-width="1"
+/>
+`;
+
+    }
+
+    for (
+        let y =
+            Math.ceil(yMin);
+        y <= Math.floor(yMax);
+        y++
+    ) {
+
+        const py =
+            sy(y);
+
+        grid += `
+<line
+    x1="${left}"
+    y1="${py}"
+    x2="${width-right}"
+    y2="${py}"
+    stroke="#e2e8f0"
+    stroke-width="1"
+/>
+`;
+
+    }
+
+    let points = "";
+
+    (
+        drawing.points ||
+        []
+    ).forEach(
+        point => {
+
+            const px =
+                sx(
+                    Number(
+                        point.x
+                    )
+                );
+
+            const py =
+                sy(
+                    Number(
+                        point.y
+                    )
+                );
+
+            points += `
+<circle
+    cx="${px}"
+    cy="${py}"
+    r="5"
+    fill="#dc2626"
+/>
+
+<text
+    x="${px + 10}"
+    y="${py - 10}"
+    class="graph-label"
+>
+${point.label || ""}
+</text>
+`;
+
+        }
     );
 
-    button.classList.add(
-        "active"
-    );
+    let asymptote = "";
 
-    button.textContent =
-        "📐 إخفاء الرسمة";
+    if (
+        drawing.vertical_asymptote !==
+        undefined &&
+        drawing.vertical_asymptote !==
+        null
+    ) {
+
+        const px =
+            sx(
+                Number(
+                    drawing.vertical_asymptote
+                )
+            );
+
+        asymptote = `
+<line
+    x1="${px}"
+    y1="${top}"
+    x2="${px}"
+    y2="${height-bottom}"
+    stroke="#dc2626"
+    stroke-width="2"
+    stroke-dasharray="7 6"
+/>
+
+<text
+    x="${px + 7}"
+    y="${height-bottom-8}"
+    class="graph-label"
+    fill="#dc2626"
+>
+x = ${drawing.vertical_asymptote}
+</text>
+`;
+
+    }
+
+    const xAxisY =
+        (
+            yMin <= 0 &&
+            yMax >= 0
+        )
+        ? sy(0)
+        : height - bottom;
+
+    const yAxisX =
+        (
+            xMin <= 0 &&
+            xMax >= 0
+        )
+        ? sx(0)
+        : left;
+
+    return `
+<div class="drawing-title">
+📈 ${drawing.title || drawing.expression || "الرسم البياني"}
+</div>
+
+<svg
+    viewBox="0 0 ${width} ${height}"
+>
+
+${grid}
+
+<line
+    x1="${left}"
+    y1="${xAxisY}"
+    x2="${width-right}"
+    y2="${xAxisY}"
+    stroke="#334155"
+    stroke-width="2"
+/>
+
+<line
+    x1="${yAxisX}"
+    y1="${top}"
+    x2="${yAxisX}"
+    y2="${height-bottom}"
+    stroke="#334155"
+    stroke-width="2"
+/>
+
+${asymptote}
+
+<path
+    d="${path}"
+    fill="none"
+    stroke="#2563eb"
+    stroke-width="4"
+/>
+
+${points}
+
+<text
+    x="${width-right-10}"
+    y="${xAxisY-8}"
+    class="graph-label"
+>
+x
+</text>
+
+<text
+    x="${yAxisX+9}"
+    y="${top+15}"
+    class="graph-label"
+>
+y
+</text>
+
+</svg>
+`;
+
 }
 
 
-/* ==================================================
+/* ================================================
+   RIGHT TRIANGLE
+================================================ */
+
+function renderTriangle(
+    drawing
+) {
+
+    const a =
+        drawing.labels?.a ??
+        drawing.a ??
+        "a";
+
+    const b =
+        drawing.labels?.b ??
+        drawing.b ??
+        "b";
+
+    const c =
+        drawing.labels?.c ??
+        drawing.c ??
+        "c";
+
+    return `
+<div class="drawing-title">
+📐 ${drawing.title || "مثلث قائم الزاوية"}
+</div>
+
+<svg viewBox="0 0 620 380">
+
+<polygon
+    points="
+        130,310
+        130,70
+        530,310
+    "
+    fill="#eff6ff"
+    stroke="#2563eb"
+    stroke-width="4"
+/>
+
+<polyline
+    points="
+        130,275
+        165,275
+        165,310
+    "
+    fill="none"
+    stroke="#dc2626"
+    stroke-width="4"
+/>
+
+<text
+    x="75"
+    y="195"
+    class="graph-label"
+>
+${a}
+</text>
+
+<text
+    x="315"
+    y="345"
+    class="graph-label"
+>
+${b}
+</text>
+
+<text
+    x="345"
+    y="165"
+    class="graph-label"
+>
+${c}
+</text>
+
+<text
+    x="138"
+    y="300"
+    class="graph-label"
+>
+90°
+</text>
+
+</svg>
+`;
+
+}
+
+
+/* ================================================
+   CIRCLE TANGENT
+================================================ */
+
+function renderCircle(
+    drawing
+) {
+
+    const center =
+        drawing.center ||
+        "O";
+
+    const tangent =
+        drawing.tangent_point ||
+        "A";
+
+    const external =
+        drawing.external_point ||
+        "M";
+
+    return `
+<div class="drawing-title">
+⭕ ${drawing.title || "الدائرة والمماس"}
+</div>
+
+<svg viewBox="0 0 650 380">
+
+<circle
+    cx="260"
+    cy="190"
+    r="115"
+    fill="#eff6ff"
+    stroke="#2563eb"
+    stroke-width="4"
+/>
+
+<circle
+    cx="260"
+    cy="190"
+    r="5"
+    fill="#dc2626"
+/>
+
+<line
+    x1="260"
+    y1="190"
+    x2="375"
+    y2="190"
+    stroke="#dc2626"
+    stroke-width="3"
+/>
+
+<line
+    x1="375"
+    y1="65"
+    x2="375"
+    y2="315"
+    stroke="#16a34a"
+    stroke-width="4"
+/>
+
+<circle
+    cx="375"
+    cy="190"
+    r="5"
+    fill="#111827"
+/>
+
+<circle
+    cx="375"
+    cy="90"
+    r="5"
+    fill="#111827"
+/>
+
+<text
+    x="238"
+    y="175"
+    class="graph-label"
+>
+${center}
+</text>
+
+<text
+    x="388"
+    y="194"
+    class="graph-label"
+>
+${tangent}
+</text>
+
+<text
+    x="388"
+    y="94"
+    class="graph-label"
+>
+${external}
+</text>
+
+</svg>
+`;
+
+}
+
+
+/* ================================================
+   FORCES
+================================================ */
+
+function renderForces(
+    drawing
+) {
+
+    let arrows = "";
+
+    (
+        drawing.forces ||
+        []
+    ).forEach(
+        force => {
+
+            let x2 = 350;
+            let y2 = 190;
+
+            if (
+                force.direction ===
+                "up"
+            ) {
+                y2 = 70;
+            }
+
+            if (
+                force.direction ===
+                "down"
+            ) {
+                y2 = 315;
+            }
+
+            if (
+                force.direction ===
+                "left"
+            ) {
+                x2 = 170;
+            }
+
+            if (
+                force.direction ===
+                "right"
+            ) {
+                x2 = 530;
+            }
+
+            arrows += `
+<line
+    x1="350"
+    y1="190"
+    x2="${x2}"
+    y2="${y2}"
+    stroke="#dc2626"
+    stroke-width="4"
+/>
+
+<circle
+    cx="${x2}"
+    cy="${y2}"
+    r="4"
+    fill="#dc2626"
+/>
+
+<text
+    x="${x2 + 10}"
+    y="${y2 - 8}"
+    class="graph-label"
+>
+${force.label || "F"}
+</text>
+`;
+
+        }
+    );
+
+    return `
+<div class="drawing-title">
+⚙️ ${drawing.title || "مخطط القوى"}
+</div>
+
+<svg viewBox="0 0 700 380">
+
+<rect
+    x="300"
+    y="145"
+    width="100"
+    height="90"
+    rx="10"
+    fill="#eff6ff"
+    stroke="#2563eb"
+    stroke-width="3"
+/>
+
+<text
+    x="342"
+    y="198"
+    class="graph-label"
+>
+${drawing.object || "m"}
+</text>
+
+${arrows}
+
+</svg>
+`;
+
+}
+
+
+/* ================================================
+   MOLECULE
+================================================ */
+
+function renderMolecule(
+    drawing
+) {
+
+    const atoms =
+        drawing.atoms ||
+        [];
+
+    if (!atoms.length) {
+
+        return "";
+
+    }
+
+    const width = 700;
+    const centerY = 190;
+
+    const gap =
+        atoms.length > 1
+            ? 450 /
+              (
+                atoms.length -
+                1
+              )
+            : 0;
+
+    let output = "";
+
+    atoms.forEach(
+        (atom,index) => {
+
+            const x =
+                atoms.length === 1
+                    ? 350
+                    : 125 +
+                      gap *
+                      index;
+
+            if (
+                index <
+                atoms.length - 1
+            ) {
+
+                const nextX =
+                    125 +
+                    gap *
+                    (
+                        index +
+                        1
+                    );
+
+                output += `
+<line
+    x1="${x + 35}"
+    y1="${centerY}"
+    x2="${nextX - 35}"
+    y2="${centerY}"
+    stroke="#334155"
+    stroke-width="5"
+/>
+`;
+
+            }
+
+            output += `
+<circle
+    cx="${x}"
+    cy="${centerY}"
+    r="38"
+    fill="#eff6ff"
+    stroke="#2563eb"
+    stroke-width="3"
+/>
+
+<text
+    x="${x}"
+    y="${centerY + 7}"
+    text-anchor="middle"
+    class="graph-label"
+>
+${atom.label || "X"}
+</text>
+`;
+
+        }
+    );
+
+    return `
+<div class="drawing-title">
+🧪 ${drawing.title || "البنية الجزيئية"}
+</div>
+
+<svg viewBox="0 0 ${width} 380">
+${output}
+</svg>
+`;
+
+}
+
+
+/* ================================================
+   DRAWING DISPATCH
+================================================ */
+
+function renderDrawing(
+    drawing
+) {
+
+    if (
+        !drawing ||
+        !drawing.type
+    ) {
+
+        return `
+<div class="drawing-title">
+لا توجد رسمة مرتبطة بهذا الجواب.
+</div>
+`;
+
+    }
+
+    switch(
+        drawing.type
+    ) {
+
+        case "function":
+
+            return renderFunction(
+                drawing
+            );
+
+        case "right_triangle":
+
+            return renderTriangle(
+                drawing
+            );
+
+        case "circle_tangent":
+
+            return renderCircle(
+                drawing
+            );
+
+        case "forces":
+
+            return renderForces(
+                drawing
+            );
+
+        case "molecule":
+
+            return renderMolecule(
+                drawing
+            );
+
+        default:
+
+            return `
+<div class="drawing-title">
+لا يوجد محرّك رسم لهذا النوع بعد.
+</div>
+`;
+
+    }
+
+}
+
+
+/* ================================================
    ADD MESSAGE
-================================================== */
+================================================ */
 
 function addMessage(
     role,
-    text
+    text,
+    drawing = null
 ) {
 
     if (welcome) {
@@ -1880,7 +2100,9 @@ function addMessage(
     ) {
 
         bubble.innerHTML =
-            renderAIText(text);
+            renderAIText(
+                text
+            );
 
     }
 
@@ -1910,24 +2132,14 @@ function addMessage(
                 "button"
             );
 
-        copyButton.type =
-            "button";
-
-        copyButton.className =
-            "copy-answer-btn";
-
         copyButton.textContent =
             "📋 نسخ الإجابة";
 
         copyButton.onclick =
-            () => {
-
+            () =>
                 copyAnswer(
-                    text,
-                    copyButton
+                    text
                 );
-
-            };
 
 
         const readButton =
@@ -1935,61 +2147,14 @@ function addMessage(
                 "button"
             );
 
-        readButton.type =
-            "button";
-
-        readButton.className =
-            "read-answer-btn";
-
         readButton.textContent =
             "🔊 اقرأ الإجابة";
 
         readButton.onclick =
-            () => {
-
+            () =>
                 readAnswer(
-                    text,
-                    readButton
+                    text
                 );
-
-            };
-
-
-        const drawButton =
-            document.createElement(
-                "button"
-            );
-
-        drawButton.type =
-            "button";
-
-        drawButton.className =
-            "draw-answer-btn";
-
-        drawButton.textContent =
-            "📐 إظهار الرسمة";
-
-
-        const drawingBox =
-            document.createElement(
-                "div"
-            );
-
-        drawingBox.className =
-            "answer-drawing";
-
-
-        drawButton.onclick =
-            () => {
-
-                toggleDrawing(
-                    subjectSelect.value,
-                    text,
-                    drawingBox,
-                    drawButton
-                );
-
-            };
 
 
         tools.appendChild(
@@ -2000,17 +2165,124 @@ function addMessage(
             readButton
         );
 
-        tools.appendChild(
-            drawButton
-        );
 
-        bubble.appendChild(
-            tools
-        );
+        if (drawing) {
 
-        bubble.appendChild(
-            drawingBox
-        );
+            const drawingBox =
+                document.createElement(
+                    "div"
+                );
+
+            drawingBox.className =
+                "answer-drawing";
+
+
+            const drawButton =
+                document.createElement(
+                    "button"
+                );
+
+            drawButton.className =
+                "draw-answer-btn";
+
+            drawButton.textContent =
+                "📐 إظهار الرسمة";
+
+
+            drawButton.onclick =
+                () => {
+
+                    const visible =
+                        drawingBox
+                            .classList
+                            .contains(
+                                "visible"
+                            );
+
+                    if (visible) {
+
+                        drawingBox
+                            .classList
+                            .remove(
+                                "visible"
+                            );
+
+                        drawButton
+                            .classList
+                            .remove(
+                                "active"
+                            );
+
+                        drawButton
+                            .textContent =
+                            "📐 إظهار الرسمة";
+
+                    }
+
+                    else {
+
+                        if (
+                            !drawingBox
+                                .dataset
+                                .rendered
+                        ) {
+
+                            drawingBox
+                                .innerHTML =
+                                renderDrawing(
+                                    drawing
+                                );
+
+                            drawingBox
+                                .dataset
+                                .rendered =
+                                "true";
+
+                        }
+
+                        drawingBox
+                            .classList
+                            .add(
+                                "visible"
+                            );
+
+                        drawButton
+                            .classList
+                            .add(
+                                "active"
+                            );
+
+                        drawButton
+                            .textContent =
+                            "📐 إخفاء الرسمة";
+
+                    }
+
+                };
+
+
+            tools.appendChild(
+                drawButton
+            );
+
+            bubble.appendChild(
+                tools
+            );
+
+            bubble.appendChild(
+                drawingBox
+            );
+
+        }
+
+        else {
+
+            bubble.appendChild(
+                tools
+            );
+
+        }
+
     }
 
     wrapper.appendChild(
@@ -2038,12 +2310,13 @@ function addMessage(
         );
 
     }
+
 }
 
 
-/* ==================================================
-   SEND TO AI
-================================================== */
+/* ================================================
+   SEND
+================================================ */
 
 async function sendToAI(
     message,
@@ -2062,6 +2335,7 @@ async function sendToAI(
     const lesson =
         lessonSelect.value;
 
+
     if (
         !grade ||
         !subject
@@ -2072,7 +2346,9 @@ async function sendToAI(
         );
 
         return;
+
     }
+
 
     if (
         showStudentMessage
@@ -2100,13 +2376,16 @@ async function sendToAI(
 
     }
 
+
     const formData =
         new FormData();
+
 
     formData.append(
         "student_id",
         getStudentId()
     );
+
 
     if (
         conversationId
@@ -2118,6 +2397,7 @@ async function sendToAI(
         );
 
     }
+
 
     formData.append(
         "message",
@@ -2149,6 +2429,7 @@ async function sendToAI(
         lesson || ""
     );
 
+
     if (
         selectedImage
     ) {
@@ -2160,6 +2441,7 @@ async function sendToAI(
 
     }
 
+
     try {
 
         sendBtn.disabled =
@@ -2170,6 +2452,7 @@ async function sendToAI(
 
         sendBtn.textContent =
             "جاري التفكير...";
+
 
         const response =
             await fetch(
@@ -2183,22 +2466,10 @@ async function sendToAI(
                 }
             );
 
-        let data = {};
 
-        try {
+        const data =
+            await response.json();
 
-            data =
-                await response.json();
-
-        }
-
-        catch {
-
-            throw new Error(
-                "الخادم لم يُرجع JSON صالحًا."
-            );
-
-        }
 
         if (
             !response.ok
@@ -2206,14 +2477,11 @@ async function sendToAI(
 
             throw new Error(
                 data.detail ||
-                data.error ||
-                (
-                    "HTTP " +
-                    response.status
-                )
+                "حدث خطأ في الخادم."
             );
 
         }
+
 
         if (
             data.conversation_id
@@ -2224,11 +2492,15 @@ async function sendToAI(
 
         }
 
+
         addMessage(
             "teacher",
             data.reply ||
-            "لم يصل جواب من NABIL AI."
+            "لم يصل جواب.",
+            data.drawing ||
+            null
         );
+
 
         selectedImage =
             null;
@@ -2244,10 +2516,9 @@ async function sendToAI(
 
     }
 
-    catch (error) {
+    catch(error) {
 
         console.error(
-            "NABIL AI ERROR:",
             error
         );
 
@@ -2271,16 +2542,17 @@ async function sendToAI(
             "إرسال";
 
     }
+
 }
 
 
-/* ==================================================
+/* ================================================
    START LESSON
-================================================== */
+================================================ */
 
 startLesson.addEventListener(
     "click",
-    async function () {
+    async () => {
 
         const grade =
             gradeSelect.value;
@@ -2294,32 +2566,21 @@ startLesson.addEventListener(
         const lesson =
             lessonSelect.value;
 
-        if (!grade) {
+
+        if (
+            !grade ||
+            !subject ||
+            !lesson
+        ) {
 
             alert(
-                "اختر الصف أولاً."
+                "اختر الصف والمادة والدرس."
             );
 
             return;
+
         }
 
-        if (!subject) {
-
-            alert(
-                "اختر المادة أولاً."
-            );
-
-            return;
-        }
-
-        if (!lesson) {
-
-            alert(
-                "اختر الدرس أولاً."
-            );
-
-            return;
-        }
 
         currentLesson.textContent =
             lesson;
@@ -2327,46 +2588,44 @@ startLesson.addEventListener(
         lessonInfo.style.display =
             "block";
 
-        indexStatus.textContent =
-            "المصدر: فهرس الدروس العلمي.";
 
         const prompt =
-            `ابدأ درسًا تفاعليًا مع الطالب.
+`ابدأ درسًا تفاعليًا.
 
 الصف: ${grade}
 المادة: ${subject}
 اللغة: ${language}
-المنهج: ${FIXED_CURRICULUM}
 الدرس: ${lesson}
 
-استخدم اللغة المحددة.
-التزم بمستوى الصف.
 ابدأ بتمهيد قصير.
-اشرح الفكرة الأولى فقط.
+اشرح الفكرة الأولى.
 استخدم مثالًا مناسبًا.
-استخدم LaTeX الصحيح في الرياضيات.
-إذا كان الشرح يحتاج رسماً، صف العناصر بوضوح.
-اطرح سؤال تحقق واحدًا.
-لا تعرض التعليمات الداخلية للطالب.`;
+إذا كان الرسم مفيدًا أرسل DRAWING_JSON.
+لا تستخدم رسومات ASCII.
+اطرح سؤال تحقق واحدًا.`;
+
 
         await sendToAI(
             prompt,
             false
         );
+
     }
 );
 
 
-/* ==================================================
+/* ================================================
    SEND BUTTON
-================================================== */
+================================================ */
 
 sendBtn.addEventListener(
     "click",
-    async function () {
+    async () => {
 
         const message =
-            messageInput.value.trim();
+            messageInput
+                .value
+                .trim();
 
         if (
             !message &&
@@ -2374,33 +2633,32 @@ sendBtn.addEventListener(
         ) {
 
             return;
+
         }
 
         await sendToAI(
             message,
             true
         );
+
     }
 );
 
 
-/* ==================================================
+/* ================================================
    IMAGE
-================================================== */
+================================================ */
 
 imageBtn.addEventListener(
     "click",
-    function () {
-
-        imageInput.click();
-
-    }
+    () =>
+        imageInput.click()
 );
 
 
 imageInput.addEventListener(
     "change",
-    function () {
+    function() {
 
         if (
             this.files &&
@@ -2411,7 +2669,7 @@ imageInput.addEventListener(
                 this.files[0];
 
             messageInput.placeholder =
-                "تم اختيار صورة. اكتب سؤالك أو اضغط إرسال.";
+                "تم اختيار صورة. اكتب طلبك أو اضغط إرسال.";
 
         }
 
@@ -2419,13 +2677,13 @@ imageInput.addEventListener(
 );
 
 
-/* ==================================================
+/* ================================================
    ENTER
-================================================== */
+================================================ */
 
 messageInput.addEventListener(
     "keydown",
-    function (event) {
+    event => {
 
         if (
             event.key ===
@@ -2443,21 +2701,25 @@ messageInput.addEventListener(
 );
 
 
-/* ==================================================
-   MICROPHONE
-================================================== */
+/* ================================================
+   SPEECH INPUT
+================================================ */
 
 if (
-    "webkitSpeechRecognition" in window ||
-    "SpeechRecognition" in window
+    "webkitSpeechRecognition"
+        in window ||
+    "SpeechRecognition"
+        in window
 ) {
 
     const SpeechRecognition =
         window.SpeechRecognition ||
         window.webkitSpeechRecognition;
 
+
     recognition =
         new SpeechRecognition();
+
 
     recognition.continuous =
         false;
@@ -2465,8 +2727,9 @@ if (
     recognition.interimResults =
         false;
 
+
     recognition.onresult =
-        function (event) {
+        event => {
 
             messageInput.value =
                 event.results[0][0]
@@ -2474,49 +2737,39 @@ if (
 
         };
 
-    recognition.onerror =
-        function (event) {
-
-            console.error(
-                "SPEECH ERROR:",
-                event.error
-            );
-
-        };
 }
 
 
 micBtn.addEventListener(
     "click",
-    function () {
+    () => {
 
         if (!recognition) {
 
             alert(
-                "التعرف الصوتي غير مدعوم في هذا المتصفح."
+                "التعرف الصوتي غير مدعوم."
             );
 
             return;
+
         }
 
-        const language =
-            languageSelect.value;
 
         recognition.lang =
-            language === "English"
-                ? "en-US"
-                : language === "Français"
-                    ? "fr-FR"
-                    : "ar-LB";
+            languageSelect.value ===
+                "English"
+            ? "en-US"
+            : languageSelect.value ===
+                "Français"
+                ? "fr-FR"
+                : "ar-LB";
+
 
         recognition.start();
+
     }
 );
 
-
-/* ==================================================
-   START
-================================================== */
 
 loadCurriculumIndex();
 
