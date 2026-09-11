@@ -279,6 +279,44 @@
             overflow-wrap: anywhere;
         }
 
+        .bubble.ltr-content {
+            direction: ltr;
+            text-align: left;
+        }
+
+        .bubble.rtl-content {
+            direction: rtl;
+            text-align: right;
+        }
+
+        .bubble.ltr-content h2,
+        .bubble.ltr-content h3,
+        .bubble.ltr-content h4,
+        .bubble.ltr-content p,
+        .bubble.ltr-content li {
+            direction: ltr;
+            text-align: left;
+        }
+
+        .bubble.rtl-content h2,
+        .bubble.rtl-content h3,
+        .bubble.rtl-content h4,
+        .bubble.rtl-content p,
+        .bubble.rtl-content li {
+            direction: rtl;
+            text-align: right;
+        }
+
+        .bubble.ltr-content .teacher-tools {
+            direction: ltr;
+            justify-content: flex-start;
+        }
+
+        .bubble.rtl-content .teacher-tools {
+            direction: rtl;
+            justify-content: flex-start;
+        }
+
         .student .bubble {
             max-width: 82%;
             background: var(--student);
@@ -669,7 +707,7 @@
             class="welcome"
         >
             <h2>
-                مرحباً بك في NABIL AI 👨‍🏫
+                مرحباً بك في NABIL AI 👨🏫
             </h2>
 
             <p>
@@ -1511,6 +1549,26 @@ languageSelect.addEventListener(
     "change",
     updateLessons
 );
+
+
+function updateInputDirection() {
+    const isLTR =
+        languageSelect.value === "English" ||
+        languageSelect.value === "Français";
+
+    messageInput.dir =
+        isLTR ? "ltr" : "rtl";
+
+    messageInput.style.textAlign =
+        isLTR ? "left" : "right";
+}
+
+languageSelect.addEventListener(
+    "change",
+    updateInputDirection
+);
+
+updateInputDirection();
 
 
 /* =========================================================
@@ -3158,13 +3216,13 @@ async function shareDrawing(
                 }
             );
 
+        // 1) المشاركة الأصلية للملف على الهاتف والأجهزة التي تدعم Web Share
         if (
-            navigator.share &&
-            navigator.canShare &&
+            typeof navigator.share === "function" &&
+            typeof navigator.canShare === "function" &&
             navigator.canShare(
                 {
-                    files:
-                        [file]
+                    files: [file]
                 }
             )
         ) {
@@ -3185,30 +3243,170 @@ async function shareDrawing(
             return;
         }
 
-        await downloadDrawing(
-            drawingBox
+        // 2) على بعض الأجهزة يمكن فتح نافذة المشاركة لكن من دون ملفات
+        // نشارك رابط المنصة وننسخ الصورة للحافظة إن أمكن
+        let copiedToClipboard = false;
+
+        if (
+            navigator.clipboard &&
+            typeof ClipboardItem !== "undefined"
+        ) {
+
+            try {
+
+                await navigator.clipboard.write(
+                    [
+                        new ClipboardItem(
+                            {
+                                "image/png": blob
+                            }
+                        )
+                    ]
+                );
+
+                copiedToClipboard = true;
+
+            }
+
+            catch(copyError) {
+
+                console.warn(
+                    "COPY IMAGE TO CLIPBOARD:",
+                    copyError
+                );
+            }
+        }
+
+        if (
+            typeof navigator.share === "function"
+        ) {
+
+            try {
+
+                await navigator.share(
+                    {
+                        title:
+                            "NABIL AI",
+
+                        text:
+                            copiedToClipboard
+                                ? "تم نسخ الرسمة إلى الحافظة. الصقها في المحادثة التي تريد إرسالها إليها."
+                                : "رسمة تعليمية من منصة النبيل التعليمية الذكية",
+
+                        url:
+                            window.location.href
+                    }
+                );
+
+                return;
+
+            }
+
+            catch(shareError) {
+
+                if (
+                    shareError.name ===
+                    "AbortError"
+                ) {
+                    return;
+                }
+
+                console.warn(
+                    "TEXT SHARE FALLBACK:",
+                    shareError
+                );
+            }
+        }
+
+        // 3) الحل المضمون على الكمبيوتر:
+        // تنزيل الصورة كـ PNG ليتم إرسالها عبر واتساب أو أي تطبيق
+        const url =
+            URL.createObjectURL(
+                blob
+            );
+
+        const link =
+            document.createElement(
+                "a"
+            );
+
+        link.href =
+            url;
+
+        link.download =
+            "NABIL-AI-drawing.png";
+
+        document.body.appendChild(
+            link
         );
 
-        alert(
-            "المشاركة المباشرة غير مدعومة على هذا الجهاز، لذلك تم تنزيل الرسمة."
+        link.click();
+
+        link.remove();
+
+        setTimeout(
+            () =>
+                URL.revokeObjectURL(
+                    url
+                ),
+            1000
         );
+
+        if (
+            copiedToClipboard
+        ) {
+
+            alert(
+                "تم نسخ الرسمة إلى الحافظة وتنزيلها أيضًا. يمكنك لصقها مباشرة في واتساب أو أي محادثة."
+            );
+
+        }
+
+        else {
+
+            alert(
+                "المشاركة المباشرة غير مدعومة على هذا المتصفح، لذلك تم تنزيل الرسمة كصورة PNG لتتمكن من إرسالها."
+            );
+        }
 
     }
 
     catch(error) {
 
         if (
-            error.name !==
+            error.name ===
             "AbortError"
         ) {
+            return;
+        }
 
-            console.error(
-                "SHARE DRAWING:",
-                error
+        console.error(
+            "SHARE DRAWING:",
+            error
+        );
+
+        // كحل أخير، نحاول تنزيل الرسمة بدل إظهار خطأ فقط
+        try {
+
+            await downloadDrawing(
+                drawingBox
             );
 
             alert(
-                "تعذر مشاركة الرسمة."
+                "تعذرت المشاركة المباشرة، لذلك تم تنزيل الرسمة كصورة PNG."
+            );
+
+        }
+
+        catch(downloadError) {
+
+            console.error(
+                "FINAL DOWNLOAD FALLBACK:",
+                downloadError
+            );
+
+            alert(
+                "تعذر تجهيز الرسمة للمشاركة. جرّب زر تنزيل الرسمة."
             );
         }
     }
@@ -3247,6 +3445,26 @@ function addMessage(
 
     bubble.className =
         "bubble";
+
+    const selectedLanguage =
+        languageSelect.value;
+
+    const isLTR =
+        selectedLanguage === "English" ||
+        selectedLanguage === "Français";
+
+    bubble.classList.add(
+        isLTR
+            ? "ltr-content"
+            : "rtl-content"
+    );
+
+    bubble.setAttribute(
+        "dir",
+        isLTR
+            ? "ltr"
+            : "rtl"
+    );
 
     if (
         role ===
