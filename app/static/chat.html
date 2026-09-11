@@ -760,7 +760,12 @@
             }
         }
  
-    </style>
+    
+        #voiceBtn { background: #0f766e; }
+        #voiceBtn.listening { background: #b91c1c; }
+        #speakToggleBtn { background: #475569; }
+
+</style>
 </head>
  
 <body>
@@ -823,6 +828,12 @@
                 type="button"
             >
                 📊 تقدّمي
+            </button>
+            <button id="voiceBtn" class="quick-action-btn" type="button">
+                🎙️ تحدث
+            </button>
+            <button id="speakToggleBtn" class="quick-action-btn" type="button">
+                🔊 الصوت: تشغيل
             </button>
         </div>
  
@@ -5645,6 +5656,171 @@ micBtn.addEventListener(
  
 loadCurriculumIndex();
  
+
+
+/* =========================================================
+   NABIL AI Voice v8.6
+========================================================= */
+
+const nabilVoiceBtn = document.getElementById("voiceBtn");
+const nabilSpeakToggleBtn = document.getElementById("speakToggleBtn");
+const nabilVoiceInput = document.getElementById("messageInput");
+const nabilVoiceSend = document.getElementById("sendBtn");
+
+let nabilSpeechEnabled =
+    localStorage.getItem("nabil_speech_enabled") !== "false";
+let nabilListening = false;
+
+function nabilSpeechLanguage() {
+    const selector = document.getElementById("language");
+    const value = selector ? String(selector.value || "").toLowerCase() : "";
+
+    if (value.startsWith("en")) return "en-US";
+    if (value.startsWith("fr")) return "fr-FR";
+    return "ar-LB";
+}
+
+function nabilCleanSpeechText(text) {
+    return String(text || "")
+        .replace(/<PROGRESS_JSON>[\s\S]*?<\/PROGRESS_JSON>/gi, " ")
+        .replace(/\[DRAWING\][\s\S]*?\[\/DRAWING\]/gi, " ")
+        .replace(/```[\s\S]*?```/g, " ")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/[#*_`>$]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+function nabilSpeak(text) {
+    if (!nabilSpeechEnabled || !("speechSynthesis" in window)) return;
+
+    const clean = nabilCleanSpeechText(text);
+    if (!clean) return;
+
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(clean);
+    utterance.lang = nabilSpeechLanguage();
+    utterance.rate = 0.96;
+    utterance.pitch = 1;
+
+    window.speechSynthesis.speak(utterance);
+}
+
+function nabilUpdateSpeakButton() {
+    if (!nabilSpeakToggleBtn) return;
+    nabilSpeakToggleBtn.textContent =
+        nabilSpeechEnabled ? "🔊 الصوت: تشغيل" : "🔇 الصوت: إيقاف";
+}
+
+const NabilRecognition =
+    window.SpeechRecognition || window.webkitSpeechRecognition;
+
+let nabilRecognition = null;
+
+if (NabilRecognition && nabilVoiceBtn) {
+    nabilRecognition = new NabilRecognition();
+    nabilRecognition.continuous = false;
+    nabilRecognition.interimResults = true;
+
+    nabilRecognition.onstart = () => {
+        nabilListening = true;
+        nabilVoiceBtn.classList.add("listening");
+        nabilVoiceBtn.textContent = "⏹️ أوقف";
+    };
+
+    nabilRecognition.onend = () => {
+        nabilListening = false;
+        nabilVoiceBtn.classList.remove("listening");
+        nabilVoiceBtn.textContent = "🎙️ تحدث";
+    };
+
+    nabilRecognition.onerror = () => {
+        nabilListening = false;
+        nabilVoiceBtn.classList.remove("listening");
+        nabilVoiceBtn.textContent = "🎙️ تحدث";
+    };
+
+    nabilRecognition.onresult = event => {
+        let transcript = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            transcript += event.results[i][0].transcript;
+        }
+
+        if (nabilVoiceInput) {
+            nabilVoiceInput.value = transcript.trim();
+        }
+
+        const last = event.results[event.results.length - 1];
+        if (last && last.isFinal && nabilVoiceInput && nabilVoiceInput.value.trim()) {
+            nabilVoiceSend.click();
+        }
+    };
+
+    nabilVoiceBtn.addEventListener("click", () => {
+        if (nabilListening) {
+            nabilRecognition.stop();
+            return;
+        }
+
+        nabilRecognition.lang = nabilSpeechLanguage();
+
+        try {
+            nabilRecognition.start();
+        } catch (_) {}
+    });
+} else if (nabilVoiceBtn) {
+    nabilVoiceBtn.disabled = true;
+    nabilVoiceBtn.textContent = "🎙️ غير مدعوم";
+}
+
+if (nabilSpeakToggleBtn) {
+    nabilSpeakToggleBtn.addEventListener("click", () => {
+        nabilSpeechEnabled = !nabilSpeechEnabled;
+        localStorage.setItem("nabil_speech_enabled", String(nabilSpeechEnabled));
+
+        if (!nabilSpeechEnabled && "speechSynthesis" in window) {
+            window.speechSynthesis.cancel();
+        }
+
+        nabilUpdateSpeakButton();
+    });
+}
+
+nabilUpdateSpeakButton();
+
+/* Read newly-added teacher messages without coupling to backend code. */
+if ("MutationObserver" in window) {
+    const nabilChat =
+        document.getElementById("chatBox") ||
+        document.querySelector(".chat-box") ||
+        document.querySelector(".messages");
+
+    if (nabilChat) {
+        const observer = new MutationObserver(mutations => {
+            mutations.forEach(mutation => {
+                mutation.addedNodes.forEach(node => {
+                    if (!(node instanceof HTMLElement)) return;
+
+                    const teacher =
+                        node.matches(".teacher, .assistant, .bot")
+                            ? node
+                            : node.querySelector(".teacher, .assistant, .bot");
+
+                    if (teacher) {
+                        nabilSpeak(teacher.innerText || teacher.textContent || "");
+                    }
+                });
+            });
+        });
+
+        observer.observe(nabilChat, {
+            childList: true,
+            subtree: true
+        });
+    }
+}
+
 </script>
  
 </body>
