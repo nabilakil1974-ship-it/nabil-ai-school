@@ -765,6 +765,99 @@
         #voiceBtn.listening { background: #b91c1c; }
         #speakToggleBtn { background: #475569; }
 
+
+        /* ===== NABIL AI animated teacher avatar v8.7 ===== */
+        .brand-title-with-photo {
+            position: relative;
+        }
+
+        .nabil-avatar-wrap {
+            position: relative;
+            width: 64px;
+            height: 64px;
+            flex: 0 0 64px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .nabil-avatar-wrap::after {
+            content: "";
+            position: absolute;
+            inset: -4px;
+            border-radius: 50%;
+            border: 3px solid rgba(255,255,255,.75);
+            opacity: .35;
+            transition: .2s ease;
+        }
+
+        .nabil-avatar-state {
+            position: absolute;
+            right: -10px;
+            bottom: -9px;
+            min-width: 58px;
+            padding: 3px 7px;
+            border-radius: 999px;
+            background: rgba(15,23,42,.92);
+            color: #fff;
+            font-size: 10px;
+            line-height: 1.2;
+            text-align: center;
+            white-space: nowrap;
+            border: 1px solid rgba(255,255,255,.35);
+        }
+
+        .nabil-avatar-wrap.listening::after {
+            opacity: 1;
+            animation: nabilPulse 1s infinite;
+        }
+
+        .nabil-avatar-wrap.thinking::after {
+            opacity: 1;
+            border-style: dashed;
+            animation: nabilSpin 1.3s linear infinite;
+        }
+
+        .nabil-avatar-wrap.speaking .nabil-profile-photo {
+            animation: nabilTalk .28s ease-in-out infinite alternate;
+        }
+
+        .nabil-avatar-wrap.speaking::after {
+            opacity: 1;
+            animation: nabilPulse .65s infinite;
+        }
+
+        @keyframes nabilPulse {
+            0% { transform: scale(1); opacity: .45; }
+            50% { transform: scale(1.10); opacity: 1; }
+            100% { transform: scale(1); opacity: .45; }
+        }
+
+        @keyframes nabilSpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes nabilTalk {
+            from { transform: translateY(0) scale(1); }
+            to { transform: translateY(-2px) scale(1.025); }
+        }
+
+        @media (max-width: 700px) {
+            .nabil-avatar-wrap {
+                width: 52px;
+                height: 52px;
+                flex-basis: 52px;
+            }
+
+            .nabil-avatar-state {
+                right: -12px;
+                bottom: -11px;
+                font-size: 9px;
+                min-width: 50px;
+            }
+        }
+
 </style>
 </head>
  
@@ -772,7 +865,10 @@
  
 <header class="header">
  
-    <div class="header-title"><span class="brand-title-with-photo"><img class="nabil-profile-photo" src="/static/nabil-profile.jpg" alt="صورة الأستاذ نبيل" onerror="this.style.display='none'"><span>منصة النبيل التعليمية الذكية</span></span></div>
+    <div class="header-title"><span class="brand-title-with-photo"><span class="nabil-avatar-wrap" id="nabilAvatar">
+<img class="nabil-profile-photo" src="/static/nabil-profile.jpg" alt="صورة الأستاذ نبيل" onerror="this.style.display='none'">
+<span class="nabil-avatar-state" id="nabilAvatarState">جاهز</span>
+</span><span>منصة النبيل التعليمية الذكية</span></span></div>
  
     <div class="controls">
  
@@ -5691,6 +5787,40 @@ function nabilCleanSpeechText(text) {
         .trim();
 }
 
+
+const nabilAvatar =
+    document.getElementById("nabilAvatar");
+
+const nabilAvatarState =
+    document.getElementById("nabilAvatarState");
+
+function nabilSetAvatarState(state) {
+    if (!nabilAvatar) return;
+
+    nabilAvatar.classList.remove(
+        "listening",
+        "thinking",
+        "speaking"
+    );
+
+    if (state && state !== "ready") {
+        nabilAvatar.classList.add(state);
+    }
+
+    if (!nabilAvatarState) return;
+
+    const labels = {
+        ready: "جاهز",
+        listening: "يستمع",
+        thinking: "يفكر",
+        speaking: "يتحدث"
+    };
+
+    nabilAvatarState.textContent =
+        labels[state] || labels.ready;
+}
+
+
 function nabilSpeak(text) {
     if (!nabilSpeechEnabled || !("speechSynthesis" in window)) return;
 
@@ -5703,6 +5833,18 @@ function nabilSpeak(text) {
     utterance.lang = nabilSpeechLanguage();
     utterance.rate = 0.96;
     utterance.pitch = 1;
+
+    utterance.onstart = () => {
+        nabilSetAvatarState("speaking");
+    };
+
+    utterance.onend = () => {
+        nabilSetAvatarState("ready");
+    };
+
+    utterance.onerror = () => {
+        nabilSetAvatarState("ready");
+    };
 
     window.speechSynthesis.speak(utterance);
 }
@@ -5725,18 +5867,21 @@ if (NabilRecognition && nabilVoiceBtn) {
 
     nabilRecognition.onstart = () => {
         nabilListening = true;
+        nabilSetAvatarState("listening");
         nabilVoiceBtn.classList.add("listening");
         nabilVoiceBtn.textContent = "⏹️ أوقف";
     };
 
     nabilRecognition.onend = () => {
         nabilListening = false;
+        nabilSetAvatarState("ready");
         nabilVoiceBtn.classList.remove("listening");
         nabilVoiceBtn.textContent = "🎙️ تحدث";
     };
 
     nabilRecognition.onerror = () => {
         nabilListening = false;
+        nabilSetAvatarState("ready");
         nabilVoiceBtn.classList.remove("listening");
         nabilVoiceBtn.textContent = "🎙️ تحدث";
     };
@@ -5820,6 +5965,36 @@ if ("MutationObserver" in window) {
         });
     }
 }
+
+
+
+/* Avatar thinks while NABIL AI is waiting for network/API replies. */
+const nabilOriginalFetch = window.fetch.bind(window);
+
+window.fetch = async (...args) => {
+    const target = String(args[0] || "");
+    const isAIRequest =
+        target.includes("/api/chat") ||
+        target.includes("/chat");
+
+    if (isAIRequest) {
+        nabilSetAvatarState("thinking");
+    }
+
+    try {
+        return await nabilOriginalFetch(...args);
+    } finally {
+        if (
+            isAIRequest &&
+            !window.speechSynthesis?.speaking &&
+            !nabilListening
+        ) {
+            nabilSetAvatarState("ready");
+        }
+    }
+};
+
+nabilSetAvatarState("ready");
 
 </script>
  
