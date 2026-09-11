@@ -1,162 +1,95 @@
-import base64
-from typing import Optional
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منصة النبيل التعليمية الذكية</title>
 
-from openai import OpenAI
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, Tahoma, sans-serif;
+            background: #f4f7fb;
+            color: #1f2937;
+        }
 
-from app.core.config import settings
+        .header {
+            background: linear-gradient(135deg, #173b6c, #2563eb);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            font-size: 26px;
+            font-weight: bold;
+        }
 
+        .container {
+            max-width: 900px;
+            margin: 30px auto;
+            padding: 20px;
+        }
 
-class NabilAIGateway:
+        .card {
+            background: white;
+            border-radius: 14px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,.08);
+            text-align: center;
+        }
 
-    def __init__(self):
-        api_key = getattr(
-            settings,
-            "OPENROUTER_API_KEY",
-            "",
-        )
+        select,
+        button {
+            margin: 8px;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            font-size: 15px;
+        }
 
-        if not api_key:
-            raise RuntimeError(
-                "OPENROUTER_API_KEY غير مضبوط في إعدادات السيرفر"
-            )
+        button {
+            background: #16a34a;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+    </style>
+</head>
 
-        self.client = OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=api_key,
-        )
+<body>
 
-        self.text_model = "openrouter/free"
-        self.vision_model = "openrouter/free"
+<div class="header">
+    منصة النبيل التعليمية الذكية
+</div>
 
-    def _extract_content(self, response) -> str:
-        if response is None:
-            return ""
+<div class="container">
 
-        choices = getattr(response, "choices", None)
-        if not choices:
-            return ""
+    <div class="card">
 
-        message = getattr(choices[0], "message", None)
-        if message is None:
-            return ""
+        <h2>NABIL AI 👨‍🏫</h2>
 
-        content = getattr(message, "content", None)
+        <p>
+            الواجهة تعمل بنجاح.
+        </p>
 
-        if isinstance(content, str):
-            return content.strip()
+        <select>
+            <option>الصف التاسع</option>
+        </select>
 
-        if isinstance(content, list):
-            parts = []
+        <select>
+            <option>رياضيات</option>
+        </select>
 
-            for item in content:
-                if isinstance(item, str):
-                    parts.append(item)
+        <select>
+            <option>العربية</option>
+        </select>
 
-                elif isinstance(item, dict):
-                    text = item.get("text")
-                    if text:
-                        parts.append(str(text))
+        <button>
+            ▶ ابدأ الدرس
+        </button>
 
-                else:
-                    text = getattr(item, "text", None)
-                    if text:
-                        parts.append(str(text))
+    </div>
 
-            return "\n".join(parts).strip()
+</div>
 
-        return ""
-
-    def generate(
-        self,
-        instructions: str,
-        messages: list[dict],
-        image_bytes: Optional[bytes] = None,
-        image_mime_type: str = "image/jpeg",
-        max_output_tokens: int = 2500,
-    ) -> str:
-
-        chat_messages = [
-            {
-                "role": "system",
-                "content": instructions,
-            }
-        ]
-
-        for msg in messages:
-            chat_messages.append(
-                {
-                    "role": msg.get("role", "user"),
-                    "content": msg.get("content", ""),
-                }
-            )
-
-        if image_bytes is not None:
-            encoded = base64.b64encode(
-                image_bytes
-            ).decode("utf-8")
-
-            chat_messages.append(
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": (
-                                "اقرأ الصورة كاملة بدقة. "
-                                "حدد أولًا نوع المحتوى. "
-                                "إذا كانت الصورة سؤالًا أو تمرينًا، "
-                                "استخرج السؤال كما هو ثم حلّه خطوة خطوة. "
-                                "إذا كانت الصورة صفحة درس أو شرحًا، "
-                                "استخرج الأفكار والمفاهيم الأساسية "
-                                "واشرح الدرس للطالب تدريجيًا. "
-                                "إذا كانت الصورة تحتوي على رسم "
-                                "أو جدول أو مخطط، اقرأه واشرحه بدقة. "
-                                "لا تخترع أي رقم أو رمز أو معلومة "
-                                "غير واضحة في الصورة."
-                            ),
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": (
-                                    f"data:{image_mime_type};base64,{encoded}"
-                                )
-                            },
-                        },
-                    ],
-                }
-            )
-
-        try:
-            response = self.client.chat.completions.create(
-                model=(
-                    self.vision_model
-                    if image_bytes is not None
-                    else self.text_model
-                ),
-                messages=chat_messages,
-                max_tokens=max_output_tokens,
-            )
-
-        except Exception as exc:
-            raise RuntimeError(
-                f"خطأ في الاتصال بـ OpenRouter: {exc}"
-            ) from exc
-
-        content = self._extract_content(response)
-
-        if content:
-            return content
-
-        raise RuntimeError(
-            "NABIL AI لم يُرجع إجابة نصية."
-        )
-
-    def transcribe(
-        self,
-        audio_bytes: bytes,
-        filename: str = "voice.webm",
-    ) -> str:
-        raise RuntimeError(
-            "تحويل الصوت غير متاح حاليًا في المسار المجاني."
-        )
+</body>
+</html>
