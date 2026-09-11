@@ -1,293 +1,367 @@
-import re
-from fastapi import APIRouter, Depends, HTTPException
+from __future__ import annotations
+
+import json
+import os
+import secrets
+from datetime import datetime
+from html import escape
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from typing import Optional
 
-from app.core.config import settings
-from app.db.session import get_db
-from app.db.models import Conversation, Message, Student
-from app.services.rag_search import search_book_pages, build_context_block
-from app.services.ai_gateway import NabilAIGateway
-
-router = APIRouter()
-
-SYSTEM_PROMPT = """
-أنت NABIL AI، الأستاذ نبيل، معلّم رقمي ذكي وخبير بالمنهج اللبناني الرسمي CRDP.
-
-أجب بنفس لغة الطالب، وكن معلماً تفاعلياً يساعده على الفهم وليس مجرد إعطاء الإجابة.
-
-إذا توفر محتوى CRDP/RAG فاعتبره المرجع الأساسي، ولا تخترع محتوى منهجياً.
-
-في الرياضيات:
-- ابدأ بالمعطيات عند الحاجة.
-- اذكر القاعدة أو القانون.
-- اعرض خطوات الحل بوضوح.
-- أعط النتيجة النهائية.
-- استخدم الرموز الرياضية الواضحة.
-
-في الهندسة والبرهان:
-- التحليل الهندسي.
-- تحديد النظرية المناسبة.
-- خطوات البرهان.
-- النتيجة.
-
-إذا أرسل الطالب صورة:
-- اقرأ المسألة بدقة.
-- استخرج المعلومات الظاهرة في الصورة.
-- لا تفترض معلومات غير موجودة.
-- ساعد الطالب في الحل خطوة بخطوة.
-
-لا تعرض عمليات التفكير الداخلية.
-"""
-
-def clean_reply(text: str) -> str:
-    if not text:
-        return ""
-
-    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
-
-    if "</think>" in text:
-        text = text.split("</think>")[-1]
-
-    if "<think>" in text:
-        text = text.split("<think>")[0]
-
-    text = re.sub(r"#{1,6}\s*", "", text)
-    text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
-    text = re.sub(r"\*(.+?)\*", r"\1", text)
-    text = re.sub(r"^-{3,}$", "", text, flags=re.MULTILINE)
-    text = re.sub(r"\n{3,}", "\n\n", text)
-
-    return text.strip()
+from app.db.database import get_db
+from app.db.student_learning import StudentLearningProfile
 
 
-class ChatRequest(BaseModel):
-    student_id: str
-    conversation_id: Optional[str] = None
-    message: str
-    subject: Optional[str] = None
-    grade: Optional[str] = None
-    curriculum: Optional[str] = None
-    image_base64: Optional[str] = None
+router = APIRouter(tags=["admin"])
 
 
-class ChatResponse(BaseModel):
-    conversation_id: str
-    reply: str
-    sources: list[dict] = []
+def _admin_token() -> str:
+    return os.getenv("NABIL_ADMIN_TOKEN", "").strip()
 
 
-@router.post("/chat", response_model=ChatResponse)
-def chat(req: ChatRequest, db: Session = Depends(get_db)):
+def require_admin(
+    token: str = Query(default=""),
+):
+    expected = _admin_token()
+
+    if not expected:
+        raise HTTPException(
+            status_code=503,
+            detail="NABIL_ADMIN_TOKEN is not configured.",
+        )
+
+    if not secrets.compare_digest(token, expected):
+        raise HTTPException(
+            status_code=403,
+            detail="غير مصرح بالدخول إلى لوحة الإدارة.",
+        )
+
+    return True
+
+
+def _loads(value, default):
+    if value is None:
+        return default
+
+    if isinstance(value, (list, dict)):
+        return value
 
     try:
-        ai = NabilAIGateway()
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"خطأ في إعداد NABIL AI: {str(e)}",
-        )
+        return json.loads(value)
+    except Exception:
+        return default
 
-    conversation = None
 
-    if req.conversation_id:
-        conversation = (
-            db.query(Conversation)
-            .filter_by(id=req.conversation_id)
-            .first()
-        )
+def _subscription(profile) -> str:
+    for name in (
+        "subscription_status",
+        "plan_status",
+        "account_status",
+    ):
+        value = getattr(profile, name, None)
+        if value:
+            return str(value)
 
-    student = (
-        db.query(Student)
-        .filter_by(id=req.student_id)
-        .first()
+    return "trial"
+
+
+def _last_activity(profile) -> str:
+    for name in (
+        "updated_at",
+        "last_activity_at",
+        "last_active_at",
+        "created_at",
+    ):
+        value = getattr(profile, name, None)
+        if value:
+            if isinstance(value, datetime):
+                return value.strftime("%Y-%m-%d %H:%M")
+            return str(value)
+
+    return "—"
+
+
+def _student_id(profile) -> str:
+    for name in (
+        "student_id",
+        "user_id",
+        "student_name",
+    ):
+        value = getattr(profile, name, None)
+        if value:
+            return str(value)
+
+    return f"student-{getattr(profile, 'id', '—')}"
+
+
+def _row(profile) -> dict:
+    mastery = _loads(
+        getattr(profile, "lesson_mastery_json", "[]"),
+        [],
+    )
+    assessments = _loads(
+        getattr(profile, "test_results_json", "[]"),
+        [],
+    )
+    strengths = _loads(
+        getattr(profile, "strengths_json", "[]"),
+        [],
+    )
+    review = _loads(
+        getattr(profile, "concepts_to_review_json", "[]"),
+        [],
     )
 
-    if student is None:
-        student = Student(
-            id=req.student_id,
-            name=req.student_id,
-            grade=req.grade or "غير محدد",
-            preferred_language="ar-LB",
-        )
+    mastered = sum(
+        1
+        for item in mastery
+        if isinstance(item, dict)
+        and item.get("status") == "mastered"
+    )
 
-        db.add(student)
-        db.commit()
+    needs_review = sum(
+        1
+        for item in mastery
+        if isinstance(item, dict)
+        and item.get("status") == "needs_review"
+    )
 
-    if conversation is None:
-        conversation = Conversation(
-            student_id=req.student_id,
-            subject=req.subject,
-        )
+    return {
+        "student_id": _student_id(profile),
+        "progress": float(
+            getattr(profile, "overall_progress_percent", 0) or 0
+        ),
+        "mastered": mastered,
+        "needs_review": needs_review,
+        "tests": len(assessments),
+        "strengths": len(strengths),
+        "subscription": _subscription(profile),
+        "last_activity": _last_activity(profile),
+    }
 
-        db.add(conversation)
-        db.commit()
-        db.refresh(conversation)
 
-    previous_messages = (
-        db.query(Message)
-        .filter(
-            Message.conversation_id == conversation.id
-        )
-        .order_by(Message.created_at.asc())
-        .limit(10)
+@router.get(
+    "/api/admin/summary",
+    dependencies=[Depends(require_admin)],
+)
+def admin_summary(
+    db: Session = Depends(get_db),
+):
+    profiles = (
+        db.query(StudentLearningProfile)
+        .order_by(StudentLearningProfile.id.desc())
         .all()
     )
 
-    saved_message_content = (
-        req.message
-        if req.message
-        else "[صورة]"
-    )
+    rows = [_row(p) for p in profiles]
 
-    db.add(
-        Message(
-            conversation_id=conversation.id,
-            role="student",
-            content=saved_message_content,
-        )
-    )
-
-    db.commit()
-
-    context_block = ""
-    source_chunks = []
-
-    if (
-        req.subject
-        and req.grade
-        and req.curriculum
-        and req.message
-    ):
-        try:
-            source_chunks = search_book_pages(
-                db=db,
-                query=req.message,
-                subject=req.subject,
-                grade=req.grade,
-                curriculum=req.curriculum,
-            )
-
-            context_block = build_context_block(
-                source_chunks
-            )
-
-        except Exception as e:
-            print(
-                f"RAG warning: {e}",
-                flush=True,
-            )
-
-    text_part = (
-        req.message
-        or "ساعدني في فهم هذه الصورة."
-    )
-
-    if context_block:
-        text_part = (
-            f"{context_block}\n\n"
-            f"سؤال الطالب: {text_part}"
-        )
-
-    role_map = {
-        "student": "user",
-        "teacher": "assistant",
+    return {
+        "students": len(rows),
+        "trial": sum(
+            1 for r in rows
+            if r["subscription"].lower() == "trial"
+        ),
+        "paid": sum(
+            1 for r in rows
+            if r["subscription"].lower()
+            in {"paid", "active", "subscribed"}
+        ),
+        "mastered_lessons": sum(
+            r["mastered"] for r in rows
+        ),
+        "needs_review": sum(
+            r["needs_review"] for r in rows
+        ),
+        "tests": sum(
+            r["tests"] for r in rows
+        ),
+        "students_data": rows,
     }
 
-    history_messages = [
-        {
-            "role": role_map.get(
-                m.role,
-                "user",
-            ),
-            "content": m.content,
-        }
-        for m in previous_messages
-    ]
 
-    image_bytes = None
-    image_mime_type = "image/jpeg"
+@router.get(
+    "/admin",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_admin)],
+)
+def admin_dashboard(
+    token: str = Query(default=""),
+):
+    safe_token = escape(token, quote=True)
 
-    if req.image_base64:
-        try:
-            if "," in req.image_base64:
-                header, encoded_data = (
-                    req.image_base64.split(",", 1)
-                )
+    return HTMLResponse(
+        f"""<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NABIL AI - لوحة الإدارة</title>
+<style>
+*{{box-sizing:border-box}}
+body{{
+ margin:0;background:#101416;color:#eef6ff;
+ font-family:Arial,Tahoma,sans-serif
+}}
+header{{
+ padding:24px;background:linear-gradient(135deg,#2469a8,#173c69);
+ text-align:center
+}}
+header h1{{margin:0 0 7px;font-size:27px}}
+header p{{margin:0;opacity:.8}}
+main{{max-width:1250px;margin:auto;padding:22px}}
+.cards{{
+ display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));
+ gap:14px;margin-bottom:20px
+}}
+.card{{
+ background:#171d20;border:1px solid #29475d;border-radius:14px;
+ padding:18px
+}}
+.card small{{color:#a9bac7}}
+.card strong{{display:block;font-size:29px;color:#70b9ff;margin-top:8px}}
+.toolbar{{
+ display:flex;gap:10px;flex-wrap:wrap;margin:16px 0
+}}
+input{{
+ flex:1;min-width:220px;background:#111719;color:white;
+ border:1px solid #36546a;border-radius:10px;padding:12px
+}}
+button{{
+ background:#155dcc;color:white;border:0;border-radius:10px;
+ padding:11px 17px;cursor:pointer;font-weight:700
+}}
+.table-wrap{{overflow:auto;border:1px solid #29475d;border-radius:14px}}
+table{{width:100%;border-collapse:collapse;min-width:900px}}
+th,td{{padding:13px;border-bottom:1px solid #25343e;text-align:center}}
+th{{background:#18232a;position:sticky;top:0}}
+tr:hover{{background:#172127}}
+.badge{{
+ display:inline-block;padding:4px 9px;border-radius:999px;
+ background:#243845
+}}
+.progress{{
+ width:110px;height:8px;background:#29343a;border-radius:10px;
+ overflow:hidden;margin:5px auto
+}}
+.progress span{{
+ display:block;height:100%;background:#58aef8
+}}
+#error{{color:#ff9c9c;padding:10px 0}}
+</style>
+</head>
+<body>
+<header>
+<h1>🛡️ لوحة إدارة NABIL AI</h1>
+<p>الطلاب • التقدم • الاختبارات • الاشتراكات</p>
+</header>
 
-                if "image/" in header:
-                    image_mime_type = (
-                        header.split("image/", 1)[1]
-                        .split(";", 1)[0]
-                    )
+<main>
+<div class="cards">
+ <div class="card"><small>إجمالي الطلاب</small><strong id="students">—</strong></div>
+ <div class="card"><small>تجريبي</small><strong id="trial">—</strong></div>
+ <div class="card"><small>مدفوع/نشط</small><strong id="paid">—</strong></div>
+ <div class="card"><small>دروس متقنة</small><strong id="mastered">—</strong></div>
+ <div class="card"><small>تحتاج مراجعة</small><strong id="review">—</strong></div>
+ <div class="card"><small>الاختبارات</small><strong id="tests">—</strong></div>
+</div>
 
-                import base64
+<div class="toolbar">
+ <input id="search" placeholder="ابحث عن طالب...">
+ <button onclick="loadData()">↻ تحديث</button>
+</div>
 
-                image_bytes = base64.b64decode(
-                    encoded_data
-                )
-            else:
-                import base64
+<div id="error"></div>
 
-                image_bytes = base64.b64decode(
-                    req.image_base64
-                )
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>الطالب</th>
+<th>التقدم</th>
+<th>متقن</th>
+<th>مراجعة</th>
+<th>اختبارات</th>
+<th>نقاط قوة</th>
+<th>الاشتراك</th>
+<th>آخر نشاط</th>
+</tr>
+</thead>
+<tbody id="rows"></tbody>
+</table>
+</div>
+</main>
 
-        except Exception as e:
-            raise HTTPException(
-                status_code=400,
-                detail=f"خطأ في قراءة الصورة: {str(e)}",
-            )
+<script>
+const ADMIN_TOKEN = {json.dumps(safe_token)};
+let allRows = [];
 
-    history_messages.append(
-        {
-            "role": "user",
-            "content": text_part,
-        }
-    )
+function esc(v) {{
+ return String(v ?? "")
+  .replaceAll("&","&amp;")
+  .replaceAll("<","&lt;")
+  .replaceAll(">","&gt;")
+  .replaceAll('"',"&quot;");
+}}
 
-    try:
-        reply_text = ai.generate(
-            instructions=SYSTEM_PROMPT,
-            messages=history_messages,
-            image_bytes=image_bytes,
-            image_mime_type=image_mime_type,
-            max_output_tokens=2000,
-        )
+function renderRows(rows) {{
+ const body = document.getElementById("rows");
+ body.innerHTML = rows.map(r => `
+ <tr>
+  <td><b>${{esc(r.student_id)}}</b></td>
+  <td>
+   ${{Number(r.progress).toFixed(0)}}%
+   <div class="progress"><span style="width:${{Math.max(0,Math.min(100,r.progress))}}%"></span></div>
+  </td>
+  <td>${{r.mastered}}</td>
+  <td>${{r.needs_review}}</td>
+  <td>${{r.tests}}</td>
+  <td>${{r.strengths}}</td>
+  <td><span class="badge">${{esc(r.subscription)}}</span></td>
+  <td>${{esc(r.last_activity)}}</td>
+ </tr>`).join("");
+}}
 
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"خطأ في NABIL AI: {str(e)}",
-        )
+async function loadData() {{
+ const error = document.getElementById("error");
+ error.textContent = "";
 
-    reply_text = clean_reply(reply_text)
+ try {{
+  const response = await fetch(
+   "/api/admin/summary?token=" + encodeURIComponent(ADMIN_TOKEN)
+  );
 
-    if not reply_text:
-        raise HTTPException(
-            status_code=500,
-            detail="NABIL AI لم يُرجع إجابة.",
-        )
+  if (!response.ok) {{
+   throw new Error("تعذر تحميل بيانات الإدارة: " + response.status);
+  }}
 
-    db.add(
-        Message(
-            conversation_id=conversation.id,
-            role="teacher",
-            content=reply_text,
-        )
-    )
+  const data = await response.json();
+  document.getElementById("students").textContent = data.students;
+  document.getElementById("trial").textContent = data.trial;
+  document.getElementById("paid").textContent = data.paid;
+  document.getElementById("mastered").textContent = data.mastered_lessons;
+  document.getElementById("review").textContent = data.needs_review;
+  document.getElementById("tests").textContent = data.tests;
 
-    db.commit()
+  allRows = data.students_data || [];
+  renderRows(allRows);
+ }} catch (e) {{
+  error.textContent = e.message;
+ }}
+}}
 
-    return ChatResponse(
-        conversation_id=str(conversation.id),
-        reply=reply_text,
-        sources=[
-            {
-                "book": c.get("book_title"),
-                "page": c.get("page"),
-            }
-            for c in source_chunks
-        ],
+document.getElementById("search").addEventListener("input", e => {{
+ const q = e.target.value.trim().toLowerCase();
+ renderRows(
+  allRows.filter(r =>
+   String(r.student_id).toLowerCase().includes(q)
+  )
+ );
+}});
+
+loadData();
+</script>
+</body>
+</html>"""
     )
