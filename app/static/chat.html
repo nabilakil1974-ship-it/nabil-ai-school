@@ -289,13 +289,18 @@
             text-align: right;
         }
 
-        .bubble.ltr-content h2,
-        .bubble.ltr-content h3,
-        .bubble.ltr-content h4,
-        .bubble.ltr-content p,
-        .bubble.ltr-content li {
+        .bubble.ltr-content,
+        .bubble.ltr-content *:not(mjx-container):not(mjx-container *) {
             direction: ltr;
             text-align: left;
+        }
+
+        .bubble.ltr-content ul,
+        .bubble.ltr-content ol {
+            direction: ltr;
+            text-align: left;
+            padding-left: 24px;
+            padding-right: 0;
         }
 
         .bubble.rtl-content h2,
@@ -465,7 +470,7 @@
 
         .graph-properties {
             direction: rtl;
-            padding: 14px 15px;
+            padding: 11px 12px;
 
             background:
                 linear-gradient(
@@ -480,15 +485,40 @@
 
             border-radius: 10px;
             color: #111827;
-            font-size: 14px;
-            line-height: 1.85;
+            font-size: 12px;
+            line-height: 1.55;
+            overflow: hidden;
         }
 
         .graph-properties strong {
             display: block;
             margin-bottom: 7px;
-            font-size: 16px;
+            font-size: 13px;
             text-align: center;
+        }
+
+        .graph-properties .property-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-wrap: wrap;
+            margin: 4px 0;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .graph-properties .property-value {
+            direction: ltr;
+            unicode-bidi: isolate;
+            font-weight: 800;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .graph-properties mjx-container,
+        .graph-properties mjx-container svg {
+            max-width: 100% !important;
+            font-size: 12px !important;
         }
 
         .answer-drawing svg {
@@ -631,6 +661,40 @@
             }
         }
 
+    
+        /* ===== NABIL AI header portrait ===== */
+        .brand-title-with-photo {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .nabil-profile-photo {
+            width: 54px;
+            height: 54px;
+            border-radius: 50%;
+            object-fit: cover;
+            object-position: center 24%;
+            border: 3px solid rgba(255, 255, 255, 0.95);
+            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.22);
+            flex: 0 0 54px;
+            background: #ffffff;
+        }
+
+        @media (max-width: 700px) {
+            .brand-title-with-photo {
+                gap: 8px;
+            }
+
+            .nabil-profile-photo {
+                width: 44px;
+                height: 44px;
+                flex-basis: 44px;
+                border-width: 2px;
+            }
+        }
+
     </style>
 </head>
 
@@ -638,9 +702,7 @@
 
 <header class="header">
 
-    <div class="header-title">
-        منصة النبيل التعليمية الذكية
-    </div>
+    <div class="header-title"><span class="brand-title-with-photo"><img class="nabil-profile-photo" src="/static/nabil-profile.jpg" alt="صورة الأستاذ نبيل" onerror="this.style.display='none'"><span>منصة النبيل التعليمية الذكية</span></span></div>
 
     <div class="controls">
 
@@ -1723,14 +1785,162 @@ function renderAIText(text) {
    النسخ
 ========================================================= */
 
+function toUnicodeSuperscript(value) {
+
+    const map = {
+        "0": "⁰",
+        "1": "¹",
+        "2": "²",
+        "3": "³",
+        "4": "⁴",
+        "5": "⁵",
+        "6": "⁶",
+        "7": "⁷",
+        "8": "⁸",
+        "9": "⁹",
+        "+": "⁺",
+        "-": "⁻",
+        "=": "⁼",
+        "(": "⁽",
+        ")": "⁾",
+        "n": "ⁿ"
+    };
+
+    return String(value)
+        .split("")
+        .map(
+            ch =>
+                map[ch] || ch
+        )
+        .join("");
+}
+
+
+function formatAnswerForSharing(text) {
+
+    let value =
+        String(text || "");
+
+    // إزالة محددات LaTeX مع الإبقاء على المحتوى
+    value = value
+        .replace(/\\\[/g, "")
+        .replace(/\\\]/g, "")
+        .replace(/\\\(/g, "")
+        .replace(/\\\)/g, "")
+        .replace(/\$\$/g, "")
+        .replace(/\$/g, "");
+
+    // أوامر شائعة
+    const replacements = [
+        [/\\times/g, "×"],
+        [/\\cdot/g, "·"],
+        [/\\div/g, "÷"],
+        [/\\pm/g, "±"],
+        [/\\mp/g, "∓"],
+        [/\\leq?/g, "≤"],
+        [/\\geq?/g, "≥"],
+        [/\\neq/g, "≠"],
+        [/\\approx/g, "≈"],
+        [/\\infty/g, "∞"],
+        [/\\pi/g, "π"],
+        [/\\theta/g, "θ"],
+        [/\\alpha/g, "α"],
+        [/\\beta/g, "β"],
+        [/\\gamma/g, "γ"],
+        [/\\Delta/g, "Δ"],
+        [/\\sqrt/g, "√"],
+        [/\\rightarrow/g, "→"],
+        [/\\leftarrow/g, "←"],
+        [/\\Rightarrow/g, "⇒"],
+        [/\\in/g, "∈"],
+        [/\\notin/g, "∉"],
+        [/\\mathbb\{R\}/g, "ℝ"],
+        [/\\mathbb\{N\}/g, "ℕ"],
+        [/\\mathbb\{Z\}/g, "ℤ"],
+        [/\\mathbb\{Q\}/g, "ℚ"]
+    ];
+
+    replacements.forEach(
+        ([pattern, replacement]) => {
+
+            value =
+                value.replace(
+                    pattern,
+                    replacement
+                );
+        }
+    );
+
+    // الكسور البسيطة والمتداخلة على عدة دورات
+    for (
+        let i = 0;
+        i < 5;
+        i++
+    ) {
+
+        value = value.replace(
+            /\\frac\{([^{}]+)\}\{([^{}]+)\}/g,
+            "($1)⁄($2)"
+        );
+    }
+
+    // الجذور
+    value = value.replace(
+        /√\{([^{}]+)\}/g,
+        "√($1)"
+    );
+
+    // الأسس الرقمية
+    value = value.replace(
+        /\^\{([0-9+\-=()n]+)\}/g,
+        (_, exp) =>
+            toUnicodeSuperscript(
+                exp
+            )
+    );
+
+    value = value.replace(
+        /\^([0-9])/g,
+        (_, exp) =>
+            toUnicodeSuperscript(
+                exp
+            )
+    );
+
+    // تنظيف أوامر التنسيق
+    value = value
+        .replace(
+            /\\(?:text|mathrm|mathbf|boxed)\{([^{}]+)\}/g,
+            "$1"
+        )
+        .replace(/\\left/g, "")
+        .replace(/\\right/g, "")
+        .replace(/\\,/g, " ")
+        .replace(/\\;/g, " ")
+        .replace(/\\!/g, "")
+        .replace(/\\\\/g, "\n")
+        .replace(/\{([^{}]+)\}/g, "$1")
+        .replace(/[ \t]+\n/g, "\n")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+
+    return value;
+}
+
+
 async function copyAnswer(text) {
+
+    const shareText =
+        formatAnswerForSharing(
+            text
+        );
 
     try {
 
         await navigator
             .clipboard
             .writeText(
-                text
+                shareText
             );
 
     }
@@ -1741,6 +1951,33 @@ async function copyAnswer(text) {
             "COPY ERROR:",
             error
         );
+
+        const area =
+            document.createElement(
+                "textarea"
+            );
+
+        area.value =
+            shareText;
+
+        area.style.position =
+            "fixed";
+
+        area.style.opacity =
+            "0";
+
+        document.body
+            .appendChild(
+                area
+            );
+
+        area.select();
+
+        document.execCommand(
+            "copy"
+        );
+
+        area.remove();
     }
 }
 
@@ -1794,7 +2031,38 @@ function cleanSpeechText(text) {
 }
 
 
-function readAnswer(text) {
+let activeReadButton = null;
+let activeUtterance = null;
+
+
+function stopReading() {
+
+    if (
+        "speechSynthesis"
+        in window
+    ) {
+
+        speechSynthesis.cancel();
+    }
+
+    if (activeReadButton) {
+
+        activeReadButton.textContent =
+            "🔊 اقرأ الإجابة";
+
+        activeReadButton.dataset.reading =
+            "false";
+    }
+
+    activeReadButton = null;
+    activeUtterance = null;
+}
+
+
+function readAnswer(
+    text,
+    button = null
+) {
 
     if (
         !(
@@ -1810,7 +2078,17 @@ function readAnswer(text) {
         return;
     }
 
-    speechSynthesis.cancel();
+    if (
+        button &&
+        button.dataset.reading ===
+            "true"
+    ) {
+
+        stopReading();
+        return;
+    }
+
+    stopReading();
 
     const utterance =
         new SpeechSynthesisUtterance(
@@ -1833,6 +2111,27 @@ function readAnswer(text) {
 
     utterance.rate =
         0.92;
+
+    if (button) {
+
+        activeReadButton =
+            button;
+
+        button.dataset.reading =
+            "true";
+
+        button.textContent =
+            "⏹ إيقاف القراءة";
+    }
+
+    activeUtterance =
+        utterance;
+
+    utterance.onend =
+        stopReading;
+
+    utterance.onerror =
+        stopReading;
 
     speechSynthesis.speak(
         utterance
@@ -2294,38 +2593,40 @@ function renderFunction(
                 خصائص الدالة ln(x)
             </strong>
 
-            <div>
-                • المجال:
-                \\(]0,+\\infty[\\)
+            <div class="property-row">
+                <span>• المجال:</span>
+                <span class="property-value">]0, +∞[</span>
             </div>
 
-            <div>
-                • المدى:
-                \\(\\mathbb{R}\\)
+            <div class="property-row">
+                <span>• المدى:</span>
+                <span class="property-value">ℝ</span>
             </div>
 
-            <div>
-                • تمر بالنقطة:
-                \\((1,0)\\)
+            <div class="property-row">
+                <span>• تمر بالنقطة:</span>
+                <span class="property-value">(1, 0)</span>
             </div>
 
-            <div>
-                • تمر بالنقطة:
-                \\((e,1)\\)
+            <div class="property-row">
+                <span>• تمر بالنقطة:</span>
+                <span class="property-value">(e, 1)</span>
             </div>
 
-            <div>
-                • متزايدة على مجالها
+            <div class="property-row">
+                <span>• التغيّر:</span>
+                <span>متزايدة على مجالها</span>
             </div>
 
-            <div>
-                • مقعّرة نحو الأسفل
+            <div class="property-row">
+                <span>• التقعّر:</span>
+                <span>مقعّرة نحو الأسفل</span>
             </div>
 
-            <div>
-                • المستقيم
-                \\(x=0\\)
-                مقارب رأسي
+            <div class="property-row">
+                <span>• المقارب:</span>
+                <span class="property-value">x = 0</span>
+                <span>رأسي</span>
             </div>
         `;
     }
@@ -3072,9 +3373,82 @@ async function drawingToPngBlob(
             )
     );
 
+    const exportClone =
+        drawingBox.cloneNode(
+            true
+        );
+
+    exportClone.classList.add(
+        "visible"
+    );
+
+    exportClone.style.position =
+        "fixed";
+
+    exportClone.style.left =
+        "-10000px";
+
+    exportClone.style.top =
+        "0";
+
+    exportClone.style.width =
+        "980px";
+
+    exportClone.style.maxWidth =
+        "980px";
+
+    exportClone.style.background =
+        "#ffffff";
+
+    const cloneLayout =
+        exportClone.querySelector(
+            ".graph-layout"
+        );
+
+    if (cloneLayout) {
+
+        cloneLayout.style.display =
+            "grid";
+
+        cloneLayout.style.gridTemplateColumns =
+            "minmax(0, 1fr) 220px";
+
+        cloneLayout.style.direction =
+            "ltr";
+    }
+
+    const cloneProperties =
+        exportClone.querySelector(
+            ".graph-properties"
+        );
+
+    if (cloneProperties) {
+
+        cloneProperties.style.fontSize =
+            "12px";
+
+        cloneProperties.style.lineHeight =
+            "1.45";
+
+        cloneProperties.style.direction =
+            "rtl";
+    }
+
+    document.body.appendChild(
+        exportClone
+    );
+
+    await new Promise(
+        resolve =>
+            setTimeout(
+                resolve,
+                80
+            )
+    );
+
     const canvas =
         await window.html2canvas(
-            drawingBox,
+            exportClone,
             {
                 backgroundColor:
                     "#ffffff",
@@ -3086,9 +3460,20 @@ async function drawingToPngBlob(
                     true,
 
                 logging:
-                    false
+                    false,
+
+                width:
+                    exportClone.scrollWidth,
+
+                height:
+                    exportClone.scrollHeight,
+
+                windowWidth:
+                    1200
             }
         );
+
+    exportClone.remove();
 
     if (!wasVisible) {
 
@@ -3531,7 +3916,8 @@ function addMessage(
         readButton.onclick =
             () => {
                 readAnswer(
-                    text
+                    text,
+                    readButton
                 );
             };
 
