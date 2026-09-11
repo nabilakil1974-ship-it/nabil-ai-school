@@ -9,6 +9,7 @@ from app.core.config import settings
 class NabilAIGateway:
 
     def __init__(self):
+
         api_key = getattr(
             settings,
             "OPENROUTER_API_KEY",
@@ -16,6 +17,7 @@ class NabilAIGateway:
         )
 
         if not api_key:
+
             raise RuntimeError(
                 "OPENROUTER_API_KEY غير مضبوط في إعدادات السيرفر"
             )
@@ -28,7 +30,12 @@ class NabilAIGateway:
         self.text_model = "openrouter/free"
         self.vision_model = "openrouter/free"
 
-    def _extract_content(self, response) -> str:
+
+    def _extract_content(
+        self,
+        response
+    ) -> str:
+
         if response is None:
             return ""
 
@@ -41,10 +48,8 @@ class NabilAIGateway:
         if not choices:
             return ""
 
-        choice = choices[0]
-
         message = getattr(
-            choice,
+            choices[0],
             "message",
             None,
         )
@@ -58,26 +63,50 @@ class NabilAIGateway:
             None,
         )
 
-        if isinstance(content, str):
+        if isinstance(
+            content,
+            str,
+        ):
+
             return content.strip()
 
-        if isinstance(content, list):
+        if isinstance(
+            content,
+            list,
+        ):
+
             parts = []
 
             for item in content:
-                if isinstance(item, str):
-                    parts.append(item)
-                    continue
 
-                if isinstance(item, dict):
-                    text = item.get("text")
+                if isinstance(
+                    item,
+                    str,
+                ):
+
+                    parts.append(item)
+
+                elif isinstance(
+                    item,
+                    dict,
+                ):
+
+                    text = item.get(
+                        "text"
+                    )
 
                     if text:
-                        parts.append(str(text))
 
-            return "\n".join(parts).strip()
+                        parts.append(
+                            str(text)
+                        )
+
+            return "\n".join(
+                parts
+            ).strip()
 
         return ""
+
 
     def generate(
         self,
@@ -95,7 +124,9 @@ class NabilAIGateway:
             }
         ]
 
+
         for msg in messages:
+
             chat_messages.append(
                 {
                     "role": msg.get(
@@ -109,29 +140,40 @@ class NabilAIGateway:
                 }
             )
 
+
         if image_bytes is not None:
+
             encoded = base64.b64encode(
                 image_bytes
-            ).decode("utf-8")
+            ).decode(
+                "utf-8"
+            )
+
 
             chat_messages.append(
                 {
                     "role": "user",
+
                     "content": [
+
                         {
                             "type": "text",
+
                             "text": (
-                                "حلّل الصورة بدقة. "
+                                "اقرأ الصورة بدقة. "
                                 "إذا كانت سؤالًا أو تمرينًا، "
                                 "استخرج السؤال وحلّه خطوة خطوة. "
-                                "إذا كانت صفحة درس أو شرحًا، "
-                                "اشرح محتواها للطالب بطريقة "
-                                "واضحة وتفاعلية. "
+                                "إذا كانت صورة درس أو شرحًا، "
+                                "اشرح محتواها للطالب تدريجيًا. "
+                                "إذا كانت تحتوي على رسم أو "
+                                "جدول، اشرح عناصره. "
                                 "لا تخترع أي معلومة غير ظاهرة."
                             ),
                         },
+
                         {
                             "type": "image_url",
+
                             "image_url": {
                                 "url": (
                                     f"data:{image_mime_type};"
@@ -139,40 +181,57 @@ class NabilAIGateway:
                                 )
                             },
                         },
+
                     ],
                 }
             )
 
+
         try:
-            response = self.client.chat.completions.create(
-                model=(
-                    self.vision_model
-                    if image_bytes is not None
-                    else self.text_model
-                ),
-                messages=chat_messages,
-                max_tokens=max_output_tokens,
+
+            response = (
+                self.client
+                .chat
+                .completions
+                .create(
+                    model=(
+                        self.vision_model
+                        if image_bytes is not None
+                        else self.text_model
+                    ),
+                    messages=chat_messages,
+                    max_tokens=max_output_tokens,
+                )
             )
 
         except Exception as exc:
+
             raise RuntimeError(
                 f"خطأ في الاتصال بـ OpenRouter: {exc}"
             ) from exc
 
-        content = self._extract_content(response)
+
+        content = self._extract_content(
+            response
+        )
+
 
         if content:
+
             return content
+
 
         raise RuntimeError(
             "NABIL AI لم يُرجع إجابة نصية."
         )
+
 
     def transcribe(
         self,
         audio_bytes: bytes,
         filename: str = "voice.webm",
     ) -> str:
+
         raise RuntimeError(
             "تحويل الصوت غير متاح حاليًا "
             "في المسار المجاني."
