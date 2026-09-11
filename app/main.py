@@ -7,6 +7,7 @@ from sqlalchemy import text
 from app.core.config import settings
 from app.db.session import Base, engine
 
+
 # ==========================================================
 # Import database models before create_all
 # ==========================================================
@@ -16,12 +17,18 @@ from app.db import student_learning  # noqa: F401
 from app.db import subscription  # noqa: F401
 from app.db import ai_usage  # noqa: F401
 
+
+# ==========================================================
+# API routers
+# ==========================================================
+
 from app.api import (
     routes_health,
     routes_chat,
     routes_admin,
     routes_student,
     routes_platform_admin,
+    routes_parent,
 )
 
 
@@ -240,8 +247,6 @@ migrate_student_learning_profiles()
 # - student_learning
 # - subscription
 # - ai_usage
-#
-# Therefore ai_usage_logs will also be created automatically.
 
 Base.metadata.create_all(
     bind=engine
@@ -311,6 +316,20 @@ app.include_router(
     routes_student.router,
     prefix="/api",
     tags=["student"],
+)
+
+# Parent / guardian educational monitoring API.
+# routes_parent contains:
+# /parent/student
+# /parent/progress
+#
+# Final endpoints become:
+# /api/parent/student
+# /api/parent/progress
+app.include_router(
+    routes_parent.router,
+    prefix="/api",
+    tags=["parent"],
 )
 
 app.include_router(
