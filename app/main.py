@@ -74,10 +74,11 @@ app.include_router(
     tags=["chat"],
 )
 
+# IMPORTANT:
+# routes_admin v9 already contains /admin and /api/admin/summary.
+# Therefore it must NOT receive an additional /api prefix here.
 app.include_router(
     routes_admin.router,
-    prefix="/api",
-    tags=["admin"],
 )
 
 app.include_router(
