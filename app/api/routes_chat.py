@@ -25,6 +25,7 @@ from starlette.concurrency import run_in_threadpool
 from app.db.session import get_db
 from app.db.models import Conversation, Message, Student
 from app.db.student_learning import StudentLearningProfile
+from app.db.ai_usage import AIUsageLog
 from app.services.ai_gateway import NabilAIGateway
  
  
@@ -1475,6 +1476,43 @@ def update_learning_profile(
     db.refresh(profile)
 
 
+
+def record_ai_usage(
+    db: Session,
+    *,
+    student_id: str,
+    grade: Optional[str],
+    subject: Optional[str],
+    lesson: Optional[str],
+    success: bool,
+    status_code: int,
+    response_time_ms: Optional[float] = None,
+    cache_hit: bool = False,
+    error_type: Optional[str] = None,
+) -> None:
+    """Best-effort monitoring: never break a lesson because logging failed."""
+    try:
+        db.add(
+            AIUsageLog(
+                student_id=student_id,
+                grade=grade,
+                subject=subject,
+                lesson=lesson,
+                success=success,
+                status_code=status_code,
+                response_time_ms=response_time_ms,
+                cache_hit=cache_hit,
+                error_type=error_type,
+            )
+        )
+        db.commit()
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+
+
 def clean_reply(text: str) -> str:
     if not text:
         return ""
@@ -1642,6 +1680,8 @@ async def voice_chat(
     lesson: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
+    request_started_at = time.perf_counter()
+
     enforce_student_rate_limit(
         student_id
     )
@@ -1926,6 +1966,7 @@ async def voice_chat(
     # ==========================================
     cache_key = None
     raw_reply = None
+    cache_hit = False
 
     if _is_cacheable_lesson_start(
         message=message,
@@ -1941,9 +1982,8 @@ async def voice_chat(
             message=message,
         )
 
-        raw_reply = _get_cached_lesson(
-            cache_key
-        )
+        raw_reply = _get_cached_lesson(cache_key)
+        cache_hit = raw_reply is not None
 
     if raw_reply is None:
         acquired = False
@@ -1956,6 +1996,22 @@ async def voice_chat(
             acquired = True
 
         except asyncio.TimeoutError as exc:
+            elapsed_ms = round(
+                (time.perf_counter() - request_started_at) * 1000,
+                2,
+            )
+            record_ai_usage(
+                db,
+                student_id=student_id,
+                grade=grade,
+                subject=subject,
+                lesson=lesson,
+                success=False,
+                status_code=503,
+                response_time_ms=elapsed_ms,
+                cache_hit=False,
+                error_type="queue_timeout",
+            )
             raise HTTPException(
                 status_code=503,
                 detail=(
@@ -1975,25 +2031,52 @@ async def voice_chat(
             )
 
         except Exception as exc:
+            elapsed_ms = round(
+                (time.perf_counter() - request_started_at) * 1000,
+                2,
+            )
+            error_text = str(exc).lower()
+
+            if "429" in error_text:
+                error_type = "provider_429"
+            elif "quota" in error_text:
+                error_type = "quota"
+            elif "billing" in error_text or "credit" in error_text:
+                error_type = "billing"
+            else:
+                error_type = "provider_error"
+
+            record_ai_usage(
+                db,
+                student_id=student_id,
+                grade=grade,
+                subject=subject,
+                lesson=lesson,
+                success=False,
+                status_code=503,
+                response_time_ms=elapsed_ms,
+                cache_hit=False,
+                error_type=error_type,
+            )
+
             raise HTTPException(
                 status_code=503,
-                detail=str(exc),
+                detail=(
+                    "خدمة NABIL AI مشغولة أو غير متاحة مؤقتًا. "
+                    "يرجى إعادة المحاولة بعد قليل."
+                ),
             ) from exc
 
         finally:
             if acquired:
                 _ai_concurrency.release()
 
-        if (
-            cache_key
-            and raw_reply
-        ):
+        if cache_key and raw_reply:
             _store_cached_lesson(
                 cache_key,
                 raw_reply,
             )
 
- 
     raw_reply, progress_metadata = extract_progress_metadata(
         raw_reply
     )
@@ -2012,6 +2095,23 @@ async def voice_chat(
             detail="NABIL AI لم يُرجع إجابة.",
         )
  
+    elapsed_ms = round(
+        (time.perf_counter() - request_started_at) * 1000,
+        2,
+    )
+    record_ai_usage(
+        db,
+        student_id=student_id,
+        grade=grade,
+        subject=subject,
+        lesson=lesson,
+        success=True,
+        status_code=200,
+        response_time_ms=elapsed_ms,
+        cache_hit=cache_hit,
+        error_type=None,
+    )
+
     # ==========================================
     # SAVE
     # ==========================================
