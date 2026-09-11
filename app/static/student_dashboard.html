@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>تقدمي - NABIL AI</title>
+<style>
+body{font-family:Arial,Tahoma,sans-serif;margin:0;background:#f5f8fc;color:#172033}
+header{background:linear-gradient(135deg,#2e78c9,#173b6c);color:#fff;padding:22px;text-align:center}
+main{max-width:1100px;margin:24px auto;padding:0 16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.card{background:#fff;border:1px solid #dde6f0;border-radius:14px;padding:18px;box-shadow:0 3px 12px rgba(15,23,42,.06)}
+.big{font-size:30px;font-weight:800;color:#173b6c}
+ul{padding-right:20px}
+button,a.btn{display:inline-block;background:#2563eb;color:#fff;border:0;border-radius:10px;padding:11px 16px;text-decoration:none;cursor:pointer}
+.muted{color:#64748b}
+</style>
+</head>
+<body>
+<header>
+<h1>📊 لوحة تقدم الطالب</h1>
+<div id="studentLabel"></div>
+</header>
+<main>
+<div class="grid">
+<div class="card"><div class="muted">نسبة التقدم</div><div class="big" id="progress">0%</div></div>
+<div class="card"><div class="muted">الدروس المتقنة</div><div class="big" id="mastered">0</div></div>
+<div class="card"><div class="muted">وقت التعلم</div><div class="big" id="minutes">0 دقيقة</div></div>
+<div class="card"><div class="muted">حالة الاشتراك</div><div class="big" id="subscription">-</div></div>
+</div>
+
+<div class="grid" style="margin-top:16px">
+<div class="card"><h3>آخر درس</h3><div id="currentLesson">-</div></div>
+<div class="card"><h3>يحتاج مراجعة</h3><ul id="review"></ul></div>
+<div class="card"><h3>نقاط القوة</h3><ul id="strengths"></ul></div>
+<div class="card"><h3>نتائج الاختبارات</h3><ul id="tests"></ul></div>
+</div>
+
+<div style="margin-top:20px">
+<a class="btn" href="/">← العودة إلى NABIL AI</a>
+</div>
+</main>
+
+<script>
+function getStudentId(){
+    return localStorage.getItem("nabil_student_id") || "demo-student";
+}
+function fillList(id, items, formatter){
+    const el=document.getElementById(id);
+    el.innerHTML="";
+    const arr=Array.isArray(items)?items:[];
+    if(!arr.length){
+        const li=document.createElement("li");
+        li.textContent="لا يوجد بعد";
+        el.appendChild(li);
+        return;
+    }
+    arr.slice(-10).reverse().forEach(item=>{
+        const li=document.createElement("li");
+        li.textContent=formatter?formatter(item):String(item);
+        el.appendChild(li);
+    });
+}
+async function load(){
+    const studentId=getStudentId();
+    document.getElementById("studentLabel").textContent=studentId;
+
+    const r=await fetch("/api/student/"+encodeURIComponent(studentId)+"/dashboard");
+    if(!r.ok){
+        document.querySelector("main").innerHTML="<div class='card'>تعذر تحميل لوحة التقدم.</div>";
+        return;
+    }
+    const d=await r.json();
+    document.getElementById("progress").textContent=(d.overall_progress_percent||0)+"%";
+    document.getElementById("mastered").textContent=d.mastered_lessons_count||0;
+    document.getElementById("minutes").textContent=(d.total_learning_minutes||0)+" دقيقة";
+    document.getElementById("subscription").textContent=d.subscription?.state||"-";
+    document.getElementById("currentLesson").textContent=d.current_lesson||"لا يوجد";
+    fillList("review",d.concepts_to_review);
+    fillList("strengths",d.strengths);
+    fillList("tests",d.test_results,x=>(x.name||"اختبار")+": "+(x.percent??0)+"%");
+}
+load();
+</script>
+</body>
+</html>
