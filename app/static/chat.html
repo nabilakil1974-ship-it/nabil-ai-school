@@ -2,375 +2,855 @@
 <html lang="ar" dir="rtl">
 
 <head>
+    <meta charset="UTF-8">
 
-<meta charset="UTF-8">
-
-<meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
->
-
-<title>منصة النبيل التعليمية الذكية</title>
-
-<script>
-window.MathJax = {
-    tex: {
-        inlineMath: [
-            ['\\(', '\\)'],
-            ['$', '$']
-        ],
-        displayMath: [
-            ['\\[', '\\]'],
-            ['$$', '$$']
-        ]
-    },
-    svg: {
-        fontCache: 'global'
-    }
-};
-</script>
-
-<script
-    src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"
-    async
-></script>
-
-<style>
-
-* {
-    box-sizing: border-box;
-}
-
-body {
-    margin: 0;
-    font-family: Arial, Tahoma, sans-serif;
-    background: #f4f7fb;
-    color: #1f2937;
-}
-
-.header {
-    background:
-        linear-gradient(
-            135deg,
-            #173b6c,
-            #2563eb
-        );
-
-    color: white;
-    padding: 20px;
-}
-
-.header-title {
-    text-align: center;
-    font-size: 27px;
-    font-weight: bold;
-    margin-bottom: 20px;
-}
-
-.controls {
-    max-width: 1250px;
-    margin: auto;
-
-    display: grid;
-
-    grid-template-columns:
-        repeat(4, 1fr)
-        auto;
-
-    gap: 10px;
-    align-items: end;
-}
-
-.control {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.control label {
-    font-size: 14px;
-    font-weight: bold;
-}
-
-select {
-    width: 100%;
-    padding: 12px;
-    border: none;
-    border-radius: 8px;
-    background: white;
-    font-size: 15px;
-}
-
-#startLesson {
-    padding: 12px 18px;
-    min-height: 44px;
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-    border: none;
-    border-radius: 8px;
+    <meta name="color-scheme" content="light">
 
-    background: #16a34a;
-    color: white;
+    <title>منصة النبيل التعليمية الذكية</title>
 
-    font-size: 16px;
-    font-weight: bold;
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [
+                    ['\\(', '\\)'],
+                    ['$', '$']
+                ],
+                displayMath: [
+                    ['\\[', '\\]'],
+                    ['$$', '$$']
+                ]
+            },
+            svg: {
+                fontCache: 'global'
+            }
+        };
+    </script>
 
-    cursor: pointer;
-}
+    <script
+        src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"
+        async
+    ></script>
 
-#startLesson:disabled {
-    opacity: .6;
-}
+    <style>
 
-.container {
-    max-width: 1000px;
-    margin: 25px auto;
-    padding: 0 15px;
-}
+        :root {
+            color-scheme: only light;
 
-.lesson-info {
-    display: none;
+            --blue-dark: #173b6c;
+            --blue: #2563eb;
+            --blue-light: #3b82f6;
 
-    background: white;
+            --green: #16a34a;
 
-    padding: 15px 20px;
+            --text: #111827;
+            --muted: #64748b;
 
-    border-radius: 12px;
+            --border: #d9e3ef;
 
-    margin-bottom: 15px;
+            --page: #f6f9fd;
 
-    box-shadow:
-        0 2px 8px rgba(0,0,0,.08);
-}
+            --teacher: #f1fff5;
+            --student: #e8f1ff;
+        }
 
-.index-status {
-    font-size: 13px;
-    color: #64748b;
-    margin-top: 6px;
-}
 
-.chat {
-    min-height: 500px;
-    max-height: 650px;
+        * {
+            box-sizing: border-box;
+        }
 
-    overflow-y: auto;
 
-    background: white;
+        html,
+        body {
+            margin: 0;
 
-    padding: 20px;
+            min-height: 100%;
 
-    border-radius: 14px;
+            background:
+                var(--page)
+                !important;
 
-    box-shadow:
-        0 2px 10px rgba(0,0,0,.08);
-}
+            color:
+                var(--text)
+                !important;
 
-.welcome {
-    text-align: center;
-    padding: 70px 20px;
-    color: #64748b;
-}
+            color-scheme:
+                only light;
+        }
 
-.welcome h2 {
-    color: #173b6c;
-}
 
-.message {
-    display: flex;
-    margin: 12px 0;
-}
+        body {
+            font-family:
+                Arial,
+                Tahoma,
+                sans-serif;
+        }
 
-.message.student {
-    justify-content: flex-start;
-}
 
-.message.teacher {
-    justify-content: flex-end;
-}
+        /* =========================================
+           HEADER
+        ========================================= */
 
-.bubble {
-    max-width: 84%;
+        .header {
+            background:
+                linear-gradient(
+                    135deg,
+                    #2e78c9,
+                    #173b6c
+                );
 
-    padding: 13px 16px;
+            color: white;
 
-    border-radius: 14px;
+            padding:
+                18px 22px;
 
-    line-height: 1.8;
+            box-shadow:
+                0 3px 12px
+                rgba(15, 23, 42, .16);
+        }
 
-    overflow-wrap: anywhere;
-}
 
-.student .bubble {
-    background: #e0ecff;
-}
+        .header-title {
+            text-align: center;
 
-.teacher .bubble {
-    background: #eef8ee;
-}
+            font-size: 29px;
 
-.bubble mjx-container {
-    direction: ltr !important;
-}
+            font-weight: 800;
 
-.teacher-tools {
-    display: flex;
+            margin-bottom: 20px;
+        }
 
-    gap: 7px;
 
-    margin-top: 12px;
+        .controls {
+            max-width: 1450px;
 
-    flex-wrap: wrap;
-}
+            margin: auto;
 
-.teacher-tools button {
-    padding: 7px 11px;
+            display: grid;
 
-    background: white;
+            grid-template-columns:
+                repeat(
+                    4,
+                    minmax(150px, 1fr)
+                )
+                auto;
 
-    color: #334155;
+            gap: 14px;
 
-    border:
-        1px solid #cbd5e1;
+            align-items: end;
+        }
 
-    border-radius: 7px;
 
-    cursor: pointer;
-}
+        .control {
+            display: flex;
 
-.draw-answer-btn.active {
-    background: #dbeafe;
-    color: #1d4ed8;
-}
+            flex-direction: column;
 
-.answer-drawing {
-    display: none;
+            gap: 7px;
+        }
 
-    margin-top: 14px;
-    padding: 16px;
 
-    background: white;
+        .control label {
+            font-size: 15px;
 
-    border:
-        1px solid #cbd5e1;
+            font-weight: 800;
 
-    border-radius: 12px;
+            color: white;
+        }
 
-    overflow-x: auto;
-}
 
-.answer-drawing.visible {
-    display: block;
-}
+        select {
+            width: 100%;
 
-.drawing-title {
-    font-size: 17px;
-    font-weight: bold;
-    color: #173b6c;
-    margin-bottom: 12px;
-}
+            min-height: 48px;
 
-.answer-drawing svg {
-    width: 100%;
-    max-width: 720px;
-    min-width: 500px;
-    height: auto;
-}
+            padding:
+                10px 13px;
 
-.graph-label {
-    font-size: 14px;
-    font-weight: bold;
-}
+            border:
+                1px solid #d4dfec;
 
-.input-area {
-    display: flex;
-    gap: 8px;
-    margin-top: 15px;
-}
+            border-radius: 9px;
 
-textarea {
-    flex: 1;
+            background:
+                white
+                !important;
 
-    min-height: 55px;
+            color:
+                #172033
+                !important;
 
-    resize: none;
+            font-size: 15px;
 
-    padding: 12px;
+            outline: none;
+        }
 
-    border:
-        1px solid #cbd5e1;
 
-    border-radius: 10px;
+        select:focus {
+            border-color:
+                #60a5fa;
 
-    font-size: 16px;
-}
+            box-shadow:
+                0 0 0 3px
+                rgba(
+                    59,
+                    130,
+                    246,
+                    .14
+                );
+        }
 
-button {
-    border: none;
-    font-weight: bold;
-    cursor: pointer;
-}
 
-#sendBtn {
-    background: #2563eb;
-    color: white;
+        #startLesson {
+            min-height: 48px;
 
-    border-radius: 10px;
+            padding:
+                11px 24px;
 
-    padding: 0 20px;
-}
+            border: none;
 
-#imageBtn {
-    background: #64748b;
-    color: white;
+            border-radius: 9px;
 
-    padding: 0 20px;
+            background:
+                linear-gradient(
+                    180deg,
+                    #22c55e,
+                    #16a34a
+                );
 
-    border-radius: 10px;
-}
+            color: white;
 
-#micBtn {
-    background: #7c3aed;
-    color: white;
+            font-size: 17px;
 
-    padding: 0 20px;
+            font-weight: 800;
 
-    border-radius: 10px;
-}
+            cursor: pointer;
 
-#imageInput {
-    display: none;
-}
+            box-shadow:
+                0 4px 12px
+                rgba(
+                    22,
+                    163,
+                    74,
+                    .22
+                );
+        }
 
-@media(max-width:700px) {
 
-    .controls {
-        grid-template-columns:
-            1fr 1fr;
-    }
+        #startLesson:disabled {
+            opacity: .6;
 
-    .bubble {
-        max-width: 96%;
-    }
+            cursor:
+                not-allowed;
+        }
 
-}
 
-@media(max-width:550px) {
+        /* =========================================
+           MAIN
+        ========================================= */
 
-    .controls {
-        grid-template-columns: 1fr;
-    }
+        .container {
+            max-width: 1180px;
 
-    .input-area {
-        flex-wrap: wrap;
-    }
+            margin:
+                18px auto;
 
-    textarea {
-        flex-basis: 100%;
-    }
+            padding:
+                0 15px 90px;
+        }
 
-}
 
-</style>
+        .lesson-info {
+            display: none;
 
+            background:
+                white;
+
+            padding:
+                14px 18px;
+
+            border:
+                1px solid
+                var(--border);
+
+            border-radius: 12px;
+
+            margin-bottom: 12px;
+
+            box-shadow:
+                0 2px 8px
+                rgba(
+                    15,
+                    23,
+                    42,
+                    .06
+                );
+        }
+
+
+        .lesson-info strong {
+            color:
+                var(--blue-dark);
+        }
+
+
+        .index-status {
+            margin-top: 6px;
+
+            font-size: 13px;
+
+            color:
+                var(--muted);
+        }
+
+
+        /* =========================================
+           CHAT
+        ========================================= */
+
+        .chat {
+            min-height: 520px;
+
+            max-height: 720px;
+
+            overflow-y: auto;
+
+            padding: 18px;
+
+            background:
+                white;
+
+            border:
+                1px solid
+                #e2eaf3;
+
+            border-radius: 16px;
+
+            box-shadow:
+                0 8px 28px
+                rgba(
+                    15,
+                    23,
+                    42,
+                    .07
+                );
+        }
+
+
+        .welcome {
+            text-align: center;
+
+            padding:
+                75px 20px;
+
+            color:
+                var(--muted);
+        }
+
+
+        .welcome h2 {
+            color:
+                var(--blue-dark);
+        }
+
+
+        .message {
+            display: flex;
+
+            margin:
+                12px 0;
+        }
+
+
+        .message.student {
+            justify-content:
+                flex-start;
+        }
+
+
+        .message.teacher {
+            justify-content:
+                stretch;
+        }
+
+
+        .bubble {
+            padding:
+                15px 18px;
+
+            border-radius: 15px;
+
+            line-height: 1.9;
+
+            overflow-wrap:
+                anywhere;
+        }
+
+
+        .student .bubble {
+            max-width: 82%;
+
+            background:
+                var(--student);
+
+            border:
+                1px solid
+                #cfe1ff;
+        }
+
+
+        .teacher .bubble {
+            width: 100%;
+
+            max-width: 100%;
+
+            background:
+                linear-gradient(
+                    180deg,
+                    #f6fff8,
+                    #effcf3
+                );
+
+            border:
+                1px solid
+                #cbead3;
+
+            box-shadow:
+                0 3px 14px
+                rgba(
+                    22,
+                    101,
+                    52,
+                    .06
+                );
+        }
+
+
+        .teacher .bubble h2,
+        .teacher .bubble h3,
+        .teacher .bubble h4 {
+            color:
+                #123c2a;
+        }
+
+
+        .bubble mjx-container {
+            direction:
+                ltr !important;
+
+            color:
+                #111827 !important;
+        }
+
+
+        /* =========================================
+           TOOLS
+        ========================================= */
+
+        .teacher-tools {
+            display: flex;
+
+            gap: 8px;
+
+            margin-top: 14px;
+
+            flex-wrap: wrap;
+        }
+
+
+        .teacher-tools button {
+            min-height: 38px;
+
+            padding:
+                8px 14px;
+
+            border:
+                1px solid
+                #35475a;
+
+            border-radius: 8px;
+
+            background:
+                #263341;
+
+            color:
+                white;
+
+            font-weight: 800;
+
+            cursor: pointer;
+        }
+
+
+        .teacher-tools button:hover {
+            filter:
+                brightness(1.08);
+        }
+
+
+        .draw-answer-btn.active {
+            background:
+                #1672e8;
+
+            border-color:
+                #1672e8;
+        }
+
+
+        /* =========================================
+           DRAWING
+        ========================================= */
+
+        .answer-drawing {
+            display: none;
+
+            margin-top: 14px;
+
+            padding: 0;
+
+            background:
+                white
+                !important;
+
+            color:
+                #111827
+                !important;
+
+            border:
+                1px solid
+                #a8c8ef;
+
+            border-radius: 13px;
+
+            overflow: hidden;
+
+            box-shadow:
+                0 4px 18px
+                rgba(
+                    37,
+                    99,
+                    235,
+                    .08
+                );
+        }
+
+
+        .answer-drawing.visible {
+            display: block;
+        }
+
+
+        .drawing-title {
+            margin: 0;
+
+            padding:
+                12px 16px;
+
+            text-align: center;
+
+            font-size: 19px;
+
+            font-weight: 800;
+
+            color:
+                white;
+
+            background:
+                linear-gradient(
+                    180deg,
+                    #34495d,
+                    #283848
+                );
+        }
+
+
+        .graph-shell {
+            padding: 16px;
+
+            background:
+                white;
+        }
+
+
+        .graph-layout {
+            display: grid;
+
+            grid-template-columns:
+                minmax(0, 1fr)
+                230px;
+
+            gap: 16px;
+
+            direction: ltr;
+        }
+
+
+        .graph-canvas {
+            background:
+                white;
+
+            border-radius: 8px;
+
+            overflow: hidden;
+        }
+
+
+        .graph-properties {
+            direction: rtl;
+
+            padding:
+                14px 15px;
+
+            background:
+                linear-gradient(
+                    180deg,
+                    #fffbea,
+                    #fff6cf
+                );
+
+            border:
+                1px solid
+                #f2c94c;
+
+            border-radius: 10px;
+
+            color:
+                #111827;
+
+            font-size: 14px;
+
+            line-height: 1.85;
+        }
+
+
+        .graph-properties strong {
+            display: block;
+
+            margin-bottom: 7px;
+
+            font-size: 16px;
+
+            text-align: center;
+        }
+
+
+        .answer-drawing svg {
+            display: block;
+
+            width: 100%;
+
+            height: auto;
+
+            max-width: none;
+
+            min-width: 0;
+
+            background:
+                white
+                !important;
+        }
+
+
+        .graph-label,
+        .graph-tick {
+            font-size: 14px;
+
+            font-weight: 700;
+
+            fill:
+                #111827;
+        }
+
+
+        .graph-axis-label {
+            font-size: 18px;
+
+            font-weight: 800;
+
+            font-style: italic;
+
+            fill:
+                #111827;
+        }
+
+
+        /* =========================================
+           INPUT
+        ========================================= */
+
+        .input-area {
+            position: sticky;
+
+            bottom: 0;
+
+            z-index: 10;
+
+            display: flex;
+
+            gap: 8px;
+
+            margin-top: 14px;
+
+            padding: 10px;
+
+            background:
+                rgba(
+                    247,
+                    251,
+                    255,
+                    .97
+                );
+
+            border-top:
+                1px solid
+                #dfe8f2;
+
+            backdrop-filter:
+                blur(8px);
+        }
+
+
+        textarea {
+            flex: 1;
+
+            min-height: 56px;
+
+            resize: none;
+
+            padding:
+                13px 15px;
+
+            border:
+                1px solid
+                #cbd5e1;
+
+            border-radius: 10px;
+
+            background:
+                white;
+
+            color:
+                #111827;
+
+            font-size: 16px;
+
+            outline: none;
+        }
+
+
+        textarea:focus {
+            border-color:
+                #60a5fa;
+
+            box-shadow:
+                0 0 0 3px
+                rgba(
+                    59,
+                    130,
+                    246,
+                    .12
+                );
+        }
+
+
+        button {
+            border: none;
+
+            font-weight: bold;
+
+            cursor: pointer;
+        }
+
+
+        #sendBtn,
+        #imageBtn,
+        #micBtn {
+            min-width: 62px;
+
+            border-radius: 10px;
+
+            color: white;
+        }
+
+
+        #sendBtn {
+            background:
+                #0f67e8;
+
+            padding:
+                0 22px;
+        }
+
+
+        #imageBtn {
+            background:
+                #8da0b4;
+
+            padding:
+                0 18px;
+        }
+
+
+        #micBtn {
+            background:
+                #7c2bd4;
+
+            padding:
+                0 18px;
+        }
+
+
+        #imageInput {
+            display: none;
+        }
+
+
+        @media(max-width:900px) {
+
+            .graph-layout {
+                grid-template-columns:
+                    1fr;
+            }
+
+        }
+
+
+        @media(max-width:700px) {
+
+            .controls {
+                grid-template-columns:
+                    1fr 1fr;
+            }
+
+            .student .bubble {
+                max-width: 96%;
+            }
+
+        }
+
+
+        @media(max-width:550px) {
+
+            .controls {
+                grid-template-columns:
+                    1fr;
+            }
+
+            .input-area {
+                flex-wrap: wrap;
+            }
+
+            textarea {
+                flex-basis: 100%;
+            }
+
+        }
+
+    </style>
 </head>
 
 
@@ -379,173 +859,226 @@ button {
 
 <header class="header">
 
-<div class="header-title">
-منصة النبيل التعليمية الذكية
-</div>
+    <div class="header-title">
+        منصة النبيل التعليمية الذكية
+    </div>
 
-<div class="controls">
 
-<div class="control">
-<label>الصف</label>
-<select id="gradeSelect"></select>
-</div>
+    <div class="controls">
 
-<div class="control">
-<label>المادة</label>
-<select id="subjectSelect"></select>
-</div>
+        <div class="control">
 
-<div class="control">
-<label>اللغة</label>
+            <label>
+                الصف
+            </label>
 
-<select id="languageSelect">
+            <select id="gradeSelect"></select>
 
-<option value="العربية">
-العربية
-</option>
+        </div>
 
-<option value="Français">
-Français
-</option>
 
-<option value="English">
-English
-</option>
+        <div class="control">
 
-</select>
+            <label>
+                المادة
+            </label>
 
-</div>
+            <select id="subjectSelect"></select>
 
-<div class="control">
-<label>الدرس</label>
-<select id="lessonSelect"></select>
-</div>
+        </div>
 
-<button
-    id="startLesson"
-    type="button"
->
-▶ ابدأ الدرس
-</button>
 
-</div>
+        <div class="control">
+
+            <label>
+                اللغة
+            </label>
+
+            <select id="languageSelect">
+
+                <option value="العربية">
+                    العربية
+                </option>
+
+                <option value="Français">
+                    Français
+                </option>
+
+                <option value="English">
+                    English
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <div class="control">
+
+            <label>
+                الدرس
+            </label>
+
+            <select id="lessonSelect"></select>
+
+        </div>
+
+
+        <button
+            id="startLesson"
+            type="button"
+        >
+            ▶ ابدأ الدرس
+        </button>
+
+    </div>
 
 </header>
 
 
+
 <main class="container">
 
-<div
-    id="lessonInfo"
-    class="lesson-info"
->
 
-<strong>
-الدرس الحالي:
-</strong>
+    <div
+        id="lessonInfo"
+        class="lesson-info"
+    >
 
-<span id="currentLesson"></span>
+        <strong>
+            الدرس الحالي:
+        </strong>
 
-<div
-    id="indexStatus"
-    class="index-status"
-></div>
+        <span id="currentLesson"></span>
 
-</div>
+        <div
+            id="indexStatus"
+            class="index-status"
+        ></div>
 
-
-<section
-    id="chat"
-    class="chat"
->
-
-<div
-    id="welcome"
-    class="welcome"
->
-
-<h2>
-مرحباً بك في NABIL AI 👨‍🏫
-</h2>
-
-<p>
-اختر الصف والمادة واللغة والدرس ثم ابدأ.
-</p>
-
-</div>
-
-</section>
+    </div>
 
 
-<div class="input-area">
 
-<textarea
-    id="messageInput"
-    placeholder="اكتب سؤالك هنا..."
-></textarea>
+    <section
+        id="chat"
+        class="chat"
+    >
 
-<button
-    id="imageBtn"
-    type="button"
->
-🖼️
-</button>
+        <div
+            id="welcome"
+            class="welcome"
+        >
 
-<input
-    id="imageInput"
-    type="file"
-    accept="image/*"
->
+            <h2>
+                مرحباً بك في NABIL AI 👨‍🏫
+            </h2>
 
-<button
-    id="micBtn"
-    type="button"
->
-🎤
-</button>
+            <p>
+                اختر الصف والمادة واللغة والدرس ثم ابدأ.
+            </p>
 
-<button
-    id="sendBtn"
-    type="button"
->
-إرسال
-</button>
+        </div>
 
-</div>
+    </section>
+
+
+
+    <div class="input-area">
+
+        <textarea
+            id="messageInput"
+            placeholder="اكتب سؤالك هنا..."
+        ></textarea>
+
+
+        <button
+            id="imageBtn"
+            type="button"
+        >
+            🖼️
+        </button>
+
+
+        <input
+            id="imageInput"
+            type="file"
+            accept="image/*"
+        >
+
+
+        <button
+            id="micBtn"
+            type="button"
+        >
+            🎤
+        </button>
+
+
+        <button
+            id="sendBtn"
+            type="button"
+        >
+            إرسال
+        </button>
+
+    </div>
 
 </main>
 
 
+
 <script>
 
+
 const API_BASE = "";
+
 
 const FIXED_CURRICULUM =
     "المنهج اللبناني الرسمي";
 
 
 const GRADES = [
+
     "الصف الأول",
+
     "الصف الثاني",
+
     "الصف الثالث",
+
     "الصف الرابع",
+
     "الصف الخامس",
+
     "الصف السادس",
+
     "الصف السابع",
+
     "الصف الثامن",
+
     "الصف التاسع",
+
     "الأول ثانوي",
+
     "الثاني ثانوي",
+
     "الثالث ثانوي"
+
 ];
 
 
 const SUBJECTS = [
+
     "رياضيات",
+
     "فيزياء",
+
     "كيمياء",
+
     "علوم",
+
     "علوم الحياة"
+
 ];
 
 
@@ -554,70 +1087,84 @@ const gradeSelect =
         "gradeSelect"
     );
 
+
 const subjectSelect =
     document.getElementById(
         "subjectSelect"
     );
+
 
 const languageSelect =
     document.getElementById(
         "languageSelect"
     );
 
+
 const lessonSelect =
     document.getElementById(
         "lessonSelect"
     );
+
 
 const startLesson =
     document.getElementById(
         "startLesson"
     );
 
+
 const chat =
     document.getElementById(
         "chat"
     );
+
 
 const welcome =
     document.getElementById(
         "welcome"
     );
 
+
 const lessonInfo =
     document.getElementById(
         "lessonInfo"
     );
+
 
 const currentLesson =
     document.getElementById(
         "currentLesson"
     );
 
+
 const indexStatus =
     document.getElementById(
         "indexStatus"
     );
+
 
 const messageInput =
     document.getElementById(
         "messageInput"
     );
 
+
 const sendBtn =
     document.getElementById(
         "sendBtn"
     );
+
 
 const imageBtn =
     document.getElementById(
         "imageBtn"
     );
 
+
 const imageInput =
     document.getElementById(
         "imageInput"
     );
+
 
 const micBtn =
     document.getElementById(
@@ -626,14 +1173,18 @@ const micBtn =
 
 
 let curriculumIndex = {};
+
 let conversationId = null;
+
 let selectedImage = null;
+
 let recognition = null;
 
 
 /* ================================================
    SELECTS
 ================================================ */
+
 
 function fillSelect(
     select,
@@ -643,19 +1194,23 @@ function fillSelect(
 
     select.innerHTML = "";
 
+
     const first =
         document.createElement(
             "option"
         );
+
 
     first.value = "";
 
     first.textContent =
         placeholder;
 
+
     select.appendChild(
         first
     );
+
 
     items.forEach(
         item => {
@@ -665,11 +1220,14 @@ function fillSelect(
                     "option"
                 );
 
+
             option.value =
                 item;
 
+
             option.textContent =
                 item;
+
 
             select.appendChild(
                 option
@@ -687,11 +1245,13 @@ fillSelect(
     "اختر الصف"
 );
 
+
 fillSelect(
     subjectSelect,
     SUBJECTS,
     "اختر المادة"
 );
+
 
 fillSelect(
     lessonSelect,
@@ -701,8 +1261,9 @@ fillSelect(
 
 
 /* ================================================
-   INDEX
+   CURRICULUM INDEX
 ================================================ */
+
 
 async function loadCurriculumIndex() {
 
@@ -712,9 +1273,11 @@ async function loadCurriculumIndex() {
             await fetch(
                 "/static/crdp_scientific_curriculum_index.json",
                 {
-                    cache: "no-store"
+                    cache:
+                        "no-store"
                 }
             );
+
 
         if (!response.ok) {
 
@@ -725,25 +1288,38 @@ async function loadCurriculumIndex() {
 
         }
 
+
         const data =
             await response.json();
+
 
         curriculumIndex =
             data.verified_index ||
             {};
 
+
+        indexStatus.textContent =
+            "تم تحميل فهرس الدروس.";
+
+
         updateLessons();
 
     }
 
-    catch (error) {
+    catch(error) {
 
         console.error(
-            "INDEX ERROR",
+            "INDEX ERROR:",
             error
         );
 
+
         curriculumIndex = {};
+
+
+        indexStatus.textContent =
+            "تعذر تحميل فهرس الدروس.";
+
 
         updateLessons();
 
@@ -752,26 +1328,37 @@ async function loadCurriculumIndex() {
 }
 
 
+/* ================================================
+   UPDATE LESSONS
+================================================ */
+
+
 function updateLessons() {
 
     const grade =
         gradeSelect.value;
 
+
     const subject =
         subjectSelect.value;
+
 
     const language =
         languageSelect.value;
 
+
     let lessons = [];
+
 
     const gradeData =
         curriculumIndex?.[subject]?.[grade];
+
 
     if (gradeData) {
 
         const languageData =
             gradeData[language];
+
 
         if (
             Array.isArray(
@@ -812,6 +1399,7 @@ function updateLessons() {
             );
 
         }
+
 
         if (
             lessons.length === 0
@@ -869,30 +1457,37 @@ function updateLessons() {
 
     }
 
+
     lessons = [
         ...new Set(
             lessons
         )
     ];
 
+
     lessonSelect.innerHTML =
         "";
+
 
     const first =
         document.createElement(
             "option"
         );
 
+
     first.value = "";
+
 
     first.textContent =
         lessons.length
             ? "اختر الدرس"
             : "لا توجد دروس مفهرسة بعد";
 
+
     lessonSelect.appendChild(
         first
     );
+
 
     lessons.forEach(
         lesson => {
@@ -902,11 +1497,14 @@ function updateLessons() {
                     "option"
                 );
 
+
             option.value =
                 lesson;
 
+
             option.textContent =
                 lesson;
+
 
             lessonSelect.appendChild(
                 option
@@ -923,10 +1521,12 @@ gradeSelect.addEventListener(
     updateLessons
 );
 
+
 subjectSelect.addEventListener(
     "change",
     updateLessons
 );
+
 
 languageSelect.addEventListener(
     "change",
@@ -935,8 +1535,9 @@ languageSelect.addEventListener(
 
 
 /* ================================================
-   STUDENT
+   STUDENT ID
 ================================================ */
+
 
 function getStudentId() {
 
@@ -944,6 +1545,7 @@ function getStudentId() {
         localStorage.getItem(
             "nabil_student_id"
         );
+
 
     if (!id) {
 
@@ -955,12 +1557,14 @@ function getStudentId() {
                 .toString(36)
                 .substring(2,8);
 
+
         localStorage.setItem(
             "nabil_student_id",
             id
         );
 
     }
+
 
     return id;
 
@@ -971,33 +1575,42 @@ function getStudentId() {
    TEXT RENDER
 ================================================ */
 
+
 function renderAIText(text) {
 
     if (!text) {
+
         return "";
+
     }
 
+
     const mathBlocks = [];
+
 
     function saveMath(match) {
 
         const i =
             mathBlocks.length;
 
+
         mathBlocks.push(
             match
         );
 
+
         return (
-            "___MATH_" +
+            "___NABIL_MATH_" +
             i +
             "___"
         );
 
     }
 
+
     let content =
         String(text);
+
 
     content =
         content.replace(
@@ -1005,11 +1618,13 @@ function renderAIText(text) {
             saveMath
         );
 
+
     content =
         content.replace(
             /\\\[[\s\S]*?\\\]/g,
             saveMath
         );
+
 
     content =
         content.replace(
@@ -1017,11 +1632,13 @@ function renderAIText(text) {
             saveMath
         );
 
+
     content =
         content.replace(
             /\$[^$\n]+\$/g,
             saveMath
         );
+
 
     content =
         content
@@ -1038,11 +1655,13 @@ function renderAIText(text) {
                 "&gt;"
             );
 
+
     content =
         content.replace(
             /^### (.+)$/gm,
             "<h4>$1</h4>"
         );
+
 
     content =
         content.replace(
@@ -1050,11 +1669,13 @@ function renderAIText(text) {
             "<h3>$1</h3>"
         );
 
+
     content =
         content.replace(
             /^# (.+)$/gm,
             "<h2>$1</h2>"
         );
+
 
     content =
         content.replace(
@@ -1062,18 +1683,20 @@ function renderAIText(text) {
             "<strong>$1</strong>"
         );
 
+
     content =
         content.replace(
             /\n/g,
             "<br>"
         );
 
+
     mathBlocks.forEach(
-        (math,i) => {
+        (math, i) => {
 
             content =
                 content.replace(
-                    "___MATH_" +
+                    "___NABIL_MATH_" +
                     i +
                     "___",
                     math
@@ -1081,6 +1704,7 @@ function renderAIText(text) {
 
         }
     );
+
 
     return content;
 
@@ -1091,19 +1715,23 @@ function renderAIText(text) {
    COPY
 ================================================ */
 
+
 async function copyAnswer(text) {
 
     try {
 
-        await navigator.clipboard.writeText(
-            text
-        );
+        await navigator
+            .clipboard
+            .writeText(
+                text
+            );
 
     }
 
-    catch (error) {
+    catch(error) {
 
         console.error(
+            "COPY ERROR:",
             error
         );
 
@@ -1116,41 +1744,58 @@ async function copyAnswer(text) {
    SPEECH
 ================================================ */
 
+
 function cleanSpeechText(text) {
 
-    return String(text || "")
+    return String(
+        text || ""
+    )
+
         .replace(
             /\\frac\{([^{}]+)\}\{([^{}]+)\}/g,
             "$1 على $2"
         )
+
         .replace(
             /\\sqrt\{([^{}]+)\}/g,
             "الجذر التربيعي لـ $1"
         )
+
         .replace(
             /\^2/g,
             " تربيع"
         )
+
         .replace(
             /\^3/g,
             " تكعيب"
         )
+
         .replace(
             /\\boxed\{([^{}]+)\}/g,
             "$1"
         )
+
+        .replace(
+            /\\text\{([^{}]+)\}/g,
+            "$1"
+        )
+
         .replace(
             /\\[a-zA-Z]+/g,
             ""
         )
+
         .replace(
             /[*_#>`$]/g,
             ""
         )
+
         .replace(
             /\s+/g,
             " "
         )
+
         .trim();
 
 }
@@ -1173,7 +1818,9 @@ function readAnswer(text) {
 
     }
 
+
     speechSynthesis.cancel();
+
 
     const utterance =
         new SpeechSynthesisUtterance(
@@ -1182,18 +1829,28 @@ function readAnswer(text) {
             )
         );
 
+
     const language =
         languageSelect.value;
 
+
     utterance.lang =
-        language === "English"
+        language ===
+            "English"
+
             ? "en-US"
-            : language === "Français"
+
+            : language ===
+                "Français"
+
                 ? "fr-FR"
+
                 : "ar-LB";
+
 
     utterance.rate =
         .92;
+
 
     speechSynthesis.speak(
         utterance
@@ -1203,8 +1860,9 @@ function readAnswer(text) {
 
 
 /* ================================================
-   GRAPH ENGINE
+   GRAPH FUNCTIONS
 ================================================ */
+
 
 function functionY(
     kind,
@@ -1214,29 +1872,43 @@ function functionY(
     switch(kind) {
 
         case "ln":
+
             return (
                 x > 0
                     ? Math.log(x)
                     : null
             );
 
+
         case "exp":
+
             return Math.exp(x);
 
+
         case "square":
+
             return x * x;
 
+
         case "linear":
+
             return x;
 
+
         case "inverse":
+
             return (
-                Math.abs(x) < .0001
+                Math.abs(x) <
+                    0.0001
+
                     ? null
+
                     : 1 / x
             );
 
+
         default:
+
             return null;
 
     }
@@ -1244,47 +1916,103 @@ function functionY(
 }
 
 
+/* ================================================
+   FUNCTION GRAPH
+================================================ */
+
+
 function renderFunction(
     drawing
 ) {
 
-    const width = 700;
-    const height = 420;
+    const width = 820;
 
-    const left = 65;
-    const right = 30;
-    const top = 30;
-    const bottom = 55;
+    const height = 430;
 
-    const xMin =
+
+    const left = 58;
+
+    const right = 28;
+
+    const top = 28;
+
+    const bottom = 48;
+
+
+    let xMin =
         Number(
-            drawing.x_min ?? -5
+            drawing.x_min ??
+            -1
         );
 
-    const xMax =
+
+    let xMax =
         Number(
-            drawing.x_max ?? 5
+            drawing.x_max ??
+            7
         );
 
-    const yMin =
+
+    let yMin =
         Number(
-            drawing.y_min ?? -5
+            drawing.y_min ??
+            -3.5
         );
 
-    const yMax =
+
+    let yMax =
         Number(
-            drawing.y_max ?? 5
+            drawing.y_max ??
+            2.5
         );
+
+
+    if (
+        drawing.function ===
+        "ln"
+    ) {
+
+        xMin =
+            Math.min(
+                xMin,
+                -1
+            );
+
+
+        xMax =
+            Math.max(
+                xMax,
+                6.5
+            );
+
+
+        yMin =
+            Math.min(
+                yMin,
+                -3.5
+            );
+
+
+        yMax =
+            Math.max(
+                yMax,
+                2.5
+            );
+
+    }
+
 
     const plotWidth =
         width -
         left -
         right;
 
+
     const plotHeight =
         height -
         top -
         bottom;
+
 
     function sx(x) {
 
@@ -1299,6 +2027,7 @@ function renderFunction(
 
     }
 
+
     function sy(y) {
 
         return (
@@ -1312,11 +2041,16 @@ function renderFunction(
 
     }
 
+
     let path = "";
 
-    let penDown = false;
+    let penDown =
+        false;
 
-    const steps = 550;
+
+    const steps =
+        850;
+
 
     for (
         let i = 0;
@@ -1332,17 +2066,17 @@ function renderFunction(
                 steps
             );
 
+
         const y =
             functionY(
                 drawing.function,
                 x
             );
 
+
         if (
             y === null ||
-            !Number.isFinite(y) ||
-            y < yMin - 5 ||
-            y > yMax + 5
+            !Number.isFinite(y)
         ) {
 
             penDown =
@@ -1352,16 +2086,35 @@ function renderFunction(
 
         }
 
+
+        if (
+            y <
+                yMin - 1 ||
+            y >
+                yMax + 1
+        ) {
+
+            penDown =
+                false;
+
+            continue;
+
+        }
+
+
         const px =
             sx(x);
 
+
         const py =
             sy(y);
+
 
         if (!penDown) {
 
             path +=
                 `M ${px} ${py} `;
+
 
             penDown =
                 true;
@@ -1377,60 +2130,176 @@ function renderFunction(
 
     }
 
+
     let grid = "";
+
+    let ticks = "";
+
 
     for (
         let x =
             Math.ceil(xMin);
-        x <= Math.floor(xMax);
+        x <=
+            Math.floor(xMax);
         x++
     ) {
 
         const px =
             sx(x);
 
+
         grid += `
-<line
-    x1="${px}"
-    y1="${top}"
-    x2="${px}"
-    y2="${height-bottom}"
-    stroke="#e2e8f0"
-    stroke-width="1"
-/>
-`;
+            <line
+                x1="${px}"
+                y1="${top}"
+                x2="${px}"
+                y2="${height-bottom}"
+                stroke="#dfe5ec"
+                stroke-width="1"
+            />
+        `;
+
+
+        if (x !== 0) {
+
+            ticks += `
+                <text
+                    x="${px}"
+                    y="${sy(0) + 24}"
+                    text-anchor="middle"
+                    class="graph-tick"
+                >
+                    ${x}
+                </text>
+            `;
+
+        }
 
     }
+
 
     for (
         let y =
             Math.ceil(yMin);
-        y <= Math.floor(yMax);
+        y <=
+            Math.floor(yMax);
         y++
     ) {
 
         const py =
             sy(y);
 
+
         grid += `
-<line
-    x1="${left}"
-    y1="${py}"
-    x2="${width-right}"
-    y2="${py}"
-    stroke="#e2e8f0"
-    stroke-width="1"
-/>
-`;
+            <line
+                x1="${left}"
+                y1="${py}"
+                x2="${width-right}"
+                y2="${py}"
+                stroke="#dfe5ec"
+                stroke-width="1"
+            />
+        `;
+
+
+        ticks += `
+            <text
+                x="${sx(0) - 18}"
+                y="${py + 5}"
+                text-anchor="end"
+                class="graph-tick"
+            >
+                ${y}
+            </text>
+        `;
 
     }
 
+
     let points = "";
 
-    (
-        drawing.points ||
-        []
-    ).forEach(
+
+    const pointList =
+        Array.isArray(
+            drawing.points
+        )
+        ? [...drawing.points]
+        : [];
+
+
+    if (
+        drawing.function ===
+        "ln"
+    ) {
+
+        const specialPoints = [
+
+            {
+                x: 1,
+                y: 0,
+                label: "(1, 0)",
+                color: "#15803d"
+            },
+
+            {
+                x:
+                    Math.E,
+                y: 1,
+                label: "(e, 1)",
+                color: "#7e22ce"
+            },
+
+            {
+                x:
+                    1 / Math.E,
+                y: -1,
+                label:
+                    "(1/e, -1)",
+                color:
+                    "#dc2626"
+            }
+
+        ];
+
+
+        specialPoints.forEach(
+            p => {
+
+                const exists =
+                    pointList.some(
+                        item =>
+                            Math.abs(
+                                Number(
+                                    item.x
+                                ) -
+                                p.x
+                            ) <
+                            0.01 &&
+                            Math.abs(
+                                Number(
+                                    item.y
+                                ) -
+                                p.y
+                            ) <
+                            0.01
+                    );
+
+
+                if (!exists) {
+
+                    pointList.push(
+                        p
+                    );
+
+                }
+
+            }
+        );
+
+    }
+
+
+    pointList.forEach(
         point => {
 
             const px =
@@ -1440,6 +2309,7 @@ function renderFunction(
                     )
                 );
 
+
             const py =
                 sy(
                     Number(
@@ -1447,64 +2317,86 @@ function renderFunction(
                     )
                 );
 
-            points += `
-<circle
-    cx="${px}"
-    cy="${py}"
-    r="5"
-    fill="#dc2626"
-/>
 
-<text
-    x="${px + 10}"
-    y="${py - 10}"
-    class="graph-label"
->
-${point.label || ""}
-</text>
-`;
+            const color =
+                point.color ||
+                "#dc2626";
+
+
+            points += `
+                <circle
+                    cx="${px}"
+                    cy="${py}"
+                    r="6"
+                    fill="${color}"
+                />
+
+                <text
+                    x="${px + 10}"
+                    y="${py - 12}"
+                    class="graph-label"
+                    fill="${color}"
+                    style="
+                        fill:${color}
+                        !important;
+                    "
+                >
+                    ${point.label || ""}
+                </text>
+            `;
 
         }
     );
 
-    let asymptote = "";
+
+    let asymptote =
+        "";
+
 
     if (
         drawing.vertical_asymptote !==
-        undefined &&
+            undefined &&
         drawing.vertical_asymptote !==
-        null
+            null
     ) {
 
-        const px =
-            sx(
-                Number(
-                    drawing.vertical_asymptote
-                )
+        const value =
+            Number(
+                drawing.vertical_asymptote
             );
 
-        asymptote = `
-<line
-    x1="${px}"
-    y1="${top}"
-    x2="${px}"
-    y2="${height-bottom}"
-    stroke="#dc2626"
-    stroke-width="2"
-    stroke-dasharray="7 6"
-/>
 
-<text
-    x="${px + 7}"
-    y="${height-bottom-8}"
-    class="graph-label"
-    fill="#dc2626"
->
-x = ${drawing.vertical_asymptote}
-</text>
-`;
+        const px =
+            sx(value);
+
+
+        asymptote = `
+            <line
+                x1="${px}"
+                y1="${top}"
+                x2="${px}"
+                y2="${height-bottom}"
+                stroke="#ef4444"
+                stroke-width="3"
+                stroke-dasharray="8 6"
+            />
+
+            <text
+                x="${px + 14}"
+                y="${height-bottom-10}"
+                class="graph-label"
+                fill="#dc2626"
+                style="
+                    fill:#dc2626
+                    !important;
+                "
+            >
+                x = ${value}
+            </text>
+        `;
 
     }
+
 
     const xAxisY =
         (
@@ -1512,7 +2404,9 @@ x = ${drawing.vertical_asymptote}
             yMax >= 0
         )
         ? sy(0)
-        : height - bottom;
+        : height -
+          bottom;
+
 
     const yAxisX =
         (
@@ -1522,64 +2416,229 @@ x = ${drawing.vertical_asymptote}
         ? sx(0)
         : left;
 
+
+    let properties =
+        "";
+
+
+    if (
+        drawing.function ===
+        "ln"
+    ) {
+
+        properties = `
+
+            <strong>
+                خصائص الدالة
+                ln(x)
+            </strong>
+
+            <div>
+                • المجال:
+                \(]0,+\infty[\)
+            </div>
+
+            <div>
+                • المدى:
+                \(\mathbb{R}\)
+            </div>
+
+            <div>
+                • تمر بالنقطة:
+                \((1,0)\)
+            </div>
+
+            <div>
+                • تمر بالنقطة:
+                \((e,1)\)
+            </div>
+
+            <div>
+                • متزايدة على مجالها
+            </div>
+
+            <div>
+                • مقعّرة نحو الأسفل
+            </div>
+
+            <div>
+                • المستقيم
+                \(x=0\)
+                مقارب رأسي
+            </div>
+
+        `;
+
+    }
+
+    else {
+
+        properties = `
+
+            <strong>
+                خصائص الرسم
+            </strong>
+
+            <div>
+                الدالة:
+                ${drawing.expression || ""}
+            </div>
+
+        `;
+
+    }
+
+
     return `
-<div class="drawing-title">
-📈 ${drawing.title || drawing.expression || "الرسم البياني"}
-</div>
 
-<svg
-    viewBox="0 0 ${width} ${height}"
->
+        <div class="drawing-title">
+            📊
+            ${
+                drawing.title ||
+                drawing.expression ||
+                "الرسم البياني"
+            }
+        </div>
 
-${grid}
 
-<line
-    x1="${left}"
-    y1="${xAxisY}"
-    x2="${width-right}"
-    y2="${xAxisY}"
-    stroke="#334155"
-    stroke-width="2"
-/>
+        <div class="graph-shell">
 
-<line
-    x1="${yAxisX}"
-    y1="${top}"
-    x2="${yAxisX}"
-    y2="${height-bottom}"
-    stroke="#334155"
-    stroke-width="2"
-/>
 
-${asymptote}
+            <div class="graph-layout">
 
-<path
-    d="${path}"
-    fill="none"
-    stroke="#2563eb"
-    stroke-width="4"
-/>
 
-${points}
+                <div class="graph-canvas">
 
-<text
-    x="${width-right-10}"
-    y="${xAxisY-8}"
-    class="graph-label"
->
-x
-</text>
 
-<text
-    x="${yAxisX+9}"
-    y="${top+15}"
-    class="graph-label"
->
-y
-</text>
+                    <svg
+                        viewBox="
+                            0 0
+                            ${width}
+                            ${height}
+                        "
+                        role="img"
+                    >
 
-</svg>
-`;
+
+                        <defs>
+
+                            <marker
+                                id="arrowX"
+                                markerWidth="8"
+                                markerHeight="8"
+                                refX="6"
+                                refY="3"
+                                orient="auto"
+                            >
+
+                                <path
+                                    d="
+                                        M0,0
+                                        L0,6
+                                        L7,3
+                                        z
+                                    "
+                                    fill="#111827"
+                                />
+
+                            </marker>
+
+                        </defs>
+
+
+                        ${grid}
+
+
+                        <line
+                            x1="${left}"
+                            y1="${xAxisY}"
+                            x2="${width-right}"
+                            y2="${xAxisY}"
+                            stroke="#111827"
+                            stroke-width="2"
+                            marker-end="
+                                url(#arrowX)
+                            "
+                        />
+
+
+                        <line
+                            x1="${yAxisX}"
+                            y1="${height-bottom}"
+                            x2="${yAxisX}"
+                            y2="${top}"
+                            stroke="#111827"
+                            stroke-width="2"
+                            marker-end="
+                                url(#arrowX)
+                            "
+                        />
+
+
+                        ${ticks}
+
+
+                        ${asymptote}
+
+
+                        <path
+                            d="${path}"
+                            fill="none"
+                            stroke="#1672e8"
+                            stroke-width="4"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        />
+
+
+                        ${points}
+
+
+                        <text
+                            x="${width-right-12}"
+                            y="${xAxisY-11}"
+                            class="
+                                graph-axis-label
+                            "
+                        >
+                            x
+                        </text>
+
+
+                        <text
+                            x="${yAxisX+13}"
+                            y="${top+17}"
+                            class="
+                                graph-axis-label
+                            "
+                        >
+                            y
+                        </text>
+
+
+                    </svg>
+
+
+                </div>
+
+
+                <div
+                    class="
+                        graph-properties
+                    "
+                >
+
+                    ${properties}
+
+                </div>
+
+
+            </div>
+
+
+        </div>
+
+    `;
 
 }
 
@@ -1587,6 +2646,7 @@ y
 /* ================================================
    RIGHT TRIANGLE
 ================================================ */
+
 
 function renderTriangle(
     drawing
@@ -1597,86 +2657,117 @@ function renderTriangle(
         drawing.a ??
         "a";
 
+
     const b =
         drawing.labels?.b ??
         drawing.b ??
         "b";
+
 
     const c =
         drawing.labels?.c ??
         drawing.c ??
         "c";
 
+
     return `
-<div class="drawing-title">
-📐 ${drawing.title || "مثلث قائم الزاوية"}
-</div>
 
-<svg viewBox="0 0 620 380">
+        <div class="drawing-title">
 
-<polygon
-    points="
-        130,310
-        130,70
-        530,310
-    "
-    fill="#eff6ff"
-    stroke="#2563eb"
-    stroke-width="4"
-/>
+            📐
+            ${
+                drawing.title ||
+                "مثلث قائم الزاوية"
+            }
 
-<polyline
-    points="
-        130,275
-        165,275
-        165,310
-    "
-    fill="none"
-    stroke="#dc2626"
-    stroke-width="4"
-/>
+        </div>
 
-<text
-    x="75"
-    y="195"
-    class="graph-label"
->
-${a}
-</text>
 
-<text
-    x="315"
-    y="345"
-    class="graph-label"
->
-${b}
-</text>
+        <div class="graph-shell">
 
-<text
-    x="345"
-    y="165"
-    class="graph-label"
->
-${c}
-</text>
 
-<text
-    x="138"
-    y="300"
-    class="graph-label"
->
-90°
-</text>
+            <svg
+                viewBox="
+                    0 0
+                    720 420
+                "
+            >
 
-</svg>
-`;
+
+                <polygon
+                    points="
+                        145,330
+                        145,75
+                        585,330
+                    "
+                    fill="#eef6ff"
+                    stroke="#2563eb"
+                    stroke-width="5"
+                />
+
+
+                <polyline
+                    points="
+                        145,292
+                        183,292
+                        183,330
+                    "
+                    fill="none"
+                    stroke="#ef4444"
+                    stroke-width="5"
+                />
+
+
+                <text
+                    x="92"
+                    y="210"
+                    class="graph-label"
+                >
+                    ${a}
+                </text>
+
+
+                <text
+                    x="355"
+                    y="368"
+                    class="graph-label"
+                >
+                    ${b}
+                </text>
+
+
+                <text
+                    x="385"
+                    y="180"
+                    class="graph-label"
+                >
+                    ${c}
+                </text>
+
+
+                <text
+                    x="152"
+                    y="320"
+                    class="graph-label"
+                >
+                    90°
+                </text>
+
+
+            </svg>
+
+
+        </div>
+
+    `;
 
 }
 
 
 /* ================================================
-   CIRCLE TANGENT
+   CIRCLE / TANGENT
 ================================================ */
+
 
 function renderCircle(
     drawing
@@ -1686,102 +2777,136 @@ function renderCircle(
         drawing.center ||
         "O";
 
+
     const tangent =
         drawing.tangent_point ||
         "A";
+
 
     const external =
         drawing.external_point ||
         "M";
 
+
     return `
-<div class="drawing-title">
-⭕ ${drawing.title || "الدائرة والمماس"}
-</div>
 
-<svg viewBox="0 0 650 380">
+        <div class="drawing-title">
 
-<circle
-    cx="260"
-    cy="190"
-    r="115"
-    fill="#eff6ff"
-    stroke="#2563eb"
-    stroke-width="4"
-/>
+            ⭕
+            ${
+                drawing.title ||
+                "الدائرة والمماس"
+            }
 
-<circle
-    cx="260"
-    cy="190"
-    r="5"
-    fill="#dc2626"
-/>
+        </div>
 
-<line
-    x1="260"
-    y1="190"
-    x2="375"
-    y2="190"
-    stroke="#dc2626"
-    stroke-width="3"
-/>
 
-<line
-    x1="375"
-    y1="65"
-    x2="375"
-    y2="315"
-    stroke="#16a34a"
-    stroke-width="4"
-/>
+        <div class="graph-shell">
 
-<circle
-    cx="375"
-    cy="190"
-    r="5"
-    fill="#111827"
-/>
 
-<circle
-    cx="375"
-    cy="90"
-    r="5"
-    fill="#111827"
-/>
+            <svg
+                viewBox="
+                    0 0
+                    720 420
+                "
+            >
 
-<text
-    x="238"
-    y="175"
-    class="graph-label"
->
-${center}
-</text>
 
-<text
-    x="388"
-    y="194"
-    class="graph-label"
->
-${tangent}
-</text>
+                <circle
+                    cx="280"
+                    cy="210"
+                    r="125"
+                    fill="#eef6ff"
+                    stroke="#2563eb"
+                    stroke-width="5"
+                />
 
-<text
-    x="388"
-    y="94"
-    class="graph-label"
->
-${external}
-</text>
 
-</svg>
-`;
+                <circle
+                    cx="280"
+                    cy="210"
+                    r="6"
+                    fill="#dc2626"
+                />
+
+
+                <line
+                    x1="280"
+                    y1="210"
+                    x2="405"
+                    y2="210"
+                    stroke="#dc2626"
+                    stroke-width="4"
+                />
+
+
+                <line
+                    x1="405"
+                    y1="60"
+                    x2="405"
+                    y2="360"
+                    stroke="#16a34a"
+                    stroke-width="5"
+                />
+
+
+                <circle
+                    cx="405"
+                    cy="210"
+                    r="6"
+                    fill="#111827"
+                />
+
+
+                <circle
+                    cx="405"
+                    cy="100"
+                    r="6"
+                    fill="#111827"
+                />
+
+
+                <text
+                    x="255"
+                    y="190"
+                    class="graph-label"
+                >
+                    ${center}
+                </text>
+
+
+                <text
+                    x="420"
+                    y="215"
+                    class="graph-label"
+                >
+                    ${tangent}
+                </text>
+
+
+                <text
+                    x="420"
+                    y="105"
+                    class="graph-label"
+                >
+                    ${external}
+                </text>
+
+
+            </svg>
+
+
+        </div>
+
+    `;
 
 }
 
 
 /* ================================================
-   FORCES
+   PHYSICS FORCES
 ================================================ */
+
 
 function renderForces(
     drawing
@@ -1789,109 +2914,158 @@ function renderForces(
 
     let arrows = "";
 
+
     (
         drawing.forces ||
         []
     ).forEach(
         force => {
 
-            let x2 = 350;
-            let y2 = 190;
+            let x2 = 360;
+
+            let y2 = 210;
+
 
             if (
                 force.direction ===
                 "up"
             ) {
+
                 y2 = 70;
+
             }
+
 
             if (
                 force.direction ===
                 "down"
             ) {
-                y2 = 315;
+
+                y2 = 350;
+
             }
+
 
             if (
                 force.direction ===
                 "left"
             ) {
-                x2 = 170;
+
+                x2 = 165;
+
             }
+
 
             if (
                 force.direction ===
                 "right"
             ) {
-                x2 = 530;
+
+                x2 = 555;
+
             }
 
+
             arrows += `
-<line
-    x1="350"
-    y1="190"
-    x2="${x2}"
-    y2="${y2}"
-    stroke="#dc2626"
-    stroke-width="4"
-/>
 
-<circle
-    cx="${x2}"
-    cy="${y2}"
-    r="4"
-    fill="#dc2626"
-/>
+                <line
+                    x1="360"
+                    y1="210"
+                    x2="${x2}"
+                    y2="${y2}"
+                    stroke="#dc2626"
+                    stroke-width="5"
+                />
 
-<text
-    x="${x2 + 10}"
-    y="${y2 - 8}"
-    class="graph-label"
->
-${force.label || "F"}
-</text>
-`;
+
+                <circle
+                    cx="${x2}"
+                    cy="${y2}"
+                    r="5"
+                    fill="#dc2626"
+                />
+
+
+                <text
+                    x="${x2 + 12}"
+                    y="${y2 - 10}"
+                    class="graph-label"
+                >
+                    ${force.label || "F"}
+                </text>
+
+            `;
 
         }
     );
 
+
     return `
-<div class="drawing-title">
-⚙️ ${drawing.title || "مخطط القوى"}
-</div>
 
-<svg viewBox="0 0 700 380">
+        <div class="drawing-title">
 
-<rect
-    x="300"
-    y="145"
-    width="100"
-    height="90"
-    rx="10"
-    fill="#eff6ff"
-    stroke="#2563eb"
-    stroke-width="3"
-/>
+            ⚙️
+            ${
+                drawing.title ||
+                "مخطط القوى"
+            }
 
-<text
-    x="342"
-    y="198"
-    class="graph-label"
->
-${drawing.object || "m"}
-</text>
+        </div>
 
-${arrows}
 
-</svg>
-`;
+        <div class="graph-shell">
+
+
+            <svg
+                viewBox="
+                    0 0
+                    720 420
+                "
+            >
+
+
+                <rect
+                    x="305"
+                    y="160"
+                    width="110"
+                    height="100"
+                    rx="12"
+                    fill="#eef6ff"
+                    stroke="#2563eb"
+                    stroke-width="4"
+                />
+
+
+                <text
+                    x="360"
+                    y="220"
+                    text-anchor="middle"
+                    class="graph-label"
+                >
+                    ${
+                        drawing.object ||
+                        "m"
+                    }
+                </text>
+
+
+                ${arrows}
+
+
+            </svg>
+
+
+        </div>
+
+    `;
 
 }
 
 
 /* ================================================
-   MOLECULE
+   CHEMISTRY MOLECULE
 ================================================ */
+
 
 function renderMolecule(
     drawing
@@ -1901,35 +3075,48 @@ function renderMolecule(
         drawing.atoms ||
         [];
 
+
     if (!atoms.length) {
 
         return "";
 
     }
 
-    const width = 700;
-    const centerY = 190;
+
+    const width =
+        720;
+
+
+    const centerY =
+        210;
+
 
     const gap =
         atoms.length > 1
-            ? 450 /
+
+            ? 470 /
               (
-                atoms.length -
-                1
+                atoms.length - 1
               )
+
             : 0;
+
 
     let output = "";
 
+
     atoms.forEach(
-        (atom,index) => {
+        (atom, index) => {
 
             const x =
                 atoms.length === 1
-                    ? 350
+
+                    ? 360
+
                     : 125 +
                       gap *
                       index;
+
 
             if (
                 index <
@@ -1940,55 +3127,88 @@ function renderMolecule(
                     125 +
                     gap *
                     (
-                        index +
-                        1
+                        index + 1
                     );
 
+
                 output += `
-<line
-    x1="${x + 35}"
-    y1="${centerY}"
-    x2="${nextX - 35}"
-    y2="${centerY}"
-    stroke="#334155"
-    stroke-width="5"
-/>
-`;
+
+                    <line
+                        x1="${x + 38}"
+                        y1="${centerY}"
+                        x2="${nextX - 38}"
+                        y2="${centerY}"
+                        stroke="#334155"
+                        stroke-width="6"
+                    />
+
+                `;
 
             }
 
-            output += `
-<circle
-    cx="${x}"
-    cy="${centerY}"
-    r="38"
-    fill="#eff6ff"
-    stroke="#2563eb"
-    stroke-width="3"
-/>
 
-<text
-    x="${x}"
-    y="${centerY + 7}"
-    text-anchor="middle"
-    class="graph-label"
->
-${atom.label || "X"}
-</text>
-`;
+            output += `
+
+                <circle
+                    cx="${x}"
+                    cy="${centerY}"
+                    r="42"
+                    fill="#eef6ff"
+                    stroke="#2563eb"
+                    stroke-width="4"
+                />
+
+
+                <text
+                    x="${x}"
+                    y="${centerY + 8}"
+                    text-anchor="middle"
+                    class="graph-label"
+                >
+                    ${
+                        atom.label ||
+                        "X"
+                    }
+                </text>
+
+            `;
 
         }
     );
 
-    return `
-<div class="drawing-title">
-🧪 ${drawing.title || "البنية الجزيئية"}
-</div>
 
-<svg viewBox="0 0 ${width} 380">
-${output}
-</svg>
-`;
+    return `
+
+        <div class="drawing-title">
+
+            🧪
+            ${
+                drawing.title ||
+                "البنية الجزيئية"
+            }
+
+        </div>
+
+
+        <div class="graph-shell">
+
+
+            <svg
+                viewBox="
+                    0 0
+                    ${width}
+                    420
+                "
+            >
+
+                ${output}
+
+            </svg>
+
+
+        </div>
+
+    `;
 
 }
 
@@ -1996,6 +3216,7 @@ ${output}
 /* ================================================
    DRAWING DISPATCH
 ================================================ */
+
 
 function renderDrawing(
     drawing
@@ -2007,12 +3228,18 @@ function renderDrawing(
     ) {
 
         return `
-<div class="drawing-title">
-لا توجد رسمة مرتبطة بهذا الجواب.
-</div>
-`;
+
+            <div class="drawing-title">
+
+                لا توجد رسمة مرتبطة
+                بهذا الجواب.
+
+            </div>
+
+        `;
 
     }
+
 
     switch(
         drawing.type
@@ -2024,11 +3251,13 @@ function renderDrawing(
                 drawing
             );
 
+
         case "right_triangle":
 
             return renderTriangle(
                 drawing
             );
+
 
         case "circle_tangent":
 
@@ -2036,11 +3265,13 @@ function renderDrawing(
                 drawing
             );
 
+
         case "forces":
 
             return renderForces(
                 drawing
             );
+
 
         case "molecule":
 
@@ -2048,13 +3279,19 @@ function renderDrawing(
                 drawing
             );
 
+
         default:
 
             return `
-<div class="drawing-title">
-لا يوجد محرّك رسم لهذا النوع بعد.
-</div>
-`;
+
+                <div class="drawing-title">
+
+                    لا يوجد محرّك رسم
+                    لهذا النوع بعد.
+
+                </div>
+
+            `;
 
     }
 
@@ -2064,6 +3301,7 @@ function renderDrawing(
 /* ================================================
    ADD MESSAGE
 ================================================ */
+
 
 function addMessage(
     role,
@@ -2078,25 +3316,31 @@ function addMessage(
 
     }
 
+
     const wrapper =
         document.createElement(
             "div"
         );
 
+
     wrapper.className =
         "message " +
         role;
+
 
     const bubble =
         document.createElement(
             "div"
         );
 
+
     bubble.className =
         "bubble";
 
+
     if (
-        role === "teacher"
+        role ===
+        "teacher"
     ) {
 
         bubble.innerHTML =
@@ -2113,8 +3357,10 @@ function addMessage(
 
     }
 
+
     if (
-        role === "teacher" &&
+        role ===
+            "teacher" &&
         text
     ) {
 
@@ -2122,6 +3368,7 @@ function addMessage(
             document.createElement(
                 "div"
             );
+
 
         tools.className =
             "teacher-tools";
@@ -2132,14 +3379,23 @@ function addMessage(
                 "button"
             );
 
+
+        copyButton.type =
+            "button";
+
+
         copyButton.textContent =
             "📋 نسخ الإجابة";
 
+
         copyButton.onclick =
-            () =>
+            () => {
+
                 copyAnswer(
                     text
                 );
+
+            };
 
 
         const readButton =
@@ -2147,19 +3403,29 @@ function addMessage(
                 "button"
             );
 
+
+        readButton.type =
+            "button";
+
+
         readButton.textContent =
             "🔊 اقرأ الإجابة";
 
+
         readButton.onclick =
-            () =>
+            () => {
+
                 readAnswer(
                     text
                 );
+
+            };
 
 
         tools.appendChild(
             copyButton
         );
+
 
         tools.appendChild(
             readButton
@@ -2173,6 +3439,7 @@ function addMessage(
                     "div"
                 );
 
+
             drawingBox.className =
                 "answer-drawing";
 
@@ -2182,8 +3449,14 @@ function addMessage(
                     "button"
                 );
 
+
+            drawButton.type =
+                "button";
+
+
             drawButton.className =
                 "draw-answer-btn";
+
 
             drawButton.textContent =
                 "📐 إظهار الرسمة";
@@ -2199,6 +3472,7 @@ function addMessage(
                                 "visible"
                             );
 
+
                     if (visible) {
 
                         drawingBox
@@ -2207,14 +3481,15 @@ function addMessage(
                                 "visible"
                             );
 
+
                         drawButton
                             .classList
                             .remove(
                                 "active"
                             );
 
-                        drawButton
-                            .textContent =
+
+                        drawButton.textContent =
                             "📐 إظهار الرسمة";
 
                     }
@@ -2227,18 +3502,39 @@ function addMessage(
                                 .rendered
                         ) {
 
-                            drawingBox
-                                .innerHTML =
+                            drawingBox.innerHTML =
                                 renderDrawing(
                                     drawing
                                 );
+
 
                             drawingBox
                                 .dataset
                                 .rendered =
                                 "true";
 
+
+                            if (
+                                window.MathJax &&
+                                typeof
+                                MathJax.typesetPromise ===
+                                    "function"
+                            ) {
+
+                                MathJax
+                                    .typesetPromise(
+                                        [
+                                            drawingBox
+                                        ]
+                                    )
+                                    .catch(
+                                        console.error
+                                    );
+
+                            }
+
                         }
+
 
                         drawingBox
                             .classList
@@ -2246,14 +3542,15 @@ function addMessage(
                                 "visible"
                             );
 
+
                         drawButton
                             .classList
                             .add(
                                 "active"
                             );
 
-                        drawButton
-                            .textContent =
+
+                        drawButton.textContent =
                             "📐 إخفاء الرسمة";
 
                     }
@@ -2265,9 +3562,11 @@ function addMessage(
                 drawButton
             );
 
+
             bubble.appendChild(
                 tools
             );
+
 
             bubble.appendChild(
                 drawingBox
@@ -2285,16 +3584,20 @@ function addMessage(
 
     }
 
+
     wrapper.appendChild(
         bubble
     );
+
 
     chat.appendChild(
         wrapper
     );
 
+
     chat.scrollTop =
         chat.scrollHeight;
+
 
     if (
         role === "teacher" &&
@@ -2303,11 +3606,13 @@ function addMessage(
             "function"
     ) {
 
-        MathJax.typesetPromise(
-            [bubble]
-        ).catch(
-            console.error
-        );
+        MathJax
+            .typesetPromise(
+                [bubble]
+            )
+            .catch(
+                console.error
+            );
 
     }
 
@@ -2315,8 +3620,9 @@ function addMessage(
 
 
 /* ================================================
-   SEND
+   SEND TO AI
 ================================================ */
+
 
 async function sendToAI(
     message,
@@ -2326,11 +3632,14 @@ async function sendToAI(
     const grade =
         gradeSelect.value;
 
+
     const subject =
         subjectSelect.value;
 
+
     const language =
         languageSelect.value;
+
 
     const lesson =
         lessonSelect.value;
@@ -2404,25 +3713,30 @@ async function sendToAI(
         message || ""
     );
 
+
     formData.append(
         "grade",
         grade
     );
+
 
     formData.append(
         "subject",
         subject
     );
 
+
     formData.append(
         "language",
         language
     );
 
+
     formData.append(
         "curriculum",
         FIXED_CURRICULUM
     );
+
 
     formData.append(
         "lesson",
@@ -2447,8 +3761,10 @@ async function sendToAI(
         sendBtn.disabled =
             true;
 
+
         startLesson.disabled =
             true;
+
 
         sendBtn.textContent =
             "جاري التفكير...";
@@ -2461,14 +3777,30 @@ async function sendToAI(
                 {
                     method:
                         "POST",
+
                     body:
                         formData
                 }
             );
 
 
-        const data =
-            await response.json();
+        let data = {};
+
+
+        try {
+
+            data =
+                await response.json();
+
+        }
+
+        catch {
+
+            throw new Error(
+                "الخادم لم يُرجع JSON صالحًا."
+            );
+
+        }
 
 
         if (
@@ -2477,7 +3809,11 @@ async function sendToAI(
 
             throw new Error(
                 data.detail ||
-                "حدث خطأ في الخادم."
+                data.error ||
+                (
+                    "HTTP " +
+                    response.status
+                )
             );
 
         }
@@ -2495,8 +3831,10 @@ async function sendToAI(
 
         addMessage(
             "teacher",
+
             data.reply ||
             "لم يصل جواب.",
+
             data.drawing ||
             null
         );
@@ -2505,11 +3843,14 @@ async function sendToAI(
         selectedImage =
             null;
 
+
         imageInput.value =
             "";
 
+
         messageInput.value =
             "";
+
 
         messageInput.placeholder =
             "اكتب سؤالك هنا...";
@@ -2519,11 +3860,14 @@ async function sendToAI(
     catch(error) {
 
         console.error(
+            "NABIL AI ERROR:",
             error
         );
 
+
         addMessage(
             "teacher",
+
             "حدث خطأ في الاتصال بـ NABIL AI:\n" +
             error.message
         );
@@ -2535,8 +3879,10 @@ async function sendToAI(
         sendBtn.disabled =
             false;
 
+
         startLesson.disabled =
             false;
+
 
         sendBtn.textContent =
             "إرسال";
@@ -2550,18 +3896,23 @@ async function sendToAI(
    START LESSON
 ================================================ */
 
+
 startLesson.addEventListener(
     "click",
+
     async () => {
 
         const grade =
             gradeSelect.value;
 
+
         const subject =
             subjectSelect.value;
 
+
         const language =
             languageSelect.value;
+
 
         const lesson =
             lessonSelect.value;
@@ -2585,12 +3936,17 @@ startLesson.addEventListener(
         currentLesson.textContent =
             lesson;
 
+
         lessonInfo.style.display =
             "block";
 
 
+        indexStatus.textContent =
+            "المنهج اللبناني الرسمي";
+
+
         const prompt =
-`ابدأ درسًا تفاعليًا.
+`ابدأ درسًا تفاعليًا مع الطالب.
 
 الصف: ${grade}
 المادة: ${subject}
@@ -2598,11 +3954,12 @@ startLesson.addEventListener(
 الدرس: ${lesson}
 
 ابدأ بتمهيد قصير.
-اشرح الفكرة الأولى.
+اشرح الفكرة الأولى بطريقة واضحة.
 استخدم مثالًا مناسبًا.
 إذا كان الرسم مفيدًا أرسل DRAWING_JSON.
 لا تستخدم رسومات ASCII.
-اطرح سؤال تحقق واحدًا.`;
+إذا كانت الإجابة بالعربية فلا تخلط كلمات أجنبية غير ضرورية.
+اطرح سؤال تحقق واحدًا في النهاية.`;
 
 
         await sendToAI(
@@ -2618,14 +3975,17 @@ startLesson.addEventListener(
    SEND BUTTON
 ================================================ */
 
+
 sendBtn.addEventListener(
     "click",
+
     async () => {
 
         const message =
             messageInput
                 .value
                 .trim();
+
 
         if (
             !message &&
@@ -2635,6 +3995,7 @@ sendBtn.addEventListener(
             return;
 
         }
+
 
         await sendToAI(
             message,
@@ -2649,15 +4010,21 @@ sendBtn.addEventListener(
    IMAGE
 ================================================ */
 
+
 imageBtn.addEventListener(
     "click",
-    () =>
-        imageInput.click()
+
+    () => {
+
+        imageInput.click();
+
+    }
 );
 
 
 imageInput.addEventListener(
     "change",
+
     function() {
 
         if (
@@ -2667,6 +4034,7 @@ imageInput.addEventListener(
 
             selectedImage =
                 this.files[0];
+
 
             messageInput.placeholder =
                 "تم اختيار صورة. اكتب طلبك أو اضغط إرسال.";
@@ -2681,8 +4049,10 @@ imageInput.addEventListener(
    ENTER
 ================================================ */
 
+
 messageInput.addEventListener(
     "keydown",
+
     event => {
 
         if (
@@ -2692,6 +4062,7 @@ messageInput.addEventListener(
         ) {
 
             event.preventDefault();
+
 
             sendBtn.click();
 
@@ -2705,9 +4076,11 @@ messageInput.addEventListener(
    SPEECH INPUT
 ================================================ */
 
+
 if (
     "webkitSpeechRecognition"
         in window ||
+
     "SpeechRecognition"
         in window
 ) {
@@ -2724,6 +4097,7 @@ if (
     recognition.continuous =
         false;
 
+
     recognition.interimResults =
         false;
 
@@ -2737,17 +4111,29 @@ if (
 
         };
 
+
+    recognition.onerror =
+        event => {
+
+            console.error(
+                "SPEECH ERROR:",
+                event.error
+            );
+
+        };
+
 }
 
 
 micBtn.addEventListener(
     "click",
+
     () => {
 
         if (!recognition) {
 
             alert(
-                "التعرف الصوتي غير مدعوم."
+                "التعرف الصوتي غير مدعوم في هذا المتصفح."
             );
 
             return;
@@ -2758,11 +4144,15 @@ micBtn.addEventListener(
         recognition.lang =
             languageSelect.value ===
                 "English"
-            ? "en-US"
-            : languageSelect.value ===
-                "Français"
-                ? "fr-FR"
-                : "ar-LB";
+
+                ? "en-US"
+
+                : languageSelect.value ===
+                    "Français"
+
+                    ? "fr-FR"
+
+                    : "ar-LB";
 
 
         recognition.start();
@@ -2771,9 +4161,16 @@ micBtn.addEventListener(
 );
 
 
+/* ================================================
+   START
+================================================ */
+
+
 loadCurriculumIndex();
+
 
 </script>
 
 </body>
+
 </html>
