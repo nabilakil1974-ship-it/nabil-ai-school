@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
  
@@ -430,23 +429,23 @@
         .answer-drawing.visible {
             display: block;
         }
- 
+
         .drawing-item {
             margin-top: 14px;
         }
- 
+
         .drawing-item + .drawing-item {
             padding-top: 14px;
             border-top: 1px dashed #cbd5e1;
         }
- 
+
         .drawing-actions {
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
             margin-top: 8px;
         }
- 
+
         .drawing-actions button {
             min-height: 36px;
             padding: 7px 12px;
@@ -456,7 +455,7 @@
             font-weight: 800;
             cursor: pointer;
         }
- 
+
         .drawing-actions .draw-answer-btn.active {
             background: #1672e8;
         }
@@ -741,7 +740,7 @@
             <label>الصف</label>
             <select id="gradeSelect"></select>
         </div>
- 
+
         <div class="control" id="branchControl" style="display:none;">
             <label>الفرع</label>
             <select id="branchSelect"></select>
@@ -887,10 +886,10 @@ const gradeSelect =
  
 const branchControl =
     document.getElementById("branchControl");
- 
+
 const branchSelect =
     document.getElementById("branchSelect");
- 
+
 const subjectSelect =
     document.getElementById("subjectSelect");
  
@@ -1441,7 +1440,7 @@ fillSelect(
     [],
     "اختر الفرع"
 );
- 
+
 fillSelect(
     subjectSelect,
     SUBJECTS,
@@ -1488,7 +1487,7 @@ async function loadCurriculumIndex() {
                     data.verified_index ||
                     {}
                 );
- 
+
             secondaryStructure =
                 data.secondary_structure ||
                 {};
@@ -1525,59 +1524,71 @@ async function loadCurriculumIndex() {
    تحديث الدروس
 ========================================================= */
  
+function resetCurrentLessonState() {
+
+    conversationId = null;
+
+    currentLesson.textContent = "";
+
+    lessonInfo.style.display = "none";
+
+    indexStatus.textContent = "";
+}
+
+
 function updateBranchAndSubjects() {
     const grade = gradeSelect.value;
     const branchesObject = secondaryStructure?.[grade]?.branches || {};
     const branches = Object.keys(branchesObject);
- 
+
     branchControl.style.display = branches.length ? "flex" : "none";
- 
+
     if (!branches.length) {
         fillSelect(subjectSelect, SUBJECTS, "اختر المادة");
         branchSelect.innerHTML = "";
         return;
     }
- 
+
     const oldBranch = branchSelect.value;
     fillSelect(branchSelect, branches, "اختر الفرع");
- 
+
     if (branches.includes(oldBranch)) {
         branchSelect.value = oldBranch;
     }
- 
+
     const branch = branchSelect.value;
     const subjects = branch ? (branchesObject?.[branch]?.subjects || []) : [];
     fillSelect(subjectSelect, subjects, branch ? "اختر المادة" : "اختر الفرع أولاً");
 }
- 
+
 function updateLessons() {
     const grade = gradeSelect.value;
     const branch = branchSelect.value;
     const subject = subjectSelect.value;
     const language = languageSelect.value;
     let lessons = [];
- 
+
     const branchData =
         secondaryStructure?.[grade]?.branches?.[branch]?.[subject];
- 
+
     if (branchData && typeof branchData === "object") {
         const direct = branchData[language];
         if (Array.isArray(direct)) lessons.push(...direct);
- 
+
         if (!lessons.length) {
             Object.values(branchData).forEach(value => {
                 if (Array.isArray(value)) lessons.push(...value);
             });
         }
     }
- 
+
     if (!lessons.length) {
         const gradeData = curriculumIndex?.[subject]?.[grade];
- 
+
         if (gradeData) {
             const direct = gradeData[language];
             if (Array.isArray(direct)) lessons.push(...direct);
- 
+
             if (!lessons.length) {
                 Object.values(gradeData).forEach(value => {
                     if (Array.isArray(value)) lessons.push(...value);
@@ -1585,15 +1596,15 @@ function updateLessons() {
             }
         }
     }
- 
+
     lessons = [...new Set(lessons)];
     lessonSelect.innerHTML = "";
- 
+
     const first = document.createElement("option");
     first.value = "";
     first.textContent = lessons.length ? "اختر الدرس" : "لا توجد دروس مفهرسة بعد";
     lessonSelect.appendChild(first);
- 
+
     lessons.forEach(lesson => {
         const option = document.createElement("option");
         option.value = lesson;
@@ -1601,18 +1612,20 @@ function updateLessons() {
         lessonSelect.appendChild(option);
     });
 }
- 
+
 gradeSelect.addEventListener(
     "change",
     () => {
+        resetCurrentLessonState();
         updateBranchAndSubjects();
         updateLessons();
     }
 );
- 
+
 branchSelect.addEventListener(
     "change",
     () => {
+        resetCurrentLessonState();
         updateBranchAndSubjects();
         updateLessons();
     }
@@ -1620,12 +1633,18 @@ branchSelect.addEventListener(
  
 subjectSelect.addEventListener(
     "change",
-    updateLessons
+    () => {
+        resetCurrentLessonState();
+        updateLessons();
+    }
 );
  
 languageSelect.addEventListener(
     "change",
-    updateLessons
+    () => {
+        resetCurrentLessonState();
+        updateLessons();
+    }
 );
  
  
@@ -2320,32 +2339,32 @@ function functionY(
     x,
     drawing = {}
 ) {
- 
+
     const coefficient =
         Number(
             drawing.coefficient ??
             1
         );
- 
+
     const xShift =
         Number(
             drawing.x_shift ??
             0
         );
- 
+
     const yShift =
         Number(
             drawing.y_shift ??
             0
         );
- 
+
     switch(kind) {
- 
+
         case "ln": {
- 
+
             const inside =
                 x - xShift;
- 
+
             return (
                 inside > 0
                     ? coefficient *
@@ -2354,15 +2373,15 @@ function functionY(
                     : null
             );
         }
- 
+
         case "exp": {
- 
+
             const base =
                 Number(
                     drawing.base ??
                     Math.E
                 );
- 
+
             if (
                 !Number.isFinite(base) ||
                 base <= 0 ||
@@ -2371,7 +2390,7 @@ function functionY(
             ) {
                 return null;
             }
- 
+
             return (
                 coefficient *
                 Math.pow(
@@ -2381,9 +2400,9 @@ function functionY(
                 yShift
             );
         }
- 
+
         case "square":
- 
+
             return (
                 coefficient *
                 Math.pow(
@@ -2392,9 +2411,9 @@ function functionY(
                 ) +
                 yShift
             );
- 
+
         case "linear":
- 
+
             return (
                 Number(
                     drawing.slope ??
@@ -2406,12 +2425,12 @@ function functionY(
                     0
                 )
             );
- 
+
         case "inverse": {
- 
+
             const denominator =
                 x - xShift;
- 
+
             return (
                 Math.abs(
                     denominator
@@ -2422,13 +2441,13 @@ function functionY(
                       yShift
             );
         }
- 
+
         default:
             return null;
     }
 }
- 
- 
+
+
 /* =========================================================
    رسم الدوال
 ========================================================= */
@@ -4057,118 +4076,118 @@ function addMessage(
     text,
     drawings = null
 ) {
- 
+
     if (welcome) {
- 
+
         welcome.style.display =
             "none";
     }
- 
- 
+
+
     const wrapper =
         document.createElement(
             "div"
         );
- 
+
     wrapper.className =
         "message " +
         role;
- 
- 
+
+
     const bubble =
         document.createElement(
             "div"
         );
- 
+
     bubble.className =
         "bubble";
- 
- 
+
+
     const selectedLanguage =
         languageSelect.value;
- 
+
     const isLTR =
         selectedLanguage === "English" ||
         selectedLanguage === "Français";
- 
- 
+
+
     bubble.classList.add(
         isLTR
             ? "ltr-content"
             : "rtl-content"
     );
- 
+
     bubble.setAttribute(
         "dir",
         isLTR
             ? "ltr"
             : "rtl"
     );
- 
- 
+
+
     if (
         role ===
         "teacher"
     ) {
- 
+
         bubble.innerHTML =
             renderAIText(
                 text
             );
     }
- 
+
     else {
- 
+
         bubble.textContent =
             text;
     }
- 
- 
+
+
     if (
         role ===
             "teacher" &&
         text
     ) {
- 
+
         const tools =
             document.createElement(
                 "div"
             );
- 
+
         tools.className =
             "teacher-tools";
- 
- 
+
+
         const copyButton =
             document.createElement(
                 "button"
             );
- 
+
         copyButton.type =
             "button";
- 
+
         copyButton.textContent =
             "📋 نسخ الإجابة";
- 
+
         copyButton.onclick =
             () => {
                 copyAnswer(
                     text
                 );
             };
- 
- 
+
+
         const wordButton =
             document.createElement(
                 "button"
             );
- 
+
         wordButton.type =
             "button";
- 
+
         wordButton.textContent =
             "📝 نسخ إلى Word";
- 
+
         wordButton.onclick =
             () => {
                 copyAnswerForWord(
@@ -4176,19 +4195,19 @@ function addMessage(
                     wordButton
                 );
             };
- 
- 
+
+
         const readButton =
             document.createElement(
                 "button"
             );
- 
+
         readButton.type =
             "button";
- 
+
         readButton.textContent =
             "🔊 اقرأ الإجابة";
- 
+
         readButton.onclick =
             () => {
                 readAnswer(
@@ -4196,25 +4215,25 @@ function addMessage(
                     readButton
                 );
             };
- 
- 
+
+
         tools.appendChild(
             copyButton
         );
- 
+
         tools.appendChild(
             wordButton
         );
- 
+
         tools.appendChild(
             readButton
         );
- 
+
         bubble.appendChild(
             tools
         );
- 
- 
+
+
         const drawingList =
             Array.isArray(
                 drawings
@@ -4230,67 +4249,67 @@ function addMessage(
                 : drawings
                     ? [drawings]
                     : [];
- 
- 
+
+
         drawingList.forEach(
             (
                 drawing,
                 drawingIndex
             ) => {
- 
+
                 const drawingItem =
                     document.createElement(
                         "div"
                     );
- 
+
                 drawingItem.className =
                     "drawing-item";
- 
- 
+
+
                 const drawingActions =
                     document.createElement(
                         "div"
                     );
- 
+
                 drawingActions.className =
                     "drawing-actions";
- 
- 
+
+
                 const drawingBox =
                     document.createElement(
                         "div"
                     );
- 
+
                 drawingBox.className =
                     "answer-drawing";
- 
- 
+
+
                 function ensureDrawingRendered() {
- 
+
                     if (
                         !drawingBox
                             .dataset
                             .rendered
                     ) {
- 
+
                         drawingBox.innerHTML =
                             renderDrawing(
                                 drawing
                             );
- 
+
                         drawingBox
                             .dataset
                             .rendered =
                             "true";
- 
- 
+
+
                         if (
                             window.MathJax &&
                             typeof
                             MathJax.typesetPromise ===
                             "function"
                         ) {
- 
+
                             MathJax
                                 .typesetPromise(
                                     [
@@ -4303,8 +4322,8 @@ function addMessage(
                         }
                     }
                 }
- 
- 
+
+
                 const numberLabel =
                     drawingList.length >
                         1
@@ -4316,215 +4335,215 @@ function addMessage(
                             )
                         )
                         : "";
- 
- 
+
+
                 const drawButton =
                     document.createElement(
                         "button"
                     );
- 
+
                 drawButton.type =
                     "button";
- 
+
                 drawButton.className =
                     "draw-answer-btn";
- 
+
                 drawButton.textContent =
                     "📐 إظهار الرسمة" +
                     numberLabel;
- 
- 
+
+
                 drawButton.onclick =
                     () => {
- 
+
                         ensureDrawingRendered();
- 
- 
+
+
                         const visible =
                             drawingBox
                                 .classList
                                 .contains(
                                     "visible"
                                 );
- 
- 
+
+
                         if (visible) {
- 
+
                             drawingBox
                                 .classList
                                 .remove(
                                     "visible"
                                 );
- 
+
                             drawButton
                                 .classList
                                 .remove(
                                     "active"
                                 );
- 
+
                             drawButton.textContent =
                                 "📐 إظهار الرسمة" +
                                 numberLabel;
                         }
- 
+
                         else {
- 
+
                             drawingBox
                                 .classList
                                 .add(
                                     "visible"
                                 );
- 
+
                             drawButton
                                 .classList
                                 .add(
                                     "active"
                                 );
- 
+
                             drawButton.textContent =
                                 "📐 إخفاء الرسمة" +
                                 numberLabel;
                         }
                     };
- 
- 
+
+
                 const downloadButton =
                     document.createElement(
                         "button"
                     );
- 
+
                 downloadButton.type =
                     "button";
- 
+
                 downloadButton.textContent =
                     "⬇️ تنزيل" +
                     numberLabel;
- 
- 
+
+
                 downloadButton.onclick =
                     async () => {
- 
+
                         ensureDrawingRendered();
- 
+
                         downloadButton.disabled =
                             true;
- 
+
                         const oldText =
                             downloadButton
                                 .textContent;
- 
+
                         downloadButton.textContent =
                             "⏳ تجهيز الصورة";
- 
- 
+
+
                         try {
- 
+
                             await downloadDrawing(
                                 drawingBox
                             );
                         }
- 
+
                         finally {
- 
+
                             downloadButton.disabled =
                                 false;
- 
+
                             downloadButton.textContent =
                                 oldText;
                         }
                     };
- 
- 
+
+
                 const shareButton =
                     document.createElement(
                         "button"
                     );
- 
+
                 shareButton.type =
                     "button";
- 
+
                 shareButton.textContent =
                     "📤 مشاركة" +
                     numberLabel;
- 
- 
+
+
                 shareButton.onclick =
                     async () => {
- 
+
                         ensureDrawingRendered();
- 
+
                         shareButton.disabled =
                             true;
- 
+
                         const oldText =
                             shareButton
                                 .textContent;
- 
+
                         shareButton.textContent =
                             "⏳ تجهيز المشاركة";
- 
- 
+
+
                         try {
- 
+
                             await shareDrawing(
                                 drawingBox
                             );
                         }
- 
+
                         finally {
- 
+
                             shareButton.disabled =
                                 false;
- 
+
                             shareButton.textContent =
                                 oldText;
                         }
                     };
- 
- 
+
+
                 drawingActions.appendChild(
                     drawButton
                 );
- 
+
                 drawingActions.appendChild(
                     downloadButton
                 );
- 
+
                 drawingActions.appendChild(
                     shareButton
                 );
- 
- 
+
+
                 drawingItem.appendChild(
                     drawingActions
                 );
- 
+
                 drawingItem.appendChild(
                     drawingBox
                 );
- 
- 
+
+
                 bubble.appendChild(
                     drawingItem
                 );
             }
         );
     }
- 
- 
+
+
     wrapper.appendChild(
         bubble
     );
- 
+
     chat.appendChild(
         wrapper
     );
- 
- 
+
+
     chat.scrollTop =
         chat.scrollHeight;
- 
- 
+
+
     if (
         role ===
             "teacher" &&
@@ -4533,7 +4552,7 @@ function addMessage(
         MathJax.typesetPromise ===
             "function"
     ) {
- 
+
         MathJax
             .typesetPromise(
                 [
@@ -4545,8 +4564,8 @@ function addMessage(
             );
     }
 }
- 
- 
+
+
 /* =========================================================
    الإرسال إلى NABIL AI
 ========================================================= */
@@ -4630,7 +4649,7 @@ async function sendToAI(
         "grade",
         grade
     );
- 
+
     formData.append(
         "branch",
         branchSelect.value || ""
