@@ -330,6 +330,17 @@ a^2+b^2=c^2
 \\boxed{...}
 \\]
  
+عند استخدام بيئة aligned اكتبها بصيغة LaTeX الصحيحة فقط، مثل:
+\\[
+\\begin{aligned}
+x+5-5 &= 12-5 \\
+x &= 7
+\\end{aligned}
+\\]
+
+ممنوع كتابة صيغ ناقصة مثل \\beginaligned أو \\endaligned.
+ولا تقل إن مفهومًا ما سيظهر لأول مرة في صف محدد إلا إذا كان ذلك مؤكّدًا من سياق المنهج المرسل.
+
 لا تستخدم رسومات ASCII إطلاقًا.
  
 ممنوع رسم أشكال باستخدام:
@@ -375,6 +386,8 @@ a^2+b^2=c^2
 - لا تكرر نفس الرسم بتغييرات شكلية فقط.
 - رتّب الرسومات بحسب ترتيب الشرح.
 - كل عنصر يجب أن يكون JSON صالحًا.
+- ممنوع كتابة أي placeholder مثل <drawings here> أو <drawing here> أو <drawings JSON block> أو أي عبارة مشابهة.
+- إذا لم تستطع إنشاء JSON صالح للرسم، لا تكتب أي placeholder ولا أي وسم رسم؛ اكتفِ بالشرح النصي.
 - لا تعرض كتلة JSON للطالب كنص.
 - للتوافق مع الإجابات القديمة يستطيع الخادم فهم DRAWING_JSON المفرد أيضًا.
 - في الإجابات الجديدة استخدم DRAWINGS_JSON.
@@ -1533,6 +1546,74 @@ def clean_reply(text: str) -> str:
     return text.strip()
  
  
+def sanitize_student_reply(text: str) -> str:
+    """Final cleanup for anything visible to the student."""
+    if not text:
+        return ""
+
+    placeholder_patterns = [
+        r"<\s*drawings?\s+here\s*>",
+        r"<\s*drawings?\s+json\s+block\s*>",
+        r"<\s*drawing\s+here\s*>",
+        r"<\s*drawing\s+json\s+block\s*>",
+    ]
+
+    for pattern in placeholder_patterns:
+        text = re.sub(pattern, "", text, flags=re.IGNORECASE)
+
+    text = re.sub(
+        r"(?im)^\s*[\[\(<]?\s*drawings?\s+here\s*[\]\)>]?\s*$",
+        "",
+        text,
+    )
+    text = re.sub(
+        r"(?im)^\s*[\[\(<]?\s*drawings?\s+json\s+block\s*[\]\)>]?\s*$",
+        "",
+        text,
+    )
+
+    # Never leak incomplete internal drawing blocks.
+    text = re.sub(
+        r"<DRAWINGS_JSON>.*$",
+        "",
+        text,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+    text = re.sub(
+        r"<DRAWING_JSON>.*$",
+        "",
+        text,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+    text = re.sub(
+        r"</?DRAWINGS?_JSON>",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    )
+
+    # Never leak internal progress metadata.
+    text = re.sub(
+        r"<PROGRESS_JSON>.*$",
+        "",
+        text,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+    text = re.sub(
+        r"</?PROGRESS_JSON>",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    )
+
+    # Repair common malformed aligned LaTeX.
+    text = re.sub(r"\\beginaligned\b", r"\\begin{aligned}", text)
+    text = re.sub(r"\\endaligned\b", r"\\end{aligned}", text)
+
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
 def _normalize_drawing(drawing):
     if not isinstance(drawing, dict):
         return None
@@ -2086,6 +2167,10 @@ async def voice_chat(
     )
     reply_text, drawings = extract_drawings(
         raw_reply
+    )
+
+    reply_text = sanitize_student_reply(
+        reply_text
     )
  
     if not reply_text:
