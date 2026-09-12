@@ -445,7 +445,7 @@ body.nabil-home-lock{overflow:hidden}
 @keyframes nabilBlink{0%,45%,49%,100%{transform:scaleY(1)}47%{transform:scaleY(.08)}}
 @keyframes nabilHand{from{transform:translateY(0) rotate(0)}to{transform:translateY(-7px) rotate(2deg)}}
 @media(max-width:900px){
-    #nabilHome .home-bg{background-size:100% 100%;background-position:center top}
+    #nabilHome .home-bg{background-size:cover;background-position:center center}
     #nabilHome .selection-stage{right:2%;top:15%;width:31vw;max-height:70vh;overflow:auto}
     #nabilHome .choice-btn{min-width:112px;font-size:14px;padding:10px 12px}
     #nabilHome .voice-chip{right:12px;bottom:39%;width:auto;min-width:92px}
@@ -484,7 +484,7 @@ body.nabil-home-lock{overflow:hidden}
         min-height: 1024px !important;
 
         transform-origin: top left !important;
-        transform: scale(var(--nabil-mobile-scale-x, .25), var(--nabil-mobile-scale-y, .25)) !important;
+        transform: translateY(var(--nabil-mobile-offset-y, 0px)) scale(var(--nabil-mobile-scale, .25)) !important;
 
         overflow: hidden !important;
         background: #031526 !important;
@@ -874,6 +874,101 @@ body.nabil-home-lock{overflow:hidden}
     font-size:12px;
 }
 
+
+/* NABIL AI: real Talk button replaces the decorative "مواد أخرى" tile */
+#nabilHome .bottom-talk-btn{
+  top:auto !important;
+  right:auto !important;
+  left:70.25% !important;
+  bottom:3.0% !important;
+  width:9.2% !important;
+  min-width:0 !important;
+  height:8.2% !important;
+  padding:0 !important;
+  display:flex !important;
+  flex-direction:column !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:2px !important;
+  z-index:80 !important;
+  pointer-events:auto !important;
+  border:1px solid rgba(0,220,255,.55) !important;
+  border-radius:14px !important;
+  background:linear-gradient(180deg,rgba(13,61,94,.98),rgba(4,31,53,.98)) !important;
+  color:#fff !important;
+  font-weight:800 !important;
+  font-size:17px !important;
+  box-shadow:0 0 18px rgba(0,210,255,.22), inset 0 0 14px rgba(0,210,255,.08) !important;
+}
+#nabilHome .bottom-talk-btn .mic{font-size:26px !important;display:block !important;margin:0 !important;}
+#nabilHome .bottom-talk-btn:active{transform:translateY(1px) scale(.985);}
+
+/* Keep the reference-image home tile visually clean: no duplicate overlay button. */
+#nabilHome:not(.lesson-mode) #homeBtn,
+#nabilHome:not(.lesson-mode) .home-btn,
+#nabilHome:not(.lesson-mode) .main-home-btn,
+#nabilHome:not(.lesson-mode) [data-action="home"]{
+    display:none !important;
+}
+
+
+/* ===== NABIL AI CLEAN LESSON BOARD =====
+   Write directly on the original green board area.
+   Only the return-home button remains visible.
+*/
+#nabilHome.lesson-mode .lesson-board-panel{
+    right:12.4% !important;
+    top:10.8% !important;
+    width:45.2% !important;
+    height:57.5% !important;
+    padding:22px 28px !important;
+    border:none !important;
+    border-radius:0 !important;
+    background:rgba(0,48,42,.16) !important;
+    box-shadow:none !important;
+    backdrop-filter:none !important;
+    overflow:auto !important;
+}
+#nabilHome.lesson-mode .lesson-meta{
+    color:#9cefff !important;
+    text-shadow:0 1px 3px rgba(0,0,0,.8);
+}
+#nabilHome.lesson-mode .lesson-live-title{
+    color:#ffe06a !important;
+    text-shadow:0 2px 4px rgba(0,0,0,.85);
+}
+#nabilHome.lesson-mode .lesson-live-text{
+    color:#fff !important;
+    text-shadow:0 1px 3px rgba(0,0,0,.9);
+    font-size:clamp(17px,1.2vw,22px) !important;
+    line-height:1.8 !important;
+}
+#nabilHome.lesson-mode .lesson-controls-panel,
+#nabilHome.lesson-mode .lesson-live-status{
+    display:none !important;
+}
+#nabilHome.lesson-mode .lesson-home-btn{
+    display:block !important;
+    left:1.2% !important;
+    top:2.0% !important;
+    z-index:100 !important;
+    min-width:125px !important;
+    pointer-events:auto !important;
+}
+
+
+@media(max-width:900px){
+    #nabilHome .bottom-talk-btn{
+        top:auto !important;
+        right:auto !important;
+        left:70.25% !important;
+        bottom:3.0% !important;
+        width:9.2% !important;
+        height:8.2% !important;
+        min-width:0 !important;
+    }
+}
+
 </style>
 </head>
 
@@ -890,7 +985,7 @@ body.nabil-home-lock{overflow:hidden}
     <img class="profile-real" src="/static/nabil-profile.jpg" alt="الأستاذ نبيل عقيل">
     <button class="skip-home" id="skipHome" type="button">تجاوز الواجهة</button>
     <div id="homeVoiceState" class="voice-state">🔊 الأستاذ نبيل يتحدث...</div>
-    <button id="homeVoiceBtn" class="voice-chip" type="button" title="تحدّث مع الأستاذ نبيل">
+    <button id="homeVoiceBtn" class="voice-chip bottom-talk-btn" type="button" title="تحدّث مع الأستاذ نبيل">
         <span class="mic">🎙️</span>
         <span>تحدّث معي</span>
     </button>
@@ -1815,12 +1910,11 @@ function addMessage(
             text
         );
 
-        if (lessonVoiceConversation) {
-            setTimeout(
-                () => readCurrentLessonText(),
-                180
-            );
-        }
+        /* Every teacher explanation is spoken automatically in lesson mode. */
+        setTimeout(
+            () => readCurrentLessonText(),
+            180
+        );
     }
 
     if (
@@ -2494,7 +2588,7 @@ startLesson.addEventListener(
             language
         );
 
-        speakLessonOpening();
+        /* The actual first explanation from NABIL AI will be spoken automatically. */
 
         const prompt =
 
@@ -4403,6 +4497,15 @@ function tryNabilPersonalReply(message){
     addMessage("student", message);
     setTimeout(() => {
         addMessage("teacher", reply);
+
+        /* Personal answers are spoken immediately, including inside lessons. */
+        const clean = String(reply).replace(/\*\*/g,"");
+        if (nabilLessonMode) {
+            nabilLessonSpeechText = clean;
+            setTimeout(() => readCurrentLessonText(), 120);
+        } else {
+            homeSpeak(clean);
+        }
     }, 140);
 
     return true;
@@ -4695,9 +4798,36 @@ function setupHomeRecognition(){
         }
 
         if (newestFinal.trim()) {
+            const spokenQuestion = newestFinal.trim();
+
+            /* Personal/social questions have priority at EVERY moment. */
+            const personalReply = nabilPersonalReply(spokenQuestion);
+            if (personalReply) {
+                finalText = "";
+
+                /* Pause recognition so NABIL does not hear his own voice. */
+                const shouldResume = homeListening;
+                homeListening = false;
+                try { homeRecognition.stop(); } catch(e) {}
+
+                homeVoiceState.textContent = "💬 " + personalReply.replace(/\*\*/g,"");
+                homeVoiceState.classList.add("show");
+
+                homeSpeak(personalReply.replace(/\*\*/g,""));
+
+                setTimeout(() => {
+                    if (shouldResume && !nabilLessonMode) {
+                        homeListening = true;
+                        try { homeRecognition.start(); } catch(e) {}
+                    }
+                }, Math.max(1600, personalReply.length * 55));
+
+                return;
+            }
+
             const accepted =
                 processHomeVoiceCommand(
-                    newestFinal.trim()
+                    spokenQuestion
                 );
 
             if (accepted) {
@@ -4814,8 +4944,8 @@ document.addEventListener("pointerdown", () => {
         const isMobile = window.matchMedia("(max-width: 900px)").matches;
 
         if (!isMobile) {
-            document.documentElement.style.removeProperty("--nabil-mobile-scale-x");
-            document.documentElement.style.removeProperty("--nabil-mobile-scale-y");
+            document.documentElement.style.removeProperty("--nabil-mobile-scale");
+            document.documentElement.style.removeProperty("--nabil-mobile-offset-y");
             document.body.style.removeProperty("height");
             return;
         }
@@ -4832,31 +4962,23 @@ document.addEventListener("pointerdown", () => {
             0;
 
         /*
-         * Mobile portrait:
-         * keep the full width visible exactly as before,
-         * but stretch the stage vertically to fill the available phone height.
-         * This changes only mobile; desktop remains untouched.
+         * Preserve the exact desktop proportions on phones.
+         * No vertical stretching. The full-width scene is centered vertically.
          */
-        const scaleX = Math.min(1, vw / DESIGN_WIDTH);
-        const scaleY = Math.max(
-            scaleX,
-            vh / DESIGN_HEIGHT
-        );
+        const scale = Math.min(1, vw / DESIGN_WIDTH);
+        const renderedHeight = DESIGN_HEIGHT * scale;
+        const offsetY = Math.max(0, (vh - renderedHeight) / 2);
 
         document.documentElement.style.setProperty(
-            "--nabil-mobile-scale-x",
-            String(scaleX)
+            "--nabil-mobile-scale",
+            String(scale)
         );
         document.documentElement.style.setProperty(
-            "--nabil-mobile-scale-y",
-            String(scaleY)
+            "--nabil-mobile-offset-y",
+            offsetY + "px"
         );
 
-        /* Full visible phone height, including dynamic browser bars. */
-        document.body.style.height = Math.max(
-            vh,
-            DESIGN_HEIGHT * scaleY
-        ) + "px";
+        document.body.style.height = Math.max(vh, renderedHeight) + "px";
     }
 
     window.addEventListener("resize", applyNabilMobileScale, { passive: true });
