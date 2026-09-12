@@ -435,7 +435,7 @@ body.nabil-home-lock{overflow:hidden}
 @keyframes nabilBlink{0%,45%,49%,100%{transform:scaleY(1)}47%{transform:scaleY(.08)}}
 @keyframes nabilHand{from{transform:translateY(0) rotate(0)}to{transform:translateY(-7px) rotate(2deg)}}
 @media(max-width:900px){
-    #nabilHome .home-bg{background-size:cover;background-position:center top}
+    #nabilHome .home-bg{background-size:100% 100%;background-position:center top}
     #nabilHome .selection-stage{right:2%;top:15%;width:31vw;max-height:70vh;overflow:auto}
     #nabilHome .choice-btn{min-width:112px;font-size:14px;padding:10px 12px}
     #nabilHome .voice-chip{right:12px;bottom:39%;width:auto;min-width:92px}
@@ -474,7 +474,7 @@ body.nabil-home-lock{overflow:hidden}
         min-height: 1024px !important;
 
         transform-origin: top left !important;
-        transform: scale(var(--nabil-mobile-scale, .25)) !important;
+        transform: scale(var(--nabil-mobile-scale-x, .25), var(--nabil-mobile-scale-y, .25)) !important;
 
         overflow: hidden !important;
         background: #031526 !important;
@@ -2506,9 +2506,9 @@ startLesson.addEventListener(
 - إذا كان الدرس يحتاج رسمًا أو شكلاً، استخدم نظام الرسومات المتاح.
 
 - عند الحاجة إلى رسم، لا تكتفِ بعبارة "انظر إلى الشكل". أرسل رسماً فعلياً باستخدام الصيغة التالية حرفياً:
-```nabil-draw
+\`\`\`nabil-draw
 {"type":"TYPE","title":"TITLE","labels":{},"note":""}
-```
+\`\`\`
 - الأنواع المتاحة للرسم:
   triangle, right_triangle, square, rectangle, rhombus, parallelogram,
   circle, circle_tangent,
@@ -3701,9 +3701,9 @@ function buildAdaptiveLessonPrompt(studentText){
 12) إذا احتاج الشرح شكلاً أو رسماً، استخدم بروتوكول الرسم المتاح.
 
 - عند الحاجة إلى رسم، لا تكتفِ بعبارة "انظر إلى الشكل". أرسل رسماً فعلياً باستخدام الصيغة التالية حرفياً:
-```nabil-draw
+\`\`\`nabil-draw
 {"type":"TYPE","title":"TITLE","labels":{},"note":""}
-```
+\`\`\`
 - الأنواع المتاحة للرسم:
   triangle, right_triangle, square, rectangle, rhombus, parallelogram,
   circle, circle_tangent,
@@ -4756,7 +4756,8 @@ document.addEventListener("pointerdown", () => {
         const isMobile = window.matchMedia("(max-width: 900px)").matches;
 
         if (!isMobile) {
-            document.documentElement.style.removeProperty("--nabil-mobile-scale");
+            document.documentElement.style.removeProperty("--nabil-mobile-scale-x");
+            document.documentElement.style.removeProperty("--nabil-mobile-scale-y");
             document.body.style.removeProperty("height");
             return;
         }
@@ -4766,20 +4767,38 @@ document.addEventListener("pointerdown", () => {
             window.innerWidth || 0
         );
 
-        /*
-         * Width-first scaling:
-         * the COMPLETE desktop interface is visible from left to right,
-         * with the exact same composition as the computer version.
-         */
-        const scale = Math.min(1, vw / DESIGN_WIDTH);
+        const vh =
+            window.visualViewport?.height ||
+            document.documentElement.clientHeight ||
+            window.innerHeight ||
+            0;
 
-        document.documentElement.style.setProperty(
-            "--nabil-mobile-scale",
-            String(scale)
+        /*
+         * Mobile portrait:
+         * keep the full width visible exactly as before,
+         * but stretch the stage vertically to fill the available phone height.
+         * This changes only mobile; desktop remains untouched.
+         */
+        const scaleX = Math.min(1, vw / DESIGN_WIDTH);
+        const scaleY = Math.max(
+            scaleX,
+            vh / DESIGN_HEIGHT
         );
 
-        /* Reserve the exact scaled height so the browser doesn't crop it. */
-        document.body.style.height = (DESIGN_HEIGHT * scale) + "px";
+        document.documentElement.style.setProperty(
+            "--nabil-mobile-scale-x",
+            String(scaleX)
+        );
+        document.documentElement.style.setProperty(
+            "--nabil-mobile-scale-y",
+            String(scaleY)
+        );
+
+        /* Full visible phone height, including dynamic browser bars. */
+        document.body.style.height = Math.max(
+            vh,
+            DESIGN_HEIGHT * scaleY
+        ) + "px";
     }
 
     window.addEventListener("resize", applyNabilMobileScale, { passive: true });
