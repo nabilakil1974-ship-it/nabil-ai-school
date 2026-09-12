@@ -1024,6 +1024,99 @@ body.nabil-home-lock{overflow:hidden}
     z-index:150 !important;
 }
 
+
+/* NABIL personality gesture: smile + one raised eyebrow */
+#nabilHome .nabil-personal-brow{
+    position:absolute;
+    left:48.8%;
+    top:28.9%;
+    width:4.8%;
+    height:.65%;
+    border-radius:999px;
+    background:#7cf4ff;
+    box-shadow:0 0 12px rgba(124,244,255,.95);
+    opacity:0;
+    z-index:18;
+    pointer-events:none;
+    transform-origin:center;
+}
+#nabilHome.is-personal-smile .nabil-personal-brow{
+    opacity:1;
+    animation:nabilRaisedBrow .8s ease-in-out 2;
+}
+#nabilHome.is-personal-smile .avatar-mouth{
+    opacity:1 !important;
+    height:1.5% !important;
+    background:transparent !important;
+    border-bottom:7px solid #55eaff !important;
+    border-radius:0 0 60px 60px !important;
+    box-shadow:0 5px 10px rgba(44,219,255,.55) !important;
+    animation:nabilSmilePop .9s ease-in-out 2 !important;
+}
+@keyframes nabilRaisedBrow{
+    0%,100%{transform:translateY(0) rotate(-7deg)}
+    50%{transform:translateY(-11px) rotate(-12deg)}
+}
+@keyframes nabilSmilePop{
+    0%,100%{transform:scaleX(1) scaleY(.8)}
+    50%{transform:scaleX(1.18) scaleY(1.05)}
+}
+
+
+@media(max-width:900px){
+    /* Never distort the artwork on phones. */
+    #nabilHome{
+        width:1536px !important;
+        height:1024px !important;
+        transform-origin:top left !important;
+    }
+    #nabilHome .home-bg{
+        background-size:cover !important;
+        background-position:center center !important;
+    }
+
+    /* Cover only the baked-in selector column printed in the background image.
+       The real interactive selector remains above this mask. */
+    #nabilHome .mobile-right-mask{
+        display:block !important;
+        position:absolute !important;
+        right:0 !important;
+        top:0 !important;
+        width:13.25% !important;
+        height:100% !important;
+        background:linear-gradient(180deg,#03213c 0%,#061a2d 100%) !important;
+        z-index:22 !important;
+        pointer-events:none !important;
+    }
+    #nabilHome .selection-stage{
+        z-index:45 !important;
+        right:1.0% !important;
+        top:12.8% !important;
+        width:11.2% !important;
+        max-height:72% !important;
+    }
+
+    /* Large, easy-to-tap Talk button in the "مواد أخرى" tile area. */
+    #nabilHome .bottom-talk-btn{
+        left:70.15% !important;
+        top:71.9% !important;
+        right:auto !important;
+        bottom:auto !important;
+        width:10.2% !important;
+        height:11.6% !important;
+        min-width:0 !important;
+        font-size:20px !important;
+        border-radius:18px !important;
+        z-index:90 !important;
+    }
+    #nabilHome .bottom-talk-btn .mic{
+        font-size:34px !important;
+    }
+}
+@media(min-width:901px){
+    #nabilHome .mobile-right-mask{display:none !important;}
+}
+
 </style>
 </head>
 
@@ -1965,11 +2058,7 @@ function addMessage(
             text
         );
 
-        /* Every teacher explanation is spoken automatically in lesson mode. */
-        setTimeout(
-            () => readCurrentLessonText(),
-            180
-        );
+
     }
 
     if (
@@ -2485,6 +2574,38 @@ async function sendToAI(
                 "\n```";
         }
 
+        /* HARD LESSON GUARD:
+           A stale goodbye/social closing must never replace the lesson explanation. */
+        const isFarewellReply =
+            /\b(goodbye|bye|see you|take care)\b|مع السلامة|إلى اللقاء|تصبح على خير/i
+                .test(String(teacherReply || ""));
+
+        if (nabilLessonMode && isFarewellReply) {
+            if (!nabilLessonFarewellRetry) {
+                nabilLessonFarewellRetry = true;
+                conversationId = null;
+
+                const retryPrompt =
+                    `هذه حصة جديدة مستقلة. لا تستخدم أي وداع أو محادثة سابقة.
+ابدأ الآن بشرح الدرس المحدد فعلياً:
+الصف: ${grade}
+المادة: ${subject}
+اللغة: ${language}
+الدرس: ${lesson}
+اشرح المفهوم الأول فقط بوضوح وبما يناسب الصف، أعط مثالاً قصيراً عند الحاجة، ثم سؤال تحقق واحد فقط.`;
+
+                sendToAI(retryPrompt, false);
+                return;
+            }
+
+            teacherReply =
+                language === "English"
+                    ? `Let's begin the lesson "${lesson}". I will explain the first idea step by step, then ask you one short question.`
+                    : language === "Français"
+                        ? `Commençons la leçon « ${lesson} ». Je vais expliquer la première idée pas à pas, puis poser une seule question courte.`
+                        : `لنبدأ درس «${lesson}». سأشرح لك الفكرة الأولى خطوةً خطوة، ثم أسألك سؤال تحقق واحداً قصيراً.`;
+        }
+
         addMessage(
             "teacher",
             teacherReply,
@@ -2636,6 +2757,7 @@ startLesson.addEventListener(
            This prevents an earlier social chat / goodbye from contaminating the lesson. */
         conversationId = null;
         nabilLessonTurn = 0;
+        nabilLessonFarewellRetry = false;
         lessonVoiceConversation = true;
 
         /* Never listen while NABIL is about to teach. */
@@ -3670,9 +3792,21 @@ function closeLessonMode(){
 function mirrorTeacherAnswerToLesson(text){
     if (!nabilLessonMode || !lessonLiveText) return;
 
+    let safeLessonText = String(text || "");
+    if (/\b(goodbye|bye|see you|take care)\b|مع السلامة|إلى اللقاء|تصبح على خير/i.test(safeLessonText)) {
+        safeLessonText = safeLessonText
+            .replace(/Goodbye[^.!؟\n]*[.!؟]?/gi,"")
+            .replace(/Bye[^.!؟\n]*[.!؟]?/gi,"")
+            .replace(/See you[^.!؟\n]*[.!؟]?/gi,"")
+            .replace(/Take care[^.!؟\n]*[.!؟]?/gi,"")
+            .replace(/مع السلامة[^.!؟\n]*[.!؟]?/g,"")
+            .replace(/إلى اللقاء[^.!؟\n]*[.!؟]?/g,"")
+            .trim();
+    }
+
     const parsedVisual =
         extractAndRenderNabilDrawings(
-            String(text || "")
+            safeLessonText
         );
 
     nabilLessonSpeechText =
@@ -3816,6 +3950,7 @@ function readCurrentLessonText(){
    Question -> answer it first, then return to lesson
 ========================================================= */
 let nabilLessonTurn = 0;
+let nabilLessonFarewellRetry = false;
 
 function buildAdaptiveLessonPrompt(studentText){
     const grade = gradeSelect?.value || "";
@@ -4358,6 +4493,13 @@ function nabilPersonalReply(message){
 
     /* ---------- NAME / IDENTITY ---------- */
     if (has("شو اسمك","ما اسمك","اسمك شو","اسمك ايه","اسمك","مين حضرتك","what is your name","what's your name","whats your name","comment tu t appelles","comment vous appelez","ton nom","votre nom")){
+        try{
+            nabilHome?.classList.add("is-personal-smile");
+            clearTimeout(window.__nabilPersonalSmileTimer);
+            window.__nabilPersonalSmileTimer = setTimeout(() => {
+                nabilHome?.classList.remove("is-personal-smile");
+            }, 2800);
+        }catch(e){}
         return nabilPick({
             lb:"اسمي **NABIL AI – الأستاذ نبيل** 😊 أنا مساعد تعليمي رقمي ذكي، موجود لرافق الطالب بالتعلّم وأشرحله بهدوء واحترام خطوة بخطوة.",
             ar:"اسمي **NABIL AI – الأستاذ نبيل** 😊 أنا مساعد تعليمي رقمي ذكي صُممت لمرافقة الطالب في التعلم وشرح الدروس بهدوء واحترام خطوة بخطوة.",
