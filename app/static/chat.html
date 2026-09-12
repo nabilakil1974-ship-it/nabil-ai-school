@@ -368,6 +368,8 @@ body.nabil-home-lock{overflow:hidden}
 }
 #nabilHome .home-bg{
     position:absolute; inset:0;
+    z-index:0;
+    pointer-events:none !important;
     background-image:linear-gradient(rgba(2,15,29,.06),rgba(2,15,29,.10)),url('/static/nabil-home-reference.png');
     background-size:cover; background-position:center; background-repeat:no-repeat;
 }
@@ -382,7 +384,9 @@ body.nabil-home-lock{overflow:hidden}
 @keyframes nabilAvatarFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
 @keyframes nabilAvatarSpeak{0%{transform:translateY(0) scale(1)}100%{transform:translateY(-4px) scale(1.008)}}
 #nabilHome .selection-stage{
-    position:absolute; right:1.1%; left:auto; transform:none; top:14.2%; bottom:auto;
+    position:absolute;
+    z-index:30;
+    pointer-events:auto !important; right:1.1%; left:auto; transform:none; top:14.2%; bottom:auto;
     width:min(13.2vw,205px); max-height:73vh; overflow:auto; display:flex; flex-direction:column; flex-wrap:nowrap; justify-content:flex-start; gap:8px;
     padding:12px 14px; border:1px solid rgba(23,179,255,.35); border-radius:22px;
     background:linear-gradient(180deg,rgba(3,34,59,.90),rgba(2,20,38,.90));
@@ -392,6 +396,9 @@ body.nabil-home-lock{overflow:hidden}
 #nabilHome .stage-title{width:100%;text-align:center;font-weight:800;font-size:clamp(16px,1.25vw,22px);color:#eaf7ff;margin-bottom:2px;text-shadow:0 0 12px rgba(44,190,255,.45)}
 #nabilHome .stage-sub{width:100%;text-align:center;font-size:14px;color:#8cd8ff;margin-bottom:5px}
 #nabilHome .choice-btn{
+    position:relative;
+    z-index:35;
+    pointer-events:auto !important;
     width:100%; min-width:0; padding:12px 16px; border-radius:15px; cursor:pointer;
     border:1px solid #159fee; color:#fff; font-size:16px; font-weight:750;
     background:linear-gradient(180deg,rgba(4,56,94,.96),rgba(2,34,61,.96));
@@ -401,7 +408,9 @@ body.nabil-home-lock{overflow:hidden}
 #nabilHome .choice-btn:hover{transform:translateY(-2px);background:linear-gradient(180deg,#0878ba,#044b7b);box-shadow:0 0 16px rgba(0,176,255,.38)}
 #nabilHome .choice-btn.selected{background:linear-gradient(180deg,#0fa8f3,#0579bb);box-shadow:0 0 18px rgba(0,190,255,.6)}
 #nabilHome .voice-chip{
-    position:absolute; right:2.7%; bottom:18.5%; width:9.3%; min-width:105px;
+    position:absolute;
+    z-index:31;
+    pointer-events:auto !important; right:2.7%; bottom:18.5%; width:9.3%; min-width:105px;
     padding:12px 8px; border-radius:18px; border:1px solid #1bbcff;
     background:rgba(3,35,61,.90); text-align:center; cursor:pointer;
     box-shadow:0 0 18px rgba(0,182,255,.22); font-weight:800;
@@ -409,7 +418,8 @@ body.nabil-home-lock{overflow:hidden}
 #nabilHome .voice-chip .mic{font-size:34px;display:block;margin-bottom:4px}
 #nabilHome .voice-chip.active{background:rgba(5,105,153,.92);box-shadow:0 0 28px rgba(0,211,255,.62)}
 #nabilHome .voice-state{
-    position:absolute; left:50%; transform:translateX(-50%); top:13.8%;
+    position:absolute;
+    z-index:32; left:50%; transform:translateX(-50%); top:13.8%;
     padding:8px 16px; border-radius:999px; background:rgba(2,28,50,.82);
     border:1px solid rgba(56,196,255,.42); color:#bfeeff; font-weight:700;
     opacity:0; transition:.2s; pointer-events:none;
@@ -4708,7 +4718,10 @@ function setupHomeRecognition(){
 
 homeVoiceBtn.addEventListener("click", () => {
     if (!(window.SpeechRecognition || window.webkitSpeechRecognition)){
-        alert("التعرّف الصوتي غير مدعوم في هذا المتصفح."); return;
+        homeVoiceState.textContent = "🎙️ هذا المتصفح لا يدعم الإدخال الصوتي. يمكنك استخدام الأزرار.";
+        homeVoiceState.classList.add("show");
+        setTimeout(() => homeVoiceState.classList.remove("show"), 2600);
+        return;
     }
     if (!homeRecognition) setupHomeRecognition();
     if (homeListening){
@@ -4721,20 +4734,65 @@ homeVoiceBtn.addEventListener("click", () => {
     try{homeRecognition.start()}catch(e){}
 });
 
-// محاولة الترحيب تلقائياً. بعض المتصفحات تمنع الصوت قبل أول تفاعل.
-function tryHomeWelcome(){
-    if (homeWelcomeSpoken) return;
-    homeWelcomeSpoken = true;
-    showGradeStage(true);
+// تشغيل واجهة NABIL AI بشكل مضمون على الكمبيوتر والهاتف.
+let nabilHomeBootstrapped = false;
+let nabilFirstGestureSpoken = false;
+
+function bootstrapNabilHome(){
+    if (nabilHomeBootstrapped || !nabilHome || !homeStage) return;
+
+    nabilHomeBootstrapped = true;
+    document.body.classList.add("nabil-home-lock");
+
+    // الأزرار الحقيقية تظهر فوراً، ولا نعتمد على صورة الخلفية.
+    showGradeStage(false);
+
+    // على الكمبيوتر قد يسمح المتصفح بالصوت تلقائياً.
+    // على الهاتف غالباً يحتاج أول لمسة من المستخدم.
+    setTimeout(() => {
+        try{
+            if (
+                "speechSynthesis" in window &&
+                !speechSynthesis.speaking &&
+                window.innerWidth > 900
+            ){
+                homeSpeak("أهلاً بك في NABIL AI. أنا الأستاذ نبيل. اختر الصف الدراسي لنبدأ.");
+                homeWelcomeSpoken = true;
+            }
+        }catch(e){
+            console.warn("NABIL HOME AUTO TTS:", e);
+        }
+    }, 450);
 }
-window.addEventListener("load", () => setTimeout(tryHomeWelcome, 550));
-// إذا منع المتصفح التشغيل التلقائي، أول تفاعل يعيد الترحيب.
+
+// شغّل مباشرة لأن السكربت موجود بعد عناصر الصفحة.
+bootstrapNabilHome();
+
+if (document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", bootstrapNabilHome, {once:true});
+}
+window.addEventListener("load", bootstrapNabilHome, {once:true});
+
+// الهاتف: أول لمسة تفتح صلاحية الصوت في المتصفح وتُسمع الترحيب.
 document.addEventListener("pointerdown", () => {
-    if (!nabilHome || nabilHome.style.display === "none") return;
-    if (!(speechSynthesis && speechSynthesis.speaking) && homeStep === "grade"){
-        homeSpeak("أهلاً بك في NABIL AI. أنا الأستاذ نبيل. اختر الصف الدراسي لنبدأ.");
+    if (
+        nabilFirstGestureSpoken ||
+        !nabilHome ||
+        nabilHome.style.display === "none"
+    ) return;
+
+    nabilFirstGestureSpoken = true;
+
+    try{
+        if ("speechSynthesis" in window){
+            speechSynthesis.cancel();
+            homeSpeak("أهلاً بك في NABIL AI. أنا الأستاذ نبيل. اختر الصف الدراسي لنبدأ.");
+            homeWelcomeSpoken = true;
+        }
+    }catch(e){
+        console.warn("NABIL HOME FIRST-GESTURE TTS:", e);
     }
-},{once:true});
+},{once:true, passive:true});
 
 </script>
 
@@ -4808,6 +4866,34 @@ document.addEventListener("pointerdown", () => {
     /* Run immediately too, in case the script is already at the end of body. */
     applyNabilMobileScale();
 })();
+
+
+/* =========================================================
+   TALK TO ME — bottom shortcut
+   Replaces "مواد أخرى" and starts/stops the existing mic.
+========================================================= */
+document.addEventListener("click", (event) => {
+    const target = event.target.closest("button, .subject-tile, .quick-btn, [role='button'], div");
+    if (!target) return;
+
+    const label = (target.textContent || "").replace(/\s+/g," ").trim();
+    if (label !== "تحدث معي") return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (nabilLessonMode && lessonMicBtn){
+        lessonMicBtn.click();
+        return;
+    }
+
+    if (homeMic){
+        homeMic.click();
+        return;
+    }
+
+    startHomeListening();
+}, true);
 
 </script>
 </body>
