@@ -441,6 +441,68 @@ body.nabil-home-lock{overflow:hidden}
     #nabilHome .voice-chip{right:12px;bottom:39%;width:auto;min-width:92px}
 }
 
+
+/* =========================================================
+   MOBILE ONLY — preserve the exact desktop composition
+   The desktop interface stays untouched. On phones we scale
+   the same 1536×1024 stage down proportionally.
+========================================================= */
+@media (max-width: 900px) {
+    html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100vw !important;
+        min-width: 0 !important;
+        overflow-x: hidden !important;
+        background: #031526 !important;
+    }
+
+    body.nabil-home-lock {
+        overflow: hidden !important;
+    }
+
+    #nabilHome {
+        position: fixed !important;
+        inset: auto !important;
+        top: 0 !important;
+        left: 0 !important;
+
+        /* Reference size of the desktop design */
+        width: 1536px !important;
+        height: 1024px !important;
+        min-width: 1536px !important;
+        min-height: 1024px !important;
+
+        transform-origin: top left !important;
+        transform: scale(var(--nabil-mobile-scale, .25)) !important;
+
+        overflow: hidden !important;
+        background: #031526 !important;
+    }
+
+    /* Keep every overlay exactly where it is on desktop */
+    #nabilHome .home-bg,
+    #nabilHome .home-vignette,
+    #nabilHome .avatar-live-zone,
+    #nabilHome .profile-real,
+    #nabilHome .avatar-mouth,
+    #nabilHome .avatar-eye-glow,
+    #nabilHome .hand-cue,
+    #nabilHome .selection-stage,
+    #nabilHome .voice-chip,
+    #nabilHome .voice-state {
+        /* cancel older mobile reflow rules if any */
+        max-width: none !important;
+    }
+
+    /* Make taps easier without changing the visual layout */
+    #nabilHome .choice-btn,
+    #nabilHome button,
+    #nabilHome select {
+        touch-action: manipulation;
+    }
+}
+
 </style>
 </head>
 
@@ -2596,5 +2658,58 @@ document.addEventListener("pointerdown", () => {
 
 </script>
 
+<script>
+
+/* =========================================================
+   MOBILE SCALE ENGINE
+   Keeps the desktop design identical and simply shrinks it
+   to the phone width. Desktop is never affected.
+========================================================= */
+(function () {
+    const DESIGN_WIDTH = 1536;
+    const DESIGN_HEIGHT = 1024;
+
+    function applyNabilMobileScale() {
+        const home = document.getElementById("nabilHome");
+        if (!home) return;
+
+        const isMobile = window.matchMedia("(max-width: 900px)").matches;
+
+        if (!isMobile) {
+            document.documentElement.style.removeProperty("--nabil-mobile-scale");
+            document.body.style.removeProperty("height");
+            return;
+        }
+
+        const vw = Math.max(
+            document.documentElement.clientWidth || 0,
+            window.innerWidth || 0
+        );
+
+        /*
+         * Width-first scaling:
+         * the COMPLETE desktop interface is visible from left to right,
+         * with the exact same composition as the computer version.
+         */
+        const scale = Math.min(1, vw / DESIGN_WIDTH);
+
+        document.documentElement.style.setProperty(
+            "--nabil-mobile-scale",
+            String(scale)
+        );
+
+        /* Reserve the exact scaled height so the browser doesn't crop it. */
+        document.body.style.height = (DESIGN_HEIGHT * scale) + "px";
+    }
+
+    window.addEventListener("resize", applyNabilMobileScale, { passive: true });
+    window.addEventListener("orientationchange", applyNabilMobileScale, { passive: true });
+    document.addEventListener("DOMContentLoaded", applyNabilMobileScale);
+
+    /* Run immediately too, in case the script is already at the end of body. */
+    applyNabilMobileScale();
+})();
+
+</script>
 </body>
 </html>
