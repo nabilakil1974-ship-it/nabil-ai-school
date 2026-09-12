@@ -33,6 +33,9 @@ class NabilAIGateway:
         self._blocked_until: dict[str, float] = {}
         self._failure_count: dict[str, int] = {}
         self._gemini_cursor = 0
+        # If all Gemini keys share the same exhausted project/billing pool,
+        # stop retrying every key on every student request.
+        self._gemini_global_blocked_until = 0.0
 
         self.request_timeout_seconds = float(
             os.getenv("NABIL_AI_TIMEOUT_SECONDS", "45")
@@ -545,6 +548,34 @@ class NabilAIGateway:
 
         return content
 
+    def _gemini_globally_available(self) -> bool:
+        with self._state_lock:
+            return time.monotonic() >= self._gemini_global_blocked_until
+
+    def _block_gemini_globally(self, seconds: int) -> None:
+        with self._state_lock:
+            self._gemini_global_blocked_until = max(
+                self._gemini_global_blocked_until,
+                time.monotonic() + max(1, seconds),
+            )
+
+    def _all_configured_providers_blocked(self) -> bool:
+        checks = []
+
+        if self.gemini_api_keys:
+            checks.append(not self._gemini_globally_available())
+
+        if self.openrouter_client is not None:
+            checks.append(not self._is_available("openrouter"))
+
+        if self.groq_client is not None:
+            checks.append(not self._is_available("groq"))
+
+        if self.openai_client is not None:
+            checks.append(not self._is_available("openai"))
+
+        return bool(checks) and all(checks)
+
     def _try_gemini_keys(
         self,
         chat_messages: list[dict],
@@ -553,7 +584,10 @@ class NabilAIGateway:
         debug_errors: list[str],
     ) -> Optional[str]:
 
-        if not self.gemini_api_keys:
+        if (
+            not self.gemini_api_keys
+            or not self._gemini_globally_available()
+        ):
             return None
 
         model = (
@@ -612,6 +646,8 @@ class NabilAIGateway:
 
             except Exception as exc:
 
+                kind = self._error_kind(exc)
+
                 self._register_failure(
                     provider_key,
                     exc,
@@ -620,6 +656,17 @@ class NabilAIGateway:
                 debug_errors.append(
                     f"Gemini #{index + 1}: {exc}"
                 )
+
+                # Billing/prepayment exhaustion is usually project-wide.
+                # Do not burn the remaining Gemini keys in the same request.
+                if kind == "billing":
+                    self._block_gemini_globally(
+                        self._cooldown_seconds(
+                            kind="billing",
+                            failures=1,
+                        )
+                    )
+                    break
 
         return None
 
@@ -762,8 +809,13 @@ class NabilAIGateway:
         messages: list[dict],
         image_bytes: Optional[bytes] = None,
         image_mime_type: str = "image/jpeg",
-        max_output_tokens: int = 2500,
+        max_output_tokens: int = 1400,
     ) -> str:
+
+        max_output_tokens = max(
+            256,
+            min(int(max_output_tokens or 1400), 1400),
+        )
 
         chat_messages = self._build_messages(
             instructions=instructions,
@@ -853,6 +905,13 @@ class NabilAIGateway:
             "failure_count": failures,
             "gemini_key_count": len(
                 self.gemini_api_keys
+            ),
+            "gemini_global_blocked_for_seconds": max(
+                0,
+                round(
+                    self._gemini_global_blocked_until
+                    - time.monotonic()
+                ),
             ),
             "openrouter_enabled": (
                 self.openrouter_client
