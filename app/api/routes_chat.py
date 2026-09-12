@@ -1854,7 +1854,7 @@ async def voice_chat(
         .order_by(
             Message.created_at.asc()
         )
-        .limit(20)
+        .limit(8)
         .all()
     )
  
@@ -2027,7 +2027,7 @@ async def voice_chat(
                 messages=history_messages,
                 image_bytes=image_bytes,
                 image_mime_type=image_mime_type,
-                max_output_tokens=3000,
+                max_output_tokens=1400,
             )
 
         except Exception as exc:
