@@ -503,6 +503,172 @@ body.nabil-home-lock{overflow:hidden}
     }
 }
 
+
+/* =========================================================
+   LESSON MODE — desktop layout preserved, mobile only scaled
+========================================================= */
+#nabilHome.lesson-mode .selection-stage,
+#nabilHome.lesson-mode .voice-chip{
+    display:none !important;
+}
+
+#nabilHome .lesson-mode-layer{
+    display:none;
+    position:absolute;
+    inset:0;
+    z-index:8;
+    pointer-events:none;
+}
+#nabilHome.lesson-mode .lesson-mode-layer{display:block}
+
+#nabilHome .lesson-board-panel{
+    position:absolute;
+    right:12.2%;
+    top:18.8%;
+    width:29.4%;
+    height:38.5%;
+    padding:18px 20px 16px;
+    box-sizing:border-box;
+    border:1px solid rgba(62,211,255,.6);
+    border-radius:18px;
+    background:
+      linear-gradient(180deg,rgba(1,58,54,.90),rgba(0,44,45,.88));
+    box-shadow:
+      0 0 30px rgba(0,186,255,.17),
+      inset 0 0 28px rgba(0,0,0,.16);
+    backdrop-filter:blur(2px);
+    color:#fff;
+    direction:rtl;
+    overflow:auto;
+    pointer-events:auto;
+}
+#nabilHome .lesson-board-panel::-webkit-scrollbar{width:7px}
+#nabilHome .lesson-board-panel::-webkit-scrollbar-thumb{
+    background:#159ed0;
+    border-radius:10px;
+}
+#nabilHome .lesson-meta{
+    color:#61dcff;
+    font-size:13px;
+    font-weight:800;
+    margin-bottom:5px;
+}
+#nabilHome .lesson-live-title{
+    color:#ffd34d;
+    font-weight:900;
+    font-size:clamp(19px,1.55vw,27px);
+    line-height:1.35;
+    margin-bottom:11px;
+}
+#nabilHome .lesson-live-text{
+    font-size:clamp(14px,1.02vw,18px);
+    line-height:1.8;
+    color:#f4fbff;
+}
+#nabilHome .lesson-live-text p{margin:.4em 0}
+#nabilHome .lesson-live-text ul,
+#nabilHome .lesson-live-text ol{margin:.4em 1.2em .4em 0}
+
+#nabilHome .lesson-controls-panel{
+    position:absolute;
+    left:20%;
+    right:12%;
+    bottom:9.2%;
+    min-height:74px;
+    box-sizing:border-box;
+    padding:9px 10px;
+    border:1px solid rgba(33,185,245,.62);
+    border-radius:18px;
+    background:rgba(2,28,48,.93);
+    box-shadow:0 0 24px rgba(0,157,255,.14);
+    display:grid;
+    grid-template-columns:auto auto 1fr auto auto;
+    gap:8px;
+    align-items:center;
+    pointer-events:auto;
+}
+#nabilHome .lesson-control-btn{
+    min-height:48px;
+    border:1px solid #18b7ef;
+    border-radius:13px;
+    background:linear-gradient(180deg,#07557e,#043852);
+    color:#fff;
+    font-weight:800;
+    padding:8px 12px;
+    cursor:pointer;
+    font-family:inherit;
+    font-size:14px;
+}
+#nabilHome .lesson-control-btn.primary{
+    background:linear-gradient(180deg,#14bdf8,#087cc8);
+}
+#nabilHome .lesson-control-btn:hover{
+    filter:brightness(1.12);
+}
+#nabilHome .lesson-live-input{
+    width:100%;
+    min-height:48px;
+    max-height:105px;
+    resize:vertical;
+    border:1px solid rgba(61,197,249,.7);
+    border-radius:13px;
+    background:#f7fbff;
+    color:#0b2540;
+    padding:12px 14px;
+    box-sizing:border-box;
+    font-size:15px;
+    font-family:inherit;
+    outline:none;
+    direction:rtl;
+}
+#nabilHome .lesson-live-status{
+    position:absolute;
+    left:20.5%;
+    bottom:18.7%;
+    padding:6px 11px;
+    border-radius:999px;
+    background:rgba(0,37,61,.9);
+    border:1px solid rgba(53,194,255,.48);
+    color:#c9f1ff;
+    font-size:12px;
+    opacity:0;
+    transition:.2s ease;
+}
+#nabilHome .lesson-live-status.show{opacity:1}
+
+#nabilHome .lesson-home-btn{
+    position:absolute;
+    left:1.4%;
+    top:2.2%;
+    pointer-events:auto;
+    z-index:12;
+    min-width:112px;
+}
+
+/* avatar stays exactly where it is; only state animation changes */
+#nabilHome.lesson-mode .avatar-live-zone{
+    animation:nabilAvatarIdle 3.2s ease-in-out infinite alternate;
+}
+#nabilHome.lesson-mode.is-speaking .avatar-live-zone{
+    animation:nabilAvatarSpeak .58s ease-in-out infinite alternate;
+}
+@keyframes nabilAvatarIdle{
+    from{transform:translateY(0) rotate(-.15deg)}
+    to{transform:translateY(-5px) rotate(.15deg)}
+}
+
+/* IMPORTANT: on mobile, the whole 1536×1024 scene is already scaled.
+   So do NOT reflow lesson mode; it stays in the same exact desktop positions. */
+@media (max-width:900px){
+    #nabilHome .lesson-board-panel,
+    #nabilHome .lesson-controls-panel,
+    #nabilHome .lesson-live-status,
+    #nabilHome .lesson-home-btn{
+        /* preserve desktop coordinates inside scaled stage */
+        max-width:none !important;
+    }
+}
+
 </style>
 </head>
 
@@ -524,6 +690,29 @@ body.nabil-home-lock{overflow:hidden}
         <span>تحدّث معي</span>
     </button>
     <div id="homeStage" class="selection-stage"></div>
+
+    <div id="lessonModeLayer" class="lesson-mode-layer">
+        <button id="lessonHomeBtn" class="lesson-control-btn lesson-home-btn" type="button">⌂ الرئيسية</button>
+
+        <div class="lesson-board-panel">
+            <div id="lessonMeta" class="lesson-meta">NABIL AI • الدرس الحالي</div>
+            <div id="lessonLiveTitle" class="lesson-live-title">جاهزون للبدء</div>
+            <div id="lessonLiveText" class="lesson-live-text">
+                سيظهر شرح الأستاذ نبيل هنا.
+            </div>
+        </div>
+
+        <div id="lessonLiveStatus" class="lesson-live-status">الأستاذ نبيل جاهز</div>
+
+        <div class="lesson-controls-panel">
+            <button id="lessonReadBtn" class="lesson-control-btn" type="button">🔊 اقرأ النص</button>
+            <button id="lessonStopBtn" class="lesson-control-btn" type="button">⏹ توقف</button>
+            <textarea id="lessonLiveInput" class="lesson-live-input" placeholder="اكتب سؤالك للأستاذ نبيل..."></textarea>
+            <button id="lessonMicBtn" class="lesson-control-btn" type="button">🎤</button>
+            <button id="lessonSendBtn" class="lesson-control-btn primary" type="button">➤ إرسال</button>
+        </div>
+    </div>
+
 </div>
 
 
@@ -1408,6 +1597,25 @@ function addMessage(
     sources = []
 ) {
 
+    if (
+        role === "teacher" &&
+        nabilLessonMode
+    ) {
+        mirrorTeacherAnswerToLesson(
+            text
+        );
+    }
+
+    if (
+        role === "student" &&
+        nabilLessonMode
+    ) {
+        lessonStatus(
+            "🧠 الأستاذ نبيل يفكر في سؤالك...",
+            true
+        );
+    }
+
     welcome.style.display =
         "none";
 
@@ -2228,6 +2436,8 @@ startLesson.addEventListener(
             lesson
         );
 
+        openLessonMode();
+
 
         const prompt =
 
@@ -2465,6 +2675,395 @@ loadCurriculum();
 
 
 
+
+/* =========================================================
+   NABIL AI LESSON MODE
+========================================================= */
+const lessonModeLayer = document.getElementById("lessonModeLayer");
+const lessonMeta = document.getElementById("lessonMeta");
+const lessonLiveTitle = document.getElementById("lessonLiveTitle");
+const lessonLiveText = document.getElementById("lessonLiveText");
+const lessonLiveStatus = document.getElementById("lessonLiveStatus");
+const lessonHomeBtn = document.getElementById("lessonHomeBtn");
+const lessonReadBtn = document.getElementById("lessonReadBtn");
+const lessonStopBtn = document.getElementById("lessonStopBtn");
+const lessonLiveInput = document.getElementById("lessonLiveInput");
+const lessonMicBtn = document.getElementById("lessonMicBtn");
+const lessonSendBtn = document.getElementById("lessonSendBtn");
+
+let nabilLessonMode = false;
+let nabilLessonSpeechText = "";
+let nabilLessonRecognition = null;
+let nabilLessonListening = false;
+
+function lessonStatus(text, show=true){
+    if (!lessonLiveStatus) return;
+    lessonLiveStatus.textContent = text || "";
+    lessonLiveStatus.classList.toggle("show", !!show);
+}
+
+function openLessonMode(){
+    if (!nabilHome) return;
+
+    nabilLessonMode = true;
+    nabilHome.classList.add("lesson-mode");
+    document.body.classList.add("nabil-home-lock");
+
+    const grade = gradeSelect?.value || "";
+    const subject = subjectSelect?.value || "";
+    const language = languageSelect?.value || "";
+    const lesson = lessonSelect?.value || "";
+
+    lessonMeta.textContent =
+        [grade, subject, language].filter(Boolean).join(" • ");
+
+    lessonLiveTitle.textContent =
+        lesson || "الدرس الحالي";
+
+    lessonLiveText.innerHTML =
+        '<div style="opacity:.82">جاري تحضير الشرح الأول...</div>';
+
+    lessonStatus("🧠 الأستاذ نبيل يحضّر الدرس...", true);
+}
+
+function closeLessonMode(){
+    if ("speechSynthesis" in window) speechSynthesis.cancel();
+
+    nabilLessonMode = false;
+    nabilHome?.classList.remove("lesson-mode","is-speaking");
+    lessonStatus("", false);
+
+    showGradeStage(false);
+}
+
+function mirrorTeacherAnswerToLesson(text){
+    if (!nabilLessonMode || !lessonLiveText) return;
+
+    nabilLessonSpeechText = String(text || "");
+
+    lessonLiveText.innerHTML =
+        renderAIText(nabilLessonSpeechText);
+
+    lessonStatus(
+        "✅ الشرح جاهز — اضغط «اقرأ النص» لسماعه",
+        true
+    );
+
+    if (
+        window.MathJax &&
+        typeof MathJax.typesetPromise === "function"
+    ) {
+        MathJax.typesetPromise(
+            [lessonLiveText]
+        ).catch(console.warn);
+    }
+}
+
+function stopLessonSpeech(){
+    if ("speechSynthesis" in window) {
+        speechSynthesis.cancel();
+    }
+
+    nabilHome?.classList.remove("is-speaking");
+
+    if (lessonReadBtn) {
+        lessonReadBtn.textContent =
+            "🔊 اقرأ النص";
+    }
+
+    lessonStatus(
+        "⏹ توقف الأستاذ نبيل",
+        true
+    );
+}
+
+function readCurrentLessonText(){
+    if (
+        !nabilLessonSpeechText ||
+        !("speechSynthesis" in window)
+    ) {
+        return;
+    }
+
+    if (speechSynthesis.speaking) {
+        stopLessonSpeech();
+        return;
+    }
+
+    const utterance =
+        new SpeechSynthesisUtterance(
+            speechText(
+                nabilLessonSpeechText
+            )
+        );
+
+    const language =
+        languageSelect?.value ||
+        "العربية";
+
+    utterance.lang =
+        language === "English"
+            ? "en-US"
+            : language === "Français"
+                ? "fr-FR"
+                : "ar-LB";
+
+    utterance.rate = .92;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+
+    utterance.onstart = () => {
+        nabilHome?.classList.add(
+            "is-speaking"
+        );
+
+        lessonReadBtn.textContent =
+            "⏸ إيقاف القراءة";
+
+        lessonStatus(
+            "🔊 الأستاذ نبيل يشرح الآن...",
+            true
+        );
+    };
+
+    const speechDone = () => {
+        nabilHome?.classList.remove(
+            "is-speaking"
+        );
+
+        lessonReadBtn.textContent =
+            "🔊 اقرأ النص";
+
+        lessonStatus(
+            "✅ انتهت القراءة",
+            true
+        );
+    };
+
+    utterance.onend = speechDone;
+    utterance.onerror = speechDone;
+
+    speechSynthesis.cancel();
+    speechSynthesis.speak(
+        utterance
+    );
+}
+
+function sendLessonQuestion(){
+    const q =
+        (
+            lessonLiveInput?.value ||
+            ""
+        ).trim();
+
+    if (!q) {
+        return;
+    }
+
+    lessonLiveInput.value = "";
+
+    lessonStatus(
+        "🧠 الأستاذ نبيل يفكر...",
+        true
+    );
+
+    sendToAI(
+        q,
+        true
+    );
+}
+
+function setupLessonRecognition(){
+    const SR =
+        window.SpeechRecognition ||
+        window.webkitSpeechRecognition;
+
+    if (!SR) {
+        return;
+    }
+
+    nabilLessonRecognition =
+        new SR();
+
+    nabilLessonRecognition.continuous =
+        true;
+
+    nabilLessonRecognition.interimResults =
+        true;
+
+    nabilLessonRecognition.onstart = () => {
+        nabilLessonListening = true;
+
+        lessonMicBtn.classList.add(
+            "active"
+        );
+
+        lessonStatus(
+            "🎙️ أسمعك... انقر الميكروفون مرة ثانية للتوقف",
+            true
+        );
+    };
+
+    nabilLessonRecognition.onresult =
+        event => {
+
+            let finalText = "";
+            let interimText = "";
+
+            for (
+                let i = event.resultIndex;
+                i < event.results.length;
+                i++
+            ) {
+                const value =
+                    event.results[i][0]
+                        .transcript;
+
+                if (
+                    event.results[i]
+                        .isFinal
+                ) {
+                    finalText +=
+                        " " + value;
+                }
+                else {
+                    interimText += value;
+                }
+            }
+
+            const heard =
+                (
+                    finalText +
+                    " " +
+                    interimText
+                ).trim();
+
+            if (
+                heard &&
+                lessonLiveInput
+            ) {
+                lessonLiveInput.value =
+                    heard;
+            }
+        };
+
+    nabilLessonRecognition.onend = () => {
+        if (nabilLessonListening) {
+            try {
+                nabilLessonRecognition
+                    .start();
+            }
+            catch {}
+        }
+        else {
+            lessonMicBtn.classList.remove(
+                "active"
+            );
+        }
+    };
+
+    nabilLessonRecognition.onerror =
+        e => {
+            console.warn(
+                "LESSON STT:",
+                e.error
+            );
+        };
+}
+
+lessonReadBtn?.addEventListener(
+    "click",
+    readCurrentLessonText
+);
+
+lessonStopBtn?.addEventListener(
+    "click",
+    stopLessonSpeech
+);
+
+lessonSendBtn?.addEventListener(
+    "click",
+    sendLessonQuestion
+);
+
+lessonLiveInput?.addEventListener(
+    "keydown",
+    event => {
+        if (
+            event.key === "Enter" &&
+            !event.shiftKey
+        ) {
+            event.preventDefault();
+            sendLessonQuestion();
+        }
+    }
+);
+
+lessonHomeBtn?.addEventListener(
+    "click",
+    closeLessonMode
+);
+
+lessonMicBtn?.addEventListener(
+    "click",
+    () => {
+        if (!nabilLessonRecognition) {
+            setupLessonRecognition();
+        }
+
+        if (!nabilLessonRecognition) {
+            alert(
+                "التعرف الصوتي غير مدعوم في هذا المتصفح."
+            );
+            return;
+        }
+
+        if (
+            "speechSynthesis" in window &&
+            speechSynthesis.speaking
+        ) {
+            speechSynthesis.cancel();
+            nabilHome?.classList.remove(
+                "is-speaking"
+            );
+        }
+
+        nabilLessonRecognition.lang =
+            languageSelect?.value ===
+                "English"
+                ? "en-US"
+                : languageSelect?.value ===
+                    "Français"
+                    ? "fr-FR"
+                    : "ar-LB";
+
+        if (nabilLessonListening) {
+            nabilLessonListening =
+                false;
+
+            try {
+                nabilLessonRecognition
+                    .stop();
+            }
+            catch {}
+
+            lessonStatus(
+                "🎙️ تم إيقاف الاستماع",
+                true
+            );
+
+            return;
+        }
+
+        try {
+            nabilLessonRecognition
+                .start();
+        }
+        catch {}
+    }
+);
+
+
 /* ================= NABIL AI GUIDED HOME ================= */
 const nabilHome = document.getElementById("nabilHome");
 const homeStage = document.getElementById("homeStage");
@@ -2579,11 +3178,12 @@ function showStartStage(announce=true){
 
 function finishHome(start=false){
     if (speechSynthesis) speechSynthesis.cancel();
-    if (start && startLesson) {
-        homeStage.innerHTML = '<div class="stage-title">📚 بدأ الدرس</div><div class="stage-sub">الأستاذ نبيل معك أثناء الشرح</div>';
-        document.body.classList.remove("nabil-home-lock");
+
+    if (
+        start &&
+        startLesson
+    ) {
         startLesson.click();
-        /* يبقى الأفاتار في الوسط قرب اللوح. زر تجاوز الواجهة فقط يفتح شاشة المحادثة الكاملة. */
         return;
     }
     nabilHome.style.transition = "opacity .35s ease";
