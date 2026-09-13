@@ -99,6 +99,15 @@ select{
     cursor:not-allowed
 }
 
+#generalExercisesBtn{
+    border:none;border-radius:8px;padding:12px 18px;
+    background:#7c3aed;color:#fff;font-size:16px;font-weight:800;
+    cursor:pointer;min-height:44px;white-space:nowrap;
+    box-shadow:0 6px 18px rgba(124,58,237,.24)
+}
+#generalExercisesBtn:hover{background:#6d28d9}
+#generalExercisesBtn:disabled{opacity:.6;cursor:not-allowed}
+
 .container{
     max-width:1000px;
     margin:25px auto;
@@ -1327,6 +1336,61 @@ body.nabil-home-lock::before{
     border:1px solid #31536d;border-radius:9px;
 }
 .lesson-action-bar button:hover{background:#19415d}
+
+.exercise-board-stack{display:grid;gap:14px}
+.exercise-board{
+    border:1px solid #1f6f95;border-radius:18px;padding:12px;
+    background:linear-gradient(180deg,#08253a,#061c2f);
+    box-shadow:0 12px 28px rgba(0,0,0,.22), inset 0 0 0 1px rgba(82,203,255,.05);
+    display:grid;gap:12px;
+}
+.exercise-board-head{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:10px 12px;border-radius:14px;background:linear-gradient(180deg,#0c3454,#09273e);
+    border:1px solid #195d85;
+}
+.exercise-board-title{font-size:22px;font-weight:900;color:#67ddff}
+.exercise-board-detected{font-size:13px;color:#b7dcf1}
+.exercise-board-main{display:grid;grid-template-columns:minmax(260px,1.02fr) minmax(320px,1.38fr);gap:12px;align-items:start}
+.exercise-side-column{display:grid;gap:10px}
+.exercise-main-column{display:grid;gap:10px}
+.exercise-mini-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.exercise-section-card{
+    border:1px solid #2a6f96;border-radius:16px;padding:12px 14px;
+    background:linear-gradient(160deg,rgba(8,44,72,.92),rgba(8,24,40,.97));
+    color:#ecf7ff;min-width:0;
+}
+.exercise-section-card.section-tone-1{border-color:#2a87b6}
+.exercise-section-card.section-tone-2{border-color:#7855cb;background:linear-gradient(160deg,rgba(37,32,77,.94),rgba(10,24,41,.97))}
+.exercise-section-card.section-tone-3{border-color:#1cae87;background:linear-gradient(160deg,rgba(7,68,56,.94),rgba(8,26,39,.97))}
+.exercise-section-card.section-tone-4{border-color:#c69d2c;background:linear-gradient(160deg,rgba(70,54,12,.92),rgba(13,28,39,.98))}
+.exercise-section-card h3,.exercise-section-card h4{margin:0 0 8px;color:#67ddff;font-size:18px;line-height:1.3}
+.exercise-section-card p{margin:6px 0}
+.exercise-section-card ul,.exercise-section-card ol{margin:8px 0 0;padding-inline-start:20px}
+.exercise-visual-panel{
+    border:1px solid #2f7195;border-radius:16px;padding:10px;
+    background:linear-gradient(180deg,#0b2740,#081d31);
+}
+.exercise-visual-panel .nabil-visual{margin:0 0 10px}
+.exercise-visual-panel .nabil-visual:last-child{margin-bottom:0}
+.exercise-visual-panel .nabil-visual svg{background:#08243a;min-height:380px;max-height:470px}
+.exercise-visual-empty{padding:24px 12px;color:#9dc7df;text-align:center;font-size:14px}
+.exercise-solution-card{border-color:#2f84af}
+.exercise-answer-card{border-color:#21b782;background:linear-gradient(160deg,rgba(8,70,58,.95),rgba(8,27,39,.98))}
+.exercise-summary-card{border-color:#16d59c;background:linear-gradient(160deg,rgba(9,88,70,.95),rgba(8,34,43,.98))}
+.exercise-answer-card h3,.exercise-summary-card h3{color:#64f0b5}
+.exercise-solution-card .lesson-table-wrap table,
+.exercise-section-card .lesson-table-wrap table,
+.exercise-section-card table{width:100%}
+.exercise-board + .exercise-board{margin-top:2px}
+
+@media(max-width:900px){
+    .exercise-board-main{grid-template-columns:minmax(0,1fr)}
+    .exercise-mini-grid{grid-template-columns:minmax(0,1fr)}
+    .exercise-board-head{align-items:flex-start;flex-direction:column}
+    .exercise-board-title{font-size:20px}
+    .exercise-visual-panel .nabil-visual svg{min-height:300px;max-height:none}
+}
 .input-area{position:sticky;bottom:0;background:#071622;padding:8px 0 2px;z-index:3}
 .input-area textarea{background:#f6f8fa;color:#14202a}
 #imageBtn{font-size:0;padding:0 16px}
@@ -1366,6 +1430,7 @@ body.nabil-home-lock::before{
     .controls .control{min-width:0}
     .controls select{font-size:13px;padding:9px;min-height:43px}
     #startLesson{grid-column:1/-1;width:100%;font-size:17px}
+    #generalExercisesBtn{grid-column:1/-1;width:100%;font-size:16px}
     .container{width:100%;margin:10px auto 24px;padding:0 8px}
     .lesson-layout{display:flex;flex-direction:column}
     .lesson-main-column{width:100%}
@@ -1487,6 +1552,104 @@ body.nabil-home-lock::before{
     }
 }
 
+
+/* =========================================================
+   V11 — CUMULATIVE FINAL CARD
+   The final card visually gathers previous concept cards,
+   their drawings, the compact rule summary, and Quick Check.
+========================================================= */
+.lesson-final-card.is-cumulative-final{
+    display:block !important;
+    width:100% !important;
+    padding:14px !important;
+    overflow:visible !important;
+}
+.lesson-final-card.is-cumulative-final .cumulative-final-head{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-bottom:12px;
+}
+.lesson-final-card.is-cumulative-final .cumulative-final-head .lesson-final-summary{
+    flex:1 1 420px;
+}
+.cumulative-final-board{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    gap:12px;
+    align-items:start;
+}
+.cumulative-final-section{
+    min-width:0;
+    padding:10px;
+    border:1px solid rgba(117,229,255,.28);
+    border-radius:12px;
+    background:rgba(5,28,40,.36);
+}
+.cumulative-final-section-title{
+    margin:0 0 8px;
+    color:#7de8ff;
+    font-size:14px;
+    font-weight:900;
+}
+.cumulative-card-grid{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:9px;
+}
+.cumulative-card-grid .lesson-concept-card{
+    margin:0 !important;
+    min-height:0;
+    padding:9px 10px !important;
+    font-size:12px !important;
+    line-height:1.45 !important;
+}
+.cumulative-card-grid .lesson-concept-card h2,
+.cumulative-card-grid .lesson-concept-card h3,
+.cumulative-card-grid .lesson-concept-card h4{
+    font-size:14px !important;
+    margin:0 0 5px !important;
+}
+.cumulative-visual-grid{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:9px;
+}
+.cumulative-visual-grid .nabil-visual{
+    margin:0 !important;
+    padding:7px !important;
+}
+.cumulative-visual-grid .nabil-visual svg{
+    width:100% !important;
+    height:auto !important;
+    min-height:180px !important;
+    max-height:260px !important;
+}
+.cumulative-final-check{
+    grid-column:1 / -1;
+    border-color:rgba(255,212,59,.48);
+    background:rgba(57,47,9,.28);
+}
+.cumulative-final-check .cumulative-final-section-title{color:#ffe37a}
+.cumulative-final-check .lesson-check-card{
+    margin:0 !important;
+    width:100% !important;
+    max-width:100% !important;
+}
+.cumulative-final-empty{
+    color:#a9c6d7;
+    font-size:12px;
+    line-height:1.5;
+}
+@media(max-width:900px){
+    .cumulative-final-board{grid-template-columns:1fr}
+    .cumulative-card-grid{grid-template-columns:1fr}
+    .cumulative-visual-grid{grid-template-columns:1fr}
+    .cumulative-final-check{grid-column:1}
+    .cumulative-visual-grid .nabil-visual svg{min-height:220px;max-height:none}
+}
+
 </style>
 </head>
 
@@ -1588,8 +1751,8 @@ body.nabil-home-lock::before{
 <div class="control">
 <label for="teachingModeSelect">طريقة الشرح</label>
 <select id="teachingModeSelect">
-<option value="interactive">تفاعلي: فكرة ثم سؤال</option>
 <option value="full_lesson">الدرس كامل ثم الأسئلة</option>
+<option value="interactive">تفاعلي: فكرة ثم سؤال</option>
 </select>
 </div>
 
@@ -1597,6 +1760,13 @@ body.nabil-home-lock::before{
     id="startLesson"
     type="button">
     ▶ ابدأ الدرس
+</button>
+
+<button
+    id="generalExercisesBtn"
+    type="button"
+    title="حل مسابقة أو تمارين من دروس مختلفة">
+    📝 حل تمارين عامة
 </button>
 
 </div>
@@ -1790,6 +1960,9 @@ const lessonSelect =
 const startLesson =
     document.getElementById("startLesson");
 
+const generalExercisesBtn =
+    document.getElementById("generalExercisesBtn");
+
 const chat =
     document.getElementById("chat");
 
@@ -1824,6 +1997,8 @@ let curriculumIndex = {};
 let curriculumData = {};
 
 let conversationId = null;
+
+let nabilActivityMode = "lesson";
 
 let selectedImage = null;
 
@@ -2208,6 +2383,169 @@ function renderAIText(text) {
 
 }
 
+
+function titleTextOfNode(node){
+    return String(node?.textContent || "")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+function detectMessageRenderLanguage(text){
+    const lang = nabilDetectLang(text);
+    if (lang === "en") return "English";
+    if (lang === "fr") return "Français";
+    return "العربية";
+}
+
+function isExerciseH2Title(text){
+    return /^(?:exercise|exercice|تمرين)\b/i.test(String(text||"").trim());
+}
+
+function classifyExerciseSection(title){
+    const t = String(title || "").toLowerCase();
+    if (/(^|\b)(given|المعطيات|données)(\b|$)/i.test(title)) return "given";
+    if (/(^|\b)(required|المطلوب|demandé|demande)(\b|$)/i.test(title)) return "required";
+    if (/(^|\b)(formula|property|القانون|الخاصية|formule|propriété|propriete)(\b|$)/i.test(title)) return "formula";
+    if (/(^|\b)(solution|الحل|résolution|resolution)(\b|$)/i.test(title)) return "solution";
+    if (/(^|\b)(final answer|الجواب النهائي|réponse finale|reponse finale)(\b|$)/i.test(title)) return "answer";
+    if (/(^|\b)(rule summary|summary|خلاصة|résumé|resume)(\b|$)/i.test(title)) return "summary";
+    return "extra";
+}
+
+function extractExerciseBoards(text){
+    const rendered = renderAIText(text).trim();
+    if (!rendered) return [];
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(`<div class="exercise-root">${rendered}</div>`, "text/html");
+    const root = doc.body.firstElementChild;
+    const boards = [];
+    let current = null;
+
+    [...root.childNodes].forEach(node => {
+        if (node.nodeType === 1 && /^H2$/i.test(node.tagName)) {
+            const title = titleTextOfNode(node);
+            if (isExerciseH2Title(title)) {
+                current = {title, nodes: []};
+            }
+        }
+        if (node.nodeType === 1 && /^H2$/i.test(node.tagName)) {
+            const title = titleTextOfNode(node);
+            if (isExerciseH2Title(title)) {
+                current = {title, nodes: []};
+                boards.push(current);
+                return;
+            }
+        }
+        if (!current) {
+            current = {title:"Exercise", nodes: []};
+            boards.push(current);
+        }
+        current.nodes.push(node.cloneNode(true));
+    });
+
+    return boards.map(board => {
+        const sections = [];
+        let currentSection = null;
+
+        board.nodes.forEach(node => {
+            if (node.nodeType === 1 && /^H3$/i.test(node.tagName)) {
+                const title = titleTextOfNode(node);
+                currentSection = {title, kind: classifyExerciseSection(title), nodes: []};
+                sections.push(currentSection);
+                return;
+            }
+            if (!currentSection) {
+                currentSection = {title:"", kind:"extra", nodes: []};
+                sections.push(currentSection);
+            }
+            currentSection.nodes.push(node.cloneNode(true));
+        });
+
+        return {title: board.title, sections};
+    });
+}
+
+function renderNodesAsHTML(nodes){
+    return nodes.map(node => node.outerHTML || node.textContent || "").join("").trim();
+}
+
+function buildExerciseSectionHTML(title, bodyHTML, extraClass="", toneClass="section-tone-1"){
+    if (!bodyHTML) return "";
+    return `<section class="exercise-section-card ${toneClass} ${extraClass}">${title ? `<h3>${title}</h3>` : ""}${bodyHTML}</section>`;
+}
+
+function renderGeneralExerciseBoards(text, diagrams, messageDirection, messageLanguage){
+    const boards = extractExerciseBoards(text);
+    if (!boards.length) {
+        return `<div class="lesson-explanation" dir="${messageDirection}" lang="${messageLanguage === "English" ? "en" : messageLanguage === "Français" ? "fr" : "ar"}">${renderLessonCards(text)}</div>`;
+    }
+
+    let diagramIndex = 0;
+    const totalBoards = boards.length;
+
+    const html = boards.map((board, boardIndex) => {
+        const parts = {given:[], required:[], formula:[], solution:[], answer:[], summary:[], extra:[]};
+        board.sections.forEach(sec => {
+            parts[sec.kind] = parts[sec.kind] || [];
+            parts[sec.kind].push(sec);
+        });
+
+        const remainingBoards = totalBoards - boardIndex;
+        const remainingDiagrams = diagrams.length - diagramIndex;
+        let diagramsForThis = [];
+        if (remainingDiagrams > 0) {
+            let take = 1;
+            if (remainingDiagrams > remainingBoards) take = remainingDiagrams - (remainingBoards - 1);
+            diagramsForThis = diagrams.slice(diagramIndex, diagramIndex + take);
+            diagramIndex += take;
+        }
+
+        const givenHTML = parts.given.map(s => buildExerciseSectionHTML(s.title || "Given", renderNodesAsHTML(s.nodes), "", "section-tone-1")).join("");
+        const requiredHTML = parts.required.map(s => buildExerciseSectionHTML(s.title || "Required", renderNodesAsHTML(s.nodes), "", "section-tone-2")).join("");
+        const formulaHTML = parts.formula.map(s => buildExerciseSectionHTML(s.title || "Formula / Property", renderNodesAsHTML(s.nodes), "", "section-tone-3")).join("");
+        const extraHTML = parts.extra.map(s => buildExerciseSectionHTML(s.title, renderNodesAsHTML(s.nodes), "", "section-tone-4")).join("");
+        const solutionHTML = parts.solution.map(s => buildExerciseSectionHTML(s.title || "Solution", renderNodesAsHTML(s.nodes), "exercise-solution-card", "section-tone-1")).join("");
+        const answerHTML = parts.answer.map(s => buildExerciseSectionHTML(s.title || "Final Answer", renderNodesAsHTML(s.nodes), "exercise-answer-card", "section-tone-3")).join("");
+        const summaryHTML = parts.summary.map(s => buildExerciseSectionHTML(s.title || "Rule Summary", renderNodesAsHTML(s.nodes), "exercise-summary-card", "section-tone-3")).join("");
+
+        const introBadges = [];
+        const title = board.title || (messageLanguage === "English" ? `Exercise ${boardIndex+1}` : messageLanguage === "Français" ? `Exercice ${boardIndex+1}` : `تمرين ${boardIndex+1}`);
+
+        const visualHTML = diagramsForThis.length
+            ? diagramsForThis.join("")
+            : `<div class="exercise-visual-empty">${messageLanguage === "English" ? "No drawing was required for this exercise." : messageLanguage === "Français" ? "Aucun dessin n’était nécessaire pour cet exercice." : "لم يحتج هذا التمرين إلى رسم."}</div>`;
+
+        return `
+        <article class="exercise-board" dir="${messageDirection}">
+            <div class="exercise-board-head">
+                <div class="exercise-board-title">${title}</div>
+                <div class="exercise-board-detected">${introBadges.join(" ")}</div>
+            </div>
+            <div class="exercise-board-main">
+                <div class="exercise-side-column">
+                    <div class="exercise-mini-grid">${givenHTML}${requiredHTML}</div>
+                    ${formulaHTML}
+                    ${extraHTML}
+                </div>
+                <div class="exercise-main-column">
+                    <div class="exercise-visual-panel">${visualHTML}</div>
+                    ${solutionHTML}
+                </div>
+            </div>
+            <div class="exercise-mini-grid">${answerHTML}${summaryHTML}</div>
+        </article>`;
+    }).join("");
+
+    // Append any leftover visuals at the end rather than losing them.
+    const leftovers = diagramIndex < diagrams.length
+        ? `<div class="exercise-board"><div class="exercise-visual-panel">${diagrams.slice(diagramIndex).join("")}</div></div>`
+        : "";
+
+    return `<div class="exercise-board-stack">${html}${leftovers}</div>`;
+}
+
+
 function renderLessonCards(text) {
     const rendered = renderAIText(text).trim();
     if (!rendered) return "";
@@ -2328,6 +2666,104 @@ function layoutLessonBoard(bubble) {
     if (wideStack.children.length) bubble.appendChild(wideStack);
     if (finalCard && finalCard.parentElement !== bubble) bubble.appendChild(finalCard);
 }
+
+
+function buildCumulativeFinalCard(bubble, messageDirection, messageLanguage) {
+    const finalCard = bubble.querySelector(":scope > .lesson-final-card");
+    if (!finalCard || finalCard.dataset.cumulativeBuilt === "1") return;
+
+    const labels = messageLanguage === "English"
+        ? {cards:"Lesson cards", visuals:"Visual recap", check:"Quick Check", noVisual:"No drawing was needed for this lesson."}
+        : messageLanguage === "Français"
+            ? {cards:"Cartes de la leçon", visuals:"Récapitulatif visuel", check:"Vérification rapide", noVisual:"Aucun dessin n’était nécessaire pour cette leçon."}
+            : {cards:"بطاقات الدرس", visuals:"خلاصة الرسومات", check:"سؤال التحقق", noVisual:"لم يحتج هذا الدرس إلى رسم."};
+
+    // Preserve the title/check/summary already created by normalizeFinalLessonCard().
+    const head = document.createElement("div");
+    head.className = "cumulative-final-head";
+    [...finalCard.children].forEach(child => head.appendChild(child));
+
+    const board = document.createElement("div");
+    board.className = "cumulative-final-board";
+    board.setAttribute("dir", messageDirection);
+
+    // 1) Clone every previous concept/example card from THIS answer only.
+    const cardsSection = document.createElement("div");
+    cardsSection.className = "cumulative-final-section";
+    cardsSection.innerHTML = `<div class="cumulative-final-section-title">${labels.cards}</div>`;
+    const cardGrid = document.createElement("div");
+    cardGrid.className = "cumulative-card-grid";
+
+    const previousCards = [...bubble.querySelectorAll(".lesson-concept-card")]
+        .filter(card => card !== finalCard && !card.classList.contains("lesson-final-card") && !card.classList.contains("lesson-check-card"));
+
+    previousCards.forEach(card => {
+        const clone = card.cloneNode(true);
+        clone.removeAttribute("data-lesson-card");
+        clone.querySelectorAll("button,.teacher-tools,.sources").forEach(el => el.remove());
+        cardGrid.appendChild(clone);
+    });
+
+    if (!cardGrid.children.length) {
+        const empty = document.createElement("div");
+        empty.className = "cumulative-final-empty";
+        empty.textContent = messageLanguage === "English" ? "No previous lesson cards." : messageLanguage === "Français" ? "Aucune carte précédente." : "لا توجد بطاقات سابقة.";
+        cardGrid.appendChild(empty);
+    }
+    cardsSection.appendChild(cardGrid);
+
+    // 2) Clone all drawings from THIS answer so the final card is a visual recap too.
+    const visualsSection = document.createElement("div");
+    visualsSection.className = "cumulative-final-section";
+    visualsSection.innerHTML = `<div class="cumulative-final-section-title">${labels.visuals}</div>`;
+    const visualGrid = document.createElement("div");
+    visualGrid.className = "cumulative-visual-grid";
+
+    const originalVisuals = bubble.querySelector(":scope > .lesson-visuals");
+    if (originalVisuals) {
+        [...originalVisuals.children].forEach(visual => {
+            const clone = visual.cloneNode(true);
+            clone.querySelectorAll("button").forEach(el => el.remove());
+            visualGrid.appendChild(clone);
+        });
+    }
+
+    if (!visualGrid.children.length) {
+        const empty = document.createElement("div");
+        empty.className = "cumulative-final-empty";
+        empty.textContent = labels.noVisual;
+        visualGrid.appendChild(empty);
+    }
+    visualsSection.appendChild(visualGrid);
+
+    // 3) Move the real Quick Check into the final card (no duplicate outside).
+    const checkSection = document.createElement("div");
+    checkSection.className = "cumulative-final-section cumulative-final-check";
+    checkSection.innerHTML = `<div class="cumulative-final-section-title">${labels.check}</div>`;
+
+    const checkCards = [...bubble.querySelectorAll(".lesson-check-card")]
+        .filter(card => !finalCard.contains(card));
+
+    if (checkCards.length) {
+        checkCards.forEach(card => checkSection.appendChild(card));
+    } else {
+        const empty = document.createElement("div");
+        empty.className = "cumulative-final-empty";
+        empty.textContent = messageLanguage === "English" ? "No Quick Check was generated." : messageLanguage === "Français" ? "Aucune question de vérification n’a été générée." : "لم يتم إنشاء سؤال تحقق في هذا الرد.";
+        checkSection.appendChild(empty);
+    }
+
+    board.appendChild(cardsSection);
+    board.appendChild(visualsSection);
+    board.appendChild(checkSection);
+
+    finalCard.innerHTML = "";
+    finalCard.appendChild(head);
+    finalCard.appendChild(board);
+    finalCard.classList.add("is-cumulative-final");
+    finalCard.dataset.cumulativeBuilt = "1";
+}
+
 
 function speechText(text) {
 
@@ -2746,7 +3182,9 @@ function addMessage(
         "message " + role;
 
     const messageLanguage =
-        languageSelect?.value || "العربية";
+        nabilActivityMode === "general_exercises"
+            ? detectMessageRenderLanguage(visibleText)
+            : (languageSelect?.value || "العربية");
     const messageDirection =
         messageLanguage === "English" || messageLanguage === "Français"
             ? "ltr"
@@ -2769,14 +3207,33 @@ function addMessage(
     if (
         role === "teacher"
     ) {
-        if (visibleDiagrams.length) bubble.classList.add("has-lesson-visual");
-        if (visibleDiagrams.length > 1) bubble.classList.add("multi-visual");
-        bubble.innerHTML =
-            `<div class="lesson-explanation" dir="${messageDirection}" lang="${messageLanguage === "English" ? "en" : messageLanguage === "Français" ? "fr" : "ar"}">${renderLessonCards(visibleText)}</div>` +
-            (visibleDiagrams.length ? `<div class="lesson-visuals">${visibleDiagrams.join("")}</div>` : "");
+        /* Preserve AI drawings first. If the AI accidentally talks about a diagram
+           but omitted DRAWINGS_JSON, use a strictly verified lesson fallback only. */
+        if (!visibleDiagrams.length){
+            const fallbackVisual = safeFallbackDiagramForReply(visibleText);
+            if (fallbackVisual) visibleDiagrams.push(fallbackVisual);
+        }
 
-        normalizeFinalLessonCard(bubble, messageDirection, messageLanguage);
-        layoutLessonBoard(bubble);
+        if (nabilActivityMode === "general_exercises") {
+            bubble.classList.add("has-lesson-visual", "exercise-mode-board");
+            if (visibleDiagrams.length > 1) bubble.classList.add("multi-visual");
+            bubble.innerHTML = renderGeneralExerciseBoards(
+                visibleText,
+                visibleDiagrams,
+                messageDirection,
+                messageLanguage,
+            );
+        } else {
+            if (visibleDiagrams.length) bubble.classList.add("has-lesson-visual");
+            if (visibleDiagrams.length > 1) bubble.classList.add("multi-visual");
+            bubble.innerHTML =
+                `<div class="lesson-explanation" dir="${messageDirection}" lang="${messageLanguage === "English" ? "en" : messageLanguage === "Français" ? "fr" : "ar"}">${renderLessonCards(visibleText)}</div>` +
+                (visibleDiagrams.length ? `<div class="lesson-visuals">${visibleDiagrams.join("")}</div>` : "");
+
+            normalizeFinalLessonCard(bubble, messageDirection, messageLanguage);
+            layoutLessonBoard(bubble);
+            buildCumulativeFinalCard(bubble, messageDirection, messageLanguage);
+        }
 
     }
     else {
@@ -3030,16 +3487,20 @@ async function sendToAI(
         gradeSelect.value;
 
 
+    const generalExercisesMode =
+        nabilActivityMode === "general_exercises";
+
     const subject =
-        subjectSelect.value;
+        generalExercisesMode ? "" : subjectSelect.value;
 
     const branch = branchSelect.value;
 
-    const teachingMode = teachingModeSelect.value || "interactive";
+    const teachingMode =
+        generalExercisesMode ? "general_exercises" : (teachingModeSelect.value || "full_lesson");
 
 
     const language =
-        languageSelect.value;
+        generalExercisesMode ? "AUTO" : languageSelect.value;
 
 
     const curriculum =
@@ -3050,17 +3511,14 @@ async function sendToAI(
         lessonSelect.value;
 
 
-    if (
-        !grade ||
-        !subject
-    ) {
-
-        alert(
-            "اختر الصف والمادة أولاً."
-        );
-
+    if (!grade) {
+        alert("اختر الصف أولاً.");
         return;
+    }
 
+    if (!generalExercisesMode && !subject) {
+        alert("اختر الصف والمادة أولاً.");
+        return;
     }
 
 
@@ -3135,6 +3593,10 @@ async function sendToAI(
 
     if (branch) formData.append("branch", branch);
     formData.append("teaching_mode", teachingMode);
+    formData.append(
+        "activity_mode",
+        generalExercisesMode ? "general_exercises" : "lesson"
+    );
 
 
     formData.append(
@@ -3383,6 +3845,8 @@ startLesson.addEventListener(
     "click",
     async function () {
 
+        nabilActivityMode = "lesson";
+
         const grade =
             gradeSelect.value;
 
@@ -3391,7 +3855,7 @@ startLesson.addEventListener(
 
         const branch = branchSelect.value;
 
-        const teachingMode = teachingModeSelect.value || "interactive";
+        const teachingMode = teachingModeSelect.value || "full_lesson";
 
         const language =
             languageSelect.value;
@@ -3515,6 +3979,46 @@ startLesson.addEventListener(
 
     }
 );
+
+
+
+function startGeneralExercisesMode(){
+    const grade = gradeSelect.value;
+    const branch = branchSelect.value;
+
+    if (!grade) {
+        alert("اختر الصف أولاً حتى يحافظ نبيل على مستوى الطالب.");
+        return;
+    }
+
+    if (getBranchesForGrade(grade).length && !branch) {
+        alert("اختر الفرع أولاً.");
+        return;
+    }
+
+    nabilActivityMode = "general_exercises";
+    conversationId = null;
+    nabilLessonActive = false;
+
+    openClassicLessonPage();
+
+    currentLesson.textContent = "حل تمارين عامة";
+    lessonInfo.style.display = "block";
+    indexStatus.textContent =
+        "نبيل يكتشف المادة واللغة من كل سؤال، ولا يتقيد بعنوان درس واحد.";
+
+    messageInput.placeholder =
+        "اكتب تمرينًا، أو ارفع صورة مسابقة/فرض...";
+
+    addMessage(
+        "teacher",
+        "أرسل التمارين كتابةً أو بصورة. سأتعرف تلقائيًا على المادة ولغة كل سؤال، ثم أحلها بالترتيب حتى لو كانت من دروس مختلفة."
+    );
+
+    try { messageInput.focus(); } catch(e) {}
+}
+
+generalExercisesBtn?.addEventListener("click", startGeneralExercisesMode);
 
 
 sendBtn.addEventListener(
@@ -4523,8 +5027,51 @@ function extractAndRenderNabilDrawings(text){
     return {text:raw.trim(), diagrams};
 }
 
+
+function safeFallbackDiagramForReply(text){
+    const lesson = String(lessonSelect?.value || "");
+    const combined = nabilNormalize(`${lesson} ${text || ""}`);
+
+    /* Ionic bond / NaCl: render only when the lesson or reply clearly identifies
+       ionic bonding AND Na/Cl are present. This prevents unrelated invention. */
+    const ionicContext =
+        /ionic bond|ionic bonding|رابطه ايونيه|الرابطه الايونيه|liaison ionique/.test(combined);
+
+    const hasNa =
+        /\bna\b|sodium|صوديوم/.test(String(text || "").toLowerCase());
+
+    const hasCl =
+        /\bcl\b|chlorine|كلور|كلورين/.test(String(text || "").toLowerCase());
+
+    if (ionicContext && hasNa && hasCl){
+        return renderNabilDiagram({
+            type:"ionic_bond",
+            title: languageSelect?.value === "العربية"
+                ? "تكوّن كلوريد الصوديوم بانتقال الإلكترون"
+                : languageSelect?.value === "Français"
+                    ? "Formation de NaCl par transfert d’électron"
+                    : "Formation of NaCl by Electron Transfer",
+            labels:{metal:"Na",nonmetal:"Cl"}
+        });
+    }
+
+    return "";
+}
+
 function autoDiagramSpecForLesson(lesson){
     const s=nabilNormalize(lesson||"");
+
+    /* Safe conceptual fallback for Ionic Bond:
+       only uses the canonical Na -> Cl electron-transfer visual already
+       supported by NABIL's renderer; no invented measurements or coordinates. */
+    if(/ionic bond|ionic bonding|رابطه ايونيه|الرابطه الايونيه|liaison ionique/.test(s)){
+        return {
+            type:"ionic_bond",
+            title:"Formation of NaCl by Electron Transfer",
+            labels:{metal:"Na",nonmetal:"Cl"}
+        };
+    }
+
     if(/فيثاغورس|pythag/.test(s)) return {type:"right_triangle",title:"مثلث قائم الزاوية",labels:{a:"a",b:"b",c:"c"}};
     if(/مماس|tangent|circle|دائره/.test(s)) return {type:"circle_tangent",title:"الدائرة والمماس"};
     if(/اسطوان|cylinder/.test(s)) return {type:"cylinder",title:"الأسطوانة"};
