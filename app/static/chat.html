@@ -2342,8 +2342,7 @@ function normalizeFinalLessonCard(bubble, messageDirection, messageLanguage) {
 function extractEmbeddedCheckFromSummary(summaryElement){
     if (!summaryElement) return "";
     const text = summaryElement.innerText || "";
-    const lines = text.split(/
-+/).map(s => s.trim()).filter(Boolean);
+    const lines = text.split(/\n+/).map(s => s.trim()).filter(Boolean);
     const start = lines.findIndex(line => /^(question|quick check|check question|سؤال|تحق|question de vérification)/i.test(line));
     if (start === -1) return "";
     const extracted = lines.slice(start).join("<br>");
