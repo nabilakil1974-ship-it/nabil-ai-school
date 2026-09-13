@@ -1,0 +1,49 @@
+name: Sync official CRDP curriculum
+
+on:
+  schedule:
+    # Daily at 03:20 UTC. Railway can redeploy after the resulting commit.
+    - cron: "20 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-official-crdp-curriculum
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Test synchroniser
+        run: python -m unittest discover -s tests -p 'test_sync_crdp_curriculum.py'
+
+      - name: Fetch official CRDP catalogue
+        run: python scripts/sync_crdp_curriculum.py --apply
+
+      - name: Commit verified catalogue changes
+        run: |
+          if [ "$(python -c 'import json; print(str(json.load(open("app/static/crdp_sync_report.json"))["changed"]).lower())')" != "true" ]; then
+            echo "No CRDP changes detected."
+            exit 0
+          fi
+          if git diff --quiet -- app/static/crdp_scientific_curriculum_index.json app/static/crdp_sync_report.json; then
+            echo "No CRDP changes detected."
+            exit 0
+          fi
+          git config user.name "nabil-ai-crdp-sync"
+          git config user.email "nabil-ai-crdp-sync@users.noreply.github.com"
+          git add app/static/crdp_scientific_curriculum_index.json app/static/crdp_sync_report.json
+          git commit -m "Sync official CRDP curriculum catalogue"
+          git push
