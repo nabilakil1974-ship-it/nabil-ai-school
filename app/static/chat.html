@@ -4576,6 +4576,54 @@ function nabilElementVisual(label){
     return map[symbol]||["url(#nabilSurface3d)","#67e8f9","#fff"];
 }
 
+
+/* =========================================================
+   NABIL VISUAL ENGINE V2 — proportional geometry
+   ========================================================= */
+function nabilNumericLength(value){
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (typeof value !== "string") return null;
+    const s = value.trim().replace(",", ".");
+    const frac = s.match(/(-?\d+(?:\.\d+)?)\s*\/\s*(-?\d+(?:\.\d+)?)/);
+    if (frac){
+        const den = Number(frac[2]);
+        if (den !== 0) return Number(frac[1]) / den;
+    }
+    const m = s.match(/-?\d+(?:\.\d+)?/);
+    return m ? Number(m[0]) : null;
+}
+
+function nabilLengthLabel(raw, numeric, symbol){
+    if (raw !== undefined && raw !== null && String(raw).trim()) return nabilEsc(String(raw));
+    if (Number.isFinite(numeric)) return nabilEsc(`${symbol} = ${Number(numeric.toFixed(4))}`);
+    return nabilEsc(symbol);
+}
+
+function nabilTrianglePointGeometry(ab, ac, bc){
+    if (![ab,ac,bc].every(v => Number.isFinite(v) && v > 0)) return null;
+    if (!(ab + ac > bc && ab + bc > ac && ac + bc > ab)) return null;
+
+    // B=(0,0), C=(bc,0), and A is determined by AB and AC.
+    const ax = (ab*ab + bc*bc - ac*ac) / (2*bc);
+    const ay2 = Math.max(0, ab*ab - ax*ax);
+    const ay = Math.sqrt(ay2);
+    return {A:{x:ax,y:ay}, B:{x:0,y:0}, C:{x:bc,y:0}};
+}
+
+function nabilFitPoints(points, box){
+    const xs = points.map(p=>p.x), ys = points.map(p=>p.y);
+    const minX = Math.min(...xs), maxX = Math.max(...xs);
+    const minY = Math.min(...ys), maxY = Math.max(...ys);
+    const spanX = Math.max(1e-9,maxX-minX), spanY = Math.max(1e-9,maxY-minY);
+    const scale = Math.min(box.w/spanX, box.h/spanY);
+    const usedW = spanX*scale, usedH = spanY*scale;
+    const ox = box.x + (box.w-usedW)/2 - minX*scale;
+    const oy = box.y + (box.h-usedH)/2 + maxY*scale;
+    return p => ({x:ox+p.x*scale, y:oy-p.y*scale});
+}
+
+function nabilSvgPoint(p){ return `${p.x.toFixed(2)},${p.y.toFixed(2)}`; }
+
 function renderNabilDiagram(spec){
     if (!spec || typeof spec !== "object") return "";
 
@@ -4605,25 +4653,77 @@ function renderNabilDiagram(spec){
     const title = spec.title || "";
 
     if (t === "right_triangle" || t === "pythagoras"){
-        const a=nabilEsc(L.a||"a"), b=nabilEsc(L.b||"b"), c=nabilEsc(L.c||"c");
+        const av = nabilNumericLength(spec.a ?? L.a);
+        const bv = nabilNumericLength(spec.b ?? L.b);
+        const cv = nabilNumericLength(spec.c ?? L.c);
+
+        const aLabel = nabilLengthLabel(L.a, av, "a");
+        const bLabel = nabilLengthLabel(L.b, bv, "b");
+        const cLabel = nabilLengthLabel(L.c, cv, "c");
+
+        let P0={x:100,y:250}, P1={x:100,y:70}, P2={x:420,y:250};
+
+        // a and b are the perpendicular legs, c the hypotenuse.
+        if (Number.isFinite(av) && av>0 && Number.isFinite(bv) && bv>0){
+            const scale=Math.min(315/bv,185/av);
+            const w=bv*scale, h=av*scale;
+            const left=105+(315-w)/2;
+            const bottom=250;
+            P0={x:left,y:bottom};
+            P1={x:left,y:bottom-h};
+            P2={x:left+w,y:bottom};
+        }
+
+        const midA={x:P0.x-18,y:(P0.y+P1.y)/2};
+        const midB={x:(P0.x+P2.x)/2,y:P0.y+30};
+        const midC={x:(P1.x+P2.x)/2+12,y:(P1.y+P2.y)/2-8};
+
         return nabilVisualWrap(title || "مثلث قائم الزاوية",`
         <svg viewBox="0 0 520 320" role="img" aria-label="right triangle">
-          <polygon points="95,250 95,70 420,250" class="vfill"/>
-          <polyline points="95,220 125,220 125,250" class="vaccent"/>
-          <text x="58" y="165" class="vlab">${a}</text>
-          <text x="250" y="282" class="vlab">${b}</text>
-          <text x="280" y="145" class="vlab">${c}</text>
-          <text x="108" y="238" class="vlab vsmall" fill="#dc2626">90°</text>
+          <polygon points="${nabilSvgPoint(P0)} ${nabilSvgPoint(P1)} ${nabilSvgPoint(P2)}" class="vfill"/>
+          <polyline points="${P0.x},${P0.y-28} ${P0.x+28},${P0.y-28} ${P0.x+28},${P0.y}" class="vaccent"/>
+          <text x="${midA.x}" y="${midA.y}" class="vlab" text-anchor="end">${aLabel}</text>
+          <text x="${midB.x}" y="${midB.y}" class="vlab" text-anchor="middle">${bLabel}</text>
+          <text x="${midC.x}" y="${midC.y}" class="vlab" text-anchor="middle">${cLabel}</text>
+          <text x="${P0.x+34}" y="${P0.y-10}" class="vlab vsmall" fill="#ff5d5d">90°</text>
         </svg>`, spec.note || "");
     }
 
     if (t === "triangle"){
+        const ab = nabilNumericLength(spec.side_ab ?? L.side_ab);
+        const ac = nabilNumericLength(spec.side_ac ?? L.side_ac);
+        const bc = nabilNumericLength(spec.side_bc ?? L.side_bc);
+
+        const nameA=nabilEsc(L.A||L.a||"A");
+        const nameB=nabilEsc(L.B||L.b||"B");
+        const nameC=nabilEsc(L.C||L.c||"C");
+
+        const geom=nabilTrianglePointGeometry(ab,ac,bc);
+        let A={x:260,y:55},B={x:80,y:255},C={x:445,y:255};
+
+        if(geom){
+            const map=nabilFitPoints([geom.A,geom.B,geom.C],{x:80,y:55,w:365,h:200});
+            A=map(geom.A); B=map(geom.B); C=map(geom.C);
+        }
+
+        const mid=(p,q)=>({x:(p.x+q.x)/2,y:(p.y+q.y)/2});
+        const mAB=mid(A,B),mAC=mid(A,C),mBC=mid(B,C);
+        const labAB=nabilLengthLabel(spec.side_ab ?? L.side_ab,ab,"AB");
+        const labAC=nabilLengthLabel(spec.side_ac ?? L.side_ac,ac,"AC");
+        const labBC=nabilLengthLabel(spec.side_bc ?? L.side_bc,bc,"BC");
+
         return nabilVisualWrap(title || "مثلث",`
-        <svg viewBox="0 0 520 320">
-          <polygon points="260,55 80,255 445,255" class="vfill"/>
-          <text x="250" y="42" class="vlab">${nabilEsc(L.A||"A")}</text>
-          <text x="52" y="276" class="vlab">${nabilEsc(L.B||"B")}</text>
-          <text x="454" y="276" class="vlab">${nabilEsc(L.C||"C")}</text>
+        <svg viewBox="0 0 520 320" role="img" aria-label="triangle proportional to known sides">
+          <polygon points="${nabilSvgPoint(A)} ${nabilSvgPoint(B)} ${nabilSvgPoint(C)}" class="vfill"/>
+          <circle cx="${A.x}" cy="${A.y}" r="4.5" fill="#67e8f9"/>
+          <circle cx="${B.x}" cy="${B.y}" r="4.5" fill="#67e8f9"/>
+          <circle cx="${C.x}" cy="${C.y}" r="4.5" fill="#67e8f9"/>
+          <text x="${A.x}" y="${A.y-13}" class="vlab" text-anchor="middle">${nameA}</text>
+          <text x="${B.x-10}" y="${B.y+22}" class="vlab" text-anchor="end">${nameB}</text>
+          <text x="${C.x+10}" y="${C.y+22}" class="vlab">${nameC}</text>
+          ${(Number.isFinite(ab)||spec.side_ab||L.side_ab)?`<text x="${mAB.x-12}" y="${mAB.y-4}" class="vlab vsmall" text-anchor="middle">${labAB}</text>`:""}
+          ${(Number.isFinite(ac)||spec.side_ac||L.side_ac)?`<text x="${mAC.x+12}" y="${mAC.y-4}" class="vlab vsmall" text-anchor="middle">${labAC}</text>`:""}
+          ${(Number.isFinite(bc)||spec.side_bc||L.side_bc)?`<text x="${mBC.x}" y="${mBC.y+25}" class="vlab vsmall" text-anchor="middle">${labBC}</text>`:""}
         </svg>`,spec.note||"");
     }
 
@@ -4647,22 +4747,66 @@ function renderNabilDiagram(spec){
         const center=nabilEsc(spec.center||L.center||"O");
         const tangentPoint=nabilEsc(spec.tangent_point||L.tangent_point||"A");
         const externalPoint=nabilEsc(spec.external_point||L.external_point||"M");
-        const radiusLabel=nabilEsc(L.radius||spec.radius||L.r||"r");
-        const tangentLabel=nabilEsc(L.tangent_length||L.AM||"AM = ?");
-        const hypotenuseLabel=nabilEsc(L.external_distance||L.OM||"");
-        return nabilVisualWrap(title || "الدائرة والمماس",`
-        <svg viewBox="0 0 520 320">
+
+        const R=nabilNumericLength(spec.radius ?? L.radius ?? L.r);
+        const OM=nabilNumericLength(spec.external_distance ?? L.external_distance ?? L.OM);
+        let AM=nabilNumericLength(spec.tangent_length ?? L.tangent_length ?? L.AM);
+
+        const canConstruct = t==="circle_tangent" && Number.isFinite(R) && R>0 && Number.isFinite(OM) && OM>R;
+        if(canConstruct && !Number.isFinite(AM)) AM=Math.sqrt(OM*OM-R*R);
+
+        let O={x:190,y:175}, T={x:282,y:175}, M={x:390,y:78}, rpx=92;
+
+        if(canConstruct){
+            const ty=R*Math.sqrt(OM*OM-R*R)/OM;
+            const tx=R*R/OM;
+            const rawO={x:0,y:0}, rawT={x:tx,y:ty}, rawM={x:OM,y:0};
+            const map=nabilFitPoints(
+                [{x:-R,y:-R},{x:-R,y:R},{x:OM,y:-R},{x:OM,y:R}],
+                {x:55,y:45,w:410,h:225}
+            );
+            O=map(rawO); T=map(rawT); M=map(rawM);
+            rpx=Math.abs(map({x:R,y:0}).x-O.x);
+        }
+
+        const radiusRaw = spec.labels?.radius ?? spec.radius ?? L.r;
+        const radiusLabel=nabilLengthLabel(radiusRaw,R,"R");
+        const tangentRaw = spec.labels?.tangent_length ?? spec.tangent_length ?? L.AM;
+        const tangentLabel=nabilLengthLabel(tangentRaw,AM,`${tangentPoint}${externalPoint}`);
+        const externalRaw = spec.labels?.external_distance ?? spec.external_distance ?? L.OM;
+        const externalLabel=nabilLengthLabel(externalRaw,OM,`${center}${externalPoint}`);
+
+        let rightAngle="";
+        if(canConstruct){
+            const norm=(dx,dy)=>{const m=Math.hypot(dx,dy)||1;return {x:dx/m,y:dy/m};};
+            const uO=norm(O.x-T.x,O.y-T.y);
+            const uM=norm(M.x-T.x,M.y-T.y);
+            const s=18;
+            const p1={x:T.x+uO.x*s,y:T.y+uO.y*s};
+            const pc={x:p1.x+uM.x*s,y:p1.y+uM.y*s};
+            const p2={x:T.x+uM.x*s,y:T.y+uM.y*s};
+            rightAngle=`<polyline points="${nabilSvgPoint(p1)} ${nabilSvgPoint(pc)} ${nabilSvgPoint(p2)}" fill="none" stroke="#ff5d5d" stroke-width="3"/>`;
+        }
+
+        return nabilVisualWrap(title || (t==="circle" ? "دائرة" : "الدائرة والمماس"),`
+        <svg viewBox="0 0 520 320" role="img" aria-label="circle and tangent">
           <defs><radialGradient id="circleGlow"><stop offset="0" stop-color="#123e5b"/><stop offset="1" stop-color="#061c31"/></radialGradient></defs>
-          <circle cx="220" cy="178" r="92" fill="url(#circleGlow)" stroke="#35c8ff" stroke-width="4"/>
-          <line x1="220" y1="178" x2="312" y2="178" stroke="#22e58b" stroke-width="4"/>
-          <line x1="312" y1="55" x2="312" y2="280" stroke="#ffd43b" stroke-width="4"/>
-          <line x1="220" y1="178" x2="312" y2="55" stroke="#e8f6ff" stroke-width="2.5" stroke-dasharray="8 6"/>
-          <polyline points="290,178 290,156 312,156" fill="none" stroke="#ff4d4d" stroke-width="3"/>
-          <circle cx="220" cy="178" r="6" fill="#35c8ff"/><circle cx="312" cy="178" r="6" fill="#35c8ff"/><circle cx="312" cy="55" r="7" fill="#ff4d4d"/>
-          <text x="202" y="202" class="vlab">${center}</text><text x="320" y="196" class="vlab">${tangentPoint}</text><text x="322" y="52" class="vlab">${externalPoint}</text>
-          <text x="245" y="168" class="vlab vsmall" style="fill:#22e58b">${radiusLabel}</text>
-          <text x="325" y="123" class="vlab vsmall" style="fill:#ffd43b">${tangentLabel}</text>
-          ${hypotenuseLabel?`<text x="235" y="105" class="vlab vsmall">${hypotenuseLabel}</text>`:""}
+          <circle cx="${O.x}" cy="${O.y}" r="${rpx}" fill="url(#circleGlow)" stroke="#35c8ff" stroke-width="4"/>
+          ${t==="circle_tangent" ? `
+          <line x1="${O.x}" y1="${O.y}" x2="${T.x}" y2="${T.y}" stroke="#22e58b" stroke-width="4"/>
+          <line x1="${T.x}" y1="${T.y}" x2="${M.x}" y2="${M.y}" stroke="#ffd43b" stroke-width="4"/>
+          <line x1="${O.x}" y1="${O.y}" x2="${M.x}" y2="${M.y}" stroke="#e8f6ff" stroke-width="2.4" stroke-dasharray="8 6"/>
+          ${rightAngle}
+          <circle cx="${T.x}" cy="${T.y}" r="6" fill="#35c8ff"/>
+          <circle cx="${M.x}" cy="${M.y}" r="7" fill="#ff5d5d"/>
+          <text x="${T.x+10}" y="${T.y-8}" class="vlab">${tangentPoint}</text>
+          <text x="${M.x+10}" y="${M.y-8}" class="vlab">${externalPoint}</text>
+          <text x="${(T.x+M.x)/2+8}" y="${(T.y+M.y)/2-8}" class="vlab vsmall" style="fill:#ffd43b">${tangentLabel}</text>
+          <text x="${(O.x+M.x)/2}" y="${(O.y+M.y)/2+22}" class="vlab vsmall" text-anchor="middle">${externalLabel}</text>
+          ` : ""}
+          <circle cx="${O.x}" cy="${O.y}" r="6" fill="#35c8ff"/>
+          <text x="${O.x-12}" y="${O.y+22}" class="vlab">${center}</text>
+          ${t==="circle_tangent" ? `<text x="${(O.x+T.x)/2}" y="${(O.y+T.y)/2-10}" class="vlab vsmall" style="fill:#22e58b">${radiusLabel}</text>` : `<text x="${O.x+rpx/2}" y="${O.y-10}" class="vlab vsmall">${radiusLabel}</text>`}
         </svg>`,spec.note||"");
     }
 
