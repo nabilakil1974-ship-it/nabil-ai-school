@@ -2046,6 +2046,29 @@ function addMessage(
     sources = []
 ) {
 
+    let visibleText =
+        String(text || "");
+
+    let visibleDiagrams = [];
+
+    /* The classic lesson page must render NABIL drawings too.
+       Keep the drawing JSON internal instead of showing it to the student. */
+    if (
+        role === "teacher" &&
+        typeof extractAndRenderNabilDrawings === "function"
+    ) {
+        const parsedVisual =
+            extractAndRenderNabilDrawings(
+                visibleText
+            );
+
+        visibleText =
+            parsedVisual.text;
+
+        visibleDiagrams =
+            parsedVisual.diagrams;
+    }
+
     if (
         role === "teacher" &&
         nabilLessonMode
@@ -2100,7 +2123,8 @@ function addMessage(
     ) {
 
         bubble.innerHTML =
-            renderAIText(text);
+            renderAIText(visibleText) +
+            visibleDiagrams.join("");
 
     }
     else {
@@ -2148,7 +2172,7 @@ function addMessage(
             () => {
 
                 copyAnswer(
-                    text,
+                    visibleText,
                     copyButton
                 );
 
@@ -2177,7 +2201,7 @@ function addMessage(
             () => {
 
                 readAnswer(
-                    text,
+                    visibleText,
                     readButton
                 );
 
@@ -2268,8 +2292,7 @@ function addMessage(
 
 
 function addLessonDiagram(lesson){
-    /* Legacy hook retained for compatibility.
-       Visuals are now rendered inside the visible lesson board. */
+    /* Render the automatic opening visual in whichever lesson UI is visible. */
     const oldDiagram =
         document.getElementById(
             "activeLessonDiagram"
@@ -2281,22 +2304,48 @@ function addLessonDiagram(lesson){
             lesson
         );
 
-    if (
-        !spec ||
-        !lessonLiveText ||
-        !nabilLessonMode
-    ) {
+    if (!spec) {
         return;
     }
 
     const rendered =
         renderNabilDiagram(spec);
 
-    if (rendered) {
+    if (
+        rendered &&
+        nabilLessonMode &&
+        lessonLiveText
+    ) {
         lessonLiveText.insertAdjacentHTML(
             "beforeend",
             rendered
         );
+
+        return;
+    }
+
+    if (rendered && chat) {
+        const wrapper =
+            document.createElement("div");
+
+        wrapper.id =
+            "activeLessonDiagram";
+
+        wrapper.className =
+            "message teacher";
+
+        const bubble =
+            document.createElement("div");
+
+        bubble.className =
+            "bubble";
+
+        bubble.innerHTML =
+            rendered;
+
+        wrapper.appendChild(bubble);
+        chat.appendChild(wrapper);
+        chat.scrollTop = chat.scrollHeight;
     }
 }
 
@@ -2580,7 +2629,7 @@ async function sendToAI(
             /\b(goodbye|bye|see you|take care)\b|مع السلامة|إلى اللقاء|تصبح على خير/i
                 .test(String(teacherReply || ""));
 
-        if (nabilLessonMode && isFarewellReply) {
+        if (nabilLessonActive && isFarewellReply) {
             if (!nabilLessonFarewellRetry) {
                 nabilLessonFarewellRetry = true;
                 conversationId = null;
@@ -2768,14 +2817,11 @@ startLesson.addEventListener(
             }
         } catch(e) {}
 
-        openLessonMode();
-
-        showLessonOpening(
-            grade,
-            subject,
-            lesson,
-            language
-        );
+        /* Open the original, spacious lesson/chat page.
+           The avatar home remains only for choosing the lesson. */
+        nabilLessonActive = true;
+        lessonVoiceConversation = false;
+        openClassicLessonPage();
 
         /* The actual first explanation from NABIL AI will be spoken automatically. */
 
@@ -3723,6 +3769,7 @@ const lessonMicBtn = document.getElementById("lessonMicBtn");
 const lessonSendBtn = document.getElementById("lessonSendBtn");
 
 let nabilLessonMode = false;
+let nabilLessonActive = false;
 let nabilLessonSpeechText = "";
 let nabilLessonRecognition = null;
 let nabilLessonListening = false;
@@ -3783,6 +3830,7 @@ function closeLessonMode(){
     if ("speechSynthesis" in window) speechSynthesis.cancel();
 
     nabilLessonMode = false;
+    nabilLessonActive = false;
     nabilHome?.classList.remove("lesson-mode","is-speaking","is-thinking","is-listening");
     lessonStatus("", false);
 
@@ -4846,6 +4894,43 @@ function finishHome(start=false){
     nabilHome.style.transition = "opacity .35s ease";
     nabilHome.style.opacity = "0";
     setTimeout(() => { nabilHome.style.display = "none"; document.body.classList.remove("nabil-home-lock"); },360);
+}
+
+function openClassicLessonPage(){
+    if ("speechSynthesis" in window) {
+        speechSynthesis.cancel();
+    }
+
+    nabilLessonMode = false;
+
+    if (homeRecognition && homeListening) {
+        homeListening = false;
+        try {
+            homeRecognition.stop();
+        }
+        catch {}
+    }
+
+    if (nabilHome) {
+        nabilHome.classList.remove(
+            "lesson-mode",
+            "is-speaking",
+            "is-thinking",
+            "is-listening"
+        );
+        nabilHome.style.transition = "none";
+        nabilHome.style.opacity = "1";
+        nabilHome.style.display = "none";
+    }
+
+    document.body.classList.remove(
+        "nabil-home-lock"
+    );
+
+    window.scrollTo({
+        top: 0,
+        behavior: "auto"
+    });
 }
 
 skipHome.addEventListener("click", () => finishHome(false));
