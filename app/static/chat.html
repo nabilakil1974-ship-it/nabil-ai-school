@@ -1117,6 +1117,110 @@ body.nabil-home-lock{overflow:hidden}
     #nabilHome .mobile-right-mask{display:none !important;}
 }
 
+/* ================= STAGE 9 — LESSON PAGE =================
+   A focused classroom based on the accepted lesson-page reference. */
+body{background:#071622;color:#e8f3fb}
+body.nabil-home-lock::before{
+    content:"";position:fixed;inset:0;z-index:9998;background:#031526;
+}
+#nabilHome .bottom-talk-btn{
+    background:linear-gradient(180deg,#ef4444,#b91c1c)!important;
+    border-color:#ff8a8a!important;
+    box-shadow:0 0 22px rgba(239,68,68,.48)!important;
+}
+.header{
+    background:linear-gradient(135deg,#0a2948,#154fb1);
+    border-bottom:1px solid rgba(75,199,255,.32);
+    padding:15px 20px 18px;
+}
+.header-title{font-size:25px;margin-bottom:14px}
+.controls{
+    max-width:1450px;
+    grid-template-columns:repeat(4,minmax(145px,1fr));
+    gap:10px 12px;
+}
+.control label{color:#d7efff}
+.control[hidden]{display:none!important}
+.controls select{
+    background:#101b25;color:#fff;border:1px solid #35536d;
+    min-height:45px;
+}
+#startLesson{min-height:45px;background:#16a34a;box-shadow:0 6px 18px rgba(22,163,74,.24)}
+.container{max-width:1320px;margin:18px auto 30px}
+.lesson-info{background:#0e202e;color:#d8eafa;border:1px solid #213d52;box-shadow:none}
+.lesson-info strong{color:#6bdcff}
+.lesson-layout{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:16px;align-items:start}
+.lesson-main-column{min-width:0}
+.chat{
+    min-height:520px;max-height:62vh;background:#0b1821;color:#ecf7ff;
+    border:1px solid #203747;box-shadow:0 10px 30px rgba(0,0,0,.24);
+}
+.welcome{color:#9bb4c6}.welcome h2{color:#65d8ff}
+.student .bubble{background:#12385e;color:#fff}
+.teacher .bubble{background:#14251d;color:#f4fff7;border:1px solid #244934}
+.lesson-diagram{background:#f8fbff;color:#173b6c}
+.lesson-action-bar{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.lesson-action-bar button{
+    min-height:38px;padding:8px 12px;background:#132a3b;color:#eaf7ff;
+    border:1px solid #31536d;border-radius:9px;
+}
+.lesson-action-bar button:hover{background:#19415d}
+.input-area{position:sticky;bottom:0;background:#071622;padding:8px 0 2px;z-index:3}
+.input-area textarea{background:#f6f8fa;color:#14202a}
+#imageBtn{font-size:0;padding:0 16px}
+#imageBtn::after{content:"🖼️ رفع صورة";font-size:14px}
+.lesson-tutor-card{
+    position:sticky;top:16px;padding:18px 14px;border-radius:18px;text-align:center;
+    background:linear-gradient(180deg,#123550,#0b2233);border:1px solid #2e769d;
+    box-shadow:0 10px 28px rgba(0,0,0,.28);display:flex;flex-direction:column;gap:10px;
+}
+.lesson-tutor-card img{
+    width:96px;height:96px;margin:auto;border-radius:50%;object-fit:cover;object-position:center 23%;
+    border:3px solid #46d7ff;box-shadow:0 0 22px rgba(70,215,255,.34);
+}
+.lesson-tutor-card strong{font-size:20px;color:#75e5ff}
+.lesson-tutor-card span{font-size:13px;line-height:1.5;color:#c2ddeb}
+.lesson-tutor-card button{min-height:44px;padding:9px;color:#fff;background:#174969;border:1px solid #2b8bbb}
+#lessonTalkBtn{background:#d52b2b;border-color:#ff6767;font-size:17px}
+#lessonTalkBtn.listening{animation:talkPulse 1s infinite alternate}
+@keyframes talkPulse{to{box-shadow:0 0 18px rgba(255,73,73,.75)}}
+#backToInterfaceBtn{background:#263948}
+.drawing-preview-modal{
+    position:fixed;inset:0;z-index:12000;background:rgba(0,8,15,.82);display:grid;place-items:center;padding:22px;
+}
+.drawing-preview-modal[hidden]{display:none}
+.drawing-preview-dialog{position:relative;background:#fff;border-radius:18px;padding:28px;max-width:900px;width:100%;max-height:90vh;overflow:auto;color:#13273a}
+.drawing-preview-close{position:absolute;left:10px;top:10px;width:38px;height:38px;padding:0;background:#dc2626;color:#fff}
+#drawingPreviewContent .nabil-visual{background:#eef7fb}
+
+@media(max-width:900px){
+    body:not(.nabil-home-lock){background:#071622!important;height:auto!important;overflow:auto!important}
+    .header{padding:12px 12px 15px}
+    .header-title{font-size:20px;margin-bottom:12px}
+    .controls{grid-template-columns:1fr 1fr!important;gap:8px!important}
+    .controls .control{min-width:0}
+    .controls select{font-size:13px;padding:9px;min-height:43px}
+    #startLesson{grid-column:1/-1;width:100%;font-size:17px}
+    .container{margin:12px auto;padding:0 10px}
+    .lesson-layout{display:flex;flex-direction:column}
+    .lesson-main-column{width:100%}
+    .lesson-tutor-card{position:static;width:100%;order:-1;display:grid;grid-template-columns:64px 1fr 1fr;align-items:center;text-align:right;padding:10px}
+    .lesson-tutor-card img{width:58px;height:58px;grid-row:1/3}
+    .lesson-tutor-card strong,.lesson-tutor-card span{grid-column:2/4}
+    .lesson-tutor-card button{min-height:40px;padding:7px;font-size:12px}
+    .chat{min-height:430px;max-height:none}
+    .lesson-action-bar{display:grid;grid-template-columns:1fr 1fr}
+    .lesson-action-bar button{font-size:12px;padding:7px}
+    .input-area{gap:6px}
+    .input-area button{min-height:44px;padding:0 13px}
+}
+
+@media(max-width:520px){
+    .controls{grid-template-columns:1fr!important}
+    .lesson-tutor-card{grid-template-columns:58px 1fr 1fr}
+    .bubble{max-width:96%}
+}
+
 </style>
 </head>
 
@@ -1178,6 +1282,11 @@ body.nabil-home-lock{overflow:hidden}
 <select id="gradeSelect"></select>
 </div>
 
+<div class="control" id="branchControl" hidden>
+<label for="branchSelect">الفرع</label>
+<select id="branchSelect"></select>
+</div>
+
 <div class="control">
 <label for="subjectSelect">المادة</label>
 <select id="subjectSelect"></select>
@@ -1210,6 +1319,14 @@ body.nabil-home-lock{overflow:hidden}
 <select id="lessonSelect"></select>
 </div>
 
+<div class="control">
+<label for="teachingModeSelect">طريقة الشرح</label>
+<select id="teachingModeSelect">
+<option value="interactive">تفاعلي: فكرة ثم سؤال</option>
+<option value="full_lesson">الدرس كامل ثم الأسئلة</option>
+</select>
+</div>
+
 <button
     id="startLesson"
     type="button">
@@ -1238,6 +1355,9 @@ body.nabil-home-lock{overflow:hidden}
 
 </div>
 
+<div class="lesson-layout">
+<div class="lesson-main-column">
+
 <section
     id="chat"
     class="chat">
@@ -1259,6 +1379,14 @@ body.nabil-home-lock{overflow:hidden}
 </div>
 
 </section>
+
+<div class="lesson-action-bar" aria-label="أدوات الدرس">
+<button id="copyConversationBtn" type="button">📋 نسخ المحادثة</button>
+<button id="exportWordBtn" type="button">📝 تنزيل إلى Word</button>
+<button id="shareLessonBtn" type="button">↗ مشاركة</button>
+<button id="previewDrawingBtn" type="button">👁 معاينة الرسمة</button>
+<button id="downloadDrawingBtn" type="button">⬇ تنزيل الرسمة</button>
+</div>
 
 <div class="input-area">
 
@@ -1293,7 +1421,27 @@ body.nabil-home-lock{overflow:hidden}
 
 </div>
 
+</div>
+
+<aside class="lesson-tutor-card" aria-label="الأستاذ نبيل في صفحة الدرس">
+<img src="/static/nabil-profile.jpg" alt="الأستاذ نبيل عقيل">
+<strong>NABIL AI</strong>
+<span>الأستاذ نبيل معك طوال الدرس</span>
+<button id="lessonTalkBtn" type="button">🎙️ تحدّث معي</button>
+<button id="lessonReadLatestBtn" type="button">🔊 اقرأ آخر شرح</button>
+<button id="backToInterfaceBtn" type="button">⌂ العودة إلى الواجهة</button>
+</aside>
+
+</div>
+
 </main>
+
+<div id="drawingPreviewModal" class="drawing-preview-modal" hidden>
+<div class="drawing-preview-dialog" role="dialog" aria-modal="true" aria-label="معاينة الرسمة">
+<button id="closeDrawingPreviewBtn" class="drawing-preview-close" type="button">✕</button>
+<div id="drawingPreviewContent"></div>
+</div>
+</div>
 
 <script>
 
@@ -1319,8 +1467,37 @@ const SUBJECTS = [
     "فيزياء",
     "كيمياء",
     "علوم",
-    "علوم الحياة"
+    "علوم الحياة",
+    "اللغة العربية",
+    "اللغة الفرنسية",
+    "اللغة الإنجليزية",
+    "التربية الوطنية والتنشئة المدنية",
+    "التاريخ",
+    "الجغرافيا",
+    "علم الاجتماع",
+    "الاقتصاد",
+    "الفلسفة والحضارات",
+    "ثقافة علمية"
 ];
+
+const COMMON_SCHOOL_SUBJECTS = [
+    "اللغة العربية", "اللغة الفرنسية", "اللغة الإنجليزية",
+    "التربية الوطنية والتنشئة المدنية", "التاريخ", "الجغرافيا"
+];
+
+function subjectsForStage(grade) {
+    if (["الصف الأول","الصف الثاني","الصف الثالث","الصف الرابع","الصف الخامس","الصف السادس"].includes(grade)) {
+        return ["رياضيات","علوم",...COMMON_SCHOOL_SUBJECTS];
+    }
+    if (["الصف السابع","الصف الثامن","الصف التاسع"].includes(grade)) {
+        return ["رياضيات","فيزياء","كيمياء","علوم الحياة",...COMMON_SCHOOL_SUBJECTS];
+    }
+    return SUBJECTS;
+}
+
+const branchSelect = document.getElementById("branchSelect");
+const branchControl = document.getElementById("branchControl");
+const teachingModeSelect = document.getElementById("teachingModeSelect");
 
 const gradeSelect =
     document.getElementById("gradeSelect");
@@ -1371,6 +1548,7 @@ const micBtn =
     document.getElementById("micBtn");
 
 let curriculumIndex = {};
+let curriculumData = {};
 
 let conversationId = null;
 
@@ -1430,6 +1608,8 @@ fillSelect(
     "اختر المادة"
 );
 
+fillSelect(branchSelect, [], "اختر الفرع");
+
 
 fillSelect(
     lessonSelect,
@@ -1461,13 +1641,13 @@ async function loadCurriculum() {
         const data =
             await response.json();
 
-        curriculumIndex =
-            data.verified_index || {};
+        curriculumData = data || {};
+        curriculumIndex = data.verified_index || {};
 
         indexStatus.textContent =
             "تم تحميل فهرس المحتوى المتاح من CRDP.";
 
-        updateLessons();
+        updateBranchAndSubjects();
 
     }
     catch (error) {
@@ -1480,115 +1660,83 @@ async function loadCurriculum() {
         indexStatus.textContent =
             "فهرس CRDP غير موجود على الخادم حاليًا. يمكن متابعة المحادثة ورفع الصور، لكن قائمة الدروس المفهرسة لن تظهر.";
 
-        updateLessons();
+        updateBranchAndSubjects();
 
     }
 
 }
 
+
+function getBranchesForGrade(grade) {
+    return Object.keys(curriculumData?.secondary_structure?.[grade]?.branches || {});
+}
+
+function updateBranchAndSubjects() {
+    const grade = gradeSelect.value;
+    const branches = getBranchesForGrade(grade);
+    const oldBranch = branchSelect.value;
+
+    branchControl.hidden = branches.length === 0;
+    fillSelect(branchSelect, branches, "اختر الفرع");
+    if (branches.includes(oldBranch)) branchSelect.value = oldBranch;
+    if (branches.length === 1) branchSelect.value = branches[0];
+
+    const branch = branchSelect.value;
+    const branchSubjects = curriculumData?.secondary_structure?.[grade]?.branches?.[branch]?.subjects;
+    const gradeSubjects = curriculumData?.subject_availability?.[grade];
+    const available = [...new Set([
+        ...(Array.isArray(branchSubjects) ? branchSubjects : []),
+        ...(Array.isArray(gradeSubjects) ? gradeSubjects : []),
+        ...subjectsForStage(grade)
+    ])];
+    const oldSubject = subjectSelect.value;
+    fillSelect(subjectSelect, available, "اختر المادة");
+    if (available.includes(oldSubject)) subjectSelect.value = oldSubject;
+    updateLessons();
+}
+
+function collectLessonTitles(value) {
+    if (Array.isArray(value)) {
+        return value.map(item => typeof item === "string" ? item : item?.title).filter(Boolean);
+    }
+    if (value && typeof value === "object") {
+        return Object.values(value).flatMap(collectLessonTitles);
+    }
+    return [];
+}
 
 function updateLessons() {
-
-    const grade =
-        gradeSelect.value;
-
-    const subject =
-        subjectSelect.value;
-
-    const language =
-        languageSelect.value;
-
+    const grade = gradeSelect.value;
+    const branch = branchSelect.value;
+    const subject = subjectSelect.value;
+    const language = languageSelect.value;
     let lessons = [];
 
-    const gradeData =
-        curriculumIndex?.[subject]?.[grade];
+    const verified = curriculumIndex?.[subject]?.[grade];
+    if (verified) lessons.push(...collectLessonTitles(verified[language] || verified));
 
-    if (gradeData) {
+    const secondary = curriculumData?.secondary_structure?.[grade]?.branches?.[branch]?.[subject];
+    if (secondary) lessons.push(...collectLessonTitles(secondary[language] || secondary));
 
-        const languageData =
-            gradeData[language];
+    const annual = curriculumData?.annual_curriculum_details?.["الثانوي"]?.[grade]?.[branch]?.[subject];
+    if (annual) lessons.push(...collectLessonTitles(annual));
 
-        if (
-            Array.isArray(
-                languageData
-            )
-        ) {
+    lessons = [...new Set(lessons.map(String).map(item => item.trim()).filter(Boolean))];
+    fillSelect(lessonSelect, lessons, "اختر الدرس");
 
-            lessons =
-                languageData;
-
-        }
-        else if (
-            languageData &&
-            typeof languageData === "object"
-        ) {
-
-            for (
-                const value
-                of Object.values(
-                    languageData
-                )
-            ) {
-
-                if (
-                    Array.isArray(value)
-                ) {
-
-                    lessons.push(
-                        ...value
-                    );
-
-                }
-
-            }
-
-        }
-
+    if (!lessons.length && grade && subject) {
+        const option = document.createElement("option");
+        option.value = "درس من صورة أو عنوان الطالب";
+        option.textContent = "درس من صورة أو عنوان الطالب";
+        lessonSelect.appendChild(option);
+        indexStatus.textContent = "يمكنك رفع صفحة من الكتاب أو كتابة عنوان الدرس، ولن يخمّن الأستاذ نصًا غير ظاهر.";
     }
-
-    fillSelect(
-        lessonSelect,
-        lessons,
-        "اختر الدرس"
-    );
-
-    if (
-        lessons.length === 0
-    ) {
-
-        const option =
-            document.createElement("option");
-
-        option.value = "";
-
-        option.textContent =
-            "المحتوى قيد الفهرسة";
-
-        lessonSelect.innerHTML = "";
-
-        lessonSelect.appendChild(
-            option
-        );
-
-    }
-
 }
 
-
-gradeSelect.addEventListener(
-    "change",
-    updateLessons
-);
-
-subjectSelect.addEventListener(
-    "change",
-    updateLessons
-);
-
-languageSelect.addEventListener(
-    "change",
-    updateLessons
-);
+gradeSelect.addEventListener("change", updateBranchAndSubjects);
+branchSelect.addEventListener("change", updateBranchAndSubjects);
+subjectSelect.addEventListener("change", updateLessons);
+languageSelect.addEventListener("change", updateLessons);
 
 
 function getStudentId() {
@@ -2372,6 +2520,10 @@ async function sendToAI(
     const subject =
         subjectSelect.value;
 
+    const branch = branchSelect.value;
+
+    const teachingMode = teachingModeSelect.value || "interactive";
+
 
     const language =
         languageSelect.value;
@@ -2468,6 +2620,9 @@ async function sendToAI(
         subject
     );
 
+    if (branch) formData.append("branch", branch);
+    formData.append("teaching_mode", teachingMode);
+
 
     formData.append(
         "language",
@@ -2490,6 +2645,14 @@ async function sendToAI(
     if (
         selectedImage
     ) {
+
+        const imageInstruction = language === "English"
+            ? "Classify the image as a book page, printed exercise, student's handwritten work, or diagram. Explain or solve it, identify mistakes gently, never guess covered or unreadable text, give a clean notebook-ready answer, and end a completed lesson with a rules summary."
+            : language === "Français"
+                ? "Classe d'abord l'image : page de manuel, exercice imprimé, travail manuscrit de l'élève ou schéma. Explique ou résous, corrige les erreurs avec bienveillance, n'invente jamais le texte caché ou illisible, donne une réponse propre à recopier et termine une leçon complète par un résumé des règles."
+                : "صنّف الصورة أولًا: صفحة كتاب، تمرين مطبوع، حلّ بخط الطالب، أو رسم. اشرح أو حلّ، وحدد أخطاء الطالب بلطف، ولا تخمّن نصًا محجوبًا أو غير مقروء، واكتب جوابًا نهائيًا مرتبًا للدفتر، واختم الدرس المكتمل بخلاصة القواعد.";
+
+        formData.set("message", [message || "", imageInstruction].filter(Boolean).join("\n\n"));
 
         formData.append(
             "image",
@@ -2611,17 +2774,13 @@ async function sendToAI(
             data.reply ||
             "لم يصل جواب من NABIL AI.";
 
-        if (
-            data.drawing &&
-            typeof data.drawing === "object"
-        ) {
-            teacherReply +=
-                "\n\n```nabil-draw\n" +
-                JSON.stringify(
-                    data.drawing
-                ) +
-                "\n```";
-        }
+        const responseDrawings = Array.isArray(data.drawings) && data.drawings.length
+            ? data.drawings
+            : (data.drawing && typeof data.drawing === "object" ? [data.drawing] : []);
+
+        responseDrawings.forEach(drawing => {
+            teacherReply += "\n\n```nabil-draw\n" + JSON.stringify(drawing) + "\n```";
+        });
 
         /* HARD LESSON GUARD:
            A stale goodbye/social closing must never replace the lesson explanation. */
@@ -2717,6 +2876,10 @@ startLesson.addEventListener(
         const subject =
             subjectSelect.value;
 
+        const branch = branchSelect.value;
+
+        const teachingMode = teachingModeSelect.value || "interactive";
+
         const language =
             languageSelect.value;
 
@@ -2746,6 +2909,11 @@ startLesson.addEventListener(
 
             return;
 
+        }
+
+        if (getBranchesForGrade(grade).length && !branch) {
+            alert("اختر الفرع أولاً.");
+            return;
         }
 
 
@@ -2830,10 +2998,12 @@ startLesson.addEventListener(
             `ابدأ الآن درسًا تفاعليًا في:
 
 الصف: ${grade}
+الفرع: ${branch || "غير مطبق"}
 المادة: ${subject}
 اللغة: ${language}
 المنهج: ${curriculum}
 الدرس: ${lesson}
+طريقة الشرح: ${teachingMode === "full_lesson" ? "الدرس كامل ثم الأسئلة" : "فكرة ثم مثال ثم سؤال تحقق"}
 
 قواعد بدء الدرس:
 - لا تعرّف عن نفسك من جديد؛ تم الترحيب بالطالب مسبقًا.
@@ -2841,7 +3011,7 @@ startLesson.addEventListener(
 - ابدأ مباشرة بشرح الفكرة الأولى في الدرس المحدد نفسه.
 - ممنوع قول Goodbye أو مع السلامة أو إنهاء الحصة ما دام الطالب داخل الدرس.
 - عرّف المفهوم ببساطة ثم اشرحه تدريجيًا وفق الصف والمنهج.
-- اشرح فكرة واحدة فقط في هذه المرحلة، بما يناسب عمر الطالب.
+- ${teachingMode === "full_lesson" ? "اشرح مفاهيم الدرس كاملة بترتيب واضح، ثم اختم بخلاصة القواعد، وبعدها ابدأ الأسئلة سؤالًا واحدًا في كل مرة." : "اشرح فكرة واحدة فقط، ثم مثالًا مناسبًا، ثم سؤال تحقق واحدًا وانتظر جواب الطالب."}
 - استخدم مثالًا بسيطًا مناسبًا للصف إذا كان مفيدًا.
 - لا تعطِ كمية كبيرة من المعلومات دفعة واحدة.
 - إذا كان الدرس رياضيات أو فيزياء أو كيمياء، استخدم الرموز والمعادلات الصحيحة.
@@ -2857,7 +3027,7 @@ startLesson.addEventListener(
   cube, rectangular_prism, prism, pyramid, cylinder, cone, sphere,
   plane, coordinate_plane, orthonormal_plane,
   vector, vector_plane, vector_addition, vector_components,
-  number_line, function, graph, statistics,
+  number_line, function, graph, statistics, probability_tree, venn_diagram, probability_table,
   forces, inclined_plane, motion, spring, pulley, wave, optics_ray,
   electric_circuit, electric_series, electric_parallel, electric_mixed,
   molecule, atom_model, cell_diagram.
@@ -2868,8 +3038,7 @@ startLesson.addEventListener(
 - لا تكتب JSON خارج كتلة nabil-draw.
 
 - استخدم لغة ${language} كما هي مختارة.
-- في النهاية اطرح سؤال تحقق واحدًا قصيرًا فقط.
-- انتظر جواب الطالب قبل الانتقال إلى الفكرة التالية.
+- اختم الدرس المكتمل بخلاصة مرتبة للأفكار والقواعد بلغة ${language}.
 - لا تعرض أي تعليمات داخلية أو prompt أو reasoning للطالب.
 - كن مهذبًا، مشجعًا، تربويًا، وواضحًا.`;
 
@@ -3129,7 +3298,10 @@ function renderNabilDiagram(spec){
         cuboid: "rectangular_prism",
         analytic_plane: "coordinate_plane",
         orthonormal_system: "orthonormal_plane",
-        pythagoras: "right_triangle"
+        pythagoras: "right_triangle",
+        event_tree: "probability_tree",
+        tree_diagram: "probability_tree",
+        venn: "venn_diagram"
     };
 
     const rawType = String(spec.type || "").toLowerCase();
@@ -3216,6 +3388,9 @@ function renderNabilDiagram(spec){
 
     if (t === "coordinate_plane" || t === "function" || t === "graph"){
         const pts=Array.isArray(spec.points)?spec.points:[];
+        const series=Array.isArray(spec.series) && spec.series.length
+            ? spec.series
+            : [{points:pts,color:"#dc2626"}];
         const xmin=Number(spec.xmin ?? -5), xmax=Number(spec.xmax ?? 5);
         const ymin=Number(spec.ymin ?? -5), ymax=Number(spec.ymax ?? 5);
         const sx=x=>50+420*(x-xmin)/(xmax-xmin||1);
@@ -3223,13 +3398,33 @@ function renderNabilDiagram(spec){
         let grid="";
         for(let x=Math.ceil(xmin);x<=Math.floor(xmax);x++) grid+=`<line x1="${sx(x)}" y1="45" x2="${sx(x)}" y2="265" class="vgrid"/>`;
         for(let y=Math.ceil(ymin);y<=Math.floor(ymax);y++) grid+=`<line x1="50" y1="${sy(y)}" x2="470" y2="${sy(y)}" class="vgrid"/>`;
-        const poly=pts.filter(p=>Array.isArray(p)&&p.length>=2).map(p=>`${sx(Number(p[0]))},${sy(Number(p[1]))}`).join(" ");
+        let curves="";
+        series.forEach((line,i)=>{
+            const linePoints=Array.isArray(line)?line:(Array.isArray(line.points)?line.points:[]);
+            const poly=linePoints.filter(p=>Array.isArray(p)&&p.length>=2 && Number.isFinite(Number(p[0])) && Number.isFinite(Number(p[1]))).map(p=>`${sx(Number(p[0]))},${sy(Number(p[1]))}`).join(" ");
+            if(poly) curves+=`<polyline points="${poly}" fill="none" stroke="${nabilEsc(line.color||["#dc2626","#2563eb","#169447"][i%3])}" stroke-width="3"/>`;
+        });
+        const verticals=(Array.isArray(spec.vertical_asymptotes)?spec.vertical_asymptotes:(spec.vertical_asymptote!==undefined?[spec.vertical_asymptote]:[]));
+        verticals.forEach(v=>{
+            const value=Number(typeof v==="object"?v.x:v);
+            if(Number.isFinite(value)) curves+=`<line x1="${sx(value)}" y1="45" x2="${sx(value)}" y2="265" stroke="#dc2626" stroke-width="2.5" stroke-dasharray="8 6"/>`;
+        });
+        const oblique=spec.oblique_asymptote;
+        if(oblique && Number.isFinite(Number(oblique.slope)) && Number.isFinite(Number(oblique.intercept))){
+            const m=Number(oblique.slope), b=Number(oblique.intercept);
+            curves+=`<line x1="${sx(xmin)}" y1="${sy(m*xmin+b)}" x2="${sx(xmax)}" y2="${sy(m*xmax+b)}" stroke="#eab308" stroke-width="2.5" stroke-dasharray="8 6"/>`;
+        }
+        const markers=Array.isArray(spec.markers)?spec.markers:[];
+        markers.forEach(p=>{
+            const x=Number(p.x),y=Number(p.y);
+            if(Number.isFinite(x)&&Number.isFinite(y)) curves+=`<circle cx="${sx(x)}" cy="${sy(y)}" r="5" fill="#169447"/><text x="${sx(x)+7}" y="${sy(y)-7}" class="vlab vsmall">${nabilEsc(p.label||`(${x}, ${y})`)}</text>`;
+        });
         return nabilVisualWrap(title||"مخطط بياني",`
         <svg viewBox="0 0 520 310">
           ${grid}
           <line x1="50" y1="${sy(0)}" x2="470" y2="${sy(0)}" class="vaxis"/>
           <line x1="${sx(0)}" y1="45" x2="${sx(0)}" y2="265" class="vaxis"/>
-          ${poly?`<polyline points="${poly}" class="vaccent"/>`:""}
+          ${curves}
           <text x="474" y="${sy(0)-7}" class="vlab vsmall">x</text>
           <text x="${sx(0)+7}" y="42" class="vlab vsmall">y</text>
         </svg>`,spec.note||"");
@@ -3503,6 +3698,73 @@ function renderNabilDiagram(spec){
           <circle cx="260" cy="145" r="5" fill="#163a67"/>
           <text x="265" y="68" class="vlab">${nabilEsc(L.normal||"Normal")}</text>
         </svg>`,spec.note||"");
+    }
+
+    if (t === "probability_tree"){
+        const first = (Array.isArray(spec.branches) ? spec.branches : []).slice(0,3);
+        const rootLabel = nabilEsc(spec.start || "Start");
+        let svg = `<svg viewBox="0 0 760 430" role="img" aria-label="probability tree">
+          <circle cx="75" cy="215" r="7" fill="#163a67"/>
+          <text x="28" y="202" class="vlab vsmall">${rootLabel}</text>`;
+        const firstY = first.length === 1 ? [215] : first.length === 2 ? [125,305] : [80,215,350];
+        first.forEach((branch,i) => {
+            const y = firstY[i];
+            const label = nabilEsc(branch.label || `E${i+1}`);
+            const probability = nabilEsc(branch.probability ?? branch.p ?? "");
+            svg += `<line x1="82" y1="215" x2="300" y2="${y}" stroke="#2563eb" stroke-width="4"/>
+              <circle cx="300" cy="${y}" r="7" fill="#2563eb"/>
+              <text x="165" y="${(215+y)/2-10}" class="vlab vsmall">${label}${probability ? `  P=${probability}` : ""}</text>`;
+            const children = (Array.isArray(branch.branches) ? branch.branches : []).slice(0,3);
+            const spread = children.length === 3 ? [-55,0,55] : children.length === 2 ? [-34,34] : [0];
+            children.forEach((child,j) => {
+                const cy = y + spread[j];
+                const childLabel = nabilEsc(child.label || `E${j+1}`);
+                const childP = nabilEsc(child.probability ?? child.p ?? "");
+                const outcome = nabilEsc(child.outcome || `${label} ∩ ${childLabel}`);
+                svg += `<line x1="307" y1="${y}" x2="540" y2="${cy}" stroke="#169447" stroke-width="4"/>
+                  <circle cx="540" cy="${cy}" r="7" fill="#169447"/>
+                  <text x="385" y="${(y+cy)/2-9}" class="vlab vsmall">${childLabel}${childP ? `  P=${childP}` : ""}</text>
+                  <text x="558" y="${cy+6}" class="vlab vsmall">${outcome}</text>`;
+            });
+        });
+        svg += `</svg>`;
+        return nabilVisualWrap(title || "Probability Tree", svg, spec.note || "");
+    }
+
+    if (t === "venn_diagram"){
+        const sets = Array.isArray(spec.sets) ? spec.sets : [];
+        const left = sets[0] || {label:"A"};
+        const right = sets[1] || {label:"B"};
+        const leftOnly = nabilEsc(left.only ?? spec.left_only ?? "");
+        const rightOnly = nabilEsc(right.only ?? spec.right_only ?? "");
+        const intersection = nabilEsc(spec.intersection ?? "");
+        const outside = nabilEsc(spec.outside ?? "");
+        return nabilVisualWrap(title || "Venn Diagram",`
+        <svg viewBox="0 0 650 390" role="img" aria-label="Venn diagram">
+          <rect x="45" y="42" width="560" height="300" rx="18" fill="#f8fbff" stroke="#163a67" stroke-width="3"/>
+          <text x="565" y="72" class="vlab vsmall">Ω</text>
+          <circle cx="270" cy="190" r="115" fill="#93c5fd" fill-opacity=".62" stroke="#2563eb" stroke-width="4"/>
+          <circle cx="390" cy="190" r="115" fill="#86efac" fill-opacity=".58" stroke="#169447" stroke-width="4"/>
+          <text x="205" y="92" class="vlab">${nabilEsc(left.label || "A")}</text>
+          <text x="445" y="92" class="vlab">${nabilEsc(right.label || "B")}</text>
+          <text x="220" y="198" class="vlab">${leftOnly}</text>
+          <text x="318" y="198" class="vlab">${intersection}</text>
+          <text x="445" y="198" class="vlab">${rightOnly}</text>
+          <text x="75" y="315" class="vlab vsmall">${outside ? `Outside: ${outside}` : ""}</text>
+        </svg>`,spec.note||"");
+    }
+
+    if (t === "probability_table"){
+        const headers=(Array.isArray(spec.headers)?spec.headers:["Outcome","Probability"]).slice(0,5);
+        const rows=(Array.isArray(spec.rows)?spec.rows:[]).slice(0,6);
+        const cols=Math.max(1,headers.length), x0=40, y0=55, width=680, rowH=46, colW=width/cols;
+        let cells="";
+        headers.forEach((h,i)=>{cells+=`<rect x="${x0+i*colW}" y="${y0}" width="${colW}" height="${rowH}" fill="#dbeafe" stroke="#163a67"/><text x="${x0+i*colW+12}" y="${y0+30}" class="vlab vsmall">${nabilEsc(h)}</text>`});
+        rows.forEach((row,r)=>{
+            const values=Array.isArray(row)?row:Object.values(row||{});
+            for(let c=0;c<cols;c++) cells+=`<rect x="${x0+c*colW}" y="${y0+(r+1)*rowH}" width="${colW}" height="${rowH}" fill="#fff" stroke="#6e9dbf"/><text x="${x0+c*colW+12}" y="${y0+(r+1)*rowH+30}" class="vlab vsmall">${nabilEsc(values[c]??"")}</text>`;
+        });
+        return nabilVisualWrap(title || "Probability Table",`<svg viewBox="0 0 760 390" role="img" aria-label="probability table">${cells}</svg>`,spec.note||"");
     }
 
     if (t === "statistics"){
@@ -4074,7 +4336,7 @@ function buildAdaptiveLessonPrompt(studentText){
   cube, rectangular_prism, prism, pyramid, cylinder, cone, sphere,
   plane, coordinate_plane, orthonormal_plane,
   vector, vector_plane, vector_addition, vector_components,
-  number_line, function, graph, statistics,
+  number_line, function, graph, statistics, probability_tree, venn_diagram, probability_table,
   forces, inclined_plane, motion, spring, pulley, wave, optics_ray,
   electric_circuit, electric_series, electric_parallel, electric_mixed,
   molecule, atom_model, cell_diagram.
@@ -4816,13 +5078,17 @@ function makeChoice(label, onClick){
 
 function showGradeStage(announce=true){
     homeStep = "grade";
-    stageHeader("الصف", "اختر صفك الدراسي");
+    stageHeader("اختر صفك", "سنكمل المادة والدرس في صفحة الدرس");
     GRADES.forEach(g => homeStage.appendChild(makeChoice(g, () => {
         gradeSelect.value = g;
-        updateLessons();
-        showSubjectStage(true);
+        updateBranchAndSubjects();
+        openClassicLessonPage();
     })));
-    if (announce) homeSpeak("أهلاً بك في NABIL AI. أنا الأستاذ نبيل. اختر الصف الدراسي لنبدأ.");
+    const start = makeChoice("▶ ابدأ الدرس", () => openClassicLessonPage());
+    start.classList.add("home-start-lesson");
+    start.style.background = "linear-gradient(180deg,#20bd58,#0d8538)";
+    homeStage.appendChild(start);
+    if (announce) homeSpeak("أهلاً بك. اختر صفك أو اضغط ابدأ الدرس، ثم أكمل معلومات الدرس في الصفحة التالية.");
 }
 
 function showSubjectStage(announce=true){
@@ -4991,8 +5257,13 @@ function processHomeVoiceCommand(heard){
         const match = findBestVoiceMatch(heard, GRADES);
         if (match){
             gradeSelect.value = match;
-            updateLessons();
-            showSubjectStage(true);
+            updateBranchAndSubjects();
+            openClassicLessonPage();
+            return true;
+        }
+        const h = normalizeVoiceText(heard);
+        if (h.includes("ابدا") || h.includes("ابدأ") || h.includes("start")) {
+            openClassicLessonPage();
             return true;
         }
     }
@@ -5262,7 +5533,10 @@ document.addEventListener("pointerdown", () => {
          */
         const scale = Math.min(1, vw / DESIGN_WIDTH);
         const renderedHeight = DESIGN_HEIGHT * scale;
-        const offsetY = Math.max(0, (vh - renderedHeight) / 2);
+        /* The interface starts at the very top of the phone.  A dark fixed
+           underlay covers the rest, so the lesson page can never appear as
+           a second layer below the scaled home scene. */
+        const offsetY = 0;
 
         document.documentElement.style.setProperty(
             "--nabil-mobile-scale",
@@ -5312,6 +5586,139 @@ document.addEventListener("click", (event) => {
     startHomeListening();
 }, true);
 
+</script>
+
+<script>
+/* Stage 9 lesson tools: whole-conversation copy/Word, sharing, drawing preview
+   and the compact lesson avatar. */
+(function () {
+    const copyBtn = document.getElementById("copyConversationBtn");
+    const wordBtn = document.getElementById("exportWordBtn");
+    const shareBtn = document.getElementById("shareLessonBtn");
+    const previewBtn = document.getElementById("previewDrawingBtn");
+    const downloadBtn = document.getElementById("downloadDrawingBtn");
+    const modal = document.getElementById("drawingPreviewModal");
+    const modalContent = document.getElementById("drawingPreviewContent");
+    const closeModal = document.getElementById("closeDrawingPreviewBtn");
+    const talkBtn = document.getElementById("lessonTalkBtn");
+    const readLatestBtn = document.getElementById("lessonReadLatestBtn");
+    const backBtn = document.getElementById("backToInterfaceBtn");
+
+    function messageRows() {
+        return Array.from(chat.querySelectorAll(".message")).map(row => {
+            const clone = row.cloneNode(true);
+            clone.querySelectorAll("button,.teacher-tools,.sources,.nabil-visual").forEach(node => node.remove());
+            return {
+                role: row.classList.contains("teacher") ? "الأستاذ نبيل" : "الطالب",
+                text: clone.innerText.replace(/\n{3,}/g, "\n\n").trim()
+            };
+        }).filter(row => row.text);
+    }
+
+    function conversationText() {
+        const meta = [gradeSelect.value, branchSelect.value, subjectSelect.value, lessonSelect.value]
+            .filter(Boolean).join(" — ");
+        return [`NABIL AI — ${meta}`, ...messageRows().map(row => `${row.role}:\n${row.text}`)].join("\n\n");
+    }
+
+    async function copyText(text, button) {
+        await navigator.clipboard.writeText(text);
+        const old = button.textContent;
+        button.textContent = "✓ تم النسخ";
+        setTimeout(() => button.textContent = old, 1500);
+    }
+
+    copyBtn?.addEventListener("click", () => copyText(conversationText(), copyBtn));
+
+    wordBtn?.addEventListener("click", () => {
+        const title = lessonSelect.value || "درس NABIL AI";
+        const rows = messageRows().map(row =>
+            `<section><h3>${nabilEsc(row.role)}</h3><p>${nabilEsc(row.text).replace(/\n/g,"<br>")}</p></section>`
+        ).join("");
+        const html = `<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>${nabilEsc(title)}</title>
+        <style>body{font-family:Arial;line-height:1.8;margin:32px}h1{color:#173b6c}h3{color:#2563eb;margin-bottom:4px}section{border-bottom:1px solid #ddd;padding:8px 0}p{white-space:normal}</style>
+        </head><body><h1>${nabilEsc(title)}</h1><p>${nabilEsc([gradeSelect.value,branchSelect.value,subjectSelect.value,languageSelect.value].filter(Boolean).join(" — "))}</p>${rows}</body></html>`;
+        const blob = new Blob(["\ufeff", html], {type:"application/msword"});
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `NABIL-AI-${title.replace(/[^\p{L}\p{N}]+/gu,"-").slice(0,50)}.doc`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    });
+
+    shareBtn?.addEventListener("click", async () => {
+        const text = conversationText();
+        if (navigator.share) {
+            await navigator.share({title: lessonSelect.value || "درس NABIL AI", text});
+        } else {
+            await copyText(text, shareBtn);
+        }
+    });
+
+    function latestVisual() {
+        const visuals = chat.querySelectorAll(".nabil-visual");
+        return visuals.length ? visuals[visuals.length - 1] : null;
+    }
+
+    previewBtn?.addEventListener("click", () => {
+        const visual = latestVisual();
+        if (!visual) return alert("لا توجد رسمة في الدرس حتى الآن.");
+        modalContent.replaceChildren(visual.cloneNode(true));
+        modal.hidden = false;
+    });
+    closeModal?.addEventListener("click", () => modal.hidden = true);
+    modal?.addEventListener("click", event => { if (event.target === modal) modal.hidden = true; });
+
+    downloadBtn?.addEventListener("click", () => {
+        const svg = latestVisual()?.querySelector("svg");
+        if (!svg) return alert("لا توجد رسمة قابلة للتنزيل حتى الآن.");
+        const copy = svg.cloneNode(true);
+        copy.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+        const viewBox = copy.viewBox?.baseVal;
+        const width = Math.max(640, viewBox?.width || 800);
+        const height = Math.max(420, viewBox?.height || 520);
+        const source = new XMLSerializer().serializeToString(copy);
+        const image = new Image();
+        image.onload = () => {
+            const canvas = document.createElement("canvas");
+            canvas.width = width * 2; canvas.height = height * 2;
+            const ctx = canvas.getContext("2d");
+            ctx.fillStyle = "#ffffff"; ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.drawImage(image,0,0,canvas.width,canvas.height);
+            canvas.toBlob(blob => {
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.download = `NABIL-AI-${(lessonSelect.value || "drawing").replace(/[^\p{L}\p{N}]+/gu,"-")}.png`;
+                link.click(); setTimeout(() => URL.revokeObjectURL(link.href),1000);
+            }, "image/png");
+        };
+        image.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(source);
+    });
+
+    talkBtn?.addEventListener("click", () => {
+        micBtn.click();
+        talkBtn.classList.toggle("listening");
+        setTimeout(() => talkBtn.classList.remove("listening"), 5000);
+    });
+
+    readLatestBtn?.addEventListener("click", () => {
+        const teachers = chat.querySelectorAll(".message.teacher .bubble");
+        const latest = teachers.length ? teachers[teachers.length - 1] : null;
+        if (!latest) return alert("لا يوجد شرح لقراءته بعد.");
+        const clone = latest.cloneNode(true);
+        clone.querySelectorAll("button,.teacher-tools,.nabil-visual").forEach(node => node.remove());
+        readAnswer(clone.innerText.trim(), readLatestBtn);
+    });
+
+    backBtn?.addEventListener("click", () => {
+        if ("speechSynthesis" in window) speechSynthesis.cancel();
+        nabilHome.style.display = "block";
+        nabilHome.style.opacity = "1";
+        document.body.classList.add("nabil-home-lock");
+        showGradeStage(false);
+        window.dispatchEvent(new Event("resize"));
+    });
+})();
 </script>
 </body>
 </html>
