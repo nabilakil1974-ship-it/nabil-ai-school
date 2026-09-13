@@ -1406,7 +1406,7 @@ body.nabil-home-lock::before{
 }
 .exercise-visual-panel .nabil-visual{margin:0 0 10px}
 .exercise-visual-panel .nabil-visual:last-child{margin-bottom:0}
-.exercise-visual-panel .nabil-visual svg{background:#08243a;min-height:380px;max-height:470px}
+.exercise-visual-panel .nabil-visual svg{background:#08243a;min-height:440px;max-height:560px}
 .exercise-visual-empty{padding:24px 12px;color:#9dc7df;text-align:center;font-size:14px}
 .exercise-solution-card{border-color:#2f84af}
 .exercise-answer-card{border-color:#21b782;background:linear-gradient(160deg,rgba(8,70,58,.95),rgba(8,27,39,.98))}
@@ -1416,6 +1416,117 @@ body.nabil-home-lock::before{
 .exercise-section-card .lesson-table-wrap table,
 .exercise-section-card table{width:100%}
 .exercise-board + .exercise-board{margin-top:2px}
+
+.exercise-function-board{
+    display:grid;
+    grid-template-columns:minmax(330px,.95fr) minmax(520px,1.45fr);
+    gap:12px;
+    align-items:stretch;
+}
+.exercise-function-study{
+    border:1px solid #2e7fa9;
+    border-radius:16px;
+    background:linear-gradient(180deg,#0a2940,#082136);
+    padding:14px;
+    min-width:0;
+}
+.exercise-function-study-title{
+    color:#6fdcff;
+    font-weight:900;
+    font-size:23px;
+    margin:0 0 10px;
+    padding-inline-start:10px;
+    border-inline-start:4px solid #28c8ff;
+}
+.exercise-function-study .exercise-section-card{
+    border:0;
+    border-radius:0;
+    background:transparent;
+    padding:7px 0;
+    box-shadow:none;
+}
+.exercise-function-study .exercise-section-card h3{
+    color:#58cdf6;
+    font-size:15px;
+    margin:0 0 5px;
+}
+.exercise-function-study .exercise-section-card p,
+.exercise-function-study .exercise-section-card li{
+    line-height:1.55;
+}
+.exercise-function-study .exercise-answer-card,
+.exercise-function-study .exercise-summary-card{
+    border:1px solid #2f87b5;
+    border-radius:12px;
+    padding:10px 12px;
+    margin-top:8px;
+    background:rgba(7,35,54,.72);
+}
+.exercise-function-study .exercise-summary-card{
+    border-color:#27b47f;
+}
+.exercise-function-visual{
+    border:1px solid #2e6f96;
+    border-radius:16px;
+    background:linear-gradient(180deg,#0a2940,#071f34);
+    padding:10px;
+    display:grid;
+    grid-template-rows:auto auto;
+    gap:10px;
+    min-width:0;
+}
+.exercise-function-visual-title{
+    color:#64d8ff;
+    font-size:22px;
+    font-weight:900;
+    padding:0 4px 2px;
+}
+.exercise-function-visual .exercise-visual-panel{
+    padding:0;
+    border:0;
+    background:transparent;
+}
+.exercise-function-visual .nabil-visual svg{
+    min-height:500px;
+    max-height:600px;
+}
+.exercise-variation-zone{
+    border:1px solid #347ca4;
+    border-radius:12px;
+    padding:8px;
+    background:#082136;
+    overflow-x:auto;
+}
+.exercise-variation-title{
+    color:#58cdf6;
+    font-weight:900;
+    font-size:16px;
+    margin:0 0 6px;
+}
+.exercise-variation-zone table{
+    width:100%;
+    border-collapse:collapse;
+    background:#0a2133;
+}
+.exercise-variation-zone th,
+.exercise-variation-zone td{
+    border:1px solid #315d78;
+    padding:7px 8px;
+    text-align:center;
+}
+.exercise-variation-zone th{background:#0d3e59;color:#76e3ff}
+.exercise-function-board .exercise-visual-empty{
+    min-height:500px;
+    display:grid;
+    place-items:center;
+}
+
+@media(max-width:900px){
+    .exercise-function-board{grid-template-columns:minmax(0,1fr)}
+    .exercise-function-study{order:1}
+    .exercise-function-visual{order:2}
+    .exercise-function-visual .nabil-visual svg{min-height:320px;max-height:none}
+}
 
 @media(max-width:900px){
     .exercise-board-main{grid-template-columns:minmax(0,1fr)}
@@ -2428,10 +2539,19 @@ function titleTextOfNode(node){
 }
 
 function detectMessageRenderLanguage(text){
-    const lang = nabilDetectLang(text);
-    if (lang === "en") return "English";
-    if (lang === "fr") return "Français";
-    return "العربية";
+    const raw = String(text || "");
+    const arabicCount = (raw.match(/[\u0600-\u06FF]/g) || []).length;
+    const latinCount = (raw.match(/[A-Za-zÀ-ÿ]/g) || []).length;
+
+    if (arabicCount > latinCount * 0.55) return "العربية";
+
+    if (/\b(données|demandé|solution|résolution|réponse|fonction|asymptote|dérivée|tableau de variations|exercice)\b/i.test(raw)) {
+        return "Français";
+    }
+
+    if (latinCount > 0) return "English";
+
+    return languageSelect?.value || "العربية";
 }
 
 function isExerciseH2Title(text){
@@ -2517,6 +2637,47 @@ function diagramCardIndexFromHTML(html){
     return match ? Number(match[1]) : null;
 }
 
+
+function isFunctionStudyBoard(board, allText){
+    const raw = `${board?.title || ""} ${allText || ""}`.toLowerCase();
+    return /function|fonction|دال|graph|variation|asymptote|مقارب|مشتق|derivative|dériv/.test(raw);
+}
+
+function stripAndCollectTables(html){
+    const holder = document.createElement("div");
+    holder.innerHTML = html || "";
+    const tables = [...holder.querySelectorAll("table")].map(t => {
+        const wrap = document.createElement("div");
+        wrap.className = "lesson-table-wrap";
+        wrap.appendChild(t.cloneNode(true));
+        return wrap.outerHTML;
+    });
+    holder.querySelectorAll("table").forEach(t => {
+        const parent = t.parentElement;
+        if (parent && parent.classList.contains("lesson-table-wrap")) parent.remove();
+        else t.remove();
+    });
+    return {html: holder.innerHTML.trim(), tables};
+}
+
+function functionBoardTitle(messageLanguage){
+    if (messageLanguage === "English") return "Study of the Function";
+    if (messageLanguage === "Français") return "Étude de la fonction";
+    return "دراسة الدالة";
+}
+
+function functionGraphTitle(messageLanguage){
+    if (messageLanguage === "English") return "Graph of the Function";
+    if (messageLanguage === "Français") return "Représentation graphique";
+    return "التمثيل البياني للدالة";
+}
+
+function variationTitle(messageLanguage){
+    if (messageLanguage === "English") return "Variation Table";
+    if (messageLanguage === "Français") return "Tableau de variations";
+    return "جدول التغيّرات";
+}
+
 function renderGeneralExerciseBoards(text, diagrams, messageDirection, messageLanguage){
     const boards = extractExerciseBoards(text);
     if (!boards.length) {
@@ -2550,7 +2711,12 @@ function renderGeneralExerciseBoards(text, diagrams, messageDirection, messageLa
         const requiredHTML = parts.required.map(s => buildExerciseSectionHTML(s.title || "Required", renderNodesAsHTML(s.nodes), "", "section-tone-2")).join("");
         const formulaHTML = parts.formula.map(s => buildExerciseSectionHTML(s.title || "Formula / Property", renderNodesAsHTML(s.nodes), "", "section-tone-3")).join("");
         const extraHTML = parts.extra.map(s => buildExerciseSectionHTML(s.title, renderNodesAsHTML(s.nodes), "", "section-tone-4")).join("");
-        const solutionHTML = parts.solution.map(s => buildExerciseSectionHTML(s.title || "Solution", renderNodesAsHTML(s.nodes), "exercise-solution-card", "section-tone-1")).join("");
+
+        const rawSolutionHTML = parts.solution.map(s => buildExerciseSectionHTML(s.title || "Solution", renderNodesAsHTML(s.nodes), "exercise-solution-card", "section-tone-1")).join("");
+        const strippedSolution = stripAndCollectTables(rawSolutionHTML);
+        const solutionHTML = strippedSolution.html;
+        const variationTables = strippedSolution.tables;
+
         const answerHTML = parts.answer.map(s => buildExerciseSectionHTML(s.title || "Final Answer", renderNodesAsHTML(s.nodes), "exercise-answer-card", "section-tone-3")).join("");
         const summaryHTML = parts.summary.map(s => buildExerciseSectionHTML(s.title || "Rule Summary", renderNodesAsHTML(s.nodes), "exercise-summary-card", "section-tone-3")).join("");
 
@@ -2559,7 +2725,44 @@ function renderGeneralExerciseBoards(text, diagrams, messageDirection, messageLa
 
         const visualHTML = diagramsForThis.length
             ? diagramsForThis.join("")
-            : `<div class="exercise-visual-empty">${messageLanguage === "English" ? "No drawing was required for this exercise." : messageLanguage === "Français" ? "Aucun dessin n’était nécessaire pour cet exercice." : "لم يحتج هذا التمرين إلى رسم."}</div>`;
+            : `<div class="exercise-visual-empty">${messageLanguage === "English" ? "Graph required for this function study." : messageLanguage === "Français" ? "Le graphique est requis pour cette étude de fonction." : "الرسم البياني مطلوب في دراسة هذه الدالة."}</div>`;
+
+        const wholeBoardText = [
+            board.title,
+            ...board.sections.map(s => `${s.title} ${renderNodesAsHTML(s.nodes)}`)
+        ].join(" ");
+
+        if (isFunctionStudyBoard(board, wholeBoardText)) {
+            return `
+            <article class="exercise-board" dir="${messageDirection}">
+                <div class="exercise-board-head">
+                    <div class="exercise-board-title">${title}</div>
+                </div>
+                <div class="exercise-function-board">
+                    <section class="exercise-function-study">
+                        <div class="exercise-function-study-title">${functionBoardTitle(messageLanguage)}</div>
+                        ${givenHTML}
+                        ${requiredHTML}
+                        ${formulaHTML}
+                        ${solutionHTML}
+                        ${answerHTML}
+                        ${summaryHTML}
+                        ${extraHTML}
+                    </section>
+
+                    <section class="exercise-function-visual">
+                        <div class="exercise-function-visual-title">${functionGraphTitle(messageLanguage)}</div>
+                        <div class="exercise-visual-panel">${visualHTML}</div>
+                        ${variationTables.length ? `
+                            <div class="exercise-variation-zone">
+                                <div class="exercise-variation-title">${variationTitle(messageLanguage)}</div>
+                                ${variationTables.join("")}
+                            </div>
+                        ` : ""}
+                    </section>
+                </div>
+            </article>`;
+        }
 
         return `
         <article class="exercise-board" dir="${messageDirection}">
@@ -3519,7 +3722,7 @@ async function sendToAI(
 
 
     const language =
-        generalExercisesMode ? "AUTO" : languageSelect.value;
+        languageSelect.value || "العربية";
 
 
     const curriculum =
