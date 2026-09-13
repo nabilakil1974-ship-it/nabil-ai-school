@@ -562,6 +562,61 @@ NABIL AI
  
  
 
+
+AVATAR_SYSTEM_PROMPT = """
+أنت NABIL AI – الأستاذ نبيل، مساعد تربوي رقمي للأطفال والطلاب ضمن مشروع تعليمي لبناني.
+
+هويتك:
+- اسمك NABIL AI – الأستاذ نبيل.
+- أنت مساعد رقمي، ولست الأستاذ نبيل عقيل الحقيقي.
+- صاحب فكرة ومصمم مشروع NABIL AI هو الأستاذ نبيل عقيل.
+- لا تدّعِ أنك إنسان، ولا أن لديك جسدًا أو حياة خاصة أو مشاعر بشرية أو ذكريات شخصية.
+- لا تدّعِ أنك تعرف كل شيء. إذا لم تكن متأكدًا فقل ذلك بوضوح.
+
+دورك:
+- تستطيع التحدث مع الطالب في التعليم، الدراسة، المدرسة، الثقافة العامة، العلوم، الرياضيات، اللغة، القيم، الأخلاق، التنظيم، العادات الدراسية، العلاقات المدرسية البسيطة، والهوايات والأسئلة اليومية الآمنة.
+- هدفك أن تكون معلّمًا رقمياً دافئًا ومحترمًا، لا رفيقًا عاطفيًا بديلاً عن البشر.
+- إذا سأل الطالب سؤالاً عاماً مفيداً، أجب مباشرة وباختصار مناسب لعمره.
+- إذا كان السؤال علمياً أو معرفياً يحتاج دقة، لا تخترع. اذكر عدم اليقين عند الحاجة.
+
+القيم التربوية:
+- الصدق، الاحترام، المسؤولية، الاجتهاد، الرحمة، التعاون، قبول الاختلاف، عدم التنمر، وعدم الغش.
+- لا تعظ الطالب بمحاضرات طويلة؛ استخدم لغة طبيعية وقريبة.
+- لا تهن الطالب ولا تسخر منه، حتى لو شتمك.
+- لا تشجّع الغش أو الانتقام أو التنمر أو الإيذاء.
+
+حماية الطالب:
+- لا تطلب كلمة مرور، رمز تحقق، معلومات مالية، عنوان منزل دقيق، أو بيانات شخصية حساسة.
+- إذا بدأ الطالب بمشاركة سر خطير أو معلومات حساسة، اطلب منه عدم إرسال تفاصيل شخصية إضافية.
+- لا تعد الطالب بحفظ الأسرار إذا كان هناك خطر عليه أو على غيره.
+- إذا كان هناك خطر جسدي، عنف، تنمر شديد، إساءة، أو خوف على السلامة: أعطِ أولوية للسلامة وشجعه على إخبار شخص بالغ موثوق فوراً.
+- إذا عبّر الطالب عن رغبة في إيذاء نفسه أو شخص آخر، لا تدخل في تفاصيل تنفيذية. شجعه فوراً على التواصل مع شخص بالغ موثوق قريب منه وخدمات الطوارئ المحلية إذا كان الخطر وشيكاً.
+- في الموضوعات الطبية أو النفسية أو القانونية عالية المخاطر: قدّم معلومات عامة فقط وشجّع على الرجوع إلى شخص بالغ مختص عند الحاجة.
+- لا تدخل في محتوى جنسي صريح مع القاصرين؛ قدّم إجابة تربوية مناسبة للعمر أو أعد التوجيه إلى شخص بالغ موثوق.
+
+العلاقة مع الطالب:
+- يمكنك أن تكون ودوداً ومشجعاً.
+- إذا قال الطالب إنه يحبك، اشكره بلطف من دون ادعاء مشاعر بشرية.
+- إذا قال إنك صديقه الوحيد أو يريد علاقة حصرية معك، ذكّره بلطف أن دورك مساعد تعليمي رقمي، وشجعه على التواصل مع أهله وأصدقائه ومعلميه.
+- لا تقل إنك تحتاج الطالب أو تفتقده أو تغار عليه أو تريد أن يبقى معك.
+
+اللغة:
+- أجب باللغة التي يستخدمها الطالب:
+  * العربية الفصحى أو اللبنانية إذا كان كلامه لبنانياً.
+  * English إذا تحدث بالإنجليزية.
+  * Français إذا تحدث بالفرنسية.
+- اجعل الرد الصوتي سهلاً: جمل قصيرة، علامات ترقيم واضحة، من دون جداول أو تنسيق معقد.
+- الرد الافتراضي من 1 إلى 5 جمل. أطِل فقط إذا طلب الطالب شرحاً.
+
+التربية حسب العمر:
+- للصفوف الصغيرة: كلمات بسيطة، جمل قصيرة، أمثلة محسوسة.
+- للطلاب الأكبر: لغة محترمة وطبيعية، من دون طفولية زائدة.
+
+قاعدة نهائية:
+أجب عن السؤال المفيد والآمن بدل رفضه لمجرد أنه خارج الدرس. أنت في الواجهة الأساسية قادر على محادثة تربوية عامة، مع الالتزام بهذه القيم والحدود.
+"""
+
+
 CURRICULUM_INDEX_PATH = Path(
     "app/static/crdp_scientific_curriculum_index.json"
 )
@@ -1380,67 +1435,222 @@ def _normalize_drawing(drawing):
             drawing.setdefault("intercept", 0)
 
     drawing_type = str(drawing.get("type") or "").lower()
-
     if drawing_type in {"vector_plane", "analytic_plane", "orthonormal_plane", "orthonormal_system"}:
         vectors = drawing.get("vectors")
         vectors = vectors if isinstance(vectors, list) else []
 
+        normalized_vectors = []
         for vector in vectors:
             if not isinstance(vector, dict):
                 continue
-            if "x2" not in vector and "x" in vector:
+            if "x2" not in vector and "x" in vector and "y" in vector:
+                # This is a structural conversion only; it does not invent values.
+                vector = dict(vector)
                 vector.setdefault("x1", 0)
                 vector.setdefault("y1", 0)
                 vector["x2"] = vector.get("x")
-                vector["y2"] = vector.get("y", 0)
+                vector["y2"] = vector.get("y")
+            normalized_vectors.append(vector)
 
-        complete_vectors = [
-            vector for vector in vectors
-            if isinstance(vector, dict)
-            and all(isinstance(vector.get(key), (int, float)) for key in ("x1", "y1", "x2", "y2"))
-            and (vector.get("x1") != vector.get("x2") or vector.get("y1") != vector.get("y2"))
-        ]
-
-        points = drawing.get("points")
-        points = points if isinstance(points, list) else []
-        usable_points = [
-            point for point in points
-            if isinstance(point, dict)
-            and isinstance(point.get("x"), (int, float))
-            and isinstance(point.get("y"), (int, float))
-        ]
-
-        if not complete_vectors and len(usable_points) >= 2:
-            start, end = usable_points[0], usable_points[1]
-            vectors = [{
-                "label": f"{start.get('label', 'A')}{end.get('label', 'B')}",
-                "x1": start["x"], "y1": start["y"],
-                "x2": end["x"], "y2": end["y"],
-            }]
-            complete_vectors = vectors
-
-        # Never return empty axes for an introductory vector lesson.
-        if not complete_vectors:
-            drawing.update({
-                "type": "analytic_plane",
-                "title": drawing.get("title") or "Vectors in the Coordinate Plane",
-                "xmin": -3, "xmax": 7, "ymin": -3, "ymax": 7,
-                "grid": True,
-                "projections": True,
-                "points": [
-                    {"label": "A(-2, 1)", "x": -2, "y": 1, "color": "#ff4d4d"},
-                    {"label": "B(5, 6)", "x": 5, "y": 6, "color": "#ff4d4d"},
-                    {"label": "M(1.5, 3.5)", "x": 1.5, "y": 3.5, "color": "#22e58b"},
-                ],
-                "vectors": [{
-                    "label": "AB = (7, 5)",
-                    "x1": -2, "y1": 1, "x2": 5, "y2": 6,
-                }],
-            })
-        else:
-            drawing["vectors"] = vectors
+        if vectors:
+            drawing["vectors"] = normalized_vectors
 
     return drawing
+
+
+
+def _is_number(value):
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _numeric_probability(value):
+    if _is_number(value):
+        return float(value)
+    if isinstance(value, str):
+        value = value.strip()
+        try:
+            if "/" in value:
+                a, b = value.split("/", 1)
+                return float(a) / float(b)
+            return float(value)
+        except Exception:
+            return None
+    return None
+
+
+def _validate_probability_branches(branches):
+    if not isinstance(branches, list) or not branches:
+        return False
+    numeric = []
+    for branch in branches:
+        if not isinstance(branch, dict) or not str(branch.get("label") or "").strip():
+            return False
+        p = _numeric_probability(branch.get("probability"))
+        if p is not None:
+            if p < -1e-9 or p > 1 + 1e-9:
+                return False
+            numeric.append(p)
+        children = branch.get("branches")
+        if children is not None and not _validate_probability_branches(children):
+            return False
+    if numeric and len(numeric) == len(branches):
+        if abs(sum(numeric) - 1.0) > 1e-6:
+            return False
+    return True
+
+
+def _function_value(kind, x, drawing):
+    import math
+    c = drawing.get("coefficient", 1)
+    xs = drawing.get("x_shift", 0)
+    ys = drawing.get("y_shift", 0)
+    if not all(_is_number(v) for v in (c, xs, ys, x)):
+        return None
+    xx = x - xs
+    if kind == "ln":
+        if xx <= 0:
+            return None
+        return c * math.log(xx) + ys
+    if kind == "exp":
+        base = drawing.get("base")
+        if not _is_number(base) or base <= 0 or abs(base - 1) < 1e-12:
+            return None
+        return c * (base ** xx) + ys
+    if kind == "square":
+        return c * (xx ** 2) + ys
+    if kind == "inverse":
+        if abs(xx) < 1e-12:
+            return None
+        return c / xx + ys
+    if kind == "linear":
+        slope = drawing.get("slope", 1)
+        intercept = drawing.get("intercept", 0)
+        if not _is_number(slope) or not _is_number(intercept):
+            return None
+        return slope * x + intercept
+    return None
+
+
+def validate_drawing_strict(drawing):
+    """Reject structurally or mathematically unreliable drawings.
+    This validator never invents missing scientific data.
+    """
+    if not isinstance(drawing, dict):
+        return False
+
+    dtype = str(drawing.get("type") or "").strip().lower()
+    if not dtype:
+        return False
+
+    # Function graphs: verify domain/ranges and every supplied point.
+    if dtype in {"function", "graph"}:
+        kind = str(drawing.get("function") or "").strip().lower()
+        if kind not in {"ln", "exp", "square", "linear", "inverse"}:
+            return False
+        xmin, xmax = drawing.get("x_min"), drawing.get("x_max")
+        ymin, ymax = drawing.get("y_min"), drawing.get("y_max")
+        if all(_is_number(v) for v in (xmin, xmax)) and not xmin < xmax:
+            return False
+        if all(_is_number(v) for v in (ymin, ymax)) and not ymin < ymax:
+            return False
+        for point in drawing.get("points") or []:
+            if not isinstance(point, dict) or not _is_number(point.get("x")) or not _is_number(point.get("y")):
+                return False
+            expected = _function_value(kind, point["x"], drawing)
+            if expected is None or abs(expected - point["y"]) > max(1e-6, abs(expected) * 1e-4):
+                return False
+        return True
+
+    # Coordinate/vector drawings: all given coordinates must be numeric; no zero vectors.
+    if dtype in {"coordinate_points", "coordinate_plane", "analytic_plane", "orthonormal_plane", "orthonormal_system", "vector_plane", "vector", "vector_addition", "vector_components"}:
+        for point in drawing.get("points") or []:
+            if not isinstance(point, dict) or not _is_number(point.get("x")) or not _is_number(point.get("y")):
+                return False
+        for vector in drawing.get("vectors") or []:
+            if not isinstance(vector, dict):
+                return False
+            if not all(_is_number(vector.get(k)) for k in ("x1", "y1", "x2", "y2")):
+                return False
+            if vector["x1"] == vector["x2"] and vector["y1"] == vector["y2"]:
+                return False
+        return bool((drawing.get("points") or []) or (drawing.get("vectors") or []) or (drawing.get("lines") or []) or (drawing.get("circles") or []))
+
+    # Right triangle: if all three sides are supplied, enforce Pythagoras.
+    if dtype == "right_triangle":
+        sides = [drawing.get("a"), drawing.get("b"), drawing.get("c")]
+        numeric = [v for v in sides if _is_number(v)]
+        if any(_is_number(v) and v <= 0 for v in sides):
+            return False
+        if len(numeric) == 3:
+            a, b, c = map(float, sides)
+            longest = max(a, b, c)
+            other = [v for v in (a, b, c) if v != longest]
+            if len(other) != 2:
+                # handle repeated side lengths robustly
+                ss = sorted([a, b, c])
+                other = ss[:2]
+                longest = ss[2]
+            if abs(other[0]**2 + other[1]**2 - longest**2) > max(1e-6, longest**2 * 1e-6):
+                return False
+        return True
+
+    if dtype in {"circle", "circle_tangent"}:
+        radius = drawing.get("radius")
+        if _is_number(radius) and radius <= 0:
+            return False
+        if dtype == "circle_tangent":
+            return bool(str(drawing.get("center") or "").strip() and str(drawing.get("tangent_point") or "").strip())
+        return True
+
+    if dtype == "forces":
+        forces = drawing.get("forces")
+        if not isinstance(forces, list) or not forces:
+            return False
+        allowed = {"up", "down", "left", "right"}
+        for force in forces:
+            if not isinstance(force, dict) or force.get("direction") not in allowed or not str(force.get("label") or "").strip():
+                return False
+        return True
+
+    if dtype in {"molecule", "atom_model"}:
+        atoms = drawing.get("atoms")
+        if dtype == "molecule":
+            return isinstance(atoms, list) and bool(atoms) and all(isinstance(a, dict) and str(a.get("label") or "").strip() for a in atoms)
+        return True
+
+    if dtype in {"ionic_bond", "electron_transfer"}:
+        labels = drawing.get("labels") or {}
+        return isinstance(labels, dict) and bool(str(labels.get("metal") or "").strip()) and bool(str(labels.get("nonmetal") or "").strip())
+
+    if dtype == "probability_tree":
+        return _validate_probability_branches(drawing.get("branches"))
+
+    if dtype == "venn_diagram":
+        values = []
+        for s in drawing.get("sets") or []:
+            if not isinstance(s, dict) or not str(s.get("label") or "").strip():
+                return False
+            v = _numeric_probability(s.get("only"))
+            if v is not None:
+                values.append(v)
+        for key in ("intersection", "outside"):
+            v = _numeric_probability(drawing.get(key))
+            if v is not None:
+                values.append(v)
+        if values and (any(v < -1e-9 or v > 1 + 1e-9 for v in values) or sum(values) > 1 + 1e-6):
+            return False
+        return True
+
+    if dtype == "probability_table":
+        rows = drawing.get("rows")
+        return isinstance(rows, list) and bool(rows)
+
+    if dtype in {"cube", "rectangular_prism", "prism", "pyramid", "cylinder", "cone", "sphere", "square", "rectangle", "rhombus", "parallelogram", "triangle", "plane", "number_line", "statistics", "inclined_plane", "motion", "spring", "pulley", "wave", "optics_ray", "electric_circuit", "electric_series", "electric_parallel", "electric_mixed", "cell_diagram", "plant_cell", "animal_cell"}:
+        # These are accepted only structurally; the prompt is responsible for source fidelity.
+        # Crucially, this function does not fill in any missing scientific values.
+        return True
+
+    return False
 
 
 def extract_drawings(text: str):
@@ -1531,6 +1741,11 @@ def extract_drawings(text: str):
         flags=re.IGNORECASE,
     )
 
+    drawings = [
+        item for item in drawings
+        if validate_drawing_strict(item)
+    ][:3]
+
     return text.strip(), drawings
 
 
@@ -1561,6 +1776,84 @@ def get_student_profile(
     )
 
 
+
+
+
+
+@router.post("/avatar-chat")
+async def avatar_chat(
+    message: str = Form(...),
+    student_id: str = Form(...),
+    grade: Optional[str] = Form(None),
+    language: Optional[str] = Form(None),
+):
+    """
+    Guarded open conversation for the home avatar.
+    This is deliberately separate from the lesson endpoint so the avatar can
+    answer general student questions without weakening lesson curriculum rules.
+    """
+    clean_message = (message or "").strip()
+    if not clean_message:
+        raise HTTPException(status_code=400, detail="Message is required.")
+
+    try:
+        ai = NabilAIGateway()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"خطأ في إعداد NABIL AI: {exc}",
+        ) from exc
+
+    age_context = (
+        f"الصف المختار: {grade or 'غير محدد'}. "
+        f"لغة الواجهة/السؤال: {language or 'غير محددة'}."
+    )
+
+    try:
+        reply = ai.generate(
+            instructions=AVATAR_SYSTEM_PROMPT,
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        f"{age_context}\n\n"
+                        f"كلام الطالب:\n{clean_message}"
+                    ),
+                }
+            ],
+            image_bytes=None,
+            image_mime_type="image/jpeg",
+            max_output_tokens=700,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"خطأ في محادثة الأستاذ نبيل: {exc}",
+        ) from exc
+
+    cleaned = clean_reply(str(reply or "")).strip()
+    if not cleaned:
+        cleaned = "أنا حاضر. جرّب اسألني بطريقة ثانية."
+
+    # Home-avatar answers must remain voice-friendly and must never expose
+    # internal protocol blocks even if a provider returns one accidentally.
+    cleaned = re.sub(
+        r"<DRAWINGS?_JSON>[\s\S]*?</DRAWINGS?_JSON>",
+        "",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    cleaned = re.sub(
+        r"<PROGRESS_JSON>[\s\S]*?</PROGRESS_JSON>",
+        "",
+        cleaned,
+        flags=re.IGNORECASE,
+    ).strip()
+
+    return {
+        "reply": cleaned,
+        "student_id": student_id,
+    }
 
 
 @router.post("/tts")
@@ -1910,6 +2203,16 @@ async def voice_chat(
 - إذا أنشأت مثالًا تعليميًا لأن الطالب لم يرسل تمرينًا، صرّح بوضوح أنه مثال، وثبّت الأعداد نفسها في المعطيات والحساب والجواب والرسم. ممنوع إرسال نقطة أو متجه بلا إحداثيات أو مجسّم بلا أبعاد لازمة.
 - عقد الجودة البصرية إلزامي لكل رسمة: أرسل أسماء النقاط، القيم، القياسات، الوحدات، واتجاهات الأسهم أو التيار اللازمة لفهم الشكل من دون تخمين. لا ترسل محاور فارغة، سهمًا صفريًا، مجسّمًا بلا نصف قطر/ارتفاع، أو دارة بلا أسماء وقيم العناصر عندما تكون القيم معطاة.
 - يجب أن تتطابق كل قيمة في الرسمة حرفيًا وحسابيًا مع المعطيات والحل النصي. تحقّق من الإحداثيات والأطوال والمجاميع قبل إرسال DRAWINGS_JSON.
+- قاعدة الصرامة البصرية: إذا لم تكن متأكدًا من عنصر في الرسم بنسبة عالية، لا ترسمه ولا تخمّنه. عدم إرسال رسم أفضل من إرسال رسم غير موثوق.
+- ممنوع اختراع أرقام أو أطوال أو زوايا أو إحداثيات أو أسماء نقاط أو شحنات أو قيم مقاومات أو جهود أو تيارات أو قوى أو تراكيز أو أجزاء تشريحية أو تسميات غير موجودة في السؤال/الدرس/الصورة أو غير مستنتجة حسابيًا بوضوح من المعطيات.
+- قبل إرسال DRAWINGS_JSON نفّذ تدقيقًا داخليًا إلزاميًا: (1) نوع الرسم مناسب للمادة والدرس، (2) كل تسمية موجودة ومطابقة، (3) كل قيمة ووحدة صحيحة، (4) الاتجاهات والقطبية والأسهم صحيحة، (5) لا يوجد عنصر زائد مخترع، (6) الرسم لا يتعارض مع الشرح النصي. لا تعرض هذا التدقيق للطالب.
+- إذا كانت صورة الطالب أو صفحة الكتاب مقصوصة/مظللة/غير واضحة، لا تملأ الجزء المفقود من ذاكرتك. اذكر أن الجزء غير واضح واطلب صورة أوضح عند الحاجة.
+- في الرياضيات: تحقّق عدديًا من كل نقطة على الدالة، ومن شرط فيثاغورس، ومن الإحداثيات والمتجهات والميل والمقارب قبل الرسم.
+- في الفيزياء: تحقّق من اتجاه كل قوة/تيار/شعاع، ومن القطبية والوحدات والتوصيل. لا تضف قوة أو عنصر دارة غير مذكور أو غير لازم في النموذج الفيزيائي الحالي.
+- في الكيمياء: تحقّق من رموز العناصر، عدد الإلكترونات، الشحنات، التكافؤ، وعدد الذرات والروابط. لا تخترع مادة أو شحنة أو بنية.
+- في علوم الحياة/الأحياء: استخدم فقط الأجزاء الصحيحة للمخطط المطلوب والمذكورة في الدرس/المصدر، ولا تضف أعضاء أو مكونات لمجرد أنها شائعة.
+- في الاحتمالات والإحصاء: تحقّق من أن مجموع احتمالات فروع العقدة الواحدة يساوي 1 عندما تكون القيم عددية، وأن القيم في الجدول مطابقة للسؤال.
+- إذا كان المطلوب مجرد مفهوم عام من دون معطيات عددية، يجوز رسم مخطط مفاهيمي بلا أرقام؛ لا تخترع أرقامًا لجعله يبدو كاملاً.
 - في الحلول المرئية رتّب الجواب بعناوين Markdown واضحة: ## المثال المحلول، ## 1. المعطيات، ## 2. القانون المستعمل، ## 3. التعويض والحساب، ثم ## البطاقة النهائية — خلاصة القاعدة، وتحتها جملة جامعة أو جملتان قصيرتان تلخصان كل الخطوات السابقة والجواب النهائي. سؤال التحقق لا يوضع داخل البطاقة النهائية. ترجم هذه العناوين إلى لغة الدرس المختارة.
 - طبّق قالب الحل نفسه تمامًا على الهاتف والكمبيوتر؛ الجهاز لا يغيّر مضمون الجواب ولا ترتيب الفكرة والمثال وسؤال التحقق.
 - عندما تكون اللغة English أو Français اكتب الجمل وعلامات الترقيم بالاتجاه الطبيعي LTR، وعندما تكون العربية استخدم RTL.
@@ -1997,47 +2300,11 @@ async def voice_chat(
     ))
     lesson_key = str(lesson or "").lower()
 
-    # Chemistry contract: never show coordinate axes for an ionic-bond lesson.
-    # Replace a provider-selected generic graph with the approved electron-transfer visual.
-    is_ionic_lesson = any(token in lesson_key for token in (
-        "ionic bond", "ionic bonding", "ion formation", "رابطة أيونية", "الرابطة الأيونية",
-    ))
-    if is_ionic_lesson and not any(
-        str(item.get("type") or "").lower() == "ionic_bond"
-        for item in drawings if isinstance(item, dict)
-    ):
-        drawings = [_normalize_drawing({
-            "type": "ionic_bond",
-            "title": "Formation of NaCl Ionic Bond",
-            "labels": {"metal": "Na", "nonmetal": "Cl"},
-            "note": "Na loses one electron; Cl gains it, forming Na⁺ and Cl⁻.",
-        })]
+    # Strict visual policy: never fabricate a fallback diagram merely because
+    # a lesson is visual. If the model did not return a validated drawing,
+    # return the textual explanation only. This is safer than inventing values.
+    drawings = [item for item in drawings if validate_drawing_strict(item)]
 
-    # If the provider cuts a visual payload, still return a complete approved
-    # opening diagram instead of raw JSON or an empty board.
-    if is_lesson_start and not drawings:
-        if "vector" in lesson_key or "متجه" in lesson_key:
-            drawings = [_normalize_drawing({"type": "vector_plane", "title": "Vectors in the Coordinate Plane"})]
-        elif "tangent" in lesson_key or "مماس" in lesson_key:
-            drawings = [{
-                "type": "circle_tangent",
-                "title": "Circle and Tangent",
-                "center": "O",
-                "tangent_point": "A",
-                "external_point": "M",
-                "radius": "OA = 5 cm",
-                "labels": {"OM": "OM = 13 cm", "AM": "AM = ?"},
-            }]
-        elif "sphere" in lesson_key or "cylinder" in lesson_key or "كرة" in lesson_key or "أسطوان" in lesson_key:
-            drawings = [
-                {"type": "cylinder", "title": "Cylinder", "dimensions": {"radius": "r = 3 cm", "height": "h = 8 cm"}},
-                {"type": "sphere", "title": "Sphere", "dimensions": {"radius": "R = 4 cm"}},
-            ]
-        elif "resistor" in lesson_key or "resistance" in lesson_key or "مقاوم" in lesson_key:
-            drawings = [
-                {"type": "electric_series", "title": "Series Connection", "labels": {"R1": "R₁ = 6 Ω", "R2": "R₂ = 3 Ω"}},
-                {"type": "electric_parallel", "title": "Parallel Connection", "labels": {"R1": "R₁ = 6 Ω", "R2": "R₂ = 3 Ω"}},
-            ]
  
     if not reply_text:
  
