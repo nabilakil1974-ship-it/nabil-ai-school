@@ -1327,6 +1327,39 @@ body.nabil-home-lock::before{
 .lesson-visuals .nabil-visual .vvector-label{fill:#55eaff}
 .lesson-visuals .nabil-visual .vaxis{stroke:#e7f6ff;stroke-width:1.8}
 .lesson-visuals .nabil-visual .vgrid{stroke:#21435b;stroke-width:1}
+
+.lesson-paired-stack{display:grid;gap:12px;width:100%}
+.lesson-paired-row{
+    display:grid;
+    grid-template-columns:minmax(0,.95fr) minmax(0,1.25fr);
+    gap:12px;
+    align-items:start;
+    width:100%;
+}
+.lesson-paired-row.no-linked-visual{grid-template-columns:minmax(0,1fr)}
+.lesson-paired-row .lesson-concept-card{width:100%;margin:0}
+.lesson-linked-visuals{display:grid;gap:10px;min-width:0}
+.lesson-linked-visuals .linked-lesson-visual{min-width:0}
+.lesson-linked-visuals .nabil-visual{margin:0}
+.lesson-linked-visuals .nabil-visual svg{background:#08243a;min-height:360px;max-height:470px}
+.lesson-final-quick-check{
+    width:100%;
+    margin-top:10px;
+    padding:10px 12px;
+    border-top:1px solid rgba(86,240,169,.38);
+    background:rgba(5,35,39,.34);
+    border-radius:9px;
+}
+.lesson-final-quick-check h2,
+.lesson-final-quick-check h3,
+.lesson-final-quick-check h4{
+    display:block!important;
+    margin:0 0 6px!important;
+    padding:0!important;
+    border:0!important;
+    color:#ffd85b!important;
+    font-size:15px!important;
+}
 .teacher .bubble.has-lesson-visual .teacher-tools,
 .teacher .bubble.has-lesson-visual .sources{grid-column:1/-1}
 .lesson-diagram{background:#f8fbff;color:#173b6c}
@@ -1445,6 +1478,10 @@ body.nabil-home-lock::before{
     }
     /* On phones keep Nabil's content, but place the visual before the final recap. */
     .teacher .bubble.has-lesson-visual .lesson-explanation{display:block}
+    .lesson-paired-row{grid-template-columns:minmax(0,1fr)!important;gap:8px}
+    .lesson-paired-row .lesson-concept-card{order:1}
+    .lesson-paired-row .lesson-linked-visuals{order:2}
+    .lesson-linked-visuals .nabil-visual svg{min-height:290px;max-height:none}
     .teacher .bubble.has-lesson-visual .lesson-card-stack,
     .teacher .bubble.has-lesson-visual .lesson-side-stack,
     .teacher .bubble.has-lesson-visual .lesson-wide-stack{display:grid;gap:10px}
@@ -2475,6 +2512,11 @@ function buildExerciseSectionHTML(title, bodyHTML, extraClass="", toneClass="sec
     return `<section class="exercise-section-card ${toneClass} ${extraClass}">${title ? `<h3>${title}</h3>` : ""}${bodyHTML}</section>`;
 }
 
+function diagramCardIndexFromHTML(html){
+    const match = String(html || "").match(/data-card-index=["'](\d+)["']/i);
+    return match ? Number(match[1]) : null;
+}
+
 function renderGeneralExerciseBoards(text, diagrams, messageDirection, messageLanguage){
     const boards = extractExerciseBoards(text);
     if (!boards.length) {
@@ -2491,14 +2533,17 @@ function renderGeneralExerciseBoards(text, diagrams, messageDirection, messageLa
             parts[sec.kind].push(sec);
         });
 
-        const remainingBoards = totalBoards - boardIndex;
-        const remainingDiagrams = diagrams.length - diagramIndex;
-        let diagramsForThis = [];
-        if (remainingDiagrams > 0) {
-            let take = 1;
-            if (remainingDiagrams > remainingBoards) take = remainingDiagrams - (remainingBoards - 1);
-            diagramsForThis = diagrams.slice(diagramIndex, diagramIndex + take);
-            diagramIndex += take;
+        let diagramsForThis = diagrams.filter(d =>
+            diagramCardIndexFromHTML(d) === (boardIndex + 1)
+        );
+
+        // Backward compatibility for old/unindexed drawings.
+        if (!diagramsForThis.length) {
+            const unindexed = diagrams.filter(d => diagramCardIndexFromHTML(d) == null);
+            if (unindexed[diagramIndex]) {
+                diagramsForThis = [unindexed[diagramIndex]];
+                diagramIndex += 1;
+            }
         }
 
         const givenHTML = parts.given.map(s => buildExerciseSectionHTML(s.title || "Given", renderNodesAsHTML(s.nodes), "", "section-tone-1")).join("");
@@ -2538,8 +2583,11 @@ function renderGeneralExerciseBoards(text, diagrams, messageDirection, messageLa
     }).join("");
 
     // Append any leftover visuals at the end rather than losing them.
-    const leftovers = diagramIndex < diagrams.length
-        ? `<div class="exercise-board"><div class="exercise-visual-panel">${diagrams.slice(diagramIndex).join("")}</div></div>`
+    const leftoverUnindexed = diagrams
+        .filter(d => diagramCardIndexFromHTML(d) == null)
+        .slice(diagramIndex);
+    const leftovers = leftoverUnindexed.length
+        ? `<div class="exercise-board"><div class="exercise-visual-panel">${leftoverUnindexed.join("")}</div></div>`
         : "";
 
     return `<div class="exercise-board-stack">${html}${leftovers}</div>`;
@@ -2588,8 +2636,31 @@ function renderLessonCards(text) {
 }
 
 function normalizeFinalLessonCard(bubble, messageDirection, messageLanguage) {
-    const finalCard = bubble.querySelector(".lesson-final-card");
-    if (!finalCard) return;
+    const stack = bubble.querySelector(".lesson-card-stack");
+    if (!stack) return;
+
+    let cards = [...stack.querySelectorAll(":scope > .lesson-concept-card")];
+    const finalCards = cards.filter(card => card.classList.contains("lesson-final-card"));
+    if (!finalCards.length) return;
+
+    // Keep one final card only.
+    const finalCard = finalCards[0];
+    finalCards.slice(1).forEach(card => card.remove());
+
+    cards = [...stack.querySelectorAll(":scope > .lesson-concept-card")];
+    const finalIndex = cards.indexOf(finalCard);
+
+    // Only the first Quick Check may survive after the final card.
+    let quickCheck = null;
+    cards.forEach((card, index) => {
+        if (index <= finalIndex) return;
+        if (!quickCheck && card.classList.contains("lesson-check-card")) {
+            quickCheck = card;
+            return;
+        }
+        // No Concept / Example / extra card is allowed after the final summary.
+        card.remove();
+    });
 
     const heading = finalCard.querySelector("h2,h3,h4");
     const title = messageLanguage === "English"
@@ -2618,10 +2689,17 @@ function normalizeFinalLessonCard(bubble, messageDirection, messageLanguage) {
     finalCard.appendChild(check);
     finalCard.appendChild(titleBox);
     finalCard.appendChild(summary);
-    finalCard.setAttribute("dir", messageDirection);
 
-    // The reference design places the final card below both the concept column
-    // and the visual column. Moving it to the bubble makes it span the grid.
+    // Quick Check is the LAST part INSIDE the final card.
+    if (quickCheck) {
+        const quickWrap = document.createElement("div");
+        quickWrap.className = "lesson-final-quick-check";
+        while (quickCheck.firstChild) quickWrap.appendChild(quickCheck.firstChild);
+        finalCard.appendChild(quickWrap);
+        quickCheck.remove();
+    }
+
+    finalCard.setAttribute("dir", messageDirection);
     bubble.appendChild(finalCard);
 }
 
@@ -2633,135 +2711,72 @@ function layoutLessonBoard(bubble) {
     const stack = explanation.querySelector(".lesson-card-stack");
     if (!stack) return;
 
+    const finalCard = bubble.querySelector(":scope > .lesson-final-card");
     const visuals = bubble.querySelector(":scope > .lesson-visuals");
-    const finalCard = bubble.querySelector(":scope > .lesson-final-card") || stack.querySelector(".lesson-final-card");
 
-    const cards = [...stack.querySelectorAll(":scope > .lesson-concept-card")];
-    const regularCards = cards.filter(card => !card.classList.contains("lesson-final-card") && !card.classList.contains("lesson-check-card"));
-    const checkCards = cards.filter(card => card.classList.contains("lesson-check-card"));
+    const regularCards = [...stack.querySelectorAll(":scope > .lesson-concept-card")]
+        .filter(card =>
+            !card.classList.contains("lesson-final-card") &&
+            !card.classList.contains("lesson-check-card")
+        );
 
-    if (!visuals) {
-        const wideStack = document.createElement("div");
-        wideStack.className = "lesson-wide-stack";
-        regularCards.forEach(card => wideStack.appendChild(card));
-        checkCards.forEach(card => wideStack.appendChild(card));
-        stack.innerHTML = "";
-        stack.appendChild(wideStack);
-        return;
+    const visualNodes = visuals
+        ? [...visuals.querySelectorAll(":scope > .linked-lesson-visual")]
+        : [];
+
+    const pairedStack = document.createElement("div");
+    pairedStack.className = "lesson-paired-stack";
+
+    regularCards.forEach((card, index) => {
+        const conceptIndex = index + 1;
+        const row = document.createElement("div");
+        row.className = "lesson-paired-row";
+
+        const linked = visualNodes.filter(node =>
+            Number(node.dataset.cardIndex) === conceptIndex
+        );
+
+        row.appendChild(card);
+
+        if (linked.length) {
+            const visualColumn = document.createElement("div");
+            visualColumn.className = "lesson-linked-visuals";
+            linked.forEach(node => visualColumn.appendChild(node));
+            row.appendChild(visualColumn);
+        } else {
+            row.classList.add("no-linked-visual");
+        }
+
+        pairedStack.appendChild(row);
+    });
+
+    // Never lose a provider drawing even if card_index was malformed/missing.
+    const unlinked = visualNodes.filter(node => !node.parentElement?.classList.contains("lesson-linked-visuals"));
+    if (unlinked.length) {
+        const fallbackRow = document.createElement("div");
+        fallbackRow.className = "lesson-paired-row";
+        const visualColumn = document.createElement("div");
+        visualColumn.className = "lesson-linked-visuals";
+        unlinked.forEach(node => visualColumn.appendChild(node));
+        fallbackRow.appendChild(visualColumn);
+        pairedStack.appendChild(fallbackRow);
     }
 
-    const sideStack = document.createElement("div");
-    sideStack.className = "lesson-side-stack";
-    const wideStack = document.createElement("div");
-    wideStack.className = "lesson-wide-stack";
-
-    const sideCount = Math.min(2, regularCards.length);
-    regularCards.slice(0, sideCount).forEach(card => sideStack.appendChild(card));
-    regularCards.slice(sideCount).forEach(card => wideStack.appendChild(card));
-    checkCards.forEach(card => wideStack.appendChild(card));
-
     stack.innerHTML = "";
-    if (sideStack.children.length) stack.appendChild(sideStack);
-    if (visuals.parentElement !== bubble) bubble.appendChild(visuals);
-    if (wideStack.children.length) bubble.appendChild(wideStack);
+    stack.appendChild(pairedStack);
+
+    if (visuals) visuals.remove();
     if (finalCard && finalCard.parentElement !== bubble) bubble.appendChild(finalCard);
 }
 
 
 function buildCumulativeFinalCard(bubble, messageDirection, messageLanguage) {
+    // V15: the AI's final card is intentionally COMPACT.
+    // Do not clone previous concept cards or drawings into it.
+    // The backend requires a 3–7 point synthesis of all concepts + drawing meanings,
+    // and normalizeFinalLessonCard() already places Quick Check as its last part.
     const finalCard = bubble.querySelector(":scope > .lesson-final-card");
-    if (!finalCard || finalCard.dataset.cumulativeBuilt === "1") return;
-
-    const labels = messageLanguage === "English"
-        ? {cards:"Lesson cards", visuals:"Visual recap", check:"Quick Check", noVisual:"No drawing was needed for this lesson."}
-        : messageLanguage === "Français"
-            ? {cards:"Cartes de la leçon", visuals:"Récapitulatif visuel", check:"Vérification rapide", noVisual:"Aucun dessin n’était nécessaire pour cette leçon."}
-            : {cards:"بطاقات الدرس", visuals:"خلاصة الرسومات", check:"سؤال التحقق", noVisual:"لم يحتج هذا الدرس إلى رسم."};
-
-    // Preserve the title/check/summary already created by normalizeFinalLessonCard().
-    const head = document.createElement("div");
-    head.className = "cumulative-final-head";
-    [...finalCard.children].forEach(child => head.appendChild(child));
-
-    const board = document.createElement("div");
-    board.className = "cumulative-final-board";
-    board.setAttribute("dir", messageDirection);
-
-    // 1) Clone every previous concept/example card from THIS answer only.
-    const cardsSection = document.createElement("div");
-    cardsSection.className = "cumulative-final-section";
-    cardsSection.innerHTML = `<div class="cumulative-final-section-title">${labels.cards}</div>`;
-    const cardGrid = document.createElement("div");
-    cardGrid.className = "cumulative-card-grid";
-
-    const previousCards = [...bubble.querySelectorAll(".lesson-concept-card")]
-        .filter(card => card !== finalCard && !card.classList.contains("lesson-final-card") && !card.classList.contains("lesson-check-card"));
-
-    previousCards.forEach(card => {
-        const clone = card.cloneNode(true);
-        clone.removeAttribute("data-lesson-card");
-        clone.querySelectorAll("button,.teacher-tools,.sources").forEach(el => el.remove());
-        cardGrid.appendChild(clone);
-    });
-
-    if (!cardGrid.children.length) {
-        const empty = document.createElement("div");
-        empty.className = "cumulative-final-empty";
-        empty.textContent = messageLanguage === "English" ? "No previous lesson cards." : messageLanguage === "Français" ? "Aucune carte précédente." : "لا توجد بطاقات سابقة.";
-        cardGrid.appendChild(empty);
-    }
-    cardsSection.appendChild(cardGrid);
-
-    // 2) Clone all drawings from THIS answer so the final card is a visual recap too.
-    const visualsSection = document.createElement("div");
-    visualsSection.className = "cumulative-final-section";
-    visualsSection.innerHTML = `<div class="cumulative-final-section-title">${labels.visuals}</div>`;
-    const visualGrid = document.createElement("div");
-    visualGrid.className = "cumulative-visual-grid";
-
-    const originalVisuals = bubble.querySelector(":scope > .lesson-visuals");
-    if (originalVisuals) {
-        [...originalVisuals.children].forEach(visual => {
-            const clone = visual.cloneNode(true);
-            clone.querySelectorAll("button").forEach(el => el.remove());
-            visualGrid.appendChild(clone);
-        });
-    }
-
-    if (!visualGrid.children.length) {
-        const empty = document.createElement("div");
-        empty.className = "cumulative-final-empty";
-        empty.textContent = labels.noVisual;
-        visualGrid.appendChild(empty);
-    }
-    visualsSection.appendChild(visualGrid);
-
-    // 3) Move the real Quick Check into the final card (no duplicate outside).
-    const checkSection = document.createElement("div");
-    checkSection.className = "cumulative-final-section cumulative-final-check";
-    checkSection.innerHTML = `<div class="cumulative-final-section-title">${labels.check}</div>`;
-
-    const checkCards = [...bubble.querySelectorAll(".lesson-check-card")]
-        .filter(card => !finalCard.contains(card));
-
-    if (checkCards.length) {
-        checkCards.forEach(card => checkSection.appendChild(card));
-    } else {
-        const empty = document.createElement("div");
-        empty.className = "cumulative-final-empty";
-        empty.textContent = messageLanguage === "English" ? "No Quick Check was generated." : messageLanguage === "Français" ? "Aucune question de vérification n’a été générée." : "لم يتم إنشاء سؤال تحقق في هذا الرد.";
-        checkSection.appendChild(empty);
-    }
-
-    board.appendChild(cardsSection);
-    board.appendChild(visualsSection);
-    board.appendChild(checkSection);
-
-    finalCard.innerHTML = "";
-    finalCard.appendChild(head);
-    finalCard.appendChild(board);
-    finalCard.classList.add("is-cumulative-final");
-    finalCard.dataset.cumulativeBuilt = "1";
+    if (finalCard) finalCard.dataset.cumulativeBuilt = "1";
 }
 
 
@@ -3211,7 +3226,11 @@ function addMessage(
            but omitted DRAWINGS_JSON, use a strictly verified lesson fallback only. */
         if (!visibleDiagrams.length){
             const fallbackVisual = safeFallbackDiagramForReply(visibleText);
-            if (fallbackVisual) visibleDiagrams.push(fallbackVisual);
+            if (fallbackVisual) {
+                visibleDiagrams.push(
+                    `<div class="linked-lesson-visual" data-card-index="1">${fallbackVisual}</div>`
+                );
+            }
         }
 
         if (nabilActivityMode === "general_exercises") {
@@ -4997,7 +5016,13 @@ function extractAndRenderNabilDrawings(text){
             try{
                 const spec=JSON.parse(jsonText.trim());
                 const rendered=renderNabilDiagram(spec);
-                if(rendered) diagrams.push(rendered);
+                if(rendered){
+                    const idx = Number(spec?.card_index);
+                    const cardIndex = Number.isInteger(idx) && idx > 0 ? idx : "";
+                    diagrams.push(
+                        `<div class="linked-lesson-visual" data-card-index="${cardIndex}">${rendered}</div>`
+                    );
+                }
             }catch(err){
                 console.warn("NABIL DRAW parse error",err);
             }
@@ -5011,7 +5036,13 @@ function extractAndRenderNabilDrawings(text){
             try{
                 const spec=JSON.parse(jsonText);
                 const rendered=renderNabilDiagram(spec);
-                if(rendered) diagrams.push(rendered);
+                if(rendered){
+                    const idx = Number(spec?.card_index);
+                    const cardIndex = Number.isInteger(idx) && idx > 0 ? idx : "";
+                    diagrams.push(
+                        `<div class="linked-lesson-visual" data-card-index="${cardIndex}">${rendered}</div>`
+                    );
+                }
             }catch(err){
                 console.warn("NABIL DRAW parse error",err);
             }
