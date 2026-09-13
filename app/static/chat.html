@@ -1312,69 +1312,6 @@ body.nabil-home-lock::before{
 .lesson-explanation hr{border:0;border-top:1px solid #28516b;margin:16px 0}
 .lesson-explanation br+br{line-height:2.2}
 .lesson-visuals{min-width:0}
-
-/* ===== Composite final card matching the reference board ===== */
-.lesson-composite-final.lesson-concept-card.lesson-final-card{
-    display:block !important;
-    padding:14px 14px 16px !important;
-    min-height:unset;
-    background:linear-gradient(180deg,rgba(8,76,63,.98),rgba(7,53,47,.98));
-}
-.lesson-composite-header{
-    display:flex;
-    align-items:center;
-    gap:10px;
-    margin-bottom:12px;
-    flex-wrap:wrap;
-}
-.lesson-composite-header .lesson-final-title{font-size:18px;white-space:normal}
-.lesson-composite-header .lesson-final-summary{flex:1 1 360px}
-.lesson-composite-body{
-    display:grid;
-    grid-template-columns:minmax(260px,36%) minmax(0,1fr);
-    gap:12px;
-    align-items:start;
-}
-.lesson-composite-snapshots,
-.lesson-composite-visuals,
-.lesson-composite-check{
-    border:1px solid rgba(117,229,255,.28);
-    border-radius:14px;
-    background:rgba(6,37,51,.42);
-    padding:10px;
-}
-.lesson-composite-snapshots{max-height:420px;overflow:auto}
-.lesson-composite-visuals{min-height:220px}
-.lesson-composite-check{margin-top:12px;border-color:rgba(255,212,59,.42);background:rgba(49,43,14,.28)}
-.lesson-composite-section-title{
-    color:#9cecff;
-    font-weight:900;
-    font-size:15px;
-    margin:0 0 8px;
-}
-.lesson-composite-check .lesson-composite-section-title{color:#ffe37a}
-.final-snapshot-stack{display:grid;gap:10px}
-.final-snapshot-card{
-    transform:scale(.94);
-    transform-origin:top center;
-    width:100%;
-    margin:0 auto;
-    opacity:.98;
-}
-.final-snapshot-card .teacher-tools,
-.final-snapshot-card button,
-.final-snapshot-card .sources{display:none !important}
-.lesson-composite-visuals .lesson-visuals{display:grid;gap:10px}
-.lesson-composite-visuals .nabil-visual{margin:0}
-.lesson-composite-visuals .nabil-visual svg{min-height:220px;max-height:330px}
-.composite-check-list{display:grid;gap:10px}
-.composite-check-item{margin:0}
-@media(max-width:900px){
-    .lesson-composite-body{grid-template-columns:minmax(0,1fr)}
-    .lesson-composite-snapshots{max-height:none}
-    .lesson-composite-visuals .nabil-visual svg{min-height:180px;max-height:none}
-}
-
 .lesson-visuals .nabil-visual{margin:0 0 12px}
 .lesson-visuals .nabil-visual svg{background:#08243a;min-height:390px;max-height:470px}
 .lesson-visuals .nabil-visual .vlab{fill:#eef9ff}
@@ -2306,14 +2243,14 @@ function normalizeFinalLessonCard(bubble, messageDirection, messageLanguage) {
     if (!finalCard) return;
 
     const heading = finalCard.querySelector("h2,h3,h4");
-
-    // Always force the final-card title to match the selected lesson language,
-    // regardless of what title the model happened to generate.
-    const title = messageLanguage === "English"
-        ? "Final Card — Rule Summary"
-        : messageLanguage === "Français"
-            ? "Carte finale — Résumé de la règle"
-            : "البطاقة النهائية — خلاصة القاعدة";
+    let title = heading ? heading.textContent.trim() : "";
+    if (!title) {
+        title = messageLanguage === "English"
+            ? "Final Card — Rule Summary"
+            : messageLanguage === "Français"
+                ? "Carte finale — Résumé de la règle"
+                : "البطاقة النهائية — خلاصة القاعدة";
+    }
 
     if (heading) heading.remove();
 
@@ -2336,104 +2273,12 @@ function normalizeFinalLessonCard(bubble, messageDirection, messageLanguage) {
     finalCard.appendChild(titleBox);
     finalCard.appendChild(summary);
     finalCard.setAttribute("dir", messageDirection);
+
+    // The reference design places the final card below both the concept column
+    // and the visual column. Moving it to the bubble makes it span the grid.
     bubble.appendChild(finalCard);
 }
 
-function extractEmbeddedCheckFromSummary(summaryElement){
-    if (!summaryElement) return "";
-    const text = summaryElement.innerText || "";
-    const lines = text.split(/\n+/).map(s => s.trim()).filter(Boolean);
-    const start = lines.findIndex(line => /^(question|quick check|check question|سؤال|تحق|question de vérification)/i.test(line));
-    if (start === -1) return "";
-    const extracted = lines.slice(start).join("<br>");
-    lines.splice(start);
-    summaryElement.innerHTML = lines.join(" ");
-    return extracted;
-}
-
-function buildCompositeFinalCard(bubble, messageDirection){
-    const finalCard = bubble.querySelector(':scope > .lesson-final-card');
-    if (!finalCard) return;
-    const visuals = bubble.querySelector(':scope > .lesson-visuals');
-    const wideStack = bubble.querySelector(':scope > .lesson-wide-stack');
-    const stack = bubble.querySelector('.lesson-card-stack');
-    const regularCards = [...bubble.querySelectorAll('.lesson-concept-card')].filter(card => !card.classList.contains('lesson-final-card') && !card.classList.contains('lesson-check-card'));
-    const checkCards = [...bubble.querySelectorAll('.lesson-check-card')];
-    const finalSummary = finalCard.querySelector('.lesson-final-summary');
-    const embeddedCheck = extractEmbeddedCheckFromSummary(finalSummary);
-
-    finalCard.classList.add('lesson-composite-final');
-    const checkMark = finalCard.querySelector('.lesson-final-check');
-    const title = finalCard.querySelector('.lesson-final-title');
-
-    const header = document.createElement('div');
-    header.className = 'lesson-composite-header';
-    if (checkMark) header.appendChild(checkMark.cloneNode(true));
-    if (title) header.appendChild(title.cloneNode(true));
-    if (finalSummary) header.appendChild(finalSummary.cloneNode(true));
-
-    const body = document.createElement('div');
-    body.className = 'lesson-composite-body';
-
-    const snapshots = document.createElement('div');
-    snapshots.className = 'lesson-composite-snapshots';
-    snapshots.innerHTML = `<div class="lesson-composite-section-title">${messageDirection === 'rtl' ? 'ملخّص البطاقات السابقة' : 'Previous lesson cards'}</div>`;
-    const snapStack = document.createElement('div');
-    snapStack.className = 'final-snapshot-stack';
-    regularCards.forEach(card => {
-        const clone = card.cloneNode(true);
-        clone.classList.add('final-snapshot-card');
-        snapStack.appendChild(clone);
-    });
-    snapshots.appendChild(snapStack);
-
-    const visualsWrap = document.createElement('div');
-    visualsWrap.className = 'lesson-composite-visuals';
-    visualsWrap.innerHTML = `<div class="lesson-composite-section-title">${messageDirection === 'rtl' ? 'الرسومات المجمّعة' : 'Visual recap'}</div>`;
-    if (visuals) {
-        const visualClone = visuals.cloneNode(true);
-        visualsWrap.appendChild(visualClone);
-    } else {
-        const empty = document.createElement('div');
-        empty.className = 'lesson-board-note';
-        empty.textContent = messageDirection === 'rtl' ? 'لا توجد رسومات في هذا الدرس.' : 'No visual diagram was used in this lesson.';
-        visualsWrap.appendChild(empty);
-    }
-
-    body.appendChild(snapshots);
-    body.appendChild(visualsWrap);
-
-    const checkWrap = document.createElement('div');
-    checkWrap.className = 'lesson-composite-check';
-    checkWrap.innerHTML = `<div class="lesson-composite-section-title">${messageDirection === 'rtl' ? 'سؤال التحقق' : 'Quick Check'}</div>`;
-    const checkList = document.createElement('div');
-    checkList.className = 'composite-check-list';
-    if (checkCards.length) {
-        checkCards.forEach(card => {
-            const clone = card.cloneNode(true);
-            clone.classList.add('composite-check-item');
-            checkList.appendChild(clone);
-            card.remove();
-        });
-    } else if (embeddedCheck) {
-        const item = document.createElement('div');
-        item.className = 'lesson-concept-card lesson-check-card composite-check-item';
-        item.innerHTML = embeddedCheck;
-        checkList.appendChild(item);
-    }
-    if (!checkList.children.length) {
-        const item = document.createElement('div');
-        item.className = 'lesson-board-note';
-        item.textContent = messageDirection === 'rtl' ? 'لا يوجد سؤال تحقق منفصل حتى الآن.' : 'No separate quick check was generated yet.';
-        checkList.appendChild(item);
-    }
-    checkWrap.appendChild(checkList);
-
-    finalCard.innerHTML = '';
-    finalCard.appendChild(header);
-    finalCard.appendChild(body);
-    finalCard.appendChild(checkWrap);
-}
 
 function layoutLessonBoard(bubble) {
     const explanation = bubble.querySelector(".lesson-explanation");
@@ -2652,102 +2497,178 @@ function copyAnswer(
 }
 
 
+
+/* =========================================================
+   NABIL AI FREE NEURAL TTS
+   Primary: server-side Edge TTS (male Arabic voice)
+   Fallback: browser speechSynthesis if TTS endpoint is unavailable.
+========================================================= */
+let nabilNeuralAudio = null;
+let nabilNeuralAudioUrl = "";
+let nabilTtsAbortController = null;
+let nabilNeuralSpeaking = false;
+
+function stopNabilNeuralVoice(){
+    try{
+        if (nabilTtsAbortController) {
+            nabilTtsAbortController.abort();
+            nabilTtsAbortController = null;
+        }
+    }catch(e){}
+
+    try{
+        if (nabilNeuralAudio) {
+            nabilNeuralAudio.pause();
+            nabilNeuralAudio.currentTime = 0;
+            nabilNeuralAudio = null;
+        }
+    }catch(e){}
+
+    if (nabilNeuralAudioUrl) {
+        try{ URL.revokeObjectURL(nabilNeuralAudioUrl); }catch(e){}
+        nabilNeuralAudioUrl = "";
+    }
+
+    nabilNeuralSpeaking = false;
+
+    try{
+        stopNabilNeuralVoice();
+    }catch(e){}
+}
+
+function nabilSelectedLanguage(){
+    return languageSelect?.value || "العربية";
+}
+
+function browserVoiceFallback(text, language, callbacks={}){
+    if (!("speechSynthesis" in window) || !text) {
+        callbacks.onerror?.();
+        return;
+    }
+
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = language === "English"
+        ? "en-US"
+        : language === "Français"
+            ? "fr-FR"
+            : "ar-LB";
+
+    u.rate = 0.92;
+    u.pitch = 0.96;
+    u.volume = 1;
+
+    u.onstart = () => {
+        nabilNeuralSpeaking = true;
+        callbacks.onstart?.();
+    };
+
+    const done = () => {
+        nabilNeuralSpeaking = false;
+        callbacks.onend?.();
+    };
+
+    u.onend = done;
+    u.onerror = done;
+
+    speechSynthesis.cancel();
+    speechSynthesis.speak(u);
+}
+
+async function nabilSpeakClear(text, language=nabilSelectedLanguage(), callbacks={}){
+    const cleanText = speechText(String(text || "")).trim();
+    if (!cleanText) return;
+
+    stopNabilNeuralVoice();
+
+    nabilTtsAbortController = new AbortController();
+
+    try{
+        const body = new FormData();
+        body.append("text", cleanText);
+        body.append("language", language);
+
+        const response = await fetch(
+            API_BASE + "/api/tts",
+            {
+                method: "POST",
+                body,
+                signal: nabilTtsAbortController.signal
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error("TTS endpoint unavailable");
+        }
+
+        const blob = await response.blob();
+        if (!blob.size) {
+            throw new Error("Empty TTS audio");
+        }
+
+        nabilNeuralAudioUrl = URL.createObjectURL(blob);
+        const audio = new Audio(nabilNeuralAudioUrl);
+        nabilNeuralAudio = audio;
+
+        audio.onplay = () => {
+            nabilNeuralSpeaking = true;
+            callbacks.onstart?.();
+        };
+
+        const finish = () => {
+            nabilNeuralSpeaking = false;
+            callbacks.onend?.();
+            if (nabilNeuralAudioUrl) {
+                try{ URL.revokeObjectURL(nabilNeuralAudioUrl); }catch(e){}
+                nabilNeuralAudioUrl = "";
+            }
+            nabilNeuralAudio = null;
+        };
+
+        audio.onended = finish;
+        audio.onerror = () => {
+            finish();
+            browserVoiceFallback(cleanText, language, callbacks);
+        };
+
+        await audio.play();
+
+    }catch(error){
+        if (error?.name === "AbortError") return;
+        console.warn("NABIL neural TTS fallback:", error);
+        browserVoiceFallback(cleanText, language, callbacks);
+    }
+}
+
+
 function readAnswer(
     text,
     button
 ) {
-
-    if (
-        !("speechSynthesis" in window)
-    ) {
-
-        alert(
-            "ميزة القراءة الصوتية غير مدعومة في هذا المتصفح."
-        );
-
+    if (nabilNeuralSpeaking || (nabilNeuralAudio && !nabilNeuralAudio.paused)) {
+        stopNabilNeuralVoice();
+        button.textContent = "🔊 اقرأ الإجابة";
+        button.classList.remove("reading");
         return;
-
     }
 
+    button.textContent = "⏹ إيقاف القراءة";
+    button.classList.add("reading");
 
-    if (
-        speechSynthesis.speaking
-    ) {
-
-        speechSynthesis.cancel();
-
-        button.textContent =
-            "🔊 اقرأ الإجابة";
-
-        button.classList.remove(
-            "reading"
-        );
-
-        return;
-
-    }
-
-
-    const utterance =
-        new SpeechSynthesisUtterance(
-            speechText(text)
-        );
-
-
-    const language =
-        languageSelect.value;
-
-
-    utterance.lang =
-        language === "English"
-            ? "en-US"
-            : language === "Français"
-                ? "fr-FR"
-                : "ar-LB";
-
-
-    utterance.rate =
-        0.92;
-
-
-    utterance.volume =
-        1;
-
-
-    button.textContent =
-        "⏹ إيقاف القراءة";
-
-
-    button.classList.add(
-        "reading"
+    nabilSpeakClear(
+        text,
+        nabilSelectedLanguage(),
+        {
+            onstart: () => {
+                button.textContent = "⏹ إيقاف القراءة";
+                button.classList.add("reading");
+            },
+            onend: () => {
+                button.textContent = "🔊 اقرأ الإجابة";
+                button.classList.remove("reading");
+            }
+        }
     );
-
-
-    utterance.onend =
-        () => {
-
-            button.textContent =
-                "🔊 اقرأ الإجابة";
-
-            button.classList.remove(
-                "reading"
-            );
-
-        };
-
-
-    utterance.onerror =
-        utterance.onend;
-
-
-    speechSynthesis.cancel();
-
-    speechSynthesis.speak(
-        utterance
-    );
-
 }
-
 
 function addMessage(
     role,
@@ -2848,7 +2769,6 @@ function addMessage(
 
         normalizeFinalLessonCard(bubble, messageDirection, messageLanguage);
         layoutLessonBoard(bubble);
-        buildCompositeFinalCard(bubble, messageDirection);
 
     }
     else {
@@ -4681,72 +4601,27 @@ function showLessonOpening(grade, subject, lesson, language){
 }
 
 function speakLessonOpening(){
-    if (
-        !nabilLessonSpeechText ||
-        !("speechSynthesis" in window)
-    ) {
-        return;
-    }
+    if (!nabilLessonSpeechText) return;
 
-    const utterance =
-        new SpeechSynthesisUtterance(
-            speechText(nabilLessonSpeechText)
-        );
+    const language = languageSelect?.value || "العربية";
 
-    const language =
-        languageSelect?.value || "العربية";
-
-    utterance.lang =
-        language === "English"
-            ? "en-US"
-            : language === "Français"
-                ? "fr-FR"
-                : "ar-LB";
-
-    utterance.rate = .92;
-    utterance.pitch = 1;
-    utterance.volume = 1;
-
-    utterance.onstart = () => {
-        nabilHome?.classList.remove(
-            "is-thinking",
-            "is-listening"
-        );
-        nabilHome?.classList.add(
-            "is-speaking"
-        );
-        lessonStatus(
-            "🗣️ الأستاذ نبيل يرحّب بك...",
-            true
-        );
-    };
-
-    utterance.onend = () => {
-        nabilHome?.classList.remove(
-            "is-speaking"
-        );
-        nabilHome?.classList.add(
-            "is-thinking"
-        );
-        lessonStatus(
-            "🧠 الأستاذ نبيل يفكر بالفكرة الأولى...",
-            true
-        );
-    };
-
-    utterance.onerror = () => {
-        nabilHome?.classList.remove(
-            "is-speaking"
-        );
-        nabilHome?.classList.add(
-            "is-thinking"
-        );
-    };
-
-    speechSynthesis.cancel();
-    speechSynthesis.speak(utterance);
+    nabilSpeakClear(
+        nabilLessonSpeechText,
+        language,
+        {
+            onstart: () => {
+                nabilHome?.classList.remove("is-thinking","is-listening");
+                nabilHome?.classList.add("is-speaking");
+                lessonStatus("🗣️ الأستاذ نبيل يرحّب بك...", true);
+            },
+            onend: () => {
+                nabilHome?.classList.remove("is-speaking");
+                nabilHome?.classList.add("is-thinking");
+                lessonStatus("🧠 الأستاذ نبيل يفكر بالفكرة الأولى...", true);
+            }
+        }
+    );
 }
-
 
 /* =========================================================
    NABIL AI LESSON MODE
@@ -4822,7 +4697,7 @@ function openLessonMode(){
 }
 
 function closeLessonMode(){
-    if ("speechSynthesis" in window) speechSynthesis.cancel();
+    stopNabilNeuralVoice();
 
     nabilLessonMode = false;
     nabilLessonActive = false;
@@ -4901,6 +4776,7 @@ function mirrorTeacherAnswerToLesson(text){
 }
 
 function stopLessonSpeech(){
+    stopNabilNeuralVoice();
     if ("speechSynthesis" in window) {
         speechSynthesis.cancel();
     }
@@ -4919,83 +4795,37 @@ function stopLessonSpeech(){
 }
 
 function readCurrentLessonText(){
-    if (
-        !nabilLessonSpeechText ||
-        !("speechSynthesis" in window)
-    ) {
-        return;
-    }
+    if (!nabilLessonSpeechText) return;
 
-    if (speechSynthesis.speaking) {
+    if (nabilNeuralSpeaking || (nabilNeuralAudio && !nabilNeuralAudio.paused)) {
         stopLessonSpeech();
         return;
     }
 
-    const utterance =
-        new SpeechSynthesisUtterance(
-            speechText(
-                nabilLessonSpeechText
-            )
-        );
+    const language = languageSelect?.value || "العربية";
 
-    const language =
-        languageSelect?.value ||
-        "العربية";
+    nabilSpeakClear(
+        nabilLessonSpeechText,
+        language,
+        {
+            onstart: () => {
+                stopLessonRecognitionTemporarily();
+                nabilHome?.classList.add("is-speaking");
+                lessonReadBtn.textContent = "⏸ إيقاف القراءة";
+                lessonStatus("🔊 الأستاذ نبيل يشرح الآن...", true);
+            },
+            onend: () => {
+                nabilHome?.classList.remove("is-speaking");
+                lessonReadBtn.textContent = "🔊 اقرأ النص";
+                lessonStatus("🎙️ دورك الآن — أسمعك", true);
 
-    utterance.lang =
-        language === "English"
-            ? "en-US"
-            : language === "Français"
-                ? "fr-FR"
-                : "ar-LB";
-
-    utterance.rate = .92;
-    utterance.pitch = 1;
-    utterance.volume = 1;
-
-    utterance.onstart = () => {
-        stopLessonRecognitionTemporarily();
-
-        nabilHome?.classList.add(
-            "is-speaking"
-        );
-
-        lessonReadBtn.textContent =
-            "⏸ إيقاف القراءة";
-
-        lessonStatus(
-            "🔊 الأستاذ نبيل يشرح الآن...",
-            true
-        );
-    };
-
-    const speechDone = () => {
-        nabilHome?.classList.remove(
-            "is-speaking"
-        );
-
-        lessonReadBtn.textContent =
-            "🔊 اقرأ النص";
-
-        lessonStatus(
-            "🎙️ دورك الآن — أسمعك",
-            true
-        );
-
-        if (lessonVoiceConversation && nabilLessonMode) {
-            resumeLessonRecognitionAfterSpeech();
+                if (lessonVoiceConversation && nabilLessonMode) {
+                    resumeLessonRecognitionAfterSpeech();
+                }
+            }
         }
-    };
-
-    utterance.onend = speechDone;
-    utterance.onerror = speechDone;
-
-    speechSynthesis.cancel();
-    speechSynthesis.speak(
-        utterance
     );
 }
-
 
 /* =========================================================
    ADAPTIVE LESSON FLOW — AFTER STUDENT ANSWERS
@@ -5791,31 +5621,25 @@ function homeLangCode(){
 }
 
 function homeSpeak(text, onDone=null){
-    if (!("speechSynthesis" in window) || !text) return;
-    try{
-        speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(text);
-        u.lang = homeLangCode();
-        u.rate = 0.92;
-        u.pitch = 1;
-        u.volume = 1;
-        u.onstart = () => {
-            homeWelcomeSpoken = true;
-            nabilHome.classList.add("is-speaking");
-            homeVoiceState.textContent = "🔊 الأستاذ نبيل يتحدث...";
-            homeVoiceState.classList.add("show");
-        };
-        u.onend = () => {
-            nabilHome.classList.remove("is-speaking");
-            if (!homeListening) homeVoiceState.classList.remove("show");
-            if (typeof onDone === "function") onDone();
-        };
-        u.onerror = () => {
-            nabilHome.classList.remove("is-speaking");
-            if (!homeListening) homeVoiceState.classList.remove("show");
-        };
-        speechSynthesis.speak(u);
-    }catch(e){console.warn("HOME TTS:",e)}
+    if (!text) return;
+
+    nabilSpeakClear(
+        text,
+        languageSelect?.value || "العربية",
+        {
+            onstart: () => {
+                homeWelcomeSpoken = true;
+                nabilHome.classList.add("is-speaking");
+                homeVoiceState.textContent = "🔊 الأستاذ نبيل يتحدث...";
+                homeVoiceState.classList.add("show");
+            },
+            onend: () => {
+                nabilHome.classList.remove("is-speaking");
+                if (!homeListening) homeVoiceState.classList.remove("show");
+                if (typeof onDone === "function") onDone();
+            }
+        }
+    );
 }
 
 function stageHeader(title, sub=""){
@@ -6637,7 +6461,7 @@ document.addEventListener("click", (event) => {
     });
 
     backBtn?.addEventListener("click", () => {
-        if ("speechSynthesis" in window) speechSynthesis.cancel();
+        stopNabilNeuralVoice();
         nabilHome.style.display = "block";
         nabilHome.style.opacity = "1";
         document.body.classList.add("nabil-home-lock");
