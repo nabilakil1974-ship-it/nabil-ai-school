@@ -2224,16 +2224,27 @@ function renderLessonCards(text) {
     });
 
     const cards = sections.length ? sections : [rendered];
-    const finalWords = /final answer|final card|conclusion|answer summary|الجواب النهائي|البطاقة النهائية|النتيجة النهائية|الخلاصة النهائية|carte finale|résumé final/i;
     const summaryWords = /rule summary|key idea|summary|خلاصة القاعدة|الفكرة الأساسية|الخلاصة|résumé|idée clé/i;
-    const checkWords = /quick check|check question|سؤال تحقق|تحقّق سريع|question de vérification|vérification rapide/i;
 
     return `<div class="lesson-card-stack">${cards.map((section, index) => {
+        const headingMatch = section.match(/^<h[23]>([\s\S]*?)<\/h[23]>/i);
+        const headingText = (headingMatch ? headingMatch[1] : "")
+            .replace(/<[^>]+>/g, " ")
+            .replace(/&nbsp;/gi, " ")
+            .replace(/\s+/g, " ")
+            .trim();
         const plain = section.replace(/<[^>]+>/g, " ");
+
+        /* IMPORTANT: classify by the HEADING only.
+           A Quick Check such as “outside the final card” must never become the final card. */
+        const isFinal = /^(?:\d+[\s.)-]*\s*)?(?:final card\b|final summary\b|البطاقة النهائية\b|الخلاصة النهائية\b|carte finale\b|résumé final\b)/i.test(headingText);
+        const isCheck = /^(?:\d+[\s.)-]*\s*)?(?:quick check\b|check question\b|سؤال تحقق\b|تحقّق سريع\b|question de vérification\b|vérification rapide\b)/i.test(headingText);
+
         const classes = ["lesson-concept-card", `card-tone-${index % 4 + 1}`];
-        if (summaryWords.test(plain)) classes.push("lesson-summary-card");
-        if (checkWords.test(plain)) classes.push("lesson-check-card");
-        if (finalWords.test(plain) || (cards.length === 1 && summaryWords.test(plain))) classes.push("lesson-final-card");
+        if (summaryWords.test(headingText)) classes.push("lesson-summary-card");
+        if (isCheck) classes.push("lesson-check-card");
+        if (isFinal) classes.push("lesson-final-card");
+
         return `<section class="${classes.join(" ")}" data-lesson-card="${index + 1}">${section}</section>`;
     }).join("")}</div>`;
 }
@@ -2243,14 +2254,11 @@ function normalizeFinalLessonCard(bubble, messageDirection, messageLanguage) {
     if (!finalCard) return;
 
     const heading = finalCard.querySelector("h2,h3,h4");
-    let title = heading ? heading.textContent.trim() : "";
-    if (!title) {
-        title = messageLanguage === "English"
-            ? "Final Card — Rule Summary"
-            : messageLanguage === "Français"
-                ? "Carte finale — Résumé de la règle"
-                : "البطاقة النهائية — خلاصة القاعدة";
-    }
+    const title = messageLanguage === "English"
+        ? "Final Card — Rule Summary"
+        : messageLanguage === "Français"
+            ? "Carte finale — Résumé de la règle"
+            : "البطاقة النهائية — خلاصة القاعدة";
 
     if (heading) heading.remove();
 
@@ -5578,6 +5586,130 @@ function nabilPersonalReply(message){
     return null;
 }
 
+
+function nabilExtendedLocalReply(message, lang=null, normalized=null){
+    const n = normalized || nabilNormalize(message);
+    lang = lang || nabilDetectLang(message);
+    const has = (...parts) => parts.some(p => n.includes(nabilNormalize(p)));
+
+    /* FRIENDSHIP / ATTACHMENT */
+    if (has("انت صديقي","أنت صديقي","انت صاحبي","أنت صاحبي","you are my friend","are you my friend","tu es mon ami","vous etes mon ami")){
+        return nabilPick({
+            lb:"فيني كون رفيق تعلّم إلك 😊 أشرحلك وأشجّعك وأسمع سؤالك، بس أنا مساعد رقمي مش صديق بشري. والأحلى يضل عندك أهل وأصحاب وأساتذة حقيقيون تحكي معهم وتشاركهم يومك.",
+            ar:"يمكنني أن أكون رفيق تعلّم لك 😊 أشرح لك وأشجعك وأستمع إلى أسئلتك، لكنني مساعد رقمي ولست صديقاً بشرياً. ومن المهم أن تبقى قريباً من أهلك وأصدقائك ومعلميك الحقيقيين.",
+            en:"I can be your learning companion 😊 I can explain, encourage, and listen to your questions, but I’m a digital assistant, not a human friend. Real relationships with family, friends, and teachers are important too.",
+            fr:"Je peux être votre compagnon d’apprentissage 😊 Je peux expliquer, encourager et écouter vos questions, mais je suis un assistant numérique, pas un ami humain. Les relations réelles avec la famille, les amis et les enseignants restent importantes."
+        },lang);
+    }
+
+    if (has("انت صديقي الوحيد","أنت صديقي الوحيد","ما عندي اصحاب","ما عندي أصدقاء","i have no friends","you are my only friend","je n ai pas d amis","tu es mon seul ami")){
+        return nabilPick({
+            lb:"أنا موجود لساعدك بالتعلّم وتحكي معي باحترام، بس ما بدي تكون وحدك. جرّب تحكي مع شخص حقيقي بتثق فيه: من أهلك، أستاذ بتحبه، مرشد، أو رفيق منيح. وإذا بدك منقدر نفكّر سوا بخطوة صغيرة لتقرب من الناس حواليك.",
+            ar:"أنا موجود لمساعدتك في التعلم والاستماع إليك باحترام، لكن لا أريدك أن تبقى وحيداً. حاول التحدث مع شخص حقيقي تثق به: أحد أفراد الأسرة، معلم، مرشد، أو صديق طيب. ويمكننا التفكير معاً في خطوة صغيرة تساعدك على التواصل مع من حولك.",
+            en:"I’m here to help you learn and to listen respectfully, but I don’t want you to feel alone. Please try talking to a real person you trust—a family member, teacher, counselor, or kind classmate. We can also think of one small step to help you connect with people around you.",
+            fr:"Je suis là pour vous aider à apprendre et vous écouter avec respect, mais je ne veux pas que vous restiez seul. Parlez à une personne réelle de confiance : parent, enseignant, conseiller ou camarade bienveillant. Nous pouvons aussi trouver ensemble une petite étape pour créer du lien."
+        },lang);
+    }
+
+    /* STUDY MOTIVATION */
+    if (has("ما بحب ادرس","ما بحب الدراسة","كرهت الدراسة","ما بدي ادرس","i hate studying","i dont want to study","je deteste etudier","je ne veux pas etudier")){
+        return nabilPick({
+            lb:"مفهوم، أوقات الدراسة بتصير ثقيلة. خلّينا نصغّرها: 10 دقايق على فكرة وحدة، بعدها استراحة قصيرة. خبرني أي مادة مضايقتك ومنبلّش من أسهل نقطة.",
+            ar:"أفهم ذلك؛ قد تصبح الدراسة ثقيلة أحياناً. لنقسّمها: عشر دقائق على فكرة واحدة، ثم استراحة قصيرة. أخبرني ما المادة التي تزعجك ونبدأ من أسهل نقطة.",
+            en:"That happens sometimes. Let’s make it smaller: ten minutes on one idea, then a short break. Tell me which subject feels difficult and we’ll start from the easiest point.",
+            fr:"Cela arrive. Réduisons la tâche : dix minutes sur une seule idée, puis une petite pause. Dites-moi quelle matière vous pèse et nous commencerons par le point le plus simple."
+        },lang);
+    }
+
+    if (has("خايف من الامتحان","خايفة من الامتحان","متوتر من الامتحان","exam stress","afraid of the exam","j ai peur de l examen","stresse par l examen")){
+        return nabilPick({
+            lb:"التوتر قبل الامتحان طبيعي بدرجة معيّنة. منعمل خطة بسيطة: نحدّد 3 أفكار أساسية، نحل سؤالين أو ثلاثة، وبالآخر مراجعة قصيرة. وإذا التوتر قوي كتير وعم يمنعك تنام أو تدرس، احكي مع أهلك أو أستاذك.",
+            ar:"قدر من التوتر قبل الامتحان طبيعي. لنضع خطة بسيطة: ثلاث أفكار أساسية، سؤالان أو ثلاثة للتدريب، ثم مراجعة قصيرة. وإذا كان القلق شديداً ويمنعك من النوم أو الدراسة، فتحدث مع أهلك أو معلمك.",
+            en:"Some exam stress is normal. Let’s make a simple plan: three key ideas, two or three practice questions, then a short review. If the anxiety is very strong and affects sleep or studying, please talk to a parent or teacher.",
+            fr:"Un peu de stress avant un examen est normal. Faisons un plan simple : trois idées essentielles, deux ou trois exercices, puis une courte révision. Si l’anxiété devient forte au point d’empêcher de dormir ou d’étudier, parlez-en à un parent ou à un enseignant."
+        },lang);
+    }
+
+    /* CHEATING / HOMEWORK ETHICS */
+    if (has("ساعدني اغش","بدي اغش","كيف اغش","اعطيني جواب الامتحان","help me cheat","how to cheat","give me exam answers","aide moi a tricher","comment tricher")){
+        return nabilPick({
+            lb:"ما بساعد بالغش. بس بساعدك بشي أحسن: منراجع الفكرة بسرعة، ومنحل تمرين مشابه لتقدر تجاوب بإيدك. هيك بتاخد العلامة ومعها الفهم.",
+            ar:"لن أساعد في الغش. لكنني أستطيع أن أساعدك بطريقة أفضل: نراجع الفكرة بسرعة ونحل تمريناً مشابهاً حتى تتمكن من الإجابة بنفسك.",
+            en:"I won’t help with cheating. I can help in a better way: we can review the idea quickly and solve a similar problem so you can answer on your own.",
+            fr:"Je ne peux pas aider à tricher. En revanche, je peux vous aider autrement : réviser rapidement l’idée et résoudre un exercice similaire pour que vous puissiez répondre vous-même."
+        },lang);
+    }
+
+    /* BULLYING / CONFLICT */
+    if (has("عم يتنمروا علي","يتنمروا علي","حدا عم يضربني","واحد ضربني","bullying me","someone hit me","on me harcele","quelqu un me frappe")){
+        return nabilPick({
+            lb:"هيدا موضوع مهم. سلامتك أولاً: ابعد عن المكان إذا في خطر، وما تواجه المشكلة لوحدك. خبر فوراً شخص بالغ موثوق بالمدرسة أو بالبيت—أستاذ، مدير، مرشد، أو أهلك—واحكيله شو صار بوضوح.",
+            ar:"هذا أمر مهم. سلامتك أولاً: ابتعد عن المكان إذا كان هناك خطر، ولا تواجه المشكلة وحدك. أخبر فوراً شخصاً بالغاً موثوقاً في المدرسة أو البيت، مثل المعلم أو المدير أو المرشد أو أحد والديك، واشرح ما حدث بوضوح.",
+            en:"This is important. Your safety comes first: move away if there is danger and don’t handle it alone. Tell a trusted adult right away—a teacher, principal, counselor, or parent—and explain clearly what happened.",
+            fr:"C’est important. Votre sécurité d’abord : éloignez-vous s’il y a un danger et ne gérez pas cela seul. Prévenez immédiatement un adulte de confiance—enseignant, direction, conseiller ou parent—et expliquez clairement ce qui s’est passé."
+        },lang);
+    }
+
+    if (has("رفيقي زعل مني","تخانقت مع رفيقي","تشاجرت مع صديقي","friend is mad at me","fought with my friend","dispute avec mon ami")){
+        return nabilPick({
+            lb:"جرّب تبدأ بهدوء: اسمعه أول شي، وبعدها قل شو صار من وجهة نظرك من دون إهانة. وإذا غلطت بشي، الاعتذار الصادق قوّة مش ضعف. وإذا المشكلة كبيرة، خلي شخص بالغ يساعدكم.",
+            ar:"ابدأ بهدوء: استمع إليه أولاً، ثم اشرح ما حدث من وجهة نظرك دون إهانة. وإذا أخطأت، فالاعتذار الصادق قوة وليس ضعفاً. وإذا كانت المشكلة كبيرة فاطلب مساعدة شخص بالغ.",
+            en:"Start calmly: listen first, then explain what happened from your point of view without insults. If you made a mistake, a sincere apology is a strength, not a weakness. If the problem is serious, ask a trusted adult to help.",
+            fr:"Commencez calmement : écoutez d’abord, puis expliquez votre point de vue sans insulte. Si vous avez fait une erreur, des excuses sincères sont une force. Si le problème est important, demandez l’aide d’un adulte de confiance."
+        },lang);
+    }
+
+    /* TEACHER / PARENT CONFLICT */
+    if (has("الاستاذ ظلمني","المعلم ظلمني","استاذي صرخ علي","teacher was unfair","my teacher yelled","professeur injuste")){
+        return nabilPick({
+            lb:"إذا حسّيت بالظلم، حاول تجمع الوقائع بهدوء: شو صار؟ إمتى؟ وشو كان المطلوب؟ بعدها احكي مع الأستاذ باحترام، وإذا ما انحلّ الموضوع اطلب مساعدة المدير أو المرشد أو أهلك. ما منقرر من طرف واحد قبل ما نعرف الصورة كاملة.",
+            ar:"إذا شعرت بالظلم، فابدأ بجمع الوقائع بهدوء: ماذا حدث؟ متى؟ وما المطلوب؟ ثم تحدث مع المعلم باحترام، وإذا لم تُحل المشكلة فاطلب مساعدة المدير أو المرشد أو أحد والديك. لا نحكم قبل معرفة الصورة كاملة.",
+            en:"If you feel you were treated unfairly, start with the facts: what happened, when, and what was expected? Then speak respectfully with the teacher. If it isn’t resolved, ask a principal, counselor, or parent to help. We shouldn’t judge from only one side.",
+            fr:"Si vous pensez avoir été traité injustement, commencez par les faits : que s’est-il passé, quand, et qu’attendait-on ? Parlez ensuite calmement à l’enseignant. Si le problème persiste, demandez l’aide de la direction, d’un conseiller ou d’un parent."
+        },lang);
+    }
+
+    /* PRIVACY / PASSWORDS */
+    if (has("كلمة السر","الباسورد","password","mot de passe","رقم بطاقتي","credit card","بطاقة مصرفية")){
+        return nabilPick({
+            lb:"ما تبعتلي كلمة سر أو رقم بطاقة أو رمز تحقق أبداً. هيدي معلومات خاصة لازم تضل عندك ومع ولي أمرك عند الحاجة. إذا بدك مساعدة بحساب، خبرني بالمشكلة من دون أي أسرار.",
+            ar:"لا ترسل لي كلمة مرور أو رقم بطاقة أو رمز تحقق أبداً. هذه معلومات خاصة يجب أن تبقى معك ومع ولي أمرك عند الحاجة. أخبرني بالمشكلة دون مشاركة أي أسرار.",
+            en:"Never send me a password, card number, or verification code. Those are private. If you need help with an account, describe the problem without sharing secrets.",
+            fr:"Ne m’envoyez jamais de mot de passe, de numéro de carte ou de code de vérification. Ce sont des informations privées. Décrivez le problème sans partager de secret."
+        },lang);
+    }
+
+    /* AI LIMITS / TRUTHFULNESS */
+    if (has("بتعرف كل شي","هل تعرف كل شيء","do you know everything","tu sais tout","vous savez tout")){
+        return nabilPick({
+            lb:"لا، وما لازم ادّعي هالشي. بعرف ساعد بكثير مواضيع، بس ممكن أخطئ أو تكون المعلومة ناقصة أو جديدة. إذا مش متأكد، بقولها وبنراجع المعلومة.",
+            ar:"لا، ولا ينبغي أن أدعي ذلك. أستطيع المساعدة في كثير من الموضوعات، لكن قد أخطئ أو تكون المعلومة ناقصة أو حديثة. عندما لا أكون متأكداً، سأقول ذلك ونراجع المعلومة.",
+            en:"No, and I shouldn’t pretend that I do. I can help with many topics, but I can be wrong or missing new information. When I’m not sure, I should say so and verify.",
+            fr:"Non, et je ne dois pas le prétendre. Je peux aider sur de nombreux sujets, mais je peux me tromper ou manquer une information récente. Si je ne suis pas sûr, je dois le dire et vérifier."
+        },lang);
+    }
+
+    if (has("انت احسن من استاذي","أنت أذكى من أستاذي","better than my teacher","smarter than my teacher","meilleur que mon prof")){
+        return nabilPick({
+            lb:"أنا أداة مساعدة، مش منافس للأستاذ. الأستاذ الحقيقي بيعرف صفّك وبيشوف تفاعلك وبيتابعك يومياً. دوري أكمّل الشرح وأعطيك تدريب إضافي، والأفضل نشتغل كلنا لمصلحتك.",
+            ar:"أنا أداة مساعدة ولست منافساً للمعلم. المعلم الحقيقي يعرف صفك ويتابع تفاعلك يومياً. دوري أن أكمل الشرح وأوفر تدريباً إضافياً، والأفضل أن نعمل جميعاً لمصلحتك.",
+            en:"I’m a support tool, not a competitor to your teacher. A real teacher knows your class and follows your progress directly. My role is to add explanations and practice so we all support your learning.",
+            fr:"Je suis un outil d’aide, pas un concurrent de votre enseignant. Un enseignant réel connaît votre classe et suit vos progrès. Mon rôle est d’ajouter des explications et des exercices pour soutenir votre apprentissage."
+        },lang);
+    }
+
+    /* DANGEROUS / HIGH-RISK GENERAL REDIRECT */
+    if (has("كيف اصنع سلاح","كيف اصنع قنبلة","how to make a bomb","make a weapon","fabriquer une bombe","fabriquer une arme")){
+        return nabilPick({
+            lb:"ما فيني أعطي تعليمات لصنع سلاح أو شي ممكن يأذي الناس. إذا سؤالك علمي، فيني أشرح المبدأ بطريقة آمنة—مثل الطاقة، الضغط، أو التفاعلات—من دون خطوات خطرة.",
+            ar:"لا أستطيع إعطاء تعليمات لصنع سلاح أو شيء قد يؤذي الناس. إذا كان سؤالك علمياً، يمكنني شرح المبدأ بطريقة آمنة، مثل الطاقة أو الضغط أو التفاعلات، من دون خطوات خطرة.",
+            en:"I can’t provide instructions for making weapons or anything that could hurt people. If your question is scientific, I can explain the underlying concept safely without dangerous steps.",
+            fr:"Je ne peux pas donner d’instructions pour fabriquer une arme ou quelque chose qui pourrait blesser. Si la question est scientifique, je peux expliquer le principe de manière sûre sans étapes dangereuses."
+        },lang);
+    }
+    return nabilExtendedLocalReply(message, lang, n);
+}
+
 /* Immediate local reply; avoids unnecessary provider calls for social questions. */
 function tryNabilPersonalReply(message){
     const reply = nabilPersonalReply(message);
@@ -5600,6 +5732,77 @@ function tryNabilPersonalReply(message){
     return true;
 }
 
+
+
+let nabilAvatarAiBusy = false;
+
+function nabilVoiceLanguageFromQuestion(question){
+    const detected = nabilDetectLang(question);
+    if (detected === "en") return "English";
+    if (detected === "fr") return "Français";
+    return "العربية";
+}
+
+async function askNabilAvatarAI(question){
+    if (!question || nabilAvatarAiBusy) return null;
+
+    nabilAvatarAiBusy = true;
+    const language = nabilVoiceLanguageFromQuestion(question);
+
+    try{
+        homeVoiceState.textContent = language === "English"
+            ? "🧠 NABIL AI is thinking..."
+            : language === "Français"
+                ? "🧠 NABIL AI réfléchit..."
+                : "🧠 الأستاذ نبيل يفكّر...";
+        homeVoiceState.classList.add("show");
+        nabilHome?.classList.remove("is-listening");
+        nabilHome?.classList.add("is-thinking");
+
+        const body = new FormData();
+        body.append("message", question);
+        body.append("student_id", getStudentId());
+        body.append("grade", gradeSelect?.value || "");
+        body.append("language", language);
+
+        const response = await fetch(
+            API_BASE + "/api/avatar-chat",
+            {method:"POST", body}
+        );
+
+        const raw = await response.text();
+        let data = {};
+        try{ data = raw ? JSON.parse(raw) : {}; }catch(e){}
+
+        if (!response.ok) {
+            throw new Error(data?.detail || raw || "Avatar AI error");
+        }
+
+        const reply = String(data.reply || "").trim();
+        if (!reply) throw new Error("Empty avatar reply");
+
+        homeVoiceState.textContent = "💬 " + reply.replace(/\*\*/g,"");
+        homeVoiceState.classList.add("show");
+        nabilHome?.classList.remove("is-thinking");
+
+        homeSpeak(reply.replace(/\*\*/g,""));
+        return reply;
+
+    }catch(error){
+        console.warn("NABIL avatar AI:", error);
+        nabilHome?.classList.remove("is-thinking");
+        const fallback = language === "English"
+            ? "I couldn’t reach the conversation service right now. You can still choose a lesson, and we can try again in a moment."
+            : language === "Français"
+                ? "Je n’arrive pas à joindre le service de conversation pour le moment. Vous pouvez choisir une leçon et réessayer dans un instant."
+                : "ما قدرت أوصل لخدمة المحادثة هلّق. فيك تختار درس، ومنجرّب نحكي كمان شوي.";
+        homeVoiceState.textContent = "💬 " + fallback;
+        homeSpeak(fallback);
+        return null;
+    }finally{
+        nabilAvatarAiBusy = false;
+    }
+}
 
 /* ================= NABIL AI GUIDED HOME ================= */
 const nabilHome = document.getElementById("nabilHome");
@@ -5915,7 +6118,7 @@ function setupHomeRecognition(){
         homeVoiceState.textContent = "🎙️ أسمعك... انقر مرة أخرى للتوقف";
         homeVoiceState.classList.add("show");
     };
-    homeRecognition.onresult = (event) => {
+    homeRecognition.onresult = async (event) => {
         let interim = "";
         let newestFinal = "";
 
@@ -5972,6 +6175,23 @@ function setupHomeRecognition(){
 
             if (accepted) {
                 finalText = "";
+            } else {
+                finalText = "";
+
+                /* Not a navigation command and not in the fixed personality bank:
+                   hand the question to the guarded AI personality endpoint. */
+                const shouldResume = homeListening;
+                homeListening = false;
+                try { homeRecognition.stop(); } catch(e) {}
+
+                await askNabilAvatarAI(spokenQuestion);
+
+                if (shouldResume && !nabilLessonMode) {
+                    setTimeout(() => {
+                        homeListening = true;
+                        try { homeRecognition.start(); } catch(e) {}
+                    }, 900);
+                }
             }
         }
     };
