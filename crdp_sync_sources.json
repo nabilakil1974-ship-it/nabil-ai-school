@@ -1,0 +1,28 @@
+{
+  "allowed_hosts": [
+    "crdp.org",
+    "www.crdp.org"
+  ],
+  "sources": [
+    {
+      "name": "crdp_home",
+      "url": "https://www.crdp.org/",
+      "kind": "announcements"
+    },
+    {
+      "name": "crdp_curriculum",
+      "url": "https://www.crdp.org/curriculum",
+      "kind": "curriculum"
+    },
+    {
+      "name": "crdp_curriculum_details",
+      "url": "https://www.crdp.org/curriculum1/173",
+      "kind": "curriculum"
+    },
+    {
+      "name": "crdp_books",
+      "url": "https://www.crdp.org/books-pdf",
+      "kind": "books"
+    }
+  ]
+}
