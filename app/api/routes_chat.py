@@ -195,6 +195,7 @@ inverse
 - احسب نقاط كل series من الدالة نفسها وتحقق منها عدديًا.
 - ضع كل فرع في series مستقلة عند وجود قيمة ممنوعة أو انقطاع.
 - لا ترسم خطًا يصل بين جانبي المقارب العمودي.
+- إذا كانت الدالة كسرية عامة مثل (x^2+5)/(2x-3)، فلا تستخدم function من الأنواع البسيطة. استخدم type="coordinate_plane" مع series للفروع، vertical_asymptotes للمقارب العمودي، oblique_asymptote للمقارب المائل، وmarkers للنقاط المهمة.
 
  
 --------------------------------------------------
@@ -1572,11 +1573,12 @@ def validate_drawing_strict(drawing):
                 return False
         return True
 
-    # Coordinate/vector drawings: all given coordinates must be numeric; no zero vectors.
+    # Coordinate/vector drawings: validate coordinates, vectors and plotted series.
     if dtype in {"coordinate_points", "coordinate_plane", "analytic_plane", "orthonormal_plane", "orthonormal_system", "vector_plane", "vector", "vector_addition", "vector_components"}:
         for point in drawing.get("points") or []:
             if not isinstance(point, dict) or not _is_number(point.get("x")) or not _is_number(point.get("y")):
                 return False
+
         for vector in drawing.get("vectors") or []:
             if not isinstance(vector, dict):
                 return False
@@ -1584,7 +1586,57 @@ def validate_drawing_strict(drawing):
                 return False
             if vector["x1"] == vector["x2"] and vector["y1"] == vector["y2"]:
                 return False
-        return bool((drawing.get("points") or []) or (drawing.get("vectors") or []) or (drawing.get("lines") or []) or (drawing.get("circles") or []))
+
+        for series in drawing.get("series") or []:
+            if isinstance(series, dict):
+                series_points = series.get("points") or []
+            elif isinstance(series, list):
+                series_points = series
+            else:
+                return False
+
+            if len(series_points) < 2:
+                return False
+
+            for pair in series_points:
+                if (
+                    not isinstance(pair, (list, tuple))
+                    or len(pair) < 2
+                    or not _is_number(pair[0])
+                    or not _is_number(pair[1])
+                ):
+                    return False
+
+        for marker in drawing.get("markers") or []:
+            if not isinstance(marker, dict):
+                return False
+            if not _is_number(marker.get("x")) or not _is_number(marker.get("y")):
+                return False
+
+        for asymptote in drawing.get("vertical_asymptotes") or []:
+            value = asymptote.get("x") if isinstance(asymptote, dict) else asymptote
+            if not _is_number(value):
+                return False
+
+        oblique = drawing.get("oblique_asymptote")
+        if oblique is not None:
+            if (
+                not isinstance(oblique, dict)
+                or not _is_number(oblique.get("slope"))
+                or not _is_number(oblique.get("intercept"))
+            ):
+                return False
+
+        return bool(
+            (drawing.get("points") or [])
+            or (drawing.get("vectors") or [])
+            or (drawing.get("lines") or [])
+            or (drawing.get("circles") or [])
+            or (drawing.get("series") or [])
+            or (drawing.get("vertical_asymptotes") or [])
+            or drawing.get("oblique_asymptote")
+            or (drawing.get("markers") or [])
+        )
 
     # Right triangle: if all three sides are supplied, enforce Pythagoras.
     if dtype == "right_triangle":
@@ -2165,39 +2217,58 @@ GENERAL EXERCISES MODE / حل تمارين عامة
 الصف: {grade or "غير محدد"}
 الفرع: {branch or "غير مطبق"}
 المنهج: {curriculum or "المنهج اللبناني الرسمي"}
+لغة الواجهة (تُستعمل فقط إذا لم توجد أي قرينة لغوية في السؤال): {language or "العربية"}
 
-هذا الوضع غير مقيّد بعنوان درس واحد ولا بمادة واحدة ولا بلغة واجهة واحدة.
+هذا الوضع غير مقيّد بعنوان درس واحد ولا بمادة واحدة.
 
 قواعد إلزامية:
 - اكتشف مادة كل سؤال من محتواه أو من الصورة.
-- اكتشف لغة كل سؤال وأجب عنه بنفس لغته: العربية أو English أو Français.
+- اكتشف لغة السؤال من الكلمات المكتوبة في السؤال نفسه، وأجب بنفس تلك اللغة.
+- إذا كانت الورقة تضم أسئلة بلغات مختلفة، أجب عن كل سؤال بلغته.
+- لا تجعل لغة الواجهة تتغلب على لغة السؤال. استعمل لغة الواجهة فقط إذا كان السؤال رموزًا/معادلات بلا أي كلمات تسمح باكتشاف اللغة.
 - إذا كانت الورقة فيها أسئلة من دروس مختلفة أو مواد مختلفة، حلها كلها بالترتيب ولا تطلب اختيار درس.
+- نفّذ جميع المطالب المكتوبة في السؤال حرفيًا. ممنوع اختصار المطلوب إلى جزء واحد، وممنوع اختراع مطلوب غير موجود.
+- إذا طلب السؤال study / analyze / graph / represent / variations / étudier / représenter / tableau de variations / ادرس / مثّل / ارسم / جدول التغيرات، نفّذ كل العناصر المطلوبة، ولا تكتفِ بالمجال أو بقيمة عددية واحدة.
 - حافظ على مستوى الصف والفرع والمنهج.
 - إذا كان جزء من الصورة غير مقروء أو مقصوصًا أو محجوبًا، لا تخمّن.
-- إذا احتاج السؤال رسمًا، أرسل الرسم الفعلي في نفس الإجابة. ممنوع الإشارة إلى رسم غير موجود.
 - لا تخترع أرقامًا أو نقاطًا أو قياسات أو شحنات أو اتجاهات أو أسماء غير موجودة أو غير مستنتجة حسابيًا.
-- إذا كان الرسم التعليمي الأنسب ثنائي الأبعاد 2D فاستخدمه. وإذا كان السؤال يستفيد من مجسم تعليمي أو رسم شبه ثلاثي الأبعاد 3D فاستخدمه، لكن فقط إذا كانت المعطيات كافية.
+- إذا احتاج السؤال رسمًا، أرسل الرسم الفعلي في نفس الإجابة. ممنوع الإشارة إلى رسم غير موجود.
+- كل رسمة داخل DRAWINGS_JSON يجب أن تحتوي card_index يساوي رقم التمرين الذي تنتمي إليه.
+
+تنسيق اللغة:
+- إذا كان السؤال English استخدم فقط: ## Exercise N ; ### Given ; ### Required ; ### Formula / Property ; ### Solution ; ### Final Answer ; ### Rule Summary.
+- إذا كان السؤال Français استخدم فقط: ## Exercice N ; ### Données ; ### Demandé ; ### Formule / propriété ; ### Résolution ; ### Réponse finale ; ### Résumé de la règle.
+- إذا كان السؤال عربيًا استخدم فقط: ## تمرين N ; ### المعطيات ; ### المطلوب ; ### القانون أو الخاصية ; ### الحل خطوة بخطوة ; ### الجواب النهائي ; ### خلاصة القاعدة.
+- لا تكتب العناوين بثلاث لغات في الوقت نفسه.
+
+بروتوكول خاص إلزامي لدراسة الدوال:
+إذا طلب السؤال دراسة دالة أو تمثيلها البياني أو جدول تغيراتها، فأنجز العناصر المناسبة للمستوى والمطلوب، ومن بينها عند انطباقها:
+1) المجال.
+2) التقاطعات مع المحورين.
+3) المقارب العمودي.
+4) المقارب الأفقي أو المائل.
+5) المشتقة.
+6) النقاط الحرجة والقيم القصوى/الدنيا المحلية.
+7) فترات التزايد والتناقص.
+8) جدول التغيرات في Markdown table واضح.
+9) الرسم البياني الفعلي مع الفروع منفصلة عند الانقطاع، والمقارب/المقاربات والنقاط المهمة.
+- لا تقل "No drawing was required" إذا كان السؤال يطلب graph / represent / draw / représenter / tracer / ارسم / مثّل.
+- للدوال العامة أو الكسرية غير المدعومة مباشرة بنوع function البسيط، استخدم type="coordinate_plane" داخل DRAWINGS_JSON مع series محسوبة من الدالة نفسها، وفروع منفصلة على جانبي كل انقطاع.
+- أضف vertical_asymptotes و oblique_asymptote و markers عندما تكون موجودة وثابتة حسابيًا.
+- إذا كانت المسألة "دراسة دالة" أو "Study of a Function" أو "Étude de fonction"، فالرسم وجدول التغيرات إلزاميان متى كانت المشتقة جزءًا من مستوى الطالب أو من المطلوب. لا تعتبرهما اختياريين.
+- يجب أن يحتوي قسم ### Solution / ### الحل خطوة بخطوة / ### Résolution على Markdown table لجدول التغيرات عند دراسة التزايد والتناقص، بحيث تنقله الواجهة تلقائيًا تحت الرسم.
+- في نفس الإجابة أرسل DRAWINGS_JSON للرسم البياني؛ لا ترسل نصًا فقط.
+- لا تستخدم type="function" لدالة كسرية عامة إذا كانت function لا تساوي أحد الأنواع البسيطة المدعومة (ln, exp, square, linear, inverse).
+- تحقق عدديًا من نقاط series قبل إرسالها ولا تصل المنحنى عبر مقارب عمودي.
+- عند دراسة دالة كسرية، إذا أمكن حساب المشتقة والنقاط الحرجة ضمن مستوى الصف، احسبها واذكر فترات التزايد والتناقص والقيم القصوى/الدنيا، ثم أنشئ جدول التغيرات والرسم النهائي. لا تكتفِ بالمجال أو المقاربات فقط.
 
 أسلوب العرض:
-- أخرج الحل على شكل لوحات Solution Boards مرتبة وواضحة، بحيث يكون كل سؤال مستقلاً عن الذي بعده.
-- استخدم العنوان الرئيسي لكل سؤال بهذا النمط: ## Exercise / تمرين / Exercice [رقم السؤال].
-- ثم استخدم العناوين الفرعية التالية بالترتيب نفسه كلما أمكن:
-### المعطيات / Given / Données
-### المطلوب / Required / Demandé
-### القانون أو الخاصية / Formula or Property / Formule ou propriété
-### الحل خطوة بخطوة / Solution / Résolution
-### الجواب النهائي / Final Answer / Réponse finale
-### خلاصة القاعدة / Rule Summary / Résumé de la règle
-- في قسم المعطيات والمطلوب والقانون وخلاصة القاعدة استخدم جُملاً قصيرة أو نقاطًا موجزة مناسبة لبطاقات العرض.
-- في قسم الحل خطوة بخطوة قدّم الحل مرتبًا وواضحًا وبـ LaTeX الصحيح عند الحاجة.
-- في قسم الجواب النهائي أبرز النتيجة بوضوح، ويمكن استخدام oxed{{...}} في الرياضيات عندما يناسب.
-- بعد إنهاء السؤال انتقل إلى السؤال التالي فقط.
-- حافظ على رقم السؤال الأصلي كما هو في الورقة.
-- لا تضع بطاقة نهائية للدرس ولا Quick Check ولا اختبار نهاية درس في هذا الوضع.
-- إذا احتاج السؤال رسماً، اربط الرسم بنفس السؤال ولا تؤخره إلى نهاية الورقة.
-- كل رسمة في DRAWINGS_JSON يجب أن تحتوي card_index يساوي رقم التمرين الذي تنتمي إليه، حتى تظهر الرسمة داخل لوحة ذلك التمرين مباشرة.
-- إذا كان في السؤال حالتان أو شكلان للمقارنة (مثل توالٍ/توازٍ، before/after، case 1/case 2)، قسّم الشرح داخليًا بوضوح حتى يمكن عرضه كبطاقات متجاورة.
-- في الفيزياء والكيمياء وعلوم الحياة والرياضيات، استخدم الرسومات التعليمية المناسبة (دوائر كهربائية، قوى، رسوم بيانية، أشكال هندسية، روابط، جزيئات، أعضاء، جداول تغير، شجرة احتمالات...) بحسب الحاجة.
+- أخرج كل سؤال على شكل Solution Board مستقلة.
+- في قسم المعطيات والمطلوب والقانون وخلاصة القاعدة استخدم نقاطًا موجزة.
+- في قسم الحل قدّم الحسابات خطوة بخطوة وبـ LaTeX الصحيح.
+- في الجواب النهائي أبرز النتيجة بوضوح.
+- إذا كان في السؤال حالتان أو شكلان للمقارنة، قسّم الحل بوضوح إلى حالتين.
+- لا تضع Final Card أو Quick Check أو اختبار نهاية درس في هذا الوضع.
 """
         lesson_policy_text = ""
         curriculum_guardrail = ""
