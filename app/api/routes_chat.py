@@ -1,4 +1,5 @@
 import json
+import math
 import re
 from pathlib import Path
 from typing import Optional
@@ -248,24 +249,31 @@ inverse
 --------------------------------------------------
 د) قوى في الفيزياء
 --------------------------------------------------
- 
+
+
 {
   "type": "forces",
   "title": "مخطط القوى",
   "object": "m",
   "forces": [
-    {"direction": "up", "label": "N"},
-    {"direction": "down", "label": "mg"},
-    {"direction": "right", "label": "F"}
+    {"direction": "up", "label": "N", "magnitude": 10},
+    {"direction": "down", "label": "mg", "magnitude": 10},
+    {"direction": "right", "label": "F", "magnitude": 6}
   ]
 }
- 
+
 الاتجاهات المقبولة:
 up
 down
 left
 right
- 
+
+ملاحظة مهمة للقوى:
+- في forces: أرسل "magnitude" كرقم فعلي لكل قوة عندما تكون معروفة من المسألة، ويفضّل أن تكون بالنيوتن.
+- لا تضع magnitude تخمينية أو مستنتجة بلا أساس.
+- عندما تكون المقادير معروفة، يستخدم Visual Engine V2 هذه القيم ليعكس طول كل سهم النسبة الصحيحة بين القوى.
+- إذا لم تكن قيمة قوة معروفة، يمكن حذف magnitude بدل اختراعها.
+
 --------------------------------------------------
 هـ) جزيء مبسط
 --------------------------------------------------
@@ -383,6 +391,155 @@ right
 - إذا كان الرسم البسيط الموجود سابقًا أوضح للطالب، استخدمه بدل هذا المحرّك.
 
 --------------------------------------------------
+ي) جدول دوري مبسّط
+--------------------------------------------------
+
+استخدمه عندما يكون عرض بعض عناصر الجدول الدوري مفيدًا للشرح:
+
+{
+  "type": "periodic_table",
+  "title": "عناصر من الجدول الدوري",
+  "elements": [
+    {
+      "symbol": "Na",
+      "number": 11,
+      "mass": "23.0",
+      "color": "#c084fc"
+    }
+  ]
+}
+
+قواعد periodic_table:
+- لا تخترع العدد الذري أو الكتلة أو رمز العنصر.
+- استخدم العناصر المطلوبة فقط أو العناصر المرتبطة مباشرة بالدرس.
+- إذا لم تكن قيمة الكتلة مطلوبة أو مؤكدة، يمكن حذفها بدل اختراعها.
+- يمكن إرسال حتى 8 عناصر في الرسم الواحد.
+- color للتنسيق البصري فقط ولا يغيّر أي معنى كيميائي.
+
+--------------------------------------------------
+ك) مخطط طاقة التفاعل
+--------------------------------------------------
+
+استخدمه لتمثيل تغير الطاقة أثناء التفاعل:
+
+{
+  "type": "energy_diagram",
+  "title": "مخطط طاقة التفاعل",
+  "reaction_type": "exothermic",
+  "labels": {
+    "reactants": "Reactants",
+    "products": "Products",
+    "activation_energy": "Ea",
+    "delta_h": "ΔH"
+  }
+}
+
+القيم المقبولة في reaction_type:
+- "exothermic"
+- "endothermic"
+
+قواعد energy_diagram:
+- حدّد نوع التفاعل من المعطيات فقط.
+- في التفاعل الطارد للحرارة تكون طاقة النواتج أقل من طاقة المتفاعلات.
+- في التفاعل الماص للحرارة تكون طاقة النواتج أعلى من طاقة المتفاعلات.
+- لا تعكس اتجاه ΔH.
+- لا تضع قيمة عددية لـ Ea أو ΔH إلا إذا كانت معطاة أو محسوبة يقينًا.
+- استخدم لغة السؤال في labels.
+
+--------------------------------------------------
+ل) حالات المادة
+--------------------------------------------------
+
+استخدمه للمقارنة بين نموذج الجسيمات في الصلب والسائل والغاز:
+
+{
+  "type": "states_of_matter",
+  "title": "حالات المادة",
+  "labels": {
+    "solid": "Solid",
+    "liquid": "Liquid",
+    "gas": "Gas"
+  }
+}
+
+قواعد states_of_matter:
+- الصلب: جسيمات متقاربة ومنظمة نسبيًا.
+- السائل: جسيمات متقاربة لكن أقل انتظامًا.
+- الغاز: جسيمات متباعدة.
+- الرسم تمثيل جسيمي تعليمي مبسّط وليس صورة مجهرية حرفية.
+- لا تضف تغير حالة أو حرارة أو ضغط إذا لم يكن ذلك جزءًا من السؤال.
+
+--------------------------------------------------
+م) دورة حياة
+--------------------------------------------------
+
+استخدمه عندما يكون المطلوب عرض مراحل متتابعة لكائن حي أو لتحولاته:
+
+{
+  "type": "life_cycle",
+  "title": "دورة حياة",
+  "stages": [
+    {"label": "Egg"},
+    {"label": "Larva"},
+    {"label": "Pupa"},
+    {"label": "Adult"}
+  ]
+}
+
+قواعد life_cycle:
+- استخدم فقط المراحل الصحيحة المرتبطة بالكائن أو الدرس.
+- رتّب المراحل بالترتيب العلمي الصحيح.
+- لا تضف مرحلة غير موجودة في دورة الحياة الفعلية.
+- يفضّل بين 3 و6 مراحل.
+- استخدم لغة السؤال في labels.
+
+--------------------------------------------------
+ن) سلسلة غذائية
+--------------------------------------------------
+
+استخدمه عندما يحتاج الشرح إلى تمثيل انتقال الغذاء أو الطاقة بين كائنات حية:
+
+{
+  "type": "food_chain",
+  "title": "سلسلة غذائية",
+  "links": [
+    {"label": "Grass"},
+    {"label": "Rabbit"},
+    {"label": "Fox"}
+  ]
+}
+
+قواعد food_chain:
+- رتّب الكائنات بترتيب صحيح من المصدر الغذائي إلى المستهلكين.
+- لا تخلط بين السلسلة الغذائية والشبكة الغذائية.
+- لا تضف كائنات غير مرتبطة بالسؤال.
+- يفضّل بين 3 و6 عناصر.
+- إذا كان المطلوب "food web" لكنك لا تملك دعماً لشبكة كاملة، استخدم food_chain فقط إذا كان التبسيط مناسبًا للسؤال.
+
+--------------------------------------------------
+س) جهاز جسم مبسّط (هضمي/دوري/تنفسي)
+--------------------------------------------------
+
+استخدمه لتمثيل مسار أو أعضاء جهاز جسم بشكل مبسّط ومرقّم:
+
+{
+  "type": "body_system",
+  "title": "جهاز هضمي مبسّط",
+  "organs": [
+    {"label": "Mouth"},
+    {"label": "Stomach"},
+    {"label": "Intestine"}
+  ]
+}
+
+قواعد body_system:
+- أرسل فقط الأعضاء أو الأجزاء الأساسية اللازمة لفهم السؤال.
+- رتّب الأعضاء بالترتيب الوظيفي أو المساري الصحيح.
+- لا تضف أعضاء غير لازمة أو غير صحيحة علميًا.
+- يفضّل بين 3 و7 أعضاء.
+- استخدم لغة السؤال في labels.
+
+--------------------------------------------------
 ي) الاحتمالات
 --------------------------------------------------
 
@@ -454,6 +611,12 @@ right
 - دائرة أو مماس.
 - مخطط قوى في الفيزياء.
 - بنية جزيئية مبسطة في الكيمياء.
+- جدول دوري مبسّط عند مقارنة عناصر أو خواصها.
+- مخطط طاقة تفاعل عند شرح التفاعل الطارد/الماص للحرارة أو طاقة التنشيط.
+- نموذج حالات المادة عند مقارنة الصلب والسائل والغاز على مستوى الجسيمات.
+- دورة حياة عند شرح مراحل نمو أو تحول كائن حي.
+- سلسلة غذائية عند شرح انتقال الغذاء أو الطاقة بين الكائنات الحية.
+- جهاز جسم مبسّط عند شرح أعضاء جهاز مثل الهضمي أو التنفسي أو الدوري.
 - شجرة أو مخطط فن أو جدول عندما يكون ذلك أوضح في مسائل الاحتمالات.
  
 لا ترسله إذا لم يكن الرسم مفيدًا.
@@ -469,9 +632,13 @@ right
 - لا تخترع نقاطًا هندسية غير موجودة.
 - إذا لم تعرف قيمة، ضع null.
 - VISUAL ENGINE V2: في الأشكال الهندسية أرسل القياسات العددية في الحقول المخصصة، وليس كنصوص labels فقط.
+- square/rectangle: أرسل "width" و"height" كأرقام فعلية عندما تكون معروفة من المسألة، مثل عرض وطول المستطيل، وليس فقط داخل labels.
+
 - right_triangle: استخدم a,b,c الرقمية.
 - triangle: استخدم side_ab, side_ac, side_bc الرقمية عندما تكون معروفة.
 - circle_tangent: استخدم radius, external_distance, tangent_length الرقمية عندما تكون متاحة أو مشتقة يقينًا.
+- forces: أرسل "magnitude" كرقم فعلي لكل قوة عندما تكون معروفة، حتى يستطيع Visual Engine V2 تمثيل أطوال الأسهم بنسبة صحيحة.
+
  
 ==================================================
 8. الالتزام الصارم بالصف والمنهج
@@ -1509,6 +1676,76 @@ def _normalize_drawing(drawing):
                 external_distance**2 - radius**2
             ) ** 0.5
 
+    elif drawing_type == "forces":
+        force_items = drawing.get("forces")
+        force_items = force_items if isinstance(force_items, list) else []
+
+        direction_aliases = {
+            "upward": "up",
+            "upwards": "up",
+            "top": "up",
+            "north": "up",
+            "downward": "down",
+            "downwards": "down",
+            "bottom": "down",
+            "south": "down",
+            "west": "left",
+            "east": "right",
+        }
+        allowed_directions = {"up", "down", "left", "right"}
+
+        normalized_forces = []
+        for idx, force in enumerate(force_items, start=1):
+            if not isinstance(force, dict):
+                continue
+
+            normalized_force = dict(force)
+
+            raw_direction = str(
+                normalized_force.get("direction")
+                or normalized_force.get("dir")
+                or ""
+            ).strip().lower()
+            direction = direction_aliases.get(raw_direction, raw_direction)
+            if direction not in allowed_directions:
+                continue
+            normalized_force["direction"] = direction
+
+            label = str(
+                normalized_force.get("label")
+                or normalized_force.get("name")
+                or normalized_force.get("symbol")
+                or ""
+            ).strip()
+            normalized_force["label"] = label or f"F{idx}"
+
+            magnitude = None
+            if _is_number(normalized_force.get("magnitude")):
+                magnitude = float(normalized_force["magnitude"])
+            else:
+                for candidate in (
+                    normalized_force.get("magnitude"),
+                    normalized_force.get("value"),
+                    normalized_force.get("mag"),
+                    normalized_force.get("size"),
+                ):
+                    magnitude = _drawing_numeric_length(candidate)
+                    if magnitude is not None:
+                        normalized_force["magnitude"] = magnitude
+                        break
+
+            if magnitude is not None and magnitude <= 0:
+                normalized_force.pop("magnitude", None)
+
+            normalized_forces.append(normalized_force)
+
+        if normalized_forces:
+            drawing["forces"] = normalized_forces
+        else:
+            drawing.pop("forces", None)
+
+        drawing["type"] = "forces"
+
     if drawing_type in {"vector_plane", "analytic_plane", "orthonormal_plane", "orthonormal_system"}:
         vectors = drawing.get("vectors")
         vectors = vectors if isinstance(vectors, list) else []
@@ -1830,6 +2067,385 @@ def validate_drawing_strict(drawing):
         return True
 
     return False
+
+
+
+def _graph_normalize_math_text(text: str) -> str:
+    s = str(text or "")
+    s = s.replace("\\left", "").replace("\\right", "")
+    s = s.replace("\\dfrac", "\\frac")
+    s = s.replace("^{2}", "^2")
+    s = s.replace("−", "-").replace("–", "-")
+    return s
+
+
+def _graph_parse_poly2(expr: str):
+    """Parse ax^2+bx+c safely (no eval)."""
+    s = _graph_normalize_math_text(expr)
+    s = s.replace("{", "").replace("}", "").replace(" ", "").replace("*", "")
+    s = s.replace("^2", "²")
+    if not s:
+        return None
+    if s[0] not in "+-":
+        s = "+" + s
+
+    terms = re.findall(r"([+-])([^+-]+)", s)
+    a = b = c = 0.0
+
+    for sign, term in terms:
+        mult = -1.0 if sign == "-" else 1.0
+        try:
+            if "x²" in term:
+                coeff = term.replace("x²", "")
+                a += mult * (1.0 if coeff == "" else float(coeff))
+            elif "x" in term:
+                coeff = term.replace("x", "")
+                b += mult * (1.0 if coeff == "" else float(coeff))
+            else:
+                c += mult * float(term)
+        except ValueError:
+            return None
+
+    return a, b, c
+
+
+def _graph_extract_rational_quadratic_linear(text: str):
+    """Parse a common school rational function: quadratic / linear."""
+    raw = _graph_normalize_math_text(text).replace("x^{2}", "x^2")
+
+    patterns = [
+        r"\\frac\s*\{([^{}]+)\}\s*\{([^{}]+)\}",
+        r"(?:f\s*\(\s*x\s*\)\s*=\s*)?\(?\s*([^/\n]+?)\s*\)?\s*/\s*\(?\s*([+-]?(?:\d+(?:\.\d+)?)?x(?:[+-]\d+(?:\.\d+)?)?)\s*\)?",
+    ]
+
+    numerator = denominator = None
+    for pattern in patterns:
+        m = re.search(pattern, raw, re.I)
+        if m:
+            numerator, denominator = m.group(1), m.group(2)
+            break
+
+    if numerator is None:
+        return None
+
+    num = _graph_parse_poly2(numerator)
+    den = _graph_parse_poly2(denominator)
+    if not num or not den:
+        return None
+
+    A, B, C = num
+    q2, D, E = den
+    if abs(q2) > 1e-12 or abs(D) < 1e-12:
+        return None
+
+    return A, B, C, D, E
+
+
+def _graph_rational_value(coeffs, x):
+    A, B, C, D, E = coeffs
+    den = D*x + E
+    if abs(den) < 1e-10:
+        return None
+    return (A*x*x + B*x + C) / den
+
+
+def _graph_critical_points(coeffs):
+    A, B, C, D, E = coeffs
+    qa = A*D
+    qb = 2*A*E
+    qc = B*E - D*C
+
+    if abs(qa) < 1e-12:
+        return [] if abs(qb) < 1e-12 else [-qc/qb]
+
+    disc = qb*qb - 4*qa*qc
+    if disc < -1e-10:
+        return []
+
+    disc = max(0.0, disc)
+    r = math.sqrt(disc)
+    return sorted([
+        (-qb-r)/(2*qa),
+        (-qb+r)/(2*qa),
+    ])
+
+
+def _graph_derivative_sign(coeffs, x):
+    A, B, C, D, E = coeffs
+    den = D*x + E
+    if abs(den) < 1e-12:
+        return None
+    num = A*D*x*x + 2*A*E*x + (B*E - D*C)
+    if abs(num) < 1e-10:
+        return 0
+    return 1 if num > 0 else -1
+
+
+def _graph_safe_function_drawing(message: str, reply_text: str, card_index: int = 1):
+    coeffs = _graph_extract_rational_quadratic_linear(
+        f"{message or ''}\n{reply_text or ''}"
+    )
+    if not coeffs:
+        return None
+
+    A, B, C, D, E = coeffs
+    vertical = -E/D
+    slope = A/D
+    intercept = (B - slope*E)/D
+
+    critical = [
+        x for x in _graph_critical_points(coeffs)
+        if abs(x-vertical) > 1e-7
+    ]
+
+    features = [vertical, 0.0] + critical
+    xmin = math.floor(min(features + [-5.0]) - 1)
+    xmax = math.ceil(max(features + [5.0]) + 1)
+    if xmax-xmin < 10:
+        mid=(xmin+xmax)/2
+        xmin=math.floor(mid-5)
+        xmax=math.ceil(mid+5)
+
+    ys=[]
+    for i in range(280):
+        x=xmin+(xmax-xmin)*i/279
+        if abs(x-vertical)<max(0.05,(xmax-xmin)/100):
+            continue
+        y=_graph_rational_value(coeffs,x)
+        if y is not None and math.isfinite(y) and abs(y)<100:
+            ys.append(y)
+
+    if ys:
+        sy=sorted(ys)
+        lo=sy[max(0,int(len(sy)*0.08)-1)]
+        hi=sy[min(len(sy)-1,int(len(sy)*0.92))]
+        pad=max(2.0,(hi-lo)*0.18)
+        ymin=max(-20,math.floor(lo-pad))
+        ymax=min(20,math.ceil(hi+pad))
+    else:
+        ymin,ymax=-8,8
+
+    if ymax-ymin<8:
+        mid=(ymax+ymin)/2
+        ymin=math.floor(mid-4)
+        ymax=math.ceil(mid+4)
+
+    eps=max(0.04,(xmax-xmin)/350)
+    series=[]
+    for lo,hi in ((xmin,vertical-eps),(vertical+eps,xmax)):
+        if hi<=lo:
+            continue
+        pts=[]
+        for i in range(150):
+            x=lo+(hi-lo)*i/149
+            y=_graph_rational_value(coeffs,x)
+            if y is not None and math.isfinite(y) and ymin-4<=y<=ymax+4:
+                pts.append([round(x,6),round(y,6)])
+        if len(pts)>=2:
+            series.append({"points":pts,"color":"#35c8ff"})
+
+    markers=[]
+    y0=_graph_rational_value(coeffs,0.0)
+    if y0 is not None and math.isfinite(y0):
+        markers.append({
+            "x":0.0,
+            "y":round(y0,6),
+            "label":f"(0, {round(y0,4)})",
+        })
+
+    for x in critical:
+        y=_graph_rational_value(coeffs,x)
+        if y is not None and math.isfinite(y):
+            markers.append({
+                "x":round(x,6),
+                "y":round(y,6),
+                "label":f"({round(x,3)}, {round(y,3)})",
+            })
+
+    if abs(A)<1e-12:
+        roots=[] if abs(B)<1e-12 else [-C/B]
+    else:
+        dn=B*B-4*A*C
+        roots=[]
+        if dn>=-1e-10:
+            dn=max(0.0,dn)
+            rr=math.sqrt(dn)
+            roots=[(-B-rr)/(2*A),(-B+rr)/(2*A)]
+
+    for x in roots:
+        if abs(x-vertical)>1e-7 and xmin<=x<=xmax:
+            markers.append({
+                "x":round(x,6),
+                "y":0.0,
+                "label":f"({round(x,4)}, 0)",
+            })
+
+    return {
+        "type":"coordinate_plane",
+        "title":"Graph of the Function",
+        "card_index":card_index,
+        "xmin":xmin,
+        "xmax":xmax,
+        "ymin":ymin,
+        "ymax":ymax,
+        "grid":True,
+        "series":series,
+        "vertical_asymptotes":[{
+            "x":round(vertical,8),
+            "label":f"x = {round(vertical,6)}",
+        }],
+        "oblique_asymptote":{
+            "slope":round(slope,10),
+            "intercept":round(intercept,10),
+            "label":f"y = {round(slope,6)}x {'+' if intercept>=0 else '-'} {round(abs(intercept),6)}",
+        },
+        "markers":markers,
+        "visual_style":"function_study_reference",
+    }
+
+
+def _graph_variation_markdown(message: str, reply_text: str, language: str):
+    coeffs = _graph_extract_rational_quadratic_linear(
+        f"{message or ''}\\n{reply_text or ''}"
+    )
+    if not coeffs:
+        return ""
+
+    A, B, C, D, E = coeffs
+    vertical = -E / D
+    critical = [
+        x for x in _graph_critical_points(coeffs)
+        if abs(x - vertical) > 1e-7
+    ]
+
+    def fmt(x, digits=3):
+        if math.isinf(x):
+            return "-∞" if x < 0 else "+∞"
+        if abs(x - round(x)) < 1e-10:
+            return str(int(round(x)))
+        return str(round(x, digits))
+
+    def f_value(x):
+        y = _graph_rational_value(coeffs, x)
+        if y is None or not math.isfinite(y):
+            return None
+        return y
+
+    def sample_sign(left, right):
+        if math.isinf(left):
+            sample = right - 1.0
+        elif math.isinf(right):
+            sample = left + 1.0
+        else:
+            sample = (left + right) / 2.0
+        sign = _graph_derivative_sign(coeffs, sample)
+        return "+" if sign is not None and sign > 0 else "-"
+
+    # Build interval cuts with the asymptote included
+    ordered_points = sorted(critical + [vertical])
+    intervals = []
+    bounds = [float("-inf")] + ordered_points + [float("inf")]
+    for left, right in zip(bounds[:-1], bounds[1:]):
+        intervals.append({
+            "left": left,
+            "right": right,
+            "label": f"({fmt(left)}, {fmt(right)})",
+            "sign": sample_sign(left, right),
+        })
+
+    # Text summary
+    if language == "English":
+        head = "### Monotonicity / Variations"
+        inc = "Increasing"
+        dec = "Decreasing"
+        extrema_title = "Critical points"
+        table_title = "#### Variation Table"
+    elif language == "Français":
+        head = "### Variations / Monotonie"
+        inc = "Croissante"
+        dec = "Décroissante"
+        extrema_title = "Points critiques"
+        table_title = "#### Tableau de variations"
+    else:
+        head = "### التزايد والتناقص / التغيّرات"
+        inc = "متزايدة"
+        dec = "متناقصة"
+        extrema_title = "النقاط الحرجة"
+        table_title = "#### جدول التغيّرات"
+
+    lines = [f"\n\n{head}"]
+    for interval in intervals:
+        lines.append(
+            f"- {(inc if interval['sign'] == '+' else dec)} على `{interval['label']}`"
+        )
+
+    if critical:
+        crit_parts = []
+        for x in critical:
+            y = f_value(x)
+            if y is None:
+                continue
+            crit_parts.append(f"`x = {fmt(x)}` → `({fmt(x)}, {fmt(y)})`")
+        if crit_parts:
+            sep = " ، " if language == "العربية" else ", "
+            lines.append(f"- **{extrema_title}:** " + sep.join(crit_parts))
+
+    # Build the exact-like variation table:
+    # x row / f'(x) row / f(x) row
+    x_row = ["x"]
+    fp_row = ["f'(x)"]
+    f_row = ["f(x)"]
+
+    # Helper for point labels in the row
+    critical_set = {round(x, 8) for x in critical}
+    extrema_text = {}
+    for x in critical:
+        y = f_value(x)
+        if y is None:
+            continue
+        sign_left = None
+        sign_right = None
+        # Find neighboring interval signs around x
+        idx = ordered_points.index(x)
+        if idx >= 0:
+            if idx < len(intervals):
+                sign_left = intervals[idx]["sign"]
+            if idx + 1 < len(intervals):
+                sign_right = intervals[idx + 1]["sign"]
+        if sign_left == "+" and sign_right == "-":
+            label = f"local max\n{fmt(x)} ; {fmt(y)}"
+        elif sign_left == "-" and sign_right == "+":
+            label = f"local min\n{fmt(x)} ; {fmt(y)}"
+        else:
+            label = f"{fmt(x)} ; {fmt(y)}"
+        extrema_text[round(x, 8)] = label
+
+    # Interleave intervals and special points.
+    for i, point in enumerate(ordered_points):
+        x_row.append(intervals[i]["label"])
+        fp_row.append(intervals[i]["sign"])
+        f_row.append("↑" if intervals[i]["sign"] == "+" else "↓")
+
+        x_row.append(fmt(point))
+        if abs(point - vertical) < 1e-7:
+            fp_row.append("∥")
+            f_row.append("-∞ / +∞")
+        else:
+            fp_row.append("0")
+            f_row.append(extrema_text.get(round(point, 8), "0"))
+
+    # Last interval
+    x_row.append(intervals[-1]["label"])
+    fp_row.append(intervals[-1]["sign"])
+    f_row.append("↑" if intervals[-1]["sign"] == "+" else "↓")
+
+    lines.append(f"\n{table_title}")
+    lines.append("| " + " | ".join(x_row) + " |")
+    lines.append("|" + "|".join(["---"] * len(x_row)) + "|")
+    lines.append("| " + " | ".join(fp_row) + " |")
+    lines.append("| " + " | ".join(f_row) + " |")
+
+    return "\n".join(lines)
 
 
 def extract_drawings(text: str):
@@ -2369,6 +2985,7 @@ GENERAL EXERCISES MODE / حل تمارين عامة
 8) جدول التغيرات في Markdown table واضح.
 9) الرسم البياني الفعلي مع الفروع منفصلة عند الانقطاع، والمقارب/المقاربات والنقاط المهمة.
 - لا تقل "No drawing was required" إذا كان السؤال يطلب graph / represent / draw / représenter / tracer / ارسم / مثّل.
+- في دراسة الدالة الكسرية، الرسم البياني داخل نفس Solution Board إلزامي، وجدول التغيرات يظهر تحت الرسم مثل التصميم المرجعي.
 - للدوال العامة أو الكسرية غير المدعومة مباشرة بنوع function البسيط، استخدم type="coordinate_plane" داخل DRAWINGS_JSON مع series محسوبة من الدالة نفسها، وفروع منفصلة على جانبي كل انقطاع.
 - أضف vertical_asymptotes و oblique_asymptote و markers عندما تكون موجودة وثابتة حسابيًا.
 - إذا كانت المسألة "دراسة دالة" أو "Study of a Function" أو "Étude de fonction"، فالرسم وجدول التغيرات إلزاميان متى كانت المشتقة جزءًا من مستوى الطالب أو من المطلوب. لا تعتبرهما اختياريين.
@@ -2376,7 +2993,8 @@ GENERAL EXERCISES MODE / حل تمارين عامة
 - في نفس الإجابة أرسل DRAWINGS_JSON للرسم البياني؛ لا ترسل نصًا فقط.
 - لا تستخدم type="function" لدالة كسرية عامة إذا كانت function لا تساوي أحد الأنواع البسيطة المدعومة (ln, exp, square, linear, inverse).
 - تحقق عدديًا من نقاط series قبل إرسالها ولا تصل المنحنى عبر مقارب عمودي.
-- عند دراسة دالة كسرية، إذا أمكن حساب المشتقة والنقاط الحرجة ضمن مستوى الصف، احسبها واذكر فترات التزايد والتناقص والقيم القصوى/الدنيا، ثم أنشئ جدول التغيرات والرسم النهائي. لا تكتفِ بالمجال أو المقاربات فقط.
+- عند دراسة دالة كسرية، فجزء Variation / Monotonicity إلزامي: احسب المشتقة، النقاط الحرجة، فترات التزايد والتناقص، وحدد local maximum/local minimum عندما توجد، ثم أنشئ جدول التغيرات الفعلي والرسم النهائي. لا تكتفِ بالمجال أو المقاربات فقط.
+- يجب أن يظهر في النص عنوان مستقل للتغيّرات/Monotonicity، ويجب أن يظهر جدول Markdown حقيقي تحت الرسم في الواجهة المرجعية.
 
 أسلوب العرض:
 - أخرج كل سؤال على شكل Solution Board مستقلة.
@@ -2564,6 +3182,45 @@ GENERAL EXERCISES MODE / حل تمارين عامة
     # return the textual explanation only. This is safer than inventing values.
     drawings = [item for item in drawings if validate_drawing_strict(item)]
 
+
+    # General exercises: never leave a safely-parseable function-study graph blank.
+    if general_exercises_mode:
+        function_drawing = _graph_safe_function_drawing(
+            message=message,
+            reply_text=reply_text,
+            card_index=1,
+        )
+
+        if function_drawing and not drawings and validate_drawing_strict(function_drawing):
+            drawings.append(function_drawing)
+
+        # Add verified monotonicity + variation table whenever the AI omitted the TABLE itself.
+        if function_drawing and not re.search(
+            r"\|\s*x\s*\||\|\s*f'\(x\)\s*\||variation\s+table|tableau\s+de\s+variations|جدول\s+التغي",
+            reply_text,
+            re.I,
+        ):
+            msg_text = str(message or "")
+            detected_lang = (
+                "English"
+                if re.search(
+                    r"\b(study|function|graph|derivative|given|required|asymptote)\b",
+                    msg_text,
+                    re.I,
+                )
+                else "Français"
+                if re.search(
+                    r"\b(fonction|étude|etud|dériv|deriv|représent|represent|asymptote)\b",
+                    msg_text,
+                    re.I,
+                )
+                else "العربية"
+            )
+            reply_text += _graph_variation_markdown(
+                message,
+                reply_text,
+                detected_lang,
+            )
  
     if not reply_text:
  
