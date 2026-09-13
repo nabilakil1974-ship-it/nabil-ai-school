@@ -216,6 +216,8 @@ inverse
 }
  
 إذا لم تكن بعض الأطوال معروفة استخدم null.
+- في right_triangle أرسل a وb وc كقيم عددية فعلية متى كانت معروفة أو مشتقة يقينًا؛ a وb هما الضلعان القائمان وc هو الوتر.
+- لا تكتفِ بكتابة الأطوال داخل labels فقط، لأن Visual Engine V2 يستخدم القيم العددية لرسم النسب الصحيحة.
  
 --------------------------------------------------
 ج) دائرة ومماس
@@ -225,11 +227,24 @@ inverse
   "type": "circle_tangent",
   "title": "دائرة ومماس",
   "radius": 5,
+  "external_distance": 13,
+  "tangent_length": 12,
   "center": "O",
   "tangent_point": "A",
-  "external_point": "M"
+  "external_point": "M",
+  "labels": {
+    "radius": "OA = 5 cm",
+    "external_distance": "OM = 13 cm",
+    "tangent_length": "AM = 12 cm"
+  }
 }
  
+قواعد الدائرة والمماس:
+- إذا كانت المسألة تعطي نصف القطر R والمسافة من المركز إلى النقطة الخارجية OM، أرسل radius وexternal_distance كأرقام.
+- إذا أمكن اشتقاق طول المماس يقينًا، أرسل tangent_length = sqrt(OM^2 - R^2).
+- لا ترسل tangent_length مخالفًا لعلاقة فيثاغورس في المثلث القائم OAM.
+- Visual Engine V2 يحسب موضع نقطة التماس هندسيًا من R وOM، لذلك لا تستخدم موضعًا ثابتًا أو شكليًا.
+
 --------------------------------------------------
 د) قوى في الفيزياء
 --------------------------------------------------
@@ -274,12 +289,14 @@ right
   "type": "triangle",
   "title": "مثلث ABC",
   "labels": {"a": "A", "b": "B", "c": "C"},
-  "side_ab": "5 cm",
-  "side_ac": "4 cm",
-  "side_bc": "6 cm"
+  "side_ab": 5,
+  "side_ac": 4,
+  "side_bc": 6
 }
 
 استخدمه للمثلثات العامة عندما لا يكون النوع right_triangle أنسب.
+- عند معرفة أطوال الأضلاع أرسل side_ab وside_ac وside_bc كأرقام فعلية بلا وحدة؛ ضع الوحدة في labels أو note فقط.
+- محرك الرسم يرسم المثلث بنسب الأضلاع الحقيقية، لذلك لا ترسل أرقامًا تقريبية شكلية.
 
 --------------------------------------------------
 ز) نقاط على المستوى الإحداثي
@@ -451,6 +468,10 @@ right
 - لا تخترع أرقامًا غير موجودة.
 - لا تخترع نقاطًا هندسية غير موجودة.
 - إذا لم تعرف قيمة، ضع null.
+- VISUAL ENGINE V2: في الأشكال الهندسية أرسل القياسات العددية في الحقول المخصصة، وليس كنصوص labels فقط.
+- right_triangle: استخدم a,b,c الرقمية.
+- triangle: استخدم side_ab, side_ac, side_bc الرقمية عندما تكون معروفة.
+- circle_tangent: استخدم radius, external_distance, tangent_length الرقمية عندما تكون متاحة أو مشتقة يقينًا.
  
 ==================================================
 8. الالتزام الصارم بالصف والمنهج
@@ -1447,6 +1468,47 @@ def _normalize_drawing(drawing):
             drawing.setdefault("intercept", 0)
 
     drawing_type = str(drawing.get("type") or "").lower()
+    labels = drawing.get("labels") if isinstance(drawing.get("labels"), dict) else {}
+
+    # Visual Engine V2: promote numeric geometry instead of leaving lengths only in labels.
+    if drawing_type == "right_triangle":
+        _promote_numeric_field(drawing, "a", labels.get("a"))
+        _promote_numeric_field(drawing, "b", labels.get("b"))
+        _promote_numeric_field(drawing, "c", labels.get("c"))
+
+    elif drawing_type == "triangle":
+        _promote_numeric_field(drawing, "side_ab", labels.get("side_ab"))
+        _promote_numeric_field(drawing, "side_ac", labels.get("side_ac"))
+        _promote_numeric_field(drawing, "side_bc", labels.get("side_bc"))
+
+    elif drawing_type == "circle_tangent":
+        radius = _promote_numeric_field(
+            drawing, "radius", labels.get("radius"), labels.get("r")
+        )
+        external_distance = _promote_numeric_field(
+            drawing,
+            "external_distance",
+            labels.get("external_distance"),
+            labels.get("OM"),
+        )
+        tangent_length = _promote_numeric_field(
+            drawing,
+            "tangent_length",
+            labels.get("tangent_length"),
+            labels.get("AM"),
+        )
+
+        # AM is rigorously derivable from OA ⟂ AM in right triangle OAM.
+        if (
+            tangent_length is None
+            and radius is not None
+            and external_distance is not None
+            and external_distance > radius > 0
+        ):
+            drawing["tangent_length"] = (
+                external_distance**2 - radius**2
+            ) ** 0.5
+
     if drawing_type in {"vector_plane", "analytic_plane", "orthonormal_plane", "orthonormal_system"}:
         vectors = drawing.get("vectors")
         vectors = vectors if isinstance(vectors, list) else []
@@ -1473,6 +1535,34 @@ def _normalize_drawing(drawing):
 
 def _is_number(value):
     return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _drawing_numeric_length(value):
+    """Extract a plain numeric length from a model field such as 5, '5 cm', or '13.5 m'."""
+    if _is_number(value):
+        return float(value)
+    if not isinstance(value, str):
+        return None
+    text = value.strip().replace(",", ".")
+    frac = re.search(r"(-?\d+(?:\.\d+)?)\s*/\s*(-?\d+(?:\.\d+)?)", text)
+    if frac:
+        denominator = float(frac.group(2))
+        if abs(denominator) < 1e-12:
+            return None
+        return float(frac.group(1)) / denominator
+    match = re.search(r"-?\d+(?:\.\d+)?", text)
+    return float(match.group(0)) if match else None
+
+
+def _promote_numeric_field(drawing, key, *fallbacks):
+    if _is_number(drawing.get(key)):
+        return float(drawing[key])
+    for value in fallbacks:
+        numeric = _drawing_numeric_length(value)
+        if numeric is not None:
+            drawing[key] = numeric
+            return numeric
+    return None
 
 
 def _numeric_probability(value):
@@ -1638,22 +1728,27 @@ def validate_drawing_strict(drawing):
             or (drawing.get("markers") or [])
         )
 
-    # Right triangle: if all three sides are supplied, enforce Pythagoras.
+    # Right triangle: numeric sides drive Visual Engine V2 proportions.
     if dtype == "right_triangle":
         sides = [drawing.get("a"), drawing.get("b"), drawing.get("c")]
-        numeric = [v for v in sides if _is_number(v)]
         if any(_is_number(v) and v <= 0 for v in sides):
             return False
-        if len(numeric) == 3:
+        if all(_is_number(v) for v in sides):
             a, b, c = map(float, sides)
-            longest = max(a, b, c)
-            other = [v for v in (a, b, c) if v != longest]
-            if len(other) != 2:
-                # handle repeated side lengths robustly
-                ss = sorted([a, b, c])
-                other = ss[:2]
-                longest = ss[2]
-            if abs(other[0]**2 + other[1]**2 - longest**2) > max(1e-6, longest**2 * 1e-6):
+            # Contract: a and b are the perpendicular legs and c is the hypotenuse.
+            if abs(a*a + b*b - c*c) > max(1e-6, c*c * 1e-6):
+                return False
+        return True
+
+    # General triangle: preserve side proportions only when a valid SSS triangle is supplied.
+    if dtype == "triangle":
+        vals = [drawing.get("side_ab"), drawing.get("side_ac"), drawing.get("side_bc")]
+        nums = [float(v) for v in vals if _is_number(v)]
+        if any(_is_number(v) and v <= 0 for v in vals):
+            return False
+        if len(nums) == 3:
+            ab, ac, bc = nums
+            if not (ab + ac > bc and ab + bc > ac and ac + bc > ab):
                 return False
         return True
 
@@ -1661,8 +1756,29 @@ def validate_drawing_strict(drawing):
         radius = drawing.get("radius")
         if _is_number(radius) and radius <= 0:
             return False
+
         if dtype == "circle_tangent":
-            return bool(str(drawing.get("center") or "").strip() and str(drawing.get("tangent_point") or "").strip())
+            if not (
+                str(drawing.get("center") or "").strip()
+                and str(drawing.get("tangent_point") or "").strip()
+                and str(drawing.get("external_point") or "").strip()
+            ):
+                return False
+
+            external_distance = drawing.get("external_distance")
+            tangent_length = drawing.get("tangent_length")
+
+            if _is_number(external_distance):
+                if not _is_number(radius) or external_distance <= radius:
+                    return False
+
+                expected = (float(external_distance)**2 - float(radius)**2) ** 0.5
+                if _is_number(tangent_length):
+                    if abs(float(tangent_length) - expected) > max(1e-6, expected * 1e-6):
+                        return False
+
+            return True
+
         return True
 
     if dtype == "forces":
@@ -1708,7 +1824,7 @@ def validate_drawing_strict(drawing):
         rows = drawing.get("rows")
         return isinstance(rows, list) and bool(rows)
 
-    if dtype in {"cube", "rectangular_prism", "prism", "pyramid", "cylinder", "cone", "sphere", "square", "rectangle", "rhombus", "parallelogram", "triangle", "plane", "number_line", "statistics", "inclined_plane", "motion", "spring", "pulley", "wave", "optics_ray", "electric_circuit", "electric_series", "electric_parallel", "electric_mixed", "cell_diagram", "plant_cell", "animal_cell"}:
+    if dtype in {"cube", "rectangular_prism", "prism", "pyramid", "cylinder", "cone", "sphere", "square", "rectangle", "rhombus", "parallelogram", "plane", "number_line", "statistics", "inclined_plane", "motion", "spring", "pulley", "wave", "optics_ray", "electric_circuit", "electric_series", "electric_parallel", "electric_mixed", "cell_diagram", "plant_cell", "animal_cell"}:
         # These are accepted only structurally; the prompt is responsible for source fidelity.
         # Crucially, this function does not fill in any missing scientific values.
         return True
