@@ -809,12 +809,15 @@ class NabilAIGateway:
         messages: list[dict],
         image_bytes: Optional[bytes] = None,
         image_mime_type: str = "image/jpeg",
-        max_output_tokens: int = 1400,
+        max_output_tokens: int = 3000,
     ) -> str:
 
+        # Lessons, worked solutions and drawing metadata regularly need more
+        # than 1400 tokens.  The previous hard cap cut replies in the middle
+        # of formulas/JSON even when the route explicitly requested 3000.
         max_output_tokens = max(
             256,
-            min(int(max_output_tokens or 1400), 1400),
+            min(int(max_output_tokens or 3000), 4000),
         )
 
         chat_messages = self._build_messages(
