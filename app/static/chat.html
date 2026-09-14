@@ -1619,9 +1619,10 @@ body.nabil-home-lock::before{
     background:linear-gradient(180deg,#0a2940,#071f34);
     padding:10px;
     display:grid;
-    grid-template-rows:auto auto;
+    grid-template-rows:auto minmax(0,1fr) auto;
     gap:10px;
     min-width:0;
+    align-items:stretch;
 }
 .exercise-function-visual-title{
     color:#64d8ff;
@@ -1629,6 +1630,64 @@ body.nabil-home-lock::before{
     font-weight:900;
     padding:0 4px 2px;
 }
+
+.exercise-function-visual .exercise-visual-panel{
+    padding:0;
+    border:0;
+    background:transparent;
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+    height:100%;
+}
+.exercise-function-visual .nabil-visual{
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+    height:100%;
+}
+.exercise-function-visual .nabil-visual-title{
+    margin-bottom:8px;
+    font-size:14px;
+}
+.exercise-function-visual .nabil-visual svg{
+    flex:1 1 auto;
+    width:100%;
+    min-height:580px;
+    height:100%;
+    max-height:none;
+}
+.exercise-variation-zone{
+    border:1px solid #347ca4;
+    border-radius:14px;
+    padding:10px;
+    background:linear-gradient(180deg,#071d31,#061827);
+    box-shadow:inset 0 0 0 1px rgba(77,197,255,.05);
+    overflow-x:auto;
+}
+.exercise-variation-zone .exercise-variation-richtext{
+    margin-bottom:10px;
+}
+.exercise-variation-zone .exercise-variation-text{
+    margin-top:0;
+    border:1px solid #4a79a6;
+    border-radius:12px;
+    background:linear-gradient(160deg,rgba(18,39,63,.95),rgba(8,27,41,.98));
+}
+.exercise-variation-zone .exercise-section-card{
+    border-color:#4a79a6;
+}
+.exercise-variation-zone .lesson-table-wrap{
+    border:1px solid #315b76;
+    border-radius:10px;
+    overflow:hidden;
+    margin-top:8px;
+    background:#071c2d;
+}
+.exercise-variation-zone .lesson-table-wrap table{
+    margin:0;
+}
+
 .exercise-function-visual .exercise-visual-panel{
     padding:0;
     border:0;
@@ -1712,7 +1771,7 @@ body.nabil-home-lock::before{
     .exercise-function-board{grid-template-columns:minmax(0,1fr)}
     .exercise-function-study{order:1}
     .exercise-function-visual{order:2}
-    .exercise-function-visual .nabil-visual svg{min-height:320px;max-height:none}
+    .exercise-function-visual .nabil-visual svg{min-height:360px;max-height:none}
 }
 
 @media(max-width:900px){
@@ -2989,7 +3048,6 @@ function renderGeneralExerciseBoards(text, diagrams, messageDirection, messageLa
                         ${requiredHTML}
                         ${formulaHTML}
                         ${solutionHTML}
-                        ${variationTextHTML}
                         ${answerHTML}
                         ${summaryHTML}
                         ${extraHTML}
@@ -2998,9 +3056,10 @@ function renderGeneralExerciseBoards(text, diagrams, messageDirection, messageLa
                     <section class="exercise-function-visual" dir="${messageDirection}">
                         <div class="exercise-function-visual-title">${functionGraphTitle(messageLanguage)}</div>
                         <div class="exercise-visual-panel">${visualHTML}</div>
-                        ${variationTables.length ? `
+                        ${(variationTextHTML || variationTables.length) ? `
                             <div class="exercise-variation-zone">
                                 <div class="exercise-variation-title">${variationTitle(messageLanguage)}</div>
+                                ${variationTextHTML ? `<div class="exercise-variation-richtext">${variationTextHTML}</div>` : ""}
                                 ${variationTables.map(t=>decorateVariationTableHTML(t,messageLanguage)).join("")}
                             </div>
                         ` : ""}
