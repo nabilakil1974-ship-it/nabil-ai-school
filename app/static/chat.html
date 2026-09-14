@@ -1954,73 +1954,60 @@ body.nabil-home-lock::before{
 
 
 /* =========================================================
-   NABIL Subject Layout Router — one engine, specialized layouts
+   NABIL Subject Layout Router — full-width idea cards
    ========================================================= */
 .exercise-board[data-layout-family]{overflow:hidden;grid-column:1 / -1;width:100%;max-width:none}
-.exercise-special-layout{display:grid;gap:14px;align-items:start;width:100%}
-.exercise-special-layout .exercise-special-visual,.exercise-special-layout .exercise-special-content{min-width:0;width:100%}
-.exercise-special-layout .exercise-special-visual .exercise-visual-panel{min-height:340px;height:auto}
-.exercise-special-layout .exercise-special-visual .nabil-visual svg{width:100%;min-height:320px;height:auto;max-height:520px}
-.exercise-special-layout .exercise-special-content{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
-.exercise-special-layout .exercise-special-content .exercise-mini-grid{grid-column:1/-1;grid-template-columns:repeat(2,minmax(0,1fr))}
-.exercise-special-layout .exercise-special-content > .exercise-section-card{min-width:0}
-.exercise-special-layout .exercise-special-content > .exercise-bottom-stack{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.exercise-special-layout .exercise-special-content > .exercise-bottom-stack > .exercise-solution-card{grid-column:1/-1}
-.exercise-special-layout .exercise-special-content > .exercise-bottom-stack > .exercise-answer-card,
-.exercise-special-layout .exercise-special-content > .exercise-bottom-stack > .exercise-summary-card{min-width:0}
-.exercise-special-layout .exercise-section-card,.exercise-special-layout .exercise-function-mini-card{overflow-wrap:anywhere;word-break:normal}
+.exercise-special-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;align-items:start;width:100%}
+.exercise-special-layout .exercise-special-visual,
+.exercise-special-layout .exercise-special-content{min-width:0;width:100%}
+.exercise-special-layout.no-visual .exercise-special-visual{display:none!important}
+.exercise-special-layout .exercise-special-visual .exercise-visual-panel{min-height:0;height:auto;padding:0}
+.exercise-special-layout .exercise-special-visual .nabil-visual{width:100%;max-width:none}
+.exercise-special-layout .exercise-special-visual .nabil-visual svg{width:100%;min-height:340px;height:auto;max-height:620px;filter:drop-shadow(0 16px 28px rgba(0,0,0,.28))}
 
-/* Physics: visual dominates, calculations stay directly attached beneath/right */
-.exercise-board.layout-physics .exercise-special-layout{grid-template-columns:minmax(380px,.95fr) minmax(520px,1.45fr)}
-.exercise-board.layout-physics .exercise-special-visual{order:1}
-.exercise-board.layout-physics .exercise-special-content{order:2}
-.exercise-board.layout-circuit .exercise-special-layout{grid-template-columns:minmax(0,1fr)}
-.exercise-board.layout-circuit .exercise-special-visual{order:1}
-.exercise-board.layout-circuit .exercise-special-content{order:2}
-.exercise-board.layout-circuit .exercise-special-content{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}
-.exercise-board.layout-circuit .exercise-special-content .exercise-bottom-stack{grid-column:1/-1}
+/* One idea = one card = full available width. */
+.exercise-special-content{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:12px!important;width:100%}
+.exercise-special-content .exercise-mini-grid,
+.exercise-special-content .exercise-bottom-stack,
+.exercise-special-content .exercise-idea-stack{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:12px!important;width:100%;grid-column:1/-1!important}
+.exercise-special-content .exercise-section-card,
+.exercise-special-content .exercise-function-mini-card,
+.exercise-special-content .exercise-idea-card,
+.exercise-special-content .exercise-answer-card,
+.exercise-special-content .exercise-summary-card,
+.exercise-special-content .exercise-solution-card{grid-column:1/-1!important;width:100%!important;max-width:none!important;min-width:0!important;box-sizing:border-box!important;overflow:visible!important;overflow-wrap:break-word!important;word-break:normal!important;white-space:normal!important}
+.exercise-special-content .exercise-section-card *,
+.exercise-special-content .exercise-idea-card *{max-width:100%;box-sizing:border-box;word-break:normal;overflow-wrap:break-word}
+.exercise-idea-card{background:linear-gradient(180deg,#0a2940,#071f34);border:1px solid rgba(91,211,255,.34);border-radius:15px;padding:14px 16px;box-shadow:0 10px 24px rgba(0,0,0,.16)}
+.exercise-idea-card h4{margin:0 0 9px;color:#7ee3ff;font-size:17px;font-weight:900}
+.exercise-idea-card p,.exercise-idea-card li{line-height:1.72;margin:.35em 0}
+.exercise-special-content mjx-container[display="true"]{overflow-x:auto;overflow-y:hidden;max-width:100%;padding:4px 0}
+.exercise-special-content table{width:100%!important;max-width:100%!important;table-layout:auto!important}
+.exercise-special-content th,.exercise-special-content td{white-space:normal!important;word-break:normal!important;overflow-wrap:break-word!important}
 
-/* Geometry: construction/figure at left, proof/steps at right */
-.exercise-board.layout-geometry .exercise-special-layout{grid-template-columns:minmax(360px,1.15fr) minmax(300px,.85fr)}
-.exercise-board.layout-geometry .exercise-special-visual{order:1}
-.exercise-board.layout-geometry .exercise-special-content{order:2}
-
-/* Chemistry: structure/diagram first, then compact reaction/explanation cards */
-.exercise-board.layout-chemistry .exercise-special-layout{grid-template-columns:minmax(320px,1fr) minmax(320px,1fr)}
-.exercise-board.layout-chemistry .exercise-special-visual{order:1}
-.exercise-board.layout-chemistry .exercise-special-content{order:2}
-
-/* Biology: labeled visual + function/parts explanation */
-.exercise-board.layout-biology .exercise-special-layout{grid-template-columns:minmax(360px,1.2fr) minmax(280px,.8fr)}
-.exercise-board.layout-biology .exercise-special-visual{order:1}
-.exercise-board.layout-biology .exercise-special-content{order:2}
-
-/* Probability/statistics: tree/table/chart next to calculation */
-.exercise-board.layout-probability .exercise-special-layout{grid-template-columns:minmax(340px,1.1fr) minmax(300px,.9fr)}
-.exercise-board.layout-probability .exercise-special-visual{order:1}
-.exercise-board.layout-probability .exercise-special-content{order:2}
-
-/* Default science layout */
-.exercise-board.layout-default .exercise-special-layout{grid-template-columns:minmax(330px,1fr) minmax(330px,1fr)}
+/* The visual itself is also a full-width card. */
+.exercise-special-visual .exercise-visual-panel{border:1px solid #2e7fa9;border-radius:17px;background:radial-gradient(circle at 50% 12%,rgba(28,103,151,.22),transparent 45%),linear-gradient(180deg,#08253a,#061a2a);padding:12px;box-shadow:0 14px 34px rgba(0,0,0,.22)}
+.exercise-special-visual .nabil-visual{border-radius:14px;overflow:hidden;background:linear-gradient(180deg,#082136,#061a2a)}
 
 .exercise-layout-badge{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(91,211,255,.3);background:#08263b;color:#78e4ff;border-radius:999px;padding:4px 9px;font-size:12px;font-weight:800;margin-inline-start:8px}
 
+/* Mobile: never reserve a narrow visual/text column. */
 @media(max-width:900px){
-    .exercise-board.layout-physics .exercise-special-layout,
-    .exercise-board.layout-circuit .exercise-special-layout,
-    .exercise-board.layout-geometry .exercise-special-layout,
-    .exercise-board.layout-chemistry .exercise-special-layout,
-    .exercise-board.layout-biology .exercise-special-layout,
-    .exercise-board.layout-probability .exercise-special-layout,
-    .exercise-board.layout-default .exercise-special-layout{grid-template-columns:minmax(0,1fr)}
-    .exercise-board.layout-circuit .exercise-special-content{grid-template-columns:minmax(0,1fr)}
-    .exercise-board.layout-circuit .exercise-special-content .exercise-bottom-stack{grid-column:1}
-    .exercise-special-layout .exercise-special-content{grid-template-columns:minmax(0,1fr)}
-    .exercise-special-layout .exercise-special-content .exercise-mini-grid{grid-template-columns:minmax(0,1fr)}
-    .exercise-special-layout .exercise-special-content > .exercise-bottom-stack{grid-column:1;grid-template-columns:minmax(0,1fr)}
-    .exercise-special-layout .exercise-special-content > .exercise-bottom-stack > *{grid-column:1!important}
-    .exercise-special-layout .exercise-special-visual{order:1}
-    .exercise-special-layout .exercise-special-content{order:2}
+    .exercise-board[data-layout-family]{width:100%!important;max-width:100%!important;margin:0!important}
+    .exercise-special-layout{display:block!important;width:100%!important}
+    .exercise-special-visual,.exercise-special-content{display:block!important;width:100%!important;max-width:100%!important}
+    .exercise-special-visual{margin-bottom:12px}
+    .exercise-special-content .exercise-mini-grid,
+    .exercise-special-content .exercise-bottom-stack,
+    .exercise-special-content .exercise-idea-stack{display:block!important;width:100%!important}
+    .exercise-special-content .exercise-section-card,
+    .exercise-special-content .exercise-function-mini-card,
+    .exercise-special-content .exercise-idea-card,
+    .exercise-special-content .exercise-answer-card,
+    .exercise-special-content .exercise-summary-card,
+    .exercise-special-content .exercise-solution-card{display:block!important;width:100%!important;max-width:100%!important;margin:0 0 12px!important;padding:13px!important;min-width:0!important}
+    .exercise-special-layout .exercise-special-visual .nabil-visual svg{min-height:260px;max-height:none}
+    .exercise-special-content p,.exercise-special-content li{font-size:15px;line-height:1.65}
 }
 
 @media(max-width:900px){
@@ -3608,22 +3595,62 @@ function nabilLayoutLabel(family,messageLanguage){
     return labels[family]?.[messageLanguage] || labels[family]?.English || family;
 }
 
-function nabilRenderSpecialExerciseLayout({family,title,diagramsForThis,visualHTML,givenHTML,requiredHTML,formulaHTML,extraHTML,solutionHTML,answerHTML,summaryHTML,messageDirection,messageLanguage}){
+function nabilSplitIdeaCardsHTML(rawHTML, messageLanguage){
+    const html=String(rawHTML||"").trim();
+    if(!html) return "";
+    const holder=document.createElement("div");
+    holder.innerHTML=html;
+    const pieces=[];
+    let current=null;
+    const defaultTitle=messageLanguage==="English"?"Step":messageLanguage==="Français"?"Étape":"خطوة";
+    const flush=()=>{
+        if(current && current.body.trim()){
+            pieces.push(`<div class="exercise-idea-card"><h4>${nabilEsc(current.title||defaultTitle)}</h4>${current.body}</div>`);
+        }
+        current=null;
+    };
+    const nodes=[...holder.querySelectorAll("h1,h2,h3,h4,h5,h6,p,li,table,.lesson-table-wrap")];
+    if(!nodes.length) return `<div class="exercise-idea-card">${html}</div>`;
+    nodes.forEach(node=>{
+        const txt=(node.innerText||node.textContent||"").trim();
+        const heading=/^H[1-6]$/.test(node.tagName||"");
+        const numbered=/^(?:\d+[.)-]|step\s*\d+|étape\s*\d+|خطوة\s*\d+)/i.test(txt);
+        if(heading || numbered){
+            flush();
+            const clean=txt.replace(/^\s*\d+[.)-]?\s*/,"").trim();
+            current={title:clean||defaultTitle,body:heading?"":(node.outerHTML||"")};
+        }else{
+            if(!current) current={title:defaultTitle,body:""};
+            current.body += node.outerHTML || "";
+        }
+    });
+    flush();
+    return pieces.length?pieces.join(""):`<div class="exercise-idea-card">${html}</div>`;
+}
+
+function nabilRenderSpecialExerciseLayout({family,title,diagramsForThis,visualHTML,hasReliableVisual,givenHTML,requiredHTML,formulaHTML,extraHTML,solutionBodyHTML,solutionHTML,answerHTML,summaryHTML,messageDirection,messageLanguage}){
+    const solutionCards=nabilSplitIdeaCardsHTML(solutionBodyHTML||"",messageLanguage);
     const contentHTML=`
-        <div class="exercise-mini-grid">${givenHTML}${requiredHTML}</div>
-        ${formulaHTML}
-        ${extraHTML}
-        <div class="exercise-bottom-stack">${solutionHTML}${answerHTML}${summaryHTML}</div>
-    `;
+        <div class="exercise-idea-stack">
+            ${givenHTML}
+            ${requiredHTML}
+            ${formulaHTML}
+            ${extraHTML}
+            ${solutionCards || solutionHTML}
+            ${answerHTML}
+            ${summaryHTML}
+        </div>`;
+    const visualSection=hasReliableVisual?`
+        <section class="exercise-special-visual">
+            <div class="exercise-visual-panel ${diagramsForThis.length > 1 ? "multi-diagram-panel" : ""}">${visualHTML}</div>
+        </section>`:"";
     return `
     <article class="exercise-board visual-column-board layout-${family}" data-layout-family="${family}" dir="${messageDirection}">
         <div class="exercise-board-head">
             <div class="exercise-board-title">${title}<span class="exercise-layout-badge">${nabilLayoutLabel(family,messageLanguage)}</span></div>
         </div>
-        <div class="exercise-special-layout">
-            <section class="exercise-special-visual">
-                <div class="exercise-visual-panel ${diagramsForThis.length > 1 ? "multi-diagram-panel" : ""}">${visualHTML}</div>
-            </section>
+        <div class="exercise-special-layout ${hasReliableVisual?"":"no-visual"}">
+            ${visualSection}
             <section class="exercise-special-content">${contentHTML}</section>
         </div>
     </article>`;
@@ -3690,11 +3717,11 @@ ${rawVariationHTML}`);
         const autoFunctionSpec = !diagramsForThis.length ? nabilAutoFunctionSpecFromBoard(board) : null;
         const autoSubjectSpec = (!diagramsForThis.length && !autoFunctionSpec) ? nabilAutoSubjectDiagramSpec(wholeBoardText) : null;
         const inferredVisual = autoFunctionSpec || autoSubjectSpec;
+        const inferredVisualHTML = inferredVisual ? renderNabilDiagram(inferredVisual) : "";
+        const hasReliableVisual = Boolean(diagramsForThis.length || inferredVisualHTML);
         const visualHTML = diagramsForThis.length
             ? diagramsForThis.join("")
-            : inferredVisual
-                ? renderNabilDiagram(inferredVisual)
-                : `<div class="exercise-visual-empty">${messageLanguage === "English" ? "No reliable drawing could be generated from the available data." : messageLanguage === "Français" ? "Aucun schéma fiable n’a pu être généré à partir des données disponibles." : "تعذّر إنشاء رسم موثوق من المعطيات المتاحة."}</div>`;
+            : inferredVisualHTML;
 
         if (isFunctionStudyBoard(board, wholeBoardText)) {
             const leftColumnHTML = nabilFunctionLeftColumnHTML({
@@ -3781,10 +3808,12 @@ ${rawVariationHTML}`);
             title,
             diagramsForThis,
             visualHTML,
+            hasReliableVisual,
             givenHTML,
             requiredHTML,
             formulaHTML,
             extraHTML,
+            solutionBodyHTML: rawSolutionBodyHTML,
             solutionHTML,
             answerHTML,
             summaryHTML,
@@ -6493,29 +6522,48 @@ function renderNabilDiagram(spec){
             </svg>`,spec.note||"");
         }
 
-        const showPull = Boolean(spec.show_pull);
-        const showFriction = Boolean(spec.show_friction);
-        const angleLabel = Number.isFinite(Number(spec.angle)) ? `${Number(spec.angle)}°` : "θ";
+        const vectorMeta=Array.isArray(spec.vectors)?spec.vectors:[];
+        const vByLabel=(rx)=>vectorMeta.find(v=>rx.test(String(v?.label||"")));
+        const vW=vByLabel(/^W$/i), vN=vByLabel(/^N$/i), vF=vByLabel(/^F$/i), vf=vByLabel(/^f$/);
+        const fmtV=(v,fallback)=>v&&Number.isFinite(Number(v.magnitude))?`${v.label||fallback} = ${Number(v.magnitude)} N`:(v?.label||fallback);
+        const showPull = Boolean(spec.show_pull || vF);
+        const showFriction = Boolean(spec.show_friction || vf);
+        const angleValue=Number(spec.angle ?? spec.incline_angle);
+        const angleLabel = Number.isFinite(angleValue) ? `${angleValue}°` : "θ";
+        const planeAngle=Number.isFinite(angleValue)?Math.max(12,Math.min(42,angleValue)):23;
         return nabilVisualWrap(title||"القوى على سطح مائل",`
-        <svg viewBox="0 0 620 360">
-          <polygon points="65,300 555,300 555,90" fill="url(#nabilSurface3d)" stroke="#67e8f9" stroke-width="3" filter="url(#nabilDepth)"/>
-          <rect x="330" y="165" width="78" height="58" rx="7" fill="url(#nabilWarm3d)" stroke="#ffd166" stroke-width="3" transform="rotate(-23 369 194)" filter="url(#nabilDepth)"/>
-          <path d="M95 300 A55 55 0 0 1 145 278" fill="none" stroke="#ffe066" stroke-width="2.4"/>
-          <text x="146" y="292" class="vlab vsmall" style="fill:#ffe066">${nabilEsc(angleLabel)}</text>
+        <svg viewBox="0 0 700 400">
+          <defs>
+            <linearGradient id="premiumPlaneTop" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#39c8ff"/><stop offset=".48" stop-color="#2563eb"/><stop offset="1" stop-color="#183b88"/></linearGradient>
+            <linearGradient id="premiumPlaneSide" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#15386d"/><stop offset="1" stop-color="#071b38"/></linearGradient>
+            <linearGradient id="premiumBlock" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffd166"/><stop offset=".46" stop-color="#ff8a34"/><stop offset="1" stop-color="#b54220"/></linearGradient>
+            <filter id="premiumShadow" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0" dy="10" stdDeviation="9" flood-color="#000" flood-opacity=".42"/></filter>
+          </defs>
+          <ellipse cx="382" cy="341" rx="260" ry="24" fill="#020b14" opacity=".42"/>
+          <polygon points="70,305 585,305 585,100" fill="url(#premiumPlaneTop)" stroke="#6be6ff" stroke-width="3" filter="url(#premiumShadow)"/>
+          <polygon points="70,305 585,305 585,333 95,333" fill="url(#premiumPlaneSide)" stroke="#174f86" stroke-width="2"/>
+          <polygon points="585,100 610,119 610,333 585,333" fill="#102f5d" stroke="#174f86" stroke-width="2"/>
+          <g transform="rotate(-${planeAngle} 404 198)" filter="url(#premiumShadow)">
+            <rect x="360" y="166" width="88" height="64" rx="9" fill="url(#premiumBlock)" stroke="#ffe39a" stroke-width="3"/>
+            <polygon points="448,166 464,177 464,238 448,230" fill="#9e3b21" opacity=".92"/>
+            <polygon points="360,166 376,154 464,165 448,166" fill="#fff0b5" opacity=".72"/>
+          </g>
+          <path d="M105 305 A64 64 0 0 1 162 278" fill="none" stroke="#ffe066" stroke-width="2.8"/>
+          <text x="164" y="294" class="vlab vsmall" style="fill:#ffe066">${nabilEsc(angleLabel)}</text>
 
-          <line x1="370" y1="193" x2="370" y2="315" stroke="#ef4444" stroke-width="4.5"/>
-          <polygon points="370,315 361,296 379,296" fill="#ef4444"/>
-          <text x="382" y="262" class="vlab" style="fill:#ff8080">${nabilEsc(L.weight||"W")}</text>
+          <line x1="406" y1="197" x2="406" y2="336" stroke="#ef4444" stroke-width="5"/>
+          <polygon points="406,336 396,314 416,314" fill="#ef4444"/>
+          <text x="420" y="284" class="vlab" style="fill:#ff8c8c">${nabilEsc(L.weight||fmtV(vW,"W"))}</text>
 
-          <line x1="370" y1="193" x2="314" y2="86" stroke="#4ade80" stroke-width="4.5"/>
-          <polygon points="314,86 314,108 331,99" fill="#4ade80"/>
-          <text x="278" y="82" class="vlab" style="fill:#79f2a7">${nabilEsc(L.normal||"N")}</text>
+          <line x1="406" y1="197" x2="344" y2="73" stroke="#4ade80" stroke-width="5"/>
+          <polygon points="344,73 344,97 363,87" fill="#4ade80"/>
+          <text x="300" y="68" class="vlab" style="fill:#79f2a7">${nabilEsc(L.normal||fmtV(vN,"N"))}</text>
 
-          ${showPull ? `<line x1="392" y1="181" x2="505" y2="129" stroke="#22d3ee" stroke-width="4.5"/><polygon points="505,129 487,126 495,142" fill="#22d3ee"/><text x="515" y="126" class="vlab" style="fill:#67e8f9">${nabilEsc(L.pull||"F")}</text>` : ""}
-          ${showFriction ? `<line x1="344" y1="209" x2="244" y2="255" stroke="#f59e0b" stroke-width="4.5"/><polygon points="244,255 263,257 256,240" fill="#f59e0b"/><text x="218" y="269" class="vlab" style="fill:#fbbf24">${nabilEsc(L.friction||"f")}</text>` : ""}
+          ${showPull ? `<line x1="430" y1="184" x2="567" y2="120" stroke="#22d3ee" stroke-width="5"/><polygon points="567,120 545,118 555,137" fill="#22d3ee"/><text x="578" y="116" class="vlab" style="fill:#67e8f9">${nabilEsc(L.pull||fmtV(vF,"F"))}</text>` : ""}
+          ${showFriction ? `<line x1="377" y1="216" x2="254" y2="274" stroke="#f59e0b" stroke-width="5"/><polygon points="254,274 277,276 267,256" fill="#f59e0b"/><text x="216" y="292" class="vlab" style="fill:#fbbf24">${nabilEsc(L.friction||fmtV(vf,"f"))}</text>` : ""}
 
-          <line x1="395" y1="176" x2="505" y2="125" stroke="#94a3b8" stroke-width="2" stroke-dasharray="6 5"/>
-          <text x="474" y="112" class="vlab vsmall" style="fill:#cbd5e1">up the plane</text>
+          <line x1="430" y1="184" x2="565" y2="122" stroke="#d3e6f8" stroke-width="1.8" stroke-dasharray="7 6" opacity=".68"/>
+          <text x="532" y="104" class="vlab vsmall" style="fill:#dbeafe">up the plane</text>
         </svg>`,spec.note||"");
     }
 
@@ -7156,52 +7204,62 @@ function extractAndRenderNabilDrawings(text){
     let raw=String(text||"");
     const diagrams=[];
 
-    raw = raw.replace(
-        /```nabil-draw\s*([\s\S]*?)```/gi,
-        (_,jsonText)=>{
+    const renderSpecs=(value)=>{
+        const specs=Array.isArray(value)?value:[value];
+        specs.forEach(spec=>{
+            if(!spec || typeof spec!=="object") return;
             try{
-                const spec=JSON.parse(jsonText.trim());
                 const rendered=renderNabilDiagram(spec);
                 if(rendered){
-                    const idx = Number(spec?.card_index);
-                    const cardIndex = Number.isInteger(idx) && idx > 0 ? idx : "";
-                    diagrams.push(
-                        `<div class="linked-lesson-visual" data-card-index="${cardIndex}" data-diagram-type="${nabilEsc(String(spec?.type || "").toLowerCase())}">${rendered}</div>`
-                    );
+                    const idx=Number(spec?.card_index);
+                    const cardIndex=Number.isInteger(idx)&&idx>0?idx:"";
+                    diagrams.push(`<div class="linked-lesson-visual" data-card-index="${cardIndex}" data-diagram-type="${nabilEsc(String(spec?.type||"").toLowerCase())}">${rendered}</div>`);
                 }
-            }catch(err){
-                console.warn("NABIL DRAW parse error",err);
-            }
-            return "";
-        }
-    );
+            }catch(err){ console.warn("NABIL DRAW render error",err); }
+        });
+    };
 
-    raw = raw.replace(
-        /\[\[NABIL_DRAW\s*:\s*(\{[\s\S]*?\})\s*\]\]/gi,
-        (_,jsonText)=>{
-            try{
-                const spec=JSON.parse(jsonText);
-                const rendered=renderNabilDiagram(spec);
-                if(rendered){
-                    const idx = Number(spec?.card_index);
-                    const cardIndex = Number.isInteger(idx) && idx > 0 ? idx : "";
-                    diagrams.push(
-                        `<div class="linked-lesson-visual" data-card-index="${cardIndex}" data-diagram-type="${nabilEsc(String(spec?.type || "").toLowerCase())}">${rendered}</div>`
-                    );
+    const tryJSON=(jsonText)=>{
+        try{ renderSpecs(JSON.parse(String(jsonText||"").trim())); return true; }
+        catch(err){ console.warn("NABIL DRAW parse error",err); return false; }
+    };
+
+    raw=raw.replace(/```nabil-draw\s*([\s\S]*?)```/gi,(_,jsonText)=>{tryJSON(jsonText);return "";});
+    raw=raw.replace(/\[\[NABIL_DRAW\s*:\s*(\{[\s\S]*?\})\s*\]\]/gi,(_,jsonText)=>{tryJSON(jsonText);return "";});
+    raw=raw.replace(/<DRAWINGS_JSON>\s*([\s\S]*?)\s*<\/DRAWINGS_JSON>/gi,(_,jsonText)=>{tryJSON(jsonText);return "";});
+
+    /* Compact backend protocol: DRAWINGS_JSON: [ ... ] at the end. */
+    const marker=raw.search(/DRAWINGS_JSON\s*:/i);
+    if(marker>=0){
+        const tail=raw.slice(marker);
+        const arrayStart=tail.indexOf('[');
+        if(arrayStart>=0){
+            let depth=0,inString=false,escape=false,end=-1;
+            for(let i=arrayStart;i<tail.length;i++){
+                const ch=tail[i];
+                if(inString){
+                    if(escape) escape=false;
+                    else if(ch==='\\') escape=true;
+                    else if(ch==='"') inString=false;
+                    continue;
                 }
-            }catch(err){
-                console.warn("NABIL DRAW parse error",err);
+                if(ch==='"'){inString=true;continue;}
+                if(ch==='[') depth++;
+                else if(ch===']'){
+                    depth--;
+                    if(depth===0){end=i+1;break;}
+                }
             }
-            return "";
+            if(end>arrayStart) tryJSON(tail.slice(arrayStart,end));
         }
-    );
+        raw=raw.slice(0,marker);
+    }
 
-    // Hide malformed/incomplete internal drawing payloads instead of printing
-    // JSON in the lesson when a provider response is cut off.
-    raw = raw.replace(/<_?DRAWINGS?_JSON>[\s\S]*$/gi, "");
-    raw = raw.replace(/```nabil-draw[\s\S]*$/gi, "");
-
-    return {text:raw.trim(), diagrams};
+    /* Never leak an unfinished internal drawing payload to students. */
+    raw=raw.replace(/<_?DRAWINGS?_JSON>[\s\S]*$/gi,"");
+    raw=raw.replace(/DRAWINGS_JSON\s*:[\s\S]*$/gi,"");
+    raw=raw.replace(/```nabil-draw[\s\S]*$/gi,"");
+    return {text:raw.trim(),diagrams};
 }
 
 
