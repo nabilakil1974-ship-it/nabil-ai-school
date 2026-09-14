@@ -2846,6 +2846,268 @@ def _extract_named_electric_value(text: str, names, unit_pattern: str):
     return None
 
 
+
+def _safe_series_parallel_comparison_reply(message: str):
+    """
+    Build a clean, deterministic student-facing response when the prompt explicitly
+    compares the same two resistors in series and parallel.
+    This is used only when U, R1, R2 are explicitly recoverable.
+    """
+    source = str(message or "")
+
+    has_series = bool(re.search(r"\bseries\b|توالي|متسلسل|en\s+série|en\s+serie", source, re.I))
+    has_parallel = bool(re.search(r"\bparallel\b|توازي|متوازي|en\s+parall", source, re.I))
+    if not (has_series and has_parallel):
+        return None
+
+    voltage = _extract_named_electric_value(
+        source,
+        [r"\bU\b", r"\bV(?:oltage)?\b", r"الجهد(?:\s+الكهربائي)?", r"tension"],
+        r"V|volt(?:s)?",
+    )
+    r1 = _extract_named_electric_value(
+        source,
+        [r"\bR_?1\b", r"\bR₁\b", r"المقاومة\s*الأولى", r"résistance\s*1"],
+        r"Ω|ohm(?:s)?",
+    )
+    r2 = _extract_named_electric_value(
+        source,
+        [r"\bR_?2\b", r"\bR₂\b", r"المقاومة\s*الثانية", r"résistance\s*2"],
+        r"Ω|ohm(?:s)?",
+    )
+
+    if voltage is None or r1 is None or r2 is None:
+        return None
+    if voltage <= 0 or r1 <= 0 or r2 <= 0:
+        return None
+
+    req_s = r1 + r2
+    i_s = voltage / req_s
+    req_p = (r1 * r2) / (r1 + r2)
+    i1 = voltage / r1
+    i2 = voltage / r2
+    i_total = i1 + i2
+
+    def fmt(v, digits=4):
+        if abs(v - round(v)) < 1e-10:
+            return str(int(round(v)))
+        return str(round(v, digits))
+
+    is_ar = bool(re.search(r"[\u0600-\u06FF]", source))
+    is_fr = bool(re.search(r"\b(?:comparer|résistance|résistances|série|parallèle|tension|courant)\b", source, re.I))
+
+    if is_ar:
+        return f"""
+## تمرين 1 - التوصيل على التوالي
+
+### المعطيات
+- الجهد: \\(U = {fmt(voltage)}\\text{{ V}}\\)
+- \\(R_1 = {fmt(r1)}\\Omega\\)
+- \\(R_2 = {fmt(r2)}\\Omega\\)
+
+### المطلوب
+- رسم دارة التوالي مع البطارية و\\(R_1\\) و\\(R_2\\) والتيار \\(I\\).
+- حساب \\(R_{{eq}}\\) و\\(I\\).
+
+### القانون أو الخاصية
+\\[
+R_{{eq}} = R_1 + R_2, \\qquad I = \\frac{{U}}{{R_{{eq}}}}
+\\]
+
+### الحل خطوة بخطوة
+\\[
+R_{{eq}} = {fmt(r1)} + {fmt(r2)} = {fmt(req_s)}\\Omega
+\\]
+\\[
+I = \\frac{{{fmt(voltage)}}}{{{fmt(req_s)}}} = {fmt(i_s)}\\text{{ A}}
+\\]
+
+### الجواب النهائي
+\\[
+\\boxed{{R_{{eq}}={fmt(req_s)}\\Omega,\\ I={fmt(i_s)}\\text{{ A}}}}
+\\]
+
+---
+
+## تمرين 2 - التوصيل على التوازي
+
+### المعطيات
+- الجهد: \\(U = {fmt(voltage)}\\text{{ V}}\\)
+- \\(R_1 = {fmt(r1)}\\Omega\\)
+- \\(R_2 = {fmt(r2)}\\Omega\\)
+
+### المطلوب
+- رسم دارة التوازي مع البطارية والفرعين والتيارات \\(I, I_1, I_2\\).
+- حساب \\(R_{{eq}}\\) والتيار الكلي وتياري الفرعين.
+
+### القانون أو الخاصية
+\\[
+\\frac1{{R_{{eq}}}}=\\frac1{{R_1}}+\\frac1{{R_2}}
+\\]
+
+### الحل خطوة بخطوة
+\\[
+R_{{eq}} = \\frac{{R_1R_2}}{{R_1+R_2}} = {fmt(req_p)}\\Omega
+\\]
+\\[
+I_1={fmt(i1)}\\text{{ A}},\\quad I_2={fmt(i2)}\\text{{ A}},\\quad I={fmt(i_total)}\\text{{ A}}
+\\]
+
+### الجواب النهائي
+\\[
+\\boxed{{R_{{eq}}={fmt(req_p)}\\Omega,\\ I={fmt(i_total)}\\text{{ A}},\\ I_1={fmt(i1)}\\text{{ A}},\\ I_2={fmt(i2)}\\text{{ A}}}}
+\\]
+
+---
+
+## تمرين 3 - خلاصة المقارنة
+
+### خلاصة القاعدة
+- في التوالي: المقاومات تُجمع والتيار نفسه يمر في جميع العناصر.
+- في التوازي: الجهد نفسه على الفروع والتيار الكلي يساوي مجموع تيارات الفروع.
+"""
+    elif is_fr:
+        return f"""
+## Exercice 1 - Montage en série
+
+### Données
+- \\(U = {fmt(voltage)}\\text{{ V}}\\)
+- \\(R_1 = {fmt(r1)}\\Omega\\)
+- \\(R_2 = {fmt(r2)}\\Omega\\)
+
+### Demandé
+- Tracer le circuit en série avec la pile, \\(R_1\\), \\(R_2\\) et le courant \\(I\\).
+- Calculer \\(R_{{eq}}\\) et \\(I\\).
+
+### Formule / propriété
+\\[
+R_{{eq}}=R_1+R_2,\\qquad I=\\frac{{U}}{{R_{{eq}}}}
+\\]
+
+### Résolution
+\\[
+R_{{eq}}={fmt(req_s)}\\Omega,\\qquad I={fmt(i_s)}\\text{{ A}}
+\\]
+
+### Réponse finale
+\\[
+\\boxed{{R_{{eq}}={fmt(req_s)}\\Omega,\\ I={fmt(i_s)}\\text{{ A}}}}
+\\]
+
+---
+
+## Exercice 2 - Montage en parallèle
+
+### Données
+- \\(U = {fmt(voltage)}\\text{{ V}}\\)
+- \\(R_1 = {fmt(r1)}\\Omega\\)
+- \\(R_2 = {fmt(r2)}\\Omega\\)
+
+### Demandé
+- Tracer le circuit en parallèle avec \\(I, I_1, I_2\\).
+- Calculer \\(R_{{eq}}\\), \\(I\\), \\(I_1\\), \\(I_2\\).
+
+### Formule / propriété
+\\[
+\\frac1{{R_{{eq}}}}=\\frac1{{R_1}}+\\frac1{{R_2}}
+\\]
+
+### Résolution
+\\[
+R_{{eq}}={fmt(req_p)}\\Omega
+\\]
+\\[
+I_1={fmt(i1)}\\text{{ A}},\\quad I_2={fmt(i2)}\\text{{ A}},\\quad I={fmt(i_total)}\\text{{ A}}
+\\]
+
+### Réponse finale
+\\[
+\\boxed{{R_{{eq}}={fmt(req_p)}\\Omega,\\ I={fmt(i_total)}\\text{{ A}}}}
+\\]
+
+---
+
+## Exercice 3 - Résumé de la comparaison
+
+### Résumé de la règle
+- Série : les résistances s'additionnent et le courant est le même.
+- Parallèle : la tension est la même sur chaque branche et les courants s'additionnent.
+"""
+    else:
+        return f"""
+## Exercise 1 - Series Connection
+
+### Given
+- \\(U = {fmt(voltage)}\\text{{ V}}\\)
+- \\(R_1 = {fmt(r1)}\\Omega\\)
+- \\(R_2 = {fmt(r2)}\\Omega\\)
+
+### Required
+- Draw the series circuit with the battery, \\(R_1\\), \\(R_2\\), and total current \\(I\\).
+- Calculate \\(R_{{eq}}\\) and \\(I\\).
+
+### Formula / Property
+\\[
+R_{{eq}} = R_1 + R_2, \\qquad I = \\frac{{U}}{{R_{{eq}}}}
+\\]
+
+### Solution
+\\[
+R_{{eq}} = {fmt(r1)} + {fmt(r2)} = {fmt(req_s)}\\Omega
+\\]
+\\[
+I = \\frac{{{fmt(voltage)}}}{{{fmt(req_s)}}} = {fmt(i_s)}\\text{{ A}}
+\\]
+
+### Final Answer
+\\[
+\\boxed{{R_{{eq}}={fmt(req_s)}\\Omega,\\ I={fmt(i_s)}\\text{{ A}}}}
+\\]
+
+---
+
+## Exercise 2 - Parallel Connection
+
+### Given
+- \\(U = {fmt(voltage)}\\text{{ V}}\\)
+- \\(R_1 = {fmt(r1)}\\Omega\\)
+- \\(R_2 = {fmt(r2)}\\Omega\\)
+
+### Required
+- Draw the parallel circuit with the battery, \\(R_1\\), \\(R_2\\), total current \\(I\\), and branch currents \\(I_1, I_2\\).
+- Calculate \\(R_{{eq}}\\), \\(I\\), \\(I_1\\), and \\(I_2\\).
+
+### Formula / Property
+\\[
+\\frac1{{R_{{eq}}}} = \\frac1{{R_1}} + \\frac1{{R_2}}
+\\]
+
+### Solution
+\\[
+R_{{eq}} = \\frac{{R_1R_2}}{{R_1+R_2}} = {fmt(req_p)}\\Omega
+\\]
+\\[
+I_1={fmt(i1)}\\text{{ A}},\\qquad I_2={fmt(i2)}\\text{{ A}}
+\\]
+\\[
+I=I_1+I_2={fmt(i_total)}\\text{{ A}}
+\\]
+
+### Final Answer
+\\[
+\\boxed{{R_{{eq}}={fmt(req_p)}\\Omega,\\ I={fmt(i_total)}\\text{{ A}},\\ I_1={fmt(i1)}\\text{{ A}},\\ I_2={fmt(i2)}\\text{{ A}}}}
+\\]
+
+---
+
+## Exercise 3 - Summary Card
+
+### Rule Summary
+- Series: resistances add and the same current flows through all resistors.
+- Parallel: the same voltage is across each branch and the total current is the sum of branch currents.
+"""
+
+
 def _safe_series_parallel_comparison_drawings(message: str, reply_text: str):
     """
     Deterministic fallback for an explicit comparison of the SAME two resistors
@@ -3726,9 +3988,29 @@ GENERAL EXERCISES MODE / حل تمارين عامة
         # card 1 = series, card 2 = parallel.
         drawings = circuit_pair
 
+        structured_circuit_reply = _safe_series_parallel_comparison_reply(message)
+        if structured_circuit_reply:
+            reply_text = structured_circuit_reply.strip()
 
-    # General exercises: never leave a safely-parseable function-study graph blank.
-    if general_exercises_mode:
+
+    # General exercises: function fallback ONLY for an explicit mathematical function request.
+    # This prevents physics formulas (Ohm's law, power, resistance, etc.) from
+    # being misread as a function study and incorrectly generating a Variation Table.
+    function_request_text = str(message or "")
+    is_explicit_function_request = bool(re.search(
+        r"f\s*\(\s*x\s*\)\s*=|"
+        r"\bstudy\s+(?:the\s+)?function\b|"
+        r"\bgraph\s+(?:the\s+)?function\b|"
+        r"\bfunction\s+study\b|"
+        r"\bétude\s+(?:de\s+la\s+)?fonction\b|"
+        r"\betud\w*\s+(?:de\s+la\s+)?fonction\b|"
+        r"دراسة\s+الدال|ادرس\s+الدال|"
+        r"جدول\s+التغي|tableau\s+de\s+variations",
+        function_request_text,
+        re.I,
+    ))
+
+    if general_exercises_mode and is_explicit_function_request:
         function_drawing = _graph_safe_function_drawing(
             message=message,
             reply_text=reply_text,
@@ -3826,3 +4108,4 @@ GENERAL EXERCISES MODE / حل تمارين عامة
             learning_profile
         ),
     )
+ 
