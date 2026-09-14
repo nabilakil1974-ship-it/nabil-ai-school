@@ -2573,6 +2573,46 @@ body.nabil-home-lock::before{
     }
 }
 
+
+/* ===== v10 automatic provider retry notice ===== */
+.nabil-auto-retry-notice{
+    margin:10px 14px;
+    padding:12px 16px;
+    border:1px solid rgba(73,207,255,.45);
+    border-radius:14px;
+    background:linear-gradient(180deg,#0b3148,#082638);
+    color:#dff8ff;
+    font-weight:800;
+    line-height:1.6;
+    text-align:center;
+    box-shadow:0 8px 22px rgba(0,0,0,.18);
+}
+.nabil-auto-retry-notice .dots::after{
+    content:'...';
+    display:inline-block;
+    width:1.5em;
+    text-align:left;
+    animation:nabilRetryDots 1.1s steps(4,end) infinite;
+}
+@keyframes nabilRetryDots{0%{width:0}100%{width:1.5em}}
+
+
+
+/* ===== v11 teacher builder open reliability ===== */
+#teacherAssessmentModal[hidden]{display:none!important;}
+#teacherAssessmentModal:not([hidden]){
+    display:flex!important;
+    align-items:flex-start;
+    justify-content:center;
+}
+#teacherAssessmentModal{
+    z-index:99999!important;
+}
+#teacherAssessmentModal .teacher-assessment-panel{
+    max-height:92vh;
+    overflow:auto;
+}
+
 </style>
 </head>
 
@@ -2695,7 +2735,7 @@ body.nabil-home-lock::before{
 <button
     id="teacherAssessmentBtn"
     type="button"
-    onclick="event.preventDefault(); if(typeof nabilOpenTeacherAssessment==='function'){ nabilOpenTeacherAssessment(); } else { const m=document.getElementById('teacherAssessmentModal'); if(m) m.hidden=false; }"
+    onclick="return window.nabilOpenTeacherAssessmentSafe ? window.nabilOpenTeacherAssessmentSafe(event) : false;"
     title="إنشاء مسابقة للمعلم من دروس المنهج المفهرسة">
     👨‍🏫 إعداد مسابقة للمعلم
 </button>
@@ -5089,6 +5129,76 @@ function addLessonDiagram(lesson){
     }
 }
 
+
+function nabilRetryMessage(language, attempt, maxAttempts){
+    if(language === "English"){
+        return `Please wait — we are trying to contact Al-Ostaz Nabil again (${attempt}/${maxAttempts})`;
+    }
+    if(language === "Français"){
+        return `Patientez — nous essayons de contacter à nouveau le professeur Nabil (${attempt}/${maxAttempts})`;
+    }
+    return `انتظر قليلًا، نحاول التواصل مع الأستاذ نبيل من جديد (${attempt}/${maxAttempts})`;
+}
+
+function nabilShowRetryNotice(text){
+    let el=document.getElementById("nabilAutoRetryNotice");
+    if(!el){
+        el=document.createElement("div");
+        el.id="nabilAutoRetryNotice";
+        el.className="nabil-auto-retry-notice";
+        chat.appendChild(el);
+    }
+    el.innerHTML=`<span>${nabilEsc(String(text||""))}</span><span class="dots"></span>`;
+    chat.scrollTop=chat.scrollHeight;
+}
+
+function nabilHideRetryNotice(){
+    document.getElementById("nabilAutoRetryNotice")?.remove();
+}
+
+function nabilSleep(ms){
+    return new Promise(resolve=>setTimeout(resolve,ms));
+}
+
+async function nabilFetchChatWithAutoRetry(url, options, language){
+    const maxAttempts=4;
+    const delays=[1800,3200,5200];
+    let lastError=null;
+
+    for(let attempt=1; attempt<=maxAttempts; attempt++){
+        try{
+            if(attempt>1){
+                nabilShowRetryNotice(nabilRetryMessage(language, attempt, maxAttempts));
+            }
+
+            const response=await fetch(url,options);
+            const retryable=[429,500,502,503,504].includes(Number(response.status));
+
+            if(!retryable || attempt===maxAttempts){
+                nabilHideRetryNotice();
+                return response;
+            }
+
+            lastError=new Error(`HTTP ${response.status}`);
+            lastError.status=response.status;
+        }catch(err){
+            lastError=err;
+            const raw=String(err?.message||"").toLowerCase();
+            const networkLike=/failed to fetch|networkerror|network request|load failed|timeout|timed out/.test(raw) || !err?.status;
+            if(!networkLike || attempt===maxAttempts){
+                nabilHideRetryNotice();
+                throw err;
+            }
+        }
+
+        nabilShowRetryNotice(nabilRetryMessage(language, attempt+1, maxAttempts));
+        await nabilSleep(delays[Math.min(attempt-1,delays.length-1)]);
+    }
+
+    nabilHideRetryNotice();
+    throw lastError || new Error("NABIL AI temporary connection failure");
+}
+
 async function sendToAI(
     message,
     showStudentMessage = true
@@ -5283,13 +5393,13 @@ async function sendToAI(
 
 
         const response =
-            await fetch(
-                API_BASE +
-                "/api/chat",
+            await nabilFetchChatWithAutoRetry(
+                API_BASE + "/api/chat",
                 {
                     method: "POST",
                     body: formData
-                }
+                },
+                language
             );
 
 
@@ -5474,15 +5584,14 @@ async function sendToAI(
         }
         else if (status === 429 || /busy|مشغول|rate|too many/i.test(raw)) {
             friendlyMessage =
-                "خدمة NABIL AI مشغولة مؤقتًا بسبب كثرة الطلبات.\n" +
-                "المشكلة ليست من اختيار الصف أو المادة. أعد المحاولة بعد قليل.";
+                "حاولنا تلقائيًا أكثر من مرة التواصل مع الأستاذ نبيل، لكن الخدمة ما زالت مشغولة مؤقتًا.\n" +
+                "سؤالك محفوظ على الشاشة؛ انتظر قليلًا ثم اضغط إرسال مرة واحدة إذا أردت المحاولة مجددًا.";
         }
         else if ([500,502,503,504].includes(status) ||
                  /غير متاحة|unavailable|temporar|timeout|timed out|gateway/i.test(raw)) {
             friendlyMessage =
-                "تعذّر الوصول إلى خدمة NABIL AI مؤقتًا.\n" +
-                "المشكلة ليست من اختيار الصف أو المادة غالبًا؛ الخدمة أو مزوّد الذكاء الاصطناعي لم يستجب في هذه اللحظة.\n" +
-                "أعد المحاولة بعد قليل.";
+                "حاولنا تلقائيًا التواصل مع الأستاذ نبيل عدة مرات، لكن مزوّد الذكاء الاصطناعي لم يستجب حتى الآن.\n" +
+                "المشكلة ليست من اختيار الصف أو المادة، وسؤالك لم يضِع.";
         }
         else if (/failed to fetch|networkerror|network request|load failed/i.test(raw)) {
             friendlyMessage =
@@ -5504,6 +5613,7 @@ async function sendToAI(
 
     }
     finally {
+        nabilHideRetryNotice();
 
         sendBtn.disabled =
             false;
@@ -10540,13 +10650,88 @@ function nabilTeacherRefreshLessons(){
   teacherLessonsEmpty.hidden=lessons.length>0;
 }
 function nabilOpenTeacherAssessment(){
-  nabilTeacherFill(teacherGrade,nabilTeacherGrades(),'اختر الصف',gradeSelect.value);
-  teacherExamLanguage.value=languageSelect.value||'العربية';
-  nabilTeacherRefreshBranchesSubjects();
+  if(!teacherAssessmentModal) return false;
+
+  // Open first. Even if curriculum/index population fails, the teacher must see the builder.
   teacherAssessmentModal.hidden=false;
+  teacherAssessmentModal.style.display='flex';
+
+  try{
+    nabilTeacherFill(teacherGrade,nabilTeacherGrades(),'اختر الصف',gradeSelect?.value||'');
+    if(teacherExamLanguage) teacherExamLanguage.value=languageSelect?.value||'العربية';
+    nabilTeacherRefreshBranchesSubjects();
+  }catch(err){
+    console.warn('Teacher Assessment population fallback:', err);
+
+    // Safe fallback: copy the currently visible platform selectors.
+    try{
+      const copyOptions=(from,to,placeholder)=>{
+        if(!from||!to) return;
+        const wanted=from.value||'';
+        to.innerHTML='';
+        const p=document.createElement('option');
+        p.value=''; p.textContent=placeholder; to.appendChild(p);
+        [...from.options].forEach(o=>{
+          if(!o.value) return;
+          const n=document.createElement('option');
+          n.value=o.value; n.textContent=o.textContent;
+          to.appendChild(n);
+        });
+        if([...to.options].some(o=>o.value===wanted)) to.value=wanted;
+      };
+      copyOptions(gradeSelect,teacherGrade,'اختر الصف');
+      copyOptions(subjectSelect,teacherSubject,'اختر المادة');
+
+      if(teacherExamLanguage && languageSelect){
+        teacherExamLanguage.value=languageSelect.value||'العربية';
+      }
+
+      if(teacherLessonsList){
+        teacherLessonsList.innerHTML='';
+        const lessons=[...(lessonSelect?.options||[])].filter(o=>o.value);
+        lessons.forEach(o=>{
+          const label=document.createElement('label');
+          label.className='teacher-lesson-choice';
+          const input=document.createElement('input');
+          input.type='checkbox'; input.value=o.value; input.name='teacherLesson';
+          const span=document.createElement('span');
+          span.textContent=o.textContent;
+          label.append(input,span);
+          teacherLessonsList.appendChild(label);
+        });
+        if(teacherLessonsEmpty) teacherLessonsEmpty.hidden=lessons.length>0;
+      }
+    }catch(_fallbackErr){}
+  }
+
+  requestAnimationFrame(()=>{
+    const panel=teacherAssessmentModal.querySelector('.teacher-assessment-panel');
+    if(panel) panel.scrollTop=0;
+  });
+  return false;
 }
-function nabilCloseTeacherAssessment(){teacherAssessmentModal.hidden=true;}
-teacherAssessmentBtn?.addEventListener('click',nabilOpenTeacherAssessment);
+
+window.nabilOpenTeacherAssessmentSafe=function(ev){
+  try{
+    if(ev){ev.preventDefault();ev.stopPropagation();}
+    return nabilOpenTeacherAssessment();
+  }catch(err){
+    console.error('Teacher Assessment open failed:',err);
+    const modal=document.getElementById('teacherAssessmentModal');
+    if(modal){
+      modal.hidden=false;
+      modal.style.display='flex';
+    }
+    return false;
+  }
+};
+
+function nabilCloseTeacherAssessment(){
+  if(!teacherAssessmentModal) return;
+  teacherAssessmentModal.hidden=true;
+  teacherAssessmentModal.style.display='none';
+}
+teacherAssessmentBtn?.addEventListener('click',window.nabilOpenTeacherAssessmentSafe);
 teacherAssessmentClose?.addEventListener('click',nabilCloseTeacherAssessment);
 teacherAssessmentModal?.addEventListener('click',e=>{if(e.target?.dataset?.closeTeacherAssessment)nabilCloseTeacherAssessment()});
 teacherGrade?.addEventListener('change',nabilTeacherRefreshBranchesSubjects);
