@@ -2573,102 +2573,6 @@ function renderAIText(text) {
     if (!text) {
 
     
-    // ===== life cycle =====
-    if (t === "life_cycle"){
-        const stages = Array.isArray(spec.stages) ? spec.stages.slice(0,6) : [
-            {label:"Egg"},{label:"Larva"},{label:"Pupa"},{label:"Adult"}
-        ];
-        const n = stages.length;
-        const cx=260, cy=155, R=105;
-        let nodesSvg="";
-        let arrowsSvg="";
-        stages.forEach((s,i)=>{
-            const angle = (2*Math.PI*i/n) - Math.PI/2;
-            const x = cx + R*Math.cos(angle);
-            const y = cy + R*Math.sin(angle);
-            const color = ["#4ade80","#facc15","#fb923c","#a855f7","#22d3ee","#ef4444"][i%6];
-            nodesSvg += `
-              <circle cx="${x}" cy="${y}" r="34" fill="url(#nabilOrb3d)" stroke="${color}" stroke-width="3" filter="url(#nabilDepth)"/>
-              <text x="${x}" y="${y+5}" text-anchor="middle" class="vlab vsmall" style="fill:#fff;font-weight:900">${i+1}</text>
-              <text x="${x}" y="${y+52}" text-anchor="middle" class="vlab vsmall" style="fill:${color}">${nabilEsc(s.label||"")}</text>`;
-
-            const nextAngle = (2*Math.PI*((i+1)%n)/n) - Math.PI/2;
-            const nx = cx + R*Math.cos(nextAngle), ny = cy + R*Math.sin(nextAngle);
-            const midAngle = (angle+nextAngle)/2;
-            const arcR = R;
-            const startX = cx + arcR*Math.cos(angle+0.42), startY = cy + arcR*Math.sin(angle+0.42);
-            const endX = cx + (arcR-8)*Math.cos(nextAngle-0.42), endY = cy + (arcR-8)*Math.sin(nextAngle-0.42);
-            arrowsSvg += `<path d="M${startX},${startY} A${arcR},${arcR} 0 0 1 ${endX},${endY}" fill="none" stroke="#67e8f9" stroke-width="2.4" marker-end="url(#lifecycleArrow)"/>`;
-        });
-
-        return nabilVisualWrap(title||"دورة حياة",`
-        <svg viewBox="0 0 520 320">
-          <defs><marker id="lifecycleArrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#67e8f9"/></marker></defs>
-          ${arrowsSvg}
-          ${nodesSvg}
-        </svg>`,spec.note||"");
-    }
-
-    // ===== food chain =====
-    if (t === "food_chain"){
-        const links = Array.isArray(spec.links) ? spec.links.slice(0,6) : [
-            {label:"Grass"},{label:"Grasshopper"},{label:"Frog"},{label:"Snake"}
-        ];
-        const n = links.length;
-        const gap = 480/n;
-        let nodes="";
-        links.forEach((l,i)=>{
-            const x = 40 + gap*i + gap/2;
-            const color = ["#4ade80","#facc15","#22d3ee","#ef4444","#a855f7","#fb923c"][i%6];
-            nodes += `
-              <circle cx="${x}" cy="155" r="38" fill="url(#nabilSoft3d)" stroke="${color}" stroke-width="3" filter="url(#nabilDepth)"/>
-              <text x="${x}" y="160" text-anchor="middle" class="vlab vsmall" style="fill:#08243a;font-weight:800">${nabilEsc(l.label||"")}</text>`;
-            if (i < n-1){
-                const nx = 40 + gap*(i+1) + gap/2;
-                nodes += `<line x1="${x+40}" y1="155" x2="${nx-40}" y2="155" stroke="#67e8f9" stroke-width="3" marker-end="url(#foodChainArrow)"/>`;
-            }
-        });
-        return nabilVisualWrap(title||"سلسلة غذائية",`
-        <svg viewBox="0 0 520 260">
-          <defs><marker id="foodChainArrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#67e8f9"/></marker></defs>
-          ${nodes}
-          <text x="260" y="230" text-anchor="middle" class="vlab vsmall">${nabilEsc(L.flow||"Energy flow →")}</text>
-        </svg>`,spec.note||"");
-    }
-
-    // ===== simplified body system flow =====
-    if (t === "body_system"){
-        const organs = Array.isArray(spec.organs) ? spec.organs.slice(0,7) : [
-            {label:"Mouth"},{label:"Esophagus"},{label:"Stomach"},{label:"Intestine"}
-        ];
-        const n = organs.length;
-        const startX=70, endX=450, y0=70, rowGap=68;
-        const perRow = Math.ceil(n/2) || 1;
-        let nodes="";
-        organs.forEach((o,i)=>{
-            const row = Math.floor(i/perRow);
-            const col = i%perRow;
-            const rowWidth = row===0 ? perRow : n-perRow;
-            const spacing = (endX-startX)/Math.max(1,rowWidth-1||1);
-            const x = rowWidth===1 ? (startX+endX)/2 : startX + spacing*col;
-            const y = y0 + row*rowGap*2.4;
-            const color = ["#22d3ee","#4ade80","#facc15","#fb923c","#a855f7","#ef4444","#60a5fa"][i%7];
-            nodes += `
-              <rect x="${x-55}" y="${y-30}" width="110" height="60" rx="12" fill="url(#nabilSoft3d)" stroke="${color}" stroke-width="3" filter="url(#nabilDepth)"/>
-              <text x="${x}" y="${y+5}" text-anchor="middle" class="vlab vsmall" style="fill:#08243a;font-weight:800">${i+1}. ${nabilEsc(o.label||"")}</text>`;
-            if(i>0){
-                const prevRow=Math.floor((i-1)/perRow), prevCol=(i-1)%perRow;
-                const prevRowWidth = prevRow===0?perRow:n-perRow;
-                const prevSpacing=(endX-startX)/Math.max(1,prevRowWidth-1||1);
-                const px = prevRowWidth===1?(startX+endX)/2:startX+prevSpacing*prevCol;
-                const py = y0+prevRow*rowGap*2.4;
-                nodes += `<line x1="${px}" y1="${py+30}" x2="${x}" y2="${y-30}" stroke="#94a3b8" stroke-width="2" stroke-dasharray="5 4"/>`;
-            }
-        });
-        return nabilVisualWrap(title||"مخطط جهاز مبسّط",`
-        <svg viewBox="0 0 520 260">${nodes}</svg>`,spec.note||"");
-    }
-
     return "";
 
     }
@@ -3065,7 +2969,7 @@ function renderGeneralExerciseBoards(text, diagrams, messageDirection, messageLa
 
         const visualHTML = diagramsForThis.length
             ? diagramsForThis.join("")
-            : `<div class="exercise-visual-empty">${messageLanguage === "English" ? "Graph required for this function study." : messageLanguage === "Français" ? "Le graphique est requis pour cette étude de fonction." : "الرسم البياني مطلوب في دراسة هذه الدالة."}</div>`;
+            : `<div class="exercise-visual-empty">${messageLanguage === "English" ? "The graph could not be generated from the available data." : messageLanguage === "Français" ? "Le graphique n’a pas pu être généré à partir des données disponibles." : "تعذّر إنشاء الرسم من المعطيات المتاحة."}</div>`;
 
         const wholeBoardText = [
             board.title,
@@ -4966,6 +4870,11 @@ function nabilFitPoints(points, box){
 
 function nabilSvgPoint(p){ return `${p.x.toFixed(2)},${p.y.toFixed(2)}`; }
 
+// ============================================================
+// NABIL Visual Engine V2 — merged cumulative build
+// Geometry • Functions • Physics • Chemistry • Biology/Science
+// Probability/Statistics • Shared 3D gradients/depth • Mobile-safe
+// ============================================================
 function renderNabilDiagram(spec){
     if (!spec || typeof spec !== "object") return "";
 
@@ -5960,6 +5869,117 @@ function renderNabilDiagram(spec){
             body+=`<circle cx="${a.x}" cy="${a.y}" r="34" fill="${fill}" stroke="${stroke}" stroke-width="3" filter="url(#nabilDepth)"/><ellipse cx="${a.x-10}" cy="${a.y-12}" rx="11" ry="7" fill="#fff" opacity=".28"/><text x="${a.x}" y="${a.y+8}" text-anchor="middle" class="vlab" style="fill:${textColor};font-size:21px">${nabilEsc(a.label||"")}</text>`;
         });
         return nabilVisualWrap(title||"نموذج جزيئي",`<svg viewBox="0 0 520 320">${body}</svg>`,spec.note||"");
+    }
+
+
+    // ===== Visual Engine V2: Life Cycle =====
+    if (t === "life_cycle"){
+        const stages = Array.isArray(spec.stages) ? spec.stages.slice(0,6) : [
+            {label:"Egg"},{label:"Larva"},{label:"Pupa"},{label:"Adult"}
+        ];
+        const n = Math.max(1, stages.length);
+        const cx=260, cy=155, R=105;
+        let nodesSvg="";
+        let arrowsSvg="";
+        stages.forEach((s,i)=>{
+            const angle = (2*Math.PI*i/n) - Math.PI/2;
+            const x = cx + R*Math.cos(angle);
+            const y = cy + R*Math.sin(angle);
+            const color = ["#4ade80","#facc15","#fb923c","#a855f7","#22d3ee","#ef4444"][i%6];
+
+            nodesSvg += `
+              <circle cx="${x}" cy="${y}" r="34" fill="url(#nabilOrb3d)" stroke="${color}" stroke-width="3" filter="url(#nabilDepth)"/>
+              <text x="${x}" y="${y+5}" text-anchor="middle" class="vlab vsmall" style="fill:#fff;font-weight:900">${i+1}</text>
+              <text x="${x}" y="${y+52}" text-anchor="middle" class="vlab vsmall" style="fill:${color}">${nabilEsc(s.label||"")}</text>`;
+
+            if(n > 1){
+                const nextAngle = (2*Math.PI*((i+1)%n)/n) - Math.PI/2;
+                const arcR = R;
+                const startX = cx + arcR*Math.cos(angle+0.42);
+                const startY = cy + arcR*Math.sin(angle+0.42);
+                const endX = cx + (arcR-8)*Math.cos(nextAngle-0.42);
+                const endY = cy + (arcR-8)*Math.sin(nextAngle-0.42);
+                arrowsSvg += `<path d="M${startX},${startY} A${arcR},${arcR} 0 0 1 ${endX},${endY}" fill="none" stroke="#67e8f9" stroke-width="2.4" marker-end="url(#lifecycleArrow)"/>`;
+            }
+        });
+
+        return nabilVisualWrap(title||"دورة حياة",`
+        <svg viewBox="0 0 520 320" role="img" aria-label="life cycle">
+          <defs>
+            <marker id="lifecycleArrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+              <path d="M0,0 L8,4 L0,8 Z" fill="#67e8f9"/>
+            </marker>
+          </defs>
+          ${arrowsSvg}
+          ${nodesSvg}
+        </svg>`,spec.note||"");
+    }
+
+    // ===== Visual Engine V2: Food Chain =====
+    if (t === "food_chain"){
+        const links = Array.isArray(spec.links) ? spec.links.slice(0,6) : [
+            {label:"Grass"},{label:"Grasshopper"},{label:"Frog"},{label:"Snake"}
+        ];
+        const n = Math.max(1, links.length);
+        const gap = 480/n;
+        let nodes="";
+        links.forEach((l,i)=>{
+            const x = 40 + gap*i + gap/2;
+            const color = ["#4ade80","#facc15","#22d3ee","#ef4444","#a855f7","#fb923c"][i%6];
+            nodes += `
+              <circle cx="${x}" cy="155" r="38" fill="url(#nabilSoft3d)" stroke="${color}" stroke-width="3" filter="url(#nabilDepth)"/>
+              <text x="${x}" y="160" text-anchor="middle" class="vlab vsmall" style="fill:#08243a;font-weight:800">${nabilEsc(l.label||"")}</text>`;
+            if (i < n-1){
+                const nx = 40 + gap*(i+1) + gap/2;
+                nodes += `<line x1="${x+40}" y1="155" x2="${nx-40}" y2="155" stroke="#67e8f9" stroke-width="3" marker-end="url(#foodChainArrow)"/>`;
+            }
+        });
+        return nabilVisualWrap(title||"سلسلة غذائية",`
+        <svg viewBox="0 0 520 260" role="img" aria-label="food chain">
+          <defs>
+            <marker id="foodChainArrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+              <path d="M0,0 L9,4.5 L0,9 Z" fill="#67e8f9"/>
+            </marker>
+          </defs>
+          ${nodes}
+          <text x="260" y="230" text-anchor="middle" class="vlab vsmall">${nabilEsc(L.flow||"Energy flow →")}</text>
+        </svg>`,spec.note||"");
+    }
+
+    // ===== Visual Engine V2: Simplified Body System =====
+    if (t === "body_system"){
+        const organs = Array.isArray(spec.organs) ? spec.organs.slice(0,7) : [
+            {label:"Mouth"},{label:"Esophagus"},{label:"Stomach"},{label:"Intestine"}
+        ];
+        const n = Math.max(1, organs.length);
+        const startX=70, endX=450, y0=70, rowGap=68;
+        const perRow = Math.ceil(n/2) || 1;
+        let nodes="";
+        organs.forEach((o,i)=>{
+            const row = Math.floor(i/perRow);
+            const col = i%perRow;
+            const rowWidth = Math.max(1, row===0 ? Math.min(perRow,n) : n-perRow);
+            const spacing = (endX-startX)/Math.max(1,rowWidth-1);
+            const x = rowWidth===1 ? (startX+endX)/2 : startX + spacing*col;
+            const y = y0 + row*rowGap*2.4;
+            const color = ["#22d3ee","#4ade80","#facc15","#fb923c","#a855f7","#ef4444","#60a5fa"][i%7];
+
+            nodes += `
+              <rect x="${x-55}" y="${y-30}" width="110" height="60" rx="12" fill="url(#nabilSoft3d)" stroke="${color}" stroke-width="3" filter="url(#nabilDepth)"/>
+              <text x="${x}" y="${y+5}" text-anchor="middle" class="vlab vsmall" style="fill:#08243a;font-weight:800">${i+1}. ${nabilEsc(o.label||"")}</text>`;
+
+            if(i>0){
+                const prevRow=Math.floor((i-1)/perRow), prevCol=(i-1)%perRow;
+                const prevRowWidth=Math.max(1, prevRow===0 ? Math.min(perRow,n) : n-perRow);
+                const prevSpacing=(endX-startX)/Math.max(1,prevRowWidth-1);
+                const px=prevRowWidth===1?(startX+endX)/2:startX+prevSpacing*prevCol;
+                const py=y0+prevRow*rowGap*2.4;
+                nodes += `<line x1="${px}" y1="${py+30}" x2="${x}" y2="${y-30}" stroke="#94a3b8" stroke-width="2" stroke-dasharray="5 4"/>`;
+            }
+        });
+
+        return nabilVisualWrap(title||"مخطط جهاز مبسّط",`
+        <svg viewBox="0 0 520 260" role="img" aria-label="simplified body system">${nodes}</svg>`,spec.note||"");
     }
 
     return "";
