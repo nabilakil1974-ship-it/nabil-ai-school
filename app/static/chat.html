@@ -2810,7 +2810,7 @@ body.nabil-home-lock::before{
 <button
     id="teacherAssessmentBtn"
     type="button"
-    onclick="return window.nabilOpenTeacherAssessmentSafe ? window.nabilOpenTeacherAssessmentSafe(event) : false;"
+    onclick="return window.nabilOpenTeacherAssessmentSafe(event);"
     title="إنشاء مسابقة للمعلم من دروس المنهج المفهرسة">
     👨‍🏫 إعداد مسابقة للمعلم
 </button>
@@ -11334,31 +11334,135 @@ function nabilTeacherWordHTML(data){
   const parts=(data?.variants||[]).map((v,i)=>`<h1>${esc(v.title||('Model '+(i+1)))}</h1><h2>Student Exam</h2><div style="white-space:pre-wrap">${esc(v.exam)}</div><br style="page-break-before:always"><h2>Correction Scheme</h2><div style="white-space:pre-wrap">${esc(v.correction)}</div>`).join('<br style="page-break-before:always">');
   return `<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:Arial,'Times New Roman',sans-serif;line-height:1.55}h1,h2{margin-bottom:10px}</style></head><body>${parts}</body></html>`;
 }
-function nabilBindTeacherAssessmentActions(){
-teacherDownloadWord?.addEventListener('click',()=>{
-  if(!teacherLastAssessment)return;
-  const blob=new Blob(['﻿',nabilTeacherWordHTML(teacherLastAssessment)],{type:'application/msword'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='NABIL_AI_Assessment.doc'; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);
-});
 
-teacherGenerateAssessment?.addEventListener('click',async()=>{
-  const lessons=nabilSelectedTeacherLessons();
-  if(!teacherGrade.value||!teacherSubject.value){teacherAssessmentStatus.textContent='اختر الصف والمادة.';return}
-  if(!lessons.length){teacherAssessmentStatus.textContent='اختر درسًا واحدًا على الأقل من أسماء الدروس.';return}
-  teacherGenerateAssessment.disabled=true; teacherDownloadWord.disabled=true; teacherAssessmentStatus.textContent='الأستاذ نبيل يبني مسابقة جديدة ويوازن العلامات...';
-  try{
-    const payload={grade:teacherGrade.value,branch:teacherBranch.value||null,subject:teacherSubject.value,language:teacherExamLanguage.value,lessons,duration_minutes:Number(document.getElementById('teacherDuration').value),total_marks:Number(document.getElementById('teacherTotalMarks').value),difficulty:document.getElementById('teacherDifficulty').value,variants:Number(document.getElementById('teacherVariants').value),notes:document.getElementById('teacherAssessmentNotes').value||''};
-    const res=await fetch('/api/teacher-assessment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-    const data=await res.json().catch(()=>({})); if(!res.ok)throw new Error(data?.detail||'تعذر إنشاء المسابقة');
-    teacherLastAssessment=data; nabilRenderTeacherAssessment(data); teacherDownloadWord.disabled=false; teacherAssessmentStatus.textContent='تم إنشاء المسابقة وأسُس التصحيح. يمكنك تنزيل نسخة Word قابلة للتعديل.';
-  }catch(err){teacherAssessmentStatus.textContent=`حدث خطأ: ${err.message||err}`}
-  finally{teacherGenerateAssessment.disabled=false}
-});
+async function nabilTeacherFetchAssessment(payload){
+  const endpoints=["/api/teacher-assessment","/teacher-assessment"];
+  let lastError=null;
+
+  for(const endpoint of endpoints){
+    try{
+      const res=await fetch(endpoint,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify(payload)
+      });
+
+      // If this path does not exist, try the alternate mounting path.
+      if(res.status===404){
+        lastError=new Error(`المسار ${endpoint} غير موجود`);
+        continue;
+      }
+
+      const raw=await res.text();
+      let data={};
+      try{ data=raw ? JSON.parse(raw) : {}; }catch(_e){}
+
+      if(!res.ok){
+        const detail=data?.detail || raw || `HTTP ${res.status}`;
+        throw new Error(detail);
+      }
+      return data;
+    }catch(err){
+      lastError=err;
+      // Network errors on the first path may still be common to both, but trying
+      // the second path is harmless and makes mounting differences self-healing.
+    }
+  }
+  throw lastError || new Error("تعذر الوصول إلى مولّد المسابقات.");
 }
-document.addEventListener("DOMContentLoaded",()=>{
+
+window.nabilGenerateTeacherAssessment=async function(ev){
+  try{ ev?.preventDefault?.(); ev?.stopPropagation?.(); }catch(_e){}
+  nabilTeacherBindElements();
+
+  if(!teacherAssessmentStatus || !teacherGenerateAssessment) return false;
+
+  const lessons=nabilSelectedTeacherLessons();
+  const grade=teacherGrade?.value || "";
+  const subject=teacherSubject?.value || "";
+
+  if(!grade || !subject){
+    teacherAssessmentStatus.textContent="اختر الصف والمادة.";
+    return false;
+  }
+  if(!lessons.length){
+    teacherAssessmentStatus.textContent="اختر درسًا واحدًا على الأقل من قائمة الدروس.";
+    return false;
+  }
+
+  teacherGenerateAssessment.disabled=true;
+  if(teacherDownloadWord) teacherDownloadWord.disabled=true;
+  teacherAssessmentStatus.textContent="الأستاذ نبيل يحضّر المسابقة الآن… يتم توزيع العلامات وبناء أسُس التصحيح.";
+  if(teacherAssessmentPreview) teacherAssessmentPreview.innerHTML="";
+
+  const payload={
+    grade,
+    branch:teacherBranch?.value || null,
+    subject,
+    language:teacherExamLanguage?.value || "العربية",
+    lessons,
+    duration_minutes:Number(document.getElementById("teacherDuration")?.value || 60),
+    total_marks:Number(document.getElementById("teacherTotalMarks")?.value || 20),
+    difficulty:document.getElementById("teacherDifficulty")?.value || "medium",
+    variants:Number(document.getElementById("teacherVariants")?.value || 1),
+    notes:document.getElementById("teacherAssessmentNotes")?.value || ""
+  };
+
+  try{
+    const data=await nabilTeacherFetchAssessment(payload);
+
+    if(!data || !Array.isArray(data.variants) || !data.variants.length){
+      throw new Error("الخادم لم يُرجع نموذج مسابقة صالحًا.");
+    }
+
+    teacherLastAssessment=data;
+    nabilRenderTeacherAssessment(data);
+    if(teacherDownloadWord) teacherDownloadWord.disabled=false;
+    teacherAssessmentStatus.textContent="✓ تم إنشاء المسابقة وأسُس التصحيح بنجاح.";
+  }catch(err){
+    console.error("Teacher Assessment error:",err);
+    teacherAssessmentStatus.textContent=`تعذر إنشاء المسابقة: ${err?.message || err}`;
+  }finally{
+    teacherGenerateAssessment.disabled=false;
+  }
+  return false;
+};
+
+window.nabilDownloadTeacherAssessmentWord=function(ev){
+  try{ ev?.preventDefault?.(); ev?.stopPropagation?.(); }catch(_e){}
+  if(!teacherLastAssessment) return false;
+
+  const blob=new Blob(
+    ['﻿',nabilTeacherWordHTML(teacherLastAssessment)],
+    {type:'application/msword'}
+  );
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='NABIL_AI_Assessment.doc';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{
+    URL.revokeObjectURL(a.href);
+    a.remove();
+  },1000);
+  return false;
+};
+
+function nabilBindTeacherAssessmentActions(){
+  // Kept only as a compatibility fallback. Main buttons use direct onclick.
+  nabilTeacherBindElements();
+}
+
+if(document.readyState==="loading"){
+  document.addEventListener("DOMContentLoaded",()=>{
+    nabilTeacherBindElements();
+    nabilBindTeacherAssessmentActions();
+  },{once:true});
+}else{
   nabilTeacherBindElements();
   nabilBindTeacherAssessmentActions();
-},{once:true});
+}
+
 
 </script>
 
@@ -11454,8 +11558,8 @@ document.addEventListener("DOMContentLoaded",()=>{
           </label>
 
           <div class="teacher-assessment-actions">
-            <button id="teacherGenerateAssessment" class="teacher-generate-btn" type="button">✨ أنشئ المسابقة وأسُس التصحيح</button>
-            <button id="teacherDownloadWord" type="button" disabled>⬇ Word قابل للتعديل</button>
+            <button id="teacherGenerateAssessment" class="teacher-generate-btn" type="button" onclick="return window.nabilGenerateTeacherAssessment(event)">✨ أنشئ المسابقة وأسُس التصحيح</button>
+            <button id="teacherDownloadWord" type="button" disabled onclick="return window.nabilDownloadTeacherAssessmentWord(event)">⬇ Word قابل للتعديل</button>
           </div>
           <div id="teacherAssessmentStatus" class="teacher-assessment-status">اختر الصف والمادة والدروس، ثم اضغط «أنشئ المسابقة».</div>
         </section>
