@@ -2673,6 +2673,21 @@ body.nabil-home-lock::before{
     }
 }
 
+
+
+/* v19 persistent reconnect */
+.nabil-auto-retry-notice{
+    position:sticky;
+    bottom:10px;
+    z-index:40;
+    max-width:760px;
+    margin:14px auto;
+    border:1px solid #4bdcff!important;
+    background:linear-gradient(135deg,#0b3655,#0a4d62)!important;
+    box-shadow:0 10px 26px rgba(0,0,0,.28),0 0 22px rgba(65,220,255,.12);
+    font-weight:900!important;
+}
+
 </style>
 </head>
 
@@ -5342,14 +5357,21 @@ function addLessonDiagram(lesson){
 }
 
 
-function nabilRetryMessage(language, attempt, maxAttempts){
+function nabilRetryMessage(language, attempt){
+    const lessonMode = nabilActivityMode === "lesson";
     if(language === "English"){
-        return `Please wait — we are trying to contact Al-Ostaz Nabil again (${attempt}/${maxAttempts})`;
+        return lessonMode
+            ? `Trying to reconnect with Al-Ostaz Nabil… The lesson will start automatically as soon as the connection returns. Attempt ${attempt}`
+            : `Trying to reconnect with Al-Ostaz Nabil… Your answer will appear automatically when the connection returns. Attempt ${attempt}`;
     }
     if(language === "Français"){
-        return `Patientez — nous essayons de contacter à nouveau le professeur Nabil (${attempt}/${maxAttempts})`;
+        return lessonMode
+            ? `Tentative de reconnexion avec le professeur Nabil… La leçon démarrera automatiquement dès le retour de la connexion. Tentative ${attempt}`
+            : `Tentative de reconnexion avec le professeur Nabil… La réponse apparaîtra automatiquement dès le retour de la connexion. Tentative ${attempt}`;
     }
-    return `انتظر قليلًا، نحاول التواصل مع الأستاذ نبيل من جديد (${attempt}/${maxAttempts})`;
+    return lessonMode
+        ? `نحاول الاتصال بالأستاذ نبيل من جديد… سيبدأ الدرس تلقائيًا فور عودة الاتصال. المحاولة ${attempt}`
+        : `نحاول الاتصال بالأستاذ نبيل من جديد… سيظهر الجواب تلقائيًا فور عودة الاتصال. المحاولة ${attempt}`;
 }
 
 function nabilShowRetryNotice(text){
@@ -5373,42 +5395,49 @@ function nabilSleep(ms){
 }
 
 async function nabilFetchChatWithAutoRetry(url, options, language){
-    const maxAttempts=4;
-    const delays=[1800,3200,5200];
-    let lastError=null;
+    // Keep trying while this page remains open. The student's request is never duplicated.
+    // Permanent client/auth errors still return immediately; only temporary/server/network
+    // failures are retried.
+    const delays=[2000,3500,5500,8000,12000,16000,20000];
+    const retryableStatuses=new Set([408,425,429,500,502,503,504]);
+    let attempt=1;
 
-    for(let attempt=1; attempt<=maxAttempts; attempt++){
+    while(true){
         try{
             if(attempt>1){
-                nabilShowRetryNotice(nabilRetryMessage(language, attempt, maxAttempts));
+                nabilShowRetryNotice(nabilRetryMessage(language, attempt));
             }
 
             const response=await fetch(url,options);
-            const retryable=[429,500,502,503,504].includes(Number(response.status));
+            const status=Number(response.status);
 
-            if(!retryable || attempt===maxAttempts){
+            if(!retryableStatuses.has(status)){
                 nabilHideRetryNotice();
                 return response;
             }
 
-            lastError=new Error(`HTTP ${response.status}`);
-            lastError.status=response.status;
+            // Keep the same request pending in the UI and retry automatically.
+            attempt += 1;
+            nabilShowRetryNotice(nabilRetryMessage(language, attempt));
+            await nabilSleep(delays[Math.min(attempt-2,delays.length-1)]);
+            continue;
+
         }catch(err){
-            lastError=err;
             const raw=String(err?.message||"").toLowerCase();
-            const networkLike=/failed to fetch|networkerror|network request|load failed|timeout|timed out/.test(raw) || !err?.status;
-            if(!networkLike || attempt===maxAttempts){
+            const networkLike=
+                /failed to fetch|networkerror|network request|load failed|timeout|timed out|connection|fetch/.test(raw)
+                || !err?.status;
+
+            if(!networkLike){
                 nabilHideRetryNotice();
                 throw err;
             }
+
+            attempt += 1;
+            nabilShowRetryNotice(nabilRetryMessage(language, attempt));
+            await nabilSleep(delays[Math.min(attempt-2,delays.length-1)]);
         }
-
-        nabilShowRetryNotice(nabilRetryMessage(language, attempt+1, maxAttempts));
-        await nabilSleep(delays[Math.min(attempt-1,delays.length-1)]);
     }
-
-    nabilHideRetryNotice();
-    throw lastError || new Error("NABIL AI temporary connection failure");
 }
 
 async function sendToAI(
