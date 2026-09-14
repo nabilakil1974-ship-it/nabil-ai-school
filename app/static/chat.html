@@ -4838,6 +4838,27 @@ let nabilBoardTimer = null;
 let nabilBoardPaused = false;
 let nabilBoardQueue = [];
 let nabilBoardQueueIndex = 0;
+let nabilBoardSpeechLanguage = "العربية";
+let nabilBoardSpeechText = "";
+
+function nabilResumeBoardNarrationFromCurrentStep(){
+    if(!nabilBoardModeActive()) return;
+    nabilBoardPaused = false;
+
+    const remaining = nabilBoardQueue
+        .slice(nabilBoardQueueIndex)
+        .map(s => (s.textContent || "").trim())
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+
+    if(!remaining) return;
+
+    nabilSpeakClear(remaining, nabilBoardSpeechLanguage, {
+        onstart:()=>stopLessonRecognitionTemporarily?.(),
+        onend:()=>{ if(lessonVoiceConversation) resumeLessonRecognitionAfterSpeech?.(); }
+    });
+}
 
 function nabilBoardModeActive(){
     return nabilActivityMode === "lesson" &&
@@ -4897,6 +4918,8 @@ function nabilPrepareBoardWriting(root){
 function nabilStartBoardReveal(root, spokenText, language){
     if(nabilBoardTimer) clearInterval(nabilBoardTimer);
     nabilBoardPaused=false;
+    nabilBoardSpeechLanguage = language || "العربية";
+    nabilBoardSpeechText = String(spokenText || "");
     nabilBoardQueue=nabilPrepareBoardWriting(root);
     nabilBoardQueueIndex=0;
 
@@ -10208,6 +10231,11 @@ document.addEventListener("click", (event) => {
         const clean = String(spokenText || "").trim();
         if (!clean || lessonTalkBusy) return;
 
+        // In board mode, freeze exactly where the student interrupted.
+        if(nabilBoardModeActive()){
+            nabilBoardPaused = true;
+        }
+
         lessonTalkBusy = true;
         lessonTalkShouldResume = lessonTalkActive;
         lessonTalkSetState("⏳ عم فكّر معك...");
@@ -10250,6 +10278,12 @@ document.addEventListener("click", (event) => {
             await nabilSpeakClear(reply, lessonTalkSpokenLanguage, {
                 onend: () => {
                     lessonTalkBusy = false;
+
+                    if(nabilBoardModeActive()){
+                        // Continue the lesson from the exact word/step where it was paused.
+                        nabilResumeBoardNarrationFromCurrentStep();
+                    }
+
                     if (lessonTalkActive && lessonTalkShouldResume) {
                         lessonTalkSetState("🎙 عم بسمعك...");
                         lessonTalkRestart();
@@ -10259,6 +10293,7 @@ document.addEventListener("click", (event) => {
                 },
                 onerror: () => {
                     lessonTalkBusy = false;
+                    if(nabilBoardModeActive()) nabilResumeBoardNarrationFromCurrentStep();
                     lessonTalkRestart();
                 }
             });
@@ -10328,11 +10363,16 @@ document.addEventListener("click", (event) => {
             try { rec.stop(); } catch(_e) {}
             talkBtn.classList.remove("listening");
             lessonTalkSetState("🎙 Talk to Me");
+            if(nabilBoardModeActive()) nabilResumeBoardNarrationFromCurrentStep();
             return;
         }
 
         lessonTalkActive = true;
         lessonTalkBusy = false;
+        if(nabilBoardModeActive()){
+            nabilBoardPaused = true;
+            stopNabilNeuralVoice();
+        }
         lessonTalkSpokenLanguage = languageSelect?.value || "العربية";
         rec.lang = lessonTalkSpokenLanguage === "English" ? "en-US"
             : lessonTalkSpokenLanguage === "Français" ? "fr-FR" : "ar-SA";
