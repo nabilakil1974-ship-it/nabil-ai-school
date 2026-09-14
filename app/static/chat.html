@@ -2470,6 +2470,13 @@ body.nabil-home-lock::before{
     📝 حل تمارين عامة
 </button>
 
+<button
+    id="teacherAssessmentBtn"
+    type="button"
+    title="إنشاء مسابقة للمعلم من دروس المنهج المفهرسة">
+    👨‍🏫 إعداد مسابقة
+</button>
+
 </div>
 </header>
 
@@ -2721,6 +2728,7 @@ let lessonTalkRecognition = null;
 let lessonTalkActive = false;
 let lessonTalkBusy = false;
 let lessonTalkShouldResume = false;
+let lessonTalkSpokenLanguage = languageSelect?.value || "العربية";
 
 /* Keep the learning page clean: one active question/lesson at a time. */
 function nabilClearVisibleConversation(resetConversation = false) {
@@ -9379,6 +9387,9 @@ document.addEventListener("click", (event) => {
     #lessonTalkBtn{font-size:15px;min-height:52px}
     .lesson-tutor-message{font-size:10.5px}
 }
+
+.teacher-assessment-modal[hidden]{display:none!important}.teacher-assessment-modal{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:18px}.teacher-assessment-backdrop{position:absolute;inset:0;background:rgba(2,12,24,.76);backdrop-filter:blur(5px)}.teacher-assessment-panel{position:relative;width:min(1180px,96vw);max-height:92vh;overflow:auto;border:1px solid rgba(91,210,255,.42);border-radius:22px;background:linear-gradient(180deg,#09283f,#061a2c);box-shadow:0 24px 70px rgba(0,0,0,.48);padding:20px;color:#eef9ff}.teacher-assessment-head{display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid rgba(110,220,255,.18);padding-bottom:12px;margin-bottom:16px}.teacher-assessment-head h2{margin:2px 0 0;font-size:28px}.teacher-assessment-kicker{font-size:12px;color:#72ddff;font-weight:800;letter-spacing:.04em}.teacher-assessment-close{border:1px solid rgba(255,255,255,.18);background:#102f48;color:white;border-radius:12px;width:42px;height:42px;font-size:20px}.teacher-assessment-grid{display:grid;grid-template-columns:repeat(4,minmax(170px,1fr));gap:12px}.teacher-assessment-grid label,.teacher-notes-label{display:flex;flex-direction:column;gap:6px;font-weight:800;color:#bfeeff}.teacher-assessment-grid select,.teacher-assessment-grid input,.teacher-notes-label textarea{width:100%;box-sizing:border-box;border:1px solid #315f7c;border-radius:11px;background:#071f33;color:#f3fbff;padding:10px 11px;font:inherit}.teacher-lessons-block{margin-top:16px;border:1px solid rgba(103,220,255,.25);border-radius:16px;background:rgba(4,22,37,.65);padding:14px}.teacher-lessons-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.teacher-lesson-tools{display:flex;gap:8px}.teacher-lesson-tools button{border:1px solid #2f6f95;background:#0b314b;color:#dff7ff;border-radius:9px;padding:7px 10px}.teacher-lessons-list{display:grid;grid-template-columns:repeat(3,minmax(220px,1fr));gap:9px}.teacher-lesson-choice{display:flex;align-items:flex-start;gap:9px;border:1px solid rgba(80,175,220,.22);background:#08243a;border-radius:12px;padding:10px;line-height:1.35}.teacher-lesson-choice input{margin-top:3px}.teacher-lessons-empty{padding:14px;color:#ffd589}.teacher-notes-label{margin-top:14px}.teacher-assessment-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}.teacher-assessment-actions button{border:1px solid #2d7aa2;background:#0d3855;color:#eefaff;border-radius:12px;padding:11px 15px;font-weight:900}.teacher-assessment-actions .teacher-generate-btn{background:linear-gradient(135deg,#086c91,#0b8a68);border-color:#20c6a1}.teacher-assessment-actions button:disabled{opacity:.45;cursor:not-allowed}.teacher-assessment-status{margin-top:10px;color:#9adff4}.teacher-assessment-preview{margin-top:14px;display:grid;gap:14px}.teacher-preview-card{border:1px solid rgba(103,220,255,.25);border-radius:16px;background:#071f33;padding:16px;overflow:auto}.teacher-preview-card h3{color:#72e0ff;margin:0 0 10px}.teacher-preview-card pre{white-space:pre-wrap;word-break:normal;font-family:inherit;line-height:1.7;margin:0}@media(max-width:900px){.teacher-assessment-grid{grid-template-columns:1fr 1fr}.teacher-lessons-list{grid-template-columns:1fr}.teacher-assessment-panel{width:min(98vw,1180px);padding:14px}}@media(max-width:560px){.teacher-assessment-grid{grid-template-columns:1fr}.teacher-assessment-actions button{width:100%}.teacher-assessment-head h2{font-size:22px}}
+
 </style>
         </head><body><h1>${nabilEsc(title)}</h1><p>${nabilEsc([gradeSelect.value,branchSelect.value,subjectSelect.value,languageSelect.value].filter(Boolean).join(" — "))}</p>${rows}
 
@@ -9480,6 +9491,89 @@ document.addEventListener("click", (event) => {
       زر ∫ يدرج الصيغة الرياضية مباشرة في سؤال الطالب. الحساب العددي يعمل محليًا داخل المتصفح ولا يحتاج API.
     </div>
   </div>
+</div>
+
+
+<div id="teacherAssessmentModal" class="teacher-assessment-modal" hidden>
+  <div class="teacher-assessment-backdrop" data-close-teacher-assessment="1"></div>
+  <section class="teacher-assessment-panel" role="dialog" aria-modal="true" aria-labelledby="teacherAssessmentTitle">
+    <div class="teacher-assessment-head">
+      <div>
+        <div class="teacher-assessment-kicker">NABIL AI • Teacher Assessment Builder</div>
+        <h2 id="teacherAssessmentTitle">إعداد مسابقة</h2>
+      </div>
+      <button id="teacherAssessmentClose" class="teacher-assessment-close" type="button">✕</button>
+    </div>
+
+    <div class="teacher-assessment-grid">
+      <label>الصف
+        <select id="teacherGrade"></select>
+      </label>
+      <label id="teacherBranchWrap">الفرع
+        <select id="teacherBranch"></select>
+      </label>
+      <label>المادة
+        <select id="teacherSubject"></select>
+      </label>
+      <label>لغة المسابقة
+        <select id="teacherExamLanguage">
+          <option value="العربية">العربية</option>
+          <option value="English">English</option>
+          <option value="Français">Français</option>
+        </select>
+      </label>
+      <label>المدة
+        <select id="teacherDuration">
+          <option value="30">30 دقيقة</option>
+          <option value="45">45 دقيقة</option>
+          <option value="60" selected>60 دقيقة</option>
+          <option value="90">90 دقيقة</option>
+          <option value="120">120 دقيقة</option>
+        </select>
+      </label>
+      <label>العلامة الكاملة
+        <input id="teacherTotalMarks" type="number" min="5" max="100" value="20" />
+      </label>
+      <label>المستوى
+        <select id="teacherDifficulty">
+          <option value="below_average">دون الوسط</option>
+          <option value="medium" selected>متوسط</option>
+          <option value="above_average">فوق الوسط</option>
+          <option value="mixed">متدرّج: سهل + متوسط + متقدم</option>
+        </select>
+      </label>
+      <label>عدد النماذج
+        <select id="teacherVariants">
+          <option value="1" selected>نموذج واحد</option>
+          <option value="2">نموذجان A / B</option>
+          <option value="3">3 نماذج</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="teacher-lessons-block">
+      <div class="teacher-lessons-title">
+        <strong>اختر أسماء الدروس من القائمة</strong>
+        <div class="teacher-lesson-tools">
+          <button id="teacherSelectAllLessons" type="button">تحديد الكل</button>
+          <button id="teacherClearLessons" type="button">إلغاء الكل</button>
+        </div>
+      </div>
+      <div id="teacherLessonsList" class="teacher-lessons-list"></div>
+      <div id="teacherLessonsEmpty" class="teacher-lessons-empty" hidden>لا توجد دروس مفهرسة لهذه المادة بعد.</div>
+    </div>
+
+    <label class="teacher-notes-label">تعليمات إضافية للأستاذ نبيل
+      <textarea id="teacherAssessmentNotes" rows="3" placeholder="مثال: ركّز على البرهان، أو اجعل 30% من العلامة لمسائل تطبيقية..."></textarea>
+    </label>
+
+    <div class="teacher-assessment-actions">
+      <button id="teacherGenerateAssessment" class="teacher-generate-btn" type="button">✨ أنشئ المسابقة وأسُس التصحيح</button>
+      <button id="teacherDownloadWord" type="button" disabled>⬇ Word قابل للتعديل</button>
+    </div>
+    <div id="teacherAssessmentStatus" class="teacher-assessment-status">اختر المادة والدروس ثم أنشئ المسابقة.</div>
+    <div id="teacherAssessmentPreview" class="teacher-assessment-preview"></div>
+  </section>
 </div>
 
 </body></html>`;
@@ -9610,7 +9704,7 @@ document.addEventListener("click", (event) => {
             body.append("current_answer", lessonTalkLatestContext());
             body.append("subject", subjectSelect?.value || "");
             body.append("grade", gradeSelect?.value || "");
-            body.append("language", languageSelect?.value || "العربية");
+            body.append("language", lessonTalkSpokenLanguage || languageSelect?.value || "العربية");
             body.append("lesson", nabilActivityMode === "general_exercises" ? "" : (lessonSelect?.value || ""));
             body.append("activity_mode", nabilActivityMode || "lesson");
             if (conversationId) body.append("conversation_id", conversationId);
@@ -9629,8 +9723,14 @@ document.addEventListener("click", (event) => {
             const reply = String(data.reply || "").trim();
             if (!reply) throw new Error("Empty voice reply");
 
+            lessonTalkSpokenLanguage = String(data.reply_language || lessonTalkSpokenLanguage || languageSelect?.value || "العربية");
+            if (lessonTalkRecognition) {
+                lessonTalkRecognition.lang = lessonTalkSpokenLanguage === "English" ? "en-US"
+                    : lessonTalkSpokenLanguage === "Français" ? "fr-FR" : "ar-SA";
+            }
+
             lessonTalkSetState("🔊 عم جاوبك...");
-            await nabilSpeakClear(reply, languageSelect?.value || "العربية", {
+            await nabilSpeakClear(reply, lessonTalkSpokenLanguage, {
                 onend: () => {
                     lessonTalkBusy = false;
                     if (lessonTalkActive && lessonTalkShouldResume) {
@@ -9716,8 +9816,9 @@ document.addEventListener("click", (event) => {
 
         lessonTalkActive = true;
         lessonTalkBusy = false;
-        rec.lang = languageSelect?.value === "English" ? "en-US"
-            : languageSelect?.value === "Français" ? "fr-FR" : "ar-SA";
+        lessonTalkSpokenLanguage = languageSelect?.value || "العربية";
+        rec.lang = lessonTalkSpokenLanguage === "English" ? "en-US"
+            : lessonTalkSpokenLanguage === "Français" ? "fr-FR" : "ar-SA";
         talkBtn.classList.add("listening");
         lessonTalkSetState("🎙 عم بسمعك...");
         try { rec.start(); } catch(_e) { lessonTalkRestart(); }
@@ -10118,6 +10219,121 @@ try{
         }
     });
 })();
+
+
+// ===== NABIL AI Teacher Assessment Builder =====
+const teacherAssessmentBtn=document.getElementById('teacherAssessmentBtn');
+const teacherAssessmentModal=document.getElementById('teacherAssessmentModal');
+const teacherAssessmentClose=document.getElementById('teacherAssessmentClose');
+const teacherGrade=document.getElementById('teacherGrade');
+const teacherBranch=document.getElementById('teacherBranch');
+const teacherBranchWrap=document.getElementById('teacherBranchWrap');
+const teacherSubject=document.getElementById('teacherSubject');
+const teacherExamLanguage=document.getElementById('teacherExamLanguage');
+const teacherLessonsList=document.getElementById('teacherLessonsList');
+const teacherLessonsEmpty=document.getElementById('teacherLessonsEmpty');
+const teacherGenerateAssessment=document.getElementById('teacherGenerateAssessment');
+const teacherDownloadWord=document.getElementById('teacherDownloadWord');
+const teacherAssessmentStatus=document.getElementById('teacherAssessmentStatus');
+const teacherAssessmentPreview=document.getElementById('teacherAssessmentPreview');
+let teacherLastAssessment=null;
+
+function nabilTeacherFill(select,items,placeholder,current=''){
+  select.innerHTML='';
+  const ph=document.createElement('option'); ph.value=''; ph.textContent=placeholder; select.appendChild(ph);
+  [...new Set((items||[]).filter(Boolean))].forEach(item=>{const o=document.createElement('option');o.value=item;o.textContent=item;select.appendChild(o)});
+  if(current && [...select.options].some(o=>o.value===current)) select.value=current;
+}
+function nabilTeacherGrades(){ return [...gradeSelect.options].map(o=>o.value).filter(Boolean); }
+function nabilTeacherSubjectsFor(grade,branch){
+  const branchSubjects=curriculumData?.secondary_structure?.[grade]?.branches?.[branch]?.subjects;
+  const gradeSubjects=curriculumData?.subject_availability?.[grade];
+  return [...new Set([...(Array.isArray(branchSubjects)?branchSubjects:[]),...(Array.isArray(gradeSubjects)?gradeSubjects:[]),...subjectsForStage(grade)])];
+}
+function nabilTeacherLessonsFor(grade,branch,subject,language){
+  let lessons=[];
+  const verified=curriculumIndex?.[subject]?.[grade];
+  if(verified) lessons.push(...collectLessonTitles(verified[language]||verified));
+  const secondary=curriculumData?.secondary_structure?.[grade]?.branches?.[branch]?.[subject];
+  if(secondary) lessons.push(...collectLessonTitles(secondary[language]||secondary));
+  const annual=curriculumData?.annual_curriculum_details?.['الثانوي']?.[grade]?.[branch]?.[subject];
+  if(annual) lessons.push(...collectLessonTitles(annual));
+  return [...new Set(lessons.map(String).map(x=>x.trim()).filter(Boolean))];
+}
+function nabilTeacherRefreshBranchesSubjects(){
+  const grade=teacherGrade.value;
+  const branches=getBranchesForGrade(grade);
+  teacherBranchWrap.hidden=!branches.length;
+  nabilTeacherFill(teacherBranch,branches,'اختر الفرع',branchSelect.value);
+  if(branches.length===1) teacherBranch.value=branches[0];
+  const branch=teacherBranch.value;
+  nabilTeacherFill(teacherSubject,nabilTeacherSubjectsFor(grade,branch),'اختر المادة',subjectSelect.value);
+  nabilTeacherRefreshLessons();
+}
+function nabilTeacherRefreshLessons(){
+  const lessons=nabilTeacherLessonsFor(teacherGrade.value,teacherBranch.value,teacherSubject.value,teacherExamLanguage.value);
+  teacherLessonsList.innerHTML='';
+  lessons.forEach((lesson,i)=>{
+    const label=document.createElement('label'); label.className='teacher-lesson-choice';
+    const input=document.createElement('input'); input.type='checkbox'; input.value=lesson; input.name='teacherLesson';
+    const span=document.createElement('span'); span.textContent=lesson;
+    label.append(input,span); teacherLessonsList.appendChild(label);
+  });
+  teacherLessonsEmpty.hidden=lessons.length>0;
+}
+function nabilOpenTeacherAssessment(){
+  nabilTeacherFill(teacherGrade,nabilTeacherGrades(),'اختر الصف',gradeSelect.value);
+  teacherExamLanguage.value=languageSelect.value||'العربية';
+  nabilTeacherRefreshBranchesSubjects();
+  teacherAssessmentModal.hidden=false;
+}
+function nabilCloseTeacherAssessment(){teacherAssessmentModal.hidden=true;}
+teacherAssessmentBtn?.addEventListener('click',nabilOpenTeacherAssessment);
+teacherAssessmentClose?.addEventListener('click',nabilCloseTeacherAssessment);
+teacherAssessmentModal?.addEventListener('click',e=>{if(e.target?.dataset?.closeTeacherAssessment)nabilCloseTeacherAssessment()});
+teacherGrade?.addEventListener('change',nabilTeacherRefreshBranchesSubjects);
+teacherBranch?.addEventListener('change',()=>{nabilTeacherFill(teacherSubject,nabilTeacherSubjectsFor(teacherGrade.value,teacherBranch.value),'اختر المادة');nabilTeacherRefreshLessons()});
+teacherSubject?.addEventListener('change',nabilTeacherRefreshLessons);
+teacherExamLanguage?.addEventListener('change',nabilTeacherRefreshLessons);
+document.getElementById('teacherSelectAllLessons')?.addEventListener('click',()=>teacherLessonsList.querySelectorAll('input').forEach(x=>x.checked=true));
+document.getElementById('teacherClearLessons')?.addEventListener('click',()=>teacherLessonsList.querySelectorAll('input').forEach(x=>x.checked=false));
+
+function nabilSelectedTeacherLessons(){return [...teacherLessonsList.querySelectorAll('input:checked')].map(x=>x.value)}
+function nabilRenderTeacherAssessment(data){
+  teacherAssessmentPreview.innerHTML='';
+  (data?.variants||[]).forEach((v,idx)=>{
+    const exam=document.createElement('section'); exam.className='teacher-preview-card';
+    exam.innerHTML=`<h3>${nabilEsc(v.title||`Model ${idx+1}`)} — Student Exam</h3><pre>${nabilEsc(v.exam||'')}</pre>`;
+    const corr=document.createElement('section'); corr.className='teacher-preview-card';
+    corr.innerHTML=`<h3>Correction Scheme / أسس التصحيح</h3><pre>${nabilEsc(v.correction||'')}</pre>`;
+    teacherAssessmentPreview.append(exam,corr);
+  });
+}
+function nabilTeacherWordHTML(data){
+  const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const parts=(data?.variants||[]).map((v,i)=>`<h1>${esc(v.title||('Model '+(i+1)))}</h1><h2>Student Exam</h2><div style="white-space:pre-wrap">${esc(v.exam)}</div><br style="page-break-before:always"><h2>Correction Scheme</h2><div style="white-space:pre-wrap">${esc(v.correction)}</div>`).join('<br style="page-break-before:always">');
+  return `<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:Arial,'Times New Roman',sans-serif;line-height:1.55}h1,h2{margin-bottom:10px}</style></head><body>${parts}</body></html>`;
+}
+teacherDownloadWord?.addEventListener('click',()=>{
+  if(!teacherLastAssessment)return;
+  const blob=new Blob(['﻿',nabilTeacherWordHTML(teacherLastAssessment)],{type:'application/msword'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='NABIL_AI_Assessment.doc'; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);
+});
+
+teacherGenerateAssessment?.addEventListener('click',async()=>{
+  const lessons=nabilSelectedTeacherLessons();
+  if(!teacherGrade.value||!teacherSubject.value){teacherAssessmentStatus.textContent='اختر الصف والمادة.';return}
+  if(!lessons.length){teacherAssessmentStatus.textContent='اختر درسًا واحدًا على الأقل من أسماء الدروس.';return}
+  teacherGenerateAssessment.disabled=true; teacherDownloadWord.disabled=true; teacherAssessmentStatus.textContent='الأستاذ نبيل يبني مسابقة جديدة ويوازن العلامات...';
+  try{
+    const payload={grade:teacherGrade.value,branch:teacherBranch.value||null,subject:teacherSubject.value,language:teacherExamLanguage.value,lessons,duration_minutes:Number(document.getElementById('teacherDuration').value),total_marks:Number(document.getElementById('teacherTotalMarks').value),difficulty:document.getElementById('teacherDifficulty').value,variants:Number(document.getElementById('teacherVariants').value),notes:document.getElementById('teacherAssessmentNotes').value||''};
+    const res=await fetch('/api/teacher-assessment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const data=await res.json().catch(()=>({})); if(!res.ok)throw new Error(data?.detail||'تعذر إنشاء المسابقة');
+    teacherLastAssessment=data; nabilRenderTeacherAssessment(data); teacherDownloadWord.disabled=false; teacherAssessmentStatus.textContent='تم إنشاء المسابقة وأسُس التصحيح. يمكنك تنزيل نسخة Word قابلة للتعديل.';
+  }catch(err){teacherAssessmentStatus.textContent=`حدث خطأ: ${err.message||err}`}
+  finally{teacherGenerateAssessment.disabled=false}
+});
+
 </script>
 
 </body>
