@@ -3361,6 +3361,101 @@ async def avatar_chat(
     }
 
 
+@router.post("/lesson-voice-chat")
+async def lesson_voice_chat(
+    message: str = Form(...),
+    student_id: str = Form(...),
+    current_answer: Optional[str] = Form(None),
+    subject: Optional[str] = Form(None),
+    grade: Optional[str] = Form(None),
+    language: Optional[str] = Form("العربية"),
+    lesson: Optional[str] = Form(None),
+    conversation_id: Optional[str] = Form(None),
+):
+    """Continuous oral tutor turn for the lesson page.
+
+    This endpoint is intentionally different from /chat: it produces a short,
+    natural spoken explanation instead of re-reading the written solution.
+    """
+    clean_message = (message or "").strip()
+    if not clean_message:
+        raise HTTPException(status_code=400, detail="Message is required.")
+
+    # Keep only the useful visible answer context; never send huge page text.
+    answer_context = (current_answer or "").strip()
+    answer_context = answer_context[-6500:]
+
+    lang = (language or "العربية").strip()
+    is_arabic = lang in {"العربية", "Arabic", "ar", "ar-LB"} or bool(
+        re.search(r"[\u0600-\u06FF]", clean_message)
+    )
+
+    if is_arabic:
+        oral_instructions = """
+أنت NABIL AI، أستاذ يشرح شفهيًا لطالب داخل الدرس.
+تكلّم باللهجة اللبنانية الطبيعية الواضحة، مثل أستاذ قاعد حدّ الطالب، وليس كنص مكتوب.
+
+قواعد الحوار الشفهي:
+- لا تقرأ الجواب المكتوب حرفيًا ولا تقل "سأقرأ لك النص".
+- اشرح الفكرة بكلمات محكية بسيطة: «خلّينا نشوف شو عاطينا»، «هلق منستعمل هالقانون»، «منعوّض الأرقام»، «ليش؟ لأن...».
+- إذا قال الطالب «ما فهمت»، أعد نفس النقطة بطريقة أبسط ومع مثال صغير إن أمكن.
+- إذا قال «شو عملنا؟» أو «اقرالي شو عملنا»، لخّص ما أُنجز خطوة خطوة باللهجة اللبنانية، من دون قراءة حرفية.
+- إذا سأل «ليش؟»، اشرح السبب العلمي أو الرياضي مباشرة.
+- إذا كان السؤال عن مسألة، امشِ خطوة خطوة: المعطيات → شو مطلوب → القانون → التعويض → النتيجة.
+- جاوب على آخر سؤال للطالب أولًا، ثم كمّل من المكان المناسب.
+- لا تستخدم Markdown، عناوين، جداول، JSON، ولا رموز زخرفية في الرد الصوتي.
+- لا تطوّل: عادة 2 إلى 6 جمل قصيرة بكل دور حتى يقدر الطالب يقاطع ويسأل.
+- استعمل المصطلحات والرموز العلمية الضرورية كما هي، لكن الشرح المحكي لبناني.
+- لا تخترع معلومة غير موجودة في سياق الدرس.
+""".strip()
+    else:
+        oral_instructions = """
+You are NABIL AI speaking as a live tutor inside the lesson.
+Do not read the written answer verbatim. Explain conversationally, in short turns.
+If the student says they did not understand, re-explain more simply. If they ask
+what was done, summarize the steps. For a problem, move through given data,
+what is required, the rule, substitution, and result. No markdown, tables or JSON.
+Keep each spoken turn concise enough for the student to interrupt and ask again.
+""".strip()
+
+    context = (
+        f"Grade: {grade or 'not specified'}\n"
+        f"Subject: {subject or 'not specified'}\n"
+        f"Lesson: {lesson or 'not specified'}\n"
+        f"Language: {lang}\n\n"
+        f"Visible lesson/solution context:\n{answer_context or '(no written answer yet)'}\n\n"
+        f"Student just said:\n{clean_message}"
+    )
+
+    try:
+        ai = NabilAIGateway()
+        reply = ai.generate(
+            instructions=oral_instructions,
+            messages=[{"role": "user", "content": context}],
+            image_bytes=None,
+            image_mime_type="image/jpeg",
+            max_output_tokens=500,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"تعذّر الرد الصوتي من الأستاذ نبيل: {exc}",
+        ) from exc
+
+    cleaned = clean_reply(str(reply or "")).strip()
+    cleaned = re.sub(r"<DRAWINGS?_JSON>[\s\S]*?</DRAWINGS?_JSON>", "", cleaned, flags=re.I)
+    cleaned = re.sub(r"<PROGRESS_JSON>[\s\S]*?</PROGRESS_JSON>", "", cleaned, flags=re.I)
+    cleaned = re.sub(r"```[\s\S]*?```", "", cleaned).strip()
+    if not cleaned:
+        cleaned = "طيب، خبرني أي خطوة بدك نرجع نشرحها سوا؟" if is_arabic else "Tell me which step you want me to explain again."
+
+    return {
+        "reply": cleaned,
+        "student_id": student_id,
+        "conversation_id": conversation_id,
+    }
+
+
 @router.post("/tts")
 async def nabil_text_to_speech(
     text: str = Form(...),
@@ -3382,15 +3477,15 @@ async def nabil_text_to_speech(
     clean_text = clean_text[:5000]
 
     voice_map = {
-        "العربية": "ar-AE-HamdanNeural",
-        "Arabic": "ar-AE-HamdanNeural",
+        "العربية": "ar-LB-RamiNeural",
+        "Arabic": "ar-LB-RamiNeural",
         "English": "en-US-GuyNeural",
         "Français": "fr-FR-HenriNeural",
         "French": "fr-FR-HenriNeural",
     }
     voice = voice_map.get(
         language or "",
-        "ar-AE-HamdanNeural",
+        "ar-LB-RamiNeural",
     )
 
     try:
@@ -3400,9 +3495,9 @@ async def nabil_text_to_speech(
         communicator = edge_tts.Communicate(
             clean_text,
             voice=voice,
-            rate="-5%",
+            rate="-7%",
             volume="+0%",
-            pitch="-4Hz",
+            pitch="-2Hz",
         )
 
         audio_parts = []
