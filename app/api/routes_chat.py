@@ -3483,15 +3483,15 @@ async def nabil_text_to_speech(
     clean_text = clean_text[:5000]
 
     voice_map = {
-        "العربية": "ar-LB-RamiNeural",
-        "Arabic": "ar-LB-RamiNeural",
+        "العربية": "ar-SY-LaithNeural",
+        "Arabic": "ar-SY-LaithNeural",
         "English": "en-US-GuyNeural",
         "Français": "fr-FR-HenriNeural",
         "French": "fr-FR-HenriNeural",
     }
     voice = voice_map.get(
         language or "",
-        "ar-LB-RamiNeural",
+        "ar-SY-LaithNeural",
     )
 
     try:
