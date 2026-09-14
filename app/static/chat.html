@@ -2702,6 +2702,38 @@ body.nabil-home-lock::before{
     opacity:1;
 }
 
+
+
+/* v23 — TRUE one-card-at-a-time typewriter board */
+.board-writing-mode .nabil-board-card{
+    display:none;
+}
+.board-writing-mode .nabil-type-char{
+    opacity:0;
+    visibility:hidden;
+}
+.board-writing-mode .nabil-type-char.is-visible{
+    opacity:1;
+    visibility:visible;
+}
+.board-writing-mode .nabil-board-card:not([style*="display: none"]){
+    position:relative;
+}
+.board-writing-mode .nabil-board-card:not([style*="display: none"])::after{
+    content:"";
+    display:inline-block;
+    width:2px;
+    height:1.05em;
+    margin-inline-start:3px;
+    background:#59e7ff;
+    vertical-align:-.15em;
+    animation:nabilTypeCaret .7s steps(1,end) infinite;
+}
+@keyframes nabilTypeCaret{
+    0%,49%{opacity:1}
+    50%,100%{opacity:0}
+}
+
 </style>
 </head>
 
@@ -4801,6 +4833,11 @@ async function nabilSpeakClear(text, language=nabilSelectedLanguage(), callbacks
         const audio = new Audio(nabilNeuralAudioUrl);
         nabilNeuralAudio = audio;
 
+        audio.onloadedmetadata = () => {
+            const d = Number(audio.duration);
+            if (Number.isFinite(d) && d > 0) callbacks.onduration?.(d);
+        };
+
         audio.onplay = () => {
             nabilNeuralSpeaking = true;
             callbacks.onstart?.();
@@ -4866,11 +4903,11 @@ function readAnswer(
 let nabilBoardTimer = null;
 let nabilBoardPaused = false;
 let nabilBoardSpeechLanguage = "العربية";
-let nabilBoardSteps = [];
-let nabilBoardStepIndex = 0;
-let nabilBoardWordIndex = 0;
-let nabilBoardCurrentRoot = null;
+let nabilBoardCards = [];
+let nabilBoardCardIndex = 0;
+let nabilBoardCharIndex = 0;
 let nabilBoardRunToken = 0;
+let nabilBoardCurrentRoot = null;
 
 function nabilBoardModeActive(){
     return nabilActivityMode === "lesson" &&
@@ -4891,115 +4928,6 @@ function nabilBoardPlainSpeech(text){
     }
 }
 
-function nabilBoardTextForElement(el){
-    if(!el) return "";
-    return String(el.innerText || el.textContent || "")
-        .replace(/\s+/g," ")
-        .replace(/^(?:copy|read latest|اقرأ الإجابة|نسخ الإجابة)\s*/i,"")
-        .trim();
-}
-
-function nabilBoardWrapWords(el){
-    if(!el) return [];
-    const walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);
-    const textNodes=[];
-    while(walker.nextNode()) textNodes.push(walker.currentNode);
-
-    const spans=[];
-    textNodes.forEach(node=>{
-        const parent=node.parentElement;
-        if(!parent) return;
-        if(parent.closest("svg,mjx-container,script,style,.teacher-tools,.sources,.nabil-board-controls,button")) return;
-
-        const raw=node.nodeValue||"";
-        if(!raw.trim()) return;
-
-        const parts=raw.split(/(\s+)/);
-        const frag=document.createDocumentFragment();
-        parts.forEach(part=>{
-            if(!part) return;
-            if(/^\s+$/.test(part)){
-                frag.appendChild(document.createTextNode(part));
-            }else{
-                const s=document.createElement("span");
-                s.className="nabil-board-word";
-                s.textContent=part;
-                frag.appendChild(s);
-                spans.push(s);
-            }
-        });
-        node.replaceWith(frag);
-    });
-    return spans;
-}
-
-function nabilPrepareBoardSteps(root){
-    if(!root) return [];
-    root.classList.add("board-writing-mode");
-
-    // Paragraph-by-paragraph/step-by-step: headings, paragraphs, list items,
-    // tables, formulas, and drawings each become one board step.
-    const candidates=[...root.querySelectorAll(
-        "h1,h2,h3,h4,h5,h6,p,li,table,.lesson-table-wrap,.nabil-visual,.linked-lesson-visual,.exercise-visual-panel"
-    )];
-
-    const steps=[];
-    const seen=new Set();
-
-    candidates.forEach(el=>{
-        if(!el || seen.has(el)) return;
-        if(el.closest(".teacher-tools,.sources,.nabil-board-controls")) return;
-
-        // Do not duplicate content nested inside a table/visual already treated as one step.
-        if(el.matches("p,li,h1,h2,h3,h4,h5,h6") &&
-           el.parentElement?.closest("table,.lesson-table-wrap,.nabil-visual,.linked-lesson-visual,.exercise-visual-panel")){
-            return;
-        }
-
-        const isVisual=el.matches(".nabil-visual,.linked-lesson-visual,.exercise-visual-panel");
-        const isTable=el.matches("table,.lesson-table-wrap");
-
-        if(isVisual || isTable){
-            el.classList.add("nabil-board-step-block");
-            el.style.display="none";
-            steps.push({
-                el,
-                type:isVisual ? "visual" : "table",
-                words:[],
-                text:nabilBoardTextForElement(el)
-            });
-            seen.add(el);
-            return;
-        }
-
-        const text=nabilBoardTextForElement(el);
-        if(!text || text.length<2) return;
-
-        const words=nabilBoardWrapWords(el);
-        if(!words.length && !el.querySelector("mjx-container")) return;
-
-        el.classList.add("nabil-board-step-block");
-        el.style.visibility="hidden";
-        steps.push({el,type:"text",words,text});
-        seen.add(el);
-    });
-
-    // Fallback for unusual AI markup: use major direct cards as steps.
-    if(!steps.length){
-        [...root.children].forEach(el=>{
-            if(el.classList?.contains("nabil-board-controls")) return;
-            const text=nabilBoardTextForElement(el);
-            if(!text) return;
-            const words=nabilBoardWrapWords(el);
-            el.classList.add("nabil-board-step-block");
-            el.style.visibility="hidden";
-            steps.push({el,type:"text",words,text});
-        });
-    }
-
-    return steps;
-}
-
 function nabilBoardClearTimer(){
     if(nabilBoardTimer){
         clearInterval(nabilBoardTimer);
@@ -5007,56 +4935,37 @@ function nabilBoardClearTimer(){
     }
 }
 
-function nabilBoardRevealCurrentWord(){
-    const step=nabilBoardSteps[nabilBoardStepIndex];
-    if(!step || step.type!=="text") return;
-
-    step.el.style.visibility="visible";
-
-    // MathJax/formulas are shown with the paragraph when the step becomes active.
-    if(step.words.length===0) return;
-
-    if(nabilBoardWordIndex<step.words.length){
-        step.words[nabilBoardWordIndex]?.classList.add("is-visible");
-        nabilBoardWordIndex++;
-    }
-}
-
-function nabilBoardRemainingText(step){
-    if(!step) return "";
-    if(step.type!=="text") return step.text || "";
-    if(!step.words.length) return step.text || "";
-
-    return step.words
-        .slice(nabilBoardWordIndex)
-        .map(w=>(w.textContent||"").trim())
-        .filter(Boolean)
-        .join(" ")
+function nabilBoardCardText(card){
+    if(!card) return "";
+    return String(card.innerText || card.textContent || "")
+        .replace(/\s+/g," ")
+        .replace(/(?:نسخ الإجابة|اقرأ الإجابة|Copy|Read latest)/gi,"")
         .trim();
 }
 
-function nabilBoardFinishCurrentStep(){
-    const step=nabilBoardSteps[nabilBoardStepIndex];
-    if(!step) return;
-
-    if(step.type==="text"){
-        step.el.style.visibility="visible";
-        step.words.forEach(w=>w.classList.add("is-visible"));
-        nabilBoardWordIndex=step.words.length;
-    }else{
-        step.el.style.display="";
-    }
+function nabilBoardNumbers(text){
+    return (String(text||"").match(/-?\d+(?:[.,]\d+)?/g) || [])
+        .map(x=>x.replace(",","."));
 }
 
-async function nabilBoardOralExplanation(stepText){
-    const clean=String(stepText||"").trim();
+function nabilBoardNoInventedNumbers(source, spoken){
+    const allowed=new Set(nabilBoardNumbers(source));
+    return nabilBoardNumbers(spoken).every(n=>allowed.has(n));
+}
+
+async function nabilBoardArabicForCard(cardText){
+    const clean=String(cardText||"").trim();
     if(!clean) return "";
 
     try{
         const body=new FormData();
-        body.append("message",
-            "اشرح هذه الخطوة شفهيًا بالعربية الفصحى المبسطة وكأنك أستاذ يكتب على اللوح. " +
-            "لا تقرأ النص حرفيًا، بل قل باختصار ماذا نفعل ولماذا. الخطوة هي: " + clean
+        body.append(
+            "message",
+            "اشرح بالعربية الفصحى المبسطة محتوى هذه البطاقة فقط. " +
+            "ممنوع إضافة أي مثال أو رقم أو معلومة غير موجودة في البطاقة. " +
+            "حافظ حرفيًا على جميع الأرقام والقيم الموجودة، ولا تستبدلها ولا تضف غيرها. " +
+            "اشرح بنفس ترتيب البطاقة وبجمل قصيرة كأنك تشرح على اللوح. " +
+            "محتوى البطاقة: " + clean
         );
         body.append("student_id",getStudentId());
         body.append("current_answer",clean);
@@ -5074,88 +4983,158 @@ async function nabilBoardOralExplanation(stepText){
         if(!response.ok) throw new Error(`HTTP ${response.status}`);
 
         const data=await response.json();
-        return String(data.reply||"").trim();
+        const reply=String(data.reply||"").trim();
+
+        // Safety: if the oral explanation invents a numeric value, reject it.
+        if(reply && nabilBoardNoInventedNumbers(clean,reply)) return reply;
+        console.warn("Rejected board narration because it introduced a new number.");
+        return "";
     }catch(err){
         console.warn("Board Arabic narration fallback:",err);
         return "";
     }
 }
 
-function nabilBoardSpeakCurrentStep(){
+function nabilBoardWrapCardCharacters(card){
+    const chars=[];
+    const walker=document.createTreeWalker(card,NodeFilter.SHOW_TEXT);
+    const nodes=[];
+    while(walker.nextNode()) nodes.push(walker.currentNode);
+
+    nodes.forEach(node=>{
+        const parent=node.parentElement;
+        if(!parent) return;
+        if(parent.closest("svg,mjx-container,script,style,.teacher-tools,.sources,.nabil-board-controls,button")) return;
+
+        const raw=node.nodeValue||"";
+        if(!raw) return;
+
+        const frag=document.createDocumentFragment();
+        [...raw].forEach(ch=>{
+            const span=document.createElement("span");
+            span.className="nabil-type-char";
+            span.textContent=ch;
+            frag.appendChild(span);
+            chars.push(span);
+        });
+        node.replaceWith(frag);
+    });
+
+    return chars;
+}
+
+function nabilPrepareBoardCards(root){
+    if(!root) return [];
+    root.classList.add("board-writing-mode");
+
+    let cards=[...root.querySelectorAll(".lesson-card-stack > .lesson-concept-card")];
+
+    // Fallback for unusual lesson output.
+    if(!cards.length){
+        cards=[...root.querySelectorAll(".lesson-explanation > *")].filter(el=>
+            !el.classList.contains("nabil-board-controls")
+        );
+    }
+    if(!cards.length) cards=[root];
+
+    return cards.map(card=>{
+        const text=nabilBoardCardText(card);
+        card.classList.add("nabil-board-card");
+        card.style.display="none";
+        const chars=nabilBoardWrapCardCharacters(card);
+        return {card,text,chars};
+    }).filter(x=>x.text || x.chars.length);
+}
+
+function nabilBoardShowCurrentCard(){
+    // Absolutely only one lesson card is visible at a time.
+    nabilBoardCards.forEach((item,i)=>{
+        item.card.style.display = i===nabilBoardCardIndex ? "" : "none";
+    });
+}
+
+function nabilBoardRevealCardChar(){
+    const item=nabilBoardCards[nabilBoardCardIndex];
+    if(!item) return;
+    if(nabilBoardCharIndex<item.chars.length){
+        item.chars[nabilBoardCharIndex]?.classList.add("is-visible");
+        nabilBoardCharIndex++;
+    }
+}
+
+function nabilBoardFinishCard(){
+    const item=nabilBoardCards[nabilBoardCardIndex];
+    if(!item) return;
+    item.chars.forEach(ch=>ch.classList.add("is-visible"));
+    nabilBoardCharIndex=item.chars.length;
+}
+
+function nabilBoardStartTypewriter(durationSeconds){
+    nabilBoardClearTimer();
+    const item=nabilBoardCards[nabilBoardCardIndex];
+    if(!item || !item.chars.length) return;
+
+    const remaining=Math.max(1,item.chars.length-nabilBoardCharIndex);
+    const usableMs=Math.max(1200,Number(durationSeconds||0)*1000*0.96);
+
+    // Real typewriter effect paced across the exact audio duration.
+    const interval=Math.max(18,Math.min(145,usableMs/remaining));
+
+    nabilBoardTimer=setInterval(()=>{
+        if(nabilBoardPaused) return;
+        nabilBoardRevealCardChar();
+        if(nabilBoardCharIndex>=item.chars.length) nabilBoardClearTimer();
+    },interval);
+}
+
+async function nabilBoardSpeakCurrentCard(){
     if(nabilBoardPaused) return;
 
     const token=++nabilBoardRunToken;
-    const step=nabilBoardSteps[nabilBoardStepIndex];
+    const item=nabilBoardCards[nabilBoardCardIndex];
 
-    if(!step){
+    if(!item){
         nabilBoardClearTimer();
-        if(lessonVoiceConversation) resumeLessonRecognitionAfterSpeech?.();
         return;
     }
 
-    // Visual/table step: reveal it, announce briefly if it has a useful label,
-    // then continue automatically.
-    if(step.type!=="text"){
-        step.el.style.display="";
-        const announce=(step.text||"").trim();
-        if(announce && announce.length<=180){
-            nabilSpeakClear(announce,nabilBoardSpeechLanguage,{
-                onstart:()=>stopLessonRecognitionTemporarily?.(),
-                onend:()=>{
-                    if(token!==nabilBoardRunToken || nabilBoardPaused) return;
-                    nabilBoardStepIndex++;
-                    nabilBoardWordIndex=0;
-                    setTimeout(nabilBoardSpeakCurrentStep,250);
-                }
-            });
-        }else{
-            nabilBoardStepIndex++;
-            nabilBoardWordIndex=0;
-            setTimeout(nabilBoardSpeakCurrentStep,350);
-        }
-        return;
-    }
+    nabilBoardShowCurrentCard();
 
-    step.el.style.visibility="visible";
-    const remaining=nabilBoardRemainingText(step) || step.text;
-    if(!remaining){
-        nabilBoardFinishCurrentStep();
-        nabilBoardStepIndex++;
-        nabilBoardWordIndex=0;
-        setTimeout(nabilBoardSpeakCurrentStep,180);
-        return;
-    }
+    const spokenArabic=await nabilBoardArabicForCard(item.text);
+    if(token!==nabilBoardRunToken || nabilBoardPaused) return;
 
-    // Write the lesson in its selected language, but Nabil explains orally
-    // in natural simplified Arabic by default, exactly as agreed.
-    nabilBoardClearTimer();
-    const remainingWords=Math.max(1,step.words.length-nabilBoardWordIndex);
-    const revealMs=Math.max(150,Math.min(360,Math.round(26000/Math.max(20,remainingWords))));
-    nabilBoardTimer=setInterval(()=>{
-        if(nabilBoardPaused) return;
-        nabilBoardRevealCurrentWord();
-        if(nabilBoardWordIndex>=step.words.length) nabilBoardClearTimer();
-    },revealMs);
+    // If Arabic narration fails validation, speak only the card itself rather than inventing content.
+    const speech=spokenArabic || item.text;
+    const speechLang=spokenArabic ? "العربية" : (languageSelect?.value || "English");
 
-    (async()=>{
-        const arabicExplanation=await nabilBoardOralExplanation(remaining);
-        if(token!==nabilBoardRunToken || nabilBoardPaused) return;
+    nabilSpeakClear(speech,speechLang,{
+        onduration:(duration)=>{
+            if(token!==nabilBoardRunToken || nabilBoardPaused) return;
+            nabilBoardStartTypewriter(duration);
+        },
+        onstart:()=>{
+            if(token!==nabilBoardRunToken || nabilBoardPaused) return;
+            stopLessonRecognitionTemporarily?.();
 
-        const spoken=arabicExplanation || remaining;
-        const spokenLanguage=arabicExplanation ? "العربية" : nabilBoardSpeechLanguage;
-
-        nabilSpeakClear(spoken,spokenLanguage,{
-            onstart:()=>stopLessonRecognitionTemporarily?.(),
-            onend:()=>{
-                if(token!==nabilBoardRunToken || nabilBoardPaused) return;
-                nabilBoardClearTimer();
-                nabilBoardFinishCurrentStep();
-                nabilBoardStepIndex++;
-                nabilBoardWordIndex=0;
-                setTimeout(nabilBoardSpeakCurrentStep,260);
+            // Browser TTS fallback may not provide audio duration.
+            if(!nabilBoardTimer){
+                const estimated=Math.max(2.0, speech.length/13);
+                nabilBoardStartTypewriter(estimated);
             }
-        });
-    })();
+        },
+        onend:()=>{
+            if(token!==nabilBoardRunToken || nabilBoardPaused) return;
+            nabilBoardClearTimer();
+            nabilBoardFinishCard();
+
+            setTimeout(()=>{
+                if(token!==nabilBoardRunToken || nabilBoardPaused) return;
+                nabilBoardCardIndex++;
+                nabilBoardCharIndex=0;
+                nabilBoardSpeakCurrentCard();
+            },420);
+        }
+    });
 }
 
 function nabilPauseBoardAtCurrentStep(){
@@ -5168,39 +5147,35 @@ function nabilPauseBoardAtCurrentStep(){
 
 function nabilResumeBoardNarrationFromCurrentStep(){
     if(!nabilBoardModeActive()) return;
-    if(nabilBoardStepIndex>=nabilBoardSteps.length) return;
+    if(nabilBoardCardIndex>=nabilBoardCards.length) return;
     nabilBoardPaused=false;
-    nabilBoardSpeakCurrentStep();
+    nabilBoardSpeakCurrentCard();
 }
 
 function nabilBoardRepeatCurrentStep(){
-    const step=nabilBoardSteps[nabilBoardStepIndex];
-    if(!step) return;
+    const item=nabilBoardCards[nabilBoardCardIndex];
+    if(!item) return;
 
     nabilBoardRunToken++;
     nabilBoardClearTimer();
     stopNabilNeuralVoice();
 
-    if(step.type==="text"){
-        step.words.forEach(w=>w.classList.remove("is-visible"));
-        step.el.style.visibility="hidden";
-    }else{
-        step.el.style.display="none";
-    }
-    nabilBoardWordIndex=0;
+    item.chars.forEach(ch=>ch.classList.remove("is-visible"));
+    nabilBoardCharIndex=0;
     nabilBoardPaused=false;
-    nabilBoardSpeakCurrentStep();
+    nabilBoardSpeakCurrentCard();
 }
 
 function nabilBoardSkipCurrentStep(){
     nabilBoardRunToken++;
     nabilBoardClearTimer();
     stopNabilNeuralVoice();
-    nabilBoardFinishCurrentStep();
-    nabilBoardStepIndex++;
-    nabilBoardWordIndex=0;
+
+    nabilBoardFinishCard();
+    nabilBoardCardIndex++;
+    nabilBoardCharIndex=0;
     nabilBoardPaused=false;
-    nabilBoardSpeakCurrentStep();
+    nabilBoardSpeakCurrentCard();
 }
 
 function nabilStartBoardReveal(root, spokenText, language){
@@ -5211,35 +5186,30 @@ function nabilStartBoardReveal(root, spokenText, language){
     nabilBoardPaused=false;
     nabilBoardSpeechLanguage="العربية";
     nabilBoardCurrentRoot=root;
-    nabilBoardSteps=nabilPrepareBoardSteps(root);
-    nabilBoardStepIndex=0;
-    nabilBoardWordIndex=0;
+    nabilBoardCards=nabilPrepareBoardCards(root);
+    nabilBoardCardIndex=0;
+    nabilBoardCharIndex=0;
 
     const controls=document.createElement("div");
     controls.className="nabil-board-controls";
     controls.innerHTML=`
         <button type="button" data-board="pause">⏸ Pause</button>
         <button type="button" data-board="continue">▶ Continue</button>
-        <button type="button" data-board="skip">⏭ Skip step</button>
-        <button type="button" data-board="repeat">🔁 Repeat this step</button>
+        <button type="button" data-board="skip">⏭ Skip card</button>
+        <button type="button" data-board="repeat">🔁 Repeat this card</button>
     `;
     root.appendChild(controls);
 
     controls.addEventListener("click",e=>{
         const action=e.target?.dataset?.board;
         if(!action) return;
-        if(action==="pause"){
-            nabilPauseBoardAtCurrentStep();
-        }else if(action==="continue"){
-            nabilResumeBoardNarrationFromCurrentStep();
-        }else if(action==="skip"){
-            nabilBoardSkipCurrentStep();
-        }else if(action==="repeat"){
-            nabilBoardRepeatCurrentStep();
-        }
+        if(action==="pause") nabilPauseBoardAtCurrentStep();
+        else if(action==="continue") nabilResumeBoardNarrationFromCurrentStep();
+        else if(action==="skip") nabilBoardSkipCurrentStep();
+        else if(action==="repeat") nabilBoardRepeatCurrentStep();
     });
 
-    nabilBoardSpeakCurrentStep();
+    nabilBoardSpeakCurrentCard();
 }
 
 function addMessage(
