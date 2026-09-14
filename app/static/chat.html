@@ -3086,7 +3086,15 @@ function diagramCardIndexFromHTML(html){
 
 function isFunctionStudyBoard(board, allText){
     const raw = `${board?.title || ""} ${allText || ""}`.toLowerCase();
-    return /function|fonction|دال|graph|variation|asymptote|مقارب|مشتق|derivative|dériv/.test(raw);
+
+    // Strict mathematical-function markers only.
+    // Do NOT classify physics/chemistry/etc. as function study just because
+    // the ordinary English/French word "function/fonction" appears in prose.
+    const hasFx = /f\s*\(\s*x\s*\)\s*=|y\s*=\s*[^,\n]*x|\bfx\s*=/.test(raw);
+    const explicitStudy = /study\s+(?:the\s+)?function|étude\s+(?:de\s+la\s+)?fonction|etud\w*\s+(?:de\s+la\s+)?fonction|دراسة\s+الدال|ادرس\s+الدال/.test(raw);
+    const calculusMarkers = /\bf'\s*\(\s*x\s*\)|\bf′\s*\(\s*x\s*\)|derivative\s+of\s+f|dériv\w*\s+de\s+f|مشتقة\s+الدال|vertical\s+asymptote|oblique\s+asymptote|tableau\s+de\s+variations|جدول\s+التغي/.test(raw);
+
+    return hasFx || explicitStudy || calculusMarkers;
 }
 
 function stripAndCollectTables(html){
