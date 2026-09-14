@@ -4,7 +4,16 @@ import re
 from pathlib import Path
 from typing import Optional
 from datetime import datetime
- 
+
+from sympy import E, Eq, S, Symbol, diff, limit, oo, solveset, latex
+from sympy.calculus.util import continuous_domain
+from sympy.parsing.sympy_parser import (
+    convert_xor,
+    implicit_multiplication_application,
+    parse_expr,
+    standard_transformations,
+)
+
 from fastapi import (
     APIRouter,
     Depends,
@@ -2352,6 +2361,329 @@ def _graph_derivative_sign(coeffs, x):
     return 1 if num > 0 else -1
 
 
+
+_GRAPH_PARSE_TRANSFORMS = standard_transformations + (convert_xor, implicit_multiplication_application)
+
+
+def _graph_extract_function_expression(source_text: str):
+    s = str(source_text or "")
+    s = s.replace("\r", "\n")
+    lines = [ln.strip() for ln in s.splitlines() if ln.strip()]
+    patterns = [
+        r"f\s*\(\s*x\s*\)\s*=\s*(.+)$",
+        r"y\s*=\s*(.+)$",
+        r"draw\s+(?:the\s+)?function\s+(.+)$",
+        r"study\s+and\s+draw\s+the\s+function\s+(.+)$",
+    ]
+    for ln in lines:
+        for pat in patterns:
+            m = re.search(pat, ln, re.I)
+            if not m:
+                continue
+            expr = m.group(1).strip()
+            expr = re.split(r"(?:\n|,|;)", expr, maxsplit=1)[0].strip()
+            expr = expr.strip("$` ")
+            expr = expr.replace("f(x)", "").strip()
+            if expr:
+                return expr
+    m = re.search(r"f\s*\(\s*x\s*\)\s*=\s*([^\n]+)", s, re.I)
+    if m:
+        expr = m.group(1).strip().strip("$` ")
+        expr = re.split(r"(?:\n|,|;)", expr, maxsplit=1)[0].strip()
+        return expr or None
+    return None
+
+
+def _graph_replace_latex_frac(expr: str):
+    s = expr
+    token_re = re.compile(r"\\(?:d?frac)")
+    while True:
+        m = token_re.search(s)
+        if not m:
+            break
+        i = m.end()
+        while i < len(s) and s[i].isspace():
+            i += 1
+        if i >= len(s) or s[i] != '{':
+            break
+
+        def read_group(start):
+            if start >= len(s) or s[start] != '{':
+                return None, start
+            depth = 0
+            j = start
+            while j < len(s):
+                ch = s[j]
+                if ch == '{':
+                    depth += 1
+                elif ch == '}':
+                    depth -= 1
+                    if depth == 0:
+                        return s[start+1:j], j + 1
+                j += 1
+            return None, start
+
+        num, j = read_group(i)
+        if num is None:
+            break
+        while j < len(s) and s[j].isspace():
+            j += 1
+        den, k = read_group(j)
+        if den is None:
+            break
+        s = s[:m.start()] + f"(({num})/({den}))" + s[k:]
+    return s
+
+
+def _graph_parse_generic_expression(expr_text: str):
+    if not expr_text:
+        return None, None
+    original = str(expr_text).strip()
+    s = original
+    s = s.replace("\\left", "").replace("\\right", "")
+    s = s.replace("\\[", "").replace("\\]", "").replace("\\(", "").replace("\\)", "")
+    s = s.replace("$", "").replace("`", "")
+    s = s.replace("÷", "/").replace("×", "*").replace("·", "*")
+    s = s.replace("−", "-").replace("–", "-")
+    s = s.replace("∞", "oo")
+    s = _graph_replace_latex_frac(s)
+    s = re.sub(r"\\ln\s*\(?\s*x\s*\)?", "log(x)", s)
+    s = re.sub(r"\\log\s*\(?\s*x\s*\)?", "log(x)", s)
+    s = re.sub(r"\\sqrt\s*\{([^{}]+)\}", r"sqrt(\1)", s)
+    s = re.sub(r"\\sqrt\s*\(([^()]+)\)", r"sqrt(\1)", s)
+    s = re.sub(r"\bln\s*\(?\s*x\s*\)?", "log(x)", s, flags=re.I)
+    s = re.sub(r"\blog\s*\(?\s*x\s*\)?", "log(x)", s, flags=re.I)
+    s = re.sub(r"\be\s*\^\s*\(", "exp(", s, flags=re.I)
+    s = re.sub(r"\be\s*\^\s*x\b", "exp(x)", s, flags=re.I)
+    s = re.sub(r"\be\s*\^\s*([-]?[0-9]+(?:\.[0-9]+)?x?)", r"exp(\1)", s, flags=re.I)
+    s = s.replace("x²", "x^2").replace("x³", "x^3")
+    s = s.replace("^", "**")
+    s = re.sub(r"([0-9])\s*x", r"\1*x", s)
+    s = re.sub(r"\)\s*\(", ")*(", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    x = Symbol('x', real=True)
+    local_dict = {'x': x, 'e': E, 'E': E, 'oo': oo, 'inf': oo}
+    try:
+        expr = parse_expr(s, transformations=_GRAPH_PARSE_TRANSFORMS, local_dict=local_dict, evaluate=True)
+        return expr, original
+    except Exception:
+        return None, original
+
+
+def _graph_domain_intervals(domain):
+    if getattr(domain, 'is_Interval', False):
+        intervals = [domain]
+    elif getattr(domain, 'is_Union', False):
+        intervals = [arg for arg in domain.args if getattr(arg, 'is_Interval', False)]
+    else:
+        intervals = []
+    return sorted(intervals, key=lambda iv: float(iv.start) if getattr(iv.start, 'is_finite', False) else (-1e12 if iv.start is S.NegativeInfinity else 1e12))
+
+
+def _graph_float(v):
+    try:
+        if v in (oo, S.Infinity):
+            return math.inf
+        if v in (-oo, S.NegativeInfinity):
+            return -math.inf
+        return float(v.evalf())
+    except Exception:
+        return None
+
+
+def _graph_fmt_number(v, digits=3):
+    if v is None:
+        return '?'
+    if math.isinf(v):
+        return '-∞' if v < 0 else '+∞'
+    if abs(v - round(v)) < 1e-10:
+        return str(int(round(v)))
+    return str(round(v, digits))
+
+
+def _graph_analyze_generic_function(source_text: str):
+    expr_text = _graph_extract_function_expression(source_text)
+    expr, original = _graph_parse_generic_expression(expr_text)
+    if expr is None:
+        return None
+
+    x = Symbol('x', real=True)
+    try:
+        domain = continuous_domain(expr, x, S.Reals)
+    except Exception:
+        domain = S.Reals
+
+    intervals = _graph_domain_intervals(domain)
+    if not intervals:
+        intervals = [S.Reals]
+
+    try:
+        d_expr = diff(expr, x)
+    except Exception:
+        d_expr = None
+
+    critical = []
+    if d_expr is not None:
+        try:
+            sol = solveset(Eq(d_expr, 0), x, domain=domain)
+            if getattr(sol, 'is_FiniteSet', False):
+                for c in list(sol):
+                    xv = _graph_float(c)
+                    if xv is not None and not math.isinf(xv):
+                        critical.append(xv)
+        except Exception:
+            pass
+    critical = sorted(set(round(v, 8) for v in critical))
+
+    roots = []
+    try:
+        sol = solveset(Eq(expr, 0), x, domain=domain)
+        if getattr(sol, 'is_FiniteSet', False):
+            for c in list(sol):
+                xv = _graph_float(c)
+                if xv is not None and not math.isinf(xv):
+                    roots.append(xv)
+    except Exception:
+        pass
+    roots = sorted(set(round(v, 8) for v in roots))[:6]
+
+    finite_bounds = []
+    for iv in intervals:
+        a = _graph_float(iv.start)
+        b = _graph_float(iv.end)
+        if a is not None and math.isfinite(a):
+            finite_bounds.append(a)
+        if b is not None and math.isfinite(b):
+            finite_bounds.append(b)
+
+    features = finite_bounds + critical + roots
+    positive_only = all((_graph_float(iv.start) is None or _graph_float(iv.start) >= 0) for iv in intervals)
+    if features:
+        xmin = min(features) - 3.0
+        xmax = max(features) + 3.0
+    else:
+        xmin, xmax = ((0.05, 8.0) if positive_only else (-6.0, 6.0))
+    if xmax - xmin < 6:
+        mid = (xmax + xmin) / 2.0
+        xmin, xmax = mid - 3.5, mid + 3.5
+    if positive_only:
+        xmin = max(0.05, xmin)
+        xmax = max(8.0, xmax)
+
+    def eval_y(xv):
+        try:
+            yv = float(expr.subs(x, xv).evalf())
+            return yv if math.isfinite(yv) else None
+        except Exception:
+            return None
+
+    vertical_asymptotes = []
+    for iv in intervals:
+        for endpoint, side, is_open in ((iv.start, '+', iv.left_open), (iv.end, '-', iv.right_open)):
+            xv = _graph_float(endpoint)
+            if xv is None or not math.isfinite(xv) or not is_open:
+                continue
+            try:
+                lim = limit(expr, x, endpoint, dir=side)
+                if lim in (oo, -oo, S.Infinity, S.NegativeInfinity):
+                    if not any(abs(item['x'] - xv) < 1e-7 for item in vertical_asymptotes):
+                        vertical_asymptotes.append({'x': round(xv, 8), 'label': f"x = {round(xv, 6)}"})
+            except Exception:
+                pass
+
+    horizontal_asymptote = None
+    if any(iv.end in (oo, S.Infinity) for iv in intervals):
+        try:
+            lim_inf = limit(expr, x, oo)
+            lf = _graph_float(lim_inf)
+            if lf is not None and math.isfinite(lf):
+                horizontal_asymptote = {'slope': 0.0, 'intercept': round(lf, 8), 'label': f"y = {round(lf, 6)}"}
+        except Exception:
+            pass
+
+    eps = max(0.02, (xmax - xmin) / 600.0)
+    series = []
+    ys = []
+    for iv in intervals:
+        a = _graph_float(iv.start)
+        b = _graph_float(iv.end)
+        lo = xmin if a is None or math.isinf(a) else max(xmin, a + (eps if iv.left_open else 0.0))
+        hi = xmax if b is None or math.isinf(b) else min(xmax, b - (eps if iv.right_open else 0.0))
+        if hi <= lo:
+            continue
+        pts = []
+        for i in range(240):
+            xv = lo + (hi - lo) * i / 239.0
+            yv = eval_y(xv)
+            if yv is None or abs(yv) > 1e4:
+                continue
+            pts.append([round(xv, 6), round(yv, 6)])
+            ys.append(yv)
+        if len(pts) >= 2:
+            series.append({'points': pts, 'color': '#35c8ff'})
+
+    if ys:
+        sy = sorted(ys)
+        lo = sy[max(0, int(len(sy) * 0.06) - 1)]
+        hi = sy[min(len(sy) - 1, int(len(sy) * 0.94))]
+        pad = max(1.5, (hi - lo) * 0.18)
+        ymin = max(-30, math.floor(lo - pad))
+        ymax = min(30, math.ceil(hi + pad))
+    else:
+        ymin, ymax = -6, 6
+    if ymax - ymin < 6:
+        mid = (ymin + ymax) / 2.0
+        ymin, ymax = math.floor(mid - 3.5), math.ceil(mid + 3.5)
+
+    markers = []
+    try:
+        if domain.contains(0) is True:
+            y0 = eval_y(0.0)
+            if y0 is not None:
+                markers.append({'x': 0.0, 'y': round(y0, 6), 'label': f"(0, {round(y0, 3)})"})
+    except Exception:
+        pass
+
+    for r in roots[:4]:
+        if xmin <= r <= xmax:
+            markers.append({'x': round(r, 6), 'y': 0.0, 'label': f"({round(r, 3)}, 0)"})
+
+    for cp in critical[:4]:
+        if not (xmin <= cp <= xmax):
+            continue
+        yv = eval_y(cp)
+        if yv is None:
+            continue
+        left = eval_y(cp - max(0.03, (xmax - xmin) / 500.0))
+        right = eval_y(cp + max(0.03, (xmax - xmin) / 500.0))
+        marker = {'x': round(cp, 6), 'y': round(yv, 6), 'label': f"({round(cp, 3)}, {round(yv, 3)})"}
+        if left is not None and right is not None:
+            if left < yv and right < yv:
+                marker['extremum'] = 'max'
+                marker['drop_line'] = True
+            elif left > yv and right > yv:
+                marker['extremum'] = 'min'
+                marker['drop_line'] = True
+        markers.append(marker)
+
+    return {
+        'expression': original or expr_text or str(expr),
+        'expr': expr,
+        'derivative': d_expr,
+        'domain': domain,
+        'intervals': intervals,
+        'critical': critical,
+        'xmin': round(xmin, 6),
+        'xmax': round(xmax, 6),
+        'ymin': ymin,
+        'ymax': ymax,
+        'series': series,
+        'markers': markers,
+        'vertical_asymptotes': vertical_asymptotes,
+        'horizontal_asymptote': horizontal_asymptote,
+    }
+
+
 def _graph_safe_function_drawing(message: str, reply_text: str, card_index: int = 1):
     source_text = f"{message or ''}\n{reply_text or ''}"
 
@@ -2480,6 +2812,27 @@ def _graph_safe_function_drawing(message: str, reply_text: str, card_index: int 
     # ---------------------------------------------------------------
     poly = _graph_extract_polynomial_quadratic(source_text)
     if not poly:
+        generic = _graph_analyze_generic_function(source_text)
+        if generic and generic.get("series"):
+            payload = {
+                "type": "coordinate_plane",
+                "title": "Graph of the Function",
+                "card_index": card_index,
+                "xmin": generic["xmin"],
+                "xmax": generic["xmax"],
+                "ymin": generic["ymin"],
+                "ymax": generic["ymax"],
+                "grid": True,
+                "expression": generic.get("expression"),
+                "series": generic.get("series") or [],
+                "markers": generic.get("markers") or [],
+                "visual_style": "function_study_reference",
+            }
+            if generic.get("vertical_asymptotes"):
+                payload["vertical_asymptotes"] = generic["vertical_asymptotes"]
+            if generic.get("horizontal_asymptote"):
+                payload["oblique_asymptote"] = generic["horizontal_asymptote"]
+            return payload
         return None
 
     a, b, c = poly
@@ -2620,6 +2973,126 @@ def _graph_safe_function_drawing(message: str, reply_text: str, card_index: int 
 
 
 
+
+def _graph_generic_completion_markdown(message: str, reply_text: str, language: str):
+    """Complete missing school-level function-study sections from verified symbolic analysis."""
+    source_text = f"{message or ''}\n{reply_text or ''}"
+    generic = _graph_analyze_generic_function(source_text)
+    if not generic:
+        return ""
+
+    expr = generic.get('expr')
+    derivative = generic.get('derivative')
+    domain = generic.get('domain')
+    intervals = generic.get('intervals') or []
+    critical = generic.get('critical') or []
+    verticals = generic.get('vertical_asymptotes') or []
+    horizontal = generic.get('horizontal_asymptote')
+    if expr is None:
+        return ""
+
+    low = str(reply_text or '').lower()
+    chunks = []
+
+    if language == 'Français':
+        H = {
+            'domain':'### Domaine', 'limits':'### Limites', 'asym':'### Asymptotes',
+            'derivative':'### Dérivée', 'critical':'### Points critiques / Extrema',
+        }
+        none_txt='Aucune'
+    elif language == 'العربية':
+        H = {
+            'domain':'### المجال', 'limits':'### النهايات', 'asym':'### المقاربات',
+            'derivative':'### المشتقة', 'critical':'### النقاط الحرجة والقيم القصوى/الدنيا',
+        }
+        none_txt='لا يوجد'
+    else:
+        H = {
+            'domain':'### Domain', 'limits':'### Limits', 'asym':'### Asymptotes',
+            'derivative':'### Derivative', 'critical':'### Critical Points / Extrema',
+        }
+        none_txt='None'
+
+    # Domain
+    if not re.search(r'\bdomain\b|\bdomaine\b|المجال', low, re.I):
+        try:
+            chunks.append(f"{H['domain']}\n\\[{latex(domain)}\\]")
+        except Exception:
+            pass
+
+    # Limits at open finite boundaries and at +/- infinity.
+    if not re.search(r'\blimits?\b|\blimites?\b|النهايات|نهاية', low, re.I):
+        limit_lines=[]
+        x=Symbol('x', real=True)
+        seen=set()
+        for iv in intervals:
+            for endpoint, direction, is_open in ((iv.start,'+',iv.left_open),(iv.end,'-',iv.right_open)):
+                key=(str(endpoint),direction)
+                if key in seen:
+                    continue
+                seen.add(key)
+                if endpoint in (-oo, oo, S.NegativeInfinity, S.Infinity):
+                    continue
+                if not is_open:
+                    continue
+                try:
+                    val=limit(expr,x,endpoint,dir=direction)
+                    limit_lines.append(f"\\[\\lim_{{x\\to {latex(endpoint)}^{direction}}} f(x)={latex(val)}\\]")
+                except Exception:
+                    pass
+        for endpoint in (-oo,oo):
+            try:
+                if any((iv.start == endpoint or iv.end == endpoint) for iv in intervals):
+                    val=limit(expr,x,endpoint)
+                    target='-\\infty' if endpoint == -oo else '+\\infty'
+                    limit_lines.append(f"\\[\\lim_{{x\\to {target}}} f(x)={latex(val)}\\]")
+            except Exception:
+                pass
+        if limit_lines:
+            chunks.append(H['limits']+'\n'+'\n'.join(limit_lines))
+
+    # Asymptotes
+    if not re.search(r'asymptot|مقارب', low, re.I):
+        lines=[]
+        for va in verticals:
+            lines.append(f"- `{va.get('label','x = ?')}`")
+        if horizontal:
+            lines.append(f"- `{horizontal.get('label','y = ?')}`")
+        if lines:
+            chunks.append(H['asym']+'\n'+'\n'.join(lines))
+
+    # Derivative
+    if derivative is not None and not re.search(r"f'\s*\(\s*x\s*\)|f′\s*\(\s*x\s*\)|derivative|dériv|المشتق", low, re.I):
+        try:
+            chunks.append(f"{H['derivative']}\n\\[f'(x)={latex(derivative)}\\]")
+        except Exception:
+            pass
+
+    # Critical points / extrema
+    if critical and not re.search(r'critical\s+point|points?\s+critiques?|extrema|maximum\s+local|minimum\s+local|النقاط\s+الحرجة|قيمة\s+(?:عظمى|صغرى)', low, re.I):
+        x=Symbol('x', real=True)
+        items=[]
+        for cp in critical:
+            try:
+                yv=expr.subs(x,cp).evalf()
+                left=float(expr.subs(x, cp-0.02).evalf())
+                mid=float(yv)
+                right=float(expr.subs(x, cp+0.02).evalf())
+                if left < mid and right < mid:
+                    label='local maximum' if language=='English' else 'maximum local' if language=='Français' else 'قيمة عظمى محلية'
+                elif left > mid and right > mid:
+                    label='local minimum' if language=='English' else 'minimum local' if language=='Français' else 'قيمة صغرى محلية'
+                else:
+                    label='critical point' if language=='English' else 'point critique' if language=='Français' else 'نقطة حرجة'
+                items.append(f"- \\(x\\approx {round(cp,4)},\\ f(x)\\approx {round(float(yv),4)}\\) — {label}")
+            except Exception:
+                pass
+        if items:
+            chunks.append(H['critical']+'\n'+'\n'.join(items))
+
+    return '\n\n'.join(chunks).strip()
+
+
 def _graph_variation_markdown(message: str, reply_text: str, language: str):
     source_text = f"{message or ''}\n{reply_text or ''}"
 
@@ -2687,10 +3160,109 @@ def _graph_variation_markdown(message: str, reply_text: str, language: str):
             )
 
     coeffs = _graph_extract_rational_quadratic_linear(
-        f"{message or ''}\\n{reply_text or ''}"
+        f"{message or ''}\n{reply_text or ''}"
     )
     if not coeffs:
-        return ""
+        generic = _graph_analyze_generic_function(source_text)
+        if not generic:
+            return ""
+
+        intervals = generic.get("intervals") or []
+        derivative = generic.get("derivative")
+        expr = generic.get("expr")
+        if not intervals or derivative is None or expr is None:
+            return ""
+
+        def fmt(x, digits=3):
+            return _graph_fmt_number(x, digits)
+
+        def interval_sign(left, right):
+            if left is None or math.isinf(left):
+                test = (right - 1.0) if right is not None and math.isfinite(right) else -1.0
+            elif right is None or math.isinf(right):
+                test = left + 1.0
+            else:
+                test = (left + right) / 2.0
+            try:
+                dv = float(derivative.subs(Symbol('x', real=True), test).evalf())
+                return '+' if dv > 0 else '-'
+            except Exception:
+                return '+'
+
+        if language == "English":
+            head = "### Monotonicity / Variations"
+            inc = "Increasing"
+            dec = "Decreasing"
+            extrema_title = "Critical points"
+            table_title = "#### Variation Table"
+        elif language == "Français":
+            head = "### Variations / Monotonie"
+            inc = "Croissante"
+            dec = "Décroissante"
+            extrema_title = "Points critiques"
+            table_title = "#### Tableau de variations"
+        else:
+            head = "### التزايد والتناقص / التغيّرات"
+            inc = "متزايدة"
+            dec = "متناقصة"
+            extrema_title = "النقاط الحرجة"
+            table_title = "#### جدول التغيّرات"
+
+        lines = [f"\n\n{head}"]
+        for iv in intervals:
+            a = _graph_float(iv.start)
+            b = _graph_float(iv.end)
+            sg = interval_sign(a, b)
+            lines.append(f"- {(inc if sg == '+' else dec)} على `({fmt(a)}, {fmt(b)})`")
+
+        critical = generic.get('critical') or []
+        if critical:
+            crit_parts = []
+            for cp in critical:
+                try:
+                    yv = float(expr.subs(Symbol('x', real=True), cp).evalf())
+                    crit_parts.append(f"`({fmt(cp)}, {fmt(yv)})`")
+                except Exception:
+                    pass
+            if crit_parts:
+                sep = " ، " if language == "العربية" else ", "
+                lines.append(f"- **{extrema_title}:** " + sep.join(crit_parts))
+
+        x_row = ["x"]
+        fp_row = ["f'(x)"]
+        f_row = ["f(x)"]
+        points = sorted(set(list(critical) + [float(v['x']) for v in (generic.get('vertical_asymptotes') or [])]))
+
+        for iv in intervals:
+            a = _graph_float(iv.start)
+            b = _graph_float(iv.end)
+            inner = [p for p in points if (a is None or p > a) and (b is None or p < b)]
+            curr = a
+            for p in inner + [b]:
+                x_row.append(f"({fmt(curr)}, {fmt(p)})")
+                sg = interval_sign(curr, p)
+                fp_row.append(sg)
+                f_row.append('↑' if sg == '+' else '↓')
+                if p in inner:
+                    x_row.append(fmt(p))
+                    if any(abs(p - float(v['x'])) < 1e-7 for v in (generic.get('vertical_asymptotes') or [])):
+                        fp_row.append('∥')
+                        f_row.append('-∞ / +∞')
+                    else:
+                        fp_row.append('0')
+                        try:
+                            yv = float(expr.subs(Symbol('x', real=True), p).evalf())
+                            f_row.append(fmt(yv))
+                        except Exception:
+                            f_row.append('0')
+                    curr = p
+
+        lines.append(f"\n{table_title}")
+        lines.append("| " + " | ".join(x_row) + " |")
+        lines.append("|" + "|".join(["---"] * len(x_row)) + "|")
+        lines.append("| " + " | ".join(fp_row) + " |")
+        lines.append("| " + " | ".join(f_row) + " |")
+        return "\n".join(lines)
 
     A, B, C, D, E = coeffs
     vertical = -E / D
@@ -3755,16 +4327,19 @@ GENERAL EXERCISES MODE / حل تمارين عامة
 - لا تكتب العناوين بثلاث لغات في الوقت نفسه.
 
 بروتوكول خاص إلزامي لدراسة الدوال:
-إذا طلب السؤال دراسة دالة أو تمثيلها البياني أو جدول تغيراتها، فأنجز العناصر المناسبة للمستوى والمطلوب، ومن بينها عند انطباقها:
-1) المجال.
-2) التقاطعات مع المحورين.
-3) المقارب العمودي.
-4) المقارب الأفقي أو المائل.
-5) المشتقة.
-6) النقاط الحرجة والقيم القصوى/الدنيا المحلية.
-7) فترات التزايد والتناقص.
-8) جدول التغيرات في Markdown table واضح.
-9) الرسم البياني الفعلي مع الفروع منفصلة عند الانقطاع، والمقارب/المقاربات والنقاط المهمة.
+إذا طلب السؤال دراسة دالة أو تمثيلها البياني أو جدول تغيراتها، التزم تلقائيًا بهذا الترتيب الثابت متى كان العنصر معرفًا أو مطلوبًا:
+1) Domain / المجال / Domaine.
+2) Limits / النهايات / Limites.
+3) Intercepts / التقاطعات.
+4) Asymptotes / المقاربات.
+5) Derivative / المشتقة.
+6) Critical points + local extrema / النقاط الحرجة والقيم القصوى والدنيا المحلية.
+7) Monotonicity / فترات التزايد والتناقص.
+8) Variation Table: جدول Markdown حقيقي بخلايا وصفوف، لا نص متراص.
+9) Graph: الرسم البياني الفعلي مع الفروع منفصلة عند الانقطاع، والمقارب/المقاربات والنقاط المهمة.
+10) Final Answer / Rule Summary مختصر بعد اكتمال الدراسة.
+- لا تنتظر أن يطلب الطالب كل بند على حدة: إذا كان السؤال Study the function / Étudier la fonction / دراسة الدالة، نفّذ هذه الدراسة تلقائيًا كاملة وفق مستوى الطالب.
+- إذا تعذر عنصر لأنه غير موجود رياضيًا (مثلاً لا يوجد asymptote أو intercept)، اذكر بوضوح أنه غير موجود بدل حذف القسم أو اختراع قيمة.
 - لا تقل "No drawing was required" إذا كان السؤال يطلب graph / represent / draw / représenter / tracer / ارسم / مثّل.
 - في دراسة الدالة الكسرية، الرسم البياني داخل نفس Solution Board إلزامي، وجدول التغيرات يظهر تحت الرسم مثل التصميم المرجعي.
 - للدوال العامة أو الكسرية غير المدعومة مباشرة بنوع function البسيط، استخدم type="coordinate_plane" داخل DRAWINGS_JSON مع series محسوبة من الدالة نفسها، وفروع منفصلة على جانبي كل انقطاع.
@@ -4010,15 +4585,40 @@ GENERAL EXERCISES MODE / حل تمارين عامة
         re.I,
     ))
 
-    if general_exercises_mode and is_explicit_function_request:
+    if is_explicit_function_request:
         function_drawing = _graph_safe_function_drawing(
             message=message,
             reply_text=reply_text,
             card_index=1,
         )
 
-        if function_drawing and not drawings and validate_drawing_strict(function_drawing):
-            drawings.append(function_drawing)
+        if function_drawing and validate_drawing_strict(function_drawing):
+            function_like = {"coordinate_plane", "function", "graph"}
+
+            def _is_empty_function_visual(d):
+                if not isinstance(d, dict):
+                    return False
+                if str(d.get("type") or "").lower() not in function_like:
+                    return False
+                return not (d.get("series") or d.get("points") or d.get("vectors"))
+
+            if not drawings:
+                drawings.append(function_drawing)
+            elif any(_is_empty_function_visual(d) for d in drawings):
+                drawings = [function_drawing if _is_empty_function_visual(d) else d for d in drawings]
+
+        # Deterministically complete any missing core function-study sections.
+        msg_text = str(message or "")
+        detected_lang = (
+            "English"
+            if re.search(r"\b(study|function|domain|derivative|graph|draw|find|calculate)\b", msg_text, re.I)
+            else "Français"
+            if re.search(r"\b(étudier|fonction|domaine|dérivée|graphe|tracer|calculer)\b", msg_text, re.I)
+            else "العربية"
+        )
+        completion = _graph_generic_completion_markdown(message, reply_text, detected_lang)
+        if completion:
+            reply_text = reply_text.rstrip() + "\n\n" + completion
 
         # Add verified monotonicity + variation table whenever the AI omitted the TABLE itself.
         if function_drawing and not re.search(
@@ -4108,4 +4708,3 @@ GENERAL EXERCISES MODE / حل تمارين عامة
             learning_profile
         ),
     )
- 
