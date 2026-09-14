@@ -401,6 +401,8 @@ button{
     font-size:25px;
     display:grid;
     place-items:center;
+    text-align:center;
+    padding:18px;
 }
 #nabilCalcBtn:hover{
     filter:brightness(1.1);
@@ -413,6 +415,8 @@ button{
     background:rgba(1,12,24,.84);
     display:grid;
     place-items:center;
+    text-align:center;
+    padding:18px;
     padding:16px;
 }
 .nabil-calc-modal[hidden]{display:none}
@@ -1354,7 +1358,7 @@ body.nabil-home-lock::before{
     width:100%;max-width:100%;
 }
 .teacher .bubble.has-lesson-visual{
-    display:grid;grid-template-columns:minmax(300px,34%) minmax(0,1fr);gap:12px;align-items:start;grid-auto-flow:row;
+    display:grid;grid-template-columns:minmax(300px,34%) minmax(0,1fr);gap:14px;align-items:start;grid-auto-flow:row;
     background:#102331;border-color:#28516b;
     width:100%;max-width:100%;
 }
@@ -1680,7 +1684,7 @@ body.nabil-home-lock::before{
 
 .exercise-function-board{
     display:grid;
-    grid-template-columns:minmax(260px,.82fr) minmax(300px,1fr) minmax(500px,1.58fr);
+    grid-template-columns:minmax(220px,.92fr) minmax(260px,1.05fr) minmax(360px,1.45fr);
     gap:12px;
     align-items:stretch;
     direction:ltr;
@@ -1790,6 +1794,8 @@ body.nabil-home-lock::before{
     font-size:22px;
     font-weight:900;
     padding:0 4px 2px;
+    line-height:1.25;
+    word-break:break-word;
 }
 
 .exercise-function-visual .exercise-visual-panel{
@@ -1814,7 +1820,7 @@ body.nabil-home-lock::before{
 .exercise-function-visual .nabil-visual svg{
     flex:1 1 auto;
     width:100%;
-    min-height:580px;
+    min-height:420px;
     height:100%;
     max-height:none;
 }
@@ -1855,7 +1861,7 @@ body.nabil-home-lock::before{
     background:transparent;
 }
 .exercise-function-visual .nabil-visual svg{
-    min-height:560px;
+    min-height:420px;
     max-height:none;
 }
 .exercise-variation-zone{
@@ -1876,13 +1882,14 @@ body.nabil-home-lock::before{
     border-collapse:collapse;
     background:#0a2133;
     border:1.5px solid #3a6886;
-    table-layout:auto;
+    table-layout:fixed;
 }
 .exercise-variation-zone th,
 .exercise-variation-zone td{
     border:1.5px solid #3a6886;
-    padding:7px 8px;
+    padding:8px 10px;
     text-align:center;
+    white-space:nowrap;
     vertical-align:middle;
 }
 .exercise-variation-zone th{background:#0d3e59;color:#76e3ff}
@@ -1941,6 +1948,69 @@ body.nabil-home-lock::before{
     min-height:500px;
     display:grid;
     place-items:center;
+    text-align:center;
+    padding:18px;
+}
+
+
+/* =========================================================
+   NABIL Subject Layout Router — one engine, specialized layouts
+   ========================================================= */
+.exercise-board[data-layout-family]{overflow:hidden}
+.exercise-special-layout{display:grid;gap:12px;align-items:start}
+.exercise-special-layout .exercise-special-visual,.exercise-special-layout .exercise-special-content{min-width:0}
+.exercise-special-layout .exercise-special-visual .exercise-visual-panel{min-height:340px;height:auto}
+.exercise-special-layout .exercise-special-visual .nabil-visual svg{width:100%;min-height:320px;height:auto;max-height:520px}
+.exercise-special-layout .exercise-special-content{display:grid;gap:10px}
+.exercise-special-layout .exercise-special-content .exercise-mini-grid{grid-template-columns:minmax(0,1fr)}
+
+/* Physics: visual dominates, calculations stay directly attached beneath/right */
+.exercise-board.layout-physics .exercise-special-layout{grid-template-columns:minmax(0,1.15fr) minmax(280px,.85fr)}
+.exercise-board.layout-physics .exercise-special-visual{order:1}
+.exercise-board.layout-physics .exercise-special-content{order:2}
+.exercise-board.layout-circuit .exercise-special-layout{grid-template-columns:minmax(0,1fr)}
+.exercise-board.layout-circuit .exercise-special-visual{order:1}
+.exercise-board.layout-circuit .exercise-special-content{order:2}
+.exercise-board.layout-circuit .exercise-special-content{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}
+.exercise-board.layout-circuit .exercise-special-content .exercise-bottom-stack{grid-column:1/-1}
+
+/* Geometry: construction/figure at left, proof/steps at right */
+.exercise-board.layout-geometry .exercise-special-layout{grid-template-columns:minmax(360px,1.15fr) minmax(300px,.85fr)}
+.exercise-board.layout-geometry .exercise-special-visual{order:1}
+.exercise-board.layout-geometry .exercise-special-content{order:2}
+
+/* Chemistry: structure/diagram first, then compact reaction/explanation cards */
+.exercise-board.layout-chemistry .exercise-special-layout{grid-template-columns:minmax(320px,1fr) minmax(320px,1fr)}
+.exercise-board.layout-chemistry .exercise-special-visual{order:1}
+.exercise-board.layout-chemistry .exercise-special-content{order:2}
+
+/* Biology: labeled visual + function/parts explanation */
+.exercise-board.layout-biology .exercise-special-layout{grid-template-columns:minmax(360px,1.2fr) minmax(280px,.8fr)}
+.exercise-board.layout-biology .exercise-special-visual{order:1}
+.exercise-board.layout-biology .exercise-special-content{order:2}
+
+/* Probability/statistics: tree/table/chart next to calculation */
+.exercise-board.layout-probability .exercise-special-layout{grid-template-columns:minmax(340px,1.1fr) minmax(300px,.9fr)}
+.exercise-board.layout-probability .exercise-special-visual{order:1}
+.exercise-board.layout-probability .exercise-special-content{order:2}
+
+/* Default science layout */
+.exercise-board.layout-default .exercise-special-layout{grid-template-columns:minmax(330px,1fr) minmax(330px,1fr)}
+
+.exercise-layout-badge{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(91,211,255,.3);background:#08263b;color:#78e4ff;border-radius:999px;padding:4px 9px;font-size:12px;font-weight:800;margin-inline-start:8px}
+
+@media(max-width:900px){
+    .exercise-board.layout-physics .exercise-special-layout,
+    .exercise-board.layout-circuit .exercise-special-layout,
+    .exercise-board.layout-geometry .exercise-special-layout,
+    .exercise-board.layout-chemistry .exercise-special-layout,
+    .exercise-board.layout-biology .exercise-special-layout,
+    .exercise-board.layout-probability .exercise-special-layout,
+    .exercise-board.layout-default .exercise-special-layout{grid-template-columns:minmax(0,1fr)}
+    .exercise-board.layout-circuit .exercise-special-content{grid-template-columns:minmax(0,1fr)}
+    .exercise-board.layout-circuit .exercise-special-content .exercise-bottom-stack{grid-column:1}
+    .exercise-special-layout .exercise-special-visual{order:1}
+    .exercise-special-layout .exercise-special-content{order:2}
 }
 
 @media(max-width:900px){
@@ -2000,7 +2070,9 @@ body.nabil-home-lock::before{
 @keyframes talkPulse{to{box-shadow:0 0 18px rgba(255,73,73,.75)}}
 #backToInterfaceBtn{background:#263948}
 .drawing-preview-modal{
-    position:fixed;inset:0;z-index:12000;background:rgba(0,8,15,.82);display:grid;place-items:center;padding:22px;
+    position:fixed;inset:0;z-index:12000;background:rgba(0,8,15,.82);display:grid;place-items:center;
+    text-align:center;
+    padding:18px;padding:22px;
 }
 .drawing-preview-modal[hidden]{display:none}
 .drawing-preview-dialog{position:relative;background:#fff;border-radius:18px;padding:28px;max-width:900px;width:100%;max-height:90vh;overflow:auto;color:#13273a}
@@ -3398,6 +3470,24 @@ function nabilRenderFunctionMiniCards(parts, messageLanguage){
 }
 
 
+function nabilPrepareFunctionKeyBlocks(rawSolutionBodyHTML, messageLanguage){
+    const split = nabilSplitFunctionBlocksFromHTML(rawSolutionBodyHTML || "", messageLanguage)
+        .sort((a,b)=>nabilFunctionCardRank(a.title)-nabilFunctionCardRank(b.title));
+
+    const filtered = split.filter(block => !/(variation|tableau de variations|جدول التغيرات)/i.test(block.title || ""));
+
+    return filtered.map(block => {
+        let html = String(block.html || "");
+        html = html
+            .replace(/<table[\s\S]*?<\/table>/gi, "")
+            .replace(/<p>\s*\|[\s\S]*?<\/p>/gi, "")
+            .replace(/<p>\s*[xX]\s+[\s\S]*?<\/p>/gi, "")
+            .replace(/<p>\s*f'\(x\)[\s\S]*?<\/p>/gi, "")
+            .replace(/<p>\s*f\(x\)[\s\S]*?<\/p>/gi, "");
+        return { title:block.title, html };
+    }).filter(block => String(block.html || "").replace(/<[^>]+>/g,'').trim());
+}
+
 function nabilFunctionLeftColumnHTML({givenHTML,requiredHTML,formulaHTML}, messageLanguage){
     const title = messageLanguage==="English" ? "Given & Main Data"
         : messageLanguage==="Français" ? "Données principales"
@@ -3414,7 +3504,7 @@ function nabilFunctionCenterColumnHTML({solutionBodyHTML,solutionHTML,extraHTML}
     const title = messageLanguage==="English" ? "Key Solution Points"
         : messageLanguage==="Français" ? "Étapes essentielles"
         : "أبرز نقاط الحل";
-    const split = nabilSplitFunctionBlocksFromHTML(solutionBodyHTML || "", messageLanguage);
+    const split = nabilPrepareFunctionKeyBlocks(solutionBodyHTML || "", messageLanguage);
     const body = split.length
         ? `<div class="exercise-function-mini-grid">${
             split.map(block => `<div class="exercise-function-mini-card">
@@ -3432,6 +3522,60 @@ function nabilFunctionCenterColumnHTML({solutionBodyHTML,solutionHTML,extraHTML}
 
 function nabilFunctionFinalStripHTML({answerHTML,summaryHTML}){
     return `${answerHTML || ""}${summaryHTML || ""}`;
+}
+
+function nabilDiagramTypeFromHTML(html){
+    const match=String(html||"").match(/data-diagram-type=["']([^"']*)["']/i);
+    return match ? String(match[1]||"").toLowerCase() : "";
+}
+
+function nabilExerciseLayoutFamily(board, diagramsForThis, wholeBoardText){
+    const subject = String(subjectSelect?.value || "").toLowerCase();
+    const text = `${board?.title||""} ${wholeBoardText||""} ${subject}`.toLowerCase();
+    const types=(diagramsForThis||[]).map(nabilDiagramTypeFromHTML).filter(Boolean);
+    const has=(rx)=>types.some(t=>rx.test(t));
+
+    if(has(/electric_|circuit/) || /series|parallel|resistor|resistance|circuit|دارة|توالي|توازي|مقاوم/.test(text)) return "circuit";
+    if(has(/forces|inclined_plane|motion|spring|pulley|wave|optics/) || /force|forces|newton|weight|tension|friction|قوة|قوى|وزن|احتكاك|شد/.test(text)) return "physics";
+    if(has(/triangle|circle|square|rectangle|rhombus|parallelogram|cube|prism|cylinder|cone|sphere/) || /geometry|triangle|circle|tangent|angle|pythag|هندسة|مثلث|دائرة|مماس|زاوية/.test(text)) return "geometry";
+    if(has(/periodic_table|energy_diagram|states_of_matter|ionic_bond/) || /chemistry|chemical|atom|bond|reaction|element|كيمياء|ذرة|رابطة|تفاعل/.test(text)) return "chemistry";
+    if(has(/cell_diagram|life_cycle|food_chain|body_system/) || /biology|cell|organ|system|food chain|أحياء|خلية|عضو|جهاز/.test(text)) return "biology";
+    if(has(/probability_tree|venn_diagram|probability_table|statistics/) || /probability|statistics|venn|tree diagram|احتمال|إحصاء|فين/.test(text)) return "probability";
+    return "default";
+}
+
+function nabilLayoutLabel(family,messageLanguage){
+    const labels={
+        circuit:{English:"Circuit Layout",Français:"Montage électrique","العربية":"تنسيق الدارة"},
+        physics:{English:"Physics Visual",Français:"Schéma physique","العربية":"رسم فيزيائي"},
+        geometry:{English:"Geometry Figure",Français:"Figure géométrique","العربية":"رسم هندسي"},
+        chemistry:{English:"Chemistry Visual",Français:"Schéma chimique","العربية":"رسم كيميائي"},
+        biology:{English:"Biology Visual",Français:"Schéma biologique","العربية":"رسم أحيائي"},
+        probability:{English:"Probability / Statistics",Français:"Probabilités / Statistiques","العربية":"احتمالات / إحصاء"},
+        default:{English:"Visual Solution",Français:"Solution visuelle","العربية":"حل بصري"}
+    };
+    return labels[family]?.[messageLanguage] || labels[family]?.English || family;
+}
+
+function nabilRenderSpecialExerciseLayout({family,title,diagramsForThis,visualHTML,givenHTML,requiredHTML,formulaHTML,extraHTML,solutionHTML,answerHTML,summaryHTML,messageDirection,messageLanguage}){
+    const contentHTML=`
+        <div class="exercise-mini-grid">${givenHTML}${requiredHTML}</div>
+        ${formulaHTML}
+        ${extraHTML}
+        <div class="exercise-bottom-stack">${solutionHTML}${answerHTML}${summaryHTML}</div>
+    `;
+    return `
+    <article class="exercise-board visual-column-board layout-${family}" data-layout-family="${family}" dir="${messageDirection}">
+        <div class="exercise-board-head">
+            <div class="exercise-board-title">${title}<span class="exercise-layout-badge">${nabilLayoutLabel(family,messageLanguage)}</span></div>
+        </div>
+        <div class="exercise-special-layout">
+            <section class="exercise-special-visual">
+                <div class="exercise-visual-panel ${diagramsForThis.length > 1 ? "multi-diagram-panel" : ""}">${visualHTML}</div>
+            </section>
+            <section class="exercise-special-content">${contentHTML}</section>
+        </div>
+    </article>`;
 }
 
 function renderGeneralExerciseBoards(text, diagrams, messageDirection, messageLanguage){
@@ -3578,31 +3722,22 @@ ${rawVariationHTML}`);
             </article>`;
         }
 
-        return `
-        <article class="${boardClasses}" dir="${messageDirection}">
-            <div class="exercise-board-head">
-                <div class="exercise-board-title">${title}</div>
-                <div class="exercise-board-detected">${introBadges.join(" ")}</div>
-            </div>
-
-            <div class="exercise-reference-visual">
-                <div class="exercise-visual-panel ${diagramsForThis.length > 1 ? "multi-diagram-panel" : ""}">
-                    ${visualHTML}
-                </div>
-            </div>
-
-            <div class="exercise-context-stack">
-                <div class="exercise-mini-grid">${givenHTML}${requiredHTML}</div>
-                ${formulaHTML}
-                ${extraHTML}
-            </div>
-
-            <div class="exercise-bottom-stack">
-                ${solutionHTML}
-                ${answerHTML}
-                ${summaryHTML}
-            </div>
-        </article>`;
+        const layoutFamily = nabilExerciseLayoutFamily(board, diagramsForThis, wholeBoardText);
+        return nabilRenderSpecialExerciseLayout({
+            family: layoutFamily,
+            title,
+            diagramsForThis,
+            visualHTML,
+            givenHTML,
+            requiredHTML,
+            formulaHTML,
+            extraHTML,
+            solutionHTML,
+            answerHTML,
+            summaryHTML,
+            messageDirection,
+            messageLanguage
+        });
     }).join("");
 
     // Append any leftover visuals at the end rather than losing them.
@@ -5478,15 +5613,19 @@ function nabilNormalizeExpression(expr){
 
     s=s
         .replace(/\left|\right/g,"")
+        .replace(/\dfrac/g,'\\frac')
+        .replace(/\tfrac/g,'\\frac')
         .replace(/−/g,"-")
         .replace(/×/g,"*")
         .replace(/÷/g,"/")
         .replace(/⁡/g,"")
+        .replace(/\}\s*\./g,'}')
         .replace(/\s+/g," ");
 
     while(/\frac\s*\{[^{}]+\}\s*\{[^{}]+\}/.test(s)){
         s=s.replace(/\frac\s*\{([^{}]+)\}\s*\{([^{}]+)\}/g,'(($1)/($2))');
     }
+    s=s.replace(/[{}]/g,'');
 
     s=s
         .replace(/\^/g,'**')
@@ -6961,7 +7100,7 @@ function extractAndRenderNabilDrawings(text){
                     const idx = Number(spec?.card_index);
                     const cardIndex = Number.isInteger(idx) && idx > 0 ? idx : "";
                     diagrams.push(
-                        `<div class="linked-lesson-visual" data-card-index="${cardIndex}">${rendered}</div>`
+                        `<div class="linked-lesson-visual" data-card-index="${cardIndex}" data-diagram-type="${nabilEsc(String(spec?.type || "").toLowerCase())}">${rendered}</div>`
                     );
                 }
             }catch(err){
@@ -6981,7 +7120,7 @@ function extractAndRenderNabilDrawings(text){
                     const idx = Number(spec?.card_index);
                     const cardIndex = Number.isInteger(idx) && idx > 0 ? idx : "";
                     diagrams.push(
-                        `<div class="linked-lesson-visual" data-card-index="${cardIndex}">${rendered}</div>`
+                        `<div class="linked-lesson-visual" data-card-index="${cardIndex}" data-diagram-type="${nabilEsc(String(spec?.type || "").toLowerCase())}">${rendered}</div>`
                     );
                 }
             }catch(err){
