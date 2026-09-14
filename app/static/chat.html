@@ -2856,7 +2856,7 @@ body.nabil-home-lock::before{
 <button
     id="teacherAssessmentBtn"
     type="button"
-    onclick="return window.nabilOpenTeacherAssessmentSafe(event);"
+    onclick="event.preventDefault(); const q=new URLSearchParams({grade:gradeSelect?.value||'',branch:branchSelect?.value||'',subject:subjectSelect?.value||'',language:languageSelect?.value||'',lesson:lessonSelect?.value||''}); window.location.href='/static/teacher_assessment.html?'+q.toString(); return false;"
     title="إنشاء مسابقة للمعلم من دروس المنهج المفهرسة">
     👨‍🏫 إعداد مسابقة للمعلم
 </button>
