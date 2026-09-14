@@ -9320,7 +9320,8 @@ document.addEventListener("click", (event) => {
             body.append("subject", subjectSelect?.value || "");
             body.append("grade", gradeSelect?.value || "");
             body.append("language", languageSelect?.value || "العربية");
-            body.append("lesson", lessonSelect?.value || "");
+            body.append("lesson", nabilActivityMode === "general_exercises" ? "" : (lessonSelect?.value || ""));
+            body.append("activity_mode", nabilActivityMode || "lesson");
             if (conversationId) body.append("conversation_id", conversationId);
 
             const response = await fetch(API_BASE + "/api/lesson-voice-chat", {
