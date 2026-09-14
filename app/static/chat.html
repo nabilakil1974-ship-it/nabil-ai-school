@@ -3080,7 +3080,7 @@ let lessonTalkRecognition = null;
 let lessonTalkActive = false;
 let lessonTalkBusy = false;
 let lessonTalkShouldResume = false;
-let lessonTalkSpokenLanguage = languageSelect?.value || "العربية";
+let lessonTalkSpokenLanguage = "العربية";
 
 /* Keep the learning page clean: one active question/lesson at a time. */
 function nabilClearVisibleConversation(resetConversation = false) {
@@ -5048,6 +5048,39 @@ function nabilBoardFinishCurrentStep(){
     }
 }
 
+async function nabilBoardOralExplanation(stepText){
+    const clean=String(stepText||"").trim();
+    if(!clean) return "";
+
+    try{
+        const body=new FormData();
+        body.append("message",
+            "اشرح هذه الخطوة شفهيًا بالعربية الفصحى المبسطة وكأنك أستاذ يكتب على اللوح. " +
+            "لا تقرأ النص حرفيًا، بل قل باختصار ماذا نفعل ولماذا. الخطوة هي: " + clean
+        );
+        body.append("student_id",getStudentId());
+        body.append("current_answer",clean);
+        body.append("subject",subjectSelect?.value||"");
+        body.append("grade",gradeSelect?.value||"");
+        body.append("language","العربية");
+        body.append("lesson",lessonSelect?.value||"");
+        body.append("activity_mode","lesson");
+        if(conversationId) body.append("conversation_id",conversationId);
+
+        const response=await fetch(API_BASE + "/api/lesson-voice-chat",{
+            method:"POST",
+            body
+        });
+        if(!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const data=await response.json();
+        return String(data.reply||"").trim();
+    }catch(err){
+        console.warn("Board Arabic narration fallback:",err);
+        return "";
+    }
+}
+
 function nabilBoardSpeakCurrentStep(){
     if(nabilBoardPaused) return;
 
@@ -5093,7 +5126,8 @@ function nabilBoardSpeakCurrentStep(){
         return;
     }
 
-    // Write ONLY the current paragraph/step while Nabil reads that same step.
+    // Write the lesson in its selected language, but Nabil explains orally
+    // in natural simplified Arabic by default, exactly as agreed.
     nabilBoardClearTimer();
     const remainingWords=Math.max(1,step.words.length-nabilBoardWordIndex);
     const revealMs=Math.max(150,Math.min(360,Math.round(26000/Math.max(20,remainingWords))));
@@ -5103,17 +5137,25 @@ function nabilBoardSpeakCurrentStep(){
         if(nabilBoardWordIndex>=step.words.length) nabilBoardClearTimer();
     },revealMs);
 
-    nabilSpeakClear(remaining,nabilBoardSpeechLanguage,{
-        onstart:()=>stopLessonRecognitionTemporarily?.(),
-        onend:()=>{
-            if(token!==nabilBoardRunToken || nabilBoardPaused) return;
-            nabilBoardClearTimer();
-            nabilBoardFinishCurrentStep();
-            nabilBoardStepIndex++;
-            nabilBoardWordIndex=0;
-            setTimeout(nabilBoardSpeakCurrentStep,260);
-        }
-    });
+    (async()=>{
+        const arabicExplanation=await nabilBoardOralExplanation(remaining);
+        if(token!==nabilBoardRunToken || nabilBoardPaused) return;
+
+        const spoken=arabicExplanation || remaining;
+        const spokenLanguage=arabicExplanation ? "العربية" : nabilBoardSpeechLanguage;
+
+        nabilSpeakClear(spoken,spokenLanguage,{
+            onstart:()=>stopLessonRecognitionTemporarily?.(),
+            onend:()=>{
+                if(token!==nabilBoardRunToken || nabilBoardPaused) return;
+                nabilBoardClearTimer();
+                nabilBoardFinishCurrentStep();
+                nabilBoardStepIndex++;
+                nabilBoardWordIndex=0;
+                setTimeout(nabilBoardSpeakCurrentStep,260);
+            }
+        });
+    })();
 }
 
 function nabilPauseBoardAtCurrentStep(){
@@ -5167,7 +5209,7 @@ function nabilStartBoardReveal(root, spokenText, language){
     stopNabilNeuralVoice();
 
     nabilBoardPaused=false;
-    nabilBoardSpeechLanguage=language || "العربية";
+    nabilBoardSpeechLanguage="العربية";
     nabilBoardCurrentRoot=root;
     nabilBoardSteps=nabilPrepareBoardSteps(root);
     nabilBoardStepIndex=0;
@@ -10945,7 +10987,7 @@ document.addEventListener("click", (event) => {
         if(nabilBoardModeActive()){
             nabilPauseBoardAtCurrentStep();
         }
-        lessonTalkSpokenLanguage = languageSelect?.value || "العربية";
+        lessonTalkSpokenLanguage = "العربية";
         rec.lang = lessonTalkSpokenLanguage === "English" ? "en-US"
             : lessonTalkSpokenLanguage === "Français" ? "fr-FR" : "ar-SA";
         talkBtn.classList.add("listening");
