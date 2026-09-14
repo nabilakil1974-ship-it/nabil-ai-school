@@ -59,11 +59,7 @@ select:focus,input:focus,textarea:focus{border-color:#63e3ff;box-shadow:0 0 0 3p
 .empty{
   padding:14px;border:1px dashed #a18a37;background:#3b3210;color:#ffe89a;border-radius:12px
 }
-.manual-row{display:flex;gap:8px;margin-top:12px}
-.manual-row input{flex:1}
-.manual-row button{
-  border:1px solid #37c9ff;background:#0d5275;color:#fff;border-radius:12px;padding:0 15px;font-weight:900
-}
+
 .actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:16px}
 .actions button{
   min-height:48px;border:1px solid #2d7ca7;background:#0d3b5a;color:#fff;
@@ -89,6 +85,29 @@ aside h2{color:#68e4ff;margin:8px 0 4px}aside p{color:#d8f1fb;line-height:1.65;f
   .wrap{padding:14px}.grid{grid-template-columns:1fr}.lessons{grid-template-columns:1fr;max-height:none}
   .actions button{width:100%}
 }
+
+
+.lesson-summary{
+  margin-bottom:12px;
+  padding:10px 12px;
+  border-radius:11px;
+  background:#071f33;
+  border:1px solid rgba(88,207,255,.20);
+  color:#9fe7ff;
+  font-weight:800;
+}
+.lesson input[type="checkbox"]{
+  appearance:auto!important;
+  -webkit-appearance:checkbox!important;
+  flex:0 0 auto!important;
+  width:19px!important;
+  height:19px!important;
+  min-height:19px!important;
+  margin-top:2px!important;
+  accent-color:#17b6ef!important;
+}
+.lesson span{flex:1}
+
 </style>
 </head>
 <body>
@@ -107,8 +126,8 @@ aside h2{color:#68e4ff;margin:8px 0 4px}aside p{color:#d8f1fb;line-height:1.65;f
     <h2>1. معلومات المسابقة</h2>
     <div class="grid">
       <label>الصف<select id="grade"></select></label>
-      <label>الفرع<input id="branch" placeholder="اختياري"></label>
-      <label>المادة<input id="subject" placeholder="مثال: رياضيات"></label>
+      <label>الفرع<select id="branch"><option value="">اختر الفرع</option></select></label>
+      <label>المادة<select id="subject"><option value="">اختر المادة</option></select></label>
       <label>لغة المسابقة
         <select id="language">
           <option>العربية</option><option>English</option><option>Français</option>
@@ -139,12 +158,9 @@ aside h2{color:#68e4ff;margin:8px 0 4px}aside p{color:#d8f1fb;line-height:1.65;f
       <button onclick="setAll(false)">✕ إلغاء الكل</button>
       <button onclick="loadLessons()">↻ تحديث الدروس</button>
     </div>
+    <div id="lessonSummary" class="lesson-summary">اختر المادة لتظهر الدروس.</div>
     <div id="lessons" class="lessons"></div>
     <div id="empty" class="empty" hidden>لم نجد فهرس دروس لهذه المادة. يمكنك إضافة أسماء الدروس يدويًا من الحقل أدناه.</div>
-    <div class="manual-row">
-      <input id="manualLesson" placeholder="أضف اسم درس يدويًا عند الحاجة">
-      <button onclick="addManualLesson()">+ إضافة</button>
-    </div>
   </section>
 
   <section class="card">
@@ -174,161 +190,821 @@ aside h2{color:#68e4ff;margin:8px 0 4px}aside p{color:#d8f1fb;line-height:1.65;f
 <script>
 const $=id=>document.getElementById(id);
 let lastAssessment=null;
+let curriculumData={};
+let curriculumIndex=JSON.parse(JSON.stringify(FALLBACK_CURRICULUM_INDEX));
 
 const params=new URLSearchParams(location.search);
+
+const FALLBACK_CURRICULUM_INDEX = {
+    "رياضيات": {
+        "الصف السابع": {
+            "العربية": [
+                "الأعداد الطبيعية",
+                "الأعداد الأولية",
+                "الكسور",
+                "الأعداد العشرية",
+                "الأعداد الموجبة والسالبة",
+                "القوى",
+                "النسبة المئوية والتناسب",
+                "العبارات الجبرية",
+                "المعلم المتعامد وإحداثيات نقطة",
+                "المحال الهندسية والبناءات",
+                "المثلثات المتطابقة",
+                "منصف قطعة مستقيمة",
+                "منصف زاوية"
+            ],
+            "English": [
+                "Natural integers",
+                "Prime numbers",
+                "Fractions",
+                "Decimals",
+                "Positive and negative numbers",
+                "Powers",
+                "Percentage and proportionality",
+                "Algebraic expressions",
+                "Orthogonal system and coordinates of a point",
+                "Geometric loci and constructions",
+                "Congruent triangles",
+                "Perpendicular bisector",
+                "Angle bisector"
+            ],
+            "Français": [
+                "Nombres naturels",
+                "Nombres premiers",
+                "Fractions",
+                "Nombres décimaux",
+                "Nombres positifs et négatifs",
+                "Puissances",
+                "Pourcentage et proportionnalité",
+                "Expressions algébriques",
+                "Repère orthogonal et coordonnées d'un point",
+                "Lieux géométriques et constructions",
+                "Triangles isométriques",
+                "Médiatrice",
+                "Bissectrice"
+            ]
+        },
+ 
+        "الصف الثامن": {
+            "العربية": [
+                "الأعداد الحقيقية",
+                "الجذور التربيعية",
+                "القوى",
+                "العبارات الجبرية",
+                "المعادلات والمتراجحات",
+                "التناسب",
+                "الموقع النسبي لدائرتين",
+                "المحال الهندسية والبناءات",
+                "إحداثيات منتصف قطعة مستقيمة",
+                "الأسطوانة والمخروط والكرة",
+                "نظرية فيثاغورس",
+                "المثلثات"
+            ],
+            "English": [
+                "Real numbers",
+                "Square roots",
+                "Powers",
+                "Algebraic expressions",
+                "Equations and inequalities",
+                "Proportionality",
+                "Relative positions of two circles",
+                "Geometric loci and constructions",
+                "Coordinates of the midpoint of a segment",
+                "Cylinder, cone and sphere",
+                "Pythagoras theorem",
+                "Triangles"
+            ],
+            "Français": [
+                "Nombres réels",
+                "Racines carrées",
+                "Puissances",
+                "Expressions algébriques",
+                "Équations et inéquations",
+                "Proportionnalité",
+                "Positions relatives de deux cercles",
+                "Lieux géométriques et constructions",
+                "Coordonnées du milieu d'un segment",
+                "Cylindre, cône et sphère",
+                "Théorème de Pythagore",
+                "Triangles"
+            ]
+        },
+ 
+        "الصف التاسع": {
+            "العربية": [
+                "الأعداد الحقيقية",
+                "الحساب على الأعداد الحقيقية",
+                "التناسبية والتوابع الخطية",
+                "العبارات الجبرية المشتملة على الجذور",
+                "كثيرة الحدود ذات المتغير الواحد",
+                "المعادلات",
+                "نظم المعادلات من الدرجة الأولى ذات مجهولين",
+                "المتراجحات",
+                "المماسات والدوائر",
+                "المحال الهندسية والبناءات",
+                "التمثيل البياني لمستقيم",
+                "التوازي والتعامد بين مستقيمين",
+                "طول قطعة مستقيمة في معلم متعامد",
+                "حل نظام معادلتين بيانيًا"
+            ],
+            "English": [
+                "Real numbers",
+                "Calculations on real numbers",
+                "Linear functions and proportionality",
+                "Algebraic expressions with radicals",
+                "Polynomial in one variable",
+                "Equations",
+                "Systems of first degree equations in two unknowns",
+                "Inequalities",
+                "Tangents and circles",
+                "Geometric loci and constructions",
+                "Graphic representation of a straight line",
+                "Parallel and orthogonal straight lines",
+                "Length of a segment in an orthonormal system",
+                "Graphical solution of linear systems"
+            ],
+            "Français": [
+                "Nombres réels",
+                "Calcul sur les réels",
+                "Fonctions linéaires et proportionnalité",
+                "Expressions algébriques avec radicaux",
+                "Polynôme à une variable",
+                "Équations",
+                "Systèmes d'équations du premier degré à deux inconnues",
+                "Inéquations",
+                "Tangentes et cercles",
+                "Lieux géométriques et constructions",
+                "Représentation graphique d'une droite",
+                "Parallélisme et orthogonalité de deux droites",
+                "Longueur d'un segment dans un repère orthonormé",
+                "Résolution graphique d'un système linéaire"
+            ]
+        },
+ 
+        "الأول ثانوي": {
+            "العربية": [
+                "المجموعات",
+                "الجداء الديكارتي",
+                "التطبيق والتقابل",
+                "الجذور التربيعية وقوى الأعداد الحقيقية",
+                "الترتيب على R والفترات",
+                "القيمة المطلقة",
+                "التقريب والتسوير",
+                "المعادلات من الدرجة الأولى",
+                "المعادلات والمتراجحات بالقيمة المطلقة",
+                "نظام معادلتين خطيتين",
+                "كثيرات الحدود",
+                "جذر كثيرة الحدود",
+                "المتجهات في المستوى",
+                "المعلم في المستوى",
+                "معادلة مستقيم في المستوى",
+                "الجداء السلمي",
+                "الدوال والتمثيل البياني",
+                "حل المعادلات والمتراجحات بيانيًا",
+                "دراسة الدوال",
+                "الدائرة المثلثية",
+                "الإحصاء"
+            ],
+            "English": [
+                "Sets",
+                "Cartesian product",
+                "Mappings and bijections",
+                "Square roots and powers",
+                "Order on R and intervals",
+                "Absolute value",
+                "Approximation",
+                "First degree equations",
+                "Equations and inequalities with absolute value",
+                "Systems of linear equations",
+                "Polynomials",
+                "Root of a polynomial",
+                "Vectors in the plane",
+                "Reference frame in the plane",
+                "Equation of a straight line",
+                "Scalar product",
+                "Functions and graphical representation",
+                "Graphical solution of equations and inequalities",
+                "Study of functions",
+                "Trigonometric circle",
+                "Statistics"
+            ],
+            "Français": [
+                "Ensembles",
+                "Produit cartésien",
+                "Applications et bijections",
+                "Racines carrées et puissances",
+                "Ordre sur R et intervalles",
+                "Valeur absolue",
+                "Encadrement et approximation",
+                "Équations du premier degré",
+                "Équations et inéquations avec valeur absolue",
+                "Systèmes d'équations linéaires",
+                "Polynômes",
+                "Racine d'un polynôme",
+                "Vecteurs du plan",
+                "Repère du plan",
+                "Équation d'une droite",
+                "Produit scalaire",
+                "Fonctions et représentation graphique",
+                "Résolution graphique d'équations et d'inéquations",
+                "Étude de fonctions",
+                "Cercle trigonométrique",
+                "Statistique"
+            ]
+        },
+ 
+        "الثاني ثانوي": {
+            "العربية": [
+                "العلاقات الثنائية",
+                "الترتيبات والتباديل",
+                "البرمجة الخطية",
+                "المعادلات من الدرجة الثانية",
+                "القسمة الإقليدية لكثيرات الحدود",
+                "التحليل إلى عوامل",
+                "المتجهات في الفضاء",
+                "المعلم في الفضاء",
+                "مركز الثقل",
+                "الجداء المتجهي",
+                "نهاية دالة",
+                "المقاربات",
+                "المتتاليات العددية",
+                "المتتاليات الحسابية",
+                "المتتاليات الهندسية",
+                "الاستمرارية",
+                "مشتقة دالة عند نقطة",
+                "الدالة المشتقة",
+                "دراسة الدوال كثيرات الحدود",
+                "دراسة الدوال الكسرية",
+                "الدوال الأصلية"
+            ],
+            "English": [
+                "Binary relations",
+                "Arrangements and permutations",
+                "Linear programming",
+                "Quadratic equations",
+                "Euclidean division of polynomials",
+                "Factorization",
+                "Vectors in space",
+                "Reference frame in space",
+                "Barycenter",
+                "Vector product",
+                "Limit of a function",
+                "Asymptotes",
+                "Numerical sequences",
+                "Arithmetic sequences",
+                "Geometric sequences",
+                "Continuity",
+                "Derivative at a point",
+                "Derivative function",
+                "Polynomial functions",
+                "Rational functions",
+                "Primitives"
+            ],
+            "Français": [
+                "Relations binaires",
+                "Arrangements et permutations",
+                "Programmation linéaire",
+                "Équations du second degré",
+                "Division euclidienne des polynômes",
+                "Factorisation",
+                "Vecteurs dans l'espace",
+                "Repère dans l'espace",
+                "Barycentre",
+                "Produit vectoriel",
+                "Limite d'une fonction",
+                "Asymptotes",
+                "Suites numériques",
+                "Suites arithmétiques",
+                "Suites géométriques",
+                "Continuité",
+                "Dérivée en un point",
+                "Fonction dérivée",
+                "Fonctions polynomiales",
+                "Fonctions rationnelles",
+                "Primitives"
+            ]
+        },
+ 
+        "الثالث ثانوي": {
+            "العربية": [
+                "الدوال غير النسبية",
+                "الدالة العكسية",
+                "الدوال المثلثية العكسية",
+                "الدالة اللوغاريتمية الطبيعية ln(x)",
+                "الدوال اللوغاريتمية",
+                "الدوال الأسية",
+                "دوال القوى",
+                "نهايات المتتاليات",
+                "الاستمرارية",
+                "تمديد دالة بالاستمرارية",
+                "مشتقة الدوال المركبة",
+                "مشتقة الدالة العكسية",
+                "المشتقة الثانية",
+                "نظرية رول",
+                "نظرية القيمة المتوسطة",
+                "قاعدة لوبيتال",
+                "التكامل",
+                "خصائص التكامل",
+                "قواعد التكامل",
+                "تطبيقات التكامل",
+                "المعادلات التفاضلية",
+                "المخروطيات"
+            ],
+            "English": [
+                "Irrational functions",
+                "Inverse function",
+                "Inverse trigonometric functions",
+                "Natural logarithmic function ln(x)",
+                "Logarithmic functions",
+                "Exponential functions",
+                "Power functions",
+                "Limits of sequences",
+                "Continuity",
+                "Extension by continuity",
+                "Derivative of composite functions",
+                "Derivative of an inverse function",
+                "Second derivative",
+                "Rolle's theorem",
+                "Mean value theorem",
+                "L'Hospital's rule",
+                "Integral",
+                "Properties of integrals",
+                "Integration rules",
+                "Applications of integration",
+                "Differential equations",
+                "Conics"
+            ],
+            "Français": [
+                "Fonctions irrationnelles",
+                "Fonction réciproque",
+                "Fonctions trigonométriques réciproques",
+                "Fonction logarithme népérien ln(x)",
+                "Fonctions logarithmiques",
+                "Fonctions exponentielles",
+                "Fonctions puissances",
+                "Limites des suites",
+                "Continuité",
+                "Prolongement par continuité",
+                "Dérivée des fonctions composées",
+                "Dérivée d'une fonction réciproque",
+                "Dérivée seconde",
+                "Théorème de Rolle",
+                "Théorème des accroissements finis",
+                "Règle de L'Hospital",
+                "Intégrale",
+                "Propriétés des intégrales",
+                "Règles d'intégration",
+                "Applications du calcul intégral",
+                "Équations différentielles",
+                "Coniques"
+            ]
+        }
+    }
+};
+
+function mergeCurriculumIndexes(baseIndex,remoteIndex){
+  const merged=JSON.parse(JSON.stringify(baseIndex||{}));
+  Object.entries(remoteIndex||{}).forEach(([subject,subjectData])=>{
+    if(!merged[subject]) merged[subject]={};
+    Object.entries(subjectData||{}).forEach(([grade,gradeData])=>{
+      if(!merged[subject][grade]) merged[subject][grade]={};
+      Object.entries(gradeData||{}).forEach(([language,lessons])=>{
+        if(Array.isArray(lessons)){
+          const current=Array.isArray(merged[subject][grade][language])
+            ? merged[subject][grade][language] : [];
+          merged[subject][grade][language]=[...new Set([...current,...lessons])];
+        }
+      });
+    });
+  });
+  return merged;
+}
+
 const gradeValues=[
  "الصف الأول","الصف الثاني","الصف الثالث","الصف الرابع","الصف الخامس","الصف السادس",
  "الصف السابع","الصف الثامن","الصف التاسع",
  "الأول الثانوي","الثاني الثانوي","الثالث الثانوي"
 ];
 
-function init(){
-  $("grade").innerHTML='<option value="">اختر الصف</option>'+gradeValues.map(x=>`<option>${esc(x)}</option>`).join("");
-  $("grade").value=params.get("grade")||"";
-  $("branch").value=params.get("branch")||"";
-  $("subject").value=params.get("subject")||"";
-  $("language").value=params.get("language")||"العربية";
-  loadLessons();
-}
-function esc(s){return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+const SUBJECTS=[
+ "رياضيات","فيزياء","كيمياء","علوم","علوم الحياة",
+ "اللغة العربية","اللغة الفرنسية","اللغة الإنجليزية",
+ "التربية الوطنية والتنشئة المدنية","التاريخ","الجغرافيا",
+ "علم الاجتماع","الاقتصاد","الفلسفة والحضارات","ثقافة علمية"
+];
 
-async function loadLessons(){
-  const box=$("lessons"); box.innerHTML="";
-  $("empty").hidden=true;
-  const selectedLesson=params.get("lesson")||"";
-  let found=[];
+const COMMON_SCHOOL_SUBJECTS=[
+ "اللغة العربية","اللغة الفرنسية","اللغة الإنجليزية",
+ "التربية الوطنية والتنشئة المدنية","التاريخ","الجغرافيا"
+];
+
+function esc(s){
+  return String(s||"").replace(/[&<>"']/g,c=>({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[c]));
+}
+function norm(s){return String(s||"").toLowerCase().replace(/\s+/g," ").trim()}
+
+function subjectsForStage(grade){
+  if(["الصف الأول","الصف الثاني","الصف الثالث","الصف الرابع","الصف الخامس","الصف السادس"].includes(grade)){
+    return ["رياضيات","علوم",...COMMON_SCHOOL_SUBJECTS];
+  }
+  if(["الصف السابع","الصف الثامن","الصف التاسع"].includes(grade)){
+    return ["رياضيات","فيزياء","كيمياء","علوم الحياة",...COMMON_SCHOOL_SUBJECTS];
+  }
+  return SUBJECTS;
+}
+
+function collectLessonTitles(value){
+  if(Array.isArray(value)){
+    return value.map(item=>typeof item==="string" ? item : item?.title).filter(Boolean);
+  }
+  if(value && typeof value==="object"){
+    return Object.values(value).flatMap(collectLessonTitles);
+  }
+  return [];
+}
+
+function fillSelect(select,items,placeholder,current=""){
+  select.innerHTML="";
+  const ph=document.createElement("option");
+  ph.value=""; ph.textContent=placeholder;
+  select.appendChild(ph);
+
+  [...new Set((items||[]).map(String).map(x=>x.trim()).filter(Boolean))].forEach(item=>{
+    const o=document.createElement("option");
+    o.value=item; o.textContent=item;
+    select.appendChild(o);
+  });
+
+  if(current && [...select.options].some(o=>o.value===current)) select.value=current;
+}
+
+function getBranchesForGrade(grade){
+  const g=norm(grade);
+
+  try{
+    const saved=JSON.parse(sessionStorage.getItem("nabil_teacher_branches")||"[]");
+    const vals=(Array.isArray(saved)?saved:[])
+      .map(x=>String(x?.value||x?.text||"").trim())
+      .filter(Boolean);
+    if(vals.length) return [...new Set(vals)];
+  }catch(_e){}
+
+  // First use branches found in the curriculum index.
+  const exact=Object.keys(curriculumData?.secondary_structure?.[grade]?.branches || {});
+  if(exact.length) return exact;
+
+  // Then try normalized grade-key matching because CRDP/index labels may differ.
+  const secondary=curriculumData?.secondary_structure || {};
+  for(const [key,val] of Object.entries(secondary)){
+    const k=norm(key);
+    if(k===g || k.includes(g) || g.includes(k)){
+      const found=Object.keys(val?.branches || {});
+      if(found.length) return found;
+    }
+  }
+
+  // Lebanese secondary fallback — never show "no branch" for grades that have branches.
+  if(/الثالث الثانوي|الصف الثالث الثانوي|الثانوي الثالث|third secondary|grade 12/.test(g)){
+    return [
+      "علوم عامة",
+      "علوم الحياة",
+      "اجتماع واقتصاد",
+      "آداب وإنسانيات"
+    ];
+  }
+
+  if(/الثاني الثانوي|الصف الثاني الثانوي|الثانوي الثاني|second secondary|grade 11/.test(g)){
+    return [
+      "علوم",
+      "إنسانيات"
+    ];
+  }
+
+  // First secondary is common/core in the Lebanese system, so no branch selector is required.
+  return [];
+}
+
+function getSubjectsForGradeBranch(grade,branch){
+  try{
+    const saved=JSON.parse(sessionStorage.getItem("nabil_teacher_subjects")||"[]");
+    const vals=(Array.isArray(saved)?saved:[])
+      .map(x=>String(x?.value||x?.text||"").trim())
+      .filter(Boolean);
+    if(vals.length) return [...new Set(vals)];
+  }catch(_e){}
+
+  const branchSubjects=curriculumData?.secondary_structure?.[grade]?.branches?.[branch]?.subjects;
+  const gradeSubjects=curriculumData?.subject_availability?.[grade];
+  const g=norm(grade), b=norm(branch);
+
+  let fallback=subjectsForStage(grade);
+
+  if(/الثالث الثانوي|الصف الثالث الثانوي|grade 12/.test(g)){
+    if(/علوم عامة|general sciences/.test(b)){
+      fallback=["رياضيات","فيزياء","كيمياء","اللغة العربية","اللغة الفرنسية","اللغة الإنجليزية","التربية الوطنية والتنشئة المدنية","التاريخ","الجغرافيا"];
+    }else if(/علوم الحياة|life sciences/.test(b)){
+      fallback=["رياضيات","فيزياء","كيمياء","علوم الحياة","اللغة العربية","اللغة الفرنسية","اللغة الإنجليزية","التربية الوطنية والتنشئة المدنية","التاريخ","الجغرافيا"];
+    }else if(/اجتماع واقتصاد|sociology|economics/.test(b)){
+      fallback=["رياضيات","علم الاجتماع","الاقتصاد","الفلسفة والحضارات","اللغة العربية","اللغة الفرنسية","اللغة الإنجليزية","التربية الوطنية والتنشئة المدنية","التاريخ","الجغرافيا"];
+    }else if(/آداب|انسانيات|إنسانيات|humanities/.test(b)){
+      fallback=["الفلسفة والحضارات","اللغة العربية","اللغة الفرنسية","اللغة الإنجليزية","التربية الوطنية والتنشئة المدنية","التاريخ","الجغرافيا"];
+    }
+  }
+
+  return [...new Set([
+    ...(Array.isArray(branchSubjects)?branchSubjects:[]),
+    ...(Array.isArray(gradeSubjects)?gradeSubjects:[]),
+    ...fallback
+  ])];
+}
+
+function getLessons(grade,branch,subject,language){
+  let lessons=[];
+
+  // Internal + external merged index.
+  const verified=curriculumIndex?.[subject]?.[grade];
+  if(verified){
+    const direct=verified?.[language];
+    if(Array.isArray(direct)) lessons.push(...direct);
+    if(!lessons.length) lessons.push(...collectLessonTitles(verified));
+  }
+
+  // Branch-specific CRDP structure.
+  const secondary=curriculumData?.secondary_structure?.[grade]?.branches?.[branch]?.[subject];
+  if(secondary){
+    const direct=secondary?.[language];
+    if(Array.isArray(direct)) lessons.push(...direct);
+    if(!lessons.length) lessons.push(...collectLessonTitles(secondary));
+  }
+
+  const annual=curriculumData?.annual_curriculum_details?.["الثانوي"]?.[grade]?.[branch]?.[subject];
+  if(annual){
+    lessons.push(...collectLessonTitles(annual));
+  }
+
+  return [...new Set(lessons.map(String).map(x=>x.trim()).filter(Boolean))];
+}
+
+function addLessonChoice(name,checked=false){
+  const label=document.createElement("label");
+  label.className="lesson";
+  const input=document.createElement("input");
+  input.type="checkbox";
+  input.value=name;
+  input.checked=checked;
+  const span=document.createElement("span");
+  span.textContent=name;
+  label.append(input,span);
+  $("lessons").appendChild(label);
+}
+
+function selectedLessons(){
+  return [...document.querySelectorAll("#lessons input[type=checkbox]:checked")].map(x=>x.value);
+}
+function setAll(v){
+  document.querySelectorAll("#lessons input[type=checkbox]").forEach(x=>x.checked=v);
+}
+
+function refreshBranches(){
+  const grade=$("grade").value;
+  const current=params.get("branch")||$("branch").value||"";
+  const branches=getBranchesForGrade(grade);
+  const branchLabel=$("branch")?.closest("label");
+
+  if(branches.length){
+    if(branchLabel) branchLabel.style.display="";
+    fillSelect($("branch"),branches,"اختر الفرع",current);
+    if(current && [...$("branch").options].some(o=>o.value===current)){
+      $("branch").value=current;
+    }
+  }else{
+    fillSelect($("branch"),[],"","");
+    if(branchLabel) branchLabel.style.display="none";
+  }
+
+  refreshSubjects();
+}
+
+function refreshSubjects(){
+  const grade=$("grade").value;
+  const branch=$("branch").value;
+  const current=params.get("subject")||$("subject").value||"";
+  const subjects=getSubjectsForGradeBranch(grade,branch);
+
+  fillSelect($("subject"),subjects,"اختر المادة",current);
+  refreshLessons();
+}
+
+function refreshLessons(){
+  const box=$("lessons");
+  box.innerHTML="";
+
+  const grade=$("grade").value;
+  const branch=$("branch").value;
+  const subject=$("subject").value;
+  const language=$("language").value;
+  const selectedFromMain=params.get("lesson")||"";
+
+  if(!grade || !subject){
+    $("empty").hidden=false;
+    $("empty").textContent="اختر الصف والمادة أولًا لتظهر الدروس.";
+    $("lessonSummary").textContent="اختر المادة لتظهر الدروس.";
+    return;
+  }
+
+  let lessons=[];
+
+  // Primary source: the exact lessons already visible in the main platform.
+  try{
+    const saved=JSON.parse(sessionStorage.getItem("nabil_teacher_lessons")||"[]");
+    if(Array.isArray(saved) && saved.length){
+      lessons=saved
+        .map(x=>String(x?.value||x?.text||"").trim())
+        .filter(Boolean);
+    }
+  }catch(_e){}
+
+  // Fallback to curriculum JSON if the page was opened directly.
+  if(!lessons.length){
+    lessons=getLessons(grade,branch,subject,language);
+  }
+
+  lessons=[...new Set(lessons.map(String).map(x=>x.trim()).filter(Boolean))];
+
+  lessons.forEach(name=>{
+    addLessonChoice(
+      name,
+      selectedFromMain && norm(name)===norm(selectedFromMain)
+    );
+  });
+
+  $("empty").hidden=lessons.length>0;
+
+  if(lessons.length){
+    $("lessonSummary").textContent=
+      `ظهرت ${lessons.length} دروس. ضع علامة ✓ في المربع بجانب كل درس تريد إدخاله في المسابقة.`;
+  }else{
+    $("lessonSummary").textContent="لا توجد دروس مدخلة لهذه المادة في الفهرس الحالي.";
+    $("empty").textContent=
+      "هذه المادة تحديدًا غير موجودة بعد في الفهرس الداخلي الحالي.";
+  }
+}
+
+async function loadCurriculum(){
+  $("status").textContent="جاري تحميل فهرس الصفوف والفروع والمواد والدروس…";
+
+  // Always start from our built-in project index.
+  curriculumIndex=JSON.parse(JSON.stringify(FALLBACK_CURRICULUM_INDEX));
+  curriculumData={};
 
   try{
     const r=await fetch("/static/crdp_scientific_curriculum_index.json",{cache:"no-store"});
     if(r.ok){
       const data=await r.json();
-      found=findLessons(data,$("grade").value,$("branch").value,$("subject").value,$("language").value);
+      curriculumData=data||{};
+      curriculumIndex=mergeCurriculumIndexes(
+        curriculumIndex,
+        data?.verified_index||{}
+      );
+      $("status").textContent="تم تحميل فهرس الدروس الداخلي ودمجه مع فهرس CRDP.";
+    }else{
+      $("status").textContent="تم تشغيل فهرس الدروس الداخلي الموجود في المنصة.";
     }
-  }catch(e){console.warn("curriculum index unavailable",e)}
-
-  if(selectedLesson && !found.some(x=>norm(x)===norm(selectedLesson))) found.unshift(selectedLesson);
-
-  const unique=[...new Set(found.map(x=>String(x).trim()).filter(Boolean))];
-  if(!unique.length){$("empty").hidden=false;return}
-  unique.forEach(addLessonChoice);
-}
-function norm(s){return String(s||"").toLowerCase().replace(/\s+/g," ").trim()}
-
-function findLessons(data,grade,branch,subject,language){
-  const results=[];
-  const seen=new Set();
-  const target=[grade,branch,subject,language].filter(Boolean).map(norm);
-
-  function walk(node,path=[]){
-    if(Array.isArray(node)){node.forEach((v,i)=>walk(v,path.concat(String(i))));return}
-    if(!node || typeof node!=="object") return;
-
-    const blob=norm(path.join(" ")+" "+JSON.stringify(node));
-    const score=target.reduce((n,t)=>n+(t && blob.includes(t)?1:0),0);
-
-    for(const [k,v] of Object.entries(node)){
-      const kl=norm(k);
-      if(Array.isArray(v) && /lesson|lessons|unit|units|chapter|chapters|درس|دروس/.test(kl) && score>=Math.max(1,target.length-2)){
-        v.forEach(item=>{
-          if(typeof item==="string") results.push(item);
-          else if(item && typeof item==="object"){
-            const name=item.lesson||item.title||item.name||item.label;
-            if(name) results.push(name);
-          }
-        });
-      }
-      walk(v,path.concat(k));
-    }
+  }catch(err){
+    console.warn("External curriculum index unavailable, using built-in index:",err);
+    $("status").textContent="تم تشغيل فهرس الدروس الداخلي الموجود في المنصة.";
   }
-  walk(data,[]);
-  return results;
-}
 
-function addLessonChoice(name){
-  const id="l_"+Math.random().toString(36).slice(2);
-  const label=document.createElement("label");
-  label.className="lesson";
-  label.innerHTML=`<input type="checkbox" value="${esc(name)}" id="${id}"><span>${esc(name)}</span>`;
-  $("lessons").appendChild(label);
+  const wantedGrade=params.get("grade")||"";
+  fillSelect($("grade"),gradeValues,"اختر الصف",wantedGrade);
+  $("language").value=params.get("language")||"العربية";
+
+  refreshBranches();
 }
-function addManualLesson(){
-  const name=$("manualLesson").value.trim();
-  if(!name)return;
-  addLessonChoice(name); $("manualLesson").value=""; $("empty").hidden=true;
-}
-function setAll(v){document.querySelectorAll("#lessons input[type=checkbox]").forEach(x=>x.checked=v)}
-function selectedLessons(){return [...document.querySelectorAll("#lessons input[type=checkbox]:checked")].map(x=>x.value)}
 
 async function fetchAssessment(payload){
   const endpoints=["/api/teacher-assessment","/teacher-assessment"];
   let lastErr=null;
+
   for(const endpoint of endpoints){
     try{
-      const r=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
-      if(r.status===404){lastErr=new Error("المسار غير موجود: "+endpoint);continue}
+      const r=await fetch(endpoint,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify(payload)
+      });
+
+      if(r.status===404){
+        lastErr=new Error("المسار غير موجود: "+endpoint);
+        continue;
+      }
+
       const raw=await r.text();
-      let data={}; try{data=raw?JSON.parse(raw):{}}catch(e){}
+      let data={};
+      try{data=raw?JSON.parse(raw):{}}catch(_e){}
+
       if(!r.ok) throw new Error(data.detail||raw||("HTTP "+r.status));
       return data;
-    }catch(e){lastErr=e}
+    }catch(e){
+      lastErr=e;
+    }
   }
+
   throw lastErr||new Error("تعذر الوصول إلى مولّد المسابقات");
 }
 
 async function generateAssessment(){
   const lessons=selectedLessons();
-  if(!$("grade").value || !$("subject").value.trim()){ $("status").textContent="اختر الصف والمادة."; return }
-  if(!lessons.length){ $("status").textContent="اختر درسًا واحدًا على الأقل أو أضفه يدويًا."; return }
 
-  $("generate").disabled=true; $("word").disabled=true; $("preview").innerHTML="";
+  if(!$("grade").value || !$("subject").value){
+    $("status").textContent="اختر الصف والمادة.";
+    return;
+  }
+
+  if(!lessons.length){
+    $("status").textContent="اختر درسًا واحدًا على الأقل من القائمة المفهرسة.";
+    return;
+  }
+
+  $("generate").disabled=true;
+  $("word").disabled=true;
+  $("preview").innerHTML="";
   $("status").textContent="الأستاذ نبيل يحضّر المسابقة وأسُس التصحيح…";
 
   const payload={
-    grade:$("grade").value, branch:$("branch").value||null, subject:$("subject").value.trim(),
-    language:$("language").value, lessons,
+    grade:$("grade").value,
+    branch:$("branch").value||null,
+    subject:$("subject").value,
+    language:$("language").value,
+    lessons,
     duration_minutes:Number($("duration").value||60),
     total_marks:Number($("marks").value||20),
-    difficulty:$("difficulty").value, variants:Number($("variants").value||1),
+    difficulty:$("difficulty").value,
+    variants:Number($("variants").value||1),
     notes:$("notes").value||""
   };
 
   try{
     const data=await fetchAssessment(payload);
-    if(!Array.isArray(data.variants)||!data.variants.length) throw new Error("لم يصل نموذج صالح من الخادم.");
-    lastAssessment=data; render(data); $("word").disabled=false;
+    if(!Array.isArray(data.variants)||!data.variants.length){
+      throw new Error("لم يصل نموذج صالح من الخادم.");
+    }
+
+    lastAssessment=data;
+    render(data);
+    $("word").disabled=false;
     $("status").textContent="✓ تم إنشاء المسابقة وأسُس التصحيح.";
   }catch(e){
     $("status").textContent="تعذر إنشاء المسابقة: "+(e.message||e);
-  }finally{$("generate").disabled=false}
+  }finally{
+    $("generate").disabled=false;
+  }
 }
 
 function render(data){
   $("preview").innerHTML=data.variants.map((v,i)=>`
     <article class="model">
       <h3>${esc(v.title||("Model "+String.fromCharCode(65+i)))}</h3>
-      <h4>ورقة الطالب</h4><pre>${esc(v.exam||"")}</pre>
-      <h4>أسُس التصحيح</h4><pre>${esc(v.correction||"")}</pre>
-    </article>`).join("");
+      <h4>ورقة الطالب</h4>
+      <pre>${esc(v.exam||"")}</pre>
+      <h4>أسُس التصحيح</h4>
+      <pre>${esc(v.correction||"")}</pre>
+    </article>
+  `).join("");
 }
 
 function wordHTML(data){
   return `<!doctype html><html dir="rtl"><head><meta charset="utf-8"><style>
-  body{font-family:Arial;line-height:1.7}h1,h2{color:#123a62}pre{white-space:pre-wrap;font-family:Arial}
+  body{font-family:Arial;line-height:1.7}h1,h2{color:#123a62}
+  pre{white-space:pre-wrap;font-family:Arial}
   </style></head><body><h1>NABIL AI - Assessment</h1>${
-    data.variants.map(v=>`<h2>${esc(v.title||"")}</h2><h3>Exam</h3><pre>${esc(v.exam||"")}</pre><h3>Correction</h3><pre>${esc(v.correction||"")}</pre>`).join("")
+    data.variants.map(v=>`
+      <h2>${esc(v.title||"")}</h2>
+      <h3>Exam</h3><pre>${esc(v.exam||"")}</pre>
+      <h3>Correction</h3><pre>${esc(v.correction||"")}</pre>
+    `).join("")
   }</body></html>`;
 }
+
 function downloadWord(){
   if(!lastAssessment)return;
   const blob=new Blob(["\ufeff",wordHTML(lastAssessment)],{type:"application/msword"});
-  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="NABIL_AI_Assessment.doc";
-  document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},800);
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="NABIL_AI_Assessment.doc";
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},800);
 }
-$("grade").addEventListener("change",loadLessons);
-$("branch").addEventListener("change",loadLessons);
-$("subject").addEventListener("change",loadLessons);
-$("language").addEventListener("change",loadLessons);
-init();
+
+$("grade").addEventListener("change",refreshBranches);
+$("branch").addEventListener("change",refreshSubjects);
+$("subject").addEventListener("change",refreshLessons);
+$("language").addEventListener("change",refreshLessons);
+
+loadCurriculum();
 </script>
 </body>
 </html>
