@@ -2109,6 +2109,60 @@ def _graph_parse_poly2(expr: str):
     return a, b, c
 
 
+
+def _graph_extract_polynomial_quadratic(text: str):
+    """Parse a school polynomial function ax^2+bx+c from f(x)=... or y=... safely."""
+    raw = _graph_normalize_math_text(text)
+    raw = raw.replace("x^{2}", "x^2")
+
+    # Prefer explicit function equations and keep the candidate on one line.
+    patterns = [
+        r"(?:f\s*\(\s*x\s*\)|y)\s*=\s*([^\n\r;]+)",
+        r"(?:الدالة|fonction|function)\s*[:：]?\s*([+-]?\s*(?:\d+(?:\.\d+)?)?\s*x(?:\s*\^?\s*2|²)[^\n\r;]*)",
+    ]
+
+    candidates = []
+    for pattern in patterns:
+        for m in re.finditer(pattern, raw, re.I):
+            candidates.append(m.group(1).strip())
+
+    # Also inspect compact math-like fragments if no explicit equation was found.
+    if not candidates:
+        candidates.extend(
+            m.group(0)
+            for m in re.finditer(
+                r"[+-]?\s*(?:\d+(?:\.\d+)?)?\s*x(?:\s*\^?\s*2|²)"
+                r"(?:\s*[+-]\s*(?:\d+(?:\.\d+)?)?\s*x)?"
+                r"(?:\s*[+-]\s*\d+(?:\.\d+)?)?",
+                raw,
+                re.I,
+            )
+        )
+
+    for candidate in candidates:
+        # Stop before explanatory prose / LaTeX punctuation likely to follow the formula.
+        candidate = re.split(
+            r"(?:\s{2,}|\\quad|\\qquad|,\s*(?:where|with|où|avec|حيث)\b)",
+            candidate,
+            maxsplit=1,
+            flags=re.I,
+        )[0]
+        candidate = candidate.strip().strip(".$،,")
+        parsed = _graph_parse_poly2(candidate)
+        if not parsed:
+            continue
+        a, b, c = parsed
+        if abs(a) > 1e-12 or abs(b) > 1e-12:
+            return a, b, c
+
+    return None
+
+
+def _graph_polynomial_value(coeffs, x):
+    a, b, c = coeffs
+    return a*x*x + b*x + c
+
+
 def _graph_extract_rational_quadratic_linear(text: str):
     """Parse a common school rational function: quadratic / linear."""
     raw = _graph_normalize_math_text(text).replace("x^{2}", "x^2")
@@ -2182,103 +2236,255 @@ def _graph_derivative_sign(coeffs, x):
 
 
 def _graph_safe_function_drawing(message: str, reply_text: str, card_index: int = 1):
-    coeffs = _graph_extract_rational_quadratic_linear(
-        f"{message or ''}\n{reply_text or ''}"
-    )
-    if not coeffs:
+    source_text = f"{message or ''}\n{reply_text or ''}"
+
+    # ---------------------------------------------------------------
+    # A) Rational quadratic/linear function
+    # ---------------------------------------------------------------
+    coeffs = _graph_extract_rational_quadratic_linear(source_text)
+    if coeffs:
+        A, B, C, D, E = coeffs
+        vertical = -E/D
+        slope = A/D
+        intercept = (B - slope*E)/D
+
+        critical = [
+            x for x in _graph_critical_points(coeffs)
+            if abs(x-vertical) > 1e-7
+        ]
+
+        features = [vertical, 0.0] + critical
+        xmin = math.floor(min(features + [-5.0]) - 1)
+        xmax = math.ceil(max(features + [5.0]) + 1)
+        if xmax-xmin < 10:
+            mid=(xmin+xmax)/2
+            xmin=math.floor(mid-5)
+            xmax=math.ceil(mid+5)
+
+        ys=[]
+        for i in range(280):
+            x=xmin+(xmax-xmin)*i/279
+            if abs(x-vertical)<max(0.05,(xmax-xmin)/100):
+                continue
+            y=_graph_rational_value(coeffs,x)
+            if y is not None and math.isfinite(y) and abs(y)<100:
+                ys.append(y)
+
+        if ys:
+            sy=sorted(ys)
+            lo=sy[max(0,int(len(sy)*0.08)-1)]
+            hi=sy[min(len(sy)-1,int(len(sy)*0.92))]
+            pad=max(2.0,(hi-lo)*0.18)
+            ymin=max(-20,math.floor(lo-pad))
+            ymax=min(20,math.ceil(hi+pad))
+        else:
+            ymin,ymax=-8,8
+
+        if ymax-ymin<8:
+            mid=(ymax+ymin)/2
+            ymin=math.floor(mid-4)
+            ymax=math.ceil(mid+4)
+
+        eps=max(0.04,(xmax-xmin)/350)
+        series=[]
+        for lo,hi in ((xmin,vertical-eps),(vertical+eps,xmax)):
+            if hi<=lo:
+                continue
+            pts=[]
+            for i in range(150):
+                x=lo+(hi-lo)*i/149
+                y=_graph_rational_value(coeffs,x)
+                if y is not None and math.isfinite(y) and ymin-4<=y<=ymax+4:
+                    pts.append([round(x,6),round(y,6)])
+            if len(pts)>=2:
+                series.append({"points":pts,"color":"#35c8ff"})
+
+        markers=[]
+        y0=_graph_rational_value(coeffs,0.0)
+        if y0 is not None and math.isfinite(y0):
+            markers.append({
+                "x":0.0,
+                "y":round(y0,6),
+                "label":f"(0, {round(y0,4)})",
+            })
+
+        for x in critical:
+            y=_graph_rational_value(coeffs,x)
+            if y is not None and math.isfinite(y):
+                markers.append({
+                    "x":round(x,6),
+                    "y":round(y,6),
+                    "label":f"({round(x,3)}, {round(y,3)})",
+                })
+
+        if abs(A)<1e-12:
+            roots=[] if abs(B)<1e-12 else [-C/B]
+        else:
+            dn=B*B-4*A*C
+            roots=[]
+            if dn>=-1e-10:
+                dn=max(0.0,dn)
+                rr=math.sqrt(dn)
+                roots=[(-B-rr)/(2*A),(-B+rr)/(2*A)]
+
+        for x in roots:
+            if abs(x-vertical)>1e-7 and xmin<=x<=xmax:
+                markers.append({
+                    "x":round(x,6),
+                    "y":0.0,
+                    "label":f"({round(x,4)}, 0)",
+                })
+
+        return {
+            "type":"coordinate_plane",
+            "title":"Graph of the Function",
+            "card_index":card_index,
+            "xmin":xmin,
+            "xmax":xmax,
+            "ymin":ymin,
+            "ymax":ymax,
+            "grid":True,
+            "series":series,
+            "vertical_asymptotes":[{
+                "x":round(vertical,8),
+                "label":f"x = {round(vertical,6)}",
+            }],
+            "oblique_asymptote":{
+                "slope":round(slope,10),
+                "intercept":round(intercept,10),
+                "label":f"y = {round(slope,6)}x {'+' if intercept>=0 else '-'} {round(abs(intercept),6)}",
+            },
+            "markers":markers,
+            "visual_style":"function_study_reference",
+        }
+
+    # ---------------------------------------------------------------
+    # B) Ordinary polynomial y = ax² + bx + c (or linear)
+    # ---------------------------------------------------------------
+    poly = _graph_extract_polynomial_quadratic(source_text)
+    if not poly:
         return None
 
-    A, B, C, D, E = coeffs
-    vertical = -E/D
-    slope = A/D
-    intercept = (B - slope*E)/D
+    a, b, c = poly
+    critical = []
+    if abs(a) > 1e-12:
+        xv = -b/(2*a)
+        critical = [xv]
 
-    critical = [
-        x for x in _graph_critical_points(coeffs)
-        if abs(x-vertical) > 1e-7
-    ]
+    roots = []
+    if abs(a) > 1e-12:
+        disc = b*b - 4*a*c
+        if disc >= -1e-10:
+            disc=max(0.0,disc)
+            r=math.sqrt(disc)
+            roots=[(-b-r)/(2*a),(-b+r)/(2*a)]
+    elif abs(b) > 1e-12:
+        roots=[-c/b]
 
-    features = [vertical, 0.0] + critical
-    xmin = math.floor(min(features + [-5.0]) - 1)
-    xmax = math.ceil(max(features + [5.0]) + 1)
-    if xmax-xmin < 10:
+    features = [0.0] + critical + roots
+    xmin = math.floor(min(features + [-4.0]) - 1)
+    xmax = math.ceil(max(features + [4.0]) + 1)
+    if xmax-xmin < 8:
         mid=(xmin+xmax)/2
-        xmin=math.floor(mid-5)
-        xmax=math.ceil(mid+5)
+        xmin=math.floor(mid-4)
+        xmax=math.ceil(mid+4)
 
+    pts=[]
     ys=[]
-    for i in range(280):
-        x=xmin+(xmax-xmin)*i/279
-        if abs(x-vertical)<max(0.05,(xmax-xmin)/100):
-            continue
-        y=_graph_rational_value(coeffs,x)
-        if y is not None and math.isfinite(y) and abs(y)<100:
+    for i in range(220):
+        x=xmin+(xmax-xmin)*i/219
+        y=_graph_polynomial_value(poly,x)
+        if math.isfinite(y):
+            pts.append([round(x,6),round(y,6)])
             ys.append(y)
 
+    # Keep the graph readable while always containing vertex/intercepts.
+    key_ys = [c]
+    for x in critical + roots:
+        y=_graph_polynomial_value(poly,x)
+        if math.isfinite(y):
+            key_ys.append(y)
+
     if ys:
-        sy=sorted(ys)
-        lo=sy[max(0,int(len(sy)*0.08)-1)]
-        hi=sy[min(len(sy)-1,int(len(sy)*0.92))]
-        pad=max(2.0,(hi-lo)*0.18)
-        ymin=max(-20,math.floor(lo-pad))
-        ymax=min(20,math.ceil(hi+pad))
+        all_for_range = key_ys + ys
+        lo=min(all_for_range)
+        hi=max(all_for_range)
+        # Avoid huge tails dominating school-level quadratic plots.
+        central = sorted(ys)
+        qlo=central[max(0,int(len(central)*0.08)-1)]
+        qhi=central[min(len(central)-1,int(len(central)*0.92))]
+        lo=min(key_ys+[qlo])
+        hi=max(key_ys+[qhi])
+        pad=max(2.0,(hi-lo)*0.15)
+        ymin=math.floor(lo-pad)
+        ymax=math.ceil(hi+pad)
     else:
         ymin,ymax=-8,8
 
-    if ymax-ymin<8:
-        mid=(ymax+ymin)/2
+    if ymax-ymin < 8:
+        mid=(ymin+ymax)/2
         ymin=math.floor(mid-4)
         ymax=math.ceil(mid+4)
 
-    eps=max(0.04,(xmax-xmin)/350)
-    series=[]
-    for lo,hi in ((xmin,vertical-eps),(vertical+eps,xmax)):
-        if hi<=lo:
-            continue
-        pts=[]
-        for i in range(150):
-            x=lo+(hi-lo)*i/149
-            y=_graph_rational_value(coeffs,x)
-            if y is not None and math.isfinite(y) and ymin-4<=y<=ymax+4:
-                pts.append([round(x,6),round(y,6)])
-        if len(pts)>=2:
-            series.append({"points":pts,"color":"#35c8ff"})
+    # Clip only what is far outside the visible viewport.
+    visible_pts=[
+        p for p in pts
+        if ymin-3 <= p[1] <= ymax+3
+    ]
+    if len(visible_pts) < 2:
+        visible_pts=pts
 
-    markers=[]
-    y0=_graph_rational_value(coeffs,0.0)
-    if y0 is not None and math.isfinite(y0):
-        markers.append({
+    markers=[
+        {
             "x":0.0,
-            "y":round(y0,6),
-            "label":f"(0, {round(y0,4)})",
-        })
-
-    for x in critical:
-        y=_graph_rational_value(coeffs,x)
-        if y is not None and math.isfinite(y):
-            markers.append({
-                "x":round(x,6),
-                "y":round(y,6),
-                "label":f"({round(x,3)}, {round(y,3)})",
-            })
-
-    if abs(A)<1e-12:
-        roots=[] if abs(B)<1e-12 else [-C/B]
-    else:
-        dn=B*B-4*A*C
-        roots=[]
-        if dn>=-1e-10:
-            dn=max(0.0,dn)
-            rr=math.sqrt(dn)
-            roots=[(-B-rr)/(2*A),(-B+rr)/(2*A)]
+            "y":round(c,6),
+            "label":f"(0, {round(c,4)})",
+        }
+    ]
 
     for x in roots:
-        if abs(x-vertical)>1e-7 and xmin<=x<=xmax:
+        if xmin <= x <= xmax:
             markers.append({
                 "x":round(x,6),
                 "y":0.0,
                 "label":f"({round(x,4)}, 0)",
             })
+
+    if critical:
+        xv=critical[0]
+        yv=_graph_polynomial_value(poly,xv)
+        markers.append({
+            "x":round(xv,6),
+            "y":round(yv,6),
+            "label":f"({round(xv,3)}, {round(yv,3)})",
+            "extremum":"min" if a > 0 else "max",
+            "drop_line":True,
+        })
+
+    # Human-readable expression for the legend.
+    def _fmt_coeff(value, power=None, first=False):
+        if abs(value) < 1e-12:
+            return ""
+        sign = "-" if value < 0 else ("" if first else "+")
+        av=abs(value)
+        coeff="" if abs(av-1)<1e-12 and power else (str(int(av)) if abs(av-round(av))<1e-10 else str(round(av,6)))
+        if power == 2:
+            body=f"{coeff}x²"
+        elif power == 1:
+            body=f"{coeff}x"
+        else:
+            body=coeff
+        return f"{sign}{body}"
+
+    expr_parts=[]
+    if abs(a)>1e-12:
+        expr_parts.append(_fmt_coeff(a,2,True))
+        expr_parts.append(_fmt_coeff(b,1,False))
+        expr_parts.append(_fmt_coeff(c,None,False))
+    else:
+        expr_parts.append(_fmt_coeff(b,1,True))
+        expr_parts.append(_fmt_coeff(c,None,False))
+    expression="".join(p for p in expr_parts if p) or "0"
 
     return {
         "type":"coordinate_plane",
@@ -2289,22 +2495,80 @@ def _graph_safe_function_drawing(message: str, reply_text: str, card_index: int 
         "ymin":ymin,
         "ymax":ymax,
         "grid":True,
-        "series":series,
-        "vertical_asymptotes":[{
-            "x":round(vertical,8),
-            "label":f"x = {round(vertical,6)}",
-        }],
-        "oblique_asymptote":{
-            "slope":round(slope,10),
-            "intercept":round(intercept,10),
-            "label":f"y = {round(slope,6)}x {'+' if intercept>=0 else '-'} {round(abs(intercept),6)}",
-        },
+        "expression":expression,
+        "series":[{"points":visible_pts,"color":"#35c8ff"}],
         "markers":markers,
         "visual_style":"function_study_reference",
     }
 
 
+
 def _graph_variation_markdown(message: str, reply_text: str, language: str):
+    source_text = f"{message or ''}\n{reply_text or ''}"
+
+    # Ordinary quadratic/linear polynomial fallback.
+    poly = _graph_extract_polynomial_quadratic(source_text)
+    rational = _graph_extract_rational_quadratic_linear(source_text)
+
+    if poly and not rational:
+        a,b,c = poly
+
+        def fmt(x, digits=3):
+            if math.isinf(x):
+                return "-∞" if x < 0 else "+∞"
+            if abs(x-round(x)) < 1e-10:
+                return str(int(round(x)))
+            return str(round(x,digits))
+
+        if abs(a) > 1e-12:
+            xv=-b/(2*a)
+            yv=_graph_polynomial_value(poly,xv)
+            left_sign = "-" if a < 0 else "+"
+            right_sign = "+" if a < 0 else "-"
+            if a < 0:
+                left_arrow, right_arrow = "↗", "↘"
+                extremum = (
+                    "local maximum" if language == "English"
+                    else "maximum local" if language == "Français"
+                    else "قيمة عظمى محلية"
+                )
+            else:
+                left_arrow, right_arrow = "↘", "↗"
+                extremum = (
+                    "local minimum" if language == "English"
+                    else "minimum local" if language == "Français"
+                    else "قيمة صغرى محلية"
+                )
+
+            title = (
+                "## Variation Table" if language == "English"
+                else "## Tableau de variations" if language == "Français"
+                else "## جدول التغيّرات"
+            )
+            return (
+                f"\n\n{title}\n\n"
+                f"| x | -∞ | {fmt(xv)} | +∞ |\n"
+                f"|---|---:|:---:|---:|\n"
+                f"| f'(x) | {left_sign} | 0 | {right_sign} |\n"
+                f"| f(x) | {left_arrow} | {fmt(yv)} — {extremum} | {right_arrow} |\n"
+            )
+
+        if abs(b) > 1e-12:
+            arrow="↗" if b>0 else "↘"
+            sign="+" if b>0 else "-"
+            title = (
+                "## Variation Table" if language == "English"
+                else "## Tableau de variations" if language == "Français"
+                else "## جدول التغيّرات"
+            )
+            return (
+                f"\n\n{title}\n\n"
+                f"| x | -∞ | +∞ |\n"
+                f"|---|---:|---:|\n"
+                f"| f'(x) | {sign} | {sign} |\n"
+                f"| f(x) | {arrow} | {arrow} |\n"
+            )
+
     coeffs = _graph_extract_rational_quadratic_linear(
         f"{message or ''}\\n{reply_text or ''}"
     )
