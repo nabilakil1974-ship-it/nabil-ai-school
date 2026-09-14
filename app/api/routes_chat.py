@@ -3621,6 +3621,11 @@ async def nabil_text_to_speech(
 
 
 
+@router.get("/teacher-assessment/health")
+def teacher_assessment_health():
+    return {"ok": True, "service": "teacher-assessment"}
+
+
 @router.post("/teacher-assessment", response_model=TeacherAssessmentResponse)
 def build_teacher_assessment(payload: TeacherAssessmentRequest):
     lessons = [str(x).strip() for x in payload.lessons if str(x).strip()]
