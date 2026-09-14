@@ -3262,6 +3262,36 @@ class ChatResponse(BaseModel):
     drawings: list[dict] = Field(default_factory=list)
     drawing: Optional[dict] = None
     student_profile: Optional[dict] = None
+
+
+class TeacherAssessmentRequest(BaseModel):
+    grade: str
+    branch: Optional[str] = None
+    subject: str
+    language: str = "العربية"
+    lessons: list[str] = Field(default_factory=list)
+    duration_minutes: int = 60
+    total_marks: float = 20
+    difficulty: str = "medium"
+    variants: int = 1
+    notes: str = ""
+
+
+class TeacherAssessmentVariant(BaseModel):
+    title: str
+    exam: str
+    correction: str
+
+
+class TeacherAssessmentResponse(BaseModel):
+    grade: str
+    branch: Optional[str] = None
+    subject: str
+    language: str
+    lessons: list[str]
+    duration_minutes: int
+    total_marks: float
+    variants: list[TeacherAssessmentVariant] = Field(default_factory=list)
  
  
 @router.get(
@@ -3361,6 +3391,61 @@ async def avatar_chat(
     }
 
 
+
+def _detect_spoken_reply_language(message: str, ui_language: str) -> str:
+    """Detect an explicit oral language switch, otherwise follow the student's utterance/UI."""
+    raw = (message or "").strip()
+    low = raw.lower()
+
+    arabic_switch = [
+        "بالعربي", "بالعربية", "اشرحلي بالعربي", "اشرح بالعربي", "احكي عربي",
+        "تكلم بالعربي", "تكلّم بالعربي", "عربي لو سمحت", "in arabic", "arabic please",
+        "explain in arabic", "en arabe", "explique en arabe",
+    ]
+    english_switch = [
+        "بالانكليزي", "بالإنكليزي", "بالانجليزي", "بالإنجليزي", "احكي انكليزي", "احكي إنكليزي",
+        "باللغة الانكليزية", "باللغة الإنجليزية", "in english", "english please", "explain in english",
+        "en anglais", "explique en anglais",
+    ]
+    french_switch = [
+        "بالفرنسي", "بالفرنسية", "احكي فرنسي", "باللغة الفرنسية",
+        "in french", "french please", "explain in french", "en français", "en francais",
+        "explique en français", "explique en francais",
+    ]
+
+    if any(x in low for x in arabic_switch):
+        return "العربية"
+    if any(x in low for x in english_switch):
+        return "English"
+    if any(x in low for x in french_switch):
+        return "Français"
+
+    # If the student is actually speaking Arabic, answer in Arabic naturally.
+    if re.search(r"[\u0600-\u06FF]", raw):
+        return "العربية"
+
+    ui = (ui_language or "").strip().lower()
+    if ui in {"français", "francais", "french", "fr"}:
+        return "Français"
+    if ui in {"english", "en"}:
+        return "English"
+    return "العربية"
+
+
+def _spoken_math_cleanup(text: str, language: str) -> str:
+    """Prepare mathematical text for natural TTS without saying 'slash'."""
+    t = str(text or "")
+    lang = (language or "").strip()
+    if lang == "English":
+        word = " over "
+    elif lang == "Français":
+        word = " sur "
+    else:
+        word = " على "
+    # Replace ordinary division slashes in spoken content. URLs are not expected in tutor replies.
+    t = re.sub(r"\s*/\s*", word, t)
+    return re.sub(r"\s{2,}", " ", t).strip()
+
 @router.post("/lesson-voice-chat")
 async def lesson_voice_chat(
     message: str = Form(...),
@@ -3387,38 +3472,35 @@ async def lesson_voice_chat(
     answer_context = answer_context[-6500:]
 
     lang = (language or "العربية").strip()
-    is_arabic = lang in {"العربية", "Arabic", "ar", "ar-LB"} or bool(
-        re.search(r"[\u0600-\u06FF]", clean_message)
-    )
+    reply_language = _detect_spoken_reply_language(clean_message, lang)
+    is_arabic = reply_language == "العربية"
 
-    if is_arabic:
+    if reply_language == "العربية":
         oral_instructions = """
-أنت الأستاذ الصوتي في NABIL AI. تكلّم بالعربية الفصحى المبسطة والطبيعية، بصوت معلّم هادئ وواضح، لا بلهجة مصطنعة ولا بأسلوب كتابي ثقيل.
-
-قواعد الحوار الشفهي:
-- لا تقرأ الجواب المكتوب حرفياً. اشرحه شفهياً وكأن الطالب أمامك.
-- استخدم جملاً قصيرة وطبيعية قابلة للمقاطعة والسؤال.
-- قل مثلاً: «لنرَ أولاً ما المعطيات»، «الآن نختار القانون المناسب»، «نعوّض القيم خطوةً خطوة»، «الفكرة الأساسية هنا هي…».
-- إذا قال الطالب إنه لم يفهم، أعد الفكرة بطريقة أبسط وبمثال قصير عند الحاجة.
-- إذا سأل «لماذا؟» فاشرح سبب استعمال القانون أو الخطوة، لا تكرر النتيجة فقط.
-- إذا طلب «ما الذي فعلناه؟» لخّص الخطوات التي أُنجزت بترتيبها، من دون قراءة حرفية للنص.
-- في الرياضيات والفيزياء والكيمياء، اقرأ الرموز والمعادلات بطريقة مفهومة شفهياً، ولا تقرأ علامات LaTeX أو JSON.
-- لا تقل DRAWINGS_JSON ولا أي تعليمات داخلية.
-- لا تخترع معلومة غير موجودة في السياق الظاهر.
-- إذا كان الوضع «حل تمارين عامة»، اعتمد آخر مسألة أو حل ظاهر كسياقك الحالي، واكتشف المادة والموضوع من السؤال نفسه. لا تشترط درساً مختاراً.
-- إذا كان الوضع «درس»، ابقَ ضمن الدرس الحالي، وأجب عن سؤال الطالب من النقطة التي وصل إليها الشرح.
-- بعد كل شرح قصير، اترك مجالاً للطالب ليسأل أو يطلب إعادة الشرح.
+أنت الأستاذ الصوتي في NABIL AI. تكلّم بالعربية الفصحى المبسطة والطبيعية، بصوت معلّم هادئ وواضح.
+إذا طلب الطالب العربية فانتقل إليها فوراً حتى لو كانت لغة الدرس إنكليزية أو فرنسية.
+لا تقرأ الجواب المكتوب حرفياً؛ اشرح شفهياً وبجمل قصيرة، وابدأ من الخطوة التي يسأل عنها الطالب.
+إذا قال إنه لم يفهم، أعد الفكرة بطريقة أبسط. وإذا قال «لماذا؟» فاشرح سبب القانون أو الخطوة.
+في الرياضيات والفيزياء والكيمياء اقرأ الصيغ بشكل طبيعي: استخدم كلمة «على» للقسمة، ولا تقل «شرطة» أو «سلاش».
+لا تقرأ LaTeX أو JSON أو DRAWINGS_JSON. لا تخترع معطيات غير موجودة.
+في التمارين العامة اعتمد آخر مسألة ظاهرة، وفي الدرس ابق ضمن سياق الدرس الحالي.
+بعد كل شرح قصير اترك مجالاً للطالب أن يقاطعك ويسأل.
+""".strip()
+    elif reply_language == "Français":
+        oral_instructions = """
+Tu es le professeur vocal de NABIL AI. Si l'élève demande le français, passe immédiatement au français même si le cours affiché est en arabe ou en anglais.
+N lis pas la réponse écrite mot à mot. Explique naturellement, avec des phrases courtes et pédagogiques.
+Si l'élève n'a pas compris, reformule plus simplement. S'il demande pourquoi, explique la raison de la règle ou de l'étape.
+Pour une division, dis « sur », jamais « slash ». Ne lis jamais le LaTeX, le JSON ni DRAWINGS_JSON.
+Dans les exercices généraux, utilise le dernier exercice visible comme contexte; dans une leçon, reste dans la leçon courante.
 """.strip()
     else:
         oral_instructions = """
-You are NABIL AI speaking as a live tutor inside the lesson.
-Do not read the written answer verbatim. Explain conversationally, in short turns.
-If the student says they did not understand, re-explain more simply. If they ask
-what was done, summarize the steps. For a problem, move through given data,
-what is required, the rule, substitution, and result. No markdown, tables or JSON.
-Keep each spoken turn concise enough for the student to interrupt and ask again.
-In general-exercises mode, use the latest visible worked solution as the current context,
-detect the subject/topic from the exercise itself, and do not require a selected lesson.
+You are the live tutor of NABIL AI. If the student asks for English, switch immediately to English even if the displayed lesson is Arabic or French.
+Do not read the written answer verbatim. Explain naturally in short, interruptible teaching turns.
+If the student did not understand, re-explain more simply. If they ask why, explain the reason for the rule or step.
+For division, say “over”; never say “slash”. Do not read LaTeX, JSON, or DRAWINGS_JSON aloud.
+In general-exercises mode use the latest visible worked problem as context; in lesson mode stay within the current lesson.
 """.strip()
 
     context = (
@@ -3426,7 +3508,7 @@ detect the subject/topic from the exercise itself, and do not require a selected
         f"Subject: {subject or 'not specified'}\n"
         f"Lesson: {lesson or 'not specified'}\n"
         f"Activity mode: {activity_mode or 'lesson'}\n"
-        f"Language: {lang}\n\n"
+        f"Interface language: {lang}\nSpoken reply language: {reply_language}\n\n"
         f"Visible lesson/solution context:\n{answer_context or '(no written answer yet)'}\n\n"
         f"Student just said:\n{clean_message}"
     )
@@ -3455,6 +3537,7 @@ detect the subject/topic from the exercise itself, and do not require a selected
 
     return {
         "reply": cleaned,
+        "reply_language": reply_language,
         "student_id": student_id,
         "conversation_id": conversation_id,
     }
@@ -3479,6 +3562,7 @@ async def nabil_text_to_speech(
 
     # Keep a single request reasonably small for fast classroom playback.
     clean_text = clean_text[:5000]
+    clean_text = _spoken_math_cleanup(clean_text, language or "العربية")
 
     voice_map = {
         "العربية": "ar-SA-HamedNeural",
@@ -3534,6 +3618,106 @@ async def nabil_text_to_speech(
             status_code=502,
             detail=f"TTS generation failed: {exc}",
         ) from exc
+
+
+
+
+@router.post("/teacher-assessment", response_model=TeacherAssessmentResponse)
+def build_teacher_assessment(payload: TeacherAssessmentRequest):
+    lessons = [str(x).strip() for x in payload.lessons if str(x).strip()]
+    if not lessons:
+        raise HTTPException(status_code=422, detail="اختر درسًا واحدًا على الأقل.")
+    variants_count = max(1, min(int(payload.variants or 1), 3))
+    duration = max(15, min(int(payload.duration_minutes or 60), 240))
+    marks = max(5.0, min(float(payload.total_marks or 20), 100.0))
+
+    try:
+        ai = NabilAIGateway()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"خطأ في إعداد NABIL AI: {exc}") from exc
+
+    lang_rule = {
+        "English": "Write the entire student exam and correction scheme in English.",
+        "Français": "Rédige toute l'épreuve et le barème de correction en français.",
+        "العربية": "اكتب المسابقة كاملة وأسُس التصحيح بالعربية الفصحى الواضحة.",
+    }.get(payload.language, "اكتب المسابقة بالعربية الفصحى الواضحة.")
+
+    diff_map = {
+        "below_average": "below-average / supportive",
+        "medium": "medium",
+        "above_average": "above-average",
+        "mixed": "progressive mix: easy, medium, advanced",
+    }
+    difficulty = diff_map.get(payload.difficulty, payload.difficulty or "medium")
+
+    generated = []
+    for index in range(variants_count):
+        variant_letter = chr(ord('A') + index)
+        uniqueness_seed = datetime.utcnow().strftime("%Y%m%d%H%M%S%f") + f"-{variant_letter}"
+        prompt = f"""
+You are NABIL AI Assessment Builder for Lebanese schools.
+Create ONE complete professional assessment, Model {variant_letter}.
+
+Grade: {payload.grade}
+Branch: {payload.branch or 'N/A'}
+Subject: {payload.subject}
+Selected lessons ONLY: {json.dumps(lessons, ensure_ascii=False)}
+Exam language: {payload.language}
+Duration: {duration} minutes
+Total marks: {marks}
+Difficulty: {difficulty}
+Teacher notes: {payload.notes or 'None'}
+Uniqueness seed: {uniqueness_seed}
+
+Hard requirements:
+- Use ONLY the selected lesson names/content scope. Do not silently add another chapter.
+- Build a fresh model: vary contexts, numerical data, ordering, subquestions, and examples while preserving learning objectives and difficulty. Do not copy a stock exam verbatim.
+- The student paper must be clean: NO answers, hints, or correction notes inside it.
+- Make the size realistic for {duration} minutes.
+- Every question and subquestion must have an explicit mark allocation.
+- Verify the allocations sum EXACTLY to {marks} marks.
+- Avoid duplicate questions that test the same idea in nearly the same way unless deliberate scaffolding is pedagogically necessary.
+- When the subject needs diagrams, tables, graphs, maps, geometry figures, circuits, chemistry structures, biology figures, or statistical displays, describe precisely what must be drawn/inserted and label it FIGURE so the platform visual engine can render it later.
+- For Grade 9 or Grade 12 official-exam subjects, imitate Lebanese official-exam discipline in sequencing and mark allocation where the known subject pattern is applicable, but do not claim an official template unless verified.
+- Provide a detailed correction scheme: expected answer, key steps/ideas, and mark distribution for every part.
+- Check mathematical/scientific correctness, units, wording, and total marks before finalizing.
+- {lang_rule}
+
+Return EXACTLY in this structure, no JSON and no markdown fences:
+===TITLE===
+<exam title>
+===EXAM===
+<student exam>
+===CORRECTION===
+<detailed correction scheme>
+""".strip()
+        try:
+            raw = ai.generate(
+                instructions="You generate rigorous school assessments and correction schemes. Follow the requested structure exactly.",
+                messages=[{"role": "user", "content": prompt}],
+                max_output_tokens=4000,
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail=f"تعذر إنشاء المسابقة: {exc}") from exc
+
+        title_match = re.search(r"===TITLE===\s*(.*?)\s*===EXAM===", raw, flags=re.S)
+        exam_match = re.search(r"===EXAM===\s*(.*?)\s*===CORRECTION===", raw, flags=re.S)
+        correction_match = re.search(r"===CORRECTION===\s*(.*)$", raw, flags=re.S)
+        title = (title_match.group(1).strip() if title_match else f"{payload.subject} — Model {variant_letter}")
+        exam = (exam_match.group(1).strip() if exam_match else raw.strip())
+        correction = (correction_match.group(1).strip() if correction_match else "")
+        generated.append(TeacherAssessmentVariant(title=title, exam=exam, correction=correction))
+
+    return TeacherAssessmentResponse(
+        grade=payload.grade,
+        branch=payload.branch,
+        subject=payload.subject,
+        language=payload.language,
+        lessons=lessons,
+        duration_minutes=duration,
+        total_marks=marks,
+        variants=generated,
+    )
 
 
 @router.post(
