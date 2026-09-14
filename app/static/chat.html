@@ -2613,6 +2613,66 @@ body.nabil-home-lock::before{
     overflow:auto;
 }
 
+
+
+/* ===== NABIL interactive board lesson ===== */
+.board-writing-mode .nabil-board-word{
+    opacity:0;
+    transition:opacity .12s ease;
+}
+.board-writing-mode .nabil-board-word.is-visible{
+    opacity:1;
+}
+.board-writing-mode .lesson-card,
+.board-writing-mode .exercise-section-card,
+.board-writing-mode .exercise-function-mini-card{
+    position:relative;
+}
+.nabil-board-controls{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    margin:10px 0 0;
+}
+.nabil-board-controls button{
+    border:1px solid #2d7398;
+    background:#103a55;
+    color:#fff;
+    border-radius:10px;
+    padding:8px 12px;
+    font-weight:700;
+    cursor:pointer;
+}
+.nabil-board-controls button:hover{filter:brightness(1.1)}
+
+
+
+/* ===== v15: chemistry/lesson visual guarantee ===== */
+.lesson-visuals{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    gap:12px!important;
+    width:100%!important;
+    margin-top:12px!important;
+}
+.lesson-visuals .linked-lesson-visual,
+.lesson-visuals .nabil-visual{
+    width:100%!important;
+    max-width:none!important;
+}
+.lesson-visuals .nabil-visual svg{
+    width:100%!important;
+    min-height:360px!important;
+    height:auto!important;
+    max-height:560px!important;
+}
+@media(max-width:900px){
+    .lesson-visuals .nabil-visual svg{
+        min-height:260px!important;
+        max-height:none!important;
+    }
+}
+
 </style>
 </head>
 
@@ -2714,8 +2774,8 @@ body.nabil-home-lock::before{
 <div class="control">
 <label for="teachingModeSelect">طريقة الشرح</label>
 <select id="teachingModeSelect">
-<option value="full_lesson">الدرس كامل ثم الأسئلة</option>
-<option value="interactive">تفاعلي: فكرة ثم سؤال</option>
+<option value="full_lesson">📘 الدرس الكامل – عرض مباشر</option>
+<option value="board_lesson">🧑‍🏫 الدرس الكامل – شرح تفاعلي على اللوح</option>
 </select>
 </div>
 
@@ -2735,7 +2795,7 @@ body.nabil-home-lock::before{
 <button
     id="teacherAssessmentBtn"
     type="button"
-    onclick="event.preventDefault(); const m=document.getElementById('teacherAssessmentModal'); if(m){m.hidden=false;m.style.display='flex';} return false;"
+    onclick="return window.nabilOpenTeacherAssessmentSafe ? window.nabilOpenTeacherAssessmentSafe(event) : false;"
     title="إنشاء مسابقة للمعلم من دروس المنهج المفهرسة">
     👨‍🏫 إعداد مسابقة للمعلم
 </button>
@@ -3861,6 +3921,14 @@ function nabilAutoSubjectDiagramSpec(wholeBoardText){
         };
     }
 
+    if(/ionic bond|ionic bonding|liaison ionique|رابطه ايونيه|الرابطة الأيونية|الرابطه الايونيه/.test(t)){
+        let metal='Na', nonmetal='Cl';
+        if(/\bmg\b|magnesium|مغنيسيوم/.test(t) && /\bo\b|oxygen|اكسجين|أكسجين/.test(t)){ metal='Mg'; nonmetal='O'; }
+        else if(/\bca\b|calcium|كالسيوم/.test(t) && /\bcl\b|chlorine|كلور/.test(t)){ metal='Ca'; nonmetal='Cl'; }
+        return {type:'ionic_bond',title:'Ionic bond – electron transfer',labels:{metal,nonmetal}};
+    }
+    if(/periodic table|tableau periodique|الجدول الدوري/.test(t)) return {type:'periodic_table',title:'Periodic table'};
+    if(/states of matter|etats de la matiere|حالات المادة/.test(t)) return {type:'states_of_matter',title:'States of matter'};
     if(/series circuit|resistors? in series|توالي/.test(t)) return {type:'electric_series',title:'Series circuit'};
     if(/parallel circuit|resistors? in parallel|توازي/.test(t)) return {type:'electric_parallel',title:'Parallel circuit'};
     return null;
@@ -4765,6 +4833,121 @@ function readAnswer(
     );
 }
 
+
+let nabilBoardTimer = null;
+let nabilBoardPaused = false;
+let nabilBoardQueue = [];
+let nabilBoardQueueIndex = 0;
+
+function nabilBoardModeActive(){
+    return nabilActivityMode === "lesson" &&
+           String(teachingModeSelect?.value || "") === "board_lesson";
+}
+
+function nabilBoardPlainSpeech(text){
+    try{
+        return nabilHTMLToPlainText(renderAIText(String(text||"")))
+            .replace(/DRAWINGS_JSON:[\s\S]*$/i,"")
+            .replace(/\s+/g," ")
+            .trim();
+    }catch(_e){
+        return String(text||"")
+            .replace(/[#*_`>-]/g," ")
+            .replace(/\s+/g," ")
+            .trim();
+    }
+}
+
+function nabilPrepareBoardWriting(root){
+    if(!root) return [];
+    root.classList.add("board-writing-mode");
+    const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
+    const nodes=[];
+    while(walker.nextNode()) nodes.push(walker.currentNode);
+
+    const spans=[];
+    nodes.forEach(node=>{
+        const parent=node.parentElement;
+        if(!parent) return;
+        if(parent.closest("svg,mjx-container,script,style,.teacher-tools,.sources,.nabil-board-controls")) return;
+
+        const raw=node.nodeValue||"";
+        if(!raw.trim()) return;
+        if(/[\\$]|\\frac|\\sqrt|\\left|\\right/.test(raw)) return;
+
+        const parts=raw.split(/(\s+)/);
+        const frag=document.createDocumentFragment();
+        parts.forEach(part=>{
+            if(!part) return;
+            if(/^\s+$/.test(part)){
+                frag.appendChild(document.createTextNode(part));
+            }else{
+                const s=document.createElement("span");
+                s.className="nabil-board-word";
+                s.textContent=part;
+                frag.appendChild(s);
+                spans.push(s);
+            }
+        });
+        node.replaceWith(frag);
+    });
+    return spans;
+}
+
+function nabilStartBoardReveal(root, spokenText, language){
+    if(nabilBoardTimer) clearInterval(nabilBoardTimer);
+    nabilBoardPaused=false;
+    nabilBoardQueue=nabilPrepareBoardWriting(root);
+    nabilBoardQueueIndex=0;
+
+    const controls=document.createElement("div");
+    controls.className="nabil-board-controls";
+    controls.innerHTML=`
+        <button type="button" data-board="pause">⏸ Pause</button>
+        <button type="button" data-board="continue">▶ Continue</button>
+        <button type="button" data-board="skip">⏭ Skip step</button>
+        <button type="button" data-board="repeat">🔁 Repeat</button>
+    `;
+    root.appendChild(controls);
+
+    controls.addEventListener("click",e=>{
+        const action=e.target?.dataset?.board;
+        if(!action) return;
+        if(action==="pause"){
+            nabilBoardPaused=true;
+            stopNabilNeuralVoice();
+        }else if(action==="continue"){
+            nabilBoardPaused=false;
+            nabilSpeakClear(spokenText,language);
+        }else if(action==="skip"){
+            nabilBoardQueue.slice(nabilBoardQueueIndex).forEach(s=>s.classList.add("is-visible"));
+            nabilBoardQueueIndex=nabilBoardQueue.length;
+            if(nabilBoardTimer) clearInterval(nabilBoardTimer);
+        }else if(action==="repeat"){
+            nabilBoardQueue.forEach(s=>s.classList.remove("is-visible"));
+            nabilBoardQueueIndex=0;
+            nabilBoardPaused=false;
+            nabilSpeakClear(spokenText,language);
+        }
+    });
+
+    nabilBoardTimer=setInterval(()=>{
+        if(nabilBoardPaused) return;
+        for(let i=0;i<2 && nabilBoardQueueIndex<nabilBoardQueue.length;i++){
+            nabilBoardQueue[nabilBoardQueueIndex++]?.classList.add("is-visible");
+        }
+        if(nabilBoardQueueIndex>=nabilBoardQueue.length){
+            clearInterval(nabilBoardTimer);
+            nabilBoardTimer=null;
+        }
+    },85);
+
+    nabilSpeakClear(spokenText,language,{
+        onstart:()=>stopLessonRecognitionTemporarily?.(),
+        onend:()=>{ if(lessonVoiceConversation) resumeLessonRecognitionAfterSpeech?.(); }
+    });
+}
+
 function addMessage(
     role,
     text,
@@ -5054,10 +5237,24 @@ function addMessage(
 
         MathJax.typesetPromise(
             [bubble]
-        ).catch(
+        ).then(()=>{
+            if(nabilBoardModeActive()){
+                nabilStartBoardReveal(
+                    bubble,
+                    nabilBoardPlainSpeech(visibleText),
+                    messageLanguage
+                );
+            }
+        }).catch(
             console.error
         );
 
+    } else if(role === "teacher" && nabilBoardModeActive()){
+        nabilStartBoardReveal(
+            bubble,
+            nabilBoardPlainSpeech(visibleText),
+            messageLanguage
+        );
     }
 
 }
@@ -5748,11 +5945,17 @@ startLesson.addEventListener(
 
         /* The actual first explanation from NABIL AI will be spoken automatically. */
 
-        const prompt = language === "English"
-            ? "Begin the selected lesson now. Teach the first concept clearly and include a real diagram when it helps."
-            : language === "Français"
-                ? "Commence maintenant la leçon sélectionnée. Explique clairement la première idée et ajoute un vrai schéma lorsqu’il est utile."
-                : "ابدأ الدرس المحدد الآن. اشرح الفكرة الأولى بوضوح، وأظهر رسمة فعلية عندما تساعد على الفهم.";
+        const prompt = teachingMode === "board_lesson"
+            ? (language === "English"
+                ? "Begin the COMPLETE selected lesson now in interactive board mode. Teach it step by step as if you are writing on a board, and finish with five varied solved exercises from the same lesson."
+                : language === "Français"
+                    ? "Commence maintenant la leçon COMPLÈTE en mode tableau interactif. Explique-la étape par étape comme si tu écrivais au tableau, puis termine par cinq exercices variés corrigés sur cette même leçon."
+                    : "ابدأ الآن الدرس المحدد كاملًا بنمط اللوح التفاعلي. اشرح خطوة خطوة كأنك تكتب على اللوح، ثم اختم بخمسة تمارين متنوعة محلولة من الدرس نفسه.")
+            : (language === "English"
+                ? "Begin the COMPLETE selected lesson now. Present the whole lesson clearly with the necessary diagrams, then finish with five varied solved exercises from the same lesson."
+                : language === "Français"
+                    ? "Commence maintenant la leçon COMPLÈTE. Présente toute la leçon clairement avec les schémas nécessaires, puis termine par cinq exercices variés corrigés sur cette même leçon."
+                    : "ابدأ الآن الدرس المحدد كاملًا. اعرض الدرس كله بوضوح مع الرسومات اللازمة، ثم اختم بخمسة تمارين متنوعة محلولة من الدرس نفسه.");
 
         await sendToAI(
             prompt,
@@ -7661,28 +7864,63 @@ function extractAndRenderNabilDrawings(text){
 
 function safeFallbackDiagramForReply(text){
     const lesson = String(lessonSelect?.value || "");
-    const combined = nabilNormalize(`${lesson} ${text || ""}`);
+    const raw = `${lesson} ${text || ""}`;
+    const combined = nabilNormalize(raw);
+    const low = raw.toLowerCase();
 
-    /* Ionic bond / NaCl: render only when the lesson or reply clearly identifies
-       ionic bonding AND Na/Cl are present. This prevents unrelated invention. */
     const ionicContext =
         /ionic bond|ionic bonding|رابطه ايونيه|الرابطه الايونيه|liaison ionique/.test(combined);
 
-    const hasNa =
-        /\bna\b|sodium|صوديوم/.test(String(text || "").toLowerCase());
+    if (ionicContext){
+        let metal = "Na";
+        let nonmetal = "Cl";
 
-    const hasCl =
-        /\bcl\b|chlorine|كلور|كلورين/.test(String(text || "").toLowerCase());
+        // Use a compound explicitly present in the lesson/answer when available.
+        if (/\bmg\b|magnesium|مغنيسيوم/.test(low) && /\bo\b|oxygen|اكسجين|أكسجين/.test(low)){
+            metal = "Mg";
+            nonmetal = "O";
+        } else if (/\bca\b|calcium|كالسيوم/.test(low) && /\bcl\b|chlorine|كلور/.test(low)){
+            metal = "Ca";
+            nonmetal = "Cl";
+        } else if (/\bna\b|sodium|صوديوم/.test(low) && /\bcl\b|chlorine|كلور/.test(low)){
+            metal = "Na";
+            nonmetal = "Cl";
+        }
 
-    if (ionicContext && hasNa && hasCl){
+        const arTitle = metal==="Na" && nonmetal==="Cl"
+            ? "تكوّن الرابطة الأيونية بانتقال الإلكترون – مثال NaCl"
+            : `انتقال الإلكترونات وتكوّن الرابطة الأيونية – ${metal}/${nonmetal}`;
+
         return renderNabilDiagram({
             type:"ionic_bond",
             title: languageSelect?.value === "العربية"
-                ? "تكوّن كلوريد الصوديوم بانتقال الإلكترون"
+                ? arTitle
                 : languageSelect?.value === "Français"
-                    ? "Formation de NaCl par transfert d’électron"
-                    : "Formation of NaCl by Electron Transfer",
-            labels:{metal:"Na",nonmetal:"Cl"}
+                    ? "Transfert d’électrons et formation d’une liaison ionique"
+                    : "Electron Transfer and Ionic Bond Formation",
+            labels:{metal,nonmetal}
+        });
+    }
+
+    if (/periodic table|tableau periodique|الجدول الدوري/.test(combined)){
+        return renderNabilDiagram({
+            type:"periodic_table",
+            title: languageSelect?.value === "العربية"
+                ? "الجدول الدوري – العناصر الأساسية في المثال"
+                : languageSelect?.value === "Français"
+                    ? "Tableau périodique – éléments clés"
+                    : "Periodic Table – Key Elements"
+        });
+    }
+
+    if (/states of matter|etats de la matiere|حالات الماده|حالات المادة/.test(combined)){
+        return renderNabilDiagram({
+            type:"states_of_matter",
+            title: languageSelect?.value === "العربية"
+                ? "حالات المادة وتحولاتها"
+                : languageSelect?.value === "Français"
+                    ? "États de la matière"
+                    : "States of Matter"
         });
     }
 
@@ -10501,21 +10739,38 @@ try{
 
 
 // ===== NABIL AI Teacher Assessment Builder =====
-const teacherAssessmentBtn=document.getElementById('teacherAssessmentBtn');
-const teacherAssessmentModal=document.getElementById('teacherAssessmentModal');
-const teacherAssessmentClose=document.getElementById('teacherAssessmentClose');
-const teacherGrade=document.getElementById('teacherGrade');
-const teacherBranch=document.getElementById('teacherBranch');
-const teacherBranchWrap=document.getElementById('teacherBranchWrap');
-const teacherSubject=document.getElementById('teacherSubject');
-const teacherExamLanguage=document.getElementById('teacherExamLanguage');
-const teacherLessonsList=document.getElementById('teacherLessonsList');
-const teacherLessonsEmpty=document.getElementById('teacherLessonsEmpty');
-const teacherGenerateAssessment=document.getElementById('teacherGenerateAssessment');
-const teacherDownloadWord=document.getElementById('teacherDownloadWord');
-const teacherAssessmentStatus=document.getElementById('teacherAssessmentStatus');
-const teacherAssessmentPreview=document.getElementById('teacherAssessmentPreview');
+let teacherAssessmentBtn=null;
+let teacherAssessmentModal=null;
+let teacherAssessmentClose=null;
+let teacherGrade=null;
+let teacherBranch=null;
+let teacherBranchWrap=null;
+let teacherSubject=null;
+let teacherExamLanguage=null;
+let teacherLessonsList=null;
+let teacherLessonsEmpty=null;
+let teacherGenerateAssessment=null;
+let teacherDownloadWord=null;
+let teacherAssessmentStatus=null;
+let teacherAssessmentPreview=null;
 let teacherLastAssessment=null;
+
+function nabilTeacherBindElements(){
+  teacherAssessmentBtn=document.getElementById('teacherAssessmentBtn');
+  teacherAssessmentModal=document.getElementById('teacherAssessmentModal');
+  teacherAssessmentClose=document.getElementById('teacherAssessmentClose');
+  teacherGrade=document.getElementById('teacherGrade');
+  teacherBranch=document.getElementById('teacherBranch');
+  teacherBranchWrap=document.getElementById('teacherBranchWrap');
+  teacherSubject=document.getElementById('teacherSubject');
+  teacherExamLanguage=document.getElementById('teacherExamLanguage');
+  teacherLessonsList=document.getElementById('teacherLessonsList');
+  teacherLessonsEmpty=document.getElementById('teacherLessonsEmpty');
+  teacherGenerateAssessment=document.getElementById('teacherGenerateAssessment');
+  teacherDownloadWord=document.getElementById('teacherDownloadWord');
+  teacherAssessmentStatus=document.getElementById('teacherAssessmentStatus');
+  teacherAssessmentPreview=document.getElementById('teacherAssessmentPreview');
+}
 
 function nabilTeacherFill(select,items,placeholder,current=''){
   select.innerHTML='';
@@ -10561,6 +10816,7 @@ function nabilTeacherRefreshLessons(){
   teacherLessonsEmpty.hidden=lessons.length>0;
 }
 function nabilOpenTeacherAssessment(){
+  nabilTeacherBindElements();
   if(!teacherAssessmentModal) return false;
 
   // Open first. Even if curriculum/index population fails, the teacher must see the builder.
@@ -10642,15 +10898,23 @@ function nabilCloseTeacherAssessment(){
   teacherAssessmentModal.hidden=true;
   teacherAssessmentModal.style.display='none';
 }
-teacherAssessmentBtn?.addEventListener('click',window.nabilOpenTeacherAssessmentSafe);
-teacherAssessmentClose?.addEventListener('click',nabilCloseTeacherAssessment);
-teacherAssessmentModal?.addEventListener('click',e=>{if(e.target?.dataset?.closeTeacherAssessment)nabilCloseTeacherAssessment()});
-teacherGrade?.addEventListener('change',nabilTeacherRefreshBranchesSubjects);
-teacherBranch?.addEventListener('change',()=>{nabilTeacherFill(teacherSubject,nabilTeacherSubjectsFor(teacherGrade.value,teacherBranch.value),'اختر المادة');nabilTeacherRefreshLessons()});
-teacherSubject?.addEventListener('change',nabilTeacherRefreshLessons);
-teacherExamLanguage?.addEventListener('change',nabilTeacherRefreshLessons);
-document.getElementById('teacherSelectAllLessons')?.addEventListener('click',()=>teacherLessonsList.querySelectorAll('input').forEach(x=>x.checked=true));
-document.getElementById('teacherClearLessons')?.addEventListener('click',()=>teacherLessonsList.querySelectorAll('input').forEach(x=>x.checked=false));
+function nabilInitTeacherAssessmentUI(){
+  nabilTeacherBindElements();
+  teacherAssessmentBtn?.addEventListener('click',window.nabilOpenTeacherAssessmentSafe);
+  teacherAssessmentClose?.addEventListener('click',nabilCloseTeacherAssessment);
+  teacherAssessmentModal?.addEventListener('click',e=>{if(e.target?.dataset?.closeTeacherAssessment)nabilCloseTeacherAssessment()});
+  teacherGrade?.addEventListener('change',nabilTeacherRefreshBranchesSubjects);
+  teacherBranch?.addEventListener('change',()=>{nabilTeacherFill(teacherSubject,nabilTeacherSubjectsFor(teacherGrade.value,teacherBranch.value),'اختر المادة');nabilTeacherRefreshLessons()});
+  teacherSubject?.addEventListener('change',nabilTeacherRefreshLessons);
+  teacherExamLanguage?.addEventListener('change',nabilTeacherRefreshLessons);
+  document.getElementById('teacherSelectAllLessons')?.addEventListener('click',()=>teacherLessonsList?.querySelectorAll('input').forEach(x=>x.checked=true));
+  document.getElementById('teacherClearLessons')?.addEventListener('click',()=>teacherLessonsList?.querySelectorAll('input').forEach(x=>x.checked=false));
+}
+if(document.readyState==="loading"){
+  document.addEventListener("DOMContentLoaded",nabilInitTeacherAssessmentUI,{once:true});
+}else{
+  nabilInitTeacherAssessmentUI();
+}
 
 function nabilSelectedTeacherLessons(){return [...teacherLessonsList.querySelectorAll('input:checked')].map(x=>x.value)}
 function nabilRenderTeacherAssessment(data){
@@ -10668,6 +10932,7 @@ function nabilTeacherWordHTML(data){
   const parts=(data?.variants||[]).map((v,i)=>`<h1>${esc(v.title||('Model '+(i+1)))}</h1><h2>Student Exam</h2><div style="white-space:pre-wrap">${esc(v.exam)}</div><br style="page-break-before:always"><h2>Correction Scheme</h2><div style="white-space:pre-wrap">${esc(v.correction)}</div>`).join('<br style="page-break-before:always">');
   return `<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:Arial,'Times New Roman',sans-serif;line-height:1.55}h1,h2{margin-bottom:10px}</style></head><body>${parts}</body></html>`;
 }
+function nabilBindTeacherAssessmentActions(){
 teacherDownloadWord?.addEventListener('click',()=>{
   if(!teacherLastAssessment)return;
   const blob=new Blob(['﻿',nabilTeacherWordHTML(teacherLastAssessment)],{type:'application/msword'});
@@ -10687,6 +10952,11 @@ teacherGenerateAssessment?.addEventListener('click',async()=>{
   }catch(err){teacherAssessmentStatus.textContent=`حدث خطأ: ${err.message||err}`}
   finally{teacherGenerateAssessment.disabled=false}
 });
+}
+document.addEventListener("DOMContentLoaded",()=>{
+  nabilTeacherBindElements();
+  nabilBindTeacherAssessmentActions();
+},{once:true});
 
 </script>
 
