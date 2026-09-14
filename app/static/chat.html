@@ -3778,21 +3778,10 @@ function nabilPrepareFunctionKeyBlocks(rawSolutionBodyHTML, messageLanguage){
 }
 
 function nabilFunctionLeftColumnHTML({givenHTML,requiredHTML,formulaHTML}, messageLanguage){
-    const title = messageLanguage==="English" ? "Given & Main Data"
-        : messageLanguage==="Français" ? "Données principales"
-        : "المعطيات الأساسية";
-    return `
-        <div class="exercise-function-study-title">${title}</div>
-        ${givenHTML || ""}
-        ${requiredHTML || ""}
-        ${formulaHTML || ""}
-    `;
+    return `${givenHTML || ""}${requiredHTML || ""}${formulaHTML || ""}`;
 }
 
 function nabilFunctionCenterColumnHTML({solutionBodyHTML,solutionHTML,extraHTML}, messageLanguage){
-    const title = messageLanguage==="English" ? "Key Solution Points"
-        : messageLanguage==="Français" ? "Étapes essentielles"
-        : "أبرز نقاط الحل";
     const split = nabilPrepareFunctionKeyBlocks(solutionBodyHTML || "", messageLanguage);
     const body = split.length
         ? `<div class="exercise-function-mini-grid">${
@@ -3802,11 +3791,7 @@ function nabilFunctionCenterColumnHTML({solutionBodyHTML,solutionHTML,extraHTML}
             </div>`).join("")
           }</div>`
         : (solutionHTML || "");
-    return `
-        <div class="exercise-function-keypoints-title">${title}</div>
-        ${body}
-        ${extraHTML || ""}
-    `;
+    return `${body}${extraHTML || ""}`;
 }
 
 function nabilFunctionFinalStripHTML({answerHTML,summaryHTML}){
@@ -4053,38 +4038,45 @@ ${rawVariationHTML}`);
                 answerHTML, summaryHTML
             });
 
+            const hasGraph = Boolean(String(visualHTML || "").trim());
+            const hasVariation = Boolean(variationTextHTML || variationTables.length || autoVariationTableHTML);
+
             return `
-            <article class="exercise-board function-study-board full-width-board" dir="${messageDirection}">
-                <div class="exercise-board-head">
-                    <div class="exercise-board-title">${title}</div>
-                </div>
+            <article class="exercise-board function-study-board full-width-board compact-function-board" dir="${messageDirection}">
+                <div class="exercise-function-board compact-function-stack">
+                    ${leftColumnHTML ? `
+                        <section class="exercise-function-study" dir="${messageDirection}">
+                            ${leftColumnHTML}
+                        </section>
+                    ` : ""}
 
-                <div class="exercise-function-board">
-                    <section class="exercise-function-study" dir="${messageDirection}">
-                        ${leftColumnHTML}
-                    </section>
+                    ${centerColumnHTML ? `
+                        <section class="exercise-function-keypoints" dir="${messageDirection}">
+                            ${centerColumnHTML}
+                        </section>
+                    ` : ""}
 
-                    <section class="exercise-function-keypoints" dir="${messageDirection}">
-                        ${centerColumnHTML}
-                    </section>
+                    ${hasGraph ? `
+                        <section class="exercise-function-visual" dir="${messageDirection}">
+                            <div class="exercise-function-visual-title">${functionGraphTitle(messageLanguage)}</div>
+                            <div class="exercise-visual-panel ${diagramsForThis.length > 1 ? "multi-diagram-panel" : ""}">${visualHTML}</div>
+                        </section>
+                    ` : ""}
 
-                    <section class="exercise-function-visual" dir="${messageDirection}">
-                        <div class="exercise-function-visual-title">${functionGraphTitle(messageLanguage)}</div>
-                        <div class="exercise-visual-panel ${diagramsForThis.length > 1 ? "multi-diagram-panel" : ""}">${visualHTML}</div>
+                    ${hasVariation ? `
+                        <section class="exercise-variation-zone function-variation-stack" dir="${messageDirection}">
+                            <div class="exercise-variation-title">${variationTitle(messageLanguage)}</div>
+                            ${variationTextHTML ? `<div class="exercise-variation-richtext">${variationTextHTML}</div>` : ""}
+                            ${variationTables.map(t=>decorateVariationTableHTML(t,messageLanguage)).join("")}
+                            ${!variationTables.length && autoVariationTableHTML ? decorateVariationTableHTML(autoVariationTableHTML, messageLanguage) : ""}
+                        </section>
+                    ` : ""}
 
-                        ${(variationTextHTML || variationTables.length || autoVariationTableHTML) ? `
-                            <div class="exercise-variation-zone">
-                                <div class="exercise-variation-title">${variationTitle(messageLanguage)}</div>
-                                ${variationTextHTML ? `<div class="exercise-variation-richtext">${variationTextHTML}</div>` : ""}
-                                ${variationTables.map(t=>decorateVariationTableHTML(t,messageLanguage)).join("")}
-                                ${!variationTables.length && autoVariationTableHTML ? decorateVariationTableHTML(autoVariationTableHTML, messageLanguage) : ""}
-                            </div>
-                        ` : ""}
-                    </section>
-
-                    <section class="exercise-function-final-strip" dir="${messageDirection}">
-                        ${finalStripHTML}
-                    </section>
+                    ${finalStripHTML ? `
+                        <section class="exercise-function-final-strip" dir="${messageDirection}">
+                            ${finalStripHTML}
+                        </section>
+                    ` : ""}
                 </div>
             </article>`;
         }
