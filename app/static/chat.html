@@ -2722,6 +2722,21 @@ let lessonTalkActive = false;
 let lessonTalkBusy = false;
 let lessonTalkShouldResume = false;
 
+/* Keep the learning page clean: one active question/lesson at a time. */
+function nabilClearVisibleConversation(resetConversation = false) {
+    try { stopNabilNeuralVoice(); } catch(e) {}
+    if (chat) {
+        chat.querySelectorAll('.message').forEach(node => node.remove());
+        chat.scrollTop = 0;
+    }
+    if (welcome) welcome.style.display = 'none';
+    if (resetConversation) conversationId = null;
+}
+
+function nabilStartFreshVisibleQuestion() {
+    const isGeneral = nabilActivityMode === 'general_exercises';
+    nabilClearVisibleConversation(isGeneral);
+}
 
 function fillSelect(
     select,
@@ -2903,6 +2918,12 @@ gradeSelect.addEventListener("change", updateBranchAndSubjects);
 branchSelect.addEventListener("change", updateBranchAndSubjects);
 subjectSelect.addEventListener("change", updateLessons);
 languageSelect.addEventListener("change", updateLessons);
+
+/* A new educational scope starts with a clean screen and clean AI context. */
+gradeSelect.addEventListener("change", () => nabilClearVisibleConversation(true));
+branchSelect.addEventListener("change", () => nabilClearVisibleConversation(true));
+subjectSelect.addEventListener("change", () => nabilClearVisibleConversation(true));
+lessonSelect.addEventListener("change", () => nabilClearVisibleConversation(true));
 
 
 function getStudentId() {
@@ -4319,7 +4340,7 @@ function browserVoiceFallback(text, language, callbacks={}){
         ? "en-US"
         : language === "Français"
             ? "fr-FR"
-            : "ar-LB";
+            : "ar-SA";
 
     // Prefer an actual Lebanese Arabic browser voice when available.
     if (language !== "English" && language !== "Français") {
@@ -4806,6 +4827,13 @@ async function sendToAI(
     message,
     showStudentMessage = true
 ) {
+    if (
+        showStudentMessage &&
+        ((typeof message === "string" && message.trim()) || selectedImage)
+    ) {
+        nabilStartFreshVisibleQuestion();
+    }
+
     /* Social/personal questions are answered by the local NABIL identity engine. */
     if (
         showStudentMessage &&
@@ -5613,7 +5641,7 @@ micBtn.addEventListener(
                 ? "en-US"
                 : language === "Français"
                     ? "fr-FR"
-                    : "ar-LB";
+                    : "ar-SA";
 
 
         recognition.start();
@@ -7976,7 +8004,7 @@ lessonMicBtn?.addEventListener(
                 : languageSelect?.value ===
                     "Français"
                     ? "fr-FR"
-                    : "ar-LB";
+                    : "ar-SA";
 
         if (nabilLessonListening) {
             lessonVoiceConversation = false;
@@ -8602,7 +8630,7 @@ document.body.classList.add("nabil-home-lock");
 
 function homeLangCode(){
     const language = languageSelect?.value || "العربية";
-    return language === "English" ? "en-US" : language === "Français" ? "fr-FR" : "ar-LB";
+    return language === "English" ? "en-US" : language === "Français" ? "fr-FR" : "ar-SA";
 }
 
 function homeSpeak(text, onDone=null){
@@ -9634,7 +9662,7 @@ document.addEventListener("click", (event) => {
         rec.continuous = true;
         rec.interimResults = true;
         rec.lang = languageSelect?.value === "English" ? "en-US"
-            : languageSelect?.value === "Français" ? "fr-FR" : "ar-LB";
+            : languageSelect?.value === "Français" ? "fr-FR" : "ar-SA";
 
         rec.onstart = () => {
             if (lessonTalkActive && !lessonTalkBusy) {
@@ -9689,7 +9717,7 @@ document.addEventListener("click", (event) => {
         lessonTalkActive = true;
         lessonTalkBusy = false;
         rec.lang = languageSelect?.value === "English" ? "en-US"
-            : languageSelect?.value === "Français" ? "fr-FR" : "ar-LB";
+            : languageSelect?.value === "Français" ? "fr-FR" : "ar-SA";
         talkBtn.classList.add("listening");
         lessonTalkSetState("🎙 عم بسمعك...");
         try { rec.start(); } catch(_e) { lessonTalkRestart(); }
