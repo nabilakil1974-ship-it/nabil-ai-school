@@ -2475,6 +2475,104 @@ body.nabil-home-lock::before{
   }
 }
 
+
+
+/* ===== v9: unified subject layouts — one idea per full-width card ===== */
+.exercise-board[data-layout-family="chemistry"] .exercise-special-layout,
+.exercise-board[data-layout-family="biology"] .exercise-special-layout,
+.exercise-board[data-layout-family="geometry"] .exercise-special-layout,
+.exercise-board[data-layout-family="probability"] .exercise-special-layout,
+.exercise-board[data-layout-family="language"] .exercise-special-layout,
+.exercise-board[data-layout-family="social"] .exercise-special-layout,
+.exercise-board[data-layout-family="physics"] .exercise-special-layout,
+.exercise-board[data-layout-family="circuit"] .exercise-special-layout,
+.exercise-board[data-layout-family="default"] .exercise-special-layout{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    gap:10px!important;
+    width:100%!important;
+}
+
+.exercise-board[data-layout-family] .exercise-special-visual,
+.exercise-board[data-layout-family] .exercise-special-content,
+.exercise-board[data-layout-family] .exercise-idea-stack,
+.exercise-board[data-layout-family] .exercise-section-card,
+.exercise-board[data-layout-family] .exercise-idea-card,
+.exercise-board[data-layout-family] .exercise-answer-card,
+.exercise-board[data-layout-family] .exercise-summary-card,
+.exercise-board[data-layout-family] .exercise-solution-card{
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    box-sizing:border-box!important;
+}
+
+.exercise-board[data-layout-family] .exercise-idea-stack{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    gap:10px!important;
+}
+
+.exercise-board[data-layout-family] .exercise-special-layout.no-visual .exercise-special-visual{
+    display:none!important;
+}
+
+.exercise-board[data-layout-family] .exercise-special-content p,
+.exercise-board[data-layout-family] .exercise-special-content li,
+.exercise-board[data-layout-family] .exercise-special-content td,
+.exercise-board[data-layout-family] .exercise-special-content th{
+    word-break:normal!important;
+    overflow-wrap:break-word!important;
+    white-space:normal!important;
+}
+
+/* Start Lesson / explanation mode: every concept gets its own full-width card. */
+.lesson-card-stack[data-lesson-layout-family]{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    gap:10px!important;
+    width:100%!important;
+}
+.lesson-card-stack[data-lesson-layout-family] > *{
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    box-sizing:border-box!important;
+}
+.lesson-card-stack[data-lesson-layout-family] p,
+.lesson-card-stack[data-lesson-layout-family] li{
+    word-break:normal!important;
+    overflow-wrap:break-word!important;
+    white-space:normal!important;
+}
+
+/* Languages and social studies are text-first: no forced empty graphic area. */
+.exercise-board[data-layout-family="language"] .exercise-special-content,
+.exercise-board[data-layout-family="social"] .exercise-special-content{
+    padding-top:0!important;
+}
+
+/* On phones, everything stays one clean vertical stack. */
+@media(max-width:900px){
+    .exercise-board[data-layout-family] .exercise-special-layout,
+    .exercise-board[data-layout-family] .exercise-special-content,
+    .exercise-board[data-layout-family] .exercise-idea-stack,
+    .lesson-card-stack[data-lesson-layout-family]{
+        display:grid!important;
+        grid-template-columns:minmax(0,1fr)!important;
+        gap:8px!important;
+        width:100%!important;
+    }
+    .exercise-board[data-layout-family] .exercise-special-visual,
+    .exercise-board[data-layout-family] .exercise-special-content > *,
+    .lesson-card-stack[data-lesson-layout-family] > *{
+        grid-column:1!important;
+        width:100%!important;
+        max-width:100%!important;
+        margin:0!important;
+    }
+}
+
 </style>
 </head>
 
@@ -3692,6 +3790,13 @@ function nabilExerciseLayoutFamily(board, diagramsForThis, wholeBoardText){
     if(has(/periodic_table|energy_diagram|states_of_matter|ionic_bond/) || /chemistry|chemical|atom|bond|reaction|element|كيمياء|ذرة|رابطة|تفاعل/.test(text)) return "chemistry";
     if(has(/cell_diagram|life_cycle|food_chain|body_system/) || /biology|cell|organ|system|food chain|أحياء|خلية|عضو|جهاز/.test(text)) return "biology";
     if(has(/probability_tree|venn_diagram|probability_table|statistics/) || /probability|statistics|venn|tree diagram|احتمال|إحصاء|فين/.test(text)) return "probability";
+
+    if(/arabic|english|french|français|language|grammar|reading|text|vocabulary|conjugation|orthography|writing|expression|لغة عربية|العربية|قواعد|نحو|صرف|إملاء|تعبير|مطالعة|نص|مفردات|فرنسي|إنكليزي|انكليزي/.test(text))
+        return "language";
+
+    if(/geography|history|civics|national education|social studies|تاريخ|جغرافيا|تربية وطنية|تربية مدنية|اجتماعيات|مواطنة/.test(text))
+        return "social";
+
     return "default";
 }
 
@@ -3744,7 +3849,9 @@ function nabilLayoutLabel(family,messageLanguage){
         chemistry:{English:"Chemistry Visual",Français:"Schéma chimique","العربية":"رسم كيميائي"},
         biology:{English:"Biology Visual",Français:"Schéma biologique","العربية":"رسم أحيائي"},
         probability:{English:"Probability / Statistics",Français:"Probabilités / Statistiques","العربية":"احتمالات / إحصاء"},
-        default:{English:"Visual Solution",Français:"Solution visuelle","العربية":"حل بصري"}
+        language:{English:"Language / Grammar",Français:"Langue / Grammaire","العربية":"لغة / قواعد"},
+        social:{English:"Social Studies",Français:"Sciences humaines","العربية":"مواد اجتماعية"},
+        default:{English:"Structured Solution",Français:"Solution structurée","العربية":"حل منظم"}
     };
     return labels[family]?.[messageLanguage] || labels[family]?.English || family;
 }
@@ -3784,20 +3891,34 @@ function nabilSplitIdeaCardsHTML(rawHTML, messageLanguage){
 
 function nabilRenderSpecialExerciseLayout({family,title,diagramsForThis,visualHTML,hasReliableVisual,givenHTML,requiredHTML,formulaHTML,extraHTML,solutionBodyHTML,solutionHTML,answerHTML,summaryHTML,messageDirection,messageLanguage}){
     const solutionCards=nabilSplitIdeaCardsHTML(solutionBodyHTML||"",messageLanguage);
-    const contentHTML=`
-        <div class="exercise-idea-stack">
-            ${givenHTML}
-            ${requiredHTML}
-            ${formulaHTML}
-            ${extraHTML}
-            ${solutionCards || solutionHTML}
-            ${answerHTML}
-            ${summaryHTML}
-        </div>`;
+
+    const contentParts = [];
+    if(givenHTML) contentParts.push(givenHTML);
+    if(requiredHTML) contentParts.push(requiredHTML);
+
+    // Languages/social studies usually need concept/rule/text first, then application/answer.
+    if(family==="language" || family==="social"){
+        if(formulaHTML) contentParts.push(formulaHTML);
+        if(extraHTML) contentParts.push(extraHTML);
+        contentParts.push(solutionCards || solutionHTML);
+    }else{
+        if(formulaHTML) contentParts.push(formulaHTML);
+        if(extraHTML) contentParts.push(extraHTML);
+        contentParts.push(solutionCards || solutionHTML);
+    }
+
+    if(answerHTML) contentParts.push(answerHTML);
+    if(summaryHTML) contentParts.push(summaryHTML);
+
+    const contentHTML=`<div class="exercise-idea-stack">${contentParts.filter(Boolean).join("")}</div>`;
+
+    // If a reliable visual exists, it gets its own full-width card BEFORE the explanation.
+    // If it does not exist, no empty visual space is reserved.
     const visualSection=hasReliableVisual?`
         <section class="exercise-special-visual">
             <div class="exercise-visual-panel ${diagramsForThis.length > 1 ? "multi-diagram-panel" : ""}">${visualHTML}</div>
         </section>`:"";
+
     return `
     <article class="exercise-board visual-column-board layout-${family}" data-layout-family="${family}" dir="${messageDirection}">
         <div class="exercise-board-head">
@@ -3988,6 +4109,17 @@ ${rawVariationHTML}`);
 }
 
 
+function nabilLessonLayoutFamily(){
+    const subject = String(subjectSelect?.value || "").toLowerCase();
+    if(/math|mathematics|رياضيات/.test(subject)) return "math";
+    if(/physics|فيزياء/.test(subject)) return "physics";
+    if(/chemistry|كيمياء/.test(subject)) return "chemistry";
+    if(/biology|science|أحياء|علوم/.test(subject)) return "biology";
+    if(/arabic|english|french|français|لغة|عربي|إنكليزي|انكليزي|فرنسي/.test(subject)) return "language";
+    if(/history|geography|civics|social|تاريخ|جغرافيا|تربية|اجتماعيات/.test(subject)) return "social";
+    return "default";
+}
+
 function renderLessonCards(text) {
     const rendered = renderAIText(text).trim();
     if (!rendered) return "";
@@ -4006,7 +4138,8 @@ function renderLessonCards(text) {
     const cards = sections.length ? sections : [rendered];
     const summaryWords = /rule summary|key idea|summary|خلاصة القاعدة|الفكرة الأساسية|الخلاصة|résumé|idée clé/i;
 
-    return `<div class="lesson-card-stack">${cards.map((section, index) => {
+    const lessonFamily = nabilLessonLayoutFamily();
+    return `<div class="lesson-card-stack lesson-layout-${lessonFamily}" data-lesson-layout-family="${lessonFamily}">${cards.map((section, index) => {
         const headingMatch = section.match(/^<h[23]>([\s\S]*?)<\/h[23]>/i);
         const headingText = (headingMatch ? headingMatch[1] : "")
             .replace(/<[^>]+>/g, " ")
