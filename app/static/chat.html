@@ -2647,6 +2647,12 @@ let recognition = null;
 let classicTalkAutoSend = false;
 let classicTalkReadReply = false;
 
+// Live lesson oral tutor (continuous dialogue, separate from Read latest).
+let lessonTalkRecognition = null;
+let lessonTalkActive = false;
+let lessonTalkBusy = false;
+let lessonTalkShouldResume = false;
+
 
 function fillSelect(
     select,
@@ -4098,8 +4104,16 @@ function browserVoiceFallback(text, language, callbacks={}){
             ? "fr-FR"
             : "ar-LB";
 
-    u.rate = 0.92;
-    u.pitch = 0.96;
+    // Prefer an actual Lebanese Arabic browser voice when available.
+    if (language !== "English" && language !== "Français") {
+        const voices = speechSynthesis.getVoices?.() || [];
+        const lebanese = voices.find(v => /ar-LB/i.test(v.lang || ""))
+            || voices.find(v => /arabic/i.test(v.name || "") && /leban/i.test(v.name || ""));
+        if (lebanese) u.voice = lebanese;
+    }
+
+    u.rate = 0.90;
+    u.pitch = 0.98;
     u.volume = 1;
 
     u.onstart = () => {
@@ -9267,15 +9281,154 @@ document.addEventListener("click", (event) => {
         downloadBlob(blob, `NABIL-AI-${(lessonSelect.value || "drawing").replace(/[^\p{L}\p{N}]+/gu,"-")}.png`);
     });
 
+    function lessonTalkLatestContext(){
+        const teachers = chat.querySelectorAll(".message.teacher .bubble");
+        const latest = teachers.length ? teachers[teachers.length - 1].cloneNode(true) : null;
+        if (!latest) return "";
+        latest.querySelectorAll("button,.teacher-tools,.nabil-visual,.sources").forEach(node => node.remove());
+        return (latest.innerText || latest.textContent || "").trim().slice(-6500);
+    }
+
+    function lessonTalkSetState(text){
+        if (!talkBtn) return;
+        talkBtn.textContent = text;
+    }
+
+    function lessonTalkRestart(){
+        if (!lessonTalkActive || lessonTalkBusy || !lessonTalkRecognition) return;
+        setTimeout(() => {
+            if (!lessonTalkActive || lessonTalkBusy) return;
+            try { lessonTalkRecognition.start(); } catch(_e) {}
+        }, 260);
+    }
+
+    async function lessonTalkAskNabil(spokenText){
+        const clean = String(spokenText || "").trim();
+        if (!clean || lessonTalkBusy) return;
+
+        lessonTalkBusy = true;
+        lessonTalkShouldResume = lessonTalkActive;
+        lessonTalkSetState("⏳ عم فكّر معك...");
+        try { lessonTalkRecognition?.stop(); } catch(_e) {}
+        stopNabilNeuralVoice();
+
+        try {
+            const body = new FormData();
+            body.append("message", clean);
+            body.append("student_id", getStudentId());
+            body.append("current_answer", lessonTalkLatestContext());
+            body.append("subject", subjectSelect?.value || "");
+            body.append("grade", gradeSelect?.value || "");
+            body.append("language", languageSelect?.value || "العربية");
+            body.append("lesson", lessonSelect?.value || "");
+            if (conversationId) body.append("conversation_id", conversationId);
+
+            const response = await fetch(API_BASE + "/api/lesson-voice-chat", {
+                method: "POST",
+                body
+            });
+            if (!response.ok) {
+                let detail = "";
+                try { detail = (await response.json())?.detail || ""; } catch(_e) {}
+                throw new Error(detail || `HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            const reply = String(data.reply || "").trim();
+            if (!reply) throw new Error("Empty voice reply");
+
+            lessonTalkSetState("🔊 عم جاوبك...");
+            await nabilSpeakClear(reply, languageSelect?.value || "العربية", {
+                onend: () => {
+                    lessonTalkBusy = false;
+                    if (lessonTalkActive && lessonTalkShouldResume) {
+                        lessonTalkSetState("🎙 عم بسمعك...");
+                        lessonTalkRestart();
+                    } else {
+                        lessonTalkSetState("🎙 Talk to Me");
+                    }
+                },
+                onerror: () => {
+                    lessonTalkBusy = false;
+                    lessonTalkRestart();
+                }
+            });
+        } catch(err) {
+            console.error("Lesson voice tutor:", err);
+            lessonTalkBusy = false;
+            lessonTalkSetState("🎙 عم بسمعك...");
+            lessonTalkRestart();
+        }
+    }
+
+    function ensureLessonTalkRecognition(){
+        if (lessonTalkRecognition) return lessonTalkRecognition;
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SR) return null;
+
+        const rec = new SR();
+        rec.continuous = true;
+        rec.interimResults = true;
+        rec.lang = languageSelect?.value === "English" ? "en-US"
+            : languageSelect?.value === "Français" ? "fr-FR" : "ar-LB";
+
+        rec.onstart = () => {
+            if (lessonTalkActive && !lessonTalkBusy) {
+                talkBtn?.classList.add("listening");
+                lessonTalkSetState("🎙 عم بسمعك...");
+            }
+        };
+
+        rec.onresult = (event) => {
+            let finalText = "";
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                if (event.results[i].isFinal) finalText += " " + event.results[i][0].transcript;
+            }
+            if (finalText.trim()) lessonTalkAskNabil(finalText.trim());
+        };
+
+        rec.onerror = (event) => {
+            if (["no-speech","aborted"].includes(event.error)) return;
+            console.warn("Lesson Talk STT:", event.error);
+        };
+
+        rec.onend = () => {
+            if (lessonTalkActive && !lessonTalkBusy) lessonTalkRestart();
+            else if (!lessonTalkActive) {
+                talkBtn?.classList.remove("listening");
+                lessonTalkSetState("🎙 Talk to Me");
+            }
+        };
+
+        lessonTalkRecognition = rec;
+        return rec;
+    }
+
     talkBtn?.addEventListener("click", () => {
-        if (!recognition) {
+        const rec = ensureLessonTalkRecognition();
+        if (!rec) {
             alert("التعرف الصوتي غير مدعوم في هذا المتصفح.");
             return;
         }
-        classicTalkAutoSend = true;
-        classicTalkReadReply = true;
+
+        if (lessonTalkActive) {
+            lessonTalkActive = false;
+            lessonTalkShouldResume = false;
+            lessonTalkBusy = false;
+            stopNabilNeuralVoice();
+            try { rec.stop(); } catch(_e) {}
+            talkBtn.classList.remove("listening");
+            lessonTalkSetState("🎙 Talk to Me");
+            return;
+        }
+
+        lessonTalkActive = true;
+        lessonTalkBusy = false;
+        rec.lang = languageSelect?.value === "English" ? "en-US"
+            : languageSelect?.value === "Français" ? "fr-FR" : "ar-LB";
         talkBtn.classList.add("listening");
-        micBtn.click();
+        lessonTalkSetState("🎙 عم بسمعك...");
+        try { rec.start(); } catch(_e) { lessonTalkRestart(); }
     });
 
     readLatestBtn?.addEventListener("click", () => {
