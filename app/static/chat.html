@@ -1956,16 +1956,22 @@ body.nabil-home-lock::before{
 /* =========================================================
    NABIL Subject Layout Router — one engine, specialized layouts
    ========================================================= */
-.exercise-board[data-layout-family]{overflow:hidden}
-.exercise-special-layout{display:grid;gap:12px;align-items:start}
-.exercise-special-layout .exercise-special-visual,.exercise-special-layout .exercise-special-content{min-width:0}
+.exercise-board[data-layout-family]{overflow:hidden;grid-column:1 / -1;width:100%;max-width:none}
+.exercise-special-layout{display:grid;gap:14px;align-items:start;width:100%}
+.exercise-special-layout .exercise-special-visual,.exercise-special-layout .exercise-special-content{min-width:0;width:100%}
 .exercise-special-layout .exercise-special-visual .exercise-visual-panel{min-height:340px;height:auto}
 .exercise-special-layout .exercise-special-visual .nabil-visual svg{width:100%;min-height:320px;height:auto;max-height:520px}
-.exercise-special-layout .exercise-special-content{display:grid;gap:10px}
-.exercise-special-layout .exercise-special-content .exercise-mini-grid{grid-template-columns:minmax(0,1fr)}
+.exercise-special-layout .exercise-special-content{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
+.exercise-special-layout .exercise-special-content .exercise-mini-grid{grid-column:1/-1;grid-template-columns:repeat(2,minmax(0,1fr))}
+.exercise-special-layout .exercise-special-content > .exercise-section-card{min-width:0}
+.exercise-special-layout .exercise-special-content > .exercise-bottom-stack{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.exercise-special-layout .exercise-special-content > .exercise-bottom-stack > .exercise-solution-card{grid-column:1/-1}
+.exercise-special-layout .exercise-special-content > .exercise-bottom-stack > .exercise-answer-card,
+.exercise-special-layout .exercise-special-content > .exercise-bottom-stack > .exercise-summary-card{min-width:0}
+.exercise-special-layout .exercise-section-card,.exercise-special-layout .exercise-function-mini-card{overflow-wrap:anywhere;word-break:normal}
 
 /* Physics: visual dominates, calculations stay directly attached beneath/right */
-.exercise-board.layout-physics .exercise-special-layout{grid-template-columns:minmax(0,1.15fr) minmax(280px,.85fr)}
+.exercise-board.layout-physics .exercise-special-layout{grid-template-columns:minmax(380px,.95fr) minmax(520px,1.45fr)}
 .exercise-board.layout-physics .exercise-special-visual{order:1}
 .exercise-board.layout-physics .exercise-special-content{order:2}
 .exercise-board.layout-circuit .exercise-special-layout{grid-template-columns:minmax(0,1fr)}
@@ -2009,6 +2015,10 @@ body.nabil-home-lock::before{
     .exercise-board.layout-default .exercise-special-layout{grid-template-columns:minmax(0,1fr)}
     .exercise-board.layout-circuit .exercise-special-content{grid-template-columns:minmax(0,1fr)}
     .exercise-board.layout-circuit .exercise-special-content .exercise-bottom-stack{grid-column:1}
+    .exercise-special-layout .exercise-special-content{grid-template-columns:minmax(0,1fr)}
+    .exercise-special-layout .exercise-special-content .exercise-mini-grid{grid-template-columns:minmax(0,1fr)}
+    .exercise-special-layout .exercise-special-content > .exercise-bottom-stack{grid-column:1;grid-template-columns:minmax(0,1fr)}
+    .exercise-special-layout .exercise-special-content > .exercise-bottom-stack > *{grid-column:1!important}
     .exercise-special-layout .exercise-special-visual{order:1}
     .exercise-special-layout .exercise-special-content{order:2}
 }
@@ -3535,13 +3545,54 @@ function nabilExerciseLayoutFamily(board, diagramsForThis, wholeBoardText){
     const types=(diagramsForThis||[]).map(nabilDiagramTypeFromHTML).filter(Boolean);
     const has=(rx)=>types.some(t=>rx.test(t));
 
-    if(has(/electric_|circuit/) || /series|parallel|resistor|resistance|circuit|دارة|توالي|توازي|مقاوم/.test(text)) return "circuit";
-    if(has(/forces|inclined_plane|motion|spring|pulley|wave|optics/) || /force|forces|newton|weight|tension|friction|قوة|قوى|وزن|احتكاك|شد/.test(text)) return "physics";
+    if(has(/electric_|circuit/) || /electric|resistor|resistance|ohm|voltage|current|battery|series circuit|parallel circuit|دارة|توالي|توازي|مقاوم|جهد|تيار|بطارية/.test(text)) return "circuit";
+    if(has(/forces|inclined_plane|motion|spring|pulley|wave|optics/) || /physics|فيزياء|force|forces|newton|weight|tension|friction|inclined|acceleration|قوة|قوى|وزن|احتكاك|شد|سطح مائل|تسارع/.test(text)) return "physics";
     if(has(/triangle|circle|square|rectangle|rhombus|parallelogram|cube|prism|cylinder|cone|sphere/) || /geometry|triangle|circle|tangent|angle|pythag|هندسة|مثلث|دائرة|مماس|زاوية/.test(text)) return "geometry";
     if(has(/periodic_table|energy_diagram|states_of_matter|ionic_bond/) || /chemistry|chemical|atom|bond|reaction|element|كيمياء|ذرة|رابطة|تفاعل/.test(text)) return "chemistry";
     if(has(/cell_diagram|life_cycle|food_chain|body_system/) || /biology|cell|organ|system|food chain|أحياء|خلية|عضو|جهاز/.test(text)) return "biology";
     if(has(/probability_tree|venn_diagram|probability_table|statistics/) || /probability|statistics|venn|tree diagram|احتمال|إحصاء|فين/.test(text)) return "probability";
     return "default";
+}
+
+function nabilAutoSubjectDiagramSpec(wholeBoardText){
+    const raw = nabilHTMLToPlainText(String(wholeBoardText||"")).replace(/\s+/g," ");
+    const t = raw.toLowerCase();
+
+    if(/inclined plane|incline angle|surface inclinee|plan incline|سطح مائل/.test(t)){
+        const angleMatch = raw.match(/(?:angle|θ|\btheta\b)\s*(?:=|:)\s*(\d+(?:\.\d+)?)\s*°?/i);
+        const weightMatch = raw.match(/(?:weight|w)\s*(?:=|:)\s*(\d+(?:\.\d+)?)\s*n\b/i);
+        const pullMatch = raw.match(/(?:pulling force|force f|\bF\b)\s*(?:=|:)\s*(\d+(?:\.\d+)?)\s*n\b/i);
+        const frictionMatch = raw.match(/(?:friction(?: force)?|\bf\b)\s*(?:=|:)\s*(\d+(?:\.\d+)?)\s*n\b/i);
+        const labels={};
+        if(weightMatch) labels.weight=`W = ${weightMatch[1]} N`;
+        if(pullMatch) labels.pull=`F = ${pullMatch[1]} N`;
+        if(frictionMatch) labels.friction=`f = ${frictionMatch[1]} N`;
+        labels.normal='N';
+        return {
+            type:'inclined_plane',
+            title:'Free-body diagram on an inclined plane',
+            angle: angleMatch ? Number(angleMatch[1]) : undefined,
+            labels,
+            show_pull:/pulling force|pulled upward|force f|\bF\s*=/.test(raw),
+            show_friction:/friction|احتكاك/.test(t)
+        };
+    }
+
+    if(/free[- ]?body diagram|two forces|weight.*tension|tension.*weight|equilibrium.*two forces/.test(t)){
+        return {
+            type:'forces',
+            title:'Free-body diagram',
+            object:'m',
+            forces:[
+                {label:'T',direction:'up'},
+                {label:'W',direction:'down'}
+            ]
+        };
+    }
+
+    if(/series circuit|resistors? in series|توالي/.test(t)) return {type:'electric_series',title:'Series circuit'};
+    if(/parallel circuit|resistors? in parallel|توازي/.test(t)) return {type:'electric_parallel',title:'Parallel circuit'};
+    return null;
 }
 
 function nabilLayoutLabel(family,messageLanguage){
@@ -3631,17 +3682,19 @@ ${rawVariationHTML}`);
         const introBadges = [];
         const title = board.title || (messageLanguage === "English" ? `Exercise ${boardIndex+1}` : messageLanguage === "Français" ? `Exercice ${boardIndex+1}` : `تمرين ${boardIndex+1}`);
 
-        const autoFunctionSpec = !diagramsForThis.length ? nabilAutoFunctionSpecFromBoard(board) : null;
-        const visualHTML = diagramsForThis.length
-            ? diagramsForThis.join("")
-            : autoFunctionSpec
-                ? renderNabilDiagram(autoFunctionSpec)
-                : `<div class="exercise-visual-empty">${messageLanguage === "English" ? "The graph could not be generated from the available data." : messageLanguage === "Français" ? "Le graphique n’a pas pu être généré à partir des données disponibles." : "تعذّر إنشاء الرسم من المعطيات المتاحة."}</div>`;
-
         const wholeBoardText = [
             board.title,
             ...board.sections.map(s => `${s.title} ${renderNodesAsHTML(s.nodes)}`)
         ].join(" ");
+
+        const autoFunctionSpec = !diagramsForThis.length ? nabilAutoFunctionSpecFromBoard(board) : null;
+        const autoSubjectSpec = (!diagramsForThis.length && !autoFunctionSpec) ? nabilAutoSubjectDiagramSpec(wholeBoardText) : null;
+        const inferredVisual = autoFunctionSpec || autoSubjectSpec;
+        const visualHTML = diagramsForThis.length
+            ? diagramsForThis.join("")
+            : inferredVisual
+                ? renderNabilDiagram(inferredVisual)
+                : `<div class="exercise-visual-empty">${messageLanguage === "English" ? "No reliable drawing could be generated from the available data." : messageLanguage === "Français" ? "Aucun schéma fiable n’a pu être généré à partir des données disponibles." : "تعذّر إنشاء رسم موثوق من المعطيات المتاحة."}</div>`;
 
         if (isFunctionStudyBoard(board, wholeBoardText)) {
             const leftColumnHTML = nabilFunctionLeftColumnHTML({
@@ -6440,16 +6493,29 @@ function renderNabilDiagram(spec){
             </svg>`,spec.note||"");
         }
 
+        const showPull = Boolean(spec.show_pull);
+        const showFriction = Boolean(spec.show_friction);
+        const angleLabel = Number.isFinite(Number(spec.angle)) ? `${Number(spec.angle)}°` : "θ";
         return nabilVisualWrap(title||"القوى على سطح مائل",`
-        <svg viewBox="0 0 520 320">
-          <polygon points="70,255 440,255 440,85" fill="url(#nabilSurface3d)" stroke="#67e8f9" stroke-width="3" filter="url(#nabilDepth)"/>
-          <rect x="280" y="135" width="70" height="55" rx="6" fill="url(#nabilWarm3d)" stroke="#ffd166" stroke-width="3" transform="rotate(-25 315 162)" filter="url(#nabilDepth)"/>
-          <line x1="315" y1="160" x2="315" y2="260" stroke="#ef4444" stroke-width="4"/>
-          <polygon points="315,260 306,243 324,243" fill="#ef4444"/>
-          <text x="325" y="222" class="vlab" fill="#ef4444">${nabilEsc(L.weight||"mg")}</text>
-          <line x1="315" y1="160" x2="270" y2="70" stroke="#4ade80" stroke-width="4"/>
-          <polygon points="270,70 270,90 286,82" fill="#4ade80"/>
-          <text x="230" y="68" class="vlab" fill="#4ade80">${nabilEsc(L.normal||"N")}</text>
+        <svg viewBox="0 0 620 360">
+          <polygon points="65,300 555,300 555,90" fill="url(#nabilSurface3d)" stroke="#67e8f9" stroke-width="3" filter="url(#nabilDepth)"/>
+          <rect x="330" y="165" width="78" height="58" rx="7" fill="url(#nabilWarm3d)" stroke="#ffd166" stroke-width="3" transform="rotate(-23 369 194)" filter="url(#nabilDepth)"/>
+          <path d="M95 300 A55 55 0 0 1 145 278" fill="none" stroke="#ffe066" stroke-width="2.4"/>
+          <text x="146" y="292" class="vlab vsmall" style="fill:#ffe066">${nabilEsc(angleLabel)}</text>
+
+          <line x1="370" y1="193" x2="370" y2="315" stroke="#ef4444" stroke-width="4.5"/>
+          <polygon points="370,315 361,296 379,296" fill="#ef4444"/>
+          <text x="382" y="262" class="vlab" style="fill:#ff8080">${nabilEsc(L.weight||"W")}</text>
+
+          <line x1="370" y1="193" x2="314" y2="86" stroke="#4ade80" stroke-width="4.5"/>
+          <polygon points="314,86 314,108 331,99" fill="#4ade80"/>
+          <text x="278" y="82" class="vlab" style="fill:#79f2a7">${nabilEsc(L.normal||"N")}</text>
+
+          ${showPull ? `<line x1="392" y1="181" x2="505" y2="129" stroke="#22d3ee" stroke-width="4.5"/><polygon points="505,129 487,126 495,142" fill="#22d3ee"/><text x="515" y="126" class="vlab" style="fill:#67e8f9">${nabilEsc(L.pull||"F")}</text>` : ""}
+          ${showFriction ? `<line x1="344" y1="209" x2="244" y2="255" stroke="#f59e0b" stroke-width="4.5"/><polygon points="244,255 263,257 256,240" fill="#f59e0b"/><text x="218" y="269" class="vlab" style="fill:#fbbf24">${nabilEsc(L.friction||"f")}</text>` : ""}
+
+          <line x1="395" y1="176" x2="505" y2="125" stroke="#94a3b8" stroke-width="2" stroke-dasharray="6 5"/>
+          <text x="474" y="112" class="vlab vsmall" style="fill:#cbd5e1">up the plane</text>
         </svg>`,spec.note||"");
     }
 
