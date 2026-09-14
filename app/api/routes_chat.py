@@ -3370,6 +3370,7 @@ async def lesson_voice_chat(
     grade: Optional[str] = Form(None),
     language: Optional[str] = Form("العربية"),
     lesson: Optional[str] = Form(None),
+    activity_mode: Optional[str] = Form("lesson"),
     conversation_id: Optional[str] = Form(None),
 ):
     """Continuous oral tutor turn for the lesson page.
@@ -3406,7 +3407,9 @@ async def lesson_voice_chat(
 - لا تستخدم Markdown، عناوين، جداول، JSON، ولا رموز زخرفية في الرد الصوتي.
 - لا تطوّل: عادة 2 إلى 6 جمل قصيرة بكل دور حتى يقدر الطالب يقاطع ويسأل.
 - استعمل المصطلحات والرموز العلمية الضرورية كما هي، لكن الشرح المحكي لبناني.
-- لا تخترع معلومة غير موجودة في سياق الدرس.
+- لا تخترع معلومة غير موجودة في السياق الظاهر.
+- إذا كان الوضع "حل تمارين عامة"، تعامل مع آخر مسألة أو حل ظاهر على الشاشة كسياقك الحالي، واكتشف المادة والموضوع من السؤال نفسه. لا تشترط وجود درس مختار.
+- في "حل تمارين عامة"، إذا قال الطالب «شو عملنا؟» أو «فسّرلي هالسطر» أو «ليش؟»، اشرح آخر خطوة ظاهرة من الحل شفهياً باللهجة اللبنانية، ولا تبدأ درساً جديداً.
 """.strip()
     else:
         oral_instructions = """
@@ -3416,12 +3419,15 @@ If the student says they did not understand, re-explain more simply. If they ask
 what was done, summarize the steps. For a problem, move through given data,
 what is required, the rule, substitution, and result. No markdown, tables or JSON.
 Keep each spoken turn concise enough for the student to interrupt and ask again.
+In general-exercises mode, use the latest visible worked solution as the current context,
+detect the subject/topic from the exercise itself, and do not require a selected lesson.
 """.strip()
 
     context = (
         f"Grade: {grade or 'not specified'}\n"
         f"Subject: {subject or 'not specified'}\n"
         f"Lesson: {lesson or 'not specified'}\n"
+        f"Activity mode: {activity_mode or 'lesson'}\n"
         f"Language: {lang}\n\n"
         f"Visible lesson/solution context:\n{answer_context or '(no written answer yet)'}\n\n"
         f"Student just said:\n{clean_message}"
