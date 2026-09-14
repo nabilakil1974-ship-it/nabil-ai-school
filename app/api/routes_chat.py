@@ -2786,6 +2786,110 @@ def _graph_variation_markdown(message: str, reply_text: str, language: str):
     return "\n".join(lines)
 
 
+
+def _extract_named_electric_value(text: str, names, unit_pattern: str):
+    source = str(text or "")
+    for name in names:
+        pattern = (
+            rf"(?:{name})\s*(?:=|:)?\s*"
+            rf"(-?\d+(?:\.\d+)?)\s*(?:{unit_pattern})?"
+        )
+        match = re.search(pattern, source, re.I)
+        if match:
+            try:
+                return float(match.group(1))
+            except Exception:
+                pass
+    return None
+
+
+def _safe_series_parallel_comparison_drawings(message: str, reply_text: str):
+    """
+    Deterministic fallback for an explicit comparison of the SAME two resistors
+    in series and in parallel. It uses only values explicitly present in the
+    question/reply and computes the exact circuit values.
+    """
+    source = f"{message or ''}\n{reply_text or ''}"
+
+    has_series = bool(re.search(r"\bseries\b|توالي|متسلسل|en\s+série|en\s+serie", source, re.I))
+    has_parallel = bool(re.search(r"\bparallel\b|توازي|متوازي|en\s+parall", source, re.I))
+    if not (has_series and has_parallel):
+        return None
+
+    voltage = _extract_named_electric_value(
+        source,
+        [
+            r"\bU\b",
+            r"\bV(?:oltage)?\b",
+            r"الجهد(?:\s+الكهربائي)?",
+            r"tension",
+        ],
+        r"V|volt(?:s)?",
+    )
+    r1 = _extract_named_electric_value(
+        source,
+        [r"\bR_?1\b", r"\bR₁\b", r"المقاومة\s*الأولى", r"résistance\s*1"],
+        r"Ω|ohm(?:s)?",
+    )
+    r2 = _extract_named_electric_value(
+        source,
+        [r"\bR_?2\b", r"\bR₂\b", r"المقاومة\s*الثانية", r"résistance\s*2"],
+        r"Ω|ohm(?:s)?",
+    )
+
+    if voltage is None or r1 is None or r2 is None:
+        return None
+    if voltage <= 0 or r1 <= 0 or r2 <= 0:
+        return None
+
+    req_series = r1 + r2
+    i_series = voltage / req_series
+
+    req_parallel = (r1 * r2) / (r1 + r2)
+    i1 = voltage / r1
+    i2 = voltage / r2
+    i_total = i1 + i2
+
+    def fmt(value, digits=4):
+        if abs(value - round(value)) < 1e-10:
+            return str(int(round(value)))
+        return str(round(value, digits))
+
+    series = {
+        "type": "electric_series",
+        "title": "Series Connection",
+        "card_index": 1,
+        "labels": {
+            "U": f"U = {fmt(voltage)} V",
+            "voltage": f"U = {fmt(voltage)} V",
+            "R1": f"R₁ = {fmt(r1)} Ω",
+            "R2": f"R₂ = {fmt(r2)} Ω",
+            "I": f"I = {fmt(i_series)} A",
+            "current": f"I = {fmt(i_series)} A",
+            "Req": f"Rₑq = {fmt(req_series)} Ω",
+        },
+    }
+
+    parallel = {
+        "type": "electric_parallel",
+        "title": "Parallel Connection",
+        "card_index": 2,
+        "labels": {
+            "U": f"U = {fmt(voltage)} V",
+            "voltage": f"U = {fmt(voltage)} V",
+            "R1": f"R₁ = {fmt(r1)} Ω",
+            "R2": f"R₂ = {fmt(r2)} Ω",
+            "I": f"I = {fmt(i_total)} A",
+            "Itotal": f"I = {fmt(i_total)} A",
+            "I1": f"I₁ = {fmt(i1)} A",
+            "I2": f"I₂ = {fmt(i2)} A",
+            "Req": f"Rₑq = {fmt(req_parallel)} Ω",
+        },
+    }
+
+    return [series, parallel]
+
+
 def extract_drawings(text: str):
     if not text:
         return text, []
@@ -3461,7 +3565,9 @@ GENERAL EXERCISES MODE / حل تمارين عامة
     - في الرياضيات: تحقّق عدديًا من كل نقطة على الدالة، ومن شرط فيثاغورس، ومن الإحداثيات والمتجهات والميل والمقارب قبل الرسم.
     - في الفيزياء: تحقّق من اتجاه كل قوة/تيار/شعاع، ومن القطبية والوحدات والتوصيل. لا تضف قوة أو عنصر دارة غير مذكور أو غير لازم في النموذج الفيزيائي الحالي.
     - في الدارات الكهربائية استخدم فقط الأنواع المعتمدة: electric_series للتوالي، electric_parallel للتوازي، electric_mixed للمختلط، أو electric_circuit مع mode صريح. ممنوع استخدام type="circuit".
-    - إذا طلب السؤال مقارنة التوالي والتوازي، أرسل رسمتين منفصلتين داخل DRAWINGS_JSON: واحدة electric_series وواحدة electric_parallel.
+    - إذا طلب السؤال مقارنة التوالي والتوازي، فالرسمتان إلزاميتان: أرسل رسمتين منفصلتين داخل DRAWINGS_JSON، واحدة electric_series وواحدة electric_parallel، ولا تستبدلهما بمخطط نقاط أو مستوى إحداثي أو رسم عام.
+    - في رسم التوالي يجب أن تظهر البطارية والمقاومتان على مسار واحد وسهم التيار الكلي I.
+    - في رسم التوازي يجب أن تظهر البطارية وفرعان مستقلان للمقاومتين وسهما I1 وI2، ومع التيار الكلي I عند المدخل عندما تكون قيمته معروفة.
     - مرّر القيم المعروفة داخل labels مثل U وR1 وR2 وI وI1 وI2. لا تخترع nodes/components/wires كصيغة رسم جديدة.
     - في الكيمياء: تحقّق من رموز العناصر، عدد الإلكترونات، الشحنات، التكافؤ، وعدد الذرات والروابط. لا تخترع مادة أو شحنة أو بنية.
     - في علوم الحياة/الأحياء: استخدم فقط الأجزاء الصحيحة للمخطط المطلوب والمذكورة في الدرس/المصدر، ولا تضف أعضاء أو مكونات لمجرد أنها شائعة.
@@ -3562,6 +3668,16 @@ GENERAL EXERCISES MODE / حل تمارين عامة
     # a lesson is visual. If the model did not return a validated drawing,
     # return the textual explanation only. This is safer than inventing values.
     drawings = [item for item in drawings if validate_drawing_strict(item)]
+
+    # Exact circuit-comparison recovery, valid in BOTH lesson mode and general exercises.
+    # If the prompt explicitly compares the same R1/R2 in series and parallel,
+    # replace malformed/ambiguous provider visuals with the two correct schematics.
+    circuit_pair = _safe_series_parallel_comparison_drawings(
+        message=message,
+        reply_text=reply_text,
+    )
+    if circuit_pair:
+        drawings = circuit_pair
 
 
     # General exercises: never leave a safely-parseable function-study graph blank.
