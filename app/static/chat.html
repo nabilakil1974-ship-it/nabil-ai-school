@@ -2688,6 +2688,20 @@ body.nabil-home-lock::before{
     font-weight:900!important;
 }
 
+
+
+/* v21: true paragraph-by-paragraph interactive board */
+.board-writing-mode .nabil-board-step-block{
+    transition:visibility .1s linear,opacity .15s ease;
+}
+.board-writing-mode .nabil-board-word{
+    opacity:0;
+    transition:opacity .10s ease;
+}
+.board-writing-mode .nabil-board-word.is-visible{
+    opacity:1;
+}
+
 </style>
 </head>
 
@@ -4851,29 +4865,12 @@ function readAnswer(
 
 let nabilBoardTimer = null;
 let nabilBoardPaused = false;
-let nabilBoardQueue = [];
-let nabilBoardQueueIndex = 0;
 let nabilBoardSpeechLanguage = "العربية";
-let nabilBoardSpeechText = "";
-
-function nabilResumeBoardNarrationFromCurrentStep(){
-    if(!nabilBoardModeActive()) return;
-    nabilBoardPaused = false;
-
-    const remaining = nabilBoardQueue
-        .slice(nabilBoardQueueIndex)
-        .map(s => (s.textContent || "").trim())
-        .filter(Boolean)
-        .join(" ")
-        .trim();
-
-    if(!remaining) return;
-
-    nabilSpeakClear(remaining, nabilBoardSpeechLanguage, {
-        onstart:()=>stopLessonRecognitionTemporarily?.(),
-        onend:()=>{ if(lessonVoiceConversation) resumeLessonRecognitionAfterSpeech?.(); }
-    });
-}
+let nabilBoardSteps = [];
+let nabilBoardStepIndex = 0;
+let nabilBoardWordIndex = 0;
+let nabilBoardCurrentRoot = null;
+let nabilBoardRunToken = 0;
 
 function nabilBoardModeActive(){
     return nabilActivityMode === "lesson" &&
@@ -4894,22 +4891,28 @@ function nabilBoardPlainSpeech(text){
     }
 }
 
-function nabilPrepareBoardWriting(root){
-    if(!root) return [];
-    root.classList.add("board-writing-mode");
-    const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
-    const nodes=[];
-    while(walker.nextNode()) nodes.push(walker.currentNode);
+function nabilBoardTextForElement(el){
+    if(!el) return "";
+    return String(el.innerText || el.textContent || "")
+        .replace(/\s+/g," ")
+        .replace(/^(?:copy|read latest|اقرأ الإجابة|نسخ الإجابة)\s*/i,"")
+        .trim();
+}
+
+function nabilBoardWrapWords(el){
+    if(!el) return [];
+    const walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);
+    const textNodes=[];
+    while(walker.nextNode()) textNodes.push(walker.currentNode);
 
     const spans=[];
-    nodes.forEach(node=>{
+    textNodes.forEach(node=>{
         const parent=node.parentElement;
         if(!parent) return;
-        if(parent.closest("svg,mjx-container,script,style,.teacher-tools,.sources,.nabil-board-controls")) return;
+        if(parent.closest("svg,mjx-container,script,style,.teacher-tools,.sources,.nabil-board-controls,button")) return;
 
         const raw=node.nodeValue||"";
         if(!raw.trim()) return;
-        if(/[\\$]|\\frac|\\sqrt|\\left|\\right/.test(raw)) return;
 
         const parts=raw.split(/(\s+)/);
         const frag=document.createDocumentFragment();
@@ -4930,13 +4933,245 @@ function nabilPrepareBoardWriting(root){
     return spans;
 }
 
-function nabilStartBoardReveal(root, spokenText, language){
-    if(nabilBoardTimer) clearInterval(nabilBoardTimer);
+function nabilPrepareBoardSteps(root){
+    if(!root) return [];
+    root.classList.add("board-writing-mode");
+
+    // Paragraph-by-paragraph/step-by-step: headings, paragraphs, list items,
+    // tables, formulas, and drawings each become one board step.
+    const candidates=[...root.querySelectorAll(
+        "h1,h2,h3,h4,h5,h6,p,li,table,.lesson-table-wrap,.nabil-visual,.linked-lesson-visual,.exercise-visual-panel"
+    )];
+
+    const steps=[];
+    const seen=new Set();
+
+    candidates.forEach(el=>{
+        if(!el || seen.has(el)) return;
+        if(el.closest(".teacher-tools,.sources,.nabil-board-controls")) return;
+
+        // Do not duplicate content nested inside a table/visual already treated as one step.
+        if(el.matches("p,li,h1,h2,h3,h4,h5,h6") &&
+           el.parentElement?.closest("table,.lesson-table-wrap,.nabil-visual,.linked-lesson-visual,.exercise-visual-panel")){
+            return;
+        }
+
+        const isVisual=el.matches(".nabil-visual,.linked-lesson-visual,.exercise-visual-panel");
+        const isTable=el.matches("table,.lesson-table-wrap");
+
+        if(isVisual || isTable){
+            el.classList.add("nabil-board-step-block");
+            el.style.display="none";
+            steps.push({
+                el,
+                type:isVisual ? "visual" : "table",
+                words:[],
+                text:nabilBoardTextForElement(el)
+            });
+            seen.add(el);
+            return;
+        }
+
+        const text=nabilBoardTextForElement(el);
+        if(!text || text.length<2) return;
+
+        const words=nabilBoardWrapWords(el);
+        if(!words.length && !el.querySelector("mjx-container")) return;
+
+        el.classList.add("nabil-board-step-block");
+        el.style.visibility="hidden";
+        steps.push({el,type:"text",words,text});
+        seen.add(el);
+    });
+
+    // Fallback for unusual AI markup: use major direct cards as steps.
+    if(!steps.length){
+        [...root.children].forEach(el=>{
+            if(el.classList?.contains("nabil-board-controls")) return;
+            const text=nabilBoardTextForElement(el);
+            if(!text) return;
+            const words=nabilBoardWrapWords(el);
+            el.classList.add("nabil-board-step-block");
+            el.style.visibility="hidden";
+            steps.push({el,type:"text",words,text});
+        });
+    }
+
+    return steps;
+}
+
+function nabilBoardClearTimer(){
+    if(nabilBoardTimer){
+        clearInterval(nabilBoardTimer);
+        nabilBoardTimer=null;
+    }
+}
+
+function nabilBoardRevealCurrentWord(){
+    const step=nabilBoardSteps[nabilBoardStepIndex];
+    if(!step || step.type!=="text") return;
+
+    step.el.style.visibility="visible";
+
+    // MathJax/formulas are shown with the paragraph when the step becomes active.
+    if(step.words.length===0) return;
+
+    if(nabilBoardWordIndex<step.words.length){
+        step.words[nabilBoardWordIndex]?.classList.add("is-visible");
+        nabilBoardWordIndex++;
+    }
+}
+
+function nabilBoardRemainingText(step){
+    if(!step) return "";
+    if(step.type!=="text") return step.text || "";
+    if(!step.words.length) return step.text || "";
+
+    return step.words
+        .slice(nabilBoardWordIndex)
+        .map(w=>(w.textContent||"").trim())
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+}
+
+function nabilBoardFinishCurrentStep(){
+    const step=nabilBoardSteps[nabilBoardStepIndex];
+    if(!step) return;
+
+    if(step.type==="text"){
+        step.el.style.visibility="visible";
+        step.words.forEach(w=>w.classList.add("is-visible"));
+        nabilBoardWordIndex=step.words.length;
+    }else{
+        step.el.style.display="";
+    }
+}
+
+function nabilBoardSpeakCurrentStep(){
+    if(nabilBoardPaused) return;
+
+    const token=++nabilBoardRunToken;
+    const step=nabilBoardSteps[nabilBoardStepIndex];
+
+    if(!step){
+        nabilBoardClearTimer();
+        if(lessonVoiceConversation) resumeLessonRecognitionAfterSpeech?.();
+        return;
+    }
+
+    // Visual/table step: reveal it, announce briefly if it has a useful label,
+    // then continue automatically.
+    if(step.type!=="text"){
+        step.el.style.display="";
+        const announce=(step.text||"").trim();
+        if(announce && announce.length<=180){
+            nabilSpeakClear(announce,nabilBoardSpeechLanguage,{
+                onstart:()=>stopLessonRecognitionTemporarily?.(),
+                onend:()=>{
+                    if(token!==nabilBoardRunToken || nabilBoardPaused) return;
+                    nabilBoardStepIndex++;
+                    nabilBoardWordIndex=0;
+                    setTimeout(nabilBoardSpeakCurrentStep,250);
+                }
+            });
+        }else{
+            nabilBoardStepIndex++;
+            nabilBoardWordIndex=0;
+            setTimeout(nabilBoardSpeakCurrentStep,350);
+        }
+        return;
+    }
+
+    step.el.style.visibility="visible";
+    const remaining=nabilBoardRemainingText(step) || step.text;
+    if(!remaining){
+        nabilBoardFinishCurrentStep();
+        nabilBoardStepIndex++;
+        nabilBoardWordIndex=0;
+        setTimeout(nabilBoardSpeakCurrentStep,180);
+        return;
+    }
+
+    // Write ONLY the current paragraph/step while Nabil reads that same step.
+    nabilBoardClearTimer();
+    const remainingWords=Math.max(1,step.words.length-nabilBoardWordIndex);
+    const revealMs=Math.max(150,Math.min(360,Math.round(26000/Math.max(20,remainingWords))));
+    nabilBoardTimer=setInterval(()=>{
+        if(nabilBoardPaused) return;
+        nabilBoardRevealCurrentWord();
+        if(nabilBoardWordIndex>=step.words.length) nabilBoardClearTimer();
+    },revealMs);
+
+    nabilSpeakClear(remaining,nabilBoardSpeechLanguage,{
+        onstart:()=>stopLessonRecognitionTemporarily?.(),
+        onend:()=>{
+            if(token!==nabilBoardRunToken || nabilBoardPaused) return;
+            nabilBoardClearTimer();
+            nabilBoardFinishCurrentStep();
+            nabilBoardStepIndex++;
+            nabilBoardWordIndex=0;
+            setTimeout(nabilBoardSpeakCurrentStep,260);
+        }
+    });
+}
+
+function nabilPauseBoardAtCurrentStep(){
+    if(!nabilBoardModeActive()) return;
+    nabilBoardPaused=true;
+    nabilBoardRunToken++;
+    nabilBoardClearTimer();
+    stopNabilNeuralVoice();
+}
+
+function nabilResumeBoardNarrationFromCurrentStep(){
+    if(!nabilBoardModeActive()) return;
+    if(nabilBoardStepIndex>=nabilBoardSteps.length) return;
     nabilBoardPaused=false;
-    nabilBoardSpeechLanguage = language || "العربية";
-    nabilBoardSpeechText = String(spokenText || "");
-    nabilBoardQueue=nabilPrepareBoardWriting(root);
-    nabilBoardQueueIndex=0;
+    nabilBoardSpeakCurrentStep();
+}
+
+function nabilBoardRepeatCurrentStep(){
+    const step=nabilBoardSteps[nabilBoardStepIndex];
+    if(!step) return;
+
+    nabilBoardRunToken++;
+    nabilBoardClearTimer();
+    stopNabilNeuralVoice();
+
+    if(step.type==="text"){
+        step.words.forEach(w=>w.classList.remove("is-visible"));
+        step.el.style.visibility="hidden";
+    }else{
+        step.el.style.display="none";
+    }
+    nabilBoardWordIndex=0;
+    nabilBoardPaused=false;
+    nabilBoardSpeakCurrentStep();
+}
+
+function nabilBoardSkipCurrentStep(){
+    nabilBoardRunToken++;
+    nabilBoardClearTimer();
+    stopNabilNeuralVoice();
+    nabilBoardFinishCurrentStep();
+    nabilBoardStepIndex++;
+    nabilBoardWordIndex=0;
+    nabilBoardPaused=false;
+    nabilBoardSpeakCurrentStep();
+}
+
+function nabilStartBoardReveal(root, spokenText, language){
+    nabilBoardRunToken++;
+    nabilBoardClearTimer();
+    stopNabilNeuralVoice();
+
+    nabilBoardPaused=false;
+    nabilBoardSpeechLanguage=language || "العربية";
+    nabilBoardCurrentRoot=root;
+    nabilBoardSteps=nabilPrepareBoardSteps(root);
+    nabilBoardStepIndex=0;
+    nabilBoardWordIndex=0;
 
     const controls=document.createElement("div");
     controls.className="nabil-board-controls";
@@ -4944,7 +5179,7 @@ function nabilStartBoardReveal(root, spokenText, language){
         <button type="button" data-board="pause">⏸ Pause</button>
         <button type="button" data-board="continue">▶ Continue</button>
         <button type="button" data-board="skip">⏭ Skip step</button>
-        <button type="button" data-board="repeat">🔁 Repeat</button>
+        <button type="button" data-board="repeat">🔁 Repeat this step</button>
     `;
     root.appendChild(controls);
 
@@ -4952,38 +5187,17 @@ function nabilStartBoardReveal(root, spokenText, language){
         const action=e.target?.dataset?.board;
         if(!action) return;
         if(action==="pause"){
-            nabilBoardPaused=true;
-            stopNabilNeuralVoice();
+            nabilPauseBoardAtCurrentStep();
         }else if(action==="continue"){
-            nabilBoardPaused=false;
-            nabilSpeakClear(spokenText,language);
+            nabilResumeBoardNarrationFromCurrentStep();
         }else if(action==="skip"){
-            nabilBoardQueue.slice(nabilBoardQueueIndex).forEach(s=>s.classList.add("is-visible"));
-            nabilBoardQueueIndex=nabilBoardQueue.length;
-            if(nabilBoardTimer) clearInterval(nabilBoardTimer);
+            nabilBoardSkipCurrentStep();
         }else if(action==="repeat"){
-            nabilBoardQueue.forEach(s=>s.classList.remove("is-visible"));
-            nabilBoardQueueIndex=0;
-            nabilBoardPaused=false;
-            nabilSpeakClear(spokenText,language);
+            nabilBoardRepeatCurrentStep();
         }
     });
 
-    nabilBoardTimer=setInterval(()=>{
-        if(nabilBoardPaused) return;
-        for(let i=0;i<2 && nabilBoardQueueIndex<nabilBoardQueue.length;i++){
-            nabilBoardQueue[nabilBoardQueueIndex++]?.classList.add("is-visible");
-        }
-        if(nabilBoardQueueIndex>=nabilBoardQueue.length){
-            clearInterval(nabilBoardTimer);
-            nabilBoardTimer=null;
-        }
-    },85);
-
-    nabilSpeakClear(spokenText,language,{
-        onstart:()=>stopLessonRecognitionTemporarily?.(),
-        onend:()=>{ if(lessonVoiceConversation) resumeLessonRecognitionAfterSpeech?.(); }
-    });
+    nabilBoardSpeakCurrentStep();
 }
 
 function addMessage(
@@ -10592,7 +10806,7 @@ document.addEventListener("click", (event) => {
 
         // In board mode, freeze exactly where the student interrupted.
         if(nabilBoardModeActive()){
-            nabilBoardPaused = true;
+            nabilPauseBoardAtCurrentStep();
         }
 
         lessonTalkBusy = true;
@@ -10729,8 +10943,7 @@ document.addEventListener("click", (event) => {
         lessonTalkActive = true;
         lessonTalkBusy = false;
         if(nabilBoardModeActive()){
-            nabilBoardPaused = true;
-            stopNabilNeuralVoice();
+            nabilPauseBoardAtCurrentStep();
         }
         lessonTalkSpokenLanguage = languageSelect?.value || "العربية";
         rec.lang = lessonTalkSpokenLanguage === "English" ? "en-US"
