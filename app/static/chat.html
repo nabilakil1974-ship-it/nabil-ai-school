@@ -2735,7 +2735,7 @@ body.nabil-home-lock::before{
 <button
     id="teacherAssessmentBtn"
     type="button"
-    onclick="return window.nabilOpenTeacherAssessmentSafe ? window.nabilOpenTeacherAssessmentSafe(event) : false;"
+    onclick="event.preventDefault(); const m=document.getElementById('teacherAssessmentModal'); if(m){m.hidden=false;m.style.display='flex';} return false;"
     title="إنشاء مسابقة للمعلم من دروس المنهج المفهرسة">
     👨‍🏫 إعداد مسابقة للمعلم
 </button>
@@ -9854,87 +9854,6 @@ document.addEventListener("click", (event) => {
 </div>
 
 
-<div id="teacherAssessmentModal" class="teacher-assessment-modal" hidden>
-  <div class="teacher-assessment-backdrop" data-close-teacher-assessment="1"></div>
-  <section class="teacher-assessment-panel" role="dialog" aria-modal="true" aria-labelledby="teacherAssessmentTitle">
-    <div class="teacher-assessment-head">
-      <div>
-        <div class="teacher-assessment-kicker">NABIL AI • Teacher Assessment Builder</div>
-        <h2 id="teacherAssessmentTitle">إعداد مسابقة</h2>
-      </div>
-      <button id="teacherAssessmentClose" class="teacher-assessment-close" type="button">✕</button>
-    </div>
-
-    <div class="teacher-assessment-grid">
-      <label>الصف
-        <select id="teacherGrade"></select>
-      </label>
-      <label id="teacherBranchWrap">الفرع
-        <select id="teacherBranch"></select>
-      </label>
-      <label>المادة
-        <select id="teacherSubject"></select>
-      </label>
-      <label>لغة المسابقة
-        <select id="teacherExamLanguage">
-          <option value="العربية">العربية</option>
-          <option value="English">English</option>
-          <option value="Français">Français</option>
-        </select>
-      </label>
-      <label>المدة
-        <select id="teacherDuration">
-          <option value="30">30 دقيقة</option>
-          <option value="45">45 دقيقة</option>
-          <option value="60" selected>60 دقيقة</option>
-          <option value="90">90 دقيقة</option>
-          <option value="120">120 دقيقة</option>
-        </select>
-      </label>
-      <label>العلامة الكاملة
-        <input id="teacherTotalMarks" type="number" min="5" max="100" value="20" />
-      </label>
-      <label>المستوى
-        <select id="teacherDifficulty">
-          <option value="below_average">دون الوسط</option>
-          <option value="medium" selected>متوسط</option>
-          <option value="above_average">فوق الوسط</option>
-          <option value="mixed">متدرّج: سهل + متوسط + متقدم</option>
-        </select>
-      </label>
-      <label>عدد النماذج
-        <select id="teacherVariants">
-          <option value="1" selected>نموذج واحد</option>
-          <option value="2">نموذجان A / B</option>
-          <option value="3">3 نماذج</option>
-        </select>
-      </label>
-    </div>
-
-    <div class="teacher-lessons-block">
-      <div class="teacher-lessons-title">
-        <strong>اختر أسماء الدروس من القائمة</strong>
-        <div class="teacher-lesson-tools">
-          <button id="teacherSelectAllLessons" type="button">تحديد الكل</button>
-          <button id="teacherClearLessons" type="button">إلغاء الكل</button>
-        </div>
-      </div>
-      <div id="teacherLessonsList" class="teacher-lessons-list"></div>
-      <div id="teacherLessonsEmpty" class="teacher-lessons-empty" hidden>لا توجد دروس مفهرسة لهذه المادة بعد.</div>
-    </div>
-
-    <label class="teacher-notes-label">تعليمات إضافية للأستاذ نبيل
-      <textarea id="teacherAssessmentNotes" rows="3" placeholder="مثال: ركّز على البرهان، أو اجعل 30% من العلامة لمسائل تطبيقية..."></textarea>
-    </label>
-
-    <div class="teacher-assessment-actions">
-      <button id="teacherGenerateAssessment" class="teacher-generate-btn" type="button">✨ أنشئ المسابقة وأسُس التصحيح</button>
-      <button id="teacherDownloadWord" type="button" disabled>⬇ Word قابل للتعديل</button>
-    </div>
-    <div id="teacherAssessmentStatus" class="teacher-assessment-status">اختر المادة والدروس ثم أنشئ المسابقة.</div>
-    <div id="teacherAssessmentPreview" class="teacher-assessment-preview"></div>
-  </section>
-</div>
 
 </body></html>`;
         const blob = new Blob(["\ufeff", html], {type:"application/msword"});
@@ -10770,6 +10689,91 @@ teacherGenerateAssessment?.addEventListener('click',async()=>{
 });
 
 </script>
+
+
+
+<div id="teacherAssessmentModal" class="teacher-assessment-modal" hidden>
+  <div class="teacher-assessment-backdrop" data-close-teacher-assessment="1"></div>
+  <section class="teacher-assessment-panel" role="dialog" aria-modal="true" aria-labelledby="teacherAssessmentTitle">
+    <div class="teacher-assessment-head">
+      <div>
+        <div class="teacher-assessment-kicker">NABIL AI • Teacher Assessment Builder</div>
+        <h2 id="teacherAssessmentTitle">إعداد مسابقة</h2>
+      </div>
+      <button id="teacherAssessmentClose" class="teacher-assessment-close" type="button">✕</button>
+    </div>
+
+    <div class="teacher-assessment-grid">
+      <label>الصف
+        <select id="teacherGrade"></select>
+      </label>
+      <label id="teacherBranchWrap">الفرع
+        <select id="teacherBranch"></select>
+      </label>
+      <label>المادة
+        <select id="teacherSubject"></select>
+      </label>
+      <label>لغة المسابقة
+        <select id="teacherExamLanguage">
+          <option value="العربية">العربية</option>
+          <option value="English">English</option>
+          <option value="Français">Français</option>
+        </select>
+      </label>
+      <label>المدة
+        <select id="teacherDuration">
+          <option value="30">30 دقيقة</option>
+          <option value="45">45 دقيقة</option>
+          <option value="60" selected>60 دقيقة</option>
+          <option value="90">90 دقيقة</option>
+          <option value="120">120 دقيقة</option>
+        </select>
+      </label>
+      <label>العلامة الكاملة
+        <input id="teacherTotalMarks" type="number" min="5" max="100" value="20" />
+      </label>
+      <label>المستوى
+        <select id="teacherDifficulty">
+          <option value="below_average">دون الوسط</option>
+          <option value="medium" selected>متوسط</option>
+          <option value="above_average">فوق الوسط</option>
+          <option value="mixed">متدرّج: سهل + متوسط + متقدم</option>
+        </select>
+      </label>
+      <label>عدد النماذج
+        <select id="teacherVariants">
+          <option value="1" selected>نموذج واحد</option>
+          <option value="2">نموذجان A / B</option>
+          <option value="3">3 نماذج</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="teacher-lessons-block">
+      <div class="teacher-lessons-title">
+        <strong>اختر أسماء الدروس من القائمة</strong>
+        <div class="teacher-lesson-tools">
+          <button id="teacherSelectAllLessons" type="button">تحديد الكل</button>
+          <button id="teacherClearLessons" type="button">إلغاء الكل</button>
+        </div>
+      </div>
+      <div id="teacherLessonsList" class="teacher-lessons-list"></div>
+      <div id="teacherLessonsEmpty" class="teacher-lessons-empty" hidden>لا توجد دروس مفهرسة لهذه المادة بعد.</div>
+    </div>
+
+    <label class="teacher-notes-label">تعليمات إضافية للأستاذ نبيل
+      <textarea id="teacherAssessmentNotes" rows="3" placeholder="مثال: ركّز على البرهان، أو اجعل 30% من العلامة لمسائل تطبيقية..."></textarea>
+    </label>
+
+    <div class="teacher-assessment-actions">
+      <button id="teacherGenerateAssessment" class="teacher-generate-btn" type="button">✨ أنشئ المسابقة وأسُس التصحيح</button>
+      <button id="teacherDownloadWord" type="button" disabled>⬇ Word قابل للتعديل</button>
+    </div>
+    <div id="teacherAssessmentStatus" class="teacher-assessment-status">اختر المادة والدروس ثم أنشئ المسابقة.</div>
+    <div id="teacherAssessmentPreview" class="teacher-assessment-preview"></div>
+  </section>
+</div>
+
 
 </body>
 </html>
