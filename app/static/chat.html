@@ -2385,6 +2385,96 @@ body.nabil-home-lock::before{
     }
 }
 
+
+
+/* ===== v8 fix: mathematics/function cards stacked vertically full-width ===== */
+.function-study-board .exercise-function-board{
+    grid-template-columns:minmax(0,1fr)!important;
+    gap:10px!important;
+    align-items:stretch!important;
+}
+.function-study-board .exercise-function-study,
+.function-study-board .exercise-function-keypoints,
+.function-study-board .exercise-function-visual,
+.function-study-board .exercise-function-final-strip{
+    grid-column:1 / -1!important;
+    width:100%!important;
+    min-width:0!important;
+    margin:0!important;
+}
+.function-study-board .exercise-function-study{order:1}
+.function-study-board .exercise-function-keypoints{order:2}
+.function-study-board .exercise-function-visual{order:3}
+.function-study-board .exercise-function-final-strip{order:4}
+
+/* The math layout should be simple: given box, solution box, then graph box. */
+.function-study-board .exercise-function-keypoints .exercise-function-mini-grid{
+    display:block!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    margin-top:0!important;
+}
+.function-study-board .exercise-function-keypoints .exercise-function-mini-card,
+.function-study-board .exercise-function-keypoints .exercise-section-card,
+.function-study-board .exercise-function-study .exercise-section-card,
+.function-study-board .exercise-function-study .exercise-answer-card,
+.function-study-board .exercise-function-study .exercise-summary-card{
+    display:block!important;
+    width:100%!important;
+    max-width:100%!important;
+    margin:0 0 10px!important;
+    box-sizing:border-box!important;
+}
+.function-study-board .exercise-function-study,
+.function-study-board .exercise-function-keypoints,
+.function-study-board .exercise-function-visual{
+    padding:12px!important;
+}
+.function-study-board .exercise-function-study-title,
+.function-study-board .exercise-function-keypoints-title,
+.function-study-board .exercise-function-visual-title{
+    margin:0 0 10px!important;
+}
+
+/* Remove squeezed graph area and let the chart use the full row. */
+.function-study-board .exercise-function-visual .exercise-visual-panel{
+    width:100%!important;
+    min-height:0!important;
+    height:auto!important;
+}
+.function-study-board .exercise-function-visual .nabil-visual,
+.function-study-board .exercise-function-visual .nabil-visual svg{
+    width:100%!important;
+    max-width:none!important;
+}
+.function-study-board .exercise-function-visual .nabil-visual svg{
+    min-height:340px!important;
+    height:auto!important;
+    max-height:none!important;
+}
+.function-study-board .exercise-variation-zone{
+    margin-top:10px!important;
+}
+
+/* Mobile: compact vertical stack with no nested side-by-side sections. */
+@media(max-width:900px){
+  .function-study-board .exercise-function-board{
+      display:grid!important;
+      grid-template-columns:minmax(0,1fr)!important;
+      gap:8px!important;
+      padding:10px!important;
+  }
+  .function-study-board .exercise-function-study,
+  .function-study-board .exercise-function-keypoints,
+  .function-study-board .exercise-function-visual,
+  .function-study-board .exercise-function-final-strip{
+      padding:10px!important;
+      border-radius:14px!important;
+  }
+  .function-study-board .exercise-function-visual .nabil-visual svg{
+      min-height:280px!important;
+  }
+}
+
 </style>
 </head>
 
