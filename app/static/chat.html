@@ -1754,8 +1754,8 @@ body.nabil-home-lock::before{
     background:transparent;
 }
 .exercise-function-visual .nabil-visual svg{
-    min-height:540px;
-    max-height:640px;
+    min-height:560px;
+    max-height:none;
 }
 .exercise-variation-zone{
     border:1px solid #347ca4;
@@ -1774,12 +1774,15 @@ body.nabil-home-lock::before{
     width:100%;
     border-collapse:collapse;
     background:#0a2133;
+    border:1.5px solid #3a6886;
+    table-layout:auto;
 }
 .exercise-variation-zone th,
 .exercise-variation-zone td{
-    border:1px solid #315d78;
+    border:1.5px solid #3a6886;
     padding:7px 8px;
     text-align:center;
+    vertical-align:middle;
 }
 .exercise-variation-zone th{background:#0d3e59;color:#76e3ff}
 
@@ -1795,6 +1798,8 @@ body.nabil-home-lock::before{
 .exercise-variation-zone th{
     border-color:#315b76;
 }
+.exercise-variation-zone .variation-auto-table th{font-weight:900;color:#7ee3ff;background:#0d3e59;}
+.exercise-variation-zone .variation-auto-table td{color:#eef8ff;}
 .variation-up{
     color:#2ee69d;
     font-size:20px;
@@ -3073,6 +3078,79 @@ function variationTitle(messageLanguage){
     return "جدول التغيّرات";
 }
 
+
+function nabilHTMLToPlainText(html){
+    const holder=document.createElement('div');
+    holder.innerHTML=html||'';
+    return (holder.innerText || holder.textContent || '').replace(/\u00a0/g,' ').trim();
+}
+
+function nabilDetectVariationTableFromText(html){
+    const text=nabilHTMLToPlainText(html);
+    if(!text) return '';
+
+    const lines=text.split(/\n+/).map(s=>s.replace(/^#+\s*/,'').trim()).filter(Boolean);
+    const candidateLines=lines.filter(line=>/(^x\b|f\s*[′']?\s*\(\s*x\s*\)|variation|variations|جدول|التغير|التغيّر)/i.test(line));
+    if(candidateLines.length < 2) return '';
+
+    const rows=[];
+    candidateLines.forEach(line=>{
+        let parts=[];
+        if(line.includes('|')) parts=line.split('|').map(s=>s.trim()).filter(Boolean);
+        if(parts.length < 2) parts=line.split(/\t+|\s{2,}/).map(s=>s.trim()).filter(Boolean);
+        if(parts.length < 2) parts=line.split(/\s+(?=\(|\[|\{|[+\-−∞]|\|\||↗|↘|↑|↓|x\b|f\()/).map(s=>s.trim()).filter(Boolean);
+        if(parts.length >= 2) rows.push(parts);
+    });
+
+    if(rows.length < 2) return '';
+    const maxCols=Math.max(...rows.map(r=>r.length));
+    if(maxCols < 2) return '';
+
+    const body=rows.map(r=>`<tr>${Array.from({length:maxCols},(_,i)=> i===0 ? `<th>${nabilEsc(r[i]||'')}</th>` : `<td>${nabilEsc(r[i]||'')}</td>`).join('')}</tr>`).join('');
+    return `<div class="lesson-table-wrap"><table class="variation-auto-table"><tbody>${body}</tbody></table></div>`;
+}
+
+function nabilAutoFunctionSpecFromBoard(board){
+    const raw = [board?.title || '', ...(board?.sections || []).map(sec => `${sec.title || ''} ${renderNodesAsHTML(sec.nodes || [])}`)].join(' ');
+    const text = nabilHTMLToPlainText(raw).replace(/\s+/g,' ');
+    if(!/f\s*\(\s*x\s*\)|function|fonction|graph|دال|دراسة/.test(text)) return null;
+
+    const patterns=[
+        /f\s*\(\s*x\s*\)\s*=\s*([^=\n]+?)(?=(?:\s+(?:domain|variation|limit|asymptote|required|solution|given|formula|property|law|study|draw|ارسم|المطلوب|المعطيات|الحل|القانون))|$)/i,
+        /draw\s+f\s*x\s*=\s*([^\n]+)$/i,
+        /ارسم\s+[^\n]*?f\s*\(\s*x\s*\)\s*=\s*([^\n]+)/i
+    ];
+    let expr='';
+    for(const rx of patterns){
+        const m=text.match(rx);
+        if(m && m[1]){ expr=m[1].trim(); break; }
+    }
+    if(!expr) return null;
+
+    expr=expr.replace(/[.;،]+$/,'').trim();
+    const normalized=nabilNormalizeExpression(expr);
+    if(!normalized) return null;
+
+    const spec={type:'function', title:`f(x) = ${expr}`, expression:expr};
+
+    if(/\bln\b|\\ln|Math\.log/i.test(normalized)){
+        spec.xmin=0.08; spec.xmax=8; spec.ymin=-3.5; spec.ymax=2.5;
+        if(/\/\s*x\b/.test(normalized) || /x\s*\*\*\s*-1/.test(normalized)){
+            spec.ymin=-2.8; spec.ymax=1.8;
+        }
+    }else if(/1\s*\/\s*x|Math\.abs\(x\)\s*\/|inverse/i.test(normalized)){
+        spec.xmin=-6; spec.xmax=6; spec.ymin=-8; spec.ymax=8; spec.vertical_asymptote=0;
+    }else{
+        spec.xmin=-6; spec.xmax=6; spec.ymin=-8; spec.ymax=8;
+    }
+
+    if(/\bln\b|\\ln|Math\.log/i.test(normalized) && /Math\.log\(x\)/.test(normalized)){
+        spec.vertical_asymptote = 0;
+    }
+
+    return spec;
+}
+
 function renderGeneralExerciseBoards(text, diagrams, messageDirection, messageLanguage){
     const boards = extractExerciseBoards(text);
     if (!boards.length) {
@@ -3123,9 +3201,12 @@ function renderGeneralExerciseBoards(text, diagrams, messageDirection, messageLa
         const introBadges = [];
         const title = board.title || (messageLanguage === "English" ? `Exercise ${boardIndex+1}` : messageLanguage === "Français" ? `Exercice ${boardIndex+1}` : `تمرين ${boardIndex+1}`);
 
+        const autoFunctionSpec = !diagramsForThis.length ? nabilAutoFunctionSpecFromBoard(board) : null;
         const visualHTML = diagramsForThis.length
             ? diagramsForThis.join("")
-            : `<div class="exercise-visual-empty">${messageLanguage === "English" ? "The graph could not be generated from the available data." : messageLanguage === "Français" ? "Le graphique n’a pas pu être généré à partir des données disponibles." : "تعذّر إنشاء الرسم من المعطيات المتاحة."}</div>`;
+            : autoFunctionSpec
+                ? renderNabilDiagram(autoFunctionSpec)
+                : `<div class="exercise-visual-empty">${messageLanguage === "English" ? "The graph could not be generated from the available data." : messageLanguage === "Français" ? "Le graphique n’a pas pu être généré à partir des données disponibles." : "تعذّر إنشاء الرسم من المعطيات المتاحة."}</div>`;
 
         const wholeBoardText = [
             board.title,
@@ -3158,6 +3239,7 @@ function renderGeneralExerciseBoards(text, diagrams, messageDirection, messageLa
                                 <div class="exercise-variation-title">${variationTitle(messageLanguage)}</div>
                                 ${variationTextHTML ? `<div class="exercise-variation-richtext">${variationTextHTML}</div>` : ""}
                                 ${variationTables.map(t=>decorateVariationTableHTML(t,messageLanguage)).join("")}
+                                ${!variationTables.length && variationTextHTML ? decorateVariationTableHTML(nabilDetectVariationTableFromText(variationTextHTML), messageLanguage) : ""}
                             </div>
                         ` : ""}
                     </section>
@@ -4422,11 +4504,14 @@ async function sendToAI(
                 );
 
 
-            throw new Error(
+            const requestError = new Error(
                 typeof detail === "string"
                     ? detail
                     : JSON.stringify(detail)
             );
+            requestError.status = response.status;
+            requestError.detail = detail;
+            throw requestError;
 
         }
 
@@ -4511,11 +4596,57 @@ async function sendToAI(
             error
         );
 
+        const status = Number(error?.status || 0);
+        const raw = String(error?.message || "").trim();
+        const selectedGrade = String(grade || "").trim();
+        const selectedSubject = String(subject || "").trim();
+        const selectedLesson = String(lesson || "").trim();
+
+        let friendlyMessage = "";
+
+        if (status === 400 || status === 422) {
+            friendlyMessage =
+                "تعذّر إرسال الطلب لأن بعض بياناته غير مكتملة أو غير صالحة.\n" +
+                "تأكّد من اختيار الصف والمادة واللغة" +
+                (nabilLessonActive ? " والدرس المناسب" : "") +
+                "، ثم أعد المحاولة.";
+
+            if (selectedGrade || selectedSubject || selectedLesson) {
+                friendlyMessage +=
+                    "\n\nالاختيارات الحالية:" +
+                    (selectedGrade ? `\n• الصف: ${selectedGrade}` : "") +
+                    (selectedSubject ? `\n• المادة: ${selectedSubject}` : "") +
+                    (selectedLesson && nabilLessonActive ? `\n• الدرس: ${selectedLesson}` : "");
+            }
+        }
+        else if (status === 429 || /busy|مشغول|rate|too many/i.test(raw)) {
+            friendlyMessage =
+                "خدمة NABIL AI مشغولة مؤقتًا بسبب كثرة الطلبات.\n" +
+                "المشكلة ليست من اختيار الصف أو المادة. أعد المحاولة بعد قليل.";
+        }
+        else if ([500,502,503,504].includes(status) ||
+                 /غير متاحة|unavailable|temporar|timeout|timed out|gateway/i.test(raw)) {
+            friendlyMessage =
+                "تعذّر الوصول إلى خدمة NABIL AI مؤقتًا.\n" +
+                "المشكلة ليست من اختيار الصف أو المادة غالبًا؛ الخدمة أو مزوّد الذكاء الاصطناعي لم يستجب في هذه اللحظة.\n" +
+                "أعد المحاولة بعد قليل.";
+        }
+        else if (/failed to fetch|networkerror|network request|load failed/i.test(raw)) {
+            friendlyMessage =
+                "تعذّر الاتصال بالخادم.\n" +
+                "تحقّق من الإنترنت أو من أن Railway يعمل، ثم أعد المحاولة.";
+        }
+        else {
+            friendlyMessage =
+                "حدث خطأ أثناء تنفيذ الطلب.\n" +
+                "إذا كنت في شرح درس، تأكّد من الصف والمادة والدرس. " +
+                "أما في حل تمارين عامة فلا يشترط أن يكون الموضوع موجودًا في الفهرس.\n" +
+                "أعد المحاولة، وإذا تكرر الخطأ أرسل لنا سجل Railway لمعرفة السبب الدقيق.";
+        }
 
         addMessage(
             "teacher",
-            "حدث خطأ في الاتصال بـ NABIL AI:\n" +
-            error.message
+            friendlyMessage
         );
 
     }
@@ -4999,6 +5130,75 @@ function nabilVisualWrap(title, svg, note=""){
     </div>`;
 }
 
+function nabilNormalizeExpression(expr){
+    let s=String(expr||"").trim();
+    if(!s) return "";
+
+    s=s
+        .replace(/\left|\right/g,"")
+        .replace(/−/g,"-")
+        .replace(/×/g,"*")
+        .replace(/÷/g,"/")
+        .replace(/⁡/g,"")
+        .replace(/\s+/g," ");
+
+    while(/\frac\s*\{[^{}]+\}\s*\{[^{}]+\}/.test(s)){
+        s=s.replace(/\frac\s*\{([^{}]+)\}\s*\{([^{}]+)\}/g,'(($1)/($2))');
+    }
+
+    s=s
+        .replace(/\^/g,'**')
+        .replace(/ln\s*\(\s*x\s*\)/gi,'Math.log(x)')
+        .replace(/ln\s*x/gi,'Math.log(x)')
+        .replace(/\ln\s*\(\s*x\s*\)/gi,'Math.log(x)')
+        .replace(/\ln\s*x/gi,'Math.log(x)')
+        .replace(/log\s*\(\s*x\s*\)/gi,'Math.log10(x)')
+        .replace(/log\s*x/gi,'Math.log10(x)')
+        .replace(/\log\s*\(\s*x\s*\)/gi,'Math.log10(x)')
+        .replace(/\log\s*x/gi,'Math.log10(x)')
+        .replace(/sqrt\s*\(/gi,'Math.sqrt(')
+        .replace(/\sqrt\s*\(/gi,'Math.sqrt(')
+        .replace(/exp\s*\(/gi,'Math.exp(')
+        .replace(/\exp\s*\(/gi,'Math.exp(')
+        .replace(/abs\s*\(/gi,'Math.abs(')
+        .replace(/\abs\s*\(/gi,'Math.abs(')
+        .replace(/sin\s*\(/gi,'Math.sin(')
+        .replace(/cos\s*\(/gi,'Math.cos(')
+        .replace(/tan\s*\(/gi,'Math.tan(')
+        .replace(/\sin\s*\(/gi,'Math.sin(')
+        .replace(/\cos\s*\(/gi,'Math.cos(')
+        .replace(/\tan\s*\(/gi,'Math.tan(')
+        .replace(/e\s*\^\s*x/gi,'Math.exp(x)')
+        .replace(/pi/gi,'Math.PI')
+        .replace(/π/g,'Math.PI');
+
+    s=s
+        .replace(/(\d)\s*x/g,'$1*x')
+        .replace(/\)\s*x/g,')*x')
+        .replace(/x\s*\(/g,'x*(')
+        .replace(/(\d)\s*\(/g,'$1*(')
+        .replace(/\)\s*(\d)/g,')*$1')
+        .replace(/Math\.PI\s*x/g,'Math.PI*x');
+
+    return s.trim();
+}
+
+function nabilTryBuildEvaluator(spec){
+    const expr = spec.expression || spec.formula || spec.equation || spec.fx || spec.function_expression || spec.function || "";
+    const normalized = nabilNormalizeExpression(expr);
+    if(!normalized) return null;
+    if(/[^0-9x+\-*/()., _A-Za-z\\]/.test(normalized)) return null;
+
+    try{
+        const fn = new Function('x', `"use strict"; return (${normalized});`);
+        const test = fn(2);
+        if(test === undefined) return null;
+        return fn;
+    }catch(_err){
+        return null;
+    }
+}
+
 function nabilFunctionValue(spec,x){
     const kind=String(spec.function||"").toLowerCase();
     const coefficient=Number(spec.coefficient??1);
@@ -5013,26 +5213,58 @@ function nabilFunctionValue(spec,x){
     if(kind==="square") return coefficient*u*u+yShift;
     if(kind==="inverse") return Math.abs(u)>1e-7 ? coefficient/u+yShift : null;
     if(kind==="linear") return Number(spec.slope??1)*x+Number(spec.intercept??0);
+
+    const evaluator=nabilTryBuildEvaluator(spec);
+    if(evaluator){
+        try{
+            const y = evaluator(x);
+            return Number.isFinite(y) ? y : null;
+        }catch(_err){
+            return null;
+        }
+    }
     return null;
 }
 
 function nabilFunctionSeries(spec,xmin,xmax,ymin,ymax){
-    if(String(spec.type||"").toLowerCase()!=="function" || !spec.function) return [];
+    const lowerType=String(spec.type||"").toLowerCase();
+    const hasFunctionLikeData = !!(spec.function || spec.expression || spec.formula || spec.equation || spec.fx || spec.function_expression);
+    if(!(lowerType==="function" || lowerType==="coordinate_plane" || lowerType==="graph") || !hasFunctionLikeData) return [];
+
     const segments=[];
     let current=[];
-    const samples=180;
+    const samples=260;
+    const verticalValues=[];
+    const rawVerticals=Array.isArray(spec.vertical_asymptotes)?spec.vertical_asymptotes:(spec.vertical_asymptote!==undefined?[spec.vertical_asymptote]:[]);
+    rawVerticals.forEach(v=>{
+        const value=Number(v && typeof v==="object" ? v.x : v);
+        if(Number.isFinite(value)) verticalValues.push(value);
+    });
+
     for(let i=0;i<=samples;i++){
         const x=xmin+(xmax-xmin)*i/samples;
-        const y=nabilFunctionValue(spec,x);
-        const visible=Number.isFinite(y) && y>=ymin-.25*(ymax-ymin) && y<=ymax+.25*(ymax-ymin);
-        if(!visible){
-            if(current.length>1) segments.push({points:current,color:"#22d3ee"});
+        if(verticalValues.some(v=>Math.abs(x-v)<(xmax-xmin)/samples*1.4)){
+            if(current.length>1) segments.push({points:current,color:'#22d3ee'});
             current=[];
             continue;
         }
+        const y=nabilFunctionValue(spec,x);
+        const visible=Number.isFinite(y) && y>=ymin-.35*(ymax-ymin) && y<=ymax+.35*(ymax-ymin);
+        if(!visible){
+            if(current.length>1) segments.push({points:current,color:'#22d3ee'});
+            current=[];
+            continue;
+        }
+        if(current.length){
+            const prev=current[current.length-1];
+            if(Math.abs(y-prev[1])>(ymax-ymin)*0.9){
+                if(current.length>1) segments.push({points:current,color:'#22d3ee'});
+                current=[];
+            }
+        }
         current.push([x,y]);
     }
-    if(current.length>1) segments.push({points:current,color:"#22d3ee"});
+    if(current.length>1) segments.push({points:current,color:'#22d3ee'});
     return segments;
 }
 
