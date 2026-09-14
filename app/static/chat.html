@@ -10009,7 +10009,337 @@ document.addEventListener("click", (event) => {
     .lesson-tutor-message{font-size:10.5px}
 }
 
-.teacher-assessment-modal[hidden]{display:none!important}.teacher-assessment-modal{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:18px}.teacher-assessment-backdrop{position:absolute;inset:0;background:rgba(2,12,24,.76);backdrop-filter:blur(5px)}.teacher-assessment-panel{position:relative;width:min(1180px,96vw);max-height:92vh;overflow:auto;border:1px solid rgba(91,210,255,.42);border-radius:22px;background:linear-gradient(180deg,#09283f,#061a2c);box-shadow:0 24px 70px rgba(0,0,0,.48);padding:20px;color:#eef9ff}.teacher-assessment-head{display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid rgba(110,220,255,.18);padding-bottom:12px;margin-bottom:16px}.teacher-assessment-head h2{margin:2px 0 0;font-size:28px}.teacher-assessment-kicker{font-size:12px;color:#72ddff;font-weight:800;letter-spacing:.04em}.teacher-assessment-close{border:1px solid rgba(255,255,255,.18);background:#102f48;color:white;border-radius:12px;width:42px;height:42px;font-size:20px}.teacher-assessment-grid{display:grid;grid-template-columns:repeat(4,minmax(170px,1fr));gap:12px}.teacher-assessment-grid label,.teacher-notes-label{display:flex;flex-direction:column;gap:6px;font-weight:800;color:#bfeeff}.teacher-assessment-grid select,.teacher-assessment-grid input,.teacher-notes-label textarea{width:100%;box-sizing:border-box;border:1px solid #315f7c;border-radius:11px;background:#071f33;color:#f3fbff;padding:10px 11px;font:inherit}.teacher-lessons-block{margin-top:16px;border:1px solid rgba(103,220,255,.25);border-radius:16px;background:rgba(4,22,37,.65);padding:14px}.teacher-lessons-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.teacher-lesson-tools{display:flex;gap:8px}.teacher-lesson-tools button{border:1px solid #2f6f95;background:#0b314b;color:#dff7ff;border-radius:9px;padding:7px 10px}.teacher-lessons-list{display:grid;grid-template-columns:repeat(3,minmax(220px,1fr));gap:9px}.teacher-lesson-choice{display:flex;align-items:flex-start;gap:9px;border:1px solid rgba(80,175,220,.22);background:#08243a;border-radius:12px;padding:10px;line-height:1.35}.teacher-lesson-choice input{margin-top:3px}.teacher-lessons-empty{padding:14px;color:#ffd589}.teacher-notes-label{margin-top:14px}.teacher-assessment-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}.teacher-assessment-actions button{border:1px solid #2d7aa2;background:#0d3855;color:#eefaff;border-radius:12px;padding:11px 15px;font-weight:900}.teacher-assessment-actions .teacher-generate-btn{background:linear-gradient(135deg,#086c91,#0b8a68);border-color:#20c6a1}.teacher-assessment-actions button:disabled{opacity:.45;cursor:not-allowed}.teacher-assessment-status{margin-top:10px;color:#9adff4}.teacher-assessment-preview{margin-top:14px;display:grid;gap:14px}.teacher-preview-card{border:1px solid rgba(103,220,255,.25);border-radius:16px;background:#071f33;padding:16px;overflow:auto}.teacher-preview-card h3{color:#72e0ff;margin:0 0 10px}.teacher-preview-card pre{white-space:pre-wrap;word-break:normal;font-family:inherit;line-height:1.7;margin:0}@media(max-width:900px){.teacher-assessment-grid{grid-template-columns:1fr 1fr}.teacher-lessons-list{grid-template-columns:1fr}.teacher-assessment-panel{width:min(98vw,1180px);padding:14px}}@media(max-width:560px){.teacher-assessment-grid{grid-template-columns:1fr}.teacher-assessment-actions button{width:100%}.teacher-assessment-head h2{font-size:22px}}
+
+/* =========================================================
+   NABIL AI — Dedicated Teacher Assessment Page
+========================================================= */
+.teacher-assessment-modal[hidden]{display:none!important}
+.teacher-assessment-modal{
+    position:fixed;
+    inset:0;
+    z-index:99999;
+    background:
+        radial-gradient(circle at 20% 0%, rgba(29,111,191,.22), transparent 32%),
+        linear-gradient(180deg,#0e4b93 0 92px,#061826 92px 100%);
+    color:#eefaff;
+    overflow:auto;
+}
+.teacher-assessment-backdrop{display:none!important}
+
+.teacher-assessment-panel{
+    position:relative;
+    width:min(1420px,100%);
+    min-height:100vh;
+    margin:0 auto;
+    padding:0 24px 36px;
+    background:transparent;
+    border:0;
+    box-shadow:none;
+    overflow:visible;
+}
+
+.teacher-assessment-head{
+    min-height:92px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:18px;
+    margin:0 -24px 26px;
+    padding:14px 30px;
+    border-bottom:1px solid rgba(164,226,255,.18);
+}
+.teacher-assessment-brand{
+    display:flex;
+    align-items:center;
+    gap:14px;
+}
+.teacher-assessment-brand img{
+    width:58px;
+    height:58px;
+    object-fit:contain;
+    border-radius:16px;
+    border:1px solid #43d7ff;
+    background:#08263b;
+    box-shadow:0 0 24px rgba(50,211,255,.18);
+}
+.teacher-assessment-head h2{
+    margin:2px 0 0;
+    font-size:28px;
+    color:#fff;
+}
+.teacher-assessment-kicker{
+    font-size:12px;
+    color:#80e8ff;
+    font-weight:900;
+    letter-spacing:.04em;
+}
+.teacher-assessment-close{
+    width:auto;
+    min-width:112px;
+    height:44px;
+    padding:0 16px;
+    border:1px solid rgba(255,255,255,.2);
+    background:#0a2e4a;
+    color:#fff;
+    border-radius:12px;
+    font-weight:900;
+    cursor:pointer;
+}
+.teacher-assessment-close:hover{background:#12476e}
+
+.teacher-assessment-page-layout{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 290px;
+    gap:22px;
+    align-items:start;
+}
+.teacher-assessment-main{
+    display:grid;
+    gap:18px;
+}
+.teacher-builder-card{
+    border:1px solid rgba(83,205,255,.28);
+    border-radius:20px;
+    background:linear-gradient(180deg,rgba(10,43,68,.96),rgba(6,27,44,.97));
+    box-shadow:0 14px 32px rgba(0,0,0,.22);
+    padding:18px;
+}
+.teacher-builder-section-title{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin:0 0 14px;
+    color:#71e5ff;
+    font-size:18px;
+    font-weight:900;
+}
+.teacher-builder-section-title .num{
+    display:grid;
+    place-items:center;
+    width:30px;
+    height:30px;
+    border-radius:9px;
+    background:#176fbe;
+    color:white;
+    font-size:14px;
+}
+.teacher-assessment-grid{
+    display:grid;
+    grid-template-columns:repeat(4,minmax(170px,1fr));
+    gap:13px;
+}
+.teacher-assessment-grid label,
+.teacher-notes-label{
+    display:flex;
+    flex-direction:column;
+    gap:7px;
+    color:#c9f1ff;
+    font-size:13px;
+    font-weight:900;
+}
+.teacher-assessment-grid select,
+.teacher-assessment-grid input,
+.teacher-notes-label textarea{
+    width:100%;
+    box-sizing:border-box;
+    min-height:46px;
+    border:1px solid #347ca4;
+    border-radius:12px;
+    background:#071f33!important;
+    color:#f5fbff!important;
+    padding:10px 12px;
+    font:inherit;
+    outline:none;
+}
+.teacher-assessment-grid select:focus,
+.teacher-assessment-grid input:focus,
+.teacher-notes-label textarea:focus{
+    border-color:#5de0ff;
+    box-shadow:0 0 0 3px rgba(60,203,255,.12);
+}
+.teacher-assessment-grid option{
+    background:#071f33;
+    color:#fff;
+}
+
+.teacher-lessons-block{
+    margin:0;
+    border:0;
+    border-radius:0;
+    background:transparent;
+    padding:0;
+}
+.teacher-lessons-title{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:12px;
+}
+.teacher-lesson-tools{display:flex;gap:8px;flex-wrap:wrap}
+.teacher-lesson-tools button{
+    border:1px solid #2d78a1;
+    background:#0c3552;
+    color:#e9faff;
+    border-radius:10px;
+    padding:8px 11px;
+    font-weight:800;
+    cursor:pointer;
+}
+.teacher-lessons-list{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(250px,1fr));
+    gap:10px;
+    max-height:360px;
+    overflow:auto;
+    padding-right:4px;
+}
+.teacher-lesson-choice{
+    display:flex;
+    align-items:flex-start;
+    gap:10px;
+    border:1px solid rgba(82,191,238,.22);
+    background:#08263d;
+    border-radius:12px;
+    padding:11px 12px;
+    line-height:1.45;
+    color:#f0fbff;
+    cursor:pointer;
+}
+.teacher-lesson-choice:hover{
+    border-color:#48cfff;
+    background:#0b304b;
+}
+.teacher-lesson-choice input{
+    width:18px;
+    height:18px;
+    margin-top:1px;
+    accent-color:#18b4ef;
+}
+.teacher-lessons-empty{
+    padding:16px;
+    border:1px dashed #8e7c31;
+    background:#3b3210;
+    border-radius:12px;
+    color:#ffe89a;
+}
+
+.teacher-notes-label{margin:0}
+.teacher-notes-label textarea{
+    min-height:96px!important;
+    resize:vertical;
+}
+.teacher-assessment-actions{
+    display:flex;
+    flex-wrap:wrap;
+    gap:12px;
+    margin-top:16px;
+}
+.teacher-assessment-actions button{
+    min-height:48px;
+    border:1px solid #2c7ca7;
+    background:#0d3b5a;
+    color:#f3fbff;
+    border-radius:12px;
+    padding:11px 17px;
+    font-weight:900;
+    cursor:pointer;
+}
+.teacher-assessment-actions .teacher-generate-btn{
+    flex:1 1 320px;
+    background:linear-gradient(135deg,#1689c7,#0aaa79);
+    border-color:#36e0b7;
+    font-size:15px;
+}
+.teacher-assessment-actions button:disabled{opacity:.45;cursor:not-allowed}
+.teacher-assessment-status{
+    margin-top:12px;
+    padding:11px 13px;
+    border-radius:11px;
+    background:#071f33;
+    border:1px solid rgba(80,195,240,.2);
+    color:#9fe7ff;
+}
+.teacher-assessment-preview{
+    margin-top:14px;
+    display:grid;
+    gap:14px;
+}
+.teacher-preview-card{
+    border:1px solid rgba(103,220,255,.25);
+    border-radius:16px;
+    background:#071f33;
+    padding:16px;
+    overflow:auto;
+}
+.teacher-preview-card h3{color:#72e0ff;margin:0 0 10px}
+.teacher-preview-card pre{
+    white-space:pre-wrap;
+    word-break:normal;
+    font-family:inherit;
+    line-height:1.7;
+    margin:0;
+}
+
+.teacher-assessment-nabil{
+    position:sticky;
+    top:18px;
+    border:1px solid rgba(72,207,255,.38);
+    border-radius:22px;
+    background:linear-gradient(180deg,#0a3553,#08263d);
+    padding:18px;
+    text-align:center;
+    box-shadow:0 16px 34px rgba(0,0,0,.24);
+}
+.teacher-assessment-nabil img{
+    width:160px;
+    max-width:80%;
+    display:block;
+    margin:6px auto 14px;
+    filter:drop-shadow(0 10px 18px rgba(0,0,0,.28));
+}
+.teacher-assessment-nabil h3{
+    color:#68e4ff;
+    font-size:24px;
+    margin:2px 0 6px;
+}
+.teacher-assessment-nabil p{
+    color:#d6effa;
+    font-size:13px;
+    line-height:1.7;
+    margin:0;
+}
+.teacher-assessment-nabil .teacher-tip{
+    margin-top:14px;
+    padding:12px;
+    border-radius:12px;
+    background:#061c2e;
+    border:1px solid rgba(93,218,255,.18);
+    color:#a9ddeb;
+    font-size:12px;
+    line-height:1.6;
+    text-align:right;
+}
+
+@media(max-width:1050px){
+    .teacher-assessment-page-layout{grid-template-columns:1fr}
+    .teacher-assessment-nabil{position:static;display:grid;grid-template-columns:100px 1fr;align-items:center;text-align:right}
+    .teacher-assessment-nabil img{width:90px;margin:0}
+    .teacher-assessment-nabil .teacher-tip{grid-column:1/-1}
+    .teacher-assessment-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:650px){
+    .teacher-assessment-panel{padding:0 12px 22px}
+    .teacher-assessment-head{margin:0 -12px 18px;padding:10px 14px;min-height:78px}
+    .teacher-assessment-brand img{width:48px;height:48px}
+    .teacher-assessment-head h2{font-size:20px}
+    .teacher-assessment-close{min-width:84px;height:40px;font-size:12px}
+    .teacher-assessment-grid{grid-template-columns:1fr}
+    .teacher-lessons-list{grid-template-columns:1fr;max-height:none}
+    .teacher-builder-card{padding:14px;border-radius:16px}
+    .teacher-assessment-actions button{width:100%}
+}
+
 
 </style>
         </head><body><h1>${nabilEsc(title)}</h1><p>${nabilEsc([gradeSelect.value,branchSelect.value,subjectSelect.value,languageSelect.value].filter(Boolean).join(" — "))}</p>${rows}
@@ -10861,7 +11191,9 @@ function nabilOpenTeacherAssessment(){
 
   // Open first. Even if curriculum/index population fails, the teacher must see the builder.
   teacherAssessmentModal.hidden=false;
-  teacherAssessmentModal.style.display='flex';
+  teacherAssessmentModal.style.display='block';
+  document.body.style.overflow='hidden';
+  teacherAssessmentModal.scrollTop=0;
 
   try{
     nabilTeacherFill(teacherGrade,nabilTeacherGrades(),'اختر الصف',gradeSelect?.value||'');
@@ -10937,6 +11269,7 @@ function nabilCloseTeacherAssessment(){
   if(!teacherAssessmentModal) return;
   teacherAssessmentModal.hidden=true;
   teacherAssessmentModal.style.display='none';
+  document.body.style.overflow='';
 }
 function nabilInitTeacherAssessmentUI(){
   nabilTeacherBindElements();
@@ -11002,88 +11335,119 @@ document.addEventListener("DOMContentLoaded",()=>{
 
 
 
+
 <div id="teacherAssessmentModal" class="teacher-assessment-modal" hidden>
-  <div class="teacher-assessment-backdrop" data-close-teacher-assessment="1"></div>
   <section class="teacher-assessment-panel" role="dialog" aria-modal="true" aria-labelledby="teacherAssessmentTitle">
-    <div class="teacher-assessment-head">
-      <div>
-        <div class="teacher-assessment-kicker">NABIL AI • Teacher Assessment Builder</div>
-        <h2 id="teacherAssessmentTitle">إعداد مسابقة</h2>
-      </div>
-      <button id="teacherAssessmentClose" class="teacher-assessment-close" type="button">✕</button>
-    </div>
-
-    <div class="teacher-assessment-grid">
-      <label>الصف
-        <select id="teacherGrade"></select>
-      </label>
-      <label id="teacherBranchWrap">الفرع
-        <select id="teacherBranch"></select>
-      </label>
-      <label>المادة
-        <select id="teacherSubject"></select>
-      </label>
-      <label>لغة المسابقة
-        <select id="teacherExamLanguage">
-          <option value="العربية">العربية</option>
-          <option value="English">English</option>
-          <option value="Français">Français</option>
-        </select>
-      </label>
-      <label>المدة
-        <select id="teacherDuration">
-          <option value="30">30 دقيقة</option>
-          <option value="45">45 دقيقة</option>
-          <option value="60" selected>60 دقيقة</option>
-          <option value="90">90 دقيقة</option>
-          <option value="120">120 دقيقة</option>
-        </select>
-      </label>
-      <label>العلامة الكاملة
-        <input id="teacherTotalMarks" type="number" min="5" max="100" value="20" />
-      </label>
-      <label>المستوى
-        <select id="teacherDifficulty">
-          <option value="below_average">دون الوسط</option>
-          <option value="medium" selected>متوسط</option>
-          <option value="above_average">فوق الوسط</option>
-          <option value="mixed">متدرّج: سهل + متوسط + متقدم</option>
-        </select>
-      </label>
-      <label>عدد النماذج
-        <select id="teacherVariants">
-          <option value="1" selected>نموذج واحد</option>
-          <option value="2">نموذجان A / B</option>
-          <option value="3">3 نماذج</option>
-        </select>
-      </label>
-    </div>
-
-    <div class="teacher-lessons-block">
-      <div class="teacher-lessons-title">
-        <strong>اختر أسماء الدروس من القائمة</strong>
-        <div class="teacher-lesson-tools">
-          <button id="teacherSelectAllLessons" type="button">تحديد الكل</button>
-          <button id="teacherClearLessons" type="button">إلغاء الكل</button>
+    <header class="teacher-assessment-head">
+      <div class="teacher-assessment-brand">
+        <img src="/static/nabil-lesson-avatar.png" alt="NABIL AI">
+        <div>
+          <div class="teacher-assessment-kicker">NABIL AI • TEACHER ASSESSMENT BUILDER</div>
+          <h2 id="teacherAssessmentTitle">إعداد مسابقة للمعلم</h2>
         </div>
       </div>
-      <div id="teacherLessonsList" class="teacher-lessons-list"></div>
-      <div id="teacherLessonsEmpty" class="teacher-lessons-empty" hidden>لا توجد دروس مفهرسة لهذه المادة بعد.</div>
-    </div>
+      <button id="teacherAssessmentClose" class="teacher-assessment-close" type="button">← العودة للمنصة</button>
+    </header>
 
-    <label class="teacher-notes-label">تعليمات إضافية للأستاذ نبيل
-      <textarea id="teacherAssessmentNotes" rows="3" placeholder="مثال: ركّز على البرهان، أو اجعل 30% من العلامة لمسائل تطبيقية..."></textarea>
-    </label>
+    <div class="teacher-assessment-page-layout">
+      <main class="teacher-assessment-main">
 
-    <div class="teacher-assessment-actions">
-      <button id="teacherGenerateAssessment" class="teacher-generate-btn" type="button">✨ أنشئ المسابقة وأسُس التصحيح</button>
-      <button id="teacherDownloadWord" type="button" disabled>⬇ Word قابل للتعديل</button>
+        <section class="teacher-builder-card">
+          <h3 class="teacher-builder-section-title"><span class="num">1</span> معلومات المسابقة</h3>
+          <div class="teacher-assessment-grid">
+            <label>الصف
+              <select id="teacherGrade"></select>
+            </label>
+            <label id="teacherBranchWrap">الفرع
+              <select id="teacherBranch"></select>
+            </label>
+            <label>المادة
+              <select id="teacherSubject"></select>
+            </label>
+            <label>لغة المسابقة
+              <select id="teacherExamLanguage">
+                <option value="العربية">العربية</option>
+                <option value="English">English</option>
+                <option value="Français">Français</option>
+              </select>
+            </label>
+
+            <label>المدة
+              <select id="teacherDuration">
+                <option value="30">30 دقيقة</option>
+                <option value="45">45 دقيقة</option>
+                <option value="60" selected>60 دقيقة</option>
+                <option value="90">90 دقيقة</option>
+                <option value="120">120 دقيقة</option>
+              </select>
+            </label>
+            <label>العلامة الكاملة
+              <input id="teacherTotalMarks" type="number" min="5" max="100" value="20">
+            </label>
+            <label>مستوى المسابقة
+              <select id="teacherDifficulty">
+                <option value="below_average">دون الوسط</option>
+                <option value="medium" selected>متوسط</option>
+                <option value="above_average">فوق الوسط</option>
+                <option value="mixed">متدرّج: سهل + متوسط + متقدم</option>
+              </select>
+            </label>
+            <label>عدد النماذج
+              <select id="teacherVariants">
+                <option value="1" selected>نموذج واحد</option>
+                <option value="2">نموذجان A / B</option>
+                <option value="3">3 نماذج A / B / C</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section class="teacher-builder-card">
+          <h3 class="teacher-builder-section-title"><span class="num">2</span> اختر الدروس الداخلة في المسابقة</h3>
+          <div class="teacher-lessons-block">
+            <div class="teacher-lessons-title">
+              <strong>أسماء الدروس المفهرسة</strong>
+              <div class="teacher-lesson-tools">
+                <button id="teacherSelectAllLessons" type="button">✓ تحديد الكل</button>
+                <button id="teacherClearLessons" type="button">✕ إلغاء الكل</button>
+              </div>
+            </div>
+            <div id="teacherLessonsList" class="teacher-lessons-list"></div>
+            <div id="teacherLessonsEmpty" class="teacher-lessons-empty" hidden>لا توجد دروس مفهرسة لهذه المادة بعد.</div>
+          </div>
+        </section>
+
+        <section class="teacher-builder-card">
+          <h3 class="teacher-builder-section-title"><span class="num">3</span> تعليمات إضافية</h3>
+          <label class="teacher-notes-label">
+            اكتب أي شرط تريد أن يراعيه الأستاذ نبيل
+            <textarea id="teacherAssessmentNotes" rows="3" placeholder="مثال: اجعل 30% من العلامة لمسائل تطبيقية، أضف سؤال برهان، لا تكرر نفس الفكرة..."></textarea>
+          </label>
+
+          <div class="teacher-assessment-actions">
+            <button id="teacherGenerateAssessment" class="teacher-generate-btn" type="button">✨ أنشئ المسابقة وأسُس التصحيح</button>
+            <button id="teacherDownloadWord" type="button" disabled>⬇ Word قابل للتعديل</button>
+          </div>
+          <div id="teacherAssessmentStatus" class="teacher-assessment-status">اختر الصف والمادة والدروس، ثم اضغط «أنشئ المسابقة».</div>
+        </section>
+
+        <section id="teacherAssessmentPreview" class="teacher-assessment-preview"></section>
+      </main>
+
+      <aside class="teacher-assessment-nabil">
+        <img src="/static/nabil-lesson-avatar.png" alt="NABIL AI">
+        <div>
+          <h3>NABIL AI</h3>
+          <p>مساعد المعلم في إعداد مسابقة مرتبة، موزعة العلامات، ومعها أسُس التصحيح.</p>
+        </div>
+        <div class="teacher-tip">
+          <strong>كيف تستعملها؟</strong><br>
+          اختر الصف والمادة، ثم حدّد الدروس المطلوبة، والمدة والعلامة والمستوى. بعد الإنشاء يمكنك تنزيل المسابقة بصيغة Word وتعديلها.
+        </div>
+      </aside>
     </div>
-    <div id="teacherAssessmentStatus" class="teacher-assessment-status">اختر المادة والدروس ثم أنشئ المسابقة.</div>
-    <div id="teacherAssessmentPreview" class="teacher-assessment-preview"></div>
   </section>
 </div>
-
 
 </body>
 </html>
