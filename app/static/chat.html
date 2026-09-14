@@ -1680,18 +1680,55 @@ body.nabil-home-lock::before{
 
 .exercise-function-board{
     display:grid;
-    grid-template-columns:minmax(330px,.95fr) minmax(520px,1.45fr);
+    grid-template-columns:minmax(260px,.82fr) minmax(300px,1fr) minmax(500px,1.58fr);
     gap:12px;
     align-items:stretch;
-    direction:ltr; /* explanation LEFT, graph RIGHT exactly like reference */
+    direction:ltr;
+    border:1px solid #2e7fa9;
+    border-radius:18px;
+    background:linear-gradient(180deg,#0a2940,#071f34);
+    padding:12px;
+    box-shadow:0 14px 34px rgba(0,0,0,.18);
 }
 .exercise-function-study{
-    border:1px solid #2e7fa9;
-    border-radius:16px;
+    border:1px solid rgba(88,205,246,.28);
+    border-radius:14px;
     background:linear-gradient(180deg,#0a2940,#082136);
     padding:14px;
     min-width:0;
 }
+.exercise-function-keypoints{
+    border:1px solid rgba(126,227,255,.30);
+    border-radius:14px;
+    background:linear-gradient(180deg,#09283e,#071f33);
+    padding:14px;
+    min-width:0;
+}
+.exercise-function-keypoints-title{
+    color:#79e1ff;
+    font-weight:900;
+    font-size:20px;
+    margin:0 0 10px;
+    padding-inline-start:10px;
+    border-inline-start:4px solid #28c8ff;
+}
+.exercise-function-keypoints .exercise-function-mini-grid{
+    grid-template-columns:minmax(0,1fr);
+}
+.exercise-function-keypoints .exercise-section-card,
+.exercise-function-keypoints .exercise-function-mini-card{
+    margin:0 0 10px;
+}
+.exercise-function-final-strip{
+    grid-column:1 / -1;
+    border:1px solid #27b47f;
+    border-radius:14px;
+    background:linear-gradient(180deg,rgba(9,57,57,.88),rgba(7,37,45,.96));
+    padding:12px 14px;
+    min-width:0;
+}
+.exercise-function-final-strip:empty{display:none}
+
 .exercise-function-study-title{
     color:#6fdcff;
     font-weight:900;
@@ -1864,6 +1901,9 @@ body.nabil-home-lock::before{
 }
 .exercise-variation-zone .variation-auto-table th{font-weight:900;color:#7ee3ff;background:#0d3e59;}
 .exercise-variation-zone .variation-auto-table td{color:#eef8ff;}
+.exercise-variation-zone .variation-auto-table{border:2px solid #5fd8ff!important;background:#071c2d!important}
+.exercise-variation-zone .variation-auto-table th,.exercise-variation-zone .variation-auto-table td{border:1.5px solid #4f91b4!important;min-width:78px;white-space:nowrap}
+.exercise-variation-zone .variation-auto-table tr:first-child th,.exercise-variation-zone .variation-auto-table tr:first-child td{background:#0d3e59;color:#7ee3ff;font-weight:900}
 .exercise-variation-zone table tr:nth-child(even) td{background:rgba(13,62,89,.22)}
 .exercise-variation-zone table th:first-child,.exercise-variation-zone table td:first-child{font-weight:900;background:#0d3e59;color:#7ee3ff}
 .exercise-variation-zone .lesson-table-wrap{border-radius:12px;overflow:auto;border:1px solid rgba(95,216,255,.18)}
@@ -1906,7 +1946,9 @@ body.nabil-home-lock::before{
 @media(max-width:900px){
     .exercise-function-board{grid-template-columns:minmax(0,1fr)}
     .exercise-function-study{order:1}
-    .exercise-function-visual{order:2}
+    .exercise-function-keypoints{order:2}
+    .exercise-function-visual{order:3}
+    .exercise-function-final-strip{order:4;grid-column:1}
     .exercise-function-visual .nabil-visual svg{min-height:360px;max-height:none}
 }
 
@@ -3186,6 +3228,32 @@ function nabilDetectVariationTableFromText(html){
     if(!text) return '';
 
     const lines=text.split(/\n+/).map(s=>s.replace(/^#+\s*/,'').trim()).filter(Boolean);
+    const rowLines=[];
+    for(const line of lines){
+        if(/^x(?:\s|$)/i.test(line) || /^f\s*[′']?\s*\(\s*x\s*\)/i.test(line)) rowLines.push(line);
+    }
+
+    function splitRow(line){
+        let s=line.replace(/\u2212/g,'-').replace(/\u00a0/g,' ').trim();
+        let parts=s.split(/\t+|\s{2,}/).map(v=>v.trim()).filter(Boolean);
+        if(parts.length < 2){
+            parts=s.split(/\s+(?=(?:[+\-−∞]|x\d*\b|\d+\/\d+\b|↗|↘|↑|↓|max|min|\|\||∥))/i).map(v=>v.trim()).filter(Boolean);
+        }
+        if(parts.length < 2){
+            parts=s.split(/\s+/).map(v=>v.trim()).filter(Boolean);
+        }
+        return parts;
+    }
+
+    if(rowLines.length >= 2){
+        const rows=rowLines.slice(0,3).map(splitRow);
+        const maxCols=Math.max(...rows.map(r=>r.length));
+        if(maxCols >= 3){
+            const body=rows.map(r=>`<tr>${Array.from({length:maxCols},(_,i)=> i===0 ? `<th>${nabilEsc(r[i]||'')}</th>` : `<td>${nabilEsc(r[i]||'')}</td>`).join('')}</tr>`).join('');
+            return `<div class="lesson-table-wrap"><table class="variation-auto-table"><tbody>${body}</tbody></table></div>`;
+        }
+    }
+
     const candidateLines=lines.filter(line=>/(^x\b|f\s*[′']?\s*\(\s*x\s*\)|variation|variations|جدول|التغير|التغيّر)/i.test(line));
     if(candidateLines.length < 2) return '';
 
@@ -3323,6 +3391,43 @@ function nabilRenderFunctionMiniCards(parts, messageLanguage){
     return pieces.join('');
 }
 
+
+function nabilFunctionLeftColumnHTML({givenHTML,requiredHTML,formulaHTML}, messageLanguage){
+    const title = messageLanguage==="English" ? "Given & Main Data"
+        : messageLanguage==="Français" ? "Données principales"
+        : "المعطيات الأساسية";
+    return `
+        <div class="exercise-function-study-title">${title}</div>
+        ${givenHTML || ""}
+        ${requiredHTML || ""}
+        ${formulaHTML || ""}
+    `;
+}
+
+function nabilFunctionCenterColumnHTML({solutionBodyHTML,solutionHTML,extraHTML}, messageLanguage){
+    const title = messageLanguage==="English" ? "Key Solution Points"
+        : messageLanguage==="Français" ? "Étapes essentielles"
+        : "أبرز نقاط الحل";
+    const split = nabilSplitFunctionBlocksFromHTML(solutionBodyHTML || "", messageLanguage);
+    const body = split.length
+        ? `<div class="exercise-function-mini-grid">${
+            split.map(block => `<div class="exercise-function-mini-card">
+                <h4>${nabilEsc(block.title || (messageLanguage==="English"?"Step":messageLanguage==="Français"?"Étape":"خطوة"))}</h4>
+                ${block.html}
+            </div>`).join("")
+          }</div>`
+        : (solutionHTML || "");
+    return `
+        <div class="exercise-function-keypoints-title">${title}</div>
+        ${body}
+        ${extraHTML || ""}
+    `;
+}
+
+function nabilFunctionFinalStripHTML({answerHTML,summaryHTML}){
+    return `${answerHTML || ""}${summaryHTML || ""}`;
+}
+
 function renderGeneralExerciseBoards(text, diagrams, messageDirection, messageLanguage){
     const boards = extractExerciseBoards(text);
     if (!boards.length) {
@@ -3367,6 +3472,8 @@ function renderGeneralExerciseBoards(text, diagrams, messageDirection, messageLa
         const solutionHTML = strippedSolution.html;
         const variationTextHTML = strippedVariation.html;
         const variationTables = [...strippedSolution.tables, ...strippedVariation.tables];
+        const autoVariationTableHTML = nabilDetectVariationTableFromText(`${rawSolutionBodyHTML}
+${rawVariationHTML}`);
 
         const answerHTML = parts.answer.map(s => buildExerciseSectionHTML(s.title || "Final Answer", renderNodesAsHTML(s.nodes), "exercise-answer-card", "section-tone-3")).join("");
         const summaryHTML = parts.summary.map(s => buildExerciseSectionHTML(s.title || "Rule Summary", renderNodesAsHTML(s.nodes), "exercise-summary-card", "section-tone-3")).join("");
@@ -3387,31 +3494,51 @@ function renderGeneralExerciseBoards(text, diagrams, messageDirection, messageLa
         ].join(" ");
 
         if (isFunctionStudyBoard(board, wholeBoardText)) {
-            const functionCardsHTML = nabilRenderFunctionMiniCards({
-                givenHTML, requiredHTML, formulaHTML, solutionHTML, solutionBodyHTML: rawSolutionBodyHTML, answerHTML, summaryHTML, extraHTML
+            const leftColumnHTML = nabilFunctionLeftColumnHTML({
+                givenHTML, requiredHTML, formulaHTML
             }, messageLanguage);
+
+            const centerColumnHTML = nabilFunctionCenterColumnHTML({
+                solutionBodyHTML: rawSolutionBodyHTML,
+                solutionHTML,
+                extraHTML
+            }, messageLanguage);
+
+            const finalStripHTML = nabilFunctionFinalStripHTML({
+                answerHTML, summaryHTML
+            });
+
             return `
             <article class="exercise-board function-study-board full-width-board" dir="${messageDirection}">
                 <div class="exercise-board-head">
                     <div class="exercise-board-title">${title}</div>
                 </div>
+
                 <div class="exercise-function-board">
                     <section class="exercise-function-study" dir="${messageDirection}">
-                        <div class="exercise-function-study-title">${functionBoardTitle(messageLanguage)}</div>
-                        ${functionCardsHTML}
+                        ${leftColumnHTML}
+                    </section>
+
+                    <section class="exercise-function-keypoints" dir="${messageDirection}">
+                        ${centerColumnHTML}
                     </section>
 
                     <section class="exercise-function-visual" dir="${messageDirection}">
                         <div class="exercise-function-visual-title">${functionGraphTitle(messageLanguage)}</div>
                         <div class="exercise-visual-panel ${diagramsForThis.length > 1 ? "multi-diagram-panel" : ""}">${visualHTML}</div>
-                        ${(variationTextHTML || variationTables.length) ? `
+
+                        ${(variationTextHTML || variationTables.length || autoVariationTableHTML) ? `
                             <div class="exercise-variation-zone">
                                 <div class="exercise-variation-title">${variationTitle(messageLanguage)}</div>
                                 ${variationTextHTML ? `<div class="exercise-variation-richtext">${variationTextHTML}</div>` : ""}
                                 ${variationTables.map(t=>decorateVariationTableHTML(t,messageLanguage)).join("")}
-                                ${!variationTables.length && variationTextHTML ? decorateVariationTableHTML(nabilDetectVariationTableFromText(variationTextHTML), messageLanguage) : ""}
+                                ${!variationTables.length && autoVariationTableHTML ? decorateVariationTableHTML(autoVariationTableHTML, messageLanguage) : ""}
                             </div>
                         ` : ""}
+                    </section>
+
+                    <section class="exercise-function-final-strip" dir="${messageDirection}">
+                        ${finalStripHTML}
                     </section>
                 </div>
             </article>`;
@@ -5578,6 +5705,15 @@ function nabilBattery3D(x,y,label){
 // Geometry • Functions • Physics • Chemistry • Biology/Science
 // Probability/Statistics • Shared 3D gradients/depth • Mobile-safe
 // ============================================================
+function nabilCleanFunctionExpressionLabel(raw){
+    let s=String(raw||'').replace(/\s+/g,' ').trim();
+    if(!s) return '';
+    s=s.replace(/^f\s*\(\s*x\s*\)\s*=\s*/i,'');
+    s=s.split(/\s+(?:—|–|-{2,})\s+/)[0].trim();
+    s=s.split(/\s+(?=Required\b|Given\b|asymptotes?\b|critical\s+points?\b|branches?\b|domain\b|derivative\b|variation\b|graph\b)/i)[0].trim();
+    return s.replace(/[;,]+$/,'').trim();
+}
+
 function renderNabilDiagram(spec){
     if (!spec || typeof spec !== "object") return "";
 
@@ -5904,8 +6040,9 @@ function renderNabilDiagram(spec){
         const uiLang = (typeof languageSelect!=="undefined" && languageSelect?.value) || "العربية";
 
         const curveColor = (series[0] && series[0].color) || "#22d3ee";
-        const functionLabel = spec.expression
-            ? `f(x) = ${spec.expression}`
+        const cleanExpression = nabilCleanFunctionExpressionLabel(spec.expression || spec.formula || spec.equation || "");
+        const functionLabel = cleanExpression
+            ? `f(x) = ${cleanExpression}`
             : (spec.function ? `f(x) = ${spec.function}(x)` : (title || "f(x)"));
         legendItems.push({color:curveColor, dash:false, text:functionLabel});
 
