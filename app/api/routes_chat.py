@@ -628,6 +628,8 @@ right
 مبدأ عام دائم:
 - أي ملاحظة تصحيحية تتعلق بالرسم أو تنسيق البطاقة أو ربط الرسم بالمحتوى يجب تطبيقها كقاعدة عامة على كل المواد وكل الصفوف وكل أنواع الرسومات المتشابهة، لا كحل خاص بدرس واحد.
 - هذه القاعدة تشمل مساري العرض معًا: (1) حل تمارين عامة Solution Boards، و(2) بطاقات شرح الدرس Lesson Cards. لا تُصلح أحدهما وتترك الآخر.
+- كل فكرة مستقلة تحتاج رسماً يجب أن تمتلك رسماً مستقلاً مرتبطاً بـ card_index الخاص بها. إذا كان السؤال يقارن حالتين أو أكثر (مثل توالي/توازي، قبل/بعد، شكلين هندسيين)، لا تكتفِ برسم واحد: أنشئ رسماً لكل حالة.
+- في شرح الدرس، كل بطاقة Concept/Example/Application تحتاج توضيحاً بصرياً يجب أن تحصل تلقائياً على الرسم المناسب، ولا ينتظر النظام من الطالب أن يطلب "ارسم" صراحة إذا كان الرسم ضروريًا للفهم.
 - الاستثناء الوحيد هو عندما تكون الملاحظة خاصة بطبيعة علمية أو رياضية لنوع رسم محدد.
 
  
@@ -1561,23 +1563,64 @@ def update_learning_profile(
 def clean_reply(text: str) -> str:
     if not text:
         return ""
- 
+
     text = re.sub(
         r"<think>.*?</think>",
         "",
         text,
         flags=re.DOTALL | re.IGNORECASE,
     )
- 
+
     if "</think>" in text:
         text = text.split("</think>")[-1]
- 
+
     if "<think>" in text:
         text = text.split("<think>")[0]
- 
+
+    heading_match = re.search(
+        r"(?m)^\s*#{1,4}\s+"
+        r"(?:Exercise|Exercice|تمرين|Given|Données|المعطيات|"
+        r"Required|Demandé|المطلوب|Solution|الحل|"
+        r"Study|Étude|دراسة|Concept|مفهوم|Example|مثال|"
+        r"Final|Summary|Résumé|خلاصة|Quick\s*Check)",
+        text,
+        flags=re.IGNORECASE,
+    )
+
+    if heading_match:
+        prefix = text[:heading_match.start()]
+        internal_cues = (
+            r"\bwe need to\b",
+            r"\bwe should\b",
+            r"\bthe user\b",
+            r"\bneed to compute\b",
+            r"\bneed to answer\b",
+            r"\bso answer\b",
+            r"\bquestion language\b",
+            r"\bmain language\b",
+            r"\bmust answer\b",
+            r"\bI should\b",
+        )
+        if any(re.search(cue, prefix, re.I) for cue in internal_cues):
+            text = text[heading_match.start():]
+
+    text = re.sub(
+        r"(?mi)^\s*(?:"
+        r"We need to(?: answer| compute| draw| solve| respond).*|"
+        r"We should(?: answer| compute| draw| solve| respond).*|"
+        r"The user (?:wrote|asked|wants).*|"
+        r"So answer in .*|"
+        r"Question language.*|"
+        r"Main language.*"
+        r")\s*$",
+        "",
+        text,
+    )
+
+    text = re.sub(r"\n{4,}", "\n\n\n", text)
     return text.strip()
- 
- 
+
+
 def _normalize_drawing(drawing):
     if not isinstance(drawing, dict):
         return None
@@ -3479,6 +3522,7 @@ GENERAL EXERCISES MODE / حل تمارين عامة
 - في الجواب النهائي أبرز النتيجة بوضوح.
 - إذا كان في السؤال حالتان أو شكلان للمقارنة، قسّم الحل بوضوح إلى حالتين، وأرسل رسمة مستقلة لكل حالة عندما يكون الرسم مفيدًا (مثل توالي/توازي، قبل/بعد، شكل 1/شكل 2).
 - الرسومات المتعددة التابعة لنفس التمرين يجب أن تحمل card_index نفسه، وتختلف في type/title حسب الحالة، كي تعرضها الواجهة معًا داخل Solution Board.
+- إذا كانت المقارنة موزعة على تمرينين/بطاقتين مستقلتين، فكل تمرين يأخذ card_index مستقلًا ورسمة مستقلة. مثال: Exercise 1 series => card_index=1، Exercise 2 parallel => card_index=2.
 - لا تضع Final Card أو Quick Check أو اختبار نهاية درس في هذا الوضع.
 """
         lesson_policy_text = ""
@@ -3589,6 +3633,7 @@ GENERAL EXERCISES MODE / حل تمارين عامة
     - عند رفع صورة، ميّز بين صفحة كتاب وتمرين وحل طالب قبل الإجابة، ولا تفترض نصًا محجوبًا أو غير مقروء.
     - اختم شرح الدرس ببطاقة نهائية واحدة فقط: 3–7 نقاط تلخّص القواعد والأفكار الأساسية ونتائج الأمثلة ومعاني الرسومات من جميع البطاقات السابقة، ويكون سؤال التحقق آخر جزء داخلها.
     - في جميع المواد وكل الصفوف، إذا كان الدرس قد احتوى رسومات فعلية، يجب اعتبار Final Card لوحة ختامية بصرية تجميعية: النص يبقى مختصرًا، والواجهة تعيد إدراج الرسومات الأساسية السابقة تلقائيًا داخل البطاقة النهائية.
+- في بطاقات المقارنة البصرية، حافظ على العلاقة: كل رسمة فوق حلّها الخاص، ثم تأتي البطاقة النهائية/الخلاصة بعرض كامل بعد جميع الحالات.
     - إذا كانت طريقة الشرح interactive: اشرح فكرة واحدة ثم مثالًا ثم سؤال تحقق واحدًا وانتظر جواب الطالب.
     - إذا كانت طريقة الشرح full_lesson: اشرح جميع مفاهيم الدرس المطلوبة بترتيب واضح وفي عدد البطاقات اللازم حسب المحتوى، ثم أعط البطاقة النهائية الواحدة وفي آخرها سؤال تحقق. لا تبدأ أي Concept أو Example أو اختبار جديد في نفس الرد بعد البطاقة النهائية؛ أي تقييم لاحق يبدأ في تفاعل منفصل بعد إجابة الطالب.
     """
@@ -3677,6 +3722,8 @@ GENERAL EXERCISES MODE / حل تمارين عامة
         reply_text=reply_text,
     )
     if circuit_pair:
+        # Exact two-card comparison output:
+        # card 1 = series, card 2 = parallel.
         drawings = circuit_pair
 
 
