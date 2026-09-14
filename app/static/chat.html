@@ -1526,10 +1526,51 @@ body.nabil-home-lock::before{
 }
 .exercise-board-title{font-size:22px;font-weight:900;color:#67ddff}
 .exercise-board-detected{font-size:13px;color:#b7dcf1}
-.exercise-board-main{display:grid;grid-template-columns:minmax(260px,1.02fr) minmax(320px,1.38fr);gap:12px;align-items:start}
-.exercise-side-column{display:grid;gap:10px}
-.exercise-main-column{display:grid;gap:10px}
-.exercise-mini-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.exercise-board-main{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    gap:12px;
+    align-items:stretch;
+}
+.exercise-side-column,
+.exercise-main-column{
+    display:grid;
+    gap:10px;
+    min-width:0;
+    align-self:stretch;
+}
+.exercise-side-column > *,
+.exercise-main-column > *{
+    min-width:0;
+}
+.exercise-mini-grid{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:10px;
+}
+.exercise-bottom-stack{
+    display:grid;
+    grid-template-columns:minmax(0,1fr);
+    gap:10px;
+    margin-top:10px;
+}
+.exercise-board-main .exercise-visual-panel{
+    height:100%;
+    display:flex;
+    flex-direction:column;
+}
+.exercise-board-main .exercise-visual-panel .nabil-visual{
+    flex:1 1 auto;
+    display:flex;
+    flex-direction:column;
+    height:100%;
+}
+.exercise-board-main .exercise-visual-panel .nabil-visual svg{
+    flex:1 1 auto;
+    height:100%;
+    min-height:420px;
+    max-height:none;
+}
 .exercise-section-card{
     border:1px solid #2a6f96;border-radius:16px;padding:12px 14px;
     background:linear-gradient(160deg,rgba(8,44,72,.92),rgba(8,24,40,.97));
@@ -3138,10 +3179,13 @@ function renderGeneralExerciseBoards(text, diagrams, messageDirection, messageLa
                 </div>
                 <div class="exercise-main-column">
                     <div class="exercise-visual-panel ${diagramsForThis.length > 1 ? "multi-diagram-panel" : ""}">${visualHTML}</div>
-                    ${solutionHTML}
                 </div>
             </div>
-            <div class="exercise-mini-grid">${answerHTML}${summaryHTML}</div>
+            <div class="exercise-bottom-stack">
+                ${solutionHTML}
+                ${answerHTML}
+                ${summaryHTML}
+            </div>
         </article>`;
     }).join("");
 
@@ -5646,45 +5690,141 @@ function renderNabilDiagram(spec){
     }
 
     if (t === "electric_series" || t === "electric_parallel" || t === "electric_mixed" || t === "electric_circuit"){
+        const voltageLabel = nabilEsc(L.voltage||L.U||"U");
+        const r1Label = nabilEsc(L.R1||"R₁");
+        const r2Label = nabilEsc(L.R2||"R₂");
+        const totalCurrentLabel = nabilEsc(L.Itotal||L.current||L.I||"I");
+        const i1Label = nabilEsc(L.I1||"I₁");
+        const i2Label = nabilEsc(L.I2||"I₂");
+        const reqLabel = nabilEsc(L.Req||L.req||"");
+
         if(t==="electric_series"){
-            return nabilVisualWrap(title||"دارة كهربائية على التوالي",`
-            <svg viewBox="0 0 520 300" role="img" aria-label="series electric circuit">
-              <path d="M70 85 H125 M165 85 H185 M225 85 H255 M325 85 H350 M420 85 H455 V235 H70 V85" fill="none" stroke="#e9f8ff" stroke-width="3"/>
-              <line x1="125" y1="85" x2="158" y2="67" stroke="#ffd43b" stroke-width="4"/><circle cx="125" cy="85" r="5" fill="#ffd43b"/><circle cx="165" cy="85" r="5" fill="#ffd43b"/>
-              <circle cx="205" cy="85" r="20" fill="#0b2941" stroke="#7dd3fc" stroke-width="3"/><text x="197" y="93" class="vlab" style="fill:#7dd3fc">A</text>
-              <polyline points="255,85 265,70 278,100 291,70 304,100 317,70 325,85" fill="none" stroke="#f0abfc" stroke-width="4"/>
-              <polyline points="350,85 360,70 373,100 386,70 399,100 412,70 420,85" fill="none" stroke="#8bff77" stroke-width="4"/>
-              <line x1="255" y1="48" x2="325" y2="48" stroke="#22d3ee" stroke-width="4"/><polygon points="325,48 312,41 312,55" fill="#22d3ee"/>
-              <text x="268" y="38" class="vlab vsmall" style="fill:#67e8f9">${nabilEsc(L.current||L.I||"I")}</text>
-              <line x1="70" y1="145" x2="70" y2="183" stroke="#fff" stroke-width="3"/><line x1="53" y1="190" x2="87" y2="190" stroke="#ef4444" stroke-width="5"/><line x1="59" y1="207" x2="81" y2="207" stroke="#60a5fa" stroke-width="4"/><line x1="70" y1="207" x2="70" y2="235" stroke="#fff" stroke-width="3"/>
-              <text x="91" y="195" class="vlab vsmall" style="fill:#ffd43b">${nabilEsc(L.voltage||L.U||"U")}</text><text x="48" y="177" class="vlab vsmall" style="fill:#ef4444">+</text><text x="49" y="220" class="vlab vsmall" style="fill:#60a5fa">−</text>
-              <text x="265" y="126" class="vlab vsmall" style="fill:#f0abfc">${nabilEsc(L.R1||"R₁")}</text><text x="362" y="126" class="vlab vsmall" style="fill:#8bff77">${nabilEsc(L.R2||"R₂")}</text>
+            return nabilVisualWrap(title||"Series Connection",`
+            <svg viewBox="0 0 620 360" role="img" aria-label="series electric circuit">
+              <defs>
+                <marker id="seriesCurrentArrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+                  <path d="M0,0 L9,4.5 L0,9 Z" fill="#22d3ee"/>
+                </marker>
+              </defs>
+
+              <!-- closed rectangular circuit -->
+              <path d="M105 95 H495 V280 H105 V95" fill="none" stroke="#eef9ff" stroke-width="4" stroke-linecap="round"/>
+
+              <!-- battery on left branch -->
+              <rect x="91" y="166" width="28" height="62" fill="#08243a"/>
+              <line x1="84" y1="182" x2="126" y2="182" stroke="#ef4444" stroke-width="6"/>
+              <line x1="91" y1="210" x2="119" y2="210" stroke="#60a5fa" stroke-width="5"/>
+              <text x="72" y="186" class="vlab vsmall" style="fill:#ef4444">+</text>
+              <text x="73" y="217" class="vlab vsmall" style="fill:#60a5fa">−</text>
+              <text x="135" y="202" class="vlab vsmall" style="fill:#ffd166">${voltageLabel}</text>
+
+              <!-- switch -->
+              <line x1="145" y1="95" x2="178" y2="77" stroke="#ffd43b" stroke-width="4"/>
+              <circle cx="145" cy="95" r="5.5" fill="#ffd43b"/>
+              <circle cx="184" cy="95" r="5.5" fill="#ffd43b"/>
+
+              <!-- ammeter -->
+              <circle cx="225" cy="95" r="22" fill="#0b2941" stroke="#67e8f9" stroke-width="3"/>
+              <text x="225" y="102" text-anchor="middle" class="vlab" style="fill:#67e8f9;font-size:19px">A</text>
+
+              <!-- resistor R1 -->
+              <polyline points="275,95 285,78 300,112 315,78 330,112 345,78 355,95"
+                        fill="none" stroke="#f0abfc" stroke-width="4.5"/>
+              <text x="315" y="137" text-anchor="middle" class="vlab vsmall" style="fill:#f0abfc">${r1Label}</text>
+
+              <!-- resistor R2 -->
+              <polyline points="385,95 395,78 410,112 425,78 440,112 455,78 465,95"
+                        fill="none" stroke="#8bff77" stroke-width="4.5"/>
+              <text x="425" y="137" text-anchor="middle" class="vlab vsmall" style="fill:#8bff77">${r2Label}</text>
+
+              <!-- total current arrow -->
+              <line x1="255" y1="50" x2="420" y2="50" stroke="#22d3ee" stroke-width="4.5"
+                    marker-end="url(#seriesCurrentArrow)"/>
+              <text x="337" y="38" text-anchor="middle" class="vlab vsmall" style="fill:#67e8f9">${totalCurrentLabel}</text>
+
+              ${reqLabel ? `<rect x="215" y="290" width="190" height="34" rx="9" fill="#061a2c" stroke="#2f6f95"/><text x="310" y="313" text-anchor="middle" class="vlab vsmall" style="fill:#eef9ff">${reqLabel}</text>` : ""}
             </svg>`,spec.note||"");
         }
+
         if(t==="electric_parallel"){
-            return nabilVisualWrap(title||"دارة كهربائية على التوازي",`
-            <svg viewBox="0 0 520 300" role="img" aria-label="parallel electric circuit">
-              <path d="M70 75 H130 M170 75 H235 V235 H70 V75 M235 75 H455 V235 H235" fill="none" stroke="#e9f8ff" stroke-width="3"/>
-              <line x1="130" y1="75" x2="163" y2="57" stroke="#ffd43b" stroke-width="4"/><circle cx="130" cy="75" r="5" fill="#ffd43b"/><circle cx="170" cy="75" r="5" fill="#ffd43b"/>
-              <circle cx="235" cy="125" r="6" fill="#22d3ee"/><circle cx="455" cy="125" r="6" fill="#22d3ee"/>
-              <path d="M235 125 H285 L295 110 L308 140 L321 110 L334 140 L347 110 L357 125 H455" fill="none" stroke="#f0abfc" stroke-width="4"/>
-              <path d="M235 205 H285 L295 190 L308 220 L321 190 L334 220 L347 190 L357 205 H455" fill="none" stroke="#8bff77" stroke-width="4"/>
-              <line x1="275" y1="96" x2="350" y2="96" stroke="#22d3ee" stroke-width="4"/><polygon points="350,96 337,89 337,103" fill="#22d3ee"/>
-              <line x1="275" y1="176" x2="350" y2="176" stroke="#38bdf8" stroke-width="4"/><polygon points="350,176 337,169 337,183" fill="#38bdf8"/>
-              <text x="291" y="87" class="vlab vsmall" style="fill:#67e8f9">${nabilEsc(L.I1||"I₁")}</text><text x="291" y="167" class="vlab vsmall" style="fill:#67e8f9">${nabilEsc(L.I2||"I₂")}</text>
-              <line x1="70" y1="135" x2="70" y2="163" stroke="#fff" stroke-width="3"/><line x1="53" y1="170" x2="87" y2="170" stroke="#ef4444" stroke-width="5"/><line x1="59" y1="187" x2="81" y2="187" stroke="#60a5fa" stroke-width="4"/><line x1="70" y1="187" x2="70" y2="235" stroke="#fff" stroke-width="3"/>
-              <text x="91" y="180" class="vlab vsmall" style="fill:#ffd43b">${nabilEsc(L.voltage||L.U||"U")}</text><text x="294" y="151" class="vlab vsmall" style="fill:#f0abfc">${nabilEsc(L.R1||"R₁")}</text><text x="294" y="231" class="vlab vsmall" style="fill:#8bff77">${nabilEsc(L.R2||"R₂")}</text>
+            return nabilVisualWrap(title||"Parallel Connection",`
+            <svg viewBox="0 0 620 360" role="img" aria-label="parallel electric circuit">
+              <defs>
+                <marker id="parallelArrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+                  <path d="M0,0 L9,4.5 L0,9 Z" fill="#22d3ee"/>
+                </marker>
+                <marker id="parallelArrow2" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+                  <path d="M0,0 L9,4.5 L0,9 Z" fill="#38bdf8"/>
+                </marker>
+              </defs>
+
+              <!-- outer loop and rails -->
+              <path d="M105 78 H495 V285 H105 V78" fill="none" stroke="#eef9ff" stroke-width="4" stroke-linecap="round"/>
+              <line x1="245" y1="78" x2="245" y2="285" stroke="#eef9ff" stroke-width="4"/>
+              <line x1="495" y1="78" x2="495" y2="285" stroke="#eef9ff" stroke-width="4"/>
+
+              <!-- battery -->
+              <rect x="91" y="160" width="28" height="64" fill="#08243a"/>
+              <line x1="84" y1="177" x2="126" y2="177" stroke="#ef4444" stroke-width="6"/>
+              <line x1="91" y1="207" x2="119" y2="207" stroke="#60a5fa" stroke-width="5"/>
+              <text x="72" y="181" class="vlab vsmall" style="fill:#ef4444">+</text>
+              <text x="73" y="215" class="vlab vsmall" style="fill:#60a5fa">−</text>
+              <text x="135" y="198" class="vlab vsmall" style="fill:#ffd166">${voltageLabel}</text>
+
+              <!-- switch -->
+              <line x1="145" y1="78" x2="178" y2="60" stroke="#ffd43b" stroke-width="4"/>
+              <circle cx="145" cy="78" r="5.5" fill="#ffd43b"/>
+              <circle cx="184" cy="78" r="5.5" fill="#ffd43b"/>
+
+              <!-- upper branch resistor -->
+              <line x1="245" y1="145" x2="302" y2="145" stroke="#eef9ff" stroke-width="4"/>
+              <polyline points="302,145 312,128 327,162 342,128 357,162 372,128 382,145"
+                        fill="none" stroke="#f0abfc" stroke-width="4.5"/>
+              <line x1="382" y1="145" x2="495" y2="145" stroke="#eef9ff" stroke-width="4"/>
+              <text x="342" y="178" text-anchor="middle" class="vlab vsmall" style="fill:#f0abfc">${r1Label}</text>
+
+              <!-- lower branch resistor -->
+              <line x1="245" y1="230" x2="302" y2="230" stroke="#eef9ff" stroke-width="4"/>
+              <polyline points="302,230 312,213 327,247 342,213 357,247 372,213 382,230"
+                        fill="none" stroke="#8bff77" stroke-width="4.5"/>
+              <line x1="382" y1="230" x2="495" y2="230" stroke="#eef9ff" stroke-width="4"/>
+              <text x="342" y="265" text-anchor="middle" class="vlab vsmall" style="fill:#8bff77">${r2Label}</text>
+
+              <!-- total current before split -->
+              <line x1="195" y1="42" x2="300" y2="42" stroke="#22d3ee" stroke-width="4.5" marker-end="url(#parallelArrow)"/>
+              <text x="247" y="31" text-anchor="middle" class="vlab vsmall" style="fill:#67e8f9">${totalCurrentLabel}</text>
+
+              <!-- branch currents -->
+              <line x1="275" y1="112" x2="400" y2="112" stroke="#22d3ee" stroke-width="4" marker-end="url(#parallelArrow)"/>
+              <text x="337" y="101" text-anchor="middle" class="vlab vsmall" style="fill:#67e8f9">${i1Label}</text>
+
+              <line x1="275" y1="197" x2="400" y2="197" stroke="#38bdf8" stroke-width="4" marker-end="url(#parallelArrow2)"/>
+              <text x="337" y="186" text-anchor="middle" class="vlab vsmall" style="fill:#7dd3fc">${i2Label}</text>
+
+              <!-- junctions -->
+              <circle cx="245" cy="145" r="6" fill="#22d3ee"/>
+              <circle cx="245" cy="230" r="6" fill="#22d3ee"/>
+              <circle cx="495" cy="145" r="6" fill="#22d3ee"/>
+              <circle cx="495" cy="230" r="6" fill="#22d3ee"/>
+
+              ${reqLabel ? `<rect x="215" y="300" width="190" height="34" rx="9" fill="#061a2c" stroke="#2f6f95"/><text x="310" y="323" text-anchor="middle" class="vlab vsmall" style="fill:#eef9ff">${reqLabel}</text>` : ""}
             </svg>`,spec.note||"");
         }
-        return nabilVisualWrap(title||"دارة كهربائية مختلطة",`
-        <svg viewBox="0 0 520 300">
-          <path d="M65 65 H190 M250 65 H455 V235 H65 V65" class="vmain"/>
-          <line x1="210" y1="43" x2="210" y2="87" class="vmain"/>
-          <line x1="228" y1="52" x2="228" y2="78" class="vmain"/>
-          <rect x="120" y="219" width="65" height="32" class="vsoft"/>
-          <path d="M260 145 H390 M260 205 H390 M260 145 V205 M390 145 V205" class="vmain"/>
-          <rect x="292" y="129" width="64" height="32" class="vsoft"/>
-          <rect x="292" y="189" width="64" height="32" class="vsoft"/>
+
+        const mode=String(spec.mode||"").toLowerCase();
+        if(t==="electric_circuit" && (mode==="series" || mode==="parallel")){
+            const delegated={...spec,type:mode==="series"?"electric_series":"electric_parallel"};
+            return renderNabilDiagram(delegated);
+        }
+
+        return nabilVisualWrap(title||"Mixed Electric Circuit",`
+        <svg viewBox="0 0 620 360" role="img" aria-label="mixed electric circuit">
+          <path d="M90 80 H260 V130 H500 V285 H90 V80" fill="none" stroke="#eef9ff" stroke-width="4"/>
+          <polyline points="160,80 170,63 185,97 200,63 215,97 230,63 240,80" fill="none" stroke="#f0abfc" stroke-width="4.5"/>
+          <path d="M260 130 H320 M400 130 H500 M260 225 H320 M400 225 H500 M260 130 V225 M500 130 V225"
+                fill="none" stroke="#eef9ff" stroke-width="4"/>
+          <polyline points="320,130 330,113 345,147 360,113 375,147 390,113 400,130" fill="none" stroke="#8bff77" stroke-width="4.5"/>
+          <polyline points="320,225 330,208 345,242 360,208 375,242 390,208 400,225" fill="none" stroke="#60a5fa" stroke-width="4.5"/>
         </svg>`,spec.note||"");
     }
 
@@ -8589,5 +8729,361 @@ try{
     updateReferenceTutorCopy();
 }catch(_e){}
 </script>
+
+<!-- NABIL CALCULATOR — live page modal -->
+<div id="nabilCalcModal" class="nabil-calc-modal" hidden>
+  <div class="nabil-calc-dialog" role="dialog" aria-modal="true" aria-labelledby="nabilCalcTitle">
+    <div class="nabil-calc-head">
+      <div id="nabilCalcTitle" class="nabil-calc-title">🧮 NABIL Scientific Calculator</div>
+      <button id="nabilCalcClose" class="nabil-calc-close" type="button" aria-label="Close">×</button>
+    </div>
+
+    <div class="nabil-calc-tabs">
+      <button type="button" class="nabil-calc-tab active" data-calc-tab="scientific">Scientific</button>
+      <button type="button" class="nabil-calc-tab" data-calc-tab="symbols">∫ Math Keyboard</button>
+      <button type="button" id="nabilAngleMode" class="nabil-calc-tab">RAD</button>
+    </div>
+
+    <textarea id="nabilCalcInput" spellcheck="false" placeholder="مثال: sin(pi/6)^2 + sqrt(9)"></textarea>
+    <div id="nabilCalcResult" class="nabil-calc-result">=</div>
+
+    <div id="nabilScientificKeys" class="nabil-calc-grid">
+      <button class="nabil-calc-key special" data-calc-action="template" data-template="sin()">sin</button>
+      <button class="nabil-calc-key special" data-calc-action="template" data-template="cos()">cos</button>
+      <button class="nabil-calc-key special" data-calc-action="template" data-template="tan()">tan</button>
+      <button class="nabil-calc-key special" data-calc-action="template" data-template="ln()">ln</button>
+      <button class="nabil-calc-key special" data-calc-action="template" data-template="log()">log</button>
+      <button class="nabil-calc-key special" data-calc-action="template" data-template="sqrt()">√</button>
+
+      <button class="nabil-calc-key op" data-calc-insert="(">(</button>
+      <button class="nabil-calc-key op" data-calc-insert=")">)</button>
+      <button class="nabil-calc-key op" data-calc-insert="pi">π</button>
+      <button class="nabil-calc-key op" data-calc-insert="e">e</button>
+      <button class="nabil-calc-key op" data-calc-action="square">x²</button>
+      <button class="nabil-calc-key op" data-calc-insert="^">xʸ</button>
+
+      <button class="nabil-calc-key" data-calc-insert="7">7</button>
+      <button class="nabil-calc-key" data-calc-insert="8">8</button>
+      <button class="nabil-calc-key" data-calc-insert="9">9</button>
+      <button class="nabil-calc-key op" data-calc-insert="/">÷</button>
+      <button class="nabil-calc-key special" data-calc-action="template" data-template="abs()">|x|</button>
+      <button class="nabil-calc-key special" data-calc-action="factorial">x!</button>
+
+      <button class="nabil-calc-key" data-calc-insert="4">4</button>
+      <button class="nabil-calc-key" data-calc-insert="5">5</button>
+      <button class="nabil-calc-key" data-calc-insert="6">6</button>
+      <button class="nabil-calc-key op" data-calc-insert="*">×</button>
+      <button class="nabil-calc-key special" data-calc-action="template" data-template="asin()">asin</button>
+      <button class="nabil-calc-key special" data-calc-action="template" data-template="acos()">acos</button>
+
+      <button class="nabil-calc-key" data-calc-insert="1">1</button>
+      <button class="nabil-calc-key" data-calc-insert="2">2</button>
+      <button class="nabil-calc-key" data-calc-insert="3">3</button>
+      <button class="nabil-calc-key op" data-calc-insert="-">−</button>
+      <button class="nabil-calc-key special" data-calc-action="template" data-template="atan()">atan</button>
+      <button class="nabil-calc-key special" data-calc-action="reciprocal">1/x</button>
+
+      <button class="nabil-calc-key" data-calc-insert="0">0</button>
+      <button class="nabil-calc-key" data-calc-insert=".">.</button>
+      <button class="nabil-calc-key op" data-calc-insert="+">+</button>
+      <button class="nabil-calc-key danger" data-calc-action="backspace">⌫</button>
+      <button class="nabil-calc-key danger" data-calc-action="clear">C</button>
+      <button class="nabil-calc-key equal" data-calc-action="evaluate">=</button>
+    </div>
+
+    <div id="nabilSymbolKeys" class="nabil-calc-symbols" hidden>
+      <button class="nabil-calc-key special" data-latex-template="\int \, dx">∫ indefinite</button>
+      <button class="nabil-calc-key special" data-latex-template="\int_{a}^{b} \, dx">∫ₐᵇ definite</button>
+      <button class="nabil-calc-key special" data-latex-template="\frac{d}{dx}\left( \right)">d/dx</button>
+      <button class="nabil-calc-key special" data-latex-template="\lim_{x\to a} ">lim</button>
+      <button class="nabil-calc-key special" data-latex-template="\sum_{k=1}^{n} ">Σ</button>
+      <button class="nabil-calc-key special" data-latex-template="\prod_{k=1}^{n} ">Π</button>
+      <button class="nabil-calc-key special" data-latex-template="\frac{}{}">a/b</button>
+      <button class="nabil-calc-key special" data-latex-template="\sqrt{}">√x</button>
+      <button class="nabil-calc-key special" data-latex-template="^{ }">xⁿ</button>
+      <button class="nabil-calc-key special" data-latex-template="_{ }">xₙ</button>
+      <button class="nabil-calc-key special" data-latex-template="\left| \right|">|x|</button>
+      <button class="nabil-calc-key special" data-latex-template="\infty">∞</button>
+      <button class="nabil-calc-key special" data-latex-template="\sin\left( \right)">sin</button>
+      <button class="nabil-calc-key special" data-latex-template="\cos\left( \right)">cos</button>
+      <button class="nabil-calc-key special" data-latex-template="\tan\left( \right)">tan</button>
+      <button class="nabil-calc-key special" data-latex-template="\ln\left( \right)">ln</button>
+      <button class="nabil-calc-key special" data-latex-template="\log\left( \right)">log</button>
+      <button class="nabil-calc-key special" data-latex-template="\pi">π</button>
+      <button class="nabil-calc-key special" data-latex-template="e^{ }">eˣ</button>
+      <button class="nabil-calc-key special" data-latex-template="\vec{}">vector</button>
+    </div>
+
+    <div class="nabil-calc-actions">
+      <button id="nabilCalcInsert" class="insert" type="button">إدراج في السؤال</button>
+      <button id="nabilCalcCopy" type="button">📋 نسخ</button>
+      <button id="nabilCalcUseResult" type="button">استخدام الناتج</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function initNabilCalculator(){
+    const openBtn = document.getElementById("nabilCalcBtn");
+    const modal = document.getElementById("nabilCalcModal");
+    const closeBtn = document.getElementById("nabilCalcClose");
+    const input = document.getElementById("nabilCalcInput");
+    const result = document.getElementById("nabilCalcResult");
+    const angleBtn = document.getElementById("nabilAngleMode");
+    const scientificKeys = document.getElementById("nabilScientificKeys");
+    const symbolKeys = document.getElementById("nabilSymbolKeys");
+    const insertBtn = document.getElementById("nabilCalcInsert");
+    const copyBtn = document.getElementById("nabilCalcCopy");
+    const useResultBtn = document.getElementById("nabilCalcUseResult");
+
+    if(!openBtn || !modal || !input || !result) return;
+
+    let angleMode = "RAD";
+    let lastResult = "";
+    let lastQuestionTarget = null;
+
+    function isVisible(el){
+        if(!el) return false;
+        const r = el.getBoundingClientRect();
+        const st = getComputedStyle(el);
+        return st.display !== "none" && st.visibility !== "hidden" && r.width > 0 && r.height > 0;
+    }
+
+    function resolveQuestionTarget(){
+        const active = document.activeElement;
+        if(active && active.tagName === "TEXTAREA" && active !== input && isVisible(active)) return active;
+
+        const lessonInput = document.getElementById("lessonLiveInput");
+        const mainInput = document.getElementById("messageInput");
+
+        if(isVisible(lessonInput)) return lessonInput;
+        if(isVisible(mainInput)) return mainInput;
+        return mainInput || lessonInput || null;
+    }
+
+    function openCalculator(){
+        lastQuestionTarget = resolveQuestionTarget();
+        modal.hidden = false;
+        document.body.style.overflow = "hidden";
+        setTimeout(()=>input.focus(), 30);
+    }
+
+    function closeCalculator(){
+        modal.hidden = true;
+        document.body.style.overflow = "";
+        lastQuestionTarget?.focus?.();
+    }
+
+    function insertAtCursor(el, text){
+        const start = Number.isInteger(el.selectionStart) ? el.selectionStart : el.value.length;
+        const end = Number.isInteger(el.selectionEnd) ? el.selectionEnd : start;
+        el.setRangeText(text, start, end, "end");
+        el.dispatchEvent(new Event("input", {bubbles:true}));
+        el.focus();
+    }
+
+    function insertTemplate(template){
+        const start = Number.isInteger(input.selectionStart) ? input.selectionStart : input.value.length;
+        const end = Number.isInteger(input.selectionEnd) ? input.selectionEnd : start;
+        let cursorOffset = template.length;
+        const marker = template.indexOf("()");
+        if(marker >= 0) cursorOffset = marker + 1;
+        input.setRangeText(template, start, end, "end");
+        const pos = start + cursorOffset;
+        try{ input.setSelectionRange(pos,pos); }catch(_e){}
+        input.focus();
+    }
+
+    function factorial(n){
+        if(!Number.isFinite(n) || n < 0 || Math.floor(n)!==n || n > 170) throw new Error("factorial");
+        let r=1;
+        for(let i=2;i<=n;i++) r*=i;
+        return r;
+    }
+
+    function normalizeExpression(expr){
+        let s = String(expr||"").trim()
+            .replace(/π/g,"pi")
+            .replace(/×/g,"*")
+            .replace(/÷/g,"/")
+            .replace(/[−–—]/g,"-")
+            .replace(/\^/g,"**");
+
+        // Only calculator-safe identifiers and characters.
+        if(!/^[0-9+\-*/().,\s_a-zA-Z*]+$/.test(s)) throw new Error("chars");
+
+        const degree = angleMode === "DEG";
+        const trig = degree
+            ? {
+                sin:"(x=>Math.sin(x*Math.PI/180))",
+                cos:"(x=>Math.cos(x*Math.PI/180))",
+                tan:"(x=>Math.tan(x*Math.PI/180))",
+                asin:"(x=>Math.asin(x)*180/Math.PI)",
+                acos:"(x=>Math.acos(x)*180/Math.PI)",
+                atan:"(x=>Math.atan(x)*180/Math.PI)"
+              }
+            : {
+                sin:"Math.sin", cos:"Math.cos", tan:"Math.tan",
+                asin:"Math.asin", acos:"Math.acos", atan:"Math.atan"
+              };
+
+        const replacements = {
+            asin:trig.asin, acos:trig.acos, atan:trig.atan,
+            sin:trig.sin, cos:trig.cos, tan:trig.tan,
+            sqrt:"Math.sqrt", abs:"Math.abs",
+            ln:"Math.log", log:"Math.log10",
+            pi:"Math.PI", e:"Math.E",
+            factorial:"factorial"
+        };
+
+        // Replace known identifiers longest-first.
+        Object.keys(replacements)
+            .sort((a,b)=>b.length-a.length)
+            .forEach(name=>{
+                s = s.replace(new RegExp("\\b"+name+"\\b","g"), replacements[name]);
+            });
+
+        // Reject leftover alphabetic identifiers.
+        const check = s
+            .replace(/Math\.(?:sin|cos|tan|asin|acos|atan|sqrt|abs|log|log10|PI|E)/g,"")
+            .replace(/factorial/g,"")
+            .replace(/x/g,"");
+        if(/[A-Za-z_]/.test(check)) throw new Error("identifier");
+
+        return s;
+    }
+
+    function evaluate(){
+        try{
+            const normalized = normalizeExpression(input.value);
+            const value = Function("factorial", `"use strict"; return (${normalized});`)(factorial);
+            if(typeof value !== "number" || !Number.isFinite(value)) throw new Error("result");
+            lastResult = Number.isInteger(value) ? String(value) : String(Number(value.toPrecision(12)));
+            result.textContent = "= " + lastResult;
+            result.classList.remove("error");
+            return lastResult;
+        }catch(_e){
+            lastResult = "";
+            result.textContent = "تعذّر حساب التعبير";
+            result.classList.add("error");
+            return "";
+        }
+    }
+
+    openBtn.addEventListener("click", openCalculator);
+    closeBtn?.addEventListener("click", closeCalculator);
+    modal.addEventListener("click", e=>{ if(e.target === modal) closeCalculator(); });
+    document.addEventListener("keydown", e=>{
+        if(e.key === "Escape" && !modal.hidden) closeCalculator();
+    });
+
+    document.querySelectorAll(".nabil-calc-tab[data-calc-tab]").forEach(tab=>{
+        tab.addEventListener("click", ()=>{
+            document.querySelectorAll(".nabil-calc-tab[data-calc-tab]").forEach(t=>t.classList.remove("active"));
+            tab.classList.add("active");
+            const scientific = tab.dataset.calcTab === "scientific";
+            scientificKeys.hidden = !scientific;
+            symbolKeys.hidden = scientific;
+        });
+    });
+
+    angleBtn?.addEventListener("click", ()=>{
+        angleMode = angleMode === "RAD" ? "DEG" : "RAD";
+        angleBtn.textContent = angleMode;
+        if(input.value.trim()) evaluate();
+    });
+
+    scientificKeys?.addEventListener("click", e=>{
+        const btn = e.target.closest("button");
+        if(!btn) return;
+
+        if(btn.dataset.calcInsert !== undefined){
+            insertAtCursor(input, btn.dataset.calcInsert);
+            return;
+        }
+
+        const action = btn.dataset.calcAction;
+        if(action === "template"){
+            insertTemplate(btn.dataset.template || "");
+        }else if(action === "square"){
+            insertAtCursor(input,"^2");
+        }else if(action === "factorial"){
+            const current = input.value.trim();
+            if(current){
+                input.value = `factorial(${current})`;
+                input.focus();
+            }else insertTemplate("factorial()");
+        }else if(action === "reciprocal"){
+            const current = input.value.trim();
+            input.value = current ? `1/(${current})` : "1/()";
+            input.focus();
+        }else if(action === "backspace"){
+            const start=input.selectionStart ?? input.value.length;
+            const end=input.selectionEnd ?? start;
+            if(start!==end) input.setRangeText("",start,end,"end");
+            else if(start>0) input.setRangeText("",start-1,start,"end");
+            input.focus();
+        }else if(action === "clear"){
+            input.value="";
+            lastResult="";
+            result.textContent="=";
+            result.classList.remove("error");
+            input.focus();
+        }else if(action === "evaluate"){
+            evaluate();
+        }
+    });
+
+    symbolKeys?.addEventListener("click", e=>{
+        const btn=e.target.closest("[data-latex-template]");
+        if(!btn) return;
+        const target = lastQuestionTarget || resolveQuestionTarget();
+        if(target){
+            insertAtCursor(target, btn.dataset.latexTemplate || "");
+        }
+    });
+
+    input.addEventListener("keydown", e=>{
+        if(e.key === "Enter" && !e.shiftKey){
+            e.preventDefault();
+            evaluate();
+        }
+    });
+
+    insertBtn?.addEventListener("click", ()=>{
+        const target = lastQuestionTarget || resolveQuestionTarget();
+        if(!target) return;
+        const text = input.value.trim();
+        if(text) insertAtCursor(target, text);
+        closeCalculator();
+    });
+
+    useResultBtn?.addEventListener("click", ()=>{
+        const value = lastResult || evaluate();
+        if(!value) return;
+        const target = lastQuestionTarget || resolveQuestionTarget();
+        if(target) insertAtCursor(target, value);
+        closeCalculator();
+    });
+
+    copyBtn?.addEventListener("click", async ()=>{
+        const text = lastResult || input.value.trim();
+        if(!text) return;
+        try{
+            await navigator.clipboard.writeText(text);
+            copyBtn.textContent = "✓ تم النسخ";
+            setTimeout(()=>copyBtn.textContent="📋 نسخ",1200);
+        }catch(_e){
+            const ta=document.createElement("textarea");
+            ta.value=text;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand("copy");
+            ta.remove();
+        }
+    });
+})();
+</script>
+
 </body>
 </html>
