@@ -1475,7 +1475,12 @@ body.nabil-home-lock::before{
 }
 .lesson-paired-row.no-linked-visual{grid-template-columns:minmax(0,1fr)}
 .lesson-paired-row .lesson-concept-card{width:100%;margin:0}
-.lesson-linked-visuals{display:grid;gap:10px;min-width:0}
+.lesson-linked-visuals{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+    gap:10px;
+    min-width:0;
+}
 .lesson-linked-visuals .linked-lesson-visual{min-width:0}
 .lesson-linked-visuals .nabil-visual{margin:0}
 .lesson-linked-visuals .nabil-visual svg{background:#08243a;min-height:360px;max-height:470px}
@@ -1543,6 +1548,20 @@ body.nabil-home-lock::before{
 }
 .exercise-visual-panel .nabil-visual{margin:0 0 10px}
 .exercise-visual-panel .nabil-visual:last-child{margin-bottom:0}
+.exercise-visual-panel.multi-diagram-panel{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+    gap:10px;
+    align-items:stretch;
+}
+.exercise-visual-panel.multi-diagram-panel .nabil-visual{
+    margin:0;
+    height:100%;
+}
+.exercise-visual-panel.multi-diagram-panel .nabil-visual svg{
+    min-height:360px;
+    max-height:500px;
+}
 .exercise-visual-panel .nabil-visual svg{background:#08243a;min-height:440px;max-height:560px}
 .exercise-visual-empty{padding:24px 12px;color:#9dc7df;text-align:center;font-size:14px}
 .exercise-solution-card{border-color:#2f84af}
@@ -1775,6 +1794,12 @@ body.nabil-home-lock::before{
 }
 
 @media(max-width:900px){
+    .exercise-visual-panel.multi-diagram-panel{
+        grid-template-columns:minmax(0,1fr);
+    }
+    .lesson-linked-visuals{
+        grid-template-columns:minmax(0,1fr);
+    }
     .exercise-board-main{grid-template-columns:minmax(0,1fr)}
     .exercise-mini-grid{grid-template-columns:minmax(0,1fr)}
     .exercise-board-head{align-items:flex-start;flex-direction:column}
@@ -2023,8 +2048,8 @@ body.nabil-home-lock::before{
 .cumulative-visual-grid .nabil-visual svg{
     width:100% !important;
     height:auto !important;
-    min-height:180px !important;
-    max-height:260px !important;
+    min-height:230px !important;
+    max-height:340px !important;
 }
 .cumulative-final-check{
     grid-column:1 / -1;
@@ -2048,6 +2073,37 @@ body.nabil-home-lock::before{
     .cumulative-visual-grid{grid-template-columns:1fr}
     .cumulative-final-check{grid-column:1}
     .cumulative-visual-grid .nabil-visual svg{min-height:220px;max-height:none}
+}
+
+
+/* =========================================================
+   GLOBAL VISUAL SUMMARY POLICY — ALL SUBJECTS / ALL GRADES
+   Any lesson diagrams are reused in the Final Card.
+========================================================= */
+.lesson-final-card.is-cumulative-final .cumulative-visual-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+    gap:10px;
+    align-items:stretch;
+}
+.lesson-final-card.is-cumulative-final .cumulative-visual-grid .nabil-visual{
+    height:100%;
+    margin:0;
+}
+.lesson-final-card.is-cumulative-final .cumulative-visual-grid .nabil-visual svg{
+    width:100%!important;
+    height:auto!important;
+    min-height:230px!important;
+    max-height:340px!important;
+}
+@media(max-width:700px){
+    .lesson-final-card.is-cumulative-final .cumulative-visual-grid{
+        grid-template-columns:minmax(0,1fr);
+    }
+    .lesson-final-card.is-cumulative-final .cumulative-visual-grid .nabil-visual svg{
+        min-height:210px!important;
+        max-height:none!important;
+    }
 }
 
 </style>
@@ -3055,7 +3111,7 @@ function renderGeneralExerciseBoards(text, diagrams, messageDirection, messageLa
 
                     <section class="exercise-function-visual" dir="${messageDirection}">
                         <div class="exercise-function-visual-title">${functionGraphTitle(messageLanguage)}</div>
-                        <div class="exercise-visual-panel">${visualHTML}</div>
+                        <div class="exercise-visual-panel ${diagramsForThis.length > 1 ? "multi-diagram-panel" : ""}">${visualHTML}</div>
                         ${(variationTextHTML || variationTables.length) ? `
                             <div class="exercise-variation-zone">
                                 <div class="exercise-variation-title">${variationTitle(messageLanguage)}</div>
@@ -3081,7 +3137,7 @@ function renderGeneralExerciseBoards(text, diagrams, messageDirection, messageLa
                     ${extraHTML}
                 </div>
                 <div class="exercise-main-column">
-                    <div class="exercise-visual-panel">${visualHTML}</div>
+                    <div class="exercise-visual-panel ${diagramsForThis.length > 1 ? "multi-diagram-panel" : ""}">${visualHTML}</div>
                     ${solutionHTML}
                 </div>
             </div>
@@ -3278,12 +3334,81 @@ function layoutLessonBoard(bubble) {
 
 
 function buildCumulativeFinalCard(bubble, messageDirection, messageLanguage) {
-    // V15: the AI's final card is intentionally COMPACT.
-    // Do not clone previous concept cards or drawings into it.
-    // The backend requires a 3–7 point synthesis of all concepts + drawing meanings,
-    // and normalizeFinalLessonCard() already places Quick Check as its last part.
     const finalCard = bubble.querySelector(":scope > .lesson-final-card");
-    if (finalCard) finalCard.dataset.cumulativeBuilt = "1";
+    if (!finalCard || finalCard.dataset.cumulativeBuilt === "1") return;
+
+    const summary = finalCard.querySelector(":scope > .lesson-final-summary");
+    const quick = finalCard.querySelector(":scope > .lesson-final-quick-check");
+    const title = finalCard.querySelector(":scope > .lesson-final-title");
+    const check = finalCard.querySelector(":scope > .lesson-final-check");
+
+    // Global cumulative visual summary:
+    // collect every diagram rendered in this lesson, regardless of subject, grade or visual type.
+    const visualSources = [...bubble.querySelectorAll(".nabil-visual")]
+        .filter(node => !finalCard.contains(node));
+    const seen = new Set();
+    const visualClones = [];
+
+    visualSources.forEach(node=>{
+        const key = (node.querySelector(".nabil-visual-title")?.textContent || "") + "|" +
+                    (node.querySelector("svg")?.outerHTML || "").slice(0,500);
+        if(seen.has(key)) return;
+        seen.add(key);
+        visualClones.push(node.cloneNode(true));
+    });
+
+    finalCard.innerHTML = "";
+    finalCard.classList.add("is-cumulative-final");
+    finalCard.dataset.visualSummaryScope = "all-subjects-all-grades";
+
+    const head = document.createElement("div");
+    head.className = "cumulative-final-head";
+    if(check) head.appendChild(check);
+    if(title) head.appendChild(title);
+    if(summary) head.appendChild(summary);
+    finalCard.appendChild(head);
+
+    const board = document.createElement("div");
+    board.className = "cumulative-final-board";
+
+    if(visualClones.length){
+        const visualSection = document.createElement("section");
+        visualSection.className = "cumulative-final-section";
+        visualSection.style.gridColumn = "1 / -1";
+
+        const sectionTitle = document.createElement("div");
+        sectionTitle.className = "cumulative-final-section-title";
+        sectionTitle.textContent =
+            messageLanguage === "English" ? "Key Diagrams" :
+            messageLanguage === "Français" ? "Schémas essentiels" :
+            "الرسومات الأساسية";
+        visualSection.appendChild(sectionTitle);
+
+        const grid = document.createElement("div");
+        grid.className = "cumulative-visual-grid";
+        visualClones.forEach(clone=>grid.appendChild(clone));
+        visualSection.appendChild(grid);
+        board.appendChild(visualSection);
+    }
+
+    if(quick){
+        const checkSection = document.createElement("section");
+        checkSection.className = "cumulative-final-section cumulative-final-check";
+
+        const checkTitle = document.createElement("div");
+        checkTitle.className = "cumulative-final-section-title";
+        checkTitle.textContent =
+            messageLanguage === "English" ? "Quick Check" :
+            messageLanguage === "Français" ? "Vérification rapide" :
+            "سؤال تحقق";
+        checkSection.appendChild(checkTitle);
+        checkSection.appendChild(quick);
+        board.appendChild(checkSection);
+    }
+
+    finalCard.appendChild(board);
+    finalCard.setAttribute("dir", messageDirection);
+    finalCard.dataset.cumulativeBuilt = "1";
 }
 
 
@@ -4033,8 +4158,9 @@ async function sendToAI(
         curriculumSelect.value;
 
 
+    // General Exercises is intentionally independent from the lesson index.
     const lesson =
-        lessonSelect.value;
+        generalExercisesMode ? "" : lessonSelect.value;
 
 
     if (!grade) {
@@ -4531,7 +4657,7 @@ function startGeneralExercisesMode(){
     currentLesson.textContent = "حل تمارين عامة";
     lessonInfo.style.display = "block";
     indexStatus.textContent =
-        "نبيل يكتشف المادة واللغة من كل سؤال، ولا يتقيد بعنوان درس واحد.";
+        "حل تمارين عامة مستقل عن فهرس الدروس: نبيل يكتشف المادة والموضوع واللغة من السؤال نفسه، حتى لو لم يكن الدرس موجودًا في القائمة.";
 
     messageInput.placeholder =
         "اكتب تمرينًا، أو ارفع صورة مسابقة/فرض...";
@@ -4978,10 +5104,43 @@ function renderNabilDiagram(spec){
     };
 
     const rawType = String(spec.type || "").toLowerCase();
-    const t = aliases[rawType] || rawType;
-    const L = spec.labels || {};
+    let t = aliases[rawType] || rawType;
+
+    if (t === "circuit"){
+        const modeText = `${spec.mode||""} ${spec.connection||""} ${spec.title||""}`.toLowerCase();
+        if (/series|توالي|متسلسل|série/.test(modeText)) t = "electric_series";
+        else if (/parallel|توازي|متوازي|parall/.test(modeText)) t = "electric_parallel";
+        else if (/mixed|مختلط|mixte/.test(modeText)) t = "electric_mixed";
+        else t = "electric_circuit";
+    }
+
+    const L = {...(spec.labels || {})};
     const D = spec.dimensions || {};
     const title = spec.title || "";
+
+    if (["electric_series","electric_parallel","electric_mixed","electric_circuit"].includes(t)){
+        const components = Array.isArray(spec.components) ? spec.components : [];
+        let rNo = 0;
+        components.forEach(component=>{
+            if(!component || typeof component!=="object") return;
+            const ctype=String(component.type||"").toLowerCase();
+            if(!/resistor|resistance/.test(ctype)) return;
+
+            rNo += 1;
+            if(rNo>2) return;
+
+            const rawVal = component.ohms ?? component.value ?? component.resistance;
+            const num = nabilNumericLength(rawVal);
+            const label = component.label || `R${rNo}`;
+            L[`R${rNo}`] = Number.isFinite(num) ? `${label} = ${num} Ω` : label;
+        });
+
+        const u = nabilNumericLength(spec.voltage ?? spec.U);
+        if(Number.isFinite(u)){
+            L.U = L.U || `U = ${u} V`;
+            L.voltage = L.voltage || L.U;
+        }
+    }
 
     if (t === "right_triangle" || t === "pythagoras"){
         const av = nabilNumericLength(spec.a ?? L.a);
