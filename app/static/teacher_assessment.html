@@ -117,6 +117,18 @@ aside h2{color:#68e4ff;margin:8px 0 4px}aside p{color:#d8f1fb;line-height:1.65;f
   line-height:1.45;
 }
 
+
+
+#grade{
+  direction:rtl!important;
+  text-align:right!important;
+  font-weight:900!important;
+}
+#grade option{
+  color:#ffffff;
+  background:#082131;
+}
+
 </style>
 </head>
 <body>
@@ -134,7 +146,21 @@ aside h2{color:#68e4ff;margin:8px 0 4px}aside p{color:#d8f1fb;line-height:1.65;f
   <section class="card">
     <h2>1. معلومات المسابقة</h2>
     <div class="grid">
-      <label>الصف<select id="grade"></select></label>
+      <label>الصف<select id="grade">
+  <option value="">اختر الصف</option>
+  <option value="الصف الأول">الصف الأول</option>
+  <option value="الصف الثاني">الصف الثاني</option>
+  <option value="الصف الثالث">الصف الثالث</option>
+  <option value="الصف الرابع">الصف الرابع</option>
+  <option value="الصف الخامس">الصف الخامس</option>
+  <option value="الصف السادس">الصف السادس</option>
+  <option value="الصف السابع">الصف السابع</option>
+  <option value="الصف الثامن">الصف الثامن</option>
+  <option value="الصف التاسع" selected>الصف التاسع</option>
+  <option value="الأول ثانوي">الأول ثانوي</option>
+  <option value="الثاني ثانوي">الثاني ثانوي</option>
+  <option value="الثالث ثانوي">الثالث ثانوي</option>
+</select></label>
       <label>الفرع<select id="branch"><option value="">اختر الفرع</option></select></label>
       <label>المادة<select id="subject"><option value="">اختر المادة</option></select></label>
       <label>لغة المسابقة
@@ -653,6 +679,22 @@ function collectLessonTitles(value){
   return [];
 }
 
+function forceSelectByNormalizedValue(select,wanted,fallback=""){
+  if(!select) return "";
+  const target=norm(wanted);
+  let match=[...select.options].find(o=>norm(o.value)===target || norm(o.textContent)===target);
+  if(!match && fallback){
+    const fb=norm(fallback);
+    match=[...select.options].find(o=>norm(o.value)===fb || norm(o.textContent)===fb);
+  }
+  if(match){
+    select.selectedIndex=match.index;
+    match.selected=true;
+    return match.value;
+  }
+  return "";
+}
+
 function fillSelect(select,items,placeholder,current=""){
   select.innerHTML="";
   const ph=document.createElement("option");
@@ -799,8 +841,16 @@ function setAll(v){
 }
 
 function refreshBranches(){
-  const grade=canonicalGrade($("grade").value);
-  if(grade && $("grade").value!==grade) $("grade").value=grade;
+  if(!$("grade").value){
+    forceSelectByNormalizedValue(
+      $("grade"),
+      canonicalGrade(params.get("grade")||""),
+      "الصف التاسع"
+    );
+  }
+
+  const grade=canonicalGrade($("grade").value || "الصف التاسع");
+  forceSelectByNormalizedValue($("grade"),grade,"الصف التاسع");
   const current=params.get("branch")||$("branch").value||"";
   const branches=getBranchesForGrade(grade);
   const branchLabel=$("branch")?.closest("label");
@@ -900,11 +950,15 @@ async function loadCurriculum(){
   }
 
   let wantedGrade=canonicalGrade(params.get("grade")||"");
-  if(!gradeValues.includes(wantedGrade)){
+  if(!gradeValues.some(g=>norm(g)===norm(wantedGrade))){
     wantedGrade="الصف التاسع";
   }
-  fillSelect($("grade"),gradeValues,"اختر الصف",wantedGrade);
-  $("grade").value=wantedGrade;
+
+  // Grade options are already present in HTML. Rebuild only if somehow missing.
+  if($("grade").options.length < gradeValues.length){
+    fillSelect($("grade"),gradeValues,"اختر الصف",wantedGrade);
+  }
+  forceSelectByNormalizedValue($("grade"),wantedGrade,"الصف التاسع");
 
   let wantedLanguage=params.get("language")||"English";
   if(![...$("language").options].some(o=>o.value===wantedLanguage)){
@@ -1047,6 +1101,13 @@ function downloadWord(){
   a.click();
   setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},800);
 }
+
+
+// Immediate grade boot guard: the field must never render blank.
+(function(){
+  const requested=canonicalGrade(params.get("grade")||"");
+  forceSelectByNormalizedValue($("grade"),requested,"الصف التاسع");
+})();
 
 $("grade").addEventListener("change",refreshBranches);
 $("branch").addEventListener("change",refreshSubjects);
