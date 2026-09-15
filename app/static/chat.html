@@ -3677,6 +3677,343 @@ body.nabil-home-lock::before{
     }
 }
 
+
+/* ============================================================
+   v48 — UNIVERSAL TABLE OF VARIATION BORDERS
+   Applies in explanation, solution, graph card, summary card,
+   detailed solution, and any detected variation table.
+   ============================================================ */
+.exercise-variation-zone table,
+.exercise-variation-text table,
+.function-study-reference-summary-card table,
+.function-study-detailed-solution table,
+.exercise-board table.variation-table,
+.exercise-board .variation-table,
+.exercise-board table[data-variation-table="1"],
+.lesson-explanation table.variation-table,
+.lesson-explanation .variation-table,
+.lesson-concept-card table.variation-table,
+.lesson-concept-card .variation-table{
+    width:100%!important;
+    border-collapse:collapse!important;
+    border:2px solid #1ea7ff!important;
+    background:#0b2a52!important;
+    color:#eaf6ff!important;
+    table-layout:auto!important;
+}
+
+.exercise-variation-zone th,
+.exercise-variation-zone td,
+.exercise-variation-text th,
+.exercise-variation-text td,
+.function-study-reference-summary-card th,
+.function-study-reference-summary-card td,
+.function-study-detailed-solution th,
+.function-study-detailed-solution td,
+.exercise-board table.variation-table th,
+.exercise-board table.variation-table td,
+.exercise-board .variation-table th,
+.exercise-board .variation-table td,
+.exercise-board table[data-variation-table="1"] th,
+.exercise-board table[data-variation-table="1"] td,
+.lesson-explanation table.variation-table th,
+.lesson-explanation table.variation-table td,
+.lesson-explanation .variation-table th,
+.lesson-explanation .variation-table td,
+.lesson-concept-card table.variation-table th,
+.lesson-concept-card table.variation-table td,
+.lesson-concept-card .variation-table th,
+.lesson-concept-card .variation-table td{
+    border:1px solid rgba(120,190,255,.60)!important;
+    padding:8px 10px!important;
+    text-align:center!important;
+    vertical-align:middle!important;
+    color:#eaf6ff!important;
+    background:#0b2a52!important;
+}
+
+.exercise-variation-zone th,
+.exercise-variation-text th,
+.function-study-reference-summary-card th,
+.function-study-detailed-solution th,
+.exercise-board table.variation-table th,
+.exercise-board .variation-table th,
+.exercise-board table[data-variation-table="1"] th,
+.lesson-explanation table.variation-table th,
+.lesson-explanation .variation-table th,
+.lesson-concept-card table.variation-table th,
+.lesson-concept-card .variation-table th{
+    background:#11355c!important;
+    color:#8fe7ff!important;
+    font-weight:800!important;
+}
+
+.exercise-variation-zone td:first-child,
+.exercise-variation-text td:first-child,
+.function-study-reference-summary-card td:first-child,
+.function-study-detailed-solution td:first-child,
+.exercise-board table.variation-table td:first-child,
+.exercise-board .variation-table td:first-child,
+.exercise-board table[data-variation-table="1"] td:first-child,
+.lesson-explanation table.variation-table td:first-child,
+.lesson-explanation .variation-table td:first-child,
+.lesson-concept-card table.variation-table td:first-child,
+.lesson-concept-card .variation-table td:first-child{
+    background:#0d3156!important;
+    color:#8fe7ff!important;
+    font-weight:800!important;
+}
+
+@media(max-width:700px){
+    .exercise-variation-zone,
+    .exercise-variation-text,
+    .function-study-reference-summary-card,
+    .function-study-detailed-solution,
+    .lesson-explanation,
+    .lesson-concept-card{
+        overflow-x:auto;
+    }
+
+    .exercise-variation-zone table,
+    .exercise-variation-text table,
+    .function-study-reference-summary-card table,
+    .function-study-detailed-solution table,
+    .exercise-board table.variation-table,
+    .exercise-board .variation-table,
+    .exercise-board table[data-variation-table="1"],
+    .lesson-explanation table.variation-table,
+    .lesson-explanation .variation-table,
+    .lesson-concept-card table.variation-table,
+    .lesson-concept-card .variation-table{
+        min-width:620px!important;
+    }
+}
+
+
+/* ============================================================
+   v49 — UNIFIED EXERCISE / PRACTICE REFERENCE SYSTEM
+   Same identity across ALL subjects and grades.
+   ============================================================ */
+:root{
+    --nabil-ref-bg:#071a33;
+    --nabil-ref-panel:#0b2342;
+    --nabil-ref-card:#0d2d57;
+    --nabil-ref-graph:#0a203d;
+    --nabil-ref-border:#1ea7ff;
+    --nabil-ref-border-soft:#245b8f;
+    --nabil-ref-title:#59d4ff;
+    --nabil-ref-text:#eaf6ff;
+    --nabil-ref-text-soft:#a9c8e8;
+    --nabil-ref-green:#62e98f;
+    --nabil-ref-red:#ff4c57;
+    --nabil-ref-yellow:#f0d84a;
+    --nabil-ref-purple:#a78bfa;
+}
+
+/* Exercise cards use the SAME reference identity as lesson cards. */
+.exercise-board,
+.lesson-practice-zone .exercise-board{
+    background:linear-gradient(180deg,var(--nabil-ref-panel),var(--nabil-ref-bg))!important;
+    border:1px solid var(--nabil-ref-border)!important;
+    color:var(--nabil-ref-text)!important;
+    box-shadow:0 12px 30px rgba(0,0,0,.26),0 0 20px rgba(30,167,255,.05)!important;
+}
+.exercise-board-head{
+    background:#0b294d!important;
+    border-color:var(--nabil-ref-border-soft)!important;
+}
+.exercise-board-title,
+.exercise-layout-badge,
+.exercise-section-card h3,
+.exercise-section-card h4{
+    color:var(--nabil-ref-title)!important;
+}
+.exercise-section-card,
+.exercise-idea-card,
+.exercise-answer-card,
+.exercise-summary-card,
+.exercise-solution-card,
+.exercise-special-visual,
+.exercise-special-content{
+    background:linear-gradient(160deg,var(--nabil-ref-card),var(--nabil-ref-panel))!important;
+    border-color:var(--nabil-ref-border-soft)!important;
+    color:var(--nabil-ref-text)!important;
+}
+.exercise-answer-card,
+.exercise-summary-card{
+    border-color:rgba(98,233,143,.58)!important;
+}
+.exercise-answer-card h3,
+.exercise-summary-card h3{color:var(--nabil-ref-green)!important}
+.exercise-visual-panel{
+    background:var(--nabil-ref-graph)!important;
+    border-color:var(--nabil-ref-border)!important;
+}
+
+/* Practice block lives INSIDE the lesson page, after the explanation. */
+.lesson-practice-zone{
+    grid-column:1 / -1;
+    width:100%;
+    margin-top:16px;
+    padding-top:14px;
+    border-top:1px solid rgba(89,212,255,.28);
+}
+.lesson-practice-heading{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    width:max-content;
+    max-width:100%;
+    margin:0 0 12px;
+    padding:8px 13px;
+    border:1px solid var(--nabil-ref-border-soft);
+    border-radius:10px;
+    background:#0b294d;
+    color:var(--nabil-ref-title);
+    font-size:18px;
+    font-weight:900;
+}
+.lesson-practice-heading::before{
+    content:"";
+    width:5px;
+    height:24px;
+    border-radius:99px;
+    background:var(--nabil-ref-border);
+}
+
+/* One exercise can own MULTIPLE drawings. Each visual gets its own equal card,
+   and its corresponding solution card sits directly below it. */
+.exercise-multi-visual-pairs{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:12px;
+    align-items:stretch;
+}
+.exercise-visual-solution-pair{
+    display:grid;
+    grid-template-rows:minmax(360px,1fr) auto;
+    gap:10px;
+    min-width:0;
+}
+.exercise-visual-solution-pair > .exercise-pair-visual,
+.exercise-visual-solution-pair > .exercise-pair-solution{
+    min-width:0;
+    height:100%;
+    box-sizing:border-box;
+    border:1px solid var(--nabil-ref-border-soft);
+    border-radius:14px;
+    background:linear-gradient(160deg,var(--nabil-ref-card),var(--nabil-ref-panel));
+    overflow:hidden;
+}
+.exercise-pair-visual{
+    display:flex;
+    flex-direction:column;
+    padding:10px;
+}
+.exercise-pair-visual .linked-lesson-visual,
+.exercise-pair-visual .nabil-visual{
+    width:100%;
+    height:100%;
+    margin:0!important;
+}
+.exercise-pair-visual .nabil-visual svg{
+    width:100%;
+    min-height:340px;
+    height:100%;
+    max-height:500px;
+}
+.exercise-pair-solution{
+    padding:12px 14px;
+    color:var(--nabil-ref-text);
+}
+.exercise-pair-solution h4{
+    margin:0 0 8px;
+    color:var(--nabil-ref-title);
+    font-size:17px;
+}
+.exercise-pair-title{
+    margin:0 0 8px;
+    color:var(--nabil-ref-title);
+    font-weight:900;
+    font-size:16px;
+}
+.exercise-unpaired-solution{
+    margin-top:10px;
+    display:grid;
+    gap:10px;
+}
+
+/* Subject profiles keep the global identity but allow the renderer style to differ. */
+.exercise-board[data-subject-profile="physics"] .exercise-pair-visual,
+.exercise-board[data-subject-profile="circuit"] .exercise-pair-visual{
+    background:linear-gradient(160deg,#0b2a4d,#071a33)!important;
+    box-shadow:inset 0 0 22px rgba(41,167,255,.06);
+}
+.exercise-board[data-subject-profile="chemistry"] .exercise-pair-visual{
+    background:linear-gradient(160deg,#17284e,#0b2342)!important;
+}
+.exercise-board[data-subject-profile="biology"] .exercise-pair-visual{
+    background:linear-gradient(160deg,#103548,#0b2342)!important;
+}
+
+/* Typewriter also applies to the five practice exercises inside the lesson. */
+.board-writing-mode .exercise-board.nabil-board-card{
+    display:none;
+}
+.board-writing-mode .exercise-board.nabil-board-card.nabil-board-current{
+    display:grid!important;
+}
+
+@media(max-width:900px){
+    .exercise-multi-visual-pairs{grid-template-columns:1fr!important}
+    .exercise-visual-solution-pair{grid-template-rows:auto auto}
+    .exercise-pair-visual .nabil-visual svg{min-height:300px;max-height:none}
+}
+
+
+/* ============================================================
+   v51 — STRICT TYPEWRITER REVEAL FOR FORMULAS / TABLES / VISUALS
+   Nothing appears before NABIL's writing reaches it.
+   ============================================================ */
+.board-writing-mode .nabil-type-atomic{
+    opacity:0!important;
+    visibility:hidden!important;
+    pointer-events:none!important;
+}
+
+.board-writing-mode .nabil-type-atomic.is-visible{
+    opacity:1!important;
+    visibility:visible!important;
+    pointer-events:auto!important;
+}
+
+/* Preserve layout without leaking content before reveal. */
+.board-writing-mode mjx-container.nabil-type-atomic:not(.is-visible),
+.board-writing-mode math.nabil-type-atomic:not(.is-visible),
+.board-writing-mode svg.nabil-type-atomic:not(.is-visible),
+.board-writing-mode table.nabil-type-atomic:not(.is-visible),
+.board-writing-mode pre.nabil-type-atomic:not(.is-visible),
+.board-writing-mode code.nabil-type-atomic:not(.is-visible),
+.board-writing-mode img.nabil-type-atomic:not(.is-visible),
+.board-writing-mode canvas.nabil-type-atomic:not(.is-visible),
+.board-writing-mode hr.nabil-type-atomic:not(.is-visible),
+.board-writing-mode .exercise-visual-panel.nabil-type-atomic:not(.is-visible),
+.board-writing-mode .exercise-linked-visual.nabil-type-atomic:not(.is-visible),
+.board-writing-mode .function-study-reference-formula.nabil-type-atomic:not(.is-visible){
+    opacity:0!important;
+    visibility:hidden!important;
+}
+
+/* When reached, reveal pedagogical objects cleanly rather than flashing. */
+.board-writing-mode .nabil-type-atomic.is-visible{
+    animation:nabilAtomicReveal .16s ease-out both;
+}
+
+@keyframes nabilAtomicReveal{
+    from{opacity:0;transform:translateY(2px);}
+    to{opacity:1;transform:translateY(0);}
+}
+
 </style>
 </head>
 
@@ -4611,6 +4948,47 @@ function functionGraphTitle(messageLanguage){
 }
 
 
+
+function nabilMarkVariationTables(root=document){
+    root.querySelectorAll("table").forEach(table=>{
+        const text=(table.innerText||table.textContent||"").toLowerCase();
+        const nearby=(table.parentElement?.innerText||"").toLowerCase();
+
+        const looksVariation =
+            /f\s*'\s*\(\s*x\s*\)|f′\s*\(\s*x\s*\)/i.test(text) ||
+            /variation table|tableau de variations|جدول التغي/i.test(nearby) ||
+            (
+                /\bf\s*\(\s*x\s*\)/i.test(text) &&
+                /[↗↘↑↓]|\+|−|-/.test(text)
+            );
+
+        if(looksVariation){
+            table.classList.add("variation-table");
+            table.dataset.variationTable="1";
+        }
+    });
+}
+
+if(!window.__nabilVariationTableObserverInstalled){
+    window.__nabilVariationTableObserverInstalled=true;
+
+    const install=()=>{
+        nabilMarkVariationTables(document);
+
+        const mo=new MutationObserver(()=>{
+            requestAnimationFrame(()=>nabilMarkVariationTables(document));
+        });
+
+        mo.observe(document.body,{childList:true,subtree:true});
+    };
+
+    if(document.readyState==="loading"){
+        document.addEventListener("DOMContentLoaded",install,{once:true});
+    }else{
+        install();
+    }
+}
+
 function decorateVariationTableHTML(html, messageLanguage){
     const holder=document.createElement("div");
     holder.innerHTML=html||"";
@@ -5262,6 +5640,142 @@ function nabilDiagramTypeFromHTML(html){
     return match ? String(match[1]||"").toLowerCase() : "";
 }
 
+
+const NABIL_SUBJECT_RENDERER_PROFILES={
+    math:{visualMode:"graph-heavy",preserve3D:false},
+    physics:{visualMode:"3d-science",preserve3D:true},
+    circuit:{visualMode:"3d-components",preserve3D:true},
+    chemistry:{visualMode:"molecules-energy",preserve3D:true},
+    biology:{visualMode:"labeled-structures",preserve3D:true},
+    geometry:{visualMode:"precision-2d-3d",preserve3D:true},
+    probability:{visualMode:"data-diagrams",preserve3D:false},
+    language:{visualMode:"text-structure",preserve3D:false},
+    social:{visualMode:"text-structure",preserve3D:false},
+    default:{visualMode:"structured",preserve3D:false}
+};
+
+function nabilSubjectRendererProfile(family){
+    return NABIL_SUBJECT_RENDERER_PROFILES[family] || NABIL_SUBJECT_RENDERER_PROFILES.default;
+}
+
+function nabilSplitLessonAndPracticeText(text){
+    const source=String(text||"").replace(/\r/g,"");
+    const lines=source.split("\n");
+    const rx=/^\s*##\s*(?:Exercise|Exercice|تمرين)\s*(?:#\s*)?[1-5]\b/i;
+    const idx=lines.findIndex(line=>rx.test(line));
+    if(idx<0) return {lessonText:source,practiceText:""};
+    return {
+        lessonText:lines.slice(0,idx).join("\n").trim(),
+        practiceText:lines.slice(idx).join("\n").trim()
+    };
+}
+
+function nabilPracticeHeading(messageLanguage){
+    if(messageLanguage==="English") return "Five Solved Practice Exercises";
+    if(messageLanguage==="Français") return "Cinq exercices corrigés";
+    return "خمسة تمارين إضافية محلولة";
+}
+
+function nabilDiagramExerciseIndexFromHTML(html){
+    const explicit=String(html||"").match(/data-exercise-index=["'](\d+)["']/i);
+    if(explicit) return Number(explicit[1]);
+    const idx=diagramCardIndexFromHTML(html);
+    return idx>=101 && idx<=105 ? idx-100 : null;
+}
+
+function nabilDiagramScopeFromHTML(html){
+    const m=String(html||"").match(/data-visual-scope=["']([^"']+)["']/i);
+    return m ? String(m[1]||"").toLowerCase() : "";
+}
+
+function nabilNormalizePracticeDiagramHTML(html){
+    const ex=nabilDiagramExerciseIndexFromHTML(html);
+    if(!ex) return html;
+    return String(html||"")
+        .replace(/data-card-index=["']\d+["']/i,`data-card-index="${ex}"`)
+        .replace(/data-exercise-index=["']\d+["']/i,`data-exercise-index="${ex}"`);
+}
+
+function nabilAutoSubjectDiagramSpecs(wholeBoardText){
+    const raw=nabilHTMLToPlainText(String(wholeBoardText||"")).replace(/\s+/g," ");
+    const t=raw.toLowerCase();
+    const specs=[];
+
+    // Explicit comparison: NEVER collapse series + parallel into one drawing.
+    const asksSeries=/series|in series|en série|en serie|توالي/.test(t);
+    const asksParallel=/parallel|in parallel|en parallèle|en parallele|توازي/.test(t);
+    if(asksSeries && asksParallel && /resistor|resistance|circuit|مقاوم|دارة|دائرة كهرب/.test(t)){
+        specs.push({type:"electric_series",title:"Series Connection"});
+        specs.push({type:"electric_parallel",title:"Parallel Connection"});
+        return specs;
+    }
+
+    // Before / after visual science comparisons are allowed to have two visuals.
+    if(/before.*after|avant.*après|avant.*apres|قبل.*بعد/.test(t) && /electron|ionic|ion|إلكترون|ايوني|أيون/.test(t)){
+        specs.push({type:"electron_transfer",title:"Before Electron Transfer",stage:"before"});
+        specs.push({type:"electron_transfer",title:"After Electron Transfer",stage:"after"});
+        return specs;
+    }
+
+    const one=nabilAutoSubjectDiagramSpec(wholeBoardText);
+    if(one) specs.push(one);
+    return specs;
+}
+
+function nabilExtractVisualTitleFromHTML(html,index){
+    const holder=document.createElement("div");
+    holder.innerHTML=String(html||"");
+    return (holder.querySelector(".nabil-visual-title")?.textContent ||
+            holder.querySelector("[data-visual-title]")?.getAttribute("data-visual-title") ||
+            `Visual ${index+1}`).trim();
+}
+
+function nabilRenderMultiVisualPairs({diagramsForThis,solutionBodyHTML,messageLanguage}){
+    if(!Array.isArray(diagramsForThis) || diagramsForThis.length<2) return "";
+
+    const splitHTML=nabilSplitIdeaCardsHTML(solutionBodyHTML||"",messageLanguage);
+    const temp=document.createElement("div");
+    temp.innerHTML=splitHTML;
+    const solutionCards=[...temp.querySelectorAll(":scope > .exercise-idea-card")];
+    const used=new Set();
+
+    const pairs=diagramsForThis.map((visualHTML,i)=>{
+        const title=nabilExtractVisualTitleFromHTML(visualHTML,i);
+        const titleLower=title.toLowerCase();
+
+        // Prefer a matching textual subsection by title/keywords; otherwise pair by order.
+        let matchIndex=solutionCards.findIndex((card,j)=>{
+            if(used.has(j)) return false;
+            const txt=(card.innerText||card.textContent||"").toLowerCase();
+            const keys=titleLower.split(/\s+/).filter(k=>k.length>3);
+            return keys.some(k=>txt.includes(k));
+        });
+        if(matchIndex<0) matchIndex=solutionCards.findIndex((_,j)=>!used.has(j));
+        if(matchIndex>=0) used.add(matchIndex);
+
+        const solution=matchIndex>=0 ? solutionCards[matchIndex].outerHTML : "";
+        const solutionTitle=messageLanguage==="English"?"Solution":messageLanguage==="Français"?"Résolution":"الحل";
+
+        return `<div class="exercise-visual-solution-pair">
+            <section class="exercise-pair-visual">
+                <div class="exercise-pair-title">${nabilEsc(title)}</div>
+                ${visualHTML}
+            </section>
+            <section class="exercise-pair-solution">
+                <h4>${nabilEsc(solutionTitle)} — ${nabilEsc(title)}</h4>
+                ${solution || `<div class="exercise-idea-card">${nabilEsc(solutionTitle)}</div>`}
+            </section>
+        </div>`;
+    }).join("");
+
+    const leftovers=solutionCards
+        .filter((_,j)=>!used.has(j))
+        .map(card=>card.outerHTML)
+        .join("");
+
+    return `<div class="exercise-multi-visual-pairs">${pairs}</div>${leftovers?`<div class="exercise-unpaired-solution">${leftovers}</div>`:""}`;
+}
+
 function nabilExerciseLayoutFamily(board, diagramsForThis, wholeBoardText){
     const subject = String(subjectSelect?.value || "").toLowerCase();
     const text = `${board?.title||""} ${wholeBoardText||""} ${subject}`.toLowerCase();
@@ -5384,43 +5898,42 @@ function nabilSplitIdeaCardsHTML(rawHTML, messageLanguage){
 
 function nabilRenderSpecialExerciseLayout({family,title,diagramsForThis,visualHTML,hasReliableVisual,givenHTML,requiredHTML,formulaHTML,extraHTML,solutionBodyHTML,solutionHTML,answerHTML,summaryHTML,messageDirection,messageLanguage}){
     const solutionCards=nabilSplitIdeaCardsHTML(solutionBodyHTML||"",messageLanguage);
+    const profile=nabilSubjectRendererProfile(family);
+    const multiPairs=(diagramsForThis||[]).length>1
+        ? nabilRenderMultiVisualPairs({diagramsForThis,solutionBodyHTML,messageLanguage})
+        : "";
 
-    const contentParts = [];
-    if(givenHTML) contentParts.push(givenHTML);
-    if(requiredHTML) contentParts.push(requiredHTML);
+    // First card = compact work summary / givens / required / formula.
+    const contextParts=[givenHTML,requiredHTML,formulaHTML,extraHTML].filter(Boolean);
+    const contextHTML=contextParts.length
+        ? `<div class="exercise-context-stack">${contextParts.join("")}</div>`
+        : "";
 
-    // Languages/social studies usually need concept/rule/text first, then application/answer.
-    if(family==="language" || family==="social"){
-        if(formulaHTML) contentParts.push(formulaHTML);
-        if(extraHTML) contentParts.push(extraHTML);
-        contentParts.push(solutionCards || solutionHTML);
+    let visualAndSolution="";
+    if(multiPairs){
+        visualAndSolution=multiPairs;
+    }else if(hasReliableVisual){
+        visualAndSolution=`
+            <section class="exercise-special-visual">
+                <div class="exercise-visual-panel">${visualHTML}</div>
+            </section>
+            <section class="exercise-special-content">
+                <div class="exercise-idea-stack">${solutionCards || solutionHTML}</div>
+            </section>`;
     }else{
-        if(formulaHTML) contentParts.push(formulaHTML);
-        if(extraHTML) contentParts.push(extraHTML);
-        contentParts.push(solutionCards || solutionHTML);
+        visualAndSolution=`<section class="exercise-special-content"><div class="exercise-idea-stack">${solutionCards || solutionHTML}</div></section>`;
     }
 
-    if(answerHTML) contentParts.push(answerHTML);
-    if(summaryHTML) contentParts.push(summaryHTML);
-
-    const contentHTML=`<div class="exercise-idea-stack">${contentParts.filter(Boolean).join("")}</div>`;
-
-    // If a reliable visual exists, it gets its own full-width card BEFORE the explanation.
-    // If it does not exist, no empty visual space is reserved.
-    const visualSection=hasReliableVisual?`
-        <section class="exercise-special-visual">
-            <div class="exercise-visual-panel ${diagramsForThis.length > 1 ? "multi-diagram-panel" : ""}">${visualHTML}</div>
-        </section>`:"";
-
     return `
-    <article class="exercise-board visual-column-board layout-${family}" data-layout-family="${family}" dir="${messageDirection}">
+    <article class="exercise-board visual-column-board layout-${family}" data-layout-family="${family}" data-subject-profile="${family}" data-visual-mode="${nabilEsc(profile.visualMode)}" dir="${messageDirection}">
         <div class="exercise-board-head">
             <div class="exercise-board-title">${title}<span class="exercise-layout-badge">${nabilLayoutLabel(family,messageLanguage)}</span></div>
         </div>
+        ${contextHTML}
         <div class="exercise-special-layout ${hasReliableVisual?"":"no-visual"}">
-            ${visualSection}
-            <section class="exercise-special-content">${contentHTML}</section>
+            ${visualAndSolution}
         </div>
+        ${(answerHTML||summaryHTML)?`<div class="exercise-bottom-stack">${answerHTML||""}${summaryHTML||""}</div>`:""}
     </article>`;
 }
 
@@ -5490,13 +6003,18 @@ ${rawVariationHTML}`);
         ].join(" ");
 
         const autoFunctionSpec = !diagramsForThis.length ? nabilAutoFunctionSpecFromBoard(board) : null;
-        const autoSubjectSpec = (!diagramsForThis.length && !autoFunctionSpec) ? nabilAutoSubjectDiagramSpec(wholeBoardText) : null;
-        const inferredVisual = autoFunctionSpec || autoSubjectSpec;
-        const inferredVisualHTML = inferredVisual ? renderNabilDiagram(inferredVisual) : "";
-        const hasReliableVisual = Boolean(diagramsForThis.length || inferredVisualHTML);
-        const visualHTML = diagramsForThis.length
-            ? diagramsForThis.join("")
-            : inferredVisualHTML;
+        const autoSubjectSpecs = (!diagramsForThis.length && !autoFunctionSpec) ? nabilAutoSubjectDiagramSpecs(wholeBoardText) : [];
+        if(!diagramsForThis.length && autoFunctionSpec){
+            const rendered=renderNabilDiagram(autoFunctionSpec);
+            if(rendered) diagramsForThis=[`<div class="linked-lesson-visual" data-card-index="${boardIndex+1}" data-diagram-type="${nabilEsc(String(autoFunctionSpec.type||"").toLowerCase())}">${rendered}</div>`];
+        }else if(!diagramsForThis.length && autoSubjectSpecs.length){
+            diagramsForThis=autoSubjectSpecs.map(spec=>{
+                const rendered=renderNabilDiagram(spec);
+                return rendered ? `<div class="linked-lesson-visual nabil-fallback-visual" data-card-index="${boardIndex+1}" data-diagram-type="${nabilEsc(String(spec.type||"").toLowerCase())}">${rendered}</div>` : "";
+            }).filter(Boolean);
+        }
+        const hasReliableVisual = Boolean(diagramsForThis.length);
+        const visualHTML = diagramsForThis.join("");
 
         if (isFunctionStudyBoard(board, wholeBoardText)) {
             const leftColumnHTML = nabilFunctionLeftColumnHTML({
@@ -6403,6 +6921,10 @@ let nabilBoardSpeechDuration = 0;
 let nabilBoardSpeechProgress = 0;
 let nabilBoardIdleTimer = null;
 let nabilBoardWaitingForStudent = false;
+let nabilBoardResumeRequested = false;
+let nabilBoardResumeCharIndex = 0;
+let nabilBoardResumeSpeechText = "";
+let nabilBoardResumeCardIndex = -1;
 const NABIL_BOARD_IDLE_MS = 60000;
 
 function nabilBoardModeActive(){
@@ -6520,31 +7042,97 @@ async function nabilBoardArabicForCard(cardText){
 }
 
 function nabilBoardWrapCardCharacters(card){
-    const chars=[];
-    const walker=document.createTreeWalker(card,NodeFilter.SHOW_TEXT);
-    const nodes=[];
-    while(walker.nextNode()) nodes.push(walker.currentNode);
+    const units=[];
+    if(!card) return units;
 
-    nodes.forEach(node=>{
-        const parent=node.parentElement;
-        if(!parent) return;
-        if(parent.closest("svg,mjx-container,script,style,.teacher-tools,.sources,.nabil-board-controls,button")) return;
+    /*
+      v51:
+      Everything inside the pedagogical card follows ONE reveal timeline.
+      Text is revealed character-by-character.
+      MathJax equations, tables, diagrams, separators, code/formula blocks,
+      images and canvases remain fully hidden until the typewriter reaches
+      their exact position in the DOM.
+    */
+    const atomicSelector=[
+        "mjx-container",
+        "math",
+        "svg",
+        "table",
+        "pre",
+        "code",
+        "img",
+        "canvas",
+        "hr",
+        ".math-display",
+        ".formula-box",
+        ".equation-box",
+        ".variation-table",
+        "[data-variation-table='1']",
+        ".exercise-visual-panel",
+        ".exercise-linked-visual",
+        ".nabil-reference-function-generic",
+        ".function-study-reference-formula"
+    ].join(",");
 
-        const raw=node.nodeValue||"";
-        if(!raw) return;
+    const skipSelector=[
+        "script",
+        "style",
+        ".teacher-tools",
+        ".sources",
+        ".nabil-board-controls",
+        "button",
+        "input",
+        "textarea",
+        "select"
+    ].join(",");
 
-        const frag=document.createDocumentFragment();
-        [...raw].forEach(ch=>{
-            const span=document.createElement("span");
-            span.className="nabil-type-char";
-            span.textContent=ch;
-            frag.appendChild(span);
-            chars.push(span);
-        });
-        node.replaceWith(frag);
-    });
+    function markAtomic(el){
+        if(!el || el.dataset.nabilTypingAtomic==="1") return;
+        el.dataset.nabilTypingAtomic="1";
+        el.classList.add("nabil-type-char","nabil-type-atomic");
+        el.classList.remove("is-visible");
+        units.push(el);
+    }
 
-    return chars;
+    function walk(node){
+        if(!node) return;
+
+        if(node.nodeType===Node.TEXT_NODE){
+            const parent=node.parentElement;
+            if(!parent) return;
+            if(parent.closest(skipSelector)) return;
+            if(parent.closest(atomicSelector)) return;
+
+            const raw=node.nodeValue||"";
+            if(!raw) return;
+
+            const frag=document.createDocumentFragment();
+            [...raw].forEach(ch=>{
+                const span=document.createElement("span");
+                span.className="nabil-type-char";
+                span.textContent=ch;
+                frag.appendChild(span);
+                units.push(span);
+            });
+            node.replaceWith(frag);
+            return;
+        }
+
+        if(node.nodeType!==Node.ELEMENT_NODE) return;
+
+        const el=node;
+        if(el.matches(skipSelector) || el.closest(".nabil-board-controls")) return;
+
+        if(el!==card && el.matches(atomicSelector)){
+            markAtomic(el);
+            return;
+        }
+
+        [...el.childNodes].forEach(walk);
+    }
+
+    walk(card);
+    return units;
 }
 
 function nabilPrepareBoardCards(root){
@@ -6602,6 +7190,30 @@ function nabilPrepareBoardCards(root){
         });
     }
 
+    // Five solved practice exercises are part of the SAME lesson-board sequence.
+    // Each exercise is treated as one safe typewriter unit; drawings/MathJax/SVG are not split into chars.
+    const practiceBoards=[...root.querySelectorAll(".lesson-practice-zone .exercise-board")];
+    practiceBoards.forEach(board=>{
+        const text=nabilBoardCardText(board);
+        board.classList.add("nabil-board-card","nabil-board-exercise");
+        board.classList.remove("nabil-board-current");
+        board.style.display="none";
+
+        const textualTargets=[...board.querySelectorAll(
+            ".exercise-board-head,.exercise-section-card,.exercise-idea-card,.exercise-pair-solution,.exercise-answer-card,.exercise-summary-card,.function-study-reference-summary-card,.function-study-detailed-solution"
+        )].filter(el=>!el.closest("svg,mjx-container"));
+
+        const chars=[];
+        textualTargets.forEach(el=>{
+            if(el.dataset.nabilTypingPrepared==="1") return;
+            el.dataset.nabilTypingPrepared="1";
+            chars.push(...nabilBoardWrapCardCharacters(el));
+        });
+        chars.forEach(ch=>ch.classList.remove("is-visible"));
+
+        items.push({card:board,content:board,text,chars});
+    });
+
     // The cumulative final summary is the LAST card, never visible at the start.
     const finalCard=root.querySelector(":scope > .lesson-final-card");
     if(finalCard){
@@ -6637,6 +7249,50 @@ function nabilPrepareBoardCards(root){
     return items.filter(x=>x.text || x.chars.length);
 }
 
+
+function nabilBoardRefreshAtomicUnits(item){
+    if(!item?.card) return;
+
+    const selector=[
+        "mjx-container",
+        "math",
+        "svg",
+        "table",
+        "pre",
+        "code",
+        "img",
+        "canvas",
+        "hr",
+        ".math-display",
+        ".formula-box",
+        ".equation-box",
+        ".variation-table",
+        "[data-variation-table='1']",
+        ".exercise-visual-panel",
+        ".exercise-linked-visual",
+        ".nabil-reference-function-generic",
+        ".function-study-reference-formula"
+    ].join(",");
+
+    item.card.querySelectorAll(selector).forEach(el=>{
+        if(el.closest(".nabil-board-controls,.teacher-tools,.sources")) return;
+        if(el.dataset.nabilTypingAtomic==="1") return;
+
+        // MathJax may render after the board was prepared. Late-rendered
+        // objects must not suddenly appear ahead of the typewriter.
+        el.dataset.nabilTypingAtomic="1";
+        el.classList.add("nabil-type-char","nabil-type-atomic");
+
+        const alreadyReached = nabilBoardCharIndex >= item.chars.length;
+        if(alreadyReached){
+            el.classList.add("is-visible");
+        }else{
+            el.classList.remove("is-visible");
+            item.chars.push(el);
+        }
+    });
+}
+
 function nabilBoardShowCurrentCard(){
     // Absolutely only ONE sequential unit is visible:
     // concept + its linked visual, then finally the summary card.
@@ -6647,7 +7303,7 @@ function nabilBoardShowCurrentCard(){
         if(!active){
             item.card.style.setProperty("display","none","important");
         }else{
-            const mode=item.card.classList.contains("lesson-paired-row") ? "grid" : "block";
+            const mode=(item.card.classList.contains("lesson-paired-row") || item.card.classList.contains("exercise-board")) ? "grid" : "block";
             item.card.style.setProperty("display",mode,"important");
         }
     });
@@ -6737,6 +7393,104 @@ function nabilBoardEstimateProgressFromTyping(){
     return Math.max(0,Math.min(0.96,nabilBoardCharIndex/item.chars.length));
 }
 
+function nabilBoardTypingText(item, start=0, end=null){
+    if(!item || !Array.isArray(item.chars)) return "";
+    const stop=end===null ? item.chars.length : Math.max(start,Math.min(end,item.chars.length));
+    return item.chars
+        .slice(Math.max(0,start),stop)
+        .map(ch=>{
+            if(ch?.classList?.contains("nabil-type-atomic")) return " ";
+            return String(ch?.textContent||"");
+        })
+        .join("");
+}
+
+function nabilBoardLastWordStart(item, currentIndex=nabilBoardCharIndex){
+    if(!item || !Array.isArray(item.chars) || !item.chars.length) return 0;
+
+    let idx=Math.max(0,Math.min(Number(currentIndex)||0,item.chars.length));
+
+    // Nothing has been written yet.
+    if(idx<=0) return 0;
+
+    // Step onto the last visible character.
+    idx--;
+
+    // Ignore trailing spaces/newlines that may already be visible.
+    while(idx>0 && /\s/.test(String(item.chars[idx]?.textContent||""))){
+        idx--;
+    }
+
+    // Rewind to the first character of the current/last written word.
+    while(idx>0 && !/\s/.test(String(item.chars[idx-1]?.textContent||""))){
+        idx--;
+    }
+
+    return Math.max(0,idx);
+}
+
+function nabilBoardHideFromCharIndex(item,startIndex){
+    if(!item || !Array.isArray(item.chars)) return;
+    const start=Math.max(0,Math.min(Number(startIndex)||0,item.chars.length));
+    for(let i=start;i<item.chars.length;i++){
+        item.chars[i]?.classList.remove("is-visible");
+    }
+    nabilBoardCharIndex=start;
+}
+
+function nabilBoardSpeechFromTypingIndex(item,startIndex){
+    if(!item) return "";
+
+    const typedTail=nabilBoardTypingText(item,startIndex)
+        .replace(/\s+/g," ")
+        .trim();
+
+    if(!typedTail) return "";
+
+    // Prefer the original card text whenever we can locate the same visible
+    // word sequence inside it, so formulas/labels that are not individually
+    // typewritten can still be narrated correctly.
+    const original=String(item.text||"")
+        .replace(/\s+/g," ")
+        .trim();
+
+    if(!original) return typedTail;
+
+    const tailWords=typedTail.split(/\s+/).filter(Boolean);
+    const probe=tailWords.slice(0,Math.min(4,tailWords.length)).join(" ");
+    if(probe){
+        const pos=original.toLocaleLowerCase().indexOf(probe.toLocaleLowerCase());
+        if(pos>=0){
+            return original.slice(pos).trim();
+        }
+    }
+
+    return typedTail;
+}
+
+function nabilBoardCaptureResumePoint(){
+    const item=nabilBoardCards[nabilBoardCardIndex];
+    if(!item) return;
+
+    const start=nabilBoardLastWordStart(item,nabilBoardCharIndex);
+
+    nabilBoardResumeRequested=true;
+    nabilBoardResumeCardIndex=nabilBoardCardIndex;
+    nabilBoardResumeCharIndex=start;
+    nabilBoardResumeSpeechText=nabilBoardSpeechFromTypingIndex(item,start);
+
+    // Rewind the visible writing to the exact same word from which the voice
+    // will resume. This prevents "voice here / writing somewhere else".
+    nabilBoardHideFromCharIndex(item,start);
+}
+
+function nabilBoardClearResumePoint(){
+    nabilBoardResumeRequested=false;
+    nabilBoardResumeCardIndex=-1;
+    nabilBoardResumeCharIndex=0;
+    nabilBoardResumeSpeechText="";
+}
+
 function nabilBoardClearIdleTimer(){
     if(nabilBoardIdleTimer){
         clearTimeout(nabilBoardIdleTimer);
@@ -6758,6 +7512,7 @@ function nabilBoardAdvanceToNextCard(){
     nabilBoardSpeechDuration=0;
     nabilBoardSpeechProgress=0;
     nabilBoardPaused=false;
+    nabilBoardClearResumePoint();
 
     if(nabilBoardCardIndex<nabilBoardCards.length){
         nabilBoardSpeakCurrentCard();
@@ -6799,6 +7554,10 @@ async function nabilBoardSpeakCurrentCard(){
     const token=++nabilBoardRunToken;
     const item=nabilBoardCards[nabilBoardCardIndex];
 
+    if(item){
+        nabilBoardRefreshAtomicUnits(item);
+    }
+
     if(!item){
         nabilBoardClearTimer();
         return;
@@ -6814,37 +7573,70 @@ async function nabilBoardSpeakCurrentCard(){
     }
 
     // --------------------------------------------------------
-    // Phase 1: read exactly what is written on THIS card in the
-    // selected lesson language. Typewriter follows that reading.
+    // STRICT SYNC:
+    // On a resume, both the typewriter and the voice restart from
+    // the SAME LAST WRITTEN WORD on the SAME current card.
     // --------------------------------------------------------
     const originalText=String(item.text||"").trim();
     const originalLanguage=languageSelect?.value || "English";
 
+    const isStrictResume =
+        nabilBoardResumeRequested &&
+        nabilBoardResumeCardIndex===nabilBoardCardIndex &&
+        nabilBoardResumeCharIndex<item.chars.length;
+
+    let speechToRead=originalText;
+
+    if(isStrictResume){
+        nabilBoardHideFromCharIndex(item,nabilBoardResumeCharIndex);
+        speechToRead=String(
+            nabilBoardResumeSpeechText ||
+            nabilBoardSpeechFromTypingIndex(item,nabilBoardResumeCharIndex) ||
+            originalText
+        ).trim();
+    }
+
+    nabilBoardCurrentSpeech=speechToRead;
+    nabilBoardCurrentSpeechLanguage=originalLanguage;
+    nabilBoardSpeechStartedAt=0;
+    nabilBoardSpeechDuration=0;
+
     if(nabilBoardCharIndex < item.chars.length){
-        // Start writing immediately. Do not leave the board blank while waiting
-        // for the TTS endpoint/network to return.
-        if(!nabilBoardTimer){
-            const immediateEstimate=Math.max(4.0, originalText.length/11);
+        // Initial card: preserve the existing immediate visual start.
+        // Resume: DO NOT restart typing before the resumed speech actually
+        // starts; this is the key synchronization rule.
+        if(!isStrictResume && !nabilBoardTimer){
+            const immediateEstimate=Math.max(4.0, speechToRead.length/11);
             nabilBoardSpeechDuration=immediateEstimate;
             nabilBoardStartTypewriter(immediateEstimate);
         }
 
-        const foreignSpeechResult=await nabilSpeakClear(originalText,originalLanguage,{
+        let audioHasStarted=false;
+
+        const foreignSpeechResult=await nabilSpeakClear(speechToRead,originalLanguage,{
             onduration:(duration)=>{
                 if(token!==nabilBoardRunToken || nabilBoardPaused) return;
                 nabilBoardSpeechDuration=Number(duration)||0;
-                nabilBoardStartTypewriter(duration);
+
+                // For a strict resume, merely receiving metadata must NOT
+                // start writing before the voice starts.
+                if(!isStrictResume && !nabilBoardTimer){
+                    nabilBoardStartTypewriter(duration);
+                }
             },
             onstart:()=>{
                 if(token!==nabilBoardRunToken || nabilBoardPaused) return;
+
+                audioHasStarted=true;
                 stopLessonRecognitionTemporarily?.();
                 nabilBoardSpeechStartedAt=Date.now();
 
-                if(!nabilBoardTimer){
-                    const estimated=Math.max(2.0,originalText.length/13);
-                    nabilBoardSpeechDuration=estimated;
-                    nabilBoardStartTypewriter(estimated);
-                }
+                const estimated=nabilBoardSpeechDuration>0
+                    ? nabilBoardSpeechDuration
+                    : Math.max(2.0,speechToRead.length/13);
+
+                // Voice and writing begin/resume together.
+                nabilBoardStartTypewriter(estimated);
             },
             onend:()=>{}
         });
@@ -6852,19 +7644,20 @@ async function nabilBoardSpeakCurrentCard(){
         if(foreignSpeechResult?.cancelled) return;
         if(token!==nabilBoardRunToken || nabilBoardPaused) return;
 
-        // Audio is genuinely finished. Complete only now, never before.
+        // Some browser/TTS paths can finish without firing a reliable start
+        // callback. In that rare case, finish safely rather than desync.
+        if(isStrictResume && !audioHasStarted && nabilBoardCharIndex<item.chars.length){
+            nabilBoardStartTypewriter(Math.max(2.0,speechToRead.length/13));
+        }
+
         nabilBoardClearTimer();
         nabilBoardFinishCard();
+        nabilBoardClearResumePoint();
     }
 
-    // No automatic Arabic explanation here.
     // The card is read in the lesson language only.
     // If the student wants an explanation, they ask through Talk to Me.
 
-    // --------------------------------------------------------
-    // Phase 3: ask/allow questions. If student says nothing for
-    // one minute, the next card starts automatically.
-    // --------------------------------------------------------
     nabilBoardWaitingForStudent=true;
     nabilBoardWaitForStudentThenContinue();
 
@@ -6873,28 +7666,21 @@ async function nabilBoardSpeakCurrentCard(){
         controls.dataset.waiting="1";
     }
 
-    // Keep voice recognition alive if Talk to Me is active.
     if(lessonTalkActive && !lessonTalkBusy){
         lessonTalkSetState("🎙 في شي مش واضح؟ أنا عم بسمعك...");
         lessonTalkRestart();
     }
 }
+
 function nabilPauseBoardAtCurrentStep(){
     if(!nabilBoardModeActive()) return;
     nabilBoardClearIdleTimer();
 
-    // Save where both the writing and narration currently are.
-    nabilBoardSpeechProgress=Math.max(
-        nabilBoardSpeechProgress||0,
-        nabilBoardEstimateProgressFromTyping()
-    );
-    if(nabilBoardSpeechStartedAt && nabilBoardSpeechDuration>0){
-        const elapsed=(Date.now()-nabilBoardSpeechStartedAt)/1000;
-        nabilBoardSpeechProgress=Math.max(
-            nabilBoardSpeechProgress,
-            Math.min(0.96,elapsed/nabilBoardSpeechDuration)
-        );
-    }
+    // The typewriter is the source of truth for the resume point.
+    // Rewind to the beginning of the LAST word that was being written.
+    nabilBoardCaptureResumePoint();
+
+    nabilBoardSpeechProgress=nabilBoardEstimateProgressFromTyping();
 
     nabilBoardPaused=true;
     nabilBoardRunToken++;
@@ -6906,16 +7692,21 @@ function nabilResumeBoardNarrationFromCurrentStep(){
     if(!nabilBoardModeActive()) return;
     if(nabilBoardCardIndex>=nabilBoardCards.length) return;
 
-    nabilBoardPaused=false;
-
     const item=nabilBoardCards[nabilBoardCardIndex];
-    const cardFinished=!!item && nabilBoardCharIndex>=item.chars.length;
+    const cardFinished=!!item && nabilBoardCharIndex>=item.chars.length && !nabilBoardResumeRequested;
 
     if(cardFinished && nabilBoardWaitingForStudent){
         nabilBoardAdvanceToNextCard();
         return;
     }
 
+    // If resume was triggered without an explicit pause capture, capture now.
+    // This guarantees the same-word restart in every resume path.
+    if(item && !nabilBoardResumeRequested && nabilBoardCharIndex>0 && nabilBoardCharIndex<item.chars.length){
+        nabilBoardCaptureResumePoint();
+    }
+
+    nabilBoardPaused=false;
     nabilBoardSpeakCurrentCard();
 }
 
@@ -6939,6 +7730,7 @@ function nabilBoardPreviousStep(){
     nabilBoardSpeechDuration=0;
     nabilBoardSpeechProgress=0;
     nabilBoardPaused=false;
+    nabilBoardClearResumePoint();
 
     const item=nabilBoardCards[nabilBoardCardIndex];
     if(item){
@@ -6964,6 +7756,7 @@ function nabilBoardRepeatCurrentStep(){
     nabilBoardSpeechDuration=0;
     nabilBoardSpeechProgress=0;
     nabilBoardPaused=false;
+    nabilBoardClearResumePoint();
     nabilBoardSpeakCurrentCard();
 }
 
@@ -6972,6 +7765,7 @@ function nabilBoardSkipCurrentStep(){
     nabilBoardClearIdleTimer();
     nabilBoardClearTimer();
     stopNabilNeuralVoice();
+    nabilBoardClearResumePoint();
 
     nabilBoardFinishCard();
     nabilBoardAdvanceToNextCard();
@@ -6998,6 +7792,7 @@ function nabilStartBoardReveal(root, spokenText, language){
     nabilBoardSpeechStartedAt=0;
     nabilBoardSpeechDuration=0;
     nabilBoardSpeechProgress=0;
+    nabilBoardClearResumePoint();
 
     root.classList.remove("nabil-board-prehidden");
 
@@ -7139,11 +7934,34 @@ function addMessage(
                 messageLanguage,
             );
         } else {
+            const lessonPractice=nabilSplitLessonAndPracticeText(visibleText);
+            const lessonDiagrams=[];
+            const practiceDiagrams=[];
+
+            visibleDiagrams.forEach(diagramHTML=>{
+                const scope=nabilDiagramScopeFromHTML(diagramHTML);
+                const ex=nabilDiagramExerciseIndexFromHTML(diagramHTML);
+                if(scope==="practice" || ex){
+                    practiceDiagrams.push(nabilNormalizePracticeDiagramHTML(diagramHTML));
+                }else{
+                    lessonDiagrams.push(diagramHTML);
+                }
+            });
+
             if (visibleDiagrams.length) bubble.classList.add("has-lesson-visual");
             if (visibleDiagrams.length > 1) bubble.classList.add("multi-visual");
+
+            const practiceHTML=lessonPractice.practiceText
+                ? `<section class="lesson-practice-zone" dir="${messageDirection}">
+                     <div class="lesson-practice-heading">${nabilEsc(nabilPracticeHeading(messageLanguage))}</div>
+                     ${renderGeneralExerciseBoards(lessonPractice.practiceText,practiceDiagrams,messageDirection,messageLanguage)}
+                   </section>`
+                : "";
+
             bubble.innerHTML =
-                `<div class="lesson-explanation" dir="${messageDirection}" lang="${messageLanguage === "English" ? "en" : messageLanguage === "Français" ? "fr" : "ar"}">${renderLessonCards(visibleText)}</div>` +
-                (visibleDiagrams.length ? `<div class="lesson-visuals">${visibleDiagrams.join("")}</div>` : "");
+                `<div class="lesson-explanation" dir="${messageDirection}" lang="${messageLanguage === "English" ? "en" : messageLanguage === "Français" ? "fr" : "ar"}">${renderLessonCards(lessonPractice.lessonText)}</div>` +
+                (lessonDiagrams.length ? `<div class="lesson-visuals">${lessonDiagrams.join("")}</div>` : "") +
+                practiceHTML;
 
             normalizeFinalLessonCard(bubble, messageDirection, messageLanguage);
             layoutLessonBoard(bubble);
@@ -8112,15 +8930,15 @@ startLesson.addEventListener(
 
         const prompt = teachingMode === "board_lesson"
             ? (language === "English"
-                ? "Begin the COMPLETE selected lesson now in interactive board mode. Teach it step by step as if you are writing on a board, and finish with five varied solved exercises from the same lesson."
+                ? "Begin the COMPLETE selected lesson now in interactive board mode. Teach it step by step as if you are writing on a board. Then finish with EXACTLY five varied solved exercises numbered Exercise 1 through Exercise 5. Solve every exercise completely. If an exercise needs one or more diagrams, include ALL required diagrams; each practice diagram must use scope=practice, exercise_index=N, and card_index=100+N. Multiple diagrams for the same exercise must share the same exercise_index/card_index."
                 : language === "Français"
-                    ? "Commence maintenant la leçon COMPLÈTE en mode tableau interactif. Explique-la étape par étape comme si tu écrivais au tableau, puis termine par cinq exercices variés corrigés sur cette même leçon."
-                    : "ابدأ الآن الدرس المحدد كاملًا بنمط اللوح التفاعلي. اشرح خطوة خطوة كأنك تكتب على اللوح، ثم اختم بخمسة تمارين متنوعة محلولة من الدرس نفسه.")
+                    ? "Commence maintenant la leçon COMPLÈTE en mode tableau interactif. Explique-la étape par étape comme si tu écrivais au tableau, puis termine par EXACTEMENT cinq exercices corrigés numérotés Exercice 1 à Exercice 5. Résous chaque exercice entièrement. Si un exercice exige un ou plusieurs schémas, fournis TOUS les schémas nécessaires avec scope=practice, exercise_index=N et card_index=100+N."
+                    : "ابدأ الآن الدرس المحدد كاملًا بنمط اللوح التفاعلي. اشرح خطوة خطوة كأنك تكتب على اللوح، ثم اختم بخمسة تمارين إضافية محلولة بالضبط، مرقمة من تمرين 1 إلى تمرين 5. أكمل حل كل تمرين للنهاية. إذا احتاج التمرين رسمة واحدة أو أكثر فارسم كل الرسومات اللازمة، واجعل لكل رسم scope=practice و exercise_index=N و card_index=100+N، وكل الرسومات التابعة للتمرين نفسه تحمل الفهرس نفسه.")
             : (language === "English"
-                ? "Begin the COMPLETE selected lesson now. Present the whole lesson clearly with the necessary diagrams, then finish with five varied solved exercises from the same lesson."
+                ? "Begin the COMPLETE selected lesson now. Present the whole lesson clearly with all necessary diagrams. Then finish with EXACTLY five varied solved exercises numbered Exercise 1 through Exercise 5. Solve every exercise completely. If an exercise needs one or more diagrams, include ALL required diagrams; each practice diagram must use scope=practice, exercise_index=N, and card_index=100+N. Multiple diagrams for the same exercise must share the same exercise_index/card_index."
                 : language === "Français"
-                    ? "Commence maintenant la leçon COMPLÈTE. Présente toute la leçon clairement avec les schémas nécessaires, puis termine par cinq exercices variés corrigés sur cette même leçon."
-                    : "ابدأ الآن الدرس المحدد كاملًا. اعرض الدرس كله بوضوح مع الرسومات اللازمة، ثم اختم بخمسة تمارين متنوعة محلولة من الدرس نفسه.");
+                    ? "Commence maintenant la leçon COMPLÈTE. Présente toute la leçon clairement avec tous les schémas nécessaires, puis termine par EXACTEMENT cinq exercices corrigés numérotés Exercice 1 à Exercice 5. Résous chaque exercice entièrement. Si un exercice exige un ou plusieurs schémas, fournis TOUS les schémas nécessaires avec scope=practice, exercise_index=N et card_index=100+N."
+                    : "ابدأ الآن الدرس المحدد كاملًا. اعرض الدرس كله بوضوح مع جميع الرسومات اللازمة، ثم اختم بخمسة تمارين إضافية محلولة بالضبط، مرقمة من تمرين 1 إلى تمرين 5. أكمل حل كل تمرين للنهاية. إذا احتاج التمرين رسمة واحدة أو أكثر فارسم كل الرسومات اللازمة، واجعل لكل رسم scope=practice و exercise_index=N و card_index=100+N، وكل الرسومات التابعة للتمرين نفسه تحمل الفهرس نفسه.");
 
         await sendToAI(
             prompt,
@@ -10613,7 +11431,10 @@ function extractAndRenderNabilDrawings(text){
                 if(rendered){
                     const idx=Number(spec?.card_index);
                     const cardIndex=Number.isInteger(idx)&&idx>0?idx:"";
-                    diagrams.push(`<div class="linked-lesson-visual" data-card-index="${cardIndex}" data-diagram-type="${nabilEsc(String(spec?.type||"").toLowerCase())}">${rendered}</div>`);
+                    const exRaw=Number(spec?.exercise_index);
+                    const exerciseIndex=Number.isInteger(exRaw)&&exRaw>0?exRaw:(cardIndex>=101&&cardIndex<=105?cardIndex-100:"");
+                    const visualScope=String(spec?.scope||spec?.visual_scope||(exerciseIndex?"practice":"lesson")).toLowerCase();
+                    diagrams.push(`<div class="linked-lesson-visual" data-card-index="${cardIndex}" data-exercise-index="${exerciseIndex}" data-visual-scope="${nabilEsc(visualScope)}" data-diagram-type="${nabilEsc(String(spec?.type||"").toLowerCase())}">${rendered}</div>`);
                 }
             }catch(err){ console.warn("NABIL DRAW render error",err); }
         });
