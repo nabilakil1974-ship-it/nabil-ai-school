@@ -4014,6 +4014,147 @@ body.nabil-home-lock::before{
     to{opacity:1;transform:translateY(0);}
 }
 
+
+/* ============================================================
+   v52 — Action Verbs student helper
+   ============================================================ */
+.nabil-action-verbs-btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:7px;
+    min-height:38px;
+    padding:8px 13px;
+    border:1px solid #1ea7ff;
+    border-radius:10px;
+    background:linear-gradient(180deg,#0d315d,#0a2444);
+    color:#eaf6ff;
+    font-weight:800;
+    font-size:13px;
+    cursor:pointer;
+    box-shadow:0 6px 18px rgba(0,0,0,.22);
+    transition:.18s ease;
+}
+.nabil-action-verbs-btn:hover{
+    transform:translateY(-1px);
+    border-color:#59d4ff;
+    box-shadow:0 8px 20px rgba(30,167,255,.18);
+}
+.nabil-action-verbs-btn .nabil-action-verbs-icon{
+    font-size:16px;
+}
+
+.nabil-action-verbs-modal{
+    position:fixed;
+    inset:0;
+    z-index:99999;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:18px;
+    background:rgba(2,10,22,.76);
+    backdrop-filter:blur(4px);
+}
+.nabil-action-verbs-modal.is-open{display:flex;}
+
+.nabil-action-verbs-panel{
+    width:min(920px,96vw);
+    max-height:88vh;
+    overflow:auto;
+    border:1px solid #1ea7ff;
+    border-radius:18px;
+    background:linear-gradient(180deg,#0b2342,#071a33);
+    box-shadow:0 22px 60px rgba(0,0,0,.5);
+    color:#eaf6ff;
+}
+
+.nabil-action-verbs-head{
+    position:sticky;
+    top:0;
+    z-index:2;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:14px 16px;
+    background:#0b2a52;
+    border-bottom:1px solid rgba(89,212,255,.28);
+}
+.nabil-action-verbs-title{
+    color:#59d4ff;
+    font-size:20px;
+    font-weight:900;
+}
+.nabil-action-verbs-subtitle{
+    margin-top:3px;
+    color:#a9c8e8;
+    font-size:12px;
+}
+.nabil-action-verbs-close{
+    border:1px solid #245b8f;
+    border-radius:9px;
+    background:#0a203d;
+    color:#eaf6ff;
+    width:36px;
+    height:36px;
+    cursor:pointer;
+    font-size:19px;
+}
+
+.nabil-action-verbs-body{
+    padding:14px;
+}
+.nabil-action-verbs-grid{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:10px;
+}
+.nabil-action-verb-card{
+    border:1px solid #245b8f;
+    border-radius:12px;
+    background:linear-gradient(160deg,#0d2d57,#0b2342);
+    padding:11px 12px;
+}
+.nabil-action-verb-word{
+    color:#8fe7ff;
+    font-weight:900;
+    font-size:14px;
+    margin-bottom:5px;
+}
+.nabil-action-verb-meaning{
+    color:#eaf6ff;
+    line-height:1.45;
+    font-size:13px;
+}
+.nabil-action-verb-example{
+    margin-top:7px;
+    padding-top:7px;
+    border-top:1px dashed rgba(120,190,255,.25);
+    color:#a9c8e8;
+    font-size:12px;
+}
+.nabil-action-verbs-section-title{
+    margin:14px 0 8px;
+    color:#59d4ff;
+    font-size:15px;
+    font-weight:900;
+}
+.nabil-action-verbs-tip{
+    margin-top:12px;
+    padding:10px 12px;
+    border:1px solid rgba(98,233,143,.45);
+    border-radius:10px;
+    background:rgba(14,80,53,.26);
+    color:#dfffea;
+    font-size:12px;
+    line-height:1.45;
+}
+
+@media(max-width:700px){
+    .nabil-action-verbs-grid{grid-template-columns:1fr;}
+    .nabil-action-verbs-panel{max-height:92vh;}
+}
+
 </style>
 </head>
 
@@ -7039,6 +7180,292 @@ async function nabilBoardArabicForCard(cardText){
         console.warn("Board Arabic narration fallback:",err);
         return "";
     }
+}
+
+
+const NABIL_ACTION_VERBS = {
+    general: [
+        {en:"Identify", fr:"Identifier", ar:"حدّد / عيّن", meaning:{
+            en:"Give the requested name, element, structure, or quantity only.",
+            fr:"Donner uniquement le nom, l’élément, la structure ou la grandeur demandée.",
+            ar:"أعطِ الاسم أو العنصر أو البنية أو الكمية المطلوبة فقط."
+        }},
+        {en:"State", fr:"Indiquer", ar:"اذكر", meaning:{
+            en:"State the requested information directly and briefly.",
+            fr:"Donner directement et brièvement l’information demandée.",
+            ar:"اذكر المعلومة المطلوبة مباشرة وباختصار."
+        }},
+        {en:"Describe", fr:"Décrire", ar:"صف", meaning:{
+            en:"Describe what is observed or what happens, without adding an unnecessary causal explanation.",
+            fr:"Décrire ce qui est observé ou ce qui se produit, sans ajouter une explication causale inutile.",
+            ar:"صف ما يظهر أو ما يحدث من دون إضافة تفسير سببي غير مطلوب."
+        }},
+        {en:"Compare", fr:"Comparer", ar:"قارن", meaning:{
+            en:"Give similarities and/or differences using the same clear criterion.",
+            fr:"Présenter les ressemblances et/ou différences selon un même critère clair.",
+            ar:"بيّن أوجه الشبه و/أو الاختلاف وفق معيار واضح واحد."
+        }},
+        {en:"Interpret", fr:"Interpréter", ar:"فسّر / أوّل", meaning:{
+            en:"Extract the scientific meaning of data, results, a graph, or a document.",
+            fr:"Dégager la signification scientifique de données, résultats, graphique ou document.",
+            ar:"استخرج الدلالة العلمية من البيانات أو النتائج أو الرسم أو المستند."
+        }},
+        {en:"Explain", fr:"Expliquer", ar:"اشرح", meaning:{
+            en:"Give the cause, mechanism, or scientific reason.",
+            fr:"Donner la cause, le mécanisme ou la raison scientifique.",
+            ar:"أعطِ السبب أو الآلية أو التفسير العلمي."
+        }},
+        {en:"Justify", fr:"Justifier", ar:"علّل / برّر", meaning:{
+            en:"Give an answer and support it with evidence from data, a result, a rule, or a property.",
+            fr:"Donner la réponse et l’appuyer par une donnée, un résultat, une règle ou une propriété.",
+            ar:"أعطِ الجواب وادعمه بدليل من المعطيات أو نتيجة أو قاعدة أو خاصية."
+        }},
+        {en:"Deduce", fr:"Déduire", ar:"استنتج", meaning:{
+            en:"Reach a conclusion directly from previous results or provided data.",
+            fr:"Tirer une conclusion directement à partir des résultats précédents ou des données fournies.",
+            ar:"استنتج نتيجة مباشرة انطلاقًا من نتائج سابقة أو معطيات متاحة."
+        }},
+        {en:"Calculate", fr:"Calculer", ar:"احسب", meaning:{
+            en:"Use the correct formula, substitute values, calculate, and give the result with its unit when required.",
+            fr:"Utiliser la bonne relation, remplacer par les valeurs, calculer et donner le résultat avec l’unité si nécessaire.",
+            ar:"استخدم القانون الصحيح، عوّض القيم، احسب، ثم أعطِ النتيجة مع الوحدة عند الحاجة."
+        }},
+        {en:"Determine", fr:"Déterminer", ar:"عيّن / أوجد", meaning:{
+            en:"Find the requested value or result using the appropriate method.",
+            fr:"Trouver la valeur ou le résultat demandé par la méthode appropriée.",
+            ar:"توصّل إلى القيمة أو النتيجة المطلوبة بالطريقة المناسبة."
+        }},
+        {en:"Show", fr:"Montrer", ar:"أثبت / بيّن", meaning:{
+            en:"Prove the requested result starting from the given information.",
+            fr:"Établir le résultat demandé à partir des données fournies.",
+            ar:"أثبت النتيجة المطلوبة انطلاقًا من المعطيات المعطاة."
+        }}
+    ],
+    math: [
+        {en:"Factorize",fr:"Factoriser",ar:"حلّل إلى عوامل",meaning:{
+            en:"Rewrite an algebraic expression as a product.",
+            fr:"Écrire une expression algébrique sous forme d’un produit.",
+            ar:"اكتب العبارة الجبرية على شكل حاصل ضرب."
+        }},
+        {en:"Expand",fr:"Développer",ar:"انشر",meaning:{
+            en:"Remove parentheses using algebraic identities or distributivity, then simplify if required.",
+            fr:"Supprimer les parenthèses à l’aide de la distributivité ou des identités remarquables.",
+            ar:"أزل الأقواس باستعمال التوزيع أو المتطابقات ثم اختصر عند الحاجة."
+        }},
+        {en:"Construct",fr:"Construire",ar:"أنشئ",meaning:{
+            en:"Produce the requested geometric figure using the stated data and properties.",
+            fr:"Réaliser la figure géométrique demandée en respectant les données et propriétés.",
+            ar:"أنشئ الشكل الهندسي المطلوب ملتزمًا بالمعطيات والخواص."
+        }}
+    ],
+    physics: [
+        {en:"Represent",fr:"Représenter",ar:"مثّل",meaning:{
+            en:"Draw or show the requested physical quantity, vector, force, ray, or circuit element according to convention.",
+            fr:"Tracer ou représenter la grandeur, le vecteur, la force, le rayon ou l’élément de circuit selon les conventions.",
+            ar:"ارسم أو مثّل الكمية أو المتجه أو القوة أو الشعاع أو عنصر الدارة وفق القواعد."
+        }},
+        {en:"Verify",fr:"Vérifier",ar:"تحقّق",meaning:{
+            en:"Use the data or calculation to check whether the stated result or relation is correct.",
+            fr:"Utiliser les données ou un calcul pour vérifier si le résultat ou la relation est correct.",
+            ar:"استخدم المعطيات أو الحساب للتحقق من صحة النتيجة أو العلاقة."
+        }}
+    ],
+    chemistry: [
+        {en:"Write the equation",fr:"Écrire l’équation",ar:"اكتب المعادلة",meaning:{
+            en:"Write the correct chemical equation with proper formulas and balancing when required.",
+            fr:"Écrire l’équation chimique correcte avec les formules adéquates et l’équilibrage si demandé.",
+            ar:"اكتب المعادلة الكيميائية الصحيحة بالصيغ المناسبة مع الموازنة عند الحاجة."
+        }},
+        {en:"Balance",fr:"Équilibrer",ar:"وازن",meaning:{
+            en:"Adjust coefficients so the number of atoms of each element is conserved.",
+            fr:"Ajuster les coefficients pour conserver le nombre d’atomes de chaque élément.",
+            ar:"عدّل المعاملات بحيث يُحفظ عدد ذرات كل عنصر."
+        }}
+    ],
+    biology: [
+        {en:"Analyze",fr:"Analyser",ar:"حلّل",meaning:{
+            en:"Break down the document or results, identify important relationships, and extract relevant information.",
+            fr:"Examiner le document ou les résultats, repérer les relations importantes et extraire les informations utiles.",
+            ar:"حلّل المستند أو النتائج وحدّد العلاقات المهمة واستخرج المعلومات ذات الصلة."
+        }},
+        {en:"Conclude",fr:"Conclure",ar:"استخلص",meaning:{
+            en:"Give the final scientific conclusion supported by the preceding observations or results.",
+            fr:"Donner la conclusion scientifique finale appuyée par les observations ou résultats précédents.",
+            ar:"أعطِ الخلاصة العلمية النهائية المدعومة بالملاحظات أو النتائج السابقة."
+        }}
+    ]
+};
+
+function nabilDetectSubjectProfile(){
+    const candidates=[
+        window.currentSubject,
+        window.selectedSubject,
+        document.querySelector("[data-subject]")?.dataset?.subject,
+        document.querySelector("#subjectSelect")?.value,
+        document.querySelector("[name='subject']")?.value
+    ].filter(Boolean).join(" ").toLowerCase();
+
+    if(/physics|physique|فيز/.test(candidates)) return "physics";
+    if(/chem|chimie|كيمي/.test(candidates)) return "chemistry";
+    if(/biology|life science|sciences de la vie|bio|علوم الحياة|أحياء/.test(candidates)) return "biology";
+    if(/math|mathemat|رياض/.test(candidates)) return "math";
+    return "general";
+}
+
+function nabilCurrentUILanguage(){
+    const v=String(
+        window.currentLanguage ||
+        window.selectedLanguage ||
+        document.querySelector("#languageSelect")?.value ||
+        document.documentElement.lang ||
+        "English"
+    ).toLowerCase();
+
+    if(/fr|français|french/.test(v)) return "fr";
+    if(/ar|arab|العربية/.test(v)) return "ar";
+    return "en";
+}
+
+function nabilActionVerbText(v,lang){
+    return lang==="ar" ? v.ar : lang==="fr" ? v.fr : v.en;
+}
+
+function nabilActionVerbMeaning(v,lang){
+    return v.meaning?.[lang] || v.meaning?.en || "";
+}
+
+function nabilOpenActionVerbs(){
+    const modal=document.getElementById("nabilActionVerbsModal");
+    const grid=document.getElementById("nabilActionVerbsGrid");
+    const title=document.getElementById("nabilActionVerbsTitle");
+    const subtitle=document.getElementById("nabilActionVerbsSubtitle");
+    const subjectTitle=document.getElementById("nabilActionVerbsSubjectTitle");
+    if(!modal || !grid) return;
+
+    const lang=nabilCurrentUILanguage();
+    const profile=nabilDetectSubjectProfile();
+
+    const labels={
+        en:{
+            title:"Action Verbs",
+            subtitle:"Understand exactly what the question is asking you to do.",
+            subject:"Subject-specific verbs",
+            tip:"Tip: the action verb tells you the expected form of the answer.",
+            example:"What your answer should do"
+        },
+        fr:{
+            title:"Verbes d’action",
+            subtitle:"Comprends exactement ce que la question te demande de faire.",
+            subject:"Verbes spécifiques à la matière",
+            tip:"Astuce : le verbe d’action indique la forme de réponse attendue.",
+            example:"Ce que ta réponse doit faire"
+        },
+        ar:{
+            title:"أفعال التعليمات",
+            subtitle:"افهم تمامًا ما الذي يطلبه منك السؤال.",
+            subject:"أفعال خاصة بالمادة",
+            tip:"ملاحظة: فعل التعليمة يحدد شكل الجواب المتوقع.",
+            example:"ماذا يجب أن يفعل جوابك"
+        }
+    }[lang];
+
+    title.textContent=labels.title;
+    subtitle.textContent=labels.subtitle;
+    subjectTitle.textContent=labels.subject;
+
+    const verbs=[
+        ...NABIL_ACTION_VERBS.general,
+        ...(profile!=="general" ? (NABIL_ACTION_VERBS[profile]||[]) : [])
+    ];
+
+    grid.innerHTML=verbs.map(v=>`
+      <div class="nabil-action-verb-card">
+        <div class="nabil-action-verb-word">
+          ${nabilEsc(nabilActionVerbText(v,lang))}
+          <span style="opacity:.62;font-weight:700">
+            ${lang!=="en" ? ` · ${nabilEsc(v.en)}` : ""}
+          </span>
+        </div>
+        <div class="nabil-action-verb-meaning">${nabilEsc(nabilActionVerbMeaning(v,lang))}</div>
+      </div>
+    `).join("");
+
+    const tip=document.getElementById("nabilActionVerbsTip");
+    if(tip) tip.textContent=labels.tip;
+
+    modal.classList.add("is-open");
+    modal.setAttribute("aria-hidden","false");
+}
+
+function nabilCloseActionVerbs(){
+    const modal=document.getElementById("nabilActionVerbsModal");
+    if(!modal) return;
+    modal.classList.remove("is-open");
+    modal.setAttribute("aria-hidden","true");
+}
+
+function nabilEnsureActionVerbsUI(){
+    if(document.getElementById("nabilActionVerbsModal")) return;
+
+    const modal=document.createElement("div");
+    modal.id="nabilActionVerbsModal";
+    modal.className="nabil-action-verbs-modal";
+    modal.setAttribute("aria-hidden","true");
+    modal.innerHTML=`
+      <div class="nabil-action-verbs-panel" role="dialog" aria-modal="true">
+        <div class="nabil-action-verbs-head">
+          <div>
+            <div id="nabilActionVerbsTitle" class="nabil-action-verbs-title">Action Verbs</div>
+            <div id="nabilActionVerbsSubtitle" class="nabil-action-verbs-subtitle"></div>
+          </div>
+          <button class="nabil-action-verbs-close" type="button" aria-label="Close" onclick="nabilCloseActionVerbs()">×</button>
+        </div>
+        <div class="nabil-action-verbs-body">
+          <div id="nabilActionVerbsGrid" class="nabil-action-verbs-grid"></div>
+          <div id="nabilActionVerbsSubjectTitle" class="nabil-action-verbs-section-title"></div>
+          <div id="nabilActionVerbsTip" class="nabil-action-verbs-tip"></div>
+        </div>
+      </div>
+    `;
+    modal.addEventListener("click",(e)=>{
+        if(e.target===modal) nabilCloseActionVerbs();
+    });
+    document.body.appendChild(modal);
+
+    document.addEventListener("keydown",(e)=>{
+        if(e.key==="Escape") nabilCloseActionVerbs();
+    });
+
+    // Place the button next to existing student controls when possible.
+    const button=document.createElement("button");
+    button.type="button";
+    button.className="nabil-action-verbs-btn";
+    button.innerHTML=`<span class="nabil-action-verbs-icon">📘</span><span>Action Verbs</span>`;
+    button.addEventListener("click",nabilOpenActionVerbs);
+
+    const preferredHosts=[
+        document.querySelector(".nabil-board-controls"),
+        document.querySelector(".lesson-actions"),
+        document.querySelector(".quick-check"),
+        document.querySelector(".lesson-controls"),
+        document.querySelector(".chat-controls")
+    ].filter(Boolean);
+
+    if(preferredHosts.length){
+        preferredHosts[0].appendChild(button);
+    }else{
+        button.style.position="fixed";
+        button.style.right="18px";
+        button.style.bottom="18px";
+        button.style.zIndex="9990";
+        document.body.appendChild(button);
+    }
+}
+
+if(document.readyState==="loading"){
+    document.addEventListener("DOMContentLoaded",nabilEnsureActionVerbsUI,{once:true});
+}else{
+    nabilEnsureActionVerbsUI();
 }
 
 function nabilBoardWrapCardCharacters(card){
