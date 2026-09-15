@@ -2857,6 +2857,35 @@ body.nabil-home-lock::before{
     }
 }
 
+
+
+/* v32 — true sequential board after lesson pairing/layout */
+.board-writing-mode .lesson-paired-stack > .lesson-paired-row,
+.board-writing-mode > .lesson-final-card.nabil-board-final-sequence{
+    display:none!important;
+}
+.board-writing-mode .lesson-paired-stack > .lesson-paired-row.nabil-board-current{
+    display:grid!important;
+}
+.board-writing-mode > .lesson-final-card.nabil-board-final-sequence.nabil-board-current{
+    display:block!important;
+}
+
+/* Typewriter text is genuinely invisible until its turn. */
+.board-writing-mode .nabil-type-char{
+    opacity:0!important;
+    visibility:hidden!important;
+}
+.board-writing-mode .nabil-type-char.is-visible{
+    opacity:1!important;
+    visibility:visible!important;
+}
+
+/* Never let an old stacked-card selector expose the whole lesson. */
+.board-writing-mode .lesson-paired-stack{
+    display:block!important;
+}
+
 </style>
 </head>
 
@@ -5206,17 +5235,16 @@ async function nabilBoardArabicForCard(cardText){
         const body=new FormData();
         body.append(
             "message",
-            "فسّر لي البطاقة الحالية كأستاذ، ولا تترجمها. لا تعِد صياغة النص كله بالعربية. " +
-            "النص الأصلي يُقرأ أولًا بلغته كما هو، ثم اشرح بالعربية المبسطة فقط الفكرة التعليمية وراءه. " +
-            "قاعدة ثابتة لكل المواد: حافظ على المصطلحات الأكاديمية الأساسية بلغة المادة الأصلية، ولا تترجمها إذا كان الطالب يتعلمها بهذه اللغة. " +
-            "مثلاً في Math قل derivative أو f prime أو integral أو slope أو product rule أو substitution بدل ترجمتها للعربية. " +
-            "وفي Physics/Chemistry/Biology واللغات وباقي المواد، أبقِ المصطلح العلمي أو الأكاديمي الأساسي بلغته الأصلية كما يظهر في الدرس. " +
-            "إذا كانت معطيات: قل باختصار ماذا أعطانا السؤال ولماذا نحتاج هذه المعطيات. " +
-            "إذا كان مطلوبًا: حدّد ما الذي سنبحث عنه مع إبقاء اسم المفهوم أو العملية بلغته الأصلية. " +
-            "إذا كانت قاعدة أو قانونًا: اذكر اسم القاعدة بلغتها الأصلية وقل لماذا سنستعملها الآن. " +
-            "إذا نحتاج قيمة أو خطوة قبل التطبيق: اذكر أننا سنوجدها أولًا ولماذا. " +
-            "إذا كان تعويضًا: اشرح ماذا سنعوّض وأين، من دون إضافة أي رقم جديد. " +
-            "ممنوع الترجمة الحرفية، وممنوع التحية، وممنوع إضافة أمثلة أو معلومات ليست في البطاقة."
+            "اشرح لي شو عطتنا هالبطاقة وشو لازم أفهم منها قبل ما نكمل. " +
+            "ما بدي ترجمة للنص وما بدي تعيد قراءته. " +
+            "إذا فيها Given أو معطيات، قل بالعربي باختصار: عطينا كذا، وهذا يفيدنا بكذا. " +
+            "إذا فيها Required، قل شو لازم نطلع. " +
+            "إذا فيها Formula أو Rule، اذكر اسمها بلغة المادة الأصلية وقل ليش رح نستعملها. " +
+            "إذا لازم نطلع قيمة قبل تطبيق الـ Formula، قل شو لازم نوجد أولًا وليش. " +
+            "إذا وصلنا للتعويض، وضّح وين رح نعمل substitution من دون اختراع أي رقم. " +
+            "الشرح بالعربي المبسط، لكن المصطلحات الأكاديمية الأساسية تبقى بلغة المادة الأصلية: " +
+            "مثل derivative أو f prime أو integral أو slope في Math، ونفس المبدأ في Physics وChemistry وBiology واللغات وباقي المواد. " +
+            "لا تحية، لا ترجمة حرفية، لا إعادة قراءة، ولا معلومات من خارج البطاقة."
         );
         body.append("student_id",getStudentId());
         body.append("current_answer",clean);
@@ -5278,32 +5306,105 @@ function nabilPrepareBoardCards(root){
     if(!root) return [];
     root.classList.add("board-writing-mode");
 
-    let cards=[...root.querySelectorAll(".lesson-card-stack > .lesson-concept-card")];
+    const items=[];
 
-    // Fallback for unusual lesson output.
-    if(!cards.length){
-        cards=[...root.querySelectorAll(".lesson-explanation > *")].filter(el=>
-            !el.classList.contains("nabil-board-controls")
-        );
+    // MAIN PATH after layoutLessonBoard():
+    // each concept lives inside one .lesson-paired-row together with its linked visual.
+    const rows=[...root.querySelectorAll(".lesson-paired-stack > .lesson-paired-row")];
+
+    rows.forEach(row=>{
+        const concept=row.querySelector(".lesson-concept-card");
+        if(!concept) return;
+
+        const text=nabilBoardCardText(concept);
+
+        row.classList.add("nabil-board-card","nabil-board-row");
+        row.classList.remove("nabil-board-current");
+        row.style.display="none";
+
+        // Hide every textual character before the first spoken word.
+        const chars=nabilBoardWrapCardCharacters(concept);
+        chars.forEach(ch=>ch.classList.remove("is-visible"));
+
+        items.push({
+            card:row,          // visibility target: concept + its drawing together
+            content:concept,   // typewriter target: text only
+            text,
+            chars
+        });
+    });
+
+    // If no paired layout exists, use actual concept cards (never the whole stack).
+    if(!items.length){
+        const concepts=[...root.querySelectorAll(".lesson-concept-card")]
+            .filter(card=>!card.classList.contains("lesson-final-card"));
+
+        concepts.forEach(concept=>{
+            const text=nabilBoardCardText(concept);
+            concept.classList.add("nabil-board-card");
+            concept.classList.remove("nabil-board-current");
+            concept.style.display="none";
+
+            const chars=nabilBoardWrapCardCharacters(concept);
+            chars.forEach(ch=>ch.classList.remove("is-visible"));
+
+            items.push({
+                card:concept,
+                content:concept,
+                text,
+                chars
+            });
+        });
     }
-    if(!cards.length) cards=[root];
 
-    return cards.map(card=>{
-        const text=nabilBoardCardText(card);
-        card.classList.add("nabil-board-card");
-        card.classList.remove("nabil-board-current");
-        card.style.display="none";
-        const chars=nabilBoardWrapCardCharacters(card);
-        return {card,text,chars};
-    }).filter(x=>x.text || x.chars.length);
+    // The cumulative final summary is the LAST card, never visible at the start.
+    const finalCard=root.querySelector(":scope > .lesson-final-card");
+    if(finalCard){
+        const text=nabilBoardCardText(finalCard);
+        finalCard.classList.add("nabil-board-card","nabil-board-final-sequence");
+        finalCard.classList.remove("nabil-board-current");
+        finalCard.style.display="none";
+
+        const chars=nabilBoardWrapCardCharacters(finalCard);
+        chars.forEach(ch=>ch.classList.remove("is-visible"));
+
+        items.push({
+            card:finalCard,
+            content:finalCard,
+            text,
+            chars
+        });
+    }
+
+    // Last-resort fallback: a genuine child card only, never .lesson-card-stack itself.
+    if(!items.length){
+        const candidate=root.querySelector(".lesson-explanation .lesson-concept-card, .lesson-final-card");
+        if(candidate){
+            const text=nabilBoardCardText(candidate);
+            candidate.classList.add("nabil-board-card");
+            candidate.style.display="none";
+            const chars=nabilBoardWrapCardCharacters(candidate);
+            chars.forEach(ch=>ch.classList.remove("is-visible"));
+            items.push({card:candidate,content:candidate,text,chars});
+        }
+    }
+
+    return items.filter(x=>x.text || x.chars.length);
 }
 
 function nabilBoardShowCurrentCard(){
-    // Absolutely only one lesson card is visible at a time.
+    // Absolutely only ONE sequential unit is visible:
+    // concept + its linked visual, then finally the summary card.
     nabilBoardCards.forEach((item,i)=>{
         const active=i===nabilBoardCardIndex;
         item.card.classList.toggle("nabil-board-current",active);
-        item.card.style.display = active ? "block" : "none";
+
+        if(!active){
+            item.card.style.setProperty("display","none","important");
+        }else{
+            const mode=item.card.classList.contains("lesson-paired-row") ? "grid" : "block";
+            item.card.style.setProperty("display",mode,"important");
+        }
     });
 
     const active=nabilBoardCards[nabilBoardCardIndex]?.card;
@@ -5336,10 +5437,15 @@ function nabilBoardStartTypewriter(durationSeconds){
     if(!item || !item.chars.length) return;
 
     const remaining=Math.max(1,item.chars.length-nabilBoardCharIndex);
-    const usableMs=Math.max(1200,Number(durationSeconds||0)*1000*0.96);
 
-    // Real typewriter effect paced across the exact audio duration.
-    const interval=Math.max(18,Math.min(145,usableMs/remaining));
+    // If the browser/server did not report duration, use a real classroom pace,
+    // never reveal the whole card immediately.
+    let usableMs=Number(durationSeconds||0)*1000*0.96;
+    if(!Number.isFinite(usableMs) || usableMs<1200){
+        usableMs=Math.max(2500,remaining*48);
+    }
+
+    const interval=Math.max(28,Math.min(135,usableMs/remaining));
 
     nabilBoardTimer=setInterval(()=>{
         if(nabilBoardPaused) return;
@@ -5475,8 +5581,7 @@ async function nabilBoardSpeakCurrentCard(){
         if(foreignSpeechResult?.cancelled) return;
         if(token!==nabilBoardRunToken || nabilBoardPaused) return;
 
-        // Audio is now genuinely finished. Complete any last few characters
-        // that may remain because of metadata/timer rounding.
+        // Audio is genuinely finished. Complete only now, never before.
         nabilBoardClearTimer();
         nabilBoardFinishCard();
     }
@@ -5601,6 +5706,10 @@ function nabilStartBoardReveal(root, spokenText, language){
     nabilBoardSpeechLanguage="العربية";
     nabilBoardCurrentRoot=root;
     nabilBoardCards=nabilPrepareBoardCards(root);
+    if(!nabilBoardCards.length){
+        console.warn("NABIL board: no sequential cards found; keeping lesson safely hidden.");
+        return;
+    }
     nabilBoardCardIndex=0;
     nabilBoardCharIndex=0;
     nabilBoardCurrentSpeech="";
