@@ -2987,6 +2987,100 @@ body.nabil-home-lock::before{
     transform:scaleX(1.15)!important;
 }
 
+
+
+/* v39 — Graph and Table of Variation unified in one card */
+.function-study-board .exercise-function-graph-variation{
+    width:100%;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    padding:12px;
+    border:1px solid rgba(78,183,235,.46);
+    border-radius:16px;
+    background:rgba(6,24,42,.96);
+    box-shadow:0 10px 30px rgba(0,0,0,.16);
+    overflow:hidden;
+}
+
+.function-study-board .exercise-function-graph-variation .exercise-function-visual{
+    width:100%;
+    margin:0;
+    padding:0;
+    border:0;
+    background:transparent;
+    box-shadow:none;
+}
+
+.function-study-board .exercise-function-graph-variation .exercise-variation-zone{
+    width:100%;
+    margin:0;
+    padding:12px 12px 10px;
+    border:1px solid rgba(93,173,214,.48);
+    border-radius:12px;
+    background:rgba(4,20,34,.88);
+    overflow-x:auto;
+}
+
+.function-study-board .exercise-function-graph-variation .exercise-variation-title{
+    margin:0 0 8px;
+    padding:0;
+    font-size:15px;
+    font-weight:900;
+    color:#73e5ff;
+}
+
+.function-study-board .exercise-function-graph-variation .lesson-table-wrap{
+    width:100%;
+    overflow-x:auto;
+}
+
+.function-study-board .exercise-function-graph-variation table{
+    width:100%;
+    min-width:620px;
+    border-collapse:collapse;
+    table-layout:fixed;
+}
+
+.function-study-board .exercise-function-graph-variation th,
+.function-study-board .exercise-function-graph-variation td{
+    border:1.6px solid rgba(93,173,214,.58);
+    padding:9px 10px;
+    text-align:center;
+    vertical-align:middle;
+    font-size:14px;
+}
+
+.function-study-board .exercise-function-graph-variation th:first-child,
+.function-study-board .exercise-function-graph-variation td:first-child{
+    width:96px;
+    font-weight:900;
+}
+
+.function-study-board .exercise-function-graph-variation .variation-up,
+.function-study-board .exercise-function-graph-variation .variation-down{
+    display:inline-block;
+    font-size:27px;
+    line-height:1;
+    font-weight:900;
+}
+
+@media(max-width:700px){
+    .function-study-board .exercise-function-graph-variation{
+        padding:8px;
+        gap:9px;
+        border-radius:12px;
+    }
+    .function-study-board .exercise-function-graph-variation .exercise-variation-zone{
+        padding:9px 8px;
+    }
+    .function-study-board .exercise-function-graph-variation th,
+    .function-study-board .exercise-function-graph-variation td{
+        padding:8px 7px;
+        font-size:13px;
+    }
+}
+
 </style>
 </head>
 
@@ -4567,24 +4661,30 @@ ${rawVariationHTML}`);
                         </section>
                     ` : ""}
 
-                    ${hasGraph ? `
-                        <section class="exercise-function-visual" dir="${messageDirection}">
-                            <div class="exercise-function-visual-title">${functionGraphTitle(messageLanguage)}</div>
-                            <div class="exercise-visual-panel ${diagramsForThis.length > 1 ? "multi-diagram-panel" : ""}">${visualHTML}</div>
-                        </section>
-                    ` : ""}
+                    ${(hasGraph || hasVariation) ? `
+                        <section class="exercise-function-graph-variation" dir="${messageDirection}">
+                            ${hasGraph ? `
+                                <div class="exercise-function-visual">
+                                    <div class="exercise-function-visual-title">${functionGraphTitle(messageLanguage)}</div>
+                                    <div class="exercise-visual-panel ${diagramsForThis.length > 1 ? "multi-diagram-panel" : ""}">
+                                        ${visualHTML}
+                                    </div>
+                                </div>
+                            ` : ""}
 
-                    ${hasVariation ? `
-                        <section class="exercise-variation-zone function-variation-stack" dir="${messageDirection}">
-                            <div class="exercise-variation-title">${variationTitle(messageLanguage)}</div>
-                            ${variationTextHTML ? `<div class="exercise-variation-richtext">${variationTextHTML}</div>` : ""}
-                            ${variationTables.map(t=>decorateVariationTableHTML(t,messageLanguage)).join("")}
-                            ${!variationTables.length && autoExtractedVariation
-                                ? decorateVariationTableHTML(autoExtractedVariation,messageLanguage)
-                                : ""}
-                            ${!variationTables.length && !autoExtractedVariation && autoVariationTableHTML
-                                ? decorateVariationTableHTML(autoVariationTableHTML,messageLanguage)
-                                : ""}
+                            ${hasVariation ? `
+                                <div class="exercise-variation-zone function-variation-stack">
+                                    <div class="exercise-variation-title">${variationTitle(messageLanguage)}</div>
+                                    ${variationTextHTML ? `<div class="exercise-variation-richtext">${variationTextHTML}</div>` : ""}
+                                    ${variationTables.map(t=>decorateVariationTableHTML(t,messageLanguage)).join("")}
+                                    ${!variationTables.length && autoExtractedVariation
+                                        ? decorateVariationTableHTML(autoExtractedVariation,messageLanguage)
+                                        : ""}
+                                    ${!variationTables.length && !autoExtractedVariation && autoVariationTableHTML
+                                        ? decorateVariationTableHTML(autoVariationTableHTML,messageLanguage)
+                                        : ""}
+                                </div>
+                            ` : ""}
                         </section>
                     ` : ""}
 
