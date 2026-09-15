@@ -2940,6 +2940,53 @@ body.nabil-home-lock::before{
     align-items:center;
 }
 
+
+
+/* v38 — formal Variation Table, never cramped inside Solution */
+.function-study-board .exercise-variation-zone{
+    width:100%!important;
+    grid-column:1/-1!important;
+    padding:14px!important;
+    border:2px solid #3f8fb9!important;
+    border-radius:14px!important;
+    overflow-x:auto!important;
+}
+.function-study-board .exercise-variation-zone .lesson-table-wrap{
+    width:100%!important;
+    overflow-x:auto!important;
+    border:0!important;
+}
+.function-study-board .exercise-variation-zone table{
+    width:100%!important;
+    min-width:620px!important;
+    border-collapse:collapse!important;
+    table-layout:fixed!important;
+    border:2px solid #6ad9ff!important;
+}
+.function-study-board .exercise-variation-zone th,
+.function-study-board .exercise-variation-zone td{
+    border:1.8px solid #4f91b4!important;
+    min-width:84px!important;
+    height:52px!important;
+    padding:10px 12px!important;
+    text-align:center!important;
+    vertical-align:middle!important;
+    font-size:15px!important;
+}
+.function-study-board .exercise-variation-zone th:first-child,
+.function-study-board .exercise-variation-zone td:first-child{
+    width:110px!important;
+    font-weight:900!important;
+}
+.function-study-board .exercise-variation-zone .variation-up,
+.function-study-board .exercise-variation-zone .variation-down{
+    display:inline-block!important;
+    font-size:30px!important;
+    line-height:1!important;
+    font-weight:900!important;
+    transform:scaleX(1.15)!important;
+}
+
 </style>
 </head>
 
@@ -4071,24 +4118,133 @@ function nabilFunctionCardRank(title){
     return 80;
 }
 
+
+function nabilExtractVariationFromSolutionHTML(html, messageLanguage){
+    const source=String(html||"");
+    if(!source.trim()){
+        return {cleanedHTML:source, variationHTML:""};
+    }
+
+    const holder=document.createElement("div");
+    holder.innerHTML=source;
+
+    const nodes=[...holder.childNodes];
+    let startIndex=-1;
+    let endIndex=nodes.length;
+
+    const variationStart=/^(?:\s*\d+\s*[).:\-]\s*)?(?:variation\s*table|tableau\s+de\s+variations|جدول\s+التغي(?:رات|ّرات)|monotonicity|variations?|التزايد\s+والتناقص)\b/i;
+    const nextSection=/^(?:\s*\d+\s*[).:\-]\s*)?(?:graph|graphical\s+representation|représentation\s+graphique|final\s+answer|rule\s+summary|réponse\s+finale|résumé|التمثيل\s+البياني|الرسم\s+البياني|الجواب\s+النهائي|خلاصة)\b/i;
+
+    const nodeText=node=>String(node?.innerText || node?.textContent || "")
+        .replace(/\u00a0/g," ")
+        .replace(/\s+/g," ")
+        .trim();
+
+    for(let i=0;i<nodes.length;i++){
+        const txt=nodeText(nodes[i]);
+        if(startIndex<0){
+            if(variationStart.test(txt)){
+                startIndex=i;
+            }
+            continue;
+        }
+
+        if(i>startIndex && nextSection.test(txt)){
+            endIndex=i;
+            break;
+        }
+    }
+
+    // No explicit hidden Variation Table title. We still try the existing detector,
+    // but do not delete any solution content unless a real table was recovered.
+    if(startIndex<0){
+        const detected=nabilDetectVariationTableFromText(source);
+        return {
+            cleanedHTML:source,
+            variationHTML:detected || ""
+        };
+    }
+
+    const regionNodes=nodes.slice(startIndex,endIndex);
+    const regionHTML=regionNodes.map(node=>node.outerHTML || nabilEsc(node.textContent||"")).join("");
+
+    // Prefer a real rendered <table>; otherwise reconstruct from the text.
+    const regionHolder=document.createElement("div");
+    regionHolder.innerHTML=regionHTML;
+
+    let variationHTML="";
+    const realTable=regionHolder.querySelector("table");
+    if(realTable){
+        const wrap=document.createElement("div");
+        wrap.className="lesson-table-wrap";
+        wrap.appendChild(realTable.cloneNode(true));
+        variationHTML=wrap.outerHTML;
+    }else{
+        variationHTML=nabilDetectVariationTableFromText(regionHTML);
+    }
+
+    // Only remove the hidden block if we successfully reconstructed a table.
+    if(variationHTML){
+        regionNodes.forEach(node=>node.remove());
+    }
+
+    return {
+        cleanedHTML:holder.innerHTML.trim(),
+        variationHTML:variationHTML || ""
+    };
+}
+
 function nabilRenderFunctionMiniCards(parts, messageLanguage){
-    const pieces = [];
+    const extracted=nabilExtractVariationFromSolutionHTML(
+        parts.solutionBodyHTML || "",
+        messageLanguage
+    );
+
+    // Mutate the caller-owned payload intentionally so renderGeneralExerciseBoards
+    // can retrieve the extracted table. Do NOT reassign `parts` to a new object.
+    parts._extractedVariationHTML=extracted.variationHTML || "";
+    parts.solutionBodyHTML=extracted.cleanedHTML || parts.solutionBodyHTML || "";
+
+    const pieces=[];
     if(parts.givenHTML) pieces.push(parts.givenHTML);
     if(parts.requiredHTML) pieces.push(parts.requiredHTML);
     if(parts.formulaHTML) pieces.push(parts.formulaHTML);
-    const splitSolution = nabilSplitFunctionBlocksFromHTML(parts.solutionBodyHTML || '', messageLanguage)
-        .sort((a,b)=>nabilFunctionCardRank(a.title)-nabilFunctionCardRank(b.title));
+
+    const splitSolution=nabilSplitFunctionBlocksFromHTML(
+        parts.solutionBodyHTML || "",
+        messageLanguage
+    )
+    .filter(block=>!/(variation\s*table|tableau\s+de\s+variations|جدول\s+التغي|monotonicity|التزايد\s+والتناقص)/i.test(block.title||""))
+    .sort((a,b)=>nabilFunctionCardRank(a.title)-nabilFunctionCardRank(b.title));
+
     if(splitSolution.length){
-        pieces.push(`<div class="exercise-function-mini-grid">${splitSolution.map(block => `<div class="exercise-function-mini-card"><h4>${nabilEsc(block.title || (messageLanguage==="English"?"Step":messageLanguage==="Français"?"Étape":"خطوة"))}</h4>${block.html}</div>`).join('')}</div>`);
-    } else if(parts.solutionHTML){
+        pieces.push(
+            `<div class="exercise-function-mini-grid">${
+                splitSolution.map(block=>`
+                    <div class="exercise-function-mini-card">
+                        <h4>${nabilEsc(
+                            block.title ||
+                            (messageLanguage==="English"
+                                ? "Step"
+                                : messageLanguage==="Français"
+                                    ? "Étape"
+                                    : "خطوة")
+                        )}</h4>
+                        ${block.html}
+                    </div>
+                `).join("")
+            }</div>`
+        );
+    }else if(parts.solutionHTML){
         pieces.push(parts.solutionHTML);
     }
+
     if(parts.answerHTML) pieces.push(parts.answerHTML);
     if(parts.summaryHTML) pieces.push(parts.summaryHTML);
     if(parts.extraHTML) pieces.push(parts.extraHTML);
-    return pieces.join('');
-}
 
+    return pieces.join("");
+}
 
 function nabilPrepareFunctionKeyBlocks(rawSolutionBodyHTML, messageLanguage){
     const split = nabilSplitFunctionBlocksFromHTML(rawSolutionBodyHTML || "", messageLanguage)
@@ -4113,18 +4269,21 @@ function nabilFunctionLeftColumnHTML({givenHTML,requiredHTML,formulaHTML}, messa
 }
 
 function nabilFunctionCenterColumnHTML({solutionBodyHTML,solutionHTML,extraHTML}, messageLanguage){
-    const split = nabilPrepareFunctionKeyBlocks(solutionBodyHTML || "", messageLanguage);
-    const body = split.length
+    const extracted=nabilExtractVariationFromSolutionHTML(solutionBodyHTML || "", messageLanguage);
+    const cleanedBody=extracted.cleanedHTML || solutionBodyHTML || "";
+
+    const split=nabilPrepareFunctionKeyBlocks(cleanedBody, messageLanguage);
+    const body=split.length
         ? `<div class="exercise-function-mini-grid">${
-            split.map(block => `<div class="exercise-function-mini-card">
+            split.map(block=>`<div class="exercise-function-mini-card">
                 <h4>${nabilEsc(block.title || (messageLanguage==="English"?"Step":messageLanguage==="Français"?"Étape":"خطوة"))}</h4>
                 ${block.html}
             </div>`).join("")
           }</div>`
         : (solutionHTML || "");
+
     return `${body}${extraHTML || ""}`;
 }
-
 function nabilFunctionFinalStripHTML({answerHTML,summaryHTML}){
     return `${answerHTML || ""}${summaryHTML || ""}`;
 }
@@ -4340,7 +4499,14 @@ function renderGeneralExerciseBoards(text, diagrams, messageDirection, messageLa
         const solutionHTML = strippedSolution.html;
         const variationTextHTML = strippedVariation.html;
         const variationTables = [...strippedSolution.tables, ...strippedVariation.tables];
-        const autoVariationTableHTML = nabilDetectVariationTableFromText(`${rawSolutionBodyHTML}
+        const extractedVariationPayload=nabilExtractVariationFromSolutionHTML(
+            rawSolutionBodyHTML,
+            messageLanguage
+        );
+        const cleanedSolutionBodyHTML=extractedVariationPayload.cleanedHTML || rawSolutionBodyHTML;
+        const autoExtractedVariation=extractedVariationPayload.variationHTML || "";
+
+        const autoVariationTableHTML = nabilDetectVariationTableFromText(`${cleanedSolutionBodyHTML}
 ${rawVariationHTML}`);
 
         const answerHTML = parts.answer.map(s => buildExerciseSectionHTML(s.title || "Final Answer", renderNodesAsHTML(s.nodes), "exercise-answer-card", "section-tone-3")).join("");
@@ -4369,7 +4535,7 @@ ${rawVariationHTML}`);
             }, messageLanguage);
 
             const centerColumnHTML = nabilFunctionCenterColumnHTML({
-                solutionBodyHTML: rawSolutionBodyHTML,
+                solutionBodyHTML: cleanedSolutionBodyHTML,
                 solutionHTML,
                 extraHTML
             }, messageLanguage);
@@ -4379,7 +4545,12 @@ ${rawVariationHTML}`);
             });
 
             const hasGraph = Boolean(String(visualHTML || "").trim());
-            const hasVariation = Boolean(variationTextHTML || variationTables.length || autoVariationTableHTML);
+            const hasVariation = Boolean(
+                variationTextHTML ||
+                variationTables.length ||
+                autoExtractedVariation ||
+                autoVariationTableHTML
+            );
 
             return `
             <article class="exercise-board function-study-board full-width-board compact-function-board" dir="${messageDirection}">
@@ -4408,7 +4579,12 @@ ${rawVariationHTML}`);
                             <div class="exercise-variation-title">${variationTitle(messageLanguage)}</div>
                             ${variationTextHTML ? `<div class="exercise-variation-richtext">${variationTextHTML}</div>` : ""}
                             ${variationTables.map(t=>decorateVariationTableHTML(t,messageLanguage)).join("")}
-                            ${!variationTables.length && autoVariationTableHTML ? decorateVariationTableHTML(autoVariationTableHTML, messageLanguage) : ""}
+                            ${!variationTables.length && autoExtractedVariation
+                                ? decorateVariationTableHTML(autoExtractedVariation,messageLanguage)
+                                : ""}
+                            ${!variationTables.length && !autoExtractedVariation && autoVariationTableHTML
+                                ? decorateVariationTableHTML(autoVariationTableHTML,messageLanguage)
+                                : ""}
                         </section>
                     ` : ""}
 
@@ -12940,6 +13116,6 @@ if(document.readyState==="loading"){
     </div>
   </section>
 </div>
-<script src="/static/fallback_drawings_engine.js"></script>
+
 </body>
 </html>
