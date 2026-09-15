@@ -211,6 +211,56 @@ select option{background:#071f33;color:#fff}
   }
 }
 
+
+
+/* v14 — exam direction + real figures */
+.model.assessment-ltr,
+.model.assessment-ltr .assessment-text,
+.model.assessment-ltr .assessment-text *{
+  direction:ltr!important;
+  text-align:left!important;
+}
+.model.assessment-rtl,
+.model.assessment-rtl .assessment-text,
+.model.assessment-rtl .assessment-text *{
+  direction:rtl!important;
+  text-align:right!important;
+}
+.assessment-text{
+  white-space:normal;
+  line-height:1.85;
+  font-family:Arial,"Segoe UI",sans-serif;
+}
+.assessment-text .assessment-lines{
+  white-space:pre-wrap;
+}
+.assessment-figure{
+  margin:16px auto;
+  border:1px solid rgba(102,224,255,.35);
+  border-radius:14px;
+  background:#061d2f;
+  padding:12px;
+  overflow:auto;
+}
+.assessment-figure-title{
+  color:#7de8ff;
+  font-weight:900;
+  margin:0 0 8px;
+}
+.assessment-figure svg{
+  display:block;
+  width:min(100%,760px);
+  height:auto;
+  margin:auto;
+  background:#fff;
+  border-radius:8px;
+}
+.assessment-figure-note{
+  margin-top:8px;
+  font-size:12px;
+  color:#bcecff;
+}
+
 </style>
 </head>
 <body>
@@ -871,29 +921,249 @@ async function generateAssessment(){
   }
 }
 
+
+function assessmentIsRTL(){
+  return $("language").value === "العربية";
+}
+
+function assessmentDirection(){
+  return assessmentIsRTL() ? "rtl" : "ltr";
+}
+
+function parseFigureSpec(raw){
+  const text=String(raw||"");
+  const spec={};
+  text.split(/\r?\n/).forEach(line=>{
+    const m=line.match(/^\s*([A-Za-z_]+)\s*:\s*(.*?)\s*$/);
+    if(m) spec[m[1].toLowerCase()]=m[2];
+  });
+  return spec;
+}
+
+function svgEsc(s){
+  return String(s||"").replace(/[&<>"']/g,c=>({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[c]));
+}
+
+function assessmentFigureSVG(spec){
+  const type=String(spec.type||"other").toLowerCase();
+  const title=spec.title||"Figure";
+  const data=String(spec.data||"");
+
+  // ---------- Circle + external point + tangents ----------
+  if(type==="geometry" && /circle/i.test(data) && /tangent/i.test(data)){
+    const rMatch=data.match(/radius\s*([0-9.]+)/i);
+    const pMatch=data.match(/P\s*at\s*\(\s*([-\d.]+)\s*,\s*([-\d.]+)\s*\)/i);
+    const radius=rMatch ? Number(rMatch[1]) : 5;
+    const px=pMatch ? Number(pMatch[1]) : 13;
+    const py=pMatch ? Number(pMatch[2]) : 0;
+
+    // Correct tangent points from P to circle centered at O(0,0).
+    const d=Math.hypot(px,py) || 13;
+    const ux=px/d, uy=py/d;
+    const a=(radius*radius)/d;
+    const h=radius*Math.sqrt(Math.max(0,1-(radius*radius)/(d*d)));
+    const bx=a*ux, by=a*uy;
+    const tx1=bx - h*uy, ty1=by + h*ux;
+    const tx2=bx + h*uy, ty2=by - h*ux;
+
+    const W=720,H=390,cx=245,cy=195,scale=18;
+    const X=x=>cx+x*scale, Y=y=>cy-y*scale;
+
+    return `
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${svgEsc(title)}">
+      <defs>
+        <marker id="arrGeom" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto">
+          <polygon points="0 0,8 3.5,0 7" fill="#334155"/>
+        </marker>
+      </defs>
+
+      <line x1="38" y1="${cy}" x2="680" y2="${cy}" stroke="#94a3b8" stroke-width="1.4"/>
+      <line x1="${cx}" y1="30" x2="${cx}" y2="350" stroke="#94a3b8" stroke-width="1.4"/>
+
+      <circle cx="${cx}" cy="${cy}" r="${radius*scale}" fill="none" stroke="#0f766e" stroke-width="3"/>
+      <line x1="${X(px)}" y1="${Y(py)}" x2="${X(tx1)}" y2="${Y(ty1)}" stroke="#dc2626" stroke-width="2.8"/>
+      <line x1="${X(px)}" y1="${Y(py)}" x2="${X(tx2)}" y2="${Y(ty2)}" stroke="#2563eb" stroke-width="2.8"/>
+
+      <line x1="${cx}" y1="${cy}" x2="${X(tx1)}" y2="${Y(ty1)}" stroke="#64748b" stroke-dasharray="6 5"/>
+      <line x1="${cx}" y1="${cy}" x2="${X(tx2)}" y2="${Y(ty2)}" stroke="#64748b" stroke-dasharray="6 5"/>
+
+      <circle cx="${cx}" cy="${cy}" r="5" fill="#111827"/>
+      <circle cx="${X(px)}" cy="${Y(py)}" r="6" fill="#111827"/>
+      <circle cx="${X(tx1)}" cy="${Y(ty1)}" r="6" fill="#dc2626"/>
+      <circle cx="${X(tx2)}" cy="${Y(ty2)}" r="6" fill="#2563eb"/>
+
+      <text x="${cx+9}" y="${cy-9}" font-size="18" font-weight="700">O</text>
+      <text x="${X(px)+10}" y="${Y(py)-10}" font-size="18" font-weight="700">P</text>
+      <text x="${X(tx1)+10}" y="${Y(ty1)-8}" font-size="18" font-weight="700">T₁</text>
+      <text x="${X(tx2)+10}" y="${Y(ty2)+22}" font-size="18" font-weight="700">T₂</text>
+
+      <text x="${cx+40}" y="${cy-55}" font-size="16">r = ${svgEsc(radius)} cm</text>
+      <text x="${(X(px)+cx)/2}" y="${cy+24}" font-size="16">OP = ${svgEsc(d.toFixed(0))} cm</text>
+
+      <text x="360" y="28" text-anchor="middle" font-size="19" font-weight="700">${svgEsc(title)}</text>
+    </svg>`;
+  }
+
+  // ---------- Function graph ----------
+  if(type==="function_graph"){
+    const eq=(data.match(/equation\s+([^;]+)/i)||[])[1] || "";
+    const line=eq.match(/y\s*=\s*([+-]?\d*\.?\d*)\s*x\s*([+-]\s*\d*\.?\d+)?/i);
+    let m=-2,b=4;
+    if(line){
+      const ms=line[1].replace(/\s/g,"");
+      m=(ms===""||ms==="+")?1:(ms==="-"?-1:Number(ms));
+      b=line[2]?Number(line[2].replace(/\s/g,"")):0;
+    }
+
+    const xr=(data.match(/x.?axis range\s*([−–-]?\d+(?:\.\d+)?)\s*to\s*([−–-]?\d+(?:\.\d+)?)/i)||[]);
+    const yr=(data.match(/y.?axis range\s*([−–-]?\d+(?:\.\d+)?)\s*to\s*([−–-]?\d+(?:\.\d+)?)/i)||[]);
+    const cleanNum=s=>Number(String(s).replace(/[−–]/g,"-"));
+    const xmin=xr[1]?cleanNum(xr[1]):-2, xmax=xr[2]?cleanNum(xr[2]):4;
+    const ymin=yr[1]?cleanNum(yr[1]):-2, ymax=yr[2]?cleanNum(yr[2]):6;
+
+    const W=720,H=420,pad=54;
+    const sx=x=>pad+(x-xmin)/(xmax-xmin)*(W-2*pad);
+    const sy=y=>H-pad-(y-ymin)/(ymax-ymin)*(H-2*pad);
+
+    let grid="";
+    for(let x=Math.ceil(xmin);x<=Math.floor(xmax);x++){
+      grid+=`<line x1="${sx(x)}" y1="${pad}" x2="${sx(x)}" y2="${H-pad}" stroke="#e2e8f0"/>`;
+      grid+=`<text x="${sx(x)}" y="${sy(0)+20}" text-anchor="middle" font-size="13">${x}</text>`;
+    }
+    for(let y=Math.ceil(ymin);y<=Math.floor(ymax);y++){
+      grid+=`<line x1="${pad}" y1="${sy(y)}" x2="${W-pad}" y2="${sy(y)}" stroke="#e2e8f0"/>`;
+      if(y!==0) grid+=`<text x="${sx(0)-12}" y="${sy(y)+4}" text-anchor="end" font-size="13">${y}</text>`;
+    }
+
+    const x1=xmin, y1=m*x1+b, x2=xmax, y2=m*x2+b;
+    const xInt=m!==0 ? -b/m : null;
+    const yInt=b;
+
+    return `
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${svgEsc(title)}">
+      ${grid}
+      <line x1="${pad}" y1="${sy(0)}" x2="${W-pad}" y2="${sy(0)}" stroke="#111827" stroke-width="2"/>
+      <line x1="${sx(0)}" y1="${pad}" x2="${sx(0)}" y2="${H-pad}" stroke="#111827" stroke-width="2"/>
+
+      <line x1="${sx(x1)}" y1="${sy(y1)}" x2="${sx(x2)}" y2="${sy(y2)}"
+            stroke="#0f766e" stroke-width="4"/>
+
+      ${xInt!==null && xInt>=xmin && xInt<=xmax
+        ? `<circle cx="${sx(xInt)}" cy="${sy(0)}" r="6" fill="#dc2626"/>
+           <text x="${sx(xInt)+10}" y="${sy(0)-10}" font-size="15">(${xInt}, 0)</text>`:""}
+
+      ${yInt>=ymin && yInt<=ymax
+        ? `<circle cx="${sx(0)}" cy="${sy(yInt)}" r="6" fill="#2563eb"/>
+           <text x="${sx(0)+10}" y="${sy(yInt)-10}" font-size="15">(0, ${yInt})</text>`:""}
+
+      <text x="${W/2}" y="27" text-anchor="middle" font-size="19" font-weight="700">${svgEsc(title)}</text>
+      <text x="${W-pad+14}" y="${sy(0)+5}" font-size="16">x</text>
+      <text x="${sx(0)+8}" y="${pad-12}" font-size="16">y</text>
+    </svg>`;
+  }
+
+  // ---------- Variation/sign table ----------
+  if(type==="variation_table" || type==="table"){
+    return `
+    <svg viewBox="0 0 720 260" role="img" aria-label="${svgEsc(title)}">
+      <rect x="30" y="40" width="660" height="170" fill="#fff" stroke="#111827" stroke-width="2"/>
+      <line x1="150" y1="40" x2="150" y2="210" stroke="#111827" stroke-width="2"/>
+      <line x1="30" y1="95" x2="690" y2="95" stroke="#111827" stroke-width="2"/>
+      <line x1="30" y1="150" x2="690" y2="150" stroke="#111827" stroke-width="2"/>
+      <text x="90" y="73" text-anchor="middle" font-size="18" font-weight="700">x</text>
+      <text x="90" y="128" text-anchor="middle" font-size="18" font-weight="700">f'(x)</text>
+      <text x="90" y="184" text-anchor="middle" font-size="18" font-weight="700">f(x)</text>
+      <text x="420" y="28" text-anchor="middle" font-size="19" font-weight="700">${svgEsc(title)}</text>
+      <text x="420" y="185" text-anchor="middle" font-size="28">↗   ↘</text>
+    </svg>`;
+  }
+
+  // ---------- Generic professional diagram box ----------
+  return `
+  <svg viewBox="0 0 720 300" role="img" aria-label="${svgEsc(title)}">
+    <rect x="35" y="45" width="650" height="205" rx="12" fill="#f8fafc" stroke="#334155" stroke-width="2"/>
+    <text x="360" y="80" text-anchor="middle" font-size="20" font-weight="700">${svgEsc(title)}</text>
+    <text x="360" y="128" text-anchor="middle" font-size="15" fill="#334155">${svgEsc(type.replace(/_/g," "))}</text>
+    <line x1="190" y1="185" x2="530" y2="185" stroke="#0f766e" stroke-width="3"/>
+    <circle cx="250" cy="185" r="8" fill="#2563eb"/>
+    <circle cx="470" cy="185" r="8" fill="#dc2626"/>
+    <text x="360" y="228" text-anchor="middle" font-size="14" fill="#475569">${svgEsc(spec.student_task||"")}</text>
+  </svg>`;
+}
+
+function renderFigureBlock(rawSpec){
+  const spec=parseFigureSpec(rawSpec);
+  return `
+    <div class="assessment-figure">
+      <div class="assessment-figure-title">${esc(spec.title||"Figure")}</div>
+      ${assessmentFigureSVG(spec)}
+      ${spec.student_task?`<div class="assessment-figure-note">${esc(spec.student_task)}</div>`:""}
+    </div>`;
+}
+
+function renderAssessmentContent(text){
+  const raw=String(text||"");
+  const rx=/\[FIGURE_SPEC\]([\s\S]*?)\[\/FIGURE_SPEC\]/gi;
+  let out="";
+  let last=0;
+  let m;
+
+  while((m=rx.exec(raw))){
+    const before=raw.slice(last,m.index);
+    if(before){
+      out+=`<div class="assessment-lines">${esc(before)}</div>`;
+    }
+    out+=renderFigureBlock(m[1]);
+    last=rx.lastIndex;
+  }
+
+  const rest=raw.slice(last);
+  if(rest) out+=`<div class="assessment-lines">${esc(rest)}</div>`;
+
+  return out || `<div class="assessment-lines"></div>`;
+}
+
 function render(data){
+  const rtl=assessmentIsRTL();
+  const dir=rtl?"rtl":"ltr";
+  const cls=rtl?"assessment-rtl":"assessment-ltr";
+
   $("preview").innerHTML=data.variants.map((v,i)=>`
-    <article class="model">
+    <article class="model ${cls}" dir="${dir}">
       <h3>${esc(v.title||("Model "+String.fromCharCode(65+i)))}</h3>
-      <h4>ورقة الطالب</h4>
-      <pre>${esc(v.exam||"")}</pre>
-      <h4>أسُس التصحيح</h4>
-      <pre>${esc(v.correction||"")}</pre>
+      <h4>${rtl?"ورقة الطالب":"Exam"}</h4>
+      <div class="assessment-text">${renderAssessmentContent(v.exam||"")}</div>
+      <h4>${rtl?"أسُس التصحيح":"Correction"}</h4>
+      <div class="assessment-text">${renderAssessmentContent(v.correction||"")}</div>
     </article>
   `).join("");
 }
 
 function wordHTML(data){
-  return `<!doctype html><html dir="rtl"><head><meta charset="utf-8"><style>
-  body{font-family:Arial;line-height:1.7}h1,h2{color:#123a62}
-  pre{white-space:pre-wrap;font-family:Arial}
-  </style></head><body><h1>NABIL AI - Assessment</h1>${
-    data.variants.map(v=>`
+  const rtl=assessmentIsRTL();
+  const dir=rtl?"rtl":"ltr";
+  const align=rtl?"right":"left";
+
+  return `<!doctype html><html dir="${dir}"><head><meta charset="utf-8"><style>
+    body{font-family:Arial;line-height:1.7;direction:${dir};text-align:${align};}
+    h1,h2,h3{color:#123a62;text-align:${align};}
+    .assessment-lines{white-space:pre-wrap;direction:${dir};text-align:${align};}
+    .assessment-figure{margin:14px 0;padding:10px;border:1px solid #999;page-break-inside:avoid;}
+    .assessment-figure-title{font-weight:bold;margin-bottom:6px;}
+    .assessment-figure svg{width:680px;max-width:100%;height:auto;display:block;margin:8px auto;}
+    .assessment-figure-note{font-size:11pt;margin-top:6px;}
+  </style></head><body>
+    <h1>NABIL AI - Assessment</h1>
+    ${data.variants.map(v=>`
       <h2>${esc(v.title||"")}</h2>
-      <h3>Exam</h3><pre>${esc(v.exam||"")}</pre>
-      <h3>Correction</h3><pre>${esc(v.correction||"")}</pre>
-    `).join("")
-  }</body></html>`;
+      <h3>${rtl?"ورقة الطالب":"Exam"}</h3>
+      ${renderAssessmentContent(v.exam||"")}
+      <h3>${rtl?"أسُس التصحيح":"Correction"}</h3>
+      ${renderAssessmentContent(v.correction||"")}
+    `).join("")}
+  </body></html>`;
 }
 
 function downloadWord(){
