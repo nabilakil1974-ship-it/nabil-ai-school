@@ -3628,6 +3628,78 @@ async def nabil_text_to_speech(
 
 
 
+
+def _assessment_subject_key(subject: str) -> str:
+    return str(subject or "").strip().lower()
+
+def _assessment_is_math(subject: str) -> bool:
+    s = _assessment_subject_key(subject)
+    return any(k in s for k in ["رياض", "math", "mathématique"])
+
+def _assessment_is_grade9(grade: str) -> bool:
+    s = str(grade or "").strip().lower()
+    return any(k in s for k in ["الصف التاسع", "grade 9", "grade9", "eb9", "9"])
+
+def _assessment_exercise_count(text: str) -> int:
+    matches = re.findall(
+        r"(?im)^\s*(?:#{1,4}\s*)?(?:\*\*)?\s*(?:Exercise|Exercice|تمرين)\s+\d+",
+        str(text or ""),
+    )
+    return len(set(m.strip().lower() for m in matches))
+
+def _assessment_has_figure_spec(text: str) -> bool:
+    return bool(re.search(r"\[FIGURE_SPEC\][\s\S]*?\[/FIGURE_SPEC\]", str(text or ""), re.I))
+
+def _assessment_exam_valid(
+    exam: str,
+    *,
+    grade: str,
+    subject: str,
+    selected_lessons: list[str],
+) -> tuple[bool, list[str]]:
+    t = str(exam or "").strip()
+    reasons = []
+
+    if len(t) < 900:
+        reasons.append("exam too short")
+
+    count = _assessment_exercise_count(t)
+    required_count = 5 if (_assessment_is_math(subject) and _assessment_is_grade9(grade)) else 3
+    if count < required_count:
+        reasons.append(f"only {count} exercises; need at least {required_count}")
+
+    if re.search(r"(?im)^\s*General Instructions\s*:\s*$", t) and count == 0:
+        reasons.append("only instructions were generated")
+
+    if re.search(r"(?i)(showing clear work|detailed steps)\s*$", t):
+        reasons.append("answer appears truncated")
+
+    # If selected lessons clearly contain geometry/graph content, require a figure spec.
+    visual_terms = " ".join(selected_lessons).lower()
+    if re.search(
+        r"circle|triangle|geometry|geometric|coordinate|graph|function|vector|"
+        r"cylinder|sphere|tangent|pythag|thales|دائرة|مثلث|هندس|دالة|متجه|أسطوانة|كرة|مماس",
+        visual_terms,
+        re.I,
+    ):
+        if not _assessment_has_figure_spec(t):
+            reasons.append("required visual missing")
+
+    return (not reasons), reasons
+
+
+def _assessment_correction_valid(correction: str) -> tuple[bool, list[str]]:
+    t = str(correction or "").strip()
+    reasons = []
+    if len(t) < 700:
+        reasons.append("correction too short")
+    if not re.search(r"(?i)(Exercise|Exercice|تمرين)\s+\d+", t):
+        reasons.append("no exercise numbering")
+    if re.search(r"(?m)^\s*\|\s*Q#\s*\|\s*$", t) and len(t.splitlines()) < 8:
+        reasons.append("truncated markdown table")
+    return (not reasons), reasons
+
+
 @router.get("/teacher-assessment/health")
 def teacher_assessment_health():
     return {"ok": True, "service": "teacher-assessment"}
@@ -3694,6 +3766,16 @@ MATHEMATICS BLUEPRINT:
 - Any geometry question that depends on a figure MUST include a precise FIGURE_SPEC.
 - Any function-study question that needs a graph or variation table MUST include the required graph/table specification.
 - Do not give a result in the statement that the student is expected to prove.
+- For Grade 9 / EB9 Mathematics, generate EXACTLY FIVE exercises, not four.
+- For Grade 9 / EB9, use a balanced official-style distribution such as:
+  Exercise 1 numerical/algebraic skills,
+  Exercise 2 algebra/equations,
+  Exercise 3 applied/proportional reasoning,
+  Exercise 4 analytic geometry/coordinates when selected,
+  Exercise 5 geometry/circle/triangle when selected.
+  Adapt the actual content strictly to the teacher-selected lessons.
+- Put marks beside each exercise and each subquestion.
+- The five exercise totals must equal the requested total exactly.
 """
         elif any(k in subject_key for k in ["فيزياء", "physics", "physique"]):
             subject_blueprint = """
@@ -3857,7 +3939,7 @@ Return EXACTLY this structure, with no markdown fences and no JSON wrapper:
                     "The correction scheme must be detailed enough for a teacher to grade consistently."
                 ),
                 messages=[{"role": "user", "content": prompt}],
-                max_output_tokens=5200,
+                max_output_tokens=7600,
             )
         except Exception as exc:
             raise HTTPException(
@@ -3902,13 +3984,96 @@ Return EXACTLY this structure, with no markdown fences and no JSON wrapper:
             else ""
         )
 
+        # ------------------------------------------------------
+        # STRICT STUDENT-PAPER VALIDATION / REPAIR
+        # ------------------------------------------------------
+        exam_ok, exam_reasons = _assessment_exam_valid(
+            exam,
+            grade=payload.grade,
+            subject=payload.subject,
+            selected_lessons=lessons,
+        )
+
+        if not exam_ok:
+            strict_structure = ""
+            if _assessment_is_math(payload.subject) and _assessment_is_grade9(payload.grade):
+                strict_structure = """
+GRADE 9 MATHEMATICS HARD REQUIREMENT:
+- EXACTLY FIVE exercises.
+- Number them Exercise 1 through Exercise 5.
+- Do not write "four independent exercises".
+- The total is exactly the requested total.
+- Every selected geometry/graph topic requiring a figure must have a FIGURE_SPEC.
+"""
+
+            exam_repair_prompt = f"""
+Create the COMPLETE STUDENT PAPER ONLY from the beginning.
+
+The previous student paper failed validation:
+{'; '.join(exam_reasons)}
+
+Grade: {payload.grade}
+Branch: {payload.branch or 'N/A'}
+Subject: {payload.subject}
+Language: {payload.language}
+Selected lessons ONLY: {json.dumps(lessons, ensure_ascii=False)}
+Duration: {duration} minutes
+Total marks: EXACTLY {marks}
+Difficulty: {difficulty}
+
+{strict_structure}
+
+MANDATORY:
+1. Generate the full exam, not an outline and not only instructions.
+2. Every exercise must contain its complete numbered subquestions.
+3. Put explicit marks beside each exercise and subquestion.
+4. The marks must sum exactly to {marks}.
+5. Assess only the selected lessons.
+6. When a question requires a figure, put a complete FIGURE_SPEC immediately after that question.
+7. Never include answers, hints, or correction notes.
+8. Do not use JSON.
+9. Do not stop midway through a sentence.
+10. Return ONLY the student paper.
+{lang_rule}
+""".strip()
+
+            try:
+                repaired_exam = ai.generate(
+                    instructions=(
+                        "Generate a complete, printable teacher-created Lebanese official-exam-style student paper. "
+                        "Never return a skeleton or truncated paper. Respect the exact exercise-count requirement."
+                    ),
+                    messages=[{"role":"user","content":exam_repair_prompt}],
+                    max_output_tokens=7600,
+                )
+                repaired_exam = str(repaired_exam or "").strip()
+                repaired_exam = re.sub(r"^\s*===EXAM===\s*", "", repaired_exam, flags=re.I)
+                repaired_exam = re.sub(r"\s*===CORRECTION===[\s\S]*$", "", repaired_exam, flags=re.I)
+                ok2, reasons2 = _assessment_exam_valid(
+                    repaired_exam,
+                    grade=payload.grade,
+                    subject=payload.subject,
+                    selected_lessons=lessons,
+                )
+                if not ok2:
+                    raise HTTPException(
+                        status_code=503,
+                        detail="تعذر إنشاء ورقة مسابقة كاملة: " + "; ".join(reasons2),
+                    )
+                exam = repaired_exam
+            except HTTPException:
+                raise
+            except Exception as exc:
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"تعذر إصلاح ورقة المسابقة غير المكتملة: {exc}",
+                ) from exc
+
         # A long official-style paper can exhaust the first generation before
         # the correction scheme. Never return a blank / skeletal correction.
         # Generate the marking scheme in a dedicated second pass whenever needed.
-        correction_too_short = (
-            len(correction) < 220
-            or not re.search(r"(Exercise|Question|تمرين|سؤال|Exercice)\s*\d+", correction, re.I)
-        )
+        correction_ok, correction_reasons = _assessment_correction_valid(correction)
+        correction_too_short = not correction_ok
 
         if correction_too_short:
             correction_prompt = f"""
@@ -3956,7 +4121,7 @@ MANDATORY CORRECTION RULES
                         "and total exactly to the requested marks."
                     ),
                     messages=[{"role": "user", "content": correction_prompt}],
-                    max_output_tokens=4200,
+                    max_output_tokens=6000,
                 )
                 correction = str(correction_raw or "").strip()
                 correction = re.sub(
@@ -3965,6 +4130,12 @@ MANDATORY CORRECTION RULES
                     correction,
                     flags=re.I,
                 ).strip()
+
+                corr_ok2, corr_reasons2 = _assessment_correction_valid(correction)
+                if not corr_ok2:
+                    raise RuntimeError(
+                        "Incomplete correction scheme: " + "; ".join(corr_reasons2)
+                    )
             except Exception as exc:
                 raise HTTPException(
                     status_code=503,
@@ -4205,7 +4376,7 @@ async def voice_chat(
  
         conversation = Conversation(
             student_id=student_id,
-            subject=("تمارين عامة" if general_exercises_mode else subject),
+            subject=(subject or ("تمارين عامة" if general_exercises_mode else "غير محدد")),
         )
  
         db.add(conversation)
@@ -4316,6 +4487,9 @@ GENERAL EXERCISES MODE / حل تمارين عامة
 - تحقق عدديًا من نقاط series قبل إرسالها ولا تصل المنحنى عبر مقارب عمودي.
 - عند دراسة دالة كسرية، فجزء Variation / Monotonicity إلزامي: احسب المشتقة، النقاط الحرجة، فترات التزايد والتناقص، وحدد local maximum/local minimum عندما توجد، ثم أنشئ جدول التغيرات الفعلي والرسم النهائي. لا تكتفِ بالمجال أو المقاربات فقط.
 - يجب أن يظهر في النص عنوان مستقل للتغيّرات/Monotonicity، ويجب أن يظهر جدول Markdown حقيقي تحت الرسم في الواجهة المرجعية.
+- لا تُنهِ الإجابة بعد Given أو Required أو في منتصف Solution. دراسة الدالة لا تعتبر مكتملة إلا بعد Domain + Limits + Intercepts + Asymptotes + Derivative + Critical Points/Extrema + Monotonicity + Variation Table + Graph + Final Answer.
+- إذا كانت الدالة قابلة للرسم، DRAWINGS_JSON إلزامي ولا يجوز إرجاع coordinate plane فارغ.
+- قبل إنهاء الجواب تحقق أن آخر قسم نصي هو Final Answer / Réponse finale / الجواب النهائي أو Rule Summary بعد اكتمال الحل، وليس عبارة مبتورة.
 
 أسلوب العرض:
 - أخرج كل سؤال على شكل Solution Board مستقلة.
@@ -4490,12 +4664,21 @@ GENERAL EXERCISES MODE / حل تمارين عامة
  
     try:
  
+        # Full lessons and function/general-exercise solutions need a larger
+        # budget; 3000 tokens was truncating solutions in the middle.
+        if general_exercises_mode:
+            output_budget = 7000
+        elif str(teaching_mode or "full_lesson") in {"full_lesson", "board_lesson"}:
+            output_budget = 8500
+        else:
+            output_budget = 5200
+
         raw_reply = ai.generate(
             instructions=SYSTEM_PROMPT,
             messages=history_messages,
             image_bytes=image_bytes,
             image_mime_type=image_mime_type,
-            max_output_tokens=3000,
+            max_output_tokens=output_budget,
         )
  
     except Exception as exc:
@@ -4553,12 +4736,185 @@ Do not invent hidden data. Return only the missing exercises and their drawing J
                 repair_reply = ai.generate(
                     instructions=SYSTEM_PROMPT,
                     messages=[{"role": "user", "content": repair_prompt}],
-                    max_output_tokens=3200,
+                    max_output_tokens=5200,
                 )
                 if str(repair_reply or "").strip():
                     raw_reply = str(raw_reply or "").rstrip() + "\n\n" + str(repair_reply).strip()
             except Exception:
                 # Keep the original answer if the repair provider is temporarily unavailable.
+                pass
+
+
+    # ----------------------------------------------------------
+    # GENERAL EXERCISES COMPLETION GUARD
+    # A board is not allowed to stop at "Required" or midway through Solution.
+    # ----------------------------------------------------------
+    if general_exercises_mode:
+        _rr = str(raw_reply or "").strip()
+        _low = _rr.lower()
+
+        _has_exercise = bool(re.search(
+            r"(?im)^\s*#{1,3}\s*(?:exercise|exercice|تمرين)\s*\d+",
+            _rr
+        ))
+        _has_final = bool(re.search(
+            r"(?im)^\s*#{1,4}\s*(?:final\s+answer|réponse\s+finale|الجواب\s+النهائي|rule\s+summary|résumé\s+de\s+la\s+règle|خلاصة\s+القاعدة)\b",
+            _rr
+        ))
+        _function_study = bool(re.search(
+            r"study\s+(?:of\s+)?(?:the\s+)?function|étud(?:e|ier).{0,20}fonction|دراسة\s+الدالة|variation\s+table|tableau\s+de\s+variations|جدول\s+التغي",
+            _low,
+            re.I
+        ))
+
+        _has_variation = bool(re.search(
+            r"(?im)^\s*#{1,4}\s*(?:variation\s+table|tableau\s+de\s+variations|جدول\s+التغي)",
+            _rr
+        ))
+        _has_drawing_payload = bool(re.search(
+            r"DRAWINGS_JSON\s*:|<DRAWINGS_JSON>|```nabil-draw",
+            _rr,
+            re.I
+        ))
+
+        _looks_cut = (
+            _has_exercise and not _has_final
+        ) or (
+            _function_study and (not _has_variation or not _has_drawing_payload)
+        )
+
+        if _looks_cut:
+            repair_prompt = f"""
+The answer below is incomplete or structurally invalid.
+
+Student question:
+{message}
+
+Current partial answer:
+--- BEGIN PARTIAL ANSWER ---
+{_rr}
+--- END PARTIAL ANSWER ---
+
+Regenerate the COMPLETE answer from the beginning.
+Do not continue from a fragment.
+Keep the same question, grade, branch and language.
+
+Mandatory:
+- Never stop at Given, Required, Formula, or halfway through Solution.
+- Finish every requested part and include Final Answer.
+- If this is a function study: include Domain, Limits, Intercepts, Asymptotes, Derivative, Critical Points/Extrema, Monotonicity, a REAL Markdown Variation Table, and the actual graph.
+- If a drawing is required, include valid DRAWINGS_JSON in the same answer.
+- Never return an empty coordinate plane when a function graph was requested.
+- Use the normal complete Solution Board headings for the detected language.
+""".strip()
+
+            try:
+                repaired_reply = ai.generate(
+                    instructions=SYSTEM_PROMPT,
+                    messages=[{"role": "user", "content": repair_prompt}],
+                    max_output_tokens=7000,
+                )
+                if str(repaired_reply or "").strip():
+                    raw_reply = str(repaired_reply).strip()
+            except Exception:
+                pass
+
+
+    # ----------------------------------------------------------
+    # STUDENT-VISIBLE PROTOCOL SANITIZER
+    # Remove accidental internal drawing-routing instructions.
+    # ----------------------------------------------------------
+    def _strip_internal_drawing_protocol(text: str) -> str:
+        s = str(text or "")
+        lines = s.splitlines()
+        kept = []
+        internal_patterns = [
+            r"(?i)let'?s\s+check\s+the\s+drawing\s+requirements",
+            r"(?i)drawing\s+must\s+contain",
+            r"(?i)[\"']?scope[\"']?\s*:\s*[\"']?practice",
+            r"(?i)[\"']?exercise_index[\"']?\s*:",
+            r"(?i)[\"']?card_index[\"']?\s*:",
+            r"(?i)for\s+ex\s*\d+\s*\(exercise_index",
+        ]
+        for line in lines:
+            if any(re.search(p, line) for p in internal_patterns):
+                continue
+            kept.append(line)
+        return "\n".join(kept).strip()
+
+    raw_reply = _strip_internal_drawing_protocol(raw_reply)
+
+
+    # ----------------------------------------------------------
+    # UNIVERSAL FUNCTION-STUDY COMPLETION GUARD
+    # Applies in lessons AND general exercises.
+    # ----------------------------------------------------------
+    _function_answer = str(raw_reply or "").strip()
+    _function_low = _function_answer.lower()
+
+    _looks_like_function_study = bool(re.search(
+        r"study\s+(?:of\s+)?(?:the\s+)?function|étud(?:e|ier).{0,25}fonction|دراسة\s+الدالة|"
+        r"variation\s+table|tableau\s+de\s+variations|جدول\s+التغي|"
+        r"derivative.{0,80}asymptote|dériv.{0,80}asymptote",
+        _function_low,
+        re.I | re.S
+    ))
+
+    if _looks_like_function_study:
+        _needed_checks = {
+            "domain": bool(re.search(r"\bdomain\b|\bdomaine\b|المجال", _function_low)),
+            "limits": bool(re.search(r"\blimits?\b|\blimites?\b|النهايات", _function_low)),
+            "derivative": bool(re.search(r"\bderivative\b|\bdériv", _function_low)) or "المشتق" in _function_low,
+            "variation": bool(re.search(r"variation\s+table|tableau\s+de\s+variations|جدول\s+التغي", _function_low)),
+            "final": bool(re.search(r"final\s+answer|réponse\s+finale|الجواب\s+النهائي|rule\s+summary|خلاصة\s+القاعدة", _function_low)),
+            "drawing": bool(re.search(r"DRAWINGS_JSON\s*:|<DRAWINGS_JSON>|```nabil-draw", _function_answer, re.I)),
+        }
+
+        if not all(_needed_checks.values()):
+            repair_prompt = f"""
+Regenerate the COMPLETE function-study answer from the beginning.
+
+Original student request:
+{message}
+
+Grade: {grade or 'unspecified'}
+Branch: {branch or 'N/A'}
+Subject: {subject or 'Mathematics'}
+Lesson: {lesson or 'unspecified'}
+Language: {selected_language}
+
+The previous answer was incomplete. It MUST contain all of the following:
+1. Given
+2. Required
+3. Formula / Property
+4. Complete Solution
+5. Domain
+6. Limits
+7. Intercepts when relevant
+8. Vertical/horizontal/oblique asymptotes when relevant
+9. Derivative
+10. Critical points / extrema when relevant
+11. Monotonicity
+12. A REAL Markdown Variation Table
+13. A valid DRAWINGS_JSON function graph
+14. Final Answer
+15. Rule Summary
+
+Never stop after Given or Required.
+Never return an empty coordinate plane.
+The graph expression must contain ONLY the mathematical function, not headings or instructions.
+Do not include internal routing instructions such as scope/exercise_index/card_index in visible prose.
+""".strip()
+
+            try:
+                repaired = ai.generate(
+                    instructions=SYSTEM_PROMPT,
+                    messages=[{"role":"user","content":repair_prompt}],
+                    max_output_tokens=8000,
+                )
+                if str(repaired or "").strip():
+                    raw_reply = _strip_internal_drawing_protocol(str(repaired).strip())
+            except Exception:
                 pass
 
     raw_reply, progress_metadata = extract_progress_metadata(
