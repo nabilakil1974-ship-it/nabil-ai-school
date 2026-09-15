@@ -4265,6 +4265,76 @@ body.nabil-home-lock::before{
     transition:opacity .06s linear;
 }
 
+
+/* ============================================================
+   v58 — Action Verbs grouped by subject
+   ============================================================ */
+.nabil-action-verbs-grid{
+    display:block!important;
+}
+.nabil-action-verb-subject-group{
+    margin-bottom:16px;
+    padding:12px;
+    border:1px solid #245b8f;
+    border-radius:14px;
+    background:rgba(7,26,51,.38);
+}
+.nabil-action-verb-subject-group.is-current-subject{
+    border-color:#59d4ff;
+    box-shadow:0 0 0 1px rgba(89,212,255,.12) inset;
+}
+.nabil-action-verb-subject-heading{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:10px;
+    color:#59d4ff;
+    font-weight:900;
+    font-size:17px;
+}
+.nabil-action-current-badge{
+    padding:3px 8px;
+    border-radius:999px;
+    border:1px solid rgba(98,233,143,.5);
+    background:rgba(20,90,60,.3);
+    color:#9af1b8;
+    font-size:11px;
+}
+.nabil-action-verbs-subgrid{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:9px;
+}
+.nabil-action-verb-trilingual{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:5px;
+}
+.nabil-action-verb-trilingual .verb-en{
+    color:#8fe7ff;
+}
+.nabil-action-verb-trilingual .verb-fr{
+    color:#d7eaff;
+}
+.nabil-action-verb-trilingual .verb-ar{
+    color:#62e98f;
+    font-family:Arial,Tahoma,sans-serif;
+}
+.nabil-action-verb-trilingual .verb-sep{
+    opacity:.45;
+}
+@media(max-width:700px){
+    .nabil-action-verbs-subgrid{
+        grid-template-columns:1fr;
+    }
+    .nabil-action-verb-subject-heading{
+        align-items:flex-start;
+        flex-direction:column;
+    }
+}
+
 </style>
 </head>
 
@@ -7320,116 +7390,80 @@ async function nabilBoardArabicForCard(cardText){
 
 
 const NABIL_ACTION_VERBS = {
-    general: [
-        {en:"Identify", fr:"Identifier", ar:"حدّد / عيّن", meaning:{
-            en:"Give the requested name, element, structure, or quantity only.",
-            fr:"Donner uniquement le nom, l’élément, la structure ou la grandeur demandée.",
-            ar:"أعطِ الاسم أو العنصر أو البنية أو الكمية المطلوبة فقط."
-        }},
-        {en:"State", fr:"Indiquer", ar:"اذكر", meaning:{
-            en:"State the requested information directly and briefly.",
-            fr:"Donner directement et brièvement l’information demandée.",
-            ar:"اذكر المعلومة المطلوبة مباشرة وباختصار."
-        }},
-        {en:"Describe", fr:"Décrire", ar:"صف", meaning:{
-            en:"Describe what is observed or what happens, without adding an unnecessary causal explanation.",
-            fr:"Décrire ce qui est observé ou ce qui se produit, sans ajouter une explication causale inutile.",
-            ar:"صف ما يظهر أو ما يحدث من دون إضافة تفسير سببي غير مطلوب."
-        }},
-        {en:"Compare", fr:"Comparer", ar:"قارن", meaning:{
-            en:"Give similarities and/or differences using the same clear criterion.",
-            fr:"Présenter les ressemblances et/ou différences selon un même critère clair.",
-            ar:"بيّن أوجه الشبه و/أو الاختلاف وفق معيار واضح واحد."
-        }},
-        {en:"Interpret", fr:"Interpréter", ar:"فسّر / أوّل", meaning:{
-            en:"Extract the scientific meaning of data, results, a graph, or a document.",
-            fr:"Dégager la signification scientifique de données, résultats, graphique ou document.",
-            ar:"استخرج الدلالة العلمية من البيانات أو النتائج أو الرسم أو المستند."
-        }},
-        {en:"Explain", fr:"Expliquer", ar:"اشرح", meaning:{
-            en:"Give the cause, mechanism, or scientific reason.",
-            fr:"Donner la cause, le mécanisme ou la raison scientifique.",
-            ar:"أعطِ السبب أو الآلية أو التفسير العلمي."
-        }},
-        {en:"Justify", fr:"Justifier", ar:"علّل / برّر", meaning:{
-            en:"Give an answer and support it with evidence from data, a result, a rule, or a property.",
-            fr:"Donner la réponse et l’appuyer par une donnée, un résultat, une règle ou une propriété.",
-            ar:"أعطِ الجواب وادعمه بدليل من المعطيات أو نتيجة أو قاعدة أو خاصية."
-        }},
-        {en:"Deduce", fr:"Déduire", ar:"استنتج", meaning:{
-            en:"Reach a conclusion directly from previous results or provided data.",
-            fr:"Tirer une conclusion directement à partir des résultats précédents ou des données fournies.",
-            ar:"استنتج نتيجة مباشرة انطلاقًا من نتائج سابقة أو معطيات متاحة."
-        }},
-        {en:"Calculate", fr:"Calculer", ar:"احسب", meaning:{
-            en:"Use the correct formula, substitute values, calculate, and give the result with its unit when required.",
-            fr:"Utiliser la bonne relation, remplacer par les valeurs, calculer et donner le résultat avec l’unité si nécessaire.",
-            ar:"استخدم القانون الصحيح، عوّض القيم، احسب، ثم أعطِ النتيجة مع الوحدة عند الحاجة."
-        }},
-        {en:"Determine", fr:"Déterminer", ar:"عيّن / أوجد", meaning:{
-            en:"Find the requested value or result using the appropriate method.",
-            fr:"Trouver la valeur ou le résultat demandé par la méthode appropriée.",
-            ar:"توصّل إلى القيمة أو النتيجة المطلوبة بالطريقة المناسبة."
-        }},
-        {en:"Show", fr:"Montrer", ar:"أثبت / بيّن", meaning:{
-            en:"Prove the requested result starting from the given information.",
-            fr:"Établir le résultat demandé à partir des données fournies.",
-            ar:"أثبت النتيجة المطلوبة انطلاقًا من المعطيات المعطاة."
-        }}
-    ],
     math: [
-        {en:"Factorize",fr:"Factoriser",ar:"حلّل إلى عوامل",meaning:{
-            en:"Rewrite an algebraic expression as a product.",
-            fr:"Écrire une expression algébrique sous forme d’un produit.",
-            ar:"اكتب العبارة الجبرية على شكل حاصل ضرب."
-        }},
-        {en:"Expand",fr:"Développer",ar:"انشر",meaning:{
-            en:"Remove parentheses using algebraic identities or distributivity, then simplify if required.",
-            fr:"Supprimer les parenthèses à l’aide de la distributivité ou des identités remarquables.",
-            ar:"أزل الأقواس باستعمال التوزيع أو المتطابقات ثم اختصر عند الحاجة."
-        }},
-        {en:"Construct",fr:"Construire",ar:"أنشئ",meaning:{
-            en:"Produce the requested geometric figure using the stated data and properties.",
-            fr:"Réaliser la figure géométrique demandée en respectant les données et propriétés.",
-            ar:"أنشئ الشكل الهندسي المطلوب ملتزمًا بالمعطيات والخواص."
-        }}
+        ["Identify","Identifier","حدّد / عيّن","Give the requested mathematical object, value, point, set, or property directly."],
+        ["State","Indiquer","اذكر","State the requested result, theorem, property, or condition directly."],
+        ["Describe","Décrire","صف","Describe the mathematical behavior or figure without adding unnecessary proof."],
+        ["Compare","Comparer","قارن","Compare two expressions, values, graphs, figures, or cases using the same criterion."],
+        ["Interpret","Interpréter","فسّر","Interpret the meaning of a graph, table, result, or mathematical representation."],
+        ["Explain","Expliquer","اشرح","Explain why a mathematical result or behavior occurs."],
+        ["Justify","Justifier","علّل / برّر","Give the answer and support it with a theorem, property, calculation, or result."],
+        ["Deduce","Déduire","استنتج","Derive a new result directly from previous results or given information."],
+        ["Calculate","Calculer","احسب","Use the correct formula or method, substitute if needed, and give the final result."],
+        ["Determine","Déterminer","أوجد / عيّن","Find the requested value, equation, set, point, or result using the appropriate method."],
+        ["Show","Montrer","أثبت / بيّن","Prove the requested result from the given data or previous results."],
+        ["Factorize","Factoriser","حلّل إلى عوامل","Rewrite an algebraic expression as a product of factors."],
+        ["Expand","Développer","انشر","Remove parentheses using distributivity or identities, then simplify."],
+        ["Construct","Construire","أنشئ","Construct the requested geometric figure according to the given data and properties."],
+        ["Represent","Représenter","مثّل","Represent a point, vector, function, graph, or geometric object correctly."]
     ],
+
     physics: [
-        {en:"Represent",fr:"Représenter",ar:"مثّل",meaning:{
-            en:"Draw or show the requested physical quantity, vector, force, ray, or circuit element according to convention.",
-            fr:"Tracer ou représenter la grandeur, le vecteur, la force, le rayon ou l’élément de circuit selon les conventions.",
-            ar:"ارسم أو مثّل الكمية أو المتجه أو القوة أو الشعاع أو عنصر الدارة وفق القواعد."
-        }},
-        {en:"Verify",fr:"Vérifier",ar:"تحقّق",meaning:{
-            en:"Use the data or calculation to check whether the stated result or relation is correct.",
-            fr:"Utiliser les données ou un calcul pour vérifier si le résultat ou la relation est correct.",
-            ar:"استخدم المعطيات أو الحساب للتحقق من صحة النتيجة أو العلاقة."
-        }}
+        ["Identify","Identifier","حدّد / عيّن","Give the requested physical quantity, device, force, phenomenon, or element directly."],
+        ["State","Indiquer","اذكر","State the requested physical information or law directly."],
+        ["Describe","Décrire","صف","Describe what is observed in the motion, experiment, graph, circuit, or phenomenon."],
+        ["Compare","Comparer","قارن","Compare two physical situations or quantities using the same physical criterion."],
+        ["Interpret","Interpréter","فسّر","Extract the physical meaning of a graph, result, data set, or observation."],
+        ["Explain","Expliquer","اشرح","Give the physical cause, mechanism, or law responsible for the result."],
+        ["Justify","Justifier","علّل / برّر","Support the answer using data, a physical law, a result, or a graph."],
+        ["Deduce","Déduire","استنتج","Derive a physical result directly from previous results or given data."],
+        ["Calculate","Calculer","احسب","Write the law or relation, substitute values, calculate, and include the unit."],
+        ["Determine","Déterminer","أوجد / عيّن","Find the requested physical quantity by the appropriate relation, graph, or method."],
+        ["Show","Montrer","أثبت / بيّن","Establish the requested physical relation or result from the given data."],
+        ["Represent","Représenter","مثّل","Draw the force, vector, ray, circuit, field line, or physical quantity according to convention."],
+        ["Verify","Vérifier","تحقّق","Check whether a stated value, relation, or result agrees with the data or calculation."],
+        ["Draw","Tracer / Dessiner","ارسم","Draw the requested diagram, graph, ray path, or physical setup accurately."]
     ],
+
     chemistry: [
-        {en:"Write the equation",fr:"Écrire l’équation",ar:"اكتب المعادلة",meaning:{
-            en:"Write the correct chemical equation with proper formulas and balancing when required.",
-            fr:"Écrire l’équation chimique correcte avec les formules adéquates et l’équilibrage si demandé.",
-            ar:"اكتب المعادلة الكيميائية الصحيحة بالصيغ المناسبة مع الموازنة عند الحاجة."
-        }},
-        {en:"Balance",fr:"Équilibrer",ar:"وازن",meaning:{
-            en:"Adjust coefficients so the number of atoms of each element is conserved.",
-            fr:"Ajuster les coefficients pour conserver le nombre d’atomes de chaque élément.",
-            ar:"عدّل المعاملات بحيث يُحفظ عدد ذرات كل عنصر."
-        }}
+        ["Identify","Identifier","حدّد / عيّن","Give the requested substance, ion, atom, molecule, reagent, product, or species directly."],
+        ["State","Indiquer","اذكر","State the requested chemical information directly."],
+        ["Describe","Décrire","صف","Describe the observed chemical change, experiment, result, or particle arrangement."],
+        ["Compare","Comparer","قارن","Compare substances, species, reactions, or results using the same chemical criterion."],
+        ["Interpret","Interpréter","فسّر","Extract the chemical meaning of experimental data, observations, graphs, or results."],
+        ["Explain","Expliquer","اشرح","Give the chemical reason or mechanism responsible for the observation or result."],
+        ["Justify","Justifier","علّل / برّر","Support the answer using a chemical rule, equation, experimental result, or given data."],
+        ["Deduce","Déduire","استنتج","Infer a chemical conclusion directly from previous results or observations."],
+        ["Calculate","Calculer","احسب","Write the relation, substitute values, calculate, and include the correct unit when required."],
+        ["Determine","Déterminer","أوجد / عيّن","Find the requested concentration, quantity, species, formula, or result."],
+        ["Show","Montrer","أثبت / بيّن","Establish the requested chemical result from the given information."],
+        ["Write the equation","Écrire l’équation","اكتب المعادلة","Write the correct chemical equation with proper formulas and required states."],
+        ["Balance","Équilibrer","وازن","Adjust coefficients so the number of atoms of each element is conserved."],
+        ["Classify","Classer","صنّف","Place the requested substances or species into the correct chemical categories."]
     ],
+
     biology: [
-        {en:"Analyze",fr:"Analyser",ar:"حلّل",meaning:{
-            en:"Break down the document or results, identify important relationships, and extract relevant information.",
-            fr:"Examiner le document ou les résultats, repérer les relations importantes et extraire les informations utiles.",
-            ar:"حلّل المستند أو النتائج وحدّد العلاقات المهمة واستخرج المعلومات ذات الصلة."
-        }},
-        {en:"Conclude",fr:"Conclure",ar:"استخلص",meaning:{
-            en:"Give the final scientific conclusion supported by the preceding observations or results.",
-            fr:"Donner la conclusion scientifique finale appuyée par les observations ou résultats précédents.",
-            ar:"أعطِ الخلاصة العلمية النهائية المدعومة بالملاحظات أو النتائج السابقة."
-        }}
+        ["Identify","Identifier","حدّد / عيّن","Give the requested structure, organ, cell, molecule, process, or biological element directly."],
+        ["State","Indiquer","اذكر","State the requested biological information directly."],
+        ["Describe","Décrire","صف","Describe what is observed in the document, graph, experiment, cell, organ, or process."],
+        ["Compare","Comparer","قارن","Give similarities and differences using the same biological criterion."],
+        ["Analyze","Analyser","حلّل","Break down the document or results, identify important relationships, and extract relevant information."],
+        ["Interpret","Interpréter","فسّر","Give the biological meaning of data, results, graphs, or experimental observations."],
+        ["Explain","Expliquer","اشرح","Give the biological cause, mechanism, or process responsible for the result."],
+        ["Justify","Justifier","علّل / برّر","Give the answer and support it with evidence from the document, data, result, or biological concept."],
+        ["Deduce","Déduire","استنتج","Reach a biological conclusion directly from previous observations, results, or documents."],
+        ["Determine","Déterminer","أوجد / عيّن","Find the requested biological value, relationship, identity, or conclusion using the available data."],
+        ["Show","Montrer","أثبت / بيّن","Establish the requested biological result using evidence from the document or experiment."],
+        ["Conclude","Conclure","استخلص","Give the final scientific conclusion supported by the preceding observations or results."],
+        ["Relate","Relier","اربط","Establish a meaningful relationship between two biological results, structures, or processes."]
     ]
+};
+
+const NABIL_ACTION_VERB_GROUP_LABELS = {
+    math:{en:"Mathematics",fr:"Mathématiques",ar:"الرياضيات"},
+    physics:{en:"Physics",fr:"Physique",ar:"الفيزياء"},
+    chemistry:{en:"Chemistry",fr:"Chimie",ar:"الكيمياء"},
+    biology:{en:"Biology / Life Sciences",fr:"Biologie / Sciences de la vie",ar:"الأحياء / علوم الحياة"}
 };
 
 function nabilDetectSubjectProfile(){
@@ -7479,53 +7513,72 @@ function nabilOpenActionVerbs(){
     if(!modal || !grid) return;
 
     const lang=nabilCurrentUILanguage();
-    const profile=nabilDetectSubjectProfile();
+    const selectedProfile=nabilDetectSubjectProfile();
 
     const labels={
         en:{
             title:"Action Verbs",
-            subtitle:"Understand exactly what the question is asking you to do.",
-            subject:"Subject-specific verbs",
-            tip:"Tip: the action verb tells you the expected form of the answer.",
-            example:"What your answer should do"
+            subtitle:"Each subject has its own instruction verbs. Arabic translation is always shown.",
+            tip:"The action verb tells you exactly what kind of answer is expected.",
+            meaning:"Meaning"
         },
         fr:{
             title:"Verbes d’action",
-            subtitle:"Comprends exactement ce que la question te demande de faire.",
-            subject:"Verbes spécifiques à la matière",
-            tip:"Astuce : le verbe d’action indique la forme de réponse attendue.",
-            example:"Ce que ta réponse doit faire"
+            subtitle:"Chaque matière possède ses propres verbes d’instruction. La traduction arabe est toujours affichée.",
+            tip:"Le verbe d’action indique exactement la forme de réponse attendue.",
+            meaning:"Signification"
         },
         ar:{
             title:"أفعال التعليمات",
-            subtitle:"افهم تمامًا ما الذي يطلبه منك السؤال.",
-            subject:"أفعال خاصة بالمادة",
-            tip:"ملاحظة: فعل التعليمة يحدد شكل الجواب المتوقع.",
-            example:"ماذا يجب أن يفعل جوابك"
+            subtitle:"لكل مادة مجموعة أفعال خاصة بها، مع إظهار الإنجليزية والفرنسية والعربية دائمًا.",
+            tip:"فعل التعليمة يحدد بالضبط نوع الجواب المتوقع منك.",
+            meaning:"المعنى"
         }
     }[lang];
 
     title.textContent=labels.title;
     subtitle.textContent=labels.subtitle;
-    subjectTitle.textContent=labels.subject;
 
-    const verbs=[
-        ...NABIL_ACTION_VERBS.general,
-        ...(profile!=="general" ? (NABIL_ACTION_VERBS[profile]||[]) : [])
-    ];
+    const order=["math","physics","chemistry","biology"];
+    const preferred=selectedProfile!=="general"
+        ? [selectedProfile,...order.filter(x=>x!==selectedProfile)]
+        : order;
 
-    grid.innerHTML=verbs.map(v=>`
-      <div class="nabil-action-verb-card">
-        <div class="nabil-action-verb-word">
-          ${nabilEsc(nabilActionVerbText(v,lang))}
-          <span style="opacity:.62;font-weight:700">
-            ${lang!=="en" ? ` · ${nabilEsc(v.en)}` : ""}
-          </span>
-        </div>
-        <div class="nabil-action-verb-meaning">${nabilEsc(nabilActionVerbMeaning(v,lang))}</div>
-      </div>
-    `).join("");
+    grid.innerHTML=preferred.map(profile=>{
+        const group=NABIL_ACTION_VERBS[profile]||[];
+        const gl=NABIL_ACTION_VERB_GROUP_LABELS[profile];
 
+        return `
+          <section class="nabil-action-verb-subject-group ${profile===selectedProfile ? "is-current-subject" : ""}">
+            <div class="nabil-action-verb-subject-heading">
+              <span>${nabilEsc(gl?.[lang] || gl?.en || profile)}</span>
+              ${profile===selectedProfile ? `<span class="nabil-action-current-badge">${lang==="ar"?"المادة الحالية":lang==="fr"?"Matière actuelle":"Current subject"}</span>` : ""}
+            </div>
+
+            <div class="nabil-action-verbs-subgrid">
+              ${group.map(v=>{
+                  const [en,fr,ar,meaningEn]=v;
+                  return `
+                    <div class="nabil-action-verb-card">
+                      <div class="nabil-action-verb-word nabil-action-verb-trilingual">
+                        <span class="verb-en">${nabilEsc(en)}</span>
+                        <span class="verb-sep">/</span>
+                        <span class="verb-fr">${nabilEsc(fr)}</span>
+                        <span class="verb-sep">/</span>
+                        <span class="verb-ar" dir="rtl">${nabilEsc(ar)}</span>
+                      </div>
+                      <div class="nabil-action-verb-meaning">
+                        ${nabilEsc(meaningEn)}
+                      </div>
+                    </div>
+                  `;
+              }).join("")}
+            </div>
+          </section>
+        `;
+    }).join("");
+
+    subjectTitle.textContent="";
     const tip=document.getElementById("nabilActionVerbsTip");
     if(tip) tip.textContent=labels.tip;
 
@@ -7605,7 +7658,7 @@ function nabilEnsureActionVerbsUI(){
     const button=document.createElement("button");
     button.type="button";
     button.className="nabil-action-verbs-btn";
-    button.innerHTML=`<span class="nabil-action-verbs-icon">📘</span><span>Action Verbs</span>`;
+    button.innerHTML=`<span class="nabil-action-verbs-icon">📘</span><span>Action Verbs / أفعال التعليمات</span>`;
     button.addEventListener("click",nabilOpenActionVerbs);
 
     const preferredHosts=[
