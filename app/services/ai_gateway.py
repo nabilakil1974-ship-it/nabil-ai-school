@@ -241,25 +241,6 @@ class NabilAIGateway:
 
         text = str(error).lower()
 
-        # Request/context too large or TPM overflow.
-        # IMPORTANT: detect this before billing because some provider errors
-        # include a billing URL even though the real error is token/rate related.
-        if any(
-            marker in text
-            for marker in [
-                "request too large",
-                "tokens per minute",
-                "tpm",
-                "context_length_exceeded",
-                "context length",
-                "maximum context",
-                "413",
-            ]
-        ):
-            return "tokens"
-
-        # True billing / credit exhaustion only. Do not use a generic
-        # "billing" substring because remedy links can contain /billing.
         if any(
             marker in text
             for marker in [
@@ -267,8 +248,11 @@ class NabilAIGateway:
                 "credit_balance_exhausted",
                 "insufficient_quota",
                 "prepayment credits are depleted",
-                "credit balance exhausted",
-                "payment required",
+                "billing",
+                "lightning dunning decision is deny",
+                "permission_denied",
+                "permission denied",
+                "dunning decision",
             ]
         ):
             return "billing"
@@ -284,7 +268,6 @@ class NabilAIGateway:
                 "resource exhausted",
                 "tokens per day",
                 "requests per day",
-                "free-models-per-day",
             ]
         ):
             return "quota"
@@ -329,16 +312,6 @@ class NabilAIGateway:
                 os.getenv(
                     "NABIL_AI_BILLING_COOLDOWN_SECONDS",
                     "1800",
-                )
-            )
-
-        if kind == "tokens":
-            # Token/context-size errors are usually fixed by the next compacted
-            # request; do not disable the provider for 30 minutes.
-            return int(
-                os.getenv(
-                    "NABIL_AI_TOKEN_COOLDOWN_SECONDS",
-                    "30",
                 )
             )
 
@@ -688,15 +661,22 @@ class NabilAIGateway:
                     f"Gemini #{index + 1}: {exc}"
                 )
 
-                # Billing/prepayment exhaustion is usually project-wide.
-                # Do not burn the remaining Gemini keys in the same request.
-                if kind == "billing":
-                    self._block_gemini_globally(
-                        self._cooldown_seconds(
-                            kind="billing",
-                            failures=1,
+                # Project-wide or model-wide Gemini failures should not burn
+                # every API key in the same student request.
+                #
+                # - billing/permission: project-wide
+                # - model: model-wide
+                # - temporary/503 high demand: changing API keys does not help
+                #
+                # Let the gateway move immediately to the next provider.
+                if kind in {"billing", "model", "temporary"}:
+                    if kind == "billing":
+                        self._block_gemini_globally(
+                            self._cooldown_seconds(
+                                kind="billing",
+                                failures=1,
+                            )
                         )
-                    )
                     break
 
         return None
@@ -747,63 +727,6 @@ class NabilAIGateway:
 
             return None
 
-    def _compact_messages_for_groq(
-        self,
-        chat_messages: list[dict],
-    ) -> list[dict]:
-        """
-        Keep Groq requests comfortably below its on-demand TPM ceiling.
-        The system prompt is preserved; older chat history is dropped first.
-        This is provider-specific and does not affect the other providers.
-        """
-
-        max_chars = int(
-            os.getenv(
-                "NABIL_GROQ_MAX_INPUT_CHARS",
-                "18000",
-            )
-        )
-
-        if not chat_messages:
-            return []
-
-        system_messages = [
-            msg for msg in chat_messages
-            if msg.get("role") == "system"
-        ]
-        normal_messages = [
-            msg for msg in chat_messages
-            if msg.get("role") != "system"
-        ]
-
-        def content_chars(msg: dict) -> int:
-            content = msg.get("content", "")
-            if isinstance(content, str):
-                return len(content)
-            if isinstance(content, list):
-                total = 0
-                for item in content:
-                    if isinstance(item, str):
-                        total += len(item)
-                    elif isinstance(item, dict):
-                        total += len(str(item.get("text", "")))
-                return total
-            return len(str(content))
-
-        kept = []
-        used = sum(content_chars(msg) for msg in system_messages)
-
-        # Keep the newest conversation turns first.
-        for msg in reversed(normal_messages):
-            size = content_chars(msg)
-            if kept and used + size > max_chars:
-                break
-            kept.append(msg)
-            used += size
-
-        kept.reverse()
-        return system_messages + kept
-
     def _try_groq(
         self,
         chat_messages: list[dict],
@@ -823,25 +746,11 @@ class NabilAIGateway:
 
         try:
 
-            groq_messages = self._compact_messages_for_groq(
-                chat_messages
-            )
-
-            groq_max_output_tokens = min(
-                max_output_tokens,
-                int(
-                    os.getenv(
-                        "NABIL_GROQ_MAX_OUTPUT_TOKENS",
-                        "2200",
-                    )
-                ),
-            )
-
             return self._call_provider(
                 client=self.groq_client,
                 model=self.groq_text_model,
-                chat_messages=groq_messages,
-                max_output_tokens=groq_max_output_tokens,
+                chat_messages=chat_messages,
+                max_output_tokens=max_output_tokens,
                 provider_name="Groq",
                 provider_key=provider_key,
             )
@@ -911,15 +820,12 @@ class NabilAIGateway:
         messages: list[dict],
         image_bytes: Optional[bytes] = None,
         image_mime_type: str = "image/jpeg",
-        max_output_tokens: int = 3000,
+        max_output_tokens: int = 1400,
     ) -> str:
 
-        # Lessons, worked solutions and drawing metadata regularly need more
-        # than 1400 tokens.  The previous hard cap cut replies in the middle
-        # of formulas/JSON even when the route explicitly requested 3000.
         max_output_tokens = max(
             256,
-            min(int(max_output_tokens or 3000), 4000),
+            min(int(max_output_tokens or 1400), 1400),
         )
 
         chat_messages = self._build_messages(
