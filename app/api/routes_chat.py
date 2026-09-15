@@ -3677,10 +3677,75 @@ def build_teacher_assessment(payload: TeacherAssessmentRequest):
             + f"-{variant_letter}"
         )
 
+        subject_key = (payload.subject or "").strip().lower()
+
+        if any(k in subject_key for k in ["رياض", "math", "mathématique"]):
+            subject_blueprint = """
+MATHEMATICS BLUEPRINT:
+- Use the conventional exercise-based structure appropriate to the selected grade.
+- Include algebra/analysis/geometry/probability/statistics only when they belong to the selected lessons.
+- Any geometry question that depends on a figure MUST include a precise FIGURE_SPEC.
+- Any function-study question that needs a graph or variation table MUST include the required graph/table specification.
+- Do not give a result in the statement that the student is expected to prove.
+"""
+        elif any(k in subject_key for k in ["فيزياء", "physics", "physique"]):
+            subject_blueprint = """
+PHYSICS BLUEPRINT:
+- Use realistic physical situations and official-exam style multipart problems.
+- Include units consistently.
+- When needed, include apparatus diagrams, free-body diagrams, circuits, ray diagrams, wave graphs, motion graphs, or experimental setups.
+- Every visual must contain all labels/data needed to answer the related question and no hidden solution.
+"""
+        elif any(k in subject_key for k in ["كيمياء", "chem", "chim"]):
+            subject_blueprint = """
+CHEMISTRY BLUEPRINT:
+- Use official-exam style structured problems, equations, tables and data interpretation.
+- Include molecular/ionic structures, energy diagrams, titration setups, apparatus, reaction schemes, periodic-table extracts, or particle diagrams when pedagogically required.
+- Never place the answer inside a drawing.
+"""
+        elif any(k in subject_key for k in ["أحياء", "علوم الحياة", "biology", "biologie", "life science"]):
+            subject_blueprint = """
+BIOLOGY/LIFE-SCIENCE BLUEPRINT:
+- Use document-based and reasoning questions when appropriate.
+- Include labelled biological figures, cells, organs, systems, cycles, food chains, experimental setups, or data graphs only when they support the assessed skill.
+- Ask interpretation/analysis questions that are answerable from the provided documents.
+"""
+        elif any(k in subject_key for k in ["جغراف", "geography", "géographie"]):
+            subject_blueprint = """
+GEOGRAPHY BLUEPRINT:
+- Use maps, tables, graphs, climatic/population/economic data, or document analysis when appropriate.
+- Any map must have title, legend/key, scale/orientation when needed, and only the information required for the question.
+"""
+        elif any(k in subject_key for k in ["تاريخ", "history", "histoire", "تربية", "مدنية", "civic", "اجتماع", "اقتصاد", "sociology", "econom"]):
+            subject_blueprint = """
+HUMANITIES/SOCIAL-SCIENCE BLUEPRINT:
+- Use document-based, explanation, comparison, causation and evidence questions appropriate to the selected lessons.
+- Include timelines, tables, maps, graphs or source extracts only when they are genuinely useful.
+- Avoid decorative visuals.
+"""
+        elif any(k in subject_key for k in ["عربي", "arabic", "english", "français", "french", "لغة"]):
+            subject_blueprint = """
+LANGUAGE BLUEPRINT:
+- Follow the official discipline of reading/comprehension, vocabulary/grammar/language study, and writing as applicable to the selected lessons and grade.
+- Use a picture/document only when the question explicitly assesses visual comprehension or writing from a prompt.
+- Do not insert unnecessary illustrations.
+"""
+        else:
+            subject_blueprint = """
+GENERAL BLUEPRINT:
+- Follow the official examination conventions of the subject and selected grade.
+- Use figures/tables/documents only when they materially support the assessed skill.
+"""
+
         prompt = f"""
 You are NABIL AI Assessment Builder for Lebanese schools.
-Create ONE complete professional assessment, Model {variant_letter}.
 
+Your task is to create ONE complete professional assessment, Model {variant_letter},
+in the STYLE and DISCIPLINE of Lebanese official examinations where applicable.
+Do NOT claim that the generated paper is an official Ministry/CRDP examination.
+It is a teacher-created assessment modeled on official examination conventions.
+
+ASSESSMENT SETTINGS
 Grade: {payload.grade}
 Branch: {payload.branch or 'N/A'}
 Subject: {payload.subject}
@@ -3692,35 +3757,97 @@ Difficulty: {difficulty}
 Teacher notes: {payload.notes or 'None'}
 Uniqueness seed: {uniqueness_seed}
 
-Hard requirements:
-- Use ONLY the selected lesson names/content scope.
-- Build a fresh model; vary contexts, numbers, order, subquestions, and examples while preserving objectives and difficulty.
-- Do not copy a stock exam verbatim.
-- The student paper must contain NO answers, hints, or correction notes.
-- Make the amount of work realistic for {duration} minutes.
-- Give an explicit mark allocation for every question/subquestion.
-- Verify that the allocations sum EXACTLY to {marks} marks.
-- Avoid near-duplicate questions testing the same idea unless deliberate scaffolding is pedagogically justified.
-- When a figure, graph, map, circuit, chemistry structure, biology figure, geometry construction, or statistical display is needed, write a clear FIGURE instruction with all necessary labels and data.
-- For Grade 9 or Grade 12 official-exam subjects, follow the discipline of Lebanese official-exam sequencing and mark allocation when applicable, but do not claim official status.
-- Provide a detailed correction scheme with expected answer, key steps/ideas, and marks for every part.
-- Check correctness, units, wording, difficulty, timing, and total marks before finalizing.
-- {lang_rule}
+MANDATORY OFFICIAL-STYLE RULES
+1. Scope:
+   - Assess ONLY the selected lessons.
+   - Keep vocabulary, techniques and expected reasoning appropriate to the selected grade/branch.
+   - Do not import content from higher grades or unrelated chapters.
 
-Return EXACTLY this structure, with no JSON and no markdown fences:
+2. Examination structure:
+   - Use a clear official-exam-like sequence: numbered exercises/questions, numbered subparts, and explicit marks.
+   - Put general instructions at the top only when useful.
+   - Make the workload realistic for {duration} minutes.
+   - Use progressive difficulty and a balanced coverage of the selected lessons.
+   - Avoid repeating the same skill in disguised form unless deliberate scaffolding is justified.
+
+3. Marks:
+   - Assign marks to every question/subquestion.
+   - The marks MUST total EXACTLY {marks}.
+   - Check the arithmetic of the mark distribution before returning the paper.
+   - Marks should reflect cognitive demand, not merely question length.
+
+4. Student paper:
+   - NO solutions, hints, hidden correction notes, or teacher comments.
+   - Do not reveal intermediate results that the student is supposed to derive.
+   - Include all data necessary to solve each question.
+   - Wording must be precise, unambiguous and age-appropriate.
+
+5. Figures / documents / graphs / maps / tables:
+   - If a question genuinely requires a visual, YOU MUST include a FIGURE_SPEC immediately after that question.
+   - Do NOT add decorative visuals.
+   - A FIGURE_SPEC must be sufficient for NABIL AI's renderer to draw the visual without inventing missing data.
+   - Never invent labels, lengths, angles, values, chemical quantities, map data, experimental readings, graph points, or biological labels that are not part of the question you are creating.
+   - The figure must never contain the answer.
+   - If a question cannot be answered correctly without a figure, the FIGURE_SPEC is mandatory.
+   - Use exactly this syntax:
+     [FIGURE_SPEC]
+     type: <geometry|function_graph|variation_table|physics_diagram|circuit|ray_diagram|chemistry_structure|lab_setup|biology_diagram|map|statistics_graph|table|other>
+     title: <short title>
+     data: <all exact labels, values, points, dimensions, axes, components, connections, or document data needed>
+     student_task: <what the student is expected to read/draw/complete/interpret>
+     [/FIGURE_SPEC]
+
+6. Correction scheme / أسس التصحيح:
+   - Produce a COMPLETE marking scheme for every question and subquestion.
+   - Repeat the same numbering as the student paper.
+   - State the expected answer or acceptable reasoning.
+   - Break marks down by meaningful steps/ideas, not only by final answer.
+   - For calculations, award marks for method/formula, substitution/reasoning, computation, unit/final conclusion as appropriate.
+   - For proofs/arguments, award marks to the required logical steps.
+   - For language/humanities, specify the required idea/evidence/criterion for each allocated mark.
+   - Mention acceptable equivalent answers when applicable.
+   - If a student-created drawing/graph is required, state exactly what earns the drawing marks.
+   - If a provided figure/document is used, state what observations/interpretations earn marks.
+   - The correction-scheme marks MUST also total EXACTLY {marks}.
+
+7. Quality control BEFORE output:
+   - Recalculate the total marks in both paper and correction scheme.
+   - Verify mathematical/scientific factual correctness.
+   - Verify units and numerical consistency.
+   - Verify every required visual has a FIGURE_SPEC.
+   - Verify no visual leaks the answer.
+   - Verify no question depends on missing information.
+   - Verify the generated model is meaningfully different from other variants.
+
+SUBJECT-SPECIFIC BLUEPRINT
+{subject_blueprint}
+
+LANGUAGE RULE
+{lang_rule}
+
+Return EXACTLY this structure, with no markdown fences and no JSON wrapper:
+
 ===TITLE===
 <exam title>
+
 ===EXAM===
-<student exam>
+<complete student paper, including FIGURE_SPEC blocks exactly where needed>
+
 ===CORRECTION===
-<detailed correction scheme>
+<complete detailed correction scheme with the exact mark breakdown>
 """.strip()
 
         try:
             raw = ai.generate(
                 instructions=(
-                    "You generate rigorous school assessments and correction schemes. "
-                    "Follow the requested structure exactly."
+                    "You are the assessment-engine component of NABIL AI for Lebanese schools. "
+                    "Generate teacher-created assessments modeled on Lebanese official-exam conventions "
+                    "without claiming official status. Respect grade, branch, subject and selected-lesson scope. "
+                    "Marks must balance exactly in both the student paper and correction scheme. "
+                    "Whenever a question genuinely requires a diagram, graph, map, circuit, scientific figure, "
+                    "table or document, emit the required FIGURE_SPEC exactly where specified. "
+                    "Never place answers or hidden hints in the student paper. "
+                    "The correction scheme must be detailed enough for a teacher to grade consistently."
                 ),
                 messages=[{"role": "user", "content": prompt}],
                 max_output_tokens=4000,
