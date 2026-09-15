@@ -4335,6 +4335,93 @@ body.nabil-home-lock::before{
     }
 }
 
+
+/* ============================================================
+   v59 — inline visuals are always visible; prose alone typewrites
+   ============================================================ */
+.board-writing-mode .nabil-type-static-visible,
+.board-writing-mode .nabil-type-static-visible *{
+    opacity:1!important;
+    visibility:visible!important;
+}
+
+.board-writing-mode svg,
+.board-writing-mode mjx-container,
+.board-writing-mode table,
+.board-writing-mode .nabil-visual,
+.board-writing-mode .exercise-visual-panel,
+.board-writing-mode .exercise-linked-visual,
+.board-writing-mode .nabil-reference-function-generic{
+    opacity:1!important;
+    visibility:visible!important;
+}
+
+/* Function study: equal-height main cards on desktop. */
+@media(min-width:851px){
+    .reference-function-study-board .function-study-reference-stage{
+        display:grid!important;
+        grid-template-columns:minmax(300px,.72fr) minmax(0,1.38fr)!important;
+        align-items:stretch!important;
+    }
+    .reference-function-study-board .function-study-reference-summary-card,
+    .reference-function-study-board .exercise-function-graph-variation{
+        height:100%!important;
+        min-height:100%!important;
+        align-self:stretch!important;
+    }
+}
+
+/* Mobile: graph must render inline and in preview. */
+@media(max-width:850px){
+    .reference-function-study-board .function-study-reference-stage{
+        display:flex!important;
+        flex-direction:column!important;
+    }
+    .reference-function-study-board .exercise-function-graph-variation{
+        order:1!important;
+        width:100%!important;
+        min-width:0!important;
+    }
+    .reference-function-study-board .function-study-reference-summary-card{
+        order:2!important;
+        width:100%!important;
+        min-width:0!important;
+        height:auto!important;
+        min-height:0!important;
+    }
+    .exercise-visual-panel,
+    .lesson-linked-visuals,
+    .nabil-visual,
+    .nabil-reference-function-generic{
+        width:100%!important;
+        min-width:0!important;
+        overflow:visible!important;
+    }
+    .exercise-visual-panel svg,
+    .lesson-linked-visuals svg,
+    .nabil-visual svg,
+    .nabil-reference-function-generic svg{
+        display:block!important;
+        width:100%!important;
+        max-width:100%!important;
+        height:auto!important;
+        min-height:280px!important;
+        visibility:visible!important;
+        opacity:1!important;
+    }
+    .drawing-preview-dialog{
+        width:96vw!important;
+        max-width:96vw!important;
+        padding:12px!important;
+    }
+    .drawing-preview-dialog svg{
+        width:100%!important;
+        height:auto!important;
+        min-height:280px!important;
+        display:block!important;
+    }
+}
+
 </style>
 </head>
 
@@ -7691,53 +7778,23 @@ function nabilBoardWrapCardCharacters(card){
     if(!card) return units;
 
     /*
-      v51:
-      Everything inside the pedagogical card follows ONE reveal timeline.
-      Text is revealed character-by-character.
-      MathJax equations, tables, diagrams, separators, code/formula blocks,
-      images and canvases remain fully hidden until the typewriter reaches
-      their exact position in the DOM.
+      v59 policy:
+      - Prose is typewritten character-by-character.
+      - Equations, tables, diagrams, SVG, MathJax and images stay visible
+        immediately. NABIL must never read hidden mathematical content.
     */
-    const atomicSelector=[
-        "mjx-container",
-        "math",
-        "svg",
-        "table",
-        "pre",
-        "code",
-        "img",
-        "canvas",
-        "hr",
-        ".math-display",
-        ".formula-box",
-        ".equation-box",
-        ".variation-table",
-        "[data-variation-table='1']",
-        ".exercise-visual-panel",
-        ".exercise-linked-visual",
-        ".nabil-reference-function-generic",
-        ".function-study-reference-formula"
+    const visibleAtomicSelector=[
+        "mjx-container","math","svg","table","pre","code","img","canvas","hr",
+        ".math-display",".formula-box",".equation-box",".variation-table",
+        "[data-variation-table='1']",".exercise-visual-panel",
+        ".exercise-linked-visual",".nabil-reference-function-generic",
+        ".function-study-reference-formula",".nabil-visual"
     ].join(",");
 
     const skipSelector=[
-        "script",
-        "style",
-        ".teacher-tools",
-        ".sources",
-        ".nabil-board-controls",
-        "button",
-        "input",
-        "textarea",
-        "select"
+        "script","style",".teacher-tools",".sources",".nabil-board-controls",
+        "button","input","textarea","select"
     ].join(",");
-
-    function markAtomic(el){
-        if(!el || el.dataset.nabilTypingAtomic==="1") return;
-        el.dataset.nabilTypingAtomic="1";
-        el.classList.add("nabil-type-char","nabil-type-atomic");
-        el.classList.remove("is-visible");
-        units.push(el);
-    }
 
     function walk(node){
         if(!node) return;
@@ -7746,7 +7803,7 @@ function nabilBoardWrapCardCharacters(card){
             const parent=node.parentElement;
             if(!parent) return;
             if(parent.closest(skipSelector)) return;
-            if(parent.closest(atomicSelector)) return;
+            if(parent.closest(visibleAtomicSelector)) return;
 
             const raw=node.nodeValue||"";
             if(!raw) return;
@@ -7764,12 +7821,15 @@ function nabilBoardWrapCardCharacters(card){
         }
 
         if(node.nodeType!==Node.ELEMENT_NODE) return;
-
         const el=node;
+
         if(el.matches(skipSelector) || el.closest(".nabil-board-controls")) return;
 
-        if(el!==card && el.matches(atomicSelector)){
-            markAtomic(el);
+        // Mathematical and visual objects stay visible from the moment the card opens.
+        if(el!==card && el.matches(visibleAtomicSelector)){
+            el.classList.add("nabil-type-static-visible");
+            el.classList.remove("nabil-type-atomic","nabil-type-char");
+            el.classList.add("is-visible");
             return;
         }
 
@@ -7841,7 +7901,9 @@ function nabilPrepareBoardCards(root){
     // The WHOLE board is walked in DOM order, therefore:
     // text -> equation -> table -> drawing -> next text
     // all reveal on one synchronized timeline.
-    const practiceBoards=[...root.querySelectorAll(".lesson-practice-zone .exercise-board")];
+    const practiceBoards=[...root.querySelectorAll(
+        ".lesson-practice-zone .exercise-board, .exercise-board-stack > .exercise-board, :scope > .exercise-board"
+    )].filter((board,index,arr)=>arr.indexOf(board)===index);
     practiceBoards.forEach(board=>{
         const text=nabilBoardCardText(board);
 
@@ -7907,63 +7969,20 @@ function nabilBoardRefreshAtomicUnits(item){
     if(!item?.card) return;
 
     const selector=[
-        "mjx-container",
-        "math",
-        "svg",
-        "table",
-        "pre",
-        "code",
-        "img",
-        "canvas",
-        "hr",
-        ".math-display",
-        ".formula-box",
-        ".equation-box",
-        ".variation-table",
-        "[data-variation-table='1']",
-        ".exercise-visual-panel",
-        ".exercise-linked-visual",
-        ".nabil-reference-function-generic",
-        ".function-study-reference-formula"
+        "mjx-container","math","svg","table","pre","code","img","canvas","hr",
+        ".math-display",".formula-box",".equation-box",".variation-table",
+        "[data-variation-table='1']",".exercise-visual-panel",
+        ".exercise-linked-visual",".nabil-reference-function-generic",
+        ".function-study-reference-formula",".nabil-visual"
     ].join(",");
-
-    let added=false;
 
     item.card.querySelectorAll(selector).forEach(el=>{
         if(el.closest(".nabil-board-controls,.teacher-tools,.sources")) return;
-        if(el.dataset.nabilTypingAtomic==="1") return;
-
-        // MathJax may render AFTER initial board preparation.
-        // Mark the new object but DO NOT append it at the end of item.chars.
-        // We rebuild the complete reveal sequence below in exact DOM order.
-        el.dataset.nabilTypingAtomic="1";
-        el.classList.add("nabil-type-char","nabil-type-atomic");
-        el.classList.remove("is-visible");
-        added=true;
+        el.classList.remove("nabil-type-atomic","nabil-type-char");
+        el.classList.add("nabil-type-static-visible","is-visible");
+        el.style.removeProperty("visibility");
+        el.style.removeProperty("opacity");
     });
-
-    if(added || !Array.isArray(item.chars) || !item.chars.length){
-        /*
-          CRITICAL FIX:
-          querySelectorAll returns the real visual/DOM order.
-          This puts late MathJax numbers/equations back where they belong
-          between the surrounding words instead of at the end of the card.
-        */
-        const ordered=[...item.card.querySelectorAll(".nabil-type-char")].filter(el=>{
-            // Avoid counting descendants of an atomic visual separately.
-            const atomicParent=el.parentElement?.closest?.(".nabil-type-atomic");
-            return !atomicParent || atomicParent===el;
-        });
-
-        item.chars=ordered;
-
-        // Current typing position must follow the first not-yet-visible unit.
-        // This prevents the narrator from moving past a newly inserted formula.
-        let firstHidden=ordered.findIndex(el=>!el.classList.contains("is-visible"));
-        if(firstHidden<0) firstHidden=ordered.length;
-
-        nabilBoardCharIndex=Math.min(nabilBoardCharIndex, firstHidden);
-    }
 }
 
 function nabilBoardShowCurrentCard(){
@@ -8308,17 +8327,15 @@ async function nabilBoardSpeakCurrentCard(){
     nabilBoardSpeechStartedAt=0;
     nabilBoardSpeechDuration=0;
 
-    if(nabilBoardCharIndex < item.chars.length){
-        // Initial card: preserve the existing immediate visual start.
-        // Resume: DO NOT restart typing before the resumed speech actually
-        // starts; this is the key synchronization rule.
-        if(!isStrictResume && !nabilBoardTimer){
+    if(nabilBoardCharIndex < item.chars.length || speechToRead){
+        // Prose types while visible mathematical objects remain on screen.
+        if(item.chars.length && !isStrictResume && !nabilBoardTimer){
             const immediateEstimate=Math.max(4.0, speechToRead.length/11);
             nabilBoardSpeechDuration=immediateEstimate;
 
             // The board must lead the voice, not follow it.
             // Content starts appearing first and keeps a small visual lead.
-            nabilBoardStartTypewriter(Math.max(1.8, immediateEstimate*0.84));
+            if(item.chars.length) nabilBoardStartTypewriter(Math.max(1.8, immediateEstimate*0.84));
         }
 
         // Give the learner enough time to SEE the next word/number/formula
@@ -8338,7 +8355,7 @@ async function nabilBoardSpeakCurrentCard(){
                 if(!isStrictResume){
                     // Recalculate using actual audio duration, but preserve
                     // the visual lead by making typing finish earlier.
-                    nabilBoardStartTypewriter(Math.max(1.5,Number(duration||0)*0.86));
+                    if(item.chars.length) nabilBoardStartTypewriter(Math.max(1.5,Number(duration||0)*0.86));
                 }
             },
             onstart:()=>{
@@ -8356,9 +8373,9 @@ async function nabilBoardSpeakCurrentCard(){
                 // For normal playback, typing is already ~1 second ahead,
                 // so NEVER restart it behind the voice.
                 if(isStrictResume){
-                    nabilBoardStartTypewriter(Math.max(1.4,estimated*0.86));
+                    if(item.chars.length) nabilBoardStartTypewriter(Math.max(1.4,estimated*0.86));
                 }else if(!nabilBoardTimer && nabilBoardCharIndex<item.chars.length){
-                    nabilBoardStartTypewriter(Math.max(1.4,estimated*0.86));
+                    if(item.chars.length) nabilBoardStartTypewriter(Math.max(1.4,estimated*0.86));
                 }
             },
             onend:()=>{}
