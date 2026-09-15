@@ -4155,6 +4155,59 @@ body.nabil-home-lock::before{
     .nabil-action-verbs-panel{max-height:92vh;}
 }
 
+
+/* ============================================================
+   v53 — Exercise cards must NEVER clip the solution.
+   They grow with the content; scrolling belongs to the page,
+   not to a fixed-height answer card.
+   ============================================================ */
+.lesson-practice-zone,
+.lesson-practice-zone .exercise-board,
+.exercise-board,
+.exercise-board-main,
+.exercise-side-column,
+.exercise-main-column,
+.exercise-section-card,
+.exercise-solution-card,
+.exercise-answer-card,
+.exercise-summary-card,
+.function-study-detailed-solution,
+.function-study-reference-stage,
+.exercise-function-board,
+.exercise-function-study,
+.exercise-function-keypoints,
+.exercise-function-graph-variation{
+    height:auto!important;
+    max-height:none!important;
+    overflow:visible!important;
+    contain:none!important;
+}
+
+.lesson-practice-zone .exercise-board{
+    min-height:0!important;
+}
+
+/* Let long equations/tables scroll horizontally without cutting the answer vertically. */
+.exercise-board mjx-container,
+.exercise-board .lesson-table-wrap,
+.exercise-board table,
+.function-study-detailed-solution mjx-container{
+    max-width:100%;
+}
+.exercise-board .lesson-table-wrap,
+.function-study-detailed-solution .lesson-table-wrap{
+    overflow-x:auto!important;
+    overflow-y:visible!important;
+}
+
+/* The writing cursor stays inside the current exercise but the card keeps growing. */
+.board-writing-mode .exercise-board.nabil-board-card.nabil-board-current{
+    display:grid!important;
+    height:auto!important;
+    max-height:none!important;
+    overflow:visible!important;
+}
+
 </style>
 </head>
 
@@ -7404,6 +7457,35 @@ function nabilCloseActionVerbs(){
     modal.setAttribute("aria-hidden","true");
 }
 
+
+function nabilNormalizeExerciseCardHeights(root=document){
+    root.querySelectorAll(
+        ".lesson-practice-zone .exercise-board,.exercise-board,.exercise-section-card,.function-study-detailed-solution"
+    ).forEach(el=>{
+        el.style.maxHeight="none";
+        el.style.height="auto";
+        el.style.overflow="visible";
+    });
+}
+
+if(!window.__nabilExerciseAutoHeightObserverInstalled){
+    window.__nabilExerciseAutoHeightObserverInstalled=true;
+
+    const install=()=>{
+        nabilNormalizeExerciseCardHeights(document);
+        const mo=new MutationObserver(()=>{
+            requestAnimationFrame(()=>nabilNormalizeExerciseCardHeights(document));
+        });
+        mo.observe(document.body,{childList:true,subtree:true});
+    };
+
+    if(document.readyState==="loading"){
+        document.addEventListener("DOMContentLoaded",install,{once:true});
+    }else{
+        install();
+    }
+}
+
 function nabilEnsureActionVerbsUI(){
     if(document.getElementById("nabilActionVerbsModal")) return;
 
@@ -7618,27 +7700,35 @@ function nabilPrepareBoardCards(root){
     }
 
     // Five solved practice exercises are part of the SAME lesson-board sequence.
-    // Each exercise is treated as one safe typewriter unit; drawings/MathJax/SVG are not split into chars.
+    // IMPORTANT v53:
+    // An exercise uses EXACTLY the same narration/typewriter lifecycle as a lesson card.
+    // The WHOLE board is walked in DOM order, therefore:
+    // text -> equation -> table -> drawing -> next text
+    // all reveal on one synchronized timeline.
     const practiceBoards=[...root.querySelectorAll(".lesson-practice-zone .exercise-board")];
     practiceBoards.forEach(board=>{
         const text=nabilBoardCardText(board);
+
         board.classList.add("nabil-board-card","nabil-board-exercise");
         board.classList.remove("nabil-board-current");
         board.style.display="none";
+        board.style.height="auto";
+        board.style.maxHeight="none";
+        board.style.overflow="visible";
 
-        const textualTargets=[...board.querySelectorAll(
-            ".exercise-board-head,.exercise-section-card,.exercise-idea-card,.exercise-pair-solution,.exercise-answer-card,.exercise-summary-card,.function-study-reference-summary-card,.function-study-detailed-solution"
-        )].filter(el=>!el.closest("svg,mjx-container"));
-
-        const chars=[];
-        textualTargets.forEach(el=>{
-            if(el.dataset.nabilTypingPrepared==="1") return;
-            el.dataset.nabilTypingPrepared="1";
-            chars.push(...nabilBoardWrapCardCharacters(el));
-        });
+        // Prepare the complete exercise, not selected fragments.
+        // nabilBoardWrapCardCharacters already treats MathJax, tables,
+        // SVG/visuals and formula blocks as atomic hidden units.
+        const chars=nabilBoardWrapCardCharacters(board);
         chars.forEach(ch=>ch.classList.remove("is-visible"));
 
-        items.push({card:board,content:board,text,chars});
+        items.push({
+            card:board,
+            content:board,
+            text,
+            chars,
+            kind:"exercise"
+        });
     });
 
     // The cumulative final summary is the LAST card, never visible at the start.
@@ -7765,6 +7855,31 @@ function nabilBoardRevealCardChar(){
         item.chars[nabilBoardCharIndex]?.classList.add("is-visible");
         nabilBoardCharIndex++;
     }
+}
+
+
+function nabilBoardKeepCurrentWritingVisible(){
+    const item=nabilBoardCards[nabilBoardCardIndex];
+    if(!item?.card) return;
+
+    const root=nabilBoardCurrentRoot;
+    if(!root) return;
+
+    const visibleChars=item.chars?.filter(ch=>ch?.classList?.contains("is-visible")) || [];
+    const last=visibleChars.length ? visibleChars[visibleChars.length-1] : item.card;
+
+    const scrollHost =
+        root.closest(".chat-scroll,.messages,.chat-container") ||
+        document.scrollingElement ||
+        document.documentElement;
+
+    try{
+        const r=last.getBoundingClientRect();
+        const viewportH=window.innerHeight || document.documentElement.clientHeight;
+        if(r.bottom > viewportH-120){
+            last.scrollIntoView({block:"center",behavior:"smooth"});
+        }
+    }catch(_){}
 }
 
 function nabilBoardFinishCard(){
