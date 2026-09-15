@@ -583,8 +583,26 @@ function mergeCurriculumIndexes(baseIndex,remoteIndex){
 const gradeValues=[
  "الصف الأول","الصف الثاني","الصف الثالث","الصف الرابع","الصف الخامس","الصف السادس",
  "الصف السابع","الصف الثامن","الصف التاسع",
- "الأول الثانوي","الثاني الثانوي","الثالث الثانوي"
+ "الأول ثانوي","الثاني ثانوي","الثالث ثانوي"
 ];
+
+function canonicalGrade(raw){
+  const g=norm(raw);
+  const aliases={
+    "الأول الثانوي":"الأول ثانوي",
+    "الاول الثانوي":"الأول ثانوي",
+    "الصف الأول الثانوي":"الأول ثانوي",
+    "الصف الاول الثانوي":"الأول ثانوي",
+    "الثاني الثانوي":"الثاني ثانوي",
+    "الصف الثاني الثانوي":"الثاني ثانوي",
+    "الثالث الثانوي":"الثالث ثانوي",
+    "الصف الثالث الثانوي":"الثالث ثانوي"
+  };
+  for(const [k,v] of Object.entries(aliases)){
+    if(g===norm(k)) return v;
+  }
+  return gradeValues.find(x=>norm(x)===g) || raw || "";
+}
 
 const SUBJECTS=[
  "رياضيات","فيزياء","كيمياء","علوم","علوم الحياة",
@@ -606,6 +624,7 @@ function esc(s){
 function norm(s){return String(s||"").toLowerCase().replace(/\s+/g," ").trim()}
 
 function subjectsForStage(grade){
+  grade=canonicalGrade(grade);
   if(["الصف الأول","الصف الثاني","الصف الثالث","الصف الرابع","الصف الخامس","الصف السادس"].includes(grade)){
     return ["رياضيات","علوم",...COMMON_SCHOOL_SUBJECTS];
   }
@@ -641,6 +660,7 @@ function fillSelect(select,items,placeholder,current=""){
 }
 
 function getBranchesForGrade(grade){
+  grade=canonicalGrade(grade);
   const g=norm(grade);
 
   try{
@@ -666,7 +686,7 @@ function getBranchesForGrade(grade){
   }
 
   // Lebanese secondary fallback — never show "no branch" for grades that have branches.
-  if(/الثالث الثانوي|الصف الثالث الثانوي|الثانوي الثالث|third secondary|grade 12/.test(g)){
+  if(/الثالث ثانوي|الثالث الثانوي|الصف الثالث الثانوي|الثانوي الثالث|third secondary|grade 12/.test(g)){
     return [
       "علوم عامة",
       "علوم الحياة",
@@ -675,7 +695,7 @@ function getBranchesForGrade(grade){
     ];
   }
 
-  if(/الثاني الثانوي|الصف الثاني الثانوي|الثانوي الثاني|second secondary|grade 11/.test(g)){
+  if(/الثاني ثانوي|الثاني الثانوي|الصف الثاني الثانوي|الثانوي الثاني|second secondary|grade 11/.test(g)){
     return [
       "علوم",
       "إنسانيات"
@@ -687,6 +707,7 @@ function getBranchesForGrade(grade){
 }
 
 function getSubjectsForGradeBranch(grade,branch){
+  grade=canonicalGrade(grade);
   try{
     const saved=JSON.parse(sessionStorage.getItem("nabil_teacher_subjects")||"[]");
     const vals=(Array.isArray(saved)?saved:[])
@@ -701,7 +722,7 @@ function getSubjectsForGradeBranch(grade,branch){
 
   let fallback=subjectsForStage(grade);
 
-  if(/الثالث الثانوي|الصف الثالث الثانوي|grade 12/.test(g)){
+  if(/الثالث ثانوي|الثالث الثانوي|الصف الثالث الثانوي|grade 12/.test(g)){
     if(/علوم عامة|general sciences/.test(b)){
       fallback=["رياضيات","فيزياء","كيمياء","اللغة العربية","اللغة الفرنسية","اللغة الإنجليزية","التربية الوطنية والتنشئة المدنية","التاريخ","الجغرافيا"];
     }else if(/علوم الحياة|life sciences/.test(b)){
@@ -721,6 +742,7 @@ function getSubjectsForGradeBranch(grade,branch){
 }
 
 function getLessons(grade,branch,subject,language){
+  grade=canonicalGrade(grade);
   let lessons=[];
 
   // Internal + external merged index.
@@ -768,7 +790,8 @@ function setAll(v){
 }
 
 function refreshBranches(){
-  const grade=$("grade").value;
+  const grade=canonicalGrade($("grade").value);
+  if(grade && $("grade").value!==grade) $("grade").value=grade;
   const current=params.get("branch")||$("branch").value||"";
   const branches=getBranchesForGrade(grade);
   const branchLabel=$("branch")?.closest("label");
@@ -788,12 +811,15 @@ function refreshBranches(){
 }
 
 function refreshSubjects(){
-  const grade=$("grade").value;
+  const grade=canonicalGrade($("grade").value);
   const branch=$("branch").value;
   const current=params.get("subject")||$("subject").value||"";
   const subjects=getSubjectsForGradeBranch(grade,branch);
 
   fillSelect($("subject"),subjects,"اختر المادة",current);
+  if(current && [...$("subject").options].some(o=>o.value===current)){
+    $("subject").value=current;
+  }
   refreshLessons();
 }
 
@@ -801,7 +827,7 @@ function refreshLessons(){
   const box=$("lessons");
   box.innerHTML="";
 
-  const grade=$("grade").value;
+  const grade=canonicalGrade($("grade").value);
   const branch=$("branch").value;
   const subject=$("subject").value;
   const language=$("language").value;
@@ -877,11 +903,25 @@ async function loadCurriculum(){
     $("status").textContent="تم تشغيل فهرس الدروس الداخلي الموجود في المنصة.";
   }
 
-  const wantedGrade=params.get("grade")||"";
+  const wantedGrade=canonicalGrade(params.get("grade")||"");
   fillSelect($("grade"),gradeValues,"اختر الصف",wantedGrade);
-  $("language").value=params.get("language")||"العربية";
+
+  // Hard guarantee: if a grade came from the main platform, select its canonical equivalent.
+  if(wantedGrade && [...$("grade").options].some(o=>o.value===wantedGrade)){
+    $("grade").value=wantedGrade;
+  }
+
+  const wantedLanguage=params.get("language")||"العربية";
+  if([...$("language").options].some(o=>o.value===wantedLanguage)){
+    $("language").value=wantedLanguage;
+  }
 
   refreshBranches();
+
+  // Show a compact indexing diagnostic so missing data is immediately visible.
+  const indexedSubjects=Object.keys(curriculumIndex||{});
+  const indexedGrades=[...new Set(indexedSubjects.flatMap(s=>Object.keys(curriculumIndex?.[s]||{})))];
+  $("status").textContent += ` — الفهرس الداخلي: ${indexedSubjects.length} مادة / ${indexedGrades.length} صفوف مفهرسة.`;
 }
 
 async function fetchAssessment(payload){
