@@ -3586,9 +3586,15 @@ body.nabil-home-lock::before{
 /* Mobile: keep reference logic, stack vertically */
 @media(max-width:850px){
     .reference-function-study-board .function-study-reference-stage{
-        grid-template-columns:1fr;
+        display:flex;
+        flex-direction:column;
     }
-    .function-study-reference-summary-card{
+    /* On phone: graph + variation first, then Study of the Function */
+    .reference-function-study-board .function-study-reference-stage > .exercise-function-graph-variation{
+        order:1;
+    }
+    .reference-function-study-board .function-study-reference-stage > .function-study-reference-summary-card{
+        order:2;
         height:auto;
     }
     .function-study-detailed-grid{
@@ -3616,6 +3622,58 @@ body.nabil-home-lock::before{
         grid-template-columns:1fr;
         gap:3px;
         padding:6px 0;
+    }
+}
+
+
+/* ============================================================
+   v47 — Exact height matching for the reference function layout
+   ============================================================ */
+@media (min-width:851px){
+    .reference-function-study-board .function-study-reference-stage{
+        align-items:stretch!important;
+    }
+
+    .reference-function-study-board .function-study-reference-stage > .function-study-reference-summary-card,
+    .reference-function-study-board .function-study-reference-stage > .exercise-function-graph-variation{
+        align-self:stretch!important;
+        box-sizing:border-box!important;
+        height:auto!important;
+        min-height:100%!important;
+    }
+
+    .reference-function-study-board .function-study-reference-summary-card{
+        display:flex!important;
+        flex-direction:column!important;
+    }
+
+    .reference-function-study-board .function-study-summary-rows{
+        flex:1 1 auto!important;
+    }
+
+    .reference-function-study-board .exercise-function-graph-variation{
+        display:flex!important;
+        flex-direction:column!important;
+    }
+
+    .reference-function-study-board .exercise-function-visual{
+        flex:1 1 auto!important;
+        display:flex!important;
+        flex-direction:column!important;
+    }
+
+    .reference-function-study-board .exercise-function-visual .exercise-visual-panel{
+        flex:1 1 auto!important;
+    }
+}
+
+/* Mobile: never force equal heights; graph+table first, Study second */
+@media (max-width:850px){
+    .reference-function-study-board .function-study-reference-summary-card,
+    .reference-function-study-board .exercise-function-graph-variation{
+        height:auto!important;
+        min-height:0!important;
+        max-height:none!important;
     }
 }
 
@@ -5001,6 +5059,79 @@ function nabilCompactSummaryHTML(html){
     }
 
     return holder.innerHTML.trim() || (txt ? `<span>${nabilEsc(txt)}</span>` : "");
+}
+
+
+function nabilSyncFunctionReferenceHeights(root=document){
+    const mobile=window.matchMedia("(max-width: 850px)").matches;
+
+    root.querySelectorAll(".reference-function-study-board .function-study-reference-stage").forEach(stage=>{
+        const study=stage.querySelector(":scope > .function-study-reference-summary-card");
+        const visual=stage.querySelector(":scope > .exercise-function-graph-variation");
+
+        if(!study || !visual) return;
+
+        // Reset first so measurements reflect natural layout.
+        study.style.height="";
+        study.style.minHeight="";
+        study.style.maxHeight="";
+
+        if(mobile) return;
+
+        // Wait until the visual card has its final content height.
+        const target=Math.ceil(visual.getBoundingClientRect().height);
+
+        if(target>0){
+            study.style.height=`${target}px`;
+            study.style.minHeight=`${target}px`;
+            study.style.maxHeight=`${target}px`;
+        }
+    });
+}
+
+function nabilScheduleFunctionReferenceHeightSync(root=document){
+    requestAnimationFrame(()=>{
+        requestAnimationFrame(()=>{
+            nabilSyncFunctionReferenceHeights(root);
+        });
+    });
+}
+
+// Keep cards matched after resize/orientation changes.
+if(!window.__nabilFunctionHeightSyncInstalled){
+    window.__nabilFunctionHeightSyncInstalled=true;
+
+    window.addEventListener("resize",()=>{
+        clearTimeout(window.__nabilFunctionHeightSyncTimer);
+        window.__nabilFunctionHeightSyncTimer=setTimeout(()=>{
+            nabilSyncFunctionReferenceHeights(document);
+        },120);
+    });
+
+    if(typeof ResizeObserver!=="undefined"){
+        const ro=new ResizeObserver(()=>{
+            nabilScheduleFunctionReferenceHeightSync(document);
+        });
+
+        const observeStages=()=>{
+            document.querySelectorAll(".reference-function-study-board .exercise-function-graph-variation").forEach(el=>{
+                if(el.dataset.nabilHeightObserved==="1") return;
+                el.dataset.nabilHeightObserved="1";
+                ro.observe(el);
+            });
+        };
+
+        const mo=new MutationObserver(()=>{
+            observeStages();
+            nabilScheduleFunctionReferenceHeightSync(document);
+        });
+
+        document.addEventListener("DOMContentLoaded",()=>{
+            observeStages();
+            mo.observe(document.body,{childList:true,subtree:true});
+            nabilScheduleFunctionReferenceHeightSync(document);
+        });
+    }
 }
 
 function nabilBuildStudyOfFunctionCard({
