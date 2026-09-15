@@ -2740,7 +2740,7 @@ body.nabil-home-lock::before{
     box-shadow:0 0 0 2px rgba(255,210,75,.08),0 10px 24px rgba(0,0,0,.22);
 }
 .nabil-board-controls[data-waiting="1"]::after{
-    content:"يمكنك السؤال الآن — وإذا لم تسأل، ننتقل تلقائيًا بعد دقيقة";
+    content:"يمكنك السؤال الآن — وإذا لم تسأل، ننتقل تلقائيًا للبطاقة التالية بعد دقيقة";
     width:100%;
     color:#ffe58a;
     font-size:12px;
@@ -2884,6 +2884,45 @@ body.nabil-home-lock::before{
 /* Never let an old stacked-card selector expose the whole lesson. */
 .board-writing-mode .lesson-paired-stack{
     display:block!important;
+}
+
+
+
+/* v34 — complete labelled drawings in every subject */
+.nabil-visual,
+.lesson-paired-visual,
+.exercise-visual-panel{
+    overflow:visible!important;
+}
+.nabil-visual svg{
+    overflow:visible!important;
+}
+.nabil-visual .vlab{
+    paint-order:stroke fill;
+    stroke:#061a2c;
+    stroke-width:2px;
+    stroke-linejoin:round;
+}
+.nabil-visual .vlab.vsmall{
+    stroke-width:1.4px;
+}
+@media(max-width:700px){
+    .nabil-visual svg{
+        width:100%!important;
+        height:auto!important;
+        min-height:250px;
+    }
+}
+
+
+
+/* v36 — fallback drawings engine */
+.nabil-fallback-visual{
+    width:100%;
+    min-width:0;
+}
+.nabil-fallback-visual .nabil-visual{
+    width:100%!important;
 }
 
 </style>
@@ -4090,6 +4129,7 @@ function nabilExerciseLayoutFamily(board, diagramsForThis, wholeBoardText){
     if(has(/forces|inclined_plane|motion|spring|pulley|wave|optics/) || /physics|فيزياء|force|forces|newton|weight|tension|friction|inclined|acceleration|قوة|قوى|وزن|احتكاك|شد|سطح مائل|تسارع/.test(text)) return "physics";
     if(has(/triangle|circle|square|rectangle|rhombus|parallelogram|cube|prism|cylinder|cone|sphere/) || /geometry|triangle|circle|tangent|angle|pythag|هندسة|مثلث|دائرة|مماس|زاوية/.test(text)) return "geometry";
     if(has(/periodic_table|energy_diagram|states_of_matter|ionic_bond/) || /chemistry|chemical|atom|bond|reaction|element|كيمياء|ذرة|رابطة|تفاعل/.test(text)) return "chemistry";
+    if(has(/magnetic_field|bar_magnet|solenoid|electromagnetic_induction/) || /magnetic field|bar magnet|magnet|solenoid|electromagnetic induction|champ magnétique|aimant|induction électromagnétique|مجال مغناطيسي|مغناطيس|حث كهرومغناطيسي/.test(text)) return "physics";
     if(has(/cell_diagram|life_cycle|food_chain|body_system/) || /biology|cell|organ|system|food chain|أحياء|خلية|عضو|جهاز/.test(text)) return "biology";
     if(has(/probability_tree|venn_diagram|probability_table|statistics/) || /probability|statistics|venn|tree diagram|احتمال|إحصاء|فين/.test(text)) return "probability";
 
@@ -4741,6 +4781,14 @@ function nabilSpokenMathText(text, language){
         lte:" أصغر من أو يساوي ", gte:" أكبر من أو يساوي "
     };
 
+    // Normalize duplicate/stacked operators before pronunciation.
+    content=content
+        .replace(/(?:\\times|×|\*)\s*(?:\\times|×|\*)/g,"×")
+        .replace(/(?:\\div|÷|\/)\s*(?:\\div|÷|\/)/g,"÷")
+        .replace(/\+\s*\+/g,"+")
+        .replace(/-\s*-/g,"+")
+        .replace(/−\s*−/g,"+");
+
     // LaTeX structures first.
     content=content
         .replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, (_,a,b)=>`${a}${words.over}${b}`)
@@ -4776,6 +4824,14 @@ function nabilSpokenMathText(text, language){
         .replace(/\//g,words.over)
         .replace(/</g,words.lt)
         .replace(/>/g,words.gt);
+
+    // Collapse any accidental repeated spoken operators.
+    [words.times,words.minus,words.plus,words.over,words.equals].forEach(raw=>{
+        const op=String(raw||"").trim();
+        if(!op) return;
+        const escOp=op.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+        content=content.replace(new RegExp(`(?:\\b${escOp}\\b\\s*){2,}`,"gi"),` ${op} `);
+    });
 
     // Force standalone algebraic variables to be pronounced as letters.
     // Uppercase helps TTS engines say "X" / "Y" instead of guessing a word.
@@ -5410,7 +5466,22 @@ function nabilBoardShowCurrentCard(){
     const active=nabilBoardCards[nabilBoardCardIndex]?.card;
     if(active){
         requestAnimationFrame(()=>{
-            active.scrollIntoView({behavior:"smooth",block:"nearest"});
+            // Put the new card clearly at the top of the lesson viewport.
+            active.scrollIntoView({behavior:"smooth",block:"start",inline:"nearest"});
+
+            const scroller=active.closest(".chat");
+            if(scroller){
+                setTimeout(()=>{
+                    try{
+                        const sr=scroller.getBoundingClientRect();
+                        const ar=active.getBoundingClientRect();
+                        scroller.scrollBy({
+                            top:(ar.top-sr.top)-18,
+                            behavior:"smooth"
+                        });
+                    }catch(_e){}
+                },180);
+            }
         });
     }
 }
@@ -5519,11 +5590,14 @@ function nabilBoardWaitForStudentThenContinue(){
     // continue automatically to the next card.
     nabilBoardIdleTimer=setTimeout(()=>{
         if(!nabilBoardWaitingForStudent) return;
-        if(lessonTalkBusy) {
-            // A real student question is being answered; wait again after it.
+
+        // Only postpone when there is an ACTUAL active Talk-to-Me exchange.
+        // A stale busy flag must never freeze the lesson.
+        if(lessonTalkActive && lessonTalkBusy) {
             nabilBoardWaitForStudentThenContinue();
             return;
         }
+
         nabilBoardAdvanceToNextCard();
     },NABIL_BOARD_IDLE_MS);
 }
@@ -5558,6 +5632,14 @@ async function nabilBoardSpeakCurrentCard(){
     const originalLanguage=languageSelect?.value || "English";
 
     if(nabilBoardCharIndex < item.chars.length){
+        // Start writing immediately. Do not leave the board blank while waiting
+        // for the TTS endpoint/network to return.
+        if(!nabilBoardTimer){
+            const immediateEstimate=Math.max(4.0, originalText.length/11);
+            nabilBoardSpeechDuration=immediateEstimate;
+            nabilBoardStartTypewriter(immediateEstimate);
+        }
+
         const foreignSpeechResult=await nabilSpeakClear(originalText,originalLanguage,{
             onduration:(duration)=>{
                 if(token!==nabilBoardRunToken || nabilBoardPaused) return;
@@ -5586,28 +5668,9 @@ async function nabilBoardSpeakCurrentCard(){
         nabilBoardFinishCard();
     }
 
-    // --------------------------------------------------------
-    // Phase 2: now Nabil EXPLAINS in Arabic what the student has
-    // just seen. He does not re-read the whole lesson in Arabic.
-    // --------------------------------------------------------
-    const arabicExplanation=await nabilBoardArabicForCard(originalText);
-    if(token!==nabilBoardRunToken || nabilBoardPaused) return;
-
-    if(arabicExplanation){
-        nabilBoardCurrentSpeech=arabicExplanation;
-        nabilBoardCurrentSpeechLanguage="العربية";
-
-        const explanationSpeechResult=await nabilSpeakClear(arabicExplanation,"العربية",{
-            onstart:()=>{
-                if(token!==nabilBoardRunToken || nabilBoardPaused) return;
-                stopLessonRecognitionTemporarily?.();
-            },
-            onend:()=>{}
-        });
-
-        if(explanationSpeechResult?.cancelled) return;
-        if(token!==nabilBoardRunToken || nabilBoardPaused) return;
-    }
+    // No automatic Arabic explanation here.
+    // The card is read in the lesson language only.
+    // If the student wants an explanation, they ask through Talk to Me.
 
     // --------------------------------------------------------
     // Phase 3: ask/allow questions. If student says nothing for
@@ -5865,6 +5928,37 @@ function addMessage(
             normalizeFinalLessonCard(bubble, messageDirection, messageLanguage);
             layoutLessonBoard(bubble);
             buildCumulativeFinalCard(bubble, messageDirection, messageLanguage);
+
+            // Final visual safety net: if AI sent no usable drawing, inject the
+            // indexed lesson fallback automatically.
+            try{
+                const visualNodes=[...bubble.querySelectorAll(".nabil-visual")];
+                const hasUsableVisual=visualNodes.some(node=>{
+                    const svg=node.querySelector("svg");
+                    if(!svg) return false;
+                    return svg.querySelectorAll("path,line,polyline,polygon,circle,ellipse,rect,text").length >= 4;
+                });
+
+                if(!hasUsableVisual){
+                    const fallbackSpec=autoDiagramSpecForLesson(lessonSelect?.value||"");
+                    const fallbackHTML=fallbackSpec ? renderNabilDiagram(fallbackSpec) : "";
+                    if(fallbackHTML){
+                        let host=bubble.querySelector(".lesson-visuals");
+                        if(!host){
+                            host=document.createElement("div");
+                            host.className="lesson-visuals";
+                            bubble.appendChild(host);
+                        }
+                        host.insertAdjacentHTML("beforeend",
+                            `<div class="linked-lesson-visual nabil-fallback-visual" data-card-index="1">${fallbackHTML}</div>`
+                        );
+                        bubble.classList.add("has-lesson-visual");
+                        layoutLessonBoard(bubble);
+                    }
+                }
+            }catch(err){
+                console.warn("NABIL visual safety net:",err);
+            }
 
             // Interactive board: absolutely nothing from the lesson is visible
             // before Nabil starts the first card.
@@ -7368,8 +7462,68 @@ function nabilCleanFunctionExpressionLabel(raw){
     return s.replace(/[;,]+$/,'').trim();
 }
 
-function renderNabilDiagram(spec){
-    if (!spec || typeof spec !== "object") return "";
+function nabilCompleteVisualSpec(rawSpec){
+    const spec={...(rawSpec||{})};
+    spec.labels={...(rawSpec?.labels||{})};
+    const type=String(spec.type||"").toLowerCase();
+
+    // Analytic/coordinate diagrams: every supplied point receives a visible name.
+    if(/coordinate|orthonormal|analytic|vector_plane/.test(type)){
+        const pts=Array.isArray(spec.points)?spec.points:[];
+        spec.points=pts.map((p,i)=>{
+            const name=(Array.isArray(spec.point_labels)&&spec.point_labels[i]) ||
+                       spec.labels[String.fromCharCode(65+i)] ||
+                       String.fromCharCode(65+i);
+            if(Array.isArray(p)){
+                return {x:Number(p[0]),y:Number(p[1]),label:name,projections:spec.projections!==false};
+            }
+            if(p&&typeof p==="object"){
+                return {...p,label:p.label||name};
+            }
+            return p;
+        });
+    }
+
+    // Geometry: no anonymous vertices.
+    if(/triangle|pythagoras|right_triangle/.test(type)){
+        spec.labels.A=spec.labels.A||spec.point_a||"A";
+        spec.labels.B=spec.labels.B||spec.point_b||"B";
+        spec.labels.C=spec.labels.C||spec.point_c||"C";
+    }
+    if(/square|rectangle|parallelogram|rhombus/.test(type)){
+        ["A","B","C","D"].forEach(k=>spec.labels[k]=spec.labels[k]||k);
+    }
+
+    // Circuits: visible component names.
+    if(/circuit|electric/.test(type)&&Array.isArray(spec.components)){
+        let r=0,b=0,l=0;
+        spec.components=spec.components.map(c=>{
+            if(!c||typeof c!=="object") return c;
+            const copy={...c}, ct=String(copy.type||"").toLowerCase();
+            if(/resistor|resistance/.test(ct)){r++;copy.label=copy.label||`R${r}`;}
+            else if(/battery|source|generator/.test(ct)){b++;copy.label=copy.label||(b===1?"U":`U${b}`);}
+            else if(/lamp|bulb/.test(ct)){l++;copy.label=copy.label||`L${l}`;}
+            return copy;
+        });
+    }
+
+    // Science visuals: ensure the main visible structures have names.
+    if(/atom/.test(type)){
+        spec.labels.nucleus=spec.labels.nucleus||"nucleus";
+        spec.labels.electron=spec.labels.electron||"electron e⁻";
+    }
+    if(/cell/.test(type)){
+        spec.labels.nucleus=spec.labels.nucleus||"Nucleus";
+        spec.labels.mitochondrion=spec.labels.mitochondrion||"Mitochondrion";
+        spec.labels.vacuole=spec.labels.vacuole||"Vacuole";
+    }
+
+    return spec;
+}
+
+function renderNabilDiagram(rawSpec){
+    if (!rawSpec || typeof rawSpec !== "object") return "";
+    const spec=nabilCompleteVisualSpec(rawSpec);
 
     const aliases = {
         "periodic-table":"periodic_table",
@@ -7400,6 +7554,10 @@ function renderNabilDiagram(spec){
         lewis_structure: "ionic_bond",
         plant_cell: "cell_diagram",
         animal_cell: "cell_diagram",
+        magnetic_field: "magnetic_field",
+        magnet_field: "magnetic_field",
+        bar_magnet: "magnetic_field",
+        magnetic_field_bar_magnet: "magnetic_field",
         periodic_table_snippet: "periodic_table",
         reaction_energy: "energy_diagram",
         energy_profile: "energy_diagram",
@@ -7450,6 +7608,58 @@ function renderNabilDiagram(spec){
         }
     }
 
+
+    if (t === "concept_map"){
+        const lang=String(languageSelect?.value||"English");
+        const titleText=title || spec.lesson || "Concept Map";
+
+        const labels = lang==="Français"
+            ? ["Idée principale","Relations","Application"]
+            : lang==="العربية"
+                ? ["الفكرة الأساسية","العلاقات","التطبيق"]
+                : ["Main Idea","Relations","Application"];
+
+        return nabilVisualWrap(titleText,`
+        <svg viewBox="0 0 560 330" role="img" aria-label="${nabilEsc(titleText)}">
+          <defs>
+            <marker id="conceptArrow" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto">
+              <polygon points="0 0, 8 3.5, 0 7" fill="#67e8f9"/>
+            </marker>
+          </defs>
+
+          <rect x="180" y="118" width="200" height="82" rx="18"
+                fill="#0d3952" stroke="#67e8f9" stroke-width="2.5"/>
+          <text x="280" y="151" class="vlab" text-anchor="middle"
+                style="font-size:16px;font-weight:900">${nabilEsc(titleText)}</text>
+          <text x="280" y="177" class="vlab vsmall" text-anchor="middle">
+            ${nabilEsc(labels[0])}
+          </text>
+
+          <rect x="25" y="35" width="145" height="58" rx="14"
+                fill="#102b49" stroke="#38bdf8" stroke-width="2"/>
+          <text x="97" y="69" class="vlab" text-anchor="middle">${nabilEsc(labels[1])}</text>
+
+          <rect x="390" y="35" width="145" height="58" rx="14"
+                fill="#102b49" stroke="#4ade80" stroke-width="2"/>
+          <text x="462" y="69" class="vlab" text-anchor="middle">${nabilEsc(labels[2])}</text>
+
+          <path d="M180 135 C140 118 124 100 115 93"
+                fill="none" stroke="#67e8f9" stroke-width="2.2"
+                marker-end="url(#conceptArrow)"/>
+          <path d="M380 135 C420 118 436 100 445 93"
+                fill="none" stroke="#67e8f9" stroke-width="2.2"
+                marker-end="url(#conceptArrow)"/>
+
+          <circle cx="280" cy="245" r="34" fill="#0f3650" stroke="#c084fc" stroke-width="2"/>
+          <text x="280" y="250" class="vlab" text-anchor="middle"
+                style="font-size:13px">
+            ${lang==="Français" ? "Synthèse" : lang==="العربية" ? "خلاصة" : "Summary"}
+          </text>
+          <path d="M280 200 L280 210" stroke="#67e8f9" stroke-width="2.2"
+                marker-end="url(#conceptArrow)"/>
+        </svg>`, spec.note || "");
+    }
+
     if (t === "right_triangle" || t === "pythagoras"){
         const av = nabilNumericLength(spec.a ?? L.a);
         const bv = nabilNumericLength(spec.b ?? L.b);
@@ -7475,12 +7685,21 @@ function renderNabilDiagram(spec){
         const midB={x:(P0.x+P2.x)/2,y:P0.y+30};
         const midC={x:(P1.x+P2.x)/2+12,y:(P1.y+P2.y)/2-8};
 
+        const pointA=nabilEsc(L.A || spec.point_a || "A");
+        const pointB=nabilEsc(L.B || spec.point_b || "B");
+        const pointC=nabilEsc(L.C || spec.point_c || "C");
+
         return nabilVisualWrap(title || "مثلث قائم الزاوية",`
         <svg viewBox="0 0 520 320" role="img" aria-label="right triangle">
           <polygon points="${nabilSvgPoint(P0)} ${nabilSvgPoint(P1)} ${nabilSvgPoint(P2)}" fill="url(#nabilSurface3d)" stroke="#67e8f9" stroke-width="3" filter="url(#nabilDepth)"/>
           <circle cx="${P0.x}" cy="${P0.y}" r="5" fill="#f8fafc" stroke="#67e8f9" stroke-width="1.6"/>
           <circle cx="${P1.x}" cy="${P1.y}" r="5" fill="#f8fafc" stroke="#67e8f9" stroke-width="1.6"/>
           <circle cx="${P2.x}" cy="${P2.y}" r="5" fill="#f8fafc" stroke="#67e8f9" stroke-width="1.6"/>
+
+          <text x="${P1.x}" y="${P1.y-14}" class="vlab" text-anchor="middle">${pointA}</text>
+          <text x="${P2.x+12}" y="${P2.y+18}" class="vlab">${pointB}</text>
+          <text x="${P0.x-12}" y="${P0.y+20}" class="vlab" text-anchor="end">${pointC}</text>
+
           <polyline points="${P0.x},${P0.y-28} ${P0.x+28},${P0.y-28} ${P0.x+28},${P0.y}" fill="none" stroke="#ff5d5d" stroke-width="2.6"/>
           <text x="${midA.x}" y="${midA.y}" class="vlab" text-anchor="end">${aLabel}</text>
           <text x="${midB.x}" y="${midB.y}" class="vlab" text-anchor="middle">${bLabel}</text>
@@ -7567,6 +7786,13 @@ function renderNabilDiagram(spec){
           <polygon points="${shape.pts}" fill="url(#${shape.fill})" stroke="${shape.stroke}" stroke-width="3" filter="url(#nabilDepth)"/>
           ${rightAngles}
           ${coords.map(c=>`<circle cx="${c.x}" cy="${c.y}" r="4" fill="#f8fafc" stroke="${shape.stroke}" stroke-width="1.5"/>`).join("")}
+          ${coords.map((c,i)=>{
+              const key=["A","B","C","D"][i];
+              const name=nabilEsc(L[key]||key);
+              const dx=(i===0||i===3)?-12:12;
+              const dy=i<2?-10:20;
+              return `<text x="${c.x+dx}" y="${c.y+dy}" class="vlab" text-anchor="${dx<0?"end":"start"}">${name}</text>`;
+          }).join("")}
           ${sideText}
         </svg>`,spec.note||"");
     }
@@ -7677,11 +7903,16 @@ function renderNabilDiagram(spec){
         const xmin=Number(spec.xmin ?? spec.x_min ?? autoXMin), xmax=Number(spec.xmax ?? spec.x_max ?? autoXMax);
         const ymin=Number(spec.ymin ?? spec.y_min ?? autoYMin), ymax=Number(spec.ymax ?? spec.y_max ?? autoYMax);
         const generatedSeries=nabilFunctionSeries(spec,xmin,xmax,ymin,ymax);
+        const hasExplicitFunction =
+            t==="function" || t==="graph" ||
+            !!spec.expression || !!spec.formula || !!spec.equation ||
+            (Array.isArray(spec.series) && spec.series.length);
+
         const series=Array.isArray(spec.series) && spec.series.length
             ? spec.series
             : generatedSeries.length
                 ? generatedSeries
-                : [{points:pts,color:"#22d3ee"}];
+                : (hasExplicitFunction ? [{points:pts,color:"#22d3ee"}] : []);
         const sx=x=>38+452*(x-xmin)/(xmax-xmin||1);
         const sy=y=>282-242*(y-ymin)/(ymax-ymin||1);
 
@@ -7695,10 +7926,12 @@ function renderNabilDiagram(spec){
 
         const curveColor = (series[0] && series[0].color) || "#22d3ee";
         const cleanExpression = nabilCleanFunctionExpressionLabel(spec.expression || spec.formula || spec.equation || "");
-        const functionLabel = cleanExpression
-            ? `f(x) = ${cleanExpression}`
-            : (spec.function ? `f(x) = ${spec.function}(x)` : (title || "f(x)"));
-        legendItems.push({color:curveColor, dash:false, text:functionLabel});
+        if(series.length){
+            const functionLabel = cleanExpression
+                ? `f(x) = ${cleanExpression}`
+                : (spec.function ? `f(x) = ${spec.function}(x)` : (title || "f(x)"));
+            legendItems.push({color:curveColor, dash:false, text:functionLabel});
+        }
 
         series.forEach((line,i)=>{
             const linePoints=Array.isArray(line)?line:(Array.isArray(line.points)?line.points:[]);
@@ -7780,16 +8013,28 @@ function renderNabilDiagram(spec){
             if([cx,cy,r].every(Number.isFinite)&&r>0) curves+=`<ellipse cx="${sx(cx)}" cy="${sy(cy)}" rx="${Math.abs(sx(cx+r)-sx(cx))}" ry="${Math.abs(sy(cy+r)-sy(cy))}" fill="none" stroke="#9333ea" stroke-width="3"/><text x="${sx(cx+r)+5}" y="${sy(cy)-5}" class="vlab vsmall">${nabilEsc(circle.label||"")}</text>`;
         });
 
-        // Points passed as objects (kept for analytic-plane style usage).
+        // Every analytic-plane point is visible, named, and coordinate-labelled.
         const objectPoints=pts.filter(p=>p && !Array.isArray(p) && typeof p==="object");
         objectPoints.forEach((p,i)=>{
             const x=Number(p.x),y=Number(p.y);
             if(!Number.isFinite(x)||!Number.isFinite(y)) return;
-            const color=p.color||["#ef4444","#2563eb","#169447","#9333ea"][i%4];
+            const color=p.color||["#ff5d5d","#38bdf8","#4ade80","#c084fc"][i%4];
+            const pointName=String(p.label||String.fromCharCode(65+i));
+            const coordLabel=`${pointName}(${x}, ${y})`;
+
             if(spec.projections || p.projections){
-                curves+=`<line x1="${sx(x)}" y1="${sy(y)}" x2="${sx(x)}" y2="${sy(0)}" stroke="#94a3b8" stroke-dasharray="5 5"/><line x1="${sx(x)}" y1="${sy(y)}" x2="${sx(0)}" y2="${sy(y)}" stroke="#94a3b8" stroke-dasharray="5 5"/>`;
+                curves+=`<line x1="${sx(x)}" y1="${sy(y)}" x2="${sx(x)}" y2="${sy(0)}" stroke="${nabilEsc(color)}" stroke-width="1.5" stroke-dasharray="5 5" opacity=".72"/><line x1="${sx(x)}" y1="${sy(y)}" x2="${sx(0)}" y2="${sy(y)}" stroke="${nabilEsc(color)}" stroke-width="1.5" stroke-dasharray="5 5" opacity=".72"/>`;
             }
-            curves+=`<circle cx="${sx(x)}" cy="${sy(y)}" r="6" fill="${nabilEsc(color)}"/><text x="${sx(x)+8}" y="${sy(y)-8}" class="vlab vsmall" style="fill:${nabilEsc(color)}">${nabilEsc(p.label||`(${x}, ${y})`)}</text>`;
+
+            const px=sx(x),py=sy(y);
+            const labelX=Math.min(445,Math.max(48,px+10));
+            const labelY=Math.min(270,Math.max(52,py-12));
+
+            curves+=`
+              <circle cx="${px}" cy="${py}" r="7" fill="${nabilEsc(color)}" stroke="#fff" stroke-width="2"/>
+              <text x="${labelX}" y="${labelY}" class="vlab" style="fill:${nabilEsc(color)};font-weight:900;font-size:13px">${nabilEsc(coordLabel)}</text>
+            `;
+            legendItems.push({color,dash:false,text:coordLabel});
         });
 
         // ===== Legend box (top-right), matching the reference screenshot. =====
@@ -7984,6 +8229,77 @@ function renderNabilDiagram(spec){
           <line x1="430" y1="184" x2="565" y2="122" stroke="#d3e6f8" stroke-width="1.8" stroke-dasharray="7 6" opacity=".68"/>
           <text x="532" y="104" class="vlab vsmall" style="fill:#dbeafe">up the plane</text>
         </svg>`,spec.note||"");
+    }
+
+
+    if (t === "magnetic_field"){
+        const lang=String(languageSelect?.value||"English");
+        const titleText = title || (
+            lang==="Français" ? "Champ magnétique d’un aimant droit" :
+            lang==="العربية" ? "المجال المغناطيسي حول مغناطيس مستقيم" :
+            "Magnetic Field Around a Bar Magnet"
+        );
+
+        const north = nabilEsc(spec.labels?.north || "N");
+        const south = nabilEsc(spec.labels?.south || "S");
+
+        return nabilVisualWrap(titleText,`
+        <svg viewBox="0 0 560 330" role="img" aria-label="${nabilEsc(titleText)}">
+          <defs>
+            <marker id="magArrowA" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto">
+              <polygon points="0 0, 8 3.5, 0 7" fill="#67e8f9"/>
+            </marker>
+            <linearGradient id="magBarGradA" x1="0" x2="1">
+              <stop offset="0" stop-color="#ef4444"/>
+              <stop offset="0.5" stop-color="#ef4444"/>
+              <stop offset="0.5" stop-color="#2563eb"/>
+              <stop offset="1" stop-color="#2563eb"/>
+            </linearGradient>
+          </defs>
+
+          <rect x="190" y="135" width="180" height="60" rx="9"
+                fill="url(#magBarGradA)" stroke="#e5f7ff" stroke-width="2"/>
+          <line x1="280" y1="135" x2="280" y2="195" stroke="#e5f7ff" stroke-width="2"/>
+
+          <text x="235" y="172" class="vlab" text-anchor="middle"
+                style="font-size:23px;font-weight:900">${north}</text>
+          <text x="325" y="172" class="vlab" text-anchor="middle"
+                style="font-size:23px;font-weight:900">${south}</text>
+
+          <!-- Outer magnetic field lines, from N to S outside the magnet -->
+          <path d="M190 150 C105 90 105 55 280 42 C455 55 455 90 370 150"
+                fill="none" stroke="#67e8f9" stroke-width="2.5"
+                marker-end="url(#magArrowA)"/>
+          <path d="M190 142 C130 108 130 82 280 74 C430 82 430 108 370 142"
+                fill="none" stroke="#38bdf8" stroke-width="2.1"
+                marker-end="url(#magArrowA)"/>
+          <path d="M190 180 C130 215 130 242 280 250 C430 242 430 215 370 180"
+                fill="none" stroke="#38bdf8" stroke-width="2.1"
+                marker-end="url(#magArrowA)"/>
+          <path d="M190 188 C105 250 105 285 280 298 C455 285 455 250 370 188"
+                fill="none" stroke="#67e8f9" stroke-width="2.5"
+                marker-end="url(#magArrowA)"/>
+
+          <!-- Small direction arrows near poles -->
+          <path d="M170 120 C145 110 128 105 112 101"
+                fill="none" stroke="#a5f3fc" stroke-width="2"
+                marker-end="url(#magArrowA)"/>
+          <path d="M390 120 C415 110 432 105 448 101"
+                fill="none" stroke="#a5f3fc" stroke-width="2"
+                marker-end="url(#magArrowA)"/>
+
+          <text x="280" y="22" class="vlab" text-anchor="middle"
+                style="font-size:13px">
+            ${lang==="Français" ? "Les lignes extérieures vont de N vers S" :
+              lang==="العربية" ? "خارج المغناطيس تتجه خطوط المجال من N إلى S" :
+              "Outside the magnet, field lines go from N to S"}
+          </text>
+        </svg>`,
+        spec.note || (
+            lang==="Français" ? "Les lignes sont plus denses près des pôles." :
+            lang==="العربية" ? "تكون خطوط المجال أكثر كثافة قرب القطبين." :
+            "Field lines are denser near the poles."
+        ));
     }
 
     if (t === "electric_series" || t === "electric_parallel" || t === "electric_mixed" || t === "electric_circuit"){
@@ -8722,6 +9038,19 @@ function safeFallbackDiagramForReply(text){
         });
     }
 
+
+    if (/magnetic field created by a magnet|magnetic field.*magnet|bar magnet|champ magnetique.*aimant|aimant.*champ magnetique|المجال المغناطيسي.*مغناطيس|مغناطيس.*مجال مغناطيسي/.test(combined)){
+        return renderNabilDiagram({
+            type:"magnetic_field",
+            title: languageSelect?.value === "العربية"
+                ? "المجال المغناطيسي حول مغناطيس مستقيم"
+                : languageSelect?.value === "Français"
+                    ? "Champ magnétique d’un aimant droit"
+                    : "Magnetic Field Around a Bar Magnet",
+            labels:{north:"N",south:"S"}
+        });
+    }
+
     if (/periodic table|tableau periodique|الجدول الدوري/.test(combined)){
         return renderNabilDiagram({
             type:"periodic_table",
@@ -8744,42 +9073,158 @@ function safeFallbackDiagramForReply(text){
         });
     }
 
+    const registrySpec=autoDiagramSpecForLesson(lesson);
+    if(registrySpec){
+        try{
+            return renderNabilDiagram(registrySpec);
+        }catch(err){
+            console.warn("NABIL fallback registry render error",err);
+        }
+    }
+
     return "";
 }
 
 function autoDiagramSpecForLesson(lesson){
-    const s=nabilNormalize(lesson||"");
+    const rawLesson=String(lesson||"");
+    const s=nabilNormalize(rawLesson);
+    const subject=String(subjectSelect?.value||"").toLowerCase();
 
-    /* Safe conceptual fallback for Ionic Bond:
-       only uses the canonical Na -> Cl electron-transfer visual already
-       supported by NABIL's renderer; no invented measurements or coordinates. */
-    if(/ionic bond|ionic bonding|رابطه ايونيه|الرابطه الايونيه|liaison ionique/.test(s)){
-        return {
-            type:"ionic_bond",
-            title:"Formation of NaCl by Electron Transfer",
-            labels:{metal:"Na",nonmetal:"Cl"}
-        };
+    const family =
+        /math|رياضيات|mathématique/.test(subject) ? "math" :
+        /physics|فيزياء|physique/.test(subject) ? "physics" :
+        /chemistry|كيمياء|chimie/.test(subject) ? "chemistry" :
+        /biology|life science|علوم الحياة|أحياء|biologie/.test(subject) ? "biology" :
+        /science|علوم/.test(subject) ? "science" :
+        /geography|جغرافيا|géographie/.test(subject) ? "geography" :
+        /history|تاريخ|histoire/.test(subject) ? "history" :
+        /arabic|english|french|français|لغة|عربي|إنكليزي|انكليزي|فرنسي/.test(subject) ? "language" :
+        "default";
+
+    // ---------------- Math ----------------
+    if(family==="math"){
+        if(/pythag|فيثاغورس/.test(s))
+            return {type:"right_triangle",title:rawLesson,labels:{A:"A",B:"B",C:"C",a:"a",b:"b",c:"c"}};
+        if(/circle|tangent|دائره|مماس|cercle|tangente/.test(s))
+            return {type:"circle_tangent",title:rawLesson};
+        if(/coordinate|orthonormal|repere|repère|إحداث|معلم|cartesian/.test(s))
+            return {type:"coordinate_plane",title:rawLesson};
+        if(/vector|vecteur|متجه/.test(s))
+            return {type:"vector_plane",title:rawLesson,vectors:[{label:"u",x:3,y:2}]};
+        if(/function|graph|curve|dériv|derivative|logarith|exponential|continuity|asymptote|داله|دالة|تابع|منحنى/.test(s))
+            return {type:"coordinate_plane",title:rawLesson};
+        if(/statistics|statistique|إحصاء|frequency|data/.test(s))
+            return {type:"statistics",title:rawLesson};
+        if(/probability|probabilité|احتمال/.test(s))
+            return {type:"probability_tree",title:rawLesson};
+        if(/triangle|مثلث/.test(s))
+            return {type:"triangle",title:rawLesson,labels:{A:"A",B:"B",C:"C"}};
+        if(/rectangle|مستطيل/.test(s))
+            return {type:"rectangle",title:rawLesson};
+        if(/square|carré|مربع/.test(s))
+            return {type:"square",title:rawLesson};
+        if(/cylinder|اسطوان/.test(s))
+            return {type:"cylinder",title:rawLesson};
+        if(/cone|مخروط/.test(s))
+            return {type:"cone",title:rawLesson};
+        if(/sphere|كره|كرة/.test(s))
+            return {type:"sphere",title:rawLesson};
+        if(/cube|مكعب/.test(s))
+            return {type:"cube",title:rawLesson};
+        if(/number line|خط الاعداد|خط الأعداد|interval|inequal/.test(s))
+            return {type:"number_line",title:rawLesson,min:-5,max:5};
+        return {type:"concept_map",title:rawLesson,lesson:rawLesson};
     }
 
-    if(/فيثاغورس|pythag/.test(s)) return {type:"right_triangle",title:"مثلث قائم الزاوية",labels:{a:"a",b:"b",c:"c"}};
-    if(/مماس|tangent|circle|دائره/.test(s)) return {type:"circle_tangent",title:"الدائرة والمماس"};
-    if(/اسطوان|cylinder/.test(s)) return {type:"cylinder",title:"الأسطوانة"};
-    if(/مخروط|cone/.test(s)) return {type:"cone",title:"المخروط"};
-    if(/كره|sphere/.test(s)) return {type:"sphere",title:"الكرة"};
-    if(/مكعب|cube/.test(s)) return {type:"cube",title:"المكعب"};
-    if(/متوازي مستطيلات|rectangular prism|cuboid/.test(s)) return {type:"rectangular_prism",title:"متوازي المستطيلات"};
-    if(/سطح مائل|inclined|قوى|forces/.test(s)) return {type:"inclined_plane",title:"القوى على سطح مائل"};
-    if(/orthonormal|متعامد|معلم/.test(s)) return {type:"orthonormal_plane",title:"معلم متعامد"};
-    if(/vector|متجه/.test(s)) return {type:"vector_plane",title:"المتجهات",vectors:[{label:"v",x:4,y:2}]};
-    if(/plane|مستوى هندسي/.test(s)) return {type:"plane",title:"مستوى هندسي"};
-    if(/prism|منشور/.test(s)) return {type:"prism",title:"منشور"};
-    if(/pyramid|هرم/.test(s)) return {type:"pyramid",title:"هرم"};
-    if(/توالي|series circuit/.test(s)) return {type:"electric_series",title:"دارة كهربائية على التوالي"};
-    if(/توازي|parallel circuit/.test(s)) return {type:"electric_parallel",title:"دارة كهربائية على التوازي"};
-    if(/دارة|circuit/.test(s)) return {type:"electric_mixed",title:"دارة كهربائية"};
-    if(/خط الاعداد|number line/.test(s)) return {type:"number_line",title:"خط الأعداد",min:-5,max:5};
-    if(/احداث|coordinate|graph|function|داله/.test(s)) return {type:"coordinate_plane",title:"المستوى الإحداثي"};
-    return null;
+    // ---------------- Physics ----------------
+    if(family==="physics"){
+        if(/magnetic field|magnet|aimant|champ magnetique|مجال مغناطيسي|مغناطيس/.test(s))
+            return {type:"magnetic_field",title:rawLesson,labels:{north:"N",south:"S"}};
+        if(/electromagnetic induction|induction electromagnetique|حث كهرومغناطيسي/.test(s))
+            return {type:"magnetic_field",title:rawLesson,labels:{north:"N",south:"S"}};
+        if(/circuit|electric current|resistor|ohm|capacitor|generator|receiver|دارة|تيار كهربائي|مقاوم|مكثف/.test(s))
+            return {type:"electric_circuit",title:rawLesson};
+        if(/series|توالي/.test(s))
+            return {type:"electric_series",title:rawLesson};
+        if(/parallel|توازي/.test(s))
+            return {type:"electric_parallel",title:rawLesson};
+        if(/force|newton|قوة|قوى/.test(s))
+            return {type:"forces",title:rawLesson};
+        if(/inclined|سطح مائل/.test(s))
+            return {type:"inclined_plane",title:rawLesson};
+        if(/spring|hooke|نابض/.test(s))
+            return {type:"spring",title:rawLesson};
+        if(/wave|oscillation|sound|موج|اهتزاز|صوت/.test(s))
+            return {type:"wave",title:rawLesson};
+        if(/motion|velocity|speed|acceleration|حرك|سرعة|تسارع/.test(s))
+            return {type:"motion",title:rawLesson};
+        if(/light|reflection|refraction|lens|mirror|optics|ضوء|انعكاس|انكسار|عدسة|مرآة/.test(s))
+            return {type:"optics_ray",title:rawLesson};
+        if(/energy|work|power|طاقة|شغل|قدرة/.test(s))
+            return {type:"energy_diagram",title:rawLesson};
+        return {type:"concept_map",title:rawLesson,lesson:rawLesson};
+    }
+
+    // ---------------- Chemistry ----------------
+    if(family==="chemistry"){
+        if(/ionic bond|ionic bonding|رابطه ايونيه|الرابطه الايونيه|liaison ionique/.test(s))
+            return {type:"ionic_bond",title:rawLesson,labels:{metal:"Na",nonmetal:"Cl"}};
+        if(/atom|atomic|ذرة/.test(s))
+            return {type:"atom_model",title:rawLesson};
+        if(/molecule|molecular|جزيء/.test(s))
+            return {type:"molecule",title:rawLesson};
+        if(/periodic table|tableau periodique|الجدول الدوري/.test(s))
+            return {type:"periodic_table",title:rawLesson};
+        if(/states of matter|classification of matter|حالات الماده|حالات المادة/.test(s))
+            return {type:"states_of_matter",title:rawLesson};
+        if(/energy|enthalpy|طاقة/.test(s))
+            return {type:"energy_diagram",title:rawLesson};
+        if(/reaction|kinetic|rate|تفاعل|سرعة التفاعل/.test(s))
+            return {type:"energy_diagram",title:rawLesson};
+        if(/electro|redox|oxidation|reduction|أكسدة|اختزال/.test(s))
+            return {type:"electric_circuit",title:rawLesson};
+        return {type:"concept_map",title:rawLesson,lesson:rawLesson};
+    }
+
+    // ---------------- Biology / Life Sciences ----------------
+    if(family==="biology"){
+        if(/cell|خلية|cellule/.test(s))
+            return {type:"cell_diagram",title:rawLesson};
+        if(/life cycle|cycle de vie|دورة حياة/.test(s))
+            return {type:"life_cycle",title:rawLesson};
+        if(/food chain|food web|سلسلة غذائية|شبكة غذائية/.test(s))
+            return {type:"life_cycle",title:rawLesson};
+        if(/reproduction|fertilization|mitosis|meiosis|تكاثر|إخصاب|انقسام/.test(s))
+            return {type:"life_cycle",title:rawLesson};
+        if(/circulation|respiration|digestion|nervous|immune|دوران|تنفس|هضم|عصبي|مناعة/.test(s))
+            return {type:"cell_diagram",title:rawLesson};
+        if(/chromosome|dna|gene|genetic|وراث|كروموسوم|جين/.test(s))
+            return {type:"cell_diagram",title:rawLesson};
+        if(/ecosystem|environment|بيئة/.test(s))
+            return {type:"life_cycle",title:rawLesson};
+        return {type:"concept_map",title:rawLesson,lesson:rawLesson};
+    }
+
+    // ---------------- General Science ----------------
+    if(family==="science"){
+        if(/magnet|مغناطيس/.test(s)) return {type:"magnetic_field",title:rawLesson,labels:{north:"N",south:"S"}};
+        if(/electric|circuit|كهرباء|دارة/.test(s)) return {type:"electric_circuit",title:rawLesson};
+        if(/cell|خلية/.test(s)) return {type:"cell_diagram",title:rawLesson};
+        if(/states|matter|مادة|حالات/.test(s)) return {type:"states_of_matter",title:rawLesson};
+        if(/water cycle|دورة الماء/.test(s)) return {type:"life_cycle",title:rawLesson};
+        if(/food chain|سلسلة غذائية/.test(s)) return {type:"life_cycle",title:rawLesson};
+        if(/light|ضوء/.test(s)) return {type:"optics_ray",title:rawLesson};
+        if(/force|قوة/.test(s)) return {type:"forces",title:rawLesson};
+        return {type:"concept_map",title:rawLesson,lesson:rawLesson};
+    }
+
+    // ---------------- Other indexed/available subjects ----------------
+    if(family==="geography" || family==="history" || family==="language"){
+        return {type:"concept_map",title:rawLesson,lesson:rawLesson};
+    }
+
+    // Last fallback for any indexed lesson.
+    return rawLesson ? {type:"concept_map",title:rawLesson,lesson:rawLesson} : null;
 }
 
 function injectInitialLessonVisual(){
