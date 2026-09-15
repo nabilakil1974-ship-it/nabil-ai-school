@@ -1213,41 +1213,7 @@ body.nabil-home-lock{overflow:hidden}
 }
 
 
-/* NABIL personality gesture: smile + one raised eyebrow */
-#nabilHome .nabil-personal-brow{
-    position:absolute;
-    left:48.8%;
-    top:28.9%;
-    width:4.8%;
-    height:.65%;
-    border-radius:999px;
-    background:#7cf4ff;
-    box-shadow:0 0 12px rgba(124,244,255,.95);
-    opacity:0;
-    z-index:18;
-    pointer-events:none;
-    transform-origin:center;
-}
-#nabilHome.is-personal-smile .nabil-personal-brow{
-    opacity:1;
-    animation:nabilRaisedBrow .8s ease-in-out 2;
-}
-#nabilHome.is-personal-smile .avatar-mouth{
-    opacity:1 !important;
-    height:1.5% !important;
-    background:transparent !important;
-    border-bottom:7px solid #55eaff !important;
-    border-radius:0 0 60px 60px !important;
-    box-shadow:0 5px 10px rgba(44,219,255,.55) !important;
-    animation:nabilSmilePop .9s ease-in-out 2 !important;
-}
-@keyframes nabilRaisedBrow{
-    0%,100%{transform:translateY(0) rotate(-7deg)}
-    50%{transform:translateY(-11px) rotate(-12deg)}
-}
-@keyframes nabilSmilePop{
-    0%,100%{transform:scaleX(1) scaleY(.8)}
-    50%{transform:scaleX(1.18) scaleY(1.05)}
+50%{transform:scaleX(1.18) scaleY(1.05)}
 }
 
 
@@ -2795,6 +2761,102 @@ body.nabil-home-lock::before{
     line-height:1.45;
 }
 
+
+
+/* v29 — hard one-card sequencing */
+.board-writing-mode .lesson-card-stack > .lesson-concept-card{
+    display:none!important;
+}
+.board-writing-mode .lesson-card-stack > .lesson-concept-card.nabil-board-current{
+    display:block!important;
+}
+.board-writing-mode .nabil-type-char{
+    opacity:0!important;
+    visibility:hidden!important;
+}
+.board-writing-mode .nabil-type-char.is-visible{
+    opacity:1!important;
+    visibility:visible!important;
+}
+
+
+
+/* v30 — lesson avatar speaks like the home avatar */
+.lesson-avatar-live{
+    position:relative;
+    width:150px;
+    height:150px;
+    margin:auto;
+    border-radius:18px;
+}
+.lesson-avatar-live img{
+    width:100%!important;
+    height:100%!important;
+    margin:0!important;
+    display:block;
+}
+.lesson-avatar-eye-glow{
+    position:absolute;
+    left:21%;
+    top:28%;
+    width:58%;
+    height:19%;
+    border-radius:50%;
+    opacity:0;
+    pointer-events:none;
+    box-shadow:0 0 20px 8px rgba(70,215,255,.18);
+}
+.lesson-avatar-mouth{
+    position:absolute;
+    left:43%;
+    top:55%;
+    width:14%;
+    height:4%;
+    border-radius:0 0 50% 50%;
+    background:#34ddff;
+    box-shadow:0 0 10px rgba(52,221,255,.9);
+    opacity:0;
+    transform-origin:center top;
+    pointer-events:none;
+}
+.lesson-tutor-card.is-speaking .lesson-avatar-live{
+    animation:nabilLessonAvatarSpeak .55s ease-in-out infinite alternate;
+    filter:drop-shadow(0 0 10px rgba(70,215,255,.22));
+}
+.lesson-tutor-card.is-speaking .lesson-avatar-mouth{
+    opacity:.95;
+    animation:nabilLessonMouth .17s ease-in-out infinite alternate;
+}
+.lesson-tutor-card.is-speaking .lesson-avatar-eye-glow{
+    opacity:1;
+    animation:nabilLessonBlink 3.6s infinite;
+}
+@keyframes nabilLessonAvatarSpeak{
+    from{transform:translateY(0) scale(1)}
+    to{transform:translateY(-3px) scale(1.015)}
+}
+@keyframes nabilLessonMouth{
+    from{transform:scaleY(.35)}
+    to{transform:scaleY(2)}
+}
+@keyframes nabilLessonBlink{
+    0%,45%,49%,100%{transform:scaleY(1)}
+    47%{transform:scaleY(.08)}
+}
+@media(max-width:900px){
+    .lesson-avatar-live{
+        grid-area:avatar;
+        width:70px;
+        height:70px;
+        margin:0;
+    }
+    .lesson-tutor-card .lesson-avatar-live img{
+        width:70px!important;
+        height:70px!important;
+        max-width:none!important;
+    }
+}
+
 </style>
 </head>
 
@@ -3024,7 +3086,11 @@ body.nabil-home-lock::before{
 <aside class="lesson-tutor-card" aria-label="NABIL AI learning assistant">
 <strong class="lesson-tutor-name">NABIL AI</strong>
 <span class="lesson-tutor-subtitle">Your Learning Assistant</span>
-<img src="/static/nabil-lesson-avatar.png" alt="NABIL AI learning assistant">
+<div class="lesson-avatar-live" aria-hidden="true">
+    <img src="/static/nabil-lesson-avatar.png" alt="NABIL AI learning assistant">
+    <span class="lesson-avatar-eye-glow"></span>
+    <span class="lesson-avatar-mouth"></span>
+</div>
 <div class="lesson-tutor-message" id="lessonTutorMessage">
     I'm here to help you learn.
     <br>Ask me any question, anytime!
@@ -4608,100 +4674,100 @@ function buildCumulativeFinalCard(bubble, messageDirection, messageLanguage) {
 }
 
 
-function speechText(text) {
+function nabilSpokenMathText(text, language){
+    let content=String(text || "");
 
-    let content =
-        String(text || "");
+    // Never verbalize UI/emotion stage directions accidentally returned by AI.
+    content=content.replace(
+        /(?:ابتسامة|يبتسم|حاجب(?:ان)?\s*مرفوع(?:ان)?|يرفع\s*حاجب(?:ه)?|smiles?|raised\s+eyebrows?|raises?\s+(?:an?\s+)?eyebrow|sourit|hausse\s+les?\s+sourcils?)/gi,
+        " "
+    );
 
+    // Strip display wrappers but KEEP their mathematical content.
+    content=content
+        .replace(/\$\$/g," ")
+        .replace(/\\\[/g," ")
+        .replace(/\\\]/g," ")
+        .replace(/\\\(/g," ")
+        .replace(/\\\)/g," ")
+        .replace(/\$/g," ");
 
-    content =
-        content.replace(
-            /\$\$[\s\S]*?\$\$/g,
-            ""
-        );
+    const isEn=language==="English";
+    const isFr=language==="Français";
 
+    const words=isEn ? {
+        over:" over ", sqrt:" square root of ", squared:" squared ",
+        cubed:" cubed ", plus:" plus ", minus:" minus ",
+        times:" times ", equals:" equals ", lt:" less than ", gt:" greater than ",
+        lte:" less than or equal to ", gte:" greater than or equal to "
+    } : isFr ? {
+        over:" sur ", sqrt:" racine carrée de ", squared:" au carré ",
+        cubed:" au cube ", plus:" plus ", minus:" moins ",
+        times:" fois ", equals:" égale ", lt:" inférieur à ", gt:" supérieur à ",
+        lte:" inférieur ou égal à ", gte:" supérieur ou égal à "
+    } : {
+        over:" على ", sqrt:" الجذر التربيعي لـ ", squared:" تربيع ",
+        cubed:" تكعيب ", plus:" زائد ", minus:" ناقص ",
+        times:" ضرب ", equals:" يساوي ", lt:" أصغر من ", gt:" أكبر من ",
+        lte:" أصغر من أو يساوي ", gte:" أكبر من أو يساوي "
+    };
 
-    content =
-        content.replace(
-            /\\\[[\s\S]*?\\\]/g,
-            ""
-        );
+    // LaTeX structures first.
+    content=content
+        .replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, (_,a,b)=>`${a}${words.over}${b}`)
+        .replace(/\\sqrt\{([^{}]+)\}/g, (_,a)=>`${words.sqrt}${a}`)
+        .replace(/\\boxed\{([^{}]+)\}/g,"$1")
+        .replace(/\\text\{([^{}]+)\}/g,"$1")
+        .replace(/\^\{?2\}?/g,words.squared)
+        .replace(/\^\{?3\}?/g,words.cubed)
+        .replace(/\\leq|≤/g,words.lte)
+        .replace(/\\geq|≥/g,words.gte)
+        .replace(/\\neq|≠/g,isEn ? " not equal to " : isFr ? " différent de " : " لا يساوي ")
+        .replace(/\\times|×/g,words.times)
+        .replace(/\\div|÷/g,words.over);
 
+    // Common remaining LaTeX symbols.
+    content=content
+        .replace(/\\pi\b/g,isEn ? " pi " : isFr ? " pi " : " باي ")
+        .replace(/\\theta\b/g,isEn ? " theta " : isFr ? " thêta " : " ثيتا ")
+        .replace(/\\alpha\b/g,isEn ? " alpha " : isFr ? " alpha " : " ألفا ")
+        .replace(/\\beta\b/g,isEn ? " beta " : isFr ? " bêta " : " بيتا ")
+        .replace(/\\Delta\b/g,isEn ? " delta " : isFr ? " delta " : " دلتا ")
+        .replace(/\\[a-zA-Z]+/g," ");
 
-    content =
-        content.replace(
-            /\\\([\s\S]*?\\\)/g,
-            ""
-        );
+    // Operators. "/" is NEVER read as "slash" or "dash".
+    content=content
+        .replace(/<=/g,words.lte)
+        .replace(/>=/g,words.gte)
+        .replace(/=/g,words.equals)
+        .replace(/\+/g,words.plus)
+        .replace(/−|–|—/g,"-")
+        .replace(/-/g,words.minus)
+        .replace(/\*/g,words.times)
+        .replace(/\//g,words.over)
+        .replace(/</g,words.lt)
+        .replace(/>/g,words.gt);
 
+    // Force standalone algebraic variables to be pronounced as letters.
+    // Uppercase helps TTS engines say "X" / "Y" instead of guessing a word.
+    content=content
+        .replace(/\bx\b/gi," X ")
+        .replace(/\by\b/gi," Y ")
+        .replace(/\bz\b/gi," Z ");
 
-    content =
-        content.replace(
-            /\\frac\{([^{}]+)\}\{([^{}]+)\}/g,
-            "$1 على $2"
-        );
+    // Remove markdown/emoji/noise that TTS sometimes verbalizes.
+    content=content
+        .replace(/[*_#>`~]/g," ")
+        .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu," ")
+        .replace(/\s+/g," ")
+        .trim();
 
-
-    content =
-        content.replace(
-            /\\sqrt\{([^{}]+)\}/g,
-            "الجذر التربيعي لـ $1"
-        );
-
-
-    content =
-        content.replace(
-            /\^2/g,
-            " تربيع"
-        );
-
-
-    content =
-        content.replace(
-            /\^3/g,
-            " تكعيب"
-        );
-
-
-    content =
-        content.replace(
-            /\\boxed\{([^{}]+)\}/g,
-            "$1"
-        );
-
-
-    content =
-        content.replace(
-            /\\text\{([^{}]+)\}/g,
-            "$1"
-        );
-
-
-    content =
-        content.replace(
-            /\\[a-zA-Z]+/g,
-            ""
-        );
-
-
-    content =
-        content.replace(
-            /[*_#>`]/g,
-            ""
-        );
-
-
-    content =
-        content.replace(
-            /\s+/g,
-            " "
-        );
-
-
-    return content.trim();
-
+    return content;
 }
 
+function speechText(text, language=nabilSelectedLanguage()) {
+    return nabilSpokenMathText(text, language);
+}
 
 function copyAnswer(
     text,
@@ -4795,6 +4861,17 @@ let nabilNeuralAudioUrl = "";
 let nabilTtsAbortController = null;
 let nabilNeuralSpeaking = false;
 
+let nabilSpeechWaitResolve = null;
+
+function nabilSetSpeakingVisual(active){
+    try{
+        nabilHome?.classList.toggle("is-speaking", !!active);
+    }catch(e){}
+    try{
+        document.querySelector(".lesson-tutor-card")?.classList.toggle("is-speaking", !!active);
+    }catch(e){}
+}
+
 function stopNabilNeuralVoice(){
     try{
         if (nabilTtsAbortController) {
@@ -4817,10 +4894,18 @@ function stopNabilNeuralVoice(){
     }
 
     nabilNeuralSpeaking = false;
+    nabilSetSpeakingVisual(false);
 
     try{
-        stopNabilNeuralVoice();
+        if ("speechSynthesis" in window) speechSynthesis.cancel();
     }catch(e){}
+
+    // Release any async board narration that is waiting for audio completion.
+    if(nabilSpeechWaitResolve){
+        const resolve=nabilSpeechWaitResolve;
+        nabilSpeechWaitResolve=null;
+        try{ resolve({cancelled:true}); }catch(e){}
+    }
 }
 
 function nabilSelectedLanguage(){
@@ -4854,11 +4939,13 @@ function browserVoiceFallback(text, language, callbacks={}){
 
     u.onstart = () => {
         nabilNeuralSpeaking = true;
+        nabilSetSpeakingVisual(true);
         callbacks.onstart?.();
     };
 
     const done = () => {
         nabilNeuralSpeaking = false;
+        nabilSetSpeakingVisual(false);
         callbacks.onend?.();
     };
 
@@ -4870,12 +4957,38 @@ function browserVoiceFallback(text, language, callbacks={}){
 }
 
 async function nabilSpeakClear(text, language=nabilSelectedLanguage(), callbacks={}){
-    const cleanText = speechText(String(text || "")).trim();
-    if (!cleanText) return;
+    const cleanText = speechText(String(text || ""), language).trim();
+    if (!cleanText) return {cancelled:false, empty:true};
 
+    // Cancel any previous voice first, BEFORE registering this call's waiter.
     stopNabilNeuralVoice();
 
     nabilTtsAbortController = new AbortController();
+
+    const waitForBrowserFallback = () => new Promise(resolve=>{
+        let settled=false;
+        const done=(cancelled=false)=>{
+            if(settled) return;
+            settled=true;
+            if(nabilSpeechWaitResolve===cancelWait) nabilSpeechWaitResolve=null;
+            resolve({cancelled});
+        };
+        const cancelWait=()=>done(true);
+        nabilSpeechWaitResolve=cancelWait;
+
+        browserVoiceFallback(cleanText, language, {
+            onduration: callbacks.onduration,
+            onstart: callbacks.onstart,
+            onend: ()=>{
+                callbacks.onend?.();
+                done(false);
+            },
+            onerror: ()=>{
+                callbacks.onerror?.();
+                done(false);
+            }
+        });
+    });
 
     try{
         const body = new FormData();
@@ -4891,54 +5004,84 @@ async function nabilSpeakClear(text, language=nabilSelectedLanguage(), callbacks
             }
         );
 
-        if (!response.ok) {
-            throw new Error("TTS endpoint unavailable");
-        }
+        if (!response.ok) throw new Error("TTS endpoint unavailable");
 
         const blob = await response.blob();
-        if (!blob.size) {
-            throw new Error("Empty TTS audio");
-        }
+        if (!blob.size) throw new Error("Empty TTS audio");
 
         nabilNeuralAudioUrl = URL.createObjectURL(blob);
         const audio = new Audio(nabilNeuralAudioUrl);
         nabilNeuralAudio = audio;
 
-        audio.onloadedmetadata = () => {
-            const d = Number(audio.duration);
-            if (Number.isFinite(d) && d > 0) callbacks.onduration?.(d);
-        };
+        return await new Promise(async resolve=>{
+            let settled=false;
 
-        audio.onplay = () => {
-            nabilNeuralSpeaking = true;
-            callbacks.onstart?.();
-        };
+            const settle=(result)=>{
+                if(settled) return;
+                settled=true;
+                if(nabilSpeechWaitResolve===cancelWait) nabilSpeechWaitResolve=null;
+                resolve(result || {cancelled:false});
+            };
 
-        const finish = () => {
-            nabilNeuralSpeaking = false;
-            callbacks.onend?.();
-            if (nabilNeuralAudioUrl) {
-                try{ URL.revokeObjectURL(nabilNeuralAudioUrl); }catch(e){}
-                nabilNeuralAudioUrl = "";
+            const cancelWait=()=>settle({cancelled:true});
+            nabilSpeechWaitResolve=cancelWait;
+
+            audio.onloadedmetadata = () => {
+                const d = Number(audio.duration);
+                if (Number.isFinite(d) && d > 0) callbacks.onduration?.(d);
+            };
+
+            audio.onplay = () => {
+                nabilNeuralSpeaking = true;
+                nabilSetSpeakingVisual(true);
+                callbacks.onstart?.();
+            };
+
+            audio.onended = () => {
+                nabilNeuralSpeaking = false;
+                nabilSetSpeakingVisual(false);
+                callbacks.onend?.();
+
+                if (nabilNeuralAudioUrl) {
+                    try{ URL.revokeObjectURL(nabilNeuralAudioUrl); }catch(e){}
+                    nabilNeuralAudioUrl = "";
+                }
+
+                nabilNeuralAudio = null;
+                settle({cancelled:false});
+            };
+
+            audio.onerror = async () => {
+                nabilNeuralSpeaking = false;
+                nabilSetSpeakingVisual(false);
+
+                if (nabilNeuralAudioUrl) {
+                    try{ URL.revokeObjectURL(nabilNeuralAudioUrl); }catch(e){}
+                    nabilNeuralAudioUrl = "";
+                }
+                nabilNeuralAudio = null;
+
+                // Do not fire "end" before fallback speech actually ends.
+                if(nabilSpeechWaitResolve===cancelWait) nabilSpeechWaitResolve=null;
+                const result = await waitForBrowserFallback();
+                settle(result);
+            };
+
+            try{
+                await audio.play();
+            }catch(_playError){
+                if(nabilSpeechWaitResolve===cancelWait) nabilSpeechWaitResolve=null;
+                const result = await waitForBrowserFallback();
+                settle(result);
             }
-            nabilNeuralAudio = null;
-        };
-
-        audio.onended = finish;
-        audio.onerror = () => {
-            finish();
-            browserVoiceFallback(cleanText, language, callbacks);
-        };
-
-        await audio.play();
+        });
 
     }catch(error){
-        if (error?.name === "AbortError") return;
+        if (error?.name === "AbortError") return {cancelled:true};
         console.warn("NABIL neural TTS fallback:", error);
-        browserVoiceFallback(cleanText, language, callbacks);
+        return await waitForBrowserFallback();
     }
 }
-
 
 function readAnswer(
     text,
@@ -5063,17 +5206,17 @@ async function nabilBoardArabicForCard(cardText){
         const body=new FormData();
         body.append(
             "message",
-            "أنت الأستاذ نبيل وتشرح للطالب المحتوى الحالي فقط بعد أن يراه أو يسمعه بلغته الأصلية. " +
-            "طبّق هذا الأسلوب على كل المواد والصفوف، وليس الرياضيات فقط. " +
-            "تكلم بالعربية الفصحى المبسطة وبأسلوب أستاذ طبيعي، ولا تعِد قراءة النص كاملًا بالعربية. " +
-            "في الرياضيات والفيزياء والكيمياء: لخّص المعطيات، حدّد المطلوب، اشرح لماذا نختار القانون أو الفكرة، " +
-            "وإذا كانت هناك قيمة وسيطة نحتاجها قبل التعويض فقل إننا سنوجدها أولًا، ثم اشرح التعويض والحساب بالقيم الموجودة فقط. " +
-            "في الأحياء والعلوم: اشرح وظيفة الأجزاء أو العلاقة أو التسلسل الموجود في البطاقة فقط. " +
-            "في اللغات: اشرح معنى القاعدة أو الفكرة اللغوية الموجودة في البطاقة مع مثال البطاقة نفسها فقط. " +
-            "في التاريخ والجغرافيا والتربية والمواد الاجتماعية: لخّص الفكرة والسبب والنتيجة الموجودة في المحتوى فقط. " +
-            "ممنوع إضافة أي رقم أو مثال أو معلومة غير موجودة في المحتوى الحالي، وممنوع الانتقال إلى محتوى آخر. " +
-            "حافظ على الأرقام والقيم والأسماء كما هي، واجعل الشرح قصيرًا وطبيعيًا. " +
-            "المحتوى الحالي فقط: " + clean
+            "فسّر لي البطاقة الحالية كأستاذ، ولا تترجمها. لا تعِد صياغة النص كله بالعربية. " +
+            "النص الأصلي يُقرأ أولًا بلغته كما هو، ثم اشرح بالعربية المبسطة فقط الفكرة التعليمية وراءه. " +
+            "قاعدة ثابتة لكل المواد: حافظ على المصطلحات الأكاديمية الأساسية بلغة المادة الأصلية، ولا تترجمها إذا كان الطالب يتعلمها بهذه اللغة. " +
+            "مثلاً في Math قل derivative أو f prime أو integral أو slope أو product rule أو substitution بدل ترجمتها للعربية. " +
+            "وفي Physics/Chemistry/Biology واللغات وباقي المواد، أبقِ المصطلح العلمي أو الأكاديمي الأساسي بلغته الأصلية كما يظهر في الدرس. " +
+            "إذا كانت معطيات: قل باختصار ماذا أعطانا السؤال ولماذا نحتاج هذه المعطيات. " +
+            "إذا كان مطلوبًا: حدّد ما الذي سنبحث عنه مع إبقاء اسم المفهوم أو العملية بلغته الأصلية. " +
+            "إذا كانت قاعدة أو قانونًا: اذكر اسم القاعدة بلغتها الأصلية وقل لماذا سنستعملها الآن. " +
+            "إذا نحتاج قيمة أو خطوة قبل التطبيق: اذكر أننا سنوجدها أولًا ولماذا. " +
+            "إذا كان تعويضًا: اشرح ماذا سنعوّض وأين، من دون إضافة أي رقم جديد. " +
+            "ممنوع الترجمة الحرفية، وممنوع التحية، وممنوع إضافة أمثلة أو معلومات ليست في البطاقة."
         );
         body.append("student_id",getStudentId());
         body.append("current_answer",clean);
@@ -5148,6 +5291,7 @@ function nabilPrepareBoardCards(root){
     return cards.map(card=>{
         const text=nabilBoardCardText(card);
         card.classList.add("nabil-board-card");
+        card.classList.remove("nabil-board-current");
         card.style.display="none";
         const chars=nabilBoardWrapCardCharacters(card);
         return {card,text,chars};
@@ -5157,8 +5301,17 @@ function nabilPrepareBoardCards(root){
 function nabilBoardShowCurrentCard(){
     // Absolutely only one lesson card is visible at a time.
     nabilBoardCards.forEach((item,i)=>{
-        item.card.style.display = i===nabilBoardCardIndex ? "" : "none";
+        const active=i===nabilBoardCardIndex;
+        item.card.classList.toggle("nabil-board-current",active);
+        item.card.style.display = active ? "block" : "none";
     });
+
+    const active=nabilBoardCards[nabilBoardCardIndex]?.card;
+    if(active){
+        requestAnimationFrame(()=>{
+            active.scrollIntoView({behavior:"smooth",block:"nearest"});
+        });
+    }
 }
 
 function nabilBoardRevealCardChar(){
@@ -5284,6 +5437,13 @@ async function nabilBoardSpeakCurrentCard(){
 
     nabilBoardShowCurrentCard();
 
+    const boardControls=nabilBoardCurrentRoot?.querySelector(".nabil-board-controls");
+    if(boardControls){
+        delete boardControls.dataset.waiting;
+        const continueBtn=boardControls.querySelector('[data-board="continue"]');
+        if(continueBtn) continueBtn.textContent="▶ متابعة";
+    }
+
     // --------------------------------------------------------
     // Phase 1: read exactly what is written on THIS card in the
     // selected lesson language. Typewriter follows that reading.
@@ -5292,7 +5452,7 @@ async function nabilBoardSpeakCurrentCard(){
     const originalLanguage=languageSelect?.value || "English";
 
     if(nabilBoardCharIndex < item.chars.length){
-        await nabilSpeakClear(originalText,originalLanguage,{
+        const foreignSpeechResult=await nabilSpeakClear(originalText,originalLanguage,{
             onduration:(duration)=>{
                 if(token!==nabilBoardRunToken || nabilBoardPaused) return;
                 nabilBoardSpeechDuration=Number(duration)||0;
@@ -5312,7 +5472,11 @@ async function nabilBoardSpeakCurrentCard(){
             onend:()=>{}
         });
 
+        if(foreignSpeechResult?.cancelled) return;
         if(token!==nabilBoardRunToken || nabilBoardPaused) return;
+
+        // Audio is now genuinely finished. Complete any last few characters
+        // that may remain because of metadata/timer rounding.
         nabilBoardClearTimer();
         nabilBoardFinishCard();
     }
@@ -5328,7 +5492,7 @@ async function nabilBoardSpeakCurrentCard(){
         nabilBoardCurrentSpeech=arabicExplanation;
         nabilBoardCurrentSpeechLanguage="العربية";
 
-        await nabilSpeakClear(arabicExplanation,"العربية",{
+        const explanationSpeechResult=await nabilSpeakClear(arabicExplanation,"العربية",{
             onstart:()=>{
                 if(token!==nabilBoardRunToken || nabilBoardPaused) return;
                 stopLessonRecognitionTemporarily?.();
@@ -5336,6 +5500,7 @@ async function nabilBoardSpeakCurrentCard(){
             onend:()=>{}
         });
 
+        if(explanationSpeechResult?.cancelled) return;
         if(token!==nabilBoardRunToken || nabilBoardPaused) return;
     }
 
@@ -9351,14 +9516,7 @@ function nabilPersonalReply(message){
 
     /* ---------- NAME / IDENTITY ---------- */
     if (has("شو اسمك","ما اسمك","اسمك شو","اسمك ايه","اسمك","مين حضرتك","what is your name","what's your name","whats your name","comment tu t appelles","comment vous appelez","ton nom","votre nom")){
-        try{
-            nabilHome?.classList.add("is-personal-smile");
-            clearTimeout(window.__nabilPersonalSmileTimer);
-            window.__nabilPersonalSmileTimer = setTimeout(() => {
-                nabilHome?.classList.remove("is-personal-smile");
-            }, 2800);
-        }catch(e){}
-        return nabilPick({
+return nabilPick({
             lb:"اسمي **NABIL AI – الأستاذ نبيل** 😊 أنا مساعد تعليمي رقمي ذكي، موجود لرافق الطالب بالتعلّم وأشرحله بهدوء واحترام خطوة بخطوة.",
             ar:"اسمي **NABIL AI – الأستاذ نبيل** 😊 أنا مساعد تعليمي رقمي ذكي صُممت لمرافقة الطالب في التعلم وشرح الدروس بهدوء واحترام خطوة بخطوة.",
             en:"My name is **NABIL AI – Al-Ostaz Nabil** 😊 I’m an intelligent educational assistant designed to support students with respectful, step-by-step learning.",
