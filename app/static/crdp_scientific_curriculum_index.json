@@ -10,7 +10,7 @@
     ],
     "policy": "lesson_title_is_hard_boundary",
     "note": "Only verified lesson/topic titles are to be added. Missing content must not be invented.",
-    "version": "5",
+    "version": "6",
     "mathematics_source": "CRDP Curriculum of Mathematics - English",
     "mathematics_scope": "Grades 1-9 verified from CRDP scope and sequence",
     "secondary_math_note": "Secondary mathematics depends on section/stream. Do not merge third-secondary branches until the UI includes a branch selector.",
@@ -18,7 +18,8 @@
     "secondary_branching": true,
     "secondary_science_note": "Branch/subject availability is official. Science lesson lists must be populated only from current CRDP annual content documents.",
     "annual_curriculum_year": "2025-2026",
-    "curriculum_policy": "Grade + branch + subject + lesson are hard boundaries. For detailed annual entries, suspended_sections must not be taught."
+    "curriculum_policy": "Grade + branch + subject + lesson are hard boundaries. For detailed annual entries, suspended_sections must not be taught.",
+    "v6_note": "Cumulative release: keeps all V5 content and adds verified 2025-2026 secondary Chemistry and Life Sciences indexing with branch-aware lesson lists and selected suspended-section restrictions from official CRDP documents."
   },
   "subject_availability": {
     "الصف الأول": [
@@ -895,6 +896,45 @@
               "Frequencies and cumulative frequencies",
               "Measures of central tendency and variability"
             ]
+          },
+          "كيمياء": {
+            "English": [
+              "Atoms",
+              "Molecules",
+              "Ions",
+              "Chemical Reactions",
+              "Water",
+              "Acidic and Basic Solutions"
+            ]
+          },
+          "علوم الحياة": {
+            "English": [
+              "Autotrophy and Photosynthesis",
+              "Absorption and Upward Movement of Crude Sap",
+              "Xylem and Stomata",
+              "Translocation and Composition of Elaborated Sap",
+              "Phloem and Use of Synthesized Substances",
+              "Organization of the Nervous System",
+              "Histology of the Nervous System",
+              "Endocrine Glands and Hormonal Communication",
+              "Plant Production and Environmental Factors",
+              "Limiting Factors and Greenhouse Cultures"
+            ]
+          },
+          "فيزياء": {
+            "English": [
+              "Electrostatics",
+              "Potential Difference",
+              "Electric Current",
+              "Resistors",
+              "Generators and Receivers",
+              "Propagation of Light",
+              "Reflection of Light",
+              "Refraction of Light",
+              "Description of Motion",
+              "Rectilinear Motion",
+              "Force and Interaction"
+            ]
           }
         }
       }
@@ -904,7 +944,10 @@
         "إنسانيات": {
           "subjects": [
             "رياضيات",
-            "ثقافة علمية"
+            "ثقافة علمية",
+            "كيمياء",
+            "علوم الحياة",
+            "فيزياء"
           ],
           "رياضيات": {
             "English": [
@@ -922,6 +965,39 @@
               "Primitives of continuous functions",
               "Statistics",
               "Probability"
+            ]
+          },
+          "كيمياء": {
+            "English": [
+              "Soaps",
+              "Detergents",
+              "Impact on the Environment",
+              "General Characteristics of Synthetic Polymers",
+              "Synthetic Polymers and the Environment",
+              "Classification and Toxicity of Pesticides"
+            ]
+          },
+          "علوم الحياة": {
+            "English": [
+              "Male and Female Reproductive Systems",
+              "Ovarian Cycle",
+              "Uterine Cycle",
+              "Hormonal Secretion Cycle",
+              "Fertilization, Embryonic and Fetal Development",
+              "Effectors of the Immune System",
+              "Non-Specific Immune Response",
+              "Specific Immune Response"
+            ]
+          },
+          "فيزياء": {
+            "English": [
+              "Electric Current",
+              "Transformers and Power Transmission",
+              "Domestic Electricity and its Dangers",
+              "Sources and Aspects of Light",
+              "Electromagnetic Waves",
+              "Vibratory Nature of Sound",
+              "The Human Ear as a Sound Detector"
             ]
           }
         },
@@ -952,6 +1028,48 @@
               "Statistics",
               "Probability"
             ]
+          },
+          "كيمياء": {
+            "English": [
+              "Oxidation and Reduction",
+              "Oxidation-Reduction Potential",
+              "Balancing Redox Reactions",
+              "Volumetric Titration of Redox Reaction",
+              "Elemental Analysis",
+              "Hydrocarbons: Alkanes",
+              "Hydrocarbons: Alkenes"
+            ]
+          },
+          "علوم الحياة": {
+            "English": [
+              "The Karyotype",
+              "Mitosis",
+              "Structure and Chemical Components of Chromosomes",
+              "Identical Reproduction and Cell Cycle",
+              "Proteins: Association of Amino Acids",
+              "The Gene: Structure and Information Unit",
+              "Transcription",
+              "Fate of Synthesized Proteins",
+              "Specificity and Mechanism of Enzyme Action",
+              "Energy Expenditure and Basal Metabolism",
+              "Cellular Respiration"
+            ]
+          },
+          "فيزياء": {
+            "English": [
+              "Waves",
+              "Emission and Propagation of Sound",
+              "Reception of Sound",
+              "Motion of a Particle in a Plane",
+              "Newton’s 2nd Law and its Applications",
+              "Systems of Particles",
+              "Rotational Dynamics",
+              "Work and Energy",
+              "Capacitors",
+              "Magnetic Field",
+              "Magnetic Field Created by an Electric Current",
+              "Electromagnetic Force"
+            ]
           }
         }
       }
@@ -961,7 +1079,10 @@
         "آداب وإنسانيات": {
           "subjects": [
             "رياضيات",
-            "ثقافة علمية"
+            "ثقافة علمية",
+            "كيمياء",
+            "علوم الحياة",
+            "فيزياء"
           ],
           "رياضيات": {
             "English": [
@@ -975,12 +1096,46 @@
               "Statistics",
               "Conditional probability and independence"
             ]
+          },
+          "كيمياء": {
+            "English": [
+              "Carbohydrates",
+              "Lipids",
+              "Proteins",
+              "Minerals and Vitamins",
+              "Nutritional Requirements",
+              "Current Medicinal Drugs"
+            ]
+          },
+          "علوم الحياة": {
+            "English": [
+              "Quantitative and Energetic Needs",
+              "Qualitative Needs",
+              "Requirement in Proteins",
+              "Recombinant DNA: Therapeutic Drugs",
+              "Recombinant DNA: Vaccine Production",
+              "Monoclonal Antibodies and Their Applications",
+              "Biotechnology and Environment"
+            ]
+          },
+          "فيزياء": {
+            "English": [
+              "Work and Mechanical Energy",
+              "Forms of Energy",
+              "Sources of Energy and the Pollution they Cause",
+              "Radioactivity",
+              "Stimulated Nuclear Reactions: Fission and Fusion",
+              "Applications and Dangers of Radioactivity"
+            ]
           }
         },
         "اجتماع واقتصاد": {
           "subjects": [
             "رياضيات",
-            "ثقافة علمية"
+            "ثقافة علمية",
+            "كيمياء",
+            "علوم الحياة",
+            "فيزياء"
           ],
           "رياضيات": {
             "English": [
@@ -1003,6 +1158,37 @@
               "Linear adjustment and regression",
               "Conditional and total probability",
               "Random real variables and probability laws"
+            ]
+          },
+          "كيمياء": {
+            "English": [
+              "Carbohydrates",
+              "Lipids",
+              "Proteins",
+              "Minerals and Vitamins",
+              "Nutritional Requirements",
+              "Current Medicinal Drugs"
+            ]
+          },
+          "علوم الحياة": {
+            "English": [
+              "Quantitative and Energetic Needs",
+              "Qualitative Needs",
+              "Requirement in Proteins",
+              "Recombinant DNA: Therapeutic Drugs",
+              "Recombinant DNA: Vaccine Production",
+              "Monoclonal Antibodies and Their Applications",
+              "Biotechnology and Environment"
+            ]
+          },
+          "فيزياء": {
+            "English": [
+              "Work and Mechanical Energy",
+              "Forms of Energy",
+              "Sources of Energy and the Pollution they Cause",
+              "Radioactivity",
+              "Stimulated Nuclear Reactions: Fission and Fusion",
+              "Applications and Dangers of Radioactivity"
             ]
           }
         },
@@ -1031,6 +1217,32 @@
               "Trigonometric equations and circular functions",
               "Statistics and probability"
             ]
+          },
+          "كيمياء": {
+            "English": [
+              "Rate of Reactions",
+              "Kinetic Factors",
+              "Chemical Equilibrium",
+              "Functional Groups",
+              "Alcohols",
+              "Aldehydes and Ketones",
+              "Carboxylic Acids and Derivatives",
+              "pH, Strong Acid, Strong Base and pH-metric Titration",
+              "Weak Acid, Weak Base and Conjugate Acid-Base Pair"
+            ]
+          },
+          "فيزياء": {
+            "English": [
+              "Energy",
+              "Linear Momentum",
+              "Angular Momentum",
+              "Mechanical Oscillations",
+              "Electromagnetic Induction",
+              "Self-Induction",
+              "Alternating Sinusoidal Current",
+              "Wave Aspect of Light – Diffraction",
+              "Corpuscular Aspect of Light – Photoelectric Effect"
+            ]
           }
         },
         "علوم الحياة": {
@@ -1057,6 +1269,59 @@
               "Trigonometry",
               "Statistics and probability"
             ]
+          },
+          "كيمياء": {
+            "English": [
+              "Rate of Reactions",
+              "Kinetic Factors",
+              "Chemical Equilibrium",
+              "Functional Groups",
+              "Alcohols",
+              "Aldehydes and Ketones",
+              "Carboxylic Acids and Derivatives",
+              "pH, Strong Acid, Strong Base and pH-metric Titration",
+              "Weak Acid, Weak Base and Conjugate Acid-Base Pair"
+            ]
+          },
+          "علوم الحياة": {
+            "English": [
+              "Male and Female Reproductive System",
+              "Diploid and Haploid Cells",
+              "Meiosis",
+              "Spermatogenesis",
+              "Oogenesis",
+              "Fertilization",
+              "Transmission of Allelic Genes",
+              "Mutation and the Environment",
+              "Mutation and Multiple Alleles",
+              "Polymorphic Genes in a Population",
+              "Detection of Genetic Polymorphism",
+              "Genetic Identity of Individuals",
+              "Inheritance of Genetic Traits",
+              "Autosomal Diseases",
+              "Sex Linked Traits",
+              "Chromosomal Mutation",
+              "Prenatal Diagnosis",
+              "HLA: a Major Self Marker",
+              "The Non Self",
+              "Cells of the Immune System",
+              "Lymphoid Organs and Immunocompetence",
+              "Contraceptive Methods",
+              "Contragestive Methods",
+              "Medically Assisted Procreation"
+            ]
+          },
+          "فيزياء": {
+            "English": [
+              "Energy",
+              "Linear Momentum",
+              "Mechanical Oscillations",
+              "Electromagnetic Induction",
+              "Self-Induction",
+              "Alternating Sinusoidal Current",
+              "Wave Aspect of Light – Diffraction",
+              "Corpuscular Aspect of Light – Photoelectric Effect"
+            ]
           }
         }
       }
@@ -1066,7 +1331,7 @@
     "sources": {
       "فيزياء": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
       "كيمياء": "https://www.crdp.org/sites/default/files/inline-files/10-chimie_2025-2026_.pdf",
-      "علوم الحياة": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf"
+      "علوم الحياة": "https://ns1.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf"
     },
     "الثانوي": {
       "الأول ثانوي": {
@@ -1208,6 +1473,227 @@
               "notes": "",
               "curriculum_year": "2025-2026"
             }
+          ],
+          "كيمياء": [
+            {
+              "unit": "The Structure of Matter",
+              "title": "Atoms",
+              "page": 18,
+              "allocated_periods": null,
+              "order": 1,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "Electron energy section",
+                "Ionisation Energy",
+                "Electron Affinity",
+                "Selected C-12 remarks/examples indicated as suspended in CRDP 2025-2026"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "The Structure of Matter",
+              "title": "Molecules",
+              "page": null,
+              "allocated_periods": 7,
+              "order": 2,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "Formation and Representation sections specified as suspended",
+                "Single and multiple covalent bonds section",
+                "VSEPR molecular shapes",
+                "Pauling electronegativity scale section",
+                "Mulliken electronegativity scale"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "The Structure of Matter",
+              "title": "Ions",
+              "page": null,
+              "allocated_periods": 3,
+              "order": 3,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "Activity 2",
+                "Ion and Electron Affinity section"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Reactions and Solutions",
+              "title": "Chemical Reactions",
+              "page": 104,
+              "allocated_periods": 16,
+              "order": 4,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "4.4.2 Classification"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Reactions and Solutions",
+              "title": "Water",
+              "page": 141,
+              "allocated_periods": 12,
+              "order": 5,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "5.1 Natural water and pure water",
+                "5.2 Structure",
+                "5.3 Physical Properties",
+                "5.6 The different kinds of water",
+                "5.7 Obtaining potable water"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Reactions and Solutions",
+              "title": "Acidic and Basic Solutions",
+              "page": null,
+              "allocated_periods": 9,
+              "order": 6,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "Selected reactions with metals and bases specified as suspended",
+                "6.4.2 Reactions with Metals"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            }
+          ],
+          "علوم الحياة": [
+            {
+              "unit": "Nutrition in Plants",
+              "title": "Autotrophy and Photosynthesis",
+              "page": 22,
+              "allocated_periods": 9,
+              "order": 1,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Nutrition in Plants",
+              "title": "Absorption and Upward Movement of Crude Sap",
+              "page": 38,
+              "allocated_periods": null,
+              "order": 2,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Nutrition in Plants",
+              "title": "Xylem and Stomata",
+              "page": 40,
+              "allocated_periods": null,
+              "order": 3,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Nutrition in Plants",
+              "title": "Translocation and Composition of Elaborated Sap",
+              "page": 48,
+              "allocated_periods": 2,
+              "order": 4,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Nutrition in Plants",
+              "title": "Phloem and Use of Synthesized Substances",
+              "page": 50,
+              "allocated_periods": null,
+              "order": 5,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Communication in Animals",
+              "title": "Organization of the Nervous System",
+              "page": 64,
+              "allocated_periods": null,
+              "order": 6,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Communication in Animals",
+              "title": "Histology of the Nervous System",
+              "page": 68,
+              "allocated_periods": 2,
+              "order": 7,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Communication in Animals",
+              "title": "Endocrine Glands and Hormonal Communication",
+              "page": null,
+              "allocated_periods": null,
+              "order": 8,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Plant Productivity",
+              "title": "Plant Production and Environmental Factors",
+              "page": 120,
+              "allocated_periods": null,
+              "order": 9,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Plant Productivity",
+              "title": "Limiting Factors and Greenhouse Cultures",
+              "page": 124,
+              "allocated_periods": null,
+              "order": 10,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            }
           ]
         }
       },
@@ -1292,6 +1778,189 @@
               "page": 77,
               "allocated_periods": 4,
               "order": 7,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            }
+          ],
+          "كيمياء": [
+            {
+              "unit": "Soaps and Detergents",
+              "title": "Soaps",
+              "page": 15,
+              "allocated_periods": 6,
+              "order": 1,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "Figures 1.4, 1.5, 1.6 and Table 1.1 indicated as suspended",
+                "Selected saponification equation/figure",
+                "All content on page 19"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Soaps and Detergents",
+              "title": "Detergents",
+              "page": 34,
+              "allocated_periods": 4,
+              "order": 2,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "Different types of surfactants section",
+                "Pages 36-37",
+                "Activity 2.1",
+                "Preparation of detergents subsection"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Soaps and Detergents",
+              "title": "Impact on the Environment",
+              "page": 48,
+              "allocated_periods": 2,
+              "order": 3,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Synthetic Polymers",
+              "title": "General Characteristics of Synthetic Polymers",
+              "page": 59,
+              "allocated_periods": 5,
+              "order": 4,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "Polymerisation reaction indicated as suspended"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Synthetic Polymers",
+              "title": "Synthetic Polymers and the Environment",
+              "page": 87,
+              "allocated_periods": 5,
+              "order": 5,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Pesticides",
+              "title": "Classification and Toxicity of Pesticides",
+              "page": 100,
+              "allocated_periods": 5,
+              "order": 6,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            }
+          ],
+          "علوم الحياة": [
+            {
+              "unit": "Human Reproduction",
+              "title": "Male and Female Reproductive Systems",
+              "page": 13,
+              "allocated_periods": 2,
+              "order": 1,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Human Reproduction",
+              "title": "Ovarian Cycle",
+              "page": 14,
+              "allocated_periods": 2,
+              "order": 2,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Human Reproduction",
+              "title": "Uterine Cycle",
+              "page": 15,
+              "allocated_periods": 2,
+              "order": 3,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Human Reproduction",
+              "title": "Hormonal Secretion Cycle",
+              "page": 16,
+              "allocated_periods": 3,
+              "order": 4,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Human Reproduction",
+              "title": "Fertilization, Embryonic and Fetal Development",
+              "page": 22,
+              "allocated_periods": 2,
+              "order": 5,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Immunology and Health",
+              "title": "Effectors of the Immune System",
+              "page": 76,
+              "allocated_periods": 2.5,
+              "order": 10,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Immunology and Health",
+              "title": "Non-Specific Immune Response",
+              "page": 78,
+              "allocated_periods": 2.5,
+              "order": 11,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Immunology and Health",
+              "title": "Specific Immune Response",
+              "page": 80,
+              "allocated_periods": 2.5,
+              "order": 12,
               "status": "maintained",
               "included_sections": [],
               "suspended_sections": [],
@@ -1458,6 +2127,234 @@
               "notes": "",
               "curriculum_year": "2025-2026"
             }
+          ],
+          "كيمياء": [
+            {
+              "unit": "Electrochemistry",
+              "title": "Oxidation and Reduction",
+              "page": 40,
+              "allocated_periods": 11,
+              "order": 1,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Electrochemistry",
+              "title": "Oxidation-Reduction Potential",
+              "page": 60,
+              "allocated_periods": 9,
+              "order": 2,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Electrochemistry",
+              "title": "Balancing Redox Reactions",
+              "page": 74,
+              "allocated_periods": 8,
+              "order": 3,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "Balancing by the oxidation number method"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Electrochemistry",
+              "title": "Volumetric Titration of Redox Reaction",
+              "page": 112,
+              "allocated_periods": 14,
+              "order": 4,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Organic Chemistry I",
+              "title": "Elemental Analysis",
+              "page": 210,
+              "allocated_periods": 13,
+              "order": 5,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Organic Chemistry I",
+              "title": "Hydrocarbons: Alkanes",
+              "page": 226,
+              "allocated_periods": 12,
+              "order": 6,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "Definitions of saturated and unsaturated hydrocarbons at the location specified by CRDP"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Organic Chemistry I",
+              "title": "Hydrocarbons: Alkenes",
+              "page": 244,
+              "allocated_periods": 14,
+              "order": 7,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "Selected Reactions and Addition Reactions section specified as suspended",
+                "Alkynes section",
+                "Benzene section"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            }
+          ],
+          "علوم الحياة": [
+            {
+              "unit": "Genetic Information",
+              "title": "The Karyotype",
+              "page": 34,
+              "allocated_periods": 2,
+              "order": 1,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Genetic Information",
+              "title": "Mitosis",
+              "page": 36,
+              "allocated_periods": 3,
+              "order": 2,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Genetic Information",
+              "title": "Structure and Chemical Components of Chromosomes",
+              "page": 38,
+              "allocated_periods": 2,
+              "order": 3,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Genetic Information",
+              "title": "Identical Reproduction and Cell Cycle",
+              "page": 40,
+              "allocated_periods": 3,
+              "order": 4,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "From Gene to Protein",
+              "title": "Proteins: Association of Amino Acids",
+              "page": 50,
+              "allocated_periods": null,
+              "order": 5,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "From Gene to Protein",
+              "title": "The Gene: Structure and Information Unit",
+              "page": 52,
+              "allocated_periods": 3,
+              "order": 6,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "From Gene to Protein",
+              "title": "Transcription",
+              "page": 54,
+              "allocated_periods": 3,
+              "order": 7,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "From Gene to Protein",
+              "title": "Fate of Synthesized Proteins",
+              "page": 58,
+              "allocated_periods": 2,
+              "order": 9,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Enzymes",
+              "title": "Specificity and Mechanism of Enzyme Action",
+              "page": 64,
+              "allocated_periods": 1,
+              "order": 10,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Energetic Metabolism",
+              "title": "Energy Expenditure and Basal Metabolism",
+              "page": 100,
+              "allocated_periods": null,
+              "order": 11,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Energetic Metabolism",
+              "title": "Cellular Respiration",
+              "page": 112,
+              "allocated_periods": 3,
+              "order": 14,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            }
           ]
         }
       },
@@ -1536,6 +2433,185 @@
               "notes": "",
               "curriculum_year": "2025-2026"
             }
+          ],
+          "كيمياء": [
+            {
+              "unit": "Food Chemistry",
+              "title": "Carbohydrates",
+              "page": null,
+              "allocated_periods": null,
+              "order": 1,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "Selected starch paragraphs and page 22 as specified by CRDP"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Food Chemistry",
+              "title": "Lipids",
+              "page": 28,
+              "allocated_periods": 3,
+              "order": 2,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "Hydrogenation of fats",
+                "Activity section indicated as suspended"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Food Chemistry",
+              "title": "Proteins",
+              "page": 38,
+              "allocated_periods": 3,
+              "order": 3,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "Selected amino-acid figure and paragraphs 3.3-3.6",
+                "Biological value of proteins section"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Food Chemistry",
+              "title": "Minerals and Vitamins",
+              "page": 48,
+              "allocated_periods": 3,
+              "order": 4,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "Sections 4.2 and 4.4 specified as suspended"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Food Chemistry",
+              "title": "Nutritional Requirements",
+              "page": 56,
+              "allocated_periods": 4,
+              "order": 5,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Current Medicinal Drugs",
+              "title": "Current Medicinal Drugs",
+              "page": 120,
+              "allocated_periods": 9,
+              "order": 6,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "Tablets and Capsules section",
+                "Selected antacids content",
+                "Selected antibiotics content and history of antibiotics"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            }
+          ],
+          "علوم الحياة": [
+            {
+              "unit": "Nutrition and Health",
+              "title": "Quantitative and Energetic Needs",
+              "page": 24,
+              "allocated_periods": 2,
+              "order": 1,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Nutrition and Health",
+              "title": "Qualitative Needs",
+              "page": 26,
+              "allocated_periods": 1,
+              "order": 2,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "Evan-Burr experiment",
+                "Carbohydrate metabolism figure I.25",
+                "Flux of lipids throughout the organism figure I.26",
+                "Selected lipid-composition figures identified as not required"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Nutrition and Health",
+              "title": "Requirement in Proteins",
+              "page": 28,
+              "allocated_periods": 1,
+              "order": 3,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Biotechnology",
+              "title": "Recombinant DNA: Therapeutic Drugs",
+              "page": 128,
+              "allocated_periods": 4,
+              "order": 17,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Biotechnology",
+              "title": "Recombinant DNA: Vaccine Production",
+              "page": 129,
+              "allocated_periods": 4,
+              "order": 18,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Biotechnology",
+              "title": "Monoclonal Antibodies and Their Applications",
+              "page": 130,
+              "allocated_periods": 4,
+              "order": 19,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Biotechnology",
+              "title": "Biotechnology and Environment",
+              "page": 138,
+              "allocated_periods": 4,
+              "order": 20,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            }
           ]
         },
         "اجتماع واقتصاد": {
@@ -1606,6 +2682,185 @@
               "page": 60,
               "allocated_periods": 3,
               "order": 6,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            }
+          ],
+          "كيمياء": [
+            {
+              "unit": "Food Chemistry",
+              "title": "Carbohydrates",
+              "page": null,
+              "allocated_periods": null,
+              "order": 1,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "Selected starch paragraphs and page 22 as specified by CRDP"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Food Chemistry",
+              "title": "Lipids",
+              "page": 28,
+              "allocated_periods": 3,
+              "order": 2,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "Hydrogenation of fats",
+                "Activity section indicated as suspended"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Food Chemistry",
+              "title": "Proteins",
+              "page": 38,
+              "allocated_periods": 3,
+              "order": 3,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "Selected amino-acid figure and paragraphs 3.3-3.6",
+                "Biological value of proteins section"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Food Chemistry",
+              "title": "Minerals and Vitamins",
+              "page": 48,
+              "allocated_periods": 3,
+              "order": 4,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "Sections 4.2 and 4.4 specified as suspended"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Food Chemistry",
+              "title": "Nutritional Requirements",
+              "page": 56,
+              "allocated_periods": 4,
+              "order": 5,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Current Medicinal Drugs",
+              "title": "Current Medicinal Drugs",
+              "page": 120,
+              "allocated_periods": 9,
+              "order": 6,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "Tablets and Capsules section",
+                "Selected antacids content",
+                "Selected antibiotics content and history of antibiotics"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            }
+          ],
+          "علوم الحياة": [
+            {
+              "unit": "Nutrition and Health",
+              "title": "Quantitative and Energetic Needs",
+              "page": 24,
+              "allocated_periods": 2,
+              "order": 1,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Nutrition and Health",
+              "title": "Qualitative Needs",
+              "page": 26,
+              "allocated_periods": 1,
+              "order": 2,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "Evan-Burr experiment",
+                "Carbohydrate metabolism figure I.25",
+                "Flux of lipids throughout the organism figure I.26",
+                "Selected lipid-composition figures identified as not required"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Nutrition and Health",
+              "title": "Requirement in Proteins",
+              "page": 28,
+              "allocated_periods": 1,
+              "order": 3,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Biotechnology",
+              "title": "Recombinant DNA: Therapeutic Drugs",
+              "page": 128,
+              "allocated_periods": 4,
+              "order": 17,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Biotechnology",
+              "title": "Recombinant DNA: Vaccine Production",
+              "page": 129,
+              "allocated_periods": 4,
+              "order": 18,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Biotechnology",
+              "title": "Monoclonal Antibodies and Their Applications",
+              "page": 130,
+              "allocated_periods": 4,
+              "order": 19,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Biotechnology",
+              "title": "Biotechnology and Environment",
+              "page": 138,
+              "allocated_periods": 4,
+              "order": 20,
               "status": "maintained",
               "included_sections": [],
               "suspended_sections": [],
@@ -1712,6 +2967,436 @@
               "page": 270,
               "allocated_periods": 15,
               "order": 8,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            }
+          ],
+          "كيمياء": [
+            {
+              "unit": "Chemical Kinetics",
+              "title": "Rate of Reactions",
+              "page": 30,
+              "allocated_periods": 20,
+              "order": 1,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "Activity: Determination of the rate graphically"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Chemical Kinetics",
+              "title": "Kinetic Factors",
+              "page": 50,
+              "allocated_periods": 20,
+              "order": 2,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "Rate Constant and Reaction Order sections",
+                "Half-life and order of reaction section",
+                "Selected Activity 3 and following pages indicated as suspended",
+                "Importance of catalysis section indicated as suspended"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Chemical Equilibrium",
+              "title": "Chemical Equilibrium",
+              "page": 80,
+              "allocated_periods": 10,
+              "order": 3,
+              "status": "partially_maintained",
+              "included_sections": [
+                "Homogeneous equilibrium in the liquid phase",
+                "Equilibrium constant Kc",
+                "Degree of conversion and degree of dissociation where retained",
+                "Le Chatelier's Principle where retained"
+              ],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Organic Chemistry II",
+              "title": "Functional Groups",
+              "page": 196,
+              "allocated_periods": 7,
+              "order": 4,
+              "status": "partially_maintained",
+              "included_sections": [
+                "Alcohols",
+                "Aldehydes",
+                "Ketones",
+                "Carboxylic acids",
+                "Esters"
+              ],
+              "suspended_sections": [
+                "Other functional groups such as ethers, amines, alkyl chlorides, acid anhydrides and amides"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Organic Chemistry II",
+              "title": "Alcohols",
+              "page": 208,
+              "allocated_periods": 11,
+              "order": 5,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "Physical Properties section indicated as suspended",
+                "Selected ethanol/sodium and substitution content indicated as suspended"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Organic Chemistry II",
+              "title": "Aldehydes and Ketones",
+              "page": null,
+              "allocated_periods": null,
+              "order": 6,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "Teach only the sections retained by the 2025-2026 CRDP annual curriculum.",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Organic Chemistry II",
+              "title": "Carboxylic Acids and Derivatives",
+              "page": 250,
+              "allocated_periods": 10,
+              "order": 7,
+              "status": "partially_maintained",
+              "included_sections": [
+                "Definition and general formula",
+                "Nomenclature",
+                "Structure and isomerism",
+                "Retained carboxylic-acid derivatives content"
+              ],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Acid-Base Reactions in Aqueous Solutions",
+              "title": "pH, Strong Acid, Strong Base and pH-metric Titration",
+              "page": 112,
+              "allocated_periods": 22,
+              "order": 8,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "Effect of concentration section indicated as suspended"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Acid-Base Reactions in Aqueous Solutions",
+              "title": "Weak Acid, Weak Base and Conjugate Acid-Base Pair",
+              "page": 138,
+              "allocated_periods": 24,
+              "order": 9,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            }
+          ],
+          "علوم الحياة": [
+            {
+              "unit": "Genetics and Reproduction",
+              "title": "Male and Female Reproductive System",
+              "page": 18,
+              "allocated_periods": 1,
+              "order": 1,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Genetics and Reproduction",
+              "title": "Diploid and Haploid Cells",
+              "page": 20,
+              "allocated_periods": 2,
+              "order": 2,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Genetics and Reproduction",
+              "title": "Meiosis",
+              "page": 22,
+              "allocated_periods": null,
+              "order": 3,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Genetics and Reproduction",
+              "title": "Spermatogenesis",
+              "page": 24,
+              "allocated_periods": null,
+              "order": 4,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Genetics and Reproduction",
+              "title": "Oogenesis",
+              "page": 27,
+              "allocated_periods": null,
+              "order": 5,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Genetics and Reproduction",
+              "title": "Fertilization",
+              "page": 30,
+              "allocated_periods": null,
+              "order": 6,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "Teach only the retained CRDP 2025-2026 objectives; detailed fertilization steps may be suspended where specified.",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Genetics",
+              "title": "Transmission of Allelic Genes",
+              "page": 44,
+              "allocated_periods": null,
+              "order": 8,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Genetic Polymorphism",
+              "title": "Mutation and the Environment",
+              "page": 58,
+              "allocated_periods": null,
+              "order": 9,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Genetic Polymorphism",
+              "title": "Mutation and Multiple Alleles",
+              "page": 60,
+              "allocated_periods": null,
+              "order": 10,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Genetic Polymorphism",
+              "title": "Polymorphic Genes in a Population",
+              "page": 62,
+              "allocated_periods": null,
+              "order": 11,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Genetic Polymorphism",
+              "title": "Detection of Genetic Polymorphism",
+              "page": 64,
+              "allocated_periods": null,
+              "order": 12,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Genetic Polymorphism",
+              "title": "Genetic Identity of Individuals",
+              "page": 67,
+              "allocated_periods": null,
+              "order": 13,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Human Genetics",
+              "title": "Inheritance of Genetic Traits",
+              "page": 92,
+              "allocated_periods": null,
+              "order": 14,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Human Genetics",
+              "title": "Autosomal Diseases",
+              "page": 94,
+              "allocated_periods": null,
+              "order": 15,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Human Genetics",
+              "title": "Sex Linked Traits",
+              "page": 96,
+              "allocated_periods": null,
+              "order": 16,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Human Genetics",
+              "title": "Chromosomal Mutation",
+              "page": 98,
+              "allocated_periods": null,
+              "order": 17,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Human Genetics",
+              "title": "Prenatal Diagnosis",
+              "page": 101,
+              "allocated_periods": null,
+              "order": 18,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Immunology",
+              "title": "HLA: a Major Self Marker",
+              "page": 114,
+              "allocated_periods": null,
+              "order": 19,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Immunology",
+              "title": "The Non Self",
+              "page": 119,
+              "allocated_periods": null,
+              "order": 20,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Immunology",
+              "title": "Cells of the Immune System",
+              "page": 121,
+              "allocated_periods": null,
+              "order": 21,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Immunology",
+              "title": "Lymphoid Organs and Immunocompetence",
+              "page": 123,
+              "allocated_periods": null,
+              "order": 22,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Human Reproduction and Health",
+              "title": "Contraceptive Methods",
+              "page": 312,
+              "allocated_periods": 8,
+              "order": 37,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Human Reproduction and Health",
+              "title": "Contragestive Methods",
+              "page": 314,
+              "allocated_periods": null,
+              "order": 38,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Human Reproduction and Health",
+              "title": "Medically Assisted Procreation",
+              "page": 316,
+              "allocated_periods": null,
+              "order": 39,
               "status": "maintained",
               "included_sections": [],
               "suspended_sections": [],
@@ -1827,6 +3512,146 @@
               "title": "Corpuscular Aspect of Light – Photoelectric Effect",
               "page": 270,
               "allocated_periods": 15,
+              "order": 9,
+              "status": "maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            }
+          ],
+          "كيمياء": [
+            {
+              "unit": "Chemical Kinetics",
+              "title": "Rate of Reactions",
+              "page": 30,
+              "allocated_periods": 20,
+              "order": 1,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "Activity: Determination of the rate graphically"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Chemical Kinetics",
+              "title": "Kinetic Factors",
+              "page": 50,
+              "allocated_periods": 20,
+              "order": 2,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "Rate Constant and Reaction Order sections",
+                "Half-life and order of reaction section",
+                "Selected Activity 3 and following pages indicated as suspended",
+                "Importance of catalysis section indicated as suspended"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Chemical Equilibrium",
+              "title": "Chemical Equilibrium",
+              "page": 80,
+              "allocated_periods": 10,
+              "order": 3,
+              "status": "partially_maintained",
+              "included_sections": [
+                "Homogeneous equilibrium in the liquid phase",
+                "Equilibrium constant Kc",
+                "Degree of conversion and degree of dissociation where retained",
+                "Le Chatelier's Principle where retained"
+              ],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Organic Chemistry II",
+              "title": "Functional Groups",
+              "page": 196,
+              "allocated_periods": 7,
+              "order": 4,
+              "status": "partially_maintained",
+              "included_sections": [
+                "Alcohols",
+                "Aldehydes",
+                "Ketones",
+                "Carboxylic acids",
+                "Esters"
+              ],
+              "suspended_sections": [
+                "Other functional groups such as ethers, amines, alkyl chlorides, acid anhydrides and amides"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Organic Chemistry II",
+              "title": "Alcohols",
+              "page": 208,
+              "allocated_periods": 11,
+              "order": 5,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "Physical Properties section indicated as suspended",
+                "Selected ethanol/sodium and substitution content indicated as suspended"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Organic Chemistry II",
+              "title": "Aldehydes and Ketones",
+              "page": null,
+              "allocated_periods": null,
+              "order": 6,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [],
+              "notes": "Teach only the sections retained by the 2025-2026 CRDP annual curriculum.",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Organic Chemistry II",
+              "title": "Carboxylic Acids and Derivatives",
+              "page": 250,
+              "allocated_periods": 10,
+              "order": 7,
+              "status": "partially_maintained",
+              "included_sections": [
+                "Definition and general formula",
+                "Nomenclature",
+                "Structure and isomerism",
+                "Retained carboxylic-acid derivatives content"
+              ],
+              "suspended_sections": [],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Acid-Base Reactions in Aqueous Solutions",
+              "title": "pH, Strong Acid, Strong Base and pH-metric Titration",
+              "page": 112,
+              "allocated_periods": 22,
+              "order": 8,
+              "status": "partially_maintained",
+              "included_sections": [],
+              "suspended_sections": [
+                "Effect of concentration section indicated as suspended"
+              ],
+              "notes": "",
+              "curriculum_year": "2025-2026"
+            },
+            {
+              "unit": "Acid-Base Reactions in Aqueous Solutions",
+              "title": "Weak Acid, Weak Base and Conjugate Acid-Base Pair",
+              "page": 138,
+              "allocated_periods": 24,
               "order": 9,
               "status": "maintained",
               "included_sections": [],
