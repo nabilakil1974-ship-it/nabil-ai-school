@@ -5580,18 +5580,20 @@ function nabilAutoFunctionSpecFromBoard(board){
         spec.ymin=-3.2;
         spec.ymax=1.2;
         spec.vertical_asymptote=0;
+        spec.expression="ln(x)/x";
+        spec.reference_layout=true;
         spec.markers=[
             {x:1,y:0,label:"(1, 0)"},
             {x:Math.E,y:1/Math.E,label:"(e, 1/e)"}
         ];
     }
 
-    if(/\bln\b|\\ln|Math\.log/i.test(normalized)){
+    if(!nabilIsLnXOverXExpression(expr) && /\bln\b|\\ln|Math\.log/i.test(normalized)){
         spec.xmin=0.08; spec.xmax=8; spec.ymin=-3.5; spec.ymax=2.5;
         if(/\/\s*x\b/.test(normalized) || /x\s*\*\*\s*-1/.test(normalized)){
             spec.ymin=-2.8; spec.ymax=1.8;
         }
-    }else if(/1\s*\/\s*x|Math\.abs\(x\)\s*\/|inverse/i.test(normalized)){
+    }else if(!nabilIsLnXOverXExpression(expr) && /1\s*\/\s*x|Math\.abs\(x\)\s*\/|inverse/i.test(normalized)){
         spec.xmin=-6; spec.xmax=6; spec.ymin=-8; spec.ymax=8; spec.vertical_asymptote=0;
     }else{
         spec.xmin=-6; spec.xmax=6; spec.ymin=-8; spec.ymax=8;
@@ -10607,19 +10609,24 @@ function nabilIsLnXOverXExpression(raw){
         .replace(/\s+/g,"")
         .replace(/\\left|\\right/g,"")
         .replace(/\\ln/g,"ln")
-        .replace(/\\log/g,"ln")
-        .replace(/\{/g,"(")
-        .replace(/\}/g,")");
+        .replace(/\\log/g,"ln");
 
-    s=s.replace(/f\(x\)=/g,"");
-    s=s.replace(/y=/g,"");
+    s=s.replace(/f\(x\)=/g,"").replace(/y=/g,"");
+
+    // Normalize common LaTeX forms BEFORE replacing braces.
+    s=s
+      .replace(/\\frac\{(?:ln\(?x\)?|lnx)\}\{x\}/g,"ln(x)/x")
+      .replace(/\\dfrac\{(?:ln\(?x\)?|lnx)\}\{x\}/g,"ln(x)/x")
+      .replace(/\\tfrac\{(?:ln\(?x\)?|lnx)\}\{x\}/g,"ln(x)/x");
+
+    s=s.replace(/\{/g,"(").replace(/\}/g,")");
 
     return (
         s==="ln(x)/x" ||
         s==="lnx/x" ||
         s==="(ln(x))/x" ||
         s==="ln(x)÷x" ||
-        s.includes("frac(ln(x))(x)") ||
+        /(?:frac|dfrac|tfrac)\((?:ln\(?x\)?|lnx)\)\(x\)/.test(s) ||
         /ln\(?x\)?\/x/.test(s)
     );
 }
@@ -10848,6 +10855,27 @@ function renderNabilDiagram(rawSpec){
 
     const rawType = String(spec.type || "").toLowerCase();
     let t = aliases[rawType] || rawType;
+
+    // v61 — authoritative function-reference routing.
+    // Every function uses the same visual family; exact canonical functions may
+    // use a mathematically verified reference card. Never downgrade a function
+    // study to a generic/empty coordinate plane.
+    const nabilFunctionTypes = new Set([
+        "function","graph","function_graph","graph_function",
+        "cartesian_function","function-graph","coordinate-graph","coordinate_plane"
+    ]);
+    if(nabilFunctionTypes.has(t)){
+        const rawExpression = spec.expression || spec.formula || spec.equation ||
+            spec.fx || spec.function_expression || spec.function || "";
+        if(nabilIsLnXOverXExpression(rawExpression)){
+            return nabilRenderLnXOverXReferenceCard({
+                ...spec,
+                type:"function_graph",
+                expression:"ln(x)/x",
+                title:"Graph and Table of Variation"
+            });
+        }
+    }
 
     if (t === "circuit"){
         const modeText = `${spec.mode||""} ${spec.connection||""} ${spec.title||""}`.toLowerCase();
@@ -12413,6 +12441,18 @@ function extractAndRenderNabilDrawings(text){
     raw=raw.replace(/<_?DRAWINGS?_JSON>[\s\S]*$/gi,"");
     raw=raw.replace(/DRAWINGS_JSON\s*:[\s\S]*$/gi,"");
     raw=raw.replace(/```nabil-draw[\s\S]*$/gi,"");
+
+    // v61: providers sometimes emit the drawing object as ordinary JSON without
+    // the DRAWINGS_JSON marker. Strip only drawing-shaped JSON tails so normal
+    // mathematical prose is untouched.
+    raw=raw.replace(/```(?:json)?\s*([\s\S]*?)```/gi,(full,body)=>{
+        const looksDrawing=/"(?:type|x_range|y_range|series|expression|function_expression|vertical_asymptote|markers)"\s*:/i.test(body||"");
+        if(!looksDrawing) return full;
+        tryJSON(body);
+        return "";
+    });
+    raw=raw.replace(/(?:^|\n)\s*[\{\[]?\s*"(?:x_range|y_range|series|axis_labels|vertical_asymptote|markers)"\s*:[\s\S]*$/i,"");
+
     return {text:raw.trim(),diagrams};
 }
 
@@ -15979,7 +16019,30 @@ function nabilRenderTeacherAssessment(data){
 function nabilTeacherWordHTML(data){
   const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const parts=(data?.variants||[]).map((v,i)=>`<h1>${esc(v.title||('Model '+(i+1)))}</h1><h2>Student Exam</h2><div style="white-space:pre-wrap">${esc(v.exam)}</div><br style="page-break-before:always"><h2>Correction Scheme</h2><div style="white-space:pre-wrap">${esc(v.correction)}</div>`).join('<br style="page-break-before:always">');
-  return `<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:Arial,'Times New Roman',sans-serif;line-height:1.55}h1,h2{margin-bottom:10px}</style></head><body>${parts}</body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:Arial,'Times New Roman',sans-serif;line-height:1.55}h1,h2{margin-bottom:10px}
+/* v61 — ONE REFERENCE FORMAT FOR ALL FUNCTION STUDIES */
+.nabil-authoritative-function-visual,
+.linked-lesson-visual[data-diagram-type="function"],
+.linked-lesson-visual[data-diagram-type="function_graph"],
+.linked-lesson-visual[data-diagram-type="graph_function"],
+.linked-lesson-visual[data-diagram-type="cartesian_function"]{
+  width:100% !important;
+  max-width:none !important;
+  min-width:0 !important;
+}
+.nabil-authoritative-function-visual > .nabil-visual,
+.linked-lesson-visual[data-diagram-type="function"] > .nabil-visual,
+.linked-lesson-visual[data-diagram-type="function_graph"] > .nabil-visual{
+  width:100% !important;
+  max-width:1040px !important;
+  margin:0 auto !important;
+}
+.nabil-reference-function-card{width:100% !important;max-width:1040px !important;margin:0 auto !important;}
+@media (max-width: 760px){
+  .nabil-reference-function-card{border-radius:12px !important;}
+  .nabil-reference-function-card svg{min-width:0 !important;width:100% !important;height:auto !important;}
+}
+</style></head><body>${parts}</body></html>`;
 }
 
 async function nabilTeacherFetchAssessment(payload){
