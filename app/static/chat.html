@@ -3364,6 +3364,261 @@ body.nabil-home-lock::before{
   }
 }
 
+
+/* ============================================================
+   v45 — Reference screenshot layout for ALL function studies
+   ============================================================ */
+.reference-function-study-board{
+    background:#071a33!important;
+    border:1px solid #245b8f!important;
+    padding:12px!important;
+}
+
+.reference-function-study-board .function-study-reference-stage{
+    display:grid;
+    grid-template-columns:minmax(300px,.72fr) minmax(0,1.38fr);
+    gap:14px;
+    align-items:stretch;
+    width:100%;
+}
+
+.function-study-reference-summary-card{
+    min-width:0;
+    height:100%;
+    display:flex;
+    flex-direction:column;
+    background:linear-gradient(180deg,#0d2d57 0%,#0b2342 100%);
+    border:1px solid #1ea7ff;
+    border-radius:12px;
+    overflow:hidden;
+    box-shadow:0 10px 25px rgba(0,0,0,.24);
+    color:#eaf6ff;
+}
+
+.function-study-reference-summary-title{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    padding:14px 14px 11px;
+    color:#59d4ff;
+    font-size:21px;
+    line-height:1.15;
+    font-weight:900;
+    border-bottom:1px solid rgba(30,167,255,.32);
+    background:#0b294d;
+}
+
+.function-study-reference-title-accent{
+    width:5px;
+    min-width:5px;
+    height:27px;
+    border-radius:999px;
+    background:#29a7ff;
+    box-shadow:0 0 12px rgba(41,167,255,.55);
+}
+
+.function-study-reference-formula{
+    margin:12px 12px 7px;
+    padding:16px 12px;
+    border:1px solid #1ea7ff;
+    border-radius:8px;
+    background:#0a203d;
+    color:#f5fbff;
+    text-align:center;
+    font-size:26px;
+    font-weight:700;
+    overflow-x:auto;
+}
+
+.function-study-summary-rows{
+    display:flex;
+    flex-direction:column;
+    gap:0;
+    padding:4px 14px 13px;
+    flex:1 1 auto;
+}
+
+.function-study-summary-row{
+    display:grid;
+    grid-template-columns:minmax(116px,.39fr) minmax(0,.61fr);
+    gap:9px;
+    align-items:start;
+    padding:7px 0;
+    border-bottom:1px solid rgba(120,190,255,.12);
+    font-size:13px;
+    line-height:1.34;
+}
+
+.function-study-summary-row:last-child{
+    border-bottom:0;
+}
+
+.function-study-summary-label{
+    color:#59d4ff;
+    font-weight:900;
+}
+
+.function-study-summary-value{
+    min-width:0;
+    color:#eaf6ff;
+    overflow-wrap:anywhere;
+}
+
+.function-study-summary-value p,
+.function-study-summary-value ul,
+.function-study-summary-value ol{
+    margin:0!important;
+}
+
+.function-study-summary-value mjx-container{
+    margin:0!important;
+    max-width:100%;
+    overflow-x:auto;
+    overflow-y:hidden;
+}
+
+.function-study-summary-row.summary-asymptote-v .function-study-summary-label{
+    color:#ff7c84;
+}
+.function-study-summary-row.summary-asymptote-h .function-study-summary-label,
+.function-study-summary-row.summary-asymptote-o .function-study-summary-label{
+    color:#f0d84a;
+}
+.function-study-summary-row.summary-rule{
+    margin-top:auto;
+    padding:10px;
+    border:1px solid rgba(34,197,94,.55);
+    border-radius:8px;
+    background:rgba(10,70,50,.30);
+}
+.function-study-summary-row.summary-rule .function-study-summary-label{
+    color:#62e98f;
+}
+
+.reference-function-study-board .function-study-reference-stage > .exercise-function-graph-variation{
+    min-width:0;
+    height:100%;
+    margin:0!important;
+    border:1px solid #1ea7ff!important;
+    border-radius:12px!important;
+    background:#0a203d!important;
+    box-shadow:0 10px 25px rgba(0,0,0,.24)!important;
+}
+
+.reference-function-study-board .exercise-function-visual-title{
+    color:#59d4ff!important;
+    font-size:20px!important;
+    font-weight:900!important;
+    padding:9px 10px 5px!important;
+}
+
+.reference-function-study-board .exercise-function-visual{
+    background:#0a203d!important;
+}
+
+.reference-function-study-board .exercise-variation-zone{
+    background:#0b2a52!important;
+    border-color:#1ea7ff!important;
+}
+
+.reference-function-study-board .exercise-variation-title{
+    color:#59d4ff!important;
+    font-weight:900!important;
+}
+
+/* Detailed solution is deliberately below the reference summary/graph area. */
+.function-study-detailed-solution{
+    margin-top:14px;
+    padding-top:12px;
+    border-top:1px solid rgba(89,212,255,.28);
+}
+
+.function-study-detailed-title{
+    display:inline-flex;
+    align-items:center;
+    min-height:34px;
+    margin-bottom:10px;
+    padding:6px 12px;
+    border:1px solid #245b8f;
+    border-radius:8px;
+    background:#0b294d;
+    color:#59d4ff;
+    font-size:16px;
+    font-weight:900;
+}
+
+.function-study-detailed-grid{
+    display:grid;
+    grid-template-columns:minmax(250px,.78fr) minmax(0,1.22fr);
+    gap:12px;
+    align-items:start;
+}
+
+.reference-function-study-board .function-study-detailed-solution .exercise-section-card,
+.reference-function-study-board .function-study-detailed-solution .exercise-function-mini-card{
+    background:linear-gradient(160deg,#0d2d57,#0b2342)!important;
+    border-color:#245b8f!important;
+    color:#eaf6ff!important;
+}
+
+/* Exact reference graph palette */
+.reference-function-study-board .nabil-reference-function-generic{
+    --ref-bg:#0a203d;
+    --ref-panel:#0d2d57;
+    --ref-cyan:#59d4ff;
+    --ref-blue:#29a7ff;
+    --ref-red:#ff4c57;
+    --ref-yellow:#f0d84a;
+    --ref-white:#dfefff;
+}
+
+.reference-function-study-board .nabil-reference-function-generic .vaxis{
+    stroke:#dfefff!important;
+}
+.reference-function-study-board .nabil-reference-function-generic .vgrid{
+    stroke:rgba(170,220,255,.14)!important;
+}
+.reference-function-study-board .nabil-reference-function-generic .vlab,
+.reference-function-study-board .nabil-reference-function-generic .vsmall{
+    fill:#eaf6ff!important;
+}
+
+/* Mobile: keep reference logic, stack vertically */
+@media(max-width:850px){
+    .reference-function-study-board .function-study-reference-stage{
+        grid-template-columns:1fr;
+    }
+    .function-study-reference-summary-card{
+        height:auto;
+    }
+    .function-study-detailed-grid{
+        grid-template-columns:1fr;
+    }
+}
+
+@media(max-width:560px){
+    .reference-function-study-board{
+        padding:7px!important;
+    }
+    .function-study-reference-summary-title{
+        padding:11px 10px 9px;
+        font-size:17px;
+    }
+    .function-study-reference-formula{
+        margin:9px 8px 5px;
+        padding:12px 8px;
+        font-size:20px;
+    }
+    .function-study-summary-rows{
+        padding:4px 9px 10px;
+    }
+    .function-study-summary-row{
+        grid-template-columns:1fr;
+        gap:3px;
+        padding:6px 0;
+    }
+}
+
 </style>
 </head>
 
@@ -4641,6 +4896,212 @@ function nabilPrepareFunctionKeyBlocks(rawSolutionBodyHTML, messageLanguage){
     }).filter(block => String(block.html || "").replace(/<[^>]+>/g,'').trim());
 }
 
+
+function nabilExtractFunctionExpressionForSummary(rawText, fallbackExpression=""){
+    const fallback=nabilCleanFunctionExpressionLabel(String(fallbackExpression||""));
+    if(fallback) return fallback;
+
+    const plain=nabilHTMLToPlainText(String(rawText||""))
+        .replace(/\u00a0/g," ")
+        .replace(/\s+/g," ")
+        .trim();
+
+    const patterns=[
+        /f\s*\(\s*x\s*\)\s*=\s*(.+?)(?=\s+(?:domain|domaine|المجال|given|required|solution|derivative|dériv|المشتق|asymptote|مقارب|limits?|limites?|النهايات|variation|tableau|جدول)|$)/i,
+        /y\s*=\s*(.+?)(?=\s+(?:domain|domaine|المجال|given|required|solution|derivative|dériv|المشتق|asymptote|مقارب|limits?|limites?|النهايات|variation|tableau|جدول)|$)/i
+    ];
+
+    for(const rx of patterns){
+        const m=plain.match(rx);
+        if(m && m[1]){
+            return nabilCleanFunctionExpressionLabel(
+                String(m[1]).replace(/[.;،]+$/,"").trim()
+            );
+        }
+    }
+    return "";
+}
+
+function nabilStudyFunctionLabels(messageLanguage){
+    if(messageLanguage==="Français"){
+        return {
+            title:"Étude de la fonction",
+            domain:"Domaine",
+            useful:"Forme utile",
+            limits:"Limites",
+            vertical:"Asymptote verticale",
+            horizontal:"Asymptote horizontale",
+            oblique:"Asymptote oblique",
+            asymptotes:"Asymptotes",
+            yint:"Ordonnée à l’origine",
+            xint:"Intersection avec l’axe x",
+            intercepts:"Intersections",
+            derivative:"Dérivée",
+            critical:"Nombres critiques / Extrema",
+            monotonicity:"Variations",
+            rule:"Résumé de la règle",
+            details:"Solution détaillée"
+        };
+    }
+    if(messageLanguage==="العربية"){
+        return {
+            title:"دراسة الدالة",
+            domain:"المجال",
+            useful:"صيغة مفيدة",
+            limits:"النهايات",
+            vertical:"المقارب العمودي",
+            horizontal:"المقارب الأفقي",
+            oblique:"المقارب المائل",
+            asymptotes:"المقاربات",
+            yint:"التقاطع مع محور y",
+            xint:"التقاطع مع محور x",
+            intercepts:"نقاط التقاطع",
+            derivative:"المشتقة",
+            critical:"النقاط الحرجة / القيم القصوى",
+            monotonicity:"التزايد والتناقص",
+            rule:"خلاصة القاعدة",
+            details:"تفاصيل الحل"
+        };
+    }
+    return {
+        title:"Study of the Function",
+        domain:"Domain",
+        useful:"Useful form",
+        limits:"Limits",
+        vertical:"Vertical asymptote",
+        horizontal:"Horizontal asymptote",
+        oblique:"Oblique asymptote",
+        asymptotes:"Asymptotes",
+        yint:"y-intercept",
+        xint:"x-intercept",
+        intercepts:"Intercepts",
+        derivative:"Derivative",
+        critical:"Critical numbers / Extrema",
+        monotonicity:"Monotonicity",
+        rule:"Rule Summary",
+        details:"Detailed Solution"
+    };
+}
+
+function nabilCompactSummaryHTML(html){
+    const holder=document.createElement("div");
+    holder.innerHTML=String(html||"");
+
+    holder.querySelectorAll("h1,h2,h3,h4,h5,h6").forEach(h=>h.remove());
+    holder.querySelectorAll("table").forEach(t=>t.remove());
+
+    const txt=nabilHTMLToPlainText(holder.innerHTML)
+        .replace(/\u00a0/g," ")
+        .replace(/\s+/g," ")
+        .trim();
+
+    // Keep the reference card compact. The complete explanation remains below.
+    if(txt.length>210){
+        return `<span>${nabilEsc(txt.slice(0,207).trim())}…</span>`;
+    }
+
+    return holder.innerHTML.trim() || (txt ? `<span>${nabilEsc(txt)}</span>` : "");
+}
+
+function nabilBuildStudyOfFunctionCard({
+    solutionBodyHTML,
+    wholeBoardText,
+    summaryHTML,
+    messageLanguage,
+    fallbackExpression
+}){
+    const L=nabilStudyFunctionLabels(messageLanguage);
+    const expression=nabilExtractFunctionExpressionForSummary(
+        wholeBoardText,
+        fallbackExpression
+    );
+
+    const blocks=nabilPrepareFunctionKeyBlocks(
+        solutionBodyHTML || "",
+        messageLanguage
+    );
+
+    const used=new Set();
+
+    const take=(rx)=>{
+        const idx=blocks.findIndex((b,i)=>!used.has(i) && rx.test(String(b.title||"")));
+        if(idx<0) return "";
+        used.add(idx);
+        return nabilCompactSummaryHTML(blocks[idx].html || "");
+    };
+
+    const rows=[];
+
+    const add=(label,value,cls="")=>{
+        if(!value || !String(value).trim()) return;
+        rows.push(`
+          <div class="function-study-summary-row ${cls}">
+            <div class="function-study-summary-label">${nabilEsc(label)}:</div>
+            <div class="function-study-summary-value">${value}</div>
+          </div>
+        `);
+    };
+
+    add(L.domain, take(/domain|domaine|المجال/i));
+    add(L.useful, take(/useful\s*form|forme\s*utile|decomposition|décomposition|rewrite|simplif|صيغة\s*مفيدة|تحليل/i));
+    add(L.limits, take(/limit|limite|النهايات|نهاية/i));
+
+    const vertical=take(/vertical\s+asymptot|asymptote\s+verticale|مقارب\s+عمودي|المقارب\s+العمودي/i);
+    const horizontal=take(/horizontal\s+asymptot|asymptote\s+horizontale|مقارب\s+أفقي|المقارب\s+الأفقي/i);
+    const oblique=take(/oblique\s+asymptot|asymptote\s+oblique|مقارب\s+مائل|المقارب\s+المائل/i);
+    const allAsymptotes=take(/^asymptot|^المقارب|^المقاربات/i);
+
+    add(L.vertical, vertical, "summary-asymptote-v");
+    add(L.horizontal, horizontal, "summary-asymptote-h");
+    add(L.oblique, oblique, "summary-asymptote-o");
+    if(!vertical && !horizontal && !oblique){
+        add(L.asymptotes, allAsymptotes, "summary-asymptotes");
+    }
+
+    const yint=take(/y[-\s]?intercept|ordonnée|intersection.*(?:axe\s*y|y-axis)|تقاطع.*(?:محور\s*y|الصادات)/i);
+    const xint=take(/x[-\s]?intercept|intersection.*(?:axe\s*x|x-axis)|تقاطع.*(?:محور\s*x|السينات)/i);
+    const intercepts=take(/^intercepts?|^intersections?|^نقاط?\s+التقاطع|^التقاطع/i);
+
+    add(L.yint,yint);
+    add(L.xint,xint);
+    if(!yint && !xint) add(L.intercepts,intercepts);
+
+    add(L.derivative, take(/derivative|dériv|المشتق|المشتقة/i));
+    add(L.critical, take(/critical|extrema|maximum|minimum|critiqu|الحرجة|عظمى|صغرى/i));
+    add(L.monotonicity, take(/monotonic|increasing|decreasing|croissante|décroissante|التزايد|التناقص/i));
+
+    const ruleText=nabilCompactSummaryHTML(summaryHTML || "");
+    if(ruleText) add(L.rule,ruleText,"summary-rule");
+
+    return `
+      <section class="function-study-reference-summary-card" dir="${messageLanguage==="العربية"?"rtl":"ltr"}">
+        <div class="function-study-reference-summary-title">
+          <span class="function-study-reference-title-accent"></span>
+          ${nabilEsc(L.title)}
+        </div>
+
+        ${expression ? `
+          <div class="function-study-reference-formula">
+            \\(f(x)=${nabilEsc(expression)}\\)
+          </div>
+        ` : ""}
+
+        <div class="function-study-summary-rows">
+          ${rows.join("") || `
+            <div class="function-study-summary-row">
+              <div class="function-study-summary-value">
+                ${messageLanguage==="English"
+                    ?"The principal results of the study appear in the detailed solution below."
+                    :messageLanguage==="Français"
+                        ?"Les résultats principaux de l’étude apparaissent dans la solution détaillée ci-dessous."
+                        :"تظهر النتائج الأساسية لدراسة الدالة في تفاصيل الحل أدناه."}
+              </div>
+            </div>
+          `}
+        </div>
+      </section>`;
+}
+
 function nabilFunctionLeftColumnHTML({givenHTML,requiredHTML,formulaHTML}, messageLanguage){
     return `${givenHTML || ""}${requiredHTML || ""}${formulaHTML || ""}`;
 }
@@ -4929,53 +5390,76 @@ ${rawVariationHTML}`);
                 autoVariationTableHTML
             );
 
+            const summaryCardHTML=nabilBuildStudyOfFunctionCard({
+                solutionBodyHTML:cleanedSolutionBodyHTML,
+                wholeBoardText,
+                summaryHTML,
+                messageLanguage,
+                fallbackExpression:autoFunctionSpec?.expression || ""
+            });
+
+            const detailsLabel=nabilStudyFunctionLabels(messageLanguage).details;
+
             return `
-            <article class="exercise-board function-study-board full-width-board compact-function-board" dir="${messageDirection}">
+            <article class="exercise-board function-study-board full-width-board compact-function-board reference-function-study-board" dir="${messageDirection}">
                 <div class="exercise-function-board compact-function-stack">
-                    ${leftColumnHTML ? `
-                        <section class="exercise-function-study" dir="${messageDirection}">
-                            ${leftColumnHTML}
-                        </section>
-                    ` : ""}
 
-                    ${centerColumnHTML ? `
-                        <section class="exercise-function-keypoints" dir="${messageDirection}">
-                            ${centerColumnHTML}
-                        </section>
-                    ` : ""}
+                    <!-- REFERENCE LAYOUT: summary card left, graph + variation right -->
+                    <section class="function-study-reference-stage">
+                        ${summaryCardHTML}
 
-                    ${(hasGraph || hasVariation) ? `
-                        <section class="exercise-function-graph-variation" dir="${messageDirection}">
-                            ${hasGraph ? `
-                                <div class="exercise-function-visual">
-                                    <div class="exercise-function-visual-title">${functionGraphTitle(messageLanguage)}</div>
-                                    <div class="exercise-visual-panel ${diagramsForThis.length > 1 ? "multi-diagram-panel" : ""}">
-                                        ${visualHTML}
+                        ${(hasGraph || hasVariation) ? `
+                            <section class="exercise-function-graph-variation" dir="${messageDirection}">
+                                ${hasGraph ? `
+                                    <div class="exercise-function-visual">
+                                        <div class="exercise-function-visual-title">${functionGraphTitle(messageLanguage)}</div>
+                                        <div class="exercise-visual-panel ${diagramsForThis.length > 1 ? "multi-diagram-panel" : ""}">
+                                            ${visualHTML}
+                                        </div>
                                     </div>
-                                </div>
+                                ` : ""}
+
+                                ${hasVariation ? `
+                                    <div class="exercise-variation-zone function-variation-stack">
+                                        <div class="exercise-variation-title">${variationTitle(messageLanguage)}</div>
+                                        ${variationTextHTML ? `<div class="exercise-variation-richtext">${variationTextHTML}</div>` : ""}
+                                        ${variationTables.map(t=>decorateVariationTableHTML(t,messageLanguage)).join("")}
+                                        ${!variationTables.length && autoExtractedVariation
+                                            ? decorateVariationTableHTML(autoExtractedVariation,messageLanguage)
+                                            : ""}
+                                        ${!variationTables.length && !autoExtractedVariation && autoVariationTableHTML
+                                            ? decorateVariationTableHTML(autoVariationTableHTML,messageLanguage)
+                                            : ""}
+                                    </div>
+                                ` : ""}
+                            </section>
+                        ` : ""}
+                    </section>
+
+                    <!-- Full solution stays below the reference card -->
+                    <section class="function-study-detailed-solution" dir="${messageDirection}">
+                        <div class="function-study-detailed-title">${nabilEsc(detailsLabel)}</div>
+
+                        <div class="function-study-detailed-grid">
+                            ${leftColumnHTML ? `
+                                <section class="exercise-function-study" dir="${messageDirection}">
+                                    ${leftColumnHTML}
+                                </section>
                             ` : ""}
 
-                            ${hasVariation ? `
-                                <div class="exercise-variation-zone function-variation-stack">
-                                    <div class="exercise-variation-title">${variationTitle(messageLanguage)}</div>
-                                    ${variationTextHTML ? `<div class="exercise-variation-richtext">${variationTextHTML}</div>` : ""}
-                                    ${variationTables.map(t=>decorateVariationTableHTML(t,messageLanguage)).join("")}
-                                    ${!variationTables.length && autoExtractedVariation
-                                        ? decorateVariationTableHTML(autoExtractedVariation,messageLanguage)
-                                        : ""}
-                                    ${!variationTables.length && !autoExtractedVariation && autoVariationTableHTML
-                                        ? decorateVariationTableHTML(autoVariationTableHTML,messageLanguage)
-                                        : ""}
-                                </div>
+                            ${centerColumnHTML ? `
+                                <section class="exercise-function-keypoints" dir="${messageDirection}">
+                                    ${centerColumnHTML}
+                                </section>
                             ` : ""}
-                        </section>
-                    ` : ""}
+                        </div>
 
-                    ${finalStripHTML ? `
-                        <section class="exercise-function-final-strip" dir="${messageDirection}">
-                            ${finalStripHTML}
-                        </section>
-                    ` : ""}
+                        ${finalStripHTML ? `
+                            <section class="exercise-function-final-strip" dir="${messageDirection}">
+                                ${finalStripHTML}
+                            </section>
+                        ` : ""}
+                    </section>
                 </div>
             </article>`;
         }
@@ -8866,7 +9350,7 @@ function renderNabilDiagram(rawSpec){
         const legendItems=[];
         const uiLang = (typeof languageSelect!=="undefined" && languageSelect?.value) || "العربية";
 
-        const curveColor = (series[0] && series[0].color) || "#22d3ee";
+        const curveColor = "#29a7ff";
         const cleanExpression = nabilCleanFunctionExpressionLabel(spec.expression || spec.formula || spec.equation || "");
         if(series.length){
             const functionLabel = cleanExpression
@@ -8878,7 +9362,10 @@ function renderNabilDiagram(rawSpec){
         series.forEach((line,i)=>{
             const linePoints=Array.isArray(line)?line:(Array.isArray(line.points)?line.points:[]);
             const poly=linePoints.filter(p=>Array.isArray(p)&&p.length>=2 && Number.isFinite(Number(p[0])) && Number.isFinite(Number(p[1]))).map(p=>`${sx(Number(p[0]))},${sy(Number(p[1]))}`).join(" ");
-            if(poly) curves+=`<polyline points="${poly}" fill="none" stroke="${nabilEsc(line.color||curveColor)}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`;
+            if(poly){
+                const renderedCurveColor = i===0 ? "#29a7ff" : (line.color || "#79c8ff");
+                curves+=`<polyline points="${poly}" fill="none" stroke="${nabilEsc(renderedCurveColor)}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`;
+            }
         });
 
         // ===== Vertical asymptote(s) — red dashed + label, like the reference. =====
@@ -8887,22 +9374,36 @@ function renderNabilDiagram(rawSpec){
             const isObj = v && typeof v==="object";
             const value=Number(isObj?v.x:v);
             if(!Number.isFinite(value)) return;
-            curves+=`<line x1="${sx(value)}" y1="45" x2="${sx(value)}" y2="265" stroke="#ef4444" stroke-width="2.5" stroke-dasharray="8 6"/>`;
+            curves+=`<line x1="${sx(value)}" y1="45" x2="${sx(value)}" y2="265" stroke="#ff4c57" stroke-width="2.5" stroke-dasharray="8 6"/>`;
             const cleanVal = Number(value.toFixed(4)).toString();
             const label = (isObj && v.label) || `x = ${cleanVal}`;
             curves+=`<text x="${sx(value)+6}" y="58" class="vlab vsmall" style="fill:#ff8080">${nabilEsc(label)}</text>`;
-            legendItems.push({color:"#ef4444", dash:true, text:(isObj && v.legend) || `Vertical asymptote: ${label}`});
+            legendItems.push({color:"#ff4c57", dash:true, text:(isObj && v.legend) || `Vertical asymptote: ${label}`});
         });
+
+        // ===== Horizontal asymptote — yellow dashed + label, like the reference. =====
+        const horizontal=spec.horizontal_asymptote;
+        if(horizontal !== undefined && horizontal !== null){
+            const isObj = horizontal && typeof horizontal==="object";
+            const yValue=Number(isObj ? (horizontal.y ?? horizontal.value) : horizontal);
+            if(Number.isFinite(yValue) && yValue>=ymin && yValue<=ymax){
+                curves+=`<line x1="${sx(xmin)}" y1="${sy(yValue)}" x2="${sx(xmax)}" y2="${sy(yValue)}" stroke="#f0d84a" stroke-width="2.5" stroke-dasharray="8 6"/>`;
+                const hClean=Number(yValue.toFixed(4)).toString();
+                const hLabel=(isObj && horizontal.label) || `y = ${hClean}`;
+                curves+=`<text x="${sx(xmax)-105}" y="${sy(yValue)-8}" class="vlab vsmall" style="fill:#fff29a">${nabilEsc(hLabel)}</text>`;
+                legendItems.push({color:"#f0d84a",dash:true,text:(isObj && horizontal.legend) || `Horizontal asymptote: ${hLabel}`});
+            }
+        }
 
         // ===== Oblique asymptote — yellow dashed + label, like the reference. =====
         const oblique=spec.oblique_asymptote;
         if(oblique && Number.isFinite(Number(oblique.slope)) && Number.isFinite(Number(oblique.intercept))){
             const m=Number(oblique.slope), b=Number(oblique.intercept);
-            curves+=`<line x1="${sx(xmin)}" y1="${sy(m*xmin+b)}" x2="${sx(xmax)}" y2="${sy(m*xmax+b)}" stroke="#eab308" stroke-width="2.5" stroke-dasharray="8 6"/>`;
+            curves+=`<line x1="${sx(xmin)}" y1="${sy(m*xmin+b)}" x2="${sx(xmax)}" y2="${sy(m*xmax+b)}" stroke="#f0d84a" stroke-width="2.5" stroke-dasharray="8 6"/>`;
             const mClean=Number(m.toFixed(4)), bClean=Math.abs(Number(b.toFixed(4)));
             const obliqueLabel = oblique.label || `y = ${mClean}x ${b>=0?"+":"-"} ${bClean}`;
             curves+=`<text x="${sx(xmax)-96}" y="${sy(m*xmax+b)-8}" class="vlab vsmall" style="fill:#ffe066">${nabilEsc(obliqueLabel)}</text>`;
-            legendItems.push({color:"#eab308", dash:true, text:`Oblique asymptote: ${obliqueLabel}`});
+            legendItems.push({color:"#f0d84a", dash:true, text:`Oblique asymptote: ${obliqueLabel}`});
         }
 
         // ===== Markers: extrema / key points with a label box, matching the reference. =====
