@@ -2925,6 +2925,21 @@ body.nabil-home-lock::before{
     width:100%!important;
 }
 
+
+
+/* v37 — real science visuals + previous card */
+.board-writing-mode .lesson-paired-row.nabil-board-current .lesson-paired-visual,
+.board-writing-mode .lesson-paired-row.nabil-board-current .linked-lesson-visual,
+.board-writing-mode .lesson-paired-row.nabil-board-current .nabil-visual{
+    display:block!important;
+    visibility:visible!important;
+    opacity:1!important;
+}
+.nabil-board-controls [data-board="previous"]{
+    display:inline-flex!important;
+    align-items:center;
+}
+
 </style>
 </head>
 
@@ -5730,6 +5745,35 @@ function nabilResumeBoardNarrationFromCurrentStep(){
     nabilBoardSpeakCurrentCard();
 }
 
+
+function nabilBoardPreviousStep(){
+    if(!nabilBoardModeActive()) return;
+    if(!Array.isArray(nabilBoardCards) || !nabilBoardCards.length) return;
+    if(nabilBoardCardIndex<=0) return;
+
+    nabilBoardRunToken++;
+    nabilBoardClearIdleTimer();
+    nabilBoardClearTimer();
+    stopNabilNeuralVoice();
+
+    nabilBoardWaitingForStudent=false;
+    nabilBoardCardIndex=Math.max(0,nabilBoardCardIndex-1);
+    nabilBoardCharIndex=0;
+    nabilBoardCurrentSpeech="";
+    nabilBoardCurrentSpeechLanguage="العربية";
+    nabilBoardSpeechStartedAt=0;
+    nabilBoardSpeechDuration=0;
+    nabilBoardSpeechProgress=0;
+    nabilBoardPaused=false;
+
+    const item=nabilBoardCards[nabilBoardCardIndex];
+    if(item){
+        item.chars.forEach(ch=>ch.classList.remove("is-visible"));
+    }
+
+    nabilBoardSpeakCurrentCard();
+}
+
 function nabilBoardRepeatCurrentStep(){
     const item=nabilBoardCards[nabilBoardCardIndex];
     if(!item) return;
@@ -5789,6 +5833,7 @@ function nabilStartBoardReveal(root, spokenText, language){
         <button type="button" data-board="pause">⏸ إيقاف</button>
         <button type="button" data-board="continue">▶ متابعة</button>
         <button type="button" data-board="repeat">🔁 أعد البطاقة</button>
+        <button type="button" data-board="previous">⏮ البطاقة السابقة</button>
         <button type="button" data-board="skip">⏭ البطاقة التالية</button>
     `;
     root.prepend(controls);
@@ -5798,6 +5843,7 @@ function nabilStartBoardReveal(root, spokenText, language){
         if(!action) return;
         if(action==="pause") nabilPauseBoardAtCurrentStep();
         else if(action==="continue") nabilResumeBoardNarrationFromCurrentStep();
+        else if(action==="previous") nabilBoardPreviousStep();
         else if(action==="skip") nabilBoardSkipCurrentStep();
         else if(action==="repeat") nabilBoardRepeatCurrentStep();
     });
@@ -8232,6 +8278,93 @@ function renderNabilDiagram(rawSpec){
     }
 
 
+
+    if (t === "alternating_current"){
+        const lang=String(languageSelect?.value||"English");
+        const titleText=title || (
+            lang==="Français" ? "Courant alternatif sinusoïdal" :
+            lang==="العربية" ? "التيار المتناوب الجيبي" :
+            "Sinusoidal Alternating Current"
+        );
+
+        const W=560,H=330,padL=55,padR=25,padT=45,padB=45;
+        const midY=(padT+H-padB)/2;
+        const amp=82;
+        const x0=padL;
+        const x1=W-padR;
+        const span=x1-x0;
+
+        let path="";
+        const pts=240;
+        for(let i=0;i<=pts;i++){
+            const x=x0+span*i/pts;
+            const theta=4*Math.PI*i/pts; // 2 periods
+            const y=midY-amp*Math.sin(theta);
+            path+=(i===0?"M":" L")+x.toFixed(2)+" "+y.toFixed(2);
+        }
+
+        const Tpx=span/2;
+        const p1=x0, p2=x0+Tpx;
+
+        return nabilVisualWrap(titleText,`
+        <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${nabilEsc(titleText)}">
+          <defs>
+            <marker id="acArrow" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto">
+              <polygon points="0 0,8 3.5,0 7" fill="#67e8f9"/>
+            </marker>
+          </defs>
+
+          <!-- axes -->
+          <line x1="${x0}" y1="${midY}" x2="${x1+8}" y2="${midY}"
+                stroke="#b8d7e6" stroke-width="2" marker-end="url(#acArrow)"/>
+          <line x1="${x0}" y1="${H-padB}" x2="${x0}" y2="${padT-10}"
+                stroke="#b8d7e6" stroke-width="2" marker-end="url(#acArrow)"/>
+
+          <!-- sine curve -->
+          <path d="${path}" fill="none" stroke="#22d3ee" stroke-width="4"
+                stroke-linecap="round" stroke-linejoin="round"/>
+
+          <!-- amplitude guides -->
+          <line x1="${x0}" y1="${midY-amp}" x2="${x1}" y2="${midY-amp}"
+                stroke="#64748b" stroke-dasharray="5 5"/>
+          <line x1="${x0}" y1="${midY+amp}" x2="${x1}" y2="${midY+amp}"
+                stroke="#64748b" stroke-dasharray="5 5"/>
+
+          <!-- period bracket -->
+          <line x1="${p1}" y1="${H-28}" x2="${p2}" y2="${H-28}"
+                stroke="#facc15" stroke-width="2.5"/>
+          <line x1="${p1}" y1="${H-36}" x2="${p1}" y2="${H-20}"
+                stroke="#facc15" stroke-width="2.5"/>
+          <line x1="${p2}" y1="${H-36}" x2="${p2}" y2="${H-20}"
+                stroke="#facc15" stroke-width="2.5"/>
+
+          <text x="${(p1+p2)/2}" y="${H-10}" class="vlab" text-anchor="middle"
+                style="fill:#facc15;font-weight:900">T</text>
+
+          <text x="${x1+10}" y="${midY+5}" class="vlab vsmall">t</text>
+          <text x="${x0+7}" y="${padT-16}" class="vlab vsmall">v(t)</text>
+
+          <text x="${x0+8}" y="${midY-amp-8}" class="vlab vsmall"
+                style="fill:#7dd3fc">+Vₘ</text>
+          <text x="${x0+8}" y="${midY+amp+18}" class="vlab vsmall"
+                style="fill:#7dd3fc">−Vₘ</text>
+
+          <text x="${W/2}" y="22" class="vlab" text-anchor="middle"
+                style="font-size:14px;font-weight:900">
+            ${lang==="Français"
+                ? "Une tension alternative change périodiquement de signe"
+                : lang==="العربية"
+                    ? "الجهد المتناوب يغيّر إشارته دوريًا"
+                    : "Alternating voltage changes sign periodically"}
+          </text>
+        </svg>`,
+        spec.note || (
+            lang==="Français" ? "f = 1/T et ω = 2πf" :
+            lang==="العربية" ? "العلاقة: f = 1/T و ω = 2πf" :
+            "Relations: f = 1/T and ω = 2πf"
+        ));
+    }
+
     if (t === "magnetic_field"){
         const lang=String(languageSelect?.value||"English");
         const titleText = title || (
@@ -9133,11 +9266,13 @@ function autoDiagramSpecForLesson(lesson){
             return {type:"cube",title:rawLesson};
         if(/number line|خط الاعداد|خط الأعداد|interval|inequal/.test(s))
             return {type:"number_line",title:rawLesson,min:-5,max:5};
-        return {type:"concept_map",title:rawLesson,lesson:rawLesson};
+        return null;
     }
 
     // ---------------- Physics ----------------
     if(family==="physics"){
+        if(/alternating current|sinusoidal current|courant alternatif|تيار متناوب|التيار المتناوب/.test(s))
+            return {type:"alternating_current",title:rawLesson};
         if(/magnetic field|magnet|aimant|champ magnetique|مجال مغناطيسي|مغناطيس/.test(s))
             return {type:"magnetic_field",title:rawLesson,labels:{north:"N",south:"S"}};
         if(/electromagnetic induction|induction electromagnetique|حث كهرومغناطيسي/.test(s))
@@ -9162,7 +9297,7 @@ function autoDiagramSpecForLesson(lesson){
             return {type:"optics_ray",title:rawLesson};
         if(/energy|work|power|طاقة|شغل|قدرة/.test(s))
             return {type:"energy_diagram",title:rawLesson};
-        return {type:"concept_map",title:rawLesson,lesson:rawLesson};
+        return null;
     }
 
     // ---------------- Chemistry ----------------
@@ -9183,7 +9318,7 @@ function autoDiagramSpecForLesson(lesson){
             return {type:"energy_diagram",title:rawLesson};
         if(/electro|redox|oxidation|reduction|أكسدة|اختزال/.test(s))
             return {type:"electric_circuit",title:rawLesson};
-        return {type:"concept_map",title:rawLesson,lesson:rawLesson};
+        return null;
     }
 
     // ---------------- Biology / Life Sciences ----------------
@@ -9202,7 +9337,7 @@ function autoDiagramSpecForLesson(lesson){
             return {type:"cell_diagram",title:rawLesson};
         if(/ecosystem|environment|بيئة/.test(s))
             return {type:"life_cycle",title:rawLesson};
-        return {type:"concept_map",title:rawLesson,lesson:rawLesson};
+        return null;
     }
 
     // ---------------- General Science ----------------
@@ -9215,7 +9350,7 @@ function autoDiagramSpecForLesson(lesson){
         if(/food chain|سلسلة غذائية/.test(s)) return {type:"life_cycle",title:rawLesson};
         if(/light|ضوء/.test(s)) return {type:"optics_ray",title:rawLesson};
         if(/force|قوة/.test(s)) return {type:"forces",title:rawLesson};
-        return {type:"concept_map",title:rawLesson,lesson:rawLesson};
+        return null;
     }
 
     // ---------------- Other indexed/available subjects ----------------
