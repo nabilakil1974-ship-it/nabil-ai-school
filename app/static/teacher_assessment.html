@@ -261,7 +261,51 @@ select option{background:#071f33;color:#fff}
   color:#bcecff;
 }
 
+
+
+/* v15 — assessment preview / Word parity */
+.assessment-line{
+  margin:5px 0;
+  line-height:1.75;
+}
+.assessment-exercise-title{
+  margin:18px 0 8px;
+  padding-top:6px;
+  font-weight:900;
+  font-size:1.05rem;
+  color:#7de8ff;
+}
+.assessment-section-title{
+  margin:14px 0 7px;
+  font-weight:900;
+  color:#e7f8ff;
+}
+.assessment-list{
+  margin:6px 0 10px;
+  padding-inline-start:24px;
+}
+.assessment-list li{
+  margin:4px 0;
+}
+.assessment-spacer{height:8px}
+.assessment-text mjx-container{
+  max-width:100%;
+  overflow-x:auto;
+  overflow-y:hidden;
+}
+
 </style>
+
+<script>
+window.MathJax={
+  tex:{
+    inlineMath:[['\\(','\\)'],['$','$']],
+    displayMath:[['\\[','\\]'],['$$','$$']]
+  },
+  svg:{fontCache:'global'}
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
 </head>
 <body>
 <header>
@@ -1103,6 +1147,74 @@ function renderFigureBlock(rawSpec){
     </div>`;
 }
 
+
+function cleanAssessmentMarkers(text){
+  return String(text||"")
+    .replace(/^\s*===TITLE===\s*$/gmi,"")
+    .replace(/^\s*===EXAM===\s*$/gmi,"")
+    .replace(/^\s*===CORRECTION===\s*$/gmi,"")
+    .replace(/^\s*---+\s*$/gmi,"")
+    .replace(/\n{3,}/g,"\n\n")
+    .trim();
+}
+
+function assessmentInlineMarkup(line){
+  let s=esc(line);
+
+  // Keep LaTeX delimiters untouched enough for MathJax.
+  s=s.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+  s=s.replace(/__(.+?)__/g,'<strong>$1</strong>');
+
+  return s;
+}
+
+function assessmentTextToHTML(text){
+  const cleaned=cleanAssessmentMarkers(text);
+  const lines=cleaned.split(/\r?\n/);
+  let out="";
+  let inList=false;
+
+  function closeList(){
+    if(inList){ out+="</ol>"; inList=false; }
+  }
+
+  for(const raw of lines){
+    const line=raw.trim();
+
+    if(!line){
+      closeList();
+      out+='<div class="assessment-spacer"></div>';
+      continue;
+    }
+
+    const numbered=line.match(/^(\d+)\.\s+(.*)$/);
+    if(numbered){
+      if(!inList){ out+='<ol class="assessment-list">'; inList=true; }
+      out+=`<li>${assessmentInlineMarkup(numbered[2])}</li>`;
+      continue;
+    }
+
+    closeList();
+
+    const exercise=line.match(/^\*\*(Exercise\s+\d+[^*]*)\*\*$/i);
+    if(exercise){
+      out+=`<div class="assessment-exercise-title">${assessmentInlineMarkup(exercise[1])}</div>`;
+      continue;
+    }
+
+    const boldOnly=line.match(/^\*\*(.+?)\*\*$/);
+    if(boldOnly){
+      out+=`<div class="assessment-section-title">${assessmentInlineMarkup(boldOnly[1])}</div>`;
+      continue;
+    }
+
+    out+=`<div class="assessment-line">${assessmentInlineMarkup(raw)}</div>`;
+  }
+
+  closeList();
+  return out;
+}
+
 function renderAssessmentContent(text){
   const raw=String(text||"");
   const rx=/\[FIGURE_SPEC\]([\s\S]*?)\[\/FIGURE_SPEC\]/gi;
@@ -1112,17 +1224,23 @@ function renderAssessmentContent(text){
 
   while((m=rx.exec(raw))){
     const before=raw.slice(last,m.index);
-    if(before){
-      out+=`<div class="assessment-lines">${esc(before)}</div>`;
-    }
+    if(before) out+=assessmentTextToHTML(before);
     out+=renderFigureBlock(m[1]);
     last=rx.lastIndex;
   }
 
   const rest=raw.slice(last);
-  if(rest) out+=`<div class="assessment-lines">${esc(rest)}</div>`;
+  if(rest) out+=assessmentTextToHTML(rest);
 
-  return out || `<div class="assessment-lines"></div>`;
+  return out || '<div class="assessment-line"></div>';
+}
+
+function typesetAssessmentMath(){
+  try{
+    if(window.MathJax?.typesetPromise){
+      MathJax.typesetPromise([$("preview")]).catch(()=>{});
+    }
+  }catch(_e){}
 }
 
 function render(data){
@@ -1139,6 +1257,8 @@ function render(data){
       <div class="assessment-text">${renderAssessmentContent(v.correction||"")}</div>
     </article>
   `).join("");
+
+  typesetAssessmentMath();
 }
 
 function wordHTML(data){
@@ -1149,7 +1269,7 @@ function wordHTML(data){
   return `<!doctype html><html dir="${dir}"><head><meta charset="utf-8"><style>
     body{font-family:Arial;line-height:1.7;direction:${dir};text-align:${align};}
     h1,h2,h3{color:#123a62;text-align:${align};}
-    .assessment-lines{white-space:pre-wrap;direction:${dir};text-align:${align};}
+    .assessment-lines{white-space:pre-wrap;direction:${dir};text-align:${align};}.assessment-line{margin:4px 0}.assessment-exercise-title,.assessment-section-title{font-weight:bold;margin:14px 0 8px}.assessment-list{margin:6px 0 10px 24px}.assessment-spacer{height:8px}
     .assessment-figure{margin:14px 0;padding:10px;border:1px solid #999;page-break-inside:avoid;}
     .assessment-figure-title{font-weight:bold;margin-bottom:6px;}
     .assessment-figure svg{width:680px;max-width:100%;height:auto;display:block;margin:8px auto;}
