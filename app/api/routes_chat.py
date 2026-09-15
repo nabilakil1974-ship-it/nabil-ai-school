@@ -1,3 +1,8 @@
+
+# Board continuity rule (frontend-enforced as well):
+# When a lesson card is paused/interrupted, resuming must continue the SAME card
+# from its last written word. Never invent, skip, or jump ahead to another card.
+
 import json
 import math
 import re
@@ -3992,6 +3997,37 @@ MANDATORY CORRECTION RULES
     )
 
 
+
+def _nabil_lesson_start_request(message: str) -> bool:
+    text = str(message or "").strip().lower()
+    return bool(re.search(
+        r"begin\s+the\s+(?:complete\s+)?selected\s+lesson|"
+        r"commence\s+maintenant\s+la\s+leçon\s+(?:complète|complete)|"
+        r"ابدأ\s+الآن\s+الدرس\s+المحدد\s+كامل|ابدأ\s+الدرس\s+المحدد",
+        text,
+        re.I,
+    ))
+
+
+def _nabil_practice_exercise_numbers(text: str):
+    nums=[]
+    for m in re.finditer(
+        r"(?im)^\s*##\s*(?:Exercise|Exercice|تمرين)\s*(?:#\s*)?(\d+)\b",
+        str(text or ""),
+    ):
+        try:
+            n=int(m.group(1))
+        except Exception:
+            continue
+        if 1 <= n <= 5 and n not in nums:
+            nums.append(n)
+    return nums
+
+
+def _nabil_missing_practice_exercises(text: str):
+    have=set(_nabil_practice_exercise_numbers(text))
+    return [n for n in range(1,6) if n not in have]
+
 @router.post(
     "/chat",
     response_model=ChatResponse,
@@ -4406,6 +4442,14 @@ GENERAL EXERCISES MODE / حل تمارين عامة
     - إذا كانت طريقة الشرح full_lesson: اشرح الدرس كاملًا دفعة واحدة بترتيب واضح، مع جميع الرسومات اللازمة، ثم أضف في نهاية الدرس قسمًا مستقلًا بعنوان Practice Exercises يحتوي خمسة تمارين متنوعة من نفس الدرس، متدرجة من المباشر إلى التحدّي، ومع كل تمرين حله الكامل. بعد التمارين أضف خلاصة نهائية قصيرة.
     - إذا كانت طريقة الشرح board_lesson: قدّم نفس الدرس الكامل ونفس المحتوى العلمي ونفس الرسومات وخمسة التمارين المحلولة، لكن اكتب الشرح بصياغة شفوية متدرجة تصلح للعرض على اللوح خطوة خطوة. قبل كل حل استخدم عبارات تعليمية طبيعية مثل: «لنحدد المعطيات»، «الآن نختار القاعدة المناسبة»، «نعوّض القيم»، «نحسب النتيجة»، من دون تكرار آلي. اجعل كل خطوة قصيرة ومستقلة حتى تستطيع الواجهة إظهارها كلمة كلمة ومزامنتها مع الصوت.
     - في كلا نمطي الدرس الكامل، يجب أن تكون التمارين الخمسة جديدة وغير مكررة داخل الرد نفسه، وتغطي أهم أهداف الدرس، وتكون حلولها صحيحة ومناسبة للصف.
+    - التمارين الإضافية في نهاية الدرس عددها EXACTLY 5 دائمًا، مرقمة حصراً من 1 إلى 5. لا ترسل 2 أو 3 أو 4 فقط، ولا تضف تمرينًا سادسًا.
+    - لكل تمرين استخدم بنية الحل الكاملة باللغة المختارة: Given/Données/المعطيات، Required/Demandé/المطلوب، Formula/Property أو Formule/propriété أو القانون/الخاصية، Solution/Résolution/الحل، Final Answer/Réponse finale/الجواب النهائي، ثم Rule Summary مختصرة عند الحاجة.
+    - إذا احتاج أي تمرين رسمة، أرسل الرسمة الفعلية. وإذا احتاج أكثر من رسمة، أرسل كل الرسومات المطلوبة؛ ممنوع الاكتفاء بأول رسمة.
+    - رسومات تمارين نهاية الدرس تستخدم عقدًا خاصًا ثابتًا: scope="practice" و exercise_index=N و card_index=100+N، حيث N رقم التمرين من 1 إلى 5. إذا كان للتمرين أكثر من رسمة فكلها تحمل نفس scope/exercise_index/card_index وتختلف في type/title.
+    - في مقارنة مثل series/parallel أو before/after أو شكلين هندسيين، كل حالة لها رسم مستقل وعنوان واضح، ويجب أن يكون شرح/حل كل حالة ملاصقًا لرسمها في الواجهة.
+    - الهوية البصرية موحدة لكل المواد، لكن نوع الرسم يتبع المادة: Math graph/geometry، Physics preserves 3D-style circuits/resistors/forces/pulleys/inclined planes when suitable، Chemistry molecules/bonds/energy، Biology cells/systems/life cycles/food chains.
+    - Table of Variation إذا ظهر في الشرح أو الحل أو تحت الرسم يجب أن يكون جدول Markdown حقيقيًا كاملاً؛ الواجهة ستعرضه بحدود واضحة كاملة.
+
     """
  
     history_messages = []
@@ -4455,12 +4499,68 @@ GENERAL EXERCISES MODE / حل تمارين عامة
         )
  
     except Exception as exc:
- 
+
         raise HTTPException(
-            status_code=500,
-            detail=f"خطأ في NABIL AI: {exc}",
+            status_code=503,
+            detail=(
+                "خدمة NABIL AI مشغولة أو غير متاحة مؤقتًا. "
+                "جرّب بعد لحظات."
+            ),
+            headers={"Retry-After": "8"},
         ) from exc
  
+
+    # ----------------------------------------------------------
+    # LESSON PRACTICE GUARANTEE — EXACTLY FIVE SOLVED EXERCISES
+    # If a provider truncates the lesson after 2–4 exercises, request ONLY
+    # the missing exercises in a second pass and append them. This avoids
+    # returning a half-finished lesson while keeping provider failover intact.
+    # ----------------------------------------------------------
+    if (
+        str(activity_mode or "lesson") == "lesson"
+        and str(teaching_mode or "full_lesson") in {"full_lesson", "board_lesson"}
+        and _nabil_lesson_start_request(message)
+    ):
+        missing_exercises = _nabil_missing_practice_exercises(raw_reply)
+        if missing_exercises:
+            missing_label = ", ".join(str(n) for n in missing_exercises)
+            repair_prompt = f"""
+The lesson response below is incomplete because some of the required five solved practice exercises are missing.
+
+Grade: {grade or 'unspecified'}
+Branch: {branch or 'N/A'}
+Subject: {subject or 'unspecified'}
+Lesson: {lesson or 'unspecified'}
+Required language: {selected_language}
+Missing exercise numbers: {missing_label}
+
+Return ONLY the missing practice exercises, in ascending order. Do NOT repeat the lesson explanation or exercises already present.
+For each missing exercise:
+- Use an H2 title exactly matching the lesson language: Exercise N / Exercice N / تمرين N.
+- Give a COMPLETE solution to the end, never truncate it.
+- Use the full section structure appropriate to the language (Given, Required, Formula / Property, Solution, Final Answer; or French/Arabic equivalents).
+- Keep the level appropriate to the selected grade/branch/curriculum.
+- If the exercise needs a diagram, include the actual DRAWINGS_JSON in the same response.
+- If it needs more than one diagram, include ALL needed diagrams.
+- Every practice drawing MUST contain: \"scope\":\"practice\", \"exercise_index\":N, \"card_index\":100+N.
+- Multiple drawings for the same exercise MUST share the same exercise_index/card_index and have distinct type/title values.
+- Preserve subject-specific visual conventions: Math graph/geometry, Physics 3D-style circuits/resistors/forces where suitable, Chemistry molecules/bonds/energy, Biology cells/systems.
+- For function study, include the actual graph and a real Markdown Variation Table.
+
+Do not invent hidden data. Return only the missing exercises and their drawing JSON.
+""".strip()
+            try:
+                repair_reply = ai.generate(
+                    instructions=SYSTEM_PROMPT,
+                    messages=[{"role": "user", "content": repair_prompt}],
+                    max_output_tokens=3200,
+                )
+                if str(repair_reply or "").strip():
+                    raw_reply = str(raw_reply or "").rstrip() + "\n\n" + str(repair_reply).strip()
+            except Exception:
+                # Keep the original answer if the repair provider is temporarily unavailable.
+                pass
+
     raw_reply, progress_metadata = extract_progress_metadata(
         raw_reply
     )
@@ -4472,11 +4572,7 @@ GENERAL EXERCISES MODE / حل تمارين عامة
         raw_reply
     )
 
-    is_lesson_start = str(message or "").strip().lower().startswith((
-        "begin the selected lesson",
-        "commence maintenant la leçon",
-        "ابدأ الدرس المحدد",
-    ))
+    is_lesson_start = _nabil_lesson_start_request(message)
     lesson_key = str(lesson or "").lower()
 
     # Strict visual policy: never fabricate a fallback diagram merely because
