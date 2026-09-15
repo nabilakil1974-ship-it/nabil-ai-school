@@ -3081,6 +3081,153 @@ body.nabil-home-lock::before{
     }
 }
 
+
+.nabil-reference-function-card{
+    container-type:inline-size;
+}
+.nabil-reference-function-card svg{
+    min-width:0!important;
+}
+@media (max-width:700px){
+    .nabil-reference-function-card{
+        border-radius:12px!important;
+    }
+}
+
+
+.nabil-reference-function-generic{
+    width:100%;
+    max-width:1040px;
+    margin:0 auto;
+    border:1px solid #149bd7;
+    border-radius:18px;
+    overflow:hidden;
+    background:linear-gradient(180deg,#031625 0%,#061b2d 100%);
+    box-shadow:0 14px 34px rgba(0,0,0,.26);
+}
+.nabil-reference-function-generic .nabil-function-ref-head{
+    padding:14px 16px 10px;
+    background:#062640;
+    border-bottom:1px solid rgba(66,200,255,.40);
+}
+.nabil-reference-function-generic .nabil-visual-title{
+    margin:0 0 8px;
+    font-size:20px;
+    color:#58d4ff;
+    font-weight:900;
+}
+.nabil-reference-function-generic .nabil-function-ref-expression{
+    display:inline-block;
+    margin:0 8px 6px 0;
+    padding:6px 10px;
+    border-radius:8px;
+    background:#071a2b;
+    border:1px solid #238bff;
+    color:#f7fbff;
+    font-family:Georgia,"Times New Roman",serif;
+    font-size:18px;
+}
+.nabil-reference-function-generic .nabil-function-ref-badges{
+    display:flex;
+    gap:7px;
+    flex-wrap:wrap;
+    margin-top:4px;
+}
+.nabil-reference-function-generic .nabil-function-ref-badge{
+    display:inline-flex;
+    align-items:center;
+    min-height:28px;
+    padding:4px 9px;
+    border-radius:8px;
+    border:1px solid #159bd5;
+    background:#083553;
+    color:#eef9ff;
+    font-size:12px;
+    font-weight:800;
+}
+.nabil-reference-function-generic .nabil-function-ref-badge.asym-v{border-color:#ff4d57;color:#ffd4d6}
+.nabil-reference-function-generic .nabil-function-ref-badge.asym-h{border-color:#f5d328;color:#fff29a}
+.nabil-reference-function-generic .nabil-function-ref-badge.asym-o{border-color:#f59e0b;color:#ffe0a3}
+.nabil-reference-function-generic .nabil-function-ref-plot{
+    padding:10px 12px 12px;
+    background:#03192a;
+}
+.nabil-reference-function-generic .nabil-function-ref-plot svg{
+    display:block;
+    width:100%;
+    height:auto;
+    min-height:340px;
+}
+.exercise-function-graph-variation .nabil-reference-function-generic{
+    border-radius:14px 14px 0 0;
+    box-shadow:none;
+}
+@media (max-width:700px){
+    .nabil-reference-function-generic{
+        border-radius:12px;
+    }
+    .nabil-reference-function-generic .nabil-function-ref-head{
+        padding:10px 10px 8px;
+    }
+    .nabil-reference-function-generic .nabil-visual-title{
+        font-size:16px;
+    }
+    .nabil-reference-function-generic .nabil-function-ref-expression{
+        font-size:15px;
+    }
+    .nabil-reference-function-generic .nabil-function-ref-plot{
+        padding:6px;
+        overflow-x:auto;
+    }
+    .nabil-reference-function-generic .nabil-function-ref-plot svg{
+        min-width:540px;
+        min-height:320px;
+    }
+}
+
+
+/* Reference-image palette for ALL function-study graphs */
+.nabil-reference-function-generic{
+    --ref-bg:#03192a;
+    --ref-panel:#062640;
+    --ref-cyan:#58d4ff;
+    --ref-blue:#238bff;
+    --ref-red:#ff4d57;
+    --ref-yellow:#f5d328;
+    --ref-white:#f7fbff;
+}
+.nabil-reference-function-generic .vaxis{
+    stroke:var(--ref-white)!important;
+}
+.nabil-reference-function-generic .vgrid{
+    stroke:#123852!important;
+}
+.nabil-reference-function-generic .vcurve,
+.nabil-reference-function-generic .function-curve,
+.nabil-reference-function-generic polyline[data-function-curve]{
+    stroke:var(--ref-blue)!important;
+}
+.nabil-reference-function-generic .vlab,
+.nabil-reference-function-generic .vsmall{
+    fill:var(--ref-white)!important;
+}
+.nabil-reference-function-generic .nabil-function-ref-badge.asym-v{
+    border-color:var(--ref-red)!important;
+    color:#ffd4d6!important;
+}
+.nabil-reference-function-generic .nabil-function-ref-badge.asym-h{
+    border-color:var(--ref-yellow)!important;
+    color:#fff29a!important;
+}
+.exercise-function-graph-variation{
+    background:linear-gradient(180deg,#031625 0%,#061b2d 100%)!important;
+    border-color:#149bd7!important;
+}
+.exercise-function-graph-variation .exercise-variation-zone{
+    background:#062640!important;
+    border-color:#159bd5!important;
+}
+
 </style>
 </head>
 
@@ -6545,17 +6692,17 @@ function nabilRetryMessage(language, attempt){
     const lessonMode = nabilActivityMode === "lesson";
     if(language === "English"){
         return lessonMode
-            ? `Trying to reconnect with Al-Ostaz Nabil… The lesson will start automatically as soon as the connection returns. Attempt ${attempt}`
-            : `Trying to reconnect with Al-Ostaz Nabil… Your answer will appear automatically when the connection returns. Attempt ${attempt}`;
+            ? `Connection is temporarily busy… NABIL AI is trying the backup route automatically.`
+            : `Connection is temporarily busy… NABIL AI is trying the backup route automatically.`;
     }
     if(language === "Français"){
         return lessonMode
-            ? `Tentative de reconnexion avec le professeur Nabil… La leçon démarrera automatiquement dès le retour de la connexion. Tentative ${attempt}`
-            : `Tentative de reconnexion avec le professeur Nabil… La réponse apparaîtra automatiquement dès le retour de la connexion. Tentative ${attempt}`;
+            ? `Connexion momentanément occupée… NABIL AI essaie automatiquement la voie de secours.`
+            : `Connexion momentanément occupée… NABIL AI essaie automatiquement la voie de secours.`;
     }
     return lessonMode
-        ? `نحاول الاتصال بالأستاذ نبيل من جديد… سيبدأ الدرس تلقائيًا فور عودة الاتصال. المحاولة ${attempt}`
-        : `نحاول الاتصال بالأستاذ نبيل من جديد… سيظهر الجواب تلقائيًا فور عودة الاتصال. المحاولة ${attempt}`;
+        ? `الاتصال مشغول مؤقتًا… NABIL AI يجرب مسارًا احتياطيًا تلقائيًا.`
+        : `الاتصال مشغول مؤقتًا… NABIL AI يجرب مسارًا احتياطيًا تلقائيًا.`;
 }
 
 function nabilShowRetryNotice(text){
@@ -6579,49 +6726,80 @@ function nabilSleep(ms){
 }
 
 async function nabilFetchChatWithAutoRetry(url, options, language){
-    // Keep trying while this page remains open. The student's request is never duplicated.
-    // Permanent client/auth errors still return immediately; only temporary/server/network
-    // failures are retried.
-    const delays=[2000,3500,5500,8000,12000,16000,20000];
-    const retryableStatuses=new Set([408,425,429,500,502,503,504]);
-    let attempt=1;
+    /*
+      FINAL STABILITY POLICY:
+      - The backend AI gateway already performs provider failover.
+      - The browser must NOT create an endless retry storm.
+      - At most ONE browser retry after the original request.
+      - The retry notice is shown only if that second request is actually needed.
+      - 429 waits longer; transient 5xx/network errors retry once.
+    */
+    const MAX_ATTEMPTS = 2;
+    const RETRYABLE_STATUSES = new Set([408,425,429,502,503,504]);
 
-    while(true){
+    let attempt = 1;
+    let lastResponse = null;
+    let lastError = null;
+
+    while(attempt <= MAX_ATTEMPTS){
         try{
-            if(attempt>1){
+            if(attempt === 2){
                 nabilShowRetryNotice(nabilRetryMessage(language, attempt));
             }
 
-            const response=await fetch(url,options);
-            const status=Number(response.status);
+            const response = await fetch(url, options);
+            lastResponse = response;
 
-            if(!retryableStatuses.has(status)){
+            const status = Number(response.status);
+
+            // Success, normal client error, or non-transient server error:
+            // return immediately and let the normal UI handle the response.
+            if(!RETRYABLE_STATUSES.has(status)){
                 nabilHideRetryNotice();
                 return response;
             }
 
-            // Keep the same request pending in the UI and retry automatically.
+            // Never loop forever. One retry only.
+            if(attempt >= MAX_ATTEMPTS){
+                nabilHideRetryNotice();
+                return response;
+            }
+
+            // 429 needs a calmer wait; infrastructure errors use a short wait.
+            const retryAfterHeader = Number(response.headers?.get?.("Retry-After") || 0);
+            const waitMs = status === 429
+                ? Math.max(8000, Math.min(20000, retryAfterHeader * 1000 || 0))
+                : 3500;
+
             attempt += 1;
-            nabilShowRetryNotice(nabilRetryMessage(language, attempt));
-            await nabilSleep(delays[Math.min(attempt-2,delays.length-1)]);
+            await nabilSleep(waitMs);
             continue;
 
         }catch(err){
-            const raw=String(err?.message||"").toLowerCase();
-            const networkLike=
-                /failed to fetch|networkerror|network request|load failed|timeout|timed out|connection|fetch/.test(raw)
+            lastError = err;
+
+            const raw = String(err?.message || "").toLowerCase();
+            const networkLike =
+                /failed to fetch|networkerror|network request|load failed|timeout|timed out|connection|fetch|abort/.test(raw)
                 || !err?.status;
 
-            if(!networkLike){
+            if(!networkLike || attempt >= MAX_ATTEMPTS){
                 nabilHideRetryNotice();
                 throw err;
             }
 
             attempt += 1;
-            nabilShowRetryNotice(nabilRetryMessage(language, attempt));
-            await nabilSleep(delays[Math.min(attempt-2,delays.length-1)]);
+            await nabilSleep(3000);
         }
     }
+
+    nabilHideRetryNotice();
+
+    if(lastResponse){
+        return lastResponse;
+    }
+
+    throw lastError || new Error("NABIL AI connection failed.");
 }
 
 async function sendToAI(
@@ -7524,6 +7702,97 @@ function nabilVisualWrap(title, svg, note=""){
     </div>`;
 }
 
+
+function nabilReferenceFunctionGraphWrap(title, svg, note, spec){
+    const expression = nabilCleanFunctionExpressionLabel(
+        spec?.expression || spec?.formula || spec?.equation || spec?.fx || spec?.function_expression || ""
+    );
+
+    const domainRaw =
+        spec?.domain_label ??
+        spec?.domain ??
+        spec?.domain_text ??
+        spec?.interval ??
+        "";
+
+    const verticals = Array.isArray(spec?.vertical_asymptotes)
+        ? spec.vertical_asymptotes
+        : (spec?.vertical_asymptote !== undefined ? [spec.vertical_asymptote] : []);
+
+    const hAsym = spec?.horizontal_asymptote;
+    const oAsym = spec?.oblique_asymptote;
+
+    const badges = [];
+
+    if(domainRaw !== null && domainRaw !== undefined && String(domainRaw).trim()){
+        badges.push(`<span class="nabil-function-ref-badge">Domain: ${nabilEsc(String(domainRaw))}</span>`);
+    }
+
+    verticals.forEach(v=>{
+        const isObj = v && typeof v === "object";
+        const val = isObj ? v.x : v;
+        const label = (isObj && v.label) || (val !== undefined ? `x = ${val}` : "");
+        if(label) badges.push(`<span class="nabil-function-ref-badge asym-v">VA: ${nabilEsc(String(label))}</span>`);
+    });
+
+    if(hAsym !== undefined && hAsym !== null){
+        const isObj = hAsym && typeof hAsym === "object";
+        const val = isObj ? (hAsym.y ?? hAsym.value) : hAsym;
+        const label = (isObj && hAsym.label) || (val !== undefined ? `y = ${val}` : "");
+        if(label) badges.push(`<span class="nabil-function-ref-badge asym-h">HA: ${nabilEsc(String(label))}</span>`);
+    }
+
+    if(oAsym && Number.isFinite(Number(oAsym.slope)) && Number.isFinite(Number(oAsym.intercept))){
+        const label = oAsym.label || `y = ${Number(oAsym.slope)}x ${Number(oAsym.intercept) >= 0 ? "+" : "-"} ${Math.abs(Number(oAsym.intercept))}`;
+        badges.push(`<span class="nabil-function-ref-badge asym-o">OA: ${nabilEsc(label)}</span>`);
+    }
+
+    const sharedDefs = `<defs>
+      <linearGradient id="nabilSurface3d" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#67e8f9" stop-opacity=".96"/>
+        <stop offset=".48" stop-color="#2563eb" stop-opacity=".72"/>
+        <stop offset="1" stop-color="#312e81" stop-opacity=".94"/>
+      </linearGradient>
+      <linearGradient id="nabilSoft3d" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#f0f9ff" stop-opacity=".95"/>
+        <stop offset="1" stop-color="#38bdf8" stop-opacity=".36"/>
+      </linearGradient>
+      <radialGradient id="nabilOrb3d" cx="32%" cy="26%" r="72%">
+        <stop offset="0" stop-color="#f5f3ff"/>
+        <stop offset=".34" stop-color="#a855f7"/>
+        <stop offset="1" stop-color="#312e81"/>
+      </radialGradient>
+      <linearGradient id="nabilPurple3d" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#f0abfc"/><stop offset=".48" stop-color="#a855f7"/><stop offset="1" stop-color="#312e81"/>
+      </linearGradient>
+      <linearGradient id="nabilGreen3d" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#bbf7d0"/><stop offset=".48" stop-color="#22c55e"/><stop offset="1" stop-color="#065f46"/>
+      </linearGradient>
+      <linearGradient id="nabilWarm3d" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#fef3c7"/><stop offset=".46" stop-color="#fb923c"/><stop offset="1" stop-color="#be123c"/>
+      </linearGradient>
+      <filter id="nabilDepth" x="-25%" y="-25%" width="150%" height="160%">
+        <feDropShadow dx="0" dy="7" stdDeviation="6" flood-color="#020617" flood-opacity=".5"/>
+      </filter>
+    </defs>`;
+
+    const polishedSvg = String(svg || "").replace(/(<svg\b[^>]*>)/i, `$1${sharedDefs}`);
+    const displayTitle = title || (expression ? `f(x) = ${expression}` : "Graph of the Function");
+
+    return `
+    <div class="nabil-visual nabil-reference-function-card nabil-reference-function-generic">
+      <div class="nabil-function-ref-head">
+        <div class="nabil-visual-title">${nabilEsc(displayTitle)}</div>
+        ${expression ? `<div class="nabil-function-ref-expression">f(x) = ${nabilEsc(expression)}</div>` : ""}
+        ${badges.length ? `<div class="nabil-function-ref-badges">${badges.join("")}</div>` : ""}
+      </div>
+      <div class="nabil-function-ref-plot">
+        ${polishedSvg}
+      </div>
+      ${note ? `<div class="nabil-visual-note">${nabilEsc(note)}</div>` : ""}
+    </div>`;
+}
+
 function nabilNormalizeExpression(expr){
     let s=String(expr||"").trim();
     if(!s) return "";
@@ -7841,6 +8110,204 @@ function nabilCompleteVisualSpec(rawSpec){
     }
 
     return spec;
+}
+
+
+function nabilIsLnXOverXExpression(raw){
+    let s=String(raw||"")
+        .toLowerCase()
+        .replace(/\s+/g,"")
+        .replace(/\\left|\\right/g,"")
+        .replace(/\\ln/g,"ln")
+        .replace(/\\log/g,"ln")
+        .replace(/\{/g,"(")
+        .replace(/\}/g,")");
+
+    s=s.replace(/f\(x\)=/g,"");
+    s=s.replace(/y=/g,"");
+
+    return (
+        s==="ln(x)/x" ||
+        s==="lnx/x" ||
+        s==="(ln(x))/x" ||
+        s==="ln(x)÷x" ||
+        s.includes("frac(ln(x))(x)") ||
+        /ln\(?x\)?\/x/.test(s)
+    );
+}
+
+function nabilRenderLnXOverXReferenceCard(spec){
+    const W=1000, H=980;
+
+    const plot={x:48,y:145,w:904,h:390};
+    const xmin=-0.15, xmax=7.0, ymin=-1.15, ymax=1.10;
+    const sx=x=>plot.x + plot.w*(x-xmin)/(xmax-xmin);
+    const sy=y=>plot.y + plot.h - plot.h*(y-ymin)/(ymax-ymin);
+
+    const pts=[];
+    const xStart=0.055, xEnd=6.8, steps=360;
+    for(let i=0;i<=steps;i++){
+        const x=xStart+(xEnd-xStart)*i/steps;
+        const y=Math.log(x)/x;
+        if(!Number.isFinite(y)) continue;
+        const yc=Math.max(ymin,Math.min(ymax,y));
+        pts.push(`${sx(x).toFixed(2)},${sy(yc).toFixed(2)}`);
+    }
+
+    let grid="";
+    for(let x=0;x<=7;x++){
+        const px=sx(x);
+        grid+=`<line x1="${px}" y1="${plot.y}" x2="${px}" y2="${plot.y+plot.h}" stroke="#123852" stroke-width="1"/>`;
+        if(x>0 && x<7){
+            grid+=`<text x="${px}" y="${sy(0)+25}" text-anchor="middle" fill="#e8f5ff" font-size="16">${x}</text>`;
+        }
+    }
+    for(let y=-1;y<=1.001;y+=0.25){
+        const py=sy(y);
+        grid+=`<line x1="${plot.x}" y1="${py}" x2="${plot.x+plot.w}" y2="${py}" stroke="#123852" stroke-width="1"/>`;
+    }
+
+    const e=Math.E, ymaxPt=1/e;
+    const xE=sx(e), yE=sy(ymaxPt), xOne=sx(1), yZero=sy(0), xZero=sx(0);
+
+    return `
+    <div class="nabil-visual nabil-reference-function-card" style="
+        width:100%;
+        max-width:1040px;
+        margin:0 auto;
+        border:1px solid #1b9bd7;
+        border-radius:18px;
+        overflow:hidden;
+        background:linear-gradient(180deg,#031728 0%,#061c2d 100%);
+        box-shadow:0 14px 35px rgba(0,0,0,.28);">
+      <svg viewBox="0 0 ${W} ${H}" role="img"
+           aria-label="Graph and Table of Variation for f(x)=ln(x)/x"
+           style="width:100%;height:auto;display:block;background:#04192a">
+        <defs>
+          <marker id="nabilArrowWhite" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto">
+            <polygon points="0 0, 8 3.5, 0 7" fill="#f5fbff"/>
+          </marker>
+          <marker id="nabilArrowCyan" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto">
+            <polygon points="0 0, 8 3.5, 0 7" fill="#38bdf8"/>
+          </marker>
+        </defs>
+
+        <!-- title -->
+        <rect x="0" y="0" width="1000" height="58" fill="#05243a"/>
+        <text x="28" y="39" fill="#72d8ff" font-size="28" font-weight="800">
+          Graph and Table of Variation
+        </text>
+
+        <!-- formula + domain -->
+        <text x="46" y="108" fill="#f8fbff" font-size="34" font-family="serif">
+          f(x) = ln(x) / x
+        </text>
+        <rect x="760" y="76" width="192" height="44" rx="9" fill="#07375a" stroke="#1ea7e1" stroke-width="1.5"/>
+        <text x="856" y="105" text-anchor="middle" fill="#eef9ff" font-size="20">
+          Domain: ]0,+∞[
+        </text>
+
+        <!-- graph frame -->
+        <rect x="${plot.x}" y="${plot.y}" width="${plot.w}" height="${plot.h}"
+              fill="#041b2d" stroke="#0b5c83" stroke-width="1.5"/>
+        ${grid}
+
+        <!-- axes -->
+        <line x1="${plot.x}" y1="${sy(0)}" x2="${plot.x+plot.w-8}" y2="${sy(0)}"
+              stroke="#f5fbff" stroke-width="2.2" marker-end="url(#nabilArrowWhite)"/>
+        <line x1="${sx(0)}" y1="${plot.y+plot.h}" x2="${sx(0)}" y2="${plot.y+10}"
+              stroke="#f5fbff" stroke-width="2.2" marker-end="url(#nabilArrowWhite)"/>
+        <text x="${plot.x+plot.w-20}" y="${sy(0)+28}" fill="#f5fbff" font-size="20">x</text>
+        <text x="${sx(0)+14}" y="${plot.y+25}" fill="#f5fbff" font-size="20">y</text>
+        <text x="${sx(0)-24}" y="${sy(0)+24}" fill="#f5fbff" font-size="18">O</text>
+
+        <!-- asymptotes -->
+        <line x1="${xZero}" y1="${plot.y+32}" x2="${xZero}" y2="${plot.y+plot.h-4}"
+              stroke="#ff4f59" stroke-width="3" stroke-dasharray="10 8"/>
+        <line x1="${plot.x+8}" y1="${sy(0)}" x2="${plot.x+plot.w-18}" y2="${sy(0)}"
+              stroke="#f4d83b" stroke-width="2.4" stroke-dasharray="10 8"/>
+
+        <!-- curve -->
+        <polyline points="${pts.join(" ")}"
+                  fill="none" stroke="#2d8cff" stroke-width="5"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+
+        <!-- key points -->
+        <line x1="${xE}" y1="${yE}" x2="${xE}" y2="${sy(0)}"
+              stroke="#f5fbff" stroke-width="1.8" stroke-dasharray="7 6"/>
+        <circle cx="${xOne}" cy="${yZero}" r="6" fill="#e8f5ff" stroke="#2d8cff" stroke-width="2"/>
+        <circle cx="${xE}" cy="${yE}" r="6.5" fill="#e8f5ff" stroke="#2d8cff" stroke-width="2"/>
+
+        <text x="${xOne+8}" y="${yZero+23}" fill="#f5fbff" font-size="16">1 (1,0)</text>
+        <text x="${xE-12}" y="${yE-20}" fill="#f5fbff" font-size="18">(e, 1/e)</text>
+        <text x="${xE}" y="${sy(0)+50}" text-anchor="middle" fill="#f5fbff" font-size="16">e ≈ 2.718</text>
+
+        <!-- annotations -->
+        <text x="${plot.x+34}" y="${plot.y+plot.h-60}" fill="#ff5a60" font-size="17">Vertical asymptote</text>
+        <text x="${plot.x+34}" y="${plot.y+plot.h-36}" fill="#ff5a60" font-size="17">x = 0</text>
+        <text x="${plot.x+165}" y="${plot.y+plot.h-60}" fill="#f5fbff" font-size="17">f(x) → −∞</text>
+        <text x="${plot.x+165}" y="${plot.y+plot.h-34}" fill="#f5fbff" font-size="17">as x → 0+</text>
+        <text x="${plot.x+760}" y="${plot.y+plot.h-60}" fill="#f5fbff" font-size="17">f(x) → 0</text>
+        <text x="${plot.x+760}" y="${plot.y+plot.h-34}" fill="#f5fbff" font-size="17">as x → +∞</text>
+
+        <!-- legend -->
+        <rect x="666" y="164" width="266" height="110" rx="12"
+              fill="#06192a" fill-opacity=".96" stroke="#198bc5" stroke-width="1.5"/>
+        <line x1="684" y1="194" x2="742" y2="194" stroke="#2d8cff" stroke-width="5"/>
+        <text x="756" y="200" fill="#f5fbff" font-size="16">f(x) = ln(x)/x</text>
+        <line x1="684" y1="224" x2="742" y2="224" stroke="#ff4f59" stroke-width="3" stroke-dasharray="9 7"/>
+        <text x="756" y="230" fill="#f5fbff" font-size="16">Vertical asymptote: x = 0</text>
+        <line x1="684" y1="254" x2="742" y2="254" stroke="#f4d83b" stroke-width="3" stroke-dasharray="9 7"/>
+        <text x="756" y="260" fill="#f5fbff" font-size="16">Horizontal asymptote: y = 0</text>
+
+        <!-- variation block -->
+        <rect x="28" y="558" width="944" height="244" rx="16"
+              fill="#05243a" stroke="#169bd5" stroke-width="1.7"/>
+        <text x="48" y="594" fill="#72d8ff" font-size="27" font-weight="800">
+          Table of Variation (from f'(x))
+        </text>
+
+        <!-- table -->
+        <rect x="42" y="616" width="916" height="164" fill="#061d31" stroke="#2ba9dd" stroke-width="1.5"/>
+        <line x1="42" y1="670" x2="958" y2="670" stroke="#54bde9" stroke-width="1.2"/>
+        <line x1="42" y1="724" x2="958" y2="724" stroke="#54bde9" stroke-width="1.2"/>
+
+        <line x1="178" y1="616" x2="178" y2="780" stroke="#54bde9" stroke-width="1.2"/>
+        <line x1="320" y1="616" x2="320" y2="780" stroke="#54bde9" stroke-width="1.2"/>
+        <line x1="536" y1="616" x2="536" y2="780" stroke="#54bde9" stroke-width="1.2"/>
+        <line x1="746" y1="616" x2="746" y2="780" stroke="#54bde9" stroke-width="1.2"/>
+
+        <text x="110" y="650" text-anchor="middle" fill="#f5fbff" font-size="22" font-family="serif">x</text>
+        <text x="249" y="650" text-anchor="middle" fill="#f5fbff" font-size="20">0+</text>
+        <text x="428" y="650" text-anchor="middle" fill="#f5fbff" font-size="20">(0,e)</text>
+        <text x="641" y="650" text-anchor="middle" fill="#f5fbff" font-size="20">e</text>
+        <text x="852" y="650" text-anchor="middle" fill="#f5fbff" font-size="20">+∞</text>
+
+        <text x="110" y="704" text-anchor="middle" fill="#f5fbff" font-size="22" font-family="serif">f'(x)</text>
+        <text x="428" y="704" text-anchor="middle" fill="#f5fbff" font-size="26">+</text>
+        <text x="641" y="704" text-anchor="middle" fill="#f5fbff" font-size="22">0</text>
+        <text x="852" y="704" text-anchor="middle" fill="#f5fbff" font-size="26">−</text>
+
+        <text x="110" y="758" text-anchor="middle" fill="#f5fbff" font-size="22" font-family="serif">f(x)</text>
+        <text x="249" y="758" text-anchor="middle" fill="#f5fbff" font-size="22">−∞</text>
+        <line x1="360" y1="758" x2="460" y2="726" stroke="#f5fbff" stroke-width="3" marker-end="url(#nabilArrowWhite)"/>
+        <text x="641" y="746" text-anchor="middle" fill="#f5fbff" font-size="21">1/e</text>
+        <text x="641" y="770" text-anchor="middle" fill="#f5fbff" font-size="15">(maximum)</text>
+        <line x1="790" y1="726" x2="884" y2="758" stroke="#f5fbff" stroke-width="3" marker-end="url(#nabilArrowWhite)"/>
+        <text x="923" y="758" text-anchor="middle" fill="#f5fbff" font-size="22">0</text>
+
+        <!-- key features -->
+        <rect x="28" y="824" width="944" height="132" rx="16"
+              fill="#05243a" stroke="#169bd5" stroke-width="1.4"/>
+        <text x="48" y="858" fill="#72d8ff" font-size="23" font-weight="800">Key features:</text>
+        <text x="54" y="892" fill="#eaf7ff" font-size="17">• Domain: ]0,+∞[</text>
+        <text x="54" y="920" fill="#eaf7ff" font-size="17">• Vertical asymptote: x = 0</text>
+        <text x="54" y="948" fill="#eaf7ff" font-size="17">• Zero: (1,0)</text>
+        <text x="535" y="892" fill="#eaf7ff" font-size="17">• Increasing on ]0,e[</text>
+        <text x="535" y="920" fill="#eaf7ff" font-size="17">• Decreasing on ]e,+∞[</text>
+        <text x="535" y="948" fill="#eaf7ff" font-size="17">• Maximum: f(e)=1/e≈0.368</text>
+      </svg>
+    </div>`;
 }
 
 function renderNabilDiagram(rawSpec){
@@ -8376,7 +8843,7 @@ function renderNabilDiagram(rawSpec){
             });
         }
 
-        return nabilVisualWrap(title||"مخطط بياني",`
+        const functionSvg = `
         <svg viewBox="0 0 520 310">
           ${grid}
           <line x1="38" y1="${sy(0)}" x2="490" y2="${sy(0)}" class="vaxis"/>
@@ -8385,7 +8852,11 @@ function renderNabilDiagram(rawSpec){
           ${legendSvg}
           <text x="495" y="${Math.max(20,sy(0)-7)}" class="vlab vsmall">x</text>
           <text x="${Math.min(495,sx(0)+7)}" y="34" class="vlab vsmall">y</text>
-        </svg>`,spec.note||"");
+        </svg>`;
+
+        return hasExplicitFunction
+            ? nabilReferenceFunctionGraphWrap(title||"Graph of the Function", functionSvg, spec.note||"", spec)
+            : nabilVisualWrap(title||"مخطط بياني", functionSvg, spec.note||"");
     }
 
     if (t === "cube"){
