@@ -364,6 +364,44 @@ select option{background:#071f33;color:#fff}
   .model{padding:18px 14px!important;}
 }
 
+
+/* v17 — clean official-style assessment paper */
+.assessment-table-wrap{overflow-x:auto;margin:10px 0 14px}
+.assessment-table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:13px;
+}
+.assessment-table th,
+.assessment-table td{
+  border:1px solid #333;
+  padding:7px 8px;
+  vertical-align:top;
+}
+.assessment-table th{
+  background:#f3f4f6;
+  font-weight:700;
+}
+.assessment-md-heading{
+  color:#111!important;
+  margin:16px 0 8px;
+  font-weight:800;
+}
+.model{
+  background:#fff!important;
+  color:#111!important;
+  box-shadow:none!important;
+  border:1px solid #cbd5e1!important;
+}
+.model h3,.model h4,.assessment-text{
+  color:#111!important;
+}
+.assessment-exercise-title{
+  font-size:16px;
+  border-bottom:1px solid #555;
+  padding-bottom:4px;
+}
+
 </style>
 
 <script>
@@ -1329,31 +1367,84 @@ function assessmentTextToHTML(text){
   const cleaned=cleanAssessmentMarkers(text);
   const lines=cleaned.split(/\r?\n/);
   let out="";
-  let inList=false;
+  let inOl=false;
+  let inUl=false;
+  let tableRows=[];
 
-  function closeList(){
-    if(inList){ out+="</ol>"; inList=false; }
+  function closeLists(){
+    if(inOl){out+="</ol>";inOl=false;}
+    if(inUl){out+="</ul>";inUl=false;}
   }
 
-  for(const raw of lines){
+  function flushTable(){
+    if(!tableRows.length) return;
+
+    const rows=tableRows
+      .map(line=>line.trim())
+      .filter(Boolean)
+      .filter(line=>!/^\|\s*:?-{3,}/.test(line));
+
+    if(rows.length){
+      out+='<div class="assessment-table-wrap"><table class="assessment-table">';
+      rows.forEach((line,rowIndex)=>{
+        const cells=line
+          .replace(/^\||\|$/g,"")
+          .split("|")
+          .map(x=>x.trim());
+
+        const tag=rowIndex===0 ? "th" : "td";
+        out+="<tr>"+cells.map(c=>`<${tag}>${assessmentInlineMarkup(c)}</${tag}>`).join("")+"</tr>";
+      });
+      out+="</table></div>";
+    }
+    tableRows=[];
+  }
+
+  for(let i=0;i<lines.length;i++){
+    const raw=lines[i];
     const line=raw.trim();
 
+    if(/^\|.*\|$/.test(line)){
+      closeLists();
+      tableRows.push(line);
+      continue;
+    }else{
+      flushTable();
+    }
+
     if(!line){
-      closeList();
+      closeLists();
       out+='<div class="assessment-spacer"></div>';
       continue;
     }
 
-    const numbered=line.match(/^(\d+)\.\s+(.*)$/);
+    const heading=line.match(/^(#{1,4})\s*(.+)$/);
+    if(heading){
+      closeLists();
+      const level=Math.min(4,Math.max(2,heading[1].length+1));
+      out+=`<h${level} class="assessment-md-heading">${assessmentInlineMarkup(heading[2])}</h${level}>`;
+      continue;
+    }
+
+    const numbered=line.match(/^(\d+)[.)]\s+(.*)$/);
     if(numbered){
-      if(!inList){ out+='<ol class="assessment-list">'; inList=true; }
+      if(inUl){out+="</ul>";inUl=false;}
+      if(!inOl){out+='<ol class="assessment-list">';inOl=true;}
       out+=`<li>${assessmentInlineMarkup(numbered[2])}</li>`;
       continue;
     }
 
-    closeList();
+    const bullet=line.match(/^[-•*]\s+(.*)$/);
+    if(bullet){
+      if(inOl){out+="</ol>";inOl=false;}
+      if(!inUl){out+='<ul class="assessment-list">';inUl=true;}
+      out+=`<li>${assessmentInlineMarkup(bullet[1])}</li>`;
+      continue;
+    }
 
-    const exercise=line.match(/^\*\*(Exercise\s+\d+[^*]*)\*\*$/i);
+    closeLists();
+
+    const exercise=line.match(/^\*\*((?:Exercise|Exercice|تمرين)\s+\d+[^*]*)\*\*$/i);
     if(exercise){
       out+=`<div class="assessment-exercise-title">${assessmentInlineMarkup(exercise[1])}</div>`;
       continue;
@@ -1368,7 +1459,8 @@ function assessmentTextToHTML(text){
     out+=`<div class="assessment-line">${assessmentInlineMarkup(raw)}</div>`;
   }
 
-  closeList();
+  flushTable();
+  closeLists();
   return out;
 }
 
@@ -1431,6 +1523,12 @@ function wordHTML(data){
     .assessment-figure-title{font-weight:bold;margin-bottom:6px;}
     .assessment-figure svg{width:650px;max-width:100%;height:auto;display:block;margin:6px auto;background:#fff;}
     .assessment-figure-note{font-size:11pt;margin-top:6px;}
+    .assessment-table-wrap{margin:10px 0 14px;}
+    .assessment-table{width:100%;border-collapse:collapse;font-size:11pt;}
+    .assessment-table th,.assessment-table td{border:1px solid #333;padding:6px 7px;vertical-align:top;}
+    .assessment-table th{background:#f3f4f6;font-weight:bold;}
+    .assessment-md-heading{color:#111;margin:14px 0 7px;font-weight:bold;}
+
   </style></head><body>
     <h1>NABIL AI - Assessment</h1>
     ${data.variants.map(v=>`
