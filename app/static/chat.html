@@ -2766,6 +2766,35 @@ body.nabil-home-lock::before{
     font-weight:900!important;
 }
 
+
+
+/* v27 — sequential board with bilingual teaching */
+.nabil-board-controls[data-waiting="1"]{
+    border-color:rgba(255,210,75,.55)!important;
+    box-shadow:0 0 0 2px rgba(255,210,75,.08),0 10px 24px rgba(0,0,0,.22);
+}
+.nabil-board-controls[data-waiting="1"]::after{
+    content:"يمكنك السؤال الآن — وإذا لم تسأل، ننتقل تلقائيًا بعد دقيقة";
+    width:100%;
+    color:#ffe58a;
+    font-size:12px;
+    font-weight:800;
+    padding-top:3px;
+}
+
+
+
+/* v28 — universal explanatory voice */
+#talkBtn::after{
+    content:"";
+}
+.nabil-universal-voice-note{
+    font-size:11px;
+    color:#9fdff4;
+    margin-top:6px;
+    line-height:1.45;
+}
+
 </style>
 </head>
 
@@ -4314,11 +4343,21 @@ function nabilLessonLayoutFamily(){
 }
 
 function renderLessonCards(text) {
-    const rendered = renderAIText(text).trim();
+    let source = String(text || "").replace(/\r/g, "");
+
+    // Some providers return "## Card 2" in the middle of a long line.
+    // Force every Card/بطاقة/Carte marker onto its own heading line so
+    // the lesson becomes genuinely card-by-card.
+    source = source.replace(
+        /([^\n])\s+(#{1,3}\s*(?:Card|بطاقة|Carte)\s*\d+)/gi,
+        "$1\n$2"
+    );
+
+    const rendered = renderAIText(source).trim();
     if (!rendered) return "";
 
     const rawSections = rendered
-        .split(/(?=<h[23]>)/i)
+        .split(/(?=<h[123]>)/i)
         .map(section => section.replace(/^(?:<br>\s*)+|(?:<br>\s*)+$/gi, "").trim())
         .filter(Boolean);
 
@@ -4945,10 +4984,36 @@ let nabilBoardCurrentSpeechLanguage = "العربية";
 let nabilBoardSpeechStartedAt = 0;
 let nabilBoardSpeechDuration = 0;
 let nabilBoardSpeechProgress = 0;
+let nabilBoardIdleTimer = null;
+let nabilBoardWaitingForStudent = false;
+const NABIL_BOARD_IDLE_MS = 60000;
 
 function nabilBoardModeActive(){
     return nabilActivityMode === "lesson" &&
            String(teachingModeSelect?.value || "") === "board_lesson";
+}
+
+function nabilCurrentVisibleTeacherContext(){
+    // Prefer the active interactive-board card.
+    if(nabilBoardModeActive() && Array.isArray(nabilBoardCards) && nabilBoardCards[nabilBoardCardIndex]){
+        return nabilBoardCardText(nabilBoardCards[nabilBoardCardIndex].card);
+    }
+
+    // Otherwise use the latest teacher bubble/card currently visible.
+    const candidates=[...document.querySelectorAll(
+        ".message.teacher, .teacher-message, .ai-message, .lesson-card, .exercise-board, .assistant-message"
+    )].filter(el=>{
+        const style=getComputedStyle(el);
+        return style.display!=="none" && style.visibility!=="hidden" && el.offsetParent!==null;
+    });
+
+    const last=candidates[candidates.length-1];
+    if(!last) return "";
+
+    return String(last.innerText || last.textContent || "")
+        .replace(/(?:نسخ الإجابة|اقرأ الإجابة|Copy|Read latest|Pause|Continue|Repeat|Skip|إيقاف|متابعة|أعد البطاقة|البطاقة التالية)/gi," ")
+        .replace(/\s+/g," ")
+        .trim();
 }
 
 function nabilBoardPlainSpeech(text){
@@ -4998,13 +5063,17 @@ async function nabilBoardArabicForCard(cardText){
         const body=new FormData();
         body.append(
             "message",
-            "أنت الأستاذ نبيل تشرح هذه البطاقة شفهيًا لطالب على اللوح. " +
-            "لا تقرأ النص حرفيًا. اشرح الفكرة الموجودة فقط: ماذا تعني، لماذا نستخدمها، وكيف نفهمها، " +
-            "وبنفس ترتيب البطاقة وبجمل قصيرة طبيعية. " +
-            "ممنوع الانتقال إلى بطاقة أخرى، وممنوع إضافة مثال أو رقم أو قيمة غير موجودة في البطاقة. " +
-            "إذا كانت البطاقة فيها قانون أو عملية، اشرح الخطوة ثم اذكر القانون أو العملية الموجودة نفسها فقط. " +
-            "حافظ على جميع الأرقام والقيم كما هي تمامًا. " +
-            "محتوى البطاقة الحالية فقط: " + clean
+            "أنت الأستاذ نبيل وتشرح للطالب المحتوى الحالي فقط بعد أن يراه أو يسمعه بلغته الأصلية. " +
+            "طبّق هذا الأسلوب على كل المواد والصفوف، وليس الرياضيات فقط. " +
+            "تكلم بالعربية الفصحى المبسطة وبأسلوب أستاذ طبيعي، ولا تعِد قراءة النص كاملًا بالعربية. " +
+            "في الرياضيات والفيزياء والكيمياء: لخّص المعطيات، حدّد المطلوب، اشرح لماذا نختار القانون أو الفكرة، " +
+            "وإذا كانت هناك قيمة وسيطة نحتاجها قبل التعويض فقل إننا سنوجدها أولًا، ثم اشرح التعويض والحساب بالقيم الموجودة فقط. " +
+            "في الأحياء والعلوم: اشرح وظيفة الأجزاء أو العلاقة أو التسلسل الموجود في البطاقة فقط. " +
+            "في اللغات: اشرح معنى القاعدة أو الفكرة اللغوية الموجودة في البطاقة مع مثال البطاقة نفسها فقط. " +
+            "في التاريخ والجغرافيا والتربية والمواد الاجتماعية: لخّص الفكرة والسبب والنتيجة الموجودة في المحتوى فقط. " +
+            "ممنوع إضافة أي رقم أو مثال أو معلومة غير موجودة في المحتوى الحالي، وممنوع الانتقال إلى محتوى آخر. " +
+            "حافظ على الأرقام والقيم والأسماء كما هي، واجعل الشرح قصيرًا وطبيعيًا. " +
+            "المحتوى الحالي فقط: " + clean
         );
         body.append("student_id",getStudentId());
         body.append("current_answer",clean);
@@ -5149,8 +5218,61 @@ function nabilBoardEstimateProgressFromTyping(){
     return Math.max(0,Math.min(0.96,nabilBoardCharIndex/item.chars.length));
 }
 
+function nabilBoardClearIdleTimer(){
+    if(nabilBoardIdleTimer){
+        clearTimeout(nabilBoardIdleTimer);
+        nabilBoardIdleTimer=null;
+    }
+    nabilBoardWaitingForStudent=false;
+}
+
+function nabilBoardAdvanceToNextCard(){
+    nabilBoardClearIdleTimer();
+    nabilBoardClearTimer();
+    stopNabilNeuralVoice();
+
+    nabilBoardCardIndex++;
+    nabilBoardCharIndex=0;
+    nabilBoardCurrentSpeech="";
+    nabilBoardCurrentSpeechLanguage="العربية";
+    nabilBoardSpeechStartedAt=0;
+    nabilBoardSpeechDuration=0;
+    nabilBoardSpeechProgress=0;
+    nabilBoardPaused=false;
+
+    if(nabilBoardCardIndex<nabilBoardCards.length){
+        nabilBoardSpeakCurrentCard();
+    }
+}
+
+function nabilBoardWaitForStudentThenContinue(){
+    nabilBoardClearIdleTimer();
+    nabilBoardWaitingForStudent=true;
+
+    const controls=nabilBoardCurrentRoot?.querySelector(".nabil-board-controls");
+    if(controls){
+        controls.dataset.waiting="1";
+        const continueBtn=controls.querySelector('[data-board="continue"]');
+        if(continueBtn) continueBtn.textContent="▶ متابعة الآن";
+    }
+
+    // Give the student one minute to interrupt/ask. If there is no interaction,
+    // continue automatically to the next card.
+    nabilBoardIdleTimer=setTimeout(()=>{
+        if(!nabilBoardWaitingForStudent) return;
+        if(lessonTalkBusy) {
+            // A real student question is being answered; wait again after it.
+            nabilBoardWaitForStudentThenContinue();
+            return;
+        }
+        nabilBoardAdvanceToNextCard();
+    },NABIL_BOARD_IDLE_MS);
+}
+
 async function nabilBoardSpeakCurrentCard(){
     if(nabilBoardPaused) return;
+
+    nabilBoardClearIdleTimer();
 
     const token=++nabilBoardRunToken;
     const item=nabilBoardCards[nabilBoardCardIndex];
@@ -5162,79 +5284,82 @@ async function nabilBoardSpeakCurrentCard(){
 
     nabilBoardShowCurrentCard();
 
-    let speech="";
-    let speechLang="العربية";
+    // --------------------------------------------------------
+    // Phase 1: read exactly what is written on THIS card in the
+    // selected lesson language. Typewriter follows that reading.
+    // --------------------------------------------------------
+    const originalText=String(item.text||"").trim();
+    const originalLanguage=languageSelect?.value || "English";
 
-    // Fresh card: create one teaching explanation.
-    // Resume after Talk-to-Me: do NOT regenerate/restart the card;
-    // continue from the stored oral explanation.
-    if(!nabilBoardCurrentSpeech || nabilBoardSpeechProgress<=0){
-        const spokenArabic=await nabilBoardArabicForCard(item.text);
-        if(token!==nabilBoardRunToken || nabilBoardPaused) return;
-
-        // Prefer explanation. If the voice service is temporarily unavailable,
-        // fall back to the visible card text rather than inventing content.
-        nabilBoardCurrentSpeech=spokenArabic || item.text;
-        nabilBoardCurrentSpeechLanguage=spokenArabic ? "العربية" : (languageSelect?.value || "English");
-        nabilBoardSpeechProgress=nabilBoardEstimateProgressFromTyping();
-    }
-
-    speech=nabilBoardSpeechProgress>0
-        ? nabilBoardSpeechRemainingText()
-        : nabilBoardCurrentSpeech;
-    speechLang=nabilBoardCurrentSpeechLanguage;
-
-    if(!speech){
-        nabilBoardFinishCard();
-        nabilBoardCardIndex++;
-        nabilBoardCharIndex=0;
-        nabilBoardCurrentSpeech="";
-        nabilBoardSpeechProgress=0;
-        setTimeout(nabilBoardSpeakCurrentCard,220);
-        return;
-    }
-
-    nabilSpeakClear(speech,speechLang,{
-        onduration:(duration)=>{
-            if(token!==nabilBoardRunToken || nabilBoardPaused) return;
-            nabilBoardSpeechDuration=Number(duration)||0;
-            nabilBoardStartTypewriter(duration);
-        },
-        onstart:()=>{
-            if(token!==nabilBoardRunToken || nabilBoardPaused) return;
-            stopLessonRecognitionTemporarily?.();
-            nabilBoardSpeechStartedAt=Date.now();
-
-            // Browser TTS fallback may not provide audio duration.
-            if(!nabilBoardTimer){
-                const estimated=Math.max(2.0, speech.length/13);
-                nabilBoardSpeechDuration=estimated;
-                nabilBoardStartTypewriter(estimated);
-            }
-        },
-        onend:()=>{
-            if(token!==nabilBoardRunToken || nabilBoardPaused) return;
-            nabilBoardClearTimer();
-            nabilBoardFinishCard();
-            nabilBoardSpeechProgress=1;
-
-            setTimeout(()=>{
+    if(nabilBoardCharIndex < item.chars.length){
+        await nabilSpeakClear(originalText,originalLanguage,{
+            onduration:(duration)=>{
                 if(token!==nabilBoardRunToken || nabilBoardPaused) return;
-                nabilBoardCardIndex++;
-                nabilBoardCharIndex=0;
-                nabilBoardCurrentSpeech="";
-                nabilBoardCurrentSpeechLanguage="العربية";
-                nabilBoardSpeechStartedAt=0;
-                nabilBoardSpeechDuration=0;
-                nabilBoardSpeechProgress=0;
-                nabilBoardSpeakCurrentCard();
-            },420);
-        }
-    });
-}
+                nabilBoardSpeechDuration=Number(duration)||0;
+                nabilBoardStartTypewriter(duration);
+            },
+            onstart:()=>{
+                if(token!==nabilBoardRunToken || nabilBoardPaused) return;
+                stopLessonRecognitionTemporarily?.();
+                nabilBoardSpeechStartedAt=Date.now();
 
+                if(!nabilBoardTimer){
+                    const estimated=Math.max(2.0,originalText.length/13);
+                    nabilBoardSpeechDuration=estimated;
+                    nabilBoardStartTypewriter(estimated);
+                }
+            },
+            onend:()=>{}
+        });
+
+        if(token!==nabilBoardRunToken || nabilBoardPaused) return;
+        nabilBoardClearTimer();
+        nabilBoardFinishCard();
+    }
+
+    // --------------------------------------------------------
+    // Phase 2: now Nabil EXPLAINS in Arabic what the student has
+    // just seen. He does not re-read the whole lesson in Arabic.
+    // --------------------------------------------------------
+    const arabicExplanation=await nabilBoardArabicForCard(originalText);
+    if(token!==nabilBoardRunToken || nabilBoardPaused) return;
+
+    if(arabicExplanation){
+        nabilBoardCurrentSpeech=arabicExplanation;
+        nabilBoardCurrentSpeechLanguage="العربية";
+
+        await nabilSpeakClear(arabicExplanation,"العربية",{
+            onstart:()=>{
+                if(token!==nabilBoardRunToken || nabilBoardPaused) return;
+                stopLessonRecognitionTemporarily?.();
+            },
+            onend:()=>{}
+        });
+
+        if(token!==nabilBoardRunToken || nabilBoardPaused) return;
+    }
+
+    // --------------------------------------------------------
+    // Phase 3: ask/allow questions. If student says nothing for
+    // one minute, the next card starts automatically.
+    // --------------------------------------------------------
+    nabilBoardWaitingForStudent=true;
+    nabilBoardWaitForStudentThenContinue();
+
+    const controls=nabilBoardCurrentRoot?.querySelector(".nabil-board-controls");
+    if(controls){
+        controls.dataset.waiting="1";
+    }
+
+    // Keep voice recognition alive if Talk to Me is active.
+    if(lessonTalkActive && !lessonTalkBusy){
+        lessonTalkSetState("🎙 في شي مش واضح؟ أنا عم بسمعك...");
+        lessonTalkRestart();
+    }
+}
 function nabilPauseBoardAtCurrentStep(){
     if(!nabilBoardModeActive()) return;
+    nabilBoardClearIdleTimer();
 
     // Save where both the writing and narration currently are.
     nabilBoardSpeechProgress=Math.max(
@@ -5258,7 +5383,17 @@ function nabilPauseBoardAtCurrentStep(){
 function nabilResumeBoardNarrationFromCurrentStep(){
     if(!nabilBoardModeActive()) return;
     if(nabilBoardCardIndex>=nabilBoardCards.length) return;
+
     nabilBoardPaused=false;
+
+    const item=nabilBoardCards[nabilBoardCardIndex];
+    const cardFinished=!!item && nabilBoardCharIndex>=item.chars.length;
+
+    if(cardFinished && nabilBoardWaitingForStudent){
+        nabilBoardAdvanceToNextCard();
+        return;
+    }
+
     nabilBoardSpeakCurrentCard();
 }
 
@@ -5283,23 +5418,17 @@ function nabilBoardRepeatCurrentStep(){
 
 function nabilBoardSkipCurrentStep(){
     nabilBoardRunToken++;
+    nabilBoardClearIdleTimer();
     nabilBoardClearTimer();
     stopNabilNeuralVoice();
 
     nabilBoardFinishCard();
-    nabilBoardCardIndex++;
-    nabilBoardCharIndex=0;
-    nabilBoardCurrentSpeech="";
-    nabilBoardCurrentSpeechLanguage="العربية";
-    nabilBoardSpeechStartedAt=0;
-    nabilBoardSpeechDuration=0;
-    nabilBoardSpeechProgress=0;
-    nabilBoardPaused=false;
-    nabilBoardSpeakCurrentCard();
+    nabilBoardAdvanceToNextCard();
 }
 
 function nabilStartBoardReveal(root, spokenText, language){
     nabilBoardRunToken++;
+    nabilBoardClearIdleTimer();
     nabilBoardClearTimer();
     stopNabilNeuralVoice();
 
@@ -10955,8 +11084,20 @@ document.addEventListener("click", (event) => {
         const clean = String(spokenText || "").trim();
         if (!clean || lessonTalkBusy) return;
 
-        // In board mode, freeze exactly where the student interrupted.
+        const normalizedCommand=clean.toLowerCase().replace(/[.!؟?،,]/g,"").trim();
+
+        // "Continue" is a local board command — don't waste an AI request.
+        if(nabilBoardModeActive() && /^(اكمل|كمل|تابع|كمّل|continue|go on|poursuis|continuez)$/.test(normalizedCommand)){
+            nabilBoardClearIdleTimer();
+            lessonTalkBusy=false;
+            lessonTalkSetState("🎙 Talk to Me");
+            nabilResumeBoardNarrationFromCurrentStep();
+            return;
+        }
+
+        // A real student question cancels automatic progression until answered.
         if(nabilBoardModeActive()){
+            nabilBoardClearIdleTimer();
             nabilPauseBoardAtCurrentStep();
         }
 
@@ -11004,8 +11145,15 @@ document.addEventListener("click", (event) => {
                     lessonTalkBusy = false;
 
                     if(nabilBoardModeActive()){
-                        // Continue the lesson from the exact word/step where it was paused.
-                        nabilResumeBoardNarrationFromCurrentStep();
+                        const item=nabilBoardCards[nabilBoardCardIndex];
+                        const cardFinished=!!item && nabilBoardCharIndex>=item.chars.length;
+
+                        if(cardFinished){
+                            nabilBoardPaused=false;
+                            nabilBoardWaitForStudentThenContinue();
+                        }else{
+                            nabilResumeBoardNarrationFromCurrentStep();
+                        }
                     }
 
                     if (lessonTalkActive && lessonTalkShouldResume) {
