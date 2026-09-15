@@ -158,6 +158,59 @@ select option{background:#071f33;color:#fff}
   font-size:11px;color:#bdefff;background:#061d2a
 }
 
+
+
+/* v13 — visible lesson checklist */
+#lessons.lessons{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(260px,1fr))!important;
+  gap:10px!important;
+  max-height:390px!important;
+  overflow:auto!important;
+  padding:4px!important;
+}
+#lessons .lesson{
+  display:flex!important;
+  align-items:flex-start!important;
+  gap:10px!important;
+  min-height:46px!important;
+  padding:10px 12px!important;
+  border:1px solid rgba(84,205,255,.32)!important;
+  border-radius:12px!important;
+  background:#08263d!important;
+  cursor:pointer!important;
+}
+#lessons .lesson:hover{
+  border-color:#63e3ff!important;
+  background:#0a304b!important;
+}
+#lessons .lesson input[type="checkbox"]{
+  display:block!important;
+  appearance:auto!important;
+  -webkit-appearance:checkbox!important;
+  width:19px!important;
+  height:19px!important;
+  min-width:19px!important;
+  min-height:19px!important;
+  margin:1px 0 0!important;
+  accent-color:#19b5ef!important;
+  flex:0 0 auto!important;
+}
+#lessons .lesson-name{
+  display:block!important;
+  flex:1 1 auto!important;
+  color:#f4fbff!important;
+  font-weight:800!important;
+  line-height:1.45!important;
+  overflow-wrap:anywhere!important;
+}
+@media(max-width:700px){
+  #lessons.lessons{
+    grid-template-columns:1fr!important;
+    max-height:none!important;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -242,7 +295,7 @@ select option{background:#071f33;color:#fff}
     </div>
     <div id="lessonSummary" class="lesson-summary">اختر المادة لتظهر الدروس.</div>
     <div id="lessons" class="lessons"></div>
-    <div id="empty" class="empty" hidden>لم نجد فهرس دروس لهذه المادة. يمكنك إضافة أسماء الدروس يدويًا من الحقل أدناه.</div>
+    <div id="empty" class="empty" hidden>لم نجد عناوين دروس مفهرسة لهذه المادة في الفهرس الحالي.</div>
   </section>
 
   <section class="card">
@@ -555,6 +608,24 @@ function getLessons(grade,branch,subject,language){
   }
 
   return uniqueLessonTitles(lessons);
+}
+
+function addLessonChoice(name,checked=false){
+  const label=document.createElement("label");
+  label.className="lesson";
+
+  const input=document.createElement("input");
+  input.type="checkbox";
+  input.value=name;
+  input.checked=!!checked;
+  input.setAttribute("aria-label","اختيار درس "+name);
+
+  const span=document.createElement("span");
+  span.className="lesson-name";
+  span.textContent=name;
+
+  label.append(input,span);
+  $("lessons").appendChild(label);
 }
 
 function selectedLessons(){
