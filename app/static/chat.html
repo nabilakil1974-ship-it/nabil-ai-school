@@ -3099,21 +3099,21 @@ body.nabil-home-lock::before{
     width:100%;
     max-width:1040px;
     margin:0 auto;
-    border:1px solid #149bd7;
+    border:1px solid #189bd5;
     border-radius:18px;
     overflow:hidden;
-    background:linear-gradient(180deg,#031625 0%,#061b2d 100%);
+    background:linear-gradient(180deg,#041726 0%,#061d30 100%);
     box-shadow:0 14px 34px rgba(0,0,0,.26);
 }
 .nabil-reference-function-generic .nabil-function-ref-head{
     padding:14px 16px 10px;
-    background:#062640;
-    border-bottom:1px solid rgba(66,200,255,.40);
+    background:#05243a;
+    border-bottom:1px solid rgba(56,189,248,.35);
 }
 .nabil-reference-function-generic .nabil-visual-title{
     margin:0 0 8px;
     font-size:20px;
-    color:#58d4ff;
+    color:#72d8ff;
     font-weight:900;
 }
 .nabil-reference-function-generic .nabil-function-ref-expression{
@@ -3121,8 +3121,8 @@ body.nabil-home-lock::before{
     margin:0 8px 6px 0;
     padding:6px 10px;
     border-radius:8px;
-    background:#071a2b;
-    border:1px solid #238bff;
+    background:#071d30;
+    border:1px solid #2d8cff;
     color:#f7fbff;
     font-family:Georgia,"Times New Roman",serif;
     font-size:18px;
@@ -3139,18 +3139,18 @@ body.nabil-home-lock::before{
     min-height:28px;
     padding:4px 9px;
     border-radius:8px;
-    border:1px solid #159bd5;
-    background:#083553;
+    border:1px solid #168bc1;
+    background:#07314d;
     color:#eef9ff;
     font-size:12px;
     font-weight:800;
 }
-.nabil-reference-function-generic .nabil-function-ref-badge.asym-v{border-color:#ff4d57;color:#ffd4d6}
-.nabil-reference-function-generic .nabil-function-ref-badge.asym-h{border-color:#f5d328;color:#fff29a}
-.nabil-reference-function-generic .nabil-function-ref-badge.asym-o{border-color:#f59e0b;color:#ffe0a3}
+.nabil-reference-function-generic .nabil-function-ref-badge.asym-v{border-color:#ef4444;color:#fecaca}
+.nabil-reference-function-generic .nabil-function-ref-badge.asym-h{border-color:#eab308;color:#fef08a}
+.nabil-reference-function-generic .nabil-function-ref-badge.asym-o{border-color:#f59e0b;color:#fde68a}
 .nabil-reference-function-generic .nabil-function-ref-plot{
     padding:10px 12px 12px;
-    background:#03192a;
+    background:#04192a;
 }
 .nabil-reference-function-generic .nabil-function-ref-plot svg{
     display:block;
@@ -3186,46 +3186,182 @@ body.nabil-home-lock::before{
 }
 
 
-/* Reference-image palette for ALL function-study graphs */
-.nabil-reference-function-generic{
-    --ref-bg:#03192a;
-    --ref-panel:#062640;
-    --ref-cyan:#58d4ff;
-    --ref-blue:#238bff;
-    --ref-red:#ff4d57;
-    --ref-yellow:#f5d328;
-    --ref-white:#f7fbff;
+/* ============================================================
+   NABIL AI — FINAL REFERENCE PALETTE
+   Based on the approved reference image.
+   Applied to ALL function-study visuals and variation tables.
+   ============================================================ */
+:root{
+  --nabil-bg-main:#071a33;
+  --nabil-bg-topbar:#0b2f63;
+  --nabil-bg-panel:#0b2342;
+  --nabil-bg-card:#0d2d57;
+  --nabil-bg-card-2:#102846;
+  --nabil-bg-graph:#0a203d;
+  --nabil-bg-table:#0b2a52;
+
+  --nabil-border-main:#1ea7ff;
+  --nabil-border-soft:#245b8f;
+  --nabil-glow-cyan:rgba(56,189,248,.22);
+
+  --nabil-text-main:#eaf6ff;
+  --nabil-text-soft:#a9c8e8;
+  --nabil-text-title:#59d4ff;
+  --nabil-text-accent:#8fe7ff;
+
+  --nabil-curve-blue:#29a7ff;
+  --nabil-curve-blue-soft:#79c8ff;
+  --nabil-asymptote-red:#ff4c57;
+  --nabil-asymptote-yellow:#f0d84a;
+  --nabil-point-white:#f5fbff;
+  --nabil-axis-white:#dfefff;
+  --nabil-grid-line:rgba(170,220,255,.14);
 }
+
+/* Unified function-study card */
+.exercise-function-graph-variation{
+  background:linear-gradient(180deg,var(--nabil-bg-card) 0%,var(--nabil-bg-panel) 100%)!important;
+  border:1px solid var(--nabil-border-soft)!important;
+  border-radius:14px!important;
+  box-shadow:0 0 0 1px rgba(30,167,255,.08),0 10px 26px rgba(0,0,0,.25)!important;
+  overflow:hidden!important;
+}
+
+/* Graph panel */
+.nabil-reference-function-generic,
+.exercise-function-visual{
+  background:var(--nabil-bg-graph)!important;
+  border:1px solid var(--nabil-border-main)!important;
+  border-radius:12px!important;
+  box-shadow:0 0 0 1px rgba(30,167,255,.06),0 10px 24px rgba(0,0,0,.22)!important;
+}
+
+.nabil-reference-function-generic .nabil-function-ref-head{
+  background:linear-gradient(180deg,#0d2d57 0%,#0b2342 100%)!important;
+  border-bottom:1px solid rgba(30,167,255,.35)!important;
+}
+
+.nabil-reference-function-generic .nabil-visual-title,
+.exercise-function-graph-variation .exercise-section-title,
+.exercise-function-graph-variation h3,
+.exercise-function-graph-variation h4{
+  color:var(--nabil-text-title)!important;
+  font-weight:800!important;
+}
+
+.nabil-reference-function-generic .nabil-function-ref-expression{
+  background:#071d35!important;
+  border:1px solid var(--nabil-border-main)!important;
+  color:var(--nabil-text-main)!important;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.02)!important;
+}
+
+.nabil-reference-function-generic .nabil-function-ref-badge{
+  background:#0a3153!important;
+  color:var(--nabil-text-main)!important;
+  border:1px solid #1b83bb!important;
+}
+
+.nabil-reference-function-generic .nabil-function-ref-badge.asym-v{
+  border-color:var(--nabil-asymptote-red)!important;
+  color:#ffd8db!important;
+}
+
+.nabil-reference-function-generic .nabil-function-ref-badge.asym-h,
+.nabil-reference-function-generic .nabil-function-ref-badge.asym-o{
+  border-color:var(--nabil-asymptote-yellow)!important;
+  color:#fff3a8!important;
+}
+
+.nabil-reference-function-generic .nabil-function-ref-plot{
+  background:var(--nabil-bg-graph)!important;
+}
+
+/* SVG math colors */
 .nabil-reference-function-generic .vaxis{
-    stroke:var(--ref-white)!important;
+  stroke:var(--nabil-axis-white)!important;
 }
 .nabil-reference-function-generic .vgrid{
-    stroke:#123852!important;
+  stroke:var(--nabil-grid-line)!important;
+}
+.nabil-reference-function-generic .vlab,
+.nabil-reference-function-generic .vsmall{
+  fill:var(--nabil-text-main)!important;
 }
 .nabil-reference-function-generic .vcurve,
 .nabil-reference-function-generic .function-curve,
 .nabil-reference-function-generic polyline[data-function-curve]{
-    stroke:var(--ref-blue)!important;
+  stroke:var(--nabil-curve-blue)!important;
 }
-.nabil-reference-function-generic .vlab,
-.nabil-reference-function-generic .vsmall{
-    fill:var(--ref-white)!important;
-}
-.nabil-reference-function-generic .nabil-function-ref-badge.asym-v{
-    border-color:var(--ref-red)!important;
-    color:#ffd4d6!important;
-}
-.nabil-reference-function-generic .nabil-function-ref-badge.asym-h{
-    border-color:var(--ref-yellow)!important;
-    color:#fff29a!important;
-}
-.exercise-function-graph-variation{
-    background:linear-gradient(180deg,#031625 0%,#061b2d 100%)!important;
-    border-color:#149bd7!important;
-}
+
+/* Variation table */
 .exercise-function-graph-variation .exercise-variation-zone{
-    background:#062640!important;
-    border-color:#159bd5!important;
+  background:var(--nabil-bg-table)!important;
+  border-top:1px solid var(--nabil-border-main)!important;
+  border-left:1px solid var(--nabil-border-main)!important;
+  border-right:1px solid var(--nabil-border-main)!important;
+  border-bottom:1px solid var(--nabil-border-main)!important;
+  border-radius:0 0 12px 12px!important;
+  padding:12px!important;
+}
+
+.exercise-function-graph-variation .exercise-variation-zone table{
+  width:100%!important;
+  border-collapse:collapse!important;
+  color:var(--nabil-text-main)!important;
+  background:#0a2547!important;
+}
+
+.exercise-function-graph-variation .exercise-variation-zone th,
+.exercise-function-graph-variation .exercise-variation-zone td{
+  border:1px solid rgba(120,190,255,.35)!important;
+  padding:8px 10px!important;
+  text-align:center!important;
+  color:var(--nabil-text-main)!important;
+}
+
+.exercise-function-graph-variation .exercise-variation-zone th{
+  color:var(--nabil-text-accent)!important;
+  background:#11355c!important;
+  font-weight:800!important;
+}
+
+/* Force arrows / extrema to read clearly */
+.exercise-function-graph-variation .exercise-variation-zone td{
+  font-size:15px!important;
+}
+.exercise-function-graph-variation .exercise-variation-zone td:has(.variation-arrow),
+.exercise-function-graph-variation .exercise-variation-zone .variation-arrow{
+  font-size:24px!important;
+  font-weight:900!important;
+  color:var(--nabil-text-main)!important;
+}
+
+/* Solution cards keep same visual identity */
+.exercise-function-graph-variation .exercise-section,
+.exercise-function-graph-variation .exercise-solution-card{
+  background:linear-gradient(180deg,#0d2d57 0%,#0b2342 100%)!important;
+  border:1px solid var(--nabil-border-soft)!important;
+  color:var(--nabil-text-main)!important;
+}
+
+/* Mobile */
+@media (max-width:700px){
+  .exercise-function-graph-variation{
+    border-radius:10px!important;
+  }
+  .nabil-reference-function-generic,
+  .exercise-function-visual{
+    border-radius:10px 10px 0 0!important;
+  }
+  .exercise-function-graph-variation .exercise-variation-zone{
+    border-radius:0 0 10px 10px!important;
+    padding:8px!important;
+    overflow-x:auto!important;
+  }
+  .exercise-function-graph-variation .exercise-variation-zone table{
+    min-width:620px!important;
+  }
 }
 
 </style>
@@ -7702,6 +7838,23 @@ function nabilVisualWrap(title, svg, note=""){
     </div>`;
 }
 
+
+
+const NABIL_FUNCTION_REFERENCE_COLORS = Object.freeze({
+    curve:"#29a7ff",
+    curveSoft:"#79c8ff",
+    verticalAsymptote:"#ff4c57",
+    horizontalAsymptote:"#f0d84a",
+    obliqueAsymptote:"#f0d84a",
+    axis:"#dfefff",
+    grid:"rgba(170,220,255,0.14)",
+    point:"#f5fbff",
+    text:"#eaf6ff",
+    title:"#59d4ff",
+    panel:"#0b2342",
+    graph:"#0a203d",
+    table:"#0b2a52"
+});
 
 function nabilReferenceFunctionGraphWrap(title, svg, note, spec){
     const expression = nabilCleanFunctionExpressionLabel(
