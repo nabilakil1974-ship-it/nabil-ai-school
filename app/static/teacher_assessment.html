@@ -10805,9 +10805,101 @@ function nabilRenderLnXOverXReferenceCard(spec){
     </div>`;
 }
 
+
+function nabilNormalizeUniversalFunctionVisualSpec(rawSpec){
+    const spec = {...(rawSpec || {})};
+
+    // Normalize asymptote aliases coming from different model/provider formats.
+    if(spec.vertical_asymptote === undefined){
+        if(spec.verticalAsymptote !== undefined) spec.vertical_asymptote = spec.verticalAsymptote;
+        else if(spec.x_asymptote !== undefined) spec.vertical_asymptote = spec.x_asymptote;
+    }
+    if(!Array.isArray(spec.vertical_asymptotes) && Array.isArray(spec.verticalAsymptotes)){
+        spec.vertical_asymptotes = spec.verticalAsymptotes;
+    }
+
+    if(spec.horizontal_asymptote === undefined){
+        if(spec.horizontalAsymptote !== undefined) spec.horizontal_asymptote = spec.horizontalAsymptote;
+        else if(spec.y_asymptote !== undefined) spec.horizontal_asymptote = spec.y_asymptote;
+    }
+
+    if(spec.oblique_asymptote === undefined){
+        if(spec.obliqueAsymptote !== undefined) spec.oblique_asymptote = spec.obliqueAsymptote;
+        else if(spec.slant_asymptote !== undefined) spec.oblique_asymptote = spec.slant_asymptote;
+    }
+
+    // Accept "y = mx + b" for an oblique asymptote, without inventing values.
+    if(typeof spec.oblique_asymptote === "string"){
+        const s = spec.oblique_asymptote.replace(/\s+/g,"");
+        const m = s.match(/^y=([+-]?(?:\d+(?:\.\d+)?|\.\d+)?)x([+-]\d+(?:\.\d+)?)?$/i);
+        if(m){
+            let slopeText=m[1];
+            if(slopeText==="" || slopeText==="+") slopeText="1";
+            if(slopeText==="-") slopeText="-1";
+            spec.oblique_asymptote = {
+                slope:Number(slopeText),
+                intercept:Number(m[2]||0),
+                label:spec.oblique_asymptote
+            };
+        }
+    }
+
+    // Normalize notable-point aliases. Only data explicitly provided by the solver is used.
+    const markerSources = [];
+    [
+        ["markers", spec.markers],
+        ["critical_points", spec.critical_points],
+        ["criticalPoints", spec.criticalPoints],
+        ["extrema", spec.extrema],
+        ["key_points", spec.key_points],
+        ["keyPoints", spec.keyPoints],
+        ["intercepts", spec.intercepts]
+    ].forEach(([name, arr])=>{
+        if(Array.isArray(arr)) markerSources.push(...arr);
+    });
+
+    if(spec.y_intercept && typeof spec.y_intercept === "object") markerSources.push(spec.y_intercept);
+    if(spec.x_intercept && typeof spec.x_intercept === "object") markerSources.push(spec.x_intercept);
+
+    const seen = new Set();
+    const normalizedMarkers = [];
+    markerSources.forEach((p, i)=>{
+        if(!p || typeof p!=="object") return;
+        const x = Number(p.x ?? p[0]);
+        const y = Number(p.y ?? p[1]);
+        if(!Number.isFinite(x) || !Number.isFinite(y)) return;
+        const key=`${x}|${y}|${p.label||""}`;
+        if(seen.has(key)) return;
+        seen.add(key);
+
+        const kind=String(p.kind || p.type || p.extremum || "").toLowerCase();
+        const isMax=/max|maximum|local_max/.test(kind);
+        const isMin=/min|minimum|local_min/.test(kind);
+        const isIntercept=/intercept|root|zero/.test(kind);
+
+        normalizedMarkers.push({
+            ...p,
+            x,y,
+            extremum:isMax ? "max" : isMin ? "min" : p.extremum,
+            color:p.color || (isMax ? "#ef4444" : isMin ? "#22c55e" : isIntercept ? "#f59e0b" : "#a855f7"),
+            drop_line:p.drop_line ?? (isMax || isMin)
+        });
+    });
+
+    if(normalizedMarkers.length) spec.markers=normalizedMarkers;
+
+    // Universal visual palette for every function graph.
+    spec.function_curve_color = spec.function_curve_color || "#29a7ff";
+    spec.vertical_asymptote_color = spec.vertical_asymptote_color || "#ff4c57";
+    spec.horizontal_asymptote_color = spec.horizontal_asymptote_color || "#f0d84a";
+    spec.oblique_asymptote_color = spec.oblique_asymptote_color || "#f0d84a";
+
+    return spec;
+}
+
 function renderNabilDiagram(rawSpec){
     if (!rawSpec || typeof rawSpec !== "object") return "";
-    const spec=nabilCompleteVisualSpec(rawSpec);
+    const spec=nabilCompleteVisualSpec(nabilNormalizeUniversalFunctionVisualSpec(rawSpec));
 
     const aliases = {
         "periodic-table":"periodic_table",
@@ -11260,7 +11352,7 @@ function renderNabilDiagram(rawSpec){
         const legendItems=[];
         const uiLang = (typeof languageSelect!=="undefined" && languageSelect?.value) || "العربية";
 
-        const curveColor = "#29a7ff";
+        const curveColor = spec.function_curve_color || "#29a7ff";
         const cleanExpression = nabilCleanFunctionExpressionLabel(spec.expression || spec.formula || spec.equation || "");
         if(series.length){
             const functionLabel = cleanExpression
@@ -11273,7 +11365,7 @@ function renderNabilDiagram(rawSpec){
             const linePoints=Array.isArray(line)?line:(Array.isArray(line.points)?line.points:[]);
             const poly=linePoints.filter(p=>Array.isArray(p)&&p.length>=2 && Number.isFinite(Number(p[0])) && Number.isFinite(Number(p[1]))).map(p=>`${sx(Number(p[0]))},${sy(Number(p[1]))}`).join(" ");
             if(poly){
-                const renderedCurveColor = i===0 ? "#29a7ff" : (line.color || "#79c8ff");
+                const renderedCurveColor = i===0 ? curveColor : (line.color || "#79c8ff");
                 curves+=`<polyline points="${poly}" fill="none" stroke="${nabilEsc(renderedCurveColor)}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`;
             }
         });
@@ -11284,11 +11376,11 @@ function renderNabilDiagram(rawSpec){
             const isObj = v && typeof v==="object";
             const value=Number(isObj?v.x:v);
             if(!Number.isFinite(value)) return;
-            curves+=`<line x1="${sx(value)}" y1="45" x2="${sx(value)}" y2="265" stroke="#ff4c57" stroke-width="2.5" stroke-dasharray="8 6"/>`;
+            curves+=`<line x1="${sx(value)}" y1="45" x2="${sx(value)}" y2="265" stroke="${nabilEsc(spec.vertical_asymptote_color || "#ff4c57")}" stroke-width="2.5" stroke-dasharray="8 6"/>`;
             const cleanVal = Number(value.toFixed(4)).toString();
             const label = (isObj && v.label) || `x = ${cleanVal}`;
-            curves+=`<text x="${sx(value)+6}" y="58" class="vlab vsmall" style="fill:#ff8080">${nabilEsc(label)}</text>`;
-            legendItems.push({color:"#ff4c57", dash:true, text:(isObj && v.legend) || `Vertical asymptote: ${label}`});
+            curves+=`<text x="${sx(value)+6}" y="58" class="vlab vsmall" style="fill:${nabilEsc(spec.vertical_asymptote_color || "#ff8080")}">${nabilEsc(label)}</text>`;
+            legendItems.push({color:spec.vertical_asymptote_color || "#ff4c57", dash:true, text:(isObj && v.legend) || `Vertical asymptote: ${label}`});
         });
 
         // ===== Horizontal asymptote — yellow dashed + label, like the reference. =====
@@ -11297,11 +11389,11 @@ function renderNabilDiagram(rawSpec){
             const isObj = horizontal && typeof horizontal==="object";
             const yValue=Number(isObj ? (horizontal.y ?? horizontal.value) : horizontal);
             if(Number.isFinite(yValue) && yValue>=ymin && yValue<=ymax){
-                curves+=`<line x1="${sx(xmin)}" y1="${sy(yValue)}" x2="${sx(xmax)}" y2="${sy(yValue)}" stroke="#f0d84a" stroke-width="2.5" stroke-dasharray="8 6"/>`;
+                curves+=`<line x1="${sx(xmin)}" y1="${sy(yValue)}" x2="${sx(xmax)}" y2="${sy(yValue)}" stroke="${nabilEsc(spec.horizontal_asymptote_color || "#f0d84a")}" stroke-width="2.5" stroke-dasharray="8 6"/>`;
                 const hClean=Number(yValue.toFixed(4)).toString();
                 const hLabel=(isObj && horizontal.label) || `y = ${hClean}`;
-                curves+=`<text x="${sx(xmax)-105}" y="${sy(yValue)-8}" class="vlab vsmall" style="fill:#fff29a">${nabilEsc(hLabel)}</text>`;
-                legendItems.push({color:"#f0d84a",dash:true,text:(isObj && horizontal.legend) || `Horizontal asymptote: ${hLabel}`});
+                curves+=`<text x="${sx(xmax)-105}" y="${sy(yValue)-8}" class="vlab vsmall" style="fill:${nabilEsc(spec.horizontal_asymptote_color || "#fff29a")}">${nabilEsc(hLabel)}</text>`;
+                legendItems.push({color:spec.horizontal_asymptote_color || "#f0d84a",dash:true,text:(isObj && horizontal.legend) || `Horizontal asymptote: ${hLabel}`});
             }
         }
 
@@ -11309,11 +11401,11 @@ function renderNabilDiagram(rawSpec){
         const oblique=spec.oblique_asymptote;
         if(oblique && Number.isFinite(Number(oblique.slope)) && Number.isFinite(Number(oblique.intercept))){
             const m=Number(oblique.slope), b=Number(oblique.intercept);
-            curves+=`<line x1="${sx(xmin)}" y1="${sy(m*xmin+b)}" x2="${sx(xmax)}" y2="${sy(m*xmax+b)}" stroke="#f0d84a" stroke-width="2.5" stroke-dasharray="8 6"/>`;
+            curves+=`<line x1="${sx(xmin)}" y1="${sy(m*xmin+b)}" x2="${sx(xmax)}" y2="${sy(m*xmax+b)}" stroke="${nabilEsc(spec.oblique_asymptote_color || "#f0d84a")}" stroke-width="2.5" stroke-dasharray="8 6"/>`;
             const mClean=Number(m.toFixed(4)), bClean=Math.abs(Number(b.toFixed(4)));
             const obliqueLabel = oblique.label || `y = ${mClean}x ${b>=0?"+":"-"} ${bClean}`;
-            curves+=`<text x="${sx(xmax)-96}" y="${sy(m*xmax+b)-8}" class="vlab vsmall" style="fill:#ffe066">${nabilEsc(obliqueLabel)}</text>`;
-            legendItems.push({color:"#f0d84a", dash:true, text:`Oblique asymptote: ${obliqueLabel}`});
+            curves+=`<text x="${sx(xmax)-96}" y="${sy(m*xmax+b)-8}" class="vlab vsmall" style="fill:${nabilEsc(spec.oblique_asymptote_color || "#ffe066")}">${nabilEsc(obliqueLabel)}</text>`;
+            legendItems.push({color:spec.oblique_asymptote_color || "#f0d84a", dash:true, text:`Oblique asymptote: ${obliqueLabel}`});
         }
 
         // ===== Markers: extrema / key points with a label box, matching the reference. =====
