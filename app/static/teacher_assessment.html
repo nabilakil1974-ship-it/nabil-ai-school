@@ -108,13 +108,22 @@ aside h2{color:#68e4ff;margin:8px 0 4px}aside p{color:#d8f1fb;line-height:1.65;f
 }
 .lesson span{flex:1}
 
+
+
+.branch-hint{
+  margin-top:6px;
+  font-size:11px;
+  color:#9edbf3;
+  line-height:1.45;
+}
+
 </style>
 </head>
 <body>
 <header>
   <div class="brand">
     <img src="/static/nabil-lesson-avatar.png" alt="NABIL AI">
-    <div><small>NABIL AI • TEACHER ASSESSMENT BUILDER</small><h1>إعداد مسابقة للمعلم</h1></div>
+    <div><small>NABIL AI • TEACHER ASSESSMENT BUILDER</small><h1>إعداد مسابقة للمعلم</h1><small style="color:#a9dcf3">12 صفًا • فروع ثانوية • مواد • دروس مفهرسة</small></div>
   </div>
   <button class="back" onclick="history.back()">← العودة للمنصة</button>
 </header>
@@ -801,6 +810,8 @@ function refreshBranches(){
     fillSelect($("branch"),branches,"اختر الفرع",current);
     if(current && [...$("branch").options].some(o=>o.value===current)){
       $("branch").value=current;
+    }else{
+      $("branch").value=branches[0];
     }
   }else{
     fillSelect($("branch"),[],"","");
@@ -840,22 +851,7 @@ function refreshLessons(){
     return;
   }
 
-  let lessons=[];
-
-  // Primary source: the exact lessons already visible in the main platform.
-  try{
-    const saved=JSON.parse(sessionStorage.getItem("nabil_teacher_lessons")||"[]");
-    if(Array.isArray(saved) && saved.length){
-      lessons=saved
-        .map(x=>String(x?.value||x?.text||"").trim())
-        .filter(Boolean);
-    }
-  }catch(_e){}
-
-  // Fallback to curriculum JSON if the page was opened directly.
-  if(!lessons.length){
-    lessons=getLessons(grade,branch,subject,language);
-  }
+  let lessons=getLessons(grade,branch,subject,language);
 
   lessons=[...new Set(lessons.map(String).map(x=>x.trim()).filter(Boolean))];
 
@@ -903,25 +899,38 @@ async function loadCurriculum(){
     $("status").textContent="تم تشغيل فهرس الدروس الداخلي الموجود في المنصة.";
   }
 
-  const wantedGrade=canonicalGrade(params.get("grade")||"");
+  let wantedGrade=canonicalGrade(params.get("grade")||"");
+  if(!gradeValues.includes(wantedGrade)){
+    wantedGrade="الصف التاسع";
+  }
   fillSelect($("grade"),gradeValues,"اختر الصف",wantedGrade);
+  $("grade").value=wantedGrade;
 
-  // Hard guarantee: if a grade came from the main platform, select its canonical equivalent.
-  if(wantedGrade && [...$("grade").options].some(o=>o.value===wantedGrade)){
-    $("grade").value=wantedGrade;
+  let wantedLanguage=params.get("language")||"English";
+  if(![...$("language").options].some(o=>o.value===wantedLanguage)){
+    wantedLanguage="English";
   }
-
-  const wantedLanguage=params.get("language")||"العربية";
-  if([...$("language").options].some(o=>o.value===wantedLanguage)){
-    $("language").value=wantedLanguage;
-  }
+  $("language").value=wantedLanguage;
 
   refreshBranches();
 
-  // Show a compact indexing diagnostic so missing data is immediately visible.
+  // If no subject came from the main page, use Math for the visual test.
+  if(!$("subject").value && [...$("subject").options].some(o=>o.value==="رياضيات")){
+    $("subject").value="رياضيات";
+    refreshLessons();
+  }
+
+  // Preselect the first three lessons so the page is immediately testable.
+  const lessonBoxes=[...document.querySelectorAll("#lessons input[type=checkbox]")];
+  if(lessonBoxes.length && !lessonBoxes.some(x=>x.checked)){
+    lessonBoxes.slice(0,Math.min(3,lessonBoxes.length)).forEach(x=>x.checked=true);
+  }
+
   const indexedSubjects=Object.keys(curriculumIndex||{});
   const indexedGrades=[...new Set(indexedSubjects.flatMap(s=>Object.keys(curriculumIndex?.[s]||{})))];
-  $("status").textContent += ` — الفهرس الداخلي: ${indexedSubjects.length} مادة / ${indexedGrades.length} صفوف مفهرسة.`;
+  $("status").textContent =
+    `جاهزة للتجربة — الصف: ${$("grade").value}، المادة: ${$("subject").value||"اختر المادة"}، ` +
+    `الدروس الظاهرة: ${lessonBoxes.length}.`;
 }
 
 async function fetchAssessment(payload){
