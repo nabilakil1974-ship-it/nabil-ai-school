@@ -4223,6 +4223,48 @@ body.nabil-home-lock::before{
     visibility:visible!important;
 }
 
+
+/* ============================================================
+   v55 — cleaner function-study layout: remove useless nested rails
+   ============================================================ */
+.reference-function-study-board,
+.reference-function-study-board .exercise-function-board,
+.reference-function-study-board .compact-function-stack,
+.reference-function-study-board .function-study-reference-stage,
+.reference-function-study-board .function-study-detailed-solution,
+.reference-function-study-board .function-study-detailed-grid{
+    box-shadow:none!important;
+}
+
+.reference-function-study-board{
+    border:0!important;
+    padding:6px!important;
+}
+
+.reference-function-study-board > .exercise-function-board,
+.reference-function-study-board .compact-function-stack{
+    border:0!important;
+    outline:0!important;
+    padding-left:0!important;
+    padding-right:0!important;
+}
+
+/* Keep borders only on the meaningful cards themselves. */
+.reference-function-study-board .function-study-reference-summary-card,
+.reference-function-study-board .exercise-function-graph-variation{
+    border:1px solid #1ea7ff!important;
+}
+
+.reference-function-study-board .function-study-detailed-solution{
+    border-left:0!important;
+    border-right:0!important;
+}
+
+/* General exercises must visibly type like lesson cards. */
+.exercise-board.nabil-board-card .nabil-type-char{
+    transition:opacity .06s linear;
+}
+
 </style>
 </head>
 
@@ -5313,11 +5355,30 @@ function nabilAutoFunctionSpecFromBoard(board){
     }
     if(!expr) return null;
 
-    expr=expr.replace(/[.;،]+$/,'').trim();
+    expr=nabilCleanFunctionExpressionLabel(expr);
     const normalized=nabilNormalizeExpression(expr);
     if(!normalized) return null;
 
-    const spec={type:'function', title:`f(x) = ${expr}`, expression:expr};
+    const spec={type:"function", title:`f(x) = ${expr}`, expression:expr};
+
+    // Canonical support for f(x)=ln(x)/x.
+    // This is not a decorative special case: it adds mathematically correct
+    // domain/asymptote/key points to the generic function renderer.
+    const compactNormalized=String(normalized||"").replace(/\s+/g,"");
+    if(
+        /Math\.log\(x\)\/x/i.test(compactNormalized) ||
+        /\(?Math\.log\(x\)\)?\/\(?x\)?/i.test(compactNormalized)
+    ){
+        spec.xmin=0.08;
+        spec.xmax=8;
+        spec.ymin=-3.2;
+        spec.ymax=1.2;
+        spec.vertical_asymptote=0;
+        spec.markers=[
+            {x:1,y:0,label:"(1, 0)"},
+            {x:Math.E,y:1/Math.E,label:"(e, 1/e)"}
+        ];
+    }
 
     if(/\bln\b|\\ln|Math\.log/i.test(normalized)){
         spec.xmin=0.08; spec.xmax=8; spec.ymin=-3.5; spec.ymax=2.5;
@@ -7138,8 +7199,14 @@ const NABIL_BOARD_IDLE_MS = 60000;
 const NABIL_BOARD_VISUAL_LEAD_MS = 950; // show/type content ~1s before NABIL reads it
 
 function nabilBoardModeActive(){
-    return nabilActivityMode === "lesson" &&
-           String(teachingModeSelect?.value || "") === "board_lesson";
+    const lessonBoard =
+        nabilActivityMode === "lesson" &&
+        String(teachingModeSelect?.value || "") === "board_lesson";
+
+    const generalExercisesBoard =
+        nabilActivityMode === "general_exercises";
+
+    return lessonBoard || generalExercisesBoard;
 }
 
 function nabilCurrentVisibleTeacherContext(){
@@ -9006,7 +9073,7 @@ async function sendToAI(
         nabilActivityMode === "general_exercises";
 
     const subject =
-        generalExercisesMode ? "" : subjectSelect.value;
+        subjectSelect.value || "";
 
     const branch = branchSelect.value;
 
@@ -9983,74 +10050,114 @@ function nabilReferenceFunctionGraphWrap(title, svg, note, spec){
 }
 
 function nabilNormalizeExpression(expr){
-    let s=String(expr||"").trim();
+    let s=nabilCleanFunctionExpressionLabel(String(expr||""));
     if(!s) return "";
 
     s=s
-        .replace(/\left|\right/g,"")
-        .replace(/\dfrac/g,'\\frac')
-        .replace(/\tfrac/g,'\\frac')
+        .replace(/\u00a0/g," ")
         .replace(/−/g,"-")
         .replace(/×/g,"*")
         .replace(/÷/g,"/")
         .replace(/⁡/g,"")
-        .replace(/\}\s*\./g,'}')
-        .replace(/\s+/g," ");
+        .replace(/\\left|\\right/g,"")
+        .replace(/\\,|\\;|\\!/g,"")
+        .replace(/\\dfrac|\\tfrac/g,"\\frac")
+        .replace(/\$\$/g,"")
+        .replace(/\$/g,"")
+        .replace(/\\\(|\\\)|\\\[|\\\]/g,"")
+        .trim();
 
-    while(/\frac\s*\{[^{}]+\}\s*\{[^{}]+\}/.test(s)){
-        s=s.replace(/\frac\s*\{([^{}]+)\}\s*\{([^{}]+)\}/g,'(($1)/($2))');
+    // Convert simple LaTeX fractions repeatedly.
+    let guard=0;
+    while(/\\frac\s*\{[^{}]+\}\s*\{[^{}]+\}/.test(s) && guard<12){
+        s=s.replace(/\\frac\s*\{([^{}]+)\}\s*\{([^{}]+)\}/g,"(($1)/($2))");
+        guard++;
     }
-    s=s.replace(/[{}]/g,'');
 
+    // Common LaTeX functions.
     s=s
-        .replace(/\^/g,'**')
-        .replace(/ln\s*\(\s*x\s*\)/gi,'Math.log(x)')
-        .replace(/ln\s*x/gi,'Math.log(x)')
-        .replace(/\ln\s*\(\s*x\s*\)/gi,'Math.log(x)')
-        .replace(/\ln\s*x/gi,'Math.log(x)')
-        .replace(/log\s*\(\s*x\s*\)/gi,'Math.log10(x)')
-        .replace(/log\s*x/gi,'Math.log10(x)')
-        .replace(/\log\s*\(\s*x\s*\)/gi,'Math.log10(x)')
-        .replace(/\log\s*x/gi,'Math.log10(x)')
-        .replace(/sqrt\s*\(/gi,'Math.sqrt(')
-        .replace(/\sqrt\s*\(/gi,'Math.sqrt(')
-        .replace(/exp\s*\(/gi,'Math.exp(')
-        .replace(/\exp\s*\(/gi,'Math.exp(')
-        .replace(/abs\s*\(/gi,'Math.abs(')
-        .replace(/\abs\s*\(/gi,'Math.abs(')
-        .replace(/sin\s*\(/gi,'Math.sin(')
-        .replace(/cos\s*\(/gi,'Math.cos(')
-        .replace(/tan\s*\(/gi,'Math.tan(')
-        .replace(/\sin\s*\(/gi,'Math.sin(')
-        .replace(/\cos\s*\(/gi,'Math.cos(')
-        .replace(/\tan\s*\(/gi,'Math.tan(')
-        .replace(/e\s*\^\s*x/gi,'Math.exp(x)')
-        .replace(/pi/gi,'Math.PI')
-        .replace(/π/g,'Math.PI');
+        .replace(/\\sqrt\s*\{([^{}]+)\}/g,"Math.sqrt($1)")
+        .replace(/\\sqrt\s*\(([^()]*)\)/g,"Math.sqrt($1)")
+        .replace(/\\ln\s*\(([^()]*)\)/gi,"Math.log($1)")
+        .replace(/\\ln\s*\{([^{}]*)\}/gi,"Math.log($1)")
+        .replace(/\\log\s*\(([^()]*)\)/gi,"Math.log10($1)")
+        .replace(/\\log\s*\{([^{}]*)\}/gi,"Math.log10($1)")
+        .replace(/\\exp\s*\(([^()]*)\)/gi,"Math.exp($1)")
+        .replace(/\\sin\s*\(([^()]*)\)/gi,"Math.sin($1)")
+        .replace(/\\cos\s*\(([^()]*)\)/gi,"Math.cos($1)")
+        .replace(/\\tan\s*\(([^()]*)\)/gi,"Math.tan($1)")
+        .replace(/[{}]/g,"");
 
+    // Plain-text functions. NOTE: use real word-boundaries, never control chars.
     s=s
-        .replace(/(\d)\s*x/g,'$1*x')
-        .replace(/\)\s*x/g,')*x')
-        .replace(/x\s*\(/g,'x*(')
-        .replace(/(\d)\s*\(/g,'$1*(')
-        .replace(/\)\s*(\d)/g,')*$1')
-        .replace(/Math\.PI\s*x/g,'Math.PI*x');
+        .replace(/\bln\s*\(([^()]*)\)/gi,"Math.log($1)")
+        .replace(/\bln\s+([A-Za-z0-9_.]+)/gi,"Math.log($1)")
+        .replace(/\blog\s*\(([^()]*)\)/gi,"Math.log10($1)")
+        .replace(/\bsqrt\s*\(([^()]*)\)/gi,"Math.sqrt($1)")
+        .replace(/\bexp\s*\(([^()]*)\)/gi,"Math.exp($1)")
+        .replace(/\bsin\s*\(([^()]*)\)/gi,"Math.sin($1)")
+        .replace(/\bcos\s*\(([^()]*)\)/gi,"Math.cos($1)")
+        .replace(/\btan\s*\(([^()]*)\)/gi,"Math.tan($1)")
+        .replace(/\babs\s*\(([^()]*)\)/gi,"Math.abs($1)")
+        .replace(/\bpi\b/gi,"Math.PI")
+        .replace(/π/g,"Math.PI");
 
-    return s.trim();
+    // Powers: x^2 -> x**2, (...)^2 -> (...)**2, e^x -> Math.exp(x)
+    s=s
+        .replace(/\be\s*\^\s*\(?x\)?/gi,"Math.exp(x)")
+        .replace(/\^/g,"**");
+
+    // Insert implicit multiplication in the most common school forms.
+    s=s
+        .replace(/(\d)\s*(?=x\b)/g,"$1*")
+        .replace(/(\d)\s*(?=\()/g,"$1*")
+        .replace(/\)\s*(?=x\b|\d|\()/g,")*")
+        .replace(/\bx\s*(?=\()/g,"x*")
+        .replace(/Math\.PI\s*(?=x\b|\()/g,"Math.PI*");
+
+    // Remove harmless spaces.
+    s=s.replace(/\s+/g,"").trim();
+
+    return s;
 }
 
 function nabilTryBuildEvaluator(spec){
-    const expr = spec.expression || spec.formula || spec.equation || spec.fx || spec.function_expression || spec.function || "";
-    const normalized = nabilNormalizeExpression(expr);
+    const expr =
+        spec.expression ||
+        spec.formula ||
+        spec.equation ||
+        spec.fx ||
+        spec.function_expression ||
+        "";
+
+    const normalized=nabilNormalizeExpression(expr);
     if(!normalized) return null;
-    if(/[^0-9x+\-*/()., _A-Za-z\\]/.test(normalized)) return null;
+
+    // Only permit x, numbers, arithmetic, parentheses and approved Math functions.
+    let safe=normalized
+        .replace(/Math\.(?:log10|log|sqrt|exp|abs|sin|cos|tan|PI)/g,"M")
+        .replace(/\bx\b/g,"X");
+
+    if(/[^0-9X M+\-*/().,]/.test(safe)) return null;
 
     try{
-        const fn = new Function('x', `"use strict"; return (${normalized});`);
-        const test = fn(2);
-        if(test === undefined) return null;
-        return fn;
+        const fn=new Function("x", `"use strict"; return (${normalized});`);
+
+        // Do not reject a valid function merely because x=2 is outside domain.
+        const probes=[0.25,0.5,1,2,Math.E,3,5];
+        let anyFinite=false;
+        for(const px of probes){
+            try{
+                const y=fn(px);
+                if(Number.isFinite(y)){
+                    anyFinite=true;
+                    break;
+                }
+            }catch(_){}
+        }
+        return anyFinite ? fn : null;
     }catch(_err){
+        console.warn("NABIL function evaluator failed:", normalized, _err);
         return null;
     }
 }
@@ -10085,7 +10192,12 @@ function nabilFunctionValue(spec,x){
 function nabilFunctionSeries(spec,xmin,xmax,ymin,ymax){
     const lowerType=String(spec.type||"").toLowerCase();
     const hasFunctionLikeData = !!(spec.function || spec.expression || spec.formula || spec.equation || spec.fx || spec.function_expression);
-    if(!(lowerType==="function" || lowerType==="coordinate_plane" || lowerType==="graph") || !hasFunctionLikeData) return [];
+    const isFunctionGraphType=[
+        "function","graph","function_graph","graph_function","cartesian_function",
+        "function-graph","coordinate_plane","coordinate-graph"
+    ].includes(lowerType);
+
+    if(!isFunctionGraphType || !hasFunctionLikeData) return [];
 
     const segments=[];
     let current=[];
@@ -10234,12 +10346,26 @@ function nabilBattery3D(x,y,label){
 // Probability/Statistics • Shared 3D gradients/depth • Mobile-safe
 // ============================================================
 function nabilCleanFunctionExpressionLabel(raw){
-    let s=String(raw||'').replace(/\s+/g,' ').trim();
-    if(!s) return '';
-    s=s.replace(/^f\s*\(\s*x\s*\)\s*=\s*/i,'');
+    let s=String(raw||"")
+        .replace(/\u00a0/g," ")
+        .replace(/\\\(|\\\)|\\\[|\\\]/g," ")
+        .replace(/\$\$/g," ")
+        .replace(/\$/g," ")
+        .replace(/[●•▪◉]+/g," ")
+        .replace(/\s+/g," ")
+        .trim();
+
+    if(!s) return "";
+
+    s=s.replace(/^f\s*\(\s*x\s*\)\s*=\s*/i,"");
     s=s.split(/\s+(?:—|–|-{2,})\s+/)[0].trim();
-    s=s.split(/\s+(?=Required\b|Given\b|asymptotes?\b|critical\s+points?\b|branches?\b|domain\b|derivative\b|variation\b|graph\b)/i)[0].trim();
-    return s.replace(/[;,]+$/,'').trim();
+
+    // Stop at the next semantic section even if the provider forgot punctuation/newline.
+    s=s.split(
+        /\s+(?=(?:Required|Given|Solution|Final\s+Answer|Rule\s+Summary|Domain|Limits?|Intercepts?|Asymptotes?|Derivative|Critical\s+Points?|Extrema|Monotonicity|Variation\s+Table|Graph|Données|Demandé|Résolution|Réponse|Domaine|Limites?|Asymptotes?|Dérivée|Tableau|المعطيات|المطلوب|الحل|الجواب|المجال|النهايات|المقارب|المشتقة|جدول|الرسم)\b)/i
+    )[0].trim();
+
+    return s.replace(/[;,:،.]+$/,"").trim();
 }
 
 function nabilCompleteVisualSpec(rawSpec){
@@ -10249,6 +10375,29 @@ function nabilCompleteVisualSpec(rawSpec){
 
     // Analytic/coordinate diagrams: every supplied point receives a visible name.
     if(/coordinate|orthonormal|analytic|vector_plane/.test(type)){
+        // If the AI provided a blank graph shell for a logarithmic lesson,
+        // turn it into a real mathematical graph instead of leaving empty axes.
+        if(
+            !spec.expression && !spec.formula && !spec.equation &&
+            !spec.fx && !spec.function_expression && !spec.function &&
+            /logarithm|logarithmic|logarithme|لوغاريتم/i.test(
+                String(spec.title||"") + " " +
+                String(typeof lessonSelect!=="undefined" ? lessonSelect?.value||"" : "")
+            )
+        ){
+            spec.function="ln";
+            spec.expression="ln(x)";
+            spec.xmin=0.08;
+            spec.xmax=7;
+            spec.ymin=-3;
+            spec.ymax=3;
+            spec.vertical_asymptote=0;
+            spec.markers=[
+                {x:1,y:0,label:"(1, 0)"},
+                {x:Math.E,y:1,label:"(e, 1)"}
+            ];
+        }
+
         const pts=Array.isArray(spec.points)?spec.points:[];
         spec.points=pts.map((p,i)=>{
             const name=(Array.isArray(spec.point_labels)&&spec.point_labels[i]) ||
@@ -10865,7 +11014,10 @@ function renderNabilDiagram(rawSpec){
         </svg>`,spec.note||"");
     }
 
-    if (t === "coordinate_plane" || t === "function" || t === "graph"){
+    if ([
+        "coordinate_plane","function","graph","function_graph",
+        "graph_function","cartesian_function","function-graph","coordinate-graph"
+    ].includes(t)){
         const pts=Array.isArray(spec.points)?spec.points:[];
         const coordinateValues=[];
         pts.forEach(p=>{
@@ -10878,12 +11030,40 @@ function renderNabilDiagram(rawSpec){
         const autoXMax=xs.length?Math.ceil(Math.max(...xs,0))+1:5;
         const autoYMin=ys.length?Math.floor(Math.min(...ys,0))-1:-5;
         const autoYMax=ys.length?Math.ceil(Math.max(...ys,0))+1:5;
+        const normalizedExprForRange=nabilNormalizeExpression(
+            spec.expression || spec.formula || spec.equation || spec.fx || spec.function_expression || ""
+        );
+
+        if(/Math\.log\(x\)\/x/.test(normalizedExprForRange)){
+            if(spec.xmin===undefined && spec.x_min===undefined) spec.xmin=0.08;
+            if(spec.xmax===undefined && spec.x_max===undefined) spec.xmax=8;
+            if(spec.ymin===undefined && spec.y_min===undefined) spec.ymin=-3.2;
+            if(spec.ymax===undefined && spec.y_max===undefined) spec.ymax=1.2;
+            if(spec.vertical_asymptote===undefined && !Array.isArray(spec.vertical_asymptotes)){
+                spec.vertical_asymptote=0;
+            }
+        }
+
         const xmin=Number(spec.xmin ?? spec.x_min ?? autoXMin), xmax=Number(spec.xmax ?? spec.x_max ?? autoXMax);
         const ymin=Number(spec.ymin ?? spec.y_min ?? autoYMin), ymax=Number(spec.ymax ?? spec.y_max ?? autoYMax);
-        const generatedSeries=nabilFunctionSeries(spec,xmin,xmax,ymin,ymax);
+        let generatedSeries=nabilFunctionSeries(spec,xmin,xmax,ymin,ymax);
+
+        // Last-resort evaluator fallback for natural logarithm if metadata is weak.
+        if(!generatedSeries.length){
+            const rawExpr=String(
+                spec.expression || spec.formula || spec.equation ||
+                spec.fx || spec.function_expression || ""
+            );
+            if(/(?:\\ln|\bln\b)\s*\(?\s*x\s*\)?/i.test(rawExpr)){
+                const tmp={...spec,function:"ln"};
+                if(!spec.expression) tmp.expression="ln(x)";
+                generatedSeries=nabilFunctionSeries(tmp,xmin,xmax,ymin,ymax);
+            }
+        }
         const hasExplicitFunction =
-            t==="function" || t==="graph" ||
+            ["function","graph","function_graph","graph_function","cartesian_function","function-graph","coordinate-graph"].includes(t) ||
             !!spec.expression || !!spec.formula || !!spec.equation ||
+            !!spec.fx || !!spec.function_expression || !!spec.function ||
             (Array.isArray(spec.series) && spec.series.length);
 
         const series=Array.isArray(spec.series) && spec.series.length
