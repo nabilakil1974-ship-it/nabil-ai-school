@@ -294,6 +294,76 @@ select option{background:#071f33;color:#fff}
   overflow-y:hidden;
 }
 
+
+
+/* v16 — Lebanese official-exam-like paper presentation */
+#preview{
+  background:#0a2234;
+}
+.model{
+  background:#fff!important;
+  color:#111827!important;
+  border:1px solid #cbd5e1!important;
+  box-shadow:0 8px 26px rgba(0,0,0,.18)!important;
+  border-radius:4px!important;
+  padding:28px 34px!important;
+  max-width:940px!important;
+  margin:18px auto!important;
+}
+.model h3,
+.model h4{
+  color:#111827!important;
+}
+.model h3{
+  text-align:center!important;
+  border-bottom:2px solid #111827;
+  padding-bottom:10px;
+  margin-bottom:14px;
+}
+.model h4{
+  font-size:1rem;
+  border-bottom:1px solid #64748b;
+  padding-bottom:5px;
+}
+.model .assessment-text{
+  color:#111827!important;
+}
+.model .assessment-exercise-title{
+  color:#111827!important;
+  border-top:1px solid #94a3b8;
+  padding-top:12px;
+  font-weight:800!important;
+}
+.model .assessment-section-title{
+  color:#111827!important;
+}
+.assessment-figure{
+  background:#fff!important;
+  border:0!important;
+  border-radius:0!important;
+  padding:6px 0 2px!important;
+  margin:12px auto 16px!important;
+}
+.assessment-figure-title{
+  color:#111827!important;
+  font-size:13px!important;
+  font-weight:700!important;
+  text-align:center!important;
+}
+.assessment-figure-note{
+  color:#334155!important;
+  font-size:12px!important;
+  text-align:center!important;
+}
+.assessment-figure svg{
+  background:#fff!important;
+  border-radius:0!important;
+  border:0!important;
+}
+@media(max-width:700px){
+  .model{padding:18px 14px!important;}
+}
+
 </style>
 
 <script>
@@ -990,150 +1060,237 @@ function svgEsc(s){
   }[c]));
 }
 
+
 function assessmentFigureSVG(spec){
   const type=String(spec.type||"other").toLowerCase();
   const title=spec.title||"Figure";
   const data=String(spec.data||"");
+  const W=720,H=390;
 
-  // ---------- Circle + external point + tangents ----------
-  if(type==="geometry" && /circle/i.test(data) && /tangent/i.test(data)){
-    const rMatch=data.match(/radius\s*([0-9.]+)/i);
-    const pMatch=data.match(/P\s*at\s*\(\s*([-\d.]+)\s*,\s*([-\d.]+)\s*\)/i);
-    const radius=rMatch ? Number(rMatch[1]) : 5;
-    const px=pMatch ? Number(pMatch[1]) : 13;
-    const py=pMatch ? Number(pMatch[2]) : 0;
+  const num=(s,d=0)=>{
+    const n=Number(String(s??"").replace(/[−–]/g,"-"));
+    return Number.isFinite(n)?n:d;
+  };
 
-    // Correct tangent points from P to circle centered at O(0,0).
-    const d=Math.hypot(px,py) || 13;
-    const ux=px/d, uy=py/d;
-    const a=(radius*radius)/d;
-    const h=radius*Math.sqrt(Math.max(0,1-(radius*radius)/(d*d)));
-    const bx=a*ux, by=a*uy;
-    const tx1=bx - h*uy, ty1=by + h*ux;
-    const tx2=bx + h*uy, ty2=by - h*ux;
+  // ==========================================================
+  // 1) GEOMETRY — Circle, tangent, points, triangles
+  // ==========================================================
+  if(type==="geometry"){
+    // ---- Circle with center/radius and point P on circle: tangent at P ----
+    const center=data.match(/cent(?:re|er)\s+([A-Za-z])?\s*(?:at\s*)?\(\s*([−–\-\d.]+)\s*,\s*([−–\-\d.]+)\s*\)/i);
+    const radiusM=data.match(/radius\s*(?:=|of)?\s*([0-9.]+)/i);
+    const pointP=data.match(/point\s+P\s*(?:at\s*)?\(\s*([−–\-\d.]+)\s*,\s*([−–\-\d.]+)\s*\)/i);
 
-    const W=720,H=390,cx=245,cy=195,scale=18;
-    const X=x=>cx+x*scale, Y=y=>cy-y*scale;
+    if(center && radiusM && pointP && /tangent/i.test(data+" "+spec.student_task)){
+      const ox=num(center[2]), oy=num(center[3]), r=num(radiusM[1],5);
+      const px=num(pointP[1]), py=num(pointP[2]);
 
-    return `
-    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${svgEsc(title)}">
-      <defs>
-        <marker id="arrGeom" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto">
-          <polygon points="0 0,8 3.5,0 7" fill="#334155"/>
-        </marker>
-      </defs>
+      const dx=px-ox, dy=py-oy;
+      const len=Math.hypot(dx,dy)||1;
+      const tx=-dy/len, ty=dx/len;
 
-      <line x1="38" y1="${cy}" x2="680" y2="${cy}" stroke="#94a3b8" stroke-width="1.4"/>
-      <line x1="${cx}" y1="30" x2="${cx}" y2="350" stroke="#94a3b8" stroke-width="1.4"/>
+      const xmin=Math.min(ox-r,px)-3, xmax=Math.max(ox+r,px)+3;
+      const ymin=Math.min(oy-r,py)-3, ymax=Math.max(oy+r,py)+3;
+      const pad=50;
+      const sx=x=>pad+(x-xmin)/(xmax-xmin)*(W-2*pad);
+      const sy=y=>H-pad-(y-ymin)/(ymax-ymin)*(H-2*pad);
 
-      <circle cx="${cx}" cy="${cy}" r="${radius*scale}" fill="none" stroke="#0f766e" stroke-width="3"/>
-      <line x1="${X(px)}" y1="${Y(py)}" x2="${X(tx1)}" y2="${Y(ty1)}" stroke="#dc2626" stroke-width="2.8"/>
-      <line x1="${X(px)}" y1="${Y(py)}" x2="${X(tx2)}" y2="${Y(ty2)}" stroke="#2563eb" stroke-width="2.8"/>
+      const tangentHalf=Math.max(r*1.8,4);
+      const x1=px-tx*tangentHalf, y1=py-ty*tangentHalf;
+      const x2=px+tx*tangentHalf, y2=py+ty*tangentHalf;
 
-      <line x1="${cx}" y1="${cy}" x2="${X(tx1)}" y2="${Y(ty1)}" stroke="#64748b" stroke-dasharray="6 5"/>
-      <line x1="${cx}" y1="${cy}" x2="${X(tx2)}" y2="${Y(ty2)}" stroke="#64748b" stroke-dasharray="6 5"/>
+      return `
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${svgEsc(title)}">
+        <circle cx="${sx(ox)}" cy="${sy(oy)}" r="${Math.abs(sx(ox+r)-sx(ox))}"
+                fill="none" stroke="#111827" stroke-width="2.4"/>
+        <line x1="${sx(ox)}" y1="${sy(oy)}" x2="${sx(px)}" y2="${sy(py)}"
+              stroke="#475569" stroke-width="1.8"/>
+        <line x1="${sx(x1)}" y1="${sy(y1)}" x2="${sx(x2)}" y2="${sy(y2)}"
+              stroke="#111827" stroke-width="2.2"/>
 
-      <circle cx="${cx}" cy="${cy}" r="5" fill="#111827"/>
-      <circle cx="${X(px)}" cy="${Y(py)}" r="6" fill="#111827"/>
-      <circle cx="${X(tx1)}" cy="${Y(ty1)}" r="6" fill="#dc2626"/>
-      <circle cx="${X(tx2)}" cy="${Y(ty2)}" r="6" fill="#2563eb"/>
+        <circle cx="${sx(ox)}" cy="${sy(oy)}" r="4.5" fill="#111827"/>
+        <circle cx="${sx(px)}" cy="${sy(py)}" r="5" fill="#111827"/>
 
-      <text x="${cx+9}" y="${cy-9}" font-size="18" font-weight="700">O</text>
-      <text x="${X(px)+10}" y="${Y(py)-10}" font-size="18" font-weight="700">P</text>
-      <text x="${X(tx1)+10}" y="${Y(ty1)-8}" font-size="18" font-weight="700">T₁</text>
-      <text x="${X(tx2)+10}" y="${Y(ty2)+22}" font-size="18" font-weight="700">T₂</text>
+        <text x="${sx(ox)+8}" y="${sy(oy)-8}" font-size="16" font-weight="700">O</text>
+        <text x="${sx(px)+8}" y="${sy(py)-8}" font-size="16" font-weight="700">P</text>
+        <text x="${(sx(ox)+sx(px))/2+6}" y="${(sy(oy)+sy(py))/2-8}" font-size="13">r = ${svgEsc(r)}</text>
 
-      <text x="${cx+40}" y="${cy-55}" font-size="16">r = ${svgEsc(radius)} cm</text>
-      <text x="${(X(px)+cx)/2}" y="${cy+24}" font-size="16">OP = ${svgEsc(d.toFixed(0))} cm</text>
+        <!-- right-angle mark at tangent point -->
+        <polyline points="${sx(px)+6},${sy(py)+2} ${sx(px)+13},${sy(py)+9} ${sx(px)+6},${sy(py)+16}"
+                  fill="none" stroke="#111827" stroke-width="1.5"/>
 
-      <text x="360" y="28" text-anchor="middle" font-size="19" font-weight="700">${svgEsc(title)}</text>
-    </svg>`;
+        <text x="${W/2}" y="24" text-anchor="middle" font-size="15" font-weight="700">${svgEsc(title)}</text>
+      </svg>`;
+    }
+
+    // ---- Right triangle ABC with altitude BD to hypotenuse AC ----
+    if(/right[\s‑-]*angled triangle|right triangle/i.test(data) &&
+       /altitude\s+(?:from\s+)?B.*(?:meets|to).*AC.*D/i.test(data)){
+      const abM=data.match(/AB\s*=\s*([0-9.]+)/i);
+      const bcM=data.match(/BC\s*=\s*([0-9.]+)/i);
+      const AB=num(abM?.[1],6), BC=num(bcM?.[1],8);
+
+      // B is right angle, A left, C right/up proportionally.
+      const A={x:120,y:300}, B={x:120,y:90}, C={x:600,y:300};
+      // Foot D from B to AC.
+      const vx=C.x-A.x, vy=C.y-A.y;
+      const wx=B.x-A.x, wy=B.y-A.y;
+      const t=(wx*vx+wy*vy)/(vx*vx+vy*vy);
+      const D={x:A.x+t*vx,y:A.y+t*vy};
+
+      return `
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${svgEsc(title)}">
+        <polyline points="${A.x},${A.y} ${B.x},${B.y} ${C.x},${C.y} ${A.x},${A.y}"
+                  fill="none" stroke="#111827" stroke-width="2.5"/>
+        <line x1="${B.x}" y1="${B.y}" x2="${D.x}" y2="${D.y}"
+              stroke="#111827" stroke-width="2"/>
+        <polyline points="${B.x},${B.y+18} ${B.x+18},${B.y+18} ${B.x+18},${B.y}"
+                  fill="none" stroke="#111827" stroke-width="1.7"/>
+
+        <circle cx="${A.x}" cy="${A.y}" r="4" fill="#111827"/>
+        <circle cx="${B.x}" cy="${B.y}" r="4" fill="#111827"/>
+        <circle cx="${C.x}" cy="${C.y}" r="4" fill="#111827"/>
+        <circle cx="${D.x}" cy="${D.y}" r="4" fill="#111827"/>
+
+        <text x="${A.x-18}" y="${A.y+20}" font-size="17" font-weight="700">A</text>
+        <text x="${B.x-20}" y="${B.y-8}" font-size="17" font-weight="700">B</text>
+        <text x="${C.x+10}" y="${C.y+18}" font-size="17" font-weight="700">C</text>
+        <text x="${D.x+8}" y="${D.y-9}" font-size="17" font-weight="700">D</text>
+
+        <text x="88" y="205" font-size="14">AB = ${svgEsc(AB)}</text>
+        <text x="350" y="326" font-size="14">BC = ${svgEsc(BC)}</text>
+        <text x="${W/2}" y="24" text-anchor="middle" font-size="15" font-weight="700">${svgEsc(title)}</text>
+      </svg>`;
+    }
+
+    // ---- External point and two tangents to a circle ----
+    if(/circle/i.test(data) && /two tangents|tangent points|PT1|PT2/i.test(data)){
+      const rMatch=data.match(/radius\s*([0-9.]+)/i);
+      const pMatch=data.match(/P\s*at\s*\(\s*([-\d.]+)\s*,\s*([-\d.]+)\s*\)/i);
+      const radius=rMatch ? Number(rMatch[1]) : 5;
+      const px=pMatch ? Number(pMatch[1]) : 13;
+      const py=pMatch ? Number(pMatch[2]) : 0;
+
+      const d=Math.hypot(px,py) || 13;
+      const ux=px/d, uy=py/d;
+      const a=(radius*radius)/d;
+      const h=radius*Math.sqrt(Math.max(0,1-(radius*radius)/(d*d)));
+      const bx=a*ux, by=a*uy;
+      const tx1=bx-h*uy, ty1=by+h*ux;
+      const tx2=bx+h*uy, ty2=by-h*ux;
+
+      const cx=220,cy=195,scale=18;
+      const X=x=>cx+x*scale, Y=y=>cy-y*scale;
+
+      return `
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${svgEsc(title)}">
+        <circle cx="${cx}" cy="${cy}" r="${radius*scale}" fill="none" stroke="#111827" stroke-width="2.4"/>
+        <line x1="${X(px)}" y1="${Y(py)}" x2="${X(tx1)}" y2="${Y(ty1)}" stroke="#111827" stroke-width="2"/>
+        <line x1="${X(px)}" y1="${Y(py)}" x2="${X(tx2)}" y2="${Y(ty2)}" stroke="#111827" stroke-width="2"/>
+        <line x1="${cx}" y1="${cy}" x2="${X(tx1)}" y2="${Y(ty1)}" stroke="#64748b" stroke-width="1.4"/>
+        <line x1="${cx}" y1="${cy}" x2="${X(tx2)}" y2="${Y(ty2)}" stroke="#64748b" stroke-width="1.4"/>
+
+        <circle cx="${cx}" cy="${cy}" r="4" fill="#111827"/>
+        <circle cx="${X(px)}" cy="${Y(py)}" r="4" fill="#111827"/>
+        <circle cx="${X(tx1)}" cy="${Y(ty1)}" r="4" fill="#111827"/>
+        <circle cx="${X(tx2)}" cy="${Y(ty2)}" r="4" fill="#111827"/>
+
+        <text x="${cx+7}" y="${cy-7}" font-size="16" font-weight="700">O</text>
+        <text x="${X(px)+8}" y="${Y(py)-7}" font-size="16" font-weight="700">P</text>
+        <text x="${X(tx1)+8}" y="${Y(ty1)-7}" font-size="16" font-weight="700">T₁</text>
+        <text x="${X(tx2)+8}" y="${Y(ty2)+18}" font-size="16" font-weight="700">T₂</text>
+        <text x="${W/2}" y="24" text-anchor="middle" font-size="15" font-weight="700">${svgEsc(title)}</text>
+      </svg>`;
+    }
   }
 
-  // ---------- Function graph ----------
+  // ==========================================================
+  // 2) FUNCTION GRAPH / INTERSECTION OF LINES
+  // ==========================================================
   if(type==="function_graph"){
     const eq=(data.match(/equation\s+([^;]+)/i)||[])[1] || "";
-    const line=eq.match(/y\s*=\s*([+-]?\d*\.?\d*)\s*x\s*([+-]\s*\d*\.?\d+)?/i);
-    let m=-2,b=4;
-    if(line){
-      const ms=line[1].replace(/\s/g,"");
-      m=(ms===""||ms==="+")?1:(ms==="-"?-1:Number(ms));
-      b=line[2]?Number(line[2].replace(/\s/g,"")):0;
-    }
+    const equations=[...data.matchAll(/(?:equation\s*)?([yL]\w*\s*[:=]\s*[^;]+)/gi)].map(m=>m[1]);
 
     const xr=(data.match(/x.?axis range\s*([−–-]?\d+(?:\.\d+)?)\s*to\s*([−–-]?\d+(?:\.\d+)?)/i)||[]);
     const yr=(data.match(/y.?axis range\s*([−–-]?\d+(?:\.\d+)?)\s*to\s*([−–-]?\d+(?:\.\d+)?)/i)||[]);
     const cleanNum=s=>Number(String(s).replace(/[−–]/g,"-"));
-    const xmin=xr[1]?cleanNum(xr[1]):-2, xmax=xr[2]?cleanNum(xr[2]):4;
-    const ymin=yr[1]?cleanNum(yr[1]):-2, ymax=yr[2]?cleanNum(yr[2]):6;
+    const xmin=xr[1]?cleanNum(xr[1]):-5, xmax=xr[2]?cleanNum(xr[2]):6;
+    const ymin=yr[1]?cleanNum(yr[1]):-5, ymax=yr[2]?cleanNum(yr[2]):7;
 
-    const W=720,H=420,pad=54;
+    const pad=54;
     const sx=x=>pad+(x-xmin)/(xmax-xmin)*(W-2*pad);
     const sy=y=>H-pad-(y-ymin)/(ymax-ymin)*(H-2*pad);
 
     let grid="";
     for(let x=Math.ceil(xmin);x<=Math.floor(xmax);x++){
-      grid+=`<line x1="${sx(x)}" y1="${pad}" x2="${sx(x)}" y2="${H-pad}" stroke="#e2e8f0"/>`;
-      grid+=`<text x="${sx(x)}" y="${sy(0)+20}" text-anchor="middle" font-size="13">${x}</text>`;
+      grid+=`<line x1="${sx(x)}" y1="${pad}" x2="${sx(x)}" y2="${H-pad}" stroke="#d1d5db" stroke-width=".8"/>`;
+      if(x!==0) grid+=`<text x="${sx(x)}" y="${sy(0)+18}" text-anchor="middle" font-size="11">${x}</text>`;
     }
     for(let y=Math.ceil(ymin);y<=Math.floor(ymax);y++){
-      grid+=`<line x1="${pad}" y1="${sy(y)}" x2="${W-pad}" y2="${sy(y)}" stroke="#e2e8f0"/>`;
-      if(y!==0) grid+=`<text x="${sx(0)-12}" y="${sy(y)+4}" text-anchor="end" font-size="13">${y}</text>`;
+      grid+=`<line x1="${pad}" y1="${sy(y)}" x2="${W-pad}" y2="${sy(y)}" stroke="#d1d5db" stroke-width=".8"/>`;
+      if(y!==0) grid+=`<text x="${sx(0)-9}" y="${sy(y)+4}" text-anchor="end" font-size="11">${y}</text>`;
     }
 
-    const x1=xmin, y1=m*x1+b, x2=xmax, y2=m*x2+b;
-    const xInt=m!==0 ? -b/m : null;
-    const yInt=b;
+    let plotted="";
+    const rawLine=(eq||data.match(/y\s*=\s*[^;]+/i)?.[0]||"").replace(/\s/g,"");
+    const lm=rawLine.match(/y=([+-]?\d*\.?\d*)x([+-]\d*\.?\d+)?/i);
+    if(lm){
+      const ms=lm[1], m=(ms===""||ms==="+")?1:(ms==="-"?-1:Number(ms));
+      const b=lm[2]?Number(lm[2]):0;
+      plotted+=`<line x1="${sx(xmin)}" y1="${sy(m*xmin+b)}" x2="${sx(xmax)}" y2="${sy(m*xmax+b)}"
+                      stroke="#111827" stroke-width="2.4"/>`;
+    }
+
+    // Mark all explicit coordinate points in data.
+    const pts=[...data.matchAll(/\(\s*([−–\-\d.]+)\s*,\s*([−–\-\d.]+)\s*\)/g)]
+      .map(m=>[cleanNum(m[1]),cleanNum(m[2])])
+      .filter(p=>Number.isFinite(p[0])&&Number.isFinite(p[1]));
+    pts.forEach((p,i)=>{
+      plotted+=`<circle cx="${sx(p[0])}" cy="${sy(p[1])}" r="4.5" fill="#111827"/>
+                <text x="${sx(p[0])+7}" y="${sy(p[1])-7}" font-size="12">(${p[0]}, ${p[1]})</text>`;
+    });
 
     return `
     <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${svgEsc(title)}">
       ${grid}
-      <line x1="${pad}" y1="${sy(0)}" x2="${W-pad}" y2="${sy(0)}" stroke="#111827" stroke-width="2"/>
-      <line x1="${sx(0)}" y1="${pad}" x2="${sx(0)}" y2="${H-pad}" stroke="#111827" stroke-width="2"/>
-
-      <line x1="${sx(x1)}" y1="${sy(y1)}" x2="${sx(x2)}" y2="${sy(y2)}"
-            stroke="#0f766e" stroke-width="4"/>
-
-      ${xInt!==null && xInt>=xmin && xInt<=xmax
-        ? `<circle cx="${sx(xInt)}" cy="${sy(0)}" r="6" fill="#dc2626"/>
-           <text x="${sx(xInt)+10}" y="${sy(0)-10}" font-size="15">(${xInt}, 0)</text>`:""}
-
-      ${yInt>=ymin && yInt<=ymax
-        ? `<circle cx="${sx(0)}" cy="${sy(yInt)}" r="6" fill="#2563eb"/>
-           <text x="${sx(0)+10}" y="${sy(yInt)-10}" font-size="15">(0, ${yInt})</text>`:""}
-
-      <text x="${W/2}" y="27" text-anchor="middle" font-size="19" font-weight="700">${svgEsc(title)}</text>
-      <text x="${W-pad+14}" y="${sy(0)+5}" font-size="16">x</text>
-      <text x="${sx(0)+8}" y="${pad-12}" font-size="16">y</text>
+      <line x1="${pad}" y1="${sy(0)}" x2="${W-pad}" y2="${sy(0)}" stroke="#111827" stroke-width="1.8"/>
+      <line x1="${sx(0)}" y1="${pad}" x2="${sx(0)}" y2="${H-pad}" stroke="#111827" stroke-width="1.8"/>
+      ${plotted}
+      <text x="${W-pad+10}" y="${sy(0)+5}" font-size="14">x</text>
+      <text x="${sx(0)+7}" y="${pad-10}" font-size="14">y</text>
+      <text x="${W/2}" y="24" text-anchor="middle" font-size="15" font-weight="700">${svgEsc(title)}</text>
     </svg>`;
   }
 
-  // ---------- Variation/sign table ----------
+  // ==========================================================
+  // 3) VARIATION TABLE — formal bordered layout
+  // ==========================================================
   if(type==="variation_table" || type==="table"){
     return `
-    <svg viewBox="0 0 720 260" role="img" aria-label="${svgEsc(title)}">
-      <rect x="30" y="40" width="660" height="170" fill="#fff" stroke="#111827" stroke-width="2"/>
-      <line x1="150" y1="40" x2="150" y2="210" stroke="#111827" stroke-width="2"/>
-      <line x1="30" y1="95" x2="690" y2="95" stroke="#111827" stroke-width="2"/>
-      <line x1="30" y1="150" x2="690" y2="150" stroke="#111827" stroke-width="2"/>
-      <text x="90" y="73" text-anchor="middle" font-size="18" font-weight="700">x</text>
-      <text x="90" y="128" text-anchor="middle" font-size="18" font-weight="700">f'(x)</text>
-      <text x="90" y="184" text-anchor="middle" font-size="18" font-weight="700">f(x)</text>
-      <text x="420" y="28" text-anchor="middle" font-size="19" font-weight="700">${svgEsc(title)}</text>
-      <text x="420" y="185" text-anchor="middle" font-size="28">↗   ↘</text>
+    <svg viewBox="0 0 720 250" role="img" aria-label="${svgEsc(title)}">
+      <rect x="35" y="42" width="650" height="160" fill="#fff" stroke="#111827" stroke-width="2"/>
+      <line x1="150" y1="42" x2="150" y2="202" stroke="#111827" stroke-width="2"/>
+      <line x1="35" y1="95" x2="685" y2="95" stroke="#111827" stroke-width="1.7"/>
+      <line x1="35" y1="148" x2="685" y2="148" stroke="#111827" stroke-width="1.7"/>
+      <text x="92" y="75" text-anchor="middle" font-size="16" font-weight="700">x</text>
+      <text x="92" y="128" text-anchor="middle" font-size="16" font-weight="700">f′(x)</text>
+      <text x="92" y="181" text-anchor="middle" font-size="16" font-weight="700">f(x)</text>
+      <text x="420" y="182" text-anchor="middle" font-size="26">↗     ↘</text>
+      <text x="360" y="24" text-anchor="middle" font-size="15" font-weight="700">${svgEsc(title)}</text>
     </svg>`;
   }
 
-  // ---------- Generic professional diagram box ----------
+  // ==========================================================
+  // 4) Official-style fallback: plain structured figure, no decoration.
+  // ==========================================================
   return `
-  <svg viewBox="0 0 720 300" role="img" aria-label="${svgEsc(title)}">
-    <rect x="35" y="45" width="650" height="205" rx="12" fill="#f8fafc" stroke="#334155" stroke-width="2"/>
-    <text x="360" y="80" text-anchor="middle" font-size="20" font-weight="700">${svgEsc(title)}</text>
-    <text x="360" y="128" text-anchor="middle" font-size="15" fill="#334155">${svgEsc(type.replace(/_/g," "))}</text>
-    <line x1="190" y1="185" x2="530" y2="185" stroke="#0f766e" stroke-width="3"/>
-    <circle cx="250" cy="185" r="8" fill="#2563eb"/>
-    <circle cx="470" cy="185" r="8" fill="#dc2626"/>
-    <text x="360" y="228" text-anchor="middle" font-size="14" fill="#475569">${svgEsc(spec.student_task||"")}</text>
+  <svg viewBox="0 0 720 250" role="img" aria-label="${svgEsc(title)}">
+    <rect x="75" y="58" width="570" height="125" fill="#fff" stroke="#111827" stroke-width="1.7"/>
+    <text x="360" y="88" text-anchor="middle" font-size="15" font-weight="700">${svgEsc(title)}</text>
+    <text x="360" y="120" text-anchor="middle" font-size="12">${svgEsc(type.replace(/_/g," "))}</text>
+    <line x1="210" y1="150" x2="510" y2="150" stroke="#111827" stroke-width="1.8"/>
+    <circle cx="270" cy="150" r="4" fill="#111827"/>
+    <circle cx="450" cy="150" r="4" fill="#111827"/>
   </svg>`;
 }
 
@@ -1267,12 +1424,12 @@ function wordHTML(data){
   const align=rtl?"right":"left";
 
   return `<!doctype html><html dir="${dir}"><head><meta charset="utf-8"><style>
-    body{font-family:Arial;line-height:1.7;direction:${dir};text-align:${align};}
-    h1,h2,h3{color:#123a62;text-align:${align};}
+    body{font-family:Arial;line-height:1.55;direction:${dir};text-align:${align};color:#111;}
+    h1,h2,h3{color:#111;text-align:${align};} h1{text-align:center;border-bottom:2px solid #111;padding-bottom:8px;}
     .assessment-lines{white-space:pre-wrap;direction:${dir};text-align:${align};}.assessment-line{margin:4px 0}.assessment-exercise-title,.assessment-section-title{font-weight:bold;margin:14px 0 8px}.assessment-list{margin:6px 0 10px 24px}.assessment-spacer{height:8px}
-    .assessment-figure{margin:14px 0;padding:10px;border:1px solid #999;page-break-inside:avoid;}
+    .assessment-figure{margin:12px 0;padding:4px 0;border:0;page-break-inside:avoid;}
     .assessment-figure-title{font-weight:bold;margin-bottom:6px;}
-    .assessment-figure svg{width:680px;max-width:100%;height:auto;display:block;margin:8px auto;}
+    .assessment-figure svg{width:650px;max-width:100%;height:auto;display:block;margin:6px auto;background:#fff;}
     .assessment-figure-note{font-size:11pt;margin-top:6px;}
   </style></head><body>
     <h1>NABIL AI - Assessment</h1>
