@@ -110,6 +110,8 @@ Function Study — بروتوكول إلزامي عام:
 10) Final Answer / Rule Summary
 - الرسم وجدول التغيّر إلزاميان في دراسة الدالة الكاملة عندما تسمح المعطيات.
 - جدول التغيّر يجب أن يكون جدولًا حقيقيًا بخلايا واضحة، لا نصًا متراصًا.
+- جدول التغيّر يجب أن يظهر في عنوان مستقل ### Variation Table / ### Tableau de variations / ### جدول التغيّرات، وليس كبند رقمي داخل Solution.
+- اكتب جدول التغيّر بصيغة Markdown table حقيقية باستخدام | وصف فاصل ---؛ ممنوع تحويله إلى قائمة أو أسطر منفصلة.
 - للدالة العامة أو الكسرية استخدم coordinate_plane مع series منفصلة لكل فرع، ومقارب عمودي/مائل عند وجوده.
 - تحقق من النقاط الحرجة والمقارب والنقاط المرسومة عدديًا.
 - لا تعتبر كلمة function العادية في الفيزياء أو الكيمياء "دراسة دالة"؛ يجب وجود f(x)=... أو طلب رياضي واضح.
@@ -3850,7 +3852,7 @@ Return EXACTLY this structure, with no markdown fences and no JSON wrapper:
                     "The correction scheme must be detailed enough for a teacher to grade consistently."
                 ),
                 messages=[{"role": "user", "content": prompt}],
-                max_output_tokens=4000,
+                max_output_tokens=5200,
             )
         except Exception as exc:
             raise HTTPException(
@@ -3861,17 +3863,17 @@ Return EXACTLY this structure, with no markdown fences and no JSON wrapper:
         title_match = re.search(
             r"===TITLE===\s*(.*?)\s*===EXAM===",
             raw,
-            flags=re.S,
+            flags=re.S | re.I,
         )
         exam_match = re.search(
-            r"===EXAM===\s*(.*?)\s*===CORRECTION===",
+            r"===EXAM===\s*(.*?)(?=\s*===CORRECTION===|\Z)",
             raw,
-            flags=re.S,
+            flags=re.S | re.I,
         )
         correction_match = re.search(
             r"===CORRECTION===\s*(.*)$",
             raw,
-            flags=re.S,
+            flags=re.S | re.I,
         )
 
         title = (
@@ -3882,13 +3884,93 @@ Return EXACTLY this structure, with no markdown fences and no JSON wrapper:
         exam = (
             exam_match.group(1).strip()
             if exam_match
-            else raw.strip()
+            else re.sub(
+                r"^\s*===TITLE===.*?===EXAM===",
+                "",
+                raw,
+                flags=re.S | re.I,
+            ).strip()
         )
         correction = (
             correction_match.group(1).strip()
             if correction_match
             else ""
         )
+
+        # A long official-style paper can exhaust the first generation before
+        # the correction scheme. Never return a blank / skeletal correction.
+        # Generate the marking scheme in a dedicated second pass whenever needed.
+        correction_too_short = (
+            len(correction) < 220
+            or not re.search(r"(Exercise|Question|تمرين|سؤال|Exercice)\s*\d+", correction, re.I)
+        )
+
+        if correction_too_short:
+            correction_prompt = f"""
+You are the CORRECTION-SCHEME component of NABIL AI Assessment Builder.
+
+Create the COMPLETE detailed marking scheme for the following teacher-created
+Lebanese official-exam-style assessment.
+
+Grade: {payload.grade}
+Branch: {payload.branch or 'N/A'}
+Subject: {payload.subject}
+Language: {payload.language}
+Selected lessons: {json.dumps(lessons, ensure_ascii=False)}
+Required total: EXACTLY {marks} marks.
+
+STUDENT PAPER
+----------------
+{exam}
+----------------
+
+MANDATORY CORRECTION RULES
+1. Use EXACTLY the same exercise/question/subquestion numbering as the paper.
+2. Give the expected answer or accepted reasoning for EVERY subquestion.
+3. Break down marks into meaningful grading steps.
+4. The correction total MUST equal EXACTLY {marks}.
+5. For calculations, include method/formula, substitution/reasoning, result,
+   and unit/final conclusion where relevant.
+6. For geometry, specify what theorem/property earns each method mark.
+7. For graph/drawing questions, explicitly list the marks for axes, scale,
+   key points, construction, curve/line/shape, labels, and conclusion as applicable.
+8. For a provided figure/document, state the observations/interpretations that earn marks.
+9. Mention acceptable equivalent answers when relevant.
+10. Do NOT rewrite the whole exam. Return ONLY the correction scheme.
+11. Before returning, recalculate the mark total and fix it if necessary.
+
+{lang_rule}
+""".strip()
+
+            try:
+                correction_raw = ai.generate(
+                    instructions=(
+                        "You are a strict teacher marking-scheme generator for Lebanese schools. "
+                        "Return a complete correction scheme only. It must mirror the paper numbering, "
+                        "contain concrete expected answers and step-by-step mark allocation, "
+                        "and total exactly to the requested marks."
+                    ),
+                    messages=[{"role": "user", "content": correction_prompt}],
+                    max_output_tokens=4200,
+                )
+                correction = str(correction_raw or "").strip()
+                correction = re.sub(
+                    r"^\s*===CORRECTION===\s*",
+                    "",
+                    correction,
+                    flags=re.I,
+                ).strip()
+            except Exception as exc:
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"تم إنشاء ورقة المسابقة ولكن تعذر إنشاء أسس التصحيح: {exc}",
+                ) from exc
+
+        if not correction.strip():
+            raise HTTPException(
+                status_code=503,
+                detail="تعذر إنشاء أسس التصحيح الكاملة. أعد المحاولة.",
+            )
 
         generated.append(
             TeacherAssessmentVariant(
@@ -4182,7 +4264,17 @@ GENERAL EXERCISES MODE / حل تمارين عامة
 - للدوال العامة أو الكسرية غير المدعومة مباشرة بنوع function البسيط، استخدم type="coordinate_plane" داخل DRAWINGS_JSON مع series محسوبة من الدالة نفسها، وفروع منفصلة على جانبي كل انقطاع.
 - أضف vertical_asymptotes و oblique_asymptote و markers عندما تكون موجودة وثابتة حسابيًا.
 - إذا كانت المسألة "دراسة دالة" أو "Study of a Function" أو "Étude de fonction"، فالرسم وجدول التغيرات إلزاميان متى كانت المشتقة جزءًا من مستوى الطالب أو من المطلوب. لا تعتبرهما اختياريين.
-- يجب أن يحتوي قسم ### Solution / ### الحل خطوة بخطوة / ### Résolution على Markdown table لجدول التغيرات عند دراسة التزايد والتناقص، بحيث تنقله الواجهة تلقائيًا تحت الرسم.
+- إلزامي: أي جزء عن التزايد/التناقص أو جدول التغيّرات يجب أن يكون تحت عنوان Markdown مستقل من المستوى ###، وليس بندًا رقميًا داخل Solution.
+- استخدم بالضبط حسب لغة السؤال: "### Variation Table" في English، أو "### Tableau de variations" في Français، أو "### جدول التغيّرات" في العربية.
+- ممنوع كتابة "7. Monotonicity" أو "8. Variation Table" أو ما شابه كنص عادي داخل قسم Solution إذا كان المقصود إنشاء جدول التغيّرات.
+- جدول التغيّرات يجب أن يكون Markdown table حقيقية تستخدم الرمز | وصف فاصل ---، وليس قائمة نقطية أو أسطرًا مبعثرة.
+- مثال بنيوي صحيح:
+| x | -∞ | x₁ | 3/2 | x₂ | +∞ |
+|---|---|---|---|---|---|
+| f'(x) | + | 0 | − ‖ − | 0 | + |
+| f(x) | ↗ | max | ‖ | min | ↗ |
+- إذا كان هناك انقطاع/مقارب عمودي، مثّله بوضوح داخل الجدول بعلامة ‖ أو ∥ في العمود المناسب.
+- قسم ### Solution / ### الحل خطوة بخطوة / ### Résolution يحتوي الحسابات والاستنتاجات، أمّا جدول التغيّرات نفسه فيجب أن يبقى في قسم ### Variation Table / ### Tableau de variations / ### جدول التغيّرات المستقل.
 - في نفس الإجابة أرسل DRAWINGS_JSON للرسم البياني؛ لا ترسل نصًا فقط.
 - لا تستخدم type="function" لدالة كسرية عامة إذا كانت function لا تساوي أحد الأنواع البسيطة المدعومة (ln, exp, square, linear, inverse).
 - تحقق عدديًا من نقاط series قبل إرسالها ولا تصل المنحنى عبر مقارب عمودي.
