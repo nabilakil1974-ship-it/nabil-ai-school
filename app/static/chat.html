@@ -4646,6 +4646,10 @@ body.nabil-home-lock::before{
 .nabil-live-overlay.listening #nabilLiveState{background:rgba(0,124,210,.32)!important;border-color:#23d4ff!important;color:#dffaff!important;box-shadow:0 0 24px rgba(0,198,255,.32)!important}
 .nabil-live-overlay.listening .nabil-live-avatar-wrap{box-shadow:0 0 0 4px rgba(0,198,255,.18),0 0 38px rgba(0,198,255,.35)!important}
 </style>
+
+<style id="nabil-v112-push-to-talk-style">
+#homeVoiceBtn.active{background:linear-gradient(180deg,#0ea5e9,#075985)!important;border-color:#67e8f9!important;box-shadow:0 0 0 4px rgba(14,165,233,.18),0 0 30px rgba(14,165,233,.55)!important}
+</style>
 </head>
 
 <body>
@@ -4663,7 +4667,7 @@ body.nabil-home-lock::before{
     <div id="homeVoiceState" class="voice-state">🔊 الأستاذ نبيل يتحدث...</div>
     <button id="homeVoiceBtn" class="voice-chip bottom-talk-btn" type="button" title="تحدّث مع الأستاذ نبيل">
         <span class="mic">🎙️</span>
-        <span>تحدّث معي</span>
+        <span>سؤال صوتي</span>
     </button>
     <button id="homeStartShortcut" class="home-start-shortcut" type="button" title="الانتقال إلى صفحة الدرس">
         <span class="play">▶</span>
@@ -10430,6 +10434,10 @@ async function sendToAI(
             : "\n\n[معيار الحل الكامل — لا تعرض هذا النص] في كل تمرين أو مسألة أو برهان أو دراسة دالة أو سؤال مأخوذ من صورة أو حساب علمي، اكتب حلاً كاملاً ومرتباً للدفتر كما يشرح أستاذ متمكن، ولا تقفز من نص السؤال إلى الجواب النهائي. اتبع عند انطباقها هذه الخطوات: (1) استخرج المعطيات من السؤال أو الصورة الحالية فقط؛ (2) حدّد المطلوب؛ (3) اذكر النظرية أو القانون أو الخاصية أو الصيغة المناسبة وقل باختصار لماذا تنطبق؛ (4) عوّض بالقيم أو التعابير الفعلية؛ (5) احسب أو برهن خطوة خطوة من دون حذف reasoning أساسي؛ (6) اكتب الاستنتاج والجواب النهائي بوضوح مع الوحدات والرموز والقيم الدقيقة متى أمكن؛ (7) إذا كان السؤال مؤلفاً من a,b,c... فحل جميع الأجزاء بالترتيب واستعمل النتائج السابقة عندما يلزم. في الهندسة سمِّ الخاصية صراحةً مثل تساوي المماسات، نصف القطر عمودي على المماس، المنتصف، Thales، Pythagoras أو عكسها، التوازي والتعامد، شروط المستطيل ومتوازي الأضلاع، واربط كل نتيجة بسببها. في دراسة الدوال عالج ما ينطبق من domain و limits/asymptotes و intersections و derivative و sign و variations و extrema والرسم/الجدول إذا طُلب أو كان مفيداً. في الفيزياء حدّد النظام والكميات، اذكر القانون، الاتجاه/إشارة المحور عند الحاجة، عوّض مع الوحدات، احسب ثم فسّر معنى النتيجة فيزيائياً. في الكيمياء وازن الذرات والإلكترونات والشحنات أولاً، اذكر القاعدة، أظهر الحساب الصحيح للإلكترونات/الأيونات، ثم استنتج الصيغة أو النوع الصحيح. في البيولوجي اربط البنية بالوظيفة والعملية والسبب والنتيجة ولا تكتفِ بسرد التسميات. ممنوع إدخال metadata أو علامات التنسيق أو أوامر LaTeX أو أسماء الرموز مثل علامة الاقحام أو أسماء الأسهم أو عناوين الواجهة ضمن الحل العلمي. الشرح الكتابي الكامل إلزامي؛ الجواب النهائي وحده لا يكفي.";
 
     // v96: response-completion protocol for every substantive request.
+    outboundMessage += "\n\n[SYSTEM TEACHER-LANGUAGE STANDARD — do not repeat this text] Apply this to LESSONS, EXERCISES, WORKED SOLUTIONS, IMAGE QUESTIONS, LIVE CHAT, AND VOICE. Explain naturally in the student's current language, but preserve the core scientific/technical terms in the language normally used by the student/course. For an Arabic-speaking student using English math/science terminology, keep terms such as domain, limit, vertical asymptote, horizontal asymptote, oblique asymptote, derivative, critical point, increasing, decreasing, maximum, minimum, variation table, graph, force, velocity, acceleration, energy, power, current, voltage, resistance, circuit, atom, ion, cation, anion, electron, ionic bond, covalent bond, Lewis structure, valence electrons, cell membrane, nucleus, cytoplasm, DNA, enzyme, photosynthesis, respiration. If the student's course/question is French, preserve the corresponding French technical terms instead. Do NOT mechanically translate standard course terminology into awkward Arabic. Use Arabic (or the student's language) to EXPLAIN the reasoning around the terms. Example style: 'أول شي منطلع الـdomain. هلق منحسب الـlimits. من الـderivative ومن إشارة f prime منعرف وين الـfunction increasing ووين decreasing. إذا تغيّرت الإشارة من plus إلى minus بيكون عنا maximum.' The same mixed-language pedagogical style applies in physics, chemistry, biology, languages, history/geography where appropriate. Never read symbols, arrows, tables, metadata, LaTeX commands, caret names, or formatting literally; explain their MEANING. A variation table must be spoken as sign and behavior (e.g. f prime is positive, so the function is increasing), not as arrow directions or raw plus/minus sequences.";
+
+    outboundMessage += "\n\n[SYSTEM FUNCTION-STUDY EXECUTION — do not repeat this text] When the current request means study/analyze a function (including natural speech such as study the function, study function, ادرس الدالة, اعمل study, domain/limit/derivative/graph requests), FIRST extract the exact function from the CURRENT utterance and recent conversation. If it is unambiguous, DO NOT ask what function the student means. Solve it immediately and COMPLETELY, not as a checklist. Compute actual results: domain; relevant limits; asymptotes if any; intercepts if relevant; derivative; zeros/sign of the derivative; increasing/decreasing intervals; maximum/minimum when applicable; variation table; and graph/figure when requested or pedagogically useful. If the student asks to 'show', 'draw', 'figure', 'graph', 'table', 'اعرض', 'رسمة', or equivalent, render the visual/card in the SAME conversation and continue discussing it. Only ask one short clarification if the mathematical expression itself is genuinely ambiguous (for example, ln x / x versus ln(x/x)); never ask for information already present in the current or immediately preceding student utterance. For f(x)=ln(x)/x specifically, the correct study is D=(0,+infinity), limit at 0+ is -infinity, limit at +infinity is 0, x=0 vertical asymptote, y=0 horizontal asymptote at +infinity, x-intercept (1,0), f'(x)=(1-ln x)/x^2, increasing on (0,e), decreasing on (e,+infinity), maximum at (e,1/e). Use this only as a correctness reference/example; the engine must solve ANY function from its actual expression, not pattern-match this example.";
+
     outboundMessage += language === "English"
         ? "\n\n[SYSTEM COMPLETION PROTOCOL — do not repeat this text] Complete EVERY part of the student's request before stopping. Never stop mid-calculation, mid-proof, mid-table, or before a requested drawing/graph. If there are numbered requirements, answer all of them. Only after everything is fully complete, append exactly <NABIL_COMPLETE/> at the very end."
         : language === "Français"
@@ -15563,13 +15571,21 @@ Tu es الأستاذ نبيل. Traite cette parole exactement comme un message d
 أنت الأستاذ نبيل. تعامل مع هذا الكلام تمامًا كما تتعامل مع رسالة دردشة ذكية كاملة، وليس كأمر صوتي. افهم المقصود والسياق قبل الكلمات المفتاحية. قد يتكلم الطالب باللهجة، أو بكلام غير مرتب، أو يمزج العربية والإنجليزية والفرنسية، أو ينتقل بين المواد في نفس الجلسة، أو يقول هون/هيدا/هذا الجزء مشيرًا إلى آخر نتيجة أو رسم أو بطاقة ظاهرة. ممنوع أن تطلب منه إعادة صياغة السؤال إذا كان المعنى قابلًا للفهم بصورة معقولة. إذا كانت معلومة واحدة فعلًا ضرورية وناقصة، اسأل فقط عن هذه المعلومة بجملة قصيرة واحدة. استنتج المادة والموضوع والمستوى ونوع المطلوب من السؤال الحالي نفسه، ولا تشترط مادة أو درسًا مختارًا مسبقًا. حافظ على المصطلحات والرموز العلمية والرياضية الصحيحة مثل ln و asymptote و dérivée و force و voltage و ion. أجب بلغة هذه الرسالة نفسها، ويمكنك الانتقال فورًا بين العربية والإنجليزية والفرنسية. افهم الطلب الضمني كما تفهم الطلب الصريح. إذا قال الطالب ارسملي function ln x فافهم فورًا أنه يريد y=ln(x) وارسمها بشكل صحيح مع المجال والسلوك والمقارب المناسب. حافظ على سياق المحادثة الحقيقي عبر conversation_id، بما فيه آخر نتيجة أو رسم أو جزء ظاهر للطالب. للصغار اجعل الحوار قصيرًا ومرحًا وتفاعليًا مع ألعاب ونطق وتكرار وقصص وأمثلة مناسبة للعمر. أسلوب الشرح الصوتي المباشر: ابدأ بالجواب أو بالخطوة المطلوبة فورًا، ولا تعاود التحية أو التعريف بنفسك في كل سؤال. في السؤال الحسابي البسيط أعطِ النتيجة أولًا بجملة قصيرة ثم الحساب المختصر عند الحاجة. في مسائل الدراسة والحل اشرح كأستاذ مباشر على خطوات قصيرة: قل ماذا سنوجد الآن، اكتب السطر الرياضي أو العلمي الصحيح، ثم فسّره بالعربية المبسطة. إذا كان الطالب يتكلم بالعربية لكنه يستعمل مصطلحات المادة بالإنجليزية أو الفرنسية، اشرح بالعربية مع الحفاظ على المصطلحات والرموز الأكاديمية مثل domain و limit و derivative أو f prime و asymptote و ln و force و voltage و ion. لا تحوّل الجواب إلى محاضرة طويلة؛ الأفضل عدة مقاطع قصيرة تفاعلية. مثال: إذا قال study f of x equal ln x over x فافهم مباشرة أنه يريد دراسة f(x)=ln(x)/x: المجال، النهايات والمقارب، التقاطعات عند وجودها، المشتقة، الإشارة والتغيّر، النقطة المهمة، والرسم وجدول التغيّر عندما يكونان مطلوبين أو مفيدين. جودة الحل الكتابي إلزامية: عندما تحل، اكتب التفكير الكامل كأستاذ: المعطيات → المطلوب → النظرية/القانون ولماذا تنطبق → التعويض → الحساب أو البرهان خطوة خطوة → الاستنتاج. لا ترمِ رموزاً متتالية ولا تعطِ الجواب النهائي وحده.`;
 }
 
+function nabilSpokenRendererInstruction(language){
+    const arabic = language !== "English" && language !== "Français";
+    return `\n\n[SPOKEN TEACHER SCRIPT — hidden protocol]
+This is a live voice tutoring request. Return the full written educational answer as usual, then append exactly one block:
+<NABIL_SPOKEN>...natural spoken teacher explanation...</NABIL_SPOKEN>
+Inside NABIL_SPOKEN: never read tables, arrows, LaTeX, metadata, UI labels, coordinate lists, or symbols literally. Explain their meaning like a real teacher. Never say “north-east arrow”, “caret sign”, “x y table”, raw markup, or a stream of plus/minus symbols. For a variation table, explain why f prime is positive or negative on each interval and therefore where the function increases or decreases. For physics, chemistry, biology and every subject, verbalize the reasoning instead of reading notation. Keep it concise and conversational. If the utterance contains Arabic, explain naturally in Arabic while preserving academic terms such as domain, limit, derivative/f prime, asymptote, ln, force, voltage, ion. Do not greet again. Do not repeat the whole written answer. The spoken script must be understandable without seeing the screen.${arabic ? " Use Lebanese-friendly Arabic phrasing when natural." : ""}`;
+}
+
 async function nabilUnifiedTutorRequest(question, options={}){
     const clean = String(question || "").trim();
-    if (!clean) return {reply:"", drawings:[], raw:null};
+    if (!clean) return {reply:"", spoken:"", drawings:[], raw:null};
 
     const language = options.language || nabilVoiceLanguageFromQuestion(clean);
     const body = new FormData();
-    body.append("message", clean + nabilUnifiedTutorInstruction(language));
+    body.append("message", clean + nabilUnifiedTutorInstruction(language) + nabilSpokenRendererInstruction(language));
     body.append("student_id", getStudentId());
     body.append("subject", "");
     body.append("lesson", "");
@@ -15589,16 +15605,26 @@ async function nabilUnifiedTutorRequest(question, options={}){
     }
     const data = await response.json();
     if (data.conversation_id) conversationId = data.conversation_id;
-    const reply = String(data.reply || "").replace(/<NABIL_COMPLETE\s*\/>/ig, "").trim();
+    let fullReply = String(data.reply || "").replace(/<NABIL_COMPLETE\s*\/>/ig, "").trim();
+    let spoken = "";
+    const spokenMatch = fullReply.match(/<NABIL_SPOKEN>([\s\S]*?)<\/NABIL_SPOKEN>/i);
+    if(spokenMatch){
+        spoken = String(spokenMatch[1]||"").trim();
+        fullReply = fullReply.replace(spokenMatch[0],"").trim();
+    }
+    const reply = fullReply;
     const drawings = Array.isArray(data.drawings) ? data.drawings : (data.drawing ? [data.drawing] : []);
     if (!reply) throw new Error("Empty unified tutor reply");
-    return {reply, drawings, raw:data, language};
+    if(!spoken) spoken = reply;
+    return {reply, spoken, drawings, raw:data, language};
 }
 
 function nabilVoiceLanguageFromQuestion(question){
-    const detected = nabilDetectLang(question);
-    if (detected === "en") return "English";
+    const q=String(question||"");
+    if(/[\u0600-\u06FF]/.test(q)) return "العربية";
+    const detected = nabilDetectLang(q);
     if (detected === "fr") return "Français";
+    if (detected === "en") return "English";
     return "العربية";
 }
 
@@ -15624,12 +15650,13 @@ async function askNabilAvatarAI(question){
             teachingMode: "home_live_tutor"
         });
         const reply = result.reply;
+        const spokenReply = result.spoken || reply;
 
         homeVoiceState.textContent = "💬 " + reply.replace(/\*\*/g,"");
         homeVoiceState.classList.add("show");
         nabilHome?.classList.remove("is-thinking");
-        nabilHomeCurrentSpokenReply=reply;
-        homeSpeak(reply.replace(/\*\*/g,""), ()=>{ nabilHomeCurrentSpokenReply=""; }, language);
+        nabilHomeCurrentSpokenReply=spokenReply;
+        homeSpeak(spokenReply.replace(/\*\*/g,""), ()=>{ nabilHomeCurrentSpokenReply=""; }, language);
         try{ window.nabilGatewayPresentAnswer?.(question, reply, result); }catch(_e){}
         return reply;
     }catch(error){
@@ -15679,10 +15706,7 @@ function homeSpeak(text, onDone=null, languageOverride=null){
                 nabilHome.classList.add("is-speaking");
                 homeVoiceState.textContent = "🔊 الأستاذ نبيل يتحدث... — فيك تقاطعني وتحكي";
                 homeVoiceState.classList.add("show");
-                if(homeRecognition && nabilHomeCurrentSpokenReply){
-                    homeListening=true;
-                    try{ homeRecognition.start(); }catch(_e){}
-                }
+
             },
             onend: () => {
                 nabilHome.classList.remove("is-speaking");
@@ -15976,141 +16000,123 @@ function nabilHomeInterruptWith(text){
 function setupHomeRecognition(){
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) return;
+
     homeRecognition = new SR();
     homeRecognition.continuous = true;
     homeRecognition.interimResults = true;
     homeRecognition.lang = "ar-LB";
-    let finalText = "";
+
     homeRecognition.onstart = () => {
         homeListening = true;
         nabilHome?.classList.add("is-listening");
         homeVoiceBtn.classList.add("active");
-        homeVoiceState.textContent = "🎙️ أسمعك... انقر مرة أخرى للتوقف";
+        const label = homeVoiceBtn.querySelector("span:last-child");
+        if (label) label.textContent = "إيقاف وإرسال";
+        homeVoiceState.textContent = "🎙️ احكي سؤالك كامل... ولما تخلص اضغط إيقاف وإرسال";
         homeVoiceState.classList.add("show");
     };
-    homeRecognition.onresult = async (event) => {
+
+    homeRecognition.onresult = (event) => {
         let interim = "";
-        let newestFinal = "";
-
-        for (let i=event.resultIndex;i<event.results.length;i++){
-            const t = event.results[i][0].transcript;
-
+        for (let i = event.resultIndex; i < event.results.length; i++){
+            const t = String(event.results[i][0].transcript || "").trim();
+            if (!t) continue;
             if (event.results[i].isFinal) {
-                finalText += " " + t;
-                newestFinal += " " + t;
-            }
-            else {
-                interim += t;
-            }
-        }
-
-        const heard = (finalText + " " + interim).trim();
-
-        if (heard) {
-            homeVoiceState.textContent = "🎙️ " + heard;
-        }
-
-        if (newestFinal.trim()) {
-            const spokenQuestion = newestFinal.trim();
-
-            // v108: student can interrupt NABIL while he is speaking.
-            if(nabilNeuralSpeaking && !nabilHomeLooksLikeEcho(spokenQuestion)){
-                finalText="";
-                nabilHomeInterruptWith(spokenQuestion);
-                return;
-            }
-
-            /* Personal/social questions have priority at EVERY moment. */
-            const personalReply = nabilPersonalReply(spokenQuestion);
-            if (personalReply) {
-                finalText = "";
-
-                /* Pause recognition so NABIL does not hear his own voice. */
-                const shouldResume = homeListening;
-                homeListening = false;
-                try { homeRecognition.stop(); } catch(e) {}
-
-                homeVoiceState.textContent = "💬 " + personalReply.replace(/\*\*/g,"");
-                homeVoiceState.classList.add("show");
-
-                homeSpeak(personalReply.replace(/\*\*/g,""));
-
-                setTimeout(() => {
-                    if (shouldResume && !nabilLessonMode) {
-                        homeListening = true;
-                        try { homeRecognition.start(); } catch(e) {}
-                    }
-                }, Math.max(1600, personalReply.length * 55));
-
-                return;
-            }
-
-            const accepted =
-                processHomeVoiceCommand(
-                    spokenQuestion
-                );
-
-            if (accepted) {
-                finalText = "";
+                homeVoiceMessageBuffer = (homeVoiceMessageBuffer + " " + t).trim();
             } else {
-                finalText = "";
-
-                /* Not a navigation command and not in the fixed personality bank:
-                   hand the question to the guarded AI personality endpoint. */
-                const shouldResume = homeListening;
-                homeListening = false;
-                try { homeRecognition.stop(); } catch(e) {}
-
-                await askNabilAvatarAI(spokenQuestion);
-
-                if (shouldResume && !nabilLessonMode) {
-                    setTimeout(() => {
-                        homeListening = true;
-                        try { homeRecognition.start(); } catch(e) {}
-                    }, 900);
-                }
+                interim += " " + t;
             }
+        }
+        const preview = [homeVoiceMessageBuffer, interim.trim()].filter(Boolean).join(" ").trim();
+        if (preview) {
+            homeVoiceState.textContent = "🎙️ " + preview;
+            homeVoiceState.classList.add("show");
         }
     };
-    homeRecognition.onerror = e => console.warn("HOME STT:",e.error);
-    homeRecognition.onend = () => {
-        if (homeListening){ try{homeRecognition.start()}catch(e){} }
-        else{
+
+    homeRecognition.onerror = (e) => {
+        if (!["no-speech","aborted"].includes(e.error)) console.warn("HOME VOICE MESSAGE STT:", e.error);
+        if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+            homeVoiceMessageRecording = false;
+            homeVoiceMessageStopping = false;
+            homeListening = false;
             nabilHome?.classList.remove("is-listening");
             homeVoiceBtn.classList.remove("active");
-            homeVoiceState.classList.remove("show");
+            const label = homeVoiceBtn.querySelector("span:last-child");
+            if (label) label.textContent = "سؤال صوتي";
+            homeVoiceState.textContent = "🎙️ اسمح للمتصفح باستخدام الميكروفون ثم جرّب من جديد.";
         }
+    };
+
+    homeRecognition.onend = async () => {
+        if (homeVoiceMessageRecording && !homeVoiceMessageStopping) {
+            // بعض متصفحات الهاتف توقف التعرف تلقائياً بعد عدة ثوانٍ؛
+            // أعد التشغيل من دون إرسال كي يبقى السؤال رسالة صوتية واحدة كاملة.
+            try { homeRecognition.start(); } catch(_e) {}
+            return;
+        }
+
+        homeListening = false;
+        nabilHome?.classList.remove("is-listening");
+        homeVoiceBtn.classList.remove("active");
+        const label = homeVoiceBtn.querySelector("span:last-child");
+        if (label) label.textContent = "سؤال صوتي";
+
+        if (!homeVoiceMessageStopping) return;
+        homeVoiceMessageStopping = false;
+        const spokenQuestion = String(homeVoiceMessageBuffer || "").trim();
+        homeVoiceMessageBuffer = "";
+
+        if (!spokenQuestion) {
+            homeVoiceState.textContent = "🎙️ ما وصلني كلام واضح. اضغط سؤال صوتي واحكي من جديد.";
+            homeVoiceState.classList.add("show");
+            return;
+        }
+
+        homeVoiceState.textContent = "📝 " + spokenQuestion;
+        homeVoiceState.classList.add("show");
+        await askNabilAvatarAI(spokenQuestion);
     };
 }
 
+let homeVoiceMessageBuffer = "";
+let homeVoiceMessageRecording = false;
+let homeVoiceMessageStopping = false;
+
 homeVoiceBtn.addEventListener("click", () => {
     if (!(window.SpeechRecognition || window.webkitSpeechRecognition)){
-        homeVoiceState.textContent = "🎙️ هذا المتصفح لا يدعم الإدخال الصوتي. يمكنك استخدام الأزرار.";
+        homeVoiceState.textContent = "🎙️ هذا المتصفح لا يدعم الإدخال الصوتي. اكتب سؤالك من خانة الدردشة.";
         homeVoiceState.classList.add("show");
-        setTimeout(() => homeVoiceState.classList.remove("show"), 2600);
         return;
     }
+
     if (!homeRecognition) setupHomeRecognition();
-    if (homeListening){
-        homeListening = false;
-        try{homeRecognition.stop()}catch(e){}
+
+    // الضغط الثاني = نهاية الرسالة الصوتية وإرسالها مرة واحدة كاملة.
+    if (homeVoiceMessageRecording) {
+        homeVoiceMessageRecording = false;
+        homeVoiceMessageStopping = true;
+        homeVoiceState.textContent = "⏳ عم جهّز سؤالك كامل...";
+        try { homeRecognition.stop(); } catch(_e) {}
         return;
     }
-    if (speechSynthesis) speechSynthesis.cancel();
-    homeRecognition.lang = homeLangCode();
-    if (!homeWelcomeSpoken) {
-        homeWelcomeSpoken = true;
-        homeSpeak(
-            "أهلاً، أنا الأستاذ نبيل. احكي معي مباشرة بأي سؤال. فيك تسأل عربي، English أو Français، وأنا بفهم عليك وبجاوبك فورًا. وإذا بدك تختار درس، اضغط ابدأ الدرس.",
-            () => {
-                if (nabilHome && nabilHome.style.display !== "none" && !homeListening) {
-                    try { homeRecognition.start(); } catch(e) {}
-                }
-            }
-        );
-        return;
+
+    // ابدأ رسالة صوتية جديدة. لا يرسل أي جزء منها قبل أن يضغط الطالب إيقاف وإرسال.
+    stopNabilNeuralVoice();
+    try { if ("speechSynthesis" in window) speechSynthesis.cancel(); } catch(_e) {}
+    nabilHomeCurrentSpokenReply = "";
+    homeVoiceMessageBuffer = "";
+    homeVoiceMessageStopping = false;
+    homeVoiceMessageRecording = true;
+    homeRecognition.lang = "ar-LB";
+    try {
+        homeRecognition.start();
+    } catch(_e) {
+        homeVoiceMessageRecording = false;
+        homeVoiceMessageStopping = false;
+        homeVoiceState.textContent = "🎙️ الميكروفون مشغول. جرّب مرة ثانية.";
+        homeVoiceState.classList.add("show");
     }
-    try{homeRecognition.start()}catch(e){}
 });
 
 homeStartShortcut.addEventListener("click", openClassicLessonPage);
@@ -16135,7 +16141,7 @@ function bootstrapNabilHome(){
             nabilHome.style.display !== "none" &&
             "speechSynthesis" in window
         ) {
-            homeSpeak("أهلاً، أنا الأستاذ نبيل. كيفك اليوم؟ إن شاء الله منيح. فيك تحكي معي مباشرة بأي سؤال أو موضوع تعليمي، وأنا بفهمك وبساعدك. وإذا بدك ندرس، اضغط ابدأ الدرس ومنختار الصف والمادة والدرس. وبأي لغة بتحب أعرض الحل: عربي، English، أو Français؟");
+            homeSpeak("أهلاً، أنا الأستاذ نبيل. احكي معي مباشرة بأي سؤال. وإذا بدك ندرس أو نعرض رسمة، قلّي شو بدك.");
         }
     }, 450);
 
@@ -16158,7 +16164,7 @@ document.addEventListener("pointerdown", () => {
         !("speechSynthesis" in window)
     ) return;
 
-    homeSpeak("أهلاً، أنا الأستاذ نبيل. كيفك اليوم؟ إن شاء الله منيح. فيك تحكي معي مباشرة بأي سؤال أو موضوع تعليمي، وأنا بفهمك وبساعدك. وإذا بدك ندرس، اضغط ابدأ الدرس ومنختار الصف والمادة والدرس. وبأي لغة بتحب أعرض الحل: عربي، English، أو Français؟");
+    homeSpeak("أهلاً، أنا الأستاذ نبيل. احكي معي مباشرة بأي سؤال. وإذا بدك ندرس أو نعرض رسمة، قلّي شو بدك.");
 }, {once:true, passive:true});
 
 </script>
@@ -17265,6 +17271,7 @@ ${reply||""}`;
                 teachingMode: "live_voice_tutor"
             });
             const reply = result.reply;
+            const spokenReply = result.spoken || reply;
 
             nabilVoiceLastReply=reply;
             lessonTalkSpokenLanguage = requestedLanguage || detectedLanguage || "العربية";
@@ -17281,7 +17288,7 @@ ${reply||""}`;
 
             lessonTalkSetState("🔊 عم جاوبك...");
             nabilVoiceCurrentSpokenReply=reply;
-            await nabilSpeakClear(reply, lessonTalkSpokenLanguage, {
+            await nabilSpeakClear(spokenReply, lessonTalkSpokenLanguage, {
                 onstart: () => {
                     // Keep the mic live while NABIL speaks so the student can interrupt naturally.
                     // Echo-like transcripts are filtered in rec.onresult below.
@@ -17367,7 +17374,7 @@ ${reply||""}`;
                     const utterance=nabilSpeechBuffer.trim();
                     nabilSpeechBuffer="";
                     if(utterance && lessonTalkActive && !lessonTalkBusy) lessonTalkAskNabil(utterance);
-                },650);
+                },1100);
             }
         };
 
@@ -21079,7 +21086,8 @@ if(document.readyState==="loading"){
 .nabil-gateway-transcript{max-height:180px;overflow:auto;padding:10px 12px;font-size:15px;line-height:1.55;color:#eaf8ff}
 .nabil-gateway-line{margin:6px 0;padding:7px 9px;border-radius:10px;background:rgba(255,255,255,.04)}
 .nabil-gateway-line.student{border-inline-start:3px solid #3ed7ff}.nabil-gateway-line.nabil{border-inline-start:3px solid #7ef0b1}
-.nabil-gateway-inputrow{display:grid;grid-template-columns:1fr auto;gap:8px;padding:10px;border-top:1px solid rgba(67,199,255,.22)}
+.nabil-gateway-inputrow{display:grid;grid-template-columns:1fr auto auto;gap:8px;padding:10px;border-top:1px solid rgba(67,199,255,.22)}
+#nabilGatewayMic.recording,#nabilGatewayTalk.recording{background:linear-gradient(135deg,#0ea5e9,#0369a1)!important;border-color:#67e8f9!important;box-shadow:0 0 0 4px rgba(14,165,233,.18),0 0 26px rgba(14,165,233,.45)!important}
 .nabil-gateway-inputrow input{min-width:0;border:1px solid rgba(80,205,255,.42);border-radius:10px;background:#061d31;color:#fff;padding:11px 12px;font-size:15px}
 .nabil-gateway-inputrow button,.nabil-gateway-visual-btn{border:1px solid #39cfff;border-radius:10px;background:#075f93;color:#fff;padding:10px 14px;font-weight:700;cursor:pointer}
 .nabil-gateway-visual-btn{display:none;margin:0 10px 10px}.nabil-gateway-visual-btn.ready{display:inline-block}
@@ -21114,7 +21122,8 @@ if(document.readyState==="loading"){
         <button class="nabil-gateway-visual-btn" id="nabilGatewayVisualBtn" type="button">👁 شاهد البطاقة / الرسمة</button>
         <div class="nabil-gateway-visual" id="nabilGatewayVisual"></div>
         <div class="nabil-gateway-inputrow">
-          <input id="nabilGatewayInput" type="text" placeholder="اكتب هنا إذا حبيت... أو احكِ بالميكروفون">
+          <input id="nabilGatewayInput" type="text" placeholder="اكتب هنا إذا حبيت... أو اضغط الميكروفون واحكِ سؤالك كامل">
+          <button id="nabilGatewayMic" type="button" title="اضغط مرة للتسجيل ومرة ثانية للإرسال">🎙️</button>
           <button id="nabilGatewaySend" type="button">إرسال</button>
         </div>
       </div>
@@ -21128,6 +21137,13 @@ if(document.readyState==="loading"){
   const visualBox=gateway.querySelector('#nabilGatewayVisual');
   const input=gateway.querySelector('#nabilGatewayInput');
   const send=gateway.querySelector('#nabilGatewaySend');
+  const mic=gateway.querySelector('#nabilGatewayMic');
+  const talk=gateway.querySelector('#nabilGatewayTalk');
+  let gatewayRecognition=null;
+  let gatewayRecording=false;
+  let gatewayStopping=false;
+  let gatewayBuffer='';
+  let gatewayInterim='';
 
   function appendGatewayLine(role,text){
     if(!transcript || !text) return;
@@ -21166,34 +21182,241 @@ if(document.readyState==="loading"){
   send?.addEventListener('click',sendGatewayText);
   input?.addEventListener('keydown',e=>{if(e.key==='Enter') sendGatewayText();});
 
-  // Keep the professor gateway itself as the live conversation surface. No forced navigation.
-  gateway.querySelector('#nabilGatewayTalk')?.addEventListener('click',()=>{
-    gateway.classList.add('live-chat');
-    try{
-      if(!homeRecognition) setupHomeRecognition();
-      if(homeListening){ homeListening=false; try{homeRecognition.stop()}catch(_e){}; if(status)status.textContent='⏹ تم إيقاف الاستماع.'; return; }
-      homeRecognition.lang=homeLangCode();
-      homeListening=true; gateway.classList.add('gateway-listening');
-      if(status) status.textContent='🎙 عم بسمعك... احكي مباشرة.';
-      try{homeRecognition.start()}catch(_e){ homeListening=false; gateway.classList.remove('gateway-listening'); }
-    }catch(_e){}
-  });
+  // Voice on the opening gateway is a true voice-message input: first click records,
+  // second click stops and sends ONE complete transcript to the SAME unified /api/chat brain.
+  function gatewaySetRecordingUI(active){
+    gateway.classList.toggle('gateway-listening',!!active);
+    talk?.classList.toggle('recording',!!active);
+    mic?.classList.toggle('recording',!!active);
+    if(talk) talk.textContent = active ? '⏹ إيقاف وإرسال السؤال' : '🎙 تحدث معي الآن';
+    if(mic) mic.textContent = active ? '⏹' : '🎙️';
+  }
 
-  // Mirror the existing speech-recognition state on the gateway.
-  try{
-    new MutationObserver(()=>{
-      const t=homeVoiceState?.textContent||'';
-      if(status && t) status.textContent=t;
-      const listening=/🎙|أسمعك|عم بسمعك/i.test(t);
-      gateway.classList.toggle('gateway-listening',listening);
-    }).observe(homeVoiceState,{childList:true,subtree:true,characterData:true});
-  }catch(_e){}
+  function ensureGatewayRecognition(){
+    if(gatewayRecognition) return gatewayRecognition;
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR) return null;
+    gatewayRecognition=new SR();
+    gatewayRecognition.continuous=true;
+    gatewayRecognition.interimResults=true;
+    gatewayRecognition.maxAlternatives=1;
+    // Arabic/Lebanese is the default because it still captures embedded math/English terms reasonably,
+    // and the AI receives the raw transcript unchanged for semantic understanding.
+    gatewayRecognition.lang='ar-LB';
+
+    gatewayRecognition.onstart=()=>{
+      gatewaySetRecordingUI(true);
+      if(status) status.textContent='🎙 عم بسمعك. احكي سؤالك كامل، ولما تخلص اضغط إيقاف وإرسال.';
+    };
+    gatewayRecognition.onresult=(event)=>{
+      gatewayInterim='';
+      for(let i=event.resultIndex;i<event.results.length;i++){
+        const piece=String(event.results[i][0]?.transcript||'').trim();
+        if(!piece) continue;
+        if(event.results[i].isFinal) gatewayBuffer=(gatewayBuffer+' '+piece).trim();
+        else gatewayInterim=(gatewayInterim+' '+piece).trim();
+      }
+      const preview=[gatewayBuffer,gatewayInterim].filter(Boolean).join(' ').trim();
+      if(status && preview) status.textContent='🎙 '+preview;
+    };
+    gatewayRecognition.onerror=(e)=>{
+      if(!['no-speech','aborted'].includes(e.error)) console.warn('NABIL gateway STT:',e.error);
+      if(e.error==='not-allowed'||e.error==='service-not-allowed'){
+        gatewayRecording=false; gatewayStopping=false; gatewaySetRecordingUI(false);
+        if(status) status.textContent='🎙 اسمح للمتصفح باستخدام الميكروفون ثم جرّب من جديد.';
+      }
+    };
+    gatewayRecognition.onend=async()=>{
+      if(gatewayRecording && !gatewayStopping){
+        // Mobile browsers may stop recognition by themselves. Keep the same message open.
+        try{gatewayRecognition.start();}catch(_e){}
+        return;
+      }
+      gatewaySetRecordingUI(false);
+      if(!gatewayStopping) return;
+      gatewayStopping=false;
+      const q=String([gatewayBuffer,gatewayInterim].filter(Boolean).join(' ')||'').trim();
+      gatewayBuffer=''; gatewayInterim='';
+      if(!q){ if(status) status.textContent='🎙 ما وصلني كلام واضح. اضغط الميكروفون واحكي السؤال من جديد.'; return; }
+      appendGatewayLine('student',q);
+      if(status) status.textContent='🧠 الأستاذ نبيل يفهم السؤال ويحضّر الجواب...';
+      await askNabilAvatarAI(q);
+    };
+    return gatewayRecognition;
+  }
+
+  function toggleGatewayVoiceMessage(){
+    gateway.classList.add('live-chat');
+    const rec=ensureGatewayRecognition();
+    if(!rec){
+      if(status) status.textContent='🎙 هذا المتصفح لا يدعم الإدخال الصوتي. اكتب سؤالك في الخانة وأرسله.';
+      return;
+    }
+    if(gatewayRecording){
+      gatewayRecording=false;
+      gatewayStopping=true;
+      if(status) status.textContent='⏳ عم جهّز سؤالك كامل وأرسله لنبيل...';
+      try{rec.stop();}catch(_e){}
+      return;
+    }
+    // Start a fresh voice message; never send fragments while the student is still talking.
+    stopNabilNeuralVoice();
+    try{ if('speechSynthesis' in window) speechSynthesis.cancel(); }catch(_e){}
+    nabilHomeCurrentSpokenReply='';
+    gatewayBuffer=''; gatewayInterim=''; gatewayStopping=false; gatewayRecording=true;
+    gatewaySetRecordingUI(true);
+    if(status) status.textContent='🎙 عم بسمعك. احكي براحتك؛ اضغط إيقاف وإرسال لما تخلص.';
+    try{rec.start();}catch(_e){
+      gatewayRecording=false; gatewaySetRecordingUI(false);
+      if(status) status.textContent='🎙 الميكروفون مشغول أو لم يبدأ. جرّب مرة ثانية.';
+    }
+  }
+
+  talk?.addEventListener('click',toggleGatewayVoiceMessage);
+  mic?.addEventListener('click',toggleGatewayVoiceMessage);
+
+  // Keep gateway status independent from the old home microphone state.
+  // The opening conversation never navigates away unless the student explicitly chooses Lesson or Exercises.
 
   gateway.querySelector('#nabilGatewayLessons')?.addEventListener('click',()=>{ close(); try{ nabilHome.style.display='block'; document.body.classList.add('nabil-home-lock'); }catch(_e){} });
   gateway.querySelector('#nabilGatewayExercises')?.addEventListener('click',()=>{ close(); try{ startGeneralExercisesMode(); }catch(_e){} });
   // Expose a home command so returning Home can bring Professor Nabil back later.
   window.nabilShowProfessorGateway=()=>gateway.classList.remove('closed');
 })();
+</script>
+
+<script id="nabil-v114-real-audio-brain">
+
+// v114 — REAL VOICE MESSAGE PATH
+// Important: do NOT use browser SpeechRecognition as the primary understanding path.
+// We record the student's real audio and send it directly to the SAME /api/chat endpoint.
+// The backend already accepts `audio`, transcribes it, and returns `transcribed_text`.
+(function(){
+  const gateway=document.getElementById('nabilProfessorGateway');
+  if(!gateway) return;
+  const talk=gateway.querySelector('#nabilGatewayTalk');
+  const mic=gateway.querySelector('#nabilGatewayMic');
+  const status=gateway.querySelector('#nabilGatewayStatus');
+  const transcript=gateway.querySelector('#nabilGatewayTranscript');
+  const visualBtn=gateway.querySelector('#nabilGatewayVisualBtn');
+  const visualBox=gateway.querySelector('#nabilGatewayVisual');
+
+  let recorder=null, stream=null, chunks=[], recording=false, busy=false;
+
+  function addLine(role,text){
+    if(!transcript || !text) return;
+    const d=document.createElement('div');
+    d.className='nabil-gateway-line '+role;
+    d.textContent=(role==='student'?'الطالب: ':'الأستاذ نبيل: ')+String(text).replace(/\*\*/g,'');
+    transcript.appendChild(d); transcript.scrollTop=transcript.scrollHeight;
+  }
+  function setUI(on){
+    recording=!!on;
+    gateway.classList.toggle('gateway-listening',recording);
+    talk?.classList.toggle('recording',recording); mic?.classList.toggle('recording',recording);
+    if(talk) talk.textContent=recording?'⏹ إيقاف وإرسال السؤال':'🎙 تحدث معي الآن';
+    if(mic) mic.textContent=recording?'⏹':'🎙️';
+  }
+  function mimeExt(m){
+    if(/ogg/i.test(m||'')) return 'ogg';
+    if(/mp4|m4a/i.test(m||'')) return 'm4a';
+    return 'webm';
+  }
+  async function sendAudio(blob){
+    if(!blob || !blob.size || busy) return;
+    busy=true;
+    try{
+      if(status) status.textContent='🧠 عم اسمع التسجيل وأفهم السؤال...';
+      const body=new FormData();
+      body.append('audio', blob, 'student_voice.'+mimeExt(blob.type));
+      body.append('student_id', getStudentId());
+      body.append('subject',''); body.append('lesson',''); body.append('grade',''); body.append('branch','');
+      body.append('language','العربية');
+      body.append('activity_mode','general_exercises');
+      // This field is shown to the same SYSTEM_PROMPT as part of the educational context.
+      // It makes the single audio request behave like a live teacher, without keyword parsing.
+      body.append('teaching_mode', 'محادثة تعليمية حية مباشرة: افهم المقصود من الكلام الطبيعي واللهجة والمزج عربي/English/Français. لا تطلب إعادة السؤال إذا كان المعنى مفهوماً. حل المطلوب فعلياً ولا تكتفِ بسرد خطة الحل. إذا طلب student study of a function فاحسب domain ثم limits/asymptotes ثم intercepts ثم derivative ثم sign/variations ثم variation table ثم graph. إذا طلب figure/graph/card أنشئ الرسم فعلياً. اشرح بالعربية الطبيعية مع إبقاء المصطلحات الرياضية القياسية مثل domain, limit, derivative, f prime, asymptote, ln. لا تقرأ الرموز أو الجداول حرفياً.');
+      body.append('curriculum', curriculumSelect?.value || 'المنهج اللبناني الرسمي');
+      if(conversationId) body.append('conversation_id',conversationId);
+
+      const response=await nabilFetchChatWithAutoRetry(API_BASE+'/api/chat',{method:'POST',body},'العربية');
+      if(!response.ok){ let detail=''; try{detail=(await response.json())?.detail||'';}catch(_e){} throw new Error(detail||('HTTP '+response.status)); }
+      const data=await response.json();
+      if(data.conversation_id) conversationId=data.conversation_id;
+      const heard=String(data.transcribed_text||'').trim();
+      let reply=String(data.reply||'').replace(/<NABIL_COMPLETE\s*\/>/ig,'').trim();
+      if(heard) addLine('student',heard);
+      if(!reply) throw new Error('Empty reply');
+      addLine('nabil',reply);
+
+      // Show the exact transcription used by the AI. This makes voice errors diagnosable and editable.
+      if(status) status.textContent=heard ? ('✅ سمعتك: «'+heard+'»') : '✅ فهمت التسجيل.';
+
+      // Render visual results on the opening gateway itself.
+      let html='';
+      try{
+        const drawings=Array.isArray(data.drawings)?data.drawings:(data.drawing?[data.drawing]:[]);
+        if(drawings.length && typeof renderNabilDiagram==='function') html=drawings.map(d=>renderNabilDiagram(d)).filter(Boolean).join('');
+        if(!html && typeof window.nabilVoiceBuildVisual==='function') html=window.nabilVoiceBuildVisual(heard,reply)||'';
+      }catch(_e){}
+      if(html && visualBox){
+        visualBox.innerHTML=html; visualBtn?.classList.add('ready');
+        if(/فرجيني|ورجيني|اعرض|أعرض|figure|graph|draw|رسمة|رسم|table|جدول/i.test(heard)) visualBox.classList.add('open');
+        try{MathJax?.typesetPromise?.([visualBox]);}catch(_e){}
+      }
+
+      // Speak as a teacher, but do not restart greetings.
+      // Use the existing clear speech normalizer rather than browser-reading raw markup.
+      let spoken=reply;
+      try{ if(typeof nabilBoardPlainSpeech==='function') spoken=nabilBoardPlainSpeech(reply); }catch(_e){}
+      nabilHomeCurrentSpokenReply=spoken;
+      stopNabilNeuralVoice();
+      await nabilSpeakClear(spoken,'العربية',{onend:()=>{nabilHomeCurrentSpokenReply='';}});
+    }catch(err){
+      console.error('NABIL real audio:',err);
+      if(status) status.textContent='صار خلل بالاتصال أو معالجة الصوت. التسجيل ما انبعت كقطع؛ جرّب نفس السؤال مرة ثانية.';
+    }finally{ busy=false; setUI(false); }
+  }
+
+  async function start(){
+    if(recording || busy) return;
+    stopNabilNeuralVoice(); try{speechSynthesis?.cancel?.();}catch(_e){}
+    try{
+      stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+      chunks=[];
+      let opts={};
+      if(window.MediaRecorder?.isTypeSupported?.('audio/webm;codecs=opus')) opts={mimeType:'audio/webm;codecs=opus'};
+      recorder=new MediaRecorder(stream,opts);
+      recorder.ondataavailable=e=>{if(e.data&&e.data.size) chunks.push(e.data);};
+      recorder.onstop=async()=>{
+        const blob=new Blob(chunks,{type:recorder.mimeType||'audio/webm'});
+        chunks=[]; stream?.getTracks?.().forEach(t=>t.stop()); stream=null;
+        await sendAudio(blob);
+      };
+      recorder.start(250); setUI(true);
+      gateway.classList.add('live-chat');
+      if(status) status.textContent='🎙 احكي السؤال كامل مثل ما بتحكي معي. لما تخلص اضغط إيقاف وإرسال.';
+    }catch(err){
+      console.error('Microphone:',err); setUI(false);
+      if(status) status.textContent='🎙 اسمح للموقع باستخدام الميكروفون، وبعدها جرّب مرة ثانية.';
+    }
+  }
+  function stop(){
+    if(!recording || !recorder) return;
+    setUI(false); if(status) status.textContent='⏳ عم برسل التسجيل كامل...';
+    try{recorder.stop();}catch(_e){}
+  }
+  function toggle(e){
+    e?.preventDefault?.(); e?.stopImmediatePropagation?.();
+    if(recording) stop(); else start();
+  }
+
+  // Capture phase overrides the old SpeechRecognition click handlers without deleting legacy fallback code.
+  talk?.addEventListener('click',toggle,true);
+  mic?.addEventListener('click',toggle,true);
+  window.nabilGatewayRealAudio={start,stop,sendAudio};
+})();
+
 </script>
 </body>
 </html>
