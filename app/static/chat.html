@@ -21847,21 +21847,26 @@ if(document.readyState==="loading"){
       dc.onopen=()=>{
         active=true; connecting=false;
         setState('🎙 أنا معك — احكي مباشرة.','listening');
-        // Extra client-side session update: concise live tutor + natural multilingual behavior.
-        const instructions=`أنت الأستاذ نبيل، معلّم صوتي حي مباشر. افهم العربية واللهجة اللبنانية والإنجليزية والفرنسية والمزج بينها من المعنى. لا تطلب إعادة السؤال إذا كان مفهوماً. لا تعيد التحية كل مرة. أجب فوراً وبشكل حواري قصير مثل مدرس جالس أمام الطالب. اسمح للطالب أن يقاطعك وتوقف فوراً عند بدء كلامه. في الرياضيات اشرح بالعربية الطبيعية مع إبقاء المصطلحات القياسية: domain, limit, derivative, f prime, increasing, decreasing, maximum, minimum, vertical/horizontal/oblique asymptote, graph, variation table. إذا قال Study the function فقم بالدراسة الفعلية لا بخطة عامة. في الفيزياء والكيمياء والبيولوجي وباقي المواد اشرح المعنى ولا تقرأ الرموز والجداول حرفياً. إذا طلب graph/figure/table/diagram قل باختصار إنك ستعرضها وتابع الشرح. كن سريعاً ومباشراً.`;
-        try{dc.send(JSON.stringify({type:'session.update',session:{instructions,audio:{input:{turn_detection:{type:'semantic_vad',eagerness:'high',create_response:true,interrupt_response:true}}}}}));}catch(_e){}
       };
       dc.onclose=()=>{if(active) stop();};
 
       const offer=await pc.createOffer();
       await pc.setLocalDescription(offer);
-      const resp=await fetch('/api/realtime/call',{method:'POST',headers:{'Content-Type':'application/sdp'},body:offer.sdp});
-      if(!resp.ok) throw new Error('Realtime endpoint '+resp.status+': '+(await resp.text()).slice(0,400));
-      const answer={type:'answer',sdp:await resp.text()};
+      const resp=await fetch('/api/realtime/call',{
+        method:'POST',
+        headers:{'Content-Type':'application/sdp','Accept':'application/sdp'},
+        cache:'no-store',
+        body:offer.sdp
+      });
+      const answerSdp=await resp.text();
+      if(!resp.ok) throw new Error('Realtime endpoint '+resp.status+': '+answerSdp.slice(0,700));
+      if(!/^v=0/m.test(answerSdp)) throw new Error('Realtime endpoint returned a non-SDP response: '+answerSdp.slice(0,700));
+      const answer={type:'answer',sdp:answerSdp};
       await pc.setRemoteDescription(answer);
     }catch(err){
       console.error('NABIL realtime start',err); connecting=false; await stop(false);
-      setState('⚠️ الصوت المباشر غير موصول بعد. تأكد من إضافة /api/realtime/call في الخادم.','');
+      const detail=String(err?.message||err||'').replace(/\s+/g,' ').slice(0,220);
+      setState('⚠️ تعذّر وصل الصوت المباشر'+(detail?' — '+detail:''),'');
     }
   }
 
