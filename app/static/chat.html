@@ -5149,12 +5149,22 @@ function getStudentId() {
 
 
 
+
+function nabilSafeVisibleMathLabel(raw){
+    return String(raw||"")
+      .replace(/<\s*br\s*\/?>/gi," ")
+      .replace(/<\s*hr\s*\/?>/gi," ")
+      .replace(/<\s*\/?\s*h[1-6][^>]*>/gi," ")
+      .replace(/<[^>]+>/g," ")
+      .replace(/\s{2,}/g," ")
+      .trim();
+}
+
 function nabilCleanAcademicReply(raw){
     let s=String(raw||"");
 
-    // Remove leaked drafting/planning text. If a proper exercise heading exists,
-    // keep only the student-facing answer from that heading onward.
-    const leakRx=/we need to produce|we need to provide|for chemical electron transfer diagram|given instruction:|but we need to follow instruction|given limited time|we'll produce:|perhaps we can|might be acceptable|not sure|actually we need to depict/i;
+    // Remove leaked drafting/planning/internal text.
+    const leakRx=/we need to produce|we need to provide|given instruction:|given limited time|we'll produce:|perhaps we can|might be acceptable|not sure|internal reasoning|drawings_json/i;
     if(leakRx.test(s)){
         const headingMatch=s.match(/(?:^|\n)\s*(#{1,4}\s*(?:Exercise|Given|Required|Solution|Final Answer|Rule Summary)\b)/i);
         if(headingMatch){
@@ -5164,17 +5174,30 @@ function nabilCleanAcademicReply(raw){
         }
     }
 
-    // Remove transient self-talk / drafting fragments that should never be shown to students.
+    // Strip only presentation HTML that leaked as literal text.
+    s=s
+      .replace(/<\s*br\s*\/?>/gi,"\n")
+      .replace(/<\s*hr\s*\/?>/gi,"\n")
+      .replace(/<\s*\/?\s*h[1-6][^>]*>/gi,"\n")
+      .replace(/<\s*\/?\s*p[^>]*>/gi,"\n")
+      .replace(/<\s*\/?\s*div[^>]*>/gi,"\n")
+      .replace(/<\s*\/?\s*span[^>]*>/gi,"")
+      .replace(/<[^>]+>/g," ");
+
+    // Normalize headings and common self-talk.
     s=s
       .replace(/\b(?:wait|hold on|let'?s just|let me just|I'?ll just)\b[^.!?\n]*(?:[.!?]|$)/gi,"")
-      .replace(/\b(?:hmm+|uh+|okay,\s*so)\b\s*/gi,"");
-
-    // Normalize malformed Markdown headings.
-    s=s
+      .replace(/\b(?:hmm+|uh+|okay,\s*so)\b\s*/gi,"")
       .replace(/^####\s*(.+)$/gm,"### $1")
       .replace(/^#####\s*(.+)$/gm,"### $1");
 
-    return s.replace(/\n{3,}/g,"\n\n").trim();
+    // Remove obvious duplicated broken separators while preserving equations.
+    s=s
+      .replace(/(?:\n\s*){3,}/g,"\n\n")
+      .replace(/[ \t]{3,}/g," ")
+      .trim();
+
+    return s;
 }
 
 function renderAIText(text) {
@@ -5495,7 +5518,7 @@ function functionGraphTitle(messageLanguage){
 
 
 function nabilFunctionGraphHeading(messageLanguage, expression){
-    const expr=nabilCleanFunctionExpressionLabel(expression||"");
+    const expr=nabilSafeVisibleMathLabel(nabilCleanFunctionExpressionLabel(expression||""));
     if(!expr) return functionGraphTitle(messageLanguage);
 
     const fx=`f(x) = ${expr}`;
@@ -5644,6 +5667,169 @@ function nabilDetectVariationTableFromText(html){
     return `<div class="lesson-table-wrap"><table class="variation-auto-table"><tbody>${body}</tbody></table></div>`;
 }
 
+
+function nabilV79Num(v){
+    if(!Number.isFinite(v)) return "";
+    const r=Math.round(v*1000)/1000;
+    const specials=[
+      [1.5,"3/2"],[-1.5,"-3/2"],[0.75,"3/4"],[-0.75,"-3/4"],
+      [0.5,"1/2"],[-0.5,"-1/2"],[0.25,"1/4"],[-0.25,"-1/4"]
+    ];
+    for(const [n,s] of specials) if(Math.abs(v-n)<1e-9) return s;
+    return String(r);
+}
+function nabilV79Coeff(t){
+    t=String(t??"").trim();
+    if(t===""||t==="+") return 1;
+    if(t==="-") return -1;
+    const n=Number(t);
+    return Number.isFinite(n)?n:NaN;
+}
+function nabilV79ParsePoly(raw){
+    let s=String(raw||"")
+      .replace(/[−–—]/g,"-")
+      .replace(/x²/gi,"x^2")
+      .replace(/\*\*/g,"^")
+      .replace(/\s+/g,"")
+      .replace(/^\((.*)\)$/,"$1");
+    if(!s) return null;
+    s=s.replace(/-/g,"+-");
+    if(s.startsWith("+-")) s=s.slice(1);
+    const parts=s.split("+").filter(Boolean);
+    let a=0,b=0,c=0;
+    for(const p0 of parts){
+        const p=p0.replace(/\*/g,"");
+        if(/x\^2/i.test(p)){
+            const v=nabilV79Coeff(p.replace(/x\^2/ig,""));
+            if(!Number.isFinite(v)) return null; a+=v;
+        }else if(/x/i.test(p)){
+            const v=nabilV79Coeff(p.replace(/x/ig,""));
+            if(!Number.isFinite(v)) return null; b+=v;
+        }else{
+            const v=Number(p);
+            if(!Number.isFinite(v)) return null; c+=v;
+        }
+    }
+    return {a,b,c};
+}
+function nabilV79SplitFraction(raw){
+    let s=String(raw||"").trim()
+      .replace(/[−–—]/g,"-")
+      .replace(/x²/gi,"x^2")
+      .replace(/\s+/g,"");
+    const lm=s.match(/^\\frac\{([^{}]+)\}\{([^{}]+)\}$/);
+    if(lm) return {num:lm[1],den:lm[2]};
+    const pm=s.match(/^\((.+)\)\/\((.+)\)$/);
+    if(pm) return {num:pm[1],den:pm[2]};
+    let depth=0;
+    for(let i=0;i<s.length;i++){
+        if(s[i]==="(") depth++;
+        else if(s[i]===")") depth--;
+        else if(s[i]==="/"&&depth===0){
+            return {
+                num:s.slice(0,i).replace(/^\((.*)\)$/,"$1"),
+                den:s.slice(i+1).replace(/^\((.*)\)$/,"$1")
+            };
+        }
+    }
+    return null;
+}
+function nabilV79AnalyzeRational(expr){
+    const sp=nabilV79SplitFraction(expr);
+    if(!sp) return null;
+    const N=nabilV79ParsePoly(sp.num), D=nabilV79ParsePoly(sp.den);
+    if(!N||!D||Math.abs(N.a)<1e-12||Math.abs(D.a)>1e-12||Math.abs(D.b)<1e-12) return null;
+    const {a,b,c}=N, d=D.b, e=D.c;
+    const va=-e/d;
+    const slope=a/d;
+    const intercept=(b*d-a*e)/(d*d);
+    const rem=c-intercept*e;
+    const f=x=>(a*x*x+b*x+c)/(d*x+e);
+    const A=a*d, B=2*a*e, C=b*e-d*c;
+    const disc=B*B-4*A*C;
+    const crit=[];
+    if(disc>=0){
+        const sd=Math.sqrt(disc);
+        for(const x of [(-B-sd)/(2*A),(-B+sd)/(2*A)]){
+            if(!Number.isFinite(x)||Math.abs(x-va)<1e-7) continue;
+            const y=f(x);
+            const dn=t=>(A*t*t+B*t+C)/Math.pow(d*t+e,2);
+            const l=dn(x-1e-4), r=dn(x+1e-4);
+            crit.push({x,y,kind:l>0&&r<0?"local maximum":l<0&&r>0?"local minimum":"critical point"});
+        }
+        crit.sort((u,v)=>u.x-v.x);
+    }
+
+    const roots=[];
+    const dx=b*b-4*a*c;
+    if(dx>=0){
+        const sd=Math.sqrt(dx);
+        for(const x of [(-b-sd)/(2*a),(-b+sd)/(2*a)]){
+            if(Number.isFinite(x)&&Math.abs(x-va)>1e-7) roots.push(x);
+        }
+    }
+    const yint=Math.abs(e)>1e-12?c/e:null;
+
+    const markers=[];
+    if(Number.isFinite(yint)) markers.push({x:0,y:yint,label:`(0, ${nabilV79Num(yint)})`,kind:"y-intercept"});
+    crit.forEach(p=>markers.push({
+        x:p.x,y:p.y,
+        label:`(${Math.round(p.x*1000)/1000}, ${Math.round(p.y*1000)/1000})`,
+        kind:p.kind
+    }));
+    roots.forEach(x=>markers.push({x,y:0,label:`(${nabilV79Num(x)}, 0)`,kind:"x-intercept"}));
+
+    const cuts=[...crit.map(p=>p.x),va].sort((u,v)=>u-v);
+    const intervals=[];
+    let prev=-Infinity;
+    cuts.forEach(cut=>{intervals.push([prev,cut]);prev=cut;});
+    intervals.push([prev,Infinity]);
+
+    const headers=["x"];
+    const rowD=["f'(x)"];
+    const rowF=["f(x)"];
+    const dn=t=>(A*t*t+B*t+C)/Math.pow(d*t+e,2);
+    for(const [lo,hi] of intervals){
+        headers.push(`(${Number.isFinite(lo)?nabilV79Num(lo):"-∞"}, ${Number.isFinite(hi)?nabilV79Num(hi):"+∞"})`);
+        let s;
+        if(!Number.isFinite(lo)) s=hi-1;
+        else if(!Number.isFinite(hi)) s=lo+1;
+        else s=(lo+hi)/2;
+        if(Math.abs(s-va)<1e-4) s+=0.25;
+        const sign=dn(s);
+        rowD.push(sign>0?"+":"−");
+        rowF.push(sign>0?"↗":"↘");
+    }
+
+    const vals=[...markers.map(p=>p.y)];
+    [-5,-3,-1,0,2,4,6].forEach(x=>{if(Math.abs(x-va)>.35){const y=f(x);if(Number.isFinite(y))vals.push(y);}});
+    let ymin=Math.min(-6,...vals)-1, ymax=Math.max(8,...vals)+1;
+    if(!Number.isFinite(ymin)||!Number.isFinite(ymax)){ymin=-6;ymax=8;}
+
+    const qSign=intercept>=0?"+":"−";
+    return {
+        vertical_asymptote:va,
+        oblique_asymptote:{m:slope,b:intercept,label:`y = ${nabilV79Num(slope)}x ${qSign} ${nabilV79Num(Math.abs(intercept))}`},
+        markers,
+        xmin:-5.5,xmax:6.5,ymin,ymax,
+        analysis:{
+            domain:`ℝ \\ {${nabilV79Num(va)}}`,
+            usefulForm:`${nabilV79Num(slope)}x ${qSign} ${nabilV79Num(Math.abs(intercept))} + ${nabilV79Num(rem)}/(${nabilV79Num(d)}x ${e>=0?"+":"−"} ${nabilV79Num(Math.abs(e))})`,
+            yIntercept:Number.isFinite(yint)?`(0, ${nabilV79Num(yint)})`:"",
+            xRoots:roots,
+            criticalPoints:crit
+        },
+        variation_table:{headers,rows:[rowD,rowF]},
+        reference_layout:true
+    };
+}
+function nabilV79EnrichFunctionSpec(spec){
+    if(!spec||!spec.expression) return spec;
+    const r=nabilV79AnalyzeRational(spec.expression);
+    if(r) Object.assign(spec,r);
+    return spec;
+}
+
 function nabilAutoFunctionSpecFromBoard(board, sourceText="", currentQuestion=""){
     const sectionHTML=(board?.sections || []).map(sec => `${sec.title || ''} ${renderNodesAsHTML(sec.nodes || [])}`).join(' ');
     const boardHTML=`${board?.title || ''} ${sectionHTML}`;
@@ -5777,7 +5963,7 @@ function nabilAutoFunctionSpecFromBoard(board, sourceText="", currentQuestion=""
         spec.ymax=8;
     }
 
-    return spec;
+    return nabilV79EnrichFunctionSpec(spec);
 }
 
 function nabilNormalizeRawMarkdownHeadingsHTML(html){
@@ -6776,60 +6962,316 @@ ${rawVariationHTML}`);
         const hasReliableVisual = Boolean(diagramsForThis.length);
         const visualHTML = diagramsForThis.join("");
         if (functionStudyNow) {
-            const functionTitle = title || functionBoardTitle(messageLanguage);
-            const trustedFunctionExpression = nabilCleanFunctionExpressionLabel(
+            const expr=nabilSafeVisibleMathLabel(nabilCleanFunctionExpressionLabel(
                 autoFunctionSpec?.expression || autoFunctionSpec?.formula || autoFunctionSpec?.equation || ""
-            );
-            const graphHeading = nabilFunctionGraphHeading(messageLanguage, trustedFunctionExpression);
-            const contextHTML = [givenHTML, requiredHTML, formulaHTML].filter(Boolean).join("");
-            const mainSolutionHTML = [solutionHTML, extraHTML].filter(Boolean).join("");
-            const hasGraph = Boolean(String(visualHTML || "").trim());
-            const hasVariation = Boolean(
-                variationTextHTML ||
-                variationTables.length ||
-                autoExtractedVariation ||
-                autoVariationTableHTML
-            );
+            ));
+            const A=autoFunctionSpec?.analysis||{};
+            const isRational=/\/|\\frac/.test(expr);
+            const lessonTitle=isRational?"Study of a Rational Function":"Study of the Function";
+            const graphHeading=nabilFunctionGraphHeading(messageLanguage,expr);
+            const hasGraph=Boolean(String(visualHTML||"").trim());
 
-            const variationRenderedHTML = hasVariation ? `
-                <section class="exercise-section-card exercise-summary-card section-tone-2 function-study-variation-zone">
-                    <h3 class="exercise-variation-title">${variationTitle(messageLanguage)}</h3>
-                    ${variationTextHTML ? `<div class="exercise-variation-richtext">${variationTextHTML}</div>` : ""}
-                    ${variationTables.map(t=>decorateVariationTableHTML(t,messageLanguage)).join("")}
-                    ${!variationTables.length && autoExtractedVariation
-                        ? decorateVariationTableHTML(autoExtractedVariation,messageLanguage)
-                        : ""}
-                    ${!variationTables.length && !autoExtractedVariation && autoVariationTableHTML
-                        ? decorateVariationTableHTML(autoVariationTableHTML,messageLanguage)
-                        : ""}
-                </section>
+            const domainVal=A.domain||"";
+            const usefulVal=A.usefulForm||"";
+            const va=autoFunctionSpec?.vertical_asymptote;
+            const oa=autoFunctionSpec?.oblique_asymptote;
+            const crit=Array.isArray(A.criticalPoints)?A.criticalPoints:[];
+            const roots=Array.isArray(A.xRoots)?A.xRoots:[];
+
+            const leftRows=[
+              domainVal?["Domain",domainVal]:null,
+              usefulVal?["Useful form",`f(x) = ${usefulVal}`]:null,
+              Number.isFinite(Number(va))?["Vertical asymptote",`x = ${nabilV79Num(Number(va))}`]:null,
+              oa?["Oblique asymptote",oa.label||`y = ${oa.m}x + ${oa.b}`]:null,
+              A.yIntercept?["y-intercept",A.yIntercept]:null,
+              roots.length?["x-intercepts",roots.map(x=>`x = ${nabilV79Num(x)}`).join(", ")]:["x-intercept","No real x-intercept if the numerator has no real root."],
+              crit.length?["Critical numbers",crit.map(p=>`x ≈ ${Math.round(p.x*1000)/1000}`).join(" ; ")]:null
+            ].filter(Boolean);
+
+            const fallbackSolution=[givenHTML,formulaHTML,solutionHTML,extraHTML,answerHTML].filter(Boolean).join("");
+            const summaryRows=leftRows.length
+                ? `<div class="v79-function-facts">${leftRows.map(([k,v])=>`<div class="v79-fact-row"><span>${k}:</span><strong>${nabilEsc(String(v))}</strong></div>`).join("")}</div>`
+                : fallbackSolution;
+
+            const variationFromGraph=autoFunctionSpec?.variation_table
+                ? nabilBuildFunctionVariationTable(autoFunctionSpec)
+                : "";
+            const externalVariation = !variationFromGraph ? `
+                ${variationTextHTML||""}
+                ${variationTables.map(t=>decorateVariationTableHTML(t,messageLanguage)).join("")}
+                ${!variationTables.length&&autoExtractedVariation?decorateVariationTableHTML(autoExtractedVariation,messageLanguage):""}
+                ${!variationTables.length&&!autoExtractedVariation&&autoVariationTableHTML?decorateVariationTableHTML(autoVariationTableHTML,messageLanguage):""}
             ` : "";
 
-            const visualRenderedHTML = hasGraph ? `
-                <section class="exercise-section-card section-tone-1 function-study-visual-zone">
-                    <h3 class="exercise-function-visual-title">${graphHeading}</h3>
-                    <div class="exercise-visual-panel ${diagramsForThis.length > 1 ? "multi-diagram-panel" : ""}">
-                        ${visualHTML}
-                    </div>
-                </section>
-            ` : "";
+            const ruleText=isRational
+                ?"Find the domain, divide the numerator by the denominator to obtain the oblique asymptote, then use the derivative to study variations."
+                :"Use the domain, derivative, intercepts and asymptotic behavior to study and graph the function.";
 
             return `
-            <article class="exercise-board full-width-board visual-column-board function-study-board function-study-simple-board" dir="${messageDirection}">
-                <div class="exercise-board-head">
-                    <div class="exercise-board-title">${functionTitle}</div>
+            <article class="exercise-board v79-reference-function-card" dir="${messageDirection}">
+              <header class="v79-function-top">
+                <div class="v79-function-top-main">
+                  <div class="v79-function-book">▥</div>
+                  <div>
+                    <div class="v79-function-lesson-title">${lessonTitle}</div>
+                    <div class="v79-function-lesson-sub">Analyze, represent and interpret the function using algebra and its graph.</div>
+                  </div>
                 </div>
-                ${contextHTML ? `<div class="exercise-context-stack">${contextHTML}</div>` : ""}
-                ${mainSolutionHTML ? `
-                    <div class="exercise-special-layout no-visual function-study-solution-zone">
-                        <section class="exercise-special-content">
-                            <div class="exercise-idea-stack">${mainSolutionHTML}</div>
-                        </section>
+                <div class="v79-meta-box"><span>◷</span><div><small>Estimated time</small><strong>25 minutes</strong></div></div>
+                <div class="v79-meta-box"><span>◎</span><div><small>Learning objectives</small><strong>Domain, asymptotes, intercepts, derivative, variations and graph.</strong></div></div>
+              </header>
+
+              <div class="v79-function-grid">
+                <section class="v79-function-left">
+                  <h2>Study of the Function</h2>
+                  <div class="v79-function-formula">f(x) = ${nabilEsc(expr)}</div>
+                  ${summaryRows}
+                  <div class="v79-rule-summary">
+                    <b>Rule Summary:</b>
+                    <span>${ruleText}</span>
+                  </div>
+                </section>
+
+                <section class="v79-function-main">
+                  <h2>${graphHeading}</h2>
+                  <div class="v79-function-graph">
+                    ${hasGraph?visualHTML:""}
+                  </div>
+                  <div class="v79-function-variation">
+                    <h3>Variation Table</h3>
+                    ${variationFromGraph||externalVariation||"<div class='v79-variation-pending'>Variation table follows the calculated derivative signs.</div>"}
+                  </div>
+                </section>
+
+                <aside class="v79-function-side">
+                  <div class="v79-side-title">NABIL AI</div>
+                  <div class="v79-side-sub">Your Learning Assistant</div>
+                  <img src="/static/nabil-lesson-avatar.png" alt="NABIL AI" class="v79-side-avatar">
+                  <div class="v79-side-message">I'm here to help you learn mathematics. You can ask me any question at any time!</div>
+                  <button type="button" class="v79-talk-button" onclick="document.getElementById('talkBtn')?.click()">🎙 Talk to Me</button>
+                  <div class="v79-quick-check"><b>Quick Check</b><span>Why does the graph behave this way near its asymptotes?</span></div>
+                </aside>
+              </div>
+            </article>`;
+        }
+
+
+        const boardTextForRef = String((wholeBoardText || "") + " " + (title || "")).toLowerCase();
+        const subjectHintForRef = String(subjectSelect?.value || "").toLowerCase();
+        const physicsReferenceNow = /physics|فيزياء/.test(subjectHintForRef) && /resistor|series|parallel|circuit|voltage|current|ohm|مقاوم|توالي|توازي/.test(boardTextForRef);
+        if (physicsReferenceNow) {
+            const titleText = /resistor/.test(boardTextForRef) ? 'Resistors in Series and Parallel' : (title || 'Physics Card');
+            const visualList = Array.isArray(diagramsForThis) ? diagramsForThis : [];
+            const seriesVisual = visualList[0] || visualHTML || '<div class="v80-physics-placeholder">Series connection diagram</div>';
+            const parallelVisual = visualList[1] || (visualList.length>1 ? visualList[1] : visualHTML) || '<div class="v80-physics-placeholder">Parallel connection diagram</div>';
+            const moreVisuals = visualList.slice(2).join('');
+            const quickQuestion = /equivalent/.test(boardTextForRef)
+                ? 'What is the equivalent resistance of 4 Ω and 12 Ω in parallel?'
+                : 'What happens to current and voltage in series and parallel circuits?';
+            const givenBlock = givenHTML || '<div class="exercise-card-section"><div class="exercise-card-body">Given data will appear here.</div></div>';
+            const explanationStack = [requiredHTML, solutionHTML, answerHTML, extraHTML].filter(Boolean).join('');
+            const ruleBlock = summaryHTML || '<div class="v80-physics-rule-fallback">In series, the current is the same through all components and the total resistance is the sum of the resistances. In parallel, the voltage is the same across each branch and the total current is the sum of the branch currents.</div>';
+            return `
+            <article class="exercise-board v80-reference-physics-card" dir="${messageDirection}">
+              <header class="v80-physics-top">
+                <div class="v80-physics-top-main">
+                  <div class="v80-physics-icon">📘</div>
+                  <div>
+                    <div class="v80-physics-lesson-title">${titleText}</div>
+                    <div class="v80-physics-lesson-sub">Compare series and parallel connections, calculate equivalent resistance, current and voltage.</div>
+                  </div>
+                </div>
+                <div class="v80-physics-meta"><span>◷</span><div><small>Estimated time</small><strong>20 minutes</strong></div></div>
+                <div class="v80-physics-meta"><span>◎</span><div><small>Learning goals</small><strong>Understand and compare series and parallel circuits and solve problems.</strong></div></div>
+              </header>
+
+              <div class="v80-physics-grid">
+                <section class="v80-physics-left">
+                  <h2>${titleText}</h2>
+                  <div class="v80-physics-left-body">${givenBlock}</div>
+                  ${formulaHTML ? `<div class="v80-physics-formula-box"><h4>Series / Main Formula</h4>${formulaHTML}</div>` : ''}
+                  <div class="v80-physics-rule-summary v80-left-rule-box">
+                    <div class="v80-rule-icon">💡</div>
+                    <div>
+                      <b>Rule Summary</b>
+                      <div class="v80-rule-rich">${ruleBlock}</div>
                     </div>
-                ` : ""}
-                ${visualRenderedHTML}
-                ${variationRenderedHTML}
-                ${(answerHTML||summaryHTML)?`<div class="exercise-bottom-stack">${answerHTML||""}${summaryHTML||""}</div>`:""}
+                  </div>
+                  <div class="v80-quick-check v80-left-quick-check"><b>Quick Check</b><span>${quickQuestion}</span></div>
+                </section>
+
+                <section class="v80-physics-main">
+                  <div class="v80-physics-panels">
+                    <div class="v80-physics-panel">
+                      <h3>Series Connection</h3>
+                      <div class="v80-physics-visual">${seriesVisual}</div>
+                    </div>
+                    <div class="v80-physics-panel">
+                      <h3>Parallel Connection</h3>
+                      <div class="v80-physics-visual">${parallelVisual}</div>
+                    </div>
+                  </div>
+
+                  <div class="v80-physics-calc-row">
+                    <div class="v80-physics-calc-card">
+                      <h4>Series Connection</h4>
+                      ${formulaHTML || '<div class="v80-physics-mini-note">Use the series rules to compute total resistance and current.</div>'}
+                    </div>
+                    <div class="v80-physics-calc-card">
+                      <h4>Parallel Connection</h4>
+                      ${solutionHTML || answerHTML || '<div class="v80-physics-mini-note">Use the parallel rules to compute equivalent resistance and branch currents.</div>'}
+                    </div>
+                  </div>
+
+                  ${explanationStack ? `<div class="v80-physics-explanation-stack">${explanationStack}</div>` : ''}
+                  ${moreVisuals ? `<div class="v80-physics-extra-visuals">${moreVisuals}</div>` : ''}
+                </section>
+
+                <aside class="v80-physics-side">
+                  <div class="v80-side-title">NABIL AI</div>
+                  <div class="v80-side-sub">Your Learning Companion</div>
+                  <img src="/static/nabil-lesson-avatar.png" alt="NABIL AI" class="v80-side-avatar">
+                  <div class="v80-side-message">I'm here to help you understand Physics. Ask me any question!</div>
+                  <button type="button" class="v80-talk-button" onclick="document.getElementById('talkBtn')?.click()">🎙 Talk to Me</button>
+                </aside>
+              </div>
+            </article>`;
+        }
+
+
+        const isMathReferenceNow = /math|mathematics|رياضيات/.test(subjectHintForRef) && !/function|rational|asymptote|derivative|variation|domain|ln\(|logarithm|study of a function|دالة|مشتقة|مقارب|مجال/.test(boardTextForRef);
+        if (isMathReferenceNow) {
+            const visualList = Array.isArray(diagramsForThis) ? diagramsForThis : [];
+            const visualItems = (visualList.length ? visualList : (visualHTML ? [visualHTML] : []));
+            const visualGridClass = visualItems.length > 1 ? 'grid-2' : 'grid-1';
+            const visualsMarkup = visualItems.length
+                ? visualItems.map((v, i) => `<div class="v81-math-visual-card">${v}</div>`).join('')
+                : `<div class="v81-math-visual-card"><div class="v81-math-placeholder">Geometry / vector / solid figure preview</div></div>`;
+
+            const isVectors = /vector|midpoint|coordinate plane|coordinates|ab\)|\|ab\||\bA\(|\bB\(|متجه|احداثيات/.test(boardTextForRef);
+            const isTangents = /circle|circles|tangent|common tangent|tangents|o1|o2|r1|r2|دائرت|مماس/.test(boardTextForRef);
+            const isSolids = /sphere|cylinder|cone|cube|prism|volume|surface area|lateral area|مجسم|كرة|اسطوانة|مساحة|حجم/.test(boardTextForRef);
+
+            let lessonTitleText = title || 'Mathematics Card';
+            let lessonSubText = 'Practice and visualize mathematical ideas with clear structured steps.';
+            let objectiveText = 'Understand the concept, follow the diagram, and solve the exercise accurately.';
+            let quickQuestion = 'What is the next step you should apply to solve the exercise?';
+            let leftHeading = 'Worked Example';
+            let summaryLabel = 'Rule summary:';
+            if (isVectors) {
+                lessonTitleText = lessonTitleText || 'Vectors in the Coordinate Plane';
+                lessonSubText = 'Find vectors, midpoints, and lengths using coordinates in the plane.';
+                objectiveText = 'Find vectors, midpoints and lengths using coordinates.';
+                quickQuestion = 'If C(1, 2) and D(4, 6), what is vector CD?';
+                leftHeading = 'Worked Example';
+            } else if (isTangents) {
+                lessonTitleText = lessonTitleText || 'Two Circles and Common Tangents';
+                lessonSubText = 'Explore the properties of common tangents to two circles.';
+                objectiveText = 'Understand and apply the properties of common tangents to two circles.';
+                quickQuestion = 'How many direct common tangents do two separate circles have?';
+                leftHeading = 'Two Circles and Common Tangents';
+            } else if (isSolids) {
+                lessonTitleText = lessonTitleText || 'Sphere and Cylinder';
+                lessonSubText = 'Compare the main formulas of the cylinder and sphere, with clear 3D representations and dimensions.';
+                objectiveText = 'Calculate and compare surface areas and volumes of solids.';
+                quickQuestion = 'What changes when the radius doubles?';
+                leftHeading = 'Sphere and Cylinder';
+            }
+
+            const leftMainHTML = [givenHTML, requiredHTML, formulaHTML, solutionHTML, answerHTML].filter(Boolean).join('') || '<div class="exercise-card-section"><div class="exercise-card-body">The structured explanation will appear here.</div></div>';
+            const ruleSummaryHTML = summaryHTML || '<div class="v81-summary-fallback">Apply the key formula carefully, then read the diagram and verify the final result.</div>';
+            const extraBottomHTML = extraHTML || '';
+
+            return `
+            <article class="exercise-board v81-reference-math-card" dir="${messageDirection}">
+              <header class="v81-math-top">
+                <div class="v81-math-brand-row">
+                  <div class="v81-math-book">📘</div>
+                  <div>
+                    <div class="v81-math-lesson-title">${lessonTitleText}</div>
+                    <div class="v81-math-lesson-sub">${lessonSubText}</div>
+                  </div>
+                </div>
+                <div class="v81-math-meta"><span>◷</span><div><small>Estimated Time</small><strong>20 minutes</strong></div></div>
+                <div class="v81-math-meta"><span>◎</span><div><small>Learning Objectives</small><strong>${objectiveText}</strong></div></div>
+              </header>
+
+              <div class="v81-math-grid">
+                <section class="v81-math-left">
+                  <h2>${leftHeading}</h2>
+                  <div class="v81-math-left-main">${leftMainHTML}</div>
+                  <div class="v81-math-rule-box">
+                    <b>${summaryLabel}</b>
+                    <div class="v81-math-rule-body">${ruleSummaryHTML}</div>
+                  </div>
+                  <div class="v81-math-quick-box">
+                    <b>Quick Check:</b>
+                    <div>${quickQuestion}</div>
+                  </div>
+                </section>
+
+                <section class="v81-math-main">
+                  <div class="v81-math-visuals ${visualGridClass}">
+                    ${visualsMarkup}
+                  </div>
+                  ${extraBottomHTML ? `<div class="v81-math-extra">${extraBottomHTML}</div>` : ''}
+                </section>
+
+                <aside class="v81-math-side">
+                  <div class="v81-side-title">NABIL AI</div>
+                  <div class="v81-side-sub">Your Learning Assistant</div>
+                  <img src="/static/nabil-lesson-avatar.png" alt="NABIL AI" class="v81-side-avatar">
+                  <div class="v81-side-message">I'm here to help you learn Mathematics. You can ask me any question, anytime!</div>
+                  <button type="button" class="v81-talk-button" onclick="document.getElementById('talkBtn')?.click()">🎙 Talk to Me</button>
+                </aside>
+              </div>
+            </article>`;
+        }
+
+
+        const biologyReferenceNow = /biology|life science|sciences de la vie|أحياء|علوم الحياة/.test(subjectHintForRef);
+        if (biologyReferenceNow) {
+            const visualList = Array.isArray(diagramsForThis) ? diagramsForThis : [];
+            const visualItems = visualList.length ? visualList : (visualHTML ? [visualHTML] : []);
+            const visualsMarkup = visualItems.length
+                ? visualItems.map(v => `<div class="v83-bio-visual-card">${v}</div>`).join('')
+                : `<div class="v83-bio-visual-card"><div class="v83-bio-placeholder">Biology diagram</div></div>`;
+            const isCell = /cell|organelle|membrane|nucleus|cytoplasm|خلية|عضية|نواة|غشاء/.test(boardTextForRef);
+            const isSystem = /digestive|respiratory|circulatory|nervous|body system|هضمي|تنفسي|دوراني|عصبي|جهاز/.test(boardTextForRef);
+            const bioTitle = title || (isCell ? 'Cell Structure and Function' : isSystem ? 'Human Body System' : 'Biology Visual Lesson');
+            const bioSub = isCell
+                ? 'Identify cell structures and connect each structure to its function.'
+                : isSystem
+                    ? 'Explore the main organs, their roles, and how the system works together.'
+                    : 'Learn the concept through a clear labeled biological diagram.';
+            const bioObjective = isCell
+                ? 'Identify structures and explain their functions.'
+                : isSystem ? 'Identify main organs and explain system functions.' : 'Interpret the biological diagram and explain the concept.';
+            const mainText = [givenHTML, requiredHTML, formulaHTML, solutionHTML, answerHTML].filter(Boolean).join('') || '<div class="exercise-card-section"><div class="exercise-card-body">The complete biology explanation will appear here.</div></div>';
+            const summaryText = summaryHTML || '<div class="v83-bio-summary-fallback">Connect each labeled structure to its biological function, then relate the parts to the whole system.</div>';
+            return `
+            <article class="exercise-board v83-reference-biology-card" dir="${messageDirection}">
+              <header class="v83-bio-top">
+                <div class="v83-bio-brand"><span>🧬</span><div><div class="v83-bio-title">${bioTitle}</div><div class="v83-bio-sub">${bioSub}</div></div></div>
+                <div class="v83-bio-meta"><span>◷</span><div><small>Estimated Time</small><strong>20 minutes</strong></div></div>
+                <div class="v83-bio-meta"><span>◎</span><div><small>Learning Objectives</small><strong>${bioObjective}</strong></div></div>
+              </header>
+              <div class="v83-bio-grid">
+                <section class="v83-bio-left">
+                  <h2>${bioTitle}</h2>
+                  <div class="v83-bio-text">${mainText}</div>
+                  <div class="v83-bio-rule"><b>Rule Summary:</b><div>${summaryText}</div></div>
+                  <div class="v83-bio-quick"><b>Quick Check:</b><span>${isCell ? 'Which organelle controls the activities of the cell?' : 'Which structure in the diagram is essential to the main function shown?'}</span></div>
+                </section>
+                <section class="v83-bio-main"><div class="v83-bio-visuals">${visualsMarkup}</div>${extraHTML ? `<div class="v83-bio-extra">${extraHTML}</div>` : ''}</section>
+                <aside class="v83-bio-side">
+                  <div class="v83-bio-side-title">NABIL AI</div>
+                  <div class="v83-bio-side-sub">Your Learning Assistant</div>
+                  <img src="/static/nabil-lesson-avatar.png" alt="NABIL AI" class="v83-bio-avatar">
+                  <div class="v83-bio-message">I'm here to help you learn Biology. Ask me about any structure, process, or diagram.</div>
+                  <button type="button" class="v83-bio-talk" onclick="document.getElementById('talkBtn')?.click()">🎙 Talk to Me</button>
+                </aside>
+              </div>
             </article>`;
         }
 
@@ -8966,6 +9408,10 @@ function addMessage(
         if (nabilActivityMode === "general_exercises") {
             bubble.classList.add("has-lesson-visual", "exercise-mode-board");
             if (visibleDiagrams.length > 1) bubble.classList.add("multi-visual");
+
+        try{
+            bubble.dataset.nabilFullResponse = visibleText || "";
+        }catch(e){}
             bubble.innerHTML = renderGeneralExerciseBoards(
                 visibleText,
                 visibleDiagrams,
@@ -9530,9 +9976,30 @@ async function sendToAI(
     }
 
 
+    let outboundMessage = String(message || "");
+
+    const explicitDrawRequest = /\b(draw|drawing|diagram|graph|plot|sketch|represent|illustrate|visualize)\b|ارسم|رسم|مثّل|بيّن بالرسم|خطط|schéma|dessine|tracer|représenter/i.test(outboundMessage);
+    const requestedExerciseSet = generalExercisesMode && /\b(exercises?|practice|worksheet|quiz|test)\b|تمارين|تدريبات|مسابقة|اختبار|exercices?|entraînement/i.test(outboundMessage);
+
+    if (explicitDrawRequest) {
+        outboundMessage += language === "English"
+            ? "\n\n[SYSTEM REQUIREMENT — do not repeat this text] The student explicitly requested a drawing. Produce the correct subject-specific visual using valid DRAWINGS_JSON. The drawing must match the calculations and labels exactly. Do not replace a required drawing with prose."
+            : language === "Français"
+                ? "\n\n[EXIGENCE SYSTÈME — ne répète pas ce texte] L’élève demande explicitement un schéma. Produis le schéma correct avec un DRAWINGS_JSON valide, fidèle aux calculs et aux étiquettes. Ne remplace pas le schéma par du texte."
+                : "\n\n[متطلب نظام — لا تعرض هذا النص] الطالب طلب رسماً صراحةً. أنشئ الرسم الصحيح الخاص بالمادة باستخدام DRAWINGS_JSON صالح، مطابقاً للحسابات والتسميات، ولا تستبدل الرسم المطلوب بشرح نصي.";
+    }
+
+    if (requestedExerciseSet && !/\b[1-9]\d*\s*(?:exercises?|questions?)\b|[1-9]\d*\s*(?:تمارين|أسئلة)|[1-9]\d*\s*exercices?/i.test(outboundMessage)) {
+        outboundMessage += language === "English"
+            ? "\n\n[SYSTEM REQUIREMENT — do not repeat this text] Create EXACTLY five varied solved exercises, numbered Exercise 1 through Exercise 5. Solve all five completely. EVERY exercise MUST include at least one meaningful subject-specific drawing/diagram/graph/figure that supports that exercise, even when a drawing is not explicitly requested. Use valid DRAWINGS_JSON for every exercise with scope=practice, exercise_index=N, and card_index=100+N. If an exercise genuinely needs more than one visual, include all of them with the same exercise_index/card_index. Do not stop before Exercise 5 is fully solved AND drawings for exercises 1,2,3,4,5 are all included."
+            : language === "Français"
+                ? "\n\n[EXIGENCE SYSTÈME — ne répète pas ce texte] Crée EXACTEMENT cinq exercices variés corrigés, numérotés Exercice 1 à Exercice 5, et résous-les complètement. CHAQUE exercice DOIT avoir au moins un schéma/graphique/figure visuelle utile et fidèle au contenu. Utilise un DRAWINGS_JSON valide pour chaque exercice avec scope=practice, exercise_index=N et card_index=100+N. Si plusieurs schémas sont réellement nécessaires, fournis-les tous avec le même exercise_index/card_index. Ne t’arrête pas avant que l’Exercice 5 soit terminé ET que les exercices 1,2,3,4,5 possèdent tous leur schéma."
+                : "\n\n[متطلب نظام — لا تعرض هذا النص] أنشئ خمسة تمارين متنوعة محلولة بالضبط، مرقمة من تمرين 1 إلى تمرين 5، وحلّها كلها حتى النهاية. يجب أن يحتوي كل تمرين بلا استثناء على رسمة/مخطط/بيان/شكل بصري مفيد ومرتبط فعليًا بمحتوى التمرين، حتى لو لم يطلب الطالب الرسم صراحةً. استخدم DRAWINGS_JSON صالحًا لكل تمرين مع scope=practice و exercise_index=N و card_index=100+N. وإذا احتاج التمرين أكثر من رسم فأرفقها كلها بنفس exercise_index/card_index. لا تتوقف قبل إكمال تمرين 5 والتأكد من وجود رسم للتمارين 1 و2 و3 و4 و5 جميعًا.";
+    }
+
     formData.append(
         "message",
-        message || ""
+        outboundMessage
     );
 
 
@@ -9708,9 +10175,73 @@ async function sendToAI(
             data.reply ||
             "لم يصل جواب من NABIL AI.";
 
-        const responseDrawings = Array.isArray(data.drawings) && data.drawings.length
-            ? data.drawings
+        let responseDrawings = Array.isArray(data.drawings) && data.drawings.length
+            ? [...data.drawings]
             : (data.drawing && typeof data.drawing === "object" ? [data.drawing] : []);
+
+        // If a complete lesson was cut by provider/token limits before Exercise 5,
+        // continue automatically in the same conversation and merge the continuation.
+        const expectsFiveLessonExercises = nabilLessonActive && !generalExercisesMode;
+        const expectsFiveSolvedSet = expectsFiveLessonExercises || requestedExerciseSet;
+        const hasExerciseFive = reply => /(?:Exercise|Exercice)\s*5\b|(?:تمرين|التمرين)\s*5\b|التمرين\s*الخامس/i.test(String(reply || ""));
+        const practiceDrawingIndexes = drawings => {
+            const found = new Set();
+            (Array.isArray(drawings) ? drawings : []).forEach(d => {
+                if (!d || typeof d !== "object") return;
+                const scope = String(d.scope || d.context || "").toLowerCase();
+                const idx = Number(d.exercise_index ?? d.exerciseIndex ?? d.exercise ?? 0);
+                if ((scope === "practice" || scope === "exercise" || idx > 0) && idx >= 1 && idx <= 5) {
+                    found.add(idx);
+                }
+            });
+            return found;
+        };
+        const hasAllFivePracticeDrawings = drawings => {
+            const found = practiceDrawingIndexes(drawings);
+            return [1,2,3,4,5].every(i => found.has(i));
+        };
+        if (expectsFiveSolvedSet && String(teacherReply || "").trim().length > 300 && (!hasExerciseFive(teacherReply) || !hasAllFivePracticeDrawings(responseDrawings))) {
+            for (let completionAttempt = 0; completionAttempt < 3 && (!hasExerciseFive(teacherReply) || !hasAllFivePracticeDrawings(responseDrawings)); completionAttempt++) {
+                try {
+                    const continuationForm = new FormData();
+                    continuationForm.append("student_id", getStudentId());
+                    if (conversationId) continuationForm.append("conversation_id", conversationId);
+                    continuationForm.append("grade", grade);
+                    continuationForm.append("subject", subject);
+                    if (branch) continuationForm.append("branch", branch);
+                    continuationForm.append("teaching_mode", teachingMode);
+                    continuationForm.append("activity_mode", "lesson");
+                    continuationForm.append("language", language);
+                    continuationForm.append("curriculum", curriculum);
+                    continuationForm.append("lesson", lesson || "");
+                    continuationForm.append("message", language === "English"
+                        ? "Continue EXACTLY from where the previous answer stopped. Do not repeat completed content. Finish any incomplete explanation and complete all remaining solved exercises through Exercise 5. CRITICAL: exercises 1,2,3,4,5 must EACH have at least one meaningful subject-specific drawing with valid DRAWINGS_JSON, scope=practice, exercise_index=N, card_index=100+N. Add drawings now for any exercise that is missing one. Also include any lesson-scope drawing still needed to make the explanation visually clear. Do not stop until Exercise 5 is fully solved and drawing coverage 1..5 is complete."
+                        : language === "Français"
+                            ? "Continue EXACTEMENT là où la réponse précédente s’est arrêtée, sans répéter ce qui est déjà terminé. Termine l’explication et tous les exercices jusqu’à l’Exercice 5. IMPORTANT : chacun des exercices 1,2,3,4,5 doit avoir au moins un schéma/graphique/figure utile via DRAWINGS_JSON avec scope=practice, exercise_index=N et card_index=100+N. Ajoute maintenant les schémas manquants, ainsi que tout schéma scope=lesson nécessaire pour clarifier l’explication. Ne termine pas avant que l’Exercice 5 et la couverture visuelle 1..5 soient complets."
+                            : "تابع بالضبط من النقطة التي توقف عندها الجواب السابق من دون تكرار ما اكتمل. أكمل بقية الشرح وكل التمارين المحلولة حتى تمرين 5. مهم جدًا: يجب أن يكون لكل تمرين من 1 و2 و3 و4 و5 رسم/مخطط/بيان/شكل بصري مفيد واحد على الأقل عبر DRAWINGS_JSON مع scope=practice و exercise_index=N و card_index=100+N. أضف الآن أي رسم ناقص لأي تمرين، وأضف أيضًا أي رسم scope=lesson ما زال لازمًا لتوضيح فكرة في الشرح. لا تتوقف قبل إكمال تمرين 5 واكتمال الرسومات للتمارين الخمسة كلها.");
+
+                    const continuationResponse = await nabilFetchChatWithAutoRetry(
+                        API_BASE + "/api/chat",
+                        { method: "POST", body: continuationForm },
+                        language
+                    );
+                    const continuationText = await continuationResponse.text();
+                    if (!continuationResponse.ok || !continuationText) break;
+                    const continuationData = JSON.parse(continuationText);
+                    if (continuationData.conversation_id) conversationId = continuationData.conversation_id;
+                    const continuationReply = String(continuationData.reply || "").trim();
+                    if (!continuationReply) break;
+                    teacherReply += "\n\n" + continuationReply;
+                    const moreDrawings = Array.isArray(continuationData.drawings) && continuationData.drawings.length
+                        ? continuationData.drawings
+                        : (continuationData.drawing && typeof continuationData.drawing === "object" ? [continuationData.drawing] : []);
+                    responseDrawings.push(...moreDrawings);
+                } catch (continuationError) {
+                    console.warn("NABIL automatic lesson continuation failed:", continuationError);
+                    break;
+                }
+            }
+        }
 
         responseDrawings.forEach(drawing => {
             teacherReply += "\n\n```nabil-draw\n" + JSON.stringify(drawing) + "\n```";
@@ -9973,15 +10504,15 @@ startLesson.addEventListener(
 
         const prompt = teachingMode === "board_lesson"
             ? (language === "English"
-                ? "Begin the COMPLETE selected lesson now in interactive board mode. Teach it step by step as if you are writing on a board. Then finish with EXACTLY five varied solved exercises numbered Exercise 1 through Exercise 5. Solve every exercise completely. If an exercise needs one or more diagrams, include ALL required diagrams; each practice diagram must use scope=practice, exercise_index=N, and card_index=100+N. Multiple diagrams for the same exercise must share the same exercise_index/card_index."
+                ? "Begin the COMPLETE selected lesson now in interactive board mode. Teach it step by step as if you are writing on a board. DURING THE EXPLANATION, whenever an idea, rule, process, spatial relation, graph, geometry figure, circuit, force, structure, atom, biological process, map, timeline, table, or sequence is clearer with a visual, create the correct subject-specific drawing immediately using valid DRAWINGS_JSON with scope=lesson. Do not merely describe a needed figure in prose. Then finish with EXACTLY five varied solved exercises numbered Exercise 1 through Exercise 5. Solve every exercise completely. EVERY exercise MUST include at least one meaningful subject-specific drawing/diagram/graph/figure using valid DRAWINGS_JSON with scope=practice, exercise_index=N, and card_index=100+N. Add extra drawings when genuinely needed. Multiple drawings for the same exercise must share the same exercise_index/card_index. Do not stop, summarize early, or end the response before Exercise 5 is fully solved and drawings for exercises 1 through 5 are all included."
                 : language === "Français"
-                    ? "Commence maintenant la leçon COMPLÈTE en mode tableau interactif. Explique-la étape par étape comme si tu écrivais au tableau, puis termine par EXACTEMENT cinq exercices corrigés numérotés Exercice 1 à Exercice 5. Résous chaque exercice entièrement. Si un exercice exige un ou plusieurs schémas, fournis TOUS les schémas nécessaires avec scope=practice, exercise_index=N et card_index=100+N."
-                    : "ابدأ الآن الدرس المحدد كاملًا بنمط اللوح التفاعلي. اشرح خطوة خطوة كأنك تكتب على اللوح، ثم اختم بخمسة تمارين إضافية محلولة بالضبط، مرقمة من تمرين 1 إلى تمرين 5. أكمل حل كل تمرين للنهاية. إذا احتاج التمرين رسمة واحدة أو أكثر فارسم كل الرسومات اللازمة، واجعل لكل رسم scope=practice و exercise_index=N و card_index=100+N، وكل الرسومات التابعة للتمرين نفسه تحمل الفهرس نفسه.")
+                    ? "Commence maintenant la leçon COMPLÈTE en mode tableau interactif. Explique-la étape par étape comme si tu écrivais au tableau. PENDANT L’EXPLICATION, chaque fois qu’une idée, propriété, processus, relation spatiale, graphique, figure géométrique, circuit, force, structure, atome, processus biologique, carte, chronologie, tableau ou séquence est plus claire visuellement, crée immédiatement le schéma correct avec un DRAWINGS_JSON valide et scope=lesson. Puis termine par EXACTEMENT cinq exercices corrigés numérotés Exercice 1 à Exercice 5. Résous chaque exercice entièrement. CHAQUE exercice DOIT contenir au moins un schéma/graphique/figure utile avec scope=practice, exercise_index=N et card_index=100+N. Ajoute plusieurs schémas si le contenu l’exige. Ne termine jamais la réponse avant que l’Exercice 5 soit entièrement corrigé ET que les exercices 1 à 5 aient tous leur schéma."
+                    : "ابدأ الآن الدرس المحدد كاملًا بنمط اللوح التفاعلي. اشرح خطوة خطوة كأنك تكتب على اللوح. أثناء الشرح، كل فكرة أو قاعدة أو عملية أو علاقة مكانية أو منحنى أو شكل هندسي أو دارة أو قوة أو بنية أو ذرة أو عملية بيولوجية أو خريطة أو خط زمني أو جدول أو تسلسل يصبح أوضح بالرسم: أنشئ له فورًا الرسم الصحيح الخاص بالمادة باستخدام DRAWINGS_JSON صالح مع scope=lesson، ولا تكتفِ بوصف الشكل بالكلام. ثم اختم بخمسة تمارين إضافية محلولة بالضبط، مرقمة من تمرين 1 إلى تمرين 5. أكمل حل كل تمرين للنهاية. يجب أن يحتوي كل تمرين بلا استثناء على رسم/مخطط/بيان/شكل بصري مفيد باستخدام DRAWINGS_JSON مع scope=practice و exercise_index=N و card_index=100+N. وإذا احتاج التمرين أكثر من رسم فارسمها كلها بالفهرس نفسه. لا تنه الجواب ولا تختصره قبل إكمال تمرين 5 بالكامل والتأكد من وجود رسم للتمارين 1 إلى 5 جميعًا.")
             : (language === "English"
-                ? "Begin the COMPLETE selected lesson now. Present the whole lesson clearly with all necessary diagrams. Then finish with EXACTLY five varied solved exercises numbered Exercise 1 through Exercise 5. Solve every exercise completely. If an exercise needs one or more diagrams, include ALL required diagrams; each practice diagram must use scope=practice, exercise_index=N, and card_index=100+N. Multiple diagrams for the same exercise must share the same exercise_index/card_index."
+                ? "Begin the COMPLETE selected lesson now. Present the whole lesson clearly. DURING THE EXPLANATION, whenever an idea, rule, process, spatial relation, graph, geometry figure, circuit, force, structure, atom, biological process, map, timeline, table, or sequence is clearer with a visual, create the correct subject-specific drawing immediately using valid DRAWINGS_JSON with scope=lesson. Do not merely describe a needed figure in prose. Then finish with EXACTLY five varied solved exercises numbered Exercise 1 through Exercise 5. Solve every exercise completely. EVERY exercise MUST include at least one meaningful subject-specific drawing/diagram/graph/figure using valid DRAWINGS_JSON with scope=practice, exercise_index=N, and card_index=100+N. Add extra drawings when genuinely needed. Multiple drawings for the same exercise must share the same exercise_index/card_index. Do not stop, summarize early, or end the response before Exercise 5 is fully solved and drawings for exercises 1 through 5 are all included."
                 : language === "Français"
-                    ? "Commence maintenant la leçon COMPLÈTE. Présente toute la leçon clairement avec tous les schémas nécessaires, puis termine par EXACTEMENT cinq exercices corrigés numérotés Exercice 1 à Exercice 5. Résous chaque exercice entièrement. Si un exercice exige un ou plusieurs schémas, fournis TOUS les schémas nécessaires avec scope=practice, exercise_index=N et card_index=100+N."
-                    : "ابدأ الآن الدرس المحدد كاملًا. اعرض الدرس كله بوضوح مع جميع الرسومات اللازمة، ثم اختم بخمسة تمارين إضافية محلولة بالضبط، مرقمة من تمرين 1 إلى تمرين 5. أكمل حل كل تمرين للنهاية. إذا احتاج التمرين رسمة واحدة أو أكثر فارسم كل الرسومات اللازمة، واجعل لكل رسم scope=practice و exercise_index=N و card_index=100+N، وكل الرسومات التابعة للتمرين نفسه تحمل الفهرس نفسه.");
+                    ? "Commence maintenant la leçon COMPLÈTE. PENDANT L’EXPLICATION, chaque fois qu’une idée, propriété, processus, relation spatiale, graphique, figure géométrique, circuit, force, structure, atome, processus biologique, carte, chronologie, tableau ou séquence est plus claire visuellement, crée immédiatement le schéma correct avec un DRAWINGS_JSON valide et scope=lesson. Puis termine par EXACTEMENT cinq exercices corrigés numérotés Exercice 1 à Exercice 5. Résous chaque exercice entièrement. CHAQUE exercice DOIT contenir au moins un schéma/graphique/figure utile avec scope=practice, exercise_index=N et card_index=100+N. Ajoute plusieurs schémas si le contenu l’exige. Ne termine jamais la réponse avant que l’Exercice 5 soit entièrement corrigé ET que les exercices 1 à 5 aient tous leur schéma."
+                    : "ابدأ الآن الدرس المحدد كاملًا. أثناء الشرح، كل فكرة أو قاعدة أو عملية أو علاقة مكانية أو منحنى أو شكل هندسي أو دارة أو قوة أو بنية أو ذرة أو عملية بيولوجية أو خريطة أو خط زمني أو جدول أو تسلسل يصبح أوضح بالرسم: أنشئ له فورًا الرسم الصحيح الخاص بالمادة باستخدام DRAWINGS_JSON صالح مع scope=lesson، ولا تكتفِ بوصف الشكل بالكلام. ثم اختم بخمسة تمارين إضافية محلولة بالضبط، مرقمة من تمرين 1 إلى تمرين 5. أكمل حل كل تمرين للنهاية. يجب أن يحتوي كل تمرين بلا استثناء على رسم/مخطط/بيان/شكل بصري مفيد باستخدام DRAWINGS_JSON مع scope=practice و exercise_index=N و card_index=100+N. وإذا احتاج التمرين أكثر من رسم فارسمها كلها بالفهرس نفسه. لا تنه الجواب ولا تختصره قبل إكمال تمرين 5 بالكامل والتأكد من وجود رسم للتمارين 1 إلى 5 جميعًا.");
 
         await sendToAI(
             prompt,
@@ -15622,8 +16153,10 @@ document.addEventListener("click", (event) => {
     });
 
     function latestVisual() {
-        const visuals = chat.querySelectorAll(".nabil-visual");
-        return visuals.length ? visuals[visuals.length - 1] : null;
+        const visuals = chat.querySelectorAll(".nabil-visual, .nabil-authoritative-chemistry-visual");
+        if (!visuals.length) return null;
+        const last = visuals[visuals.length - 1];
+        return last.closest(".linked-lesson-visual") || last;
     }
 
     function visualToPngBlob(svg) {
@@ -15664,8 +16197,6 @@ document.addEventListener("click", (event) => {
 
         const clone = visual.cloneNode(true);
         clone.classList.add("nabil-preview-exact-clone");
-        clone.style.removeProperty("background");
-        clone.style.removeProperty("color");
         clone.style.width = "100%";
         clone.style.maxWidth = "none";
         clone.style.margin = "0 auto";
@@ -16808,6 +17339,711 @@ function nabilTeacherWordHTML(data){
   background:transparent!important;
   opacity:1!important;
   filter:none!important;
+}
+
+
+/* ============================================================
+   v78 cumulative — complete lesson visibility + unified cards
+   ============================================================ */
+.lesson-shell,
+.exercise-board,
+.function-study-simple-board,
+.nabil-authoritative-chemistry-visual{
+  min-height:0!important;
+  height:auto!important;
+}
+.chat-area,
+#chat,
+.chat-messages,
+.lesson-content,
+.exercise-board-body,
+.exercise-special-content{
+  overflow:visible;
+}
+.exercise-board .exercise-card,
+.exercise-board .exercise-section,
+.exercise-board .exercise-special-content{
+  max-height:none!important;
+  height:auto!important;
+}
+.exercise-board{
+  overflow:visible!important;
+}
+
+/* Reusable educational card shell across subjects */
+.nabil-subject-card-shell{
+  width:100%;
+  display:grid;
+  grid-template-columns:minmax(240px,32%) minmax(0,1fr);
+  gap:14px;
+  background:#071b2e;
+  border:1px solid #169bd5;
+  border-radius:18px;
+  padding:14px;
+  box-sizing:border-box;
+}
+.nabil-subject-card-left,
+.nabil-subject-card-main,
+.nabil-subject-card-bottom{
+  background:#0c2b49;
+  border:1px solid #2f82b6;
+  border-radius:14px;
+}
+.nabil-subject-card-left{padding:14px}
+.nabil-subject-card-main{padding:14px}
+.nabil-subject-card-bottom{
+  grid-column:1/-1;
+  padding:12px 14px;
+}
+
+/* Function-study card: graph and variation table together */
+.function-study-simple-board .function-study-visual-zone,
+.exercise-board.layout-math .exercise-special-visual{
+  width:100%!important;
+  max-width:100%!important;
+}
+.function-study-simple-board .nabil-reference-function-generic,
+.exercise-board.layout-math .nabil-reference-function-generic{
+  width:100%!important;
+  max-width:100%!important;
+  overflow:visible!important;
+}
+.nabil-function-variation-card{
+  margin-top:12px!important;
+}
+
+/* Exact-theme preview, full card, no cropping */
+#drawingPreviewModal .drawing-preview-dialog{
+  width:min(1240px,97vw)!important;
+  max-width:97vw!important;
+  max-height:96vh!important;
+  overflow:auto!important;
+  background:#061522!important;
+  color:#eef8ff!important;
+}
+#drawingPreviewModal #drawingPreviewContent{
+  width:100%!important;
+  overflow:visible!important;
+}
+#drawingPreviewModal #drawingPreviewContent > *{
+  width:100%!important;
+  max-width:none!important;
+}
+#drawingPreviewModal #drawingPreviewContent svg{
+  width:100%!important;
+  height:auto!important;
+  max-width:none!important;
+  display:block!important;
+  overflow:visible!important;
+}
+@media (max-width:900px){
+  .nabil-subject-card-shell{
+    grid-template-columns:1fr;
+  }
+  .nabil-subject-card-bottom{
+    grid-column:1;
+  }
+}
+
+
+/* ============================================================
+   v79 — FUNCTION REFERENCE CARD (from approved screenshot)
+   ============================================================ */
+.v79-reference-function-card{
+  width:100%!important;
+  max-width:none!important;
+  background:#061a2d!important;
+  border:1px solid #0c6da3!important;
+  border-radius:16px!important;
+  padding:10px!important;
+  box-shadow:0 18px 55px rgba(0,0,0,.28)!important;
+  color:#eef8ff!important;
+  overflow:visible!important;
+}
+.v79-function-top{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 220px 340px;
+  gap:10px;
+  align-items:center;
+  background:linear-gradient(180deg,#0d3458,#0a2946);
+  border:1px solid #145f8e;
+  border-radius:12px;
+  padding:11px 14px;
+  margin-bottom:10px;
+}
+.v79-function-top-main{display:flex;align-items:center;gap:12px;min-width:0}
+.v79-function-book{font-size:30px;color:#39c8ff}
+.v79-function-lesson-title{font-size:20px;font-weight:900;color:#eaf8ff}
+.v79-function-lesson-sub{font-size:12px;color:#c1d9eb;margin-top:3px}
+.v79-meta-box{display:flex;gap:10px;align-items:center;border-left:1px solid rgba(70,177,233,.25);padding-left:12px}
+.v79-meta-box>span{font-size:28px;color:#27d2ff}
+.v79-meta-box small{display:block;color:#37d6ff;font-weight:800}
+.v79-meta-box strong{display:block;color:#edf9ff;font-size:12px;margin-top:2px}
+
+.v79-function-grid{
+  display:grid;
+  grid-template-columns:minmax(300px,32%) minmax(0,1fr) 205px;
+  gap:10px;
+  align-items:stretch;
+}
+.v79-function-left,.v79-function-main,.v79-function-side{
+  background:#0a2742;
+  border:1px solid #116da3;
+  border-radius:13px;
+  min-width:0;
+}
+.v79-function-left{padding:14px}
+.v79-function-left h2,.v79-function-main h2{
+  margin:0 0 10px;
+  color:#5fd9ff;
+  font-size:21px;
+  font-weight:900;
+}
+.v79-function-formula{
+  background:#0a3156;
+  border:1px solid #1496d4;
+  border-radius:10px;
+  padding:14px 10px;
+  text-align:center;
+  font-size:27px;
+  font-family:Cambria Math,STIX Two Math,serif;
+  color:#fff;
+  margin-bottom:12px;
+}
+.v79-function-facts{display:grid;gap:8px}
+.v79-fact-row{display:grid;grid-template-columns:118px minmax(0,1fr);gap:8px;align-items:start;font-size:13px}
+.v79-fact-row span{color:#5dd7ff;font-weight:900}
+.v79-fact-row strong{color:#eef8ff;font-weight:600;overflow-wrap:anywhere}
+.v79-rule-summary{
+  margin-top:14px;
+  border:1px solid #1cc7a1;
+  background:#0b3a43;
+  border-radius:10px;
+  padding:10px 12px;
+  display:grid;
+  gap:4px;
+  font-size:12px;
+}
+.v79-rule-summary b{color:#67ffd2;font-size:14px}
+.v79-rule-summary span{color:#e5fffa}
+
+.v79-function-main{padding:10px}
+.v79-function-main h2{padding-left:4px}
+.v79-function-graph{
+  background:#071f35;
+  border:1px solid #194c6b;
+  border-radius:10px;
+  padding:4px;
+  min-height:350px;
+  overflow:hidden;
+}
+.v79-function-graph .linked-lesson-visual,
+.v79-function-graph .nabil-visual,
+.v79-function-graph .nabil-reference-function-generic,
+.v79-function-graph svg{
+  width:100%!important;
+  max-width:100%!important;
+  height:auto!important;
+  margin:0!important;
+  display:block!important;
+}
+.v79-function-graph .nabil-visual-title,
+.v79-function-graph .nabil-function-ref-title{
+  display:none!important;
+}
+.v79-function-variation{margin-top:8px}
+.v79-function-variation h3{
+  margin:0 0 6px;
+  color:#55d8ff;
+  font-size:15px;
+}
+.v79-function-variation .nabil-function-variation-card{margin:0!important;padding:0!important;border:0!important;background:transparent!important}
+.v79-function-variation .nabil-function-variation-title{display:none!important}
+.v79-function-variation table{
+  width:100%!important;
+  border-collapse:collapse!important;
+  background:#08233a!important;
+  color:#effaff!important;
+  font-size:11px!important;
+}
+.v79-function-variation th,.v79-function-variation td{
+  border:1px solid #3c789c!important;
+  padding:7px 5px!important;
+  text-align:center!important;
+}
+.v79-function-variation th{color:#60ddff!important;background:#0b3857!important}
+
+.v79-function-side{
+  padding:12px 10px;
+  text-align:center;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+}
+.v79-side-title{font-size:22px;font-weight:900;color:#35d5ff;margin-top:4px}
+.v79-side-sub{font-size:11px;color:#9bdcf5;margin-bottom:7px}
+.v79-side-avatar{
+  width:145px;
+  max-width:100%;
+  margin:4px auto 8px;
+  border-radius:14px;
+  filter:drop-shadow(0 8px 18px rgba(0,0,0,.35));
+}
+.v79-side-message{
+  background:#0a3156;
+  border:1px solid #1596d3;
+  border-radius:9px;
+  padding:9px;
+  text-align:left;
+  color:#eef9ff;
+  font-size:11px;
+  line-height:1.35;
+}
+.v79-talk-button{
+  margin:8px 0;
+  background:#e52c2c!important;
+  color:#fff!important;
+  border:0!important;
+  border-radius:8px!important;
+  padding:12px 8px!important;
+  font-weight:900!important;
+  font-size:15px!important;
+}
+.v79-quick-check{
+  margin-top:auto;
+  background:#0b2946;
+  border:1px solid #175d8e;
+  border-radius:9px;
+  padding:10px;
+  text-align:left;
+  display:grid;
+  gap:4px;
+}
+.v79-quick-check b{color:#65ddff}
+.v79-quick-check span{color:#edf8ff;font-size:11px}
+
+/* Function graph reference colors */
+.v79-function-graph .function-curve,
+.v79-function-graph path[data-role="function"]{stroke:#23a8ff!important}
+.v79-function-graph .vertical-asymptote{stroke:#ff4c59!important}
+.v79-function-graph .oblique-asymptote,
+.v79-function-graph .horizontal-asymptote{stroke:#ffd633!important}
+
+/* Exact preview: keep dark reference palette, never white */
+#drawingPreviewModal .drawing-preview-dialog{
+  background:#04111d!important;
+  border:2px solid #1499d5!important;
+}
+#drawingPreviewModal #drawingPreviewContent .v79-reference-function-card,
+#drawingPreviewModal #drawingPreviewContent .nabil-reference-function-generic,
+#drawingPreviewModal #drawingPreviewContent .nabil-visual{
+  background:#061a2d!important;
+  color:#eef8ff!important;
+}
+#drawingPreviewModal #drawingPreviewContent .nabil-function-ref-plot,
+#drawingPreviewModal #drawingPreviewContent .v79-function-graph{
+  background:#071f35!important;
+}
+#drawingPreviewModal #drawingPreviewContent svg{
+  background:#071f35!important;
+  filter:none!important;
+  opacity:1!important;
+}
+
+@media(max-width:1050px){
+  .v79-function-top{grid-template-columns:1fr 180px}
+  .v79-function-top .v79-meta-box:last-child{grid-column:1/-1}
+  .v79-function-grid{grid-template-columns:minmax(260px,34%) minmax(0,1fr)}
+  .v79-function-side{grid-column:1/-1;display:grid;grid-template-columns:160px 1fr 180px;gap:10px;align-items:center}
+  .v79-side-avatar{width:110px}
+  .v79-quick-check{margin-top:0}
+}
+@media(max-width:720px){
+  .v79-function-top{grid-template-columns:1fr}
+  .v79-function-grid{grid-template-columns:1fr}
+  .v79-function-side{grid-column:auto;display:flex}
+  .v79-fact-row{grid-template-columns:105px 1fr}
+}
+
+
+/* ============================================================
+   v80 — PHYSICS REFERENCE CARD
+   ============================================================ */
+.v80-reference-physics-card{
+  width:100%!important;max-width:none!important;
+  background:#071b30!important;
+  border:1px solid #0f6ca2!important;
+  border-radius:16px!important;
+  padding:10px!important;
+  box-shadow:0 18px 52px rgba(0,0,0,.28)!important;
+  color:#edf9ff!important;
+}
+.v80-physics-top{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 180px 300px;
+  gap:10px;align-items:center;
+  background:linear-gradient(180deg,#0d3560,#0a2a48);
+  border:1px solid #145f8f;
+  border-radius:12px;
+  padding:11px 14px;margin-bottom:10px;
+}
+.v80-physics-top-main{display:flex;align-items:center;gap:12px;min-width:0}
+.v80-physics-icon{font-size:28px;color:#35d6ff}
+.v80-physics-lesson-title{font-size:20px;font-weight:900;color:#ebf8ff}
+.v80-physics-lesson-sub{font-size:12px;color:#bdd8ea;margin-top:3px}
+.v80-physics-meta{display:flex;gap:10px;align-items:center;border-left:1px solid rgba(70,177,233,.25);padding-left:12px}
+.v80-physics-meta>span{font-size:28px;color:#29d1ff}
+.v80-physics-meta small{display:block;color:#35d6ff;font-weight:800}
+.v80-physics-meta strong{display:block;color:#effaff;font-size:12px;margin-top:2px}
+
+.v80-physics-grid{display:grid;grid-template-columns:minmax(250px,26%) minmax(0,1fr) 205px;gap:10px;align-items:stretch}
+.v80-physics-left,.v80-physics-main,.v80-physics-side{background:#0a2742;border:1px solid #116da3;border-radius:13px;min-width:0}
+.v80-physics-left{padding:12px}
+.v80-physics-left h2{margin:0 0 10px;color:#61dcff;font-size:18px;font-weight:900}
+.v80-physics-left .exercise-card-section,
+.v80-physics-calc-card .exercise-card-section{background:transparent!important;border:0!important;padding:0!important;margin:0!important;box-shadow:none!important}
+.v80-physics-left .exercise-card-title,
+.v80-physics-calc-card .exercise-card-title{display:none!important}
+.v80-physics-left .exercise-card-body,
+.v80-physics-calc-card .exercise-card-body{padding:0!important;color:#eff8ff!important;background:transparent!important;font-size:12px!important;line-height:1.45!important}
+.v80-physics-left .exercise-card-body p,
+.v80-physics-calc-card .exercise-card-body p{margin:.2rem 0!important}
+.v80-physics-left .exercise-card-body strong,
+.v80-physics-calc-card .exercise-card-body strong{color:#5edbff!important}
+
+.v80-physics-main{padding:10px}
+.v80-physics-panels{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.v80-physics-panel{background:#0a3153;border:1px solid #1591cb;border-radius:10px;padding:10px;min-width:0}
+.v80-physics-panel h3{margin:0 0 8px;color:#eaf8ff;font-size:18px;font-weight:900;text-align:center}
+.v80-physics-visual{background:#071f35;border:1px solid #1a4c6d;border-radius:10px;padding:4px;overflow:hidden;min-height:140px}
+.v80-physics-visual .linked-lesson-visual,
+.v80-physics-visual .nabil-visual,
+.v80-physics-visual svg{width:100%!important;max-width:100%!important;height:auto!important;display:block!important;margin:0!important}
+.v80-physics-visual .nabil-visual-title{display:none!important}
+.v80-physics-visual .vaxis,.v80-physics-visual .vgrid{display:none!important}
+.v80-physics-calc-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.v80-physics-calc-card{background:#0a3153;border:1px solid #1591cb;border-radius:10px;padding:10px;min-width:0}
+.v80-physics-calc-card h4{margin:0 0 8px;color:#35d6ff;font-size:16px;font-weight:900}
+.v80-physics-mini-note{color:#eaf8ff;font-size:12px;line-height:1.45}
+.v80-physics-extra-visuals{margin-top:10px}
+.v80-physics-rule-summary{display:grid;grid-template-columns:42px 1fr;gap:10px;align-items:start;margin-top:10px;border:1px solid #1cc7a1;background:#0b3a43;border-radius:10px;padding:10px 12px}
+.v80-rule-icon{font-size:26px;color:#5affd0;text-align:center}
+.v80-physics-rule-summary b{display:block;color:#67ffd2;font-size:14px;margin-bottom:2px}
+.v80-physics-rule-summary span{color:#e5fffa;font-size:12px;line-height:1.45}
+
+.v80-physics-side{padding:12px 10px;text-align:center;display:flex;flex-direction:column;align-items:stretch}
+.v80-side-title{font-size:22px;font-weight:900;color:#35d5ff;margin-top:4px}
+.v80-side-sub{font-size:11px;color:#9bdcf5;margin-bottom:7px}
+.v80-side-avatar{width:145px;max-width:100%;margin:4px auto 8px;border-radius:14px;filter:drop-shadow(0 8px 18px rgba(0,0,0,.35))}
+.v80-side-message{background:#0a3156;border:1px solid #1596d3;border-radius:9px;padding:9px;text-align:left;color:#eef9ff;font-size:11px;line-height:1.35}
+.v80-talk-button{margin:8px 0;background:#e52c2c!important;color:#fff!important;border:0!important;border-radius:8px!important;padding:12px 8px!important;font-weight:900!important;font-size:15px!important}
+.v80-quick-check{margin-top:auto;background:#0b2946;border:1px solid #175d8e;border-radius:9px;padding:10px;text-align:left;display:grid;gap:4px}
+.v80-quick-check b{color:#65ddff}.v80-quick-check span{color:#edf8ff;font-size:11px}
+.v80-physics-placeholder{display:flex;align-items:center;justify-content:center;min-height:140px;color:#8adfff;font-weight:800;font-size:14px}
+
+#drawingPreviewModal #drawingPreviewContent .v80-reference-physics-card{
+  background:#071b30!important;color:#edf9ff!important;
+}
+#drawingPreviewModal #drawingPreviewContent .v80-physics-visual,
+#drawingPreviewModal #drawingPreviewContent .v80-physics-panel,
+#drawingPreviewModal #drawingPreviewContent .v80-physics-calc-card,
+#drawingPreviewModal #drawingPreviewContent .v80-physics-left,
+#drawingPreviewModal #drawingPreviewContent .v80-physics-main,
+#drawingPreviewModal #drawingPreviewContent .v80-physics-side{opacity:1!important;filter:none!important}
+
+@media(max-width:1050px){
+  .v80-physics-top{grid-template-columns:1fr 180px}
+  .v80-physics-top .v80-physics-meta:last-child{grid-column:1/-1}
+  .v80-physics-grid{grid-template-columns:1fr}
+}
+@media(max-width:720px){
+  .v80-physics-top{grid-template-columns:1fr}
+  .v80-physics-panels,.v80-physics-calc-row{grid-template-columns:1fr}
+}
+
+
+/* ============================================================
+   v81 — GENERAL MATHEMATICS REFERENCE CARD (NON-FUNCTION)
+   ============================================================ */
+.v81-reference-math-card{
+  width:100%!important;max-width:none!important;
+  background:#071b30!important;
+  border:1px solid #0e6596!important;
+  border-radius:16px!important;
+  padding:10px!important;
+  box-shadow:0 18px 52px rgba(0,0,0,.28)!important;
+  color:#ebf8ff!important;
+}
+.v81-math-top{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 170px 300px;
+  gap:10px;align-items:center;
+  background:linear-gradient(180deg,#0d355d,#092745);
+  border:1px solid #155f90;border-radius:12px;padding:12px 14px;margin-bottom:10px;
+}
+.v81-math-brand-row{display:flex;align-items:center;gap:12px;min-width:0}
+.v81-math-book{font-size:30px;color:#29d4ff}
+.v81-math-lesson-title{font-size:19px;font-weight:900;color:#f0fbff}
+.v81-math-lesson-sub{font-size:12px;color:#b9d7ea;margin-top:3px}
+.v81-math-meta{display:flex;gap:10px;align-items:center;border-left:1px solid rgba(71,182,235,.22);padding-left:12px}
+.v81-math-meta>span{font-size:28px;color:#25d4ff}
+.v81-math-meta small{display:block;color:#34d8ff;font-weight:800}
+.v81-math-meta strong{display:block;color:#effaff;font-size:12px;margin-top:2px}
+
+.v81-math-grid{display:grid;grid-template-columns:minmax(270px,33%) minmax(0,1fr) 210px;gap:10px;align-items:stretch}
+.v81-math-left,.v81-math-main,.v81-math-side{background:#0a2742;border:1px solid #106ea3;border-radius:13px;min-width:0}
+.v81-math-left{padding:12px}
+.v81-math-left h2{margin:0 0 10px;color:#39d8ff;font-size:17px;font-weight:900}
+.v81-math-left .exercise-card-section{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;margin:0 0 8px!important}
+.v81-math-left .exercise-card-title{display:none!important}
+.v81-math-left .exercise-card-body{background:transparent!important;color:#eef8ff!important;padding:0!important;font-size:13px!important;line-height:1.48!important}
+.v81-math-left .exercise-card-body strong{color:#56dfff!important}
+.v81-math-left .exercise-card-body p{margin:.22rem 0!important}
+.v81-math-left .exercise-card-body ul{margin:.2rem 0 .35rem 1rem!important}
+.v81-math-rule-box{margin-top:10px;border:1px solid #23d6b1;background:#0d3940;border-radius:10px;padding:10px 12px}
+.v81-math-rule-box b{display:block;color:#62ffd3;font-size:14px;margin-bottom:4px}
+.v81-math-rule-body,.v81-math-rule-body .exercise-card-section,.v81-math-rule-body .exercise-card-body{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;color:#e7fff8!important;font-size:12px!important;line-height:1.45!important}
+.v81-math-rule-body .exercise-card-title{display:none!important}
+.v81-summary-fallback{color:#e7fff8;font-size:12px;line-height:1.45}
+.v81-math-quick-box{margin-top:10px;border:1px solid #6d39cc;background:#1d1540;border-radius:10px;padding:10px 12px;color:#f2ecff}
+.v81-math-quick-box b{display:block;color:#bb81ff;font-size:14px;margin-bottom:4px}
+.v81-math-quick-box div{font-size:12px;line-height:1.4}
+
+.v81-math-main{padding:10px}
+.v81-math-visuals{display:grid;gap:10px}
+.v81-math-visuals.grid-1{grid-template-columns:1fr}
+.v81-math-visuals.grid-2{grid-template-columns:1fr 1fr}
+.v81-math-visual-card{background:#071f35;border:1px solid #154d70;border-radius:12px;padding:6px;overflow:hidden;min-height:160px;display:flex;align-items:center;justify-content:center}
+.v81-math-visual-card .linked-lesson-visual,
+.v81-math-visual-card .nabil-visual,
+.v81-math-visual-card svg{width:100%!important;max-width:100%!important;height:auto!important;display:block!important;margin:0 auto!important}
+.v81-math-visual-card .nabil-visual-title{display:none!important}
+.v81-math-placeholder{display:flex;align-items:center;justify-content:center;min-height:160px;color:#90defe;font-weight:800}
+.v81-math-extra{margin-top:10px;border-top:1px solid rgba(83,167,210,.25);padding-top:10px}
+.v81-math-extra .exercise-card-section{background:#0a3153!important;border:1px solid #1591cb!important}
+.v81-math-extra .exercise-card-title{color:#37d7ff!important}
+
+.v81-math-side{padding:12px 10px;text-align:center;display:flex;flex-direction:column;align-items:stretch}
+.v81-side-title{font-size:22px;font-weight:900;color:#2fd4ff;margin-top:4px}
+.v81-side-sub{font-size:11px;color:#9edcf6;margin-bottom:7px}
+.v81-side-avatar{width:145px;max-width:100%;margin:4px auto 8px;border-radius:14px;filter:drop-shadow(0 8px 18px rgba(0,0,0,.35))}
+.v81-side-message{background:#0a3156;border:1px solid #1596d3;border-radius:9px;padding:10px;text-align:left;color:#eef9ff;font-size:11px;line-height:1.35}
+.v81-talk-button{margin-top:8px;background:#ef2f2f!important;color:#fff!important;border:0!important;border-radius:8px!important;padding:12px 8px!important;font-weight:900!important;font-size:15px!important}
+
+#drawingPreviewModal #drawingPreviewContent .v81-reference-math-card,
+#drawingPreviewModal #drawingPreviewContent .v81-math-left,
+#drawingPreviewModal #drawingPreviewContent .v81-math-main,
+#drawingPreviewModal #drawingPreviewContent .v81-math-side,
+#drawingPreviewModal #drawingPreviewContent .v81-math-visual-card{
+  background-clip:padding-box!important;opacity:1!important;filter:none!important;color:inherit!important;
+}
+
+@media(max-width:1150px){
+  .v81-math-top{grid-template-columns:1fr 180px}
+  .v81-math-top .v81-math-meta:last-child{grid-column:1/-1}
+  .v81-math-grid{grid-template-columns:1fr}
+}
+@media(max-width:760px){
+  .v81-math-top{grid-template-columns:1fr}
+  .v81-math-visuals.grid-2{grid-template-columns:1fr}
+}
+
+
+/* ============================================================
+   v82 — improved physics 1:1 + complete content + full preview
+   ============================================================ */
+.v80-reference-physics-card{
+  background:#071a2c!important;
+  border:1px solid #1389c8!important;
+  box-shadow:0 18px 52px rgba(0,0,0,.34)!important;
+}
+.v80-physics-top{
+  grid-template-columns:minmax(0,1fr) 175px 250px;
+  background:linear-gradient(180deg,#0b3155,#082642)!important;
+  border-color:#114f7b!important;
+}
+.v80-physics-grid{grid-template-columns:minmax(260px,30%) minmax(0,1fr) 215px;gap:12px}
+.v80-physics-left,.v80-physics-main,.v80-physics-side{
+  background:#0a2843!important;border-color:#1389c8!important;box-shadow:inset 0 0 0 1px rgba(111,222,255,.06)
+}
+.v80-physics-left h2{font-size:16px;color:#2fd8ff!important;margin-bottom:10px}
+.v80-physics-left-body,.v80-physics-formula-box,.v80-physics-explanation-stack,.v80-rule-rich{overflow:visible!important;overflow-wrap:anywhere;word-break:break-word}
+.v80-physics-formula-box{margin-top:10px;background:#0b3153;border:1px solid #1591cb;border-radius:10px;padding:10px}
+.v80-physics-formula-box h4{margin:0 0 8px;color:#35d6ff;font-size:15px;font-weight:900}
+.v80-left-rule-box{margin-top:10px}
+.v80-left-quick-check{margin-top:10px}
+.v80-physics-panel,.v80-physics-calc-card{background:#0a3153!important;border-color:#1591cb!important}
+.v80-physics-panel h3{font-size:17px}
+.v80-physics-visual{background:#061f35!important;border-color:#174968!important;min-height:170px;padding:6px}
+.v80-physics-visual .linked-lesson-visual,
+.v80-physics-visual .nabil-visual,
+.v80-physics-visual svg{display:block!important;width:100%!important;height:auto!important;max-width:100%!important;background:transparent!important}
+.v80-physics-calc-card h4{color:#26d5ff!important}
+.v80-physics-explanation-stack{margin-top:10px;display:grid;gap:10px}
+.v80-physics-explanation-stack .exercise-card-section{background:#0b3153!important;border:1px solid #1591cb!important;border-radius:10px!important;padding:10px!important;box-shadow:none!important}
+.v80-physics-explanation-stack .exercise-card-title{display:block!important;color:#2fd8ff!important;font-weight:900!important;margin-bottom:8px!important}
+.v80-physics-explanation-stack .exercise-card-body{padding:0!important;background:transparent!important;color:#eef8ff!important;font-size:12px!important;line-height:1.5!important}
+.v80-physics-extra-visuals{margin-top:10px;display:grid;gap:10px}
+.v80-physics-extra-visuals .linked-lesson-visual,
+.v80-physics-extra-visuals .nabil-visual,
+.v80-physics-extra-visuals svg{width:100%!important;max-width:100%!important;height:auto!important;display:block!important}
+.v80-side-message{font-size:12px!important;line-height:1.45!important}
+.v80-talk-button{background:linear-gradient(180deg,#ff4a43,#da1919)!important}
+.v80-rule-rich .exercise-card-section,.v80-rule-rich .exercise-card-body{background:transparent!important;border:0!important;padding:0!important;box-shadow:none!important;color:#e5fffa!important;font-size:12px!important;line-height:1.45!important}
+.v80-rule-rich .exercise-card-title{display:none!important}
+.v80-physics-rule-fallback{color:#e5fffa;font-size:12px;line-height:1.45}
+
+/* complete long explanations for all subjects */
+.exercise-card-body,
+.exercise-card-body *{
+  max-height:none!important;
+}
+.exercise-card-body{overflow:visible!important;white-space:normal!important;overflow-wrap:anywhere;word-break:break-word}
+.chat-bubble .exercise-card-section,
+.chat-bubble .exercise-card,
+.chat-bubble .exercise-board,
+.chat-bubble .lesson-shell{overflow:visible!important}
+
+/* bigger and color-safe preview */
+#drawingPreviewModal .drawing-preview-dialog{
+  width:min(1360px,98vw)!important;
+  max-width:98vw!important;
+  max-height:97vh!important;
+  padding:12px!important;
+  background:#04121f!important;
+}
+#drawingPreviewModal #drawingPreviewContent{
+  width:100%!important;max-width:none!important;overflow:visible!important;padding:0!important;
+}
+#drawingPreviewModal #drawingPreviewContent > *{width:100%!important;max-width:none!important}
+#drawingPreviewModal #drawingPreviewContent,
+#drawingPreviewModal #drawingPreviewContent *{
+  filter:none!important;
+  opacity:1!important;
+}
+#drawingPreviewModal #drawingPreviewContent .v80-reference-physics-card,
+#drawingPreviewModal #drawingPreviewContent .v81-reference-math-card,
+#drawingPreviewModal #drawingPreviewContent .v79-reference-function-card,
+#drawingPreviewModal #drawingPreviewContent .nabil-authoritative-chemistry-visual,
+#drawingPreviewModal #drawingPreviewContent .linked-lesson-visual,
+#drawingPreviewModal #drawingPreviewContent .nabil-visual{
+  transform:none!important;
+  background-clip:padding-box!important;
+}
+#drawingPreviewModal #drawingPreviewContent svg,
+#drawingPreviewModal #drawingPreviewContent canvas,
+#drawingPreviewModal #drawingPreviewContent img{
+  width:100%!important;height:auto!important;max-width:100%!important;display:block!important;image-rendering:auto!important;background:transparent!important
+}
+@media(max-width:1080px){
+  .v80-physics-top{grid-template-columns:1fr}
+  .v80-physics-grid{grid-template-columns:1fr}
+}
+
+
+/* ============================================================
+   v83 — ALL SUBJECTS / ALL GRADES / COMPLETE LESSONS + PREVIEW
+   ============================================================ */
+:root{
+  --v83-navy-0:#041421;
+  --v83-navy-1:#071b30;
+  --v83-navy-2:#0a2843;
+  --v83-navy-3:#0b3153;
+  --v83-cyan:#2fd7ff;
+  --v83-cyan-soft:#87e8ff;
+  --v83-border:#1488c4;
+  --v83-green:#35e5b1;
+  --v83-purple:#9d5cff;
+  --v83-red:#ef302f;
+}
+.exercise-board-stack,.lesson-card-stack{width:100%!important;max-width:none!important}
+.exercise-board,.lesson-concept-card{box-sizing:border-box!important}
+.exercise-board .exercise-card-body,.lesson-concept-card{max-height:none!important;overflow:visible!important}
+.exercise-board .exercise-card-body{line-height:1.52!important}
+.lesson-explanation{overflow:visible!important;max-height:none!important}
+.lesson-practice-zone{overflow:visible!important;max-height:none!important}
+.lesson-practice-zone .exercise-board-stack{display:grid!important;gap:14px!important}
+
+/* Five solved practice boards remain clearly separated and complete. */
+.lesson-practice-zone .exercise-board,
+.exercise-mode-board .exercise-board{
+  margin-bottom:12px!important;
+  min-height:0!important;
+  height:auto!important;
+}
+
+/* Biology reference card */
+.v83-reference-biology-card{width:100%!important;background:var(--v83-navy-1)!important;border:1px solid var(--v83-border)!important;border-radius:16px!important;padding:10px!important;color:#effaff!important;box-shadow:0 18px 52px rgba(0,0,0,.3)!important}
+.v83-bio-top{display:grid;grid-template-columns:minmax(0,1fr) 170px 300px;gap:10px;align-items:center;background:linear-gradient(180deg,#0d355d,#092745);border:1px solid #155f90;border-radius:12px;padding:12px 14px;margin-bottom:10px}
+.v83-bio-brand{display:flex;align-items:center;gap:12px}.v83-bio-brand>span{font-size:30px}.v83-bio-title{font-size:20px;font-weight:900;color:#effbff}.v83-bio-sub{font-size:12px;color:#bdd8ea;margin-top:3px}
+.v83-bio-meta{display:flex;align-items:center;gap:10px;border-left:1px solid rgba(71,182,235,.22);padding-left:12px}.v83-bio-meta>span{font-size:28px;color:var(--v83-cyan)}.v83-bio-meta small{display:block;color:var(--v83-cyan);font-weight:800}.v83-bio-meta strong{display:block;color:#effaff;font-size:12px;margin-top:2px}
+.v83-bio-grid{display:grid;grid-template-columns:minmax(280px,32%) minmax(0,1fr) 210px;gap:10px}.v83-bio-left,.v83-bio-main,.v83-bio-side{background:var(--v83-navy-2);border:1px solid var(--v83-border);border-radius:13px;min-width:0}.v83-bio-left{padding:13px}.v83-bio-left h2{margin:0 0 10px;color:var(--v83-cyan);font-size:18px}.v83-bio-text .exercise-card-section{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important}.v83-bio-text .exercise-card-title{display:none!important}.v83-bio-text .exercise-card-body{background:transparent!important;padding:0!important;color:#effaff!important;font-size:12px!important;line-height:1.5!important}
+.v83-bio-rule{margin-top:10px;padding:10px 12px;border:1px solid var(--v83-green);border-radius:10px;background:#0b3a43}.v83-bio-rule>b{display:block;color:#6fffd4;margin-bottom:4px}.v83-bio-rule .exercise-card-section,.v83-bio-rule .exercise-card-body{background:transparent!important;border:0!important;padding:0!important;box-shadow:none!important;color:#e8fff9!important;font-size:12px!important}.v83-bio-rule .exercise-card-title{display:none!important}.v83-bio-summary-fallback{font-size:12px;color:#e8fff9}
+.v83-bio-quick{margin-top:10px;padding:10px 12px;border:1px solid var(--v83-purple);border-radius:10px;background:#221746}.v83-bio-quick b{display:block;color:#c99cff;margin-bottom:4px}.v83-bio-quick span{font-size:12px}
+.v83-bio-main{padding:10px}.v83-bio-visuals{display:grid;gap:10px}.v83-bio-visual-card{background:#061f35;border:1px solid #164d6d;border-radius:12px;padding:6px;overflow:hidden}.v83-bio-visual-card .linked-lesson-visual,.v83-bio-visual-card .nabil-visual,.v83-bio-visual-card svg{width:100%!important;max-width:100%!important;height:auto!important;display:block!important;margin:0!important}.v83-bio-visual-card .nabil-visual-title{display:none!important}.v83-bio-placeholder{min-height:220px;display:flex;align-items:center;justify-content:center;color:#8ce5ff;font-weight:900}.v83-bio-extra{margin-top:10px}
+.v83-bio-side{padding:12px 10px;text-align:center;display:flex;flex-direction:column}.v83-bio-side-title{font-size:22px;font-weight:900;color:var(--v83-cyan)}.v83-bio-side-sub{font-size:11px;color:#9ddcf4}.v83-bio-avatar{width:145px;max-width:100%;margin:8px auto;border-radius:14px;filter:drop-shadow(0 8px 18px rgba(0,0,0,.35))}.v83-bio-message{background:#0a3156;border:1px solid #1596d3;border-radius:9px;padding:10px;text-align:left;font-size:11px;line-height:1.4}.v83-bio-talk{margin-top:8px;background:linear-gradient(180deg,#ff4b43,#d91a1a)!important;color:#fff!important;border:0!important;border-radius:8px!important;padding:12px 8px!important;font-size:15px!important;font-weight:900!important}
+
+/* Shared approved NABIL palette across the reference cards. */
+.v79-reference-function-card,.v80-reference-physics-card,.v81-reference-math-card,.v83-reference-biology-card{background:var(--v83-navy-1)!important;color:#effaff!important}
+.v79-function-left,.v79-function-main,.v79-function-side,.v80-physics-left,.v80-physics-main,.v80-physics-side,.v81-math-left,.v81-math-main,.v81-math-side,.v83-bio-left,.v83-bio-main,.v83-bio-side{border-color:var(--v83-border)!important}
+
+/* Preview: same palette, full width, no crop, scroll only when viewport requires it. */
+#drawingPreviewModal{padding:1vh 1vw!important}
+#drawingPreviewModal .drawing-preview-dialog{width:min(1440px,98vw)!important;max-width:98vw!important;max-height:97vh!important;overflow:auto!important;padding:10px!important;background:var(--v83-navy-0)!important;border:2px solid var(--v83-border)!important;box-shadow:0 24px 90px rgba(0,0,0,.7)!important}
+#drawingPreviewModal #drawingPreviewContent{width:100%!important;max-width:none!important;overflow:visible!important;background:transparent!important}
+#drawingPreviewModal #drawingPreviewContent>.linked-lesson-visual,#drawingPreviewModal #drawingPreviewContent>.nabil-visual,#drawingPreviewModal #drawingPreviewContent>.nabil-authoritative-chemistry-visual{width:100%!important;max-width:none!important;margin:0!important;background:var(--v83-navy-1)!important;border-radius:12px!important;padding:8px!important;box-sizing:border-box!important}
+#drawingPreviewModal #drawingPreviewContent svg{width:100%!important;height:auto!important;max-width:none!important;display:block!important;background:transparent!important;filter:none!important;opacity:1!important}
+#drawingPreviewModal #drawingPreviewContent *{filter:none!important;opacity:1!important}
+
+@media(max-width:1100px){.v83-bio-top{grid-template-columns:1fr}.v83-bio-grid{grid-template-columns:1fr}}
+@media(max-width:760px){#drawingPreviewModal .drawing-preview-dialog{width:99vw!important;max-width:99vw!important;padding:6px!important}.v83-bio-avatar{width:115px}}
+
+
+/* ============================================================
+   v84 — every practice exercise has a drawing; preview preserves theme
+   ============================================================ */
+#drawingPreviewModal .drawing-preview-dialog{
+  width:min(1400px,98.5vw)!important;
+  max-width:98.5vw!important;
+  max-height:97vh!important;
+  overflow:auto!important;
+  background:#04121f!important;
+}
+#drawingPreviewModal #drawingPreviewContent{
+  width:100%!important;
+  max-width:none!important;
+  overflow:visible!important;
+}
+#drawingPreviewModal #drawingPreviewContent > *{
+  width:100%!important;
+  max-width:none!important;
+  margin-inline:auto!important;
+}
+#drawingPreviewModal #drawingPreviewContent svg,
+#drawingPreviewModal #drawingPreviewContent canvas,
+#drawingPreviewModal #drawingPreviewContent img{
+  display:block!important;
+  width:100%!important;
+  max-width:100%!important;
+  height:auto!important;
+  opacity:1!important;
+  filter:none!important;
+}
+#drawingPreviewModal #drawingPreviewContent .exercise-board,
+#drawingPreviewModal #drawingPreviewContent .linked-lesson-visual,
+#drawingPreviewModal #drawingPreviewContent .nabil-visual{
+  opacity:1!important;
+  filter:none!important;
+  transform:none!important;
+}
+/* practice visuals should remain visually grouped with each exercise */
+.lesson-practice-card .linked-lesson-visual,
+.lesson-practice-card .nabil-visual,
+.practice-exercise-card .linked-lesson-visual,
+.practice-exercise-card .nabil-visual{
+  margin-top:10px!important;
+  width:100%!important;
+  max-width:100%!important;
 }
 
 </style></head><body>${parts}</body></html>`;
