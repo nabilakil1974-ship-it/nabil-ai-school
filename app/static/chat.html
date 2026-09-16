@@ -5555,32 +5555,92 @@ function nabilDetectVariationTableFromText(html){
     return `<div class="lesson-table-wrap"><table class="variation-auto-table"><tbody>${body}</tbody></table></div>`;
 }
 
-function nabilAutoFunctionSpecFromBoard(board){
-    const raw = [board?.title || '', ...(board?.sections || []).map(sec => `${sec.title || ''} ${renderNodesAsHTML(sec.nodes || [])}`)].join(' ');
-    const text = nabilHTMLToPlainText(raw).replace(/\s+/g,' ');
-    if(!/f\s*\(\s*x\s*\)|function|fonction|graph|دال|دراسة/.test(text)) return null;
+function nabilAutoFunctionSpecFromBoard(board, sourceText=""){
+    const sectionHTML=(board?.sections || []).map(sec => `${sec.title || ''} ${renderNodesAsHTML(sec.nodes || [])}`).join(' ');
+    const boardHTML=`${board?.title || ''} ${sectionHTML}`;
 
-    const patterns=[
-        /f\s*\(\s*x\s*\)\s*=\s*([^=\n]+?)(?=(?:\s*(?:domain|variation|limit|asymptote|required|solution|given|formula|property|law|study|draw|ارسم|المطلوب|المعطيات|الحل|القانون))|$)/i,
-        /draw\s+f\s*x\s*=\s*([^\n]+)$/i,
-        /ارسم\s+[^\n]*?f\s*\(\s*x\s*\)\s*=\s*([^\n]+)/i
-    ];
-    let expr='';
-    for(const rx of patterns){
-        const m=text.match(rx);
-        if(m && m[1]){ expr=m[1].trim(); break; }
+    const givenSections=(board?.sections || []).filter(sec=>{
+        const t=String(sec?.title||"").toLowerCase();
+        return /given|données|donnees|المعطيات/.test(t);
+    });
+    const givenHTML=givenSections.map(sec=>`${sec.title||""} ${renderNodesAsHTML(sec.nodes||[])}`).join(" ");
+
+    const sources=[
+        String(sourceText||""),
+        givenHTML,
+        boardHTML
+    ].filter(Boolean);
+
+    const allCandidates=[];
+
+    function cleanCandidate(raw){
+        let s=String(raw||"")
+            .replace(/\u00a0/g," ")
+            .replace(/\\left|\\right/g,"")
+            .replace(/\$\$/g," ")
+            .replace(/\$/g," ")
+            .replace(/\s+/g," ")
+            .trim();
+
+        s=nabilCleanFunctionExpressionLabel(s);
+
+        // Never accept a LIMIT RESULT as the function definition.
+        if(!s) return "";
+        if(/∞|\\infty|\binfty\b/i.test(s)) return "";
+        if(/\blim\b|\\lim/i.test(s)) return "";
+        if(/≈|\\approx|\bapprox\b/i.test(s)) return "";
+        if(/→|\\to|\\rightarrow/i.test(s)) return "";
+
+        // A real function definition for this renderer must still depend on x.
+        if(!/\bx\b/i.test(s)) return "";
+
+        return s;
     }
-    if(!expr) return null;
 
-    expr=nabilCleanFunctionExpressionLabel(expr);
+    function collectFrom(raw){
+        const s=String(raw||"");
+        const patterns=[
+            // LaTeX/markdown response.
+            /f\s*\(\s*x\s*\)\s*=\s*([^=\n\r]+?)(?=(?:\s*(?:Required|Given|Solution|Final\s+Answer|Rule\s+Summary|Domain|Limits?|Intercepts?|Asymptotes?|Derivative|Critical\s+Points?|Extrema|Monotonicity|Variation\s+Table|Graph|Données|Demandé|Résolution|Réponse|Domaine|Limites?|Dérivée|Tableau|المعطيات|المطلوب|الحل|الجواب|المجال|النهايات|المقارب|المشتقة|جدول|الرسم))|$)/gi,
+            /draw\s+f\s*\(\s*x\s*\)\s*=\s*([^\n\r]+)/gi,
+            /ارسم\s+[^\n\r]*?f\s*\(\s*x\s*\)\s*=\s*([^\n\r]+)/gi
+        ];
+        patterns.forEach(rx=>{
+            let match;
+            while((match=rx.exec(s))!==null){
+                const c=cleanCandidate(match[1]);
+                if(c) allCandidates.push(c);
+                if(match.index===rx.lastIndex) rx.lastIndex++;
+            }
+        });
+    }
+
+    sources.forEach(collectFrom);
+
+    if(!allCandidates.length) return null;
+
+    // Prefer the candidate that looks most like a mathematical expression,
+    // and prefer rational/algebraic definitions over incidental prose.
+    function score(expr){
+        let sc=0;
+        if(/[+\-*/^]/.test(expr)) sc+=4;
+        if(/\\frac|\/|÷/.test(expr)) sc+=5;
+        if(/\bx\s*\^|x[²³⁴⁵⁶⁷⁸⁹]/i.test(expr)) sc+=3;
+        if(/\bln\b|\\ln|\blog\b|\\log|\bsin\b|\\sin|\bcos\b|\\cos|\btan\b|\\tan/i.test(expr)) sc+=3;
+        if(/^\(?[^A-Za-z]{0,3}x/i.test(expr)) sc+=1;
+        sc-=Math.max(0, expr.length-120)/40;
+        return sc;
+    }
+
+    const expr=[...new Set(allCandidates)]
+        .sort((a,b)=>score(b)-score(a))[0];
+
     const normalized=nabilNormalizeExpression(expr);
     if(!normalized) return null;
 
     const spec={type:"function", title:`f(x) = ${expr}`, expression:expr};
 
     // Canonical support for f(x)=ln(x)/x.
-    // This is not a decorative special case: it adds mathematically correct
-    // domain/asymptote/key points to the generic function renderer.
     const compactNormalized=String(normalized||"").replace(/\s+/g,"");
     if(
         /Math\.log\(x\)\/x/i.test(compactNormalized) ||
@@ -5597,21 +5657,16 @@ function nabilAutoFunctionSpecFromBoard(board){
             {x:1,y:0,label:"(1, 0)"},
             {x:Math.E,y:1/Math.E,label:"(e, 1/e)"}
         ];
-    }
-
-    if(!nabilIsLnXOverXExpression(expr) && /\bln\b|\\ln|Math\.log/i.test(normalized)){
-        spec.xmin=0.08; spec.xmax=8; spec.ymin=-3.5; spec.ymax=2.5;
-        if(/\/\s*x\b/.test(normalized) || /x\s*\*\*\s*-1/.test(normalized)){
-            spec.ymin=-2.8; spec.ymax=1.8;
-        }
-    }else if(!nabilIsLnXOverXExpression(expr) && /1\s*\/\s*x|Math\.abs\(x\)\s*\/|inverse/i.test(normalized)){
-        spec.xmin=-6; spec.xmax=6; spec.ymin=-8; spec.ymax=8; spec.vertical_asymptote=0;
+    }else if(/\bln\b|\\ln|Math\.log/i.test(normalized)){
+        spec.xmin=0.08;
+        spec.xmax=8;
+        spec.ymin=-3.5;
+        spec.ymax=2.5;
     }else{
-        spec.xmin=-6; spec.xmax=6; spec.ymin=-8; spec.ymax=8;
-    }
-
-    if(/\bln\b|\\ln|Math\.log/i.test(normalized) && /Math\.log\(x\)/.test(normalized)){
-        spec.vertical_asymptote = 0;
+        spec.xmin=-6;
+        spec.xmax=6;
+        spec.ymin=-8;
+        spec.ymax=8;
     }
 
     return spec;
@@ -6509,7 +6564,7 @@ ${rawVariationHTML}`);
         // v60: derive the mathematical function from THIS board even when a
         // backend visual already exists. This lets us reject stale/wrong lesson
         // visuals and guarantees the graph corresponds to f(x) in the exercise.
-        const autoFunctionSpec = nabilAutoFunctionSpecFromBoard(board);
+        const autoFunctionSpec = nabilAutoFunctionSpecFromBoard(board, text);
         const functionStudyNow = false; // v67 diagnostic: NO special function-study formatting
 
         if(autoFunctionSpec){
