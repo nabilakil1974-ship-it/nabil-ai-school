@@ -15579,13 +15579,34 @@ This is a live voice tutoring request. Return the full written educational answe
 Inside NABIL_SPOKEN: never read tables, arrows, LaTeX, metadata, UI labels, coordinate lists, or symbols literally. Explain their meaning like a real teacher. Never say “north-east arrow”, “caret sign”, “x y table”, raw markup, or a stream of plus/minus symbols. For a variation table, explain why f prime is positive or negative on each interval and therefore where the function increases or decreases. For physics, chemistry, biology and every subject, verbalize the reasoning instead of reading notation. Keep it concise and conversational. If the utterance contains Arabic, explain naturally in Arabic while preserving academic terms such as domain, limit, derivative/f prime, asymptote, ln, force, voltage, ion. Do not greet again. Do not repeat the whole written answer. The spoken script must be understandable without seeing the screen.${arabic ? " Use Lebanese-friendly Arabic phrasing when natural." : ""}`;
 }
 
+function nabilNormalizeNaturalMathUtterance(text){
+    let q=String(text||"").trim();
+    if(!q) return q;
+    q=q.replace(/\bf\s*of\s*x\b/ig,'f(x)')
+       .replace(/\bf\s*\(?\s*x\s*\)?\s*(?==)/ig,'f(x) ')
+       .replace(/\bfx\b/ig,'f(x)')
+       .replace(/\bln\s*\(?\s*x\s*\)?/ig,'ln(x)')
+       .replace(/\blog\s*\(?\s*x\s*\)?/ig,'log(x)')
+       .replace(/\bsin\s*\(?\s*x\s*\)?/ig,'sin(x)')
+       .replace(/\bcos\s*\(?\s*x\s*\)?/ig,'cos(x)')
+       .replace(/\btan\s*\(?\s*x\s*\)?/ig,'tan(x)')
+       .replace(/\s+over\s+/ig,' / ');
+    return q;
+}
+function nabilDirectStudyInstruction(q,language){
+    const t=String(q||'');
+    const isStudy=/(study|étudier|etudier|دراسة|ادرس|أدرس|حلل|حلّل).{0,50}(function|fonction|دال)|\b(domain|limit|derivative|variation table|graph)\b/i.test(t);
+    if(!isStudy) return '';
+    return `\n\n[DIRECT FUNCTION STUDY — hidden; mandatory]\nThe student is asking for the actual function study. DO THE CALCULATIONS NOW. Never return only a plan/checklist. If the function is readable, never ask for it again. Give the actual domain, limits and asymptotes when applicable, intercepts, derivative, sign of f', increasing/decreasing intervals, maximum/minimum when relevant, variation table, and graph data. If graph/figure/table/card is requested, produce the visual in this response. Explain in the student's language but preserve the academic terms domain, limit, derivative/f prime, vertical/horizontal/oblique asymptote, increasing, decreasing, maximum, minimum, variation table, graph. Never invent values. For f(x)=ln(x)/x, correct anchors are: domain (0,+∞); limit at 0+ is -∞; limit at +∞ is 0; derivative (1-ln x)/x²; increasing on (0,e); decreasing on (e,+∞); maximum at (e,1/e); x-intercept (1,0).`;
+}
 async function nabilUnifiedTutorRequest(question, options={}){
-    const clean = String(question || "").trim();
+    const originalQuestion = String(question || "").trim();
+    const clean = nabilNormalizeNaturalMathUtterance(originalQuestion);
     if (!clean) return {reply:"", spoken:"", drawings:[], raw:null};
 
     const language = options.language || nabilVoiceLanguageFromQuestion(clean);
     const body = new FormData();
-    body.append("message", clean + nabilUnifiedTutorInstruction(language) + nabilSpokenRendererInstruction(language));
+    body.append("message", clean + nabilDirectStudyInstruction(clean,language) + nabilUnifiedTutorInstruction(language) + nabilSpokenRendererInstruction(language));
     body.append("student_id", getStudentId());
     body.append("subject", "");
     body.append("lesson", "");
@@ -21453,6 +21474,425 @@ if(document.readyState==="loading"){
   window.nabilGatewayRealAudio={start,stop,sendAudio};
 })();
 
+</script>
+
+<style id="nabil-v117-gateway-render-style">
+#nabilProfessorGateway .nabil-gateway-avatar img{background:#075fa8!important;border-color:#31c9ff!important}
+.nabil-gateway-rich{direction:rtl;text-align:right;line-height:1.8;color:#eefaff;font-size:15px}
+.nabil-gateway-rich h3,.nabil-gateway-rich h4{color:#5de4ff;margin:.7em 0 .3em;font-weight:900}
+.nabil-gateway-rich .gw-section{background:rgba(16,62,91,.64);border:1px solid rgba(72,199,255,.24);border-radius:10px;padding:8px 10px;margin:7px 0}
+.nabil-gateway-rich .gw-math{direction:ltr;text-align:center;background:#071d32;border:1px solid #238ac0;border-radius:9px;padding:8px;margin:7px 0;overflow-x:auto}
+.nabil-gateway-rich strong{color:#9af2ff}
+#nabilGatewayVisual.open{display:block!important}
+</style>
+<script id="nabil-v117-gateway-render-fix">
+(function(){
+  const gateway=document.getElementById('nabilProfessorGateway');
+  if(!gateway) return;
+  const transcript=gateway.querySelector('#nabilGatewayTranscript');
+  const status=gateway.querySelector('#nabilGatewayStatus');
+  const visualBtn=gateway.querySelector('#nabilGatewayVisualBtn');
+  const visualBox=gateway.querySelector('#nabilGatewayVisual');
+  function esc(s){return String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+  function richAcademic(raw){
+    let t=String(raw||'').replace(/<NABIL_COMPLETE\s*\/>/ig,'').trim();
+    const maths=[];
+    t=t.replace(/\$\$([\s\S]*?)\$\$/g,function(_,m){const i=maths.push({m:m,display:true})-1;return '@@MATH'+i+'@@';})
+       .replace(/\\\[([\s\S]*?)\\\]/g,function(_,m){const i=maths.push({m:m,display:true})-1;return '@@MATH'+i+'@@';})
+       .replace(/\$([^\n$]+?)\$/g,function(_,m){const i=maths.push({m:m,display:false})-1;return '@@MATH'+i+'@@';})
+       .replace(/\\\((.*?)\\\)/g,function(_,m){const i=maths.push({m:m,display:false})-1;return '@@MATH'+i+'@@';});
+    t=esc(t);
+    t=t.replace(/^####\s+(.+)$/gm,'<h4>$1</h4>')
+       .replace(/^###\s+(.+)$/gm,'<h3>$1</h3>')
+       .replace(/^##\s+(.+)$/gm,'<h3>$1</h3>')
+       .replace(/^#\s+(.+)$/gm,'<h3>$1</h3>')
+       .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+       .replace(/^[-•]\s+(.+)$/gm,'<div class="gw-section">• $1</div>')
+       .replace(/^\d+\.\s+(.+)$/gm,'<div class="gw-section">$1</div>')
+       .replace(/\n{2,}/g,'</div><div class="gw-section">')
+       .replace(/\n/g,'<br>');
+    t='<div class="gw-section">'+t+'</div>';
+    t=t.replace(/@@MATH(\d+)@@/g,function(_,i){
+      const o=maths[+i]; if(!o) return '';
+      const latex=o.m.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&');
+      return o.display?'<div class="gw-math">\\['+latex+'\\]</div>':'\\('+latex+'\\)';
+    });
+    return '<div class="nabil-gateway-rich">'+t+'</div>';
+  }
+  function addTeacher(reply){
+    if(!transcript) return;
+    const d=document.createElement('div');
+    d.className='nabil-gateway-line nabil';
+    d.innerHTML='<div class="nabil-gateway-teacher-label">الأستاذ نبيل:</div>'+richAcademic(reply);
+    transcript.appendChild(d); transcript.scrollTop=transcript.scrollHeight;
+    try{MathJax?.typesetPromise?.([d]);}catch(_e){}
+  }
+  window.nabilGatewayPresentAnswer=function(question,reply,result){
+    gateway.classList.add('live-chat');
+    addTeacher(reply);
+    if(status) status.textContent='🎙 أنا سامعك. اسألني عن أي خطوة أو اطلب الرسمة.';
+    let html='';
+    try{
+      const drawings=Array.isArray(result?.drawings)?result.drawings:[];
+      if(drawings.length && typeof renderNabilDiagram==='function') html=drawings.map(function(x){return renderNabilDiagram(x);}).filter(Boolean).join('');
+      if(!html && typeof window.nabilVoiceBuildVisual==='function') html=window.nabilVoiceBuildVisual(nabilNormalizeNaturalMathUtterance(question),reply)||'';
+    }catch(e){console.warn('gateway visual',e);}
+    if(html){
+      visualBox.innerHTML=html; visualBtn?.classList.add('ready');
+      if(/فرجيني|ورجيني|اعرض|أعرض|figure|graph|draw|رسمة|رسم|table|جدول|study/i.test(String(question||''))) visualBox.classList.add('open');
+      try{MathJax?.typesetPromise?.([visualBox]);}catch(_e){}
+    }
+  };
+})();
+</script>
+
+
+<style id="nabil-v118-live-voice-core-style">
+#nabilProfessorGateway.gateway-listening #nabilGatewayTalk,
+#nabilProfessorGateway.gateway-listening #nabilGatewayMic{background:linear-gradient(135deg,#0ea5e9,#0369a1)!important;box-shadow:0 0 0 4px rgba(14,165,233,.18),0 0 26px rgba(14,165,233,.45)!important}
+#nabilGatewayTranscript .v118-answer{direction:rtl;text-align:right;line-height:1.9}
+#nabilGatewayTranscript .v118-answer .math{direction:ltr;text-align:center;background:#071d32;border:1px solid #238ac0;border-radius:10px;padding:8px;margin:8px 0;overflow:auto}
+#nabilGatewayTranscript .v118-answer h3{color:#67e8f9;margin:10px 0 5px;font-size:17px}
+#nabilGatewayTranscript .v118-answer p{margin:5px 0}
+</style>
+<script id="nabil-v118-live-voice-core">
+(function(){
+  const gateway=document.getElementById('nabilProfessorGateway');
+  if(!gateway) return;
+  const talk=gateway.querySelector('#nabilGatewayTalk');
+  const mic=gateway.querySelector('#nabilGatewayMic');
+  const status=gateway.querySelector('#nabilGatewayStatus');
+  const transcript=gateway.querySelector('#nabilGatewayTranscript');
+  const input=gateway.querySelector('#nabilGatewayInput');
+  const send=gateway.querySelector('#nabilGatewaySend');
+  const visualBtn=gateway.querySelector('#nabilGatewayVisualBtn');
+  const visualBox=gateway.querySelector('#nabilGatewayVisual');
+
+  let rec=null, listening=false, busy=false, finalText='', interimText='', silenceTimer=null;
+
+  function esc(s){return String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+  function renderRich(raw){
+    let t=String(raw||'').replace(/<NABIL_COMPLETE\s*\/>/ig,'').replace(/<NABIL_SPOKEN>[\s\S]*?<\/NABIL_SPOKEN>/ig,'').trim();
+    const maths=[];
+    t=t.replace(/\$\$([\s\S]*?)\$\$/g,(_,m)=>`@@M${maths.push(m)-1}@@`)
+       .replace(/\\\[([\s\S]*?)\\\]/g,(_,m)=>`@@M${maths.push(m)-1}@@`)
+       .replace(/\$([^\n$]+?)\$/g,(_,m)=>`@@I${maths.push(m)-1}@@`)
+       .replace(/\\\((.*?)\\\)/g,(_,m)=>`@@I${maths.push(m)-1}@@`);
+    t=esc(t)
+      .replace(/^#{1,4}\s+(.+)$/gm,'<h3>$1</h3>')
+      .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+      .replace(/^[-•]\s+(.+)$/gm,'<p>• $1</p>')
+      .replace(/^\d+[.)]\s+(.+)$/gm,'<p>$1</p>')
+      .replace(/\n{2,}/g,'</p><p>')
+      .replace(/\n/g,'<br>');
+    t='<p>'+t+'</p>';
+    t=t.replace(/@@([MI])(\d+)@@/g,(_,k,i)=>{
+      const m=maths[+i]||'';
+      return k==='M'?`<div class="math">\\[${m}\\]</div>`:`\\(${m}\\)`;
+    });
+    return `<div class="v118-answer">${t}</div>`;
+  }
+  function line(role,text,rich=false){
+    if(!transcript||!text) return;
+    const d=document.createElement('div');
+    d.className='nabil-gateway-line '+(role==='student'?'student':'nabil');
+    if(role==='student') d.textContent='الطالب: '+String(text);
+    else d.innerHTML='<div class="nabil-gateway-teacher-label">الأستاذ نبيل:</div>'+(rich?renderRich(text):esc(text));
+    transcript.appendChild(d); transcript.scrollTop=transcript.scrollHeight;
+    try{MathJax?.typesetPromise?.([d]);}catch(_e){}
+  }
+  function setListenUI(on){
+    listening=!!on; gateway.classList.toggle('gateway-listening',listening);
+    if(talk) talk.textContent=listening?'⏹ إيقاف وإرسال':'🎙 تحدث معي الآن';
+    if(mic) mic.textContent=listening?'⏹':'🎙️';
+  }
+  function normalizeSpoken(q){
+    let s=String(q||'').trim();
+    s=s.replace(/\bf\s*of\s*x\b/ig,'f(x)')
+       .replace(/\bf\s*x\b/ig,'f(x)')
+       .replace(/\bln\s*(?:of\s*)?x\b/ig,'ln(x)')
+       .replace(/\blog\s*(?:of\s*)?x\b/ig,'log(x)')
+       .replace(/\s+over\s+/ig,' / ')
+       .replace(/\bdivided by\b/ig,' / ');
+    return s;
+  }
+  function requestedVisual(q){return /graph|figure|draw|drawing|diagram|table|variation|رسمة|رسم|اعرض|أعرض|فرجيني|ورجيني|جدول|study/i.test(String(q||''));}
+
+  async function showVisual(question,reply,result){
+    let html='';
+    try{
+      const drawings=Array.isArray(result?.drawings)?result.drawings:[];
+      if(drawings.length && typeof renderNabilDiagram==='function') html=drawings.map(d=>renderNabilDiagram(d)).filter(Boolean).join('');
+      if(!html && typeof window.nabilVoiceBuildVisual==='function') html=window.nabilVoiceBuildVisual(normalizeSpoken(question),reply)||'';
+    }catch(e){console.warn('v118 visual',e);}
+    if(html && visualBox){
+      visualBox.innerHTML=html; visualBtn?.classList.add('ready');
+      if(requestedVisual(question)) visualBox.classList.add('open');
+      try{MathJax?.typesetPromise?.([visualBox]);}catch(_e){}
+    }
+  }
+
+  async function ask(question){
+    const q=normalizeSpoken(question); if(!q||busy) return;
+    busy=true; gateway.classList.add('live-chat');
+    if(status) status.textContent='🧠 الأستاذ نبيل يفهم السؤال ويحلّه...';
+    try{
+      const language=(typeof nabilVoiceLanguageFromQuestion==='function')?nabilVoiceLanguageFromQuestion(q):'العربية';
+      const result=await nabilUnifiedTutorRequest(q,{language,teachingMode:'gateway_live_voice'});
+      line('nabil',result.reply,true);
+      await showVisual(q,result.reply,result);
+      if(status) status.textContent='🎙 اسألني مباشرة أو اطلب graph / table / figure.';
+      let spoken=result.spoken||result.reply;
+      try{ if(typeof nabilBoardPlainSpeech==='function') spoken=nabilBoardPlainSpeech(spoken); }catch(_e){}
+      stopNabilNeuralVoice?.(); try{speechSynthesis?.cancel?.();}catch(_e){}
+      await nabilSpeakClear(spoken,language,{onstart:()=>{},onend:()=>{}});
+    }catch(err){
+      console.error('v118 gateway ask',err);
+      if(status) status.textContent='⚠️ تعذّر إرسال السؤال. اكتب السؤال أو اضغط الميكروفون وجرب مباشرة.';
+    }finally{busy=false;}
+  }
+
+  function ensureRec(){
+    if(rec) return rec;
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SR) return null;
+    rec=new SR(); rec.continuous=true; rec.interimResults=true; rec.maxAlternatives=1; rec.lang='ar-LB';
+    rec.onstart=()=>{setListenUI(true); if(status) status.textContent='🎙 عم بسمعك... احكي طبيعي.';};
+    rec.onresult=e=>{
+      interimText='';
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        const p=String(e.results[i][0]?.transcript||'').trim(); if(!p) continue;
+        if(e.results[i].isFinal) finalText=(finalText+' '+p).trim(); else interimText=(interimText+' '+p).trim();
+      }
+      const preview=[finalText,interimText].filter(Boolean).join(' ').trim();
+      if(status&&preview) status.textContent='🎙 '+preview;
+      clearTimeout(silenceTimer);
+      if(finalText) silenceTimer=setTimeout(()=>finish(true),1400);
+    };
+    rec.onerror=e=>{
+      if(e.error==='language-not-supported'){try{rec.lang='ar-SA';}catch(_e){}}
+      if(['not-allowed','service-not-allowed'].includes(e.error)){setListenUI(false);if(status)status.textContent='🎙 اسمح للميكروفون ثم جرّب.';}
+    };
+    rec.onend=()=>{ if(listening){try{rec.start();}catch(_e){}} };
+    return rec;
+  }
+  function start(){
+    if(busy) return;
+    stopNabilNeuralVoice?.(); try{speechSynthesis?.cancel?.();}catch(_e){}
+    finalText=''; interimText=''; clearTimeout(silenceTimer);
+    const r=ensureRec(); if(!r){if(status)status.textContent='🎙 المتصفح لا يدعم Speech Recognition. استخدم الكتابة.';return;}
+    setListenUI(true); try{r.start();}catch(_e){}
+  }
+  async function finish(auto=false){
+    if(!listening) return;
+    setListenUI(false); clearTimeout(silenceTimer);
+    try{rec?.stop();}catch(_e){}
+    const q=String([finalText,interimText].filter(Boolean).join(' ')).trim(); finalText=''; interimText='';
+    if(!q){if(status)status.textContent='🎙 ما وصلني كلام واضح.';return;}
+    line('student',q,false); await ask(q);
+  }
+  function toggle(e){e?.preventDefault?.();e?.stopImmediatePropagation?.(); listening?finish(false):start();}
+
+  talk?.addEventListener('click',toggle,true);
+  mic?.addEventListener('click',toggle,true);
+  visualBtn?.addEventListener('click',e=>{e.preventDefault();visualBox?.classList.toggle('open');},true);
+  send?.addEventListener('click',async e=>{e.preventDefault();e.stopImmediatePropagation();const q=String(input?.value||'').trim();if(!q)return;input.value='';line('student',q);await ask(q);},true);
+  input?.addEventListener('keydown',async e=>{if(e.key==='Enter'){e.preventDefault();e.stopImmediatePropagation();const q=String(input.value||'').trim();if(!q)return;input.value='';line('student',q);await ask(q);}},true);
+
+  window.nabilV118Voice={start,finish,ask};
+})();
+</script>
+
+
+
+<!-- NABIL LIVE REALTIME — WebRTC full-duplex voice, same startup gateway -->
+<style id="nabil-live-realtime-style">
+#nabilProfessorGateway.rt-connected .nabil-gateway-status{background:linear-gradient(90deg,rgba(0,153,255,.42),rgba(0,225,255,.18));color:#eaffff;box-shadow:inset 0 0 24px rgba(35,205,255,.18)}
+#nabilProfessorGateway.rt-listening #nabilGatewayTalk,#nabilProfessorGateway.rt-listening #nabilGatewayMic{background:linear-gradient(135deg,#0284c7,#06b6d4)!important;box-shadow:0 0 0 5px rgba(34,211,238,.18),0 0 30px rgba(14,165,233,.5)!important}
+#nabilProfessorGateway.rt-speaking .nabil-gateway-avatar{filter:drop-shadow(0 0 28px rgba(61,216,255,.28))}
+#nabilProfessorGateway.rt-speaking .nabil-gateway-avatar img{animation:nabilRtSpeak .55s ease-in-out infinite alternate}
+@keyframes nabilRtSpeak{from{transform:translateY(0) scale(1)}to{transform:translateY(-2px) scale(1.006)}}
+</style>
+<script id="nabil-live-realtime-core">
+(function(){
+  const gw=document.getElementById('nabilProfessorGateway');
+  if(!gw || window.NabilRealtimeVoice) return;
+
+  const status=gw.querySelector('#nabilGatewayStatus');
+  const transcript=gw.querySelector('#nabilGatewayTranscript');
+  const visualBtn=gw.querySelector('#nabilGatewayVisualBtn');
+  const visualBox=gw.querySelector('#nabilGatewayVisual');
+
+  function replaceButton(id){
+    const old=document.getElementById(id); if(!old) return null;
+    const neu=old.cloneNode(true); old.replaceWith(neu); return neu;
+  }
+  // Strip the old push-to-talk listeners. Realtime owns these buttons now.
+  const talk=replaceButton('nabilGatewayTalk');
+  const mic=replaceButton('nabilGatewayMic');
+
+  let pc=null, dc=null, localStream=null, remoteAudio=null;
+  let active=false, connecting=false, assistantText='', lastStudentText='';
+  let visualBusy=false;
+
+  const setState=(text,mode='')=>{
+    if(status) status.textContent=text;
+    gw.classList.toggle('rt-connected',active);
+    gw.classList.toggle('rt-listening',mode==='listening');
+    gw.classList.toggle('rt-speaking',mode==='speaking');
+    if(talk) talk.textContent=active?'⏹ إنهاء المحادثة':'🎙 تحدث معي مباشرة';
+    if(mic) mic.textContent=active?'🔵':'🎙️';
+  };
+
+  function addLine(role,text){
+    text=String(text||'').trim(); if(!text||!transcript) return;
+    const d=document.createElement('div');
+    d.className='nabil-gateway-line '+(role==='student'?'student':'nabil');
+    if(role==='student'){
+      d.textContent='الطالب: '+text;
+    }else{
+      const lab=document.createElement('div'); lab.className='nabil-gateway-teacher-label'; lab.textContent='الأستاذ نبيل:';
+      const body=document.createElement('div'); body.textContent=text;
+      d.append(lab,body);
+    }
+    transcript.appendChild(d); transcript.scrollTop=transcript.scrollHeight;
+  }
+
+  function academicVisualIntent(text){
+    return /graph|figure|draw|drawing|diagram|variation table|table of variation|plot|ارسم|رسمة|رسم|اعرض|أعرض|فرجيني|ورجيني|جدول التغير|جدول التغيّر/i.test(String(text||''));
+  }
+
+  async function buildVisualFromStudent(text){
+    if(visualBusy || !academicVisualIntent(text)) return;
+    visualBusy=true;
+    try{
+      const q=String(text||'').trim();
+      if(!q) return;
+      // Use the platform's full academic engine only for the visual/card layer.
+      if(typeof nabilUnifiedTutorRequest==='function'){
+        const language=typeof nabilVoiceLanguageFromQuestion==='function'?nabilVoiceLanguageFromQuestion(q):'العربية';
+        const r=await nabilUnifiedTutorRequest(q+'\n\n[VISUAL LAYER: create the correct graph/diagram/table/card now. Keep the same mathematical/scientific problem.]',{language,teachingMode:'realtime_visual_layer'});
+        let html='';
+        const drawings=Array.isArray(r?.drawings)?r.drawings:[];
+        if(drawings.length && typeof renderNabilDiagram==='function') html=drawings.map(x=>renderNabilDiagram(x)).filter(Boolean).join('');
+        if(!html && typeof window.nabilVoiceBuildVisual==='function') html=window.nabilVoiceBuildVisual(q,r?.reply||'')||'';
+        if(html && visualBox){
+          visualBox.innerHTML=html; visualBox.classList.add('open'); visualBtn?.classList.add('ready');
+          try{MathJax?.typesetPromise?.([visualBox]);}catch(_e){}
+        }
+      }
+    }catch(e){console.warn('Realtime visual layer:',e);} finally{visualBusy=false;}
+  }
+
+  function extractText(ev){
+    return String(ev?.transcript ?? ev?.text ?? ev?.delta ?? ev?.item?.content?.[0]?.transcript ?? '').trim();
+  }
+
+  function handleEvent(ev){
+    const type=String(ev?.type||'');
+    if(!type) return;
+
+    if(type==='input_audio_buffer.speech_started' || type==='input_audio_buffer.speech_started.server'){
+      setState('🎙 سامعك... احكي طبيعي، وقاطعني بأي وقت.','listening');
+      return;
+    }
+    if(type==='input_audio_buffer.speech_stopped'){
+      setState('🧠 فهمت عليك...','thinking');
+      return;
+    }
+
+    // User transcript — support both current and earlier Realtime event names.
+    if(type==='conversation.item.input_audio_transcription.completed' || type==='input_audio_transcription.completed'){
+      const t=extractText(ev);
+      if(t && t!==lastStudentText){
+        lastStudentText=t; addLine('student',t); buildVisualFromStudent(t);
+      }
+      return;
+    }
+
+    if(type==='response.output_audio_transcript.delta' || type==='response.audio_transcript.delta' || type==='response.output_text.delta' || type==='response.text.delta'){
+      const d=extractText(ev); if(d) assistantText+=d;
+      setState('🔊 الأستاذ نبيل عم يجاوبك...','speaking');
+      return;
+    }
+    if(type==='response.output_audio_transcript.done' || type==='response.audio_transcript.done' || type==='response.output_text.done' || type==='response.text.done'){
+      const t=extractText(ev) || assistantText;
+      if(t){ addLine('nabil',t); assistantText=''; }
+      return;
+    }
+    if(type==='response.done'){
+      if(assistantText){addLine('nabil',assistantText);assistantText='';}
+      setState('🎙 أنا معك — احكي مباشرة.','listening');
+      return;
+    }
+    if(type==='error'){
+      console.error('Realtime API error',ev);
+      setState('⚠️ صار خطأ بالصوت المباشر. جرّب مرة ثانية.','');
+    }
+  }
+
+  async function start(){
+    if(active||connecting) return;
+    connecting=true; gw.classList.add('live-chat');
+    setState('⏳ عم وصّل الصوت المباشر...','thinking');
+    try{
+      localStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1}});
+      pc=new RTCPeerConnection();
+      remoteAudio=document.createElement('audio'); remoteAudio.autoplay=true; remoteAudio.playsInline=true; remoteAudio.style.display='none';
+      document.body.appendChild(remoteAudio);
+      pc.ontrack=e=>{remoteAudio.srcObject=e.streams[0]; remoteAudio.play().catch(()=>{});};
+      localStream.getTracks().forEach(track=>pc.addTrack(track,localStream));
+
+      dc=pc.createDataChannel('oai-events');
+      dc.onmessage=e=>{try{handleEvent(JSON.parse(e.data));}catch(_e){}};
+      dc.onopen=()=>{
+        active=true; connecting=false;
+        setState('🎙 أنا معك — احكي مباشرة.','listening');
+        // Extra client-side session update: concise live tutor + natural multilingual behavior.
+        const instructions=`أنت الأستاذ نبيل، معلّم صوتي حي مباشر. افهم العربية واللهجة اللبنانية والإنجليزية والفرنسية والمزج بينها من المعنى. لا تطلب إعادة السؤال إذا كان مفهوماً. لا تعيد التحية كل مرة. أجب فوراً وبشكل حواري قصير مثل مدرس جالس أمام الطالب. اسمح للطالب أن يقاطعك وتوقف فوراً عند بدء كلامه. في الرياضيات اشرح بالعربية الطبيعية مع إبقاء المصطلحات القياسية: domain, limit, derivative, f prime, increasing, decreasing, maximum, minimum, vertical/horizontal/oblique asymptote, graph, variation table. إذا قال Study the function فقم بالدراسة الفعلية لا بخطة عامة. في الفيزياء والكيمياء والبيولوجي وباقي المواد اشرح المعنى ولا تقرأ الرموز والجداول حرفياً. إذا طلب graph/figure/table/diagram قل باختصار إنك ستعرضها وتابع الشرح. كن سريعاً ومباشراً.`;
+        try{dc.send(JSON.stringify({type:'session.update',session:{instructions,audio:{input:{turn_detection:{type:'semantic_vad',eagerness:'high',create_response:true,interrupt_response:true}}}}}));}catch(_e){}
+      };
+      dc.onclose=()=>{if(active) stop();};
+
+      const offer=await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      const resp=await fetch('/api/realtime/call',{method:'POST',headers:{'Content-Type':'application/sdp'},body:offer.sdp});
+      if(!resp.ok) throw new Error('Realtime endpoint '+resp.status+': '+(await resp.text()).slice(0,400));
+      const answer={type:'answer',sdp:await resp.text()};
+      await pc.setRemoteDescription(answer);
+    }catch(err){
+      console.error('NABIL realtime start',err); connecting=false; await stop(false);
+      setState('⚠️ الصوت المباشر غير موصول بعد. تأكد من إضافة /api/realtime/call في الخادم.','');
+    }
+  }
+
+  async function stop(reset=true){
+    active=false; connecting=false;
+    try{dc?.close();}catch(_e){} dc=null;
+    try{pc?.close();}catch(_e){} pc=null;
+    try{localStream?.getTracks()?.forEach(t=>t.stop());}catch(_e){} localStream=null;
+    if(remoteAudio){try{remoteAudio.pause();}catch(_e){} remoteAudio.srcObject=null; remoteAudio.remove(); remoteAudio=null;}
+    gw.classList.remove('rt-connected','rt-listening','rt-speaking');
+    if(reset) setState('🎙 اضغط «تحدث معي مباشرة» وابدأ الكلام.','');
+  }
+
+  async function toggle(){ if(active||connecting) await stop(); else await start(); }
+  talk?.addEventListener('click',toggle);
+  mic?.addEventListener('click',toggle);
+
+  // The lesson-side Talk to Me button starts exactly the same live session.
+  const lessonBtn=document.getElementById('lessonTalkBtn');
+  if(lessonBtn){
+    const n=lessonBtn.cloneNode(true); lessonBtn.replaceWith(n);
+    n.addEventListener('click',async()=>{
+      if(!active){
+        try{gw.classList.remove('closed');gw.classList.add('live-chat');}catch(_e){}
+        await start();
+      }else await stop();
+    });
+  }
+
+  window.NabilRealtimeVoice={start,stop,toggle,get active(){return active;}};
+})();
 </script>
 </body>
 </html>
