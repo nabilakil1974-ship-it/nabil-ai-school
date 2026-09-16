@@ -5148,33 +5148,18 @@ async def nabil_realtime_call(request: Request):
     if not sdp:
         raise HTTPException(status_code=400, detail="Missing SDP offer")
 
+    # Keep the startup session deliberately minimal and aligned with the
+    # documented unified WebRTC interface.  Extra live behaviour (VAD,
+    # interruption, etc.) is handled by Realtime defaults and the model
+    # instructions; this avoids rejecting the SDP handshake because of a
+    # provider-side schema change.
     session = {
         "type": "realtime",
         "model": "gpt-realtime-2.1",
-        "output_modalities": ["audio"],
         "instructions": NABIL_REALTIME_INSTRUCTIONS,
         "audio": {
-            "input": {
-                "noise_reduction": {"type": "near_field"},
-                "transcription": {
-                    "model": "gpt-transcribe",
-                    "prompt": (
-                        "Lebanese Arabic educational speech mixed with English and French. "
-                        "Preserve mathematical/scientific terms and formulas accurately: "
-                        "f of x, ln x, domain, limit, derivative, asymptote, graph, table of variation, "
-                        "force, voltage, current, ion, electron, DNA."
-                    ),
-                },
-                "turn_detection": {
-                    "type": "semantic_vad",
-                    "eagerness": "high",
-                    "create_response": True,
-                    "interrupt_response": True,
-                },
-            },
             "output": {
                 "voice": "marin",
-                "speed": 1.08,
             },
         },
     }
@@ -5198,6 +5183,7 @@ async def nabil_realtime_call(request: Request):
     return Response(
         content=response.text,
         media_type="application/sdp",
-        status_code=201,
+        status_code=200,
+        headers={"Cache-Control": "no-store"},
     )
 
