@@ -4422,6 +4422,55 @@ body.nabil-home-lock::before{
     }
 }
 
+
+
+/* ============================================================
+   v60 — Strict function-study reference layout + graph integrity
+   ============================================================ */
+@media (min-width:851px){
+  .reference-function-study-board .function-study-reference-stage{
+    grid-template-columns:minmax(360px, 0.92fr) minmax(500px, 1.18fr)!important;
+    gap:16px!important;
+    align-items:stretch!important;
+  }
+  .reference-function-study-board .function-study-reference-summary-card,
+  .reference-function-study-board .exercise-function-graph-variation{
+    width:100%!important;
+    min-width:0!important;
+    max-width:none!important;
+    box-sizing:border-box!important;
+  }
+}
+.reference-function-study-board .function-study-reference-summary-card{
+  overflow:hidden!important;
+}
+.reference-function-study-board .function-study-summary-value{
+  white-space:normal!important;
+  overflow-wrap:anywhere!important;
+}
+.reference-function-study-board .nabil-authoritative-function-visual,
+.reference-function-study-board .nabil-authoritative-function-visual .nabil-visual,
+.reference-function-study-board .nabil-authoritative-function-visual .nabil-reference-function-generic{
+  width:100%!important;
+  max-width:none!important;
+  min-width:0!important;
+}
+.reference-function-study-board .exercise-function-visual .exercise-visual-panel{
+  width:100%!important;
+  min-width:0!important;
+}
+.reference-function-study-board h3,
+.reference-function-study-board h4{
+  white-space:normal!important;
+}
+@media (max-width:850px){
+  .reference-function-study-board .function-study-reference-stage{
+    display:flex!important;
+    flex-direction:column!important;
+  }
+  .reference-function-study-board .function-study-reference-stage > .exercise-function-graph-variation{order:1!important;}
+  .reference-function-study-board .function-study-reference-stage > .function-study-reference-summary-card{order:2!important;}
+}
 </style>
 </head>
 
@@ -5356,6 +5405,17 @@ function functionGraphTitle(messageLanguage){
 }
 
 
+function nabilFunctionGraphHeading(messageLanguage, expression){
+    const expr=nabilCleanFunctionExpressionLabel(expression||"");
+    if(!expr) return functionGraphTitle(messageLanguage);
+
+    const fx=`f(x) = ${expr}`;
+    if(messageLanguage==="English") return `Graph of ${fx}`;
+    if(messageLanguage==="Français") return `Représentation graphique de ${fx}`;
+    return `التمثيل البياني للدالة ${fx}`;
+}
+
+
 
 function nabilMarkVariationTables(root=document){
     root.querySelectorAll("table").forEach(table=>{
@@ -5501,7 +5561,7 @@ function nabilAutoFunctionSpecFromBoard(board){
     if(!/f\s*\(\s*x\s*\)|function|fonction|graph|دال|دراسة/.test(text)) return null;
 
     const patterns=[
-        /f\s*\(\s*x\s*\)\s*=\s*([^=\n]+?)(?=(?:\s+(?:domain|variation|limit|asymptote|required|solution|given|formula|property|law|study|draw|ارسم|المطلوب|المعطيات|الحل|القانون))|$)/i,
+        /f\s*\(\s*x\s*\)\s*=\s*([^=\n]+?)(?=(?:\s*(?:domain|variation|limit|asymptote|required|solution|given|formula|property|law|study|draw|ارسم|المطلوب|المعطيات|الحل|القانون))|$)/i,
         /draw\s+f\s*x\s*=\s*([^\n]+)$/i,
         /ارسم\s+[^\n]*?f\s*\(\s*x\s*\)\s*=\s*([^\n]+)/i
     ];
@@ -5531,18 +5591,20 @@ function nabilAutoFunctionSpecFromBoard(board){
         spec.ymin=-3.2;
         spec.ymax=1.2;
         spec.vertical_asymptote=0;
+        spec.expression="ln(x)/x";
+        spec.reference_layout=true;
         spec.markers=[
             {x:1,y:0,label:"(1, 0)"},
             {x:Math.E,y:1/Math.E,label:"(e, 1/e)"}
         ];
     }
 
-    if(/\bln\b|\\ln|Math\.log/i.test(normalized)){
+    if(!nabilIsLnXOverXExpression(expr) && /\bln\b|\\ln|Math\.log/i.test(normalized)){
         spec.xmin=0.08; spec.xmax=8; spec.ymin=-3.5; spec.ymax=2.5;
         if(/\/\s*x\b/.test(normalized) || /x\s*\*\*\s*-1/.test(normalized)){
             spec.ymin=-2.8; spec.ymax=1.8;
         }
-    }else if(/1\s*\/\s*x|Math\.abs\(x\)\s*\/|inverse/i.test(normalized)){
+    }else if(!nabilIsLnXOverXExpression(expr) && /1\s*\/\s*x|Math\.abs\(x\)\s*\/|inverse/i.test(normalized)){
         spec.xmin=-6; spec.xmax=6; spec.ymin=-8; spec.ymax=8; spec.vertical_asymptote=0;
     }else{
         spec.xmin=-6; spec.xmax=6; spec.ymin=-8; spec.ymax=8;
@@ -5555,9 +5617,24 @@ function nabilAutoFunctionSpecFromBoard(board){
     return spec;
 }
 
+function nabilNormalizeRawMarkdownHeadingsHTML(html){
+    let src=String(html||"");
+    // Some provider replies occasionally leave Markdown hashes inside <p>.
+    // Convert those to real headings before the function-study parser runs.
+    src=src.replace(/<p>\s*(#{2,6})\s*([^<]+?)\s*<\/p>/gi,(_,hashes,title)=>{
+        const level=Math.min(6,Math.max(3,hashes.length));
+        return `<h${level}>${String(title||"").trim()}</h${level}>`;
+    });
+    src=src.replace(/(^|>)(#{2,6})\s+([^<\n]+)(?=<|$)/g,(_,lead,hashes,title)=>{
+        const level=Math.min(6,Math.max(3,hashes.length));
+        return `${lead}<h${level}>${String(title||"").trim()}</h${level}>`;
+    });
+    return src;
+}
+
 function nabilSplitFunctionBlocksFromHTML(html, messageLanguage){
     const holder = document.createElement("div");
-    holder.innerHTML = html || "";
+    holder.innerHTML = nabilNormalizeRawMarkdownHeadingsHTML(html || "");
     const trigger = /(domain|intercept|asymptote|derivative|critical|extrema|maximum|minimum|monotonicity|variation|limits?|step\s*\d+|solution|graph|domaine|asymptote|dériv|variations|limites|domaine|المجال|التقاطع|المقارب|المشتق|المشتقة|النقاط الحرجة|التزايد|التناقص|النهايات|الاشتقاق|الجواب النهائي)/i;
     const titleOnly = /(given|required|formula|property|solution|final answer|rule summary|المعطيات|المطلوب|القانون|الخاصية|الحل|الجواب النهائي|خلاصة)/i;
     const blocks = [];
@@ -6429,11 +6506,23 @@ ${rawVariationHTML}`);
             ...board.sections.map(s => `${s.title} ${renderNodesAsHTML(s.nodes)}`)
         ].join(" ");
 
-        const autoFunctionSpec = !diagramsForThis.length ? nabilAutoFunctionSpecFromBoard(board) : null;
+        // v60: derive the mathematical function from THIS board even when a
+        // backend visual already exists. This lets us reject stale/wrong lesson
+        // visuals and guarantees the graph corresponds to f(x) in the exercise.
+        const autoFunctionSpec = nabilAutoFunctionSpecFromBoard(board);
+        const functionStudyNow = false; // v67 diagnostic: NO special function-study formatting
+
+        if(autoFunctionSpec){
+            const rendered=renderNabilDiagram(autoFunctionSpec);
+            if(rendered){
+                diagramsForThis=[`<div class="linked-lesson-visual nabil-authoritative-function-visual" data-card-index="${boardIndex+1}" data-diagram-type="${nabilEsc(String(autoFunctionSpec.type||"").toLowerCase())}">${rendered}</div>`];
+            }
+        }
+
         const autoSubjectSpecs = (!diagramsForThis.length && !autoFunctionSpec) ? nabilAutoSubjectDiagramSpecs(wholeBoardText) : [];
         if(!diagramsForThis.length && autoFunctionSpec){
             const rendered=renderNabilDiagram(autoFunctionSpec);
-            if(rendered) diagramsForThis=[`<div class="linked-lesson-visual" data-card-index="${boardIndex+1}" data-diagram-type="${nabilEsc(String(autoFunctionSpec.type||"").toLowerCase())}">${rendered}</div>`];
+            if(rendered) diagramsForThis=[`<div class="linked-lesson-visual nabil-authoritative-function-visual" data-card-index="${boardIndex+1}" data-diagram-type="${nabilEsc(String(autoFunctionSpec.type||"").toLowerCase())}">${rendered}</div>`];
         }else if(!diagramsForThis.length && autoSubjectSpecs.length){
             diagramsForThis=autoSubjectSpecs.map(spec=>{
                 const rendered=renderNabilDiagram(spec);
@@ -6442,22 +6531,14 @@ ${rawVariationHTML}`);
         }
         const hasReliableVisual = Boolean(diagramsForThis.length);
         const visualHTML = diagramsForThis.join("");
-
-        if (isFunctionStudyBoard(board, wholeBoardText)) {
-            const leftColumnHTML = nabilFunctionLeftColumnHTML({
-                givenHTML, requiredHTML, formulaHTML
-            }, messageLanguage);
-
-            const centerColumnHTML = nabilFunctionCenterColumnHTML({
-                solutionBodyHTML: cleanedSolutionBodyHTML,
-                solutionHTML,
-                extraHTML
-            }, messageLanguage);
-
-            const finalStripHTML = nabilFunctionFinalStripHTML({
-                answerHTML, summaryHTML
-            });
-
+        if (functionStudyNow) {
+            const functionTitle = title || functionBoardTitle(messageLanguage);
+            const trustedFunctionExpression = nabilCleanFunctionExpressionLabel(
+                autoFunctionSpec?.expression || autoFunctionSpec?.formula || autoFunctionSpec?.equation || ""
+            );
+            const graphHeading = nabilFunctionGraphHeading(messageLanguage, trustedFunctionExpression);
+            const contextHTML = [givenHTML, requiredHTML, formulaHTML].filter(Boolean).join("");
+            const mainSolutionHTML = [solutionHTML, extraHTML].filter(Boolean).join("");
             const hasGraph = Boolean(String(visualHTML || "").trim());
             const hasVariation = Boolean(
                 variationTextHTML ||
@@ -6466,77 +6547,45 @@ ${rawVariationHTML}`);
                 autoVariationTableHTML
             );
 
-            const summaryCardHTML=nabilBuildStudyOfFunctionCard({
-                solutionBodyHTML:cleanedSolutionBodyHTML,
-                wholeBoardText,
-                summaryHTML,
-                messageLanguage,
-                fallbackExpression:autoFunctionSpec?.expression || ""
-            });
+            const variationRenderedHTML = hasVariation ? `
+                <section class="exercise-section-card exercise-summary-card section-tone-2 function-study-variation-zone">
+                    <h3 class="exercise-variation-title">${variationTitle(messageLanguage)}</h3>
+                    ${variationTextHTML ? `<div class="exercise-variation-richtext">${variationTextHTML}</div>` : ""}
+                    ${variationTables.map(t=>decorateVariationTableHTML(t,messageLanguage)).join("")}
+                    ${!variationTables.length && autoExtractedVariation
+                        ? decorateVariationTableHTML(autoExtractedVariation,messageLanguage)
+                        : ""}
+                    ${!variationTables.length && !autoExtractedVariation && autoVariationTableHTML
+                        ? decorateVariationTableHTML(autoVariationTableHTML,messageLanguage)
+                        : ""}
+                </section>
+            ` : "";
 
-            const detailsLabel=nabilStudyFunctionLabels(messageLanguage).details;
+            const visualRenderedHTML = hasGraph ? `
+                <section class="exercise-section-card section-tone-1 function-study-visual-zone">
+                    <h3 class="exercise-function-visual-title">${graphHeading}</h3>
+                    <div class="exercise-visual-panel ${diagramsForThis.length > 1 ? "multi-diagram-panel" : ""}">
+                        ${visualHTML}
+                    </div>
+                </section>
+            ` : "";
 
             return `
-            <article class="exercise-board function-study-board full-width-board compact-function-board reference-function-study-board" dir="${messageDirection}">
-                <div class="exercise-function-board compact-function-stack">
-
-                    <!-- REFERENCE LAYOUT: summary card left, graph + variation right -->
-                    <section class="function-study-reference-stage">
-                        ${summaryCardHTML}
-
-                        ${(hasGraph || hasVariation) ? `
-                            <section class="exercise-function-graph-variation" dir="${messageDirection}">
-                                ${hasGraph ? `
-                                    <div class="exercise-function-visual">
-                                        <div class="exercise-function-visual-title">${functionGraphTitle(messageLanguage)}</div>
-                                        <div class="exercise-visual-panel ${diagramsForThis.length > 1 ? "multi-diagram-panel" : ""}">
-                                            ${visualHTML}
-                                        </div>
-                                    </div>
-                                ` : ""}
-
-                                ${hasVariation ? `
-                                    <div class="exercise-variation-zone function-variation-stack">
-                                        <div class="exercise-variation-title">${variationTitle(messageLanguage)}</div>
-                                        ${variationTextHTML ? `<div class="exercise-variation-richtext">${variationTextHTML}</div>` : ""}
-                                        ${variationTables.map(t=>decorateVariationTableHTML(t,messageLanguage)).join("")}
-                                        ${!variationTables.length && autoExtractedVariation
-                                            ? decorateVariationTableHTML(autoExtractedVariation,messageLanguage)
-                                            : ""}
-                                        ${!variationTables.length && !autoExtractedVariation && autoVariationTableHTML
-                                            ? decorateVariationTableHTML(autoVariationTableHTML,messageLanguage)
-                                            : ""}
-                                    </div>
-                                ` : ""}
-                            </section>
-                        ` : ""}
-                    </section>
-
-                    <!-- Full solution stays below the reference card -->
-                    <section class="function-study-detailed-solution" dir="${messageDirection}">
-                        <div class="function-study-detailed-title">${nabilEsc(detailsLabel)}</div>
-
-                        <div class="function-study-detailed-grid">
-                            ${leftColumnHTML ? `
-                                <section class="exercise-function-study" dir="${messageDirection}">
-                                    ${leftColumnHTML}
-                                </section>
-                            ` : ""}
-
-                            ${centerColumnHTML ? `
-                                <section class="exercise-function-keypoints" dir="${messageDirection}">
-                                    ${centerColumnHTML}
-                                </section>
-                            ` : ""}
-                        </div>
-
-                        ${finalStripHTML ? `
-                            <section class="exercise-function-final-strip" dir="${messageDirection}">
-                                ${finalStripHTML}
-                            </section>
-                        ` : ""}
-                    </section>
+            <article class="exercise-board full-width-board visual-column-board function-study-board function-study-simple-board" dir="${messageDirection}">
+                <div class="exercise-board-head">
+                    <div class="exercise-board-title">${functionTitle}<span class="exercise-layout-badge">${nabilLayoutLabel('math',messageLanguage)}</span></div>
                 </div>
+                ${contextHTML ? `<div class="exercise-context-stack">${contextHTML}</div>` : ""}
+                ${mainSolutionHTML ? `
+                    <div class="exercise-special-layout no-visual function-study-solution-zone">
+                        <section class="exercise-special-content">
+                            <div class="exercise-idea-stack">${mainSolutionHTML}</div>
+                        </section>
+                    </div>
+                ` : ""}
+                ${visualRenderedHTML}
+                ${variationRenderedHTML}
+                ${(answerHTML||summaryHTML)?`<div class="exercise-bottom-stack">${answerHTML||""}${summaryHTML||""}</div>`:""}
             </article>`;
         }
 
@@ -8655,7 +8704,11 @@ function addMessage(
     ) {
         /* Preserve AI drawings first. If the AI accidentally talks about a diagram
            but omitted DRAWINGS_JSON, use a strictly verified lesson fallback only. */
-        if (!visibleDiagrams.length){
+        // v60: lesson-selected fallbacks are forbidden in General Exercises.
+        // They can inject an unrelated lesson visual (for example, an empty
+        // "Inverse trigonometric functions" plane into a ln(x)/x exercise).
+        // General Exercises must derive visuals only from the current answer/question.
+        if (!visibleDiagrams.length && nabilActivityMode !== "general_exercises"){
             const fallbackVisual = safeFallbackDiagramForReply(visibleText);
             if (fallbackVisual) {
                 visibleDiagrams.push(
@@ -10527,19 +10580,24 @@ function nabilIsLnXOverXExpression(raw){
         .replace(/\s+/g,"")
         .replace(/\\left|\\right/g,"")
         .replace(/\\ln/g,"ln")
-        .replace(/\\log/g,"ln")
-        .replace(/\{/g,"(")
-        .replace(/\}/g,")");
+        .replace(/\\log/g,"ln");
 
-    s=s.replace(/f\(x\)=/g,"");
-    s=s.replace(/y=/g,"");
+    s=s.replace(/f\(x\)=/g,"").replace(/y=/g,"");
+
+    // Normalize common LaTeX forms BEFORE replacing braces.
+    s=s
+      .replace(/\\frac\{(?:ln\(?x\)?|lnx)\}\{x\}/g,"ln(x)/x")
+      .replace(/\\dfrac\{(?:ln\(?x\)?|lnx)\}\{x\}/g,"ln(x)/x")
+      .replace(/\\tfrac\{(?:ln\(?x\)?|lnx)\}\{x\}/g,"ln(x)/x");
+
+    s=s.replace(/\{/g,"(").replace(/\}/g,")");
 
     return (
         s==="ln(x)/x" ||
         s==="lnx/x" ||
         s==="(ln(x))/x" ||
         s==="ln(x)÷x" ||
-        s.includes("frac(ln(x))(x)") ||
+        /(?:frac|dfrac|tfrac)\((?:ln\(?x\)?|lnx)\)\(x\)/.test(s) ||
         /ln\(?x\)?\/x/.test(s)
     );
 }
@@ -10718,9 +10776,101 @@ function nabilRenderLnXOverXReferenceCard(spec){
     </div>`;
 }
 
+
+function nabilNormalizeUniversalFunctionVisualSpec(rawSpec){
+    const spec = {...(rawSpec || {})};
+
+    // Normalize asymptote aliases coming from different model/provider formats.
+    if(spec.vertical_asymptote === undefined){
+        if(spec.verticalAsymptote !== undefined) spec.vertical_asymptote = spec.verticalAsymptote;
+        else if(spec.x_asymptote !== undefined) spec.vertical_asymptote = spec.x_asymptote;
+    }
+    if(!Array.isArray(spec.vertical_asymptotes) && Array.isArray(spec.verticalAsymptotes)){
+        spec.vertical_asymptotes = spec.verticalAsymptotes;
+    }
+
+    if(spec.horizontal_asymptote === undefined){
+        if(spec.horizontalAsymptote !== undefined) spec.horizontal_asymptote = spec.horizontalAsymptote;
+        else if(spec.y_asymptote !== undefined) spec.horizontal_asymptote = spec.y_asymptote;
+    }
+
+    if(spec.oblique_asymptote === undefined){
+        if(spec.obliqueAsymptote !== undefined) spec.oblique_asymptote = spec.obliqueAsymptote;
+        else if(spec.slant_asymptote !== undefined) spec.oblique_asymptote = spec.slant_asymptote;
+    }
+
+    // Accept "y = mx + b" for an oblique asymptote, without inventing values.
+    if(typeof spec.oblique_asymptote === "string"){
+        const s = spec.oblique_asymptote.replace(/\s+/g,"");
+        const m = s.match(/^y=([+-]?(?:\d+(?:\.\d+)?|\.\d+)?)x([+-]\d+(?:\.\d+)?)?$/i);
+        if(m){
+            let slopeText=m[1];
+            if(slopeText==="" || slopeText==="+") slopeText="1";
+            if(slopeText==="-") slopeText="-1";
+            spec.oblique_asymptote = {
+                slope:Number(slopeText),
+                intercept:Number(m[2]||0),
+                label:spec.oblique_asymptote
+            };
+        }
+    }
+
+    // Normalize notable-point aliases. Only data explicitly provided by the solver is used.
+    const markerSources = [];
+    [
+        ["markers", spec.markers],
+        ["critical_points", spec.critical_points],
+        ["criticalPoints", spec.criticalPoints],
+        ["extrema", spec.extrema],
+        ["key_points", spec.key_points],
+        ["keyPoints", spec.keyPoints],
+        ["intercepts", spec.intercepts]
+    ].forEach(([name, arr])=>{
+        if(Array.isArray(arr)) markerSources.push(...arr);
+    });
+
+    if(spec.y_intercept && typeof spec.y_intercept === "object") markerSources.push(spec.y_intercept);
+    if(spec.x_intercept && typeof spec.x_intercept === "object") markerSources.push(spec.x_intercept);
+
+    const seen = new Set();
+    const normalizedMarkers = [];
+    markerSources.forEach((p, i)=>{
+        if(!p || typeof p!=="object") return;
+        const x = Number(p.x ?? p[0]);
+        const y = Number(p.y ?? p[1]);
+        if(!Number.isFinite(x) || !Number.isFinite(y)) return;
+        const key=`${x}|${y}|${p.label||""}`;
+        if(seen.has(key)) return;
+        seen.add(key);
+
+        const kind=String(p.kind || p.type || p.extremum || "").toLowerCase();
+        const isMax=/max|maximum|local_max/.test(kind);
+        const isMin=/min|minimum|local_min/.test(kind);
+        const isIntercept=/intercept|root|zero/.test(kind);
+
+        normalizedMarkers.push({
+            ...p,
+            x,y,
+            extremum:isMax ? "max" : isMin ? "min" : p.extremum,
+            color:p.color || (isMax ? "#ef4444" : isMin ? "#22c55e" : isIntercept ? "#f59e0b" : "#a855f7"),
+            drop_line:p.drop_line ?? (isMax || isMin)
+        });
+    });
+
+    if(normalizedMarkers.length) spec.markers=normalizedMarkers;
+
+    // Universal visual palette for every function graph.
+    spec.function_curve_color = spec.function_curve_color || "#29a7ff";
+    spec.vertical_asymptote_color = spec.vertical_asymptote_color || "#ff4c57";
+    spec.horizontal_asymptote_color = spec.horizontal_asymptote_color || "#f0d84a";
+    spec.oblique_asymptote_color = spec.oblique_asymptote_color || "#f0d84a";
+
+    return spec;
+}
+
 function renderNabilDiagram(rawSpec){
     if (!rawSpec || typeof rawSpec !== "object") return "";
-    const spec=nabilCompleteVisualSpec(rawSpec);
+    const spec=nabilCompleteVisualSpec(nabilNormalizeUniversalFunctionVisualSpec(rawSpec));
 
     const aliases = {
         "periodic-table":"periodic_table",
@@ -10768,6 +10918,27 @@ function renderNabilDiagram(rawSpec){
 
     const rawType = String(spec.type || "").toLowerCase();
     let t = aliases[rawType] || rawType;
+
+    // v61 — authoritative function-reference routing.
+    // Every function uses the same visual family; exact canonical functions may
+    // use a mathematically verified reference card. Never downgrade a function
+    // study to a generic/empty coordinate plane.
+    const nabilFunctionTypes = new Set([
+        "function","graph","function_graph","graph_function",
+        "cartesian_function","function-graph","coordinate-graph","coordinate_plane"
+    ]);
+    if(nabilFunctionTypes.has(t)){
+        const rawExpression = spec.expression || spec.formula || spec.equation ||
+            spec.fx || spec.function_expression || spec.function || "";
+        if(nabilIsLnXOverXExpression(rawExpression)){
+            return nabilRenderLnXOverXReferenceCard({
+                ...spec,
+                type:"function_graph",
+                expression:"ln(x)/x",
+                title:"Graph and Table of Variation"
+            });
+        }
+    }
 
     if (t === "circuit"){
         const modeText = `${spec.mode||""} ${spec.connection||""} ${spec.title||""}`.toLowerCase();
@@ -11152,7 +11323,7 @@ function renderNabilDiagram(rawSpec){
         const legendItems=[];
         const uiLang = (typeof languageSelect!=="undefined" && languageSelect?.value) || "العربية";
 
-        const curveColor = "#29a7ff";
+        const curveColor = spec.function_curve_color || "#29a7ff";
         const cleanExpression = nabilCleanFunctionExpressionLabel(spec.expression || spec.formula || spec.equation || "");
         if(series.length){
             const functionLabel = cleanExpression
@@ -11165,7 +11336,7 @@ function renderNabilDiagram(rawSpec){
             const linePoints=Array.isArray(line)?line:(Array.isArray(line.points)?line.points:[]);
             const poly=linePoints.filter(p=>Array.isArray(p)&&p.length>=2 && Number.isFinite(Number(p[0])) && Number.isFinite(Number(p[1]))).map(p=>`${sx(Number(p[0]))},${sy(Number(p[1]))}`).join(" ");
             if(poly){
-                const renderedCurveColor = i===0 ? "#29a7ff" : (line.color || "#79c8ff");
+                const renderedCurveColor = i===0 ? curveColor : (line.color || "#79c8ff");
                 curves+=`<polyline points="${poly}" fill="none" stroke="${nabilEsc(renderedCurveColor)}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`;
             }
         });
@@ -11176,11 +11347,11 @@ function renderNabilDiagram(rawSpec){
             const isObj = v && typeof v==="object";
             const value=Number(isObj?v.x:v);
             if(!Number.isFinite(value)) return;
-            curves+=`<line x1="${sx(value)}" y1="45" x2="${sx(value)}" y2="265" stroke="#ff4c57" stroke-width="2.5" stroke-dasharray="8 6"/>`;
+            curves+=`<line x1="${sx(value)}" y1="45" x2="${sx(value)}" y2="265" stroke="${nabilEsc(spec.vertical_asymptote_color || "#ff4c57")}" stroke-width="2.5" stroke-dasharray="8 6"/>`;
             const cleanVal = Number(value.toFixed(4)).toString();
             const label = (isObj && v.label) || `x = ${cleanVal}`;
-            curves+=`<text x="${sx(value)+6}" y="58" class="vlab vsmall" style="fill:#ff8080">${nabilEsc(label)}</text>`;
-            legendItems.push({color:"#ff4c57", dash:true, text:(isObj && v.legend) || `Vertical asymptote: ${label}`});
+            curves+=`<text x="${sx(value)+6}" y="58" class="vlab vsmall" style="fill:${nabilEsc(spec.vertical_asymptote_color || "#ff8080")}">${nabilEsc(label)}</text>`;
+            legendItems.push({color:spec.vertical_asymptote_color || "#ff4c57", dash:true, text:(isObj && v.legend) || `Vertical asymptote: ${label}`});
         });
 
         // ===== Horizontal asymptote — yellow dashed + label, like the reference. =====
@@ -11189,11 +11360,11 @@ function renderNabilDiagram(rawSpec){
             const isObj = horizontal && typeof horizontal==="object";
             const yValue=Number(isObj ? (horizontal.y ?? horizontal.value) : horizontal);
             if(Number.isFinite(yValue) && yValue>=ymin && yValue<=ymax){
-                curves+=`<line x1="${sx(xmin)}" y1="${sy(yValue)}" x2="${sx(xmax)}" y2="${sy(yValue)}" stroke="#f0d84a" stroke-width="2.5" stroke-dasharray="8 6"/>`;
+                curves+=`<line x1="${sx(xmin)}" y1="${sy(yValue)}" x2="${sx(xmax)}" y2="${sy(yValue)}" stroke="${nabilEsc(spec.horizontal_asymptote_color || "#f0d84a")}" stroke-width="2.5" stroke-dasharray="8 6"/>`;
                 const hClean=Number(yValue.toFixed(4)).toString();
                 const hLabel=(isObj && horizontal.label) || `y = ${hClean}`;
-                curves+=`<text x="${sx(xmax)-105}" y="${sy(yValue)-8}" class="vlab vsmall" style="fill:#fff29a">${nabilEsc(hLabel)}</text>`;
-                legendItems.push({color:"#f0d84a",dash:true,text:(isObj && horizontal.legend) || `Horizontal asymptote: ${hLabel}`});
+                curves+=`<text x="${sx(xmax)-105}" y="${sy(yValue)-8}" class="vlab vsmall" style="fill:${nabilEsc(spec.horizontal_asymptote_color || "#fff29a")}">${nabilEsc(hLabel)}</text>`;
+                legendItems.push({color:spec.horizontal_asymptote_color || "#f0d84a",dash:true,text:(isObj && horizontal.legend) || `Horizontal asymptote: ${hLabel}`});
             }
         }
 
@@ -11201,11 +11372,11 @@ function renderNabilDiagram(rawSpec){
         const oblique=spec.oblique_asymptote;
         if(oblique && Number.isFinite(Number(oblique.slope)) && Number.isFinite(Number(oblique.intercept))){
             const m=Number(oblique.slope), b=Number(oblique.intercept);
-            curves+=`<line x1="${sx(xmin)}" y1="${sy(m*xmin+b)}" x2="${sx(xmax)}" y2="${sy(m*xmax+b)}" stroke="#f0d84a" stroke-width="2.5" stroke-dasharray="8 6"/>`;
+            curves+=`<line x1="${sx(xmin)}" y1="${sy(m*xmin+b)}" x2="${sx(xmax)}" y2="${sy(m*xmax+b)}" stroke="${nabilEsc(spec.oblique_asymptote_color || "#f0d84a")}" stroke-width="2.5" stroke-dasharray="8 6"/>`;
             const mClean=Number(m.toFixed(4)), bClean=Math.abs(Number(b.toFixed(4)));
             const obliqueLabel = oblique.label || `y = ${mClean}x ${b>=0?"+":"-"} ${bClean}`;
-            curves+=`<text x="${sx(xmax)-96}" y="${sy(m*xmax+b)-8}" class="vlab vsmall" style="fill:#ffe066">${nabilEsc(obliqueLabel)}</text>`;
-            legendItems.push({color:"#f0d84a", dash:true, text:`Oblique asymptote: ${obliqueLabel}`});
+            curves+=`<text x="${sx(xmax)-96}" y="${sy(m*xmax+b)-8}" class="vlab vsmall" style="fill:${nabilEsc(spec.oblique_asymptote_color || "#ffe066")}">${nabilEsc(obliqueLabel)}</text>`;
+            legendItems.push({color:spec.oblique_asymptote_color || "#f0d84a", dash:true, text:`Oblique asymptote: ${obliqueLabel}`});
         }
 
         // ===== Markers: extrema / key points with a label box, matching the reference. =====
@@ -11299,12 +11470,20 @@ function renderNabilDiagram(rawSpec){
             });
         }
 
+        const plotClipId=`nabilPlotClip_${Math.random().toString(36).slice(2,10)}`;
         const functionSvg = `
-        <svg viewBox="0 0 520 310">
+        <svg viewBox="0 0 520 310" style="overflow:hidden">
+          <defs>
+            <clipPath id="${plotClipId}">
+              <rect x="38" y="40" width="452" height="242" rx="0"/>
+            </clipPath>
+          </defs>
           ${grid}
           <line x1="38" y1="${sy(0)}" x2="490" y2="${sy(0)}" class="vaxis"/>
           <line x1="${sx(0)}" y1="40" x2="${sx(0)}" y2="282" class="vaxis"/>
-          ${curves}
+          <g clip-path="url(#${plotClipId})">
+            ${curves}
+          </g>
           ${legendSvg}
           <text x="495" y="${Math.max(20,sy(0)-7)}" class="vlab vsmall">x</text>
           <text x="${Math.min(495,sx(0)+7)}" y="34" class="vlab vsmall">y</text>
@@ -12333,6 +12512,18 @@ function extractAndRenderNabilDrawings(text){
     raw=raw.replace(/<_?DRAWINGS?_JSON>[\s\S]*$/gi,"");
     raw=raw.replace(/DRAWINGS_JSON\s*:[\s\S]*$/gi,"");
     raw=raw.replace(/```nabil-draw[\s\S]*$/gi,"");
+
+    // v61: providers sometimes emit the drawing object as ordinary JSON without
+    // the DRAWINGS_JSON marker. Strip only drawing-shaped JSON tails so normal
+    // mathematical prose is untouched.
+    raw=raw.replace(/```(?:json)?\s*([\s\S]*?)```/gi,(full,body)=>{
+        const looksDrawing=/"(?:type|x_range|y_range|series|expression|function_expression|vertical_asymptote|markers)"\s*:/i.test(body||"");
+        if(!looksDrawing) return full;
+        tryJSON(body);
+        return "";
+    });
+    raw=raw.replace(/(?:^|\n)\s*[\{\[]?\s*"(?:x_range|y_range|series|axis_labels|vertical_asymptote|markers)"\s*:[\s\S]*$/i,"");
+
     return {text:raw.trim(),diagrams};
 }
 
@@ -12450,8 +12641,10 @@ function autoDiagramSpecForLesson(lesson){
             return {type:"coordinate_plane",title:rawLesson};
         if(/vector|vecteur|متجه/.test(s))
             return {type:"vector_plane",title:rawLesson,vectors:[{label:"u",x:3,y:2}]};
+        // v60: never fabricate a generic/empty coordinate plane for a function lesson.
+        // A function graph is valid only when its actual expression is known.
         if(/function|graph|curve|dériv|derivative|logarith|exponential|continuity|asymptote|داله|دالة|تابع|منحنى/.test(s))
-            return {type:"coordinate_plane",title:rawLesson};
+            return null;
         if(/statistics|statistique|إحصاء|frequency|data/.test(s))
             return {type:"statistics",title:rawLesson};
         if(/probability|probabilité|احتمال/.test(s))
@@ -15897,7 +16090,249 @@ function nabilRenderTeacherAssessment(data){
 function nabilTeacherWordHTML(data){
   const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const parts=(data?.variants||[]).map((v,i)=>`<h1>${esc(v.title||('Model '+(i+1)))}</h1><h2>Student Exam</h2><div style="white-space:pre-wrap">${esc(v.exam)}</div><br style="page-break-before:always"><h2>Correction Scheme</h2><div style="white-space:pre-wrap">${esc(v.correction)}</div>`).join('<br style="page-break-before:always">');
-  return `<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:Arial,'Times New Roman',sans-serif;line-height:1.55}h1,h2{margin-bottom:10px}</style></head><body>${parts}</body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:Arial,'Times New Roman',sans-serif;line-height:1.55}h1,h2{margin-bottom:10px}
+/* v61 — ONE REFERENCE FORMAT FOR ALL FUNCTION STUDIES */
+.nabil-authoritative-function-visual,
+.linked-lesson-visual[data-diagram-type="function"],
+.linked-lesson-visual[data-diagram-type="function_graph"],
+.linked-lesson-visual[data-diagram-type="graph_function"],
+.linked-lesson-visual[data-diagram-type="cartesian_function"]{
+  width:100% !important;
+  max-width:none !important;
+  min-width:0 !important;
+}
+.nabil-authoritative-function-visual > .nabil-visual,
+.linked-lesson-visual[data-diagram-type="function"] > .nabil-visual,
+.linked-lesson-visual[data-diagram-type="function_graph"] > .nabil-visual{
+  width:100% !important;
+  max-width:1040px !important;
+  margin:0 auto !important;
+}
+.nabil-reference-function-card{width:100% !important;max-width:1040px !important;margin:0 auto !important;}
+@media (max-width: 760px){
+  .nabil-reference-function-card{border-radius:12px !important;}
+  .nabil-reference-function-card svg{min-width:0 !important;width:100% !important;height:auto !important;}
+}
+
+/* ============================================================
+   v63 — Responsive reference layout inside the REAL chat width.
+   The viewport can be desktop while the lesson column is much narrower
+   because the NABIL tutor sidebar is visible. Never use fixed min widths.
+   ============================================================ */
+@media (min-width:851px){
+  .reference-function-study-board,
+  .reference-function-study-board > .exercise-function-board,
+  .reference-function-study-board .compact-function-stack{
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    box-sizing:border-box!important;
+  }
+
+  .reference-function-study-board .function-study-reference-stage{
+    display:grid!important;
+    grid-template-columns:minmax(0,36%) minmax(0,64%)!important;
+    gap:12px!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    box-sizing:border-box!important;
+    overflow:visible!important;
+    align-items:stretch!important;
+  }
+
+  .reference-function-study-board .function-study-reference-summary-card,
+  .reference-function-study-board .exercise-function-graph-variation{
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    box-sizing:border-box!important;
+    overflow:hidden!important;
+  }
+
+  .reference-function-study-board .exercise-function-graph-variation{
+    display:flex!important;
+    flex-direction:column!important;
+  }
+
+  .reference-function-study-board .exercise-function-visual,
+  .reference-function-study-board .exercise-function-visual .exercise-visual-panel,
+  .reference-function-study-board .exercise-function-visual .nabil-visual,
+  .reference-function-study-board .exercise-function-visual .nabil-reference-function-generic,
+  .reference-function-study-board .exercise-function-visual svg{
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    box-sizing:border-box!important;
+  }
+
+  .reference-function-study-board .exercise-function-visual .exercise-visual-panel{
+    padding:8px!important;
+    overflow:hidden!important;
+  }
+
+  .reference-function-study-board .exercise-function-visual svg{
+    display:block!important;
+    height:auto!important;
+    min-height:420px!important;
+    max-height:none!important;
+    margin:0 auto!important;
+  }
+
+  .reference-function-study-board .exercise-variation-zone{
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    box-sizing:border-box!important;
+    overflow-x:auto!important;
+  }
+
+  .reference-function-study-board .exercise-variation-zone table{
+    width:100%!important;
+    min-width:0!important;
+    table-layout:auto!important;
+  }
+}
+
+/* If the lesson column itself is narrow, switch the reference pair to one column,
+   even on a desktop viewport. This prevents the tiny-graph failure. */
+@media (min-width:851px) and (max-width:1180px){
+  .lesson-main-column .reference-function-study-board .function-study-reference-stage{
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+  .lesson-main-column .reference-function-study-board .exercise-function-graph-variation{
+    order:1!important;
+  }
+  .lesson-main-column .reference-function-study-board .function-study-reference-summary-card{
+    order:2!important;
+  }
+  .lesson-main-column .reference-function-study-board .exercise-function-visual svg{
+    min-height:460px!important;
+  }
+}
+
+
+/* ============================================================
+   v64 — Function-study boards use the same stable stacked layout
+   as the successful physics/chemistry cards, with graph and
+   variation rendered full-width below the textual solution.
+   ============================================================ */
+.function-study-simple-board .exercise-context-stack,
+.function-study-simple-board .exercise-bottom-stack,
+.function-study-simple-board .exercise-idea-stack{
+  display:grid!important;
+  gap:12px!important;
+}
+.function-study-simple-board .function-study-solution-zone,
+.function-study-simple-board .function-study-visual-zone,
+.function-study-simple-board .function-study-variation-zone{
+  margin-top:12px!important;
+}
+.function-study-simple-board .function-study-visual-zone .exercise-function-visual-title,
+.function-study-simple-board .function-study-variation-zone .exercise-variation-title{
+  font-size:24px!important;
+  font-weight:800!important;
+  color:var(--nabil-text-title)!important;
+  margin:0 0 10px 0!important;
+}
+.function-study-simple-board .function-study-visual-zone .exercise-visual-panel{
+  padding:10px!important;
+  overflow:hidden!important;
+}
+.function-study-simple-board .function-study-visual-zone .nabil-visual,
+.function-study-simple-board .function-study-visual-zone .nabil-reference-function-generic,
+.function-study-simple-board .function-study-visual-zone svg{
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  display:block!important;
+  height:auto!important;
+  box-sizing:border-box!important;
+}
+.function-study-simple-board .function-study-visual-zone svg{
+  min-height:420px!important;
+}
+.function-study-simple-board .function-study-variation-zone .lesson-table-wrap,
+.function-study-simple-board .function-study-variation-zone table{
+  width:100%!important;
+  max-width:100%!important;
+}
+.function-study-simple-board .function-study-variation-zone{
+  overflow-x:auto!important;
+}
+@media(max-width:850px){
+  .function-study-simple-board .function-study-visual-zone svg{
+    min-height:320px!important;
+  }
+}
+
+
+/* v65 — Orthonormal graph containment */
+.function-study-simple-board .function-study-visual-zone .exercise-visual-panel,
+.function-study-simple-board .function-study-visual-zone .nabil-visual,
+.function-study-simple-board .function-study-visual-zone .nabil-reference-function-generic,
+.drawing-preview-dialog .nabil-visual,
+.drawing-preview-dialog .nabil-reference-function-generic{
+  overflow:hidden!important;
+}
+.function-study-simple-board .function-study-visual-zone svg,
+.drawing-preview-dialog svg{
+  overflow:hidden!important;
+}
+
+
+/* v66 — one authoritative function graph title only */
+.function-study-simple-board .function-study-visual-zone .nabil-visual-title,
+.function-study-simple-board .function-study-visual-zone .nabil-function-ref-expression{
+  display:none!important;
+}
+.function-study-simple-board .function-study-visual-zone .exercise-function-visual-title{
+  display:block!important;
+  width:100%!important;
+  white-space:normal!important;
+  overflow-wrap:anywhere!important;
+  text-align:left!important;
+}
+[dir="rtl"] .function-study-simple-board .function-study-visual-zone .exercise-function-visual-title{
+  text-align:right!important;
+}
+
+
+/* ============================================================
+   v67 DIAGNOSTIC — functions use RAW GENERIC exercise layout.
+   No special function-study columns, summary cards, paired graph/table,
+   fixed equal heights, or function-only overflow rules.
+   ============================================================ */
+.function-study-board,
+.reference-function-study-board,
+.compact-function-board,
+.function-study-simple-board,
+.exercise-function-board,
+.function-study-reference-stage,
+.function-study-detailed-solution,
+.function-study-detailed-grid,
+.exercise-function-study,
+.exercise-function-keypoints,
+.exercise-function-graph-variation,
+.function-study-reference-summary-card{
+  display:initial!important;
+  grid-template-columns:none!important;
+  grid-template-rows:none!important;
+  height:auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  width:auto!important;
+  min-width:0!important;
+  max-width:none!important;
+  overflow:visible!important;
+  padding:0!important;
+  margin:0!important;
+  border:0!important;
+  box-shadow:none!important;
+  background:transparent!important;
+}
+
+</style></head><body>${parts}</body></html>`;
 }
 
 async function nabilTeacherFetchAssessment(payload){
