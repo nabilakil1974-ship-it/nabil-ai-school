@@ -5092,6 +5092,19 @@ function getStudentId() {
 }
 
 
+
+function nabilCleanAcademicReply(raw){
+    let s=String(raw||"");
+    s=s
+      .replace(/\b(?:wait|hold on|let'?s just|let me just|I'?ll just)\b[^.!?\n]*(?:[.!?]|$)/gi,"")
+      .replace(/\b(?:hmm+|uh+|okay,\s*so)\b\s*/gi,"");
+    s=s
+      .replace(/^####\s*(.+)$/gm,"### $1")
+      .replace(/^#####\s*(.+)$/gm,"### $1");
+    s=s.replace(/\n{3,}/g,"\n\n").trim();
+    return s;
+}
+
 function renderAIText(text) {
 
     if (!text) {
@@ -6588,7 +6601,7 @@ ${rawVariationHTML}`);
         // backend visual already exists. This lets us reject stale/wrong lesson
         // visuals and guarantees the graph corresponds to f(x) in the exercise.
         const autoFunctionSpec = nabilAutoFunctionSpecFromBoard(board, text, sourceQuestion);
-        const functionStudyNow = false; // v67 diagnostic: NO special function-study formatting
+        const functionStudyNow = Boolean(autoFunctionSpec || /study the function|draw the complete graph|variation table|vertical asymptote|oblique asymptote|critical points?/i.test(wholeBoardText));
 
         if(autoFunctionSpec){
             const rendered=renderNabilDiagram(autoFunctionSpec);
@@ -6651,7 +6664,7 @@ ${rawVariationHTML}`);
             return `
             <article class="exercise-board full-width-board visual-column-board function-study-board function-study-simple-board" dir="${messageDirection}">
                 <div class="exercise-board-head">
-                    <div class="exercise-board-title">${functionTitle}<span class="exercise-layout-badge">${nabilLayoutLabel('math',messageLanguage)}</span></div>
+                    <div class="exercise-board-title">${functionTitle}</div>
                 </div>
                 ${contextHTML ? `<div class="exercise-context-stack">${contextHTML}</div>` : ""}
                 ${mainSolutionHTML ? `
@@ -8694,7 +8707,9 @@ function addMessage(
 ) {
 
     let visibleText =
-        String(text || "");
+        role === "teacher"
+            ? nabilCleanAcademicReply(String(text || ""))
+            : String(text || "");
 
     let visibleDiagrams = [];
 
@@ -8710,7 +8725,7 @@ function addMessage(
             );
 
         visibleText =
-            parsedVisual.text;
+            nabilCleanAcademicReply(parsedVisual.text);
 
         visibleDiagrams =
             parsedVisual.diagrams;
@@ -11532,9 +11547,10 @@ function renderNabilDiagram(rawSpec){
             legendItems.push({color,dash:false,text:coordLabel});
         });
 
-        // ===== Legend box (top-right), matching the reference screenshot. =====
+        // ===== Legend box =====
+        // v71: hidden by default for function graphs to avoid covering the plot.
         let legendSvg="";
-        if(legendItems.length){
+        if(spec.show_legend === true && legendItems.length){
             const legendW=Math.min(230, Math.max(150, Math.max(...legendItems.map(it=>it.text.length))*5.6+34));
             const legendH=legendItems.length*20+14;
             const legendX=505-legendW;
@@ -16432,6 +16448,40 @@ function nabilTeacherWordHTML(data){
   min-height:420px!important;
   overflow:hidden!important;
 }
+
+
+/* ============================================================
+   v70 — clean generic rendering for mathematics
+   ============================================================ */
+.exercise-board.layout-math,
+.exercise-board.layout-math .exercise-special-layout,
+.exercise-board.layout-math .exercise-special-content,
+.exercise-board.layout-math .exercise-special-visual{
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  box-sizing:border-box!important;
+}
+.exercise-board.layout-math .exercise-special-layout{
+  grid-template-columns:minmax(0,1fr)!important;
+  display:grid!important;
+  gap:12px!important;
+}
+.exercise-board.layout-math .exercise-special-visual{order:2!important;}
+.exercise-board.layout-math .exercise-special-content{order:1!important;}
+.exercise-board.layout-math .exercise-visual-panel{width:100%!important;overflow:hidden!important;}
+.exercise-board.layout-math .nabil-visual,
+.exercise-board.layout-math .nabil-reference-function-generic,
+.exercise-board.layout-math svg{
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  height:auto!important;
+  display:block!important;
+  box-sizing:border-box!important;
+}
+.exercise-board.layout-math h3,
+.exercise-board.layout-math h4{white-space:normal!important;overflow-wrap:anywhere!important;}
 
 </style></head><body>${parts}</body></html>`;
 }
