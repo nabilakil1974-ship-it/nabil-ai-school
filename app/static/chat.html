@@ -4839,6 +4839,7 @@ let curriculumIndex = {};
 let curriculumData = {};
 
 let conversationId = null;
+let nabilCurrentQuestionText = "";
 
 let nabilActivityMode = "lesson";
 
@@ -4860,8 +4861,11 @@ function nabilClearVisibleConversation(resetConversation = false) {
     try { stopNabilNeuralVoice(); } catch(e) {}
     if (chat) {
         chat.querySelectorAll('.message').forEach(node => node.remove());
+        chat.querySelectorAll('.nabil-visual,.linked-lesson-visual,.exercise-board,.lesson-visuals').forEach(node => node.remove());
         chat.scrollTop = 0;
     }
+    document.getElementById("drawingPreviewContent")?.replaceChildren();
+    document.getElementById("activeLessonDiagram")?.remove();
     if (welcome) welcome.style.display = 'none';
     if (resetConversation) conversationId = null;
 }
@@ -5555,7 +5559,7 @@ function nabilDetectVariationTableFromText(html){
     return `<div class="lesson-table-wrap"><table class="variation-auto-table"><tbody>${body}</tbody></table></div>`;
 }
 
-function nabilAutoFunctionSpecFromBoard(board, sourceText=""){
+function nabilAutoFunctionSpecFromBoard(board, sourceText="", currentQuestion=""){
     const sectionHTML=(board?.sections || []).map(sec => `${sec.title || ''} ${renderNodesAsHTML(sec.nodes || [])}`).join(' ');
     const boardHTML=`${board?.title || ''} ${sectionHTML}`;
 
@@ -5566,9 +5570,10 @@ function nabilAutoFunctionSpecFromBoard(board, sourceText=""){
     const givenHTML=givenSections.map(sec=>`${sec.title||""} ${renderNodesAsHTML(sec.nodes||[])}`).join(" ");
 
     const sources=[
-        String(sourceText||""),
+        String(currentQuestion||""),
         givenHTML,
-        boardHTML
+        boardHTML,
+        String(sourceText||"")
     ].filter(Boolean);
 
     const allCandidates=[];
@@ -5632,8 +5637,26 @@ function nabilAutoFunctionSpecFromBoard(board, sourceText=""){
         return sc;
     }
 
-    const expr=[...new Set(allCandidates)]
-        .sort((a,b)=>score(b)-score(a))[0];
+    let expr="";
+    if(String(currentQuestion||"").trim()){
+        const qCandidates=[];
+        const beforeCount=allCandidates.length;
+
+        // Re-collect only from the current question to preserve strict turn binding.
+        const saved=allCandidates.splice(0, allCandidates.length);
+        collectFrom(String(currentQuestion||""));
+        qCandidates.push(...allCandidates);
+        allCandidates.splice(0, allCandidates.length, ...saved);
+
+        if(qCandidates.length){
+            expr=[...new Set(qCandidates)].sort((a,b)=>score(b)-score(a))[0];
+        }
+    }
+
+    if(!expr){
+        expr=[...new Set(allCandidates)]
+            .sort((a,b)=>score(b)-score(a))[0];
+    }
 
     const normalized=nabilNormalizeExpression(expr);
     if(!normalized) return null;
@@ -6496,7 +6519,7 @@ function nabilRenderSpecialExerciseLayout({family,title,diagramsForThis,visualHT
     </article>`;
 }
 
-function renderGeneralExerciseBoards(text, diagrams, messageDirection, messageLanguage){
+function renderGeneralExerciseBoards(text, diagrams, messageDirection, messageLanguage, sourceQuestion=""){
     const boards = extractExerciseBoards(text);
     if (!boards.length) {
         return `<div class="lesson-explanation" dir="${messageDirection}" lang="${messageLanguage === "English" ? "en" : messageLanguage === "Français" ? "fr" : "ar"}">${renderLessonCards(text)}</div>`;
@@ -6564,7 +6587,7 @@ ${rawVariationHTML}`);
         // v60: derive the mathematical function from THIS board even when a
         // backend visual already exists. This lets us reject stale/wrong lesson
         // visuals and guarantees the graph corresponds to f(x) in the exercise.
-        const autoFunctionSpec = nabilAutoFunctionSpecFromBoard(board, text);
+        const autoFunctionSpec = nabilAutoFunctionSpecFromBoard(board, text, sourceQuestion);
         const functionStudyNow = false; // v67 diagnostic: NO special function-study formatting
 
         if(autoFunctionSpec){
@@ -8780,6 +8803,7 @@ function addMessage(
                 visibleDiagrams,
                 messageDirection,
                 messageLanguage,
+                nabilCurrentQuestionText
             );
         } else {
             const lessonPractice=nabilSplitLessonAndPracticeText(visibleText);
@@ -8802,7 +8826,7 @@ function addMessage(
             const practiceHTML=lessonPractice.practiceText
                 ? `<section class="lesson-practice-zone" dir="${messageDirection}">
                      <div class="lesson-practice-heading">${nabilEsc(nabilPracticeHeading(messageLanguage))}</div>
-                     ${renderGeneralExerciseBoards(lessonPractice.practiceText,practiceDiagrams,messageDirection,messageLanguage)}
+                     ${renderGeneralExerciseBoards(lessonPractice.practiceText,practiceDiagrams,messageDirection,messageLanguage,"")}
                    </section>`
                 : "";
 
@@ -9223,6 +9247,9 @@ async function sendToAI(
     message,
     showStudentMessage = true
 ) {
+    if (showStudentMessage) {
+        nabilCurrentQuestionText = String(message || "").trim();
+    }
     if (
         showStudentMessage &&
         ((typeof message === "string" && message.trim()) || selectedImage)
@@ -10234,6 +10261,14 @@ function nabilNormalizeExpression(expr){
     s=s
         .replace(/\u00a0/g," ")
         .replace(/−/g,"-")
+        .replace(/x²/g,"x^2")
+        .replace(/x³/g,"x^3")
+        .replace(/x⁴/g,"x^4")
+        .replace(/x⁵/g,"x^5")
+        .replace(/x⁶/g,"x^6")
+        .replace(/x⁷/g,"x^7")
+        .replace(/x⁸/g,"x^8")
+        .replace(/x⁹/g,"x^9")
         .replace(/×/g,"*")
         .replace(/÷/g,"/")
         .replace(/⁡/g,"")
@@ -10982,18 +11017,7 @@ function renderNabilDiagram(rawSpec){
         "function","graph","function_graph","graph_function",
         "cartesian_function","function-graph","coordinate-graph","coordinate_plane"
     ]);
-    if(nabilFunctionTypes.has(t)){
-        const rawExpression = spec.expression || spec.formula || spec.equation ||
-            spec.fx || spec.function_expression || spec.function || "";
-        if(nabilIsLnXOverXExpression(rawExpression)){
-            return nabilRenderLnXOverXReferenceCard({
-                ...spec,
-                type:"function_graph",
-                expression:"ln(x)/x",
-                title:"Graph and Table of Variation"
-            });
-        }
-    }
+    // v69: no one-off function renderer. Every function uses the same generic engine.
 
     if (t === "circuit"){
         const modeText = `${spec.mode||""} ${spec.connection||""} ${spec.title||""}`.toLowerCase();
@@ -16385,6 +16409,28 @@ function nabilTeacherWordHTML(data){
   border:0!important;
   box-shadow:none!important;
   background:transparent!important;
+}
+
+
+/* ============================================================
+   v69 — strict CURRENT-function generic graph pipeline.
+   No function-specific card layout; no ln-only renderer.
+   ============================================================ */
+.exercise-board.layout-math .exercise-special-visual,
+.exercise-board.layout-math .exercise-visual-panel,
+.exercise-board.layout-math .nabil-authoritative-function-visual,
+.exercise-board.layout-math .nabil-authoritative-function-visual .nabil-visual,
+.exercise-board.layout-math .nabil-authoritative-function-visual svg{
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  box-sizing:border-box!important;
+}
+.exercise-board.layout-math .nabil-authoritative-function-visual svg{
+  display:block!important;
+  height:auto!important;
+  min-height:420px!important;
+  overflow:hidden!important;
 }
 
 </style></head><body>${parts}</body></html>`;
