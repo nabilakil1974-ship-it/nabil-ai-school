@@ -6510,9 +6510,9 @@ ${rawVariationHTML}`);
         // backend visual already exists. This lets us reject stale/wrong lesson
         // visuals and guarantees the graph corresponds to f(x) in the exercise.
         const autoFunctionSpec = nabilAutoFunctionSpecFromBoard(board);
-        const functionStudyNow = isFunctionStudyBoard(board, wholeBoardText);
+        const functionStudyNow = false; // v67 diagnostic: NO special function-study formatting
 
-        if(functionStudyNow && autoFunctionSpec){
+        if(autoFunctionSpec){
             const rendered=renderNabilDiagram(autoFunctionSpec);
             if(rendered){
                 diagramsForThis=[`<div class="linked-lesson-visual nabil-authoritative-function-visual" data-card-index="${boardIndex+1}" data-diagram-type="${nabilEsc(String(autoFunctionSpec.type||"").toLowerCase())}">${rendered}</div>`];
@@ -16295,6 +16295,41 @@ function nabilTeacherWordHTML(data){
 }
 [dir="rtl"] .function-study-simple-board .function-study-visual-zone .exercise-function-visual-title{
   text-align:right!important;
+}
+
+
+/* ============================================================
+   v67 DIAGNOSTIC — functions use RAW GENERIC exercise layout.
+   No special function-study columns, summary cards, paired graph/table,
+   fixed equal heights, or function-only overflow rules.
+   ============================================================ */
+.function-study-board,
+.reference-function-study-board,
+.compact-function-board,
+.function-study-simple-board,
+.exercise-function-board,
+.function-study-reference-stage,
+.function-study-detailed-solution,
+.function-study-detailed-grid,
+.exercise-function-study,
+.exercise-function-keypoints,
+.exercise-function-graph-variation,
+.function-study-reference-summary-card{
+  display:initial!important;
+  grid-template-columns:none!important;
+  grid-template-rows:none!important;
+  height:auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  width:auto!important;
+  min-width:0!important;
+  max-width:none!important;
+  overflow:visible!important;
+  padding:0!important;
+  margin:0!important;
+  border:0!important;
+  box-shadow:none!important;
+  background:transparent!important;
 }
 
 </style></head><body>${parts}</body></html>`;
