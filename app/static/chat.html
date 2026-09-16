@@ -19447,6 +19447,145 @@ function nabilTeacherWordHTML(data){
   background:linear-gradient(180deg,var(--nabil-card-blue-2),var(--nabil-card-blue-1))!important;
 }
 
+
+
+/* ============================================================
+   v99 — generalize the Chemistry first-card style to all subjects
+   ============================================================ */
+
+/* Subject reference cards should visually feel like the successful chemistry card */
+.lesson-main-reference-zone .exercise-board,
+.lesson-practice-zone .exercise-board,
+#drawingPreviewContent .exercise-board{
+  box-shadow:0 18px 54px rgba(0,0,0,.34)!important;
+  border-radius:16px!important;
+}
+
+/* Unified chemistry-style top bar */
+.v79-function-top,
+.v80-physics-top,
+.v83-bio-top,
+.v87-math-top,
+.v92-top,
+.v96-math-card > .v96-lead-grid:first-child::before{
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04)!important;
+}
+
+/* Physics + Biology should use the same simple two-column chemistry-card structure
+   because the page already has the global NABIL sidebar on the far right. */
+.v80-physics-grid{
+  grid-template-columns:minmax(300px,29%) minmax(0,1fr)!important;
+}
+.v80-physics-side{display:none!important}
+
+.v83-bio-grid{
+  grid-template-columns:minmax(300px,29%) minmax(0,1fr)!important;
+}
+.v83-bio-side{display:none!important}
+
+/* Make all left explanation panels feel like chemistry text cards */
+.v79-function-left,
+.v80-physics-left,
+.v83-bio-left,
+.v87-math-left,
+.v92-left,
+.v96-summary-left,
+.v96-detailed-solution{
+  background:linear-gradient(180deg,#0a3863,#082b4a)!important;
+  border:1px solid #1b88c0!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.03)!important;
+}
+
+/* Make all visual zones match the chemistry visual stage */
+.v79-function-main,
+.v80-physics-main,
+.v83-bio-main,
+.v87-math-main,
+.v92-right,
+.v96-visual-right{
+  background:linear-gradient(180deg,#0a365f,#082746)!important;
+  border:1px solid #1b88c0!important;
+}
+
+.v79-function-graph,
+.v80-physics-visual,
+.v83-bio-visual-card,
+.v87-math-visual-card,
+.v92-visual-wrap .v81-math-visual-card,
+.v92-visual-wrap .nabil-v85-tangent-card,
+.v96-visuals .v81-math-visual-card,
+.v96-visuals .linked-lesson-visual,
+.v96-visuals .nabil-visual,
+.nabil-authoritative-chemistry-visual,
+.nabil-fallback-visual{
+  background:#061f38!important;
+  border:1px solid #1c96d1!important;
+  border-radius:12px!important;
+  box-shadow:inset 0 0 0 1px rgba(117,229,255,.06)!important;
+}
+
+/* Headings and labels closer to chemistry card */
+.v79-function-lesson-title,
+.v80-physics-lesson-title,
+.v83-bio-title,
+.v87-math-lesson-title,
+.v92-title,
+.v96-summary-left h2,
+.v96-detailed-solution h2{color:#f2fbff!important}
+
+.v79-function-left h2,
+.v80-physics-left h2,
+.v83-bio-left h2,
+.v87-math-left h2,
+.v92-left h2{color:#4fe2ff!important}
+
+/* Preserve the chemistry-style colored callout strips */
+.v79-rule-summary,
+.v80-physics-rule-summary,
+.v83-bio-rule,
+.v87-math-rule-summary,
+.v92-rule{
+  background:linear-gradient(180deg,#0b4954,#083844)!important;
+  border-color:#35d6a8!important;
+}
+.v79-quick-check,
+.v80-quick-check,
+.v83-bio-quick,
+.v87-math-quick-check,
+.v92-quick{
+  background:linear-gradient(180deg,#47206b,#381655)!important;
+  border-color:#bf63ff!important;
+}
+.v79-quick-check b,
+.v80-quick-check b,
+.v83-bio-quick b,
+.v87-math-quick-check b,
+.v92-quick b{color:#f0b7ff!important}
+.v79-quick-check span,
+.v80-quick-check span,
+.v83-bio-quick span,
+.v87-math-quick-check span,
+.v92-quick span{color:#fff4ff!important}
+
+/* Stronger chemistry-like content density */
+.v80-physics-panel,
+.v83-bio-visual-card,
+.v87-math-visual-card{
+  background:linear-gradient(180deg,#0a406d,#092f52)!important;
+  border-color:#1c95d0!important;
+}
+
+/* Make the preview use the exact same subject-card language */
+#drawingPreviewModal .v80-physics-side,
+#drawingPreviewModal .v83-bio-side{display:none!important}
+#drawingPreviewModal .v80-physics-grid{grid-template-columns:minmax(300px,29%) minmax(0,1fr)!important}
+#drawingPreviewModal .v83-bio-grid{grid-template-columns:minmax(300px,29%) minmax(0,1fr)!important}
+
+@media(max-width:900px){
+  .v80-physics-grid,
+  .v83-bio-grid{grid-template-columns:1fr!important}
+}
+
 </style></head><body>${parts}</body></html>`;
 }
 
