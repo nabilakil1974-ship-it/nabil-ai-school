@@ -6963,10 +6963,10 @@ function nabilV85TangentsFallbackText(sourceQuestion, boardText){
       /distance[^0-9]*(\d+(?:\.\d+)?)\s*cm/i
     ],8);
     return {
-      given:`Circle (C₁) has center O₁ and radius ${r} cm. Circle (C₂) has center O₂ and radius ${r} cm. The distance O₁O₂ is ${d} cm. The lines d₁ and d₂ are direct common tangents.`,
-      property:`A radius drawn to a point of tangency is perpendicular to the tangent. Since the two radii are equal, O₁A and O₂B are parallel and equal; likewise O₁C and O₂D are parallel and equal.`,
-      solution:`O₁A ⟂ d₁ and O₂B ⟂ d₁, so O₁A ∥ O₂B. The quadrilateral O₁ABO₂ is a rectangle because the two radii are equal and perpendicular to the same tangent. Therefore AB = O₁O₂ = ${d} cm. The same argument gives CD = ${d} cm. The two direct common tangents d₁ and d₂ are parallel to O₁O₂.`,
-      answer:`AB = ${d} cm, CD = ${d} cm, and d₁ ∥ d₂ ∥ O₁O₂.`
+      given:`Circle (C₁) has center O₁ and radius r₁ = ${r} cm. Circle (C₂) has center O₂ and radius r₂ = ${r} cm. The lines d₁ and d₂ are direct common tangents and O₁O₂ = ${d} cm.`,
+      property:`A radius drawn to a point of tangency is perpendicular to the tangent. Therefore O₁A ⟂ d₁, O₂B ⟂ d₁, O₁C ⟂ d₂, and O₂D ⟂ d₂.`,
+      solution:`Because r₁ = r₂, the corresponding radii are equal. Hence O₁ABO₂ and O₁CDO₂ are rectangles. Therefore the direct common tangents are parallel to O₁O₂, and the tangent segments satisfy AB = CD = O₁O₂ = ${d} cm.`,
+      answer:`AB = ${d} cm. Also d₁ ∥ d₂ ∥ O₁O₂.`
     };
 }
 
@@ -7268,9 +7268,10 @@ ${rawVariationHTML}`);
                 ? visualItems.map((v, i) => `<div class="v81-math-visual-card">${v}</div>`).join('')
                 : `<div class="v81-math-visual-card"><div class="v81-math-placeholder">Geometry / vector / solid figure preview</div></div>`;
 
-            const isVectors = /vector|midpoint|coordinate plane|coordinates|ab\)|\|ab\||\bA\(|\bB\(|متجه|احداثيات/.test(boardTextForRef);
-            const isTangents = /circle|circles|tangent|common tangent|tangents|o1|o2|r1|r2|دائرت|مماس/.test(boardTextForRef);
-            const isSolids = /sphere|cylinder|cone|cube|prism|volume|surface area|lateral area|مجسم|كرة|اسطوانة|مساحة|حجم/.test(boardTextForRef);
+            const mathReferenceSource = `${sourceQuestion||""} ${boardTextForRef}`.toLowerCase();
+            const isVectors = /vector|midpoint|coordinate plane|coordinates|ab\)|\|ab\||\bA\(|\bB\(|متجه|احداثيات/.test(mathReferenceSource);
+            const isTangents = /circle|circles|tangent|common tangent|tangents|o1|o2|r1|r2|two circles|direct common tangents|دائرت|مماس/.test(mathReferenceSource);
+            const isSolids = /sphere|cylinder|cone|cube|prism|volume|surface area|lateral area|مجسم|كرة|اسطوانة|مساحة|حجم/.test(mathReferenceSource);
 
             let lessonTitleText = nabilV85CleanBoardTitle(title, sourceQuestion, wholeBoardText) || 'Mathematics Card';
             let lessonSubText = 'Practice and visualize mathematical ideas with clear structured steps.';
@@ -7303,13 +7304,15 @@ ${rawVariationHTML}`);
             if(isTangents){
                 const tf=nabilV85TangentsFallbackText(sourceQuestion, wholeBoardText);
                 leftMainHTML = `
-                  <div class="v85-geo-fact"><b>Given</b><span>${tf.given}</span></div>
-                  <div class="v85-geo-fact"><b>Property</b><span>${tf.property}</span></div>
-                  <div class="v85-geo-fact"><b>Solution</b><span>${tf.solution}</span></div>
-                  <div class="v85-geo-final"><b>Final Answer</b><span>${tf.answer}</span></div>`;
+                  <div class="v89-tangent-lines">
+                    <p>${tf.given}</p>
+                    <p>${tf.property}</p>
+                    <p>${tf.solution}</p>
+                    <p class="v89-final-line">${tf.answer}</p>
+                  </div>`;
                 ruleSummaryHTML = `<div class="v81-summary-fallback">A tangent is perpendicular to the radius at the point of tangency. For two equal circles, the direct common tangents are parallel to the line of centers and the tangent segment between corresponding contact points equals the distance between the centers.</div>`;
             }
-            const extraBottomHTML = extraHTML || '';
+            const extraBottomHTML = isTangents ? '' : (extraHTML || '');
 
             return `
             <article class="exercise-board v87-reference-math-card" dir="${messageDirection}">
@@ -7348,7 +7351,6 @@ ${rawVariationHTML}`);
                 </section>
 
                 <section class="v87-math-main">
-                  <div class="v87-math-visual-header">${lessonTitleText}</div>
                   <div class="v87-math-visuals ${visualGridClass}">
                     ${visualsMarkup}
                   </div>
@@ -18562,6 +18564,294 @@ function nabilTeacherWordHTML(data){
   .v87-math-top{grid-template-columns:1fr}
   .v87-math-grid{grid-template-columns:1fr}
   .v87-math-visuals.grid-2{grid-template-columns:1fr}
+}
+
+
+/* ============================================================
+   v88 — fix half-width math card + remove overlap/raw leftovers
+   ============================================================ */
+.exercise-board-stack > .v87-reference-math-card,
+.exercise-board-stack > .v79-reference-function-card,
+.exercise-board-stack > .v80-reference-physics-card,
+.exercise-board-stack > .nabil-authoritative-chemistry-visual{
+  grid-column:1 / -1!important;
+  width:100%!important;
+  max-width:100%!important;
+}
+.v87-reference-math-card{
+  display:block!important;
+  width:100%!important;
+  max-width:100%!important;
+}
+.v87-math-top,
+.v87-math-grid{
+  width:100%!important;
+  max-width:100%!important;
+}
+.v87-math-grid{
+  grid-template-columns:minmax(310px,34%) minmax(0,1fr)!important;
+}
+.v87-math-main{
+  min-width:0!important;
+  width:100%!important;
+  overflow:hidden!important;
+}
+.v87-math-visuals,
+.v87-math-visual-card{
+  width:100%!important;
+  max-width:100%!important;
+}
+.v87-math-visual-card{
+  min-height:320px!important;
+}
+.v87-math-visual-card .nabil-v85-geometry-visual,
+.v87-math-visual-card .nabil-v85-tangent-card,
+.v87-math-visual-card .nabil-v85-tangent-card svg{
+  width:100%!important;
+  max-width:100%!important;
+  height:auto!important;
+  display:block!important;
+}
+
+/* Board navigation must not cover the lesson content. */
+.nabil-board-controls{
+  position:relative!important;
+  top:auto!important;
+  z-index:20!important;
+  margin:0 0 10px!important;
+}
+
+/* Lesson+five exercises remain one vertical lesson page. */
+.lesson-main-reference-zone,
+.lesson-practice-zone{
+  width:100%!important;
+  max-width:100%!important;
+  overflow-x:hidden!important;
+}
+.lesson-practice-zone .exercise-board-stack{
+  grid-template-columns:1fr!important;
+}
+.lesson-practice-zone .exercise-board{
+  grid-column:1!important;
+  width:100%!important;
+  max-width:100%!important;
+}
+
+/* No inherited green/empty second column backgrounds. */
+.lesson-main-reference-zone .exercise-board-stack,
+.lesson-main-reference-zone .v87-reference-math-card,
+.lesson-main-reference-zone .v87-math-grid{
+  background:transparent!important;
+}
+.lesson-main-reference-zone .v87-math-main{
+  background:#0a2843!important;
+}
+
+/* Tangent card text remains clean and readable. */
+.v87-reference-math-card .v85-geo-fact,
+.v87-reference-math-card .v85-geo-final{
+  text-align:left!important;
+  direction:ltr!important;
+}
+.v87-reference-math-card .v85-geo-fact span,
+.v87-reference-math-card .v85-geo-final span{
+  white-space:normal!important;
+  word-spacing:normal!important;
+  letter-spacing:normal!important;
+}
+
+/* Preview keeps exactly the same dark reference card and large figure. */
+#drawingPreviewModal #drawingPreviewContent .v87-reference-math-card{
+  width:100%!important;
+  max-width:100%!important;
+  background:#071a2d!important;
+}
+#drawingPreviewModal #drawingPreviewContent .v87-math-visual-card{
+  min-height:0!important;
+  background:#071f35!important;
+}
+@media(max-width:900px){
+  .v87-math-grid{grid-template-columns:1fr!important}
+  .v87-math-visual-card{min-height:0!important}
+}
+
+
+/* ============================================================
+   v89 — Mathematics reference card 1:1 style
+   ============================================================ */
+.v87-reference-math-card{
+  background:#071a2d!important;
+  border:1px solid #0f6f9e!important;
+  border-radius:14px!important;
+  padding:10px!important;
+  color:#eef8ff!important;
+}
+.v87-math-top{
+  min-height:72px!important;
+  grid-template-columns:minmax(0,1fr) 170px 315px!important;
+  background:linear-gradient(180deg,#0d3457,#0a2946)!important;
+  border:1px solid #175b83!important;
+  border-radius:11px!important;
+  padding:12px 15px!important;
+  margin-bottom:10px!important;
+}
+.v87-math-icon{font-size:31px!important;color:#32d4ff!important}
+.v87-math-lesson-title{
+  color:#f3fbff!important;
+  font-size:19px!important;
+  font-weight:900!important;
+}
+.v87-math-lesson-sub{
+  color:#b9d4e7!important;
+  font-size:12px!important;
+  margin-top:4px!important;
+}
+.v87-math-meta>span{color:#27d6ff!important}
+.v87-math-meta small{color:#37d8ff!important}
+.v87-math-meta strong{font-size:11.5px!important;line-height:1.35!important}
+
+.v87-math-grid{
+  grid-template-columns:minmax(330px,40%) minmax(0,1fr)!important;
+  gap:10px!important;
+}
+.v87-math-left,
+.v87-math-main{
+  background:#092641!important;
+  border:1px solid #12658f!important;
+  border-radius:12px!important;
+}
+.v87-math-left{
+  padding:13px 15px!important;
+}
+.v87-math-left h2{
+  position:relative;
+  margin:0 0 9px!important;
+  padding-left:14px!important;
+  color:#40d9ff!important;
+  font-size:18px!important;
+  font-weight:900!important;
+}
+.v87-math-left h2:before{
+  content:"";
+  position:absolute;
+  left:0; top:1px; bottom:1px;
+  width:4px;
+  border-radius:3px;
+  background:#25d3ff;
+}
+.v89-tangent-lines{
+  color:#eef8ff;
+  font-size:13.5px;
+  line-height:1.42;
+}
+.v89-tangent-lines p{
+  margin:0 0 8px;
+}
+.v89-tangent-lines .v89-final-line{
+  margin-top:8px;
+  color:#fff;
+  font-weight:800;
+}
+.v87-math-rule-summary{
+  margin-top:10px!important;
+  background:#0b3a43!important;
+  border:1px solid #20c99f!important;
+  border-radius:10px!important;
+  padding:9px 11px!important;
+}
+.v87-math-rule-summary b{
+  color:#65ffd1!important;
+  font-size:14px!important;
+}
+.v87-math-rule-body,
+.v87-math-rule-body *{
+  color:#e9fff9!important;
+  font-size:12px!important;
+  line-height:1.35!important;
+}
+.v87-math-quick-check{
+  margin-top:8px!important;
+  background:#0a2946!important;
+  border:1px solid #146aa0!important;
+  border-radius:10px!important;
+  padding:8px 11px!important;
+}
+.v87-quick-icon{
+  background:#20bfee!important;
+  color:#06213a!important;
+}
+.v87-math-quick-check b{
+  color:#44d9ff!important;
+}
+.v87-math-quick-check span{
+  color:#f0f8ff!important;
+}
+
+.v87-math-main{
+  padding:7px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  min-height:410px!important;
+}
+.v87-math-visuals,
+.v87-math-visual-card{
+  width:100%!important;
+  height:100%!important;
+}
+.v87-math-visual-card{
+  min-height:395px!important;
+  background:#071f35!important;
+  border:0!important;
+  border-radius:8px!important;
+  padding:0!important;
+  overflow:hidden!important;
+}
+.v87-math-visual-card .nabil-v85-tangent-card,
+.v87-math-visual-card .nabil-v85-tangent-card svg{
+  width:100%!important;
+  max-width:100%!important;
+  height:100%!important;
+  min-height:395px!important;
+  object-fit:contain!important;
+  display:block!important;
+}
+.v87-math-visual-header{display:none!important}
+
+/* card fills available lesson width; no empty green/unused panel */
+.lesson-main-reference-zone .v87-reference-math-card,
+.exercise-board-stack > .v87-reference-math-card{
+  grid-column:1 / -1!important;
+  width:100%!important;
+  max-width:100%!important;
+}
+.lesson-main-reference-zone .v87-math-grid{
+  width:100%!important;
+}
+.lesson-main-reference-zone .v87-math-main{
+  background:#071f35!important;
+}
+
+/* exact dark colors in preview */
+#drawingPreviewModal #drawingPreviewContent .v87-reference-math-card{
+  background:#071a2d!important;
+}
+#drawingPreviewModal #drawingPreviewContent .v87-math-left{
+  background:#092641!important;
+}
+#drawingPreviewModal #drawingPreviewContent .v87-math-main,
+#drawingPreviewModal #drawingPreviewContent .v87-math-visual-card{
+  background:#071f35!important;
+}
+
+/* global assistant exists outside card */
+.v87-math-side{display:none!important}
+
+@media(max-width:950px){
+  .v87-math-top{grid-template-columns:1fr!important}
+  .v87-math-grid{grid-template-columns:1fr!important}
+  .v87-math-main{min-height:300px!important}
+  .v87-math-visual-card{min-height:280px!important}
 }
 
 </style></head><body>${parts}</body></html>`;
