@@ -2038,9 +2038,57 @@ body.nabil-home-lock::before{
     padding:18px;padding:22px;
 }
 .drawing-preview-modal[hidden]{display:none}
-.drawing-preview-dialog{position:relative;background:#fff;border-radius:18px;padding:28px;max-width:900px;width:100%;max-height:90vh;overflow:auto;color:#13273a}
-.drawing-preview-close{position:absolute;left:10px;top:10px;width:38px;height:38px;padding:0;background:#dc2626;color:#fff}
-#drawingPreviewContent .nabil-visual{background:#eef7fb}
+.drawing-preview-dialog{
+    position:relative;
+    background:#061522;
+    border:2px solid #1b9bd7;
+    border-radius:18px;
+    padding:12px;
+    width:min(1180px,96vw);
+    max-width:96vw;
+    max-height:94vh;
+    overflow:auto;
+    color:#eef8ff;
+    box-shadow:0 24px 70px rgba(0,0,0,.62);
+}
+.drawing-preview-close{
+    position:sticky;
+    left:8px;
+    top:8px;
+    z-index:20;
+    width:38px;
+    height:38px;
+    padding:0;
+    margin-bottom:-38px;
+    background:#dc2626;
+    color:#fff;
+    border:2px solid #fff;
+}
+#drawingPreviewContent{
+    width:100%;
+    margin:0 auto;
+    background:transparent;
+}
+#drawingPreviewContent .nabil-visual,
+#drawingPreviewContent .nabil-reference-function-card,
+#drawingPreviewContent .nabil-reference-function-generic{
+    width:100%!important;
+    max-width:none!important;
+    margin:0 auto!important;
+    background:inherit;
+}
+#drawingPreviewContent .nabil-reference-function-ref-plot,
+#drawingPreviewContent .nabil-function-ref-plot{
+    background:var(--nabil-bg-graph,#0a203d)!important;
+}
+#drawingPreviewContent svg{
+    width:100%!important;
+    height:auto!important;
+    max-width:none!important;
+    display:block!important;
+    opacity:1!important;
+    filter:none!important;
+}
 
 @media(max-width:900px){
     html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
@@ -3276,6 +3324,14 @@ body.nabil-home-lock::before{
 .nabil-reference-function-generic .nabil-function-ref-plot{
   background:var(--nabil-bg-graph)!important;
 }
+.nabil-function-variation-card{margin:12px 14px 0;border:1px solid rgba(95,216,255,.18);border-radius:14px;background:rgba(5,27,43,.86);padding:12px 12px 10px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.02)}
+.nabil-function-variation-title{font-weight:900;color:#76e3ff;font-size:18px;margin-bottom:10px}
+.nabil-function-variation-card .lesson-table-wrap{border-radius:10px;overflow:auto;border:1px solid rgba(95,216,255,.18)}
+.nabil-function-variation-card .variation-auto-table{width:100%;border-collapse:collapse;background:#071c2d;color:#eef8ff}
+.nabil-function-variation-card .variation-auto-table th,.nabil-function-variation-card .variation-auto-table td{border:1.5px solid #4f91b4;padding:8px 10px;min-width:74px;white-space:nowrap;text-align:center}
+.nabil-function-variation-card .variation-auto-table th{background:#0d3e59;color:#7ee3ff;font-weight:900}
+.nabil-function-variation-card .variation-auto-table tr:first-child td{background:#0d3e59;color:#7ee3ff;font-weight:900}
+.nabil-function-variation-html{color:#eef8ff}
 
 /* SVG math colors */
 .nabil-reference-function-generic .vaxis{
@@ -4410,9 +4466,9 @@ body.nabil-home-lock::before{
         opacity:1!important;
     }
     .drawing-preview-dialog{
-        width:96vw!important;
+        width:min(1180px,96vw)!important;
         max-width:96vw!important;
-        padding:12px!important;
+        padding:10px!important;
     }
     .drawing-preview-dialog svg{
         width:100%!important;
@@ -5095,14 +5151,30 @@ function getStudentId() {
 
 function nabilCleanAcademicReply(raw){
     let s=String(raw||"");
+
+    // Remove leaked drafting/planning text. If a proper exercise heading exists,
+    // keep only the student-facing answer from that heading onward.
+    const leakRx=/we need to produce|we need to provide|for chemical electron transfer diagram|given instruction:|but we need to follow instruction|given limited time|we'll produce:|perhaps we can|might be acceptable|not sure|actually we need to depict/i;
+    if(leakRx.test(s)){
+        const headingMatch=s.match(/(?:^|\n)\s*(#{1,4}\s*(?:Exercise|Given|Required|Solution|Final Answer|Rule Summary)\b)/i);
+        if(headingMatch){
+            s=s.slice(headingMatch.index).replace(/^\s*\n/,"");
+        }else{
+            s=s.split(/\n+/).filter(line=>!leakRx.test(line)).join("\n");
+        }
+    }
+
+    // Remove transient self-talk / drafting fragments that should never be shown to students.
     s=s
       .replace(/\b(?:wait|hold on|let'?s just|let me just|I'?ll just)\b[^.!?\n]*(?:[.!?]|$)/gi,"")
       .replace(/\b(?:hmm+|uh+|okay,\s*so)\b\s*/gi,"");
+
+    // Normalize malformed Markdown headings.
     s=s
       .replace(/^####\s*(.+)$/gm,"### $1")
       .replace(/^#####\s*(.+)$/gm,"### $1");
-    s=s.replace(/\n{3,}/g,"\n\n").trim();
-    return s;
+
+    return s.replace(/\n{3,}/g,"\n\n").trim();
 }
 
 function renderAIText(text) {
@@ -6394,6 +6466,74 @@ function nabilExerciseLayoutFamily(board, diagramsForThis, wholeBoardText){
     return "default";
 }
 
+
+const NABIL_CHEM_ION_DATA={
+  Li:{symbol:'Li',name:'Lithium',kind:'metal',shells:[2,1],charge:1,aliases:['lithium','ليثيوم']},
+  Na:{symbol:'Na',name:'Sodium',kind:'metal',shells:[2,8,1],charge:1,aliases:['sodium','صوديوم']},
+  K:{symbol:'K',name:'Potassium',kind:'metal',shells:[2,8,8,1],charge:1,aliases:['potassium','بوتاسيوم']},
+  Mg:{symbol:'Mg',name:'Magnesium',kind:'metal',shells:[2,8,2],charge:2,aliases:['magnesium','مغنيسيوم']},
+  Ca:{symbol:'Ca',name:'Calcium',kind:'metal',shells:[2,8,8,2],charge:2,aliases:['calcium','كالسيوم']},
+  Al:{symbol:'Al',name:'Aluminium',kind:'metal',shells:[2,8,3],charge:3,aliases:['aluminium','aluminum','ألومنيوم','المنيوم']},
+  F:{symbol:'F',name:'Fluorine',kind:'nonmetal',shells:[2,7],charge:-1,aliases:['fluorine','fluoride','فلور']},
+  Cl:{symbol:'Cl',name:'Chlorine',kind:'nonmetal',shells:[2,8,7],charge:-1,aliases:['chlorine','chloride','كلور','كلوريد']},
+  Br:{symbol:'Br',name:'Bromine',kind:'nonmetal',shells:[2,8,18,7],charge:-1,aliases:['bromine','bromide','بروم']},
+  I:{symbol:'I',name:'Iodine',kind:'nonmetal',shells:[2,8,18,18,7],charge:-1,aliases:['iodine','iodide','يود']},
+  O:{symbol:'O',name:'Oxygen',kind:'nonmetal',shells:[2,6],charge:-2,aliases:['oxygen','oxide','أكسجين','اكسجين','أكسيد']},
+  S:{symbol:'S',name:'Sulfur',kind:'nonmetal',shells:[2,8,6],charge:-2,aliases:['sulfur','sulphur','sulfide','كبريت']},
+  N:{symbol:'N',name:'Nitrogen',kind:'nonmetal',shells:[2,5],charge:-3,aliases:['nitrogen','nitride','نيتروجين']},
+  P:{symbol:'P',name:'Phosphorus',kind:'nonmetal',shells:[2,8,5],charge:-3,aliases:['phosphorus','phosphide','فوسفور']}
+};
+function nabilChemSub(n){ return String(n).replace(/[0-9]/g,d=>'₀₁₂₃₄₅₆₇₈₉'[Number(d)]); }
+function nabilChemConfig(arr){ return (arr||[]).join(', '); }
+function nabilChemElectrons(arr){ return (arr||[]).reduce((a,b)=>a+Number(b||0),0); }
+function nabilChemUniqueBy(arr,keyFn){ const out=[]; const seen=new Set(); (arr||[]).forEach(item=>{ const k=keyFn(item); if(!seen.has(k)){ seen.add(k); out.push(item); } }); return out; }
+function nabilChemElementHits(text){
+  const lower=String(text||'').toLowerCase();
+  const hits=[];
+  Object.values(NABIL_CHEM_ION_DATA).forEach(el=>{
+    let best=-1;
+    const patterns=[el.symbol.toLowerCase(), ...(el.aliases||[]).map(a=>String(a).toLowerCase())];
+    patterns.forEach(token=>{
+      let rx;
+      if(/^[a-z]{1,2}$/.test(token)) rx=new RegExp('\b'+token+'\b','i');
+      else rx=new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i');
+      const m=lower.match(rx);
+      if(m){ const idx=m.index||0; if(best===-1 || idx<best) best=idx; }
+    });
+    if(best!==-1) hits.push({...el,_index:best});
+  });
+  return nabilChemUniqueBy(hits.sort((a,b)=>a._index-b._index), h=>h.symbol);
+}
+function nabilChemBuildIonicSpec(text){
+  const hits=nabilChemElementHits(text);
+  let cation=hits.find(h=>h.kind==='metal') || NABIL_CHEM_ION_DATA.Na;
+  let anion=hits.find(h=>h.kind==='nonmetal') || NABIL_CHEM_ION_DATA.Cl;
+  if(cation.symbol===anion.symbol) anion=NABIL_CHEM_ION_DATA.Cl;
+  const cp=Math.abs(Number(cation.charge||1));
+  const ap=Math.abs(Number(anion.charge||1));
+  const gcd=(a,b)=>b?gcd(b,a%b):a;
+  const g=gcd(cp,ap);
+  const cationCount=ap/g;
+  const anionCount=cp/g;
+  const formula=`${cation.symbol}${cationCount>1?nabilChemSub(cationCount):''}${anion.symbol}${anionCount>1?nabilChemSub(anionCount):''}`;
+  const cationAfter=[...(cation.shells||[])];
+  if(cationAfter.length){ cationAfter[cationAfter.length-1]=Math.max(0,(cationAfter[cationAfter.length-1]||0)-cp); while(cationAfter.length>1 && cationAfter[cationAfter.length-1]===0) cationAfter.pop(); }
+  const anionAfter=[...(anion.shells||[])];
+  if(anionAfter.length){ anionAfter[anionAfter.length-1]=(anionAfter[anionAfter.length-1]||0)+ap; }
+  return {
+    type:'ionic_bond',
+    title:'Ion Formation and Ionic Bonding',
+    labels:{metal:cation.symbol,nonmetal:anion.symbol},
+    chemistry:{
+      cation,anion,cationCount,anionCount,formula,
+      transferredElectrons: cp*cationCount,
+      cationAfter,anionAfter,
+      cationCharge:`${cp===1?'':cp}+`,
+      anionCharge:`${ap===1?'':ap}-`
+    }
+  };
+}
+
 function nabilAutoSubjectDiagramSpec(wholeBoardText){
     const raw = nabilHTMLToPlainText(String(wholeBoardText||"")).replace(/\s+/g," ");
     const t = raw.toLowerCase();
@@ -6430,11 +6570,8 @@ function nabilAutoSubjectDiagramSpec(wholeBoardText){
         };
     }
 
-    if(/ionic bond|ionic bonding|liaison ionique|رابطه ايونيه|الرابطة الأيونية|الرابطه الايونيه/.test(t)){
-        let metal='Na', nonmetal='Cl';
-        if(/\bmg\b|magnesium|مغنيسيوم/.test(t) && /\bo\b|oxygen|اكسجين|أكسجين/.test(t)){ metal='Mg'; nonmetal='O'; }
-        else if(/\bca\b|calcium|كالسيوم/.test(t) && /\bcl\b|chlorine|كلور/.test(t)){ metal='Ca'; nonmetal='Cl'; }
-        return {type:'ionic_bond',title:'Ionic bond – electron transfer',labels:{metal,nonmetal}};
+    if(/ionic bond|ionic bonding|electron transfer|liaison ionique|رابطه ايونيه|الرابطة الأيونية|الرابطه الايونيه|انتقال إلكترون|انتقال الالكترون/.test(t)){
+        return nabilChemBuildIonicSpec(raw);
     }
     if(/periodic table|tableau periodique|الجدول الدوري/.test(t)) return {type:'periodic_table',title:'Periodic table'};
     if(/states of matter|etats de la matiere|حالات المادة/.test(t)) return {type:'states_of_matter',title:'States of matter'};
@@ -6610,7 +6747,7 @@ ${rawVariationHTML}`);
             }
         }
 
-        const autoSubjectSpecs = (!diagramsForThis.length && !autoFunctionSpec) ? nabilAutoSubjectDiagramSpecs(wholeBoardText) : [];
+        const autoSubjectSpecs = (!diagramsForThis.length && !autoFunctionSpec) ? nabilAutoSubjectDiagramSpecs(`${sourceQuestion} ${wholeBoardText}`) : [];
         if(!diagramsForThis.length && autoFunctionSpec){
             const rendered=renderNabilDiagram(autoFunctionSpec);
             if(rendered) diagramsForThis=[`<div class="linked-lesson-visual nabil-authoritative-function-visual" data-card-index="${boardIndex+1}" data-diagram-type="${nabilEsc(String(autoFunctionSpec.type||"").toLowerCase())}">${rendered}</div>`];
@@ -6620,6 +6757,22 @@ ${rawVariationHTML}`);
                 return rendered ? `<div class="linked-lesson-visual nabil-fallback-visual" data-card-index="${boardIndex+1}" data-diagram-type="${nabilEsc(String(spec.type||"").toLowerCase())}">${rendered}</div>` : "";
             }).filter(Boolean);
         }
+        // v72: for an explicit ionic-bond/electron-transfer question, the current
+        // question is authoritative. Replace unrelated coordinate-plane visuals.
+        const currentChemistryText = `${sourceQuestion} ${wholeBoardText}`.toLowerCase();
+        const asksIonicTransfer =
+            /ionic bond|ionic bonding|electron transfer|sodium chloride|nacl|na\+|cl-|chloride ion|sodium ion|liaison ionique|transfert d.?électron|رابطة أيونية|انتقال إلكترون|كلوريد الصوديوم/.test(currentChemistryText);
+
+        if(asksIonicTransfer){
+            const chemSpec=nabilChemBuildIonicSpec(`${sourceQuestion} ${wholeBoardText}`);
+            chemSpec.type="ionic_bond";
+            chemSpec.title="Ion Formation and Ionic Bonding";
+            const chemRendered=renderNabilDiagram(chemSpec);
+            if(chemRendered){
+                diagramsForThis=[`<div class="linked-lesson-visual nabil-authoritative-chemistry-visual" data-card-index="${boardIndex+1}" data-diagram-type="ionic_bond">${chemRendered}</div>`];
+            }
+        }
+
         const hasReliableVisual = Boolean(diagramsForThis.length);
         const visualHTML = diagramsForThis.join("");
         if (functionStudyNow) {
@@ -10179,6 +10332,49 @@ const NABIL_FUNCTION_REFERENCE_COLORS = Object.freeze({
     table:"#0b2a52"
 });
 
+
+function nabilBuildFunctionVariationTable(spec){
+    const cardClass = "nabil-function-variation-card";
+    const titleText = "Table of Variation";
+
+    const explicitHTML = spec?.variation_html || spec?.variationHTML || "";
+    if(typeof explicitHTML === "string" && explicitHTML.trim()){
+        return `<div class="${cardClass}"><div class="nabil-function-variation-title">${titleText}</div><div class="nabil-function-variation-html">${explicitHTML}</div></div>`;
+    }
+
+    const tableSpec = spec?.variation_table || spec?.variationTable || null;
+    let headers = [];
+    let rows = [];
+    if(tableSpec && typeof tableSpec === "object"){
+        headers = Array.isArray(tableSpec.headers) ? tableSpec.headers.slice() : [];
+        rows = Array.isArray(tableSpec.rows) ? tableSpec.rows.slice() : [];
+    }else if(Array.isArray(spec?.variation_headers) && Array.isArray(spec?.variation_rows)){
+        headers = spec.variation_headers.slice();
+        rows = spec.variation_rows.slice();
+    }
+
+    if(!headers.length || !rows.length) return "";
+
+    const htmlRows = rows.map(row=>{
+        const cells = Array.isArray(row)
+            ? row
+            : (row && typeof row === "object" ? [row.label || row.name || "", ...(Array.isArray(row.cells)?row.cells:[])] : []);
+        if(!cells.length) return "";
+        return `<tr>${cells.map((cell,ci)=> ci===0 ? `<th>${nabilEsc(String(cell ?? ""))}</th>` : `<td>${nabilEsc(String(cell ?? ""))}</td>`).join("")}</tr>`;
+    }).join("");
+
+    return `
+    <div class="${cardClass}">
+      <div class="nabil-function-variation-title">${titleText}</div>
+      <div class="lesson-table-wrap">
+        <table class="variation-auto-table">
+          <tr>${headers.map((head,hi)=> hi===0 ? `<th>${nabilEsc(String(head ?? ""))}</th>` : `<td>${nabilEsc(String(head ?? ""))}</td>`).join("")}</tr>
+          ${htmlRows}
+        </table>
+      </div>
+    </div>`;
+}
+
 function nabilReferenceFunctionGraphWrap(title, svg, note, spec){
     const expression = nabilCleanFunctionExpressionLabel(
         spec?.expression || spec?.formula || spec?.equation || spec?.fx || spec?.function_expression || ""
@@ -10265,6 +10461,7 @@ function nabilReferenceFunctionGraphWrap(title, svg, note, spec){
       <div class="nabil-function-ref-plot">
         ${polishedSvg}
       </div>
+      ${nabilBuildFunctionVariationTable(spec)}
       ${note ? `<div class="nabil-visual-note">${nabilEsc(note)}</div>` : ""}
     </div>`;
 }
@@ -11550,7 +11747,7 @@ function renderNabilDiagram(rawSpec){
         // ===== Legend box =====
         // v71: hidden by default for function graphs to avoid covering the plot.
         let legendSvg="";
-        if(spec.show_legend === true && legendItems.length){
+        if(false && spec.show_legend === true && legendItems.length){
             const legendW=Math.min(230, Math.max(150, Math.max(...legendItems.map(it=>it.text.length))*5.6+34));
             const legendH=legendItems.length*20+14;
             const legendX=505-legendW;
@@ -12318,67 +12515,145 @@ function renderNabilDiagram(rawSpec){
     }
 
     if (t === "ionic_bond"){
-        const left=nabilEsc(L.left||L.metal||"Na"), right=nabilEsc(L.right||L.nonmetal||"Cl");
-        return nabilVisualWrap(title||"انتقال الإلكترون والرابطة الأيونية",`
-        <svg viewBox="0 0 760 390" role="img" aria-label="ionic electron transfer">
-          <rect x="20" y="28" width="345" height="300" rx="16" fill="#08243a" stroke="#22d3ee" stroke-width="3"/><rect x="395" y="28" width="345" height="300" rx="16" fill="#08243a" stroke="#a855f7" stroke-width="3"/>
-          <text x="192" y="58" text-anchor="middle" class="vlab" style="fill:#67e8f9">Before electron transfer</text><text x="568" y="58" text-anchor="middle" class="vlab" style="fill:#d8b4fe">After electron transfer</text>
-          <circle cx="120" cy="178" r="56" fill="url(#atomSodium)" stroke="#c084fc" stroke-width="4" filter="url(#nabilDepth)"/><circle cx="270" cy="178" r="66" fill="url(#atomChlorine)" stroke="#4ade80" stroke-width="4" filter="url(#nabilDepth)"/>
-          <text x="120" y="188" text-anchor="middle" class="vlab" style="font-size:25px;fill:#fff">${left}</text><text x="270" y="188" text-anchor="middle" class="vlab" style="font-size:25px;fill:#fff">${right}</text>
-          <circle cx="171" cy="136" r="8" fill="#ffd43b" stroke="#fff" stroke-width="2"/><path d="M178 126 C205 92 232 95 250 122" fill="none" stroke="#ffd43b" stroke-width="4"/><polygon points="250,122 236,117 244,106" fill="#ffd43b"/><text x="210" y="88" text-anchor="middle" class="vlab vsmall" style="fill:#ffd43b">one electron transferred</text>
-          <text x="467" y="190" text-anchor="middle" class="vlab" style="font-size:30px;fill:#e9d5ff">[${left}]⁺</text><text x="568" y="190" text-anchor="middle" class="vlab" style="font-size:28px;fill:#ffd43b">+</text><text x="660" y="190" text-anchor="middle" class="vlab" style="font-size:30px;fill:#bbf7d0">[${right}]⁻</text>
-          <line x1="508" y1="235" x2="620" y2="235" stroke="#ffd43b" stroke-width="4" stroke-dasharray="8 6"/><text x="564" y="265" text-anchor="middle" class="vlab vsmall" style="fill:#ffd43b">electrostatic attraction → ionic bond</text>
-          <text x="192" y="302" text-anchor="middle" class="vlab vsmall" style="fill:#cbd5e1">${left} loses e⁻ • ${right} gains e⁻</text><text x="568" y="302" text-anchor="middle" class="vlab vsmall" style="fill:#cbd5e1">opposite ions form a stable compound</text>
-        </svg>`,spec.note||"");
-    }
+        const chem = spec.chemistry || {};
+        const cation = chem.cation || NABIL_CHEM_ION_DATA.Na;
+        const anion = chem.anion || NABIL_CHEM_ION_DATA.Cl;
+        const cationCount = Math.max(1, Number(chem.cationCount || 1));
+        const anionCount = Math.max(1, Number(chem.anionCount || 1));
+        const formula = chem.formula || `${cation.symbol}${anion.symbol}`;
+        const cAfter = Array.isArray(chem.cationAfter) ? chem.cationAfter : (cation.shells || []);
+        const aAfter = Array.isArray(chem.anionAfter) ? chem.anionAfter : (anion.shells || []);
+        const cLoss = Math.abs(Number(cation.charge || 1));
+        const aGain = Math.abs(Number(anion.charge || 1));
+        const transferCount = Math.max(1, Number(chem.transferredElectrons || cLoss));
 
+        const supFmt = (s)=> String(s||"")
+            .replace(/3\\+/g,'³⁺').replace(/2\\+/g,'²⁺').replace(/\\+/g,'⁺')
+            .replace(/3-/g,'³⁻').replace(/2-/g,'²⁻').replace(/-/g,'⁻');
+        const cChargeSup = supFmt(chem.cationCharge || `${cLoss===1?'':cLoss}+`);
+        const aChargeSup = supFmt(chem.anionCharge || `${aGain===1?'':aGain}-`);
+        const electronWord = (n)=> n===1 ? 'electron' : 'electrons';
+        const cEq = `${cation.symbol} → ${cation.symbol}${cChargeSup} + ${cLoss===1?'':' '+cLoss}e⁻`.replace(' 1e⁻',' e⁻');
+        const aEq = `${anion.symbol} + ${aGain===1?'':' '+aGain}e⁻ → ${anion.symbol}${aChargeSup}`.replace(' 1e⁻',' e⁻');
+        const finalEq = `${cationCount>1?cationCount:''}${cation.symbol}${cChargeSup} + ${anionCount>1?anionCount:''}${anion.symbol}${aChargeSup} → ${formula}`;
+        const cElectronsBefore = nabilChemElectrons(cation.shells || []);
+        const aElectronsBefore = nabilChemElectrons(anion.shells || []);
+        const cElectronsAfter = nabilChemElectrons(cAfter);
+        const aElectronsAfter = nabilChemElectrons(aAfter);
+        const quickCheck = `What formula forms when ${cation.name.toLowerCase()} combines with ${anion.name.toLowerCase()}?`;
 
-    // ===== periodic table (simplified) =====
-    if (t === "periodic_table"){
-        const elements = Array.isArray(spec.elements) ? spec.elements.slice(0,8) : [
-            {symbol:"H", number:1, mass:"1.0", color:"#94a3b8"},
-            {symbol:"Na", number:11, mass:"23.0", color:"#c084fc"},
-            {symbol:"Cl", number:17, mass:"35.5", color:"#4ade80"},
-            {symbol:"O", number:8, mass:"16.0", color:"#fb7185"}
-        ];
-        const cellW=110, cellH=110, gap=14, startX=45, startY=60;
-        let cells="";
-        elements.forEach((el,i)=>{
-            const x=startX+i*(cellW+gap);
-            cells += `
-            <g filter="url(#nabilDepth)">
-              <rect x="${x}" y="${startY}" width="${cellW}" height="${cellH}" rx="10" fill="${nabilEsc(el.color||'#2563eb')}" fill-opacity=".28" stroke="${nabilEsc(el.color||'#67e8f9')}" stroke-width="2.5"/>
-            </g>
-            <text x="${x+10}" y="${startY+22}" class="vlab vsmall" style="fill:#eef9ff">${nabilEsc(el.number||"")}</text>
-            <text x="${x+cellW/2}" y="${startY+62}" text-anchor="middle" class="vlab" style="font-size:30px;fill:#fff">${nabilEsc(el.symbol||"")}</text>
-            <text x="${x+cellW/2}" y="${startY+88}" text-anchor="middle" class="vlab vsmall" style="fill:#cbd5e1">${nabilEsc(el.mass||"")}</text>`;
-        });
-        return nabilVisualWrap(title||"عناصر من الجدول الدوري",`
-        <svg viewBox="0 0 520 250">${cells}</svg>`,spec.note||"");
-    }
+        function bohrAtom(cx, cy, symbol, shells, opts={}){
+            const stroke = opts.stroke || '#59d4ff';
+            const fill = opts.fill || 'url(#atomSodium)';
+            const labelTop = opts.labelTop || '';
+            const charge = opts.charge || '';
+            const showBrackets = !!opts.showBrackets;
+            const radiiBase = [24, 40, 56, 72, 88];
+            const shellList = Array.isArray(shells) ? shells.slice(0, 5) : [];
+            const lastIdx = shellList.length - 1;
+            const highlightOuter = Math.max(0, Number(opts.highlightOuterElectrons || 0));
+            let highlightedPlaced = 0;
+            let out = '';
+            if(labelTop){
+                out += `<text x="${cx}" y="${cy-104}" text-anchor="middle" class="vlab vsmall" style="fill:#eaf6ff">${nabilEsc(labelTop)}</text>`;
+            }
+            if(showBrackets){
+                out += `<path d="M${cx-96} ${cy-64} L${cx-108} ${cy-64} L${cx-108} ${cy+64} L${cx-96} ${cy+64}" fill="none" stroke="#eef9ff" stroke-width="4"/>`;
+                out += `<path d="M${cx+96} ${cy-64} L${cx+108} ${cy-64} L${cx+108} ${cy+64} L${cx+96} ${cy+64}" fill="none" stroke="#eef9ff" stroke-width="4"/>`;
+            }
+            shellList.forEach((count, idx)=>{
+                const r = radiiBase[idx] || (24 + idx*16);
+                out += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#60caff" stroke-opacity="0.92" stroke-width="2.2"/>`;
+                const bx = cx + r*0.7;
+                const by = cy - r*0.7;
+                out += `<rect x="${bx-11}" y="${by-10}" width="22" height="18" rx="9" fill="#06253a" stroke="#5eead4" stroke-width="1.2"/>`;
+                out += `<text x="${bx}" y="${by+3}" text-anchor="middle" class="vlab vsmall" style="fill:#dffcff;font-size:10px;font-weight:900">${count}</text>`;
+                for(let i=0;i<count;i++){
+                    const ang = -Math.PI/2 + (Math.PI*2*i/count);
+                    const ex = cx + Math.cos(ang) * r;
+                    const ey = cy + Math.sin(ang) * r;
+                    const isHighlighted = idx===lastIdx && highlightedPlaced < highlightOuter;
+                    if(isHighlighted) highlightedPlaced++;
+                    out += `<circle cx="${ex.toFixed(1)}" cy="${ey.toFixed(1)}" r="${isHighlighted?5.1:4.2}" fill="${isHighlighted?'#ff5757':'#9ff7ff'}" stroke="${isHighlighted?'#fff1f2':'#0b2342'}" stroke-width="1"/>`;
+                    if(isHighlighted){
+                        out += `<circle cx="${ex.toFixed(1)}" cy="${ey.toFixed(1)}" r="8.1" fill="none" stroke="#ffb4b8" stroke-width="1.3" stroke-dasharray="3 2" opacity=".9"/>`;
+                    }
+                }
+            });
+            out += `<circle cx="${cx}" cy="${cy}" r="21" fill="${fill}" stroke="${stroke}" stroke-width="3" filter="url(#nabilDepth)"/>`;
+            out += `<text x="${cx}" y="${cy+7}" text-anchor="middle" class="vlab" style="font-size:25px;fill:#ffffff;font-weight:900">${nabilEsc(symbol)}</text>`;
+            if(charge){
+                out += `<text x="${cx+118}" y="${cy-46}" text-anchor="middle" class="vlab" style="font-size:28px;fill:#ffffff;font-weight:900">${nabilEsc(charge)}</text>`;
+            }
+            return out;
+        }
 
-    // ===== reaction energy diagram =====
-    if (t === "energy_diagram"){
-        const exothermic = String(spec.reaction_type||"").toLowerCase() !== "endothermic";
-        const reactantsY = exothermic ? 200 : 230;
-        const productsY = exothermic ? 230 : 200;
-        const peakY = 70;
-        const path = `M60 ${reactantsY} C160 ${reactantsY} 200 ${peakY} 260 ${peakY} C320 ${peakY} 360 ${productsY} 460 ${productsY}`;
-        return nabilVisualWrap(title|| (exothermic ? "مخطط طاقة تفاعل طارد للحرارة" : "مخطط طاقة تفاعل ماص للحرارة"),`
-        <svg viewBox="0 0 520 300">
-          <line x1="45" y1="255" x2="490" y2="255" stroke="#61758c" stroke-width="2"/>
-          <line x1="45" y1="255" x2="45" y2="35" stroke="#61758c" stroke-width="2"/>
-          <text x="10" y="150" class="vlab vsmall" transform="rotate(-90 20 150)">${nabilEsc(L.yaxis||"Energy")}</text>
-          <text x="270" y="285" class="vlab vsmall" text-anchor="middle">${nabilEsc(L.xaxis||"Reaction progress")}</text>
-          <path d="${path}" fill="none" stroke="#22d3ee" stroke-width="4"/>
-          <line x1="60" y1="${reactantsY}" x2="60" y2="${peakY}" stroke="#facc15" stroke-width="2" stroke-dasharray="5 4"/>
-          <text x="70" y="${(reactantsY+peakY)/2}" class="vlab vsmall" style="fill:#facc15">${nabilEsc(L.activation_energy||"Ea")}</text>
-          <line x1="60" y1="${reactantsY}" x2="460" y2="${reactantsY}" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4 4"/>
-          <line x1="460" y1="${productsY}" x2="460" y2="${reactantsY}" stroke="#ef4444" stroke-width="2" stroke-dasharray="5 4"/>
-          <text x="468" y="${(reactantsY+productsY)/2}" class="vlab vsmall" style="fill:#ef4444">${nabilEsc(L.delta_h||"ΔH")}</text>
-          <circle cx="60" cy="${reactantsY}" r="6" fill="#4ade80"/><text x="30" y="${reactantsY+22}" class="vlab vsmall">${nabilEsc(L.reactants||"Reactants")}</text>
-          <circle cx="460" cy="${productsY}" r="6" fill="#a855f7"/><text x="400" y="${productsY+ (exothermic?22:-14)}" class="vlab vsmall">${nabilEsc(L.products||"Products")}</text>
-        </svg>`,spec.note||"");
+        let svg = '';
+        svg += `<svg viewBox="0 0 1240 700" role="img" aria-label="${nabilEsc(formula)} ionic bonding card">`;
+        svg += `<rect x="16" y="16" width="1208" height="668" rx="24" fill="#081f35" stroke="#2ca7ff" stroke-width="2.5"/>`;
+        svg += `<rect x="26" y="26" width="1188" height="76" rx="18" fill="#0b2941" stroke="#2a5674" stroke-width="1.6"/>`;
+        svg += `<text x="58" y="73" class="vlab" style="font-size:20px;fill:#67e8f9;font-weight:900">Ion Formation and Ionic Bonding</text>`;
+        svg += `<text x="58" y="94" class="vlab vsmall" style="fill:#d9f4ff">Learn how atoms gain or lose electrons to form ions, and how ionic bonds hold compounds together.</text>`;
+        svg += `<circle cx="802" cy="58" r="14" fill="none" stroke="#22d3ee" stroke-width="3"/><path d="M802 51 L802 60 L809 65" fill="none" stroke="#22d3ee" stroke-width="3" stroke-linecap="round"/>`;
+        svg += `<text x="825" y="55" class="vlab vsmall" style="fill:#67e8f9">Estimated Time</text><text x="825" y="76" class="vlab" style="fill:#eef9ff;font-size:18px;font-weight:900">20 minutes</text>`;
+        svg += `<circle cx="1032" cy="58" r="14" fill="none" stroke="#22d3ee" stroke-width="3"/><circle cx="1032" cy="58" r="4" fill="#22d3ee"/>`;
+        svg += `<text x="1055" y="55" class="vlab vsmall" style="fill:#67e8f9">Learning Goal</text><text x="1055" y="76" class="vlab vsmall" style="fill:#eef9ff">Explain ion formation and ionic bonding using ${nabilEsc(formula)}.</text>`;
+
+        svg += `<rect x="26" y="120" width="305" height="470" rx="20" fill="#0b2941" stroke="#2ca7ff" stroke-width="2"/>`;
+        svg += `<text x="50" y="160" class="vlab" style="font-size:24px;fill:#67e8f9;font-weight:900">${nabilEsc(cation.name)} and ${nabilEsc(anion.name)}</text>`;
+        svg += `<text x="50" y="197" class="vlab vsmall" style="fill:#eef9ff">${nabilEsc(cation.name)} atom: ${nabilEsc(cation.symbol)}, electron configuration ${nabilEsc(nabilChemConfig(cation.shells))}</text>`;
+        svg += `<text x="50" y="225" class="vlab vsmall" style="fill:#eef9ff">${nabilEsc(anion.name)} atom: ${nabilEsc(anion.symbol)}, electron configuration ${nabilEsc(nabilChemConfig(anion.shells))}</text>`;
+        svg += `<text x="50" y="268" class="vlab vsmall" style="fill:#dff6ff;font-weight:900">${nabilEsc(cation.name)} loses ${cLoss} ${electronWord(cLoss)}:</text>`;
+        svg += `<rect x="48" y="280" width="260" height="42" rx="10" fill="#092338" stroke="#44d2ff" stroke-width="2"/>`;
+        svg += `<text x="178" y="307" text-anchor="middle" class="vlab" style="font-size:24px;fill:#ffffff">${nabilEsc(cEq)}</text>`;
+        svg += `<text x="50" y="356" class="vlab vsmall" style="fill:#dff6ff;font-weight:900">${nabilEsc(anion.name)} gains ${aGain} ${electronWord(aGain)}:</text>`;
+        svg += `<rect x="48" y="368" width="260" height="42" rx="10" fill="#092338" stroke="#44d2ff" stroke-width="2"/>`;
+        svg += `<text x="178" y="395" text-anchor="middle" class="vlab" style="font-size:24px;fill:#ffffff">${nabilEsc(aEq)}</text>`;
+        svg += `<text x="50" y="448" class="vlab vsmall" style="fill:#eef9ff">After transfer: ${nabilEsc(cation.symbol)}${nabilEsc(cChargeSup)} has ${cElectronsAfter} electrons (${nabilEsc(nabilChemConfig(cAfter))}),</text>`;
+        svg += `<text x="50" y="474" class="vlab vsmall" style="fill:#eef9ff">and ${nabilEsc(anion.symbol)}${nabilEsc(aChargeSup)} has ${aElectronsAfter} electrons (${nabilEsc(nabilChemConfig(aAfter))}).</text>`;
+        svg += `<text x="50" y="515" class="vlab vsmall" style="fill:#eef9ff">The electrostatic attraction between ${nabilEsc(cation.symbol)}${nabilEsc(cChargeSup)} and ${nabilEsc(anion.symbol)}${nabilEsc(aChargeSup)} forms an ionic bond.</text>`;
+        svg += `<rect x="48" y="533" width="260" height="46" rx="10" fill="#092338" stroke="#44d2ff" stroke-width="2"/>`;
+        svg += `<text x="178" y="563" text-anchor="middle" class="vlab" style="font-size:24px;fill:#ffffff">${nabilEsc(finalEq)}</text>`;
+        svg += `<rect x="42" y="596" width="272" height="72" rx="14" fill="#0b3d46" stroke="#44f0c6" stroke-width="2"/>`;
+        svg += `<text x="62" y="625" class="vlab" style="font-size:18px;fill:#7fffd4;font-weight:900">Rule Summary:</text>`;
+        svg += `<text x="62" y="647" class="vlab vsmall" style="fill:#eafffb">Metals lose electrons and form positive ions;</text>`;
+        svg += `<text x="62" y="665" class="vlab vsmall" style="fill:#eafffb">nonmetals gain electrons and form negative ions.</text>`;
+
+        svg += `<rect x="350" y="120" width="424" height="290" rx="18" fill="#0b2941" stroke="#40bfff" stroke-width="2"/>`;
+        svg += `<rect x="782" y="120" width="424" height="290" rx="18" fill="#0b2941" stroke="#40bfff" stroke-width="2"/>`;
+        svg += `<text x="562" y="153" text-anchor="middle" class="vlab" style="font-size:20px;fill:#eef9ff;font-weight:900">Before Electron Transfer</text>`;
+        svg += `<text x="994" y="153" text-anchor="middle" class="vlab" style="font-size:20px;fill:#eef9ff;font-weight:900">After Electron Transfer</text>`;
+        svg += `<text x="562" y="182" text-anchor="middle" class="vlab vsmall" style="fill:#ffd43b">${transferCount===1?'one electron transferred':`${transferCount} electrons transferred`}</text>`;
+        svg += bohrAtom(468, 270, cation.symbol, cation.shells || [], {labelTop:`${cation.name} atom (${cation.symbol})`, fill:'url(#atomSodium)', stroke:'#c084fc', highlightOuterElectrons:transferCount});
+        svg += bohrAtom(655, 270, anion.symbol, anion.shells || [], {labelTop:`${anion.name} atom (${anion.symbol})`, fill:'url(#atomChlorine)', stroke:'#4ade80'});
+        svg += `<path d="M518 195 C562 150 610 150 652 195" fill="none" stroke="#ffd43b" stroke-width="4" marker-end="url(#chemMoveArrow)"/>`;
+        svg += `<text x="562" y="166" text-anchor="middle" class="vlab vsmall" style="fill:#ffdddd">e⁻</text>`;
+        svg += `<circle cx="562" cy="178" r="5" fill="#ff5757"/>`;
+        svg += bohrAtom(900, 270, cation.symbol, cAfter, {labelTop:`${cation.name} ion (${cation.symbol}${cChargeSup})`, fill:'url(#atomSodium)', stroke:'#c084fc', showBrackets:true, charge:cChargeSup});
+        svg += bohrAtom(1090, 270, anion.symbol, aAfter, {labelTop:`${anion.name} ion (${anion.symbol}${aChargeSup})`, fill:'url(#atomChlorine)', stroke:'#4ade80', showBrackets:true, charge:aChargeSup});
+        svg += `<line x1="953" y1="270" x2="1037" y2="270" stroke="#ffd43b" stroke-width="4" marker-start="url(#chemBondArrowBack)" marker-end="url(#chemBondArrow)"/>`;
+        svg += `<text x="995" y="255" text-anchor="middle" class="vlab vsmall" style="fill:#ffd43b">ionic bond</text>`;
+        svg += `<text x="468" y="366" text-anchor="middle" class="vlab vsmall" style="fill:#eef9ff">${nabilEsc(nabilChemConfig(cation.shells))}</text>`;
+        svg += `<text x="468" y="387" text-anchor="middle" class="vlab vsmall" style="fill:#cbd5e1">(${cElectronsBefore} electrons)</text>`;
+        svg += `<text x="655" y="366" text-anchor="middle" class="vlab vsmall" style="fill:#eef9ff">${nabilEsc(nabilChemConfig(anion.shells))}</text>`;
+        svg += `<text x="655" y="387" text-anchor="middle" class="vlab vsmall" style="fill:#cbd5e1">(${aElectronsBefore} electrons)</text>`;
+        svg += `<text x="900" y="366" text-anchor="middle" class="vlab vsmall" style="fill:#eef9ff">${nabilEsc(nabilChemConfig(cAfter))}</text>`;
+        svg += `<text x="900" y="387" text-anchor="middle" class="vlab vsmall" style="fill:#cbd5e1">(${cElectronsAfter} electrons)</text>`;
+        svg += `<text x="1090" y="366" text-anchor="middle" class="vlab vsmall" style="fill:#eef9ff">${nabilEsc(nabilChemConfig(aAfter))}</text>`;
+        svg += `<text x="1090" y="387" text-anchor="middle" class="vlab vsmall" style="fill:#cbd5e1">(${aElectronsAfter} electrons)</text>`;
+        svg += `<rect x="350" y="425" width="856" height="124" rx="18" fill="#0b2941" stroke="#2f6f95" stroke-width="2"/>`;
+        svg += `<text x="778" y="455" text-anchor="middle" class="vlab" style="font-size:20px;fill:#67e8f9;font-weight:900">Lewis Dot Representation of ${nabilEsc(formula)}</text>`;
+        svg += `<text x="692" y="518" text-anchor="middle" class="vlab" style="font-size:46px;fill:#ffffff">[ ${nabilEsc(cation.symbol)} ]${nabilEsc(cChargeSup)}</text>`;
+        svg += `<text x="902" y="518" text-anchor="middle" class="vlab" style="font-size:46px;fill:#ffffff">[ ${nabilEsc(anion.symbol)} ]${nabilEsc(aChargeSup)}</text>`;
+        [[-42,-24],[-42,0],[-42,24],[0,-36],[0,36],[42,-24],[42,0],[42,24]].forEach(([dx,dy])=>{ svg += `<circle cx="${902+dx}" cy="${500+dy}" r="4.5" fill="#67e8f9"/>`; });
+        svg += `<rect x="350" y="560" width="856" height="70" rx="16" fill="#4b1768" stroke="#d946ef" stroke-width="2"/>`;
+        svg += `<circle cx="388" cy="595" r="18" fill="#a855f7" stroke="#f0abfc" stroke-width="2"/>`;
+        svg += `<text x="388" y="602" text-anchor="middle" class="vlab" style="font-size:26px;fill:#ffffff;font-weight:900">?</text>`;
+        svg += `<text x="420" y="588" class="vlab" style="font-size:18px;fill:#ffb4ff;font-weight:900">Quick Check</text>`;
+        svg += `<text x="420" y="611" class="vlab vsmall" style="fill:#f6dcff">${nabilEsc(quickCheck)}</text>`;
+        svg += `<defs><marker id="chemMoveArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#ffd43b"/></marker><marker id="chemBondArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#ffd43b"/></marker><marker id="chemBondArrowBack" markerWidth="10" markerHeight="10" refX="2" refY="5" orient="auto"><path d="M10,0 L0,5 L10,10 Z" fill="#ffd43b"/></marker></defs>`;
+        svg += `</svg>`;
+        return nabilVisualWrap(title || 'Ion Formation and Ionic Bonding', svg, spec.note || '');
     }
 
     // ===== states of matter =====
@@ -15386,7 +15661,24 @@ document.addEventListener("click", (event) => {
     previewBtn?.addEventListener("click", () => {
         const visual = latestVisual();
         if (!visual) return alert("لا توجد رسمة في الدرس حتى الآن.");
-        modalContent.replaceChildren(visual.cloneNode(true));
+
+        const clone = visual.cloneNode(true);
+        clone.classList.add("nabil-preview-exact-clone");
+        clone.style.removeProperty("background");
+        clone.style.removeProperty("color");
+        clone.style.width = "100%";
+        clone.style.maxWidth = "none";
+        clone.style.margin = "0 auto";
+
+        modalContent.replaceChildren(clone);
+
+        const originalWidth = Math.round(visual.getBoundingClientRect().width || 0);
+        const preferredWidth = Math.min(1180, Math.max(760, originalWidth || 1000));
+        modal.querySelector(".drawing-preview-dialog")?.style.setProperty(
+            "width",
+            `min(${preferredWidth}px, 96vw)`
+        );
+
         modal.hidden = false;
     });
     closeModal?.addEventListener("click", () => modal.hidden = true);
@@ -16482,6 +16774,41 @@ function nabilTeacherWordHTML(data){
 }
 .exercise-board.layout-math h3,
 .exercise-board.layout-math h4{white-space:normal!important;overflow-wrap:anywhere!important;}
+
+
+/* v72 — authoritative chemistry visual */
+.nabil-authoritative-chemistry-visual,
+.nabil-authoritative-chemistry-visual .nabil-visual,
+.nabil-authoritative-chemistry-visual svg{
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  height:auto!important;
+  display:block!important;
+  box-sizing:border-box!important;
+}
+
+
+/* v76 — preview must preserve the exact lesson-card palette */
+#drawingPreviewModal .drawing-preview-dialog{
+  background:#061522!important;
+  color:#eef8ff!important;
+}
+#drawingPreviewModal #drawingPreviewContent,
+#drawingPreviewModal #drawingPreviewContent .nabil-visual,
+#drawingPreviewModal #drawingPreviewContent .nabil-reference-function-card,
+#drawingPreviewModal #drawingPreviewContent .nabil-reference-function-generic{
+  background-color:transparent!important;
+  color:inherit!important;
+}
+#drawingPreviewModal #drawingPreviewContent .nabil-function-ref-plot{
+  background:var(--nabil-bg-graph,#0a203d)!important;
+}
+#drawingPreviewModal #drawingPreviewContent svg{
+  background:transparent!important;
+  opacity:1!important;
+  filter:none!important;
+}
 
 </style></head><body>${parts}</body></html>`;
 }
