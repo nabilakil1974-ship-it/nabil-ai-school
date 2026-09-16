@@ -7020,7 +7020,7 @@ function nabilV85TangentsFallbackText(sourceQuestion, boardText){
 
 function renderGeneralExerciseBoards(text, diagrams, messageDirection, messageLanguage, sourceQuestion=""){
     const v90MathLessonSource = `${sourceQuestion||""} ${text||""}`.toLowerCase();
-    const forceTangentsLessonReference = Boolean(String(sourceQuestion||"").trim()) &&
+    const forceTangentsLessonReference =
         /two circles|common tangents|direct common tangents|دائرتين|مماس.*مشترك|common tangent/.test(v90MathLessonSource) &&
         /o.?1|o₁|o.?2|o₂|circle|circles|radius|radii|distance/.test(v90MathLessonSource) &&
         !/study of a function|function|asymptote|derivative|variation/.test(v90MathLessonSource);
@@ -18981,6 +18981,23 @@ function nabilTeacherWordHTML(data){
   .v90-ref-grid{grid-template-columns:1fr!important}
   .v90-ref-right{min-height:300px!important}
   .v90-ref-visual-wrap svg{min-height:280px!important}
+}
+
+.v90-ref-grid{align-items:stretch!important}
+.v90-ref-left,.v90-ref-right{min-height:430px!important}
+.v90-ref-right{overflow:hidden!important}
+.v90-ref-right .nabil-v85-tangent-card,
+.v90-ref-right .linked-lesson-visual,
+.v90-ref-right .nabil-visual{
+  display:flex!important;align-items:center!important;justify-content:center!important;height:100%!important;
+}
+.v90-ref-right .nabil-v85-tangent-card svg{width:100%!important;height:100%!important;max-height:none!important;min-height:420px!important}
+.v90-ref-left .nabil-v85-tangent-card,
+.v90-ref-left .linked-lesson-visual,
+.v90-ref-left .nabil-visual{display:none!important}
+.lesson-main-reference-zone .exercise-board-stack > .v90-reference-tangents-card + *{display:none!important}
+@media(min-width:951px){
+  .v90-ref-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important}
 }
 
 </style></head><body>${parts}</body></html>`;
