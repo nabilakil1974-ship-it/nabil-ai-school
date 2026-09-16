@@ -6520,22 +6520,10 @@ ${rawVariationHTML}`);
         }
         const hasReliableVisual = Boolean(diagramsForThis.length);
         const visualHTML = diagramsForThis.join("");
-
         if (functionStudyNow) {
-            const leftColumnHTML = nabilFunctionLeftColumnHTML({
-                givenHTML, requiredHTML, formulaHTML
-            }, messageLanguage);
-
-            const centerColumnHTML = nabilFunctionCenterColumnHTML({
-                solutionBodyHTML: cleanedSolutionBodyHTML,
-                solutionHTML,
-                extraHTML
-            }, messageLanguage);
-
-            const finalStripHTML = nabilFunctionFinalStripHTML({
-                answerHTML, summaryHTML
-            });
-
+            const functionTitle = title || functionBoardTitle(messageLanguage);
+            const contextHTML = [givenHTML, requiredHTML, formulaHTML].filter(Boolean).join("");
+            const mainSolutionHTML = [solutionHTML, extraHTML].filter(Boolean).join("");
             const hasGraph = Boolean(String(visualHTML || "").trim());
             const hasVariation = Boolean(
                 variationTextHTML ||
@@ -6544,77 +6532,45 @@ ${rawVariationHTML}`);
                 autoVariationTableHTML
             );
 
-            const summaryCardHTML=nabilBuildStudyOfFunctionCard({
-                solutionBodyHTML:cleanedSolutionBodyHTML,
-                wholeBoardText,
-                summaryHTML,
-                messageLanguage,
-                fallbackExpression:autoFunctionSpec?.expression || ""
-            });
+            const variationRenderedHTML = hasVariation ? `
+                <section class="exercise-section-card exercise-summary-card section-tone-2 function-study-variation-zone">
+                    <h3 class="exercise-variation-title">${variationTitle(messageLanguage)}</h3>
+                    ${variationTextHTML ? `<div class="exercise-variation-richtext">${variationTextHTML}</div>` : ""}
+                    ${variationTables.map(t=>decorateVariationTableHTML(t,messageLanguage)).join("")}
+                    ${!variationTables.length && autoExtractedVariation
+                        ? decorateVariationTableHTML(autoExtractedVariation,messageLanguage)
+                        : ""}
+                    ${!variationTables.length && !autoExtractedVariation && autoVariationTableHTML
+                        ? decorateVariationTableHTML(autoVariationTableHTML,messageLanguage)
+                        : ""}
+                </section>
+            ` : "";
 
-            const detailsLabel=nabilStudyFunctionLabels(messageLanguage).details;
+            const visualRenderedHTML = hasGraph ? `
+                <section class="exercise-section-card section-tone-1 function-study-visual-zone">
+                    <h3 class="exercise-function-visual-title">${functionGraphTitle(messageLanguage)}</h3>
+                    <div class="exercise-visual-panel ${diagramsForThis.length > 1 ? "multi-diagram-panel" : ""}">
+                        ${visualHTML}
+                    </div>
+                </section>
+            ` : "";
 
             return `
-            <article class="exercise-board function-study-board full-width-board compact-function-board reference-function-study-board" dir="${messageDirection}">
-                <div class="exercise-function-board compact-function-stack">
-
-                    <!-- REFERENCE LAYOUT: summary card left, graph + variation right -->
-                    <section class="function-study-reference-stage">
-                        ${summaryCardHTML}
-
-                        ${(hasGraph || hasVariation) ? `
-                            <section class="exercise-function-graph-variation" dir="${messageDirection}">
-                                ${hasGraph ? `
-                                    <div class="exercise-function-visual">
-                                        <div class="exercise-function-visual-title">${functionGraphTitle(messageLanguage)}</div>
-                                        <div class="exercise-visual-panel ${diagramsForThis.length > 1 ? "multi-diagram-panel" : ""}">
-                                            ${visualHTML}
-                                        </div>
-                                    </div>
-                                ` : ""}
-
-                                ${hasVariation ? `
-                                    <div class="exercise-variation-zone function-variation-stack">
-                                        <div class="exercise-variation-title">${variationTitle(messageLanguage)}</div>
-                                        ${variationTextHTML ? `<div class="exercise-variation-richtext">${variationTextHTML}</div>` : ""}
-                                        ${variationTables.map(t=>decorateVariationTableHTML(t,messageLanguage)).join("")}
-                                        ${!variationTables.length && autoExtractedVariation
-                                            ? decorateVariationTableHTML(autoExtractedVariation,messageLanguage)
-                                            : ""}
-                                        ${!variationTables.length && !autoExtractedVariation && autoVariationTableHTML
-                                            ? decorateVariationTableHTML(autoVariationTableHTML,messageLanguage)
-                                            : ""}
-                                    </div>
-                                ` : ""}
-                            </section>
-                        ` : ""}
-                    </section>
-
-                    <!-- Full solution stays below the reference card -->
-                    <section class="function-study-detailed-solution" dir="${messageDirection}">
-                        <div class="function-study-detailed-title">${nabilEsc(detailsLabel)}</div>
-
-                        <div class="function-study-detailed-grid">
-                            ${leftColumnHTML ? `
-                                <section class="exercise-function-study" dir="${messageDirection}">
-                                    ${leftColumnHTML}
-                                </section>
-                            ` : ""}
-
-                            ${centerColumnHTML ? `
-                                <section class="exercise-function-keypoints" dir="${messageDirection}">
-                                    ${centerColumnHTML}
-                                </section>
-                            ` : ""}
-                        </div>
-
-                        ${finalStripHTML ? `
-                            <section class="exercise-function-final-strip" dir="${messageDirection}">
-                                ${finalStripHTML}
-                            </section>
-                        ` : ""}
-                    </section>
+            <article class="exercise-board full-width-board visual-column-board function-study-board function-study-simple-board" dir="${messageDirection}">
+                <div class="exercise-board-head">
+                    <div class="exercise-board-title">${functionTitle}<span class="exercise-layout-badge">${nabilLayoutLabel('math',messageLanguage)}</span></div>
                 </div>
+                ${contextHTML ? `<div class="exercise-context-stack">${contextHTML}</div>` : ""}
+                ${mainSolutionHTML ? `
+                    <div class="exercise-special-layout no-visual function-study-solution-zone">
+                        <section class="exercise-special-content">
+                            <div class="exercise-idea-stack">${mainSolutionHTML}</div>
+                        </section>
+                    </div>
+                ` : ""}
+                ${visualRenderedHTML}
+                ${variationRenderedHTML}
+                ${(answerHTML||summaryHTML)?`<div class="exercise-bottom-stack">${answerHTML||""}${summaryHTML||""}</div>`:""}
             </article>`;
         }
 
@@ -16134,6 +16090,159 @@ function nabilTeacherWordHTML(data){
   .nabil-reference-function-card{border-radius:12px !important;}
   .nabil-reference-function-card svg{min-width:0 !important;width:100% !important;height:auto !important;}
 }
+
+/* ============================================================
+   v63 — Responsive reference layout inside the REAL chat width.
+   The viewport can be desktop while the lesson column is much narrower
+   because the NABIL tutor sidebar is visible. Never use fixed min widths.
+   ============================================================ */
+@media (min-width:851px){
+  .reference-function-study-board,
+  .reference-function-study-board > .exercise-function-board,
+  .reference-function-study-board .compact-function-stack{
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    box-sizing:border-box!important;
+  }
+
+  .reference-function-study-board .function-study-reference-stage{
+    display:grid!important;
+    grid-template-columns:minmax(0,36%) minmax(0,64%)!important;
+    gap:12px!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    box-sizing:border-box!important;
+    overflow:visible!important;
+    align-items:stretch!important;
+  }
+
+  .reference-function-study-board .function-study-reference-summary-card,
+  .reference-function-study-board .exercise-function-graph-variation{
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    box-sizing:border-box!important;
+    overflow:hidden!important;
+  }
+
+  .reference-function-study-board .exercise-function-graph-variation{
+    display:flex!important;
+    flex-direction:column!important;
+  }
+
+  .reference-function-study-board .exercise-function-visual,
+  .reference-function-study-board .exercise-function-visual .exercise-visual-panel,
+  .reference-function-study-board .exercise-function-visual .nabil-visual,
+  .reference-function-study-board .exercise-function-visual .nabil-reference-function-generic,
+  .reference-function-study-board .exercise-function-visual svg{
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    box-sizing:border-box!important;
+  }
+
+  .reference-function-study-board .exercise-function-visual .exercise-visual-panel{
+    padding:8px!important;
+    overflow:hidden!important;
+  }
+
+  .reference-function-study-board .exercise-function-visual svg{
+    display:block!important;
+    height:auto!important;
+    min-height:420px!important;
+    max-height:none!important;
+    margin:0 auto!important;
+  }
+
+  .reference-function-study-board .exercise-variation-zone{
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    box-sizing:border-box!important;
+    overflow-x:auto!important;
+  }
+
+  .reference-function-study-board .exercise-variation-zone table{
+    width:100%!important;
+    min-width:0!important;
+    table-layout:auto!important;
+  }
+}
+
+/* If the lesson column itself is narrow, switch the reference pair to one column,
+   even on a desktop viewport. This prevents the tiny-graph failure. */
+@media (min-width:851px) and (max-width:1180px){
+  .lesson-main-column .reference-function-study-board .function-study-reference-stage{
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+  .lesson-main-column .reference-function-study-board .exercise-function-graph-variation{
+    order:1!important;
+  }
+  .lesson-main-column .reference-function-study-board .function-study-reference-summary-card{
+    order:2!important;
+  }
+  .lesson-main-column .reference-function-study-board .exercise-function-visual svg{
+    min-height:460px!important;
+  }
+}
+
+
+/* ============================================================
+   v64 — Function-study boards use the same stable stacked layout
+   as the successful physics/chemistry cards, with graph and
+   variation rendered full-width below the textual solution.
+   ============================================================ */
+.function-study-simple-board .exercise-context-stack,
+.function-study-simple-board .exercise-bottom-stack,
+.function-study-simple-board .exercise-idea-stack{
+  display:grid!important;
+  gap:12px!important;
+}
+.function-study-simple-board .function-study-solution-zone,
+.function-study-simple-board .function-study-visual-zone,
+.function-study-simple-board .function-study-variation-zone{
+  margin-top:12px!important;
+}
+.function-study-simple-board .function-study-visual-zone .exercise-function-visual-title,
+.function-study-simple-board .function-study-variation-zone .exercise-variation-title{
+  font-size:24px!important;
+  font-weight:800!important;
+  color:var(--nabil-text-title)!important;
+  margin:0 0 10px 0!important;
+}
+.function-study-simple-board .function-study-visual-zone .exercise-visual-panel{
+  padding:10px!important;
+  overflow:hidden!important;
+}
+.function-study-simple-board .function-study-visual-zone .nabil-visual,
+.function-study-simple-board .function-study-visual-zone .nabil-reference-function-generic,
+.function-study-simple-board .function-study-visual-zone svg{
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  display:block!important;
+  height:auto!important;
+  box-sizing:border-box!important;
+}
+.function-study-simple-board .function-study-visual-zone svg{
+  min-height:420px!important;
+}
+.function-study-simple-board .function-study-variation-zone .lesson-table-wrap,
+.function-study-simple-board .function-study-variation-zone table{
+  width:100%!important;
+  max-width:100%!important;
+}
+.function-study-simple-board .function-study-variation-zone{
+  overflow-x:auto!important;
+}
+@media(max-width:850px){
+  .function-study-simple-board .function-study-visual-zone svg{
+    min-height:320px!important;
+  }
+}
+
 </style></head><body>${parts}</body></html>`;
 }
 
