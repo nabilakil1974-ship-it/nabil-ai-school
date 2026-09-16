@@ -7361,8 +7361,10 @@ ${rawVariationHTML}`);
 
             let leftMainHTML = [givenHTML, requiredHTML, formulaHTML, solutionHTML, answerHTML].filter(Boolean).join('') || '<div class="exercise-card-section"><div class="exercise-card-body">The structured explanation will appear here.</div></div>';
             let ruleSummaryHTML = summaryHTML || '<div class="v81-summary-fallback">Apply the key formula carefully, then read the diagram and verify the final result.</div>';
+            let tangentsFallbackData = null;
             if(isTangents){
                 const tf=nabilV85TangentsFallbackText(sourceQuestion, wholeBoardText);
+                tangentsFallbackData = tf;
                 leftMainHTML = `
                   <div class="v89-tangent-lines">
                     <p>${tf.given}</p>
@@ -7374,35 +7376,85 @@ ${rawVariationHTML}`);
             }
             const extraBottomHTML = isTangents ? '' : (extraHTML || '');
 
+            if (isTangents) {
+                const tf = tangentsFallbackData || nabilV85TangentsFallbackText(sourceQuestion, wholeBoardText);
+                return `
+                <article class="exercise-board v92-tangents-physics-card" dir="${messageDirection}">
+                  <header class="v92-top">
+                    <div class="v92-top-main">
+                      <div class="v92-icon">📘</div>
+                      <div>
+                        <div class="v92-title">Two Circles and Common Tangents</div>
+                        <div class="v92-sub">Explore the properties of common tangents to two circles.</div>
+                      </div>
+                    </div>
+                    <div class="v92-meta"><span>◷</span><div><small>Estimated Time</small><strong>20 minutes</strong></div></div>
+                    <div class="v92-meta"><span>◎</span><div><small>Learning Objectives</small><strong>Understand and apply the properties of common tangents to two circles.</strong></div></div>
+                  </header>
+
+                  <div class="v92-grid">
+                    <section class="v92-left">
+                      <h2>Two Circles and Common Tangents</h2>
+                      <div class="v92-text-block">
+                        <p>${tf.given}</p>
+                        <p>${tf.property}</p>
+                        <p>${tf.solution}</p>
+                        <p class="v92-final-line">${tf.answer}</p>
+                      </div>
+
+                      <div class="v92-rule">
+                        <div class="v92-rule-icon">💡</div>
+                        <div>
+                          <b>Rule Summary:</b>
+                          <div>A tangent is perpendicular to the radius at the point of tangency. For two equal circles, the direct common tangents are parallel to the line of centers and the tangent segment between corresponding contact points equals the distance between the centers.</div>
+                        </div>
+                      </div>
+
+                      <div class="v92-quick">
+                        <div class="v92-quick-icon">?</div>
+                        <div>
+                          <b>Quick Check</b>
+                          <span>How many direct common tangents do two separate circles have?</span>
+                        </div>
+                      </div>
+                    </section>
+
+                    <section class="v92-right">
+                      <div class="v92-visual-wrap">${visualsMarkup}</div>
+                    </section>
+                  </div>
+                </article>`;
+            }
+
             return `
-            <article class="exercise-board v87-reference-math-card" dir="${messageDirection}">
-              <header class="v87-math-top">
-                <div class="v87-math-top-main">
-                  <div class="v87-math-icon">📘</div>
+            <article class="exercise-board v92-tangents-physics-card v93-all-math-physics-card" dir="${messageDirection}">
+              <header class="v92-top">
+                <div class="v92-top-main">
+                  <div class="v92-icon">📘</div>
                   <div>
-                    <div class="v87-math-lesson-title">${lessonTitleText}</div>
-                    <div class="v87-math-lesson-sub">${lessonSubText}</div>
+                    <div class="v92-title">${lessonTitleText}</div>
+                    <div class="v92-sub">${lessonSubText}</div>
                   </div>
                 </div>
-                <div class="v87-math-meta"><span>◷</span><div><small>Estimated Time</small><strong>20 minutes</strong></div></div>
-                <div class="v87-math-meta"><span>◎</span><div><small>Learning Objectives</small><strong>${objectiveText}</strong></div></div>
+                <div class="v92-meta"><span>◷</span><div><small>Estimated Time</small><strong>20 minutes</strong></div></div>
+                <div class="v92-meta"><span>◎</span><div><small>Learning Objectives</small><strong>${objectiveText}</strong></div></div>
               </header>
 
-              <div class="v87-math-grid">
-                <section class="v87-math-left">
+              <div class="v92-grid v93-math-grid">
+                <section class="v92-left v93-math-left">
                   <h2>${leftHeading}</h2>
-                  <div class="v87-math-left-main">${leftMainHTML}</div>
+                  <div class="v87-math-left-main v93-math-left-main">${leftMainHTML}</div>
 
-                  <div class="v87-math-rule-summary">
-                    <div class="v87-rule-icon">💡</div>
+                  <div class="v92-rule v93-math-rule">
+                    <div class="v92-rule-icon">💡</div>
                     <div>
                       <b>${summaryLabel}</b>
                       <div class="v87-math-rule-body">${ruleSummaryHTML}</div>
                     </div>
                   </div>
 
-                  <div class="v87-math-quick-check">
-                    <div class="v87-quick-icon">?</div>
+                  <div class="v92-quick v93-math-quick">
+                    <div class="v92-quick-icon">?</div>
                     <div>
                       <b>Quick Check</b>
                       <span>${quickQuestion}</span>
@@ -7410,13 +7462,15 @@ ${rawVariationHTML}`);
                   </div>
                 </section>
 
-                <section class="v87-math-main">
-                  <div class="v87-math-visuals ${visualGridClass}">
-                    ${visualsMarkup}
+                <section class="v92-right v93-math-right">
+                  <div class="v92-visual-wrap v93-math-visual-wrap">
+                    <div class="v87-math-visuals ${visualGridClass}">
+                      ${visualsMarkup}
+                    </div>
                   </div>
-                  ${extraBottomHTML ? `<div class="v87-math-extra">${extraBottomHTML}</div>` : ''}
                 </section>
               </div>
+              ${extraBottomHTML ? `<div class="v93-math-extra-under">${extraBottomHTML}</div>` : ''}
             </article>`;
         }
 
@@ -19000,6 +19054,69 @@ function nabilTeacherWordHTML(data){
   .v90-ref-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important}
 }
 
+
+/* ============================================================
+   v92 — tangents card using physics-style right visual panel
+   ============================================================ */
+.v92-tangents-physics-card{
+  width:100%!important;max-width:100%!important;background:#071a2d!important;border:1px solid #0f6f9e!important;
+  border-radius:14px!important;padding:10px!important;color:#eef8ff!important;
+}
+.v92-top{display:grid!important;grid-template-columns:minmax(0,1fr) 170px 315px!important;gap:12px!important;align-items:center!important;min-height:72px!important;margin-bottom:10px!important;padding:12px 15px!important;background:linear-gradient(180deg,#0d3457,#0a2946)!important;border:1px solid #175b83!important;border-radius:11px!important}
+.v92-top-main{display:flex!important;align-items:center!important;gap:12px!important}
+.v92-icon{font-size:31px!important;color:#32d4ff!important}
+.v92-title{font-size:19px!important;font-weight:900!important;color:#f3fbff!important}
+.v92-sub{font-size:12px!important;color:#b9d4e7!important;margin-top:4px!important}
+.v92-meta{display:flex!important;align-items:flex-start!important;gap:8px!important;color:#27d6ff!important}
+.v92-meta span{font-size:22px!important;line-height:1!important;color:#27d6ff!important}
+.v92-meta small{display:block!important;color:#37d8ff!important;font-size:11.5px!important}
+.v92-meta strong{display:block!important;color:#eef8ff!important;font-size:11.5px!important;line-height:1.35!important;font-weight:700!important}
+.v92-grid{display:grid!important;grid-template-columns:minmax(330px,40%) minmax(0,1fr)!important;gap:10px!important;align-items:stretch!important;width:100%!important}
+.v92-left,.v92-right{background:#092641!important;border:1px solid #12658f!important;border-radius:12px!important;min-width:0!important}
+.v92-left{padding:13px 15px!important}
+.v92-left h2{margin:0 0 10px!important;padding-left:14px!important;position:relative!important;color:#40d9ff!important;font-size:18px!important;font-weight:900!important}
+.v92-left h2:before{content:"";position:absolute;left:0;top:1px;bottom:1px;width:4px;border-radius:3px;background:#25d3ff}
+.v92-text-block{color:#eef8ff!important;font-size:13.5px!important;line-height:1.46!important}
+.v92-text-block p{margin:0 0 9px!important}
+.v92-final-line{margin-top:8px!important;color:#fff!important;font-weight:800!important}
+.v92-rule{margin-top:10px!important;background:#0b3a43!important;border:1px solid #20c99f!important;border-radius:10px!important;padding:9px 11px!important;display:flex!important;align-items:flex-start!important;gap:9px!important}
+.v92-rule-icon{font-size:20px!important;line-height:1!important;color:#65ffd1!important}
+.v92-rule b{display:block!important;color:#65ffd1!important;font-size:14px!important;margin-bottom:2px!important}
+.v92-rule div,.v92-rule{color:#e9fff9!important;font-size:12px!important;line-height:1.35!important}
+.v92-quick{margin-top:8px!important;background:#0a2946!important;border:1px solid #146aa0!important;border-radius:10px!important;padding:8px 11px!important;display:flex!important;gap:9px!important;align-items:flex-start!important}
+.v92-quick-icon{width:22px!important;height:22px!important;border-radius:50%!important;background:#20bfee!important;color:#06213a!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;font-weight:900!important;flex:0 0 auto!important}
+.v92-quick b{display:block!important;color:#44d9ff!important;font-size:13px!important}
+.v92-quick span{display:block!important;color:#f0f8ff!important;font-size:12.5px!important;line-height:1.35!important}
+.v92-right{padding:7px!important;background:#071f35!important;display:flex!important;align-items:center!important;justify-content:center!important;min-height:430px!important;overflow:hidden!important}
+.v92-visual-wrap,.v92-visual-wrap .v81-math-visual-card,.v92-visual-wrap .nabil-v85-tangent-card,.v92-visual-wrap .linked-lesson-visual{width:100%!important;height:100%!important;display:flex!important;align-items:center!important;justify-content:center!important}
+.v92-visual-wrap .v81-math-visual-card{min-height:410px!important;background:#071f35!important;border:0!important;padding:0!important}
+.v92-visual-wrap .nabil-v85-tangent-card svg,.v92-visual-wrap svg{width:100%!important;max-width:100%!important;height:100%!important;min-height:410px!important;display:block!important}
+.lesson-main-reference-zone .v92-tangents-physics-card,
+.lesson-practice-zone .v92-tangents-physics-card,
+.exercise-board-stack > .v92-tangents-physics-card{grid-column:1 / -1!important;width:100%!important;max-width:100%!important}
+#drawingPreviewModal #drawingPreviewContent .v92-tangents-physics-card{background:#071a2d!important}
+#drawingPreviewModal #drawingPreviewContent .v92-right{background:#071f35!important}
+@media(max-width:950px){
+  .v92-top{grid-template-columns:1fr!important}
+  .v92-grid{grid-template-columns:1fr!important}
+  .v92-right{min-height:300px!important}
+  .v92-visual-wrap .v81-math-visual-card,
+  .v92-visual-wrap .nabil-v85-tangent-card svg,
+  .v92-visual-wrap svg{min-height:280px!important}
+}
+
+
+.v93-all-math-physics-card .v93-math-right{min-height:430px!important}
+.v93-all-math-physics-card .v93-math-visual-wrap{width:100%!important;height:100%!important;display:flex!important;align-items:center!important;justify-content:center!important}
+.v93-all-math-physics-card .v87-math-visuals{width:100%!important;height:100%!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:10px!important;flex-wrap:wrap!important}
+.v93-all-math-physics-card .v87-math-visuals > *{flex:1 1 100%!important;max-width:100%!important}
+.v93-all-math-physics-card .v93-math-extra-under{margin-top:10px!important;background:#092641!important;border:1px solid #12658f!important;border-radius:12px!important;padding:10px!important}
+.v93-all-math-physics-card .exercise-card-section,
+.v93-all-math-physics-card .exercise-card-table,
+.v93-all-math-physics-card .exercise-card-note{background:transparent!important;border-color:#1b5f86!important}
+@media(max-width:950px){
+  .v93-all-math-physics-card .v93-math-right{min-height:300px!important}
+}
 </style></head><body>${parts}</body></html>`;
 }
 
