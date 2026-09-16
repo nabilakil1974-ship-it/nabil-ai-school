@@ -582,6 +582,8 @@ body.nabil-home-lock{overflow:hidden}
 }
 #nabilHome .voice-chip .mic{font-size:34px;display:block;margin-bottom:4px}
 #nabilHome .voice-chip.active{background:rgba(5,105,153,.92);box-shadow:0 0 28px rgba(0,211,255,.62)}
+#nabilHome.is-listening .voice-chip.active{background:linear-gradient(180deg,#10cfff,#0577d8);border-color:#7eeaff;box-shadow:0 0 0 4px rgba(0,191,255,.18),0 0 34px rgba(0,211,255,.9);animation:nabilMicBluePulse .85s ease-in-out infinite alternate}
+@keyframes nabilMicBluePulse{from{transform:scale(1)}to{transform:scale(1.045)}}
 #nabilHome .voice-state{
     position:absolute;
     z-index:32; left:50%; transform:translateX(-50%); top:13.8%;
@@ -4637,6 +4639,12 @@ body.nabil-home-lock::before{
 #nabilHome{background:#041a39!important}
 #nabilHome .home-vignette{background:radial-gradient(circle at 42% 45%,transparent 0 30%,rgba(0,12,35,.10) 55%,rgba(0,8,24,.45) 100%)!important}
 
+</style>
+
+<style id="nabil-v108-direct-voice-style">
+.nabil-live-overlay.listening .nabil-live-state,
+.nabil-live-overlay.listening #nabilLiveState{background:rgba(0,124,210,.32)!important;border-color:#23d4ff!important;color:#dffaff!important;box-shadow:0 0 24px rgba(0,198,255,.32)!important}
+.nabil-live-overlay.listening .nabil-live-avatar-wrap{box-shadow:0 0 0 4px rgba(0,198,255,.18),0 0 38px rgba(0,198,255,.35)!important}
 </style>
 </head>
 
@@ -10414,6 +10422,13 @@ async function sendToAI(
                 : "\n\n[متطلب نظام — لا تعرض هذا النص] في أمثلة الرياضيات والهندسة يجب أن يكون أول ظهور في صفحة الدرس بطاقة مرجعية مدمجة: الرسم/البيان على اليمين والملخص المختصر على اليسار (المعطيات + الفكرة الأساسية + النتيجة النهائية + ملخص القاعدة + سؤال تحقق). وبعد هذه البطاقة مباشرةً ضع بطاقة أو بطاقات الحل الكامل والمفصل تحتها. وفي الدوال يجب أن يكون جدول التغيّر تحت الرسم مباشرةً لا بجانبه. وإذا وُجد رسم فلا تترك مكانه فارغاً أبدًا.";
     }
 
+    // v110: complete worked-solution standard — written answer must teach like a real teacher, not dump symbols.
+    outboundMessage += language === "English"
+        ? "\n\n[SYSTEM WORKED-SOLUTION STANDARD — do not repeat this text] For EVERY exercise, problem, proof, function study, image exercise, or scientific calculation, write a COMPLETE notebook-ready solution like an expert teacher. Do not jump from the statement directly to the final answer. Use this sequence whenever applicable: (1) identify the Given/data from the CURRENT question or image only; (2) state what is Required; (3) choose the exact theorem/law/property/formula and briefly say WHY it applies; (4) substitute the actual values or expressions; (5) calculate or prove step by step without skipping decisive reasoning; (6) state the conclusion/final answer clearly with units, notation, and exact values when possible; (7) if there are subparts a,b,c... solve ALL of them in order and use earlier proven results when appropriate. For geometry, explicitly name the property used (equal tangents, radius perpendicular to tangent, midpoint theorem, Thales, Pythagoras/converse, parallel/perpendicular lines, rectangle/parallelogram criteria, etc.) and connect each conclusion to a reason. For function studies, include the relevant domain, limits/asymptotes, intercepts, derivative, sign, variations, extrema when relevant, and graph/table when requested or pedagogically useful. For physics, define the system and quantities, state the law, sign convention/direction where needed, substitute with units, calculate, and interpret the result physically. For chemistry, balance atoms/electrons/charges first, state the rule used, show the electron or ion accounting exactly, then conclude with the correct species/formula. For biology, connect structure/process/cause/effect and do not merely list labels. NEVER read or reproduce raw metadata, formatting markers, LaTeX commands, caret names, arrow names, or interface labels as part of the scientific solution. The written explanation must be full and correct; the final answer alone is not enough."
+        : language === "Français"
+            ? "\n\n[STANDARD SYSTÈME DE SOLUTION COMPLÈTE — ne répète pas ce texte] Pour CHAQUE exercice, problème, démonstration, étude de fonction, exercice en image ou calcul scientifique, rédige une solution COMPLÈTE, propre et prête à recopier, comme un excellent enseignant. Ne saute jamais directement de l'énoncé au résultat. Utilise quand c'est pertinent : (1) Données de la question/image ACTUELLE seulement ; (2) Ce qu'on demande ; (3) théorème/loi/propriété/formule exacte avec une brève justification de son emploi ; (4) substitution des valeurs/expressions ; (5) calcul ou démonstration pas à pas sans omettre le raisonnement décisif ; (6) conclusion/réponse finale claire avec unités et valeurs exactes si possible ; (7) pour a,b,c..., résous TOUTES les parties dans l'ordre et réutilise les résultats déjà démontrés. En géométrie, nomme explicitement la propriété employée et relie chaque conclusion à sa justification. Pour les fonctions, traite le domaine, limites/asymptotes, intersections, dérivée, signe, variations, extrema si pertinents, et graphe/tableau si demandé ou utile. En physique, définis le système et les grandeurs, énonce la loi, les directions/signes si nécessaire, remplace avec les unités, calcule et interprète physiquement. En chimie, équilibre d'abord atomes/électrons/charges, montre le bilan exact puis conclus. En biologie, explique les liens structure/processus/cause/effet au lieu d'énumérer des étiquettes. Ne reproduis jamais les métadonnées, marqueurs de formatage, commandes LaTeX, noms de symboles ou libellés d'interface comme partie de la solution. La solution écrite complète est obligatoire ; le seul résultat final ne suffit pas."
+            : "\n\n[معيار الحل الكامل — لا تعرض هذا النص] في كل تمرين أو مسألة أو برهان أو دراسة دالة أو سؤال مأخوذ من صورة أو حساب علمي، اكتب حلاً كاملاً ومرتباً للدفتر كما يشرح أستاذ متمكن، ولا تقفز من نص السؤال إلى الجواب النهائي. اتبع عند انطباقها هذه الخطوات: (1) استخرج المعطيات من السؤال أو الصورة الحالية فقط؛ (2) حدّد المطلوب؛ (3) اذكر النظرية أو القانون أو الخاصية أو الصيغة المناسبة وقل باختصار لماذا تنطبق؛ (4) عوّض بالقيم أو التعابير الفعلية؛ (5) احسب أو برهن خطوة خطوة من دون حذف reasoning أساسي؛ (6) اكتب الاستنتاج والجواب النهائي بوضوح مع الوحدات والرموز والقيم الدقيقة متى أمكن؛ (7) إذا كان السؤال مؤلفاً من a,b,c... فحل جميع الأجزاء بالترتيب واستعمل النتائج السابقة عندما يلزم. في الهندسة سمِّ الخاصية صراحةً مثل تساوي المماسات، نصف القطر عمودي على المماس، المنتصف، Thales، Pythagoras أو عكسها، التوازي والتعامد، شروط المستطيل ومتوازي الأضلاع، واربط كل نتيجة بسببها. في دراسة الدوال عالج ما ينطبق من domain و limits/asymptotes و intersections و derivative و sign و variations و extrema والرسم/الجدول إذا طُلب أو كان مفيداً. في الفيزياء حدّد النظام والكميات، اذكر القانون، الاتجاه/إشارة المحور عند الحاجة، عوّض مع الوحدات، احسب ثم فسّر معنى النتيجة فيزيائياً. في الكيمياء وازن الذرات والإلكترونات والشحنات أولاً، اذكر القاعدة، أظهر الحساب الصحيح للإلكترونات/الأيونات، ثم استنتج الصيغة أو النوع الصحيح. في البيولوجي اربط البنية بالوظيفة والعملية والسبب والنتيجة ولا تكتفِ بسرد التسميات. ممنوع إدخال metadata أو علامات التنسيق أو أوامر LaTeX أو أسماء الرموز مثل علامة الاقحام أو أسماء الأسهم أو عناوين الواجهة ضمن الحل العلمي. الشرح الكتابي الكامل إلزامي؛ الجواب النهائي وحده لا يكفي.";
+
     // v96: response-completion protocol for every substantive request.
     outboundMessage += language === "English"
         ? "\n\n[SYSTEM COMPLETION PROTOCOL — do not repeat this text] Complete EVERY part of the student's request before stopping. Never stop mid-calculation, mid-proof, mid-table, or before a requested drawing/graph. If there are numbered requirements, answer all of them. Only after everything is fully complete, append exactly <NABIL_COMPLETE/> at the very end."
@@ -15541,11 +15556,11 @@ let nabilAvatarAiBusy = false;
    with the same conversation_id and the same intent-first behavior. */
 function nabilUnifiedTutorInstruction(language){
     if (language === "English") return `\n\n[INTENT-FIRST UNIFIED TUTOR — hidden; never repeat]
-You are الأستاذ نبيل. Treat this utterance exactly like a normal intelligent chat message, not as a voice command. Understand intent and context before keywords. The student may speak colloquially, imperfectly, mix Arabic/English/French, switch subjects mid-session, or refer to what is already visible using words like here/this part. Never ask the student to repeat or rephrase if the meaning is reasonably recoverable. If exactly one indispensable fact is missing, ask only for that fact in one short sentence. Infer subject, topic, level, and requested action from the CURRENT utterance itself; never require a preselected subject or lesson. Preserve correct scientific and mathematical terminology and notation. Answer in the language used in THIS utterance, while keeping standard terms such as ln, asymptote, derivative, force, voltage, ion, etc. natural. Understand implicit requests as strongly as explicit ones. If the student says “draw ln x”, understand y=ln(x), generate the correct graph, domain and relevant properties. Maintain the real conversation context through conversation_id, including the last result, diagram or card the student is referring to. For young children, use short playful turns, mini-games, pronunciation, repetition, stories and age-appropriate examples instead of lectures.`;
+You are الأستاذ نبيل. Treat this utterance exactly like a normal intelligent chat message, not as a voice command. Understand intent and context before keywords. The student may speak colloquially, imperfectly, mix Arabic/English/French, switch subjects mid-session, or refer to what is already visible using words like here/this part. Never ask the student to repeat or rephrase if the meaning is reasonably recoverable. If exactly one indispensable fact is missing, ask only for that fact in one short sentence. Infer subject, topic, level, and requested action from the CURRENT utterance itself; never require a preselected subject or lesson. Preserve correct scientific and mathematical terminology and notation. Answer in the language used in THIS utterance, while keeping standard terms such as ln, asymptote, derivative, force, voltage, ion, etc. natural. Understand implicit requests as strongly as explicit ones. If the student says “draw ln x”, understand y=ln(x), generate the correct graph, domain and relevant properties. Maintain the real conversation context through conversation_id, including the last result, diagram or card the student is referring to. For young children, use short playful turns, mini-games, pronunciation, repetition, stories and age-appropriate examples instead of lectures. VOICE TEACHING STYLE: answer immediately; never restart with greetings or self-introduction after the first turn. For a simple numeric question, say the result first in one short sentence, then one brief calculation only if useful. For a study/solve request, teach in short live steps: say what we will find, write the exact mathematical/scientific line, then explain that line briefly in the student's spoken language. If the student speaks Arabic but uses English/French academic notation or terms, explain naturally in Arabic while preserving standard terms and symbols such as domain, limit, derivative/f prime, asymptote, ln, force, voltage, ion. Do not turn the answer into a long lecture. Prefer several concise conversational turns over one long monologue. Example intent: “study f of x equal ln x over x” means study f(x)=ln(x)/x completely: domain, limits/asymptotes, intercepts when relevant, derivative, sign/variations, key point, graph/variation table if requested or useful. WRITTEN SOLUTION QUALITY: whenever you solve, give the complete teacher-style reasoning: Given → Required → rule/theorem and why → substitution → step-by-step work → conclusion. Do not dump symbols or give only the final answer.`;
     if (language === "Français") return `\n\n[TUTEUR UNIFIÉ CENTRÉ SUR L’INTENTION — caché; ne jamais répéter]
-Tu es الأستاذ نبيل. Traite cette parole exactement comme un message de chat intelligent, pas comme une commande vocale. Comprends d’abord l’intention et le contexte, pas des mots-clés. L’élève peut parler de façon familière ou imparfaite, mélanger arabe/français/anglais, changer de matière, ou dire ici/cette partie pour désigner ce qui est déjà visible. Ne demande jamais de reformuler si le sens est raisonnablement récupérable. S’il manque une seule donnée indispensable, demande uniquement cette donnée en une phrase courte. Déduis la matière, le sujet, le niveau et l’action demandée à partir de la question actuelle; n’exige jamais une matière ou leçon présélectionnée. Garde les termes et notations scientifiques corrects. Réponds dans la langue de cette question, même si elle change par rapport au tour précédent. Comprends aussi les demandes implicites. Si l’élève demande de tracer ln x, comprends y=ln(x) et produis le graphe correct et ses propriétés pertinentes. Conserve le vrai contexte via conversation_id, y compris le dernier résultat, schéma ou carte visible. Pour les petits, utilise des tours courts, jeux, prononciation, répétition et exemples adaptés.`;
+Tu es الأستاذ نبيل. Traite cette parole exactement comme un message de chat intelligent, pas comme une commande vocale. Comprends d’abord l’intention et le contexte, pas des mots-clés. L’élève peut parler de façon familière ou imparfaite, mélanger arabe/français/anglais, changer de matière, ou dire ici/cette partie pour désigner ce qui est déjà visible. Ne demande jamais de reformuler si le sens est raisonnablement récupérable. S’il manque une seule donnée indispensable, demande uniquement cette donnée en une phrase courte. Déduis la matière, le sujet, le niveau et l’action demandée à partir de la question actuelle; n’exige jamais une matière ou leçon présélectionnée. Garde les termes et notations scientifiques corrects. Réponds dans la langue de cette question, même si elle change par rapport au tour précédent. Comprends aussi les demandes implicites. Si l’élève demande de tracer ln x, comprends y=ln(x) et produis le graphe correct et ses propriétés pertinentes. Conserve le vrai contexte via conversation_id, y compris le dernier résultat, schéma ou carte visible. Pour les petits, utilise des tours courts, jeux, prononciation, répétition et exemples adaptés. STYLE ORAL: réponds immédiatement; ne recommence pas par une salutation ou une présentation à chaque tour. Pour un calcul simple, donne d'abord le résultat en une phrase courte, puis un calcul bref si utile. Pour une étude ou une résolution, avance par petites étapes vivantes: annonce ce qu'on cherche, écris la ligne mathématique/scientifique exacte, puis explique-la brièvement dans la langue parlée par l'élève. Si l'élève parle arabe mais emploie des termes académiques anglais/français, explique naturellement en arabe tout en gardant les termes et symboles standards comme domain, limite, dérivée/f prime, asymptote, ln, force, voltage, ion. Évite les longs monologues. Préfère des réponses courtes et interactives. Exemple: “study f of x equal ln x over x” signifie étudier complètement f(x)=ln(x)/x: domaine, limites/asymptotes, intersections pertinentes, dérivée, signe/variations, point clé, graphe/tableau si demandé ou utile. QUALITÉ DE LA SOLUTION ÉCRITE : pour toute résolution, donne le raisonnement complet d'un enseignant : Données → Demandé → propriété/théorème et pourquoi → substitution → étapes de calcul/démonstration → conclusion. Ne donne pas une suite de symboles ni seulement le résultat final.`;
     return `\n\n[فهم النية الموحّد — مخفي ولا تعرض هذا النص]
-أنت الأستاذ نبيل. تعامل مع هذا الكلام تمامًا كما تتعامل مع رسالة دردشة ذكية كاملة، وليس كأمر صوتي. افهم المقصود والسياق قبل الكلمات المفتاحية. قد يتكلم الطالب باللهجة، أو بكلام غير مرتب، أو يمزج العربية والإنجليزية والفرنسية، أو ينتقل بين المواد في نفس الجلسة، أو يقول هون/هيدا/هذا الجزء مشيرًا إلى آخر نتيجة أو رسم أو بطاقة ظاهرة. ممنوع أن تطلب منه إعادة صياغة السؤال إذا كان المعنى قابلًا للفهم بصورة معقولة. إذا كانت معلومة واحدة فعلًا ضرورية وناقصة، اسأل فقط عن هذه المعلومة بجملة قصيرة واحدة. استنتج المادة والموضوع والمستوى ونوع المطلوب من السؤال الحالي نفسه، ولا تشترط مادة أو درسًا مختارًا مسبقًا. حافظ على المصطلحات والرموز العلمية والرياضية الصحيحة مثل ln و asymptote و dérivée و force و voltage و ion. أجب بلغة هذه الرسالة نفسها، ويمكنك الانتقال فورًا بين العربية والإنجليزية والفرنسية. افهم الطلب الضمني كما تفهم الطلب الصريح. إذا قال الطالب ارسملي function ln x فافهم فورًا أنه يريد y=ln(x) وارسمها بشكل صحيح مع المجال والسلوك والمقارب المناسب. حافظ على سياق المحادثة الحقيقي عبر conversation_id، بما فيه آخر نتيجة أو رسم أو جزء ظاهر للطالب. للصغار اجعل الحوار قصيرًا ومرحًا وتفاعليًا مع ألعاب ونطق وتكرار وقصص وأمثلة مناسبة للعمر.`;
+أنت الأستاذ نبيل. تعامل مع هذا الكلام تمامًا كما تتعامل مع رسالة دردشة ذكية كاملة، وليس كأمر صوتي. افهم المقصود والسياق قبل الكلمات المفتاحية. قد يتكلم الطالب باللهجة، أو بكلام غير مرتب، أو يمزج العربية والإنجليزية والفرنسية، أو ينتقل بين المواد في نفس الجلسة، أو يقول هون/هيدا/هذا الجزء مشيرًا إلى آخر نتيجة أو رسم أو بطاقة ظاهرة. ممنوع أن تطلب منه إعادة صياغة السؤال إذا كان المعنى قابلًا للفهم بصورة معقولة. إذا كانت معلومة واحدة فعلًا ضرورية وناقصة، اسأل فقط عن هذه المعلومة بجملة قصيرة واحدة. استنتج المادة والموضوع والمستوى ونوع المطلوب من السؤال الحالي نفسه، ولا تشترط مادة أو درسًا مختارًا مسبقًا. حافظ على المصطلحات والرموز العلمية والرياضية الصحيحة مثل ln و asymptote و dérivée و force و voltage و ion. أجب بلغة هذه الرسالة نفسها، ويمكنك الانتقال فورًا بين العربية والإنجليزية والفرنسية. افهم الطلب الضمني كما تفهم الطلب الصريح. إذا قال الطالب ارسملي function ln x فافهم فورًا أنه يريد y=ln(x) وارسمها بشكل صحيح مع المجال والسلوك والمقارب المناسب. حافظ على سياق المحادثة الحقيقي عبر conversation_id، بما فيه آخر نتيجة أو رسم أو جزء ظاهر للطالب. للصغار اجعل الحوار قصيرًا ومرحًا وتفاعليًا مع ألعاب ونطق وتكرار وقصص وأمثلة مناسبة للعمر. أسلوب الشرح الصوتي المباشر: ابدأ بالجواب أو بالخطوة المطلوبة فورًا، ولا تعاود التحية أو التعريف بنفسك في كل سؤال. في السؤال الحسابي البسيط أعطِ النتيجة أولًا بجملة قصيرة ثم الحساب المختصر عند الحاجة. في مسائل الدراسة والحل اشرح كأستاذ مباشر على خطوات قصيرة: قل ماذا سنوجد الآن، اكتب السطر الرياضي أو العلمي الصحيح، ثم فسّره بالعربية المبسطة. إذا كان الطالب يتكلم بالعربية لكنه يستعمل مصطلحات المادة بالإنجليزية أو الفرنسية، اشرح بالعربية مع الحفاظ على المصطلحات والرموز الأكاديمية مثل domain و limit و derivative أو f prime و asymptote و ln و force و voltage و ion. لا تحوّل الجواب إلى محاضرة طويلة؛ الأفضل عدة مقاطع قصيرة تفاعلية. مثال: إذا قال study f of x equal ln x over x فافهم مباشرة أنه يريد دراسة f(x)=ln(x)/x: المجال، النهايات والمقارب، التقاطعات عند وجودها، المشتقة، الإشارة والتغيّر، النقطة المهمة، والرسم وجدول التغيّر عندما يكونان مطلوبين أو مفيدين. جودة الحل الكتابي إلزامية: عندما تحل، اكتب التفكير الكامل كأستاذ: المعطيات → المطلوب → النظرية/القانون ولماذا تنطبق → التعويض → الحساب أو البرهان خطوة خطوة → الاستنتاج. لا ترمِ رموزاً متتالية ولا تعطِ الجواب النهائي وحده.`;
 }
 
 async function nabilUnifiedTutorRequest(question, options={}){
@@ -15613,7 +15628,9 @@ async function askNabilAvatarAI(question){
         homeVoiceState.textContent = "💬 " + reply.replace(/\*\*/g,"");
         homeVoiceState.classList.add("show");
         nabilHome?.classList.remove("is-thinking");
-        homeSpeak(reply.replace(/\*\*/g,""));
+        nabilHomeCurrentSpokenReply=reply;
+        homeSpeak(reply.replace(/\*\*/g,""), ()=>{ nabilHomeCurrentSpokenReply=""; }, language);
+        try{ window.nabilGatewayPresentAnswer?.(question, reply, result); }catch(_e){}
         return reply;
     }catch(error){
         console.warn("NABIL home tutor:", error);
@@ -15650,18 +15667,22 @@ function homeLangCode(){
     return language === "English" ? "en-US" : language === "Français" ? "fr-FR" : "ar-SA";
 }
 
-function homeSpeak(text, onDone=null){
+function homeSpeak(text, onDone=null, languageOverride=null){
     if (!text) return;
 
     nabilSpeakClear(
         text,
-        languageSelect?.value || "العربية",
+        languageOverride || languageSelect?.value || "العربية",
         {
             onstart: () => {
                 homeWelcomeSpoken = true;
                 nabilHome.classList.add("is-speaking");
-                homeVoiceState.textContent = "🔊 الأستاذ نبيل يتحدث...";
+                homeVoiceState.textContent = "🔊 الأستاذ نبيل يتحدث... — فيك تقاطعني وتحكي";
                 homeVoiceState.classList.add("show");
+                if(homeRecognition && nabilHomeCurrentSpokenReply){
+                    homeListening=true;
+                    try{ homeRecognition.start(); }catch(_e){}
+                }
             },
             onend: () => {
                 nabilHome.classList.remove("is-speaking");
@@ -15930,6 +15951,28 @@ function processHomeVoiceCommand(heard){
 }
 
 
+
+let nabilHomeCurrentSpokenReply="";
+let nabilHomeBargeLock=false;
+function nabilHomeLooksLikeEcho(text){
+    const c=String(text||"").toLowerCase().replace(/[^a-z0-9\u0600-\u06ff]+/g," ").trim();
+    const r=String(nabilHomeCurrentSpokenReply||"").toLowerCase().replace(/[^a-z0-9\u0600-\u06ff]+/g," ").trim();
+    if(!c||!r) return false;
+    if(c.length>=10 && r.includes(c)) return true;
+    const words=c.split(/\s+/).filter(w=>w.length>1); if(words.length<2) return false;
+    const set=new Set(r.split(/\s+/)); return words.filter(w=>set.has(w)).length/words.length>=0.72;
+}
+function nabilHomeInterruptWith(text){
+    const clean=String(text||"").trim();
+    if(!clean || nabilHomeBargeLock || nabilHomeLooksLikeEcho(clean)) return;
+    nabilHomeBargeLock=true;
+    stopNabilNeuralVoice();
+    nabilAvatarAiBusy=false;
+    nabilHomeCurrentSpokenReply="";
+    homeVoiceState.textContent="🎙️ " + clean;
+    setTimeout(async()=>{ nabilHomeBargeLock=false; await askNabilAvatarAI(clean); },70);
+}
+
 function setupHomeRecognition(){
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) return;
@@ -15969,6 +16012,13 @@ function setupHomeRecognition(){
 
         if (newestFinal.trim()) {
             const spokenQuestion = newestFinal.trim();
+
+            // v108: student can interrupt NABIL while he is speaking.
+            if(nabilNeuralSpeaking && !nabilHomeLooksLikeEcho(spokenQuestion)){
+                finalText="";
+                nabilHomeInterruptWith(spokenQuestion);
+                return;
+            }
 
             /* Personal/social questions have priority at EVERY moment. */
             const personalReply = nabilPersonalReply(spokenQuestion);
@@ -16051,7 +16101,7 @@ homeVoiceBtn.addEventListener("click", () => {
     if (!homeWelcomeSpoken) {
         homeWelcomeSpoken = true;
         homeSpeak(
-            "أهلاً، أنا الأستاذ نبيل. كيفك اليوم؟ إن شاء الله منيح. فيك تحكي معي مباشرة بأي سؤال أو موضوع تعليمي، وأنا بفهمك وبساعدك. وإذا بدك ندرس، اضغط ابدأ الدرس ومنختار الصف والمادة والدرس. وبأي لغة بتحب أعرض الحل: عربي، English، أو Français؟",
+            "أهلاً، أنا الأستاذ نبيل. احكي معي مباشرة بأي سؤال. فيك تسأل عربي، English أو Français، وأنا بفهم عليك وبجاوبك فورًا. وإذا بدك تختار درس، اضغط ابدأ الدرس.",
             () => {
                 if (nabilHome && nabilHome.style.display !== "none" && !homeListening) {
                     try { homeRecognition.start(); } catch(e) {}
@@ -16349,6 +16399,8 @@ ${reply||""}`;
         }catch(_e){}
         return "";
     }
+
+    window.nabilVoiceBuildVisual = nabilVoiceBuildVisual;
 
     function nabilVoicePrepareVisual(question, reply){
         const html=nabilVoiceBuildVisual(question,reply);
@@ -17097,6 +17149,45 @@ ${reply||""}`;
         return (latest.innerText || latest.textContent || "").trim().slice(-6500);
     }
 
+
+    // v108 — direct conversational voice + true interruption (barge-in)
+    let nabilVoiceCurrentSpokenReply = "";
+    let nabilVoiceBargeInLock = false;
+
+    function nabilNormalizeSpeechForEcho(text){
+        return String(text||"").toLowerCase()
+            .replace(/[\u064B-\u065F\u0670]/g,"")
+            .replace(/[^a-z0-9\u0600-\u06ff]+/g," ")
+            .trim();
+    }
+
+    function nabilLooksLikeTutorEcho(candidate){
+        const c=nabilNormalizeSpeechForEcho(candidate);
+        const r=nabilNormalizeSpeechForEcho(nabilVoiceCurrentSpokenReply);
+        if(!c || !r) return false;
+        if(c.length>=10 && r.includes(c)) return true;
+        const cw=c.split(/\s+/).filter(w=>w.length>1);
+        if(cw.length<2) return false;
+        const rw=new Set(r.split(/\s+/));
+        const hits=cw.filter(w=>rw.has(w)).length;
+        return hits/cw.length>=0.72;
+    }
+
+    function nabilInterruptTutorForStudent(utterance){
+        const clean=String(utterance||"").trim();
+        if(!clean || nabilVoiceBargeInLock || nabilLooksLikeTutorEcho(clean)) return false;
+        nabilVoiceBargeInLock=true;
+        stopNabilNeuralVoice();
+        lessonTalkBusy=false;
+        lessonTalkShouldResume=true;
+        nabilLiveSetState("🎙 عم بسمعك...", "listening");
+        setTimeout(()=>{
+            nabilVoiceBargeInLock=false;
+            lessonTalkAskNabil(clean);
+        },80);
+        return true;
+    }
+
     function lessonTalkSetState(text){
         if (talkBtn) talkBtn.textContent = lessonTalkActive ? "⏹ Stop Talk to Me" : "🎙 Talk to Me";
         const t=String(text||"");
@@ -17189,8 +17280,17 @@ ${reply||""}`;
             }
 
             lessonTalkSetState("🔊 عم جاوبك...");
+            nabilVoiceCurrentSpokenReply=reply;
             await nabilSpeakClear(reply, lessonTalkSpokenLanguage, {
+                onstart: () => {
+                    // Keep the mic live while NABIL speaks so the student can interrupt naturally.
+                    // Echo-like transcripts are filtered in rec.onresult below.
+                    if(lessonTalkActive && lessonTalkRecognition){
+                        try{ lessonTalkRecognition.start(); }catch(_e){}
+                    }
+                },
                 onend: () => {
+                    nabilVoiceCurrentSpokenReply="";
                     lessonTalkBusy = false;
                     if(nabilBoardModeActive()){
                         const item=nabilBoardCards[nabilBoardCardIndex];
@@ -17247,6 +17347,17 @@ ${reply||""}`;
                 if (event.results[i].isFinal) finalText += " " + phrase;
                 else interimText += " " + phrase;
             }
+            // True barge-in: if the student speaks while NABIL is talking, stop NABIL immediately.
+            // Ignore likely speaker echo from NABIL's own reply.
+            const bargeCandidate=(finalText || interimText).trim();
+            if(nabilNeuralSpeaking && bargeCandidate && !nabilLooksLikeTutorEcho(bargeCandidate)){
+                if(finalText.trim() || bargeCandidate.split(/\s+/).length>=2){
+                    nabilSpeechBuffer="";
+                    if(nabilSpeechCommitTimer) clearTimeout(nabilSpeechCommitTimer);
+                    nabilInterruptTutorForStudent(bargeCandidate);
+                    return;
+                }
+            }
             if(finalText.trim()) nabilSpeechBuffer = (nabilSpeechBuffer + " " + finalText.trim()).trim();
             const listeningPreview = [nabilSpeechBuffer,interimText.trim()].filter(Boolean).join(" ");
             if(listeningPreview) nabilLiveSetState("🎙 " + listeningPreview, "listening");
@@ -17256,7 +17367,7 @@ ${reply||""}`;
                     const utterance=nabilSpeechBuffer.trim();
                     nabilSpeechBuffer="";
                     if(utterance && lessonTalkActive && !lessonTalkBusy) lessonTalkAskNabil(utterance);
-                },1250);
+                },650);
             }
         };
 
@@ -20960,6 +21071,20 @@ if(document.readyState==="loading"){
 .nabil-gateway-copy p{font-size:22px;line-height:1.75;margin:0 0 20px;color:#ecf9ff}
 .nabil-gateway-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .nabil-gateway-actions button{border:0;border-radius:16px;min-height:58px;padding:12px 16px;font-size:18px;font-weight:900;cursor:pointer}
+#nabilProfessorGateway.live-chat .nabil-gateway-shell{grid-template-columns:minmax(300px,42%) minmax(420px,58%);align-items:stretch}
+.nabil-gateway-live{display:none;margin-top:12px;border:1px solid rgba(77,205,255,.42);border-radius:16px;background:rgba(2,29,52,.78);overflow:hidden}
+#nabilProfessorGateway.live-chat .nabil-gateway-live{display:block}
+.nabil-gateway-status{padding:10px 12px;color:#bfeeff;background:rgba(0,109,174,.18);border-bottom:1px solid rgba(67,199,255,.25);min-height:42px}
+#nabilProfessorGateway.gateway-listening .nabil-gateway-status{background:linear-gradient(90deg,rgba(0,137,222,.38),rgba(0,203,255,.2));box-shadow:inset 0 0 22px rgba(24,202,255,.18)}
+.nabil-gateway-transcript{max-height:180px;overflow:auto;padding:10px 12px;font-size:15px;line-height:1.55;color:#eaf8ff}
+.nabil-gateway-line{margin:6px 0;padding:7px 9px;border-radius:10px;background:rgba(255,255,255,.04)}
+.nabil-gateway-line.student{border-inline-start:3px solid #3ed7ff}.nabil-gateway-line.nabil{border-inline-start:3px solid #7ef0b1}
+.nabil-gateway-inputrow{display:grid;grid-template-columns:1fr auto;gap:8px;padding:10px;border-top:1px solid rgba(67,199,255,.22)}
+.nabil-gateway-inputrow input{min-width:0;border:1px solid rgba(80,205,255,.42);border-radius:10px;background:#061d31;color:#fff;padding:11px 12px;font-size:15px}
+.nabil-gateway-inputrow button,.nabil-gateway-visual-btn{border:1px solid #39cfff;border-radius:10px;background:#075f93;color:#fff;padding:10px 14px;font-weight:700;cursor:pointer}
+.nabil-gateway-visual-btn{display:none;margin:0 10px 10px}.nabil-gateway-visual-btn.ready{display:inline-block}
+.nabil-gateway-visual{display:none;margin:0 10px 12px;padding:10px;border:1px solid rgba(76,208,255,.38);border-radius:14px;background:#06233b;max-height:52vh;overflow:auto}
+.nabil-gateway-visual.open{display:block}.nabil-gateway-visual svg{max-width:100%;height:auto}
 #nabilGatewayTalk{grid-column:1/-1;background:linear-gradient(135deg,#e63636,#b91c1c);color:white;font-size:21px}
 #nabilGatewayLessons{background:#1587bd;color:white}
 #nabilGatewayExercises{background:#0f9f72;color:white}
@@ -20983,16 +21108,87 @@ if(document.readyState==="loading"){
         <button id="nabilGatewayExercises" type="button">✏️ حل تمارين / مسابقة</button>
       </div>
       <div class="nabil-gateway-note">المحادثة تبقى مفتوحة حتى تضغط Stop Talk to Me. يمكنك الانتقال فورًا بين الرياضيات والفيزياء والكيمياء والعلوم واللغات وبقية المواد.</div>
+      <div class="nabil-gateway-live" id="nabilGatewayLive">
+        <div class="nabil-gateway-status" id="nabilGatewayStatus">🎙 اضغط «تحدث معي الآن» وابدأ الكلام مباشرة.</div>
+        <div class="nabil-gateway-transcript" id="nabilGatewayTranscript"></div>
+        <button class="nabil-gateway-visual-btn" id="nabilGatewayVisualBtn" type="button">👁 شاهد البطاقة / الرسمة</button>
+        <div class="nabil-gateway-visual" id="nabilGatewayVisual"></div>
+        <div class="nabil-gateway-inputrow">
+          <input id="nabilGatewayInput" type="text" placeholder="اكتب هنا إذا حبيت... أو احكِ بالميكروفون">
+          <button id="nabilGatewaySend" type="button">إرسال</button>
+        </div>
+      </div>
     </div>
   </div>`;
   document.body.appendChild(gateway);
   const close=()=>gateway.classList.add('closed');
+  const status=gateway.querySelector('#nabilGatewayStatus');
+  const transcript=gateway.querySelector('#nabilGatewayTranscript');
+  const visualBtn=gateway.querySelector('#nabilGatewayVisualBtn');
+  const visualBox=gateway.querySelector('#nabilGatewayVisual');
+  const input=gateway.querySelector('#nabilGatewayInput');
+  const send=gateway.querySelector('#nabilGatewaySend');
+
+  function appendGatewayLine(role,text){
+    if(!transcript || !text) return;
+    const d=document.createElement('div');
+    d.className='nabil-gateway-line '+role;
+    d.textContent=(role==='student'?'الطالب: ':'الأستاذ نبيل: ')+String(text).replace(/\*\*/g,'');
+    transcript.appendChild(d); transcript.scrollTop=transcript.scrollHeight;
+  }
+
+  window.nabilGatewayPresentAnswer=(question,reply,result)=>{
+    gateway.classList.add('live-chat');
+    appendGatewayLine('nabil',reply);
+    if(status) status.textContent='🎙 أنا سامعك. فيك تقاطعني وتحكي بأي لحظة.';
+    let html='';
+    try{
+      const drawings=Array.isArray(result?.drawings)?result.drawings:[];
+      if(drawings.length && typeof renderNabilDiagram==='function') html=drawings.map(d=>renderNabilDiagram(d)).filter(Boolean).join('');
+      if(!html && typeof window.nabilVoiceBuildVisual==='function') html=window.nabilVoiceBuildVisual(question,reply)||'';
+    }catch(_e){}
+    if(html){
+      visualBox.innerHTML=html; visualBtn.classList.add('ready');
+      const wants=/فرجيني|ورجيني|اعرض|أعرض|بطاق|رسمة|رسم|draw|graph|show me|visual|diagram|montre|schéma/i.test(String(question||''));
+      if(wants) visualBox.classList.add('open');
+      try{ MathJax?.typesetPromise?.([visualBox]); }catch(_e){}
+    }
+  };
+
+  visualBtn?.addEventListener('click',()=>visualBox.classList.toggle('open'));
+
+  async function sendGatewayText(){
+    const q=String(input?.value||'').trim(); if(!q) return;
+    input.value=''; gateway.classList.add('live-chat'); appendGatewayLine('student',q);
+    if(status) status.textContent='🧠 الأستاذ نبيل يفكّر...';
+    await askNabilAvatarAI(q);
+  }
+  send?.addEventListener('click',sendGatewayText);
+  input?.addEventListener('keydown',e=>{if(e.key==='Enter') sendGatewayText();});
+
+  // Keep the professor gateway itself as the live conversation surface. No forced navigation.
   gateway.querySelector('#nabilGatewayTalk')?.addEventListener('click',()=>{
-    close();
-    // Open the spacious lesson/chat page only as a host for the live tutor; no subject/lesson is required.
-    try{ nabilActivityMode='general_exercises'; nabilLessonActive=false; openClassicLessonPage(); }catch(_e){}
-    setTimeout(()=>document.getElementById('lessonTalkBtn')?.click(),180);
+    gateway.classList.add('live-chat');
+    try{
+      if(!homeRecognition) setupHomeRecognition();
+      if(homeListening){ homeListening=false; try{homeRecognition.stop()}catch(_e){}; if(status)status.textContent='⏹ تم إيقاف الاستماع.'; return; }
+      homeRecognition.lang=homeLangCode();
+      homeListening=true; gateway.classList.add('gateway-listening');
+      if(status) status.textContent='🎙 عم بسمعك... احكي مباشرة.';
+      try{homeRecognition.start()}catch(_e){ homeListening=false; gateway.classList.remove('gateway-listening'); }
+    }catch(_e){}
   });
+
+  // Mirror the existing speech-recognition state on the gateway.
+  try{
+    new MutationObserver(()=>{
+      const t=homeVoiceState?.textContent||'';
+      if(status && t) status.textContent=t;
+      const listening=/🎙|أسمعك|عم بسمعك/i.test(t);
+      gateway.classList.toggle('gateway-listening',listening);
+    }).observe(homeVoiceState,{childList:true,subtree:true,characterData:true});
+  }catch(_e){}
+
   gateway.querySelector('#nabilGatewayLessons')?.addEventListener('click',()=>{ close(); try{ nabilHome.style.display='block'; document.body.classList.add('nabil-home-lock'); }catch(_e){} });
   gateway.querySelector('#nabilGatewayExercises')?.addEventListener('click',()=>{ close(); try{ startGeneralExercisesMode(); }catch(_e){} });
   // Expose a home command so returning Home can bring Professor Nabil back later.
