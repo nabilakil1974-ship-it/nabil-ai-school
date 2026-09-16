@@ -6496,8 +6496,8 @@ function nabilDiagramTypeFromHTML(html){
 
 const NABIL_SUBJECT_RENDERER_PROFILES={
     math:{visualMode:"graph-heavy",preserve3D:false},
-    physics:{visualMode:"3d-science",preserve3D:true},
-    circuit:{visualMode:"3d-components",preserve3D:true},
+    physics:{visualMode:"clean-2d-science",preserve3D:false},
+    circuit:{visualMode:"clean-2d-schematic",preserve3D:false},
     chemistry:{visualMode:"molecules-energy",preserve3D:true},
     biology:{visualMode:"labeled-structures",preserve3D:true},
     geometry:{visualMode:"precision-2d-3d",preserve3D:true},
@@ -7449,51 +7449,29 @@ ${rawVariationHTML}`);
                 </article>`;
             }
 
+            const v96SummaryHTML = [givenHTML, formulaHTML, answerHTML].filter(Boolean).join('') || leftMainHTML;
+            const v96DetailedHTML = [requiredHTML, formulaHTML, solutionHTML, answerHTML].filter(Boolean).join('') || leftMainHTML;
             return `
-            <article class="exercise-board v92-tangents-physics-card v93-all-math-physics-card" dir="${messageDirection}">
+            <article class="exercise-board v96-math-card" dir="${messageDirection}">
               <header class="v92-top">
-                <div class="v92-top-main">
-                  <div class="v92-icon">📘</div>
-                  <div>
-                    <div class="v92-title">${lessonTitleText}</div>
-                    <div class="v92-sub">${lessonSubText}</div>
-                  </div>
-                </div>
+                <div class="v92-top-main"><div class="v92-icon">📘</div><div><div class="v92-title">${lessonTitleText}</div><div class="v92-sub">${lessonSubText}</div></div></div>
                 <div class="v92-meta"><span>◷</span><div><small>Estimated Time</small><strong>20 minutes</strong></div></div>
                 <div class="v92-meta"><span>◎</span><div><small>Learning Objectives</small><strong>${objectiveText}</strong></div></div>
               </header>
-
-              <div class="v92-grid v93-math-grid">
-                <section class="v92-left v93-math-left">
+              <div class="v96-lead-grid">
+                <section class="v96-summary-left">
                   <h2>${leftHeading}</h2>
-                  <div class="v87-math-left-main v93-math-left-main">${leftMainHTML}</div>
-
-                  <div class="v92-rule v93-math-rule">
-                    <div class="v92-rule-icon">💡</div>
-                    <div>
-                      <b>${summaryLabel}</b>
-                      <div class="v87-math-rule-body">${ruleSummaryHTML}</div>
-                    </div>
-                  </div>
-
-                  <div class="v92-quick v93-math-quick">
-                    <div class="v92-quick-icon">?</div>
-                    <div>
-                      <b>Quick Check</b>
-                      <span>${quickQuestion}</span>
-                    </div>
-                  </div>
+                  <div class="v96-summary-body">${v96SummaryHTML}</div>
+                  <div class="v92-rule"><div class="v92-rule-icon">💡</div><div><b>${summaryLabel}</b><div class="v87-math-rule-body">${ruleSummaryHTML}</div></div></div>
+                  <div class="v92-quick"><div class="v92-quick-icon">?</div><div><b>Quick Check</b><span>${quickQuestion}</span></div></div>
                 </section>
-
-                <section class="v92-right v93-math-right">
-                  <div class="v92-visual-wrap v93-math-visual-wrap">
-                    <div class="v87-math-visuals ${visualGridClass}">
-                      ${visualsMarkup}
-                    </div>
-                  </div>
-                </section>
+                <section class="v96-visual-right"><div class="v96-visuals ${visualGridClass}">${visualsMarkup}</div></section>
               </div>
-              ${extraBottomHTML ? `<div class="v93-math-extra-under">${extraBottomHTML}</div>` : ''}
+              <section class="v96-detailed-solution">
+                <h2>${messageLanguage === "English" ? "Complete Detailed Solution" : messageLanguage === "Français" ? "Solution complète et détaillée" : "الحل الكامل والمفصل"}</h2>
+                <div class="v96-detailed-body">${v96DetailedHTML}</div>
+                ${extraBottomHTML ? `<div class="v96-extra-under">${extraBottomHTML}</div>` : ''}
+              </section>
             </article>`;
         }
 
@@ -7785,13 +7763,23 @@ function layoutLessonBoard(bubble) {
     // Never lose a provider drawing even if card_index was malformed/missing.
     const unlinked = visualNodes.filter(node => !node.parentElement?.classList.contains("lesson-linked-visuals"));
     if (unlinked.length) {
-        const fallbackRow = document.createElement("div");
-        fallbackRow.className = "lesson-paired-row";
-        const visualColumn = document.createElement("div");
-        visualColumn.className = "lesson-linked-visuals";
-        unlinked.forEach(node => visualColumn.appendChild(node));
-        fallbackRow.appendChild(visualColumn);
-        pairedStack.appendChild(fallbackRow);
+        const firstRow = pairedStack.querySelector(":scope > .lesson-paired-row");
+        const firstRowHasVisual = !!firstRow?.querySelector(":scope > .lesson-linked-visuals");
+        if (firstRow && !firstRowHasVisual) {
+            const visualColumn = document.createElement("div");
+            visualColumn.className = "lesson-linked-visuals";
+            unlinked.forEach(node => visualColumn.appendChild(node));
+            firstRow.classList.remove("no-linked-visual");
+            firstRow.appendChild(visualColumn);
+        } else {
+            const fallbackRow = document.createElement("div");
+            fallbackRow.className = "lesson-paired-row";
+            const visualColumn = document.createElement("div");
+            visualColumn.className = "lesson-linked-visuals";
+            unlinked.forEach(node => visualColumn.appendChild(node));
+            fallbackRow.appendChild(visualColumn);
+            pairedStack.appendChild(fallbackRow);
+        }
     }
 
     stack.innerHTML = "";
@@ -9667,8 +9655,13 @@ function addMessage(
         // They can inject an unrelated lesson visual (for example, an empty
         // "Inverse trigonometric functions" plane into a ln(x)/x exercise).
         // General Exercises must derive visuals only from the current answer/question.
-        if (!visibleDiagrams.length && nabilActivityMode !== "general_exercises"){
-            const fallbackVisual = safeFallbackDiagramForReply(visibleText);
+        const currentQuestionNeedsDrawing = nabilMessageImpliesDrawing(nabilCurrentQuestionText || "");
+        if (!visibleDiagrams.length && (nabilActivityMode !== "general_exercises" || currentQuestionNeedsDrawing)){
+            let fallbackVisual = safeFallbackDiagramForReply(visibleText);
+            if (!fallbackVisual) {
+                const autoSpec = nabilAutoSubjectDiagramSpec(`${nabilCurrentQuestionText || ""} ${visibleText || ""}`) || autoDiagramSpecForLesson(`${nabilCurrentQuestionText || ""} ${visibleText || ""}`);
+                if (autoSpec) fallbackVisual = renderNabilDiagram(autoSpec);
+            }
             if (fallbackVisual) {
                 visibleDiagrams.push(
                     `<div class="linked-lesson-visual" data-card-index="1">${fallbackVisual}</div>`
@@ -10073,6 +10066,12 @@ function nabilSleep(ms){
     return new Promise(resolve=>setTimeout(resolve,ms));
 }
 
+function nabilMessageImpliesDrawing(message){
+    const q=String(message||"").toLowerCase();
+    if(!q.trim()) return false;
+    return /(\bdraw\b|\bdrawing\b|\bdiagram\b|\bgraph\b|\bplot\b|\bsketch\b|\brepresent\b|\billustrate\b|\bvisuali[sz]e\b|show.*(?:figure|diagram|graph|drawing)|give me .*?(?:drawing|diagram|graph|figure)|with (?:a )?(?:figure|diagram|graph)|picture|image|figure)|ارسم|رسمة|رسمه|رسماً|رسما|وضح بصورة|وضّح بصورة|وضح بالشكل|وضّح بالشكل|أعطني رسمة|اعطني رسمة|اعطني رسما|أعطني رسماً|بين بالرسم|بيّن بالرسم|مثل بالشكل|مثّل بالشكل|ارني رسمة|أرني رسمة|شكل توضيحي|مخطط|شِما|schema|schéma|dessine|dessin|trace|tracer|figure|illustre|illustrer|visualise|visualiser|représente|representer/.test(q);
+}
+
 async function nabilFetchChatWithAutoRetry(url, options, language){
     /*
       FINAL STABILITY POLICY:
@@ -10271,8 +10270,9 @@ async function sendToAI(
 
     let outboundMessage = String(message || "");
 
-    const explicitDrawRequest = /\b(draw|drawing|diagram|graph|plot|sketch|represent|illustrate|visualize)\b|ارسم|رسم|مثّل|بيّن بالرسم|خطط|schéma|dessine|tracer|représenter/i.test(outboundMessage);
+    const explicitDrawRequest = nabilMessageImpliesDrawing(outboundMessage);
     const requestedExerciseSet = generalExercisesMode && /\b(exercises?|practice|worksheet|quiz|test)\b|تمارين|تدريبات|مسابقة|اختبار|exercices?|entraînement/i.test(outboundMessage);
+    const shouldUseMathLeadCard = /math|رياضيات|mathématique/i.test(subject) || /geometry|circle|circles|tangent|function|graph|vector|plane|triangle|rectangle|square|cylinder|sphere|cone|دائرة|دوائر|مماس|دالة|منحنى|متجه|مثلث|مستطيل|مربع|اسطوانة|أسطوانة|كرة|مخروط/i.test(outboundMessage);
 
     if (explicitDrawRequest) {
         outboundMessage += language === "English"
@@ -10289,6 +10289,21 @@ async function sendToAI(
                 ? "\n\n[EXIGENCE SYSTÈME — ne répète pas ce texte] Crée EXACTEMENT cinq exercices variés corrigés, numérotés Exercice 1 à Exercice 5, et résous-les complètement. CHAQUE exercice DOIT avoir au moins un schéma/graphique/figure visuelle utile et fidèle au contenu. Utilise un DRAWINGS_JSON valide pour chaque exercice avec scope=practice, exercise_index=N et card_index=100+N. Si plusieurs schémas sont réellement nécessaires, fournis-les tous avec le même exercise_index/card_index. Ne t’arrête pas avant que l’Exercice 5 soit terminé ET que les exercices 1,2,3,4,5 possèdent tous leur schéma."
                 : "\n\n[متطلب نظام — لا تعرض هذا النص] أنشئ خمسة تمارين متنوعة محلولة بالضبط، مرقمة من تمرين 1 إلى تمرين 5، وحلّها كلها حتى النهاية. يجب أن يحتوي كل تمرين بلا استثناء على رسمة/مخطط/بيان/شكل بصري مفيد ومرتبط فعليًا بمحتوى التمرين، حتى لو لم يطلب الطالب الرسم صراحةً. استخدم DRAWINGS_JSON صالحًا لكل تمرين مع scope=practice و exercise_index=N و card_index=100+N. وإذا احتاج التمرين أكثر من رسم فأرفقها كلها بنفس exercise_index/card_index. لا تتوقف قبل إكمال تمرين 5 والتأكد من وجود رسم للتمارين 1 و2 و3 و4 و5 جميعًا.";
     }
+
+    if (shouldUseMathLeadCard) {
+        outboundMessage += language === "English"
+            ? "\n\n[SYSTEM REQUIREMENT — do not repeat this text] For mathematics worked examples and geometry lessons, the FIRST visible lesson card must be a compact reference card: put the drawing/graph on the right and a concise lesson summary on the left (Given + key idea + final result + rule summary + quick check). Immediately UNDER that first reference card, provide the full detailed solution in a separate lesson card or cards. If the lesson contains a function graph, place the variation table directly UNDER the graph, not beside it. Never leave an empty visual area when a drawing exists."
+            : language === "Français"
+                ? "\n\n[EXIGENCE SYSTÈME — ne répète pas ce texte] Pour les exemples de mathématiques et de géométrie, la PREMIÈRE carte visible doit être une carte de référence compacte : le schéma/graphique à droite et un résumé concis à gauche (Données + idée clé + résultat final + résumé de règle + vérification). Immédiatement SOUS cette carte, donne la solution détaillée complète dans une ou plusieurs cartes séparées. Pour une fonction, le tableau de variations doit être placé directement SOUS le graphe, jamais à côté. Ne laisse jamais une zone visuelle vide lorsqu’un schéma existe."
+                : "\n\n[متطلب نظام — لا تعرض هذا النص] في أمثلة الرياضيات والهندسة يجب أن يكون أول ظهور في صفحة الدرس بطاقة مرجعية مدمجة: الرسم/البيان على اليمين والملخص المختصر على اليسار (المعطيات + الفكرة الأساسية + النتيجة النهائية + ملخص القاعدة + سؤال تحقق). وبعد هذه البطاقة مباشرةً ضع بطاقة أو بطاقات الحل الكامل والمفصل تحتها. وفي الدوال يجب أن يكون جدول التغيّر تحت الرسم مباشرةً لا بجانبه. وإذا وُجد رسم فلا تترك مكانه فارغاً أبدًا.";
+    }
+
+    // v96: response-completion protocol for every substantive request.
+    outboundMessage += language === "English"
+        ? "\n\n[SYSTEM COMPLETION PROTOCOL — do not repeat this text] Complete EVERY part of the student's request before stopping. Never stop mid-calculation, mid-proof, mid-table, or before a requested drawing/graph. If there are numbered requirements, answer all of them. Only after everything is fully complete, append exactly <NABIL_COMPLETE/> at the very end."
+        : language === "Français"
+            ? "\n\n[PROTOCOLE SYSTÈME DE FIN — ne répète pas ce texte] Termine TOUTES les parties de la demande avant de t’arrêter. Ne t’arrête jamais au milieu d’un calcul, d’une preuve, d’un tableau ni avant un schéma demandé. S’il y a des points numérotés, réponds à tous. Seulement lorsque tout est terminé, ajoute exactement <NABIL_COMPLETE/> à la toute fin."
+            : "\n\n[بروتوكول إكمال نظامي — لا تعرض هذا النص] أكمل كل أجزاء طلب الطالب قبل أن تتوقف. ممنوع أن تتوقف في منتصف حساب أو برهان أو جدول أو قبل رسم مطلوب. إذا كانت هناك مطالب مرقمة فأجب عنها كلها. فقط بعد اكتمال كل شيء بالكامل أضف في نهاية الجواب تمامًا <NABIL_COMPLETE/>.";
 
     formData.append(
         "message",
@@ -10493,8 +10508,9 @@ async function sendToAI(
             const found = practiceDrawingIndexes(drawings);
             return [1,2,3,4,5].every(i => found.has(i));
         };
-        if (expectsFiveSolvedSet && String(teacherReply || "").trim().length > 300 && (!hasExerciseFive(teacherReply) || !hasAllFivePracticeDrawings(responseDrawings))) {
-            for (let completionAttempt = 0; completionAttempt < 3 && (!hasExerciseFive(teacherReply) || !hasAllFivePracticeDrawings(responseDrawings)); completionAttempt++) {
+        const hasFiveExerciseFinalAnswer = reply => /(?:Exercise|Exercice)\s*5\b[\s\S]{0,2500}(?:Final Answer|Answer|Réponse finale)|(?:تمرين|التمرين)\s*5\b[\s\S]{0,2500}(?:الجواب النهائي|النتيجة النهائية|الحل النهائي)/i.test(String(reply || ""));
+        if (expectsFiveSolvedSet && String(teacherReply || "").trim().length > 120 && (!hasExerciseFive(teacherReply) || !hasAllFivePracticeDrawings(responseDrawings) || !hasFiveExerciseFinalAnswer(teacherReply))) {
+            for (let completionAttempt = 0; completionAttempt < 5 && (!hasExerciseFive(teacherReply) || !hasAllFivePracticeDrawings(responseDrawings) || !hasFiveExerciseFinalAnswer(teacherReply)); completionAttempt++) {
                 try {
                     const continuationForm = new FormData();
                     continuationForm.append("student_id", getStudentId());
@@ -10511,7 +10527,7 @@ async function sendToAI(
                         ? "Continue EXACTLY from where the previous answer stopped. Do not repeat completed content. Finish any incomplete explanation and complete all remaining solved exercises through Exercise 5. CRITICAL: exercises 1,2,3,4,5 must EACH have at least one meaningful subject-specific drawing with valid DRAWINGS_JSON, scope=practice, exercise_index=N, card_index=100+N. Add drawings now for any exercise that is missing one. Also include any lesson-scope drawing still needed to make the explanation visually clear. Do not stop until Exercise 5 is fully solved and drawing coverage 1..5 is complete."
                         : language === "Français"
                             ? "Continue EXACTEMENT là où la réponse précédente s’est arrêtée, sans répéter ce qui est déjà terminé. Termine l’explication et tous les exercices jusqu’à l’Exercice 5. IMPORTANT : chacun des exercices 1,2,3,4,5 doit avoir au moins un schéma/graphique/figure utile via DRAWINGS_JSON avec scope=practice, exercise_index=N et card_index=100+N. Ajoute maintenant les schémas manquants, ainsi que tout schéma scope=lesson nécessaire pour clarifier l’explication. Ne termine pas avant que l’Exercice 5 et la couverture visuelle 1..5 soient complets."
-                            : "تابع بالضبط من النقطة التي توقف عندها الجواب السابق من دون تكرار ما اكتمل. أكمل بقية الشرح وكل التمارين المحلولة حتى تمرين 5. مهم جدًا: يجب أن يكون لكل تمرين من 1 و2 و3 و4 و5 رسم/مخطط/بيان/شكل بصري مفيد واحد على الأقل عبر DRAWINGS_JSON مع scope=practice و exercise_index=N و card_index=100+N. أضف الآن أي رسم ناقص لأي تمرين، وأضف أيضًا أي رسم scope=lesson ما زال لازمًا لتوضيح فكرة في الشرح. لا تتوقف قبل إكمال تمرين 5 واكتمال الرسومات للتمارين الخمسة كلها.");
+                            : "تابع بالضبط من النقطة التي توقف عندها الجواب السابق من دون تكرار ما اكتمل. أكمل بقية الشرح وكل التمارين المحلولة حتى تمرين 5، وتأكد أن كل تمرين ينتهي بحل كامل واضح ونتيجة نهائية صريحة. مهم جدًا: يجب أن يكون لكل تمرين من 1 و2 و3 و4 و5 رسم/مخطط/بيان/شكل بصري مفيد واحد على الأقل عبر DRAWINGS_JSON مع scope=practice و exercise_index=N و card_index=100+N. أضف الآن أي رسم ناقص لأي تمرين، وأضف أيضًا أي رسم scope=lesson ما زال لازمًا لتوضيح فكرة في الشرح. لا تتوقف قبل إكمال تمرين 5، وظهور النتيجة النهائية له، واكتمال الرسومات للتمارين الخمسة كلها.");
 
                     const continuationResponse = await nabilFetchChatWithAutoRetry(
                         API_BASE + "/api/chat",
@@ -10535,6 +10551,47 @@ async function sendToAI(
                 }
             }
         }
+
+        // v96: if the provider stopped early, continue automatically for ANY task.
+        const nabilHasCompletionSentinel = value => /<NABIL_COMPLETE\s*\/>/i.test(String(value || ""));
+        if (!nabilHasCompletionSentinel(teacherReply)) {
+            for (let completionAttempt = 0; completionAttempt < 4 && !nabilHasCompletionSentinel(teacherReply); completionAttempt++) {
+                try {
+                    const continuationForm = new FormData();
+                    continuationForm.append("student_id", getStudentId());
+                    if (conversationId) continuationForm.append("conversation_id", conversationId);
+                    continuationForm.append("grade", grade);
+                    continuationForm.append("subject", subject);
+                    if (branch) continuationForm.append("branch", branch);
+                    continuationForm.append("teaching_mode", teachingMode);
+                    continuationForm.append("activity_mode", generalExercisesMode ? "general_exercises" : "lesson");
+                    continuationForm.append("language", language);
+                    continuationForm.append("curriculum", curriculum);
+                    continuationForm.append("lesson", lesson || "");
+                    continuationForm.append("message", language === "English"
+                        ? "Continue EXACTLY where the previous answer stopped. Do not repeat completed content. Finish every unanswered requirement from the student's original question, including all calculations, proofs, tables, final answers and requested/necessary drawings or graphs. If this is a function study, include the complete variation table directly under the graph. Only when everything is complete append exactly <NABIL_COMPLETE/>."
+                        : language === "Français"
+                            ? "Continue EXACTEMENT là où la réponse précédente s’est arrêtée, sans répéter ce qui est déjà terminé. Termine chaque exigence encore incomplète de la question originale, y compris calculs, preuves, tableaux, réponses finales et schémas/graphes demandés ou nécessaires. Pour une étude de fonction, place le tableau de variations complet directement sous le graphe. Seulement lorsque tout est terminé, ajoute exactement <NABIL_COMPLETE/>."
+                            : "تابع بالضبط من حيث توقف الجواب السابق، من دون تكرار ما اكتمل. أكمل كل مطلب لم يكتمل من سؤال الطالب الأصلي، بما في ذلك الحسابات والبراهين والجداول والنتائج النهائية وكل رسم أو بيان مطلوب أو ضروري. وإذا كانت دراسة دالة فأكمل جدول التغيّر كاملًا واجعله تحت الرسم مباشرةً. فقط عندما يكتمل كل شيء أضف في النهاية تمامًا <NABIL_COMPLETE/>.");
+                    const continuationResponse = await nabilFetchChatWithAutoRetry(API_BASE + "/api/chat", {method:"POST", body:continuationForm}, language);
+                    const continuationText = await continuationResponse.text();
+                    if (!continuationResponse.ok || !continuationText) break;
+                    const continuationData = JSON.parse(continuationText);
+                    if (continuationData.conversation_id) conversationId = continuationData.conversation_id;
+                    const continuationReply = String(continuationData.reply || "").trim();
+                    if (!continuationReply) break;
+                    teacherReply += "\n\n" + continuationReply;
+                    const moreDrawings = Array.isArray(continuationData.drawings) && continuationData.drawings.length
+                        ? continuationData.drawings
+                        : (continuationData.drawing && typeof continuationData.drawing === "object" ? [continuationData.drawing] : []);
+                    responseDrawings.push(...moreDrawings);
+                } catch (completionError) {
+                    console.warn("NABIL generic completion failed:", completionError);
+                    break;
+                }
+            }
+        }
+        teacherReply = String(teacherReply || "").replace(/<NABIL_COMPLETE\s*\/>/gi, "").trim();
 
         responseDrawings.forEach(drawing => {
             teacherReply += "\n\n```nabil-draw\n" + JSON.stringify(drawing) + "\n```";
@@ -11574,6 +11631,35 @@ function nabilResistor3D(x,y,w,h,label,accent="#f0abfc"){
         <text x="${bodyX+w/2}" y="${bodyY+h+22}" text-anchor="middle" class="vlab vsmall" style="fill:${accent};font-weight:900">${label}</text>
       </g>`;
 }
+
+function nabilResistor2D(x,y,w,h,label){
+    const lead=28;
+    const left=x-lead, right=x+w+lead;
+    const bodyY=y-h/2;
+    return `
+      <g class="nabil-circuit-2d-component">
+        <line x1="${left}" y1="${y}" x2="${x}" y2="${y}" stroke="#eef9ff" stroke-width="4" stroke-linecap="round"/>
+        <rect x="${x}" y="${bodyY}" width="${w}" height="${h}" rx="3"
+              fill="#0b2941" stroke="#eef9ff" stroke-width="3"/>
+        <line x1="${x+w}" y1="${y}" x2="${right}" y2="${y}" stroke="#eef9ff" stroke-width="4" stroke-linecap="round"/>
+        <text x="${x+w/2}" y="${bodyY-10}" text-anchor="middle" class="vlab vsmall"
+              style="fill:#eef9ff;font-weight:900">${label}</text>
+      </g>`;
+}
+
+function nabilBattery2D(x,y,label){
+    return `
+      <g class="nabil-circuit-2d-component">
+        <line x1="${x}" y1="${y-46}" x2="${x}" y2="${y-20}" stroke="#eef9ff" stroke-width="4"/>
+        <line x1="${x-14}" y1="${y-20}" x2="${x+14}" y2="${y-20}" stroke="#eef9ff" stroke-width="4"/>
+        <line x1="${x-8}" y1="${y+2}" x2="${x+8}" y2="${y+2}" stroke="#eef9ff" stroke-width="4"/>
+        <line x1="${x}" y1="${y+2}" x2="${x}" y2="${y+46}" stroke="#eef9ff" stroke-width="4"/>
+        <text x="${x+28}" y="${y-22}" class="vlab vsmall" style="fill:#eef9ff;font-weight:900">+</text>
+        <text x="${x+28}" y="${y+7}" class="vlab vsmall" style="fill:#eef9ff;font-weight:900">−</text>
+        <text x="${x+38}" y="${y+34}" class="vlab vsmall" style="fill:#67e8f9;font-weight:900">${label}</text>
+      </g>`;
+}
+
 
 function nabilBattery3D(x,y,label){
     return `
@@ -12979,8 +13065,8 @@ function renderNabilDiagram(rawSpec){
               <!-- closed rectangular circuit -->
               <path d="M105 95 H495 V280 H105 V95" fill="none" stroke="#eef9ff" stroke-width="4" stroke-linecap="round"/>
 
-              <!-- premium 3D battery -->
-              ${nabilBattery3D(105,197,voltageLabel)}
+              <!-- standard 2D battery symbol -->
+              ${nabilBattery2D(105,197,voltageLabel)}
 
               <!-- switch -->
               <line x1="145" y1="95" x2="178" y2="77" stroke="#ffd43b" stroke-width="4"/>
@@ -12991,9 +13077,9 @@ function renderNabilDiagram(rawSpec){
               <circle cx="225" cy="95" r="22" fill="#0b2941" stroke="#67e8f9" stroke-width="3"/>
               <text x="225" y="102" text-anchor="middle" class="vlab" style="fill:#67e8f9;font-size:19px">A</text>
 
-              <!-- premium 3D resistors -->
-              ${nabilResistor3D(278,95,72,30,r1Label,"#f0abfc")}
-              ${nabilResistor3D(388,95,72,30,r2Label,"#8bff77")}
+              <!-- standard 2D resistor symbols -->
+              ${nabilResistor2D(278,95,72,30,r1Label)}
+              ${nabilResistor2D(388,95,72,30,r2Label)}
 
               <!-- total current arrow -->
               <line x1="255" y1="50" x2="420" y2="50" stroke="#22d3ee" stroke-width="4.5"
@@ -13021,21 +13107,21 @@ function renderNabilDiagram(rawSpec){
               <line x1="245" y1="78" x2="245" y2="285" stroke="#eef9ff" stroke-width="4"/>
               <line x1="495" y1="78" x2="495" y2="285" stroke="#eef9ff" stroke-width="4"/>
 
-              <!-- premium 3D battery -->
-              ${nabilBattery3D(105,193,voltageLabel)}
+              <!-- standard 2D battery symbol -->
+              ${nabilBattery2D(105,193,voltageLabel)}
 
               <!-- switch -->
               <line x1="145" y1="78" x2="178" y2="60" stroke="#ffd43b" stroke-width="4"/>
               <circle cx="145" cy="78" r="5.5" fill="#ffd43b"/>
               <circle cx="184" cy="78" r="5.5" fill="#ffd43b"/>
 
-              <!-- premium 3D branch resistors -->
+              <!-- standard 2D branch resistor symbols -->
               <line x1="245" y1="145" x2="274" y2="145" stroke="#eef9ff" stroke-width="4"/>
-              ${nabilResistor3D(302,145,80,30,r1Label,"#f0abfc")}
+              ${nabilResistor2D(302,145,80,30,r1Label)}
               <line x1="410" y1="145" x2="495" y2="145" stroke="#eef9ff" stroke-width="4"/>
 
               <line x1="245" y1="230" x2="274" y2="230" stroke="#eef9ff" stroke-width="4"/>
-              ${nabilResistor3D(302,230,80,30,r2Label,"#8bff77")}
+              ${nabilResistor2D(302,230,80,30,r2Label)}
               <line x1="410" y1="230" x2="495" y2="230" stroke="#eef9ff" stroke-width="4"/>
 
               <!-- total current before split -->
@@ -14342,7 +14428,7 @@ function buildAdaptiveLessonPrompt(studentText){
 10) استخدم لغة ${language} المختارة.
 11) في الرياضيات والفيزياء والكيمياء استخدم الرموز وLaTeX الصحيح.
 12) شكل الجواب ومضمونه ثابتان على الهاتف والكمبيوتر. لا تغيّر الشرح بحسب الجهاز.
-13) رتّب الرد كلوحة درس مرجعية واضحة. عدد بطاقات الشرح غير ثابت ويُحدَّد حسب حجم الدرس وعدد مفاهيمه الحقيقية: قد تكون بطاقة واحدة أو 3 أو 5 أو 10 أو حتى 20 بطاقة إذا كان الدرس يحتاج ذلك. أنشئ بطاقة مستقلة لكل مفهوم أو خطوة أو قاعدة أو مثال مهم، ولا تدمج مفاهيم مختلفة في بطاقة واحدة فقط لتقليل العدد. لا تنشئ بطاقات زائدة أو مكررة بلا حاجة. بعد اكتمال جميع بطاقات الدرس اختم ببطاقة أخيرة واحدة بعنوان ## البطاقة النهائية — خلاصة القاعدة (أو ## Final Card — Rule Summary / ## Carte finale — Résumé de la règle). هذه البطاقة النهائية يجب أن تجمع زبدة جميع بطاقات الشرح السابقة، لا آخر بطاقة فقط، وتذكر أهم التعاريف والقواعد والنتائج والأمثلة/الرسومات الأساسية باختصار منظم. وبعدها مباشرة اكتب سؤال تحقق أو اختبار ختامي مناسب للدرس. لا تنشئ بطاقة بعنوان Diagram فقط؛ الرسم يظهر داخل سياق البطاقة المرتبطة به.
+13) رتّب الرد كلوحة درس مرجعية واضحة. عدد بطاقات الشرح غير ثابت ويُحدَّد حسب حجم الدرس وعدد مفاهيمه الحقيقية: قد تكون بطاقة واحدة أو 3 أو 5 أو 10 أو حتى 20 بطاقة إذا كان الدرس يحتاج ذلك. أنشئ بطاقة مستقلة لكل مفهوم أو خطوة أو قاعدة أو مثال مهم، ولا تدمج مفاهيم مختلفة في بطاقة واحدة فقط لتقليل العدد. لا تنشئ بطاقات زائدة أو مكررة بلا حاجة. إذا كان الدرس في الرياضيات أو الهندسة أو يتضمن رسماً توضيحياً، فلتكن البطاقة الأولى بطاقة مرجعية مختصرة جدًا تناسب وضع الرسم بجانبها: عنوان + معطيات أساسية + فكرة الحل + النتيجة النهائية + ملخص القاعدة + سؤال تحقق. بعد هذه البطاقة مباشرةً أنشئ بطاقة أو بطاقات للحل الكامل والمفصل خطوة بخطوة. بعد اكتمال جميع بطاقات الدرس اختم ببطاقة أخيرة واحدة بعنوان ## البطاقة النهائية — خلاصة القاعدة (أو ## Final Card — Rule Summary / ## Carte finale — Résumé de la règle). هذه البطاقة النهائية يجب أن تجمع زبدة جميع بطاقات الشرح السابقة، لا آخر بطاقة فقط، وتذكر أهم التعاريف والقواعد والنتائج والأمثلة/الرسومات الأساسية باختصار منظم. وبعدها مباشرة اكتب سؤال تحقق أو اختبار ختامي مناسب للدرس. لا تنشئ بطاقة بعنوان Diagram فقط؛ الرسم يظهر داخل سياق البطاقة المرتبطة به.
 14) إذا احتاج الشرح شكلاً أو رسماً، استخدم بروتوكول الرسم المتاح.
 - عند الحاجة إلى رسم، لا تكتفِ بعبارة "انظر إلى الشكل". أرسل في نهاية الجواب كتلة JSON صالحة بهذه الصيغة حرفيًا:
 <DRAWINGS_JSON>
@@ -19179,6 +19265,188 @@ function nabilTeacherWordHTML(data){
 .v93-all-math-physics-card .v93-math-right .nabil-visual,
 .v93-all-math-physics-card .v93-math-right .linked-lesson-visual{width:100%!important;max-width:100%!important}
 .v93-all-math-physics-card .v93-math-right svg{width:100%!important;max-width:100%!important;height:auto!important;min-height:360px!important}
+
+/* v96: first row summary + visual, detailed solution below */
+.v96-math-card{width:100%!important;max-width:100%!important;background:#071a2d!important;border:1px solid #0f6f9e!important;border-radius:14px!important;padding:10px!important;color:#eef8ff!important;overflow:hidden!important}
+.v96-lead-grid{display:grid!important;grid-template-columns:minmax(330px,40%) minmax(0,1fr)!important;gap:10px!important;align-items:stretch!important}
+.v96-summary-left,.v96-visual-right{background:#092641!important;border:1px solid #12658f!important;border-radius:12px!important;min-width:0!important}.v96-summary-left{padding:13px 15px!important}.v96-summary-left h2{margin:0 0 10px!important;color:#40d9ff!important;font-size:18px!important}.v96-summary-body{font-size:13px!important;line-height:1.45!important}.v96-summary-body .exercise-section-card{background:transparent!important;border:0!important;padding:0!important;margin:0 0 8px!important;box-shadow:none!important}.v96-summary-body .exercise-section-card h3{color:#40d9ff!important;font-size:13px!important;margin:0 0 4px!important}
+.v96-visual-right{padding:7px!important;background:#071f35!important;display:flex!important;align-items:center!important;justify-content:center!important;min-height:360px!important;overflow:hidden!important}.v96-visuals{width:100%!important;height:100%!important;display:grid!important;gap:8px!important}.v96-visuals.grid-1{grid-template-columns:1fr!important}.v96-visuals.grid-2{grid-template-columns:1fr 1fr!important}.v96-visuals .v81-math-visual-card,.v96-visuals .linked-lesson-visual,.v96-visuals .nabil-visual{width:100%!important;max-width:100%!important;height:100%!important}.v96-visuals svg{width:100%!important;max-width:100%!important;height:auto!important;display:block!important;margin:auto!important}
+.v96-detailed-solution{margin-top:10px!important;background:#0a2843!important;border:1px solid #12658f!important;border-radius:12px!important;padding:14px 16px!important}.v96-detailed-solution h2{margin:0 0 10px!important;color:#40d9ff!important;font-size:18px!important}.v96-detailed-body{font-size:13.5px!important;line-height:1.55!important}.v96-extra-under{margin-top:10px!important}
+.exercise-board-stack > .v96-math-card,.lesson-main-reference-zone .v96-math-card,.lesson-practice-zone .v96-math-card{grid-column:1 / -1!important;width:100%!important;max-width:100%!important}
+@media(max-width:950px){.v96-lead-grid{grid-template-columns:1fr!important}.v96-visuals.grid-2{grid-template-columns:1fr!important}.v96-visual-right{min-height:280px!important}}
+
+/* ============================================================
+   v97 — Physics circuits: clean 2D textbook schematics
+   ============================================================ */
+.exercise-board[data-subject-profile="circuit"] .nabil-visual,
+.exercise-board[data-layout-family="circuit"] .nabil-visual,
+.nabil-visual[data-diagram-type^="electric_"]{
+  filter:none!important;
+  box-shadow:none!important;
+  transform:none!important;
+}
+.exercise-board[data-subject-profile="circuit"] svg,
+.exercise-board[data-layout-family="circuit"] svg{
+  filter:none!important;
+}
+.nabil-circuit-2d-component{
+  filter:none!important;
+}
+.nabil-circuit-2d-component *{
+  filter:none!important;
+}
+
+
+/* ============================================================
+   v98 — unified NABIL blue card palette
+   ============================================================ */
+:root{
+  --nabil-card-blue-0:#061f38;
+  --nabil-card-blue-1:#082d50;
+  --nabil-card-blue-2:#0a3b69;
+  --nabil-card-blue-3:#0c4d86;
+  --nabil-card-blue-border:#188fca;
+  --nabil-card-blue-accent:#35cfff;
+  --nabil-card-blue-text:#eef9ff;
+}
+
+/* Main educational cards across subjects */
+.exercise-board,
+.v79-reference-function-card,
+.v80-reference-physics-card,
+.v83-reference-biology-card,
+.v87-reference-math-card,
+.v92-tangents-physics-card,
+.v96-math-card,
+.nabil-subject-card-shell{
+  background:linear-gradient(180deg,var(--nabil-card-blue-2),var(--nabil-card-blue-1))!important;
+  border-color:var(--nabil-card-blue-border)!important;
+  color:var(--nabil-card-blue-text)!important;
+}
+
+/* Card headers */
+.exercise-board-head,
+.v79-function-top,
+.v80-physics-top,
+.v83-bio-top,
+.v87-math-top,
+.v92-top,
+.v90-ref-top{
+  background:linear-gradient(180deg,#0d5590,#0a3e6d)!important;
+  border-color:#1b86bd!important;
+}
+
+/* Left/right panels */
+.v79-function-left,
+.v79-function-main,
+.v79-function-side,
+.v80-physics-left,
+.v80-physics-main,
+.v80-physics-side,
+.v83-bio-left,
+.v83-bio-main,
+.v83-bio-side,
+.v87-math-left,
+.v87-math-main,
+.v92-left,
+.v92-right,
+.v96-summary-left,
+.v96-visual-right,
+.v96-detailed-solution,
+.exercise-special-visual,
+.exercise-special-content,
+.exercise-visual-panel{
+  background:#082f55!important;
+  border-color:#1b82b7!important;
+}
+
+/* Inner visual panels */
+.nabil-visual,
+.nabil-authoritative-chemistry-visual,
+.nabil-authoritative-chemistry-visual .nabil-visual,
+.v79-function-graph,
+.v80-physics-visual,
+.v83-bio-visual-card,
+.v87-math-visual-card,
+.v92-visual-wrap,
+.v96-visuals,
+.v96-visuals .v81-math-visual-card{
+  background:#061f38!important;
+}
+
+/* Lesson concept cards */
+.lesson-concept-card,
+.exercise-idea-card,
+.exercise-section-card,
+.exercise-answer-card,
+.exercise-summary-card,
+.exercise-solution-card,
+.exercise-context-stack,
+.exercise-card-section{
+  background:linear-gradient(135deg,#0a3d68,#082b4d)!important;
+  border-color:#247fb0!important;
+}
+
+/* Blue/cyan headings */
+.exercise-board-title,
+.v79-function-lesson-title,
+.v80-physics-lesson-title,
+.v83-bio-title,
+.v87-math-lesson-title,
+.v92-title,
+.v90-ref-title,
+.v96-math-card h2,
+.exercise-card-title{
+  color:#eaf9ff!important;
+}
+.v79-function-left h2,
+.v79-function-main h2,
+.v80-physics-left h2,
+.v83-bio-left h2,
+.v87-math-left h2,
+.v92-left h2,
+.v96-summary-left h2,
+.v96-detailed-solution h2{
+  color:var(--nabil-card-blue-accent)!important;
+}
+
+/* Preserve green rule-summary accents, but keep body in blue family */
+.v79-rule-summary,
+.v80-physics-rule-summary,
+.v83-bio-rule,
+.v87-math-rule-summary,
+.v92-rule{
+  background:#083e55!important;
+}
+
+/* Quick-check remains blue instead of purple */
+.v87-math-quick-check,
+.v92-quick,
+.v83-bio-quick,
+.v80-quick-check{
+  background:#09365e!important;
+  border-color:#1b84bb!important;
+}
+.v87-quick-icon,
+.v92-quick-icon{
+  background:#2cc9f5!important;
+  color:#06223a!important;
+}
+
+/* Preview must keep exactly the same blue palette */
+#drawingPreviewModal .drawing-preview-dialog{
+  background:#041a2f!important;
+}
+#drawingPreviewModal #drawingPreviewContent .exercise-board,
+#drawingPreviewModal #drawingPreviewContent .v79-reference-function-card,
+#drawingPreviewModal #drawingPreviewContent .v80-reference-physics-card,
+#drawingPreviewModal #drawingPreviewContent .v83-reference-biology-card,
+#drawingPreviewModal #drawingPreviewContent .v87-reference-math-card,
+#drawingPreviewModal #drawingPreviewContent .v92-tangents-physics-card,
+#drawingPreviewModal #drawingPreviewContent .v96-math-card{
+  background:linear-gradient(180deg,var(--nabil-card-blue-2),var(--nabil-card-blue-1))!important;
+}
+
 </style></head><body>${parts}</body></html>`;
 }
 
