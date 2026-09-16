@@ -5405,6 +5405,17 @@ function functionGraphTitle(messageLanguage){
 }
 
 
+function nabilFunctionGraphHeading(messageLanguage, expression){
+    const expr=nabilCleanFunctionExpressionLabel(expression||"");
+    if(!expr) return functionGraphTitle(messageLanguage);
+
+    const fx=`f(x) = ${expr}`;
+    if(messageLanguage==="English") return `Graph of ${fx}`;
+    if(messageLanguage==="Français") return `Représentation graphique de ${fx}`;
+    return `التمثيل البياني للدالة ${fx}`;
+}
+
+
 
 function nabilMarkVariationTables(root=document){
     root.querySelectorAll("table").forEach(table=>{
@@ -5550,7 +5561,7 @@ function nabilAutoFunctionSpecFromBoard(board){
     if(!/f\s*\(\s*x\s*\)|function|fonction|graph|دال|دراسة/.test(text)) return null;
 
     const patterns=[
-        /f\s*\(\s*x\s*\)\s*=\s*([^=\n]+?)(?=(?:\s+(?:domain|variation|limit|asymptote|required|solution|given|formula|property|law|study|draw|ارسم|المطلوب|المعطيات|الحل|القانون))|$)/i,
+        /f\s*\(\s*x\s*\)\s*=\s*([^=\n]+?)(?=(?:\s*(?:domain|variation|limit|asymptote|required|solution|given|formula|property|law|study|draw|ارسم|المطلوب|المعطيات|الحل|القانون))|$)/i,
         /draw\s+f\s*x\s*=\s*([^\n]+)$/i,
         /ارسم\s+[^\n]*?f\s*\(\s*x\s*\)\s*=\s*([^\n]+)/i
     ];
@@ -6522,6 +6533,10 @@ ${rawVariationHTML}`);
         const visualHTML = diagramsForThis.join("");
         if (functionStudyNow) {
             const functionTitle = title || functionBoardTitle(messageLanguage);
+            const trustedFunctionExpression = nabilCleanFunctionExpressionLabel(
+                autoFunctionSpec?.expression || autoFunctionSpec?.formula || autoFunctionSpec?.equation || ""
+            );
+            const graphHeading = nabilFunctionGraphHeading(messageLanguage, trustedFunctionExpression);
             const contextHTML = [givenHTML, requiredHTML, formulaHTML].filter(Boolean).join("");
             const mainSolutionHTML = [solutionHTML, extraHTML].filter(Boolean).join("");
             const hasGraph = Boolean(String(visualHTML || "").trim());
@@ -6548,7 +6563,7 @@ ${rawVariationHTML}`);
 
             const visualRenderedHTML = hasGraph ? `
                 <section class="exercise-section-card section-tone-1 function-study-visual-zone">
-                    <h3 class="exercise-function-visual-title">${functionGraphTitle(messageLanguage)}</h3>
+                    <h3 class="exercise-function-visual-title">${graphHeading}</h3>
                     <div class="exercise-visual-panel ${diagramsForThis.length > 1 ? "multi-diagram-panel" : ""}">
                         ${visualHTML}
                     </div>
@@ -11455,12 +11470,20 @@ function renderNabilDiagram(rawSpec){
             });
         }
 
+        const plotClipId=`nabilPlotClip_${Math.random().toString(36).slice(2,10)}`;
         const functionSvg = `
-        <svg viewBox="0 0 520 310">
+        <svg viewBox="0 0 520 310" style="overflow:hidden">
+          <defs>
+            <clipPath id="${plotClipId}">
+              <rect x="38" y="40" width="452" height="242" rx="0"/>
+            </clipPath>
+          </defs>
           ${grid}
           <line x1="38" y1="${sy(0)}" x2="490" y2="${sy(0)}" class="vaxis"/>
           <line x1="${sx(0)}" y1="40" x2="${sx(0)}" y2="282" class="vaxis"/>
-          ${curves}
+          <g clip-path="url(#${plotClipId})">
+            ${curves}
+          </g>
           ${legendSvg}
           <text x="495" y="${Math.max(20,sy(0)-7)}" class="vlab vsmall">x</text>
           <text x="${Math.min(495,sx(0)+7)}" y="34" class="vlab vsmall">y</text>
@@ -16241,6 +16264,37 @@ function nabilTeacherWordHTML(data){
   .function-study-simple-board .function-study-visual-zone svg{
     min-height:320px!important;
   }
+}
+
+
+/* v65 — Orthonormal graph containment */
+.function-study-simple-board .function-study-visual-zone .exercise-visual-panel,
+.function-study-simple-board .function-study-visual-zone .nabil-visual,
+.function-study-simple-board .function-study-visual-zone .nabil-reference-function-generic,
+.drawing-preview-dialog .nabil-visual,
+.drawing-preview-dialog .nabil-reference-function-generic{
+  overflow:hidden!important;
+}
+.function-study-simple-board .function-study-visual-zone svg,
+.drawing-preview-dialog svg{
+  overflow:hidden!important;
+}
+
+
+/* v66 — one authoritative function graph title only */
+.function-study-simple-board .function-study-visual-zone .nabil-visual-title,
+.function-study-simple-board .function-study-visual-zone .nabil-function-ref-expression{
+  display:none!important;
+}
+.function-study-simple-board .function-study-visual-zone .exercise-function-visual-title{
+  display:block!important;
+  width:100%!important;
+  white-space:normal!important;
+  overflow-wrap:anywhere!important;
+  text-align:left!important;
+}
+[dir="rtl"] .function-study-simple-board .function-study-visual-zone .exercise-function-visual-title{
+  text-align:right!important;
 }
 
 </style></head><body>${parts}</body></html>`;
