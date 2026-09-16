@@ -6724,6 +6724,27 @@ function nabilAutoSubjectDiagramSpec(wholeBoardText){
     const raw = nabilHTMLToPlainText(String(wholeBoardText||"")).replace(/\s+/g," ");
     const t = raw.toLowerCase();
 
+    // v94 — current explicit geometry request wins over the selected lesson.
+    const asksTwoCircles = /two\s+circles|2\s+circles|دائرتين|دائرتان|دائرتي|طابتين|دوائر.*متجاور/.test(t);
+    const asksAdjacent = /adjacent|touching|externally tangent|side by side|متجاورت|متلامست|جنب بعض|على نفس المسطح|على نفس المستوى/.test(t);
+    if(asksTwoCircles){
+        let radius = null;
+        const radiusPatterns = [
+            /(?:radius|radii|\br\b)\s*(?:=|:)?\s*(\d+(?:\.\d+)?)\s*(?:cm|سم)?/i,
+            /(?:each|each one|each of them)\s*(?:is|=)?\s*(\d+(?:\.\d+)?)\s*(?:cm)?/i,
+            /(?:كل\s*(?:منهما|واحدة|واحده)|نصف\s*قطر(?:ها|هما)?)\s*(?:=|:)?\s*(\d+(?:\.\d+)?)\s*(?:cm|سم)?/i,
+            /(?:منهما|كل منهما)\s*(\d+(?:\.\d+)?)\s*(?:cm|سم)/i,
+            /(\d+(?:\.\d+)?)\s*(?:cm|سم)\s*(?:لكل|كل)/i
+        ];
+        for(const rx of radiusPatterns){ const m=raw.match(rx); if(m){ radius=Number(m[1]); if(Number.isFinite(radius)) break; } }
+        if(!Number.isFinite(radius)){
+            const nums=[...raw.matchAll(/(\d+(?:\.\d+)?)\s*(?:cm|سم)/gi)].map(m=>Number(m[1])).filter(Number.isFinite);
+            if(nums.length) radius=nums[0];
+        }
+        if(!Number.isFinite(radius) || radius<=0) radius=5;
+        return {type:"adjacent_circles",title:asksAdjacent?"Two Adjacent Circles":"Two Circles",radius,adjacent:asksAdjacent,labels:{center1:"O₁",center2:"O₂",touch:"T"}};
+    }
+
     if(/inclined plane|incline angle|surface inclinee|plan incline|سطح مائل/.test(t)){
         const angleMatch = raw.match(/(?:angle|θ|\btheta\b)\s*(?:=|:)\s*(\d+(?:\.\d+)?)\s*°?/i);
         const weightMatch = raw.match(/(?:weight|w)\s*(?:=|:)\s*(\d+(?:\.\d+)?)\s*n\b/i);
@@ -6871,8 +6892,10 @@ function nabilV85CleanBoardTitle(title, sourceQuestion, boardText){
     const raw=String(title||"").trim();
     const generic=/^(exercise|exercice|lesson|lesson card|structured solution|تمرين|درس|الحل)$/i.test(raw);
     const s=(String(sourceQuestion||"")+" "+String(boardText||"")).toLowerCase();
-    if(/two circles|common tangents|direct common tangents|دائرتين|مماسات مشتركة|مماس.*مشترك/.test(s))
+    if(/common tangents|direct common tangents|مماسات مشتركة|مماس.*مشترك|common tangent/.test(s))
         return "Two Circles and Common Tangents";
+    if(/two circles|2 circles|دائرتين|دائرتان|طابتين/.test(s))
+        return /adjacent|touching|متجاورت|متلامست|على نفس المسطح|على نفس المستوى/.test(s) ? "Two Adjacent Circles" : "Two Circles";
     if(/sphere.*cylinder|cylinder.*sphere|كرة.*اسطوان|اسطوان.*كرة/.test(s))
         return "Sphere and Cylinder";
     if(/vectors? in the coordinate plane|midpoint|vector ab|متجه|منتصف/.test(s))
@@ -7021,8 +7044,8 @@ function nabilV85TangentsFallbackText(sourceQuestion, boardText){
 function renderGeneralExerciseBoards(text, diagrams, messageDirection, messageLanguage, sourceQuestion=""){
     const v90MathLessonSource = `${sourceQuestion||""} ${text||""}`.toLowerCase();
     const forceTangentsLessonReference =
-        /two circles|common tangents|direct common tangents|دائرتين|مماس.*مشترك|common tangent/.test(v90MathLessonSource) &&
-        /o.?1|o₁|o.?2|o₂|circle|circles|radius|radii|distance/.test(v90MathLessonSource) &&
+        /common tangents|direct common tangents|common tangent|tangent|مماس.*مشترك|مماسات.*مشترك/.test(v90MathLessonSource) &&
+        /circle|circles|دائره|دائرة|دائرت/.test(v90MathLessonSource) &&
         !/study of a function|function|asymptote|derivative|variation/.test(v90MathLessonSource);
 
     if(forceTangentsLessonReference){
@@ -7319,7 +7342,7 @@ ${rawVariationHTML}`);
             const visualList = Array.isArray(diagramsForThis) ? diagramsForThis : [];
             let visualItems = (visualList.length ? visualList : (visualHTML ? [visualHTML] : []));
             const mathSourceForVisual = `${sourceQuestion} ${wholeBoardText}`.toLowerCase();
-            const forceTangentsReference = /two circles|common tangents|direct common tangents|دائرتين|مماس.*مشترك/.test(mathSourceForVisual);
+            const forceTangentsReference = /common tangents|direct common tangents|common tangent|tangent|مماس.*مشترك|مماسات.*مشترك/.test(mathSourceForVisual) && /circle|circles|دائرت|دائرة/.test(mathSourceForVisual);
             if(forceTangentsReference){
                 visualItems = [nabilV85CommonTangentsVisual(sourceQuestion, wholeBoardText)];
             }
@@ -7330,7 +7353,7 @@ ${rawVariationHTML}`);
 
             const mathReferenceSource = `${sourceQuestion||""} ${boardTextForRef}`.toLowerCase();
             const isVectors = /vector|midpoint|coordinate plane|coordinates|ab\)|\|ab\||\bA\(|\bB\(|متجه|احداثيات/.test(mathReferenceSource);
-            const isTangents = /circle|circles|tangent|common tangent|tangents|o1|o2|r1|r2|two circles|direct common tangents|دائرت|مماس/.test(mathReferenceSource);
+            const isTangents = /common tangent|common tangents|direct common tangents|tangent|مماس|مماسات/.test(mathReferenceSource) && /circle|circles|دائرت|دائرة/.test(mathReferenceSource);
             const isSolids = /sphere|cylinder|cone|cube|prism|volume|surface area|lateral area|مجسم|كرة|اسطوانة|مساحة|حجم/.test(mathReferenceSource);
 
             let lessonTitleText = nabilV85CleanBoardTitle(title, sourceQuestion, wholeBoardText) || 'Mathematics Card';
@@ -10253,10 +10276,10 @@ async function sendToAI(
 
     if (explicitDrawRequest) {
         outboundMessage += language === "English"
-            ? "\n\n[SYSTEM REQUIREMENT — do not repeat this text] The student explicitly requested a drawing. Produce the correct subject-specific visual using valid DRAWINGS_JSON. The drawing must match the calculations and labels exactly. Do not replace a required drawing with prose."
+            ? "\n\n[SYSTEM REQUIREMENT — do not repeat this text] The student explicitly requested a drawing. A DRAWING IS MANDATORY. Produce at least one correct subject-specific visual using valid DRAWINGS_JSON before ending the response. Copy all dimensions, labels, radii, coordinates, charges, forces or values exactly from the student's CURRENT request. Never reuse geometry or values from an earlier lesson. Do not replace the drawing with prose or a placeholder."
             : language === "Français"
-                ? "\n\n[EXIGENCE SYSTÈME — ne répète pas ce texte] L’élève demande explicitement un schéma. Produis le schéma correct avec un DRAWINGS_JSON valide, fidèle aux calculs et aux étiquettes. Ne remplace pas le schéma par du texte."
-                : "\n\n[متطلب نظام — لا تعرض هذا النص] الطالب طلب رسماً صراحةً. أنشئ الرسم الصحيح الخاص بالمادة باستخدام DRAWINGS_JSON صالح، مطابقاً للحسابات والتسميات، ولا تستبدل الرسم المطلوب بشرح نصي.";
+                ? "\n\n[EXIGENCE SYSTÈME — ne répète pas ce texte] L’élève demande explicitement un schéma. LE SCHÉMA EST OBLIGATOIRE. Fournis au moins un DRAWINGS_JSON valide avant de terminer, avec exactement les dimensions et étiquettes de la demande ACTUELLE. Ne réutilise jamais celles d’une leçon précédente et ne remplace pas le schéma par un texte ou un espace réservé."
+                : "\n\n[متطلب نظام — لا تعرض هذا النص] الطالب طلب رسماً صراحةً، لذلك الرسم إلزامي ولا يجوز إنهاء الجواب بدونه. أنشئ رسماً صحيحاً واحداً على الأقل باستخدام DRAWINGS_JSON صالح، وخذ الأبعاد والتسميات وأنصاف الأقطار والإحداثيات والقيم من سؤال الطالب الحالي فقط. لا تعِد استخدام أي أبعاد أو شكل من درس سابق، ولا تستبدل الرسم بشرح نصي أو عبارة معاينة.";
     }
 
     if (requestedExerciseSet && !/\b[1-9]\d*\s*(?:exercises?|questions?)\b|[1-9]\d*\s*(?:تمارين|أسئلة)|[1-9]\d*\s*exercices?/i.test(outboundMessage)) {
@@ -12254,6 +12277,31 @@ function renderNabilDiagram(rawSpec){
               return `<text x="${c.x+dx}" y="${c.y+dy}" class="vlab" text-anchor="${dx<0?"end":"start"}">${name}</text>`;
           }).join("")}
           ${sideText}
+        </svg>`,spec.note||"");
+    }
+
+    if (t === "adjacent_circles" || t === "two_circles"){
+        const R=Number(spec.radius ?? spec.labels?.radius ?? 5);
+        const safeR=Number.isFinite(R)&&R>0?R:5;
+        const c1=nabilEsc(spec.labels?.center1||"O₁"), c2=nabilEsc(spec.labels?.center2||"O₂"), touch=nabilEsc(spec.labels?.touch||"T");
+        const adjacent=spec.adjacent!==false;
+        const rpx=110, x1=235, x2=adjacent?455:515, cy=190, W=760, H=390, contactX=(x1+x2)/2;
+        return nabilVisualWrap(title || (adjacent?"Two Adjacent Circles":"Two Circles"),`
+        <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="two circles" direction="ltr" style="direction:ltr;unicode-bidi:isolate">
+          <rect x="0" y="0" width="${W}" height="${H}" rx="18" fill="#071f35"/>
+          <circle cx="${x1}" cy="${cy}" r="${rpx}" fill="#092b49" stroke="#25caff" stroke-width="5"/>
+          <circle cx="${x2}" cy="${cy}" r="${rpx}" fill="#092b49" stroke="#25caff" stroke-width="5"/>
+          <line x1="${x1}" y1="${cy}" x2="${x2}" y2="${cy}" stroke="#d9ecf7" stroke-width="2.5" stroke-dasharray="9 8"/>
+          <line x1="${x1}" y1="${cy}" x2="${x1+rpx}" y2="${cy}" stroke="#31e45c" stroke-width="4"/>
+          <line x1="${x2}" y1="${cy}" x2="${x2-rpx}" y2="${cy}" stroke="#31e45c" stroke-width="4"/>
+          <circle cx="${x1}" cy="${cy}" r="7" fill="#2bd5ff" stroke="#fff" stroke-width="2"/>
+          <circle cx="${x2}" cy="${cy}" r="7" fill="#2bd5ff" stroke="#fff" stroke-width="2"/>
+          ${adjacent?`<circle cx="${contactX}" cy="${cy}" r="7" fill="#ffe23b" stroke="#fff6a8" stroke-width="2"/><text x="${contactX}" y="${cy-18}" text-anchor="middle" fill="#ffe23b" font-size="22">${touch}</text>`:""}
+          <text x="${x1-32}" y="${cy+32}" fill="#f1f8ff" font-size="25" font-style="italic">${c1}</text>
+          <text x="${x2+14}" y="${cy+32}" fill="#f1f8ff" font-size="25" font-style="italic">${c2}</text>
+          <text x="${x1+rpx/2}" y="${cy-20}" text-anchor="middle" fill="#31e45c" font-size="21">${safeR} cm</text>
+          <text x="${x2-rpx/2}" y="${cy-20}" text-anchor="middle" fill="#31e45c" font-size="21">${safeR} cm</text>
+          <text x="${(x1+x2)/2}" y="342" text-anchor="middle" fill="#72e6ff" font-size="20">${adjacent?`O₁O₂ = ${2*safeR} cm`:`r₁ = r₂ = ${safeR} cm`}</text>
         </svg>`,spec.note||"");
     }
 
@@ -19117,6 +19165,20 @@ function nabilTeacherWordHTML(data){
 @media(max-width:950px){
   .v93-all-math-physics-card .v93-math-right{min-height:300px!important}
 }
+
+/* v94 — forced drawing fallback + variation table strictly below graph */
+.v79-function-main{display:flex!important;flex-direction:column!important;align-items:stretch!important}
+.v79-function-main>.v79-function-graph{order:1!important;width:100%!important}
+.v79-function-main>.v79-function-variation{order:2!important;width:100%!important;clear:both!important;margin-top:12px!important;position:relative!important;inset:auto!important}
+.v79-function-graph .nabil-reference-function-card{display:flex!important;flex-direction:column!important;width:100%!important}
+.v79-function-graph .nabil-function-ref-plot{order:1!important;width:100%!important}
+.v79-function-graph .nabil-function-variation-card{order:2!important;width:100%!important;margin-top:10px!important}
+.exercise-function-graph-variation{display:flex!important;flex-direction:column!important;align-items:stretch!important}
+.exercise-function-graph-variation .exercise-function-visual{order:1!important;width:100%!important}
+.exercise-function-graph-variation .exercise-variation-zone{order:2!important;width:100%!important;margin-top:10px!important;position:relative!important;inset:auto!important}
+.v93-all-math-physics-card .v93-math-right .nabil-visual,
+.v93-all-math-physics-card .v93-math-right .linked-lesson-visual{width:100%!important;max-width:100%!important}
+.v93-all-math-physics-card .v93-math-right svg{width:100%!important;max-width:100%!important;height:auto!important;min-height:360px!important}
 </style></head><body>${parts}</body></html>`;
 }
 
