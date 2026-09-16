@@ -6914,7 +6914,7 @@ function nabilV85CommonTangentsVisual(sourceQuestion, boardText){
     return `
     <div class="linked-lesson-visual nabil-v85-geometry-visual" data-card-index="1" data-diagram-type="circle_tangent">
       <div class="nabil-visual nabil-v85-tangent-card">
-        <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Two equal circles with two direct common tangents">
+        <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Two equal circles with two direct common tangents" direction="ltr" style="direction:ltr;unicode-bidi:isolate">
           <rect x="0" y="0" width="${W}" height="${H}" rx="18" fill="#071f35"/>
           <line x1="${x1-135}" y1="${top}" x2="${x2+135}" y2="${top}" stroke="#f7df2e" stroke-width="5"/>
           <line x1="${x1-135}" y1="${bottom}" x2="${x2+135}" y2="${bottom}" stroke="#f7df2e" stroke-width="5"/>
@@ -7302,61 +7302,58 @@ ${rawVariationHTML}`);
             let ruleSummaryHTML = summaryHTML || '<div class="v81-summary-fallback">Apply the key formula carefully, then read the diagram and verify the final result.</div>';
             if(isTangents){
                 const tf=nabilV85TangentsFallbackText(sourceQuestion, wholeBoardText);
-                const plain=nabilHTMLToPlainText(leftMainHTML);
-                const looksBroken = plain.length < 260 || /(?:^|\s)\.\.\.(?:\s|$)|stepwise\.?$/i.test(plain);
-                if(looksBroken){
-                    leftMainHTML = `
-                      <div class="v85-geo-fact"><b>Given</b><span>${tf.given}</span></div>
-                      <div class="v85-geo-fact"><b>Property</b><span>${tf.property}</span></div>
-                      <div class="v85-geo-fact"><b>Solution</b><span>${tf.solution}</span></div>
-                      <div class="v85-geo-final"><b>Final Answer</b><span>${tf.answer}</span></div>`;
-                }
+                leftMainHTML = `
+                  <div class="v85-geo-fact"><b>Given</b><span>${tf.given}</span></div>
+                  <div class="v85-geo-fact"><b>Property</b><span>${tf.property}</span></div>
+                  <div class="v85-geo-fact"><b>Solution</b><span>${tf.solution}</span></div>
+                  <div class="v85-geo-final"><b>Final Answer</b><span>${tf.answer}</span></div>`;
                 ruleSummaryHTML = `<div class="v81-summary-fallback">A tangent is perpendicular to the radius at the point of tangency. For two equal circles, the direct common tangents are parallel to the line of centers and the tangent segment between corresponding contact points equals the distance between the centers.</div>`;
             }
             const extraBottomHTML = extraHTML || '';
 
             return `
-            <article class="exercise-board v81-reference-math-card" dir="${messageDirection}">
-              <header class="v81-math-top">
-                <div class="v81-math-brand-row">
-                  <div class="v81-math-book">📘</div>
+            <article class="exercise-board v87-reference-math-card" dir="${messageDirection}">
+              <header class="v87-math-top">
+                <div class="v87-math-top-main">
+                  <div class="v87-math-icon">📘</div>
                   <div>
-                    <div class="v81-math-lesson-title">${lessonTitleText}</div>
-                    <div class="v81-math-lesson-sub">${lessonSubText}</div>
+                    <div class="v87-math-lesson-title">${lessonTitleText}</div>
+                    <div class="v87-math-lesson-sub">${lessonSubText}</div>
                   </div>
                 </div>
-                <div class="v81-math-meta"><span>◷</span><div><small>Estimated Time</small><strong>20 minutes</strong></div></div>
-                <div class="v81-math-meta"><span>◎</span><div><small>Learning Objectives</small><strong>${objectiveText}</strong></div></div>
+                <div class="v87-math-meta"><span>◷</span><div><small>Estimated Time</small><strong>20 minutes</strong></div></div>
+                <div class="v87-math-meta"><span>◎</span><div><small>Learning Objectives</small><strong>${objectiveText}</strong></div></div>
               </header>
 
-              <div class="v81-math-grid">
-                <section class="v81-math-left">
+              <div class="v87-math-grid">
+                <section class="v87-math-left">
                   <h2>${leftHeading}</h2>
-                  <div class="v81-math-left-main">${leftMainHTML}</div>
-                  <div class="v81-math-rule-box">
-                    <b>${summaryLabel}</b>
-                    <div class="v81-math-rule-body">${ruleSummaryHTML}</div>
+                  <div class="v87-math-left-main">${leftMainHTML}</div>
+
+                  <div class="v87-math-rule-summary">
+                    <div class="v87-rule-icon">💡</div>
+                    <div>
+                      <b>${summaryLabel}</b>
+                      <div class="v87-math-rule-body">${ruleSummaryHTML}</div>
+                    </div>
                   </div>
-                  <div class="v81-math-quick-box">
-                    <b>Quick Check:</b>
-                    <div>${quickQuestion}</div>
+
+                  <div class="v87-math-quick-check">
+                    <div class="v87-quick-icon">?</div>
+                    <div>
+                      <b>Quick Check</b>
+                      <span>${quickQuestion}</span>
+                    </div>
                   </div>
                 </section>
 
-                <section class="v81-math-main">
-                  <div class="v81-math-visuals ${visualGridClass}">
+                <section class="v87-math-main">
+                  <div class="v87-math-visual-header">${lessonTitleText}</div>
+                  <div class="v87-math-visuals ${visualGridClass}">
                     ${visualsMarkup}
                   </div>
-                  ${extraBottomHTML ? `<div class="v81-math-extra">${extraBottomHTML}</div>` : ''}
+                  ${extraBottomHTML ? `<div class="v87-math-extra">${extraBottomHTML}</div>` : ''}
                 </section>
-
-                <aside class="v81-math-side">
-                  <div class="v81-side-title">NABIL AI</div>
-                  <div class="v81-side-sub">Your Learning Assistant</div>
-                  <img src="/static/nabil-lesson-avatar.png" alt="NABIL AI" class="v81-side-avatar">
-                  <div class="v81-side-message">I'm here to help you learn Mathematics. You can ask me any question, anytime!</div>
-                  <button type="button" class="v81-talk-button" onclick="document.getElementById('talkBtn')?.click()">🎙 Talk to Me</button>
-                </aside>
               </div>
             </article>`;
         }
@@ -9497,9 +9494,11 @@ function addMessage(
     wrapper.className =
         "message " + role;
 
+    const v86QuestionLanguage = detectMessageRenderLanguage(nabilCurrentQuestionText || "");
+    const v86LessonPlusPracticeEarly = nabilV85LessonPlusPracticeRequested(nabilCurrentQuestionText);
     const messageLanguage =
-        nabilActivityMode === "general_exercises"
-            ? detectMessageRenderLanguage(visibleText)
+        (nabilActivityMode === "general_exercises" || v86LessonPlusPracticeEarly)
+            ? (v86QuestionLanguage || detectMessageRenderLanguage(visibleText))
             : (languageSelect?.value || "العربية");
     const messageDirection =
         messageLanguage === "English" || messageLanguage === "Français"
@@ -9602,9 +9601,11 @@ function addMessage(
                 `<section class="lesson-main-reference-zone" dir="${messageDirection}">${lessonMainHTML}</section>` +
                 practiceHTML;
 
-            normalizeFinalLessonCard(bubble, messageDirection, messageLanguage);
-            layoutLessonBoard(bubble);
-            buildCumulativeFinalCard(bubble, messageDirection, messageLanguage);
+            if(!shouldUseReferenceLessonBoard){
+                normalizeFinalLessonCard(bubble, messageDirection, messageLanguage);
+                layoutLessonBoard(bubble);
+                buildCumulativeFinalCard(bubble, messageDirection, messageLanguage);
+            }
 
             // Final visual safety net: if AI sent no usable drawing, inject the
             // indexed lesson fallback automatically.
@@ -9616,7 +9617,7 @@ function addMessage(
                     return svg.querySelectorAll("path,line,polyline,polygon,circle,ellipse,rect,text").length >= 4;
                 });
 
-                if(!hasUsableVisual){
+                if(!hasUsableVisual && !shouldUseReferenceLessonBoard){
                     const fallbackSpec=autoDiagramSpecForLesson(lessonSelect?.value||"");
                     const fallbackHTML=fallbackSpec ? renderNabilDiagram(fallbackSpec) : "";
                     if(fallbackHTML){
@@ -18295,6 +18296,272 @@ function nabilTeacherWordHTML(data){
 }
 @media(max-width:850px){
   .v81-math-grid{grid-template-columns:1fr!important}
+}
+
+
+/* ============================================================
+   v86 — stable reference renderer, no legacy card corruption
+   ============================================================ */
+.lesson-main-reference-zone,
+.lesson-main-reference-zone *,
+.lesson-practice-zone,
+.lesson-practice-zone *{
+  box-sizing:border-box!important;
+}
+.lesson-main-reference-zone{
+  width:100%!important;
+  max-width:100%!important;
+  overflow-x:hidden!important;
+  overflow-y:visible!important;
+}
+.lesson-main-reference-zone .exercise-board-stack{
+  width:100%!important;
+  max-width:100%!important;
+  overflow:visible!important;
+}
+.lesson-main-reference-zone .v81-reference-math-card{
+  width:100%!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+  direction:ltr!important;
+}
+.lesson-main-reference-zone .v81-math-grid{
+  width:100%!important;
+  grid-template-columns:minmax(280px,35%) minmax(0,1fr)!important;
+  overflow:hidden!important;
+}
+.lesson-main-reference-zone .v81-math-left,
+.lesson-main-reference-zone .v81-math-main{
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+}
+.lesson-main-reference-zone .v81-math-left{
+  direction:ltr!important;
+  text-align:left!important;
+}
+.lesson-main-reference-zone .v81-math-visual-card{
+  width:100%!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+}
+.lesson-main-reference-zone .nabil-v85-tangent-card,
+.lesson-main-reference-zone .nabil-v85-tangent-card svg{
+  width:100%!important;
+  max-width:100%!important;
+  height:auto!important;
+  display:block!important;
+  direction:ltr!important;
+}
+.lesson-main-reference-zone .nabil-v85-tangent-card svg text{
+  direction:ltr!important;
+  unicode-bidi:isolate!important;
+}
+.lesson-practice-zone{
+  width:100%!important;
+  max-width:100%!important;
+  overflow-x:hidden!important;
+  margin-top:16px!important;
+}
+.lesson-practice-zone .exercise-board{
+  width:100%!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+}
+.lesson-practice-zone .linked-lesson-visual,
+.lesson-practice-zone .nabil-visual,
+.lesson-practice-zone svg{
+  max-width:100%!important;
+  height:auto!important;
+}
+@media(max-width:860px){
+  .lesson-main-reference-zone .v81-math-grid{
+    grid-template-columns:1fr!important;
+  }
+}
+
+
+/* ============================================================
+   v87 — NON-FUNCTION MATH CARD, PHYSICS-LIKE LAYOUT
+   ============================================================ */
+.v87-reference-math-card{
+  width:100%!important;
+  max-width:none!important;
+  background:#071a2d!important;
+  border:1px solid #1187c4!important;
+  border-radius:16px!important;
+  padding:10px!important;
+  color:#eef9ff!important;
+  box-shadow:0 18px 52px rgba(0,0,0,.30)!important;
+  overflow:hidden!important;
+}
+.v87-math-top{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 170px 300px;
+  gap:10px;
+  align-items:center;
+  background:linear-gradient(180deg,#0c3358,#092745);
+  border:1px solid #145f90;
+  border-radius:12px;
+  padding:11px 14px;
+  margin-bottom:10px;
+}
+.v87-math-top-main{display:flex;align-items:center;gap:12px;min-width:0}
+.v87-math-icon{font-size:29px;color:#2ed5ff}
+.v87-math-lesson-title{font-size:20px;font-weight:900;color:#f0fbff}
+.v87-math-lesson-sub{font-size:12px;color:#bcd8ea;margin-top:3px}
+.v87-math-meta{
+  display:flex;gap:10px;align-items:center;
+  border-left:1px solid rgba(73,181,232,.24);
+  padding-left:12px
+}
+.v87-math-meta>span{font-size:28px;color:#29d4ff}
+.v87-math-meta small{display:block;color:#36d8ff;font-weight:800}
+.v87-math-meta strong{display:block;color:#edf9ff;font-size:12px;margin-top:2px}
+
+.v87-math-grid{
+  display:grid;
+  grid-template-columns:minmax(300px,34%) minmax(0,1fr);
+  gap:10px;
+  align-items:stretch;
+}
+.v87-math-left,.v87-math-main{
+  background:#0a2843;
+  border:1px solid #1187c4;
+  border-radius:13px;
+  min-width:0;
+}
+.v87-math-left{padding:13px}
+.v87-math-left h2{
+  margin:0 0 10px;
+  color:#37d8ff;
+  font-size:19px;
+  font-weight:900
+}
+.v87-math-left-main{
+  color:#eef8ff;
+  overflow:visible!important;
+  overflow-wrap:anywhere;
+}
+.v87-math-left-main .exercise-card-section{
+  background:transparent!important;
+  border:0!important;
+  padding:0!important;
+  margin:0 0 8px!important;
+  box-shadow:none!important
+}
+.v87-math-left-main .exercise-card-title{display:none!important}
+.v87-math-left-main .exercise-card-body{
+  background:transparent!important;
+  color:#eef8ff!important;
+  padding:0!important;
+  font-size:13px!important;
+  line-height:1.5!important
+}
+
+.v87-math-rule-summary{
+  display:grid;
+  grid-template-columns:38px 1fr;
+  gap:10px;
+  margin-top:12px;
+  background:#0b3a43;
+  border:1px solid #22cfa9;
+  border-radius:10px;
+  padding:10px 12px
+}
+.v87-rule-icon{font-size:25px;text-align:center}
+.v87-math-rule-summary b{
+  display:block;
+  color:#67ffd3;
+  font-size:14px;
+  margin-bottom:4px
+}
+.v87-math-rule-body,
+.v87-math-rule-body .exercise-card-section,
+.v87-math-rule-body .exercise-card-body{
+  background:transparent!important;
+  border:0!important;
+  box-shadow:none!important;
+  padding:0!important;
+  color:#e5fff8!important;
+  font-size:12px!important;
+  line-height:1.45!important
+}
+.v87-math-rule-body .exercise-card-title{display:none!important}
+
+.v87-math-quick-check{
+  display:grid;
+  grid-template-columns:36px 1fr;
+  gap:9px;
+  margin-top:10px;
+  background:#1f1542;
+  border:1px solid #7442d4;
+  border-radius:10px;
+  padding:10px 12px;
+  color:#f5efff
+}
+.v87-quick-icon{
+  width:28px;height:28px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:#8b5cf6;color:white;font-weight:900
+}
+.v87-math-quick-check b{display:block;color:#c49aff;font-size:14px}
+.v87-math-quick-check span{display:block;font-size:12px;line-height:1.4;margin-top:3px}
+
+.v87-math-main{padding:10px}
+.v87-math-visual-header{
+  color:#41d8ff;
+  font-size:18px;
+  font-weight:900;
+  margin:0 0 8px;
+  padding:0 3px
+}
+.v87-math-visuals{display:grid;gap:10px}
+.v87-math-visuals.grid-1{grid-template-columns:1fr}
+.v87-math-visuals.grid-2{grid-template-columns:1fr 1fr}
+.v87-math-visual-card{
+  background:#071f35;
+  border:1px solid #164d70;
+  border-radius:11px;
+  padding:7px;
+  overflow:hidden;
+  min-height:180px;
+  display:flex;
+  align-items:center;
+  justify-content:center
+}
+.v87-math-visual-card .linked-lesson-visual,
+.v87-math-visual-card .nabil-visual,
+.v87-math-visual-card svg{
+  width:100%!important;
+  max-width:100%!important;
+  height:auto!important;
+  display:block!important;
+  margin:0 auto!important
+}
+.v87-math-visual-card .nabil-visual-title{display:none!important}
+.v87-math-extra{margin-top:10px}
+
+.lesson-main-reference-zone .v87-reference-math-card{
+  direction:ltr!important;
+}
+.lesson-main-reference-zone .v87-math-left{
+  direction:ltr!important;
+  text-align:left!important;
+}
+#drawingPreviewModal #drawingPreviewContent .v87-reference-math-card,
+#drawingPreviewModal #drawingPreviewContent .v87-math-left,
+#drawingPreviewModal #drawingPreviewContent .v87-math-main,
+#drawingPreviewModal #drawingPreviewContent .v87-math-visual-card{
+  opacity:1!important;
+  filter:none!important;
+  background-clip:padding-box!important
+}
+@media(max-width:900px){
+  .v87-math-top{grid-template-columns:1fr}
+  .v87-math-grid{grid-template-columns:1fr}
+  .v87-math-visuals.grid-2{grid-template-columns:1fr}
 }
 
 </style></head><body>${parts}</body></html>`;
