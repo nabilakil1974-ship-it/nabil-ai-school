@@ -1,22 +1,42 @@
 {
-  "schema_version": "6.1",
+  "schema_version": "7.0",
   "authority": "CRDP Lebanon",
   "academic_year": "2025-2026",
-  "generated_at": "2026-09-17T16:09:52.865648+00:00",
+  "generated_at": "2026-09-17T16:37:57.134548+00:00",
   "policy": {
     "all_grades": true,
     "all_subjects": true,
     "never_invent_lesson_titles": true,
     "preserve_official_order": true,
     "reject_instruction_rows": true,
-    "page_local_grade_detection": true,
     "reject_language_script_mismatch": true,
-    "never_inherit_grade_across_pages": true
+    "never_inherit_grade_across_pages": true,
+    "allow_grade_state_only_inside_same_table": true
   },
   "catalog": {
     "الروضة الأولى": {
-      "_status": "awaiting_official_sync",
-      "subjects": {}
+      "_status": "partially_synced",
+      "subjects": {
+        "الكيمياء": {
+          "languages": {
+            "English": {
+              "lessons": [
+                {
+                  "title": "1. Soaps and detergents 1.2. Detergents - Composition and Properties 1.2. Detergents",
+                  "official_order": 2,
+                  "textbook_page": 34,
+                  "source_pdf_page": 64,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/10-chimie_2025-2026_.pdf",
+                  "source_grade": "الروضة الأولى",
+                  "source_subject": "الكيمياء",
+                  "verification_status": "verified-from-official-crdp-table"
+                }
+              ],
+              "source_url": "https://www.crdp.org/sites/default/files/inline-files/10-chimie_2025-2026_.pdf"
+            }
+          }
+        }
+      }
     },
     "الروضة الثانية": {
       "_status": "awaiting_official_sync",
@@ -44,7 +64,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "1.5",
+                  "title": "U1 L2: I Grow Up _",
                   "official_order": 2,
                   "textbook_page": 16,
                   "source_pdf_page": 53,
@@ -57,6 +77,16 @@
                   "title": "U1 L3: How Tall Am I? _",
                   "official_order": 3,
                   "textbook_page": 18,
+                  "source_pdf_page": 53,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/12-SciencesC1-2_2025-2026_.pdf",
+                  "source_grade": "الصف الأول",
+                  "source_subject": "علوم",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "U1 L4: Things I Need to _ Help Me Grow",
+                  "official_order": 4,
+                  "textbook_page": 20,
                   "source_pdf_page": 53,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/12-SciencesC1-2_2025-2026_.pdf",
                   "source_grade": "الصف الأول",
@@ -124,6 +154,16 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
+                  "title": "3.3 Protection of sense organs",
+                  "official_order": 11,
+                  "textbook_page": 35,
+                  "source_pdf_page": 54,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/12-SciencesC1-2_2025-2026_.pdf",
+                  "source_grade": "الصف الأول",
+                  "source_subject": "علوم",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
                   "title": "U1 L12: My Ears. _",
                   "official_order": 12,
                   "textbook_page": 36,
@@ -174,7 +214,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U1 L18: My Hands and _ My Skin.",
+                  "title": "3.4 Protection of sense organs - Personal cleanliness",
                   "official_order": 17,
                   "textbook_page": 45,
                   "source_pdf_page": 54,
@@ -194,9 +234,19 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U1 L20: Fady in the _ Morning.",
+                  "title": "Necessary to be acquired at this age group to practice good hygiene habits",
                   "official_order": 19,
                   "textbook_page": 48,
+                  "source_pdf_page": 55,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/12-SciencesC1-2_2025-2026_.pdf",
+                  "source_grade": "الصف الأول",
+                  "source_subject": "علوم",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "U1 L23: Avoiding _ Dangers",
+                  "official_order": 20,
+                  "textbook_page": 56,
                   "source_pdf_page": 55,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/12-SciencesC1-2_2025-2026_.pdf",
                   "source_grade": "الصف الأول",
@@ -234,6 +284,16 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
+                  "title": "U2 L4: Where Do _ Animals live?",
+                  "official_order": 24,
+                  "textbook_page": 68,
+                  "source_pdf_page": 56,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/12-SciencesC1-2_2025-2026_.pdf",
+                  "source_grade": "الصف الأول",
+                  "source_subject": "علوم",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
                   "title": "U2 L5: The Hen and the _ Chicks.",
                   "official_order": 25,
                   "textbook_page": 72,
@@ -254,10 +314,90 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
+                  "title": "Necessary to be",
+                  "official_order": 27,
+                  "textbook_page": 77,
+                  "source_pdf_page": 57,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/12-SciencesC1-2_2025-2026_.pdf",
+                  "source_grade": "الصف الأول",
+                  "source_subject": "علوم",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
                   "title": "age group to",
                   "official_order": 28,
                   "textbook_page": 79,
                   "source_pdf_page": 57,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/12-SciencesC1-2_2025-2026_.pdf",
+                  "source_grade": "الصف الأول",
+                  "source_subject": "علوم",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "recognize that like",
+                  "official_order": 29,
+                  "textbook_page": 82,
+                  "source_pdf_page": 57,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/12-SciencesC1-2_2025-2026_.pdf",
+                  "source_grade": "الصف الأول",
+                  "source_subject": "علوم",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "U2 L10: _ Fish in the Aquarium",
+                  "official_order": 30,
+                  "textbook_page": 86,
+                  "source_pdf_page": 57,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/12-SciencesC1-2_2025-2026_.pdf",
+                  "source_grade": "الصف الأول",
+                  "source_subject": "علوم",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "U3 L1: Plants Around Me _",
+                  "official_order": 31,
+                  "textbook_page": 90,
+                  "source_pdf_page": 57,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/12-SciencesC1-2_2025-2026_.pdf",
+                  "source_grade": "الصف الأول",
+                  "source_subject": "علوم",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "U3 L3: The Leaves. _",
+                  "official_order": 32,
+                  "textbook_page": 95,
+                  "source_pdf_page": 57,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/12-SciencesC1-2_2025-2026_.pdf",
+                  "source_grade": "الصف الأول",
+                  "source_subject": "علوم",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "U3 L4: Plant uses _",
+                  "official_order": 33,
+                  "textbook_page": 104,
+                  "source_pdf_page": 57,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/12-SciencesC1-2_2025-2026_.pdf",
+                  "source_grade": "الصف الأول",
+                  "source_subject": "علوم",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "U3 L5: Seeds of plants _",
+                  "official_order": 34,
+                  "textbook_page": 99,
+                  "source_pdf_page": 57,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/12-SciencesC1-2_2025-2026_.pdf",
+                  "source_grade": "الصف الأول",
+                  "source_subject": "علوم",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "U3 L6: Soyabean Seeds _",
+                  "official_order": 35,
+                  "textbook_page": 104,
+                  "source_pdf_page": 58,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/12-SciencesC1-2_2025-2026_.pdf",
                   "source_grade": "الصف الأول",
                   "source_subject": "علوم",
@@ -274,9 +414,39 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
+                  "title": "U2 L8: Plants and Water _",
+                  "official_order": 37,
+                  "textbook_page": 109,
+                  "source_pdf_page": 58,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/12-SciencesC1-2_2025-2026_.pdf",
+                  "source_grade": "الصف الأول",
+                  "source_subject": "علوم",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "U3 L9: Good Seed _ Sprouting.",
+                  "official_order": 38,
+                  "textbook_page": 111,
+                  "source_pdf_page": 58,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/12-SciencesC1-2_2025-2026_.pdf",
+                  "source_grade": "الصف الأول",
+                  "source_subject": "علوم",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
                   "title": "U3 L10: Needs of Green _ Plants.",
                   "official_order": 39,
                   "textbook_page": 113,
+                  "source_pdf_page": 58,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/12-SciencesC1-2_2025-2026_.pdf",
+                  "source_grade": "الصف الأول",
+                  "source_subject": "علوم",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "U3 L11: I Care For Plants _",
+                  "official_order": 40,
+                  "textbook_page": 115,
                   "source_pdf_page": 58,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/12-SciencesC1-2_2025-2026_.pdf",
                   "source_grade": "الصف الأول",
@@ -308,9 +478,29 @@
             "English": {
               "lessons": [
                 {
-                  "title": "1.5",
+                  "title": "U1 L1: What is a Garden? _",
                   "official_order": 1,
                   "textbook_page": 14,
+                  "source_pdf_page": 59,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/12-SciencesC1-2_2025-2026_.pdf",
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "علوم",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "U1 L 2: How Are Gardens Used? _",
+                  "official_order": 2,
+                  "textbook_page": 18,
+                  "source_pdf_page": 59,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/12-SciencesC1-2_2025-2026_.pdf",
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "علوم",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "U1 L 3: How Do We Take Care of _ Gardens?",
+                  "official_order": 3,
+                  "textbook_page": 22,
                   "source_pdf_page": 59,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/12-SciencesC1-2_2025-2026_.pdf",
                   "source_grade": "الصف الثاني",
@@ -331,6 +521,36 @@
                   "title": "U1 L 6: What Are Seasonal Plants? _",
                   "official_order": 5,
                   "textbook_page": 33,
+                  "source_pdf_page": 59,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/12-SciencesC1-2_2025-2026_.pdf",
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "علوم",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "U1 L 7: When Do Seasonal Plants _ Grow?",
+                  "official_order": 6,
+                  "textbook_page": 37,
+                  "source_pdf_page": 59,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/12-SciencesC1-2_2025-2026_.pdf",
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "علوم",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "U1 L 9: Do We Grow Cucumbers in _ Winter?",
+                  "official_order": 7,
+                  "textbook_page": 42,
+                  "source_pdf_page": 59,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/12-SciencesC1-2_2025-2026_.pdf",
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "علوم",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "U2 L1: Where Do Animals Live? _ What Do They Eat",
+                  "official_order": 8,
+                  "textbook_page": 50,
                   "source_pdf_page": 59,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/12-SciencesC1-2_2025-2026_.pdf",
                   "source_grade": "الصف الثاني",
@@ -400,16 +620,6 @@
                   "title": "Ajouter",
                   "official_order": 6,
                   "textbook_page": 8,
-                  "source_pdf_page": 7,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الثاني",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "La ligne",
-                  "official_order": 7,
-                  "textbook_page": 9,
                   "source_pdf_page": 7,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
                   "source_grade": "الصف الثاني",
@@ -497,29 +707,9 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Formes géométriques",
-                  "official_order": 16,
-                  "textbook_page": 18,
-                  "source_pdf_page": 7,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الثاني",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
                   "title": "Groupement",
                   "official_order": 17,
                   "textbook_page": 19,
-                  "source_pdf_page": 7,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الثاني",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Dizaines et unités",
-                  "official_order": 18,
-                  "textbook_page": 20,
                   "source_pdf_page": 7,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
                   "source_grade": "الصف الثاني",
@@ -547,16 +737,6 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Les écritures de 10",
-                  "official_order": 21,
-                  "textbook_page": 23,
-                  "source_pdf_page": 8,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الثاني",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
                   "title": "Les nombres jusqu’à 13",
                   "official_order": 22,
                   "textbook_page": 24,
@@ -570,26 +750,6 @@
                   "title": "Les nombres jusqu’à 16",
                   "official_order": 23,
                   "textbook_page": 25,
-                  "source_pdf_page": 8,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الثاني",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "3.1. Les lignes",
-                  "official_order": 24,
-                  "textbook_page": 26,
-                  "source_pdf_page": 8,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الثاني",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Les nombres jusqu’à 19",
-                  "official_order": 25,
-                  "textbook_page": 27,
                   "source_pdf_page": 8,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
                   "source_grade": "الصف الثاني",
@@ -617,29 +777,9 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Les dizaines 20 à 60",
-                  "official_order": 31,
-                  "textbook_page": 34,
-                  "source_pdf_page": 8,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الثاني",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
                   "title": "Addition des dizaines",
                   "official_order": 32,
                   "textbook_page": 35,
-                  "source_pdf_page": 8,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الثاني",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Les nombres jusqu’à 69",
-                  "official_order": 33,
-                  "textbook_page": 36,
                   "source_pdf_page": 8,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
                   "source_grade": "الصف الثاني",
@@ -1180,26 +1320,6 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "1.1. Nombres inférieurs à 1000",
-                  "official_order": 16,
-                  "textbook_page": 21,
-                  "source_pdf_page": 11,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الثالث",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Mesurer et comparer des longueurs",
-                  "official_order": 17,
-                  "textbook_page": 22,
-                  "source_pdf_page": 11,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الثالث",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
                   "title": "Problèmes (4)",
                   "official_order": 18,
                   "textbook_page": 23,
@@ -1230,30 +1350,10 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Chs. 31, 36 et 48 EB3",
-                  "official_order": 21,
-                  "textbook_page": 26,
-                  "source_pdf_page": 11,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الثالث",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
                   "title": "Problèmes (5)",
                   "official_order": 22,
                   "textbook_page": 27,
                   "source_pdf_page": 11,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الثالث",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Le centaine",
-                  "official_order": 23,
-                  "textbook_page": 28,
-                  "source_pdf_page": 12,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
                   "source_grade": "الصف الثالث",
                   "source_subject": "الرياضيات",
@@ -1320,9 +1420,19 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "4.2 Table de multiplication.",
+                  "title": "Multiplication : les tables de 2 et de 10",
                   "official_order": 31,
                   "textbook_page": 37,
+                  "source_pdf_page": 12,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "Multiplication : les tables de 3 et de 4",
+                  "official_order": 32,
+                  "textbook_page": 39,
                   "source_pdf_page": 12,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
                   "source_grade": "الصف الثالث",
@@ -1333,46 +1443,6 @@
                   "title": "Comprendre un énoncé",
                   "official_order": 33,
                   "textbook_page": 40,
-                  "source_pdf_page": 12,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الثالث",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Les nombres jusqu’à 499",
-                  "official_order": 34,
-                  "textbook_page": 41,
-                  "source_pdf_page": 12,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الثالث",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Ordre des nombres jusqu’à 499",
-                  "official_order": 35,
-                  "textbook_page": 42,
-                  "source_pdf_page": 12,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الثالث",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Addition (3)",
-                  "official_order": 36,
-                  "textbook_page": 43,
-                  "source_pdf_page": 12,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الثالث",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Soustraction (2)",
-                  "official_order": 37,
-                  "textbook_page": 44,
                   "source_pdf_page": 12,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
                   "source_grade": "الصف الثالث",
@@ -1400,17 +1470,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Figures planes",
-                  "official_order": 40,
-                  "textbook_page": 47,
-                  "source_pdf_page": 13,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الثالث",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "1.1 Mesure de longueurs.",
+                  "title": "Mesure des longueurs : le mètre",
                   "official_order": 41,
                   "textbook_page": 51,
                   "source_pdf_page": 13,
@@ -1420,7 +1480,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "4.3 Technique opératoire.",
+                  "title": "Technique de la multiplication",
                   "official_order": 42,
                   "textbook_page": 52,
                   "source_pdf_page": 13,
@@ -1430,9 +1490,9 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Calculer en passant par la dizaine ou la centaine suivante",
-                  "official_order": 44,
-                  "textbook_page": 64,
+                  "title": "Multiplication : technique opératoire",
+                  "official_order": 43,
+                  "textbook_page": 53,
                   "source_pdf_page": 13,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
                   "source_grade": "الصف الثالث",
@@ -1564,7 +1624,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "1.5",
+                  "title": "Unit 1 Chapter 1 A5: _ _ Bones are Repairable",
                   "official_order": 5,
                   "textbook_page": 26,
                   "source_pdf_page": 72,
@@ -1583,29 +1643,19 @@
             "Français": {
               "lessons": [
                 {
+                  "title": "La valeur approchée",
+                  "official_order": 12,
+                  "textbook_page": 13,
+                  "source_pdf_page": 15,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
                   "title": "Addition et multiplication",
                   "official_order": 13,
                   "textbook_page": 14,
-                  "source_pdf_page": 15,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الرابع",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "5.1. Fonction « multiplier par n »",
-                  "official_order": 14,
-                  "textbook_page": 15,
-                  "source_pdf_page": 15,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الرابع",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "L’angle droit",
-                  "official_order": 15,
-                  "textbook_page": 16,
                   "source_pdf_page": 15,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
                   "source_grade": "الصف الرابع",
@@ -1673,16 +1723,6 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Les fractions",
-                  "official_order": 22,
-                  "textbook_page": 24,
-                  "source_pdf_page": 16,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الرابع",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
                   "title": "Heure et durée",
                   "official_order": 23,
                   "textbook_page": 25,
@@ -1696,16 +1736,6 @@
                   "title": "Multiplier par 10 et par 100",
                   "official_order": 24,
                   "textbook_page": 27,
-                  "source_pdf_page": 16,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الرابع",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Multiplier par un entier de dizaines ou de centaines",
-                  "official_order": 25,
-                  "textbook_page": 28,
                   "source_pdf_page": 16,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
                   "source_grade": "الصف الرابع",
@@ -1743,16 +1773,6 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Les nombres jusqu’à 99 999",
-                  "official_order": 29,
-                  "textbook_page": 34,
-                  "source_pdf_page": 16,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الرابع",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
                   "title": "Addition or Soustraction (2)",
                   "official_order": 30,
                   "textbook_page": 35,
@@ -1776,16 +1796,6 @@
                   "title": "Résolution de problème",
                   "official_order": 32,
                   "textbook_page": 37,
-                  "source_pdf_page": 17,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الرابع",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Multiplier par un nombre de deux chiffres",
-                  "official_order": 33,
-                  "textbook_page": 39,
                   "source_pdf_page": 17,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
                   "source_grade": "الصف الرابع",
@@ -1853,27 +1863,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Multiplication et division",
-                  "official_order": 40,
-                  "textbook_page": 47,
-                  "source_pdf_page": 17,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الرابع",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Les unités de longueur (2)",
-                  "official_order": 41,
-                  "textbook_page": 48,
-                  "source_pdf_page": 17,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الرابع",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "2.1. Fraction 1/n.",
+                  "title": "La moitié, le tiers",
                   "official_order": 42,
                   "textbook_page": 52,
                   "source_pdf_page": 17,
@@ -1883,7 +1873,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "6.2. Technique opératoire.",
+                  "title": "Technique de la division (1)",
                   "official_order": 43,
                   "textbook_page": 53,
                   "source_pdf_page": 17,
@@ -1906,6 +1896,16 @@
                   "title": "Division",
                   "official_order": 45,
                   "textbook_page": 56,
+                  "source_pdf_page": 17,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "Technique de la division (2)",
+                  "official_order": 46,
+                  "textbook_page": 57,
                   "source_pdf_page": 17,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
                   "source_grade": "الصف الرابع",
@@ -1996,16 +1996,6 @@
             "Français": {
               "lessons": [
                 {
-                  "title": "La multiplication et ses propriétés",
-                  "official_order": 1,
-                  "textbook_page": 32,
-                  "source_pdf_page": 18,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الخامس",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
                   "title": "1.2. Multiples d’un entier",
                   "official_order": 2,
                   "textbook_page": 5,
@@ -2036,39 +2026,9 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Droites parallèles",
-                  "official_order": 5,
-                  "textbook_page": 9,
-                  "source_pdf_page": 18,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الخامس",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Caractères de divisibilité par 2, 5 et 10",
-                  "official_order": 6,
-                  "textbook_page": 10,
-                  "source_pdf_page": 18,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الخامس",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
                   "title": "Unités de longueur",
                   "official_order": 7,
                   "textbook_page": 11,
-                  "source_pdf_page": 18,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الخامس",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "7.2. Fonction « diviser par n »",
-                  "official_order": 8,
-                  "textbook_page": 12,
                   "source_pdf_page": 18,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
                   "source_grade": "الصف الخامس",
@@ -2096,37 +2056,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "𝑎 2.1. Comparaison de fractions (a≤b) 𝑏",
-                  "official_order": 11,
-                  "textbook_page": 15,
-                  "source_pdf_page": 18,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الخامس",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Les Quadrilatères",
-                  "official_order": 12,
-                  "textbook_page": 16,
-                  "source_pdf_page": 18,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الخامس",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Comparaison de fractions",
-                  "official_order": 13,
-                  "textbook_page": 17,
-                  "source_pdf_page": 19,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الخامس",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "4.1. Addition des décimaux.",
+                  "title": "Opérations sur les fractions",
                   "official_order": 14,
                   "textbook_page": 18,
                   "source_pdf_page": 19,
@@ -2139,26 +2069,6 @@
                   "title": "Distance d’un point à une droite",
                   "official_order": 15,
                   "textbook_page": 19,
-                  "source_pdf_page": 19,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الخامس",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Nombres décimaux (1)",
-                  "official_order": 16,
-                  "textbook_page": 22,
-                  "source_pdf_page": 19,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الخامس",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Division par les multiples de 10",
-                  "official_order": 17,
-                  "textbook_page": 24,
                   "source_pdf_page": 19,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
                   "source_grade": "الصف الخامس",
@@ -2219,6 +2129,16 @@
                   "title": "Multiplication d’un décimal par un entier",
                   "official_order": 23,
                   "textbook_page": 31,
+                  "source_pdf_page": 19,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "Mesure des masses I. Les unités de masse II. D'autres unités de masse",
+                  "official_order": 24,
+                  "textbook_page": 32,
                   "source_pdf_page": 19,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
                   "source_grade": "الصف الخامس",
@@ -2319,16 +2239,6 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "1.3. Diviseurs d’un entier",
-                  "official_order": 3,
-                  "textbook_page": 5,
-                  "source_pdf_page": 20,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف السادس",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
                   "title": "Diamètre d’un cercle",
                   "official_order": 4,
                   "textbook_page": 6,
@@ -2349,29 +2259,9 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Le périmètre",
-                  "official_order": 6,
-                  "textbook_page": 8,
-                  "source_pdf_page": 20,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف السادس",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "2.1. Egalité et simplification de fractions.",
+                  "title": "Fractions: présentation, comparaison à l’unité",
                   "official_order": 7,
                   "textbook_page": 9,
-                  "source_pdf_page": 20,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف السادس",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "2.1. Égalité et simplification de fractions.",
-                  "official_order": 8,
-                  "textbook_page": 11,
                   "source_pdf_page": 20,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
                   "source_grade": "الصف السادس",
@@ -2389,29 +2279,9 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "4.1. Addition de fractions",
-                  "official_order": 10,
-                  "textbook_page": 13,
-                  "source_pdf_page": 20,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف السادس",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
                   "title": "Caractérisation des quadrilatérales",
                   "official_order": 11,
                   "textbook_page": 14,
-                  "source_pdf_page": 21,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف السادس",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "5.1. Soustraction de fractions",
-                  "official_order": 12,
-                  "textbook_page": 15,
                   "source_pdf_page": 21,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
                   "source_grade": "الصف السادس",
@@ -2580,16 +2450,6 @@
                   "source_grade": "الصف السابع",
                   "source_subject": "علوم الحياة",
                   "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "1- Nutrition 1.3 Respiration in living things 1.3.1. Respiration in animals",
-                  "official_order": 5,
-                  "textbook_page": 50,
-                  "source_pdf_page": 47,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الصف السابع",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
                 }
               ],
               "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf"
@@ -2641,16 +2501,6 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Angles adjacents, angles opposés par le sommet",
-                  "official_order": 5,
-                  "textbook_page": 7,
-                  "source_pdf_page": 23,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف السابع",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
                   "title": "Fractions irréductibles",
                   "official_order": 6,
                   "textbook_page": 8,
@@ -2661,29 +2511,9 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Bissectrice d’un angle",
-                  "official_order": 7,
-                  "textbook_page": 9,
-                  "source_pdf_page": 23,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف السابع",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
                   "title": "2.2. Fractions décimales",
                   "official_order": 8,
                   "textbook_page": 10,
-                  "source_pdf_page": 23,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف السابع",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Médiatrice d’un segment",
-                  "official_order": 9,
-                  "textbook_page": 11,
                   "source_pdf_page": 23,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
                   "source_grade": "الصف السابع",
@@ -2754,16 +2584,6 @@
                   "title": "7.1. Multiplication des fractions 8.1. Division de fractions",
                   "official_order": 17,
                   "textbook_page": 19,
-                  "source_pdf_page": 24,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف السابع",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "8.2. Quotient et rapport",
-                  "official_order": 18,
-                  "textbook_page": 20,
                   "source_pdf_page": 24,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
                   "source_grade": "الصف السابع",
@@ -2903,9 +2723,9 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Quadrilatères + triangles EB 8",
-                  "official_order": 3,
-                  "textbook_page": 39,
+                  "title": "1.1 Nombres premiers. 1.2 Décomposition d’un entier en facteurs premiers.",
+                  "official_order": 2,
+                  "textbook_page": 31,
                   "source_pdf_page": 25,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
                   "source_grade": "الصف الثامن",
@@ -2923,16 +2743,6 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Quadrilatères EB 8",
-                  "official_order": 6,
-                  "textbook_page": 7,
-                  "source_pdf_page": 26,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الثامن",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
                   "title": "2.1. Réductions des fractions.",
                   "official_order": 7,
                   "textbook_page": 8,
@@ -2943,7 +2753,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "3.1 Ecriture décimale d’une fraction.",
+                  "title": "Décimaux et fractions I. Simplification II. Réduction",
                   "official_order": 8,
                   "textbook_page": 9,
                   "source_pdf_page": 26,
@@ -2953,30 +2763,10 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "1.2 Repère orthogonal et coordonnées d’un point dans un plan.",
+                  "title": "Repérage I. Repère orthogonal II. Coordonnées d’un point III. Les quatre quadrants",
                   "official_order": 9,
                   "textbook_page": 10,
                   "source_pdf_page": 26,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الثامن",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "6.1 Calcul sur des expressions algébriques.",
-                  "official_order": 10,
-                  "textbook_page": 11,
-                  "source_pdf_page": 27,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الثامن",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Les équations EB8",
-                  "official_order": 15,
-                  "textbook_page": 14,
-                  "source_pdf_page": 27,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
                   "source_grade": "الصف الثامن",
                   "source_subject": "الرياضيات",
@@ -3035,6 +2825,16 @@
           "languages": {
             "English": {
               "lessons": [
+                {
+                  "title": "1- Nutrition 1.3 Respiration in living things 1.3.1. Respiration in animals",
+                  "official_order": 5,
+                  "textbook_page": 50,
+                  "source_pdf_page": 47,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
+                  "source_grade": "الصف التاسع",
+                  "source_subject": "علوم الحياة",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
                 {
                   "title": "Part 1 Chapter 1 A 1: Our Food _ _",
                   "official_order": 1,
@@ -3105,16 +2905,6 @@
             "Français": {
               "lessons": [
                 {
-                  "title": "Les nombres réels EB9",
-                  "official_order": 15,
-                  "textbook_page": 17,
-                  "source_pdf_page": 32,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف التاسع",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
                   "title": "Droites et cercles",
                   "official_order": 16,
                   "textbook_page": 18,
@@ -3128,16 +2918,6 @@
                   "title": "Les inéquations première année secondaire",
                   "official_order": 17,
                   "textbook_page": 19,
-                  "source_pdf_page": 32,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف التاسع",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Relevés statistiques EB9",
-                  "official_order": 19,
-                  "textbook_page": 23,
                   "source_pdf_page": 32,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
                   "source_grade": "الصف التاسع",
@@ -3193,20 +2973,39 @@
             }
           }
         },
+        "علوم الحياة": {
+          "languages": {
+            "English": {
+              "lessons": [
+                {
+                  "title": "Part 1 Chapter1 A3: _ _ The chloroplast: Site of Photosynthesis",
+                  "official_order": 9,
+                  "textbook_page": 22,
+                  "source_pdf_page": 58,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
+                  "source_grade": "الأول ثانوي",
+                  "source_subject": "علوم الحياة",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "Part 1 Chapter1 A4: Photosynthetic Gas _ _ Exchange",
+                  "official_order": 10,
+                  "textbook_page": 24,
+                  "source_pdf_page": 58,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
+                  "source_grade": "الأول ثانوي",
+                  "source_subject": "علوم الحياة",
+                  "verification_status": "verified-from-official-crdp-table"
+                }
+              ],
+              "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf"
+            }
+          }
+        },
         "الرياضيات": {
           "languages": {
             "Français": {
               "lessons": [
-                {
-                  "title": "Puissance d’un nombre réel S1",
-                  "official_order": 1,
-                  "textbook_page": 12,
-                  "source_pdf_page": 29,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الأول ثانوي",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
                 {
                   "title": "1.1 Position relative position de deux cercles",
                   "official_order": 2,
@@ -3231,16 +3030,6 @@
                   "title": "3.2 Théorème des milieux dans un triangle, dans un trapèze.",
                   "official_order": 11,
                   "textbook_page": 12,
-                  "source_pdf_page": 31,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الأول ثانوي",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Géométrie analytique S1",
-                  "official_order": 18,
-                  "textbook_page": 13,
                   "source_pdf_page": 31,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
                   "source_grade": "الأول ثانوي",
@@ -3298,40 +3087,10 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Polynômes S1",
-                  "official_order": 2,
-                  "textbook_page": 11,
-                  "source_pdf_page": 35,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الأول ثانوي",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
                   "title": "5.1 Sinus, cosinus et tangente d’un angle aigu dans un triangle rectangle.",
                   "official_order": 8,
                   "textbook_page": 12,
                   "source_pdf_page": 35,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الأول ثانوي",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "La droite dans le plan S1",
-                  "official_order": 7,
-                  "textbook_page": 13,
-                  "source_pdf_page": 35,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الأول ثانوي",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Statistique S1",
-                  "official_order": 11,
-                  "textbook_page": 14,
-                  "source_pdf_page": 36,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
                   "source_grade": "الأول ثانوي",
                   "source_subject": "الرياضيات",
@@ -3449,237 +3208,290 @@
               "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf"
             }
           }
-        }
-      }
-    },
-    "الثالث ثانوي - علوم الحياة": {
-      "_status": "awaiting_official_sync",
-      "subjects": {}
-    },
-    "الثالث ثانوي - العلوم العامة": {
-      "_status": "partially_synced",
-      "subjects": {
-        "الكيمياء": {
+        },
+        "علوم الحياة": {
           "languages": {
             "English": {
               "lessons": [
                 {
-                  "title": "Part 2 – Chemical Kinetics Chapter 2: Rate of Reactions",
+                  "title": "Unit 1 Chapter1 Doc 1: Anatomy _ _ of the Male and Female Reproductive Systems",
                   "official_order": 1,
-                  "textbook_page": 30,
-                  "source_pdf_page": 75,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/10-chimie_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - العلوم العامة",
-                  "source_subject": "الكيمياء",
+                  "textbook_page": 13,
+                  "source_pdf_page": 63,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
+                  "source_grade": "الثاني ثانوي - الإنسانيات",
+                  "source_subject": "علوم الحياة",
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Part 2 – Chemical Kinetics Chapter 3: Kinetic Factors",
+                  "title": "Unit 1 Chapter1 Doc 2: The _ _ Ovarian Cycle",
                   "official_order": 2,
-                  "textbook_page": 50,
-                  "source_pdf_page": 75,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/10-chimie_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - العلوم العامة",
-                  "source_subject": "الكيمياء",
+                  "textbook_page": 14,
+                  "source_pdf_page": 63,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
+                  "source_grade": "الثاني ثانوي - الإنسانيات",
+                  "source_subject": "علوم الحياة",
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "3. Chemical Equilibrium 3.1. Homogeneous equilibrium in the liquid phase. Equilibrium constant Kc",
+                  "title": "Unit 1 Chapter 1 Doc 3 : The _ _ Uterine Cycle",
                   "official_order": 3,
-                  "textbook_page": 80,
-                  "source_pdf_page": 76,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/10-chimie_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - العلوم العامة",
-                  "source_subject": "الكيمياء",
+                  "textbook_page": 15,
+                  "source_pdf_page": 63,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
+                  "source_grade": "الثاني ثانوي - الإنسانيات",
+                  "source_subject": "علوم الحياة",
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "5. Organic Chemistry II Organic Compounds containing oxygen or nitrogen and isomerism",
+                  "title": "Unit 1 Chapter 1 Doc 4: _ _ Hormonal Secretion Cycle",
                   "official_order": 4,
-                  "textbook_page": 196,
-                  "source_pdf_page": 77,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/10-chimie_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - العلوم العامة",
-                  "source_subject": "الكيمياء",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "5. Organic Chemistry II 5.1. Alcohols : - Definition and general formula",
-                  "official_order": 5,
-                  "textbook_page": 208,
-                  "source_pdf_page": 77,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/10-chimie_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - العلوم العامة",
-                  "source_subject": "الكيمياء",
+                  "textbook_page": 16,
+                  "source_pdf_page": 63,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
+                  "source_grade": "الثاني ثانوي - الإنسانيات",
+                  "source_subject": "علوم الحياة",
                   "verification_status": "verified-from-official-crdp-table"
                 }
               ],
-              "source_url": "https://www.crdp.org/sites/default/files/inline-files/10-chimie_2025-2026_.pdf"
+              "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf"
+            }
+          }
+        }
+      }
+    },
+    "الثالث ثانوي - علوم الحياة": {
+      "_status": "partially_synced",
+      "subjects": {
+        "الفيزياء": {
+          "languages": {
+            "English": {
+              "lessons": [
+                {
+                  "title": "Mechanics",
+                  "official_order": 1,
+                  "textbook_page": 10,
+                  "source_pdf_page": 24,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
+                  "source_grade": "الثالث ثانوي - علوم الحياة",
+                  "source_subject": "الفيزياء",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "Electricity",
+                  "official_order": 4,
+                  "textbook_page": 133,
+                  "source_pdf_page": 24,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
+                  "source_grade": "الثالث ثانوي - علوم الحياة",
+                  "source_subject": "الفيزياء",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "Aspects of Light",
+                  "official_order": 7,
+                  "textbook_page": 227,
+                  "source_pdf_page": 24,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
+                  "source_grade": "الثالث ثانوي - علوم الحياة",
+                  "source_subject": "الفيزياء",
+                  "verification_status": "verified-from-official-crdp-table"
+                }
+              ],
+              "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf"
             }
           }
         },
-        "الرياضيات": {
+        "علوم الحياة": {
           "languages": {
-            "Français": {
+            "English": {
               "lessons": [
                 {
-                  "title": "Les nombres complexes En S3SG",
-                  "official_order": 13,
-                  "textbook_page": 12,
-                  "source_pdf_page": 50,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - العلوم العامة",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Trigonométrie 1. Lignes trigonométriques 1.2 Formules trigonométriques usuelles.",
-                  "official_order": 14,
-                  "textbook_page": 13,
-                  "source_pdf_page": 50,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - العلوم العامة",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Probabilité ES 3",
-                  "official_order": 7,
-                  "textbook_page": 16,
-                  "source_pdf_page": 50,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - العلوم العامة",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Fonctions réciproques I. Composition de fonctions II. Fonctions réciproques",
+                  "title": "Unit 1 Chapter2 A2:Mitosis, an Equal _ _ Division of the Chromosomal Set",
                   "official_order": 2,
-                  "textbook_page": 45,
-                  "source_pdf_page": 64,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - العلوم العامة",
-                  "source_subject": "الرياضيات",
+                  "textbook_page": 36,
+                  "source_pdf_page": 65,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
+                  "source_grade": "الثالث ثانوي - علوم الحياة",
+                  "source_subject": "علوم الحياة",
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "1.3 Fonctions trigonométriques réciproques",
-                  "official_order": 16,
-                  "textbook_page": 5,
-                  "source_pdf_page": 64,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - العلوم العامة",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Calcul différentiel V. Règle de l’Hôpital.",
+                  "title": "Unit 1 Chapter2 A3: The Structure _ _ and The Chemical Components of chromosomes.",
                   "official_order": 3,
-                  "textbook_page": 6,
+                  "textbook_page": 38,
                   "source_pdf_page": 65,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - العلوم العامة",
-                  "source_subject": "الرياضيات",
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
+                  "source_grade": "الثالث ثانوي - علوم الحياة",
+                  "source_subject": "علوم الحياة",
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Analyse 1. Définition et répartition 1.4 Fonction logarithme népérien.",
-                  "official_order": 5,
-                  "textbook_page": 7,
-                  "source_pdf_page": 65,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - العلوم العامة",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Analyse 1. Définition et répartition 1.5 Fonctions exponentielles.",
-                  "official_order": 6,
-                  "textbook_page": 8,
-                  "source_pdf_page": 65,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - العلوم العامة",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Analyse 2.Continuité et dérivation 2.5 Dérivées secondes. Dérivées successives.",
+                  "title": "Unit 1 Chapter2 A4:Identical _ _ Reproduction and Cell Cycle",
                   "official_order": 4,
-                  "textbook_page": 10,
+                  "textbook_page": 40,
                   "source_pdf_page": 65,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - العلوم العامة",
-                  "source_subject": "الرياضيات",
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
+                  "source_grade": "الثالث ثانوي - علوم الحياة",
+                  "source_subject": "علوم الحياة",
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Analyse 3 Intégration 3.1 Intégrale : définition et propriétés.",
-                  "official_order": 9,
-                  "textbook_page": 15,
-                  "source_pdf_page": 66,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - العلوم العامة",
-                  "source_subject": "الرياضيات",
+                  "title": "Unit 1 Chapter 3 A2- The Gene, _ _ Structure and Information Unit",
+                  "official_order": 6,
+                  "textbook_page": 52,
+                  "source_pdf_page": 65,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
+                  "source_grade": "الثالث ثانوي - علوم الحياة",
+                  "source_subject": "علوم الحياة",
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Analyse 3 Intégration 3.1Propriétés de l'intégrale",
-                  "official_order": 10,
-                  "textbook_page": 16,
-                  "source_pdf_page": 66,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - العلوم العامة",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Analyse 3 Intégration 3.2 Méthodes d’intégration.",
-                  "official_order": 11,
-                  "textbook_page": 17,
-                  "source_pdf_page": 66,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - العلوم العامة",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Analyse 3 Intégration 3.4 Applications du calcul intégral.",
-                  "official_order": 12,
-                  "textbook_page": 19,
-                  "source_pdf_page": 66,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - العلوم العامة",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Combinaisons I. Combinaisons II. Modélisation par combinaison",
+                  "title": "Unit 1 Chapter 3 A3- Transcription: _ _ First Step of Protein Synthesis",
                   "official_order": 7,
-                  "textbook_page": 22,
-                  "source_pdf_page": 67,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - العلوم العامة",
-                  "source_subject": "الرياضيات",
+                  "textbook_page": 54,
+                  "source_pdf_page": 65,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
+                  "source_grade": "الثالث ثانوي - علوم الحياة",
+                  "source_subject": "علوم الحياة",
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "2.3 Variable aléatoire réelle, loi de probabilité associée.",
-                  "official_order": 9,
+                  "title": "Part 1 Ch1 Doc 1: Male and Female Reproductive _ _ System",
+                  "official_order": 1,
+                  "textbook_page": 18,
+                  "source_pdf_page": 68,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
+                  "source_grade": "الثالث ثانوي - علوم الحياة",
+                  "source_subject": "علوم الحياة",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "Part 1 Ch1 Doc 2: Diploid and Haploid Cells _ _",
+                  "official_order": 2,
+                  "textbook_page": 20,
+                  "source_pdf_page": 68,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
+                  "source_grade": "الثالث ثانوي - علوم الحياة",
+                  "source_subject": "علوم الحياة",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "Part 1 Ch1-Doc 3: Meiosis _",
+                  "official_order": 3,
+                  "textbook_page": 22,
+                  "source_pdf_page": 68,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
+                  "source_grade": "الثالث ثانوي - علوم الحياة",
+                  "source_subject": "علوم الحياة",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "Part 1 Ch1 Doc 4: Spermatogenesis _ _",
+                  "official_order": 4,
                   "textbook_page": 24,
-                  "source_pdf_page": 67,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - العلوم العامة",
-                  "source_subject": "الرياضيات",
+                  "source_pdf_page": 68,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
+                  "source_grade": "الثالث ثانوي - علوم الحياة",
+                  "source_subject": "علوم الحياة",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "Part 1 Ch1 Doc 5: Oogenesis _ _",
+                  "official_order": 5,
+                  "textbook_page": 27,
+                  "source_pdf_page": 68,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
+                  "source_grade": "الثالث ثانوي - علوم الحياة",
+                  "source_subject": "علوم الحياة",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "Part 1 Ch1 Doc 6: Fertilization _ _ Note: the different steps of fertilization are still suspended",
+                  "official_order": 6,
+                  "textbook_page": 30,
+                  "source_pdf_page": 68,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
+                  "source_grade": "الثالث ثانوي - علوم الحياة",
+                  "source_subject": "علوم الحياة",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "Part 1 Ch2 Doc 1: Hereditary Traits and Genes _ _",
+                  "official_order": 7,
+                  "textbook_page": 42,
+                  "source_pdf_page": 68,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
+                  "source_grade": "الثالث ثانوي - علوم الحياة",
+                  "source_subject": "علوم الحياة",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "Important for healthy life",
+                  "official_order": 1,
+                  "textbook_page": 24,
+                  "source_pdf_page": 73,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
+                  "source_grade": "الثالث ثانوي - علوم الحياة",
+                  "source_subject": "علوم الحياة",
                   "verification_status": "verified-from-official-crdp-table"
                 }
               ],
-              "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf"
+              "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf"
+            }
+          }
+        }
+      }
+    },
+    "الثالث ثانوي - العلوم العامة": {
+      "_status": "partially_synced",
+      "subjects": {
+        "الفيزياء": {
+          "languages": {
+            "English": {
+              "lessons": [
+                {
+                  "title": "Mechanics",
+                  "official_order": 1,
+                  "textbook_page": 10,
+                  "source_pdf_page": 25,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
+                  "source_grade": "الثالث ثانوي - العلوم العامة",
+                  "source_subject": "الفيزياء",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "Electricity",
+                  "official_order": 5,
+                  "textbook_page": 133,
+                  "source_pdf_page": 25,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
+                  "source_grade": "الثالث ثانوي - العلوم العامة",
+                  "source_subject": "الفيزياء",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "Aspects of Light",
+                  "official_order": 8,
+                  "textbook_page": 227,
+                  "source_pdf_page": 25,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
+                  "source_grade": "الثالث ثانوي - العلوم العامة",
+                  "source_subject": "الفيزياء",
+                  "verification_status": "verified-from-official-crdp-table"
+                }
+              ],
+              "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf"
             }
           }
         }
       }
     },
     "الثالث ثانوي - الاجتماع والاقتصاد": {
+      "_status": "awaiting_official_sync",
+      "subjects": {}
+    },
+    "الثالث ثانوي - الآداب والإنسانيات": {
       "_status": "partially_synced",
       "subjects": {
         "الفيزياء": {
@@ -3692,7 +3504,7 @@
                   "textbook_page": 11,
                   "source_pdf_page": 22,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - الاجتماع والاقتصاد",
+                  "source_grade": "الثالث ثانوي - الآداب والإنسانيات",
                   "source_subject": "الفيزياء",
                   "verification_status": "verified-from-official-crdp-table"
                 },
@@ -3702,37 +3514,7 @@
                   "textbook_page": 39,
                   "source_pdf_page": 22,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - الاجتماع والاقتصاد",
-                  "source_subject": "الفيزياء",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Mechanics",
-                  "official_order": 1,
-                  "textbook_page": 10,
-                  "source_pdf_page": 24,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - الاجتماع والاقتصاد",
-                  "source_subject": "الفيزياء",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Electricity",
-                  "official_order": 4,
-                  "textbook_page": 133,
-                  "source_pdf_page": 24,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - الاجتماع والاقتصاد",
-                  "source_subject": "الفيزياء",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Aspects of Light",
-                  "official_order": 7,
-                  "textbook_page": 227,
-                  "source_pdf_page": 24,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - الاجتماع والاقتصاد",
+                  "source_grade": "الثالث ثانوي - الآداب والإنسانيات",
                   "source_subject": "الفيزياء",
                   "verification_status": "verified-from-official-crdp-table"
                 }
@@ -3740,51 +3522,8 @@
               "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf"
             }
           }
-        },
-        "الرياضيات": {
-          "languages": {
-            "Français": {
-              "lessons": [
-                {
-                  "title": "Fonctions ES 3",
-                  "official_order": 6,
-                  "textbook_page": 25,
-                  "source_pdf_page": 52,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - الاجتماع والاقتصاد",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Probabilité S3",
-                  "official_order": 9,
-                  "textbook_page": 27,
-                  "source_pdf_page": 52,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - الاجتماع والاقتصاد",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Analyse 3. Intégration 3.1 Primitive d’une fonction continue sur un intervalle.",
-                  "official_order": 17,
-                  "textbook_page": 28,
-                  "source_pdf_page": 52,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - الاجتماع والاقتصاد",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                }
-              ],
-              "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf"
-            }
-          }
         }
       }
-    },
-    "الثالث ثانوي - الآداب والإنسانيات": {
-      "_status": "awaiting_official_sync",
-      "subjects": {}
     }
   },
   "annual_sources": [
@@ -3882,157 +3621,198 @@
   "book_lists": [
     {
       "label": "التعليم الثانوي - السنة الثالثة - فرع علوم الحياة",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B5%D9%81%20%D8%A7%D9%84%D8%AB%D8%A7%D9%84%D8%AB%20%D8%AB%D8%A7%D9%86%D9%88%D9%8A%20%20%D9%81%D8%B1%D8%B9%20%D8%B9%D9%84%D9%88%D9%85%20%D8%A7%D9%84%D8%AD%D9%8A%D8%A7%D8%A9.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B5%D9%81%20%D8%A7%D9%84%D8%AB%D8%A7%D9%84%D8%AB%20%D8%AB%D8%A7%D9%86%D9%88%D9%8A%20%20%D9%81%D8%B1%D8%B9%20%D8%B9%D9%84%D9%88%D9%85%20%D8%A7%D9%84%D8%AD%D9%8A%D8%A7%D8%A9.pdf",
+      "grade": "الثالث ثانوي - علوم الحياة"
     },
     {
       "label": "تحميل الملف",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B5%D9%81%20%D8%A7%D9%84%D8%AB%D8%A7%D9%84%D8%AB%20%D8%AB%D8%A7%D9%86%D9%88%D9%8A%20%20%D9%81%D8%B1%D8%B9%20%D8%B9%D9%84%D9%88%D9%85%20%D8%A7%D9%84%D8%AD%D9%8A%D8%A7%D8%A9.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B5%D9%81%20%D8%A7%D9%84%D8%AB%D8%A7%D9%84%D8%AB%20%D8%AB%D8%A7%D9%86%D9%88%D9%8A%20%20%D9%81%D8%B1%D8%B9%20%D8%B9%D9%84%D9%88%D9%85%20%D8%A7%D9%84%D8%AD%D9%8A%D8%A7%D8%A9.pdf",
+      "grade": null
     },
     {
       "label": "التعليم الثانوي - السنة الثالثة - فرع العلوم العامة",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B5%D9%81%20%D8%A7%D9%84%D8%AB%D8%A7%D9%84%D8%AB%20%D8%AB%D8%A7%D9%86%D9%88%D9%8A%20%20%D9%81%D8%B1%D8%B9%20%D8%A7%D9%84%D8%B9%D9%84%D9%88%D9%85.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B5%D9%81%20%D8%A7%D9%84%D8%AB%D8%A7%D9%84%D8%AB%20%D8%AB%D8%A7%D9%86%D9%88%D9%8A%20%20%D9%81%D8%B1%D8%B9%20%D8%A7%D9%84%D8%B9%D9%84%D9%88%D9%85.pdf",
+      "grade": "الثالث ثانوي - العلوم العامة"
     },
     {
       "label": "تحميل الملف",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B5%D9%81%20%D8%A7%D9%84%D8%AB%D8%A7%D9%84%D8%AB%20%D8%AB%D8%A7%D9%86%D9%88%D9%8A%20%20%D9%81%D8%B1%D8%B9%20%D8%A7%D9%84%D8%B9%D9%84%D9%88%D9%85.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B5%D9%81%20%D8%A7%D9%84%D8%AB%D8%A7%D9%84%D8%AB%20%D8%AB%D8%A7%D9%86%D9%88%D9%8A%20%20%D9%81%D8%B1%D8%B9%20%D8%A7%D9%84%D8%B9%D9%84%D9%88%D9%85.pdf",
+      "grade": null
     },
     {
       "label": "التعليم الثانوي - السنة الثالثة - فرع الاجتماع والاقتصاد",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B5%D9%81%20%D8%A7%D9%84%D8%AB%D8%A7%D9%84%D8%AB%20%D8%AB%D8%A7%D9%86%D9%88%D9%8A%20%20%D9%81%D8%B1%D8%B9%20%D8%A7%D9%82%D8%AA%D8%B5%D8%A7%D8%AF%20%D9%88%D8%A7%D8%AC%D8%AA%D9%85%D8%A7%D8%B9.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B5%D9%81%20%D8%A7%D9%84%D8%AB%D8%A7%D9%84%D8%AB%20%D8%AB%D8%A7%D9%86%D9%88%D9%8A%20%20%D9%81%D8%B1%D8%B9%20%D8%A7%D9%82%D8%AA%D8%B5%D8%A7%D8%AF%20%D9%88%D8%A7%D8%AC%D8%AA%D9%85%D8%A7%D8%B9.pdf",
+      "grade": "الثالث ثانوي - الاجتماع والاقتصاد"
     },
     {
       "label": "تحميل الملف",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B5%D9%81%20%D8%A7%D9%84%D8%AB%D8%A7%D9%84%D8%AB%20%D8%AB%D8%A7%D9%86%D9%88%D9%8A%20%20%D9%81%D8%B1%D8%B9%20%D8%A7%D9%82%D8%AA%D8%B5%D8%A7%D8%AF%20%D9%88%D8%A7%D8%AC%D8%AA%D9%85%D8%A7%D8%B9.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B5%D9%81%20%D8%A7%D9%84%D8%AB%D8%A7%D9%84%D8%AB%20%D8%AB%D8%A7%D9%86%D9%88%D9%8A%20%20%D9%81%D8%B1%D8%B9%20%D8%A7%D9%82%D8%AA%D8%B5%D8%A7%D8%AF%20%D9%88%D8%A7%D8%AC%D8%AA%D9%85%D8%A7%D8%B9.pdf",
+      "grade": null
     },
     {
       "label": "التعليم الثانوي - السنة الثالثة - فرع الآداب والإنسانيات",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B5%D9%81%20%D8%A7%D9%84%D8%AB%D8%A7%D9%84%D8%AB%20%D8%AB%D8%A7%D9%86%D9%88%D9%8A%20%20%D9%81%D8%B1%D8%B9%20%D8%A7%D9%84%D8%A2%D8%AF%D8%A7%D8%A8%20%D9%88%D8%A7%D9%84%D8%A7%D9%86%D8%B3%D8%A7%D9%86%D9%8A%D8%A7%D8%AA.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B5%D9%81%20%D8%A7%D9%84%D8%AB%D8%A7%D9%84%D8%AB%20%D8%AB%D8%A7%D9%86%D9%88%D9%8A%20%20%D9%81%D8%B1%D8%B9%20%D8%A7%D9%84%D8%A2%D8%AF%D8%A7%D8%A8%20%D9%88%D8%A7%D9%84%D8%A7%D9%86%D8%B3%D8%A7%D9%86%D9%8A%D8%A7%D8%AA.pdf",
+      "grade": "الثالث ثانوي - الآداب والإنسانيات"
     },
     {
       "label": "تحميل الملف",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B5%D9%81%20%D8%A7%D9%84%D8%AB%D8%A7%D9%84%D8%AB%20%D8%AB%D8%A7%D9%86%D9%88%D9%8A%20%20%D9%81%D8%B1%D8%B9%20%D8%A7%D9%84%D8%A2%D8%AF%D8%A7%D8%A8%20%D9%88%D8%A7%D9%84%D8%A7%D9%86%D8%B3%D8%A7%D9%86%D9%8A%D8%A7%D8%AA.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B5%D9%81%20%D8%A7%D9%84%D8%AB%D8%A7%D9%84%D8%AB%20%D8%AB%D8%A7%D9%86%D9%88%D9%8A%20%20%D9%81%D8%B1%D8%B9%20%D8%A7%D9%84%D8%A2%D8%AF%D8%A7%D8%A8%20%D9%88%D8%A7%D9%84%D8%A7%D9%86%D8%B3%D8%A7%D9%86%D9%8A%D8%A7%D8%AA.pdf",
+      "grade": null
     },
     {
       "label": "التعليم الثانوي - السنة الثانية - فرع العلوم",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B5%D9%81%20%D8%A7%D9%84%D8%AB%D8%A7%D9%86%D9%8A%20%D8%AB%D8%A7%D9%86%D9%88%D9%8A%20%20%D9%81%D8%B1%D8%B9%20%D8%A7%D9%84%D8%B9%D9%84%D9%88%D9%85.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B5%D9%81%20%D8%A7%D9%84%D8%AB%D8%A7%D9%86%D9%8A%20%D8%AB%D8%A7%D9%86%D9%88%D9%8A%20%20%D9%81%D8%B1%D8%B9%20%D8%A7%D9%84%D8%B9%D9%84%D9%88%D9%85.pdf",
+      "grade": "الثاني ثانوي - العلوم"
     },
     {
       "label": "تحميل الملف",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B5%D9%81%20%D8%A7%D9%84%D8%AB%D8%A7%D9%86%D9%8A%20%D8%AB%D8%A7%D9%86%D9%88%D9%8A%20%20%D9%81%D8%B1%D8%B9%20%D8%A7%D9%84%D8%B9%D9%84%D9%88%D9%85.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B5%D9%81%20%D8%A7%D9%84%D8%AB%D8%A7%D9%86%D9%8A%20%D8%AB%D8%A7%D9%86%D9%88%D9%8A%20%20%D9%81%D8%B1%D8%B9%20%D8%A7%D9%84%D8%B9%D9%84%D9%88%D9%85.pdf",
+      "grade": null
     },
     {
       "label": "التعليم الثانوي - السنة الأولى",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%A7%D9%88%D9%84%20%D8%AB%D8%A7%D9%86%D9%88%D9%8A.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%A7%D9%88%D9%84%20%D8%AB%D8%A7%D9%86%D9%88%D9%8A.pdf",
+      "grade": "الأول ثانوي"
     },
     {
       "label": "تحميل الملف",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%A7%D9%88%D9%84%20%D8%AB%D8%A7%D9%86%D9%88%D9%8A.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%A7%D9%88%D9%84%20%D8%AB%D8%A7%D9%86%D9%88%D9%8A.pdf",
+      "grade": null
     },
     {
       "label": "السنة التاسعة",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%AA%D8%A7%D8%B3%D8%B9%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%AA%D8%A7%D8%B3%D8%B9%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf",
+      "grade": "الصف التاسع"
     },
     {
       "label": "تحميل الملف",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%AA%D8%A7%D8%B3%D8%B9%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%AA%D8%A7%D8%B3%D8%B9%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf",
+      "grade": null
     },
     {
       "label": "السنة الثامنة",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%AB%D8%A7%D9%85%D9%86%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%AB%D8%A7%D9%85%D9%86%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf",
+      "grade": "الصف الثامن"
     },
     {
       "label": "تحميل الملف",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%AB%D8%A7%D9%85%D9%86%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%AB%D8%A7%D9%85%D9%86%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf",
+      "grade": null
     },
     {
       "label": "السنة السابعة",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%B3%D8%A7%D8%A8%D8%B9%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%B3%D8%A7%D8%A8%D8%B9%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf",
+      "grade": "الصف السابع"
     },
     {
       "label": "تحميل الملف",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%B3%D8%A7%D8%A8%D8%B9%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%B3%D8%A7%D8%A8%D8%B9%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf",
+      "grade": null
     },
     {
       "label": "السنة السادسة",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%B3%D8%A7%D8%AF%D8%B3%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%B3%D8%A7%D8%AF%D8%B3%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf",
+      "grade": "الصف السادس"
     },
     {
       "label": "تحميل الملف",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%B3%D8%A7%D8%AF%D8%B3%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%B3%D8%A7%D8%AF%D8%B3%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf",
+      "grade": null
     },
     {
       "label": "السنة الخامسة",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%AE%D8%A7%D9%85%D8%B3%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%AE%D8%A7%D9%85%D8%B3%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf",
+      "grade": "الصف الخامس"
     },
     {
       "label": "تحميل الملف",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%AE%D8%A7%D9%85%D8%B3%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%AE%D8%A7%D9%85%D8%B3%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf",
+      "grade": null
     },
     {
       "label": "السنة الرابعة",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%B1%D8%A7%D8%A8%D8%B9%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%B1%D8%A7%D8%A8%D8%B9%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf",
+      "grade": "الصف الرابع"
     },
     {
       "label": "تحميل الملف",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%B1%D8%A7%D8%A8%D8%B9%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%B1%D8%A7%D8%A8%D8%B9%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf",
+      "grade": null
     },
     {
       "label": "السنة الثالثة",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%AB%D8%A7%D9%84%D8%AB%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%AB%D8%A7%D9%84%D8%AB%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf",
+      "grade": "الصف الثالث"
     },
     {
       "label": "تحميل الملف",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%AB%D8%A7%D9%84%D8%AB%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%AB%D8%A7%D9%84%D8%AB%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf",
+      "grade": null
     },
     {
       "label": "السنة الثانية",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%AB%D8%A7%D9%86%D9%8A%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%AB%D8%A7%D9%86%D9%8A%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf",
+      "grade": "الصف الثاني"
     },
     {
       "label": "تحميل الملف",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%AB%D8%A7%D9%86%D9%8A%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%AB%D8%A7%D9%86%D9%8A%D8%A9%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf",
+      "grade": null
     },
     {
       "label": "السنة الأولى",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%A7%D9%88%D9%84%D9%89%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%A7%D9%88%D9%84%D9%89%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf",
+      "grade": "الصف الأول"
     },
     {
       "label": "تحميل الملف",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%A7%D9%88%D9%84%D9%89%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%A7%D9%88%D9%84%D9%89%20%D8%A7%D9%84%D8%A7%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9.pdf",
+      "grade": null
     },
     {
       "label": "الروضة الثالثة",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D9%85%D8%B1%D8%AD%D9%84%D8%A9%20%D8%A7%D9%84%D8%B1%D9%88%D8%B6%D8%A9%20%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%AB%D8%A7%D9%84%D8%AB%D8%A9.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D9%85%D8%B1%D8%AD%D9%84%D8%A9%20%D8%A7%D9%84%D8%B1%D9%88%D8%B6%D8%A9%20%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%AB%D8%A7%D9%84%D8%AB%D8%A9.pdf",
+      "grade": "الروضة الثالثة"
     },
     {
       "label": "تحميل الملف",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D9%85%D8%B1%D8%AD%D9%84%D8%A9%20%D8%A7%D9%84%D8%B1%D9%88%D8%B6%D8%A9%20%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%AB%D8%A7%D9%84%D8%AB%D8%A9.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D9%85%D8%B1%D8%AD%D9%84%D8%A9%20%D8%A7%D9%84%D8%B1%D9%88%D8%B6%D8%A9%20%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%AB%D8%A7%D9%84%D8%AB%D8%A9.pdf",
+      "grade": null
     },
     {
       "label": "الروضة الثانية",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D9%85%D8%B1%D8%AD%D9%84%D8%A9%20%D8%A7%D9%84%D8%B1%D9%88%D8%B6%D8%A9%20%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%AB%D8%A7%D9%86%D9%8A%D8%A9_0.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D9%85%D8%B1%D8%AD%D9%84%D8%A9%20%D8%A7%D9%84%D8%B1%D9%88%D8%B6%D8%A9%20%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%AB%D8%A7%D9%86%D9%8A%D8%A9_0.pdf",
+      "grade": "الروضة الثانية"
     },
     {
       "label": "تحميل الملف",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D9%85%D8%B1%D8%AD%D9%84%D8%A9%20%D8%A7%D9%84%D8%B1%D9%88%D8%B6%D8%A9%20%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%AB%D8%A7%D9%86%D9%8A%D8%A9_0.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D9%85%D8%B1%D8%AD%D9%84%D8%A9%20%D8%A7%D9%84%D8%B1%D9%88%D8%B6%D8%A9%20%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%AB%D8%A7%D9%86%D9%8A%D8%A9_0.pdf",
+      "grade": null
     },
     {
       "label": "الروضة الأولى",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D9%85%D8%B1%D8%AD%D9%84%D8%A9%20%D8%A7%D9%84%D8%B1%D9%88%D8%B6%D8%A9%20%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%A7%D9%88%D9%84%D9%89%20.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D9%85%D8%B1%D8%AD%D9%84%D8%A9%20%D8%A7%D9%84%D8%B1%D9%88%D8%B6%D8%A9%20%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%A7%D9%88%D9%84%D9%89%20.pdf",
+      "grade": "الروضة الأولى"
     },
     {
       "label": "تحميل الملف",
-      "url": "https://www.crdp.org/sites/default/files/2019-12/%D9%85%D8%B1%D8%AD%D9%84%D8%A9%20%D8%A7%D9%84%D8%B1%D9%88%D8%B6%D8%A9%20%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%A7%D9%88%D9%84%D9%89%20.pdf"
+      "url": "https://www.crdp.org/sites/default/files/2019-12/%D9%85%D8%B1%D8%AD%D9%84%D8%A9%20%D8%A7%D9%84%D8%B1%D9%88%D8%B6%D8%A9%20%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%A7%D9%88%D9%84%D9%89%20.pdf",
+      "grade": null
     }
   ],
   "errors": [],
   "coverage": {
     "grades_total": 19,
-    "grades_with_data": 14,
-    "subject_grade_pairs": 28,
-    "verified_lessons": 343,
+    "grades_with_data": 16,
+    "subject_grade_pairs": 31,
+    "verified_lessons": 314,
     "annual_subject_pdfs": 15,
     "book_list_pdfs": 36,
+    "missing_grades": [
+      "الروضة الثانية",
+      "الروضة الثالثة",
+      "الثالث ثانوي - الاجتماع والاقتصاد"
+    ],
     "complete": false
   }
 }
