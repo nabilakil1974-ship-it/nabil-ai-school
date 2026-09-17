@@ -22,8 +22,15 @@ def main(path):
     grades = int(cov.get("grades_with_data", 0) or 0)
     annual = int(cov.get("annual_subject_pdfs", 0) or 0)
 
-    if annual < 15:
-        raise SystemExit(f"Missing annual CRDP subject PDFs: {annual} < 15")
+    # Current focused scope intentionally excludes:
+    # sociology, economics, history, geography, philosophy, and secondary languages.
+    # Therefore 9 annual subject PDFs are expected in this phase, not 15.
+    expected_annual_pdfs = 9
+    if annual < expected_annual_pdfs:
+        raise SystemExit(
+            f"Missing annual CRDP subject PDFs for current scope: "
+            f"{annual} < {expected_annual_pdfs}"
+        )
     if lessons == 0:
         raise SystemExit("ZERO verified lessons — refusing false success.")
 
@@ -97,7 +104,7 @@ def main(path):
     if errors:
         raise SystemExit("\n".join(errors[:80]))
 
-    print("CRDP V8 integrity validation: PASS")
+    print("CRDP V12 focused-scope validation: PASS")
     print(json.dumps(cov, ensure_ascii=False))
     return 0
 
