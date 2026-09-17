@@ -21855,7 +21855,35 @@ if(document.readyState==="loading"){
 
       const offer=await pc.createOffer();
       await pc.setLocalDescription(offer);
-      const resp=await fetch('/api/realtime/call',{method:'POST',headers:{'Content-Type':'application/sdp'},body:offer.sdp});
+
+      // Wait briefly for ICE gathering so the SDP we send is complete.
+      if(pc.iceGatheringState !== 'complete'){
+        await new Promise(resolve=>{
+          const done=()=>{
+            if(pc.iceGatheringState === 'complete'){
+              pc.removeEventListener('icegatheringstatechange',done);
+              resolve();
+            }
+          };
+          pc.addEventListener('icegatheringstatechange',done);
+          setTimeout(()=>{
+            pc.removeEventListener('icegatheringstatechange',done);
+            resolve();
+          },1500);
+        });
+      }
+
+      const localSdp=pc.localDescription?.sdp || offer.sdp || '';
+      if(!localSdp || !localSdp.trim().startsWith('v=0')){
+        throw new Error('WebRTC SDP offer غير صالح أو فارغ قبل الإرسال');
+      }
+      console.log('NABIL SDP offer length', localSdp.length);
+
+      const resp=await fetch('/api/realtime/call',{
+        method:'POST',
+        headers:{'Content-Type':'application/sdp'},
+        body:localSdp
+      });
       if(!resp.ok){
         const errText = await resp.text();
         console.error('REALTIME BACKEND ERROR', resp.status, errText);
