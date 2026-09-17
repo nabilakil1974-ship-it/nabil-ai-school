@@ -41,8 +41,8 @@ GRADES = [
 SUBJECTS = [
     "اللغة العربية", "اللغة الفرنسية", "اللغة الإنجليزية",
     "الرياضيات", "علوم", "الفيزياء", "الكيمياء", "علوم الحياة",
-    "التربية الوطنية والتنشئة المدنية", "التاريخ", "الجغرافيا",
-    "علم الاجتماع", "علم الاقتصاد", "الفلسفة والحضارات",
+    "التربية الوطنية والتنشئة المدنية", "الجغرافيا",
+    
 ]
 
 SUBJECT_ALIASES = [
@@ -51,16 +51,11 @@ SUBJECT_ALIASES = [
     ("مادة اللغة الانكليزية وآدابها", "اللغة الإنجليزية"),
     ("مادة اللغة الإنجليزية وآدابها", "اللغة الإنجليزية"),
     ("مادة التربية الوطنية والتنشئة المدنية", "التربية الوطنية والتنشئة المدنية"),
-    ("مادة علم الاجتماع", "علم الاجتماع"),
-    ("مادة علم الاقتصاد", "علم الاقتصاد"),
     ("مادة علوم الحياة", "علوم الحياة"),
     ("مادة الفيزياء", "الفيزياء"),
     ("مادة الكيمياء", "الكيمياء"),
     ("مادة الرياضيات", "الرياضيات"),
-    ("مادة التاريخ", "التاريخ"),
-    ("مادة الجغرافيا", "الجغرافيا"),
     ("مادة العلوم", "علوم"),
-    ("مادة الفلسفة", "الفلسفة والحضارات"),
 ]
 
 BAD_NOTE_PATTERNS = [
@@ -400,6 +395,16 @@ def add(master, grade, subject, language, item, source_url):
     if not grade or not subject or not item:
         return
 
+    # Languages remain available for Grades 1–9, but are intentionally excluded
+    # from all secondary branches in this phase.
+    secondary = (
+        grade == "الأول ثانوي"
+        or grade.startswith("الثاني ثانوي")
+        or grade.startswith("الثالث ثانوي")
+    )
+    if secondary and subject in {"اللغة العربية", "اللغة الفرنسية", "اللغة الإنجليزية"}:
+        return
+
     # Kindergarten entries are accepted only from the official Kindergarten source.
     if grade.startswith("الروضة") and subject != "الروضة":
         return
@@ -422,7 +427,7 @@ def main(dest="app/static/crdp_official",
     pdfdir.mkdir(parents=True, exist_ok=True)
 
     master = {
-        "schema_version": "10.0",
+        "schema_version": "11.0",
         "authority": "CRDP Lebanon",
         "academic_year": "2025-2026",
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -436,6 +441,13 @@ def main(dest="app/static/crdp_official",
             "never_inherit_grade_across_pages": True,
             "allow_grade_state_only_inside_same_table": True,
             "kindergarten_excluded_for_now": True,
+            "globally_excluded_subjects": [
+                "علم الاجتماع", "علم الاقتصاد", "التاريخ",
+                "الجغرافيا", "الفلسفة والحضارات"
+            ],
+            "secondary_languages_excluded_for_now": [
+                "اللغة العربية", "اللغة الفرنسية", "اللغة الإنجليزية"
+            ],
             "strip_inline_editorial_notes": True,
             "normalize_pdf_wrap_markers": True,
         },
@@ -460,6 +472,10 @@ def main(dest="app/static/crdp_official",
     ]
 
     for i, (label, url, subject) in enumerate(links, 1):
+        # Skip subjects intentionally excluded from the current NABIL AI scope.
+        if subject not in SUBJECTS:
+            continue
+
         rec = {"label": label, "url": url, "subject": subject}
         try:
             data = get(url).content
