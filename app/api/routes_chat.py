@@ -5160,9 +5160,20 @@ async def nabil_realtime_call(request: Request):
     session = {
         "type": "realtime",
         "model": "gpt-realtime-2.1",
+        "output_modalities": ["audio"],
         "instructions": NABIL_REALTIME_INSTRUCTIONS,
         "audio": {
             "input": {
+                "noise_reduction": {
+                    "type": "near_field",
+                },
+                "transcription": {
+                    "model": "gpt-transcribe",
+                    "prompt": (
+                        "Lebanese Arabic educational speech mixed with English and French. "
+                        "Preserve mathematical and scientific terms accurately."
+                    ),
+                },
                 "turn_detection": {
                     "type": "server_vad",
                     "create_response": True,
@@ -5203,4 +5214,3 @@ async def nabil_realtime_call(request: Request):
         status_code=200,
         headers={"Cache-Control": "no-store"},
     )
-
