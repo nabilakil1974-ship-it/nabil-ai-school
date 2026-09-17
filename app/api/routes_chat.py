@@ -207,7 +207,7 @@ AVATAR_SYSTEM_PROMPT = """
 MASTER_CURRICULUM_INDEX_PATH = Path("app/static/crdp_master_curriculum_index.json")
 LEGACY_CURRICULUM_INDEX_PATH = Path("app/static/crdp_scientific_curriculum_index.json")
 
-CURRICULUM_SCHEMA_VERSION = "7"
+CURRICULUM_SCHEMA_VERSION = "11"
 
 
 def load_curriculum_index() -> dict:
@@ -223,6 +223,97 @@ def load_curriculum_index() -> dict:
     return {}
 
 
+
+def _master_grade_key(grade: Optional[str], branch: Optional[str]) -> str:
+    g = (grade or "").strip()
+    b = (branch or "").strip()
+
+    if g == "الثاني ثانوي" and b:
+        return f"الثاني ثانوي - {b}"
+
+    if g == "الثالث ثانوي" and b:
+        branch_map = {
+            "علوم عامة": "العلوم العامة",
+            "علوم الحياة": "علوم الحياة",
+            "اجتماع واقتصاد": "الاجتماع والاقتصاد",
+            "آداب وإنسانيات": "الآداب والإنسانيات",
+        }
+        return f"الثالث ثانوي - {branch_map.get(b, b)}"
+
+    return g
+
+
+def _master_subject_key(subject: Optional[str]) -> str:
+    s = (subject or "").strip()
+    aliases = {
+        "رياضيات": "الرياضيات",
+        "فيزياء": "الفيزياء",
+        "كيمياء": "الكيمياء",
+        "علوم": "علوم",
+        "علوم الحياة": "علوم الحياة",
+        "اللغة العربية": "اللغة العربية",
+        "اللغة الفرنسية": "اللغة الفرنسية",
+        "اللغة الإنجليزية": "اللغة الإنجليزية",
+        "التربية الوطنية والتنشئة المدنية": "التربية الوطنية والتنشئة المدنية",
+    }
+    return aliases.get(s, s)
+
+
+def _norm_lesson_title(value: Optional[str]) -> str:
+    return " ".join(str(value or "").strip().lower().split())
+
+
+def _find_master_lesson(
+    index: dict,
+    grade: Optional[str],
+    branch: Optional[str],
+    subject: Optional[str],
+    lesson_title: Optional[str],
+) -> Optional[dict]:
+    catalog = index.get("catalog", {})
+    if not isinstance(catalog, dict):
+        return None
+
+    grade_key = _master_grade_key(grade, branch)
+    subject_key = _master_subject_key(subject)
+    wanted = _norm_lesson_title(lesson_title)
+
+    grade_node = catalog.get(grade_key, {})
+    if not isinstance(grade_node, dict):
+        return None
+
+    subject_node = grade_node.get("subjects", {}).get(subject_key, {})
+    if not isinstance(subject_node, dict):
+        return None
+
+    for language, language_node in subject_node.get("languages", {}).items():
+        if not isinstance(language_node, dict):
+            continue
+
+        for item in language_node.get("lessons", []):
+            if isinstance(item, str):
+                title = item
+                metadata = {"title": item}
+            elif isinstance(item, dict):
+                title = item.get("title") or item.get("lesson") or item.get("name")
+                metadata = dict(item)
+            else:
+                continue
+
+            if _norm_lesson_title(title) == wanted:
+                metadata.setdefault("title", str(title))
+                metadata.setdefault("language", language)
+                metadata.setdefault("grade", grade_key)
+                metadata.setdefault("subject", subject_key)
+                metadata.setdefault(
+                    "status",
+                    metadata.get("verification_status") or "verified"
+                )
+                return metadata
+
+    return None
+
+
 def get_lesson_policy(
     grade: Optional[str],
     branch: Optional[str],
@@ -230,183 +321,85 @@ def get_lesson_policy(
     lesson_title: Optional[str],
 ) -> Optional[dict]:
     """
-    Resolve one lesson for ANY grade/subject/language structure.
-    The canonical source is catalog[grade].subjects[subject].
-    Legacy verified structures are fallback evidence only.
-    """
+    Resolve a lesson from the CRDP master catalog first.
 
+    If the requested grade/subject scope exists in the master catalog, the
+    lesson title must match an indexed lesson exactly after whitespace/case
+    normalization. This prevents older fallback indexes from overriding the
+    current verified scope.
+    """
     grade_text = (grade or "").strip()
-    branch_text = (branch or "").strip()
     subject_text = (subject or "").strip()
-    lesson_text = (lesson_title or "").strip().lower()
+    lesson_text = (lesson_title or "").strip()
 
     if not all([grade_text, subject_text, lesson_text]):
         return None
 
     index = load_curriculum_index()
 
-    def _matches(value: str) -> bool:
-        title = str(value or "").strip().lower()
-        if not title:
-            return False
-        return (
-            title == lesson_text
-            or lesson_text in title
-            or title in lesson_text
+    master = _find_master_lesson(
+        index=index,
+        grade=grade,
+        branch=branch,
+        subject=subject,
+        lesson_title=lesson_title,
+    )
+    if master:
+        return master
+
+    catalog = index.get("catalog", {})
+    if isinstance(catalog, dict) and catalog:
+        grade_key = _master_grade_key(grade, branch)
+        subject_key = _master_subject_key(subject)
+        grade_node = catalog.get(grade_key, {})
+        subject_node = (
+            grade_node.get("subjects", {}).get(subject_key)
+            if isinstance(grade_node, dict)
+            else None
         )
 
-    def _walk(node):
+        # If this scope exists in the master index, do not bypass it with an
+        # older fallback index just because the lesson title was not found.
+        if isinstance(subject_node, dict):
+            return None
+
+    # Legacy fallback is used only for scopes not yet present in master.
+    legacy_index = {}
+    try:
+        if LEGACY_CURRICULUM_INDEX_PATH.exists():
+            legacy_index = json.loads(
+                LEGACY_CURRICULUM_INDEX_PATH.read_text(encoding="utf-8")
+            )
+    except Exception:
+        legacy_index = {}
+
+    verified = legacy_index.get("verified_index", {})
+    subject_node = verified.get(subject_text, {}) if isinstance(verified, dict) else {}
+    grade_node = subject_node.get(grade_text, {}) if isinstance(subject_node, dict) else {}
+    wanted = _norm_lesson_title(lesson_title)
+
+    def walk(node):
         if isinstance(node, dict):
             title = node.get("title") or node.get("lesson") or node.get("name")
-            if title and _matches(title):
-                item = dict(node)
-                item.setdefault("title", str(title))
-                item.setdefault("status", node.get("verification_status") or "verified")
-                return item
-
-            # Prefer actual lesson containers before metadata.
-            for key in ("lessons", "books", "languages", "subjects", "chapters", "units"):
-                if key in node:
-                    found = _walk(node[key])
-                    if found:
-                        return found
-
-            for key, value in node.items():
-                if str(key).startswith("_") or key in {
-                    "policy","scope","sources","official_sources","sync_state"
-                }:
-                    continue
-                found = _walk(value)
+            if title and _norm_lesson_title(title) == wanted:
+                result = dict(node)
+                result.setdefault("title", str(title))
+                result.setdefault("status", result.get("verification_status") or "verified")
+                return result
+            for value in node.values():
+                found = walk(value)
                 if found:
                     return found
-
         elif isinstance(node, list):
-            for item in node:
-                if isinstance(item, str) and _matches(item):
-                    return {"title": item, "status": "verified"}
-                found = _walk(item)
+            for value in node:
+                found = walk(value)
                 if found:
                     return found
-
-        elif isinstance(node, str) and _matches(node):
+        elif isinstance(node, str) and _norm_lesson_title(node) == wanted:
             return {"title": node, "status": "verified"}
-
         return None
 
-    candidates = []
-
-    # 1) Universal canonical catalog — all grades and all subjects.
-    catalog = index.get("catalog", {})
-    grade_node = catalog.get(grade_text, {}) if isinstance(catalog, dict) else {}
-    if isinstance(grade_node, dict):
-        subjects = grade_node.get("subjects", {})
-        if isinstance(subjects, dict):
-            # Exact subject first.
-            if subject_text in subjects:
-                candidates.append(subjects[subject_text])
-
-            # Secondary branch can live inside the subject node or grade node.
-            if branch_text:
-                branch_node = grade_node.get("branches", {}).get(branch_text, {})
-                if isinstance(branch_node, dict):
-                    branch_subjects = branch_node.get("subjects", {})
-                    if isinstance(branch_subjects, dict) and subject_text in branch_subjects:
-                        candidates.append(branch_subjects[subject_text])
-
-    # 2) Legacy verified index as fallback evidence only.
-    verified = (
-        index.get("legacy_verified_index")
-        or index.get("verified_index")
-        or {}
-    )
-    if isinstance(verified, dict):
-        subject_node = verified.get(subject_text, {})
-        if isinstance(subject_node, dict):
-            candidates.append(subject_node.get(grade_text, {}))
-
-    # 3) Legacy annual structures for compatibility.
-    annual = index.get("annual_curriculum_details", {})
-    if isinstance(annual, dict):
-        candidates.append(annual)
-
-    secondary = index.get("secondary_structure", {})
-    if isinstance(secondary, dict):
-        candidates.append(secondary)
-
-    for candidate in candidates:
-        found = _walk(candidate)
-        if found:
-            return found
-
-    return None
-
-
-def format_lesson_policy_for_prompt(
-    policy: Optional[dict],
-) -> str:
-
-    if not policy:
-        return (
-            "لا توجد تفاصيل رسمية كافية لهذا الدرس في فهرس CRDP المحلي الحالي. "
-            "لا توسّع الدرس من الذاكرة العامة ولا تنشئ عناوين فرعية غير موثقة. "
-            "التزم بعنوان الدرس وما يرد صراحة في سؤال/صورة الطالب، أو اطلب مرجعًا أوضح عند الحاجة."
-        )
-
-    included = policy.get(
-        "included_sections",
-        []
-    )
-
-    suspended = policy.get(
-        "suspended_sections",
-        []
-    )
-
-    status = policy.get(
-        "status",
-        "maintained"
-    )
-
-    lines = [
-        f"حالة الدرس الرسمية: {status}.",
-        (
-            "مسموح شرح الدرس ضمن الحدود "
-            "المذكورة في الفهرسة السنوية فقط."
-        ),
-    ]
-
-    if included:
-        lines.append(
-            "الأجزاء المطلوبة حصراً:"
-        )
-
-        lines.extend(
-            f"- {item}"
-            for item in included
-        )
-
-    if suspended:
-        lines.append(
-            "الأجزاء المعلّقة/المحذوفة "
-            "وممنوع شرحها كجزء مطلوب:"
-        )
-
-        lines.extend(
-            f"- {item}"
-            for item in suspended
-        )
-
-    if policy.get("notes"):
-        lines.append(
-            "ملاحظة رسمية:"
-        )
-        lines.append(
-            str(
-                policy["notes"]
-            )
-        )
-
-    return "\n".join(lines)
+    return walk(grade_node)
 
 
 def build_curriculum_guardrail(
@@ -3773,6 +3766,26 @@ def build_teacher_assessment(payload: TeacherAssessmentRequest):
         raise HTTPException(status_code=422, detail="اختر المادة.")
     if not lessons:
         raise HTTPException(status_code=422, detail="اختر درسًا واحدًا على الأقل.")
+
+    # Competition/assessment must use the same CRDP master lesson catalog.
+    invalid_lessons = [
+        lesson
+        for lesson in lessons
+        if get_lesson_policy(
+            grade=payload.grade,
+            branch=payload.branch,
+            subject=payload.subject,
+            lesson_title=lesson,
+        ) is None
+    ]
+    if invalid_lessons:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "هذه الدروس غير موجودة في فهرس CRDP الموثق الحالي: "
+                + "، ".join(invalid_lessons)
+            ),
+        )
 
     variants_count = max(1, min(int(payload.variants or 1), 3))
     duration = max(15, min(int(payload.duration_minutes or 60), 240))
