@@ -4664,6 +4664,18 @@ button[onclick*="talkBtn"]{
 }
 </style>
 
+
+<script id="nabil-universal-curriculum-guard">
+window.NABIL_MASTER_CURRICULUM_POLICY = Object.freeze({
+  allGrades:true,
+  allSubjects:true,
+  noGradeSpecificHardcoding:true,
+  neverInventLessonTitles:true,
+  lessonModeBookGrounded:true,
+  functionStudyOnlyWhenExplicit:true
+});
+</script>
+
 </head>
 
 <body>
@@ -5137,6 +5149,7 @@ async function loadCurriculum() {
 
         const response =
             await fetch(
+                "/static/crdp_master_curriculum_index.json",
                 "/static/crdp_scientific_curriculum_index.json",
                 {
                     cache: "no-store"
