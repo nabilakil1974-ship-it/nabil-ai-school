@@ -1,8 +1,8 @@
 {
-  "schema_version": "6.0",
+  "schema_version": "6.1",
   "authority": "CRDP Lebanon",
   "academic_year": "2025-2026",
-  "generated_at": "2026-09-17T15:48:58.240825+00:00",
+  "generated_at": "2026-09-17T16:09:52.865648+00:00",
   "policy": {
     "all_grades": true,
     "all_subjects": true,
@@ -10,6 +10,7 @@
     "preserve_official_order": true,
     "reject_instruction_rows": true,
     "page_local_grade_detection": true,
+    "reject_language_script_mismatch": true,
     "never_inherit_grade_across_pages": true
   },
   "catalog": {
