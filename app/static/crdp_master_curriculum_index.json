@@ -1,0 +1,356 @@
+{
+  "schema_version": "3.0",
+  "authority": "Centre for Educational Research and Development (CRDP) Lebanon",
+  "academic_year": "2025-2026",
+  "policy": {
+    "all_grades": true,
+    "all_subjects": true,
+    "no_grade_specific_hardcoding": true,
+    "never_invent_lesson_titles": true,
+    "preserve_official_order": true,
+    "keep_textbook_chapter_separate_from_annual_teaching_order": true,
+    "lesson_mode_must_be_book_grounded": true,
+    "general_exercises_may_be_cross_subject": true,
+    "function_study_only_for_explicit_function_requests": true
+  },
+  "official_sources": {
+    "home": "https://www.crdp.org/",
+    "books": "https://www.crdp.org/books-pdf",
+    "curriculum": "https://www.crdp.org/curriculum",
+    "legacy_curriculum": "https://www.crdp.org/curriculum1/173"
+  },
+  "scope": {
+    "grades": [
+      "الروضة الأولى",
+      "الروضة الثانية",
+      "الروضة الثالثة",
+      "الصف الأول",
+      "الصف الثاني",
+      "الصف الثالث",
+      "الصف الرابع",
+      "الصف الخامس",
+      "الصف السادس",
+      "الصف السابع",
+      "الصف الثامن",
+      "الصف التاسع",
+      "الأول ثانوي",
+      "الثاني ثانوي - العلوم",
+      "الثاني ثانوي - الإنسانيات",
+      "الثالث ثانوي - علوم الحياة",
+      "الثالث ثانوي - العلوم العامة",
+      "الثالث ثانوي - الاجتماع والاقتصاد",
+      "الثالث ثانوي - الآداب والإنسانيات"
+    ],
+    "subjects": [
+      "الروضة",
+      "اللغة العربية",
+      "اللغة الفرنسية",
+      "اللغة الإنجليزية",
+      "الرياضيات",
+      "علوم",
+      "الفيزياء",
+      "الكيمياء",
+      "علوم الحياة",
+      "التربية الوطنية والتنشئة المدنية",
+      "التاريخ",
+      "الجغرافيا",
+      "علم الاجتماع",
+      "علم الاقتصاد",
+      "الفلسفة والحضارات"
+    ],
+    "languages": [
+      "العربية",
+      "English",
+      "Français"
+    ]
+  },
+  "catalog": {
+    "الروضة الأولى": {
+      "_status": "awaiting_official_sync",
+      "_rule": "Do not expose a lesson unless it is explicitly verified from an official CRDP source.",
+      "subjects": {}
+    },
+    "الروضة الثانية": {
+      "_status": "awaiting_official_sync",
+      "_rule": "Do not expose a lesson unless it is explicitly verified from an official CRDP source.",
+      "subjects": {}
+    },
+    "الروضة الثالثة": {
+      "_status": "awaiting_official_sync",
+      "_rule": "Do not expose a lesson unless it is explicitly verified from an official CRDP source.",
+      "subjects": {}
+    },
+    "الصف الأول": {
+      "_status": "awaiting_official_sync",
+      "_rule": "Do not expose a lesson unless it is explicitly verified from an official CRDP source.",
+      "subjects": {}
+    },
+    "الصف الثاني": {
+      "_status": "awaiting_official_sync",
+      "_rule": "Do not expose a lesson unless it is explicitly verified from an official CRDP source.",
+      "subjects": {}
+    },
+    "الصف الثالث": {
+      "_status": "awaiting_official_sync",
+      "_rule": "Do not expose a lesson unless it is explicitly verified from an official CRDP source.",
+      "subjects": {}
+    },
+    "الصف الرابع": {
+      "_status": "awaiting_official_sync",
+      "_rule": "Do not expose a lesson unless it is explicitly verified from an official CRDP source.",
+      "subjects": {}
+    },
+    "الصف الخامس": {
+      "_status": "awaiting_official_sync",
+      "_rule": "Do not expose a lesson unless it is explicitly verified from an official CRDP source.",
+      "subjects": {}
+    },
+    "الصف السادس": {
+      "_status": "awaiting_official_sync",
+      "_rule": "Do not expose a lesson unless it is explicitly verified from an official CRDP source.",
+      "subjects": {}
+    },
+    "الصف السابع": {
+      "_status": "awaiting_official_sync",
+      "_rule": "Do not expose a lesson unless it is explicitly verified from an official CRDP source.",
+      "subjects": {}
+    },
+    "الصف الثامن": {
+      "_status": "awaiting_official_sync",
+      "_rule": "Do not expose a lesson unless it is explicitly verified from an official CRDP source.",
+      "subjects": {}
+    },
+    "الصف التاسع": {
+      "_status": "awaiting_official_sync",
+      "_rule": "Do not expose a lesson unless it is explicitly verified from an official CRDP source.",
+      "subjects": {}
+    },
+    "الأول ثانوي": {
+      "_status": "awaiting_official_sync",
+      "_rule": "Do not expose a lesson unless it is explicitly verified from an official CRDP source.",
+      "subjects": {}
+    },
+    "الثاني ثانوي - العلوم": {
+      "_status": "awaiting_official_sync",
+      "_rule": "Do not expose a lesson unless it is explicitly verified from an official CRDP source.",
+      "subjects": {}
+    },
+    "الثاني ثانوي - الإنسانيات": {
+      "_status": "awaiting_official_sync",
+      "_rule": "Do not expose a lesson unless it is explicitly verified from an official CRDP source.",
+      "subjects": {}
+    },
+    "الثالث ثانوي - علوم الحياة": {
+      "_status": "awaiting_official_sync",
+      "_rule": "Do not expose a lesson unless it is explicitly verified from an official CRDP source.",
+      "subjects": {}
+    },
+    "الثالث ثانوي - العلوم العامة": {
+      "_status": "awaiting_official_sync",
+      "_rule": "Do not expose a lesson unless it is explicitly verified from an official CRDP source.",
+      "subjects": {}
+    },
+    "الثالث ثانوي - الاجتماع والاقتصاد": {
+      "_status": "awaiting_official_sync",
+      "_rule": "Do not expose a lesson unless it is explicitly verified from an official CRDP source.",
+      "subjects": {}
+    },
+    "الثالث ثانوي - الآداب والإنسانيات": {
+      "_status": "awaiting_official_sync",
+      "_rule": "Do not expose a lesson unless it is explicitly verified from an official CRDP source.",
+      "subjects": {}
+    }
+  },
+  "legacy_verified_index": {
+    "علوم": {
+      "الصف الأول": [
+        "النباتات والبيئة",
+        "الحيوانات والبيئة",
+        "الإنسان والصحة",
+        "المادة والطاقة",
+        "الأرض والكون"
+      ],
+      "الصف الثاني": [
+        "النباتات والبيئة",
+        "الحيوانات والبيئة",
+        "الإنسان والصحة",
+        "المادة والطاقة",
+        "الأرض والكون"
+      ],
+      "الصف الثالث": [
+        "النباتات والبيئة",
+        "الحيوانات والبيئة",
+        "الإنسان والصحة",
+        "المادة والطاقة",
+        "الأرض والكون"
+      ],
+      "الصف الرابع": [
+        "النباتات والبيئة",
+        "الحيوانات والبيئة",
+        "الإنسان والصحة",
+        "المادة والطاقة",
+        "الأرض والكون"
+      ],
+      "الصف الخامس": [
+        "النباتات والبيئة",
+        "الحيوانات والبيئة",
+        "الإنسان والصحة",
+        "المادة والطاقة",
+        "الأرض والكون"
+      ],
+      "الصف السادس": [
+        "النباتات والبيئة",
+        "الحيوانات والبيئة",
+        "الإنسان والصحة",
+        "الإنسان والبيئة",
+        "المادة والطاقة",
+        "الأرض والكون"
+      ]
+    },
+    "الفيزياء": {
+      "الصف السابع": [
+        "المادة",
+        "الكهرباء"
+      ],
+      "الصف الثامن": [
+        "الميكانيك",
+        "الموجات",
+        "البصريات"
+      ],
+      "الصف التاسع": [
+        "الميكانيك",
+        "الكهرباء",
+        "الحرارة",
+        "البصريات"
+      ],
+      "الأول ثانوي": [
+        "فيزياء المرحلة الثانوية — بحسب الفرع"
+      ],
+      "الثاني ثانوي": [
+        "فيزياء المرحلة الثانوية — بحسب الفرع"
+      ],
+      "الثالث ثانوي": [
+        "العلوم العامة: فيزياء",
+        "علوم الحياة: فيزياء"
+      ]
+    },
+    "الكيمياء": {
+      "الصف السابع": [
+        "تصنيف ومكونات المادة",
+        "التفاعلات الكيميائية والطاقة"
+      ],
+      "الصف الثامن": [
+        "تصنيف ومكونات المادة",
+        "التفاعلات والطاقة",
+        "الروابط الكيميائية"
+      ],
+      "الصف التاسع": [
+        "الذرة",
+        "التفاعلات الكيميائية",
+        "الأحماض والقواعد والأملاح",
+        "الكهروكيمياء",
+        "الكيمياء العضوية",
+        "البيئة"
+      ],
+      "الأول ثانوي": [
+        "كيمياء المرحلة الثانوية — بحسب الفرع"
+      ],
+      "الثاني ثانوي": [
+        "كيمياء المرحلة الثانوية — بحسب الفرع"
+      ],
+      "الثالث ثانوي": [
+        "العلوم العامة: كيمياء",
+        "علوم الحياة: كيمياء"
+      ]
+    },
+    "علوم الحياة": {
+      "الصف السابع": [
+        "التغذية",
+        "التكاثر والوراثة",
+        "العلاقات المتبادلة بين الكائنات الحية"
+      ],
+      "الصف الثامن": [
+        "التغذية",
+        "التكاثر والوراثة",
+        "المناعة",
+        "التنسيق العصبي والسلوك"
+      ],
+      "الصف التاسع": [
+        "التكاثر والوراثة",
+        "الأرض والبيئة"
+      ],
+      "الأول ثانوي": [
+        "علوم الحياة — بحسب الفرع"
+      ],
+      "الثاني ثانوي": [
+        "علوم الحياة — بحسب الفرع"
+      ],
+      "الثالث ثانوي": [
+        "علوم الحياة — فرع علوم الحياة"
+      ]
+    },
+    "رياضيات": {
+      "الصف السابع": [
+        "الأعداد الأولية",
+        "تحليل العدد إلى عوامل أولية",
+        "الكسور",
+        "الأعداد العشرية",
+        "العمليات والقوى",
+        "التناسبية",
+        "العبارات الجبرية",
+        "المعادلات والمتراجحات",
+        "الهندسة"
+      ],
+      "الصف الثامن": [
+        "الجذور التربيعية",
+        "القوى",
+        "التعابير الجبرية",
+        "الهويات الشهيرة",
+        "المعادلات والمتراجحات"
+      ],
+      "الأول ثانوي": [
+        "المجموعات والجداء الديكارتي والتطبيق والتقابل",
+        "الجذور التربيعية وقوى العدد الحقيقي",
+        "الفترات والقيمة المطلقة والتقريب والتعداد",
+        "المعادلات والمتراجحات وأنظمة 2×2",
+        "كثيرات الحدود",
+        "الهندسة في المستوى والفضاء",
+        "المتجهات والمرجع",
+        "الدوال والتمثيل البياني",
+        "المثلثات",
+        "الإحصاء"
+      ],
+      "الثاني ثانوي": [
+        "العلاقات الثنائية",
+        "الترتيبات والتباديل",
+        "أنظمة 3×3",
+        "البرمجة الخطية",
+        "كثيرات الحدود من الدرجة الثانية",
+        "الأعداد العقدية",
+        "الهندسة في الفضاء",
+        "الإسقاطات",
+        "الدوائر والتحويلات"
+      ],
+      "الثالث ثانوي": [
+        "قانون التشكيل الداخلي",
+        "بنية الزمرة",
+        "التوافيق وثنائي الحدين",
+        "الأنظمة الخطية وطريقة غاوس",
+        "الأعداد العقدية",
+        "الدوال والتابع العكسي",
+        "اللوغاريتم النيبيري ln",
+        "الدوال الأسية",
+        "المتتاليات",
+        "الاشتقاق",
+        "قاعدة لوبيتال",
+        "التكامل",
+        "المعادلات التفاضلية",
+        "الهندسة في الفضاء"
+      ]
+    }
+  },
+  "sync_state": {
+    "status": "universal_engine_ready",
+    "coverage_note": "The engine covers every grade/subject. Lesson names are populated only by official CRDP sync; no special Grade 7 seed is used."
+  }
+}
