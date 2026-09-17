@@ -1,11 +1,17 @@
 from __future__ import annotations
-import hashlib, json, re, sys
+
+import hashlib
+import json
+import re
+import sys
 from datetime import datetime, timezone
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
-import requests
+
 import fitz
+import requests
+
 
 ANNUAL_PAGE = (
     "https://www.crdp.org/curriculum/"
@@ -17,286 +23,483 @@ ANNUAL_PAGE = (
     "%D9%84%D9%84%D8%A8%D8%AD%D9%88%D8%AB"
 )
 BOOKS_PAGE = "https://www.crdp.org/books-pdf"
-ALLOWED_HOSTS = {"crdp.org","www.crdp.org","ns1.crdp.org","ns2.crdp.org","store.crdp.org","212.36.216.179"}
+
+ALLOWED_HOSTS = {
+    "crdp.org", "www.crdp.org", "ns1.crdp.org", "ns2.crdp.org",
+    "store.crdp.org", "212.36.216.179"
+}
 
 GRADES = [
- "الروضة الأولى","الروضة الثانية","الروضة الثالثة",
- "الصف الأول","الصف الثاني","الصف الثالث","الصف الرابع","الصف الخامس","الصف السادس",
- "الصف السابع","الصف الثامن","الصف التاسع","الأول ثانوي",
- "الثاني ثانوي - العلوم","الثاني ثانوي - الإنسانيات",
- "الثالث ثانوي - علوم الحياة","الثالث ثانوي - العلوم العامة",
- "الثالث ثانوي - الاجتماع والاقتصاد","الثالث ثانوي - الآداب والإنسانيات"
+    "الروضة الأولى", "الروضة الثانية", "الروضة الثالثة",
+    "الصف الأول", "الصف الثاني", "الصف الثالث", "الصف الرابع", "الصف الخامس", "الصف السادس",
+    "الصف السابع", "الصف الثامن", "الصف التاسع",
+    "الأول ثانوي",
+    "الثاني ثانوي - العلوم", "الثاني ثانوي - الإنسانيات",
+    "الثالث ثانوي - علوم الحياة", "الثالث ثانوي - العلوم العامة",
+    "الثالث ثانوي - الاجتماع والاقتصاد", "الثالث ثانوي - الآداب والإنسانيات",
 ]
-SUBJECTS = ["الروضة","اللغة العربية","اللغة الفرنسية","اللغة الإنجليزية","الرياضيات","علوم","الفيزياء","الكيمياء","علوم الحياة","التربية الوطنية والتنشئة المدنية","التاريخ","الجغرافيا","علم الاجتماع","علم الاقتصاد","الفلسفة والحضارات"]
+
+SUBJECTS = [
+    "الروضة", "اللغة العربية", "اللغة الفرنسية", "اللغة الإنجليزية",
+    "الرياضيات", "علوم", "الفيزياء", "الكيمياء", "علوم الحياة",
+    "التربية الوطنية والتنشئة المدنية", "التاريخ", "الجغرافيا",
+    "علم الاجتماع", "علم الاقتصاد", "الفلسفة والحضارات",
+]
 
 SUBJECT_ALIASES = [
- ("مادة اللغة العربية وآدابها","اللغة العربية"),
- ("مادة اللغة الفرنسية وآدابها","اللغة الفرنسية"),
- ("مادة اللغة الانكليزية وآدابها","اللغة الإنجليزية"),
- ("مادة اللغة الإنجليزية وآدابها","اللغة الإنجليزية"),
- ("مادة التربية الوطنية والتنشئة المدنية","التربية الوطنية والتنشئة المدنية"),
- ("مادة علم الاجتماع","علم الاجتماع"),("مادة علم الاقتصاد","علم الاقتصاد"),
- ("مادة علوم الحياة","علوم الحياة"),("مادة الفيزياء","الفيزياء"),
- ("مادة الكيمياء","الكيمياء"),("مادة الرياضيات","الرياضيات"),
- ("مادة التاريخ","التاريخ"),("مادة الجغرافيا","الجغرافيا"),
- ("مادة العلوم","علوم"),("مادة الفلسفة","الفلسفة والحضارات"),
- ("منهج الروضة","الروضة"),
+    ("مادة اللغة العربية وآدابها", "اللغة العربية"),
+    ("مادة اللغة الفرنسية وآدابها", "اللغة الفرنسية"),
+    ("مادة اللغة الانكليزية وآدابها", "اللغة الإنجليزية"),
+    ("مادة اللغة الإنجليزية وآدابها", "اللغة الإنجليزية"),
+    ("مادة التربية الوطنية والتنشئة المدنية", "التربية الوطنية والتنشئة المدنية"),
+    ("مادة علم الاجتماع", "علم الاجتماع"),
+    ("مادة علم الاقتصاد", "علم الاقتصاد"),
+    ("مادة علوم الحياة", "علوم الحياة"),
+    ("مادة الفيزياء", "الفيزياء"),
+    ("مادة الكيمياء", "الكيمياء"),
+    ("مادة الرياضيات", "الرياضيات"),
+    ("مادة التاريخ", "التاريخ"),
+    ("مادة الجغرافيا", "الجغرافيا"),
+    ("مادة العلوم", "علوم"),
+    ("مادة الفلسفة", "الفلسفة والحضارات"),
+    ("منهج الروضة", "الروضة"),
 ]
 
-NOTE_PATTERNS = [
- r"\bsuspend\b", r"\bmaintain(?:ed)?\b", r"\bretained\b", r"\bprerequisite",
- r"\brecall(?:ing)?\b", r"\bwithout writing\b", r"\bdo not\b", r"\bnot required\b",
- r"\bomitted\b", r"\bdeleted\b", r"معل[ّ]?ق", r"محذوف", r"لا يطلب", r"موقوف"
+BAD_NOTE_PATTERNS = [
+    r"\bsuspend\b", r"\bmaintain(?:ed)?\b", r"\bretained\b", r"\bprerequisite",
+    r"\brecall(?:ing)?\b", r"\bwithout writing\b", r"\bdo not\b", r"\bnot required\b",
+    r"\bomitted\b", r"\bdeleted\b", r"\bpages?\s+\d+\s*(?:and|-)\s*\d+",
+    r"معل[ّ]?ق", r"محذوف", r"لا يطلب", r"موقوف", r"يُلغى", r"يلغى",
 ]
+
+REVERSED_ARABIC_MARKERS = [
+    "لسلست", "ةداملا", "ةيميلعتلا", "عقاولا", "شاعملا",
+    "اذه يف يهتني", "ة يعماجلا", "تاصاصتخ",
+]
+
 
 class LinkParser(HTMLParser):
-    def __init__(self): super().__init__(); self.links=[]; self.href=None; self.buf=[]
-    def handle_starttag(self,tag,attrs):
-        if tag.lower()=="a": self.href=dict(attrs).get("href"); self.buf=[]
-    def handle_data(self,data):
-        if self.href is not None: self.buf.append(data)
-    def handle_endtag(self,tag):
-        if tag.lower()=="a" and self.href is not None:
-            self.links.append((" ".join("".join(self.buf).split()),self.href)); self.href=None; self.buf=[]
+    def __init__(self):
+        super().__init__()
+        self.links = []
+        self.href = None
+        self.buf = []
 
-def norm(s): return " ".join(str(s or "").replace("\u00a0"," ").split()).strip()
-def allowed(url): return (urlparse(url).hostname or "").lower() in ALLOWED_HOSTS
+    def handle_starttag(self, tag, attrs):
+        if tag.lower() == "a":
+            self.href = dict(attrs).get("href")
+            self.buf = []
+
+    def handle_data(self, data):
+        if self.href is not None:
+            self.buf.append(data)
+
+    def handle_endtag(self, tag):
+        if tag.lower() == "a" and self.href is not None:
+            self.links.append((" ".join("".join(self.buf).split()), self.href))
+            self.href = None
+            self.buf = []
+
+
+def norm(value):
+    return " ".join(str(value or "").replace("\u00a0", " ").split()).strip()
+
+
+def allowed(url):
+    return (urlparse(url).hostname or "").lower() in ALLOWED_HOSTS
+
+
 def get(url):
-    if not allowed(url): raise RuntimeError(f"Refusing non-CRDP host: {url}")
-    r=requests.get(url,timeout=75,headers={"User-Agent":"NABIL-AI-CRDP-Sync/6.0"},allow_redirects=True)
+    if not allowed(url):
+        raise RuntimeError(f"Refusing non-CRDP host: {url}")
+    r = requests.get(
+        url, timeout=75,
+        headers={"User-Agent": "NABIL-AI-CRDP-Sync/7.0"},
+        allow_redirects=True,
+    )
     r.raise_for_status()
     return r
+
+
 def html_links(url):
-    p=LinkParser(); p.feed(get(url).text); out=[]
-    for label,href in p.links:
-        if href:
-            full=urljoin(url,href)
-            if allowed(full): out.append((norm(label),full))
+    p = LinkParser()
+    p.feed(get(url).text)
+    out = []
+    for label, href in p.links:
+        if not href:
+            continue
+        full = urljoin(url, href)
+        if allowed(full):
+            out.append((norm(label), full))
     return out
-def detect_subject_from_link(label,url):
-    h=f"{label} {url}"
-    for raw,canon in SUBJECT_ALIASES:
-        if raw in h: return canon
+
+
+def detect_subject_from_link(label, url):
+    hay = f"{label} {url}"
+    for raw, canon in SUBJECT_ALIASES:
+        if raw in hay:
+            return canon
     return None
 
-def detect_grade_from_page(text):
-    """
-    STRICT page-local grade detection.
-    Never inherit a grade from prior pages.
-    """
-    h=norm(text[:2500]).lower()
 
-    # Secondary branches first.
+def grade_from_text(text):
+    """
+    Strong grade detection for headers AND grade-marker table rows.
+    No cross-page inheritance.
+    """
+    s = norm(text).lower()
+
     rules = [
-      (r"السنة الثالثة.*علوم الحياة", "الثالث ثانوي - علوم الحياة"),
-      (r"السنة الثالثة.*العلوم العامة|الثالث.*علوم عامة", "الثالث ثانوي - العلوم العامة"),
-      (r"السنة الثالثة.*الاجتماع.*الاقتصاد", "الثالث ثانوي - الاجتماع والاقتصاد"),
-      (r"السنة الثالثة.*الآداب.*الإنسانيات", "الثالث ثانوي - الآداب والإنسانيات"),
-      (r"السنة الثانية.*فرع العلوم", "الثاني ثانوي - العلوم"),
-      (r"السنة الثانية.*الإنسانيات", "الثاني ثانوي - الإنسانيات"),
-      (r"التعليم الثانوي.*السنة الأولى|الأول ثانوي", "الأول ثانوي"),
-      (r"grade\s*12.*life sciences|3(?:rd)?\s*secondary.*life sciences|s3.*sv", "الثالث ثانوي - علوم الحياة"),
-      (r"grade\s*12.*general sciences|3(?:rd)?\s*secondary.*general sciences|s3.*sg", "الثالث ثانوي - العلوم العامة"),
-      (r"grade\s*12.*socio.?economics|s3.*se", "الثالث ثانوي - الاجتماع والاقتصاد"),
-      (r"grade\s*12.*literature.*humanities|s3.*lh", "الثالث ثانوي - الآداب والإنسانيات"),
-      (r"grade\s*11.*science|s2.*science", "الثاني ثانوي - العلوم"),
-      (r"grade\s*11.*humanit|s2.*humanit", "الثاني ثانوي - الإنسانيات"),
-      (r"grade\s*10|1(?:st)?\s*secondary|\bs1\b", "الأول ثانوي"),
+        # KG
+        (r"(?:الروضة|مرحلة الروضة).*(?:السنة\s*)?الأولى|(?:kg|ps)\s*1\b", "الروضة الأولى"),
+        (r"(?:الروضة|مرحلة الروضة).*(?:السنة\s*)?الثانية|(?:kg|ps)\s*2\b", "الروضة الثانية"),
+        (r"(?:الروضة|مرحلة الروضة).*(?:السنة\s*)?الثالثة|(?:kg|ps)\s*3\b", "الروضة الثالثة"),
+
+        # Third secondary branches — Arabic
+        (r"(?:الصف\s*)?الثالث\s*ثانوي.*علوم\s*الحياة|السنة\s*الثالثة.*علوم\s*الحياة", "الثالث ثانوي - علوم الحياة"),
+        (r"(?:الصف\s*)?الثالث\s*ثانوي.*العلوم\s*العامة|السنة\s*الثالثة.*العلوم\s*العامة", "الثالث ثانوي - العلوم العامة"),
+        (r"(?:الصف\s*)?الثالث\s*ثانوي.*(?:اجتماع|الاجتماع).*(?:اقتصاد|الاقتصاد)|السنة\s*الثالثة.*(?:اجتماع|الاجتماع).*(?:اقتصاد|الاقتصاد)", "الثالث ثانوي - الاجتماع والاقتصاد"),
+        (r"(?:الصف\s*)?الثالث\s*ثانوي.*(?:آداب|الآداب).*(?:إنسانيات|الإنسانيات)|السنة\s*الثالثة.*(?:آداب|الآداب).*(?:إنسانيات|الإنسانيات)", "الثالث ثانوي - الآداب والإنسانيات"),
+
+        # Third secondary branches — English/French/common abbreviations
+        (r"(?:grade\s*12|third\s*secondary|3(?:rd)?\s*secondary|s3).*(?:life\s*sciences?|sciences?\s*de\s*la\s*vie|\bsv\b|\bls\b)", "الثالث ثانوي - علوم الحياة"),
+        (r"(?:grade\s*12|third\s*secondary|3(?:rd)?\s*secondary|s3).*(?:general\s*sciences?|sciences?\s*g[ée]n[ée]rales?|\bsg\b|\bgs\b)", "الثالث ثانوي - العلوم العامة"),
+        (r"(?:grade\s*12|third\s*secondary|3(?:rd)?\s*secondary|s3).*(?:socio.?economics?|economics?.*sociology|\bse\b)", "الثالث ثانوي - الاجتماع والاقتصاد"),
+        (r"(?:grade\s*12|third\s*secondary|3(?:rd)?\s*secondary|s3).*(?:literature.*humanities|humanities.*literature|\blh\b)", "الثالث ثانوي - الآداب والإنسانيات"),
+
+        # Second secondary
+        (r"(?:الصف\s*)?الثاني\s*ثانوي.*(?:فرع\s*)?العلوم|السنة\s*الثانية.*فرع\s*العلوم", "الثاني ثانوي - العلوم"),
+        (r"(?:الصف\s*)?الثاني\s*ثانوي.*(?:إنسانيات|الإنسانيات)|السنة\s*الثانية.*(?:إنسانيات|الإنسانيات)", "الثاني ثانوي - الإنسانيات"),
+        (r"(?:grade\s*11|second\s*secondary|2(?:nd)?\s*secondary|s2).*(?:science|scientifique)", "الثاني ثانوي - العلوم"),
+        (r"(?:grade\s*11|second\s*secondary|2(?:nd)?\s*secondary|s2).*(?:humanit|litt[ée]raire)", "الثاني ثانوي - الإنسانيات"),
+
+        # First secondary
+        (r"(?:الصف\s*)?الأول\s*ثانوي|التعليم\s*الثانوي.*السنة\s*الأولى|\bgrade\s*10\b|first\s*secondary|1(?:st)?\s*secondary|\bs1\b", "الأول ثانوي"),
     ]
-    for pat,grade in rules:
-        if re.search(pat,h,re.I):
+    for pat, grade in rules:
+        if re.search(pat, s, re.I):
             return grade
 
-    # KG.
-    if "الروضة" in h:
-        if "الثالثة" in h:return "الروضة الثالثة"
-        if "الثانية" in h:return "الروضة الثانية"
-        if "الأولى" in h:return "الروضة الأولى"
-
-    # Basic grades.
-    arabic = {
-      "الأولى":"الصف الأول","الثانية":"الصف الثاني","الثالثة":"الصف الثالث",
-      "الرابعة":"الصف الرابع","الخامسة":"الصف الخامس","السادسة":"الصف السادس",
-      "السابعة":"الصف السابع","الثامنة":"الصف الثامن","التاسعة":"الصف التاسع",
+    basic_words = {
+        "الأولى": "الصف الأول", "الثانية": "الصف الثاني", "الثالثة": "الصف الثالث",
+        "الرابعة": "الصف الرابع", "الخامسة": "الصف الخامس", "السادسة": "الصف السادس",
+        "السابعة": "الصف السابع", "الثامنة": "الصف الثامن", "التاسعة": "الصف التاسع",
     }
-    for word,grade in arabic.items():
-        if re.search(rf"(?:الصف|السنة)\s+{word}\b",h):
+    for word, grade in basic_words.items():
+        if re.search(rf"(?:الصف|السنة)\s+{word}\s*(?:الأساسي|الاساسي)?\b", s):
             return grade
 
-    m=re.search(r"\b(?:grade|eb)\s*([1-9])\b",h,re.I)
+    m = re.search(r"\b(?:grade|eb)\s*([1-9])\b", s, re.I)
     if m:
-        names=['','الأول','الثاني','الثالث','الرابع','الخامس','السادس','السابع','الثامن','التاسع']
+        names = ["", "الأول", "الثاني", "الثالث", "الرابع", "الخامس",
+                 "السادس", "السابع", "الثامن", "التاسع"]
         return f"الصف {names[int(m.group(1))]}"
 
     return None
 
+
 def detect_language(text):
-    low=text.lower()
-    if "national textbook" in low or "number of periods" in low:return "English"
-    if "livre national" in low or "nombre de périodes" in low:return "Français"
-    ar=len(re.findall(r"[\u0600-\u06FF]",text)); lat=len(re.findall(r"[A-Za-zÀ-ÿ]",text))
-    if ar>lat*1.2:return "العربية"
+    low = text.lower()
+    if "national textbook" in low or "number of periods" in low:
+        return "English"
+    if "livre national" in low or "nombre de périodes" in low:
+        return "Français"
+    ar = len(re.findall(r"[\u0600-\u06FF]", text))
+    lat = len(re.findall(r"[A-Za-zÀ-ÿ]", text))
+    if ar > lat * 1.2:
+        return "العربية"
     return None
 
-def is_note(title):
-    low=title.lower()
-    return any(re.search(p,low,re.I) for p in NOTE_PATTERNS)
 
-def bad_title(title):
-    t=norm(title)
-    if len(t)<3 or len(t)>160:return True
-    if is_note(t):return True
-    if any(x in t for x in ("لسلست","ةداملا","ةيميلعتلا","ةقحللاا")):return True
-    if re.match(r"^ch\.?\s*\d+\b",t,re.I):return True
-    if re.match(r"^(?:chapter|unit)\s*\d+\s*$",t,re.I):return True
-    if t.lower() in {"total","content","contenu","page"}:return True
+def numeric(value):
+    s = norm(value)
+    return int(s) if re.fullmatch(r"\d{1,3}", s) else None
+
+
+def bad_title(title, language=None):
+    t = norm(title)
+    if len(t) < 3 or len(t) > 170:
+        return True
+    low = t.lower()
+
+    if any(re.search(p, low, re.I) for p in BAD_NOTE_PATTERNS):
+        return True
+    if any(marker in t for marker in REVERSED_ARABIC_MARKERS):
+        return True
+    if re.match(r"^ch\.?\s*\d+\b", t, re.I):
+        return True
+    if re.match(r"^(?:chapter|unit|chapitre|unité)\s*\d+\s*$", t, re.I):
+        return True
+    if low in {
+        "total", "content", "contenu", "page", "pages",
+        "national textbook", "livre national", "number of periods",
+        "nombre de périodes", "chapter-topic", "chapter- topic", "chapitre-sujet",
+    }:
+        return True
+
+    # Language/script mismatch filter.
+    ar = len(re.findall(r"[\u0600-\u06FF]", t))
+    lat = len(re.findall(r"[A-Za-zÀ-ÿ]", t))
+    if language in {"English", "Français"} and ar > lat and ar > 4:
+        return True
+
     return False
 
-def numeric(s):
-    s=norm(s)
-    return int(s) if re.fullmatch(r"\d{1,3}",s) else None
 
-def page_lessons(page, grade, subject, source_url):
-    text=page.get_text("text")
-    language=detect_language(text)
-    low=text.lower()
-    if not any(k in low for k in ("national textbook","livre national","chapter- topic","chapitre-sujet","الكتاب الوطني","الكتاب المدرسي")):
-        return language,[]
-    try:
-        tables=page.find_tables().tables
-    except Exception:
-        tables=[]
-    out=[]
-    for table in tables:
-        try: rows=table.extract()
-        except Exception: continue
-        for row in rows or []:
-            cells=[norm(c) for c in (row or [])]
-            nums=[numeric(c) for c in cells if numeric(c) is not None]
-            if len(nums)<2: continue
-            candidates=[]
-            for c in cells:
-                if not c or numeric(c) is not None or bad_title(c): continue
-                if len(c)>100: continue
-                candidates.append(c)
-            if not candidates: continue
-            title=min(candidates,key=len)
-            if bad_title(title): continue
+def choose_title(cells, language):
+    candidates = []
+    for c in cells:
+        c = norm(c)
+        if not c or numeric(c) is not None or bad_title(c, language):
+            continue
+        if grade_from_text(c):
+            continue
+        # Avoid long curriculum objectives/prose.
+        if len(c) > 105:
+            continue
+        # Avoid cells that are mostly punctuation.
+        alnum = len(re.findall(r"[\w\u0600-\u06FFÀ-ÿ]", c))
+        if alnum < 3:
+            continue
+        candidates.append(c)
 
-            # A French/English lesson title must not be an Arabic administrative/note row.
-            # This was the remaining source of false "lessons" in the previous run.
-            ar_chars = len(re.findall(r"[\u0600-\u06FF]", title))
-            lat_chars = len(re.findall(r"[A-Za-zÀ-ÿ]", title))
-            if language in {"English", "Français"} and ar_chars > lat_chars and ar_chars > 4:
-                continue
+    if not candidates:
+        return None
 
-            out.append({
-              "title":title,
-              "official_order":nums[-1] if nums else None,
-              "textbook_page":next((n for n in nums if 5<=n<=400),None),
-              "source_pdf_page":page.number+1,
-              "source_url":source_url,
-              "source_grade":grade,
-              "source_subject":subject,
-              "verification_status":"verified-from-official-crdp-table"
-            })
-    seen=set(); dedup=[]
-    for x in out:
-        k=x["title"].casefold()
-        if k not in seen:
-            seen.add(k); dedup.append(x)
-    return language,dedup
+    # Prefer title-like cells: 3–90 chars, not full sentences.
+    candidates.sort(key=lambda s: (
+        0 if 3 <= len(s) <= 90 else 1,
+        1 if s.endswith((".", ":", ";")) else 0,
+        len(s),
+    ))
+    return candidates[0]
 
-def add(master,grade,subject,language,lessons,source_url):
-    if not grade or not subject or not lessons:return
-    g=master["catalog"][grade]
-    s=g["subjects"].setdefault(subject,{"languages":{}})
-    l=s["languages"].setdefault(language or "unspecified",{"lessons":[],"source_url":source_url})
-    existing={x["title"].casefold() for x in l["lessons"]}
-    for x in lessons:
-        if x["title"].casefold() not in existing:
-            l["lessons"].append(x); existing.add(x["title"].casefold())
-    g["_status"]="partially_synced"
 
-def main(dest="app/static/crdp_official",output="app/static/crdp_master_curriculum_index.json"):
-    root=Path(dest); pdfdir=root/"pdf"; pdfdir.mkdir(parents=True,exist_ok=True)
-    master={
-      "schema_version":"6.1",
-      "authority":"CRDP Lebanon",
-      "academic_year":"2025-2026",
-      "generated_at":datetime.now(timezone.utc).isoformat(),
-      "policy":{
-        "all_grades":True,"all_subjects":True,
-        "never_invent_lesson_titles":True,
-        "preserve_official_order":True,
-        "reject_instruction_rows":True,
-        "page_local_grade_detection":True,
-        "reject_language_script_mismatch":True,
-        "never_inherit_grade_across_pages":True
-      },
-      "catalog":{g:{"_status":"awaiting_official_sync","subjects":{}} for g in GRADES},
-      "annual_sources":[],"book_lists":[],"errors":[]
+def row_lesson(row, grade, subject, language, page_no, source_url):
+    cells = [norm(c) for c in (row or [])]
+    nums = [numeric(c) for c in cells if numeric(c) is not None]
+
+    # Official tables generally provide order/page/period numeric columns.
+    if len(nums) < 2:
+        return None
+
+    title = choose_title(cells, language)
+    if not title:
+        return None
+
+    return {
+        "title": title,
+        "official_order": nums[-1] if nums else None,
+        "textbook_page": next((n for n in nums if 5 <= n <= 450), None),
+        "source_pdf_page": page_no,
+        "source_url": source_url,
+        "source_grade": grade,
+        "source_subject": subject,
+        "verification_status": "verified-from-official-crdp-table",
     }
 
-    links=[(lab,url,detect_subject_from_link(lab,url)) for lab,url in html_links(ANNUAL_PAGE) if ".pdf" in url.lower()]
-    seen=set(); links=[x for x in links if not (x[1] in seen or seen.add(x[1]))]
 
-    for i,(label,url,subject) in enumerate(links,1):
-        rec={"label":label,"url":url,"subject":subject}
+def extract_page(page, subject, source_url):
+    """
+    V7 strategy:
+    - Never inherit a grade across pages.
+    - A page may have a strong page-local grade.
+    - Within ONE table only, a grade-marker row may set table_grade for the
+      following rows in that same table. It resets for each new table/page.
+    This recovers sparse CRDP layouts without reintroducing cross-grade leakage.
+    """
+    text = page.get_text("text")
+    page_grade = grade_from_text(text[:3000])
+    language = detect_language(text)
+    low = text.lower()
+
+    table_signal = any(k in low for k in (
+        "national textbook", "livre national", "chapter- topic", "chapter-topic",
+        "chapitre-sujet", "الكتاب الوطني", "الكتاب المدرسي",
+        "عدد الحصص", "عدد الفترات", "المحتوى",
+    ))
+    if not table_signal:
+        return []
+
+    try:
+        tables = page.find_tables().tables
+    except Exception:
+        tables = []
+
+    out = []
+    for table in tables:
         try:
-            data=get(url).content
-            path=pdfdir/f"annual_{i:02d}.pdf"
-            path.write_bytes(data)
-            rec["sha256"]=hashlib.sha256(data).hexdigest()
-            doc=fitz.open(path)
+            rows = table.extract()
+        except Exception:
+            continue
 
-            for page in doc:
-                page_text=page.get_text("text")
-                grade=detect_grade_from_page(page_text)   # STRICT: page-local only
-                if not grade or not subject:
+        table_grade = page_grade  # resets per table
+        for row in rows or []:
+            cells = [norm(c) for c in (row or [])]
+            row_text = " | ".join(cells)
+
+            row_grade = grade_from_text(row_text)
+            if row_grade:
+                table_grade = row_grade
+                # A pure grade-marker/header row is not a lesson.
+                non_numeric = [c for c in cells if c and numeric(c) is None]
+                if len(non_numeric) <= 3:
                     continue
-                language,lessons=page_lessons(page,grade,subject,url)
-                add(master,grade,subject,language,lessons,url)
 
-        except Exception as e:
-            rec["error"]=str(e)
-            master["errors"].append({"url":url,"error":str(e)})
+            if not table_grade:
+                continue
+
+            item = row_lesson(
+                row=row,
+                grade=table_grade,
+                subject=subject,
+                language=language,
+                page_no=page.number + 1,
+                source_url=source_url,
+            )
+            if item:
+                out.append((table_grade, language, item))
+
+    # De-dup within page.
+    seen = set()
+    dedup = []
+    for grade, lang, item in out:
+        key = (grade, lang, item["title"].casefold())
+        if key in seen:
+            continue
+        seen.add(key)
+        dedup.append((grade, lang, item))
+    return dedup
+
+
+def add(master, grade, subject, language, item, source_url):
+    if not grade or not subject or not item:
+        return
+    g = master["catalog"][grade]
+    s = g["subjects"].setdefault(subject, {"languages": {}})
+    l = s["languages"].setdefault(
+        language or "unspecified",
+        {"lessons": [], "source_url": source_url}
+    )
+    existing = {x["title"].casefold() for x in l["lessons"]}
+    if item["title"].casefold() not in existing:
+        l["lessons"].append(item)
+    g["_status"] = "partially_synced"
+
+
+def main(dest="app/static/crdp_official",
+         output="app/static/crdp_master_curriculum_index.json"):
+    root = Path(dest)
+    pdfdir = root / "pdf"
+    pdfdir.mkdir(parents=True, exist_ok=True)
+
+    master = {
+        "schema_version": "7.0",
+        "authority": "CRDP Lebanon",
+        "academic_year": "2025-2026",
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "policy": {
+            "all_grades": True,
+            "all_subjects": True,
+            "never_invent_lesson_titles": True,
+            "preserve_official_order": True,
+            "reject_instruction_rows": True,
+            "reject_language_script_mismatch": True,
+            "never_inherit_grade_across_pages": True,
+            "allow_grade_state_only_inside_same_table": True,
+        },
+        "catalog": {
+            g: {"_status": "awaiting_official_sync", "subjects": {}}
+            for g in GRADES
+        },
+        "annual_sources": [],
+        "book_lists": [],
+        "errors": [],
+    }
+
+    links = [
+        (label, url, detect_subject_from_link(label, url))
+        for label, url in html_links(ANNUAL_PAGE)
+        if ".pdf" in url.lower()
+    ]
+    seen_urls = set()
+    links = [
+        x for x in links
+        if not (x[1] in seen_urls or seen_urls.add(x[1]))
+    ]
+
+    for i, (label, url, subject) in enumerate(links, 1):
+        rec = {"label": label, "url": url, "subject": subject}
+        try:
+            data = get(url).content
+            path = pdfdir / f"annual_{i:02d}.pdf"
+            path.write_bytes(data)
+            rec["sha256"] = hashlib.sha256(data).hexdigest()
+
+            doc = fitz.open(path)
+            for page in doc:
+                if not subject:
+                    continue
+                for grade, language, item in extract_page(page, subject, url):
+                    add(master, grade, subject, language, item, url)
+
+        except Exception as exc:
+            rec["error"] = str(exc)
+            master["errors"].append({"url": url, "error": str(exc)})
 
         master["annual_sources"].append(rec)
 
     try:
-        for label,url in html_links(BOOKS_PAGE):
+        for label, url in html_links(BOOKS_PAGE):
             if ".pdf" in url.lower():
-                master["book_lists"].append({"label":label,"url":url})
-    except Exception as e:
-        master["errors"].append({"url":BOOKS_PAGE,"error":str(e)})
+                master["book_lists"].append({
+                    "label": label,
+                    "url": url,
+                    "grade": grade_from_text(label),
+                })
+    except Exception as exc:
+        master["errors"].append({"url": BOOKS_PAGE, "error": str(exc)})
 
-    lesson_count=0; populated=0; pairs=0
-    for gnode in master["catalog"].values():
-        if gnode["subjects"]: populated+=1
-        pairs+=len(gnode["subjects"])
+    lesson_count = 0
+    populated_grades = 0
+    subject_grade_pairs = 0
+    missing_grades = []
+
+    for grade, gnode in master["catalog"].items():
+        if gnode["subjects"]:
+            populated_grades += 1
+        else:
+            missing_grades.append(grade)
+
+        subject_grade_pairs += len(gnode["subjects"])
         for snode in gnode["subjects"].values():
             for lnode in snode["languages"].values():
-                lesson_count+=len(lnode["lessons"])
+                lesson_count += len(lnode["lessons"])
 
-    master["coverage"]={
-      "grades_total":len(GRADES),
-      "grades_with_data":populated,
-      "subject_grade_pairs":pairs,
-      "verified_lessons":lesson_count,
-      "annual_subject_pdfs":len(master["annual_sources"]),
-      "book_list_pdfs":len(master["book_lists"]),
-      "complete":False
+    master["coverage"] = {
+        "grades_total": len(GRADES),
+        "grades_with_data": populated_grades,
+        "subject_grade_pairs": subject_grade_pairs,
+        "verified_lessons": lesson_count,
+        "annual_subject_pdfs": len(master["annual_sources"]),
+        "book_list_pdfs": len(master["book_lists"]),
+        "missing_grades": missing_grades,
+        "complete": populated_grades == len(GRADES),
     }
 
-    out=Path(output)
-    out.parent.mkdir(parents=True,exist_ok=True)
-    out.write_text(json.dumps(master,ensure_ascii=False,indent=2),encoding="utf-8")
-    print(json.dumps(master["coverage"],ensure_ascii=False))
+    out = Path(output)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(
+        json.dumps(master, ensure_ascii=False, indent=2),
+        encoding="utf-8"
+    )
+
+    print(json.dumps(master["coverage"], ensure_ascii=False))
     return 0
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     raise SystemExit(main(
-      sys.argv[1] if len(sys.argv)>1 else "app/static/crdp_official",
-      sys.argv[2] if len(sys.argv)>2 else "app/static/crdp_master_curriculum_index.json"
+        sys.argv[1] if len(sys.argv) > 1 else "app/static/crdp_official",
+        sys.argv[2] if len(sys.argv) > 2 else "app/static/crdp_master_curriculum_index.json",
     ))
