@@ -4650,32 +4650,6 @@ body.nabil-home-lock::before{
 <style id="nabil-v112-push-to-talk-style">
 #homeVoiceBtn.active{background:linear-gradient(180deg,#0ea5e9,#075985)!important;border-color:#67e8f9!important;box-shadow:0 0 0 4px rgba(14,165,233,.18),0 0 30px rgba(14,165,233,.55)!important}
 </style>
-
-<style id="nabil-no-realtime-final">
-#lessonTalkBtn,
-#nabilGatewayTalk,
-#nabilGatewayMic,
-.v80-talk-button,
-button[onclick*="talkBtn"]{
-    display:none !important;
-}
-.nabil-gateway-actions-no-voice{
-    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
-}
-</style>
-
-
-<script id="nabil-universal-curriculum-guard">
-window.NABIL_MASTER_CURRICULUM_POLICY = Object.freeze({
-  allGrades:true,
-  allSubjects:true,
-  noGradeSpecificHardcoding:true,
-  neverInventLessonTitles:true,
-  lessonModeBookGrounded:true,
-  functionStudyOnlyWhenExplicit:true
-});
-</script>
-
 </head>
 
 <body>
@@ -4936,7 +4910,6 @@ window.NABIL_MASTER_CURRICULUM_POLICY = Object.freeze({
 const API_BASE = "";
 
 const GRADES = [
-    "الروضة",
     "الصف الأول",
     "الصف الثاني",
     "الصف الثالث",
@@ -4960,31 +4933,25 @@ const SUBJECTS = [
     "اللغة العربية",
     "اللغة الفرنسية",
     "اللغة الإنجليزية",
-    "التربية الوطنية والتنشئة المدنية",
-    "التاريخ",
-    "الجغرافيا",
-    "علم الاجتماع",
-    "الاقتصاد",
-    "الفلسفة والحضارات",
-    "ثقافة علمية"
+    "التربية الوطنية والتنشئة المدنية"
 ];
 
 const COMMON_SCHOOL_SUBJECTS = [
-    "اللغة العربية", "اللغة الفرنسية", "اللغة الإنجليزية",
-    "التربية الوطنية والتنشئة المدنية", "التاريخ", "الجغرافيا"
+    "اللغة العربية",
+    "اللغة الفرنسية",
+    "اللغة الإنجليزية",
+    "التربية الوطنية والتنشئة المدنية"
 ];
 
 function subjectsForStage(grade) {
-    if (grade === "الروضة") {
-        return ["رياضيات","علوم","اللغة العربية","اللغة الفرنسية","اللغة الإنجليزية"];
-    }
     if (["الصف الأول","الصف الثاني","الصف الثالث","الصف الرابع","الصف الخامس","الصف السادس"].includes(grade)) {
         return ["رياضيات","علوم",...COMMON_SCHOOL_SUBJECTS];
     }
     if (["الصف السابع","الصف الثامن","الصف التاسع"].includes(grade)) {
         return ["رياضيات","فيزياء","كيمياء","علوم الحياة",...COMMON_SCHOOL_SUBJECTS];
     }
-    return SUBJECTS;
+    // Secondary languages are intentionally excluded in the current phase.
+    return [];
 }
 
 const branchSelect = document.getElementById("branchSelect");
@@ -5044,6 +5011,127 @@ const micBtn =
 
 let curriculumIndex = {};
 let curriculumData = {};
+let nabilMasterCurriculumLoaded = false;
+
+
+function nabilMasterSubjectToUI(subject) {
+    const map = {
+        "الرياضيات": "رياضيات",
+        "الفيزياء": "فيزياء",
+        "الكيمياء": "كيمياء",
+        "علوم": "علوم",
+        "علوم الحياة": "علوم الحياة",
+        "اللغة العربية": "اللغة العربية",
+        "اللغة الفرنسية": "اللغة الفرنسية",
+        "اللغة الإنجليزية": "اللغة الإنجليزية",
+        "التربية الوطنية والتنشئة المدنية": "التربية الوطنية والتنشئة المدنية"
+    };
+    return map[subject] || subject;
+}
+
+function nabilSplitMasterGrade(masterGrade) {
+    const g = String(masterGrade || "").trim();
+
+    if (g.startsWith("الثاني ثانوي - ")) {
+        return {
+            grade: "الثاني ثانوي",
+            branch: g.replace("الثاني ثانوي - ", "").trim()
+        };
+    }
+
+    if (g.startsWith("الثالث ثانوي - ")) {
+        return {
+            grade: "الثالث ثانوي",
+            branch: g.replace("الثالث ثانوي - ", "").trim()
+                .replace("العلوم العامة", "علوم عامة")
+                .replace("علوم الحياة", "علوم الحياة")
+                .replace("الاجتماع والاقتصاد", "اجتماع واقتصاد")
+                .replace("الآداب والإنسانيات", "آداب وإنسانيات")
+        };
+    }
+
+    return { grade: g, branch: "" };
+}
+
+function nabilAdaptMasterCurriculum(master) {
+    const verified_index = {};
+    const subject_availability = {};
+    const secondary_structure = {};
+
+    const catalog = master?.catalog || {};
+
+    for (const [masterGrade, gradeNode] of Object.entries(catalog)) {
+        const { grade, branch } = nabilSplitMasterGrade(masterGrade);
+        const subjects = gradeNode?.subjects || {};
+
+        // Preserve empty secondary branch nodes too, so the UI can show the branch
+        // even when its lessons are intentionally postponed.
+        if (branch) {
+            secondary_structure[grade] ||= { branches: {} };
+            secondary_structure[grade].branches[branch] ||= { subjects: [] };
+        }
+
+        for (const [masterSubject, subjectNode] of Object.entries(subjects)) {
+            const subject = nabilMasterSubjectToUI(masterSubject);
+            const languages = subjectNode?.languages || {};
+
+            if (branch) {
+                const branchNode =
+                    secondary_structure[grade].branches[branch];
+
+                if (!branchNode.subjects.includes(subject)) {
+                    branchNode.subjects.push(subject);
+                }
+
+                branchNode[subject] ||= {};
+
+                for (const [language, languageNode] of Object.entries(languages)) {
+                    const titles = (languageNode?.lessons || [])
+                        .map(item => typeof item === "string" ? item : item?.title)
+                        .map(item => String(item || "").trim())
+                        .filter(Boolean);
+
+                    if (titles.length) {
+                        branchNode[subject][language] = [...new Set(titles)];
+                    }
+                }
+            } else {
+                subject_availability[grade] ||= [];
+
+                if (!subject_availability[grade].includes(subject)) {
+                    subject_availability[grade].push(subject);
+                }
+
+                verified_index[subject] ||= {};
+                verified_index[subject][grade] ||= {};
+
+                for (const [language, languageNode] of Object.entries(languages)) {
+                    const titles = (languageNode?.lessons || [])
+                        .map(item => typeof item === "string" ? item : item?.title)
+                        .map(item => String(item || "").trim())
+                        .filter(Boolean);
+
+                    if (titles.length) {
+                        verified_index[subject][grade][language] =
+                            [...new Set(titles)];
+                    }
+                }
+            }
+        }
+    }
+
+    return {
+        verified_index,
+        subject_availability,
+        secondary_structure
+    };
+}
+
+function nabilIsSecondaryGrade(grade) {
+    return ["الأول ثانوي", "الثاني ثانوي", "الثالث ثانوي"]
+        .includes(String(grade || "").trim());
+}
+
 
 let conversationId = null;
 let nabilCurrentQuestionText = "";
@@ -5144,52 +5232,67 @@ fillSelect(
 
 
 async function loadCurriculum() {
-
     try {
-
-        const response =
-            await fetch(
-                "/static/crdp_master_curriculum_index.json",
-                "/static/crdp_scientific_curriculum_index.json",
-                {
-                    cache: "no-store"
-                }
-            );
-
-        if (!response.ok) {
-
-            throw new Error(
-                "تعذر تحميل فهرس CRDP"
-            );
-
-        }
-
-        const data =
-            await response.json();
-
-        curriculumData = data || {};
-        curriculumIndex = data.verified_index || {};
-
-        indexStatus.textContent =
-            "تم تحميل فهرس المحتوى المتاح من CRDP.";
-
-        updateBranchAndSubjects();
-
-    }
-    catch (error) {
-
-        console.error(
-            "CRDP INDEX ERROR:",
-            error
+        let response = await fetch(
+            "/static/crdp_master_curriculum_index.json",
+            { cache: "no-store" }
         );
 
+        if (!response.ok) {
+            throw new Error("تعذر تحميل الفهرس الرئيسي CRDP");
+        }
+
+        const master = await response.json();
+        const adapted = nabilAdaptMasterCurriculum(master);
+
+        curriculumData = {
+            ...master,
+            verified_index: adapted.verified_index,
+            subject_availability: adapted.subject_availability,
+            secondary_structure: adapted.secondary_structure
+        };
+
+        curriculumIndex = adapted.verified_index;
+        nabilMasterCurriculumLoaded = true;
+
         indexStatus.textContent =
-            "فهرس CRDP غير موجود على الخادم حاليًا. يمكن متابعة المحادثة ورفع الصور، لكن قائمة الدروس المفهرسة لن تظهر.";
+            "✓ تم تحميل فهرس CRDP الرئيسي الموثق.";
 
         updateBranchAndSubjects();
-
     }
+    catch (error) {
+        console.error("CRDP MASTER INDEX ERROR:", error);
 
+        // Legacy fallback only when the master file itself is unavailable.
+        try {
+            const fallback = await fetch(
+                "/static/crdp_scientific_curriculum_index.json",
+                { cache: "no-store" }
+            );
+            if (!fallback.ok) throw new Error("legacy index unavailable");
+
+            const data = await fallback.json();
+            curriculumData = data || {};
+            curriculumIndex = data.verified_index || {};
+            nabilMasterCurriculumLoaded = false;
+
+            indexStatus.textContent =
+                "تنبيه: تم استخدام الفهرس العلمي الاحتياطي لأن الفهرس الرئيسي غير متاح.";
+
+            updateBranchAndSubjects();
+        }
+        catch (fallbackError) {
+            console.error("CRDP FALLBACK INDEX ERROR:", fallbackError);
+            curriculumData = {};
+            curriculumIndex = {};
+            nabilMasterCurriculumLoaded = false;
+
+            indexStatus.textContent =
+                "فهرس CRDP غير موجود على الخادم حاليًا. يمكن متابعة المحادثة ورفع الصور، لكن قائمة الدروس المفهرسة لن تظهر.";
+
+            updateBranchAndSubjects();
+        }
+    }
 }
 
 
@@ -5204,20 +5307,46 @@ function updateBranchAndSubjects() {
 
     branchControl.hidden = branches.length === 0;
     fillSelect(branchSelect, branches, "اختر الفرع");
+
     if (branches.includes(oldBranch)) branchSelect.value = oldBranch;
     if (branches.length === 1) branchSelect.value = branches[0];
 
     const branch = branchSelect.value;
-    const branchSubjects = curriculumData?.secondary_structure?.[grade]?.branches?.[branch]?.subjects;
-    const gradeSubjects = curriculumData?.subject_availability?.[grade];
-    const available = [...new Set([
-        ...(Array.isArray(branchSubjects) ? branchSubjects : []),
-        ...(Array.isArray(gradeSubjects) ? gradeSubjects : []),
-        ...subjectsForStage(grade)
-    ])];
+    const branchSubjects =
+        curriculumData?.secondary_structure?.[grade]?.branches?.[branch]?.subjects;
+    const gradeSubjects =
+        curriculumData?.subject_availability?.[grade];
+
+    let available = [];
+
+    if (nabilMasterCurriculumLoaded) {
+        if (nabilIsSecondaryGrade(grade)) {
+            // Secondary: only subjects actually indexed for the selected branch.
+            available = Array.isArray(branchSubjects)
+                ? [...branchSubjects]
+                : Array.isArray(gradeSubjects)
+                    ? [...gradeSubjects]
+                    : [];
+        } else {
+            // Basic school: keep the allowed subject set visible even when some
+            // lesson titles have not yet been extracted; never invent lesson names.
+            available = [...new Set([
+                ...subjectsForStage(grade),
+                ...(Array.isArray(gradeSubjects) ? gradeSubjects : [])
+            ])];
+        }
+    } else {
+        available = [...new Set([
+            ...(Array.isArray(branchSubjects) ? branchSubjects : []),
+            ...(Array.isArray(gradeSubjects) ? gradeSubjects : []),
+            ...subjectsForStage(grade)
+        ])];
+    }
+
     const oldSubject = subjectSelect.value;
     fillSelect(subjectSelect, available, "اختر المادة");
     if (available.includes(oldSubject)) subjectSelect.value = oldSubject;
+
     updateLessons();
 }
 
@@ -7477,7 +7606,7 @@ ${rawVariationHTML}`);
                   <div class="v80-side-sub">Your Learning Companion</div>
                   <img src="/static/nabil-lesson-avatar.png" alt="NABIL AI" class="v80-side-avatar">
                   <div class="v80-side-message">I'm here to help you understand Physics. Ask me any question!</div>
-                  
+                  <button type="button" class="v80-talk-button" onclick="document.getElementById('talkBtn')?.click()">🎙 Talk to Me</button>
                 </aside>
               </div>
             </article>`;
@@ -7663,7 +7792,7 @@ ${rawVariationHTML}`);
                   <div class="v83-bio-side-sub">Your Learning Assistant</div>
                   <img src="/static/nabil-lesson-avatar.png" alt="NABIL AI" class="v83-bio-avatar">
                   <div class="v83-bio-message">I'm here to help you learn Biology. Ask me about any structure, process, or diagram.</div>
-                  
+                  <button type="button" class="v83-bio-talk" onclick="document.getElementById('talkBtn')?.click()">🎙 Talk to Me</button>
                 </aside>
               </div>
             </article>`;
@@ -17098,24 +17227,6 @@ ${reply||""}`;
 
 
 <!-- v116: gateway voice stability + rich renderer + blue avatar -->
-
-<script id="nabil-controls-position-final">
-document.addEventListener("DOMContentLoaded",()=>{
-  const relocate=()=>{
-    document.querySelectorAll(".nabil-board-playback-controls,.lesson-playback-controls").forEach(ctrl=>{
-      const root=ctrl.closest(".teacher .bubble,.exercise-board,.lesson-card,.board-card") || ctrl.parentElement;
-      if(!root) return;
-      const tools=root.querySelector(".teacher-tools,.lesson-action-bar");
-      if(tools && tools.nextElementSibling!==ctrl){
-        tools.insertAdjacentElement("afterend",ctrl);
-      }
-    });
-  };
-  relocate();
-  new MutationObserver(relocate).observe(document.body,{childList:true,subtree:true});
-});
-</script>
-
 </body></html>`;
         const blob = new Blob(["\ufeff", html], {type:"application/msword"});
         const link = document.createElement("a");
