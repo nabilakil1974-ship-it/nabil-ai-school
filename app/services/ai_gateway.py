@@ -45,7 +45,7 @@ class NabilAIGateway:
 
         raw_order = os.getenv(
             "NABIL_AI_PROVIDER_ORDER",
-            "gemini,openrouter,groq,openai",
+            "gemini,openrouter,groq",
         )
 
         supported = {"gemini", "openrouter", "groq", "openai"}
@@ -67,7 +67,6 @@ class NabilAIGateway:
                 "gemini",
                 "openrouter",
                 "groq",
-                "openai",
             ]
 
         self.openrouter_api_key = getattr(
@@ -823,9 +822,13 @@ class NabilAIGateway:
         max_output_tokens: int = 1400,
     ) -> str:
 
+        # Do not silently truncate full lessons or teacher assessments.
+        # The route already requests an appropriate budget per task.
+        server_cap = int(os.getenv("NABIL_AI_MAX_OUTPUT_TOKENS", "9000"))
+        server_cap = max(1400, min(server_cap, 12000))
         max_output_tokens = max(
             256,
-            min(int(max_output_tokens or 1400), 1400),
+            min(int(max_output_tokens or 1400), server_cap),
         )
 
         chat_messages = self._build_messages(
