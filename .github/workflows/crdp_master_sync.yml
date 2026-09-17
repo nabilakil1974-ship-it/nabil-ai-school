@@ -29,15 +29,18 @@ jobs:
         run: |
           python scripts/sync_crdp_master_curriculum.py             /tmp/crdp_official             app/static/crdp_master_curriculum_index.json
 
-      - name: Validate expanded curriculum
-        run: |
-          python scripts/validate_crdp_master_curriculum.py             app/static/crdp_master_curriculum_index.json
-
       - name: Print coverage report
         run: |
           python scripts/report_crdp_master_curriculum.py             app/static/crdp_master_curriculum_index.json
 
+      - name: Validate expanded curriculum
+        id: validate
+        continue-on-error: true
+        run: |
+          python scripts/validate_crdp_master_curriculum.py             app/static/crdp_master_curriculum_index.json
+
       - name: Commit generated master index
+        if: steps.validate.outcome == 'success'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -50,8 +53,15 @@ jobs:
           fi
 
       - name: Upload generated index
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: crdp-master-curriculum-index-expanded
           path: app/static/crdp_master_curriculum_index.json
           if-no-files-found: error
+
+      - name: Fail job if validation failed
+        if: steps.validate.outcome != 'success'
+        run: |
+          echo "Validation failed. Artifact was uploaded for inspection."
+          exit 1
