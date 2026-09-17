@@ -4,6 +4,7 @@
 
 import os
 import httpx
+from openai import AsyncOpenAI, APIError
 import json
 import math
 import re
@@ -5144,44 +5145,60 @@ async def nabil_realtime_call(request: Request):
     if not api_key:
         raise HTTPException(status_code=503, detail="OPENAI_API_KEY is not configured")
 
-    sdp = (await request.body()).decode("utf-8", errors="ignore").strip()
+    raw_body = await request.body()
+    sdp = raw_body.decode("utf-8", errors="strict").strip()
+
+    # Fail locally instead of forwarding an empty/corrupt offer.
     if not sdp:
         raise HTTPException(status_code=400, detail="Missing SDP offer")
+    if not sdp.startswith("v=0"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid SDP offer received by backend (length={len(sdp)}, prefix={sdp[:40]!r})",
+        )
 
-    # Keep the startup session deliberately minimal and aligned with the
-    # documented unified WebRTC interface.  Extra live behaviour (VAD,
-    # interruption, etc.) is handled by Realtime defaults and the model
-    # instructions; this avoids rejecting the SDP handshake because of a
-    # provider-side schema change.
     session = {
         "type": "realtime",
         "model": "gpt-realtime-2.1",
         "instructions": NABIL_REALTIME_INSTRUCTIONS,
         "audio": {
+            "input": {
+                "turn_detection": {
+                    "type": "server_vad",
+                    "create_response": True,
+                    "interrupt_response": True,
+                },
+            },
             "output": {
                 "voice": "marin",
             },
         },
     }
 
-    headers = {"Authorization": f"Bearer {api_key}"}
-    multipart = {
-        "sdp": (None, sdp, "application/sdp"),
-        "session": (None, json.dumps(session, ensure_ascii=False), "application/json"),
-    }
-
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.post(
-            "https://api.openai.com/v1/realtime/calls",
-            headers=headers,
-            files=multipart,
+    # IMPORTANT: use the official SDK here. It serializes the Realtime call
+    # exactly as OpenAI expects: multipart/form-data with the SDP as an
+    # application/sdp part and the session as application/json.
+    client = AsyncOpenAI(api_key=api_key)
+    try:
+        call = await client.realtime.calls.create(
+            sdp=sdp,
+            session=session,
+            timeout=30.0,
         )
+        answer_sdp = call.text
+    except APIError as exc:
+        status = getattr(exc, "status_code", None) or 502
+        body = getattr(exc, "body", None)
+        detail = body if body is not None else str(exc)
+        raise HTTPException(status_code=status, detail=detail) from exc
+    finally:
+        await client.close()
 
-    if response.status_code >= 400:
-        raise HTTPException(status_code=response.status_code, detail=response.text)
+    if not answer_sdp or not answer_sdp.strip():
+        raise HTTPException(status_code=502, detail="OpenAI returned an empty SDP answer")
 
     return Response(
-        content=response.text,
+        content=answer_sdp,
         media_type="application/sdp",
         status_code=200,
         headers={"Cache-Control": "no-store"},
