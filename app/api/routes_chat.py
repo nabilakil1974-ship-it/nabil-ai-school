@@ -204,26 +204,23 @@ AVATAR_SYSTEM_PROMPT = """
 """
 
 
-CURRICULUM_INDEX_PATH = Path(
-    "app/static/crdp_scientific_curriculum_index.json"
-)
+MASTER_CURRICULUM_INDEX_PATH = Path("app/static/crdp_master_curriculum_index.json")
+LEGACY_CURRICULUM_INDEX_PATH = Path("app/static/crdp_scientific_curriculum_index.json")
 
-CURRICULUM_SCHEMA_VERSION = "6"
+CURRICULUM_SCHEMA_VERSION = "7"
 
 
 def load_curriculum_index() -> dict:
-    try:
-        if not CURRICULUM_INDEX_PATH.exists():
-            return {}
-
-        return json.loads(
-            CURRICULUM_INDEX_PATH.read_text(
-                encoding="utf-8"
-            )
-        )
-
-    except Exception:
-        return {}
+    """Prefer the CRDP master index; fall back to the legacy verified index."""
+    for path in (MASTER_CURRICULUM_INDEX_PATH, LEGACY_CURRICULUM_INDEX_PATH):
+        try:
+            if path.exists():
+                data = json.loads(path.read_text(encoding="utf-8"))
+                if isinstance(data, dict) and data:
+                    return data
+        except Exception:
+            continue
+    return {}
 
 
 def get_lesson_policy(
@@ -233,9 +230,9 @@ def get_lesson_policy(
     lesson_title: Optional[str],
 ) -> Optional[dict]:
     """
-    Resolve the selected lesson against the CRDP index for ALL stages.
-    Never assume that annual_curriculum_details contains only secondary data.
-    Search ordered/verified structures first, then annual and secondary structures.
+    Resolve one lesson for ANY grade/subject/language structure.
+    The canonical source is catalog[grade].subjects[subject].
+    Legacy verified structures are fallback evidence only.
     """
 
     grade_text = (grade or "").strip()
@@ -252,7 +249,11 @@ def get_lesson_policy(
         title = str(value or "").strip().lower()
         if not title:
             return False
-        return title == lesson_text or lesson_text in title or title in lesson_text
+        return (
+            title == lesson_text
+            or lesson_text in title
+            or title in lesson_text
+        )
 
     def _walk(node):
         if isinstance(node, dict):
@@ -260,53 +261,77 @@ def get_lesson_policy(
             if title and _matches(title):
                 item = dict(node)
                 item.setdefault("title", str(title))
-                item.setdefault("status", "maintained")
+                item.setdefault("status", node.get("verification_status") or "verified")
                 return item
-            for value in node.values():
+
+            # Prefer actual lesson containers before metadata.
+            for key in ("lessons", "books", "languages", "subjects", "chapters", "units"):
+                if key in node:
+                    found = _walk(node[key])
+                    if found:
+                        return found
+
+            for key, value in node.items():
+                if str(key).startswith("_") or key in {
+                    "policy","scope","sources","official_sources","sync_state"
+                }:
+                    continue
                 found = _walk(value)
                 if found:
                     return found
+
         elif isinstance(node, list):
             for item in node:
                 if isinstance(item, str) and _matches(item):
-                    return {"title": item, "status": "maintained"}
+                    return {"title": item, "status": "verified"}
                 found = _walk(item)
                 if found:
                     return found
+
         elif isinstance(node, str) and _matches(node):
-            return {"title": node, "status": "maintained"}
+            return {"title": node, "status": "verified"}
+
         return None
 
-    # 1) Exact ordered book/curriculum index when available.
-    ordered = index.get("official_ordered_lessons", {})
     candidates = []
-    if isinstance(ordered, dict):
-        candidates.append(ordered.get(grade_text, {}))
 
-    # 2) Verified index used by the frontend.
-    verified = index.get("verified_index", {})
+    # 1) Universal canonical catalog — all grades and all subjects.
+    catalog = index.get("catalog", {})
+    grade_node = catalog.get(grade_text, {}) if isinstance(catalog, dict) else {}
+    if isinstance(grade_node, dict):
+        subjects = grade_node.get("subjects", {})
+        if isinstance(subjects, dict):
+            # Exact subject first.
+            if subject_text in subjects:
+                candidates.append(subjects[subject_text])
+
+            # Secondary branch can live inside the subject node or grade node.
+            if branch_text:
+                branch_node = grade_node.get("branches", {}).get(branch_text, {})
+                if isinstance(branch_node, dict):
+                    branch_subjects = branch_node.get("subjects", {})
+                    if isinstance(branch_subjects, dict) and subject_text in branch_subjects:
+                        candidates.append(branch_subjects[subject_text])
+
+    # 2) Legacy verified index as fallback evidence only.
+    verified = (
+        index.get("legacy_verified_index")
+        or index.get("verified_index")
+        or {}
+    )
     if isinstance(verified, dict):
-        candidates.append(verified.get(subject_text, {}).get(grade_text, {}))
+        subject_node = verified.get(subject_text, {})
+        if isinstance(subject_node, dict):
+            candidates.append(subject_node.get(grade_text, {}))
 
-    # 3) Annual curriculum details, across ALL stages (not secondary only).
+    # 3) Legacy annual structures for compatibility.
     annual = index.get("annual_curriculum_details", {})
     if isinstance(annual, dict):
-        for stage_data in annual.values():
-            if not isinstance(stage_data, dict):
-                continue
-            grade_data = stage_data.get(grade_text, {})
-            if branch_text and isinstance(grade_data, dict):
-                branch_data = grade_data.get(branch_text)
-                if branch_data is not None:
-                    candidates.append(branch_data.get(subject_text, branch_data) if isinstance(branch_data, dict) else branch_data)
-            if isinstance(grade_data, dict):
-                candidates.append(grade_data.get(subject_text, grade_data))
+        candidates.append(annual)
 
-    # 4) Secondary structure / legacy structures.
     secondary = index.get("secondary_structure", {})
     if isinstance(secondary, dict):
-        grade_data = secondary.get(grade_text, {})
-        candidates.append(grade_data)
+        candidates.append(secondary)
 
     for candidate in candidates:
         found = _walk(candidate)
