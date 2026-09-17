@@ -36,6 +36,12 @@ def main(path):
         print(f"WARNING: grade coverage is below previous baseline: {grades} < 14")
 
     errors = []
+
+    # Kindergarten is intentionally out of scope in this phase.
+    for grade in data.get("catalog", {}):
+        if grade.startswith("الروضة"):
+            errors.append(f"kindergarten node must not exist in current phase: {grade}")
+
     for grade, gnode in data.get("catalog", {}).items():
         for subject, snode in gnode.get("subjects", {}).items():
             for lang, lnode in snode.get("languages", {}).items():
@@ -49,6 +55,17 @@ def main(path):
                         errors.append(f"subject provenance mismatch: {subject} / {title}")
                     if any(re.search(p, title, re.I) for p in BAD):
                         errors.append(f"garbage/instruction leaked as lesson: {title}")
+
+                    if re.search(r"\b(?:note|remarque)\s*[:：]|ملاحظة\s*[:：]", title, re.I):
+                        errors.append(f"editorial note still attached to lesson title: {title}")
+
+                    if "_" in title:
+                        errors.append(f"PDF wrap marker still present in lesson title: {title}")
+
+                    if title.strip().lower() in {
+                        "important for healthy life", "important for a healthy life"
+                    }:
+                        errors.append(f"non-lesson heading leaked into catalog: {title}")
 
                     ar = len(re.findall(r"[\u0600-\u06FF]", title))
                     lat = len(re.findall(r"[A-Za-zÀ-ÿ]", title))
