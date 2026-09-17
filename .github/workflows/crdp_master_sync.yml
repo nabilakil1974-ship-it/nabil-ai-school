@@ -25,7 +25,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests pymupdf
 
-      - name: Run V11 focused CRDP sync
+      - name: Run V12 focused CRDP sync
         run: |
           python scripts/sync_crdp_master_curriculum.py             /tmp/crdp_official             app/static/crdp_master_curriculum_index.json
 
@@ -33,7 +33,7 @@ jobs:
         run: |
           python scripts/report_crdp_master_curriculum.py             app/static/crdp_master_curriculum_index.json
 
-      - name: Validate V11 focused curriculum
+      - name: Validate V12 focused curriculum
         id: validate
         continue-on-error: true
         run: |
@@ -56,7 +56,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: crdp-master-curriculum-index-v11-focused
+          name: crdp-master-curriculum-index-v12-focused
           path: app/static/crdp_master_curriculum_index.json
           if-no-files-found: error
 
