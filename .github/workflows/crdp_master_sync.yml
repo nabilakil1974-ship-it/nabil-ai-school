@@ -25,7 +25,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests pymupdf
 
-      - name: Run EXPANDED STRICT CRDP sync
+      - name: Run V10 CRDP sync without Kindergarten
         run: |
           python scripts/sync_crdp_master_curriculum.py             /tmp/crdp_official             app/static/crdp_master_curriculum_index.json
 
@@ -33,7 +33,7 @@ jobs:
         run: |
           python scripts/report_crdp_master_curriculum.py             app/static/crdp_master_curriculum_index.json
 
-      - name: Validate expanded curriculum
+      - name: Validate V10 curriculum
         id: validate
         continue-on-error: true
         run: |
@@ -56,7 +56,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: crdp-master-curriculum-index-expanded
+          name: crdp-master-curriculum-index-v10-no-kindergarten
           path: app/static/crdp_master_curriculum_index.json
           if-no-files-found: error
 
