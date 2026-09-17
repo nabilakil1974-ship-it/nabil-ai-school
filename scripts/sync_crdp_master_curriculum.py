@@ -33,6 +33,7 @@ SUBJECT_ALIASES = [
  ("مادة اللغة العربية وآدابها","اللغة العربية"),
  ("مادة اللغة الفرنسية وآدابها","اللغة الفرنسية"),
  ("مادة اللغة الانكليزية وآدابها","اللغة الإنجليزية"),
+ ("مادة اللغة الإنجليزية وآدابها","اللغة الإنجليزية"),
  ("مادة التربية الوطنية والتنشئة المدنية","التربية الوطنية والتنشئة المدنية"),
  ("مادة علم الاجتماع","علم الاجتماع"),("مادة علم الاقتصاد","علم الاقتصاد"),
  ("مادة علوم الحياة","علوم الحياة"),("مادة الفيزياء","الفيزياء"),
@@ -62,7 +63,9 @@ def norm(s): return " ".join(str(s or "").replace("\u00a0"," ").split()).strip()
 def allowed(url): return (urlparse(url).hostname or "").lower() in ALLOWED_HOSTS
 def get(url):
     if not allowed(url): raise RuntimeError(f"Refusing non-CRDP host: {url}")
-    r=requests.get(url,timeout=75,headers={"User-Agent":"NABIL-AI-CRDP-Sync/5.0"},allow_redirects=True); r.raise_for_status(); return r
+    r=requests.get(url,timeout=75,headers={"User-Agent":"NABIL-AI-CRDP-Sync/6.0"},allow_redirects=True)
+    r.raise_for_status()
+    return r
 def html_links(url):
     p=LinkParser(); p.feed(get(url).text); out=[]
     for label,href in p.links:
@@ -76,11 +79,14 @@ def detect_subject_from_link(label,url):
         if raw in h: return canon
     return None
 
-def detect_grade_from_header(text):
-    """Use ONLY the page header/top area, never lesson/prerequisite body text."""
-    h=norm(text[:1800]).lower()
+def detect_grade_from_page(text):
+    """
+    STRICT page-local grade detection.
+    Never inherit a grade from prior pages.
+    """
+    h=norm(text[:2500]).lower()
 
-    # Arabic secondary branches — specific first.
+    # Secondary branches first.
     rules = [
       (r"السنة الثالثة.*علوم الحياة", "الثالث ثانوي - علوم الحياة"),
       (r"السنة الثالثة.*العلوم العامة|الثالث.*علوم عامة", "الثالث ثانوي - العلوم العامة"),
@@ -89,12 +95,6 @@ def detect_grade_from_header(text):
       (r"السنة الثانية.*فرع العلوم", "الثاني ثانوي - العلوم"),
       (r"السنة الثانية.*الإنسانيات", "الثاني ثانوي - الإنسانيات"),
       (r"التعليم الثانوي.*السنة الأولى|الأول ثانوي", "الأول ثانوي"),
-    ]
-    for pat,grade in rules:
-        if re.search(pat,h,re.I): return grade
-
-    # English / French branch markers.
-    branch_rules = [
       (r"grade\s*12.*life sciences|3(?:rd)?\s*secondary.*life sciences|s3.*sv", "الثالث ثانوي - علوم الحياة"),
       (r"grade\s*12.*general sciences|3(?:rd)?\s*secondary.*general sciences|s3.*sg", "الثالث ثانوي - العلوم العامة"),
       (r"grade\s*12.*socio.?economics|s3.*se", "الثالث ثانوي - الاجتماع والاقتصاد"),
@@ -103,26 +103,31 @@ def detect_grade_from_header(text):
       (r"grade\s*11.*humanit|s2.*humanit", "الثاني ثانوي - الإنسانيات"),
       (r"grade\s*10|1(?:st)?\s*secondary|\bs1\b", "الأول ثانوي"),
     ]
-    for pat,grade in branch_rules:
-        if re.search(pat,h,re.I): return grade
+    for pat,grade in rules:
+        if re.search(pat,h,re.I):
+            return grade
 
-    # Basic grades only when a clear page-header grade marker is present.
+    # KG.
+    if "الروضة" in h:
+        if "الثالثة" in h:return "الروضة الثالثة"
+        if "الثانية" in h:return "الروضة الثانية"
+        if "الأولى" in h:return "الروضة الأولى"
+
+    # Basic grades.
     arabic = {
       "الأولى":"الصف الأول","الثانية":"الصف الثاني","الثالثة":"الصف الثالث",
       "الرابعة":"الصف الرابع","الخامسة":"الصف الخامس","السادسة":"الصف السادس",
       "السابعة":"الصف السابع","الثامنة":"الصف الثامن","التاسعة":"الصف التاسع",
     }
-    if "الروضة" in h:
-        if "الثالثة" in h:return "الروضة الثالثة"
-        if "الثانية" in h:return "الروضة الثانية"
-        if "الأولى" in h:return "الروضة الأولى"
     for word,grade in arabic.items():
-        if re.search(rf"(?:الصف|السنة)\s+{word}\b",h): return grade
+        if re.search(rf"(?:الصف|السنة)\s+{word}\b",h):
+            return grade
 
-    m=re.search(r"\bgrade\s*([1-9])\b",h,re.I)
-    if m:return f"الصف {['','الأول','الثاني','الثالث','الرابع','الخامس','السادس','السابع','الثامن','التاسع'][int(m.group(1))]}"
-    m=re.search(r"\beb\s*([1-9])\b",h,re.I)
-    if m:return f"الصف {['','الأول','الثاني','الثالث','الرابع','الخامس','السادس','السابع','الثامن','التاسع'][int(m.group(1))]}"
+    m=re.search(r"\b(?:grade|eb)\s*([1-9])\b",h,re.I)
+    if m:
+        names=['','الأول','الثاني','الثالث','الرابع','الخامس','السادس','السابع','الثامن','التاسع']
+        return f"الصف {names[int(m.group(1))]}"
+
     return None
 
 def detect_language(text):
@@ -151,7 +156,7 @@ def numeric(s):
     s=norm(s)
     return int(s) if re.fullmatch(r"\d{1,3}",s) else None
 
-def page_lessons(page,grade,subject,source_url):
+def page_lessons(page, grade, subject, source_url):
     text=page.get_text("text")
     language=detect_language(text)
     low=text.lower()
@@ -171,15 +176,12 @@ def page_lessons(page,grade,subject,source_url):
             if len(nums)<2: continue
             candidates=[]
             for c in cells:
-                if bad_title(c):continue
-                if numeric(c) is not None:continue
-                # Reject obvious detailed prose / note rows.
-                if len(c)>100:continue
+                if not c or numeric(c) is not None or bad_title(c): continue
+                if len(c)>100: continue
                 candidates.append(c)
-            if not candidates:continue
-            # Prefer concise content title.
+            if not candidates: continue
             title=min(candidates,key=len)
-            if bad_title(title):continue
+            if bad_title(title): continue
             out.append({
               "title":title,
               "official_order":nums[-1] if nums else None,
@@ -193,7 +195,8 @@ def page_lessons(page,grade,subject,source_url):
     seen=set(); dedup=[]
     for x in out:
         k=x["title"].casefold()
-        if k not in seen:seen.add(k);dedup.append(x)
+        if k not in seen:
+            seen.add(k); dedup.append(x)
     return language,dedup
 
 def add(master,grade,subject,language,lessons,source_url):
@@ -204,42 +207,58 @@ def add(master,grade,subject,language,lessons,source_url):
     existing={x["title"].casefold() for x in l["lessons"]}
     for x in lessons:
         if x["title"].casefold() not in existing:
-            l["lessons"].append(x);existing.add(x["title"].casefold())
+            l["lessons"].append(x); existing.add(x["title"].casefold())
     g["_status"]="partially_synced"
 
 def main(dest="app/static/crdp_official",output="app/static/crdp_master_curriculum_index.json"):
     root=Path(dest); pdfdir=root/"pdf"; pdfdir.mkdir(parents=True,exist_ok=True)
     master={
-      "schema_version":"5.0","authority":"CRDP Lebanon","academic_year":"2025-2026",
+      "schema_version":"6.0",
+      "authority":"CRDP Lebanon",
+      "academic_year":"2025-2026",
       "generated_at":datetime.now(timezone.utc).isoformat(),
-      "policy":{"all_grades":True,"all_subjects":True,"never_invent_lesson_titles":True,"preserve_official_order":True,"reject_instruction_rows":True,"page_header_grade_only":True},
+      "policy":{
+        "all_grades":True,"all_subjects":True,
+        "never_invent_lesson_titles":True,
+        "preserve_official_order":True,
+        "reject_instruction_rows":True,
+        "page_local_grade_detection":True,
+        "never_inherit_grade_across_pages":True
+      },
       "catalog":{g:{"_status":"awaiting_official_sync","subjects":{}} for g in GRADES},
       "annual_sources":[],"book_lists":[],"errors":[]
     }
+
     links=[(lab,url,detect_subject_from_link(lab,url)) for lab,url in html_links(ANNUAL_PAGE) if ".pdf" in url.lower()]
     seen=set(); links=[x for x in links if not (x[1] in seen or seen.add(x[1]))]
+
     for i,(label,url,subject) in enumerate(links,1):
         rec={"label":label,"url":url,"subject":subject}
         try:
-            data=get(url).content; path=pdfdir/f"annual_{i:02d}.pdf"; path.write_bytes(data)
+            data=get(url).content
+            path=pdfdir/f"annual_{i:02d}.pdf"
+            path.write_bytes(data)
             rec["sha256"]=hashlib.sha256(data).hexdigest()
             doc=fitz.open(path)
-            active_grade=None
+
             for page in doc:
-                header_grade=detect_grade_from_header(page.get_text("text"))
-                # Update active grade only from a trustworthy page header.
-                if header_grade: active_grade=header_grade
-                if not active_grade or not subject: continue
-                language,lessons=page_lessons(page,active_grade,subject,url)
-                add(master,active_grade,subject,language,lessons,url)
+                page_text=page.get_text("text")
+                grade=detect_grade_from_page(page_text)   # STRICT: page-local only
+                if not grade or not subject:
+                    continue
+                language,lessons=page_lessons(page,grade,subject,url)
+                add(master,grade,subject,language,lessons,url)
+
         except Exception as e:
-            rec["error"]=str(e);master["errors"].append({"url":url,"error":str(e)})
+            rec["error"]=str(e)
+            master["errors"].append({"url":url,"error":str(e)})
+
         master["annual_sources"].append(rec)
 
     try:
         for label,url in html_links(BOOKS_PAGE):
             if ".pdf" in url.lower():
-                master["book_lists"].append({"label":label,"url":url,"grade":detect_grade_from_header(label)})
+                master["book_lists"].append({"label":label,"url":url})
     except Exception as e:
         master["errors"].append({"url":BOOKS_PAGE,"error":str(e)})
 
@@ -250,8 +269,20 @@ def main(dest="app/static/crdp_official",output="app/static/crdp_master_curricul
         for snode in gnode["subjects"].values():
             for lnode in snode["languages"].values():
                 lesson_count+=len(lnode["lessons"])
-    master["coverage"]={"grades_total":len(GRADES),"grades_with_data":populated,"subject_grade_pairs":pairs,"verified_lessons":lesson_count,"annual_subject_pdfs":len(master["annual_sources"]),"book_list_pdfs":len(master["book_lists"]),"complete":False}
-    out=Path(output);out.parent.mkdir(parents=True,exist_ok=True);out.write_text(json.dumps(master,ensure_ascii=False,indent=2),encoding="utf-8")
+
+    master["coverage"]={
+      "grades_total":len(GRADES),
+      "grades_with_data":populated,
+      "subject_grade_pairs":pairs,
+      "verified_lessons":lesson_count,
+      "annual_subject_pdfs":len(master["annual_sources"]),
+      "book_list_pdfs":len(master["book_lists"]),
+      "complete":False
+    }
+
+    out=Path(output)
+    out.parent.mkdir(parents=True,exist_ok=True)
+    out.write_text(json.dumps(master,ensure_ascii=False,indent=2),encoding="utf-8")
     print(json.dumps(master["coverage"],ensure_ascii=False))
     return 0
 
