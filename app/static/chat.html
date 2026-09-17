@@ -21956,5 +21956,61 @@ if(document.readyState==="loading"){
 
 
 <!-- NABIL LIVE REALTIME — WebRTC full-duplex voice, same startup gateway -->
+
+
+<!-- ============================================================
+ NABIL AI v130 — ALL-IN-ONE LEARNING LAYER
+ Adds: progress, checkpoints, alternate explanation, adaptive practice,
+ flashcards, mastery/error memory, XP/badges, student dashboard.
+ Preserves the existing lesson renderer, drawings, 5 solved exercises,
+ voice system and teacher assessment builder.
+============================================================= -->
+<style id="nabilV130Style">
+#nabilLearningDock{margin:14px auto 4px;max-width:1000px;background:linear-gradient(135deg,#071f35,#0b3150);border:1px solid #247ba5;border-radius:16px;padding:12px;color:#eef9ff;box-shadow:0 8px 24px rgba(3,28,48,.18)}
+.nv130-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.nv130-title{font-weight:900;color:#64ddff}.nv130-progress{flex:1;min-width:180px;height:10px;background:#173b55;border-radius:999px;overflow:hidden}.nv130-progress>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#22c55e,#38bdf8);transition:.35s}.nv130-xp{font-size:12px;background:#102f49;padding:6px 9px;border-radius:999px;border:1px solid #2b759c}.nv130-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.nv130-actions button{min-height:38px;padding:7px 11px;background:#0d4265;color:#fff;border:1px solid #2d87b4;border-radius:10px;font-size:13px}.nv130-actions button:hover{filter:brightness(1.15)}.nv130-actions .green{background:#116149;border-color:#22c55e}.nv130-actions .violet{background:#51328b;border-color:#8b5cf6}.nv130-actions .gold{background:#6a4a08;border-color:#eab308}.nv130-status{margin-top:8px;font-size:12px;color:#a9d9ed}.nv130-modal{position:fixed;inset:0;z-index:13050;background:rgba(1,10,20,.82);display:grid;place-items:center;padding:14px}.nv130-modal[hidden]{display:none!important}.nv130-card{width:min(820px,96vw);max-height:90vh;overflow:auto;background:#071f35;color:#eef9ff;border:1px solid #2b86b2;border-radius:18px;padding:16px}.nv130-head{display:flex;justify-content:space-between;gap:10px;align-items:center}.nv130-close{width:38px;height:38px;padding:0;background:#8b1d1d;color:#fff}.nv130-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}.nv130-stat,.nv130-flash{background:#0b2c47;border:1px solid #245f82;border-radius:12px;padding:12px}.nv130-stat b{display:block;color:#67e8f9;font-size:20px}.nv130-flash{cursor:pointer;min-height:110px;display:grid;place-items:center;text-align:center}.nv130-flash .back{display:none;color:#b7f7d4}.nv130-flash.flipped .front{display:none}.nv130-flash.flipped .back{display:block}.nv130-errors{margin-top:12px}.nv130-errors li{margin:6px 0;line-height:1.5}@media(max-width:650px){#nabilLearningDock{margin:10px 8px}.nv130-actions button{flex:1 1 45%;padding:7px 6px}.nv130-grid{grid-template-columns:1fr}.nv130-title{width:100%}}
+</style>
+<div id="nabilLearningDock" aria-label="NABIL smart learning tools">
+ <div class="nv130-top"><span class="nv130-title">🧠 مسار التعلّم الذكي</span><span id="nv130Stage">ابدأ الدرس</span><span class="nv130-progress"><i id="nv130Bar"></i></span><span id="nv130Xp" class="nv130-xp">0 XP</span></div>
+ <div class="nv130-actions">
+  <button class="green" onclick="NABIL130.checkpoint()">✓ تحقق من فهمي</button>
+  <button onclick="NABIL130.explainAgain()">🔄 اشرح بطريقة أخرى</button>
+  <button class="violet" onclick="NABIL130.practice()">🎯 تدريب ذكي</button>
+  <button onclick="NABIL130.flashcards()">🗂️ بطاقات مراجعة</button>
+  <button class="gold" onclick="NABIL130.quickQuiz()">🏆 اختبار سريع</button>
+  <button onclick="NABIL130.dashboard()">📊 تقدّمي</button>
+ </div><div id="nv130Status" class="nv130-status">يتابع الأستاذ نبيل تقدّم الطالب داخل هذا الجهاز، ويكيّف التدريب بحسب الأخطاء.</div>
+</div>
+<div id="nv130Modal" class="nv130-modal" hidden><section class="nv130-card"><div class="nv130-head"><h2 id="nv130ModalTitle">NABIL AI</h2><button class="nv130-close" onclick="NABIL130.close()">×</button></div><div id="nv130ModalBody"></div></section></div>
+<script id="nabilV130Script">
+(()=>{
+ const KEY='nabil_ai_learning_v130';
+ const defaultState=()=>({xp:0,level:1,mastery:0,checks:0,correct:0,errors:[],badges:[],lastTeacher:'',lastStudent:'',lessonTurns:0});
+ const load=()=>{try{return Object.assign(defaultState(),JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){return defaultState()}};
+ let S=load();
+ const save=()=>{S.level=Math.max(1,Math.floor(S.xp/100)+1);localStorage.setItem(KEY,JSON.stringify(S));paint()};
+ const esc=x=>String(x||'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+ const status=t=>{const e=document.getElementById('nv130Status');if(e)e.textContent=t};
+ function award(n,why){S.xp+=n;if(S.xp>=100&&!S.badges.includes('بداية قوية'))S.badges.push('بداية قوية');if(S.checks>=5&&!S.badges.includes('متعلم نشط'))S.badges.push('متعلم نشط');save();status(`+${n} XP — ${why}`)}
+ function paint(){const p=Math.max(0,Math.min(100,S.mastery));document.getElementById('nv130Bar')?.style.setProperty('width',p+'%');const x=document.getElementById('nv130Xp');if(x)x.textContent=`${S.xp} XP · L${S.level}`;const st=document.getElementById('nv130Stage');if(st)st.textContent=p<25?'الفكرة الأساسية':p<50?'فهم وتطبيق':p<75?'تدريب':p<90?'إتقان':'جاهز للانتقال'}
+ function modal(title,html){document.getElementById('nv130ModalTitle').textContent=title;document.getElementById('nv130ModalBody').innerHTML=html;document.getElementById('nv130Modal').hidden=false}
+ function close(){document.getElementById('nv130Modal').hidden=true}
+ async function ask(prompt){status('الأستاذ نبيل يحضّر النشاط…');if(typeof sendToAI==='function'){await sendToAI(prompt,false);return}throw new Error('sendToAI unavailable')}
+ function context(){return `المادة: ${window.subjectSelect?.value||''}. الصف: ${window.gradeSelect?.value||''}. الدرس: ${window.lessonSelect?.value||''}. آخر شرح: ${S.lastTeacher.slice(-5000)}`}
+ function checkpoint(){S.checks++;save();ask(`[SYSTEM] NABIL SMART CHECKPOINT. ${context()}\nاسأل الطالب سؤال تحقق واحدًا فقط قصيرًا ومباشرًا عن الفكرة التي شُرحت للتو. لا تعطِ الحل الآن. اجعل السؤال مناسبًا للعمر والمادة، واستعمل رسماً إذا كان فهم السؤال يحتاج رسماً.`).catch(e=>status(e.message))}
+ function explainAgain(){award(3,'محاولة فهم أعمق');ask(`[SYSTEM] EXPLAIN ANOTHER WAY. ${context()}\nأعد شرح آخر فكرة فقط بطريقة مختلفة فعلاً، لا تكرر النص. اختر الأنسب: مثال حياتي، تشبيه، رسم/diagram، خطوات أبسط، أو تمثيل بصري. خاطب الطالب كأستاذ لا كمحاضرة، ثم اختم بسؤال تحقق واحد قصير.`).catch(e=>status(e.message))}
+ function practice(){ask(`[SYSTEM] ADAPTIVE SMART PRACTICE. ${context()}\nأعط الطالب تمريناً واحداً جديداً الآن مبنياً على مستوى الدرس وعلى أخطائه إن ظهرت في الحوار. لا تعط الحل قبل محاولته. إذا كانت المادة علمية ويحتاج السؤال شكلاً فارسمه. بعد جواب الطالب: حدّد الخطأ بدقة، اشرح الجزئية الناقصة، ثم أعط تمريناً تالياً متكيفاً.`).catch(e=>status(e.message))}
+ function quickQuiz(){award(5,'بدأ اختباراً قصيراً');ask(`[SYSTEM] QUICK MASTERY QUIZ. ${context()}\nأنشئ اختباراً قصيراً من 5 أسئلة فقط، متدرجاً وفق Bloom من التذكر إلى التطبيق/التحليل بما يناسب الصف. نوّع الأنواع ولا تجعلها كلها MCQ. لا تعرض الأجوبة الآن. اجعل المجموع 10 علامات، وبعد إجابات الطالب صحح مع تفسير الخطأ واقترح ما يحتاج مراجعة.`).catch(e=>status(e.message))}
+ function flashcards(){let txt=S.lastTeacher.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();let bits=txt.split(/[.!؟\n]+/).map(x=>x.trim()).filter(x=>x.length>25).slice(0,6);if(!bits.length)bits=['ابدأ درساً أولاً ثم افتح بطاقات المراجعة.'];let html='<div class="nv130-grid">'+bits.map((b,i)=>`<div class="nv130-flash" onclick="this.classList.toggle('flipped')"><div class="front"><b>بطاقة ${i+1}</b><br>${esc(b.slice(0,110))}</div><div class="back">${esc(b)}</div></div>`).join('')+'</div><p>انقر البطاقة لقلبها.</p>';modal('🗂️ بطاقات مراجعة',html)}
+ function dashboard(){const rate=S.checks?Math.round(S.correct/S.checks*100):0;modal('📊 تقدّم الطالب',`<div class="nv130-grid"><div class="nv130-stat"><span>XP</span><b>${S.xp}</b></div><div class="nv130-stat"><span>المستوى</span><b>${S.level}</b></div><div class="nv130-stat"><span>الإتقان الحالي</span><b>${S.mastery}%</b></div><div class="nv130-stat"><span>محطات التحقق</span><b>${S.checks}</b></div></div><h3>🏅 الشارات</h3><p>${S.badges.length?S.badges.map(esc).join(' · '):'ابدأ التعلّم لتحصل على أول شارة.'}</p><div class="nv130-errors"><h3>🧩 نقاط تحتاج مراجعة</h3>${S.errors.length?'<ul>'+S.errors.slice(-8).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>':'<p>لا توجد أخطاء مسجلة بعد.</p>'}</div>`)}
+ // Observe the existing app without replacing its renderer.
+ const oldAdd=window.addMessage;
+ if(typeof oldAdd==='function') window.addMessage=function(role,text,sources=[]){const r=oldAdd.apply(this,arguments);try{if(role==='teacher'){S.lastTeacher=String(text||'');S.lessonTurns++;S.mastery=Math.min(100,S.mastery+(S.lessonTurns<=2?10:4));save()}else if(role==='student'){S.lastStudent=String(text||'')}}catch(e){}return r};
+ // Lightweight error memory from explicit correction language in teacher feedback.
+ const observer=new MutationObserver(()=>{const t=S.lastTeacher||'';if(/(?:خطأ|غير صحيح|incorrect|wrong|erreur)/i.test(t)){const item=(S.lastStudent||'').slice(0,180);if(item&&!S.errors.includes(item)){S.errors.push(item);S.mastery=Math.max(0,S.mastery-4);save()}}if(/(?:أحسنت|صحيح|correct|bravo|excellent)/i.test(t)&&S.lastStudent){S.correct=Math.min(S.checks,S.correct+1);S.mastery=Math.min(100,S.mastery+8);save()}});
+ const chat=document.getElementById('chat')||document.querySelector('.chat');if(chat)observer.observe(chat,{childList:true,subtree:true});
+ document.getElementById('nv130Modal')?.addEventListener('click',e=>{if(e.target.id==='nv130Modal')close()});
+ window.NABIL130={checkpoint,explainAgain,practice,quickQuiz,flashcards,dashboard,close,state:()=>S,reset:()=>{S=defaultState();save()}};paint();
+})();
+</script>
 </body>
 </html>
