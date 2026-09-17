@@ -1,8 +1,8 @@
 {
-  "schema_version": "10.0",
+  "schema_version": "11.0",
   "authority": "CRDP Lebanon",
   "academic_year": "2025-2026",
-  "generated_at": "2026-09-17T17:09:23.771888+00:00",
+  "generated_at": "2026-09-17T17:31:17.075957+00:00",
   "policy": {
     "all_grades": true,
     "all_subjects": true,
@@ -13,6 +13,18 @@
     "never_inherit_grade_across_pages": true,
     "allow_grade_state_only_inside_same_table": true,
     "kindergarten_excluded_for_now": true,
+    "globally_excluded_subjects": [
+      "علم الاجتماع",
+      "علم الاقتصاد",
+      "التاريخ",
+      "الجغرافيا",
+      "الفلسفة والحضارات"
+    ],
+    "secondary_languages_excluded_for_now": [
+      "اللغة العربية",
+      "اللغة الفرنسية",
+      "اللغة الإنجليزية"
+    ],
     "strip_inline_editorial_notes": true,
     "normalize_pdf_wrap_markers": true
   },
@@ -3533,30 +3545,6 @@
       "sha256": "81a64b27962a2a148e2a607000ec968e0cf39659dde337e554ddc72e7fc2a27e"
     },
     {
-      "label": "مادة التاريخ",
-      "url": "https://www.crdp.org/sites/default/files/inline-files/05-history_2025-2026_.pdf",
-      "subject": "التاريخ",
-      "sha256": "1afacd61fc39aa08177b3d72a31451ba1803414f88498ee6c9122e616543c764"
-    },
-    {
-      "label": "مادة الجغرافيا",
-      "url": "https://www.crdp.org/sites/default/files/inline-files/06-Geo_2025-2026_.pdf",
-      "subject": "الجغرافيا",
-      "sha256": "64cbd510878863e75944ce820ec303cf387daa2f54746b6e12700a21afd3933e"
-    },
-    {
-      "label": "مادة علم الاجتماع",
-      "url": "https://www.crdp.org/sites/default/files/inline-files/07-Socio_2025-2026_.pdf",
-      "subject": "علم الاجتماع",
-      "sha256": "b28d11e5a98ca8e7607dce8f5c9bc9e2fa28f643caa33b4f339e6539e85ad3a8"
-    },
-    {
-      "label": "مادة علم الاقتصاد",
-      "url": "https://www.crdp.org/sites/default/files/inline-files/08-Eco_2025-2026_.pdf",
-      "subject": "علم الاقتصاد",
-      "sha256": "525f01db7c22fa6e252cbabad38390c4cbaf19407f6b148084d0d81192b59d99"
-    },
-    {
       "label": "مادة الفيزياء",
       "url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
       "subject": "الفيزياء",
@@ -3581,22 +3569,10 @@
       "sha256": "ce48f8386558d999b7a3e98ce1424a28fdf6fb5d98efe62e692b00bdf49f34db"
     },
     {
-      "label": "مادة الفلسفة",
-      "url": "https://www.crdp.org/sites/default/files/inline-files/13-Philosophy_2025-2026_.pdf",
-      "subject": "الفلسفة والحضارات",
-      "sha256": "f874345e284fcde68475a52fc1cbb57b885fcf3930f09e86a1200960352b8629"
-    },
-    {
       "label": "مادة الرياضيات",
       "url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
       "subject": "الرياضيات",
       "sha256": "18c8e9c10e5b9d31d39bb113b5bc9f8e8454ed73b1d8db7efce74ff90da16cf8"
-    },
-    {
-      "label": "منهج الروضة",
-      "url": "https://www.crdp.org/sites/default/files/inline-files/15-KG_%D8%A7%D9%84%D8%B1%D9%88%D8%B6%D8%A7%D8%AA_.pdf",
-      "subject": null,
-      "sha256": "0ac99466625dd479154bfc3d023b61de8cbb5e808b9cbf7daa866cf2d35548a3"
     }
   ],
   "book_lists": [
@@ -3787,7 +3763,7 @@
     "grades_with_data": 15,
     "subject_grade_pairs": 30,
     "verified_lessons": 314,
-    "annual_subject_pdfs": 15,
+    "annual_subject_pdfs": 9,
     "book_list_pdfs": 36,
     "missing_grades": [
       "الثالث ثانوي - الاجتماع والاقتصاد"
