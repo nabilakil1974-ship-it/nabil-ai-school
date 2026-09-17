@@ -542,6 +542,127 @@ const EMBEDDED_CURRICULUM_DATA = {"meta":{"curriculum":"Lebanese official curric
 
 let curriculumData = JSON.parse(JSON.stringify(EMBEDDED_CURRICULUM_DATA));
 let curriculumIndex = JSON.parse(JSON.stringify(EMBEDDED_CURRICULUM_DATA.verified_index || {}));
+let nabilMasterCurriculumLoaded = false;
+
+
+function nabilMasterSubjectToUI(subject) {
+    const map = {
+        "الرياضيات": "رياضيات",
+        "الفيزياء": "فيزياء",
+        "الكيمياء": "كيمياء",
+        "علوم": "علوم",
+        "علوم الحياة": "علوم الحياة",
+        "اللغة العربية": "اللغة العربية",
+        "اللغة الفرنسية": "اللغة الفرنسية",
+        "اللغة الإنجليزية": "اللغة الإنجليزية",
+        "التربية الوطنية والتنشئة المدنية": "التربية الوطنية والتنشئة المدنية"
+    };
+    return map[subject] || subject;
+}
+
+function nabilSplitMasterGrade(masterGrade) {
+    const g = String(masterGrade || "").trim();
+
+    if (g.startsWith("الثاني ثانوي - ")) {
+        return {
+            grade: "الثاني ثانوي",
+            branch: g.replace("الثاني ثانوي - ", "").trim()
+        };
+    }
+
+    if (g.startsWith("الثالث ثانوي - ")) {
+        return {
+            grade: "الثالث ثانوي",
+            branch: g.replace("الثالث ثانوي - ", "").trim()
+                .replace("العلوم العامة", "علوم عامة")
+                .replace("علوم الحياة", "علوم الحياة")
+                .replace("الاجتماع والاقتصاد", "اجتماع واقتصاد")
+                .replace("الآداب والإنسانيات", "آداب وإنسانيات")
+        };
+    }
+
+    return { grade: g, branch: "" };
+}
+
+function nabilAdaptMasterCurriculum(master) {
+    const verified_index = {};
+    const subject_availability = {};
+    const secondary_structure = {};
+
+    const catalog = master?.catalog || {};
+
+    for (const [masterGrade, gradeNode] of Object.entries(catalog)) {
+        const { grade, branch } = nabilSplitMasterGrade(masterGrade);
+        const subjects = gradeNode?.subjects || {};
+
+        // Preserve empty secondary branch nodes too, so the UI can show the branch
+        // even when its lessons are intentionally postponed.
+        if (branch) {
+            secondary_structure[grade] ||= { branches: {} };
+            secondary_structure[grade].branches[branch] ||= { subjects: [] };
+        }
+
+        for (const [masterSubject, subjectNode] of Object.entries(subjects)) {
+            const subject = nabilMasterSubjectToUI(masterSubject);
+            const languages = subjectNode?.languages || {};
+
+            if (branch) {
+                const branchNode =
+                    secondary_structure[grade].branches[branch];
+
+                if (!branchNode.subjects.includes(subject)) {
+                    branchNode.subjects.push(subject);
+                }
+
+                branchNode[subject] ||= {};
+
+                for (const [language, languageNode] of Object.entries(languages)) {
+                    const titles = (languageNode?.lessons || [])
+                        .map(item => typeof item === "string" ? item : item?.title)
+                        .map(item => String(item || "").trim())
+                        .filter(Boolean);
+
+                    if (titles.length) {
+                        branchNode[subject][language] = [...new Set(titles)];
+                    }
+                }
+            } else {
+                subject_availability[grade] ||= [];
+
+                if (!subject_availability[grade].includes(subject)) {
+                    subject_availability[grade].push(subject);
+                }
+
+                verified_index[subject] ||= {};
+                verified_index[subject][grade] ||= {};
+
+                for (const [language, languageNode] of Object.entries(languages)) {
+                    const titles = (languageNode?.lessons || [])
+                        .map(item => typeof item === "string" ? item : item?.title)
+                        .map(item => String(item || "").trim())
+                        .filter(Boolean);
+
+                    if (titles.length) {
+                        verified_index[subject][grade][language] =
+                            [...new Set(titles)];
+                    }
+                }
+            }
+        }
+    }
+
+    return {
+        verified_index,
+        subject_availability,
+        secondary_structure
+    };
+}
+
+function nabilIsSecondaryGrade(grade) {
+    return ["الأول ثانوي", "الثاني ثانوي", "الثالث ثانوي"]
+        .includes(String(grade || "").trim());
+}
+
 
 const params=new URLSearchParams(location.search);
 
@@ -590,13 +711,12 @@ function canonicalGrade(raw){
 const SUBJECTS=[
  "رياضيات","فيزياء","كيمياء","علوم","علوم الحياة",
  "اللغة العربية","اللغة الفرنسية","اللغة الإنجليزية",
- "التربية الوطنية والتنشئة المدنية","التاريخ","الجغرافيا",
- "علم الاجتماع","الاقتصاد","الفلسفة والحضارات","ثقافة علمية"
+ "التربية الوطنية والتنشئة المدنية"
 ];
 
 const COMMON_SCHOOL_SUBJECTS=[
  "اللغة العربية","اللغة الفرنسية","اللغة الإنجليزية",
- "التربية الوطنية والتنشئة المدنية","التاريخ","الجغرافيا"
+ "التربية الوطنية والتنشئة المدنية"
 ];
 
 function esc(s){
@@ -639,7 +759,7 @@ function subjectsForStage(grade){
   if(["الصف السابع","الصف الثامن","الصف التاسع"].includes(grade)){
     return ["رياضيات","فيزياء","كيمياء","علوم الحياة",...COMMON_SCHOOL_SUBJECTS];
   }
-  return SUBJECTS;
+  return [];
 }
 
 function collectLessonTitles(value){
@@ -706,23 +826,33 @@ function getBranchesForGrade(grade){
   return [];
 }
 
-const SUBJECTS_BY_GRADE_BRANCH = {"الصف الأول":["رياضيات","علوم","اللغة العربية","اللغة الفرنسية","اللغة الإنجليزية","التربية الوطنية والتنشئة المدنية"],"الصف الثاني":["رياضيات","علوم","اللغة العربية","اللغة الفرنسية","اللغة الإنجليزية","التربية الوطنية والتنشئة المدنية"],"الصف الثالث":["رياضيات","علوم","اللغة العربية","اللغة الفرنسية","اللغة الإنجليزية","التربية الوطنية والتنشئة المدنية"],"الصف الرابع":["رياضيات","علوم","اللغة العربية","اللغة الفرنسية","اللغة الإنجليزية","التربية الوطنية والتنشئة المدنية","التاريخ","الجغرافيا"],"الصف الخامس":["رياضيات","علوم","اللغة العربية","اللغة الفرنسية","اللغة الإنجليزية","التربية الوطنية والتنشئة المدنية","التاريخ","الجغرافيا"],"الصف السادس":["رياضيات","علوم","اللغة العربية","اللغة الفرنسية","اللغة الإنجليزية","التربية الوطنية والتنشئة المدنية","التاريخ","الجغرافيا"],"الصف السابع":["رياضيات","فيزياء","كيمياء","علوم الحياة","اللغة العربية","اللغة الفرنسية","اللغة الإنجليزية","التربية الوطنية والتنشئة المدنية","التاريخ","الجغرافيا"],"الصف الثامن":["رياضيات","فيزياء","كيمياء","علوم الحياة","اللغة العربية","اللغة الفرنسية","اللغة الإنجليزية","التربية الوطنية والتنشئة المدنية","التاريخ","الجغرافيا"],"الصف التاسع":["رياضيات","فيزياء","كيمياء","علوم الحياة","اللغة العربية","اللغة الفرنسية","اللغة الإنجليزية","التربية الوطنية والتنشئة المدنية","التاريخ","الجغرافيا"],"الأول ثانوي":["رياضيات","فيزياء","كيمياء","علوم الحياة","اللغة العربية","اللغة الفرنسية","اللغة الإنجليزية","التربية الوطنية والتنشئة المدنية","التاريخ","الجغرافيا","الفلسفة والحضارات"],"الثاني ثانوي|علوم":["رياضيات","فيزياء","كيمياء","علوم الحياة","اللغة العربية","اللغة الفرنسية","اللغة الإنجليزية","التربية الوطنية والتنشئة المدنية","التاريخ","الجغرافيا","الفلسفة والحضارات"],"الثاني ثانوي|إنسانيات":["رياضيات","اللغة العربية","اللغة الفرنسية","اللغة الإنجليزية","التربية الوطنية والتنشئة المدنية","التاريخ","الجغرافيا","الفلسفة والحضارات","علم الاجتماع","الاقتصاد"],"الثالث ثانوي|علوم عامة":["رياضيات","فيزياء","كيمياء","اللغة العربية","اللغة الفرنسية","اللغة الإنجليزية","التربية الوطنية والتنشئة المدنية","التاريخ","الجغرافيا"],"الثالث ثانوي|علوم الحياة":["رياضيات","فيزياء","كيمياء","علوم الحياة","اللغة العربية","اللغة الفرنسية","اللغة الإنجليزية","التربية الوطنية والتنشئة المدنية","التاريخ","الجغرافيا"],"الثالث ثانوي|اجتماع واقتصاد":["رياضيات","علم الاجتماع","الاقتصاد","الفلسفة والحضارات","اللغة العربية","اللغة الفرنسية","اللغة الإنجليزية","التربية الوطنية والتنشئة المدنية","التاريخ","الجغرافيا"],"الثالث ثانوي|آداب وإنسانيات":["الفلسفة والحضارات","اللغة العربية","اللغة الفرنسية","اللغة الإنجليزية","التربية الوطنية والتنشئة المدنية","التاريخ","الجغرافيا"]};
+const SUBJECTS_BY_GRADE_BRANCH = {};
 
 function getSubjectsForGradeBranch(grade,branch){
   grade=canonicalGrade(grade);
-  const key=branch ? `${grade}|${branch}` : grade;
-
-  const uiSubjects=SUBJECTS_BY_GRADE_BRANCH[key] || SUBJECTS_BY_GRADE_BRANCH[grade] || [];
 
   const branchSubjects =
     curriculumData?.secondary_structure?.[grade]?.branches?.[branch]?.subjects || [];
   const gradeSubjects =
     curriculumData?.subject_availability?.[grade] || [];
 
+  if(nabilMasterCurriculumLoaded){
+    if(nabilIsSecondaryGrade(grade)){
+      return [...new Set(
+        (Array.isArray(branchSubjects) ? branchSubjects : gradeSubjects)
+      )];
+    }
+
+    return [...new Set([
+      ...subjectsForStage(grade),
+      ...(Array.isArray(gradeSubjects) ? gradeSubjects : [])
+    ])];
+  }
+
   return [...new Set([
-    ...uiSubjects,
-    ...(Array.isArray(branchSubjects)?branchSubjects:[]),
-    ...(Array.isArray(gradeSubjects)?gradeSubjects:[])
+    ...subjectsForStage(grade),
+    ...(Array.isArray(branchSubjects) ? branchSubjects : []),
+    ...(Array.isArray(gradeSubjects) ? gradeSubjects : [])
   ])];
 }
 
@@ -946,41 +1076,28 @@ function refreshLessons(){
 async function loadCurriculum(){
   $("status").textContent="تحميل فهرس المناهج…";
 
-  // Always available immediately from the embedded verified index.
+  // Embedded data remains only as emergency fallback.
   curriculumData=JSON.parse(JSON.stringify(EMBEDDED_CURRICULUM_DATA));
   curriculumIndex=JSON.parse(JSON.stringify(curriculumData.verified_index||{}));
+  nabilMasterCurriculumLoaded=false;
 
-  // Optionally merge the deployed static file if it is newer/richer.
   try{
-    let r=await fetch("/static/crdp_master_curriculum_index.json",{cache:"no-store"});
-    if(!r.ok) r=await fetch("/static/crdp_scientific_curriculum_index.json",{cache:"no-store"});
-    if(r.ok){
-      const remote=await r.json();
-      if(remote && typeof remote==="object"){
-        curriculumData={
-          ...curriculumData,
-          ...remote,
-          subject_availability:{
-            ...(curriculumData.subject_availability||{}),
-            ...(remote.subject_availability||{})
-          },
-          secondary_structure:{
-            ...(curriculumData.secondary_structure||{}),
-            ...(remote.secondary_structure||{})
-          },
-          annual_curriculum_details:{
-            ...(curriculumData.annual_curriculum_details||{}),
-            ...(remote.annual_curriculum_details||{})
-          }
-        };
-        curriculumIndex=mergeCurriculumIndexes(
-          curriculumIndex,
-          remote.verified_index||{}
-        );
-      }
-    }
+    const r=await fetch("/static/crdp_master_curriculum_index.json",{cache:"no-store"});
+    if(!r.ok) throw new Error("master curriculum index unavailable");
+
+    const master=await r.json();
+    const adapted=nabilAdaptMasterCurriculum(master);
+
+    curriculumData={
+      ...master,
+      verified_index:adapted.verified_index,
+      subject_availability:adapted.subject_availability,
+      secondary_structure:adapted.secondary_structure
+    };
+    curriculumIndex=adapted.verified_index;
+    nabilMasterCurriculumLoaded=true;
   }catch(err){
-    console.warn("Using embedded curriculum index:",err);
+    console.warn("Using embedded fallback curriculum index:",err);
   }
 
   let wantedGrade=canonicalGrade(params.get("grade")||"");
@@ -1003,7 +1120,7 @@ async function loadCurriculum(){
 
   const count=[...document.querySelectorAll("#lessons input[type=checkbox]")].length;
   $("status").textContent=
-    `✓ الفهرس جاهز — الصف: ${$("grade").value} — المادة: ${$("subject").value||"—"} — الدروس: ${count}`;
+    `${nabilMasterCurriculumLoaded ? "✓ الفهرس الرئيسي جاهز" : "تنبيه: فهرس احتياطي"} — الصف: ${$("grade").value} — المادة: ${$("subject").value||"—"} — الدروس: ${count}`;
 }
 
 async function fetchAssessment(payload){
