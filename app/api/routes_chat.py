@@ -4271,6 +4271,46 @@ def _nabil_missing_practice_exercises(text: str):
     have=set(_nabil_practice_exercise_numbers(text))
     return [n for n in range(1,6) if n not in have]
 
+def build_learning_action_instructions(action: Optional[str], profile: dict) -> str:
+    action = str(action or "").strip().lower()
+    if not action:
+        return ""
+
+    common = """
+NABIL SMART LEARNING ACTION — internal instruction, never repeat it to the student.
+Use the student's real saved learning profile below only when it contains evidence. Never invent a weakness, mistake, score, or mastery state.
+Saved profile: {profile}
+""".format(profile=json.dumps(profile or {}, ensure_ascii=False))
+
+    actions = {
+        "checkpoint": "Ask exactly ONE short formative-check question about the most recently explained concept. Do not give the answer yet. Use a drawing only if the question genuinely needs one.",
+        "explain_another_way": "Re-teach ONLY the most recent concept in a genuinely different way: simpler steps, analogy, concrete example, or accurate visual. Do not repeat the previous wording. End with one short check-for-understanding question.",
+        "adaptive_practice": "Give exactly ONE new practice item targeted to the current lesson and, when supported by the saved profile/history, the student's actual weakness or frequent mistake. Do not reveal the solution before the student attempts it. If a diagram is necessary, include valid DRAWINGS_JSON.",
+        "quick_quiz": "Create exactly FIVE short questions totaling 10 marks. Progress from recall/understanding to application/analysis as appropriate for the grade. Mix question formats when pedagogically suitable; do not make all questions MCQ. Do not show answers before the student responds.",
+        "flashcards": "Create 5–8 concise study flashcards from the current lesson only. Format each as `Q: ...` then `A: ...`. Prioritize core concepts and any verified concepts_to_review from the saved profile.",
+        "remediation": "Diagnose the student's latest actual error from the conversation, explain the missing idea briefly, then give ONE near-transfer retry question. Do not shame the student and do not invent an error if none is evident.",
+        "summary": "Give a compact mastery summary of the current lesson: key ideas, formulas/rules, verified strengths, verified concepts to review, and the best next study step. Do not invent progress data.",
+    }
+    instruction = actions.get(action)
+    if not instruction:
+        return ""
+    return common + "\nRequested smart action: " + instruction
+
+
+def learning_progress_contract() -> str:
+    return """
+INTERNAL LEARNING-PROGRESS CONTRACT:
+At the very end of your response, after any DRAWINGS_JSON, append one hidden metadata block exactly in this form:
+<PROGRESS_JSON>
+{"strengths":[],"weaknesses":[],"mistakes":[],"concepts_to_review":[],"assessment":null,"lesson_completed":false}
+</PROGRESS_JSON>
+Only record evidence demonstrated in this turn or clearly established in the conversation. Never infer a weakness from silence.
+If you actually grade an assessment, set assessment to {"name":"...","score":number,"out_of":number}; otherwise keep it null.
+Set lesson_completed=true only when the lesson/assessment is genuinely completed, not merely because you explained one concept.
+This block is internal and will be removed before display.
+"""
+
+
 @router.post(
     "/chat",
     response_model=ChatResponse,
@@ -4289,6 +4329,7 @@ async def voice_chat(
     lesson: Optional[str] = Form(None),
     teaching_mode: Optional[str] = Form("full_lesson"),
     activity_mode: Optional[str] = Form("lesson"),
+    learning_action: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
  
@@ -4704,6 +4745,16 @@ GENERAL EXERCISES MODE / حل تمارين عامة
 
     """
  
+    # Smart learning layer: server-side action routing + real saved profile.
+    # This keeps pedagogical instructions out of the student's visible message.
+    educational_context += "\n\nملف تعلم الطالب المحفوظ (استخدمه فقط عند وجود دليل):\n" + json.dumps(
+        student_profile_context, ensure_ascii=False
+    )
+    educational_context += "\n\n" + build_learning_action_instructions(
+        learning_action, student_profile_context
+    )
+    educational_context += "\n\n" + learning_progress_contract()
+
     history_messages = []
  
     for msg in previous_messages:
