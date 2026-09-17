@@ -5146,15 +5146,23 @@ async def nabil_realtime_call(request: Request):
         raise HTTPException(status_code=503, detail="OPENAI_API_KEY is not configured")
 
     raw_body = await request.body()
-    sdp = raw_body.decode("utf-8", errors="strict").strip()
+    sdp = raw_body.decode("utf-8", errors="strict")
 
-    # Fail locally instead of forwarding an empty/corrupt offer.
-    if not sdp:
+    # IMPORTANT: never strip/trim SDP itself.
+    # WebRTC SDP uses CRLF line endings, including the final line terminator.
+    # Validate a separate copy, but forward the original SDP byte-for-byte.
+    sdp_check = sdp.strip()
+
+    if not sdp_check:
         raise HTTPException(status_code=400, detail="Missing SDP offer")
-    if not sdp.startswith("v=0"):
+
+    if not sdp_check.startswith("v=0"):
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid SDP offer received by backend (length={len(sdp)}, prefix={sdp[:40]!r})",
+            detail=(
+                "Invalid SDP offer received by backend "
+                f"(length={len(sdp)}, prefix={sdp_check[:40]!r})"
+            ),
         )
 
     session = {
