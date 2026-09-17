@@ -1582,16 +1582,6 @@
             "Français": {
               "lessons": [
                 {
-                  "title": "عقاولا ثيح نم مهم",
-                  "official_order": 12,
-                  "textbook_page": 13,
-                  "source_pdf_page": 15,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الرابع",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
                   "title": "Addition et multiplication",
                   "official_order": 13,
                   "textbook_page": 14,
@@ -2228,16 +2218,6 @@
                   "title": "Multiplication d’un décimal par un entier",
                   "official_order": 23,
                   "textbook_page": 31,
-                  "source_pdf_page": 19,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الخامس",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "عقاولا ثيح نم مهم شاعملا",
-                  "official_order": 24,
-                  "textbook_page": 32,
                   "source_pdf_page": 19,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
                   "source_grade": "الصف الخامس",
@@ -2922,16 +2902,6 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "اذه يف يهتني موهفم هيلع ىنبيو فصلا",
-                  "official_order": 2,
-                  "textbook_page": 31,
-                  "source_pdf_page": 25,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف الثامن",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
                   "title": "Quadrilatères + triangles EB 8",
                   "official_order": 3,
                   "textbook_page": 39,
@@ -3582,16 +3552,6 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "ة يعماجلا تاصاصتخللا مهم",
-                  "official_order": 1,
-                  "textbook_page": 32,
-                  "source_pdf_page": 64,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - العلوم العامة",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
                   "title": "Fonctions réciproques I. Composition de fonctions II. Fonctions réciproques",
                   "official_order": 2,
                   "textbook_page": 45,
@@ -4069,7 +4029,7 @@
     "grades_total": 19,
     "grades_with_data": 14,
     "subject_grade_pairs": 28,
-    "verified_lessons": 347,
+    "verified_lessons": 343,
     "annual_subject_pdfs": 15,
     "book_list_pdfs": 36,
     "complete": false
