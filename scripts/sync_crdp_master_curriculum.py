@@ -30,7 +30,6 @@ ALLOWED_HOSTS = {
 }
 
 GRADES = [
-    "الروضة الأولى", "الروضة الثانية", "الروضة الثالثة",
     "الصف الأول", "الصف الثاني", "الصف الثالث", "الصف الرابع", "الصف الخامس", "الصف السادس",
     "الصف السابع", "الصف الثامن", "الصف التاسع",
     "الأول ثانوي",
@@ -40,7 +39,7 @@ GRADES = [
 ]
 
 SUBJECTS = [
-    "الروضة", "اللغة العربية", "اللغة الفرنسية", "اللغة الإنجليزية",
+    "اللغة العربية", "اللغة الفرنسية", "اللغة الإنجليزية",
     "الرياضيات", "علوم", "الفيزياء", "الكيمياء", "علوم الحياة",
     "التربية الوطنية والتنشئة المدنية", "التاريخ", "الجغرافيا",
     "علم الاجتماع", "علم الاقتصاد", "الفلسفة والحضارات",
@@ -62,7 +61,6 @@ SUBJECT_ALIASES = [
     ("مادة الجغرافيا", "الجغرافيا"),
     ("مادة العلوم", "علوم"),
     ("مادة الفلسفة", "الفلسفة والحضارات"),
-    ("منهج الروضة", "الروضة"),
 ]
 
 BAD_NOTE_PATTERNS = [
@@ -145,9 +143,14 @@ def detect_subject_from_link(label, url):
 def grade_from_text(text):
     """
     Strong grade detection for headers AND grade-marker table rows.
+    Kindergarten is intentionally excluded for now.
     No cross-page inheritance.
     """
     s = norm(text).lower()
+
+    # Kindergarten is intentionally postponed and excluded from this phase.
+    if re.search(r"(?:الروضة|مرحلة الروضة|\bkg\s*[123]\b|\bps\s*[123]\b)", s, re.I):
+        return None
 
     rules = [
         # KG
@@ -232,6 +235,7 @@ def bad_title(title, language=None):
         return True
     if low in {
         "total", "content", "contenu", "page", "pages",
+        "important for healthy life", "important for a healthy life",
         "national textbook", "livre national", "number of periods",
         "nombre de périodes", "chapter-topic", "chapter- topic", "chapitre-sujet",
     }:
@@ -246,10 +250,28 @@ def bad_title(title, language=None):
     return False
 
 
+def clean_source_title(value):
+    t = norm(value)
+
+    # CRDP PDF tables often contain "_" placeholders between wrapped words.
+    t = re.sub(r"\s*_+\s*", " ", t)
+    t = norm(t)
+
+    # Keep the official lesson title but drop appended administrative notes.
+    t = re.split(
+        r"\s+(?:Note|Remarque|ملاحظة)\s*[:：]",
+        t,
+        maxsplit=1,
+        flags=re.I,
+    )[0].strip()
+
+    return t.rstrip(" -_;:")
+
+
 def choose_title(cells, language):
     candidates = []
     for c in cells:
-        c = norm(c)
+        c = clean_source_title(c)
         if not c or numeric(c) is not None or bad_title(c, language):
             continue
         if grade_from_text(c):
@@ -310,6 +332,7 @@ def extract_page(page, subject, source_url):
     """
     text = page.get_text("text")
     page_grade = grade_from_text(text[:3000])
+
     language = detect_language(text)
     low = text.lower()
 
@@ -339,6 +362,7 @@ def extract_page(page, subject, source_url):
             row_text = " | ".join(cells)
 
             row_grade = grade_from_text(row_text)
+
             if row_grade:
                 table_grade = row_grade
                 # A pure grade-marker/header row is not a lesson.
@@ -375,6 +399,10 @@ def extract_page(page, subject, source_url):
 def add(master, grade, subject, language, item, source_url):
     if not grade or not subject or not item:
         return
+
+    # Kindergarten entries are accepted only from the official Kindergarten source.
+    if grade.startswith("الروضة") and subject != "الروضة":
+        return
     g = master["catalog"][grade]
     s = g["subjects"].setdefault(subject, {"languages": {}})
     l = s["languages"].setdefault(
@@ -394,7 +422,7 @@ def main(dest="app/static/crdp_official",
     pdfdir.mkdir(parents=True, exist_ok=True)
 
     master = {
-        "schema_version": "7.0",
+        "schema_version": "10.0",
         "authority": "CRDP Lebanon",
         "academic_year": "2025-2026",
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -407,6 +435,9 @@ def main(dest="app/static/crdp_official",
             "reject_language_script_mismatch": True,
             "never_inherit_grade_across_pages": True,
             "allow_grade_state_only_inside_same_table": True,
+            "kindergarten_excluded_for_now": True,
+            "strip_inline_editorial_notes": True,
+            "normalize_pdf_wrap_markers": True,
         },
         "catalog": {
             g: {"_status": "awaiting_official_sync", "subjects": {}}
