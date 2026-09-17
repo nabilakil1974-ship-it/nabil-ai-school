@@ -8570,30 +8570,50 @@ async function nabilSpeakClear(text, language=nabilSelectedLanguage(), callbacks
     }
 }
 
-function readAnswer(
+async function readAnswer(
     text,
     button
 ) {
     if (nabilNeuralSpeaking || (nabilNeuralAudio && !nabilNeuralAudio.paused)) {
         stopNabilNeuralVoice();
-        button.textContent = "🔊 اقرأ الإجابة";
+        button.textContent = nabilReadButtonIdleLabel();
         button.classList.remove("reading");
         return;
     }
 
-    button.textContent = "⏹ إيقاف القراءة";
+    const sourceText = String(text || "").trim();
+    const sourceQuestion = nabilLatestVisibleStudentQuestion();
+
+    button.textContent = nabilReadButtonLoadingLabel();
     button.classList.add("reading");
 
+    const teacherSpeech = await nabilRequestTeacherOralReply({
+        currentAnswer: sourceText,
+        sourceQuestion,
+        purpose: "read_button"
+    });
+
+    const speechTextToUse = String(teacherSpeech || sourceText).trim();
+    if(!speechTextToUse){
+        button.textContent = nabilReadButtonIdleLabel();
+        button.classList.remove("reading");
+        return;
+    }
+
     nabilSpeakClear(
-        text,
+        speechTextToUse,
         nabilSelectedLanguage(),
         {
             onstart: () => {
-                button.textContent = "⏹ إيقاف القراءة";
+                button.textContent = nabilReadButtonStopLabel();
                 button.classList.add("reading");
             },
             onend: () => {
-                button.textContent = "🔊 اقرأ الإجابة";
+                button.textContent = nabilReadButtonIdleLabel();
+                button.classList.remove("reading");
+            },
+            onerror: () => {
+                button.textContent = nabilReadButtonIdleLabel();
                 button.classList.remove("reading");
             }
         }
@@ -8696,35 +8716,95 @@ function nabilBoardNoInventedNumbers(source, spoken){
     return nabilBoardNumbers(spoken).every(n=>allowed.has(n));
 }
 
-async function nabilBoardArabicForCard(cardText){
-    const clean=String(cardText||"").trim();
-    if(!clean) return "";
+
+function nabilLatestVisibleStudentQuestion(){
+    const remembered=String(window.nabilCurrentQuestionText || "").trim();
+    if(remembered) return remembered;
+
+    const candidates=[...document.querySelectorAll(
+        ".message.student, .student-message, .user-message, .message.user, .message[data-role='student']"
+    )].filter(el=>{
+        const style=getComputedStyle(el);
+        return style.display!=="none" && style.visibility!=="hidden" && el.offsetParent!==null;
+    });
+
+    const last=candidates[candidates.length-1];
+    return String(last?.innerText || last?.textContent || "")
+        .replace(/\s+/g," ")
+        .trim();
+}
+
+function nabilReadButtonIdleLabel(){
+    const lang=String(nabilSelectedLanguage?.() || languageSelect?.value || "العربية");
+    if(/English/i.test(lang)) return "🔊 Read explanation";
+    if(/Français|French/i.test(lang)) return "🔊 Lire l’explication";
+    return "🔊 اقرأ الشرح";
+}
+
+function nabilReadButtonLoadingLabel(){
+    const lang=String(nabilSelectedLanguage?.() || languageSelect?.value || "العربية");
+    if(/English/i.test(lang)) return "⏳ Preparing explanation";
+    if(/Français|French/i.test(lang)) return "⏳ Préparation de l’explication";
+    return "⏳ جارٍ تحضير الشرح";
+}
+
+function nabilReadButtonStopLabel(){
+    const lang=String(nabilSelectedLanguage?.() || languageSelect?.value || "العربية");
+    if(/English/i.test(lang)) return "⏹ Stop";
+    if(/Français|French/i.test(lang)) return "⏹ Arrêter";
+    return "⏹ إيقاف الشرح";
+}
+
+async function nabilRequestTeacherOralReply({currentAnswer="", sourceQuestion="", purpose="read_button"}={}){
+    const cleanAnswer=String(currentAnswer||"").trim();
+    const cleanQuestion=String(sourceQuestion||nabilLatestVisibleStudentQuestion()||"").trim();
+    if(!cleanAnswer && !cleanQuestion) return "";
+
+    const selectedLanguage=String(languageSelect?.value || nabilSelectedLanguage?.() || "العربية");
+    const activityMode=(nabilActivityMode === "general_exercises") ? "general_exercises" : "lesson";
+    const subjectValue=(activityMode === "general_exercises") ? "Open / Mixed Subjects" : (subjectSelect?.value || "");
+    const lessonValue=(activityMode === "lesson") ? (lessonSelect?.value || "") : "";
+    const imageLike=/🖼️|image|photo|diagram|figure|graph|drawing|shape|uploaded|upload|scan|geometry|geometric|figure|schéma|graphique|dessin|image|photo|صورة|رسم|شكل|مخطط|منحنى|هندسة/i.test(`${cleanQuestion} ${cleanAnswer}`);
+
+    let prompt="";
+    if(/English/i.test(selectedLanguage)){
+        prompt = purpose === "board_card"
+            ? "Explain this current card to the student exactly like a real teacher. Do not read the card verbatim. Tell the student what this card gives us, what it helps us understand, and what the next step is before continuing."
+            : "Explain the current written answer exactly like a real teacher talking to one student. Do not read the answer verbatim. Explain naturally, step by step, in short teaching turns, and keep the course terminology natural.";
+        if(imageLike){
+            prompt += " If the original exercise comes from an uploaded image, scanned problem, or visible figure/diagram, explain using the visible data and refer naturally to the figure. If a drawing is visible, use it in the explanation. Never invent hidden text, labels, or numbers.";
+        }
+    }else if(/Français|French/i.test(selectedLanguage)){
+        prompt = purpose === "board_card"
+            ? "Explique cette carte actuelle comme un vrai enseignant à un seul élève. Ne lis pas la carte mot à mot. Dis ce que cette carte nous donne, ce qu’il faut comprendre, et quelle est l’idée suivante avant de continuer."
+            : "Explique la réponse écrite actuelle comme un vrai enseignant parlant à un élève. Ne lis pas la réponse mot à mot. Explique naturellement, étape par étape, avec de courtes interventions pédagogiques, tout en gardant les termes du cours naturels.";
+        if(imageLike){
+            prompt += " Si l’exercice vient d’une image téléchargée, d’un énoncé scanné ou d’une figure visible, explique à partir des données visibles et fais référence naturellement au schéma. Si un dessin est visible, utilise-le dans l’explication. N’invente jamais un texte, des étiquettes ou des nombres cachés.";
+        }
+    }else{
+        prompt = purpose === "board_card"
+            ? "اشرح هذه البطاقة الحالية تمامًا مثل أستاذ يشرح لطالب. لا تقرأ البطاقة حرفيًا. قل للطالب شو عطتنا البطاقة، شو لازم يفهم منها، وما هي الفكرة أو الخطوة التالية قبل أن نكمل."
+            : "اشرح الجواب الحالي تمامًا مثل أستاذ يشرح لطالب واحد. لا تقرأ الجواب حرفيًا. اشرح بشكل طبيعي، خطوة خطوة، وبجمل تعليمية قصيرة، مع إبقاء مصطلحات المادة بالطريقة الطبيعية للطالب.";
+        if(imageLike){
+            prompt += " إذا كان أصل التمرين صورة مرفوعة أو تمرينًا ممسوحًا أو يعتمد على شكل/رسم ظاهر، فاشرح اعتمادًا على المعطيات الظاهرة، وارجع للرسم بشكل طبيعي إذا كان موجودًا. إذا كانت هناك رسمة ظاهرة فاستعملها في الشرح، ولا تخترع أي نص أو قيَم أو تسميات مخفية.";
+        }
+    }
+
+    prompt += " Never read markdown, tables, LaTeX commands, JSON, DRAWINGS_JSON, or interface labels aloud. Explain the meaning only. If there is a function study or multi-step solution, explain the logic in order. If there is a final result, connect it to the reason. Keep the explanation age-appropriate and subject-appropriate.";
 
     try{
         const body=new FormData();
-        body.append(
-            "message",
-            "اشرح لي شو عطتنا هالبطاقة وشو لازم أفهم منها قبل ما نكمل. " +
-            "ما بدي ترجمة للنص وما بدي تعيد قراءته. " +
-            "إذا فيها Given أو معطيات، قل بالعربي باختصار: عطينا كذا، وهذا يفيدنا بكذا. " +
-            "إذا فيها Required، قل شو لازم نطلع. " +
-            "إذا فيها Formula أو Rule، اذكر اسمها بلغة المادة الأصلية وقل ليش رح نستعملها. " +
-            "إذا لازم نطلع قيمة قبل تطبيق الـ Formula، قل شو لازم نوجد أولًا وليش. " +
-            "إذا وصلنا للتعويض، وضّح وين رح نعمل substitution من دون اختراع أي رقم. " +
-            "الشرح بالعربي المبسط، لكن المصطلحات الأكاديمية الأساسية تبقى بلغة المادة الأصلية: " +
-            "مثل derivative أو f prime أو integral أو slope في Math، ونفس المبدأ في Physics وChemistry وBiology واللغات وباقي المواد. " +
-            "لا تحية، لا ترجمة حرفية، لا إعادة قراءة، ولا معلومات من خارج البطاقة."
-        );
-        body.append("student_id",getStudentId());
-        body.append("current_answer",clean);
-        body.append("subject",subjectSelect?.value||"");
-        body.append("grade",gradeSelect?.value||"");
-        body.append("language","العربية");
-        body.append("lesson",lessonSelect?.value||"");
-        body.append("activity_mode","lesson");
-        if(conversationId) body.append("conversation_id",conversationId);
+        body.append("message", `${prompt}\n\nCurrent student question:\n${cleanQuestion}`.trim());
+        body.append("student_id", getStudentId());
+        body.append("current_answer", cleanAnswer);
+        body.append("subject", subjectValue);
+        body.append("grade", gradeSelect?.value || "");
+        body.append("language", selectedLanguage);
+        body.append("lesson", lessonValue);
+        body.append("activity_mode", activityMode);
+        if(conversationId) body.append("conversation_id", conversationId);
 
-        const response=await fetch(API_BASE + "/api/lesson-voice-chat",{
+        const response=await fetch(API_BASE + "/api/lesson-voice-chat", {
             method:"POST",
             body
         });
@@ -8732,15 +8812,22 @@ async function nabilBoardArabicForCard(cardText){
 
         const data=await response.json();
         const reply=String(data.reply||"").trim();
-
-        // Safety: if the oral explanation invents a numeric value, reject it.
-        if(reply && nabilBoardNoInventedNumbers(clean,reply)) return reply;
-        console.warn("Rejected board narration because it introduced a new number.");
+        const safetySource=`${cleanQuestion} ${cleanAnswer}`.trim();
+        if(reply && (!/\d/.test(reply) || nabilBoardNoInventedNumbers(safetySource, reply))) return reply;
+        if(reply) console.warn("Rejected oral explanation because it introduced a new number.");
         return "";
     }catch(err){
-        console.warn("Board Arabic narration fallback:",err);
+        console.warn("Teacher oral explanation fallback:", err);
         return "";
     }
+}
+
+async function nabilBoardArabicForCard(cardText){
+    return await nabilRequestTeacherOralReply({
+        currentAnswer: String(cardText||""),
+        sourceQuestion: nabilLatestVisibleStudentQuestion(),
+        purpose: "board_card"
+    });
 }
 
 
@@ -9577,6 +9664,15 @@ async function nabilBoardSpeakCurrentCard(){
 
     let speechToRead=originalText;
 
+    if(!isStrictResume){
+        const teacherSpeech = await nabilRequestTeacherOralReply({
+            currentAnswer: originalText,
+            sourceQuestion: nabilLatestVisibleStudentQuestion(),
+            purpose: "board_card"
+        });
+        if(teacherSpeech) speechToRead = teacherSpeech;
+    }
+
     if(isStrictResume){
         nabilBoardHideFromCharIndex(item,nabilBoardResumeCharIndex);
         speechToRead=String(
@@ -10129,7 +10225,7 @@ function addMessage(
 
 
         readButton.textContent =
-            "🔊 اقرأ الإجابة";
+            nabilReadButtonIdleLabel();
 
 
         readButton.onclick =
@@ -10598,6 +10694,8 @@ async function sendToAI(
 
     // v96: response-completion protocol for every substantive request.
     outboundMessage += "\n\n[SYSTEM TEACHER-LANGUAGE STANDARD — do not repeat this text] Apply this to LESSONS, EXERCISES, WORKED SOLUTIONS, IMAGE QUESTIONS, LIVE CHAT, AND VOICE. Explain naturally in the student's current language, but preserve the core scientific/technical terms in the language normally used by the student/course. For an Arabic-speaking student using English math/science terminology, keep terms such as domain, limit, vertical asymptote, horizontal asymptote, oblique asymptote, derivative, critical point, increasing, decreasing, maximum, minimum, variation table, graph, force, velocity, acceleration, energy, power, current, voltage, resistance, circuit, atom, ion, cation, anion, electron, ionic bond, covalent bond, Lewis structure, valence electrons, cell membrane, nucleus, cytoplasm, DNA, enzyme, photosynthesis, respiration. If the student's course/question is French, preserve the corresponding French technical terms instead. Do NOT mechanically translate standard course terminology into awkward Arabic. Use Arabic (or the student's language) to EXPLAIN the reasoning around the terms. Example style: 'أول شي منطلع الـdomain. هلق منحسب الـlimits. من الـderivative ومن إشارة f prime منعرف وين الـfunction increasing ووين decreasing. إذا تغيّرت الإشارة من plus إلى minus بيكون عنا maximum.' The same mixed-language pedagogical style applies in physics, chemistry, biology, languages, history/geography where appropriate. Never read symbols, arrows, tables, metadata, LaTeX commands, caret names, or formatting literally; explain their MEANING. A variation table must be spoken as sign and behavior (e.g. f prime is positive, so the function is increasing), not as arrow directions or raw plus/minus sequences.";
+
+    outboundMessage += "\n\n[SYSTEM NABIL SIGNATURE TEACHING STYLE — do not repeat this text] The teaching style must remain CONSISTENT across the complete direct lesson, the interactive board lesson, general exercise solving, image-based exercises, uploaded-photo questions, homework/problem solving, and follow-up explanations. Teach exactly like a strong one-to-one teacher beside the student: start from what is given, say what we want, name the rule/property and why it applies, then continue step by step until the result. Never become a dry formal lecturer, never merely read the written answer, and never switch to a robotic tone. Keep the explanation lively, human, age-appropriate, and easy to follow. Use short teaching turns, natural transitions, and brief encouragement such as ممتاز, هلق منشوف, ركز معي هون, شوف كيف, very good, now let’s move to the next step. If the student is young, simplify more, shorten the turns, and make the explanation more concrete. If an exercise comes from an uploaded image or visible figure, rely on the visible data only, explain from the figure naturally, and if the figure needs to be drawn or redrawn, produce or preserve the correct drawing. For EVERY full lesson request in full_lesson mode or board_lesson mode, after the explanation you MUST generate EXACTLY five additional solved practice exercises based on the same lesson, each with at least one meaningful correct drawing/diagram/graph and a complete step-by-step solution. These five solved practice exercises are mandatory and are part of the lesson, not optional extras.";
 
     outboundMessage += "\n\n[SYSTEM FUNCTION-STUDY EXECUTION — do not repeat this text] When the current request means study/analyze a function (including natural speech such as study the function, study function, ادرس الدالة, اعمل study, domain/limit/derivative/graph requests), FIRST extract the exact function from the CURRENT utterance and recent conversation. If it is unambiguous, DO NOT ask what function the student means. Solve it immediately and COMPLETELY, not as a checklist. Compute actual results: domain; relevant limits; asymptotes if any; intercepts if relevant; derivative; zeros/sign of the derivative; increasing/decreasing intervals; maximum/minimum when applicable; variation table; and graph/figure when requested or pedagogically useful. If the student asks to 'show', 'draw', 'figure', 'graph', 'table', 'اعرض', 'رسمة', or equivalent, render the visual/card in the SAME conversation and continue discussing it. Only ask one short clarification if the mathematical expression itself is genuinely ambiguous (for example, ln x / x versus ln(x/x)); never ask for information already present in the current or immediately preceding student utterance. For f(x)=ln(x)/x specifically, the correct study is D=(0,+infinity), limit at 0+ is -infinity, limit at +infinity is 0, x=0 vertical asymptote, y=0 horizontal asymptote at +infinity, x-intercept (1,0), f'(x)=(1-ln x)/x^2, increasing on (0,e), decreasing on (e,+infinity), maximum at (e,1/e). Use this only as a correctness reference/example; the engine must solve ANY function from its actual expression, not pattern-match this example.";
 
@@ -11156,15 +11254,15 @@ startLesson.addEventListener(
 
         const prompt = teachingMode === "board_lesson"
             ? (language === "English"
-                ? "Begin the COMPLETE selected lesson now in interactive board mode. Teach it step by step as if you are writing on a board. DURING THE EXPLANATION, whenever an idea, rule, process, spatial relation, graph, geometry figure, circuit, force, structure, atom, biological process, map, timeline, table, or sequence is clearer with a visual, create the correct subject-specific drawing immediately using valid DRAWINGS_JSON with scope=lesson. Do not merely describe a needed figure in prose. Then finish with EXACTLY five varied solved exercises numbered Exercise 1 through Exercise 5. Solve every exercise completely. EVERY exercise MUST include at least one meaningful subject-specific drawing/diagram/graph/figure using valid DRAWINGS_JSON with scope=practice, exercise_index=N, and card_index=100+N. Add extra drawings when genuinely needed. Multiple drawings for the same exercise must share the same exercise_index/card_index. Do not stop, summarize early, or end the response before Exercise 5 is fully solved and drawings for exercises 1 through 5 are all included."
+                ? "Begin the COMPLETE selected lesson now in interactive board mode. Teach it step by step as if you are writing on a board, using the exact same warm teacher style used in worked solutions and live tutoring: natural, clear, age-appropriate, never robotic, and never just reading text. DURING THE EXPLANATION, whenever an idea, rule, process, spatial relation, graph, geometry figure, circuit, force, structure, atom, biological process, map, timeline, table, or sequence is clearer with a visual, create the correct subject-specific drawing immediately using valid DRAWINGS_JSON with scope=lesson. Do not merely describe a needed figure in prose. Then finish with EXACTLY five varied solved exercises numbered Exercise 1 through Exercise 5. Solve every exercise completely. EVERY exercise MUST include at least one meaningful subject-specific drawing/diagram/graph/figure using valid DRAWINGS_JSON with scope=practice, exercise_index=N, and card_index=100+N. Add extra drawings when genuinely needed. Multiple drawings for the same exercise must share the same exercise_index/card_index. Do not stop, summarize early, or end the response before Exercise 5 is fully solved and drawings for exercises 1 through 5 are all included."
                 : language === "Français"
                     ? "Commence maintenant la leçon COMPLÈTE en mode tableau interactif. Explique-la étape par étape comme si tu écrivais au tableau. PENDANT L’EXPLICATION, chaque fois qu’une idée, propriété, processus, relation spatiale, graphique, figure géométrique, circuit, force, structure, atome, processus biologique, carte, chronologie, tableau ou séquence est plus claire visuellement, crée immédiatement le schéma correct avec un DRAWINGS_JSON valide et scope=lesson. Puis termine par EXACTEMENT cinq exercices corrigés numérotés Exercice 1 à Exercice 5. Résous chaque exercice entièrement. CHAQUE exercice DOIT contenir au moins un schéma/graphique/figure utile avec scope=practice, exercise_index=N et card_index=100+N. Ajoute plusieurs schémas si le contenu l’exige. Ne termine jamais la réponse avant que l’Exercice 5 soit entièrement corrigé ET que les exercices 1 à 5 aient tous leur schéma."
-                    : "ابدأ الآن الدرس المحدد كاملًا بنمط اللوح التفاعلي. اشرح خطوة خطوة كأنك تكتب على اللوح. أثناء الشرح، كل فكرة أو قاعدة أو عملية أو علاقة مكانية أو منحنى أو شكل هندسي أو دارة أو قوة أو بنية أو ذرة أو عملية بيولوجية أو خريطة أو خط زمني أو جدول أو تسلسل يصبح أوضح بالرسم: أنشئ له فورًا الرسم الصحيح الخاص بالمادة باستخدام DRAWINGS_JSON صالح مع scope=lesson، ولا تكتفِ بوصف الشكل بالكلام. ثم اختم بخمسة تمارين إضافية محلولة بالضبط، مرقمة من تمرين 1 إلى تمرين 5. أكمل حل كل تمرين للنهاية. يجب أن يحتوي كل تمرين بلا استثناء على رسم/مخطط/بيان/شكل بصري مفيد باستخدام DRAWINGS_JSON مع scope=practice و exercise_index=N و card_index=100+N. وإذا احتاج التمرين أكثر من رسم فارسمها كلها بالفهرس نفسه. لا تنه الجواب ولا تختصره قبل إكمال تمرين 5 بالكامل والتأكد من وجود رسم للتمارين 1 إلى 5 جميعًا.")
+                    : "ابدأ الآن الدرس المحدد كاملًا بنمط اللوح التفاعلي. اشرح خطوة خطوة كأنك تكتب على اللوح، وبنفس أسلوب الأستاذ الحي مع الطالب: طبيعي، واضح، مناسب للعمر، وغير آلي، ومن دون قراءة النص كأنه محاضرة. أثناء الشرح، كل فكرة أو قاعدة أو عملية أو علاقة مكانية أو منحنى أو شكل هندسي أو دارة أو قوة أو بنية أو ذرة أو عملية بيولوجية أو خريطة أو خط زمني أو جدول أو تسلسل يصبح أوضح بالرسم: أنشئ له فورًا الرسم الصحيح الخاص بالمادة باستخدام DRAWINGS_JSON صالح مع scope=lesson، ولا تكتفِ بوصف الشكل بالكلام. ثم اختم بخمسة تمارين إضافية محلولة بالضبط، مرقمة من تمرين 1 إلى تمرين 5. أكمل حل كل تمرين للنهاية. يجب أن يحتوي كل تمرين بلا استثناء على رسم/مخطط/بيان/شكل بصري مفيد باستخدام DRAWINGS_JSON مع scope=practice و exercise_index=N و card_index=100+N. وإذا احتاج التمرين أكثر من رسم فارسمها كلها بالفهرس نفسه. لا تنه الجواب ولا تختصره قبل إكمال تمرين 5 بالكامل والتأكد من وجود رسم للتمارين 1 إلى 5 جميعًا.")
             : (language === "English"
-                ? "Begin the COMPLETE selected lesson now. Present the whole lesson clearly. DURING THE EXPLANATION, whenever an idea, rule, process, spatial relation, graph, geometry figure, circuit, force, structure, atom, biological process, map, timeline, table, or sequence is clearer with a visual, create the correct subject-specific drawing immediately using valid DRAWINGS_JSON with scope=lesson. Do not merely describe a needed figure in prose. Then finish with EXACTLY five varied solved exercises numbered Exercise 1 through Exercise 5. Solve every exercise completely. EVERY exercise MUST include at least one meaningful subject-specific drawing/diagram/graph/figure using valid DRAWINGS_JSON with scope=practice, exercise_index=N, and card_index=100+N. Add extra drawings when genuinely needed. Multiple drawings for the same exercise must share the same exercise_index/card_index. Do not stop, summarize early, or end the response before Exercise 5 is fully solved and drawings for exercises 1 through 5 are all included."
+                ? "Begin the COMPLETE selected lesson now. Present the whole lesson clearly, using the exact same warm teacher style used in worked solutions and live tutoring: natural, clear, age-appropriate, never robotic, and never just reading text. DURING THE EXPLANATION, whenever an idea, rule, process, spatial relation, graph, geometry figure, circuit, force, structure, atom, biological process, map, timeline, table, or sequence is clearer with a visual, create the correct subject-specific drawing immediately using valid DRAWINGS_JSON with scope=lesson. Do not merely describe a needed figure in prose. Then finish with EXACTLY five varied solved exercises numbered Exercise 1 through Exercise 5. Solve every exercise completely. EVERY exercise MUST include at least one meaningful subject-specific drawing/diagram/graph/figure using valid DRAWINGS_JSON with scope=practice, exercise_index=N, and card_index=100+N. Add extra drawings when genuinely needed. Multiple drawings for the same exercise must share the same exercise_index/card_index. Do not stop, summarize early, or end the response before Exercise 5 is fully solved and drawings for exercises 1 through 5 are all included."
                 : language === "Français"
                     ? "Commence maintenant la leçon COMPLÈTE. PENDANT L’EXPLICATION, chaque fois qu’une idée, propriété, processus, relation spatiale, graphique, figure géométrique, circuit, force, structure, atome, processus biologique, carte, chronologie, tableau ou séquence est plus claire visuellement, crée immédiatement le schéma correct avec un DRAWINGS_JSON valide et scope=lesson. Puis termine par EXACTEMENT cinq exercices corrigés numérotés Exercice 1 à Exercice 5. Résous chaque exercice entièrement. CHAQUE exercice DOIT contenir au moins un schéma/graphique/figure utile avec scope=practice, exercise_index=N et card_index=100+N. Ajoute plusieurs schémas si le contenu l’exige. Ne termine jamais la réponse avant que l’Exercice 5 soit entièrement corrigé ET que les exercices 1 à 5 aient tous leur schéma."
-                    : "ابدأ الآن الدرس المحدد كاملًا. أثناء الشرح، كل فكرة أو قاعدة أو عملية أو علاقة مكانية أو منحنى أو شكل هندسي أو دارة أو قوة أو بنية أو ذرة أو عملية بيولوجية أو خريطة أو خط زمني أو جدول أو تسلسل يصبح أوضح بالرسم: أنشئ له فورًا الرسم الصحيح الخاص بالمادة باستخدام DRAWINGS_JSON صالح مع scope=lesson، ولا تكتفِ بوصف الشكل بالكلام. ثم اختم بخمسة تمارين إضافية محلولة بالضبط، مرقمة من تمرين 1 إلى تمرين 5. أكمل حل كل تمرين للنهاية. يجب أن يحتوي كل تمرين بلا استثناء على رسم/مخطط/بيان/شكل بصري مفيد باستخدام DRAWINGS_JSON مع scope=practice و exercise_index=N و card_index=100+N. وإذا احتاج التمرين أكثر من رسم فارسمها كلها بالفهرس نفسه. لا تنه الجواب ولا تختصره قبل إكمال تمرين 5 بالكامل والتأكد من وجود رسم للتمارين 1 إلى 5 جميعًا.");
+                    : "ابدأ الآن الدرس المحدد كاملًا، وبنفس أسلوب الأستاذ الحي مع الطالب: طبيعي، واضح، مناسب للعمر، وغير آلي، ومن دون قراءة النص كأنه محاضرة. أثناء الشرح، كل فكرة أو قاعدة أو عملية أو علاقة مكانية أو منحنى أو شكل هندسي أو دارة أو قوة أو بنية أو ذرة أو عملية بيولوجية أو خريطة أو خط زمني أو جدول أو تسلسل يصبح أوضح بالرسم: أنشئ له فورًا الرسم الصحيح الخاص بالمادة باستخدام DRAWINGS_JSON صالح مع scope=lesson، ولا تكتفِ بوصف الشكل بالكلام. ثم اختم بخمسة تمارين إضافية محلولة بالضبط، مرقمة من تمرين 1 إلى تمرين 5. أكمل حل كل تمرين للنهاية. يجب أن يحتوي كل تمرين بلا استثناء على رسم/مخطط/بيان/شكل بصري مفيد باستخدام DRAWINGS_JSON مع scope=practice و exercise_index=N و card_index=100+N. وإذا احتاج التمرين أكثر من رسم فارسمها كلها بالفهرس نفسه. لا تنه الجواب ولا تختصره قبل إكمال تمرين 5 بالكامل والتأكد من وجود رسم للتمارين 1 إلى 5 جميعًا.");
 
         await sendToAI(
             prompt,
