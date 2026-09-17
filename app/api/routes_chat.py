@@ -3,8 +3,6 @@
 # from its last written word. Never invent, skip, or jump ahead to another card.
 
 import os
-import httpx
-from openai import AsyncOpenAI, APIError
 import json
 import math
 import re
@@ -124,6 +122,14 @@ Function Study — بروتوكول إلزامي عام:
 - للدالة العامة أو الكسرية استخدم coordinate_plane مع series منفصلة لكل فرع، ومقارب عمودي/مائل عند وجوده.
 - تحقق من النقاط الحرجة والمقارب والنقاط المرسومة عدديًا.
 - لا تعتبر كلمة function العادية في الفيزياء أو الكيمياء "دراسة دالة"؛ يجب وجود f(x)=... أو طلب رياضي واضح.
+- بروتوكول دراسة الدالة يُستخدم فقط عندما يطلب الطالب صراحة دراسة دالة رياضية أو تمثيلها/مشتقتها/جدول تغيراتها في وضع التمارين العامة. لا تفرض قالب الدوال على شرح درس عادي.
+
+بوابة الدقة العلمية الإلزامية قبل أي جواب علمي:
+- الكيمياء: راجع حفظ عدد الذرات، حفظ الشحنة، عدد إلكترونات التكافؤ، عدد الإلكترونات المنتقلة، ونسبة الأيونات/الذرات في الصيغة. في الروابط الأيونية لا تفترض NaCl تلقائيًا؛ استعمل الأنواع المذكورة في السؤال/الدرس فقط، وتحقق أن مجموع الشحنات يساوي صفرًا في المركب المتعادل.
+- علوم الحياة/الأحياء: لا تستبدل ظاهرة بمخطط عام. في mitosis افصل علميًا بين prophase, metaphase, anaphase, telophase ثم cytokinesis بحسب مستوى الدرس، ولا تسمِّه life cycle. لا تضف عضيات أو مراحل غير مطلوبة لمجرد أنها شائعة.
+- الفيزياء: تحقق من الإشارة والاتجاه والوحدات والقطبية واتصال الدارة قبل النتيجة.
+- الرياضيات: تحقق من كل تعويض ونقطة مرسومة ومجال تعريف وشرط نظرية قبل استخدامها.
+- إذا لم تتوافر معلومات كافية لرسم علمي دقيق، لا تخترع رسماً. الشرح الصحيح بلا رسم أفضل من رسم خاطئ.
 
 Electric Circuits:
 - Series: same current through elements; resistances add.
@@ -226,65 +232,86 @@ def get_lesson_policy(
     subject: Optional[str],
     lesson_title: Optional[str],
 ) -> Optional[dict]:
+    """
+    Resolve the selected lesson against the CRDP index for ALL stages.
+    Never assume that annual_curriculum_details contains only secondary data.
+    Search ordered/verified structures first, then annual and secondary structures.
+    """
 
     grade_text = (grade or "").strip()
     branch_text = (branch or "").strip()
     subject_text = (subject or "").strip()
     lesson_text = (lesson_title or "").strip().lower()
 
-    if not all(
-        [
-            grade_text,
-            subject_text,
-            lesson_text,
-        ]
-    ):
+    if not all([grade_text, subject_text, lesson_text]):
         return None
 
     index = load_curriculum_index()
 
-    details = (
-        index
-        .get(
-            "annual_curriculum_details",
-            {}
-        )
-        .get(
-            "الثانوي",
-            {}
-        )
-        .get(
-            grade_text,
-            {}
-        )
-    )
+    def _matches(value: str) -> bool:
+        title = str(value or "").strip().lower()
+        if not title:
+            return False
+        return title == lesson_text or lesson_text in title or title in lesson_text
 
-    if branch_text:
-        details = details.get(
-            branch_text,
-            {}
-        )
+    def _walk(node):
+        if isinstance(node, dict):
+            title = node.get("title") or node.get("lesson") or node.get("name")
+            if title and _matches(title):
+                item = dict(node)
+                item.setdefault("title", str(title))
+                item.setdefault("status", "maintained")
+                return item
+            for value in node.values():
+                found = _walk(value)
+                if found:
+                    return found
+        elif isinstance(node, list):
+            for item in node:
+                if isinstance(item, str) and _matches(item):
+                    return {"title": item, "status": "maintained"}
+                found = _walk(item)
+                if found:
+                    return found
+        elif isinstance(node, str) and _matches(node):
+            return {"title": node, "status": "maintained"}
+        return None
 
-    subject_lessons = details.get(
-        subject_text,
-        []
-    )
+    # 1) Exact ordered book/curriculum index when available.
+    ordered = index.get("official_ordered_lessons", {})
+    candidates = []
+    if isinstance(ordered, dict):
+        candidates.append(ordered.get(grade_text, {}))
 
-    for item in subject_lessons:
+    # 2) Verified index used by the frontend.
+    verified = index.get("verified_index", {})
+    if isinstance(verified, dict):
+        candidates.append(verified.get(subject_text, {}).get(grade_text, {}))
 
-        title = str(
-            item.get(
-                "title",
-                ""
-            )
-        ).strip().lower()
+    # 3) Annual curriculum details, across ALL stages (not secondary only).
+    annual = index.get("annual_curriculum_details", {})
+    if isinstance(annual, dict):
+        for stage_data in annual.values():
+            if not isinstance(stage_data, dict):
+                continue
+            grade_data = stage_data.get(grade_text, {})
+            if branch_text and isinstance(grade_data, dict):
+                branch_data = grade_data.get(branch_text)
+                if branch_data is not None:
+                    candidates.append(branch_data.get(subject_text, branch_data) if isinstance(branch_data, dict) else branch_data)
+            if isinstance(grade_data, dict):
+                candidates.append(grade_data.get(subject_text, grade_data))
 
-        if (
-            title == lesson_text
-            or lesson_text in title
-            or title in lesson_text
-        ):
-            return item
+    # 4) Secondary structure / legacy structures.
+    secondary = index.get("secondary_structure", {})
+    if isinstance(secondary, dict):
+        grade_data = secondary.get(grade_text, {})
+        candidates.append(grade_data)
+
+    for candidate in candidates:
+        found = _walk(candidate)
+        if found:
+            return found
 
     return None
 
@@ -295,10 +322,9 @@ def format_lesson_policy_for_prompt(
 
     if not policy:
         return (
-            "لا توجد تفاصيل سنوية دقيقة "
-            "لهذا الدرس في ملف الفهرسة الحالي. "
-            "التزم بعنوان الدرس فقط ولا تخترع "
-            "أي فقرة فرعية غير مؤكدة."
+            "لا توجد تفاصيل رسمية كافية لهذا الدرس في فهرس CRDP المحلي الحالي. "
+            "لا توسّع الدرس من الذاكرة العامة ولا تنشئ عناوين فرعية غير موثقة. "
+            "التزم بعنوان الدرس وما يرد صراحة في سؤال/صورة الطالب، أو اطلب مرجعًا أوضح عند الحاجة."
         )
 
     included = policy.get(
@@ -452,6 +478,8 @@ def build_curriculum_guardrail(
             "التزم بالتفاعلات والمفاهيم الكيميائية المندرجة ضمن الدرس الحالي فقط.",
             "لا تدخل بنى ذرية أو روابط أو حسابات مولية إذا لم تكن ضمن درس الطالب الحالي.",
             "لا تفترض مادة كيميائية أو تجربة لم يذكرها السؤال إلا كمثال تعليمي واضح ومناسب للدرس.",
+            "قبل أي صيغة أو رسم: تحقق من عدد الذرات، عدد إلكترونات التكافؤ، الإلكترونات المفقودة/المكتسبة، الشحنة الكلية، ونسبة الأيونات اللازمة للتعادل.",
+            "ممنوع افتراض NaCl تلقائيًا في درس ionic bond؛ استخدم الأنواع الواردة في الدرس أو المثال فقط.",
         ])
 
     elif subject_text == "علوم":
@@ -464,6 +492,8 @@ def build_curriculum_guardrail(
         rules.extend([
             "التزم بالبنية أو الوظيفة أو الظاهرة الحيوية المحددة في الدرس.",
             "لا تدخل في الوراثة أو المناعة أو الفسيولوجيا المتقدمة إلا إذا كانت ضمن عنوان الدرس الحالي.",
+            "في الانقسام الخلوي لا تستخدم مخطط life cycle عام. رتّب المراحل والتسميات والكروموسومات/الكروماتيدات وفق الظاهرة المطلوبة فقط.",
+            "لا تضف جزءًا تشريحيًا أو مرحلة أو وظيفة لا يذكرها نطاق الدرس أو لا تكون لازمة علميًا للشرح.",
         ])
 
     tangent_keywords = (
@@ -3594,7 +3624,7 @@ async def nabil_text_to_speech(
         communicator = edge_tts.Communicate(
             clean_text,
             voice=voice,
-            rate="-7%",
+            rate="-15%",
             volume="+0%",
             pitch="-2Hz",
         )
@@ -4557,6 +4587,9 @@ GENERAL EXERCISES MODE / حل تمارين عامة
  
     قواعد المستوى لهذا الطلب:
     {curriculum_guardrail}
+
+    حدود المحتوى الرسمي لهذا الدرس بحسب فهرس CRDP المحلي:
+    {lesson_policy_text}
  
     تعليمات تنفيذية:
     - لا تنتقل إلى مفهوم من صف أعلى.
@@ -4565,6 +4598,9 @@ GENERAL EXERCISES MODE / حل تمارين عامة
     - لا تخترع مثالًا عدديًا متقدمًا إذا لم يطلبه الطالب.
     - لا تخترع إحداثيات أو معادلات أو نقاطًا غير موجودة في السؤال.
     - إذا كنت تشرح درسًا، ابدأ بالمفهوم والخاصية المناسبة للصف ثم مثال مناسب.
+    - وضع الدرس ليس وضع دراسة دالة تلقائيًا: ممنوع تحويل أي درس إلى Domain/Limits/Asymptotes/Derivative/Variation Table بسبب كلمة أو رسم عابر. قالب دراسة الدالة يخص طلب الطالب الصريح في وضع التمارين العامة فقط.
+    - في شرح الدرس، المحتوى الرسمي أعلاه هو المرجع الحاكم. لا تضف فصلًا أو قاعدة أو مرحلة غير موجودة في نطاق الدرس لمجرد أن النموذج يعرفها.
+    - نفّذ تدقيقًا علميًا داخليًا قبل الإرسال: صحة المفاهيم، التسلسل، الحساب، المصطلحات، الرسوم، والوحدات. إذا تعارض الرسم مع النص فصحح أحدهما قبل الإرسال.
     - قسّم شرح الدرس إلى بطاقات واضحة: استخدم عنوان Markdown من المستوى ## لكل مفهوم أو خطوة رئيسية، ولا تجمع الدرس كله في كتلة طويلة واحدة.
     - بطاقات شرح الدرس تستخدم نفس Visual Engine ومعايير الرسومات نفسها المعتمدة في حل تمارين عامة. إذا كانت بطاقة مفهوم/مثال تحتاج رسماً، أرسل الرسم الفعلي واربطه بـ card_index الموافق لتلك البطاقة.
     - إذا كانت بطاقة واحدة تقارن حالتين بصريتين، يمكن إرسال أكثر من رسمة بنفس card_index كي تظهر الرسومات معًا قرب البطاقة.
@@ -5096,129 +5132,4 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
         student_profile=profile_to_dict(
             learning_profile
         ),
-    )
-
-# ==========================================================
-# NABIL LIVE REALTIME VOICE
-# Browser -> /api/realtime/call -> OpenAI Realtime WebRTC
-# OPENAI_API_KEY stays on the server only.
-# ==========================================================
-
-NABIL_REALTIME_INSTRUCTIONS = r"""
-أنت الأستاذ نبيل، معلّم صوتي حي مباشر داخل منصة تعليمية لبنانية.
-
-أسلوب الحوار:
-- تحدث طبيعيًا وبسرعة مثل محادثة حيّة، لا كقارئ نصوص ولا كرسالة مسجلة.
-- افهم العربية واللهجة اللبنانية وEnglish وFrançais والمزج بينها من المعنى والسياق.
-- لا تطلب إعادة السؤال إذا كان المقصود مفهومًا. إذا نقصت معلومة واحدة ضرورية، اسأل عنها فقط بجملة قصيرة.
-- لا تعيد التحية أو التعريف بنفسك في كل دور.
-- الطالب يستطيع مقاطعتك أثناء الكلام: توقف فور بدء كلامه واسمعه.
-- الجواب القصير يبقى قصيرًا. لا تحوّل سؤالًا بسيطًا إلى محاضرة.
-- حافظ على سياق الجلسة: كلمات مثل هون، هيدا، this part، là تشير لما كنتم تناقشونه قبل لحظة.
-
-التدريس:
-- اشرح بلغة الطالب، مع إبقاء المصطلحات العلمية القياسية كما يدرسها الطالب.
-- رياضيات: domain, limit, derivative / f prime, asymptote, increasing, decreasing, maximum, minimum, graph, variation table.
-- فيزياء: force, velocity, acceleration, current, voltage, resistance, circuit, energy, momentum وغيرها حسب السؤال.
-- كيمياء: atom, electron, ion, cation, anion, valence electrons, ionic bond, Lewis structure وغيرها.
-- Biology وباقي المواد: اشرح الفكرة تربويًا ولا تقرأ الرموز أو labels أو tables حرفيًا.
-- لا تقل "سهم شمال شرق" أو تقرأ + - - + كرموز. قل: المشتقة موجبة إذن function increasing، ثم سالبة إذن decreasing.
-
-Study of a function:
-- إذا طلب الطالب study the function / ادرس الدالة، وحُدّدت الدالة، ابدأ الحل الفعلي فورًا ولا تعطِ مجرد قائمة بما ستفعله.
-- اعمل حسب ما ينطبق: domain، limits، asymptotes، intercepts، derivative، sign، increasing/decreasing، maximum/minimum، variation table، graph.
-- اشرح بالعربية الطبيعية إذا الطالب عربي، لكن أبقِ المصطلحات السابقة بالإنجليزية كما هي.
-- مثال أسلوب فقط وليس مثالًا محفوظًا: "أول شي منطلع الـ domain. هلق منحسب الـ limit... منجيب الـ derivative... من إشارة f prime منعرف وين الـ function increasing ووين decreasing."
-
-المنهج والمحتوى:
-- تصرّف كأستاذ عام ذكي في جميع المواد والصفوف، واستفد من سياق المنصة والمحتوى الذي يزوّدك به الخادم أو الأدوات.
-- لا تفترض أن الطالب محصور بالمادة المختارة؛ يمكن أن ينتقل بين رياضيات وفيزياء وكيمياء وبيولوجي ولغات وتاريخ وجغرافيا وأسئلة مسابقات.
-
-الرسومات:
-- عندما يطلب الطالب graph / figure / diagram / table / رسمة، قل له باختصار إنك ستعرضها وتابع الشرح؛ واجهة المنصة تتولى إظهار البطاقة/الرسم بالتوازي.
-""".strip()
-
-
-@router.post("/realtime/call")
-async def nabil_realtime_call(request: Request):
-    api_key = os.getenv("OPENAI_API_KEY", "").strip()
-    if not api_key:
-        raise HTTPException(status_code=503, detail="OPENAI_API_KEY is not configured")
-
-    raw_body = await request.body()
-    sdp = raw_body.decode("utf-8", errors="strict")
-
-    # IMPORTANT: never strip/trim SDP itself.
-    # WebRTC SDP uses CRLF line endings, including the final line terminator.
-    # Validate a separate copy, but forward the original SDP byte-for-byte.
-    sdp_check = sdp.strip()
-
-    if not sdp_check:
-        raise HTTPException(status_code=400, detail="Missing SDP offer")
-
-    if not sdp_check.startswith("v=0"):
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "Invalid SDP offer received by backend "
-                f"(length={len(sdp)}, prefix={sdp_check[:40]!r})"
-            ),
-        )
-
-    session = {
-        "type": "realtime",
-        "model": "gpt-realtime-2.1",
-        "output_modalities": ["audio"],
-        "instructions": NABIL_REALTIME_INSTRUCTIONS,
-        "audio": {
-            "input": {
-                "noise_reduction": {
-                    "type": "near_field",
-                },
-                "transcription": {
-                    "model": "gpt-transcribe",
-                    "prompt": (
-                        "Lebanese Arabic educational speech mixed with English and French. "
-                        "Preserve mathematical and scientific terms accurately."
-                    ),
-                },
-                "turn_detection": {
-                    "type": "server_vad",
-                    "create_response": True,
-                    "interrupt_response": True,
-                },
-            },
-            "output": {
-                "voice": "marin",
-            },
-        },
-    }
-
-    # IMPORTANT: use the official SDK here. It serializes the Realtime call
-    # exactly as OpenAI expects: multipart/form-data with the SDP as an
-    # application/sdp part and the session as application/json.
-    client = AsyncOpenAI(api_key=api_key)
-    try:
-        call = await client.realtime.calls.create(
-            sdp=sdp,
-            session=session,
-            timeout=30.0,
-        )
-        answer_sdp = call.text
-    except APIError as exc:
-        status = getattr(exc, "status_code", None) or 502
-        body = getattr(exc, "body", None)
-        detail = body if body is not None else str(exc)
-        raise HTTPException(status_code=status, detail=detail) from exc
-    finally:
-        await client.close()
-
-    if not answer_sdp or not answer_sdp.strip():
-        raise HTTPException(status_code=502, detail="OpenAI returned an empty SDP answer")
-
-    return Response(
-        content=answer_sdp,
-        media_type="application/sdp",
-        status_code=200,
-        headers={"Cache-Control": "no-store"},
     )
