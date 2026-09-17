@@ -10,29 +10,23 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install requests pymupdf
-
-      - name: Run CRDP sync
+      - name: Run CLEAN CRDP sync
         run: |
-          python scripts/sync_crdp_master_curriculum.py             /tmp/crdp_official             app/static/crdp_master_curriculum_index.json
-
-      - name: Validate real curriculum coverage
+          python scripts/sync_crdp_master_curriculum.py /tmp/crdp_official app/static/crdp_master_curriculum_index.json
+      - name: Validate clean curriculum
         run: |
-          python scripts/validate_crdp_master_curriculum.py             app/static/crdp_master_curriculum_index.json
-
+          python scripts/validate_crdp_master_curriculum.py app/static/crdp_master_curriculum_index.json
       - name: Commit generated master index
         run: |
           git config user.name "github-actions[bot]"
@@ -41,13 +35,12 @@ jobs:
           if git diff --cached --quiet; then
             echo "No curriculum changes to commit."
           else
-            git commit -m "Update verified CRDP master curriculum index"
+            git commit -m "Clean verified CRDP master curriculum index"
             git push
           fi
-
       - name: Upload generated index
         uses: actions/upload-artifact@v4
         with:
-          name: crdp-master-curriculum-index
+          name: crdp-master-curriculum-index-clean
           path: app/static/crdp_master_curriculum_index.json
           if-no-files-found: error
