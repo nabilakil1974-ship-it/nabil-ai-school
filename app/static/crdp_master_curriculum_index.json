@@ -1,8 +1,8 @@
 {
-  "schema_version": "7.0",
+  "schema_version": "10.0",
   "authority": "CRDP Lebanon",
   "academic_year": "2025-2026",
-  "generated_at": "2026-09-17T16:37:57.134548+00:00",
+  "generated_at": "2026-09-17T17:09:23.771888+00:00",
   "policy": {
     "all_grades": true,
     "all_subjects": true,
@@ -11,41 +11,12 @@
     "reject_instruction_rows": true,
     "reject_language_script_mismatch": true,
     "never_inherit_grade_across_pages": true,
-    "allow_grade_state_only_inside_same_table": true
+    "allow_grade_state_only_inside_same_table": true,
+    "kindergarten_excluded_for_now": true,
+    "strip_inline_editorial_notes": true,
+    "normalize_pdf_wrap_markers": true
   },
   "catalog": {
-    "الروضة الأولى": {
-      "_status": "partially_synced",
-      "subjects": {
-        "الكيمياء": {
-          "languages": {
-            "English": {
-              "lessons": [
-                {
-                  "title": "1. Soaps and detergents 1.2. Detergents - Composition and Properties 1.2. Detergents",
-                  "official_order": 2,
-                  "textbook_page": 34,
-                  "source_pdf_page": 64,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/10-chimie_2025-2026_.pdf",
-                  "source_grade": "الروضة الأولى",
-                  "source_subject": "الكيمياء",
-                  "verification_status": "verified-from-official-crdp-table"
-                }
-              ],
-              "source_url": "https://www.crdp.org/sites/default/files/inline-files/10-chimie_2025-2026_.pdf"
-            }
-          }
-        }
-      }
-    },
-    "الروضة الثانية": {
-      "_status": "awaiting_official_sync",
-      "subjects": {}
-    },
-    "الروضة الثالثة": {
-      "_status": "awaiting_official_sync",
-      "subjects": {}
-    },
     "الصف الأول": {
       "_status": "partially_synced",
       "subjects": {
@@ -54,7 +25,7 @@
             "English": {
               "lessons": [
                 {
-                  "title": "U1 L1: I Am Born _",
+                  "title": "U1 L1: I Am Born",
                   "official_order": 1,
                   "textbook_page": 14,
                   "source_pdf_page": 53,
@@ -64,7 +35,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U1 L2: I Grow Up _",
+                  "title": "U1 L2: I Grow Up",
                   "official_order": 2,
                   "textbook_page": 16,
                   "source_pdf_page": 53,
@@ -74,7 +45,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U1 L3: How Tall Am I? _",
+                  "title": "U1 L3: How Tall Am I?",
                   "official_order": 3,
                   "textbook_page": 18,
                   "source_pdf_page": 53,
@@ -84,7 +55,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U1 L4: Things I Need to _ Help Me Grow",
+                  "title": "U1 L4: Things I Need to Help Me Grow",
                   "official_order": 4,
                   "textbook_page": 20,
                   "source_pdf_page": 53,
@@ -94,7 +65,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U1 L5: Fady the Football _ Player",
+                  "title": "U1 L5: Fady the Football Player",
                   "official_order": 5,
                   "textbook_page": 22,
                   "source_pdf_page": 53,
@@ -104,7 +75,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U1 L 6: Keeping My _ Teeth Clean",
+                  "title": "U1 L 6: Keeping My Teeth Clean",
                   "official_order": 6,
                   "textbook_page": 24,
                   "source_pdf_page": 53,
@@ -114,7 +85,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U1 L 7: In The Family. _",
+                  "title": "U1 L 7: In The Family.",
                   "official_order": 7,
                   "textbook_page": 26,
                   "source_pdf_page": 53,
@@ -124,7 +95,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U1 L8: My senses. _",
+                  "title": "3.2 The Senses : Organs, Functions, Role",
                   "official_order": 8,
                   "textbook_page": 28,
                   "source_pdf_page": 53,
@@ -134,7 +105,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U1 L9: My Eyes. _",
+                  "title": "U1 L9: My Eyes.",
                   "official_order": 9,
                   "textbook_page": 31,
                   "source_pdf_page": 53,
@@ -144,7 +115,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U1 L10: I See. _",
+                  "title": "U1 L10: I See.",
                   "official_order": 10,
                   "textbook_page": 33,
                   "source_pdf_page": 54,
@@ -164,17 +135,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U1 L12: My Ears. _",
-                  "official_order": 12,
-                  "textbook_page": 36,
-                  "source_pdf_page": 54,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/12-SciencesC1-2_2025-2026_.pdf",
-                  "source_grade": "الصف الأول",
-                  "source_subject": "علوم",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "U1 L13: I Take Care Of _ My Ears.",
+                  "title": "U1 L13: I Take Care Of My Ears.",
                   "official_order": 13,
                   "textbook_page": 39,
                   "source_pdf_page": 54,
@@ -184,7 +145,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U1 L14: My Tongue. _",
+                  "title": "U1 L14: My Tongue.",
                   "official_order": 14,
                   "textbook_page": 40,
                   "source_pdf_page": 54,
@@ -194,7 +155,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U1 L15: My Nose. _",
+                  "title": "U1 L15: My Nose.",
                   "official_order": 15,
                   "textbook_page": 42,
                   "source_pdf_page": 54,
@@ -204,7 +165,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U1 L16: I Protect My _ Nose and Tongue.",
+                  "title": "U1 L16: I Protect My Nose and Tongue.",
                   "official_order": 16,
                   "textbook_page": 43,
                   "source_pdf_page": 54,
@@ -224,7 +185,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U1 L19: I Protect My _ Hands and Skin.",
+                  "title": "U1 L19: I Protect My Hands and Skin.",
                   "official_order": 18,
                   "textbook_page": 47,
                   "source_pdf_page": 55,
@@ -244,7 +205,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U1 L23: Avoiding _ Dangers",
+                  "title": "U1 L23: Avoiding Dangers",
                   "official_order": 20,
                   "textbook_page": 56,
                   "source_pdf_page": 55,
@@ -254,7 +215,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U2 L1: Animals In My _ Environment",
+                  "title": "U2 L1: Animals In My Environment",
                   "official_order": 21,
                   "textbook_page": 60,
                   "source_pdf_page": 55,
@@ -264,7 +225,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U2 L2: Domestic and _ Wild Animals.",
+                  "title": "U2 L2: Domestic and Wild Animals.",
                   "official_order": 22,
                   "textbook_page": 62,
                   "source_pdf_page": 55,
@@ -274,7 +235,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U2 L3: The Benefits Of _ Some Domestic Animals.",
+                  "title": "U2 L3: The Benefits Of Some Domestic Animals.",
                   "official_order": 23,
                   "textbook_page": 66,
                   "source_pdf_page": 56,
@@ -284,7 +245,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U2 L4: Where Do _ Animals live?",
+                  "title": "U2 L4: Where Do Animals live?",
                   "official_order": 24,
                   "textbook_page": 68,
                   "source_pdf_page": 56,
@@ -294,7 +255,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U2 L5: The Hen and the _ Chicks.",
+                  "title": "U2 L5: The Hen and the Chicks.",
                   "official_order": 25,
                   "textbook_page": 72,
                   "source_pdf_page": 56,
@@ -304,7 +265,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U2 L6: The Frog and Its _ Babies.",
+                  "title": "U2 L6: The Frog and Its Babies.",
                   "official_order": 26,
                   "textbook_page": 74,
                   "source_pdf_page": 56,
@@ -344,7 +305,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U2 L10: _ Fish in the Aquarium",
+                  "title": "U2 L10: Fish in the Aquarium",
                   "official_order": 30,
                   "textbook_page": 86,
                   "source_pdf_page": 57,
@@ -354,7 +315,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U3 L1: Plants Around Me _",
+                  "title": "U3 L1: Plants Around Me",
                   "official_order": 31,
                   "textbook_page": 90,
                   "source_pdf_page": 57,
@@ -364,7 +325,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U3 L3: The Leaves. _",
+                  "title": "U3 L3: The Leaves.",
                   "official_order": 32,
                   "textbook_page": 95,
                   "source_pdf_page": 57,
@@ -374,7 +335,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U3 L4: Plant uses _",
+                  "title": "U3 L4: Plant uses",
                   "official_order": 33,
                   "textbook_page": 104,
                   "source_pdf_page": 57,
@@ -384,7 +345,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U3 L5: Seeds of plants _",
+                  "title": "U3 L5: Seeds of plants",
                   "official_order": 34,
                   "textbook_page": 99,
                   "source_pdf_page": 57,
@@ -394,7 +355,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U3 L6: Soyabean Seeds _",
+                  "title": "U3 L6: Soyabean Seeds",
                   "official_order": 35,
                   "textbook_page": 104,
                   "source_pdf_page": 58,
@@ -404,7 +365,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U3 L7: Development of _ plants.",
+                  "title": "U3 L7: Development of plants.",
                   "official_order": 36,
                   "textbook_page": 106,
                   "source_pdf_page": 58,
@@ -414,7 +375,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U2 L8: Plants and Water _",
+                  "title": "U2 L8: Plants and Water",
                   "official_order": 37,
                   "textbook_page": 109,
                   "source_pdf_page": 58,
@@ -424,7 +385,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U3 L9: Good Seed _ Sprouting.",
+                  "title": "U3 L9: Good Seed Sprouting.",
                   "official_order": 38,
                   "textbook_page": 111,
                   "source_pdf_page": 58,
@@ -434,7 +395,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U3 L10: Needs of Green _ Plants.",
+                  "title": "U3 L10: Needs of Green Plants.",
                   "official_order": 39,
                   "textbook_page": 113,
                   "source_pdf_page": 58,
@@ -444,7 +405,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U3 L11: I Care For Plants _",
+                  "title": "U3 L11: I Care For Plants",
                   "official_order": 40,
                   "textbook_page": 115,
                   "source_pdf_page": 58,
@@ -454,7 +415,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U3 L12: I Am A Friend _ Of Wild Plants",
+                  "title": "U3 L12: I Am A Friend Of Wild Plants",
                   "official_order": 41,
                   "textbook_page": 118,
                   "source_pdf_page": 58,
@@ -478,7 +439,7 @@
             "English": {
               "lessons": [
                 {
-                  "title": "U1 L1: What is a Garden? _",
+                  "title": "U1 L1: What is a Garden?",
                   "official_order": 1,
                   "textbook_page": 14,
                   "source_pdf_page": 59,
@@ -488,7 +449,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U1 L 2: How Are Gardens Used? _",
+                  "title": "U1 L 2: How Are Gardens Used?",
                   "official_order": 2,
                   "textbook_page": 18,
                   "source_pdf_page": 59,
@@ -498,7 +459,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U1 L 3: How Do We Take Care of _ Gardens?",
+                  "title": "U1 L 3: How Do We Take Care of Gardens?",
                   "official_order": 3,
                   "textbook_page": 22,
                   "source_pdf_page": 59,
@@ -508,7 +469,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U1 L 4: How Do We Take Care of _ Our School Gardens?",
+                  "title": "U1 L 4: How Do We Take Care of Our School Gardens?",
                   "official_order": 4,
                   "textbook_page": 24,
                   "source_pdf_page": 59,
@@ -518,7 +479,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U1 L 6: What Are Seasonal Plants? _",
+                  "title": "U1 L 6: What Are Seasonal Plants?",
                   "official_order": 5,
                   "textbook_page": 33,
                   "source_pdf_page": 59,
@@ -528,7 +489,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U1 L 7: When Do Seasonal Plants _ Grow?",
+                  "title": "U1 L 7: When Do Seasonal Plants Grow?",
                   "official_order": 6,
                   "textbook_page": 37,
                   "source_pdf_page": 59,
@@ -538,7 +499,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U1 L 9: Do We Grow Cucumbers in _ Winter?",
+                  "title": "U1 L 9: Do We Grow Cucumbers in Winter?",
                   "official_order": 7,
                   "textbook_page": 42,
                   "source_pdf_page": 59,
@@ -548,7 +509,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U2 L1: Where Do Animals Live? _ What Do They Eat",
+                  "title": "U2 L1: Where Do Animals Live? What Do They Eat",
                   "official_order": 8,
                   "textbook_page": 50,
                   "source_pdf_page": 59,
@@ -841,7 +802,7 @@
             "English": {
               "lessons": [
                 {
-                  "title": "U1 L1: _ What Is A Plant Made Up Of?",
+                  "title": "U1 L1: What Is A Plant Made Up Of?",
                   "official_order": 1,
                   "textbook_page": 14,
                   "source_pdf_page": 63,
@@ -851,7 +812,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U1 L2: _ Are Stems, Roots and Leaves The Same In All Different Kinds Of Plants?",
+                  "title": "U1 L2: Are Stems, Roots and Leaves The Same In All Different Kinds Of Plants?",
                   "official_order": 2,
                   "textbook_page": 19,
                   "source_pdf_page": 63,
@@ -861,7 +822,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U1 L 3: _ Where Do Animals And Plants Live?",
+                  "title": "U1 L 3: Where Do Animals And Plants Live?",
                   "official_order": 3,
                   "textbook_page": 24,
                   "source_pdf_page": 63,
@@ -871,7 +832,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U1 L4: _ Are Woods Different From Forests?",
+                  "title": "U1 L4: Are Woods Different From Forests?",
                   "official_order": 4,
                   "textbook_page": 29,
                   "source_pdf_page": 64,
@@ -881,7 +842,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U1 L5 _ What Is A Desert?",
+                  "title": "U1 L5 What Is A Desert?",
                   "official_order": 5,
                   "textbook_page": 34,
                   "source_pdf_page": 64,
@@ -891,7 +852,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U1 L6: What Kind Of Plants Live In _ The Sea?",
+                  "title": "U1 L6: What Kind Of Plants Live In The Sea?",
                   "official_order": 6,
                   "textbook_page": 38,
                   "source_pdf_page": 64,
@@ -901,7 +862,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U2 L1: _ What Kinds Of Animals Do We Have?",
+                  "title": "U2 L1: What Kinds Of Animals Do We Have?",
                   "official_order": 7,
                   "textbook_page": 46,
                   "source_pdf_page": 65,
@@ -911,7 +872,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U2 L2: What Is Wrong With Our _ Sea?",
+                  "title": "U2 L2: What Is Wrong With Our Sea?",
                   "official_order": 8,
                   "textbook_page": 54,
                   "source_pdf_page": 65,
@@ -921,7 +882,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U2 L3: What Is Happening To _ Fishey’s Home?",
+                  "title": "U2 L3: What Is Happening To Fishey’s Home?",
                   "official_order": 9,
                   "textbook_page": 59,
                   "source_pdf_page": 65,
@@ -931,7 +892,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U2 L4: _ What Is Happening To Our Home?",
+                  "title": "U2 L4: What Is Happening To Our Home?",
                   "official_order": 10,
                   "textbook_page": 64,
                   "source_pdf_page": 65,
@@ -941,7 +902,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U3 L1: Why Do We Breathe? _",
+                  "title": "U3 L1: Why Do We Breathe?",
                   "official_order": 11,
                   "textbook_page": 76,
                   "source_pdf_page": 66,
@@ -951,7 +912,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U3 L2: _ What Happens When We Eat?",
+                  "title": "U3 L2: What Happens When We Eat?",
                   "official_order": 12,
                   "textbook_page": 80,
                   "source_pdf_page": 66,
@@ -961,7 +922,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U3 L3: _ What Makes The Blood Move?",
+                  "title": "U3 L3: What Makes The Blood Move?",
                   "official_order": 13,
                   "textbook_page": 82,
                   "source_pdf_page": 66,
@@ -971,7 +932,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U3 L4: _ What Gives Our Body Its Shape? How Do We Move?",
+                  "title": "U3 L4: What Gives Our Body Its Shape? How Do We Move?",
                   "official_order": 14,
                   "textbook_page": 85,
                   "source_pdf_page": 67,
@@ -981,7 +942,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U3 L5: _ What Is The Nervous System? How Can We Sense Things Around Us?",
+                  "title": "U3 L5: What Is The Nervous System? How Can We Sense Things Around Us?",
                   "official_order": 15,
                   "textbook_page": 87,
                   "source_pdf_page": 67,
@@ -991,7 +952,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U3 L6 _ How Do Our Body Systems Work Together?",
+                  "title": "U3 L6 How Do Our Body Systems Work Together?",
                   "official_order": 16,
                   "textbook_page": 89,
                   "source_pdf_page": 67,
@@ -1001,7 +962,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U3 L7: _ How Do We Take Care Of Our Body?",
+                  "title": "U3 L7: How Do We Take Care Of Our Body?",
                   "official_order": 17,
                   "textbook_page": 91,
                   "source_pdf_page": 68,
@@ -1011,7 +972,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U3 L8: What Should We Do To Stay _ Healthy?",
+                  "title": "U3 L8: What Should We Do To Stay Healthy?",
                   "official_order": 18,
                   "textbook_page": 94,
                   "source_pdf_page": 68,
@@ -1021,7 +982,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U3 L9: What Should We Do If We _ Hurt Ourselves?",
+                  "title": "U3 L9: What Should We Do If We Hurt Ourselves?",
                   "official_order": 19,
                   "textbook_page": 99,
                   "source_pdf_page": 69,
@@ -1031,7 +992,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U4 L1: What Are The Sources Of _ Heat?",
+                  "title": "U4 L1: What Are The Sources Of Heat?",
                   "official_order": 20,
                   "textbook_page": 108,
                   "source_pdf_page": 69,
@@ -1041,7 +1002,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U4 L2: What Happens To Some _ Objects When Heated?",
+                  "title": "U4 L2: What Happens To Some Objects When Heated?",
                   "official_order": 21,
                   "textbook_page": 112,
                   "source_pdf_page": 69,
@@ -1051,7 +1012,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U4 L3: Does The State Of Objects _ Change When Heated?",
+                  "title": "U4 L3: Does The State Of Objects Change When Heated?",
                   "official_order": 22,
                   "textbook_page": 117,
                   "source_pdf_page": 69,
@@ -1061,7 +1022,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U4 L4: What Are The Properties Of _ Solids, Liquids, And Gases?",
+                  "title": "U4 L4: What Are The Properties Of Solids, Liquids, And Gases?",
                   "official_order": 23,
                   "textbook_page": 120,
                   "source_pdf_page": 69,
@@ -1071,7 +1032,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U4 L5: Can Solids, Liquids, And _ Gases Be Compressed?",
+                  "title": "U4 L5: Can Solids, Liquids, And Gases Be Compressed?",
                   "official_order": 24,
                   "textbook_page": 123,
                   "source_pdf_page": 69,
@@ -1081,7 +1042,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U4 L6: What Is Capacity? _",
+                  "title": "U4 L6: What Is Capacity?",
                   "official_order": 25,
                   "textbook_page": 126,
                   "source_pdf_page": 69,
@@ -1091,7 +1052,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U4 L7: Does Heat Transfer Among _ Objects In Contact With Each Other?",
+                  "title": "U4 L7: Does Heat Transfer Among Objects In Contact With Each Other?",
                   "official_order": 26,
                   "textbook_page": 129,
                   "source_pdf_page": 70,
@@ -1101,7 +1062,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U4 L8: What Materials Are Bad _ Conductors Of Heat?",
+                  "title": "U4 L8: What Materials Are Bad Conductors Of Heat?",
                   "official_order": 27,
                   "textbook_page": 132,
                   "source_pdf_page": 70,
@@ -1121,7 +1082,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U4 L10: How Are Objects Moved? _",
+                  "title": "U4 L10: How Are Objects Moved?",
                   "official_order": 29,
                   "textbook_page": 141,
                   "source_pdf_page": 70,
@@ -1131,7 +1092,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U4 L11: What is the Effect of Force _ on Objects?",
+                  "title": "U4 L11: What is the Effect of Force on Objects?",
                   "official_order": 30,
                   "textbook_page": 144,
                   "source_pdf_page": 70,
@@ -1141,7 +1102,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U4 L12: Which Objects Are _ Attracted By Magnets",
+                  "title": "U4 L12: Which Objects Are Attracted By Magnets",
                   "official_order": 31,
                   "textbook_page": 147,
                   "source_pdf_page": 71,
@@ -1151,7 +1112,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U5 L1: What are the source of light? _",
+                  "title": "U5 L1: What are the source of light?",
                   "official_order": 32,
                   "textbook_page": 154,
                   "source_pdf_page": 71,
@@ -1161,7 +1122,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "U5 L7: How Does Running Water _ Affect Rocks?",
+                  "title": "U5 L7: How Does Running Water Affect Rocks?",
                   "official_order": 33,
                   "textbook_page": 176,
                   "source_pdf_page": 71,
@@ -1584,7 +1545,7 @@
             "English": {
               "lessons": [
                 {
-                  "title": "Unit 1 Chapter 1 A1: _ _ A Well Covered Skeleton",
+                  "title": "Unit 1 Chapter 1 A1: A Well Covered Skeleton",
                   "official_order": 1,
                   "textbook_page": 16,
                   "source_pdf_page": 72,
@@ -1594,7 +1555,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Unit 1 Chapter 1 A2: _ _ A Useful Skeleton",
+                  "title": "Unit 1 Chapter 1 A2: A Useful Skeleton",
                   "official_order": 2,
                   "textbook_page": 18,
                   "source_pdf_page": 72,
@@ -1604,7 +1565,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Unit 1 Chapter 1 A3: _ _ Joints and Their Function",
+                  "title": "Unit 1 Chapter 1 A3: Joints and Their Function",
                   "official_order": 3,
                   "textbook_page": 22,
                   "source_pdf_page": 72,
@@ -1614,7 +1575,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Unit 1 Chapter 1 A4: _ _ My Bones Grow",
+                  "title": "Unit 1 Chapter 1 A4: My Bones Grow",
                   "official_order": 4,
                   "textbook_page": 24,
                   "source_pdf_page": 72,
@@ -1624,7 +1585,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Unit 1 Chapter 1 A5: _ _ Bones are Repairable",
+                  "title": "Unit 1 Chapter 1 A5: Bones are Repairable",
                   "official_order": 5,
                   "textbook_page": 26,
                   "source_pdf_page": 72,
@@ -1927,7 +1888,7 @@
             "English": {
               "lessons": [
                 {
-                  "title": "Unit1 Chapter 1 A1: _ _ Green Plants and Their Needs",
+                  "title": "Unit1 Chapter 1 A1: Green Plants and Their Needs",
                   "official_order": 1,
                   "textbook_page": 16,
                   "source_pdf_page": 79,
@@ -1937,7 +1898,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Unit1 Chapter 1 A2: _ _ Green Plant Produce Their Own Food",
+                  "title": "Unit1 Chapter 1 A2: Green Plant Produce Their Own Food",
                   "official_order": 2,
                   "textbook_page": 18,
                   "source_pdf_page": 79,
@@ -1947,7 +1908,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Unit1 Chapter 1 A3: _ _ Photosynthesis",
+                  "title": "Unit1 Chapter 1 A3: Photosynthesis",
                   "official_order": 3,
                   "textbook_page": 20,
                   "source_pdf_page": 79,
@@ -1957,7 +1918,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Unit1 Chapter 1 A4: _ _ Other Patterns of nutrition",
+                  "title": "Unit1 Chapter 1 A4: Other Patterns of nutrition",
                   "official_order": 4,
                   "textbook_page": 23,
                   "source_pdf_page": 79,
@@ -1967,7 +1928,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Unit 1 Chapter 2 A1: _ _ Plants Respire Too",
+                  "title": "Unit 1 Chapter 2 A1: Plants Respire Too",
                   "official_order": 5,
                   "textbook_page": 30,
                   "source_pdf_page": 79,
@@ -1977,7 +1938,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Unit 1 Chapter 2 A2: _ _ Oxygen and Carbon Dioxide Cycle",
+                  "title": "Unit 1 Chapter 2 A2: Oxygen and Carbon Dioxide Cycle",
                   "official_order": 6,
                   "textbook_page": 32,
                   "source_pdf_page": 79,
@@ -2170,7 +2131,7 @@
             "English": {
               "lessons": [
                 {
-                  "title": "Unit1 Chapter1 A1: _ _ The microscope",
+                  "title": "Unit1 Chapter1 A1: The microscope",
                   "official_order": 1,
                   "textbook_page": 16,
                   "source_pdf_page": 84,
@@ -2180,7 +2141,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Unit1 Chapter1 A2: Microscopic _ _ Observations",
+                  "title": "Unit1 Chapter1 A2: Microscopic Observations",
                   "official_order": 2,
                   "textbook_page": 18,
                   "source_pdf_page": 84,
@@ -2190,7 +2151,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Unit1 Chapter 2 A1: _ _ The Cell",
+                  "title": "Unit1 Chapter 2 A1: The Cell",
                   "official_order": 3,
                   "textbook_page": 23,
                   "source_pdf_page": 84,
@@ -2200,7 +2161,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Unit1 Chapter2 A2: _ _ The human Body : A System of Cells",
+                  "title": "Unit1 Chapter2 A2: The human Body : A System of Cells",
                   "official_order": 4,
                   "textbook_page": 26,
                   "source_pdf_page": 84,
@@ -2412,7 +2373,7 @@
             "English": {
               "lessons": [
                 {
-                  "title": "Part 1 Chapter 2 A1: Nutritive needs _ _ of chlorophyllic plants",
+                  "title": "Part 1 Chapter 2 A1: Nutritive needs of chlorophyllic plants",
                   "official_order": 1,
                   "textbook_page": 32,
                   "source_pdf_page": 47,
@@ -2422,7 +2383,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Part 1 Chapter 2 A2: Absorption and _ _ translocation of water and mineral salts",
+                  "title": "Part 1 Chapter 2 A2: Absorption and translocation of water and mineral salts",
                   "official_order": 2,
                   "textbook_page": 34,
                   "source_pdf_page": 47,
@@ -2432,7 +2393,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Part1 Chapter 2 A3: Photosynthesis: _ _ production of organic matter",
+                  "title": "Part1 Chapter 2 A3: Photosynthesis: production of organic matter",
                   "official_order": 3,
                   "textbook_page": 36,
                   "source_pdf_page": 47,
@@ -2442,7 +2403,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Part 1 Chapter 2 A4: Nutritive needs _ _ of non chlorophyllic plants",
+                  "title": "Part 1 Chapter 2 A4: Nutritive needs of non chlorophyllic plants",
                   "official_order": 4,
                   "textbook_page": 38,
                   "source_pdf_page": 47,
@@ -2664,7 +2625,7 @@
             "English": {
               "lessons": [
                 {
-                  "title": "Part1 Chapter1 A1: Self and Non-Self _ _",
+                  "title": "Part1 Chapter1 A1: Self and Non-Self",
                   "official_order": 1,
                   "textbook_page": 14,
                   "source_pdf_page": 51,
@@ -2674,7 +2635,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Part1 Chapter1 A2: Cells, Molecules _ _ and Organs of the Immune System",
+                  "title": "Part1 Chapter1 A2: Cells, Molecules and Organs of the Immune System",
                   "official_order": 2,
                   "textbook_page": 16,
                   "source_pdf_page": 51,
@@ -2684,7 +2645,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Part1 Chapter1 A3: Non-Specific _ _ Immune Response",
+                  "title": "Part1 Chapter1 A3: Non-Specific Immune Response",
                   "official_order": 3,
                   "textbook_page": 18,
                   "source_pdf_page": 51,
@@ -2694,7 +2655,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Part1 Chapter1 A4: Specific Immune _ _ Response",
+                  "title": "Part1 Chapter1 A4: Specific Immune Response",
                   "official_order": 4,
                   "textbook_page": 20,
                   "source_pdf_page": 51,
@@ -2836,7 +2797,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Part 1 Chapter 1 A 1: Our Food _ _",
+                  "title": "Part 1 Chapter 1 A 1: Our Food",
                   "official_order": 1,
                   "textbook_page": 16,
                   "source_pdf_page": 54,
@@ -2846,7 +2807,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Part 1 Chapter 1 A2: Chemical _ _ Transformation Of Food",
+                  "title": "Part 1 Chapter 1 A2: Chemical Transformation Of Food",
                   "official_order": 2,
                   "textbook_page": 18,
                   "source_pdf_page": 54,
@@ -2856,7 +2817,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Part 1 Chapter 1 A3: Enzymes, Agents _ _ Of Digestion",
+                  "title": "Part 1 Chapter 1 A3: Enzymes, Agents Of Digestion",
                   "official_order": 3,
                   "textbook_page": 20,
                   "source_pdf_page": 54,
@@ -2866,7 +2827,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Part 1 Chapter 1 A4: From Food To _ _ Nutrients",
+                  "title": "Part 1 Chapter 1 A4: From Food To Nutrients",
                   "official_order": 4,
                   "textbook_page": 22,
                   "source_pdf_page": 54,
@@ -2876,7 +2837,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Part 1 Chapter 1 A5: The Route Of _ _ Nutrients",
+                  "title": "Part 1 Chapter 1 A5: The Route Of Nutrients",
                   "official_order": 5,
                   "textbook_page": 24,
                   "source_pdf_page": 54,
@@ -2978,7 +2939,7 @@
             "English": {
               "lessons": [
                 {
-                  "title": "Part 1 Chapter1 A3: _ _ The chloroplast: Site of Photosynthesis",
+                  "title": "Part 1 Chapter1 A3: The chloroplast: Site of Photosynthesis",
                   "official_order": 9,
                   "textbook_page": 22,
                   "source_pdf_page": 58,
@@ -2988,7 +2949,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Part 1 Chapter1 A4: Photosynthetic Gas _ _ Exchange",
+                  "title": "Part 1 Chapter1 A4: Photosynthetic Gas Exchange",
                   "official_order": 10,
                   "textbook_page": 24,
                   "source_pdf_page": 58,
@@ -3214,7 +3175,7 @@
             "English": {
               "lessons": [
                 {
-                  "title": "Unit 1 Chapter1 Doc 1: Anatomy _ _ of the Male and Female Reproductive Systems",
+                  "title": "Unit 1 Chapter1 Doc 1: Anatomy of the Male and Female Reproductive Systems",
                   "official_order": 1,
                   "textbook_page": 13,
                   "source_pdf_page": 63,
@@ -3224,7 +3185,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Unit 1 Chapter1 Doc 2: The _ _ Ovarian Cycle",
+                  "title": "Unit 1 Chapter1 Doc 2: The Ovarian Cycle",
                   "official_order": 2,
                   "textbook_page": 14,
                   "source_pdf_page": 63,
@@ -3234,7 +3195,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Unit 1 Chapter 1 Doc 3 : The _ _ Uterine Cycle",
+                  "title": "Unit 1 Chapter 1 Doc 3 : The Uterine Cycle",
                   "official_order": 3,
                   "textbook_page": 15,
                   "source_pdf_page": 63,
@@ -3244,7 +3205,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Unit 1 Chapter 1 Doc 4: _ _ Hormonal Secretion Cycle",
+                  "title": "Unit 1 Chapter 1 Doc 4: Hormonal Secretion Cycle",
                   "official_order": 4,
                   "textbook_page": 16,
                   "source_pdf_page": 63,
@@ -3307,7 +3268,7 @@
             "English": {
               "lessons": [
                 {
-                  "title": "Unit 1 Chapter2 A2:Mitosis, an Equal _ _ Division of the Chromosomal Set",
+                  "title": "Unit 1 Chapter2 A2:Mitosis, an Equal Division of the Chromosomal Set",
                   "official_order": 2,
                   "textbook_page": 36,
                   "source_pdf_page": 65,
@@ -3317,7 +3278,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Unit 1 Chapter2 A3: The Structure _ _ and The Chemical Components of chromosomes.",
+                  "title": "Unit 1 Chapter2 A3: The Structure and The Chemical Components of chromosomes.",
                   "official_order": 3,
                   "textbook_page": 38,
                   "source_pdf_page": 65,
@@ -3327,7 +3288,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Unit 1 Chapter2 A4:Identical _ _ Reproduction and Cell Cycle",
+                  "title": "Unit 1 Chapter2 A4:Identical Reproduction and Cell Cycle",
                   "official_order": 4,
                   "textbook_page": 40,
                   "source_pdf_page": 65,
@@ -3337,7 +3298,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Unit 1 Chapter 3 A2- The Gene, _ _ Structure and Information Unit",
+                  "title": "Unit 1 Chapter 3 A2- The Gene, Structure and Information Unit",
                   "official_order": 6,
                   "textbook_page": 52,
                   "source_pdf_page": 65,
@@ -3347,7 +3308,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Unit 1 Chapter 3 A3- Transcription: _ _ First Step of Protein Synthesis",
+                  "title": "Unit 1 Chapter 3 A3- Transcription: First Step of Protein Synthesis",
                   "official_order": 7,
                   "textbook_page": 54,
                   "source_pdf_page": 65,
@@ -3357,7 +3318,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Part 1 Ch1 Doc 1: Male and Female Reproductive _ _ System",
+                  "title": "Part 1 Ch1 Doc 1: Male and Female Reproductive System",
                   "official_order": 1,
                   "textbook_page": 18,
                   "source_pdf_page": 68,
@@ -3367,7 +3328,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Part 1 Ch1 Doc 2: Diploid and Haploid Cells _ _",
+                  "title": "Part 1 Ch1 Doc 2: Diploid and Haploid Cells",
                   "official_order": 2,
                   "textbook_page": 20,
                   "source_pdf_page": 68,
@@ -3377,7 +3338,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Part 1 Ch1-Doc 3: Meiosis _",
+                  "title": "Part 1 Ch1-Doc 3: Meiosis",
                   "official_order": 3,
                   "textbook_page": 22,
                   "source_pdf_page": 68,
@@ -3387,7 +3348,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Part 1 Ch1 Doc 4: Spermatogenesis _ _",
+                  "title": "Part 1 Ch1 Doc 4: Spermatogenesis",
                   "official_order": 4,
                   "textbook_page": 24,
                   "source_pdf_page": 68,
@@ -3397,7 +3358,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Part 1 Ch1 Doc 5: Oogenesis _ _",
+                  "title": "Part 1 Ch1 Doc 5: Oogenesis",
                   "official_order": 5,
                   "textbook_page": 27,
                   "source_pdf_page": 68,
@@ -3407,7 +3368,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Part 1 Ch1 Doc 6: Fertilization _ _ Note: the different steps of fertilization are still suspended",
+                  "title": "Part 1 Ch1 Doc 6: Fertilization",
                   "official_order": 6,
                   "textbook_page": 30,
                   "source_pdf_page": 68,
@@ -3417,7 +3378,7 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Part 1 Ch2 Doc 1: Hereditary Traits and Genes _ _",
+                  "title": "Part 1 Ch2 Doc 1: Hereditary Traits and Genes",
                   "official_order": 7,
                   "textbook_page": 42,
                   "source_pdf_page": 68,
@@ -3427,9 +3388,29 @@
                   "verification_status": "verified-from-official-crdp-table"
                 },
                 {
-                  "title": "Important for healthy life",
+                  "title": "Unit 1 Chapter 2 Doc 2: Quantitative Needs, Energetic Needs",
                   "official_order": 1,
                   "textbook_page": 24,
+                  "source_pdf_page": 73,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
+                  "source_grade": "الثالث ثانوي - علوم الحياة",
+                  "source_subject": "علوم الحياة",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "Unit 1 Chapter 2 Doc 3: Qualitative Needs, Energetic Needs",
+                  "official_order": 2,
+                  "textbook_page": 26,
+                  "source_pdf_page": 73,
+                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
+                  "source_grade": "الثالث ثانوي - علوم الحياة",
+                  "source_subject": "علوم الحياة",
+                  "verification_status": "verified-from-official-crdp-table"
+                },
+                {
+                  "title": "Unit 1 Chapter 2 Doc 4: Qualitative Needs, Requirement in Proteins",
+                  "official_order": 3,
+                  "textbook_page": 28,
                   "source_pdf_page": 73,
                   "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
                   "source_grade": "الثالث ثانوي - علوم الحياة",
@@ -3614,7 +3595,7 @@
     {
       "label": "منهج الروضة",
       "url": "https://www.crdp.org/sites/default/files/inline-files/15-KG_%D8%A7%D9%84%D8%B1%D9%88%D8%B6%D8%A7%D8%AA_.pdf",
-      "subject": "الروضة",
+      "subject": null,
       "sha256": "0ac99466625dd479154bfc3d023b61de8cbb5e808b9cbf7daa866cf2d35548a3"
     }
   ],
@@ -3772,7 +3753,7 @@
     {
       "label": "الروضة الثالثة",
       "url": "https://www.crdp.org/sites/default/files/2019-12/%D9%85%D8%B1%D8%AD%D9%84%D8%A9%20%D8%A7%D9%84%D8%B1%D9%88%D8%B6%D8%A9%20%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%AB%D8%A7%D9%84%D8%AB%D8%A9.pdf",
-      "grade": "الروضة الثالثة"
+      "grade": null
     },
     {
       "label": "تحميل الملف",
@@ -3782,7 +3763,7 @@
     {
       "label": "الروضة الثانية",
       "url": "https://www.crdp.org/sites/default/files/2019-12/%D9%85%D8%B1%D8%AD%D9%84%D8%A9%20%D8%A7%D9%84%D8%B1%D9%88%D8%B6%D8%A9%20%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%AB%D8%A7%D9%86%D9%8A%D8%A9_0.pdf",
-      "grade": "الروضة الثانية"
+      "grade": null
     },
     {
       "label": "تحميل الملف",
@@ -3792,7 +3773,7 @@
     {
       "label": "الروضة الأولى",
       "url": "https://www.crdp.org/sites/default/files/2019-12/%D9%85%D8%B1%D8%AD%D9%84%D8%A9%20%D8%A7%D9%84%D8%B1%D9%88%D8%B6%D8%A9%20%D8%A7%D9%84%D8%B3%D9%86%D8%A9%20%D8%A7%D9%84%D8%A7%D9%88%D9%84%D9%89%20.pdf",
-      "grade": "الروضة الأولى"
+      "grade": null
     },
     {
       "label": "تحميل الملف",
@@ -3802,15 +3783,13 @@
   ],
   "errors": [],
   "coverage": {
-    "grades_total": 19,
-    "grades_with_data": 16,
-    "subject_grade_pairs": 31,
+    "grades_total": 16,
+    "grades_with_data": 15,
+    "subject_grade_pairs": 30,
     "verified_lessons": 314,
     "annual_subject_pdfs": 15,
     "book_list_pdfs": 36,
     "missing_grades": [
-      "الروضة الثانية",
-      "الروضة الثالثة",
       "الثالث ثانوي - الاجتماع والاقتصاد"
     ],
     "complete": false
