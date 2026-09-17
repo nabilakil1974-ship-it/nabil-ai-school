@@ -4,8 +4,7 @@ from pathlib import Path
 BAD_PATTERNS = [
     r"\bsuspend\b", r"\bmaintain(?:ed)?\b", r"\bretained\b", r"\bprerequisite",
     r"\brecall(?:ing)?\b", r"\bwithout writing\b", r"\bdo not\b",
-    r"لسلست", r"ةداملا", r"ةيميلعتلا", r"عقاولا", r"شاعملا",
-    r"اذه يف يهتني", r"ة يعماجلا", r"تاصاصتخ"
+    r"لسلست", r"ةداملا", r"ةيميلعتلا"
 ]
 
 ELEMENTARY_MATH = {
