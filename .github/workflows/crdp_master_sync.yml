@@ -4,11 +4,12 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   sync:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -26,11 +27,23 @@ jobs:
 
       - name: Run CRDP sync
         run: |
-          python scripts/sync_crdp_master_curriculum.py /tmp/crdp_official app/static/crdp_master_curriculum_index.json
+          python scripts/sync_crdp_master_curriculum.py             /tmp/crdp_official             app/static/crdp_master_curriculum_index.json
 
-      - name: Validate curriculum
+      - name: Validate real curriculum coverage
         run: |
-          python scripts/validate_crdp_master_curriculum.py app/static/crdp_master_curriculum_index.json
+          python scripts/validate_crdp_master_curriculum.py             app/static/crdp_master_curriculum_index.json
+
+      - name: Commit generated master index
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/static/crdp_master_curriculum_index.json
+          if git diff --cached --quiet; then
+            echo "No curriculum changes to commit."
+          else
+            git commit -m "Update verified CRDP master curriculum index"
+            git push
+          fi
 
       - name: Upload generated index
         uses: actions/upload-artifact@v4
