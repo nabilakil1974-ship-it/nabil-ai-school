@@ -10729,6 +10729,12 @@ async function sendToAI(
         generalExercisesMode ? "general_exercises" : "lesson"
     );
 
+    // NABIL Smart Learning v131: route pedagogical actions server-side.
+    // Never expose these instructions as fake student [SYSTEM] messages.
+    if (window.nabilPendingLearningAction) {
+        formData.append("learning_action", String(window.nabilPendingLearningAction));
+        window.nabilPendingLearningAction = "";
+    }
 
     formData.append(
         "language",
@@ -10868,6 +10874,13 @@ async function sendToAI(
 
         }
 
+
+        // Merge verified server-side learning memory into the local dashboard.
+        try {
+            if (data.student_profile && window.NABIL130?.mergeProfile) {
+                window.NABIL130.mergeProfile(data.student_profile);
+            }
+        } catch (_e) {}
 
         if (
             data.conversation_id
@@ -21994,12 +22007,17 @@ if(document.readyState==="loading"){
  function paint(){const p=Math.max(0,Math.min(100,S.mastery));document.getElementById('nv130Bar')?.style.setProperty('width',p+'%');const x=document.getElementById('nv130Xp');if(x)x.textContent=`${S.xp} XP · L${S.level}`;const st=document.getElementById('nv130Stage');if(st)st.textContent=p<25?'الفكرة الأساسية':p<50?'فهم وتطبيق':p<75?'تدريب':p<90?'إتقان':'جاهز للانتقال'}
  function modal(title,html){document.getElementById('nv130ModalTitle').textContent=title;document.getElementById('nv130ModalBody').innerHTML=html;document.getElementById('nv130Modal').hidden=false}
  function close(){document.getElementById('nv130Modal').hidden=true}
- async function ask(prompt){status('الأستاذ نبيل يحضّر النشاط…');if(typeof sendToAI==='function'){await sendToAI(prompt,false);return}throw new Error('sendToAI unavailable')}
- function context(){return `المادة: ${window.subjectSelect?.value||''}. الصف: ${window.gradeSelect?.value||''}. الدرس: ${window.lessonSelect?.value||''}. آخر شرح: ${S.lastTeacher.slice(-5000)}`}
- function checkpoint(){S.checks++;save();ask(`[SYSTEM] NABIL SMART CHECKPOINT. ${context()}\nاسأل الطالب سؤال تحقق واحدًا فقط قصيرًا ومباشرًا عن الفكرة التي شُرحت للتو. لا تعطِ الحل الآن. اجعل السؤال مناسبًا للعمر والمادة، واستعمل رسماً إذا كان فهم السؤال يحتاج رسماً.`).catch(e=>status(e.message))}
- function explainAgain(){award(3,'محاولة فهم أعمق');ask(`[SYSTEM] EXPLAIN ANOTHER WAY. ${context()}\nأعد شرح آخر فكرة فقط بطريقة مختلفة فعلاً، لا تكرر النص. اختر الأنسب: مثال حياتي، تشبيه، رسم/diagram، خطوات أبسط، أو تمثيل بصري. خاطب الطالب كأستاذ لا كمحاضرة، ثم اختم بسؤال تحقق واحد قصير.`).catch(e=>status(e.message))}
- function practice(){ask(`[SYSTEM] ADAPTIVE SMART PRACTICE. ${context()}\nأعط الطالب تمريناً واحداً جديداً الآن مبنياً على مستوى الدرس وعلى أخطائه إن ظهرت في الحوار. لا تعط الحل قبل محاولته. إذا كانت المادة علمية ويحتاج السؤال شكلاً فارسمه. بعد جواب الطالب: حدّد الخطأ بدقة، اشرح الجزئية الناقصة، ثم أعط تمريناً تالياً متكيفاً.`).catch(e=>status(e.message))}
- function quickQuiz(){award(5,'بدأ اختباراً قصيراً');ask(`[SYSTEM] QUICK MASTERY QUIZ. ${context()}\nأنشئ اختباراً قصيراً من 5 أسئلة فقط، متدرجاً وفق Bloom من التذكر إلى التطبيق/التحليل بما يناسب الصف. نوّع الأنواع ولا تجعلها كلها MCQ. لا تعرض الأجوبة الآن. اجعل المجموع 10 علامات، وبعد إجابات الطالب صحح مع تفسير الخطأ واقترح ما يحتاج مراجعة.`).catch(e=>status(e.message))}
+ async function ask(action,studentText){
+   status('الأستاذ نبيل يحضّر النشاط…');
+   if(typeof sendToAI!=='function') throw new Error('sendToAI unavailable');
+   window.nabilPendingLearningAction=action;
+   try{await sendToAI(studentText||'تابع النشاط التعليمي الحالي.',false)}
+   finally{window.nabilPendingLearningAction=''}
+ }
+ function checkpoint(){S.checks++;save();ask('checkpoint','تحقق من فهمي للفكرة الأخيرة.').catch(e=>status(e.message))}
+ function explainAgain(){award(3,'محاولة فهم أعمق');ask('explain_another_way','اشرح لي الفكرة الأخيرة بطريقة أخرى.').catch(e=>status(e.message))}
+ function practice(){ask('adaptive_practice','أعطني تدريباً مناسباً لمستواي في هذا الدرس.').catch(e=>status(e.message))}
+ function quickQuiz(){award(5,'بدأ اختباراً قصيراً');ask('quick_quiz','اختبر إتقاني لهذا الدرس.').catch(e=>status(e.message))}
  function flashcards(){let txt=S.lastTeacher.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();let bits=txt.split(/[.!؟\n]+/).map(x=>x.trim()).filter(x=>x.length>25).slice(0,6);if(!bits.length)bits=['ابدأ درساً أولاً ثم افتح بطاقات المراجعة.'];let html='<div class="nv130-grid">'+bits.map((b,i)=>`<div class="nv130-flash" onclick="this.classList.toggle('flipped')"><div class="front"><b>بطاقة ${i+1}</b><br>${esc(b.slice(0,110))}</div><div class="back">${esc(b)}</div></div>`).join('')+'</div><p>انقر البطاقة لقلبها.</p>';modal('🗂️ بطاقات مراجعة',html)}
  function dashboard(){const rate=S.checks?Math.round(S.correct/S.checks*100):0;modal('📊 تقدّم الطالب',`<div class="nv130-grid"><div class="nv130-stat"><span>XP</span><b>${S.xp}</b></div><div class="nv130-stat"><span>المستوى</span><b>${S.level}</b></div><div class="nv130-stat"><span>الإتقان الحالي</span><b>${S.mastery}%</b></div><div class="nv130-stat"><span>محطات التحقق</span><b>${S.checks}</b></div></div><h3>🏅 الشارات</h3><p>${S.badges.length?S.badges.map(esc).join(' · '):'ابدأ التعلّم لتحصل على أول شارة.'}</p><div class="nv130-errors"><h3>🧩 نقاط تحتاج مراجعة</h3>${S.errors.length?'<ul>'+S.errors.slice(-8).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>':'<p>لا توجد أخطاء مسجلة بعد.</p>'}</div>`)}
  // Observe the existing app without replacing its renderer.
@@ -22009,7 +22027,8 @@ if(document.readyState==="loading"){
  const observer=new MutationObserver(()=>{const t=S.lastTeacher||'';if(/(?:خطأ|غير صحيح|incorrect|wrong|erreur)/i.test(t)){const item=(S.lastStudent||'').slice(0,180);if(item&&!S.errors.includes(item)){S.errors.push(item);S.mastery=Math.max(0,S.mastery-4);save()}}if(/(?:أحسنت|صحيح|correct|bravo|excellent)/i.test(t)&&S.lastStudent){S.correct=Math.min(S.checks,S.correct+1);S.mastery=Math.min(100,S.mastery+8);save()}});
  const chat=document.getElementById('chat')||document.querySelector('.chat');if(chat)observer.observe(chat,{childList:true,subtree:true});
  document.getElementById('nv130Modal')?.addEventListener('click',e=>{if(e.target.id==='nv130Modal')close()});
- window.NABIL130={checkpoint,explainAgain,practice,quickQuiz,flashcards,dashboard,close,state:()=>S,reset:()=>{S=defaultState();save()}};paint();
+ function mergeProfile(p){if(!p||typeof p!=='object')return;const serverErrors=[...(Array.isArray(p.frequent_mistakes)?p.frequent_mistakes:[]),...(Array.isArray(p.concepts_to_review)?p.concepts_to_review:[])].map(x=>typeof x==='string'?x:JSON.stringify(x)).filter(Boolean);serverErrors.forEach(x=>{if(!S.errors.includes(x))S.errors.push(x)});S.errors=S.errors.slice(-20);save()}
+ window.NABIL130={checkpoint,explainAgain,practice,quickQuiz,flashcards,dashboard,mergeProfile,close,state:()=>S,reset:()=>{S=defaultState();save()}};paint();
 })();
 </script>
 </body>
