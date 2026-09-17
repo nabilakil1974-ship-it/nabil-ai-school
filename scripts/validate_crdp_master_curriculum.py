@@ -7,9 +7,14 @@ BAD = [
  r"لسلست",r"ةداملا",r"ةيميلعتلا"
 ]
 
+ELEMENTARY_MATH = [
+ "the numbers from 1 to 3","addition","tens and ones","numbers up to 99"
+]
+
 def main(path):
     d=json.loads(Path(path).read_text(encoding="utf-8"))
     cov=d.get("coverage",{})
+
     if cov.get("annual_subject_pdfs",0)<15:
         raise SystemExit("Missing annual CRDP subject PDFs.")
     if cov.get("verified_lessons",0)==0:
@@ -27,9 +32,16 @@ def main(path):
                         errors.append(f"subject provenance mismatch: {subject} / {title}")
                     if any(re.search(p,title,re.I) for p in BAD):
                         errors.append(f"instruction/gibberish leaked as lesson: {title}")
+
+                    # Exact contamination signatures caught in prior artifact.
+                    if grade.startswith("الثالث ثانوي") and subject=="الرياضيات":
+                        if title.strip().lower() in ELEMENTARY_MATH:
+                            errors.append(f"elementary math leaked into Grade 12: {title}")
+
     if errors:
-        raise SystemExit("\n".join(errors[:40]))
-    print("CRDP CLEAN validation: PASS")
+        raise SystemExit("\n".join(errors[:50]))
+
+    print("CRDP STRICT validation: PASS")
     print(json.dumps(cov,ensure_ascii=False))
     return 0
 
