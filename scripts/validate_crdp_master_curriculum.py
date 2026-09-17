@@ -37,13 +37,31 @@ def main(path):
 
     errors = []
 
+    globally_excluded = {
+        "علم الاجتماع", "علم الاقتصاد", "التاريخ",
+        "الجغرافيا", "الفلسفة والحضارات"
+    }
+    secondary_languages = {
+        "اللغة العربية", "اللغة الفرنسية", "اللغة الإنجليزية"
+    }
+
     # Kindergarten is intentionally out of scope in this phase.
     for grade in data.get("catalog", {}):
         if grade.startswith("الروضة"):
             errors.append(f"kindergarten node must not exist in current phase: {grade}")
 
     for grade, gnode in data.get("catalog", {}).items():
+        secondary = (
+            grade == "الأول ثانوي"
+            or grade.startswith("الثاني ثانوي")
+            or grade.startswith("الثالث ثانوي")
+        )
+
         for subject, snode in gnode.get("subjects", {}).items():
+            if subject in globally_excluded:
+                errors.append(f"globally excluded subject leaked into catalog: {grade} -> {subject}")
+            if secondary and subject in secondary_languages:
+                errors.append(f"secondary language leaked into catalog: {grade} -> {subject}")
             for lang, lnode in snode.get("languages", {}).items():
                 for item in lnode.get("lessons", []):
                     title = str(item.get("title") or "")
