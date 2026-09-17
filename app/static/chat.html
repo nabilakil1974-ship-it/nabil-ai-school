@@ -21840,12 +21840,6 @@ if(document.readyState==="loading"){
       remoteAudio=document.createElement('audio'); remoteAudio.autoplay=true; remoteAudio.playsInline=true; remoteAudio.style.display='none';
       document.body.appendChild(remoteAudio);
       pc.ontrack=e=>{remoteAudio.srcObject=e.streams[0]; remoteAudio.play().catch(()=>{});};
-      pc.oniceconnectionstatechange=()=>{
-        console.log('NABIL ICE state:',pc.iceConnectionState);
-        if(['failed','closed'].includes(pc.iceConnectionState)){
-          stop();
-        }
-      };
       localStream.getTracks().forEach(track=>pc.addTrack(track,localStream));
 
       dc=pc.createDataChannel('oai-events');
@@ -21853,44 +21847,29 @@ if(document.readyState==="loading"){
       dc.onopen=()=>{
         active=true; connecting=false;
         setState('🎙 أنا معك — احكي مباشرة.','listening');
+        // Extra client-side session update: concise live tutor + natural multilingual behavior.
+        const instructions=`أنت الأستاذ نبيل، معلّم صوتي حي مباشر. افهم العربية واللهجة اللبنانية والإنجليزية والفرنسية والمزج بينها من المعنى. لا تطلب إعادة السؤال إذا كان مفهوماً. لا تعيد التحية كل مرة. أجب فوراً وبشكل حواري قصير مثل مدرس جالس أمام الطالب. اسمح للطالب أن يقاطعك وتوقف فوراً عند بدء كلامه. في الرياضيات اشرح بالعربية الطبيعية مع إبقاء المصطلحات القياسية: domain, limit, derivative, f prime, increasing, decreasing, maximum, minimum, vertical/horizontal/oblique asymptote, graph, variation table. إذا قال Study the function فقم بالدراسة الفعلية لا بخطة عامة. في الفيزياء والكيمياء والبيولوجي وباقي المواد اشرح المعنى ولا تقرأ الرموز والجداول حرفياً. إذا طلب graph/figure/table/diagram قل باختصار إنك ستعرضها وتابع الشرح. كن سريعاً ومباشراً.`;
+        try{dc.send(JSON.stringify({type:'session.update',session:{instructions,audio:{input:{turn_detection:{type:'semantic_vad',eagerness:'high',create_response:true,interrupt_response:true}}}}}));}catch(_e){}
       };
       dc.onclose=()=>{if(active) stop();};
 
-      const offer=await pc.createOffer({offerToReceiveAudio:true});
+      const offer=await pc.createOffer();
       await pc.setLocalDescription(offer);
-
-      // Single-shot SDP POST = non-trickle ICE. Wait until candidates are
-      // embedded in pc.localDescription before sending anything.
-      await new Promise((resolve)=>{
-        if(pc.iceGatheringState==='complete') return resolve();
-        let done=false;
-        const finish=()=>{if(done)return;done=true;pc.removeEventListener('icegatheringstatechange',check);resolve();};
-        const check=()=>{if(pc.iceGatheringState==='complete') finish();};
-        pc.addEventListener('icegatheringstatechange',check);
-        setTimeout(finish,3000);
-      });
-
-      const offerSdp=String(pc.localDescription?.sdp||'').trim();
-      if(!offerSdp || !/^v=0/m.test(offerSdp)){
-        throw new Error('SDP offer is empty or invalid before fetch');
+      const resp=await fetch('/api/realtime/call',{method:'POST',headers:{'Content-Type':'application/sdp'},body:offer.sdp});
+      if(!resp.ok){
+        const errText = await resp.text();
+        console.error('REALTIME BACKEND ERROR', resp.status, errText);
+        throw new Error(`Realtime ${resp.status}: ${errText}`);
       }
-      console.log('NABIL SDP offer bytes:', offerSdp.length);
-
-      const resp=await fetch('/api/realtime/call',{
-        method:'POST',
-        headers:{'Content-Type':'application/sdp','Accept':'application/sdp'},
-        cache:'no-store',
-        body:offerSdp
-      });
-      const answerSdp=await resp.text();
-      if(!resp.ok) throw new Error('Realtime endpoint '+resp.status+': '+answerSdp.slice(0,700));
-      if(!/^v=0/m.test(answerSdp)) throw new Error('Realtime endpoint returned a non-SDP response: '+answerSdp.slice(0,700));
-      const answer={type:'answer',sdp:answerSdp};
+      const answer={type:'answer',sdp:await resp.text()};
       await pc.setRemoteDescription(answer);
     }catch(err){
-      console.error('NABIL realtime start',err); connecting=false; await stop(false);
-      const detail=String(err?.message||err||'').replace(/\s+/g,' ').slice(0,220);
-      setState('⚠️ تعذّر وصل الصوت المباشر'+(detail?' — '+detail:''),'');
+      console.error('NABIL realtime start', err);
+      connecting=false;
+      await stop(false);
+
+      const msg = String(err?.message || err || 'Unknown realtime error');
+      setState('⚠️ ' + msg, '');
     }
   }
 
