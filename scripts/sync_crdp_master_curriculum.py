@@ -182,6 +182,14 @@ def page_lessons(page, grade, subject, source_url):
             if not candidates: continue
             title=min(candidates,key=len)
             if bad_title(title): continue
+
+            # A French/English lesson title must not be an Arabic administrative/note row.
+            # This was the remaining source of false "lessons" in the previous run.
+            ar_chars = len(re.findall(r"[\u0600-\u06FF]", title))
+            lat_chars = len(re.findall(r"[A-Za-zÀ-ÿ]", title))
+            if language in {"English", "Français"} and ar_chars > lat_chars and ar_chars > 4:
+                continue
+
             out.append({
               "title":title,
               "official_order":nums[-1] if nums else None,
@@ -213,7 +221,7 @@ def add(master,grade,subject,language,lessons,source_url):
 def main(dest="app/static/crdp_official",output="app/static/crdp_master_curriculum_index.json"):
     root=Path(dest); pdfdir=root/"pdf"; pdfdir.mkdir(parents=True,exist_ok=True)
     master={
-      "schema_version":"6.0",
+      "schema_version":"6.1",
       "authority":"CRDP Lebanon",
       "academic_year":"2025-2026",
       "generated_at":datetime.now(timezone.utc).isoformat(),
@@ -223,6 +231,7 @@ def main(dest="app/static/crdp_official",output="app/static/crdp_master_curricul
         "preserve_official_order":True,
         "reject_instruction_rows":True,
         "page_local_grade_detection":True,
+        "reject_language_script_mismatch":True,
         "never_inherit_grade_across_pages":True
       },
       "catalog":{g:{"_status":"awaiting_official_sync","subjects":{}} for g in GRADES},
