@@ -414,6 +414,17 @@ window.MathJax={
 };
 </script>
 <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+
+<script id="nabil-assessment-universal-policy">
+window.NABIL_ASSESSMENT_POLICY = Object.freeze({
+  useOfficialLessonNames:true,
+  preserveOfficialOrder:true,
+  allGrades:true,
+  allSubjects:true,
+  neverInventLessonTitles:true
+});
+</script>
+
 </head>
 <body>
 <header>
@@ -941,7 +952,8 @@ async function loadCurriculum(){
 
   // Optionally merge the deployed static file if it is newer/richer.
   try{
-    const r=await fetch("/static/crdp_scientific_curriculum_index.json",{cache:"no-store"});
+    let r=await fetch("/static/crdp_master_curriculum_index.json",{cache:"no-store"});
+    if(!r.ok) r=await fetch("/static/crdp_scientific_curriculum_index.json",{cache:"no-store"});
     if(r.ok){
       const remote=await r.json();
       if(remote && typeof remote==="object"){
