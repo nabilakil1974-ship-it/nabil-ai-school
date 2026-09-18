@@ -441,6 +441,13 @@ def get_curriculum_lessons(
         legacy = {}
     verified = legacy.get("verified_index", {}) if isinstance(legacy, dict) else {}
     subject_node = verified.get(subject_key, {}) if isinstance(verified, dict) else {}
+    if not subject_node and isinstance(verified, dict):
+        subject_aliases = {
+            "الرياضيات": "رياضيات",
+            "الفيزياء": "فيزياء",
+            "الكيمياء": "كيمياء",
+        }
+        subject_node = verified.get(subject_aliases.get(subject_key, ""), {})
 
     # Secondary math in the curated file is stored by year, before branch split.
     curated_grade = grade_raw
