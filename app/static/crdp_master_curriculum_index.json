@@ -871,6 +871,430 @@
                   "verification_status": "verified-from-textbook-toc"
                 }
               ]
+            },
+            "English": {
+              "lessons": [
+                {
+                  "title": "Positioning",
+                  "official_order": 1,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The numbers from 1 to 3",
+                  "official_order": 2,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The numbers from 1 to 5",
+                  "official_order": 3,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Comparing the numbers from 1 to 5",
+                  "official_order": 4,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Total",
+                  "official_order": 5,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Addition",
+                  "official_order": 6,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Additive writings",
+                  "official_order": 7,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Add",
+                  "official_order": 8,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Lines",
+                  "official_order": 9,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The numbers from 1 to 7",
+                  "official_order": 10,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The numbers from 1 to 9",
+                  "official_order": 11,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "As many as",
+                  "official_order": 12,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "More than - Fewer than",
+                  "official_order": 13,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Order of numbers up to 9",
+                  "official_order": 14,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Comparing numbers up to 9",
+                  "official_order": 15,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Additive writings (Continuation)",
+                  "official_order": 16,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Add (Continuation)",
+                  "official_order": 17,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Geometric shapes",
+                  "official_order": 18,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Grouping",
+                  "official_order": 19,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Tens and ones",
+                  "official_order": 20,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Tens and ones (Continuation)",
+                  "official_order": 21,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Writing 10",
+                  "official_order": 22,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The writing of 10",
+                  "official_order": 23,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The numbers up to 13",
+                  "official_order": 24,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The numbers up to 16",
+                  "official_order": 25,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Draw with a ruler",
+                  "official_order": 26,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The numbers up to 19",
+                  "official_order": 27,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Order of numbers up to 19",
+                  "official_order": 28,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Comparing numbers up to 19",
+                  "official_order": 29,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Solids",
+                  "official_order": 30,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Add on the number line",
+                  "official_order": 31,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Add with 6 and 7",
+                  "official_order": 32,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Comparing lengths",
+                  "official_order": 33,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The tens from 20 up to 60",
+                  "official_order": 34,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Adding tens",
+                  "official_order": 35,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The numbers up to 69",
+                  "official_order": 36,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Order of numbers up to 69",
+                  "official_order": 37,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Measure of lengths",
+                  "official_order": 38,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Ordinal numbers",
+                  "official_order": 39,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Add tens",
+                  "official_order": 40,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "First conjugation",
+                  "official_order": 41,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Add a number of one digit",
+                  "official_order": 42,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Problems",
+                  "official_order": 43,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Addition of several numbers",
+                  "official_order": 44,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Add with 8 and 9",
+                  "official_order": 45,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Add by grouping by 10",
+                  "official_order": 46,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Subtraction of figures",
+                  "official_order": 47,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Subtraction",
+                  "official_order": 48,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The sign “-”",
+                  "official_order": 49,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Addition without carry-out",
+                  "official_order": 50,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Problems (Continuation)",
+                  "official_order": 51,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Symmetry",
+                  "official_order": 52,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The numbers up to 79",
+                  "official_order": 53,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Add or subtract",
+                  "official_order": 54,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Addition with carry-out",
+                  "official_order": 55,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The numbers up to 89",
+                  "official_order": 56,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The numbers up to 99",
+                  "official_order": 57,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Order of numbers",
+                  "official_order": 58,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Comparing numbers",
+                  "official_order": 59,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Reproduction of figures",
+                  "official_order": 60,
+                  "source_grade": "الصف الأول",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
             }
           }
         }
@@ -1485,6 +1909,528 @@
                 },
                 {
                   "title": "Problèmes (13)",
+                  "official_order": 74,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
+            },
+            "English": {
+              "lessons": [
+                {
+                  "title": "Numbers up to 20",
+                  "official_order": 1,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Order of numbers up to 20",
+                  "official_order": 2,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Addition (1)",
+                  "official_order": 3,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Adding or Subtracting",
+                  "official_order": 4,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Segment",
+                  "official_order": 5,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Numbers up to 69",
+                  "official_order": 6,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Order of numbers up to 69",
+                  "official_order": 7,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Addition (2)",
+                  "official_order": 8,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Finding information",
+                  "official_order": 9,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Locating the squares of a grid",
+                  "official_order": 10,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Problems (1)",
+                  "official_order": 11,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Numbers up to 99",
+                  "official_order": 12,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Order of numbers up to 99",
+                  "official_order": 13,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Addition: Calculation technique (1)",
+                  "official_order": 14,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Locating the points of a grid",
+                  "official_order": 15,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Problems (2)",
+                  "official_order": 16,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Subtraction (1)",
+                  "official_order": 17,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Understanding information",
+                  "official_order": 18,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Reproducing figures",
+                  "official_order": 19,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Problems (3)",
+                  "official_order": 20,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Adding or subtracting ones and tens",
+                  "official_order": 21,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Measuring and comparing lengths",
+                  "official_order": 22,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Problems (4)",
+                  "official_order": 23,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Subtraction: calculation technique (1)",
+                  "official_order": 24,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Sorting the given",
+                  "official_order": 25,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Measurement of length: the centimeter",
+                  "official_order": 26,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Problems (5)",
+                  "official_order": 27,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Hundred",
+                  "official_order": 28,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Hundreds, tens, ones",
+                  "official_order": 29,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Hundreds",
+                  "official_order": 30,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Numbers up to 199",
+                  "official_order": 31,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Order of numbers up to 199",
+                  "official_order": 32,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Problems (6)",
+                  "official_order": 33,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Following visual instructions",
+                  "official_order": 34,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The sign “×”",
+                  "official_order": 35,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Product",
+                  "official_order": 36,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Multiplication: tables of 2 and 10",
+                  "official_order": 37,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Solids",
+                  "official_order": 38,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Multiplication: tables of 3 and 4",
+                  "official_order": 39,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Understanding the given",
+                  "official_order": 40,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Numbers up to 499",
+                  "official_order": 41,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Order of numbers up to 499",
+                  "official_order": 42,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Addition (3)",
+                  "official_order": 43,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Subtraction (2)",
+                  "official_order": 44,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Adding or subtracting ones, tens, and hundreds",
+                  "official_order": 45,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Choosing the correct operation (1)",
+                  "official_order": 46,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Plane figures",
+                  "official_order": 47,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Multiplication: tables of 5, 6, and 7",
+                  "official_order": 48,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Multiplication: tables of 8 and 9",
+                  "official_order": 49,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Problems (7)",
+                  "official_order": 50,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Measurement of length: the meter",
+                  "official_order": 51,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Multiplication technique",
+                  "official_order": 52,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Multiplication: calculation technique",
+                  "official_order": 53,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Choosing the correct operation (2)",
+                  "official_order": 54,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Symmetry",
+                  "official_order": 55,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Problems (8)",
+                  "official_order": 56,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Numbers up to 999",
+                  "official_order": 57,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Order of numbers up to 999",
+                  "official_order": 58,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Addition: calculation technique (2)",
+                  "official_order": 59,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Addition: calculation technique (3)",
+                  "official_order": 60,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Problems (9)",
+                  "official_order": 61,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Subtraction: calculation technique (2)",
+                  "official_order": 62,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Problems (10)",
+                  "official_order": 63,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Calculating by grouping",
+                  "official_order": 64,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Finding the solution to a problem",
+                  "official_order": 65,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Comparing masses",
+                  "official_order": 66,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Shapes and tracings",
+                  "official_order": 67,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Making equal shares",
+                  "official_order": 68,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Addition: calculating technique (4)",
+                  "official_order": 69,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Problems (11)",
+                  "official_order": 70,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Measurement of masses",
+                  "official_order": 71,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Subtraction: calculation technique (3)",
+                  "official_order": 72,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Problems (12)",
+                  "official_order": 73,
+                  "source_grade": "الصف الثاني",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Problems (13)",
                   "official_order": 74,
                   "source_grade": "الصف الثاني",
                   "source_subject": "الرياضيات",
@@ -2277,6 +3223,444 @@
                   "verification_status": "verified-from-textbook-toc"
                 }
               ]
+            },
+            "English": {
+              "lessons": [
+                {
+                  "title": "Numbers Up to 99",
+                  "official_order": 1,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Numbers Up to 999",
+                  "official_order": 2,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Addition",
+                  "official_order": 3,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Adding",
+                  "official_order": 4,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Reading the Calendar",
+                  "official_order": 5,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Finding Information",
+                  "official_order": 6,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Adding and Subtraction",
+                  "official_order": 7,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Subtraction",
+                  "official_order": 8,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Subtracting",
+                  "official_order": 9,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Problems (1)",
+                  "official_order": 10,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Following Visual Instructions",
+                  "official_order": 11,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Telling Time",
+                  "official_order": 12,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Rounding Numbers",
+                  "official_order": 13,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Addition and Multiplication",
+                  "official_order": 14,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Multiplication: Multiplication Table",
+                  "official_order": 15,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Right Angle",
+                  "official_order": 16,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Finding Information in a Table",
+                  "official_order": 17,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Calculating Products",
+                  "official_order": 18,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Double and Triple of",
+                  "official_order": 19,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Numbers Up to 999",
+                  "official_order": 20,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Comparing Numbers Up to 9 999",
+                  "official_order": 21,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Addition or Subtraction (1)",
+                  "official_order": 22,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Square and Rectangle",
+                  "official_order": 23,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Fractions",
+                  "official_order": 24,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Time and Duration",
+                  "official_order": 25,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Problems (2)",
+                  "official_order": 26,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Multiplying by 10 and by 100",
+                  "official_order": 27,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Multiplying by a Whole Numbers of tens or hundreds",
+                  "official_order": 28,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Identifying Needed Information",
+                  "official_order": 29,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Perpendicular Lines",
+                  "official_order": 30,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Units of Length (1)",
+                  "official_order": 31,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Multiplication Technique",
+                  "official_order": 32,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Problems (3)",
+                  "official_order": 33,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Numbers Up to 99 999",
+                  "official_order": 34,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Addition or Subtraction (2)",
+                  "official_order": 35,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Measuring Lengths",
+                  "official_order": 36,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Choosing the Correct Operation",
+                  "official_order": 37,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The Perimeter",
+                  "official_order": 38,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Multiplying by Two-digit Number",
+                  "official_order": 39,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Problems (4)",
+                  "official_order": 40,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Measuring Masses",
+                  "official_order": 41,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Minutes and Seconds",
+                  "official_order": 42,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Problems (5)",
+                  "official_order": 43,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Midpoint of a Segment",
+                  "official_order": 44,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Solving Without Calculating",
+                  "official_order": 45,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Sharing, Distributing",
+                  "official_order": 46,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Multiplication and Division",
+                  "official_order": 47,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Units of Length (2)",
+                  "official_order": 48,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Determining the Time",
+                  "official_order": 49,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Construction of a Solid",
+                  "official_order": 50,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Problems (6)",
+                  "official_order": 51,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Half, Third, etc",
+                  "official_order": 52,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Division Technique (1)",
+                  "official_order": 53,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Asking Questions",
+                  "official_order": 54,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Symmetry",
+                  "official_order": 55,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Division",
+                  "official_order": 56,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Division Technique (2)",
+                  "official_order": 57,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Reproduction of Figures",
+                  "official_order": 58,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Writing a Problem",
+                  "official_order": 59,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Division Technique (3)",
+                  "official_order": 60,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Problems (7)",
+                  "official_order": 61,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Problems (8)",
+                  "official_order": 62,
+                  "source_grade": "الصف الثالث",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
             }
           }
         }
@@ -2594,6 +3978,255 @@
                   "verification_status": "verified-from-textbook-toc"
                 }
               ]
+            },
+            "English": {
+              "lessons": [
+                {
+                  "title": "Construction of solids",
+                  "official_order": 1,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The calculator",
+                  "official_order": 2,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The hundreds of thousands",
+                  "official_order": 3,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Multiplication and its properties",
+                  "official_order": 4,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Multiples of a natural number",
+                  "official_order": 5,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Statistics",
+                  "official_order": 6,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The millions",
+                  "official_order": 7,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Comparison of large numbers",
+                  "official_order": 8,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Parallel lines",
+                  "official_order": 9,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Characteristics of divisibility by 2, 5 and 10",
+                  "official_order": 10,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Units of length",
+                  "official_order": 11,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Division of a number by a numeral",
+                  "official_order": 12,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The function “divide”",
+                  "official_order": 13,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The circle",
+                  "official_order": 14,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Fractions",
+                  "official_order": 15,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Quadrilaterals",
+                  "official_order": 16,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Comparing fractions",
+                  "official_order": 17,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Operations on fractions",
+                  "official_order": 18,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Distance from a point to a line",
+                  "official_order": 19,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Sexagesimal numeration",
+                  "official_order": 20,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Computation of duration and times",
+                  "official_order": 21,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Decimal numbers (1)",
+                  "official_order": 22,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Locating a point",
+                  "official_order": 23,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Division by the multiples of 10",
+                  "official_order": 24,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Division by a number of two digits",
+                  "official_order": 25,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Decimal numbers (2)",
+                  "official_order": 26,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Symmetry with respect to an axis",
+                  "official_order": 27,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Addition of decimals",
+                  "official_order": 28,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Subtraction of decimals",
+                  "official_order": 29,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Measure of length",
+                  "official_order": 30,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Multiplication of a decimal by an integer",
+                  "official_order": 31,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Measuring masses",
+                  "official_order": 32,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Measuring capacities",
+                  "official_order": 33,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Measuring areas",
+                  "official_order": 34,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Problems",
+                  "official_order": 35,
+                  "source_grade": "الصف الرابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
             }
           }
         }
@@ -2900,6 +4533,234 @@
                   "verification_status": "verified-from-textbook-toc"
                 }
               ]
+            },
+            "English": {
+              "lessons": [
+                {
+                  "title": "The Cube",
+                  "official_order": 1,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Decimal Numeration System",
+                  "official_order": 2,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Common Multiples of Two Natural Numbers",
+                  "official_order": 3,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Patterns of Solids",
+                  "official_order": 4,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Divisors of a Natural Number",
+                  "official_order": 5,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Diameter of a Circle",
+                  "official_order": 6,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Characteristics of Divisibility by 3, 4, and 9",
+                  "official_order": 7,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The Perimeter",
+                  "official_order": 8,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Fractions: Representation, Comparison to the Unit",
+                  "official_order": 9,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Cylinder and Cone",
+                  "official_order": 10,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Fractions: Equivalence – Simplifying, Comparison",
+                  "official_order": 11,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Distance between Two Parallel Lines",
+                  "official_order": 12,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Addition of Fractions",
+                  "official_order": 13,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Characteristics of Quadrilaterals",
+                  "official_order": 14,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Subtraction of Fractions",
+                  "official_order": 15,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Mixed Numbers",
+                  "official_order": 16,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Statistics",
+                  "official_order": 17,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Representation of Decimal Numbers",
+                  "official_order": 18,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Comparison of Decimals",
+                  "official_order": 19,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Addition of Decimals",
+                  "official_order": 20,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Subtraction of Decimals",
+                  "official_order": 21,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Dilation",
+                  "official_order": 22,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Product of a Duration by a Natural Number",
+                  "official_order": 23,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Division of a Decimal by a Natural Number",
+                  "official_order": 24,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Angles",
+                  "official_order": 25,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Decimal Quotient",
+                  "official_order": 26,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Multiplication of Two Decimals",
+                  "official_order": 27,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Area of a Square and Rectangle",
+                  "official_order": 28,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Length of a Circle",
+                  "official_order": 29,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Division of Two Decimals",
+                  "official_order": 30,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Area of a Disc",
+                  "official_order": 31,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Measure of Capacities",
+                  "official_order": 32,
+                  "source_grade": "الصف الخامس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
             }
           }
         }
@@ -3151,6 +5012,199 @@
                   "verification_status": "verified-from-textbook-toc"
                 }
               ]
+            },
+            "English": {
+              "lessons": [
+                {
+                  "title": "Order of operations",
+                  "official_order": 1,
+                  "source_grade": "الصف السادس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Development of numbers",
+                  "official_order": 2,
+                  "source_grade": "الصف السادس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Lines and circles",
+                  "official_order": 3,
+                  "source_grade": "الصف السادس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "L.C.M. and G.C.D of two whole numbers",
+                  "official_order": 4,
+                  "source_grade": "الصف السادس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Patrons and solids",
+                  "official_order": 5,
+                  "source_grade": "الصف السادس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Powers",
+                  "official_order": 6,
+                  "source_grade": "الصف السادس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Adjacent Angles - Vertically-opposite Angles",
+                  "official_order": 7,
+                  "source_grade": "الصف السادس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Irreducible Fractions",
+                  "official_order": 8,
+                  "source_grade": "الصف السادس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Bisector of an angle",
+                  "official_order": 9,
+                  "source_grade": "الصف السادس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Decimal Fractions - Fractional writing of a decimal number",
+                  "official_order": 10,
+                  "source_grade": "الصف السادس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The perpendicular bisector of a segment",
+                  "official_order": 11,
+                  "source_grade": "الصف السادس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Triangles",
+                  "official_order": 12,
+                  "source_grade": "الصف السادس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Development of a decimal number in terms powers of 10 and 1/10",
+                  "official_order": 13,
+                  "source_grade": "الصف السادس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Central symmetry",
+                  "official_order": 14,
+                  "source_grade": "الصف السادس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Calculating Areas",
+                  "official_order": 15,
+                  "source_grade": "الصف السادس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Calculation on literal expressions",
+                  "official_order": 16,
+                  "source_grade": "الصف السادس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Signed Numbers",
+                  "official_order": 17,
+                  "source_grade": "الصف السادس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Comparisons of signed numbers",
+                  "official_order": 18,
+                  "source_grade": "الصف السادس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Multiplying and Dividing fractions",
+                  "official_order": 19,
+                  "source_grade": "الصف السادس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Quotient and Ratio",
+                  "official_order": 20,
+                  "source_grade": "الصف السادس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Percentage",
+                  "official_order": 21,
+                  "source_grade": "الصف السادس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Proportionality",
+                  "official_order": 22,
+                  "source_grade": "الصف السادس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Statistics",
+                  "official_order": 23,
+                  "source_grade": "الصف السادس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Addition and Subtraction of signed Numbers",
+                  "official_order": 24,
+                  "source_grade": "الصف السادس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Volume (1)",
+                  "official_order": 25,
+                  "source_grade": "الصف السادس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Division of a duration by an integer",
+                  "official_order": 26,
+                  "source_grade": "الصف السادس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Volume (2)",
+                  "official_order": 27,
+                  "source_grade": "الصف السادس",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
             }
           }
         }
@@ -3355,6 +5409,129 @@
                 },
                 {
                   "title": "Relevés statistiques",
+                  "official_order": 17,
+                  "source_grade": "الصف السابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
+            },
+            "English": {
+              "lessons": [
+                {
+                  "title": "Powers",
+                  "official_order": 1,
+                  "source_grade": "الصف السابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Parallelepiped, cube and prism",
+                  "official_order": 2,
+                  "source_grade": "الصف السابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Prime numbers",
+                  "official_order": 3,
+                  "source_grade": "الصف السابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Triangles: Case of equality (congruent triangles)",
+                  "official_order": 4,
+                  "source_grade": "الصف السابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Signed numbers: Addition and subtraction",
+                  "official_order": 5,
+                  "source_grade": "الصف السابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Signed numbers: Multiplication and division",
+                  "official_order": 6,
+                  "source_grade": "الصف السابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Angles and lines",
+                  "official_order": 7,
+                  "source_grade": "الصف السابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Reduction of fractions",
+                  "official_order": 8,
+                  "source_grade": "الصف السابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Decimals and fractions",
+                  "official_order": 9,
+                  "source_grade": "الصف السابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Locating a point",
+                  "official_order": 10,
+                  "source_grade": "الصف السابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Algebraic expressions",
+                  "official_order": 11,
+                  "source_grade": "الصف السابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The perpendicular bisector of a segment. The bisector of an angle",
+                  "official_order": 12,
+                  "source_grade": "الصف السابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Translation",
+                  "official_order": 13,
+                  "source_grade": "الصف السابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Equations",
+                  "official_order": 14,
+                  "source_grade": "الصف السابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Fixed points. Variable points",
+                  "official_order": 15,
+                  "source_grade": "الصف السابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Proportionality",
+                  "official_order": 16,
+                  "source_grade": "الصف السابع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Statistical reports",
                   "official_order": 17,
                   "source_grade": "الصف السابع",
                   "source_subject": "الرياضيات",
@@ -3623,6 +5800,171 @@
                   "verification_status": "verified-from-textbook-toc"
                 }
               ]
+            },
+            "English": {
+              "lessons": [
+                {
+                  "title": "Powers",
+                  "official_order": 1,
+                  "source_grade": "الصف الثامن",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The circle",
+                  "official_order": 2,
+                  "source_grade": "الصف الثامن",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "GCD and LCM",
+                  "official_order": 3,
+                  "source_grade": "الصف الثامن",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The square",
+                  "official_order": 4,
+                  "source_grade": "الصف الثامن",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Powers of 10",
+                  "official_order": 5,
+                  "source_grade": "الصف الثامن",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The rectangle",
+                  "official_order": 6,
+                  "source_grade": "الصف الثامن",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Literal fractions",
+                  "official_order": 7,
+                  "source_grade": "الصف الثامن",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The rhombus",
+                  "official_order": 8,
+                  "source_grade": "الصف الثامن",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Square roots",
+                  "official_order": 9,
+                  "source_grade": "الصف الثامن",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The parallelogram",
+                  "official_order": 10,
+                  "source_grade": "الصف الثامن",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Remarkable identities",
+                  "official_order": 11,
+                  "source_grade": "الصف الثامن",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The midpoint theorem",
+                  "official_order": 12,
+                  "source_grade": "الصف الثامن",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Plotting in a coordinate plane",
+                  "official_order": 13,
+                  "source_grade": "الصف الثامن",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Arcs and angles",
+                  "official_order": 14,
+                  "source_grade": "الصف الثامن",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Pythagoras' theorem",
+                  "official_order": 15,
+                  "source_grade": "الصف الثامن",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Equations",
+                  "official_order": 16,
+                  "source_grade": "الصف الثامن",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Rational fractions",
+                  "official_order": 17,
+                  "source_grade": "الصف الثامن",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The right triangle",
+                  "official_order": 18,
+                  "source_grade": "الصف الثامن",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Inequalities",
+                  "official_order": 19,
+                  "source_grade": "الصف الثامن",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Space",
+                  "official_order": 20,
+                  "source_grade": "الصف الثامن",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Translation and vectors",
+                  "official_order": 21,
+                  "source_grade": "الصف الثامن",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Proportion",
+                  "official_order": 22,
+                  "source_grade": "الصف الثامن",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Statistical surveys",
+                  "official_order": 23,
+                  "source_grade": "الصف الثامن",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
             }
           }
         }
@@ -3843,6 +6185,115 @@
                 },
                 {
                   "title": "Dans l’espace",
+                  "official_order": 15,
+                  "source_grade": "الصف التاسع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
+            },
+            "English": {
+              "lessons": [
+                {
+                  "title": "Lines and Circles",
+                  "official_order": 1,
+                  "source_grade": "الصف التاسع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Proportionality and Coordinate System",
+                  "official_order": 2,
+                  "source_grade": "الصف التاسع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Cyclic Quadrilaterals",
+                  "official_order": 3,
+                  "source_grade": "الصف التاسع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Lines in a Coordinate System",
+                  "official_order": 4,
+                  "source_grade": "الصف التاسع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Thales' Theorem",
+                  "official_order": 5,
+                  "source_grade": "الصف التاسع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Systems of Equations",
+                  "official_order": 6,
+                  "source_grade": "الصف التاسع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Systems of Inequalities",
+                  "official_order": 7,
+                  "source_grade": "الصف التاسع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Similar Triangles",
+                  "official_order": 8,
+                  "source_grade": "الصف التاسع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Real Numbers",
+                  "official_order": 9,
+                  "source_grade": "الصف التاسع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Translation and Vectors",
+                  "official_order": 10,
+                  "source_grade": "الصف التاسع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Algebraic Expressions",
+                  "official_order": 11,
+                  "source_grade": "الصف التاسع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Trigonometric Relations",
+                  "official_order": 12,
+                  "source_grade": "الصف التاسع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Analytic Geometry",
+                  "official_order": 13,
+                  "source_grade": "الصف التاسع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Statistical Surveys",
+                  "official_order": 14,
+                  "source_grade": "الصف التاسع",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Geometry in Space",
                   "official_order": 15,
                   "source_grade": "الصف التاسع",
                   "source_subject": "الرياضيات",
@@ -4119,6 +6570,192 @@
                   "verification_status": "verified-from-textbook-toc"
                 }
               ]
+            },
+            "English": {
+              "lessons": [
+                {
+                  "title": "Statistical vocabulary and distribution",
+                  "official_order": 1,
+                  "source_grade": "الأول ثانوي",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Statistical indicators",
+                  "official_order": 2,
+                  "source_grade": "الأول ثانوي",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Sets",
+                  "official_order": 3,
+                  "source_grade": "الأول ثانوي",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Powers of a real number",
+                  "official_order": 4,
+                  "source_grade": "الأول ثانوي",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Order of real numbers",
+                  "official_order": 5,
+                  "source_grade": "الأول ثانوي",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Absolute value – Approximation",
+                  "official_order": 6,
+                  "source_grade": "الأول ثانوي",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Trigonometric functions",
+                  "official_order": 7,
+                  "source_grade": "الأول ثانوي",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Vectors",
+                  "official_order": 8,
+                  "source_grade": "الأول ثانوي",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Applications of vectors operations",
+                  "official_order": 9,
+                  "source_grade": "الأول ثانوي",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Projection in the plane",
+                  "official_order": 10,
+                  "source_grade": "الأول ثانوي",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Cartesian product – Mappings",
+                  "official_order": 11,
+                  "source_grade": "الأول ثانوي",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Coordinate systems",
+                  "official_order": 12,
+                  "source_grade": "الأول ثانوي",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Lines in the coordinate plane",
+                  "official_order": 13,
+                  "source_grade": "الأول ثانوي",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Scalar product (Dot product)",
+                  "official_order": 14,
+                  "source_grade": "الأول ثانوي",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Analytic form of the scalar product",
+                  "official_order": 15,
+                  "source_grade": "الأول ثانوي",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Linear equations",
+                  "official_order": 16,
+                  "source_grade": "الأول ثانوي",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Linear inequalities in one unknown",
+                  "official_order": 17,
+                  "source_grade": "الأول ثانوي",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Linear systems",
+                  "official_order": 18,
+                  "source_grade": "الأول ثانوي",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Functions",
+                  "official_order": 19,
+                  "source_grade": "الأول ثانوي",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Basic functions",
+                  "official_order": 20,
+                  "source_grade": "الأول ثانوي",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Graphical solutions of equations and inequalities",
+                  "official_order": 21,
+                  "source_grade": "الأول ثانوي",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Polynomials",
+                  "official_order": 22,
+                  "source_grade": "الأول ثانوي",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Plane representation of solids",
+                  "official_order": 23,
+                  "source_grade": "الأول ثانوي",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Plane sections of common solids",
+                  "official_order": 24,
+                  "source_grade": "الأول ثانوي",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Lines and planes",
+                  "official_order": 25,
+                  "source_grade": "الأول ثانوي",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Parallel planes",
+                  "official_order": 26,
+                  "source_grade": "الأول ثانوي",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
             }
           }
         }
@@ -4388,6 +7025,213 @@
                 },
                 {
                   "title": "Nombres complexes",
+                  "official_order": 29,
+                  "source_grade": "الثاني ثانوي - العلوم",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
+            },
+            "English": {
+              "lessons": [
+                {
+                  "title": "Systems of Linear Equations",
+                  "official_order": 1,
+                  "source_grade": "الثاني ثانوي - العلوم",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Linear Programming",
+                  "official_order": 2,
+                  "source_grade": "الثاني ثانوي - العلوم",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Quadratic Equations",
+                  "official_order": 3,
+                  "source_grade": "الثاني ثانوي - العلوم",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Equations of a Circle",
+                  "official_order": 4,
+                  "source_grade": "الثاني ثانوي - العلوم",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Orthogonality in Space",
+                  "official_order": 5,
+                  "source_grade": "الثاني ثانوي - العلوم",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Projections in Space",
+                  "official_order": 6,
+                  "source_grade": "الثاني ثانوي - العلوم",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Vectors and Coordinate Systems in Space",
+                  "official_order": 7,
+                  "source_grade": "الثاني ثانوي - العلوم",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Barycenter",
+                  "official_order": 8,
+                  "source_grade": "الثاني ثانوي - العلوم",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Limits of Functions at Infinity",
+                  "official_order": 9,
+                  "source_grade": "الثاني ثانوي - العلوم",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Limits of Functions at a Point",
+                  "official_order": 10,
+                  "source_grade": "الثاني ثانوي - العلوم",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Derivatives",
+                  "official_order": 11,
+                  "source_grade": "الثاني ثانوي - العلوم",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Elementary Trigonometric Equations",
+                  "official_order": 12,
+                  "source_grade": "الثاني ثانوي - العلوم",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Trigonometric Formulas",
+                  "official_order": 13,
+                  "source_grade": "الثاني ثانوي - العلوم",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Continuous Statistical Variables",
+                  "official_order": 14,
+                  "source_grade": "الثاني ثانوي - العلوم",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Binary Relations",
+                  "official_order": 15,
+                  "source_grade": "الثاني ثانوي - العلوم",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Permutations",
+                  "official_order": 16,
+                  "source_grade": "الثاني ثانوي - العلوم",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Probability I",
+                  "official_order": 17,
+                  "source_grade": "الثاني ثانوي - العلوم",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Translations. Isometrics",
+                  "official_order": 18,
+                  "source_grade": "الثاني ثانوي - العلوم",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Rotations. Reflections",
+                  "official_order": 19,
+                  "source_grade": "الثاني ثانوي - العلوم",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Sequences",
+                  "official_order": 20,
+                  "source_grade": "الثاني ثانوي - العلوم",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Signs of Quadratic Functions",
+                  "official_order": 21,
+                  "source_grade": "الثاني ثانوي - العلوم",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Polynomials",
+                  "official_order": 22,
+                  "source_grade": "الثاني ثانوي - العلوم",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Scalar Products (Dot Products) — Vector Products (Cross Products)",
+                  "official_order": 23,
+                  "source_grade": "الثاني ثانوي - العلوم",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Solids",
+                  "official_order": 24,
+                  "source_grade": "الثاني ثانوي - العلوم",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Functions",
+                  "official_order": 25,
+                  "source_grade": "الثاني ثانوي - العلوم",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Elementary Trigonometric Functions",
+                  "official_order": 26,
+                  "source_grade": "الثاني ثانوي - العلوم",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Probability II",
+                  "official_order": 27,
+                  "source_grade": "الثاني ثانوي - العلوم",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Antiderivatives",
+                  "official_order": 28,
+                  "source_grade": "الثاني ثانوي - العلوم",
+                  "source_subject": "الرياضيات",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Complex Numbers",
                   "official_order": 29,
                   "source_grade": "الثاني ثانوي - العلوم",
                   "source_subject": "الرياضيات",
@@ -5793,6 +8637,6 @@
   },
   "meta": {
     "math_source": "Construire les Mathématiques — CRDP French textbooks",
-    "math_policy": "French textbook TOC is authoritative; legacy math lesson lists replaced 2026-09-18"
+    "math_policy": "English and French textbook TOCs are authoritative; do not translate or invent lesson titles."
   }
 }
