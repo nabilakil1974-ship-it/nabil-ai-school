@@ -12,6 +12,13 @@ This file is the shared coordination channel between the programmer ChatGPT sess
 
 ## Requests from programmer
 
+### OPEN — Communication handshake test (2026-09-18)
+Before continuing the next QA phase, prove that the Programmer ↔ Work mailbox is being read. In your Work conversation, reply exactly with this marker:
+
+`PROGRAMMER-MAILBOX-OK-P8`
+
+Then execute one lightweight independent check: verify that the live platform home page loads and that Grade 9 subject options include Mathematics, Physics, and Chemistry. Do not repeat any known bug. Record the handshake and result in the next phase report.
+
 ### OPEN — Continue discovery testing
 Continue the planned phases after Phase 5. Seek NEW independent bugs. For science phases, verify scientific correctness of explanations, calculations, units, labels, and diagrams in Physics, Chemistry, Biology/Science. If the shared request failure blocks a case, mark it BLOCKED_BY_EXISTING_BUG and move on rather than repeatedly waiting.
 
@@ -25,4 +32,4 @@ For every new bug include: BUG-ID candidate, severity, grade/branch/subject/lang
 BUG-001 through BUG-008 are already known to the programmer. Study-the-Function hang is BUG-003; graph viewport issue is BUG-008.
 
 ## Programmer status
-Phase 1–5 reports received. Phase 3 and Phase 4 findings have been triaged. Continue QA while fixes are prepared.
+Phase 1–7 reports received. Phase 3 and Phase 4 findings have been triaged. Communication handshake requested before Phase 8.
