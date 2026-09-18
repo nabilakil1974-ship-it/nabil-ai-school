@@ -5614,6 +5614,89 @@
               ]
             }
           }
+        },
+        "فيزياء": {
+          "languages": {
+            "English": {
+              "lessons": [
+                {
+                  "title": "Solids and Liquids",
+                  "official_order": 1,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Volume",
+                  "official_order": 2,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Mass and Density",
+                  "official_order": 3,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Gaseous State",
+                  "official_order": 4,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Gas Pressure",
+                  "official_order": 5,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Constitution of Matter",
+                  "official_order": 6,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Transfer of Heat",
+                  "official_order": 7,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Change of State",
+                  "official_order": 8,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Expansion",
+                  "official_order": 9,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Electric Circuit",
+                  "official_order": 10,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Electric Measurements",
+                  "official_order": 11,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Grouping of Lamps and Cells",
+                  "official_order": 12,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Electric Safety",
+                  "official_order": 13,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Magnets",
+                  "official_order": 14,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Coils",
+                  "official_order": 15,
+                  "verification_status": "verified-from-national-textbook-toc"
+                }
+              ]
+            }
+          }
         }
       }
     },
@@ -6104,6 +6187,94 @@
               ]
             }
           }
+        },
+        "فيزياء": {
+          "languages": {
+            "English": {
+              "lessons": [
+                {
+                  "title": "Motion",
+                  "official_order": 1,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "The Motion of Celestial Bodies",
+                  "official_order": 2,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Velocity",
+                  "official_order": 3,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Mechanical Actions",
+                  "official_order": 4,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Forces",
+                  "official_order": 5,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Weight",
+                  "official_order": 6,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Work and Power",
+                  "official_order": 7,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Mechanical Energy",
+                  "official_order": 8,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Different Forms of Energy",
+                  "official_order": 9,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Sources of Energy",
+                  "official_order": 10,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Mechanical Waves",
+                  "official_order": 11,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Sound Waves",
+                  "official_order": 12,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Electromagnetic Waves",
+                  "official_order": 13,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Color",
+                  "official_order": 14,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Rectilinear Propagation of Light",
+                  "official_order": 15,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Reflection of Light",
+                  "official_order": 16,
+                  "verification_status": "verified-from-national-textbook-toc"
+                }
+              ]
+            }
+          }
         }
       }
     },
@@ -6482,6 +6653,89 @@
                 {
                   "title": "Chemistry and Environment",
                   "official_order": 8,
+                  "verification_status": "verified-from-national-textbook-toc"
+                }
+              ]
+            }
+          }
+        },
+        "فيزياء": {
+          "languages": {
+            "English": {
+              "lessons": [
+                {
+                  "title": "Refraction of Light",
+                  "official_order": 1,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Lenses",
+                  "official_order": 2,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Formation of Images",
+                  "official_order": 3,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "The Eye",
+                  "official_order": 4,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "DC Voltage",
+                  "official_order": 5,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Alternating Voltage",
+                  "official_order": 6,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "The Voltage of the Mains",
+                  "official_order": 7,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Resistors",
+                  "official_order": 8,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Electric Power and Energy",
+                  "official_order": 9,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Transfer of Heat and Quantity of Heat",
+                  "official_order": 10,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Change of Phase and Thermal Equilibrium",
+                  "official_order": 11,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Mechanical Actions",
+                  "official_order": 12,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Equilibrium of a Body",
+                  "official_order": 13,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Pressure in Liquids",
+                  "official_order": 14,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Archimedes Up-Thrust",
+                  "official_order": 15,
                   "verification_status": "verified-from-national-textbook-toc"
                 }
               ]
@@ -6991,6 +7245,99 @@
                 {
                   "title": "Atmospheric Pollution",
                   "official_order": 9,
+                  "verification_status": "verified-from-national-textbook-toc"
+                }
+              ]
+            }
+          }
+        },
+        "فيزياء": {
+          "languages": {
+            "English": {
+              "lessons": [
+                {
+                  "title": "Electrostatics",
+                  "official_order": 1,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Potential Difference",
+                  "official_order": 2,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Electric Current",
+                  "official_order": 3,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Resistors",
+                  "official_order": 4,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Generators and Receivers",
+                  "official_order": 5,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Electric Circuits",
+                  "official_order": 6,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Vibrations and Waves",
+                  "official_order": 7,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Reflection and Refraction of Waves",
+                  "official_order": 8,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Propagation of Light",
+                  "official_order": 9,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Reflection of Light",
+                  "official_order": 10,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Refraction of Light",
+                  "official_order": 11,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Lenses",
+                  "official_order": 12,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "The Eye and the Magnifier",
+                  "official_order": 13,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Description of Motion",
+                  "official_order": 14,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Rectilinear Motion",
+                  "official_order": 15,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Force and Interaction",
+                  "official_order": 16,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Newton's Laws",
+                  "official_order": 17,
                   "verification_status": "verified-from-national-textbook-toc"
                 }
               ]
@@ -7561,6 +7908,129 @@
                 {
                   "title": "Pollution",
                   "official_order": 16,
+                  "verification_status": "verified-from-national-textbook-toc"
+                }
+              ]
+            }
+          }
+        },
+        "فيزياء": {
+          "languages": {
+            "English": {
+              "lessons": [
+                {
+                  "title": "Waves",
+                  "official_order": 1,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Superposition of Waves",
+                  "official_order": 2,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Emission and Propagation of Sound",
+                  "official_order": 3,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Reception of Sound",
+                  "official_order": 4,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Sound Energy",
+                  "official_order": 5,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Musical Sounds",
+                  "official_order": 6,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Motion of a Particle in a Plane",
+                  "official_order": 7,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Newton's Second Law of Motion and Applications",
+                  "official_order": 8,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Systems of Particles",
+                  "official_order": 9,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Rotational Dynamics",
+                  "official_order": 10,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Work and Energy",
+                  "official_order": 11,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Ideal Gases",
+                  "official_order": 12,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Transfer of Heat Energy",
+                  "official_order": 13,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Laws of Thermodynamics",
+                  "official_order": 14,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Electric Field",
+                  "official_order": 15,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Capacitors",
+                  "official_order": 16,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Magnetic Field",
+                  "official_order": 17,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Magnetic Field Created by an Electric Current",
+                  "official_order": 18,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "The Electromagnetic Force",
+                  "official_order": 19,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "The Motion of a Charged Particle in Electric and Magnetic Fields",
+                  "official_order": 20,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Semi-conductors",
+                  "official_order": 21,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Transistors",
+                  "official_order": 22,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Operational Amplifiers",
+                  "official_order": 23,
                   "verification_status": "verified-from-national-textbook-toc"
                 }
               ]
@@ -8200,6 +8670,119 @@
               ]
             }
           }
+        },
+        "فيزياء": {
+          "languages": {
+            "English": {
+              "lessons": [
+                {
+                  "title": "Energy",
+                  "official_order": 1,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Linear Momentum",
+                  "official_order": 2,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Angular Momentum",
+                  "official_order": 3,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Mechanical Oscillations",
+                  "official_order": 4,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Forced Oscillations - Resonance",
+                  "official_order": 5,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Fluid Dynamics",
+                  "official_order": 6,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Special Relativity",
+                  "official_order": 7,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Electromagnetic Induction",
+                  "official_order": 8,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Self-Induction",
+                  "official_order": 9,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Alternating Sinusoidal Current",
+                  "official_order": 10,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Transformers",
+                  "official_order": 11,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Electromagnetic Oscillations",
+                  "official_order": 12,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Wave Aspect of Light. Diffraction",
+                  "official_order": 13,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Interference of Light",
+                  "official_order": 14,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Linear Polarization of Light",
+                  "official_order": 15,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Corpuscular Aspect of Light. Photoelectric Effect",
+                  "official_order": 16,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "The Atom",
+                  "official_order": 17,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Atomic Nucleus",
+                  "official_order": 18,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Radioactivity",
+                  "official_order": 19,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Nuclear Reactions",
+                  "official_order": 20,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "The Universe",
+                  "official_order": 21,
+                  "verification_status": "verified-from-national-textbook-toc"
+                }
+              ]
+            }
+          }
         }
       }
     },
@@ -8420,6 +9003,119 @@
               ]
             }
           }
+        },
+        "فيزياء": {
+          "languages": {
+            "English": {
+              "lessons": [
+                {
+                  "title": "Energy",
+                  "official_order": 1,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Linear Momentum",
+                  "official_order": 2,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Angular Momentum",
+                  "official_order": 3,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Mechanical Oscillations",
+                  "official_order": 4,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Forced Oscillations - Resonance",
+                  "official_order": 5,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Fluid Dynamics",
+                  "official_order": 6,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Special Relativity",
+                  "official_order": 7,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Electromagnetic Induction",
+                  "official_order": 8,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Self-Induction",
+                  "official_order": 9,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Alternating Sinusoidal Current",
+                  "official_order": 10,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Transformers",
+                  "official_order": 11,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Electromagnetic Oscillations",
+                  "official_order": 12,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Wave Aspect of Light. Diffraction",
+                  "official_order": 13,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Interference of Light",
+                  "official_order": 14,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Linear Polarization of Light",
+                  "official_order": 15,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Corpuscular Aspect of Light. Photoelectric Effect",
+                  "official_order": 16,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "The Atom",
+                  "official_order": 17,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Atomic Nucleus",
+                  "official_order": 18,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Radioactivity",
+                  "official_order": 19,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Nuclear Reactions",
+                  "official_order": 20,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "The Universe",
+                  "official_order": 21,
+                  "verification_status": "verified-from-national-textbook-toc"
+                }
+              ]
+            }
+          }
         }
       }
     },
@@ -8594,6 +9290,79 @@
               ]
             }
           }
+        },
+        "فيزياء": {
+          "languages": {
+            "English": {
+              "lessons": [
+                {
+                  "title": "Work and Mechanical Energy",
+                  "official_order": 1,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Forms of Energy",
+                  "official_order": 2,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Sources of Energy and the Pollution They Cause",
+                  "official_order": 3,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Radioactivity",
+                  "official_order": 4,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Stimulated Nuclear Reactions: Fission & Fusion",
+                  "official_order": 5,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Applications and Damages of Radioactivity",
+                  "official_order": 6,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "History of the Development of Astronomy",
+                  "official_order": 7,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "The Solar System",
+                  "official_order": 8,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Instruments and Means of Observation of the Universe",
+                  "official_order": 9,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "The Universe: Origin & Evolution",
+                  "official_order": 10,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Petroleum",
+                  "official_order": 11,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Economics and Petroleum",
+                  "official_order": 12,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Transportation",
+                  "official_order": 13,
+                  "verification_status": "verified-from-national-textbook-toc"
+                }
+              ]
+            }
+          }
         }
       }
     },
@@ -8702,6 +9471,79 @@
                   "source_grade": "الثالث ثانوي - الآداب والإنسانيات",
                   "source_subject": "الرياضيات",
                   "verification_status": "verified-from-textbook-toc"
+                }
+              ]
+            }
+          }
+        },
+        "فيزياء": {
+          "languages": {
+            "English": {
+              "lessons": [
+                {
+                  "title": "Work and Mechanical Energy",
+                  "official_order": 1,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Forms of Energy",
+                  "official_order": 2,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Sources of Energy and the Pollution They Cause",
+                  "official_order": 3,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Radioactivity",
+                  "official_order": 4,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Stimulated Nuclear Reactions: Fission & Fusion",
+                  "official_order": 5,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Applications and Damages of Radioactivity",
+                  "official_order": 6,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "History of the Development of Astronomy",
+                  "official_order": 7,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "The Solar System",
+                  "official_order": 8,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Instruments and Means of Observation of the Universe",
+                  "official_order": 9,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "The Universe: Origin & Evolution",
+                  "official_order": 10,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Petroleum",
+                  "official_order": 11,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Economics and Petroleum",
+                  "official_order": 12,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Transportation",
+                  "official_order": 13,
+                  "verification_status": "verified-from-national-textbook-toc"
                 }
               ]
             }
