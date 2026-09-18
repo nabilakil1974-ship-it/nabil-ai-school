@@ -1,0 +1,106 @@
+{
+  "source": "CRDP Google Drive",
+  "source_folder_id": "1hNBM6xYmPUP3N_J1CaHWnD9lQ_89QICV",
+  "policy": "Original PDFs remain on Drive; cloud stores searchable textbook chunks. Do not invent missing language/grade books.",
+  "books": [
+    {
+      "grade": "الصف السابع",
+      "subject": "علوم الحياة",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "Biology grade7.pdf",
+      "drive_file_id": "1u-xgNJTHdMTt5tlWtjYMjMzwtCFLqbzM",
+      "page_offset": 0
+    },
+    {
+      "grade": "الصف السابع",
+      "subject": "علوم الحياة",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "bio eb7.pdf",
+      "drive_file_id": "1AD9TZQxCPs4CK1OdMsqSZJYwkPWLFX66",
+      "page_offset": 0
+    },
+    {
+      "grade": "الصف الثامن",
+      "subject": "علوم الحياة",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "Life science Grade 8.pdf",
+      "drive_file_id": "13Q6Q-McLarAEMRMnlPHG-XaOeSwoONvw",
+      "page_offset": 0
+    },
+    {
+      "grade": "الصف الثامن",
+      "subject": "علوم الحياة",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "bio eb8.pdf",
+      "drive_file_id": "1l59AxUK6lLlSwNz2kFxWkyCzW9dyIxH8",
+      "page_offset": 0
+    },
+    {
+      "grade": "الصف التاسع",
+      "subject": "علوم الحياة",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "book bio grade 9.pdf",
+      "drive_file_id": "1ADt9oqP6Of7_VCJVxVpkBWAmYbIcfxgc",
+      "page_offset": 0
+    },
+    {
+      "grade": "الصف التاسع",
+      "subject": "علوم الحياة",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "biology eb9.pdf",
+      "drive_file_id": "15EVck4FMXUpV9w9Gw5RRhiXYFRWlXzDj",
+      "page_offset": 0
+    },
+    {
+      "grade": "الأول ثانوي",
+      "subject": "علوم الحياة",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "biology grade 10.pdf",
+      "drive_file_id": "1CfG83euP-DeXTIOvvsCe9l0kJdfzuawj",
+      "page_offset": 0
+    },
+    {
+      "grade": "الأول ثانوي",
+      "subject": "علوم الحياة",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "bio eb10.pdf",
+      "drive_file_id": "1kmHec4Zken5DYo7my9cEPRS8zNBkxJBv",
+      "page_offset": 0
+    },
+    {
+      "grade": "الثاني ثانوي - العلوم",
+      "subject": "علوم الحياة",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "bio grade 11 S.pdf",
+      "drive_file_id": "1XkiEumKnF8IPGfstCBhG5PMG0tdum7mo",
+      "page_offset": 0
+    },
+    {
+      "grade": "الثالث ثانوي - علوم الحياة",
+      "subject": "علوم الحياة",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "Bio LS.pdf",
+      "drive_file_id": "1DJ0JzrCkfuKU3_kM8Qg9rLvTrj30guCm",
+      "page_offset": 0
+    },
+    {
+      "grade": "الثالث ثانوي - علوم الحياة",
+      "subject": "علوم الحياة",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "bio SV.pdf",
+      "drive_file_id": "18VrvTMrSxtbZmMH1ytGxVAdumyKA65kv",
+      "page_offset": 0
+    }
+  ]
+}
