@@ -5248,47 +5248,36 @@
             "English": {
               "lessons": [
                 {
-                  "title": "Part 1 Chapter 2 A1: Nutritive needs of chlorophyllic plants",
+                  "title": "Feeding Behavior of Animals",
                   "official_order": 1,
-                  "textbook_page": 32,
-                  "source_pdf_page": 47,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الصف السابع",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
                 },
                 {
-                  "title": "Part 1 Chapter 2 A2: Absorption and translocation of water and mineral salts",
+                  "title": "Nutritive Needs of Plants",
                   "official_order": 2,
-                  "textbook_page": 34,
-                  "source_pdf_page": 47,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الصف السابع",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
                 },
                 {
-                  "title": "Part1 Chapter 2 A3: Photosynthesis: production of organic matter",
+                  "title": "Respiration of Living Beings",
                   "official_order": 3,
-                  "textbook_page": 36,
-                  "source_pdf_page": 47,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الصف السابع",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
                 },
                 {
-                  "title": "Part 1 Chapter 2 A4: Nutritive needs of non chlorophyllic plants",
+                  "title": "Relations among the Conditions of the Environment, Activity and Functions of Nutrition",
                   "official_order": 4,
-                  "textbook_page": 38,
-                  "source_pdf_page": 47,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الصف السابع",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Reproduction of Animals",
+                  "official_order": 5,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Reproduction of Flowering Plants",
+                  "official_order": 6,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
                 }
-              ],
-              "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf"
+              ]
             }
           }
         },
@@ -5747,47 +5736,51 @@
             "English": {
               "lessons": [
                 {
-                  "title": "Part1 Chapter1 A1: Self and Non-Self",
+                  "title": "Self and Non-Self",
                   "official_order": 1,
-                  "textbook_page": 14,
-                  "source_pdf_page": 51,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الصف الثامن",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
                 },
                 {
-                  "title": "Part1 Chapter1 A2: Cells, Molecules and Organs of the Immune System",
+                  "title": "Cells, Molecules and Organs of the Immune System",
                   "official_order": 2,
-                  "textbook_page": 16,
-                  "source_pdf_page": 51,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الصف الثامن",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
                 },
                 {
-                  "title": "Part1 Chapter1 A3: Non-Specific Immune Response",
+                  "title": "Non-Specific Immune Response",
                   "official_order": 3,
-                  "textbook_page": 18,
-                  "source_pdf_page": 51,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الصف الثامن",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
                 },
                 {
-                  "title": "Part1 Chapter1 A4: Specific Immune Response",
+                  "title": "Specific Immune Response",
                   "official_order": 4,
-                  "textbook_page": 20,
-                  "source_pdf_page": 51,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الصف الثامن",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Characteristics of the Specific Immune Response",
+                  "official_order": 5,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Vaccination and Serotherapy",
+                  "official_order": 6,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Antisepsis, Asepsis, Chemotherapy and Antibiotherapy",
+                  "official_order": 7,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Deficiencies of the Immune System",
+                  "official_order": 8,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Allergies",
+                  "official_order": 9,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
                 }
-              ],
-              "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf"
+              ]
             }
           }
         },
@@ -6315,77 +6308,96 @@
             "English": {
               "lessons": [
                 {
-                  "title": "1- Nutrition 1.3 Respiration in living things 1.3.1. Respiration in animals",
-                  "official_order": 5,
-                  "textbook_page": 50,
-                  "source_pdf_page": 47,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الصف التاسع",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Part 1 Chapter 1 A 1: Our Food",
+                  "title": "Our Food",
                   "official_order": 1,
-                  "textbook_page": 16,
-                  "source_pdf_page": 54,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الصف التاسع",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
                 },
                 {
-                  "title": "Part 1 Chapter 1 A2: Chemical Transformation Of Food",
+                  "title": "Chemical Transformation of Food",
                   "official_order": 2,
-                  "textbook_page": 18,
-                  "source_pdf_page": 54,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الصف التاسع",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
                 },
                 {
-                  "title": "Part 1 Chapter 1 A3: Enzymes, Agents Of Digestion",
+                  "title": "Enzymes, Agents of Digestion",
                   "official_order": 3,
-                  "textbook_page": 20,
-                  "source_pdf_page": 54,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الصف التاسع",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
                 },
                 {
-                  "title": "Part 1 Chapter 1 A4: From Food To Nutrients",
+                  "title": "From Food to Nutrients",
                   "official_order": 4,
-                  "textbook_page": 22,
-                  "source_pdf_page": 54,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الصف التاسع",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
                 },
                 {
-                  "title": "Part 1 Chapter 1 A5: The Route Of Nutrients",
+                  "title": "The Route of Nutrients",
                   "official_order": 5,
-                  "textbook_page": 24,
-                  "source_pdf_page": 54,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الصف التاسع",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
                 },
                 {
-                  "title": "1- Nutrition and metabolism",
+                  "title": "Organization of the Respiratory System",
                   "official_order": 6,
-                  "textbook_page": 38,
-                  "source_pdf_page": 54,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الصف التاسع",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Respiratory Gas Exchange",
+                  "official_order": 7,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Transport of Respiratory Gases",
+                  "official_order": 8,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Heart and Cardiac Activity",
+                  "official_order": 9,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Blood Vessels and the Dynamics of Circulation",
+                  "official_order": 10,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Cardiovascular Accidents",
+                  "official_order": 11,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Usage of Nutrients and Oxygen Gas by the Cells",
+                  "official_order": 12,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "The Carriers of Genetic Information",
+                  "official_order": 13,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Transmission of Genetic Information",
+                  "official_order": 14,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Conformed Reproduction of Chromosomes",
+                  "official_order": 15,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Gametes, Specialized Cells with 23 Chromosomes",
+                  "official_order": 16,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Transmission of Hereditary Characteristics",
+                  "official_order": 17,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "The Laws of Heredity",
+                  "official_order": 18,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
                 }
-              ],
-              "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf"
+              ]
             }
           }
         },
@@ -6791,27 +6803,56 @@
             "English": {
               "lessons": [
                 {
-                  "title": "Part 1 Chapter1 A3: The chloroplast: Site of Photosynthesis",
-                  "official_order": 9,
-                  "textbook_page": 22,
-                  "source_pdf_page": 58,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الأول ثانوي",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "title": "Autotrophy and Photosynthesis",
+                  "official_order": 1,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
                 },
                 {
-                  "title": "Part 1 Chapter1 A4: Photosynthetic Gas Exchange",
+                  "title": "Plant Supply with Raw Materials",
+                  "official_order": 2,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "The Use of the Photosynthetic Products",
+                  "official_order": 3,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Nervous Communication",
+                  "official_order": 4,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Hormonal Communication",
+                  "official_order": 5,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Production of High Quality Plants",
+                  "official_order": 6,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Influence of Environmental Factors on the Production of High Quality Plants",
+                  "official_order": 7,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Fresh Water Pollution",
+                  "official_order": 8,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Management and Protection of Fresh Water",
+                  "official_order": 9,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Degradation, Management and Protection of Soil",
                   "official_order": 10,
-                  "textbook_page": 24,
-                  "source_pdf_page": 58,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الأول ثانوي",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
                 }
-              ],
-              "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf"
+              ]
             }
           }
         },
@@ -8036,6 +8077,84 @@
               ]
             }
           }
+        },
+        "علوم الحياة": {
+          "languages": {
+            "English": {
+              "lessons": [
+                {
+                  "title": "The Diversity of Organisms and the Uniqueness of the Individual",
+                  "official_order": 1,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "DNA, Genetic Information and Cell Cycle",
+                  "official_order": 2,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Protein Synthesis and Enzymatic Activity",
+                  "official_order": 3,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Biological Identity and Genotype",
+                  "official_order": 4,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Molecular Renewal",
+                  "official_order": 5,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Energy Expenditure of Organisms",
+                  "official_order": 6,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Energy of the Cell Functioning",
+                  "official_order": 7,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Energetic Metabolism in Man",
+                  "official_order": 8,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Diversity of Feeding Habits",
+                  "official_order": 9,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Basic Principles for a Balanced Diet",
+                  "official_order": 10,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Nutritional Diseases",
+                  "official_order": 11,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Conversion of Light Energy to Chemical Energy",
+                  "official_order": 12,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Energy Flow and the Carbon Cycle in Ecosystems",
+                  "official_order": 13,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Man and the Carbon Cycle",
+                  "official_order": 14,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                }
+              ]
+            }
+          }
         }
       }
     },
@@ -8327,157 +8446,81 @@
             "English": {
               "lessons": [
                 {
-                  "title": "Unit 1 Chapter2 A2:Mitosis, an Equal Division of the Chromosomal Set",
-                  "official_order": 2,
-                  "textbook_page": 36,
-                  "source_pdf_page": 65,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - علوم الحياة",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Unit 1 Chapter2 A3: The Structure and The Chemical Components of chromosomes.",
-                  "official_order": 3,
-                  "textbook_page": 38,
-                  "source_pdf_page": 65,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - علوم الحياة",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Unit 1 Chapter2 A4:Identical Reproduction and Cell Cycle",
-                  "official_order": 4,
-                  "textbook_page": 40,
-                  "source_pdf_page": 65,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - علوم الحياة",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Unit 1 Chapter 3 A2- The Gene, Structure and Information Unit",
-                  "official_order": 6,
-                  "textbook_page": 52,
-                  "source_pdf_page": 65,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - علوم الحياة",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Unit 1 Chapter 3 A3- Transcription: First Step of Protein Synthesis",
-                  "official_order": 7,
-                  "textbook_page": 54,
-                  "source_pdf_page": 65,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - علوم الحياة",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Part 1 Ch1 Doc 1: Male and Female Reproductive System",
+                  "title": "Basic Mechanisms of Sexual Reproduction",
                   "official_order": 1,
-                  "textbook_page": 18,
-                  "source_pdf_page": 68,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - علوم الحياة",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
                 },
                 {
-                  "title": "Part 1 Ch1 Doc 2: Diploid and Haploid Cells",
+                  "title": "Transmission of Genes and Genetic Recombination",
                   "official_order": 2,
-                  "textbook_page": 20,
-                  "source_pdf_page": 68,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - علوم الحياة",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
                 },
                 {
-                  "title": "Part 1 Ch1-Doc 3: Meiosis",
+                  "title": "Genetic Variation and Polymorphism",
                   "official_order": 3,
-                  "textbook_page": 22,
-                  "source_pdf_page": 68,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - علوم الحياة",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
                 },
                 {
-                  "title": "Part 1 Ch1 Doc 4: Spermatogenesis",
+                  "title": "Genetic Diversity of Populations",
                   "official_order": 4,
-                  "textbook_page": 24,
-                  "source_pdf_page": 68,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - علوم الحياة",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
                 },
                 {
-                  "title": "Part 1 Ch1 Doc 5: Oogenesis",
+                  "title": "Human Genetics",
                   "official_order": 5,
-                  "textbook_page": 27,
-                  "source_pdf_page": 68,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - علوم الحياة",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
                 },
                 {
-                  "title": "Part 1 Ch1 Doc 6: Fertilization",
+                  "title": "Role and Components of the Immune System",
                   "official_order": 6,
-                  "textbook_page": 30,
-                  "source_pdf_page": 68,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - علوم الحياة",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
                 },
                 {
-                  "title": "Part 1 Ch2 Doc 1: Hereditary Traits and Genes",
+                  "title": "The Immune Response",
                   "official_order": 7,
-                  "textbook_page": 42,
-                  "source_pdf_page": 68,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - علوم الحياة",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
                 },
                 {
-                  "title": "Unit 1 Chapter 2 Doc 2: Quantitative Needs, Energetic Needs",
-                  "official_order": 1,
-                  "textbook_page": 24,
-                  "source_pdf_page": 73,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - علوم الحياة",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "title": "Disorders of the Immune System",
+                  "official_order": 8,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
                 },
                 {
-                  "title": "Unit 1 Chapter 2 Doc 3: Qualitative Needs, Energetic Needs",
-                  "official_order": 2,
-                  "textbook_page": 26,
-                  "source_pdf_page": 73,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - علوم الحياة",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "title": "Function of Neurons",
+                  "official_order": 9,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
                 },
                 {
-                  "title": "Unit 1 Chapter 2 Doc 4: Qualitative Needs, Requirement in Proteins",
-                  "official_order": 3,
-                  "textbook_page": 28,
-                  "source_pdf_page": 73,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - علوم الحياة",
-                  "source_subject": "علوم الحياة",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "title": "Myotatic Reflex",
+                  "official_order": 10,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Motor Activity",
+                  "official_order": 11,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Neurotransmitters and Medical Applications",
+                  "official_order": 12,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Regulation of Glycemia",
+                  "official_order": 13,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Regulation of Arterial Blood Pressure",
+                  "official_order": 14,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                },
+                {
+                  "title": "Regulation of the Female Sexual Hormones",
+                  "official_order": 15,
+                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
                 }
-              ],
-              "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf"
+              ]
             }
           }
         },
