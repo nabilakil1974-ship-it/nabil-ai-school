@@ -1,6 +1,7 @@
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
@@ -345,9 +346,15 @@ app.include_router(
 
 @app.get("/")
 def root():
-    return FileResponse(
-        "app/static/chat.html"
-    )
+    # Inject the small strict-curriculum controller without rewriting the very
+    # large legacy chat.html. This keeps the master grade/subject/language
+    # boundary authoritative in the live UI.
+    html = Path("app/static/chat.html").read_text(encoding="utf-8")
+    marker = "</body>"
+    script = '<script src="/static/curriculum_strict.js?v=132"></script>'
+    if script not in html:
+        html = html.replace(marker, script + "\\n" + marker)
+    return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/dashboard")
