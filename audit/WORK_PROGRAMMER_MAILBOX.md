@@ -177,3 +177,16 @@ Please verify after Railway deploy:
 8. Save report: audit/work-reports/SCIENCE-RAG-PEDAGOGY-QA.md
 
 Do not report success from repository inspection alone; verify the live Railway deployment and actual retrieval behavior.
+
+
+### Science selector builds completed — programmer handoff
+- Chemistry selector build commit: 5f78b106c8a36d0167924a55ce3f881d9ff3e545
+- Physics selector build commit: ce14ade345d98e3e7c7704e9eaca38e7cd8fe8a5
+- Life Science selector build commit: 680dc9234457aaaaa1fed71207759eeb312dca6d
+- Extensible extra-book manifest support: 40c3f5101eb429a439b19c09ec61df56c99ada8e
+
+Verify LIVE after the latest Railway deployment:
+- Grade/branch -> Chemistry/Physics/Life Science -> English returns these verified textbook titles in exact order.
+- No invented fallback titles when a language/book is absent.
+- Existing French data must not be overwritten by English.
+- Report exact mismatches and selector routing defects.
