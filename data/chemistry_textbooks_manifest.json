@@ -1,0 +1,106 @@
+{
+  "source": "CRDP Google Drive",
+  "source_folder_id": "1vT-AAcgVlpYM2oEllSug1_JcB7RYJ2D3",
+  "policy": "Original PDFs remain on Drive; cloud stores searchable textbook chunks. Do not invent missing language/grade books.",
+  "books": [
+    {
+      "grade": "الصف السابع",
+      "subject": "كيمياء",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "chemistry - grade 7.pdf",
+      "drive_file_id": "1g1qCsurwsLRz3mQ8iphhoS0TEvnPnco7",
+      "page_offset": 0
+    },
+    {
+      "grade": "الصف السابع",
+      "subject": "كيمياء",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "chimie eb7.pdf",
+      "drive_file_id": "1N8IIlZrE8xHqdIzRv7w6k6kXHd2f6gRb",
+      "page_offset": 0
+    },
+    {
+      "grade": "الصف الثامن",
+      "subject": "كيمياء",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "chemistry grade 8.pdf",
+      "drive_file_id": "18MaKs6Y-dndddrH6hlxl-_XeGOulh_KZ",
+      "page_offset": 0
+    },
+    {
+      "grade": "الصف الثامن",
+      "subject": "كيمياء",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "Chimie_EB8.pdf",
+      "drive_file_id": "1KRts8hcEy4X_9suzh0AAGn1I5oYcAiXS",
+      "page_offset": 0
+    },
+    {
+      "grade": "الصف التاسع",
+      "subject": "كيمياء",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "chemistry - grade 9.pdf",
+      "drive_file_id": "1Zf3l8o2snsVsjKebBoPkYYTsihl5UY5x",
+      "page_offset": 0
+    },
+    {
+      "grade": "الأول ثانوي",
+      "subject": "كيمياء",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "seconde chimie.pdf",
+      "drive_file_id": "15L_PVwhCqXa9suGkA5aQXXV1UNTYbdTE",
+      "page_offset": 0
+    },
+    {
+      "grade": "الثاني ثانوي - العلوم",
+      "subject": "كيمياء",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "G. 11 Chem Book Part 1.pdf",
+      "drive_file_id": "13giGpY1Usizy780DojOIMqmRUgaA4VO4",
+      "page_offset": 0
+    },
+    {
+      "grade": "الثاني ثانوي - العلوم",
+      "subject": "كيمياء",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "G. 11 Chem Book Part 2.pdf",
+      "drive_file_id": "1q-PGVFGmqXyzsU1gxbBD2OEzWYSeqZsP",
+      "page_offset": 0
+    },
+    {
+      "grade": "الثاني ثانوي - الإنسانيات",
+      "subject": "كيمياء",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "Chimie_ES2_Humanites_Fr.pdf",
+      "drive_file_id": "1ESTSdPDsYXt8E-1963STMPDqtj_L3Mxn",
+      "page_offset": 0
+    },
+    {
+      "grade": "الثالث ثانوي - العلوم العامة",
+      "subject": "كيمياء",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "Chemistry-LS+GS Book.pdf",
+      "drive_file_id": "1My4-vLyMt-I7fO3xVzcBxETVx0lV_c2x",
+      "page_offset": 0
+    },
+    {
+      "grade": "الثالث ثانوي - علوم الحياة",
+      "subject": "كيمياء",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "Chemistry-LS+GS Book.pdf",
+      "drive_file_id": "1My4-vLyMt-I7fO3xVzcBxETVx0lV_c2x",
+      "page_offset": 0
+    }
+  ]
+}
