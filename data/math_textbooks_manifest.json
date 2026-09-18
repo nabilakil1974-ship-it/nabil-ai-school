@@ -1,0 +1,294 @@
+{
+  "source": "CRDP Google Drive",
+  "policy": "PDF originals remain on Drive; Railway/PostgreSQL stores searchable chunks and vectors.",
+  "books": [
+    {
+      "grade": "الصف الأول",
+      "subject": "الرياضيات",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "Building up Mathematics Grade 1.pdf",
+      "drive_file_id": "1AF-okLPK8xBi9QsHw6w8mhu8SotK4bvz",
+      "page_offset": 0
+    },
+    {
+      "grade": "الصف الأول",
+      "subject": "الرياضيات",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "Construire les Mathematiques EB1.pdf",
+      "drive_file_id": "1e6283jqY2fmI-yIAJbSGJxVpjz_VnXDt",
+      "page_offset": 0
+    },
+    {
+      "grade": "الصف الثاني",
+      "subject": "الرياضيات",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "Building up Mathematics Grade 2.pdf",
+      "drive_file_id": "1E7i7z3nu_Xk3yu0HhZPXrQIQdYvCZtd5",
+      "page_offset": 0
+    },
+    {
+      "grade": "الصف الثاني",
+      "subject": "الرياضيات",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "Construire les Mathematiques EB2.pdf",
+      "drive_file_id": "1Cft9OUH9kzageEbO1z4Zq_mJZXl2qB0j",
+      "page_offset": 0
+    },
+    {
+      "grade": "الصف الثالث",
+      "subject": "الرياضيات",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "Building up Mathematics Grade 3.pdf",
+      "drive_file_id": "1Xci-xrl1kiJ4Gr8J1jDlXC-BsBo37O15",
+      "page_offset": 0
+    },
+    {
+      "grade": "الصف الثالث",
+      "subject": "الرياضيات",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "Construire les Mathematiques EB3.pdf",
+      "drive_file_id": "19xMhJTU8xPi41Q0SS_D1yPLvSRsc9Cyw",
+      "page_offset": 0
+    },
+    {
+      "grade": "الصف الرابع",
+      "subject": "الرياضيات",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "Building up Mathematics Grade 4 - Parts 1 and 2.pdf",
+      "drive_file_id": "1lrT8eQhYwCZ6el9lpaNlussSIfnD6hl7",
+      "page_offset": 0
+    },
+    {
+      "grade": "الصف الرابع",
+      "subject": "الرياضيات",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "Construire les Mathematiques EB4 - Tome 1 et 2.pdf",
+      "drive_file_id": "1yT3moy04a55QF9NKZ3yH1CQJ5VjAtT63",
+      "page_offset": 0
+    },
+    {
+      "grade": "الصف الخامس",
+      "subject": "الرياضيات",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "Building up Mathematics Grade 5.pdf",
+      "drive_file_id": "1Aj2sP-qUxdFPQcvmhj6zUH5NOhjcPtA9",
+      "page_offset": 0
+    },
+    {
+      "grade": "الصف الخامس",
+      "subject": "الرياضيات",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "Construire les Mathematiques EB5.pdf",
+      "drive_file_id": "1V3h8x6sodExq9UdIZVbB3p36YFS6E-LW",
+      "page_offset": 0
+    },
+    {
+      "grade": "الصف السادس",
+      "subject": "الرياضيات",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "Building up Mathematics Grade 6.pdf",
+      "drive_file_id": "1eGKudJXzRx9NncSKMUQTKcaT2oMtGlAs",
+      "page_offset": 0
+    },
+    {
+      "grade": "الصف السادس",
+      "subject": "الرياضيات",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "Construire les Mathematiques EB6.pdf",
+      "drive_file_id": "1QNK_5sVfFGcxJgutzYLSCcVyQHMcbe1Z",
+      "page_offset": 0
+    },
+    {
+      "grade": "الصف السابع",
+      "subject": "الرياضيات",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "Building up Mathematics Grade 7.pdf",
+      "drive_file_id": "1E-nj01QlpvZCa_kHy92qQDlm6ko1ba_D",
+      "page_offset": 0
+    },
+    {
+      "grade": "الصف السابع",
+      "subject": "الرياضيات",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "Construire les Mathematiques EB7.pdf",
+      "drive_file_id": "1xUVAr2pLptWuk_MYOylKB-kTZJ8uvWKp",
+      "page_offset": 0
+    },
+    {
+      "grade": "الصف الثامن",
+      "subject": "الرياضيات",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "Building up Mathematics Grade 8.pdf",
+      "drive_file_id": "11imShrf0Q7EbDwdQflwIQmMbvD15M-H0",
+      "page_offset": 0
+    },
+    {
+      "grade": "الصف الثامن",
+      "subject": "الرياضيات",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "Construire les Mathematiques EB8.pdf",
+      "drive_file_id": "1iOIOsRpWHYqfSFyn96AwaT0Fu8MkyfF1",
+      "page_offset": 0
+    },
+    {
+      "grade": "الصف التاسع",
+      "subject": "الرياضيات",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "Building up Mathematics Grade 9.pdf",
+      "drive_file_id": "1Em9-vpBX8clwSv8_fMk3zPsgSx8Psyw_",
+      "page_offset": 0
+    },
+    {
+      "grade": "الصف التاسع",
+      "subject": "الرياضيات",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "Construire les mathematiques EB9.pdf",
+      "drive_file_id": "1K14OEDDk4o1Yj4MW2xTDxfW6XQW3l4Xz",
+      "page_offset": 0
+    },
+    {
+      "grade": "الأول ثانوي",
+      "subject": "الرياضيات",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "Building up Mathematics S1.pdf",
+      "drive_file_id": "1TL_paiiNP_tt2Sgl_aTTvNXoFfVzzx9U",
+      "page_offset": 0
+    },
+    {
+      "grade": "الأول ثانوي",
+      "subject": "الرياضيات",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "Construire les Mathematiques S1.pdf",
+      "drive_file_id": "1PD0GvEinRl-79RdqSJJZtP44sboQaD2B",
+      "page_offset": 0
+    },
+    {
+      "grade": "الثاني ثانوي - العلوم",
+      "subject": "الرياضيات",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "Building up Mathematics S2 scientific.pdf",
+      "drive_file_id": "1blnm2EIeSw7_6MkJmlvLf_1sVmZDvOn7",
+      "page_offset": 0
+    },
+    {
+      "grade": "الثاني ثانوي - العلوم",
+      "subject": "الرياضيات",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "Construire les Mathematiques S2 scientifique.pdf",
+      "drive_file_id": "1CxyN7zsfRSlI0eV23NzWqL2PHmveKl-L",
+      "page_offset": 0
+    },
+    {
+      "grade": "الثاني ثانوي - الإنسانيات",
+      "subject": "الرياضيات",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "Building up Mathematics S2 LH.pdf",
+      "drive_file_id": "1yQfuNnFvMJmxftKduoi3FNC0eNEPhtr0",
+      "page_offset": 0
+    },
+    {
+      "grade": "الثاني ثانوي - الإنسانيات",
+      "subject": "الرياضيات",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "Construire les Mathematiques S2 LH.pdf",
+      "drive_file_id": "1Mb1UnI7_LcFhSrdZZH4bSBNohFl_RM_N",
+      "page_offset": 0
+    },
+    {
+      "grade": "الثالث ثانوي - العلوم العامة",
+      "subject": "الرياضيات",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "Building up Mathematics S3 GS - Volumes 1 and 2.pdf",
+      "drive_file_id": "160h9B2-lAmC0z4RNORJElCmPhevECNkS",
+      "page_offset": 0
+    },
+    {
+      "grade": "الثالث ثانوي - العلوم العامة",
+      "subject": "الرياضيات",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "Construire les Mathematiques S3 SG - Tome 1 et 2.pdf",
+      "drive_file_id": "1k2vj_3UM79kx6f0Gi2x-t3jSGMJjLXP6",
+      "page_offset": 0
+    },
+    {
+      "grade": "الثالث ثانوي - علوم الحياة",
+      "subject": "الرياضيات",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "Building up Mathematics S3 LS.pdf",
+      "drive_file_id": "17MNUF--5ZRTLjq7UmDcQe0yF3gpRS29s",
+      "page_offset": 0
+    },
+    {
+      "grade": "الثالث ثانوي - علوم الحياة",
+      "subject": "الرياضيات",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "Construire les Mathematiques S3 SVT.pdf",
+      "drive_file_id": "1b_vxCvmTJsK7ItNkb1jAD-qwrJWnkj36",
+      "page_offset": 0
+    },
+    {
+      "grade": "الثالث ثانوي - الاجتماع والاقتصاد",
+      "subject": "الرياضيات",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "Building up Mathematics S3 SE.pdf",
+      "drive_file_id": "1lrmprX3wD2ze5Ho372Hv7pejauv32u-b",
+      "page_offset": 0
+    },
+    {
+      "grade": "الثالث ثانوي - الاجتماع والاقتصاد",
+      "subject": "الرياضيات",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "Construire les Mathematiques S3 SE.pdf",
+      "drive_file_id": "1EZI0RPS6EzvrFMytonM67wlD5BRbLxoz",
+      "page_offset": 0
+    },
+    {
+      "grade": "الثالث ثانوي - الآداب والإنسانيات",
+      "subject": "الرياضيات",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "Building up Mathematics S3 LH.pdf",
+      "drive_file_id": "1U_mOj599PtoxYuI8M2DORel0u3LAF5CR",
+      "page_offset": 0
+    },
+    {
+      "grade": "الثالث ثانوي - الآداب والإنسانيات",
+      "subject": "الرياضيات",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "Construire les Mathematiques S3 LH.pdf",
+      "drive_file_id": "1G0cPT2WCdab1BqUVx31gtx7bRoSlCDI8",
+      "page_offset": 0
+    }
+  ]
+}
