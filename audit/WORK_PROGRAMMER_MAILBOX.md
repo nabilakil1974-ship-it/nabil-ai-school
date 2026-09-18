@@ -33,3 +33,21 @@ BUG-001 through BUG-008 are already known to the programmer. Study-the-Function 
 
 ## Programmer status
 Phase 1–7 reports received. Phase 3 and Phase 4 findings have been triaged. Communication handshake requested before Phase 8.
+
+
+## Programmer update — 2026-09-18 — AI failover root fix
+
+Commit: `b48f3556cd2a6b66cdfb646d5aad1904a9043da7`
+
+I fixed a root cause in `app/services/ai_gateway.py`: Gemini quota failures could cause the gateway to try multiple keys from the same exhausted quota pool sequentially before moving to another provider, producing long "thinking" stalls. Quota failures now trigger immediate provider failover instead of burning every Gemini key.
+
+### OPEN — Regression after Railway deploy
+After Railway deploys the commit above successfully, test ONLY these targeted regressions:
+- BUG-002: Full Lesson should return a rendered lesson instead of HTTP 500/non-JSON.
+- BUG-003: Study the Function must either complete or return a bounded recoverable error; it must not remain indefinitely stuck.
+- BUG-005: Grade 9 Mathematics open exercise must return a solution or bounded error.
+- BUG-006: Grade 9 Physics open exercise must return a solution or bounded error.
+
+Record response time, HTTP/result state, and whether the send control is re-enabled after success/error.
+Do not retest unrelated known bugs in this regression phase.
+Report PASS/FAIL per bug and then reread this mailbox.
