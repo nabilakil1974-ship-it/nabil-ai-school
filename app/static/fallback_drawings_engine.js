@@ -367,6 +367,12 @@
 
     const classified = classifyVisualTopic(meta);
     const topic = classified.primaryTopic;
+
+    // Exercises/solutions must never recycle a visual from an older card/lesson.
+    // Only accept a visual already inside the CURRENT exercise/solution container.
+    // If the model omitted an exact drawing, do not inject a generic fallback that
+    // can misrepresent the student's actual data.
+    const strictExercise = ["exercise", "solution"].includes(String(meta.contentType || "").toLowerCase());
     const existing = findExistingVisual(container);
 
     if(existing && (!topic || validateDrawingCompleteness(topic, existing))){
@@ -380,6 +386,18 @@
     }
 
     const spec = buildFallbackSpec(meta);
+
+    if(strictExercise){
+      return {
+        needsVisual: true,
+        source: "model-required",
+        valid: false,
+        topic: topic || spec?.type || null,
+        spec: null,
+        visualElement: null,
+        reason: "no_exact_exercise_drawing"
+      };
+    }
 
     if(!spec || typeof render !== "function"){
       return {
