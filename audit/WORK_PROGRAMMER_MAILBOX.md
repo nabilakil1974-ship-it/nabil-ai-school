@@ -135,3 +135,25 @@ Complete and test the ingestion side now:
 - Never expose Drive credentials/service-account secrets to the browser.
 - After deployment/indexing, run the owner test: Grade 9 → Mathematics → English → Lines and circles → Full Lesson. Verify the generated content is grounded in retrieved textbook passages and cite the book/page internally/visibly as appropriate. A generic model-generated lesson from the title is FAIL.
 - Record ingestion counts (pages with text, OCR pages, chunks), retrieval evidence, and PASS/FAIL in the pedagogy report. Then reread this mailbox.
+
+
+## IMMEDIATE OWNER TEST — French Mathematics selector parity after TOC replacement (2026-09-18)
+
+Latest math curriculum commits:
+- `0e3efcd103fb4a9cae623fe7d9519e277c3cda2e` — replace master Mathematics with verified French textbook TOCs.
+- `32826fbb5d1afdf9999c20622ea3c08721b2f0d8` — remove legacy Arabic/English Mathematics lists and keep verified French TOCs.
+- `2a40f36eaa4787b135ac81df34b3201909761e87` — cache-bust strict curriculum UI.
+
+### OPEN — Run immediately after the latest Railway build is live
+Verify the LIVE platform, not repository JSON only.
+
+1. For Mathematics, select Français and check every grade from Grade 1 through Grade 9, then S1/first secondary.
+2. Verify the lesson selector contains exactly the same French lesson titles, order, and count as the corresponding verified TOC now stored in `app/static/crdp_master_curriculum_index.json`.
+3. Verify no old Arabic/English Mathematics lesson list leaks into Français and no lesson from another grade appears.
+4. For S2, test both branches separately: Sciences = 29 lessons; Humanities = 20 lessons.
+5. For S3, test all four branches separately: General Sciences = 24; Life Sciences = 26; Sociology & Economics = 23; Literature & Humanities = 10.
+6. Verify branch changes refresh the Mathematics lesson selector to the correct branch-specific list without stale lessons.
+7. Report PASS/FAIL per grade/branch, with actual count vs expected count and at least first/last title. Any mismatch must include reproduction steps and screenshot/evidence.
+8. Save the report as `audit/work-reports/MATH-FRENCH-TOC-PARITY-REPORT.md` and reread this mailbox.
+
+Expected counts: G1 60, G2 74, G3 62, G4 35, G5 32, G6 27, G7 17, G8 23, G9 15, S1 27, S2 Sciences 29, S2 Humanities 20, S3 GS 24, S3 SV 26, S3 SE 23, S3 LH 10.
