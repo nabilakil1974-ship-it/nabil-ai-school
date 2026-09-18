@@ -402,6 +402,71 @@ def get_lesson_policy(
     return walk(grade_node)
 
 
+def get_curriculum_lessons(
+    grade: Optional[str],
+    branch: Optional[str],
+    subject: Optional[str],
+    language: Optional[str],
+) -> list[str]:
+    """Return lessons from the master CRDP scope only; never cross grade/language."""
+    index = load_curriculum_index()
+    catalog = index.get("catalog", {}) if isinstance(index, dict) else {}
+    grade_key = _master_grade_key(grade, branch)
+    subject_key = _master_subject_key(subject)
+    grade_node = catalog.get(grade_key, {}) if isinstance(catalog, dict) else {}
+    subjects = grade_node.get("subjects", {}) if isinstance(grade_node, dict) else {}
+    subject_node = subjects.get(subject_key, {}) if isinstance(subjects, dict) else {}
+    languages = subject_node.get("languages", {}) if isinstance(subject_node, dict) else {}
+    if not isinstance(languages, dict):
+        return []
+
+    requested = (language or "").strip().lower()
+    aliases = {
+        "english": {"english", "en", "anglais"},
+        "français": {"français", "francais", "french", "fr"},
+        "francais": {"français", "francais", "french", "fr"},
+        "arabic": {"arabic", "ar", "العربية", "عربي"},
+        "العربية": {"arabic", "ar", "العربية", "عربي"},
+    }
+    accepted = aliases.get(requested, {requested}) if requested else set()
+    node = None
+    for key, value in languages.items():
+        if not requested or str(key).strip().lower() in accepted:
+            node = value
+            break
+    if not isinstance(node, dict):
+        return []
+
+    result = []
+    for item in node.get("lessons", []):
+        title = item if isinstance(item, str) else (
+            item.get("title") or item.get("lesson") or item.get("name")
+            if isinstance(item, dict) else None
+        )
+        if title and str(title).strip() not in result:
+            result.append(str(title).strip())
+    return result
+
+
+@router.get("/curriculum/lessons")
+def curriculum_lessons(
+    grade: str,
+    subject: str,
+    language: str,
+    branch: Optional[str] = None,
+):
+    """Strict grade + subject + language lesson endpoint for the student UI."""
+    return {
+        "grade": grade,
+        "subject": subject,
+        "language": language,
+        "branch": branch,
+        "lessons": get_curriculum_lessons(grade, branch, subject, language),
+        "source": "crdp_master_curriculum_index",
+        "strict": True,
+    }
+
+
 def build_curriculum_guardrail(
     grade: Optional[str],
     subject: Optional[str],
