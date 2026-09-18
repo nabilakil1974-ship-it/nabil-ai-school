@@ -102,3 +102,19 @@ Required teaching signature:
 Acceptance criterion: a technically correct answer that is confusing, overly verbose, robotic, poorly structured, or not suitable for the selected student grade is a PEDAGOGICAL FAIL.
 
 Use this signature both when fixing prompts/backend behavior and when running PHASE-PEDAGOGY acceptance tests.
+
+
+## IMMEDIATE OWNER TEST — Grade 9 Mathematics textbook-grounded lesson
+
+After the latest Railway build/deploy for commit `9c3fac70cdcde99b086c7574e8a7567ecb330697` is live, run this test before broader pedagogy testing:
+
+1. Select **Grade 9 → Mathematics → English**.
+2. Confirm the lesson selector contains only the 15 newly approved Grade 9 Mathematics textbook TOC entries.
+3. Select the **first lesson: “Lines and circles”** and run **Full Lesson / Start Lesson**.
+4. This is a SOURCE-GROUNDING acceptance test: the explanation must follow the actual Grade 9 textbook content for that lesson. It must NOT invent a generic lesson merely from the title, and it must NOT import concepts from other grades/chapters.
+5. Compare the generated explanation against the Grade 9 Mathematics book in the owner's connected Google Drive (**Building up Mathematics Grade 9.pdf**). Check the concepts, properties/theorems, terminology, examples, order/scope, and diagrams that the book actually supports.
+6. Separately judge teaching quality: it should explain the book content in NABIL/ChatGPT student-facing style rather than copy or dump textbook prose.
+7. Report **PASS/FAIL** for (a) selector list, (b) textbook grounding/content fidelity, (c) mathematical correctness, (d) pedagogy, and (e) visuals. Include concrete evidence for any mismatch.
+8. If the live build is not yet deployed, wait for deployment/readiness and then test; do not test an older build and call it current.
+
+Owner requirement: **the book is the source of lesson content; the model may explain that content pedagogically, but may not fabricate the lesson scope from the title.**
