@@ -6765,94 +6765,68 @@
             "English": {
               "lessons": [
                 {
-                  "title": "Our Food",
+                  "title": "Transformation of Food into Nutrients: Digestion",
                   "official_order": 1,
-                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Chemical Transformation of Food",
+                  "title": "From Nutrients to Energy: Respiration",
                   "official_order": 2,
-                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Enzymes, Agents of Digestion",
+                  "title": "Transport and Distribution of Nutrients and Oxygen Gas to Organs",
                   "official_order": 3,
-                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "From Food to Nutrients",
+                  "title": "Regulation of the Internal Medium: Renal Function",
                   "official_order": 4,
-                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "The Route of Nutrients",
+                  "title": "Nutrition and Health",
                   "official_order": 5,
-                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
+            },
+            "Français": {
+              "lessons": [
+                {
+                  "title": "Transformation des aliments en nutriments: la digestion",
+                  "official_order": 1,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Organization of the Respiratory System",
-                  "official_order": 6,
-                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                  "title": "Des nutriments à l'énergie: la respiration",
+                  "official_order": 2,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Respiratory Gas Exchange",
-                  "official_order": 7,
-                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                  "title": "Transport et distribution des nutriments et du dioxygène aux organes",
+                  "official_order": 3,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Transport of Respiratory Gases",
-                  "official_order": 8,
-                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                  "title": "Régulation du milieu intérieur: la fonction rénale",
+                  "official_order": 4,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Heart and Cardiac Activity",
-                  "official_order": 9,
-                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
-                },
-                {
-                  "title": "Blood Vessels and the Dynamics of Circulation",
-                  "official_order": 10,
-                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
-                },
-                {
-                  "title": "Cardiovascular Accidents",
-                  "official_order": 11,
-                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
-                },
-                {
-                  "title": "Usage of Nutrients and Oxygen Gas by the Cells",
-                  "official_order": 12,
-                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
-                },
-                {
-                  "title": "The Carriers of Genetic Information",
-                  "official_order": 13,
-                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
-                },
-                {
-                  "title": "Transmission of Genetic Information",
-                  "official_order": 14,
-                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
-                },
-                {
-                  "title": "Conformed Reproduction of Chromosomes",
-                  "official_order": 15,
-                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
-                },
-                {
-                  "title": "Gametes, Specialized Cells with 23 Chromosomes",
-                  "official_order": 16,
-                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
-                },
-                {
-                  "title": "Transmission of Hereditary Characteristics",
-                  "official_order": 17,
-                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
-                },
-                {
-                  "title": "The Laws of Heredity",
-                  "official_order": 18,
-                  "verification_status": "verified-from-national-textbook-toc-or-current-crdp-textbook-map"
+                  "title": "Alimentation et santé",
+                  "official_order": 5,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 }
               ]
             }
