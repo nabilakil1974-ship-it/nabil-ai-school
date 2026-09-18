@@ -26,7 +26,12 @@
       "اللغة الإنجليزية"
     ],
     "strip_inline_editorial_notes": true,
-    "normalize_pdf_wrap_markers": true
+    "normalize_pdf_wrap_markers": true,
+    "quarantined_corrupt_scopes": [
+      "الصف التاسع/الرياضيات",
+      "المرحلة الثانوية/الرياضيات"
+    ],
+    "quarantine_reason": "cross-grade extraction detected; hidden until strict rebuild"
   },
   "catalog": {
     "الصف الأول": {
@@ -2872,35 +2877,6 @@
               "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf"
             }
           }
-        },
-        "الرياضيات": {
-          "languages": {
-            "Français": {
-              "lessons": [
-                {
-                  "title": "Droites et cercles",
-                  "official_order": 16,
-                  "textbook_page": 18,
-                  "source_pdf_page": 32,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف التاسع",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Les inéquations première année secondaire",
-                  "official_order": 17,
-                  "textbook_page": 19,
-                  "source_pdf_page": 32,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الصف التاسع",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                }
-              ],
-              "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf"
-            }
-          }
         }
       }
     },
@@ -2972,105 +2948,6 @@
                 }
               ],
               "source_url": "https://www.crdp.org/sites/default/files/inline-files/11-LifeSciencesC3-Sec_2025-2026_.pdf"
-            }
-          }
-        },
-        "الرياضيات": {
-          "languages": {
-            "Français": {
-              "lessons": [
-                {
-                  "title": "1.1 Position relative position de deux cercles",
-                  "official_order": 2,
-                  "textbook_page": 20,
-                  "source_pdf_page": 29,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الأول ثانوي",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "3.3 Propriétés caractéristiques d’un parallélogramme",
-                  "official_order": 3,
-                  "textbook_page": 36,
-                  "source_pdf_page": 29,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الأول ثانوي",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "3.2 Théorème des milieux dans un triangle, dans un trapèze.",
-                  "official_order": 11,
-                  "textbook_page": 12,
-                  "source_pdf_page": 31,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الأول ثانوي",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "3.4 Angle au centre d’un cercle, angle inscrit dans un cercle. Aire d’un secteur circulaire.",
-                  "official_order": 12,
-                  "textbook_page": 14,
-                  "source_pdf_page": 31,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الأول ثانوي",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Droites et cercles",
-                  "official_order": 13,
-                  "textbook_page": 15,
-                  "source_pdf_page": 31,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الأول ثانوي",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Expressions algébriques",
-                  "official_order": 14,
-                  "textbook_page": 16,
-                  "source_pdf_page": 31,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الأول ثانوي",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "Equation ES1",
-                  "official_order": 9,
-                  "textbook_page": 6,
-                  "source_pdf_page": 34,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الأول ثانوي",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "4.1 vecteurs dans un plan",
-                  "official_order": 10,
-                  "textbook_page": 10,
-                  "source_pdf_page": 34,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الأول ثانوي",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                },
-                {
-                  "title": "5.1 Sinus, cosinus et tangente d’un angle aigu dans un triangle rectangle.",
-                  "official_order": 8,
-                  "textbook_page": 12,
-                  "source_pdf_page": 35,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf",
-                  "source_grade": "الأول ثانوي",
-                  "source_subject": "الرياضيات",
-                  "verification_status": "verified-from-official-crdp-table"
-                }
-              ],
-              "source_url": "https://www.crdp.org/sites/default/files/inline-files/14-Math_2025-2026_.pdf"
             }
           }
         }
