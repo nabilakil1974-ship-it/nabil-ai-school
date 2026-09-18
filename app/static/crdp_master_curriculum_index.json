@@ -5701,67 +5701,162 @@
                 {
                   "title": "Classification of matter",
                   "official_order": 1,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Separation techniques",
                   "official_order": 2,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Environmental applications",
                   "official_order": 3,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Solutions",
                   "official_order": 4,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Solubility",
                   "official_order": 5,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Suspensions and Colloids",
                   "official_order": 6,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Environmental applications",
                   "official_order": 7,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Chemical change and conservation of matter",
                   "official_order": 8,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Combustion",
                   "official_order": 9,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Pollution due to combustion reactions. Safety rules",
                   "official_order": 10,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Safety Rules",
                   "official_order": 11,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Laboratory Glassware and Other Apparatus",
                   "official_order": 12,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Technique Sheets",
                   "official_order": 13,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
+            },
+            "Français": {
+              "lessons": [
+                {
+                  "title": "Classification de la matière",
+                  "official_order": 1,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Techniques de séparation",
+                  "official_order": 2,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Applications sur l'environnement",
+                  "official_order": 3,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Les solutions",
+                  "official_order": 4,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "La solubilité",
+                  "official_order": 5,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Suspensions et colloïdes",
+                  "official_order": 6,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Applications sur l'environnement",
+                  "official_order": 7,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Transformations chimiques et conservation de la matière",
+                  "official_order": 8,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "La combustion",
+                  "official_order": 9,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Pollution due aux réactions de combustion - Mesures de sécurité",
+                  "official_order": 10,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Règles de sécurité",
+                  "official_order": 11,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Matériel de laboratoire",
+                  "official_order": 12,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Fiches techniques",
+                  "official_order": 13,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
                 }
               ]
             }
@@ -5855,19 +5950,19 @@
             "English": {
               "lessons": [
                 {
-                  "title": "Classification of Matter",
+                  "title": "Classification of matter",
                   "official_order": 1,
                   "source": "CRDP National Textbook TOC",
                   "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Separation Techniques",
+                  "title": "Separation techniques",
                   "official_order": 2,
                   "source": "CRDP National Textbook TOC",
                   "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Environmental Applications",
+                  "title": "Environmental applications",
                   "official_order": 3,
                   "source": "CRDP National Textbook TOC",
                   "verification_status": "verified-from-textbook-toc"
@@ -5891,13 +5986,13 @@
                   "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Environmental Applications",
+                  "title": "Environmental applications",
                   "official_order": 7,
                   "source": "CRDP National Textbook TOC",
                   "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Chemical Change and Conservation of Matter",
+                  "title": "Chemical change and conservation of matter",
                   "official_order": 8,
                   "source": "CRDP National Textbook TOC",
                   "verification_status": "verified-from-textbook-toc"
@@ -5909,7 +6004,7 @@
                   "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Pollution Due to Combustion Reactions. Safety Rules",
+                  "title": "Pollution due to combustion reactions. Safety rules",
                   "official_order": 10,
                   "source": "CRDP National Textbook TOC",
                   "verification_status": "verified-from-textbook-toc"
@@ -5930,6 +6025,88 @@
                   "title": "Technique Sheets",
                   "official_order": 13,
                   "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
+            },
+            "Français": {
+              "lessons": [
+                {
+                  "title": "Classification de la matière",
+                  "official_order": 1,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Techniques de séparation",
+                  "official_order": 2,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Applications sur l'environnement",
+                  "official_order": 3,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Les solutions",
+                  "official_order": 4,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "La solubilité",
+                  "official_order": 5,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Suspensions et colloïdes",
+                  "official_order": 6,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Applications sur l'environnement",
+                  "official_order": 7,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Transformations chimiques et conservation de la matière",
+                  "official_order": 8,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "La combustion",
+                  "official_order": 9,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Pollution due aux réactions de combustion - Mesures de sécurité",
+                  "official_order": 10,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Règles de sécurité",
+                  "official_order": 11,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Matériel de laboratoire",
+                  "official_order": 12,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Fiches techniques",
+                  "official_order": 13,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
                   "verification_status": "verified-from-textbook-toc"
                 }
               ]
@@ -6539,57 +6716,138 @@
                 {
                   "title": "Electric Charge",
                   "official_order": 1,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Electric Discharge",
                   "official_order": 2,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Classification of Substances",
                   "official_order": 3,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Structure of Matter",
                   "official_order": 4,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Chemical Language",
                   "official_order": 5,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Chemical Equations and Reactions",
                   "official_order": 6,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Types of Chemical Reactions",
                   "official_order": 7,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Rates of Chemical Reactions",
                   "official_order": 8,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Acidic and Basic Solutions",
                   "official_order": 9,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Salts",
                   "official_order": 10,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Acid-Base Reactions in the Environment",
                   "official_order": 11,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
+            },
+            "Français": {
+              "lessons": [
+                {
+                  "title": "Les charges électriques",
+                  "official_order": 1,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "La décharge électrique",
+                  "official_order": 2,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Classification des corps purs",
+                  "official_order": 3,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Structure de la matière : atomes, molécules et ions",
+                  "official_order": 4,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Le langage chimique",
+                  "official_order": 5,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Equations et réactions chimiques",
+                  "official_order": 6,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Types de réactions chimiques",
+                  "official_order": 7,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Vitesse des réactions chimiques",
+                  "official_order": 8,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Solutions acides et basiques",
+                  "official_order": 9,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Sels",
+                  "official_order": 10,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Applications : réactions acide-base dans l'environnement",
+                  "official_order": 11,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
                 }
               ]
             }
@@ -6718,7 +6976,7 @@
                   "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Chemical Reactions",
+                  "title": "Chemical Equations and Reactions",
                   "official_order": 6,
                   "source": "CRDP National Textbook TOC",
                   "verification_status": "verified-from-textbook-toc"
@@ -6748,9 +7006,79 @@
                   "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Applications",
+                  "title": "Acid-Base Reactions in the Environment",
                   "official_order": 11,
                   "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
+            },
+            "Français": {
+              "lessons": [
+                {
+                  "title": "Les charges électriques",
+                  "official_order": 1,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "La décharge électrique",
+                  "official_order": 2,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Classification des corps purs",
+                  "official_order": 3,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Structure de la matière : atomes, molécules et ions",
+                  "official_order": 4,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Le langage chimique",
+                  "official_order": 5,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Equations et réactions chimiques",
+                  "official_order": 6,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Types de réactions chimiques",
+                  "official_order": 7,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Vitesse des réactions chimiques",
+                  "official_order": 8,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Solutions acides et basiques",
+                  "official_order": 9,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Sels",
+                  "official_order": 10,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Applications : réactions acide-base dans l'environnement",
+                  "official_order": 11,
+                  "source": "CRDP French National Textbook / CRDP official chapter index",
                   "verification_status": "verified-from-textbook-toc"
                 }
               ]
@@ -7255,42 +7583,50 @@
                 {
                   "title": "Structure of the Atom",
                   "official_order": 1,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Electron Arrangements in Atoms and the Periodic Table",
                   "official_order": 2,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Chemical Bonding",
                   "official_order": 3,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Electrochemistry",
                   "official_order": 4,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Aliphatic Hydrocarbons",
                   "official_order": 5,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Aromatic Hydrocarbons - Esterification",
                   "official_order": 6,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Petroleum and Synthetic Materials",
                   "official_order": 7,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Chemistry and Environment",
                   "official_order": 8,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 }
               ]
             }
@@ -7414,7 +7750,7 @@
                   "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Aromatic Hydrocarbons and Esterification",
+                  "title": "Aromatic Hydrocarbons - Esterification",
                   "official_order": 6,
                   "source": "CRDP National Textbook TOC",
                   "verification_status": "verified-from-textbook-toc"
@@ -8104,47 +8440,114 @@
                 {
                   "title": "Atoms",
                   "official_order": 1,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Molecules",
                   "official_order": 2,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Ions",
                   "official_order": 3,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Chemical Reaction",
                   "official_order": 4,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Water",
                   "official_order": 5,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Acids-Bases",
                   "official_order": 6,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Qualitative Analysis",
                   "official_order": 7,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Fertilizers",
                   "official_order": 8,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Atmospheric Pollution",
                   "official_order": 9,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
+            },
+            "Français": {
+              "lessons": [
+                {
+                  "title": "L’atome",
+                  "official_order": 1,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "La molécule",
+                  "official_order": 2,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "L’ion",
+                  "official_order": 3,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "La réaction chimique",
+                  "official_order": 4,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "L’eau",
+                  "official_order": 5,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Acides-Bases",
+                  "official_order": 6,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "L’analyse qualitative",
+                  "official_order": 7,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Les engrais",
+                  "official_order": 8,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Pollution atmosphérique",
+                  "official_order": 9,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 }
               ]
             }
@@ -8266,7 +8669,7 @@
                   "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Chemical Reactions",
+                  "title": "Chemical Reaction",
                   "official_order": 4,
                   "source": "CRDP National Textbook TOC",
                   "verification_status": "verified-from-textbook-toc"
@@ -8278,9 +8681,85 @@
                   "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Acids - Bases",
+                  "title": "Acids-Bases",
                   "official_order": 6,
                   "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Qualitative Analysis",
+                  "official_order": 7,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Fertilizers",
+                  "official_order": 8,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Atmospheric Pollution",
+                  "official_order": 9,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
+            },
+            "Français": {
+              "lessons": [
+                {
+                  "title": "L’atome",
+                  "official_order": 1,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "La molécule",
+                  "official_order": 2,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "L’ion",
+                  "official_order": 3,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "La réaction chimique",
+                  "official_order": 4,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "L’eau",
+                  "official_order": 5,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Acides-Bases",
+                  "official_order": 6,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "L’analyse qualitative",
+                  "official_order": 7,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Les engrais",
+                  "official_order": 8,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Pollution atmosphérique",
+                  "official_order": 9,
+                  "source": "CRDP French National Textbook TOC",
                   "verification_status": "verified-from-textbook-toc"
                 }
               ]
@@ -9005,82 +9484,98 @@
                 {
                   "title": "Thermochemistry",
                   "official_order": 1,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Oxidation and Reduction",
                   "official_order": 2,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Oxidation-Reduction Potential",
                   "official_order": 3,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Balancing Redox Reactions",
                   "official_order": 4,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Dry Cells and Storage Batteries - Electrolysis",
                   "official_order": 5,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Volumetric Titration of Redox Reaction",
                   "official_order": 6,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Study of the Principles of Manufacturing",
                   "official_order": 7,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Fertilizers, Explosives and Soap",
                   "official_order": 8,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Cement and Glass",
                   "official_order": 9,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Metallurgy: Metals and Alloys",
                   "official_order": 10,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Atomic Orbitals",
                   "official_order": 11,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Elemental Analysis",
                   "official_order": 12,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Hydrocarbons, Alkanes",
                   "official_order": 13,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Hydrocarbons, Alkenes, Alkynes and Benzene",
                   "official_order": 14,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Petroleum and Natural Gas",
                   "official_order": 15,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Pollution",
                   "official_order": 16,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 }
               ]
             }
@@ -9631,6 +10126,142 @@
               ]
             }
           }
+        },
+        "كيمياء": {
+          "languages": {
+            "Français": {
+              "lessons": [
+                {
+                  "title": "Les Savons",
+                  "official_order": 1,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Les Détergents",
+                  "official_order": 2,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Impact sur l’Environnement",
+                  "official_order": 3,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Caractéristiques Générales des Polymères Synthétiques",
+                  "official_order": 4,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Synthèse des Polymères",
+                  "official_order": 5,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Les Polymères Synthétiques et Environnement",
+                  "official_order": 6,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Classification et Toxicité",
+                  "official_order": 7,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Matières Actives des Pesticides",
+                  "official_order": 8,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Insecticides : Résistances des Insectes – Impact sur l’Environnement",
+                  "official_order": 9,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "La Communication Chimique entre les Insectes. Les Stratégies Futures",
+                  "official_order": 10,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
+            }
+          }
+        },
+        "الكيمياء": {
+          "languages": {
+            "Français": {
+              "lessons": [
+                {
+                  "title": "Les Savons",
+                  "official_order": 1,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Les Détergents",
+                  "official_order": 2,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Impact sur l’Environnement",
+                  "official_order": 3,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Caractéristiques Générales des Polymères Synthétiques",
+                  "official_order": 4,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Synthèse des Polymères",
+                  "official_order": 5,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Les Polymères Synthétiques et Environnement",
+                  "official_order": 6,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Classification et Toxicité",
+                  "official_order": 7,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Matières Actives des Pesticides",
+                  "official_order": 8,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Insecticides : Résistances des Insectes – Impact sur l’Environnement",
+                  "official_order": 9,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "La Communication Chimique entre les Insectes. Les Stratégies Futures",
+                  "official_order": 10,
+                  "source": "CRDP French National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
+            }
+          }
         }
       }
     },
@@ -10061,6 +10692,214 @@
               ]
             }
           }
+        },
+        "كيمياء": {
+          "languages": {
+            "English": {
+              "lessons": [
+                {
+                  "title": "The Gaseous State",
+                  "official_order": 1,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Rate of Reactions",
+                  "official_order": 2,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Kinetic Factors",
+                  "official_order": 3,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Chemical Equilibrium",
+                  "official_order": 4,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "pH. Strong acid, strong base. pH-metric titration",
+                  "official_order": 5,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Weak acid, weak base, conjugate acid/base pair",
+                  "official_order": 6,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Reaction between a weak acid and a strong base",
+                  "official_order": 7,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Functional Groups",
+                  "official_order": 8,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Alcohols",
+                  "official_order": 9,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Aldehydes and Ketones",
+                  "official_order": 10,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Carboxylic acids and their derivatives",
+                  "official_order": 11,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Amines and α-amino acids",
+                  "official_order": 12,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Polymers",
+                  "official_order": 13,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Soaps and detergents",
+                  "official_order": 14,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Current Medicinal Drugs",
+                  "official_order": 15,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "New Materials",
+                  "official_order": 16,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
+            }
+          }
+        },
+        "الكيمياء": {
+          "languages": {
+            "English": {
+              "lessons": [
+                {
+                  "title": "The Gaseous State",
+                  "official_order": 1,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Rate of Reactions",
+                  "official_order": 2,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Kinetic Factors",
+                  "official_order": 3,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Chemical Equilibrium",
+                  "official_order": 4,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "pH. Strong acid, strong base. pH-metric titration",
+                  "official_order": 5,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Weak acid, weak base, conjugate acid/base pair",
+                  "official_order": 6,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Reaction between a weak acid and a strong base",
+                  "official_order": 7,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Functional Groups",
+                  "official_order": 8,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Alcohols",
+                  "official_order": 9,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Aldehydes and Ketones",
+                  "official_order": 10,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Carboxylic acids and their derivatives",
+                  "official_order": 11,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Amines and α-amino acids",
+                  "official_order": 12,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Polymers",
+                  "official_order": 13,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Soaps and detergents",
+                  "official_order": 14,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Current Medicinal Drugs",
+                  "official_order": 15,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "New Materials",
+                  "official_order": 16,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
+            }
+          }
         }
       }
     },
@@ -10390,6 +11229,166 @@
                   "title": "The Universe",
                   "official_order": 21,
                   "verification_status": "verified-from-national-textbook-toc"
+                }
+              ]
+            }
+          }
+        },
+        "كيمياء": {
+          "languages": {
+            "English": {
+              "lessons": [
+                {
+                  "title": "The Gaseous State",
+                  "official_order": 1,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Rate of Reactions",
+                  "official_order": 2,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Kinetic Factors",
+                  "official_order": 3,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Chemical Equilibrium",
+                  "official_order": 4,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "pH. Strong acid, strong base. pH-metric titration",
+                  "official_order": 5,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Weak acid, weak base, conjugate acid/base pair",
+                  "official_order": 6,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Reaction between a weak acid and a strong base",
+                  "official_order": 7,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Functional Groups",
+                  "official_order": 8,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Alcohols",
+                  "official_order": 9,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Aldehydes and Ketones",
+                  "official_order": 10,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Carboxylic acids and their derivatives",
+                  "official_order": 11,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Polymers",
+                  "official_order": 12,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
+            }
+          }
+        },
+        "الكيمياء": {
+          "languages": {
+            "English": {
+              "lessons": [
+                {
+                  "title": "The Gaseous State",
+                  "official_order": 1,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Rate of Reactions",
+                  "official_order": 2,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Kinetic Factors",
+                  "official_order": 3,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Chemical Equilibrium",
+                  "official_order": 4,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "pH. Strong acid, strong base. pH-metric titration",
+                  "official_order": 5,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Weak acid, weak base, conjugate acid/base pair",
+                  "official_order": 6,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Reaction between a weak acid and a strong base",
+                  "official_order": 7,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Functional Groups",
+                  "official_order": 8,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Alcohols",
+                  "official_order": 9,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Aldehydes and Ketones",
+                  "official_order": 10,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Carboxylic acids and their derivatives",
+                  "official_order": 11,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Polymers",
+                  "official_order": 12,
+                  "source": "CRDP Chemistry GS/LS National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 }
               ]
             }
