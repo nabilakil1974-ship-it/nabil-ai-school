@@ -5219,27 +5219,190 @@
             "English": {
               "lessons": [
                 {
-                  "title": "Matter",
+                  "title": "Solids and Liquids",
                   "official_order": 1,
-                  "textbook_page": 13,
-                  "source_pdf_page": 16,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
-                  "source_grade": "الصف السابع",
-                  "source_subject": "الفيزياء",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Electricity",
+                  "title": "Volume",
+                  "official_order": 2,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Mass and Density",
+                  "official_order": 3,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Matter in the Gaseous State",
+                  "official_order": 4,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Gas Pressure",
+                  "official_order": 5,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Constitution of Matter",
+                  "official_order": 6,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Transfer of Heat",
                   "official_order": 7,
-                  "textbook_page": 79,
-                  "source_pdf_page": 16,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
-                  "source_grade": "الصف السابع",
-                  "source_subject": "الفيزياء",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Change of State",
+                  "official_order": 8,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Expansion",
+                  "official_order": 9,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Electric Circuit",
+                  "official_order": 10,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Electric Measurements",
+                  "official_order": 11,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Grouping of Lamps and Cells",
+                  "official_order": 12,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Electric Safety",
+                  "official_order": 13,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Magnets",
+                  "official_order": 14,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Coils",
+                  "official_order": 15,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 }
-              ],
-              "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf"
+              ]
+            },
+            "Français": {
+              "lessons": [
+                {
+                  "title": "Les solides et les liquides",
+                  "official_order": 1,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Le volume",
+                  "official_order": 2,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "La masse et la masse volumique",
+                  "official_order": 3,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "L'état gazeux",
+                  "official_order": 4,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Pression d'un gaz",
+                  "official_order": 5,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Constitution de la matière",
+                  "official_order": 6,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Transmission de la chaleur",
+                  "official_order": 7,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Changement d'état",
+                  "official_order": 8,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "La dilatation",
+                  "official_order": 9,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Le circuit électrique",
+                  "official_order": 10,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Mesures électriques",
+                  "official_order": 11,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Association des lampes et des piles",
+                  "official_order": 12,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "La sécurité électrique",
+                  "official_order": 13,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Les aimants",
+                  "official_order": 14,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Les bobines",
+                  "official_order": 15,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
             }
           }
         },
@@ -5697,37 +5860,102 @@
             "English": {
               "lessons": [
                 {
-                  "title": "Mechanics",
+                  "title": "Motion",
                   "official_order": 1,
-                  "textbook_page": 11,
-                  "source_pdf_page": 17,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
-                  "source_grade": "الصف الثامن",
-                  "source_subject": "الفيزياء",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Waves",
+                  "title": "The Motion of Celestial Bodies",
+                  "official_order": 2,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Velocity",
+                  "official_order": 3,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Mechanical Actions",
+                  "official_order": 4,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Forces",
+                  "official_order": 5,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Weight",
                   "official_order": 6,
-                  "textbook_page": 105,
-                  "source_pdf_page": 17,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
-                  "source_grade": "الصف الثامن",
-                  "source_subject": "الفيزياء",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Optics",
+                  "title": "Work and Power",
+                  "official_order": 7,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Mechanical Energy",
+                  "official_order": 8,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Different Forms of Energy",
+                  "official_order": 9,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Sources of Energy",
                   "official_order": 10,
-                  "textbook_page": 159,
-                  "source_pdf_page": 17,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
-                  "source_grade": "الصف الثامن",
-                  "source_subject": "الفيزياء",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Mechanical Waves",
+                  "official_order": 11,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Sound Waves",
+                  "official_order": 12,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Electromagnetic Waves",
+                  "official_order": 13,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Color",
+                  "official_order": 14,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Rectilinear Propagation of Light",
+                  "official_order": 15,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Reflection of Light",
+                  "official_order": 16,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 }
-              ],
-              "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf"
+              ]
             }
           }
         },
@@ -6279,27 +6507,96 @@
             "English": {
               "lessons": [
                 {
-                  "title": "Electricity",
+                  "title": "Refraction of Light",
                   "official_order": 1,
-                  "textbook_page": 59,
-                  "source_pdf_page": 18,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
-                  "source_grade": "الصف التاسع",
-                  "source_subject": "الفيزياء",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Mechanics",
+                  "title": "Lenses",
+                  "official_order": 2,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Formation of Images",
+                  "official_order": 3,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The Eye",
+                  "official_order": 4,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "DC Voltage",
+                  "official_order": 5,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "AC Voltage",
                   "official_order": 6,
-                  "textbook_page": 147,
-                  "source_pdf_page": 18,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
-                  "source_grade": "الصف التاسع",
-                  "source_subject": "الفيزياء",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Voltage of the Mains",
+                  "official_order": 7,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Resistors",
+                  "official_order": 8,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Electric Power and Energy",
+                  "official_order": 9,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Transfer of Heat and Quantity of Heat",
+                  "official_order": 10,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Change of Phase and Thermal Equilibrium",
+                  "official_order": 11,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Mechanical Actions",
+                  "official_order": 12,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Equilibrium of a Body",
+                  "official_order": 13,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Pressure in Liquids",
+                  "official_order": 14,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Archimedes Upthrust",
+                  "official_order": 15,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 }
-              ],
-              "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf"
+              ]
             }
           }
         },
@@ -6764,37 +7061,214 @@
             "English": {
               "lessons": [
                 {
-                  "title": "Electricity",
+                  "title": "Electrostatics",
                   "official_order": 1,
-                  "textbook_page": 15,
-                  "source_pdf_page": 19,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
-                  "source_grade": "الأول ثانوي",
-                  "source_subject": "الفيزياء",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Optics",
+                  "title": "Potential Difference",
+                  "official_order": 2,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Electric Current",
+                  "official_order": 3,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Resistors",
+                  "official_order": 4,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Generators and Receivers",
+                  "official_order": 5,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Electric Circuits",
+                  "official_order": 6,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Vibrations and Waves",
                   "official_order": 7,
-                  "textbook_page": 110,
-                  "source_pdf_page": 19,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
-                  "source_grade": "الأول ثانوي",
-                  "source_subject": "الفيزياء",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Mechanics",
+                  "title": "Reflection and Refraction of Waves",
+                  "official_order": 8,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Propagation of Light",
                   "official_order": 9,
-                  "textbook_page": 156,
-                  "source_pdf_page": 19,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
-                  "source_grade": "الأول ثانوي",
-                  "source_subject": "الفيزياء",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Reflection of Light",
+                  "official_order": 10,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Refraction of Light",
+                  "official_order": 11,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Lenses",
+                  "official_order": 12,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The Eye and the Magnifier",
+                  "official_order": 13,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Description of Motion",
+                  "official_order": 14,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Rectilinear Motions",
+                  "official_order": 15,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Force and Interaction",
+                  "official_order": 16,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Newton's Laws",
+                  "official_order": 17,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 }
-              ],
-              "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf"
+              ]
+            },
+            "Français": {
+              "lessons": [
+                {
+                  "title": "Électrostatique",
+                  "official_order": 1,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Tension électrique",
+                  "official_order": 2,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Courant électrique",
+                  "official_order": 3,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Conducteurs ohmiques",
+                  "official_order": 4,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Générateurs et récepteurs",
+                  "official_order": 5,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Circuits électriques",
+                  "official_order": 6,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Vibrations et ondes",
+                  "official_order": 7,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Réflexion et réfraction des ondes",
+                  "official_order": 8,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Propagation de la lumière",
+                  "official_order": 9,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Réflexion de la lumière",
+                  "official_order": 10,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Réfraction de la lumière",
+                  "official_order": 11,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Lentilles",
+                  "official_order": 12,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "L'œil et la loupe",
+                  "official_order": 13,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Description du mouvement",
+                  "official_order": 14,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Mouvements rectilignes",
+                  "official_order": 15,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Force et interaction",
+                  "official_order": 16,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Lois de Newton",
+                  "official_order": 17,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
             }
           }
         },
@@ -7397,55 +7871,284 @@
                 {
                   "title": "Waves",
                   "official_order": 1,
-                  "textbook_page": 11,
-                  "source_pdf_page": 21,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
-                  "source_grade": "الثاني ثانوي - العلوم",
-                  "source_subject": "الفيزياء",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Mechanics",
+                  "title": "Superposition of Waves",
+                  "official_order": 2,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Emission and Propagation of Sound",
+                  "official_order": 3,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Reception of Sound",
                   "official_order": 4,
-                  "textbook_page": 89,
-                  "source_pdf_page": 21,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
-                  "source_grade": "الثاني ثانوي - العلوم",
-                  "source_subject": "الفيزياء",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "16. Capacitors",
+                  "title": "Sound Energy",
+                  "official_order": 5,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Musical Sounds",
+                  "official_order": 6,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Motion of a Particle in a Plane",
+                  "official_order": 7,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Newton's Second Law of Motion and Applications",
+                  "official_order": 8,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Systems of Particles",
                   "official_order": 9,
-                  "textbook_page": 241,
-                  "source_pdf_page": 21,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
-                  "source_grade": "الثاني ثانوي - العلوم",
-                  "source_subject": "الفيزياء",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "17. Magnetic field",
+                  "title": "Rotational Dynamics",
                   "official_order": 10,
-                  "textbook_page": 261,
-                  "source_pdf_page": 21,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
-                  "source_grade": "الثاني ثانوي - العلوم",
-                  "source_subject": "الفيزياء",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Electricity and magnetism",
+                  "title": "Work and Energy",
                   "official_order": 11,
-                  "textbook_page": 272,
-                  "source_pdf_page": 21,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
-                  "source_grade": "الثاني ثانوي - العلوم",
-                  "source_subject": "الفيزياء",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Ideal Gases",
+                  "official_order": 12,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Transfer of Heat Energy",
+                  "official_order": 13,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Laws of Thermodynamics",
+                  "official_order": 14,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Electric Field",
+                  "official_order": 15,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Capacitors",
+                  "official_order": 16,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Magnetic Field",
+                  "official_order": 17,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Magnetic Field Created by an Electric Current",
+                  "official_order": 18,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The Electromagnetic Force",
+                  "official_order": 19,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The Motion of a Charged Particle in Electric and Magnetic Fields",
+                  "official_order": 20,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Semi-conductors",
+                  "official_order": 21,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Transistors",
+                  "official_order": 22,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Operational Amplifiers",
+                  "official_order": 23,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 }
-              ],
-              "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf"
+              ]
+            },
+            "Français": {
+              "lessons": [
+                {
+                  "title": "Ondes",
+                  "official_order": 1,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Superposition des ondes",
+                  "official_order": 2,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Émission et propagation du son",
+                  "official_order": 3,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Réception du son",
+                  "official_order": 4,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Énergie acoustique",
+                  "official_order": 5,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Sons musicaux",
+                  "official_order": 6,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Mouvement plan d'une particule",
+                  "official_order": 7,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Deuxième loi de Newton et ses applications",
+                  "official_order": 8,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Systèmes de particules",
+                  "official_order": 9,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Dynamique de rotation",
+                  "official_order": 10,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Travail et énergie",
+                  "official_order": 11,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Gaz parfaits",
+                  "official_order": 12,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Transfert d'énergie thermique",
+                  "official_order": 13,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Lois de la thermodynamique",
+                  "official_order": 14,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Champ électrique",
+                  "official_order": 15,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Condensateurs",
+                  "official_order": 16,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Champ magnétique",
+                  "official_order": 17,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Champ magnétique créé par un courant électrique",
+                  "official_order": 18,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Force électromagnétique",
+                  "official_order": 19,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Mouvement d'une particule chargée dans des champs électrique et magnétique",
+                  "official_order": 20,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Semi-conducteurs",
+                  "official_order": 21,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Transistors",
+                  "official_order": 22,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Amplificateur opérationnel",
+                  "official_order": 23,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
             }
           }
         },
