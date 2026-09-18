@@ -5237,7 +5237,7 @@
                   "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Matter in the Gaseous State",
+                  "title": "Gaseous State",
                   "official_order": 4,
                   "source": "CRDP National Textbook TOC",
                   "verification_status": "verified-from-textbook-toc"
@@ -5869,77 +5869,186 @@
                 {
                   "title": "Solids and Liquids",
                   "official_order": 1,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Volume",
                   "official_order": 2,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Mass and Density",
                   "official_order": 3,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Gaseous State",
                   "official_order": 4,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Gas Pressure",
                   "official_order": 5,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Constitution of Matter",
                   "official_order": 6,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Transfer of Heat",
                   "official_order": 7,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Change of State",
                   "official_order": 8,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Expansion",
                   "official_order": 9,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Electric Circuit",
                   "official_order": 10,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Electric Measurements",
                   "official_order": 11,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Grouping of Lamps and Cells",
                   "official_order": 12,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Electric Safety",
                   "official_order": 13,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Magnets",
                   "official_order": 14,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Coils",
                   "official_order": 15,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
+            },
+            "Français": {
+              "lessons": [
+                {
+                  "title": "Les solides et les liquides",
+                  "official_order": 1,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Le volume",
+                  "official_order": 2,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "La masse et la masse volumique",
+                  "official_order": 3,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "L'état gazeux",
+                  "official_order": 4,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Pression d'un gaz",
+                  "official_order": 5,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Constitution de la matière",
+                  "official_order": 6,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Transmission de la chaleur",
+                  "official_order": 7,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Changement d'état",
+                  "official_order": 8,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "La dilatation",
+                  "official_order": 9,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Le circuit électrique",
+                  "official_order": 10,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Mesures électriques",
+                  "official_order": 11,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Association des lampes et des piles",
+                  "official_order": 12,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "La sécurité électrique",
+                  "official_order": 13,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Les aimants",
+                  "official_order": 14,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Les bobines",
+                  "official_order": 15,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 }
               ]
             }
@@ -6860,82 +6969,198 @@
                 {
                   "title": "Motion",
                   "official_order": 1,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "The Motion of Celestial Bodies",
                   "official_order": 2,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Velocity",
                   "official_order": 3,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Mechanical Actions",
                   "official_order": 4,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Forces",
                   "official_order": 5,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Weight",
                   "official_order": 6,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Work and Power",
                   "official_order": 7,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Mechanical Energy",
                   "official_order": 8,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Different Forms of Energy",
                   "official_order": 9,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Sources of Energy",
                   "official_order": 10,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Mechanical Waves",
                   "official_order": 11,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Sound Waves",
                   "official_order": 12,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Electromagnetic Waves",
                   "official_order": 13,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Color",
                   "official_order": 14,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Rectilinear Propagation of Light",
                   "official_order": 15,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Reflection of Light",
                   "official_order": 16,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
+            },
+            "Français": {
+              "lessons": [
+                {
+                  "title": "Le mouvement",
+                  "official_order": 1,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Le mouvement des corps célestes",
+                  "official_order": 2,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Notion de vitesse",
+                  "official_order": 3,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Actions mécaniques",
+                  "official_order": 4,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Les forces",
+                  "official_order": 5,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Le poids",
+                  "official_order": 6,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Le travail",
+                  "official_order": 7,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Énergie mécanique",
+                  "official_order": 8,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Différentes formes d'énergie",
+                  "official_order": 9,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Sources d'énergie",
+                  "official_order": 10,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Ondes mécaniques",
+                  "official_order": 11,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Ondes sonores",
+                  "official_order": 12,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Ondes électromagnétiques",
+                  "official_order": 13,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Les couleurs",
+                  "official_order": 14,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Propagation rectiligne de la lumière",
+                  "official_order": 15,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Réflexion de la lumière",
+                  "official_order": 16,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 }
               ]
             }
@@ -7125,13 +7350,13 @@
                   "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "AC Voltage",
+                  "title": "Alternating Voltage",
                   "official_order": 6,
                   "source": "CRDP National Textbook TOC",
                   "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Voltage of the Mains",
+                  "title": "The Voltage of the Mains",
                   "official_order": 7,
                   "source": "CRDP National Textbook TOC",
                   "verification_status": "verified-from-textbook-toc"
@@ -7179,7 +7404,7 @@
                   "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Archimedes Upthrust",
+                  "title": "Archimedes Up-Thrust",
                   "official_order": 15,
                   "source": "CRDP National Textbook TOC",
                   "verification_status": "verified-from-textbook-toc"
@@ -7639,77 +7864,186 @@
                 {
                   "title": "Refraction of Light",
                   "official_order": 1,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Lenses",
                   "official_order": 2,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Formation of Images",
                   "official_order": 3,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "The Eye",
                   "official_order": 4,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "DC Voltage",
                   "official_order": 5,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Alternating Voltage",
                   "official_order": 6,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "The Voltage of the Mains",
                   "official_order": 7,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Resistors",
                   "official_order": 8,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Electric Power and Energy",
                   "official_order": 9,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Transfer of Heat and Quantity of Heat",
                   "official_order": 10,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Change of Phase and Thermal Equilibrium",
                   "official_order": 11,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Mechanical Actions",
                   "official_order": 12,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Equilibrium of a Body",
                   "official_order": 13,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Pressure in Liquids",
                   "official_order": 14,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Archimedes Up-Thrust",
                   "official_order": 15,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
+            },
+            "Français": {
+              "lessons": [
+                {
+                  "title": "Réfraction de la lumière",
+                  "official_order": 1,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Les lentilles",
+                  "official_order": 2,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Formation des images",
+                  "official_order": 3,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "L'œil",
+                  "official_order": 4,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Tension continue",
+                  "official_order": 5,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Tensions alternatives",
+                  "official_order": 6,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "La tension du secteur",
+                  "official_order": 7,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Conducteurs ohmiques",
+                  "official_order": 8,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Puissance et énergie électriques",
+                  "official_order": 9,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Transfert et quantité de chaleur",
+                  "official_order": 10,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Changements d'état et équilibre thermique",
+                  "official_order": 11,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Les actions mécaniques",
+                  "official_order": 12,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Équilibre d'un corps",
+                  "official_order": 13,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Pression dans les liquides",
+                  "official_order": 14,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Poussée d'Archimède",
+                  "official_order": 15,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 }
               ]
             }
@@ -7865,7 +8199,7 @@
                   "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Rectilinear Motions",
+                  "title": "Rectilinear Motion",
                   "official_order": 15,
                   "source": "CRDP National Textbook TOC",
                   "verification_status": "verified-from-textbook-toc"
@@ -8560,87 +8894,210 @@
                 {
                   "title": "Electrostatics",
                   "official_order": 1,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Potential Difference",
                   "official_order": 2,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Electric Current",
                   "official_order": 3,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Resistors",
                   "official_order": 4,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Generators and Receivers",
                   "official_order": 5,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Electric Circuits",
                   "official_order": 6,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Vibrations and Waves",
                   "official_order": 7,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Reflection and Refraction of Waves",
                   "official_order": 8,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Propagation of Light",
                   "official_order": 9,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Reflection of Light",
                   "official_order": 10,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Refraction of Light",
                   "official_order": 11,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Lenses",
                   "official_order": 12,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "The Eye and the Magnifier",
                   "official_order": 13,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Description of Motion",
                   "official_order": 14,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Rectilinear Motion",
                   "official_order": 15,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Force and Interaction",
                   "official_order": 16,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Newton's Laws",
                   "official_order": 17,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
+            },
+            "Français": {
+              "lessons": [
+                {
+                  "title": "Électrostatique",
+                  "official_order": 1,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Tension électrique",
+                  "official_order": 2,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Courant électrique",
+                  "official_order": 3,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Conducteurs ohmiques",
+                  "official_order": 4,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Générateurs et récepteurs",
+                  "official_order": 5,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Circuits électriques",
+                  "official_order": 6,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Vibrations et ondes",
+                  "official_order": 7,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Réflexion et réfraction des ondes",
+                  "official_order": 8,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Propagation de la lumière",
+                  "official_order": 9,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Réflexion de la lumière",
+                  "official_order": 10,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Réfraction de la lumière",
+                  "official_order": 11,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Lentilles",
+                  "official_order": 12,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "L'œil et la loupe",
+                  "official_order": 13,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Description du mouvement",
+                  "official_order": 14,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Mouvements rectilignes",
+                  "official_order": 15,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Force et interaction",
+                  "official_order": 16,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Lois de Newton",
+                  "official_order": 17,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 }
               ]
             }
@@ -9588,117 +10045,282 @@
                 {
                   "title": "Waves",
                   "official_order": 1,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Superposition of Waves",
                   "official_order": 2,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Emission and Propagation of Sound",
                   "official_order": 3,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Reception of Sound",
                   "official_order": 4,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Sound Energy",
                   "official_order": 5,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Musical Sounds",
                   "official_order": 6,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Motion of a Particle in a Plane",
                   "official_order": 7,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Newton's Second Law of Motion and Applications",
                   "official_order": 8,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Systems of Particles",
                   "official_order": 9,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Rotational Dynamics",
                   "official_order": 10,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Work and Energy",
                   "official_order": 11,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Ideal Gases",
                   "official_order": 12,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Transfer of Heat Energy",
                   "official_order": 13,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Laws of Thermodynamics",
                   "official_order": 14,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Electric Field",
                   "official_order": 15,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Capacitors",
                   "official_order": 16,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Magnetic Field",
                   "official_order": 17,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Magnetic Field Created by an Electric Current",
                   "official_order": 18,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "The Electromagnetic Force",
                   "official_order": 19,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "The Motion of a Charged Particle in Electric and Magnetic Fields",
                   "official_order": 20,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Semi-conductors",
                   "official_order": 21,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Transistors",
                   "official_order": 22,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Operational Amplifiers",
                   "official_order": 23,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
+            },
+            "Français": {
+              "lessons": [
+                {
+                  "title": "Ondes",
+                  "official_order": 1,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Superposition des ondes",
+                  "official_order": 2,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Émission et propagation du son",
+                  "official_order": 3,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Réception du son",
+                  "official_order": 4,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Énergie acoustique",
+                  "official_order": 5,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Sons musicaux",
+                  "official_order": 6,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Mouvement plan d'une particule",
+                  "official_order": 7,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Deuxième loi de Newton et ses applications",
+                  "official_order": 8,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Systèmes de particules",
+                  "official_order": 9,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Dynamique de rotation",
+                  "official_order": 10,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Travail et énergie",
+                  "official_order": 11,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Gaz parfaits",
+                  "official_order": 12,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Transfert d'énergie thermique",
+                  "official_order": 13,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Lois de la thermodynamique",
+                  "official_order": 14,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Champ électrique",
+                  "official_order": 15,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Condensateurs",
+                  "official_order": 16,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Champ magnétique",
+                  "official_order": 17,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Champ magnétique créé par un courant électrique",
+                  "official_order": 18,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Force électromagnétique",
+                  "official_order": 19,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Mouvement d'une particule chargée dans des champs électrique et magnétique",
+                  "official_order": 20,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Semi-conducteurs",
+                  "official_order": 21,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Transistors",
+                  "official_order": 22,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Amplificateur opérationnel",
+                  "official_order": 23,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 }
               ]
             }
@@ -10273,37 +10895,226 @@
             "English": {
               "lessons": [
                 {
-                  "title": "Mechanics",
+                  "title": "Energy",
                   "official_order": 1,
-                  "textbook_page": 10,
-                  "source_pdf_page": 24,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - علوم الحياة",
-                  "source_subject": "الفيزياء",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Electricity",
+                  "title": "Linear Momentum",
+                  "official_order": 2,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Angular Momentum",
+                  "official_order": 3,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Mechanical Oscillations",
                   "official_order": 4,
-                  "textbook_page": 133,
-                  "source_pdf_page": 24,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - علوم الحياة",
-                  "source_subject": "الفيزياء",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Aspects of Light",
+                  "title": "Forced Oscillations - Resonance",
+                  "official_order": 5,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Fluid Dynamics",
+                  "official_order": 6,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Electromagnetic Induction",
                   "official_order": 7,
-                  "textbook_page": 227,
-                  "source_pdf_page": 24,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - علوم الحياة",
-                  "source_subject": "الفيزياء",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Self-Induction",
+                  "official_order": 8,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Alternating Sinusoidal Current",
+                  "official_order": 9,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Transformers",
+                  "official_order": 10,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Wave Aspect of Light. Diffraction",
+                  "official_order": 11,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Interference of Light",
+                  "official_order": 12,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Linear Polarization of Light",
+                  "official_order": 13,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Corpuscular Aspect of Light. Photoelectric Effect",
+                  "official_order": 14,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The Atom",
+                  "official_order": 15,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Atomic Nucleus",
+                  "official_order": 16,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Radioactivity",
+                  "official_order": 17,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Nuclear Reactions",
+                  "official_order": 18,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
                 }
-              ],
-              "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf"
+              ]
+            },
+            "Français": {
+              "lessons": [
+                {
+                  "title": "Énergie",
+                  "official_order": 1,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Quantité de mouvement",
+                  "official_order": 2,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Moment cinétique",
+                  "official_order": 3,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Oscillations mécaniques",
+                  "official_order": 4,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Oscillations forcées",
+                  "official_order": 5,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Dynamique des fluides",
+                  "official_order": 6,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Induction électromagnétique",
+                  "official_order": 7,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Auto-induction",
+                  "official_order": 8,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Courant alternatif sinusoïdal",
+                  "official_order": 9,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Transformateur",
+                  "official_order": 10,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Diffraction",
+                  "official_order": 11,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Interférences lumineuses",
+                  "official_order": 12,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Polarisation",
+                  "official_order": 13,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Aspect corpusculaire de la lumière",
+                  "official_order": 14,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "L'Atome",
+                  "official_order": 15,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Noyau atomique",
+                  "official_order": 16,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Radioactivité",
+                  "official_order": 17,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Réaction nucléaire",
+                  "official_order": 18,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
             }
           }
         },
@@ -10587,107 +11398,222 @@
                 {
                   "title": "Energy",
                   "official_order": 1,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Linear Momentum",
                   "official_order": 2,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Angular Momentum",
                   "official_order": 3,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Mechanical Oscillations",
                   "official_order": 4,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Forced Oscillations - Resonance",
                   "official_order": 5,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Fluid Dynamics",
                   "official_order": 6,
-                  "verification_status": "verified-from-national-textbook-toc"
-                },
-                {
-                  "title": "Special Relativity",
-                  "official_order": 7,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Electromagnetic Induction",
-                  "official_order": 8,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "official_order": 7,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Self-Induction",
-                  "official_order": 9,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "official_order": 8,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Alternating Sinusoidal Current",
-                  "official_order": 10,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "official_order": 9,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Transformers",
-                  "official_order": 11,
-                  "verification_status": "verified-from-national-textbook-toc"
-                },
-                {
-                  "title": "Electromagnetic Oscillations",
-                  "official_order": 12,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "official_order": 10,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Wave Aspect of Light. Diffraction",
-                  "official_order": 13,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "official_order": 11,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Interference of Light",
-                  "official_order": 14,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "official_order": 12,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Linear Polarization of Light",
-                  "official_order": 15,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "official_order": 13,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Corpuscular Aspect of Light. Photoelectric Effect",
-                  "official_order": 16,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "official_order": 14,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "The Atom",
-                  "official_order": 17,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "official_order": 15,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Atomic Nucleus",
-                  "official_order": 18,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "official_order": 16,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Radioactivity",
-                  "official_order": 19,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "official_order": 17,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Nuclear Reactions",
-                  "official_order": 20,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "official_order": 18,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC; starred GS-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
+            },
+            "Français": {
+              "lessons": [
+                {
+                  "title": "Énergie",
+                  "official_order": 1,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "The Universe",
-                  "official_order": 21,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "title": "Quantité de mouvement",
+                  "official_order": 2,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Moment cinétique",
+                  "official_order": 3,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Oscillations mécaniques",
+                  "official_order": 4,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Oscillations forcées",
+                  "official_order": 5,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Dynamique des fluides",
+                  "official_order": 6,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Induction électromagnétique",
+                  "official_order": 7,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Auto-induction",
+                  "official_order": 8,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Courant alternatif sinusoïdal",
+                  "official_order": 9,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Transformateur",
+                  "official_order": 10,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Diffraction",
+                  "official_order": 11,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Interférences lumineuses",
+                  "official_order": 12,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Polarisation",
+                  "official_order": 13,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Aspect corpusculaire de la lumière",
+                  "official_order": 14,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "L'Atome",
+                  "official_order": 15,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Noyau atomique",
+                  "official_order": 16,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Radioactivité",
+                  "official_order": 17,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Réaction nucléaire",
+                  "official_order": 18,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC; starred SG-only chapters excluded",
+                  "verification_status": "verified-from-textbook-toc"
                 }
               ]
             }
@@ -10911,37 +11837,262 @@
             "English": {
               "lessons": [
                 {
-                  "title": "Mechanics",
+                  "title": "Energy",
                   "official_order": 1,
-                  "textbook_page": 10,
-                  "source_pdf_page": 25,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - العلوم العامة",
-                  "source_subject": "الفيزياء",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Electricity",
+                  "title": "Linear Momentum",
+                  "official_order": 2,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Angular Momentum",
+                  "official_order": 3,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Mechanical Oscillations",
+                  "official_order": 4,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Forced Oscillations - Resonance",
                   "official_order": 5,
-                  "textbook_page": 133,
-                  "source_pdf_page": 25,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - العلوم العامة",
-                  "source_subject": "الفيزياء",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
-                  "title": "Aspects of Light",
+                  "title": "Fluid Dynamics",
+                  "official_order": 6,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Special Relativity",
+                  "official_order": 7,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Electromagnetic Induction",
                   "official_order": 8,
-                  "textbook_page": 227,
-                  "source_pdf_page": 25,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - العلوم العامة",
-                  "source_subject": "الفيزياء",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Self-Induction",
+                  "official_order": 9,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Alternating Sinusoidal Current",
+                  "official_order": 10,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Transformers",
+                  "official_order": 11,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Electromagnetic Oscillations",
+                  "official_order": 12,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Wave Aspect of Light. Diffraction",
+                  "official_order": 13,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Interference of Light",
+                  "official_order": 14,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Linear Polarization of Light",
+                  "official_order": 15,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Corpuscular Aspect of Light. Photoelectric Effect",
+                  "official_order": 16,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The Atom",
+                  "official_order": 17,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Atomic Nucleus",
+                  "official_order": 18,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Radioactivity",
+                  "official_order": 19,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Nuclear Reactions",
+                  "official_order": 20,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The Universe",
+                  "official_order": 21,
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 }
-              ],
-              "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf"
+              ]
+            },
+            "Français": {
+              "lessons": [
+                {
+                  "title": "Énergie",
+                  "official_order": 1,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Quantité de mouvement",
+                  "official_order": 2,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Moment cinétique",
+                  "official_order": 3,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Oscillations mécaniques",
+                  "official_order": 4,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Oscillations forcées",
+                  "official_order": 5,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Dynamique des fluides",
+                  "official_order": 6,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "La relativité restreinte",
+                  "official_order": 7,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Induction électromagnétique",
+                  "official_order": 8,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Auto-induction",
+                  "official_order": 9,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Courant alternatif sinusoïdal",
+                  "official_order": 10,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Transformateur",
+                  "official_order": 11,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Oscillations électromagnétiques",
+                  "official_order": 12,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Diffraction",
+                  "official_order": 13,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Interférences lumineuses",
+                  "official_order": 14,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Polarisation",
+                  "official_order": 15,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Aspect corpusculaire de la lumière",
+                  "official_order": 16,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "L'Atome",
+                  "official_order": 17,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Noyau atomique",
+                  "official_order": 18,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Radioactivité",
+                  "official_order": 19,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Réaction nucléaire",
+                  "official_order": 20,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "L'Univers",
+                  "official_order": 21,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
             }
           }
         },
@@ -11128,107 +12279,258 @@
                 {
                   "title": "Energy",
                   "official_order": 1,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Linear Momentum",
                   "official_order": 2,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Angular Momentum",
                   "official_order": 3,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Mechanical Oscillations",
                   "official_order": 4,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Forced Oscillations - Resonance",
                   "official_order": 5,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Fluid Dynamics",
                   "official_order": 6,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Special Relativity",
                   "official_order": 7,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Electromagnetic Induction",
                   "official_order": 8,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Self-Induction",
                   "official_order": 9,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Alternating Sinusoidal Current",
                   "official_order": 10,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Transformers",
                   "official_order": 11,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Electromagnetic Oscillations",
                   "official_order": 12,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Wave Aspect of Light. Diffraction",
                   "official_order": 13,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Interference of Light",
                   "official_order": 14,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Linear Polarization of Light",
                   "official_order": 15,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Corpuscular Aspect of Light. Photoelectric Effect",
                   "official_order": 16,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "The Atom",
                   "official_order": 17,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Atomic Nucleus",
                   "official_order": 18,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Radioactivity",
                   "official_order": 19,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Nuclear Reactions",
                   "official_order": 20,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "The Universe",
                   "official_order": 21,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 GS/LS Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
+            },
+            "Français": {
+              "lessons": [
+                {
+                  "title": "Énergie",
+                  "official_order": 1,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Quantité de mouvement",
+                  "official_order": 2,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Moment cinétique",
+                  "official_order": 3,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Oscillations mécaniques",
+                  "official_order": 4,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Oscillations forcées",
+                  "official_order": 5,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Dynamique des fluides",
+                  "official_order": 6,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "La relativité restreinte",
+                  "official_order": 7,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Induction électromagnétique",
+                  "official_order": 8,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Auto-induction",
+                  "official_order": 9,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Courant alternatif sinusoïdal",
+                  "official_order": 10,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Transformateur",
+                  "official_order": 11,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Oscillations électromagnétiques",
+                  "official_order": 12,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Diffraction",
+                  "official_order": 13,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Interférences lumineuses",
+                  "official_order": 14,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Polarisation",
+                  "official_order": 15,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Aspect corpusculaire de la lumière",
+                  "official_order": 16,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "L'Atome",
+                  "official_order": 17,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Noyau atomique",
+                  "official_order": 18,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Radioactivité",
+                  "official_order": 19,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Réaction nucléaire",
+                  "official_order": 20,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "L'Univers",
+                  "official_order": 21,
+                  "source": "CRDP Grade 12 SG/SV Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 }
               ]
             }
@@ -11575,67 +12877,166 @@
                 {
                   "title": "Work and Mechanical Energy",
                   "official_order": 1,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Forms of Energy",
                   "official_order": 2,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Sources of Energy and the Pollution They Cause",
                   "official_order": 3,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Radioactivity",
                   "official_order": 4,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Stimulated Nuclear Reactions: Fission & Fusion",
                   "official_order": 5,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Applications and Damages of Radioactivity",
                   "official_order": 6,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "History of the Development of Astronomy",
                   "official_order": 7,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "The Solar System",
                   "official_order": 8,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Instruments and Means of Observation of the Universe",
                   "official_order": 9,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "The Universe: Origin & Evolution",
                   "official_order": 10,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Petroleum",
                   "official_order": 11,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Economics and Petroleum",
                   "official_order": 12,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Transportation",
                   "official_order": 13,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
+            }
+          }
+        },
+        "الفيزياء": {
+          "languages": {
+            "English": {
+              "lessons": [
+                {
+                  "title": "Work and Mechanical Energy",
+                  "official_order": 1,
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Forms of Energy",
+                  "official_order": 2,
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Sources of Energy and the Pollution They Cause",
+                  "official_order": 3,
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Radioactivity",
+                  "official_order": 4,
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Stimulated Nuclear Reactions: Fission & Fusion",
+                  "official_order": 5,
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Applications and Damages of Radioactivity",
+                  "official_order": 6,
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "History of the Development of Astronomy",
+                  "official_order": 7,
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The Solar System",
+                  "official_order": 8,
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Instruments and Means of Observation of the Universe",
+                  "official_order": 9,
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The Universe: Origin & Evolution",
+                  "official_order": 10,
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Petroleum",
+                  "official_order": 11,
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Economics and Petroleum",
+                  "official_order": 12,
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Transportation",
+                  "official_order": 13,
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 }
               ]
             }
@@ -11651,27 +13052,84 @@
             "English": {
               "lessons": [
                 {
-                  "title": "Energy",
+                  "title": "Work and Mechanical Energy",
                   "official_order": 1,
-                  "textbook_page": 11,
-                  "source_pdf_page": 22,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - الآداب والإنسانيات",
-                  "source_subject": "الفيزياء",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Forms of Energy",
+                  "official_order": 2,
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Sources of Energy and the Pollution They Cause",
+                  "official_order": 3,
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Radioactivity",
                   "official_order": 4,
-                  "textbook_page": 39,
-                  "source_pdf_page": 22,
-                  "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf",
-                  "source_grade": "الثالث ثانوي - الآداب والإنسانيات",
-                  "source_subject": "الفيزياء",
-                  "verification_status": "verified-from-official-crdp-table"
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Stimulated Nuclear Reactions: Fission & Fusion",
+                  "official_order": 5,
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Applications and Damages of Radioactivity",
+                  "official_order": 6,
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "History of the Development of Astronomy",
+                  "official_order": 7,
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The Solar System",
+                  "official_order": 8,
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Instruments and Means of Observation of the Universe",
+                  "official_order": 9,
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "The Universe: Origin & Evolution",
+                  "official_order": 10,
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Petroleum",
+                  "official_order": 11,
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Economics and Petroleum",
+                  "official_order": 12,
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Transportation",
+                  "official_order": 13,
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 }
-              ],
-              "source_url": "https://www.crdp.org/sites/default/files/inline-files/09-Physics_2025-2026_.pdf"
+              ]
             }
           }
         },
@@ -11760,67 +13218,80 @@
                 {
                   "title": "Work and Mechanical Energy",
                   "official_order": 1,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Forms of Energy",
                   "official_order": 2,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Sources of Energy and the Pollution They Cause",
                   "official_order": 3,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Radioactivity",
                   "official_order": 4,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Stimulated Nuclear Reactions: Fission & Fusion",
                   "official_order": 5,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Applications and Damages of Radioactivity",
                   "official_order": 6,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "History of the Development of Astronomy",
                   "official_order": 7,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "The Solar System",
                   "official_order": 8,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Instruments and Means of Observation of the Universe",
                   "official_order": 9,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "The Universe: Origin & Evolution",
                   "official_order": 10,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Petroleum",
                   "official_order": 11,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Economics and Petroleum",
                   "official_order": 12,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 },
                 {
                   "title": "Transportation",
                   "official_order": 13,
-                  "verification_status": "verified-from-national-textbook-toc"
+                  "source": "CRDP Grade 12 LH/SE Physics National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 }
               ]
             }
