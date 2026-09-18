@@ -668,11 +668,15 @@ class NabilAIGateway:
                 # - temporary/503 high demand: changing API keys does not help
                 #
                 # Let the gateway move immediately to the next provider.
-                if kind in {"billing", "model", "temporary"}:
-                    if kind == "billing":
+                if kind in {"billing", "quota", "model", "temporary"}:
+                    # Do not burn every Gemini key in the same student request.
+                    # In production these keys commonly share the same project/
+                    # quota pool; retrying all of them can keep the UI in a
+                    # "thinking" state for minutes before failover.
+                    if kind in {"billing", "quota"}:
                         self._block_gemini_globally(
                             self._cooldown_seconds(
-                                kind="billing",
+                                kind=kind,
                                 failures=1,
                             )
                         )
