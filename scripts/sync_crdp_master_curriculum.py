@@ -304,6 +304,10 @@ def row_lesson(row, grade, subject, language, page_no, source_url):
     if not title:
         return None
 
+    title_grade = grade_from_text(title)
+    if title_grade and title_grade != grade:
+        return None
+
     return {
         "title": title,
         "official_order": nums[-1] if nums else None,
