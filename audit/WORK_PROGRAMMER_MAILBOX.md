@@ -118,3 +118,20 @@ After the latest Railway build/deploy for commit `9c3fac70cdcde99b086c7574e8a756
 8. If the live build is not yet deployed, wait for deployment/readiness and then test; do not test an older build and call it current.
 
 Owner requirement: **the book is the source of lesson content; the model may explain that content pedagogically, but may not fabricate the lesson scope from the title.**
+
+
+## IMMEDIATE — Cloud textbook RAG completion
+
+Owner approved the architecture: Google Drive remains the private source library; Railway/PostgreSQL stores the searchable textbook index; students need no Drive access and no local computer.
+
+Commit `351ff2a443de6131333a86e083f70d674c4d1e56` wires lesson chat to `search_book_pages()` and injects retrieved book passages into the lesson prompt with strict source-grounding rules.
+
+Complete and test the ingestion side now:
+- Start with Grade 9 Mathematics English, Drive file id `1Em9-vpBX8clwSv8_fMk3zPsgSx8Psyw_`, title `Building up Mathematics Grade 9.pdf`.
+- The PDF is scan-heavy; plain PyMuPDF extraction may return empty pages. Add a cloud/server OCR fallback for pages with no usable text rather than silently skipping them. Do not fabricate OCR text.
+- Persist page text/chunks + page identity in PostgreSQL/pgvector. Drive is the source; do not require the owner's computer.
+- Ensure retrieval is constrained by grade + subject + language/book identity so English and French books cannot mix. Do not rely on a curriculum-label mismatch that can return zero results.
+- Add lesson-to-page/chapter boundaries when discoverable so selecting “Lines and circles” retrieves that chapter first, not arbitrary semantically similar pages elsewhere in the book.
+- Never expose Drive credentials/service-account secrets to the browser.
+- After deployment/indexing, run the owner test: Grade 9 → Mathematics → English → Lines and circles → Full Lesson. Verify the generated content is grounded in retrieved textbook passages and cite the book/page internally/visibly as appropriate. A generic model-generated lesson from the title is FAIL.
+- Record ingestion counts (pages with text, OCR pages, chunks), retrieval evidence, and PASS/FAIL in the pedagogy report. Then reread this mailbox.
