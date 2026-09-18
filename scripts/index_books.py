@@ -1,13 +1,9 @@
-"""
-سكربت فهرسة الكتب - يشتغل مرة وحدة (أو كل ما نضيف كتاب جديد) وليس أثناء
-محادثة الطالب، عشان البحث اللحظي يضل سريع.
+"""Index textbook PDFs from Google Drive into PostgreSQL/pgvector.
 
-هالنسخة:
-- تحمّل كل ملف مرة وحدة بس (مش مرتين متل قبل) لتخفيف الذاكرة
-- قابلة للاستئناف (resumable): كراش بمنتصف كتاب بيكمل من آخر صفحة، مش من الصفر
-- تستخدم PyMuPDF (fitz) لاستخراج النص بدل pypdf - أدق وأقوى بكتير مع
-  ملفات فيها ترميز خطوط معقّد (كانت pypdf عم ترجع نص فاضي بالغلط لملفات
-  فيها محتوى حقيقي)
+This indexer intentionally avoids importing PyMuPDF at runtime because Railway's
+standalone Python loader can be isolated from the system libstdc++ runtime.
+Direct PDF text extraction uses pypdf. Pages with little/no usable text fall
+back to server-side OCR via Poppler (pdftoppm) + Tesseract.
 """
 
 import argparse
@@ -15,11 +11,15 @@ import gc
 import io
 import json
 import os
+import shutil
+import subprocess
+import tempfile
+from pathlib import Path
 
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 from google.oauth2 import service_account
-import fitz  # PyMuPDF
+from pypdf import PdfReader
 
 from app.core.config import settings
 from app.db.session import SessionLocal
@@ -27,8 +27,8 @@ from app.db.models import Book, BookChunk
 from app.services.rag_search import embed_text
 
 SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
-
 MAX_CHUNK_CHARS = 1800
+MIN_USABLE_TEXT_CHARS = 40
 
 
 def get_drive_service():
@@ -49,7 +49,9 @@ def list_pdfs_in_folder(service, folder_id: str):
     files, page_token = [], None
     while True:
         resp = service.files().list(
-            q=query, fields="nextPageToken, files(id, name)", pageToken=page_token
+            q=query,
+            fields="nextPageToken, files(id, name)",
+            pageToken=page_token,
         ).execute()
         files.extend(resp.get("files", []))
         page_token = resp.get("nextPageToken")
@@ -72,11 +74,65 @@ def split_into_chunks(text: str) -> list[str]:
     text = text.strip()
     if len(text) <= MAX_CHUNK_CHARS:
         return [text] if text else []
-    chunks, start = [], 0
-    while start < len(text):
-        chunks.append(text[start:start + MAX_CHUNK_CHARS])
-        start += MAX_CHUNK_CHARS
-    return chunks
+    return [
+        text[start : start + MAX_CHUNK_CHARS]
+        for start in range(0, len(text), MAX_CHUNK_CHARS)
+    ]
+
+
+def _ocr_page(pdf_path: str, page_number_1based: int) -> str:
+    """Render one PDF page with Poppler and OCR it with Tesseract."""
+    pdftoppm = shutil.which("pdftoppm")
+    tesseract = shutil.which("tesseract")
+    if not pdftoppm or not tesseract:
+        missing = []
+        if not pdftoppm:
+            missing.append("pdftoppm (poppler-utils)")
+        if not tesseract:
+            missing.append("tesseract")
+        raise RuntimeError("OCR dependencies unavailable: " + ", ".join(missing))
+
+    with tempfile.TemporaryDirectory(prefix="nabil_ocr_") as tmpdir:
+        prefix = str(Path(tmpdir) / "page")
+        render = subprocess.run(
+            [
+                pdftoppm,
+                "-f",
+                str(page_number_1based),
+                "-l",
+                str(page_number_1based),
+                "-singlefile",
+                "-r",
+                "180",
+                "-png",
+                pdf_path,
+                prefix,
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=120,
+        )
+        if render.returncode != 0:
+            raise RuntimeError(
+                f"pdftoppm failed for page {page_number_1based}: "
+                f"{render.stderr.strip()[:500]}"
+            )
+
+        image_path = prefix + ".png"
+        ocr = subprocess.run(
+            [tesseract, image_path, "stdout", "-l", "eng"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=120,
+        )
+        if ocr.returncode != 0:
+            raise RuntimeError(
+                f"tesseract failed for page {page_number_1based}: "
+                f"{ocr.stderr.strip()[:500]}"
+            )
+        return (ocr.stdout or "").strip()
 
 
 def index_book(
@@ -88,102 +144,161 @@ def index_book(
     printed_page_offset: int = 0,
 ):
     db = SessionLocal()
+    pdf_path = None
 
-    book = (
-        db.query(Book)
-        .filter(
-            Book.drive_file_id == file_id,
-            Book.grade == grade,
-            Book.subject == subject,
-            Book.curriculum == curriculum,
-        )
-        .first()
-    )
-    already_indexed_pdf_pages = 0
-
-    if book:
-        print(f"📚 الكتاب موجود أصلاً بالداتابيز (id={book.id}) - رح نتحقق وين وقفنا", flush=True)
-        last_chunk = (
-            db.query(BookChunk)
-            .filter(BookChunk.book_id == book.id)
-            .order_by(BookChunk.printed_page_number.desc())
+    try:
+        book = (
+            db.query(Book)
+            .filter(
+                Book.drive_file_id == file_id,
+                Book.grade == grade,
+                Book.subject == subject,
+                Book.curriculum == curriculum,
+            )
             .first()
         )
-        if last_chunk:
-            already_indexed_pdf_pages = last_chunk.printed_page_number + printed_page_offset
-            print(f"⏩ آخر صفحة محفوظة: {already_indexed_pdf_pages} - رح نكمل من بعدها", flush=True)
+        already_indexed_pdf_pages = 0
 
-    service = get_drive_service()
-    print(f"⏳ تحميل ملف PDF: {title}", flush=True)
-    pdf_bytes = download_pdf(service, file_id)
+        if book:
+            print(
+                f"📚 الكتاب موجود أصلاً بالداتابيز (id={book.id}) - "
+                "رح نتحقق وين وقفنا",
+                flush=True,
+            )
+            last_chunk = (
+                db.query(BookChunk)
+                .filter(BookChunk.book_id == book.id)
+                .order_by(BookChunk.printed_page_number.desc())
+                .first()
+            )
+            if last_chunk:
+                already_indexed_pdf_pages = (
+                    last_chunk.printed_page_number + printed_page_offset
+                )
+                print(
+                    f"⏩ آخر صفحة محفوظة: {already_indexed_pdf_pages} - "
+                    "رح نكمل من بعدها",
+                    flush=True,
+                )
 
-    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-    total_pages = doc.page_count
-    print(f"📄 عدد صفحات الملف: {total_pages}", flush=True)
-    del pdf_bytes
-    gc.collect()
+        service = get_drive_service()
+        print(f"⏳ تحميل ملف PDF: {title}", flush=True)
+        pdf_bytes = download_pdf(service, file_id)
 
-    if not book:
-        book = Book(
-            title=title,
-            subject=subject,
-            grade=grade,
-            curriculum=curriculum,
-            drive_file_id=file_id,
-            total_pages=total_pages,
-        )
-        db.add(book)
-        db.commit()
-        db.refresh(book)
+        with tempfile.NamedTemporaryFile(
+            prefix="nabil_book_", suffix=".pdf", delete=False
+        ) as tmp:
+            tmp.write(pdf_bytes)
+            pdf_path = tmp.name
 
-    for pdf_index in range(total_pages):
-        if pdf_index + 1 <= already_indexed_pdf_pages:
-            continue
+        reader = PdfReader(io.BytesIO(pdf_bytes))
+        total_pages = len(reader.pages)
+        print(f"📄 عدد صفحات الملف: {total_pages}", flush=True)
 
-        print(f"  🔎 معالجة صفحة PDF رقم {pdf_index + 1}...", flush=True)
-        page = doc.load_page(pdf_index)
-        text = (page.get_text() or "").strip()
-        if len(text) < 40:
-            try:
-                print(f"  👁️ الصفحة مصوّرة/نصها قليل؛ تشغيل OCR...", flush=True)
-                tp = page.get_textpage_ocr(language="eng", dpi=150, full=True)
-                ocr_text = (page.get_text(textpage=tp) or "").strip()
-                if len(ocr_text) > len(text):
-                    text = ocr_text
-            except Exception as exc:
-                print(f"  ⚠️ OCR غير متاح لهذه الصفحة: {exc}", flush=True)
-        print(f"  📝 استخرج {len(text)} حرف من صفحة {pdf_index + 1}", flush=True)
-
-        if not text:
-            print(f"  ⏭️ صفحة {pdf_index + 1} بلا نص قابل للاستخراج", flush=True)
-            continue
-
-        printed_page = pdf_index + 1 - printed_page_offset
-        chunks = split_into_chunks(text)
-
-        for i, chunk_text in enumerate(chunks):
-            vector = embed_text(chunk_text)
-            db.add(BookChunk(
-                book_id=book.id,
+        if not book:
+            book = Book(
+                title=title,
                 subject=subject,
                 grade=grade,
                 curriculum=curriculum,
-                printed_page_number=printed_page,
-                chunk_index_in_page=i,
-                text_content=chunk_text,
-                embedding=vector,
-            ))
+                drive_file_id=file_id,
+                total_pages=total_pages,
+            )
+            db.add(book)
+            db.commit()
+            db.refresh(book)
 
-        db.commit()
-        db.expire_all()
-        print(f"  ✅ خزّنت صفحة {pdf_index + 1}/{total_pages}", flush=True)
+        ocr_pages = 0
+        text_pages = 0
+        skipped_pages = 0
+        total_chunks = 0
 
-        if pdf_index % 10 == 0:
-            gc.collect()
+        for pdf_index, page in enumerate(reader.pages):
+            page_number = pdf_index + 1
+            if page_number <= already_indexed_pdf_pages:
+                continue
 
-    doc.close()
-    db.close()
-    print(f"✅ خلصت فهرسة: {title} ({total_pages} صفحة)", flush=True)
+            print(f"  🔎 معالجة صفحة PDF رقم {page_number}...", flush=True)
+
+            try:
+                text = (page.extract_text() or "").strip()
+            except Exception as exc:
+                print(f"  ⚠️ استخراج النص المباشر فشل: {exc}", flush=True)
+                text = ""
+
+            used_ocr = False
+            if len(text) < MIN_USABLE_TEXT_CHARS:
+                try:
+                    print(
+                        "  👁️ الصفحة مصوّرة/نصها قليل؛ تشغيل OCR...",
+                        flush=True,
+                    )
+                    ocr_text = _ocr_page(pdf_path, page_number)
+                    if len(ocr_text) > len(text):
+                        text = ocr_text
+                        used_ocr = True
+                except Exception as exc:
+                    print(f"  ⚠️ OCR غير متاح لهذه الصفحة: {exc}", flush=True)
+
+            print(
+                f"  📝 استخرج {len(text)} حرف من صفحة {page_number}",
+                flush=True,
+            )
+
+            if not text:
+                skipped_pages += 1
+                print(
+                    f"  ⏭️ صفحة {page_number} بلا نص قابل للاستخراج",
+                    flush=True,
+                )
+                continue
+
+            if used_ocr:
+                ocr_pages += 1
+            else:
+                text_pages += 1
+
+            printed_page = page_number - printed_page_offset
+            chunks = split_into_chunks(text)
+
+            for i, chunk_text in enumerate(chunks):
+                vector = embed_text(chunk_text)
+                db.add(
+                    BookChunk(
+                        book_id=book.id,
+                        subject=subject,
+                        grade=grade,
+                        curriculum=curriculum,
+                        printed_page_number=printed_page,
+                        chunk_index_in_page=i,
+                        text_content=chunk_text,
+                        embedding=vector,
+                    )
+                )
+                total_chunks += 1
+
+            db.commit()
+            db.expire_all()
+            print(f"  ✅ خزّنت صفحة {page_number}/{total_pages}", flush=True)
+
+            if pdf_index % 10 == 0:
+                gc.collect()
+
+        print(
+            "✅ خلصت فهرسة: "
+            f"{title} ({total_pages} صفحة) | "
+            f"direct-text={text_pages} | OCR={ocr_pages} | "
+            f"skipped={skipped_pages} | chunks={total_chunks}",
+            flush=True,
+        )
+
+    finally:
+        db.close()
+        if pdf_path and os.path.exists(pdf_path):
+            try:
+                os.unlink(pdf_path)
+            except OSError:
+                pass
 
 
 if __name__ == "__main__":
