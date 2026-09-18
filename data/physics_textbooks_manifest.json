@@ -1,0 +1,151 @@
+{
+  "source": "CRDP Google Drive",
+  "source_folder_id": "1sYVHiAY6X3fsQPiuWPpCTYi3YEK_DqNK",
+  "policy": "Original PDFs remain on Drive; cloud stores searchable textbook chunks. Do not invent missing language/grade books.",
+  "books": [
+    {
+      "grade": "الصف السابع",
+      "subject": "فيزياء",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "G 07 physics.pdf",
+      "drive_file_id": "1LasqIgGUuck1l-2EZbj2kA0Dg9ygJ_AH",
+      "page_offset": 0
+    },
+    {
+      "grade": "الصف السابع",
+      "subject": "فيزياء",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "EB 07.pdf",
+      "drive_file_id": "1qJcvdDkytb0UuGZnSwcy8q6mgLtRDV1z",
+      "page_offset": 0
+    },
+    {
+      "grade": "الصف الثامن",
+      "subject": "فيزياء",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "G 08.pdf",
+      "drive_file_id": "1mVrpBAhyX17i7AzNQt3uRmaBwS8J_M6e",
+      "page_offset": 0
+    },
+    {
+      "grade": "الصف الثامن",
+      "subject": "فيزياء",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "EB 08.pdf",
+      "drive_file_id": "13diQvjOGKNVxurHM-eZLZ9SM-4V04jjW",
+      "page_offset": 0
+    },
+    {
+      "grade": "الصف التاسع",
+      "subject": "فيزياء",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "G 09.pdf",
+      "drive_file_id": "1jzGdmt5dZW9PQQcmoYYJePVLPH6xLgsO",
+      "page_offset": 0
+    },
+    {
+      "grade": "الصف التاسع",
+      "subject": "فيزياء",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "EB 09.pdf",
+      "drive_file_id": "11dqVqafG9zhr1sQzsjD3kxc5thA2DvZC",
+      "page_offset": 0
+    },
+    {
+      "grade": "الأول ثانوي",
+      "subject": "فيزياء",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "G 10.pdf",
+      "drive_file_id": "1rfa7GGDY6uEGOKx_b7MFepQlRvsW82qO",
+      "page_offset": 0
+    },
+    {
+      "grade": "الأول ثانوي",
+      "subject": "فيزياء",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "EB 10.pdf",
+      "drive_file_id": "1-2Jowi3YToSmVFoCZUEX_r_vlRfLRv4v",
+      "page_offset": 0
+    },
+    {
+      "grade": "الثاني ثانوي - العلوم",
+      "subject": "فيزياء",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "physics G 11 S.pdf",
+      "drive_file_id": "1-BYlHndJ_CPWN2XedjHmmmIU-o7dGkAO",
+      "page_offset": 0
+    },
+    {
+      "grade": "الثاني ثانوي - العلوم",
+      "subject": "فيزياء",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "EB 11 S.pdf",
+      "drive_file_id": "1KP1wFV9_b-JMkzSLB5-w90td6tYOfKgl",
+      "page_offset": 0
+    },
+    {
+      "grade": "الثالث ثانوي - العلوم العامة",
+      "subject": "فيزياء",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "physics G 12 LS_GS.pdf",
+      "drive_file_id": "1NRZNq8bF0NxCHsKuPfM1XFf-yccbrM-L",
+      "page_offset": 0
+    },
+    {
+      "grade": "الثالث ثانوي - علوم الحياة",
+      "subject": "فيزياء",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "physics G 12 LS_GS.pdf",
+      "drive_file_id": "1NRZNq8bF0NxCHsKuPfM1XFf-yccbrM-L",
+      "page_offset": 0
+    },
+    {
+      "grade": "الثالث ثانوي - العلوم العامة",
+      "subject": "فيزياء",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "EB 12 SV_SG.pdf",
+      "drive_file_id": "1KGLP2Op33Zez4DKxws-TqIjY01XXj7OR",
+      "page_offset": 0
+    },
+    {
+      "grade": "الثالث ثانوي - علوم الحياة",
+      "subject": "فيزياء",
+      "language": "Français",
+      "curriculum": "CRDP-FR",
+      "title": "EB 12 SV_SG.pdf",
+      "drive_file_id": "1KGLP2Op33Zez4DKxws-TqIjY01XXj7OR",
+      "page_offset": 0
+    },
+    {
+      "grade": "الثالث ثانوي - الاجتماع والاقتصاد",
+      "subject": "فيزياء",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "G 12 LH_SE.pdf",
+      "drive_file_id": "1huE0plZpArfuNcrYdYwlTLS0LH0nqdQP",
+      "page_offset": 0
+    },
+    {
+      "grade": "الثالث ثانوي - الآداب والإنسانيات",
+      "subject": "فيزياء",
+      "language": "English",
+      "curriculum": "CRDP-EN",
+      "title": "G 12 LH_SE.pdf",
+      "drive_file_id": "1huE0plZpArfuNcrYdYwlTLS0LH0nqdQP",
+      "page_offset": 0
+    }
+  ]
+}
