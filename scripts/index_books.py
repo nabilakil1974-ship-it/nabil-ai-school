@@ -13,6 +13,8 @@
 import argparse
 import gc
 import io
+import json
+import os
 
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
@@ -30,9 +32,15 @@ MAX_CHUNK_CHARS = 1800
 
 
 def get_drive_service():
-    creds = service_account.Credentials.from_service_account_file(
-        "drive_service_account.json", scopes=SCOPES
-    )
+    raw = (settings.GOOGLE_DRIVE_CREDENTIALS_JSON or "").strip()
+    if raw:
+        creds = service_account.Credentials.from_service_account_info(
+            json.loads(raw), scopes=SCOPES
+        )
+    else:
+        creds = service_account.Credentials.from_service_account_file(
+            "drive_service_account.json", scopes=SCOPES
+        )
     return build("drive", "v3", credentials=creds)
 
 
