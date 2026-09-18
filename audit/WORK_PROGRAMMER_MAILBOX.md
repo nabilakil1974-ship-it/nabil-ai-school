@@ -157,3 +157,23 @@ Verify the LIVE platform, not repository JSON only.
 8. Save the report as `audit/work-reports/MATH-FRENCH-TOC-PARITY-REPORT.md` and reread this mailbox.
 
 Expected counts: G1 60, G2 74, G3 62, G4 35, G5 32, G6 27, G7 17, G8 23, G9 15, S1 27, S2 Sciences 29, S2 Humanities 20, S3 GS 24, S3 SV 26, S3 SE 23, S3 LH 10.
+
+
+## SCIENCE CLOUD TEXTBOOK PIPELINE + PEDAGOGY QA — 2026-09-18
+
+Programmer implementation is now on main for Chemistry, Physics, and Biology/Life Science.
+
+Please verify after Railway deploy:
+1. Existing web service still starts normally.
+2. PyMuPDF imports successfully and Tesseract OCR is available.
+3. Run/observe science indexing in this strict order: chemistry -> physics -> biology.
+4. Confirm scanned textbook pages no longer get silently skipped when direct PDF text is empty.
+5. Confirm RAG isolation by grade + subject + curriculum/language, including shared Grade 12 source PDFs mapped to more than one branch.
+6. Live pedagogical QA:
+   - Chemistry: textbook-grounded explanation + equation/charge/balance checks + image/PDF exercise reconstruction.
+   - Physics: textbook-grounded explanation + Given/Required/Law/SI units + circuits/rays/forces/graphs reconstruction.
+   - Biology: textbook-grounded explanation + Observation/Interpretation/Conclusion + scientific-document/diagram reconstruction.
+7. For multi-part image exercises, verify ORIGINAL -> per-part additions -> FINAL and ensure the initial drawing never reveals a result the student is asked to prove/label.
+8. Save report: audit/work-reports/SCIENCE-RAG-PEDAGOGY-QA.md
+
+Do not report success from repository inspection alone; verify the live Railway deployment and actual retrieval behavior.
