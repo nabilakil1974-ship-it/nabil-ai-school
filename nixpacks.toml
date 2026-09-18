@@ -1,5 +1,6 @@
 [phases.setup]
 nixPkgs = ["python311", "gcc", "stdenv.cc.cc.lib", "tesseract"]
+nixLibs = ["stdenv.cc.cc.lib", "zlib"]
 aptPkgs = ["libstdc++6", "libgomp1"]
 
 [phases.install]
