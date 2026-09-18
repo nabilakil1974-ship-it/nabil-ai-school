@@ -6042,6 +6042,106 @@
                   "verification_status": "verified-from-textbook-toc"
                 }
               ]
+            },
+            "Français": {
+              "lessons": [
+                {
+                  "title": "Le mouvement",
+                  "official_order": 1,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Le mouvement des corps célestes",
+                  "official_order": 2,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Notion de vitesse",
+                  "official_order": 3,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Actions mécaniques",
+                  "official_order": 4,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Les forces",
+                  "official_order": 5,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Le poids",
+                  "official_order": 6,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Le travail",
+                  "official_order": 7,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Énergie mécanique",
+                  "official_order": 8,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Différentes formes d'énergie",
+                  "official_order": 9,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Sources d'énergie",
+                  "official_order": 10,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Ondes mécaniques",
+                  "official_order": 11,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Ondes sonores",
+                  "official_order": 12,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Ondes électromagnétiques",
+                  "official_order": 13,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Les couleurs",
+                  "official_order": 14,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Propagation rectiligne de la lumière",
+                  "official_order": 15,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Réflexion de la lumière",
+                  "official_order": 16,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
             }
           }
         },
@@ -6752,6 +6852,100 @@
                 },
                 {
                   "title": "Archimedes Upthrust",
+                  "official_order": 15,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
+            },
+            "Français": {
+              "lessons": [
+                {
+                  "title": "Réfraction de la lumière",
+                  "official_order": 1,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Les lentilles",
+                  "official_order": 2,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Formation des images",
+                  "official_order": 3,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "L'œil",
+                  "official_order": 4,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Tension continue",
+                  "official_order": 5,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Tensions alternatives",
+                  "official_order": 6,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "La tension du secteur",
+                  "official_order": 7,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Conducteurs ohmiques",
+                  "official_order": 8,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Puissance et énergie électriques",
+                  "official_order": 9,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Transfert et quantité de chaleur",
+                  "official_order": 10,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Changements d'état et équilibre thermique",
+                  "official_order": 11,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Les actions mécaniques",
+                  "official_order": 12,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Équilibre d'un corps",
+                  "official_order": 13,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Pression dans les liquides",
+                  "official_order": 14,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Poussée d'Archimède",
                   "official_order": 15,
                   "source": "CRDP National Textbook TOC",
                   "verification_status": "verified-from-textbook-toc"
