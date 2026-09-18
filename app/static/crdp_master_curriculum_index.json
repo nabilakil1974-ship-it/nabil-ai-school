@@ -5849,6 +5849,92 @@
               ]
             }
           }
+        },
+        "الكيمياء": {
+          "languages": {
+            "English": {
+              "lessons": [
+                {
+                  "title": "Classification of Matter",
+                  "official_order": 1,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Separation Techniques",
+                  "official_order": 2,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Environmental Applications",
+                  "official_order": 3,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Solutions",
+                  "official_order": 4,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Solubility",
+                  "official_order": 5,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Suspensions and Colloids",
+                  "official_order": 6,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Environmental Applications",
+                  "official_order": 7,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Chemical Change and Conservation of Matter",
+                  "official_order": 8,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Combustion",
+                  "official_order": 9,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Pollution Due to Combustion Reactions. Safety Rules",
+                  "official_order": 10,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Safety Rules",
+                  "official_order": 11,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Laboratory Glassware and Other Apparatus",
+                  "official_order": 12,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Technique Sheets",
+                  "official_order": 13,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
+            }
+          }
         }
       }
     },
@@ -6496,6 +6582,80 @@
               ]
             }
           }
+        },
+        "الكيمياء": {
+          "languages": {
+            "English": {
+              "lessons": [
+                {
+                  "title": "Electric Charge",
+                  "official_order": 1,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Electric Discharge",
+                  "official_order": 2,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Classification of Substances",
+                  "official_order": 3,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Structure of Matter",
+                  "official_order": 4,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Chemical Language",
+                  "official_order": 5,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Chemical Reactions",
+                  "official_order": 6,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Types of Chemical Reactions",
+                  "official_order": 7,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Rates of Chemical Reactions",
+                  "official_order": 8,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Acidic and Basic Solutions",
+                  "official_order": 9,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Salts",
+                  "official_order": 10,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Applications",
+                  "official_order": 11,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                }
+              ]
+            }
+          }
         }
       }
     },
@@ -7046,6 +7206,62 @@
                   "title": "Archimedes Up-Thrust",
                   "official_order": 15,
                   "verification_status": "verified-from-national-textbook-toc"
+                }
+              ]
+            }
+          }
+        },
+        "الكيمياء": {
+          "languages": {
+            "English": {
+              "lessons": [
+                {
+                  "title": "Structure of the Atom",
+                  "official_order": 1,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Electron Arrangements in Atoms and the Periodic Table",
+                  "official_order": 2,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Chemical Bonding",
+                  "official_order": 3,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Electrochemistry",
+                  "official_order": 4,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Aliphatic Hydrocarbons",
+                  "official_order": 5,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Aromatic Hydrocarbons and Esterification",
+                  "official_order": 6,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Petroleum and Synthetic Materials",
+                  "official_order": 7,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
+                },
+                {
+                  "title": "Chemistry and Environment",
+                  "official_order": 8,
+                  "source": "CRDP National Textbook TOC",
+                  "verification_status": "verified-from-textbook-toc"
                 }
               ]
             }
