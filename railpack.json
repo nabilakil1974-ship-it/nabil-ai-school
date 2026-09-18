@@ -3,7 +3,7 @@
   "provider": "python",
   "buildAptPackages": ["gcc", "g++"],
   "deploy": {
-    "aptPackages": ["libstdc++6", "libgomp1", "tesseract-ocr"],
+    "aptPackages": ["libstdc++6", "libgomp1", "tesseract-ocr", "poppler-utils"],
     "startCommand": "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}"
   }
 }
