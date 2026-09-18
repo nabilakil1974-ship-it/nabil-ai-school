@@ -80,3 +80,25 @@ Also test “Explain another way” and remediation after a wrong answer: it mus
 Use several real prompts per subject. Judge mathematical/scientific correctness separately from pedagogy and rendering. Save evidence for failures. Do NOT mark PASS merely because a response rendered.
 
 Create a dedicated report named `PHASE-PEDAGOGY-REPORT.md` with PASS/FAIL by subject and concrete examples. Then reread this mailbox and continue automatically.
+
+
+## OWNER PEDAGOGICAL SIGNATURE — mandatory
+
+The owner clarified that NABIL AI's explanations and exercise solutions must match ChatGPT's best student-facing teaching quality: clear, elegant, warm, concise where possible, and deeply explanatory where needed. Do not produce robotic textbook dumps or dry lecture prose.
+
+Required teaching signature:
+- Start directly from what the student needs; avoid long introductions.
+- Break difficult ideas into small logical steps and explain WHY each step is done.
+- Use simple student-appropriate wording while preserving exact scientific terminology.
+- In bilingual scientific/math contexts, naturally use familiar terms such as limit, increasing, decreasing, maximum/minimum when this improves student comprehension; never read raw LaTeX/symbol syntax aloud.
+- Visually organize equations and key results so the student can scan the solution.
+- For exercises, use Given -> Required -> Formula/Property -> step-by-step reasoning/substitution -> units/check -> Final Answer, but make it read naturally rather than like a rigid form.
+- For geometry/science, connect the explanation explicitly to the diagram and labels.
+- For a wrong answer, diagnose the likely misconception, explain the specific mistake kindly, then reteach with a different route and a short check question.
+- “Explain another way” MUST use a genuinely different representation (example, analogy, visual, simpler decomposition, or alternate valid method), not a paraphrase.
+- End a full lesson with a compact synthesis that helps retention, followed by exactly 5 well-chosen additional exercises with full solutions and appropriate visuals as already required.
+- Never sacrifice correctness for friendliness; never invent data, labels, source claims, or mathematical points.
+
+Acceptance criterion: a technically correct answer that is confusing, overly verbose, robotic, poorly structured, or not suitable for the selected student grade is a PEDAGOGICAL FAIL.
+
+Use this signature both when fixing prompts/backend behavior and when running PHASE-PEDAGOGY acceptance tests.
