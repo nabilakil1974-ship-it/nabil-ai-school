@@ -408,44 +408,84 @@ def get_curriculum_lessons(
     subject: Optional[str],
     language: Optional[str],
 ) -> list[str]:
-    """Return lessons from the master CRDP scope only; never cross grade/language."""
-    index = load_curriculum_index()
-    catalog = index.get("catalog", {}) if isinstance(index, dict) else {}
-    grade_key = _master_grade_key(grade, branch)
+    """Strict curriculum lookup. Never merge grades or languages.
+
+    The curated verified_index is authoritative where it has an exact scope.
+    The generated master is only a fallback for scopes absent from the curated
+    index. An empty requested language stays empty; it never falls back to
+    another language.
+    """
+    grade_raw = (grade or "").strip()
     subject_key = _master_subject_key(subject)
-    grade_node = catalog.get(grade_key, {}) if isinstance(catalog, dict) else {}
-    subjects = grade_node.get("subjects", {}) if isinstance(grade_node, dict) else {}
-    subject_node = subjects.get(subject_key, {}) if isinstance(subjects, dict) else {}
-    languages = subject_node.get("languages", {}) if isinstance(subject_node, dict) else {}
+    requested = (language or "").strip()
+    aliases = {
+        "english": ["English"],
+        "en": ["English"],
+        "anglais": ["English"],
+        "français": ["Français"],
+        "francais": ["Français"],
+        "french": ["Français"],
+        "fr": ["Français"],
+        "arabic": ["العربية"],
+        "ar": ["العربية"],
+        "العربية": ["العربية"],
+        "عربي": ["العربية"],
+    }
+    language_keys = aliases.get(requested.lower(), [requested] if requested else [])
+
+    # 1) Curated CRDP verified index: exact subject + grade + language only.
+    try:
+        legacy = json.loads(LEGACY_CURRICULUM_INDEX_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        legacy = {}
+    verified = legacy.get("verified_index", {}) if isinstance(legacy, dict) else {}
+    subject_node = verified.get(subject_key, {}) if isinstance(verified, dict) else {}
+
+    # Secondary math in the curated file is stored by year, before branch split.
+    curated_grade = grade_raw
+    if grade_raw.startswith("الثاني ثانوي"):
+        curated_grade = "الثاني ثانوي"
+    elif grade_raw.startswith("الثالث ثانوي"):
+        curated_grade = "الثالث ثانوي"
+
+    grade_node = subject_node.get(curated_grade, {}) if isinstance(subject_node, dict) else {}
+    if isinstance(grade_node, dict):
+        for lk in language_keys:
+            lessons = grade_node.get(lk)
+            if isinstance(lessons, list):
+                return list(dict.fromkeys(str(x).strip() for x in lessons if str(x).strip()))
+        # The grade exists but the requested language does not: hard boundary.
+        if grade_node:
+            return []
+
+    # 2) Generated master fallback only when curated scope does not exist.
+    try:
+        master = json.loads(MASTER_CURRICULUM_INDEX_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        master = {}
+    catalog = master.get("catalog", {}) if isinstance(master, dict) else {}
+    grade_key = _master_grade_key(grade_raw, branch)
+    grade_master = catalog.get(grade_key, {}) if isinstance(catalog, dict) else {}
+    subjects = grade_master.get("subjects", {}) if isinstance(grade_master, dict) else {}
+    master_subject = subjects.get(subject_key, {}) if isinstance(subjects, dict) else {}
+    languages = master_subject.get("languages", {}) if isinstance(master_subject, dict) else {}
     if not isinstance(languages, dict):
         return []
 
-    requested = (language or "").strip().lower()
-    aliases = {
-        "english": {"english", "en", "anglais"},
-        "français": {"français", "francais", "french", "fr"},
-        "francais": {"français", "francais", "french", "fr"},
-        "arabic": {"arabic", "ar", "العربية", "عربي"},
-        "العربية": {"arabic", "ar", "العربية", "عربي"},
-    }
-    accepted = aliases.get(requested, {requested}) if requested else set()
-    node = None
-    for key, value in languages.items():
-        if not requested or str(key).strip().lower() in accepted:
-            node = value
-            break
-    if not isinstance(node, dict):
-        return []
-
-    result = []
-    for item in node.get("lessons", []):
-        title = item if isinstance(item, str) else (
-            item.get("title") or item.get("lesson") or item.get("name")
-            if isinstance(item, dict) else None
-        )
-        if title and str(title).strip() not in result:
-            result.append(str(title).strip())
-    return result
+    for lk in language_keys:
+        node = languages.get(lk)
+        if not isinstance(node, dict):
+            continue
+        result = []
+        for item in node.get("lessons", []):
+            title = item if isinstance(item, str) else (
+                item.get("title") or item.get("lesson") or item.get("name")
+                if isinstance(item, dict) else None
+            )
+            if title and str(title).strip() not in result:
+                result.append(str(title).strip())
+        return result
+    return []
 
 
 @router.get("/curriculum/lessons")
