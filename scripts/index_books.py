@@ -89,7 +89,16 @@ def index_book(
 ):
     db = SessionLocal()
 
-    book = db.query(Book).filter(Book.drive_file_id == file_id).first()
+    book = (
+        db.query(Book)
+        .filter(
+            Book.drive_file_id == file_id,
+            Book.grade == grade,
+            Book.subject == subject,
+            Book.curriculum == curriculum,
+        )
+        .first()
+    )
     already_indexed_pdf_pages = 0
 
     if book:
@@ -134,10 +143,19 @@ def index_book(
         print(f"  🔎 معالجة صفحة PDF رقم {pdf_index + 1}...", flush=True)
         page = doc.load_page(pdf_index)
         text = (page.get_text() or "").strip()
+        if len(text) < 40:
+            try:
+                print(f"  👁️ الصفحة مصوّرة/نصها قليل؛ تشغيل OCR...", flush=True)
+                tp = page.get_textpage_ocr(language="eng", dpi=150, full=True)
+                ocr_text = (page.get_text(textpage=tp) or "").strip()
+                if len(ocr_text) > len(text):
+                    text = ocr_text
+            except Exception as exc:
+                print(f"  ⚠️ OCR غير متاح لهذه الصفحة: {exc}", flush=True)
         print(f"  📝 استخرج {len(text)} حرف من صفحة {pdf_index + 1}", flush=True)
 
         if not text:
-            print(f"  ⏭️ صفحة {pdf_index + 1} فاضية أو صورة - تخطّيناها", flush=True)
+            print(f"  ⏭️ صفحة {pdf_index + 1} بلا نص قابل للاستخراج", flush=True)
             continue
 
         printed_page = pdf_index + 1 - printed_page_offset
