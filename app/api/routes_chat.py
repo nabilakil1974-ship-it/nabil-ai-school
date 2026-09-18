@@ -36,6 +36,7 @@ from app.db.session import get_db
 from app.db.models import Conversation, Message, Student
 from app.db.student_learning import StudentLearningProfile
 from app.services.ai_gateway import NabilAIGateway
+from app.services.rag_search import search_book_pages, build_context_block
  
  
 router = APIRouter()
@@ -4755,6 +4756,29 @@ GENERAL EXERCISES MODE / حل تمارين عامة
             learning_profile
         )
 
+        # Ground lesson explanations in the indexed official textbook library.
+        # Retrieval is server-side; students never need Google Drive access.
+        book_context = ""
+        try:
+            source_query = " | ".join(
+                part for part in [
+                    str(lesson or "").strip(),
+                    str(message or "").strip(),
+                ] if part
+            )
+            source_chunks = search_book_pages(
+                db=db,
+                query=source_query or str(lesson or "lesson"),
+                subject=str(subject or "").strip(),
+                grade=str(grade or "").strip(),
+                curriculum=str(curriculum or "").strip(),
+                top_k=8,
+            )
+            book_context = build_context_block(source_chunks)
+        except Exception as exc:
+            print(f"BOOK_RAG_UNAVAILABLE: {exc}", flush=True)
+            book_context = ""
+
         educational_context = f"""
     السياق التعليمي الحالي:
  
@@ -4774,6 +4798,16 @@ GENERAL EXERCISES MODE / حل تمارين عامة
 
     حدود المحتوى الرسمي لهذا الدرس بحسب فهرس CRDP المحلي:
     {lesson_policy_text}
+
+    محتوى الكتاب المرجعي المسترجع لهذا الدرس:
+    {book_context or "لم يُسترجع محتوى كتاب مفهرس لهذا الطلب."}
+
+    قاعدة المصدر الإلزامية:
+    - إذا وُجد محتوى كتاب مرجعي أعلاه، فهو المصدر الأول لمضمون الدرس وترتيبه ومصطلحاته.
+    - اشرح مضمون الكتاب بأسلوب NABIL AI الواضح والمتدرج؛ لا تنسخ نص الكتاب نسخًا طويلًا.
+    - لا تؤلف نطاق الدرس من العنوان وحده، ولا تضف مفاهيم على أنها من الكتاب إذا لم يدعمها المحتوى المسترجع.
+    - اذكر اسم الكتاب ورقم الصفحة عند الاستناد إلى مقطع مرجعي.
+    - إذا لم يُسترجع محتوى كتاب، لا تدّعِ أن الشرح مأخوذ من الكتاب.
  
     تعليمات تنفيذية:
     - لا تنتقل إلى مفهوم من صف أعلى.
