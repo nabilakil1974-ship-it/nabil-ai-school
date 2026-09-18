@@ -1,6 +1,8 @@
 """Index CRDP science textbooks (chemistry, physics, biology) into PostgreSQL/pgvector."""
-import argparse, json
+import argparse
+import json
 from pathlib import Path
+
 from scripts.index_books import index_book
 
 MANIFESTS = {
@@ -9,25 +11,68 @@ MANIFESTS = {
     "biology": Path("data/biology_textbooks_manifest.json"),
 }
 
-def run_manifest(name):
-    data=json.loads(MANIFESTS[name].read_text(encoding="utf-8"))
-    books=data["books"]
-    print(f"Starting {name} cloud indexing: {len(books)} book mappings", flush=True)
-    seen=set()
-    for n,b in enumerate(books,1):
-        key=(b["drive_file_id"],b["grade"],b["language"])
-        if key in seen: continue
+
+def load_books(path: Path):
+    data = json.loads(path.read_text(encoding="utf-8"))
+    books = data.get("books")
+    if not isinstance(books, list):
+        raise ValueError(f"{path} must contain a books[] array")
+    return books
+
+
+def run_books(books, label: str):
+    print(f"Starting {label} cloud indexing: {len(books)} book mappings", flush=True)
+    seen = set()
+    for n, book in enumerate(books, 1):
+        key = (
+            book["drive_file_id"],
+            book["grade"],
+            book["subject"],
+            book["curriculum"],
+        )
+        if key in seen:
+            continue
         seen.add(key)
-        print(f"[{n}/{len(books)}] {b['grade']} | {b['language']} | {b['title']}", flush=True)
-        index_book(file_id=b["drive_file_id"],title=b["title"],subject=b["subject"],grade=b["grade"],
-                   curriculum=b["curriculum"],printed_page_offset=int(b.get("page_offset",0)))
-    print(f"{name} cloud indexing complete.", flush=True)
+        print(
+            f"[{n}/{len(books)}] {book['grade']} | "
+            f"{book.get('language', book['curriculum'])} | {book['title']}",
+            flush=True,
+        )
+        index_book(
+            file_id=book["drive_file_id"],
+            title=book["title"],
+            subject=book["subject"],
+            grade=book["grade"],
+            curriculum=book["curriculum"],
+            printed_page_offset=int(book.get("page_offset", 0)),
+        )
+    print(f"{label} cloud indexing complete.", flush=True)
+
+
+def run_manifest(name: str):
+    run_books(load_books(MANIFESTS[name]), name)
+
 
 def main():
-    ap=argparse.ArgumentParser()
-    ap.add_argument("subject",choices=["chemistry","physics","biology","all"])\n    ap.add_argument("--manifest", help="Optional additional textbook manifest JSON; same books[] schema, so new CRDP/Drive books can be added without changing application code.")
-    args=ap.parse_args()
-    names=list(MANIFESTS) if args.subject=="all" else [args.subject]
-    for name in names: run_manifest(name)
+    ap = argparse.ArgumentParser()
+    ap.add_argument("subject", choices=["chemistry", "physics", "biology", "all"])
+    ap.add_argument(
+        "--manifest",
+        help=(
+            "Optional additional textbook manifest JSON; same books[] schema, "
+            "so new CRDP/Drive books can be added without changing application code."
+        ),
+    )
+    args = ap.parse_args()
 
-if __name__=="__main__": main()
+    names = list(MANIFESTS) if args.subject == "all" else [args.subject]
+    for name in names:
+        run_manifest(name)
+
+    if args.manifest:
+        manifest_path = Path(args.manifest)
+        run_books(load_books(manifest_path), f"extra manifest {manifest_path}")
+
+
+if __name__ == "__main__":
+    main()
