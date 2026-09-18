@@ -25,7 +25,7 @@ def run_manifest(name):
 
 def main():
     ap=argparse.ArgumentParser()
-    ap.add_argument("subject",choices=["chemistry","physics","biology","all"])
+    ap.add_argument("subject",choices=["chemistry","physics","biology","all"])\n    ap.add_argument("--manifest", help="Optional additional textbook manifest JSON; same books[] schema, so new CRDP/Drive books can be added without changing application code.")
     args=ap.parse_args()
     names=list(MANIFESTS) if args.subject=="all" else [args.subject]
     for name in names: run_manifest(name)
