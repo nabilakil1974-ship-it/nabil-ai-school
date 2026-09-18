@@ -31,7 +31,8 @@
       "الصف التاسع/الرياضيات",
       "المرحلة الثانوية/الرياضيات"
     ],
-    "quarantine_reason": "cross-grade extraction detected; hidden until strict rebuild"
+    "quarantine_reason": "cross-grade extraction detected; hidden until strict rebuild",
+    "science_textbook_toc_policy": "Use exact national textbook TOC titles only; never translate or invent missing science lesson titles."
   },
   "catalog": {
     "الصف الأول": {
@@ -5540,6 +5541,79 @@
               ]
             }
           }
+        },
+        "كيمياء": {
+          "languages": {
+            "English": {
+              "lessons": [
+                {
+                  "title": "Classification of matter",
+                  "official_order": 1,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Separation techniques",
+                  "official_order": 2,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Environmental applications",
+                  "official_order": 3,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Solutions",
+                  "official_order": 4,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Solubility",
+                  "official_order": 5,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Suspensions and Colloids",
+                  "official_order": 6,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Environmental applications",
+                  "official_order": 7,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Chemical change and conservation of matter",
+                  "official_order": 8,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Combustion",
+                  "official_order": 9,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Pollution due to combustion reactions. Safety rules",
+                  "official_order": 10,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Safety Rules",
+                  "official_order": 11,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Laboratory Glassware and Other Apparatus",
+                  "official_order": 12,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Technique Sheets",
+                  "official_order": 13,
+                  "verification_status": "verified-from-national-textbook-toc"
+                }
+              ]
+            }
+          }
         }
       }
     },
@@ -5967,6 +6041,69 @@
               ]
             }
           }
+        },
+        "كيمياء": {
+          "languages": {
+            "English": {
+              "lessons": [
+                {
+                  "title": "Electric Charge",
+                  "official_order": 1,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Electric Discharge",
+                  "official_order": 2,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Classification of Substances",
+                  "official_order": 3,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Structure of Matter",
+                  "official_order": 4,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Chemical Language",
+                  "official_order": 5,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Chemical Equations and Reactions",
+                  "official_order": 6,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Types of Chemical Reactions",
+                  "official_order": 7,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Rates of Chemical Reactions",
+                  "official_order": 8,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Acidic and Basic Solutions",
+                  "official_order": 9,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Salts",
+                  "official_order": 10,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Acid-Base Reactions in the Environment",
+                  "official_order": 11,
+                  "verification_status": "verified-from-national-textbook-toc"
+                }
+              ]
+            }
+          }
         }
       }
     },
@@ -6298,6 +6435,54 @@
                   "source_grade": "الصف التاسع",
                   "source_subject": "الرياضيات",
                   "verification_status": "verified-from-textbook-toc"
+                }
+              ]
+            }
+          }
+        },
+        "كيمياء": {
+          "languages": {
+            "English": {
+              "lessons": [
+                {
+                  "title": "Structure of the Atom",
+                  "official_order": 1,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Electron Arrangements in Atoms and the Periodic Table",
+                  "official_order": 2,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Chemical Bonding",
+                  "official_order": 3,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Electrochemistry",
+                  "official_order": 4,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Aliphatic Hydrocarbons",
+                  "official_order": 5,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Aromatic Hydrocarbons - Esterification",
+                  "official_order": 6,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Petroleum and Synthetic Materials",
+                  "official_order": 7,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Chemistry and Environment",
+                  "official_order": 8,
+                  "verification_status": "verified-from-national-textbook-toc"
                 }
               ]
             }
@@ -6754,6 +6939,59 @@
                   "source_grade": "الأول ثانوي",
                   "source_subject": "الرياضيات",
                   "verification_status": "verified-from-textbook-toc"
+                }
+              ]
+            }
+          }
+        },
+        "كيمياء": {
+          "languages": {
+            "English": {
+              "lessons": [
+                {
+                  "title": "Atoms",
+                  "official_order": 1,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Molecules",
+                  "official_order": 2,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Ions",
+                  "official_order": 3,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Chemical Reaction",
+                  "official_order": 4,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Water",
+                  "official_order": 5,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Acids-Bases",
+                  "official_order": 6,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Qualitative Analysis",
+                  "official_order": 7,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Fertilizers",
+                  "official_order": 8,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Atmospheric Pollution",
+                  "official_order": 9,
+                  "verification_status": "verified-from-national-textbook-toc"
                 }
               ]
             }
@@ -7236,6 +7474,94 @@
                   "source_grade": "الثاني ثانوي - العلوم",
                   "source_subject": "الرياضيات",
                   "verification_status": "verified-from-textbook-toc"
+                }
+              ]
+            }
+          }
+        },
+        "كيمياء": {
+          "languages": {
+            "English": {
+              "lessons": [
+                {
+                  "title": "Thermochemistry",
+                  "official_order": 1,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Oxidation and Reduction",
+                  "official_order": 2,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Oxidation-Reduction Potential",
+                  "official_order": 3,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Balancing Redox Reactions",
+                  "official_order": 4,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Dry Cells and Storage Batteries - Electrolysis",
+                  "official_order": 5,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Volumetric Titration of Redox Reaction",
+                  "official_order": 6,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Study of the Principles of Manufacturing",
+                  "official_order": 7,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Fertilizers, Explosives and Soap",
+                  "official_order": 8,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Cement and Glass",
+                  "official_order": 9,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Metallurgy: Metals and Alloys",
+                  "official_order": 10,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Atomic Orbitals",
+                  "official_order": 11,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Elemental Analysis",
+                  "official_order": 12,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Hydrocarbons, Alkanes",
+                  "official_order": 13,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Hydrocarbons, Alkenes, Alkynes and Benzene",
+                  "official_order": 14,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Petroleum and Natural Gas",
+                  "official_order": 15,
+                  "verification_status": "verified-from-national-textbook-toc"
+                },
+                {
+                  "title": "Pollution",
+                  "official_order": 16,
+                  "verification_status": "verified-from-national-textbook-toc"
                 }
               ]
             }
