@@ -51,3 +51,32 @@ After Railway deploys the commit above successfully, test ONLY these targeted re
 Record response time, HTTP/result state, and whether the send control is re-enabled after success/error.
 Do not retest unrelated known bugs in this regression phase.
 Report PASS/FAIL per bug and then reread this mailbox.
+
+
+## HIGH PRIORITY — Pedagogical acceptance testing
+
+The owner explicitly prioritizes testing the QUALITY of teaching and exercise solving, not only UI reliability.
+
+After the current regression/deployment is stable, run a dedicated pedagogical phase using the live platform. Test representative Mathematics, Physics, Chemistry, Biology/Life Sciences, and language lessons/exercises across at least primary, intermediate, and secondary levels.
+
+For FULL LESSON explanations verify:
+- explanation is progressive, student-level, and teacher-like rather than a lecture;
+- correct grade/subject/language/lesson boundary;
+- concept -> explanation -> worked example/application -> final summary;
+- accurate useful diagram/graph when pedagogically needed;
+- exactly 5 additional exercises after a full lesson, each with the required visual when appropriate and a complete step-by-step solution;
+- no invented givens, facts, labels, points, or source claims.
+
+For EXERCISE SOLVING verify the NABIL teacher method:
+- Given -> Required -> Formula/Property -> substitution/reasoning -> units -> Final Answer;
+- Mathematics: exact reasoning and valid geometry/function graphs; function study includes domain, limits, intercepts, asymptotes, derivative, extrema, increasing/decreasing intervals, variation table, exact graph when applicable;
+- Physics: correct law, substitution, SI units, direction/signs and diagram;
+- Chemistry: correct symbols/equations/balancing/structures;
+- Biology: scientifically accurate labelled diagrams/processes;
+- Languages: natural level-appropriate explanation and correction.
+
+Also test “Explain another way” and remediation after a wrong answer: it must genuinely change strategy and target the misconception, not merely paraphrase the first explanation.
+
+Use several real prompts per subject. Judge mathematical/scientific correctness separately from pedagogy and rendering. Save evidence for failures. Do NOT mark PASS merely because a response rendered.
+
+Create a dedicated report named `PHASE-PEDAGOGY-REPORT.md` with PASS/FAIL by subject and concrete examples. Then reread this mailbox and continue automatically.
