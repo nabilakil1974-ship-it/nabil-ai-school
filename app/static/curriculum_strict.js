@@ -1,5 +1,6 @@
 (() => {
   "use strict";
+  // deploy-trigger: 2026-09-18 textbook grounding rollout
   const byId = id => document.getElementById(id);
   const grade = () => byId("gradeSelect");
   const subject = () => byId("subjectSelect");
