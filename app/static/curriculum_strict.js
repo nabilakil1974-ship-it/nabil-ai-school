@@ -30,7 +30,11 @@
     const q = new URLSearchParams({grade:g, subject:s, language:l});
     if (b) q.set("branch", b);
     try {
-      const res = await fetch("/api/chat/curriculum/lessons?" + q.toString(), {cache:"no-store"});
+      let res = await fetch("/api/chat/curriculum/lessons?" + q.toString(), {cache:"no-store"});
+      // Some deployments mount the chat router without the /chat prefix.
+      if (res.status === 404) {
+        res = await fetch("/api/curriculum/lessons?" + q.toString(), {cache:"no-store"});
+      }
       if (!res.ok) throw new Error("curriculum " + res.status);
       const data = await res.json();
       if (seq !== requestSeq) return;
@@ -47,7 +51,7 @@
     } catch (err) {
       if (seq !== requestSeq) return;
       console.error("NABIL strict curriculum:", err);
-      resetLessons("تعذر تحميل الدروس الموثقة");
+      resetLessons("لا توجد دروس موثقة لهذا الاختيار");
     }
   }
 
