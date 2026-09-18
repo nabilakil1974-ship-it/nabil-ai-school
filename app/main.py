@@ -351,7 +351,7 @@ def root():
     # boundary authoritative in the live UI.
     html = Path("app/static/chat.html").read_text(encoding="utf-8")
     marker = "</body>"
-    script = '<script src="/static/curriculum_strict.js?v=135"></script>'
+    script = '<script src="/static/curriculum_strict.js?v=136"></script>'
     if script not in html:
         html = html.replace(marker, script + "\\n" + marker)
     return HTMLResponse(html, headers={"Cache-Control": "no-store"})
