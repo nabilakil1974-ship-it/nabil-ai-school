@@ -3,6 +3,9 @@ import argparse
 import json
 from pathlib import Path
 
+from sqlalchemy import text
+from app.db.session import engine
+
 from scripts.index_books import index_book
 
 MANIFESTS = {
@@ -66,12 +69,30 @@ def main():
     args = ap.parse_args()
 
     names = list(MANIFESTS) if args.subject == "all" else [args.subject]
-    for name in names:
-        run_manifest(name)
 
-    if args.manifest:
-        manifest_path = Path(args.manifest)
-        run_books(load_books(manifest_path), f"extra manifest {manifest_path}")
+    # PostgreSQL session advisory lock: at most one indexer across deployments,
+    # containers and manual Console sessions using this version of the script.
+    with engine.connect() as connection:
+        locked = False
+        if connection.dialect.name == "postgresql":
+            locked = bool(connection.execute(
+                text("SELECT pg_try_advisory_lock(728168120)")
+            ).scalar())
+            connection.commit()
+            if not locked:
+                print("Another science indexer is active; refusing duplicate OCR/embeddings.", flush=True)
+                return
+        try:
+            for name in names:
+                run_manifest(name)
+
+            if args.manifest:
+                manifest_path = Path(args.manifest)
+                run_books(load_books(manifest_path), f"extra manifest {manifest_path}")
+        finally:
+            if locked:
+                connection.execute(text("SELECT pg_advisory_unlock(728168120)"))
+                connection.commit()
 
 
 if __name__ == "__main__":
