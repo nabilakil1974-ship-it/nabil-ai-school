@@ -26,4 +26,23 @@ const unsafe=render({type:"sphere",radius:3,title:"<script>danger</script>"});
 assert(!unsafe.includes("<script>"),"SVG title must escape markup");
 assert(js.includes("renderVerifiedSphereFallback(d)||primary"),"text-only placeholders must be replaced with SVG fallback");
 assert(js.includes(".replace(/\\bDRAWINGS?_JSON"),"transport JSON should not reach student board");
+
+const languageStart=js.indexOf("function detectLanguage(q){");
+const languageEnd=js.indexOf("\nfunction addLine(",languageStart);
+assert(languageStart>=0&&languageEnd>languageStart,"test real language detection source");
+const detect=vm.runInNewContext(js.slice(languageStart,languageEnd)+"\ndetectLanguage");
+assert.equal(detect("Draw a sphere with radius 3 cm. Only the figure."),"English");
+assert.equal(detect("بدي study the function ln x"),"English");
+assert.equal(detect("هلق derivative and increasing"),"English");
+assert.equal(detect("Étudie la fonction ln(x)"),"Français");
+assert.equal(detect("بدي étudier la fonction"),"Français");
+assert.equal(detect("اشرح الدرس بالعربية"),"العربية");
+const css=fs.readFileSync("app/static/nabil_reference_theme.css","utf8");
+const backend=fs.readFileSync("app/api/routes_chat.py","utf8");
+assert(css.includes("OWNER_PHONE_ANSWER_FIRST_V9"),"mobile answer-first override required");
+assert(css.includes("height:clamp(90px,27vw,138px)!important"),"avatar must shrink after answer");
+assert(css.includes("max-height:none!important;overflow:visible!important"),"mobile solution must not clip");
+assert(backend.includes("FOREIGN_LANGUAGE_FIRST_TUTOR_V3"),"foreign language must dominate all subjects");
+assert(backend.includes("For EVERY grade and subject"),"must be universal rather than math-only");
+
 console.log("NABIL verified 3D-style sphere SVG + safe landing protocol: PASS");
