@@ -5267,13 +5267,28 @@ Avoid all visible prose when the verified figure is available.
         else:
             output_budget = 5200
 
-        raw_reply = ai.generate(
-            instructions=SYSTEM_PROMPT,
-            messages=history_messages,
-            image_bytes=image_bytes,
-            image_mime_type=image_mime_type,
-            max_output_tokens=output_budget,
+        # Instant exact figure-only sphere: bypass slow generative answers when
+        # the requested object and measurement alone determine the drawing.
+        # Still use the same validated Visual Engine and conversation storage.
+        exact_visual = (
+            _nabil_exact_sphere_drawing(message)
+            if figure_only_request and image_bytes is None
+            else None
         )
+        if exact_visual:
+            raw_reply = (
+                "<DRAWINGS_JSON>\n"
+                + json.dumps([exact_visual], ensure_ascii=False)
+                + "\n</DRAWINGS_JSON>"
+            )
+        else:
+            raw_reply = ai.generate(
+                instructions=SYSTEM_PROMPT,
+                messages=history_messages,
+                image_bytes=image_bytes,
+                image_mime_type=image_mime_type,
+                max_output_tokens=output_budget,
+            )
  
     except Exception as exc:
 
