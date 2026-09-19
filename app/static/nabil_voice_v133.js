@@ -61,7 +61,8 @@ async function submit(blob){
    body.append("lesson",field("lessonSelect"));
    body.append("language",field("languageSelect")||"العربية");
    body.append("curriculum",field("curriculumSelect")||"المنهج اللبناني الرسمي");
-   body.append("activity_mode",field("lessonSelect")?"lesson":"general_exercises");
+   // Gateway typed messages use general_exercises; voice must follow the same path.
+   body.append("activity_mode","general_exercises");
    body.append("teaching_mode","interactive");
    if(typeof conversationId!=="undefined"&&conversationId)body.append("conversation_id",conversationId);
    const response=await fetch("/api/chat",{method:"POST",body});
