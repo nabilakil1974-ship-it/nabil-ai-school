@@ -353,3 +353,82 @@ html,body{background:var(--nabil-ref-page)!important;color:var(--nabil-ref-text)
 
 /* Responsive display:flex must not override legacy JS navigation to lessons. */
 #nabilHome[style*="display: none"],#nabilHome[style*="display:none"]{display:none!important;}
+
+
+/* v4 owner-final home/figure palette and answer tabs */
+:root{
+ --nabil-owner-bg:#05172d;
+ --nabil-owner-panel:#081e33;
+ --nabil-owner-card:#062039;
+ --nabil-owner-control:#0d223d;
+ --nabil-owner-border:#176895;
+ --nabil-owner-cyan:#65dfff;
+ --nabil-owner-green:#009e48;
+ --nabil-owner-red:#ea202c;
+ --nabil-owner-blue:#0874e8;
+ --nabil-owner-purple:#5a35ca;
+ --nabil-owner-yellow:#ffd447;
+}
+/* Avatar/home and every instructional visual live on the same NABIL navy family. */
+#nabilHome,
+#nabilHome::before,
+.lesson-avatar-live,
+.lesson-tutor-card,
+.nabil-visual,.nabil-visual-wrap,.lesson-visual,.lesson-figure,.lesson-figure-card,
+.lesson-graph,.drawing-container,.exercise-visual-panel,#drawingPreviewContent{
+ background-color:var(--nabil-owner-bg)!important;
+}
+#nabilHome::before{
+ content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+ background:linear-gradient(135deg,#05172d 0%,#06284b 48%,#05172d 100%)!important;
+}
+#nabilHome .home-bg{
+ background-color:var(--nabil-owner-bg)!important;
+}
+/* The home answer is a real two-pane board: explanation / figure. */
+.nabil-open-answer-nav{
+ display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px;
+ position:sticky;top:0;z-index:3;padding:3px 0 6px;
+ background:linear-gradient(180deg,var(--nabil-owner-card) 70%,rgba(6,32,57,0));
+}
+.nabil-open-answer-nav button{
+ min-height:40px!important;padding:7px 12px!important;
+ background:var(--nabil-owner-control)!important;color:#eef8ff!important;
+ border:1px solid var(--nabil-owner-border)!important;border-radius:9px!important;
+}
+.nabil-open-answer-nav button.active{
+ background:#0e4e78!important;border-color:#32c7ff!important;
+ box-shadow:0 0 0 2px rgba(20,200,245,.08) inset!important;
+}
+.nabil-open-explanation,.nabil-open-visuals{
+ background:var(--nabil-owner-card)!important;color:#eef8ff!important;
+ border:1px solid rgba(23,104,149,.8);border-radius:11px;padding:10px;min-width:0;
+}
+.nabil-open-visuals{display:grid;gap:10px}
+.nabil-open-visuals[hidden],.nabil-open-explanation[hidden]{display:none!important}
+.nabil-open-visual,.nabil-open-visual>*{
+ max-width:100%;background:var(--nabil-owner-card)!important;
+}
+.nabil-open-visual svg{
+ display:block;max-width:100%!important;height:auto!important;margin:auto;
+ background:var(--nabil-owner-card)!important;
+}
+/* Never let old white lesson/diagram skins reappear. */
+.lesson-diagram,.lesson-diagram svg,.teacher .bubble.has-lesson-visual,
+.teacher .bubble.has-lesson-visual .nabil-visual{
+ background:var(--nabil-owner-card)!important;color:#eef8ff!important;
+ border-color:var(--nabil-owner-border)!important;
+}
+.lesson-diagram-title{color:var(--nabil-owner-cyan)!important}
+/* Smart path sits in normal document flow below answer actions. */
+#nabilLearningDock{
+ position:relative!important;inset:auto!important;transform:none!important;
+ clear:both!important;width:100%!important;z-index:1!important;
+ background:var(--nabil-owner-panel)!important;
+}
+@media(max-width:900px){
+ #nabilHomeTutorHost{padding-bottom:12px}
+ .nabil-open-answer-nav{position:static}
+ .nabil-open-explanation,.nabil-open-visuals{padding:8px}
+ #nabilLearningDock{margin:12px 0 20px!important}
+}
