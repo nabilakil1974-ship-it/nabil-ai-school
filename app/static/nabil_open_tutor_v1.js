@@ -23,7 +23,7 @@ card.id="nabilOpenTutor";
 card.setAttribute("aria-label","NABIL AI — open tutor");
 card.innerHTML=
  '<div class="nabil-open-head">'+
-   '<img class="nabil-open-mini-avatar" src="/static/nabil-lesson-avatar.png" alt="NABIL AI robot">'+
+   '<img class="nabil-open-mini-avatar" src="/static/nabil-profile.jpg" alt="NABIL AI robot">'+
    '<div><h2>أهلًا! أنا الأستاذ نبيل 👋</h2>'+
    '<p>اسألني مباشرة كتابةً أو صوتًا. بفهم اللبناني، English وFrançais، وبجاوب بلغة السؤال.</p></div>'+
  '</div>'+
