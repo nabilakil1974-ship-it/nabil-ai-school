@@ -101,6 +101,26 @@ survey.addEventListener("click",async()=>{
  }catch(err){setStatus(err.message||"تعذر تنزيل الاستبيان.");}
 });
 panel.append(survey);
+const actualQuestions=label("أسئلة Google Form: كل سطر «المحور | نص السؤال»",document.createElement("textarea"));
+actualQuestions.rows=5;actualQuestions.placeholder="القيادة المدرسية | يشارك المدير المعلمين في اتخاذ القرارات.\nالتطوير المهني | أحصل على فرص تدريب تلائم احتياجاتي.";
+const formsScript=document.createElement("button");
+formsScript.type="button";formsScript.textContent="⬇ سكربت إنشاء Google Form بمحاورك";
+formsScript.style.cssText="margin:8px;padding:10px;background:#654eb7;color:white;border:0;border-radius:8px;font:inherit;cursor:pointer";
+formsScript.addEventListener("click",async()=>{
+ const questions=actualQuestions.value.split(/\\r?\\n/).map(line=>line.trim()).filter(Boolean).map(line=>{
+  const sep=line.indexOf("|");
+  return sep<0?null:{axis:line.slice(0,sep).trim(),item:line.slice(sep+1).trim()};
+ });
+ if(title.value.trim().length<8||!questions.length||questions.some(q=>!q||!q.axis||!q.item)){
+   setStatus("أدخل عنوان البحث والأسئلة بصيغة: المحور | نص السؤال.");return;
+ }
+ try{
+  await saveResponse(await post("/api/research/survey/google-forms-script",
+   {title:title.value.trim(),language:language.value,questions}),"nabil-create-google-form.gs");
+  setStatus("تم تنزيل سكربت Google Apps Script. افتحه في حسابك وشغّل createNabilResearchForm ووافق على صلاحيات Google؛ التنزيل وحده لا ينشئ فورم.");
+ }catch(err){setStatus(err.message||"تعذر تجهيز سكربت Google Form.");}
+});
+panel.append(formsScript);
 button.after(panel);
 button.addEventListener("click",()=>{panel.hidden=!panel.hidden;button.setAttribute("aria-expanded",String(!panel.hidden));});
 button.setAttribute("aria-expanded","false");
