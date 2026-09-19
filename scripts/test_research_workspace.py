@@ -132,6 +132,23 @@ class ResearchContract(unittest.TestCase):
         self.assertIn("Upload and analyze actual questionnaire responses", RESEARCH)
         self.assertIn("survey/analysis-tables.csv", RESEARCH)
 
+
+    def test_answer_exports_next_to_copy(self):
+        open_tutor = (ROOT / "app/static/nabil_open_tutor_v1.js").read_text(encoding="utf-8")
+        self.assertIn("toolsHost.append(exportMenu,read,stop)", open_tutor)
+        for marker in ('"docx"', '"xlsx"', '"google-forms-script"'):
+            self.assertIn(marker, open_tutor)
+        for route in ("/answer/docx", "/answer/xlsx", "/answer/google-forms-script"):
+            self.assertIn(route, RESEARCH)
+        self.assertIn("No actual Markdown table", RESEARCH)
+        from openpyxl import Workbook, load_workbook
+        book = Workbook()
+        book.active.append(["Axis", "Mean"])
+        book.active.append(["Leadership", 4.25])
+        output = io.BytesIO()
+        book.save(output)
+        self.assertEqual(load_workbook(io.BytesIO(output.getvalue())).active["B2"].value, 4.25)
+
     def test_survey_is_labeled_template_not_created_form(self):
         self.assertIn('"google_form_created": False', RESEARCH)
         self.assertIn("RESEARCHER TO WRITE AND VALIDATE QUESTION", RESEARCH)
