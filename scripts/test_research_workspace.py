@@ -88,9 +88,9 @@ class ResearchContract(unittest.TestCase):
         self.assertIn('observedAggregates?"الاستنتاج العام', UI)
         create = isolate("build_research_docx")
         req = FakeRequest()
-        req.manuscript = "# Introduction\\n" + "".join(
-            "\\n[THEORETICAL_PAGE_BREAK]\\n## Theory section "
-            + str(i) + "\\n" + ("Substantive theoretical argument. " * 260)
+        req.manuscript = "# Introduction\n" + "".join(
+            "\n[THEORETICAL_PAGE_BREAK]\n## Theory section "
+            + str(i) + "\n" + ("Substantive theoretical argument. " * 260)
             for i in range(1, 23)
         )
         doc = create(req)
