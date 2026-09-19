@@ -13,3 +13,21 @@ The answer board near the robot must render verified subject-appropriate graphs 
 Improve first-response latency and provide bounded errors, input and processing indicators. Unify the blue visual style across robot, explanation and figure backgrounds. Retain all textbook grounding and source-integrity rules.
 
 Implementation is not done merely by recording this request. Inspect the actual landing HTML/scripts, implement and commit, then verify the current Railway deployment. Beware the existing large legacy app/static/chat.html and raw JavaScript leaking into DOM.
+
+## Owner screenshot follow-up — unified blue visuals and real learning actions
+
+Status: OPEN — requirements recorded; frontend implementation and Railway regression NOT yet verified.
+
+1. **One consistent dark/royal blue backdrop.** The avatar home/lesson panel AND each diagram/figure/graph display area must use the same blue visual family as the top header reading «منصة النبيل التعليمية الذكية», not a white page behind a giant robot or a mismatched canvas. Ensure diagrams, labels, shapes, contrast and scroll remain readable on phones and desktops. Do not recolor a scientific figure in a way that obscures meaning.
+2. **Move the “مسار التعلم الذكي” dock lower.** Place it below the answer's «نسخ الإجابة» control and below the response/lesson content, not overlapping the avatar, lesson board or composer. Mobile layout should wrap and scroll naturally; controls must remain clickable and readable.
+3. **No empty/demo buttons.** Every learning-path control must perform its named real action *for the actual selected grade, subject, lesson and latest explanation or exercise*. Clicking shows meaningful content immediately in the same answer/learning area, rather than an inert button, a canned response, or a disconnected toast:
+   - سؤال تحقق / quick check: one lesson-relevant age-appropriate question and accepts student's answer;
+   - تصحيح من فهمي / self-check: asks learner to explain and gives evidence-grounded feedback;
+   - جرب بطريقة أخرى / explain differently: changes pedagogical representation, not rephrases;
+   - خطوة تالية / next step: a genuine progression within the same lesson;
+   - تدريب علاجي / remedial practice: targets an evidenced misunderstanding, not an invented weakness;
+   - بطاقات مراجعة / flashcards: real concepts drawn from current lesson;
+   - تقدمي / progress: persisted evidence-based learning, never fabricated mastery/XP;
+   - any other existing button must have equivalent substantive behavior.
+4. **Age adaptation:** early primary uses short sentences, concrete visuals and one task at a time; upper primary uses guided small steps; middle grades add reasoning and graduated practice; secondary uses authentic subject terminology, justification, calculations and diagrams as appropriate. Open-question mode must not require choosing a grade.
+5. **Acceptance tests:** for a real textbook-grounded lesson, click EVERY visible learning-path button and verify it submits its intended action, renders its actual result, allows an answer/follow-up, and does not leak code. Verify separately on desktop and phone, and confirm the dock is BELOW «نسخ الإجابة». Screenshot evidence and actual Railway deployed commit required before marking PASS.
