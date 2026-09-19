@@ -248,3 +248,18 @@ Implementation commits for this pass:
 
 Static JS syntax check: PASS for nabil_open_tutor_v1.js, nabil_learning_v132.js, nabil_voice_v133.js.
 Production acceptance still requires Railway status SUCCESS plus live desktop/mobile browser QA. Do not mark production PASS while the Railway deployment status is pending.
+
+
+## IMPLEMENTATION REPORT — Bare DRAWINGS_JSON / measured sphere regression (2026-09-19)
+
+Owner provided live screenshot: internal `DRAWINGS_JSON:` string and sphere object (r=3) were printed in the answer board; no visual was rendered. Source inspection confirmed `extract_drawings()` only parsed XML-wrapped and fenced JSON, not bare marker with normal JSON after prose. Also the landing renderer returned without displaying anything if the legacy renderer could not handle sphere.
+
+Actual changes committed on main:
+- `316db5e3b6dee9b7f23f1404e91b30787f97e543` backend parses bare `DRAWINGS_JSON:` with JSONDecoder.raw_decode, removes malformed payload and deterministically recovers exact sphere when requested with an explicit radius.
+- `6da7a64f67cd22920d3a684466b31f6849fd1321` corrected regex escaping after failing real CI fixtures.
+- `8bb7672b3f36f6e7e0a72d53b8887c14264e84d0` real stdlib-only backend tests pass: embedded marker, multiline, malformed, wrapped, exact radius 3/5 and unknown-radius non-hallucination.
+- `518cdab05cd6aa174cb81dc8428c5487a730aa07` frontend hides drawing protocol even on rolling deploy, does not speak JSON, honors figure-only, renders measured perspective sphere SVG if old renderer returns no visual.
+- `487d43b371a0024a0f9a6fe5cbb6b0a6e6df8cdc` fallback also replaces unsupported text-only sphere renderer output.
+- `c02ab4518c3fec7ef6360851cc65393e45ac6b68` validates that routing through fallback is covered by real isolated Node SVG test.
+
+Build #? GitHub Actions run 35441988597: completed SUCCESS, Python/JS checks and all regression suites green. Railway GitHub deployment status for latest commit was PENDING at report time; browser/Railway acceptance remains OPEN. After deployed, test spoken and typed: `Draw a sphere with radius equal 3 cm. Give me the figure, only the figure.`, Arabic `ارسم كرة نصف قطرها ٣ سم بس الرسمة` (note: Arabic-Indic numerals require a separate normalization if not supported), and general lesson diagram; figure must appear uncropped, with exact label, and NO raw drawing protocol, no generic lesson prose or spoken unwanted narration. Preserve current science OCR progress; do not manually start duplicate indexer.
