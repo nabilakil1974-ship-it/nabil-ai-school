@@ -446,3 +446,8 @@ Still required before production PASS: push/build, Railway deployed SHA, actual 
 - Browser-rendered SVG/canvas figures are rasterized for export and embedded into both DOCX and PDF; export accepts only bounded PNG data payloads.
 - Full local regression suite remains PASS after this hardening.
 - GitHub push is BLOCKED: this Work environment has no Git credential and the secure GitHub sign-in request was declined. Local commits are intact; no CI/Railway claim is made.
+
+### Railway live regression and repair
+- Commit `d0b2bbad16ca191c3f8681dc50a20d4a8b342024` deployed successfully and the new script/theme/button were present live.
+- Live browser testing found the visible worksheet button did not open its panel: a later legacy script can rebuild the control node after the original direct click listener is attached.
+- Fixed with delegated document-level click handling and cache-busted worksheet script v2. A new build/deploy and live retest are required before PASS.
