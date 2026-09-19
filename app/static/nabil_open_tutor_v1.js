@@ -57,6 +57,21 @@ const status=el("nabilOpenStatus"), board=el("nabilOpenAnswer"), convo=el("nabil
       nav=el("nabilOpenAnswerNav"), explainBtn=el("nabilOpenExplainBtn"), visualBtn=el("nabilOpenVisualBtn"),
       explanation=el("nabilOpenExplanation"), visuals=el("nabilOpenVisuals"), toolsHost=el("nabilOpenTools"), liveType=el("nabilOpenLiveType");
 let recorder=null,stream=null,chunks=[],recording=false,busy=false,openConversationId="";
+/* Figure preview must always have working close controls after dynamic
+   answer-card rerenders, including Escape and tapping outside the dialog. */
+const drawingModal=el("drawingPreviewModal");
+if(drawingModal&&!drawingModal.dataset.nabilCloseBound){
+ drawingModal.dataset.nabilCloseBound="1";
+ const closeFigure=()=>{drawingModal.hidden=true;el("drawingPreviewContent")?.replaceChildren()};
+ el("closeDrawingPreviewBtn")?.addEventListener("click",closeFigure);
+ drawingModal.addEventListener("click",e=>{
+   if(e.target===drawingModal)closeFigure();
+ });
+ document.addEventListener("keydown",e=>{
+   if(e.key==="Escape"&&!drawingModal.hidden)closeFigure();
+ });
+}
+
 let greetingSpoken=false;
 const pace=el("nabilOpenPace"),paceValue=el("nabilOpenPaceValue");
 try{
