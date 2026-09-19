@@ -22,6 +22,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
+# Use CPU-only PyTorch for multilingual embeddings, not multi-GB CUDA wheels.
+RUN python -m pip install --no-cache-dir 'torch==2.5.1+cpu' --index-url https://download.pytorch.org/whl/cpu
 RUN python -m pip install --no-cache-dir -r requirements.txt
 
 COPY . .
@@ -33,5 +35,5 @@ USER nabil
 
 EXPOSE 8080
 
-# Shell form lets Railway's PORT expand at runtime; no build secrets needed.
-CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
+# Resolve Railway's PORT in Python; compatible with both Docker CMD and Railway overrides.
+CMD ["python", "-m", "scripts.start_server"]
