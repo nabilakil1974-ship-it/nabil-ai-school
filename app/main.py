@@ -394,13 +394,13 @@ def root():
     if send_start < 0:
         raise RuntimeError("Legacy chat sendToAI was not found")
     language_old = (
-        '    const language =\\n'
+        '    const language =\n'
         '        languageSelect.value || "العربية";'
     )
     language_new = (
-        '    const language =\\n'
-        '        generalExercisesMode\\n'
-        '        ? (detectMessageRenderLanguage(showStudentMessage ? message : (nabilCurrentQuestionText || message)) || "العربية")\\n'
+        '    const language =\n'
+        '        generalExercisesMode\n'
+        '        ? (detectMessageRenderLanguage(showStudentMessage ? message : (nabilCurrentQuestionText || message)) || "العربية")\n'
         '        : (languageSelect.value || "العربية");'
     )
     before_send, after_send = html[:send_start], html[send_start:]
