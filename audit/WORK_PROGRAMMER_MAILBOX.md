@@ -339,3 +339,10 @@ Issue #13: a researcher can ask from unscoped home for a complete master's resea
 **Owner addition — natural human scholarly prose:** write clear, varied, discipline-appropriate academic Arabic/English/French, not generic AI templates or repetitious robotic prose; retain researcher control over voice, interpretations, original contributions and revisions. Never promise AI-detector evasion or misrepresent AI-authored text as solely human-authored; preserve an editable process and respect university disclosure/authorship rules. AI assistance must not invent empirical data or sources. Track as explicit acceptance for #13.
 
 Coordinate staged implementation with Work in this mailbox and validate each cumulative build; issue #13 is scoped/planned, not yet implemented or production-tested.
+
+
+## RESEARCH IMPLEMENTATION PHASE 1 — 2026-09-19
+
+Owner explicitly says implement IMMEDIATELY for BOTH master's and doctorate: title plus broad outline supplied by learner, natural academic writing, staged proposal/theoretical/practical/revision, Word export and survey axes. PR #14 merged via `b365c0866e829d6585c232594865c48ea116e09a`. CI build `35448991983` completed SUCCESS (backend/frontend syntax and actual Word document regression). New files `app/api/routes_research.py`, `app/static/nabil_research_v1.js`, `scripts/test_research_workspace.py`, `.github/workflows/nabil-research-build.yml`; modified `app/main.py` and `requirements.txt`.
+
+**HONEST SCOPE:** researcher can specify title and outline in opt-in blue-robot workspace and generate sequential stages; export an editable .docx and a multiple-axis CSV survey *template*. This does NOT yet guarantee source citation verification, true Word footnotes, authored/validated survey items, automatic real Google Forms creation, or complete thesis in one response. Need next cumulative builds for these, and Work must test actual Railway live deploy SHA, browser UI and Word/CSV downloads on mobile/desktop; do not mark live PASS based on GitHub build.
