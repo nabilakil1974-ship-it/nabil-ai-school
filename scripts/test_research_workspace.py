@@ -76,6 +76,30 @@ class ResearchContract(unittest.TestCase):
         )
         self.assertTrue(unknown.startswith(b"PK"))
 
+    def test_google_apps_script_creates_sections_and_questions_after_authorization(self):
+        import json
+        node = next(n for n in TREE.body if isinstance(n, ast.FunctionDef)
+                    and n.name == "build_google_form_script")
+        namespace = {"json": json, "GoogleFormScriptRequest": object,
+                     "HTTPException": ValueError}
+        exec("from __future__ import annotations\\n" + ast.unparse(node), namespace)
+        req = type("Request", (), {
+            "title": "Doctoral research questionnaire",
+            "language": "en",
+            "questions": [
+                {"axis": "Leadership", "item": "The principal involves staff in decisions."},
+                {"axis": "Training", "item": "I have access to training opportunities."},
+            ],
+        })()
+        script = namespace["build_google_form_script"](req)
+        self.assertIn("FormApp.create(spec.title)", script)
+        self.assertIn("form.addSectionHeaderItem()", script)
+        self.assertIn("form.addMultipleChoiceItem()", script)
+        self.assertIn("Staff", script.replace("staff", "Staff"))
+        self.assertIn("getEditUrl()", script)
+        self.assertIn("function createNabilResearchForm() {\\n", script)
+        self.assertNotIn("created automatically", script)
+
     def test_survey_is_labeled_template_not_created_form(self):
         self.assertIn('"google_form_created": False', RESEARCH)
         self.assertIn("RESEARCHER TO WRITE AND VALIDATE QUESTION", RESEARCH)
