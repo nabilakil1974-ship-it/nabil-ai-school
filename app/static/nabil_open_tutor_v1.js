@@ -252,6 +252,19 @@ function renderAnswer(result,question){
    }catch(_e){}
  });
  const hasVisual=visuals.childElementCount>0;
+ if(hasVisual){
+   // A distinct labelled figure card, not an inline decoration or a small
+   // drawing mixed into the text/working steps.
+   const title=document.createElement("h3");
+   title.className="nabil-open-figure-card-title";
+   title.textContent=lang==="English"?"📐 Figure":lang==="Français"?"📐 Schéma":"📐 الرسمة";
+   visuals.prepend(title);
+   visuals.setAttribute("role","region");
+   visuals.setAttribute("aria-label",title.textContent);
+   board.classList.add("has-figure-card");
+ }else{
+   board.classList.remove("has-figure-card");
+ }
  if(figureOnly&&!hasVisual)throw Error("المحرّك لم يعرض الرسمة المطلوبة. جرّب مجددًا أو اكتب قياسات الشكل.");
  const wantsVisual=/draw|plot|graph|figure|diagram|sketch|tracer|dessiner|schéma|schema|ارسم|اعرض الرسم|اعرض الرسمة|ورجيني الرسمة|رسم بياني|مخطط/i.test(String(question||""));
  if(wantsVisual&&!hasVisual){
