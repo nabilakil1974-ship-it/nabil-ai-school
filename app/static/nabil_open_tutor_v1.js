@@ -66,6 +66,7 @@ function syncPace(){
  const v=Math.max(0.7,Math.min(1.15,Number(pace.value)||0.9));
  window.nabilVoicePace=v;
  paceValue.textContent=v.toFixed(2)+"×";
+ try{if(typeof nabilNeuralAudio!=="undefined"&&nabilNeuralAudio)nabilNeuralAudio.playbackRate=v}catch(_e){}
  try{localStorage.setItem("nabil_voice_pace",String(v))}catch(_e){}
 }
 pace.addEventListener("input",syncPace);
@@ -185,6 +186,25 @@ function renderAnswer(result,question){
  stop.type="button";stop.textContent=lang==="English"?"⏹ Stop voice":lang==="Français"?"⏹ Arrêter la voix":"⏹ أوقف الصوت";
  stop.addEventListener("click",()=>{try{stopNabilNeuralVoice?.();speechSynthesis?.cancel?.()}catch(_e){}});
  toolsHost.append(copy,read,stop);
+ if(hasVisual){
+   const preview=document.createElement("button");
+   preview.type="button";
+   preview.textContent=lang==="English"?"🔎 Enlarge figure":lang==="Français"?"🔎 Agrandir le schéma":"🔎 معاينة الرسمة كبيرة";
+   preview.addEventListener("click",()=>{
+     const modal=el("drawingPreviewModal"),content=el("drawingPreviewContent");
+     if(!modal||!content){visualBtn.click();return}
+     content.replaceChildren();
+     const clone=visuals.cloneNode(true);
+     clone.hidden=false;
+     clone.removeAttribute("id");
+     clone.querySelectorAll("[id]").forEach(n=>n.removeAttribute("id"));
+     clone.classList.add("nabil-open-enlarged-visuals");
+     content.appendChild(clone);
+     modal.hidden=false;
+     el("closeDrawingPreviewBtn")?.focus();
+   });
+   toolsHost.appendChild(preview);
+ }
  try{window.MathJax?.typesetPromise?.([board])}catch(_e){}
  addLine("nabil",reply);
  board.scrollIntoView({behavior:"smooth",block:"nearest"});
