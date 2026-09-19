@@ -76,6 +76,34 @@ class ResearchContract(unittest.TestCase):
         )
         self.assertTrue(unknown.startswith(b"PK"))
 
+    def test_title_only_and_twenty_two_real_theoretical_word_pages(self):
+        self.assertIn('outline: str = Field(default=""', RESEARCH)
+        self.assertIn('THEORETICAL_PARTS = 22', RESEARCH)
+        self.assertIn('font.size = Pt(14)', RESEARCH)
+        self.assertIn('if request.stage == "results"', RESEARCH)
+        self.assertIn('nabil_research_v1.js?v=2', MAIN)
+        self.assertIn('theoretical_part_index:part', UI)
+        self.assertIn('nextTheoryPart<=22', UI)
+        self.assertIn('populateGeneratedQuestions(response.text)', UI)
+        self.assertIn('/api/research/survey/questions.csv', UI)
+        self.assertIn('@router.post("/survey/questions.csv")', RESEARCH)
+        self.assertIn('observedAggregates?"الاستنتاج العام', UI)
+        create = isolate("build_research_docx")
+        req = FakeRequest()
+        req.manuscript = "# Introduction\n" + "".join(
+            "\n[THEORETICAL_PAGE_BREAK]\n## Theory section "
+            + str(i) + "\n" + ("Substantive theoretical argument. " * 260)
+            for i in range(1, 23)
+        )
+        doc = create(req)
+        with ZipFile(io.BytesIO(doc)) as archive:
+            content = archive.read("word/document.xml").decode("utf-8")
+            styles = archive.read("word/styles.xml").decode("utf-8")
+            self.assertEqual(content.count('w:type="page"'), 22)
+            self.assertIn('w:val="28"', styles)
+            self.assertIn("Theory section 22", content)
+            self.assertIn("w:fldSimple", content + archive.read("word/footer1.xml").decode("utf-8"))
+
     def test_google_apps_script_creates_sections_and_questions_after_authorization(self):
         import json
         node = next(n for n in TREE.body if isinstance(n, ast.FunctionDef)

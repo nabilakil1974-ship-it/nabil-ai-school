@@ -429,7 +429,7 @@ def root():
         '<script src="/static/nabil_learning_v132.js?v=138"></script>\n'
         '<script src="/static/nabil_voice_v133.js?v=133"></script>\n'
         '<script src="/static/nabil_open_tutor_v1.js?v=15"></script>\n'
-        '<script src="/static/nabil_research_v1.js?v=1"></script>\n'
+        '<script src="/static/nabil_research_v1.js?v=2"></script>\n'
     )
     boundary = html.lower().rfind("</body>")
     if boundary < 0:
