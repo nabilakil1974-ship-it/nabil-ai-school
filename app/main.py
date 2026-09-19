@@ -384,7 +384,7 @@ def root():
         raise RuntimeError("NABIL legacy splash bootstrap not found")
     html = html.replace(
         home_bootstrap,
-        "function bootstrapNabilHome(){ return; // splash retired\\n",
+        "function bootstrapNabilHome(){ return; // splash retired\n",
         1,
     )
 
@@ -401,10 +401,10 @@ def root():
     html = html[:head_boundary] + direct_entry_css + html[head_boundary:]
 
     scripts = (
-        '<script src="/static/curriculum_strict.js?v=137"></script>\\n'
-        '<script src="/static/nabil_learning_v132.js?v=132"></script>\\n'
-        '<script src="/static/nabil_voice_v133.js?v=133"></script>\\n'
-        '<script src="/static/nabil_direct_entry_v1.js?v=1"></script>\\n'
+        '<script src="/static/curriculum_strict.js?v=137"></script>\n'
+        '<script src="/static/nabil_learning_v132.js?v=132"></script>\n'
+        '<script src="/static/nabil_voice_v133.js?v=133"></script>\n'
+        '<script src="/static/nabil_direct_entry_v1.js?v=1"></script>\n'
     )
     boundary = html.lower().rfind("</body>")
     if boundary < 0:
