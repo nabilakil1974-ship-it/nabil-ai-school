@@ -5963,12 +5963,12 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
     # Direct requests such as "draw the graph" and spoken "ارسم الدالة"
     # must be drawing requests even when "study the function" is absent.
     visual_function_request = bool(re.search(
-        r"\\b(?:draw|plot|graph|sketch|trace|tracer|dessiner)\\b|"
+        r"\b(?:draw|plot|graph|sketch|trace|tracer|dessiner)\b|"
         r"ارسم|الرسم البياني|ارسم الدالة|ارسملي", function_request_text, re.I,
     ))
     if visual_function_request and not is_explicit_function_request and (
-        re.search(r"\\b(?:ln|log|exp|sqrt|sin|cos)\\s*\\(|f\\s*\\(\\s*x\\s*\\)\\s*=",
-                  function_request_text + "\\n" + str(reply_text or ""), re.I)
+        re.search(r"\b(?:ln|log|exp|sqrt|sin|cos)\s*\(|f\s*\(\s*x\s*\)\s*=",
+                  function_request_text + "\n" + str(reply_text or ""), re.I)
     ):
         function_drawing = _graph_safe_function_drawing(
             message=message, reply_text=reply_text, card_index=1,
