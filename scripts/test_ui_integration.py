@@ -281,6 +281,22 @@ class NabilUiIntegrationTests(unittest.TestCase):
         self.assertIn("pace_browser_new", main_py)
         self.assertIn("pace_neural_new", main_py)
 
+    def test_open_tutor_voice_does_not_outpace_answer_card(self):
+        tutor = (STATIC / "nabil_open_tutor_v1.js").read_text(encoding="utf-8")
+        for token in (
+            "function playSynchronizedAnswer(reply,lang)",
+            "explanation.hidden=true;",
+            "if(activeTyper!==controller)return",
+            "if(index>=words.length)return;",
+            "if(!board.classList.contains(\"nabil-open-figure-only\"))explanation.hidden=false",
+            "read.addEventListener(\"click\",()=>playSynchronizedAnswer(reply,lang))",
+            "if(!shown.figureOnly)playSynchronizedAnswer(shown.reply,shown.lang)",
+            "activeTyper?.finish()",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, tutor)
+        self.assertNotIn("Math.min(420,(duration*1000)", tutor)
+
     def test_owner_three_dimensional_and_same_renderer_contract(self):
         route = (ROOT / "app" / "api" / "routes_chat.py").read_text(encoding="utf-8")
         tutor = (STATIC / "nabil_open_tutor_v1.js").read_text(encoding="utf-8")

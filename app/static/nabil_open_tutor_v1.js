@@ -57,6 +57,7 @@ const status=el("nabilOpenStatus"), board=el("nabilOpenAnswer"), convo=el("nabil
       nav=el("nabilOpenAnswerNav"), explainBtn=el("nabilOpenExplainBtn"), visualBtn=el("nabilOpenVisualBtn"),
       explanation=el("nabilOpenExplanation"), visuals=el("nabilOpenVisuals"), toolsHost=el("nabilOpenTools"), liveType=el("nabilOpenLiveType");
 let recorder=null,stream=null,chunks=[],recording=false,busy=false,openConversationId="";
+let activeTyper=null;
 /* Figure preview must always have working close controls after dynamic
    answer-card rerenders, including Escape and tapping outside the dialog. */
 const drawingModal=el("drawingPreviewModal");
@@ -194,22 +195,51 @@ function addLine(role,text){
 }
 function prepareSpeechTypewriter(text,lang){
  const words=String(text||"").replace(/\s+/g," ").trim().split(" ").filter(Boolean);
- let timer=0,index=0,duration=0,started=false;
+ let timer=0,index=0,duration=0,started=false,finished=false;
  const dir=lang==="العربية"?"rtl":"ltr";
  liveType.dir=dir;liveType.lang=lang==="العربية"?"ar":lang==="English"?"en":"fr";
  liveType.textContent="";liveType.hidden=!words.length;
- const interval=()=>duration>0?Math.max(55,Math.min(420,(duration*1000)/Math.max(words.length,1))):Math.max(75,Math.round(245/(Number(window.nabilVoicePace)||0.9)));
- const tick=()=>{
-  if(index>=words.length){finish();return}
-  liveType.textContent+=(index?" ":"")+words[index++];
-  timer=window.setTimeout(tick,interval());
+ // When the audio engine provides its real duration, distribute visible words
+ // across THAT duration; the former 420ms cap ran ahead of slower narration.
+ const interval=()=>duration>0?Math.max(55,(duration*1000)/Math.max(words.length,1)):Math.max(75,Math.round(245/(Number(window.nabilVoicePace)||0.9)));
+ const finish=()=>{
+   if(finished)return;
+   finished=true;
+   if(timer)clearTimeout(timer);timer=0;
+   if(activeTyper!==controller)return; // ignore callbacks from interrupted speech
+   liveType.textContent=words.join(" ");
+   if(!board.classList.contains("nabil-open-figure-only"))explanation.hidden=false;
+   liveType.hidden=true;
+   activeTyper=null;
  };
- const start=()=>{if(started||!words.length)return;started=true;tick()};
- const finish=()=>{if(timer)clearTimeout(timer);timer=0;liveType.textContent=words.join(" ");window.setTimeout(()=>{liveType.hidden=true},700)};
- return {start,finish,setDuration:d=>{if(Number.isFinite(Number(d))&&Number(d)>0)duration=Number(d)}};
+ const tick=()=>{
+   if(finished||activeTyper!==controller)return;
+   if(index>=words.length)return; // wait for actual audio end before revealing full answer
+   liveType.textContent+=(index?" ":"")+words[index++];
+   if(index<words.length)timer=window.setTimeout(tick,interval());
+ };
+ const start=()=>{if(started||finished||!words.length||activeTyper!==controller)return;started=true;tick()};
+ const controller={start,finish,setDuration:d=>{if(Number.isFinite(Number(d))&&Number(d)>0)duration=Number(d)}};
+ return controller;
+}
+function playSynchronizedAnswer(reply,lang){
+ const spoken=typeof nabilBoardPlainSpeech==="function"?nabilBoardPlainSpeech(reply):reply;
+ if(!spoken||typeof nabilSpeakClear!=="function")return;
+ activeTyper?.finish();
+ try{stopNabilNeuralVoice?.();speechSynthesis?.cancel?.()}catch(_e){}
+ const typer=prepareSpeechTypewriter(spoken,lang);
+ activeTyper=typer;
+ explanation.hidden=true;
+ Promise.resolve(nabilSpeakClear(spoken,lang,{
+   onduration:d=>typer.setDuration(d),
+   onstart:()=>typer.start(),
+   onend:()=>typer.finish(),
+   onerror:()=>typer.finish()
+ })).catch(()=>typer.finish());
 }
 
 function renderAnswer(result,question){
+ activeTyper?.finish();
  const rawReply=String(result?.reply||"").trim();
  // Defence in depth while a rolling Railway deploy may serve an old backend:
  // no internal drawing transport belongs in student-visible HTML or speech.
@@ -238,6 +268,7 @@ function renderAnswer(result,question){
  board.dir=dir;
  board.lang=lang==='العربية'?'ar':lang==='English'?'en':'fr';
  board.classList.add("has-answer");
+ board.classList.toggle("nabil-open-figure-only",figureOnly);
  explanation.replaceChildren();
  visuals.replaceChildren();
  toolsHost.replaceChildren();
@@ -335,13 +366,10 @@ function renderAnswer(result,question){
  });
  const read=document.createElement("button");
  read.type="button";read.textContent=lang==="English"?"🔊 Read answer":lang==="Français"?"🔊 Lire la réponse":"🔊 اقرأ الإجابة";
- read.addEventListener("click",()=>{
-   const spoken=typeof nabilBoardPlainSpeech==="function"?nabilBoardPlainSpeech(reply):reply;
-   Promise.resolve(nabilSpeakClear?.(spoken,lang,{})).catch(()=>{});
- });
+ read.addEventListener("click",()=>playSynchronizedAnswer(reply,lang));
  const stop=document.createElement("button");
  stop.type="button";stop.textContent=lang==="English"?"⏹ Stop voice":lang==="Français"?"⏹ Arrêter la voix":"⏹ أوقف الصوت";
- stop.addEventListener("click",()=>{try{stopNabilNeuralVoice?.();speechSynthesis?.cancel?.()}catch(_e){}});
+ stop.addEventListener("click",()=>{try{stopNabilNeuralVoice?.();speechSynthesis?.cancel?.()}catch(_e){}activeTyper?.finish()});
  if(!figureOnly){
    toolsHost.append(copy);
    const exportMenu=document.createElement("select");
@@ -447,17 +475,7 @@ async function request({question="",audio=null}){
    setStatus("✅ وصل الجواب؛ عم بعرض الشرح والرسومات…");
    const shown=renderAnswer(result,heard);
    if(result.student_profile&&window.NABIL130?.mergeProfile)window.NABIL130.mergeProfile(result.student_profile);
-   const spoken=typeof nabilBoardPlainSpeech==="function"?nabilBoardPlainSpeech(shown.reply):shown.reply;
-   try{stopNabilNeuralVoice?.();speechSynthesis?.cancel?.()}catch(_e){}
-   if(!shown.figureOnly&&spoken&&typeof nabilSpeakClear==="function"){
-     const typer=prepareSpeechTypewriter(spoken,shown.lang);
-     Promise.resolve(nabilSpeakClear(spoken,shown.lang,{
-       onduration:d=>typer.setDuration(d),
-       onstart:()=>typer.start(),
-       onend:()=>typer.finish(),
-       onerror:()=>typer.finish()
-     })).catch(()=>typer.finish());
-   }
+   if(!shown.figureOnly)playSynchronizedAnswer(shown.reply,shown.lang);
    setStatus(shown.figureOnly?"✅ الرسمة ظاهرة. فيك تكبّرها بزر المعاينة.":shown.hasVisual?"✅ الجواب جاهز. الشرح والرسمة في بطاقتين منفصلتين.":"✅ الجواب جاهز لسؤالك التالي.");
    return true;
  }catch(e){
