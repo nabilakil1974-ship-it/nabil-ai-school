@@ -1,0 +1,34 @@
+name: NABIL UI Build
+
+on:
+  push:
+    paths:
+      - app/main.py
+      - app/static/nabil_open_tutor_v1.js
+      - app/static/nabil_learning_v132.js
+      - app/static/nabil_reference_theme.css
+      - scripts/test_ui_integration.py
+      - .github/workflows/nabil-ui-build.yml
+  workflow_dispatch:
+
+jobs:
+  static-ui-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Python syntax build
+        run: python -m py_compile app/main.py scripts/test_ui_integration.py
+      - name: JavaScript syntax build
+        run: |
+          node --check app/static/nabil_open_tutor_v1.js
+          node --check app/static/nabil_learning_v132.js
+          node --check app/static/nabil_voice_v133.js
+      - name: HTML assembly and user requirements regression
+        run: python -m scripts.test_ui_integration
