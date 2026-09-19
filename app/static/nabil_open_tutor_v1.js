@@ -1,4 +1,4 @@
-/* NABIL open tutor v3 — the blue robot is the only landing page.
+/* NABIL open tutor v4 — the blue robot is the only landing page.
    Spoken and typed questions use the SAME /api/chat reasoning path, renderer and TTS.
    Open mode is intentionally independent from grade/subject/lesson selectors.
 */
@@ -30,7 +30,15 @@ card.innerHTML=
  '<div id="nabilOpenConversation" class="nabil-open-conversation" aria-live="polite">'+
    '<div class="nabil-open-welcome">جاهز نحل ونشرح ونرسم سوا — من دون اختيار صف أو مادة.</div>'+
  '</div>'+
- '<div id="nabilOpenAnswer" aria-label="بطاقة جواب الأستاذ نبيل"></div>'+
+ '<div id="nabilOpenAnswer" aria-label="بطاقة جواب الأستاذ نبيل">'+
+   '<div id="nabilOpenAnswerNav" class="nabil-open-answer-nav" hidden>'+
+     '<button id="nabilOpenExplainBtn" type="button">📘 عرض الشرح</button>'+
+     '<button id="nabilOpenVisualBtn" type="button" hidden>📐 عرض الرسمة</button>'+
+   '</div>'+
+   '<div id="nabilOpenExplanation" class="nabil-open-explanation"></div>'+
+   '<div id="nabilOpenVisuals" class="nabil-open-visuals" hidden></div>'+
+   '<div id="nabilOpenTools" class="nabil-open-tools"></div>'+
+ '</div>'+
  '<div class="nabil-open-composer">'+
    '<textarea id="nabilOpenInput" rows="2" placeholder="اكتب سؤالك هنا… / Type your question… / Écris ta question…"></textarea>'+
    '<button id="nabilOpenTalk" type="button" title="سؤال صوتي">🎙️ سؤال صوتي</button>'+
@@ -43,7 +51,9 @@ if(!homeHost){homeHost=document.createElement("div");homeHost.id="nabilHomeTutor
 homeHost.replaceChildren(card);
 
 const status=el("nabilOpenStatus"), board=el("nabilOpenAnswer"), convo=el("nabilOpenConversation"),
-      input=el("nabilOpenInput"), talk=el("nabilOpenTalk"), send=el("nabilOpenSend");
+      input=el("nabilOpenInput"), talk=el("nabilOpenTalk"), send=el("nabilOpenSend"),
+      nav=el("nabilOpenAnswerNav"), explainBtn=el("nabilOpenExplainBtn"), visualBtn=el("nabilOpenVisualBtn"),
+      explanation=el("nabilOpenExplanation"), visuals=el("nabilOpenVisuals"), toolsHost=el("nabilOpenTools");
 let recorder=null,stream=null,chunks=[],recording=false,busy=false,openConversationId="";
 let greetingSpoken=false;
 function speakGreetingOnce(){
@@ -80,49 +90,76 @@ function addLine(role,text){
 function renderAnswer(result,question){
  const reply=String(result?.reply||"").trim();
  if(!reply)throw Error("الخادم لم يرجع جوابًا صالحًا.");
- board.replaceChildren();
-
  const lang=detectLanguage(question||result?.transcribed_text||reply);
  const dir=lang==="العربية"?"rtl":"ltr";
  board.dir=dir;
+ explanation.replaceChildren();
+ visuals.replaceChildren();
+ toolsHost.replaceChildren();
 
- const drawingHTML=(Array.isArray(result?.drawings)?result.drawings:[]).map(d=>{
-   try{return typeof renderNabilDiagram==="function"?(renderNabilDiagram(d)||""):""}catch(_e){return""}
- }).filter(Boolean);
-
- let rendered="";
+ // Same academic renderer used by the lesson page. Keep text and drawings in
+ // separate panes so the learner can switch between explanation and figure.
+ let text=document.createElement("div");
+ text.className="nabil-open-answer-text";
  try{
-   if(typeof renderGeneralExerciseBoards==="function"){
-     rendered=renderGeneralExerciseBoards(reply,drawingHTML,dir,lang,question||"");
-   }
- }catch(err){console.warn("NABIL open board renderer",err)}
- if(rendered){
-   board.innerHTML=rendered;
- }else{
-   const text=document.createElement("div");
-   text.className="nabil-open-answer-text";
    if(typeof renderAIText==="function")text.innerHTML=renderAIText(reply);
    else text.innerHTML="<div>"+escapeHTML(reply).replace(/\n/g,"<br>")+"</div>";
-   board.appendChild(text);
-   drawingHTML.forEach(html=>{const pane=document.createElement("div");pane.className="nabil-open-visual";pane.innerHTML=html;board.appendChild(pane)});
- }
+ }catch(_e){text.innerHTML="<div>"+escapeHTML(reply).replace(/\n/g,"<br>")+"</div>"}
+ explanation.appendChild(text);
 
- const tools=document.createElement("div");
- tools.className="nabil-open-tools";
- const copy=document.createElement("button");copy.type="button";copy.textContent="📋 نسخ الإجابة";
+ const drawings=Array.isArray(result?.drawings)?result.drawings:[];
+ drawings.forEach(d=>{
+   try{
+     if(typeof renderNabilDiagram!=="function")return;
+     const html=renderNabilDiagram(d)||"";
+     if(!html)return;
+     const pane=document.createElement("div");
+     pane.className="nabil-open-visual";
+     pane.innerHTML=html;
+     visuals.appendChild(pane);
+   }catch(_e){}
+ });
+ const hasVisual=visuals.childElementCount>0;
+ nav.hidden=false;
+ visualBtn.hidden=!hasVisual;
+ explanation.hidden=false;
+ visuals.hidden=true;
+ explainBtn.classList.add("active");
+ visualBtn.classList.remove("active");
+ explainBtn.textContent=lang==="English"?"📘 Show explanation":lang==="Français"?"📘 Afficher l’explication":"📘 عرض الشرح";
+ visualBtn.textContent=lang==="English"?"📐 Show figure":lang==="Français"?"📐 Afficher le schéma":"📐 عرض الرسمة";
+
+ const showPane=which=>{
+   const showVisual=which==="visual"&&hasVisual;
+   explanation.hidden=showVisual;
+   visuals.hidden=!showVisual;
+   explainBtn.classList.toggle("active",!showVisual);
+   visualBtn.classList.toggle("active",showVisual);
+   (showVisual?visuals:explanation).scrollIntoView({behavior:"smooth",block:"nearest"});
+ };
+ explainBtn.onclick=()=>showPane("explain");
+ visualBtn.onclick=()=>showPane("visual");
+
+ const copy=document.createElement("button");
+ copy.type="button";copy.textContent="📋 نسخ الإجابة";
  copy.addEventListener("click",async()=>{
    try{await navigator.clipboard.writeText(reply);copy.textContent="✅ تم النسخ";setTimeout(()=>copy.textContent="📋 نسخ الإجابة",1400)}
    catch(_e){copy.textContent="تعذّر النسخ"}
  });
- const read=document.createElement("button");read.type="button";read.textContent=lang==="English"?"🔊 Read answer":lang==="Français"?"🔊 Lire la réponse":"🔊 اقرأ الإجابة";
- read.addEventListener("click",()=>{const spoken=typeof nabilBoardPlainSpeech==="function"?nabilBoardPlainSpeech(reply):reply;Promise.resolve(nabilSpeakClear?.(spoken,lang,{})).catch(()=>{})});
- const stop=document.createElement("button");stop.type="button";stop.textContent=lang==="English"?"⏹ Stop voice":lang==="Français"?"⏹ Arrêter la voix":"⏹ أوقف الصوت";
+ const read=document.createElement("button");
+ read.type="button";read.textContent=lang==="English"?"🔊 Read answer":lang==="Français"?"🔊 Lire la réponse":"🔊 اقرأ الإجابة";
+ read.addEventListener("click",()=>{
+   const spoken=typeof nabilBoardPlainSpeech==="function"?nabilBoardPlainSpeech(reply):reply;
+   Promise.resolve(nabilSpeakClear?.(spoken,lang,{})).catch(()=>{});
+ });
+ const stop=document.createElement("button");
+ stop.type="button";stop.textContent=lang==="English"?"⏹ Stop voice":lang==="Français"?"⏹ Arrêter la voix":"⏹ أوقف الصوت";
  stop.addEventListener("click",()=>{try{stopNabilNeuralVoice?.();speechSynthesis?.cancel?.()}catch(_e){}});
- tools.append(copy,read,stop);board.appendChild(tools);
+ toolsHost.append(copy,read,stop);
  try{window.MathJax?.typesetPromise?.([board])}catch(_e){}
  addLine("nabil",reply);
  board.scrollIntoView({behavior:"smooth",block:"nearest"});
- return {reply,lang};
+ return {reply,lang,hasVisual};
 }
 function getStudent(){
  try{return typeof getStudentId==="function"?getStudentId():(localStorage.getItem("nabil_student_id")||"nabil_open_student")}
@@ -161,7 +198,7 @@ async function request({question="",audio=null}){
    const spoken=typeof nabilBoardPlainSpeech==="function"?nabilBoardPlainSpeech(shown.reply):shown.reply;
    try{stopNabilNeuralVoice?.();speechSynthesis?.cancel?.()}catch(_e){}
    if(typeof nabilSpeakClear==="function")Promise.resolve(nabilSpeakClear(spoken,shown.lang,{})).catch(()=>{});
-   setStatus("✅ جاهز لسؤالك التالي.");
+   setStatus(shown.hasVisual?"✅ الجواب جاهز. فيك تعرض الشرح أو الرسمة من الأزرار فوق البطاقة.":"✅ الجواب جاهز لسؤالك التالي.");
  }catch(e){
    const aborted=e?.name==="AbortError";
    setStatus("⚠️ "+(aborted?"تأخر الجواب أكثر من المتوقع. جرّب إرسال السؤال مرة ثانية.":String(e?.message||"تعذّر الاتصال").slice(0,180)),true)
