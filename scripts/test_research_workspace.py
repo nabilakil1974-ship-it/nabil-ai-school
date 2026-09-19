@@ -55,6 +55,25 @@ class ResearchContract(unittest.TestCase):
                            "verification required", "No fieldwork has been completed"):
                 self.assertIn(phrase, text)
 
+    def test_real_word_footnotes_from_user_supplied_marker(self):
+        from app.services.research_docx_notes import attach_researcher_footnotes
+        create = isolate("build_research_docx")
+        request = FakeRequest()
+        request.manuscript = "# Research Problem\\nGrounded claim [FN:1] must be checked."
+        data = create(request)
+        with ZipFile(io.BytesIO(data)) as file:
+            self.assertIn("word/footnotes.xml", file.namelist())
+            document = file.read("word/document.xml").decode("utf-8")
+            notes = file.read("word/footnotes.xml").decode("utf-8")
+            self.assertIn("footnoteReference", document)
+            self.assertIn("researcher-supplied", notes.lower())
+            self.assertIn("Researcher-supplied bibliographic note", notes)
+            self.assertNotIn("[FN:1]", document)
+        unknown = attach_researcher_footnotes(
+            create(FakeRequest()), "Provided source"
+        )
+        self.assertTrue(unknown.startswith(b"PK"))
+
     def test_survey_is_labeled_template_not_created_form(self):
         self.assertIn('"google_form_created": False', RESEARCH)
         self.assertIn("RESEARCHER TO WRITE AND VALIDATE QUESTION", RESEARCH)
