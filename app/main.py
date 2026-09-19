@@ -388,11 +388,11 @@ def root():
         1,
     )
 
-    # Apply CSS in <head> to avoid a flash of the retired first screens.
+    # Preserve the blue robot as the only home; hide the separate welcome gateway.
     direct_entry_css = (
         "<style id='nabil-direct-lesson-entry'>"
-        "#nabilHome,#nabilProfessorGateway{display:none!important}"
-        "body.nabil-home-lock{overflow:auto!important}"
+        "#nabilProfessorGateway{display:none!important}"
+        "body.nabil-home-lock{overflow:hidden!important}"
         "</style>"
     )
     head_boundary = html.lower().find("</head>")
@@ -405,7 +405,6 @@ def root():
         '<script src="/static/curriculum_strict.js?v=137"></script>\n'
         '<script src="/static/nabil_learning_v132.js?v=132"></script>\n'
         '<script src="/static/nabil_voice_v133.js?v=133"></script>\n'
-        '<script src="/static/nabil_direct_entry_v1.js?v=1"></script>\n'
         '<script src="/static/nabil_open_tutor_v1.js?v=1"></script>\n'
     )
     boundary = html.lower().rfind("</body>")
