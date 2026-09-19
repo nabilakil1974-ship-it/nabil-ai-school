@@ -1,0 +1,193 @@
+"""Opt-in postgraduate research workspace; sources and empirical data stay attributable."""
+from __future__ import annotations
+
+import csv
+import io
+import json
+import re
+from typing import Literal
+
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
+
+from app.services.ai_gateway import NabilAIGateway
+
+router = APIRouter(prefix="/research", tags=["research"])
+DEGREE = Literal["masters", "doctorate"]
+STAGE = Literal["proposal", "theoretical", "practical", "questionnaire", "revision"]
+MAX_MANUSCRIPT = 120_000
+
+
+class ResearchRequest(BaseModel):
+    degree: DEGREE
+    title: str = Field(min_length=8, max_length=500)
+    outline: str = Field(min_length=5, max_length=12_000)
+    stage: STAGE = "proposal"
+    language: Literal["ar", "en", "fr"] = "ar"
+    previous_text: str = Field(default="", max_length=35_000)
+    sources: str = Field(default="", max_length=15_000)
+    guidance: str = Field(default="", max_length=4000)
+
+
+class ResearchExport(BaseModel):
+    degree: DEGREE
+    title: str = Field(min_length=8, max_length=500)
+    language: Literal["ar", "en", "fr"] = "ar"
+    manuscript: str = Field(min_length=1, max_length=MAX_MANUSCRIPT)
+    sources: str = Field(default="", max_length=15_000)
+
+
+class SurveyRequest(BaseModel):
+    title: str = Field(min_length=8, max_length=500)
+    axes: list[str] = Field(min_length=1, max_length=12)
+    language: Literal["ar", "en", "fr"] = "ar"
+    questions_per_axis: int = Field(default=4, ge=2, le=10)
+
+
+def research_instructions(request: ResearchRequest) -> str:
+    language = {"ar": "Modern Standard Arabic", "en": "English", "fr": "French"}[request.language]
+    return f"""NABIL ACADEMIC RESEARCH MODE V1. Degree: {request.degree}. Stage: {request.stage}.
+Write in {language}, professionally and naturally, respecting the researcher's original ideas.
+Doctoral-level proposals require an explicit original contribution and rigorous methodological justification;
+master's-level work needs a feasible, coherent scope. Title/outline are constraints, not evidence.
+Structure: research problem, objectives, questions, hypotheses only when appropriate, conceptual
+framework, methods, participants/sampling, instruments, analysis, limitations, ethics, and work plan;
+for the theoretical stage provide coherent sections and critical synthesis; for practical stage
+provide research DESIGN only, with blank placeholders for REAL data/results, never invented findings.
+For questionnaire, create clearly grouped axes, non-leading items and an explicit response scale.
+For revision, improve the provided draft while retaining the researcher's claims.
+NEVER fabricate publications, authors, quotations, DOI, page numbers, citations, URLs, fieldwork,
+participant consent, survey responses, statistics or empirical outcomes. Only attribute a citation
+when a provided excerpt genuinely establishes it; otherwise write [SOURCE NEEDED] at the exact claim.
+The user's source list is unverified metadata, not proof that a work says anything. Do not assert
+you searched the web or downloaded a reference. Never claim the text is solely human-authored or
+promise evasion of AI detection; leave authorship and disclosure decisions to university rules.
+Be substantial for the requested STAGE, not a fake promise that an entire doctorate fits one reply.
+Return only the requested stage, with useful headings and substantive draft text."""
+
+
+@router.post("/draft")
+def draft_research(request: ResearchRequest):
+    question = (
+        f"Research title:\n{request.title}\n\nOwner's outline:\n{request.outline}"
+        f"\n\nResearcher guidance:\n{request.guidance or '(none)'}"
+        f"\n\nResearcher-supplied bibliographic notes (UNVERIFIED):\n{request.sources or '(none)'}"
+        f"\n\nPrevious draft to continue or revise:\n{request.previous_text or '(none)'}"
+        f"\n\nWrite stage: {request.stage}."
+    )
+    try:
+        result = NabilAIGateway().generate(
+            instructions=research_instructions(request),
+            messages=[{"role": "user", "content": question}],
+            max_output_tokens=5200 if request.stage in ("theoretical", "practical") else 3400,
+        )
+    except Exception:
+        raise HTTPException(status_code=503, detail="Research generation is unavailable; retry without losing your draft.")
+    if not isinstance(result, str) or not result.strip():
+        raise HTTPException(status_code=503, detail="No academic draft was returned; please retry.")
+    return {"degree": request.degree, "stage": request.stage, "title": request.title,
+            "text": result.strip(), "sources_verified": False, "complete_thesis": False}
+
+
+def build_research_docx(request: ResearchExport) -> bytes:
+    from docx import Document
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+    from docx.shared import Cm, Pt
+
+    doc = Document()
+    sec = doc.sections[0]
+    sec.top_margin = sec.bottom_margin = Cm(2.5)
+    sec.left_margin = sec.right_margin = Cm(2.6)
+    style = doc.styles["Normal"]
+    style.font.name = "Arial"
+    style.font.size = Pt(12)
+    style.paragraph_format.space_after = Pt(7)
+
+    def add(text: str, kind: str = ""):
+        paragraph = doc.add_paragraph(style=kind or None)
+        if request.language == "ar":
+            paragraph.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+            prop = paragraph._p.get_or_add_pPr()
+            bidi = OxmlElement("w:bidi")
+            bidi.set(qn("w:val"), "1")
+            prop.append(bidi)
+        run = paragraph.add_run(text)
+        if request.language == "ar":
+            rtl = OxmlElement("w:rtl")
+            rtl.set(qn("w:val"), "1")
+            run._r.get_or_add_rPr().append(rtl)
+        return paragraph
+
+    add(request.title, "Title")
+    add("Doctoral research draft" if request.degree == "doctorate" else "Master's research draft")
+    add("Researcher review required: validate source claims, methods, data and university requirements.")
+    for raw in request.manuscript.splitlines():
+        line = raw.strip()
+        if not line:
+            doc.add_paragraph()
+        elif line.startswith(("### ", "## ", "# ")):
+            level = 3 if line.startswith("### ") else 2 if line.startswith("## ") else 1
+            title = line.lstrip("#").strip()
+            add(title, f"Heading {level}")
+        else:
+            add(line)
+    if request.sources.strip():
+        add("المراجع المقدّمة من الباحث (تحتاج إلى تحقق)" if request.language == "ar"
+            else "Researcher-supplied references (verification required)", "Heading 1")
+        for source in request.sources.splitlines():
+            if source.strip():
+                add(source.strip())
+    stream = io.BytesIO()
+    doc.save(stream)
+    return stream.getvalue()
+
+
+@router.post("/export/docx")
+def export_research_docx(request: ResearchExport):
+    data = build_research_docx(request)
+    filename = "nabil-doctorate-draft.docx" if request.degree == "doctorate" else "nabil-masters-draft.docx"
+    return StreamingResponse(io.BytesIO(data),
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"',
+                 "Cache-Control": "no-store"})
+
+
+def build_survey_rows(request: SurveyRequest) -> list[dict[str, str]]:
+    labels = {
+        "ar": ("المحور", "العبارة", "مقياس الموافقة الخماسي"),
+        "en": ("Axis", "Item", "Five-point agreement scale"),
+        "fr": ("Axe", "Question", "Échelle d'accord à cinq points"),
+    }
+    axis_label, item_label, scale = labels[request.language]
+    return [
+        {"axis": axis.strip(), "item": f"[{axis_label}: {axis.strip()}] {item_label} {number}: "
+         "[RESEARCHER TO WRITE AND VALIDATE QUESTION]", "response_scale": scale}
+        for axis in request.axes for number in range(1, request.questions_per_axis + 1)
+    ]
+
+
+@router.post("/survey/template")
+def survey_template(request: SurveyRequest):
+    if any(not item.strip() or len(item) > 160 for item in request.axes):
+        raise HTTPException(status_code=422, detail="Each survey axis needs a short, non-empty name.")
+    return {"title": request.title, "axes": request.axes,
+            "items": build_survey_rows(request), "google_form_created": False,
+            "note": "Editable survey template only. Actual Google Forms creation requires user-authorized OAuth."}
+
+
+@router.post("/survey/csv")
+def survey_csv(request: SurveyRequest):
+    if any(not item.strip() or len(item) > 160 for item in request.axes):
+        raise HTTPException(status_code=422, detail="Each survey axis needs a short, non-empty name.")
+    stream = io.StringIO()
+    stream.write("\ufeff")
+    writer = csv.DictWriter(stream, fieldnames=["axis", "item", "response_scale"])
+    writer.writeheader()
+    writer.writerows(build_survey_rows(request))
+    return StreamingResponse(iter([stream.getvalue().encode("utf-8")]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="nabil-survey-template.csv"',
+                 "Cache-Control": "no-store"})
