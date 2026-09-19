@@ -5870,6 +5870,32 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
         raw_reply
     )
 
+    # Student-visible prose must never include provider transport, internal
+    # routing instructions or bare JSON. Do this AFTER extracting valid drawings,
+    # not before, so figures are not silently lost.
+    if is_home_live_tutor:
+        reply_text = re.sub(
+            r"(?is)```(?:json|javascript|nabil-draw)\\s*"
+            r"(?:\\{|\\[)[\\s\\S]*?```", "", reply_text,
+        )
+        reply_text = re.sub(
+            r"(?mi)^\\s*(?:DRAWINGS?_JSON\\s*:.*|"
+            r"\\s*\\{\\s*[\"'](?:type|color|card_index|exercise_index|scope)[\"']\\s*:.*|"
+            r"\\s*[\"'](?:type|color|card_index|exercise_index|scope)[\"']\\s*:.*|"
+            r"Let's check the drawing requirements.*|"
+            r"The drawing must contain.*|"
+            r"Do not include internal routing instructions.*|"
+            r"Below are the sketches for each exercise.*)\\s*$",
+            "", reply_text,
+        )
+        reply_text = re.sub(r"\\n{3,}", "\\n\\n", reply_text).strip()
+        if not reply_text and not drawings:
+            reply_text = (
+                "Please restate the function or provide the figure's measurements."
+                if re.search(r"\\b(?:draw|graph|figure|function)\\b", str(message or ""), re.I)
+                else "أعد صياغة سؤالك حتى أعطيك جوابًا دقيقًا."
+            )
+
     is_lesson_start = _nabil_lesson_start_request(message)
     lesson_key = str(lesson or "").lower()
 
@@ -5934,6 +5960,22 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
         re.I,
     ))
 
+    # Direct requests such as "draw the graph" and spoken "ارسم الدالة"
+    # must be drawing requests even when "study the function" is absent.
+    visual_function_request = bool(re.search(
+        r"\\b(?:draw|plot|graph|sketch|trace|tracer|dessiner)\\b|"
+        r"ارسم|الرسم البياني|ارسم الدالة|ارسملي", function_request_text, re.I,
+    ))
+    if visual_function_request and not is_explicit_function_request and (
+        re.search(r"\\b(?:ln|log|exp|sqrt|sin|cos)\\s*\\(|f\\s*\\(\\s*x\\s*\\)\\s*=",
+                  function_request_text + "\\n" + str(reply_text or ""), re.I)
+    ):
+        function_drawing = _graph_safe_function_drawing(
+            message=message, reply_text=reply_text, card_index=1,
+        )
+        if function_drawing and validate_drawing_strict(function_drawing):
+            # Never claim success if the graph cannot be rendered downstream.
+            drawings = [function_drawing]
     if is_explicit_function_request:
         function_drawing = _graph_safe_function_drawing(
             message=message,
