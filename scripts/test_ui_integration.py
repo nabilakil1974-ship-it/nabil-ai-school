@@ -95,7 +95,7 @@ class NabilUiIntegrationTests(unittest.TestCase):
         main_py = (ROOT / "app" / "main.py").read_text(encoding="utf-8")
         for token in (
             "prepareSpeechTypewriter", "nabilOpenPace", "window.nabilVoicePace",
-            'board.dir=dir', 'board.lang=', "detectLanguage(question",
+            'board.dir=dir', 'board.lang=', "detectLanguage(reply&&detectLanguage(reply)",
             "drawingPreviewModal", "Enlarge figure", "Agrandir le schéma",
             "معاينة الرسمة كبيرة",
             'input.dir=lang==="العربية"?"rtl":"ltr"',
