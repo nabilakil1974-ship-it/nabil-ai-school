@@ -108,6 +108,29 @@ class TutorOwnerContractTests(unittest.TestCase):
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment, OPEN)
 
+    def test_owner_mobile_avatar_above_full_width_answer(self):
+        for fragment in (
+            "OWNER_MOBILE_AVATAR_ABOVE_FULL_WIDTH_ANSWER_V8",
+            "width:100%!important;max-width:min(100%,410px)!important",
+            "height:clamp(240px,74vw,390px)!important",
+            "#nabilHomeTutorHost #nabilOpenAnswer.has-answer",
+            "max-height:none!important;min-height:0!important;height:auto!important",
+            "#nabilHomeTutorHost #nabilOpenExplanation",
+            "#nabilHomeTutorHost #nabilOpenVisuals",
+            "#nabilHomeTutorHost #nabilOpenInput",
+            "#nabilHome #homeStartShortcut",
+        ):
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, CSS)
+
+    def test_home_prompt_replaces_generic_worksheet(self):
+        self.assertIn("HOME_TUTOR_REPLACE_GENERIC_WORKSHEET_V2", CHAT)
+        self.assertIn('educational_context = """\\nNABIL AI — OPEN', CHAT)
+        self.assertIn("numerator = بسط", CHAT)
+        self.assertIn("denominator = مقام", CHAT)
+        self.assertIn("oblique asymptote/asymptote oblique", CHAT)
+        self.assertIn("NEVER reverse them", CHAT)
+
     def test_owner_visual_board_left_robot_and_unclipped_mobile(self):
         for fragment in (
             "OWNER_HOME_WIDE_BOARD_V6",
