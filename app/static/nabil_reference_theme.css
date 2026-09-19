@@ -1340,3 +1340,47 @@ body.nabil-lesson-active #nv132Result .nv132-figure-card{
   line-height:1.75!important;font-size:clamp(15px,4vw,19px)!important;
  }
 }
+
+/* Full lesson classroom/projector mode and visibly distinguished core rules. */
+.nabil-key-rule{
+ color:#ff5b62!important;
+ border-inline-start:4px solid #ff4048!important;
+ background:rgba(255,64,72,.08)!important;
+ padding:8px 10px!important;
+ border-radius:8px!important;
+ font-weight:800!important;
+}
+body.nabil-projector-mode{
+ overflow:auto!important;
+ background:#041326!important;
+}
+body.nabil-projector-mode .header,
+body.nabil-projector-mode #nabilHome,
+body.nabil-projector-mode .nabil-open-composer,
+body.nabil-projector-mode .nabil-open-pace{
+ display:none!important;
+}
+body.nabil-projector-mode .container,
+body.nabil-projector-mode .lesson-main-column,
+body.nabil-projector-mode #chat{
+ width:100%!important;
+ max-width:100%!important;
+ margin:0!important;
+ padding:clamp(12px,2.2vw,34px)!important;
+}
+body.nabil-projector-mode .message.teacher .bubble,
+body.nabil-projector-mode #nv132Result,
+body.nabil-projector-mode .lesson-concept-card,
+body.nabil-projector-mode .exercise-board{
+ width:100%!important;
+ max-width:100%!important;
+ font-size:clamp(18px,2vw,31px)!important;
+ line-height:1.75!important;
+}
+body.nabil-projector-mode svg,
+body.nabil-projector-mode canvas,
+body.nabil-projector-mode img{
+ max-width:100%!important;
+ height:auto!important;
+ object-fit:contain!important;
+}
