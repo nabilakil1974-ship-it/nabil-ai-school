@@ -1,14 +1,74 @@
-"""Run NABIL AI and resume science PDF ingestion after Railway restarts.
+"""Start the web server and optionally supervise resumable science indexing.
 
-Every Railway deploy replaces its container, so a manually started Console job
-cannot survive it. Launch ingestion with the server instead, with durable
-per-page progress in PostgreSQL and a cross-container advisory lock.
+Railway replaces containers on deploy. Book progress is saved per PDF page in
+PostgreSQL. The optional background indexer is relaunched after nonzero exits
+instead of silently stopping forever. A separate Railway worker is preferred
+where CPU/RAM are limited.
 """
 import os
 import subprocess
 import sys
+import threading
 
 import uvicorn
+
+SCIENCE_COMMAND = (
+    sys.executable, "-u", "-m", "scripts.index_science_textbooks", "all"
+)
+
+
+def _supervise_science(stop: threading.Event) -> None:
+    retry_seconds = max(
+        30, int(os.environ.get("NABIL_SCIENCE_RETRY_SECONDS", "120"))
+    )
+    # Give the public web app time to start responding before indexing.
+    if stop.wait(15):
+        return
+    while not stop.is_set():
+        try:
+            worker = subprocess.Popen(
+                SCIENCE_COMMAND,
+                cwd="/app",
+                env={**os.environ, "PYTHONUNBUFFERED": "1"},
+            )
+            print(
+                f"SCIENCE_INDEX_AUTO_RESUME started pid={worker.pid}; "
+                "chemistry -> physics -> biology; resume ONLY missing pages",
+                flush=True,
+            )
+            while not stop.is_set():
+                try:
+                    exit_code = worker.wait(timeout=2)
+                    break
+                except subprocess.TimeoutExpired:
+                    continue
+            else:
+                exit_code = None
+            if stop.is_set():
+                if worker.poll() is None:
+                    worker.terminate()
+                    try:
+                        worker.wait(timeout=10)
+                    except subprocess.TimeoutExpired:
+                        worker.kill()
+                        worker.wait()
+                return
+            if exit_code == 0:
+                print("SCIENCE_INDEX_ALL_COMPLETE; worker exited normally", flush=True)
+                return
+            print(
+                f"SCIENCE_INDEX_WORKER_EXITED code={exit_code}; "
+                f"restarting in {retry_seconds}s from PostgreSQL checkpoints",
+                flush=True,
+            )
+        except Exception as exc:
+            print(
+                f"SCIENCE_INDEX_WORKER_ERROR {type(exc).__name__}: {exc}; "
+                f"retry in {retry_seconds}s",
+                flush=True,
+            )
+        if stop.wait(retry_seconds):
+            return
 
 
 def main() -> None:
@@ -20,39 +80,23 @@ def main() -> None:
     if not 1 <= port <= 65535:
         raise SystemExit(f"PORT out of range: {port}")
 
-    worker = None
-    # Disabled by default on the public web service: OCR/embeddings can OOM
-    # the student server. Use the dedicated science_worker service instead,
-    # or opt in with NABIL_AUTO_INDEX_SCIENCE=1 when resources allow.
+    stop = threading.Event()
     auto_index = os.environ.get("NABIL_AUTO_INDEX_SCIENCE", "0").strip().lower()
+    supervisor = None
     if auto_index not in {"0", "false", "no", "off"}:
-        try:
-            worker = subprocess.Popen(
-                [sys.executable, "-u", "-m", "scripts.index_science_textbooks", "all"],
-                cwd="/app",
-                env={**os.environ, "PYTHONUNBUFFERED": "1"},
-                stdout=None,  # worker progress appears in Railway Deploy Logs
-                stderr=None,
-            )
-            print(
-                f"SCIENCE_INDEX_AUTO_RESUME started pid={worker.pid}; "
-                "chemistry -> physics -> biology; PostgreSQL checkpoints enabled",
-                flush=True,
-            )
-        except Exception as exc:
-            # Ingestion must not take down the student-facing website.
-            print(f"SCIENCE_INDEX_START_FAILED: {exc}", flush=True)
+        supervisor = threading.Thread(
+            target=_supervise_science, args=(stop,), daemon=True,
+            name="nabil-science-index-supervisor",
+        )
+        supervisor.start()
+        print("SCIENCE_INDEX_SUPERVISOR enabled", flush=True)
 
     try:
         uvicorn.run("app.main:app", host="0.0.0.0", port=port)
     finally:
-        if worker is not None and worker.poll() is None:
-            worker.terminate()
-            try:
-                worker.wait(timeout=12)
-            except subprocess.TimeoutExpired:
-                worker.kill()
-                worker.wait()
+        stop.set()
+        if supervisor is not None:
+            supervisor.join(timeout=15)
 
 
 if __name__ == "__main__":
