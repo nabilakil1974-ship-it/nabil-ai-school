@@ -195,9 +195,10 @@ class NabilUiIntegrationTests(unittest.TestCase):
             self.assertIn(token, backend)
         self.assertIn("#nabilWorksheetPanel", theme)
         self.assertIn("@media(max-width:720px)", theme)
-        self.assertIn("nabil_worksheet_v1.js?v=3", self.html)
+        self.assertIn("nabil_worksheet_v1.js?v=4", self.html)
         self.assertIn('document.addEventListener("click"', script)
         self.assertIn('closest("#nabilWorksheetBtn")', script)
+        self.assertIn('block:"start"})},true)', script)
         self.assertNotIn('||$("nabilWorksheetBtn"))return', script)
         self.assertIn('let btn=$("nabilWorksheetBtn")', script)
 
