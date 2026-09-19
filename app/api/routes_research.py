@@ -7,16 +7,19 @@ import json
 import re
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.services.ai_gateway import NabilAIGateway
+from app.services.research_survey_analysis import (MAX_UPLOAD, SurveyDataError,
+    summarize_survey, report_markdown, tables_csv, spss_syntax)
 from app.services.research_docx_notes import attach_researcher_footnotes
 
 router = APIRouter(prefix="/research", tags=["research"])
 DEGREE = Literal["masters", "doctorate"]
-STAGE = Literal["proposal", "theoretical", "practical", "questionnaire", "revision"]
+STAGE = Literal["proposal", "theoretical", "questionnaire", "sampling",
+                "practical", "results", "conclusion", "summary", "revision"]
 MAX_MANUSCRIPT = 120_000
 
 
@@ -54,8 +57,8 @@ Doctoral-level proposals require an explicit original contribution and rigorous 
 master's-level work needs a feasible, coherent scope. Title/outline are constraints, not evidence.
 Structure: research problem, objectives, questions, hypotheses only when appropriate, conceptual
 framework, methods, participants/sampling, instruments, analysis, limitations, ethics, and work plan;
-for the theoretical stage provide coherent sections and critical synthesis; for practical stage
-provide research DESIGN only, with blank placeholders for REAL data/results, never invented findings.
+for the theoretical stage provide coherent sections and critical synthesis; after theoretical stage,\nfor questionnaire stage propose validated axes/items; for sampling stage distinguish target population,\nsampling frame, actual recruitment and observed valid responses, never invented N; for practical stage
+provide research DESIGN only, with blank placeholders for REAL data/results, never invented findings.\nFor results and conclusion stages, use ONLY actual aggregates explicitly provided; when no real verified\ndata are included, prepare fillable interpretation headings instead of invented tables, statistics or claims.\nFor the final summary, distinguish supported findings, limitations and future research.
 For questionnaire, create clearly grouped axes, non-leading items and an explicit response scale.
 For revision, improve the provided draft while retaining the researcher's claims.
 NEVER fabricate publications, authors, quotations, DOI, page numbers, citations, URLs, fieldwork,
@@ -81,7 +84,7 @@ def draft_research(request: ResearchRequest):
         result = NabilAIGateway().generate(
             instructions=research_instructions(request),
             messages=[{"role": "user", "content": question}],
-            max_output_tokens=5200 if request.stage in ("theoretical", "practical") else 3400,
+            max_output_tokens=5200 if request.stage in ("theoretical", "practical", "results") else 3400,
         )
     except Exception:
         raise HTTPException(status_code=503, detail="Research generation is unavailable; retry without losing your draft.")
@@ -251,4 +254,74 @@ def google_forms_script(request: GoogleFormScriptRequest):
     data = build_google_form_script(request).encode("utf-8")
     return StreamingResponse(iter([data]), media_type="text/plain; charset=utf-8",
         headers={"Content-Disposition": 'attachment; filename="nabil-create-google-form.gs"',
+                 "Cache-Control": "no-store"})
+
+
+# Verified provider landing pages, NOT extracted theses or verified citations.
+RESEARCH_PORTALS = [
+    {"name": "OATD", "url": "https://www.oatd.org/", "access": "open-access discovery index"},
+    {"name": "White Rose eTheses", "url": "https://etheses.whiterose.ac.uk/",
+     "access": "open institutional theses; each record may have its own conditions"},
+    {"name": "AUC Knowledge Fountain", "url": "https://fount.aucegypt.edu/",
+     "access": "institutional repository; some items embargoed or restricted"},
+    {"name": "Saudi Digital Library", "url": "https://sdl.edu.sa/",
+     "access": "access may depend on institutional credentials"},
+    {"name": "ProQuest Dissertations & Theses", "url": "https://www.proquest.com/",
+     "access": "institutional subscription or purchase may be required"},
+]
+
+
+@router.get("/source-portals")
+def source_portals():
+    return {"portals": RESEARCH_PORTALS, "retrieved_theses": [],
+            "note": "Discovery links only; verify the original record/full text and citation before quoting."}
+
+
+def _axis_columns(text_value: str) -> dict[str, list[str]]:
+    try:
+        value = json.loads(text_value)
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(status_code=422, detail="Axes must be a JSON object mapping axis names to CSV item columns.") from exc
+    if not isinstance(value, dict) or any(not isinstance(k, str)
+       or not isinstance(v, list) or any(not isinstance(c, str) for c in v)
+       for k, v in value.items()):
+        raise HTTPException(status_code=422, detail="Invalid axis-to-column mapping.")
+    return value
+
+
+async def _uploaded_analysis(file: UploadFile, axes_json: str):
+    axes = _axis_columns(axes_json)
+    data = await file.read(MAX_UPLOAD + 1)
+    try:
+        return summarize_survey(data, axes)
+    except SurveyDataError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/survey/analyze")
+async def analyze_uploaded_survey(file: UploadFile = File(...),
+                                  axes_json: str = Form(...),
+                                  language: Literal["ar", "en", "fr"] = Form("ar")):
+    report = await _uploaded_analysis(file, axes_json)
+    return {"summary": report, "markdown": report_markdown(report, language),
+            "actual_data_analyzed": True, "spss_executed": False}
+
+
+@router.post("/survey/analysis-tables.csv")
+async def download_analysis_tables(file: UploadFile = File(...),
+                                   axes_json: str = Form(...)):
+    report = await _uploaded_analysis(file, axes_json)
+    return StreamingResponse(iter([tables_csv(report)]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="nabil-survey-tables.csv"',
+                 "Cache-Control": "no-store"})
+
+
+@router.post("/survey/analysis.sps")
+async def download_spss_syntax(file: UploadFile = File(...),
+                               axes_json: str = Form(...)):
+    report = await _uploaded_analysis(file, axes_json)
+    return StreamingResponse(iter([spss_syntax(report).encode("utf-8")]),
+        media_type="text/plain; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="nabil-survey-analysis.sps"',
                  "Cache-Control": "no-store"})
