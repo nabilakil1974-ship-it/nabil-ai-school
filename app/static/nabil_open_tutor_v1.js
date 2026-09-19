@@ -88,7 +88,7 @@ async function submit(blob){
   data.append("activity_mode","general_exercises");
   data.append("teaching_mode","interactive");
   // NO grade/subject/lesson: topic and reply language inferred from utterance.
-  data.append("language","Auto");
+  data.append("language","AUTO");
   if(typeof conversationId!=="undefined"&&conversationId)data.append("conversation_id",conversationId);
   const response=await fetch("/api/chat",{method:"POST",body:data});
   const result=await response.json().catch(()=>({detail:"الخادم لم يرجع JSON صالحًا"}));
@@ -128,5 +128,8 @@ document.addEventListener("click",event=>{
  event.preventDefault();event.stopImmediatePropagation();
  if(recording)stop();else start();
 },true);
+// Open questions and typed prompts should work immediately without selectors.
+// Starting a real lesson explicitly restores lesson mode via the existing handler.
+freeMode();
 window.NabilOpenTutor={start,stop,freeMode};
 })();
