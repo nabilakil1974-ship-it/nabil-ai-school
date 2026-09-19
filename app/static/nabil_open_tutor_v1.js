@@ -115,7 +115,7 @@ function detectLanguage(q){
  // Technical school content dominates a casual Lebanese interjection.
  // The teaching voice must not switch to Arabic merely because a learner
  // starts with "بدي" or says "هلق" in an English/French lesson.
- const french=/\b(bonjour|explique|étudie|etudie|fonction|dérivée|derivee|tracer|courbe|résoudre|resoudre|dessine|dessiner|calcule|montrer|démontrer|demontrer|rayon|sphère|sphere|domaine|limite|numérateur|denominateur|dénominateur|croissante|décroissante|schéma|exercice)\b/i;
+ const french=/\b(bonjour|explique|étudie|etudie|fonction|dérivée|derivee|tracer|courbe|résoudre|resoudre|dessine|dessiner|calcule|montrer|démontrer|demontrer|rayon|sphère|domaine|limite|numérateur|denominateur|dénominateur|croissante|décroissante|schéma|exercice)\b/i;
  if(french.test(t))return "Français";
  const english=/\b(study|function|numerator|denominator|derivative|increasing|decreasing|domain|limit|graph|draw|sphere|radius|physics|chemistry|biology|voltage|current|resistance|exercise|equation|fraction|asymptote|variation|solve|explain|please|show|figure)\b/i;
  if(english.test(t))return "English";
