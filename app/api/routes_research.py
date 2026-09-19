@@ -295,6 +295,26 @@ def build_google_form_script(request: GoogleFormScriptRequest) -> str:
     )
 
 
+@router.post("/survey/questions.csv")
+def survey_real_questions_csv(request: GoogleFormScriptRequest):
+    """Export actual draft survey items; no placeholder items and no fake responses."""
+    # Reuse the same validation as Google Forms script creation.
+    build_google_form_script(request)
+    stream = io.StringIO()
+    stream.write("\ufeff")
+    writer = csv.DictWriter(stream, fieldnames=["axis", "item", "response_scale"])
+    writer.writeheader()
+    scale = {"ar": "ليكرت خماسي", "en": "Five-point Likert",
+             "fr": "Échelle de Likert à cinq points"}[request.language]
+    for item in request.questions:
+        writer.writerow({"axis": item["axis"].strip(), "item": item["item"].strip(),
+                         "response_scale": scale})
+    return StreamingResponse(iter([stream.getvalue().encode("utf-8")]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="nabil-generated-survey.csv"',
+                 "Cache-Control": "no-store"})
+
+
 @router.post("/survey/google-forms-script")
 def google_forms_script(request: GoogleFormScriptRequest):
     data = build_google_form_script(request).encode("utf-8")
