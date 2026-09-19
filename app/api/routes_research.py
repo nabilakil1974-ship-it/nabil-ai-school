@@ -18,22 +18,25 @@ from app.services.research_docx_notes import attach_researcher_footnotes
 
 router = APIRouter(prefix="/research", tags=["research"])
 DEGREE = Literal["masters", "doctorate"]
-STAGE = Literal["proposal", "theoretical", "questionnaire", "sampling",
+STAGE = Literal["structure", "proposal", "theoretical", "questionnaire", "sampling",
                 "practical", "results", "conclusion", "summary", "revision"]
-MAX_MANUSCRIPT = 120_000
+MAX_MANUSCRIPT = 650_000
+THEORETICAL_PARTS = 22
 
 
 class ResearchRequest(BaseModel):
     degree: DEGREE
     title: str = Field(min_length=8, max_length=500)
-    outline: str = Field(min_length=5, max_length=12_000)
+    outline: str = Field(default="", max_length=12_000)
     stage: STAGE = "proposal"
     language: Literal["ar", "en", "fr"] = "ar"
-    previous_text: str = Field(default="", max_length=35_000)
+    previous_text: str = Field(default="", max_length=20_000)
     sources: str = Field(default="", max_length=15_000)
     guidance: str = Field(default="", max_length=4000)
     research_questions: str = Field(default="", max_length=12000)
     observed_aggregates: str = Field(default="", max_length=18000)
+    theoretical_part_index: int | None = Field(default=None, ge=1, le=THEORETICAL_PARTS)
+    chapter_plan: str = Field(default="", max_length=12_000)
 
 
 class ResearchExport(BaseModel):
@@ -53,7 +56,26 @@ class SurveyRequest(BaseModel):
 
 def research_instructions(request: ResearchRequest) -> str:
     language = {"ar": "Modern Standard Arabic", "en": "English", "fr": "French"}[request.language]
-    return f"""NABIL ACADEMIC RESEARCH MODE V1. Degree: {request.degree}. Stage: {request.stage}.
+    part_note = (
+        f"THEORETICAL CHAPTER PART {request.theoretical_part_index} OF {THEORETICAL_PARTS}. "
+        "Write a complete substantive section of at least 350 words, numbered "
+        "and specific to the research title, conceptual framework and questions. "
+        "Avoid repetition or padding and do not fabricate sources or results. "
+        "Generate ONLY this section and its academic subheadings. "
+        if request.stage == "theoretical" and request.theoretical_part_index else ""
+    )
+    return f"""NABIL ACADEMIC RESEARCH MODE V2. Degree: {request.degree}. Stage: {request.stage}.
+{part_note}
+If stage is STRUCTURE and only title is supplied, propose a complete and clearly
+labeled provisional research problem, objectives, questions, justified methodology,
+hypotheses only if appropriate, a coherent theoretical outline of 22 distinct
+substantive sections, a sampling plan, questionnaire axes and study chapters.
+Do not represent inferred information as researcher-supplied.
+For questionnaire stage supply 3–6 specific proposed axes and at least four
+well-worded five-point Likert statements per axis, formatted exactly
+'Axis | Question', one per line; the researcher must validate wording.
+Keep all sections consistent with the user's title and previously developed plan.
+ Degree: {request.degree}. Stage: {request.stage}.
 Write in {language}, professionally and naturally, respecting the researcher's original ideas.
 Doctoral-level proposals require an explicit original contribution and rigorous methodological justification;
 master's-level work needs a feasible, coherent scope. Title/outline are constraints, not evidence.
@@ -75,7 +97,7 @@ Return only the requested stage, with useful headings and substantive draft text
 
 @router.post("/draft")
 def draft_research(request: ResearchRequest):
-    if request.stage in ("results", "conclusion", "summary") and not request.observed_aggregates.strip():
+    if request.stage == "results" and not request.observed_aggregates.strip():
         raise HTTPException(status_code=422, detail="Upload and analyze actual questionnaire responses before empirical findings and final conclusions.")
     question = (
         f"Research title:\n{request.title}\n\nResearch questions:\n{request.research_questions or request.outline}\n\nOwner's outline:\n{request.outline}"
@@ -83,13 +105,14 @@ def draft_research(request: ResearchRequest):
         f"\n\nResearcher-supplied bibliographic notes (UNVERIFIED):\n{request.sources or '(none)'}"
         f"\n\nPrevious draft to continue or revise:\n{request.previous_text or '(none)'}"
         f"\n\nVERIFIED AGGREGATES FROM UPLOADED RESPONSES (if any):\n{request.observed_aggregates or 'NONE'}"
-        f"\n\nWrite stage: {request.stage}."
+        f"\n\nWorking chapter plan (PROVISIONAL):\n{request.chapter_plan or request.outline or request.title}"
+        f"\n\nWrite stage: {request.stage}. Theoretical part index: {request.theoretical_part_index or 'none'}."
     )
     try:
         result = NabilAIGateway().generate(
             instructions=research_instructions(request),
             messages=[{"role": "user", "content": question}],
-            max_output_tokens=5200 if request.stage in ("theoretical", "practical", "results") else 3400,
+            max_output_tokens=4100 if request.stage in ("theoretical", "practical", "results", "structure") else 3400,
         )
     except Exception:
         raise HTTPException(status_code=503, detail="Research generation is unavailable; retry without losing your draft.")
@@ -112,8 +135,9 @@ def build_research_docx(request: ResearchExport) -> bytes:
     sec.left_margin = sec.right_margin = Cm(2.6)
     style = doc.styles["Normal"]
     style.font.name = "Arial"
-    style.font.size = Pt(12)
-    style.paragraph_format.space_after = Pt(7)
+    style.font.size = Pt(14)
+    style.paragraph_format.space_after = Pt(8)
+    style.paragraph_format.line_spacing = 1.5
 
     def add(text: str, kind: str = ""):
         paragraph = doc.add_paragraph(style=kind or None)
@@ -135,6 +159,9 @@ def build_research_docx(request: ResearchExport) -> bytes:
     add("Researcher review required: validate source claims, methods, data and university requirements.")
     for raw in request.manuscript.splitlines():
         line = raw.strip()
+        if line.startswith("[THEORETICAL_PAGE_BREAK]"):
+            doc.add_page_break()
+            continue
         if not line:
             doc.add_paragraph()
         elif line.startswith(("### ", "## ", "# ")):
