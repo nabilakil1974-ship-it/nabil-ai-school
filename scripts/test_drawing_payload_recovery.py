@@ -67,6 +67,12 @@ class DrawingProtocolRecoveryTests(unittest.TestCase):
         self.assertEqual(figure["type"], "sphere")
         self.assertIn("3 cm", figure["radius_label"])
 
+    def test_sphere_wins_over_hallucinated_dimensions(self):
+        source = ROUTES.read_text(encoding="utf-8")
+        self.assertIn("if exact_sphere and not compound_solids:", source)
+        self.assertIn("drawings = [exact_sphere]", source)
+        self.assertIn("compound_solids", source)
+
     def test_missing_radius_does_not_invent_one(self):
         self.assertIsNone(context["_nabil_exact_sphere_drawing"]("Draw a sphere."))
 
