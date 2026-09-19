@@ -100,6 +100,38 @@ class ResearchContract(unittest.TestCase):
         self.assertIn("function createNabilResearchForm() {", script)
         self.assertNotIn("created automatically", script)
 
+    def test_real_sample_statistics_missing_values_and_item_frequencies(self):
+        from app.services.research_survey_analysis import (
+            SurveyDataError, summarize_survey, report_markdown, tables_csv, spss_syntax,
+        )
+        actual = b"Q1,Q2,Q3,participant_label\\n1,2,3,A\\n5,4,3,B\\n,2,4,C\\n"
+        result = summarize_survey(actual, {"Axis A": ["Q1", "Q2"], "Axis B": ["Q3"]})
+        self.assertEqual(result["participant_n"], 3)
+        self.assertEqual(result["axes"][0]["complete_case_n"], 2)
+        self.assertEqual(result["items"][0]["missing_n"], 1)
+        self.assertEqual(result["items"][0]["n_1"], 1)
+        self.assertEqual(result["items"][0]["n_5"], 1)
+        self.assertIn("Descriptive statistics", result["method"])
+        self.assertIn("No raw respondent records", " ".join(result["warnings"]))
+        self.assertIn("Q1", report_markdown(result))
+        self.assertIn(b"TABLE: ITEM FREQUENCIES", tables_csv(result))
+        self.assertIn("RELIABILITY", spss_syntax(result))
+        self.assertIn("FREQUENCIES", spss_syntax(result))
+        with self.assertRaises(SurveyDataError):
+            summarize_survey(b"Q1,Q2\\n6,1\\n", {"A": ["Q1"]})
+        with self.assertRaises(SurveyDataError):
+            summarize_survey(actual, {"A": ["Q1"], "B": ["Q1"]})
+
+    def test_single_click_staged_research_no_fabricated_empirical_conclusion(self):
+        self.assertIn("nabilResearchFullThesis", UI)
+        self.assertIn("research_questions:questions.value.trim()", UI)
+        self.assertIn("observed_aggregates:observedAggregates", UI)
+        self.assertIn("/api/research/survey/analyze", UI)
+        self.assertIn("/api/research/survey/analysis.sps", UI)
+        self.assertIn("OATD", UI)
+        self.assertIn("Upload and analyze actual questionnaire responses", RESEARCH)
+        self.assertIn("survey/analysis-tables.csv", RESEARCH)
+
     def test_survey_is_labeled_template_not_created_form(self):
         self.assertIn('"google_form_created": False', RESEARCH)
         self.assertIn("RESEARCHER TO WRITE AND VALIDATE QUESTION", RESEARCH)
