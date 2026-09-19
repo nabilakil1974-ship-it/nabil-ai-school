@@ -585,3 +585,77 @@ html,body{background:var(--nabil-ref-page)!important;color:var(--nabil-ref-text)
   max-height:none!important;object-fit:contain!important;
  }
 }
+
+/* OWNER_HOME_WIDE_BOARD_V6 — robot occupies the far-left visual column;
+   the solution and diagrams get the larger right-hand teaching area. */
+@media (min-width:901px){
+ #nabilHome{background:#05172d!important;overflow:hidden!important}
+ #nabilHome .home-bg{
+  background-position:left center!important;
+  background-size:auto 100%!important;
+ }
+ #nabilHome .profile-real{
+  left:0!important;right:auto!important;
+  background-position:left center!important;
+  object-position:left center!important;
+ }
+ #nabilHomeTutorHost,
+ #nabilHomeTutorHost:has(#nabilOpenAnswer.has-answer){
+  left:auto!important;right:1%!important;top:2%!important;
+  width:clamp(570px,calc(100vw - 590px),1150px)!important;
+  max-width:calc(100vw - min(42vw,570px) - 12px)!important;
+  max-height:95dvh!important;
+  overflow-y:auto!important;
+ }
+ #nabilHomeTutorHost #nabilOpenAnswer{
+  max-height:68dvh!important;
+  overflow-y:auto!important;
+ }
+ #nabilHomeTutorHost #nabilOpenTutor{padding:14px 18px!important}
+}
+#nabilOpenAnswer{
+ overflow-wrap:anywhere;word-break:normal;
+ line-height:1.75!important;
+}
+#nabilOpenExplanation{
+ font-size:clamp(15px,1.12vw,18px)!important;
+ line-height:1.78!important;
+}
+#nabilOpenExplanation p,#nabilOpenExplanation li{
+ line-height:1.8!important;
+}
+#nabilOpenExplanation pre,#nabilOpenExplanation table{
+ max-width:100%!important;overflow-x:auto!important;
+}
+#nabilOpenLiveType{
+ background:#0b3150!important;color:#eaf9ff!important;
+ border:1px solid #1c769f;border-radius:10px;
+ padding:10px 12px;margin-bottom:10px;
+ font-size:clamp(15px,1.1vw,18px);line-height:1.7;
+ max-height:14vh;overflow-y:auto;
+}
+#nabilOpenAnswer[lang="en"] *,
+#nabilOpenAnswer[lang="fr"] *{
+ direction:ltr;text-align:left;
+}
+#nabilOpenAnswer[lang="en"] svg *,
+#nabilOpenAnswer[lang="fr"] svg *{
+ text-align:initial;
+}
+#nabilOpenVisuals{
+ min-height:min(54vh,540px);
+}
+#nabilOpenVisuals[hidden]{min-height:0}
+#nabilOpenVisuals .nabil-open-visual svg{
+ min-height:clamp(300px,34vw,570px)!important;
+}
+@media (max-width:900px){
+ #nabilHome .home-bg{background-position:center top!important}
+ #nabilOpenExplanation{font-size:15px!important}
+ #nabilOpenVisuals .nabil-open-visual svg{
+  min-height:260px!important;
+ }
+ #nabilHomeTutorHost #nabilOpenAnswer{
+  max-height:none!important;overflow:visible!important;
+ }
+}
