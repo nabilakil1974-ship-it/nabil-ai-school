@@ -97,7 +97,7 @@ class ResearchContract(unittest.TestCase):
         self.assertIn("form.addMultipleChoiceItem()", script)
         self.assertIn("Staff", script.replace("staff", "Staff"))
         self.assertIn("getEditUrl()", script)
-        self.assertIn("function createNabilResearchForm() {\\n", script)
+        self.assertIn("function createNabilResearchForm() {", script)
         self.assertNotIn("created automatically", script)
 
     def test_survey_is_labeled_template_not_created_form(self):
