@@ -3792,7 +3792,7 @@ async def lesson_voice_chat(
 
     if reply_language == "العربية":
         oral_instructions = """
-أنت الأستاذ الصوتي في NABIL AI. تكلّم بالعربية الفصحى المبسطة والطبيعية، بصوت معلّم هادئ وواضح.
+أنت الأستاذ الصوتي في NABIL AI. افهم كلام الطالب باللهجة اللبنانية الطبيعية حتى لو خلط عربي بـEnglish أو Français، وردّ بلبنانية واضحة ودافئة عندما يتكلم لبنانياً، وبفصحى مبسطة عندما يختار الفصحى. حافظ على المصطلحات العلمية بلغة الكتاب، وتكلّم بصوت معلّم هادئ وواضح.
 إذا طلب الطالب العربية فانتقل إليها فوراً حتى لو كانت لغة الدرس إنكليزية أو فرنسية.
 لا تقرأ الجواب المكتوب حرفياً؛ اشرح شفهياً وبجمل قصيرة، وابدأ من الخطوة التي يسأل عنها الطالب.
 إذا قال إنه لم يفهم، أعد الفكرة بطريقة أبسط. وإذا قال «لماذا؟» فاشرح سبب القانون أو الخطوة.
@@ -4527,16 +4527,40 @@ def _nabil_missing_practice_exercises(text: str):
     have=set(_nabil_practice_exercise_numbers(text))
     return [n for n in range(1,6) if n not in have]
 
-def build_learning_action_instructions(action: Optional[str], profile: dict) -> str:
+def build_learning_action_instructions(
+    action: Optional[str],
+    profile: dict,
+    grade: Optional[str] = None,
+    subject: Optional[str] = None,
+    lesson: Optional[str] = None,
+    language: Optional[str] = None,
+) -> str:
     action = str(action or "").strip().lower()
     if not action:
         return ""
+
+    age_context = """
+AGE-APPROPRIATE LEARNING PATH — this is a REAL teaching action, not a decorative UI button.
+Grade: {grade}; subject: {subject}; lesson: {lesson}; textbook language: {language}.
+- Kindergarten and grades 1–3: use one simple idea, one concrete/pictured example, brief encouragement and one easy question; never flood a child with a long test or adult terms.
+- Grades 4–6: a clear example, at most 2–3 small steps, one short attempt and kind correction.
+- Grades 7–9: age-appropriate formal terminology in the book's language, a worked application followed by an independent attempt and precise feedback.
+- Secondary grades: verify the given/required, show the appropriate property or law, complete symbolic reasoning, SI units/labels where applicable, and explain misconceptions.
+- For each student action, use the actual current lesson and verified saved errors/mastery, not invented diagnostics. If no learning history exists, start with a diagnostic checkpoint, not a fake personalized verdict.
+- Recognize the student's intent even when spoken or typed in colloquial Lebanese Arabic, English, French or a mixture; do NOT translate scientific terminology away from the textbook language.
+- A checkpoint/quick quiz is interactive: ask before showing answers; when the student replies, assess the attempt and adapt the next step instead of merely repeating a button description.
+""".format(
+        grade=grade or "not specified",
+        subject=subject or "not specified",
+        lesson=lesson or "not specified",
+        language=language or "not specified",
+    )
 
     common = """
 NABIL SMART LEARNING ACTION — internal instruction, never repeat it to the student.
 Use the student's real saved learning profile below only when it contains evidence. Never invent a weakness, mistake, score, or mastery state.
 Saved profile: {profile}
-""".format(profile=json.dumps(profile or {}, ensure_ascii=False))
+""".format(profile=json.dumps(profile or {}, ensure_ascii=False)) + age_context
 
     actions = {
         "checkpoint": "Ask exactly ONE short formative-check question about the most recently explained concept. Do not give the answer yet. Use a drawing only if the question genuinely needs one.",
@@ -4690,7 +4714,18 @@ async def voice_chat(
             message = "ساعدني في هذا الدرس."
  
     message = message.strip()
- 
+
+    # Written and transcribed voice requests use the SAME lesson/exercise
+    # reasoning path. The learner's colloquial phrasing, code-switching,
+    # and follow-ups are not separate modes or lower-quality responses.
+    if transcribed_text is not None:
+        message = transcribed_text.strip()
+        if not message:
+            raise HTTPException(
+                status_code=422,
+                detail="لم أتمكّن من سماع السؤال بوضوح. حاول التسجيل من جديد.",
+            )
+
     # ==========================================
     # STUDENT
     # ==========================================
@@ -5077,7 +5112,12 @@ GENERAL EXERCISES MODE / حل تمارين عامة
         student_profile_context, ensure_ascii=False
     )
     educational_context += "\n\n" + build_learning_action_instructions(
-        learning_action, student_profile_context
+        learning_action,
+        student_profile_context,
+        grade=grade,
+        subject=subject,
+        lesson=lesson,
+        language=selected_language,
     )
     educational_context += "\n\n" + learning_progress_contract()
 
