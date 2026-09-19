@@ -330,3 +330,12 @@ The owner directs programmer and ChatGPT Work to coordinate via this shared mail
 Keep science OCR checkpoints intact; minimize web redeploy interruption. PR #10 (branch fix/science-worker-exclusive-lock-20260919) holds a lock-concurrency fix and CI guard; it is NOT merged or production-verified, so do not count it as deployed. Avoid overlapping indexing sessions.
 
 **Current outstanding owner acceptance:** 390x844 robot resize and full answer board, both home buttons, voice/foreign-language lesson alignment, Grade 9 authentic book scope, figure labels, source integrity, and visible response latency. For each new owner instruction add a dated task row or section before implementing and link the verifying build and live report.
+
+
+## OWNER FEATURE — Academic research project from blue-robot home (2026-09-19)
+
+Issue #13: a researcher can ask from unscoped home for a complete master's research proposal, theoretical and applied research plan, methodology and multiple-axis questionnaire. Implement iterative, editable stages, real .docx export with correctly linked notes/citations/references, survey Word/CSV plus actual Google Forms creation ONLY when authorized via user OAuth. No invented authors, articles, DOIs, pages, research results, participant responses or claims of submitted/approved university work. Source-grounding is mandatory; collect approved topic, university citation style and actual research material when relevant. UI should offer clear progress and downloads without losing K–12 features.
+
+**Owner addition — natural human scholarly prose:** write clear, varied, discipline-appropriate academic Arabic/English/French, not generic AI templates or repetitious robotic prose; retain researcher control over voice, interpretations, original contributions and revisions. Never promise AI-detector evasion or misrepresent AI-authored text as solely human-authored; preserve an editable process and respect university disclosure/authorship rules. AI assistance must not invent empirical data or sources. Track as explicit acceptance for #13.
+
+Coordinate staged implementation with Work in this mailbox and validate each cumulative build; issue #13 is scoped/planned, not yet implemented or production-tested.
