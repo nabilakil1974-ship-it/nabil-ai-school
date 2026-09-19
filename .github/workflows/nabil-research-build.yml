@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - app/api/routes_research.py
+      - app/services/research_docx_notes.py
       - app/static/nabil_research_v1.js
       - app/main.py
       - scripts/test_research_workspace.py
@@ -12,6 +13,7 @@ on:
   pull_request:
     paths:
       - app/api/routes_research.py
+      - app/services/research_docx_notes.py
       - app/static/nabil_research_v1.js
       - app/main.py
       - scripts/test_research_workspace.py
@@ -34,7 +36,7 @@ jobs:
       - name: Install document package
         run: python -m pip install python-docx==1.1.2
       - name: Backend syntax
-        run: python -m py_compile app/api/routes_research.py app/main.py scripts/test_research_workspace.py
+        run: python -m py_compile app/api/routes_research.py app/services/research_docx_notes.py app/main.py scripts/test_research_workspace.py
       - name: Frontend syntax
         run: node --check app/static/nabil_research_v1.js
       - name: Export and research regression

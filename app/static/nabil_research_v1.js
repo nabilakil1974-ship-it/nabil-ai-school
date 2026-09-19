@@ -41,6 +41,8 @@ const output=document.createElement("pre");
 output.id="nabilResearchDraft";
 output.style.cssText="white-space:pre-wrap;word-break:break-word;max-width:100%;font:inherit;line-height:1.8;background:#091b2a;padding:12px;border:1px solid #22648d;border-radius:8px;max-height:55vh;overflow:auto";
 output.textContent="اختر المرحلة للبدء.";
+output.contentEditable="true";output.setAttribute("aria-label","مسودة بحث قابلة للتحرير؛ أدرج [FN:1] لربط أول مرجع من قائمة المراجع بهامش Word");
+output.addEventListener("input",()=>{manuscript=output.innerText.slice(0,120000);});
 const status=document.createElement("p");status.setAttribute("role","status");panel.append(status);
 let manuscript="";
 let busy=false;
@@ -86,6 +88,7 @@ download.addEventListener("click",async()=>{
  }catch(err){setStatus(err.message||"تعذر تصدير Word.");}
 });
 panel.append(download);
+const footnoteHelp=document.createElement("p");footnoteHelp.textContent="يمكنك تعديل المسودة مباشرة. لهامش Word حقيقي، اكتب [FN:1] عند موضع الاستشهاد، وضع المرجع الأول في السطر الأول من قائمة المراجع. راجع صحة المرجع قبل التسليم.";panel.append(footnoteHelp);
 const axes=label("محاور الاستبيان (كل محور بسطر مستقل)",document.createElement("textarea"));
 axes.rows=3;axes.placeholder="المحور الأول\nالمحور الثاني\nالمحور الثالث";
 const survey=document.createElement("button");survey.type="button";survey.textContent="⬇ تنزيل قالب استبيان CSV";

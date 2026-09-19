@@ -12,6 +12,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.services.ai_gateway import NabilAIGateway
+from app.services.research_docx_notes import attach_researcher_footnotes
 
 router = APIRouter(prefix="/research", tags=["research"])
 DEGREE = Literal["masters", "doctorate"]
@@ -142,7 +143,7 @@ def build_research_docx(request: ResearchExport) -> bytes:
                 add(source.strip())
     stream = io.BytesIO()
     doc.save(stream)
-    return stream.getvalue()
+    return attach_researcher_footnotes(stream.getvalue(), request.sources)
 
 
 @router.post("/export/docx")
