@@ -86,6 +86,30 @@ const setStatus=(t,error=false)=>{status.textContent=t;status.classList.toggle("
 const setBusy=x=>{busy=x;send.disabled=x;talk.disabled=x&&!recording;card.classList.toggle("is-busy",x)};
 const escapeHTML=t=>String(t??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
+/* A data-faithful, scalable 3D-perspective SVG if the legacy renderer does not
+   support sphere. Use ONLY the radius already validated by the backend. */
+function renderVerifiedSphereFallback(d){
+ if(String(d?.type||"").toLowerCase()!=="sphere")return "";
+ const radius=Number(d.radius);
+ if(!Number.isFinite(radius)||radius<=0||radius>=1000000)return "";
+ const label=String(d.radius_label||d.labels?.radius||("r = "+radius.toString()));
+ const title=escapeHTML(String(d.title||"Sphere"));
+ const safeLabel=escapeHTML(label);
+ return '<svg class="nabil-open-sphere-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 520" role="img" aria-label="'+title+", "+safeLabel+'">'+
+  '<defs><radialGradient id="nabilSphereFill" cx="32%" cy="26%" r="76%"><stop stop-color="#74d9ff"/><stop offset=".52" stop-color="#2482d9"/><stop offset="1" stop-color="#082b58"/></radialGradient></defs>'+
+  '<rect width="680" height="520" rx="22" fill="#081e33"/>'+
+  '<circle cx="340" cy="245" r="172" fill="url(#nabilSphereFill)" stroke="#53cbff" stroke-width="3"/>'+
+  '<path d="M168 245 A172 57 0 0 1 512 245" fill="none" stroke="#e0f7ff" stroke-width="2" stroke-dasharray="8 7" opacity=".8"/>'+
+  '<path d="M168 245 A172 57 0 0 0 512 245" fill="none" stroke="#d8f6ff" stroke-width="3"/>'+
+  '<circle cx="340" cy="245" r="5" fill="#fff"/>'+
+  '<line x1="340" y1="245" x2="512" y2="245" stroke="#ffdb54" stroke-width="4"/>'+
+  '<circle cx="512" cy="245" r="5" fill="#ffdb54"/>'+
+  '<text x="328" y="231" fill="#fff" font-size="23" text-anchor="end">O</text>'+
+  '<text x="425" y="221" fill="#ffeb87" font-size="23" text-anchor="middle" direction="ltr">'+safeLabel+'</text>'+
+  '</svg>';
+}
+
+
 function detectLanguage(q){
  const t=String(q||"").trim();
  if(/[\u0600-\u06ff]/.test(t))return "العربية";
@@ -124,9 +148,26 @@ function prepareSpeechTypewriter(text,lang){
 }
 
 function renderAnswer(result,question){
- const reply=String(result?.reply||"").trim();
- const figureOnly=!reply&&Array.isArray(result?.drawings)&&result.drawings.length>0;
- if(!reply&&!figureOnly)throw Error("الخادم لم يرجع جوابًا صالحًا.");
+ const rawReply=String(result?.reply||"").trim();
+ // Defence in depth while a rolling Railway deploy may serve an old backend:
+ // no internal drawing transport belongs in student-visible HTML or speech.
+ const cleanReply=rawReply
+   .replace(/<_?DRAWINGS?_JSON>[\s\S]*?<\/DRAWINGS?_JSON>/gi,"")
+   .replace(/\bDRAWINGS?_JSON\s*[:：][\s\S]*$/i,"").trim();
+ const drawings=Array.isArray(result?.drawings)?result.drawings.slice():[];
+ const questionText=String(question||"");
+ const sphereMatch=/\b(?:sphere|sph[èe]re)\b|كرة/i.test(questionText)
+   && questionText.match(/(?:\bradius\b|\brayon\b|نصف\s*القطر|نصف\s*قطر)\s*(?:equal\s+to|égal\s+à|egal\s+a|يساوي|=|:|of|de)?\s*(\d+(?:[.,]\d+)?)\s*(cm|mm|m)?\b/i);
+ const exactRadius=sphereMatch?Number(sphereMatch[1].replace(",",".")):NaN;
+ if(!drawings.length&&Number.isFinite(exactRadius)&&exactRadius>0&&exactRadius<1000000
+    &&/\b(?:draw|figure|sketch|dessin(?:er)?|tracer)\b|ارسم|رسمة|الرسم|الشكل/i.test(questionText)){
+   const unit=sphereMatch[2]||"";
+   drawings.push({type:"sphere",radius:exactRadius,radius_label:"r = "+exactRadius+(unit?" "+unit:""),title:"Sphere"});
+ }
+ const visualOnlyRequested=/\b(?:only\s+the\s+(?:figure|drawing|graph)|figure\s+only|just\s+(?:the\s+)?(?:figure|drawing)|draw\s+only|seulement\s+(?:la\s+)?figure|dessin\s+seulement)\b|(?:الرسمة|الرسم|الشكل)\s*(?:فقط|بس)|(?:فقط|بس)\s*(?:الرسمة|الرسم|الشكل)/i.test(questionText);
+ const figureOnly=drawings.length>0&&(visualOnlyRequested||!cleanReply);
+ const reply=figureOnly?"":cleanReply;
+ if(!reply&&!drawings.length)throw Error("الخادم لم يرجع جوابًا صالحًا.");
  const lang=detectLanguage(question||result?.transcribed_text||reply);
  const dir=lang==="العربية"?"rtl":"ltr";
  board.dir=dir;
@@ -148,11 +189,10 @@ function renderAnswer(result,question){
  }catch(_e){text.innerHTML="<div>"+escapeHTML(reply).replace(/\n/g,"<br>")+"</div>"}
  if(!figureOnly)explanation.appendChild(text);
 
- const drawings=Array.isArray(result?.drawings)?result.drawings:[];
  drawings.forEach(d=>{
    try{
-     if(typeof renderNabilDiagram!=="function")return;
-     const html=renderNabilDiagram(d)||"";
+     const primary=typeof renderNabilDiagram==="function"?(renderNabilDiagram(d)||""):"";
+     const html=primary||renderVerifiedSphereFallback(d);
      if(!html)return;
      const pane=document.createElement("div");
      pane.className="nabil-open-visual";
