@@ -44,7 +44,16 @@ output.id="nabilResearchDraft";
 output.style.cssText="white-space:pre-wrap;word-break:break-word;max-width:100%;font:inherit;line-height:1.8;background:#091b2a;padding:12px;border:1px solid #22648d;border-radius:8px;max-height:none;overflow:visible";
 output.textContent="اختر المرحلة للبدء.";
 output.contentEditable="true";output.setAttribute("aria-label","مسودة بحث قابلة للتحرير؛ أدرج [FN:1] لربط أول مرجع من قائمة المراجع بهامش Word");
-output.addEventListener("input",()=>{manuscript=output.innerText.slice(0,650000);});
+function visibleManuscript(text){
+ return text.replace(/^\[THEORETICAL_PAGE_BREAK\][ \t]*\r?\n/gm,"");
+}
+function editedManuscript(text){
+ // Keep genuine Word page breaks even after the researcher edits the visible
+ // manuscript; never show the OOXML transport marker to the student.
+ return text.replace(/(^## المحور النظري \d+\s*$)/gm,
+   "[THEORETICAL_PAGE_BREAK]\n$1").slice(0,650000);
+}
+output.addEventListener("input",()=>{manuscript=editedManuscript(output.innerText);});
 const status=document.createElement("p");status.setAttribute("role","status");panel.append(status);
 let manuscript="";
 let observedAggregates="";
@@ -75,7 +84,7 @@ for(const [stage,name] of stageLabels){
      manuscript+=(manuscript?"\n\n":"")+"# "+name+"\n"+result.text;
      if(stage==="structure")chapterPlan=result.text.slice(0,12000);
      if(stage==="questionnaire"){generatedQuestionnaire=result.text;populateGeneratedQuestions(result.text);}
-     output.textContent=manuscript;
+     output.textContent=visibleManuscript(manuscript);
      setStatus("تم إنشاء "+name+". هذه مسودة، وليست رسالة مكتملة أو مصادر متحققة.");
    }catch(err){setStatus(err.message||"حدث خطأ ولم تُفقد المسودة.");}
    finally{busy=false;}
@@ -111,7 +120,7 @@ full.addEventListener("click",async()=>{
   manuscript+=(manuscript?"\n\n":"")+start+response.text;
   if(stage==="structure")chapterPlan=response.text.slice(0,12000);
   if(stage==="questionnaire"){generatedQuestionnaire=response.text;populateGeneratedQuestions(response.text);}
-  output.textContent=manuscript;
+  output.textContent=visibleManuscript(manuscript);
  }
  try{
   let index=0;const total=sections.length+22+finalSections.length;
@@ -121,7 +130,7 @@ full.addEventListener("click",async()=>{
    if(stage==="proposal"&&manuscript.includes("# المقدمة وخطة البحث"))continue;
    await appendStage(stage,name,index,total);
   }
-  if(!stopped&&!manuscript.includes("# الإطار النظري")){manuscript+="\n\n# الإطار النظري — 22 قسمًا مفصلًا";output.textContent=manuscript;}
+  if(!stopped&&!manuscript.includes("# الإطار النظري")){manuscript+="\n\n# الإطار النظري — 22 قسمًا مفصلًا";output.textContent=visibleManuscript(manuscript);}
   while(!stopped&&nextTheoryPart<=22){
    await appendStage("theoretical","المحور النظري "+nextTheoryPart,sections.length+nextTheoryPart,total,nextTheoryPart);
    nextTheoryPart++;
@@ -133,7 +142,7 @@ full.addEventListener("click",async()=>{
   }
   if(!stopped&&!observedAggregates&&!manuscript.includes("# نتائج الاستبيان")){
    manuscript+="\n\n# نتائج الاستبيان — تستكمل بعد جمع الإجابات الفعلية\nلم تُجمع بعد بيانات مشاركين، لذلك لا يمكن ادعاء نتائج أو اختبارات دلالة أو SPSS منفذة. يتضمن فصل التطبيق خطة العينة والاستبيان والتحليل، وتكتمل النتائج بعد رفع ملف الإجابات.";
-   output.textContent=manuscript;
+   output.textContent=visibleManuscript(manuscript);
   }
   setStatus(stopped?"تم الإيقاف مع حفظ جميع الأقسام المنجزة في المسودة؛ اضغط إعداد الرسالة لاستكمال الباقي.":"أُنجزت فصول المسودة المتاحة. 22 قسمًا نظريًا منفصلًا بخط Word 14؛ راجع الصفحات والمصادر، وتستكمل النتائج الفعلية من الاستبيان.");
  }catch(err){setStatus("توقف التوليد مع الاحتفاظ بالنص المنجز: "+String(err.message||err));}
@@ -257,7 +266,7 @@ analyze.addEventListener("click",async()=>{
   const data=await (await analysisRequest("/api/research/survey/analyze")).json();
   observedAggregates=JSON.stringify(data.summary);
   manuscript+="\n\n# الجداول والتحليل الوصفي للعينة\n"+data.markdown;
-  output.textContent=manuscript;
+  output.textContent=visibleManuscript(manuscript);
   setStatus("الجداول أُنتجت من البيانات المرفوعة؛ لم يُشغَّل SPSS نفسه. يمكن تنزيل ملف .sps وتشغيله في SPSS.");
  }catch(err){setStatus(String(err.message||err));}finally{busy=false;}
 });

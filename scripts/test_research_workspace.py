@@ -84,6 +84,8 @@ class ResearchContract(unittest.TestCase):
         self.assertIn('nabil_research_v1.js?v=2', MAIN)
         self.assertIn('theoretical_part_index:part', UI)
         self.assertIn('nextTheoryPart<=22', UI)
+        self.assertIn("visibleManuscript(manuscript)", UI)
+        self.assertIn("editedManuscript(output.innerText)", UI)
         self.assertIn('populateGeneratedQuestions(response.text)', UI)
         self.assertIn('/api/research/survey/questions.csv', UI)
         self.assertIn('@router.post("/survey/questions.csv")', RESEARCH)
