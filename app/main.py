@@ -2,6 +2,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
+from starlette.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
@@ -287,6 +288,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# The large legacy lesson HTML is several MB: compress the delivered page and
+# JSON lessons on capable browsers without changing their semantics.
+app.add_middleware(GZipMiddleware, minimum_size=4096, compresslevel=4)
+
 
 # ==========================================================
 # API routers
@@ -350,6 +355,15 @@ def root():
     # the large legacy HTML embeds literal "</body>" in JavaScript templates;
     # replacing all of them splits <script> blocks and displays raw JS to users.
     html = Path("app/static/chat.html").read_text(encoding="utf-8")
+    # Retire the previous client-only XP/mastery simulation. Its old click-
+    # counters and text heuristics were not learning assessments and must not
+    # keep running alongside the evidence-based learning dock.
+    legacy_start = html.find('<script id="nabilV130Script">')
+    if legacy_start >= 0:
+        legacy_end = html.find("</script>", legacy_start)
+        if legacy_end < 0:
+            raise RuntimeError("Legacy learning script is incomplete")
+        html = html[:legacy_start] + html[legacy_end + len("</script>"):]
     scripts = (
         '<script src="/static/curriculum_strict.js?v=137"></script>\n'
         '<script src="/static/nabil_learning_v132.js?v=132"></script>\n'
