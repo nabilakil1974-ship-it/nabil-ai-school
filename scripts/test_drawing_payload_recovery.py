@@ -38,7 +38,7 @@ class DrawingProtocolRecoveryTests(unittest.TestCase):
 
     def test_bare_json_with_trailing_answer(self):
         reply, drawings = context["extract_drawings"](
-            'Here is the figure.\\nDRAWINGS_JSON:\\n[{"type":"sphere","radius":5}]\\nDone.'
+            'Here is the figure.\nDRAWINGS_JSON:\n[{"type":"sphere","radius":5}]\nDone.'
         )
         self.assertEqual(len(drawings), 1)
         self.assertIn("Done.", reply)
