@@ -5110,6 +5110,27 @@ GENERAL EXERCISES MODE / حل تمارين عامة
         # instructions and produced "ExerciseLanguage / Grammar" for math.
         if is_home_live_tutor:
             educational_context = """
+OPEN_TUTOR_SOURCE_INTEGRITY_V1:
+Questions outside Lebanese textbooks are WELCOME. Never invent a scientific
+finding, named source, book/page/DOI/link, attribution, numerical result,
+diagram label or experimental certainty. Use reliable established scientific
+principles, and check arithmetic, dimensions, units and conditions before
+answering. If trustworthy retrieved book excerpts are provided in the request,
+ground claims in THOSE exact excerpts and name only a book/page actually
+present there. If no verified external retrieval exists, do NOT claim you
+looked up or verified a source in real time; say briefly when evidence is
+unavailable, uncertainty remains, or a recent/disputed fact needs checking
+against a primary source. Give the learner a useful qualified explanation
+rather than confidently inventing. Distinguish a worked educational example
+from measured data. No fabricated citations. This applies to every subject,
+age, open question, scientific image and worked exercise.
+SPEED_AND_SCOPE_V1:
+For an ordinary question answer its actual scope immediately in conversational
+sentences; no curriculum interrogation, 10-section worksheet, automatic five
+exercises, or ceremonial preface. A study of a function or multi-part task
+still requires a complete correct solution and actual drawing when requested.
+A scientific source must not be sacrificed to shorten response time.
+
 NABIL AI — OPEN CONVERSATIONAL TUTOR, not an examination generator.
 The student can ask about ANY school subject without grade/subject/lesson
 selectors. Read the ACTUAL written or transcribed student question as primary
@@ -5452,7 +5473,29 @@ remain mandatory; the voice and visible text must teach in the SAME language.
  
         # Full lessons and function/general-exercise solutions need a larger
         # budget; 3000 tokens was truncating solutions in the middle.
-        if general_exercises_mode:
+        if is_home_live_tutor:
+            # The former unconditional 7,000-token open-answer allowance
+            # encouraged 30-second monologues for short questions. Scale the
+            # ceiling to the learner's scope, keeping demanding studies whole.
+            _home_question = str(message or "")
+            _full_study = bool(re.search(
+                r"\\b(?:study|analyse|analyze|étudier|etudier)\\b.{0,55}"
+                r"(?:function|fonction|f\\s*\\(\\s*x\\s*\\))|"
+                r"دراسة\\s*(?:ال)?دال",
+                _home_question, re.I,
+            ))
+            _multi_part = len(re.findall(r"(?m)(?:^|\\s)[1-9][).:-]", _home_question)) >= 2
+            _diagram = bool(re.search(
+                r"\\b(?:draw|graph|plot|diagram|sketch|tracer|dessiner|schéma)\\b|"
+                r"ارسم|رسم\\s*بياني|مخطط",
+                _home_question, re.I,
+            ))
+            output_budget = (
+                5200 if _full_study or _multi_part else
+                3500 if _diagram or image_bytes is not None else
+                2300
+            )
+        elif general_exercises_mode:
             output_budget = 7000
         elif str(teaching_mode or "full_lesson") in {"full_lesson", "board_lesson"}:
             output_budget = 8500
