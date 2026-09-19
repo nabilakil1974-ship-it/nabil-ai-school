@@ -94,6 +94,17 @@ class TutorOwnerContractTests(unittest.TestCase):
         self.assertIn("if exact_visual:", CHAT)
         self.assertIn("if figure_only_request and image_bytes is None", CHAT)
 
+    def test_simple_function_evaluation_is_not_promoted_to_full_study(self):
+        # A bare definition belongs to many ordinary substitution exercises.
+        # Full analysis is allowed only when an explicit study/graph verb exists.
+        classifier = CHAT[
+            CHAT.index("# General exercises: function-study fallback"):
+            CHAT.index("if is_explicit_function_request:")
+        ]
+        self.assertNotIn('r"f\\s*\\(\\s*x\\s*\\)\\s*=|"', classifier)
+        self.assertIn("(?:study|analyse|analyze|graph|plot|sketch|draw)", classifier)
+        self.assertIn("Find f(4)", classifier)
+
     def test_open_figure_is_visual_not_faux_exercise(self):
         for fragment in (
             "figureOnly",
