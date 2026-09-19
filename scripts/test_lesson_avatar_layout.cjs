@@ -16,4 +16,11 @@ assert(patch.includes("width:56px!important;height:56px!important"),"narrow phon
 assert(patch.includes("object-fit:contain!important;object-position:center center!important"),"whole robot in frame");
 assert(patch.includes("max-width:100%!important;max-height:100%!important"),"bitmap confined to avatar frame");
 assert(!patch.includes("body.nabil-home-lock .lesson-avatar-live"),"do not resize landing robot");
-console.log("NABIL structured lesson avatar full-contain desktop and mobile selectors: PASS");
+const reclaim=css.slice(css.indexOf("OWNER LESSON SOLUTION RECLAIM"));
+assert(reclaim.includes("body.nabil-lesson-active .lesson-main-column"),"lesson must reclaim full solution column");
+assert(reclaim.includes("body.nabil-lesson-active .message.teacher .bubble"),"teacher solution cannot be squeezed");
+assert(reclaim.includes("grid-template-columns:minmax(0,1fr)!important"),"remove narrow teaching grid");
+assert(reclaim.includes('img[src*="nabil-lesson-avatar"]'),"hide second decorative robot in solution");
+assert(reclaim.includes("body.nabil-lesson-active .lesson-tutor-card"),"keep sidebar robot compact");
+assert(reclaim.includes("mjx-container"),"math must scroll horizontally rather than collapse");
+console.log("NABIL lesson full-width text, compact robot and maths layout: PASS");

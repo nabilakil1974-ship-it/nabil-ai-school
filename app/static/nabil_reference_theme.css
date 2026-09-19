@@ -1175,3 +1175,126 @@ body:not(.nabil-lesson-active) #nabilReturnHomeFloating{
   min-height:44px!important;
  }
 }
+
+/* OWNER LESSON SOLUTION RECLAIM — 2026-09-19
+   The robot is already present in the assistant sidebar. A lesson may never
+   spend the solution column on a second huge decorative robot, nor squeeze
+   derivative/variation tables to a one-word-wide grid cell. */
+body.nabil-lesson-active .lesson-main-column,
+body.nabil-lesson-active #chat,
+body.nabil-lesson-active .chat,
+body.nabil-lesson-active .message.teacher,
+body.nabil-lesson-active .message.teacher .bubble,
+body.nabil-lesson-active .exercise-board,
+body.nabil-lesson-active .exercise-section-card,
+body.nabil-lesson-active .function-study-card,
+body.nabil-lesson-active .lesson-concept-card,
+body.nabil-lesson-active .lesson-final-card,
+body.nabil-lesson-active .lesson-summary-card,
+body.nabil-lesson-active .lesson-wide-stack,
+body.nabil-lesson-active #nv132Result{
+ box-sizing:border-box!important;
+ width:100%!important;
+ max-width:100%!important;
+ min-width:0!important;
+}
+body.nabil-lesson-active .lesson-main-column,
+body.nabil-lesson-active .lesson-wide-stack,
+body.nabil-lesson-active .message.teacher .bubble,
+body.nabil-lesson-active .exercise-board,
+body.nabil-lesson-active .function-study-card,
+body.nabil-lesson-active .lesson-concept-card{
+ grid-template-columns:minmax(0,1fr)!important;
+}
+body.nabil-lesson-active .message.teacher .bubble > *,
+body.nabil-lesson-active .lesson-wide-stack > *,
+body.nabil-lesson-active .exercise-board > *,
+body.nabil-lesson-active .function-study-card > *,
+body.nabil-lesson-active .lesson-concept-card > *{
+ min-width:0!important;
+ max-width:100%!important;
+}
+body.nabil-lesson-active .lesson-main-column .lesson-side-stack,
+body.nabil-lesson-active .lesson-main-column .lesson-wide-stack{
+ width:100%!important;max-width:100%!important;min-width:0!important;
+}
+/* Decorative assistant imagery must stay in the small sidebar badge. */
+body.nabil-lesson-active .lesson-tutor-card{
+ height:auto!important;
+ min-height:0!important;
+ max-height:165px!important;
+ overflow:hidden!important;
+}
+body.nabil-lesson-active .lesson-tutor-card .lesson-avatar-live,
+body.nabil-lesson-active .lesson-tutor-card .lesson-avatar-live img{
+ width:74px!important;height:74px!important;
+ min-width:0!important;min-height:0!important;
+ max-width:74px!important;max-height:74px!important;
+ object-fit:contain!important;
+ flex:0 0 74px!important;
+}
+body.nabil-lesson-active #chat img[src*="nabil-lesson-avatar"],
+body.nabil-lesson-active #chat img[src*="nabil-avatar"],
+body.nabil-lesson-active #nv132Result img[src*="nabil-lesson-avatar"],
+body.nabil-lesson-active #nv132Result img[src*="nabil-avatar"]{
+ display:none!important;
+}
+/* Correctly sized maths and actual scientific figures stay visible. */
+body.nabil-lesson-active .message.teacher .bubble table,
+body.nabil-lesson-active .exercise-board table,
+body.nabil-lesson-active .function-study-card table{
+ display:table!important;
+ width:max-content!important;
+ min-width:min(100%,420px)!important;
+ max-width:none!important;
+ table-layout:auto!important;
+ word-break:normal!important;
+}
+body.nabil-lesson-active .message.teacher .bubble,
+body.nabil-lesson-active .exercise-board,
+body.nabil-lesson-active .function-study-card,
+body.nabil-lesson-active #nv132Result{
+ overflow-wrap:normal!important;
+ word-break:normal!important;
+ white-space:normal!important;
+ line-height:1.7!important;
+}
+body.nabil-lesson-active .message.teacher .bubble h1,
+body.nabil-lesson-active .message.teacher .bubble h2,
+body.nabil-lesson-active .message.teacher .bubble h3,
+body.nabil-lesson-active .exercise-board h2,
+body.nabil-lesson-active .exercise-board h3,
+body.nabil-lesson-active .function-study-card h2,
+body.nabil-lesson-active .function-study-card h3{
+ overflow-wrap:normal!important;
+ word-break:normal!important;
+ hyphens:none!important;
+}
+body.nabil-lesson-active .message.teacher .bubble .MathJax,
+body.nabil-lesson-active .message.teacher .bubble mjx-container,
+body.nabil-lesson-active #nv132Result mjx-container,
+body.nabil-lesson-active .exercise-board mjx-container{
+ max-width:100%!important;
+ overflow-x:auto!important;
+ overflow-y:hidden!important;
+}
+body.nabil-lesson-active .message.teacher .bubble .lesson-figure,
+body.nabil-lesson-active .message.teacher .bubble .lesson-figure-card,
+body.nabil-lesson-active .message.teacher .bubble .exercise-visual-panel,
+body.nabil-lesson-active #nv132Result .nv132-figure-card{
+ width:100%!important;
+ min-width:0!important;
+ max-width:100%!important;
+ grid-column:1 / -1!important;
+}
+@media(max-width:900px){
+ body.nabil-lesson-active .lesson-tutor-card{
+  max-height:110px!important;
+ }
+ body.nabil-lesson-active .lesson-tutor-card .lesson-avatar-live,
+ body.nabil-lesson-active .lesson-tutor-card .lesson-avatar-live img{
+  width:56px!important;height:56px!important;
+  max-width:56px!important;max-height:56px!important;
+  flex-basis:56px!important;
+ }
+}
