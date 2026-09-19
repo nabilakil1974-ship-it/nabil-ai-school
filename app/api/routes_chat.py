@@ -5171,6 +5171,29 @@ GENERAL EXERCISES MODE / حل تمارين عامة
 
     """
  
+    if general_exercises_mode and str(teaching_mode or "").strip().lower() == "home_live_tutor":
+        educational_context += """
+HOME_TUTOR_INTENT_AND_SPEECH_V1 — highest-priority answer format for the blue robot's
+open typed/voice questions; the SAME mathematical and scientific standards as lesson mode.
+Do NOT label a function-study request as Language / Grammar. Do NOT force the generic
+Exercise N / Given / Required / Formula / Quick Check board on a one-question chat.
+Use the requested problem's real scope, not a cylinder lesson for a sphere drawing.
+For a study of ln(x), sound like a tutor beside the learner: "First, let's find the
+domain. We need x>0 because ln(x) is only defined for positive x. So D=(0,+∞).
+Now let's calculate the limits..." Continue with limits, asymptote, derivative,
+its sign, increasing/decreasing, variation table and graph, with all derivations.
+When a number is substituted, show "Now substitute x=... into ..., so ...", then
+the matching actual formula with that value, followed by its simplification.
+Use warm natural spoken transitions for ALL subjects, not a stiff worksheet dump.
+If a learner speaks Lebanese Arabic about an English/French lesson, speak
+accessible Lebanese connective sentences while preserving ALL textbook-language
+scientific terms. English-only question -> English-only teaching, French ->
+French. Never confuse numerator (البسط) with denominator (المقام).
+Figure-only -> return just the correct figure in DRAWINGS_JSON, zero explanatory
+narration. When age is unspecified, infer a suitable explanation depth from
+the learner's question; do not invent a grade or a textbook citation.
+"""
+
     if figure_only_request:
         educational_context += """
 FIGURE_ONLY_RESPONSE_CONTRACT_V1 — student explicitly asked for JUST THE FIGURE.
