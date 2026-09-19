@@ -1,4 +1,5 @@
 import base64
+import io
 import logging
 import os
 import threading
@@ -950,7 +951,62 @@ class NabilAIGateway:
         audio_bytes: bytes,
         filename: str = "voice.webm",
     ) -> str:
+        """Transcribe spoken student questions without translating their dialect.
 
+        This route uses provider keys only on the server. Audio is not sent to
+        an LLM chat completion as an unverified text placeholder.
+        """
+        if not audio_bytes:
+            raise ValueError("التسجيل الصوتي فارغ. جرّب التسجيل من جديد.")
+        if len(audio_bytes) > 20 * 1024 * 1024:
+            raise ValueError("التسجيل طويل جدًا. أرسل سؤالًا صوتيًا أقصر.")
+
+        safe_name = os.path.basename(filename or "voice.webm")
+        if not safe_name or "." not in safe_name:
+            safe_name = "voice.webm"
+
+        options = []
+        if self.openai_client is not None:
+            options.append((
+                self.openai_client,
+                os.getenv("OPENAI_TRANSCRIPTION_MODEL", "gpt-4o-transcribe"),
+                "openai",
+            ))
+        if self.groq_client is not None:
+            options.append((
+                self.groq_client,
+                os.getenv("GROQ_TRANSCRIPTION_MODEL", "whisper-large-v3-turbo"),
+                "groq",
+            ))
+        if not options:
+            raise RuntimeError(
+                "التفريغ الصوتي يحتاج إعداد OpenAI أو Groq على الخادم."
+            )
+
+        last_error = None
+        for client, model, provider_name in options:
+            try:
+                audio_file = io.BytesIO(audio_bytes)
+                audio_file.name = safe_name
+                result = client.audio.transcriptions.create(
+                    model=model,
+                    file=audio_file,
+                    response_format="text" if model == "whisper-1" else "json",
+                )
+                text = (
+                    result if isinstance(result, str)
+                    else str(getattr(result, "text", "") or "")
+                ).strip()
+                if text:
+                    return text
+                raise RuntimeError("نتيجة التفريغ الصوتي فارغة.")
+            except Exception as exc:
+                last_error = exc
+                logger.warning(
+                    "Transcription provider %s failed: %s",
+                    provider_name,
+                    type(exc).__name__,
+                )
         raise RuntimeError(
-            "تحويل الصوت غير متاح حاليًا في هذا المسار."
-        )
+            "تعذّر فهم التسجيل الصوتي حاليًا. جرّب مرة ثانية أو اكتب السؤال."
+        ) from last_error
