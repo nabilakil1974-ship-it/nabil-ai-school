@@ -14,12 +14,10 @@ function placeDock(){
  if(latest){
    // Put the smart path immediately below the real answer action row
    // (Copy answer / Read answer), exactly where the owner requested it.
-   const tools=latest.querySelector(".teacher-tools");
-   const copyButton=latest.querySelector(".copy-answer-btn");
-   // Anchor below the real answer action row; if an older skin moved buttons,
-   // the copy button remains the reliable owner-specified landmark.
-   const anchor=tools||copyButton?.parentElement||latest.querySelector(".bubble")||latest;
-   if(anchor.nextElementSibling!==dock)anchor.insertAdjacentElement("afterend",dock);
+   // Keep the dock in normal chat flow immediately after the latest teacher
+   // message. That guarantees it is below Copy/Read actions without shrinking
+   // inside the answer bubble or covering figures/composer on mobile.
+   if(latest.nextElementSibling!==dock)latest.insertAdjacentElement("afterend",dock);
  }else if(chat){
    if(chat.nextElementSibling!==dock)chat.insertAdjacentElement("afterend",dock);
  }else if(lessonColumn){
