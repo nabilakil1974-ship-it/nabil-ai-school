@@ -3,16 +3,15 @@
 "use strict";
 const $=id=>document.getElementById(id);
 const start=$("startLesson"), general=$("generalExercisesBtn");
-if(!start||!general||$("nabilWorksheetBtn"))return;
+if(!start||!general)return;
 const stages=[
  ["worksheet_plan","الخطة"],["worksheet_observe","لاحظ"],["worksheet_predict","توقّع"],
  ["worksheet_explore","استكشف"],["worksheet_interact","تفاعل"],["worksheet_evidence","ابحث عن الدليل"],
  ["worksheet_think","فكّر"],["worksheet_conclude","استنتج"],["worksheet_apply","طبّق"],
  ["worksheet_self_assess","قيّم نفسك"]
 ];
-const btn=document.createElement("button");
-btn.id="nabilWorksheetBtn";btn.type="button";btn.textContent="🧩 أنشئ ورقة عمل تفاعلية";
-general.insertAdjacentElement("afterend",btn);
+let btn=$("nabilWorksheetBtn");
+if(!btn){btn=document.createElement("button");btn.id="nabilWorksheetBtn";btn.type="button";btn.textContent="🧩 أنشئ ورقة عمل تفاعلية";general.insertAdjacentElement("afterend",btn)}
 const panel=document.createElement("section");
 panel.id="nabilWorksheetPanel";panel.hidden=true;panel.dir="rtl";
 panel.innerHTML=`<header><div><strong>🧩 ورقة العمل التفاعلية الذكية</strong><p id="nwContext"></p></div><button type="button" id="nwClose" aria-label="إغلاق">×</button></header>

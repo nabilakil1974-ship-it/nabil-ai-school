@@ -195,9 +195,11 @@ class NabilUiIntegrationTests(unittest.TestCase):
             self.assertIn(token, backend)
         self.assertIn("#nabilWorksheetPanel", theme)
         self.assertIn("@media(max-width:720px)", theme)
-        self.assertIn("nabil_worksheet_v1.js?v=2", self.html)
+        self.assertIn("nabil_worksheet_v1.js?v=3", self.html)
         self.assertIn('document.addEventListener("click"', script)
         self.assertIn('closest("#nabilWorksheetBtn")', script)
+        self.assertNotIn('||$("nabilWorksheetBtn"))return', script)
+        self.assertIn('let btn=$("nabilWorksheetBtn")', script)
 
 
     def test_owner_voice_language_pacing_and_visual_contract(self):
