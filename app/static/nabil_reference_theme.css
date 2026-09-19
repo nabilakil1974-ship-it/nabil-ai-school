@@ -790,3 +790,65 @@ html,body{background:var(--nabil-ref-page)!important;color:var(--nabil-ref-text)
 #nabilHome[style*="display: none"],#nabilHome[style*="display:none"]{
  display:none!important;
 }
+
+/* OWNER_PHONE_ANSWER_FIRST_V9 — full-width, answer-first mobile layout.
+   The avatar stays visible but collapses once a solution exists; the student
+   does not scroll past an enormous image before reading the current step. */
+@media screen and (max-width:900px){
+ #nabilHomeTutorHost:has(#nabilOpenAnswer.has-answer) .nabil-open-head{
+  display:grid!important;
+  grid-template-columns:clamp(76px,23vw,116px) minmax(0,1fr)!important;
+  align-items:center!important;gap:10px!important;text-align:start!important;
+ }
+ #nabilHomeTutorHost:has(#nabilOpenAnswer.has-answer) .nabil-open-head .nabil-open-mini-avatar{
+  grid-column:1!important;grid-row:1!important;
+  display:block!important;max-width:100%!important;width:100%!important;
+  height:clamp(90px,27vw,138px)!important;min-height:0!important;
+  object-fit:contain!important;margin:0!important;
+ }
+ #nabilHomeTutorHost:has(#nabilOpenAnswer.has-answer) .nabil-open-head>div{
+  grid-column:2!important;grid-row:1!important;
+  min-width:0!important;text-align:start!important;
+ }
+ #nabilHomeTutorHost:has(#nabilOpenAnswer.has-answer) .nabil-open-head h2{
+  font-size:clamp(16px,4.2vw,21px)!important;margin:0!important;
+ }
+ #nabilHomeTutorHost:has(#nabilOpenAnswer.has-answer) .nabil-open-head p{
+  font-size:clamp(12px,3.2vw,14px)!important;line-height:1.45!important;
+ }
+ #nabilHomeTutorHost #nabilOpenTutor{padding:8px!important;gap:8px!important}
+ #nabilHomeTutorHost #nabilOpenAnswer.has-answer{
+  border:1px solid #247da5!important;border-radius:12px!important;
+  background:#081e33!important;padding:8px!important;
+ }
+ #nabilHomeTutorHost #nabilOpenExplanation,
+ #nabilHomeTutorHost #nabilOpenVisuals{
+  overflow-x:auto!important;overflow-y:visible!important;
+  max-width:100%!important;box-sizing:border-box!important;
+ }
+ #nabilHomeTutorHost #nabilOpenExplanation .nabil-open-answer-text{
+  white-space:normal!important;overflow-wrap:break-word!important;
+ }
+ #nabilHomeTutorHost #nabilOpenExplanation table,
+ #nabilHomeTutorHost #nabilOpenExplanation pre,
+ #nabilHomeTutorHost #nabilOpenExplanation .MathJax{
+  max-width:100%!important;overflow-x:auto!important;
+ }
+ #nabilHomeTutorHost #nabilOpenVisuals .nabil-open-visual svg{
+  width:100%!important;height:auto!important;min-height:220px!important;
+  max-height:none!important;overflow:visible!important;
+ }
+ #nabilHomeTutorHost .nabil-open-answer-nav{
+  position:static!important;display:flex!important;
+  flex-wrap:wrap!important;gap:6px!important;
+ }
+ #nabilHomeTutorHost .nabil-open-answer-nav button,
+ #nabilHomeTutorHost #nabilOpenTools button{min-height:42px!important}
+ #nabilHomeTutorHost .nabil-open-composer{
+  position:relative!important;inset:auto!important;z-index:2!important;
+  padding:0!important;margin:0!important;
+ }
+ #nabilHomeTutorHost #nabilOpenConversation{
+  max-height:12dvh!important;overflow-y:auto!important;
+ }
+}
