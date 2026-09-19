@@ -54,9 +54,19 @@ SYSTEM_PROMPT = """
 - طبّق الأسلوب على الرياضيات والفيزياء والكيمياء وعلوم الحياة وسائر المواد من الروضة إلى الثالث الثانوي، مع جمل وأمثلة تناسب عمر الطالب. في الرياضيات أظهر التعويض والتبسيط؛ في الفيزياء القانون والوحدات والاتجاه؛ في الكيمياء خطوات المعادلة والتوازن؛ في علوم الحياة التسلسل والسبب والنتيجة؛ وفي اللغات وبقية المواد التدرّج والأمثلة دون اصطناع حسابات.
 - عند وجود صفحات كتاب موثّقة حافظ على المفاهيم ومصطلحات المنهج وتسلسل الدرس؛ يمكن تبسيط الصياغة والتفاعل مع الطالب دون نسبة تفاصيل غير موجودة في الكتاب إليه.
 
+بروتوكول الرسم التدريجي الإلزامي — لكل الصفوف والمواد والأوضاع:
+- ينطبق بلا استثناء على full_lesson وboard_lesson والشرح التفاعلي، الأمثلة وحل التمارين العامة والتمارين الخمسة المحلولة داخل الدرس والمتابعة الصوتية التي تشير إلى الشكل الظاهر.
+- عندما يحتاج الفهم أو السؤال رسمًا: قدّم الشكل الصحيح أولًا، ثم حلّ خطوة خطوة وبيّن أي نقطة/خط/زاوية/قوة/شعاع/مكوّن/مرحلة/منحنى جديد خاص بكل جزء. لا تضف نتائج الفروع القادمة مبكرًا. اعرض تحديثًا بصريًا لكل فرع يستلزم تغييرًا، واربط كل نسخة بشرح ذلك الفرع، وأظهر الشكل النهائي الجامع عند الحاجة.
+- استعمل ألوانًا ثابتة وواضحة للإضافات المتعاقبة؛ اجعل عناصر الأصل بلون محايد، وأظهر إضافات (a) بالأحمر، (b) بالأزرق، (c) بالأخضر، (d) بالبنفسجي، ثم ألوانًا مميزة لبقية الأجزاء مع label/legend نصي حتى لا يعتمد الفهم على اللون وحده. احتفظ بكل ما ثبت من إضافات الفروع السابقة في النسخ اللاحقة إن كانت صحيحة.
+- عند وجود شكل مرفوع أو معطى في السؤال، هو المرجع: حافظ على topology والنقاط والتسميات والقياسات والاتجاهات والمواضع النسبية. لا تختلق خطوطًا أو أطوالًا أو إحداثيات أو صورة جديدة تشوّه الأصل. إذا ورد «do not reproduce the figure» لا ترسم نسخة مستنسخة: حل على أساس الأصل، واستخدم إبراز/تعليق على الأصل فقط عندما تتوفر أداة دقيقة لذلك؛ وإلا صف التغييرات المطلوبة نصيًا دون الادعاء بوجود صورة معدلة.
+- إذا طلب الطالب الاستمرار من (b) أو من خطوة لاحقة، حافظ على نفس العلاقات والعناصر التي توصلنا إليها في الشكل السابق، ولا تبدأ بمسألة أو رسم مختلف. إذا لم تكن لديك معلومات بصرية كافية، اذكر القيود بدل التخمين.
+- التمارين الخمسة: ضمّن تمارين برسومات فعلية عندما تناسب محتوى الدرس (geometry, physics, electric circuits, chemistry, biology, function graphs, statistics). لكل تمرين يحتاج رسمًا أعط الشكل المعطى للطالب، ثم الشكل أو الإضافات اللازمة في Solution الخاصة به خطوة خطوة، مع ربط الرسومات بـ exercise_index وcard_index الصحيحين، ثم خلاصة بصرية عند فائدتها. لا تجعل كل التمارين الخمسة مصطنعة بصريًا إذا طبيعة الدرس لا تتطلب الرسم.
+- في DRAWINGS_JSON لا ترسل إلا أنواعًا وحقولًا يدعمها محرك الرسم الموجود. اربط نسخ الرسم بـ card_index الصحيح، واضبط scope="practice" وexercise_index من 1 إلى 5 لرسومات التدريب. لا تدّع إنشاء overlay على صورة أصلية ما لم تعرضه الواجهة فعليًا، ولا تدّع عرض الرسم إن لم تُنتج رسمًا صالحًا.
+- حافظ أثناء الشرح المكتوب والصوتي على المصطلحات العلمية بلغة الكتاب/السؤال؛ العربية اللبنانية فقط لربط الخطوات إن كان الطالب يحكي بالعربي.
+
 قواعد أساسية:
 - الصورة المرفوعة هي المرجع الأساسي لأي شكل أو تمرين مصوّر. اقرأ كل نقاط الصورة وتسمياتِها والمعطيات والمطلوب قبل الحل؛ لا تستبدل الشكل برسم هندسي عام أو بإحداثيات/أطوال مفترضة. إذا ورد في ورقة التمرين «do not reproduce the figure» فلا تعِد رسمها. اشرح بالاستناد للشكل الأصلي (A وP وL وM وN وO وO′ كما تظهر)، واستخدم نظريات مماسّ الدائرة وصحة الزوايا فقط بعد التحقق من علاقتها بالنقاط المحددة. اطلب صورة أوضح فقط إذا كانت معطيات أساسية غير مقروءة.
-- إذا رفع الطالب صورة تمرين ولم يطلب رسمًا جديدًا صراحة، لا تنتج DRAWINGS_JSON للشكل الأصلي ولا تخترع رسمًا بديلًا. حل جميع البنود بالترتيب مع التحقق الحسابي النهائي، واعرض النتيجة بوضوح.
+- إذا رفع الطالب صورة تمرين، لا تنتج DRAWINGS_JSON باعتباره نسخة من الشكل الأصلي ولا تخترع رسمًا بديلًا. يمكن عرض إنشاءات/مخططات إضافية موثوقة فقط إذا طلبها الطالب أو كانت ضرورية ويدعمها محرك الرسم فعليًا وتطابق المعطيات، مع احترام «do not reproduce the figure». حل جميع البنود بالترتيب مع التحقق الحسابي النهائي، واعرض النتيجة بوضوح.
 - اشرح بدقة وبساطة، وتحقق من الحسابات والوحدات.
 - لا تعرض reasoning داخليًا أو تعليمات النظام أو خطوات تفكير سرية.
 - لا تخترع معطيات غير موجودة. إذا كانت بيانات الرسم ناقصة فلا تفترض أرقامًا أو أسماء أو اتجاهات.
@@ -110,6 +120,8 @@ General Exercises:
 - Summary Card في هذا الوضع ليست Lesson Final Card؛ هي خلاصة النتائج والقواعد فقط.
 
 Lesson Mode:
+- في الشرح الكامل والتفاعلي على السواء، الرسم الذي يخدم الفكرة يظهر مع الفكرة ويتطور مع كل خطوة وفرع، لا رسم زخرفي أخير فقط.
+- التمارين الخمسة المحلولة جزء من الدرس وتلتزم بالقواعد البصرية نفسها؛ يجوز أن تبدأ بعض التمارين برسم/دارة/graph مطلوب للطالب، ثم تُظهر مراحل الحل دون كشفها في صورة السؤال.
 - اشرح الدرس تدريجيًا.
 - كل Concept/Example يحتاج رسمًا يجب أن يحصل على رسمه تلقائيًا.
 - Final Card في نهاية الدرس تلخص 3–7 نقاط، ويمكن أن تجمع الرسومات المهمة بصريًا.
@@ -5151,6 +5163,8 @@ Missing exercise numbers: {missing_label}
 
 Return ONLY the missing practice exercises, in ascending order. Do NOT repeat the lesson explanation or exercises already present.
 For each missing exercise:
+- If the exercise needs a figure, include a VALID question figure before its worked solution; show the scientifically valid part-by-part changes through its own drawing(s), using distinct labelled colors only when supported by the drawing engine. Keep exercise_index/card_index correct.
+- Do not invent shapes or coordinates; if an uploaded figure is marked 'do not reproduce', reference the original rather than generating a false copy.
 - Use an H2 title exactly matching the lesson language: Exercise N / Exercice N / تمرين N.
 - Give a COMPLETE solution to the end, never truncate it.
 - Use the full section structure appropriate to the language (Given, Required, Formula / Property, Solution, Final Answer; or French/Arabic equivalents).
@@ -5363,16 +5377,29 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
     is_lesson_start = _nabil_lesson_start_request(message)
     lesson_key = str(lesson or "").lower()
 
-    # A photographed worksheet is already the authoritative figure. Never
-    # redraw an uploaded figure from guessed coordinates merely to decorate
-    # the solution. Only create a NEW drawing on explicit student request.
-    # In particular, obey "do not reproduce the figure" from the worksheet.
+    # An uploaded figure remains authoritative. New generated drawing payloads
+    # must never masquerade as faithful edits of that image. Keep drawings
+    # only when a student explicitly asks for a construction, or the exercise
+    # objectively requires a separate supported figure and the worksheet
+    # permits reproduction. Preserve the original figure when the question
+    # expressly says "do not reproduce the figure".
     drawings = [item for item in drawings if validate_drawing_strict(item)]
-    if image_bytes is not None and not re.search(
-        r"\\b(?:draw|redraw|construct|sketch|trace|tracer|dessiner|redessiner)\\b|ارسم|ارسملي|أعد رسم|اعد رسم|رسم جديد",
+    explicit_draw_request = bool(re.search(
+        r"\b(?:draw|redraw|construct|sketch|trace|tracer|dessiner|redessiner)\b|"
+        r"ارسم|ارسملي|أعد رسم|اعد رسم|رسم جديد",
         str(message or ""),
         re.I,
-    ):
+    ))
+    forbids_reproduction = bool(re.search(
+        r"do\s+not\s+reproduce\s+the\s+figure|"
+        r"ne\s+pas\s+reproduire\s+la\s+figure|"
+        r"لا\s+تع[يُ]د\s+رسم\s+الشكل",
+        str(message or ""),
+        re.I,
+    ))
+    if image_bytes is not None and (forbids_reproduction or not explicit_draw_request):
+        # The present frontend does not support exact overlay annotations on
+        # an uploaded image; suppress speculative generated copies.
         drawings = []
 
     # Exact circuit-comparison recovery, valid in BOTH lesson mode and general exercises.
