@@ -5647,6 +5647,76 @@ Mandatory:
 
     raw_reply = _strip_internal_drawing_protocol(raw_reply)
 
+    # ----------------------------------------------------------
+    # OPEN SCIENCE QUALITY GATE
+    # Provider output is not trusted merely because generation succeeded.
+    # Repair a foreign-language science answer when it switches to Arabic,
+    # leaks a mathematics template, or violates the exact CaCl2 electron count.
+    # ----------------------------------------------------------
+    if is_home_live_tutor:
+        _question_low = str(message or "").lower()
+        _science_english = bool(re.search(
+            r"\b(?:physics|chemistry|biology|ohm|ionic|bonding|calcium|chlorine|mitosis|"
+            r"voltage|current|resistance|electron|cell|chromosome)\b",
+            _question_low,
+            re.I,
+        ))
+        _arabic_chars = len(re.findall(r"[\u0600-\u06ff]", str(raw_reply or "")))
+        _latin_chars = len(re.findall(r"[A-Za-z]", str(raw_reply or "")))
+        _language_mismatch = _science_english and _arabic_chars > max(40, _latin_chars // 2)
+        _math_template_leak = _science_english and bool(re.search(
+            r"variation\s+table|tableau\s+de\s+variations|جدول\s+التغي|f'\s*\(\s*x\s*\)",
+            str(raw_reply or ""),
+            re.I,
+        ))
+        _calcium_chlorine = (
+            "calcium" in _question_low and "chlor" in _question_low
+            and ("ionic" in _question_low or "bond" in _question_low)
+        )
+        _chemistry_fact_failure = _calcium_chlorine and (
+            not re.search(r"\b20\b", str(raw_reply or ""))
+            or not re.search(r"\bCa\s*(?:²|2)\s*\+", str(raw_reply or ""), re.I)
+            or not re.search(r"\b2\s*Cl\s*[-⁻]|two\s+chlor", str(raw_reply or ""), re.I)
+        )
+
+        if _language_mismatch or _math_template_leak or _chemistry_fact_failure:
+            _repair_requirements = """
+Write the complete replacement in natural English only (apart from chemical
+symbols). Teach as if sitting beside the learner. Remove every mathematics
+function-study heading/table. Do not mention the previous answer.
+"""
+            if _calcium_chlorine:
+                _repair_requirements += """
+Scientific facts that must be explicit and correct:
+- A neutral calcium atom has 20 electrons and electron arrangement 2,8,8,2.
+- Calcium loses exactly two valence electrons and becomes Ca2+ with 18 electrons.
+- TWO neutral chlorine atoms are involved; each gains ONE electron and becomes Cl-.
+- Charge balance is Ca2+ + 2Cl- -> CaCl2.
+Include a labelled electron-transfer diagram using valid DRAWINGS_JSON supported
+by the platform. Never use a coordinate plane or a variation table.
+"""
+            _science_repair_prompt = f"""
+The generated science answer failed the live quality gate.
+
+Student request:
+{message}
+
+Replace it completely.
+{_repair_requirements}
+""".strip()
+            try:
+                _science_repaired = ai.generate(
+                    instructions=SYSTEM_PROMPT,
+                    messages=[{"role": "user", "content": _science_repair_prompt}],
+                    max_output_tokens=7000,
+                )
+                if str(_science_repaired or "").strip():
+                    raw_reply = _strip_internal_drawing_protocol(
+                        str(_science_repaired).strip()
+                    )
+            except Exception:
+                pass
+
 
     # ----------------------------------------------------------
     # UNIVERSAL FUNCTION-STUDY COMPLETION GUARD
