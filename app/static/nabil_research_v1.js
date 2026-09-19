@@ -136,7 +136,7 @@ const formsScript=document.createElement("button");
 formsScript.type="button";formsScript.textContent="⬇ سكربت إنشاء Google Form بمحاورك";
 formsScript.style.cssText="margin:8px;padding:10px;background:#654eb7;color:white;border:0;border-radius:8px;font:inherit;cursor:pointer";
 formsScript.addEventListener("click",async()=>{
- const questions=actualQuestions.value.split(/\\r?\\n/).map(line=>line.trim()).filter(Boolean).map(line=>{
+ const questions=actualQuestions.value.split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map(line=>{
   const sep=line.indexOf("|");
   return sep<0?null:{axis:line.slice(0,sep).trim(),item:line.slice(sep+1).trim()};
  });
