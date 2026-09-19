@@ -406,7 +406,7 @@ def export_answer_xlsx(request: AnswerExport):
 def export_answer_form_script(request: AnswerExport):
     questions = []
     for line in request.answer.splitlines():
-        cleaned = re.sub(r"^\\s*(?:[-*]\\s+|\\d+[.)]\\s+)", "", line).strip()
+        cleaned = re.sub(r"^\s*(?:[-*]\s+|\d+[.)]\s+)", "", line).strip()
         if "|" not in cleaned or cleaned.startswith("|"):
             continue
         axis, item = [part.strip() for part in cleaned.split("|", 1)]
