@@ -6,8 +6,20 @@ if(!dock)return;
 const byId=id=>document.getElementById(id);
 // The owner wants the smart-learning dock BELOW the answer-copy/action bar.
 // Move its real DOM node (not a duplicate) into the lesson column.
-const answerActions=document.querySelector(".lesson-main-column .lesson-action-bar");
-if(answerActions) answerActions.insertAdjacentElement("afterend",dock);
+const lessonColumn=document.querySelector(".lesson-main-column");
+const chat=byId("chat");
+function placeDock(){
+ const teachers=chat?[...chat.querySelectorAll(".message.teacher")]:[];
+ const latest=teachers[teachers.length-1];
+ if(latest){
+   latest.insertAdjacentElement("afterend",dock);
+ }else if(chat){
+   chat.insertAdjacentElement("afterend",dock);
+ }else if(lessonColumn){
+   lessonColumn.appendChild(dock);
+ }
+}
+placeDock();
 const scope=()=>({
  grade:byId("gradeSelect")?.value||"",
  subject:byId("subjectSelect")?.value||"",
@@ -120,7 +132,7 @@ for(const id of ["gradeSelect","subjectSelect","lessonSelect","languageSelect"])
 const previous=window.addMessage;
 if(typeof previous==="function")window.addMessage=function(role,text,...rest){
  const value=previous.call(this,role,text,...rest);
- if(role==="teacher")refresh();
+ if(role==="teacher"){refresh();setTimeout(placeDock,0)}
  return value;
 };
 const originalSend=window.sendToAI;
@@ -144,4 +156,9 @@ window.NABIL130={
  reset:()=>status("نتائج التعلّم محفوظة في حساب الطالب ولا تُصفّر بالنقر.")
 };
 refresh();
+placeDock();
+if(chat){
+ const observer=new MutationObserver(()=>placeDock());
+ observer.observe(chat,{childList:true});
+}
 })();
