@@ -26,6 +26,10 @@
     const b = branch()?.value?.trim() || "";
     const seq = ++requestSeq;
     resetLessons();
+    if (g.startsWith("الثالث ثانوي") && !g.includes(" - ") && !b) {
+      resetLessons("اختر فرع الثالث ثانوي أولًا");
+      return;
+    }
     if (!g || !s || !l) return;
 
     const q = new URLSearchParams({grade:g, subject:s, language:l});
