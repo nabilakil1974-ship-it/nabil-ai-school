@@ -5266,7 +5266,7 @@ the same lesson Visual Engine; never describe it as rendered without one.
     الصف: {grade or "غير محدد"}
     الفرع: {branch or "غير مطبق"}
     المادة: {subject or "غير محددة"}
-    لغة المادة والمصطلحات العلمية: {selected_language}؛ يجوز شرح الربط والتدرّج بالعربية عندما يخاطب الطالب الأستاذ بالعربية، مع إبقاء المفاهيم العلمية بلغة الكتاب.
+    لغة المادة والمصطلحات العلمية: {selected_language}؛ في English اشرح الجمل كاملة بالإنجليزية وبصوت إنجليزي، وفي Français بالفرنسية وبصوت فرنسي. لا تبدأ بتمهيد لبناني أو صوت عربي، إلا إذا طلب الطالب الشرح بالعربية صراحة.
     طريقة الشرح: {teaching_mode or "interactive"}
     المنهج: {curriculum or "المنهج اللبناني الرسمي"}
     الدرس: {lesson or "غير محدد"}
@@ -5282,6 +5282,17 @@ the same lesson Visual Engine; never describe it as rendered without one.
 
     محتوى الكتاب المرجعي المسترجع لهذا الدرس:
     {book_context or "لم يُسترجع محتوى كتاب مفهرس لهذا الطلب."}
+
+    GRADE9_LINES_AND_CIRCLES_SCOPE_V1:
+    عند الصف التاسع في Lines and Circles / Lines and circles / Droites et cercles،
+    تأكد من صفحات الكتاب المسترجع للغة الطالب/الفصل قبل بناء أي مثال.
+    لا تدخل مسائل analytic geometry الثانوية: معادلة الدائرة x²+y²=R²،
+    صيغة المسافة بين نقطة ومستقيم بالإحداثيات، ميل المماس، حل معادلات
+    تقاطع المستقيم والدائرة، ما لم تتضمن صفحات هذا الفصل بالصف التاسع
+    هذه الطرق صراحة. لا تختلق تمارين الكتاب ولا تبدّل مستواه.
+    إذا لم يتوفر نص صفحات الفصل، اذكر أن نطاق الكتاب لم يتأكد؛ لا
+    تزعم أن الأمثلة مطابقة للكتاب، واطلب صفحة الدرس للتحقق عند الحاجة.
+    افحص التعويض والجذور والأسس وحسابات المماس عدديًا قبل إرسالها.
 
     قاعدة المصدر الإلزامية:
     - إذا وُجد محتوى كتاب مرجعي أعلاه، فهو المصدر الأول لمضمون الدرس وترتيبه ومصطلحاته.
@@ -5431,6 +5442,21 @@ mathematics teaching request, not a request for mostly-Arabic explanation.
 For Physics, Chemistry, Biology, social sciences, languages and every other
 subject, apply the same policy. Warm bedside-teaching and age adaptation
 remain mandatory; the voice and visible text must teach in the SAME language.
+"""
+
+    educational_context += """
+LESSON_VOICE_LANGUAGE_AND_SCOPE_V4:
+An English or French lesson must be taught and SPOKEN in that language
+from the FIRST word to the LAST, with conversational age-appropriate
+coaching, not Arabic opening remarks such as "هلق خلينا نشوف شو عنا".
+A fully English/French open question also needs no Arabic greeting.
+Use Arabic for an Arabic lesson or an EXPLICIT request for Arabic teaching.
+At Grade 9, use only examples whose concepts are actually supported by
+retrieved pages from the matching language and chapter. No invented textbook
+exercises or secondary-level Cartesian analytic-geometry problems in Grade 9
+Lines and Circles unless the retrieved chapter explicitly covers them.
+Check every radical, equation, unit and claimed tangent numerically:
+sqrt(496) is NOT 22, and an unverified tangent slope is NOT acceptable.
 """
 
     history_messages = []
