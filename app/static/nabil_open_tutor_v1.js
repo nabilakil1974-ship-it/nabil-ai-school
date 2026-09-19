@@ -26,6 +26,8 @@ if(home){
  home.appendChild(homeHost);
  moveToHome();
  if(typeof showGradeStage==="function")showGradeStage(false);
+ // Greeting is visible in the tutor card: never trigger legacy browser-voice autoplay.
+ if(typeof homeWelcomeSpoken!=="undefined")homeWelcomeSpoken=true;
  document.body.classList.add("nabil-home-lock");
  const observeHome=new MutationObserver(()=>{
   if(home.style.display==="none")moveToLesson();
@@ -148,7 +150,7 @@ button.addEventListener("click",()=>recording?stop():start());
 // The former browser SpeechRecognition only handles the UI language.
 // Reuse the same server transcription and TTS for the lesson-page microphone.
 document.addEventListener("click",event=>{
- const mic=event.target.closest?.("#micBtn");
+ const mic=event.target.closest?.("#micBtn,#homeVoiceBtn");
  if(!mic)return;
  event.preventDefault();event.stopImmediatePropagation();
  if(recording)stop();else start();
@@ -156,5 +158,5 @@ document.addEventListener("click",event=>{
 // Open questions and typed prompts should work immediately without selectors.
 // Starting a real lesson explicitly restores lesson mode via the existing handler.
 freeMode();
-window.NabilOpenTutor={start,stop,freeMode};
+window.NabilOpenTutor={start,stop,freeMode,moveToLesson,moveToHome};
 })();
