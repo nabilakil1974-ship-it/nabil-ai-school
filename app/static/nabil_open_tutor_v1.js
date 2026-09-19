@@ -138,6 +138,17 @@ function renderAnswer(result,question){
    }catch(_e){}
  });
  const hasVisual=visuals.childElementCount>0;
+ const wantsVisual=/draw|plot|graph|figure|diagram|sketch|tracer|dessiner|schéma|schema|ارسم|اعرض الرسم|اعرض الرسمة|ورجيني الرسمة|رسم بياني|مخطط/i.test(String(question||""));
+ if(wantsVisual&&!hasVisual){
+  const note=document.createElement("p");
+  note.className="nabil-open-missing-visual";
+  note.textContent=lang==="English"
+   ?"No verified drawing was returned. Please provide the function or the figure's givens so I can draw it accurately."
+   :lang==="Français"
+    ?"Aucun dessin vérifié n’a été retourné. Précise la fonction ou les données de la figure pour la tracer correctement."
+    :"ما وصل رسم دقيق لهالسؤال. اكتب الدالة أو معطيات الشكل حتى نرسمه بلا اختراع معلومات.";
+  explanation.append(note);
+ }
  nav.hidden=false;
  visualBtn.hidden=!hasVisual;
  explanation.hidden=false;
@@ -185,6 +196,15 @@ function getStudent(){
 }
 async function request({question="",audio=null}){
  if(busy)return;
+ const command=String(question||"").trim();
+ const isVisualCommand=/^(?:اعرض|ورجيني|فرجيني|اريني|بدي|show|display|affiche|montre).{0,35}(?:رسم|رسمة|الشكل|graph|figure|drawing|schéma|schema|courbe)/i.test(command);
+ const isExplanationCommand=/^(?:اعرض|ورجيني|فرجيني|اريني|بدي|show|display|affiche|montre).{0,35}(?:شرح|حل|explanation|solution|explication)/i.test(command);
+ if(!audio&&board.classList.contains("has-answer")&&isExplanationCommand){
+   explainBtn.click();setStatus("📘 الشرح ظاهر ببطاقة الأستاذ نبيل.");return;
+ }
+ if(!audio&&board.classList.contains("has-answer")&&isVisualCommand&&!visualBtn.hidden){
+   visualBtn.click();setStatus("📐 الرسمة ظاهرة ببطاقة الأستاذ نبيل.");return;
+ }
  if(!audio&&!String(question).trim())return;
  setBusy(true);setStatus(audio?"🧠 عم بفهم التسجيل وبحضّر الجواب…":"🧠 عم بفهم سؤالك وبحضّر الجواب والرسم إذا لازم…");
  try{
@@ -283,5 +303,10 @@ input.addEventListener("input",()=>{
  input.dir=lang==="العربية"?"rtl":"ltr";
  input.lang=lang==="العربية"?"ar":lang==="English"?"en":"fr";
 });
-window.NabilOpenTutor={start:startRecording,stop:stopRecording,ask:q=>request({question:q})};
+window.NabilOpenTutor={
+ start:startRecording,stop:stopRecording,ask:q=>request({question:q}),
+ showExplanation:()=>explainBtn.click(),
+ showDrawing:()=>{if(!visualBtn.hidden)visualBtn.click();else setStatus("ما في رسمة مرتبطة بآخر جواب. اطلب رسمًا مع معطيات السؤال.",true)},
+ setPace:n=>{pace.value=String(n);syncPace()}
+};
 })();
