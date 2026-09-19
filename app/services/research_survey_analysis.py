@@ -200,7 +200,7 @@ def spss_syntax(result: dict, filename: str = "survey.csv") -> str:
         "* Open the CSV with UTF-8 encoding and keep it in the same folder.",
         "* SPSS computes the figures independently; do not present this as an SPSS run.",
         f'GET DATA /TYPE=TXT /FILE="{filename}" /ENCODING="UTF8"',
-        " /DELCASE=LINE /DELIMITERS=\",\" /QUALIFIER=' + "'\"'",
+        " /DELCASE=LINE /DELIMITERS=\",\" /QUALIFIER='\"'",
         " /ARRANGEMENT=DELIMITED /FIRSTCASE=2",
         " /VARIABLES=",
     ]
