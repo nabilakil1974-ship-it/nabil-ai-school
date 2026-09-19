@@ -4800,11 +4800,14 @@ async def voice_chat(
             == conversation.id
         )
         .order_by(
-            Message.created_at.asc()
+            Message.created_at.desc()
         )
-        .limit(20)
+        .limit(8)
         .all()
     )
+    # The newest messages, not the first 20 ever sent. Otherwise after turn
+    # 20 the assistant loses the immediately preceding question/figure.
+    previous_messages.reverse()
  
     db.add(
         Message(
@@ -5123,7 +5126,7 @@ GENERAL EXERCISES MODE / حل تمارين عامة
 
     history_messages = []
  
-    for msg in previous_messages[-6:]:
+    for msg in previous_messages:
  
         role = (
             "assistant"
