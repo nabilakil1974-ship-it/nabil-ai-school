@@ -5835,9 +5835,16 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
     # An explicit sphere drawing with a supplied radius is deterministic even
     # when the model returned malformed/bare DRAWINGS_JSON or no drawing at all.
     # Never replace a different requested figure or an uploaded source figure.
-    if explicit_draw_request and image_bytes is None and not drawings:
+    if explicit_draw_request and image_bytes is None:
         exact_sphere = _nabil_exact_sphere_drawing(message)
-        if exact_sphere:
+        # A single measured sphere has one correct radius. Do not retain a
+        # hallucinated radius or an unrelated cylinder from a model response.
+        # Preserve compound solid-comparison requests for the regular renderer.
+        compound_solids = bool(re.search(
+            r"\\b(?:cylinder|cone|cube|prism)\\b|أسطوانة|مخروط|مكعب",
+            message, re.I,
+        ))
+        if exact_sphere and not compound_solids:
             drawings = [exact_sphere]
 
     # EXACT FIGURE-ONLY DELIVERY: no generic lesson/solution text leaks into
