@@ -1,0 +1,105 @@
+/* NABIL AI — screenshot reference palette 2026-09-19.
+   All source colours sampled from the provided rational-function UI.
+   Keep science-graph data colours intact: only style its container.
+*/
+:root {
+  --nabil-navy: #06182e;
+  --nabil-page: #071b31;
+  --nabil-header: #082c53;
+  --nabil-toolbar: #06315b;
+  --nabil-panel: #102940;
+  --nabil-card: #0d243b;
+  --nabil-card-deep: #0a2036;
+  --nabil-border: #244e70;
+  --nabil-cyan: #38bdf8;
+  --nabil-cyan-light: #79d9ff;
+  --nabil-text: #edf7ff;
+  --nabil-muted: #bbd5e8;
+  --nabil-green: #05a34c;
+  --nabil-red: #e12932;
+  --nabil-blue: #0863d5;
+  --nabil-purple: #5630bf;
+  --nabil-yellow: #ffcc52;
+}
+html { color-scheme:dark; }
+body { background:var(--nabil-page)!important;color:var(--nabil-text)!important; }
+header, .header, .app-header, .platform-header {background:linear-gradient(90deg,var(--nabil-navy),var(--nabil-header))!important;color:var(--nabil-text);}
+.container,.lesson-layout,.lesson-main-column {background:transparent;}
+.lesson-info,.lesson-tutor-card,.lesson-concept-card,.function-study-card,.lesson-final-card,.lesson-quick-check,.lesson-summary-card,.lesson-card,.teacher .bubble,.nabil-visual,
+.lesson-wide-stack,.lesson-side-stack,.lesson-card-stack {color:var(--nabil-text);}
+.lesson-info,.lesson-tutor-card,.lesson-concept-card,.function-study-card,.lesson-final-card,.lesson-quick-check,.lesson-summary-card,.lesson-card,.teacher .bubble.has-lesson-visual {
+  background:var(--nabil-panel)!important;
+  border-color:var(--nabil-border)!important;
+}
+.lesson-tutor-card {
+  background:linear-gradient(180deg,#0d2843,#071d35)!important;
+  border:1px solid var(--nabil-border)!important;
+  border-radius:14px!important;
+}
+.lesson-tutor-name,.lesson-tutor-subtitle,
+.lesson-concept-card h2,.lesson-concept-card h3,
+.function-study-card h2,.function-study-card h3 {
+ color:var(--nabil-cyan-light)!important;
+}
+.lesson-avatar-live {
+ background:radial-gradient(ellipse at 50% 36%,#133c61 0%,#08233f 66%,#06182e 100%)!important;
+ border:1px solid var(--nabil-border);
+ border-radius:16px;
+ overflow:hidden;
+}
+.lesson-avatar-live img {max-width:100%;height:auto;object-fit:contain;}
+.lesson-tutor-message,.lesson-tutor-quick-check {
+ background:var(--nabil-card)!important;
+ color:var(--nabil-text)!important;
+ border-color:var(--nabil-border)!important;
+}
+.lesson-tutor-quick-check {border-inline-start:3px solid var(--nabil-cyan)!important;}
+.nabil-visual,.nabil-visual-wrap,.lesson-visual,
+.lesson-figure,.lesson-figure-card,.lesson-graph,.drawing-container,
+.teacher .bubble.has-lesson-visual svg {
+ background-color:var(--nabil-card-deep)!important;
+ border-color:var(--nabil-border)!important;
+}
+.nabil-visual svg,.lesson-visual svg,.lesson-figure svg,
+.lesson-graph svg {max-width:100%;height:auto;}
+.lesson-action-bar button,.lesson-tutor-secondary-actions button,
+#nabilLearningDock button {background:#123957;color:var(--nabil-text);border:1px solid var(--nabil-border);border-radius:9px;}
+#sendBtn,.nabil-primary-button {background:var(--nabil-blue)!important;color:#fff!important;}
+#startLessonBtn,.start-lesson,.start-btn {background:var(--nabil-green)!important;color:#fff!important;}
+#micBtn,.nabil-talk-button {background:var(--nabil-red)!important;color:#fff!important;}
+.input-area,textarea#messageInput {background:var(--nabil-card-deep);color:var(--nabil-text);}
+textarea#messageInput {border-color:var(--nabil-border);font:inherit;}
+textarea#messageInput::placeholder {color:var(--nabil-muted);}
+#nabilLearningDock {
+ box-sizing:border-box!important;width:100%!important;max-width:none!important;
+ margin:14px 0 22px!important;
+ background:var(--nabil-panel)!important;
+ border:1px solid var(--nabil-border)!important;
+ color:var(--nabil-text)!important;
+}
+#nabilLearningDock .nv132-header strong {color:var(--nabil-cyan-light);}
+#nabilLearningDock .nv132-grid button {background:#123957!important;border-color:#32678d!important;}
+#nabilLearningDock .nv132-grid button:hover {background:#165580!important;}
+#nabilLearningDock .nv132-grid button:focus-visible,
+.lesson-action-bar button:focus-visible,
+#nabilOpenTalk:focus-visible {outline:3px solid var(--nabil-cyan-light);outline-offset:2px;}
+#nabilOpenTutor {margin:10px 0 16px;padding:12px 14px;background:var(--nabil-panel);border:1px solid var(--nabil-border);border-radius:14px;display:grid;gap:10px;}
+#nabilOpenTutor h2 {margin:0;color:var(--nabil-cyan-light);font-size:clamp(16px,2vw,22px);}
+#nabilOpenTutor p {margin:0;color:var(--nabil-muted);line-height:1.5;}
+#nabilOpenTutor .nabil-open-actions {display:flex;gap:8px;flex-wrap:wrap;}
+#nabilOpenTutor button {padding:10px 15px;min-height:44px;color:#fff;background:#0a508b;border:1px solid var(--nabil-cyan);border-radius:10px;font:inherit;font-weight:700;cursor:pointer;}
+#nabilOpenTalk {background:var(--nabil-red)!important;border-color:#ff7881!important;}
+#nabilOpenTutor [role=status] {font-size:13px;min-height:1.3em;color:var(--nabil-muted);}
+#nabilOpenTutor [role=status].error {color:#ffb4b4;}
+#nabilOpenAnswer {display:none;max-width:100%;min-width:0;overflow-wrap:anywhere;border:1px solid var(--nabil-border);border-radius:12px;padding:13px;background:var(--nabil-card-deep);}
+#nabilOpenAnswer:not(:empty) {display:block;}
+#nabilOpenAnswer .nabil-visual {max-width:100%;overflow:auto;}
+#nabilOpenAnswer svg {max-width:100%;height:auto;}
+@media(max-width:760px) {
+ .lesson-layout {display:flex!important;flex-direction:column!important;}
+ .lesson-main-column,.lesson-tutor-card {width:100%!important;min-width:0!important;max-width:100%!important;}
+ #nabilOpenTutor {padding:10px;}
+ #nabilOpenTutor .nabil-open-actions>* {flex:1 1 140px;}
+ #nabilLearningDock {margin:10px 0 20px!important;}
+ #nabilOpenAnswer {padding:8px;}
+}
