@@ -7,7 +7,8 @@ const el=id=>document.getElementById(id);
 const card=document.createElement("section");
 card.id="nabilOpenTutor";
 card.setAttribute("aria-label","الأستاذ نبيل — سؤال مفتوح");
-card.innerHTML='<h2>👋 أهلًا! أنا الأستاذ نبيل</h2>'+
+card.innerHTML='<img class="nabil-open-mini-avatar" src="/static/nabil-lesson-avatar.png" alt="الأستاذ نبيل" loading="eager">'+
+ '<h2>👋 أهلًا! أنا الأستاذ نبيل</h2>'+
  '<p>اسألني كتابةً أو صوتًا باللهجة اللبنانية، English أو Français. ما في داعي تختار صفًا أو مادة لتسألني.</p>'+
  '<div class="nabil-open-actions"><button id="nabilOpenTalk" type="button">🎙️ سؤال صوتي</button>'+
  '<button id="nabilOpenFocus" type="button">✍️ اكتب سؤالك</button></div>'+
