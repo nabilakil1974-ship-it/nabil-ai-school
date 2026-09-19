@@ -131,6 +131,8 @@ def build_research_docx(request: ResearchExport) -> bytes:
 
     doc = Document()
     sec = doc.sections[0]
+    sec.page_width = Cm(21)
+    sec.page_height = Cm(29.7)
     sec.top_margin = sec.bottom_margin = Cm(2.5)
     sec.left_margin = sec.right_margin = Cm(2.6)
     style = doc.styles["Normal"]
@@ -138,6 +140,18 @@ def build_research_docx(request: ResearchExport) -> bytes:
     style.font.size = Pt(14)
     style.paragraph_format.space_after = Pt(8)
     style.paragraph_format.line_spacing = 1.5
+    # The institution may apply its own template later; default to the
+    # researcher-requested 14pt across all manuscript paragraphs/headings.
+    for style_name in ("Title", "Heading 1", "Heading 2", "Heading 3"):
+        chapter_style = doc.styles[style_name]
+        chapter_style.font.name = "Arial"
+        chapter_style.font.size = Pt(14)
+        chapter_style.font.bold = True
+    footer = sec.footer.paragraphs[0]
+    footer.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    page_field = OxmlElement("w:fldSimple")
+    page_field.set(qn("w:instr"), "PAGE")
+    footer._p.append(page_field)
 
     def add(text: str, kind: str = ""):
         paragraph = doc.add_paragraph(style=kind or None)
