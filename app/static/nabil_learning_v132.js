@@ -12,11 +12,12 @@ function placeDock(){
  const teachers=chat?[...chat.querySelectorAll(".message.teacher")]:[];
  const latest=teachers[teachers.length-1];
  if(latest){
-   latest.insertAdjacentElement("afterend",dock);
+   // Avoid a MutationObserver loop: moving an already placed node mutates chat.
+   if(latest.nextElementSibling!==dock)latest.insertAdjacentElement("afterend",dock);
  }else if(chat){
-   chat.insertAdjacentElement("afterend",dock);
+   if(chat.nextElementSibling!==dock)chat.insertAdjacentElement("afterend",dock);
  }else if(lessonColumn){
-   lessonColumn.appendChild(dock);
+   if(dock.parentElement!==lessonColumn)lessonColumn.appendChild(dock);
  }
 }
 placeDock();
