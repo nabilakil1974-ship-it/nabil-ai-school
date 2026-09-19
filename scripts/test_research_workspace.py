@@ -15,7 +15,9 @@ TREE = ast.parse(RESEARCH)
 
 def isolate(name):
     node = next(n for n in TREE.body if isinstance(n, ast.FunctionDef) and n.name == name)
-    namespace = {"io": io, "ResearchExport": object}
+    from app.services.research_docx_notes import attach_researcher_footnotes
+    namespace = {"io": io, "ResearchExport": object,
+                 "attach_researcher_footnotes": attach_researcher_footnotes}
     exec("from __future__ import annotations\n" + ast.unparse(node), namespace)
     return namespace[name]
 
