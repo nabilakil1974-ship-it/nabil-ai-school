@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - app/main.py
+      - app/api/routes_chat.py
       - app/static/nabil_open_tutor_v1.js
       - app/static/nabil_learning_v132.js
       - app/static/nabil_reference_theme.css
