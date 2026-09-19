@@ -57,6 +57,22 @@ class NabilUiIntegrationTests(unittest.TestCase):
             self.assertIn(marker, script)
         self.assertNotIn("max-height:min(65vh,560px);overflow:auto", script)
 
+    def test_exercise_send_never_disappears_without_feedback(self):
+        learning = (STATIC / "nabil_learning_v132.js").read_text(encoding="utf-8")
+        tutor = (STATIC / "nabil_open_tutor_v1.js").read_text(encoding="utf-8")
+        for fragment in (
+            "ما زلنا بانتظار حلّ التمرين",
+            "لم يصل حلّ جديد",
+            "Promise.race([",
+            "clearTimeout(lateNotice)",
+        ):
+            self.assertIn(fragment, learning)
+        self.assertIn("if(!audio&&String(question||", tutor)
+        self.assertIn("return false;", tutor)
+        self.assertIn("if(ok===false&&!input.value.trim())input.value=q", tutor)
+        self.assertIn("nabil_learning_v132.js?v=139", self.html)
+        self.assertIn("nabil_open_tutor_v1.js?v=16", self.html)
+
     def test_removed_fake_progress_engine(self):
         self.assertNotIn('<script id="nabilV130Script">', self.html)
 
