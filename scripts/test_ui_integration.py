@@ -73,6 +73,32 @@ class NabilUiIntegrationTests(unittest.TestCase):
         self.assertIn("nabil_learning_v132.js?v=139", self.html)
         self.assertIn("nabil_open_tutor_v1.js?v=16", self.html)
 
+    def test_lesson_explanation_and_preview_never_disappear_silently(self):
+        tutor = (STATIC / "nabil_open_tutor_v1.js").read_text(encoding="utf-8")
+        theme = (STATIC / "nabil_reference_theme.css").read_text(encoding="utf-8")
+        strict = (STATIC / "curriculum_strict.js").read_text(encoding="utf-8")
+        for marker in (
+            "text.textContent", "وصل الجواب؛ عم بعرض الشرح",
+            "closeDrawingPreviewBtn", "e.key===\"Escape\"",
+            "drawingModal.hidden=true",
+        ):
+            self.assertIn(marker, tutor)
+        for marker in (
+            "#drawingPreviewModal:not([hidden])",
+            "#drawingPreviewContent svg",
+            "max-height:calc(100dvh - 12px)",
+        ):
+            self.assertIn(marker, theme)
+        self.assertIn("اختر فرع الثالث ثانوي أولًا", strict)
+        self.assertIn("curriculum_strict.js?v=138", self.html)
+        self.assertIn("nabil_reference_theme.css?v=15", self.html)
+
+    def test_third_secondary_branch_catalog_precedes_old_unbranched_index(self):
+        backend = (ROOT / "app" / "api" / "routes_chat.py").read_text(encoding="utf-8")
+        self.assertIn("Branch-specific third-secondary master entries", backend)
+        self.assertLess(backend.index("master_first = json.loads("),
+                        backend.index("grade_node = subject_node.get(curated_grade"))
+
     def test_removed_fake_progress_engine(self):
         self.assertNotIn('<script id="nabilV130Script">', self.html)
 
