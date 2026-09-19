@@ -381,18 +381,53 @@ document.addEventListener("click",e=>{
 const legacyMic=el("homeVoiceBtn");
 if(legacyMic){legacyMic.hidden=false;legacyMic.title="سؤال صوتي — نفس محرّك الأستاذ نبيل";legacyMic.querySelector("span:last-child")?.replaceChildren("سؤال صوتي")}
 
-// The green button enters the actual lesson page. It does not show another grade splash.
-document.addEventListener("click",e=>{
- if(!e.target.closest?.("#homeStartShortcut"))return;
- stage&&(stage.hidden=true);
- homeHost.style.display="none";
-},true);
+// Stable TWO-VIEW navigation: the retired legacy home click listener and
+// delayed splash/mobile callbacks must not hide the lesson after a moment.
+const returnHome=document.createElement("button");
+returnHome.id="nabilReturnHomeFloating";
+returnHome.type="button";
+returnHome.textContent="⌂ الرئيسية";
+returnHome.setAttribute("aria-label","العودة إلى الأستاذ نبيل");
+document.body.appendChild(returnHome);
 
-// If user returns Home from the lesson page, restore exactly this landing card.
-window.nabilShowProfessorGateway=()=>{
- home.style.display="block";home.style.opacity="1";homeHost.style.display="block";stage&&(stage.hidden=true);
+function showStructuredLesson(){
+ try{stopNabilNeuralVoice?.();speechSynthesis?.cancel?.()}catch(_e){}
+ document.body.classList.remove("nabil-home-lock");
+ document.body.classList.add("nabil-lesson-active");
+ home.setAttribute("aria-hidden","true");
+ home.hidden=true;
+ home.style.setProperty("display","none","important");
+ homeHost.style.display="none";
+ stage&&(stage.hidden=true);
+ window.scrollTo({top:0,behavior:"instant"});
+}
+function showBlueRobotHome(){
+ document.body.classList.remove("nabil-lesson-active");
  document.body.classList.add("nabil-home-lock");
-};
+ home.hidden=false;
+ home.removeAttribute("aria-hidden");
+ home.style.removeProperty("display");
+ home.style.display="block";
+ home.style.opacity="1";
+ homeHost.style.display="block";
+ stage&&(stage.hidden=true);
+ window.scrollTo({top:0,behavior:"instant"});
+}
+// Capture and consume the event BEFORE the obsolete listener on the green
+// button: it can otherwise re-enter the retired grade screen or re-lock scroll.
+document.addEventListener("click",e=>{
+ if(e.target.closest?.("#homeStartShortcut")){
+   e.preventDefault();
+   e.stopImmediatePropagation();
+   showStructuredLesson();
+ }else if(e.target.closest?.("#nabilReturnHomeFloating,#backToInterfaceBtn,#lessonHomeBtn")){
+   e.preventDefault();
+   e.stopImmediatePropagation();
+   showBlueRobotHome();
+ }
+},true);
+returnHome.addEventListener("click",showBlueRobotHome);
+window.nabilShowProfessorGateway=showBlueRobotHome;
 try{if(typeof nabilActivityMode!=="undefined")nabilActivityMode="general_exercises"}catch(_e){}
 // Do not let the retired home script speak using a second browser-only voice.
 try{if(typeof homeWelcomeSpoken!=="undefined")homeWelcomeSpoken=true}catch(_e){}
