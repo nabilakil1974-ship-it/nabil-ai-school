@@ -32,6 +32,8 @@ class ResearchRequest(BaseModel):
     previous_text: str = Field(default="", max_length=35_000)
     sources: str = Field(default="", max_length=15_000)
     guidance: str = Field(default="", max_length=4000)
+    research_questions: str = Field(default="", max_length=12000)
+    observed_aggregates: str = Field(default="", max_length=18000)
 
 
 class ResearchExport(BaseModel):
@@ -73,11 +75,14 @@ Return only the requested stage, with useful headings and substantive draft text
 
 @router.post("/draft")
 def draft_research(request: ResearchRequest):
+    if request.stage in ("results", "conclusion", "summary") and not request.observed_aggregates.strip():
+        raise HTTPException(status_code=422, detail="Upload and analyze actual questionnaire responses before empirical findings and final conclusions.")
     question = (
         f"Research title:\n{request.title}\n\nOwner's outline:\n{request.outline}"
         f"\n\nResearcher guidance:\n{request.guidance or '(none)'}"
         f"\n\nResearcher-supplied bibliographic notes (UNVERIFIED):\n{request.sources or '(none)'}"
         f"\n\nPrevious draft to continue or revise:\n{request.previous_text or '(none)'}"
+        f"\n\nVERIFIED AGGREGATES FROM UPLOADED RESPONSES (if any):\n{request.observed_aggregates or 'NONE'}"
         f"\n\nWrite stage: {request.stage}."
     )
     try:
