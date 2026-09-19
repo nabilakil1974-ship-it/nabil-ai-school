@@ -89,5 +89,58 @@ class NabilUiIntegrationTests(unittest.TestCase):
                 self.assertIn(token, js)
 
 
+    def test_owner_voice_language_pacing_and_visual_contract(self):
+        js = (STATIC / "nabil_open_tutor_v1.js").read_text(encoding="utf-8")
+        css = (STATIC / "nabil_reference_theme.css").read_text(encoding="utf-8")
+        main_py = (ROOT / "app" / "main.py").read_text(encoding="utf-8")
+        for token in (
+            "prepareSpeechTypewriter", "nabilOpenPace", "window.nabilVoicePace",
+            'board.dir=dir', 'board.lang=', "detectLanguage(question",
+            "drawingPreviewModal", "Enlarge figure", "Agrandir le schéma",
+            "معاينة الرسمة كبيرة",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, js)
+        for token in (
+            "min-height:clamp(200px,27vw,390px)",
+            "min-height:clamp(280px,46vw,650px)",
+            "#drawingPreviewContent",
+            "--nabil-owner-bg:#05172d",
+            "#nabilOpenAnswer[lang=\"en\"]",
+            "#nabilOpenAnswer[lang=\"fr\"]",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, css)
+        self.assertIn("pace_browser_new", main_py)
+        self.assertIn("pace_neural_new", main_py)
+
+    def test_owner_three_dimensional_and_same_renderer_contract(self):
+        route = (ROOT / "app" / "api" / "routes_chat.py").read_text(encoding="utf-8")
+        tutor = (STATIC / "nabil_open_tutor_v1.js").read_text(encoding="utf-8")
+        for token in (
+            "cube", "rectangular_prism", "cylinder", "cone", "sphere",
+            "مجسم 3D", "3D-style circuits",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, route)
+        self.assertIn("renderNabilDiagram", tutor)
+        self.assertNotIn("invent", tutor.lower().split("renderNabilDiagram",1)[0][-500:])
+
+    def test_learning_dock_is_real_and_in_normal_flow(self):
+        css = (STATIC / "nabil_reference_theme.css").read_text(encoding="utf-8")
+        js = (STATIC / "nabil_learning_v132.js").read_text(encoding="utf-8")
+        self.assertIn("position:relative!important", css)
+        self.assertIn("clear:both!important", css)
+        for action in (
+            "checkpoint", "explain_another_way", "adaptive_practice",
+            "flashcards", "quick_quiz", "study_plan", "dashboard",
+        ):
+            with self.subTest(action=action):
+                self.assertIn(action, js)
+        self.assertIn("showLastActivity", js)
+        self.assertIn("sendToAI(question,false)", js)
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
