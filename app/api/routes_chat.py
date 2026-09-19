@@ -3462,6 +3462,46 @@ def _safe_series_parallel_comparison_drawings(message: str, reply_text: str):
     return [series, parallel]
 
 
+def _nabil_figure_only_request(message: str) -> bool:
+    """Honor explicit visual-only requests across spoken and typed languages."""
+    return bool(re.search(
+        r"\b(?:only|just)\s+(?:the\s+)?(?:figure|drawing|graph|diagram|sketch)\b"
+        r"|\b(?:figure|drawing|graph|diagram|sketch)\s+only\b"
+        r"|\b(?:uniquement|seulement)\s+(?:la\s+|le\s+)?(?:figure|dessin|sch[ée]ma|graphe)\b"
+        r"|(?:فقط|بس)\s*(?:ال)?(?:رسمة|رسم|شكل|مخطط)"
+        r"|(?:ال)?(?:رسمة|رسم|شكل|مخطط)\s*(?:فقط|بس)",
+        message or "", flags=re.IGNORECASE,
+    ))
+
+
+def _nabil_exact_sphere_drawing(message: str):
+    """Use only the radius actually supplied; no provider-invented dimensions."""
+    if not re.search(r"\b(?:sphere|sph[èe]re)\b|كرة", message or "", re.I):
+        return None
+    m = re.search(
+        r"(?:\bradius\b|\brayon\b|نصف\s*القطر|نصف\s*قطر)"
+        r"\s*(?:equal\s+to|égal\s+à|egal\s+a|يساوي|=|:|of|de)?\s*"
+        r"(\d+(?:[.,]\d+)?)\s*(cm|mm|m)?\b",
+        message or "", re.I,
+    )
+    if not m:
+        return None
+    radius = float(m.group(1).replace(",", "."))
+    if not 0 < radius < 1000000:
+        return None
+    unit = (m.group(2) or "").lower()
+    label = f"r = {radius:g}" + (f" {unit}" if unit else "")
+    drawing = {
+        "type": "sphere",
+        "title": "Sphere" if not re.search(r"[\u0600-\u06ff]", message) else "كرة",
+        "radius": radius,
+        "radius_label": label,
+        "labels": {"radius": label, "center": "O"},
+        "card_index": 1,
+    }
+    return drawing if validate_drawing_strict(drawing) else None
+
+
 def extract_drawings(text: str):
     if not text:
         return text, []
@@ -4730,6 +4770,7 @@ async def voice_chat(
             message = "ساعدني في هذا الدرس."
  
     message = message.strip()
+    figure_only_request = _nabil_figure_only_request(message)
 
     # Written and transcribed voice requests use the SAME lesson/exercise
     # reasoning path. The learner's colloquial phrasing, code-switching,
@@ -4741,6 +4782,9 @@ async def voice_chat(
                 status_code=422,
                 detail="لم أتمكّن من سماع السؤال بوضوح. حاول التسجيل من جديد.",
             )
+
+    # Voice transcription replaces the initial message: recompute visual-only intent.
+    figure_only_request = _nabil_figure_only_request(message)
 
     # ==========================================
     # STUDENT
@@ -5127,6 +5171,17 @@ GENERAL EXERCISES MODE / حل تمارين عامة
 
     """
  
+    if figure_only_request:
+        educational_context += """
+FIGURE_ONLY_RESPONSE_CONTRACT_V1 — student explicitly asked for JUST THE FIGURE.
+Return only a validated DRAWINGS_JSON for the requested figure. No Exercise board,
+Given, Required, Formula, Solution, Rule Summary, Quick Check, time estimate,
+volume, surface area, or unrelated comparative examples.
+Do not invent a radius, a dimension or a figure. If the question includes an
+exact radius, label exactly that radius and its stated unit in a 3D-style sphere.
+Avoid all visible prose when the verified figure is available.
+"""
+
     # Smart learning layer: server-side action routing + real saved profile.
     # This keeps pedagogical instructions out of the student's visible message.
     educational_context += "\n\nملف تعلم الطالب المحفوظ (استخدمه فقط عند وجود دليل):\n" + json.dumps(
@@ -5267,7 +5322,7 @@ Do not invent hidden data. Return only the missing exercises and their drawing J
     # GENERAL EXERCISES COMPLETION GUARD
     # A board is not allowed to stop at "Required" or midway through Solution.
     # ----------------------------------------------------------
-    if general_exercises_mode:
+    if general_exercises_mode and not figure_only_request:
         _rr = str(raw_reply or "").strip()
         _low = _rr.lower()
 
@@ -5378,7 +5433,7 @@ Mandatory:
         re.I | re.S
     ))
 
-    if _looks_like_function_study:
+    if _looks_like_function_study and not figure_only_request:
         _needed_checks = {
             "domain": bool(re.search(r"\bdomain\b|\bdomaine\b|المجال", _function_low)),
             "limits": bool(re.search(r"\blimits?\b|\blimites?\b|النهايات", _function_low)),
@@ -5571,6 +5626,17 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
                 detected_lang,
             )
  
+    # EXACT FIGURE-ONLY DELIVERY: no generic lesson/solution text leaks into
+    # a visual-only answer. Recover a geometrically verified sphere if the
+    # provider omitted the drawing, using ONLY the radius in the question.
+    if figure_only_request:
+        if not drawings:
+            exact_sphere = _nabil_exact_sphere_drawing(message)
+            if exact_sphere:
+                drawings = [exact_sphere]
+        if drawings:
+            reply_text = " "  # Nonempty transport; frontend presents the drawing only.
+
     if not reply_text:
  
         raise HTTPException(
