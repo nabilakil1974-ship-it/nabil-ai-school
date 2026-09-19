@@ -470,7 +470,7 @@ if(legacyMic){legacyMic.hidden=false;legacyMic.title="سؤال صوتي — نف
 const returnHome=document.createElement("button");
 returnHome.id="nabilReturnHomeFloating";
 returnHome.type="button";
-returnHome.textContent="⌂ الرئيسية";
+returnHome.textContent="Home";
 returnHome.setAttribute("aria-label","العودة إلى الأستاذ نبيل");
 // Navigation belongs inside the visible lesson header, never over the
 // fixed exercise composer or Send button. If the header is unavailable,
