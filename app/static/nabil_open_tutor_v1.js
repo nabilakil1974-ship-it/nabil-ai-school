@@ -110,6 +110,44 @@ function renderVerifiedSphereFallback(d){
 }
 
 
+/* A verified-series fallback when the older lesson diagram renderer returns
+   markup without an actual image. Coordinates are taken ONLY from backend
+   validated numeric data. No invented point, radius or dimension. */
+function renderVerifiedCoordinateFallback(d){
+ if(!["coordinate_plane","function","graph"].includes(String(d?.type||"").toLowerCase()))return "";
+ const series=(d.series||[]).map(part=>Array.isArray(part)?part:part?.points||[]);
+ if(!series.some(part=>part.length>=2))return "";
+ const xmin=Number(d.xmin??d.x_min),xmax=Number(d.xmax??d.x_max);
+ const ymin=Number(d.ymin??d.y_min),ymax=Number(d.ymax??d.y_max);
+ if(![xmin,xmax,ymin,ymax].every(Number.isFinite)||xmin>=xmax||ymin>=ymax)return "";
+ const left=44,top=25,width=570,height=375;
+ const px=x=>left+(Number(x)-xmin)*width/(xmax-xmin);
+ const py=y=>top+height-(Number(y)-ymin)*height/(ymax-ymin);
+ const fmt=n=>Math.round(n*100)/100;
+ let shapes='<rect width="680" height="440" fill="#081e33"/>';
+ const stroke='#85bdd4';
+ if(xmin<=0&&xmax>=0)shapes+='<line x1="'+fmt(px(0))+'" x2="'+fmt(px(0))+'" y1="'+top+'" y2="'+(top+height)+'" stroke="'+stroke+'"/>';
+ if(ymin<=0&&ymax>=0)shapes+='<line x1="'+left+'" x2="'+(left+width)+'" y1="'+fmt(py(0))+'" y2="'+fmt(py(0))+'" stroke="'+stroke+'"/>';
+ (d.vertical_asymptotes||[]).forEach(item=>{
+   const x=Number(item?.x??item);if(!Number.isFinite(x)||x<xmin||x>xmax)return;
+   shapes+='<line x1="'+fmt(px(x))+'" x2="'+fmt(px(x))+'" y1="'+top+'" y2="'+(top+height)+'" stroke="#ff7b82" stroke-width="2" stroke-dasharray="8 5"/>';
+ });
+ series.forEach((part,index)=>{
+  let pts=part.filter(v=>Array.isArray(v)&&v.length>=2&&Number.isFinite(Number(v[0]))&&Number.isFinite(Number(v[1]))&&v[0]>=xmin&&v[0]<=xmax&&v[1]>=ymin&&v[1]<=ymax);
+  if(pts.length<2)return;
+  const points=pts.map(v=>fmt(px(v[0]))+','+fmt(py(v[1]))).join(' ');
+  const color=index%2===0?'#39c9ff':'#ffd66a';
+  shapes+='<polyline points="'+points+'" fill="none" stroke="'+color+'" stroke-width="3"/>';
+ });
+ (d.markers||[]).forEach(pt=>{
+   const x=Number(pt.x),y=Number(pt.y);
+   if(!Number.isFinite(x)||!Number.isFinite(y)||x<xmin||x>xmax||y<ymin||y>ymax)return;
+   shapes+='<circle cx="'+fmt(px(x))+'" cy="'+fmt(py(y))+'" r="4" fill="#ffdb60"/>';
+   if(pt.label)shapes+='<text x="'+fmt(px(x)+7)+'" y="'+fmt(py(y)-8)+'" fill="#ffffff" font-size="13">'+escapeHTML(String(pt.label))+'</text>';
+ });
+ return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 440" role="img" aria-label="'+escapeHTML(String(d.title||"Verified function graph"))+'">'+shapes+'</svg>';
+}
+
 function detectLanguage(q){
  const t=String(q||"").trim();
  // Technical school content dominates a casual Lebanese interjection.
@@ -205,7 +243,7 @@ function renderAnswer(result,question){
  drawings.forEach(d=>{
    try{
      const primary=typeof renderNabilDiagram==="function"?(renderNabilDiagram(d)||""):"";
-     const html=/<(?:svg|canvas|img)\b/i.test(primary)?primary:(renderVerifiedSphereFallback(d)||primary);
+     const html=/<(?:svg|canvas|img)\b/i.test(primary)?primary:(renderVerifiedSphereFallback(d)||renderVerifiedCoordinateFallback(d));
      if(!html)return;
      const pane=document.createElement("div");
      pane.className="nabil-open-visual";
