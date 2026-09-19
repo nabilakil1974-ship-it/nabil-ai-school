@@ -203,6 +203,19 @@ class NabilUiIntegrationTests(unittest.TestCase):
         self.assertIn('let btn=$("nabilWorksheetBtn")', script)
 
 
+    def test_worksheet_waits_for_student_attempt_and_grades_real_task(self):
+        script = (STATIC / "nabil_worksheet_v1.js").read_text(encoding="utf-8")
+        for token in (
+            "function needsAttempt()",
+            "assessedStages:[]",
+            "||needsAttempt();",
+            "activeTask=state.sections.findLast",
+            "state.assessedStages.push(state.index-1)",
+            "صحّح هذه المحاولة مقابل السؤال",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, script)
+
     def test_owner_voice_language_pacing_and_visual_contract(self):
         js = (STATIC / "nabil_open_tutor_v1.js").read_text(encoding="utf-8")
         css = (STATIC / "nabil_reference_theme.css").read_text(encoding="utf-8")
