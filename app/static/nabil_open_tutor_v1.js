@@ -192,7 +192,7 @@ function renderAnswer(result,question){
  drawings.forEach(d=>{
    try{
      const primary=typeof renderNabilDiagram==="function"?(renderNabilDiagram(d)||""):"";
-     const html=primary||renderVerifiedSphereFallback(d);
+     const html=/<(?:svg|canvas|img)\b/i.test(primary)?primary:(renderVerifiedSphereFallback(d)||primary);
      if(!html)return;
      const pane=document.createElement("div");
      pane.className="nabil-open-visual";
