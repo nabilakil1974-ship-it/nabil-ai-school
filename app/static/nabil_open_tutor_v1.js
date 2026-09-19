@@ -57,6 +57,21 @@ const status=el("nabilOpenStatus"), board=el("nabilOpenAnswer"), convo=el("nabil
       nav=el("nabilOpenAnswerNav"), explainBtn=el("nabilOpenExplainBtn"), visualBtn=el("nabilOpenVisualBtn"),
       explanation=el("nabilOpenExplanation"), visuals=el("nabilOpenVisuals"), toolsHost=el("nabilOpenTools"), liveType=el("nabilOpenLiveType");
 let recorder=null,stream=null,chunks=[],recording=false,busy=false,openConversationId="";
+/* Figure preview must always have working close controls after dynamic
+   answer-card rerenders, including Escape and tapping outside the dialog. */
+const drawingModal=el("drawingPreviewModal");
+if(drawingModal&&!drawingModal.dataset.nabilCloseBound){
+ drawingModal.dataset.nabilCloseBound="1";
+ const closeFigure=()=>{drawingModal.hidden=true;el("drawingPreviewContent")?.replaceChildren()};
+ el("closeDrawingPreviewBtn")?.addEventListener("click",closeFigure);
+ drawingModal.addEventListener("click",e=>{
+   if(e.target===drawingModal)closeFigure();
+ });
+ document.addEventListener("keydown",e=>{
+   if(e.key==="Escape"&&!drawingModal.hidden)closeFigure();
+ });
+}
+
 let greetingSpoken=false;
 const pace=el("nabilOpenPace"),paceValue=el("nabilOpenPaceValue");
 try{
@@ -237,6 +252,11 @@ function renderAnswer(result,question){
    if(typeof renderAIText==="function")text.innerHTML=renderAIText(reply);
    else text.innerHTML="<div>"+escapeHTML(reply).replace(/\n/g,"<br>")+"</div>";
  }catch(_e){text.innerHTML="<div>"+escapeHTML(reply).replace(/\n/g,"<br>")+"</div>"}
+ // The shared Markdown renderer can return an empty fragment for unusual
+ // model output. Never silently hide the solution when the reply exists.
+ if(reply&&!(text.textContent||"").trim()&&!text.querySelector("svg,canvas,img,mjx-container")){
+   text.innerHTML="<div>"+escapeHTML(reply).replace(/\n/g,"<br>")+"</div>";
+ }
  // Math and tables belong in the formatted solution, not in a raw transcript.
  if(!figureOnly)explanation.appendChild(text);
 
@@ -398,6 +418,8 @@ async function request({question="",audio=null}){
      data.append("message",String(question).trim());
      addLine("student",String(question).trim());
    }
+   // Reveal the in-progress state in the actual answer card immediately.
+   board.classList.add("is-waiting");
    const aborter=new AbortController();
    const timeout=setTimeout(()=>aborter.abort(),90000);
    let response;
@@ -408,6 +430,7 @@ async function request({question="",audio=null}){
    if(result.conversation_id)openConversationId=result.conversation_id;
    const heard=String(result.transcribed_text||question||"").trim();
    if(audio&&heard)addLine("student",heard);
+   setStatus("✅ وصل الجواب؛ عم بعرض الشرح والرسومات…");
    const shown=renderAnswer(result,heard);
    if(result.student_profile&&window.NABIL130?.mergeProfile)window.NABIL130.mergeProfile(result.student_profile);
    const spoken=typeof nabilBoardPlainSpeech==="function"?nabilBoardPlainSpeech(shown.reply):shown.reply;
@@ -421,12 +444,15 @@ async function request({question="",audio=null}){
        onerror:()=>typer.finish()
      })).catch(()=>typer.finish());
    }
-   setStatus(shown.figureOnly?"✅ الرسمة ظاهرة. فيك تكبّرها بزر المعاينة.":shown.hasVisual?"✅ الجواب جاهز. فيك تعرض الشرح أو الرسمة من الأزرار فوق البطاقة.":"✅ الجواب جاهز لسؤالك التالي.");
+   setStatus(shown.figureOnly?"✅ الرسمة ظاهرة. فيك تكبّرها بزر المعاينة.":shown.hasVisual?"✅ الجواب جاهز. الشرح والرسمة في بطاقتين منفصلتين.":"✅ الجواب جاهز لسؤالك التالي.");
+   return true;
  }catch(e){
    const aborted=e?.name==="AbortError";
+   if(!audio&&String(question||"").trim()&&!input.value.trim())input.value=String(question).trim();
    setStatus("⚠️ "+(aborted?"تأخر الجواب أكثر من المتوقع. جرّب إرسال السؤال مرة ثانية.":String(e?.message||"تعذّر الاتصال").slice(0,180)),true)
+   return false;
  }
- finally{setBusy(false);send.disabled=false;talk.disabled=false;if(!recording)talk.textContent="🎙️ سؤال صوتي"}
+ finally{board.classList.remove("is-waiting");setBusy(false);send.disabled=false;talk.disabled=false;if(!recording)talk.textContent="🎙️ سؤال صوتي"}
 }
 async function startRecording(){
  if(busy||recording)return;
@@ -443,8 +469,16 @@ async function startRecording(){
 }
 function stopRecording(){if(!recording||!recorder)return;talk.textContent="⏳ جارٍ الإرسال";setStatus("⏳ عم برسل التسجيل…");try{recorder.stop()}catch(_e){recording=false;setStatus("تعذّر إنهاء التسجيل.",true)}}
 talk.addEventListener("click",()=>{recording?stopRecording():startRecording()});
-send.addEventListener("click",()=>{if(recording)return; // Keep one voice question at a time.
- const q=input.value.trim();if(!q)return;input.value="";request({question:q})});
+send.addEventListener("click",()=>{if(recording||busy)return; // Do not duplicate pending requests.
+ const q=input.value.trim();if(!q)return;
+ input.value="";
+ Promise.resolve(request({question:q})).then(ok=>{
+   if(ok===false&&!input.value.trim())input.value=q;
+ }).catch(e=>{
+   if(!input.value.trim())input.value=q;
+   setStatus("⚠️ تعذّر إرسال السؤال: "+String(e?.message||e).slice(0,150),true);
+ });
+});
 input.addEventListener("input",()=>{
  const lang=detectLanguage(input.value);
  input.dir=lang==="العربية"?"rtl":"ltr";

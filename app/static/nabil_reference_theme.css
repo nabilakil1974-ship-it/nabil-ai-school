@@ -1298,3 +1298,45 @@ body.nabil-lesson-active #nv132Result .nv132-figure-card{
   flex-basis:56px!important;
  }
 }
+
+/* QA: real lesson & exercise figure preview uses its own viewport and never
+   crops scientific SVG labels or collapses solution text on a phone. */
+#drawingPreviewModal[hidden]{display:none!important}
+#drawingPreviewModal:not([hidden]){
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ position:fixed!important;inset:0!important;z-index:2147483000!important;
+ padding:clamp(4px,1vw,18px)!important;box-sizing:border-box!important;
+ overscroll-behavior:contain!important;
+}
+#drawingPreviewModal .drawing-preview-dialog{
+ display:block!important;width:min(1500px,100%)!important;
+ max-width:100%!important;max-height:calc(100dvh - 12px)!important;
+ overflow:auto!important;box-sizing:border-box!important;
+}
+#drawingPreviewContent,
+#drawingPreviewContent .nabil-open-enlarged-visuals,
+#drawingPreviewContent .nabil-open-visual{
+ box-sizing:border-box!important;min-width:0!important;
+ max-width:100%!important;overflow:visible!important;
+}
+#drawingPreviewContent svg,
+#drawingPreviewContent img,
+#drawingPreviewContent canvas{
+ display:block!important;width:100%!important;max-width:100%!important;
+ height:auto!important;min-height:0!important;max-height:none!important;
+ object-fit:contain!important;overflow:visible!important;
+}
+#drawingPreviewContent svg *{vector-effect:non-scaling-stroke}
+#nabilOpenAnswer.is-waiting #nabilOpenExplanation:not([hidden]){
+ min-height:64px!important;
+}
+@media(max-width:760px){
+ #drawingPreviewModal:not([hidden]){padding:3px!important}
+ #drawingPreviewModal .drawing-preview-dialog{max-height:calc(100dvh - 6px)!important;padding:8px!important}
+ #drawingPreviewContent .nabil-open-visual{padding:4px!important}
+ #nabilOpenAnswer .nabil-open-answer-text,
+ #nabilOpenExplanation .nabil-open-answer-text{
+  word-break:normal!important;overflow-wrap:break-word!important;
+  line-height:1.75!important;font-size:clamp(15px,4vw,19px)!important;
+ }
+}

@@ -161,8 +161,20 @@ async function act(action){
  setBusy(true);lastAction=action;status("الأستاذ نبيل عم يحضّر "+item[1]+(v.grade?(" للصف "+v.grade):"")+" من نفس محتوى الدرس/السؤال…");
  window.nabilPendingLearningAction=action;
  try{
-  await sendToAI(question,false);
-  if(!showLastActivity(previousAnswer))throw Error("لم يظهر نشاط جديد في صفحة المحادثة");
+  // A silent legacy send must not leave the student waiting without feedback.
+  // The request can take time for lesson grounding and drawing; keep the
+  // status visible at 20s and apply a terminal UI timeout after 85s.
+  let waiting=true;
+  const lateNotice=setTimeout(()=>{
+   if(waiting)status("⏳ ما زلنا بانتظار حلّ التمرين. إذا تأخر، سيظهر تنبيه ويمكنك إعادة المحاولة.");
+  },20000);
+  try{
+   await Promise.race([
+    Promise.resolve().then(()=>sendToAI(question,false)),
+    new Promise((_,reject)=>setTimeout(()=>reject(Error("تأخر حل التمرين أكثر من 85 ثانية؛ لم يتم تسليم جواب، جرّب مجددًا.")),85000))
+   ]);
+  }finally{waiting=false;clearTimeout(lateNotice);}
+  if(!showLastActivity(previousAnswer))throw Error("لم يصل حلّ جديد. تأكد من اتصال الخادم وأعد إرسال التمرين.");
   awaitingAnswer=["checkpoint","adaptive_practice","quick_quiz"].includes(action);
   status(awaitingAnswer?"جاوب داخل خانة السؤال، والأستاذ نبيل بيصحّح محاولتك قبل الانتقال.":"حلّ التمرين ظاهر في بطاقة منسّقة، والرسم في بطاقة مستقلة إن عاد من الخادم.");
  }catch(e){status("ما اكتمل الطلب: "+String(e?.message||"تعذر الاتصال").slice(0,160))}
