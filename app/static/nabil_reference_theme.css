@@ -534,3 +534,54 @@ html,body{background:var(--nabil-ref-page)!important;color:var(--nabil-ref-text)
  #drawingPreviewContent .nabil-open-visual{padding:4px}
  #drawingPreviewContent .nabil-open-visual svg{min-height:240px!important}
 }
+
+
+/* v7 — synchronized tutor speech + owner reference depth treatment. */
+.nabil-open-live-type{
+ display:block;margin:8px 0 10px;padding:9px 11px;
+ min-height:2.4em;line-height:1.65;
+ color:#eef8ff;background:#071d32;
+ border:1px solid #176895;border-radius:9px;
+ box-shadow:inset 0 0 0 1px rgba(20,200,245,.03);
+ font-size:clamp(14px,1.15vw,17px);
+ overflow-wrap:anywhere;
+}
+.nabil-open-live-type[hidden]{display:none!important}
+.nabil-open-live-type[dir="ltr"]{direction:ltr;text-align:left}
+.nabil-open-live-type[dir="rtl"]{direction:rtl;text-align:right}
+
+/* Give visual cards real depth without geometrically distorting the scientific SVG itself. */
+#nabilOpenVisuals .nabil-open-visual,
+.lesson-figure-card,.lesson-visual,.nabil-visual-wrap{
+ position:relative;
+ transform-style:preserve-3d;
+ box-shadow:
+   0 14px 30px rgba(0,0,0,.34),
+   0 0 0 1px rgba(20,200,245,.07) inset,
+   0 6px 0 rgba(2,14,28,.55);
+}
+#nabilOpenVisuals .nabil-open-visual::after,
+.lesson-figure-card::after{
+ content:"";position:absolute;pointer-events:none;
+ inset:5px -5px -6px 5px;z-index:-1;border-radius:12px;
+ background:linear-gradient(145deg,rgba(20,200,245,.12),rgba(5,23,45,.85));
+}
+#nabilOpenVisuals .nabil-open-visual svg,
+#nabilOpenVisuals .nabil-open-visual canvas,
+#nabilOpenVisuals .nabil-open-visual img{
+ transform:none!important; /* Never skew axes, proportions or labels for a 3D effect. */
+}
+@media(max-width:900px){
+ .nabil-open-live-type{font-size:15px;min-height:3em}
+ #nabilOpenVisuals .nabil-open-visual{
+  width:100%!important;max-width:100%!important;
+  overflow-x:auto!important;overflow-y:visible!important;
+ }
+ #nabilOpenVisuals .nabil-open-visual svg,
+ #nabilOpenVisuals .nabil-open-visual canvas,
+ #nabilOpenVisuals .nabil-open-visual img{
+  width:100%!important;max-width:100%!important;
+  height:auto!important;min-height:240px!important;
+  max-height:none!important;object-fit:contain!important;
+ }
+}
