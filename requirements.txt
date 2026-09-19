@@ -19,3 +19,4 @@ google-genai
 openai
 edge-tts
 sympy==1.14.0
+python-docx==1.1.2
