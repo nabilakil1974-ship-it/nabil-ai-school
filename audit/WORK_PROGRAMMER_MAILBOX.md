@@ -224,3 +224,27 @@ After latest Railway deployment verify on desktop AND phone:
 5. No raw JavaScript leaked into the visible page, and browser console has
    no error caused by removal of v105.
 Record PASS/FAIL with screenshot evidence, and report the live deploy commit.
+
+
+## OWNER SUPERSEDING PRIORITY — blue robot is the ONLY landing home (2026-09-19)
+
+This supersedes the older mailbox item that said to remove the giant robot splash. The owner explicitly restored and promoted the BLUE NABIL ROBOT screen as the one and only landing home.
+
+Current acceptance:
+- Keep the blue robot landing screen as the first screen on `/`.
+- Hide/remove the separate «أنا الأستاذ نبيل» gateway and the grade-only picker from landing.
+- Open typed/voice tutor is independent of grade/subject/lesson and uses the same `/api/chat` reasoning, transcription, conversation context, TTS voice and pace as lesson mode.
+- Green «ابدأ الدرس» enters the structured Lebanese-curriculum selectors.
+- Landing answer card must provide real explanation/figure tabs, render verified drawings with the same renderer, use the approved navy/cyan reference palette, preserve diagram data colours, be full-size and uncropped on phone/desktop.
+- English/French display is LTR; Arabic RTL. A student-visible speech pace control is shared with landing and lesson TTS. A live typewriter strip follows spoken words while the full rich answer remains intact.
+- Use true perspective/3D rendering only when the requested scientific/mathematical object is intrinsically 3D and renderer schema supports it; never distort a 2D graph/circuit or fabricate dimensions.
+- Smart-learning actions must be real, lesson/question-specific activities below the latest answer actions, not empty buttons.
+
+Implementation commits for this pass:
+- c021d3cf3d30cc442399bfe43ef4aff03589b405 — synchronized spoken/typewriter landing + home_live_tutor mode.
+- e8f2d1bc591af7421c1c77e9711aa440e4389ccd — full-size depth-safe visual cards + synchronized text styling.
+- 8ad251f860db737284bd6d9de27515f7e6e29ef0 — open-tutor language and verified 3D-capable drawing rules.
+- acd8c1e42c6ba7855f5057e5105768e0ef651d05 — frontend cache-busted build phase.
+
+Static JS syntax check: PASS for nabil_open_tutor_v1.js, nabil_learning_v132.js, nabil_voice_v133.js.
+Production acceptance still requires Railway status SUCCESS plus live desktop/mobile browser QA. Do not mark production PASS while the Railway deployment status is pending.
