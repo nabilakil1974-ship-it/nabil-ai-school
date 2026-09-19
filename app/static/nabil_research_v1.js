@@ -45,13 +45,13 @@ output.style.cssText="white-space:pre-wrap;word-break:break-word;max-width:100%;
 output.textContent="اختر المرحلة للبدء.";
 output.contentEditable="true";output.setAttribute("aria-label","مسودة بحث قابلة للتحرير؛ أدرج [FN:1] لربط أول مرجع من قائمة المراجع بهامش Word");
 function visibleManuscript(text){
- return text.replace(/^\\[THEORETICAL_PAGE_BREAK\\][ \\t]*\\r?\\n/gm,"");
+ return text.replace(/^\[THEORETICAL_PAGE_BREAK\][ \t]*\r?\n/gm,"");
 }
 function editedManuscript(text){
  // Keep genuine Word page breaks even after the researcher edits the visible
  // manuscript; never show the OOXML transport marker to the student.
- return text.replace(/(^## المحور النظري \\d+\\s*$)/gm,
-   "[THEORETICAL_PAGE_BREAK]\\n$1").slice(0,650000);
+ return text.replace(/(^## المحور النظري \d+\s*$)/gm,
+   "[THEORETICAL_PAGE_BREAK]\n$1").slice(0,650000);
 }
 output.addEventListener("input",()=>{manuscript=editedManuscript(output.innerText);});
 const status=document.createElement("p");status.setAttribute("role","status");panel.append(status);
