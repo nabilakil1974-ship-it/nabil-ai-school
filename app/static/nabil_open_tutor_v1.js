@@ -125,7 +125,8 @@ function prepareSpeechTypewriter(text,lang){
 
 function renderAnswer(result,question){
  const reply=String(result?.reply||"").trim();
- if(!reply)throw Error("الخادم لم يرجع جوابًا صالحًا.");
+ const figureOnly=!reply&&Array.isArray(result?.drawings)&&result.drawings.length>0;
+ if(!reply&&!figureOnly)throw Error("الخادم لم يرجع جوابًا صالحًا.");
  const lang=detectLanguage(question||result?.transcribed_text||reply);
  const dir=lang==="العربية"?"rtl":"ltr";
  board.dir=dir;
@@ -145,7 +146,7 @@ function renderAnswer(result,question){
    if(typeof renderAIText==="function")text.innerHTML=renderAIText(reply);
    else text.innerHTML="<div>"+escapeHTML(reply).replace(/\n/g,"<br>")+"</div>";
  }catch(_e){text.innerHTML="<div>"+escapeHTML(reply).replace(/\n/g,"<br>")+"</div>"}
- explanation.appendChild(text);
+ if(!figureOnly)explanation.appendChild(text);
 
  const drawings=Array.isArray(result?.drawings)?result.drawings:[];
  drawings.forEach(d=>{
@@ -173,10 +174,11 @@ function renderAnswer(result,question){
  }
  nav.hidden=false;
  visualBtn.hidden=!hasVisual;
- explanation.hidden=false;
- visuals.hidden=true;
- explainBtn.classList.add("active");
- visualBtn.classList.remove("active");
+ explanation.hidden=figureOnly;
+ visuals.hidden=!figureOnly;
+ explainBtn.classList.toggle("active",!figureOnly);
+ visualBtn.classList.toggle("active",figureOnly);
+ explainBtn.hidden=figureOnly;
  explainBtn.textContent=lang==="English"?"📘 Show explanation":lang==="Français"?"📘 Afficher l’explication":"📘 عرض الشرح";
  visualBtn.textContent=lang==="English"?"📐 Show figure":lang==="Français"?"📐 Afficher le schéma":"📐 عرض الرسمة";
 
@@ -206,7 +208,7 @@ function renderAnswer(result,question){
  const stop=document.createElement("button");
  stop.type="button";stop.textContent=lang==="English"?"⏹ Stop voice":lang==="Français"?"⏹ Arrêter la voix":"⏹ أوقف الصوت";
  stop.addEventListener("click",()=>{try{stopNabilNeuralVoice?.();speechSynthesis?.cancel?.()}catch(_e){}});
- toolsHost.append(copy,read,stop);
+ if(!figureOnly)toolsHost.append(copy,read,stop);
  if(hasVisual){
    const preview=document.createElement("button");
    preview.type="button";
@@ -227,9 +229,9 @@ function renderAnswer(result,question){
    toolsHost.appendChild(preview);
  }
  try{window.MathJax?.typesetPromise?.([board])}catch(_e){}
- addLine("nabil",reply);
+ if(!figureOnly)addLine("nabil",reply);
  board.scrollIntoView({behavior:"smooth",block:"nearest"});
- return {reply,lang,hasVisual};
+ return {reply,lang,hasVisual,figureOnly};
 }
 function getStudent(){
  try{return typeof getStudentId==="function"?getStudentId():(localStorage.getItem("nabil_student_id")||"nabil_open_student")}
@@ -276,7 +278,7 @@ async function request({question="",audio=null}){
    if(result.student_profile&&window.NABIL130?.mergeProfile)window.NABIL130.mergeProfile(result.student_profile);
    const spoken=typeof nabilBoardPlainSpeech==="function"?nabilBoardPlainSpeech(shown.reply):shown.reply;
    try{stopNabilNeuralVoice?.();speechSynthesis?.cancel?.()}catch(_e){}
-   if(typeof nabilSpeakClear==="function"){
+   if(!shown.figureOnly&&spoken&&typeof nabilSpeakClear==="function"){
      const typer=prepareSpeechTypewriter(spoken,shown.lang);
      Promise.resolve(nabilSpeakClear(spoken,shown.lang,{
        onduration:d=>typer.setDuration(d),
@@ -285,7 +287,7 @@ async function request({question="",audio=null}){
        onerror:()=>typer.finish()
      })).catch(()=>typer.finish());
    }
-   setStatus(shown.hasVisual?"✅ الجواب جاهز. فيك تعرض الشرح أو الرسمة من الأزرار فوق البطاقة.":"✅ الجواب جاهز لسؤالك التالي.");
+   setStatus(shown.figureOnly?"✅ الرسمة ظاهرة. فيك تكبّرها بزر المعاينة.":shown.hasVisual?"✅ الجواب جاهز. فيك تعرض الشرح أو الرسمة من الأزرار فوق البطاقة.":"✅ الجواب جاهز لسؤالك التالي.");
  }catch(e){
    const aborted=e?.name==="AbortError";
    setStatus("⚠️ "+(aborted?"تأخر الجواب أكثر من المتوقع. جرّب إرسال السؤال مرة ثانية.":String(e?.message||"تعذّر الاتصال").slice(0,180)),true)
