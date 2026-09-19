@@ -432,3 +432,67 @@ html,body{background:var(--nabil-ref-page)!important;color:var(--nabil-ref-text)
  .nabil-open-explanation,.nabil-open-visuals{padding:8px}
  #nabilLearningDock{margin:12px 0 20px!important}
 }
+
+
+/* v5 — owner-approved reference, legible uncropped drawings and oral pacing. */
+#nabilHomeTutorHost:has(#nabilOpenAnswer.has-answer) {
+ width:min(53vw,840px)!important;
+ max-width:calc(100vw - 28px)!important;
+}
+#nabilHomeTutorHost #nabilOpenAnswer {
+ max-height:min(63vh,770px)!important;
+ overflow:auto!important;
+ overscroll-behavior:contain;
+}
+#nabilOpenExplanation,#nabilOpenVisuals {
+ min-width:0;
+ overflow-x:auto;
+}
+#nabilOpenVisuals .nabil-open-visual {
+ display:block;min-width:0;width:100%;overflow-x:auto;
+ padding:12px 8px;border-radius:12px;
+ background:#062039!important;border:1px solid #176895;
+}
+#nabilOpenVisuals .nabil-open-visual svg,
+#nabilOpenVisuals .nabil-open-visual canvas,
+#nabilOpenVisuals .nabil-open-visual img {
+ display:block;width:100%!important;
+ max-width:100%!important;height:auto!important;
+ min-height:clamp(200px,27vw,390px);
+ object-fit:contain!important;
+ overflow:visible!important;
+}
+#nabilOpenAnswer [dir="ltr"],#nabilOpenConversation [lang="en"],#nabilOpenConversation [lang="fr"] {
+ text-align:left;direction:ltr;
+}
+#nabilOpenAnswer[lang="ar"],#nabilOpenExplanation[dir="rtl"] {text-align:right;direction:rtl}
+#nabilOpenAnswer[lang="en"],#nabilOpenAnswer[lang="fr"] {text-align:left;direction:ltr}
+#nabilOpenInput[dir="ltr"] {text-align:left;direction:ltr}
+.nabil-open-pace {
+ display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+ background:#08233c;color:#dff5ff;
+ border:1px solid #176895;border-radius:10px;
+ padding:7px 12px;font-size:13px;
+}
+.nabil-open-pace input {flex:1;min-width:100px;accent-color:#14c8f5}
+.nabil-open-pace output {direction:ltr;min-width:42px;font-variant-numeric:tabular-nums}
+.nabil-open-missing-visual {
+ margin:12px 0 0;padding:12px;border-inline-start:3px solid #ffd447;
+ background:#102f49;color:#eef8ff;border-radius:7px;
+}
+#nabilHomeTutorHost #nabilOpenTutor {
+ max-width:100%;overflow-wrap:anywhere;
+}
+@media(max-width:900px){
+ #nabilHomeTutorHost,#nabilHomeTutorHost:has(#nabilOpenAnswer.has-answer){
+  width:100%!important;max-width:100%!important;inset:auto!important;
+ }
+ #nabilHomeTutorHost #nabilOpenAnswer{max-height:none!important}
+ #nabilOpenVisuals .nabil-open-visual svg,
+ #nabilOpenVisuals .nabil-open-visual canvas,
+ #nabilOpenVisuals .nabil-open-visual img{
+  min-height:220px;max-height:75vh!important;
+ }
+ #nabilOpenTutor{overflow:visible!important}
+ .nabil-open-pace{width:100%;box-sizing:border-box}
+}
