@@ -84,6 +84,9 @@ class TutorOwnerContractTests(unittest.TestCase):
         ):
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment, CHAT)
+        self.assertIn("HOME_TUTOR_INTENT_AND_SPEECH_V1", CHAT)
+        self.assertIn("general_exercises_mode and str(teaching_mode", CHAT)
+        self.assertIn("Do NOT label a function-study request as Language / Grammar", CHAT)
         self.assertIn("FIGURE_ONLY_RESPONSE_CONTRACT_V1", CHAT)
         self.assertIn("if figure_only_request:", CHAT)
         self.assertIn("drawings = [exact_sphere]", CHAT)
