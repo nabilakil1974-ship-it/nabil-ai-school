@@ -852,3 +852,63 @@ html,body{background:var(--nabil-ref-page)!important;color:var(--nabil-ref-text)
   max-height:12dvh!important;overflow-y:auto!important;
  }
 }
+
+/* OWNER_STABLE_TWO_VIEWS_V10: switching into the curriculum must never
+   leave the legacy dark home overlay atop the actual lesson controls. */
+body.nabil-lesson-active{
+ overflow-x:hidden!important;
+ overflow-y:auto!important;
+ min-height:100dvh!important;
+}
+body.nabil-lesson-active::before{display:none!important;content:none!important}
+body.nabil-lesson-active #nabilHome,
+#nabilHome[hidden],body.nabil-lesson-active #nabilProfessorGateway{
+ display:none!important;visibility:hidden!important;pointer-events:none!important;
+}
+body.nabil-lesson-active .header,
+body.nabil-lesson-active main.container{
+ display:block!important;visibility:visible!important;
+ opacity:1!important;pointer-events:auto!important;
+}
+#nabilReturnHomeFloating{
+ display:none!important;position:fixed!important;left:14px!important;
+ bottom:max(16px,env(safe-area-inset-bottom))!important;
+ z-index:10060!important;min-width:108px!important;min-height:48px!important;
+ border-radius:12px!important;border:1px solid #5cd6ff!important;
+ padding:10px 16px!important;background:#0c4b81!important;color:#fff!important;
+ box-shadow:0 8px 22px #0008!important;font-size:15px!important;
+ cursor:pointer!important;
+}
+body.nabil-lesson-active #nabilReturnHomeFloating{display:block!important}
+body.nabil-home-lock #nabilReturnHomeFloating{display:none!important}
+
+/* Owner's green LESSON navigation remains at the BOTTOM RIGHT even when
+   the landing answer becomes long, grows vertically, or is being spoken. */
+body:not(.nabil-lesson-active) #nabilHome #homeStartShortcut{
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ position:fixed!important;top:auto!important;left:auto!important;
+ right:max(14px,env(safe-area-inset-right))!important;
+ bottom:max(15px,env(safe-area-inset-bottom))!important;
+ width:auto!important;min-width:132px!important;max-width:45vw!important;
+ min-height:51px!important;margin:0!important;padding:10px 17px!important;
+ transform:none!important;z-index:10051!important;
+ background:#05a34c!important;color:white!important;
+ border:2px solid #43e88d!important;border-radius:13px!important;
+ box-shadow:0 9px 23px #0009!important;cursor:pointer!important;
+ font-size:clamp(13px,1.05vw,17px)!important;
+}
+body:not(.nabil-lesson-active) #nabilHomeTutorHost{
+ padding-bottom:76px!important;box-sizing:border-box!important;
+}
+@media(max-width:900px){
+ body:not(.nabil-lesson-active) #nabilHome #homeStartShortcut{
+  right:max(10px,env(safe-area-inset-right))!important;
+  bottom:max(10px,env(safe-area-inset-bottom))!important;
+  max-width:48vw!important;min-width:128px!important;
+  min-height:50px!important;
+ }
+ body:not(.nabil-lesson-active) #nabilHomeTutorHost{
+  padding-bottom:86px!important;
+ }
+ body.nabil-lesson-active .container{padding-bottom:90px!important}
+}
