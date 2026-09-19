@@ -367,6 +367,7 @@ def root():
     scripts = (
         '<script src="/static/curriculum_strict.js?v=137"></script>\n'
         '<script src="/static/nabil_learning_v132.js?v=132"></script>\n'
+        '<script src="/static/nabil_voice_v133.js?v=133"></script>\n'
     )
     if "nabil_learning_v132.js" not in html:
         boundary = html.lower().rfind("</body>")
