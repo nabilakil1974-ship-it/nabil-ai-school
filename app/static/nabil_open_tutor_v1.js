@@ -1,4 +1,4 @@
-/* NABIL open tutor v4 — the blue robot is the only landing page.
+/* NABIL open tutor v5 — the blue robot is the only landing page.
    Spoken and typed questions use the SAME /api/chat reasoning path, renderer and TTS.
    Open mode is intentionally independent from grade/subject/lesson selectors.
 */
@@ -44,6 +44,7 @@ card.innerHTML=
    '<button id="nabilOpenTalk" type="button" title="سؤال صوتي">🎙️ سؤال صوتي</button>'+
    '<button id="nabilOpenSend" type="button">➤ إرسال</button>'+
  '</div>'+
+ '<label class="nabil-open-pace" for="nabilOpenPace">🔊 سرعة الشرح <input id="nabilOpenPace" aria-label="سرعة صوت الأستاذ نبيل" type="range" min="0.70" max="1.15" step="0.05" value="0.90"><output id="nabilOpenPaceValue">0.90×</output></label>'+ 
  '<div id="nabilOpenStatus" role="status" aria-live="polite">جاهز لسؤالك.</div>';
 
 let homeHost=el("nabilHomeTutorHost");
@@ -56,6 +57,19 @@ const status=el("nabilOpenStatus"), board=el("nabilOpenAnswer"), convo=el("nabil
       explanation=el("nabilOpenExplanation"), visuals=el("nabilOpenVisuals"), toolsHost=el("nabilOpenTools");
 let recorder=null,stream=null,chunks=[],recording=false,busy=false,openConversationId="";
 let greetingSpoken=false;
+const pace=el("nabilOpenPace"),paceValue=el("nabilOpenPaceValue");
+try{
+ const saved=Number(localStorage.getItem("nabil_voice_pace"));
+ if(Number.isFinite(saved)&&saved>=0.7&&saved<=1.15)pace.value=String(saved);
+}catch(_e){}
+function syncPace(){
+ const v=Math.max(0.7,Math.min(1.15,Number(pace.value)||0.9));
+ window.nabilVoicePace=v;
+ paceValue.textContent=v.toFixed(2)+"×";
+ try{localStorage.setItem("nabil_voice_pace",String(v))}catch(_e){}
+}
+pace.addEventListener("input",syncPace);
+syncPace();
 function speakGreetingOnce(){
  if(greetingSpoken||home.style.display==="none")return;
  greetingSpoken=true;
@@ -93,6 +107,7 @@ function renderAnswer(result,question){
  const lang=detectLanguage(question||result?.transcribed_text||reply);
  const dir=lang==="العربية"?"rtl":"ltr";
  board.dir=dir;
+ board.lang=lang==='العربية'?'ar':lang==='English'?'en':'fr';
  board.classList.add("has-answer");
  explanation.replaceChildren();
  visuals.replaceChildren();
@@ -102,6 +117,8 @@ function renderAnswer(result,question){
  // separate panes so the learner can switch between explanation and figure.
  let text=document.createElement("div");
  text.className="nabil-open-answer-text";
+ text.dir=dir;
+ text.lang=board.lang;
  try{
    if(typeof renderAIText==="function")text.innerHTML=renderAIText(reply);
    else text.innerHTML="<div>"+escapeHTML(reply).replace(/\n/g,"<br>")+"</div>";
@@ -220,7 +237,7 @@ async function startRecording(){
  }catch(_e){stream?.getTracks().forEach(t=>t.stop());stream=null;setStatus("اسمح للميكروفون من إعدادات المتصفح وجرّب مرة ثانية.",true)}
 }
 function stopRecording(){if(!recording||!recorder)return;talk.textContent="⏳ جارٍ الإرسال";setStatus("⏳ عم برسل التسجيل…");try{recorder.stop()}catch(_e){recording=false;setStatus("تعذّر إنهاء التسجيل.",true)}}
-talk.addEventListener("click",()=>{speakGreetingOnce();recording?stopRecording():startRecording()});
+talk.addEventListener("click",()=>{recording?stopRecording():startRecording()});
 send.addEventListener("click",()=>{if(recording)return; // Keep one voice question at a time.
  const q=input.value.trim();if(!q)return;input.value="";request({question:q})});
 input.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send.click()}});
@@ -256,6 +273,15 @@ try{if(typeof homeWelcomeSpoken!=="undefined")homeWelcomeSpoken=true}catch(_e){}
 document.body.classList.add("nabil-home-lock");
 // Browsers normally block autoplay. Greet on the learner's first intentional interaction,
 // using the exact same neural TTS function as the lesson page.
-home.addEventListener("pointerdown",speakGreetingOnce,{once:true,passive:true});
+home.addEventListener("pointerdown",e=>{
+ // Do not play greeting over microphone recording or while typing a question.
+ if(e.target.closest("button,textarea,input,select,label"))return;
+ speakGreetingOnce();
+},{once:true,passive:true});
+input.addEventListener("input",()=>{
+ const lang=detectLanguage(input.value);
+ input.dir=lang==="العربية"?"rtl":"ltr";
+ input.lang=lang==="العربية"?"ar":lang==="English"?"en":"fr";
+});
 window.NabilOpenTutor={start:startRecording,stop:stopRecording,ask:q=>request({question:q})};
 })();
