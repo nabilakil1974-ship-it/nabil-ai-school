@@ -17,6 +17,31 @@ const main=document.querySelector(".lesson-main-column");
 const chat=el("chat");
 if(!main||!chat)return;
 main.insertBefore(card,chat);
+const home=el("nabilHome");
+const homeHost=document.createElement("div");
+homeHost.id="nabilHomeTutorHost";
+const moveToLesson=()=>{if(card.parentNode!==main)main.insertBefore(card,chat)};
+const moveToHome=()=>{if(home&&card.parentNode!==homeHost)homeHost.appendChild(card)};
+if(home){
+ home.appendChild(homeHost);
+ moveToHome();
+ if(typeof showGradeStage==="function")showGradeStage(false);
+ document.body.classList.add("nabil-home-lock");
+ const observeHome=new MutationObserver(()=>{
+  if(home.style.display==="none")moveToLesson();
+  else moveToHome();
+ });
+ observeHome.observe(home,{attributes:true,attributeFilter:["style"]});
+ document.addEventListener("click",event=>{
+  if(event.target.closest?.("#homeStartShortcut,#skipHome,#homeStage .choice-btn"))moveToLesson();
+ },true);
+ window.nabilShowProfessorGateway=()=>{
+  home.style.display="block";
+  home.style.opacity="1";
+  document.body.classList.add("nabil-home-lock");
+  moveToHome();
+ };
+}
 const button=el("nabilOpenTalk"),status=el("nabilOpenStatus"),board=el("nabilOpenAnswer");
 let recorder=null,stream=null,chunks=[],busy=false,recording=false;
 const update=(message,error=false)=>{status.textContent=message;status.classList.toggle("error",error)};
