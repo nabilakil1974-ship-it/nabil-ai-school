@@ -3,23 +3,24 @@
    Keep science-graph data colours intact: only style its container.
 */
 :root {
-  --nabil-navy: #06182e;
-  --nabil-page: #071b31;
-  --nabil-header: #082c53;
-  --nabil-toolbar: #06315b;
-  --nabil-panel: #102940;
-  --nabil-card: #0d243b;
-  --nabil-card-deep: #0a2036;
-  --nabil-border: #244e70;
-  --nabil-cyan: #38bdf8;
-  --nabil-cyan-light: #79d9ff;
-  --nabil-text: #edf7ff;
-  --nabil-muted: #bbd5e8;
-  --nabil-green: #05a34c;
-  --nabil-red: #e12932;
-  --nabil-blue: #0863d5;
-  --nabil-purple: #5630bf;
-  --nabil-yellow: #ffcc52;
+  /* Palette extracted from the owner's NABIL AI rational-function reference. */
+  --nabil-navy:#06182e;
+  --nabil-page:#071d32;
+  --nabil-header:#0a3565;
+  --nabil-toolbar:#08355f;
+  --nabil-panel:#0b263f;
+  --nabil-card:#0a2238;
+  --nabil-card-deep:#081d31;
+  --nabil-border:#145f91;
+  --nabil-cyan:#14c8f5;
+  --nabil-cyan-light:#66dcff;
+  --nabil-text:#eef8ff;
+  --nabil-muted:#bad6e9;
+  --nabil-green:#0bb353;
+  --nabil-red:#e5232e;
+  --nabil-blue:#0b6de5;
+  --nabil-purple:#5934c7;
+  --nabil-yellow:#ffd44f;
 }
 html { color-scheme:dark; }
 body { background:var(--nabil-page)!important;color:var(--nabil-text)!important; }
@@ -172,4 +173,67 @@ textarea#messageInput::placeholder {color:var(--nabil-muted);}
  }
  #nabilHome .selection-stage .choice-btn {font-size:13px!important;min-height:40px!important;min-width:90px!important;flex:1 1 90px;}
  #nabilHome .lesson-mode-layer {display:none!important;}
+}
+
+/* v2: exact owner reference treatment — deep navy cards, fine blue outlines,
+   cyan headings, green lesson action, red voice action, blue send button. */
+.header,.header-title,.controls{border-color:var(--nabil-border)!important}
+.controls,.control select,.control input{background:#08223a!important;color:var(--nabil-text)!important;border-color:#164e79!important}
+.lesson-layout,.chat,.exercise-board,.exercise-section-card,.function-study-card,
+.lesson-concept-card,.lesson-tutor-card,.teacher .bubble,.input-area{
+  background:var(--nabil-card-deep)!important;color:var(--nabil-text)!important;
+  border-color:var(--nabil-border)!important;
+}
+.exercise-board-head,.lesson-info,.lesson-action-bar,#nabilLearningDock{
+  background:var(--nabil-panel)!important;border-color:var(--nabil-border)!important;
+}
+.exercise-board-title,.lesson-tutor-name,.lesson-tutor-subtitle,
+.lesson-concept-card h2,.lesson-concept-card h3,.exercise-section-card h3,
+.exercise-section-card h4{color:var(--nabil-cyan-light)!important}
+.copy-answer-btn,.read-answer-btn,.lesson-action-bar button{
+  background:#0d2b45!important;color:var(--nabil-text)!important;border:1px solid #1a5d89!important;
+}
+#nabilHome .selection-stage{display:none!important}
+#nabilHomeTutorHost{
+ left:1.3%!important;top:6.5%!important;width:min(40vw,590px)!important;max-height:87vh!important;
+}
+#nabilHomeTutorHost:has(#nabilOpenAnswer:not(:empty)){width:min(50vw,760px)!important}
+#nabilHomeTutorHost #nabilOpenTutor{
+ background:linear-gradient(180deg,rgba(8,35,59,.97),rgba(6,25,43,.97))!important;
+ border:1px solid var(--nabil-border)!important;border-radius:16px!important;
+ box-shadow:0 18px 52px rgba(0,0,0,.38),inset 0 0 0 1px rgba(20,200,245,.04)!important;
+}
+.nabil-open-head{display:flex;align-items:center;gap:12px}
+.nabil-open-head h2{color:var(--nabil-cyan-light)!important}
+.nabil-open-conversation{
+ max-height:18vh;overflow:auto;border:1px solid #164e79;border-radius:12px;
+ background:#071d32;padding:8px;display:grid;gap:6px;
+}
+.nabil-open-welcome{color:var(--nabil-muted);font-size:13px}
+.nabil-open-line{padding:7px 9px;border-radius:9px;background:#0b2a45;color:var(--nabil-text);line-height:1.55}
+.nabil-open-line.student{border-inline-start:3px solid var(--nabil-cyan)}
+.nabil-open-line.nabil{border-inline-start:3px solid #53dc9c}
+.nabil-open-composer{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px}
+#nabilOpenInput{
+ min-width:0;resize:vertical;max-height:120px;background:#071d32!important;color:var(--nabil-text)!important;
+ border:1px solid #195b87!important;border-radius:10px;padding:10px 12px;font:inherit;
+}
+#nabilOpenInput:focus{outline:2px solid var(--nabil-cyan);outline-offset:1px}
+#nabilOpenTalk{background:var(--nabil-red)!important;border-color:#ff6d77!important}
+#nabilOpenSend{background:var(--nabil-blue)!important;border-color:#55a2ff!important}
+#nabilOpenAnswer{
+ background:#081d31!important;border:1px solid var(--nabil-border)!important;color:var(--nabil-text)!important;
+}
+#nabilOpenAnswer .exercise-board,#nabilOpenAnswer .lesson-concept-card,
+#nabilOpenAnswer .nabil-visual,#nabilOpenAnswer svg{background-color:#081d31!important}
+.nabil-open-tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.nabil-open-tools button{min-height:38px;padding:7px 11px;background:#0d2b45;color:var(--nabil-text);border:1px solid #1a5d89;border-radius:9px}
+#homeStartShortcut{background:var(--nabil-green)!important;border:1px solid #4ee38d!important}
+#homeVoiceBtn{background:var(--nabil-red)!important;border:1px solid #ff7780!important}
+@media(max-width:900px){
+ #nabilHomeTutorHost{width:100%!important;top:auto!important;left:auto!important}
+ .nabil-open-composer{grid-template-columns:1fr 1fr}
+ #nabilOpenInput{grid-column:1/-1;min-height:74px}
+ #nabilOpenAnswer{max-height:none!important}
+ .nabil-open-conversation{max-height:24vh}
 }
