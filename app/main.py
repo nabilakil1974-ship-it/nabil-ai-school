@@ -346,14 +346,19 @@ app.include_router(
 
 @app.get("/")
 def root():
-    # Inject the small strict-curriculum controller without rewriting the very
-    # large legacy chat.html. This keeps the master grade/subject/language
-    # boundary authoritative in the live UI.
+    # Inject ONLY at the real final closing body tag. Never use str.replace:
+    # the large legacy HTML embeds literal "</body>" in JavaScript templates;
+    # replacing all of them splits <script> blocks and displays raw JS to users.
     html = Path("app/static/chat.html").read_text(encoding="utf-8")
-    marker = "</body>"
-    script = '<script src="/static/curriculum_strict.js?v=136"></script>'
-    if script not in html:
-        html = html.replace(marker, script + "\\n" + marker)
+    scripts = (
+        '<script src="/static/curriculum_strict.js?v=137"></script>\n'
+        '<script src="/static/nabil_learning_v132.js?v=132"></script>\n'
+    )
+    if "nabil_learning_v132.js" not in html:
+        boundary = html.lower().rfind("</body>")
+        if boundary < 0:
+            raise RuntimeError("NABIL chat page has no closing body tag")
+        html = html[:boundary] + scripts + html[boundary:]
     return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
 
