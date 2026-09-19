@@ -37,12 +37,30 @@ const controls=[
 dock.innerHTML='<div class="nv132-header"><strong>🧠 مسار التعلّم الذكي</strong><span id="nv132Context"></span><span id="nv132Evidence">بانتظار أول تقييم</span></div>'
  +'<p id="nv132Hint" class="nv132-hint"></p><div class="nv132-grid">'
  +controls.map(([id,label])=>'<button type="button" data-nv132="'+id+'">'+label+'</button>').join("")
- +'</div><p id="nv132Status" role="status" aria-live="polite">كل زر يبدأ نشاطًا حقيقيًا مع الأستاذ النبيل، ويتابع جوابك في المحادثة.</p>';
+ +'</div><p id="nv132Status" role="status" aria-live="polite">كل زر يبدأ نشاطًا حقيقيًا مع الأستاذ النبيل، ويتابع جوابك في المحادثة.</p>'
+ +'<section id="nv132Result" aria-label="نتيجة نشاط التعلم الذكي" aria-live="polite" hidden></section>';
 const css=document.createElement("style");
 css.id="nabilLearningV132Style";
-css.textContent='#nabilLearningDock{max-width:100%;height:auto!important;overflow:visible!important;background:#102940!important;border:1px solid #244e70!important;border-radius:15px!important;margin:12px auto!important;padding:14px!important;color:#f1f8ff!important;position:relative;z-index:2}#nabilLearningDock .nv132-header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}#nabilLearningDock .nv132-header strong{font-size:15px}#nv132Context,#nv132Evidence{border:1px solid #3b6d86;border-radius:20px;padding:4px 10px;font-size:12px}#nv132Evidence{color:#d9f4ff}#nabilLearningDock .nv132-hint{font-size:13px;line-height:1.65;margin:9px 0;color:#d4e5ef}#nabilLearningDock .nv132-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}#nabilLearningDock .nv132-grid button{border:1px solid #32678d;background:#123957;color:#fff;border-radius:10px;font:inherit;font-size:13px;min-height:42px;padding:8px 5px;cursor:pointer;white-space:normal}#nabilLearningDock .nv132-grid button:hover{background:#2670a0}#nabilLearningDock .nv132-grid button:disabled{opacity:.55;cursor:wait}#nv132Status{font-size:12px;line-height:1.55;margin:10px 0 0;color:#d7eaf5}#nv130Modal[hidden]{display:none!important}@media(max-width:720px){#nabilLearningDock .nv132-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#nabilLearningDock{margin:8px 4px!important;padding:10px!important}#nabilLearningDock .nv132-grid button{font-size:12px;min-height:47px}}';
+css.textContent='#nabilLearningDock{max-width:100%;height:auto!important;overflow:visible!important;background:#102940!important;border:1px solid #244e70!important;border-radius:15px!important;margin:12px auto!important;padding:14px!important;color:#f1f8ff!important;position:relative;z-index:2}#nabilLearningDock .nv132-header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}#nabilLearningDock .nv132-header strong{font-size:15px}#nv132Context,#nv132Evidence{border:1px solid #3b6d86;border-radius:20px;padding:4px 10px;font-size:12px}#nv132Evidence{color:#d9f4ff}#nabilLearningDock .nv132-hint{font-size:13px;line-height:1.65;margin:9px 0;color:#d4e5ef}#nabilLearningDock .nv132-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}#nabilLearningDock .nv132-grid button{border:1px solid #32678d;background:#123957;color:#fff;border-radius:10px;font:inherit;font-size:13px;min-height:42px;padding:8px 5px;cursor:pointer;white-space:normal}#nabilLearningDock .nv132-grid button:hover{background:#2670a0}#nabilLearningDock .nv132-grid button:disabled{opacity:.55;cursor:wait}#nv132Status{font-size:12px;line-height:1.55;margin:10px 0 0;color:#d7eaf5}#nv132Result{margin-top:12px;padding:12px;background:#0a2036;border:1px solid #32678d;border-radius:12px;max-height:min(65vh,560px);overflow:auto}#nv132Result[hidden]{display:none!important}#nv132Result h3{margin:0 0 9px;color:#79d9ff}#nv132Result .bubble{width:100%;max-width:100%;overflow-wrap:anywhere}#nv132Result svg{max-width:100%;height:auto}#nv130Modal[hidden]{display:none!important}@media(max-width:720px){#nabilLearningDock .nv132-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#nabilLearningDock{margin:8px 4px!important;padding:10px!important}#nabilLearningDock .nv132-grid button{font-size:12px;min-height:47px}}';
 document.head.appendChild(css);
 const status=t=>{let n=byId("nv132Status");if(n)n.textContent=t};
+function showLastActivity(previous){
+ const results=Array.from(document.querySelectorAll("#chat .message.teacher .bubble"));
+ const latest=results[results.length-1];
+ const panel=byId("nv132Result");
+ if(!panel||!latest||latest===previous)return false;
+ panel.replaceChildren();
+ const header=document.createElement("h3");
+ header.textContent="📘 نتيجة النشاط";
+ const copy=latest.cloneNode(true);
+ copy.removeAttribute("id");
+ copy.querySelectorAll("[id]").forEach(node=>node.removeAttribute("id"));
+ panel.append(header,copy);
+ panel.hidden=false;
+ try{window.MathJax?.typesetPromise?.([panel])}catch(_e){}
+ panel.scrollIntoView({behavior:"smooth",block:"nearest"});
+ return true;
+}
 const setBusy=x=>{busy=x;dock.querySelectorAll("button").forEach(b=>b.disabled=x)};
 function refresh(){
  const v=scope(),level=gradeLevel(v.grade),key=[v.grade,v.subject,v.lesson].join("|");
@@ -78,13 +96,20 @@ async function act(action){
  if(busy)return;
  if(action==="dashboard"){dashboard();return}
  const v=scope(),level=gradeLevel(v.grade);
- if(!v.grade||!v.subject){status("اختر الصف والمادة أولًا، لنحضّر نشاطًا مناسبًا.");return}
- const item=controls.find(x=>x[0]===action),period=hintFor(level);
- const question=item[2]+" مراعاة العمر: "+shortFor(level)+". وقت النشاط المقترح "+period+". "+(v.lesson?"الدرس: "+v.lesson+". ":"")+"افهم كلامي العربي ولو كانت مادة الدرس "+v.language+"؛ احتفظ بالمصطلحات العلمية بلغة الكتاب.";
+ const latestQuestion=String(typeof nabilCurrentQuestionText!=="undefined"?nabilCurrentQuestionText:"").trim();
+ const lastTeacher=document.querySelector("#chat .message.teacher .bubble");
+ if(!v.grade&&!v.subject&&!latestQuestion&&!lastTeacher){
+  status("اسأل الأستاذ نبيل سؤالك أولًا؛ بعدها كل زر يبني نشاطًا على جوابك.");return;
+ }
+ const item=controls.find(x=>x[0]===action),period=v.grade?hintFor(level):"حسب مستوى السؤال";
+ const question=item[2]+" مراعاة العمر: "+(v.grade?shortFor(level):"لا تفترض عمر الطالب؛ تكيّف مع مستوى آخر سؤال")+ ". وقت النشاط المقترح "+period+". "+(v.lesson?"الدرس: "+v.lesson+". ":"")+(latestQuestion?"السؤال الذي نتعلّم منه: "+latestQuestion.slice(0,650)+". ":"")+"افهم كلامي العربي ولو كانت مادة الدرس "+v.language+"؛ احتفظ بالمصطلحات العلمية بلغة الكتاب. وإذا كان السؤال الأصلي English أو Français، اسأل وقدّم النشاط بلغته.";
+ const previousAnswer=Array.from(document.querySelectorAll("#chat .message.teacher .bubble")).at(-1);
+ byId("nv132Result").hidden=true;
  setBusy(true);lastAction=action;status("الأستاذ نبيل عم يحضّر نشاط "+item[1]+" للصف "+v.grade+"…");
  window.nabilPendingLearningAction=action;
  try{
   await sendToAI(question,false);
+  if(!showLastActivity(previousAnswer))throw Error("لم يظهر نشاط جديد في صفحة المحادثة");
   awaitingAnswer=["checkpoint","adaptive_practice","quick_quiz"].includes(action);
   status(awaitingAnswer?"جاوب داخل خانة السؤال، والأستاذ نبيل بيصحّح محاولتك قبل الانتقال.":"النشاط ظهر بالمحادثة. إذا ما فهمت خطوة، اسأل عنها مباشرة.");
  }catch(e){status("ما اكتمل الطلب: "+String(e?.message||"تعذر الاتصال").slice(0,160))}
