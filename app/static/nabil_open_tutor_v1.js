@@ -112,9 +112,18 @@ function renderVerifiedSphereFallback(d){
 
 function detectLanguage(q){
  const t=String(q||"").trim();
- if(/[\u0600-\u06ff]/.test(t))return "العربية";
- if(/\b(bonjour|explique|étudie|etudie|fonction|dérivée|derivee|tracer|courbe|résoudre|resoudre|dessine|dessiner|calcule|montrer|démontrer|demontrer)\b/i.test(t))return "Français";
- if(/[a-z]/i.test(t))return "English";
+ // Technical school content dominates a casual Lebanese interjection.
+ // The teaching voice must not switch to Arabic merely because a learner
+ // starts with "بدي" or says "هلق" in an English/French lesson.
+ const french=/\b(bonjour|explique|étudie|etudie|fonction|dérivée|derivee|tracer|courbe|résoudre|resoudre|dessine|dessiner|calcule|montrer|démontrer|demontrer|rayon|sphère|sphere|domaine|limite|numérateur|denominateur|dénominateur|croissante|décroissante|schéma|exercice)\b/i;
+ if(french.test(t))return "Français";
+ const english=/\b(study|function|numerator|denominator|derivative|increasing|decreasing|domain|limit|graph|draw|sphere|radius|physics|chemistry|biology|voltage|current|resistance|exercise|equation|fraction|asymptote|variation|solve|explain|please|show|figure)\b/i;
+ if(english.test(t))return "English";
+ const arWords=(t.match(/[\u0600-\u06ff]+/g)||[]).length;
+ const foreignWords=(t.match(/[a-zà-ÿ]{2,}/gi)||[]).length;
+ if(foreignWords>arWords)return "English";
+ if(arWords)return "العربية";
+ if(foreignWords)return "English";
  return "العربية";
 }
 function addLine(role,text){
@@ -168,7 +177,7 @@ function renderAnswer(result,question){
  const figureOnly=drawings.length>0&&(visualOnlyRequested||!cleanReply);
  const reply=figureOnly?"":cleanReply;
  if(!reply&&!drawings.length)throw Error("الخادم لم يرجع جوابًا صالحًا.");
- const lang=detectLanguage(question||result?.transcribed_text||reply);
+ const lang=detectLanguage(reply&&detectLanguage(reply)!=="العربية"?reply:(question||result?.transcribed_text||reply));
  const dir=lang==="العربية"?"rtl":"ltr";
  board.dir=dir;
  board.lang=lang==='العربية'?'ar':lang==='English'?'en':'fr';
