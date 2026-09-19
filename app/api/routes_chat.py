@@ -4765,6 +4765,17 @@ Saved profile: {profile}
         "summary": "Give a compact mastery summary of the current lesson: key ideas, formulas/rules, verified strengths, verified concepts to review, and the best next study step. Do not invent progress data.",
         "assess_answer": "Assess the student's most recent answer to the immediately preceding checkpoint/practice/quiz question using the actual conversation, grade, and textbook terminology. Indicate correct/partly correct/incorrect with a brief why and one targeted next step. Do not infer correctness from silence. For the current quick quiz, grade only what the student actually answered. Emit PROGRESS_JSON assessment only if a real mark can be justified.",
         "study_plan": "Give ONE age-appropriate concrete next-study action derived from the actual current lesson and documented profile, with realistic duration (grades 1-3: 3-5 minutes, grades 4-6: 5-8 minutes, grades 7-9: 8-12 minutes, secondary: 10-15 minutes). If no assessment exists, suggest a checkpoint first. Do not invent mastery levels.",
+        "worksheet_plan": "Create the concise roadmap for an interactive worksheet based ONLY on the retrieved textbook excerpts for the selected lesson. State which phases fit this subject and age. If no excerpt was retrieved, label the roadmap as an original illustrative worksheet and never claim textbook grounding. Do not reveal activity answers.",
+        "worksheet_observe": "Create ONE focused Observe activity from the selected lesson and retrieved source. Include a faithful supported visual when useful. Ask for one student response and do not reveal its answer.",
+        "worksheet_predict": "Create ONE focused Predict activity connected to the preceding worksheet context. Ask the learner to justify a prediction. Do not reveal the answer.",
+        "worksheet_explore": "Create ONE age-appropriate Explore activity using the retrieved lesson evidence. It may be a mathematical construction, document observation, safe experiment, reading task, or worked discovery. Do not invent book page numbers or reveal the conclusion before the attempt.",
+        "worksheet_interact": "Create ONE interactive task for the selected lesson with a clear student input. Wait for the attempt; do not show the final answer.",
+        "worksheet_evidence": "Create ONE evidence-finding task. Quote no source text beyond what is actually retrieved and cite only returned book/page metadata. Ask the learner to identify the evidence before explaining it.",
+        "worksheet_think": "Create ONE reasoning question that connects the evidence to the lesson concept. Keep it suitable for the selected grade and wait for the learner's reasoning.",
+        "worksheet_conclude": "Guide the learner to formulate the lesson conclusion, then state the essential rule clearly under a Key Rule heading. Do not attribute it to a book page unless that page was retrieved.",
+        "worksheet_apply": "Create exactly FIVE varied, progressively harder practice exercises from the verified lesson scope. After each question put its complete solution strictly between `[SOLUTION N]` and `[/SOLUTION N]` markers (N=1..5), so the interface keeps it hidden until the learner requests it. Do not place any answer outside those markers. Include valid DRAWINGS_JSON for every exercise that genuinely needs a visual; never invent dimensions or textbook exercise numbers.",
+        "worksheet_self_assess": "Create a short self-assessment for the completed worksheet: three check questions plus a simple learner confidence choice. Do not show answers until the learner submits an attempt.",
+        "worksheet_assess_answer": "Assess only the learner's latest actual worksheet answer against the immediately preceding task. Identify correct reasoning and the exact first error kindly, reteach by a different route, and finish with one short retry. Never invent what the learner answered.",
     }
     instruction = actions.get(action)
     if not instruction:
@@ -5024,6 +5035,7 @@ async def voice_chat(
     # CONTEXT
     # ==========================================
  
+    source_chunks = []
     if general_exercises_mode:
         selected_language = "AUTO_FROM_QUESTION_OR_IMAGE"
         student_profile_context = profile_to_dict(learning_profile)
@@ -6154,7 +6166,14 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
             conversation.id
         ),
         reply=reply_text,
-        sources=[],
+        sources=[
+            {
+                "book_title": str(item.get("book_title") or ""),
+                "page": item.get("page"),
+            }
+            for item in source_chunks
+            if isinstance(item, dict) and item.get("book_title")
+        ],
         transcribed_text=transcribed_text,
         drawings=drawings,
         drawing=(

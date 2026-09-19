@@ -425,3 +425,24 @@ Owner supplied two VISUAL DESIGN EXAMPLES, **not official textbook pages or sour
 STUDENT EXPERIENCE: a sequence of mobile-friendly independent cards; every step has one focused task, text plus verified or explicitly original illustrative figure, pencil/answer input, immediate feedback that waits for pupil attempt, teacher/answer view, hints, cumulative end-of-lesson recap, short 5-practice exercises with worked solutions, distinct final integrated worksheet export to DOCX/PDF if requested, optional print A4, projector/fullscreen, visible copy/share. Rules/theorems emphasized in red; retain rendering/source figure colours when an original exists (do not copy social media artwork verbatim). Recreate original book Activities/Exercises/Problems with exact printed pages/numbers/subquestions ONLY with verified source access and user-supplied materials; never invent them. Preview one/multiple full-size diagrams, support incremental geometry drawing by construction step when mathematically verified. The source sample's scientific diagrams and text are visual guidance only; do not assign grade/subject/language from the sample to unrelated lesson.
 
 IMPLEMENTATION/ACCEPTANCE: Add button alongside full lesson/general exercises in lesson workspace, not covering mobile composer or Home. App must first inspect textbook source and create an ordered structured worksheet plan, show preview; produce grade-adjusted outputs via existing chat API/renderer and diagram pipeline, avoid one massive prompt and API timeout, use persistent progress/resume (localStorage or backend), capture source and pages in each stage. Test math circumference with r=5 => 31.4 cm if π≈3.14, d=14=>43.96 cm; science inhalation/exhalation directional arrows, label O2/CO2 scientifically; responsive 390x844 and desktop; export, colour, each figure enlargement and optional projector. Verify every claim from textbook before saying 'book based'. DO NOT mark implemented until code/build/deployed mobile QA pass; current status OWNER REQUEST LOGGED, NOT IMPLEMENTED.
+
+## INTERACTIVE WORKSHEET IMPLEMENTATION — PHASE 1 (2026-09-19)
+
+Implemented locally on top of `d42bf59` and awaiting GitHub/Railway verification:
+- Added `🧩 أنشئ ورقة عمل تفاعلية` beside the lesson/exercise controls.
+- Added staged generation: plan, Observe, Predict, Explore, Interact, Find Evidence, Think, Conclude, Apply, Self-assess. Each stage is a separate `/api/chat` request to avoid one huge timeout-prone prompt.
+- Added student-attempt correction, persistent resume in `localStorage`, progress display, same verified drawing renderer, mobile cards and real Fullscreen projector mode.
+- Chat responses now return the actual retrieved book/page metadata. With retrieved chunks the UI identifies the exact book/pages; without chunks it explicitly labels the result an original illustrative worksheet and never claims textbook grounding.
+- Added editable DOCX and real PDF exports through `/api/worksheet/export/docx` and `/api/worksheet/export/pdf`.
+- Added source-integrity action contracts for every worksheet phase and five progressive application exercises.
+- Local build checks PASS: Python syntax, JS syntax, 17 UI integration tests, 2 export tests, 10 tutor-contract tests, 7 drawing recovery tests, navigation/avatar/sphere Node tests, and UI validator.
+
+Still required before production PASS: push/build, Railway deployed SHA, actual 390x844 and desktop browser tests, live textbook retrieval, math circumference correctness, science O2/CO2 direction, multi-figure enlargement, generated DOCX/PDF opening, and student attempt feedback. Do not equate the local/CI result with live acceptance.
+
+### Phase 2 local hardening
+- Five Apply exercises now use strict `[SOLUTION N]...[/SOLUTION N]` transport markers and render as closed reveal-on-demand solution panels, so answers are not exposed before the learner chooses.
+- Worksheet figures open in the existing full-size preview; stored verified source metadata is no longer erased by a later empty retrieval.
+- English/French worksheet direction switches to LTR while Arabic stays RTL.
+- Browser-rendered SVG/canvas figures are rasterized for export and embedded into both DOCX and PDF; export accepts only bounded PNG data payloads.
+- Full local regression suite remains PASS after this hardening.
+- GitHub push is BLOCKED: this Work environment has no Git credential and the secure GitHub sign-in request was declined. Local commits are intact; no CI/Railway claim is made.

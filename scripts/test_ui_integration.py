@@ -91,7 +91,7 @@ class NabilUiIntegrationTests(unittest.TestCase):
             self.assertIn(marker, theme)
         self.assertIn("اختر فرع الثالث ثانوي أولًا", strict)
         self.assertIn("curriculum_strict.js?v=138", self.html)
-        self.assertIn("nabil_reference_theme.css?v=15", self.html)
+        self.assertIn("nabil_reference_theme.css?v=16", self.html)
 
     def test_third_secondary_branch_catalog_precedes_old_unbranched_index(self):
         backend = (ROOT / "app" / "api" / "routes_chat.py").read_text(encoding="utf-8")
@@ -175,6 +175,27 @@ class NabilUiIntegrationTests(unittest.TestCase):
         ):
             with self.subTest(token=token):
                 self.assertIn(token, js)
+
+    def test_source_grounded_interactive_worksheet_contract(self):
+        script = (STATIC / "nabil_worksheet_v1.js").read_text(encoding="utf-8")
+        backend = (ROOT / "app" / "api" / "routes_chat.py").read_text(encoding="utf-8")
+        theme = (STATIC / "nabil_reference_theme.css").read_text(encoding="utf-8")
+        for token in (
+            "nabilWorksheetBtn", "worksheet_plan", "worksheet_observe",
+            "worksheet_apply", "worksheet_self_assess", "worksheet_assess_answer",
+            "localStorage", '"/api/worksheet/export/"+format', 'download("docx")', 'download("pdf")',
+            "requestFullscreen", "renderNabilDiagram",
+            "[SOLUTION", "nw-solution", "pngOf", "drawingPreviewModal",
+        ):
+            self.assertIn(token, script)
+        for token in (
+            '"worksheet_plan"', '"worksheet_apply"', '"worksheet_assess_answer"',
+            '"book_title": str(item.get("book_title")',
+        ):
+            self.assertIn(token, backend)
+        self.assertIn("#nabilWorksheetPanel", theme)
+        self.assertIn("@media(max-width:720px)", theme)
+        self.assertIn("nabil_worksheet_v1.js?v=1", self.html)
 
 
     def test_owner_voice_language_pacing_and_visual_contract(self):
