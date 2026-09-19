@@ -258,7 +258,41 @@ function renderAnswer(result,question){
  const stop=document.createElement("button");
  stop.type="button";stop.textContent=lang==="English"?"⏹ Stop voice":lang==="Français"?"⏹ Arrêter la voix":"⏹ أوقف الصوت";
  stop.addEventListener("click",()=>{try{stopNabilNeuralVoice?.();speechSynthesis?.cancel?.()}catch(_e){}});
- if(!figureOnly)toolsHost.append(copy,read,stop);
+ if(!figureOnly){
+   toolsHost.append(copy);
+   const exportMenu=document.createElement("select");
+   exportMenu.id="nabilAnswerExport";
+   exportMenu.setAttribute("aria-label","تصدير الإجابة");
+   exportMenu.style.cssText="max-width:100%;padding:8px;border-radius:8px;background:#123f65;color:#fff;border:1px solid #43bceb;font:inherit";
+   for(const [value,label] of [["","⬇ تصدير الإجابة"],["docx","📄 Word"],["xlsx","📊 Excel"],["google-forms-script","📝 Google Form"]]){
+     const option=document.createElement("option");option.value=value;option.textContent=label;exportMenu.appendChild(option);
+   }
+   exportMenu.addEventListener("change",async()=>{
+     const choice=exportMenu.value;exportMenu.value="";if(!choice)return;
+     const langKey=lang==="English"?"en":lang==="Français"?"fr":"ar";
+     const name=choice==="docx"?"nabil-answer.docx":choice==="xlsx"?"nabil-answer-tables.xlsx":"nabil-create-google-form.gs";
+     const label=exportMenu.options[0].textContent;
+     exportMenu.disabled=true;exportMenu.options[0].textContent="⏳ جارٍ التحضير...";
+     try{
+       const response=await fetch("/api/research/answer/"+choice,{
+         method:"POST",headers:{"Content-Type":"application/json"},
+         body:JSON.stringify({title:questionText.slice(0,500)||"NABIL AI answer",answer:reply,language:langKey})
+       });
+       if(!response.ok){
+         let reason="تعذر التصدير";try{reason=String((await response.json()).detail||reason)}catch(_){}
+         throw Error(reason);
+       }
+       const blob=await response.blob(),url=URL.createObjectURL(blob),link=document.createElement("a");
+       link.href=url;link.download=name;document.body.appendChild(link);link.click();link.remove();
+       window.setTimeout(()=>URL.revokeObjectURL(url),30000);
+       setStatus(choice==="google-forms-script"
+         ?"تم تنزيل سكربت Google Forms؛ شغّله من حسابك مع الموافقة على الصلاحيات. لم يُنشأ النموذج تلقائيًا."
+         :"✅ تم تجهيز ملف "+name);
+     }catch(error){setStatus("⚠️ "+String(error?.message||"تعذر التصدير"),true)}
+     finally{exportMenu.disabled=false;exportMenu.options[0].textContent=label;}
+   });
+   toolsHost.append(exportMenu,read,stop);
+ }
  if(hasVisual){
    const preview=document.createElement("button");
    preview.type="button";
