@@ -33,15 +33,19 @@ def main() -> None:
         'fetch("/api/chat"',
         "MediaRecorder",
         "renderNabilDiagram",
-        "renderGeneralExerciseBoards",
         "nabilSpeakClear",
         "stage.hidden=true",
         "speakGreetingOnce",
+        "prepareSpeechTypewriter",
+        "nabilOpenPace",
+        "nabilOpenLiveType",
+        "drawingPreviewModal",
+        "home_live_tutor",
+        "board.dir=dir",
     )
     learning = require(
         "app/static/nabil_learning_v132.js",
         'data-nv132=',
-        "teacher-tools",
         '["checkpoint"',
         '["explain_another_way"',
         '["adaptive_practice"',
@@ -51,6 +55,8 @@ def main() -> None:
         '["dashboard"',
         "sendToAI",
         "nv132Result",
+        "placeDock",
+        "awaitingAnswer",
     )
     main_py = require(
         "app/main.py",
@@ -59,6 +65,8 @@ def main() -> None:
         "nabil_reference_theme.css",
         "nabil_learning_v132.js",
         "nabil_open_tutor_v1.js",
+        "pace_browser_new",
+        "pace_neural_new",
         'rfind("</body>")',
     )
 
@@ -75,6 +83,8 @@ def main() -> None:
     print(" - owner reference blue palette")
     print(" - one robot landing, no grade-only splash")
     print(" - typed/voice open tutor shares /api/chat + renderer + neural TTS")
+    print(" - same voice/pace and LTR foreign-language answer board")
+    print(" - verified diagrams and full-size preview, paced visible transcript")
     print(" - smart learning actions render real results below answer tools")
 
 
