@@ -62,7 +62,7 @@ class NabilUiIntegrationTests(unittest.TestCase):
 
     def test_reference_palette_and_mobile_home(self):
         css = (STATIC / "nabil_reference_theme.css").read_text(encoding="utf-8")
-        for token in ("#06182e", "#102940", "#38bdf8", "#05a34c", "#e12932"):
+        for token in ("#06182e", "#0b263f", "#14c8f5", "#0bb353", "#e5232e"):
             with self.subTest(token=token):
                 self.assertIn(token, css)
         self.assertIn("#nabilHomeTutorHost", css)
