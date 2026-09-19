@@ -105,6 +105,21 @@ class TutorOwnerContractTests(unittest.TestCase):
         self.assertIn("(?:study|analyse|analyze|graph|plot|sketch|draw)", classifier)
         self.assertIn("Find f(4)", classifier)
 
+    def test_open_science_quality_gate_checks_language_and_chemistry(self):
+        for fragment in (
+            "OPEN SCIENCE QUALITY GATE",
+            "_language_mismatch",
+            "_math_template_leak",
+            "_chemistry_fact_failure",
+            "A neutral calcium atom has 20 electrons",
+            "Calcium loses exactly two valence electrons",
+            "TWO neutral chlorine atoms",
+            "Ca2+ + 2Cl- -> CaCl2",
+            "Never use a coordinate plane or a variation table",
+        ):
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, CHAT)
+
     def test_open_figure_is_visual_not_faux_exercise(self):
         for fragment in (
             "figureOnly",
