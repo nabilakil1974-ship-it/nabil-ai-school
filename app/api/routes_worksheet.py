@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import io
 import re
+from html import escape
 from pathlib import Path
 
 from fastapi import APIRouter
@@ -42,7 +43,7 @@ class WorksheetExport(BaseModel):
 
 
 def _plain_markdown(value: str) -> str:
-    text = re.sub(r"<[^>]+>", "", value or "")
+    text = re.sub(r"</?[A-Za-z][A-Za-z0-9]*(?:\s[^<>]*)?/?>", "", value or "")
     text = re.sub(r"!\[[^\]]*\]\([^)]*\)", "", text)
     text = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", text)
     text = re.sub(r"[`*_]{1,3}", "", text)
@@ -119,7 +120,6 @@ def _pdf_bytes(request: WorksheetExport) -> bytes:
 
     font_path = next((p for p in (
         Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
-        Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
     ) if p.exists()), None)
     font_name = "Helvetica"
     if font_path:
@@ -152,17 +152,22 @@ def _pdf_bytes(request: WorksheetExport) -> bytes:
         fontSize=14, leading=19, alignment=align, textColor=colors.HexColor("#0b6a8d"), spaceBefore=10)
     body_style = ParagraphStyle("NabilBody", parent=base["BodyText"], fontName=font_name,
         fontSize=11, leading=17, alignment=align, spaceAfter=5)
-    story = [Paragraph(display(request.title), title_style)]
+    def safe_paragraph(value: str, style):
+        # ReportLab Paragraph interprets raw < and & as markup; worksheets
+        # regularly contain inequalities such as x < 3 and x > 2.
+        return Paragraph(escape(display(value)), style)
+
+    story = [safe_paragraph(request.title, title_style)]
     meta = " · ".join(x for x in (request.grade, request.subject, request.lesson) if x)
     if meta:
-        story.extend([Paragraph(display(meta), body_style), Spacer(1, 8)])
+        story.extend([safe_paragraph(meta, body_style), Spacer(1, 8)])
     if request.source_label:
-        story.append(Paragraph(display(request.source_label), body_style))
+        story.append(safe_paragraph(request.source_label, body_style))
     for item in request.sections:
-        story.append(Paragraph(display(item.phase), head_style))
+        story.append(safe_paragraph(item.phase, head_style))
         for line in _plain_markdown(item.content).splitlines():
             if line.strip():
-                story.append(Paragraph(display(line).replace("&", "&amp;").replace("<", "&lt;"), body_style))
+                story.append(safe_paragraph(line, body_style))
         for encoded in item.figures:
             image = _figure_bytes(encoded)
             if image:
