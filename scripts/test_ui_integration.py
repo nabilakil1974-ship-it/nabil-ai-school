@@ -44,6 +44,19 @@ class NabilUiIntegrationTests(unittest.TestCase):
         self.assertNotIn("#nabilHome,#nabilProfessorGateway{display:none", self.html)
         self.assertIn("#nabilProfessorGateway{display:none", self.html)
 
+    def test_structured_exercise_real_answer_and_separate_drawing(self):
+        script = (STATIC / "nabil_learning_v132.js").read_text(encoding="utf-8")
+        for marker in (
+            '"solve_exercise","✍️ حلّ التمرين"',
+            "if(!showLastActivity(previousAnswer))",
+            "given data will appear here",
+            "nv132-figure-card",
+            "figureNodes.forEach",
+            "min-height:clamp(240px,32vw,480px)",
+        ):
+            self.assertIn(marker, script)
+        self.assertNotIn("max-height:min(65vh,560px);overflow:auto", script)
+
     def test_removed_fake_progress_engine(self):
         self.assertNotIn('<script id="nabilV130Script">', self.html)
 
