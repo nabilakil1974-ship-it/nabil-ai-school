@@ -97,8 +97,11 @@ function addLine(role,text){
  if(!text)return;
  const row=document.createElement("div");
  row.className="nabil-open-line "+role;
+ const lang=detectLanguage(text);
+ row.dir=lang==="العربية"?"rtl":"ltr";
+ row.lang=lang==="العربية"?"ar":lang==="English"?"en":"fr";
  const who=document.createElement("strong");
- who.textContent=role==="student"?"الطالب: ":"الأستاذ نبيل: ";
+ who.textContent=role==="student"?(lang==="English"?"Student: ":lang==="Français"?"Élève : ":"الطالب: "):(lang==="English"?"NABIL: ":lang==="Français"?"NABIL : ":"الأستاذ نبيل: ");
  row.append(who,document.createTextNode(String(text)));
  convo.appendChild(row);
  convo.scrollTop=convo.scrollHeight;
@@ -306,6 +309,11 @@ function stopRecording(){if(!recording||!recorder)return;talk.textContent="⏳ �
 talk.addEventListener("click",()=>{recording?stopRecording():startRecording()});
 send.addEventListener("click",()=>{if(recording)return; // Keep one voice question at a time.
  const q=input.value.trim();if(!q)return;input.value="";request({question:q})});
+input.addEventListener("input",()=>{
+ const lang=detectLanguage(input.value);
+ input.dir=lang==="العربية"?"rtl":"ltr";
+ input.lang=lang==="العربية"?"ar":lang==="English"?"en":"fr";
+});
 input.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send.click()}});
 
 // Suppress the old home browser-SpeechRecognition handler; the landing microphone
