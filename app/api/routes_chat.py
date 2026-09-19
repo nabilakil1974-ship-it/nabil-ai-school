@@ -3603,6 +3603,40 @@ def extract_drawings(text: str):
         flags=re.DOTALL | re.IGNORECASE,
     )
 
+    # BARE_DRAWINGS_JSON_RECOVERY_V1: some providers emit "DRAWINGS_JSON:"
+    # followed by an ordinary JSON array (no XML wrapper), sometimes directly
+    # after text on the same line. The old parser let it leak into visible
+    # prose and never passed the figure to the renderer.
+    bare_marker = re.compile(r"(?i)\\bDRAWINGS?_JSON\\s*[:：]")
+    while True:
+        marker = bare_marker.search(text)
+        if not marker:
+            break
+        rest = text[marker.end():]
+        leading = re.match(r"\\s*(?:```(?:json)?\\s*)?", rest, re.I)
+        offset = leading.end() if leading else 0
+        parsed = None
+        end_index = None
+        if offset < len(rest) and rest[offset] in "[{":
+            try:
+                parsed, parsed_end = json.JSONDecoder().raw_decode(rest[offset:])
+                end_index = offset + parsed_end
+            except (ValueError, TypeError):
+                pass
+        if parsed is not None:
+            for item in (parsed if isinstance(parsed, list) else [parsed]):
+                if isinstance(item, dict):
+                    normalized = _normalize_drawing(item)
+                    if normalized is not None and validate_drawing_strict(normalized):
+                        drawings.append(normalized)
+            suffix = rest[end_index:]
+            suffix = re.sub(r"^\\s*```", "", suffix)
+            text = (text[:marker.start()].rstrip() + "\\n" + suffix.lstrip()).strip()
+        else:
+            # Never display malformed internal transport, even when the model
+            # mixes prose/JSON on one line or truncates the closing bracket.
+            text = text[:marker.start()].strip()
+
     # Never expose an incomplete or malformed drawing payload to the student.
     text = re.sub(
         r"<DRAWINGS?_JSON>[\s\S]*$",
@@ -5798,6 +5832,14 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
                 detected_lang,
             )
  
+    # An explicit sphere drawing with a supplied radius is deterministic even
+    # when the model returned malformed/bare DRAWINGS_JSON or no drawing at all.
+    # Never replace a different requested figure or an uploaded source figure.
+    if explicit_draw_request and image_bytes is None and not drawings:
+        exact_sphere = _nabil_exact_sphere_drawing(message)
+        if exact_sphere:
+            drawings = [exact_sphere]
+
     # EXACT FIGURE-ONLY DELIVERY: no generic lesson/solution text leaks into
     # a visual-only answer. Recover a geometrically verified sphere if the
     # provider omitted the drawing, using ONLY the radius in the question.
