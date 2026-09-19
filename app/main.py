@@ -388,6 +388,26 @@ def root():
         1,
     )
 
+    # In open exercise mode detect the language of the actual question,
+    # not the currently selected lesson dropdown. Keep lesson-mode untouched.
+    send_start = html.find("async function sendToAI(")
+    if send_start < 0:
+        raise RuntimeError("Legacy chat sendToAI was not found")
+    language_old = (
+        '    const language =\\n'
+        '        languageSelect.value || "العربية";'
+    )
+    language_new = (
+        '    const language =\\n'
+        '        generalExercisesMode\\n'
+        '        ? (detectMessageRenderLanguage(showStudentMessage ? message : (nabilCurrentQuestionText || message)) || "العربية")\\n'
+        '        : (languageSelect.value || "العربية");'
+    )
+    before_send, after_send = html[:send_start], html[send_start:]
+    if language_old not in after_send:
+        raise RuntimeError("Open tutor language selector anchor was not found")
+    html = before_send + after_send.replace(language_old, language_new, 1)
+
     # Preserve the blue robot as the only home; hide the separate welcome gateway.
     direct_entry_css = (
         "<style id='nabil-direct-lesson-entry'>"
