@@ -96,7 +96,7 @@ full.addEventListener("click",async()=>{
  const sections=[["structure","الخطة التفصيلية"],["proposal","المقدمة وخطة البحث"]];
  const finalSections=[["questionnaire","الاستبيان"],["sampling","العينة والمنهجية"],["practical","الإطار التطبيقي"],
  ...(observedAggregates?[["results","الجداول وتحليل النتائج"]]:[]),
- ["conclusion","الاستنتاج النظري والتوصيات"],["summary","الخاتمة والخلاصة والمراجع المطلوب استكمالها"]];
+ ["conclusion",observedAggregates?"الاستنتاج العام بعد تحليل الاستبيان":"الاستنتاج النظري والتوصيات"],["summary",observedAggregates?"الخاتمة النهائية بعد التحليل":"الخاتمة والخلاصة والمراجع المطلوب استكمالها"]];
  async function appendStage(stage,name,index,total,part=null){
   if(manuscript.length>630000)throw Error("وصلت المسودة إلى حد التخزين؛ صدّرها إلى Word قبل المتابعة.");
   setStatus("إعداد "+name+" ("+index+"/"+total+") — لا تغلق الصفحة قبل اكتمال القسم");
@@ -106,7 +106,7 @@ full.addEventListener("click",async()=>{
   })).json();
   if(!response.text)throw Error("لم يصل "+name);
   const words=response.text.trim().split(/\s+/).filter(Boolean).length;
-  if(stage==="theoretical"&&words<150)throw Error("القسم النظري "+part+" قصير جدًا ("+words+" كلمة). لم نعتبره صفحة مكتملة؛ اضغط مجددًا للمحاولة.");
+  if(stage==="theoretical"&&words<250)throw Error("القسم النظري "+part+" قصير جدًا ("+words+" كلمة). لم نعتبره صفحة مكتملة؛ اضغط مجددًا للمحاولة.");
   const start=stage==="theoretical"?"[THEORETICAL_PAGE_BREAK]\n## المحور النظري "+part+"\n":"# "+name+"\n";
   manuscript+=(manuscript?"\n\n":"")+start+response.text;
   if(stage==="structure")chapterPlan=response.text.slice(0,12000);
