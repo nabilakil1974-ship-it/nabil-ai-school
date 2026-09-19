@@ -3607,13 +3607,13 @@ def extract_drawings(text: str):
     # followed by an ordinary JSON array (no XML wrapper), sometimes directly
     # after text on the same line. The old parser let it leak into visible
     # prose and never passed the figure to the renderer.
-    bare_marker = re.compile(r"(?i)\\bDRAWINGS?_JSON\\s*[:：]")
+    bare_marker = re.compile(r"(?i)\bDRAWINGS?_JSON\s*[:：]")
     while True:
         marker = bare_marker.search(text)
         if not marker:
             break
         rest = text[marker.end():]
-        leading = re.match(r"\\s*(?:```(?:json)?\\s*)?", rest, re.I)
+        leading = re.match(r"\s*(?:```(?:json)?\s*)?", rest, re.I)
         offset = leading.end() if leading else 0
         parsed = None
         end_index = None
@@ -3630,8 +3630,8 @@ def extract_drawings(text: str):
                     if normalized is not None and validate_drawing_strict(normalized):
                         drawings.append(normalized)
             suffix = rest[end_index:]
-            suffix = re.sub(r"^\\s*```", "", suffix)
-            text = (text[:marker.start()].rstrip() + "\\n" + suffix.lstrip()).strip()
+            suffix = re.sub(r"^\s*```", "", suffix)
+            text = (text[:marker.start()].rstrip() + "\n" + suffix.lstrip()).strip()
         else:
             # Never display malformed internal transport, even when the model
             # mixes prose/JSON on one line or truncates the closing bracket.
