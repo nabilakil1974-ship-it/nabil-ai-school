@@ -5776,18 +5776,20 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
             reply_text = structured_circuit_reply.strip()
 
 
-    # General exercises: function fallback ONLY for an explicit mathematical function request.
-    # This prevents physics formulas (Ohm's law, power, resistance, etc.) from
-    # being misread as a function study and incorrectly generating a Variation Table.
+    # General exercises: function-study fallback ONLY when the learner explicitly
+    # asks to study/analyse/graph a function. A definition such as f(x)=2x+3 in
+    # an evaluation request (for example "Find f(4)") is NOT a function study.
+    # This also prevents unrelated formula questions from receiving a graph and
+    # Domain/Limits/Derivative/Variation Table boilerplate.
     function_request_text = str(message or "")
     is_explicit_function_request = bool(re.search(
-        r"f\s*\(\s*x\s*\)\s*=|"
-        r"\bstudy\s+(?:the\s+)?function\b|"
-        r"\bgraph\s+(?:the\s+)?function\b|"
+        r"\b(?:study|analyse|analyze|graph|plot|sketch|draw)\s+(?:and\s+draw\s+)?(?:the\s+)?function\b|"
         r"\bfunction\s+study\b|"
+        r"\b(?:study|analyse|analyze|graph|plot|sketch|draw)\b[^\n]{0,80}f\s*\(\s*x\s*\)\s*=|"
         r"\bétude\s+(?:de\s+la\s+)?fonction\b|"
         r"\betud\w*\s+(?:de\s+la\s+)?fonction\b|"
-        r"دراسة\s+الدال|ادرس\s+الدال|"
+        r"\b(?:tracer|dessiner|analyser)\b[^\n]{0,80}(?:fonction|f\s*\(\s*x\s*\))|"
+        r"دراسة\s+الدال|ادرس\s+الدال|حل[ّ ]?ل\s+الدال|ارسم\s+الدال|"
         r"جدول\s+التغي|tableau\s+de\s+variations",
         function_request_text,
         re.I,
