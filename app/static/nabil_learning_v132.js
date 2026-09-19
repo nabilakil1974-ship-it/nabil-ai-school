@@ -1,4 +1,4 @@
-/* NABIL learning path v135: genuine AI activities, no invented XP or mastery. */
+/* NABIL learning path v136: genuine AI activities, no invented XP or mastery. */
 (()=>{
 "use strict";
 const dock=document.getElementById("nabilLearningDock");
@@ -15,11 +15,11 @@ function placeDock(){
    // Put the smart path immediately below the real answer action row
    // (Copy answer / Read answer), exactly where the owner requested it.
    const tools=latest.querySelector(".teacher-tools");
-   if(tools){
-     if(tools.nextElementSibling!==dock)tools.insertAdjacentElement("afterend",dock);
-   }else if(latest.nextElementSibling!==dock){
-     latest.insertAdjacentElement("afterend",dock);
-   }
+   const copyButton=latest.querySelector(".copy-answer-btn");
+   // Anchor below the real answer action row; if an older skin moved buttons,
+   // the copy button remains the reliable owner-specified landmark.
+   const anchor=tools||copyButton?.parentElement||latest.querySelector(".bubble")||latest;
+   if(anchor.nextElementSibling!==dock)anchor.insertAdjacentElement("afterend",dock);
  }else if(chat){
    if(chat.nextElementSibling!==dock)chat.insertAdjacentElement("afterend",dock);
  }else if(lessonColumn){
@@ -125,7 +125,8 @@ async function act(action){
  if(action==="dashboard"){dashboard();return}
  const v=scope(),level=gradeLevel(v.grade);
  const latestQuestion=String(typeof nabilCurrentQuestionText!=="undefined"?nabilCurrentQuestionText:"").trim();
- const lastTeacher=document.querySelector("#chat .message.teacher .bubble");
+ const teacherBubbles=[...document.querySelectorAll("#chat .message.teacher .bubble")];
+ const lastTeacher=teacherBubbles[teacherBubbles.length-1]||null;
  if(!v.grade&&!v.subject&&!latestQuestion&&!lastTeacher){
   status("اسأل الأستاذ نبيل سؤالك أولًا؛ بعدها كل زر يبني نشاطًا على جوابك.");return;
  }
@@ -133,7 +134,7 @@ async function act(action){
  const question=item[2]+" مراعاة العمر: "+(v.grade?shortFor(level):"لا تفترض عمر الطالب؛ تكيّف مع مستوى آخر سؤال")+ ". وقت النشاط المقترح "+period+". "+(v.lesson?"الدرس: "+v.lesson+". ":"")+(latestQuestion?"السؤال الذي نتعلّم منه: "+latestQuestion.slice(0,650)+". ":"")+"افهم كلامي العربي ولو كانت مادة الدرس "+v.language+"؛ احتفظ بالمصطلحات العلمية بلغة الكتاب. وإذا كان السؤال الأصلي English أو Français، اسأل وقدّم النشاط بلغته.";
  const previousAnswer=Array.from(document.querySelectorAll("#chat .message.teacher .bubble")).at(-1);
  byId("nv132Result").hidden=true;
- setBusy(true);lastAction=action;status("الأستاذ نبيل عم يحضّر نشاط "+item[1]+" للصف "+v.grade+"…");
+ setBusy(true);lastAction=action;status("الأستاذ نبيل عم يحضّر "+item[1]+(v.grade?(" للصف "+v.grade):"")+" من نفس محتوى الدرس/السؤال…");
  window.nabilPendingLearningAction=action;
  try{
   await sendToAI(question,false);
