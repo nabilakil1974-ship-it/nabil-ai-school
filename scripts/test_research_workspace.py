@@ -85,6 +85,8 @@ class ResearchContract(unittest.TestCase):
         self.assertIn('theoretical_part_index:part', UI)
         self.assertIn('nextTheoryPart<=22', UI)
         self.assertIn('populateGeneratedQuestions(response.text)', UI)
+        self.assertIn('/api/research/survey/questions.csv', UI)
+        self.assertIn('@router.post("/survey/questions.csv")', RESEARCH)
         self.assertIn('observedAggregates?"الاستنتاج العام', UI)
         create = isolate("build_research_docx")
         req = FakeRequest()
