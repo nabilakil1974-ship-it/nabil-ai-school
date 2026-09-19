@@ -72,7 +72,7 @@ class NabilUiIntegrationTests(unittest.TestCase):
         js = (STATIC / "nabil_open_tutor_v1.js").read_text(encoding="utf-8")
         for token in (
             '"/api/chat"', '"general_exercises"', '"AUTO"',
-            "nabilSpeakClear", "renderNabilDiagram", "renderGeneralExerciseBoards",
+            "nabilSpeakClear", "renderNabilDiagram", "renderAIText",
             "MediaRecorder", "nabilOpenInput", "nabilOpenAnswer",
         ):
             with self.subTest(token=token):
