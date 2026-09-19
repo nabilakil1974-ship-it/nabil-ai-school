@@ -29,6 +29,8 @@ const title=label("عنوان الرسالة",document.createElement("input"));
 title.maxLength=500;title.placeholder="اكتب عنوان البحث";
 const outline=label("الخطوط العريضة وأفكار الباحث",document.createElement("textarea"));
 outline.rows=5;outline.maxLength=12000;outline.placeholder="مشكلة البحث، المحاور، الأهداف، الفرضيات، المنهج...";
+const questions=label("أسئلة البحث الأساسية (كل سؤال في سطر)",document.createElement("textarea"));
+questions.rows=4;questions.maxLength=12000;questions.placeholder="ما أثر ...؟\nما العلاقة بين ...؟";
 const sources=label("مراجع ومقاطع يقدمها الباحث — لا تُعدّ متحققًا منها تلقائيًا",document.createElement("textarea"));
 sources.rows=3;sources.maxLength=15000;
 const language=document.createElement("select");
@@ -45,6 +47,7 @@ output.contentEditable="true";output.setAttribute("aria-label","مسودة بح�
 output.addEventListener("input",()=>{manuscript=output.innerText.slice(0,120000);});
 const status=document.createElement("p");status.setAttribute("role","status");panel.append(status);
 let manuscript="";
+let observedAggregates="";
 let busy=false;
 function setStatus(t){status.textContent=t;}
 function validate(){if(title.value.trim().length<8||outline.value.trim().length<5){setStatus("أدخل عنوانًا واضحًا وخطوطًا عريضة للبحث أولًا.");return false;}return true;}
@@ -53,8 +56,8 @@ async function post(path,payload){
  if(!response.ok){let message="تعذّر تنفيذ الطلب. حاول مجددًا.";try{const data=await response.json();message=String(data.detail||message)}catch(_){}throw Error(message);}
  return response;
 }
-function state(){return {degree:degree.value,title:title.value.trim(),outline:outline.value.trim(),sources:sources.value.trim(),guidance:guidance.value.trim(),language:language.value};}
-const stageLabels=[["proposal","خطة البحث"],["theoretical","الإطار النظري"],["practical","الإطار التطبيقي"],["questionnaire","أسئلة الاستبيان"],["revision","مراجعة المسودة"]];
+function state(){return {degree:degree.value,title:title.value.trim(),outline:outline.value.trim(),sources:sources.value.trim(),guidance:guidance.value.trim(),research_questions:questions.value.trim(),observed_aggregates:observedAggregates,language:language.value};}
+const stageLabels=[["proposal","المقدمة وخطة البحث"],["theoretical","الإطار النظري"],["questionnaire","الاستبيان"],["sampling","العينة والمنهجية"],["practical","الإطار التطبيقي"],["results","تحليل النتائج والجداول"],["conclusion","الاستنتاجات والتوصيات"],["summary","الخاتمة والخلاصة"],["revision","المراجعة"]];
 for(const [stage,name] of stageLabels){
  const action=document.createElement("button");action.type="button";action.textContent=name;
  action.style.cssText="padding:9px;border:1px solid #2baee8;border-radius:7px;background:#14619a;color:white;cursor:pointer;font:inherit";
@@ -73,6 +76,32 @@ for(const [stage,name] of stageLabels){
  });
  stages.append(action);
 }
+const full=document.createElement("button");
+full.id="nabilResearchFullThesis";full.type="button";
+full.textContent="📚 إعداد الرسالة من المقدمة إلى الخاتمة";
+full.style.cssText="display:block;width:100%;margin:10px 0;padding:13px;background:#168360;color:white;border:0;border-radius:8px;font:inherit;cursor:pointer";
+full.addEventListener("click",async()=>{
+ if(busy||!validate())return;
+ busy=true;full.disabled=true;
+ const sections=[["proposal","المقدمة وخطة البحث"],["theoretical","الإطار النظري"],["questionnaire","الاستبيان"],["sampling","العينة والمنهجية"],["practical","الإطار التطبيقي"]];
+ if(observedAggregates)sections.push(["results","الجداول وتحليل النتائج"],["conclusion","الاستنتاج العام والتوصيات"],["summary","الخاتمة والخلاصة"]);
+ try{
+  for(let i=0;i<sections.length;i++){
+   const [stage,name]=sections[i];setStatus("إعداد "+name+" ("+(i+1)+"/"+sections.length+")");
+   const response=await (await post("/api/research/draft",{...state(),stage,previous_text:manuscript.slice(-35000)})).json();
+   if(!response.text)throw Error("لم يصل "+name);
+   manuscript+=(manuscript?"\n\n":"")+"# "+name+"\n"+response.text;
+   output.textContent=manuscript;
+  }
+  if(!observedAggregates){
+   manuscript+="\n\n# جداول النتائج والاستنتاج والخاتمة النهائية\n[تُستكمل بعد رفع إجابات الاستبيان الفعلية. لا توجد نتائج ميدانية قابلة للتوثيق بعد.]";
+   output.textContent=manuscript;
+  }
+  setStatus("المسودة جاهزة للمراجعة والتصدير. تُستكمل نتائج الدراسة بعد وصول البيانات الحقيقية.");
+ }catch(err){setStatus("توقفت مع حفظ الفصول المنجزة: "+String(err.message||err));}
+ finally{busy=false;full.disabled=false;}
+});
+panel.append(full);
 panel.append(output);
 const download=document.createElement("button");download.type="button";download.textContent="⬇ تصدير المسودة Word";
 download.style.cssText="margin:8px;padding:10px;background:#178d57;color:white;border:0;border-radius:8px;font:inherit;cursor:pointer";
@@ -121,6 +150,57 @@ formsScript.addEventListener("click",async()=>{
  }catch(err){setStatus(err.message||"تعذر تجهيز سكربت Google Form.");}
 });
 panel.append(formsScript);
+const portals=document.createElement("details"),summary=document.createElement("summary");
+summary.textContent="🔎 مستودعات الرسائل الجامعية الموثوقة";portals.append(summary);
+for(const [name,url] of [["OATD","https://www.oatd.org/"],["White Rose eTheses","https://etheses.whiterose.ac.uk/"],["AUC Knowledge Fountain","https://fount.aucegypt.edu/"],["Saudi Digital Library","https://sdl.edu.sa/"],["ProQuest Dissertations & Theses","https://about.proquest.com/en/products-services/pqdtglobal/"]]){
+ const link=document.createElement("a");link.href=url;link.target="_blank";link.rel="noopener noreferrer";link.textContent=name;
+ link.style.cssText="display:block;margin:8px;color:#80d8ff";portals.append(link);
+}
+const caution=document.createElement("p");caution.textContent="روابط بحث وليست مراجع تم الاطلاع عليها تلقائيًا. تحقق من النص والصفحة والباحث والسنة قبل التوثيق.";portals.append(caution);
+panel.append(portals);
+const statsHead=document.createElement("h3");statsHead.textContent="📊 العينة والجداول والتحليل الإحصائي";panel.append(statsHead);
+const upload=label("ارفع CSV لإجابات حقيقية بلا أسماء أو بيانات شخصية",document.createElement("input"));
+upload.type="file";upload.accept=".csv,text/csv";
+const mapping=label("ربط المحاور بأعمدة CSV — كل سطر: المحور | Q1,Q2,Q3",document.createElement("textarea"));
+mapping.rows=3;mapping.placeholder="القيادة | Q1,Q2,Q3\nالتدريب | Q4,Q5,Q6";
+function axesMap(){
+ const result={};
+ for(const line of mapping.value.split(/\r?\n/).map(v=>v.trim()).filter(Boolean)){
+  const sep=line.indexOf("|");if(sep<1)throw Error("صيغة المحور | Q1,Q2");
+  const key=line.slice(0,sep).trim(),cols=line.slice(sep+1).split(",").map(v=>v.trim()).filter(Boolean);
+  if(!key||!cols.length||result[key])throw Error("محور فارغ أو مكرر");
+  result[key]=cols;
+ }
+ if(!Object.keys(result).length)throw Error("أدخل المحاور وأعمدة أسئلتها");
+ return result;
+}
+async function analysisRequest(path){
+ if(!upload.files?.length)throw Error("ارفع ملف الإجابات الحقيقية أولًا");
+ const form=new FormData();form.append("file",upload.files[0]);
+ form.append("axes_json",JSON.stringify(axesMap()));form.append("language",language.value);
+ const response=await fetch(path,{method:"POST",body:form});
+ if(!response.ok){let message="تعذر تحليل البيانات";try{message=(await response.json()).detail||message}catch(_){}throw Error(message);}
+ return response;
+}
+const analyze=document.createElement("button");analyze.type="button";analyze.textContent="📈 حساب الجداول وتحليل إجابات العينة";
+analyze.style.cssText="padding:10px;background:#136db0;color:white;border:0;border-radius:8px;font:inherit;cursor:pointer";
+analyze.addEventListener("click",async()=>{
+ if(busy)return;busy=true;setStatus("تحليل إحصائي لإجابات العينة الحقيقية...");
+ try{
+  const data=await (await analysisRequest("/api/research/survey/analyze")).json();
+  observedAggregates=JSON.stringify(data.summary);
+  manuscript+="\n\n# الجداول والتحليل الوصفي للعينة\n"+data.markdown;
+  output.textContent=manuscript;
+  setStatus("الجداول أُنتجت من البيانات المرفوعة؛ لم يُشغَّل SPSS نفسه. يمكن تنزيل ملف .sps وتشغيله في SPSS.");
+ }catch(err){setStatus(String(err.message||err));}finally{busy=false;}
+});
+panel.append(analyze);
+for(const [labelText,path,filename] of [["⬇ تنزيل جداول التحليل CSV","/api/research/survey/analysis-tables.csv","nabil-survey-tables.csv"],["⬇ تنزيل أوامر SPSS","/api/research/survey/analysis.sps","nabil-survey-analysis.sps"]]){
+ const btn=document.createElement("button");btn.type="button";btn.textContent=labelText;
+ btn.style.cssText="margin:8px;padding:10px;background:#247fc3;color:white;border:0;border-radius:8px;font:inherit;cursor:pointer";
+ btn.addEventListener("click",async()=>{try{await saveResponse(await analysisRequest(path),filename);setStatus("تم تنزيل "+filename);}catch(err){setStatus(String(err.message||err));}});
+ panel.append(btn);
+}
 button.after(panel);
 button.addEventListener("click",()=>{panel.hidden=!panel.hidden;button.setAttribute("aria-expanded",String(!panel.hidden));});
 button.setAttribute("aria-expanded","false");
