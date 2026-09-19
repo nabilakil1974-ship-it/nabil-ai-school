@@ -82,7 +82,7 @@ class ResearchContract(unittest.TestCase):
                     and n.name == "build_google_form_script")
         namespace = {"json": json, "GoogleFormScriptRequest": object,
                      "HTTPException": ValueError}
-        exec("from __future__ import annotations\\n" + ast.unparse(node), namespace)
+        exec("from __future__ import annotations\n" + ast.unparse(node), namespace)
         req = type("Request", (), {
             "title": "Doctoral research questionnaire",
             "language": "en",
