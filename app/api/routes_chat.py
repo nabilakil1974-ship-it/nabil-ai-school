@@ -4752,6 +4752,10 @@ async def voice_chat(
         (activity_mode or "lesson").strip().lower()
         == "general_exercises"
     )
+    is_home_live_tutor = (
+        general_exercises_mode
+        and str(teaching_mode or "").strip().lower() == "home_live_tutor"
+    )
 
     # ==========================================
     # DEFAULT MESSAGE
@@ -4996,7 +5000,7 @@ GENERAL EXERCISES MODE / حل تمارين عامة
         # Free voice/text questions are not multi-exercise exam sheets. The
         # previous 7KB generic-exercise template fought the beside-student
         # instructions and produced "ExerciseLanguage / Grammar" for math.
-        if str(teaching_mode or "").strip().lower() == "home_live_tutor":
+        if is_home_live_tutor:
             educational_context = """
 NABIL AI — OPEN CONVERSATIONAL TUTOR, not an examination generator.
 The student can ask about ANY school subject without grade/subject/lesson
@@ -5231,7 +5235,7 @@ the same lesson Visual Engine; never describe it as rendered without one.
 
     """
  
-    if general_exercises_mode and str(teaching_mode or "").strip().lower() == "home_live_tutor":
+    if is_home_live_tutor:
         educational_context += """
 HOME_TUTOR_INTENT_AND_SPEECH_V1 — highest-priority answer format for the blue robot's
 open typed/voice questions; the SAME mathematical and scientific standards as lesson mode.
@@ -5420,7 +5424,7 @@ Do not invent hidden data. Return only the missing exercises and their drawing J
     # GENERAL EXERCISES COMPLETION GUARD
     # A board is not allowed to stop at "Required" or midway through Solution.
     # ----------------------------------------------------------
-    if general_exercises_mode and not figure_only_request:
+    if general_exercises_mode and not figure_only_request and not is_home_live_tutor:
         _rr = str(raw_reply or "").strip()
         _low = _rr.lower()
 
@@ -5531,7 +5535,7 @@ Mandatory:
         re.I | re.S
     ))
 
-    if _looks_like_function_study and not figure_only_request:
+    if _looks_like_function_study and not figure_only_request and not is_home_live_tutor:
         _needed_checks = {
             "domain": bool(re.search(r"\bdomain\b|\bdomaine\b|المجال", _function_low)),
             "limits": bool(re.search(r"\blimits?\b|\blimites?\b|النهايات", _function_low)),
