@@ -340,9 +340,7 @@ html,body{background:var(--nabil-ref-page)!important;color:var(--nabil-ref-text)
 .nabil-open-line.nabil{border-inline-start-color:#55dfa0!important}
 .nabil-open-tools button{background:#0d2c47!important;border-color:#1f6995!important;color:#eef8ff!important}
 
-/* Keep scientific data encodings untouched; only the frame/canvas adopts the platform blue. */
-.nabil-visual [stroke="#ef4444"],.nabil-visual [stroke="#e11d48"],
-.lesson-graph [stroke="#ef4444"],.lesson-graph [stroke="#e11d48"]{stroke:inherit}
+/* Keep scientific graph data colours intact; only style the canvas frame. */
 
 /* Mobile stays a true responsive layout, never a scaled desktop screenshot. */
 @media(max-width:760px){
@@ -352,3 +350,6 @@ html,body{background:var(--nabil-ref-page)!important;color:var(--nabil-ref-text)
   #nabilLearningDock{margin:10px 0 18px!important;padding:10px!important}
   #nabilHomeTutorHost #nabilOpenTutor{border-radius:13px!important}
 }
+
+/* Responsive display:flex must not override legacy JS navigation to lessons. */
+#nabilHome[style*="display: none"],#nabilHome[style*="display:none"]{display:none!important;}
