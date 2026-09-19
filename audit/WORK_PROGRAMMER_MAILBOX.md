@@ -330,3 +330,12 @@ The owner directs programmer and ChatGPT Work to coordinate via this shared mail
 Keep science OCR checkpoints intact; minimize web redeploy interruption. PR #10 (branch fix/science-worker-exclusive-lock-20260919) holds a lock-concurrency fix and CI guard; it is NOT merged or production-verified, so do not count it as deployed. Avoid overlapping indexing sessions.
 
 **Current outstanding owner acceptance:** 390x844 robot resize and full answer board, both home buttons, voice/foreign-language lesson alignment, Grade 9 authentic book scope, figure labels, source integrity, and visible response latency. For each new owner instruction add a dated task row or section before implementing and link the verifying build and live report.
+
+
+## OWNER BUG — Grade 9 English lesson speaks Arabic / wrong-level invented examples (2026-09-19)
+
+Actual user transcript: English Grade 9 Lines and Circles starts with Arabic «هلق خلينا نشوف شو عنا…» then switches to English. The answer supplies Cartesian-coordinate distance-to-line/intersection/tangent-equation exercises not established as part of the corresponding Grade 9 textbook chapter. It also asserts sqrt(496)=22 (false) and tangent slopes ±sqrt(39)/25 (false; slopes are ±5/sqrt(39)); promises sketches without verified drawn figures.
+
+**Expected acceptance:** selected English lesson first spoken/displayed word is English, no Arabic TTS splice; French analogous; Arabic only when lesson or explicit request is Arabic. Student is taught with the exact grade/subject/language CHAPTER pages or clearly told that pages were not retrieved, never a fabricated textbook match; grade9 examples remain age-appropriate and diagrams really render with verified labels. Do not merely relabel secondary analytic geometry as Grade 9. For any generated arithmetic, verify substitution and coordinates.
+
+**Programmer change in branch fix/grade9-lesson-language-scope-20260919:** removed conflicting Arabic lead-in and permissive interjections from multiple overlapping prompts, strengthened grade9 source/figure/math integrity instructions, added static regression. This is a prompt-level guard, NOT an independently verified source matcher, deterministic math verifier, rendered diagram guarantee, or deployed/live TTS test. Work: when built/deployed, use user-provided example for FAIL reproduction plus genuine textbook page-grounded lesson; capture page provenance, actual audio, 390x844 screenshot, drawings, deployment SHA, and mark PASS/FAIL individually. Reply here; do not mark fully fixed from code/CI alone.

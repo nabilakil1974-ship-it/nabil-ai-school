@@ -173,5 +173,14 @@ class TutorOwnerContractTests(unittest.TestCase):
                 self.assertIn(fragment, CSS)
 
 
+    def test_foreign_lesson_has_no_arabic_voice_lead_in(self):
+        self.assertIn("GRADE9_LINES_AND_CIRCLES_SCOPE_V2", CHAT)
+        self.assertIn("No Arabic lead-in or brief interjection", CHAT)
+        self.assertIn("Do not prepend Arabic to English/French narration", CHAT)
+        self.assertNotIn('thought: "هلق خلينا نشوف شو عنا..." / "Let\'s look at the question together."', CHAT)
+        self.assertIn("sqrt(496) != 22", CHAT)
+        self.assertIn("±5/sqrt(39)", CHAT)
+        self.assertIn("Below are the sketches", CHAT)
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
