@@ -330,3 +330,94 @@ async def download_spss_syntax(file: UploadFile = File(...),
         media_type="text/plain; charset=utf-8",
         headers={"Content-Disposition": 'attachment; filename="nabil-survey-analysis.sps"',
                  "Cache-Control": "no-store"})
+
+
+class AnswerExport(BaseModel):
+    title: str = Field(min_length=1, max_length=500)
+    answer: str = Field(min_length=1, max_length=MAX_MANUSCRIPT)
+    language: Literal["ar", "en", "fr"] = "ar"
+
+
+def markdown_answer_tables(answer: str) -> list[list[list[str]]]:
+    """Take actual displayed Markdown tables, never invent workbook statistics."""
+    tables, current = [], []
+    for line in answer.splitlines() + [""]:
+        stripped = line.strip()
+        if stripped.startswith("|") and stripped.endswith("|"):
+            cells = [cell.strip() for cell in stripped.strip("|").split("|")]
+            if cells and all(re.fullmatch(r":?-{3,}:?", cell or "") for cell in cells):
+                continue
+            if len(cells) >= 2 and len(cells) <= 40:
+                current.append(cells)
+                continue
+        if len(current) >= 2:
+            tables.append(current)
+        current = []
+    return tables[:30]
+
+
+@router.post("/answer/docx")
+def export_answer_docx(request: AnswerExport):
+    if not request.answer.strip():
+        raise HTTPException(status_code=422, detail="Nothing to export.")
+    data = build_research_docx(ResearchExport(
+        degree="masters", title=request.title if len(request.title) >= 8 else "NABIL AI answer",
+        language=request.language, manuscript=request.answer))
+    return StreamingResponse(io.BytesIO(data),
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": 'attachment; filename="nabil-answer.docx"',
+                 "Cache-Control": "no-store"})
+
+
+@router.post("/answer/xlsx")
+def export_answer_xlsx(request: AnswerExport):
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+    tables = markdown_answer_tables(request.answer)
+    if not tables:
+        raise HTTPException(status_code=422,
+            detail="No actual Markdown table in this answer; Excel export is available for tabular answers.")
+    workbook = Workbook()
+    for index, table in enumerate(tables):
+        sheet = workbook.active if index == 0 else workbook.create_sheet()
+        sheet.title = f"Table {index + 1}"
+        for row_index, row in enumerate(table, 1):
+            for col_index, value in enumerate(row, 1):
+                cell = sheet.cell(row_index, col_index, value=value[:32000])
+                cell.alignment = Alignment(wrap_text=True, vertical="top")
+                if row_index == 1:
+                    cell.font = Font(bold=True, color="FFFFFF")
+                    cell.fill = PatternFill("solid", fgColor="155B87")
+        sheet.freeze_panes = "A2"
+        for column in sheet.columns:
+            key = column[0].column_letter
+            sheet.column_dimensions[key].width = min(54, max(13, max(
+                len(str(cell.value or "")) for cell in column[:70]) + 2))
+        sheet.sheet_view.rightToLeft = request.language == "ar"
+    output = io.BytesIO()
+    workbook.save(output)
+    return StreamingResponse(io.BytesIO(output.getvalue()),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="nabil-answer-tables.xlsx"',
+                 "Cache-Control": "no-store"})
+
+
+@router.post("/answer/google-forms-script")
+def export_answer_form_script(request: AnswerExport):
+    questions = []
+    for line in request.answer.splitlines():
+        cleaned = re.sub(r"^\\s*(?:[-*]\\s+|\\d+[.)]\\s+)", "", line).strip()
+        if "|" not in cleaned or cleaned.startswith("|"):
+            continue
+        axis, item = [part.strip() for part in cleaned.split("|", 1)]
+        if not axis or not item or len(axis) > 160 or len(item) > 600:
+            continue
+        if axis.lower() in ("axis", "المحور", "axe"):
+            continue
+        questions.append({"axis": axis, "item": item})
+    if not questions:
+        raise HTTPException(status_code=422,
+            detail="No 'Axis | Question' survey items found. Generate a questionnaire with axis and question on each line.")
+    return google_forms_script(GoogleFormScriptRequest(
+        title=request.title if len(request.title) >= 8 else "NABIL AI questionnaire",
+        language=request.language, questions=questions[:120]))
