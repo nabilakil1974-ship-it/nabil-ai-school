@@ -5479,15 +5479,15 @@ remain mandatory; the voice and visible text must teach in the SAME language.
             # ceiling to the learner's scope, keeping demanding studies whole.
             _home_question = str(message or "")
             _full_study = bool(re.search(
-                r"\\b(?:study|analyse|analyze|étudier|etudier)\\b.{0,55}"
-                r"(?:function|fonction|f\\s*\\(\\s*x\\s*\\))|"
-                r"دراسة\\s*(?:ال)?دال",
+                r"\b(?:study|analyse|analyze|étudier|etudier)\b.{0,55}"
+                r"(?:function|fonction|f\s*\(\s*x\s*\))|"
+                r"دراسة\s*(?:ال)?دال",
                 _home_question, re.I,
             ))
-            _multi_part = len(re.findall(r"(?m)(?:^|\\s)[1-9][).:-]", _home_question)) >= 2
+            _multi_part = len(re.findall(r"(?m)(?:^|\s)[1-9][).:-]", _home_question)) >= 2
             _diagram = bool(re.search(
-                r"\\b(?:draw|graph|plot|diagram|sketch|tracer|dessiner|schéma)\\b|"
-                r"ارسم|رسم\\s*بياني|مخطط",
+                r"\b(?:draw|graph|plot|diagram|sketch|tracer|dessiner|schéma)\b|"
+                r"ارسم|رسم\s*بياني|مخطط",
                 _home_question, re.I,
             ))
             output_budget = (
