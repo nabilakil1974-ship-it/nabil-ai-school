@@ -159,12 +159,13 @@ async function startRecording(){
    recorder.ondataavailable=e=>{if(e.data?.size)chunks.push(e.data)};
    recorder.onstop=()=>{const blob=new Blob(chunks,{type:recorder?.mimeType||"audio/webm"});chunks=[];stream?.getTracks().forEach(t=>t.stop());stream=null;recorder=null;recording=false;request({audio:blob})};
    try{stopNabilNeuralVoice?.();speechSynthesis?.cancel?.()}catch(_e){}
-   recorder.start();recording=true;talk.textContent="⏹ إيقاف وإرسال";setStatus("🎙️ احكي براحتك، وبس تخلص اضغط إيقاف وإرسال.");
+   recorder.start();recording=true;send.disabled=true;talk.textContent="⏹ إيقاف وإرسال";setStatus("🎙️ احكي براحتك، وبس تخلص اضغط إيقاف وإرسال.");
  }catch(_e){stream?.getTracks().forEach(t=>t.stop());stream=null;setStatus("اسمح للميكروفون من إعدادات المتصفح وجرّب مرة ثانية.",true)}
 }
 function stopRecording(){if(!recording||!recorder)return;talk.textContent="⏳ جارٍ الإرسال";setStatus("⏳ عم برسل التسجيل…");try{recorder.stop()}catch(_e){recording=false;setStatus("تعذّر إنهاء التسجيل.",true)}}
 talk.addEventListener("click",()=>recording?stopRecording():startRecording());
-send.addEventListener("click",()=>{const q=input.value.trim();if(!q)return;input.value="";request({question:q})});
+send.addEventListener("click",()=>{if(recording)return; // Keep one voice question at a time.
+ const q=input.value.trim();if(!q)return;input.value="";request({question:q})});
 input.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send.click()}});
 
 // Suppress the old home browser-SpeechRecognition handler; the landing microphone
@@ -193,6 +194,8 @@ window.nabilShowProfessorGateway=()=>{
  document.body.classList.add("nabil-home-lock");
 };
 try{if(typeof nabilActivityMode!=="undefined")nabilActivityMode="general_exercises"}catch(_e){}
+// Do not let the retired home script speak using a second browser-only voice.
+try{if(typeof homeWelcomeSpoken!=="undefined")homeWelcomeSpoken=true}catch(_e){}
 document.body.classList.add("nabil-home-lock");
 window.NabilOpenTutor={start:startRecording,stop:stopRecording,ask:q=>request({question:q})};
 })();
