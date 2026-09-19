@@ -99,6 +99,39 @@ class NabilUiIntegrationTests(unittest.TestCase):
         self.assertLess(backend.index("master_first = json.loads("),
                         backend.index("grade_node = subject_node.get(curated_grade"))
 
+    def test_full_lesson_projector_rule_highlight_and_language_contract(self):
+        learning = (STATIC / "nabil_learning_v132.js").read_text(encoding="utf-8")
+        theme = (STATIC / "nabil_reference_theme.css").read_text(encoding="utf-8")
+        backend = (ROOT / "app" / "api" / "routes_chat.py").read_text(encoding="utf-8")
+        for token in ("projector", "requestFullscreen", "nabil-projector-mode", "markKeyRules"):
+            self.assertIn(token, learning)
+        for token in (".nabil-key-rule", "body.nabil-projector-mode", "color:#ff5b62"):
+            self.assertIn(token, theme)
+        self.assertIn('policy_language in {"English", "Français", "العربية"}', backend)
+        self.assertIn("top_k=10 if str(teaching_mode", backend)
+        self.assertIn("🔴 Key Rule:", backend)
+
+    def test_math_manifest_covers_all_school_grades_and_secondary_branches(self):
+        import json
+        books = json.loads((ROOT / "data" / "math_textbooks_manifest.json").read_text(encoding="utf-8"))["books"]
+        self.assertEqual(len(books), 32)
+        grades = {item["grade"] for item in books}
+        for grade in (
+            "الصف الأول","الصف الثاني","الصف الثالث","الصف الرابع","الصف الخامس",
+            "الصف السادس","الصف السابع","الصف الثامن","الصف التاسع","الأول ثانوي",
+            "الثاني ثانوي - العلوم","الثاني ثانوي - الإنسانيات",
+            "الثالث ثانوي - العلوم العامة","الثالث ثانوي - علوم الحياة",
+            "الثالث ثانوي - الاجتماع والاقتصاد","الثالث ثانوي - الآداب والإنسانيات",
+        ):
+            self.assertIn(grade, grades)
+        for grade in grades:
+            langs = {x["language"] for x in books if x["grade"] == grade}
+            self.assertEqual(langs, {"English", "Français"})
+        progress = (ROOT / "scripts" / "math_progress.py").read_text(encoding="utf-8")
+        indexer = (ROOT / "scripts" / "index_math_textbooks.py").read_text(encoding="utf-8")
+        self.assertIn("Read-only report", progress)
+        self.assertIn("pg_advisory_lock(728168120)", indexer)
+
     def test_removed_fake_progress_engine(self):
         self.assertNotIn('<script id="nabilV130Script">', self.html)
 
