@@ -421,11 +421,13 @@ async function request({question="",audio=null}){
        onerror:()=>typer.finish()
      })).catch(()=>typer.finish());
    }
-   setStatus(shown.figureOnly?"✅ الرسمة ظاهرة. فيك تكبّرها بزر المعاينة.":shown.hasVisual?"✅ الجواب جاهز. فيك تعرض الشرح أو الرسمة من الأزرار فوق البطاقة.":"✅ الجواب جاهز لسؤالك التالي.");
+   setStatus(shown.figureOnly?"✅ الرسمة ظاهرة. فيك تكبّرها بزر المعاينة.":shown.hasVisual?"✅ الجواب جاهز. الشرح والرسمة في بطاقتين منفصلتين.":"✅ الجواب جاهز لسؤالك التالي.");
+   return true;
  }catch(e){
    const aborted=e?.name==="AbortError";
    if(!audio&&String(question||"").trim()&&!input.value.trim())input.value=String(question).trim();
    setStatus("⚠️ "+(aborted?"تأخر الجواب أكثر من المتوقع. جرّب إرسال السؤال مرة ثانية.":String(e?.message||"تعذّر الاتصال").slice(0,180)),true)
+   return false;
  }
  finally{setBusy(false);send.disabled=false;talk.disabled=false;if(!recording)talk.textContent="🎙️ سؤال صوتي"}
 }
@@ -447,9 +449,11 @@ talk.addEventListener("click",()=>{recording?stopRecording():startRecording()});
 send.addEventListener("click",()=>{if(recording||busy)return; // Do not duplicate pending requests.
  const q=input.value.trim();if(!q)return;
  input.value="";
- Promise.resolve(request({question:q})).catch(()=>{}).finally(()=>{
-   // A failed request must not silently discard the pupil's exercise.
-   if(!board.classList.contains("has-answer")&&!input.value.trim())input.value=q;
+ Promise.resolve(request({question:q})).then(ok=>{
+   if(ok===false&&!input.value.trim())input.value=q;
+ }).catch(e=>{
+   if(!input.value.trim())input.value=q;
+   setStatus("⚠️ تعذّر إرسال السؤال: "+String(e?.message||e).slice(0,150),true);
  });
 });
 input.addEventListener("input",()=>{
