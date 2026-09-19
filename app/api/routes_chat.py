@@ -5630,10 +5630,11 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
     # a visual-only answer. Recover a geometrically verified sphere if the
     # provider omitted the drawing, using ONLY the radius in the question.
     if figure_only_request:
-        if not drawings:
-            exact_sphere = _nabil_exact_sphere_drawing(message)
-            if exact_sphere:
-                drawings = [exact_sphere]
+        exact_sphere = _nabil_exact_sphere_drawing(message)
+        if exact_sphere:
+            # Prefer the student's explicit measured sphere over a provider's
+            # unrelated cylinder, arbitrary radius or placeholder diagram.
+            drawings = [exact_sphere]
         if drawings:
             reply_text = " "  # Nonempty transport; frontend presents the drawing only.
 
