@@ -3813,8 +3813,51 @@ def _spoken_math_cleanup(text: str, language: str) -> str:
         word = " sur "
     else:
         word = " على "
-    # Replace ordinary division slashes in spoken content. URLs are not expected in tutor replies.
+    # A slash joining vocabulary is NOT a division: "increasing/decreasing"
+    # and "numerator/denominator" must never sound like fractions.
+    t = re.sub(
+        r"(?i)\b(increasing|numerator|vertical|horizontal|maximum|"
+        r"croissante|numérateur|verticale|horizontale)\s*/\s*"
+        r"(decreasing|denominator|oblique|minimum|décroissante|"
+        r"dénominateur|oblique|minimum)\b",
+        r"\1 or \2" if lang == "English"
+        else r"\1 ou \2" if lang == "Français"
+        else r"\1 أو \2",
+        t,
+    )
+    # Only the remaining '/' symbols represent mathematical division.
     t = re.sub(r"\s*/\s*", word, t)
+    if lang not in {"العربية", "Arabic"}:
+        return re.sub(r"\s{2,}", " ", t).strip()
+
+    # The Arabic neural voice frequently mispronounces raw English textbook
+    # terms in Lebanese code-switched math explanations. Keep the scientific
+    # wording identical on SCREEN; adjust AUDIO phonetics only. Do not rewrite
+    # a native English/French response or any algebraic value.
+    phonetics = {
+        "vertical asymptote": "فيرتيكال أسيمبتوت",
+        "horizontal asymptote": "هوريزونتال أسيمبتوت",
+        "oblique asymptote": "أوبليك أسيمبتوت",
+        "variation table": "فارييشن تيبل",
+        "local maximum": "لوكال ماكسيموم",
+        "local minimum": "لوكال مينيموم",
+        "denominator": "دينومينيتور",
+        "numerator": "نيوميريتور",
+        "derivative": "ديريفاتيف",
+        "increasing": "إنكريسينغ",
+        "decreasing": "ديكريسينغ",
+        "function": "فانكشن",
+        "asymptote": "أسيمبتوت",
+        "domain": "دومين",
+        "limit": "ليمِت",
+        "graph": "غراف",
+        "maximum": "ماكسيموم",
+        "minimum": "مينيموم",
+    }
+    # Longer phrases first; preserve surrounding Arabic words and punctuation.
+    for term in sorted(phonetics, key=len, reverse=True):
+        t = re.sub(r"(?i)(?<![A-Za-z])" + re.escape(term) + r"(?![A-Za-z])",
+                   phonetics[term], t)
     return re.sub(r"\s{2,}", " ", t).strip()
 
 @router.post("/lesson-voice-chat")
