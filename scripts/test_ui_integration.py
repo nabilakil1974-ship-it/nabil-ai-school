@@ -229,6 +229,18 @@ class NabilUiIntegrationTests(unittest.TestCase):
             with self.subTest(token=token):
                 self.assertIn(token, script)
 
+    def test_worksheet_preserves_all_retrieved_textbook_citations(self):
+        script = (STATIC / "nabil_worksheet_v1.js").read_text(encoding="utf-8")
+        for token in (
+            "state.sources=Array.isArray(state.sources)?state.sources:[]",
+            "const seen=new Set(state.sources.map",
+            "if(!seen.has(identifier))",
+            "state.sources.push({book_title:source.book_title,page:source.page})",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, script)
+        self.assertNotIn("if(data.sources?.length)state.sources=data.sources;", script)
+
     def test_owner_voice_language_pacing_and_visual_contract(self):
         js = (STATIC / "nabil_open_tutor_v1.js").read_text(encoding="utf-8")
         css = (STATIC / "nabil_reference_theme.css").read_text(encoding="utf-8")
