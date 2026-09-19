@@ -104,7 +104,7 @@ class ResearchContract(unittest.TestCase):
         from app.services.research_survey_analysis import (
             SurveyDataError, summarize_survey, report_markdown, tables_csv, spss_syntax,
         )
-        actual = b"Q1,Q2,Q3,participant_label\\n1,2,3,A\\n5,4,3,B\\n,2,4,C\\n"
+        actual = b"Q1,Q2,Q3,participant_label\n1,2,3,A\n5,4,3,B\n,2,4,C\n"
         result = summarize_survey(actual, {"Axis A": ["Q1", "Q2"], "Axis B": ["Q3"]})
         self.assertEqual(result["participant_n"], 3)
         self.assertEqual(result["axes"][0]["complete_case_n"], 2)
@@ -118,7 +118,7 @@ class ResearchContract(unittest.TestCase):
         self.assertIn("RELIABILITY", spss_syntax(result))
         self.assertIn("FREQUENCIES", spss_syntax(result))
         with self.assertRaises(SurveyDataError):
-            summarize_survey(b"Q1,Q2\\n6,1\\n", {"A": ["Q1"]})
+            summarize_survey(b"Q1,Q2\n6,1\n", {"A": ["Q1"]})
         with self.assertRaises(SurveyDataError):
             summarize_survey(actual, {"A": ["Q1"], "B": ["Q1"]})
 
