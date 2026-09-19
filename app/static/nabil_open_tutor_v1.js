@@ -161,6 +161,7 @@ function renderAnswer(result,question){
    }catch(_e){}
  });
  const hasVisual=visuals.childElementCount>0;
+ if(figureOnly&&!hasVisual)throw Error("المحرّك لم يعرض الرسمة المطلوبة. جرّب مجددًا أو اكتب قياسات الشكل.");
  const wantsVisual=/draw|plot|graph|figure|diagram|sketch|tracer|dessiner|schéma|schema|ارسم|اعرض الرسم|اعرض الرسمة|ورجيني الرسمة|رسم بياني|مخطط/i.test(String(question||""));
  if(wantsVisual&&!hasVisual){
   const note=document.createElement("p");
