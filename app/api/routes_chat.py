@@ -3974,8 +3974,14 @@ async def nabil_text_to_speech(
             detail="Text is required.",
         )
 
-    # Keep a single request reasonably small for fast classroom playback.
-    clean_text = clean_text[:5000]
+    # A long worked solution must not silently lose all speech after word 5000.
+    # Speak the actual answer in bounded chunks, preserving every step/order.
+    # One request still has a finite bound to protect the shared web server.
+    if len(clean_text) > 20000:
+        raise HTTPException(
+            status_code=413,
+            detail="الجواب طويل جدًا للقراءة دفعة واحدة. اختَر بطاقة أو خطوة لقراءتها.",
+        )
     clean_text = _spoken_math_cleanup(clean_text, language or "العربية")
 
     voice_map = {
@@ -3994,21 +4000,42 @@ async def nabil_text_to_speech(
         import edge_tts
         from fastapi.responses import Response
 
-        communicator = edge_tts.Communicate(
-            clean_text,
-            voice=voice,
-            rate="-15%",
-            volume="+0%",
-            pitch="-2Hz",
-        )
+        # Edge TTS can reject very long single segments. Break on sentence/
+        # word boundaries and concatenate MP3 frames in the original order.
+        # Do not chop the user's final steps or independently rewrite them.
+        remaining = clean_text
+        speech_chunks = []
+        while remaining:
+            if len(remaining) <= 3400:
+                speech_chunks.append(remaining)
+                break
+            candidate = remaining[:3400]
+            cut = max(
+                candidate.rfind("، "), candidate.rfind(". "),
+                candidate.rfind("؛ "), candidate.rfind("? "),
+                candidate.rfind("! "), candidate.rfind(" "),
+            )
+            if cut < 1900:
+                cut = 3400
+            else:
+                cut += 1
+            speech_chunks.append(remaining[:cut].strip())
+            remaining = remaining[cut:].strip()
 
         audio_parts = []
-
-        async for chunk in communicator.stream():
-            if chunk.get("type") == "audio":
-                data = chunk.get("data")
-                if data:
-                    audio_parts.append(data)
+        for segment in speech_chunks:
+            communicator = edge_tts.Communicate(
+                segment,
+                voice=voice,
+                rate="-15%",
+                volume="+0%",
+                pitch="-2Hz",
+            )
+            async for chunk in communicator.stream():
+                if chunk.get("type") == "audio":
+                    data = chunk.get("data")
+                    if data:
+                        audio_parts.append(data)
 
         if not audio_parts:
             raise RuntimeError("No audio received from TTS service.")
