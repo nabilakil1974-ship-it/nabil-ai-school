@@ -12,6 +12,7 @@ on:
       - scripts/test_drawing_payload_recovery.py
       - scripts/test_open_tutor_sphere.cjs
       - scripts/test_home_lesson_navigation.cjs
+      - scripts/test_lesson_avatar_layout.cjs
       - scripts/test_tutor_contract.py
       - .github/workflows/nabil-ui-build.yml
   workflow_dispatch:
@@ -43,6 +44,8 @@ jobs:
         run: node scripts/test_open_tutor_sphere.cjs
       - name: Real home and lesson navigation regression
         run: node scripts/test_home_lesson_navigation.cjs
+      - name: Real structured lesson avatar fit regression
+        run: node scripts/test_lesson_avatar_layout.cjs
       - name: HTML assembly and user requirements regression
         run: python -m scripts.test_ui_integration
       - name: Natural multilingual tutor and figure-only regressions
