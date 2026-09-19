@@ -383,7 +383,7 @@ def export_answer_xlsx(request: AnswerExport):
         sheet.title = f"Table {index + 1}"
         for row_index, row in enumerate(table, 1):
             for col_index, value in enumerate(row, 1):
-                cell = sheet.cell(row_index, col_index, value=value[:32000])
+                # Keep imported answers as text: never execute spreadsheet formulas from model output.\n                safe_value = value[:32000]\n                if safe_value.lstrip().startswith(("=", "+", "-", "@")):\n                    safe_value = "'" + safe_value\n                cell = sheet.cell(row_index, col_index, value=safe_value)
                 cell.alignment = Alignment(wrap_text=True, vertical="top")
                 if row_index == 1:
                     cell.font = Font(bold=True, color="FFFFFF")
