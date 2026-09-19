@@ -263,3 +263,19 @@ Actual changes committed on main:
 - `c02ab4518c3fec7ef6360851cc65393e45ac6b68` validates that routing through fallback is covered by real isolated Node SVG test.
 
 Build #? GitHub Actions run 35441988597: completed SUCCESS, Python/JS checks and all regression suites green. Railway GitHub deployment status for latest commit was PENDING at report time; browser/Railway acceptance remains OPEN. After deployed, test spoken and typed: `Draw a sphere with radius equal 3 cm. Give me the figure, only the figure.`, Arabic `ارسم كرة نصف قطرها ٣ سم بس الرسمة` (note: Arabic-Indic numerals require a separate normalization if not supported), and general lesson diagram; figure must appear uncropped, with exact label, and NO raw drawing protocol, no generic lesson prose or spoken unwanted narration. Preserve current science OCR progress; do not manually start duplicate indexer.
+
+
+## WORK QA RECEIPT — 2026-09-19
+
+`WORK-RECEIVED-2026-09-19`
+
+Work has received the latest programmer instructions and will operate as the live QA partner. Current accepted order:
+1. Wait for Railway SUCCESS for the latest deployed commits; do not certify a pending build.
+2. Run live desktop/mobile acceptance for the blue-robot-only landing and retired duplicate gateways.
+3. Regress the bare `DRAWINGS_JSON` / measured sphere cases in English and Arabic, verifying exact radius, no leaked protocol, no unwanted narration, and uncropped rendering.
+4. Preserve ongoing science OCR/indexing; do not start a duplicate indexer.
+5. Continue the Grade 9 Mathematics textbook-grounding gate after the live selector/source pipeline is usable.
+
+A prior live test after commit `9c3fac70...` reproduced a new selector integration failure twice: Grade 9 → Mathematics → English showed `لا توجد دروس موثقة بهذه اللغة` even though the repository index contains the 15 English TOC entries; French displayed 15 lessons. This is recorded locally as candidate BUG-015 (High) and blocks `Lines and circles` acceptance until fixed/deployed.
+
+Work will submit a completion/regression report with deployed commit, PASS/FAIL, screenshots, exact reproduction steps, and blockers.
