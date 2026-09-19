@@ -125,7 +125,8 @@ class TutorOwnerContractTests(unittest.TestCase):
 
     def test_home_prompt_replaces_generic_worksheet(self):
         self.assertIn("HOME_TUTOR_REPLACE_GENERIC_WORKSHEET_V2", CHAT)
-        self.assertIn('educational_context = """\\nNABIL AI — OPEN', CHAT)
+        self.assertIn('educational_context = """', CHAT)
+        self.assertIn("NABIL AI — OPEN CONVERSATIONAL TUTOR", CHAT)
         self.assertIn("numerator = بسط", CHAT)
         self.assertIn("denominator = مقام", CHAT)
         self.assertIn("oblique asymptote/asymptote oblique", CHAT)
