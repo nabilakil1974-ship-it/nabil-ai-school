@@ -7,16 +7,19 @@ import json
 import re
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.services.ai_gateway import NabilAIGateway
+from app.services.research_survey_analysis import (MAX_UPLOAD, SurveyDataError,
+    summarize_survey, report_markdown, tables_csv, spss_syntax)
 from app.services.research_docx_notes import attach_researcher_footnotes
 
 router = APIRouter(prefix="/research", tags=["research"])
 DEGREE = Literal["masters", "doctorate"]
-STAGE = Literal["proposal", "theoretical", "practical", "questionnaire", "revision"]
+STAGE = Literal["proposal", "theoretical", "questionnaire", "sampling",
+                "practical", "results", "conclusion", "summary", "revision"]
 MAX_MANUSCRIPT = 120_000
 
 
@@ -29,6 +32,8 @@ class ResearchRequest(BaseModel):
     previous_text: str = Field(default="", max_length=35_000)
     sources: str = Field(default="", max_length=15_000)
     guidance: str = Field(default="", max_length=4000)
+    research_questions: str = Field(default="", max_length=12000)
+    observed_aggregates: str = Field(default="", max_length=18000)
 
 
 class ResearchExport(BaseModel):
@@ -54,8 +59,8 @@ Doctoral-level proposals require an explicit original contribution and rigorous 
 master's-level work needs a feasible, coherent scope. Title/outline are constraints, not evidence.
 Structure: research problem, objectives, questions, hypotheses only when appropriate, conceptual
 framework, methods, participants/sampling, instruments, analysis, limitations, ethics, and work plan;
-for the theoretical stage provide coherent sections and critical synthesis; for practical stage
-provide research DESIGN only, with blank placeholders for REAL data/results, never invented findings.
+for the theoretical stage provide coherent sections and critical synthesis; after theoretical stage,\nfor questionnaire stage propose validated axes/items; for sampling stage distinguish target population,\nsampling frame, actual recruitment and observed valid responses, never invented N; for practical stage
+provide research DESIGN only, with blank placeholders for REAL data/results, never invented findings.\nFor results and conclusion stages, use ONLY actual aggregates explicitly provided; when no real verified\ndata are included, prepare fillable interpretation headings instead of invented tables, statistics or claims.\nFor the final summary, distinguish supported findings, limitations and future research.
 For questionnaire, create clearly grouped axes, non-leading items and an explicit response scale.
 For revision, improve the provided draft while retaining the researcher's claims.
 NEVER fabricate publications, authors, quotations, DOI, page numbers, citations, URLs, fieldwork,
@@ -70,18 +75,21 @@ Return only the requested stage, with useful headings and substantive draft text
 
 @router.post("/draft")
 def draft_research(request: ResearchRequest):
+    if request.stage in ("results", "conclusion", "summary") and not request.observed_aggregates.strip():
+        raise HTTPException(status_code=422, detail="Upload and analyze actual questionnaire responses before empirical findings and final conclusions.")
     question = (
-        f"Research title:\n{request.title}\n\nOwner's outline:\n{request.outline}"
+        f"Research title:\n{request.title}\n\nResearch questions:\n{request.research_questions or request.outline}\n\nOwner's outline:\n{request.outline}"
         f"\n\nResearcher guidance:\n{request.guidance or '(none)'}"
         f"\n\nResearcher-supplied bibliographic notes (UNVERIFIED):\n{request.sources or '(none)'}"
         f"\n\nPrevious draft to continue or revise:\n{request.previous_text or '(none)'}"
+        f"\n\nVERIFIED AGGREGATES FROM UPLOADED RESPONSES (if any):\n{request.observed_aggregates or 'NONE'}"
         f"\n\nWrite stage: {request.stage}."
     )
     try:
         result = NabilAIGateway().generate(
             instructions=research_instructions(request),
             messages=[{"role": "user", "content": question}],
-            max_output_tokens=5200 if request.stage in ("theoretical", "practical") else 3400,
+            max_output_tokens=5200 if request.stage in ("theoretical", "practical", "results") else 3400,
         )
     except Exception:
         raise HTTPException(status_code=503, detail="Research generation is unavailable; retry without losing your draft.")
@@ -252,3 +260,164 @@ def google_forms_script(request: GoogleFormScriptRequest):
     return StreamingResponse(iter([data]), media_type="text/plain; charset=utf-8",
         headers={"Content-Disposition": 'attachment; filename="nabil-create-google-form.gs"',
                  "Cache-Control": "no-store"})
+
+
+# Verified provider landing pages, NOT extracted theses or verified citations.
+RESEARCH_PORTALS = [
+    {"name": "OATD", "url": "https://www.oatd.org/", "access": "open-access discovery index"},
+    {"name": "White Rose eTheses", "url": "https://etheses.whiterose.ac.uk/",
+     "access": "open institutional theses; each record may have its own conditions"},
+    {"name": "AUC Knowledge Fountain", "url": "https://fount.aucegypt.edu/",
+     "access": "institutional repository; some items embargoed or restricted"},
+    {"name": "Saudi Digital Library", "url": "https://sdl.edu.sa/",
+     "access": "access may depend on institutional credentials"},
+    {"name": "ProQuest Dissertations & Theses", "url": "https://www.proquest.com/",
+     "access": "institutional subscription or purchase may be required"},
+]
+
+
+@router.get("/source-portals")
+def source_portals():
+    return {"portals": RESEARCH_PORTALS, "retrieved_theses": [],
+            "note": "Discovery links only; verify the original record/full text and citation before quoting."}
+
+
+def _axis_columns(text_value: str) -> dict[str, list[str]]:
+    try:
+        value = json.loads(text_value)
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(status_code=422, detail="Axes must be a JSON object mapping axis names to CSV item columns.") from exc
+    if not isinstance(value, dict) or any(not isinstance(k, str)
+       or not isinstance(v, list) or any(not isinstance(c, str) for c in v)
+       for k, v in value.items()):
+        raise HTTPException(status_code=422, detail="Invalid axis-to-column mapping.")
+    return value
+
+
+async def _uploaded_analysis(file: UploadFile, axes_json: str):
+    axes = _axis_columns(axes_json)
+    data = await file.read(MAX_UPLOAD + 1)
+    try:
+        return summarize_survey(data, axes)
+    except SurveyDataError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/survey/analyze")
+async def analyze_uploaded_survey(file: UploadFile = File(...),
+                                  axes_json: str = Form(...),
+                                  language: Literal["ar", "en", "fr"] = Form("ar")):
+    report = await _uploaded_analysis(file, axes_json)
+    return {"summary": report, "markdown": report_markdown(report, language),
+            "actual_data_analyzed": True, "spss_executed": False}
+
+
+@router.post("/survey/analysis-tables.csv")
+async def download_analysis_tables(file: UploadFile = File(...),
+                                   axes_json: str = Form(...)):
+    report = await _uploaded_analysis(file, axes_json)
+    return StreamingResponse(iter([tables_csv(report)]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="nabil-survey-tables.csv"',
+                 "Cache-Control": "no-store"})
+
+
+@router.post("/survey/analysis.sps")
+async def download_spss_syntax(file: UploadFile = File(...),
+                               axes_json: str = Form(...)):
+    report = await _uploaded_analysis(file, axes_json)
+    return StreamingResponse(iter([spss_syntax(report).encode("utf-8")]),
+        media_type="text/plain; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="nabil-survey-analysis.sps"',
+                 "Cache-Control": "no-store"})
+
+
+class AnswerExport(BaseModel):
+    title: str = Field(min_length=1, max_length=500)
+    answer: str = Field(min_length=1, max_length=MAX_MANUSCRIPT)
+    language: Literal["ar", "en", "fr"] = "ar"
+
+
+def markdown_answer_tables(answer: str) -> list[list[list[str]]]:
+    """Take actual displayed Markdown tables, never invent workbook statistics."""
+    tables, current = [], []
+    for line in answer.splitlines() + [""]:
+        stripped = line.strip()
+        if stripped.startswith("|") and stripped.endswith("|"):
+            cells = [cell.strip() for cell in stripped.strip("|").split("|")]
+            if cells and all(re.fullmatch(r":?-{3,}:?", cell or "") for cell in cells):
+                continue
+            if len(cells) >= 2 and len(cells) <= 40:
+                current.append(cells)
+                continue
+        if len(current) >= 2:
+            tables.append(current)
+        current = []
+    return tables[:30]
+
+
+@router.post("/answer/docx")
+def export_answer_docx(request: AnswerExport):
+    if not request.answer.strip():
+        raise HTTPException(status_code=422, detail="Nothing to export.")
+    data = build_research_docx(ResearchExport(
+        degree="masters", title=request.title if len(request.title) >= 8 else "NABIL AI answer",
+        language=request.language, manuscript=request.answer))
+    return StreamingResponse(io.BytesIO(data),
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": 'attachment; filename="nabil-answer.docx"',
+                 "Cache-Control": "no-store"})
+
+
+@router.post("/answer/xlsx")
+def export_answer_xlsx(request: AnswerExport):
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+    tables = markdown_answer_tables(request.answer)
+    if not tables:
+        raise HTTPException(status_code=422,
+            detail="No actual Markdown table in this answer; Excel export is available for tabular answers.")
+    workbook = Workbook()
+    for index, table in enumerate(tables):
+        sheet = workbook.active if index == 0 else workbook.create_sheet()
+        sheet.title = f"Table {index + 1}"
+        for row_index, row in enumerate(table, 1):
+            for col_index, value in enumerate(row, 1):
+                # Keep imported answers as text: never execute spreadsheet formulas from model output.\n                safe_value = value[:32000]\n                if safe_value.lstrip().startswith(("=", "+", "-", "@")):\n                    safe_value = "'" + safe_value\n                cell = sheet.cell(row_index, col_index, value=safe_value)
+                cell.alignment = Alignment(wrap_text=True, vertical="top")
+                if row_index == 1:
+                    cell.font = Font(bold=True, color="FFFFFF")
+                    cell.fill = PatternFill("solid", fgColor="155B87")
+        sheet.freeze_panes = "A2"
+        for column in sheet.columns:
+            key = column[0].column_letter
+            sheet.column_dimensions[key].width = min(54, max(13, max(
+                len(str(cell.value or "")) for cell in column[:70]) + 2))
+        sheet.sheet_view.rightToLeft = request.language == "ar"
+    output = io.BytesIO()
+    workbook.save(output)
+    return StreamingResponse(io.BytesIO(output.getvalue()),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="nabil-answer-tables.xlsx"',
+                 "Cache-Control": "no-store"})
+
+
+@router.post("/answer/google-forms-script")
+def export_answer_form_script(request: AnswerExport):
+    questions = []
+    for line in request.answer.splitlines():
+        cleaned = re.sub(r"^\s*(?:[-*]\s+|\d+[.)]\s+)", "", line).strip()
+        if "|" not in cleaned or cleaned.startswith("|"):
+            continue
+        axis, item = [part.strip() for part in cleaned.split("|", 1)]
+        if not axis or not item or len(axis) > 160 or len(item) > 600:
+            continue
+        if axis.lower() in ("axis", "المحور", "axe"):
+            continue
+        questions.append({"axis": axis, "item": item})
+    if not questions:
+        raise HTTPException(status_code=422,
+            detail="No 'Axis | Question' survey items found. Generate a questionnaire with axis and question on each line.")
+    return google_forms_script(GoogleFormScriptRequest(
+        title=request.title if len(request.title) >= 8 else "NABIL AI questionnaire",
+        language=request.language, questions=questions[:120]))
