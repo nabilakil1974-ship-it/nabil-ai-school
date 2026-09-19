@@ -98,6 +98,8 @@ class NabilUiIntegrationTests(unittest.TestCase):
             'board.dir=dir', 'board.lang=', "detectLanguage(question",
             "drawingPreviewModal", "Enlarge figure", "Agrandir le schéma",
             "معاينة الرسمة كبيرة",
+            'input.dir=lang==="العربية"?"rtl":"ltr"',
+            'row.dir=lang==="العربية"?"rtl":"ltr"',
         ):
             with self.subTest(token=token):
                 self.assertIn(token, js)
