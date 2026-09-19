@@ -912,3 +912,63 @@ body:not(.nabil-lesson-active) #nabilHomeTutorHost{
  }
  body.nabil-lesson-active .container{padding-bottom:90px!important}
 }
+
+/* OWNER_LESSON_AVATAR_FITS_CARD_V11 — only the avatar INSIDE the structured
+   lesson assistant, not the full-size blue-robot home page or lesson drawings.
+   The legacy 5MB chat.html contains 150px and phone 70px rules with
+   !important image dimensions; cap BOTH wrapper and bitmap after those rules. */
+body.nabil-lesson-active .lesson-tutor-card{
+ min-width:0!important;max-width:100%!important;box-sizing:border-box!important;
+ overflow-wrap:anywhere!important;
+}
+body.nabil-lesson-active .lesson-tutor-card .lesson-avatar-live{
+ box-sizing:border-box!important;display:block!important;
+ width:clamp(74px,8.5vw,110px)!important;
+ height:clamp(74px,8.5vw,110px)!important;
+ min-width:0!important;min-height:0!important;
+ max-width:110px!important;max-height:110px!important;
+ flex:0 0 auto!important;aspect-ratio:1/1!important;
+ margin:0 auto!important;overflow:hidden!important;
+ border-radius:14px!important;background:#081e33!important;
+}
+body.nabil-lesson-active .lesson-tutor-card .lesson-avatar-live img{
+ display:block!important;box-sizing:border-box!important;
+ width:100%!important;height:100%!important;
+ min-width:0!important;min-height:0!important;
+ max-width:100%!important;max-height:100%!important;
+ object-fit:contain!important;object-position:center center!important;
+ margin:0!important;padding:2px!important;
+ border-radius:12px!important;
+}
+@media(max-width:900px){
+ body.nabil-lesson-active .lesson-tutor-card{
+  position:static!important;max-height:none!important;
+  grid-template-columns:64px minmax(0,1fr) minmax(0,1fr)!important;
+  align-items:center!important;gap:6px!important;padding:9px!important;
+ }
+ body.nabil-lesson-active .lesson-tutor-card .lesson-avatar-live{
+  grid-column:1!important;grid-row:1/3!important;
+  width:62px!important;height:62px!important;
+  max-width:62px!important;max-height:62px!important;
+  margin:0!important;
+ }
+ body.nabil-lesson-active .lesson-tutor-card .lesson-avatar-live img{
+  width:100%!important;height:100%!important;
+  max-width:100%!important;max-height:100%!important;
+  object-fit:contain!important;
+ }
+ body.nabil-lesson-active .lesson-tutor-card .lesson-tutor-name,
+ body.nabil-lesson-active .lesson-tutor-card .lesson-tutor-subtitle{
+  min-width:0!important;max-width:100%!important;
+  overflow-wrap:break-word!important;
+ }
+}
+@media(max-width:390px){
+ body.nabil-lesson-active .lesson-tutor-card{
+  grid-template-columns:58px minmax(0,1fr) minmax(0,1fr)!important;
+ }
+ body.nabil-lesson-active .lesson-tutor-card .lesson-avatar-live{
+  width:56px!important;height:56px!important;
+  max-width:56px!important;max-height:56px!important;
+ }
+}
