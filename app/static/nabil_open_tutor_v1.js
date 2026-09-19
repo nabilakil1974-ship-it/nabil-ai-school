@@ -268,6 +268,20 @@ function renderAnswer(result,question){
      const pane=document.createElement("div");
      pane.className="nabil-open-visual";
      pane.innerHTML=html;
+     pane.tabIndex=0;
+     pane.setAttribute("role","button");
+     pane.setAttribute("aria-label","تكبير هذه الرسمة وحدها");
+     const previewOne=()=>{
+       const modal=el("drawingPreviewModal"),content=el("drawingPreviewContent");
+       if(!modal||!content)return;
+       const clone=pane.cloneNode(true);
+       clone.removeAttribute("tabindex");clone.removeAttribute("role");
+       clone.querySelectorAll("[id]").forEach(n=>n.removeAttribute("id"));
+       content.replaceChildren(clone);modal.hidden=false;
+       el("closeDrawingPreviewBtn")?.focus();
+     };
+     pane.addEventListener("click",previewOne);
+     pane.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();previewOne()}});
      visuals.appendChild(pane);
    }catch(_e){}
  });
