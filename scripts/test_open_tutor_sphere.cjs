@@ -24,6 +24,6 @@ assert.equal(render({type:"sphere",radius:0}),"","reject zero radius");
 assert.equal(render({type:"cylinder",radius:3}),"","don't fabricate other figures");
 const unsafe=render({type:"sphere",radius:3,title:"<script>danger</script>"});
 assert(!unsafe.includes("<script>"),"SVG title must escape markup");
-assert(js.includes("const html=primary||renderVerifiedSphereFallback(d)"),"real rendering path must invoke fallback");
+assert(js.includes("renderVerifiedSphereFallback(d)||primary"),"text-only placeholders must be replaced with SVG fallback");
 assert(js.includes(".replace(/\\bDRAWINGS?_JSON"),"transport JSON should not reach student board");
 console.log("NABIL verified 3D-style sphere SVG + safe landing protocol: PASS");
