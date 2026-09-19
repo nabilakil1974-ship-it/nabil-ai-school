@@ -120,12 +120,25 @@ class TutorOwnerContractTests(unittest.TestCase):
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment, CHAT)
 
+    def test_student_answer_not_raw_protocol_and_bottom_explanation(self):
+        self.assertIn('const cleanReply=rawReply', OPEN)
+        self.assertIn('Below are the sketches for each exercise', OPEN)
+        self.assertNotIn('if(!figureOnly)addLine("nabil",reply)', OPEN)
+        self.assertGreater(
+            OPEN.index('id="nabilOpenAnswerNav"'),
+            OPEN.index('id="nabilOpenTools"'),
+        )
+        self.assertIn('visuals.hidden=!hasVisual', OPEN)
+        self.assertIn('explainBtn.onclick=()=>{', OPEN)
+        self.assertIn('if visual_function_request and not is_explicit_function_request', CHAT)
+        self.assertIn('if is_home_live_tutor:', CHAT)
+
     def test_open_figure_is_visual_not_faux_exercise(self):
         for fragment in (
             "figureOnly",
             "if(figureOnly&&!hasVisual)throw Error",
             "if(!figureOnly)explanation.appendChild(text)",
-            "if(!figureOnly)toolsHost.append(copy,read,stop)",
+            "toolsHost.append(exportMenu,read,stop)",
             "if(!shown.figureOnly&&spoken",
             "renderNabilDiagram",
             "prepareSpeechTypewriter",

@@ -1022,3 +1022,125 @@ body:not(.nabil-lesson-active) #nabilHome #homeVoiceBtn .mic{
   padding-bottom:125px!important;
  }
 }
+
+/* OWNER FINAL-ANSWER BOARD 2026-09-19: no nested scrollbars or sticky
+   explanation controls. One page scroll, and explanation toggle LAST. */
+#nabilHomeTutorHost #nabilOpenAnswer,
+#nabilOpenAnswer,
+#nabilOpenExplanation,
+#nabilOpenVisuals,
+#nabilOpenAnswer .nabil-open-answer-text {
+  max-height:none!important;
+  overflow-y:visible!important;
+  min-width:0!important;
+}
+#nabilHomeTutorHost #nabilOpenAnswer {
+  overflow-x:visible!important;
+}
+#nabilOpenAnswerNav.nabil-open-answer-nav {
+  position:static!important;
+  inset:auto!important;
+  margin:14px 0 0!important;
+  padding:10px 0 0!important;
+  border-top:1px solid #237ba8!important;
+  background:transparent!important;
+  z-index:auto!important;
+}
+#nabilOpenAnswerNav[hidden],
+#nabilOpenVisuals[hidden],
+#nabilOpenExplanation[hidden] {display:none!important}
+#nabilOpenExplanation .nabil-open-answer-text {
+  width:100%;max-width:100%;overflow-wrap:anywhere;
+}
+#nabilOpenAnswer .nabil-open-tools {
+  position:static!important;display:flex!important;
+  flex-wrap:wrap!important;gap:8px!important;
+}
+#nabilOpenAnswer .nabil-open-visual svg,
+#nabilOpenAnswer .nabil-open-visual img,
+#nabilOpenAnswer .nabil-open-visual canvas{
+ max-width:100%!important;height:auto!important;object-fit:contain!important;
+}
+@media(max-width:900px){
+ #nabilOpenAnswerNav button,#nabilOpenAnswer .nabil-open-tools>*{
+  max-width:100%!important;
+ }
+}
+
+/* OWNER SEPARATE FIGURE CARD + WIDE FULL EXPLANATION 2026-09-19 */
+@media(min-width:1100px){
+ #nabilHomeTutorHost:has(#nabilOpenAnswer.has-answer){
+   width:min(72vw,1140px)!important;
+   max-width:calc(100vw - 30px)!important;
+ }
+}
+#nabilOpenAnswer.has-figure-card{
+ display:flex!important;
+ flex-direction:column!important;
+ gap:12px!important;
+}
+#nabilOpenExplanation{
+ display:block;
+ width:100%!important;
+ box-sizing:border-box!important;
+ padding:clamp(14px,2vw,28px)!important;
+ line-height:1.8!important;
+ background:#081e33!important;
+ border:1px solid #246b94!important;
+ border-radius:14px!important;
+}
+#nabilOpenExplanation[hidden]{display:none!important}
+#nabilOpenVisuals{
+ width:100%!important;
+ box-sizing:border-box!important;
+ margin:14px 0!important;
+ padding:clamp(14px,2vw,24px)!important;
+ background:#07182e!important;
+ border:2px solid #228ac4!important;
+ border-radius:16px!important;
+ box-shadow:0 8px 22px rgba(0,0,0,.22)!important;
+}
+#nabilOpenVisuals[hidden]{display:none!important}
+#nabilOpenVisuals .nabil-open-figure-card-title{
+ margin:0 0 16px!important;
+ font-size:clamp(18px,2vw,25px)!important;
+ line-height:1.4!important;
+ color:#e7f8ff!important;
+ text-align:start!important;
+}
+#nabilOpenVisuals .nabil-open-visual{
+ min-height:0!important;
+ margin:8px auto!important;
+ padding:12px!important;
+ max-width:100%!important;
+ box-sizing:border-box!important;
+ background:#0a243f!important;
+ border:1px solid #237cae!important;
+}
+#nabilOpenVisuals .nabil-open-visual svg,
+#nabilOpenVisuals .nabil-open-visual img,
+#nabilOpenVisuals .nabil-open-visual canvas{
+ display:block!important;
+ width:100%!important;
+ height:auto!important;
+ min-height:clamp(250px,36vw,580px)!important;
+ max-height:none!important;
+ object-fit:contain!important;
+ margin:0 auto!important;
+}
+#nabilOpenExplanation .nabil-open-answer-text{
+ width:100%!important;
+ max-width:100%!important;
+ min-width:0!important;
+}
+@media(max-width:900px){
+ #nabilHomeTutorHost:has(#nabilOpenAnswer.has-answer){
+  width:100%!important;
+  max-width:100%!important;
+ }
+ #nabilOpenVisuals .nabil-open-visual svg,
+ #nabilOpenVisuals .nabil-open-visual canvas,
+ #nabilOpenVisuals .nabil-open-visual img{
+  min-height:260px!important;
+ }
+}

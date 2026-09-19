@@ -15,6 +15,20 @@ on:
       - scripts/test_lesson_avatar_layout.cjs
       - scripts/test_tutor_contract.py
       - .github/workflows/nabil-ui-build.yml
+  pull_request:
+    paths:
+      - app/main.py
+      - app/api/routes_chat.py
+      - app/static/nabil_open_tutor_v1.js
+      - app/static/nabil_learning_v132.js
+      - app/static/nabil_reference_theme.css
+      - scripts/test_ui_integration.py
+      - scripts/test_drawing_payload_recovery.py
+      - scripts/test_open_tutor_sphere.cjs
+      - scripts/test_home_lesson_navigation.cjs
+      - scripts/test_lesson_avatar_layout.cjs
+      - scripts/test_tutor_contract.py
+      - .github/workflows/nabil-ui-build.yml
   workflow_dispatch:
 
 jobs:

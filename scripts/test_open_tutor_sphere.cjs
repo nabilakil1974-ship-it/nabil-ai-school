@@ -24,8 +24,8 @@ assert.equal(render({type:"sphere",radius:0}),"","reject zero radius");
 assert.equal(render({type:"cylinder",radius:3}),"","don't fabricate other figures");
 const unsafe=render({type:"sphere",radius:3,title:"<script>danger</script>"});
 assert(!unsafe.includes("<script>"),"SVG title must escape markup");
-assert(js.includes("renderVerifiedSphereFallback(d)||primary"),"text-only placeholders must be replaced with SVG fallback");
-assert(js.includes(".replace(/\\bDRAWINGS?_JSON"),"transport JSON should not reach student board");
+assert(js.includes("renderVerifiedSphereFallback(d)||renderVerifiedCoordinateFallback(d)"),"text-only placeholders must be replaced with SVG fallback");
+assert(js.includes("const cleanReply=rawReply") && js.includes("DRAWINGS?_JSON"),"transport JSON should not reach student board");
 
 const languageStart=js.indexOf("function detectLanguage(q){");
 const languageEnd=js.indexOf("\nfunction addLine(",languageStart);

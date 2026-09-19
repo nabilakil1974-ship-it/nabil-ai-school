@@ -31,14 +31,14 @@ card.innerHTML=
    '<div class="nabil-open-welcome">جاهز نحل ونشرح ونرسم سوا — من دون اختيار صف أو مادة.</div>'+
  '</div>'+
  '<div id="nabilOpenAnswer" aria-label="بطاقة جواب الأستاذ نبيل">'+
-   '<div id="nabilOpenAnswerNav" class="nabil-open-answer-nav" hidden>'+
-     '<button id="nabilOpenExplainBtn" type="button">📘 عرض الشرح</button>'+
-     '<button id="nabilOpenVisualBtn" type="button" hidden>📐 عرض الرسمة</button>'+
-   '</div>'+
    '<div id="nabilOpenLiveType" class="nabil-open-live-type" hidden aria-live="polite"></div>'+
    '<div id="nabilOpenExplanation" class="nabil-open-explanation"></div>'+
    '<div id="nabilOpenVisuals" class="nabil-open-visuals" hidden></div>'+
    '<div id="nabilOpenTools" class="nabil-open-tools"></div>'+
+   '<div id="nabilOpenAnswerNav" class="nabil-open-answer-nav" hidden>'+
+     '<button id="nabilOpenExplainBtn" type="button">📘 عرض الشرح</button>'+
+     '<button id="nabilOpenVisualBtn" type="button" hidden>📐 عرض الرسمة</button>'+
+   '</div>'+
  '</div>'+
  '<div class="nabil-open-composer">'+
    '<textarea id="nabilOpenInput" rows="2" placeholder="اكتب سؤالك هنا… / Type your question… / Écris ta question…"></textarea>'+
@@ -110,6 +110,44 @@ function renderVerifiedSphereFallback(d){
 }
 
 
+/* A verified-series fallback when the older lesson diagram renderer returns
+   markup without an actual image. Coordinates are taken ONLY from backend
+   validated numeric data. No invented point, radius or dimension. */
+function renderVerifiedCoordinateFallback(d){
+ if(!["coordinate_plane","function","graph"].includes(String(d?.type||"").toLowerCase()))return "";
+ const series=(d.series||[]).map(part=>Array.isArray(part)?part:part?.points||[]);
+ if(!series.some(part=>part.length>=2))return "";
+ const xmin=Number(d.xmin??d.x_min),xmax=Number(d.xmax??d.x_max);
+ const ymin=Number(d.ymin??d.y_min),ymax=Number(d.ymax??d.y_max);
+ if(![xmin,xmax,ymin,ymax].every(Number.isFinite)||xmin>=xmax||ymin>=ymax)return "";
+ const left=44,top=25,width=570,height=375;
+ const px=x=>left+(Number(x)-xmin)*width/(xmax-xmin);
+ const py=y=>top+height-(Number(y)-ymin)*height/(ymax-ymin);
+ const fmt=n=>Math.round(n*100)/100;
+ let shapes='<rect width="680" height="440" fill="#081e33"/>';
+ const stroke='#85bdd4';
+ if(xmin<=0&&xmax>=0)shapes+='<line x1="'+fmt(px(0))+'" x2="'+fmt(px(0))+'" y1="'+top+'" y2="'+(top+height)+'" stroke="'+stroke+'"/>';
+ if(ymin<=0&&ymax>=0)shapes+='<line x1="'+left+'" x2="'+(left+width)+'" y1="'+fmt(py(0))+'" y2="'+fmt(py(0))+'" stroke="'+stroke+'"/>';
+ (d.vertical_asymptotes||[]).forEach(item=>{
+   const x=Number(item?.x??item);if(!Number.isFinite(x)||x<xmin||x>xmax)return;
+   shapes+='<line x1="'+fmt(px(x))+'" x2="'+fmt(px(x))+'" y1="'+top+'" y2="'+(top+height)+'" stroke="#ff7b82" stroke-width="2" stroke-dasharray="8 5"/>';
+ });
+ series.forEach((part,index)=>{
+  let pts=part.filter(v=>Array.isArray(v)&&v.length>=2&&Number.isFinite(Number(v[0]))&&Number.isFinite(Number(v[1]))&&v[0]>=xmin&&v[0]<=xmax&&v[1]>=ymin&&v[1]<=ymax);
+  if(pts.length<2)return;
+  const points=pts.map(v=>fmt(px(v[0]))+','+fmt(py(v[1]))).join(' ');
+  const color=index%2===0?'#39c9ff':'#ffd66a';
+  shapes+='<polyline points="'+points+'" fill="none" stroke="'+color+'" stroke-width="3"/>';
+ });
+ (d.markers||[]).forEach(pt=>{
+   const x=Number(pt.x),y=Number(pt.y);
+   if(!Number.isFinite(x)||!Number.isFinite(y)||x<xmin||x>xmax||y<ymin||y>ymax)return;
+   shapes+='<circle cx="'+fmt(px(x))+'" cy="'+fmt(py(y))+'" r="4" fill="#ffdb60"/>';
+   if(pt.label)shapes+='<text x="'+fmt(px(x)+7)+'" y="'+fmt(py(y)-8)+'" fill="#ffffff" font-size="13">'+escapeHTML(String(pt.label))+'</text>';
+ });
+ return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 440" role="img" aria-label="'+escapeHTML(String(d.title||"Verified function graph"))+'">'+shapes+'</svg>';
+}
+
 function detectLanguage(q){
  const t=String(q||"").trim();
  // Technical school content dominates a casual Lebanese interjection.
@@ -162,7 +200,10 @@ function renderAnswer(result,question){
  // no internal drawing transport belongs in student-visible HTML or speech.
  const cleanReply=rawReply
    .replace(/<_?DRAWINGS?_JSON>[\s\S]*?<\/DRAWINGS?_JSON>/gi,"")
-   .replace(/\bDRAWINGS?_JSON\s*[:：][\s\S]*$/i,"").trim();
+   .replace(/(?:^|\n)\s*DRAWINGS?_JSON\s*[:：][\s\S]*$/i,"")
+   .replace(/```(?:json|nabil-draw)\s*[\[{][\s\S]*?```/gi,"")
+   .replace(/^\s*(?:Let's check the drawing requirements|The drawing must contain|Below are the sketches for each exercise|"?(?:scope|exercise_index|card_index|color|type)"?\s*:).*$/gmi,"")
+   .replace(/\n{3,}/g,"\n\n").trim();
  const drawings=Array.isArray(result?.drawings)?result.drawings.slice():[];
  const questionText=String(question||"");
  const sphereMatch=/\b(?:sphere|sph[èe]re)\b|كرة/i.test(questionText)
@@ -196,12 +237,13 @@ function renderAnswer(result,question){
    if(typeof renderAIText==="function")text.innerHTML=renderAIText(reply);
    else text.innerHTML="<div>"+escapeHTML(reply).replace(/\n/g,"<br>")+"</div>";
  }catch(_e){text.innerHTML="<div>"+escapeHTML(reply).replace(/\n/g,"<br>")+"</div>"}
+ // Math and tables belong in the formatted solution, not in a raw transcript.
  if(!figureOnly)explanation.appendChild(text);
 
  drawings.forEach(d=>{
    try{
      const primary=typeof renderNabilDiagram==="function"?(renderNabilDiagram(d)||""):"";
-     const html=/<(?:svg|canvas|img)\b/i.test(primary)?primary:(renderVerifiedSphereFallback(d)||primary);
+     const html=/<(?:svg|canvas|img)\b/i.test(primary)?primary:(renderVerifiedSphereFallback(d)||renderVerifiedCoordinateFallback(d));
      if(!html)return;
      const pane=document.createElement("div");
      pane.className="nabil-open-visual";
@@ -210,6 +252,19 @@ function renderAnswer(result,question){
    }catch(_e){}
  });
  const hasVisual=visuals.childElementCount>0;
+ if(hasVisual){
+   // A distinct labelled figure card, not an inline decoration or a small
+   // drawing mixed into the text/working steps.
+   const title=document.createElement("h3");
+   title.className="nabil-open-figure-card-title";
+   title.textContent=lang==="English"?"📐 Figure":lang==="Français"?"📐 Schéma":"📐 الرسمة";
+   visuals.prepend(title);
+   visuals.setAttribute("role","region");
+   visuals.setAttribute("aria-label",title.textContent);
+   board.classList.add("has-figure-card");
+ }else{
+   board.classList.remove("has-figure-card");
+ }
  if(figureOnly&&!hasVisual)throw Error("المحرّك لم يعرض الرسمة المطلوبة. جرّب مجددًا أو اكتب قياسات الشكل.");
  const wantsVisual=/draw|plot|graph|figure|diagram|sketch|tracer|dessiner|schéma|schema|ارسم|اعرض الرسم|اعرض الرسمة|ورجيني الرسمة|رسم بياني|مخطط/i.test(String(question||""));
  if(wantsVisual&&!hasVisual){
@@ -225,23 +280,18 @@ function renderAnswer(result,question){
  nav.hidden=false;
  visualBtn.hidden=!hasVisual;
  explanation.hidden=figureOnly;
- visuals.hidden=!figureOnly;
- explainBtn.classList.toggle("active",!figureOnly);
- visualBtn.classList.toggle("active",figureOnly);
+ visuals.hidden=!hasVisual;
  explainBtn.hidden=figureOnly;
- explainBtn.textContent=lang==="English"?"📘 Show explanation":lang==="Français"?"📘 Afficher l’explication":"📘 عرض الشرح";
+ explainBtn.textContent=lang==="English"?"📘 Hide explanation":lang==="Français"?"📘 Masquer l’explication":"📘 إخفاء الشرح";
  visualBtn.textContent=lang==="English"?"📐 Show figure":lang==="Français"?"📐 Afficher le schéma":"📐 عرض الرسمة";
-
- const showPane=which=>{
-   const showVisual=which==="visual"&&hasVisual;
-   explanation.hidden=showVisual;
-   visuals.hidden=!showVisual;
-   explainBtn.classList.toggle("active",!showVisual);
-   visualBtn.classList.toggle("active",showVisual);
-   (showVisual?visuals:explanation).scrollIntoView({behavior:"smooth",block:"nearest"});
+ explainBtn.onclick=()=>{
+   explanation.hidden=!explanation.hidden;
+   explainBtn.textContent=explanation.hidden
+     ?(lang==="English"?"📘 Show explanation":lang==="Français"?"📘 Afficher l’explication":"📘 عرض الشرح")
+     :(lang==="English"?"📘 Hide explanation":lang==="Français"?"📘 Masquer l’explication":"📘 إخفاء الشرح");
+   if(!explanation.hidden)explanation.scrollIntoView({behavior:"smooth",block:"nearest"});
  };
- explainBtn.onclick=()=>showPane("explain");
- visualBtn.onclick=()=>showPane("visual");
+ visualBtn.onclick=()=>{if(hasVisual){visuals.hidden=false;visuals.scrollIntoView({behavior:"smooth",block:"nearest"});}};
 
  const copy=document.createElement("button");
  copy.type="button";copy.textContent="📋 نسخ الإجابة";
@@ -313,7 +363,7 @@ function renderAnswer(result,question){
    toolsHost.appendChild(preview);
  }
  try{window.MathJax?.typesetPromise?.([board])}catch(_e){}
- if(!figureOnly)addLine("nabil",reply);
+ // The formatted answer card already shows the teacher response. Do not duplicate\n // unrendered Markdown/LaTeX in the transcript above it.
  board.scrollIntoView({behavior:"smooth",block:"nearest"});
  return {reply,lang,hasVisual,figureOnly};
 }
@@ -327,7 +377,7 @@ async function request({question="",audio=null}){
  const isVisualCommand=/^(?:اعرض|ورجيني|فرجيني|اريني|بدي|show|display|affiche|montre).{0,35}(?:رسم|رسمة|الشكل|graph|figure|drawing|schéma|schema|courbe)/i.test(command);
  const isExplanationCommand=/^(?:اعرض|ورجيني|فرجيني|اريني|بدي|show|display|affiche|montre).{0,35}(?:شرح|حل|explanation|solution|explication)/i.test(command);
  if(!audio&&board.classList.contains("has-answer")&&isExplanationCommand){
-   explainBtn.click();setStatus("📘 الشرح ظاهر ببطاقة الأستاذ نبيل.");return;
+   explainBtn.click();setStatus("📘 زر الشرح في أسفل البطاقة.");return;
  }
  if(!audio&&board.classList.contains("has-answer")&&isVisualCommand&&!visualBtn.hidden){
    visualBtn.click();setStatus("📐 الرسمة ظاهرة ببطاقة الأستاذ نبيل.");return;
