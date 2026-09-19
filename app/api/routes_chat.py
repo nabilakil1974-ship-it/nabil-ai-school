@@ -5873,26 +5873,26 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
     # Student-visible prose must never include provider transport, internal
     # routing instructions or bare JSON. Do this AFTER extracting valid drawings,
     # not before, so figures are not silently lost.
-    if is_home_live_tutor:
+    if reply_text:
         reply_text = re.sub(
-            r"(?is)```(?:json|javascript|nabil-draw)\\s*"
-            r"(?:\\{|\\[)[\\s\\S]*?```", "", reply_text,
+            r"(?is)```(?:json|javascript|nabil-draw)\s*"
+            r"(?:\{|\[)[\s\S]*?```", "", reply_text,
         )
         reply_text = re.sub(
-            r"(?mi)^\\s*(?:DRAWINGS?_JSON\\s*:.*|"
-            r"\\s*\\{\\s*[\"'](?:type|color|card_index|exercise_index|scope)[\"']\\s*:.*|"
-            r"\\s*[\"'](?:type|color|card_index|exercise_index|scope)[\"']\\s*:.*|"
+            r"(?mi)^\s*(?:DRAWINGS?_JSON\s*:.*|"
+            r"\s*\{\s*[\"'](?:type|color|card_index|exercise_index|scope)[\"']\s*:.*|"
+            r"\s*[\"'](?:type|color|card_index|exercise_index|scope)[\"']\s*:.*|"
             r"Let's check the drawing requirements.*|"
             r"The drawing must contain.*|"
             r"Do not include internal routing instructions.*|"
-            r"Below are the sketches for each exercise.*)\\s*$",
+            r"Below are the sketches for each exercise.*)\s*$",
             "", reply_text,
         )
-        reply_text = re.sub(r"\\n{3,}", "\\n\\n", reply_text).strip()
+        reply_text = re.sub(r"\n{3,}", "\n\n", reply_text).strip()
         if not reply_text and not drawings:
             reply_text = (
                 "Please restate the function or provide the figure's measurements."
-                if re.search(r"\\b(?:draw|graph|figure|function)\\b", str(message or ""), re.I)
+                if re.search(r"\b(?:draw|graph|figure|function)\b", str(message or ""), re.I)
                 else "أعد صياغة سؤالك حتى أعطيك جوابًا دقيقًا."
             )
 
