@@ -48,6 +48,8 @@ def _plain_markdown(value: str) -> str:
     text = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", text)
     text = re.sub(r"[`*_]{1,3}", "", text)
     text = re.sub(r"^\s*#{1,6}\s*", "", text, flags=re.MULTILINE)
+    text = re.sub(r"\[SOLUTION\s+(\d+)\]", r"Solution \1:", text, flags=re.IGNORECASE)
+    text = re.sub(r"\[/SOLUTION\s+\d+\]", "", text, flags=re.IGNORECASE)
     return text.strip()
 
 
