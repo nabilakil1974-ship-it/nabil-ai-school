@@ -43,6 +43,7 @@ const hintFor=level=>level<=1?"3–5 دقائق":level===2?"5–8 دقائق":le
 const htmlEscape=text=>String(text??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 let currentProfile=null, busy=false, awaitingAnswer=false, lastAction="", lastScope="";
 const controls=[
+ ["solve_exercise","✍️ حلّ التمرين","حلّ التمرين الأخير الذي أعطيتك إياه أو الذي أرسلته. ابدأ بالمعطيات ثم خطوات الحل والتحقق والجواب النهائي. لا تعرض قالبًا عامًا أو عبارة Given data will appear here. أرفق رسمة حقيقية ودقيقة في بطاقة مستقلة إذا كان التمرين يتطلّب رسمًا؛ لا تخترع قياسات أو بيانات غير معطاة."],
  ["checkpoint","✓ تحقق من فهمي","اسألني سؤالاً واحداً عن الفكرة الأخيرة ولا تعطِ الحل قبل أن أحاول."],
  ["explain_another_way","🔄 اشرح بطريقة أخرى","ما فهمت الفكرة الأخيرة؛ بسّطها بطريقة مختلفة ومثال مناسب لمستواي، ولا تعيد الشرح حرفيًا."],
  ["adaptive_practice","🎯 تدريب يناسبني","اعطني تمريناً جديداً مناسباً لمستواي والدرس الحالي؛ لا تعطِ الجواب قبل محاولتي، وأرفق رسماً صحيحاً إن احتاجه السؤال."],
@@ -58,7 +59,7 @@ dock.innerHTML='<div class="nv132-header"><strong>🧠 مسار التعلّم �
  +'<section id="nv132Result" aria-label="نتيجة نشاط التعلم الذكي" aria-live="polite" hidden></section>';
 const css=document.createElement("style");
 css.id="nabilLearningV132Style";
-css.textContent='#nabilLearningDock{max-width:100%;height:auto!important;overflow:visible!important;background:#102940!important;border:1px solid #244e70!important;border-radius:15px!important;margin:12px auto!important;padding:14px!important;color:#f1f8ff!important;position:relative;z-index:2}#nabilLearningDock .nv132-header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}#nabilLearningDock .nv132-header strong{font-size:15px}#nv132Context,#nv132Evidence{border:1px solid #3b6d86;border-radius:20px;padding:4px 10px;font-size:12px}#nv132Evidence{color:#d9f4ff}#nabilLearningDock .nv132-hint{font-size:13px;line-height:1.65;margin:9px 0;color:#d4e5ef}#nabilLearningDock .nv132-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}#nabilLearningDock .nv132-grid button{border:1px solid #32678d;background:#123957;color:#fff;border-radius:10px;font:inherit;font-size:13px;min-height:42px;padding:8px 5px;cursor:pointer;white-space:normal}#nabilLearningDock .nv132-grid button:hover{background:#2670a0}#nabilLearningDock .nv132-grid button:disabled{opacity:.55;cursor:wait}#nv132Status{font-size:12px;line-height:1.55;margin:10px 0 0;color:#d7eaf5}#nv132Result{margin-top:12px;padding:12px;background:#0a2036;border:1px solid #32678d;border-radius:12px;max-height:min(65vh,560px);overflow:auto}#nv132Result[hidden]{display:none!important}#nv132Result h3{margin:0 0 9px;color:#79d9ff}#nv132Result h4{color:#79d9ff;margin:12px 0 6px}#nv132Result .nv132-dashboard{line-height:1.65}#nv132Result .nv132-evidence-note{color:#b9d7e8;font-size:12px}#nv132Result .bubble{width:100%;max-width:100%;overflow-wrap:anywhere}#nv132Result svg{max-width:100%;height:auto}#nv130Modal[hidden]{display:none!important}@media(max-width:720px){#nabilLearningDock .nv132-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#nabilLearningDock{margin:8px 4px!important;padding:10px!important}#nabilLearningDock .nv132-grid button{font-size:12px;min-height:47px}}';
+css.textContent='#nabilLearningDock{max-width:100%;height:auto!important;overflow:visible!important;background:#102940!important;border:1px solid #244e70!important;border-radius:15px!important;margin:12px auto!important;padding:14px!important;color:#f1f8ff!important;position:relative;z-index:2}#nabilLearningDock .nv132-header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}#nabilLearningDock .nv132-header strong{font-size:15px}#nv132Context,#nv132Evidence{border:1px solid #3b6d86;border-radius:20px;padding:4px 10px;font-size:12px}#nv132Evidence{color:#d9f4ff}#nabilLearningDock .nv132-hint{font-size:13px;line-height:1.65;margin:9px 0;color:#d4e5ef}#nabilLearningDock .nv132-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}#nabilLearningDock .nv132-grid button{border:1px solid #32678d;background:#123957;color:#fff;border-radius:10px;font:inherit;font-size:13px;min-height:42px;padding:8px 5px;cursor:pointer;white-space:normal}#nabilLearningDock .nv132-grid button:hover{background:#2670a0}#nabilLearningDock .nv132-grid button:disabled{opacity:.55;cursor:wait}#nv132Status{font-size:12px;line-height:1.55;margin:10px 0 0;color:#d7eaf5}#nv132Result{margin-top:12px;padding:12px;background:#0a2036;border:1px solid #32678d;border-radius:12px;max-height:none!important;overflow:visible!important}#nv132Result[hidden]{display:none!important}#nv132Result h3{margin:0 0 9px;color:#79d9ff}#nv132Result h4{color:#79d9ff;margin:12px 0 6px}#nv132Result .nv132-dashboard{line-height:1.65}#nv132Result .nv132-evidence-note{color:#b9d7e8;font-size:12px}#nv132Result .bubble{width:100%;max-width:100%;overflow-wrap:anywhere}#nv132Result svg{max-width:100%;height:auto}#nv132Result .nv132-figure-card{margin:16px 0 6px;padding:clamp(12px,2vw,24px);border:2px solid #2694c7;border-radius:16px;background:#081d32}#nv132Result .nv132-figure-card h3{margin:0 0 12px;font-size:clamp(17px,2vw,25px);color:#e9f9ff}#nv132Result .nv132-figure-item{padding:12px;background:#0a2945;border:1px solid #246c98;border-radius:12px;margin:8px auto}#nv132Result .nv132-figure-item svg,#nv132Result .nv132-figure-item canvas,#nv132Result .nv132-figure-item img{display:block;width:100%!important;max-width:100%!important;height:auto!important;min-height:clamp(240px,32vw,480px);object-fit:contain!important;margin:auto!important}#nv130Modal[hidden]{display:none!important}@media(max-width:720px){#nabilLearningDock .nv132-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#nabilLearningDock{margin:8px 4px!important;padding:10px!important}#nabilLearningDock .nv132-grid button{font-size:12px;min-height:47px}}';
 document.head.appendChild(css);
 const status=t=>{let n=byId("nv132Status");if(n)n.textContent=t};
 function showLastActivity(previous){
@@ -66,13 +67,35 @@ function showLastActivity(previous){
  const latest=results[results.length-1];
  const panel=byId("nv132Result");
  if(!panel||!latest||latest===previous)return false;
+ const latestText=String(latest.innerText||latest.textContent||"").trim();
+ if(/حدث خطأ أثناء تنفيذ الطلب|تعذّر الاتصال|فشل إرسال|خطأ في الاتصال|server error|internal server error|given data will appear here/i.test(latestText)){
+   throw Error("لم يصل حلّ صالح من الخادم. لم نعرض رسالة الخطأ كأنها حلّ تمرين.");
+ }
  panel.replaceChildren();
  const header=document.createElement("h3");
  header.textContent="📘 نتيجة النشاط";
  const copy=latest.cloneNode(true);
  copy.removeAttribute("id");
  copy.querySelectorAll("[id]").forEach(node=>node.removeAttribute("id"));
- panel.append(header,copy);
+ // Move actual diagram nodes into a separate full-width card rather than
+ // shrinking a figure inside text, tables or the previous message wrapper.
+ const figureNodes=[...copy.querySelectorAll("svg,canvas,img")].filter(el=>
+   !el.closest("button") && !el.closest(".avatar,.teacher-avatar") &&
+   (el.tagName.toLowerCase()!=="img"||/diagram|drawing|figure|visual|graph/i.test(el.className+" "+el.alt))
+ );
+ if(figureNodes.length){
+   const card=document.createElement("section");
+   card.className="nv132-figure-card";
+   const title=document.createElement("h3");title.textContent="📐 الرسم التوضيحي";
+   card.append(title);
+   figureNodes.forEach(node=>{
+     const holder=document.createElement("div");holder.className="nv132-figure-item";
+     holder.append(node);card.append(holder);
+   });
+   panel.append(header,copy,card);
+ }else{
+   panel.append(header,copy);
+ }
  panel.hidden=false;
  try{window.MathJax?.typesetPromise?.([panel])}catch(_e){}
  panel.scrollIntoView({behavior:"smooth",block:"nearest"});
@@ -129,6 +152,9 @@ async function act(action){
   status("اسأل الأستاذ نبيل سؤالك أولًا؛ بعدها كل زر يبني نشاطًا على جوابك.");return;
  }
  const item=controls.find(x=>x[0]===action),period=v.grade?hintFor(level):"حسب مستوى السؤال";
+ if(action==="solve_exercise"&&!latestQuestion&&!lastTeacher){
+   status("اكتب التمرين أو ارفع صورته أولًا، ثم اضغط «حلّ التمرين».");return;
+ }
  const question=item[2]+" مراعاة العمر: "+(v.grade?shortFor(level):"لا تفترض عمر الطالب؛ تكيّف مع مستوى آخر سؤال")+ ". وقت النشاط المقترح "+period+". "+(v.lesson?"الدرس: "+v.lesson+". ":"")+(latestQuestion?"السؤال الذي نتعلّم منه: "+latestQuestion.slice(0,650)+". ":"")+"افهم كلامي العربي ولو كانت مادة الدرس "+v.language+"؛ احتفظ بالمصطلحات العلمية بلغة الكتاب. وإذا كان السؤال الأصلي English أو Français، اسأل وقدّم النشاط بلغته.";
  const previousAnswer=Array.from(document.querySelectorAll("#chat .message.teacher .bubble")).at(-1);
  byId("nv132Result").hidden=true;
@@ -138,7 +164,7 @@ async function act(action){
   await sendToAI(question,false);
   if(!showLastActivity(previousAnswer))throw Error("لم يظهر نشاط جديد في صفحة المحادثة");
   awaitingAnswer=["checkpoint","adaptive_practice","quick_quiz"].includes(action);
-  status(awaitingAnswer?"جاوب داخل خانة السؤال، والأستاذ نبيل بيصحّح محاولتك قبل الانتقال.":"النشاط ظهر بالمحادثة. إذا ما فهمت خطوة، اسأل عنها مباشرة.");
+  status(awaitingAnswer?"جاوب داخل خانة السؤال، والأستاذ نبيل بيصحّح محاولتك قبل الانتقال.":"حلّ التمرين ظاهر في بطاقة منسّقة، والرسم في بطاقة مستقلة إن عاد من الخادم.");
  }catch(e){status("ما اكتمل الطلب: "+String(e?.message||"تعذر الاتصال").slice(0,160))}
  finally{window.nabilPendingLearningAction="";setBusy(false)}
 }
