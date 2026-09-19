@@ -5841,7 +5841,7 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
         # hallucinated radius or an unrelated cylinder from a model response.
         # Preserve compound solid-comparison requests for the regular renderer.
         compound_solids = bool(re.search(
-            r"\\b(?:cylinder|cone|cube|prism)\\b|أسطوانة|مخروط|مكعب",
+            r"\b(?:cylinder|cone|cube|prism)\b|أسطوانة|مخروط|مكعب",
             message, re.I,
         ))
         if exact_sphere and not compound_solids:
