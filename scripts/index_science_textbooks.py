@@ -75,13 +75,14 @@ def main():
     with engine.connect() as connection:
         locked = False
         if connection.dialect.name == "postgresql":
-            locked = bool(connection.execute(
-                text("SELECT pg_try_advisory_lock(728168120)")
-            ).scalar())
+            print("Waiting for exclusive science indexer lock (another container may still be finishing)...", flush=True)
+            # BLOCK instead of returning. During a rolling deployment the new
+            # container can boot before the old one is terminated. A try-lock
+            # would make the only new worker exit permanently at that moment.
+            connection.execute(text("SELECT pg_advisory_lock(728168120)"))
             connection.commit()
-            if not locked:
-                print("Another science indexer is active; refusing duplicate OCR/embeddings.", flush=True)
-                return
+            locked = True
+            print("Science indexer lock acquired; resuming saved pages.", flush=True)
         try:
             for name in names:
                 run_manifest(name)
