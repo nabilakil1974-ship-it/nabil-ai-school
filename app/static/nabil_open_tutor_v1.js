@@ -35,6 +35,7 @@ card.innerHTML=
      '<button id="nabilOpenExplainBtn" type="button">📘 عرض الشرح</button>'+
      '<button id="nabilOpenVisualBtn" type="button" hidden>📐 عرض الرسمة</button>'+
    '</div>'+
+   '<div id="nabilOpenLiveType" class="nabil-open-live-type" hidden aria-live="polite"></div>'+
    '<div id="nabilOpenExplanation" class="nabil-open-explanation"></div>'+
    '<div id="nabilOpenVisuals" class="nabil-open-visuals" hidden></div>'+
    '<div id="nabilOpenTools" class="nabil-open-tools"></div>'+
@@ -54,7 +55,7 @@ homeHost.replaceChildren(card);
 const status=el("nabilOpenStatus"), board=el("nabilOpenAnswer"), convo=el("nabilOpenConversation"),
       input=el("nabilOpenInput"), talk=el("nabilOpenTalk"), send=el("nabilOpenSend"),
       nav=el("nabilOpenAnswerNav"), explainBtn=el("nabilOpenExplainBtn"), visualBtn=el("nabilOpenVisualBtn"),
-      explanation=el("nabilOpenExplanation"), visuals=el("nabilOpenVisuals"), toolsHost=el("nabilOpenTools");
+      explanation=el("nabilOpenExplanation"), visuals=el("nabilOpenVisuals"), toolsHost=el("nabilOpenTools"), liveType=el("nabilOpenLiveType");
 let recorder=null,stream=null,chunks=[],recording=false,busy=false,openConversationId="";
 let greetingSpoken=false;
 const pace=el("nabilOpenPace"),paceValue=el("nabilOpenPaceValue");
@@ -102,6 +103,23 @@ function addLine(role,text){
  convo.appendChild(row);
  convo.scrollTop=convo.scrollHeight;
 }
+function prepareSpeechTypewriter(text,lang){
+ const words=String(text||"").replace(/\s+/g," ").trim().split(" ").filter(Boolean);
+ let timer=0,index=0,duration=0,started=false;
+ const dir=lang==="العربية"?"rtl":"ltr";
+ liveType.dir=dir;liveType.lang=lang==="العربية"?"ar":lang==="English"?"en":"fr";
+ liveType.textContent="";liveType.hidden=!words.length;
+ const interval=()=>duration>0?Math.max(55,Math.min(420,(duration*1000)/Math.max(words.length,1))):Math.max(75,Math.round(245/(Number(window.nabilVoicePace)||0.9)));
+ const tick=()=>{
+  if(index>=words.length){finish();return}
+  liveType.textContent+=(index?" ":"")+words[index++];
+  timer=window.setTimeout(tick,interval());
+ };
+ const start=()=>{if(started||!words.length)return;started=true;tick()};
+ const finish=()=>{if(timer)clearTimeout(timer);timer=0;liveType.textContent=words.join(" ");window.setTimeout(()=>{liveType.hidden=true},700)};
+ return {start,finish,setDuration:d=>{if(Number.isFinite(Number(d))&&Number(d)>0)duration=Number(d)}};
+}
+
 function renderAnswer(result,question){
  const reply=String(result?.reply||"").trim();
  if(!reply)throw Error("الخادم لم يرجع جوابًا صالحًا.");
@@ -231,7 +249,7 @@ async function request({question="",audio=null}){
    const data=new FormData();
    data.append("student_id",getStudent());
    data.append("activity_mode","general_exercises");
-   data.append("teaching_mode","interactive");
+   data.append("teaching_mode","home_live_tutor");
    data.append("language","AUTO");
    if(openConversationId)data.append("conversation_id",openConversationId);
    if(audio){
@@ -255,7 +273,15 @@ async function request({question="",audio=null}){
    if(result.student_profile&&window.NABIL130?.mergeProfile)window.NABIL130.mergeProfile(result.student_profile);
    const spoken=typeof nabilBoardPlainSpeech==="function"?nabilBoardPlainSpeech(shown.reply):shown.reply;
    try{stopNabilNeuralVoice?.();speechSynthesis?.cancel?.()}catch(_e){}
-   if(typeof nabilSpeakClear==="function")Promise.resolve(nabilSpeakClear(spoken,shown.lang,{})).catch(()=>{});
+   if(typeof nabilSpeakClear==="function"){
+     const typer=prepareSpeechTypewriter(spoken,shown.lang);
+     Promise.resolve(nabilSpeakClear(spoken,shown.lang,{
+       onduration:d=>typer.setDuration(d),
+       onstart:()=>typer.start(),
+       onend:()=>typer.finish(),
+       onerror:()=>typer.finish()
+     })).catch(()=>typer.finish());
+   }
    setStatus(shown.hasVisual?"✅ الجواب جاهز. فيك تعرض الشرح أو الرسمة من الأزرار فوق البطاقة.":"✅ الجواب جاهز لسؤالك التالي.");
  }catch(e){
    const aborted=e?.name==="AbortError";
