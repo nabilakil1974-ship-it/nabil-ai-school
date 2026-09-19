@@ -103,3 +103,73 @@ textarea#messageInput::placeholder {color:var(--nabil-muted);}
  #nabilLearningDock {margin:10px 0 20px!important;}
  #nabilOpenAnswer {padding:8px;}
 }
+
+/* Homepage: blue robot is the primary welcome, its answer card is the SAME
+   tutor node reused on the lesson page. The former welcome gateway is retired. */
+#nabilHome {background:#06182e!important;color:var(--nabil-text)!important;}
+#nabilHome .home-bg {background-color:#06182e!important;}
+#nabilHomeTutorHost {
+ position:absolute;left:1.2%;top:11%;width:min(36vw,490px);
+ max-height:79vh;overflow-y:auto;overflow-x:hidden;
+ z-index:110;pointer-events:auto;
+ scrollbar-color:#32678d transparent;
+}
+#nabilHomeTutorHost #nabilOpenTutor {
+ margin:0!important;
+ background:rgba(8,30,52,.94)!important;
+ border:1px solid #3776a2!important;
+ box-shadow:0 12px 38px rgba(0,0,0,.35);
+}
+#nabilHomeTutorHost:has(#nabilOpenAnswer:not(:empty)){width:min(52vw,720px);}
+#nabilHomeTutorHost #nabilOpenAnswer {max-height:50vh;overflow:auto;}
+#nabilHomeTutorHost #nabilOpenTutor h2 {color:#79d9ff!important;}
+#nabilHomeTutorHost .nabil-open-mini-avatar {display:none;}
+#nabilHomeTutorHost [role=status] {direction:auto;}
+#nabilHome .selection-stage {border:1px solid #244e70;background:rgba(8,30,52,.90);border-radius:14px;}
+#nabilHome .choice-btn {background:#0e304b!important;color:#edf7ff!important;border:1px solid #38bdf8!important;}
+#nabilHome #homeStartShortcut {background:#05a34c!important;color:#fff!important;}
+#nabilHome #homeVoiceBtn {background:#e12932!important;color:#fff!important;}
+@media(max-width:900px){
+ /* Legacy mobile scaling reduced all text to a quarter-size: replace it
+    with a real scrollable/mobile page rather than magnifying the whole scene. */
+ #nabilHome {
+  transform:none!important;
+  width:100vw!important;height:100dvh!important;
+  inset:0!important;overflow-x:hidden!important;overflow-y:auto!important;
+  min-height:0!important;display:flex;flex-direction:column;
+  align-items:stretch;gap:10px;padding:10px!important;box-sizing:border-box!important;
+ }
+ #nabilHome .home-bg {background-image:none!important;background:#06182e!important;}
+ #nabilHome .home-vignette,#nabilHome .profile-real,
+ #nabilHome .avatar-live-zone,#nabilHome .avatar-eye-glow,
+ #nabilHome .avatar-mouth,#nabilHome .hand-cue,
+ #nabilHome .hand-cue.left,#nabilHome .hand-cue.right {display:none!important;}
+ #nabilHome #homeStartShortcut {
+  position:relative!important;inset:auto!important;transform:none!important;
+  margin:0 0 0 auto!important;flex:none;order:0;
+  min-height:46px!important;width:auto!important;
+  z-index:150!important;
+ }
+ #nabilHome #homeVoiceBtn {display:none!important;}
+ #nabilHome .skip-home {display:none!important;}
+ #nabilHomeTutorHost {
+  position:relative!important;inset:auto!important;transform:none!important;
+  order:1;width:100%!important;max-height:none!important;overflow:visible!important;
+  margin:0!important;z-index:110!important;
+ }
+ #nabilHomeTutorHost #nabilOpenTutor {width:100%!important;box-sizing:border-box!important;}
+ #nabilHomeTutorHost .nabil-open-mini-avatar {
+  display:block!important;max-width:165px!important;max-height:170px!important;
+  object-fit:contain;margin:auto;background:#0a2036;border-radius:16px;
+ }
+ #nabilHomeTutorHost #nabilOpenAnswer {max-height:none!important;}
+ #nabilHome .selection-stage {
+  position:relative!important;inset:auto!important;transform:none!important;
+  order:2;width:100%!important;max-width:none!important;max-height:none!important;
+  overflow:visible!important;display:flex!important;flex-flow:row wrap!important;
+  gap:7px!important;box-sizing:border-box!important;padding:10px!important;
+  z-index:110!important;
+ }
+ #nabilHome .selection-stage .choice-btn {font-size:13px!important;min-height:40px!important;min-width:90px!important;flex:1 1 90px;}
+ #nabilHome .lesson-mode-layer {display:none!important;}
+}
