@@ -93,6 +93,7 @@ function renderAnswer(result,question){
  const lang=detectLanguage(question||result?.transcribed_text||reply);
  const dir=lang==="العربية"?"rtl":"ltr";
  board.dir=dir;
+ board.classList.add("has-answer");
  explanation.replaceChildren();
  visuals.replaceChildren();
  toolsHost.replaceChildren();
