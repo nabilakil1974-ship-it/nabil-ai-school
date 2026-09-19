@@ -5238,6 +5238,14 @@ the same lesson Visual Engine; never describe it as rendered without one.
             lesson_title=lesson,
         )
 
+        # The actual indexed lesson title decides the teaching language when
+        # its verified catalog entry carries one. This prevents an English or
+        # French lesson from beginning with an Arabic lead-in merely because
+        # an old dropdown/profile preference differs.
+        policy_language = str((lesson_policy or {}).get("language") or "").strip()
+        if policy_language in {"English", "Français", "العربية"}:
+            selected_language = policy_language
+
         lesson_policy_text = (
             format_lesson_policy_for_prompt(
                 lesson_policy
@@ -5276,7 +5284,7 @@ the same lesson Visual Engine; never describe it as rendered without one.
                 subject=str(subject or "").strip(),
                 grade=str(grade or "").strip(),
                 curriculum=str(curriculum or "").strip(),
-                top_k=4,
+                top_k=10 if str(teaching_mode or "full_lesson") in {"full_lesson", "board_lesson"} else 4,
             )
             book_context = build_context_block(source_chunks)
         except Exception as exc:
@@ -5339,6 +5347,9 @@ the same lesson Visual Engine; never describe it as rendered without one.
     - إذا كنت تشرح درسًا، ابدأ بالمفهوم والخاصية المناسبة للصف ثم مثال مناسب.
     - وضع الدرس ليس وضع دراسة دالة تلقائيًا: ممنوع تحويل أي درس إلى Domain/Limits/Asymptotes/Derivative/Variation Table بسبب كلمة أو رسم عابر. قالب دراسة الدالة يخص طلب الطالب الصريح في وضع التمارين العامة فقط.
     - في شرح الدرس، المحتوى الرسمي أعلاه هو المرجع الحاكم. لا تضف فصلًا أو قاعدة أو مرحلة غير موجودة في نطاق الدرس لمجرد أن النموذج يعرفها.
+    - في الدرس الكامل: اتبع تسلسل الكتاب المتاح في المقاطع المسترجعة: Activity/نشاط إن وُجد → المفاهيم فكرة فكرة → الرسم الأصلي أو إعادة بنائه فقط إذا كانت معطياته موثقة → مثال/تطبيق → قاعدة أساسية. اكتب القاعدة الأساسية بعنوان يبدأ حرفيًا بـ "🔴 Key Rule:" للإنجليزية أو "🔴 Règle essentielle :" للفرنسية أو "🔴 قاعدة أساسية:" للعربية كي تظهر مميزة للطالب.
+    - بعد الشرح الكامل قدّم بالضبط خمسة تمارين تدريبية محلولة ومختلفة مناسبة لنفس الدرس. ثم حل فقط تمارين/Problems الكتاب التي ظهرت فعليًا في سياق الكتاب المسترجع، مع رقم الصفحة المطبوع ورقم التمرين والفروع a/b/c كما هي. إذا لم تظهر تمارين الكتاب في السياق المسترجع، قل صراحة إن تمارين الكتاب لم تُسترجع ولا تخترع أرقام صفحات أو أسئلة.
+    - إذا كان سياق الكتاب المسترجع جزئيًا، لا تدّع أن الدرس يغطي كل صفحات الفصل. اطلب أو استرجع بقية الصفحات قبل وصفه بأنه "كامل من الكتاب".
     - نفّذ تدقيقًا علميًا داخليًا قبل الإرسال: صحة المفاهيم، التسلسل، الحساب، المصطلحات، الرسوم، والوحدات. إذا تعارض الرسم مع النص فصحح أحدهما قبل الإرسال.
     - قسّم شرح الدرس إلى بطاقات واضحة: استخدم عنوان Markdown من المستوى ## لكل مفهوم أو خطوة رئيسية، ولا تجمع الدرس كله في كتلة طويلة واحدة.
     - بطاقات شرح الدرس تستخدم نفس Visual Engine ومعايير الرسومات نفسها المعتمدة في حل تمارين عامة. إذا كانت بطاقة مفهوم/مثال تحتاج رسماً، أرسل الرسم الفعلي واربطه بـ card_index الموافق لتلك البطاقة.

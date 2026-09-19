@@ -50,6 +50,7 @@ const controls=[
  ["flashcards","🗂️ بطاقات مراجعة","اعمل لي بطاقات سؤال وجواب قصيرة عن الدرس الحالي، مع مصطلحات الكتاب الأصلية."],
  ["quick_quiz","🏆 اختبار قصير","اعمل اختباراً قصيراً مناسباً لصفّي، ولا تكشف الحلول قبل ما أجيب."],
  ["study_plan","🧭 خطوتي التالية","اقترح لي خطوة عملية قصيرة لدراسة هذا الدرس بناءً فقط على أدائي المثبت. إذا ما عندك تقييم اطلب سؤال تحقق."],
+ ["projector","🖥️ عرض على البروجكتور",""],
  ["dashboard","📊 تقدّمي",""]
 ];
 dock.innerHTML='<div class="nv132-header"><strong>🧠 مسار التعلّم الذكي</strong><span id="nv132Context"></span><span id="nv132Evidence">بانتظار أول تقييم</span></div>'
@@ -62,6 +63,32 @@ css.id="nabilLearningV132Style";
 css.textContent='#nabilLearningDock{max-width:100%;height:auto!important;overflow:visible!important;background:#102940!important;border:1px solid #244e70!important;border-radius:15px!important;margin:12px auto!important;padding:14px!important;color:#f1f8ff!important;position:relative;z-index:2}#nabilLearningDock .nv132-header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}#nabilLearningDock .nv132-header strong{font-size:15px}#nv132Context,#nv132Evidence{border:1px solid #3b6d86;border-radius:20px;padding:4px 10px;font-size:12px}#nv132Evidence{color:#d9f4ff}#nabilLearningDock .nv132-hint{font-size:13px;line-height:1.65;margin:9px 0;color:#d4e5ef}#nabilLearningDock .nv132-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}#nabilLearningDock .nv132-grid button{border:1px solid #32678d;background:#123957;color:#fff;border-radius:10px;font:inherit;font-size:13px;min-height:42px;padding:8px 5px;cursor:pointer;white-space:normal}#nabilLearningDock .nv132-grid button:hover{background:#2670a0}#nabilLearningDock .nv132-grid button:disabled{opacity:.55;cursor:wait}#nv132Status{font-size:12px;line-height:1.55;margin:10px 0 0;color:#d7eaf5}#nv132Result{margin-top:12px;padding:12px;background:#0a2036;border:1px solid #32678d;border-radius:12px;max-height:none!important;overflow:visible!important}#nv132Result[hidden]{display:none!important}#nv132Result h3{margin:0 0 9px;color:#79d9ff}#nv132Result h4{color:#79d9ff;margin:12px 0 6px}#nv132Result .nv132-dashboard{line-height:1.65}#nv132Result .nv132-evidence-note{color:#b9d7e8;font-size:12px}#nv132Result .bubble{width:100%;max-width:100%;overflow-wrap:anywhere}#nv132Result svg{max-width:100%;height:auto}#nv132Result .nv132-figure-card{margin:16px 0 6px;padding:clamp(12px,2vw,24px);border:2px solid #2694c7;border-radius:16px;background:#081d32}#nv132Result .nv132-figure-card h3{margin:0 0 12px;font-size:clamp(17px,2vw,25px);color:#e9f9ff}#nv132Result .nv132-figure-item{padding:12px;background:#0a2945;border:1px solid #246c98;border-radius:12px;margin:8px auto}#nv132Result .nv132-figure-item svg,#nv132Result .nv132-figure-item canvas,#nv132Result .nv132-figure-item img{display:block;width:100%!important;max-width:100%!important;height:auto!important;min-height:clamp(240px,32vw,480px);object-fit:contain!important;margin:auto!important}#nv130Modal[hidden]{display:none!important}@media(max-width:720px){#nabilLearningDock .nv132-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#nabilLearningDock{margin:8px 4px!important;padding:10px!important}#nabilLearningDock .nv132-grid button{font-size:12px;min-height:47px}}';
 document.head.appendChild(css);
 const status=t=>{let n=byId("nv132Status");if(n)n.textContent=t};
+function markKeyRules(root=document){
+ for(const node of root.querySelectorAll?.("h1,h2,h3,h4,strong,p")||[]){
+  const t=String(node.textContent||"").trim();
+  if(/^(?:🔴\s*)?(?:قاعدة أساسية|Key Rule|Règle essentielle)\s*[:：]?/i.test(t)){
+   node.classList.add("nabil-key-rule");
+  }
+ }
+}
+async function toggleProjector(){
+ const root=document.documentElement;
+ try{
+  if(!document.fullscreenElement){
+   await root.requestFullscreen?.();
+   document.body.classList.add("nabil-projector-mode");
+   status("🖥️ وضع البروجكتور: الدرس يملأ الشاشة. اضغط نفس الزر أو Esc للخروج.");
+  }else{
+   await document.exitFullscreen?.();
+   document.body.classList.remove("nabil-projector-mode");
+   status("تم الخروج من وضع البروجكتور.");
+  }
+ }catch(_e){status("تعذّر فتح ملء الشاشة؛ اسمح للمتصفح بميزة Full Screen ثم جرّب مجددًا.");}
+}
+document.addEventListener("fullscreenchange",()=>{
+ if(!document.fullscreenElement)document.body.classList.remove("nabil-projector-mode");
+});
+
 function showLastActivity(previous){
  const results=Array.from(document.querySelectorAll("#chat .message.teacher .bubble"));
  const latest=results[results.length-1];
@@ -97,6 +124,7 @@ function showLastActivity(previous){
    panel.append(header,copy);
  }
  panel.hidden=false;
+ markKeyRules(panel);
  try{window.MathJax?.typesetPromise?.([panel])}catch(_e){}
  panel.scrollIntoView({behavior:"smooth",block:"nearest"});
  return true;
@@ -143,6 +171,7 @@ function dashboard(){
 }
 async function act(action){
  if(busy)return;
+ if(action==="projector"){toggleProjector();return}
  if(action==="dashboard"){dashboard();return}
  const v=scope(),level=gradeLevel(v.grade);
  const latestQuestion=String(typeof nabilCurrentQuestionText!=="undefined"?nabilCurrentQuestionText:"").trim();
@@ -185,7 +214,7 @@ for(const id of ["gradeSelect","subjectSelect","lessonSelect","languageSelect"])
 const previous=window.addMessage;
 if(typeof previous==="function")window.addMessage=function(role,text,...rest){
  const value=previous.call(this,role,text,...rest);
- if(role==="teacher"){refresh();setTimeout(placeDock,0)}
+ if(role==="teacher"){refresh();setTimeout(()=>{placeDock();markKeyRules(document)},0)}
  return value;
 };
 const originalSend=window.sendToAI;
