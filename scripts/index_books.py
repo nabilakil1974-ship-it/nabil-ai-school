@@ -23,7 +23,7 @@ from pypdf import PdfReader
 
 from app.core.config import settings
 from app.db.session import SessionLocal
-from app.db.models import Book, BookChunk
+from app.db.models import Book, BookChunk, BookPage
 from app.services.rag_search import embed_text
 
 SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
@@ -157,29 +157,37 @@ def index_book(
             )
             .first()
         )
-        already_indexed_pdf_pages = 0
-
+        # A last-page high-water mark loses gaps caused by OCR failures or
+        # interrupted writes. Track EVERY committed PDF page instead.
+        completed_pdf_pages = set()
         if book:
+            existing_printed = (
+                db.query(BookChunk.printed_page_number)
+                .filter(BookChunk.book_id == book.id)
+                .distinct()
+                .all()
+            )
+            completed_pdf_pages.update(
+                int(row[0]) + printed_page_offset for row in existing_printed
+            )
+            existing_pages = (
+                db.query(BookPage.pdf_page_index)
+                .filter(BookPage.book_id == book.id)
+                .all()
+            )
+            completed_pdf_pages.update(
+                int(row[0]) for row in existing_pages if row[0] is not None
+            )
             print(
-                f"📚 الكتاب موجود أصلاً بالداتابيز (id={book.id}) - "
-                "رح نتحقق وين وقفنا",
+                f"📚 {title}: {len(completed_pdf_pages)} distinct PDF pages "
+                "already committed; resume ONLY missing pages.",
                 flush=True,
             )
-            last_chunk = (
-                db.query(BookChunk)
-                .filter(BookChunk.book_id == book.id)
-                .order_by(BookChunk.printed_page_number.desc())
-                .first()
-            )
-            if last_chunk:
-                already_indexed_pdf_pages = (
-                    last_chunk.printed_page_number + printed_page_offset
-                )
-                print(
-                    f"⏩ آخر صفحة محفوظة: {already_indexed_pdf_pages} - "
-                    "رح نكمل من بعدها",
-                    flush=True,
-                )
+            if book.total_pages and len(
+                {p for p in completed_pdf_pages if 1 <= p <= book.total_pages}
+            ) >= book.total_pages:
+                print(f"⏭️ Entire book complete: {title}; no download/OCR needed", flush=True)
+                return
 
         service = get_drive_service()
         print(f"⏳ تحميل ملف PDF: {title}", flush=True)
@@ -215,7 +223,7 @@ def index_book(
 
         for pdf_index, page in enumerate(reader.pages):
             page_number = pdf_index + 1
-            if page_number <= already_indexed_pdf_pages:
+            if page_number in completed_pdf_pages:
                 continue
 
             print(f"  🔎 معالجة صفحة PDF رقم {page_number}...", flush=True)
@@ -238,17 +246,32 @@ def index_book(
                         text = ocr_text
                         used_ocr = True
                 except Exception as exc:
-                    print(f"  ⚠️ OCR غير متاح لهذه الصفحة: {exc}", flush=True)
+                    print(f"  ⚠️ OCR فشل في صفحة {page_number}: {exc}", flush=True)
+                    if not text:
+                        # Do not checkpoint a failed OCR page: retry on resume.
+                        raise
 
             print(
                 f"  📝 استخرج {len(text)} حرف من صفحة {page_number}",
                 flush=True,
             )
 
+            printed_page = page_number - printed_page_offset
             if not text:
                 skipped_pages += 1
+                # Only a successfully inspected (possibly blank) page is marked
+                # complete; failures above deliberately leave a retryable gap.
+                db.add(
+                    BookPage(
+                        book_id=book.id,
+                        printed_page_number=printed_page,
+                        pdf_page_index=page_number,
+                        text_content="",
+                    )
+                )
+                db.commit()
                 print(
-                    f"  ⏭️ صفحة {page_number} بلا نص قابل للاستخراج",
+                    f"  ⏭️ صفحة {page_number} بلا نص قابل للاستخراج (checkpoint saved)",
                     flush=True,
                 )
                 continue
@@ -258,7 +281,6 @@ def index_book(
             else:
                 text_pages += 1
 
-            printed_page = page_number - printed_page_offset
             chunks = split_into_chunks(text)
 
             for i, chunk_text in enumerate(chunks):
@@ -277,6 +299,16 @@ def index_book(
                 )
                 total_chunks += 1
 
+            # Page text and all vector chunks commit in one transaction.
+            # On interruption either the entire page exists or none of it does.
+            db.add(
+                BookPage(
+                    book_id=book.id,
+                    printed_page_number=printed_page,
+                    pdf_page_index=page_number,
+                    text_content=text,
+                )
+            )
             db.commit()
             db.expire_all()
             print(f"  ✅ خزّنت صفحة {page_number}/{total_pages}", flush=True)
