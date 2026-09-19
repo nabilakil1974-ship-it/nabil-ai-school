@@ -33,6 +33,26 @@ class WorksheetExportTests(unittest.TestCase):
         self.assertIn("31.4 cm", xml)
         self.assertIn("محيط الدائرة", xml)
 
+    def test_math_inequalities_are_not_stripped_from_docx(self):
+        request = self.request.model_copy(update={
+            "sections": [WorksheetSection(phase="قارن", content="x < 3 and x > 2; A & B")]
+        })
+        data = _docx_bytes(request)
+        with ZipFile(io.BytesIO(data)) as archive:
+            xml = archive.read("word/document.xml").decode("utf-8")
+        self.assertIn("x &lt; 3", xml)
+        self.assertIn("x &gt; 2", xml)
+        self.assertIn("A &amp; B", xml)
+
+    def test_pdf_handles_inequalities_in_every_field(self):
+        request = self.request.model_copy(update={
+            "title": "x < 3 & x > 2",
+            "source_label": "صفحات < 10 & > 2",
+            "sections": [WorksheetSection(phase="x < 3", content="2 < x < 3 & x > 1")]
+        })
+        data = _pdf_bytes(request)
+        self.assertTrue(data.startswith(b"%PDF"))
+
     def test_pdf_is_real_pdf(self):
         data = _pdf_bytes(self.request)
         self.assertTrue(data.startswith(b"%PDF"))
