@@ -250,3 +250,105 @@ textarea#messageInput::placeholder {color:var(--nabil-muted);}
  }
  #nabilHomeTutorHost .nabil-open-head{display:flex;flex-direction:column;align-items:stretch;}
 }
+
+
+/* v3 owner screenshot exact palette (sampled from 2026-09-19 reference).
+   Reference pixels: page #05172D, header center #002973, working panels #081E33,
+   card field #0B1C36/#062039, deep control #0D223D, green action #009E48.
+*/
+:root{
+  --nabil-ref-page:#05172d;
+  --nabil-ref-header:#002973;
+  --nabil-ref-panel:#081e33;
+  --nabil-ref-card:#062039;
+  --nabil-ref-deep:#0b1c36;
+  --nabil-ref-control:#0d223d;
+  --nabil-ref-border:#13618f;
+  --nabil-ref-cyan:#14c8f5;
+  --nabil-ref-cyan-text:#65dfff;
+  --nabil-ref-text:#eef8ff;
+  --nabil-ref-muted:#b9d7ea;
+  --nabil-ref-green:#009e48;
+  --nabil-ref-red:#ea202c;
+  --nabil-ref-blue:#0874e8;
+  --nabil-ref-purple:#5a35ca;
+  --nabil-ref-yellow:#ffd447;
+}
+html,body{background:var(--nabil-ref-page)!important;color:var(--nabil-ref-text)!important}
+.header{
+  background:linear-gradient(90deg,#05172d 0%,var(--nabil-ref-header) 52%,#05172d 100%)!important;
+  border-bottom:1px solid #0b4d7f!important;
+}
+.header-title{color:#72e1ff!important;text-shadow:0 0 16px rgba(20,200,245,.22)}
+.controls{background:#06213a!important;border-top:1px solid #0c4772!important;border-bottom:1px solid #0c4772!important}
+.control select,.control input,#teachingModeSelect{
+  background:#081d32!important;color:#eef8ff!important;border:1px solid #195d8b!important;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.015)!important;
+}
+.container{max-width:1480px!important}
+.chat,.lesson-info,.lesson-tutor-card,.lesson-concept-card,.function-study-card,
+.lesson-final-card,.lesson-summary-card,.exercise-board,.exercise-section-card,
+.exercise-visual-panel,.teacher .bubble,#nabilLearningDock,#nabilOpenTutor,#nabilOpenAnswer{
+  background:var(--nabil-ref-panel)!important;color:var(--nabil-ref-text)!important;
+  border-color:var(--nabil-ref-border)!important;
+}
+.lesson-concept-card,.exercise-section-card,.teacher .bubble{
+  background:linear-gradient(180deg,#08243d,#061d33)!important;
+}
+.nabil-visual,.nabil-visual-wrap,.lesson-visual,.lesson-figure,.lesson-figure-card,
+.lesson-graph,.drawing-container,.exercise-visual-panel,
+#drawingPreviewContent,.drawing-preview-dialog{
+  background:var(--nabil-ref-card)!important;color:var(--nabil-ref-text)!important;
+  border-color:#155f91!important;
+}
+.nabil-visual svg,.lesson-visual svg,.lesson-figure svg,.lesson-graph svg,
+.exercise-visual-panel svg,#drawingPreviewContent svg{
+  background:var(--nabil-ref-card)!important;
+}
+.lesson-tutor-name,.lesson-tutor-subtitle,.lesson-concept-card h2,.lesson-concept-card h3,
+.exercise-board-title,.exercise-section-card h3,.exercise-section-card h4,
+#nabilLearningDock .nv132-header strong,#nabilOpenTutor h2{
+  color:var(--nabil-ref-cyan-text)!important;
+}
+#startLesson,#homeStartShortcut{background:var(--nabil-ref-green)!important;color:#fff!important;border-color:#42db83!important}
+#homeVoiceBtn,#nabilOpenTalk{background:var(--nabil-ref-red)!important;color:#fff!important;border-color:#ff6b76!important}
+#nabilOpenSend,#sendBtn{background:var(--nabil-ref-blue)!important;color:#fff!important;border-color:#55a5ff!important}
+#nabilLearningDock{
+  margin:16px 0 24px!important;padding:14px!important;border-radius:14px!important;
+  box-shadow:0 12px 28px rgba(0,0,0,.22)!important;
+}
+#nabilLearningDock .nv132-grid button{
+  background:#0f3655!important;border:1px solid #1f77aa!important;color:#eef8ff!important;
+}
+#nabilLearningDock .nv132-grid button:hover{background:#13517a!important}
+#nabilLearningDock .nv132-grid button:active{transform:translateY(1px)}
+#nv132Result{background:#061d33!important;border-color:#1e6f9e!important}
+#nabilHome{background:var(--nabil-ref-page)!important}
+#nabilHome .home-bg{background-color:var(--nabil-ref-page)!important}
+#nabilHomeTutorHost #nabilOpenTutor{
+  background:linear-gradient(180deg,rgba(8,30,51,.985),rgba(5,23,45,.985))!important;
+  border:1px solid #176895!important;
+}
+#nabilHomeTutorHost #nabilOpenAnswer{
+  background:#061d33!important;border:1px solid #176895!important;
+}
+.nabil-open-conversation,#nabilOpenInput{
+  background:#061d33!important;border-color:#175e8a!important;color:#eef8ff!important;
+}
+.nabil-open-line{background:#0a2944!important}
+.nabil-open-line.student{border-inline-start-color:#18cef7!important}
+.nabil-open-line.nabil{border-inline-start-color:#55dfa0!important}
+.nabil-open-tools button{background:#0d2c47!important;border-color:#1f6995!important;color:#eef8ff!important}
+
+/* Keep scientific data encodings untouched; only the frame/canvas adopts the platform blue. */
+.nabil-visual [stroke="#ef4444"],.nabil-visual [stroke="#e11d48"],
+.lesson-graph [stroke="#ef4444"],.lesson-graph [stroke="#e11d48"]{stroke:inherit}
+
+/* Mobile stays a true responsive layout, never a scaled desktop screenshot. */
+@media(max-width:760px){
+  .container{padding:0 8px!important;margin:10px auto!important}
+  .chat{padding:10px!important;border-radius:12px!important}
+  .lesson-action-bar{gap:6px!important}
+  #nabilLearningDock{margin:10px 0 18px!important;padding:10px!important}
+  #nabilHomeTutorHost #nabilOpenTutor{border-radius:13px!important}
+}
