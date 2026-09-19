@@ -19,7 +19,7 @@ const heading=document.createElement("h3");
 heading.textContent="🎓 مساحة البحث الأكاديمي — مسودة قابلة للمراجعة والتصدير";
 panel.append(heading);
 const note=document.createElement("p");
-note.textContent="أدخل عنوان الرسالة وخطوطها العريضة. نعمل مرحلةً مرحلة؛ لا نختلق مصادر أو نتائج ميدانية. الإنشاء الحقيقي لـ Google Forms يحتاج ربط حساب مصرحًا به.";
+note.textContent="يكفي عنوان الرسالة. سيقترح نبيل بقية المحاور والأسئلة والمنهجية ويكتب كل فصل على مراحل متتابعة؛ قسم النتائج الميدانية لا يُملأ إلا بإجابات حقيقية. Google Form يُنشأ بعد تشغيل السكربت والموافقة في حسابك.";
 panel.append(note);
 function label(text, control){const box=document.createElement("label");box.style.cssText="display:block;margin:10px 0";box.append(document.createTextNode(text));control.style.cssText="display:block;box-sizing:border-box;width:100%;min-width:0;margin-top:5px;padding:9px;background:#091b2a;color:white;border:1px solid #3882af;border-radius:6px;font:inherit";box.append(control);panel.append(box);return control;}
 const degree=document.createElement("select");
@@ -28,7 +28,7 @@ label("الدرجة العلمية",degree);
 const title=label("عنوان الرسالة",document.createElement("input"));
 title.maxLength=500;title.placeholder="اكتب عنوان البحث";
 const outline=label("الخطوط العريضة وأفكار الباحث",document.createElement("textarea"));
-outline.rows=5;outline.maxLength=12000;outline.placeholder="مشكلة البحث، المحاور، الأهداف، الفرضيات، المنهج...";
+outline.rows=5;outline.maxLength=12000;outline.placeholder="اختياري — يستنتج نبيل خطة مبدئية من العنوان إن تُرك فارغًا";
 const questions=label("أسئلة البحث الأساسية (كل سؤال في سطر)",document.createElement("textarea"));
 questions.rows=4;questions.maxLength=12000;questions.placeholder="ما أثر ...؟\nما العلاقة بين ...؟";
 const sources=label("مراجع ومقاطع يقدمها الباحث — لا تُعدّ متحققًا منها تلقائيًا",document.createElement("textarea"));
@@ -44,20 +44,24 @@ output.id="nabilResearchDraft";
 output.style.cssText="white-space:pre-wrap;word-break:break-word;max-width:100%;font:inherit;line-height:1.8;background:#091b2a;padding:12px;border:1px solid #22648d;border-radius:8px;max-height:55vh;overflow:auto";
 output.textContent="اختر المرحلة للبدء.";
 output.contentEditable="true";output.setAttribute("aria-label","مسودة بحث قابلة للتحرير؛ أدرج [FN:1] لربط أول مرجع من قائمة المراجع بهامش Word");
-output.addEventListener("input",()=>{manuscript=output.innerText.slice(0,120000);});
+output.addEventListener("input",()=>{manuscript=output.innerText.slice(0,650000);});
 const status=document.createElement("p");status.setAttribute("role","status");panel.append(status);
 let manuscript="";
 let observedAggregates="";
+let chapterPlan="";
+let nextTheoryPart=1;
+let stopped=false;
+let generatedQuestionnaire="";
 let busy=false;
 function setStatus(t){status.textContent=t;}
-function validate(){if(title.value.trim().length<8||outline.value.trim().length<5){setStatus("أدخل عنوانًا واضحًا وخطوطًا عريضة للبحث أولًا.");return false;}return true;}
+function validate(){if(title.value.trim().length<8){setStatus("اكتب عنوان البحث فقط؛ المحاور والأسئلة اختيارية.");return false;}return true;}
 async function post(path,payload){
  const response=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
  if(!response.ok){let message="تعذّر تنفيذ الطلب. حاول مجددًا.";try{const data=await response.json();message=String(data.detail||message)}catch(_){}throw Error(message);}
  return response;
 }
-function state(){return {degree:degree.value,title:title.value.trim(),outline:outline.value.trim(),sources:sources.value.trim(),guidance:guidance.value.trim(),research_questions:questions.value.trim(),observed_aggregates:observedAggregates,language:language.value};}
-const stageLabels=[["proposal","المقدمة وخطة البحث"],["theoretical","الإطار النظري"],["questionnaire","الاستبيان"],["sampling","العينة والمنهجية"],["practical","الإطار التطبيقي"],["results","تحليل النتائج والجداول"],["conclusion","الاستنتاجات والتوصيات"],["summary","الخاتمة والخلاصة"],["revision","المراجعة"]];
+function state(){return {degree:degree.value,title:title.value.trim(),outline:outline.value.trim(),sources:sources.value.trim(),guidance:guidance.value.trim(),research_questions:questions.value.trim(),observed_aggregates:observedAggregates,chapter_plan:chapterPlan,language:language.value};}
+const stageLabels=[["structure","الخطة التفصيلية والمحاور"],["proposal","المقدمة وخطة البحث"],["theoretical","الإطار النظري"],["questionnaire","الاستبيان"],["sampling","العينة والمنهجية"],["practical","الإطار التطبيقي"],["results","تحليل النتائج والجداول"],["conclusion","الاستنتاجات والتوصيات"],["summary","الخاتمة والخلاصة"],["revision","المراجعة"]];
 for(const [stage,name] of stageLabels){
  const action=document.createElement("button");action.type="button";action.textContent=name;
  action.style.cssText="padding:9px;border:1px solid #2baee8;border-radius:7px;background:#14619a;color:white;cursor:pointer;font:inherit";
@@ -69,6 +73,8 @@ for(const [stage,name] of stageLabels){
      const result=await (await post("/api/research/draft",payload)).json();
      if(!result.text)throw Error("لم يصل نص من الخدمة.");
      manuscript+=(manuscript?"\n\n":"")+"# "+name+"\n"+result.text;
+     if(stage==="structure")chapterPlan=result.text.slice(0,12000);
+     if(stage==="questionnaire"){generatedQuestionnaire=result.text;populateGeneratedQuestions(result.text);}
      output.textContent=manuscript;
      setStatus("تم إنشاء "+name+". هذه مسودة، وليست رسالة مكتملة أو مصادر متحققة.");
    }catch(err){setStatus(err.message||"حدث خطأ ولم تُفقد المسودة.");}
@@ -80,28 +86,60 @@ const full=document.createElement("button");
 full.id="nabilResearchFullThesis";full.type="button";
 full.textContent="📚 إعداد الرسالة من المقدمة إلى الخاتمة";
 full.style.cssText="display:block;width:100%;margin:10px 0;padding:13px;background:#168360;color:white;border:0;border-radius:8px;font:inherit;cursor:pointer";
+const halt=document.createElement("button");
+halt.type="button";halt.textContent="⏸ إيقاف بعد القسم الجاري";
+halt.style.cssText="margin:8px;padding:10px;background:#884d15;color:#fff;border:0;border-radius:8px;font:inherit;cursor:pointer";
+halt.addEventListener("click",()=>{stopped=true;setStatus("سيُحفظ ما أُنجز ويتوقف بعد القسم الحالي؛ يمكن الضغط على إعداد الرسالة لاستئناف الباقي.");});
 full.addEventListener("click",async()=>{
  if(busy||!validate())return;
- busy=true;full.disabled=true;
- const sections=[["proposal","المقدمة وخطة البحث"],["theoretical","الإطار النظري"],["questionnaire","الاستبيان"],["sampling","العينة والمنهجية"],["practical","الإطار التطبيقي"]];
- if(observedAggregates)sections.push(["results","الجداول وتحليل النتائج"],["conclusion","الاستنتاج العام والتوصيات"],["summary","الخاتمة والخلاصة"]);
+ busy=true;stopped=false;full.disabled=true;
+ const sections=[["structure","الخطة التفصيلية"],["proposal","المقدمة وخطة البحث"]];
+ const finalSections=[["questionnaire","الاستبيان"],["sampling","العينة والمنهجية"],["practical","الإطار التطبيقي"],
+ ...(observedAggregates?[["results","الجداول وتحليل النتائج"]]:[]),
+ ["conclusion","الاستنتاج النظري والتوصيات"],["summary","الخاتمة والخلاصة والمراجع المطلوب استكمالها"]];
+ async function appendStage(stage,name,index,total,part=null){
+  if(manuscript.length>630000)throw Error("وصلت المسودة إلى حد التخزين؛ صدّرها إلى Word قبل المتابعة.");
+  setStatus("إعداد "+name+" ("+index+"/"+total+") — لا تغلق الصفحة قبل اكتمال القسم");
+  const response=await (await post("/api/research/draft",{
+   ...state(),stage,theoretical_part_index:part,
+   previous_text:manuscript.slice(-18000)
+  })).json();
+  if(!response.text)throw Error("لم يصل "+name);
+  const words=response.text.trim().split(/\\s+/).filter(Boolean).length;
+  if(stage==="theoretical"&&words<150)throw Error("القسم النظري "+part+" قصير جدًا ("+words+" كلمة). لم نعتبره صفحة مكتملة؛ اضغط مجددًا للمحاولة.");
+  const start=stage==="theoretical"?"[THEORETICAL_PAGE_BREAK]\\n## المحور النظري "+part+"\\n":"# "+name+"\\n";
+  manuscript+=(manuscript?"\\n\\n":"")+start+response.text;
+  if(stage==="structure")chapterPlan=response.text.slice(0,12000);
+  if(stage==="questionnaire"){generatedQuestionnaire=response.text;populateGeneratedQuestions(response.text);}
+  output.textContent=manuscript;
+ }
  try{
-  for(let i=0;i<sections.length;i++){
-   const [stage,name]=sections[i];setStatus("إعداد "+name+" ("+(i+1)+"/"+sections.length+")");
-   const response=await (await post("/api/research/draft",{...state(),stage,previous_text:manuscript.slice(-35000)})).json();
-   if(!response.text)throw Error("لم يصل "+name);
-   manuscript+=(manuscript?"\n\n":"")+"# "+name+"\n"+response.text;
+  let index=0;const total=sections.length+22+finalSections.length;
+  for(const [stage,name] of sections){
+   if(stopped)break;index++;
+   if(stage==="structure"&&chapterPlan)continue;
+   if(stage==="proposal"&&manuscript.includes("# المقدمة وخطة البحث"))continue;
+   await appendStage(stage,name,index,total);
+  }
+  if(!stopped&&!manuscript.includes("# الإطار النظري")){manuscript+="\\n\\n# الإطار النظري — 22 قسمًا مفصلًا";output.textContent=manuscript;}
+  while(!stopped&&nextTheoryPart<=22){
+   await appendStage("theoretical","المحور النظري "+nextTheoryPart,sections.length+nextTheoryPart,total,nextTheoryPart);
+   nextTheoryPart++;
+  }
+  for(let j=0;j<finalSections.length&&!stopped&&nextTheoryPart>22;j++){
+   const [stage,name]=finalSections[j];
+   if(manuscript.includes("# "+name))continue;
+   await appendStage(stage,name,sections.length+22+j+1,total);
+  }
+  if(!stopped&&!observedAggregates&&!manuscript.includes("# نتائج الاستبيان")){
+   manuscript+="\\n\\n# نتائج الاستبيان — تستكمل بعد جمع الإجابات الفعلية\\nلم تُجمع بعد بيانات مشاركين، لذلك لا يمكن ادعاء نتائج أو اختبارات دلالة أو SPSS منفذة. يتضمن فصل التطبيق خطة العينة والاستبيان والتحليل، وتكتمل النتائج بعد رفع ملف الإجابات.";
    output.textContent=manuscript;
   }
-  if(!observedAggregates){
-   manuscript+="\n\n# جداول النتائج والاستنتاج والخاتمة النهائية\n[تُستكمل بعد رفع إجابات الاستبيان الفعلية. لا توجد نتائج ميدانية قابلة للتوثيق بعد.]";
-   output.textContent=manuscript;
-  }
-  setStatus("المسودة جاهزة للمراجعة والتصدير. تُستكمل نتائج الدراسة بعد وصول البيانات الحقيقية.");
- }catch(err){setStatus("توقفت مع حفظ الفصول المنجزة: "+String(err.message||err));}
+  setStatus(stopped?"تم الإيقاف مع حفظ جميع الأقسام المنجزة في المسودة؛ اضغط إعداد الرسالة لاستكمال الباقي.":"أُنجزت فصول المسودة المتاحة. 22 قسمًا نظريًا منفصلًا بخط Word 14؛ راجع الصفحات والمصادر، وتستكمل النتائج الفعلية من الاستبيان.");
+ }catch(err){setStatus("توقف التوليد مع الاحتفاظ بالنص المنجز: "+String(err.message||err));}
  finally{busy=false;full.disabled=false;}
 });
-panel.append(full);
+panel.append(full);panel.append(halt);
 panel.append(output);
 const download=document.createElement("button");download.type="button";download.textContent="⬇ تصدير المسودة Word";
 download.style.cssText="margin:8px;padding:10px;background:#178d57;color:white;border:0;border-radius:8px;font:inherit;cursor:pointer";
@@ -131,6 +169,23 @@ survey.addEventListener("click",async()=>{
 });
 panel.append(survey);
 const actualQuestions=label("أسئلة Google Form: كل سطر «المحور | نص السؤال»",document.createElement("textarea"));
+function populateGeneratedQuestions(source){
+ const result=[];
+ for(const line of source.split(/\\r?\\n/)){
+  const cleaned=line.trim().replace(/^[-*\\d.)\\s]+/,"");
+  if(cleaned.includes("|")){
+   const index=cleaned.indexOf("|");
+   const axis=cleaned.slice(0,index).replace(/\\*\\*/g,"").trim();
+   const item=cleaned.slice(index+1).replace(/\\*\\*/g,"").trim();
+   if(axis&&item&&axis.length<=160&&item.length<=600&&axis.toLowerCase()!=="axis"&&axis!=="المحور")result.push(axis+" | "+item);
+  }
+ }
+ if(result.length)actualQuestions.value=result.slice(0,120).join("\\n");
+ if(result.length){
+  const names=[...new Set(result.map(v=>v.split("|")[0].trim()))];
+  axes.value=names.join("\\n");
+ }
+}
 actualQuestions.rows=5;actualQuestions.placeholder="القيادة المدرسية | يشارك المدير المعلمين في اتخاذ القرارات.\nالتطوير المهني | أحصل على فرص تدريب تلائم احتياجاتي.";
 const formsScript=document.createElement("button");
 formsScript.type="button";formsScript.textContent="⬇ سكربت إنشاء Google Form بمحاورك";
