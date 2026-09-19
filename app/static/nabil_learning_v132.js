@@ -1,4 +1,4 @@
-/* NABIL learning path v132: genuine AI activities, no invented XP or mastery. */
+/* NABIL learning path v135: genuine AI activities, no invented XP or mastery. */
 (()=>{
 "use strict";
 const dock=document.getElementById("nabilLearningDock");
@@ -12,8 +12,14 @@ function placeDock(){
  const teachers=chat?[...chat.querySelectorAll(".message.teacher")]:[];
  const latest=teachers[teachers.length-1];
  if(latest){
-   // Avoid a MutationObserver loop: moving an already placed node mutates chat.
-   if(latest.nextElementSibling!==dock)latest.insertAdjacentElement("afterend",dock);
+   // Put the smart path immediately below the real answer action row
+   // (Copy answer / Read answer), exactly where the owner requested it.
+   const tools=latest.querySelector(".teacher-tools");
+   if(tools){
+     if(tools.nextElementSibling!==dock)tools.insertAdjacentElement("afterend",dock);
+   }else if(latest.nextElementSibling!==dock){
+     latest.insertAdjacentElement("afterend",dock);
+   }
  }else if(chat){
    if(chat.nextElementSibling!==dock)chat.insertAdjacentElement("afterend",dock);
  }else if(lessonColumn){
@@ -54,7 +60,7 @@ dock.innerHTML='<div class="nv132-header"><strong>🧠 مسار التعلّم �
  +'<section id="nv132Result" aria-label="نتيجة نشاط التعلم الذكي" aria-live="polite" hidden></section>';
 const css=document.createElement("style");
 css.id="nabilLearningV132Style";
-css.textContent='#nabilLearningDock{max-width:100%;height:auto!important;overflow:visible!important;background:#102940!important;border:1px solid #244e70!important;border-radius:15px!important;margin:12px auto!important;padding:14px!important;color:#f1f8ff!important;position:relative;z-index:2}#nabilLearningDock .nv132-header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}#nabilLearningDock .nv132-header strong{font-size:15px}#nv132Context,#nv132Evidence{border:1px solid #3b6d86;border-radius:20px;padding:4px 10px;font-size:12px}#nv132Evidence{color:#d9f4ff}#nabilLearningDock .nv132-hint{font-size:13px;line-height:1.65;margin:9px 0;color:#d4e5ef}#nabilLearningDock .nv132-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}#nabilLearningDock .nv132-grid button{border:1px solid #32678d;background:#123957;color:#fff;border-radius:10px;font:inherit;font-size:13px;min-height:42px;padding:8px 5px;cursor:pointer;white-space:normal}#nabilLearningDock .nv132-grid button:hover{background:#2670a0}#nabilLearningDock .nv132-grid button:disabled{opacity:.55;cursor:wait}#nv132Status{font-size:12px;line-height:1.55;margin:10px 0 0;color:#d7eaf5}#nv132Result{margin-top:12px;padding:12px;background:#0a2036;border:1px solid #32678d;border-radius:12px;max-height:min(65vh,560px);overflow:auto}#nv132Result[hidden]{display:none!important}#nv132Result h3{margin:0 0 9px;color:#79d9ff}#nv132Result .bubble{width:100%;max-width:100%;overflow-wrap:anywhere}#nv132Result svg{max-width:100%;height:auto}#nv130Modal[hidden]{display:none!important}@media(max-width:720px){#nabilLearningDock .nv132-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#nabilLearningDock{margin:8px 4px!important;padding:10px!important}#nabilLearningDock .nv132-grid button{font-size:12px;min-height:47px}}';
+css.textContent='#nabilLearningDock{max-width:100%;height:auto!important;overflow:visible!important;background:#102940!important;border:1px solid #244e70!important;border-radius:15px!important;margin:12px auto!important;padding:14px!important;color:#f1f8ff!important;position:relative;z-index:2}#nabilLearningDock .nv132-header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}#nabilLearningDock .nv132-header strong{font-size:15px}#nv132Context,#nv132Evidence{border:1px solid #3b6d86;border-radius:20px;padding:4px 10px;font-size:12px}#nv132Evidence{color:#d9f4ff}#nabilLearningDock .nv132-hint{font-size:13px;line-height:1.65;margin:9px 0;color:#d4e5ef}#nabilLearningDock .nv132-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}#nabilLearningDock .nv132-grid button{border:1px solid #32678d;background:#123957;color:#fff;border-radius:10px;font:inherit;font-size:13px;min-height:42px;padding:8px 5px;cursor:pointer;white-space:normal}#nabilLearningDock .nv132-grid button:hover{background:#2670a0}#nabilLearningDock .nv132-grid button:disabled{opacity:.55;cursor:wait}#nv132Status{font-size:12px;line-height:1.55;margin:10px 0 0;color:#d7eaf5}#nv132Result{margin-top:12px;padding:12px;background:#0a2036;border:1px solid #32678d;border-radius:12px;max-height:min(65vh,560px);overflow:auto}#nv132Result[hidden]{display:none!important}#nv132Result h3{margin:0 0 9px;color:#79d9ff}#nv132Result h4{color:#79d9ff;margin:12px 0 6px}#nv132Result .nv132-dashboard{line-height:1.65}#nv132Result .nv132-evidence-note{color:#b9d7e8;font-size:12px}#nv132Result .bubble{width:100%;max-width:100%;overflow-wrap:anywhere}#nv132Result svg{max-width:100%;height:auto}#nv130Modal[hidden]{display:none!important}@media(max-width:720px){#nabilLearningDock .nv132-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#nabilLearningDock{margin:8px 4px!important;padding:10px!important}#nabilLearningDock .nv132-grid button{font-size:12px;min-height:47px}}';
 document.head.appendChild(css);
 const status=t=>{let n=byId("nv132Status");if(n)n.textContent=t};
 function showLastActivity(previous){
@@ -90,20 +96,29 @@ function relevantProfile(p){
  return {tests,review,errors};
 }
 function dashboard(){
+ const panel=byId("nv132Result");
+ if(!panel){status("لوحة التقدّم غير متاحة حالياً.");return}
  const p=currentProfile;
- const old=byId("nv130Modal"),title=byId("nv130ModalTitle"),body=byId("nv130ModalBody");
- if(!old||!title||!body){status("لوحة التقدّم غير متاحة؛ اطلب اختبارًا لنقيس المستوى.");return}
- title.textContent="📊 تقدّمي بالأدلة";
- if(!p)body.innerHTML="<p>لم تصل نتائج من قاعدة بيانات التعلّم بعد. ابدأ بسؤال تحقق وجاوب عليه.</p>";
- else{
-  const {tests,review,errors}=relevantProfile(p),t=tests[tests.length-1];
-  body.innerHTML="<p><strong>آخر تقييم لهذا الدرس:</strong> "+(t?htmlEscape(t.score)+" / "+htmlEscape(t.out_of)+" ("+Math.round(t.percent)+"%)":"لم يجر تقييم بعد")+"</p>"
-   +"<p><strong>عدد التقييمات:</strong> "+tests.length+"</p>"
-   +"<h3>مفاهيم تحتاج مراجعة</h3>"+(review.length?"<ul>"+review.map(x=>"<li>"+htmlEscape(x)+"</li>").join("")+"</ul>":"<p>لم تُسجّل مفاهيم تحتاج مراجعة بعد.</p>")
-   +"<h3>أخطاء موثّقة</h3>"+(errors.length?"<ul>"+errors.map(x=>"<li>"+htmlEscape(x)+"</li>").join("")+"</ul>":"<p>لا أخطاء مصحّحة مسجلة بعد، ولا يعني ذلك إتقان كل الأفكار.</p>")
-   +"<p>النسبة ليست محسوبة من عدد النقرات أو طول المحادثة؛ تُعرض فقط نتائج التقييم الموثّقة.</p>";
+ panel.hidden=false;
+ panel.replaceChildren();
+ const h=document.createElement("h3");h.textContent="📊 تقدّمي بالأدلة";panel.appendChild(h);
+ if(!p){
+   const note=document.createElement("p");
+   note.textContent="ما في تقييم موثّق بعد. ابدأ بـ «تحقق من فهمي» أو «اختبار قصير»، وجاوب ليظهر تقدّم حقيقي.";
+   panel.appendChild(note);
+ }else{
+   const {tests,review,errors}=relevantProfile(p),t=tests[tests.length-1];
+   const box=document.createElement("div");
+   box.className="nv132-dashboard";
+   box.innerHTML="<p><strong>آخر تقييم لهذا الدرس:</strong> "+(t?htmlEscape(t.score)+" / "+htmlEscape(t.out_of)+" ("+Math.round(t.percent)+"%)":"لم يجر تقييم بعد")+"</p>"
+    +"<p><strong>عدد التقييمات الموثّقة:</strong> "+tests.length+"</p>"
+    +"<h4>مفاهيم تحتاج مراجعة</h4>"+(review.length?"<ul>"+review.map(x=>"<li>"+htmlEscape(x)+"</li>").join("")+"</ul>":"<p>لم تُسجّل مفاهيم تحتاج مراجعة بعد.</p>")
+    +"<h4>أخطاء موثّقة</h4>"+(errors.length?"<ul>"+errors.map(x=>"<li>"+htmlEscape(x)+"</li>").join("")+"</ul>":"<p>لا توجد أخطاء مصحّحة مسجّلة بعد.</p>")
+    +"<p class='nv132-evidence-note'>لا نحسب الإتقان من عدد النقرات؛ نعرض فقط نتائج تقييم حقيقية محفوظة.</p>";
+   panel.appendChild(box);
  }
- old.hidden=false;
+ status("عرضت التقدّم الموثّق لهذا الدرس.");
+ panel.scrollIntoView({behavior:"smooth",block:"nearest"});
 }
 async function act(action){
  if(busy)return;
