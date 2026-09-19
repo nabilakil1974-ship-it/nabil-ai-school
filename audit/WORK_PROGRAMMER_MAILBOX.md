@@ -204,3 +204,23 @@ Save evidence and a PASS/FAIL report for browser, typed Lebanese, recorded voice
 
 ### Voice follow-up (main commits 75d0582, 0e4effd, 4ced41e)
 The gateway speech interface now loads `/static/nabil_voice_v133.js` at the end of `app/main.py`, using MediaRecorder and server-side transcription, rather than the disabled v114 or browser SpeechRecognition v118. The /api/chat audio and text paths must keep the SAME subject-independent gateway reasoning mode and conversation context. Validate a Lebanese spoken request mixing e.g. «Study f(x) ln x over x شو الـ derivative؟», French and English questions; confirm the true transcript is shown and correct student-facing terminology, not a silent browser auto-rewrite. Ensure legacy v118 controls do not double-send. Check live after actual Railway deployment and report.
+
+## OPEN — Remove both introductory screens / direct lesson entry (2026-09-19)
+Owner requested removal of BOTH the giant robot/grade-picker splash and the
+"أنا الأستاذ نبيل" gateway. Main route now strips the legacy gateway's
+isolated v105 startup script (~2.18 MB), disables the old splash bootstrap,
+adds hide-before-paint CSS, and loads `nabil_direct_entry_v1.js`. The actual
+lesson selectors, conversation board, microphone, avatar, image upload and
+assessment should remain available, directly on the first visit to `/`.
+
+After latest Railway deployment verify on desktop AND phone:
+1. Loading `/` shows grade/subject/language/lesson controls directly, never
+   either intro screen, even for a new/incognito browser.
+2. No page scroll lock, full-screen overlay, intro audio, giant robot, or
+   "أنا الأستاذ نبيل" gateway.
+3. Grade/subject/language changes, Start Lesson, General Exercises, image
+   upload, microphone and learning path all still function.
+4. Legacy Home buttons do NOT re-open the retired screens.
+5. No raw JavaScript leaked into the visible page, and browser console has
+   no error caused by removal of v105.
+Record PASS/FAIL with screenshot evidence, and report the live deploy commit.
