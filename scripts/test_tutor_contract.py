@@ -90,6 +90,8 @@ class TutorOwnerContractTests(unittest.TestCase):
         self.assertIn("FIGURE_ONLY_RESPONSE_CONTRACT_V1", CHAT)
         self.assertIn("if figure_only_request:", CHAT)
         self.assertIn("drawings = [exact_sphere]", CHAT)
+        self.assertIn("if exact_visual:", CHAT)
+        self.assertIn("if figure_only_request and image_bytes is None", CHAT)
 
     def test_open_figure_is_visual_not_faux_exercise(self):
         for fragment in (
