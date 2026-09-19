@@ -41,7 +41,7 @@ guidance.rows=2;guidance.maxLength=4000;
 const stages=document.createElement("div");stages.style.cssText="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0";panel.append(stages);
 const output=document.createElement("pre");
 output.id="nabilResearchDraft";
-output.style.cssText="white-space:pre-wrap;word-break:break-word;max-width:100%;font:inherit;line-height:1.8;background:#091b2a;padding:12px;border:1px solid #22648d;border-radius:8px;max-height:55vh;overflow:auto";
+output.style.cssText="white-space:pre-wrap;word-break:break-word;max-width:100%;font:inherit;line-height:1.8;background:#091b2a;padding:12px;border:1px solid #22648d;border-radius:8px;max-height:none;overflow:visible";
 output.textContent="اختر المرحلة للبدء.";
 output.contentEditable="true";output.setAttribute("aria-label","مسودة بحث قابلة للتحرير؛ أدرج [FN:1] لربط أول مرجع من قائمة المراجع بهامش Word");
 output.addEventListener("input",()=>{manuscript=output.innerText.slice(0,650000);});
@@ -69,7 +69,7 @@ for(const [stage,name] of stageLabels){
    if(busy||!validate())return;
    busy=true;setStatus("جارٍ إعداد "+name+"... احتفظ بنصوص الباحث ومراجعها.");
    try{
-     const payload={...state(),stage,previous_text:manuscript.slice(-35000)};
+     const payload={...state(),stage,previous_text:manuscript.slice(-18000)};
      const result=await (await post("/api/research/draft",payload)).json();
      if(!result.text)throw Error("لم يصل نص من الخدمة.");
      manuscript+=(manuscript?"\n\n":"")+"# "+name+"\n"+result.text;
@@ -105,10 +105,10 @@ full.addEventListener("click",async()=>{
    previous_text:manuscript.slice(-18000)
   })).json();
   if(!response.text)throw Error("لم يصل "+name);
-  const words=response.text.trim().split(/\\s+/).filter(Boolean).length;
+  const words=response.text.trim().split(/\s+/).filter(Boolean).length;
   if(stage==="theoretical"&&words<150)throw Error("القسم النظري "+part+" قصير جدًا ("+words+" كلمة). لم نعتبره صفحة مكتملة؛ اضغط مجددًا للمحاولة.");
-  const start=stage==="theoretical"?"[THEORETICAL_PAGE_BREAK]\\n## المحور النظري "+part+"\\n":"# "+name+"\\n";
-  manuscript+=(manuscript?"\\n\\n":"")+start+response.text;
+  const start=stage==="theoretical"?"[THEORETICAL_PAGE_BREAK]\n## المحور النظري "+part+"\n":"# "+name+"\n";
+  manuscript+=(manuscript?"\n\n":"")+start+response.text;
   if(stage==="structure")chapterPlan=response.text.slice(0,12000);
   if(stage==="questionnaire"){generatedQuestionnaire=response.text;populateGeneratedQuestions(response.text);}
   output.textContent=manuscript;
@@ -121,7 +121,7 @@ full.addEventListener("click",async()=>{
    if(stage==="proposal"&&manuscript.includes("# المقدمة وخطة البحث"))continue;
    await appendStage(stage,name,index,total);
   }
-  if(!stopped&&!manuscript.includes("# الإطار النظري")){manuscript+="\\n\\n# الإطار النظري — 22 قسمًا مفصلًا";output.textContent=manuscript;}
+  if(!stopped&&!manuscript.includes("# الإطار النظري")){manuscript+="\n\n# الإطار النظري — 22 قسمًا مفصلًا";output.textContent=manuscript;}
   while(!stopped&&nextTheoryPart<=22){
    await appendStage("theoretical","المحور النظري "+nextTheoryPart,sections.length+nextTheoryPart,total,nextTheoryPart);
    nextTheoryPart++;
@@ -132,7 +132,7 @@ full.addEventListener("click",async()=>{
    await appendStage(stage,name,sections.length+22+j+1,total);
   }
   if(!stopped&&!observedAggregates&&!manuscript.includes("# نتائج الاستبيان")){
-   manuscript+="\\n\\n# نتائج الاستبيان — تستكمل بعد جمع الإجابات الفعلية\\nلم تُجمع بعد بيانات مشاركين، لذلك لا يمكن ادعاء نتائج أو اختبارات دلالة أو SPSS منفذة. يتضمن فصل التطبيق خطة العينة والاستبيان والتحليل، وتكتمل النتائج بعد رفع ملف الإجابات.";
+   manuscript+="\n\n# نتائج الاستبيان — تستكمل بعد جمع الإجابات الفعلية\nلم تُجمع بعد بيانات مشاركين، لذلك لا يمكن ادعاء نتائج أو اختبارات دلالة أو SPSS منفذة. يتضمن فصل التطبيق خطة العينة والاستبيان والتحليل، وتكتمل النتائج بعد رفع ملف الإجابات.";
    output.textContent=manuscript;
   }
   setStatus(stopped?"تم الإيقاف مع حفظ جميع الأقسام المنجزة في المسودة؛ اضغط إعداد الرسالة لاستكمال الباقي.":"أُنجزت فصول المسودة المتاحة. 22 قسمًا نظريًا منفصلًا بخط Word 14؛ راجع الصفحات والمصادر، وتستكمل النتائج الفعلية من الاستبيان.");
@@ -171,19 +171,19 @@ panel.append(survey);
 const actualQuestions=label("أسئلة Google Form: كل سطر «المحور | نص السؤال»",document.createElement("textarea"));
 function populateGeneratedQuestions(source){
  const result=[];
- for(const line of source.split(/\\r?\\n/)){
-  const cleaned=line.trim().replace(/^[-*\\d.)\\s]+/,"");
+ for(const line of source.split(/\r?\n/)){
+  const cleaned=line.trim().replace(/^[-*\d.)\s]+/,"");
   if(cleaned.includes("|")){
    const index=cleaned.indexOf("|");
-   const axis=cleaned.slice(0,index).replace(/\\*\\*/g,"").trim();
-   const item=cleaned.slice(index+1).replace(/\\*\\*/g,"").trim();
+   const axis=cleaned.slice(0,index).replace(/\*\*/g,"").trim();
+   const item=cleaned.slice(index+1).replace(/\*\*/g,"").trim();
    if(axis&&item&&axis.length<=160&&item.length<=600&&axis.toLowerCase()!=="axis"&&axis!=="المحور")result.push(axis+" | "+item);
   }
  }
- if(result.length)actualQuestions.value=result.slice(0,120).join("\\n");
+ if(result.length)actualQuestions.value=result.slice(0,120).join("\n");
  if(result.length){
   const names=[...new Set(result.map(v=>v.split("|")[0].trim()))];
-  axes.value=names.join("\\n");
+  axes.value=names.join("\n");
  }
 }
 actualQuestions.rows=5;actualQuestions.placeholder="القيادة المدرسية | يشارك المدير المعلمين في اتخاذ القرارات.\nالتطوير المهني | أحصل على فرص تدريب تلائم احتياجاتي.";
