@@ -24,11 +24,13 @@ jobs:
         with:
           node-version: '22'
       - name: Python syntax build
-        run: python -m py_compile app/main.py scripts/test_ui_integration.py
+        run: python -m py_compile app/main.py app/api/routes_chat.py scripts/test_ui_integration.py scripts/validate_nabil_ui.py
       - name: JavaScript syntax build
         run: |
           node --check app/static/nabil_open_tutor_v1.js
           node --check app/static/nabil_learning_v132.js
           node --check app/static/nabil_voice_v133.js
+      - name: Static owner contract validator
+        run: python -m scripts.validate_nabil_ui
       - name: HTML assembly and user requirements regression
         run: python -m scripts.test_ui_integration
