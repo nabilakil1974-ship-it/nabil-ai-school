@@ -192,3 +192,63 @@ def survey_csv(request: SurveyRequest):
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": 'attachment; filename="nabil-survey-template.csv"',
                  "Cache-Control": "no-store"})
+
+
+class GoogleFormScriptRequest(BaseModel):
+    title: str = Field(min_length=8, max_length=500)
+    language: Literal["ar", "en", "fr"] = "ar"
+    questions: list[dict[str, str]] = Field(min_length=1, max_length=120)
+
+
+def build_google_form_script(request: GoogleFormScriptRequest) -> str:
+    """Generate a script the owner MUST run and authorize in their Google account.
+
+    No Google Forms is claimed to exist from this API request alone.
+    """
+    cleaned = []
+    for entry in request.questions:
+        axis = str(entry.get("axis", "")).strip()
+        item = str(entry.get("item", "")).strip()
+        if not axis or not item or len(axis) > 160 or len(item) > 600:
+            raise HTTPException(status_code=422, detail="Each question requires a short axis and item.")
+        if "[RESEARCHER TO WRITE" in item.upper():
+            raise HTTPException(status_code=422, detail="Replace placeholder items with real questions first.")
+        cleaned.append({"axis": axis, "item": item})
+    scales = {
+        "ar": ["لا أوافق بشدة", "لا أوافق", "محايد", "أوافق", "أوافق بشدة"],
+        "en": ["Strongly disagree", "Disagree", "Neutral", "Agree", "Strongly agree"],
+        "fr": ["Pas du tout d’accord", "Pas d’accord", "Neutre", "D’accord", "Tout à fait d’accord"],
+    }
+    # JSON string literals are valid Google Apps Script (JavaScript). Escape HTML
+    # metacharacters to ensure pasted user research titles cannot break the code.
+    payload = json.dumps(
+        {"title": request.title, "items": cleaned, "scale": scales[request.language]},
+        ensure_ascii=True,
+    ).replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
+    return (
+        "// NABIL AI — run createNabilResearchForm in your OWN Google Apps Script account.\\n"
+        "// Google will request authorization; no Form is created by downloading this file.\\n"
+        "function createNabilResearchForm() {\\n"
+        "  const spec = " + payload + ";\\n"
+        "  const form = FormApp.create(spec.title);\\n"
+        "  let currentAxis = null;\\n"
+        "  for (const entry of spec.items) {\\n"
+        "    if (entry.axis !== currentAxis) {\\n"
+        "      currentAxis = entry.axis;\\n"
+        "      form.addSectionHeaderItem().setTitle(currentAxis);\\n"
+        "    }\\n"
+        "    form.addMultipleChoiceItem().setTitle(entry.item)\\n"
+        "      .setChoiceValues(spec.scale).setRequired(true);\\n"
+        "  }\\n"
+        "  Logger.log('Edit URL: ' + form.getEditUrl());\\n"
+        "  Logger.log('Response URL: ' + form.getPublishedUrl());\\n"
+        "}\\n"
+    )
+
+
+@router.post("/survey/google-forms-script")
+def google_forms_script(request: GoogleFormScriptRequest):
+    data = build_google_form_script(request).encode("utf-8")
+    return StreamingResponse(iter([data]), media_type="text/plain; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="nabil-create-google-form.gs"',
+                 "Cache-Control": "no-store"})
