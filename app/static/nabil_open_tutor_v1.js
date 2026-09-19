@@ -237,6 +237,11 @@ function renderAnswer(result,question){
    if(typeof renderAIText==="function")text.innerHTML=renderAIText(reply);
    else text.innerHTML="<div>"+escapeHTML(reply).replace(/\n/g,"<br>")+"</div>";
  }catch(_e){text.innerHTML="<div>"+escapeHTML(reply).replace(/\n/g,"<br>")+"</div>"}
+ // The shared Markdown renderer can return an empty fragment for unusual
+ // model output. Never silently hide the solution when the reply exists.
+ if(reply&&!(text.textContent||"").trim()&&!text.querySelector("svg,canvas,img,mjx-container")){
+   text.innerHTML="<div>"+escapeHTML(reply).replace(/\n/g,"<br>")+"</div>";
+ }
  // Math and tables belong in the formatted solution, not in a raw transcript.
  if(!figureOnly)explanation.appendChild(text);
 
@@ -398,6 +403,8 @@ async function request({question="",audio=null}){
      data.append("message",String(question).trim());
      addLine("student",String(question).trim());
    }
+   // Reveal the in-progress state in the actual answer card immediately.
+   board.classList.add("is-waiting");
    const aborter=new AbortController();
    const timeout=setTimeout(()=>aborter.abort(),90000);
    let response;
@@ -408,6 +415,7 @@ async function request({question="",audio=null}){
    if(result.conversation_id)openConversationId=result.conversation_id;
    const heard=String(result.transcribed_text||question||"").trim();
    if(audio&&heard)addLine("student",heard);
+   setStatus("✅ وصل الجواب؛ عم بعرض الشرح والرسومات…");
    const shown=renderAnswer(result,heard);
    if(result.student_profile&&window.NABIL130?.mergeProfile)window.NABIL130.mergeProfile(result.student_profile);
    const spoken=typeof nabilBoardPlainSpeech==="function"?nabilBoardPlainSpeech(shown.reply):shown.reply;
@@ -429,7 +437,7 @@ async function request({question="",audio=null}){
    setStatus("⚠️ "+(aborted?"تأخر الجواب أكثر من المتوقع. جرّب إرسال السؤال مرة ثانية.":String(e?.message||"تعذّر الاتصال").slice(0,180)),true)
    return false;
  }
- finally{setBusy(false);send.disabled=false;talk.disabled=false;if(!recording)talk.textContent="🎙️ سؤال صوتي"}
+ finally{board.classList.remove("is-waiting");setBusy(false);send.disabled=false;talk.disabled=false;if(!recording)talk.textContent="🎙️ سؤال صوتي"}
 }
 async function startRecording(){
  if(busy||recording)return;
