@@ -319,3 +319,14 @@ Please test actual deployed SHA and screenshot lesson avatar after patch, verify
 ## OWNER TASK — Move BOTH home controls away from solution (2026-09-19)
 
 Owner sent screenshot: both colored home controls `#homeStartShortcut` (green Start Lesson) and `#homeVoiceBtn` (red voice question) must move to the OTHER side of the right-hand answer/diagram board, stay visible during lengthy explanations, on phone and desktop. Implemented **left/robot-side bottom dock for both controls**, fixed and independent of growing answer card; previously only green nav was fixed bottom-right, old red home mic hidden on phone. CSS `OWNER_HOME_BUTTONS_OPPOSITE_ANSWER_V12` overrides both legacy absolute positions and mobile hide rules, ensures buttons fit 320px screens and reserves composer scroll space. `scripts/test_home_lesson_navigation.cjs` validates actual CSS and two-view navigation. Code commits `91586448002a97becebc211121836f43ac77fd83`, `92182accd989dcfce8d4c23a10b9babac872f319`. GitHub Actions run `35444763029` completed SUCCESS; production Railway and owner phone visual confirmation are OPEN. Do not report live PASS until verified.
+
+
+## OWNER WORKING AGREEMENT — cumulative phases and Work mailbox (2026-09-19)
+
+The owner directs programmer and ChatGPT Work to coordinate via this shared mailbox (or a real email thread once an address is supplied), instead of asking the owner to forward progress between chats. Every new owner observation is an execution task, not merely discussion: record it in this mailbox and create/associate a GitHub issue when actionable, including reproducer, acceptance checks, responsible side, and status.
+
+**Mandatory cumulative delivery for each phase:** capture base SHA -> implement narrowly without overwriting concurrently edited files -> run syntax/tests and a NEW build -> record commit SHA and build URL/result -> check Railway deployed SHA and actual desktop/mobile feature behavior -> document PASS/FAIL and blockers -> proceed to next phase preserving all prior working features. Never equate GitHub green with Railway live green. Never imply autonomous background work when Work/chat session is not running. Work should append its evidence and next blocker to this mailbox; programmer should read the latest Work reply before touching overlapping paths.
+
+Keep science OCR checkpoints intact; minimize web redeploy interruption. PR #10 (branch fix/science-worker-exclusive-lock-20260919) holds a lock-concurrency fix and CI guard; it is NOT merged or production-verified, so do not count it as deployed. Avoid overlapping indexing sessions.
+
+**Current outstanding owner acceptance:** 390x844 robot resize and full answer board, both home buttons, voice/foreign-language lesson alignment, Grade 9 authentic book scope, figure labels, source integrity, and visible response latency. For each new owner instruction add a dated task row or section before implementing and link the verifying build and live report.
