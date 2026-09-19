@@ -3,7 +3,7 @@ import io
 import unittest
 from zipfile import ZipFile
 
-from app.api.routes_worksheet import WorksheetExport, WorksheetSection, _docx_bytes, _pdf_bytes
+from app.api.routes_worksheet import WorksheetExport, WorksheetSection, _docx_bytes, _pdf_bytes, _plain_markdown
 
 
 class WorksheetExportTests(unittest.TestCase):
@@ -24,6 +24,14 @@ class WorksheetExportTests(unittest.TestCase):
                 WorksheetSection(phase="طبّق", content="إذا كان r=5 فإن C=31.4 cm عند π≈3.14."),
             ],
         )
+
+    def test_hidden_web_solutions_have_clean_print_headings(self):
+        text = "Question 1\\n[SOLUTION 1]x < 3 & x > 1[/SOLUTION 1]"
+        result = _plain_markdown(text)
+        self.assertIn("Solution 1:", result)
+        self.assertIn("x < 3 & x > 1", result)
+        self.assertNotIn("[SOLUTION", result)
+        self.assertNotIn("[/SOLUTION", result)
 
     def test_docx_is_real_editable_document(self):
         data = _docx_bytes(self.request)
