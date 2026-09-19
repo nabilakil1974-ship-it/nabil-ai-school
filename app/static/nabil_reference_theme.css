@@ -1144,3 +1144,34 @@ body:not(.nabil-lesson-active) #nabilHome #homeVoiceBtn .mic{
   min-height:260px!important;
  }
 }
+
+/* OWNER HOME NAV FIX — navigation in lesson header, NEVER over Send/input.
+   Overrides historical fixed bottom-left button on desktop and mobile. */
+body.nabil-lesson-active #nabilReturnHomeFloating{
+ display:inline-flex!important;
+ align-items:center!important;
+ justify-content:center!important;
+ position:static!important;
+ inset:auto!important;
+ top:auto!important;
+ bottom:auto!important;
+ left:auto!important;
+ right:auto!important;
+ float:none!important;
+ transform:none!important;
+ margin:8px 12px!important;
+ min-width:108px!important;
+ max-width:100%!important;
+ z-index:auto!important;
+}
+body:not(.nabil-lesson-active) #nabilReturnHomeFloating{
+ display:none!important;
+}
+@media(max-width:900px){
+ body.nabil-lesson-active #nabilReturnHomeFloating{
+  position:static!important;
+  inset:auto!important;
+  margin:8px!important;
+  min-height:44px!important;
+ }
+}

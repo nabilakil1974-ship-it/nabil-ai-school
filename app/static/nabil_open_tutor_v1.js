@@ -470,9 +470,16 @@ if(legacyMic){legacyMic.hidden=false;legacyMic.title="سؤال صوتي — نف
 const returnHome=document.createElement("button");
 returnHome.id="nabilReturnHomeFloating";
 returnHome.type="button";
-returnHome.textContent="⌂ الرئيسية";
+returnHome.textContent="Home";
 returnHome.setAttribute("aria-label","العودة إلى الأستاذ نبيل");
-document.body.appendChild(returnHome);
+// Navigation belongs inside the visible lesson header, never over the
+// fixed exercise composer or Send button. If the header is unavailable,
+// keep the control in normal document flow instead of floating.
+const lessonHeader=document.querySelector("body > .header")||document.querySelector(".header");
+const lessonColumnForHome=document.querySelector(".lesson-main-column");
+if(lessonHeader)lessonHeader.appendChild(returnHome);
+else if(lessonColumnForHome)lessonColumnForHome.prepend(returnHome);
+else document.body.appendChild(returnHome);
 
 function showStructuredLesson(){
  try{stopNabilNeuralVoice?.();speechSynthesis?.cancel?.()}catch(_e){}
