@@ -423,7 +423,7 @@ def root():
 
     scripts = (
         '<script src="/static/curriculum_strict.js?v=137"></script>\n'
-        '<script src="/static/nabil_learning_v132.js?v=133"></script>\n'
+        '<script src="/static/nabil_learning_v132.js?v=134"></script>\n'
         '<script src="/static/nabil_voice_v133.js?v=133"></script>\n'
         '<script src="/static/nabil_open_tutor_v1.js?v=2"></script>\n'
     )
