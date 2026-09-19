@@ -190,3 +190,14 @@ Verify LIVE after the latest Railway deployment:
 - No invented fallback titles when a language/book is absent.
 - Existing French data must not be overwritten by English.
 - Report exact mismatches and selector routing defects.
+
+
+## OWNER PRIORITY — Voice + real age-adaptive learning path + exposed JS (2026-09-19)
+Programmer handoff from the user's live Railway screenshots:
+- The browser displays enormous raw JavaScript source BELOW the lesson board. This is a major, independently visible frontend defect, NOT a stylistic issue. Investigate the legacy `app/static/chat.html` (5.7 MB), especially malformed inline <script> boundaries and source leaked into visible DOM; restore a clean mobile and desktop lesson view. Preserve the chat and assessment features. Do not mark fixed without browser QA.
+- Owner wants natural spoken AND typed Lebanese Arabic, including mixed English/French scientific terminology, interpreted as the same actual student question and routed to the same lesson/solution engine; meaningful short spoken replies, no dry lecture. No fabricated source.
+- Voice transcription stub was replaced on main with server-side OpenAI (or Groq fallback) transcription, commit `39703bc4aff314fc9fe1a781e2cfe115f279fa7f`; confirm in production that actual microphone audio reaches /api/chat, correct `audio` multipart upload and transcript, and receives an answer. The separate oral tutor must retain context and never expose transcript or raw JS.
+- Age-appropriate learning-action prompt and colloquial voice instructions updated in `fb4be10d0c96877e5ab5facb6b9ae4161e0a030b`. Check the EXISTING UI `مسار التعلم الذكي` actions truly submit learning_action values via the request, create meaningful lesson-specific actions, display the outcome, accept the learner's answer and update profile. Buttons alone are FAIL. Adapt grade 1–3 vs grades 4–6 vs 7–9 vs secondary.
+- Earlier progressive drawing contract commit `eca5637f973111a12f643f050a686dc340ab2d50` is prompt-level and NOT an image-overlay renderer. Verify uploaded exercise original is preserved, and five solved practice exercises have validated, correctly assigned visual payloads for stages. No fake redrawing, no unsupported image overlays.
+- Watch Railway deploy state and do NOT assert auto-deploy success from GitHub commit alone. Owner had chemistry indexing running in the production console; account for deploy interrupt/resume and avoid running simultaneous index jobs.
+Save evidence and a PASS/FAIL report for browser, typed Lebanese, recorded voice, adaptive learning actions and diagram fidelity. Report source gaps clearly.
