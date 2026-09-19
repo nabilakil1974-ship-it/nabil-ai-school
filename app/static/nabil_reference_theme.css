@@ -496,3 +496,41 @@ html,body{background:var(--nabil-ref-page)!important;color:var(--nabil-ref-text)
  #nabilOpenTutor{overflow:visible!important}
  .nabil-open-pace{width:100%;box-sizing:border-box}
 }
+
+/* Landing figure full-size preview — preserve the SAME SVG data colours. */
+#drawingPreviewModal{background:rgba(1,10,24,.91)!important}
+#drawingPreviewModal .drawing-preview-dialog{
+ width:min(1500px,98vw)!important;max-width:98vw!important;
+ max-height:97dvh!important;overflow:auto!important;
+ background:#05172d!important;color:#eef8ff!important;
+ border:2px solid #176895!important;border-radius:16px;
+}
+#drawingPreviewContent{
+ background:#062039!important;color:#eef8ff!important;
+ width:100%!important;min-width:0!important;
+}
+#drawingPreviewContent .nabil-open-enlarged-visuals{
+ display:grid;gap:16px;width:100%;background:#062039;
+ padding:10px;box-sizing:border-box;
+}
+#drawingPreviewContent .nabil-open-visual{
+ display:block;width:100%;min-width:0;overflow:auto;
+ background:#062039!important;border:1px solid #176895;
+ padding:12px;border-radius:12px;box-sizing:border-box;
+}
+#drawingPreviewContent .nabil-open-visual svg{
+ display:block;width:100%!important;max-width:none!important;
+ height:auto!important;min-height:clamp(280px,46vw,650px);
+ overflow:visible!important;background:#062039!important;
+ margin:0 auto;
+}
+@media(max-width:760px){
+ #drawingPreviewModal{padding:4px!important}
+ #drawingPreviewModal .drawing-preview-dialog{
+  width:100%!important;max-width:100%!important;
+  max-height:98dvh!important;padding:8px!important;
+ }
+ #drawingPreviewContent .nabil-open-enlarged-visuals{padding:2px;gap:8px}
+ #drawingPreviewContent .nabil-open-visual{padding:4px}
+ #drawingPreviewContent .nabil-open-visual svg{min-height:240px!important}
+}
