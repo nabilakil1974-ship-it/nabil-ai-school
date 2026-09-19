@@ -161,10 +161,22 @@ axes.rows=3;axes.placeholder="المحور الأول\nالمحور الثاني
 const survey=document.createElement("button");survey.type="button";survey.textContent="⬇ تنزيل قالب استبيان CSV";
 survey.style.cssText="margin:8px;padding:10px;background:#247fc3;color:white;border:0;border-radius:8px;font:inherit;cursor:pointer";
 survey.addEventListener("click",async()=>{
- const names=axes.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
- if(title.value.trim().length<8||!names.length){setStatus("أدخل عنوان الرسالة ومحاور الاستبيان.");return;}
- try{await saveResponse(await post("/api/research/survey/csv",{title:title.value,axes:names,language:language.value,questions_per_axis:4}),"nabil-survey-template.csv");
- setStatus("تم تنزيل قالب محاور قابل للتحرير؛ ليس Google Form منشأً.");
+ if(title.value.trim().length<8){setStatus("أدخل عنوان الرسالة أولًا.");return;}
+ try{
+  const drafted=actualQuestions.value.split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map(line=>{
+   const index=line.indexOf("|");return index>0?{axis:line.slice(0,index).trim(),item:line.slice(index+1).trim()}:null;
+  }).filter(item=>item&&item.axis&&item.item);
+  if(drafted.length){
+   await saveResponse(await post("/api/research/survey/questions.csv",{title:title.value.trim(),
+    language:language.value,questions:drafted.slice(0,120)}),"nabil-generated-survey.csv");
+   setStatus("تم تنزيل أسئلة الاستبيان التي أعدّها نبيل للمراجعة والتحكيم؛ ليست إجابات المشاركين.");
+  }else{
+   const names=axes.value.split(/\r?\n/).map(t=>t.trim()).filter(Boolean);
+   if(!names.length){setStatus("أنشئ فصل الاستبيان أولًا أو اكتب محاوره.");return;}
+   await saveResponse(await post("/api/research/survey/csv",{title:title.value,axes:names,
+    language:language.value,questions_per_axis:4}),"nabil-survey-template.csv");
+   setStatus("لا توجد أسئلة مولدة بعد؛ تم تنزيل قالب فارغ للتحرير.");
+  }
  }catch(err){setStatus(err.message||"تعذر تنزيل الاستبيان.");}
 });
 panel.append(survey);
@@ -172,7 +184,7 @@ const actualQuestions=label("أسئلة Google Form: كل سطر «المحور 
 function populateGeneratedQuestions(source){
  const result=[];
  for(const line of source.split(/\r?\n/)){
-  const cleaned=line.trim().replace(/^[-*\d.)\s]+/,"");
+  const cleaned=line.trim().replace(/^[-*\d.)\s]+/,"").replace(/^\|\s*/,"").replace(/\s*\|\s*$/,"");
   if(cleaned.includes("|")){
    const index=cleaned.indexOf("|");
    const axis=cleaned.slice(0,index).replace(/\*\*/g,"").trim();
