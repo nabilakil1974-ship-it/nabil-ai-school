@@ -312,7 +312,7 @@ function renderAnswer(result,question){
    toolsHost.appendChild(preview);
  }
  try{window.MathJax?.typesetPromise?.([board])}catch(_e){}
- if(!figureOnly)addLine("nabil",reply);
+ // The formatted answer card already shows the teacher response. Do not duplicate\n // unrendered Markdown/LaTeX in the transcript above it.
  board.scrollIntoView({behavior:"smooth",block:"nearest"});
  return {reply,lang,hasVisual,figureOnly};
 }
