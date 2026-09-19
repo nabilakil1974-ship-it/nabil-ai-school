@@ -612,7 +612,37 @@ def get_curriculum_lessons(
         }
         subject_node = verified.get(subject_aliases.get(subject_key, ""), {})
 
-    # Secondary math in the curated file is stored by year, before branch split.
+    # Branch-specific third-secondary master entries take precedence over the
+    # old unbranched curated list: otherwise English/French lessons disappear
+    # or another branch's maths is shown to the learner.
+    grade_key = _master_grade_key(grade_raw, branch)
+    if grade_raw.startswith("الثالث ثانوي") or grade_raw.startswith("الثاني ثانوي"):
+        try:
+            master_first = json.loads(MASTER_CURRICULUM_INDEX_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            master_first = {}
+        catalog_first = master_first.get("catalog", {}) if isinstance(master_first, dict) else {}
+        node_first = catalog_first.get(grade_key, {}).get("subjects", {}).get(subject_key, {})
+        langs_first = node_first.get("languages", {}) if isinstance(node_first, dict) else {}
+        for lk in language_keys:
+            lang_node = langs_first.get(lk, {})
+            if not isinstance(lang_node, dict):
+                continue
+            titles = []
+            for entry in lang_node.get("lessons", []):
+                title = entry if isinstance(entry, str) else (
+                    entry.get("title") or entry.get("lesson") or entry.get("name")
+                    if isinstance(entry, dict) else None
+                )
+                if title and str(title).strip() not in titles:
+                    titles.append(str(title).strip())
+            if titles:
+                return titles
+        # A verified branch has no requested-language titles; do not substitute
+        # unbranched or other-language chapter names.
+        if isinstance(langs_first, dict) and langs_first:
+            return []
+
     curated_grade = grade_raw
     if grade_raw.startswith("الثاني ثانوي"):
         curated_grade = "الثاني ثانوي"
@@ -625,7 +655,6 @@ def get_curriculum_lessons(
             lessons = grade_node.get(lk)
             if isinstance(lessons, list):
                 return list(dict.fromkeys(str(x).strip() for x in lessons if str(x).strip()))
-        # The grade exists but the requested language does not: hard boundary.
         if grade_node:
             return []
 
