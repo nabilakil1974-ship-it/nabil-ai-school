@@ -659,3 +659,134 @@ html,body{background:var(--nabil-ref-page)!important;color:var(--nabil-ref-text)
   max-height:none!important;overflow:visible!important;
  }
 }
+
+/* OWNER_MOBILE_AVATAR_ABOVE_FULL_WIDTH_ANSWER_V8
+   A real phone layout: show NABIL clearly above the whole-width answer.
+   Never reuse the giant fixed desktop splash or a miniature 140px portrait. */
+@media screen and (max-width:900px){
+ html,body{max-width:100%!important;overflow-x:hidden!important}
+ body.nabil-home-lock{overflow-y:auto!important;overflow-x:hidden!important}
+ #nabilHome{
+  display:flex!important;flex-direction:column!important;
+  align-items:stretch!important;justify-content:flex-start!important;
+  position:relative!important;inset:auto!important;
+  height:auto!important;min-height:100dvh!important;width:100%!important;
+  max-width:100%!important;overflow:visible!important;
+  transform:none!important;
+  padding:8px 8px max(30px,env(safe-area-inset-bottom))!important;
+  gap:8px!important;margin:0!important;box-sizing:border-box!important;
+  background:#05172d!important;
+ }
+ #nabilHome .home-bg,#nabilHome .home-vignette,
+ #nabilHome .profile-real,#nabilHome .avatar-live-zone{
+  display:none!important;
+ }
+ #nabilHomeTutorHost,#nabilHomeTutorHost:has(#nabilOpenAnswer.has-answer){
+  display:block!important;position:relative!important;
+  order:1!important;inset:auto!important;top:auto!important;
+  left:auto!important;right:auto!important;bottom:auto!important;
+  width:100%!important;max-width:100%!important;
+  min-width:0!important;max-height:none!important;
+  height:auto!important;margin:0!important;
+  padding:0!important;overflow:visible!important;
+  transform:none!important;box-sizing:border-box!important;
+ }
+ #nabilHomeTutorHost #nabilOpenTutor{
+  display:flex!important;flex-direction:column!important;
+  gap:12px!important;width:100%!important;min-width:0!important;
+  max-width:100%!important;padding:10px!important;
+  margin:0!important;overflow:visible!important;
+  border:1px solid #176895!important;border-radius:14px!important;
+  background:#081e33!important;box-sizing:border-box!important;
+ }
+ #nabilHomeTutorHost .nabil-open-head{
+  display:flex!important;flex-direction:column!important;
+  width:100%!important;gap:8px!important;align-items:stretch!important;
+  text-align:center!important;min-width:0!important;
+ }
+ #nabilHomeTutorHost .nabil-open-head .nabil-open-mini-avatar{
+  display:block!important;order:0!important;
+  box-sizing:border-box!important;
+  width:100%!important;max-width:min(100%,410px)!important;
+  height:clamp(240px,74vw,390px)!important;max-height:none!important;
+  margin:0 auto!important;object-fit:contain!important;
+  object-position:center center!important;
+  background:linear-gradient(150deg,#06336b 0%,#075ec1 48%,#061b40 100%)!important;
+  border:1px solid #176895!important;border-radius:15px!important;
+ }
+ #nabilHomeTutorHost .nabil-open-head>div{
+  width:100%!important;min-width:0!important;text-align:center!important;
+ }
+ #nabilHomeTutorHost .nabil-open-head h2{
+  font-size:clamp(18px,5.3vw,25px)!important;
+  line-height:1.45!important;white-space:normal!important;
+ }
+ #nabilHomeTutorHost .nabil-open-head p{
+  font-size:clamp(13px,3.7vw,16px)!important;line-height:1.65!important;
+ }
+ #nabilHomeTutorHost .nabil-open-conversation{
+  display:grid!important;max-height:22dvh!important;
+  overflow-y:auto!important;min-width:0!important;
+ }
+ #nabilHomeTutorHost #nabilOpenAnswer,
+ #nabilHomeTutorHost #nabilOpenAnswer.has-answer{
+  width:100%!important;min-width:0!important;max-width:100%!important;
+  max-height:none!important;min-height:0!important;height:auto!important;
+  overflow:visible!important;box-sizing:border-box!important;
+  margin:0!important;padding:10px!important;
+ }
+ #nabilHomeTutorHost #nabilOpenExplanation,
+ #nabilHomeTutorHost #nabilOpenVisuals,
+ #nabilHomeTutorHost #nabilOpenTools{
+  width:100%!important;max-width:100%!important;
+  min-width:0!important;height:auto!important;
+  overflow-x:auto!important;box-sizing:border-box!important;
+  font-size:clamp(15px,4vw,18px)!important;
+  line-height:1.75!important;
+ }
+ #nabilHomeTutorHost #nabilOpenExplanation p,
+ #nabilHomeTutorHost #nabilOpenExplanation li{
+  font-size:inherit!important;line-height:1.75!important;
+  white-space:normal!important;
+ }
+ #nabilHomeTutorHost #nabilOpenVisuals .nabil-open-visual{
+  width:100%!important;min-width:0!important;
+  max-width:100%!important;padding:4px!important;
+  box-sizing:border-box!important;overflow-x:auto!important;
+ }
+ #nabilHomeTutorHost #nabilOpenVisuals svg,
+ #nabilHomeTutorHost #nabilOpenVisuals canvas,
+ #nabilHomeTutorHost #nabilOpenVisuals img{
+  display:block!important;width:100%!important;max-width:100%!important;
+  min-height:260px!important;max-height:none!important;
+  height:auto!important;object-fit:contain!important;
+  box-sizing:border-box!important;
+ }
+ #nabilHomeTutorHost .nabil-open-composer{
+  display:grid!important;grid-template-columns:1fr 1fr!important;
+  gap:8px!important;width:100%!important;min-width:0!important;
+ }
+ #nabilHomeTutorHost #nabilOpenInput{
+  grid-column:1 / -1!important;min-height:74px!important;
+  width:100%!important;min-width:0!important;box-sizing:border-box!important;
+ }
+ #nabilHomeTutorHost #nabilOpenTalk,
+ #nabilHomeTutorHost #nabilOpenSend{
+  width:100%!important;min-width:0!important;min-height:48px!important;
+ }
+ #nabilHome #homeStartShortcut{
+  display:block!important;order:0!important;position:relative!important;
+  inset:auto!important;transform:none!important;
+  width:100%!important;max-width:100%!important;
+  min-height:48px!important;margin:0!important;box-sizing:border-box!important;
+ }
+ #nabilHome .selection-stage{display:none!important}
+ #nabilHome #homeVoiceBtn{display:none!important}
+ #nabilHomeTutorHost .nabil-open-live-type{
+  font-size:clamp(15px,4vw,18px)!important;line-height:1.7!important;
+ }
+}
+/* Never display the phone avatar while the structured lesson page is active. */
+#nabilHome[style*="display: none"],#nabilHome[style*="display:none"]{
+ display:none!important;
+}
