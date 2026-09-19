@@ -21,7 +21,10 @@ def main() -> None:
         raise SystemExit(f"PORT out of range: {port}")
 
     worker = None
-    auto_index = os.environ.get("NABIL_AUTO_INDEX_SCIENCE", "1").strip().lower()
+    # Disabled by default on the public web service: OCR/embeddings can OOM
+    # the student server. Use the dedicated science_worker service instead,
+    # or opt in with NABIL_AUTO_INDEX_SCIENCE=1 when resources allow.
+    auto_index = os.environ.get("NABIL_AUTO_INDEX_SCIENCE", "0").strip().lower()
     if auto_index not in {"0", "false", "no", "off"}:
         try:
             worker = subprocess.Popen(
