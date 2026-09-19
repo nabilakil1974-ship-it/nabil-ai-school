@@ -1,4 +1,4 @@
-/* NABIL open tutor v2 — the blue robot is the only landing page.
+/* NABIL open tutor v3 — the blue robot is the only landing page.
    Spoken and typed questions use the SAME /api/chat reasoning path, renderer and TTS.
    Open mode is intentionally independent from grade/subject/lesson selectors.
 */
@@ -45,6 +45,16 @@ homeHost.replaceChildren(card);
 const status=el("nabilOpenStatus"), board=el("nabilOpenAnswer"), convo=el("nabilOpenConversation"),
       input=el("nabilOpenInput"), talk=el("nabilOpenTalk"), send=el("nabilOpenSend");
 let recorder=null,stream=null,chunks=[],recording=false,busy=false,openConversationId="";
+let greetingSpoken=false;
+function speakGreetingOnce(){
+ if(greetingSpoken||home.style.display==="none")return;
+ greetingSpoken=true;
+ const greeting="أهلًا وسهلًا. أنا الأستاذ نبيل. اسألني كتابة أو صوت، وبشرحلك وبحل معك خطوة خطوة.";
+ try{
+   const spoken=typeof nabilBoardPlainSpeech==="function"?nabilBoardPlainSpeech(greeting):greeting;
+   if(typeof nabilSpeakClear==="function")Promise.resolve(nabilSpeakClear(spoken,"العربية",{})).catch(()=>{});
+ }catch(_e){}
+}
 
 const setStatus=(t,error=false)=>{status.textContent=t;status.classList.toggle("error",!!error)};
 const setBusy=x=>{busy=x;send.disabled=x;talk.disabled=x&&!recording;card.classList.toggle("is-busy",x)};
@@ -106,7 +116,9 @@ function renderAnswer(result,question){
  });
  const read=document.createElement("button");read.type="button";read.textContent=lang==="English"?"🔊 Read answer":lang==="Français"?"🔊 Lire la réponse":"🔊 اقرأ الإجابة";
  read.addEventListener("click",()=>{const spoken=typeof nabilBoardPlainSpeech==="function"?nabilBoardPlainSpeech(reply):reply;Promise.resolve(nabilSpeakClear?.(spoken,lang,{})).catch(()=>{})});
- tools.append(copy,read);board.appendChild(tools);
+ const stop=document.createElement("button");stop.type="button";stop.textContent=lang==="English"?"⏹ Stop voice":lang==="Français"?"⏹ Arrêter la voix":"⏹ أوقف الصوت";
+ stop.addEventListener("click",()=>{try{stopNabilNeuralVoice?.();speechSynthesis?.cancel?.()}catch(_e){}});
+ tools.append(copy,read,stop);board.appendChild(tools);
  try{window.MathJax?.typesetPromise?.([board])}catch(_e){}
  addLine("nabil",reply);
  board.scrollIntoView({behavior:"smooth",block:"nearest"});
@@ -134,7 +146,11 @@ async function request({question="",audio=null}){
      data.append("message",String(question).trim());
      addLine("student",String(question).trim());
    }
-   const response=await fetch("/api/chat",{method:"POST",body:data});
+   const aborter=new AbortController();
+   const timeout=setTimeout(()=>aborter.abort(),90000);
+   let response;
+   try{response=await fetch("/api/chat",{method:"POST",body:data,signal:aborter.signal})}
+   finally{clearTimeout(timeout)}
    const result=await response.json().catch(()=>({detail:"الخادم لم يرجع JSON صالحًا"}));
    if(!response.ok)throw Error(String(result.detail||"تعذّر إرسال السؤال").slice(0,200));
    if(result.conversation_id)openConversationId=result.conversation_id;
@@ -146,7 +162,10 @@ async function request({question="",audio=null}){
    try{stopNabilNeuralVoice?.();speechSynthesis?.cancel?.()}catch(_e){}
    if(typeof nabilSpeakClear==="function")Promise.resolve(nabilSpeakClear(spoken,shown.lang,{})).catch(()=>{});
    setStatus("✅ جاهز لسؤالك التالي.");
- }catch(e){setStatus("⚠️ "+String(e?.message||"تعذّر الاتصال").slice(0,180),true)}
+ }catch(e){
+   const aborted=e?.name==="AbortError";
+   setStatus("⚠️ "+(aborted?"تأخر الجواب أكثر من المتوقع. جرّب إرسال السؤال مرة ثانية.":String(e?.message||"تعذّر الاتصال").slice(0,180)),true)
+ }
  finally{setBusy(false);send.disabled=false;talk.disabled=false;if(!recording)talk.textContent="🎙️ سؤال صوتي"}
 }
 async function startRecording(){
@@ -163,7 +182,7 @@ async function startRecording(){
  }catch(_e){stream?.getTracks().forEach(t=>t.stop());stream=null;setStatus("اسمح للميكروفون من إعدادات المتصفح وجرّب مرة ثانية.",true)}
 }
 function stopRecording(){if(!recording||!recorder)return;talk.textContent="⏳ جارٍ الإرسال";setStatus("⏳ عم برسل التسجيل…");try{recorder.stop()}catch(_e){recording=false;setStatus("تعذّر إنهاء التسجيل.",true)}}
-talk.addEventListener("click",()=>recording?stopRecording():startRecording());
+talk.addEventListener("click",()=>{speakGreetingOnce();recording?stopRecording():startRecording()});
 send.addEventListener("click",()=>{if(recording)return; // Keep one voice question at a time.
  const q=input.value.trim();if(!q)return;input.value="";request({question:q})});
 input.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send.click()}});
@@ -197,5 +216,8 @@ try{if(typeof nabilActivityMode!=="undefined")nabilActivityMode="general_exercis
 // Do not let the retired home script speak using a second browser-only voice.
 try{if(typeof homeWelcomeSpoken!=="undefined")homeWelcomeSpoken=true}catch(_e){}
 document.body.classList.add("nabil-home-lock");
+// Browsers normally block autoplay. Greet on the learner's first intentional interaction,
+// using the exact same neural TTS function as the lesson page.
+home.addEventListener("pointerdown",speakGreetingOnce,{once:true,passive:true});
 window.NabilOpenTutor={start:startRecording,stop:stopRecording,ask:q=>request({question:q})};
 })();
