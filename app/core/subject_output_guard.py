@@ -13,15 +13,15 @@ _ORDERED_STUDY = re.compile(
     r"[\s\S]{0,1100}?\bDerivative\b"
 )
 _RESUME_LESSON = re.compile(
-    r"(?im)(?:^|\\n)\\s*(?:#{1,6}\\s*)?"
-    r"(?:Let's\\s+(?:complete|make\\s+sure|continue|review)|"
-    r"Here\\s+is\\s+the\\s+complete|"
-    r"Final\\s+Card|Practice\\s+Exercises|Quick\\s+Check|\\Z)"
+    r"(?im)(?:^|\n)\s*(?:#{1,6}\s*)?"
+    r"(?:Let's\s+(?:complete|make\s+sure|continue|review)|"
+    r"Here\s+is\s+the\s+complete|"
+    r"Final\s+Card|Practice\s+Exercises|Quick\s+Check|\Z)"
 )
 _SECONDARY = re.compile(
     r"(?i)(?:الثانوي|ثانوي|secondary|secondaire|seconde|première|premiere|"
-    r"terminale|grade\\s*1[012]|g\\.?\\s*1[012]|"
-    r"الأول\\s+ثانوي|الثاني\\s+ثانوي|الثالث\\s+ثانوي)"
+    r"terminale|grade\s*1[012]|g\.?\s*1[012]|"
+    r"الأول\s+ثانوي|الثاني\s+ثانوي|الثالث\s+ثانوي)"
 )
 
 
