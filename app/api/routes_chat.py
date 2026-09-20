@@ -4841,6 +4841,7 @@ async def voice_chat(
     branch: Optional[str] = Form(None),
     curriculum: Optional[str] = Form(None),
     language: Optional[str] = Form(None),
+    nabil_explanation_language: Optional[str] = Form(None),
     lesson: Optional[str] = Form(None),
     book_page: Optional[str] = Form(None),
     teaching_mode: Optional[str] = Form("full_lesson"),
@@ -4926,6 +4927,21 @@ async def voice_chat(
     # ACTIVITY MODE
     # ==========================================
 
+    # Preserve automatic book/question language unless a student explicitly chooses.
+    _explicit_lang = (nabil_explanation_language or "").strip().lower()
+    _explicit_language_label = {"en": "English", "fr": "Français", "ar": "العربية"}.get(_explicit_lang)
+    if _explicit_language_label:
+        language = _explicit_language_label
+    _explicit_language_instruction = (
+        "\nEXPLICIT STUDENT EXPLANATION LANGUAGE OVERRIDE: " + _explicit_language_label
+        + ". Use this language for every explanation, solution, question, "
+          "simulation caption and notebook summary. Preserve exact source "
+          "terminology, formulae and reference labels. This user setting "
+          "overrides automatic language detection and generic lesson-language "
+          "instructions; English only and French only mean complete sentences "
+          "in that language, not Arabic explanations with foreign terms.\n"
+        if _explicit_language_label else ""
+    )
     general_exercises_mode = (
         (activity_mode or "lesson").strip().lower()
         == "general_exercises"
@@ -5086,7 +5102,7 @@ async def voice_chat(
         str(message or ""),
     ))
     if general_exercises_mode:
-        selected_language = "AUTO_FROM_QUESTION_OR_IMAGE"
+        selected_language = _explicit_language_label or "AUTO_FROM_QUESTION_OR_IMAGE"
         student_profile_context = profile_to_dict(learning_profile)
 
         educational_context = f"""
@@ -5897,7 +5913,7 @@ Do not produce JSON transport as visible prose.
             )
             _primary_ai_started_at = time.monotonic()
             raw_reply = await run_in_threadpool(ai.generate,
-                instructions=lesson_instructions if lesson_start_from_book else SYSTEM_PROMPT,
+                instructions=(lesson_instructions if lesson_start_from_book else SYSTEM_PROMPT) + _explicit_language_instruction,
                 messages=history_messages,
                 image_bytes=image_bytes or verified_page_image_bytes,
                 image_mime_type=image_mime_type,
