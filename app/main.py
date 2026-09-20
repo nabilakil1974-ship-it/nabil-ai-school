@@ -469,3 +469,24 @@ def nabil_secondary_physics_lab():
         media_type="text/html",
         headers={"Cache-Control": "no-store"},
     )
+
+
+@app.get("/labs/chemistry")
+def nabil_full_chemistry_lab():
+    """Full original chemistry virtual lab; independent student demo."""
+    return FileResponse("app/static/nabil_lab_chemistry_full.html",
+                        media_type="text/html", headers={"Cache-Control": "no-store"})
+
+
+@app.get("/labs/light")
+def nabil_full_light_lab():
+    """Full original light and lenses virtual lab."""
+    return FileResponse("app/static/nabil_lab_light_full.html",
+                        media_type="text/html", headers={"Cache-Control": "no-store"})
+
+
+@app.get("/labs/math")
+def nabil_full_math_lab():
+    """Full original three-language vector and line virtual lab."""
+    return FileResponse("app/static/nabil_lab_math_full.html",
+                        media_type="text/html", headers={"Cache-Control": "no-store"})
