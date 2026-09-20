@@ -5335,12 +5335,20 @@ the same lesson Visual Engine; never describe it as rendered without one.
             # The original chapter exercises are part of the lesson: look for
             # them in the SAME indexed book after the source-matched concept.
             # This is a database lookup, not an additional model generation.
-            book_exercise_chunks = find_nearest_book_exercises(
-                db, source_chunks,
-                subject=str(subject or "").strip(),
-                grade=str(grade or "").strip(),
-                curriculum=book_curriculum,
-            )
+            try:
+                book_exercise_chunks = find_nearest_book_exercises(
+                    db, source_chunks,
+                    subject=str(subject or "").strip(),
+                    grade=str(grade or "").strip(),
+                    curriculum=book_curriculum,
+                )
+            except Exception:
+                # Optional book-exercise enrichment must not discard the
+                # lesson's already retrieved and verified textbook passages.
+                book_exercise_chunks = []
+                lesson_generation_logger.exception(
+                    "BOOK_EXERCISE_PAGE_LOOKUP_FAILED"
+                )
             book_context = build_context_block(source_chunks + book_exercise_chunks)
             print(f"BOOK_RAG_SCOPE_MATCH grade={grade!r} subject={subject!r} language={selected_language!r} curriculum={book_curriculum!r} retrieved={len(source_chunks)}", flush=True)
         except Exception as exc:
