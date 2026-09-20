@@ -8,7 +8,7 @@ window.nabilBookFirstInstalled=true;
 const originalFetch=window.fetch.bind(window);
 let pending=0;
 const printedPageFromMessage=message=>{
-  const m=String(message||"").match(/(?:page|pages|صفحة|الصفحة|صفحه|ص\\.)\\s*(?:رقم|number|no\\.?)?\\s*[:#-]?\\s*(\\d{1,4})/i);
+  const m=String(message||"").match(/(?:page|pages|صفحة|الصفحة|صفحه|ص\.)\s*(?:رقم|number|no\.?)?\s*[:#-]?\s*(\d{1,4})/i);
   return m?m[1]:"";
 };
 function installPagePicker(){
@@ -126,7 +126,7 @@ window.fetch=function(input,options){
   }
   const picker=document.getElementById("nabilPrintedPageInput");
   const msg=String(body.get("message")||"");
-  const isLessonStart=/begin\\s+the\\s+(?:complete\\s+)?selected\\s+lesson|ابدأ\\s+الدرس|commence\\s+maintenant/i.test(msg);
+  const isLessonStart=/begin\s+the\s+(?:complete\s+)?selected\s+lesson|ابدأ\s+الدرس|commence\s+maintenant/i.test(msg);
   const typedPage=printedPageFromMessage(msg);
   if(picker?.value&&isLessonStart&&!typedPage){
     body.set("book_page",String(picker.value));
