@@ -13,6 +13,9 @@ on:
       - app/api/routes_chat.py
       - app/services/ai_gateway.py
       - scripts/test_fast_book_lesson.py
+      - app/core/platform_support.py
+      - scripts/test_platform_self_help.py
+      - app/static/nabil_open_tutor_v1.js
       - app/core/lesson_output_guard.py
       - app/core/textbook_lesson_gate.py
       - scripts/test_textbook_lesson_gate.py
@@ -55,6 +58,9 @@ on:
       - app/api/routes_chat.py
       - app/services/ai_gateway.py
       - scripts/test_fast_book_lesson.py
+      - app/core/platform_support.py
+      - scripts/test_platform_self_help.py
+      - app/static/nabil_open_tutor_v1.js
       - app/core/lesson_output_guard.py
       - app/core/textbook_lesson_gate.py
       - scripts/test_textbook_lesson_gate.py
@@ -110,6 +116,8 @@ jobs:
           node --check app/static/nabil_universal_language_v1.js
           node -e 'const fs=require("fs"),vm=require("vm");const h=fs.readFileSync("app/static/nabil_secondary_physics_lab.html","utf8");const js=h.split("<script>")[1]?.split("</script>")[0];if(!js)throw Error("secondary physics lab script missing");new vm.Script(js);for(const key of ["tabLens","tabProjectile","tabRC","setMode","lang"])if(!h.includes(key))throw Error("physics lab missing "+key);'
           node -e 'const fs=require("fs"),vm=require("vm");const paths=["app/static/nabil_labs.html","app/static/nabil_lab_chemistry_full.html","app/static/nabil_lab_light_full.html","app/static/nabil_lab_math_full.html","app/static/nabil_secondary_physics_lab.html"];for(const path of paths){const html=fs.readFileSync(path,"utf8");const js=html.split("<script>")[1]?.split("</script>")[0];if(!js)throw Error("Missing script: "+path);new vm.Script(js,{filename:path})}const hub=fs.readFileSync(paths[0],"utf8");for(const route of ["/labs/chemistry","/labs/light","/labs/math","/labs/secondary-physics"])if(!hub.includes(route))throw Error("Missing complete lab link: "+route);const chem=fs.readFileSync(paths[1],"utf8");for(const id of ["firstChemical","secondChemical","data-predict","precipitate","dissolve","color","quizStart"])if(!chem.includes(id))throw Error("Chemistry source missing "+id);'
+      - name: Platform knowledge and voice-upload regression
+        run: python -m scripts.test_platform_self_help
       - name: Bounded textbook AI provider latency regression
         run: python -m scripts.test_fast_book_lesson
       - name: Nonblocking textbook lesson AI regression
