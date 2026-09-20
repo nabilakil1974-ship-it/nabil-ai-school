@@ -12,6 +12,7 @@ import re
 from pathlib import Path
 from app.core.lesson_output_guard import sanitize_chemistry_lesson
 from app.core.textbook_lesson_gate import lesson_page_issues
+from app.core.platform_support import PLATFORM_HELP
 from app.core.textbook_page_citations import render_verified_page_citations, resolve_book_printed_page
 from app.core.lesson_quality import missing_practice_exercises, practice_exercise_numbers, drawing_matches_subject, deduplicate_lesson_sections
 from typing import Optional
@@ -5630,6 +5631,9 @@ Avoid all visible prose when the verified figure is available.
         language=selected_language,
     )
     educational_context += "\n\n" + learning_progress_contract()
+    if is_home_live_tutor:
+        educational_context += "\n\n" + PLATFORM_HELP
+
     # Final-language priority: applied after general exercises, home mode,
     # curriculum and learning actions so no earlier Arabic connective example
     # can turn a foreign-language lesson into Arabic-dominant narration.
