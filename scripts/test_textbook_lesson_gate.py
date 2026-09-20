@@ -84,11 +84,11 @@ class ExactTextbookLessonGateTests(unittest.TestCase):
     def test_chemistry_trailing_calculus_is_stripped(self):
         from app.core.lesson_output_guard import sanitize_chemistry_lesson
         sample = (
-            "Crystal lattice and Activity 2.\\n## ملخص الدرس للدفتر\\n"
-            "Build the lattice.\\n### Domain\\n(0, infinity)\\n"
-            "### Limits\\nlim x = 0\\n### Derivative\\nf'(x)=2x"
+            "Crystal lattice and Activity 2.\n## ملخص الدرس للدفتر\n"
+            "Build the lattice.\n### Domain\n(0, infinity)\n"
+            "### Limits\nlim x = 0\n### Derivative\nf'(x)=2x"
         )
-        cleaned = sanitize_chemistry_lesson(sample.replace("\\\\n", "\\n"), "Chemistry")
+        cleaned = sanitize_chemistry_lesson(sample.replace("\\\n", "\n"), "Chemistry")
         self.assertIn("Build the lattice.", cleaned)
         self.assertNotIn("### Domain", cleaned)
         self.assertNotIn("### Limits", cleaned)
