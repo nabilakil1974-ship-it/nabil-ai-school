@@ -11,7 +11,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from app.services.ai_gateway import NabilAIGateway
+from app.services.ai_gateway import get_ai_gateway
 from app.services.research_survey_analysis import (MAX_UPLOAD, SurveyDataError,
     summarize_survey, report_markdown, tables_csv, spss_syntax)
 from app.services.research_docx_notes import attach_researcher_footnotes
@@ -109,7 +109,7 @@ def draft_research(request: ResearchRequest):
         f"\n\nWrite stage: {request.stage}. Theoretical part index: {request.theoretical_part_index or 'none'}."
     )
     try:
-        result = NabilAIGateway().generate(
+        result = get_ai_gateway().generate(
             instructions=research_instructions(request),
             messages=[{"role": "user", "content": question}],
             max_output_tokens=4100 if request.stage in ("theoretical", "practical", "results", "structure") else 3400,
