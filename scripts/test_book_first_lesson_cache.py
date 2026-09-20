@@ -30,6 +30,13 @@ class BookFirstLessonTests(unittest.TestCase):
         self.assertIn("sourceImageLoaded=true;updateStatus()", js)
         self.assertNotIn('img.src=path', js)
 
+    def test_failed_ai_request_never_marks_lesson_ready(self):
+        js = pathlib.Path("app/static/nabil_book_first_preview_v1.js").read_text("utf-8")
+        self.assertIn("lessonFailed=true;updateStatus()", js)
+        self.assertIn("if(lessonFailed){", js)
+        self.assertIn("if(result.ok){", js)
+        self.assertIn("}else{\\n      fail();", js)
+
     def test_preview_never_waits_for_pdf_download_or_figure_extraction(self):
         route = pathlib.Path("app/api/routes_textbook_pages.py").read_text("utf-8")
         preview = route.split('@router.post("/textbooks/lesson-preview")', 1)[1]
