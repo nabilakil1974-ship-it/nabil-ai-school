@@ -43,6 +43,8 @@ card.innerHTML=
  '<div class="nabil-open-composer">'+
    '<textarea id="nabilOpenInput" rows="2" placeholder="اكتب سؤالك هنا… / Type your question… / Écris ta question…"></textarea>'+
    '<button id="nabilOpenTalk" type="button" title="سؤال صوتي">🎙️ سؤال صوتي</button>'+
+   '<button id="nabilOpenVoiceUpload" type="button" title="رفع رسالة صوتية من واتساب أو الجهاز">📎 فويس واتساب</button>'+
+   '<input id="nabilOpenVoiceFile" type="file" accept=".ogg,.oga,.opus,.mp3,.m4a,.mp4,.wav,.webm,audio/*" hidden aria-label="اختر تسجيلًا صوتيًا">'+
    '<button id="nabilOpenSend" type="button">➤ إرسال</button>'+
  '</div>'+
  '<label class="nabil-open-pace" for="nabilOpenPace">🔊 سرعة الشرح <input id="nabilOpenPace" aria-label="سرعة صوت الأستاذ نبيل" type="range" min="0.70" max="1.15" step="0.05" value="0.90"><output id="nabilOpenPaceValue">0.90×</output></label>'+ 
@@ -54,6 +56,7 @@ homeHost.replaceChildren(card);
 
 const status=el("nabilOpenStatus"), board=el("nabilOpenAnswer"), convo=el("nabilOpenConversation"),
       input=el("nabilOpenInput"), talk=el("nabilOpenTalk"), send=el("nabilOpenSend"),
+      voiceUpload=el("nabilOpenVoiceUpload"), voiceFile=el("nabilOpenVoiceFile"),
       nav=el("nabilOpenAnswerNav"), explainBtn=el("nabilOpenExplainBtn"), visualBtn=el("nabilOpenVisualBtn"),
       explanation=el("nabilOpenExplanation"), visuals=el("nabilOpenVisuals"), toolsHost=el("nabilOpenTools"), liveType=el("nabilOpenLiveType");
 let recorder=null,stream=null,chunks=[],recording=false,busy=false,openConversationId="";
@@ -454,8 +457,9 @@ async function request({question="",audio=null}){
    data.append("language","AUTO");
    if(openConversationId)data.append("conversation_id",openConversationId);
    if(audio){
-     const mime=audio.type||"audio/webm",ext=/mp4|m4a/.test(mime)?"m4a":/ogg/.test(mime)?"ogg":"webm";
-     data.append("audio",audio,"student_voice."+ext);
+     const mime=audio.type||"audio/webm",ext=/mp4|m4a/.test(mime)?"m4a":/ogg/.test(mime)?"ogg":/mpeg|mp3/.test(mime)?"mp3":/wav/.test(mime)?"wav":"webm";
+     const originalName=String(audio.name||"").replace(/[^a-zA-Z0-9_.-]/g,"_");
+     data.append("audio",audio,originalName||"student_voice."+ext);
    }else{
      data.append("message",String(question).trim());
      addLine("student",String(question).trim());
@@ -501,6 +505,23 @@ async function startRecording(){
 }
 function stopRecording(){if(!recording||!recorder)return;talk.textContent="⏳ جارٍ الإرسال";setStatus("⏳ عم برسل التسجيل…");try{recorder.stop()}catch(_e){recording=false;setStatus("تعذّر إنهاء التسجيل.",true)}}
 talk.addEventListener("click",()=>{recording?stopRecording():startRecording()});
+// WhatsApp OGG voice messages use the SAME verified /api/chat transcription,
+// tutor reply, scientific renderer and existing read-aloud voice as the mic.
+voiceUpload.addEventListener("click",()=>{
+ if(recording||busy)return;
+ voiceFile.click();
+});
+voiceFile.addEventListener("change",async()=>{
+ const file=voiceFile.files?.[0];
+ voiceFile.value="";
+ if(!file||recording||busy)return;
+ const name=String(file.name||"").toLowerCase();
+ const allowed=/\\.(?:ogg|oga|opus|mp3|m4a|mp4|wav|webm)$/.test(name)||file.type.startsWith("audio/");
+ if(!allowed){setStatus("⚠️ اختَر تسجيلًا صوتيًا بصيغة OGG أو MP3 أو M4A أو WAV أو WebM.",true);return}
+ if(file.size>20*1024*1024){setStatus("⚠️ التسجيل أكبر من 20 MB. جرّب تقسيمه.",true);return}
+ setStatus("📎 وصل التسجيل "+file.name+"؛ عم أفرّغه وبحضّر رد الأستاذ نبيل…");
+ await request({audio:file});
+});
 send.addEventListener("click",()=>{if(recording||busy)return; // Do not duplicate pending requests.
  const q=input.value.trim();if(!q)return;
  input.value="";
