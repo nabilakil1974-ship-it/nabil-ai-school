@@ -112,7 +112,7 @@ function show(form,id){
   const chosen=String(form.get("book_page")||"").trim()||
     printedPageFromMessage(form.get("message"));
   const title=chosen?"Printed textbook page "+chosen:String(form.get("lesson")||"").trim();
-  if(!title)return ()=>{};
+  if(!title)return {done:()=>{},fail:()=>{}};
   document.getElementById("nabilBookFirstCard")?.remove();
   const el=document.createElement("aside");
   el.id="nabilBookFirstCard";
