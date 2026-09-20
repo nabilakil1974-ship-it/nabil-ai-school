@@ -5373,7 +5373,7 @@ the same lesson Visual Engine; never describe it as rendered without one.
             # them in the SAME indexed book after the source-matched concept.
             # This is a database lookup, not an additional model generation.
             try:
-                book_exercise_chunks = find_nearest_book_exercises(
+                book_exercise_chunks = [] if _page_request and _page_request[1] == "page" else find_nearest_book_exercises(
                     db, source_chunks,
                     subject=str(subject or "").strip(),
                     grade=str(grade or "").strip(),
@@ -5389,6 +5389,7 @@ the same lesson Visual Engine; never describe it as rendered without one.
             book_context = build_context_block(source_chunks + book_exercise_chunks)
             if (
                 _nabil_lesson_start_request(message)
+                and _page_request is None
                 and str(teaching_mode or "full_lesson") in {"full_lesson", "board_lesson"}
                 and source_chunks
             ):
@@ -5427,6 +5428,8 @@ the same lesson Visual Engine; never describe it as rendered without one.
                             student_profile=profile_to_dict(learning_profile),
                         )
             print(f"BOOK_RAG_SCOPE_MATCH grade={grade!r} subject={subject!r} language={selected_language!r} curriculum={book_curriculum!r} retrieved={len(source_chunks)}", flush=True)
+        except HTTPException:
+            raise
         except Exception as exc:
             print(f"BOOK_RAG_UNAVAILABLE grade={grade!r} subject={subject!r} language={selected_language!r} curriculum={book_curriculum!r}: {type(exc).__name__}: {exc}", flush=True)
             book_context = ""
@@ -5715,7 +5718,7 @@ sqrt(496) is NOT 22, and an unverified tangent slope is NOT acceptable.
         lesson_start_from_book = (
             not general_exercises_mode
             and image_bytes is None
-            and _nabil_lesson_start_request(message)
+            and (_nabil_lesson_start_request(message) or _page_request is not None)
             and bool(source_chunks)
         )
         if lesson_start_from_book:
@@ -5748,7 +5751,7 @@ transfer and charges correctly; include a valid DRAWINGS_JSON diagram only
 when you know its supported schema and exact scientific labels.
 Do not produce JSON transport as visible prose.
 """.strip()
-            official_excerpts = source_chunks[:7] + book_exercise_chunks[:7]
+            official_excerpts = source_chunks[:12 if _page_request else 7] + book_exercise_chunks[:5 if _page_request else 7]
             excerpts = "\n\n".join(
                 f"[{item.get('book_title')} PRINTED_PAGE:{resolve_book_printed_page(item)} PDF_PAGE:{item.get('pdf_page')}] "
                 + ("[VERIFIED BOOK EXERCISES] " if item.get("is_verified_book_exercise_source") else "")
@@ -6353,7 +6356,7 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
     if (
         str(activity_mode or "lesson") == "lesson"
         and str(teaching_mode or "full_lesson") in {"full_lesson", "board_lesson"}
-        and _nabil_lesson_start_request(message)
+        and (_nabil_lesson_start_request(message) or _page_request is not None)
     ):
         _before_cleanup_chars = len(reply_text or "")
         reply_text = deduplicate_lesson_sections(reply_text)
@@ -6372,7 +6375,7 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
     if (
         str(activity_mode or "lesson") == "lesson"
         and str(teaching_mode or "full_lesson") in {"full_lesson", "board_lesson"}
-        and _nabil_lesson_start_request(message)
+        and (_nabil_lesson_start_request(message) or _page_request is not None)
     ):
         reply_text = render_verified_page_citations(reply_text, source_chunks)
 
