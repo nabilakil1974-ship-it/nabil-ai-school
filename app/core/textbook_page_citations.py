@@ -9,6 +9,30 @@ _PAGE_TAG = re.compile(r"\[BOOK_PAGE\s*:\s*([^\]\n]{1,45})\]", re.I)
 _NUMBER = re.compile(r"(?<!\d)\d{1,4}(?!\d)")
 
 
+# Verified against the user's actual scanned Grade 9 Chemistry PDF:
+# file page 54 displays printed page 56. The legacy manifest used offset=0,
+# so its stored "printed" numbers are PDF indices until the book is reindexed.
+# Apply correction ONLY if both indexed and PDF page numbers still agree.
+_VERIFIED_PRINTED_PAGE_OFFSETS = {
+    "chemistry - grade 9.pdf": 2,
+}
+
+
+def resolve_book_printed_page(item: dict) -> int | None:
+    try:
+        page = int(item.get("page"))
+        pdf_page = int(item.get("pdf_page")) if item.get("pdf_page") else None
+    except (TypeError, ValueError):
+        return None
+    if page < 1:
+        return None
+    title = str(item.get("book_title") or "").strip().lower()
+    offset = _VERIFIED_PRINTED_PAGE_OFFSETS.get(title)
+    if offset is not None and pdf_page is not None and page == pdf_page:
+        return page + offset
+    return page
+
+
 def verified_source_pages(source_chunks: list[dict]) -> list[dict]:
     """Distinct real printed pages, with book title; no invented PDF offsets."""
     seen: set[tuple[str, int]] = set()
@@ -17,7 +41,7 @@ def verified_source_pages(source_chunks: list[dict]) -> list[dict]:
         if not isinstance(item, dict):
             continue
         title = str(item.get("book_title") or "").strip()
-        raw = item.get("page")
+        raw = resolve_book_printed_page(item)
         if not title or isinstance(raw, bool):
             continue
         try:
@@ -47,7 +71,7 @@ def verified_page_refs(source_chunks: list[dict]) -> list[dict]:
         pdf_page = item.get("pdf_page")
         title = str(item.get("book_title") or "")
         try:
-            page = int(item.get("page"))
+            page = int(resolve_book_printed_page(item))
             actual_pdf = int(pdf_page)
         except (TypeError, ValueError):
             continue
