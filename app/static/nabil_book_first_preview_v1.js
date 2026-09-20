@@ -15,20 +15,18 @@ function show(form,id){
   el.id="nabilBookFirstCard";
   el.setAttribute("role","status");
   el.setAttribute("aria-live","polite");
-  el.style.cssText="position:fixed;z-index:2147483000;top:88px;left:50%;transform:translateX(-50%);width:min(92vw,640px);max-height:57vh;overflow:auto;background:#102a43;color:#f0fbff;border:2px solid #4cc6f5;border-radius:16px;padding:16px;box-shadow:0 8px 35px #0009;font:16px/1.5 Arial,sans-serif;direction:ltr";
+  el.style.cssText="position:relative;width:min(100%,980px);box-sizing:border-box;margin:12px auto;background:#102a43;color:#f0fbff;border:2px solid #4cc6f5;border-radius:16px;padding:16px;box-shadow:0 5px 22px #0005;font:16px/1.55 Arial,sans-serif;direction:ltr";
   const head=document.createElement("strong");
   head.style.cssText="display:block;font-size:20px;color:#8ee7ff;margin-right:20px";
-  head.textContent="📘 "+title;
+  head.textContent="📘 Lesson Entrance — "+title;
   const status=document.createElement("div");
   status.textContent="Opening the textbook and preparing your lesson…";
   const content=document.createElement("p");
-  content.textContent="Your lesson will appear when ready. You can inspect the original page meanwhile.";
+  content.textContent="I’m opening the official textbook first. This book-backed entrance appears immediately while NABIL AI prepares the full interactive explanation.";
   const page=document.createElement("strong");
   page.style.cssText="display:block;color:#a4f3d3";
-  const img=document.createElement("img");
-  img.alt="Original indexed textbook page, not an AI-generated drawing";
-  img.loading="lazy";
-  img.style.cssText="display:none;width:min(100%,395px);max-height:31vh;object-fit:contain;margin:9px auto;border:1px solid #7ad2ff;border-radius:8px;cursor:zoom-in";
+  const figureWrap=document.createElement("div");
+  figureWrap.style.cssText="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:10px";
   const link=document.createElement("a");
   link.textContent="🔎 Open original textbook page at full size";
   link.rel="noopener noreferrer";
@@ -40,8 +38,10 @@ function show(form,id){
   close.textContent="×";
   close.onclick=()=>el.remove();
   close.style.cssText="position:absolute;right:8px;top:2px;background:transparent;color:#fff;font-size:27px;border:0;cursor:pointer";
-  el.append(head,close,status,content,page,img,link);
-  document.body.appendChild(el);
+  el.append(head,close,status,content,page,figureWrap,link);
+  const chat=document.getElementById("chat");
+  if(chat)chat.appendChild(el); else document.body.appendChild(el);
+  try{el.scrollIntoView({behavior:"smooth",block:"nearest"})}catch(_e){}
   const formData=new FormData();
   for(const key of ["grade","subject","curriculum","language","lesson"])
     formData.append(key,String(form.get(key)||""));
@@ -59,12 +59,25 @@ function show(form,id){
     page.textContent=result.book_title+" | PRINTED PAGE "+result.printed_page;
     content.textContent=result.source_excerpt||"Open the original indexed page below.";
     const path=result.page_image_url;
+    const figures=Array.isArray(result.figure_image_urls)?result.figure_image_urls:[];
+    figureWrap.replaceChildren();
+    figures.slice(0,3).forEach((src,index)=>{
+      if(!/^\/api\/textbooks\/[a-z0-9-]+\/pages\/\d+\/figures\/\d+\/image$/i.test(src))return;
+      const holder=document.createElement("figure");
+      holder.style.cssText="margin:0;background:#071d31;border:1px solid #3984aa;border-radius:10px;padding:8px";
+      const original=document.createElement("img");
+      original.src=src; original.loading="lazy";
+      original.alt="Original figure extracted from the verified textbook page";
+      original.style.cssText="display:block;width:100%;height:220px;object-fit:contain;border-radius:7px;background:#fff";
+      const cap=document.createElement("figcaption");
+      cap.textContent="📐 Original textbook figure · printed page "+result.printed_page;
+      cap.style.cssText="font-size:12px;margin-top:6px;color:#a8eaff";
+      holder.append(original,cap); figureWrap.appendChild(holder);
+    });
     if(path&&/^\/api\/textbooks\/[a-z0-9-]+\/pages\/\d+\/image$/i.test(path)){
-      img.src=path;
-      img.style.display="block";
       link.href=path;
-      link.style.display="inline";
-      img.onclick=()=>window.open(path,"_blank","noopener");
+      link.textContent="🔎 Inspect the complete original page (not shown on the lesson board)";
+      link.style.display="inline-block";
     }
   }).catch(()=>{
     if(el.isConnected&&id===pending)
@@ -73,8 +86,7 @@ function show(form,id){
   return ()=>{
     controller.abort();
     if(el.isConnected){
-      status.textContent="✅ Your lesson response is ready";
-      window.setTimeout(()=>{if(id===pending)el.remove();},2200);
+      status.textContent="✅ The full interactive explanation is ready below. This verified textbook entrance stays here for reference.";
     }
   };
 }
