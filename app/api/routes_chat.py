@@ -6311,7 +6311,7 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
     # complete lesson to the first, never silently pass the invalid first one.
     if lesson_start_from_book and _page_request and source_chunks:
         _strict_page = _page_request[1] == "page"
-        _indexed_page_text = "\\n".join(
+        _indexed_page_text = "\n".join(
             str(chunk.get("text") or "") for chunk in source_chunks
             if resolve_book_printed_page(chunk) == _page_request[0]
         )
@@ -6327,7 +6327,7 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
             )
             _quality_instruction = (
                 lesson_instructions
-                + "\\nSTRICT REPLACEMENT, NEVER A CONTINUATION. "
+                + "\nSTRICT REPLACEMENT, NEVER A CONTINUATION. "
                 "Explain only the indexed requested printed page in textbook order. "
                 "Use the verified NaCl and MgF2 examples when they appear in the "
                 "source, including electron conservation and charge neutrality. "
