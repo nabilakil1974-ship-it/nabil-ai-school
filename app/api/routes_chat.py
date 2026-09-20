@@ -1767,6 +1767,109 @@ def _function_value(kind, x, drawing):
     return None
 
 
+# ==========================================================
+# Chemistry conservation gate (ionic bonding)
+# ==========================================================
+#
+# Element symbol -> (total_valence_electrons, ion_charge_after_bonding) for
+# the elements that actually appear in school-level ionic bonding lessons
+# (metals from groups 1-2 plus Al, and common nonmetal/halogen/chalcogen/
+# pnictogen groups). total_valence_electrons is the real neutral-atom count
+# a Lewis dot diagram must show (e.g. fluorine has 7 dots, not 1) - this is
+# NOT the same number as electrons transferred; ion_charge_after_bonding is
+# the resulting ion's charge (e.g. F- is -1, Mg2+ is +2), which for a main-
+# group element also equals the electrons lost (metals, positive) or the
+# electrons still needed to complete the octet (nonmetals, negative).
+# This is intentionally a small, curated table, not a full periodic table:
+# every entry here is a fact a chemistry teacher would state without
+# hesitation, so a wrong value is unambiguously an error worth blocking on,
+# not a borderline case (e.g. transition metals with multiple common
+# oxidation states are deliberately left out rather than guessed at).
+_IONIC_ELEMENT_DATA = {
+    # metals: (total valence electrons, ion charge = electrons lost)
+    "Li": (1, 1), "Na": (1, 1), "K": (1, 1), "Rb": (1, 1), "Cs": (1, 1),
+    "Be": (2, 2), "Mg": (2, 2), "Ca": (2, 2), "Sr": (2, 2), "Ba": (2, 2),
+    "Al": (3, 3),
+    # nonmetals: (total valence electrons, ion charge = -(electrons gained))
+    "F": (7, -1), "Cl": (7, -1), "Br": (7, -1), "I": (7, -1),
+    "O": (6, -2), "S": (6, -2), "Se": (6, -2),
+    "N": (5, -3), "P": (5, -3),
+}
+
+
+def _ionic_bond_conservation_check(drawing: dict) -> tuple[bool, str]:
+    """Check a real ionic_bond/electron_transfer drawing against valence and
+    charge-conservation facts, independent of whatever the language model
+    claimed. Returns (is_valid, reason). This is intentionally permissive
+    when the drawing doesn't state enough to check (missing counts, an
+    element outside the curated table) - the rule is "never confirm a wrong
+    answer", not "reject anything incomplete"; a drawing with no checkable
+    claims passes so the platform doesn't start rejecting valid lessons on
+    elements this table doesn't cover.
+    """
+    labels = drawing.get("labels") if isinstance(drawing.get("labels"), dict) else {}
+    metal = str(labels.get("metal") or "").strip()
+    nonmetal = str(labels.get("nonmetal") or "").strip()
+
+    metal_data = _IONIC_ELEMENT_DATA.get(metal)
+    nonmetal_data = _IONIC_ELEMENT_DATA.get(nonmetal)
+    if metal_data is None or nonmetal_data is None:
+        # Element not in the curated table (or missing) - nothing to check.
+        return True, ""
+
+    metal_valence, metal_charge = metal_data
+    nonmetal_valence, nonmetal_charge = nonmetal_data
+
+    # If the drawing states the TOTAL valence electron count for the neutral
+    # atom (i.e. what a Lewis dot structure should show - 7 dots for F, not
+    # 1), verify it. This is deliberately separate from ion charge below:
+    # fluorine has 7 valence electrons but only gains/transfers 1.
+    stated_metal_valence = _drawing_numeric_length(labels.get("metal_valence_electrons"))
+    if stated_metal_valence is not None and round(stated_metal_valence) != metal_valence:
+        return False, (
+            f"{metal}: stated valence electrons {stated_metal_valence:g} "
+            f"!= actual {metal_valence}"
+        )
+
+    stated_nonmetal_valence = _drawing_numeric_length(labels.get("nonmetal_valence_electrons"))
+    if stated_nonmetal_valence is not None and round(stated_nonmetal_valence) != nonmetal_valence:
+        return False, (
+            f"{nonmetal}: stated valence electrons {stated_nonmetal_valence:g} "
+            f"!= actual {nonmetal_valence}"
+        )
+
+    stated_metal_ion_charge = _drawing_numeric_length(labels.get("metal_ion_charge"))
+    if stated_metal_ion_charge is not None and round(stated_metal_ion_charge) != metal_charge:
+        return False, (
+            f"{metal} ion: stated charge {stated_metal_ion_charge:g} "
+            f"!= actual {metal_charge:+d}"
+        )
+
+    stated_nonmetal_ion_charge = _drawing_numeric_length(labels.get("nonmetal_ion_charge"))
+    if stated_nonmetal_ion_charge is not None and round(stated_nonmetal_ion_charge) != nonmetal_charge:
+        return False, (
+            f"{nonmetal} ion: stated charge {stated_nonmetal_ion_charge:g} "
+            f"!= actual {nonmetal_charge:+d}"
+        )
+
+    # If the drawing states how many nonmetal atoms bond to one metal atom
+    # (e.g. MgF2 needs 2 fluorine atoms per magnesium), check the overall
+    # compound is charge-neutral: metal_charge + nonmetal_count*nonmetal_charge == 0.
+    stated_nonmetal_count = _drawing_numeric_length(
+        labels.get("nonmetal_count") or labels.get("nonmetal_atoms")
+    )
+    if stated_nonmetal_count is not None:
+        total_charge = metal_charge + round(stated_nonmetal_count) * nonmetal_charge
+        if total_charge != 0:
+            return False, (
+                f"{metal}{nonmetal}{round(stated_nonmetal_count) if stated_nonmetal_count != 1 else ''}: "
+                f"charges do not balance to zero "
+                f"({metal_charge:+d} + {round(stated_nonmetal_count)}x{nonmetal_charge:+d} = {total_charge:+d})"
+            )
+
+    return True, ""
+
+
 def validate_drawing_strict(drawing):
     """Reject structurally or mathematically unreliable drawings.
     This validator never invents missing scientific data.
@@ -1933,7 +2036,15 @@ def validate_drawing_strict(drawing):
 
     if dtype in {"ionic_bond", "electron_transfer"}:
         labels = drawing.get("labels") or {}
-        return isinstance(labels, dict) and bool(str(labels.get("metal") or "").strip()) and bool(str(labels.get("nonmetal") or "").strip())
+        if not (isinstance(labels, dict) and str(labels.get("metal") or "").strip() and str(labels.get("nonmetal") or "").strip()):
+            return False
+        # Structural check passed (metal/nonmetal are present). Also run the
+        # real valence/charge conservation check: if the drawing states
+        # electron or charge counts that are curated-table-checkable and
+        # they are wrong, reject the drawing so the repair loop regenerates
+        # it instead of showing the student a chemically incorrect diagram.
+        is_conserved, _reason = _ionic_bond_conservation_check(drawing)
+        return is_conserved
 
     if dtype == "probability_tree":
         return _validate_probability_branches(drawing.get("branches"))
@@ -4975,6 +5086,25 @@ async def voice_chat(
     _primary_ai_elapsed_ms = 0
     _repair_ai_elapsed_ms = 0
     _repair_ai_calls = 0
+    # Hard ceiling for the whole request, independent of the older 66/81/84
+    # second checks scattered below (kept as inner per-call timeouts so a
+    # single slow provider call doesn't hang forever, but no longer allowed
+    # to let the OVERALL request run close to 90s). Priority: the student
+    # should see something useful in well under a minute, even if that
+    # means skipping a repair pass rather than chasing a perfect answer.
+    _MAX_REQUEST_SECONDS = 55.0
+    _MAX_REPAIR_CALLS = 2
+
+    def _repair_budget_ok() -> bool:
+        """False once either the repair-call cap or the wall-clock budget
+        is reached - callers should skip the repair attempt and return
+        whatever answer they already have rather than starting another
+        full model round-trip."""
+        return (
+            _repair_ai_calls < _MAX_REPAIR_CALLS
+            and (time.monotonic() - _request_started_at) < _MAX_REQUEST_SECONDS
+        )
+
     figure_only_request = _nabil_figure_only_request(message)
 
     # Written and transcribed voice requests use the SAME lesson/exercise
@@ -5561,11 +5691,14 @@ the same lesson Visual Engine; never describe it as rendered without one.
     - في الفيزياء: أظهر المصدر والقطبية واتجاه التيار وأسماء المقاومات وقيمها والتوصيل بوضوح. في الكيمياء: أظهر رموز الذرات/الأيونات والشحنات والروابط والتسمية. في الأحياء والعلوم: أظهر الأجزاء الأساسية بأسهم وتسميات واضحة. في المجسمات: أظهر r وh أو الأبعاد المطلوبة وخطوط القياس المتقطعة.
     - محرّك الرسم شامل وليس خاصًا بمادة واحدة: في الرياضيات أظهر المحاور والنقاط والقياسات والقيم؛ في الفيزياء القوى والمصادر والاتجاهات والوحدات؛ في الكيمياء ألوان العناصر والإلكترونات والشحنات والروابط؛ في البيولوجي الخلية أو العضو بأجزائه وأسهم تسمياته؛ وفي بقية العلوم استخدم نموذجًا بصريًا مناسبًا للمفهوم. طبّق ذلك لأي صف بحسب مستوى الطالب.
     - في درس Ionic bond أو الرابطة الأيونية استخدم حصرًا type="electron_transfer" أو type="ionic_bond" مع labels فيها metal="Na" وnonmetal="Cl". يجب أن يظهر قبل/بعد انتقال الإلكترون والشحنتان Na+ وCl- والرابطة؛ يُمنع استخدام coordinate_plane أو graph لهذا الدرس.
+    - بوابة تحقق إلزامية للرابطة الأيونية: أضف داخل labels نفسها القيم العددية التالية كلما كانت العناصر معروفة: metal_valence_electrons (عدد إلكترونات التكافؤ الكلي للذرة المتعادلة، مثلًا 2 لـ Mg وليس شحنة الأيون)، metal_ion_charge (شحنة أيون الفلز بعد فقدان الإلكترونات، مثلًا +2 لـ Mg2+)، nonmetal_valence_electrons (عدد إلكترونات التكافؤ الكلي للذرة المتعادلة، مثلًا 7 لـ F - هذا عدد النقاط بالبنية اللويسية، وليس عدد الإلكترونات المكتسبة)، nonmetal_ion_charge (شحنة أيون اللافلز بعد اكتساب الإلكترونات، مثلًا -1 لـ F-)، وnonmetal_count (كم ذرة لافلز تلزم لكل ذرة فلز واحدة، مثلًا 2 لـ MgF2). هذه القيم تُتحقق برمجيًا مقابل جدول تكافؤ حقيقي، وأي قيمة خاطئة سترفض الرسمة تلقائيًا وتُعاد المحاولة. لا تكتب قيمة تخمينية إذا لم تكن متأكدًا منها - اترك الحقل فارغًا بدل كتابة رقم خاطئ.
     - عقد الرسم إلزامي: إذا كتبت في الشرح عبارة مثل "the diagram above/below shows" أو "الرسم يوضح" أو أي إحالة إلى رسم، فيجب أن تحتوي الإجابة نفسها على DRAWINGS_JSON صالح ومكتمل. ممنوع الإشارة إلى رسم غير موجود.
 - هذه القاعدة عامة لكل درس أو تمرين أو فكرة في جميع المواد وكل الصفوف، سواء كان نمط الشرح درسًا كاملًا أو فكرة ثم سؤال أو حل تمرين.
     - في درس Ionic bond، إذا شرحت مثال NaCl أو انتقال الإلكترون بين Na وCl، أرسل DRAWINGS_JSON فعليًا في نفس الإجابة ولا تكتفِ بوصف الرسم نصيًا.
     - لا تستخدم رسومات ASCII.
     - عند رفع صورة، ميّز بين صفحة كتاب وتمرين وحل طالب قبل الإجابة، ولا تفترض نصًا محجوبًا أو غير مقروء.
+    - تحليل الصورة إلزامي وظاهر للطالب قبل الحل: عندما تكون الصورة تمرينًا، ابدأ الجواب ببطاقة "فهم السؤال" (Understanding the question / Compréhension de la question) تسرد بوضوح: (1) نص السؤال كما تقرأه، (2) المعطيات المذكورة بالأرقام والوحدات، (3) المطلوب تحديدًا، (4) وصف أي رسم أو شكل موجود بالصورة وعناصره. لا تنتقل للحل مباشرة دون هذه البطاقة أولًا - هذا ليس وصفًا للصورة بل تحليل فعلي يستخرج المحتوى العلمي منها.
+    - ممنوع اختراع أي معطى غير ظاهر فعليًا بالصورة. مثال: لا تفترض أن مثلثًا قائم الزاوية لمجرد أنه يبدو كذلك بالرسم إن لم يُذكر ذلك نصًا أو برمز الزاوية القائمة. إذا كان جزء من الصورة غير واضح أو مقروء، اذكر ذلك صراحة داخل بطاقة "فهم السؤال" (مثلًا: "الرقم في السطر الثاني غير واضح، الرجاء التأكد منه") بدل افتراض قيمة.
     - اختم شرح الدرس ببطاقة نهائية واحدة فقط: 3–7 نقاط تلخّص القواعد والأفكار الأساسية ونتائج الأمثلة ومعاني الرسومات من جميع البطاقات السابقة، ويكون سؤال التحقق آخر جزء داخلها.
     - في جميع المواد وكل الصفوف، إذا كان الدرس قد احتوى رسومات فعلية، يجب اعتبار Final Card لوحة ختامية بصرية تجميعية: النص يبقى مختصرًا، والواجهة تعيد إدراج الرسومات الأساسية السابقة تلقائيًا داخل البطاقة النهائية.
 - في بطاقات المقارنة البصرية، حافظ على العلاقة: كل رسمة فوق حلّها الخاص، ثم تأتي البطاقة النهائية/الخلاصة بعرض كامل بعد جميع الحالات.
@@ -5960,7 +6093,7 @@ Do not produce JSON transport as visible prose.
                         "view the real scanned book page independently."
                     ),
                 }]
-                if time.monotonic() - _request_started_at > 66.0:
+                if time.monotonic() - _request_started_at > _MAX_REQUEST_SECONDS - 10.0:
                     raise TimeoutError("Book vision and provider attempts exceeded lesson response budget") from vision_exc
                 raw_reply = await asyncio.wait_for(
                     run_in_threadpool(
@@ -5971,7 +6104,7 @@ Do not produce JSON transport as visible prose.
                         max_output_tokens=min(output_budget, 2100),
                         fast_lesson=True,
                     ),
-                    timeout=max(3.0, 81.0 - (time.monotonic() - _request_started_at)),
+                    timeout=max(3.0, _MAX_REQUEST_SECONDS - (time.monotonic() - _request_started_at)),
                 )
                 lesson_generation_logger.info(
                     "BOOK_TEXT_ONLY_LESSON_FALLBACK_SUCCESS printed_page=%d",
@@ -6018,7 +6151,7 @@ Do not produce JSON transport as visible prose.
         and not lesson_start_from_book  # textbook exercises replace invented five-exercise quota
     ):
         missing_exercises = _nabil_missing_practice_exercises(raw_reply)
-        if missing_exercises:
+        if missing_exercises and _repair_budget_ok():
             missing_label = ", ".join(str(n) for n in missing_exercises)
             repair_prompt = f"""
 The lesson response below is incomplete because some of the required five solved practice exercises are missing.
@@ -6101,7 +6234,7 @@ Do not invent hidden data. Return only the missing exercises and their drawing J
             _function_study and (not _has_variation or not _has_drawing_payload)
         )
 
-        if _looks_cut:
+        if _looks_cut and _repair_budget_ok():
             repair_prompt = f"""
 The answer below is incomplete or structurally invalid.
 
@@ -6127,6 +6260,7 @@ Mandatory:
 """.strip()
 
             try:
+                _repair_ai_calls += 1
                 repaired_reply = await run_in_threadpool(ai.generate,
                     instructions=SYSTEM_PROMPT,
                     messages=[{"role": "user", "content": repair_prompt}],
@@ -6194,7 +6328,7 @@ Mandatory:
             or not re.search(r"\b2\s*Cl\s*[-⁻]|two\s+chlor", str(raw_reply or ""), re.I)
         )
 
-        if _language_mismatch or _math_template_leak or _chemistry_fact_failure:
+        if (_language_mismatch or _math_template_leak or _chemistry_fact_failure) and _repair_budget_ok():
             _repair_requirements = """
 Write the complete replacement in natural English only (apart from chemical
 symbols). Teach as if sitting beside the learner. Remove every mathematics
@@ -6220,6 +6354,7 @@ Replace it completely.
 {_repair_requirements}
 """.strip()
             try:
+                _repair_ai_calls += 1
                 _science_repaired = await run_in_threadpool(ai.generate,
                     instructions=SYSTEM_PROMPT,
                     messages=[{"role": "user", "content": _science_repair_prompt}],
@@ -6264,7 +6399,7 @@ Replace it completely.
             "drawing": bool(re.search(r"DRAWINGS_JSON\s*:|<DRAWINGS_JSON>|```nabil-draw", _function_answer, re.I)),
         }
 
-        if not all(_needed_checks.values()):
+        if not all(_needed_checks.values()) and _repair_budget_ok():
             repair_prompt = f"""
 Regenerate the COMPLETE function-study answer from the beginning.
 
@@ -6301,6 +6436,7 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
 """.strip()
 
             try:
+                _repair_ai_calls += 1
                 repaired = await run_in_threadpool(ai.generate,
                     instructions=SYSTEM_PROMPT,
                     messages=[{"role":"user","content":repair_prompt}],
@@ -6350,9 +6486,10 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
                 "Do not repeat any previous response."
             )
             try:
-                _quality_remaining = 84.0 - (time.monotonic() - _request_started_at)
-                if _quality_remaining < 12.0:
+                _quality_remaining = _MAX_REQUEST_SECONDS - (time.monotonic() - _request_started_at)
+                if _quality_remaining < 12.0 or not _repair_budget_ok():
                     raise TimeoutError("No time budget remains to regenerate the page")
+                _repair_ai_calls += 1
                 _replacement = await asyncio.wait_for(
                     run_in_threadpool(
                         ai.generate,
@@ -6767,24 +6904,41 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
     # RESPONSE
     # ==========================================
  
+    # Build the student-facing source list once per (book, printed page)
+    # instead of once per retrieved text chunk. search_book_pages() can
+    # legitimately return several chunks from the same page for one
+    # question (the page was split into multiple embedded chunks), and
+    # every chunk's text is needed upstream to build the answer - so this
+    # dedup happens ONLY here, at display time, not in rag_search.py where
+    # dropping a chunk would silently remove real content from the context
+    # the model sees. Without this, the student could see the identical
+    # book-page image repeated 2-4 times in one answer's source list.
+    _seen_source_pages = set()
+    _dedup_sources = []
+    for item in source_chunks:
+        if not isinstance(item, dict) or not item.get("book_title"):
+            continue
+        _resolved_page = resolve_book_printed_page(item)
+        _source_key = (item.get("book_id"), _resolved_page)
+        if _source_key in _seen_source_pages:
+            continue
+        _seen_source_pages.add(_source_key)
+        _dedup_sources.append({
+            "book_title": str(item.get("book_title") or ""),
+            "page": _resolved_page,
+            "pdf_page": item.get("pdf_page"),
+            "page_image_url": (
+                f"/api/textbooks/{item['book_id']}/pages/{_resolved_page}/image"
+                if item.get("book_id") and item.get("pdf_page") else None
+            ),
+        })
+
     return ChatResponse(
         conversation_id=str(
             conversation.id
         ),
         reply=reply_text,
-        sources=[
-            {
-                "book_title": str(item.get("book_title") or ""),
-                "page": resolve_book_printed_page(item),
-                "pdf_page": item.get("pdf_page"),
-                "page_image_url": (
-                    f"/api/textbooks/{item['book_id']}/pages/{resolve_book_printed_page(item)}/image"
-                    if item.get("book_id") and item.get("pdf_page") else None
-                ),
-            }
-            for item in source_chunks
-            if isinstance(item, dict) and item.get("book_title")
-        ],
+        sources=_dedup_sources,
         transcribed_text=transcribed_text,
         drawings=drawings,
         drawing=(
