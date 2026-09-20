@@ -33,6 +33,7 @@ class BookFirstLessonTests(unittest.TestCase):
     def test_failed_ai_request_never_marks_lesson_ready(self):
         js = pathlib.Path("app/static/nabil_book_first_preview_v1.js").read_text("utf-8")
         self.assertIn("lessonFailed=true;updateStatus()", js)
+        self.assertIn("if(!title)return {done:()=>{},fail:()=>{}};", js)
         self.assertIn("if(lessonFailed){", js)
         self.assertIn("if(result.ok){", js)
         self.assertIn("}else{", js)
