@@ -76,7 +76,8 @@ function renderIonic(spec){
  // MgCl2: upper and lower arrows. NaCl: one arrow, never invent a second e-.
  for(let k=0;k<mc*loss;k++){
   const di=Math.floor(k/loss),ai=Math.floor(k/gain);
-  const donor=before[di],receiver=before[mc+ai], top=(k%2===0);
+  const donor=before[di],receiver=before[mc+ai];
+  const top=(k%2===0);
   const sy=donor.y+(top?-38:38),ey=receiver.y+(top?-38:38);
   const controlY=top?Math.min(sy,ey)-67:Math.max(sy,ey)+67;
   svg+=`<path d="M${donor.x+43} ${sy} Q270 ${controlY} ${receiver.x-47} ${ey}" stroke="#ffdc5c" fill="none" stroke-width="3.2" marker-end="url(#nabilIonElectronArrow)"/>
