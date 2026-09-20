@@ -45,9 +45,15 @@ class NabilAIGateway:
 
         self.sdk_max_retries = 0
 
+        # Groq is the confirmed, working default provider for this project
+        # (see project history: Gemini's shared-billing-pool 429 errors kept
+        # recurring even after key rotation). Groq now goes first so a
+        # working request never has to wait out a Gemini failure/cooldown
+        # before it even starts. Override with the NABIL_AI_PROVIDER_ORDER
+        # env var on Railway if this should change without a code deploy.
         raw_order = os.getenv(
             "NABIL_AI_PROVIDER_ORDER",
-            "gemini,openrouter,groq",
+            "groq,openrouter,gemini",
         )
 
         supported = {"gemini", "openrouter", "groq", "openai"}
@@ -1059,3 +1065,32 @@ class NabilAIGateway:
         raise RuntimeError(
             "تعذّر فهم التسجيل الصوتي حاليًا. جرّب مرة ثانية أو اكتب السؤال."
         ) from last_error
+
+
+# ==========================================================
+# Shared singleton
+# ==========================================================
+#
+# NabilAIGateway tracks provider cooldowns (_blocked_until,
+# _gemini_global_blocked_until, _failure_count, _gemini_cursor) on the
+# INSTANCE, not as class/module state, and guards them with its own
+# threading.Lock specifically so that state can be shared safely across
+# concurrent requests within one process.
+#
+# Every call site previously did `ai = NabilAIGateway()` per request, which
+# created a brand-new instance each time and reset every cooldown/failure
+# counter to zero. That defeated the circuit breaker entirely: if Gemini was
+# down, every single request re-discovered that fact from scratch and paid
+# the full provider timeout again instead of skipping straight to the next
+# provider. get_ai_gateway() returns one shared instance per process instead.
+_shared_gateway_lock = threading.Lock()
+_shared_gateway_instance: Optional["NabilAIGateway"] = None
+
+
+def get_ai_gateway() -> "NabilAIGateway":
+    global _shared_gateway_instance
+    if _shared_gateway_instance is None:
+        with _shared_gateway_lock:
+            if _shared_gateway_instance is None:
+                _shared_gateway_instance = NabilAIGateway()
+    return _shared_gateway_instance
