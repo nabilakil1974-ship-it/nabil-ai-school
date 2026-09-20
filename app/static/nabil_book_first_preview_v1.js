@@ -7,8 +7,34 @@ if(window.nabilBookFirstInstalled)return;
 window.nabilBookFirstInstalled=true;
 const originalFetch=window.fetch.bind(window);
 let pending=0;
+const printedPageFromMessage=message=>{
+  const m=String(message||"").match(/(?:page|pages|صفحة|الصفحة|صفحه|ص\\.)\\s*(?:رقم|number|no\\.?)?\\s*[:#-]?\\s*(\\d{1,4})/i);
+  return m?m[1]:"";
+};
+function installPagePicker(){
+  if(document.getElementById("nabilPrintedPagePicker"))return;
+  const select=document.getElementById("lessonSelect");
+  if(!select)return;
+  const wrap=document.createElement("label");
+  wrap.id="nabilPrintedPagePicker";
+  wrap.style.cssText="display:flex;align-items:center;gap:8px;padding:8px 11px;margin:7px 0;color:#a8eaff;font:14px Arial,sans-serif;max-width:100%;box-sizing:border-box";
+  wrap.appendChild(document.createTextNode("📘 رقم صفحة كتاب الدولة المطبوعة (اختياري):"));
+  const input=document.createElement("input");
+  input.id="nabilPrintedPageInput";
+  input.type="number";input.min="1";input.max="9999";input.step="1";
+  input.placeholder="55";
+  input.style.cssText="width:85px;min-width:65px;border:1px solid #50bff0;background:#0b2138;color:#fff;border-radius:9px;padding:9px;font-size:16px";
+  input.setAttribute("aria-label","رقم صفحة الكتاب المطبوعة");
+  wrap.appendChild(input);
+  select.insertAdjacentElement("afterend",wrap);
+}
+if(document.readyState==="loading"){
+  document.addEventListener("DOMContentLoaded",installPagePicker,{once:true});
+}else installPagePicker();
 function show(form,id){
-  const title=String(form.get("lesson")||"").trim();
+  const chosen=String(form.get("book_page")||"").trim()||
+    printedPageFromMessage(form.get("message"));
+  const title=chosen?"Printed textbook page "+chosen:String(form.get("lesson")||"").trim();
   if(!title)return ()=>{};
   document.getElementById("nabilBookFirstCard")?.remove();
   const el=document.createElement("aside");
@@ -43,7 +69,7 @@ function show(form,id){
   if(chat)chat.appendChild(el); else document.body.appendChild(el);
   try{el.scrollIntoView({behavior:"smooth",block:"nearest"})}catch(_e){}
   const formData=new FormData();
-  for(const key of ["grade","subject","curriculum","language","lesson"])
+  for(const key of ["grade","subject","curriculum","language","lesson","message","book_page"])
     formData.append(key,String(form.get(key)||""));
   const controller=new AbortController();
   originalFetch("/api/textbooks/lesson-preview",{
@@ -97,6 +123,14 @@ window.fetch=function(input,options){
      String(body.get("activity_mode")||"lesson")!=="lesson"||
      !["full_lesson","board_lesson"].includes(String(body.get("teaching_mode")||"full_lesson"))){
     return originalFetch(input,options);
+  }
+  const picker=document.getElementById("nabilPrintedPageInput");
+  const msg=String(body.get("message")||"");
+  const isLessonStart=/begin\\s+the\\s+(?:complete\\s+)?selected\\s+lesson|ابدأ\\s+الدرس|commence\\s+maintenant/i.test(msg);
+  const typedPage=printedPageFromMessage(msg);
+  if(picker?.value&&isLessonStart&&!typedPage){
+    body.set("book_page",String(picker.value));
+    picker.value="";
   }
   const id=++pending;
   const done=show(body,id);
