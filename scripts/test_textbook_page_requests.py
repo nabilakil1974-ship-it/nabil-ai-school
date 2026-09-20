@@ -2,7 +2,29 @@
 import unittest
 from types import SimpleNamespace
 from unittest.mock import MagicMock
-from app.db.models import Book, BookPage, BookChunk
+# CI's lightweight UI job deliberately does not install SQLAlchemy. Use
+# model-name doubles for this pure routing test; Railway uses actual ORM models.
+import sys
+import types
+
+class _Column:
+    def __eq__(self, other):
+        return self
+
+class Book:
+    grade = subject = curriculum = title = _Column()
+
+class BookPage:
+    book_id = pdf_page_index = _Column()
+
+class BookChunk:
+    book_id = printed_page_number = chunk_index_in_page = _Column()
+
+fake_models = types.ModuleType("app.db.models")
+fake_models.Book = Book
+fake_models.BookPage = BookPage
+fake_models.BookChunk = BookChunk
+sys.modules["app.db.models"] = fake_models
 from app.services.textbook_page_request import (
     parse_textbook_page_request, indexed_textbook_page_context,
 )
