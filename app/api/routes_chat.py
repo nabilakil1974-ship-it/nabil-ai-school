@@ -41,7 +41,8 @@ from app.db.session import get_db
 from app.db.models import Conversation, Message, Student, BookChunk
 from app.db.student_learning import StudentLearningProfile
 from app.services.ai_gateway import NabilAIGateway
-from app.services.rag_search import search_book_pages, build_context_block, find_nearest_book_exercises
+from app.services.rag_search import search_book_pages, build_context_block
+from app.services.textbook_page_request import parse_textbook_page_request, indexed_textbook_page_context, find_nearest_book_exercises
 from app.services.textbook_scope import resolve_textbook_curriculum
 from app.services.lesson_cache import lesson_cache_key, source_signature, get_cached_lesson, save_cached_lesson
  
@@ -4839,6 +4840,7 @@ async def voice_chat(
     curriculum: Optional[str] = Form(None),
     language: Optional[str] = Form(None),
     lesson: Optional[str] = Form(None),
+    book_page: Optional[str] = Form(None),
     teaching_mode: Optional[str] = Form("full_lesson"),
     activity_mode: Optional[str] = Form("lesson"),
     learning_action: Optional[str] = Form(None),
@@ -4968,6 +4970,12 @@ async def voice_chat(
 
     # Voice transcription replaces the initial message: recompute visual-only intent.
     figure_only_request = _nabil_figure_only_request(message)
+    _page_request = None
+    if (str(activity_mode or 'lesson').strip().lower() == 'lesson' and image_bytes is None):
+        try:
+            _page_request = parse_textbook_page_request(message, book_page or '')
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     # ==========================================
     # STUDENT
