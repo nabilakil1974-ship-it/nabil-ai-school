@@ -17,6 +17,7 @@ RUN apt-get update \
         libgomp1 \
         libstdc++6 \
         poppler-utils \
+        ffmpeg \
         tesseract-ocr \
         tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*
