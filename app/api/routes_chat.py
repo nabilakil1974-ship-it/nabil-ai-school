@@ -5956,7 +5956,7 @@ Do not produce JSON transport as visible prose.
                         "view the real scanned book page independently."
                     ),
                 }]
-                if time.monotonic() - _request_started_at > 73.0:
+                if time.monotonic() - _request_started_at > 66.0:
                     raise TimeoutError("Book vision and provider attempts exceeded lesson response budget") from vision_exc
                 raw_reply = await asyncio.wait_for(
                     run_in_threadpool(
@@ -5967,7 +5967,7 @@ Do not produce JSON transport as visible prose.
                         max_output_tokens=min(output_budget, 2100),
                         fast_lesson=True,
                     ),
-                    timeout=max(3.0, 94.0 - (time.monotonic() - _request_started_at)),
+                    timeout=max(3.0, 81.0 - (time.monotonic() - _request_started_at)),
                 )
                 lesson_generation_logger.info(
                     "BOOK_TEXT_ONLY_LESSON_FALLBACK_SUCCESS printed_page=%d",
@@ -6346,7 +6346,7 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
                 "Do not repeat any previous response."
             )
             try:
-                _quality_remaining = 105.0 - (time.monotonic() - _request_started_at)
+                _quality_remaining = 84.0 - (time.monotonic() - _request_started_at)
                 if _quality_remaining < 12.0:
                     raise TimeoutError("No time budget remains to regenerate the page")
                 _replacement = await asyncio.wait_for(
@@ -6358,7 +6358,7 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
                         max_output_tokens=1900,
                         fast_lesson=True,
                     ),
-                    timeout=min(28.0, _quality_remaining),
+                    timeout=min(17.0, _quality_remaining),
                 )
             except Exception as exc:
                 lesson_generation_logger.warning(
