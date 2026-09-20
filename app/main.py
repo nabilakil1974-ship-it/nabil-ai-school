@@ -27,6 +27,7 @@ from app.db import ai_usage  # noqa: F401
 from app.api import (
     routes_health,
     routes_chat,
+    routes_textbook_pages,
     routes_research,
     routes_worksheet,
     routes_admin,
@@ -304,6 +305,8 @@ app.include_router(
     prefix="/api",
     tags=["health"],
 )
+
+app.include_router(routes_textbook_pages.router, prefix="/api", tags=["textbook-pages"])
 
 app.include_router(
     routes_chat.router,
