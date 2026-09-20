@@ -19,9 +19,9 @@ _LESSON_INTENT = re.compile(
     r"الدرس|الفصل|الوحدة|من\s+صفحة|ابتداء\s+من|من\s+الصفحة"
 )
 _EXPLICIT_EXTENDED_PAGE = re.compile(
-    r"(?i)(?:from\\s+(?:printed\\s+)?page|start\\s+at\\s+page|"
-    r"continue\\s+from\\s+page|depuis\\s+la\\s+page|"
-    r"من\\s+(?:ال)?صفحة|ابتداء\\s+من\\s+(?:ال)?صفحة)"
+    r"(?i)(?:from\s+(?:printed\s+)?page|start\s+at\s+page|"
+    r"continue\s+from\s+page|depuis\s+la\s+page|"
+    r"من\s+(?:ال)?صفحة|ابتداء\s+من\s+(?:ال)?صفحة)"
 )
 _NEXT_CHAPTER = re.compile(
     r"(?im)^\s*(?:chapter\s+(?:\d+|one|two|three|four|five|six|"
