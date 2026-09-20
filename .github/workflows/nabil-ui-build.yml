@@ -11,6 +11,7 @@ on:
       - app/api/routes_textbook_pages.py
       - app/services/rag_search.py
       - app/services/lesson_cache.py
+      - app/core/lesson_cache_contract.py
       - scripts/test_book_first_lesson_cache.py
       - app/static/nabil_book_first_preview_v1.js
       - scripts/test_textbook_page_grounding.py
@@ -38,6 +39,7 @@ on:
       - app/api/routes_textbook_pages.py
       - app/services/rag_search.py
       - app/services/lesson_cache.py
+      - app/core/lesson_cache_contract.py
       - scripts/test_book_first_lesson_cache.py
       - app/static/nabil_book_first_preview_v1.js
       - scripts/test_textbook_page_grounding.py
