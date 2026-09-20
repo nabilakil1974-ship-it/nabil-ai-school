@@ -28,6 +28,37 @@ function installPagePicker(){
   wrap.appendChild(input);
   select.insertAdjacentElement("afterend",wrap);
 }
+// Exact printed-page requests are an alternative to imperfect lesson titles.
+// The legacy start button still requires lessonSelect.value; provide a clearly
+// labelled temporary PAGE selection at capture phase before its click handler.
+// Never pretend it is an indexed chapter title: the server verifies the page.
+function prepareExactPageLesson(){
+  const input=document.getElementById("nabilPrintedPageInput");
+  const select=document.getElementById("lessonSelect");
+  if(!input||!select)return;
+  const raw=String(input.value||"").trim();
+  if(!/^\\d{1,4}$/.test(raw)||Number(raw)<1)return;
+  const existing=String(select.value||"").trim();
+  if(existing&&existing!=="المحتوى قيد الفهرسة"&&!select.selectedOptions[0]?.dataset?.nabilPageTemporary)return;
+  const synthetic="صفحة الكتاب المطبوعة "+Number(raw);
+  let option=Array.from(select.options).find(o=>o.dataset.nabilPageTemporary==="yes");
+  if(!option){
+    option=document.createElement("option");
+    option.dataset.nabilPageTemporary="yes";
+    select.appendChild(option);
+  }
+  option.value=synthetic;
+  option.textContent=synthetic+" (يتم التحقق من الكتاب)";
+  select.value=synthetic;
+}
+document.addEventListener("click",event=>{
+  if(event.target?.closest?.("#startLesson"))prepareExactPageLesson();
+},true);
+document.addEventListener("input",event=>{
+  if(event.target?.id!=="nabilPrintedPageInput")return;
+  const selected=document.getElementById("lessonSelect")?.selectedOptions?.[0];
+  if(selected?.dataset?.nabilPageTemporary==="yes")prepareExactPageLesson();
+},true);
 if(document.readyState==="loading"){
   document.addEventListener("DOMContentLoaded",installPagePicker,{once:true});
 }else installPagePicker();
