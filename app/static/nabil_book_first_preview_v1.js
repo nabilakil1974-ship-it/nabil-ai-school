@@ -71,9 +71,9 @@ if(document.readyState==="loading"){
 // Reuse the single already-generated, verified lesson response. No second AI call.
 function installNotebookSummary(reply){
   const raw=String(reply||"");
-  const match=/^##\\s*(?:Notebook Summary|ملخص الدرس للدفتر|Résumé pour le cahier)\\s*$/im.exec(raw);
+  const match=/^##\s*(?:Notebook Summary|ملخّص الدرس للدفتر|ملخص الدرس للدفتر|Résumé pour le cahier)\s*$/im.exec(raw);
   if(!match)return;
-  const body=raw.slice(match.index+match[0].length).split(/\\n(?=##\\s)/)[0].trim();
+  const body=raw.slice(match.index+match[0].length).split(/\n(?=##\s)/)[0].trim();
   if(!body)return;
   document.getElementById("nabilNotebookSummary")?.remove();
   const box=document.createElement("details");
@@ -93,6 +93,17 @@ function installNotebookSummary(reply){
   if(chat)chat.appendChild(box);
 }
 function show(form,id){
+  let lessonReady=false;
+  let sourceIndexed=false;
+  let sourceImageLoaded=false;
+  const updateStatus=()=>{
+    if(!el.isConnected||id!==pending)return;
+    if(lessonReady&&sourceIndexed)status.textContent=sourceImageLoaded
+      ?"✅ The lesson and original textbook page are ready below."
+      :"✅ The lesson is ready; the indexed textbook page is loading below.";
+    else if(lessonReady)status.textContent="✅ The lesson is ready below; the textbook preview is separate.";
+    else if(sourceIndexed)status.textContent="✅ Exact textbook page indexed; NABIL AI is preparing the explanation.";
+  };
   const chosen=String(form.get("book_page")||"").trim()||
     printedPageFromMessage(form.get("message"));
   const title=chosen?"Printed textbook page "+chosen:String(form.get("lesson")||"").trim();
@@ -124,7 +135,8 @@ function show(form,id){
   originalPageImage.alt="Actual scanned page from the indexed government textbook";
   originalPageImage.loading="lazy";
   originalPageImage.style.cssText="display:block;max-width:100%;width:auto;height:auto;margin:12px auto;background:#fff";
-  originalPageImage.onerror=()=>{ originalPage.hidden=true; };
+  originalPageImage.onload=()=>{sourceImageLoaded=true;updateStatus()};
+  originalPageImage.onerror=()=>{ originalPage.hidden=true; sourceImageLoaded=false; updateStatus(); };
   originalPage.append(pageToggle,originalPageImage);
   const link=document.createElement("a");
   link.textContent="🔎 Open original textbook page at full size";
@@ -156,9 +168,13 @@ function show(form,id){
       content.textContent="The page lookup has not returned an indexed source yet. No page number or book figure will be invented.";
       return;
     }
-    status.textContent="✅ Official textbook excerpt retrieved";
+    sourceIndexed=true;
+    updateStatus();
     page.textContent=result.book_title+" | PRINTED PAGE "+result.printed_page;
-    content.textContent=result.source_excerpt||"Open the original indexed page below.";
+    // OCR is retrieval data, NOT verified student-facing prose: chemical shell
+    // superscripts and mixed columns are frequently corrupted in raw excerpts.
+    // Show the actual page image and let the separate tutor explain it.
+    content.textContent="The original indexed page is available below. NABIL AI explains its actual concepts separately; raw PDF extraction is not a student explanation.";
     const path=result.page_image_url;
     const figures=Array.isArray(result.figure_image_urls)?result.figure_image_urls:[];
     figureWrap.replaceChildren();
@@ -178,16 +194,17 @@ function show(form,id){
       holder.append(original,cap); figureWrap.appendChild(holder);
     });
     if(path&&/^\/api\/textbooks\/[a-z0-9-]+\/pages\/\d+\/image$/i.test(path)){
-      originalPageImage.src=path;
       originalPage.hidden=false;
+      originalPageImage.src=path;
       link.href=path;
-      link.textContent="🔎 Inspect the complete original page (not shown on the lesson board)";
+      link.textContent="🔎 Open the original textbook page in full size";
       link.style.display="inline-block";
     }
   }).catch(()=>{
     window.clearTimeout(previewTimeout);
     if(el.isConnected&&id===pending){
-      status.textContent="The independent textbook preview timed out or failed";
+      if(!lessonReady)status.textContent="The independent textbook preview timed out or failed";
+      else updateStatus();
       content.textContent="The lesson request is separate. Open the sourced page links in the lesson when available; the preview failure does not mean the book was not indexed.";
     }
   });
@@ -195,7 +212,8 @@ function show(form,id){
     // The AI request can complete before the independent book lookup. Keep
     // waiting for the source rather than aborting a valid citation request.
     if(el.isConnected){
-      status.textContent="✅ The interactive lesson is ready below; verifying the original book page independently.";
+      lessonReady=true;
+      updateStatus();
     }
   };
 }
