@@ -32,6 +32,7 @@ COPY . .
 RUN python -m scripts.validate_nabil_ui \
     && python -m scripts.test_ui_integration \
     && python -m scripts.test_worksheet_exports \
+    && python -m scripts.test_textbook_scope \
     && python -m py_compile app/main.py app/api/routes_chat.py app/api/routes_worksheet.py scripts/start_server.py
 
 RUN useradd --create-home --shell /usr/sbin/nologin nabil \
