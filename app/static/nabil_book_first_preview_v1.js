@@ -94,10 +94,15 @@ function installNotebookSummary(reply){
 }
 function show(form,id){
   let lessonReady=false;
+  let lessonFailed=false;
   let sourceIndexed=false;
   let sourceImageLoaded=false;
   const updateStatus=()=>{
     if(!el.isConnected||id!==pending)return;
+    if(lessonFailed){
+      status.textContent="⚠️ The original textbook page is available, but the AI explanation did not complete.";
+      return;
+    }
     if(lessonReady&&sourceIndexed)status.textContent=sourceImageLoaded
       ?"✅ The lesson and original textbook page are ready below."
       :"✅ The lesson is ready; the indexed textbook page is loading below.";
@@ -208,7 +213,10 @@ function show(form,id){
       content.textContent="The lesson request is separate. Open the sourced page links in the lesson when available; the preview failure does not mean the book was not indexed.";
     }
   });
-  return ()=>{
+  const fail=()=>{
+    if(el.isConnected){lessonFailed=true;updateStatus()}
+  };
+  const done=()=>{
     // The AI request can complete before the independent book lookup. Keep
     // waiting for the source rather than aborting a valid citation request.
     if(el.isConnected){
@@ -216,6 +224,7 @@ function show(form,id){
       updateStatus();
     }
   };
+  return {done,fail};
 }
 window.fetch=function(input,options){
   const url=typeof input==="string"?input:(input?.url||"");
@@ -234,15 +243,17 @@ window.fetch=function(input,options){
     picker.value="";
   }
   const id=++pending;
-  const done=show(body,id);
+  const {done,fail}=show(body,id);
   return originalFetch(input,options).then(result=>{
-    done();
     if(result.ok){
+      done();
       result.clone().json().then(data=>{
         if(id===pending)window.setTimeout(()=>installNotebookSummary(data?.reply),100);
       }).catch(()=>{});
+    }else{
+      fail();
     }
     return result;
-  },error=>{done();throw error;});
+  },error=>{fail();throw error;});
 };
 })();
