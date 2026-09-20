@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.db.student_learning import StudentLearningProfile
 from app.db.ai_usage import AIUsageLog
+from app.services.ai_gateway import get_ai_gateway
 
 
 router = APIRouter(tags=["admin"])
@@ -182,6 +183,12 @@ def _ai_stats(db: Session) -> dict:
         "health": health,
         "health_code": health_code,
         "recent": recent_rows,
+        # Live gateway state (not from the DB log): which provider order is
+        # active right now, whether Gemini is currently in a global cooldown
+        # after a billing/quota failure, and per-provider failure counts.
+        # Previously nothing exposed this, so a stuck/cooling-down provider
+        # was invisible until a student complained.
+        "provider_health": get_ai_gateway().health_snapshot(),
     }
 
 
