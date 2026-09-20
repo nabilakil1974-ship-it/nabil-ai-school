@@ -528,8 +528,11 @@ class NabilAIGateway:
         max_output_tokens: int,
         provider_name: str,
         provider_key: str,
+        timeout_seconds: Optional[float] = None,
     ) -> str:
 
+        if timeout_seconds is not None:
+            client = client.with_options(timeout=max(2.0, timeout_seconds), max_retries=0)
         response = (
             client
             .chat
@@ -586,6 +589,7 @@ class NabilAIGateway:
         image_bytes: Optional[bytes],
         max_output_tokens: int,
         debug_errors: list[str],
+        deadline: Optional[float] = None,
     ) -> Optional[str]:
 
         if (
@@ -646,6 +650,7 @@ class NabilAIGateway:
                     max_output_tokens=max_output_tokens,
                     provider_name=f"Gemini #{index + 1}",
                     provider_key=provider_key,
+                timeout_seconds=(min(15.0, max(2.0, deadline - time.monotonic())) if deadline is not None else None),
                 )
 
             except Exception as exc:
@@ -691,6 +696,7 @@ class NabilAIGateway:
         image_bytes: Optional[bytes],
         max_output_tokens: int,
         debug_errors: list[str],
+        deadline: Optional[float] = None,
     ) -> Optional[str]:
 
         provider_key = "openrouter"
@@ -716,6 +722,7 @@ class NabilAIGateway:
                 max_output_tokens=max_output_tokens,
                 provider_name="OpenRouter",
                 provider_key=provider_key,
+            timeout_seconds=(min(15.0, max(2.0, deadline - time.monotonic())) if deadline is not None else None),
             )
 
         except Exception as exc:
@@ -737,6 +744,7 @@ class NabilAIGateway:
         image_bytes: Optional[bytes],
         max_output_tokens: int,
         debug_errors: list[str],
+        deadline: Optional[float] = None,
     ) -> Optional[str]:
 
         provider_key = "groq"
@@ -757,6 +765,7 @@ class NabilAIGateway:
                 max_output_tokens=max_output_tokens,
                 provider_name="Groq",
                 provider_key=provider_key,
+            timeout_seconds=(min(15.0, max(2.0, deadline - time.monotonic())) if deadline is not None else None),
             )
 
         except Exception as exc:
@@ -778,6 +787,7 @@ class NabilAIGateway:
         image_bytes: Optional[bytes],
         max_output_tokens: int,
         debug_errors: list[str],
+        deadline: Optional[float] = None,
     ) -> Optional[str]:
 
         provider_key = "openai"
@@ -803,6 +813,7 @@ class NabilAIGateway:
                 max_output_tokens=max_output_tokens,
                 provider_name="OpenAI",
                 provider_key=provider_key,
+            timeout_seconds=(min(15.0, max(2.0, deadline - time.monotonic())) if deadline is not None else None),
             )
 
         except Exception as exc:
@@ -825,6 +836,7 @@ class NabilAIGateway:
         image_bytes: Optional[bytes] = None,
         image_mime_type: str = "image/jpeg",
         max_output_tokens: int = 1400,
+        fast_lesson: bool = False,
     ) -> str:
 
         # Do not silently truncate full lessons or teacher assessments.
@@ -843,6 +855,8 @@ class NabilAIGateway:
             image_mime_type=image_mime_type,
         )
 
+        deadline = time.monotonic() + 58.0 if fast_lesson else None
+
         debug_errors: list[str] = []
 
         handlers = {
@@ -851,28 +865,35 @@ class NabilAIGateway:
                 image_bytes=image_bytes,
                 max_output_tokens=max_output_tokens,
                 debug_errors=debug_errors,
+                deadline=deadline,
             ),
             "openrouter": lambda: self._try_openrouter(
                 chat_messages=chat_messages,
                 image_bytes=image_bytes,
                 max_output_tokens=max_output_tokens,
                 debug_errors=debug_errors,
+                deadline=deadline,
             ),
             "groq": lambda: self._try_groq(
                 chat_messages=chat_messages,
                 image_bytes=image_bytes,
                 max_output_tokens=max_output_tokens,
                 debug_errors=debug_errors,
+                deadline=deadline,
             ),
             "openai": lambda: self._try_openai(
                 chat_messages=chat_messages,
                 image_bytes=image_bytes,
                 max_output_tokens=max_output_tokens,
                 debug_errors=debug_errors,
+                deadline=deadline,
             ),
         }
 
         for provider in self.provider_order:
+            if deadline is not None and time.monotonic() >= deadline - 2.0:
+                logger.warning("FAST_LESSON_PROVIDER_BUDGET_EXHAUSTED")
+                break
 
             handler = handlers.get(provider)
 
