@@ -12,8 +12,8 @@ _MATH_SECTION = re.compile(
 )
 # Remove entire foreign function-study tail after a chemistry notebook summary.
 _FOREIGN_MATH_TAIL = re.compile(
-    r"(?im)^\\s*#{1,5}\\s*(?:Domain|Limits?|Asymptotes?|Derivative|"
-    r"Variation\\s+Table|Domaine|Limites?|Dérivée)\\s*$"
+    r"(?im)^\s*#{1,5}\s*(?:Domain|Limits?|Asymptotes?|Derivative|"
+    r"Variation\s+Table|Domaine|Limites?|Dérivée)\s*$"
 )
 _BAD_DRAWING_FENCE = re.compile(r"```\s*DRAWING_JSON\b[\s\S]*?```", re.I)
 _OXYGEN_ION = re.compile(
@@ -35,16 +35,16 @@ def sanitize_chemistry_lesson(text: str, subject: str) -> str:
     if math_tail:
         # Preserve later chemistry when the foreign block was inserted mid-lesson.
         follow = re.search(
-            r"(?im)^\\s*#{1,4}\\s*(?:Electron\\s+configurations?|"
-            r"Ionic\\s+bond|Crystal\\s+lattice|"
-            r"Activity\\s+\\d+|Exercise\\s+\\d+|"
-            r"Magnesium\\s+fluoride|Sodium\\s+chloride|"
-            r"ملخص\\s+الدرس|التمارين|الرابطة|"
-            r"Résumé\\s+pour\\s+le\\s+cahier)",
+            r"(?im)^\s*#{1,4}\s*(?:Electron\s+configurations?|"
+            r"Ionic\s+bond|Crystal\s+lattice|"
+            r"Activity\s+\d+|Exercise\s+\d+|"
+            r"Magnesium\s+fluoride|Sodium\s+chloride|"
+            r"ملخص\s+الدرس|التمارين|الرابطة|"
+            r"Résumé\s+pour\s+le\s+cahier)",
             result[math_tail.end():],
         )
         if follow:
-            result = (result[:math_tail.start()] + "\\n" +
+            result = (result[:math_tail.start()] + "\n" +
                       result[math_tail.end() + follow.start():])
         else:
             result = result[:math_tail.start()]
