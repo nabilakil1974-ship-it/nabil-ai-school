@@ -80,7 +80,7 @@ class UniversalLessonQualityTests(unittest.TestCase):
             "## Final Card", "Verified summary.",
             "## Final Card", "Repeated summary.",
         ])
-        output = deduplicate_lesson_sections("\\n".join(blocks))
+        output = deduplicate_lesson_sections("\n".join(blocks))
         for n in range(1, 6):
             self.assertIn(f"Original solution {n}.", output)
             self.assertNotIn(f"Repeated solution {n}.", output)
@@ -90,10 +90,10 @@ class UniversalLessonQualityTests(unittest.TestCase):
 
     def test_preserve_separate_verified_textbook_exercises(self):
         reply = (
-            "## Practice Exercises\\n"
-            "### Exercise 1\\nAI practice solution.\\n"
-            "## Official Textbook Exercises\\n"
-            "### Exercise 1\\nVerified book solution.\\n"
+            "## Practice Exercises\n"
+            "### Exercise 1\nAI practice solution.\n"
+            "## Official Textbook Exercises\n"
+            "### Exercise 1\nVerified book solution.\n"
         )
         output = deduplicate_lesson_sections(reply)
         self.assertIn("AI practice solution.", output)
@@ -104,7 +104,7 @@ class UniversalLessonQualityTests(unittest.TestCase):
             self.assertEqual(deduplicate_lesson_sections(answer), answer)
 
     def test_plain_exercise_headers_count_without_extra_provider_call(self):
-        answer = "\\n".join(f"Exercise {n}: Solution {n}." for n in range(1, 6))
+        answer = "\n".join(f"Exercise {n}: Solution {n}." for n in range(1, 6))
         self.assertEqual(missing_practice_exercises(answer), [])
 
 
