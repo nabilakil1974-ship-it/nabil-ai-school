@@ -5912,13 +5912,59 @@ Do not produce JSON transport as visible prose.
                 grade, subject, lesson, output_budget,
             )
             _primary_ai_started_at = time.monotonic()
-            raw_reply = await run_in_threadpool(ai.generate,
-                instructions=(lesson_instructions if lesson_start_from_book else SYSTEM_PROMPT) + _explicit_language_instruction,
-                messages=history_messages,
-                image_bytes=image_bytes or verified_page_image_bytes,
-                image_mime_type=image_mime_type,
-                max_output_tokens=output_budget,
+            # A successfully opened book picture is not proof that a vision
+            # provider can answer. If multimodal generation fails, retry this
+            # VERIFIED source-backed lesson without the picture, without
+            # hallucinating an interpretation of any invisible book figure.
+            _source_image = (
+                verified_page_image_bytes
+                if image_bytes is None and lesson_start_from_book else None
             )
+            _generation_instructions = (
+                (lesson_instructions if lesson_start_from_book else SYSTEM_PROMPT)
+                + _explicit_language_instruction
+            )
+            try:
+                raw_reply = await run_in_threadpool(
+                    ai.generate,
+                    instructions=_generation_instructions,
+                    messages=history_messages,
+                    image_bytes=image_bytes or _source_image,
+                    image_mime_type=image_mime_type,
+                    max_output_tokens=output_budget,
+                )
+            except Exception as vision_exc:
+                if _source_image is None or not source_chunks:
+                    raise
+                lesson_generation_logger.warning(
+                    "BOOK_VISION_GENERATION_FAILED_TEXT_RETRY grade=%r subject=%r "
+                    "printed_page=%d exception_type=%s",
+                    grade, subject, _page_request[0],
+                    type(vision_exc).__name__,
+                )
+                _text_only_history = [{
+                    "role": "user",
+                    "content": lesson_prompt.rsplit(
+                        "\\n\\nVERIFIED PAGE IMAGE ATTACHED:", 1
+                    )[0] + (
+                        "\\n\\nVISUAL SOURCE UNAVAILABLE FOR THIS GENERATION. "
+                        "Use only the indexed page text. Never claim to have "
+                        "visually inspected the figure, reproduce unverified "
+                        "figure labels, or invent content. The student can "
+                        "view the real scanned book page independently."
+                    ),
+                }]
+                raw_reply = await run_in_threadpool(
+                    ai.generate,
+                    instructions=_generation_instructions,
+                    messages=_text_only_history,
+                    image_bytes=None,
+                    max_output_tokens=min(output_budget, 2700),
+                )
+                lesson_generation_logger.info(
+                    "BOOK_TEXT_ONLY_LESSON_FALLBACK_SUCCESS printed_page=%d",
+                    _page_request[0],
+                )
             # This HTTP coroutine must yield during the multi-second AI call:
             # an independent /api/textbooks/lesson-preview must remain serviceable
             # even when Railway runs a single Uvicorn worker.
