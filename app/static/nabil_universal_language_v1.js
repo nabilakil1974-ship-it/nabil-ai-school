@@ -29,7 +29,7 @@ const originalFetch=window.fetch.bind(window);
 window.fetch=(input,options)=>{
  const url=typeof input==="string"?input:(input?.url||"");
  const body=options?.body;
- if(/\\/?api\\/chat(?:\\?|$)/.test(url)&&body instanceof FormData){
+ if(new RegExp('(?:^|/)api/chat(?:[?]|$)').test(url)&&body instanceof FormData){
    const mode=get();if(mode!=="auto"){body.set("language",languageValue[mode]);body.set("nabil_explanation_language",mode)}
  }
  return originalFetch(input,options);
