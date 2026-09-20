@@ -33,6 +33,40 @@ def verified_source_pages(source_chunks: list[dict]) -> list[dict]:
     return sorted(out, key=lambda x: (x["book_title"], x["page"]))
 
 
+def verified_page_refs(source_chunks: list[dict]) -> list[dict]:
+    """Source records carrying BOTH printed page and actual PDF position.
+
+    No PDF position may be inferred by adding an offset to the printed page.
+    """
+    out = []
+    seen = set()
+    for item in source_chunks or []:
+        if not isinstance(item, dict):
+            continue
+        book_id = str(item.get("book_id") or "")
+        pdf_page = item.get("pdf_page")
+        title = str(item.get("book_title") or "")
+        try:
+            page = int(item.get("page"))
+            actual_pdf = int(pdf_page)
+        except (TypeError, ValueError):
+            continue
+        if not book_id or not title or page < 1 or actual_pdf < 1:
+            continue
+        key = (book_id, page, actual_pdf)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append({
+            "book_title": title,
+            "book_id": book_id,
+            "page": page,
+            "pdf_page": actual_pdf,
+            "page_image_url": f"/api/textbooks/{book_id}/pages/{page}/image",
+        })
+    return sorted(out, key=lambda item: (item["book_title"], item["page"]))
+
+
 def render_verified_page_citations(text: str, source_chunks: list[dict]) -> str:
     """Replace model-suggested tags with conspicuous, verified printed-page badges.
 
@@ -42,6 +76,8 @@ def render_verified_page_citations(text: str, source_chunks: list[dict]) -> str:
     """
     original = str(text or "")
     sources = verified_source_pages(source_chunks)
+    images = verified_page_refs(source_chunks)
+    image_by_page = {p["page"]: p for p in images}
     valid = {int(s["page"]) for s in sources}
 
     def replace(match: re.Match) -> str:
@@ -54,7 +90,16 @@ def render_verified_page_citations(text: str, source_chunks: list[dict]) -> str:
             return ""
         rendered = "، ".join(str(p) for p in pages)
         label = "الصفحة المطبوعة" if len(pages) == 1 else "الصفحات المطبوعة"
-        return f"\n\n**📘 كتاب الدولة | {label}: {rendered}**\n\n"
+        image_links = "\\n".join(
+            f"[📷 عرض صفحة الكتاب الأصلية (ص. {p})]"
+            f"({image_by_page[p]['page_image_url']})"
+            for p in pages if p in image_by_page
+        )
+        return (
+            f"\\n\\n**📘 كتاب الدولة | {label}: {rendered}**\\n"
+            + (image_links + "\\n" if image_links else "")
+            + "\\n"
+        )
 
     body = _PAGE_TAG.sub(replace, original).strip()
     if not sources:
@@ -69,6 +114,11 @@ def render_verified_page_citations(text: str, source_chunks: list[dict]) -> str:
     for title, pages in groups.items():
         index_lines.append(
             f"- {title} — الصفحات المطبوعة: {', '.join(map(str, pages))}"
+        )
+    for original_page in images:
+        index_lines.append(
+            f"[📷 صفحة الكتاب المصوّرة {original_page['page']}]"
+            f"({original_page['page_image_url']})"
         )
     index_lines.append(
         "*الصفحات أعلاه مسترجعة من الفهرس، وليست إثباتًا بأن كل فكرة "
