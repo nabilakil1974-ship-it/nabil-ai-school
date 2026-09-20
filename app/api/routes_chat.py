@@ -12,6 +12,7 @@ from pathlib import Path
 from app.core.lesson_output_guard import sanitize_chemistry_lesson
 from app.core.textbook_page_citations import render_verified_page_citations, resolve_book_printed_page
 from app.core.lesson_quality import missing_practice_exercises, practice_exercise_numbers, drawing_matches_subject, deduplicate_lesson_sections
+from app.core.textbook_page_citations import render_verified_page_citations, verified_source_pages
 from typing import Optional
 from datetime import datetime
 
@@ -5646,8 +5647,24 @@ Do not claim to understand a diagram from OCR text alone. If a drawing's
 meaning is not in the excerpt, label it as an original page to inspect.
 Follow the textbook sequence with friendly, short, teachable concept cards.
 Do not invent source pages, original figure coordinates, missing exercise
-statements or an unsupported connection to another grade. Use Markdown ## for
-each idea. Mark core rules with 🔴 Key Rule: / 🔴 Règle essentielle : /
+statements or an unsupported connection to another grade.
+
+SOURCE TRACEABILITY IS MANDATORY:
+- Every concept, activity, worked textbook example, textbook exercise, table or
+  textbook-derived figure must end with exactly one source marker:
+  [BOOK_PAGE:N] or [BOOK_PAGE:N,M] using ONLY printed page numbers that appear
+  in the Verified book excerpts below.
+- Put the marker immediately after the specific concept/card it supports, not
+  once at the end of the lesson.
+- If a concept is your own additional explanation or practice and is not stated
+  in a retrieved excerpt, label it "NABIL AI explanation" / "Additional practice"
+  and DO NOT attach a BOOK_PAGE marker.
+- If a figure in a retrieved excerpt is discussed, say which printed page its
+  figure comes from. If the actual figure was not retrieved/available, never
+  claim that a generated diagram is the textbook figure.
+- Never cite a page number that is absent from the retrieved excerpt headers.
+
+Use Markdown ## for each idea. Mark core rules with 🔴 Key Rule: / 🔴 Règle essentielle : /
 🔴 قاعدة أساسية: according to lesson language. For Ionic bond show electron
 transfer and charges correctly; include a valid DRAWINGS_JSON diagram only
 when you know its supported schema and exact scientific labels.
@@ -6243,6 +6260,12 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
             drawings = [exact_sphere]
         if drawings:
             reply_text = " "  # Nonempty transport; frontend presents the drawing only.
+
+    # Turn model source markers into student-visible badges ONLY when those
+    # printed pages were really retrieved from the indexed official book.
+    # Unsupported page claims disappear instead of being shown as official.
+    if source_chunks and reply_text:
+        reply_text = render_verified_page_citations(reply_text, source_chunks)
 
     # Extract drawings first, then deduplicate only the student-visible lesson
     # prose. Repeated generated exercise sets used to flood the page and TTS.
