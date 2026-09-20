@@ -94,7 +94,7 @@ function renderIonic(spec){
  });
  svg+=`<text x="560" y="678" text-anchor="middle" fill="#d5eefb" font-size="16">Each ${esc(nonmetal)} ion has four electron pairs (8 outer-shell electrons).</text></svg>`;
  return `<div class="nabil-visual nabil-ionic-verified" style="width:100%;max-width:100%;overflow:auto;background:#081d32;border:1px solid #2e8ab6;border-radius:15px">
- <div class="nabil-visual-title" style="color:#7be6ff">Ionic bond — ${esc(formula)}</div>${svg}</div>`;
+ <div class="nabil-visual-title" style="color:#7be6ff">Ionic bond — ${esc(formula)} · explanatory schematic (not a reproduced textbook figure)</div>${svg}</div>`;
 }
 function install(){
  const old=window.renderNabilDiagram;
