@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - app/main.py
+      - app/static/nabil_secondary_physics_lab.html
       - app/static/nabil_labs.html
       - app/static/nabil_universal_language_v1.js
       - app/api/routes_chat.py
@@ -38,6 +39,7 @@ on:
   pull_request:
     paths:
       - app/main.py
+      - app/static/nabil_secondary_physics_lab.html
       - app/static/nabil_labs.html
       - app/static/nabil_universal_language_v1.js
       - app/api/routes_chat.py
@@ -92,6 +94,7 @@ jobs:
           node --check app/static/nabil_voice_v133.js
           node --check app/static/nabil_book_first_preview_v1.js
           node --check app/static/nabil_universal_language_v1.js
+          node -e 'const fs=require("fs"),vm=require("vm");const h=fs.readFileSync("app/static/nabil_secondary_physics_lab.html","utf8");const js=h.split("<script>")[1]?.split("</script>")[0];if(!js)throw Error("secondary physics lab script missing");new vm.Script(js);for(const key of ["tabLens","tabProjectile","tabRC","setMode","lang"])if(!h.includes(key))throw Error("physics lab missing "+key);'
           node -e 'const fs=require("fs"),vm=require("vm");const html=fs.readFileSync("app/static/nabil_labs.html","utf8");if(!html.includes("<script>")||!html.includes("</script>"))throw Error("labs script missing");new vm.Script(html.split("<script>")[1].split("</script>")[0]);for(const x of ["pointLabel(mx,my", "mode==="])if(!html.includes(x))throw Error("labs missing: "+x);'
       - name: Nonblocking textbook lesson AI regression
         run: python -m scripts.test_nonblocking_lesson_generation
