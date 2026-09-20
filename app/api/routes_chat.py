@@ -5765,8 +5765,31 @@ Do not produce JSON transport as visible prose.
                 )
                 if isinstance(item, dict) and item.get("text")
             )
+            page_route_contract = ''
+            if _page_request is not None:
+                _p, _mode = _page_request
+                page_route_contract = (
+                    f'EXACT PRINTED BOOK PAGE REQUEST: {_p}. Mode: {_mode}. '
+                    'Trust the indexed book page over the dropdown lesson title. '
+                    'The SOURCE EXCERPTS below are ordered by their real PDF position. '
+                    'When mode=page, explain ONLY the requested page, its real ideas, '
+                    'activity, figure captions, tables and exercises present on that page; '
+                    'do not create five extra exercises. When mode=lesson, begin at '
+                    'the requested page, explain the retrieved consecutive pages '
+                    'in book order and solve only complete exercises actually shown. '
+                    'Never promise a complete chapter when the retrieved window '
+                    'does not establish its end; explicitly offer the next page. '
+                    'Put [BOOK_PAGE:N] BEFORE each concept/activity/answer with N '
+                    'equal to the verified PRINTED_PAGE supplied below. '
+                    'Also put [BOOK_FIGURE_PAGE:N] at the requested page so the '
+                    'learner can inspect the original page and its diagrams. '
+                    'You only received extracted text: do not pretend to have '
+                    'seen a figure if the caption/layout was not extracted. '
+                    'Never invent a textbook figure or exercise.\\n'
+                )
             lesson_prompt = (
-                f"Grade: {grade}; Branch: {branch or 'N/A'}; "
+                page_route_contract
+                + f"Grade: {grade}; Branch: {branch or 'N/A'}; "
                 f"Subject: {subject}; Lesson: {lesson}; "
                 f"Language: {selected_language}; "
                 f"Curriculum: {book_curriculum}.\n"
