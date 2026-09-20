@@ -139,7 +139,7 @@ class TutorOwnerContractTests(unittest.TestCase):
             "if(figureOnly&&!hasVisual)throw Error",
             "if(!figureOnly)explanation.appendChild(text)",
             "toolsHost.append(exportMenu,read,stop)",
-            "if(!shown.figureOnly&&spoken",
+            "if(!shown.figureOnly)playSynchronizedAnswer(shown.reply,shown.lang)",
             "renderNabilDiagram",
             "prepareSpeechTypewriter",
             "nabilSpeakClear",
