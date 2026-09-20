@@ -17,18 +17,24 @@ STATIC = ROOT / "app" / "static"
 def assemble_home_html() -> str:
     source = (ROOT / "app" / "main.py").read_text(encoding="utf-8")
     tree = ast.parse(source, filename="app/main.py")
-    route = next(
-        node for node in tree.body
-        if isinstance(node, ast.FunctionDef) and node.name == "root"
-    )
-    route = copy.deepcopy(route)
-    route.decorator_list = []
-    module = ast.fix_missing_locations(ast.Module(body=[route], type_ignores=[]))
+    # Test the production cached HTML builder as well as the root route.
+    # Executing root() alone no longer works: its cache is initialized by
+    # _build_root_html() at module import time in the actual application.
+    functions = []
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef) and node.name in {"_build_root_html", "root"}:
+            function = copy.deepcopy(node)
+            function.decorator_list = []
+            functions.append(function)
+    if len(functions) != 2:
+        raise AssertionError("Expected _build_root_html and root in app/main.py")
+    module = ast.fix_missing_locations(ast.Module(body=functions, type_ignores=[]))
     namespace = {
         "Path": lambda name: ROOT / name,
         "HTMLResponse": lambda html, headers=None: html,
     }
     exec(compile(module, "app/main.py", "exec"), namespace)
+    namespace["_CACHED_ROOT_HTML"] = namespace["_build_root_html"]()
     return namespace["root"]()
 
 
