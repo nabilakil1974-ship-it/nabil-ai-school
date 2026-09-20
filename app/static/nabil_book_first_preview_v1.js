@@ -37,7 +37,13 @@ function prepareExactPageLesson(){
   const select=document.getElementById("lessonSelect");
   if(!input||!select)return;
   const raw=String(input.value||"").trim();
-  if(!/^\\d{1,4}$/.test(raw)||Number(raw)<1)return;
+  if(!/^\d{1,4}$/.test(raw)||Number(raw)<1){
+    const temporary=select.selectedOptions?.[0];
+    if(temporary?.dataset?.nabilPageTemporary==="yes"){
+      temporary.remove(); select.selectedIndex=0;
+    }
+    return;
+  }
   const existing=String(select.value||"").trim();
   if(existing&&existing!=="المحتوى قيد الفهرسة"&&!select.selectedOptions[0]?.dataset?.nabilPageTemporary)return;
   const synthetic="صفحة الكتاب المطبوعة "+Number(raw);
