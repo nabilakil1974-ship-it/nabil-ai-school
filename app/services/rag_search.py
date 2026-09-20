@@ -13,6 +13,7 @@ sentence-transformers) - بدون أي اتصال بأي API خارجي. هيك 
 from functools import lru_cache
 from sentence_transformers import SentenceTransformer
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from app.db.models import Book, BookChunk, BookPage
 
 MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"  # يدعم العربي والفرنسي والإنكليزي
@@ -106,3 +107,80 @@ def build_context_block(chunks: list[dict]) -> str:
     for c in chunks:
         lines.append(f"\n[{c['book_title']} - صفحة {c['page']}]\n{c['text']}")
     return "\n".join(lines)
+
+
+def find_nearest_book_exercises(
+    db: Session,
+    source_chunks: list[dict],
+    subject: str,
+    grade: str,
+    curriculum: str,
+    max_distance_pages: int = 18,
+    max_chunks: int = 9,
+) -> list[dict]:
+    """Retrieve REAL nearby chapter exercise pages from the same indexed book.
+
+    Semantic lesson search often finds concept pages but misses the question
+    pages at the end of the chapter. This separate scoped lookup never generates
+    exercises, never uses a different book/grade/curriculum, and includes PDF
+    position only when BookPage was actually indexed.
+    """
+    anchor = next((
+        item for item in source_chunks or []
+        if item.get("book_id") and isinstance(item.get("page"), int)
+    ), None)
+    if not anchor:
+        return []
+    book_id = anchor["book_id"]
+    first_page = int(anchor["page"])
+    terms = (
+        "%questions and exercises%",
+        "%answer the following questions%",
+        "%exercises and questions%",
+        "%exercices et questions%",
+        "%questions et exercices%",
+        "%أسئلة وتمارين%",
+        "%الأسئلة والتمارين%",
+    )
+    scoped = db.query(BookChunk).filter(
+        BookChunk.book_id == book_id,
+        BookChunk.subject == subject,
+        BookChunk.grade == grade,
+        BookChunk.curriculum == curriculum,
+        BookChunk.printed_page_number >= first_page,
+        BookChunk.printed_page_number <= first_page + max_distance_pages,
+    )
+    heading = (
+        scoped.filter(or_(*[BookChunk.text_content.ilike(term) for term in terms]))
+        .order_by(BookChunk.printed_page_number.asc())
+        .first()
+    )
+    if heading is None:
+        return []
+    start_page = heading.printed_page_number
+    rows = (
+        scoped.filter(
+            BookChunk.printed_page_number >= start_page,
+            BookChunk.printed_page_number <= start_page + 3,
+        )
+        .order_by(
+            BookChunk.printed_page_number.asc(),
+            BookChunk.chunk_index_in_page.asc(),
+        )
+        .limit(max_chunks).all()
+    )
+    out = []
+    for row in rows:
+        indexed = db.query(BookPage.pdf_page_index).filter(
+            BookPage.book_id == row.book_id,
+            BookPage.printed_page_number == row.printed_page_number,
+        ).first()
+        out.append({
+            "book_title": row.book.title,
+            "book_id": row.book_id,
+            "page": row.printed_page_number,
+            "pdf_page": int(indexed[0]) if indexed and indexed[0] else None,
+            "text": row.text_content,
+            "is_verified_book_exercise_source": True,
+        })
+    return out

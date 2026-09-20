@@ -41,7 +41,7 @@ from app.db.session import get_db
 from app.db.models import Conversation, Message, Student, BookChunk
 from app.db.student_learning import StudentLearningProfile
 from app.services.ai_gateway import NabilAIGateway
-from app.services.rag_search import search_book_pages, build_context_block
+from app.services.rag_search import search_book_pages, build_context_block, find_nearest_book_exercises
 from app.services.textbook_scope import resolve_textbook_curriculum
  
  
@@ -5066,6 +5066,7 @@ async def voice_chat(
     # ==========================================
  
     source_chunks = []
+    book_exercise_chunks = []
     if general_exercises_mode:
         selected_language = "AUTO_FROM_QUESTION_OR_IMAGE"
         student_profile_context = profile_to_dict(learning_profile)
@@ -5331,7 +5332,24 @@ the same lesson Visual Engine; never describe it as rendered without one.
                 top_k=10 if str(teaching_mode or "full_lesson") in {"full_lesson", "board_lesson"} else 4,
             )
             _rag_elapsed_ms = round((time.monotonic() - _rag_started_at) * 1000)
-            book_context = build_context_block(source_chunks)
+            # The original chapter exercises are part of the lesson: look for
+            # them in the SAME indexed book after the source-matched concept.
+            # This is a database lookup, not an additional model generation.
+            try:
+                book_exercise_chunks = find_nearest_book_exercises(
+                    db, source_chunks,
+                    subject=str(subject or "").strip(),
+                    grade=str(grade or "").strip(),
+                    curriculum=book_curriculum,
+                )
+            except Exception:
+                # Optional book-exercise enrichment must not discard the
+                # lesson's already retrieved and verified textbook passages.
+                book_exercise_chunks = []
+                lesson_generation_logger.exception(
+                    "BOOK_EXERCISE_PAGE_LOOKUP_FAILED"
+                )
+            book_context = build_context_block(source_chunks + book_exercise_chunks)
             print(f"BOOK_RAG_SCOPE_MATCH grade={grade!r} subject={subject!r} language={selected_language!r} curriculum={book_curriculum!r} retrieved={len(source_chunks)}", flush=True)
         except Exception as exc:
             print(f"BOOK_RAG_UNAVAILABLE grade={grade!r} subject={subject!r} language={selected_language!r} curriculum={book_curriculum!r}: {type(exc).__name__}: {exc}", flush=True)
@@ -5632,10 +5650,11 @@ English; Français means French; Arabic means Arabic. Match the selected grade
 and branch. The retrieved excerpts alone establish what is actually in the
 textbook. Begin at a sourced Activity if present; develop its ideas in order,
 with correct worked examples, clear formulas and a brief final rule summary.
-For a full lesson give exactly five additional age-appropriate solved PRACTICE
-exercises, distinctly labelled as yours, not as official book exercises.
-PRIORITIZE official book exercises and subparts actually present in retrieved
-text. Solve these with real page citations BEFORE creating additional practice.
+Solve the VERIFIED BOOK EXERCISES included in the excerpts, preserving their
+question numbers, original data, subparts and figures. These take precedence
+over creating any new practice. Do not claim to solve an unseen book exercise.
+Only if official exercises were not retrieved may you offer a small, clearly
+labelled optional AI practice set; never pass it off as CRDP material.
 If actual numbered book exercises and subparts are present in excerpts, solve
 those with their real page numbers; otherwise say they were not retrieved.
 Before EACH source-grounded concept/activity/exercise write [BOOK_PAGE:N]
@@ -5653,10 +5672,18 @@ transfer and charges correctly; include a valid DRAWINGS_JSON diagram only
 when you know its supported schema and exact scientific labels.
 Do not produce JSON transport as visible prose.
 """.strip()
+            official_excerpts = source_chunks[:7] + book_exercise_chunks[:7]
             excerpts = "\n\n".join(
                 f"[{item.get('book_title')} PRINTED_PAGE:{resolve_book_printed_page(item)} PDF_PAGE:{item.get('pdf_page')}] "
-                + str(item.get("text") or "")[:1550]
-                for item in sorted(source_chunks, key=lambda item: (str(item.get('book_title') or ''), int(item.get('pdf_page') or 0)))[:10]
+                + ("[VERIFIED BOOK EXERCISES] " if item.get("is_verified_book_exercise_source") else "")
+                + str(item.get("text") or "")[:1500]
+                for item in sorted(
+                    official_excerpts,
+                    key=lambda item: (
+                        str(item.get("book_title") or ""),
+                        int(item.get("pdf_page") or 0),
+                    ),
+                )
                 if isinstance(item, dict) and item.get("text")
             )
             lesson_prompt = (
@@ -5738,6 +5765,7 @@ Do not produce JSON transport as visible prose.
         str(activity_mode or "lesson") == "lesson"
         and str(teaching_mode or "full_lesson") in {"full_lesson", "board_lesson"}
         and _nabil_lesson_start_request(message)
+        and not lesson_start_from_book  # textbook exercises replace invented five-exercise quota
     ):
         missing_exercises = _nabil_missing_practice_exercises(raw_reply)
         if missing_exercises:
@@ -6258,6 +6286,11 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
                 "LESSON_REPEATED_SECTIONS_REMOVED before_chars=%d after_chars=%d",
                 _before_cleanup_chars, len(reply_text),
             )
+
+    # Add the verified exercise pages to final references only if excerpts
+    # actually reached this lesson's AI prompt.
+    if lesson_start_from_book and book_exercise_chunks:
+        source_chunks.extend(book_exercise_chunks)
 
     # Display only validated, indexed printed-page references for every lesson.
     if (
