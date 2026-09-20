@@ -23,21 +23,50 @@ class UniversalLessonQualityTests(unittest.TestCase):
         text = "We solved Exercise 1 above.\nThere are five exercises in this lesson."
         self.assertEqual(practice_exercise_numbers(text), [])
 
-    def test_reject_function_graph_in_ionic_chemistry(self):
-        self.assertFalse(drawing_matches_subject(
-            {"type": "function", "function": "ln"}, "كيمياء", "Ionic Bond"
-        ))
-        self.assertFalse(drawing_matches_subject(
-            {"type": "coordinate_plane"}, "Chemistry", "Ionic formation"
+    def test_reject_function_figures_in_all_unrelated_subjects(self):
+        for subject, lesson in (
+            ("Chemistry", "Ionic Bond"),
+            ("Physics", "Electricity"),
+            ("Biology", "Mitosis"),
+            ("Geography", "Climate"),
+            ("History", "Ancient Civilizations"),
+            ("English", "Grammar"),
+            ("رياضيات", "Pythagoras"),
+            ("Math", "Lines and Circles"),
+            ("Mathematics", "Statistics"),
+        ):
+            with self.subTest(subject=subject, lesson=lesson):
+                self.assertFalse(drawing_matches_subject(
+                    {"type": "function", "expression": "ln(x)"},
+                    subject, lesson, "Begin the selected lesson",
+                ))
+                self.assertFalse(drawing_matches_subject(
+                    {"type": "coordinate_plane", "expression": "ln(x)"},
+                    subject, lesson, "Begin the selected lesson",
+                ))
+
+    def test_explicit_function_questions_and_chapters_keep_their_graphs(self):
+        plot = {"type": "function", "expression": "ln(x)"}
+        self.assertTrue(drawing_matches_subject(
+            plot, "Mathematics", "Functions", "Begin the selected lesson"
         ))
         self.assertTrue(drawing_matches_subject(
-            {"type": "function"}, "رياضيات", "Study of function"
+            plot, "", "", "Study the function f(x)=ln(x)"
         ))
         self.assertTrue(drawing_matches_subject(
-            {"type": "forces"}, "Physics", "Newton"
+            plot, "رياضيات", "دراسة الدالة", "ابدأ الدرس المحدد"
+        ))
+
+    def test_nonfunction_valid_diagrams_remain_supported(self):
+        self.assertTrue(drawing_matches_subject(
+            {"type": "coordinate_plane", "points": [{"x": 1, "y": 2}]},
+            "Physics", "Motion and velocity", "Draw velocity graph"
         ))
         self.assertTrue(drawing_matches_subject(
             {"type": "ionic_bond"}, "Chemistry", "Ionic Bond"
+        ))
+        self.assertTrue(drawing_matches_subject(
+            {"type": "right_triangle"}, "Math", "Pythagoras"
         ))
 
 
