@@ -79,6 +79,25 @@ class Message(Base):
     conversation = relationship("Conversation", back_populates="messages")
 
 
+class LessonPackage(Base):
+    """Reusable, source-scoped full lesson prepared once and reused safely."""
+    __tablename__ = "lesson_packages"
+
+    cache_key = Column(String, primary_key=True)
+    source_signature = Column(String, nullable=False)
+    grade = Column(String, nullable=False)
+    branch = Column(String, default="")
+    subject = Column(String, nullable=False)
+    curriculum = Column(String, nullable=False)
+    language = Column(String, nullable=False)
+    lesson = Column(String, nullable=False)
+    reply = Column(Text, nullable=False)
+    drawings_json = Column(Text, nullable=False, default="[]")
+    sources_json = Column(Text, nullable=False, default="[]")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class BookChunk(Base):
     """
     مقطع نصي من كتاب (عادة صفحة واحدة أو نصف صفحة) مع الـ embedding تبعه.
