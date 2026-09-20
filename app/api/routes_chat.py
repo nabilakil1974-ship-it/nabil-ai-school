@@ -10,7 +10,7 @@ import math
 import re
 from pathlib import Path
 from app.core.lesson_output_guard import sanitize_chemistry_lesson
-from app.core.lesson_quality import missing_practice_exercises, practice_exercise_numbers, drawing_matches_subject
+from app.core.lesson_quality import missing_practice_exercises, practice_exercise_numbers, drawing_matches_subject, deduplicate_lesson_sections
 from typing import Optional
 from datetime import datetime
 
@@ -5716,6 +5716,8 @@ Do not produce JSON transport as visible prose.
         ) from exc
  
 
+    # Only a missing numbered exercise may trigger one optional practice repair.
+    # Do not send a full lesson back into the function-study completion pipeline.
     # ----------------------------------------------------------
     # LESSON PRACTICE GUARANTEE — EXACTLY FIVE SOLVED EXERCISES
     # If a provider truncates the lesson after 2–4 exercises, request ONLY
@@ -5753,7 +5755,7 @@ For each missing exercise:
 - Every practice drawing MUST contain: \"scope\":\"practice\", \"exercise_index\":N, \"card_index\":100+N.
 - Multiple drawings for the same exercise MUST share the same exercise_index/card_index and have distinct type/title values.
 - Preserve subject-specific visual conventions: Math graph/geometry, Physics 3D-style circuits/resistors/forces where suitable, Chemistry molecules/bonds/energy, Biology cells/systems.
-- For function study, include the actual graph and a real Markdown Variation Table.
+- Follow ONLY the selected subject and lesson; do not add unrelated mathematics/function-study sections.
 
 Do not invent hidden data. Return only the missing exercises and their drawing JSON.
 """.strip()
@@ -6231,6 +6233,21 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
             drawings = [exact_sphere]
         if drawings:
             reply_text = " "  # Nonempty transport; frontend presents the drawing only.
+
+    # Extract drawings first, then deduplicate only the student-visible lesson
+    # prose. Repeated generated exercise sets used to flood the page and TTS.
+    if (
+        str(activity_mode or "lesson") == "lesson"
+        and str(teaching_mode or "full_lesson") in {"full_lesson", "board_lesson"}
+        and _nabil_lesson_start_request(message)
+    ):
+        _before_cleanup_chars = len(reply_text or "")
+        reply_text = deduplicate_lesson_sections(reply_text)
+        if len(reply_text) < _before_cleanup_chars:
+            lesson_generation_logger.warning(
+                "LESSON_REPEATED_SECTIONS_REMOVED before_chars=%d after_chars=%d",
+                _before_cleanup_chars, len(reply_text),
+            )
 
     if not reply_text:
  
