@@ -357,11 +357,22 @@ app.include_router(
 # Web pages
 # ==========================================================
 
-@app.get("/")
-def root():
-    # Inject ONLY at the real final closing body tag. Never use str.replace:
-    # the large legacy HTML embeds literal "</body>" in JavaScript templates;
-    # replacing all of them splits <script> blocks and displays raw JS to users.
+def _build_root_html() -> str:
+    """Read app/static/chat.html and apply the fixed set of server-side
+    patches (retiring legacy scripts, injecting theme CSS/JS, speech-pace
+    patches) that used to run on EVERY request to "/". chat.html is a
+    static file only ever changed by a new deploy (nothing in this codebase
+    writes to it at runtime), so this transform's result is identical for
+    the lifetime of the process - computing it once here at import time and
+    caching the result removes a real per-request cost (multiple .find/
+    .replace/.lower passes over a ~5.6 MB string) that was previously paid
+    on every single page load, including the two full-string .lower() calls
+    used only to locate </head> and </body> case-insensitively.
+
+    Inject ONLY at the real final closing body tag. Never use str.replace:
+    the large legacy HTML embeds literal "</body>" in JavaScript templates;
+    replacing all of them splits <script> blocks and displays raw JS to users.
+    """
     html = Path("app/static/chat.html").read_text(encoding="utf-8")
     # Retire the previous client-only XP/mastery simulation. Its old click-
     # counters and text heuristics were not learning assessments and must not
@@ -416,7 +427,23 @@ def root():
         raise RuntimeError("Open tutor language selector anchor was not found")
     html = before_send + after_send.replace(language_old, language_new, 1)
 
-    # Use a single student-configurable speech pace in the lesson AND landing\n    # tutor. This patches the two legacy speech engines at response time,\n    # without loading the 5.6 MB legacy HTML in another GitHub commit.\n    pace_browser = '    u.rate = 0.90;'\n    pace_browser_new = ('    u.rate = Math.max(0.70, Math.min(1.15, '\n                        'Number(window.nabilVoicePace || 0.90)));')\n    if pace_browser not in html:\n        raise RuntimeError("NABIL browser TTS pace anchor is missing")\n    html = html.replace(pace_browser, pace_browser_new, 1)\n    pace_neural = '        nabilNeuralAudio = audio;'\n    pace_neural_new = (pace_neural + '\n        audio.playbackRate = Math.max(0.70, Math.min(1.15, '\n                       'Number(window.nabilVoicePace || 0.90)));')\n    if pace_neural not in html:\n        raise RuntimeError("NABIL neural TTS pace anchor is missing")\n    html = html.replace(pace_neural, pace_neural_new, 1)\n\n    # Preserve the blue robot as the only home; hide the separate welcome gateway.
+    # Use a single student-configurable speech pace in the lesson AND landing
+    # tutor. This patches the two legacy speech engines at response time,
+    # without loading the 5.6 MB legacy HTML in another GitHub commit.
+    pace_browser = '    u.rate = 0.90;'
+    pace_browser_new = ('    u.rate = Math.max(0.70, Math.min(1.15, '
+                        'Number(window.nabilVoicePace || 0.90)));')
+    if pace_browser not in html:
+        raise RuntimeError("NABIL browser TTS pace anchor is missing")
+    html = html.replace(pace_browser, pace_browser_new, 1)
+    pace_neural = '        nabilNeuralAudio = audio;'
+    pace_neural_new = (pace_neural + '\n        audio.playbackRate = Math.max(0.70, Math.min(1.15, '
+                   'Number(window.nabilVoicePace || 0.90)));')
+    if pace_neural not in html:
+        raise RuntimeError("NABIL neural TTS pace anchor is missing")
+    html = html.replace(pace_neural, pace_neural_new, 1)
+
+    # Preserve the blue robot as the only home; hide the separate welcome gateway.
     direct_entry_css = (
         "<style id='nabil-direct-lesson-entry'>"
         "#nabilProfessorGateway{display:none!important}"
@@ -445,7 +472,19 @@ def root():
         raise RuntimeError("NABIL chat page has no closing body tag")
     # Experimental virtual laboratories stay on /labs, not on the main student platform.
     html = html[:boundary] + scripts + html[boundary:]
-    return HTMLResponse(html, headers={"Cache-Control": "no-store"})
+    return html
+
+
+# Computed once per process at import time, not per request. chat.html is
+# static (see _build_root_html's docstring), so every request can safely
+# share this one cached string instead of re-running ~7 full-file string
+# scans on every page load.
+_CACHED_ROOT_HTML = _build_root_html()
+
+
+@app.get("/")
+def root():
+    return HTMLResponse(_CACHED_ROOT_HTML, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/dashboard")
