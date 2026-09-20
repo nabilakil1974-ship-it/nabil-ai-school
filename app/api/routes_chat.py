@@ -5861,7 +5861,7 @@ Do not produce JSON transport as visible prose.
                     )
             if verified_page_image_bytes:
                 lesson_prompt += (
-                    "\\n\\nVERIFIED PAGE IMAGE ATTACHED: inspect the exact original "
+                    "\n\nVERIFIED PAGE IMAGE ATTACHED: inspect the exact original "
                     "page alongside OCR. Explain the actual captions, layout, and "
                     "diagrams only when visible; preserve the page's order."
                 )
@@ -5869,7 +5869,7 @@ Do not produce JSON transport as visible prose.
                 lesson_generation_logger.info("BOOK_PAGE_VISION_ATTACHED pdf_page=%s", first_source.get("pdf_page"))
             else:
                 lesson_prompt += (
-                    "\\n\\nNO PAGE IMAGE ATTACHED. OCR text is the only verified "
+                    "\n\nNO PAGE IMAGE ATTACHED. OCR text is the only verified "
                     "source; do not claim to have visually inspected the figures."
                 )
                 history_messages = [{"role": "user", "content": lesson_prompt}]
