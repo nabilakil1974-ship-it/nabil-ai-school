@@ -5,6 +5,9 @@ on:
     paths:
       - app/main.py
       - app/api/routes_chat.py
+      - app/core/lesson_output_guard.py
+      - scripts/test_chemistry_lesson_output_guard.py
+      - app/static/nabil_ionic_diagram_fix.js
       - app/static/nabil_open_tutor_v1.js
       - app/static/nabil_learning_v132.js
       - app/static/nabil_reference_theme.css
@@ -19,6 +22,9 @@ on:
     paths:
       - app/main.py
       - app/api/routes_chat.py
+      - app/core/lesson_output_guard.py
+      - scripts/test_chemistry_lesson_output_guard.py
+      - app/static/nabil_ionic_diagram_fix.js
       - app/static/nabil_open_tutor_v1.js
       - app/static/nabil_learning_v132.js
       - app/static/nabil_reference_theme.css
@@ -50,6 +56,8 @@ jobs:
           node --check app/static/nabil_open_tutor_v1.js
           node --check app/static/nabil_learning_v132.js
           node --check app/static/nabil_voice_v133.js
+      - name: Chemistry Ionic Bond content regression
+        run: python -m scripts.test_chemistry_lesson_output_guard
       - name: Static owner contract validator
         run: python -m scripts.validate_nabil_ui
       - name: Runtime drawing-protocol and sphere regressions
