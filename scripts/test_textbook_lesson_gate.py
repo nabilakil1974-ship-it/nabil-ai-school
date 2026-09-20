@@ -88,7 +88,7 @@ class ExactTextbookLessonGateTests(unittest.TestCase):
             "Build the lattice.\n### Domain\n(0, infinity)\n"
             "### Limits\nlim x = 0\n### Derivative\nf'(x)=2x"
         )
-        cleaned = sanitize_chemistry_lesson(sample.replace("\\\n", "\n"), "Chemistry")
+        cleaned = sanitize_chemistry_lesson(sample, "Chemistry")
         self.assertIn("Build the lattice.", cleaned)
         self.assertNotIn("### Domain", cleaned)
         self.assertNotIn("### Limits", cleaned)
