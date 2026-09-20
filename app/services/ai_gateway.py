@@ -2,6 +2,7 @@ import base64
 import io
 import logging
 import os
+import subprocess
 import threading
 import time
 from typing import Optional
@@ -985,6 +986,33 @@ class NabilAIGateway:
         safe_name = os.path.basename(filename or "voice.webm")
         if not safe_name or "." not in safe_name:
             safe_name = "voice.webm"
+
+        # WhatsApp voice notes are normally OGG/Opus. Normalize them to MP3
+        # server-side: speech vendors differ in direct OGG acceptance. Do not
+        # expose provider API keys to the student or decode in the browser.
+        if safe_name.lower().endswith((".ogg", ".oga", ".opus")):
+            try:
+                converted = subprocess.run(
+                    [
+                        "ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin",
+                        "-i", "pipe:0", "-vn", "-ac", "1", "-ar", "16000",
+                        "-b:a", "48k", "-f", "mp3", "pipe:1",
+                    ],
+                    input=audio_bytes,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    timeout=20,
+                    check=True,
+                )
+                if not converted.stdout or len(converted.stdout) > 20 * 1024 * 1024:
+                    raise ValueError("empty or oversized audio after conversion")
+                audio_bytes = converted.stdout
+                safe_name = "student_voice.mp3"
+            except (subprocess.SubprocessError, OSError, ValueError) as exc:
+                logger.warning("VOICE_NOTE_CONVERSION_FAILED type=%s", type(exc).__name__)
+                raise ValueError(
+                    "تعذّر تحويل فويس واتساب. جرّب ملفًا آخر أو تسجيلًا مباشرًا."
+                ) from exc
 
         options = []
         if self.openai_client is not None:
