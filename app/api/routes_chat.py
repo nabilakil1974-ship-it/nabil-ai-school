@@ -4,6 +4,7 @@
 
 import os
 import json
+import asyncio
 import logging
 import time
 import math
@@ -5831,6 +5832,48 @@ Do not produce JSON transport as visible prose.
                 len(source_chunks), len(lesson_prompt),
             )
 
+        # Optional REAL source-page vision: the OCR text alone cannot establish
+        # what a diagram looks like. Never infer a visual from text or an offset.
+        # Bound the wait: a cold Drive download must not block every lesson.
+        verified_page_image_bytes = None
+        if lesson_start_from_book and _page_request is not None and source_chunks:
+            first_source = source_chunks[0]
+            if (first_source.get("pdf_page") and first_source.get("book_id")
+                    and resolve_book_printed_page(first_source) == _page_request[0]):
+                try:
+                    from app.api.routes_textbook_pages import _render_pdf_page
+                    from app.db.models import Book
+                    verified_book = db.query(Book).filter(
+                        Book.id == first_source["book_id"]
+                    ).first()
+                    if verified_book and verified_book.drive_file_id:
+                        verified_page_image_bytes = await asyncio.wait_for(
+                            asyncio.to_thread(
+                                _render_pdf_page,
+                                verified_book.drive_file_id,
+                                int(first_source["pdf_page"]),
+                            ),
+                            timeout=8.0,
+                        )
+                except (Exception, asyncio.TimeoutError) as exc:
+                    lesson_generation_logger.info(
+                        "BOOK_PAGE_VISION_UNAVAILABLE reason=%s", type(exc).__name__
+                    )
+            if verified_page_image_bytes:
+                lesson_prompt += (
+                    "\\n\\nVERIFIED PAGE IMAGE ATTACHED: inspect the exact original "
+                    "page alongside OCR. Explain the actual captions, layout, and "
+                    "diagrams only when visible; preserve the page's order."
+                )
+                history_messages = [{"role": "user", "content": lesson_prompt}]
+                lesson_generation_logger.info("BOOK_PAGE_VISION_ATTACHED pdf_page=%s", first_source.get("pdf_page"))
+            else:
+                lesson_prompt += (
+                    "\\n\\nNO PAGE IMAGE ATTACHED. OCR text is the only verified "
+                    "source; do not claim to have visually inspected the figures."
+                )
+                history_messages = [{"role": "user", "content": lesson_prompt}]
+
         # Instant exact figure-only sphere: bypass slow generative answers when
         # the requested object and measurement alone determine the drawing.
         # Still use the same validated Visual Engine and conversation storage.
@@ -5854,7 +5897,7 @@ Do not produce JSON transport as visible prose.
             raw_reply = await run_in_threadpool(ai.generate,
                 instructions=lesson_instructions if lesson_start_from_book else SYSTEM_PROMPT,
                 messages=history_messages,
-                image_bytes=image_bytes,
+                image_bytes=image_bytes or verified_page_image_bytes,
                 image_mime_type=image_mime_type,
                 max_output_tokens=output_budget,
             )
