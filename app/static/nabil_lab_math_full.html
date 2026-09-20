@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NABIL AI — مختبر الرياضيات التفاعلي</title>
+  <style>
+    :root{
+      --bg:#f6f8fb; --card:#ffffff; --ink:#1f2937; --muted:#6b7280;
+      --accent:#2563eb; --accent2:#0f766e; --accent3:#dc2626; --line:#dbe3ef;
+      --good:#15803d; --warn:#b45309;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:"Segoe UI",Tahoma,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+    .wrap{max-width:1200px;margin:0 auto;padding:16px}
+    .hero{background:linear-gradient(135deg,#0f172a,#1d4ed8);color:white;border-radius:18px;padding:18px 20px;box-shadow:0 10px 30px rgba(0,0,0,.12)}
+    .hero h1{margin:0 0 8px;font-size:clamp(22px,3vw,34px)}
+    .hero p{margin:4px 0;opacity:.95;line-height:1.7}
+    .grid{display:grid;grid-template-columns:380px 1fr;gap:16px;margin-top:16px}
+    @media (max-width: 980px){.grid{grid-template-columns:1fr}}
+    .panel,.board{background:var(--card);border-radius:18px;padding:16px;box-shadow:0 8px 24px rgba(15,23,42,.08)}
+    .section-title{font-size:18px;font-weight:700;margin:0 0 12px;color:#0f172a}
+    .small{font-size:13px;color:var(--muted);line-height:1.6}
+    .row{display:grid;grid-template-columns:1fr 78px;gap:10px;align-items:center;margin:10px 0}
+    .inline2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .inline3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+    label{font-size:14px;font-weight:600}
+    input[type="range"]{width:100%}
+    input[type="number"], select{width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:10px;background:white;font-size:14px}
+    .value{background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;border-radius:10px;padding:8px 10px;text-align:center;font-weight:700}
+    .check{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:12px;background:#f8fafc;border:1px solid #e2e8f0;margin:6px 0}
+    .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+    button{border:none;border-radius:12px;padding:10px 14px;font-weight:700;cursor:pointer}
+    .primary{background:var(--accent);color:white}
+    .secondary{background:#e2e8f0;color:#0f172a}
+    .green{background:var(--accent2);color:white}
+    .orange{background:#f59e0b;color:white}
+    .board-head{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+    .badge{background:#eff6ff;color:#1d4ed8;padding:8px 12px;border-radius:999px;font-size:13px;font-weight:700}
+    svg{width:100%;height:auto;border-radius:16px;background:#fff;border:1px solid #e2e8f0}
+    .legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+    .chip{padding:7px 10px;border-radius:999px;font-size:13px;font-weight:700;background:#f8fafc;border:1px solid #e2e8f0}
+    .teach,.quiz,.summary{margin-top:16px;border-radius:16px;padding:14px;background:#f8fafc;border:1px solid #e2e8f0}
+    .teach h3,.quiz h3,.summary h3{margin:0 0 10px;font-size:17px}
+    .formula{direction:ltr;text-align:left;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;font-family:Consolas,monospace;white-space:pre-wrap;line-height:1.7}
+    .good{color:var(--good);font-weight:700}
+    .warn{color:var(--warn);font-weight:700}
+    .quiz-options button{background:#fff;border:1px solid #cbd5e1;color:#111827}
+    .note{font-size:14px;line-height:1.7}
+    .hr{height:1px;background:#e5e7eb;margin:12px 0}
+    .language-box{background:#ecfeff;border:1px solid #67e8f9;border-radius:14px;padding:12px;margin-bottom:15px;display:grid;gap:8px}
+    .language-box select{font-weight:700}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <h1 data-i18n="heroTitle">📐 مختبر الرياضيات التفاعلي — NABIL AI</h1>
+    <p data-i18n="heroDesc">نموذج تعليمي تفاعلي في <strong>معلم متعامد ومتجانس (2D orthonormal system)</strong> يشرح: <strong>Plot point</strong> و<strong>Vector</strong> و<strong>Droite</strong>.</p>
+    <p data-i18n="heroHelp">غيّر الإحداثيات، شاهد الرسم مباشرة، ثم اقرأ الشرح كما يمكن أن يقدّمه الأستاذ نبيل للطالب.</p>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <div class="language-box">
+        <label for="lessonLanguage" data-i18n="languageLabel">🌐 لغة الشرح / Language / Langue</label>
+        <select id="lessonLanguage" aria-label="Lesson explanation language">
+          <option value="ar">🇱🇧 العربية + المصطلحات العلمية</option>
+          <option value="en">🇬🇧 English only</option>
+          <option value="fr">🇫🇷 Français uniquement</option>
+        </select>
+      </div>
+      <h2 class="section-title" data-i18n="settings">⚙️ الإعدادات</h2>
+      <div class="small" data-i18n="pointsHelp">اختر إحداثيات النقطتين <strong>A</strong> و<strong>B</strong> داخل المعلم، ثم قرر ما الذي تريد عرضه: النقاط، المتجهات، المستقيم، ومنتصف القطعة.</div>
+
+      <div class="hr"></div>
+      <h3 class="section-title" style="font-size:16px" data-i18n="pointA">النقطة A</h3>
+      <div class="row"><label for="ax">A(x)</label><div class="value" id="axv">2</div></div>
+      <input id="ax" type="range" min="-8" max="8" step="1" value="2" />
+      <div class="row"><label for="ay">A(y)</label><div class="value" id="ayv">3</div></div>
+      <input id="ay" type="range" min="-8" max="8" step="1" value="3" />
+
+      <div class="hr"></div>
+      <h3 class="section-title" style="font-size:16px" data-i18n="pointB">النقطة B</h3>
+      <div class="row"><label for="bx">B(x)</label><div class="value" id="bxv">6</div></div>
+      <input id="bx" type="range" min="-8" max="8" step="1" value="6" />
+      <div class="row"><label for="by">B(y)</label><div class="value" id="byv">1</div></div>
+      <input id="by" type="range" min="-8" max="8" step="1" value="1" />
+
+      <div class="hr"></div>
+      <div class="check"><input type="checkbox" id="showPoints" checked> <label for="showPoints" data-i18n="showPoints">إظهار Plot points</label></div>
+      <div class="check"><input type="checkbox" id="showVectorOA" checked> <label for="showVectorOA" data-i18n="showOA">إظهار المتجه OA⃗</label></div>
+      <div class="check"><input type="checkbox" id="showVectorAB" checked> <label for="showVectorAB" data-i18n="showAB">إظهار المتجه AB⃗</label></div>
+      <div class="check"><input type="checkbox" id="showLine" checked> <label for="showLine" data-i18n="showLine">إظهار المستقيم (droite) المارّ بـ A و B</label></div>
+      <div class="check"><input type="checkbox" id="showMid" > <label for="showMid" data-i18n="showMid">إظهار منتصف القطعة M</label></div>
+
+      <div class="btns">
+        <button class="primary" id="demo1" data-i18n="demo1">مثال 1</button>
+        <button class="secondary" id="demo2" data-i18n="demo2">مثال 2</button>
+        <button class="green" id="demo3" data-i18n="demo3">مثال 3</button>
+        <button class="orange" id="resetBtn" data-i18n="reset">إعادة الضبط</button>
+      </div>
+
+      <div class="teach">
+        <h3 data-i18n="learnTitle">🧠 ماذا يتعلّم الطالب؟</h3>
+        <div class="note">
+          <ul>
+            <li data-i18n="learn1">كيف يضع نقطة داخل <strong>معلم متعامد ومتجانس</strong>.</li>
+            <li data-i18n="learn2">كيف يقرأ متجهة من الرسم ومن الإحداثيات.</li>
+            <li data-i18n="learn3">كيف يحدد معادلة مستقيم يمرّ بنقطتين.</li>
+            <li data-i18n="learn4">كيف يحسب منتصف قطعة مستقيمة.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="board">
+      <div class="board-head">
+        <div class="badge">2D Orthonormal System • Vector • Droite • Plot Point</div>
+        <div class="small" data-i18n="scale">المعلم مرسوم بمقياس واحد على المحورين</div>
+      </div>
+
+      <svg id="svgBoard" viewBox="0 0 720 540" aria-label="math board">
+        <defs>
+          <marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+            <path d="M0,0 L9,3 L0,6 z" fill="#2563eb"></path>
+          </marker>
+          <marker id="arrowRed" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+            <path d="M0,0 L9,3 L0,6 z" fill="#dc2626"></path>
+          </marker>
+        </defs>
+        <g id="gridLayer"></g>
+        <g id="lineLayer"></g>
+        <g id="vectorLayer"></g>
+        <g id="pointLayer"></g>
+        <g id="labelLayer"></g>
+      </svg>
+
+      <div class="legend">
+        <div class="chip">🔵 OA⃗</div>
+        <div class="chip">🔴 AB⃗</div>
+        <div class="chip" data-i18n="legendLine">🟢 droite (AB)</div>
+        <div class="chip" data-i18n="legendPoints">⚫ نقاط: A, B, O, M</div>
+      </div>
+
+      <div class="teach">
+        <h3 data-i18n="teacherTitle">👨‍🏫 شرح الأستاذ نبيل</h3>
+        <div id="teacherText" class="note"></div>
+      </div>
+
+      <div class="teach">
+        <h3 data-i18n="formulaTitle">📘 القوانين والنتائج</h3>
+        <div id="formulaBox" class="formula"></div>
+      </div>
+
+      <div class="quiz">
+        <h3 data-i18n="quizTitle">❓ سؤال سريع</h3>
+        <div id="quizText" class="note">إذا كانت A(2,3) و B(6,1)، فما إحداثيا المتجهة AB⃗ ؟</div>
+        <div class="quiz-options btns">
+          <button data-answer="wrong">(8,4)</button>
+          <button data-answer="right">(4,-2)</button>
+          <button data-answer="wrong">(4,2)</button>
+        </div>
+        <div id="quizResult" class="note" style="margin-top:8px"></div>
+      </div>
+
+      <div class="summary">
+        <h3 data-i18n="summaryTitle">## Notebook Summary</h3>
+        <div id="summaryText" class="note"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const dictionary = {
+  ar: {
+    heroTitle:'📐 مختبر الرياضيات التفاعلي — NABIL AI',
+    heroDesc:'نموذج تفاعلي في <strong>المعلم المتعامد والمتجانس (2D orthonormal system)</strong>، والنقطة والمتجهة والمستقيم.',
+    heroHelp:'غيّر الإحداثيات، شاهد الرسم مباشرة، ثم اقرأ شرح الأستاذ نبيل.',
+    languageLabel:'🌐 لغة الشرح',settings:'⚙️ الإعدادات',
+    pointsHelp:'اختر إحداثيات النقطتين <strong>A</strong> و<strong>B</strong>، ثم اختر العناصر التي ترغب في عرضها.',
+    pointA:'النقطة A',pointB:'النقطة B',showPoints:'إظهار النقاط',showOA:'إظهار المتجهة OA⃗',showAB:'إظهار المتجهة AB⃗',
+    showLine:'إظهار المستقيم (AB)',showMid:'إظهار منتصف القطعة M',
+    demo1:'مثال 1',demo2:'مثال 2',demo3:'مثال 3',reset:'إعادة الضبط',
+    learnTitle:'🧠 ماذا يتعلّم الطالب؟',learn1:'وضع نقطة في <strong>معلم متعامد ومتجانس</strong>.',
+    learn2:'قراءة متجهة من الرسم والإحداثيات.',learn3:'تحديد معادلة مستقيم يمرّ بنقطتين.',learn4:'حساب منتصف قطعة مستقيمة.',
+    scale:'الوحدة نفسها على المحورين',legendLine:'🟢 المستقيم (AB)',legendPoints:'⚫ النقاط: A, B, O, M',
+    teacherTitle:'👨‍🏫 شرح الأستاذ نبيل',formulaTitle:'📘 القوانين والنتائج',quizTitle:'❓ سؤال سريع',summaryTitle:'📓 ملخّص الدرس للدفتر',
+    correct:'أحسنت! الجواب صحيح ✅',wrong:'ليست صحيحة. تذكّر: AB⃗ = B − A'
+  },
+  en: {
+    heroTitle:'📐 NABIL AI — Interactive Mathematics Lab',
+    heroDesc:'An interactive lesson on the <strong>2D orthonormal coordinate system</strong>, plotting points, vectors and lines.',
+    heroHelp:'Change the coordinates, explore the diagram and follow NABIL’s explanation.',
+    languageLabel:'🌐 Explanation language',settings:'⚙️ Settings',
+    pointsHelp:'Choose the coordinates of <strong>A</strong> and <strong>B</strong>, then select which mathematical objects to display.',
+    pointA:'Point A',pointB:'Point B',showPoints:'Show plotted points',showOA:'Show vector OA⃗',showAB:'Show vector AB⃗',
+    showLine:'Show line (AB)',showMid:'Show midpoint M',demo1:'Example 1',demo2:'Example 2',demo3:'Example 3',reset:'Reset',
+    learnTitle:'🧠 Learning objectives',learn1:'Plot a point in an <strong>orthonormal coordinate system</strong>.',
+    learn2:'Read a vector on the diagram and from coordinates.',learn3:'Find the equation of a line through two points.',learn4:'Find the midpoint of a segment.',
+    scale:'Same unit length on both axes',legendLine:'🟢 Line (AB)',legendPoints:'⚫ Points: A, B, O, M',
+    teacherTitle:'👨‍🏫 NABIL’s explanation',formulaTitle:'📘 Formulas and results',quizTitle:'❓ Quick check',summaryTitle:'📓 Notebook summary',
+    correct:'Excellent! Correct answer ✅',wrong:'Not quite. Remember: AB⃗ = B − A'
+  },
+  fr: {
+    heroTitle:'📐 NABIL AI — Laboratoire interactif de mathématiques',
+    heroDesc:'Une activité interactive sur le <strong>repère orthonormé du plan</strong>, le placement des points, les vecteurs et les droites.',
+    heroHelp:'Modifiez les coordonnées, observez la figure et suivez l’explication de NABIL.',
+    languageLabel:'🌐 Langue de l’explication',settings:'⚙️ Paramètres',
+    pointsHelp:'Choisissez les coordonnées de <strong>A</strong> et de <strong>B</strong>, puis sélectionnez les éléments à afficher.',
+    pointA:'Point A',pointB:'Point B',showPoints:'Afficher les points',showOA:'Afficher le vecteur OA⃗',showAB:'Afficher le vecteur AB⃗',
+    showLine:'Afficher la droite (AB)',showMid:'Afficher le milieu M',demo1:'Exemple 1',demo2:'Exemple 2',demo3:'Exemple 3',reset:'Réinitialiser',
+    learnTitle:'🧠 Objectifs d’apprentissage',learn1:'Placer un point dans un <strong>repère orthonormé</strong>.',
+    learn2:'Lire un vecteur sur la figure et à partir de ses coordonnées.',learn3:'Déterminer l’équation d’une droite passant par deux points.',learn4:'Calculer le milieu d’un segment.',
+    scale:'Même unité de longueur sur les deux axes',legendLine:'🟢 Droite (AB)',legendPoints:'⚫ Points : A, B, O, M',
+    teacherTitle:'👨‍🏫 Explication de NABIL',formulaTitle:'📘 Formules et résultats',quizTitle:'❓ Question rapide',summaryTitle:'📓 Résumé pour le cahier',
+    correct:'Bravo ! Bonne réponse ✅',wrong:'Pas tout à fait. Rappel : AB⃗ = B − A'
+  }
+};
+function applyLanguage(){
+  const lang = document.getElementById('lessonLanguage').value;
+  document.documentElement.lang=lang;
+  document.documentElement.dir=lang==='ar'?'rtl':'ltr';
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const translated=dictionary[lang][el.dataset.i18n];
+    if(translated!==undefined) el.innerHTML=translated;
+  });
+}
+const W=720,H=540, cx=W/2, cy=H/2, unit=28;
+const ids = id => document.getElementById(id);
+const controls = {
+  ax: ids('ax'), ay: ids('ay'), bx: ids('bx'), by: ids('by'),
+  showPoints: ids('showPoints'), showVectorOA: ids('showVectorOA'),
+  showVectorAB: ids('showVectorAB'), showLine: ids('showLine'), showMid: ids('showMid')
+};
+const layers = {
+  grid: ids('gridLayer'), line: ids('lineLayer'), vector: ids('vectorLayer'),
+  point: ids('pointLayer'), label: ids('labelLayer')
+};
+function sx(x){ return cx + x*unit; }
+function sy(y){ return cy - y*unit; }
+function svgEl(name, attrs={}){
+  const el = document.createElementNS('http://www.w3.org/2000/svg', name);
+  Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v));
+  return el;
+}
+function clearLayer(layer){ while(layer.firstChild) layer.removeChild(layer.firstChild); }
+function drawGrid(){
+  clearLayer(layers.grid);
+  for(let x=-12;x<=12;x++){
+    layers.grid.appendChild(svgEl('line', {x1:sx(x),y1:20,x2:sx(x),y2:H-20,stroke:(x===0?'#111827':'#e5e7eb'),'stroke-width':(x===0?2:1)}));
+    if(x!==0){
+      const t=svgEl('text',{x:sx(x)-4,y:cy+18,fill:'#6b7280','font-size':'12'}); t.textContent=x; layers.grid.appendChild(t);
+    }
+  }
+  for(let y=-9;y<=9;y++){
+    layers.grid.appendChild(svgEl('line', {x1:20,y1:sy(y),x2:W-20,y2:sy(y),stroke:(y===0?'#111827':'#e5e7eb'),'stroke-width':(y===0?2:1)}));
+    if(y!==0){
+      const t=svgEl('text',{x:cx+8,y:sy(y)+4,fill:'#6b7280','font-size':'12'}); t.textContent=y; layers.grid.appendChild(t);
+    }
+  }
+  layers.grid.appendChild(svgEl('text',{x:W-32,y:cy-8,fill:'#111827','font-size':'16','font-weight':'700'})).textContent='x';
+  layers.grid.appendChild(svgEl('text',{x:cx+10,y:25,fill:'#111827','font-size':'16','font-weight':'700'})).textContent='y';
+  const originText=svgEl('text',{x:cx+8,y:cy+18,fill:'#111827','font-size':'12','font-weight':'700'}); originText.textContent='O'; layers.grid.appendChild(originText);
+}
+function drawPoint(x,y,label,color='#111827',offsetX=8,offsetY=-8){
+  const g = svgEl('g');
+  g.appendChild(svgEl('circle',{cx:sx(x),cy:sy(y),r:5,fill:color}));
+  const t=svgEl('text',{x:sx(x)+offsetX,y:sy(y)+offsetY,fill:color,'font-size':'15','font-weight':'700'});
+  t.textContent = `${label}(${x},${y})`;
+  g.appendChild(t);
+  layers.point.appendChild(g);
+}
+function drawVector(x1,y1,x2,y2,color,markerId,label){
+  layers.vector.appendChild(svgEl('line',{
+    x1:sx(x1),y1:sy(y1),x2:sx(x2),y2:sy(y2),stroke:color,'stroke-width':3,'marker-end':`url(#${markerId})`
+  }));
+  // The midpoint M belongs at t=0.5 on [AB]. Never place the AB vector
+  // label at that exact location: separate labels along AND across the segment.
+  const dx=sx(x2)-sx(x1),dy=sy(y2)-sy(y1);
+  const length=Math.hypot(dx,dy)||1;
+  const tAlong=(label==='AB⃗'&&controls.showMid.checked)?0.26:0.5;
+  const nx=-dy/length,ny=dx/length;
+  const mx=sx(x1)+tAlong*dx+nx*17;
+  const my=sy(y1)+tAlong*dy+ny*17;
+  const t=svgEl('text',{x:mx,y:my,fill:color,'font-size':'14','font-weight':'700',
+    'text-anchor':'middle','paint-order':'stroke','stroke':'#fff','stroke-width':4,'stroke-linejoin':'round'});
+  t.textContent=label; layers.label.appendChild(t);
+}
+function drawLineThrough(A,B,color='#16a34a'){
+  const [x1,y1]=A,[x2,y2]=B;
+  if(x1===x2){
+    layers.line.appendChild(svgEl('line',{x1:sx(x1),y1:20,x2:sx(x1),y2:H-20,stroke:color,'stroke-width':3,'stroke-dasharray':'9 6'}));
+    return;
+  }
+  const m=(y2-y1)/(x2-x1), b=y1-m*x1;
+  const xxL=-12, yyL=m*xxL+b, xxR=12, yyR=m*xxR+b;
+  layers.line.appendChild(svgEl('line',{x1:sx(xxL),y1:sy(yyL),x2:sx(xxR),y2:sy(yyR),stroke:color,'stroke-width':3,'stroke-dasharray':'9 6'}));
+}
+function fmt(n){
+  if(Number.isInteger(n)) return String(n);
+  return Number(n).toFixed(2).replace(/\.00$/,'');
+}
+function lineEquation(A,B){
+  const [x1,y1]=A,[x2,y2]=B;
+  if(x1===x2) return {type:'vertical', text:`x = ${x1}`};
+  const m=(y2-y1)/(x2-x1), b=y1-m*x1;
+  let text=`y = ${fmt(m)}x`;
+  if(b>0) text += ` + ${fmt(b)}`;
+  else if(b<0) text += ` - ${fmt(Math.abs(b))}`;
+  return {type:'normal', m,b,text};
+}
+function updateLabels(){ ['ax','ay','bx','by'].forEach(k=>ids(k+'v').textContent=controls[k].value); }
+function render(){
+  updateLabels();
+  clearLayer(layers.line); clearLayer(layers.vector); clearLayer(layers.point); clearLayer(layers.label);
+  drawGrid();
+  const A=[+controls.ax.value,+controls.ay.value], B=[+controls.bx.value,+controls.by.value];
+  const OA=[A[0],A[1]], AB=[B[0]-A[0],B[1]-A[1]], M=[(A[0]+B[0])/2,(A[1]+B[1])/2];
+  const distAB=Math.hypot(AB[0],AB[1]);
+  const eq=lineEquation(A,B);
+  const lang = ids('lessonLanguage').value;
+
+  if(controls.showLine.checked) drawLineThrough(A,B);
+  if(controls.showVectorOA.checked) drawVector(0,0,A[0],A[1],'#2563eb','arrowBlue','OA⃗');
+  if(controls.showVectorAB.checked) drawVector(A[0],A[1],B[0],B[1],'#dc2626','arrowRed','AB⃗');
+  if(controls.showPoints.checked){
+    drawPoint(0,0,'O');
+    drawPoint(A[0],A[1],'A','#111827');
+    drawPoint(B[0],B[1],'B','#111827');
+  }
+  if(controls.showMid.checked){
+    const vx=sx(B[0])-sx(A[0]),vy=sy(B[1])-sy(A[1]);
+    const len=Math.hypot(vx,vy)||1;
+    // Put M on the opposite side of the segment from the AB⃗ label.
+    const offsetX=(vy/len)*23,offsetY=(-vx/len)*23;
+    drawPoint(M[0],M[1],'M','#15803d',offsetX+5,offsetY-4);
+  }
+
+  ids('teacherText').innerHTML = lang === 'en' ? `
+    <p><strong>Step 1:</strong> We work in a <strong>2D orthonormal coordinate system</strong>. One unit has the same scale on both axes.</p>
+    <p><strong>Step 2:</strong> Plot <strong>A(${A[0]}, ${A[1]})</strong> and <strong>B(${B[0]}, ${B[1]})</strong>.</p>
+    <p><strong>Step 3:</strong> Vector <strong>OA⃗</strong> runs from the origin to A, so its coordinates are <strong>(${OA[0]}, ${OA[1]})</strong>.</p>
+    <p><strong>Step 4:</strong> Compute <strong>AB⃗</strong> by subtracting the coordinates of A from those of B:</p>
+    <p class="formula">AB⃗ = (x<sub>B</sub> − x<sub>A</sub>, y<sub>B</sub> − y<sub>A</sub>) = (${AB[0]}, ${AB[1]})</p>
+    <p><strong>Step 5:</strong> ${eq.type==='vertical' ? `The line (AB) is vertical, with equation <strong>${eq.text}</strong>.` : `The slope is <strong>m = ${fmt(eq.m)}</strong> and the equation of line (AB) is <strong>${eq.text}</strong>.`}</p>
+    <p><strong>Step 6:</strong> The distance AB is <strong>${fmt(distAB)}</strong> units${controls.showMid.checked ? `, and the midpoint is <strong>M(${fmt(M[0])}, ${fmt(M[1])})</strong>.` : '.'}</p>
+  ` : lang === 'fr' ? `
+    <p><strong>Étape 1 :</strong> Nous travaillons dans un <strong>repère orthonormé du plan</strong>. L’unité de longueur est identique sur les deux axes.</p>
+    <p><strong>Étape 2 :</strong> On place les points <strong>A(${A[0]}, ${A[1]})</strong> et <strong>B(${B[0]}, ${B[1]})</strong>.</p>
+    <p><strong>Étape 3 :</strong> Le vecteur <strong>OA⃗</strong> va de l’origine O au point A : ses coordonnées sont <strong>(${OA[0]}, ${OA[1]})</strong>.</p>
+    <p><strong>Étape 4 :</strong> On calcule les coordonnées du vecteur <strong>AB⃗</strong> en soustrayant celles de A à celles de B :</p>
+    <p class="formula">AB⃗ = (x<sub>B</sub> − x<sub>A</sub>, y<sub>B</sub> − y<sub>A</sub>) = (${AB[0]}, ${AB[1]})</p>
+    <p><strong>Étape 5 :</strong> ${eq.type==='vertical' ? `La droite (AB) est verticale, d’équation <strong>${eq.text}</strong>.` : `Son coefficient directeur est <strong>m = ${fmt(eq.m)}</strong> et son équation est <strong>${eq.text}</strong>.`}</p>
+    <p><strong>Étape 6 :</strong> La distance AB vaut <strong>${fmt(distAB)}</strong> unités${controls.showMid.checked ? ` et le milieu du segment [AB] est <strong>M(${fmt(M[0])}, ${fmt(M[1])})</strong>.` : '.'}</p>
+  ` : `
+    <p><strong>الخطوة 1:</strong> نحن نعمل داخل <strong>معلم متعامد ومتجانس</strong>، أي أن وحدة القياس نفسها على المحورين x و y.</p>
+    <p><strong>الخطوة 2:</strong> النقطة <strong>A</strong> إحداثياها <strong>A(${A[0]}, ${A[1]})</strong>، والنقطة <strong>B</strong> إحداثياها <strong>B(${B[0]}, ${B[1]})</strong>.</p>
+    <p><strong>الخطوة 3:</strong> المتجهة <strong>OA⃗</strong> تمثل انتقالًا من الأصل O إلى النقطة A، لذلك إحداثياها <strong>(${OA[0]}, ${OA[1]})</strong>.</p>
+    <p><strong>الخطوة 4:</strong> المتجهة <strong>AB⃗</strong> نحسبها بطرح إحداثيات A من إحداثيات B:</p>
+    <p class="formula">AB⃗ = (x<sub>B</sub> − x<sub>A</sub>, y<sub>B</sub> − y<sub>A</sub>) = (${AB[0]}, ${AB[1]})</p>
+    <p><strong>الخطوة 5:</strong> المستقيم (droite) المارّ بـ A و B ${eq.type==='vertical' ? `هو مستقيم عمودي ومعادلته <strong>${eq.text}</strong>.` : `ميله <strong>m = ${fmt(eq.m)}</strong> ومعادلته <strong>${eq.text}</strong>.`}</p>
+    <p><strong>الخطوة 6:</strong> طول القطعة AB هو <strong>${fmt(distAB)}</strong> وحدة تقريبًا${controls.showMid.checked ? `، ومنتصفها هو <strong>M(${fmt(M[0])}, ${fmt(M[1])})</strong>.` : '.'}</p>
+  `;
+
+  ids('formulaBox').textContent =
+`A = (${A[0]}, ${A[1]})
+B = (${B[0]}, ${B[1]})
+
+OA⃗ = (${OA[0]}, ${OA[1]})
+AB⃗ = (${AB[0]}, ${AB[1]})
+
+${lang === 'fr' ? 'Distance' : 'Distance'} AB = √[(${AB[0]})² + (${AB[1]})²] = ${fmt(distAB)}
+${controls.showMid.checked ? `${lang==='fr'?'Milieu':lang==='en'?'Midpoint':'منتصف القطعة'} M = ((${A[0]}+${B[0]})/2, (${A[1]}+${B[1]})/2) = (${fmt(M[0])}, ${fmt(M[1])})
+` : ''}
+${lang==='fr'?'Droite':lang==='en'?'Line':'المستقيم'} (AB): ${eq.text}`;
+
+  ids('summaryText').innerHTML = lang === 'en' ? `
+    <ul>
+      <li>Each point in an orthonormal coordinate system has an ordered pair <strong>(x, y)</strong>.</li>
+      <li>Vector <strong>AB⃗</strong> has coordinates <strong>(x<sub>B</sub> − x<sub>A</sub>, y<sub>B</sub> − y<sub>A</sub>) = (${AB[0]}, ${AB[1]})</strong>.</li>
+      <li>The equation of line (AB) is <strong>${eq.text}</strong>.</li>
+      ${controls.showMid.checked ? `<li>The midpoint of [AB] is <strong>M(${fmt(M[0])}, ${fmt(M[1])})</strong>.</li>` : ''}
+      <li>Points, vectors and lines are all represented in the same coordinate plane.</li>
+    </ul>` : lang === 'fr' ? `
+    <ul>
+      <li>Dans un repère orthonormé, chaque point possède un couple de coordonnées <strong>(x ; y)</strong>.</li>
+      <li>Les coordonnées du vecteur <strong>AB⃗</strong> sont <strong>(x<sub>B</sub> − x<sub>A</sub> ; y<sub>B</sub> − y<sub>A</sub>) = (${AB[0]} ; ${AB[1]})</strong>.</li>
+      <li>L’équation de la droite (AB) est <strong>${eq.text}</strong>.</li>
+      ${controls.showMid.checked ? `<li>Le milieu de [AB] est <strong>M(${fmt(M[0])} ; ${fmt(M[1])})</strong>.</li>` : ''}
+      <li>Les points, les vecteurs et les droites se représentent dans un même repère.</li>
+    </ul>` : `
+    <ul>
+      <li>في المعلم المتعامد والمتجانس، كل نقطة تُحدد بزوج مرتب <strong>(x, y)</strong>.</li>
+      <li>إحداثيا المتجهة <strong>AB⃗</strong> هما: <strong>(x<sub>B</sub> − x<sub>A</sub>, y<sub>B</sub> − y<sub>A</sub>) = (${AB[0]}, ${AB[1]})</strong>.</li>
+      <li>${eq.type==='vertical' ? `المستقيم (AB) هنا عمودي، ومعادلته <strong>${eq.text}</strong>.` : `معادلة المستقيم (AB) هي <strong>${eq.text}</strong>.`}</li>
+      ${controls.showMid.checked ? `<li>منتصف القطعة [AB] هو <strong>M(${fmt(M[0])}, ${fmt(M[1])})</strong>.</li>` : ''}
+      <li>يمكن استعمال الرسم لفهم العلاقة بين <strong>النقطة</strong> و<strong>المتجهة</strong> و<strong>المستقيم</strong> داخل المستوى.</li>
+    </ul>`;
+
+  const rightAnswer = `(${AB[0]},${AB[1]})`;
+  ids('quizText').innerHTML = lang==='en'
+    ? `Given A(${A[0]},${A[1]}) and B(${B[0]},${B[1]}), what are the coordinates of vector <strong>AB⃗</strong>?`
+    : lang==='fr'
+    ? `Étant donnés A(${A[0]},${A[1]}) et B(${B[0]},${B[1]}), quelles sont les coordonnées du vecteur <strong>AB⃗</strong> ?`
+    : `إذا كانت A(${A[0]},${A[1]}) و B(${B[0]},${B[1]})، فما إحداثيا المتجهة <strong>AB⃗</strong> ؟`;
+  const buttons = document.querySelectorAll('.quiz-options button');
+  let distractors = [
+    `(${A[0]+B[0]},${A[1]+B[1]})`,
+    `(${AB[0]},${Math.abs(AB[1])})`,
+    rightAnswer
+  ];
+  distractors = [...new Set(distractors)];
+  while(distractors.length<3) distractors.push(`(${AB[0]+1},${AB[1]-1})`);
+  const shuffled = distractors.sort(()=>Math.random()-0.5).slice(0,3);
+  buttons.forEach((btn,i)=>{
+    btn.textContent=shuffled[i];
+    btn.dataset.answer = (shuffled[i]===rightAnswer ? 'right' : 'wrong');
+  });
+  ids('quizResult').textContent='';
+}
+
+function setExample(a,b,c,d,mid=false){
+  controls.ax.value=a; controls.ay.value=b; controls.bx.value=c; controls.by.value=d; controls.showMid.checked=mid; render();
+}
+['ax','ay','bx','by','showPoints','showVectorOA','showVectorAB','showLine','showMid'].forEach(id=>ids(id).addEventListener('input',render));
+ids('demo1').addEventListener('click',()=>setExample(2,3,6,1,false));
+ids('demo2').addEventListener('click',()=>setExample(-4,2,3,5,true));
+ids('demo3').addEventListener('click',()=>setExample(1,-3,1,4,true));
+ids('resetBtn').addEventListener('click',()=>{
+  controls.showPoints.checked=true; controls.showVectorOA.checked=true; controls.showVectorAB.checked=true; controls.showLine.checked=true; setExample(2,3,6,1,false);
+});
+document.querySelectorAll('.quiz-options button').forEach(btn=>btn.addEventListener('click',e=>{
+  const text=dictionary[ids('lessonLanguage').value];
+  ids('quizResult').innerHTML=e.target.dataset.answer==='right'
+    ? `<span class="good">${text.correct}</span>`
+    : `<span class="warn">${text.wrong}</span>`;
+}));
+ids('lessonLanguage').addEventListener('change',()=>{ applyLanguage(); render(); });
+applyLanguage();
+render();
+</script>
+</body>
+</html>
