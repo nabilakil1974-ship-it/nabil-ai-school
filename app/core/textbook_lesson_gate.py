@@ -41,14 +41,14 @@ def lesson_page_issues(
                      r"(?:configuration|arrangement|after)\s*[:=]?\s*(?:2\s*,\s*8\s*,\s*8|"
                      r"K\^?2\s*,?\s*L\^?8\s*,?\s*M\^?8)", answer):
             issues.append("oxide O2- has 10 electrons, not 18")
-            if re.search(
+        if re.search(
             r"(?i)\\b(?:fluorine|fluor|fluorure|الفلور)\\b[^\\n]{0,140}"
             r"(?:\\[\\s*Ne\\s*\\]\\s*2s\\s*[²2]\\s*2p\\s*[⁵5]|"
             r"\\bNe\\s+2s\\s*[²2]\\s*2p\\s*[⁵5])",
             answer,
         ):
             issues.append("neutral fluorine is [He]2s2 2p5, not [Ne]2s2 2p5")
-    # The order 2,6,8 is not a valid neutral oxygen arrangement (8 e-).
+        # The order 2,6,8 is not a valid neutral oxygen arrangement (8 e-).
         if re.search(r"(?i)oxygen.{0,105}?(?:configuration|arrangement)"
                      r"[^\n]{0,25}(?:2\s*,\s*6\s*,\s*8|K\^?2\s*,?\s*L\^?6\s*,?\s*M\^?8)", answer):
             issues.append("neutral oxygen has electron arrangement 2,6")
