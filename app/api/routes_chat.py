@@ -11,6 +11,7 @@ import math
 import re
 from pathlib import Path
 from app.core.lesson_output_guard import sanitize_chemistry_lesson
+from app.core.textbook_lesson_gate import lesson_page_issues
 from app.core.textbook_page_citations import render_verified_page_citations, resolve_book_printed_page
 from app.core.lesson_quality import missing_practice_exercises, practice_exercise_numbers, drawing_matches_subject, deduplicate_lesson_sections
 from typing import Optional
@@ -5842,7 +5843,7 @@ Do not produce JSON transport as visible prose.
                 f"Verified book excerpts:\n{excerpts}"
             )
             history_messages = [{"role": "user", "content": lesson_prompt}]
-            output_budget = min(output_budget, 3900 if _page_request and _page_request[1] == "page" else 5200)
+            output_budget = min(output_budget, 3100 if _page_request and _page_request[1] == "page" else 5200)
             lesson_generation_logger.info(
                 "LESSON_COMPACT_SOURCE_PROMPT grade=%r subject=%r lesson=%r "
                 "curriculum=%r sources=%d input_chars=%d",
@@ -6302,6 +6303,78 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
     # Chemistry must never inherit a function-study completion or expose
     # invalid DRAWING_JSON; do not alter a mathematics lesson here.
     raw_reply = sanitize_chemistry_lesson(raw_reply, subject or "")
+
+    # The exact requested page is a hard scope. Check objective source mismatch
+    # BEFORE citation rendering, caching or saving any teacher answer. If one
+    # provider drifts into another chapter/figure or miscounts electrons, make
+    # ONE bounded replacement from the same indexed page. Never append a second
+    # complete lesson to the first, never silently pass the invalid first one.
+    if lesson_start_from_book and _page_request and source_chunks:
+        _strict_page = _page_request[1] == "page"
+        _indexed_page_text = "\\n".join(
+            str(chunk.get("text") or "") for chunk in source_chunks
+            if resolve_book_printed_page(chunk) == _page_request[0]
+        )
+        _page_quality_issues = lesson_page_issues(
+            raw_reply, _indexed_page_text,
+            subject=subject or "", printed_page=_page_request[0],
+            strict_single_page=_strict_page,
+        )
+        if _page_quality_issues:
+            lesson_generation_logger.warning(
+                "BOOK_PAGE_QUALITY_RETRY page=%d issues=%r",
+                _page_request[0], _page_quality_issues,
+            )
+            _quality_instruction = (
+                lesson_instructions
+                + "\\nSTRICT REPLACEMENT, NEVER A CONTINUATION. "
+                "Explain only the indexed requested printed page in textbook order. "
+                "Use the verified NaCl and MgF2 examples when they appear in the "
+                "source, including electron conservation and charge neutrality. "
+                "Do not invent figure/activity numbers or printed-page exercises. "
+                "Do not claim an unseen diagram was visually inspected. "
+                "Do not add calculus, conductivity tests, unrelated chapter "
+                "material or 5 generated exercises. "
+                "Return one compact coherent lesson, with ONE summary at end. "
+                "Do not repeat any previous response."
+            )
+            try:
+                _replacement = await run_in_threadpool(
+                    ai.generate,
+                    instructions=_quality_instruction + _explicit_language_instruction,
+                    messages=[{"role": "user", "content": lesson_prompt}],
+                    image_bytes=None,
+                    max_output_tokens=2800,
+                )
+            except Exception as exc:
+                lesson_generation_logger.warning(
+                    "BOOK_PAGE_QUALITY_RETRY_FAILED page=%d type=%s",
+                    _page_request[0], type(exc).__name__,
+                )
+                raise HTTPException(
+                    status_code=503,
+                    detail="لم يكتمل شرح الصفحة علميًا. أعد المحاولة؛ لن أعرض درسًا غير موثوق.",
+                    headers={"Retry-After": "8"},
+                ) from exc
+            _replacement = sanitize_chemistry_lesson(
+                str(_replacement or ""), subject or "",
+            )
+            _remaining_issues = lesson_page_issues(
+                _replacement, _indexed_page_text,
+                subject=subject or "", printed_page=_page_request[0],
+                strict_single_page=_strict_page,
+            )
+            if _remaining_issues:
+                lesson_generation_logger.warning(
+                    "BOOK_PAGE_QUALITY_REJECTED page=%d issues=%r",
+                    _page_request[0], _remaining_issues,
+                )
+                raise HTTPException(
+                    status_code=503,
+                    detail="شرح الصفحة لا يطابق المرجع بدرجة كافية. لا أريد تقديم معلومات أو رسومات غير مؤكدة.",
+                    headers={"Retry-After": "8"},
+                )
+            raw_reply = _replacement
 
     raw_reply, progress_metadata = extract_progress_metadata(
         raw_reply
