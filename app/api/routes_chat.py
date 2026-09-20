@@ -5,10 +5,12 @@
 import os
 import json
 import logging
+import time
 import math
 import re
 from pathlib import Path
 from app.core.lesson_output_guard import sanitize_chemistry_lesson
+from app.core.lesson_quality import missing_practice_exercises, practice_exercise_numbers, drawing_matches_subject
 from typing import Optional
 from datetime import datetime
 
@@ -4736,23 +4738,11 @@ def _nabil_lesson_start_request(message: str) -> bool:
 
 
 def _nabil_practice_exercise_numbers(text: str):
-    nums=[]
-    for m in re.finditer(
-        r"(?im)^\s*##\s*(?:Exercise|Exercice|تمرين)\s*(?:#\s*)?(\d+)\b",
-        str(text or ""),
-    ):
-        try:
-            n=int(m.group(1))
-        except Exception:
-            continue
-        if 1 <= n <= 5 and n not in nums:
-            nums.append(n)
-    return nums
+    return practice_exercise_numbers(text)
 
 
 def _nabil_missing_practice_exercises(text: str):
-    have=set(_nabil_practice_exercise_numbers(text))
-    return [n for n in range(1,6) if n not in have]
+    return missing_practice_exercises(text)
 
 def build_learning_action_instructions(
     action: Optional[str],
@@ -4956,6 +4946,11 @@ async def voice_chat(
             message = "ساعدني في هذا الدرس."
  
     message = message.strip()
+    _request_started_at = time.monotonic()
+    _rag_elapsed_ms = 0
+    _primary_ai_elapsed_ms = 0
+    _repair_ai_elapsed_ms = 0
+    _repair_ai_calls = 0
     figure_only_request = _nabil_figure_only_request(message)
 
     # Written and transcribed voice requests use the SAME lesson/exercise
@@ -5325,6 +5320,7 @@ the same lesson Visual Engine; never describe it as rendered without one.
                     str(message or "").strip(),
                 ] if part
             )
+            _rag_started_at = time.monotonic()
             source_chunks = search_book_pages(
                 db=db,
                 query=source_query or str(lesson or "lesson"),
@@ -5333,6 +5329,7 @@ the same lesson Visual Engine; never describe it as rendered without one.
                 curriculum=book_curriculum,
                 top_k=10 if str(teaching_mode or "full_lesson") in {"full_lesson", "board_lesson"} else 4,
             )
+            _rag_elapsed_ms = round((time.monotonic() - _rag_started_at) * 1000)
             book_context = build_context_block(source_chunks)
             print(f"BOOK_RAG_SCOPE_MATCH grade={grade!r} subject={subject!r} language={selected_language!r} curriculum={book_curriculum!r} retrieved={len(source_chunks)}", flush=True)
         except Exception as exc:
@@ -5684,6 +5681,11 @@ Do not produce JSON transport as visible prose.
                 + "\n</DRAWINGS_JSON>"
             )
         else:
+            lesson_generation_logger.info(
+                "LESSON_PRIMARY_AI_STARTED grade=%r subject=%r lesson=%r budget=%d",
+                grade, subject, lesson, output_budget,
+            )
+            _primary_ai_started_at = time.monotonic()
             raw_reply = ai.generate(
                 instructions=lesson_instructions if lesson_start_from_book else SYSTEM_PROMPT,
                 messages=history_messages,
@@ -5691,6 +5693,8 @@ Do not produce JSON transport as visible prose.
                 image_mime_type=image_mime_type,
                 max_output_tokens=output_budget,
             )
+            _primary_ai_elapsed_ms = round((time.monotonic() - _primary_ai_started_at) * 1000)
+            lesson_generation_logger.info("LESSON_PRIMARY_AI_FINISHED duration_ms=%d", _primary_ai_elapsed_ms)
  
     except Exception as exc:
         # The student gets a safe error; Railway gets the REAL traceback
@@ -5754,11 +5758,14 @@ For each missing exercise:
 Do not invent hidden data. Return only the missing exercises and their drawing JSON.
 """.strip()
             try:
+                _repair_ai_calls += 1
+                _repair_started_at = time.monotonic()
                 repair_reply = ai.generate(
-                    instructions=SYSTEM_PROMPT,
+                    instructions=lesson_instructions if lesson_start_from_book else SYSTEM_PROMPT,
                     messages=[{"role": "user", "content": repair_prompt}],
                     max_output_tokens=5200,
                 )
+                _repair_ai_elapsed_ms += round((time.monotonic() - _repair_started_at) * 1000)
                 if str(repair_reply or "").strip():
                     raw_reply = str(raw_reply or "").rstrip() + "\n\n" + str(repair_reply).strip()
             except Exception:
@@ -6064,7 +6071,7 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
     # objectively requires a separate supported figure and the worksheet
     # permits reproduction. Preserve the original figure when the question
     # expressly says "do not reproduce the figure".
-    drawings = [item for item in drawings if validate_drawing_strict(item)]
+    drawings = [item for item in drawings if validate_drawing_strict(item) and drawing_matches_subject(item, subject, lesson)]
     explicit_draw_request = bool(re.search(
         r"\b(?:draw|redraw|construct|sketch|trace|tracer|dessiner|redessiner)\b|"
         r"ارسم|ارسملي|أعد رسم|اعد رسم|رسم جديد",
@@ -6232,6 +6239,14 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
             detail="NABIL AI لم يُرجع إجابة.",
         )
  
+    lesson_generation_logger.info(
+        "LESSON_TIMING grade=%r subject=%r lesson=%r rag_ms=%d primary_ai_ms=%d "
+        "practice_repair_ai_ms=%d practice_repair_calls=%d total_ms=%d drawings=%d",
+        grade, subject, lesson, _rag_elapsed_ms, _primary_ai_elapsed_ms,
+        _repair_ai_elapsed_ms, _repair_ai_calls,
+        round((time.monotonic() - _request_started_at) * 1000), len(drawings),
+    )
+
     # ==========================================
     # SAVE
     # ==========================================
