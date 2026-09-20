@@ -176,6 +176,25 @@ class NabilUiIntegrationTests(unittest.TestCase):
             with self.subTest(token=token):
                 self.assertIn(token, js)
 
+    def test_full_lesson_uses_compact_verified_book_passages_and_logs_failure(self):
+        import ast
+        route = (ROOT / "app" / "api" / "routes_chat.py").read_text(encoding="utf-8")
+        ast.parse(route)
+        for marker in (
+            "lesson_start_from_book = (",
+            "and _nabil_lesson_start_request(message)",
+            "and bool(source_chunks)",
+            "Verified book excerpts:",
+            "messages=history_messages",
+            "instructions=lesson_instructions if lesson_start_from_book else SYSTEM_PROMPT",
+            "LESSON_COMPACT_SOURCE_PROMPT",
+            "LESSON_GENERATION_FAILED",
+            "max_output_tokens=output_budget",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, route)
+        self.assertIn("book_curriculum = resolve_textbook_curriculum", route)
+
     def test_source_grounded_interactive_worksheet_contract(self):
         script = (STATIC / "nabil_worksheet_v1.js").read_text(encoding="utf-8")
         backend = (ROOT / "app" / "api" / "routes_chat.py").read_text(encoding="utf-8")

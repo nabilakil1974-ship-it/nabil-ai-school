@@ -4,6 +4,7 @@
 
 import os
 import json
+import logging
 import math
 import re
 from pathlib import Path
@@ -40,6 +41,8 @@ from app.services.rag_search import search_book_pages, build_context_block
 from app.services.textbook_scope import resolve_textbook_curriculum
  
  
+lesson_generation_logger = logging.getLogger("nabil_ai.lesson")
+
 router = APIRouter()
  
  
@@ -5583,6 +5586,59 @@ sqrt(496) is NOT 22, and an unverified tangent slope is NOT acceptable.
         else:
             output_budget = 5200
 
+        # A full lesson needs a coherent book-scoped prompt, not the ~20KB
+        # global tutor instruction stack plus another long lesson template.
+        # Keeping only retrieved same-scope book passages also reduces provider
+        # context/quota failures when the science OCR worker is running.
+        lesson_start_from_book = (
+            not general_exercises_mode
+            and image_bytes is None
+            and _nabil_lesson_start_request(message)
+            and bool(source_chunks)
+        )
+        if lesson_start_from_book:
+            lesson_instructions = """
+You are NABIL AI, a warm, careful teacher of the official Lebanese curriculum.
+Teach in the selected lesson's language from the FIRST sentence: English means
+English; Français means French; Arabic means Arabic. Match the selected grade
+and branch. The retrieved excerpts alone establish what is actually in the
+textbook. Begin at a sourced Activity if present; develop its ideas in order,
+with correct worked examples, clear formulas and a brief final rule summary.
+For a full lesson give exactly five additional age-appropriate solved PRACTICE
+exercises, distinctly labelled as yours, not as official book exercises.
+If actual numbered book exercises and subparts are present in excerpts, solve
+those with their real page numbers; otherwise say they were not retrieved.
+Do not invent source pages, original figure coordinates, missing exercise
+statements or an unsupported connection to another grade. Use Markdown ## for
+each idea. Mark core rules with 🔴 Key Rule: / 🔴 Règle essentielle : /
+🔴 قاعدة أساسية: according to lesson language. For Ionic bond show electron
+transfer and charges correctly; include a valid DRAWINGS_JSON diagram only
+when you know its supported schema and exact scientific labels.
+Do not produce JSON transport as visible prose.
+""".strip()
+            excerpts = "\n\n".join(
+                f"[{item.get('book_title')} p.{item.get('page')}] "
+                + str(item.get("text") or "")[:1550]
+                for item in source_chunks[:8]
+                if isinstance(item, dict) and item.get("text")
+            )
+            lesson_prompt = (
+                f"Grade: {grade}; Branch: {branch or 'N/A'}; "
+                f"Subject: {subject}; Lesson: {lesson}; "
+                f"Language: {selected_language}; "
+                f"Curriculum: {book_curriculum}.\n"
+                f"Student request: {message}\n\n"
+                f"Verified book excerpts:\n{excerpts}"
+            )
+            history_messages = [{"role": "user", "content": lesson_prompt}]
+            output_budget = min(output_budget, 5800)
+            lesson_generation_logger.info(
+                "LESSON_COMPACT_SOURCE_PROMPT grade=%r subject=%r lesson=%r "
+                "curriculum=%r sources=%d input_chars=%d",
+                grade, subject, lesson, book_curriculum,
+                len(source_chunks), len(lesson_prompt),
+            )
+
         # Instant exact figure-only sphere: bypass slow generative answers when
         # the requested object and measurement alone determine the drawing.
         # Still use the same validated Visual Engine and conversation storage.
@@ -5599,7 +5655,7 @@ sqrt(496) is NOT 22, and an unverified tangent slope is NOT acceptable.
             )
         else:
             raw_reply = ai.generate(
-                instructions=SYSTEM_PROMPT,
+                instructions=lesson_instructions if lesson_start_from_book else SYSTEM_PROMPT,
                 messages=history_messages,
                 image_bytes=image_bytes,
                 image_mime_type=image_mime_type,
@@ -5607,7 +5663,15 @@ sqrt(496) is NOT 22, and an unverified tangent slope is NOT acceptable.
             )
  
     except Exception as exc:
-
+        # The student gets a safe error; Railway gets the REAL traceback
+        # (provider quota/model/timeout vs application bug), without logging
+        # student messages, keys or retrieved textbook passages.
+        lesson_generation_logger.exception(
+            "LESSON_GENERATION_FAILED grade=%r subject=%r lesson=%r "
+            "mode=%r source_count=%d exception_type=%s",
+            grade, subject, lesson, teaching_mode, len(source_chunks),
+            type(exc).__name__,
+        )
         raise HTTPException(
             status_code=503,
             detail=(
