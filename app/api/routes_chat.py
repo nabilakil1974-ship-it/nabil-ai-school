@@ -35,6 +35,7 @@ from fastapi import (
     Response,
 )
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
  
 from app.db.session import get_db
@@ -5828,13 +5829,16 @@ Do not produce JSON transport as visible prose.
                 grade, subject, lesson, output_budget,
             )
             _primary_ai_started_at = time.monotonic()
-            raw_reply = ai.generate(
+            raw_reply = await run_in_threadpool(ai.generate,
                 instructions=lesson_instructions if lesson_start_from_book else SYSTEM_PROMPT,
                 messages=history_messages,
                 image_bytes=image_bytes,
                 image_mime_type=image_mime_type,
                 max_output_tokens=output_budget,
             )
+            # This HTTP coroutine must yield during the multi-second AI call:
+            # an independent /api/textbooks/lesson-preview must remain serviceable
+            # even when Railway runs a single Uvicorn worker.
             _primary_ai_elapsed_ms = round((time.monotonic() - _primary_ai_started_at) * 1000)
             lesson_generation_logger.info("LESSON_PRIMARY_AI_FINISHED duration_ms=%d", _primary_ai_elapsed_ms)
  
@@ -5905,7 +5909,7 @@ Do not invent hidden data. Return only the missing exercises and their drawing J
             try:
                 _repair_ai_calls += 1
                 _repair_started_at = time.monotonic()
-                repair_reply = ai.generate(
+                repair_reply = await run_in_threadpool(ai.generate,
                     instructions=lesson_instructions if lesson_start_from_book else SYSTEM_PROMPT,
                     messages=[{"role": "user", "content": repair_prompt}],
                     max_output_tokens=5200,
@@ -5982,7 +5986,7 @@ Mandatory:
 """.strip()
 
             try:
-                repaired_reply = ai.generate(
+                repaired_reply = await run_in_threadpool(ai.generate,
                     instructions=SYSTEM_PROMPT,
                     messages=[{"role": "user", "content": repair_prompt}],
                     max_output_tokens=7000,
@@ -6075,7 +6079,7 @@ Replace it completely.
 {_repair_requirements}
 """.strip()
             try:
-                _science_repaired = ai.generate(
+                _science_repaired = await run_in_threadpool(ai.generate,
                     instructions=SYSTEM_PROMPT,
                     messages=[{"role": "user", "content": _science_repair_prompt}],
                     max_output_tokens=7000,
@@ -6156,7 +6160,7 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
 """.strip()
 
             try:
-                repaired = ai.generate(
+                repaired = await run_in_threadpool(ai.generate,
                     instructions=SYSTEM_PROMPT,
                     messages=[{"role":"user","content":repair_prompt}],
                     max_output_tokens=8000,
