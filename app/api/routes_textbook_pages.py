@@ -8,12 +8,14 @@ import subprocess
 import tempfile
 from functools import lru_cache
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Form
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.db.models import Book, BookPage
+from app.db.models import Book, BookPage, BookChunk
+from app.services.textbook_scope import resolve_textbook_curriculum
+from app.core.textbook_page_citations import resolve_book_printed_page
 
 router = APIRouter()
 
@@ -101,3 +103,78 @@ def textbook_page_image(book_id: str, printed_page: int, db: Session = Depends(g
         jpg, media_type="image/jpeg",
         headers={"Cache-Control": "public, max-age=3600", "X-Content-Type-Options": "nosniff"},
     )
+
+
+@router.post("/textbooks/lesson-preview")
+def indexed_lesson_preview(
+    grade: str = Form(""),
+    subject: str = Form(""),
+    curriculum: str = Form(""),
+    language: str = Form(""),
+    lesson: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    """Fast, provider-free first book card while the lesson AI is still working.
+
+    Only indexed material from selected grade, subject and curriculum is shown.
+    No invented paragraph, book exercise, page number, or visual is allowed.
+    """
+    title = str(lesson or "").strip()[:160]
+    scoped_grade = str(grade or "").strip()
+    scoped_subject = str(subject or "").strip()
+    if not title or not scoped_grade or not scoped_subject:
+        return {"status": "unavailable", "message": "Select a lesson and grade"}
+    book_curriculum = resolve_textbook_curriculum(curriculum, language)
+    q = (
+        db.query(BookChunk)
+        .join(Book, Book.id == BookChunk.book_id)
+        .filter(
+            BookChunk.grade == scoped_grade,
+            BookChunk.subject == scoped_subject,
+            BookChunk.curriculum == book_curriculum,
+        )
+    )
+    # A fast lexical lookup avoids another embedding-model load while the
+    # actual RAG call runs. Do not infer a page when a title has no match.
+    candidates = [title]
+    tokens = [token for token in title.split() if len(token) >= 4]
+    candidates += tokens[:3]
+    item = None
+    for phrase in candidates:
+        if len(phrase) < 4:
+            continue
+        item = q.filter(BookChunk.text_content.ilike(f"%{phrase}%")).order_by(
+            BookChunk.printed_page_number.asc(),
+            BookChunk.chunk_index_in_page.asc(),
+        ).first()
+        if item:
+            break
+    if item is None:
+        return {"status": "unavailable", "lesson": title}
+    recorded = (
+        db.query(BookPage.pdf_page_index)
+        .filter(
+            BookPage.book_id == item.book_id,
+            BookPage.printed_page_number == item.printed_page_number,
+        )
+        .first()
+    )
+    source = {
+        "book_title": item.book.title,
+        "book_id": item.book_id,
+        "page": item.printed_page_number,
+        "pdf_page": recorded[0] if recorded else None,
+    }
+    printed = resolve_book_printed_page(source)
+    return {
+        "status": "indexed",
+        "lesson": title,
+        "book_title": item.book.title,
+        "printed_page": printed,
+        "page_image_url": (
+            f"/api/textbooks/{item.book_id}/pages/{printed}/image"
+            if recorded and printed else None
+        ),
+        "source_excerpt": (item.text_content or "").strip()[:420],
+        "disclaimer": "Book excerpt / original page preview. The full lesson is still being prepared.",
+    }
