@@ -66,30 +66,33 @@ def textbook_page_image(book_id: str, printed_page: int, db: Session = Depends(g
     # Legacy Grade 9 Chemistry indexed its true PDF page as printed page.
     # Convert the verified printed page back to that indexed value only for
     # this exact book when the indexed value and PDF position agree.
-    indexed_page = printed_page
+    page = None
     if book.title.strip().lower() == "chemistry - grade 9.pdf":
-        indexed_page = printed_page - 2
-    page = (
-        db.query(BookPage)
-        .filter(
-            BookPage.book_id == book.id,
-            BookPage.printed_page_number == indexed_page,
+        legacy_pdf_page = printed_page - 2
+        if legacy_pdf_page >= 1:
+            candidate = (
+                db.query(BookPage)
+                .filter(
+                    BookPage.book_id == book.id,
+                    BookPage.printed_page_number == legacy_pdf_page,
+                    BookPage.pdf_page_index == legacy_pdf_page,
+                )
+                .first()
+            )
+            if candidate is not None:
+                page = candidate
+    if page is None:
+        page = (
+            db.query(BookPage)
+            .filter(
+                BookPage.book_id == book.id,
+                BookPage.printed_page_number == printed_page,
+            )
+            .order_by(BookPage.pdf_page_index.asc())
+            .first()
         )
-        .order_by(BookPage.pdf_page_index.asc())
-        .first()
-    )
     if page is None or not page.pdf_page_index:
         raise HTTPException(status_code=404, detail="Indexed page unavailable")
-    # If the book was reindexed with corrected printed pages, use that row.
-    if book.title.strip().lower() == "chemistry - grade 9.pdf" and (
-        page.pdf_page_index != page.printed_page_number
-    ):
-        page = db.query(BookPage).filter(
-            BookPage.book_id == book.id,
-            BookPage.printed_page_number == printed_page,
-        ).first()
-        if page is None or not page.pdf_page_index:
-            raise HTTPException(status_code=404, detail="Indexed page unavailable")
     try:
         jpg = _render_pdf_page(book.drive_file_id, int(page.pdf_page_index))
     except Exception:
