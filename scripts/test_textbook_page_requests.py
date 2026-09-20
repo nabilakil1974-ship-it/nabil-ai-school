@@ -38,7 +38,8 @@ class ExactPageTests(unittest.TestCase):
         self.assertEqual(parse_textbook_page_request("اشرح الدرس من صفحة 55"), (55, "lesson"))
         self.assertEqual(parse_textbook_page_request("Explain page 15"), (15, "page"))
         self.assertEqual(parse_textbook_page_request("Start the lesson from page 55"), (55, "lesson"))
-        self.assertEqual(parse_textbook_page_request("Begin the selected lesson", "55"), (55, "lesson"))
+        self.assertEqual(parse_textbook_page_request("Begin the selected lesson", "55"), (55, "page"))
+        self.assertEqual(parse_textbook_page_request("اشرح الدرس من صفحة 55", "55"), (55, "lesson"))
         self.assertIsNone(parse_textbook_page_request("Exercise 5: factorize"))
         self.assertIsNone(parse_textbook_page_request("Study the function f(x)=ln(x)"))
         with self.assertRaises(ValueError):
