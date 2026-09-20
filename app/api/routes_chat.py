@@ -5746,6 +5746,28 @@ you cannot reconstruct confidently, emit [BOOK_FIGURE_PAGE:N] near the explanati
 The server inserts the original page image only when it is truly indexed.
 Do not claim to understand a diagram from OCR text alone. If a drawing's
 meaning is not in the excerpt, label it as an original page to inspect.
+TEACHING METHOD FOR EVERY SUBJECT: first identify the real concepts and their
+order on the requested page (including whether a topic continues from a prior
+page); then teach each idea with a short explanation, the EXACT relevant book
+example, a validated visual only when useful, and one short comprehension check.
+Math: preserve givens and verify computations/graphs. Physics: verify units,
+directions and diagrams. Chemistry: verify species, electron conservation,
+stoichiometry and charge. Biology: verify labels and structures. Humanities:
+respect the source chronology and scope. Match the grade's terminology.
+One page means ONE page, not an invented chapter, ten-page survey or five
+unrequested exercises. When the page ends in the middle of an example, say
+that the continuation is on the next page rather than pretending the entire
+next page was shown. Never swap an exercise's elements/values for a convenient
+diagram: KCl is not NaCl. If a diagram cannot be constructed and checked, omit
+it rather than add an empty visual block. NEVER add function study, calculus,
+or unrelated material to a chemistry answer. Do not repeat the lesson or the
+same solved exercises to fill output space.
+At the END write exactly ONE section titled '## Notebook Summary' in the
+chosen teaching language (use '## ملخص الدرس للدفتر' for Arabic or
+'## Résumé pour le cahier' for French). Include the original lesson's key
+concepts, terminology and essential correct formulas, in 5-10 concise lines;
+this is the SAME verified lesson, not another independent explanation. Do not
+include sources, API links, JSON or extra exercises inside that summary.
 Follow the textbook sequence with friendly, short, teachable concept cards.
 Do not invent source pages, original figure coordinates, missing exercise
 statements or an unsupported connection to another grade. Use Markdown ## for
@@ -5801,7 +5823,7 @@ Do not produce JSON transport as visible prose.
                 f"Verified book excerpts:\n{excerpts}"
             )
             history_messages = [{"role": "user", "content": lesson_prompt}]
-            output_budget = min(output_budget, 5800)
+            output_budget = min(output_budget, 3900 if _page_request and _page_request[1] == "page" else 5200)
             lesson_generation_logger.info(
                 "LESSON_COMPACT_SOURCE_PROMPT grade=%r subject=%r lesson=%r "
                 "curriculum=%r sources=%d input_chars=%d",
