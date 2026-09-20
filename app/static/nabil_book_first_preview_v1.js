@@ -173,6 +173,11 @@ function show(form,id){
       content.textContent="The page lookup has not returned an indexed source yet. No page number or book figure will be invented.";
       return;
     }
+    if(chosen&&String(result.printed_page)!==String(Number(chosen))){
+      status.textContent="⚠️ The indexed source does not match the requested printed page.";
+      content.textContent="The page number has not been changed automatically. Please retry the exact requested page.";
+      return;
+    }
     sourceIndexed=true;
     updateStatus();
     page.textContent=result.book_title+" | PRINTED PAGE "+result.printed_page;
@@ -238,9 +243,14 @@ window.fetch=function(input,options){
   const msg=String(body.get("message")||"");
   const isLessonStart=/begin\s+the\s+(?:complete\s+)?selected\s+lesson|ابدأ\s+الدرس|commence\s+maintenant/i.test(msg);
   const typedPage=printedPageFromMessage(msg);
-  if(picker?.value&&isLessonStart&&!typedPage){
-    body.set("book_page",String(picker.value));
-    picker.value="";
+  // Keep the exact printed page across transient provider failures and
+  // automatic lesson retries. The student's explicit page in a NEW question
+  // takes priority. Never silently fall back to a title-only first-match page.
+  if(typedPage){
+    body.set("book_page",typedPage);
+    if(picker)picker.value=typedPage;
+  }else if(picker?.value&&isLessonStart&&/^\\d{1,4}$/.test(String(picker.value).trim())){
+    body.set("book_page",String(Number(picker.value)));
   }
   const id=++pending;
   const {done,fail}=show(body,id);
