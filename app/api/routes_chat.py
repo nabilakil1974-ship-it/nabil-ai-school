@@ -8,6 +8,7 @@ import logging
 import math
 import re
 from pathlib import Path
+from app.core.lesson_output_guard import sanitize_chemistry_lesson
 from typing import Optional
 from datetime import datetime
 
@@ -5950,7 +5951,13 @@ Replace it completely.
         re.I | re.S
     ))
 
-    if _looks_like_function_study and not figure_only_request and not is_home_live_tutor:
+    if (
+        _looks_like_function_study
+        and re.search(r"math|mathématique|رياضيات", str(subject or ""), re.I)
+        and re.search(r"study|function|fonction|دال|variation|تغي", str(message or ""), re.I)
+        and not figure_only_request
+        and not is_home_live_tutor
+    ):
         _needed_checks = {
             "domain": bool(re.search(r"\bdomain\b|\bdomaine\b|المجال", _function_low)),
             "limits": bool(re.search(r"\blimits?\b|\blimites?\b|النهايات", _function_low)),
@@ -6006,6 +6013,10 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
                     raw_reply = _strip_internal_drawing_protocol(str(repaired).strip())
             except Exception:
                 pass
+
+    # Chemistry must never inherit a function-study completion or expose
+    # invalid DRAWING_JSON; do not alter a mathematics lesson here.
+    raw_reply = sanitize_chemistry_lesson(raw_reply, subject or "")
 
     raw_reply, progress_metadata = extract_progress_metadata(
         raw_reply
