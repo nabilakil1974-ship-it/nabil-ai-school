@@ -6400,6 +6400,19 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
         and str(teaching_mode or "full_lesson") in {"full_lesson", "board_lesson"}
         and (_nabil_lesson_start_request(message) or _page_request is not None)
     ):
+        if _page_request is not None:
+            _requested_printed_page = _page_request[0]
+            # This image link is made by the server only for a page actually
+            # resolved from BookPage in the selected textbook. The model is not
+            # allowed to invent the page or its PDF location.
+            if not re.search(
+                r"\\[BOOK_FIGURE_PAGE\\s*:\\s*" + str(_requested_printed_page) + r"\\]",
+                reply_text, re.I,
+            ):
+                reply_text = (
+                    f"[BOOK_FIGURE_PAGE:{_requested_printed_page}]\\n\\n"
+                    + reply_text
+                )
         reply_text = render_verified_page_citations(reply_text, source_chunks)
 
     if not reply_text:
