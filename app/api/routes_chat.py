@@ -5763,12 +5763,14 @@ diagram: KCl is not NaCl. If a diagram cannot be constructed and checked, omit
 it rather than add an empty visual block. NEVER add function study, calculus,
 or unrelated material to a chemistry answer. Do not repeat the lesson or the
 same solved exercises to fill output space.
-At the END write exactly ONE section titled '## Notebook Summary' in the
-chosen teaching language (use '## ملخص الدرس للدفتر' for Arabic or
-'## Résumé pour le cahier' for French). Include the original lesson's key
-concepts, terminology and essential correct formulas, in 5-10 concise lines;
-this is the SAME verified lesson, not another independent explanation. Do not
-include sources, API links, JSON or extra exercises inside that summary.
+At the END write exactly ONE section titled '## ملخص الدرس للدفتر'.
+Its explanatory sentences are in clear Arabic, while scientific terminology,
+symbols and formulas retain the selected book's teaching language (English or
+French when selected). Present the actual page ideas in their original order
+in concise notebook-ready notes; never translate a scientific symbol or change
+the example. This is the SAME verified lesson, not another AI generation. Do
+not include sources, API links, JSON or extra exercises inside that summary.
+The notebook summary is written for reading/copying, NOT for Arabic TTS.
 Follow the textbook sequence with friendly, short, teachable concept cards.
 Do not invent source pages, original figure coordinates, missing exercise
 statements or an unsupported connection to another grade. Use Markdown ## for
