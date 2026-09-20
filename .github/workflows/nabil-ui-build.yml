@@ -15,6 +15,8 @@ on:
       - scripts/test_book_first_lesson_cache.py
       - app/static/nabil_book_first_preview_v1.js
       - scripts/test_textbook_page_grounding.py
+      - scripts/test_textbook_page_requests.py
+      - app/services/textbook_page_request.py
       - scripts/test_textbook_exercises_source_contract.py
       - scripts/test_universal_lesson_quality.py
       - scripts/test_chemistry_lesson_output_guard.py
@@ -43,6 +45,8 @@ on:
       - scripts/test_book_first_lesson_cache.py
       - app/static/nabil_book_first_preview_v1.js
       - scripts/test_textbook_page_grounding.py
+      - scripts/test_textbook_page_requests.py
+      - app/services/textbook_page_request.py
       - scripts/test_textbook_exercises_source_contract.py
       - scripts/test_universal_lesson_quality.py
       - scripts/test_chemistry_lesson_output_guard.py
@@ -72,7 +76,7 @@ jobs:
         with:
           node-version: '22'
       - name: Python syntax build
-        run: python -m py_compile app/main.py app/api/routes_chat.py scripts/test_ui_integration.py scripts/test_tutor_contract.py scripts/validate_nabil_ui.py scripts/test_drawing_payload_recovery.py app/api/routes_textbook_pages.py app/core/textbook_page_citations.py app/services/rag_search.py app/services/lesson_cache.py
+        run: python -m py_compile app/main.py app/api/routes_chat.py scripts/test_ui_integration.py scripts/test_tutor_contract.py scripts/validate_nabil_ui.py scripts/test_drawing_payload_recovery.py app/api/routes_textbook_pages.py app/core/textbook_page_citations.py app/services/rag_search.py app/services/lesson_cache.py app/services/textbook_page_request.py scripts/test_textbook_page_requests.py
       - name: JavaScript syntax build
         run: |
           node --check app/static/nabil_open_tutor_v1.js
@@ -85,6 +89,8 @@ jobs:
         run: python -m scripts.test_textbook_exercises_source_contract
       - name: Verified textbook page and figure fallback regression
         run: python -m scripts.test_textbook_page_grounding
+      - name: Exact printed book-page routing regression
+        run: python -m scripts.test_textbook_page_requests
       - name: Universal lesson quality regressions
         run: python -m scripts.test_universal_lesson_quality
       - name: Chemistry Ionic Bond content regression

@@ -42,6 +42,7 @@ from app.db.models import Conversation, Message, Student, BookChunk
 from app.db.student_learning import StudentLearningProfile
 from app.services.ai_gateway import NabilAIGateway
 from app.services.rag_search import search_book_pages, build_context_block, find_nearest_book_exercises
+from app.services.textbook_page_request import parse_textbook_page_request, indexed_textbook_page_context
 from app.services.textbook_scope import resolve_textbook_curriculum
 from app.services.lesson_cache import lesson_cache_key, source_signature, get_cached_lesson, save_cached_lesson
  
@@ -4839,6 +4840,7 @@ async def voice_chat(
     curriculum: Optional[str] = Form(None),
     language: Optional[str] = Form(None),
     lesson: Optional[str] = Form(None),
+    book_page: Optional[str] = Form(None),
     teaching_mode: Optional[str] = Form("full_lesson"),
     activity_mode: Optional[str] = Form("lesson"),
     learning_action: Optional[str] = Form(None),
@@ -4968,6 +4970,12 @@ async def voice_chat(
 
     # Voice transcription replaces the initial message: recompute visual-only intent.
     figure_only_request = _nabil_figure_only_request(message)
+    _page_request = None
+    if (str(activity_mode or 'lesson').strip().lower() == 'lesson' and image_bytes is None):
+        try:
+            _page_request = parse_textbook_page_request(message, book_page or '')
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     # ==========================================
     # STUDENT
@@ -5324,27 +5332,51 @@ the same lesson Visual Engine; never describe it as rendered without one.
             )
             if scoped_chunks is None:
                 raise LookupError("NO_INDEXED_TEXTBOOK_CHUNKS_FOR_SELECTED_SCOPE")
-            source_query = " | ".join(
-                part for part in [
-                    str(lesson or "").strip(),
-                    str(message or "").strip(),
-                ] if part
-            )
             _rag_started_at = time.monotonic()
-            source_chunks = search_book_pages(
-                db=db,
-                query=source_query or str(lesson or "lesson"),
-                subject=str(subject or "").strip(),
-                grade=str(grade or "").strip(),
-                curriculum=book_curriculum,
-                top_k=10 if str(teaching_mode or "full_lesson") in {"full_lesson", "board_lesson"} else 4,
-            )
+            if _page_request is not None:
+                _printed_page, _page_mode = _page_request
+                try:
+                    source_chunks = indexed_textbook_page_context(
+                        db, grade=str(grade or '').strip(),
+                        subject=str(subject or '').strip(),
+                        curriculum=book_curriculum,
+                        printed_page=_printed_page, mode=_page_mode,
+                    )
+                except LookupError as exc:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f'صفحة الكتاب المطبوعة {_printed_page} غير متوفرة في الكتاب المفهرس للصف والمادة واللغة المختارة. لا أستطيع اختراع محتواها.',
+                    ) from exc
+                except ValueError as exc:
+                    raise HTTPException(
+                        status_code=409,
+                        detail='هناك أكثر من كتاب مفهرس لهذه المادة والصف ورقم الصفحة؛ يجب تحديد الكتاب أولًا.',
+                    ) from exc
+                lesson_generation_logger.info(
+                    'BOOK_EXACT_PAGE_REQUEST grade=%r subject=%r printed_page=%d mode=%s pages=%d',
+                    grade, subject, _printed_page, _page_mode, len(source_chunks),
+                )
+            else:
+                source_query = ' | '.join(
+                    part for part in [str(lesson or '').strip(), str(message or '').strip()]
+                    if part
+                )
+                source_chunks = search_book_pages(
+                    db=db, query=source_query or str(lesson or 'lesson'),
+                    subject=str(subject or '').strip(),
+                    grade=str(grade or '').strip(),
+                    curriculum=book_curriculum,
+                    top_k=10 if str(teaching_mode or 'full_lesson') in {'full_lesson', 'board_lesson'} else 4,
+                )
             _rag_elapsed_ms = round((time.monotonic() - _rag_started_at) * 1000)
             # The original chapter exercises are part of the lesson: look for
             # them in the SAME indexed book after the source-matched concept.
             # This is a database lookup, not an additional model generation.
             try:
-                book_exercise_chunks = find_nearest_book_exercises(
+                if _page_request and _page_request[1] == "page":
+                    book_exercise_chunks = []
+                else:
+                    book_exercise_chunks = find_nearest_book_exercises(
                     db, source_chunks,
                     subject=str(subject or "").strip(),
                     grade=str(grade or "").strip(),
@@ -5360,6 +5392,7 @@ the same lesson Visual Engine; never describe it as rendered without one.
             book_context = build_context_block(source_chunks + book_exercise_chunks)
             if (
                 _nabil_lesson_start_request(message)
+                and _page_request is None
                 and str(teaching_mode or "full_lesson") in {"full_lesson", "board_lesson"}
                 and source_chunks
             ):
@@ -5398,6 +5431,8 @@ the same lesson Visual Engine; never describe it as rendered without one.
                             student_profile=profile_to_dict(learning_profile),
                         )
             print(f"BOOK_RAG_SCOPE_MATCH grade={grade!r} subject={subject!r} language={selected_language!r} curriculum={book_curriculum!r} retrieved={len(source_chunks)}", flush=True)
+        except HTTPException:
+            raise
         except Exception as exc:
             print(f"BOOK_RAG_UNAVAILABLE grade={grade!r} subject={subject!r} language={selected_language!r} curriculum={book_curriculum!r}: {type(exc).__name__}: {exc}", flush=True)
             book_context = ""
@@ -5686,7 +5721,7 @@ sqrt(496) is NOT 22, and an unverified tangent slope is NOT acceptable.
         lesson_start_from_book = (
             not general_exercises_mode
             and image_bytes is None
-            and _nabil_lesson_start_request(message)
+            and (_nabil_lesson_start_request(message) or _page_request is not None)
             and bool(source_chunks)
         )
         if lesson_start_from_book:
@@ -5719,7 +5754,7 @@ transfer and charges correctly; include a valid DRAWINGS_JSON diagram only
 when you know its supported schema and exact scientific labels.
 Do not produce JSON transport as visible prose.
 """.strip()
-            official_excerpts = source_chunks[:7] + book_exercise_chunks[:7]
+            official_excerpts = source_chunks[:12 if _page_request else 7] + book_exercise_chunks[:5 if _page_request else 7]
             excerpts = "\n\n".join(
                 f"[{item.get('book_title')} PRINTED_PAGE:{resolve_book_printed_page(item)} PDF_PAGE:{item.get('pdf_page')}] "
                 + ("[VERIFIED BOOK EXERCISES] " if item.get("is_verified_book_exercise_source") else "")
@@ -5733,8 +5768,31 @@ Do not produce JSON transport as visible prose.
                 )
                 if isinstance(item, dict) and item.get("text")
             )
+            page_route_contract = ''
+            if _page_request is not None:
+                _p, _mode = _page_request
+                page_route_contract = (
+                    f'EXACT PRINTED BOOK PAGE REQUEST: {_p}. Mode: {_mode}. '
+                    'Trust the indexed book page over the dropdown lesson title. '
+                    'The SOURCE EXCERPTS below are ordered by their real PDF position. '
+                    'When mode=page, explain ONLY the requested page, its real ideas, '
+                    'activity, figure captions, tables and exercises present on that page; '
+                    'do not create five extra exercises. When mode=lesson, begin at '
+                    'the requested page, explain the retrieved consecutive pages '
+                    'in book order and solve only complete exercises actually shown. '
+                    'Never promise a complete chapter when the retrieved window '
+                    'does not establish its end; explicitly offer the next page. '
+                    'Put [BOOK_PAGE:N] BEFORE each concept/activity/answer with N '
+                    'equal to the verified PRINTED_PAGE supplied below. '
+                    'Also put [BOOK_FIGURE_PAGE:N] at the requested page so the '
+                    'learner can inspect the original page and its diagrams. '
+                    'You only received extracted text: do not pretend to have '
+                    'seen a figure if the caption/layout was not extracted. '
+                    'Never invent a textbook figure or exercise.\\n'
+                )
             lesson_prompt = (
-                f"Grade: {grade}; Branch: {branch or 'N/A'}; "
+                page_route_contract
+                + f"Grade: {grade}; Branch: {branch or 'N/A'}; "
                 f"Subject: {subject}; Lesson: {lesson}; "
                 f"Language: {selected_language}; "
                 f"Curriculum: {book_curriculum}.\n"
@@ -6324,7 +6382,7 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
     if (
         str(activity_mode or "lesson") == "lesson"
         and str(teaching_mode or "full_lesson") in {"full_lesson", "board_lesson"}
-        and _nabil_lesson_start_request(message)
+        and (_nabil_lesson_start_request(message) or _page_request is not None)
     ):
         _before_cleanup_chars = len(reply_text or "")
         reply_text = deduplicate_lesson_sections(reply_text)
@@ -6343,8 +6401,21 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
     if (
         str(activity_mode or "lesson") == "lesson"
         and str(teaching_mode or "full_lesson") in {"full_lesson", "board_lesson"}
-        and _nabil_lesson_start_request(message)
+        and (_nabil_lesson_start_request(message) or _page_request is not None)
     ):
+        if _page_request is not None:
+            _requested_printed_page = _page_request[0]
+            # This image link is made by the server only for a page actually
+            # resolved from BookPage in the selected textbook. The model is not
+            # allowed to invent the page or its PDF location.
+            if not re.search(
+                r"\\[BOOK_FIGURE_PAGE\\s*:\\s*" + str(_requested_printed_page) + r"\\]",
+                reply_text, re.I,
+            ):
+                reply_text = (
+                    f"[BOOK_FIGURE_PAGE:{_requested_printed_page}]\\n\\n"
+                    + reply_text
+                )
         reply_text = render_verified_page_citations(reply_text, source_chunks)
 
     if not reply_text:
