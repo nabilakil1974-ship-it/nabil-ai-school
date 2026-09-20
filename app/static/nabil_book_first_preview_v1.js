@@ -46,13 +46,15 @@ function show(form,id){
   for(const key of ["grade","subject","curriculum","language","lesson"])
     formData.append(key,String(form.get(key)||""));
   const controller=new AbortController();
+  const previewTimeout=window.setTimeout(()=>controller.abort(),16000);
   originalFetch("/api/textbooks/lesson-preview",{
     method:"POST",body:formData,signal:controller.signal
   }).then(r=>r.ok?r.json():null).then(result=>{
+    window.clearTimeout(previewTimeout);
     if(!el.isConnected||id!==pending)return;
     if(!result||result.status!=="indexed"){
-      status.textContent="Preparing the selected lesson…";
-      content.textContent="No verified original-page preview is available yet.";
+      status.textContent="The full lesson is being prepared";
+      content.textContent="The page lookup has not returned an indexed source yet. No page number or book figure will be invented.";
       return;
     }
     status.textContent="✅ Official textbook excerpt retrieved";
@@ -66,7 +68,9 @@ function show(form,id){
       const holder=document.createElement("figure");
       holder.style.cssText="margin:0;background:#071d31;border:1px solid #3984aa;border-radius:10px;padding:8px";
       const original=document.createElement("img");
-      original.src=src; original.loading="lazy";
+      original.loading="lazy";
+      original.onerror=()=>holder.remove();
+      original.src=src;
       original.alt="Original figure extracted from the verified textbook page";
       original.style.cssText="display:block;width:100%;height:220px;object-fit:contain;border-radius:7px;background:#fff";
       const cap=document.createElement("figcaption");
@@ -80,13 +84,17 @@ function show(form,id){
       link.style.display="inline-block";
     }
   }).catch(()=>{
-    if(el.isConnected&&id===pending)
-      status.textContent="Preparing the selected lesson…";
+    window.clearTimeout(previewTimeout);
+    if(el.isConnected&&id===pending){
+      status.textContent="The full lesson is still being prepared";
+      content.textContent="The book preview did not finish. I will not show an unverified textbook page or figure.";
+    }
   });
   return ()=>{
-    controller.abort();
+    // The AI request can complete before the independent book lookup. Keep
+    // waiting for the source rather than aborting a valid citation request.
     if(el.isConnected){
-      status.textContent="✅ The full interactive explanation is ready below. This verified textbook entrance stays here for reference.";
+      status.textContent="✅ The interactive lesson is ready below; verifying the original book page independently.";
     }
   };
 }

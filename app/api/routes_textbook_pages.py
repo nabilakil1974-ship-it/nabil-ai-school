@@ -247,12 +247,14 @@ def indexed_lesson_preview(
             f"/api/textbooks/{item.book_id}/pages/{printed}/image"
             if recorded and printed else None
         ),
+        # Return verified metadata immediately; NEVER download a PDF or extract
+        # its embedded figures before the first teaching card can render.
+        # Candidate URLs are resolved lazily by browser; absent figures 404
+        # and are hidden, not represented as original textbook figures.
         "figure_image_urls": (
             [
                 f"/api/textbooks/{item.book_id}/pages/{printed}/figures/{i}/image"
-                for i in range(len(_embedded_figure_pngs(
-                    item.book.drive_file_id, int(recorded[0])
-                )))
+                for i in range(3)
             ]
             if recorded and recorded[0] and printed else []
         ),

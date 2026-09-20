@@ -28,6 +28,21 @@ class BookFirstLessonTests(unittest.TestCase):
         self.assertIn("complete original page (not shown on the lesson board)", js)
         self.assertNotIn('img.src=path', js)
 
+    def test_preview_never_waits_for_pdf_download_or_figure_extraction(self):
+        route = pathlib.Path("app/api/routes_textbook_pages.py").read_text("utf-8")
+        preview = route.split('@router.post("/textbooks/lesson-preview")', 1)[1]
+        self.assertNotIn("_embedded_figure_pngs(", preview)
+        self.assertNotIn("_drive_pdf_bytes(", preview)
+        self.assertIn("source_excerpt", preview)
+        self.assertIn("printed_page", preview)
+        self.assertIn("figure_image_urls", preview)
+
+    def test_broken_original_figures_are_hidden_without_fake_picture(self):
+        js = pathlib.Path("app/static/nabil_book_first_preview_v1.js").read_text("utf-8")
+        self.assertIn('original.onerror=()=>holder.remove()', js)
+        self.assertIn("previewTimeout", js)
+        self.assertNotIn('controller.abort();\\n    if(el.isConnected)', js)
+
     def test_figure_route_excludes_full_page_backgrounds(self):
         route = pathlib.Path("app/api/routes_textbook_pages.py").read_text("utf-8")
         self.assertIn("_embedded_figure_pngs", route)
