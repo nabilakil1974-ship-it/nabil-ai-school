@@ -8,6 +8,8 @@ on:
       - app/core/lesson_output_guard.py
       - app/core/lesson_quality.py
       - app/core/textbook_page_citations.py
+      - scripts/test_textbook_page_citations.py
+      - app/core/textbook_page_citations.py
       - app/api/routes_textbook_pages.py
       - app/services/rag_search.py
       - app/static/nabil_book_first_preview_v1.js
@@ -73,6 +75,8 @@ jobs:
           node --check app/static/nabil_book_first_preview_v1.js
       - name: Verified textbook page and figure fallback regression
         run: python -m scripts.test_textbook_page_grounding
+      - name: Textbook printed-page citation regressions
+        run: python -m scripts.test_textbook_page_citations
       - name: Universal lesson quality regressions
         run: python -m scripts.test_universal_lesson_quality
       - name: Chemistry Ionic Bond content regression
