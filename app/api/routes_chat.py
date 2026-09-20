@@ -10,6 +10,7 @@ import math
 import re
 from pathlib import Path
 from app.core.lesson_output_guard import sanitize_chemistry_lesson
+from app.core.subject_output_guard import sanitize_unrelated_function_study, permits_complete_function_study
 from app.core.lesson_quality import missing_practice_exercises, practice_exercise_numbers, drawing_matches_subject, deduplicate_lesson_sections
 from typing import Optional
 from datetime import datetime
@@ -5962,6 +5963,7 @@ Replace it completely.
 
     if (
         _looks_like_function_study
+        and permits_complete_function_study(subject or "", grade or "", lesson or "", message or "")
         and re.search(r"math|mathématique|رياضيات", str(subject or ""), re.I)
         and re.search(r"study|function|fonction|دال|variation|تغي", str(message or ""), re.I)
         and not figure_only_request
@@ -6026,6 +6028,7 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
     # Chemistry must never inherit a function-study completion or expose
     # invalid DRAWING_JSON; do not alter a mathematics lesson here.
     raw_reply = sanitize_chemistry_lesson(raw_reply, subject or "")
+    raw_reply = sanitize_unrelated_function_study(raw_reply, subject or "", lesson or "", message or "", grade or "")
 
     raw_reply, progress_metadata = extract_progress_metadata(
         raw_reply
@@ -6134,7 +6137,7 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
         r"\b(?:draw|plot|graph|sketch|trace|tracer|dessiner)\b|"
         r"ارسم|الرسم البياني|ارسم الدالة|ارسملي", function_request_text, re.I,
     ))
-    if visual_function_request and not is_explicit_function_request and (
+    if permits_complete_function_study(subject or "", grade or "", lesson or "", message or "") and visual_function_request and not is_explicit_function_request and (
         re.search(r"\b(?:ln|log|exp|sqrt|sin|cos)\s*\(|f\s*\(\s*x\s*\)\s*=",
                   function_request_text + "\n" + str(reply_text or ""), re.I)
     ):
@@ -6144,7 +6147,7 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
         if function_drawing and validate_drawing_strict(function_drawing):
             # Never claim success if the graph cannot be rendered downstream.
             drawings = [function_drawing]
-    if is_explicit_function_request:
+    if is_explicit_function_request and permits_complete_function_study(subject or "", grade or "", lesson or "", message or ""):
         function_drawing = _graph_safe_function_drawing(
             message=message,
             reply_text=reply_text,
@@ -6242,6 +6245,7 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
         and _nabil_lesson_start_request(message)
     ):
         _before_cleanup_chars = len(reply_text or "")
+        reply_text = sanitize_unrelated_function_study(reply_text, subject or "", lesson or "", message or "", grade or "")
         reply_text = deduplicate_lesson_sections(reply_text)
         if len(reply_text) < _before_cleanup_chars:
             lesson_generation_logger.warning(
