@@ -6497,16 +6497,28 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
         r"\b(?:draw|plot|graph|sketch|trace|tracer|dessiner)\b|"
         r"ارسم|الرسم البياني|ارسم الدالة|ارسملي", function_request_text, re.I,
     ))
-    if visual_function_request and not is_explicit_function_request and (
+    if (visual_function_request and not is_explicit_function_request
+        and not lesson_start_from_book
+        and bool(re.search(r"math|mathématique|رياضيات", str(subject or ""), re.I))
+        and (
         re.search(r"\b(?:ln|log|exp|sqrt|sin|cos)\s*\(|f\s*\(\s*x\s*\)\s*=",
                   function_request_text + "\n" + str(reply_text or ""), re.I)
-    ):
+    )):
         function_drawing = _graph_safe_function_drawing(
             message=message, reply_text=reply_text, card_index=1,
         )
         if function_drawing and validate_drawing_strict(function_drawing):
             # Never claim success if the graph cannot be rendered downstream.
             drawings = [function_drawing]
+    # Never infer a function study from the AI's reply in a book lesson:
+    # algebraic notation and diagram labels in Chemistry/Physics were parsed
+    # as a function and appended Domain/Limits/Derivative AFTER quality checks.
+    is_explicit_function_request = bool(
+        is_explicit_function_request
+        and not lesson_start_from_book
+        and (not str(subject or "").strip()
+             or bool(re.search(r"math|mathématique|رياضيات", str(subject), re.I)))
+    )
     if is_explicit_function_request:
         function_drawing = _graph_safe_function_drawing(
             message=message,
@@ -6596,6 +6608,31 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
             drawings = [exact_sphere]
         if drawings:
             reply_text = " "  # Nonempty transport; frontend presents the drawing only.
+
+    # Final delivery guard: all appended content (including deterministic
+    # plotting fallbacks) MUST remain inside the selected subject. This guard
+    # runs after every downstream mutation, not just immediately after the AI.
+    if lesson_start_from_book and _page_request and source_chunks:
+        reply_text = sanitize_chemistry_lesson(reply_text, subject or "")
+        _delivery_source = "\n".join(
+            str(chunk.get("text") or "") for chunk in source_chunks
+            if resolve_book_printed_page(chunk) == _page_request[0]
+        )
+        _delivery_issues = lesson_page_issues(
+            reply_text, _delivery_source, subject=subject or "",
+            printed_page=_page_request[0],
+            strict_single_page=_page_request[1] == "page",
+        )
+        if _delivery_issues:
+            lesson_generation_logger.warning(
+                "BOOK_PAGE_DELIVERY_REJECTED page=%d issues=%r",
+                _page_request[0], _delivery_issues,
+            )
+            raise HTTPException(
+                status_code=503,
+                detail="تم إيقاف جواب غير مطابق لصفحة الكتاب. حاول مرة أخرى.",
+                headers={"Retry-After": "8"},
+            )
 
     # Extract drawings first, then deduplicate only the student-visible lesson
     # prose. Repeated generated exercise sets used to flood the page and TTS.
