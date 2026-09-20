@@ -6071,7 +6071,7 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
     # objectively requires a separate supported figure and the worksheet
     # permits reproduction. Preserve the original figure when the question
     # expressly says "do not reproduce the figure".
-    drawings = [item for item in drawings if validate_drawing_strict(item) and drawing_matches_subject(item, subject, lesson)]
+    drawings = [item for item in drawings if validate_drawing_strict(item) and drawing_matches_subject(item, subject, lesson, message)]
     explicit_draw_request = bool(re.search(
         r"\b(?:draw|redraw|construct|sketch|trace|tracer|dessiner|redessiner)\b|"
         r"ارسم|ارسملي|أعد رسم|اعد رسم|رسم جديد",
