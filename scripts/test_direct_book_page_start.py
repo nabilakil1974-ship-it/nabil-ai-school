@@ -11,7 +11,7 @@ class DirectBookPageStartTests(unittest.TestCase):
         self.assertIn('prepareExactPageLesson()',js)
         self.assertIn('option.dataset.nabilPageTemporary="yes"',js)
         self.assertIn('select.value=synthetic',js)
-        self.assertIn('body.set("book_page",String(picker.value))',js)
+        self.assertIn('body.set("book_page",String(Number(picker.value)))',js)
         self.assertIn('if(!/^\\d{1,4}$/.test(raw)',js)
 
     def test_invalid_page_does_not_create_fake_dropdown_lesson(self):
