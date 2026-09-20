@@ -49,6 +49,51 @@ class ExactTextbookLessonGateTests(unittest.TestCase):
             [],
         )
 
+    def test_page_57_crystal_lattice_and_activity_2(self):
+        page = (
+            "2.2.2 Crystal Lattice. Sodium chloride is shown in Fig. 14. "
+            "Activity 2 Build using ball-and-stick models crystal lattice arrangements."
+        )
+        good = (
+            "Crystal lattice is an electrically neutral regular arrangement. "
+            "Fig. 14 shows the NaCl crystal. Activity 2 asks us to build using "
+            "ball-and-stick models crystal lattice arrangements."
+        )
+        self.assertEqual(self.check(good, page=57, text=page), [])
+        bad = (
+            "Magnesium fluoride MgF2 is an ionic bond. Activity 2: identify the "
+            "lattice type and draw the unit cell on the next page."
+        )
+        problems = self.check(bad, page=57, text=page)
+        self.assertTrue(any("crystal lattice" in x for x in problems))
+        self.assertTrue(any("Activity 2" in x for x in problems))
+
+    def test_neutral_fluorine_noble_gas_configuration(self):
+        source = "Fluorine has the electronic configuration [He]2s2 2p5."
+        bad = "Fluorine gains an electron: [Ne]2s²2p⁵ → [Ne]."
+        issues = self.check(bad, page=57, text=source)
+        self.assertTrue(any("fluorine" in x for x in issues))
+
+    def test_function_study_appender_is_disabled_for_book_lessons(self):
+        source = pathlib.Path("app/api/routes_chat.py").read_text("utf-8")
+        self.assertIn("and not lesson_start_from_book", source)
+        self.assertIn("BOOK_PAGE_DELIVERY_REJECTED", source)
+        self.assertLess(source.index("BOOK_PAGE_DELIVERY_REJECTED"),
+                        source.index("LESSON_PACKAGE_CACHE_SAVED"))
+
+    def test_chemistry_trailing_calculus_is_stripped(self):
+        from app.core.lesson_output_guard import sanitize_chemistry_lesson
+        sample = (
+            "Crystal lattice and Activity 2.\\n## ملخص الدرس للدفتر\\n"
+            "Build the lattice.\\n### Domain\\n(0, infinity)\\n"
+            "### Limits\\nlim x = 0\\n### Derivative\\nf'(x)=2x"
+        )
+        cleaned = sanitize_chemistry_lesson(sample.replace("\\\\n", "\\n"), "Chemistry")
+        self.assertIn("Build the lattice.", cleaned)
+        self.assertNotIn("### Domain", cleaned)
+        self.assertNotIn("### Limits", cleaned)
+        self.assertEqual(sanitize_chemistry_lesson(sample, "Mathematics"), sample)
+
     def test_route_guards_before_caching_or_saving(self):
         src = pathlib.Path("app/api/routes_chat.py").read_text("utf-8")
         self.assertIn("BOOK_PAGE_QUALITY_REJECTED", src)
