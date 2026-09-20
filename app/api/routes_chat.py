@@ -44,7 +44,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.db.models import Conversation, Message, Student, BookChunk
 from app.db.student_learning import StudentLearningProfile
-from app.services.ai_gateway import NabilAIGateway
+from app.services.ai_gateway import get_ai_gateway
 from app.services.rag_search import search_book_pages, build_context_block, find_nearest_book_exercises
 from app.services.textbook_page_request import parse_textbook_page_request, indexed_textbook_page_context
 from app.services.textbook_scope import resolve_textbook_curriculum
@@ -3813,7 +3813,7 @@ async def avatar_chat(
         raise HTTPException(status_code=400, detail="Message is required.")
 
     try:
-        ai = NabilAIGateway()
+        ai = get_ai_gateway()
     except Exception as exc:
         raise HTTPException(
             status_code=500,
@@ -4038,7 +4038,7 @@ In general-exercises mode use the latest visible worked problem as context; in l
     )
 
     try:
-        ai = NabilAIGateway()
+        ai = get_ai_gateway()
         reply = ai.generate(
             instructions=oral_instructions,
             messages=[{"role": "user", "content": context}],
@@ -4284,7 +4284,7 @@ def build_teacher_assessment(payload: TeacherAssessmentRequest):
     marks = max(5.0, min(float(payload.total_marks or 20), 100.0))
 
     try:
-        ai = NabilAIGateway()
+        ai = get_ai_gateway()
     except Exception as exc:
         raise HTTPException(
             status_code=500,
@@ -4853,7 +4853,7 @@ async def voice_chat(
 ):
  
     try:
-        ai = NabilAIGateway()
+        ai = get_ai_gateway()
  
     except Exception as exc:
         raise HTTPException(
