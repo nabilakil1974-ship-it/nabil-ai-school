@@ -130,7 +130,7 @@ class TutorOwnerContractTests(unittest.TestCase):
         )
         self.assertIn('visuals.hidden=!hasVisual', OPEN)
         self.assertIn('explainBtn.onclick=()=>{', OPEN)
-        self.assertIn('if visual_function_request and not is_explicit_function_request', CHAT)
+        self.assertIn('visual_function_request and not is_explicit_function_request', CHAT)
         self.assertIn('if is_home_live_tutor:', CHAT)
 
     def test_open_figure_is_visual_not_faux_exercise(self):
