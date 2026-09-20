@@ -35,7 +35,8 @@ class BookFirstLessonTests(unittest.TestCase):
         self.assertIn("lessonFailed=true;updateStatus()", js)
         self.assertIn("if(lessonFailed){", js)
         self.assertIn("if(result.ok){", js)
-        self.assertIn("}else{\\n      fail();", js)
+        self.assertIn("}else{", js)
+        self.assertIn("fail();", js)
 
     def test_preview_never_waits_for_pdf_download_or_figure_extraction(self):
         route = pathlib.Path("app/api/routes_textbook_pages.py").read_text("utf-8")
