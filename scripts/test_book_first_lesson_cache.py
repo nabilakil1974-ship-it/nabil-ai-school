@@ -25,7 +25,9 @@ class BookFirstLessonTests(unittest.TestCase):
         js = pathlib.Path("app/static/nabil_book_first_preview_v1.js").read_text("utf-8")
         self.assertIn("figure_image_urls", js)
         self.assertIn("Original textbook figure", js)
-        self.assertIn("complete original page (not shown on the lesson board)", js)
+        self.assertIn("Open the original textbook page in full size", js)
+        self.assertIn("content.textContent=\"The original indexed page is available below.", js)
+        self.assertIn("sourceImageLoaded=true;updateStatus()", js)
         self.assertNotIn('img.src=path', js)
 
     def test_preview_never_waits_for_pdf_download_or_figure_extraction(self):
