@@ -5,7 +5,7 @@ Only the supplied lesson content is inspected here. Never infer textbook pages.
 import re
 
 _PRACTICE_HEADER = re.compile(
-    r"(?im)^\s*#{2,4}\s*(?:\*\*)?\s*"
+    r"(?im)^\s*(?:#{1,6}\s*)?(?:\*\*)?\s*"
     r"(?:Exercise|Exercice|تمرين)\s*(?:#\s*)?([1-9]\d*)\b"
 )
 
@@ -100,3 +100,54 @@ def drawing_matches_subject(
         r"diagramme|graphe|velocity|motion|temperature|population)\b|"
         r"رسم بياني|إحصاء|سرعة|حرارة|سكان", context
     ))
+
+# Providers sometimes return all five solved exercises repeatedly. Do not send
+# those repetitions to the renderer or to long-running TTS.
+_LESSON_BLOCK = re.compile(
+    r"(?im)^\s*(?:#{1,6}\s*)?(?:\*\*)?\s*"
+    r"(?:(?P<exercise>Exercise|Exercice|تمرين)\s*#?\s*(?P<number>[1-9]\d*)\b"
+    r"|(?P<summary>Final\s+Card|Rule\s+Summary|Résumé\s+final|الخلاصة\s+النهائية)"
+    r"|(?P<practice>(?:Complete\s+)?(?:Solved\s+)?Practice\s+Exercises|"
+    r"Exercices\s+(?:résolus|de\s+pratique)|التمارين\s+المحلولة)"
+    r"|(?P<book>Official\s+(?:Textbook\s+)?Exercises|Textbook\s+Exercises|"
+    r"Book\s+Exercises|Exercices\s+du\s+livre|تمارين\s+الكتاب))"
+)
+
+
+def deduplicate_lesson_sections(text: str) -> str:
+    """Keep first occurrence of each GENERATED practice exercise and final card.
+
+    Preserve verified textbook-exercise groups: their numbering may legitimately
+    restart at 1. This parser only acts on distinct line-start lesson headings.
+    The drawing transport must already have been extracted before calling it.
+    """
+    original = str(text or "")
+    matches = list(_LESSON_BLOCK.finditer(original))
+    if not matches:
+        return original
+    kept = [original[:matches[0].start()]]
+    seen_exercises: set[int] = set()
+    seen_summary = False
+    seen_practice = False
+    in_book = False
+    for index, match in enumerate(matches):
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(original)
+        block = original[match.start():end]
+        if match.group("book"):
+            in_book = True
+        elif match.group("practice"):
+            in_book = False
+            if seen_practice:
+                continue
+            seen_practice = True
+        elif match.group("summary"):
+            if seen_summary:
+                continue
+            seen_summary = True
+        elif match.group("exercise") and not in_book:
+            number = int(match.group("number"))
+            if number in seen_exercises:
+                continue
+            seen_exercises.add(number)
+        kept.append(block)
+    return re.sub(r"\n{3,}", "\n\n", "".join(kept)).strip()

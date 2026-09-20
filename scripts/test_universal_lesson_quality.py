@@ -1,7 +1,7 @@
 """Production incident regressions for generic lesson repair and visual routing."""
 import unittest
 from app.core.lesson_quality import (
-    practice_exercise_numbers, missing_practice_exercises, drawing_matches_subject,
+    practice_exercise_numbers, missing_practice_exercises, drawing_matches_subject, deduplicate_lesson_sections,
 )
 
 
@@ -68,6 +68,44 @@ class UniversalLessonQualityTests(unittest.TestCase):
         self.assertTrue(drawing_matches_subject(
             {"type": "right_triangle"}, "Math", "Pythagoras"
         ))
+
+    def test_keep_single_set_of_solved_exercises_and_final_card(self):
+        blocks = ["## Lesson Overview", "Real teaching content.", "## Practice Exercises"]
+        for n in range(1, 6):
+            blocks.extend([f"### Exercise {n}", f"Original solution {n}."])
+        blocks.extend(["## Complete Solved Practice Exercises"])
+        for n in range(1, 6):
+            blocks.extend([f"## Exercise {n}", f"Repeated solution {n}."])
+        blocks.extend([
+            "## Final Card", "Verified summary.",
+            "## Final Card", "Repeated summary.",
+        ])
+        output = deduplicate_lesson_sections("\n".join(blocks))
+        for n in range(1, 6):
+            self.assertIn(f"Original solution {n}.", output)
+            self.assertNotIn(f"Repeated solution {n}.", output)
+        self.assertIn("Verified summary.", output)
+        self.assertNotIn("Repeated summary.", output)
+        self.assertEqual(output.count("Final Card"), 1)
+
+    def test_preserve_separate_verified_textbook_exercises(self):
+        reply = (
+            "## Practice Exercises\n"
+            "### Exercise 1\nAI practice solution.\n"
+            "## Official Textbook Exercises\n"
+            "### Exercise 1\nVerified book solution.\n"
+        )
+        output = deduplicate_lesson_sections(reply)
+        self.assertIn("AI practice solution.", output)
+        self.assertIn("Verified book solution.", output)
+
+    def test_empty_and_freeform_answer_unchanged(self):
+        for answer in ("", "Explain why mobile ions conduct electricity."):
+            self.assertEqual(deduplicate_lesson_sections(answer), answer)
+
+    def test_plain_exercise_headers_count_without_extra_provider_call(self):
+        answer = "\n".join(f"Exercise {n}: Solution {n}." for n in range(1, 6))
+        self.assertEqual(missing_practice_exercises(answer), [])
 
 
 if __name__ == "__main__":
