@@ -10,6 +10,8 @@ import types
 class _Column:
     def __eq__(self, other):
         return self
+    def asc(self):
+        return self
 
 class Book:
     grade = subject = curriculum = title = _Column()
