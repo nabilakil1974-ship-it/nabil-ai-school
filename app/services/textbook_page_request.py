@@ -18,6 +18,11 @@ _LESSON_INTENT = re.compile(
     r"continue\s+from|leçon|chapitre|commencer|depuis)\b|"
     r"الدرس|الفصل|الوحدة|من\s+صفحة|ابتداء\s+من|من\s+الصفحة"
 )
+_EXPLICIT_EXTENDED_PAGE = re.compile(
+    r"(?i)(?:from\\s+(?:printed\\s+)?page|start\\s+at\\s+page|"
+    r"continue\\s+from\\s+page|depuis\\s+la\\s+page|"
+    r"من\\s+(?:ال)?صفحة|ابتداء\\s+من\\s+(?:ال)?صفحة)"
+)
 _NEXT_CHAPTER = re.compile(
     r"(?im)^\s*(?:chapter\s+(?:\d+|one|two|three|four|five|six|"
     r"i{1,3}|iv|v)\s*[:.\-–]?|"
@@ -41,7 +46,10 @@ def parse_textbook_page_request(message: str, book_page: str = "") -> tuple[int,
         page = int(match.group("page"))
     if page < 1:
         raise ValueError("Printed textbook page must be positive")
-    return page, ("lesson" if _LESSON_INTENT.search(message or "") else "page")
+    # A numeric picker + generic "Begin selected lesson" is a PAGE request,
+    # not permission to teach 12 adjacent pages. Expand only if the student
+    # explicitly asks to teach/continue FROM that page.
+    return page, ("lesson" if _EXPLICIT_EXTENDED_PAGE.search(message or "") else "page")
 
 
 def _source_for_page(db, book: Book, page: BookPage, printed: int) -> dict:
