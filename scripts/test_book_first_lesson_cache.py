@@ -39,6 +39,13 @@ class BookFirstLessonTests(unittest.TestCase):
         self.assertIn("}else{", js)
         self.assertIn("fail();", js)
 
+    def test_printed_page_persists_across_provider_retries(self):
+        js = pathlib.Path("app/static/nabil_book_first_preview_v1.js").read_text("utf-8")
+        self.assertIn('body.set("book_page",String(Number(picker.value)))', js)
+        self.assertIn('body.set("book_page",typedPage)', js)
+        self.assertNotIn('picker.value="";', js)
+        self.assertIn('String(result.printed_page)!==String(Number(chosen))', js)
+
     def test_preview_never_waits_for_pdf_download_or_figure_extraction(self):
         route = pathlib.Path("app/api/routes_textbook_pages.py").read_text("utf-8")
         preview = route.split('@router.post("/textbooks/lesson-preview")', 1)[1]
