@@ -7,6 +7,7 @@ import re
 
 _PAGE_TAG = re.compile(r"\[BOOK_PAGE\s*:\s*([^\]\n]{1,45})\]", re.I)
 _NUMBER = re.compile(r"(?<!\d)\d{1,4}(?!\d)")
+_FIGURE_TAG = re.compile(r"\[BOOK_FIGURE_PAGE\s*:\s*(\d{1,4})\]", re.I)
 
 
 # Verified against the user's actual scanned Grade 9 Chemistry PDF:
@@ -114,18 +115,32 @@ def render_verified_page_citations(text: str, source_chunks: list[dict]) -> str:
             return ""
         rendered = "، ".join(str(p) for p in pages)
         label = "الصفحة المطبوعة" if len(pages) == 1 else "الصفحات المطبوعة"
-        image_links = "\\n".join(
+        image_links = "\n".join(
             f"[📷 عرض صفحة الكتاب الأصلية (ص. {p})]"
             f"({image_by_page[p]['page_image_url']})"
             for p in pages if p in image_by_page
         )
         return (
-            f"\\n\\n**📘 كتاب الدولة | {label}: {rendered}**\\n"
-            + (image_links + "\\n" if image_links else "")
-            + "\\n"
+            f"\n\n**📘 كتاب الدولة | {label}: {rendered}**\n"
+            + (image_links + "\n" if image_links else "")
+            + "\n"
         )
 
     body = _PAGE_TAG.sub(replace, original).strip()
+
+    def render_original_figure(match: re.Match) -> str:
+        page = int(match.group(1))
+        data = image_by_page.get(page)
+        if not data:
+            return ""
+        link = data["page_image_url"]
+        return (
+            f"\n\n**📘 الرسم الأصلي من كتاب الدولة — الصفحة المطبوعة {page}**\n"
+            f"![صورة صفحة الكتاب الأصلية، الصفحة {page}]({link})\n"
+            f"[🔎 تكبير صفحة الكتاب الأصلية]({link})\n\n"
+        )
+
+    body = _FIGURE_TAG.sub(render_original_figure, body).strip()
     if not sources:
         return body
 
