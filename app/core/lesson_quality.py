@@ -5,8 +5,8 @@ Only the supplied lesson content is inspected here. Never infer textbook pages.
 import re
 
 _PRACTICE_HEADER = re.compile(
-    r"(?im)^\\s*#{2,4}\\s*(?:\\*\\*)?\\s*"
-    r"(?:Exercise|Exercice|تمرين)\\s*(?:#\\s*)?([1-9]\\d*)\\b"
+    r"(?im)^\s*#{2,4}\s*(?:\*\*)?\s*"
+    r"(?:Exercise|Exercice|تمرين)\s*(?:#\s*)?([1-9]\d*)\b"
 )
 
 def practice_exercise_numbers(text: str, required_count: int = 5) -> list[int]:
