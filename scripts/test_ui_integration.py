@@ -37,6 +37,22 @@ class NabilUiIntegrationTests(unittest.TestCase):
     def setUpClass(cls):
         cls.html = assemble_home_html()
 
+    def test_ionic_chemistry_visual_uses_electrons_not_function_graph(self):
+        visual = (STATIC / "nabil_ionic_diagram_fix.js").read_text(encoding="utf-8")
+        self.assertIn('/static/nabil_ionic_diagram_fix.js?v=1', self.html)
+        for marker in (
+            "NABIL_IONIC_REJECT_UNRELATED_FUNCTION_GRAPH",
+            'const loss=m.charge,gain=a.charge,g=gcd(loss,gain),mc=gain/g,ac=loss/g',
+            "for(let k=0;k<mc*loss;k++)",
+            "const top=(k%2===0)",
+            "Lewis representation — pairs (doublets)",
+            "const pts=[[-8,-40],[8,-40],[-8,42],[8,42],[-46,-6],[-46,10],[46,-6],[46,10]]",
+            "Each ${esc(nonmetal)} ion has four electron pairs",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, visual)
+        self.assertNotIn("f(x)", visual)
+
     def test_one_robot_home_no_separate_gateway(self):
         self.assertIn('id="nabilHome"', self.html)
         self.assertNotIn('<script id="nabil-v105-startup-script">', self.html)

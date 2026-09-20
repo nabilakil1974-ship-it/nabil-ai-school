@@ -432,6 +432,7 @@ def root():
         '<script src="/static/nabil_worksheet_v1.js?v=5"></script>\n'
         '<script src="/static/nabil_voice_v133.js?v=133"></script>\n'
         '<script src="/static/nabil_open_tutor_v1.js?v=17"></script>\n'
+        '<script src="/static/nabil_ionic_diagram_fix.js?v=1"></script>\n'
         '<script src="/static/nabil_research_v1.js?v=2"></script>\n'
     )
     boundary = html.lower().rfind("</body>")
