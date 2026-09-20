@@ -28,7 +28,7 @@ class UniversalLessonQualityTests(unittest.TestCase):
             {"type": "function", "function": "ln"}, "كيمياء", "Ionic Bond"
         ))
         self.assertFalse(drawing_matches_subject(
-            {"type": "coordinate_plane"}, "Chemistry", "Formation of ions"
+            {"type": "coordinate_plane"}, "Chemistry", "Ionic formation"
         ))
         self.assertTrue(drawing_matches_subject(
             {"type": "function"}, "رياضيات", "Study of function"
