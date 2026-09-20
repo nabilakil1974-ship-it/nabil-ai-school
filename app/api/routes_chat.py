@@ -5933,6 +5933,7 @@ Do not produce JSON transport as visible prose.
                     image_bytes=image_bytes or _source_image,
                     image_mime_type=image_mime_type,
                     max_output_tokens=output_budget,
+                    fast_lesson=bool(lesson_start_from_book),
                 )
             except Exception as vision_exc:
                 if _source_image is None or not source_chunks:
@@ -5955,12 +5956,18 @@ Do not produce JSON transport as visible prose.
                         "view the real scanned book page independently."
                     ),
                 }]
-                raw_reply = await run_in_threadpool(
-                    ai.generate,
-                    instructions=_generation_instructions,
-                    messages=_text_only_history,
-                    image_bytes=None,
-                    max_output_tokens=min(output_budget, 2700),
+                if time.monotonic() - _request_started_at > 73.0:
+                    raise TimeoutError("Book vision and provider attempts exceeded lesson response budget") from vision_exc
+                raw_reply = await asyncio.wait_for(
+                    run_in_threadpool(
+                        ai.generate,
+                        instructions=_generation_instructions,
+                        messages=_text_only_history,
+                        image_bytes=None,
+                        max_output_tokens=min(output_budget, 2100),
+                        fast_lesson=True,
+                    ),
+                    timeout=max(3.0, 94.0 - (time.monotonic() - _request_started_at)),
                 )
                 lesson_generation_logger.info(
                     "BOOK_TEXT_ONLY_LESSON_FALLBACK_SUCCESS printed_page=%d",
@@ -6339,12 +6346,19 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
                 "Do not repeat any previous response."
             )
             try:
-                _replacement = await run_in_threadpool(
-                    ai.generate,
-                    instructions=_quality_instruction + _explicit_language_instruction,
-                    messages=[{"role": "user", "content": lesson_prompt}],
-                    image_bytes=None,
-                    max_output_tokens=2800,
+                _quality_remaining = 105.0 - (time.monotonic() - _request_started_at)
+                if _quality_remaining < 12.0:
+                    raise TimeoutError("No time budget remains to regenerate the page")
+                _replacement = await asyncio.wait_for(
+                    run_in_threadpool(
+                        ai.generate,
+                        instructions=_quality_instruction + _explicit_language_instruction,
+                        messages=[{"role": "user", "content": lesson_prompt}],
+                        image_bytes=None,
+                        max_output_tokens=1900,
+                        fast_lesson=True,
+                    ),
+                    timeout=min(28.0, _quality_remaining),
                 )
             except Exception as exc:
                 lesson_generation_logger.warning(
