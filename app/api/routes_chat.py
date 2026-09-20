@@ -5332,21 +5332,42 @@ the same lesson Visual Engine; never describe it as rendered without one.
             )
             if scoped_chunks is None:
                 raise LookupError("NO_INDEXED_TEXTBOOK_CHUNKS_FOR_SELECTED_SCOPE")
-            source_query = " | ".join(
-                part for part in [
-                    str(lesson or "").strip(),
-                    str(message or "").strip(),
-                ] if part
-            )
             _rag_started_at = time.monotonic()
-            source_chunks = search_book_pages(
-                db=db,
-                query=source_query or str(lesson or "lesson"),
-                subject=str(subject or "").strip(),
-                grade=str(grade or "").strip(),
-                curriculum=book_curriculum,
-                top_k=10 if str(teaching_mode or "full_lesson") in {"full_lesson", "board_lesson"} else 4,
-            )
+            if _page_request is not None:
+                _printed_page, _page_mode = _page_request
+                try:
+                    source_chunks = indexed_textbook_page_context(
+                        db, grade=str(grade or '').strip(),
+                        subject=str(subject or '').strip(),
+                        curriculum=book_curriculum,
+                        printed_page=_printed_page, mode=_page_mode,
+                    )
+                except LookupError as exc:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f'صفحة الكتاب المطبوعة {_printed_page} غير متوفرة في الكتاب المفهرس للصف والمادة واللغة المختارة. لا أستطيع اختراع محتواها.',
+                    ) from exc
+                except ValueError as exc:
+                    raise HTTPException(
+                        status_code=409,
+                        detail='هناك أكثر من كتاب مفهرس لهذه المادة والصف ورقم الصفحة؛ يجب تحديد الكتاب أولًا.',
+                    ) from exc
+                lesson_generation_logger.info(
+                    'BOOK_EXACT_PAGE_REQUEST grade=%r subject=%r printed_page=%d mode=%s pages=%d',
+                    grade, subject, _printed_page, _page_mode, len(source_chunks),
+                )
+            else:
+                source_query = ' | '.join(
+                    part for part in [str(lesson or '').strip(), str(message or '').strip()]
+                    if part
+                )
+                source_chunks = search_book_pages(
+                    db=db, query=source_query or str(lesson or 'lesson'),
+                    subject=str(subject or '').strip(),
+                    grade=str(grade or '').strip(),
+                    curriculum=book_curriculum,
+                    top_k=10 if str(teaching_mode or 'full_lesson') in {'full_lesson', 'board_lesson'} else 4,
+                )
             _rag_elapsed_ms = round((time.monotonic() - _rag_started_at) * 1000)
             # The original chapter exercises are part of the lesson: look for
             # them in the SAME indexed book after the source-matched concept.
