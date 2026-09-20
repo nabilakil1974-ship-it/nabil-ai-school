@@ -443,15 +443,8 @@ def root():
     boundary = html.lower().rfind("</body>")
     if boundary < 0:
         raise RuntimeError("NABIL chat page has no closing body tag")
-    labs_link = (
-        '<a id="nabil-labs-launch" href="/labs" target="_blank" '
-        'rel="noopener" aria-label="NABIL Virtual Labs" '
-        'style="position:fixed;bottom:16px;left:16px;z-index:9999;'
-        'border:1px solid #5eead4;border-radius:999px;padding:10px 14px;'
-        'background:#0f766e;color:white;text-decoration:none;font:bold 14px Arial;'
-        'box-shadow:0 3px 15px #062a36">🔬 Virtual Labs</a>'
-    )
-    html = html[:boundary] + scripts + labs_link + html[boundary:]
+    # Experimental virtual laboratories stay on /labs, not on the main student platform.
+    html = html[:boundary] + scripts + html[boundary:]
     return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
 
@@ -466,3 +459,13 @@ def student_dashboard_page():
 def nabil_virtual_labs_page():
     """Standalone, shareable multilingual math, chemistry and optics labs."""
     return FileResponse("app/static/nabil_labs.html", media_type="text/html")
+
+
+@app.get("/labs/secondary-physics")
+def nabil_secondary_physics_lab():
+    """Public experimental physics prototype, separate from the student platform."""
+    return FileResponse(
+        "app/static/nabil_secondary_physics_lab.html",
+        media_type="text/html",
+        headers={"Cache-Control": "no-store"},
+    )
