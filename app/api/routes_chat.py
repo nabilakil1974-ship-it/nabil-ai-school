@@ -482,6 +482,35 @@ def _find_master_lesson(
     return None
 
 
+def format_lesson_policy_for_prompt(policy: Optional[dict]) -> str:
+    """Format a *verified catalog entry* without asserting missing book pages.
+
+    Called on every selected lesson request. Keep this helper dependency-free:
+    failure here must never prevent the teacher from opening an indexed lesson.
+    """
+    if not isinstance(policy, dict) or not policy:
+        return "لم يُعثَر على عنوان الدرس في فهرس المنهج المتاح؛ لا تنسب إليه صفحات أو تمارين."
+    fields = (
+        ("Lesson title", "title"),
+        ("Catalog language", "language"),
+        ("Grade", "grade"),
+        ("Subject", "subject"),
+        ("Verification status", "status"),
+    )
+    lines = []
+    for label, key in fields:
+        value = policy.get(key)
+        if isinstance(value, (str, int, float)) and str(value).strip():
+            lines.append(f"{label}: {str(value).strip()}")
+    # A verified chapter title does not itself establish that its complete
+    # textbook pages, diagrams or numbered exercises were retrieved.
+    lines.append(
+        "Use only independently retrieved textbook passages to attribute "
+        "page numbers, original exercises or diagrams."
+    )
+    return "\n".join(lines)
+
+
 def get_lesson_policy(
     grade: Optional[str],
     branch: Optional[str],
