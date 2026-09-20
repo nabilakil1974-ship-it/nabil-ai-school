@@ -37,6 +37,7 @@ from app.db.models import Conversation, Message, Student, BookChunk
 from app.db.student_learning import StudentLearningProfile
 from app.services.ai_gateway import NabilAIGateway
 from app.services.rag_search import search_book_pages, build_context_block
+from app.services.textbook_scope import resolve_textbook_curriculum
  
  
 router = APIRouter()
@@ -5271,6 +5272,7 @@ the same lesson Visual Engine; never describe it as rendered without one.
         # Avoid loading the multilingual embedding model on every lesson request
         # when the selected grade/subject/language has no indexed PDF chunks.
         # This also makes the absence of official source material explicit.
+        book_curriculum = resolve_textbook_curriculum(curriculum, selected_language)
         book_context = ""
         try:
             scoped_chunks = (
@@ -5278,7 +5280,7 @@ the same lesson Visual Engine; never describe it as rendered without one.
                 .filter(
                     BookChunk.subject == str(subject or "").strip(),
                     BookChunk.grade == str(grade or "").strip(),
-                    BookChunk.curriculum == str(curriculum or "").strip(),
+                    BookChunk.curriculum == book_curriculum,
                 )
                 .first()
             )
@@ -5295,12 +5297,13 @@ the same lesson Visual Engine; never describe it as rendered without one.
                 query=source_query or str(lesson or "lesson"),
                 subject=str(subject or "").strip(),
                 grade=str(grade or "").strip(),
-                curriculum=str(curriculum or "").strip(),
+                curriculum=book_curriculum,
                 top_k=10 if str(teaching_mode or "full_lesson") in {"full_lesson", "board_lesson"} else 4,
             )
             book_context = build_context_block(source_chunks)
+            print(f"BOOK_RAG_SCOPE_MATCH grade={grade!r} subject={subject!r} language={selected_language!r} curriculum={book_curriculum!r} retrieved={len(source_chunks)}", flush=True)
         except Exception as exc:
-            print(f"BOOK_RAG_UNAVAILABLE: {exc}", flush=True)
+            print(f"BOOK_RAG_UNAVAILABLE grade={grade!r} subject={subject!r} language={selected_language!r} curriculum={book_curriculum!r}: {type(exc).__name__}: {exc}", flush=True)
             book_context = ""
 
         educational_context = f"""
