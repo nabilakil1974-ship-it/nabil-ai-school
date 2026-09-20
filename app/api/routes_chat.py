@@ -38,7 +38,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
  
 from app.db.session import get_db
-from app.db.models import Conversation, Message, Student, BookChunk
+from app.db.models import Conversation, Message, Student, Book, BookChunk
 from app.db.student_learning import StudentLearningProfile
 from app.services.ai_gateway import NabilAIGateway
 from app.services.rag_search import search_book_pages, build_context_block, find_nearest_book_exercises
@@ -5808,6 +5808,48 @@ Do not produce JSON transport as visible prose.
                 len(source_chunks), len(lesson_prompt),
             )
 
+        # The requested OCR page is source text, not a visual description.
+        # For an EXPLICIT printed-page request send the exact indexed PDF page
+        # image to a vision-capable provider as well, so it can SEE the diagrams.
+        # Keep page preview independent and return OCR-only teaching if Drive,
+        # Poppler or a vision provider is unavailable. Never borrow another PDF.
+        _selected_book_image = None
+        _book_page_image_used = False
+        if lesson_start_from_book and _page_request and source_chunks:
+            _source = source_chunks[0]
+            try:
+                _source_book = db.query(Book).filter(
+                    Book.id == str(_source.get('book_id') or '')
+                ).first()
+                _source_pdf_page = int(_source.get('pdf_page') or 0)
+                if _source_book is not None and _source_pdf_page >= 1:
+                    from app.api.routes_textbook_pages import _render_pdf_page
+                    _selected_book_image = _render_pdf_page(
+                        _source_book.drive_file_id, _source_pdf_page,
+                    )
+                    lesson_generation_logger.info(
+                        'BOOK_PAGE_IMAGE_ATTACHED grade=%r subject=%r printed_page=%d pdf_page=%d',
+                        grade, subject, _page_request[0], _source_pdf_page,
+                    )
+            except Exception as exc:
+                lesson_generation_logger.warning(
+                    'BOOK_PAGE_IMAGE_UNAVAILABLE grade=%r subject=%r printed_page=%d error=%s',
+                    grade, subject, _page_request[0], type(exc).__name__,
+                )
+            if _selected_book_image:
+                history_messages[-1]['content'] += (
+                    '\nThe attached image is the EXACT indexed original PDF page '
+                    'requested by the learner, not a generic illustration. '
+                    'Inspect the ACTUAL drawn electron shells, labels, arrows, '
+                    'questions and figures before explaining or recreating them. '
+                    'The OCR text may omit diagrams. Maintain the page citations.'
+                )
+            else:
+                history_messages[-1]['content'] += (
+                    '\nNo actual page image reached the vision model: explain '
+                    'only what the indexed OCR text supports. Do not assert '
+                    'you saw or analyzed any original figure visually.'
+                )
         # Instant exact figure-only sphere: bypass slow generative answers when
         # the requested object and measurement alone determine the drawing.
         # Still use the same validated Visual Engine and conversation storage.
@@ -5828,13 +5870,33 @@ Do not produce JSON transport as visible prose.
                 grade, subject, lesson, output_budget,
             )
             _primary_ai_started_at = time.monotonic()
-            raw_reply = ai.generate(
-                instructions=lesson_instructions if lesson_start_from_book else SYSTEM_PROMPT,
-                messages=history_messages,
-                image_bytes=image_bytes,
-                image_mime_type=image_mime_type,
-                max_output_tokens=output_budget,
-            )
+            try:
+                raw_reply = ai.generate(
+                    instructions=lesson_instructions if lesson_start_from_book else SYSTEM_PROMPT,
+                    messages=history_messages,
+                    image_bytes=_selected_book_image or image_bytes,
+                    image_mime_type=image_mime_type,
+                    max_output_tokens=output_budget,
+                )
+                _book_page_image_used = bool(_selected_book_image)
+            except RuntimeError:
+                if not _selected_book_image:
+                    raise
+                lesson_generation_logger.warning(
+                    'BOOK_PAGE_VISION_PROVIDER_UNAVAILABLE_FALLBACK_TEXT grade=%r subject=%r printed_page=%d',
+                    grade, subject, _page_request[0],
+                )
+                history_messages[-1]['content'] += (
+                    '\nVISION PROVIDER FAILED: treat this answer as OCR-text-only; '
+                    'never claim to have inspected the original diagram.'
+                )
+                raw_reply = ai.generate(
+                    instructions=lesson_instructions if lesson_start_from_book else SYSTEM_PROMPT,
+                    messages=history_messages,
+                    image_bytes=None,
+                    image_mime_type=image_mime_type,
+                    max_output_tokens=output_budget,
+                )
             _primary_ai_elapsed_ms = round((time.monotonic() - _primary_ai_started_at) * 1000)
             lesson_generation_logger.info("LESSON_PRIMARY_AI_FINISHED duration_ms=%d", _primary_ai_elapsed_ms)
  
