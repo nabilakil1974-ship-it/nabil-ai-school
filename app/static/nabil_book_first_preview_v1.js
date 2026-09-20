@@ -68,6 +68,30 @@ document.addEventListener("input",event=>{
 if(document.readyState==="loading"){
   document.addEventListener("DOMContentLoaded",installPagePicker,{once:true});
 }else installPagePicker();
+// Reuse the single already-generated, verified lesson response. No second AI call.
+function installNotebookSummary(reply){
+  const raw=String(reply||"");
+  const match=/^##\\s*(?:Notebook Summary|ملخص الدرس للدفتر|Résumé pour le cahier)\\s*$/im.exec(raw);
+  if(!match)return;
+  const body=raw.slice(match.index+match[0].length).split(/\\n(?=##\\s)/)[0].trim();
+  if(!body)return;
+  document.getElementById("nabilNotebookSummary")?.remove();
+  const box=document.createElement("details");
+  box.id="nabilNotebookSummary";
+  box.style.cssText="max-width:980px;margin:12px auto;border:2px solid #4cc6f5;border-radius:14px;padding:14px;background:#102a43;color:#fff;box-sizing:border-box";
+  const title=document.createElement("summary");
+  title.textContent="📘 ملخّص الدرس للدفتر | Notebook Summary";
+  title.style.cssText="cursor:pointer;font-weight:bold;color:#a8eaff;font-size:18px";
+  const content=document.createElement("pre");
+  content.textContent=body;
+  content.style.cssText="white-space:pre-wrap;overflow-wrap:anywhere;font:15px/1.65 Arial,sans-serif;direction:auto";
+  const copy=document.createElement("button");
+  copy.type="button";copy.textContent="📋 نسخ الملخّص";
+  copy.onclick=()=>navigator.clipboard?.writeText(body);
+  box.append(title,content,copy);
+  const chat=document.getElementById("chat");
+  if(chat)chat.appendChild(box);
+}
 function show(form,id){
   const chosen=String(form.get("book_page")||"").trim()||
     printedPageFromMessage(form.get("message"));
@@ -90,6 +114,18 @@ function show(form,id){
   page.style.cssText="display:block;color:#a4f3d3";
   const figureWrap=document.createElement("div");
   figureWrap.style.cssText="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:10px";
+  const originalPage=document.createElement("details");
+  originalPage.style.cssText="margin:12px 0;border:1px solid #3984aa;border-radius:10px;padding:9px";
+  originalPage.hidden=true;
+  const pageToggle=document.createElement("summary");
+  pageToggle.textContent="📷 عرض الصورة الأصلية لصفحة الكتاب";
+  pageToggle.style.cssText="cursor:pointer;color:#a8eaff";
+  const originalPageImage=document.createElement("img");
+  originalPageImage.alt="Actual scanned page from the indexed government textbook";
+  originalPageImage.loading="lazy";
+  originalPageImage.style.cssText="display:block;max-width:100%;width:auto;height:auto;margin:12px auto;background:#fff";
+  originalPageImage.onerror=()=>{ originalPage.hidden=true; };
+  originalPage.append(pageToggle,originalPageImage);
   const link=document.createElement("a");
   link.textContent="🔎 Open original textbook page at full size";
   link.rel="noopener noreferrer";
@@ -101,7 +137,7 @@ function show(form,id){
   close.textContent="×";
   close.onclick=()=>el.remove();
   close.style.cssText="position:absolute;right:8px;top:2px;background:transparent;color:#fff;font-size:27px;border:0;cursor:pointer";
-  el.append(head,close,status,content,page,figureWrap,link);
+  el.append(head,close,status,content,page,originalPage,figureWrap,link);
   const chat=document.getElementById("chat");
   if(chat)chat.appendChild(el); else document.body.appendChild(el);
   try{el.scrollIntoView({behavior:"smooth",block:"nearest"})}catch(_e){}
@@ -142,6 +178,8 @@ function show(form,id){
       holder.append(original,cap); figureWrap.appendChild(holder);
     });
     if(path&&/^\/api\/textbooks\/[a-z0-9-]+\/pages\/\d+\/image$/i.test(path)){
+      originalPageImage.src=path;
+      originalPage.hidden=false;
       link.href=path;
       link.textContent="🔎 Inspect the complete original page (not shown on the lesson board)";
       link.style.display="inline-block";
@@ -149,8 +187,8 @@ function show(form,id){
   }).catch(()=>{
     window.clearTimeout(previewTimeout);
     if(el.isConnected&&id===pending){
-      status.textContent="The full lesson is still being prepared";
-      content.textContent="The book preview did not finish. I will not show an unverified textbook page or figure.";
+      status.textContent="The independent textbook preview timed out or failed";
+      content.textContent="The lesson request is separate. Open the sourced page links in the lesson when available; the preview failure does not mean the book was not indexed.";
     }
   });
   return ()=>{
@@ -179,6 +217,14 @@ window.fetch=function(input,options){
   }
   const id=++pending;
   const done=show(body,id);
-  return originalFetch(input,options).then(result=>{done();return result;},error=>{done();throw error;});
+  return originalFetch(input,options).then(result=>{
+    done();
+    if(result.ok){
+      result.clone().json().then(data=>{
+        if(id===pending)window.setTimeout(()=>installNotebookSummary(data?.reply),100);
+      }).catch(()=>{});
+    }
+    return result;
+  },error=>{done();throw error;});
 };
 })();
