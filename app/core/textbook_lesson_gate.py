@@ -37,7 +37,7 @@ def lesson_page_issues(
     if _GRADE9_CHEM.search(subject or ""):
         if _MATH_HEADER.search(answer):
             issues.append("math function-study headings in a chemistry lesson")
-        if re.search(r"(?i)\bO(?:\^?\{?2\+?[-⁻−]\}?|²⁻)\b?[^\n]{0,70}"
+        if re.search(r"(?i)\bO(?:\^?\{?2\+?[-⁻−]\}?|²⁻)[^\n]{0,70}"
                      r"(?:configuration|arrangement|after)\s*[:=]?\s*(?:2\s*,\s*8\s*,\s*8|"
                      r"K\^?2\s*,?\s*L\^?8\s*,?\s*M\^?8)", answer):
             issues.append("oxide O2- has 10 electrons, not 18")
