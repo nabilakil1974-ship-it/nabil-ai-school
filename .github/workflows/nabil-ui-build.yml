@@ -16,6 +16,7 @@ on:
       - app/static/nabil_book_first_preview_v1.js
       - scripts/test_textbook_page_grounding.py
       - scripts/test_textbook_page_requests.py
+      - scripts/test_direct_book_page_start.py
       - scripts/test_nonblocking_lesson_generation.py
       - app/services/textbook_page_request.py
       - scripts/test_textbook_exercises_source_contract.py
@@ -47,6 +48,7 @@ on:
       - app/static/nabil_book_first_preview_v1.js
       - scripts/test_textbook_page_grounding.py
       - scripts/test_textbook_page_requests.py
+      - scripts/test_direct_book_page_start.py
       - scripts/test_nonblocking_lesson_generation.py
       - app/services/textbook_page_request.py
       - scripts/test_textbook_exercises_source_contract.py
@@ -87,6 +89,8 @@ jobs:
           node --check app/static/nabil_book_first_preview_v1.js
       - name: Nonblocking textbook lesson AI regression
         run: python -m scripts.test_nonblocking_lesson_generation
+      - name: Direct official-book printed-page start regressions
+        run: python -m scripts.test_direct_book_page_start
       - name: Book-first lesson cache and figure fallback regressions
         run: python -m scripts.test_book_first_lesson_cache
       - name: Official-book exercise priority contract
