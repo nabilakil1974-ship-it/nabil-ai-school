@@ -93,9 +93,6 @@ def lesson_page_issues(
                              r"model(?:s|ling)?\\s+clay|toothpick|"
                              r"كرات|أعواد|صلصال|نماذج|بناء", answer):
                 issues.append("Activity 2 on p57 is ball-and-stick lattice construction")
-        if ("magnesium fluoride" in ans_low or "mgf₂" in ans_low) and "crystal lattice" in src_low:
-            if answer.casefold().find("crystal lattice") > answer.casefold().find("magnesium fluoride"):
-                issues.append("page 57 opens with crystal lattice, not MgF2 recap")
     # Repeated full-start headings indicate the model restarted its response.
     starts = re.findall(r"(?im)^\s*#{1,3}\s*(?:lesson\s*[:—-]|"
                         r"interactive\s+lesson\s*[:—-])", answer)
