@@ -41,8 +41,8 @@ from app.db.session import get_db
 from app.db.models import Conversation, Message, Student, BookChunk
 from app.db.student_learning import StudentLearningProfile
 from app.services.ai_gateway import NabilAIGateway
-from app.services.rag_search import search_book_pages, build_context_block
-from app.services.textbook_page_request import parse_textbook_page_request, indexed_textbook_page_context, find_nearest_book_exercises
+from app.services.rag_search import search_book_pages, build_context_block, find_nearest_book_exercises
+from app.services.textbook_page_request import parse_textbook_page_request, indexed_textbook_page_context
 from app.services.textbook_scope import resolve_textbook_curriculum
 from app.services.lesson_cache import lesson_cache_key, source_signature, get_cached_lesson, save_cached_lesson
  
@@ -5373,7 +5373,10 @@ the same lesson Visual Engine; never describe it as rendered without one.
             # them in the SAME indexed book after the source-matched concept.
             # This is a database lookup, not an additional model generation.
             try:
-                book_exercise_chunks = [] if _page_request and _page_request[1] == "page" else find_nearest_book_exercises(
+                if _page_request and _page_request[1] == "page":
+                    book_exercise_chunks = []
+                else:
+                    book_exercise_chunks = find_nearest_book_exercises(
                     db, source_chunks,
                     subject=str(subject or "").strip(),
                     grade=str(grade or "").strip(),
