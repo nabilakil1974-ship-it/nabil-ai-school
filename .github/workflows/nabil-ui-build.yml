@@ -7,6 +7,8 @@ on:
       - app/api/routes_chat.py
       - app/core/lesson_output_guard.py
       - app/core/lesson_quality.py
+      - app/core/subject_output_guard.py
+      - scripts/test_subject_output_guard.py
       - scripts/test_universal_lesson_quality.py
       - scripts/test_chemistry_lesson_output_guard.py
       - app/static/nabil_ionic_diagram_fix.js
@@ -60,6 +62,8 @@ jobs:
           node --check app/static/nabil_open_tutor_v1.js
           node --check app/static/nabil_learning_v132.js
           node --check app/static/nabil_voice_v133.js
+      - name: Secondary mathematics and subject output guard
+        run: python -m scripts.test_subject_output_guard
       - name: Universal lesson quality regressions
         run: python -m scripts.test_universal_lesson_quality
       - name: Chemistry Ionic Bond content regression
