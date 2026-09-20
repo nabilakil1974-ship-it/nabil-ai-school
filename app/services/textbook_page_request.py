@@ -9,21 +9,21 @@ from app.core.textbook_page_citations import resolve_book_printed_page
 from app.db.models import Book, BookPage, BookChunk
 
 _PAGE_REQUEST = re.compile(
-    r"(?i)(?:\\b(?:page|pages|p\\.)\\s*(?:no\\.?|number|n°)?\\s*[:#-]?\\s*"
-    r"|(?:صفحة|الصفحة|صفحه|ص\\.)\\s*(?:رقم)?\\s*[:#-]?\\s*)"
-    r"(?P<page>\\d{1,4})\\b"
+    r"(?i)(?:\b(?:page|pages|p\.)\s*(?:no\.?|number|n°)?\s*[:#-]?\s*"
+    r"|(?:صفحة|الصفحة|صفحه|ص\.)\s*(?:رقم)?\s*[:#-]?\s*)"
+    r"(?P<page>\d{1,4})\b"
 )
 _LESSON_INTENT = re.compile(
-    r"(?i)\\b(?:lesson|chapter|unit|from\\s+page|start\\s+at\\s+page|"
-    r"continue\\s+from|leçon|chapitre|commencer|depuis)\\b|"
-    r"الدرس|الفصل|الوحدة|من\\s+صفحة|ابتداء\\s+من|من\\s+الصفحة"
+    r"(?i)\b(?:lesson|chapter|unit|from\s+page|start\s+at\s+page|"
+    r"continue\s+from|leçon|chapitre|commencer|depuis)\b|"
+    r"الدرس|الفصل|الوحدة|من\s+صفحة|ابتداء\s+من|من\s+الصفحة"
 )
 _NEXT_CHAPTER = re.compile(
-    r"(?im)^\\s*(?:chapter\\s+(?:\\d+|one|two|three|four|five|six|"
-    r"i{1,3}|iv|v)\\s*[:.\\-–]?|"
-    r"unit\\s+(?:\\d+|one|two|three|four|five)|"
-    r"الفصل\\s+(?:الأول|الثاني|الثالث|الرابع|\\d+)|"
-    r"الوحدة\\s+(?:الأولى|الثانية|الثالثة|\\d+))\\b"
+    r"(?im)^\s*(?:chapter\s+(?:\d+|one|two|three|four|five|six|"
+    r"i{1,3}|iv|v)\s*[:.\-–]?|"
+    r"unit\s+(?:\d+|one|two|three|four|five)|"
+    r"الفصل\s+(?:الأول|الثاني|الثالث|الرابع|\d+)|"
+    r"الوحدة\s+(?:الأولى|الثانية|الثالثة|\d+))\b"
 )
 
 
@@ -31,7 +31,7 @@ def parse_textbook_page_request(message: str, book_page: str = "") -> tuple[int,
     """Return printed page and ('page'|'lesson'); never infer from exercise N."""
     supplied = str(book_page or "").strip()
     if supplied:
-        if not re.fullmatch(r"\\d{1,4}", supplied):
+        if not re.fullmatch(r"\d{1,4}", supplied):
             raise ValueError("Invalid printed textbook page")
         page = int(supplied)
     else:
