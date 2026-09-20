@@ -104,15 +104,13 @@ def drawing_matches_subject(
 # Providers sometimes return all five solved exercises repeatedly. Do not send
 # those repetitions to the renderer or to long-running TTS.
 _LESSON_BLOCK = re.compile(
-    r"(?im)^\\s*(?:#{1,6}\\s*)?(?:\\*\\*)?\\s*"
-    r"(?:(?P<exercise>Exercise|Exercice|تمرين)\\s*#?\\s*(?P<number>[1-9]\\d*)\\b"
-    r"|(?P<summary>Final\\s+Card|Rule\\s+Summary|Résumé\\s+final|الخلاصة\\s+النهائية)"
-    r"|(?P<practice>(?:Complete\\s+)?(?:Solved\\s+)?Practice\\s+Exercises|"
-    r"Exercices\\s+(?:résolus|de\\s+pratique)|التمارين\\s+المحلولة))"
-)
-_BOOK_SECTION = re.compile(
-    r"(?im)^\\s*#{1,6}\\s*(?:official|textbook|book|crdp|"
-    r"exercices\\s+du\\s+livre|تمارين\\s+الكتاب)\\b"
+    r"(?im)^\s*(?:#{1,6}\s*)?(?:\*\*)?\s*"
+    r"(?:(?P<exercise>Exercise|Exercice|تمرين)\s*#?\s*(?P<number>[1-9]\d*)\b"
+    r"|(?P<summary>Final\s+Card|Rule\s+Summary|Résumé\s+final|الخلاصة\s+النهائية)"
+    r"|(?P<practice>(?:Complete\s+)?(?:Solved\s+)?Practice\s+Exercises|"
+    r"Exercices\s+(?:résolus|de\s+pratique)|التمارين\s+المحلولة)"
+    r"|(?P<book>Official\s+(?:Textbook\s+)?Exercises|Textbook\s+Exercises|"
+    r"Book\s+Exercises|Exercices\s+du\s+livre|تمارين\s+الكتاب))"
 )
 
 
@@ -135,9 +133,10 @@ def deduplicate_lesson_sections(text: str) -> str:
     for index, match in enumerate(matches):
         end = matches[index + 1].start() if index + 1 < len(matches) else len(original)
         block = original[match.start():end]
-        if _BOOK_SECTION.search(kept[-1][-180:]) if kept else False:
+        if match.group("book"):
             in_book = True
-        if match.group("practice"):
+        elif match.group("practice"):
+            in_book = False
             if seen_practice:
                 continue
             seen_practice = True
@@ -151,4 +150,4 @@ def deduplicate_lesson_sections(text: str) -> str:
                 continue
             seen_exercises.add(number)
         kept.append(block)
-    return re.sub(r"\\n{3,}", "\\n\\n", "".join(kept)).strip()
+    return re.sub(r"\n{3,}", "\n\n", "".join(kept)).strip()
