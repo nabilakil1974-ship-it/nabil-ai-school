@@ -41,7 +41,14 @@ def lesson_page_issues(
                      r"(?:configuration|arrangement|after)\s*[:=]?\s*(?:2\s*,\s*8\s*,\s*8|"
                      r"K\^?2\s*,?\s*L\^?8\s*,?\s*M\^?8)", answer):
             issues.append("oxide O2- has 10 electrons, not 18")
-        # The order 2,6,8 is not a valid neutral oxygen arrangement (8 e-).
+            if re.search(
+            r"(?i)\\b(?:fluorine|fluor|fluorure|الفلور)\\b[^\\n]{0,140}"
+            r"(?:\\[\\s*Ne\\s*\\]\\s*2s\\s*[²2]\\s*2p\\s*[⁵5]|"
+            r"\\bNe\\s+2s\\s*[²2]\\s*2p\\s*[⁵5])",
+            answer,
+        ):
+            issues.append("neutral fluorine is [He]2s2 2p5, not [Ne]2s2 2p5")
+    # The order 2,6,8 is not a valid neutral oxygen arrangement (8 e-).
         if re.search(r"(?i)oxygen.{0,105}?(?:configuration|arrangement)"
                      r"[^\n]{0,25}(?:2\s*,\s*6\s*,\s*8|K\^?2\s*,?\s*L\^?6\s*,?\s*M\^?8)", answer):
             issues.append("neutral oxygen has electron arrangement 2,6")
@@ -68,6 +75,27 @@ def lesson_page_issues(
             if re.search(r"(?i)\b(?:conductivity\s+test|salt\s+vs\s+sugar|"
                          r"NaCl\s+vs\s+sugar)\b", answer):
                 issues.append("unverified conductivity activity displaced page-56 bonding sequence")
+    if strict_single_page and printed_page == 57 and _GRADE9_CHEM.search(subject or ""):
+        # Enforce only when these headings were actually indexed in the page;
+        # this rule never extrapolates page 57 to some other book or subject.
+        src_low = source.casefold()
+        ans_low = answer.casefold()
+        if "crystal lattice" in src_low:
+            if "crystal lattice" not in ans_low:
+                issues.append("missing crystal lattice, the actual page-57 section")
+            if "fig. 14" in src_low or "fig 14" in src_low:
+                if not re.search(r"(?i)\\bfig(?:ure)?\\.?\\s*14\\b", answer):
+                    issues.append("missing source Fig. 14 when page 57 explicitly includes it")
+        if "build using ball" in src_low and ("activity 2" in ans_low or "activité 2" in ans_low):
+            # The book asks the learner to CONSTRUCT a lattice using models,
+            # not to identify lattice type from a unit cell on the next page.
+            if not re.search(r"(?i)ball.and.stick|build\\s+(?:using|a)|"
+                             r"model(?:s|ling)?\\s+clay|toothpick|"
+                             r"كرات|أعواد|صلصال|نماذج|بناء", answer):
+                issues.append("Activity 2 on p57 is ball-and-stick lattice construction")
+        if ("magnesium fluoride" in ans_low or "mgf₂" in ans_low) and "crystal lattice" in src_low:
+            if answer.casefold().find("crystal lattice") > answer.casefold().find("magnesium fluoride"):
+                issues.append("page 57 opens with crystal lattice, not MgF2 recap")
     # Repeated full-start headings indicate the model restarted its response.
     starts = re.findall(r"(?im)^\s*#{1,3}\s*(?:lesson\s*[:—-]|"
                         r"interactive\s+lesson\s*[:—-])", answer)
