@@ -87,7 +87,11 @@ class NabilUiIntegrationTests(unittest.TestCase):
         self.assertIn("return false;", tutor)
         self.assertIn("if(ok===false&&!input.value.trim())input.value=q", tutor)
         self.assertIn("nabil_learning_v132.js?v=139", self.html)
-        self.assertIn("nabil_open_tutor_v1.js?v=17", self.html)
+        self.assertIn("nabil_open_tutor_v1.js?v=18", self.html)
+        tutor = (STATIC / "nabil_open_tutor_v1.js").read_text(encoding="utf-8")
+        self.assertIn("nabilOpenVoiceUpload", tutor)
+        self.assertIn("voiceFile.addEventListener", tutor)
+        self.assertIn("request({audio:file})", tutor)
 
     def test_lesson_explanation_and_preview_never_disappear_silently(self):
         tutor = (STATIC / "nabil_open_tutor_v1.js").read_text(encoding="utf-8")
