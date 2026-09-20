@@ -249,7 +249,7 @@ window.fetch=function(input,options){
   if(typedPage){
     body.set("book_page",typedPage);
     if(picker)picker.value=typedPage;
-  }else if(picker?.value&&isLessonStart&&/^\\d{1,4}$/.test(String(picker.value).trim())){
+  }else if(picker?.value&&isLessonStart&&/^\d{1,4}$/.test(String(picker.value).trim())){
     body.set("book_page",String(Number(picker.value)));
   }
   const id=++pending;
