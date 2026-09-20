@@ -1,7 +1,7 @@
 """Regression tests for book-first lesson preview and reusable lesson packages."""
 import pathlib
 import unittest
-from app.services.lesson_cache import lesson_cache_key, source_signature
+from app.core.lesson_cache_contract import lesson_cache_key, source_signature
 
 
 class BookFirstLessonTests(unittest.TestCase):
