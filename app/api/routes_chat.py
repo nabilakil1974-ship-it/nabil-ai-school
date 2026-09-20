@@ -10,6 +10,7 @@ import math
 import re
 from pathlib import Path
 from app.core.lesson_output_guard import sanitize_chemistry_lesson
+from app.core.textbook_page_citations import render_verified_page_citations, resolve_book_printed_page
 from app.core.lesson_quality import missing_practice_exercises, practice_exercise_numbers, drawing_matches_subject, deduplicate_lesson_sections
 from typing import Optional
 from datetime import datetime
@@ -5633,8 +5634,17 @@ textbook. Begin at a sourced Activity if present; develop its ideas in order,
 with correct worked examples, clear formulas and a brief final rule summary.
 For a full lesson give exactly five additional age-appropriate solved PRACTICE
 exercises, distinctly labelled as yours, not as official book exercises.
+PRIORITIZE official book exercises and subparts actually present in retrieved
+text. Solve these with real page citations BEFORE creating additional practice.
 If actual numbered book exercises and subparts are present in excerpts, solve
 those with their real page numbers; otherwise say they were not retrieved.
+Before EACH source-grounded concept/activity/exercise write [BOOK_PAGE:N]
+where N is its PRINTED_PAGE from a verified excerpt. For a book figure that
+you cannot reconstruct confidently, emit [BOOK_FIGURE_PAGE:N] near the explanation.
+The server inserts the original page image only when it is truly indexed.
+Do not claim to understand a diagram from OCR text alone. If a drawing's
+meaning is not in the excerpt, label it as an original page to inspect.
+Follow the textbook sequence with friendly, short, teachable concept cards.
 Do not invent source pages, original figure coordinates, missing exercise
 statements or an unsupported connection to another grade. Use Markdown ## for
 each idea. Mark core rules with 🔴 Key Rule: / 🔴 Règle essentielle : /
@@ -5644,9 +5654,9 @@ when you know its supported schema and exact scientific labels.
 Do not produce JSON transport as visible prose.
 """.strip()
             excerpts = "\n\n".join(
-                f"[{item.get('book_title')} p.{item.get('page')}] "
+                f"[{item.get('book_title')} PRINTED_PAGE:{resolve_book_printed_page(item)} PDF_PAGE:{item.get('pdf_page')}] "
                 + str(item.get("text") or "")[:1550]
-                for item in source_chunks[:8]
+                for item in sorted(source_chunks, key=lambda item: (str(item.get('book_title') or ''), int(item.get('pdf_page') or 0)))[:10]
                 if isinstance(item, dict) and item.get("text")
             )
             lesson_prompt = (
@@ -6249,6 +6259,14 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
                 _before_cleanup_chars, len(reply_text),
             )
 
+    # Display only validated, indexed printed-page references for every lesson.
+    if (
+        str(activity_mode or "lesson") == "lesson"
+        and str(teaching_mode or "full_lesson") in {"full_lesson", "board_lesson"}
+        and _nabil_lesson_start_request(message)
+    ):
+        reply_text = render_verified_page_citations(reply_text, source_chunks)
+
     if not reply_text:
  
         raise HTTPException(
@@ -6308,7 +6326,12 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
         sources=[
             {
                 "book_title": str(item.get("book_title") or ""),
-                "page": item.get("page"),
+                "page": resolve_book_printed_page(item),
+                "pdf_page": item.get("pdf_page"),
+                "page_image_url": (
+                    f"/api/textbooks/{item['book_id']}/pages/{resolve_book_printed_page(item)}/image"
+                    if item.get("book_id") and item.get("pdf_page") else None
+                ),
             }
             for item in source_chunks
             if isinstance(item, dict) and item.get("book_title")
