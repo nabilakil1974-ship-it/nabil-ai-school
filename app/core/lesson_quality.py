@@ -34,18 +34,18 @@ _PLANE_TYPES = frozenset({
     "orthonormal_system", "vector_plane",
 })
 _FUNCTION_REQUEST = re.compile(
-    r"(?i)(?:\\b(?:study|analyse|analyze|plot|graph|sketch|draw|trace)\\b"
-    r"[^\\n]{0,90}\\b(?:the\\s+)?function\\b|"
-    r"\\b(?:function|fonction)\\s+study\\b|"
-    r"\\b(?:study|graph|plot|draw)\\b[^\\n]{0,90}f\\s*\\(\\s*x\\s*\\)\\s*=|"
-    r"\\b(?:étudier|etudier|tracer|dessiner|analyser)\\b[^\\n]{0,90}"
-    r"(?:fonction|f\\s*\\(\\s*x\\s*\\))|"
-    r"دراسة\\s*الدال|ادرس\\s*الدال|ارسم\\s*الدال|"
-    r"جدول\\s*التغي|tableau\\s+de\\s+variations)"
+    r"(?i)(?:\b(?:study|analyse|analyze|plot|graph|sketch|draw|trace)\b"
+    r"[^\n]{0,90}\b(?:the\s+)?function\b|"
+    r"\b(?:function|fonction)\s+study\b|"
+    r"\b(?:study|graph|plot|draw)\b[^\n]{0,90}f\s*\(\s*x\s*\)\s*=|"
+    r"\b(?:étudier|etudier|tracer|dessiner|analyser)\b[^\n]{0,90}"
+    r"(?:fonction|f\s*\(\s*x\s*\))|"
+    r"دراسة\s*الدال|ادرس\s*الدال|ارسم\s*الدال|"
+    r"جدول\s*التغي|tableau\s+de\s+variations)"
 )
 _FUNCTION_CHAPTER = re.compile(
-    r"(?i)\\b(?:functions?|fonctions?|variation\\s+of\\s+a\\s+function|"
-    r"study\\s+of\\s+(?:a\\s+)?function)\\b|دوال|الدوال|الدالة"
+    r"(?i)\b(?:functions?|fonctions?|variation\s+of\s+a\s+function|"
+    r"study\s+of\s+(?:a\s+)?function)\b|دوال|الدوال|الدالة"
 )
 _PLOT_MARKERS = ("function", "expression", "vertical_asymptote",
                  "vertical_asymptotes", "horizontal_asymptote",
@@ -86,9 +86,9 @@ def drawing_matches_subject(
         # Don't silently include blank coordinate planes in unrelated lessons.
         context = (str(lesson or "") + " " + str(message or "")).casefold()
         return bool(re.search(
-            r"(?i)\\b(?:coordinates?|vectors?|cartesian|axes|force|motion|"
+            r"(?i)\b(?:coordinates?|vectors?|cartesian|axes|force|motion|"
             r"velocity|position|displacement|graph|plot|chart|statistics|"
-            r"tracer|repère|coordonnées|vecteurs?)\\b|إحداثيات|محاور|متجه|"
+            r"tracer|repère|coordonnées|vecteurs?)\b|إحداثيات|محاور|متجه|"
             r"رسم بياني|سرعة|إزاحة", context
         ))
     # A generic graph can represent a legitimate physics experiment or a
@@ -96,7 +96,7 @@ def drawing_matches_subject(
     # not ask for one. Function-specific graph fields already require intent.
     context = (str(lesson or "") + " " + str(message or "")).casefold()
     return bool(re.search(
-        r"(?i)\\b(?:graph|plot|chart|statistics|statistique|"
-        r"diagramme|graphe|velocity|motion|temperature|population)\\b|"
+        r"(?i)\b(?:graph|plot|chart|statistics|statistique|"
+        r"diagramme|graphe|velocity|motion|temperature|population)\b|"
         r"رسم بياني|إحصاء|سرعة|حرارة|سكان", context
     ))
