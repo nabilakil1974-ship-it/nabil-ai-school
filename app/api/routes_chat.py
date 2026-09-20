@@ -5945,9 +5945,9 @@ Do not produce JSON transport as visible prose.
                 _text_only_history = [{
                     "role": "user",
                     "content": lesson_prompt.rsplit(
-                        "\\n\\nVERIFIED PAGE IMAGE ATTACHED:", 1
+                        "\n\nVERIFIED PAGE IMAGE ATTACHED:", 1
                     )[0] + (
-                        "\\n\\nVISUAL SOURCE UNAVAILABLE FOR THIS GENERATION. "
+                        "\n\nVISUAL SOURCE UNAVAILABLE FOR THIS GENERATION. "
                         "Use only the indexed page text. Never claim to have "
                         "visually inspected the figure, reproduce unverified "
                         "figure labels, or invent content. The student can "
