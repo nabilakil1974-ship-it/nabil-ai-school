@@ -91,5 +91,12 @@ def drawing_matches_subject(
             r"tracer|repère|coordonnées|vecteurs?)\\b|إحداثيات|محاور|متجه|"
             r"رسم بياني|سرعة|إزاحة", context
         ))
-    # A real labelled chart should not be confused with a derivative plot.
-    return True
+    # A generic graph can represent a legitimate physics experiment or a
+    # statistics chart, but should never be injected into a lesson that did
+    # not ask for one. Function-specific graph fields already require intent.
+    context = (str(lesson or "") + " " + str(message or "")).casefold()
+    return bool(re.search(
+        r"(?i)\\b(?:graph|plot|chart|statistics|statistique|"
+        r"diagramme|graphe|velocity|motion|temperature|population)\\b|"
+        r"رسم بياني|إحصاء|سرعة|حرارة|سكان", context
+    ))
