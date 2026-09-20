@@ -7,6 +7,11 @@ on:
       - app/api/routes_chat.py
       - app/core/lesson_output_guard.py
       - app/core/lesson_quality.py
+      - app/core/textbook_page_citations.py
+      - app/api/routes_textbook_pages.py
+      - app/services/rag_search.py
+      - app/static/nabil_book_first_preview_v1.js
+      - scripts/test_textbook_page_grounding.py
       - scripts/test_universal_lesson_quality.py
       - scripts/test_chemistry_lesson_output_guard.py
       - app/static/nabil_ionic_diagram_fix.js
@@ -26,6 +31,11 @@ on:
       - app/api/routes_chat.py
       - app/core/lesson_output_guard.py
       - app/core/lesson_quality.py
+      - app/core/textbook_page_citations.py
+      - app/api/routes_textbook_pages.py
+      - app/services/rag_search.py
+      - app/static/nabil_book_first_preview_v1.js
+      - scripts/test_textbook_page_grounding.py
       - scripts/test_universal_lesson_quality.py
       - scripts/test_chemistry_lesson_output_guard.py
       - app/static/nabil_ionic_diagram_fix.js
@@ -54,12 +64,15 @@ jobs:
         with:
           node-version: '22'
       - name: Python syntax build
-        run: python -m py_compile app/main.py app/api/routes_chat.py scripts/test_ui_integration.py scripts/test_tutor_contract.py scripts/validate_nabil_ui.py scripts/test_drawing_payload_recovery.py
+        run: python -m py_compile app/main.py app/api/routes_chat.py scripts/test_ui_integration.py scripts/test_tutor_contract.py scripts/validate_nabil_ui.py scripts/test_drawing_payload_recovery.py app/api/routes_textbook_pages.py app/core/textbook_page_citations.py
       - name: JavaScript syntax build
         run: |
           node --check app/static/nabil_open_tutor_v1.js
           node --check app/static/nabil_learning_v132.js
           node --check app/static/nabil_voice_v133.js
+          node --check app/static/nabil_book_first_preview_v1.js
+      - name: Verified textbook page and figure fallback regression
+        run: python -m scripts.test_textbook_page_grounding
       - name: Universal lesson quality regressions
         run: python -m scripts.test_universal_lesson_quality
       - name: Chemistry Ionic Bond content regression

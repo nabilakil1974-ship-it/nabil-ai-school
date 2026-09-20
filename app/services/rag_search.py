@@ -13,7 +13,7 @@ sentence-transformers) - بدون أي اتصال بأي API خارجي. هيك 
 from functools import lru_cache
 from sentence_transformers import SentenceTransformer
 from sqlalchemy.orm import Session
-from app.db.models import Book, BookChunk
+from app.db.models import Book, BookChunk, BookPage
 
 MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"  # يدعم العربي والفرنسي والإنكليزي
 
@@ -70,14 +70,33 @@ def search_book_pages(
     )
     print(f"🔍 عدد النتائج بعد البحث الدلالي: {len(results)}", flush=True)
 
-    return [
-        {
-            "book_title": r.book.title,
-            "page": r.printed_page_number,
-            "text": r.text_content,
-        }
-        for r in results
-    ]
+    # BookChunk has printed page numbers, but visual verification needs the
+    # separate 1-based PDF position recorded by the indexer in BookPage.
+    # Only return a PDF page reference when an exact BookPage row exists.
+    output = []
+    page_lookup = {}
+    for chunk in results:
+        lookup_key = (chunk.book_id, chunk.printed_page_number)
+        if lookup_key not in page_lookup:
+            page_lookup[lookup_key] = (
+                db.query(BookPage.pdf_page_index)
+                .filter(
+                    BookPage.book_id == chunk.book_id,
+                    BookPage.printed_page_number == chunk.printed_page_number,
+                )
+                .order_by(BookPage.pdf_page_index.asc())
+                .first()
+            )
+        matched = page_lookup[lookup_key]
+        pdf_page = int(matched[0]) if matched and matched[0] is not None else None
+        output.append({
+            "book_title": chunk.book.title,
+            "book_id": chunk.book_id,
+            "page": chunk.printed_page_number,
+            "pdf_page": pdf_page,
+            "text": chunk.text_content,
+        })
+    return output
 
 
 def build_context_block(chunks: list[dict]) -> str:
