@@ -17,6 +17,7 @@ from app.db.session import get_db
 from app.db.models import Book, BookPage, BookChunk
 from app.services.textbook_scope import resolve_textbook_curriculum
 from app.core.textbook_page_citations import resolve_book_printed_page
+from app.services.textbook_page_request import parse_textbook_page_request, indexed_textbook_page_context
 
 router = APIRouter()
 
@@ -184,6 +185,8 @@ def indexed_lesson_preview(
     curriculum: str = Form(""),
     language: str = Form(""),
     lesson: str = Form(""),
+    message: str = Form(""),
+    book_page: str = Form(""),
     db: Session = Depends(get_db),
 ):
     """Fast, provider-free first book card while the lesson AI is still working.
@@ -191,6 +194,36 @@ def indexed_lesson_preview(
     Only indexed material from selected grade, subject and curriculum is shown.
     No invented paragraph, book exercise, page number, or visual is allowed.
     """
+    try:
+        page_request = parse_textbook_page_request(message, book_page)
+    except ValueError:
+        return {'status': 'invalid_page', 'message': 'Invalid printed book page'}
+    if page_request is not None:
+        try:
+            sources = indexed_textbook_page_context(
+                db, grade=str(grade or '').strip(),
+                subject=str(subject or '').strip(),
+                curriculum=resolve_textbook_curriculum(curriculum, language),
+                printed_page=page_request[0], mode='page',
+            )
+        except (LookupError, ValueError):
+            return {'status': 'unavailable', 'message': 'Requested printed page not uniquely indexed'}
+        indexed = sources[0]
+        printed = indexed['printed_page']
+        return {
+            'status': 'indexed',
+            'lesson': str(lesson or '').strip() or f'Printed page {printed}',
+            'book_title': indexed['book_title'],
+            'printed_page': printed,
+            'pdf_page': indexed.get('pdf_page'),
+            'page_image_url': (
+                f"/api/textbooks/{indexed['book_id']}/pages/{printed}/image"
+                if indexed.get('pdf_page') else None
+            ),
+            'figure_image_urls': [],
+            'source_excerpt': indexed['text'][:420],
+            'disclaimer': 'Exact indexed textbook page. Image opens the original PDF page.',
+        }
     title = str(lesson or "").strip()[:160]
     scoped_grade = str(grade or "").strip()
     scoped_subject = str(subject or "").strip()
