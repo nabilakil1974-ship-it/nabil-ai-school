@@ -516,7 +516,7 @@ voiceFile.addEventListener("change",async()=>{
  voiceFile.value="";
  if(!file||recording||busy)return;
  const name=String(file.name||"").toLowerCase();
- const allowed=/\\.(?:ogg|oga|opus|mp3|m4a|mp4|wav|webm)$/.test(name)||file.type.startsWith("audio/");
+ const allowed=/\.(?:ogg|oga|opus|mp3|m4a|mp4|wav|webm)$/.test(name)||file.type.startsWith("audio/");
  if(!allowed){setStatus("⚠️ اختَر تسجيلًا صوتيًا بصيغة OGG أو MP3 أو M4A أو WAV أو WebM.",true);return}
  if(file.size>20*1024*1024){setStatus("⚠️ التسجيل أكبر من 20 MB. جرّب تقسيمه.",true);return}
  setStatus("📎 وصل التسجيل "+file.name+"؛ عم أفرّغه وبحضّر رد الأستاذ نبيل…");
