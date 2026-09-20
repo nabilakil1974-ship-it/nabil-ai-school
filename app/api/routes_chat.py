@@ -43,6 +43,7 @@ from app.db.student_learning import StudentLearningProfile
 from app.services.ai_gateway import NabilAIGateway
 from app.services.rag_search import search_book_pages, build_context_block, find_nearest_book_exercises
 from app.services.textbook_scope import resolve_textbook_curriculum
+from app.services.lesson_cache import lesson_cache_key, source_signature, get_cached_lesson, save_cached_lesson
  
  
 lesson_generation_logger = logging.getLogger("nabil_ai.lesson")
@@ -5067,6 +5068,13 @@ async def voice_chat(
  
     source_chunks = []
     book_exercise_chunks = []
+    _lesson_cache_key = None
+    _lesson_source_signature = None
+    _force_lesson_refresh = bool(re.search(
+        r"(?i)\b(?:refresh|regenerate|rebuild|new version)\b|"
+        r"جدد|جدّد|أعد بناء|اعد بناء|نسخة جديدة",
+        str(message or ""),
+    ))
     if general_exercises_mode:
         selected_language = "AUTO_FROM_QUESTION_OR_IMAGE"
         student_profile_context = profile_to_dict(learning_profile)
@@ -5350,6 +5358,45 @@ the same lesson Visual Engine; never describe it as rendered without one.
                     "BOOK_EXERCISE_PAGE_LOOKUP_FAILED"
                 )
             book_context = build_context_block(source_chunks + book_exercise_chunks)
+            if (
+                _nabil_lesson_start_request(message)
+                and str(teaching_mode or "full_lesson") in {"full_lesson", "board_lesson"}
+                and source_chunks
+            ):
+                _lesson_cache_key = lesson_cache_key(
+                    grade, branch or "", subject, book_curriculum,
+                    selected_language, lesson, teaching_mode or "full_lesson",
+                )
+                _lesson_source_signature = source_signature(
+                    source_chunks + book_exercise_chunks
+                )
+                if not _force_lesson_refresh:
+                    cached_lesson = get_cached_lesson(
+                        db, _lesson_cache_key, _lesson_source_signature
+                    )
+                    if cached_lesson:
+                        db.add(Message(
+                            conversation_id=conversation.id,
+                            role="teacher",
+                            content=cached_lesson["reply"],
+                        ))
+                        db.commit()
+                        lesson_generation_logger.info(
+                            "LESSON_PACKAGE_CACHE_HIT grade=%r subject=%r lesson=%r",
+                            grade, subject, lesson,
+                        )
+                        return ChatResponse(
+                            conversation_id=str(conversation.id),
+                            reply=cached_lesson["reply"],
+                            sources=cached_lesson["sources"],
+                            transcribed_text=transcribed_text,
+                            drawings=cached_lesson["drawings"],
+                            drawing=(
+                                cached_lesson["drawings"][0]
+                                if cached_lesson["drawings"] else None
+                            ),
+                            student_profile=profile_to_dict(learning_profile),
+                        )
             print(f"BOOK_RAG_SCOPE_MATCH grade={grade!r} subject={subject!r} language={selected_language!r} curriculum={book_curriculum!r} retrieved={len(source_chunks)}", flush=True)
         except Exception as exc:
             print(f"BOOK_RAG_UNAVAILABLE grade={grade!r} subject={subject!r} language={selected_language!r} curriculum={book_curriculum!r}: {type(exc).__name__}: {exc}", flush=True)
@@ -6314,6 +6361,43 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
         _repair_ai_elapsed_ms, _repair_ai_calls,
         round((time.monotonic() - _request_started_at) * 1000), len(drawings),
     )
+
+    if (
+        _lesson_cache_key
+        and _lesson_source_signature
+        and source_chunks
+        and str(activity_mode or "lesson") == "lesson"
+        and str(teaching_mode or "full_lesson") in {"full_lesson", "board_lesson"}
+    ):
+        try:
+            save_cached_lesson(
+                db,
+                cache_key=_lesson_cache_key,
+                signature=_lesson_source_signature,
+                grade=grade,
+                branch=branch or "",
+                subject=subject,
+                curriculum=book_curriculum,
+                language=selected_language,
+                lesson=lesson,
+                reply=reply_text,
+                drawings=drawings,
+                sources=[
+                    {
+                        "book_title": str(item.get("book_title") or ""),
+                        "page": resolve_book_printed_page(item),
+                    }
+                    for item in source_chunks
+                    if isinstance(item, dict) and item.get("book_title")
+                ],
+            )
+            lesson_generation_logger.info(
+                "LESSON_PACKAGE_CACHE_SAVED grade=%r subject=%r lesson=%r",
+                grade, subject, lesson,
+            )
+        except Exception:
+            db.rollback()
+            lesson_generation_logger.exception("LESSON_PACKAGE_CACHE_SAVE_FAILED")
 
     # ==========================================
     # SAVE

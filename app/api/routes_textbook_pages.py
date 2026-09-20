@@ -7,6 +7,7 @@ import os
 import subprocess
 import tempfile
 from functools import lru_cache
+import io
 
 from fastapi import APIRouter, Depends, HTTPException, Form
 from fastapi.responses import Response
@@ -58,21 +59,57 @@ def _render_pdf_page(file_id: str, pdf_page: int) -> bytes:
             return handle.read()
 
 
-@router.get("/textbooks/{book_id}/pages/{printed_page}/image")
-def textbook_page_image(book_id: str, printed_page: int, db: Session = Depends(get_db)):
-    if printed_page < 1:
-        raise HTTPException(status_code=404, detail="Book page not found")
-    book = db.query(Book).filter(Book.id == book_id).first()
-    if book is None:
-        raise HTTPException(status_code=404, detail="Book not found")
-    # Legacy Grade 9 Chemistry indexed its true PDF page as printed page.
-    # Convert the verified printed page back to that indexed value only for
-    # this exact book when the indexed value and PDF position agree.
+@lru_cache(maxsize=48)
+def _embedded_figure_pngs(file_id: str, pdf_page: int) -> tuple[bytes, ...]:
+    """Extract real embedded textbook figures, never the whole scanned page.
+
+    This is a conservative fallback. Tiny icons and full-page scan/background
+    images are excluded. If a page has no separable embedded figure, return no
+    crops rather than pretending a generated image is the book figure.
+    """
+    import fitz
+    payload = _drive_pdf_bytes(file_id)
+    doc = fitz.open(stream=payload, filetype="pdf")
+    if pdf_page < 1 or pdf_page > doc.page_count:
+        return tuple()
+    page = doc[pdf_page - 1]
+    candidates = []
+    seen = set()
+    for image in page.get_images(full=True):
+        xref = int(image[0])
+        if xref in seen:
+            continue
+        seen.add(xref)
+        try:
+            pix = fitz.Pixmap(doc, xref)
+            width, height = int(pix.width), int(pix.height)
+            area = width * height
+            # Exclude full-page scans / backgrounds and decorative micro-icons.
+            if width < 110 or height < 90 or area < 18000:
+                continue
+            if width >= 1500 and height >= 1000:
+                continue
+            if area > 1_450_000:
+                continue
+            if pix.alpha or pix.n > 4:
+                pix = fitz.Pixmap(fitz.csRGB, pix)
+            png = pix.tobytes("png")
+            if len(png) < 2500:
+                continue
+            candidates.append((area, png))
+        except Exception:
+            continue
+    # Larger meaningful illustrations first; cap to avoid flooding the lesson.
+    candidates.sort(key=lambda item: item[0], reverse=True)
+    return tuple(png for _, png in candidates[:4])
+
+
+def _resolve_indexed_book_page(book, printed_page: int, db: Session):
     page = None
     if book.title.strip().lower() == "chemistry - grade 9.pdf":
         legacy_pdf_page = printed_page - 2
         if legacy_pdf_page >= 1:
-            candidate = (
+            page = (
                 db.query(BookPage)
                 .filter(
                     BookPage.book_id == book.id,
@@ -81,8 +118,6 @@ def textbook_page_image(book_id: str, printed_page: int, db: Session = Depends(g
                 )
                 .first()
             )
-            if candidate is not None:
-                page = candidate
     if page is None:
         page = (
             db.query(BookPage)
@@ -93,6 +128,43 @@ def textbook_page_image(book_id: str, printed_page: int, db: Session = Depends(g
             .order_by(BookPage.pdf_page_index.asc())
             .first()
         )
+    return page
+
+
+@router.get("/textbooks/{book_id}/pages/{printed_page}/figures/{figure_index}/image")
+def textbook_figure_image(
+    book_id: str, printed_page: int, figure_index: int,
+    db: Session = Depends(get_db),
+):
+    """Return one REAL embedded figure from a verified indexed textbook page."""
+    if printed_page < 1 or figure_index < 0 or figure_index > 3:
+        raise HTTPException(status_code=404, detail="Textbook figure not found")
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if book is None:
+        raise HTTPException(status_code=404, detail="Book not found")
+    page = _resolve_indexed_book_page(book, printed_page, db)
+    if page is None or not page.pdf_page_index:
+        raise HTTPException(status_code=404, detail="Indexed page unavailable")
+    figures = _embedded_figure_pngs(book.drive_file_id, int(page.pdf_page_index))
+    if figure_index >= len(figures):
+        raise HTTPException(status_code=404, detail="No separable original figure on this page")
+    return Response(
+        figures[figure_index], media_type="image/png",
+        headers={"Cache-Control": "public, max-age=3600", "X-Content-Type-Options": "nosniff"},
+    )
+
+
+@router.get("/textbooks/{book_id}/pages/{printed_page}/image")
+def textbook_page_image(book_id: str, printed_page: int, db: Session = Depends(get_db)):
+    if printed_page < 1:
+        raise HTTPException(status_code=404, detail="Book page not found")
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if book is None:
+        raise HTTPException(status_code=404, detail="Book not found")
+    # Legacy Grade 9 Chemistry indexed its true PDF page as printed page.
+    # Convert the verified printed page back to that indexed value only for
+    # this exact book when the indexed value and PDF position agree.
+    page = _resolve_indexed_book_page(book, printed_page, db)
     if page is None or not page.pdf_page_index:
         raise HTTPException(status_code=404, detail="Indexed page unavailable")
     try:
@@ -174,6 +246,15 @@ def indexed_lesson_preview(
         "page_image_url": (
             f"/api/textbooks/{item.book_id}/pages/{printed}/image"
             if recorded and printed else None
+        ),
+        "figure_image_urls": (
+            [
+                f"/api/textbooks/{item.book_id}/pages/{printed}/figures/{i}/image"
+                for i in range(len(_embedded_figure_pngs(
+                    item.book.drive_file_id, int(recorded[0])
+                )))
+            ]
+            if recorded and recorded[0] and printed else []
         ),
         "source_excerpt": (item.text_content or "").strip()[:420],
         "disclaimer": "Book excerpt / original page preview. The full lesson is still being prepared.",
