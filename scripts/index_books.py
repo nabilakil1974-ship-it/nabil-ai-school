@@ -80,6 +80,68 @@ def split_into_chunks(text: str) -> list[str]:
     ]
 
 
+def _detect_printed_page_number(page_text: str, pdf_page_number: int, max_drift: int = 30):
+    """Best-effort detection of the page number actually printed on this page
+    (header/footer), independent of any manually-supplied --page-offset.
+
+    Why this exists: printed_page_offset defaults to 0 and, as of 2026-09-20,
+    is 0 for every single book across all subject manifests (chemistry,
+    physics, biology, math) - meaning printed_page_number has been silently
+    set equal to the raw PDF page index platform-wide, with no correction for
+    cover pages / table of contents / front matter. The previous fix for this
+    was a single hardcoded patch for one book's title at read time
+    (routes_textbook_pages.py) rather than a general one at index time.
+
+    Only the first and last few lines of the page are checked, since a
+    printed page number conventionally sits in a header or footer, not
+    embedded in body text (this avoids matching an unrelated number that
+    happens to appear in a math problem or a chemistry formula). A candidate
+    is accepted only if it is a standalone number (not part of a longer word
+    or a decimal) and within max_drift of the raw PDF index - this keeps the
+    detector from being fooled by e.g. a chapter or exercise number, since a
+    real printed page number is always close to the actual PDF position; it
+    just should never be trusted to be exactly equal to it.
+
+    Returns the detected printed page number, or None if nothing found
+    reaches a confident conclusion (caller should then fall back to the
+    existing pdf_page_number - printed_page_offset behaviour).
+    """
+    if not page_text:
+        return None
+
+    lines = [ln.strip() for ln in page_text.splitlines() if ln.strip()]
+    if not lines:
+        return None
+
+    # Printed page numbers live in the first/last couple of lines of a page,
+    # not scattered through the body - checking only these avoids matching
+    # unrelated numbers (exercise numbers, chemical formulas, dates) that
+    # happen to appear elsewhere on the page.
+    candidate_lines = lines[:2] + lines[-2:]
+
+    best_candidate = None
+    best_drift = max_drift + 1
+    for line in candidate_lines:
+        # A standalone number: the whole line (after stripping common
+        # decorative page-number punctuation) is digits only. Deliberately
+        # strict - a line like "Exercise 12" or "Figure 3.2" must NOT match.
+        stripped = line.strip(" -–—.|•")
+        if not stripped.isdigit():
+            continue
+        try:
+            candidate = int(stripped)
+        except ValueError:
+            continue
+        if candidate <= 0:
+            continue
+        drift = abs(candidate - pdf_page_number)
+        if drift <= max_drift and drift < best_drift:
+            best_candidate = candidate
+            best_drift = drift
+
+    return best_candidate
+
+
 def _ocr_page(pdf_path: str, page_number_1based: int) -> str:
     """Render one PDF page with Poppler and OCR it with Tesseract."""
     pdftoppm = shutil.which("pdftoppm")
@@ -256,7 +318,24 @@ def index_book(
                 flush=True,
             )
 
-            printed_page = page_number - printed_page_offset
+            # Prefer the page number actually printed on the page (detected
+            # from its own header/footer text) over a blind PDF-index-minus-
+            # offset calculation. This is what makes the fix general across
+            # every book instead of needing a manually-verified --page-offset
+            # or a per-book hardcoded patch: a manually-set printed_page_offset
+            # (nonzero) is still honored as an override for a book someone has
+            # already verified, but the common case - offset left at the
+            # default 0, which as of 2026-09-20 is every book in the catalog -
+            # now self-corrects from the real printed page number when it can
+            # be read from the page, instead of silently assuming no front
+            # matter exists.
+            detected_page = _detect_printed_page_number(text, page_number)
+            if printed_page_offset:
+                printed_page = page_number - printed_page_offset
+            elif detected_page is not None:
+                printed_page = detected_page
+            else:
+                printed_page = page_number
             if not text:
                 skipped_pages += 1
                 # Only a successfully inspected (possibly blank) page is marked
