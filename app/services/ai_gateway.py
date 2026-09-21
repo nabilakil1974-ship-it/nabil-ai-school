@@ -267,6 +267,21 @@ class NabilAIGateway:
         if any(
             marker in text
             for marker in [
+                "413",
+                "payload too large",
+                "request too large",
+                "context_length_exceeded",
+                "context length",
+                "maximum context length",
+                "too many tokens",
+                "token limit",
+            ]
+        ):
+            return "payload"
+
+        if any(
+            marker in text
+            for marker in [
                 "429",
                 "rate limit",
                 "rate_limit",
@@ -329,6 +344,14 @@ class NabilAIGateway:
                     "300",
                 )
             )
+
+        if kind == "payload":
+            # A payload-too-large error will recur identically on retry with
+            # the same oversized request - this is not a rate-limit and does
+            # not need the same escalating cooldown as "other" unexplained
+            # errors, but a short cooldown still avoids hammering a provider
+            # that just rejected this class of request.
+            return 60
 
         if kind == "model":
             return int(
@@ -679,9 +702,15 @@ class NabilAIGateway:
                 # - billing/permission: project-wide
                 # - model: model-wide
                 # - temporary/503 high demand: changing API keys does not help
+                # - payload: a context/token-limit rejection is a property of
+                #   the MODEL's context window, shared by every key on this
+                #   provider - a different key will reject the identical
+                #   oversized request identically, so failing over to the
+                #   next PROVIDER (which may have a larger context window)
+                #   is the only thing that can actually help here.
                 #
                 # Let the gateway move immediately to the next provider.
-                if kind in {"billing", "quota", "model", "temporary"}:
+                if kind in {"billing", "quota", "model", "temporary", "payload"}:
                     # Do not burn every Gemini key in the same student request.
                     # In production these keys commonly share the same project/
                     # quota pool; retrying all of them can keep the UI in a
