@@ -10787,6 +10787,8 @@ async function sendToAI(
         sendBtn.textContent =
             "جاري التفكير...";
 
+        nabilStartWaitingStatus();
+
 
         const response =
             await nabilFetchChatWithAutoRetry(
@@ -11122,6 +11124,7 @@ async function sendToAI(
 
     }
     finally {
+        nabilStopWaitingStatus();
         nabilHideRetryNotice();
 
         sendBtn.disabled =
@@ -14762,6 +14765,40 @@ function lessonStatus(text, show=true){
     if (!lessonLiveStatus) return;
     lessonLiveStatus.textContent = text || "";
     lessonLiveStatus.classList.toggle("show", !!show);
+}
+
+// Rotating "what's happening" status during the wait for /api/chat. The
+// backend genuinely goes through several real phases for one request
+// (retrieving book content, generating, verifying the science/math/drawing
+// content, occasionally repairing an invalid answer once or twice - capped
+// at 55s total server-side) but previously the student only ever saw ONE
+// static "thinking..." message for the entire wait, however long it took -
+// no sense that anything was progressing. This does not add a real
+// streaming connection (a bigger, riskier change to this file); it only
+// gives the student an honest sense of progress with messages that
+// describe what the backend is plausibly doing during a normal request.
+let nabilWaitingStatusTimer = null;
+const NABIL_WAITING_PHASES = [
+    "📖 جاري البحث عن الصفحة الصحيحة بالكتاب...",
+    "🧠 الأستاذ نبيل يحلل السؤال...",
+    "✍️ جاري تحضير الشرح والحل...",
+    "🔎 جاري التحقق من صحة الحل علميًا...",
+    "🎨 جاري رسم الأشكال المرتبطة بالحل...",
+];
+function nabilStartWaitingStatus(){
+    nabilStopWaitingStatus();
+    let phaseIndex = 0;
+    lessonStatus(NABIL_WAITING_PHASES[0], true);
+    nabilWaitingStatusTimer = setInterval(() => {
+        phaseIndex = Math.min(phaseIndex + 1, NABIL_WAITING_PHASES.length - 1);
+        lessonStatus(NABIL_WAITING_PHASES[phaseIndex], true);
+    }, 6000);
+}
+function nabilStopWaitingStatus(){
+    if (nabilWaitingStatusTimer) {
+        clearInterval(nabilWaitingStatusTimer);
+        nabilWaitingStatusTimer = null;
+    }
 }
 
 
