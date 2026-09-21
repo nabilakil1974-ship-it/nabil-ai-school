@@ -10,10 +10,46 @@ _NUMBER = re.compile(r"(?<!\d)\d{1,4}(?!\d)")
 _FIGURE_TAG = re.compile(r"\[BOOK_FIGURE_PAGE\s*:\s*(\d{1,4})\]", re.I)
 
 
-# Verified against the user's actual scanned Grade 9 Chemistry PDF:
-# file page 54 displays printed page 56. The legacy manifest used offset=0,
-# so its stored "printed" numbers are PDF indices until the book is reindexed.
-# Apply correction ONLY if both indexed and PDF page numbers still agree.
+def _text_states_printed_page(page_text: str, pdf_page_index: int, max_drift: int = 30):
+    """Look for the real printed page number stated in a page's own
+    extracted/OCR'd text (header or footer), independent of whatever
+    printed_page_number happens to be stored for it in the database.
+
+    Same detection approach used in scripts/index_books.py (index time) and
+    app/api/routes_textbook_pages.py (page-image lookup) - duplicated here
+    rather than imported since this module intentionally stays dependency-
+    free (it is on the hot path of every chat response that cites a book).
+    Only the first/last couple of lines are checked (a printed page number
+    conventionally sits in a header or footer, not body text), and a
+    candidate is accepted only if it is a standalone number within
+    max_drift of the raw PDF position - this avoids matching an unrelated
+    number (an exercise number, a chemical formula, a chapter number).
+    """
+    if not page_text:
+        return None
+    lines = [ln.strip() for ln in str(page_text).splitlines() if ln.strip()]
+    if not lines:
+        return None
+    for line in lines[:2] + lines[-2:]:
+        stripped = line.strip(" -–—.|•")
+        if not stripped.isdigit():
+            continue
+        candidate = int(stripped)
+        if candidate <= 0:
+            continue
+        if abs(candidate - pdf_page_index) <= max_drift:
+            return candidate
+    return None
+
+
+# Every book in the catalog was indexed with printed_page_offset left at its
+# default of 0 (confirmed 2026-09-20 across all subject manifests: chemistry,
+# physics, biology, math) - meaning the "printed" page number stored in the
+# database is actually the raw PDF page index for every book, not just this
+# one. This was previously a single hardcoded, manually-verified offset for
+# one book title; resolve_book_printed_page() below now derives the offset
+# generally, from each item's own already-fetched text, instead of only
+# trusting a lookup table that only ever had one entry.
 _VERIFIED_PRINTED_PAGE_OFFSETS = {
     "chemistry - grade 9.pdf": 2,
 }
@@ -27,6 +63,19 @@ def resolve_book_printed_page(item: dict) -> int | None:
         return None
     if page < 1:
         return None
+
+    # General case: this source chunk already carries its own extracted
+    # text (search_book_pages() always includes it for building the answer)
+    # - use it as direct evidence of what page this really is, the same way
+    # index-time and page-image-lookup already do. This works for ANY book,
+    # not just ones with a manually verified offset on file.
+    stated = _text_states_printed_page(item.get("text") or "", pdf_page if pdf_page is not None else page)
+    if stated is not None:
+        return stated
+
+    # Fallback for the one book with a manually pre-verified offset, in case
+    # its chunk text for some reason doesn't carry a detectable page number
+    # (e.g. a page whose only content is a diagram with a caption OCR missed).
     title = str(item.get("book_title") or "").strip().lower()
     offset = _VERIFIED_PRINTED_PAGE_OFFSETS.get(title)
     if offset is not None and pdf_page is not None and page == pdf_page:
