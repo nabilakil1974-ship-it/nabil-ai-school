@@ -103,9 +103,30 @@ def search_book_pages(
 def build_context_block(chunks: list[dict]) -> str:
     if not chunks:
         return ""
+    # Cap the TOTAL context sent to the model, not just each chunk
+    # individually. search_book_pages (top_k=4) and find_nearest_book_
+    # exercises (max_chunks=9) can together supply up to 13 chunks at up to
+    # 1800 chars each (~23K chars, ~6K tokens) BEFORE the system prompt and
+    # conversation history are added - a real contributor to a provider
+    # rejecting the request as too large (a 413/context-length error seen in
+    # production logs), independent of which provider is tried first.
+    # Chunks are relevance-ordered (search_book_pages) or page-ordered
+    # (find_nearest_book_exercises, closest-to-the-request first), so
+    # trimming from the END drops the least relevant content rather than
+    # truncating any single chunk mid-sentence, which would corrupt an
+    # exercise's text and make the anti-invention accuracy work above
+    # pointless.
+    _MAX_TOTAL_CONTEXT_CHARS = 14000
     lines = ["مقاطع من الكتاب المرجعي (استخدمها للشرح واذكر رقم الصفحة بالضبط):"]
+    total_chars = 0
     for c in chunks:
-        lines.append(f"\n[{c['book_title']} - صفحة {c['page']}]\n{c['text']}")
+        piece = f"\n[{c['book_title']} - صفحة {c['page']}]\n{c['text']}"
+        if total_chars + len(piece) > _MAX_TOTAL_CONTEXT_CHARS and total_chars > 0:
+            # Already have at least one chunk - stop rather than send a
+            # request likely to be rejected as too large by some providers.
+            break
+        lines.append(piece)
+        total_chars += len(piece)
     return "\n".join(lines)
 
 
