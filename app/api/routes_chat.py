@@ -698,9 +698,30 @@ def get_curriculum_lessons(
             lessons = grade_node.get(lk)
             if isinstance(lessons, list):
                 return list(dict.fromkeys(str(x).strip() for x in lessons if str(x).strip()))
-        if grade_node:
+        # The curated legacy index (crdp_scientific_curriculum_index.json) has
+        # this grade/subject but not in the requested language - e.g. it only
+        # ever had English for grade-9 physics, so French was blocked here
+        # even though the real French titles exist in the newer master index
+        # (crdp_master_curriculum_index.json). Previously this returned []
+        # immediately whenever grade_node was non-empty, treating "curated
+        # index covers this grade/subject at all" as if it meant "curated
+        # index has deliberately decided this language has no lessons" - but
+        # those are different things, and conflating them is exactly what
+        # hid the 15 real French grade-9 physics titles. Only return [] here
+        # when the curated index actually HAS a (possibly empty) entry for
+        # the requested language specifically; otherwise fall through to the
+        # master index below, which may have the language the curated index
+        # never covered. This never lets one language's content be shown for
+        # another, nor merges grades/branches - it only widens which index
+        # file is consulted when the curated one is silent on this language.
+        if any(lk in grade_node for lk in language_keys):
+            # Curated index explicitly has a (empty-list) entry for this
+            # language - that is a deliberate "no lessons" and must not be
+            # overridden by the master fallback.
             return []
-
+        # Otherwise: curated index covers this grade/subject in OTHER
+        # languages only - fall through to the master index instead of
+        # returning [] for the requested language.
     # 2) Generated master fallback only when curated scope does not exist.
     try:
         master = json.loads(MASTER_CURRICULUM_INDEX_PATH.read_text(encoding="utf-8"))
