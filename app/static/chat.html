@@ -1513,9 +1513,24 @@ body.nabil-home-lock::before{
 .exercise-board-detected{font-size:13px;color:#b7dcf1}
 .exercise-board-main{
     display:grid;
-    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    /* 2026-09-21 layout fix: this was previously a FIXED 2-column grid at
+       all screen widths, which is exactly what produced the reported bug -
+       lesson content crammed into a narrow left column with large empty
+       space on the right, words wrapping one-per-line, and drawings stuck
+       in their own separate narrow column unrelated to the idea they
+       illustrate. Per the requested design, a lesson card should be full-
+       width and stacked vertically by default; a genuine side-by-side
+       split (e.g. a formula next to its own graph) is now an explicit
+       opt-in via .exercise-board-main--split on a sufficiently wide
+       screen, not the universal default. */
+    grid-template-columns:minmax(0,1fr);
     gap:12px;
     align-items:stretch;
+}
+@media(min-width:1100px){
+    .exercise-board-main.exercise-board-main--split{
+        grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    }
 }
 .exercise-side-column,
 .exercise-main-column{
@@ -7532,7 +7547,23 @@ ${rawVariationHTML}`);
 
         const boardTextForRef = String((wholeBoardText || "") + " " + (title || "")).toLowerCase();
         const subjectHintForRef = String(subjectSelect?.value || "").toLowerCase();
-        const physicsReferenceNow = /physics|فيزياء/.test(subjectHintForRef) && /resistor|series|parallel|circuit|voltage|current|ohm|مقاوم|توالي|توازي/.test(boardTextForRef);
+        // v2026-09-21 fix: this hardcoded "Resistors in Series and Parallel"
+        // reference card previously fired on ANY physics content mentioning
+        // just one of a very broad word list (resistor|series|parallel|
+        // circuit|voltage|current|ohm|مقاوم|توالي|توازي). "current" alone is
+        // far too broad - it also means "convection current"/"ocean current"
+        // in a completely unrelated heat-transfer lesson, which is exactly
+        // what caused a real heat-transfer lesson to be silently replaced
+        // wholesale by this fabricated circuit template (confirmed from a
+        // live test: the lesson used "a circular current forms" describing
+        // convection, which alone was enough to trigger this). Now requires
+        // BOTH a circuit-specific noun (resistor/resistance/ohm/مقاوم,
+        // NEVER "current" alone) AND an explicit series/parallel comparison
+        // word, so an unrelated lesson that happens to use "current" once
+        // cannot hijack the entire board's content.
+        const hasCircuitSpecificTerm = /resistor|resistance|\bohm\b|مقاوم|مقاومة/.test(boardTextForRef);
+        const hasSeriesParallelTerm = /\bseries\b|\bparallel\b|توالي|توازي/.test(boardTextForRef);
+        const physicsReferenceNow = /physics|فيزياء/.test(subjectHintForRef) && hasCircuitSpecificTerm && hasSeriesParallelTerm;
         if (physicsReferenceNow) {
             const titleText = /resistor/.test(boardTextForRef) ? 'Resistors in Series and Parallel' : (title || 'Physics Card');
             const visualList = Array.isArray(diagramsForThis) ? diagramsForThis : [];
