@@ -105,31 +105,124 @@ def _embedded_figure_pngs(file_id: str, pdf_page: int) -> tuple[bytes, ...]:
     return tuple(png for _, png in candidates[:4])
 
 
+def _text_states_printed_page(page_text: str, pdf_page_index: int, max_drift: int = 30):
+    """Same detection approach as scripts/index_books.py's
+    _detect_printed_page_number, applied here to TEXT ALREADY STORED in the
+    database from past indexing runs (not to a live PDF) - see that
+    function's docstring for the full rationale. Duplicated rather than
+    imported because scripts/index_books.py pulls in Google Drive/OCR
+    dependencies not needed for a read-time lookup.
+    """
+    if not page_text:
+        return None
+    lines = [ln.strip() for ln in page_text.splitlines() if ln.strip()]
+    if not lines:
+        return None
+    for line in lines[:2] + lines[-2:]:
+        stripped = line.strip(" -–—.|•")
+        if not stripped.isdigit():
+            continue
+        candidate = int(stripped)
+        if candidate <= 0:
+            continue
+        if abs(candidate - pdf_page_index) <= max_drift:
+            return candidate
+    return None
+
+
 def _resolve_indexed_book_page(book, printed_page: int, db: Session):
-    page = None
-    if book.title.strip().lower() == "chemistry - grade 9.pdf":
-        legacy_pdf_page = printed_page - 2
-        if legacy_pdf_page >= 1:
-            page = (
-                db.query(BookPage)
-                .filter(
-                    BookPage.book_id == book.id,
-                    BookPage.printed_page_number == legacy_pdf_page,
-                    BookPage.pdf_page_index == legacy_pdf_page,
-                )
-                .first()
-            )
-    if page is None:
-        page = (
-            db.query(BookPage)
-            .filter(
-                BookPage.book_id == book.id,
-                BookPage.printed_page_number == printed_page,
-            )
-            .order_by(BookPage.pdf_page_index.asc())
-            .first()
+    """Look up a BookPage row by the printed page number the student/lesson
+    actually asked for.
+
+    Books indexed before 2026-09-20 were indexed with printed_page_offset
+    left at its default of 0 for the ENTIRE catalog (confirmed across every
+    subject manifest: chemistry, physics, biology, math) - meaning
+    printed_page_number was stored equal to the raw PDF page index, with no
+    correction for cover/table-of-contents/front-matter pages. Books indexed
+    from 2026-09-20 onward self-correct this at index time (see
+    scripts/index_books.py's _detect_printed_page_number), but re-indexing
+    the ~70 already-indexed books from scratch to fix historical rows is
+    expensive (full re-download + re-OCR) and not done here.
+
+    This function was previously a single hardcoded patch for one specific
+    book title ("chemistry - grade 9.pdf", offset exactly 2) rather than a
+    general fix - any other book indexed under the same old scheme had the
+    identical bug with no correction at all.
+
+    IMPORTANT: an earlier version of this fix tried a "nearest stored
+    printed_page_number" fallback, but that is unsound for this exact bug -
+    under the old offset=0 scheme, printed_page_number equals pdf_page_index
+    for every consecutive page, so the numerically nearest stored value is
+    almost always just the WRONG page that happens to be closest, not the
+    right page. Guessing a plausible-looking wrong page is worse than
+    reporting not-found, since it would silently show the student the wrong
+    page image with no way to tell.
+
+    A second attempt trusted an exact printed_page_number match without
+    question when one existed - but that is ALSO unsound for the same
+    reason: under the old scheme, an "exact match" on the wrong page always
+    exists (printed_page_number == pdf_page_index for every page, so
+    requesting printed page 57 always finds *a* row claiming to be page 57 -
+    it's just the wrong one, at the wrong pdf_page_index). An exact
+    database match is therefore not trustworthy by itself for old-scheme
+    books; it must be corroborated against that row's own stored text.
+
+    Final approach: for every candidate row (exact printed_page_number match,
+    plus nearby pdf_page_index rows as a fallback), check its OWN stored
+    text (already in the database - no re-download or OCR needed) for
+    evidence of what page it actually is, using the same detection logic
+    newly-indexed books use at index time. Only a candidate whose own text
+    confirms the requested printed page is returned. If a row has no
+    checkable text (blank/OCR-failed page) it is trusted at face value only
+    when no other candidate is available, since there's no better evidence
+    either way. This never silently guesses a numerically-nearby wrong page.
+    """
+    _SEARCH_WINDOW = 15
+    candidates = (
+        db.query(BookPage)
+        .filter(
+            BookPage.book_id == book.id,
+            BookPage.pdf_page_index >= printed_page - _SEARCH_WINDOW,
+            BookPage.pdf_page_index <= printed_page + _SEARCH_WINDOW,
         )
-    return page
+        .all()
+    )
+    # Also include the exact printed_page_number match even if its
+    # pdf_page_index falls outside the window (a correctly-indexed book with
+    # a large offset would otherwise be missed).
+    exact_match = (
+        db.query(BookPage)
+        .filter(
+            BookPage.book_id == book.id,
+            BookPage.printed_page_number == printed_page,
+        )
+        .order_by(BookPage.pdf_page_index.asc())
+        .first()
+    )
+    if exact_match is not None and exact_match not in candidates:
+        candidates.append(exact_match)
+
+    unverifiable_exact_match = None
+    for candidate in candidates:
+        stated = _text_states_printed_page(
+            candidate.text_content or "", candidate.pdf_page_index or 0
+        )
+        if stated == printed_page:
+            # Text on the page itself confirms this is the right page -
+            # trustworthy regardless of what printed_page_number happens to
+            # say in the database.
+            return candidate
+        if (
+            stated is None
+            and not (candidate.text_content or "").strip()
+            and candidate.printed_page_number == printed_page
+        ):
+            # No text to check (blank/unreadable page) but the database
+            # value matches - keep as a last-resort candidate only if
+            # nothing better turns up.
+            unverifiable_exact_match = candidate
+
+    return unverifiable_exact_match
 
 
 @router.get("/textbooks/{book_id}/pages/{printed_page}/figures/{figure_index}/image")
