@@ -3588,14 +3588,28 @@ def _safe_series_parallel_comparison_drawings(message: str, reply_text: str):
     Deterministic fallback for an explicit comparison of the SAME two resistors
     in series and in parallel. It uses only values explicitly present in the
     question/reply and computes the exact circuit values.
-    """
-    source = f"{message or ''}\n{reply_text or ''}"
 
-    has_series = bool(re.search(r"\bseries\b|توالي|متسلسل|en\s+série|en\s+serie", source, re.I))
-    has_parallel = bool(re.search(r"\bparallel\b|توازي|متوازي|en\s+parall", source, re.I))
+    IMPORTANT (2026-09-21 fix): the series/parallel signal must come from the
+    STUDENT'S OWN message, not merely from the generated reply_text. A live
+    test showed a heat-transfer lesson (conduction/convection/radiation)
+    silently replaced end-to-end by this circuit template, because the
+    model's own reply legitimately used the word "current" describing
+    convection ("a circular current forms") and the SYSTEM_PROMPT's shared
+    drawing-type vocabulary list mentions electric_series/electric_parallel
+    on every request regardless of topic - together these could satisfy
+    has_series/has_parallel from reply_text alone, with the student never
+    having asked about circuits at all. Requiring the match in the
+    student's own message (their actual intent) instead of the combined
+    message+reply text prevents an unrelated lesson's own generated text
+    from ever triggering this override.
+    """
+    student_intent = str(message or "")
+    has_series = bool(re.search(r"\bseries\b|توالي|متسلسل|en\s+série|en\s+serie", student_intent, re.I))
+    has_parallel = bool(re.search(r"\bparallel\b|توازي|متوازي|en\s+parall", student_intent, re.I))
     if not (has_series and has_parallel):
         return None
 
+    source = f"{message or ''}\n{reply_text or ''}"
     voltage = _extract_named_electric_value(
         source,
         [
@@ -6344,6 +6358,18 @@ Mandatory:
     # ----------------------------------------------------------
     def _strip_internal_drawing_protocol(text: str) -> str:
         s = str(text or "")
+        # Empty or near-empty ```json fenced blocks are internal drawing
+        # placeholders that should have been replaced by an actual rendered
+        # drawing card. When drawing rendering silently fails or the model
+        # emits the fence without content, this raw fence leaked directly to
+        # the student (confirmed from a live test screenshot showing literal
+        # ```json``` text inside a lesson). Strip any ```json fenced block
+        # whose content is empty or only whitespace/punctuation - a fenced
+        # block that DOES contain real JSON content is left alone here (that
+        # is a different, separate concern from the internal-marker leak
+        # this function targets).
+        s = re.sub(r"```json\s*```", "", s, flags=re.I)
+        s = re.sub(r"```json\s*\n\s*```", "", s, flags=re.I)
         lines = s.splitlines()
         kept = []
         internal_patterns = [
