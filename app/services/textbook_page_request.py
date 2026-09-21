@@ -105,6 +105,14 @@ def indexed_textbook_page_context(
                 "book_title": book.title,
                 "page": page.printed_page_number,
                 "pdf_page": page.pdf_page_index,
+                # Needed so resolve_book_printed_page can check this page's
+                # own extracted text for a stated page number (the general
+                # fix for the platform-wide page_offset=0 indexing bug).
+                # Without it, this lookup silently fell back to only the
+                # single pre-verified chemistry-grade-9 offset, meaning an
+                # exact-page request like "page 90" for any OTHER book never
+                # benefited from the general fix at all.
+                "text": page.text_content,
             })
             if printed == printed_page:
                 matches.append((book, pages, index))
@@ -129,6 +137,7 @@ def indexed_textbook_page_context(
             "book_title": book.title,
             "page": page.printed_page_number,
             "pdf_page": page.pdf_page_index,
+            "text": page.text_content,
         })
         result = _source_for_page(db, book, page, printed)
         if result["text"]:
