@@ -1,0 +1,935 @@
+{
+  "schema_version": 1,
+  "verified_on": "2026-09-22",
+  "meaning": "Per-grade book inventory from actual repository manifests and owner Drive science folder; NOT a verified chapter/lesson TOC. Do not assume a subject absent from the entire Lebanese curriculum merely because no mapped book is present.",
+  "subject_rule": "Never generate physics/chemistry/biology for grades 1–6 merely by extrapolating from grade 7; use actual grade-specific books and verified TOCs.",
+  "general_science_grade_1": "NOT_VERIFIED: no Grade 1 PDF in inspected Drive science folder; Grade 1.pdf in separate Drive root is not classified without inspecting its contents.",
+  "grade_inventory": [
+    {
+      "grade": "الصف الأول",
+      "subjects": [
+        "mathematics"
+      ],
+      "books": [
+        {
+          "subject": "mathematics",
+          "grade": "الصف الأول",
+          "language": "English",
+          "title": "Building up Mathematics Grade 1.pdf",
+          "drive_file_id": "1AF-okLPK8xBi9QsHw6w8mhu8SotK4bvz",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        },
+        {
+          "subject": "mathematics",
+          "grade": "الصف الأول",
+          "language": "Français",
+          "title": "Construire les Mathematiques EB1.pdf",
+          "drive_file_id": "1e6283jqY2fmI-yIAJbSGJxVpjz_VnXDt",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        }
+      ]
+    },
+    {
+      "grade": "الصف الثاني",
+      "subjects": [
+        "mathematics",
+        "general_science"
+      ],
+      "books": [
+        {
+          "subject": "mathematics",
+          "grade": "الصف الثاني",
+          "language": "English",
+          "title": "Building up Mathematics Grade 2.pdf",
+          "drive_file_id": "1E7i7z3nu_Xk3yu0HhZPXrQIQdYvCZtd5",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        },
+        {
+          "subject": "mathematics",
+          "grade": "الصف الثاني",
+          "language": "Français",
+          "title": "Construire les Mathematiques EB2.pdf",
+          "drive_file_id": "1Cft9OUH9kzageEbO1z4Zq_mJZXl2qB0j",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        },
+        {
+          "grade": "الصف الثاني",
+          "title": "science grade 2.pdf",
+          "drive_file_id": "1vVaepklwVi452SxY_dq0ZXSTWZKn6T52",
+          "source_folder_id": "1gJWTNlF4MsZe_HatQBAgPA69A35jtG5h",
+          "subject": "general_science",
+          "toc_status": "not_verified"
+        },
+        {
+          "grade": "الصف الثاني",
+          "title": "mon 2 livre de science.pdf",
+          "drive_file_id": "1JNXoRHmAeFbwLwo1RqH5gNCTbUd8q80g",
+          "source_folder_id": "1gJWTNlF4MsZe_HatQBAgPA69A35jtG5h",
+          "subject": "general_science",
+          "toc_status": "not_verified"
+        }
+      ]
+    },
+    {
+      "grade": "الصف الثالث",
+      "subjects": [
+        "mathematics",
+        "general_science"
+      ],
+      "books": [
+        {
+          "subject": "mathematics",
+          "grade": "الصف الثالث",
+          "language": "English",
+          "title": "Building up Mathematics Grade 3.pdf",
+          "drive_file_id": "1Xci-xrl1kiJ4Gr8J1jDlXC-BsBo37O15",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        },
+        {
+          "subject": "mathematics",
+          "grade": "الصف الثالث",
+          "language": "Français",
+          "title": "Construire les Mathematiques EB3.pdf",
+          "drive_file_id": "19xMhJTU8xPi41Q0SS_D1yPLvSRsc9Cyw",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        },
+        {
+          "grade": "الصف الثالث",
+          "title": "Science Grade3.pdf",
+          "drive_file_id": "1i4otHaVjqm21bEZ89wmxDg80G33HpXd3",
+          "source_folder_id": "1gJWTNlF4MsZe_HatQBAgPA69A35jtG5h",
+          "subject": "general_science",
+          "toc_status": "not_verified"
+        }
+      ]
+    },
+    {
+      "grade": "الصف الرابع",
+      "subjects": [
+        "mathematics",
+        "general_science"
+      ],
+      "books": [
+        {
+          "subject": "mathematics",
+          "grade": "الصف الرابع",
+          "language": "English",
+          "title": "Building up Mathematics Grade 4 - Parts 1 and 2.pdf",
+          "drive_file_id": "1lrT8eQhYwCZ6el9lpaNlussSIfnD6hl7",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        },
+        {
+          "subject": "mathematics",
+          "grade": "الصف الرابع",
+          "language": "Français",
+          "title": "Construire les Mathematiques EB4 - Tome 1 et 2.pdf",
+          "drive_file_id": "1yT3moy04a55QF9NKZ3yH1CQJ5VjAtT63",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        },
+        {
+          "grade": "الصف الرابع",
+          "title": "sciences life grade4 part1.pdf",
+          "drive_file_id": "1AkAlehaivrXuLSaUjMgWLkveFPmx2uZc",
+          "source_folder_id": "1gJWTNlF4MsZe_HatQBAgPA69A35jtG5h",
+          "subject": "general_science",
+          "toc_status": "not_verified"
+        },
+        {
+          "grade": "الصف الرابع",
+          "title": "sciences life grade4 part2.pdf",
+          "drive_file_id": "1UxeK-EA3XAb8o_ubL1aGnfzVWeqZExIq",
+          "source_folder_id": "1gJWTNlF4MsZe_HatQBAgPA69A35jtG5h",
+          "subject": "general_science",
+          "toc_status": "not_verified"
+        },
+        {
+          "grade": "الصف الرابع",
+          "title": "sciences vie 4 tome1.pdf",
+          "drive_file_id": "1j-NjIt7Wfgqrc-YgB-zZLLLfat50GbgF",
+          "source_folder_id": "1gJWTNlF4MsZe_HatQBAgPA69A35jtG5h",
+          "subject": "general_science",
+          "toc_status": "not_verified"
+        },
+        {
+          "grade": "الصف الرابع",
+          "title": "sciences vie4 tome 2.pdf",
+          "drive_file_id": "14YsGEc4HlcsRs0jGYs04e5QLtDXtzvse",
+          "source_folder_id": "1gJWTNlF4MsZe_HatQBAgPA69A35jtG5h",
+          "subject": "general_science",
+          "toc_status": "not_verified"
+        }
+      ]
+    },
+    {
+      "grade": "الصف الخامس",
+      "subjects": [
+        "mathematics",
+        "general_science"
+      ],
+      "books": [
+        {
+          "subject": "mathematics",
+          "grade": "الصف الخامس",
+          "language": "English",
+          "title": "Building up Mathematics Grade 5.pdf",
+          "drive_file_id": "1Aj2sP-qUxdFPQcvmhj6zUH5NOhjcPtA9",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        },
+        {
+          "subject": "mathematics",
+          "grade": "الصف الخامس",
+          "language": "Français",
+          "title": "Construire les Mathematiques EB5.pdf",
+          "drive_file_id": "1V3h8x6sodExq9UdIZVbB3p36YFS6E-LW",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        },
+        {
+          "grade": "الصف الخامس",
+          "title": "science for life grade 5 - part 1.pdf",
+          "drive_file_id": "1DZz3vo5wATaq3DqDTHQmTahzzKmNrvkB",
+          "source_folder_id": "1gJWTNlF4MsZe_HatQBAgPA69A35jtG5h",
+          "subject": "general_science",
+          "toc_status": "not_verified"
+        },
+        {
+          "grade": "الصف الخامس",
+          "title": "science for life grade 5 - part 2.pdf",
+          "drive_file_id": "1r3gnygc1TroPiFFbYFCKk01pHzvjIYPS",
+          "source_folder_id": "1gJWTNlF4MsZe_HatQBAgPA69A35jtG5h",
+          "subject": "general_science",
+          "toc_status": "not_verified"
+        },
+        {
+          "grade": "الصف الخامس",
+          "title": "EB 5-1.pdf",
+          "drive_file_id": "1gQb7Z4_6fH0ufeIKYXW26L4w0TjjBCHq",
+          "source_folder_id": "1gJWTNlF4MsZe_HatQBAgPA69A35jtG5h",
+          "subject": "general_science",
+          "toc_status": "not_verified"
+        },
+        {
+          "grade": "الصف الخامس",
+          "title": "EB 5-2.pdf",
+          "drive_file_id": "1z_IzIcClN4IAL9eD_FXNDbMHiqCnQ-Ng",
+          "source_folder_id": "1gJWTNlF4MsZe_HatQBAgPA69A35jtG5h",
+          "subject": "general_science",
+          "toc_status": "not_verified"
+        }
+      ]
+    },
+    {
+      "grade": "الصف السادس",
+      "subjects": [
+        "mathematics",
+        "general_science"
+      ],
+      "books": [
+        {
+          "subject": "mathematics",
+          "grade": "الصف السادس",
+          "language": "English",
+          "title": "Building up Mathematics Grade 6.pdf",
+          "drive_file_id": "1eGKudJXzRx9NncSKMUQTKcaT2oMtGlAs",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        },
+        {
+          "subject": "mathematics",
+          "grade": "الصف السادس",
+          "language": "Français",
+          "title": "Construire les Mathematiques EB6.pdf",
+          "drive_file_id": "1QNK_5sVfFGcxJgutzYLSCcVyQHMcbe1Z",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        },
+        {
+          "grade": "الصف السادس",
+          "title": "Science Grade 6.pdf",
+          "drive_file_id": "10sEpKB5khHlSoNUZie7OVGus6avKHTLA",
+          "source_folder_id": "1gJWTNlF4MsZe_HatQBAgPA69A35jtG5h",
+          "subject": "general_science",
+          "toc_status": "not_verified"
+        },
+        {
+          "grade": "الصف السادس",
+          "title": "EB 6.pdf",
+          "drive_file_id": "10xoaIM6xbxzSpcSz3GzsvmlNiFcRLvWx",
+          "source_folder_id": "1gJWTNlF4MsZe_HatQBAgPA69A35jtG5h",
+          "subject": "general_science",
+          "toc_status": "not_verified"
+        }
+      ]
+    },
+    {
+      "grade": "الصف السابع",
+      "subjects": [
+        "mathematics",
+        "physics",
+        "chemistry",
+        "biology"
+      ],
+      "books": [
+        {
+          "subject": "mathematics",
+          "grade": "الصف السابع",
+          "language": "English",
+          "title": "Building up Mathematics Grade 7.pdf",
+          "drive_file_id": "1E-nj01QlpvZCa_kHy92qQDlm6ko1ba_D",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        },
+        {
+          "subject": "mathematics",
+          "grade": "الصف السابع",
+          "language": "Français",
+          "title": "Construire les Mathematiques EB7.pdf",
+          "drive_file_id": "1xUVAr2pLptWuk_MYOylKB-kTZJ8uvWKp",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        },
+        {
+          "subject": "physics",
+          "grade": "الصف السابع",
+          "language": "English",
+          "title": "G 07 physics.pdf",
+          "drive_file_id": "1LasqIgGUuck1l-2EZbj2kA0Dg9ygJ_AH",
+          "source_manifest": "data/physics_textbooks_manifest.json"
+        },
+        {
+          "subject": "physics",
+          "grade": "الصف السابع",
+          "language": "Français",
+          "title": "EB 07.pdf",
+          "drive_file_id": "1qJcvdDkytb0UuGZnSwcy8q6mgLtRDV1z",
+          "source_manifest": "data/physics_textbooks_manifest.json"
+        },
+        {
+          "subject": "chemistry",
+          "grade": "الصف السابع",
+          "language": "English",
+          "title": "chemistry - grade 7.pdf",
+          "drive_file_id": "1g1qCsurwsLRz3mQ8iphhoS0TEvnPnco7",
+          "source_manifest": "data/chemistry_textbooks_manifest.json"
+        },
+        {
+          "subject": "chemistry",
+          "grade": "الصف السابع",
+          "language": "Français",
+          "title": "chimie eb7.pdf",
+          "drive_file_id": "1N8IIlZrE8xHqdIzRv7w6k6kXHd2f6gRb",
+          "source_manifest": "data/chemistry_textbooks_manifest.json"
+        },
+        {
+          "subject": "biology",
+          "grade": "الصف السابع",
+          "language": "English",
+          "title": "Biology grade7.pdf",
+          "drive_file_id": "1u-xgNJTHdMTt5tlWtjYMjMzwtCFLqbzM",
+          "source_manifest": "data/biology_textbooks_manifest.json"
+        },
+        {
+          "subject": "biology",
+          "grade": "الصف السابع",
+          "language": "Français",
+          "title": "bio eb7.pdf",
+          "drive_file_id": "1AD9TZQxCPs4CK1OdMsqSZJYwkPWLFX66",
+          "source_manifest": "data/biology_textbooks_manifest.json"
+        }
+      ]
+    },
+    {
+      "grade": "الصف الثامن",
+      "subjects": [
+        "mathematics",
+        "physics",
+        "chemistry",
+        "biology"
+      ],
+      "books": [
+        {
+          "subject": "mathematics",
+          "grade": "الصف الثامن",
+          "language": "English",
+          "title": "Building up Mathematics Grade 8.pdf",
+          "drive_file_id": "11imShrf0Q7EbDwdQflwIQmMbvD15M-H0",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        },
+        {
+          "subject": "mathematics",
+          "grade": "الصف الثامن",
+          "language": "Français",
+          "title": "Construire les Mathematiques EB8.pdf",
+          "drive_file_id": "1iOIOsRpWHYqfSFyn96AwaT0Fu8MkyfF1",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        },
+        {
+          "subject": "physics",
+          "grade": "الصف الثامن",
+          "language": "English",
+          "title": "G 08.pdf",
+          "drive_file_id": "1mVrpBAhyX17i7AzNQt3uRmaBwS8J_M6e",
+          "source_manifest": "data/physics_textbooks_manifest.json"
+        },
+        {
+          "subject": "physics",
+          "grade": "الصف الثامن",
+          "language": "Français",
+          "title": "EB 08.pdf",
+          "drive_file_id": "13diQvjOGKNVxurHM-eZLZ9SM-4V04jjW",
+          "source_manifest": "data/physics_textbooks_manifest.json"
+        },
+        {
+          "subject": "chemistry",
+          "grade": "الصف الثامن",
+          "language": "English",
+          "title": "chemistry grade 8.pdf",
+          "drive_file_id": "18MaKs6Y-dndddrH6hlxl-_XeGOulh_KZ",
+          "source_manifest": "data/chemistry_textbooks_manifest.json"
+        },
+        {
+          "subject": "chemistry",
+          "grade": "الصف الثامن",
+          "language": "Français",
+          "title": "Chimie_EB8.pdf",
+          "drive_file_id": "1KRts8hcEy4X_9suzh0AAGn1I5oYcAiXS",
+          "source_manifest": "data/chemistry_textbooks_manifest.json"
+        },
+        {
+          "subject": "biology",
+          "grade": "الصف الثامن",
+          "language": "English",
+          "title": "Life science Grade 8.pdf",
+          "drive_file_id": "13Q6Q-McLarAEMRMnlPHG-XaOeSwoONvw",
+          "source_manifest": "data/biology_textbooks_manifest.json"
+        },
+        {
+          "subject": "biology",
+          "grade": "الصف الثامن",
+          "language": "Français",
+          "title": "bio eb8.pdf",
+          "drive_file_id": "1l59AxUK6lLlSwNz2kFxWkyCzW9dyIxH8",
+          "source_manifest": "data/biology_textbooks_manifest.json"
+        }
+      ]
+    },
+    {
+      "grade": "الصف التاسع",
+      "subjects": [
+        "mathematics",
+        "physics",
+        "chemistry",
+        "biology"
+      ],
+      "books": [
+        {
+          "subject": "mathematics",
+          "grade": "الصف التاسع",
+          "language": "English",
+          "title": "Building up Mathematics Grade 9.pdf",
+          "drive_file_id": "1Em9-vpBX8clwSv8_fMk3zPsgSx8Psyw_",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        },
+        {
+          "subject": "mathematics",
+          "grade": "الصف التاسع",
+          "language": "Français",
+          "title": "Construire les mathematiques EB9.pdf",
+          "drive_file_id": "1K14OEDDk4o1Yj4MW2xTDxfW6XQW3l4Xz",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        },
+        {
+          "subject": "physics",
+          "grade": "الصف التاسع",
+          "language": "English",
+          "title": "G 09.pdf",
+          "drive_file_id": "1jzGdmt5dZW9PQQcmoYYJePVLPH6xLgsO",
+          "source_manifest": "data/physics_textbooks_manifest.json"
+        },
+        {
+          "subject": "physics",
+          "grade": "الصف التاسع",
+          "language": "Français",
+          "title": "EB 09.pdf",
+          "drive_file_id": "11dqVqafG9zhr1sQzsjD3kxc5thA2DvZC",
+          "source_manifest": "data/physics_textbooks_manifest.json"
+        },
+        {
+          "subject": "chemistry",
+          "grade": "الصف التاسع",
+          "language": "English",
+          "title": "chemistry - grade 9.pdf",
+          "drive_file_id": "1Zf3l8o2snsVsjKebBoPkYYTsihl5UY5x",
+          "source_manifest": "data/chemistry_textbooks_manifest.json"
+        },
+        {
+          "subject": "biology",
+          "grade": "الصف التاسع",
+          "language": "English",
+          "title": "book bio grade 9.pdf",
+          "drive_file_id": "1ADt9oqP6Of7_VCJVxVpkBWAmYbIcfxgc",
+          "source_manifest": "data/biology_textbooks_manifest.json"
+        },
+        {
+          "subject": "biology",
+          "grade": "الصف التاسع",
+          "language": "Français",
+          "title": "biology eb9.pdf",
+          "drive_file_id": "15EVck4FMXUpV9w9Gw5RRhiXYFRWlXzDj",
+          "source_manifest": "data/biology_textbooks_manifest.json"
+        }
+      ]
+    },
+    {
+      "grade": "الأول ثانوي",
+      "subjects": [
+        "mathematics",
+        "physics",
+        "chemistry",
+        "biology"
+      ],
+      "books": [
+        {
+          "subject": "mathematics",
+          "grade": "الأول ثانوي",
+          "language": "English",
+          "title": "Building up Mathematics S1.pdf",
+          "drive_file_id": "1TL_paiiNP_tt2Sgl_aTTvNXoFfVzzx9U",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        },
+        {
+          "subject": "mathematics",
+          "grade": "الأول ثانوي",
+          "language": "Français",
+          "title": "Construire les Mathematiques S1.pdf",
+          "drive_file_id": "1PD0GvEinRl-79RdqSJJZtP44sboQaD2B",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        },
+        {
+          "subject": "physics",
+          "grade": "الأول ثانوي",
+          "language": "English",
+          "title": "G 10.pdf",
+          "drive_file_id": "1rfa7GGDY6uEGOKx_b7MFepQlRvsW82qO",
+          "source_manifest": "data/physics_textbooks_manifest.json"
+        },
+        {
+          "subject": "physics",
+          "grade": "الأول ثانوي",
+          "language": "Français",
+          "title": "EB 10.pdf",
+          "drive_file_id": "1-2Jowi3YToSmVFoCZUEX_r_vlRfLRv4v",
+          "source_manifest": "data/physics_textbooks_manifest.json"
+        },
+        {
+          "subject": "chemistry",
+          "grade": "الأول ثانوي",
+          "language": "Français",
+          "title": "seconde chimie.pdf",
+          "drive_file_id": "15L_PVwhCqXa9suGkA5aQXXV1UNTYbdTE",
+          "source_manifest": "data/chemistry_textbooks_manifest.json"
+        },
+        {
+          "subject": "biology",
+          "grade": "الأول ثانوي",
+          "language": "English",
+          "title": "biology grade 10.pdf",
+          "drive_file_id": "1CfG83euP-DeXTIOvvsCe9l0kJdfzuawj",
+          "source_manifest": "data/biology_textbooks_manifest.json"
+        },
+        {
+          "subject": "biology",
+          "grade": "الأول ثانوي",
+          "language": "Français",
+          "title": "bio eb10.pdf",
+          "drive_file_id": "1kmHec4Zken5DYo7my9cEPRS8zNBkxJBv",
+          "source_manifest": "data/biology_textbooks_manifest.json"
+        }
+      ]
+    },
+    {
+      "grade": "الثاني ثانوي - العلوم",
+      "subjects": [
+        "mathematics",
+        "physics",
+        "chemistry",
+        "biology"
+      ],
+      "books": [
+        {
+          "subject": "mathematics",
+          "grade": "الثاني ثانوي - العلوم",
+          "language": "English",
+          "title": "Building up Mathematics S2 scientific.pdf",
+          "drive_file_id": "1blnm2EIeSw7_6MkJmlvLf_1sVmZDvOn7",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        },
+        {
+          "subject": "mathematics",
+          "grade": "الثاني ثانوي - العلوم",
+          "language": "Français",
+          "title": "Construire les Mathematiques S2 scientifique.pdf",
+          "drive_file_id": "1CxyN7zsfRSlI0eV23NzWqL2PHmveKl-L",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        },
+        {
+          "subject": "physics",
+          "grade": "الثاني ثانوي - العلوم",
+          "language": "English",
+          "title": "physics G 11 S.pdf",
+          "drive_file_id": "1-BYlHndJ_CPWN2XedjHmmmIU-o7dGkAO",
+          "source_manifest": "data/physics_textbooks_manifest.json"
+        },
+        {
+          "subject": "physics",
+          "grade": "الثاني ثانوي - العلوم",
+          "language": "Français",
+          "title": "EB 11 S.pdf",
+          "drive_file_id": "1KP1wFV9_b-JMkzSLB5-w90td6tYOfKgl",
+          "source_manifest": "data/physics_textbooks_manifest.json"
+        },
+        {
+          "subject": "chemistry",
+          "grade": "الثاني ثانوي - العلوم",
+          "language": "English",
+          "title": "G. 11 Chem Book Part 1.pdf",
+          "drive_file_id": "13giGpY1Usizy780DojOIMqmRUgaA4VO4",
+          "source_manifest": "data/chemistry_textbooks_manifest.json"
+        },
+        {
+          "subject": "chemistry",
+          "grade": "الثاني ثانوي - العلوم",
+          "language": "English",
+          "title": "G. 11 Chem Book Part 2.pdf",
+          "drive_file_id": "1q-PGVFGmqXyzsU1gxbBD2OEzWYSeqZsP",
+          "source_manifest": "data/chemistry_textbooks_manifest.json"
+        },
+        {
+          "subject": "biology",
+          "grade": "الثاني ثانوي - العلوم",
+          "language": "English",
+          "title": "bio grade 11 S.pdf",
+          "drive_file_id": "1XkiEumKnF8IPGfstCBhG5PMG0tdum7mo",
+          "source_manifest": "data/biology_textbooks_manifest.json"
+        }
+      ]
+    },
+    {
+      "grade": "الثاني ثانوي - الإنسانيات",
+      "subjects": [
+        "mathematics",
+        "chemistry"
+      ],
+      "books": [
+        {
+          "subject": "mathematics",
+          "grade": "الثاني ثانوي - الإنسانيات",
+          "language": "English",
+          "title": "Building up Mathematics S2 LH.pdf",
+          "drive_file_id": "1yQfuNnFvMJmxftKduoi3FNC0eNEPhtr0",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        },
+        {
+          "subject": "mathematics",
+          "grade": "الثاني ثانوي - الإنسانيات",
+          "language": "Français",
+          "title": "Construire les Mathematiques S2 LH.pdf",
+          "drive_file_id": "1Mb1UnI7_LcFhSrdZZH4bSBNohFl_RM_N",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        },
+        {
+          "subject": "chemistry",
+          "grade": "الثاني ثانوي - الإنسانيات",
+          "language": "Français",
+          "title": "Chimie_ES2_Humanites_Fr.pdf",
+          "drive_file_id": "1ESTSdPDsYXt8E-1963STMPDqtj_L3Mxn",
+          "source_manifest": "data/chemistry_textbooks_manifest.json"
+        }
+      ]
+    },
+    {
+      "grade": "الثالث ثانوي - العلوم العامة",
+      "subjects": [
+        "mathematics",
+        "physics",
+        "chemistry"
+      ],
+      "books": [
+        {
+          "subject": "mathematics",
+          "grade": "الثالث ثانوي - العلوم العامة",
+          "language": "English",
+          "title": "Building up Mathematics S3 GS - Volumes 1 and 2.pdf",
+          "drive_file_id": "160h9B2-lAmC0z4RNORJElCmPhevECNkS",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        },
+        {
+          "subject": "mathematics",
+          "grade": "الثالث ثانوي - العلوم العامة",
+          "language": "Français",
+          "title": "Construire les Mathematiques S3 SG - Tome 1 et 2.pdf",
+          "drive_file_id": "1k2vj_3UM79kx6f0Gi2x-t3jSGMJjLXP6",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        },
+        {
+          "subject": "physics",
+          "grade": "الثالث ثانوي - العلوم العامة",
+          "language": "English",
+          "title": "physics G 12 LS_GS.pdf",
+          "drive_file_id": "1NRZNq8bF0NxCHsKuPfM1XFf-yccbrM-L",
+          "source_manifest": "data/physics_textbooks_manifest.json"
+        },
+        {
+          "subject": "physics",
+          "grade": "الثالث ثانوي - العلوم العامة",
+          "language": "Français",
+          "title": "EB 12 SV_SG.pdf",
+          "drive_file_id": "1KGLP2Op33Zez4DKxws-TqIjY01XXj7OR",
+          "source_manifest": "data/physics_textbooks_manifest.json"
+        },
+        {
+          "subject": "chemistry",
+          "grade": "الثالث ثانوي - العلوم العامة",
+          "language": "English",
+          "title": "Chemistry-LS+GS Book.pdf",
+          "drive_file_id": "1My4-vLyMt-I7fO3xVzcBxETVx0lV_c2x",
+          "source_manifest": "data/chemistry_textbooks_manifest.json"
+        }
+      ]
+    },
+    {
+      "grade": "الثالث ثانوي - علوم الحياة",
+      "subjects": [
+        "mathematics",
+        "physics",
+        "chemistry",
+        "biology"
+      ],
+      "books": [
+        {
+          "subject": "mathematics",
+          "grade": "الثالث ثانوي - علوم الحياة",
+          "language": "English",
+          "title": "Building up Mathematics S3 LS.pdf",
+          "drive_file_id": "17MNUF--5ZRTLjq7UmDcQe0yF3gpRS29s",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        },
+        {
+          "subject": "mathematics",
+          "grade": "الثالث ثانوي - علوم الحياة",
+          "language": "Français",
+          "title": "Construire les Mathematiques S3 SVT.pdf",
+          "drive_file_id": "1b_vxCvmTJsK7ItNkb1jAD-qwrJWnkj36",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        },
+        {
+          "subject": "physics",
+          "grade": "الثالث ثانوي - علوم الحياة",
+          "language": "English",
+          "title": "physics G 12 LS_GS.pdf",
+          "drive_file_id": "1NRZNq8bF0NxCHsKuPfM1XFf-yccbrM-L",
+          "source_manifest": "data/physics_textbooks_manifest.json"
+        },
+        {
+          "subject": "physics",
+          "grade": "الثالث ثانوي - علوم الحياة",
+          "language": "Français",
+          "title": "EB 12 SV_SG.pdf",
+          "drive_file_id": "1KGLP2Op33Zez4DKxws-TqIjY01XXj7OR",
+          "source_manifest": "data/physics_textbooks_manifest.json"
+        },
+        {
+          "subject": "chemistry",
+          "grade": "الثالث ثانوي - علوم الحياة",
+          "language": "English",
+          "title": "Chemistry-LS+GS Book.pdf",
+          "drive_file_id": "1My4-vLyMt-I7fO3xVzcBxETVx0lV_c2x",
+          "source_manifest": "data/chemistry_textbooks_manifest.json"
+        },
+        {
+          "subject": "biology",
+          "grade": "الثالث ثانوي - علوم الحياة",
+          "language": "English",
+          "title": "Bio LS.pdf",
+          "drive_file_id": "1DJ0JzrCkfuKU3_kM8Qg9rLvTrj30guCm",
+          "source_manifest": "data/biology_textbooks_manifest.json"
+        },
+        {
+          "subject": "biology",
+          "grade": "الثالث ثانوي - علوم الحياة",
+          "language": "Français",
+          "title": "bio SV.pdf",
+          "drive_file_id": "18VrvTMrSxtbZmMH1ytGxVAdumyKA65kv",
+          "source_manifest": "data/biology_textbooks_manifest.json"
+        }
+      ]
+    },
+    {
+      "grade": "الثالث ثانوي - الاجتماع والاقتصاد",
+      "subjects": [
+        "mathematics",
+        "physics"
+      ],
+      "books": [
+        {
+          "subject": "mathematics",
+          "grade": "الثالث ثانوي - الاجتماع والاقتصاد",
+          "language": "English",
+          "title": "Building up Mathematics S3 SE.pdf",
+          "drive_file_id": "1lrmprX3wD2ze5Ho372Hv7pejauv32u-b",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        },
+        {
+          "subject": "mathematics",
+          "grade": "الثالث ثانوي - الاجتماع والاقتصاد",
+          "language": "Français",
+          "title": "Construire les Mathematiques S3 SE.pdf",
+          "drive_file_id": "1EZI0RPS6EzvrFMytonM67wlD5BRbLxoz",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        },
+        {
+          "subject": "physics",
+          "grade": "الثالث ثانوي - الاجتماع والاقتصاد",
+          "language": "English",
+          "title": "G 12 LH_SE.pdf",
+          "drive_file_id": "1huE0plZpArfuNcrYdYwlTLS0LH0nqdQP",
+          "source_manifest": "data/physics_textbooks_manifest.json"
+        }
+      ]
+    },
+    {
+      "grade": "الثالث ثانوي - الآداب والإنسانيات",
+      "subjects": [
+        "mathematics",
+        "physics"
+      ],
+      "books": [
+        {
+          "subject": "mathematics",
+          "grade": "الثالث ثانوي - الآداب والإنسانيات",
+          "language": "English",
+          "title": "Building up Mathematics S3 LH.pdf",
+          "drive_file_id": "1U_mOj599PtoxYuI8M2DORel0u3LAF5CR",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        },
+        {
+          "subject": "mathematics",
+          "grade": "الثالث ثانوي - الآداب والإنسانيات",
+          "language": "Français",
+          "title": "Construire les Mathematiques S3 LH.pdf",
+          "drive_file_id": "1G0cPT2WCdab1BqUVx31gtx7bRoSlCDI8",
+          "source_manifest": "data/math_textbooks_manifest.json"
+        },
+        {
+          "subject": "physics",
+          "grade": "الثالث ثانوي - الآداب والإنسانيات",
+          "language": "English",
+          "title": "G 12 LH_SE.pdf",
+          "drive_file_id": "1huE0plZpArfuNcrYdYwlTLS0LH0nqdQP",
+          "source_manifest": "data/physics_textbooks_manifest.json"
+        }
+      ]
+    }
+  ],
+  "general_science_books": [
+    {
+      "grade": "الصف الثاني",
+      "title": "science grade 2.pdf",
+      "drive_file_id": "1vVaepklwVi452SxY_dq0ZXSTWZKn6T52",
+      "source_folder_id": "1gJWTNlF4MsZe_HatQBAgPA69A35jtG5h",
+      "subject": "general_science",
+      "toc_status": "not_verified"
+    },
+    {
+      "grade": "الصف الثاني",
+      "title": "mon 2 livre de science.pdf",
+      "drive_file_id": "1JNXoRHmAeFbwLwo1RqH5gNCTbUd8q80g",
+      "source_folder_id": "1gJWTNlF4MsZe_HatQBAgPA69A35jtG5h",
+      "subject": "general_science",
+      "toc_status": "not_verified"
+    },
+    {
+      "grade": "الصف الثالث",
+      "title": "Science Grade3.pdf",
+      "drive_file_id": "1i4otHaVjqm21bEZ89wmxDg80G33HpXd3",
+      "source_folder_id": "1gJWTNlF4MsZe_HatQBAgPA69A35jtG5h",
+      "subject": "general_science",
+      "toc_status": "not_verified"
+    },
+    {
+      "grade": "الصف الرابع",
+      "title": "sciences life grade4 part1.pdf",
+      "drive_file_id": "1AkAlehaivrXuLSaUjMgWLkveFPmx2uZc",
+      "source_folder_id": "1gJWTNlF4MsZe_HatQBAgPA69A35jtG5h",
+      "subject": "general_science",
+      "toc_status": "not_verified"
+    },
+    {
+      "grade": "الصف الرابع",
+      "title": "sciences life grade4 part2.pdf",
+      "drive_file_id": "1UxeK-EA3XAb8o_ubL1aGnfzVWeqZExIq",
+      "source_folder_id": "1gJWTNlF4MsZe_HatQBAgPA69A35jtG5h",
+      "subject": "general_science",
+      "toc_status": "not_verified"
+    },
+    {
+      "grade": "الصف الرابع",
+      "title": "sciences vie 4 tome1.pdf",
+      "drive_file_id": "1j-NjIt7Wfgqrc-YgB-zZLLLfat50GbgF",
+      "source_folder_id": "1gJWTNlF4MsZe_HatQBAgPA69A35jtG5h",
+      "subject": "general_science",
+      "toc_status": "not_verified"
+    },
+    {
+      "grade": "الصف الرابع",
+      "title": "sciences vie4 tome 2.pdf",
+      "drive_file_id": "14YsGEc4HlcsRs0jGYs04e5QLtDXtzvse",
+      "source_folder_id": "1gJWTNlF4MsZe_HatQBAgPA69A35jtG5h",
+      "subject": "general_science",
+      "toc_status": "not_verified"
+    },
+    {
+      "grade": "الصف الخامس",
+      "title": "science for life grade 5 - part 1.pdf",
+      "drive_file_id": "1DZz3vo5wATaq3DqDTHQmTahzzKmNrvkB",
+      "source_folder_id": "1gJWTNlF4MsZe_HatQBAgPA69A35jtG5h",
+      "subject": "general_science",
+      "toc_status": "not_verified"
+    },
+    {
+      "grade": "الصف الخامس",
+      "title": "science for life grade 5 - part 2.pdf",
+      "drive_file_id": "1r3gnygc1TroPiFFbYFCKk01pHzvjIYPS",
+      "source_folder_id": "1gJWTNlF4MsZe_HatQBAgPA69A35jtG5h",
+      "subject": "general_science",
+      "toc_status": "not_verified"
+    },
+    {
+      "grade": "الصف الخامس",
+      "title": "EB 5-1.pdf",
+      "drive_file_id": "1gQb7Z4_6fH0ufeIKYXW26L4w0TjjBCHq",
+      "source_folder_id": "1gJWTNlF4MsZe_HatQBAgPA69A35jtG5h",
+      "subject": "general_science",
+      "toc_status": "not_verified"
+    },
+    {
+      "grade": "الصف الخامس",
+      "title": "EB 5-2.pdf",
+      "drive_file_id": "1z_IzIcClN4IAL9eD_FXNDbMHiqCnQ-Ng",
+      "source_folder_id": "1gJWTNlF4MsZe_HatQBAgPA69A35jtG5h",
+      "subject": "general_science",
+      "toc_status": "not_verified"
+    },
+    {
+      "grade": "الصف السادس",
+      "title": "Science Grade 6.pdf",
+      "drive_file_id": "10sEpKB5khHlSoNUZie7OVGus6avKHTLA",
+      "source_folder_id": "1gJWTNlF4MsZe_HatQBAgPA69A35jtG5h",
+      "subject": "general_science",
+      "toc_status": "not_verified"
+    },
+    {
+      "grade": "الصف السادس",
+      "title": "EB 6.pdf",
+      "drive_file_id": "10xoaIM6xbxzSpcSz3GzsvmlNiFcRLvWx",
+      "source_folder_id": "1gJWTNlF4MsZe_HatQBAgPA69A35jtG5h",
+      "subject": "general_science",
+      "toc_status": "not_verified"
+    }
+  ]
+}
