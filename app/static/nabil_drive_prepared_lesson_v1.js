@@ -1,14 +1,16 @@
 /* Prefer the author's finished interactive Drive lesson; fall back to AI textbook teaching. */
 (()=>{
 "use strict";
-const start=document.getElementById("startLesson");
-if(!start)return;
 let replay=false,busy=false;
 const field=id=>document.getElementById(id)?.value?.trim()||"";
-start.addEventListener("click",async event=>{
- if(replay||busy)return;
+document.addEventListener("click",async event=>{
+ const start=event.target?.closest?.("#startLesson");
+ if(!start||replay||busy)return;
  const grade=field("gradeSelect"),subject=field("subjectSelect"),lesson=field("lessonSelect");
- if(!grade||!subject||!lesson||field("nabilPrintedPageInput"))return;
+ if(!grade||!subject||!lesson)return;
+ // An optional printed page is NOT a reason to skip a named prepared lesson.
+ // Exact-page-only requests retain the indexed textbook fallback.
+ if(/^صفحة الكتاب المطبوعة/.test(lesson))return;
  event.preventDefault();event.stopImmediatePropagation();
  busy=true;
  const previous=start.textContent;
