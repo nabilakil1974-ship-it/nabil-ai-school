@@ -15,6 +15,8 @@ RUN apt-get update \
         gcc \
         g++ \
         libgomp1 \
+        libcairo2 \
+        libffi8 \
         libstdc++6 \
         poppler-utils \
         ffmpeg \
