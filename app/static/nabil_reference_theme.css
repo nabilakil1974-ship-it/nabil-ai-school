@@ -1525,3 +1525,84 @@ body.nabil-projector-mode img{
  #nabilHomeTutorHost #nabilOpenInput{min-height:54px!important;height:60px!important}
  #nabilHomeTutorHost .nabil-open-tools button{min-height:34px!important}
 }
+
+/* PHONE HOME FIT V3: remove legacy absolute avatar/shortcut overlap; scroll naturally. */
+@media screen and (max-width:900px){
+ html,body{overflow-x:hidden!important;max-width:100%!important}
+ body:not(.nabil-lesson-active) #nabilHome{
+  display:flex!important;flex-direction:column!important;align-items:stretch!important;
+  position:relative!important;inset:auto!important;transform:none!important;
+  min-height:100dvh!important;height:auto!important;max-height:none!important;
+  overflow:visible!important;padding:8px 8px max(24px,env(safe-area-inset-bottom))!important;
+ }
+ body:not(.nabil-lesson-active) #nabilHomeTutorHost,
+ body:not(.nabil-lesson-active) #nabilHomeTutorHost:has(#nabilOpenAnswer.has-answer){
+  position:relative!important;inset:auto!important;transform:none!important;
+  width:100%!important;max-width:100%!important;min-width:0!important;
+  height:auto!important;max-height:none!important;overflow:visible!important;
+  padding:0!important;margin:0!important;
+ }
+ body:not(.nabil-lesson-active) #nabilHomeTutorHost #nabilOpenTutor{
+  width:100%!important;max-width:100%!important;min-width:0!important;
+  height:auto!important;max-height:none!important;overflow:visible!important;
+  display:flex!important;flex-direction:column!important;gap:9px!important;
+  padding:clamp(9px,3vw,16px)!important;box-sizing:border-box!important;
+ }
+ body:not(.nabil-lesson-active) #nabilHomeTutorHost .nabil-open-head{
+  width:100%!important;min-width:0!important;display:grid!important;
+  grid-template-columns:clamp(58px,18vw,88px) minmax(0,1fr)!important;
+  align-items:center!important;text-align:start!important;gap:10px!important;
+ }
+ body:not(.nabil-lesson-active) #nabilHomeTutorHost .nabil-open-mini-avatar{
+  display:block!important;grid-column:1!important;grid-row:1!important;
+  width:100%!important;height:auto!important;max-height:90px!important;
+  min-height:0!important;object-fit:contain!important;
+ }
+ body:not(.nabil-lesson-active) #nabilHomeTutorHost .nabil-open-head>div{
+  grid-column:2!important;grid-row:1!important;min-width:0!important;
+ }
+ body:not(.nabil-lesson-active) #nabilHomeTutorHost .nabil-open-head h2{
+  font-size:clamp(17px,4.8vw,24px)!important;line-height:1.35!important;
+  margin:0 0 5px!important;
+ }
+ body:not(.nabil-lesson-active) #nabilHomeTutorHost .nabil-open-head p{
+  font-size:clamp(12px,3.5vw,15px)!important;line-height:1.5!important;margin:0!important;
+ }
+ body:not(.nabil-lesson-active) #nabilHomeTutorHost .nabil-open-composer{
+  display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+  gap:8px!important;min-width:0!important;max-width:100%!important;
+ }
+ body:not(.nabil-lesson-active) #nabilHomeTutorHost #nabilOpenInput{
+  grid-column:1/-1!important;min-width:0!important;width:100%!important;
+  height:auto!important;min-height:70px!important;font-size:16px!important;
+ }
+ body:not(.nabil-lesson-active) #nabilHomeTutorHost #nabilOpenTalk,
+ body:not(.nabil-lesson-active) #nabilHomeTutorHost #nabilOpenVoiceUpload{
+  grid-column:auto!important;width:100%!important;min-width:0!important;
+  min-height:46px!important;white-space:normal!important;
+ }
+ body:not(.nabil-lesson-active) #nabilHomeTutorHost #nabilOpenSend{
+  grid-column:1/-1!important;width:100%!important;min-height:48px!important;
+ }
+ body:not(.nabil-lesson-active) #nabilHomeTutorHost .nabil-open-conversation{
+  max-height:130px!important;min-height:0!important;overflow-y:auto!important;
+ }
+ body:not(.nabil-lesson-active) #nabilHomeTutorHost #nabilOpenAnswer{
+  max-height:none!important;min-height:0!important;overflow:visible!important;
+ }
+ body:not(.nabil-lesson-active) #nabilHomeTutorHost #nabilOpenStatus,
+ body:not(.nabil-lesson-active) #nabilHomeTutorHost .nabil-open-pace{
+  width:100%!important;max-width:100%!important;min-width:0!important;
+  box-sizing:border-box!important;
+ }
+ body:not(.nabil-lesson-active) #nabilHome #homeStartShortcut,
+ body:not(.nabil-lesson-active) #nabilHome #homeVoiceBtn{
+  position:relative!important;inset:auto!important;transform:none!important;
+  flex:1 1 130px!important;max-width:100%!important;
+  margin:4px!important;z-index:1!important;
+ }
+ body:not(.nabil-lesson-active) #nabilHome .home-bg,
+ body:not(.nabil-lesson-active) #nabilHome .profile-real{
+  pointer-events:none!important;
+ }
+}
