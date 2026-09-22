@@ -135,29 +135,39 @@ def _entry(file, grade="", subject=""):
 
 
 def _owner_entries(service):
-    """Discover HTML immediately from owner ROOT / Grade [/ Subject].
-
-    Supports HTML directly in Grade 7 (the owner's current layout), as well
-    as future Physics/Math/etc subfolders. Filenames G07-PHYSICS--TITLE.html
-    carry their own grade and subject; nested files may inherit the folder.
+    """Find source HTML in owner root / Grade / Subject / optional Lessons.
+    A missing individual grade folder must not hide every other grade.
     """
     root = os.getenv("NABIL_INTERACTIVE_CURRICULUM_ROOT_ID", _OWNER_ROOT).strip()
     entries = []
     for grade_folder in _list_children(service, root):
         if grade_folder.get("mimeType") != "application/vnd.google-apps.folder":
             continue
-        match = re.search(r"(?:grade|صف)\s*0?(\d{1,2})", grade_folder["name"], re.I)
+        match = re.search(r"(?:grade|صف)\\s*0?(\\d{1,2})", grade_folder["name"], re.I)
         if not match:
-            continue  # e.g. 00 - Curriculum Index
+            continue
         grade = match.group(1)
-        for child in _list_children(service, grade_folder["id"]):
+        try:
+            children = list(_list_children(service, grade_folder["id"]))
+        except Exception:
+            log.exception("DRIVE_GRADE_FOLDER_UNREADABLE grade=%s", grade)
+            continue
+        for child in children:
             if child["name"].lower().endswith(".html"):
                 entries.append(_entry(child, grade))
             elif child.get("mimeType") == "application/vnd.google-apps.folder":
                 subject = child["name"].split("-", 1)[0].strip()
-                for file in _list_children(service, child["id"]):
-                    if file["name"].lower().endswith(".html"):
-                        entries.append(_entry(file, grade, subject))
+                try:
+                    subject_files = list(_list_children(service, child["id"]))
+                    for file in subject_files:
+                        if file["name"].lower().endswith(".html"):
+                            entries.append(_entry(file, grade, subject))
+                        elif file.get("mimeType") == "application/vnd.google-apps.folder":
+                            for nested in _list_children(service, file["id"]):
+                                if nested["name"].lower().endswith(".html"):
+                                    entries.append(_entry(nested, grade, subject))
+                except Exception:
+                    log.exception("DRIVE_SUBJECT_FOLDER_UNREADABLE grade=%s subject=%s", grade, subject)
     return entries
 
 
