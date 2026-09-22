@@ -7,17 +7,21 @@ The catalog is stored on Drive, NOT in the repository:
 "language":"Français","drive_file_id":"...","aliases":["Ohmic conductors"]}]}
 """
 import io
+import logging
+import uuid
 import json
 import os
 import re
 import unicodedata
 from time import monotonic
+from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse
 from googleapiclient.http import MediaIoBaseDownload
 
 router = APIRouter(prefix="/interactive-lessons", tags=["drive-interactive-lessons"])
+log = logging.getLogger("nabil_ai.drive_lessons")
 _CACHE = {"at": 0.0, "entries": []}
 _DEFAULT_FOLDER = "19Y7wVw2hBYG6_aHe6nygXVZmRJXoHvoM"  # Existing Drive lesson collection; configurable.
 
@@ -60,16 +64,21 @@ def _grade(value):
 def _entries():
     now = monotonic()
     if now - _CACHE["at"] < 120:
+        log.info("DRIVE_LESSON_CATALOG_CACHE_HIT entries=%d", len(_CACHE["entries"]))
         return _CACHE["entries"]
+    log.info("DRIVE_LESSON_CONNECT_START")
     service = _service()
+    log.info("DRIVE_LESSON_CONNECT_OK")
     catalog_id = os.getenv("NABIL_INTERACTIVE_LESSONS_CATALOG_FILE_ID", "").strip()
     if catalog_id:
+        log.info("DRIVE_LESSON_CATALOG_FETCH_START")
         payload = json.loads(_download(service, catalog_id).decode("utf-8-sig"))
         items = payload.get("lessons", [])
         if not isinstance(items, list):
             raise ValueError("INVALID_LESSON_CATALOG")
     else:
         folder = os.getenv("NABIL_INTERACTIVE_LESSONS_FOLDER_ID", _DEFAULT_FOLDER).strip()
+        log.info("DRIVE_LESSON_FOLDER_LIST_START folder=%s", folder)
         # Filename convention: G09-PHYSICS--LESSON-TITLE.html (catalog preferred).
         items, token = [], None
         while True:
@@ -100,6 +109,7 @@ def _entries():
             if not token:
                 break
     valid = [x for x in items if isinstance(x, dict) and x.get("drive_file_id") and x.get("lesson")]
+    log.info("DRIVE_LESSON_FOLDER_LIST_OK entries=%d names=%s", len(valid), [x.get("filename", x["lesson"]) for x in valid[:20]])
     _CACHE.update(at=now, entries=valid)
     return valid
 
@@ -117,6 +127,7 @@ def _resolve(grade, subject, lesson, language):
         if language and item.get("language") and _norm(language) != _norm(item["language"]):
             continue
         matches.append(item)
+    log.info("DRIVE_LESSON_MATCH grade=%r subject=%r lesson=%r language=%r count=%d", grade, subject, lesson, language, len(matches))
     if len(matches) > 1:
         bilingual = [x for x in matches if x.get("bilingual") or "BILINGUAL" in str(x.get("filename", "")).upper()]
         if len(bilingual) == 1:
@@ -130,36 +141,53 @@ def _resolve(grade, subject, lesson, language):
 
 @router.get("/resolve")
 def resolve(grade: str, subject: str, lesson: str, language: str = ""):
+    trace = uuid.uuid4().hex[:12]
+    started = monotonic()
+    log.info("DRIVE_LESSON_LOOKUP_START trace=%s grade=%r subject=%r lesson=%r language=%r",
+             trace, grade, subject, lesson, language)
     try:
         item = _resolve(grade, subject, lesson, language)
-        # Do not claim a prepared lesson is ready until the Railway service account
-        # can actually read its HTML bytes. A listing alone is not sufficient.
+        log.info("DRIVE_LESSON_FOUND trace=%s file=%s name=%r",
+                 trace, item["drive_file_id"], item.get("filename", item["lesson"]))
         html_bytes = _download(_service(), item["drive_file_id"])
         if b"<html" not in html_bytes[:4096].lower() and b"<!doctype html" not in html_bytes[:4096].lower():
             raise ValueError("INVALID_PREPARED_LESSON_HTML")
-        return {"found": True, "title": item["lesson"],
-                "url": "/api/interactive-lessons/view?grade=" + __import__("urllib.parse", fromlist=["quote"]).quote(grade)
-                + "&subject=" + __import__("urllib.parse", fromlist=["quote"]).quote(subject)
-                + "&lesson=" + __import__("urllib.parse", fromlist=["quote"]).quote(lesson)
-                + "&language=" + __import__("urllib.parse", fromlist=["quote"]).quote(language)}
-    except HTTPException:
-        raise
+        log.info("DRIVE_LESSON_READ_OK trace=%s bytes=%d elapsed_ms=%d",
+                 trace, len(html_bytes), round((monotonic()-started)*1000))
+        url = ("/api/interactive-lessons/view?grade=" + quote(grade)
+               + "&subject=" + quote(subject) + "&lesson=" + quote(lesson)
+               + "&language=" + quote(language) + "&trace=" + quote(trace))
+        return {"found": True, "title": item["lesson"], "url": url, "trace": trace,
+                "source": "google_drive", "bytes": len(html_bytes)}
+    except HTTPException as exc:
+        log.warning("DRIVE_LESSON_LOOKUP_RESULT trace=%s status=%d reason=%s elapsed_ms=%d",
+                    trace, exc.status_code, exc.detail, round((monotonic()-started)*1000))
+        raise HTTPException(exc.status_code, detail={"trace": trace, "stage": "match",
+                                                    "reason": str(exc.detail)})
     except Exception as exc:
-        raise HTTPException(503, "Google Drive lesson collection unavailable.") from exc
+        log.exception("DRIVE_LESSON_LOOKUP_FAILED trace=%s stage=connect_list_or_read error_type=%s elapsed_ms=%d",
+                      trace, type(exc).__name__, round((monotonic()-started)*1000))
+        raise HTTPException(503, detail={"trace": trace, "stage": "connect_list_or_read",
+                                         "reason": type(exc).__name__})
 
 
 @router.get("/view", response_class=HTMLResponse)
-def view(grade: str, subject: str, lesson: str, language: str = ""):
+def view(grade: str, subject: str, lesson: str, language: str = "", trace: str = ""):
+    trace = re.sub(r"[^a-zA-Z0-9]", "", trace)[:24] or uuid.uuid4().hex[:12]
+    log.info("DRIVE_LESSON_VIEW_START trace=%s lesson=%r", trace, lesson)
     try:
         item = _resolve(grade, subject, lesson, language)
         html = _download(_service(), item["drive_file_id"]).decode("utf-8-sig")
         if "<html" not in html.lower():
             raise ValueError("NOT_AN_HTML_LESSON")
+        log.info("DRIVE_LESSON_VIEW_OK trace=%s file=%s bytes=%d", trace, item["drive_file_id"], len(html.encode("utf-8")))
         return HTMLResponse(html, headers={
             "Cache-Control": "private, no-store",
             "Content-Security-Policy": "default-src 'self' data: blob: https:; script-src 'unsafe-inline' 'self' https:; style-src 'unsafe-inline' 'self' https:; frame-ancestors 'self'",
         })
-    except HTTPException:
+    except HTTPException as exc:
+        log.warning("DRIVE_LESSON_VIEW_FAILED trace=%s status=%d", trace, exc.status_code)
         raise
     except Exception as exc:
-        raise HTTPException(503, "Could not retrieve the prepared lesson from Google Drive.") from exc
+        log.exception("DRIVE_LESSON_VIEW_FAILED trace=%s error_type=%s", trace, type(exc).__name__)
+        raise HTTPException(503, detail={"trace": trace, "stage": "view", "reason": type(exc).__name__}) from exc
