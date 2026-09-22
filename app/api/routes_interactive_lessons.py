@@ -50,15 +50,45 @@ def _norm(value):
 
 
 def _grade(value):
+    """Match Arabic and international grade labels without treating G10 as G1."""
     s = _norm(value)
-    for number, names in {
-        7: ("7", "٧", "السابع", "septieme", "seventh"),
-        8: ("8", "٨", "الثامن", "huitieme", "eighth"),
-        9: ("9", "٩", "التاسع", "neuvieme", "ninth"),
-    }.items():
-        if any(n in s for n in names):
+    names = {
+        1: ("الأول", "first", "premier"), 2: ("الثاني", "second", "deuxieme"),
+        3: ("الثالث", "third", "troisieme"), 4: ("الرابع", "fourth", "quatrieme"),
+        5: ("الخامس", "fifth", "cinquieme"), 6: ("السادس", "sixth", "sixieme"),
+        7: ("السابع", "seventh", "septieme"), 8: ("الثامن", "eighth", "huitieme"),
+        9: ("التاسع", "ninth", "neuvieme"), 10: ("العاشر", "tenth", "dixieme"),
+        11: ("الحاديعشر", "eleventh", "onzieme"), 12: ("الثانيعشر", "twelfth", "douzieme"),
+    }
+    digits = re.search(r"(?:grade|class|eb|g|الصف)?0?([1-9]|1[0-2])(?:$|[^0-9])", s)
+    if digits:
+        return str(int(digits.group(1)))
+    # Lebanese secondary labels identify their grade, while stream is checked
+    # separately through catalog metadata when available.
+    for number, labels in ((12, ("الثالثثانوي",)), (11, ("الثانيثانوي",)), (10, ("الأولثانوي",))):
+        if any(label in s for label in labels):
+            return str(number)
+    for number, labels in names.items():
+        if any(label in s for label in labels):
             return str(number)
     return s
+
+
+_SUBJECT_ALIASES = {
+    "physics": ("physics", "physique", "فيزياء", "الفيزياء"),
+    "mathematics": ("mathematics", "math", "maths", "mathematiques", "رياضيات", "الرياضيات"),
+    "chemistry": ("chemistry", "chimie", "كيمياء", "الكيمياء"),
+    "biology": ("biology", "life science", "lifescience", "biologie", "علوم الحياة", "بيولوجي"),
+    "general_science": ("general science", "science", "sciences", "علوم", "العلوم"),
+}
+
+
+def _subject(value):
+    normalized = _norm(value)
+    for key, aliases in _SUBJECT_ALIASES.items():
+        if normalized in {_norm(alias) for alias in aliases}:
+            return key
+    return normalized
 
 
 def _entries():
@@ -119,12 +149,12 @@ def _resolve(grade, subject, lesson, language):
     for item in _entries():
         if item.get("grade") and _grade(item["grade"]) != _grade(grade):
             continue
-        if item.get("subject") and _norm(item["subject"]) != _norm(subject):
+        if item.get("subject") and _subject(item["subject"]) != _subject(subject):
             continue
         titles = [item["lesson"]] + list(item.get("aliases") or [])
         if _norm(lesson) not in {_norm(title) for title in titles}:
             continue
-        if language and item.get("language") and _norm(language) != _norm(item["language"]):
+        if language and item.get("language") and not item.get("bilingual") and _norm(language) != _norm(item["language"]):
             continue
         matches.append(item)
     log.info("DRIVE_LESSON_MATCH grade=%r subject=%r lesson=%r language=%r count=%d", grade, subject, lesson, language, len(matches))
@@ -168,7 +198,7 @@ def diagnose(grade: str, subject: str, lesson: str, language: str = ""):
         for item in items:
             if item.get("grade") and _grade(item["grade"]) != _grade(grade):
                 continue
-            if item.get("subject") and _norm(item["subject"]) != _norm(subject):
+            if item.get("subject") and _subject(item["subject"]) != _subject(subject):
                 continue
             if _norm(lesson) not in {_norm(x) for x in [item["lesson"]] + list(item.get("aliases") or [])}:
                 continue
