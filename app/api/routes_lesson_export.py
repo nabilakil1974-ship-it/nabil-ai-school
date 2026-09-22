@@ -11,7 +11,7 @@ from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE
-from pptx.enum.text import PP_ALIGN
+from pptx.oxml.xmlchemy import OxmlElement
 from bs4 import BeautifulSoup
 from app.api.routes_interactive_lessons import _resolve, _service, _download
 
@@ -148,6 +148,11 @@ def _pptx(payload):
                         width=Inches(pw),height=Inches(ph))
                 except Exception:
                     continue
+        # PowerPoint-native fade transition; text and images remain editable.
+        transition = OxmlElement("p:transition")
+        transition.set("spd", "med")
+        transition.append(OxmlElement("p:fade"))
+        s._element.insert(1, transition)
         if last:
             textbox(s, .82, 6.65, 11.4, .35,
                     "Reference card • Review / Révision", 13, accent, True)
