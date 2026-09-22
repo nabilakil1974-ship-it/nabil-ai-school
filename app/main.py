@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,6 +9,29 @@ from sqlalchemy import text
 
 from app.core.config import settings
 from app.db.session import Base, engine
+
+# ==========================================================
+# Logging configuration
+# ==========================================================
+#
+# Without this, custom loggers such as "nabil_ai.lesson" (used for the
+# LESSON_TIMING diagnostic line that reports rag_ms/primary_ai_ms/
+# practice_repair_ai_ms/total_ms per request) have NO handler attached and
+# INFO-level messages are silently dropped - Uvicorn's default logging setup
+# (started with no log_config in scripts/start_server.py) only configures
+# its OWN loggers (uvicorn, uvicorn.access, uvicorn.error), not the root
+# logger or any app-defined logger. This meant the per-phase timing
+# instrumentation that already existed in the code was almost certainly
+# never actually reaching Railway's log viewer at all - there was no way to
+# see WHICH phase (book retrieval, the AI call itself, or a repair pass) was
+# responsible for an unusually long request, only the end-user-visible total
+# wait. Configuring the root logger here makes every existing
+# logger.info(...) call in the app (not just this one) actually show up in
+# Railway logs, searchable by prefix (e.g. "LESSON_TIMING").
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 
 
 # ==========================================================
