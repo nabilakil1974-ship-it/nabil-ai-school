@@ -248,22 +248,20 @@ class NabilAIGateway:
 
         text = str(error).lower()
 
-        if any(
-            marker in text
-            for marker in [
-                "no credits remaining",
-                "credit_balance_exhausted",
-                "insufficient_quota",
-                "prepayment credits are depleted",
-                "billing",
-                "lightning dunning decision is deny",
-                "permission_denied",
-                "permission denied",
-                "dunning decision",
-            ]
-        ):
-            return "billing"
-
+        # IMPORTANT (2026-09-22 fix): this check must run BEFORE the
+        # "billing" check below. A real production error was misclassified
+        # as "billing" (1800s/30-minute cooldown) when it was actually a
+        # 413 token-limit rejection - confirmed from a live Railway log:
+        # Groq's error message included a suggestion link
+        # "Upgrade to Dev Tier today at https://console.groq.com/settings/
+        # billing", and the bare substring "billing" in that URL matched
+        # the billing-check below before this more specific 413 check ever
+        # ran, even though this was really a request-too-large error that
+        # should get a short (60s) cooldown, not a 30-minute one that
+        # needlessly blocks the working provider for other students'
+        # requests too. A 413/token-limit error is unambiguous (starts with
+        # "413" or names token/context limits explicitly) and should always
+        # take priority over a same-message billing suggestion link.
         if any(
             marker in text
             for marker in [
@@ -275,9 +273,29 @@ class NabilAIGateway:
                 "maximum context length",
                 "too many tokens",
                 "token limit",
+                "tokens per minute",
+                "tpm",
             ]
         ):
             return "payload"
+
+        if any(
+            marker in text
+            for marker in [
+                "no credits remaining",
+                "credit_balance_exhausted",
+                "insufficient_quota",
+                "prepayment credits are depleted",
+                "billing_hard_limit",
+                "billing hard limit",
+                "account is not active",
+                "lightning dunning decision is deny",
+                "permission_denied",
+                "permission denied",
+                "dunning decision",
+            ]
+        ):
+            return "billing"
 
         if any(
             marker in text
@@ -481,6 +499,28 @@ class NabilAIGateway:
             return "\n".join(parts).strip()
 
         return ""
+
+    def _estimated_prompt_tokens(self, chat_messages: list[dict]) -> int:
+        """Rough token estimate (chars/4, the standard rule-of-thumb for
+        English/mixed text) used ONLY for the pre-flight Groq-skip decision
+        above - not for billing or any provider's own accounting, which
+        each provider computes exactly on their own. Good enough to tell
+        "obviously way over Groq's 8000 TPM limit" from "probably fine"
+        without needing a real tokenizer dependency just for this check.
+        """
+        total_chars = sum(len(str(m.get("content", ""))) for m in chat_messages)
+        return total_chars // 4
+
+    def _groq_safe_token_budget(self) -> int:
+        """Groq's free-tier TPM (tokens-per-minute) limit covers prompt +
+        completion together (confirmed from a live production error: 'Limit
+        8000, Requested 25161' on the openai/gpt-oss-120b model). Leaving a
+        safety margin below the raw 8000 for estimation error (the char/4
+        rule is approximate) and for any small overhead this estimate
+        doesn't capture. Configurable via env var in case Groq's limit
+        changes or a paid tier with a higher limit is used later.
+        """
+        return int(os.getenv("NABIL_AI_GROQ_SAFE_TOKEN_BUDGET", "7200"))
 
     def _build_messages(
         self,
@@ -930,6 +970,26 @@ class NabilAIGateway:
             if deadline is not None and time.monotonic() >= deadline - 2.0:
                 logger.warning("FAST_LESSON_PROVIDER_BUDGET_EXHAUSTED")
                 break
+
+            if provider == "groq" and self._estimated_prompt_tokens(chat_messages) + max_output_tokens > self._groq_safe_token_budget():
+                # Confirmed from a live production log: Groq's free tier
+                # enforces an 8000 tokens-per-minute (TPM) limit that covers
+                # prompt + completion together, and the SYSTEM_PROMPT alone
+                # is already ~4650 tokens - a full-lesson request (with book
+                # context and a large max_output_tokens like 8500) is
+                # mathematically guaranteed to hit a 413 on Groq regardless
+                # of how well context is trimmed elsewhere. Skipping Groq
+                # pre-flight for an oversized request avoids wasting a
+                # round-trip on a call that cannot succeed, and avoids
+                # repeatedly tripping Groq's rate-limit error path (which,
+                # even after the payload/billing misclassification fix,
+                # still means a real API call and a real cooldown timer
+                # touched for nothing).
+                logger.info(
+                    "GROQ_PREFLIGHT_SKIP_TOKEN_ESTIMATE_TOO_LARGE estimated_prompt_tokens=%d max_output_tokens=%d",
+                    self._estimated_prompt_tokens(chat_messages), max_output_tokens,
+                )
+                continue
 
             handler = handlers.get(provider)
 
