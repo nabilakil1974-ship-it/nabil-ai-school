@@ -14,6 +14,7 @@ import os
 import re
 import unicodedata
 from time import monotonic
+from threading import Lock
 from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException
@@ -23,6 +24,9 @@ from googleapiclient.http import MediaIoBaseDownload
 router = APIRouter(prefix="/interactive-lessons", tags=["drive-interactive-lessons"])
 log = logging.getLogger("nabil_ai.drive_lessons")
 _CACHE = {"at": 0.0, "entries": []}
+_CACHE_LOCK = Lock()
+_CACHE_SECONDS = 10  # New owner-uploaded lessons become visible without redeployment.
+_OWNER_ROOT = "16bcmZMO_dn4FqlGaDtl8Hky6iSBEqZpX"
 _DEFAULT_FOLDER = "19Y7wVw2hBYG6_aHe6nygXVZmRJXoHvoM"  # Existing Drive lesson collection; configurable.
 
 
@@ -91,75 +95,104 @@ def _subject(value):
     return normalized
 
 
+def _list_children(service, folder_id):
+    """Page through a Drive folder; folders and HTML only."""
+    token = None
+    while True:
+        result = service.files().list(
+            q=f"'{folder_id}' in parents and trashed=false",
+            fields="nextPageToken,files(id,name,mimeType)",
+            pageSize=1000, pageToken=token,
+        ).execute()
+        yield from result.get("files", [])
+        token = result.get("nextPageToken")
+        if not token:
+            break
+
+
+def _entry(file, grade="", subject=""):
+    stem = file["name"].rsplit(".", 1)[0]
+    parts = stem.split("--", 1)
+    if len(parts) == 2:
+        prefix, title = parts
+        match = re.match(r"(?:EB|G)0?(\\d{1,2})[-_ ]+(.+)", prefix, re.I)
+        if match:
+            grade = match.group(1)
+            subject = match.group(2)
+    else:
+        match = re.match(r"(?:EB|G)[-_ ]?0?(\\d{1,2})[-_ ]+(.*)", stem, re.I)
+        title = match.group(2) if match else stem
+        grade = match.group(1) if match else grade
+    title = re.sub(r"[-_ ]+(?:BILINGUAL|FRANCAIS|ENGLISH)$", "", title, flags=re.I)
+    return {"grade": grade, "subject": subject, "lesson": title.replace("-", " "),
+            "drive_file_id": file["id"], "filename": file["name"], "language": ""}
+
+
+def _owner_entries(service):
+    """Live ROOT / Grade / Subject discovery, no hard-coded lesson IDs."""
+    root = os.getenv("NABIL_INTERACTIVE_CURRICULUM_ROOT_ID", _OWNER_ROOT).strip()
+    entries = []
+    for grade_folder in _list_children(service, root):
+        if grade_folder.get("mimeType") != "application/vnd.google-apps.folder":
+            continue
+        match = re.search(r"(?:grade|صف)\\s*0?(\\d{1,2})", grade_folder["name"], re.I)
+        if not match:
+            continue  # e.g. 00 - Curriculum Index
+        grade = match.group(1)
+        for subject_folder in _list_children(service, grade_folder["id"]):
+            if subject_folder.get("mimeType") != "application/vnd.google-apps.folder":
+                continue
+            subject = subject_folder["name"].split("-", 1)[0].strip()
+            for file in _list_children(service, subject_folder["id"]):
+                if file["name"].lower().endswith(".html"):
+                    entries.append(_entry(file, grade, subject))
+    return entries
+
+
 def _entries():
     now = monotonic()
-    if now - _CACHE["at"] < 120:
-        log.info("DRIVE_LESSON_CATALOG_CACHE_HIT entries=%d", len(_CACHE["entries"]))
+    if now - _CACHE["at"] < _CACHE_SECONDS:
         return _CACHE["entries"]
-    log.info("DRIVE_LESSON_CONNECT_START")
-    service = _service()
-    log.info("DRIVE_LESSON_CONNECT_OK")
-    catalog_id = os.getenv("NABIL_INTERACTIVE_LESSONS_CATALOG_FILE_ID", "").strip()
-    if catalog_id:
-        log.info("DRIVE_LESSON_CATALOG_FETCH_START")
-        payload = json.loads(_download(service, catalog_id).decode("utf-8-sig"))
-        items = payload.get("lessons", [])
-        if not isinstance(items, list):
-            raise ValueError("INVALID_LESSON_CATALOG")
-    else:
-        folder = os.getenv("NABIL_INTERACTIVE_LESSONS_FOLDER_ID", _DEFAULT_FOLDER).strip()
-        log.info("DRIVE_LESSON_FOLDER_LIST_START folder=%s", folder)
-        # Filename convention: G09-PHYSICS--LESSON-TITLE.html (catalog preferred).
-        items, token = [], None
-        while True:
-            result = service.files().list(
-                q=f"'{folder}' in parents and trashed=false",
-                fields="nextPageToken,files(id,name,mimeType)",
-                pageSize=1000, pageToken=token,
-            ).execute()
-            for file in result.get("files", []):
+    with _CACHE_LOCK:
+        if monotonic() - _CACHE["at"] < _CACHE_SECONDS:
+            return _CACHE["entries"]
+        service = _service()
+        items = []
+        catalog_id = os.getenv("NABIL_INTERACTIVE_LESSONS_CATALOG_FILE_ID", "").strip()
+        if catalog_id:
+            payload = json.loads(_download(service, catalog_id).decode("utf-8-sig"))
+            items = payload.get("lessons", [])
+            if not isinstance(items, list):
+                raise ValueError("INVALID_LESSON_CATALOG")
+        else:
+            legacy = os.getenv("NABIL_INTERACTIVE_LESSONS_FOLDER_ID", _DEFAULT_FOLDER).strip()
+            # Keep legacy lessons while the owner migrates to the grade/subject tree.
+            for file in _list_children(service, legacy):
                 if file["name"].lower().endswith(".html"):
-                    stem = file["name"].rsplit(".", 1)[0]
-                    parts = re.split(r"--", stem, maxsplit=1)
-                    if len(parts) == 2:
-                        prefix, title = parts
-                        tokens = prefix.split("-", 1)
-                        grade, subject = (tokens + [""])[:2]
-                    else:
-                        match = re.match(r"(?:EB|G)[-_ ]?0?(\d{1,2})[-_ ]+(.*)", stem, re.I)
-                        grade = match.group(1) if match else ""
-                        subject = ""
-                        title = match.group(2) if match else stem
-                    title = re.sub(r"[-_ ]+(?:BILINGUAL|FRANCAIS|ENGLISH)$", "", title, flags=re.I)
-                    items.append({"grade": grade, "subject": subject,
-                                  "lesson": title.replace("-", " "),
-                                  "drive_file_id": file["id"], "language": "",
-                                  "filename": file["name"]})
-            token = result.get("nextPageToken")
-            if not token:
-                break
-    # Owner-authored source-verified lessons are discoverable even when the
-    # service account cannot list the owner's presentation-only grade folders.
-    # IDs point to the backend lesson collection, not a generated AI response.
-    prepared = [
-        {"grade": "7", "subject": "physics", "lesson": "Solids and Liquids",
-         "aliases": ["Solides et liquides", "Solids & Liquids"],
-         "drive_file_id": "1tEPcbUBaPvIblK-4Zo3rXb31lqUE0tCN",
-         "bilingual": True, "filename": "G07-PHYSICS--SOLIDS-AND-LIQUIDS.html"},
-        {"grade": "9", "subject": "physics", "lesson": "Conducteurs ohmiques",
-         "aliases": ["Ohmic Conductors", "Conducteurs Ohmiques"],
-         "drive_file_id": "10R64fk9N7bjQ8twGBHHaKuznup9YWYIp",
-         "bilingual": True, "filename": "EB09-CONDUCTEURS-OHMIQUES-BILINGUAL.html"},
-    ]
-    known = {( _grade(x.get("grade")), _subject(x.get("subject")), _norm(x.get("lesson")))
-             for x in prepared}
-    items = [x for x in items if
-             (_grade(x.get("grade")), _subject(x.get("subject")), _norm(x.get("lesson"))) not in known]
-    items.extend(prepared)
-    valid = [x for x in items if isinstance(x, dict) and x.get("drive_file_id") and x.get("lesson")]
-    log.info("DRIVE_LESSON_FOLDER_LIST_OK entries=%d names=%s", len(valid), [x.get("filename", x["lesson"]) for x in valid[:20]])
-    _CACHE.update(at=now, entries=valid)
-    return valid
+                    items.append(_entry(file))
+        try:
+            owner = _owner_entries(service)
+        except Exception as exc:
+            # The service account needs viewer access to the owner root and its
+            # descendants. Do not silently claim live owner-folder sync works.
+            log.warning("OWNER_CURRICULUM_ROOT_UNAVAILABLE root=%s error=%s",
+                        os.getenv("NABIL_INTERACTIVE_CURRICULUM_ROOT_ID", _OWNER_ROOT),
+                        type(exc).__name__)
+            owner = []
+        # Owner-visible grade/subject files win over older flat-folder duplicates.
+        keyed = {(_grade(x.get("grade")), _subject(x.get("subject")),
+                  _norm(x.get("lesson"))): x for x in items
+                 if isinstance(x, dict) and x.get("drive_file_id") and x.get("lesson")}
+        for item in owner:
+            keyed[(_grade(item["grade"]), _subject(item["subject"]),
+                   _norm(item["lesson"]))] = item
+        # Keep known legacy bilingual reference available by its actual title.
+        # New lessons require NO code edit or hard-coded file ID.
+        entries = list(keyed.values())
+        log.info("DRIVE_LESSON_DISCOVERY entries=%d owner_entries=%d",
+                 len(entries), len(owner))
+        _CACHE.update(at=monotonic(), entries=entries)
+        return entries
 
 
 def _resolve(grade, subject, lesson, language):
