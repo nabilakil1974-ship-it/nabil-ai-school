@@ -228,7 +228,7 @@ def resolve(grade: str, subject: str, lesson: str, language: str = ""):
 
 
 @router.get("/view", response_class=HTMLResponse)
-def view(grade: str, subject: str, lesson: str, language: str = "", trace: str = "", exercise: int | None = None, page: int | None = None):
+def view(grade: str, subject: str, lesson: str, language: str = "", trace: str = "", exercise: int | None = None, page: int | None = None, worksheet: int | None = None):
     trace = re.sub(r"[^a-zA-Z0-9]", "", trace)[:24] or uuid.uuid4().hex[:12]
     log.info("DRIVE_LESSON_VIEW_START trace=%s lesson=%r", trace, lesson)
     try:
@@ -240,13 +240,15 @@ def view(grade: str, subject: str, lesson: str, language: str = "", trace: str =
         if "</head>" in html.lower():
             html = re.sub(r"</head>", '<link rel="stylesheet" href="/static/nabil_lesson_color_cards_v1.css?v=1"></head>', html, count=1, flags=re.I)
         # Optional precise focus; the lesson HTML remains the verified Drive original.
-        if exercise is not None or page is not None:
-            if exercise is not None and page is not None:
+        if exercise is not None or page is not None or worksheet is not None:
+            if sum(x is not None for x in (exercise, page, worksheet)) > 1:
                 raise HTTPException(400, "Specify exercise OR printed book page, not both.")
             if exercise is not None and not 1 <= exercise <= 999:
                 raise HTTPException(400, "Invalid exercise number.")
             if page is not None and not 1 <= page <= 9999:
                 raise HTTPException(400, "Invalid printed page.")
+            if worksheet is not None and worksheet != 1:
+                raise HTTPException(400, "Invalid worksheet selection.")
             if "</body>" in html.lower():
                 html = re.sub(r"</body>", '<script src="/static/nabil_lesson_focus_v1.js?v=1"></script></body>', html, count=1, flags=re.I)
         # Keep the bilingual toggle visible while students scroll to exercises.
