@@ -145,3 +145,63 @@ def indexed_textbook_page_context(
     if not sources or sources[0]["printed_page"] != printed_page:
         raise LookupError("REQUESTED_BOOK_PAGE_TEXT_UNAVAILABLE")
     return sources
+
+
+# Universal Drive-index routing. No per-lesson HTML or hardcoded book IDs.
+_EXERCISE_REQUEST = re.compile(
+    r"(?i)(?:\\b(?:exercise|exercice|problem|question|ex\\.)\\s*(?:n[°o]\\s*)?"
+    r"|(?:تمرين|التمرين|السؤال|مسألة|مسأله)\\s*(?:رقم\\s*)?)"
+    r"(?P<number>\\d{1,3})\\b"
+)
+
+
+def parse_textbook_exercise_request(message: str) -> int | None:
+    match = _EXERCISE_REQUEST.search(str(message or ""))
+    return int(match.group("number")) if match else None
+
+
+def indexed_textbook_exercise_context(
+    db, *, grade: str, subject: str, curriculum: str,
+    exercise_number: int, printed_page: int | None = None,
+    book_id: int | None = None,
+) -> list[dict]:
+    """Find the actual numbered exercise in an indexed ORIGINAL Drive PDF.
+
+    Never substitute a similar exercise, another language, or an invented page.
+    A numbered exercise can recur across chapters; ambiguous results require a
+    printed page or selected book rather than guessing.
+    """
+    if not 1 <= exercise_number <= 999:
+        raise ValueError("INVALID_EXERCISE_NUMBER")
+    books = db.query(Book).filter(
+        Book.grade == grade, Book.subject == subject,
+        Book.curriculum == curriculum,
+    ).all()
+    if book_id is not None:
+        books = [book for book in books if book.id == book_id]
+    heading = re.compile(
+        rf"(?im)(?:^|\\n)\\s*(?:(?:exercise|exercice|ex\\.|تمرين|السؤال)\\s*(?:n[°o]\\s*)?)?"
+        rf"{exercise_number}\\s*[.)\\-:]\\s*"
+    )
+    matches = []
+    for book in books:
+        if not book.drive_file_id:
+            continue
+        pages = db.query(BookPage).filter(BookPage.book_id == book.id).order_by(
+            BookPage.pdf_page_index.asc()
+        ).all()
+        for page in pages:
+            printed = resolve_book_printed_page({
+                "book_title": book.title, "page": page.printed_page_number,
+                "pdf_page": page.pdf_page_index, "text": page.text_content,
+            })
+            if printed_page is not None and printed != printed_page:
+                continue
+            source = _source_for_page(db, book, page, printed)
+            if heading.search(source["text"]):
+                matches.append(source)
+    if not matches:
+        raise LookupError("EXERCISE_NOT_FOUND_IN_INDEXED_ORIGINAL_BOOK")
+    if len(matches) != 1:
+        raise ValueError("AMBIGUOUS_EXERCISE_SPECIFY_BOOK_AND_PRINTED_PAGE")
+    return matches
