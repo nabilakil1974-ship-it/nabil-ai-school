@@ -1506,3 +1506,22 @@ body.nabil-projector-mode img{
   height:105px!important;max-height:105px!important;
  }
 }
+
+/* PHONE HOME FIT V2: avatar is explicitly visible; no invisible desktop stage. */
+@media(max-width:900px){
+ #nabilHomeTutorHost .nabil-open-mini-avatar,
+ #nabilHomeTutorHost .nabil-open-head .nabil-open-mini-avatar{
+  display:block!important;visibility:visible!important;opacity:1!important;
+  width:min(32vw,130px)!important;height:min(32vw,130px)!important;
+  min-height:0!important;max-height:130px!important;margin:0 auto!important;
+ }
+ #nabilHome{display:flex!important;flex-direction:column!important;align-items:stretch!important;min-height:0!important;height:auto!important;max-height:none!important}
+ #nabilHomeTutorHost{flex:0 0 auto!important;max-height:none!important}
+ #nabilHomeTutorHost #nabilOpenTutor{display:flex!important;flex-direction:column!important;min-height:0!important}
+ #nabilHomeTutorHost .nabil-open-head{flex:0 0 auto!important;min-height:0!important}
+ #nabilHomeTutorHost .nabil-open-conversation:not(:has(.message,.bubble,.nabil-open-answer-text)){min-height:0!important;max-height:0!important;padding:0!important;margin:0!important;overflow:hidden!important}
+ #nabilHomeTutorHost #nabilOpenVisuals:not(:has(svg,canvas,img,iframe,.nabil-open-visual)){display:none!important}
+ #nabilHomeTutorHost #nabilOpenAnswer:not(.has-answer){display:none!important}
+ #nabilHomeTutorHost #nabilOpenInput{min-height:54px!important;height:60px!important}
+ #nabilHomeTutorHost .nabil-open-tools button{min-height:34px!important}
+}
