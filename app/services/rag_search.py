@@ -93,6 +93,7 @@ def search_book_pages(
         output.append({
             "book_title": chunk.book.title,
             "book_id": chunk.book_id,
+            "drive_file_id": chunk.book.drive_file_id,
             "page": chunk.printed_page_number,
             "pdf_page": pdf_page,
             "text": chunk.text_content,
@@ -120,7 +121,8 @@ def build_context_block(chunks: list[dict]) -> str:
     lines = ["مقاطع من الكتاب المرجعي (استخدمها للشرح واذكر رقم الصفحة بالضبط):"]
     total_chars = 0
     for c in chunks:
-        piece = f"\n[{c['book_title']} - صفحة {c['page']}]\n{c['text']}"
+        piece = (f"\n[{c['book_title']} - صفحة {c['page']} | PDF {c.get('pdf_page') or 'غير مثبت'}]"
+                 f"\nGoogle Drive original: https://drive.google.com/file/d/{c['drive_file_id']}/view" if c.get("drive_file_id") else f"\n[{c['book_title']} - صفحة {c['page']}]") + f"\n{c['text']}"
         if total_chars + len(piece) > _MAX_TOTAL_CONTEXT_CHARS and total_chars > 0:
             # Already have at least one chunk - stop rather than send a
             # request likely to be rejected as too large by some providers.
