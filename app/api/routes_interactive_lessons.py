@@ -139,6 +139,62 @@ def _resolve(grade, subject, lesson, language):
     return matches[0]
 
 
+
+@router.get("/diagnose")
+def diagnose(grade: str, subject: str, lesson: str, language: str = ""):
+    """Temporary owner-facing, read-only end-to-end trace; no AI calls."""
+    trace = uuid.uuid4().hex[:12]
+    steps = []
+    def step(stage, **details):
+        record = {"step": len(steps)+1, "stage": stage, **details}
+        steps.append(record)
+        log.info("DRIVE_LESSON_DIAGNOSTIC trace=%s step=%s stage=%s details=%s",
+                 trace, record["step"], stage, details)
+    step("REQUEST_RECEIVED", grade=grade, subject=subject, lesson=lesson, language=language)
+    try:
+        step("DRIVE_AUTH_START")
+        service = _service()
+        step("DRIVE_AUTH_OK")
+        folder = os.getenv("NABIL_INTERACTIVE_LESSONS_FOLDER_ID", _DEFAULT_FOLDER).strip()
+        catalog_id = os.getenv("NABIL_INTERACTIVE_LESSONS_CATALOG_FILE_ID", "").strip()
+        step("SOURCE_SELECTED", source="catalog" if catalog_id else "folder",
+             folder=folder if not catalog_id else None)
+        # Force refresh for diagnosis; do not mistake an earlier cached list for live Drive access.
+        _CACHE["at"] = 0.0
+        items = _entries()
+        step("DRIVE_LIST_OK", count=len(items),
+             filenames=[x.get("filename", x.get("lesson")) for x in items[:30]])
+        matches = []
+        for item in items:
+            if item.get("grade") and _grade(item["grade"]) != _grade(grade):
+                continue
+            if item.get("subject") and _norm(item["subject"]) != _norm(subject):
+                continue
+            if _norm(lesson) not in {_norm(x) for x in [item["lesson"]] + list(item.get("aliases") or [])}:
+                continue
+            if language and item.get("language") and _norm(language) != _norm(item["language"]):
+                continue
+            matches.append(item)
+        step("TITLE_MATCH", count=len(matches),
+             filenames=[x.get("filename", x["lesson"]) for x in matches])
+        if not matches:
+            step("NO_PREPARED_LESSON", next="AI_TEXTBOOK_FALLBACK")
+            return {"trace": trace, "found": False, "steps": steps}
+        item = _resolve(grade, subject, lesson, language)
+        step("FILE_SELECTED", filename=item.get("filename", item["lesson"]))
+        data = _download(service, item["drive_file_id"])
+        step("FILE_DOWNLOADED", bytes=len(data))
+        if b"<html" not in data[:4096].lower() and b"<!doctype html" not in data[:4096].lower():
+            raise ValueError("INVALID_PREPARED_LESSON_HTML")
+        step("HTML_VERIFIED", next="DISPLAY_DRIVE_LESSON_WITHOUT_AI")
+        return {"trace": trace, "found": True, "steps": steps}
+    except Exception as exc:
+        step("DIAGNOSTIC_FAILED", error_type=type(exc).__name__,
+             http_status=getattr(getattr(exc, "resp", None), "status", None),
+             next="AI_TEXTBOOK_FALLBACK")
+        log.exception("DRIVE_LESSON_DIAGNOSTIC_FAILED trace=%s", trace)
+        return {"trace": trace, "found": False, "steps": steps}
+
 @router.get("/resolve")
 def resolve(grade: str, subject: str, lesson: str, language: str = ""):
     trace = uuid.uuid4().hex[:12]
