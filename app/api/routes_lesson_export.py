@@ -19,7 +19,7 @@ class Cards(BaseModel):
     source: str = Field(default="بطاقات الدرس المعروضة", max_length=200)
 
 def _plain(text):
-    return re.sub(r"\\s+", " ", BeautifulSoup(str(text), "html.parser").get_text(" ", strip=True)).strip()[:5000]
+    return re.sub(r"\s+", " ", BeautifulSoup(str(text), "html.parser").get_text(" ", strip=True)).strip()[:5000]
 
 def _from_drive(grade, subject, lesson, language):
     item = _resolve(grade, subject, lesson, language)
@@ -61,7 +61,7 @@ def _pptx(payload):
     for i, card in enumerate(payload.cards, 1):
         # No new calculations, numbers or exercises: only existing card text.
         slide(f"{payload.title} · {i}", _plain(card))
-    slide("البطاقة المرجعية | Révision", "\\n\\n".join(_plain(x)[:330] for x in payload.cards[-5:]))
+    slide("البطاقة المرجعية | Révision", "\n\n".join(_plain(x)[:330] for x in payload.cards[-5:]))
     out=io.BytesIO();prs.save(out);out.seek(0)
     return StreamingResponse(out,media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
         headers={"Content-Disposition":'attachment; filename="NABIL_Lesson.pptx"',"Cache-Control":"no-store"})
