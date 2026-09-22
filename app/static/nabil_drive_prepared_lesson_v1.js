@@ -35,6 +35,84 @@ window.fetch=async function(input,options){
 const field=id=>document.getElementById(id)?.value?.trim()||"";
 /* Add actual prepared HTML lessons to the existing selector after grade/subject
    changes. No AI generation and no per-lesson frontend registry. */
+let shelfBusy=false;
+function ensureShelf(){
+ let shelf=document.getElementById("nabilPreparedDriveShelf");
+ if(shelf)return shelf;
+ const anchor=document.getElementById("lessonSelect")||document.getElementById("startLesson");
+ if(!anchor)return null;
+ shelf=document.createElement("section");
+ shelf.id="nabilPreparedDriveShelf";
+ shelf.setAttribute("aria-label","الدروس المحضّرة من Google Drive");
+ shelf.style.cssText="box-sizing:border-box;display:block;width:100%;max-width:100%;min-width:0;grid-column:1/-1;flex:1 1 100%;margin:12px 0;padding:12px;border:2px solid #39c5e4;border-radius:14px;background:#0b2842;color:white;overflow-wrap:anywhere";
+ anchor.closest("section,fieldset,.card")?.append(shelf);
+ if(!shelf.isConnected)anchor.parentElement?.append(shelf);
+ return shelf;
+}
+function renderShelf(lessons,grade,subject){
+ const shelf=ensureShelf();if(!shelf)return;
+ shelf.replaceChildren();
+ const h=document.createElement("h3");
+ h.textContent="📚 دروس Google Drive الجاهزة — "+grade+" / "+subject;
+ h.style.cssText="font-size:clamp(15px,3vw,21px);margin:0 0 10px;color:#9befff";
+ shelf.append(h);
+ if(!lessons.length){
+  const p=document.createElement("p");p.textContent="لا توجد دروس HTML محضّرة لهذه المادة حاليًا.";shelf.append(p);return;
+ }
+ const actions=document.createElement("div");
+ actions.style.cssText="display:flex;flex-wrap:wrap;gap:9px;max-width:100%";
+ for(const item of lessons){
+  const button=document.createElement("button");
+  button.type="button";button.textContent="📘 "+item.title;
+  button.style.cssText="flex:1 1 190px;min-width:0;max-width:100%;white-space:normal;overflow-wrap:anywhere;padding:12px;border-radius:10px;background:#087d9c;color:white;border:1px solid #7ce7fa;cursor:pointer;font:inherit;min-height:48px";
+  button.onclick=()=>openPrepared(grade,subject,item.title);
+  actions.append(button);
+ }
+ shelf.append(actions);
+}
+async function openPrepared(grade,subject,lesson){
+ if(shelfBusy)return;
+ shelfBusy=true;
+ try{
+  const qs=new URLSearchParams({grade,subject,lesson,language:field("languageSelect")});
+  const response=await nativeFetch("/api/interactive-lessons/resolve?"+qs,{cache:"no-store"});
+  if(!response.ok)throw Error("Drive HTTP "+response.status);
+  const data=await response.json();
+  showPrepared(data,grade,subject,lesson);
+ }catch(error){
+  const shelf=ensureShelf();
+  const p=document.createElement("p");p.textContent="تعذّر فتح الدرس من Drive: "+error.message;
+  p.style.color="#ffd28a";shelf?.append(p);
+ }finally{shelfBusy=false;}
+}
+function showPrepared(data,grade,subject,lesson){
+ const chat=document.getElementById("chat");
+ const host=chat||ensureShelf()||document.body;
+ document.getElementById("nabilDriveInteractiveLesson")?.remove();
+ const card=document.createElement("section");
+ card.id="nabilDriveInteractiveLesson";
+ card.style.cssText="box-sizing:border-box;width:100%;max-width:100%;min-width:0;overflow:hidden;background:#081f34;border:2px solid #37c3e5;border-radius:16px;padding:clamp(8px,2vw,14px);margin:14px auto;color:white";
+ const title=document.createElement("h2");title.textContent="📘 "+data.title+" — الدرس التفاعلي من Google Drive";
+ title.style.cssText="font-size:clamp(17px,3vw,23px);color:#8eeaff;overflow-wrap:anywhere";
+ const frame=document.createElement("iframe");frame.title=data.title;frame.src=data.url;
+ frame.style.cssText="display:block;width:100%;max-width:100%;min-width:0;height:min(78vh,900px);min-height:430px;border:0;border-radius:10px;background:#09263f";
+ frame.setAttribute("loading","eager");frame.setAttribute("sandbox","allow-scripts allow-forms allow-modals allow-downloads allow-popups");
+ const buttons=document.createElement("div");buttons.style.cssText="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0";
+ function action(label,url,download=false){
+  const link=document.createElement("a");link.textContent=label;link.href=url;
+  if(!download){link.target="_blank";link.rel="noopener";}
+  link.style.cssText="flex:1 1 180px;min-width:0;max-width:100%;box-sizing:border-box;padding:12px;border-radius:9px;background:#12577b;color:white;text-align:center;text-decoration:none;overflow-wrap:anywhere";
+  buttons.append(link);
+ }
+ action("↗ عرض الدرس كاملًا",data.url);
+ const ppt=new URL("/api/lesson-export/prepared",location.origin);
+ for(const [key,value] of Object.entries({grade,subject,lesson,language:field("languageSelect"),format:"pptx"}))ppt.searchParams.set(key,value);
+ action("📊 عرض PowerPoint / تنزيل PPTX",ppt.pathname+ppt.search,true);
+ ppt.searchParams.set("format","reference");
+ action("🗂️ البطاقة المرجعية للطباعة",ppt.pathname+ppt.search);
+ card.append(title,buttons,frame);host.append(card);card.scrollIntoView({behavior:"smooth",block:"start"});
+ trace("DRIVE_DISPLAY_SELECTED","No AI; PPTX and full-page links shown");
+}
 let availableSeq=0;
 async function refreshPreparedLessons(){
  const seq=++availableSeq;
@@ -66,6 +144,7 @@ async function refreshPreparedLessons(){
     select.add(option);
    }
   }
+  renderShelf(data.lessons||[],grade,subject);
   trace("DRIVE_LESSONS_IN_SELECTOR",String((data.lessons||[]).length));
  }catch(error){trace("DRIVE_LESSON_SELECTOR_UNAVAILABLE",error.message||"network");}
 }
@@ -122,36 +201,7 @@ document.addEventListener("click",async event=>{
   if(response.ok){
    const data=await response.json();
    trace("DRIVE_FILE_VERIFIED","trace="+data.trace+" bytes="+data.bytes);
-   const chat=document.getElementById("chat");
-   if(chat){
-    document.getElementById("nabilDriveInteractiveLesson")?.remove();
-    const card=document.createElement("section");
-    card.id="nabilDriveInteractiveLesson";
-    card.style.cssText="width:100%;max-width:100%;box-sizing:border-box;background:#081f34;border:2px solid #37c3e5;border-radius:16px;padding:12px;margin:14px auto;color:#fff";
-    const title=document.createElement("strong");
-    title.textContent="📘 "+data.title+" — الدرس التفاعلي من Google Drive";
-    title.style.cssText="display:block;color:#8eeaff;margin-bottom:10px";
-    const frame=document.createElement("iframe");
-    frame.title="NABIL interactive lesson — "+data.title;
-    frame.src=data.url;
-    frame.style.cssText="display:block;width:100%;min-height:75vh;border:0;border-radius:10px;background:#09263f";
-    frame.setAttribute("loading","eager");
-    frame.addEventListener("load",()=>trace("DRIVE_IFRAME_LOADED","trace="+data.trace));
-    frame.addEventListener("error",()=>trace("DRIVE_IFRAME_ERROR","trace="+data.trace));
-    frame.setAttribute("sandbox","allow-scripts allow-forms allow-modals allow-downloads allow-popups");
-    const open=document.createElement("a");
-    open.href=data.url;open.target="_blank";open.rel="noopener";
-    open.textContent="↗ افتح الدرس بصفحة كاملة";
-    open.style.cssText="display:inline-block;margin:10px 0;color:#8eeaff";
-    const hint=document.createElement("p");
-    hint.textContent="💬 الدرس جاهز من Google Drive؛ اسأل نبيل في خانة المحادثة لأي شرح إضافي أو تفاعل بالذكاء الاصطناعي.";
-    hint.style.cssText="color:#a8eaff;font-size:14px;margin:8px 0";
-    card.append(title,frame,open,hint);
-    trace("DRIVE_DISPLAY_SELECTED","AI generation skipped");
-    chat.append(card);card.scrollIntoView({behavior:"smooth",block:"start"});
-    return;
-   }
-   window.location.assign(data.url);
+   showPrepared(data,grade,subject,lesson);
    return;
   }
   const error=await response.json().catch(()=>({}));
