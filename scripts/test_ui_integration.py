@@ -197,7 +197,7 @@ class NabilUiIntegrationTests(unittest.TestCase):
         for token in (
             "nv132Result", "learning", "checkpoint", "adaptive_practice",
             "flashcards", "quick_quiz", "study_plan",
-            "latest.nextElementSibling!==dock",
+            'target.previousElementSibling!==dock',
         ):
             with self.subTest(token=token):
                 self.assertIn(token, js)
