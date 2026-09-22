@@ -5683,7 +5683,7 @@ the same lesson Visual Engine; never describe it as rendered without one.
                     else f"EXACT PRINTED PAGE {_page_request[0]}"
                 )
                 book_context = (
-                    "SOURCE-LOCKED REQUEST: " + exact_label + "\\n"
+                    "SOURCE-LOCKED REQUEST: " + exact_label + "\n"
                     "Only the indexed ORIGINAL book page(s) below may establish "
                     "what the book says. Preserve the original sequence, "
                     "headings, exercise statement, subparts, labels, numeric "
@@ -5702,7 +5702,7 @@ the same lesson Visual Engine; never describe it as rendered without one.
                     "its verified statement and solve its actual subparts; "
                     "do not add other exercises. If a figure is necessary "
                     "but not readable in the extracted text, state that "
-                    "a numerical answer is not verifiable.\\n\\n"
+                    "a numerical answer is not verifiable.\n\n"
                     + book_context
                 )
             if (
