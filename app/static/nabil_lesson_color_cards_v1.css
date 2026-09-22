@@ -1,0 +1,37 @@
+/* Visually distinct concept and textbook exercise cards. Applied to authored Drive lessons. */
+main > section.card, main > section.grid > article.card {
+ --accent:#50c8f5;
+ border:2px solid var(--accent);
+ border-inline-start:7px solid var(--accent);
+ background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 9%,#102b42),#102b42 75%);
+ box-shadow:0 5px 18px #0003;
+}
+main > section.card:nth-of-type(6n+1){--accent:#56c6ef}
+main > section.card:nth-of-type(6n+2){--accent:#eebc65}
+main > section.card:nth-of-type(6n+3){--accent:#69d4b5}
+main > section.card:nth-of-type(6n+4){--accent:#b7a1fa}
+main > section.card:nth-of-type(6n+5){--accent:#ef98bd}
+main > section.card:nth-of-type(6n+6){--accent:#85c7ff}
+main > section.grid > article.card:first-child{--accent:#f2b36d}
+main > section.grid > article.card:nth-child(2){--accent:#a7a0f3}
+main > section.card.summary{--accent:#4de1a8}
+main .card h2,main .card h3{color:var(--accent,#8ce9ff)}
+main .card .fig{border-color:var(--accent,#2ca9dd)}
+main .card .row:has(> h3){
+ --exercise:#62c7ef;
+ border:2px solid var(--exercise);
+ border-inline-start:7px solid var(--exercise);
+ border-radius:14px;
+ background:linear-gradient(135deg,color-mix(in srgb,var(--exercise) 10%,#102b42),#102b42 75%);
+ margin:16px 0;padding:15px;
+}
+main .card .row:has(> h3):nth-of-type(5n+1){--exercise:#f4bf76}
+main .card .row:has(> h3):nth-of-type(5n+2){--exercise:#79d6bb}
+main .card .row:has(> h3):nth-of-type(5n+3){--exercise:#b4a0f6}
+main .card .row:has(> h3):nth-of-type(5n+4){--exercise:#f49cb7}
+main .card .row:has(> h3):nth-of-type(5n){--exercise:#85c7ff}
+main .card .row:has(> h3) h3{color:var(--exercise)}
+main .card .row:has(> h3) .fig{border-color:var(--exercise)}
+main .card .row:has(> h3) .formula{border-color:var(--exercise)}
+main .card .row:has(> h3):hover{box-shadow:0 0 0 2px var(--exercise)}
+@media(max-width:700px){main .card .row:has(> h3){padding:10px;margin:12px 0}main > section.card,main > section.grid > article.card{border-inline-start-width:5px}}
