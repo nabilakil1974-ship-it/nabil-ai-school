@@ -2,6 +2,7 @@
 import io
 import base64
 import re
+import math
 from html import escape
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse, HTMLResponse
@@ -9,6 +10,8 @@ from pydantic import BaseModel, Field
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
+from pptx.enum.shapes import MSO_SHAPE
+from pptx.enum.text import PP_ALIGN
 from bs4 import BeautifulSoup
 from app.api.routes_interactive_lessons import _resolve, _service, _download
 
@@ -23,30 +26,51 @@ class Cards(BaseModel):
 def _plain(text):
     return re.sub(r"\s+", " ", BeautifulSoup(str(text), "html.parser").get_text(" ", strip=True)).strip()[:5000]
 
+def _source_image(tag):
+    """Render only figures embedded in the authenticated lesson HTML; no external fetch."""
+    src = str(tag.get("src", "")).strip()
+    if src.startswith(("data:image/png;base64,", "data:image/jpeg;base64,")):
+        return src
+    if tag.name == "svg":
+        try:
+            import cairosvg
+            svg = str(tag)
+            if len(svg) > 1_000_000:
+                return None
+            png = cairosvg.svg2png(bytestring=svg.encode("utf-8"),
+                                   output_width=1100)
+            if len(png) <= 3_000_000:
+                return "data:image/png;base64," + base64.b64encode(png).decode("ascii")
+        except Exception:
+            return None
+    return None
+
+
 def _from_drive(grade, subject, lesson, language):
     item = _resolve(grade, subject, lesson, language)
     html = _download(_service(), item["drive_file_id"]).decode("utf-8-sig")
     soup = BeautifulSoup(html, "html.parser")
     for tag in soup(["script", "style", "nav", "footer", "button"]):
         tag.decompose()
-    title = _plain((soup.find("h1") or soup.title or item["lesson"]).get_text(" ", strip=True) if soup.find("h1") or soup.title else item["lesson"])
-    nodes = soup.select("main section, article, .card, .row")
+    heading = soup.find("h1") or soup.title
+    title = _plain(heading.get_text(" ", strip=True) if heading else item["lesson"])
+    main = soup.find("main") or soup.body or soup
+    # Collect top-level teaching cards; do not repeat nested paragraphs as slides.
+    nodes = main.select(":scope > section, :scope > article")
     if not nodes:
-        nodes = soup.select("h2, h3, p, li")
+        nodes = main.select("section.card, article.card, .row")
+    if not nodes:
+        nodes = main.select("h2, h3, p, li")
     cards, images = [], []
     for node in nodes:
-        if node.find_parent(["section", "article"]) and node.name in ("section", "article"):
-            continue
         value = _plain(node.get_text(" ", strip=True))
-        if len(value) >= 20 and value not in cards:
+        figs = [encoded for tag in node.select("img,svg")
+                if (encoded := _source_image(tag))][:4]
+        if (len(value) >= 20 or figs) and value not in cards:
             cards.append(value)
-            # Include only inline original diagrams. Remote images are not silently
-            # substituted, nor fetched from untrusted addresses by the server.
-            images.append([img.get("src") for img in node.select("img")
-                           if str(img.get("src", "")).startswith(("data:image/png;base64,",
-                                                                  "data:image/jpeg;base64,"))][:4])
+            images.append(figs)
     if not cards:
-        raise HTTPException(422, "الدرس لا يحتوي بطاقات نصية قابلة للاستخراج؛ لا يمكن إنشاء عرض أمين للمصدر.")
+        raise HTTPException(422, "الدرس لا يحتوي بطاقات قابلة للاستخراج.")
     return Cards(title=title, cards=cards[:65], images=images[:65],
                  source="الدرس المحضّر في Google Drive")
 
@@ -70,60 +94,87 @@ def _picture_bytes(value):
 def _pptx(payload):
     prs = Presentation()
     prs.slide_width, prs.slide_height = Inches(13.333), Inches(7.5)
-    def slide(title, body, figures=()):
-        s = prs.slides.add_slide(prs.slide_layouts[6])
-        bg = s.background.fill
-        bg.solid()
-        bg.fore_color.rgb = RGBColor(9, 30, 52)
-        heading = s.shapes.add_textbox(Inches(.65), Inches(.4), Inches(12), Inches(.85))
-        p = heading.text_frame.paragraphs[0]
-        p.text = title[:140]
-        if re.search(r"[\\u0600-\\u06ff]", title):
-            p._p.get_or_add_pPr().set("rtl", "1")
-        p.font.size = Pt(27)
-        p.font.bold = True
-        p.font.color.rgb = RGBColor(110, 226, 232)
-        good = [raw for value in figures[:4] if (raw := _picture_bytes(value))]
-        body_width = 7.0 if good else 11.8
-        box = s.shapes.add_textbox(Inches(.8), Inches(1.5), Inches(body_width), Inches(5.55))
-        tf = box.text_frame
+    palette = [(36, 187, 219), (255, 187, 91), (107, 219, 181),
+               (183, 161, 249), (246, 153, 184), (128, 194, 255)]
+
+    def textbox(slide, x, y, w, h, text, size=20, color=(246,250,255),
+                bold=False):
+        shape = slide.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(h))
+        tf = shape.text_frame
+        tf.clear()
         tf.word_wrap = True
+        tf.margin_left = tf.margin_right = Inches(.06)
+        tf.margin_top = tf.margin_bottom = Inches(.06)
         p = tf.paragraphs[0]
-        p.text = body
-        if re.search(r"[\\u0600-\\u06ff]", body):
-            p._p.get_or_add_pPr().set("rtl", "1")
-        p.font.size = Pt(19 if len(body)<430 else 15 if len(body)<900 else 11)
-        p.font.color.rgb = RGBColor(246, 250, 255)
+        p.text = text
+        p.font.name = "Arial"
+        p.font.size = Pt(size)
+        p.font.bold = bold
+        p.font.color.rgb = RGBColor(*color)
+        return shape
+
+    def slide(title, body, figures=(), index=0, last=False):
+        s = prs.slides.add_slide(prs.slide_layouts[6])
+        s.background.fill.solid()
+        s.background.fill.fore_color.rgb = RGBColor(9, 30, 52)
+        accent = palette[index % len(palette)]
+        bar = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(.4),
+                                 Inches(.35), Inches(.11), Inches(6.7))
+        bar.fill.solid()
+        bar.fill.fore_color.rgb = RGBColor(*accent)
+        bar.line.fill.background()
+        textbox(s, .72, .37, 11.8, .7, title[:120], 27, accent, True)
+        textbox(s, .75, 7.12, 11.9, .2,
+                "NABIL AI  •  " + payload.source[:95], 9, (151,190,207))
+        good = [raw for value in figures[:4] if (raw := _picture_bytes(value))]
+        # Images get a dedicated visual area, rather than shrinking into the text.
+        body_w = 6.4 if good else 11.7
+        # Keep font legible: distribute lengthy source text over multiple slides.
+        textbox(s, .82, 1.36, body_w, 5.55, body,
+                23 if len(body)<170 else 20 if len(body)<320
+                else 17 if len(body)<500 else 15)
         if good:
-            # Preserve the source image aspect ratio, with no invented points or labels.
             from PIL import Image
-            for i, raw in enumerate(good[:2]):
+            for j, raw in enumerate(good[:2]):
                 try:
                     with Image.open(io.BytesIO(raw)) as im:
-                        w, h = im.size
-                    max_w, max_h = 4.55, 2.55 if len(good)>1 else 5.25
-                    scale = min(max_w/w, max_h/h)
-                    width, height = w*scale, h*scale
-                    s.shapes.add_picture(io.BytesIO(raw), Inches(8.45+(max_w-width)/2),
-                        Inches(1.5+i*2.8), width=Inches(width), height=Inches(height))
+                        w,h=im.size
+                    max_w,max_h=5.0,(2.45 if len(good)>1 else 5.1)
+                    scale=min(max_w/w,max_h/h)
+                    pw,ph=w*scale,h*scale
+                    s.shapes.add_picture(io.BytesIO(raw),
+                        Inches(7.65+(max_w-pw)/2),
+                        Inches(1.45+j*2.75+(max_h-ph)/2),
+                        width=Inches(pw),height=Inches(ph))
                 except Exception:
                     continue
-    slide(payload.title, payload.source)
+        if last:
+            textbox(s, .82, 6.65, 11.4, .35,
+                    "Reference card • Review / Révision", 13, accent, True)
+        return s
+
+    slide(payload.title, payload.source, index=0)
     for i, card in enumerate(payload.cards, 1):
         body = _plain(card)
-        # Continue long source cards on additional slides instead of truncating them.
-        parts = [body[j:j+1200] for j in range(0, len(body), 1200)] or [""]
-        for part_no, part in enumerate(parts, 1):
-            slide(f"{payload.title} · {i}" + (f" ({part_no}/{len(parts)})" if len(parts)>1 else ""),
-                  part, payload.images[i-1] if part_no==1 and i-1<len(payload.images) else ())
-    slide("البطاقة المرجعية | Révision", "\\n\\n".join(_plain(x)[:300] for x in payload.cards[-5:]))
-    out = io.BytesIO()
+        figs = payload.images[i-1] if i-1 < len(payload.images) else []
+        # Bound content by visual capacity, not arbitrary 1200-character blocks.
+        chunk = 260 if figs else 360
+        parts = [body[j:j+chunk] for j in range(0,len(body),chunk)] or [""]
+        for j, part in enumerate(parts,1):
+            slide(payload.title + " · " + str(i) +
+                  (f" ({j}/{len(parts)})" if len(parts)>1 else ""),
+                  part, figs if j==1 else (), index=i)
+    # Dedicated final reference card, editable text, not a screenshot.
+    summary = " • ".join(_plain(x)[:100] for x in payload.cards[-4:])
+    slide("Final reference card | البطاقة المرجعية",
+          summary[:350], index=len(payload.cards)+1, last=True)
+    out=io.BytesIO()
     prs.save(out)
     out.seek(0)
     return StreamingResponse(out,
         media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
         headers={"Content-Disposition": 'attachment; filename="NABIL_Lesson.pptx"',
-                 "Cache-Control": "no-store"})
+                 "Cache-Control":"no-store"})
 
 def _reference(payload):
     blocks = []
