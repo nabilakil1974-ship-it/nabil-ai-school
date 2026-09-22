@@ -78,6 +78,8 @@ def _pptx(payload):
         heading = s.shapes.add_textbox(Inches(.65), Inches(.4), Inches(12), Inches(.85))
         p = heading.text_frame.paragraphs[0]
         p.text = title[:140]
+        if re.search(r"[\\u0600-\\u06ff]", title):
+            p._p.get_or_add_pPr().set("rtl", "1")
         p.font.size = Pt(27)
         p.font.bold = True
         p.font.color.rgb = RGBColor(110, 226, 232)
@@ -87,7 +89,9 @@ def _pptx(payload):
         tf = box.text_frame
         tf.word_wrap = True
         p = tf.paragraphs[0]
-        p.text = body[:3000]
+        p.text = body
+        if re.search(r"[\\u0600-\\u06ff]", body):
+            p._p.get_or_add_pPr().set("rtl", "1")
         p.font.size = Pt(19 if len(body)<430 else 15 if len(body)<900 else 11)
         p.font.color.rgb = RGBColor(246, 250, 255)
         if good:
@@ -106,8 +110,12 @@ def _pptx(payload):
                     continue
     slide(payload.title, payload.source)
     for i, card in enumerate(payload.cards, 1):
-        slide(f"{payload.title} · {i}", _plain(card),
-              payload.images[i-1] if i-1 < len(payload.images) else ())
+        body = _plain(card)
+        # Continue long source cards on additional slides instead of truncating them.
+        parts = [body[j:j+1200] for j in range(0, len(body), 1200)] or [""]
+        for part_no, part in enumerate(parts, 1):
+            slide(f"{payload.title} · {i}" + (f" ({part_no}/{len(parts)})" if len(parts)>1 else ""),
+                  part, payload.images[i-1] if part_no==1 and i-1<len(payload.images) else ())
     slide("البطاقة المرجعية | Révision", "\\n\\n".join(_plain(x)[:300] for x in payload.cards[-5:]))
     out = io.BytesIO()
     prs.save(out)
