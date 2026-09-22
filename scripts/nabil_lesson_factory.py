@@ -138,9 +138,14 @@ def pilot(require_drive_write=False):
         except Exception as exc:
             report["lessons"].append({"title":title,"pass":False,
                                       "failures":["FETCH_OR_PARSE_"+type(exc).__name__]})
-    report["status"]="PILOT_REQUIRES_SOURCE_REVIEW" if report["lessons"] and all(
-        item["pass"] for item in report["lessons"]) and
-        (not require_drive_write or report["drive_can_add_children"]) else "BLOCKED"
+    all_lessons_pass = bool(report["lessons"]) and all(
+        item["pass"] for item in report["lessons"]
+    )
+    drive_write_ok = not require_drive_write or report["drive_can_add_children"]
+    report["status"] = (
+        "PILOT_REQUIRES_SOURCE_REVIEW" if all_lessons_pass and drive_write_ok
+        else "BLOCKED"
+    )
     return report
 
 def main():
