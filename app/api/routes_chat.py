@@ -5676,6 +5676,35 @@ the same lesson Visual Engine; never describe it as rendered without one.
                 )
             _exercise_lookup_elapsed_ms = round((time.monotonic() - _exercise_lookup_started_at) * 1000)
             book_context = build_context_block(source_chunks + book_exercise_chunks)
+            # Exact textbook requests must not be expanded with nearby exercises.
+            if _page_request is not None or _exercise_request is not None:
+                exact_label = (
+                    f"EXACT EXERCISE {_exercise_request}" if _exercise_request is not None
+                    else f"EXACT PRINTED PAGE {_page_request[0]}"
+                )
+                book_context = (
+                    "SOURCE-LOCKED REQUEST: " + exact_label + "\\n"
+                    "Only the indexed ORIGINAL book page(s) below may establish "
+                    "what the book says. Preserve the original sequence, "
+                    "headings, exercise statement, subparts, labels, numeric "
+                    "data and units. Separate source text from teacher explanation. "
+                    "Never claim 'extrait du livre' for a reconstructed question. "
+                    "A page citation proves retrieval, NOT that every claimed "
+                    "fact or diagram was legible. A chart's points, scales and "
+                    "axes must be visibly supplied in source text/image; if "
+                    "not legible, display original page image and say which "
+                    "graph values cannot be determined. Never pair 40 mA with "
+                    "3.5 V unless the original graph/text explicitly says "
+                    "they belong to the SAME point. Never infer resistance "
+                    "from two separately asked values. Do not substitute "
+                    "a generic Ohm-law exercise or an adjacent page. "
+                    "If a specific exercise is requested, reproduce only "
+                    "its verified statement and solve its actual subparts; "
+                    "do not add other exercises. If a figure is necessary "
+                    "but not readable in the extracted text, state that "
+                    "a numerical answer is not verifiable.\\n\\n"
+                    + book_context
+                )
             if (
                 _nabil_lesson_start_request(message)
                 and _page_request is None
@@ -6040,7 +6069,14 @@ sqrt(496) is NOT 22, and an unverified tangent slope is NOT acceptable.
             and bool(source_chunks)
         )
         if lesson_start_from_book:
-            lesson_instructions = """
+            lesson_instructions = """SOURCE LOCK OVERRIDES ALL GENERIC LESSON TEMPLATES for exact page/exercise:
+Follow only the original retrieved page/exercise in its printed order.
+Never invent graph coordinates, pair values from separate questions, infer a
+numerical resistance from an unread chart, or label reconstructed prose a
+book excerpt. If the figure is unreadable, request the image and do not
+provide a guessed numeric solution. Explain what is visible, separately
+from additional teaching commentary.
+""" + """
 You are NABIL AI, a warm, careful teacher of the official Lebanese curriculum.
 Teach in the selected lesson's language from the FIRST sentence: English means
 English; Français means French; Arabic means Arabic. Match the selected grade
