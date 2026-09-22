@@ -479,7 +479,7 @@ def _build_root_html() -> str:
     head_boundary = html.lower().find("</head>")
     if head_boundary < 0:
         raise RuntimeError("NABIL chat page has no closing head tag")
-    theme_css = '<link rel="stylesheet" href="/static/nabil_reference_theme.css?v=17">'
+    theme_css = '<link rel="stylesheet" href="/static/nabil_reference_theme.css?v=18">'
     html = html[:head_boundary] + direct_entry_css + theme_css + html[head_boundary:]
 
     scripts = (
