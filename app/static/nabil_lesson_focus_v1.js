@@ -2,8 +2,8 @@
 (()=>{
 "use strict";
 const params=new URLSearchParams(location.search);
-const exercise=params.get("exercise"),page=params.get("page");
-if(!exercise&&!page)return;
+const exercise=params.get("exercise"),page=params.get("page"),worksheet=params.get("worksheet");
+if(!exercise&&!page&&!worksheet)return;
 function run(){
  const main=document.querySelector("main");
  if(!main)return;
@@ -11,7 +11,10 @@ function run(){
  const allExercises=[...main.querySelectorAll(".row")].filter(row=>/\b(?:Exercice|Exercise)\s*\d+\b/i.test(row.querySelector("h3")?.textContent||""));
  const num=v=>String(Number(v));
  let found=[];
- if(exercise){
+ if(worksheet==="1"){
+  found=sections.filter(section=>/Interactive Worksheet|Feuille de travail interactive|Interactive Revision|Révision interactive/i.test(section.querySelector("h2")?.textContent||"")||section.classList.contains("summary"));
+  if(!found.length)return fail("Interactive worksheet and summary not available in this prepared lesson");
+ }else if(exercise){
   if(!/^\d{1,3}$/.test(exercise))return fail("Invalid exercise number");
   found=allExercises.filter(row=>{
    const h=row.querySelector("h3")?.textContent||"";
@@ -49,12 +52,12 @@ function run(){
  const banner=document.createElement("aside");
  banner.id="nabil-focus-banner";
  banner.style.cssText="position:sticky;top:0;z-index:100;background:#104065;color:white;border:2px solid #60d8fb;border-radius:12px;padding:12px;margin:12px 0;font:600 16px Arial,sans-serif";
- banner.textContent=exercise?"📘 Exercice / تمرين "+exercise+" — السؤال والرسم والحل فقط":"📘 Page du livre / صفحة الكتاب "+page+" — المحتوى المطابق في الدرس الجاهز";
- const link=document.createElement("a");link.href=location.pathname+location.search.replace(/([?&])(exercise|page)=\d+&?/g,"$1").replace(/[?&]$/,"");
+ banner.textContent=worksheet?"📝 الورقة التفاعلية + البطاقة المرجعية الجامعة":exercise?"📘 Exercice / تمرين "+exercise+" — السؤال والرسم والحل فقط":"📘 Page du livre / صفحة الكتاب "+page+" — المحتوى المطابق في الدرس الجاهز";
+ const link=document.createElement("a");link.href=location.pathname+location.search.replace(/([?&])(exercise|page|worksheet)=\d+&?/g,"$1").replace(/[?&]$/,"");
  link.textContent=" | عرض الدرس كاملًا";link.style.cssText="color:#9deaff;margin-inline-start:12px";
  banner.append(link);main.prepend(banner);
  found[0].scrollIntoView({block:"start"});
- console.info("[NABIL_FOCUS] FOUND",exercise?"exercise":"printed_page",exercise||page,"matches",found.length);
+ console.info("[NABIL_FOCUS] FOUND",worksheet?"worksheet":exercise?"exercise":"printed_page",worksheet||exercise||page,"matches",found.length);
  function fail(reason){
   console.warn("[NABIL_FOCUS] NOT_FOUND",reason);
   const alert=document.createElement("aside");alert.style.cssText="background:#5a291f;color:#fff;padding:15px;border:2px solid #ffab85;border-radius:12px;margin:12px";
