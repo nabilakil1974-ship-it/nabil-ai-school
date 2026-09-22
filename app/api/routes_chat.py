@@ -5121,6 +5121,13 @@ async def voice_chat(
     _primary_ai_elapsed_ms = 0
     _repair_ai_elapsed_ms = 0
     _repair_ai_calls = 0
+    # Previously untimed: the book-exercise lookup (find_nearest_book_
+    # exercises, a separate DB query after the main RAG retrieval) ran in a
+    # gap between _rag_elapsed_ms and _primary_ai_elapsed_ms that wasn't
+    # captured anywhere, so a slow request whose real bottleneck was THIS
+    # step would show a mismatch between rag_ms+primary_ai_ms+repair_ms and
+    # total_ms with no way to tell why from the logs alone.
+    _exercise_lookup_elapsed_ms = 0
     # Hard ceiling for the whole request, independent of the older 66/81/84
     # second checks scattered below (kept as inner per-call timeouts so a
     # single slow provider call doesn't hang forever, but no longer allowed
@@ -5557,6 +5564,7 @@ the same lesson Visual Engine; never describe it as rendered without one.
             # The original chapter exercises are part of the lesson: look for
             # them in the SAME indexed book after the source-matched concept.
             # This is a database lookup, not an additional model generation.
+            _exercise_lookup_started_at = time.monotonic()
             try:
                 if _page_request and _page_request[1] == "page":
                     # An exact single-page request already resolved its
@@ -5600,6 +5608,7 @@ the same lesson Visual Engine; never describe it as rendered without one.
                 lesson_generation_logger.exception(
                     "BOOK_EXERCISE_PAGE_LOOKUP_FAILED"
                 )
+            _exercise_lookup_elapsed_ms = round((time.monotonic() - _exercise_lookup_started_at) * 1000)
             book_context = build_context_block(source_chunks + book_exercise_chunks)
             if (
                 _nabil_lesson_start_request(message)
@@ -6916,9 +6925,9 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
         )
  
     lesson_generation_logger.info(
-        "LESSON_TIMING grade=%r subject=%r lesson=%r rag_ms=%d primary_ai_ms=%d "
+        "LESSON_TIMING grade=%r subject=%r lesson=%r rag_ms=%d exercise_lookup_ms=%d primary_ai_ms=%d "
         "practice_repair_ai_ms=%d practice_repair_calls=%d total_ms=%d drawings=%d",
-        grade, subject, lesson, _rag_elapsed_ms, _primary_ai_elapsed_ms,
+        grade, subject, lesson, _rag_elapsed_ms, _exercise_lookup_elapsed_ms, _primary_ai_elapsed_ms,
         _repair_ai_elapsed_ms, _repair_ai_calls,
         round((time.monotonic() - _request_started_at) * 1000), len(drawings),
     )
