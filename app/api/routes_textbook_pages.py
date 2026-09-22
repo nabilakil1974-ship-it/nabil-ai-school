@@ -3,6 +3,7 @@
 Download only an authorized indexed Book's Drive PDF; never accept arbitrary Drive
 file IDs or page offsets from the browser. A page must be in BookPage.
 """
+import logging
 import os
 import subprocess
 import tempfile
@@ -19,6 +20,7 @@ from app.services.textbook_scope import resolve_textbook_curriculum
 from app.core.textbook_page_citations import resolve_book_printed_page
 from app.services.textbook_page_request import parse_textbook_page_request, indexed_textbook_page_context
 
+logger = logging.getLogger("nabil_ai.textbook_pages")
 router = APIRouter()
 
 
@@ -255,15 +257,30 @@ def textbook_page_image(book_id: str, printed_page: int, db: Session = Depends(g
     book = db.query(Book).filter(Book.id == book_id).first()
     if book is None:
         raise HTTPException(status_code=404, detail="Book not found")
-    # Legacy Grade 9 Chemistry indexed its true PDF page as printed page.
-    # Convert the verified printed page back to that indexed value only for
-    # this exact book when the indexed value and PDF position agree.
+    # General page resolution: verifies the requested printed page against
+    # each candidate page's own stored text before trusting it, rather than
+    # a single book's hardcoded offset (see _resolve_indexed_book_page's
+    # own docstring for the full history of this fix).
     page = _resolve_indexed_book_page(book, printed_page, db)
     if page is None or not page.pdf_page_index:
         raise HTTPException(status_code=404, detail="Indexed page unavailable")
     try:
         jpg = _render_pdf_page(book.drive_file_id, int(page.pdf_page_index))
     except Exception:
+        # Previously this exception was fully swallowed with no logging at
+        # all in this file - a real Drive download failure, an oversized/
+        # corrupt PDF, a pdftoppm rendering error, or a Drive auth/quota
+        # issue all looked identical from the outside (just a 503 with no
+        # detail), even after the global logging.basicConfig fix elsewhere,
+        # because nothing here ever called logger.exception in the first
+        # place. Logging the real exception is what makes a genuine data/
+        # infrastructure problem (vs. a page-resolution bug, which is a
+        # different failure mode already handled above) diagnosable from
+        # Railway logs going forward.
+        logger.exception(
+            "TEXTBOOK_PAGE_IMAGE_RENDER_FAILED book_id=%s printed_page=%s pdf_page_index=%s",
+            book_id, printed_page, page.pdf_page_index,
+        )
         raise HTTPException(status_code=503, detail="Original textbook page is temporarily unavailable")
     return Response(
         jpg, media_type="image/jpeg",
