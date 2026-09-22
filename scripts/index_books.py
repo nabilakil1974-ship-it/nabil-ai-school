@@ -14,6 +14,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 
 from googleapiclient.discovery import build
@@ -61,11 +62,30 @@ def list_pdfs_in_folder(service, folder_id: str):
 
 
 def download_pdf(service, file_id: str) -> bytes:
+    # 2026-09-22: no timeout existed here at all - confirmed from a live
+    # Railway log that the student-facing page-image endpoint consistently
+    # 404'd on one specific book/page across 4 separate requests over
+    # several minutes, while the AI-generation path's OWN fetch of the same
+    # page (same _render_pdf_page function, wrapped there in an 8s
+    # asyncio.wait_for) logged BOOK_PAGE_VISION_UNAVAILABLE reason=
+    # TimeoutError for that exact request. Since _render_pdf_page is
+    # lru_cache'd, a download that never completes means the cache is never
+    # populated and every future request pays the same cost again. A
+    # generous but finite timeout here means a genuinely slow/stuck Drive
+    # download fails fast and cleanly (freeing the worker thread) instead of
+    # potentially hanging indefinitely, which matters on a 1GB RAM instance
+    # with a limited number of worker threads.
     request = service.files().get_media(fileId=file_id)
     buffer = io.BytesIO()
     downloader = MediaIoBaseDownload(buffer, request)
     done = False
+    _download_started_at = time.monotonic()
+    _DOWNLOAD_TIMEOUT_SECONDS = 40.0
     while not done:
+        if time.monotonic() - _download_started_at > _DOWNLOAD_TIMEOUT_SECONDS:
+            raise TimeoutError(
+                f"Google Drive PDF download exceeded {_DOWNLOAD_TIMEOUT_SECONDS:.0f}s for file_id={file_id}"
+            )
         _, done = downloader.next_chunk()
     return buffer.getvalue()
 
