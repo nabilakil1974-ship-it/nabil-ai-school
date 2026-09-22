@@ -1403,3 +1403,23 @@ body.nabil-projector-mode img{
 #nabilWorksheetPanel>footer{position:sticky;bottom:0;display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;padding:12px;background:rgba(6,24,46,.96);border:1px solid #2b6689;border-radius:14px}#nabilWorksheetPanel>footer button{background:#0e618b;color:#fff}#nwNext{background:#0bb353!important;flex:1 1 230px}#nabilWorksheetPanel button:disabled{opacity:.5;cursor:not-allowed}
 #nabilWorksheetPanel:fullscreen{width:100%;height:100%;margin:0;border-radius:0;overflow:auto;padding:28px}#nabilWorksheetPanel:fullscreen .nw-card{font-size:1.2em}
 @media(max-width:720px){#nabilWorksheetBtn{width:100%!important;margin-top:8px!important}#nabilWorksheetPanel{width:100%;margin:8px 0 100px;border-width:1px;border-radius:14px;padding:10px}.nw-card{padding:14px 10px}.nw-content{font-size:15px;line-height:1.7}.nw-figure{min-height:210px;padding:6px}#nabilWorksheetPanel>footer{bottom:4px;padding:8px}#nabilWorksheetPanel>footer button{flex:1 1 calc(50% - 8px);min-height:44px}}
+
+/* Question composer must be immediately recognizable; learning path stays beneath it. */
+#messageInput{
+ border:3px solid #5ae4c2!important;
+ background:#102d39!important;
+ box-shadow:0 0 0 3px #1c706a66!important;
+ border-radius:13px!important;
+}
+#messageInput:focus{
+ border-color:#ffe48a!important;
+ box-shadow:0 0 0 4px #ffe48a44!important;
+ outline:none!important;
+}
+#nabilLearningDock{
+ border:2px solid #d7a5ff!important;
+ border-inline-start:7px solid #b887ef!important;
+ background:linear-gradient(125deg,#262243,#142f46 80%)!important;
+ box-shadow:0 6px 22px #0004!important;
+}
+#nabilLearningDock .nv132-header strong{color:#f2c9ff!important}
