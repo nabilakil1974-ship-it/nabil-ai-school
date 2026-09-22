@@ -33,6 +33,42 @@ window.fetch=async function(input,options){
 };
 
 const field=id=>document.getElementById(id)?.value?.trim()||"";
+/* Add actual prepared HTML lessons to the existing selector after grade/subject
+   changes. No AI generation and no per-lesson frontend registry. */
+let availableSeq=0;
+async function refreshPreparedLessons(){
+ const seq=++availableSeq;
+ const grade=field("gradeSelect"),subject=field("subjectSelect");
+ const select=document.getElementById("lessonSelect");
+ if(!grade||!subject||!select)return;
+ try{
+  const q=new URLSearchParams({grade,subject});
+  const res=await nativeFetch("/api/interactive-lessons/available?"+q,{cache:"no-store"});
+  if(!res.ok)throw Error("HTTP "+res.status);
+  const data=await res.json();
+  if(seq!==availableSeq||grade!==field("gradeSelect")||subject!==field("subjectSelect"))return;
+  select.querySelectorAll("option[data-nabil-drive-prepared]").forEach(o=>o.remove());
+  const existing=new Set([...select.options].map(o=>o.value.trim().toLocaleLowerCase()));
+  for(const lesson of data.lessons||[]){
+   if(existing.has(lesson.title.trim().toLocaleLowerCase()))continue;
+   const option=new Option("📘 "+lesson.title+" · Google Drive",lesson.title);
+   option.dataset.nabilDrivePrepared="1";
+   select.add(option);
+  }
+  trace("DRIVE_LESSONS_IN_SELECTOR",String((data.lessons||[]).length));
+ }catch(error){trace("DRIVE_LESSON_SELECTOR_UNAVAILABLE",error.message||"network");}
+}
+for(const id of ["gradeSelect","subjectSelect"]){
+ document.getElementById(id)?.addEventListener("change",()=>{
+  refreshPreparedLessons();
+  setTimeout(refreshPreparedLessons,350);
+  setTimeout(refreshPreparedLessons,1100);
+ });
+}
+if(document.readyState==="loading")
+ document.addEventListener("DOMContentLoaded",()=>setTimeout(refreshPreparedLessons,400));
+else setTimeout(refreshPreparedLessons,400);
+
 document.addEventListener("click",async event=>{
  const start=event.target?.closest?.("#startLesson");
  if(!start||replay||busy)return;
