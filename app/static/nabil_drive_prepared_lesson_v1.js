@@ -35,6 +35,19 @@ window.fetch=async function(input,options){
 const field=id=>document.getElementById(id)?.value?.trim()||"";
 /* Add actual prepared HTML lessons to the existing selector after grade/subject
    changes. No AI generation and no per-lesson frontend registry. */
+const mobileStyle=document.createElement("style");
+mobileStyle.id="nabil-drive-mobile-layout";
+mobileStyle.textContent=`
+#nabilPreparedDriveShelf,#nabilDriveInteractiveLesson{min-width:0!important;max-width:100%!important;overflow-wrap:anywhere!important}
+#nabilPreparedDriveShelf button,#nabilDriveInteractiveLesson a{min-height:44px!important;white-space:normal!important}
+#nabilDriveInteractiveLesson iframe{max-width:100%!important;min-width:0!important}
+@media(max-width:600px){
+ #nabilPreparedDriveShelf,#nabilDriveInteractiveLesson{padding:9px!important;margin:10px 0!important}
+ #nabilPreparedDriveShelf button,#nabilDriveInteractiveLesson a{flex-basis:100%!important;width:100%!important}
+ #nabilDriveInteractiveLesson iframe{height:70vh!important;min-height:400px!important}
+ #chat,#chat>*{min-width:0}
+}`;
+(document.head||document.documentElement).append(mobileStyle);
 let shelfBusy=false;
 function ensureShelf(){
  let shelf=document.getElementById("nabilPreparedDriveShelf");
