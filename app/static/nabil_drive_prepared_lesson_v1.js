@@ -32,6 +32,7 @@ start.addEventListener("click",async event=>{
     frame.src=data.url;
     frame.style.cssText="display:block;width:100%;min-height:75vh;border:0;border-radius:10px;background:#09263f";
     frame.setAttribute("loading","eager");
+    frame.setAttribute("sandbox","allow-scripts allow-forms allow-modals allow-downloads allow-popups");
     const open=document.createElement("a");
     open.href=data.url;open.target="_blank";open.rel="noopener";
     open.textContent="↗ افتح الدرس بصفحة كاملة";
