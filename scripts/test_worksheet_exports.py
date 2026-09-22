@@ -74,9 +74,17 @@ class WorksheetExportTests(unittest.TestCase):
         response = _pptx(Cards(title="Physics", cards=["Water stays level"],
                                images=[[image]]))
         self.assertIsInstance(response, StreamingResponse)
-        data = response.body_iterator
-        self.assertTrue(hasattr(data, "getvalue"))
-        with ZipFile(io.BytesIO(data.getvalue())) as archive:
+        import asyncio
+
+        async def collect_stream():
+            chunks = []
+            async for chunk in response.body_iterator:
+                chunks.append(chunk if isinstance(chunk, bytes) else chunk.encode("utf-8"))
+            return b"".join(chunks)
+
+        data = asyncio.run(collect_stream())
+        self.assertTrue(data.startswith(b"PK"), "PowerPoint must be a ZIP package")
+        with ZipFile(io.BytesIO(data)) as archive:
             self.assertTrue(any(n.startswith("ppt/media/") for n in archive.namelist()))
             slides = [n for n in archive.namelist()
                       if n.startswith("ppt/slides/slide") and n.endswith(".xml")]
