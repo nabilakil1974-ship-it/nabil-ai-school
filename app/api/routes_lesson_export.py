@@ -33,16 +33,23 @@ def _from_drive(grade, subject, lesson, language):
     nodes = soup.select("main section, article, .card, .row")
     if not nodes:
         nodes = soup.select("h2, h3, p, li")
-    cards = []
+    cards, images = [], []
     for node in nodes:
         if node.find_parent(["section", "article"]) and node.name in ("section", "article"):
             continue
         value = _plain(node.get_text(" ", strip=True))
         if len(value) >= 20 and value not in cards:
             cards.append(value)
+            # Include only inline original diagrams. Remote images are not silently
+            # substituted, nor fetched from untrusted addresses by the server.
+            images.append([img.get("src") for img in node.select("img")
+                           if str(img.get("src", "")).startswith(("data:image/png;base64,",
+                                                                  "data:image/jpeg;base64,"))][:4])
     if not cards:
         raise HTTPException(422, "الدرس لا يحتوي بطاقات نصية قابلة للاستخراج؛ لا يمكن إنشاء عرض أمين للمصدر.")
-    return Cards(title=title, cards=cards[:65], source="الدرس المحضّر في Google Drive")
+    return Cards(title=title, cards=cards[:65], images=images[:65],
+                 source="الدرس المحضّر في Google Drive")
+
 
 def _picture_bytes(value):
     """Only inline browser-rendered PNG/JPEG; never fetch arbitrary remote URLs."""
@@ -111,8 +118,18 @@ def _pptx(payload):
                  "Cache-Control": "no-store"})
 
 def _reference(payload):
-    blocks="".join("<section><h2>بطاقة "+str(i)+"</h2><p>"+escape(_plain(card))+"</p></section>" for i,card in enumerate(payload.cards,1))
-    return HTMLResponse('<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+escape(payload.title)+'</title><style>body{font:18px Arial;background:#eaf4fa;color:#122b41;max-width:900px;margin:auto;padding:20px}section{background:white;border-right:7px solid #13a4bd;padding:18px;margin:15px 0;border-radius:12px;break-inside:avoid}h1{color:#06647a}p{white-space:pre-wrap;line-height:1.8}@media print{body{background:white}button{display:none}}</style><button onclick="print()">🖨️ طباعة / حفظ PDF</button><h1>📘 البطاقة المرجعية — '+escape(payload.title)+'</h1><p>'+escape(payload.source)+'</p>'+blocks+'</html>',headers={"Cache-Control":"no-store"})
+    blocks = []
+    for i, card in enumerate(payload.cards, 1):
+        imgs = payload.images[i-1] if i-1 < len(payload.images) else []
+        pictures = "".join('<img alt="رسم من الدرس" src="' + escape(value, quote=True) +
+                           '" style="display:block;max-width:100%;height:auto;margin:12px auto">'
+                           for value in imgs[:3] if _picture_bytes(value))
+        blocks.append("<section><h2>بطاقة " + str(i) + "</h2><p>" +
+                      escape(_plain(card)) + "</p>" + pictures + "</section>")
+    return HTMLResponse('<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' +
+        escape(payload.title) + '</title><style>*,*:before,*:after{box-sizing:border-box}body{font:18px Arial;background:#eaf4fa;color:#122b41;max-width:900px;margin:auto;padding:clamp(10px,3vw,20px);overflow-wrap:anywhere}section{background:white;border-right:7px solid #13a4bd;padding:clamp(12px,3vw,18px);margin:15px 0;border-radius:12px;break-inside:avoid}h1{color:#06647a}p{white-space:pre-wrap;line-height:1.8}button{min-height:44px;padding:10px;border-radius:9px}@media print{body{background:white}button{display:none}section{border:1px solid #aaa}}</style><button onclick="print()">🖨️ طباعة / حفظ PDF</button><h1>📘 البطاقة المرجعية — ' +
+        escape(payload.title) + '</h1><p>' + escape(payload.source) + '</p>' +
+        "".join(blocks) + '</html>', headers={"Cache-Control":"no-store"})
 
 @router.get("/prepared")
 def prepared(grade: str, subject: str, lesson: str, language: str="", format: str="pptx"):
