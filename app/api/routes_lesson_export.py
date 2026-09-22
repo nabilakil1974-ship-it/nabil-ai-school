@@ -182,18 +182,51 @@ def _pptx(payload):
                  "Cache-Control":"no-store"})
 
 def _reference(payload):
+    """A printable source-card collection, never mislabeled as a verified summary."""
     blocks = []
     for i, card in enumerate(payload.cards, 1):
         imgs = payload.images[i-1] if i-1 < len(payload.images) else []
-        pictures = "".join('<img alt="رسم من الدرس" src="' + escape(value, quote=True) +
-                           '" style="display:block;max-width:100%;height:auto;margin:12px auto">'
-                           for value in imgs[:3] if _picture_bytes(value))
-        blocks.append("<section><h2>بطاقة " + str(i) + "</h2><p>" +
-                      escape(_plain(card)) + "</p>" + pictures + "</section>")
-    return HTMLResponse('<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' +
-        escape(payload.title) + '</title><style>*,*:before,*:after{box-sizing:border-box}body{font:18px Arial;background:#eaf4fa;color:#122b41;max-width:900px;margin:auto;padding:clamp(10px,3vw,20px);overflow-wrap:anywhere}section{background:white;border-right:7px solid #13a4bd;padding:clamp(12px,3vw,18px);margin:15px 0;border-radius:12px;break-inside:avoid}h1{color:#06647a}p{white-space:pre-wrap;line-height:1.8}button{min-height:44px;padding:10px;border-radius:9px}@media print{body{background:white}button{display:none}section{border:1px solid #aaa}}</style><button onclick="print()">🖨️ طباعة / حفظ PDF</button><h1>📘 البطاقة المرجعية — ' +
-        escape(payload.title) + '</h1><p>' + escape(payload.source) + '</p>' +
-        "".join(blocks) + '</html>', headers={"Cache-Control":"no-store"})
+        pictures = "".join(
+            '<img alt="رسم من الدرس" src="' + escape(value, quote=True) +
+            '" style="display:block;max-width:100%;height:auto;margin:12px auto">'
+            for value in imgs[:3] if _picture_bytes(value)
+        )
+        text = _plain(card)
+        # Split by sentences only for readable typography; do not change facts.
+        parts = re.split(r"(?<=[.!?؟])\\s+(?=[^\\s])", text)
+        paragraphs = "".join(
+            '<p dir="auto">' + escape(part) + '</p>'
+            for part in parts if part.strip()
+        )
+        blocks.append(
+            '<section><h2>بطاقة ' + str(i) + '</h2>' +
+            paragraphs + pictures + '</section>'
+        )
+    css = """<style>
+*{box-sizing:border-box}body{font:18px/1.85 Arial,Tahoma,sans-serif;
+background:#eaf4fa;color:#122b41;max-width:950px;margin:auto;
+padding:clamp(10px,3vw,24px);overflow-wrap:break-word;letter-spacing:normal}
+section{background:#fff;border-inline-start:7px solid #13a4bd;
+padding:clamp(14px,3vw,24px);margin:18px 0;border-radius:15px;
+break-inside:avoid;box-shadow:0 5px 18px #173b5010}
+section:nth-of-type(4n+2){border-color:#e8a956}
+section:nth-of-type(4n+3){border-color:#55bda5}
+section:nth-of-type(4n+4){border-color:#a78adf}
+h1{color:#06647a;line-height:1.45}h2{margin-top:0;color:#075a76}
+p{white-space:normal;line-height:1.85;letter-spacing:normal;
+unicode-bidi:plaintext;word-spacing:normal;margin:12px 0}
+button{min-height:44px;padding:10px;border-radius:9px;cursor:pointer}
+@media print{body{background:white}button{display:none}
+section{border:1px solid #aaa;box-shadow:none}}
+</style>"""
+    body = ('<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8">'
+            '<meta name="viewport" content="width=device-width,initial-scale=1">'
+            '<title>' + escape(payload.title) + '</title>' + css + '</head><body>'
+            '<button onclick="print()">🖨️ طباعة / حفظ PDF</button>'
+            '<h1>📘 بطاقات الدرس — ' + escape(payload.title) + '</h1>'
+            '<p dir="auto">' + escape(payload.source) + '</p>' +
+            "".join(blocks) + '</body></html>')
+    return HTMLResponse(body, headers={"Cache-Control": "no-store"})
 
 @router.get("/prepared")
 def prepared(grade: str, subject: str, lesson: str, language: str="", format: str="pptx"):
