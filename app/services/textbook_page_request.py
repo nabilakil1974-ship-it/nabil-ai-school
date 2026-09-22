@@ -149,9 +149,9 @@ def indexed_textbook_page_context(
 
 # Universal Drive-index routing. No per-lesson HTML or hardcoded book IDs.
 _EXERCISE_REQUEST = re.compile(
-    r"(?i)(?:\\b(?:exercise|exercice|problem|question|ex\\.)\\s*(?:n[°o]\\s*)?"
-    r"|(?:تمرين|التمرين|السؤال|مسألة|مسأله)\\s*(?:رقم\\s*)?)"
-    r"(?P<number>\\d{1,3})\\b"
+    r"(?i)(?:\b(?:exercise|exercice|problem|question|ex\.)\s*(?:n[°o]\s*)?"
+    r"|(?:تمرين|التمرين|السؤال|مسألة|مسأله)\s*(?:رقم\s*)?)"
+    r"(?P<number>\d{1,3})\b"
 )
 
 
@@ -180,8 +180,8 @@ def indexed_textbook_exercise_context(
     if book_id is not None:
         books = [book for book in books if book.id == book_id]
     heading = re.compile(
-        rf"(?im)(?:^|\\n)\\s*(?:(?:exercise|exercice|ex\\.|تمرين|السؤال)\\s*(?:n[°o]\\s*)?)?"
-        rf"{exercise_number}\\s*[.)\\-:]\\s*"
+        rf"(?im)(?:^|\n)\s*(?:(?:exercise|exercice|ex\.|تمرين|السؤال)\s*(?:n[°o]\s*)?)?"
+        rf"{exercise_number}\s*[.)\-:]\s*"
     )
     matches = []
     for book in books:
