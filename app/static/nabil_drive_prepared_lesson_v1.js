@@ -48,12 +48,23 @@ async function refreshPreparedLessons(){
   const data=await res.json();
   if(seq!==availableSeq||grade!==field("gradeSelect")||subject!==field("subjectSelect"))return;
   select.querySelectorAll("option[data-nabil-drive-prepared]").forEach(o=>o.remove());
-  const existing=new Set([...select.options].map(o=>o.value.trim().toLocaleLowerCase()));
+  const normalize=t=>String(t||"").trim().toLocaleLowerCase();
   for(const lesson of data.lessons||[]){
-   if(existing.has(lesson.title.trim().toLocaleLowerCase()))continue;
-   const option=new Option("📘 "+lesson.title+" · Google Drive",lesson.title);
-   option.dataset.nabilDrivePrepared="1";
-   select.add(option);
+   const names=new Set([lesson.title,...(lesson.aliases||[])].map(normalize));
+   const matching=[...select.options].filter(o=>names.has(normalize(o.value))||names.has(normalize(o.textContent)));
+   if(matching.length){
+    const keep=matching.find(o=>normalize(o.value)===normalize(lesson.title))||matching[0];
+    const wasSelected=matching.some(o=>o.selected);
+    keep.value=lesson.title;
+    keep.textContent="📘 "+lesson.title+" · Google Drive";
+    keep.dataset.nabilDrivePrepared="1";
+    for(const extra of matching)if(extra!==keep)extra.remove();
+    if(wasSelected)keep.selected=true;
+   }else{
+    const option=new Option("📘 "+lesson.title+" · Google Drive",lesson.title);
+    option.dataset.nabilDrivePrepared="1";
+    select.add(option);
+   }
   }
   trace("DRIVE_LESSONS_IN_SELECTOR",String((data.lessons||[]).length));
  }catch(error){trace("DRIVE_LESSON_SELECTOR_UNAVAILABLE",error.message||"network");}
