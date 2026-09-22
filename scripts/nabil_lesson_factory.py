@@ -4,7 +4,7 @@ Usage:
   python -m scripts.nabil_lesson_factory --pilot --report /tmp/nabil-pilot.json
   python -m scripts.nabil_lesson_factory --pilot --require-drive-write --report /tmp/nabil-pilot.json
 
-No AI calls, no deletes, no publishing. A failed lesson is never marked complete.
+No AI calls or deletes. --produce-first creates an explicitly labeled factory edition\nfrom the existing authored source lesson; it never invents unseen PDF material.
 This gate is necessary, NOT sufficient, to certify scientific/source accuracy:
 a reviewer must compare original PDF figures, exercises and solutions.
 """
@@ -148,21 +148,113 @@ def pilot(require_drive_write=False):
     )
     return report
 
+def produce_first(require_drive_write=True):
+    """Produce a real new Drive HTML, source-preserving, with embedded interactive lab.
+
+    This is a factory edition of an ALREADY AUTHORED chapter, not extraction
+    of an unseen textbook or certification of scientific completeness.
+    Idempotent: same filename is updated only if the factory marker is present.
+    """
+    from googleapiclient.http import MediaIoBaseUpload
+    from urllib.parse import quote
+    book = next(b for b in json.loads(LEDGER.read_text(encoding="utf-8"))["books"]
+                if b.get("drive_file_id") == "1LasqIgGUuck1l-2EZbj2kA0Dg9ygJ_AH")
+    chapter = next(x for x in book["authored_lessons"]
+                   if x["title"] == "Solids and Liquids")
+    service = drive(write=True)
+    folder = service.files().get(fileId=PILOT_FOLDER,
+                                 fields="id,capabilities(canAddChildren)").execute()
+    if not folder.get("capabilities", {}).get("canAddChildren"):
+        raise PermissionError("FACTORY_DRIVE_WRITE_NOT_GRANTED")
+    html = get_html(service, chapter["drive_html_id"])
+    soup = BeautifulSoup(html, "html.parser")
+    if not soup.find("main") or not soup.find("h1"):
+        raise ValueError("SOURCE_LESSON_NOT_VALID_HTML")
+    if chapter["title"].casefold() not in soup.find("h1").get_text(" ", strip=True).casefold():
+        raise ValueError("SOURCE_LESSON_TITLE_MISMATCH")
+    # Inline lab for offline/Drive portability. No external AI, no runtime key.
+    lab_path = ROOT / "app/static/nabil_g7_physics_lab_v1.js"
+    lab = lab_path.read_text(encoding="utf-8")
+    if not lab or "g7-surface" not in lab or "g7-tubes" not in lab:
+        raise ValueError("INTERACTIVE_LAB_NOT_READY")
+    for node in soup.select("[data-nabil-factory-banner]"):
+        node.decompose()
+    banner = soup.new_tag("aside")
+    banner["data-nabil-factory-banner"] = "1"
+    banner["style"] = ("padding:12px;margin:14px auto;max-width:1010px;"
+                       "border:2px solid #28bfc8;border-radius:12px;"
+                       "background:#e8fcfc;color:#073c50;font:16px/1.6 Arial")
+    banner.string = ("NABIL AI · Factory edition 1 — generated from the "
+                     "previously authored lesson, G 07 physics.pdf pp. 13–17. "
+                     "The lab is an explanatory simulation, not a scanned "
+                     "textbook figure. Original exercise/figure fidelity "
+                     "still requires source review.")
+    soup.find("main").insert(0, banner)
+    if not soup.find("meta", attrs={"name": "viewport"}):
+        meta = soup.new_tag("meta", attrs={"name": "viewport",
+                         "content": "width=device-width,initial-scale=1"})
+        (soup.head or soup).append(meta)
+    style = soup.new_tag("style")
+    style.string = ("@media(max-width:760px){html,body,main{max-width:100%;"
+                    "min-width:0;box-sizing:border-box}main{padding:10px}"
+                    "img,svg,canvas{max-width:100%;height:auto}}")
+    (soup.head or soup).append(style)
+    # An inline script is safe here because the code is repository-owned and
+    # the only source document is the trusted, owner-authored Drive lesson.
+    lab_script = soup.new_tag("script")
+    lab_script.string = lab.replace("</script", "<\\/script")
+    (soup.body or soup).append(lab_script)
+    rendered = str(soup)
+    if len(rendered) > 8_000_000:
+        raise ValueError("FACTORY_LESSON_EXCEEDS_VIEW_LIMIT")
+    name = "G07-PHYSICS--SOLIDS-AND-LIQUIDS-FACTORY.html"
+    existing = [f for f in children(service, PILOT_FOLDER)
+                if f["name"].casefold() == name.casefold()]
+    media = MediaIoBaseUpload(io.BytesIO(rendered.encode("utf-8")),
+                              mimetype="text/html", resumable=False)
+    if existing:
+        previous = get_html(service, existing[0]["id"])
+        if 'data-nabil-factory-banner="1"' not in previous:
+            raise ValueError("REFUSE_OVERWRITE_NON_FACTORY_LESSON")
+        file = service.files().update(fileId=existing[0]["id"], media_body=media,
+                                      fields="id,name,webViewLink").execute()
+        action = "updated"
+    else:
+        file = service.files().create(
+            body={"name": name, "mimeType": "text/html",
+                  "parents": [PILOT_FOLDER]},
+            media_body=media, fields="id,name,webViewLink").execute()
+        action = "created"
+    # Read-back verification: no success claim based on an upload response alone.
+    saved = get_html(service, file["id"])
+    if 'data-nabil-factory-banner="1"' not in saved or "g7-tubes" not in saved:
+        raise ValueError("FACTORY_READBACK_VERIFICATION_FAILED")
+    return {"status": "FACTORY_EDITION_PUBLISHED_NEEDS_SOURCE_REVIEW",
+            "action": action, "title": "Solids and Liquids — Factory edition",
+            "filename": name, "drive_file_id": file["id"],
+            "source_drive_html_id": chapter["drive_html_id"],
+            "source_pdf_id": book["drive_file_id"],
+            "bytes": len(saved.encode("utf-8")),
+            "interactive_lab": True,
+            "scientifically_verified": False,
+            "view_url": "/api/interactive-lessons/view?grade=7&subject=physics&lesson="
+                        + quote("SOLIDS AND LIQUIDS FACTORY")}
+
 def main():
     ap=argparse.ArgumentParser()
     ap.add_argument("--pilot",action="store_true",required=True)
     ap.add_argument("--require-drive-write",action="store_true")
-    ap.add_argument("--report",default="")
+    ap.add_argument("--report",default="")\n    ap.add_argument("--produce-first",action="store_true")
     args=ap.parse_args()
     try:
-        report=pilot(args.require_drive_write)
+        report=pilot(args.require_drive_write)\n        if args.produce_first:\n            report["production"] = produce_first()
     except Exception as exc:
         report={"status":"ERROR","error_type":type(exc).__name__,"error":str(exc)}
     data=json.dumps(report,ensure_ascii=False,indent=2)
     if args.report:
         Path(args.report).write_text(data,encoding="utf-8")
     print(data)
-    return 0 if report["status"]=="PILOT_REQUIRES_SOURCE_REVIEW" else 2
+    return 0 if (report.get("production",{}).get("status") == "FACTORY_EDITION_PUBLISHED_NEEDS_SOURCE_REVIEW"\n                 or report["status"]=="PILOT_REQUIRES_SOURCE_REVIEW") else 2
 
 if __name__=="__main__":
     sys.exit(main())
