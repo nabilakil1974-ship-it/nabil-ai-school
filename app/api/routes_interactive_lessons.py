@@ -138,6 +138,24 @@ def _entries():
             token = result.get("nextPageToken")
             if not token:
                 break
+    # Owner-authored source-verified lessons are discoverable even when the
+    # service account cannot list the owner's presentation-only grade folders.
+    # IDs point to the backend lesson collection, not a generated AI response.
+    prepared = [
+        {"grade": "7", "subject": "physics", "lesson": "Solids and Liquids",
+         "aliases": ["Solides et liquides", "Solids & Liquids"],
+         "drive_file_id": "1tEPcbUBaPvIblK-4Zo3rXb31lqUE0tCN",
+         "bilingual": True, "filename": "G07-PHYSICS--SOLIDS-AND-LIQUIDS.html"},
+        {"grade": "9", "subject": "physics", "lesson": "Conducteurs ohmiques",
+         "aliases": ["Ohmic Conductors", "Conducteurs Ohmiques"],
+         "drive_file_id": "10R64fk9N7bjQ8twGBHHaKuznup9YWYIp",
+         "bilingual": True, "filename": "EB09-CONDUCTEURS-OHMIQUES-BILINGUAL.html"},
+    ]
+    known = {( _grade(x.get("grade")), _subject(x.get("subject")), _norm(x.get("lesson")))
+             for x in prepared}
+    items = [x for x in items if
+             (_grade(x.get("grade")), _subject(x.get("subject")), _norm(x.get("lesson"))) not in known]
+    items.extend(prepared)
     valid = [x for x in items if isinstance(x, dict) and x.get("drive_file_id") and x.get("lesson")]
     log.info("DRIVE_LESSON_FOLDER_LIST_OK entries=%d names=%s", len(valid), [x.get("filename", x["lesson"]) for x in valid[:20]])
     _CACHE.update(at=now, entries=valid)
