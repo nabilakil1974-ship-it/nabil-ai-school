@@ -115,12 +115,12 @@ def _entry(file, grade="", subject=""):
     parts = stem.split("--", 1)
     if len(parts) == 2:
         prefix, title = parts
-        match = re.match(r"(?:EB|G)0?(\\d{1,2})[-_ ]+(.+)", prefix, re.I)
+        match = re.match(r"(?:EB|G)0?(\d{1,2})[-_ ]+(.+)", prefix, re.I)
         if match:
             grade = match.group(1)
             subject = match.group(2)
     else:
-        match = re.match(r"(?:EB|G)[-_ ]?0?(\\d{1,2})[-_ ]+(.*)", stem, re.I)
+        match = re.match(r"(?:EB|G)[-_ ]?0?(\d{1,2})[-_ ]+(.*)", stem, re.I)
         title = match.group(2) if match else stem
         grade = match.group(1) if match else grade
     title = re.sub(r"[-_ ]+(?:BILINGUAL|FRANCAIS|ENGLISH)$", "", title, flags=re.I)
@@ -135,7 +135,7 @@ def _owner_entries(service):
     for grade_folder in _list_children(service, root):
         if grade_folder.get("mimeType") != "application/vnd.google-apps.folder":
             continue
-        match = re.search(r"(?:grade|صف)\\s*0?(\\d{1,2})", grade_folder["name"], re.I)
+        match = re.search(r"(?:grade|صف)\s*0?(\d{1,2})", grade_folder["name"], re.I)
         if not match:
             continue  # e.g. 00 - Curriculum Index
         grade = match.group(1)
