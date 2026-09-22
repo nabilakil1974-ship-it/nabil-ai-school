@@ -9,21 +9,17 @@ const byId=id=>document.getElementById(id);
 const lessonColumn=document.querySelector(".lesson-main-column");
 const chat=byId("chat");
 function placeDock(){
- const teachers=chat?[...chat.querySelectorAll(".message.teacher")]:[];
- const latest=teachers[teachers.length-1];
- if(latest){
-   // Put the smart path immediately below the real answer action row
-   // (Copy answer / Read answer), exactly where the owner requested it.
-   // Keep the dock in normal chat flow immediately after the latest teacher
-   // message. That guarantees it is below Copy/Read actions without shrinking
-   // inside the answer bubble or covering figures/composer on mobile.
-   if(latest.nextElementSibling!==dock)latest.insertAdjacentElement("afterend",dock);
- }else if(chat){
-   if(chat.nextElementSibling!==dock)chat.insertAdjacentElement("afterend",dock);
- }else if(lessonColumn){
-   if(dock.parentElement!==lessonColumn)lessonColumn.appendChild(dock);
+ // The question composer is the visual anchor, not the last AI answer.
+ const composer=byId("messageInput")?.closest(".input-area")||
+  byId("messageInput")?.closest("form")||
+  byId("messageInput")?.parentElement?.parentElement;
+ if(composer&&composer.parentElement){
+  if(composer.nextElementSibling!==dock)composer.insertAdjacentElement("afterend",dock);
+ }else if(lessonColumn&&dock.parentElement!==lessonColumn){
+  lessonColumn.appendChild(dock);
  }
 }
+
 placeDock();
 const scope=()=>({
  grade:byId("gradeSelect")?.value||"",
