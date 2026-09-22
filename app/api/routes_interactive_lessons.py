@@ -132,6 +132,11 @@ def _resolve(grade, subject, lesson, language):
 def resolve(grade: str, subject: str, lesson: str, language: str = ""):
     try:
         item = _resolve(grade, subject, lesson, language)
+        # Do not claim a prepared lesson is ready until the Railway service account
+        # can actually read its HTML bytes. A listing alone is not sufficient.
+        html_bytes = _download(_service(), item["drive_file_id"])
+        if b"<html" not in html_bytes[:4096].lower() and b"<!doctype html" not in html_bytes[:4096].lower():
+            raise ValueError("INVALID_PREPARED_LESSON_HTML")
         return {"found": True, "title": item["lesson"],
                 "url": "/api/interactive-lessons/view?grade=" + __import__("urllib.parse", fromlist=["quote"]).quote(grade)
                 + "&subject=" + __import__("urllib.parse", fromlist=["quote"]).quote(subject)
