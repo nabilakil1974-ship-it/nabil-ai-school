@@ -50,6 +50,7 @@ from app.db import ai_usage  # noqa: F401
 
 from app.api import (
     routes_health,
+    routes_eb9_ohm_source,
     routes_chat,
     routes_textbook_pages,
     routes_research,
@@ -331,6 +332,7 @@ app.include_router(
 )
 
 app.include_router(routes_textbook_pages.router, prefix="/api", tags=["textbook-pages"])
+app.include_router(routes_eb9_ohm_source.router, prefix="/api", tags=["original-drive-eb9-source"])
 
 app.include_router(
     routes_chat.router,
