@@ -489,7 +489,7 @@ def _build_root_html() -> str:
         '<script src="/static/nabil_ionic_diagram_fix.js?v=1"></script>\n'
         '<script src="/static/nabil_research_v1.js?v=2"></script>\n'
         '<script src="/static/nabil_book_first_preview_v1.js?v=8"></script>\n'
-        '<script src="/static/nabil_universal_language_v1.js?v=1"></script>\n'
+        '<script src="/static/nabil_universal_language_v1.js?v=1"></script>\n'\n        '<script src="/static/nabil_eb9_ohm_entry.js?v=1"></script>\n'
     )
     boundary = html.lower().rfind("</body>")
     if boundary < 0:
@@ -553,3 +553,9 @@ def nabil_full_math_lab():
     """Full original three-language vector and line virtual lab."""
     return FileResponse("app/static/nabil_lab_math_full.html",
                         media_type="text/html", headers={"Cache-Control": "no-store"})
+
+
+@app.get('/lesson/eb9-ohm')
+def eb9_ohm_interactive_lesson():
+    """Verified EB9 source bilingual interactive Ohmic conductors lesson."""
+    return FileResponse('app/static/lessons/EB09-CONDUCTEURS-OHMIQUES-BILINGUAL.html', media_type='text/html', headers={'Cache-Control':'no-store'})
