@@ -34,10 +34,23 @@ function init(){
  };
  let chosen=null,paused=false,utterance=null;
  const box=document.createElement("aside");box.id="nabil-teacher-audio";
- box.style.cssText="position:fixed;bottom:82px;right:14px;z-index:2147483000;max-width:min(470px,94vw);background:#09253c;border:2px solid #46c7ee;border-radius:15px;padding:12px;color:#f2fbff;box-shadow:0 5px 25px #000a;font:14px/1.5 system-ui,Arial";
+ box.style.cssText="position:fixed;bottom:96px;right:4px;z-index:2147483000;width:48px;max-height:calc(100dvh - 130px);overflow-y:auto;overflow-x:hidden;background:#09253c;border:2px solid #46c7ee;border-radius:14px;padding:5px;color:#f2fbff;box-shadow:0 5px 25px #000a;font:14px/1.5 system-ui,Arial;direction:ltr";
  box.innerHTML='<div style="font-weight:700;margin-bottom:7px">🎓 NABIL · Lecture et explication / Read & explain</div><div id="nabil-audio-selected" style="font-size:12px;color:#a9e9ff;margin-bottom:8px"></div><div id="nabil-audio-buttons" style="display:flex;flex-wrap:wrap;gap:6px"></div><div id="nabil-audio-explanation" style="display:none;margin-top:9px;max-height:130px;overflow:auto;white-space:pre-wrap;border-top:1px solid #4a7890;padding-top:8px"></div>';
  const actions=box.querySelector("#nabil-audio-buttons"),info=box.querySelector("#nabil-audio-selected"),explain=box.querySelector("#nabil-audio-explanation");
- const add=(label,fn)=>{const b=document.createElement("button");b.type="button";b.textContent=label;b.style.cssText="padding:8px 10px;background:#1768a8;color:white;border:1px solid #66c9ee;border-radius:9px;cursor:pointer;font-size:13px";b.onclick=fn;actions.append(b);return b;};
+ box.querySelector("div").style.display="none";info.style.display="none";explain.style.display="none";
+ actions.style.cssText="display:flex;flex-direction:column;gap:5px;align-items:center";
+ let inlineExplanation=null;
+ function showExplanation(t,dir){
+  inlineExplanation?.remove();
+  const target=chosen?.closest("main .row,main section.card,main article.card")||section();
+  if(!target)return;
+  inlineExplanation=document.createElement("aside");inlineExplanation.id="nabil-inline-teacher-explanation";
+  inlineExplanation.dir=dir;inlineExplanation.style.cssText="position:relative;display:block;clear:both;margin:12px 0;padding:14px;background:#143a4b;border:2px solid #69e5ce;border-radius:12px;color:#fff;line-height:1.9;white-space:pre-wrap;overflow-wrap:anywhere";
+  const heading=document.createElement("strong");heading.textContent=dir==="rtl"?"🎓 شرح نبيل خطوة بخطوة":"🎓 NABIL · Explanation";heading.style.cssText="display:block;color:#a9ffe7;margin-bottom:8px";
+  const body=document.createElement("div");body.textContent=t;inlineExplanation.append(heading,body);target.append(inlineExplanation);
+  inlineExplanation.scrollIntoView({behavior:"smooth",block:"nearest"});
+ }
+ const add=(label,fn)=>{const b=document.createElement("button");b.type="button";b.textContent=label;b.style.cssText="width:35px;height:39px;padding:2px;background:#1768a8;color:white;border:1px solid #66c9ee;border-radius:8px;cursor:pointer;font-size:17px;flex-shrink:0";b.title=label;b.setAttribute("aria-label",label);b.onclick=fn;actions.append(b);return b;};
  function section(){
   return chosen?.closest("section.card,article.card")||chosen?.closest("section,article")||document.querySelector("main .card");
  }
@@ -74,21 +87,22 @@ function init(){
  }
  function refresh(){
   const s=section();const h=s?.querySelector("h1,h2");
-  info.textContent=(select.value==="en"?"Selected idea: ":"Idée choisie : ")+(h?.innerText||"Conducteurs ohmiques");
+  info.textContent=(select.value==="en"?"Selected idea: ":"Idée choisie : ")+(h?.innerText||"Conducteurs ohmiques");box.title=info.textContent;
  }
- add("🔊 "+ "Lire / Read",()=>{refresh();speak(sectionText());});
- add("🎓 "+ "Expliquer / Explain",()=>{refresh();const t=explanation();explain.style.display="block";explain.textContent=t;explain.dir="ltr";speak(t);});
- add("🇱🇧 اشرح بالعربي",()=>{refresh();const t=explanation("ar");explain.style.display="block";explain.textContent=t;explain.dir="rtl";speak(t,"ar-LB");});
- add("⏸ / ▶",()=>{if(!synth)return;if(synth.paused){synth.resume();paused=false;}else if(synth.speaking){synth.pause();paused=true;}});
+ add("🔊 Lire / Read",()=>{refresh();speak(sectionText());});
+ add("🎓 Expliquer / Explain",()=>{refresh();const t=explanation();showExplanation(t,"ltr");speak(t);});
+ add("🇱🇧 اشرح بالعربي",()=>{refresh();const t=explanation("ar");showExplanation(t,"rtl");speak(t,"ar-LB");});
+ add("⏯",()=>{if(!synth)return;if(synth.paused){synth.resume();paused=false;}else if(synth.speaking){synth.pause();paused=true;}});
  add("⏹",()=>{synth?.cancel();paused=false;});
  add("✕",()=>{synth?.cancel();box.style.display="none";open.style.display="block";});
- const open=document.createElement("button");open.type="button";open.textContent="🔊 🎓";
+ for(const [i,b] of [...actions.children].entries())b.textContent=["🔊","🎓","🇱🇧","⏯","⏹","✕"][i];
+ const open=document.createElement("button");open.type="button";open.textContent="🎓";
  open.setAttribute("aria-label","Open NABIL lesson audio");
- open.style.cssText="display:none;position:fixed;right:14px;bottom:84px;z-index:2147483000;background:#1768a8;color:white;border:2px solid #72d6fa;border-radius:14px;padding:12px;cursor:pointer";
+ open.style.cssText="display:none;position:fixed;right:4px;bottom:96px;z-index:2147483000;background:#1768a8;color:white;border:2px solid #72d6fa;border-radius:10px;padding:8px;cursor:pointer";
  open.onclick=()=>{box.style.display="block";open.style.display="none";};
  document.body.append(box,open);
  document.addEventListener("click",e=>{
-  if(e.target.closest("#nabil-teacher-audio,#nabil-sticky-language,#lesson-language"))return;
+  if(e.target.closest("#nabil-teacher-audio,#nabil-sticky-language,#lesson-language,#nabil-inline-teacher-explanation"))return;
   const target=e.target.closest("main .row,main section.card,main article.card");
   if(e.target.closest("button,input,select,a"))return;
   if(target){chosen=target;refresh();}
