@@ -49,7 +49,7 @@ def source(mode: str=Query("lesson",pattern="^(lesson|page|exercise)$"), page: i
             raise
         if mode=="exercise":
             # Match only an explicit exercise heading, never a bare number in a formula.
-            pat=rf"(?im)^\\s*(?:exercice|exercise|ex\\.?|n[°o]?)\\s*[:.\\-#]?\\s*{exercise}\\s*(?:[.)\\-:]|$)"
+            pat=rf"(?im)^\s*(?:exercice|exercise|ex\.?|n[°o]?)\s*[:.\-#]?\s*{exercise}\s*(?:[.)\-:]|$)"
             if not re.search(pat,body):continue
         results.append({"printed_page":printed,"pdf_page":p.pdf_page_index,"text":body,"page_image":f"/api/textbooks/{book.id}/pages/{printed}/image"})
     if not results:
