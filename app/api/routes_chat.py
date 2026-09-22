@@ -4981,6 +4981,7 @@ This block is internal and will be removed before display.
 async def voice_chat(
     audio: Optional[UploadFile] = File(None),
     image: Optional[UploadFile] = File(None),
+    document: Optional[UploadFile] = File(None),
     message: Optional[str] = Form(None),
     student_id: str = Form(...),
     conversation_id: Optional[str] = Form(None),
@@ -5071,6 +5072,53 @@ async def voice_chat(
                 detail=f"خطأ في قراءة الصورة: {exc}",
             ) from exc
  
+    # ==========================================
+    # STUDENT PDF / WORD DOCUMENT
+    # ==========================================
+    if document is not None:
+        import io as _doc_io
+        from pathlib import Path as _DocPath
+        name = _DocPath(document.filename or "").name
+        extension = _DocPath(name).suffix.lower()
+        if extension not in {".pdf", ".docx"}:
+            raise HTTPException(status_code=400, detail="ارفع ملف PDF أو Word بصيغة DOCX.")
+        raw = await document.read(12_000_001)
+        if not raw or len(raw) > 12_000_000:
+            raise HTTPException(status_code=413, detail="الملف فارغ أو يتجاوز 12 MB.")
+        try:
+            if extension == ".pdf":
+                from pypdf import PdfReader as _PdfReader
+                pdf = _PdfReader(_doc_io.BytesIO(raw), strict=False)
+                if pdf.is_encrypted:
+                    raise ValueError("PDF محمي بكلمة مرور.")
+                if len(pdf.pages) > 80:
+                    raise ValueError("الملف أطول من 80 صفحة؛ ارفع الصفحات المطلوبة.")
+                pieces = [f"[PDF page {i+1}]\n{page.extract_text() or ''}" for i, page in enumerate(pdf.pages)]
+            else:
+                from docx import Document as _WordDocument
+                word = _WordDocument(_doc_io.BytesIO(raw))
+                pieces = [p.text for p in word.paragraphs if p.text.strip()]
+                for table in word.tables:
+                    for row in table.rows:
+                        pieces.append(" | ".join(cell.text for cell in row.cells))
+            extracted = "\n".join(pieces).strip()
+            if not extracted:
+                raise ValueError("لم أجد نصًا قابلًا للاستخراج؛ أرسل صورًا واضحة للصفحات المصوّرة.")
+            if len(extracted) > 45_000:
+                raise ValueError("المحتوى طويل جدًا؛ ارفع التمارين أو الصفحات المطلوبة فقط.")
+            message = ((message or "").strip() or "حل التمارين الموجودة في الملف مع المعطيات والمطلوب والقوانين وخطوات الحل والتحقق.") + (
+                "\n\n[STUDENT-UPLOADED DOCUMENT: " + name + "]\n" + extracted +
+                "\n[END STUDENT-UPLOADED DOCUMENT]\n"
+                "اعتمد حصريًا على نص الملف في تحديد التمارين وأرقامها ومعطياتها. "
+                "إذا كان الرسم أو المعادلة غير واضحين أو ناقصين اطلب صورة الصفحة؛ لا تخترع المعطيات. "
+                "حلّ التمارين المطلوبة بالتسلسل: المعطيات، المطلوب، القانون، التعويض، النتيجة والتحقق. "
+                "الملف المرفوع هو مصدر السؤال، ولا تستبدله بتمرين مشابه من Drive."
+            )
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=422, detail=f"تعذّرت قراءة الملف: {exc}") from exc
+
     # ==========================================
     # ACTIVITY MODE
     # ==========================================
