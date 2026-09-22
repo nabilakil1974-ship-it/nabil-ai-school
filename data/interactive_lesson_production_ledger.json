@@ -964,7 +964,18 @@
     }
   ],
   "general_science": {
-    "status": "source_books_to_identify_and_map",
-    "books": []
+    "status": "source_PDFs_identified_for_grades_2_to_6_TOC_not_verified_grade_1_pending",
+    "source_folder_id": "1gJWTNlF4MsZe_HatQBAgPA69A35jtG5h",
+    "books": 13,
+    "inventory_path": "data/grade_subject_source_inventory.json"
+  },
+  "grade_subject_inventory": "data/grade_subject_source_inventory.json",
+  "production_rules": {
+    "grade_first": true,
+    "source_toc_first": true,
+    "only_subjects_with_verified_grade_specific_books": true,
+    "do_not_create_physics_chemistry_biology_for_primary_grades": true,
+    "grade_1_general_science": "source_book_unverified_do_not_assume_absent",
+    "grade_2_to_6_general_science": "source_PDFs_identified_in_Drive_TOCs_pending"
   }
 }
