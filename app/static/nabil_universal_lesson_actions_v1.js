@@ -54,20 +54,35 @@ async function answers(){
  return {cards,images};
 }
 async function exportCards(format,status){
- const {cards,images}=await answers();
- if(!cards.length){status.textContent="اعرض الدرس أو حلّ التمرين أولًا ثم جرّب التصدير.";return;}
+ const v=scope();
  status.textContent="⏳ جارٍ تجهيز "+(format==="pptx"?"PowerPoint":"البطاقة المرجعية")+"…";
  try{
-  const v=scope(),title=[v.grade,v.subject,v.lesson].filter(Boolean).join(" — ")||"درس الأستاذ نبيل";
-  const response=await fetch("/api/lesson-export/cards?format="+format,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title,cards,images,source:"الجواب المعروض للطالب في منصة NABIL AI"})});
-  if(!response.ok)throw Error("HTTP "+response.status);
+  let response;
+  // When a textbook lesson is selected, export the authenticated Drive lesson,
+  // not the unrelated last 20 chat messages or an AI answer about an error.
+  if(v.grade&&v.subject&&v.lesson){
+   const qs=new URLSearchParams({...v,format});
+   response=await fetch("/api/lesson-export/prepared?"+qs.toString());
+   if(!response.ok)throw Error("تعذّر تحميل الدرس الأصلي للتصدير (HTTP "+response.status+"). لم نصدّر محادثة بديلة.");
+  }else{
+   const {cards,images}=await answers();
+   if(!cards.length){status.textContent="اعرض الدرس أو حلّ التمرين أولًا ثم جرّب التصدير.";return;}
+   const title=[v.grade,v.subject,v.lesson].filter(Boolean).join(" — ")||"جواب الأستاذ نبيل";
+   response=await fetch("/api/lesson-export/cards?format="+format,{
+    method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({title,cards,images,source:"بطاقات جواب المحادثة، وليست نسخة موثّقة من الكتاب"})
+   });
+   if(!response.ok)throw Error("HTTP "+response.status);
+  }
   const blob=await response.blob(),url=URL.createObjectURL(blob);
   const a=document.createElement("a");a.href=url;a.target="_blank";a.rel="noopener";
-  if(format==="pptx"){a.download="NABIL_Lesson.pptx";a.click()}else{window.open(url,"_blank","noopener")}
+  if(format==="pptx"){a.download="NABIL_Lesson.pptx";a.click()}
+  else{const opened=window.open(url,"_blank","noopener");if(!opened)status.textContent="اسمح بفتح نافذة البطاقة المرجعية."}
   status.textContent="✓ "+(format==="pptx"?"تم تجهيز PowerPoint":"فُتحت البطاقة المرجعية للطباعة");
   setTimeout(()=>URL.revokeObjectURL(url),120000);
  }catch(e){status.textContent="تعذّر التصدير: "+e.message}
 }
+
 function install(){
  if($("nabilUniversalLessonActions"))return;
  const dock=$("nabilLearningDock"),input=$("messageInput");
