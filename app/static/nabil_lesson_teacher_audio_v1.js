@@ -58,17 +58,29 @@ function init(){
   const s=section();if(!s)return "";
   return [...s.querySelectorAll("h1,h2,p,.formula")].filter(e=>!e.closest("#nabil-teacher-audio")).map(e=>e.innerText.trim()).filter(Boolean).join(". ").slice(0,2400);
  }
+ const terms=[["اثنا عشر","douze"],["مئتين وعشرين","deux cent vingt"],["ثلاثمئة","trois cents"],["ثمانين","quatre-vingts"],["ثمانية وخمسين","cinquante-huit"],["أربعة وعشرين","vingt-quatre"],["أربعين","quarante"],["واحد وخمسين","cinquante et un"],["ألفين ومئة واثنين وثمانين","deux mille cent quatre-vingt-deux"],["صفر فاصلة صفر صفر خمسة خمسة","zéro virgule zéro zéro cinq cinq"],["صفر فاصلة صفر أربعة","zéro virgule zéro quatre"],["صفر فاصلة أربعة وعشرين","zéro virgule vingt-quatre"],["صفر فاصلة اثنين","zéro virgule deux"],["ثمانية فاصلة ثمانية","huit virgule huit"],["خمسة فاصلة خمسة","cinq virgule cinq"],["ثلاثة فاصلة اثنين","trois virgule deux"],["عشرة فاصلة اثنين","dix virgule deux"],["اثنين فاصلة ثمانية عشر","deux virgule dix-huit"],["مئتين","deux cents"],["ميتين","deux cents"],["مئة","cent"],["ثمانية","huit"],["أربعة","quatre"],["ثلاثة","trois"],["اثنين","deux"],["واحد","un"],["خمسة","cinq"],["ستة","six"],["سبعة","sept"],["فولت","volts"],["ميلي أمبير","milliampères"],["أمبير","ampères"],["كيلو أوم","kilo-ohms"],["أوم","ohms"]];
  function speak(t,langOverride){
-  if(!t)return;
-  if(!synth||!window.SpeechSynthesisUtterance){info.textContent="Audio unavailable in this browser";return;}
+  if(!t||!synth||!window.SpeechSynthesisUtterance)return;
   synth.cancel();paused=false;
-  utterance=new SpeechSynthesisUtterance(t);
-  utterance.lang=langOverride|| (select.value==="en"?"en-US":"fr-FR");utterance.rate=.9;
-  const voices=synth.getVoices();
-  const lang=utterance.lang.slice(0,2);
-  const voice=voices.find(v=>v.lang.toLowerCase().startsWith(lang)&&v.localService)||voices.find(v=>v.lang.toLowerCase().startsWith(lang));
-  if(voice)utterance.voice=voice;
-  synth.speak(utterance);
+  const mixed=langOverride==="ar-SA";
+  let spoken=String(t);
+  if(mixed)for(const [ar,fr] of terms.sort((x,y)=>y[0].length-x[0].length))spoken=spoken.split(ar).join(" «"+fr+"» ");
+  const parts=mixed?spoken.split(/(«[^»]+»)/g).filter(Boolean):[spoken];
+  let i=0;
+  const next=()=>{
+   if(i>=parts.length)return;
+   let part=parts[i++],fr=mixed&&part.startsWith("«");
+   if(fr)part=part.slice(1,-1);
+   if(!part.trim()){next();return;}
+   utterance=new SpeechSynthesisUtterance(part);
+   utterance.lang=fr?"fr-FR":(langOverride||(select.value==="en"?"en-US":"fr-FR"));
+   utterance.rate=.9;
+   const lang=utterance.lang.slice(0,2),voices=synth.getVoices();
+   utterance.voice=voices.find(v=>v.lang.toLowerCase().startsWith(lang)&&v.localService)||voices.find(v=>v.lang.toLowerCase().startsWith(lang))||null;
+   utterance.onend=next;
+   synth.speak(utterance);
+  };
+  next();
  }
  function index(){
   const cards=[...document.querySelectorAll("main section.card,main article.card")].filter(e=>e.querySelector("h2"));
