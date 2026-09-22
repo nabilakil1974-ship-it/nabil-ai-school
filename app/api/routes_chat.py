@@ -5936,7 +5936,24 @@ sqrt(496) is NOT 22, and an unverified tangent slope is NOT acceptable.
         elif general_exercises_mode:
             output_budget = 7000
         elif str(teaching_mode or "full_lesson") in {"full_lesson", "board_lesson"}:
-            output_budget = 8500
+            # 2026-09-22 fix: was 8500. Confirmed from a live production log
+            # that Groq's free tier enforces an 8000 tokens-per-minute (TPM)
+            # limit covering PROMPT + COMPLETION together - 8500 alone
+            # already exceeds that limit before a single token of the
+            # lesson_instructions prompt (~960 tokens) or retrieved book
+            # context (up to ~3500 tokens under the 14000-char cap) is even
+            # counted. This made every full-lesson request on Groq
+            # mathematically guaranteed to hit a 413, regardless of how
+            # tightly context was trimmed. 6000 leaves real room for Groq to
+            # actually succeed on most full-lesson requests (minimal-context
+            # ones definitely, larger-context ones fail over to the next
+            # provider via the pre-flight check in ai_gateway.py, rather
+            # than every single one wasting a doomed round-trip on Groq
+            # first). A full lesson's actual content rarely needs more than
+            # this in practice; the AI_GATEWAY pre-flight skip (see
+            # _groq_safe_token_budget) is the real backstop for any request
+            # that's still too large for Groq specifically.
+            output_budget = 6000
         else:
             output_budget = 5200
 
@@ -6301,7 +6318,11 @@ Do not invent hidden data. Return only the missing exercises and their drawing J
             r"(?im)^\s*#{1,4}\s*(?:final\s+answer|réponse\s+finale|الجواب\s+النهائي|rule\s+summary|résumé\s+de\s+la\s+règle|خلاصة\s+القاعدة)\b",
             _rr
         ))
-        _function_study = bool(re.search(
+        _subject_is_math = any(
+            k in str(subject or "").lower()
+            for k in ["رياض", "math", "mathématique"]
+        )
+        _function_study = _subject_is_math and bool(re.search(
             r"study\s+(?:of\s+)?(?:the\s+)?function|étud(?:e|ier).{0,20}fonction|دراسة\s+الدالة|variation\s+table|tableau\s+de\s+variations|جدول\s+التغي",
             _low,
             re.I
@@ -6324,6 +6345,13 @@ Do not invent hidden data. Return only the missing exercises and their drawing J
         )
 
         if _looks_cut and _repair_budget_ok():
+            _function_study_repair_line = (
+                "- If this is a function study: include Domain, Limits, Intercepts, "
+                "Asymptotes, Derivative, Critical Points/Extrema, Monotonicity, a REAL "
+                "Markdown Variation Table, and the actual graph.\n"
+                if _function_study else
+                ""
+            )
             repair_prompt = f"""
 The answer below is incomplete or structurally invalid.
 
@@ -6342,8 +6370,7 @@ Keep the same question, grade, branch and language.
 Mandatory:
 - Never stop at Given, Required, Formula, or halfway through Solution.
 - Finish every requested part and include Final Answer.
-- If this is a function study: include Domain, Limits, Intercepts, Asymptotes, Derivative, Critical Points/Extrema, Monotonicity, a REAL Markdown Variation Table, and the actual graph.
-- If a drawing is required, include valid DRAWINGS_JSON in the same answer.
+{_function_study_repair_line}- If a drawing is required, include valid DRAWINGS_JSON in the same answer.
 - Never return an empty coordinate plane when a function graph was requested.
 - Use the normal complete Solution Board headings for the detected language.
 """.strip()
