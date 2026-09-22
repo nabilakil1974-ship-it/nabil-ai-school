@@ -13,7 +13,7 @@ function render(data,mode,number){
  const chat=document.getElementById("chat");
  if(!chat){window.open(data.url,"_blank","noopener");return;}
  document.getElementById("nabilDriveInteractiveLesson")?.remove();
- const card=document.createElement("section");card.id="nabilDriveInteractiveLesson";
+ const card=document.createElement("section");card.id="nabilDriveInteractiveLesson";card.dataset.lesson="Conducteurs ohmiques";card.dataset.mode=mode;card.dataset.exercise=mode==="exercise"?String(number):"";
  card.style.cssText="width:100%;max-width:100%;box-sizing:border-box;background:#081f34;border:2px solid #37c3e5;border-radius:16px;padding:12px;margin:14px auto;color:#fff";
  const title=document.createElement("strong");
  title.textContent="📘 "+data.title+(mode==="exercise"?" · التمرين "+number:mode==="page"?" · صفحة الكتاب "+number:mode==="worksheet"?" · الورقة التفاعلية":" · الدرس الكامل");
@@ -74,6 +74,20 @@ window.fetch=async function(input,options){
  const url=typeof input==="string"?input:input?.url||"";
  const body=options?.body;
  if(!/\/api\/chat(?:\?|$)/.test(url)||!(body instanceof FormData)||busy)return originalFetch(input,options);
+ const message=String(body.get("message")||"").trim();
+ const active=document.getElementById("nabilDriveInteractiveLesson");
+ const requestedNumber=message.match(/(?:التمرين|تمرين|رقم|exercise|exercice|ex\\.?|number)\\s*(?:رقم|number|no\\.?|n°)?\\s*[:#-]?\\s*(\\d{1,3})/i)?.[1];
+ const isFollowup=/ما فهمت|مش فاهم|ما فهمنا|عيد|اعد|أعد|وضح|وضّح|بسط|بسّط|شرح تاني|explain again|don't understand|didn't understand|reexplain|réexplique|pas compris/i.test(message);
+ if(active&&isFollowup&&(!requestedNumber||String(Number(requestedNumber))===String(Number(active.dataset.exercise)))){
+  // The real AI can clarify the question, but must never replace the verified textbook exercise on screen.
+  if(active.dataset.exercise&&!body.get("lesson"))body.set("lesson",active.dataset.lesson);
+  if(active.dataset.exercise&&!body.get("grade"))body.set("grade","الصف التاسع");
+  if(active.dataset.exercise&&!body.get("subject"))body.set("subject","فيزياء");
+  console.info("[NABIL_HOME_DRIVE] Clarification keeps existing exercise visible",active.dataset.exercise);
+  active.style.outline="3px solid #6fe2b9";
+  active.scrollIntoView({behavior:"smooth",block:"start"});
+  return originalFetch(input,options);
+ }
  const request=classify(body);
  if(!request)return originalFetch(input,options);
  busy=true;
