@@ -13,7 +13,7 @@ function render(data,mode,number){
  const chat=document.getElementById("chat");
  if(!chat){window.open(data.url,"_blank","noopener");return;}
  document.getElementById("nabilDriveInteractiveLesson")?.remove();
- const card=document.createElement("section");card.id="nabilDriveInteractiveLesson";card.dataset.lesson="Conducteurs ohmiques";card.dataset.mode=mode;card.dataset.exercise=mode==="exercise"?String(number):"";
+ const card=document.createElement("section");card.id="nabilDriveInteractiveLesson";card.dataset.lesson=data.title;card.dataset.mode=mode;card.dataset.exercise=mode==="exercise"?String(number):"";
  card.style.cssText="width:100%;max-width:100%;box-sizing:border-box;background:#081f34;border:2px solid #37c3e5;border-radius:16px;padding:12px;margin:14px auto;color:#fff";
  const title=document.createElement("strong");
  title.textContent="📘 "+data.title+(mode==="exercise"?" · التمرين "+number:mode==="page"?" · صفحة الكتاب "+number:mode==="worksheet"?" · الورقة التفاعلية":" · الدرس الكامل");
@@ -193,6 +193,34 @@ window.fetch=async function(input,options){
    else{document.getElementById("nabilExerciseDocumentStatus").textContent="✓ تم إرسال "+sent.name;document.getElementById("nabilExerciseDocumentInput").value="";}
    return response;
   }catch(error){selectedDocument=sent;throw error;}
+ }
+ // Homepage direct chapter request: resolve actual Drive HTML BEFORE AI.
+ // The home screen has no grade/subject selectors, so server matches an exact
+ // verified title across the owner's folders; ambiguous titles never guess.
+ const homeText=String(body.get("message")||"").trim();
+ const homeTitle=homeText.match(/^\\s*(?:chapter|chapitre|الفصل|الدرس)\\s*\\d+\\s*[:.\\-–]?\\s*(.+?)\\s*$/i)?.[1]
+   ||homeText.match(/^\\s*(?:افتح|اعرض|اشرح|open|show|explain)\\s+(?:لي\\s+)?(?:درس|الدرس|lesson|chapter)\\s*[:.\\-–]?\\s*(.+?)\\s*$/i)?.[1];
+ if(homeTitle&&!selectedDocument){
+  try{
+   const q=new URLSearchParams({title:homeTitle});
+   const chosenGrade=field("gradeSelect")||String(body.get("grade")||"");
+   const chosenSubject=field("subjectSelect")||String(body.get("subject")||"");
+   if(chosenGrade)q.set("grade",chosenGrade);
+   if(chosenSubject)q.set("subject",chosenSubject);
+   q.set("language",field("languageSelect")||String(body.get("language")||""));
+   const response=await originalFetch("/api/interactive-lessons/search?"+q,{cache:"no-store"});
+   if(response.ok){
+    const data=await response.json();
+    render(data,"lesson","");
+    console.info("[NABIL_HOME_DRIVE] Exact authored chapter opened without AI",data.title);
+    return new Response(JSON.stringify({
+     conversation_id:String(body.get("conversation_id")||"drive-prepared-lesson"),
+     reply:"📘 فتحت درس "+data.title+" من كتاب الدولة على Google Drive، دون توليد جديد بالذكاء الاصطناعي.",
+     sources:[],drawings:[]
+    }),{status:200,headers:{"Content-Type":"application/json"}});
+   }
+   console.info("[NABIL_HOME_DRIVE] Exact chapter not available",response.status);
+  }catch(error){console.warn("[NABIL_HOME_DRIVE] Exact chapter lookup failed",error);}
  }
  const exact=exactRequest(body);
  if(exact&&!selectedDocument){
