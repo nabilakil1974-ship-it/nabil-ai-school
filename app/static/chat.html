@@ -10499,7 +10499,30 @@ async function nabilFetchChatWithAutoRetry(url, options, language){
                 nabilShowRetryNotice(nabilRetryMessage(language, attempt));
             }
 
-            const response = await fetch(url, options);
+            // Client-side hard ceiling: the backend caps its own work at 55s
+            // (_MAX_REQUEST_SECONDS in routes_chat.py), but nothing on the
+            // frontend previously enforced any limit on the fetch() call
+            // itself - if something upstream stalls before the backend's
+            // own timer even starts (a slow DB connection under load, a
+            // Railway-level delay), the browser would wait indefinitely
+            // with no way for the student to know the request is genuinely
+            // stuck rather than just slow. 90s gives real margin over the
+            // server's 55s cap for network/queueing time, while still
+            // eventually surfacing a real failure instead of an unbounded
+            // silent wait (this is separate from and does not replace a
+            // real fix to reduce actual generation time - it only prevents
+            // the worst case from being indefinite).
+            const nabilChatTimeoutController = new AbortController();
+            const nabilChatTimeoutId = setTimeout(
+                () => nabilChatTimeoutController.abort(),
+                90000
+            );
+            let response;
+            try {
+                response = await fetch(url, { ...options, signal: nabilChatTimeoutController.signal });
+            } finally {
+                clearTimeout(nabilChatTimeoutId);
+            }
             lastResponse = response;
 
             const status = Number(response.status);
