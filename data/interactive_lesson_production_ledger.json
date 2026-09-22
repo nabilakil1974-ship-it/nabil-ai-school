@@ -977,5 +977,24 @@
     "do_not_create_physics_chemistry_biology_for_primary_grades": true,
     "grade_1_general_science": "source_book_unverified_do_not_assume_absent",
     "grade_2_to_6_general_science": "source_PDFs_identified_in_Drive_TOCs_pending"
+  },
+  "current_execution": {
+    "grade": "الصف السابع",
+    "subject": "فيزياء",
+    "chapter": 2,
+    "title_en": "Volume",
+    "title_fr": "Le volume",
+    "english_pdf": "1LasqIgGUuck1l-2EZbj2kA0Dg9ygJ_AH",
+    "french_pdf": "1qJcvdDkytb0UuGZnSwcy8q6mgLtRDV1z",
+    "printed_pages": "19–26",
+    "pdf_pages_en": "19–26",
+    "pdf_pages_fr": "20–27",
+    "source_activities": "1–8",
+    "selected_exercises": "1,2,9,11,14",
+    "draft_filename": "G07-PHYSICS--VOLUME.html",
+    "drive_upload_status": "blocked_by_connector_safety_check",
+    "railway_status": "not_verified",
+    "completion_status": "partial_draft_not_full_exercise_audit",
+    "next": "finish audit all exercises 1–14; upload HTML to owner Grade 7 Drive; test live resolver and both languages; then proceed to Chapter 3"
   }
 }
