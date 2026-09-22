@@ -76,7 +76,7 @@ window.fetch=async function(input,options){
  if(!/\/api\/chat(?:\?|$)/.test(url)||!(body instanceof FormData)||busy)return originalFetch(input,options);
  const message=String(body.get("message")||"").trim();
  const active=document.getElementById("nabilDriveInteractiveLesson");
- const requestedNumber=message.match(/(?:التمرين|تمرين|رقم|exercise|exercice|ex\\.?|number)\\s*(?:رقم|number|no\\.?|n°)?\\s*[:#-]?\\s*(\\d{1,3})/i)?.[1];
+ const requestedNumber=message.match(/(?:التمرين|تمرين|رقم|exercise|exercice|ex\.?|number)\s*(?:رقم|number|no\.?|n°)?\s*[:#-]?\s*(\d{1,3})/i)?.[1];
  const isFollowup=/ما فهمت|مش فاهم|ما فهمنا|عيد|اعد|أعد|وضح|وضّح|بسط|بسّط|شرح تاني|explain again|don't understand|didn't understand|reexplain|réexplique|pas compris/i.test(message);
  if(active&&isFollowup&&(!requestedNumber||String(Number(requestedNumber))===String(Number(active.dataset.exercise)))){
   // The real AI can clarify the question, but must never replace the verified textbook exercise on screen.
