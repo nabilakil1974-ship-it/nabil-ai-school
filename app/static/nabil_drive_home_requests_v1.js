@@ -88,7 +88,7 @@ function installDocumentUpload(){
  button.onclick=()=>picker.click();
  picker.onchange=()=>{
   const file=picker.files?.[0];if(!file)return;
-  if(!/\\.(pdf|docx)$/i.test(file.name)||file.size>12000000){
+  if(!/\.(pdf|docx)$/i.test(file.name)||file.size>12000000){
    alert("ارفع PDF أو DOCX بحجم لا يتجاوز 12 MB.");picker.value="";return;
   }
   selectedDocument=file;label.textContent="📎 "+file.name+" · جاهز للإرسال";
