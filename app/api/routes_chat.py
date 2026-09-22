@@ -46,7 +46,7 @@ from app.db.models import Conversation, Message, Student, BookChunk
 from app.db.student_learning import StudentLearningProfile
 from app.services.ai_gateway import get_ai_gateway
 from app.services.rag_search import search_book_pages, build_context_block, find_nearest_book_exercises
-from app.services.textbook_page_request import parse_textbook_page_request, indexed_textbook_page_context
+from app.services.textbook_page_request import (parse_textbook_page_request, indexed_textbook_page_context, parse_textbook_exercise_request, indexed_textbook_exercise_context)
 from app.services.textbook_scope import resolve_textbook_curriculum
 from app.services.lesson_cache import lesson_cache_key, source_signature, get_cached_lesson, save_cached_lesson
  
@@ -5163,9 +5163,11 @@ async def voice_chat(
     # Voice transcription replaces the initial message: recompute visual-only intent.
     figure_only_request = _nabil_figure_only_request(message)
     _page_request = None
+    _exercise_request = None
     if (str(activity_mode or 'lesson').strip().lower() == 'lesson' and image_bytes is None):
         try:
             _page_request = parse_textbook_page_request(message, book_page or '')
+            _exercise_request = parse_textbook_exercise_request(message)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
@@ -5525,7 +5527,20 @@ the same lesson Visual Engine; never describe it as rendered without one.
             if scoped_chunks is None:
                 raise LookupError("NO_INDEXED_TEXTBOOK_CHUNKS_FOR_SELECTED_SCOPE")
             _rag_started_at = time.monotonic()
-            if _page_request is not None:
+            if _exercise_request is not None:
+                try:
+                    source_chunks = indexed_textbook_exercise_context(
+                        db, grade=str(grade or '').strip(),
+                        subject=str(subject or '').strip(),
+                        curriculum=book_curriculum,
+                        exercise_number=_exercise_request,
+                        printed_page=_page_request[0] if _page_request else None,
+                    )
+                except LookupError as exc:
+                    raise HTTPException(status_code=404, detail='التمرين المطلوب غير موجود في صفحات الكتاب الأصلي المفهرسة. لا أستطيع اختراع نصّه.') from exc
+                except ValueError as exc:
+                    raise HTTPException(status_code=409, detail='رقم التمرين مكرر أو الكتاب غير محدد. حدّد اسم الكتاب ورقم الصفحة المطبوعة.') from exc
+            elif _page_request is not None:
                 _printed_page, _page_mode = _page_request
                 try:
                     source_chunks = indexed_textbook_page_context(
@@ -5698,6 +5713,8 @@ the same lesson Visual Engine; never describe it as rendered without one.
     افحص التعويض والجذور والأسس وحسابات المماس عدديًا قبل إرسالها.
 
     قاعدة المصدر الإلزامية:
+    - مسارات الاسترجاع الثلاثة: الدرس الكامل = بحث فهرسي عن الفصل في الكتاب الأصلي ثم شرح متسلسل؛ الصفحة = مطابقة رقم الصفحة المطبوعة مع PDF الأصلي وعرض محتواها فقط؛ التمرين = مطابقة رقم التمرين الحقيقي في صفحة الكتاب وحل معطياته دون استبداله بتمرين مولّد.
+    - إذا لم تتوفر صفحات الفصل كاملة في المقاطع المسترجعة، لا تدّعِ أنك عرضت الدرس كاملًا؛ صرّح بنطاق الصفحات المتاح.
     - مصدر الكتب هو PDF الأصلي على Google Drive؛ ابحث في الفهرس المستخرج منه والمقيّد بالصف والمادة واللغة، وليس في صفحات دروس HTML ثابتة بالكود.
     - تعرّف إلى هوية الكتاب من رابط Google Drive الأصلي المرفق بالمقاطع؛ لا تنسب محتوى كتاب إلى ملف آخر، ولا تفترض أن النص المفهرس تحديث مباشر من Drive.
     - إذا وُجد محتوى كتاب مرجعي أعلاه، فهو المصدر الأول لمضمون الدرس وترتيبه ومصطلحاته.
