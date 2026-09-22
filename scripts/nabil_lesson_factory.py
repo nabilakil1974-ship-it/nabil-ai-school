@@ -88,7 +88,7 @@ def check_html(html, chapter):
         if not any(t in plain for t in tokens):
             failures.append("MISSING_"+name.upper())
     for n in chapter.get("source_exercises", []):
-        if not re.search(r"(?:exercise|exercice|تمرين)\\s*(?:n[°o.]?\\s*)?"+str(n)+r"\\b", plain, re.I):
+        if not re.search(r"(?:exercise|exercice|تمرين)\s*(?:n[°o.]?\s*)?"+str(n)+r"\b", plain, re.I):
             failures.append("SOURCE_EXERCISE_"+str(n)+"_NOT_VERIFIABLE")
     figures = soup.select("svg,img,canvas")
     if not figures:
