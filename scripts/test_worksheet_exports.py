@@ -61,6 +61,27 @@ class WorksheetExportTests(unittest.TestCase):
         data = _pdf_bytes(request)
         self.assertTrue(data.startswith(b"%PDF"))
 
+    def test_lesson_pptx_contains_real_figures_and_transitions(self):
+        from app.api.routes_lesson_export import Cards, _pptx, _source_image
+        from fastapi.responses import StreamingResponse
+        from bs4 import BeautifulSoup
+        svg = BeautifulSoup(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="160" height="90">'
+            '<rect width="160" height="90" fill="#35aeea"/></svg>', "html.parser"
+        ).find("svg")
+        image = _source_image(svg)
+        self.assertIsNotNone(image, "SVG figures must render, not disappear")
+        response = _pptx(Cards(title="Physics", cards=["Water stays level"],
+                               images=[[image]]))
+        self.assertIsInstance(response, StreamingResponse)
+        data = response.body_iterator
+        self.assertTrue(hasattr(data, "getvalue"))
+        with ZipFile(io.BytesIO(data.getvalue())) as archive:
+            self.assertTrue(any(n.startswith("ppt/media/") for n in archive.namelist()))
+            slides = [n for n in archive.namelist()
+                      if n.startswith("ppt/slides/slide") and n.endswith(".xml")]
+            self.assertTrue(any(b"<p:fade" in archive.read(n) for n in slides))
+
     def test_pdf_is_real_pdf(self):
         data = _pdf_bytes(self.request)
         self.assertTrue(data.startswith(b"%PDF"))
