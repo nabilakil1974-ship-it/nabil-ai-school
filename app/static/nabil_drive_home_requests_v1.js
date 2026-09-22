@@ -29,7 +29,18 @@ function render(data,mode,number){
  const full=document.createElement("button");full.type="button";full.textContent="📚 الدرس كاملًا";
  full.style.cssText=sheet.style.cssText;
  full.onclick=()=>{const u=new URL(data.url,location.origin);for(const key of ["exercise","page","worksheet"])u.searchParams.delete(key);frame.src=u.pathname+u.search;link.href=frame.src;};
- card.append(title,frame,link,sheet,full);chat.append(card);card.scrollIntoView({behavior:"smooth",block:"start"});
+ const exportPpt=document.createElement("button");exportPpt.type="button";exportPpt.textContent="📊 PowerPoint للدرس";exportPpt.style.cssText=sheet.style.cssText;
+ const reference=document.createElement("button");reference.type="button";reference.textContent="🗂️ البطاقة المرجعية للطباعة";reference.style.cssText=sheet.style.cssText;
+ function exportPrepared(format){
+  const u=new URL("/api/lesson-export/prepared",location.origin);
+  for(const key of ["grade","subject","lesson","language"])u.searchParams.set(key,new URL(data.url,location.origin).searchParams.get(key)||"");
+  u.searchParams.set("format",format);
+  if(format==="pptx")location.href=u.pathname+u.search;
+  else window.open(u.pathname+u.search,"_blank","noopener");
+ }
+ exportPpt.onclick=()=>exportPrepared("pptx");
+ reference.onclick=()=>exportPrepared("reference");
+ card.append(title,frame,link,sheet,full,exportPpt,reference);chat.append(card);card.scrollIntoView({behavior:"smooth",block:"start"});
 }
 function classify(body){
  const message=String(body.get("message")||"").trim();
@@ -111,7 +122,7 @@ function batchInstruction(items,grade,original){
  "\n[END USER TEXT]\nطلب الطالب "+items.length+" تمارين مستقلة بالترتيب التالي:\n"+
  items.map((item,i)=>(i+1)+". "+item.name+" — التمرين "+item.number).join("\n")+
  "\nالصف المحدد: "+(grade||"غير محدد")+
- "\nتعليمات إلزامية: لا تخلط المواد ولا تغيّر أرقام التمارين أو ترتيبها. ضع عنوانًا واضحًا لكل مادة ورقم تمرين، واستخرج السؤال الحقيقي من كتاب تلك المادة والصف إذا كان متاحًا وموثقًا؛ إذا لم تتمكن من تحديد نص تمرين بعينه فلا تخترع معطياته أو حلًا مفترضًا، بل اطلب صورة التمرين أو اسم الكتاب/الصف عند الحاجة. لا تعتبر الدرس المحدد في واجهة مادة أخرى مصدرًا لجميع التمارين. كل تمرين ببطاقة مستقلة ورسوماته وخطواته العلمية الصحيحة؛ استخدم LaTeX للكسور والجذور والأسس والوحدات. فهم العامية مسموح، أما قراءة الأعداد بالعربية فصيحة: اثنا عشر لا اتناش. الصوت لا يقرأ علامات LaTeX أو شرطات أو أوامر تنسيق.\n";
+ "\nتعليمات إلزامية: لا تخلط المواد ولا تغيّر أرقام التمارين أو ترتيبها. ضع عنوانًا واضحًا لكل مادة ورقم تمرين، واستخرج السؤال الحقيقي من كتاب تلك المادة والصف إذا كان متاحًا وموثقًا؛ إذا لم تتمكن من تحديد نص تمرين بعينه فلا تخترع معطياته أو حلًا مفترضًا، بل اطلب صورة التمرين أو اسم الكتاب/الصف عند الحاجة. لا تعتبر الدرس المحدد في واجهة مادة أخرى مصدرًا لجميع التمارين. كل تمرين ببطاقة مستقلة ورسوماته وخطواته العلمية الصحيحة؛ استخدم LaTeX للكسور والجذور والأسس والوحدات. فهم العامية مسموح، أما الأعداد والوحدات العلمية فتُقرأ بلغة الكتاب، والشرح العربي بالفصحى. الصوت لا يقرأ علامات LaTeX أو شرطات أو أوامر تنسيق.\n";
 }
 // PDF/Word exercise upload uses the existing /api/chat conversation and textbook RAG.
 let selectedDocument=null;
