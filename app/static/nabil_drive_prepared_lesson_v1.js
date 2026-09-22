@@ -58,8 +58,12 @@ function ensureShelf(){
  shelf.id="nabilPreparedDriveShelf";
  shelf.setAttribute("aria-label","الدروس المحضّرة من Google Drive");
  shelf.style.cssText="box-sizing:border-box;display:block;width:100%;max-width:100%;min-width:0;grid-column:1/-1;flex:1 1 100%;margin:12px 0;padding:12px;border:2px solid #39c5e4;border-radius:14px;background:#0b2842;color:white;overflow-wrap:anywhere";
- anchor.closest("section,fieldset,.card")?.append(shelf);
- if(!shelf.isConnected)anchor.parentElement?.append(shelf);
+ // Place beside the lesson selector, not inside an ancestor that the curriculum UI hides.
+ // A hidden shelf made existing Grade 7 Physics HTML appear absent to students.
+ const stage=anchor.closest(".selection-stage");
+ const target=stage||anchor.parentElement;
+ if(target?.parentElement)target.insertAdjacentElement("afterend",shelf);
+ else (target||document.body).append(shelf);
  return shelf;
 }
 function renderShelf(lessons,grade,subject){
@@ -131,13 +135,14 @@ async function refreshPreparedLessons(){
  const seq=++availableSeq;
  const grade=field("gradeSelect"),subject=field("subjectSelect");
  const select=document.getElementById("lessonSelect");
- if(!grade||!subject||!select)return;
+ if(!grade||!subject)return;
  try{
   const q=new URLSearchParams({grade,subject});
   const res=await nativeFetch("/api/interactive-lessons/available?"+q,{cache:"no-store"});
   if(!res.ok)throw Error("HTTP "+res.status);
   const data=await res.json();
   if(seq!==availableSeq||grade!==field("gradeSelect")||subject!==field("subjectSelect"))return;
+  if(!select){renderShelf(data.lessons||[],grade,subject);return;}
   select.querySelectorAll("option[data-nabil-drive-prepared]").forEach(o=>o.remove());
   const normalize=t=>String(t||"").trim().toLocaleLowerCase();
   for(const lesson of data.lessons||[]){
