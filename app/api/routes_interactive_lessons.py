@@ -124,8 +124,14 @@ def _entry(file, grade="", subject=""):
         title = match.group(2) if match else stem
         grade = match.group(1) if match else grade
     title = re.sub(r"[-_ ]+(?:BILINGUAL|FRANCAIS|ENGLISH)$", "", title, flags=re.I)
+    aliases = []
+    # The CRDP selector and the authored HTML name the same G07 chapter differently.
+    if _grade(grade) == "7" and _subject(subject) == "physics" and _norm(title) == _norm("Solids and Liquids"):
+        aliases = ["Solid and liquid states", "Solids and liquids",
+                   "Les états solide et liquide", "Solides et liquides"]
     return {"grade": grade, "subject": subject, "lesson": title.replace("-", " "),
-            "drive_file_id": file["id"], "filename": file["name"], "language": ""}
+            "aliases": aliases, "drive_file_id": file["id"],
+            "filename": file["name"], "language": ""}
 
 
 def _owner_entries(service):
