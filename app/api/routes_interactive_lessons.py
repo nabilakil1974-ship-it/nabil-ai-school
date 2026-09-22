@@ -143,7 +143,7 @@ def _owner_entries(service):
     for grade_folder in _list_children(service, root):
         if grade_folder.get("mimeType") != "application/vnd.google-apps.folder":
             continue
-        match = re.search(r"(?:grade|صف)\\s*0?(\\d{1,2})", grade_folder["name"], re.I)
+        match = re.search(r"(?:grade|صف)\s*0?(\d{1,2})", grade_folder["name"], re.I)
         if not match:
             continue
         grade = match.group(1)
