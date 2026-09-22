@@ -253,7 +253,7 @@ def view(grade: str, subject: str, lesson: str, language: str = "", trace: str =
                 html = re.sub(r"</body>", '<script src="/static/nabil_lesson_focus_v1.js?v=1"></script></body>', html, count=1, flags=re.I)
         # Keep the bilingual toggle visible while students scroll to exercises.
         if 'id="lesson-language"' in html and "</body>" in html.lower():
-            html = re.sub(r"</body>", '<script src="/static/nabil_lesson_sticky_language_v1.js?v=1"></script><script src="/static/nabil_lesson_teacher_audio_v1.js?v=4"></script></body>', html, count=1, flags=re.I)
+            html = re.sub(r"</body>", '<script src="/static/nabil_lesson_sticky_language_v1.js?v=1"></script><script src="/static/nabil_lesson_teacher_audio_v1.js?v=5"></script></body>', html, count=1, flags=re.I)
         log.info("DRIVE_LESSON_VIEW_OK trace=%s file=%s bytes=%d", trace, item["drive_file_id"], len(html.encode("utf-8")))
         return HTMLResponse(html, headers={
             "Cache-Control": "private, no-store",
