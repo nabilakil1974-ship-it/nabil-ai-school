@@ -39,7 +39,10 @@ document.addEventListener("click",async event=>{
     open.href=data.url;open.target="_blank";open.rel="noopener";
     open.textContent="↗ افتح الدرس بصفحة كاملة";
     open.style.cssText="display:inline-block;margin:10px 0;color:#8eeaff";
-    card.append(title,frame,open);
+    const hint=document.createElement("p");
+    hint.textContent="💬 الدرس جاهز من Google Drive؛ اسأل نبيل في خانة المحادثة لأي شرح إضافي أو تفاعل بالذكاء الاصطناعي.";
+    hint.style.cssText="color:#a8eaff;font-size:14px;margin:8px 0";
+    card.append(title,frame,open,hint);
     chat.append(card);card.scrollIntoView({behavior:"smooth",block:"start"});
     return;
    }
