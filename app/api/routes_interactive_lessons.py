@@ -282,6 +282,27 @@ def diagnose(grade: str, subject: str, lesson: str, language: str = ""):
         log.exception("DRIVE_LESSON_DIAGNOSTIC_FAILED trace=%s", trace)
         return {"trace": trace, "found": False, "steps": steps}
 
+@router.get("/available")
+def available(grade: str, subject: str):
+    """Live prepared lessons for the selected grade/subject; never invent titles."""
+    try:
+        entries = [item for item in _entries()
+                   if _grade(item.get("grade")) == _grade(grade)
+                   and _subject(item.get("subject")) == _subject(subject)]
+        seen = set()
+        lessons = []
+        for item in entries:
+            key = _norm(item["lesson"])
+            if key not in seen:
+                seen.add(key)
+                lessons.append({"title": item["lesson"], "filename": item.get("filename", "")})
+        return {"grade": grade, "subject": subject, "lessons": lessons,
+                "source": "google_drive", "count": len(lessons)}
+    except Exception as exc:
+        log.exception("DRIVE_AVAILABLE_FAILED")
+        raise HTTPException(503, detail={"reason": type(exc).__name__})
+
+
 @router.get("/resolve")
 def resolve(grade: str, subject: str, lesson: str, language: str = ""):
     trace = uuid.uuid4().hex[:12]
