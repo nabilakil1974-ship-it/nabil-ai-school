@@ -301,7 +301,7 @@ def available(grade: str, subject: str):
             key = _norm(item["lesson"])
             if key not in seen:
                 seen.add(key)
-                lessons.append({"title": item["lesson"], "filename": item.get("filename", "")})
+                lessons.append({"title": item["lesson"], "aliases": item.get("aliases", []), "filename": item.get("filename", "")})
         return {"grade": grade, "subject": subject, "lessons": lessons,
                 "source": "google_drive", "count": len(lessons)}
     except Exception as exc:
