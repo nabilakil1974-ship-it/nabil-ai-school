@@ -354,6 +354,23 @@ class NabilUiIntegrationTests(unittest.TestCase):
         self.assertIn("renderNabilDiagram", tutor)
         self.assertNotIn("invent", tutor.lower().split("renderNabilDiagram",1)[0][-500:])
 
+    def test_phone_home_tutor_has_no_fixed_overlay_or_clipped_send(self):
+        css = (STATIC / "nabil_reference_theme.css").read_text(encoding="utf-8")
+        block = css.split("PHONE HOME FIT V3:", 1)[1]
+        for token in (
+            "max-width:900px",
+            "#nabilHomeTutorHost #nabilOpenTutor",
+            "#nabilHomeTutorHost #nabilOpenInput",
+            "#nabilHomeTutorHost #nabilOpenVoiceUpload",
+            "#nabilHomeTutorHost #nabilOpenSend",
+            "grid-column:1/-1!important",
+            "#nabilHome #homeStartShortcut",
+            "position:relative!important",
+            "overflow:visible!important",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, block)
+
     def test_learning_dock_is_real_and_in_normal_flow(self):
         css = (STATIC / "nabil_reference_theme.css").read_text(encoding="utf-8")
         js = (STATIC / "nabil_learning_v132.js").read_text(encoding="utf-8")
