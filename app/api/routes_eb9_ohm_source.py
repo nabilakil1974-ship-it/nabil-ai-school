@@ -26,7 +26,7 @@ def _page(db, book, printed):
         raise HTTPException(404 if not matches else 409, "Printed page not uniquely verified in the original indexed EB 09.pdf.")
     p=matches[0]
     chunks=db.query(BookChunk).filter(BookChunk.book_id==book.id,BookChunk.printed_page_number==p.printed_page_number).order_by(BookChunk.chunk_index_in_page.asc()).all()
-    content="\\n".join(c.text_content for c in chunks if c.text_content).strip() or (p.text_content or "").strip()
+    content="\n".join(c.text_content for c in chunks if c.text_content).strip() or (p.text_content or "").strip()
     return p,content
 
 @router.get("/eb9-ohm/source")
