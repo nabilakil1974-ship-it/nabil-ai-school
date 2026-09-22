@@ -129,23 +129,29 @@ def _entry(file, grade="", subject=""):
 
 
 def _owner_entries(service):
-    """Live ROOT / Grade / Subject discovery, no hard-coded lesson IDs."""
+    """Discover HTML immediately from owner ROOT / Grade [/ Subject].
+
+    Supports HTML directly in Grade 7 (the owner's current layout), as well
+    as future Physics/Math/etc subfolders. Filenames G07-PHYSICS--TITLE.html
+    carry their own grade and subject; nested files may inherit the folder.
+    """
     root = os.getenv("NABIL_INTERACTIVE_CURRICULUM_ROOT_ID", _OWNER_ROOT).strip()
     entries = []
     for grade_folder in _list_children(service, root):
         if grade_folder.get("mimeType") != "application/vnd.google-apps.folder":
             continue
-        match = re.search(r"(?:grade|صف)\s*0?(\d{1,2})", grade_folder["name"], re.I)
+        match = re.search(r"(?:grade|صف)\\s*0?(\\d{1,2})", grade_folder["name"], re.I)
         if not match:
             continue  # e.g. 00 - Curriculum Index
         grade = match.group(1)
-        for subject_folder in _list_children(service, grade_folder["id"]):
-            if subject_folder.get("mimeType") != "application/vnd.google-apps.folder":
-                continue
-            subject = subject_folder["name"].split("-", 1)[0].strip()
-            for file in _list_children(service, subject_folder["id"]):
-                if file["name"].lower().endswith(".html"):
-                    entries.append(_entry(file, grade, subject))
+        for child in _list_children(service, grade_folder["id"]):
+            if child["name"].lower().endswith(".html"):
+                entries.append(_entry(child, grade))
+            elif child.get("mimeType") == "application/vnd.google-apps.folder":
+                subject = child["name"].split("-", 1)[0].strip()
+                for file in _list_children(service, child["id"]):
+                    if file["name"].lower().endswith(".html"):
+                        entries.append(_entry(file, grade, subject))
     return entries
 
 
@@ -253,7 +259,7 @@ def diagnose(grade: str, subject: str, lesson: str, language: str = ""):
                 continue
             if _norm(lesson) not in {_norm(x) for x in [item["lesson"]] + list(item.get("aliases") or [])}:
                 continue
-            if language and item.get("language") and _norm(language) != _norm(item["language"]):
+            if language and item.get("language") and not item.get("bilingual") and _norm(language) != _norm(item["language"]):
                 continue
             matches.append(item)
         step("TITLE_MATCH", count=len(matches),
