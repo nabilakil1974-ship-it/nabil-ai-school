@@ -1423,3 +1423,86 @@ body.nabil-projector-mode img{
  box-shadow:0 6px 22px #0004!important;
 }
 #nabilLearningDock .nv132-header strong{color:#f2c9ff!important}
+
+/* PHONE HOME FIT V1 — remove desktop-sized empty stage on narrow screens.
+   Keep real lessons, scientific diagrams and responses full width and scrollable. */
+@media screen and (max-width:900px){
+ html,body{width:100%!important;max-width:100%!important;overflow-x:clip!important}
+ #nabilHome,#nabilHomeTutorHost,#nabilHomeTutorHost #nabilOpenTutor{
+  width:100%!important;max-width:100%!important;min-width:0!important;
+  box-sizing:border-box!important;
+ }
+ #nabilHome{
+  position:relative!important;inset:auto!important;transform:none!important;
+  height:auto!important;min-height:0!important;max-height:none!important;
+  padding:6px!important;margin:0!important;gap:6px!important;
+  overflow:visible!important;justify-content:flex-start!important;
+ }
+ #nabilHomeTutorHost,#nabilHomeTutorHost:has(#nabilOpenAnswer.has-answer){
+  position:relative!important;inset:auto!important;transform:none!important;
+  height:auto!important;min-height:0!important;max-height:none!important;
+  margin:0!important;padding:0!important;overflow:visible!important;
+ }
+ #nabilHomeTutorHost #nabilOpenTutor{
+  position:relative!important;inset:auto!important;transform:none!important;
+  height:auto!important;min-height:0!important;max-height:none!important;
+  gap:6px!important;padding:8px!important;overflow:visible!important;
+ }
+ #nabilHomeTutorHost .nabil-open-head{
+  min-height:0!important;height:auto!important;max-height:none!important;
+  gap:4px!important;margin:0!important;padding:0!important;
+ }
+ #nabilHomeTutorHost .nabil-open-head .nabil-open-mini-avatar{
+  height:clamp(90px,28vw,145px)!important;
+  max-height:145px!important;min-height:0!important;
+  width:min(100%,180px)!important;max-width:180px!important;
+  margin:0 auto!important;object-fit:contain!important;
+ }
+ #nabilHomeTutorHost .nabil-open-conversation:empty,
+ #nabilHomeTutorHost #nabilOpenVisuals[hidden],
+ #nabilHomeTutorHost #nabilOpenAnswer:not(.has-answer){
+  display:none!important;min-height:0!important;height:0!important;
+  margin:0!important;padding:0!important;border:0!important;
+ }
+ #nabilHomeTutorHost #nabilOpenVisuals:not(:has(svg,canvas,img,iframe,.nabil-open-visual)){
+  display:none!important;min-height:0!important;height:0!important;
+  margin:0!important;padding:0!important;border:0!important;
+ }
+ #nabilHomeTutorHost #nabilOpenVisuals:has(svg,canvas,img,iframe,.nabil-open-visual){
+  display:block!important;min-height:0!important;height:auto!important;
+ }
+ #nabilHomeTutorHost #nabilOpenAnswer.has-answer{
+  display:block!important;height:auto!important;min-height:0!important;
+  max-width:100%!important;overflow-x:auto!important;
+ }
+ #nabilHomeTutorHost .nabil-open-composer{
+  width:100%!important;min-width:0!important;max-width:100%!important;
+  display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+  gap:7px!important;padding:0!important;margin:0!important;
+ }
+ #nabilHomeTutorHost #nabilOpenInput{
+  grid-column:1/-1!important;width:100%!important;max-width:100%!important;
+  min-width:0!important;min-height:62px!important;height:70px!important;
+  box-sizing:border-box!important;font-size:16px!important;
+ }
+ #nabilHomeTutorHost #nabilOpenTalk,
+ #nabilHomeTutorHost #nabilOpenSend,
+ #homeStartShortcut,#homeVoiceBtn{
+  min-width:0!important;max-width:100%!important;
+  box-sizing:border-box!important;white-space:normal!important;
+  font-size:clamp(13px,3.7vw,17px)!important;
+ }
+ #nabilHomeTutorHost .nabil-open-tools{
+  width:100%!important;max-width:100%!important;min-width:0!important;
+  display:flex!important;flex-wrap:wrap!important;gap:6px!important;
+ }
+ #nabilHomeTutorHost .nabil-open-tools>*{min-width:0!important;max-width:100%!important}
+ #nabilHomeTutorHost svg,#nabilHomeTutorHost img,
+ #nabilHomeTutorHost canvas{max-width:100%!important}
+}
+@media screen and (max-width:390px){
+ #nabilHomeTutorHost #nabilOpenTutor{padding:6px!important}
+ #nabilHomeTutorHost .nabil-open-head .nabil-open-mini-avatar{
+  height:105px!important;max-height:105px!important;
+ }
+}
