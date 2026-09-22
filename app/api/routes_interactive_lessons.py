@@ -327,7 +327,7 @@ def drive_status():
 @router.get("/search")
 def search_prepared(title: str, grade: str = "", subject: str = "", language: str = ""):
     """Resolve an explicitly named textbook lesson from homepage, without AI."""
-    wanted = re.sub(r"^\\s*(?:chapter|chapitre|الفصل|الدرس)\\s*\\d+\\s*[:.\\-–]?\\s*", "", title, flags=re.I)
+    wanted = re.sub(r"^\s*(?:chapter|chapitre|الفصل|الدرس)\s*\d+\s*[:.\-–]?\s*", "", title, flags=re.I)
     if len(wanted.strip()) < 4:
         raise HTTPException(400, "Lesson title required.")
     matches = []
