@@ -69,16 +69,28 @@ async function refreshPreparedLessons(){
   trace("DRIVE_LESSONS_IN_SELECTOR",String((data.lessons||[]).length));
  }catch(error){trace("DRIVE_LESSON_SELECTOR_UNAVAILABLE",error.message||"network");}
 }
-for(const id of ["gradeSelect","subjectSelect"]){
- document.getElementById(id)?.addEventListener("change",()=>{
+// Delegation survives a curriculum UI that creates/replaces selectors after load.
+document.addEventListener("change",event=>{
+ if(["gradeSelect","subjectSelect","languageSelect"].includes(event.target?.id)){
   refreshPreparedLessons();
   setTimeout(refreshPreparedLessons,350);
   setTimeout(refreshPreparedLessons,1100);
- });
+ }
+},true);
+let lastSelectorSignature="";
+async function refreshIfSelectorChanged(){
+ const select=document.getElementById("lessonSelect");
+ const signature=[field("gradeSelect"),field("subjectSelect"),
+   select?.options?.length||0,[...(select?.options||[])].filter(o=>!o.dataset.nabilDrivePrepared).map(o=>o.value).join("|")].join("::");
+ if(signature!==lastSelectorSignature){
+  lastSelectorSignature=signature;
+  await refreshPreparedLessons();
+ }
 }
 if(document.readyState==="loading")
- document.addEventListener("DOMContentLoaded",()=>setTimeout(refreshPreparedLessons,400));
-else setTimeout(refreshPreparedLessons,400);
+ document.addEventListener("DOMContentLoaded",()=>setTimeout(refreshIfSelectorChanged,400));
+else setTimeout(refreshIfSelectorChanged,400);
+setInterval(refreshIfSelectorChanged,4000);
 
 document.addEventListener("click",async event=>{
  const start=event.target?.closest?.("#startLesson");
