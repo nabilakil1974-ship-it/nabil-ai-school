@@ -94,7 +94,8 @@ def _entries():
                     title = re.sub(r"[-_ ]+(?:BILINGUAL|FRANCAIS|ENGLISH)$", "", title, flags=re.I)
                     items.append({"grade": grade, "subject": subject,
                                   "lesson": title.replace("-", " "),
-                                  "drive_file_id": file["id"], "language": ""})
+                                  "drive_file_id": file["id"], "language": "",
+                                  "filename": file["name"]})
             token = result.get("nextPageToken")
             if not token:
                 break
@@ -117,7 +118,11 @@ def _resolve(grade, subject, lesson, language):
             continue
         matches.append(item)
     if len(matches) > 1:
-        raise HTTPException(409, "Multiple prepared lessons match; specify the language and textbook.")
+        bilingual = [x for x in matches if x.get("bilingual") or "BILINGUAL" in str(x.get("filename", "")).upper()]
+        if len(bilingual) == 1:
+            matches = bilingual
+        else:
+            raise HTTPException(409, "Multiple prepared lessons match; specify the language and textbook.")
     if not matches:
         raise HTTPException(404, "No prepared interactive lesson in the configured Google Drive collection.")
     return matches[0]
