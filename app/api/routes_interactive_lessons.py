@@ -429,6 +429,16 @@ def view(grade: str, subject: str, lesson: str, language: str = "", trace: str =
         # Color-code full concepts and textbook exercises while keeping their figures and solutions together.
         if "</head>" in html.lower():
             html = re.sub(r"</head>", '<link rel="stylesheet" href="/static/nabil_lesson_color_cards_v1.css?v=1"></head>', html, count=1, flags=re.I)
+        # Add a source-labeled, local interactive physics laboratory to the served
+        # Grade 7 chapter without modifying the authored Drive HTML.
+        if (_grade(grade) == "7" and _subject(subject) == "physics"
+                and _norm(item["lesson"]) == _norm("Solids and Liquids")
+                and "</body>" in html.lower()):
+            html = re.sub(
+                r"</body>",
+                '<script src="/static/nabil_g7_physics_lab_v1.js?v=1"></script></body>',
+                html, count=1, flags=re.I,
+            )
         # Optional precise focus; the lesson HTML remains the verified Drive original.
         if exercise is not None or page is not None or worksheet is not None:
             if sum(x is not None for x in (exercise, page, worksheet)) > 1:
