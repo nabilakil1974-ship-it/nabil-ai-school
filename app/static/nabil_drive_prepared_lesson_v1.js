@@ -48,6 +48,16 @@ document.addEventListener("click",async event=>{
  start.textContent="📚 عم فتّش عن الدرس التفاعلي على Google Drive…";
  try{
   const qs=new URLSearchParams({grade,subject,lesson,language:field("languageSelect")});
+  if(debug){
+   trace("DIAGNOSTIC_REQUEST","Live Drive check; no AI");
+   try{
+    const check=await nativeFetch("/api/interactive-lessons/diagnose?"+qs);
+    trace("DIAGNOSTIC_HTTP",String(check.status));
+    const report=await check.json();
+    trace("DIAGNOSTIC_TRACE",report.trace||"none");
+    for(const item of report.steps||[])trace("STEP "+item.step+" "+item.stage,JSON.stringify(item));
+   }catch(error){trace("DIAGNOSTIC_FAILED",error?.message||"network");}
+  }
   const response=await fetch("/api/interactive-lessons/resolve?"+qs);
   trace("DRIVE_LOOKUP_HTTP",String(response.status));
   if(response.ok){
