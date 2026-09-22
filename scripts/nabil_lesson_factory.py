@@ -36,19 +36,36 @@ REQUIRED = {
 }
 
 def drive(write=False):
-    """Use the same service account as the application; do not expose secrets."""
+    """Read with the existing service account; write as the owner's OAuth user.
+
+    Service accounts have no My Drive storage quota, even with Editor access.
+    Never print OAuth tokens or fall back to service-account uploads.
+    """
     from scripts.index_books import get_drive_service
-    service = get_drive_service()
-    if write:
-        from google.oauth2 import service_account
-        from googleapiclient.discovery import build
-        from app.core.config import settings
-        raw = (settings.GOOGLE_DRIVE_CREDENTIALS_JSON or "").strip()
-        scopes = ["https://www.googleapis.com/auth/drive"]
-        creds = (service_account.Credentials.from_service_account_info(json.loads(raw), scopes=scopes)
-                 if raw else service_account.Credentials.from_service_account_file("drive_service_account.json", scopes=scopes))
-        service = build("drive", "v3", credentials=creds)
-    return service
+    if not write:
+        return get_drive_service()
+
+    from google.oauth2.credentials import Credentials
+    from google.auth.transport.requests import Request
+    from googleapiclient.discovery import build
+    client_id = os.getenv("GOOGLE_DRIVE_OAUTH_CLIENT_ID", "").strip()
+    client_secret = os.getenv("GOOGLE_DRIVE_OAUTH_CLIENT_SECRET", "").strip()
+    refresh_token = os.getenv("GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN", "").strip()
+    if not all((client_id, client_secret, refresh_token)):
+        raise RuntimeError(
+            "OWNER_OAUTH_REQUIRED: configure GOOGLE_DRIVE_OAUTH_CLIENT_ID, "
+            "GOOGLE_DRIVE_OAUTH_CLIENT_SECRET and GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN "
+            "in the nabil-ai-school Railway service; service accounts cannot "
+            "create files in personal My Drive."
+        )
+    credentials = Credentials(
+        token=None, refresh_token=refresh_token,
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=client_id, client_secret=client_secret,
+        scopes=["https://www.googleapis.com/auth/drive"],
+    )
+    credentials.refresh(Request())
+    return build("drive", "v3", credentials=credentials, cache_discovery=False)
 
 def children(service, folder):
     token = None
