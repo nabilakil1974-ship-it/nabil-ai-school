@@ -12,7 +12,8 @@
   "status_definitions": {
     "registered_in_manifest_not_live_verified": "PDF mapped in repository only",
     "authored_not_live_verified": "HTML prepared; not proven on Railway",
-    "verified_complete": "All source lessons authored and end-to-end verified"
+    "verified_complete": "All source lessons authored and end-to-end verified",
+    "authored_uploaded_not_live_verified": "Source-based HTML uploaded to Drive, Railway end-to-end not yet verified"
   },
   "books": [
     {
@@ -24,8 +25,38 @@
       "language": "English",
       "index_manifest": "data/physics_textbooks_manifest.json",
       "book_status": "registered_in_manifest_not_live_verified",
-      "chapters_status": "awaiting_source_toc_verification",
-      "authored_lessons": [],
+      "chapters_status": "chapter_1_verified_from_source_pages_13_to_17_remaining_chapters_pending",
+      "authored_lessons": [
+        {
+          "title": "Solids and Liquids",
+          "chapter": 1,
+          "source_printed_pages": "13-17",
+          "source_pdf_pages": "13-17",
+          "source_exercises": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "drive_html_id": "1tEPcbUBaPvIblK-4Zo3rXb31lqUE0tCN",
+          "status": "authored_uploaded_not_live_verified",
+          "figures": "explanatory_redrawings_not_scans",
+          "lesson_components": [
+            "objectives",
+            "source_activities_1_to_4",
+            "interactive_check",
+            "textbook_exercises_1_to_6",
+            "solutions",
+            "quiz",
+            "final_reference_card",
+            "bilingual_english_french",
+            "mobile_responsive",
+            "print_pdf"
+          ]
+        }
+      ],
       "verified_complete": false
     },
     {
