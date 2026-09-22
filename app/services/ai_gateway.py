@@ -966,6 +966,10 @@ class NabilAIGateway:
             ),
         }
 
+        # Measure the complete provider chain, including failed fallbacks.
+        # This is essential for distinguishing slow generation from repeated
+        # provider timeouts without logging student prompts or API keys.
+        chain_started_at = time.monotonic()
         for provider in self.provider_order:
             if deadline is not None and time.monotonic() >= deadline - 2.0:
                 logger.warning("FAST_LESSON_PROVIDER_BUDGET_EXHAUSTED")
@@ -996,11 +1000,27 @@ class NabilAIGateway:
             if handler is None:
                 continue
 
-            result = handler()
+            provider_started_at = time.monotonic()
+            try:
+                result = handler()
+            finally:
+                provider_elapsed_ms = round((time.monotonic() - provider_started_at) * 1000)
+                logger.info(
+                    "AI_PROVIDER_TIMING provider=%s elapsed_ms=%d",
+                    provider, provider_elapsed_ms,
+                )
 
             if result:
+                logger.info(
+                    "AI_PROVIDER_CHAIN_SUCCESS provider=%s total_ms=%d",
+                    provider, round((time.monotonic() - chain_started_at) * 1000),
+                )
                 return result
 
+        logger.warning(
+            "AI_PROVIDER_CHAIN_FAILED total_ms=%d",
+            round((time.monotonic() - chain_started_at) * 1000),
+        )
         if debug_errors:
             logger.error(
                 "All AI providers failed. Errors: %s",
