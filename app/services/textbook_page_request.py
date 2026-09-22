@@ -60,10 +60,13 @@ def _source_for_page(db, book: Book, page: BookPage, printed: int) -> dict:
         .order_by(BookChunk.chunk_index_in_page.asc())
         .all()
     )
-    text = "\n".join(str(x.text_content or "").strip()
-                     for x in fragments if x.text_content).strip()
+    # Historical books stored PDF indices as printed page numbers; chunks
+    # selected by the old printed number can belong to a DIFFERENT PDF page.
+    # The resolved BookPage row is the authority for exact-page requests.
+    text = str(page.text_content or "").strip()
     if not text:
-        text = str(page.text_content or "").strip()
+        text = "\n".join(str(x.text_content or "").strip()
+                         for x in fragments if x.text_content).strip()
     return {
         "book_title": book.title,
         "book_id": book.id,
