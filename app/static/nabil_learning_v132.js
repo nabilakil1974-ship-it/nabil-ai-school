@@ -13,7 +13,9 @@ function placeDock(){
  const input=byId("messageInput");
  const composer=input?.closest(".input-area")||input?.closest("form")||input?.parentElement?.parentElement;
  if(composer&&composer.parentElement){
-  if(composer.previousElementSibling!==dock)composer.insertAdjacentElement("beforebegin",dock);
+  const tools=document.getElementById("nabilUniversalLessonActions");
+  const target=tools&&tools.parentElement===composer.parentElement?tools:composer;
+  if(target.previousElementSibling!==dock)target.insertAdjacentElement("beforebegin",dock);
  }else if(lessonColumn&&dock.parentElement!==lessonColumn){
   lessonColumn.appendChild(dock);
  }
