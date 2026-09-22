@@ -2,7 +2,7 @@
 
 Usage:
   python -m scripts.nabil_lesson_factory --pilot --report /tmp/nabil-pilot.json
-  python -m scripts.nabil_lesson_factory --pilot --require-drive-write --report /tmp/nabil-pilot.json
+  python -m scripts.nabil_lesson_factory --pilot --require-drive-write --report /tmp/nabil-pilot.json\n  python -m scripts.nabil_lesson_factory --pilot --produce-first
 
 No AI calls or deletes. --produce-first creates an explicitly labeled factory edition\nfrom the existing authored source lesson; it never invents unseen PDF material.
 This gate is necessary, NOT sufficient, to certify scientific/source accuracy:
@@ -247,14 +247,14 @@ def main():
     ap.add_argument("--report",default="")\n    ap.add_argument("--produce-first",action="store_true")
     args=ap.parse_args()
     try:
-        report=pilot(args.require_drive_write)\n        if args.produce_first:\n            report["production"] = produce_first()
+        report=pilot(args.require_drive_write)\n        # Existing Railway worker uses --pilot --require-drive-write. The owner\n        # explicitly requested production; keep that deployed command working.\n        if args.produce_first or args.require_drive_write:\n            report["production"] = produce_first()
     except Exception as exc:
         report={"status":"ERROR","error_type":type(exc).__name__,"error":str(exc)}
     data=json.dumps(report,ensure_ascii=False,indent=2)
     if args.report:
         Path(args.report).write_text(data,encoding="utf-8")
     print(data)
-    return 0 if (report.get("production",{}).get("status") == "FACTORY_EDITION_PUBLISHED_NEEDS_SOURCE_REVIEW"\n                 or report["status"]=="PILOT_REQUIRES_SOURCE_REVIEW") else 2
+    ok = (report.get("production",{}).get("status") == "FACTORY_EDITION_PUBLISHED_NEEDS_SOURCE_REVIEW"\n          or (not (args.produce_first or args.require_drive_write)\n              and report["status"] == "PILOT_REQUIRES_SOURCE_REVIEW"))\n    if ok and (args.produce_first or args.require_drive_write) and os.getenv("PORT"):\n        # Railway expects a persistent process. Serve a minimal status endpoint\n        # after the one-shot upload, rather than showing CRASHED on normal exit.\n        from http.server import BaseHTTPRequestHandler, HTTPServer\n        class Handler(BaseHTTPRequestHandler):\n            def do_GET(self):\n                data = json.dumps(report, ensure_ascii=False).encode("utf-8")\n                self.send_response(200)\n                self.send_header("Content-Type", "application/json; charset=utf-8")\n                self.send_header("Content-Length", str(len(data)))\n                self.end_headers()\n                self.wfile.write(data)\n        HTTPServer(("0.0.0.0", int(os.environ["PORT"])), Handler).serve_forever()\n    return 0 if ok else 2
 
 if __name__=="__main__":
     sys.exit(main())
