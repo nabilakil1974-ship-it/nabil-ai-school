@@ -70,10 +70,49 @@ document.addEventListener("click",async event=>{
   if(fallback){fallback.dataset.nabilDriveReplay="1";fallback.click();delete fallback.dataset.nabilDriveReplay;}
  }
 },true);
+// PDF/Word exercise upload uses the existing /api/chat conversation and textbook RAG.
+let selectedDocument=null;
+function installDocumentUpload(){
+ if(document.getElementById("nabilExerciseDocumentInput"))return;
+ const input=document.getElementById("messageInput");if(!input)return;
+ const row=input.closest(".input-area")||input.parentElement;
+ if(!row)return;
+ const picker=document.createElement("input");picker.id="nabilExerciseDocumentInput";picker.type="file";
+ picker.accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+ picker.style.display="none";
+ const button=document.createElement("button");button.type="button";button.id="nabilExerciseDocumentButton";
+ button.textContent="📄 PDF / Word";button.title="ارفع تمارين PDF أو Word ليحلها نبيل";
+ button.style.cssText="background:#225c65;color:#fff;border:2px solid #6ee6cb;border-radius:10px;padding:10px;cursor:pointer;min-height:44px";
+ const label=document.createElement("span");label.id="nabilExerciseDocumentStatus";
+ label.style.cssText="color:#a6ffe3;font:12px Arial;max-width:200px;overflow-wrap:anywhere";
+ button.onclick=()=>picker.click();
+ picker.onchange=()=>{
+  const file=picker.files?.[0];if(!file)return;
+  if(!/\\.(pdf|docx)$/i.test(file.name)||file.size>12000000){
+   alert("ارفع PDF أو DOCX بحجم لا يتجاوز 12 MB.");picker.value="";return;
+  }
+  selectedDocument=file;label.textContent="📎 "+file.name+" · جاهز للإرسال";
+  if(!input.value.trim())input.value="حل تمارين هذا الملف بالمعطيات والمطلوب والقانون وخطوات الحل.";
+ };
+ row.append(button,picker,label);
+}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",installDocumentUpload);
+else installDocumentUpload();
 window.fetch=async function(input,options){
  const url=typeof input==="string"?input:input?.url||"";
  const body=options?.body;
  if(!/\/api\/chat(?:\?|$)/.test(url)||!(body instanceof FormData)||busy)return originalFetch(input,options);
+ if(selectedDocument){
+  body.set("document",selectedDocument,selectedDocument.name);
+  const sent=selectedDocument;selectedDocument=null;
+  document.getElementById("nabilExerciseDocumentStatus").textContent="📄 جارٍ إرسال "+sent.name;
+  try{
+   const response=await originalFetch(input,options);
+   if(!response.ok){selectedDocument=sent;document.getElementById("nabilExerciseDocumentStatus").textContent="⚠️ تعذّر الإرسال؛ الملف محفوظ لإعادة المحاولة";}
+   else{document.getElementById("nabilExerciseDocumentStatus").textContent="✓ تم إرسال "+sent.name;document.getElementById("nabilExerciseDocumentInput").value="";}
+   return response;
+  }catch(error){selectedDocument=sent;throw error;}
+ }
  const message=String(body.get("message")||"").trim();
  const active=document.getElementById("nabilDriveInteractiveLesson");
  const requestedNumber=message.match(/(?:التمرين|تمرين|رقم|exercise|exercice|ex\.?|number)\s*(?:رقم|number|no\.?|n°)?\s*[:#-]?\s*(\d{1,3})/i)?.[1];
