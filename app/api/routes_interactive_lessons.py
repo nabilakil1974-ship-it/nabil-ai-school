@@ -288,6 +288,40 @@ def diagnose(grade: str, subject: str, lesson: str, language: str = ""):
         log.exception("DRIVE_LESSON_DIAGNOSTIC_FAILED trace=%s", trace)
         return {"trace": trace, "found": False, "steps": steps}
 
+@router.get("/search")
+def search_prepared(title: str, grade: str = "", subject: str = "", language: str = ""):
+    """Resolve an explicitly named textbook lesson from homepage, without AI."""
+    wanted = re.sub(r"^\\s*(?:chapter|chapitre|الفصل|الدرس)\\s*\\d+\\s*[:.\\-–]?\\s*", "", title, flags=re.I)
+    if len(wanted.strip()) < 4:
+        raise HTTPException(400, "Lesson title required.")
+    matches = []
+    for item in _entries():
+        if grade and _grade(item.get("grade")) != _grade(grade):
+            continue
+        if subject and _subject(item.get("subject")) != _subject(subject):
+            continue
+        if _norm(wanted) not in {_norm(x) for x in [item["lesson"], *(item.get("aliases") or [])]}:
+            continue
+        matches.append(item)
+    # Flat-folder and organized copies of the same source lesson are equivalent.
+    unique = {}
+    for item in matches:
+        unique[(_grade(item.get("grade")), _subject(item.get("subject")), _norm(item["lesson"]))] = item
+    if not unique:
+        raise HTTPException(404, "No verified prepared lesson matches this title.")
+    if len(unique) != 1:
+        raise HTTPException(409, "Specify grade and subject to disambiguate the lesson.")
+    item = next(iter(unique.values()))
+    data = _download(_service(), item["drive_file_id"])
+    if b"<html" not in data[:4096].lower() and b"<!doctype html" not in data[:4096].lower():
+        raise HTTPException(422, "Prepared Drive file is not HTML.")
+    qs = ("grade=" + quote(str(item["grade"])) + "&subject=" + quote(str(item["subject"]))
+          + "&lesson=" + quote(item["lesson"]) + "&language=" + quote(language))
+    return {"found": True, "title": item["lesson"], "grade": item["grade"],
+            "subject": item["subject"], "url": "/api/interactive-lessons/view?" + qs,
+            "source": "google_drive", "bytes": len(data)}
+
+
 @router.get("/available")
 def available(grade: str, subject: str):
     """Live prepared lessons for the selected grade/subject; never invent titles."""
