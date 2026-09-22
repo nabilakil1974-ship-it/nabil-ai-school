@@ -140,7 +140,7 @@ def _owner_entries(service):
     for grade_folder in _list_children(service, root):
         if grade_folder.get("mimeType") != "application/vnd.google-apps.folder":
             continue
-        match = re.search(r"(?:grade|صف)\\s*0?(\\d{1,2})", grade_folder["name"], re.I)
+        match = re.search(r"(?:grade|صف)\s*0?(\d{1,2})", grade_folder["name"], re.I)
         if not match:
             continue  # e.g. 00 - Curriculum Index
         grade = match.group(1)
@@ -326,9 +326,9 @@ def view(grade: str, subject: str, lesson: str, language: str = "", trace: str =
         # The same bilingual HTML opens in the selected textbook's language.
         # Do not rewrite or duplicate its source content on Drive.
         if _norm(language) in {_norm("Français"), _norm("French"), _norm("fr")}:
-            html = re.sub(r"<body(\\s[^>]*)?>", lambda m: m.group(0).replace("<body", '<body class="frmode"') if "class=" not in m.group(0) else re.sub(r'class="([^"]*)"', lambda c: 'class="' + c.group(1) + ' frmode"', m.group(0), count=1), html, count=1, flags=re.I)
+            html = re.sub(r"<body(\s[^>]*)?>", lambda m: m.group(0).replace("<body", '<body class="frmode"') if "class=" not in m.group(0) else re.sub(r'class="([^"]*)"', lambda c: 'class="' + c.group(1) + ' frmode"', m.group(0), count=1), html, count=1, flags=re.I)
         elif _norm(language) in {_norm("English"), _norm("Anglais"), _norm("en")}:
-            html = re.sub(r'<body([^>]*)class="([^"]*)"', lambda m: '<body' + m.group(1) + 'class="' + re.sub(r"\\bfrmode\\b", "", m.group(2)).strip() + '"', html, count=1, flags=re.I)
+            html = re.sub(r'<body([^>]*)class="([^"]*)"', lambda m: '<body' + m.group(1) + 'class="' + re.sub(r"\bfrmode\b", "", m.group(2)).strip() + '"', html, count=1, flags=re.I)
         # Color-code full concepts and textbook exercises while keeping their figures and solutions together.
         if "</head>" in html.lower():
             html = re.sub(r"</head>", '<link rel="stylesheet" href="/static/nabil_lesson_color_cards_v1.css?v=1"></head>', html, count=1, flags=re.I)
