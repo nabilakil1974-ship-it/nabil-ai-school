@@ -64,7 +64,7 @@ function init(){
  function explanation(langOverride){
   const row=chosen?.closest(".row");
   const heading=row?.querySelector("h3")?.textContent||"";
-  const exerciseNumber=Number((heading.match(/(?:Exercice|Exercise)\\s*(\\d+)/i)||[])[1]);
+  const exerciseNumber=Number((heading.match(/(?:Exercice|Exercise)\s*(\d+)/i)||[])[1]);
   if(langOverride==="ar"&&exerciseArabic[exerciseNumber])return exerciseArabic[exerciseNumber];
   if(row&&langOverride==="ar")return "منقرأ المعطيات والمطلوب أولًا، ومنختار القانون المناسب، ومنعوّض القيم مع وحداتها، ومنتأكد من النتيجة.";
   const n=index(),t=(langOverride==="ar"?ar:select.value==="en"?en:fr)[n];
