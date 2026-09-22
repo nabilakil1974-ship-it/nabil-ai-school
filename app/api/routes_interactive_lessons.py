@@ -11,11 +11,10 @@ import json
 import os
 import re
 import unicodedata
-from functools import lru_cache
 from time import monotonic
 
-from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import HTMLResponse
 from googleapiclient.http import MediaIoBaseDownload
 
 router = APIRouter(prefix="/interactive-lessons", tags=["drive-interactive-lessons"])
@@ -92,6 +91,7 @@ def _entries():
                         grade = match.group(1) if match else ""
                         subject = ""
                         title = match.group(2) if match else stem
+                    title = re.sub(r"[-_ ]+(?:BILINGUAL|FRANCAIS|ENGLISH)$", "", title, flags=re.I)
                     items.append({"grade": grade, "subject": subject,
                                   "lesson": title.replace("-", " "),
                                   "drive_file_id": file["id"], "language": ""})
