@@ -489,14 +489,14 @@ def _build_root_html() -> str:
         '<script src="/static/nabil_learning_v132.js?v=139"></script>\n'
         '<script src="/static/nabil_worksheet_v1.js?v=5"></script>\n'
         '<script src="/static/nabil_lesson_worksheet_card_v1.js?v=1"></script>\n'
-        '<script src="/static/nabil_drive_prepared_lesson_v1.js?v=4"></script>\n'
+        '<script src="/static/nabil_drive_prepared_lesson_v1.js?v=5"></script>\n'
         '<script src="/static/nabil_voice_v133.js?v=133"></script>\n'
         '<script src="/static/nabil_open_tutor_v1.js?v=18"></script>\n'
         '<script src="/static/nabil_ionic_diagram_fix.js?v=1"></script>\n'
         '<script src="/static/nabil_research_v1.js?v=2"></script>\n'
         '<script src="/static/nabil_book_first_preview_v1.js?v=8"></script>\n'
         '<script src="/static/nabil_universal_language_v1.js?v=1"></script>\n'
-        '<script src="/static/nabil_drive_home_requests_v1.js?v=6"></script>\n'
+        '<script src="/static/nabil_drive_home_requests_v1.js?v=7"></script>\n'
         '<script src="/static/nabil_universal_lesson_actions_v1.js?v=2"></script>\n'
     )
     boundary = html.lower().rfind("</body>")
