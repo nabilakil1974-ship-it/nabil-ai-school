@@ -288,6 +288,32 @@ def diagnose(grade: str, subject: str, lesson: str, language: str = ""):
         log.exception("DRIVE_LESSON_DIAGNOSTIC_FAILED trace=%s", trace)
         return {"trace": trace, "found": False, "steps": steps}
 
+@router.get("/drive-status")
+def drive_status():
+    """Owner-facing check that separates legacy collection from grade folders."""
+    service = _service()
+    root = os.getenv("NABIL_INTERACTIVE_CURRICULUM_ROOT_ID", _OWNER_ROOT).strip()
+    result = {"owner_root": root, "owner_access": False, "grade_folders": [],
+              "owner_lessons": [], "legacy_lessons": []}
+    try:
+        result["grade_folders"] = [x["name"] for x in _list_children(service, root)
+                                   if x.get("mimeType") == "application/vnd.google-apps.folder"]
+        result["owner_lessons"] = [
+            {"grade": x["grade"], "subject": x["subject"], "title": x["lesson"]}
+            for x in _owner_entries(service)]
+        result["owner_access"] = True
+    except Exception as exc:
+        result["owner_error"] = type(exc).__name__
+        log.exception("DRIVE_OWNER_FOLDER_CHECK_FAILED root=%s", root)
+    try:
+        folder = os.getenv("NABIL_INTERACTIVE_LESSONS_FOLDER_ID", _DEFAULT_FOLDER).strip()
+        result["legacy_lessons"] = [x["name"] for x in _list_children(service, folder)
+                                     if x["name"].lower().endswith(".html")]
+    except Exception as exc:
+        result["legacy_error"] = type(exc).__name__
+    return result
+
+
 @router.get("/search")
 def search_prepared(title: str, grade: str = "", subject: str = "", language: str = ""):
     """Resolve an explicitly named textbook lesson from homepage, without AI."""
