@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "verified_on": "2026-09-22",
   "meaning": "Per-grade book inventory from actual repository manifests and owner Drive science folder; NOT a verified chapter/lesson TOC. Do not assume a subject absent from the entire Lebanese curriculum merely because no mapped book is present.",
   "subject_rule": "Never generate physics/chemistry/biology for grades 1–6 merely by extrapolating from grade 7; use actual grade-specific books and verified TOCs.",
@@ -930,6 +930,243 @@
       "source_folder_id": "1gJWTNlF4MsZe_HatQBAgPA69A35jtG5h",
       "subject": "general_science",
       "toc_status": "not_verified"
+    }
+  ],
+  "coverage_policy": "This is a scoped inventory of FOUR science/math manifests plus inspected science Drive folder, not the entire Lebanese curriculum. Missing book is UNVERIFIED, not an absent subject. Each grade/branch/language must have an independently verified list of all subjects and source TOCs before declaring full coverage.",
+  "secondary_branch_policy": {
+    "first_secondary": "Common first-secondary year: independently inventory all actual subjects and books; do not infer that the four manifest subjects are exhaustive.",
+    "second_secondary": [
+      "العلوم",
+      "الإنسانيات"
+    ],
+    "third_secondary": [
+      "العلوم العامة",
+      "علوم الحياة",
+      "الاجتماع والاقتصاد",
+      "الآداب والإنسانيات"
+    ],
+    "rule": "Separate each branch by grade, language, subject, book, part, chapter and lesson. A shared PDF may cover multiple branches, but chapters/lessons must be mapped per branch; do not clone an entire book into a branch without checking its source scope."
+  },
+  "coverage_status_by_grade": [
+    {
+      "grade": "الصف الأول",
+      "branch": null,
+      "known_mapped_subjects": [
+        "mathematics"
+      ],
+      "all_subjects_audited": false,
+      "all_source_tocs_audited": false,
+      "all_lessons_authored": false,
+      "all_lessons_live_verified": false,
+      "unmapped_subjects_status": "not_yet_audited_not_assumed_absent"
+    },
+    {
+      "grade": "الصف الثاني",
+      "branch": null,
+      "known_mapped_subjects": [
+        "mathematics",
+        "general_science"
+      ],
+      "all_subjects_audited": false,
+      "all_source_tocs_audited": false,
+      "all_lessons_authored": false,
+      "all_lessons_live_verified": false,
+      "unmapped_subjects_status": "not_yet_audited_not_assumed_absent"
+    },
+    {
+      "grade": "الصف الثالث",
+      "branch": null,
+      "known_mapped_subjects": [
+        "mathematics",
+        "general_science"
+      ],
+      "all_subjects_audited": false,
+      "all_source_tocs_audited": false,
+      "all_lessons_authored": false,
+      "all_lessons_live_verified": false,
+      "unmapped_subjects_status": "not_yet_audited_not_assumed_absent"
+    },
+    {
+      "grade": "الصف الرابع",
+      "branch": null,
+      "known_mapped_subjects": [
+        "mathematics",
+        "general_science"
+      ],
+      "all_subjects_audited": false,
+      "all_source_tocs_audited": false,
+      "all_lessons_authored": false,
+      "all_lessons_live_verified": false,
+      "unmapped_subjects_status": "not_yet_audited_not_assumed_absent"
+    },
+    {
+      "grade": "الصف الخامس",
+      "branch": null,
+      "known_mapped_subjects": [
+        "mathematics",
+        "general_science"
+      ],
+      "all_subjects_audited": false,
+      "all_source_tocs_audited": false,
+      "all_lessons_authored": false,
+      "all_lessons_live_verified": false,
+      "unmapped_subjects_status": "not_yet_audited_not_assumed_absent"
+    },
+    {
+      "grade": "الصف السادس",
+      "branch": null,
+      "known_mapped_subjects": [
+        "mathematics",
+        "general_science"
+      ],
+      "all_subjects_audited": false,
+      "all_source_tocs_audited": false,
+      "all_lessons_authored": false,
+      "all_lessons_live_verified": false,
+      "unmapped_subjects_status": "not_yet_audited_not_assumed_absent"
+    },
+    {
+      "grade": "الصف السابع",
+      "branch": null,
+      "known_mapped_subjects": [
+        "mathematics",
+        "physics",
+        "chemistry",
+        "biology"
+      ],
+      "all_subjects_audited": false,
+      "all_source_tocs_audited": false,
+      "all_lessons_authored": false,
+      "all_lessons_live_verified": false,
+      "unmapped_subjects_status": "not_yet_audited_not_assumed_absent"
+    },
+    {
+      "grade": "الصف الثامن",
+      "branch": null,
+      "known_mapped_subjects": [
+        "mathematics",
+        "physics",
+        "chemistry",
+        "biology"
+      ],
+      "all_subjects_audited": false,
+      "all_source_tocs_audited": false,
+      "all_lessons_authored": false,
+      "all_lessons_live_verified": false,
+      "unmapped_subjects_status": "not_yet_audited_not_assumed_absent"
+    },
+    {
+      "grade": "الصف التاسع",
+      "branch": null,
+      "known_mapped_subjects": [
+        "mathematics",
+        "physics",
+        "chemistry",
+        "biology"
+      ],
+      "all_subjects_audited": false,
+      "all_source_tocs_audited": false,
+      "all_lessons_authored": false,
+      "all_lessons_live_verified": false,
+      "unmapped_subjects_status": "not_yet_audited_not_assumed_absent"
+    },
+    {
+      "grade": "الأول ثانوي",
+      "branch": null,
+      "known_mapped_subjects": [
+        "mathematics",
+        "physics",
+        "chemistry",
+        "biology"
+      ],
+      "all_subjects_audited": false,
+      "all_source_tocs_audited": false,
+      "all_lessons_authored": false,
+      "all_lessons_live_verified": false,
+      "unmapped_subjects_status": "not_yet_audited_not_assumed_absent"
+    },
+    {
+      "grade": "الثاني ثانوي - العلوم",
+      "branch": "العلوم",
+      "known_mapped_subjects": [
+        "mathematics",
+        "physics",
+        "chemistry",
+        "biology"
+      ],
+      "all_subjects_audited": false,
+      "all_source_tocs_audited": false,
+      "all_lessons_authored": false,
+      "all_lessons_live_verified": false,
+      "unmapped_subjects_status": "not_yet_audited_not_assumed_absent"
+    },
+    {
+      "grade": "الثاني ثانوي - الإنسانيات",
+      "branch": "الإنسانيات",
+      "known_mapped_subjects": [
+        "mathematics",
+        "chemistry"
+      ],
+      "all_subjects_audited": false,
+      "all_source_tocs_audited": false,
+      "all_lessons_authored": false,
+      "all_lessons_live_verified": false,
+      "unmapped_subjects_status": "not_yet_audited_not_assumed_absent"
+    },
+    {
+      "grade": "الثالث ثانوي - العلوم العامة",
+      "branch": "العلوم العامة",
+      "known_mapped_subjects": [
+        "mathematics",
+        "physics",
+        "chemistry"
+      ],
+      "all_subjects_audited": false,
+      "all_source_tocs_audited": false,
+      "all_lessons_authored": false,
+      "all_lessons_live_verified": false,
+      "unmapped_subjects_status": "not_yet_audited_not_assumed_absent"
+    },
+    {
+      "grade": "الثالث ثانوي - علوم الحياة",
+      "branch": "علوم الحياة",
+      "known_mapped_subjects": [
+        "mathematics",
+        "physics",
+        "chemistry",
+        "biology"
+      ],
+      "all_subjects_audited": false,
+      "all_source_tocs_audited": false,
+      "all_lessons_authored": false,
+      "all_lessons_live_verified": false,
+      "unmapped_subjects_status": "not_yet_audited_not_assumed_absent"
+    },
+    {
+      "grade": "الثالث ثانوي - الاجتماع والاقتصاد",
+      "branch": "الاجتماع والاقتصاد",
+      "known_mapped_subjects": [
+        "mathematics",
+        "physics"
+      ],
+      "all_subjects_audited": false,
+      "all_source_tocs_audited": false,
+      "all_lessons_authored": false,
+      "all_lessons_live_verified": false,
+      "unmapped_subjects_status": "not_yet_audited_not_assumed_absent"
+    },
+    {
+      "grade": "الثالث ثانوي - الآداب والإنسانيات",
+      "branch": "الآداب والإنسانيات",
+      "known_mapped_subjects": [
+        "mathematics",
+        "physics"
+      ],
+      "all_subjects_audited": false,
+      "all_source_tocs_audited": false,
+      "all_lessons_authored": false,
+      "all_lessons_live_verified": false,
+      "unmapped_subjects_status": "not_yet_audited_not_assumed_absent"
     }
   ]
 }
