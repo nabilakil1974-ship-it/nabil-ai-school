@@ -9,12 +9,11 @@ const byId=id=>document.getElementById(id);
 const lessonColumn=document.querySelector(".lesson-main-column");
 const chat=byId("chat");
 function placeDock(){
- // The question composer is the visual anchor, not the last AI answer.
- const composer=byId("messageInput")?.closest(".input-area")||
-  byId("messageInput")?.closest("form")||
-  byId("messageInput")?.parentElement?.parentElement;
+ // Keep the question box directly BELOW the learning path, not above it.
+ const input=byId("messageInput");
+ const composer=input?.closest(".input-area")||input?.closest("form")||input?.parentElement?.parentElement;
  if(composer&&composer.parentElement){
-  if(composer.nextElementSibling!==dock)composer.insertAdjacentElement("afterend",dock);
+  if(composer.previousElementSibling!==dock)composer.insertAdjacentElement("beforebegin",dock);
  }else if(lessonColumn&&dock.parentElement!==lessonColumn){
   lessonColumn.appendChild(dock);
  }
