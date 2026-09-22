@@ -50,7 +50,6 @@ from app.db import ai_usage  # noqa: F401
 
 from app.api import (
     routes_health,
-    routes_eb9_ohm_source,
     routes_chat,
     routes_textbook_pages,
     routes_research,
@@ -332,7 +331,6 @@ app.include_router(
 )
 
 app.include_router(routes_textbook_pages.router, prefix="/api", tags=["textbook-pages"])
-app.include_router(routes_eb9_ohm_source.router, prefix="/api", tags=["original-drive-eb9-source"])
 
 app.include_router(
     routes_chat.router,
@@ -556,8 +554,3 @@ def nabil_full_math_lab():
     return FileResponse("app/static/nabil_lab_math_full.html",
                         media_type="text/html", headers={"Cache-Control": "no-store"})
 
-
-@app.get('/lesson/eb9-ohm')
-def eb9_ohm_interactive_lesson():
-    """Verified EB9 source bilingual interactive Ohmic conductors lesson."""
-    return FileResponse('app/static/lessons/EB09-CONDUCTEURS-OHMIQUES-BILINGUAL.html', media_type='text/html', headers={'Cache-Control':'no-store'})
