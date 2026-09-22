@@ -24,3 +24,9 @@ Owner order (2026-09-22): **Physics (all available grades/streams/languages) →
 
 ## Existing implementation
 `app/api/routes_interactive_lessons.py` Drive resolver; `app/static/nabil_drive_prepared_lesson_v1.js` lesson display; `app/api/routes_lesson_export.py` PPTX/reference; `app/static/nabil_universal_lesson_actions_v1.js` student actions; `scripts/index_science_textbooks.py` science indexer. Keep source-authored HTML in Drive, not repository. Owner-approved baseline: `docs/NABIL_DRIVE_LESSON_BASELINE_2026-09-22.md`.
+
+## Owner's non-negotiable AI policy (2026-09-22)
+**Prepared textbook-authored Drive HTML FIRST; no generative AI to recreate the lesson when a verified HTML lesson exists.** AI only for student follow-up, alternate explanations, genuinely missing material or unavailable prepared lesson, with original indexed PDF grounding and explicit source limitations. Do not auto-generate hundreds of superficial template pages and call them finished. Exact source figures and exercise numbering must be checked individually. Keep the source PDF manifest and authored HTML connected via the production ledger.
+
+## Durable progress
+`data/interactive_lesson_production_ledger.json` is the authoritative per-book/grade record; status `verified_complete` only after EVERY lesson in the book is authored, uploaded and tested. The Drive lesson folder was listed via owner's connected Drive on 2026-09-22 and contained ONLY the two EB9 Conducteurs ohmiques HTML variants and associated manifests/readmes; this is NOT proof of the Railway service account's access. The repository contains 16 physics, 32 math, 11 chemistry, 11 biology book-to-grade mappings. General science mapping remains open. Do not misrepresent mappings as authored lessons.
