@@ -180,7 +180,7 @@ def indexed_textbook_exercise_context(
     if book_id is not None:
         books = [book for book in books if book.id == book_id]
     heading = re.compile(
-        rf"(?im)(?:^|\n)\s*(?:(?:exercise|exercice|ex\.|تمرين|السؤال)\s*(?:n[°o]\s*)?)?"
+        rf"(?im)(?:^|\n)\s*(?:exercise|exercice|ex\.|تمرين|السؤال)\s*(?:n[°o]\s*)?"
         rf"{exercise_number}\s*[.)\-:]\s*"
     )
     matches = []
