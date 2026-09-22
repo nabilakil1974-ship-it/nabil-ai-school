@@ -70,6 +70,49 @@ document.addEventListener("click",async event=>{
   if(fallback){fallback.dataset.nabilDriveReplay="1";fallback.click();delete fallback.dataset.nabilDriveReplay;}
  }
 },true);
+// Multiple colloquial exercise requests: keep subjects separate and never invent an unseen textbook question.
+const subjectAliases=[
+ {name:"الفيزياء",key:"physics",color:"#1786c7",rx:/(?:فيزيا|فيزياء|الفيزيا|physique|physics|phys)/i},
+ {name:"الكيمياء",key:"chemistry",color:"#15946d",rx:/(?:كيميا|كيمياء|الكيميا|chimie|chemistry|chem)/i},
+ {name:"الرياضيات",key:"mathematics",color:"#8655c8",rx:/(?:رياضيات|الرياضيات|رياضة|maths?|mathematics|mathématiques)/i}
+];
+let lastExerciseBatch=[];
+function parseExerciseBatch(message){
+ const normalized=message.replace(/[٠-٩]/g,c=>String("٠١٢٣٤٥٦٧٨٩".indexOf(c))).replace(/[۰-۹]/g,c=>String("۰۱۲۳۴۵۶۷۸۹".indexOf(c)));
+ const pattern=/(?:التمرين\s*)?(?:رقم\s*)?(\d{1,3})\s*(?:ب?ال?\s*)?(فيزيا|فيزياء|physique|physics|phys|كيميا|كيمياء|chimie|chemistry|chem|رياضيات|رياضة|maths?|mathematics|mathématiques)|(?:فيزيا|فيزياء|physique|physics|phys|كيميا|كيمياء|chimie|chemistry|chem|رياضيات|رياضة|maths?|mathematics|mathématiques)\s*(?:التمرين\s*)?(?:رقم\s*)?(\d{1,3})/gi;
+ const found=[];let match;
+ while((match=pattern.exec(normalized))){
+  const number=Number(match[1]||match[3]),word=match[2]||match[0].replace(/[\d\s]/g,"");
+  const subject=subjectAliases.find(item=>item.rx.test(word));
+  if(subject&&number>0&&!found.some(item=>item.key===subject.key&&item.number===number))
+   found.push({...subject,number});
+ }
+ return found.length>=2?found:[];
+}
+function showExerciseBatch(items){
+ const chat=document.getElementById("chat");if(!chat)return;
+ document.getElementById("nabilMultiExerciseQueue")?.remove();
+ const panel=document.createElement("section");panel.id="nabilMultiExerciseQueue";
+ panel.style.cssText="width:100%;box-sizing:border-box;margin:12px 0;padding:12px;background:#092238;border-radius:14px;border:1px solid #80d9ef;color:white";
+ const heading=document.createElement("strong");heading.textContent="📚 صفحة التمارين · حسب ترتيب طلبك";
+ panel.append(heading);
+ for(const item of items){
+  const card=document.createElement("div");card.dataset.subject=item.key;card.dataset.exercise=String(item.number);
+  card.style.cssText="margin:10px 0;padding:12px;border-radius:12px;border-inline-start:7px solid "+item.color+";background:#17334b;color:#fff";
+  const label=document.createElement("strong");label.textContent=item.name+" — التمرين "+item.number;
+  const note=document.createElement("p");note.style.cssText="font-size:13px;margin:6px 0 0;color:#d5eaf6";
+  note.textContent="سيعالج نبيل هذا التمرين مستقلًا، بحسب الكتاب والصف المحدّدين؛ إن لم يتوفر نص السؤال يطلب صورته ولا يخترعه.";
+  card.append(label,note);panel.append(card);
+ }
+ chat.append(panel);panel.scrollIntoView({behavior:"smooth",block:"start"});
+}
+function batchInstruction(items,grade,original){
+ return "[MULTI-SUBJECT EXERCISE REQUEST — user text follows]\n"+original+
+ "\n[END USER TEXT]\nطلب الطالب "+items.length+" تمارين مستقلة بالترتيب التالي:\n"+
+ items.map((item,i)=>(i+1)+". "+item.name+" — التمرين "+item.number).join("\n")+
+ "\nالصف المحدد: "+(grade||"غير محدد")+
+ "\nتعليمات إلزامية: لا تخلط المواد ولا تغيّر أرقام التمارين أو ترتيبها. ضع عنوانًا واضحًا لكل مادة ورقم تمرين، واستخرج السؤال الحقيقي من كتاب تلك المادة والصف إذا كان متاحًا وموثقًا؛ إذا لم تتمكن من تحديد نص تمرين بعينه فلا تخترع معطياته أو حلًا مفترضًا، بل اطلب صورة التمرين أو اسم الكتاب/الصف عند الحاجة. لا تعتبر الدرس المحدد في واجهة مادة أخرى مصدرًا لجميع التمارين. كل تمرين ببطاقة مستقلة ورسوماته وخطواته العلمية الصحيحة؛ استخدم LaTeX للكسور والجذور والأسس والوحدات. فهم العامية مسموح، أما قراءة الأعداد بالعربية فصيحة: اثنا عشر لا اتناش. الصوت لا يقرأ علامات LaTeX أو شرطات أو أوامر تنسيق.\n";
+}
 // PDF/Word exercise upload uses the existing /api/chat conversation and textbook RAG.
 let selectedDocument=null;
 function installDocumentUpload(){
@@ -114,6 +157,13 @@ window.fetch=async function(input,options){
   }catch(error){selectedDocument=sent;throw error;}
  }
  const message=String(body.get("message")||"").trim();
+ const batch=parseExerciseBatch(message);
+ if(batch.length){
+  lastExerciseBatch=batch;showExerciseBatch(batch);
+  body.set("message",batchInstruction(batch,field("gradeSelect")||String(body.get("grade")||""),message));
+  body.set("lesson","");body.set("subject","");
+  return originalFetch(input,options);
+ }
  const active=document.getElementById("nabilDriveInteractiveLesson");
  const requestedNumber=message.match(/(?:التمرين|تمرين|رقم|exercise|exercice|ex\.?|number)\s*(?:رقم|number|no\.?|n°)?\s*[:#-]?\s*(\d{1,3})/i)?.[1];
  const isFollowup=/ما فهمت|مش فاهم|ما فهمنا|عيد|اعد|أعد|وضح|وضّح|بسط|بسّط|شرح تاني|explain again|don't understand|didn't understand|reexplain|réexplique|pas compris/i.test(message);
