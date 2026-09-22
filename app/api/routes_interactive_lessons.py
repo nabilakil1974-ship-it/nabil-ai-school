@@ -236,9 +236,12 @@ def view(grade: str, subject: str, lesson: str, language: str = "", trace: str =
         html = _download(_service(), item["drive_file_id"]).decode("utf-8-sig")
         if "<html" not in html.lower():
             raise ValueError("NOT_AN_HTML_LESSON")
+        # Color-code full concepts and textbook exercises while keeping their figures and solutions together.
+        if "</head>" in html.lower():
+            html = re.sub(r"</head>", '<link rel="stylesheet" href="/static/nabil_lesson_color_cards_v1.css?v=1"></head>', html, count=1, flags=re.I)
         # Keep the bilingual toggle visible while students scroll to exercises.
         if 'id="lesson-language"' in html and "</body>" in html.lower():
-            html = re.sub(r"</body>", '<script src="/static/nabil_lesson_sticky_language_v1.js?v=1"></script><script src="/static/nabil_lesson_teacher_audio_v1.js?v=2"></script></body>', html, count=1, flags=re.I)
+            html = re.sub(r"</body>", '<script src="/static/nabil_lesson_sticky_language_v1.js?v=1"></script><script src="/static/nabil_lesson_teacher_audio_v1.js?v=3"></script></body>', html, count=1, flags=re.I)
         log.info("DRIVE_LESSON_VIEW_OK trace=%s file=%s bytes=%d", trace, item["drive_file_id"], len(html.encode("utf-8")))
         return HTMLResponse(html, headers={
             "Cache-Control": "private, no-store",
