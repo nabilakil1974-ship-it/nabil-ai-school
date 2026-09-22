@@ -25,7 +25,7 @@
       "language": "English",
       "index_manifest": "data/physics_textbooks_manifest.json",
       "book_status": "registered_in_manifest_not_live_verified",
-      "chapters_status": "chapter_1_verified_from_source_pages_13_to_17_remaining_chapters_pending",
+      "chapters_status": "chapter_1_prepared_chapter_2_draft_uploaded_original_exercise_figures_pending_other_chapters_pending",
       "authored_lessons": [
         {
           "title": "Solids and Liquids",
@@ -55,6 +55,27 @@
             "mobile_responsive",
             "print_pdf"
           ]
+        },
+        {
+          "title": "Volume",
+          "chapter": 2,
+          "source_printed_pages": "19-26",
+          "source_pdf_pages": "19-26",
+          "drive_html_id": "1qknxBMyVE5N9My2ePIosukAwi-0ZKfaG",
+          "owner_drive_folder_id": "12BzdBUmPIK2__Fl3yTXpfZ-LXNjfimAq",
+          "status": "authored_uploaded_not_live_verified",
+          "completion": "chapter_explanation_activities_and_original_page_links_authored_original_exercise_figures_not_yet_integrated",
+          "lesson_components": [
+            "source_objectives",
+            "units_and_conversions",
+            "graduated_cylinder_schematic",
+            "displacement_calculator",
+            "solid_volume_formulas",
+            "estimation",
+            "three_original_practice_questions",
+            "original_exercises_link_only"
+          ],
+          "figures": "original_figures_referenced_by_page_not_embedded; one labeled explanatory schematic"
         }
       ],
       "verified_complete": false
