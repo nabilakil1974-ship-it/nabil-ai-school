@@ -198,8 +198,8 @@ window.fetch=async function(input,options){
  // The home screen has no grade/subject selectors, so server matches an exact
  // verified title across the owner's folders; ambiguous titles never guess.
  const homeText=String(body.get("message")||"").trim();
- const homeTitle=homeText.match(/^\\s*(?:chapter|chapitre|الفصل|الدرس)\\s*\\d+\\s*[:.\\-–]?\\s*(.+?)\\s*$/i)?.[1]
-   ||homeText.match(/^\\s*(?:افتح|اعرض|اشرح|open|show|explain)\\s+(?:لي\\s+)?(?:درس|الدرس|lesson|chapter)\\s*[:.\\-–]?\\s*(.+?)\\s*$/i)?.[1];
+ const homeTitle=homeText.match(/^\s*(?:chapter|chapitre|الفصل|الدرس)\s*\d+\s*[:.\-–]?\s*(.+?)\s*$/i)?.[1]
+   ||homeText.match(/^\s*(?:افتح|اعرض|اشرح|open|show|explain)\s+(?:لي\s+)?(?:درس|الدرس|lesson|chapter)\s*[:.\-–]?\s*(.+?)\s*$/i)?.[1];
  if(homeTitle&&!selectedDocument){
   try{
    const q=new URLSearchParams({title:homeTitle});
