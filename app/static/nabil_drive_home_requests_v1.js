@@ -49,6 +49,27 @@ function classify(body){
  return {grade:grade||"الصف التاسع",subject:subject||"فيزياء",lesson:"Conducteurs ohmiques",
   language:field("languageSelect")||String(body.get("language")||"Français"),mode,number:exercise||page};
 }
+// The existing worksheet button must open the authored Drive worksheet and reference summary first.
+document.addEventListener("click",async event=>{
+ const button=event.target?.closest?.("#nabilWorksheetBtn,#nabilOpenLessonWorksheet");
+ if(!button)return;
+ const selected=field("lessonSelect");
+ if(!lessonPattern.test(selected))return; // Preserve existing AI worksheet for other lessons.
+ event.preventDefault();event.stopImmediatePropagation();
+ const grade=field("gradeSelect")||"الصف التاسع",subject=field("subjectSelect")||"فيزياء";
+ const qs=new URLSearchParams({grade,subject,lesson:"Conducteurs ohmiques",language:field("languageSelect")||"Français"});
+ try{
+  const response=await originalFetch("/api/interactive-lessons/resolve?"+qs);
+  if(!response.ok)throw Error("Drive worksheet not available");
+  const data=await response.json(),u=new URL(data.url,location.origin);
+  u.searchParams.set("worksheet","1");data.url=u.pathname+u.search;
+  render(data,"worksheet","");
+ }catch(error){
+  console.warn("[NABIL_DRIVE_WORKSHEET] Using existing worksheet fallback",error);
+  const fallback=document.getElementById("nabilWorksheetBtn");
+  if(fallback){fallback.dataset.nabilDriveReplay="1";fallback.click();delete fallback.dataset.nabilDriveReplay;}
+ }
+},true);
 window.fetch=async function(input,options){
  const url=typeof input==="string"?input:input?.url||"";
  const body=options?.body;
