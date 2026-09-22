@@ -152,6 +152,33 @@ function installDocumentUpload(){
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",installDocumentUpload);
 else installDocumentUpload();
+function renderExactBook(data){
+ const chat=document.getElementById("chat");if(!chat)return;
+ document.getElementById("nabilExactBookOriginal")?.remove();
+ const card=document.createElement("section");card.id="nabilExactBookOriginal";
+ card.style.cssText="box-sizing:border-box;width:100%;max-width:100%;min-width:0;overflow-wrap:anywhere;background:#102c43;color:#fff;border:2px solid #48d8da;border-radius:14px;padding:clamp(8px,2vw,15px);margin:12px 0";
+ const heading=document.createElement("h3");heading.textContent="📚 من كتاب الدولة الأصلي — "+data.book_title+" · الصفحة المطبوعة "+data.printed_page+" · PDF "+data.pdf_page;
+ const note=document.createElement("p");note.textContent=data.message;
+ const image=document.createElement("img");image.src=data.page_image_url;image.alt="صورة صفحة الكتاب الأصلية "+data.printed_page;
+ image.loading="eager";image.style.cssText="display:block;width:100%;max-width:100%;height:auto;object-fit:contain;background:white;border-radius:8px";
+ image.onerror=()=>{note.textContent+=" ⚠️ تعذّر تحميل صورة الصفحة من Drive؛ لا تعتمد النص وحده لقراءة الرسم."};
+ const link=document.createElement("a");link.href=data.page_image_url;link.target="_blank";link.rel="noopener";link.textContent="🔍 تكبير الصفحة الأصلية";
+ link.style.cssText="display:inline-block;color:#a4f4ff;padding:12px 0";
+ const details=document.createElement("details"),summary=document.createElement("summary"),pre=document.createElement("p");
+ summary.textContent="النص المستخرج من الصفحة (قد لا يقرأ الرسم البياني)";pre.textContent=data.source_text||"لم يُستخرج نص قابل للقراءة.";
+ pre.style.cssText="white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7";details.append(summary,pre);
+ card.append(heading,note,image,link,details);chat.append(card);card.scrollIntoView({behavior:"smooth",block:"start"});
+}
+function exactRequest(body){
+ const message=String(body.get("message")||"");
+ const page=message.match(/(?:page|pages|p\\.|صفحة|الصفحة|ص\\.)\\s*(?:du livre|book|الكتاب|رقم|no\\.)?\\s*[:#-]?\\s*(\\d{1,4})/i)?.[1]||String(body.get("book_page")||"").trim();
+ const exercise=message.match(/(?:exercise|exercice|ex\\.|تمرين|التمرين)\\s*(?:رقم|n[°o]|number)?\\s*[:#-]?\\s*(\\d{1,3})/i)?.[1];
+ if(!page&&!exercise)return null;
+ const grade=field("gradeSelect")||String(body.get("grade")||"");
+ const subject=field("subjectSelect")||String(body.get("subject")||"");
+ if(!grade||!subject)return null;
+ return {grade,subject,page,exercise,message};
+}
 window.fetch=async function(input,options){
  const url=typeof input==="string"?input:input?.url||"";
  const body=options?.body;
@@ -166,6 +193,27 @@ window.fetch=async function(input,options){
    else{document.getElementById("nabilExerciseDocumentStatus").textContent="✓ تم إرسال "+sent.name;document.getElementById("nabilExerciseDocumentInput").value="";}
    return response;
   }catch(error){selectedDocument=sent;throw error;}
+ }
+ const exact=exactRequest(body);
+ if(exact&&!selectedDocument){
+  try{
+   const query=new FormData();
+   for(const key of ["grade","subject","curriculum","language","book_page"])query.set(key,String(body.get(key)||""));
+   query.set("grade",exact.grade);query.set("subject",exact.subject);query.set("message",exact.message);
+   const pdf=exact.message.match(/PDF\\s*p\\.?\\s*(\\d{1,4})/i)?.[1];
+   if(pdf)query.set("pdf_page",pdf);
+   const response=await originalFetch("/api/textbooks/exact-exercise-preview",{method:"POST",body:query});
+   if(response.ok){
+    const data=await response.json();
+    if(data.status==="indexed"){
+     renderExactBook(data);
+     return new Response(JSON.stringify({conversation_id:String(body.get("conversation_id")||"exact-textbook"),
+       reply:"📚 عرضت الصفحة الأصلية "+data.printed_page+" من "+data.book_title+" مباشرةً من فهرس كتاب Google Drive، دون انتظار مزوّد الذكاء الاصطناعي. "+data.message+" يمكنك تكبير الصفحة ومراجعة الرسم؛ لا أقدّم حلًا عدديًا غير مثبت من الصورة.",
+       sources:[],drawings:[]}),{status:200,headers:{"Content-Type":"application/json"}});
+    }
+    console.info("[NABIL_EXACT_BOOK] Indexed evidence unavailable",data.status,data.message);
+   }
+  }catch(error){console.warn("[NABIL_EXACT_BOOK] Direct retrieval unavailable",error)}
  }
  const message=String(body.get("message")||"").trim();
  const batch=parseExerciseBatch(message);
