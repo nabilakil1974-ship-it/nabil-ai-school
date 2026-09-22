@@ -288,6 +288,74 @@ def textbook_page_image(book_id: str, printed_page: int, db: Session = Depends(g
     )
 
 
+@router.post("/textbooks/exact-exercise-preview")
+def exact_exercise_preview(
+    grade: str = Form(""), subject: str = Form(""),
+    curriculum: str = Form(""), language: str = Form(""),
+    message: str = Form(""), book_page: str = Form(""),
+    pdf_page: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    """Return original indexed Drive-book evidence WITHOUT an AI provider call.
+
+    Printed page and PDF page are independent coordinates; the latter is
+    corroborating evidence, never silently substituted for the former.
+    """
+    from app.services.textbook_page_request import parse_textbook_exercise_request
+    try:
+        requested = parse_textbook_page_request(message, book_page)
+        exercise = parse_textbook_exercise_request(message)
+    except ValueError:
+        return {"status": "invalid", "message": "Invalid printed page"}
+    if requested is None and exercise is None:
+        return {"status": "unavailable", "message": "Specify a printed page or exercise"}
+    scope = resolve_textbook_curriculum(curriculum, language)
+    books = db.query(Book).filter(
+        Book.grade == str(grade or "").strip(),
+        Book.subject == str(subject or "").strip(),
+        Book.curriculum == scope,
+    ).all()
+    if not books:
+        return {"status": "unavailable", "message": "لا يوجد كتاب مفهرس لهذا الصف والمادة واللغة."}
+    from app.services.textbook_page_request import indexed_textbook_exercise_context
+    try:
+        if requested:
+            sources = indexed_textbook_page_context(
+                db, grade=str(grade or "").strip(), subject=str(subject or "").strip(),
+                curriculum=scope, printed_page=requested[0], mode="page")
+        else:
+            sources = indexed_textbook_exercise_context(
+                db, grade=str(grade or "").strip(), subject=str(subject or "").strip(),
+                curriculum=scope, exercise_number=exercise)
+    except (LookupError, ValueError) as exc:
+        logger.info("EXACT_BOOK_PREVIEW_NOT_FOUND reason=%s", type(exc).__name__)
+        return {"status": "unavailable", "message":
+                "لم أجد الصفحة أو التمرين بصورة فريدة في الكتاب المفهرس؛ لن أستبدله بتمرين مشابه."}
+    src = sources[0]
+    pdf = str(pdf_page or "").strip()
+    if pdf:
+        if not pdf.isdigit() or int(pdf) != int(src["pdf_page"]):
+            return {"status": "mismatch", "message":
+                    "رقم صفحة PDF لا يطابق الصفحة المطبوعة المسترجعة. لن أعرض صفحة مختلفة."}
+    original = src["text"]
+    found_exercise = False
+    if exercise is not None:
+        import re
+        found_exercise = bool(re.search(
+            rf"(?im)(?:^|\\n)\\s*(?:exercice|exercise|ex\\.|تمرين)\\s*(?:n[°o]\\s*)?{exercise}\\s*(?:[.):\\-]|$)",
+            original))
+    return {
+        "status": "indexed", "book_title": src["book_title"],
+        "printed_page": src["printed_page"], "pdf_page": src["pdf_page"],
+        "exercise_number": exercise, "exercise_heading_verified": found_exercise,
+        "page_image_url": f"/api/textbooks/{src['book_id']}/pages/{src['printed_page']}/image",
+        "source_text": original[:16000],
+        "message": ("عنوان التمرين موجود في النص المفهرس؛ راجع الرسم الأصلي قبل الحل."
+                    if found_exercise else
+                    "الصفحة الأصلية مسترجعة، لكن عنوان التمرين غير مثبت نصيًا؛ اقرأ صورته قبل الحل."),
+    }
+
+
 @router.post("/textbooks/lesson-preview")
 def indexed_lesson_preview(
     grade: str = Form(""),
