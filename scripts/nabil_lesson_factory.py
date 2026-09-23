@@ -12,9 +12,11 @@ import io
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
 import tempfile
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -22,10 +24,70 @@ ROOT = Path(__file__).resolve().parents[1]
 LEDGER = ROOT / "data/interactive_lesson_production_ledger.json"
 FOLDER_MIME = "application/vnd.google-apps.folder"
 ROOT_FOLDER = os.getenv("NABIL_LESSON_DRIVE_ROOT", "16bcmZMO_dn4FqlGaDtl8Hky6iSBEqZpX")
+RUN_DEADLINE = None
+BOOK_DEADLINE = None
+PROGRESS_STARTED = None
 
 
 def now():
     return datetime.now(timezone.utc).isoformat()
+
+
+def progress(stage, **details):
+    elapsed=round(time.monotonic()-PROGRESS_STARTED,1) if PROGRESS_STARTED else 0
+    print(json.dumps({"time":now(),"elapsed_seconds":elapsed,"stage":stage,**details},
+                     ensure_ascii=False),flush=True)
+
+
+def bounded(command, seconds, **kwargs):
+    """Kill the whole OCR process group when a page exceeds its time budget."""
+    remaining=min([seconds,*([RUN_DEADLINE-time.monotonic()] if RUN_DEADLINE else []),
+                   *([BOOK_DEADLINE-time.monotonic()] if BOOK_DEADLINE else [])])
+    if remaining <= 0:
+        raise TimeoutError("RUN_DEADLINE_EXCEEDED")
+    process=subprocess.Popen(command,start_new_session=True,**kwargs)
+    try:
+        out,err=process.communicate(timeout=remaining)
+    except BaseException:
+        os.killpg(process.pid,signal.SIGKILL)
+        process.communicate()
+        raise
+    if process.returncode:
+        raise subprocess.CalledProcessError(process.returncode,command,output=out,stderr=err)
+    return out
+
+
+def vision_page_text(image, page):
+    """Transcribe the rendered page with an available vision-capable provider."""
+    from openai import OpenAI
+    models={
+        "openai":os.getenv("OPENAI_VISION_MODEL","gpt-4.1-mini"),
+        "gemini":os.getenv("GEMINI_VISION_MODEL","gemini-2.5-flash"),
+        "openrouter":os.getenv("OPENROUTER_VISION_MODEL","openrouter/free"),
+        "groq":os.getenv("GROQ_VISION_MODEL","meta-llama/llama-4-scout-17b-16e-instruct"),
+    }
+    errors=[]
+    for provider,key,base,_ in configured_providers():
+        remaining=min([20,*([RUN_DEADLINE-time.monotonic()] if RUN_DEADLINE else []),
+                       *([BOOK_DEADLINE-time.monotonic()] if BOOK_DEADLINE else [])])
+        if remaining<=0:
+            raise TimeoutError("VISION_DEADLINE_EXCEEDED")
+        try:
+            response=OpenAI(api_key=key,base_url=base,timeout=remaining,max_retries=0
+                ).chat.completions.create(
+                    model=models[provider],
+                    messages=[{"role":"user","content":[
+                        {"type":"text","text":"Transcribe ALL visible textbook text in reading order. Preserve section titles, formulas, exercise numbers and page numbers. Do not answer exercises or invent illegible text."},
+                        {"type":"image_url","image_url":{"url":"data:image/jpeg;base64,"+base64.b64encode(image).decode()}}
+                    ]}])
+            text=(response.choices[0].message.content or "").strip()
+            if len(text)>=80:
+                progress("VISION_OK",page=page,provider=provider,characters=len(text))
+                return text
+            errors.append(provider+":INSUFFICIENT_TEXT")
+        except Exception as exc:
+            errors.append(provider+":"+type(exc).__name__)
+    raise ValueError(f"OCR_AND_VISION_FAILED_PAGE_{page}: "+",".join(errors))
 
 
 def owner_drive():
@@ -68,7 +130,7 @@ def download_pdf_to_path(service, file_id, path):
             _, finished = loader.next_chunk()
 
 
-def ocr_pdf(raw, page_indices):
+def ocr_pdf(raw, page_indices, vision_on_failure=False):
     """OCR selected pages; scanned books have no extractable PDF text."""
     with tempfile.TemporaryDirectory(prefix="nabil_toc_") as directory:
         pdf = Path(directory) / "source.pdf"
@@ -78,13 +140,27 @@ def ocr_pdf(raw, page_indices):
             pdf.write_bytes(raw)
         result = {}
         for index in page_indices:
+            if (RUN_DEADLINE and time.monotonic()>=RUN_DEADLINE
+                or BOOK_DEADLINE and time.monotonic()>=BOOK_DEADLINE):
+                raise TimeoutError("OCR_BUDGET_EXCEEDED")
             prefix = str(Path(directory) / f"page_{index}")
-            subprocess.run(["pdftoppm", "-f", str(index+1), "-l", str(index+1),
-                            "-singlefile", "-r", "160", "-jpeg", str(pdf), prefix],
-                           check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=45)
-            result[index] = subprocess.run(
-                ["tesseract", prefix+".jpg", "stdout", "-l", "eng"],
-                check=True, capture_output=True, text=True, timeout=45).stdout.strip()
+            progress("SOURCE_RENDER",page=index+1)
+            bounded(["pdftoppm", "-f", str(index+1), "-l", str(index+1),
+                     "-singlefile", "-r", "140", "-jpeg", str(pdf), prefix],
+                    8,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
+            progress("OCR",page=index+1)
+            try:
+                text=bounded(["tesseract", prefix+".jpg", "stdout", "-l", "eng"],
+                             7,stdout=subprocess.PIPE,stderr=subprocess.PIPE).decode("utf-8","replace").strip()
+            except subprocess.TimeoutExpired:
+                progress("OCR_TIMEOUT_VISION",page=index+1)
+                text=(vision_page_text(Path(prefix+".jpg").read_bytes(),index+1)
+                      if vision_on_failure else "")
+            if len(text)<80 and vision_on_failure:
+                progress("OCR_INSUFFICIENT_VISION",page=index+1)
+                text=vision_page_text(Path(prefix+".jpg").read_bytes(),index+1)
+            result[index]=text
+            progress("SOURCE_PAGE_READY",page=index+1,characters=len(text))
         return result
 
 
@@ -97,17 +173,24 @@ def visual_chapter_starts(pdf, total_pages, toc_text):
     from PIL import Image, ImageEnhance, ImageOps
     chapters = []
     with tempfile.TemporaryDirectory(prefix="nabil_headers_") as directory:
-        for index in range(10, min(total_pages, 75)):
+        for index in range(10, min(total_pages, 45)):
+            if BOOK_DEADLINE and time.monotonic()>=BOOK_DEADLINE:
+                raise TimeoutError("BOOK_DISCOVERY_BUDGET_EXCEEDED")
+            progress("HEADER_SCAN",page=index+1)
             prefix = str(Path(directory) / "page")
-            subprocess.run(["pdftoppm", "-f", str(index+1), "-l", str(index+1),
-                            "-singlefile", "-r", "150", "-jpeg", str(pdf), prefix],
-                           check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=45)
+            bounded(["pdftoppm", "-f", str(index+1), "-l", str(index+1),
+                     "-singlefile", "-r", "150", "-jpeg", str(pdf), prefix],
+                    8,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
             picture = Image.open(prefix+".jpg")
             band = picture.crop((0,0,picture.width,int(picture.height*.19)))
             ImageEnhance.Contrast(ImageOps.grayscale(band)).enhance(2).save(prefix+"_top.png")
-            title_band = subprocess.run(
-                ["tesseract", prefix+"_top.png", "stdout", "-l", "eng", "--psm", "6"],
-                check=True, capture_output=True, text=True, timeout=45).stdout
+            try:
+                title_band=bounded(
+                    ["tesseract", prefix+"_top.png", "stdout", "-l", "eng", "--psm", "6"],
+                    5,stdout=subprocess.PIPE,stderr=subprocess.PIPE).decode("utf-8","replace")
+            except subprocess.TimeoutExpired:
+                progress("HEADER_OCR_TIMEOUT",page=index+1)
+                title_band=""
             found = re.search(r"(?:\b(?:chapter|chapitre)\s*|^\W*)"
                               r"(\d{1,2})\s*[:.\-]\s*"
                               r"([A-Za-z][A-Za-z '&\-]{4,65})",title_band,re.I|re.M)
@@ -182,10 +265,9 @@ def candidates(reader, raw):
         if len(title) > 4 and len(title) < 90:
             chapter_titles.append((int(match.group(1)),title))
     if chapter_titles:
+        # Do not OCR 50+ full pages merely to find chapter headings. The
+        # bounded rendered-header scan above has already tried this source.
         probe = range(12,min(len(page_text),65))
-        for i in probe:
-            if len(page_text[i]) < 80:
-                page_text[i] = ocr_pdf(raw,[i])[i]
         matches = []
         for n,title in chapter_titles:
             words = [w for w in re.findall(r"[A-Za-z]{3,}",title.casefold())
@@ -238,9 +320,12 @@ def source_excerpt(reader, raw, start, end):
         raise ValueError("SOURCE_BOUNDARY_AMBIGUOUS")
     pages = [(i+1, (reader.pages[i].extract_text() or "").strip())
              for i in range(start, end)]
+    for number,text in pages:
+        if len(text)>=80:
+            progress("SOURCE_TEXT",page=number,characters=len(text))
     missing = [i for i in range(start,end) if len(pages[i-start][1]) < 80]
     if missing:
-        scanned = ocr_pdf(raw, missing)
+        scanned = ocr_pdf(raw, missing, vision_on_failure=True)
         pages = [(i+1, scanned.get(i, pages[i-start][1])) for i in range(start,end)]
     if sum(len(t) for _, t in pages) < 1100:
         raise ValueError("SOURCE_TEXT_INSUFFICIENT_OR_SCANNED")
@@ -647,6 +732,10 @@ def save_ledger(service,ledger,item):
 
 
 def run(report_path):
+    global RUN_DEADLINE,BOOK_DEADLINE,PROGRESS_STARTED
+    PROGRESS_STARTED=time.monotonic()
+    RUN_DEADLINE=time.monotonic()+420
+    max_books=max(1,min(5,int(os.getenv("NABIL_PILOT_MAX_BOOKS","3"))))
     ledger = json.loads(LEDGER.read_text(encoding="utf-8"))
     report = {"started":now(), "status":"RUNNING", "attempts":[], "production":None}
     def checkpoint():
@@ -674,21 +763,33 @@ def run(report_path):
         grade = re.search(r"\d+",book.get("grade",""))
         return (priority.get(book.get("subject"),999),
                 int(grade.group()) if grade else 999,
-                book.get("order",999),book.get("language","")!="English")
+                book.get("language","")!="English",book.get("order",999))
     for book in sorted(ledger["books"], key=book_order):
+        if time.monotonic()>=RUN_DEADLINE:
+            report["status"]="RUN_DEADLINE_EXCEEDED"; checkpoint()
+            break
+        if len(report["attempts"])>=max_books:
+            report["status"]="PILOT_BOOK_LIMIT_REACHED"
+            report["max_books"]=max_books
+            checkpoint()
+            progress("PILOT_BOOK_LIMIT_REACHED",attempts=len(report["attempts"]))
+            break
         if not book.get("drive_file_id"):
             continue
         if book["drive_file_id"] in seen_ids:
             continue
         seen_ids.add(book["drive_file_id"])
         attempt = {"book":book["title"],"book_id":book["drive_file_id"],"started":now()}
+        BOOK_DEADLINE=min(RUN_DEADLINE,time.monotonic()+120)
         report["attempts"].append(attempt); checkpoint()
+        progress("BOOK_STARTED",book=book["title"])
         try:
             from pypdf import PdfReader
             temp = tempfile.TemporaryDirectory(prefix="nabil_book_")
             pdf = Path(temp.name) / "book.pdf"
             download_pdf_to_path(service, book["drive_file_id"], pdf)
             reader = PdfReader(str(pdf))
+            progress("SOURCE_DISCOVERY_STARTED",book=book["title"])
             entries = candidates(reader,pdf)
             finished_records = [x for x in book.get("authored_lessons",[])
                                 if x.get("status") in ("verified_complete","REQUIRES_TEACHER_REVIEW")
@@ -703,6 +804,7 @@ def run(report_path):
             title, start, end = available[0]
             attempt.update({"lesson":title,"source_pdf_pages":list(range(start+1,end+1)),
                             "lesson_key":lesson_key(book,title,start)})
+            progress("SOURCE_LESSON_SELECTED",lesson=title,pages=attempt["source_pdf_pages"])
             pages = source_excerpt(reader,pdf,start,end)
             digest = hashlib.sha256()
             with pdf.open("rb") as stream:
@@ -710,7 +812,9 @@ def run(report_path):
                     digest.update(chunk)
             attempt["source_sha256"]=digest.hexdigest()
             checkpoint()
+            progress("GENERATION_STARTED",lesson=title)
             lesson = generate(title,pages,book.get("language",""))
+            progress("QUALITY_GATE_STARTED",lesson=title)
             failures = check_content(lesson,title,pages)
             if not failures:
                 review=scientific_review(lesson,pages)
@@ -730,6 +834,7 @@ def run(report_path):
             checkpoint()
             if failures:
                 raise ValueError("PPTX_QUALITY_FAILED: " + ",".join(failures))
+            progress("UPLOAD_STARTED",lesson=title)
             subject_folder = ensure_folder(service,ROOT_FOLDER,book["subject"])
             grade_folder = ensure_folder(service,subject_folder,book["grade"])
             folder = ensure_folder(service,grade_folder,title)
@@ -758,11 +863,14 @@ def run(report_path):
             report["production"]=record
             report["status"]="ONE_PILOT_REVIEW_PENDING"
             checkpoint()
+            progress("ONE_PILOT_REVIEW_PENDING",lesson=title)
             break
         except Exception as exc:
             attempt.update({"status":"FAILED","reason":f"{type(exc).__name__}: {exc}","finished":now()})
             checkpoint()
+            progress("BOOK_FAILED",book=book["title"],reason=attempt["reason"])
         finally:
+            BOOK_DEADLINE=None
             if "temp" in locals():
                 temp.cleanup()
                 del temp
@@ -775,7 +883,22 @@ def main():
     parser=argparse.ArgumentParser()
     parser.add_argument("--report",default="data/nabil_lesson_factory_run.json")
     args=parser.parse_args()
-    report=run(Path(args.report))
+    def deadline_handler(_signum,_frame):
+        raise TimeoutError("FACTORY_RUN_EXCEEDED_420_SECONDS")
+    old_handler=signal.signal(signal.SIGALRM,deadline_handler)
+    signal.setitimer(signal.ITIMER_REAL,420)
+    try:
+        report=run(Path(args.report))
+    except TimeoutError as exc:
+        report={"status":"RUN_DEADLINE_EXCEEDED","error":str(exc)}
+        if Path(args.report).exists():
+            previous=json.loads(Path(args.report).read_text(encoding="utf-8"))
+            previous.update(report)
+            report=previous
+            Path(args.report).write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")
+    finally:
+        signal.setitimer(signal.ITIMER_REAL,0)
+        signal.signal(signal.SIGALRM,old_handler)
     print(json.dumps(report,ensure_ascii=False,indent=2))
     return 0 if report["status"]=="ONE_PILOT_REVIEW_PENDING" else 2
 
