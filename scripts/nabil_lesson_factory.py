@@ -198,7 +198,8 @@ def visual_chapter_starts(pdf, total_pages, toc_text):
                 continue
             number, title = int(found.group(1)), found.group(2).strip(" .-")
             words = re.findall(r"[A-Za-z]{4,}",title.lower())
-            if not words or sum(w in toc_text.lower() for w in words) < max(1,len(words)-1):
+            if not words or sum(bool(re.search(r"\b"+re.escape(w)+r"\b",
+                                              toc_text,re.I)) for w in words) < max(1,len(words)-1):
                 continue
             if chapters and (number <= chapters[-1][2] or index-chapters[-1][0] < 2):
                 continue
@@ -413,7 +414,12 @@ def check_content(lesson, title, pages):
             try:
                 quote = str(item["source_quote"]).strip()
                 page = int(item["pdf_page"])
-                if len(quote) < 15 or quote not in by_page[page]:
+                # PDF OCR inserts line breaks inside otherwise verbatim quotes.
+                # Collapse whitespace only; never tolerate changed words or
+                # fabricated source text.
+                if (len(quote) < 15 or
+                    re.sub(r"\s+"," ",quote) not in
+                    re.sub(r"\s+"," ",by_page[page])):
                     raise ValueError()
                 if section == "questions" and (len(item["options"]) != 3 or
                     type(item["correct_index"]) is not int or not 0 <= item["correct_index"] < 3):
@@ -426,6 +432,61 @@ def check_content(lesson, title, pages):
     if len(str(lesson.get("introduction", ""))) < 60:
         errors.append("INTRODUCTION_TOO_SHORT")
     return errors
+
+
+def repair_source_quotes(lesson,pages,failures):
+    """One bounded attempt to replace invalid citations with literal OCR spans.
+
+    The original claims and answers remain unchanged; the scientific review
+    still decides whether those claims are actually supported by the spans.
+    """
+    from openai import OpenAI
+    targets=[]
+    for failure in failures:
+        found=re.fullmatch(r"UNVERIFIED_(concepts|activities|questions|exercises)_(\d+)",failure)
+        if found:
+            section,index=found.group(1),int(found.group(2))-1
+            targets.append({"section":section,"index":index,
+                            "item":lesson[section][index]})
+    if not targets:
+        return False
+    source="\n".join(f"PDF PAGE {number}\n{text}" for number,text in pages)
+    for provider,key,base,model in configured_providers():
+        try:
+            response=OpenAI(api_key=key,base_url=base,timeout=35,max_retries=0
+                ).chat.completions.create(
+                    model=os.getenv("NABIL_LESSON_MODEL",model),
+                    temperature=0,response_format={"type":"json_object"},
+                    messages=[
+                        {"role":"system","content":(
+                            "Repair only source citations for these educational items. "
+                            "Return JSON {repairs:[{section,index,pdf_page,source_quote}]}. "
+                            "Each quote must be copied character-for-character from ONE supplied PDF page "
+                            "and must support the item's claim or answer. If no supporting literal quote "
+                            "exists, omit that item. Do not change any lesson claim, exercise or answer.")},
+                        {"role":"user","content":json.dumps(
+                            {"source":source,"targets":targets},ensure_ascii=False)},
+                    ])
+            data=json.loads(response.choices[0].message.content)
+            allowed={(x["section"],x["index"]) for x in targets}
+            by_page=dict(pages)
+            repaired=0
+            for fix in data.get("repairs",[]):
+                section,index=fix.get("section"),fix.get("index")
+                if (section,index) not in allowed:
+                    continue
+                page=int(fix["pdf_page"]); quote=str(fix["source_quote"]).strip()
+                if len(quote)>=15 and quote in by_page.get(page,""):
+                    lesson[section][index]["pdf_page"]=page
+                    lesson[section][index]["source_quote"]=quote
+                    repaired+=1
+            progress("SOURCE_QUOTES_REPAIRED",provider=provider,count=repaired,
+                     requested=len(targets))
+            return repaired>0
+        except Exception as exc:
+            progress("SOURCE_QUOTE_REPAIR_PROVIDER_FAILED",provider=provider,
+                     error_type=type(exc).__name__)
+    return False
 
 
 def scientific_review(lesson, pages):
@@ -816,6 +877,11 @@ def run(report_path):
             lesson = generate(title,pages,book.get("language",""))
             progress("QUALITY_GATE_STARTED",lesson=title)
             failures = check_content(lesson,title,pages)
+            if any(x.startswith("UNVERIFIED_") for x in failures):
+                progress("SOURCE_QUOTE_REPAIR_STARTED",count=sum(
+                    x.startswith("UNVERIFIED_") for x in failures))
+                if repair_source_quotes(lesson,pages,failures):
+                    failures=check_content(lesson,title,pages)
             if not failures:
                 review=scientific_review(lesson,pages)
                 attempt["scientific_review"]=review
