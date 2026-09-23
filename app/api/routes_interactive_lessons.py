@@ -216,9 +216,16 @@ def _entries():
                         type(exc).__name__)
             owner = []
         # Owner-visible grade/subject files win over older flat-folder duplicates.
-        keyed = {(_grade(x.get("grade")), _subject(x.get("subject")),
-                  _norm(x.get("lesson"))): x for x in items
-                 if isinstance(x, dict) and x.get("drive_file_id") and x.get("lesson")}
+        keyed = {}
+        for x in items:
+            if not isinstance(x, dict) or not x.get("drive_file_id") or not x.get("lesson"):
+                continue
+            key = (_grade(x.get("grade")), _subject(x.get("subject")),
+                   _norm(x.get("lesson")))
+            previous = keyed.get(key)
+            if previous is None or ("BILINGUAL" in str(x.get("filename", "")).upper()
+                                    and "BILINGUAL" not in str(previous.get("filename", "")).upper()):
+                keyed[key] = x
         for item in owner:
             keyed[(_grade(item["grade"]), _subject(item["subject"]),
                    _norm(item["lesson"]))] = item
