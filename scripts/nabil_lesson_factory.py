@@ -436,7 +436,7 @@ def render_html(lesson, pages, book, images):
 stroke="#173b69" stroke-width="7"/>
 <path id="water-area" d="M73 85 L287 85 L287 177 L73 177 Z" fill="#54bce7" opacity=".7"/>
 <line id="waterline" x1="73" y1="85" x2="287" y2="85" stroke="#086a9d" stroke-width="4"/>
-</svg><p>The free surface is horizontal at every level.</p></section>
+</svg><p>The free surface is horizontal at every level: y(left) = y(right).</p></section>
 <script>const vessel=document.getElementById("vessel"),level=document.getElementById("liquid-level");
 function updateLab(){const narrow=vessel.value==="narrow",left=narrow?130:73,right=narrow?230:287,
 y=Number(level.value);document.getElementById("vessel-outline").setAttribute("d",
@@ -585,18 +585,39 @@ def find_named(service,parent,name):
 
 def upload_verified(service, parent, name, raw, mime):
     from googleapiclient.http import MediaIoBaseUpload
+    minimum = 40_000 if mime == "text/html" else 30_000
+    if len(raw) < minimum:
+        raise ValueError("ARTIFACT_TOO_SMALL_BEFORE_UPLOAD: "+name)
     existing=find_named(service,parent,name)
     if existing:
-        if hashlib.sha256(download(service,existing["id"])).digest() != hashlib.sha256(raw).digest():
-            raise FileExistsError("DRIVE_ARTIFACT_EXISTS_WITH_DIFFERENT_CONTENT: "+name)
+        verify_uploaded(service,existing["id"],parent,raw,mime)
         return existing
     item = service.files().create(body={"name":name, "parents":[parent]},
         media_body=MediaIoBaseUpload(io.BytesIO(raw), mimetype=mime, resumable=False),
         fields="id,name,size,webViewLink").execute()
-    readback = download(service, item["id"])
-    if hashlib.sha256(readback).digest() != hashlib.sha256(raw).digest():
-        raise ValueError("DRIVE_READBACK_HASH_MISMATCH")
+    verify_uploaded(service,item["id"],parent,raw,mime)
     return item
+
+
+def verify_uploaded(service, file_id, parent, raw, mime):
+    metadata=service.files().get(fileId=file_id,
+        fields="id,name,mimeType,size,parents,trashed").execute()
+    if (metadata.get("trashed") or parent not in metadata.get("parents",[])
+        or metadata.get("mimeType")!=mime
+        or int(metadata.get("size",0))!=len(raw)):
+        raise ValueError("DRIVE_FILE_LOCATION_TYPE_OR_SIZE_MISMATCH")
+    if hashlib.sha256(download(service,file_id)).digest()!=hashlib.sha256(raw).digest():
+        raise ValueError("DRIVE_READBACK_HASH_MISMATCH")
+
+
+def verify_folder_chain(service, folder, subject_folder, grade_folder):
+    for child,parent in ((folder,grade_folder),(grade_folder,subject_folder),
+                         (subject_folder,ROOT_FOLDER)):
+        meta=service.files().get(fileId=child,
+            fields="id,mimeType,parents,trashed").execute()
+        if (meta.get("trashed") or meta.get("mimeType")!=FOLDER_MIME
+            or parent not in meta.get("parents",[])):
+            raise ValueError("DRIVE_FOLDER_CHAIN_MISMATCH")
 
 
 def read_ledger(service, default):
@@ -669,12 +690,14 @@ def run(report_path):
             download_pdf_to_path(service, book["drive_file_id"], pdf)
             reader = PdfReader(str(pdf))
             entries = candidates(reader,pdf)
-            finished = {x.get("lesson_key") for x in book.get("authored_lessons",[])
-                        if x.get("status") in ("verified_complete","REQUIRES_TEACHER_REVIEW")
-                        and x.get("drive_html_id")
-                        and x.get("drive_pptx_id")}
+            finished_records = [x for x in book.get("authored_lessons",[])
+                                if x.get("status") in ("verified_complete","REQUIRES_TEACHER_REVIEW")
+                                and x.get("drive_html_id") and x.get("drive_pptx_id")]
+            finished = {x.get("lesson_key") for x in finished_records}
+            finished_starts = {x["source_pdf_pages"][0]-1 for x in finished_records
+                               if x.get("source_pdf_pages")}
             available = [(title, start, end) for title, start, end in entries
-                         if lesson_key(book,title,start) not in finished]
+                         if lesson_key(book,title,start) not in finished and start not in finished_starts]
             if not available:
                 raise ValueError("NO_UNFINISHED_TOC_LESSON")
             title, start, end = available[0]
@@ -707,9 +730,10 @@ def run(report_path):
             checkpoint()
             if failures:
                 raise ValueError("PPTX_QUALITY_FAILED: " + ",".join(failures))
-            grade_folder = ensure_folder(service,ROOT_FOLDER,book["grade"])
-            subject_folder = ensure_folder(service,grade_folder,book["subject"])
-            folder = ensure_folder(service,subject_folder,title)
+            subject_folder = ensure_folder(service,ROOT_FOLDER,book["subject"])
+            grade_folder = ensure_folder(service,subject_folder,book["grade"])
+            folder = ensure_folder(service,grade_folder,title)
+            verify_folder_chain(service,folder,subject_folder,grade_folder)
             base = (re.sub(r"[^a-zA-Z0-9_-]+","-",title).strip("-")[:45]
                     or "lesson")+"-"+attempt["lesson_key"]
             html_item = upload_verified(service,folder,base+".html",document.encode("utf-8"),"text/html")
@@ -719,8 +743,13 @@ def run(report_path):
             attempt["drive_pptx_id"]=ppt_item["id"]
             attempt["status"]="VERIFIED_UPLOAD"
             record = {"title":title,"lesson_key":attempt["lesson_key"],
+                      "book_drive_file_id":book["drive_file_id"],
                       "source_pdf_pages":attempt["source_pdf_pages"],"source_sha256":attempt["source_sha256"],
+                      "source_pages_sha256":hashlib.sha256(json.dumps(pages,ensure_ascii=False).encode()).hexdigest(),
+                      "html_sha256":hashlib.sha256(document.encode("utf-8")).hexdigest(),
+                      "pptx_sha256":hashlib.sha256(powerpoint).hexdigest(),
                       "drive_folder_id":folder,"drive_html_id":html_item["id"],"drive_pptx_id":ppt_item["id"],
+                      "html_bytes":len(document.encode("utf-8")),"pptx_bytes":len(powerpoint),
                       "status":"REQUIRES_TEACHER_REVIEW","completed_at":now()}
             book.setdefault("authored_lessons",[]).append(record)
             ledger["updated"]=now()
