@@ -164,6 +164,17 @@ def ocr_pdf(raw, page_indices, vision_on_failure=False):
         return result
 
 
+def trustworthy_title(title):
+    words=re.findall(r"[A-Za-zÀ-ÿ]+",str(title))
+    if (not words or len(title)>90 or
+        re.search(r"\.(?:pdf|jpg|png)|^(?:img|screenshot)[_ -]|^\d+$",
+                  title,re.I) or
+        title.casefold().strip() in {"introduction","foreword","préface","livre"}):
+        return False
+    # One short OCR word is especially likely to be a truncated heading.
+    return len(words)>1 or len(words[0])>=6
+
+
 def visual_chapter_starts(pdf, total_pages, toc_text):
     """Read the upper title band of actual page images, checking the TOC.
 
@@ -197,6 +208,9 @@ def visual_chapter_starts(pdf, total_pages, toc_text):
             if not found:
                 continue
             number, title = int(found.group(1)), found.group(2).strip(" .-")
+            if not trustworthy_title(title):
+                progress("TITLE_REJECTED_OCR_FRAGMENT",page=index+1,title=title)
+                continue
             words = re.findall(r"[A-Za-z]{4,}",title.lower())
             if not words or sum(bool(re.search(r"\b"+re.escape(w)+r"\b",
                                               toc_text,re.I)) for w in words) < max(1,len(words)-1):
@@ -234,7 +248,7 @@ def candidates(reader, raw):
     walk(reader.outline)
     if len(entries) >= 2:
         ordered = sorted({(p, t) for t, p in entries
-                          if p > 0 and len(t.split()) >= 2
+                          if p > 0 and trustworthy_title(t)
                           and not re.search(r"\.(?:pdf|jpg|png)|^(?:img|screenshot)[_ -]|livre$",
                                             t, re.I)})
         if len(ordered) >= 2:
@@ -263,7 +277,7 @@ def candidates(reader, raw):
             continue
         title = match.group(2).strip(" -:.") or next(
             (x.strip(" -:.") for x in toc_lines[i+1:i+4] if len(x.strip()) > 5), "")
-        if len(title) > 4 and len(title) < 90:
+        if trustworthy_title(title):
             chapter_titles.append((int(match.group(1)),title))
     if chapter_titles:
         # Do not OCR 50+ full pages merely to find chapter headings. The
@@ -299,7 +313,7 @@ def candidates(reader, raw):
         if not m:
             continue
         title = m.group(1).strip(" .-")
-        if len(title.split()) < 2:
+        if not trustworthy_title(title):
             continue
         matches = [i for i, text in enumerate(page_text[5:], 5)
                    if re.search(re.escape(title), text[:1600], re.I)]
@@ -314,6 +328,70 @@ def candidates(reader, raw):
 
 def lesson_key(book, title, start):
     return hashlib.sha256(f"{book['drive_file_id']}|{title}|{start}".encode()).hexdigest()[:20]
+
+
+def evidence_catalog(pages):
+    """Immutable literal spans from each PDF page; IDs carry page provenance."""
+    catalog={}
+    for page,text in pages:
+        chunks=re.split(r"\n\s*\n",text)
+        if len(chunks)<3:
+            chunks=text.splitlines()
+        buffer=""
+        serial=0
+        for part in chunks:
+            part=part.strip()
+            if not part:
+                continue
+            if len(buffer)+len(part)<220:
+                buffer+=(("\n" if buffer else "")+part)
+                continue
+            if buffer:
+                serial+=1; catalog[f"P{page}-{serial}"]={"page":page,"text":buffer}
+                buffer=""
+            while len(part)>320:
+                serial+=1; catalog[f"P{page}-{serial}"]={"page":page,"text":part[:300]}
+                part=part[300:]
+            buffer=part
+        if buffer:
+            serial+=1; catalog[f"P{page}-{serial}"]={"page":page,"text":buffer}
+    return catalog
+
+
+def source_evidence_map(title, pages, catalog):
+    """Index source spans by the educational roles visibly present in the PDF.
+
+    Classification is only an index. The exact page text in catalog remains
+    the authority for every generated claim and visual.
+    """
+    patterns={
+        "objectives":r"objectives?|learn|aims?",
+        "definitions":r"defined|is called|is a |are called|consists of",
+        "laws":r"formula|law|horizontal|equal|unit|measure|=|proportional",
+        "examples":r"example|for instance|e\.g\.",
+        "activities":r"activity|experiment|observe|try|place|take a",
+        "figures":r"figure|fig\.|draw|diagram|vessel|surface",
+        "exercises":r"exercise|calculate|complete|explain|question",
+        "symbols_units":r"\b(?:cm|mm|kg|g|mL|L|N|V|A|Ω)\b|symbol|units?",
+    }
+    categories={name:[key for key,entry in catalog.items()
+                      if re.search(pattern,entry["text"],re.I)]
+                for name,pattern in patterns.items()}
+    return {"title":title,"source_pdf_pages":[page for page,_ in pages],
+            "categories":categories,"evidence":catalog}
+
+
+def attach_evidence(lesson,catalog):
+    if lesson.get("introduction_evidence_id") in catalog:
+        entry=catalog[lesson["introduction_evidence_id"]]
+        lesson["introduction_source_page"]=entry["page"]
+        lesson["introduction_source_quote"]=entry["text"]
+    for section in ("concepts","activities","questions","exercises","summary"):
+        for item in lesson.get(section,[]):
+            evidence=catalog.get(str(item.get("evidence_id","")))
+            if evidence:
+                item["pdf_page"]=evidence["page"]
+                item["source_quote"]=evidence["text"]
 
 
 def source_excerpt(reader, raw, start, end):
@@ -335,24 +413,52 @@ def source_excerpt(reader, raw, start, end):
     return pages
 
 
-def generate(title, pages, language):
+def parse_provider_json(client,provider,messages,response,model):
+    content=response.choices[0].message.content
+    if content is None and provider=="openrouter":
+        # Some OpenRouter free routes do not populate content under JSON mode.
+        # Retry once using plain chat before moving to the next free provider.
+        retry=client.chat.completions.create(
+            model=model,temperature=0,
+            messages=[{"role":"system","content":"Return a valid JSON object only."},*messages])
+        content=retry.choices[0].message.content
+    if not isinstance(content,str) or not content.strip():
+        raise ValueError(provider.upper()+"_EMPTY_RESPONSE")
+    value=content.strip()
+    if value.startswith("```"):
+        value=re.sub(r"^```(?:json)?\s*|\s*```$","",value,flags=re.I).strip()
+    result=json.loads(value)
+    if not isinstance(result,dict):
+        raise ValueError(provider.upper()+"_NON_OBJECT_RESPONSE")
+    return result
+
+
+def generate(title, pages, language, evidence_map):
     from openai import OpenAI
-    source = "\n".join(f"[PDF PAGE {p}]\n{t}" for p, t in pages)
+    catalog=evidence_map["evidence"]
+    source = json.dumps(evidence_map,ensure_ascii=False)
     messages = [
             {"role": "system", "content": (
                 "Create a complete, accurate classroom lesson solely from the supplied PDF text. "
-                "Return JSON with keys title, introduction, concepts (array of objects: heading, explanation, "
-                "source_quote, pdf_page), activities (array of objects: prompt, answer, source_quote, pdf_page), "
+                "Return JSON with keys title, introduction, introduction_evidence_id, "
+                "concepts (array of objects: heading, explanation, "
+                "evidence_id, visual_evidence_id, example if source has one), "
+                "activities (array of objects: prompt, answer, evidence_id), "
                 "questions (array of objects: prompt, options [exactly 3 strings], correct_index [0..2], "
-                "explanation, source_quote, pdf_page), exercises (array of objects: "
-                "prompt, solution, source_quote, pdf_page), summary (array of strings). "
+                "explanation, evidence_id), exercises (array of objects: "
+                "prompt, solution, solution_steps [array of explanatory steps], evidence_id), "
+                "summary (array of objects: text, evidence_id). "
                 "At least 3 concepts, 2 activities, 3 questions, 2 fully worked exercises "
                 "and 4 summary points. Exercises should be taken from source pages, with "
                 "solutions consistent with the source; if an exercise depends on a figure "
                 "you cannot interpret, do not invent its solution. "
-                "Each source_quote must be an exact contiguous excerpt of the supplied page text; "
+                "Each concept's visual_evidence_id must identify the source page with the figure or "
+                "observation for that concept; use its own evidence_id if the page itself is the visual. "
+                "Every item must cite one evidence_id from the supplied catalog that directly supports "
+                "the claim or answer. Never create an evidence_id or pretend a diagram shows a value. "
                 "do not invent source exercises or answers. If insufficient evidence return {error: reason}. "
-                "Never copy or reuse GitHub HTML. Write in the textbook's language.")},
+                "Use the evidence map categories to cover objectives, concepts, activities, figures "
+                "and exercises. Never copy or reuse GitHub HTML. Write in the textbook's language.")},
             {"role": "user", "content": f"Book language: {language}; TOC title: {title}\n{source}"},
         ]
     errors = []
@@ -364,9 +470,11 @@ def generate(title, pages, language):
                 model=os.getenv("NABIL_LESSON_MODEL", model),
                 temperature=0, response_format={"type": "json_object"},
                 messages=messages)
-            result = json.loads(response.choices[0].message.content)
+            result = parse_provider_json(client,provider,messages,response,
+                                         os.getenv("NABIL_LESSON_MODEL",model))
             if result.get("error"):
                 raise ValueError("GENERATION_REFUSED: " + str(result["error"])[:200])
+            attach_evidence(result,catalog)
             return result
         except Exception as exc:
             errors.append(f"{provider}: {type(exc).__name__}: {str(exc)[:180]}")
@@ -394,12 +502,14 @@ def configured_providers():
         if name not in options:
             continue
         env, base, model = options[name]
+        if name=="openai" and os.getenv("NABIL_LESSON_ALLOW_PAID_OPENAI")!="1":
+            continue
         if os.getenv(env, "").strip():
             result.append((name, os.environ[env], base, model))
     return result
 
 
-def check_content(lesson, title, pages):
+def check_content(lesson, title, pages, catalog):
     errors = []
     if re.sub(r"\W+", "", str(lesson.get("title", "")).casefold()) != re.sub(r"\W+", "", title.casefold()):
         errors.append("TITLE_MISMATCH")
@@ -409,11 +519,16 @@ def check_content(lesson, title, pages):
         if not isinstance(lesson.get(field), list) or len(lesson[field]) < minimum:
             errors.append("INSUFFICIENT_" + field.upper())
     by_page = dict(pages)
-    for section in ("concepts", "activities", "questions", "exercises"):
+    for section in ("concepts", "activities", "questions", "exercises", "summary"):
         for i, item in enumerate(lesson.get(section, [])):
             try:
                 quote = str(item["source_quote"]).strip()
                 page = int(item["pdf_page"])
+                evidence=catalog[item["evidence_id"]]
+                if evidence["page"]!=page or evidence["text"].strip()!=quote:
+                    raise ValueError()
+                if section=="concepts" and item["visual_evidence_id"] not in catalog:
+                    raise ValueError()
                 # PDF OCR inserts line breaks inside otherwise verbatim quotes.
                 # Collapse whitespace only; never tolerate changed words or
                 # fabricated source text.
@@ -425,17 +540,23 @@ def check_content(lesson, title, pages):
                     type(item["correct_index"]) is not int or not 0 <= item["correct_index"] < 3):
                     raise ValueError()
                 if section == "exercises" and (len(str(item["prompt"])) < 15
-                                                or len(str(item["solution"])) < 35):
+                                                or len(str(item["solution"])) < 35
+                                                or not isinstance(item.get("solution_steps"),list)
+                                                or len(item["solution_steps"])<2):
                     raise ValueError()
-            except (ValueError, KeyError, TypeError):
+            except (ValueError, KeyError, TypeError, IndexError):
                 errors.append(f"UNVERIFIED_{section}_{i+1}")
     if len(str(lesson.get("introduction", ""))) < 60:
         errors.append("INTRODUCTION_TOO_SHORT")
+    intro=catalog.get(lesson.get("introduction_evidence_id"))
+    if (not intro or lesson.get("introduction_source_page")!=intro["page"]
+        or lesson.get("introduction_source_quote")!=intro["text"]):
+        errors.append("INTRODUCTION_EVIDENCE_INVALID")
     return errors
 
 
-def repair_source_quotes(lesson,pages,failures):
-    """One bounded attempt to replace invalid citations with literal OCR spans.
+def repair_source_quotes(lesson,pages,catalog,failures):
+    """One bounded attempt to replace invalid citations with catalog IDs.
 
     The original claims and answers remain unchanged; the scientific review
     still decides whether those claims are actually supported by the spans.
@@ -443,43 +564,44 @@ def repair_source_quotes(lesson,pages,failures):
     from openai import OpenAI
     targets=[]
     for failure in failures:
-        found=re.fullmatch(r"UNVERIFIED_(concepts|activities|questions|exercises)_(\d+)",failure)
+        found=re.fullmatch(r"UNVERIFIED_(concepts|activities|questions|exercises|summary)_(\d+)",failure)
         if found:
             section,index=found.group(1),int(found.group(2))-1
             targets.append({"section":section,"index":index,
                             "item":lesson[section][index]})
     if not targets:
         return False
-    source="\n".join(f"PDF PAGE {number}\n{text}" for number,text in pages)
+    source=json.dumps(catalog,ensure_ascii=False)
     for provider,key,base,model in configured_providers():
         try:
-            response=OpenAI(api_key=key,base_url=base,timeout=35,max_retries=0
-                ).chat.completions.create(
+            client=OpenAI(api_key=key,base_url=base,timeout=35,max_retries=0)
+            messages=[
+                {"role":"system","content":(
+                    "Repair only source citations for these educational items. "
+                    "Return JSON {repairs:[{section,index,evidence_id}]}. "
+                    "Each evidence_id must exist in the supplied catalog and directly support "
+                    "the item's claim or answer. If no supporting evidence "
+                    "exists, omit that item. Do not change any lesson claim, exercise or answer.")},
+                {"role":"user","content":json.dumps(
+                    {"source":source,"targets":targets},ensure_ascii=False)},
+            ]
+            response=client.chat.completions.create(
                     model=os.getenv("NABIL_LESSON_MODEL",model),
                     temperature=0,response_format={"type":"json_object"},
-                    messages=[
-                        {"role":"system","content":(
-                            "Repair only source citations for these educational items. "
-                            "Return JSON {repairs:[{section,index,pdf_page,source_quote}]}. "
-                            "Each quote must be copied character-for-character from ONE supplied PDF page "
-                            "and must support the item's claim or answer. If no supporting literal quote "
-                            "exists, omit that item. Do not change any lesson claim, exercise or answer.")},
-                        {"role":"user","content":json.dumps(
-                            {"source":source,"targets":targets},ensure_ascii=False)},
-                    ])
-            data=json.loads(response.choices[0].message.content)
+                    messages=messages)
+            data=parse_provider_json(client,provider,messages,response,
+                                     os.getenv("NABIL_LESSON_MODEL",model))
             allowed={(x["section"],x["index"]) for x in targets}
-            by_page=dict(pages)
             repaired=0
             for fix in data.get("repairs",[]):
                 section,index=fix.get("section"),fix.get("index")
                 if (section,index) not in allowed:
                     continue
-                page=int(fix["pdf_page"]); quote=str(fix["source_quote"]).strip()
-                if len(quote)>=15 and quote in by_page.get(page,""):
-                    lesson[section][index]["pdf_page"]=page
-                    lesson[section][index]["source_quote"]=quote
+                evidence_id=str(fix.get("evidence_id",""))
+                if evidence_id in catalog:
+                    lesson[section][index]["evidence_id"]=evidence_id
                     repaired+=1
+            attach_evidence(lesson,catalog)
             progress("SOURCE_QUOTES_REPAIRED",provider=provider,count=repaired,
                      requested=len(targets))
             return repaired>0
@@ -500,23 +622,26 @@ def scientific_review(lesson, pages):
     errors = []
     for name,key,base,model in configured_providers():
         try:
-            response = OpenAI(api_key=key,base_url=base,timeout=90,max_retries=0
-                ).chat.completions.create(
+            client=OpenAI(api_key=key,base_url=base,timeout=90,max_retries=0)
+            messages=[
+                {"role":"system","content":(
+                    "You are a skeptical independent textbook fact checker. "
+                    "Compare EVERY introduction claim, concept, example, visual_evidence_id, "
+                    "activity answer, multiple-choice correct answer, worked solution step, "
+                    "exercise solution and summary statement with the original PDF OCR. "
+                    "Check mathematical/scientific truth and whether the answer follows from "
+                    "the cited source. Return JSON {approved: boolean, errors: [specific errors]}. "
+                    "If diagrams or OCR are too ambiguous to verify a result, reject it. "
+                    "Do not add new claims or treat source quotes alone as proof.")},
+                {"role":"user","content":json.dumps(
+                    {"source":source,"lesson":lesson},ensure_ascii=False)},
+            ]
+            response = client.chat.completions.create(
                     model=os.getenv("NABIL_LESSON_REVIEW_MODEL",model),
                     temperature=0,response_format={"type":"json_object"},
-                    messages=[
-                        {"role":"system","content":(
-                            "You are a skeptical independent textbook fact checker. "
-                            "Compare EVERY concept, activity answer, multiple-choice correct answer, "
-                            "exercise solution and summary statement with the original PDF OCR. "
-                            "Check mathematical/scientific truth and whether the answer follows from "
-                            "the cited source. Return JSON {approved: boolean, errors: [specific errors]}. "
-                            "If diagrams or OCR are too ambiguous to verify a result, reject it. "
-                            "Do not add new claims or treat source quotes alone as proof.")},
-                        {"role":"user","content":json.dumps(
-                            {"source":source,"lesson":lesson},ensure_ascii=False)},
-                    ])
-            verdict=json.loads(response.choices[0].message.content)
+                    messages=messages)
+            verdict=parse_provider_json(client,name,messages,response,
+                                        os.getenv("NABIL_LESSON_REVIEW_MODEL",model))
             if verdict.get("approved") is True and verdict.get("errors")==[]:
                 return {"pass":True,"reviewer":name,"errors":[]}
             return {"pass":False,"reviewer":name,
@@ -543,27 +668,73 @@ def source_images(pdf, pages):
     return result
 
 
-def render_html(lesson, pages, book, images):
+def concept_diagram(source_text):
+    """Source-triggered SVG adapters; otherwise the original PDF page is shown."""
+    text=source_text.casefold()
+    if "communicating vessel" in text and "horizont" in text:
+        return '''<svg viewBox="0 0 480 210" role="img" aria-label="Communicating vessels with equal water levels">
+<path d="M65 22 V180 H415 V22 M180 22 V180 M300 22 V180" fill="none" stroke="#8ce9ff" stroke-width="7"/>
+<path d="M69 100 V176 H411 V100 M184 100 V176 M304 100 V176" fill="none" stroke="#38aada" stroke-width="14"/>
+<path d="M54 100 H428" fill="none" stroke="#31d9a8" stroke-width="3" stroke-dasharray="9 6"/>
+<text x="125" y="85" fill="#e9f8ff" font-size="16">same horizontal level</text></svg>'''
+    if "free surface" in text and "horizont" in text:
+        return '''<svg viewBox="0 0 480 210" role="img" aria-label="Horizontal water surface and vertical plumb line">
+<path d="M50 26 L65 180 H410 L425 26" fill="none" stroke="#8ce9ff" stroke-width="7"/>
+<path d="M59 106 H416 L409 176 H66 Z" fill="#38aada" opacity=".65"/>
+<line x1="58" x2="417" y1="106" y2="106" stroke="#31d9a8" stroke-width="4"/>
+<line x1="238" x2="238" y1="20" y2="167" stroke="#ffe49a" stroke-width="3" stroke-dasharray="8 5"/>
+<text x="68" y="94" fill="#e9f8ff" font-size="16">horizontal</text></svg>'''
+    if "shape" in text and "liquid" in text and "vessel" in text:
+        return '''<svg viewBox="0 0 480 210" role="img" aria-label="Liquid adapting to two different vessel shapes">
+<path d="M35 30 L55 180 H205 L225 30 M290 55 L300 180 H430 L440 55" fill="none" stroke="#8ce9ff" stroke-width="7"/>
+<path d="M46 105 H214 L202 176 H58Z M294 116 H436 L427 176 H303Z" fill="#38aada" opacity=".7"/>
+<path d="M230 95 L275 95 M260 82 L275 95 L260 108" fill="none" stroke="#31d9a8" stroke-width="5"/></svg>'''
+    return ""
+
+
+def render_html(lesson, pages, book, images, evidence_map):
     e = lambda value: html.escape(str(value), quote=True)
+    catalog=evidence_map["evidence"]
+    golden_css=(ROOT/"app/static/nabil_lesson_golden.css").read_text(encoding="utf-8")
+    def source_tag(item):
+        return (f'<small data-evidence-id="{e(item["evidence_id"])}" '
+                f'data-source-page="{int(item["pdf_page"])}">PDF p. {int(item["pdf_page"])}'
+                f' · <q>{e(item["source_quote"])}</q></small>')
+    def visual(x):
+        entry=catalog[x["visual_evidence_id"]]
+        svg=concept_diagram(entry["text"])
+        return (f'<figure class="fig" data-evidence-id="{e(x["visual_evidence_id"])}" '
+                f'data-source-page="{entry["page"]}">'
+                f'{svg}<img loading="lazy" src="data:image/jpeg;base64,'
+                f'{base64.b64encode(images[entry["page"]]).decode()}" '
+                f'alt="Original textbook page {entry["page"]}">'
+                f'<figcaption>{("Source-backed explanatory reconstruction · " if svg else "")}'
+                f'Original PDF p. {entry["page"]} · evidence {e(x["visual_evidence_id"])}</figcaption>'
+                '</figure>')
     cards = "".join(
-        f'<section class="card"><h2>{e(x["heading"])}</h2><p>{e(x["explanation"])}</p>'
-        f'<small>PDF p. {int(x["pdf_page"])} · {e(book["title"])}</small></section>'
-        for x in lesson["concepts"])
+        f'<section class="card concept"><h2>{i} · {e(x["heading"])}</h2>'
+        f'<p>{e(x["explanation"])}</p>'
+        f'{visual(x)}'
+        f'{("<p class=example>"+e(x["example"])+"</p>") if x.get("example") else ""}'
+        f'{source_tag(x)}</section>'
+        for i,x in enumerate(lesson["concepts"],1))
     activities = "".join(
         f'<details class="card"><summary>{e(x["prompt"])}</summary><p>{e(x["answer"])}</p>'
-        f'<small>PDF p. {int(x["pdf_page"])}</small></details>' for x in lesson["activities"])
+        f'{source_tag(x)}</details>' for x in lesson["activities"])
     questions = "".join(
         f'<fieldset class="card" data-answer="{x["correct_index"]}"><legend>{e(x["prompt"])}</legend>'
         + "".join(f'<label><input type="radio" name="q{i}" value="{j}">{e(option)}</label>'
                   for j, option in enumerate(x["options"]))
         + f'<button type="button" class="check">Check</button><output aria-live="polite"></output>'
-          f'<span class="explanation" hidden>{e(x["explanation"])}</span></fieldset>'
+          f'<span class="explanation" hidden>{e(x["explanation"])}</span>{source_tag(x)}</fieldset>'
         for i, x in enumerate(lesson["questions"]))
     exercises = "".join(
         f'<details class="card"><summary>Exercise {i+1}: {e(x["prompt"])}</summary>'
-        f'<p>{e(x["solution"])}</p><small>PDF p. {int(x["pdf_page"])}</small></details>'
+        f'<ol>{"".join("<li>"+e(step)+"</li>" for step in x["solution_steps"])}</ol>'
+        f'<p><strong>{e(x["solution"])}</strong></p>{source_tag(x)}</details>'
         for i,x in enumerate(lesson["exercises"]))
-    summary = "".join(f"<li>{e(s)}</li>" for s in lesson["summary"])
+    summary = "".join(f"<li>{e(s['text'])}<br>{source_tag(s)}</li>"
+                      for s in lesson["summary"])
     original = "".join(
         f'<figure class="card"><img loading="lazy" alt="Original source PDF page {number}" '
         f'src="data:image/jpeg;base64,{base64.b64encode(images[number]).decode()}">'
@@ -572,7 +743,12 @@ def render_html(lesson, pages, book, images):
     source_text=" ".join(text for _,text in pages).lower()
     lab = ""
     if "free surface" in source_text and "horizontal" in source_text:
-        lab = '''<section class="card" id="source-lab"><h2>Explore the free surface</h2>
+        lab_ids=[key for key,item in catalog.items()
+                 if "free surface" in item["text"].lower()
+                 and "horizontal" in item["text"].lower()]
+        if lab_ids:
+            lab_id=lab_ids[0]; lab_page=catalog[lab_id]["page"]
+            lab = f'<section class="card" id="source-lab" data-evidence-id="{e(lab_id)}" data-source-page="{lab_page}">' + '''<h2>Explore the free surface</h2>
 <p>Change the vessel and liquid level. Observe that the free surface stays horizontal.</p>
 <label>Vessel <select id="vessel"><option value="wide">Wide</option>
 <option value="narrow">Narrow</option></select></label>
@@ -596,21 +772,26 @@ vessel.addEventListener("change",updateLab);level.addEventListener("input",updat
     return f'''<!doctype html><html lang="{e(book.get("language", "en"))[:2].lower()}">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{e(lesson["title"])} · NABIL AI</title>
-<style>body{{margin:0;background:#edf3f9;color:#14263e;font:1.1rem/1.65 system-ui}}
-main{{max-width:900px;margin:auto;padding:16px}}header,.card{{background:white;border-radius:18px;
-padding:18px;margin:14px 0;box-shadow:0 3px 14px #15304a1a}}header{{background:#173b69;color:white}}
-h1{{line-height:1.2}}h2{{color:#125b8f}}header small{{color:#e3f1ff}}small{{color:#315a7a}}
-img{{width:100%;height:auto;display:block}}figure{{margin:14px 0}}
-label{{display:block;padding:9px;margin:8px 0;border:1px solid #bed2e3;border-radius:9px}}
-button{{background:#096c83;color:white;border:0;border-radius:9px;padding:10px 18px;font:inherit}}
+<style>{golden_css}
+img{{width:100%;height:auto;display:block}}.concept img{{max-height:460px;object-fit:contain}}
+figure{{margin:14px 0}}.concept{{border-inline-start:6px solid #168a83}}
+#summary-card{{border:3px solid #31d9a8}}
+#summary-card ul{{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;padding:0;list-style:none}}
+#summary-card li{{padding:12px;border-radius:10px;background:#09243b}}
+.concept small,.card small{{display:block;margin-top:9px;color:#b6d8e7}}.concept q{{display:block;font-size:.86rem}}
+label{{display:block;padding:9px;margin:8px 0}}fieldset{{border:1px solid #315f7e;border-radius:12px}}
 output{{display:block;font-weight:700}}details summary{{cursor:pointer;font-weight:700}}
+.source-pages img{{max-height:700px;object-fit:contain}}
 @media(max-width:500px){{main{{padding:9px}}.card,header{{padding:14px}}}}</style></head>
-<body><main><header><h1>{e(lesson["title"])}</h1><p>{e(lesson["introduction"])}</p>
-<small>{e(book["title"])} · PDF pages {refs}</small></header>
-<h2>Learn</h2>{cards}<h2>Explore and solve</h2>{activities}{lab}
+<body><header><strong>🧠 NABIL AI · {e(book["grade"])} · {e(book["subject"])}</strong></header>
+<nav class="langbar"><span data-en="Lesson from the official textbook" data-fr="Leçon du manuel officiel">Lesson from the official textbook</span>
+<button type="button" onclick="window.print()">Print / طباعة</button></nav><main><section class="card">
+<h1>{e(lesson["title"])}</h1><p>{e(lesson["introduction"])}</p>
+<small data-evidence-id="{e(lesson["introduction_evidence_id"])}" data-source-page="{int(lesson["introduction_source_page"])}">{e(book["title"])} · PDF pages {refs}</small></section>
+<h2>Ideas · الأفكار</h2>{cards}<h2>Activities · الأنشطة</h2>{activities}{lab}
 <h2>Exercises and worked solutions</h2>{exercises}
-<h2>Interactive worksheet</h2>{questions}<section class="card" id="summary-card"><h2>Lesson summary</h2><ul>{summary}</ul></section>
-<section><h2>Original textbook figures and exercises</h2>{original}</section>
+<h2>Interactive worksheet · ورقة عمل</h2>{questions}<section class="card" id="summary-card"><h2>Summary Card · بطاقة الخلاصة</h2><ul>{summary}</ul></section>
+<section class="source-pages"><h2>Original textbook figures and exercises</h2>{original}</section>
 <section class="card"><h2>Source</h2><p>{e(book["title"])} · Drive PDF ID {e(book["drive_file_id"])} · PDF pages {refs}</p></section>
 </main><script>document.querySelectorAll("fieldset").forEach(f=>f.querySelector("button").onclick=()=>{{
 const choice=f.querySelector("input:checked"),out=f.querySelector("output");
@@ -618,7 +799,7 @@ out.textContent=choice?(Number(choice.value)===Number(f.dataset.answer)?"✓ Cor
 }});</script></body></html>'''
 
 
-def check_html(document, lesson, pages):
+def check_html(document, lesson, pages, evidence_map):
     from bs4 import BeautifulSoup
     soup = BeautifulSoup(document, "html.parser")
     errors = []
@@ -628,8 +809,29 @@ def check_html(document, lesson, pages):
         errors.append("QUIZ_RENDER_MISMATCH")
     if len(soup.select("details")) != len(lesson["activities"])+len(lesson["exercises"]):
         errors.append("EXERCISES_OR_SOLUTIONS_MISSING")
-    if len(soup.select("img[src^='data:image/jpeg;base64,']")) != len(pages):
+    if len(soup.select("figure.card img[src^='data:image/jpeg;base64,']")) != len(pages):
         errors.append("ORIGINAL_SOURCE_FIGURES_MISSING")
+    if len(soup.select(".concept figure img")) != len(lesson["concepts"]):
+        errors.append("CONCEPT_VISUALS_MISSING")
+    catalog=evidence_map["evidence"]
+    tagged=soup.select("[data-evidence-id][data-source-page]")
+    for tag in tagged:
+        entry=catalog.get(tag.get("data-evidence-id"))
+        if not entry or str(entry["page"])!=tag.get("data-source-page"):
+            errors.append("HTML_EVIDENCE_MAPPING_INVALID")
+            break
+    expected=1+len(lesson["concepts"])+sum(
+        len(lesson[key]) for key in ("concepts","activities","questions","exercises","summary"))
+    if len(tagged)<expected:
+        errors.append("HTML_EVIDENCE_MAPPING_INCOMPLETE")
+    for tag in tagged:
+        quote=tag.select_one("q")
+        if quote and (re.sub(r"\s+"," ",quote.get_text(" ",strip=True))!=
+                      re.sub(r"\s+"," ",catalog[tag["data-evidence-id"]]["text"].strip())):
+            errors.append("HTML_EVIDENCE_QUOTE_MISMATCH")
+            break
+    if not soup.select_one(".langbar") or ".grid" not in document:
+        errors.append("GOLDEN_LAYOUT_CONTRACT_MISSING")
     if not soup.select_one("#summary-card"):
         errors.append("SUMMARY_CARD_MISSING")
     if soup.select_one("#source-lab") and (
@@ -670,7 +872,10 @@ def make_pptx(lesson, book, pages, images):
                 p.font.size = Pt(size); p.font.color.rgb = color
         textbox(title, 1, .55, 11.4, 1.2, 34, RGBColor(255,255,255))
         width=7.1 if page in images else 10.9
-        textbox(body[:600], 1.25, 2.2, width, 3.85, 22, RGBColor(239,248,255))
+        if len(body)>850:
+            raise ValueError("PPTX_SLIDE_TEXT_TOO_LONG")
+        size=16 if len(body)>580 else (19 if len(body)>350 else 22)
+        textbox(body, 1.25, 2.2, width, 3.85, size, RGBColor(239,248,255))
         if page in images:
             from PIL import Image
             picture=Image.open(io.BytesIO(images[page]))
@@ -688,9 +893,11 @@ def make_pptx(lesson, book, pages, images):
     for i, item in enumerate(lesson["activities"], offset+1):
         slide("Explore · " + item["prompt"], item["answer"], i,int(item["pdf_page"]))
     for item in lesson["exercises"]:
-        slide("Worked exercise · " + item["prompt"], item["solution"],
+        steps="\n".join(f"{i}. {step}" for i,step in enumerate(item["solution_steps"],1))
+        slide("Worked exercise · " + item["prompt"], steps+"\n\n"+item["solution"],
               len(prs.slides)+1,int(item["pdf_page"]))
-    slide("Quick review", "\n• ".join(lesson["summary"]), len(prs.slides)+1)
+    slide("Summary Card · key ideas", "\n• ".join(item["text"] for item in lesson["summary"]),
+          len(prs.slides)+1,pages[0][0])
     stream = io.BytesIO(); prs.save(stream)
     return stream.getvalue()
 
@@ -702,6 +909,9 @@ def check_pptx(raw, lesson):
         return ["PPTX_SLIDE_COUNT_MISMATCH"]
     text = "\n".join(shape.text for slide in slides for shape in slide.shapes if shape.has_text_frame)
     missing = [x["heading"] for x in lesson["concepts"] if x["heading"] not in text]
+    for exercise in lesson["exercises"]:
+        if any(step not in text for step in exercise["solution_steps"]):
+            return ["PPTX_SOLUTION_STEPS_MISSING"]
     if not any(shape.shape_type==13 for slide in slides for shape in slide.shapes):
         return ["PPTX_SOURCE_IMAGES_MISSING"]
     return ["PPTX_CONCEPT_MISSING: " + x for x in missing]
@@ -792,13 +1002,15 @@ def save_ledger(service,ledger,item):
     return saved
 
 
-def run(report_path):
+def run(report_path, pilot_book_id=None, pilot_lesson=None, pilot_pages=None):
     global RUN_DEADLINE,BOOK_DEADLINE,PROGRESS_STARTED
     PROGRESS_STARTED=time.monotonic()
     RUN_DEADLINE=time.monotonic()+420
     max_books=max(1,min(5,int(os.getenv("NABIL_PILOT_MAX_BOOKS","3"))))
     ledger = json.loads(LEDGER.read_text(encoding="utf-8"))
     report = {"started":now(), "status":"RUNNING", "attempts":[], "production":None}
+    if pilot_book_id or pilot_lesson:
+        report["pilot_filter"]={"book_id":pilot_book_id,"lesson":pilot_lesson}
     def checkpoint():
         report["updated"] = now()
         report_path.parent.mkdir(parents=True, exist_ok=True)
@@ -826,6 +1038,8 @@ def run(report_path):
                 int(grade.group()) if grade else 999,
                 book.get("language","")!="English",book.get("order",999))
     for book in sorted(ledger["books"], key=book_order):
+        if pilot_book_id and book.get("drive_file_id")!=pilot_book_id:
+            continue
         if time.monotonic()>=RUN_DEADLINE:
             report["status"]="RUN_DEADLINE_EXCEEDED"; checkpoint()
             break
@@ -860,36 +1074,56 @@ def run(report_path):
                                if x.get("source_pdf_pages")}
             available = [(title, start, end) for title, start, end in entries
                          if lesson_key(book,title,start) not in finished and start not in finished_starts]
+            if pilot_lesson:
+                available=[entry for entry in available if entry[0].strip().casefold()==pilot_lesson.strip().casefold()]
             if not available:
                 raise ValueError("NO_UNFINISHED_TOC_LESSON")
             title, start, end = available[0]
+            if pilot_pages and (start+1,end)!=pilot_pages:
+                raise ValueError(f"PILOT_SOURCE_PAGES_MISMATCH: discovered {start+1}-{end}; expected {pilot_pages[0]}-{pilot_pages[1]}")
             attempt.update({"lesson":title,"source_pdf_pages":list(range(start+1,end+1)),
                             "lesson_key":lesson_key(book,title,start)})
             progress("SOURCE_LESSON_SELECTED",lesson=title,pages=attempt["source_pdf_pages"])
             pages = source_excerpt(reader,pdf,start,end)
+            catalog=evidence_catalog(pages)
+            if len(catalog)<10:
+                raise ValueError("SOURCE_EVIDENCE_CATALOG_TOO_SPARSE")
             digest = hashlib.sha256()
             with pdf.open("rb") as stream:
                 for chunk in iter(lambda: stream.read(1024*1024), b""):
                     digest.update(chunk)
             attempt["source_sha256"]=digest.hexdigest()
             checkpoint()
-            progress("GENERATION_STARTED",lesson=title)
-            lesson = generate(title,pages,book.get("language",""))
-            progress("QUALITY_GATE_STARTED",lesson=title)
-            failures = check_content(lesson,title,pages)
-            if any(x.startswith("UNVERIFIED_") for x in failures):
-                progress("SOURCE_QUOTE_REPAIR_STARTED",count=sum(
-                    x.startswith("UNVERIFIED_") for x in failures))
-                if repair_source_quotes(lesson,pages,failures):
-                    failures=check_content(lesson,title,pages)
-            if not failures:
-                review=scientific_review(lesson,pages)
-                attempt["scientific_review"]=review
-                if not review["pass"]:
-                    failures.append("SCIENTIFIC_REVIEW_REJECTED")
+            evidence_map=source_evidence_map(title,pages,catalog)
+            evidence_path=report_path.with_name(report_path.stem+"-evidence-map.json")
+            evidence_path.write_text(json.dumps(evidence_map,ensure_ascii=False,indent=2),encoding="utf-8")
+            attempt["evidence_map_path"]=str(evidence_path)
+            attempt["source_evidence_counts"]={key:len(value) for key,value in
+                                                evidence_map["categories"].items()}
+            attempt["generation_checks"]=[]
+            for generation_attempt in (1,2):
+                progress("GENERATION_STARTED",lesson=title,attempt=generation_attempt)
+                lesson = generate(title,pages,book.get("language",""),evidence_map)
+                progress("QUALITY_GATE_STARTED",lesson=title,attempt=generation_attempt)
+                failures = check_content(lesson,title,pages,catalog)
+                if any(x.startswith("UNVERIFIED_") for x in failures):
+                    progress("SOURCE_QUOTE_REPAIR_STARTED",count=sum(
+                        x.startswith("UNVERIFIED_") for x in failures))
+                    if repair_source_quotes(lesson,pages,catalog,failures):
+                        failures=check_content(lesson,title,pages,catalog)
+                if not failures:
+                    review=scientific_review(lesson,pages)
+                    attempt["scientific_review"]=review
+                    if not review["pass"]:
+                        failures.append("SCIENTIFIC_REVIEW_REJECTED")
+                attempt["generation_checks"].append(
+                    {"attempt":generation_attempt,"failures":failures})
+                checkpoint()
+                if not failures:
+                    break
             images=source_images(pdf,pages) if not failures else {}
-            document = render_html(lesson,pages,book,images) if not failures else ""
-            failures.extend(check_html(document,lesson,pages) if document else [])
+            document = render_html(lesson,pages,book,images,evidence_map) if not failures else ""
+            failures.extend(check_html(document,lesson,pages,evidence_map) if document else [])
             attempt["html_quality"]={"pass":not failures,"failures":failures}
             checkpoint()
             if failures:
@@ -900,6 +1134,12 @@ def run(report_path):
             checkpoint()
             if failures:
                 raise ValueError("PPTX_QUALITY_FAILED: " + ",".join(failures))
+            html_path=report_path.with_name(report_path.stem+"-lesson.html")
+            pptx_path=report_path.with_name(report_path.stem+"-lesson.pptx")
+            html_path.write_text(document,encoding="utf-8")
+            pptx_path.write_bytes(powerpoint)
+            attempt["local_artifacts"]={"html":str(html_path),"pptx":str(pptx_path)}
+            checkpoint()
             progress("UPLOAD_STARTED",lesson=title)
             subject_folder = ensure_folder(service,ROOT_FOLDER,book["subject"])
             grade_folder = ensure_folder(service,subject_folder,book["grade"])
@@ -917,6 +1157,9 @@ def run(report_path):
                       "book_drive_file_id":book["drive_file_id"],
                       "source_pdf_pages":attempt["source_pdf_pages"],"source_sha256":attempt["source_sha256"],
                       "source_pages_sha256":hashlib.sha256(json.dumps(pages,ensure_ascii=False).encode()).hexdigest(),
+                      "source_evidence_sha256":hashlib.sha256(
+                          json.dumps(evidence_map,ensure_ascii=False,sort_keys=True).encode()).hexdigest(),
+                      "source_evidence_counts":attempt["source_evidence_counts"],
                       "html_sha256":hashlib.sha256(document.encode("utf-8")).hexdigest(),
                       "pptx_sha256":hashlib.sha256(powerpoint).hexdigest(),
                       "drive_folder_id":folder,"drive_html_id":html_item["id"],"drive_pptx_id":ppt_item["id"],
@@ -935,6 +1178,10 @@ def run(report_path):
             attempt.update({"status":"FAILED","reason":f"{type(exc).__name__}: {exc}","finished":now()})
             checkpoint()
             progress("BOOK_FAILED",book=book["title"],reason=attempt["reason"])
+            if attempt.get("lesson"):
+                report["status"]="PILOT_LESSON_FAILED"
+                checkpoint()
+                break
         finally:
             BOOK_DEADLINE=None
             if "temp" in locals():
@@ -948,13 +1195,22 @@ def run(report_path):
 def main():
     parser=argparse.ArgumentParser()
     parser.add_argument("--report",default="data/nabil_lesson_factory_run.json")
+    parser.add_argument("--pilot-book-id",help="Only consider this registered Drive PDF ID")
+    parser.add_argument("--pilot-lesson",help="Only consider this exact TOC lesson heading")
+    parser.add_argument("--pilot-pages",help="Require exact inclusive PDF page range, e.g. 13-18")
     args=parser.parse_args()
+    pilot_pages=None
+    if args.pilot_pages:
+        match=re.fullmatch(r"(\d+)-(\d+)",args.pilot_pages)
+        if not match or int(match[1])>int(match[2]):
+            parser.error("--pilot-pages must be START-END")
+        pilot_pages=(int(match[1]),int(match[2]))
     def deadline_handler(_signum,_frame):
         raise TimeoutError("FACTORY_RUN_EXCEEDED_420_SECONDS")
     old_handler=signal.signal(signal.SIGALRM,deadline_handler)
     signal.setitimer(signal.ITIMER_REAL,420)
     try:
-        report=run(Path(args.report))
+        report=run(Path(args.report),args.pilot_book_id,args.pilot_lesson,pilot_pages)
     except TimeoutError as exc:
         report={"status":"RUN_DEADLINE_EXCEEDED","error":str(exc)}
         if Path(args.report).exists():
