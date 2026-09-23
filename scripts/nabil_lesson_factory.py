@@ -433,7 +433,7 @@ def parse_provider_json(client,provider,messages,response,model):
     return result
 
 
-def generate(title, pages, language, evidence_map):
+def generate(title, pages, language, evidence_map, previous_failures=None):
     from openai import OpenAI
     catalog=evidence_map["evidence"]
     source = json.dumps(evidence_map,ensure_ascii=False)
@@ -456,11 +456,21 @@ def generate(title, pages, language, evidence_map):
                 "observation for that concept; use its own evidence_id if the page itself is the visual. "
                 "Every item must cite one evidence_id from the supplied catalog that directly supports "
                 "the claim or answer. Never create an evidence_id or pretend a diagram shows a value. "
-                "do not invent source exercises or answers. If insufficient evidence return {error: reason}. "
+                "Do not invent source exercises or answers. A question in the source is NOT "
+                "evidence for its answer: cite an explicit source statement or a fully "
+                "verifiable worked derivation. Omit any activity whose answer cannot be "
+                "verified, and select another supported activity. If insufficient evidence "
+                "return {error: reason}. "
                 "Use the evidence map categories to cover objectives, concepts, activities, figures "
                 "and exercises. Never copy or reuse GitHub HTML. Write in the textbook's language.")},
             {"role": "user", "content": f"Book language: {language}; TOC title: {title}\n{source}"},
         ]
+    if previous_failures:
+        messages.append({"role":"user","content":(
+            "The independent scientific reviewer REJECTED the preceding draft. "
+            "Regenerate from the source map without repeating these unsupported claims; "
+            "do not merely change their citations: "
+            + json.dumps(previous_failures,ensure_ascii=False))})
     errors = []
     for provider, api_key, base_url, model in configured_providers():
         try:
@@ -678,11 +688,10 @@ def concept_diagram(source_text):
 <path d="M54 100 H428" fill="none" stroke="#31d9a8" stroke-width="3" stroke-dasharray="9 6"/>
 <text x="125" y="85" fill="#e9f8ff" font-size="16">same horizontal level</text></svg>'''
     if "free surface" in text and "horizont" in text:
-        return '''<svg viewBox="0 0 480 210" role="img" aria-label="Horizontal water surface and vertical plumb line">
+        return '''<svg viewBox="0 0 480 210" role="img" aria-label="Horizontal free surface of the liquid">
 <path d="M50 26 L65 180 H410 L425 26" fill="none" stroke="#8ce9ff" stroke-width="7"/>
 <path d="M59 106 H416 L409 176 H66 Z" fill="#38aada" opacity=".65"/>
 <line x1="58" x2="417" y1="106" y2="106" stroke="#31d9a8" stroke-width="4"/>
-<line x1="238" x2="238" y1="20" y2="167" stroke="#ffe49a" stroke-width="3" stroke-dasharray="8 5"/>
 <text x="68" y="94" fill="#e9f8ff" font-size="16">horizontal</text></svg>'''
     if "shape" in text and "liquid" in text and "vessel" in text:
         return '''<svg viewBox="0 0 480 210" role="img" aria-label="Liquid adapting to two different vessel shapes">
@@ -1101,9 +1110,13 @@ def run(report_path, pilot_book_id=None, pilot_lesson=None, pilot_pages=None):
             attempt["source_evidence_counts"]={key:len(value) for key,value in
                                                 evidence_map["categories"].items()}
             attempt["generation_checks"]=[]
+            previous_failures=[]
             for generation_attempt in (1,2):
                 progress("GENERATION_STARTED",lesson=title,attempt=generation_attempt)
-                lesson = generate(title,pages,book.get("language",""),evidence_map)
+                lesson = generate(title,pages,book.get("language",""),evidence_map,previous_failures)
+                draft_path=report_path.with_name(report_path.stem+f"-draft-{generation_attempt}.json")
+                draft_path.write_text(json.dumps(lesson,ensure_ascii=False,indent=2),encoding="utf-8")
+                attempt.setdefault("draft_paths",[]).append(str(draft_path))
                 progress("QUALITY_GATE_STARTED",lesson=title,attempt=generation_attempt)
                 failures = check_content(lesson,title,pages,catalog)
                 if any(x.startswith("UNVERIFIED_") for x in failures):
@@ -1111,13 +1124,16 @@ def run(report_path, pilot_book_id=None, pilot_lesson=None, pilot_pages=None):
                         x.startswith("UNVERIFIED_") for x in failures))
                     if repair_source_quotes(lesson,pages,catalog,failures):
                         failures=check_content(lesson,title,pages,catalog)
+                review=None
                 if not failures:
                     review=scientific_review(lesson,pages)
                     attempt["scientific_review"]=review
                     if not review["pass"]:
                         failures.append("SCIENTIFIC_REVIEW_REJECTED")
+                previous_failures=(review["errors"] if review and not review["pass"]
+                                   else failures[:])
                 attempt["generation_checks"].append(
-                    {"attempt":generation_attempt,"failures":failures})
+                    {"attempt":generation_attempt,"failures":failures,"scientific_review":review})
                 checkpoint()
                 if not failures:
                     break
