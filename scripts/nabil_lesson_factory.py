@@ -166,7 +166,11 @@ def configured_providers():
     }
     order = os.getenv("NABIL_AI_PROVIDER_ORDER", "groq,openrouter,gemini,openai")
     result = []
-    for name in dict.fromkeys(x.strip().lower() for x in order.split(",")):
+    # Railway may configure a partial or outdated order. Never silently hide
+    # a configured key merely because its provider is absent from that list.
+    names = dict.fromkeys([*(x.strip().lower() for x in order.split(",")),
+                           "groq", "openrouter", "gemini", "openai"])
+    for name in names:
         if name not in options:
             continue
         env, base, model = options[name]
