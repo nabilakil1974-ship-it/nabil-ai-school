@@ -222,10 +222,22 @@ def main():
         "pdf_filename":meta["name"],"pages":source},ensure_ascii=False)
     draft = _generate(source_prompt)
     _validate(draft,source)
+    from scripts.nabil_lesson_artifacts import build_bundle
     (out/"source.pdf").write_bytes(raw)
     (out/"lesson_draft.json").write_text(json.dumps(draft,ensure_ascii=False,indent=2),
                                           encoding="utf-8")
-    (out/"lesson.html").write_text(_render(draft,{}),encoding="utf-8")
+    artifacts = build_bundle(draft,raw,out,_render(draft,{}),
+                             args.grade,args.subject,args.chapter,args.title)
+    manifest = {
+        "lesson_id": "G%02d-%s-CH%02d" % (args.grade,args.subject.upper(),args.chapter),
+        "grade":args.grade,"subject":args.subject,"chapter":args.chapter,
+        "title":args.title,"source_pdf":"source.pdf",
+        "source_sha256":hashlib.sha256(raw).hexdigest(),
+        "source_drive_file_id":args.book_id,
+        **artifacts,
+    }
+    (out/"manifest.json").write_text(
+        json.dumps(manifest,ensure_ascii=False,indent=2),encoding="utf-8")
     report = {"status":"SOURCE_TEXT_MATCHED_DRAFT_NOT_APPROVED_NOT_PUBLISHED",
               "book_id":args.book_id,"book_name":meta["name"],
               "pdf_sha256":hashlib.sha256(raw).hexdigest(),
@@ -236,8 +248,12 @@ def main():
               "exercises":len(draft["exercises"]),
               "worksheet":len(draft["worksheet"]),
               "scientific_review_notes":draft["scientific_review_notes"],
-              "missing":["scientifically reviewed diagrams",
-                         "reference-matched PowerPoint",
+              "bundle_manifest":"manifest.json",
+              "html":"lesson.html",
+              "pptx_en":"lesson_en.pptx","pptx_fr":"lesson_fr.pptx",
+              "original_pdf_page_images":len(artifacts["images"]),
+              "missing":["independently reviewed scientific diagrams",
+                         "reference-matched PowerPoint visual approval",
                          "independent solution verification",
                          "live Railway display acceptance"]}
     (out/"report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2),
