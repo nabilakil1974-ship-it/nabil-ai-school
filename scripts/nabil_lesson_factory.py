@@ -11,7 +11,9 @@ import io
 import json
 import os
 import re
+import subprocess
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -55,7 +57,78 @@ def download(service, file_id):
     return output.getvalue()
 
 
-def candidates(reader):
+def download_pdf_to_path(service, file_id, path):
+    """Stream PDFs to disk; page access remains lazy even for PDFs over 80 MB."""
+    from googleapiclient.http import MediaIoBaseDownload
+    with path.open("wb") as target:
+        loader = MediaIoBaseDownload(target, service.files().get_media(fileId=file_id))
+        finished = False
+        while not finished:
+            _, finished = loader.next_chunk()
+
+
+def ocr_pdf(raw, page_indices):
+    """OCR selected pages; scanned books have no extractable PDF text."""
+    with tempfile.TemporaryDirectory(prefix="nabil_toc_") as directory:
+        pdf = Path(directory) / "source.pdf"
+        if isinstance(raw, Path):
+            pdf = raw
+        else:
+            pdf.write_bytes(raw)
+        result = {}
+        for index in page_indices:
+            prefix = str(Path(directory) / f"page_{index}")
+            subprocess.run(["pdftoppm", "-f", str(index+1), "-l", str(index+1),
+                            "-singlefile", "-r", "160", "-jpeg", str(pdf), prefix],
+                           check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=45)
+            result[index] = subprocess.run(
+                ["tesseract", prefix+".jpg", "stdout", "-l", "eng"],
+                check=True, capture_output=True, text=True, timeout=45).stdout.strip()
+        return result
+
+
+def visual_chapter_starts(pdf, total_pages, toc_text):
+    """Read the upper title band of actual page images, checking the TOC.
+
+    Full-page OCR commonly misses decorative colored headings. No PDF
+    bookmark or filename is accepted as a chapter title in scanned books.
+    """
+    from PIL import Image, ImageEnhance, ImageOps
+    chapters = []
+    with tempfile.TemporaryDirectory(prefix="nabil_headers_") as directory:
+        for index in range(10, min(total_pages, 75)):
+            prefix = str(Path(directory) / "page")
+            subprocess.run(["pdftoppm", "-f", str(index+1), "-l", str(index+1),
+                            "-singlefile", "-r", "150", "-jpeg", str(pdf), prefix],
+                           check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=45)
+            picture = Image.open(prefix+".jpg")
+            band = picture.crop((0,0,picture.width,int(picture.height*.19)))
+            ImageEnhance.Contrast(ImageOps.grayscale(band)).enhance(2).save(prefix+"_top.png")
+            title_band = subprocess.run(
+                ["tesseract", prefix+"_top.png", "stdout", "-l", "eng", "--psm", "6"],
+                check=True, capture_output=True, text=True, timeout=45).stdout
+            found = re.search(r"(?:\b(?:chapter|chapitre)\s*|^\W*)"
+                              r"(\d{1,2})\s*[:.\-]\s*"
+                              r"([A-Za-z][A-Za-z '&\-]{4,65})",title_band,re.I|re.M)
+            if not found:
+                continue
+            number, title = int(found.group(1)), found.group(2).strip(" .-")
+            words = re.findall(r"[A-Za-z]{4,}",title.lower())
+            if not words or sum(w in toc_text.lower() for w in words) < max(1,len(words)-1):
+                continue
+            if chapters and (number <= chapters[-1][2] or index-chapters[-1][0] < 2):
+                continue
+            chapters.append((index,title,number))
+            if len(chapters) >= 2 and chapters[1][0]-chapters[0][0] <= 14:
+                break
+    return [(title,start,chapters[i+1][0] if i+1<len(chapters)
+             else min(start+8,total_pages))
+            for i,(start,title,_) in enumerate(chapters)
+            if 2 <= (chapters[i+1][0] if i+1<len(chapters)
+                     else min(start+8,total_pages))-start <= 14]
+
+
+def candidates(reader, raw):
     """Use actual PDF bookmarks or a textual table of contents, then locate
     headings in extracted pages. Never infer a lesson from a stored HTML title.
     Ambiguous matches are rejected instead of guessing an offset.
@@ -75,11 +148,63 @@ def candidates(reader):
                     continue
     walk(reader.outline)
     if len(entries) >= 2:
-        ordered = sorted({(p, t) for t, p in entries if t and p > 0})
-        return [(title, start, ordered[i+1][0] if i+1 < len(ordered)
-                 else min(start+8, len(page_text)))
-                for i, (start, title) in enumerate(ordered)
-                if start < len(page_text)]
+        ordered = sorted({(p, t) for t, p in entries
+                          if p > 0 and len(t.split()) >= 2
+                          and not re.search(r"\.(?:pdf|jpg|png)|^(?:img|screenshot)[_ -]|livre$",
+                                            t, re.I)})
+        if len(ordered) >= 2:
+            return [(title, start, ordered[i+1][0] if i+1 < len(ordered)
+                     else min(start+8, len(page_text)))
+                    for i, (start, title) in enumerate(ordered)
+                    if 2 <= (ordered[i+1][0] if i+1 < len(ordered) else min(start+8,len(page_text)))-start <= 14]
+    # OCR front matter only when its PDF text is missing. Image-conversion
+    # bookmarks such as 001, IMG_002 or Screenshot.pdf are never lesson titles.
+    front = range(min(12,len(page_text)))
+    if sum(len(page_text[i]) for i in front) < 700:
+        front_ocr = ocr_pdf(raw,front)
+        for i,t in front_ocr.items():
+            page_text[i]=t
+    if isinstance(raw, Path):
+        visual = visual_chapter_starts(raw,len(page_text)," ".join(page_text[:12]))
+        if visual:
+            return visual
+    # Many CERD scans use a chapter list without page numbers. Read its real
+    # titles, then confirm their occurrence on actual chapter opening pages.
+    toc_lines = "\n".join(page_text[:min(12,len(page_text))]).splitlines()
+    chapter_titles = []
+    for i, line in enumerate(toc_lines):
+        match = re.search(r"\b(?:chapter|chapitre)\s*(\d+)\s*:\s*(.*)",line,re.I)
+        if not match:
+            continue
+        title = match.group(2).strip(" -:.") or next(
+            (x.strip(" -:.") for x in toc_lines[i+1:i+4] if len(x.strip()) > 5), "")
+        if len(title) > 4 and len(title) < 90:
+            chapter_titles.append((int(match.group(1)),title))
+    if chapter_titles:
+        probe = range(12,min(len(page_text),65))
+        for i in probe:
+            if len(page_text[i]) < 80:
+                page_text[i] = ocr_pdf(raw,[i])[i]
+        matches = []
+        for n,title in chapter_titles:
+            words = [w for w in re.findall(r"[A-Za-z]{3,}",title.casefold())
+                     if w not in {"chapter","chapitre"}]
+            if not words:
+                continue
+            found = [i for i in probe if
+                     re.search(rf"\b(?:chapter|chapitre)\s*{n}\b",
+                               page_text[i][:750],re.I)
+                     and sum(w in page_text[i][:1000].casefold() for w in words)
+                     >= max(1,len(words)-1)]
+            if len(found) == 1:
+                matches.append((found[0],title))
+        ordered = sorted(set(matches))
+        if ordered:
+            return [(title,start,ordered[j+1][0] if j+1<len(ordered)
+                     else min(start+8,len(page_text)))
+                    for j,(start,title) in enumerate(ordered)
+                    if 2 <= (ordered[j+1][0] if j+1<len(ordered)
+                             else min(start+8,len(page_text)))-start <= 14]
     toc = " ".join(page_text[:min(12, len(page_text))])
     if not re.search(r"\bcontents\b|\bsommaire\b|فهرس", toc, re.I):
         raise ValueError("SOURCE_TOC_NOT_FOUND")
@@ -107,11 +232,15 @@ def lesson_key(book, title, start):
     return hashlib.sha256(f"{book['drive_file_id']}|{title}|{start}".encode()).hexdigest()[:20]
 
 
-def source_excerpt(reader, start, end):
+def source_excerpt(reader, raw, start, end):
     if end <= start or end-start > 14:
         raise ValueError("SOURCE_BOUNDARY_AMBIGUOUS")
     pages = [(i+1, (reader.pages[i].extract_text() or "").strip())
              for i in range(start, end)]
+    missing = [i for i in range(start,end) if len(pages[i-start][1]) < 80]
+    if missing:
+        scanned = ocr_pdf(raw, missing)
+        pages = [(i+1, scanned.get(i, pages[i-start][1])) for i in range(start,end)]
     if sum(len(t) for _, t in pages) < 1100:
         raise ValueError("SOURCE_TEXT_INSUFFICIENT_OR_SCANNED")
     if sum(len(t) for _, t in pages) > 42000:
@@ -353,16 +482,28 @@ def run(report_path):
         report["status"]="BLOCKED_GENERATION_CREDENTIALS"
         report["error"]="NO_CONFIGURED_AI_PROVIDER_KEY"
         checkpoint(); return report
-    for book in sorted(ledger["books"], key=lambda b: (b.get("order",999), b.get("subject",""), b.get("grade",""))):
+    seen_ids = set()
+    priority = {name:i for i,name in enumerate(ledger.get("priority", []))}
+    def book_order(book):
+        grade = re.search(r"\d+",book.get("grade",""))
+        return (priority.get(book.get("subject"),999),
+                int(grade.group()) if grade else 999,
+                book.get("order",999),book.get("language","")!="English")
+    for book in sorted(ledger["books"], key=book_order):
         if not book.get("drive_file_id"):
             continue
+        if book["drive_file_id"] in seen_ids:
+            continue
+        seen_ids.add(book["drive_file_id"])
         attempt = {"book":book["title"],"book_id":book["drive_file_id"],"started":now()}
         report["attempts"].append(attempt); checkpoint()
         try:
             from pypdf import PdfReader
-            pdf = download(service, book["drive_file_id"])
-            reader = PdfReader(io.BytesIO(pdf))
-            entries = candidates(reader)
+            temp = tempfile.TemporaryDirectory(prefix="nabil_book_")
+            pdf = Path(temp.name) / "book.pdf"
+            download_pdf_to_path(service, book["drive_file_id"], pdf)
+            reader = PdfReader(str(pdf))
+            entries = candidates(reader,pdf)
             finished = {x.get("lesson_key") for x in book.get("authored_lessons",[])
                         if x.get("status") == "verified_complete" and x.get("drive_html_id")
                         and x.get("drive_pptx_id")}
@@ -373,8 +514,12 @@ def run(report_path):
             title, start, end = available[0]
             attempt.update({"lesson":title,"source_pdf_pages":list(range(start+1,end+1)),
                             "lesson_key":lesson_key(book,title,start)})
-            pages = source_excerpt(reader,start,end)
-            attempt["source_sha256"]=hashlib.sha256(pdf).hexdigest()
+            pages = source_excerpt(reader,pdf,start,end)
+            digest = hashlib.sha256()
+            with pdf.open("rb") as stream:
+                for chunk in iter(lambda: stream.read(1024*1024), b""):
+                    digest.update(chunk)
+            attempt["source_sha256"]=digest.hexdigest()
             checkpoint()
             lesson = generate(title,pages,book.get("language",""))
             failures = check_content(lesson,title,pages)
@@ -414,6 +559,10 @@ def run(report_path):
         except Exception as exc:
             attempt.update({"status":"FAILED","reason":f"{type(exc).__name__}: {exc}","finished":now()})
             checkpoint()
+        finally:
+            if "temp" in locals():
+                temp.cleanup()
+                del temp
     else:
         report["status"]="NO_LESSON_COMPLETE"; checkpoint()
     return report
