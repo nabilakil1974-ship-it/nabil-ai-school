@@ -11,9 +11,9 @@
  <label for="g7-tilt">Tilt the container · إمالة الوعاء: <output id="g7-angle">0°</output></label>
  <input id="g7-tilt" type="range" min="-30" max="30" value="0" step="1" style="width:100%;accent-color:#4ce3d6">
  <svg id="g7-surface" viewBox="0 0 520 235" role="img" aria-label="Tilted vessel and horizontal free liquid surface" style="width:100%;max-width:620px;display:block;margin:10px auto;background:#f4fbff;border-radius:12px">
- <defs><clipPath id="g7-vessel-clip"><rect x="170" y="35" width="180" height="170" rx="5"/></clipPath></defs>
- <g id="g7-vessel" transform="rotate(0 260 120)"><path d="M170 35 V205 H350 V35" fill="none" stroke="#263c52" stroke-width="7" stroke-linecap="round"/><path d="M173 126 H347 V201 H173 Z" fill="#35aeea" fill-opacity=".25"/></g>
- <path id="g7-water" d="M173 126 H347 V201 H173 Z" fill="#35aeea" fill-opacity=".68" clip-path="url(#g7-vessel-clip)"/>
+ 
+ <g id="g7-vessel" transform="rotate(0 260 120)"><path d="M170 35 V205 H350 V35" fill="none" stroke="#263c52" stroke-width="7" stroke-linecap="round"/></g>
+ <path id="g7-water" d="M173 126 H347 V201 H173 Z" fill="#35aeea" fill-opacity=".68"/>
  <path id="g7-line" d="M173 126 H347" stroke="#0065b4" stroke-width="3" stroke-dasharray="7 5"/>
  <text x="20" y="26" fill="#17324b" font-size="15">Horizontal free surface (schematic)</text></svg>
  <p id="g7-surface-result" aria-live="polite">At rest, the free surface is horizontal.</p>
@@ -36,7 +36,7 @@
   const a=Number(tilt.value),rad=a*Math.PI/180;
   vessel.setAttribute("transform",`rotate(${a} 260 120)`);
   // In vessel-local coordinates a horizontal world surface has slope -tan(angle).
-  // Clip to the rotated vessel by transforming the water shape with the vessel.
+  // Rotate the filled water polygon with the vessel; do not clip against an unrotated frame.
   const left=126+90*Math.tan(rad),right=126-90*Math.tan(rad);
   water.setAttribute("d",`M173 ${left.toFixed(2)} L347 ${right.toFixed(2)} V201 H173 Z`);
   water.setAttribute("transform",`rotate(${a} 260 120)`);
