@@ -3,7 +3,7 @@
 Usage:
   python -m scripts.nabil_lesson_factory --pilot --report /tmp/nabil-pilot.json
   python -m scripts.nabil_lesson_factory --pilot --require-drive-write --report /tmp/nabil-pilot.json
-  python -m scripts.nabil_lesson_factory --pilot --produce-first
+  python -m scripts.nabil_lesson_factory --pilot --produce-first\n  python -m scripts.nabil_lesson_factory --author-lesson --book-id ID --grade 9 --subject physics --chapter 8 --title "Conducteurs ohmiques" --pages 92-102 --language fr --out /tmp/ohm
 
 No AI calls or deletes. Production embeds actual PDF pages and refuses to publish
 if the source cannot be read and rendered or the authored exercises are missing.
@@ -318,6 +318,11 @@ def produce_first(require_drive_write=True):
                         + quote("SOLIDS AND LIQUIDS SOURCE ILLUSTRATED")}
 
 def main():
+    # Generalized authoring is an explicit command, never a side effect of pilot.
+    if "--author-lesson" in sys.argv:
+        from scripts.nabil_curriculum_author import main as author_main
+        sys.argv = [sys.argv[0]] + [x for x in sys.argv[1:] if x != "--author-lesson"]
+        return author_main() or 0
     ap=argparse.ArgumentParser()
     ap.add_argument("--pilot",action="store_true",required=True)
     ap.add_argument("--require-drive-write",action="store_true")
@@ -326,9 +331,9 @@ def main():
     args=ap.parse_args()
     try:
         report=pilot(args.require_drive_write)
-        # Existing Railway worker uses --pilot --require-drive-write. The owner
-        # explicitly requested production; keep that deployed command working.
-        if args.produce_first or args.require_drive_write:
+        # Write capability checks must never silently generate/publish a lesson.
+        # Only the explicit --produce-first option invokes the legacy pilot.
+        if args.produce_first:
             report["production"] = produce_first()
     except Exception as exc:
         report={"status":"ERROR","error_type":type(exc).__name__,"error":str(exc)}
