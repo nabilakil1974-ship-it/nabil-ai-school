@@ -7,6 +7,7 @@ The catalog is stored on Drive, NOT in the repository:
 "language":"Français","drive_file_id":"...","aliases":["Ohmic conductors"]}]}
 """
 import io
+import base64
 import logging
 import uuid
 import json
@@ -110,7 +111,7 @@ def _list_children(service, folder_id):
             break
 
 
-def _entry(file, grade="", subject=""):
+def _entry(file, grade="", subject="", chapter_title=""):
     stem = file["name"].rsplit(".", 1)[0]
     parts = stem.split("--", 1)
     if len(parts) == 2:
@@ -129,6 +130,15 @@ def _entry(file, grade="", subject=""):
     if _grade(grade) == "7" and _subject(subject) == "physics" and _norm(title) == _norm("Solids and Liquids"):
         aliases = ["Solid and liquid states", "Solids and liquids",
                    "Les états solide et liquide", "Solides et liquides"]
+    if chapter_title:
+        aliases.append(title.replace("-", " "))
+        title = re.sub(r"^\s*\d+\s*[-–.]\s*", "", chapter_title).strip()
+    if _grade(grade) == "9" and _norm(title) == _norm("CONDUCTEURS OHMIQUES"):
+        aliases.extend(["Ohmic Conductors", "Conducteurs ohmiques",
+                        "Ohmic resistor", "Conducteur ohmique"])
+    if _grade(grade) == "9" and _norm(title) == _norm("Lines and Circles"):
+        aliases.extend(["Line and Circle", "Droites et cercles",
+                        "Droite et cercle", "Lines & Circles"])
     return {"grade": grade, "subject": subject, "lesson": title.replace("-", " "),
             "aliases": aliases, "drive_file_id": file["id"],
             "filename": file["name"], "language": ""}
@@ -165,7 +175,7 @@ def _owner_entries(service):
                         elif file.get("mimeType") == "application/vnd.google-apps.folder":
                             for nested in _list_children(service, file["id"]):
                                 if nested["name"].lower().endswith(".html"):
-                                    entries.append(_entry(nested, grade, subject))
+                                    entries.append(_entry(nested, grade, subject, file["name"]))
                 except Exception:
                     log.exception("DRIVE_SUBJECT_FOLDER_UNREADABLE grade=%s subject=%s", grade, subject)
     return entries
@@ -186,12 +196,16 @@ def _entries():
             items = payload.get("lessons", [])
             if not isinstance(items, list):
                 raise ValueError("INVALID_LESSON_CATALOG")
-        else:
-            legacy = os.getenv("NABIL_INTERACTIVE_LESSONS_FOLDER_ID", _DEFAULT_FOLDER).strip()
-            # Keep legacy lessons while the owner migrates to the grade/subject tree.
+        # Always retain the legacy Drive lesson collection, even when an
+        # explicit catalog is configured. Otherwise a catalog switch hides
+        # yesterday's working Ohmic Conductors HTML.
+        legacy = os.getenv("NABIL_INTERACTIVE_LESSONS_FOLDER_ID", _DEFAULT_FOLDER).strip()
+        try:
             for file in _list_children(service, legacy):
                 if file["name"].lower().endswith(".html"):
                     items.append(_entry(file))
+        except Exception:
+            log.exception("DRIVE_LEGACY_LESSON_COLLECTION_UNAVAILABLE folder=%s", legacy)
         try:
             owner = _owner_entries(service)
         except Exception as exc:
@@ -202,9 +216,16 @@ def _entries():
                         type(exc).__name__)
             owner = []
         # Owner-visible grade/subject files win over older flat-folder duplicates.
-        keyed = {(_grade(x.get("grade")), _subject(x.get("subject")),
-                  _norm(x.get("lesson"))): x for x in items
-                 if isinstance(x, dict) and x.get("drive_file_id") and x.get("lesson")}
+        keyed = {}
+        for x in items:
+            if not isinstance(x, dict) or not x.get("drive_file_id") or not x.get("lesson"):
+                continue
+            key = (_grade(x.get("grade")), _subject(x.get("subject")),
+                   _norm(x.get("lesson")))
+            previous = keyed.get(key)
+            if previous is None or ("BILINGUAL" in str(x.get("filename", "")).upper()
+                                    and "BILINGUAL" not in str(previous.get("filename", "")).upper()):
+                keyed[key] = x
         for item in owner:
             keyed[(_grade(item["grade"]), _subject(item["subject"]),
                    _norm(item["lesson"]))] = item
@@ -241,6 +262,48 @@ def _resolve(grade, subject, lesson, language):
         raise HTTPException(404, "No prepared interactive lesson in the configured Google Drive collection.")
     return matches[0]
 
+
+
+
+def _inline_drive_images(service, item, markup):
+    """Relative images in Drive HTML do not resolve against the API view URL."""
+    from bs4 import BeautifulSoup
+    from pathlib import PurePosixPath
+    soup = BeautifulSoup(markup, "html.parser")
+    images = [img for img in soup.select("img[src]")
+              if not img["src"].startswith(("data:", "http:", "https:", "/"))]
+    if not images:
+        return markup
+    parents = service.files().get(fileId=item["drive_file_id"],
+                                  fields="parents").execute().get("parents") or []
+    if len(parents) != 1:
+        raise ValueError("LESSON_IMAGE_PARENT_UNAVAILABLE")
+    files = {f["name"]: f for f in _list_children(service, parents[0])}
+    for img in images:
+        name = img["src"].split("?", 1)[0]
+        if PurePosixPath(name).name != name or name not in files:
+            raise ValueError("LESSON_IMAGE_MISSING_" + name)
+        mime = files[name].get("mimeType")
+        if mime not in ("image/png", "image/jpeg", "image/webp", "image/svg+xml"):
+            raise ValueError("LESSON_IMAGE_INVALID_TYPE_" + name)
+        data = _download(service, files[name]["id"])
+        if len(data) > 2_000_000:
+            raise ValueError("LESSON_IMAGE_TOO_LARGE_" + name)
+        img["src"] = "data:" + mime + ";base64," + base64.b64encode(data).decode("ascii")
+    return str(soup)
+
+
+def _set_initial_language(markup, language):
+    """Apply requested language after the lesson initializes its own default."""
+    wanted = "fr" if _norm(language) in {_norm(x) for x in ("fr", "French", "Français")} else "en"
+    if "</body>" not in markup.lower() or "lesson-language" not in markup:
+        return markup
+    js = ('<script>window.addEventListener("load",function(){'
+          'var s=document.getElementById("lesson-language");'
+          'if(s){s.value="' + wanted + '";'
+          's.dispatchEvent(new Event("change",{bubbles:true}));}'
+          '});</script>')
+    return re.sub(r"</body>", lambda m: js + m.group(0), markup, count=1, flags=re.I)
 
 
 @router.get("/diagnose")
@@ -417,7 +480,9 @@ def view(grade: str, subject: str, lesson: str, language: str = "", trace: str =
     log.info("DRIVE_LESSON_VIEW_START trace=%s lesson=%r", trace, lesson)
     try:
         item = _resolve(grade, subject, lesson, language)
-        html = _download(_service(), item["drive_file_id"]).decode("utf-8-sig")
+        service = _service()
+        html = _download(service, item["drive_file_id"]).decode("utf-8-sig")
+        html = _inline_drive_images(service, item, html)
         if "<html" not in html.lower():
             raise ValueError("NOT_AN_HTML_LESSON")
         # The same bilingual HTML opens in the selected textbook's language.
@@ -426,6 +491,7 @@ def view(grade: str, subject: str, lesson: str, language: str = "", trace: str =
             html = re.sub(r"<body(\s[^>]*)?>", lambda m: m.group(0).replace("<body", '<body class="frmode"') if "class=" not in m.group(0) else re.sub(r'class="([^"]*)"', lambda c: 'class="' + c.group(1) + ' frmode"', m.group(0), count=1), html, count=1, flags=re.I)
         elif _norm(language) in {_norm("English"), _norm("Anglais"), _norm("en")}:
             html = re.sub(r'<body([^>]*)class="([^"]*)"', lambda m: '<body' + m.group(1) + 'class="' + re.sub(r"\bfrmode\b", "", m.group(2)).strip() + '"', html, count=1, flags=re.I)
+        html = _set_initial_language(html, language)
         # Color-code full concepts and textbook exercises while keeping their figures and solutions together.
         if "</head>" in html.lower():
             html = re.sub(r"</head>", '<link rel="stylesheet" href="/static/nabil_lesson_color_cards_v1.css?v=1"></head>', html, count=1, flags=re.I)
