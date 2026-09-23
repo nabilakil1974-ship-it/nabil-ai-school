@@ -1,16 +1,12 @@
-"""NABIL Lesson Factory pilot: deterministic quality gate for authored CRDP lessons.
+"""Produce at most one verified, source-grounded lesson from registered Drive PDFs.
 
-Usage:
-  python -m scripts.nabil_lesson_factory --pilot --report /tmp/nabil-pilot.json
-  python -m scripts.nabil_lesson_factory --pilot --require-drive-write --report /tmp/nabil-pilot.json
-  python -m scripts.nabil_lesson_factory --pilot --produce-first
-
-No AI calls or deletes. Production embeds actual PDF pages and refuses to publish
-if the source cannot be read and rendered or the authored exercises are missing.
-This gate is necessary, NOT sufficient, to certify scientific/source accuracy:
-a reviewer must compare original PDF figures, exercises and solutions.
+Usage: python -m scripts.nabil_lesson_factory --report /tmp/nabil-lesson-run.json
+Requires owner Drive OAuth credentials and OPENAI_API_KEY. A failed candidate is
+logged and the next registered book is tried. No existing HTML is read.
 """
 import argparse
+import hashlib
+import html
 import io
 import json
 import os
@@ -18,349 +14,387 @@ import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from bs4 import BeautifulSoup
 
 ROOT = Path(__file__).resolve().parents[1]
 LEDGER = ROOT / "data/interactive_lesson_production_ledger.json"
-OWNER_ROOT = "16bcmZMO_dn4FqlGaDtl8Hky6iSBEqZpX"
-PILOT_FOLDER = "12BzdBUmPIK2__Fl3yTXpfZ-LXNjfimAq"
-MIME_FOLDER = "application/vnd.google-apps.folder"
-SUBJECTS = ("physics", "mathematics", "chemistry", "biology", "general_science")
-REQUIRED = {
-    "source": ("crdp", "source", "المصدر"),
-    "activities": ("activity", "activities", "نشاط"),
-    "exercises": ("exercise", "exercises", "تمرين"),
-    "solutions": ("solution", "solutions", "حل"),
-    "worksheet": ("worksheet", "check your understanding", "ورقة عمل"),
-    "summary": ("summary", "reference card", "الخلاصة", "البطاقة المرجعية"),
-}
+FOLDER_MIME = "application/vnd.google-apps.folder"
+ROOT_FOLDER = os.getenv("NABIL_LESSON_DRIVE_ROOT", "16bcmZMO_dn4FqlGaDtl8Hky6iSBEqZpX")
 
-def drive(write=False):
-    """Read with the existing service account; write as the owner's OAuth user.
 
-    Service accounts have no My Drive storage quota, even with Editor access.
-    Never print OAuth tokens or fall back to service-account uploads.
-    """
-    from scripts.index_books import get_drive_service
-    if not write:
-        return get_drive_service()
+def now():
+    return datetime.now(timezone.utc).isoformat()
 
+
+def owner_drive():
+    names = ("GOOGLE_DRIVE_OAUTH_CLIENT_ID", "GOOGLE_DRIVE_OAUTH_CLIENT_SECRET",
+             "GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN")
+    values = [os.getenv(name, "").strip() for name in names]
+    if not all(values):
+        raise RuntimeError("OWNER_OAUTH_REQUIRED: missing " +
+                           ",".join(name for name, value in zip(names, values) if not value))
     from google.oauth2.credentials import Credentials
     from google.auth.transport.requests import Request
     from googleapiclient.discovery import build
-    client_id = os.getenv("GOOGLE_DRIVE_OAUTH_CLIENT_ID", "").strip()
-    client_secret = os.getenv("GOOGLE_DRIVE_OAUTH_CLIENT_SECRET", "").strip()
-    refresh_token = os.getenv("GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN", "").strip()
-    if not all((client_id, client_secret, refresh_token)):
-        raise RuntimeError(
-            "OWNER_OAUTH_REQUIRED: configure GOOGLE_DRIVE_OAUTH_CLIENT_ID, "
-            "GOOGLE_DRIVE_OAUTH_CLIENT_SECRET and GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN "
-            "in the nabil-ai-school Railway service; service accounts cannot "
-            "create files in personal My Drive."
-        )
-    credentials = Credentials(
-        token=None, refresh_token=refresh_token,
-        token_uri="https://oauth2.googleapis.com/token",
-        client_id=client_id, client_secret=client_secret,
-        scopes=["https://www.googleapis.com/auth/drive"],
-    )
-    credentials.refresh(Request())
-    return build("drive", "v3", credentials=credentials, cache_discovery=False)
+    creds = Credentials(token=None, refresh_token=values[2],
+                        token_uri="https://oauth2.googleapis.com/token",
+                        client_id=values[0], client_secret=values[1],
+                        scopes=["https://www.googleapis.com/auth/drive"])
+    creds.refresh(Request())
+    return build("drive", "v3", credentials=creds, cache_discovery=False)
 
-def children(service, folder):
-    token = None
-    while True:
-        result = service.files().list(q=f"'{folder}' in parents and trashed=false",
-            fields="nextPageToken,files(id,name,mimeType,webViewLink,capabilities(canAddChildren))",
-            pageSize=1000, pageToken=token).execute()
-        yield from result.get("files", [])
-        token = result.get("nextPageToken")
-        if not token:
-            break
 
-def get_html(service, file_id):
+def download(service, file_id):
     from googleapiclient.http import MediaIoBaseDownload
     output = io.BytesIO()
     loader = MediaIoBaseDownload(output, service.files().get_media(fileId=file_id))
-    done = False
-    while not done:
-        _, done = loader.next_chunk()
-        if output.tell() > 20_000_000:
-            raise ValueError("Lesson HTML exceeds 20 MB")
-    return output.getvalue().decode("utf-8-sig")
+    finished = False
+    while not finished:
+        _, finished = loader.next_chunk()
+        if output.tell() > 80_000_000:
+            raise ValueError("SOURCE_PDF_TOO_LARGE")
+    return output.getvalue()
 
-def check_html(html, chapter):
-    soup = BeautifulSoup(html, "html.parser")
-    plain = soup.get_text(" ", strip=True).casefold()
-    failures, warnings = [], []
-    title = (soup.find("h1") or soup.title)
-    title_text = title.get_text(" ", strip=True) if title else ""
-    if not title or chapter["title"].casefold() not in title_text.casefold():
-        failures.append("TITLE_NOT_MATCHED_TO_SOURCE_CHAPTER")
-    if not soup.find("meta", attrs={"name":"viewport"}):
-        failures.append("MOBILE_VIEWPORT_MISSING")
-    if not soup.find("main"):
-        failures.append("SEMANTIC_MAIN_MISSING")
-    if len(plain) < 1200:
-        failures.append("LESSON_TOO_SHORT_FOR_SOURCE_REVIEW")
-    for name, tokens in REQUIRED.items():
-        if not any(t in plain for t in tokens):
-            failures.append("MISSING_"+name.upper())
-    for n in chapter.get("source_exercises", []):
-        if not re.search(r"(?:exercise|exercice|تمرين)\s*(?:n[°o.]?\s*)?"+str(n)+r"\b", plain, re.I):
-            failures.append("SOURCE_EXERCISE_"+str(n)+"_NOT_VERIFIABLE")
-    figures = soup.select("svg,img,canvas")
-    if not figures:
-        failures.append("FIGURES_NOT_EMBEDDED")
-    if not soup.select("input,select,button,details"):
-        failures.append("INTERACTIVITY_MISSING")
-    if not any("powerpoint" in t or "pptx" in t for t in plain):
-        warnings.append("PPTX_EXPORT_MUST_BE_VERIFIED_VIA_PLATFORM_ENDPOINT")
-    if "draft" in plain or "not yet integrated" in plain or "require full figure" in plain:
-        failures.append("EXPLICITLY_INCOMPLETE_DRAFT")
-    warnings.extend(("SOURCE_FIGURE_FIDELITY_REQUIRES_VISUAL_REVIEW",
-                     "SOLUTIONS_REQUIRE_INDEPENDENT_SCIENTIFIC_CHECK",
-                     "RAILWAY_MOBILE_AND_PPTX_REQUIRE_LIVE_ACCEPTANCE"))
-    return {"title":title_text, "pass":not failures, "failures":failures,
-            "warnings":warnings, "figures":len(figures),
-            "interactive_controls":len(soup.select("input,select,button,details"))}
 
-def pilot(require_drive_write=False):
-    ledger = json.loads(LEDGER.read_text(encoding="utf-8"))
-    book = next(b for b in ledger["books"] if b.get("drive_file_id")=="1LasqIgGUuck1l-2EZbj2kA0Dg9ygJ_AH")
-    service = drive(write=require_drive_write)
-    root = service.files().get(fileId=OWNER_ROOT,
-        fields="id,name,capabilities(canAddChildren,canReadRevisions)").execute()
-    folder = service.files().get(fileId=PILOT_FOLDER,
-        fields="id,name,capabilities(canAddChildren)").execute()
-    report = {"timestamp":datetime.now(timezone.utc).isoformat(),
-              "pilot":"Grade 7 English Physics",
-              "drive_root":root["id"],"folder":folder["id"],
-              "drive_can_add_children":folder.get("capabilities",{}).get("canAddChildren",False),
-              "lessons":[],"status":"BLOCKED"}
-    if require_drive_write and not report["drive_can_add_children"]:
-        report["permission_error"]="Grant Editor to nabil-bot service account on curriculum root"
-    existing = {f["name"].lower():f for f in children(service,PILOT_FOLDER)}
-    for chapter in book.get("authored_lessons",[]):
-        title = chapter["title"]
-        name = "G07-PHYSICS--"+re.sub(r"[^A-Z0-9]+","-",title.upper()).strip("-")+".html"
-        item = existing.get(name.lower())
-        if not item:
-            report["lessons"].append({"title":title,"pass":False,
-                                     "failures":["OWNER_DRIVE_HTML_NOT_FOUND"],"expected":name})
-            continue
-        try:
-            quality = check_html(get_html(service,item["id"]),chapter)
-            quality.update({"drive_file_id":item["id"],"source_pdf":book["drive_file_id"],
-                            "status":"NEEDS_HUMAN_SOURCE_VERIFICATION" if quality["pass"] else "REJECTED_PENDING_REPAIR"})
-            report["lessons"].append(quality)
-        except Exception as exc:
-            report["lessons"].append({"title":title,"pass":False,
-                                      "failures":["FETCH_OR_PARSE_"+type(exc).__name__]})
-    all_lessons_pass = bool(report["lessons"]) and all(
-        item["pass"] for item in report["lessons"]
-    )
-    drive_write_ok = not require_drive_write or report["drive_can_add_children"]
-    report["status"] = (
-        "PILOT_REQUIRES_SOURCE_REVIEW" if all_lessons_pass and drive_write_ok
-        else "BLOCKED"
-    )
-    return report
-
-def _source_pages(service, file_id, pages):
-    """Extract original page images AND text from the actual Drive PDF.
-
-    Page numbers are PDF indices, not an unverified printed-page offset.
-    The PDF must be accessible and page content must corroborate the chapter.
+def candidates(reader):
+    """Use actual PDF bookmarks or a textual table of contents, then locate
+    headings in extracted pages. Never infer a lesson from a stored HTML title.
+    Ambiguous matches are rejected instead of guessing an offset.
     """
-    import base64
-    import subprocess
-    import tempfile
-    from pypdf import PdfReader
-    from scripts.index_books import download_pdf
-    raw = download_pdf(service, file_id)
-    reader = PdfReader(io.BytesIO(raw))
-    if max(pages) > len(reader.pages):
-        raise ValueError("SOURCE_PDF_PAGE_OUT_OF_RANGE")
-    result = []
-    with tempfile.TemporaryDirectory(prefix="nabil_source_") as temp:
-        pdf = Path(temp) / "book.pdf"
-        pdf.write_bytes(raw)
-        for p in pages:
-            text = (reader.pages[p-1].extract_text() or "").strip()
-            prefix = str(Path(temp) / ("page_" + str(p)))
-            proc = subprocess.run(
-                ["pdftoppm", "-f", str(p), "-l", str(p),
-                 "-singlefile", "-scale-to", "1200", "-jpeg", "-jpegopt",
-                 "quality=78", str(pdf), prefix],
-                capture_output=True, timeout=70)
-            image = Path(prefix + ".jpg")
-            if proc.returncode or not image.is_file() or image.stat().st_size < 5000:
-                raise RuntimeError("SOURCE_PAGE_RENDER_FAILED_" + str(p))
-            result.append((p, text, base64.b64encode(image.read_bytes()).decode("ascii")))
+    page_text = [(page.extract_text() or "") for page in reader.pages]
+    entries = []
+    def walk(nodes):
+        for node in nodes:
+            if isinstance(node, list):
+                walk(node)
+            elif getattr(node, "title", None):
+                try:
+                    page = reader.get_destination_page_number(node)
+                    if page >= 0:
+                        entries.append((str(node.title).strip(), page))
+                except Exception:
+                    continue
+    walk(reader.outline)
+    if len(entries) >= 2:
+        ordered = sorted({(p, t) for t, p in entries if t and p > 0})
+        return [(title, start, ordered[i+1][0] if i+1 < len(ordered)
+                 else min(start+8, len(page_text)))
+                for i, (start, title) in enumerate(ordered)
+                if start < len(page_text)]
+    toc = " ".join(page_text[:min(12, len(page_text))])
+    if not re.search(r"\bcontents\b|\bsommaire\b|فهرس", toc, re.I):
+        raise ValueError("SOURCE_TOC_NOT_FOUND")
+    lines = "\n".join(page_text[:min(12, len(page_text))]).splitlines()
+    found = []
+    for line in lines:
+        m = re.match(r"\s*(?:\d+[.)-]?\s+)?([\w\s,:'’()\-/]{5,85}?)\s*(?:\.{2,}|\s{2,})\s*(\d{1,3})\s*$", line)
+        if not m:
+            continue
+        title = m.group(1).strip(" .-")
+        if len(title.split()) < 2:
+            continue
+        matches = [i for i, text in enumerate(page_text[5:], 5)
+                   if re.search(re.escape(title), text[:1600], re.I)]
+        if len(matches) == 1:
+            found.append((matches[0], title))
+    ordered = sorted(set(found))
+    if len(ordered) < 2:
+        raise ValueError("SOURCE_TOC_AMBIGUOUS: cannot locate two distinct lesson starts")
+    return [(title, start, ordered[i+1][0] if i+1 < len(ordered)
+             else min(start+8, len(page_text))) for i, (start, title) in enumerate(ordered)]
+
+
+def lesson_key(book, title, start):
+    return hashlib.sha256(f"{book['drive_file_id']}|{title}|{start}".encode()).hexdigest()[:20]
+
+
+def source_excerpt(reader, start, end):
+    if end <= start or end-start > 14:
+        raise ValueError("SOURCE_BOUNDARY_AMBIGUOUS")
+    pages = [(i+1, (reader.pages[i].extract_text() or "").strip())
+             for i in range(start, end)]
+    if sum(len(t) for _, t in pages) < 1100:
+        raise ValueError("SOURCE_TEXT_INSUFFICIENT_OR_SCANNED")
+    if sum(len(t) for _, t in pages) > 42000:
+        raise ValueError("SOURCE_TOO_LONG_FOR_VERIFIABLE_GENERATION")
+    return pages
+
+
+def generate(title, pages, language):
+    from openai import OpenAI
+    if not os.getenv("OPENAI_API_KEY"):
+        raise RuntimeError("OPENAI_API_KEY_REQUIRED")
+    source = "\n".join(f"[PDF PAGE {p}]\n{t}" for p, t in pages)
+    response = OpenAI().chat.completions.create(
+        model=os.getenv("NABIL_LESSON_MODEL", "gpt-4.1"),
+        temperature=0,
+        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system", "content": (
+                "Create a complete, accurate classroom lesson solely from the supplied PDF text. "
+                "Return JSON with keys title, introduction, concepts (array of objects: heading, explanation, "
+                "source_quote, pdf_page), activities (array of objects: prompt, answer, source_quote, pdf_page), "
+                "questions (array of objects: prompt, options [exactly 3 strings], correct_index [0..2], "
+                "explanation, source_quote, pdf_page), summary (array of strings). "
+                "At least 3 concepts, 2 activities, 3 questions and 4 summary points. "
+                "Each source_quote must be an exact contiguous excerpt of the supplied page text; "
+                "do not invent source exercises or answers. If insufficient evidence return {error: reason}. "
+                "Never copy or reuse GitHub HTML. Write in the textbook's language.")},
+            {"role": "user", "content": f"Book language: {language}; TOC title: {title}\n{source}"},
+        ])
+    result = json.loads(response.choices[0].message.content)
+    if result.get("error"):
+        raise ValueError("GENERATION_REFUSED: " + str(result["error"])[:200])
     return result
 
 
-def produce_first(require_drive_write=True):
-    """Create source-illustrated Grade 7 Physics chapter from the actual PDF.
+def check_content(lesson, title, pages):
+    errors = []
+    if re.sub(r"\W+", "", str(lesson.get("title", "")).casefold()) != re.sub(r"\W+", "", title.casefold()):
+        errors.append("TITLE_MISMATCH")
+    requirements = (("concepts", 3), ("activities", 2), ("questions", 3), ("summary", 4))
+    for field, minimum in requirements:
+        if not isinstance(lesson.get(field), list) or len(lesson[field]) < minimum:
+            errors.append("INSUFFICIENT_" + field.upper())
+    by_page = dict(pages)
+    for section in ("concepts", "activities", "questions"):
+        for i, item in enumerate(lesson.get(section, [])):
+            try:
+                quote = str(item["source_quote"]).strip()
+                page = int(item["pdf_page"])
+                if len(quote) < 15 or quote not in by_page[page]:
+                    raise ValueError()
+                if section == "questions" and (len(item["options"]) != 3 or
+                    type(item["correct_index"]) is not int or not 0 <= item["correct_index"] < 3):
+                    raise ValueError()
+            except (ValueError, KeyError, TypeError):
+                errors.append(f"UNVERIFIED_{section}_{i+1}")
+    if len(str(lesson.get("introduction", ""))) < 60:
+        errors.append("INTRODUCTION_TOO_SHORT")
+    return errors
 
-    Fail closed if the original source cannot be read/rendered or if the
-    previously authored chapter is missing its exercises or solutions.
-    Never label the result scientifically certified by automated checks.
-    """
+
+def render_html(lesson, pages, book):
+    e = lambda value: html.escape(str(value), quote=True)
+    cards = "".join(
+        f'<section class="card"><h2>{e(x["heading"])}</h2><p>{e(x["explanation"])}</p>'
+        f'<small>PDF p. {int(x["pdf_page"])} · {e(book["title"])}</small></section>'
+        for x in lesson["concepts"])
+    activities = "".join(
+        f'<details class="card"><summary>{e(x["prompt"])}</summary><p>{e(x["answer"])}</p>'
+        f'<small>PDF p. {int(x["pdf_page"])}</small></details>' for x in lesson["activities"])
+    questions = "".join(
+        f'<fieldset class="card" data-answer="{x["correct_index"]}"><legend>{e(x["prompt"])}</legend>'
+        + "".join(f'<label><input type="radio" name="q{i}" value="{j}">{e(option)}</label>'
+                  for j, option in enumerate(x["options"]))
+        + f'<button type="button" class="check">Check</button><output aria-live="polite"></output>'
+          f'<span class="explanation" hidden>{e(x["explanation"])}</span></fieldset>'
+        for i, x in enumerate(lesson["questions"]))
+    summary = "".join(f"<li>{e(s)}</li>" for s in lesson["summary"])
+    refs = ", ".join(str(p) for p, _ in pages)
+    return f'''<!doctype html><html lang="{e(book.get("language", "en"))[:2].lower()}">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{e(lesson["title"])} · NABIL AI</title>
+<style>body{{margin:0;background:#edf3f9;color:#14263e;font:1.1rem/1.65 system-ui}}
+main{{max-width:900px;margin:auto;padding:16px}}header,.card{{background:white;border-radius:18px;
+padding:18px;margin:14px 0;box-shadow:0 3px 14px #15304a1a}}header{{background:#173b69;color:white}}
+h1{{line-height:1.2}}h2{{color:#125b8f}}header small{{color:#e3f1ff}}small{{color:#315a7a}}
+label{{display:block;padding:9px;margin:8px 0;border:1px solid #bed2e3;border-radius:9px}}
+button{{background:#096c83;color:white;border:0;border-radius:9px;padding:10px 18px;font:inherit}}
+output{{display:block;font-weight:700}}details summary{{cursor:pointer;font-weight:700}}
+@media(max-width:500px){{main{{padding:9px}}.card,header{{padding:14px}}}}</style></head>
+<body><main><header><h1>{e(lesson["title"])}</h1><p>{e(lesson["introduction"])}</p>
+<small>{e(book["title"])} · PDF pages {refs}</small></header>
+<h2>Learn</h2>{cards}<h2>Explore and solve</h2>{activities}
+<h2>Interactive worksheet</h2>{questions}<section class="card"><h2>Lesson summary</h2><ul>{summary}</ul></section>
+<section class="card"><h2>Source</h2><p>{e(book["title"])} · Drive PDF ID {e(book["drive_file_id"])} · PDF pages {refs}</p></section>
+</main><script>document.querySelectorAll("fieldset").forEach(f=>f.querySelector("button").onclick=()=>{{
+const choice=f.querySelector("input:checked"),out=f.querySelector("output");
+out.textContent=choice?(Number(choice.value)===Number(f.dataset.answer)?"✓ Correct":"Try again · "+f.querySelector(".explanation").textContent):"Choose an answer first";
+}});</script></body></html>'''
+
+
+def check_html(document, lesson):
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(document, "html.parser")
+    errors = []
+    if not soup.select_one("meta[name=viewport]") or not soup.select_one("main"):
+        errors.append("MOBILE_OR_SEMANTIC_STRUCTURE_MISSING")
+    if len(soup.select("fieldset[data-answer]")) != len(lesson["questions"]):
+        errors.append("QUIZ_RENDER_MISMATCH")
+    if len(soup.select("details")) != len(lesson["activities"]):
+        errors.append("ACTIVITY_RENDER_MISMATCH")
+    if "querySelectorAll" not in document or len(document.encode()) < 3500:
+        errors.append("INTERACTIVITY_OR_CONTENT_MISSING")
+    return errors
+
+
+def make_pptx(lesson, book, pages):
+    """A separate visual export; all shapes and text are generated from checked JSON."""
+    from pptx import Presentation
+    from pptx.util import Inches, Pt
+    from pptx.dml.color import RGBColor
+    prs = Presentation()
+    prs.slide_width, prs.slide_height = Inches(13.33), Inches(7.5)
+    def slide(title, body, n):
+        s = prs.slides.add_slide(prs.slide_layouts[6])
+        bg = s.background.fill
+        bg.solid()
+        bg.fore_color.rgb = RGBColor(14, 40, 74)
+        for x, y, w, h, color in ((.55, .7, .12, 5.8, RGBColor(33, 199, 187)),
+                                  (.85, 1.95, 11.7, 4.5, RGBColor(24, 72, 115))):
+            shape = s.shapes.add_shape(1, Inches(x), Inches(y), Inches(w), Inches(h))
+            shape.fill.solid(); shape.fill.fore_color.rgb = color
+            shape.line.fill.background()
+        def textbox(value, x, y, w, h, size, color):
+            shape = s.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(h))
+            tf = shape.text_frame; tf.word_wrap = True
+            tf.text = str(value)
+            for p in tf.paragraphs:
+                p.font.size = Pt(size); p.font.color.rgb = color
+        textbox(title, 1, .55, 11.4, 1.2, 34, RGBColor(255,255,255))
+        textbox(body[:1050], 1.25, 2.2, 10.9, 3.85, 23, RGBColor(239,248,255))
+        textbox(f'NABIL AI  •  {book["title"]}  •  PDF pp. {pages[0][0]}–{pages[-1][0]}  •  {n}',
+                1, 6.7, 11.3, .4, 12, RGBColor(111, 222, 214))
+    slide(lesson["title"], lesson["introduction"], 1)
+    for i, item in enumerate(lesson["concepts"], 2):
+        slide(item["heading"], item["explanation"] + f'\n\nSource: PDF p. {item["pdf_page"]}', i)
+    offset = len(prs.slides)
+    for i, item in enumerate(lesson["activities"], offset+1):
+        slide("Explore · " + item["prompt"], item["answer"], i)
+    slide("Quick review", "\n• ".join(lesson["summary"]), len(prs.slides)+1)
+    stream = io.BytesIO(); prs.save(stream)
+    return stream.getvalue()
+
+
+def check_pptx(raw, lesson):
+    from pptx import Presentation
+    slides = list(Presentation(io.BytesIO(raw)).slides)
+    if len(slides) != 2 + len(lesson["concepts"]) + len(lesson["activities"]):
+        return ["PPTX_SLIDE_COUNT_MISMATCH"]
+    text = "\n".join(shape.text for slide in slides for shape in slide.shapes if shape.has_text_frame)
+    missing = [x["heading"] for x in lesson["concepts"] if x["heading"] not in text]
+    return ["PPTX_CONCEPT_MISSING: " + x for x in missing]
+
+
+def ensure_folder(service, parent, name):
+    safe = name.replace("'", "\\'")
+    result = service.files().list(q=f"'{parent}' in parents and name='{safe}' and mimeType='{FOLDER_MIME}' and trashed=false",
+                                  fields="files(id,name)", pageSize=10).execute().get("files", [])
+    if len(result) > 1:
+        raise ValueError("AMBIGUOUS_DRIVE_FOLDER")
+    if result:
+        return result[0]["id"]
+    created = service.files().create(body={"name":name, "mimeType":FOLDER_MIME, "parents":[parent]},
+                                     fields="id").execute()
+    return created["id"]
+
+
+def upload_verified(service, parent, name, raw, mime):
     from googleapiclient.http import MediaIoBaseUpload
-    from urllib.parse import quote
-    book = next(b for b in json.loads(LEDGER.read_text(encoding="utf-8"))["books"]
-                if b.get("drive_file_id") == "1LasqIgGUuck1l-2EZbj2kA0Dg9ygJ_AH")
-    chapter = next(x for x in book["authored_lessons"]
-                   if x["title"] == "Solids and Liquids")
-    service = drive(write=True)
-    folder = service.files().get(fileId=PILOT_FOLDER,
-                                 fields="id,capabilities(canAddChildren)").execute()
-    if not folder.get("capabilities", {}).get("canAddChildren"):
-        raise PermissionError("OWNER_DRIVE_WRITE_NOT_GRANTED")
-    original = get_html(service, chapter["drive_html_id"])
-    quality = check_html(original, chapter)
-    if not quality["pass"]:
-        raise ValueError("AUTHORED_SOURCE_LESSON_INCOMPLETE: " + ",".join(quality["failures"]))
-    soup = BeautifulSoup(original, "html.parser")
-    main = soup.find("main")
-    if not main:
-        raise ValueError("AUTHORED_LESSON_MAIN_MISSING")
-    # Do not assume that a printed page number always equals a PDF page index.
-    # This first pilot has the PDF-page range recorded in the ledger.
-    # Locate the chapter in PDF text; printed page numbers are not PDF indices.
-    from pypdf import PdfReader
-    from scripts.index_books import download_pdf
-    reader = PdfReader(io.BytesIO(download_pdf(service, book["drive_file_id"])))
-    extracted = [(page.extract_text() or "").casefold() for page in reader.pages]
-    matches = [i for i, page in enumerate(extracted)
-               if re.search(r"\bsolids?\b", page) and re.search(r"\bliquids?\b", page)]
-    if not matches:
-        raise ValueError("SOURCE_CHAPTER_NOT_LOCATABLE: verify scanned PDF pages manually; no upload")
-    start = matches[0]
-    end = next((i for i in range(start, min(start + 15, len(extracted)))
-                if re.search(r"\bexercises?\b", extracted[i])), None)
-    if end is None:
-        raise ValueError("SOURCE_EXERCISE_PAGE_NOT_FOUND: no upload")
-    pages = list(range(start + 1, end + 2))
-    source = _source_pages(service, book["drive_file_id"], pages)
-    if soup.select("[data-nabil-source-pages]"):
-        raise ValueError("SOURCE_IMAGES_ALREADY_PRESENT")
-    source_section = soup.new_tag("section", attrs={"class": "card",
-                                      "data-nabil-source-pages": "1",
-                                      "id": "original-source"})
-    h2 = soup.new_tag("h2")
-    h2.string = "Original textbook pages · source figures and exercises"
-    source_section.append(h2)
-    intro = soup.new_tag("p")
-    intro.string = ("These are the actual PDF pages, not AI-drawn figures. "
-                    "Use them to compare the adapted lesson and all six exercises.")
-    source_section.append(intro)
-    for p, _, encoded in source:
-        figure = soup.new_tag("figure")
-        img = soup.new_tag("img", attrs={
-            "src": "data:image/jpeg;base64," + encoded,
-            "alt": "Original G 07 physics.pdf PDF page " + str(p),
-            "loading": "lazy",
-            "style": "width:100%;height:auto;max-width:100%;border:1px solid #abc",
-        })
-        figure.append(img)
-        caption = soup.new_tag("figcaption")
-        caption.string = "Original G 07 physics.pdf · PDF page " + str(p)
-        figure.append(caption)
-        source_section.append(figure)
-    main.append(source_section)
-    worksheet = soup.new_tag("section", attrs={"class": "card", "id": "worksheet"})
-    worksheet.append(BeautifulSoup("""
-      <h2>Printable worksheet · Solids and Liquids</h2>
-      <p>Use the original textbook pages above and the lesson cards.
-      Write answers before opening the exercise solutions.</p>
-      <ol>
-        <li>Classify: pencil, milk, sand, water, salt. Explain sand and salt.</li>
-        <li>Draw a horizontal free surface in three differently shaped vessels.</li>
-        <li>Describe how a plumb line tests whether the surface is horizontal.</li>
-        <li>Explain why a transparent tube shows the fuel level in a tank.</li>
-        <li>Complete and solve the six numbered exercises from the original p. 17.</li>
-      </ol>
-      <p>Answers: refer to the explained activities, exercises 1–6 and
-      final reference card above. This worksheet is an NABIL AI adaptation.</p>
-    """, "html.parser"))
-    main.append(worksheet)
-    lab = (ROOT / "app/static/nabil_g7_physics_lab_v1.js").read_text(encoding="utf-8")
-    if "g7-surface" not in lab or "g7-tubes" not in lab:
-        raise ValueError("INTERACTIVE_LAB_NOT_READY")
-    script = soup.new_tag("script")
-    script.string = lab.replace("</script", "<\\/script")
-    (soup.body or soup).append(script)
-    css = soup.new_tag("style")
-    css.string = ("@media(max-width:760px){html,body,main{max-width:100%;"
-                  "min-width:0;box-sizing:border-box}main{padding:10px}"
-                  "img,svg,canvas{max-width:100%;height:auto}}")
-    (soup.head or soup).append(css)
-    rendered = str(soup)
-    final_quality = check_html(rendered, chapter)
-    if not final_quality["pass"] or len(source_section.select("img")) != len(pages):
-        raise ValueError("FINAL_LESSON_QUALITY_GATE_FAILED")
-    name = "G07-PHYSICS--SOLIDS-AND-LIQUIDS-SOURCE-ILLUSTRATED.html"
-    existing = [f for f in children(service, PILOT_FOLDER)
-                if f["name"].casefold() == name.casefold()]
-    if existing:
-        raise FileExistsError("REFUSE_TO_OVERWRITE_EXISTING_SOURCE_LESSON")
-    media = MediaIoBaseUpload(io.BytesIO(rendered.encode("utf-8")),
-                              mimetype="text/html", resumable=False)
-    file = service.files().create(
-        body={"name": name, "mimeType": "text/html", "parents": [PILOT_FOLDER]},
-        media_body=media, fields="id,name,webViewLink").execute()
-    saved = get_html(service, file["id"])
-    if (saved.count("data:image/jpeg;base64,") != len(pages) or
-            "id=\"worksheet\"" not in saved or
-            "g7-tubes" not in saved):
-        raise ValueError("SOURCE_LESSON_READBACK_VERIFICATION_FAILED")
-    return {"status": "SOURCE_ILLUSTRATED_LESSON_PUBLISHED_REQUIRES_SCIENTIFIC_REVIEW",
-            "title": "Solids and Liquids · original source pages included",
-            "drive_file_id": file["id"], "source_pdf_id": book["drive_file_id"],
-            "source_pdf_pages": pages, "source_exercises": chapter["source_exercises"],
-            "figures_original_pages": len(pages), "scientifically_verified": False,
-            "bytes": len(saved.encode("utf-8")),
-            "view_url": "/api/interactive-lessons/view?grade=7&subject=physics&lesson="
-                        + quote("SOLIDS AND LIQUIDS SOURCE ILLUSTRATED")}
+    item = service.files().create(body={"name":name, "parents":[parent]},
+        media_body=MediaIoBaseUpload(io.BytesIO(raw), mimetype=mime, resumable=False),
+        fields="id,name,size,webViewLink").execute()
+    readback = download(service, item["id"])
+    if hashlib.sha256(readback).digest() != hashlib.sha256(raw).digest():
+        raise ValueError("DRIVE_READBACK_HASH_MISMATCH")
+    return item
+
+
+def run(report_path):
+    ledger = json.loads(LEDGER.read_text(encoding="utf-8"))
+    report = {"started":now(), "status":"RUNNING", "attempts":[], "production":None}
+    def checkpoint():
+        report["updated"] = now()
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    checkpoint()
+    try:
+        service = owner_drive()
+        root = service.files().get(fileId=ROOT_FOLDER, fields="id,name,capabilities(canAddChildren)").execute()
+        if not root.get("capabilities", {}).get("canAddChildren"):
+            raise PermissionError("OWNER_ROOT_NOT_WRITABLE")
+    except Exception as exc:
+        report["status"]="BLOCKED_CREDENTIALS_OR_DRIVE"
+        report["error"]=f"{type(exc).__name__}: {exc}"
+        checkpoint(); return report
+    if not os.getenv("OPENAI_API_KEY"):
+        report["status"]="BLOCKED_GENERATION_CREDENTIALS"
+        report["error"]="OPENAI_API_KEY_REQUIRED"
+        checkpoint(); return report
+    for book in sorted(ledger["books"], key=lambda b: (b.get("order",999), b.get("subject",""), b.get("grade",""))):
+        if not book.get("drive_file_id"):
+            continue
+        attempt = {"book":book["title"],"book_id":book["drive_file_id"],"started":now()}
+        report["attempts"].append(attempt); checkpoint()
+        try:
+            from pypdf import PdfReader
+            pdf = download(service, book["drive_file_id"])
+            reader = PdfReader(io.BytesIO(pdf))
+            entries = candidates(reader)
+            finished = {x.get("lesson_key") for x in book.get("authored_lessons",[])
+                        if x.get("status") == "verified_complete" and x.get("drive_html_id")
+                        and x.get("drive_pptx_id")}
+            available = [(title, start, end) for title, start, end in entries
+                         if lesson_key(book,title,start) not in finished]
+            if not available:
+                raise ValueError("NO_UNFINISHED_TOC_LESSON")
+            title, start, end = available[0]
+            attempt.update({"lesson":title,"source_pdf_pages":list(range(start+1,end+1)),
+                            "lesson_key":lesson_key(book,title,start)})
+            pages = source_excerpt(reader,start,end)
+            attempt["source_sha256"]=hashlib.sha256(pdf).hexdigest()
+            checkpoint()
+            lesson = generate(title,pages,book.get("language",""))
+            failures = check_content(lesson,title,pages)
+            document = render_html(lesson,pages,book) if not failures else ""
+            failures.extend(check_html(document,lesson) if document else [])
+            attempt["html_quality"]={"pass":not failures,"failures":failures}
+            checkpoint()
+            if failures:
+                raise ValueError("HTML_QUALITY_FAILED: " + ",".join(failures))
+            powerpoint = make_pptx(lesson,book,pages)
+            failures = check_pptx(powerpoint,lesson)
+            attempt["pptx_quality"]={"pass":not failures,"failures":failures,"slides":2+len(lesson["concepts"])+len(lesson["activities"])}
+            checkpoint()
+            if failures:
+                raise ValueError("PPTX_QUALITY_FAILED: " + ",".join(failures))
+            grade_folder = ensure_folder(service,ROOT_FOLDER,book["grade"])
+            subject_folder = ensure_folder(service,grade_folder,book["subject"])
+            folder = ensure_folder(service,subject_folder,title)
+            base = re.sub(r"[^a-zA-Z0-9_-]+","-",title).strip("-")[:55] or attempt["lesson_key"]
+            html_item = upload_verified(service,folder,base+".html",document.encode("utf-8"),"text/html")
+            attempt["drive_html_id"]=html_item["id"]; checkpoint()
+            ppt_item = upload_verified(service,folder,base+".pptx",powerpoint,
+                                       "application/vnd.openxmlformats-officedocument.presentationml.presentation")
+            attempt["drive_pptx_id"]=ppt_item["id"]
+            attempt["status"]="VERIFIED_UPLOAD"
+            record = {"title":title,"lesson_key":attempt["lesson_key"],
+                      "source_pdf_pages":attempt["source_pdf_pages"],"source_sha256":attempt["source_sha256"],
+                      "drive_folder_id":folder,"drive_html_id":html_item["id"],"drive_pptx_id":ppt_item["id"],
+                      "status":"verified_complete","completed_at":now()}
+            book.setdefault("authored_lessons",[]).append(record)
+            ledger["updated"]=now()
+            LEDGER.write_text(json.dumps(ledger,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+            report["production"]=record
+            report["status"]="ONE_LESSON_COMPLETE"
+            checkpoint()
+            break
+        except Exception as exc:
+            attempt.update({"status":"FAILED","reason":f"{type(exc).__name__}: {exc}","finished":now()})
+            checkpoint()
+    else:
+        report["status"]="NO_LESSON_COMPLETE"; checkpoint()
+    return report
+
 
 def main():
-    ap=argparse.ArgumentParser()
-    ap.add_argument("--pilot",action="store_true",required=True)
-    ap.add_argument("--require-drive-write",action="store_true")
-    ap.add_argument("--report",default="")
-    ap.add_argument("--produce-first",action="store_true")
-    args=ap.parse_args()
-    try:
-        report=pilot(args.require_drive_write)
-        # Pilot audits only; publishing requires explicit --produce-first.
-        if args.produce_first:
-            report["production"] = produce_first()
-    except Exception as exc:
-        report={"status":"ERROR","error_type":type(exc).__name__,"error":str(exc)}
-    data=json.dumps(report,ensure_ascii=False,indent=2)
-    if args.report:
-        Path(args.report).write_text(data,encoding="utf-8")
-    print(data)
-    ok = (report.get("production",{}).get("status") == "SOURCE_ILLUSTRATED_LESSON_PUBLISHED_REQUIRES_SCIENTIFIC_REVIEW"
-          or (not args.produce_first and report.get("drive_can_add_children") is not False
-              and report.get("status") in ("PILOT_REQUIRES_SOURCE_REVIEW", "BLOCKED")))
-    if ok and os.getenv("PORT"):
-        # Railway expects a persistent process. Serve a minimal status endpoint
-        # after the one-shot upload, rather than showing CRASHED on normal exit.
-        from http.server import BaseHTTPRequestHandler, HTTPServer
-        class Handler(BaseHTTPRequestHandler):
-            def do_GET(self):
-                data = json.dumps(report, ensure_ascii=False).encode("utf-8")
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json; charset=utf-8")
-                self.send_header("Content-Length", str(len(data)))
-                self.end_headers()
-                self.wfile.write(data)
-        HTTPServer(("0.0.0.0", int(os.environ["PORT"])), Handler).serve_forever()
-    return 0 if ok else 2
+    parser=argparse.ArgumentParser()
+    parser.add_argument("--report",default="data/nabil_lesson_factory_run.json")
+    args=parser.parse_args()
+    report=run(Path(args.report))
+    print(json.dumps(report,ensure_ascii=False,indent=2))
+    return 0 if report["status"]=="ONE_LESSON_COMPLETE" else 2
+
 
 if __name__=="__main__":
     sys.exit(main())
