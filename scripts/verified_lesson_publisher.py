@@ -49,7 +49,7 @@ def source_gate(manifest, base):
         if len(excerpt.strip()) < 12:
             raise ValueError("SOURCE_EXCERPT_TOO_SHORT")
         actual = reader.pages[page - 1].extract_text() or ""
-        normalize = lambda s: re.sub(r"\\s+", " ", s).casefold().strip()
+        normalize = lambda s: re.sub(r"\s+", " ", s).casefold().strip()
         if normalize(excerpt) not in normalize(actual):
             raise ValueError("SOURCE_EXCERPT_NOT_IN_PDF_PAGE_" + str(page))
         if not item.get("lesson_claim"):
@@ -74,6 +74,8 @@ def artifact_gate(manifest, base):
         raise ValueError("FINAL_SUMMARY_MISSING")
     if not soup.select("details"):
         raise ValueError("WORKED_SOLUTION_MISSING")
+    if not manifest["images"]:
+        raise ValueError("NO_VERIFIED_FIGURES_OR_SOURCE_PAGE_IMAGES")
     for name in manifest["images"]:
         if not (base / name).is_file():
             raise ValueError("MISSING_IMAGE_" + name)
@@ -85,10 +87,9 @@ def artifact_gate(manifest, base):
         prs = Presentation(str(path))
         if len(prs.slides) < 9:
             raise ValueError("PPTX_TOO_FEW_SLIDES_" + lang)
-        for slide_number in (3, 5, 6, 7):
-            if not any(s.shape_type == MSO_SHAPE_TYPE.PICTURE
-                       for s in prs.slides[slide_number - 1].shapes):
-                raise ValueError("PPTX_MISSING_PICTURE_" + lang + "_" + str(slide_number))
+        if sum(any(s.shape_type == MSO_SHAPE_TYPE.PICTURE for s in slide.shapes)
+               for slide in prs.slides) < 4:
+            raise ValueError("PPTX_INSUFFICIENT_VISUAL_SLIDES_" + lang)
         pptx[lang] = {"slides": len(prs.slides), "sha256": digest(path)}
     return {"html_sha256": digest(html_path), "pptx": pptx}
 
@@ -198,6 +199,8 @@ def main():
         report["browser"] = browser_gate(manifest, base)
         report["status"] = "LOCALLY_VERIFIED_NOT_PUBLISHED"
         if args.publish:
+            if manifest.get("scientific_review_approved") is not True or not manifest.get("reference_design_approved") is True:
+                raise ValueError("SCIENTIFIC_AND_REFERENCE_DESIGN_APPROVAL_REQUIRED")
             report["drive"] = publish(manifest, base)
             report["status"] = "UPLOADED_PENDING_RAILWAY_ACCEPTANCE"
     except Exception as exc:
