@@ -1,7 +1,7 @@
 """Produce at most one verified, source-grounded lesson from registered Drive PDFs.
 
 Usage: python -m scripts.nabil_lesson_factory --report /tmp/nabil-lesson-run.json
-Requires owner Drive OAuth credentials and OPENAI_API_KEY. A failed candidate is
+Requires owner Drive OAuth and an existing configured AI provider key. A failed candidate is
 logged and the next registered book is tried. No existing HTML is read.
 """
 import argparse
@@ -121,14 +121,8 @@ def source_excerpt(reader, start, end):
 
 def generate(title, pages, language):
     from openai import OpenAI
-    if not os.getenv("OPENAI_API_KEY"):
-        raise RuntimeError("OPENAI_API_KEY_REQUIRED")
     source = "\n".join(f"[PDF PAGE {p}]\n{t}" for p, t in pages)
-    response = OpenAI().chat.completions.create(
-        model=os.getenv("NABIL_LESSON_MODEL", "gpt-4.1"),
-        temperature=0,
-        response_format={"type": "json_object"},
-        messages=[
+    messages = [
             {"role": "system", "content": (
                 "Create a complete, accurate classroom lesson solely from the supplied PDF text. "
                 "Return JSON with keys title, introduction, concepts (array of objects: heading, explanation, "
@@ -140,10 +134,44 @@ def generate(title, pages, language):
                 "do not invent source exercises or answers. If insufficient evidence return {error: reason}. "
                 "Never copy or reuse GitHub HTML. Write in the textbook's language.")},
             {"role": "user", "content": f"Book language: {language}; TOC title: {title}\n{source}"},
-        ])
-    result = json.loads(response.choices[0].message.content)
-    if result.get("error"):
-        raise ValueError("GENERATION_REFUSED: " + str(result["error"])[:200])
+        ]
+    errors = []
+    for provider, api_key, base_url, model in configured_providers():
+        try:
+            client = OpenAI(api_key=api_key, base_url=base_url,
+                            timeout=90, max_retries=0)
+            response = client.chat.completions.create(
+                model=os.getenv("NABIL_LESSON_MODEL", model),
+                temperature=0, response_format={"type": "json_object"},
+                messages=messages)
+            result = json.loads(response.choices[0].message.content)
+            if result.get("error"):
+                raise ValueError("GENERATION_REFUSED: " + str(result["error"])[:200])
+            return result
+        except Exception as exc:
+            errors.append(f"{provider}: {type(exc).__name__}: {str(exc)[:180]}")
+    raise RuntimeError("ALL_CONFIGURED_PROVIDERS_FAILED: " + " | ".join(errors))
+
+
+def configured_providers():
+    """Use existing platform credentials, in its configured priority order."""
+    options = {
+        "groq": ("GROQ_API_KEY", "https://api.groq.com/openai/v1",
+                 os.getenv("GROQ_TEXT_MODEL", "openai/gpt-oss-120b")),
+        "openrouter": ("OPENROUTER_API_KEY", "https://openrouter.ai/api/v1",
+                       os.getenv("OPENROUTER_TEXT_MODEL", "openrouter/free")),
+        "gemini": ("GEMINI_API_KEY", "https://generativelanguage.googleapis.com/v1beta/openai/",
+                   os.getenv("GEMINI_TEXT_MODEL", "gemini-3.6-flash")),
+        "openai": ("OPENAI_API_KEY", None, os.getenv("OPENAI_TEXT_MODEL", "gpt-5.5")),
+    }
+    order = os.getenv("NABIL_AI_PROVIDER_ORDER", "groq,openrouter,gemini,openai")
+    result = []
+    for name in dict.fromkeys(x.strip().lower() for x in order.split(",")):
+        if name not in options:
+            continue
+        env, base, model = options[name]
+        if os.getenv(env, "").strip():
+            result.append((name, os.environ[env], base, model))
     return result
 
 
@@ -317,9 +345,9 @@ def run(report_path):
         report["status"]="BLOCKED_CREDENTIALS_OR_DRIVE"
         report["error"]=f"{type(exc).__name__}: {exc}"
         checkpoint(); return report
-    if not os.getenv("OPENAI_API_KEY"):
+    if not configured_providers():
         report["status"]="BLOCKED_GENERATION_CREDENTIALS"
-        report["error"]="OPENAI_API_KEY_REQUIRED"
+        report["error"]="NO_CONFIGURED_AI_PROVIDER_KEY"
         checkpoint(); return report
     for book in sorted(ledger["books"], key=lambda b: (b.get("order",999), b.get("subject",""), b.get("grade",""))):
         if not book.get("drive_file_id"):
