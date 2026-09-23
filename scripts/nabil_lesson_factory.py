@@ -5,6 +5,7 @@ Requires owner Drive OAuth and an existing configured AI provider key. A failed 
 logged and the next registered book is tried. No existing HTML is read.
 """
 import argparse
+import base64
 import hashlib
 import html
 import io
@@ -257,8 +258,12 @@ def generate(title, pages, language):
                 "Return JSON with keys title, introduction, concepts (array of objects: heading, explanation, "
                 "source_quote, pdf_page), activities (array of objects: prompt, answer, source_quote, pdf_page), "
                 "questions (array of objects: prompt, options [exactly 3 strings], correct_index [0..2], "
-                "explanation, source_quote, pdf_page), summary (array of strings). "
-                "At least 3 concepts, 2 activities, 3 questions and 4 summary points. "
+                "explanation, source_quote, pdf_page), exercises (array of objects: "
+                "prompt, solution, source_quote, pdf_page), summary (array of strings). "
+                "At least 3 concepts, 2 activities, 3 questions, 2 fully worked exercises "
+                "and 4 summary points. Exercises should be taken from source pages, with "
+                "solutions consistent with the source; if an exercise depends on a figure "
+                "you cannot interpret, do not invent its solution. "
                 "Each source_quote must be an exact contiguous excerpt of the supplied page text; "
                 "do not invent source exercises or answers. If insufficient evidence return {error: reason}. "
                 "Never copy or reuse GitHub HTML. Write in the textbook's language.")},
@@ -312,12 +317,13 @@ def check_content(lesson, title, pages):
     errors = []
     if re.sub(r"\W+", "", str(lesson.get("title", "")).casefold()) != re.sub(r"\W+", "", title.casefold()):
         errors.append("TITLE_MISMATCH")
-    requirements = (("concepts", 3), ("activities", 2), ("questions", 3), ("summary", 4))
+    requirements = (("concepts", 3), ("activities", 2), ("questions", 3),
+                    ("exercises", 2), ("summary", 4))
     for field, minimum in requirements:
         if not isinstance(lesson.get(field), list) or len(lesson[field]) < minimum:
             errors.append("INSUFFICIENT_" + field.upper())
     by_page = dict(pages)
-    for section in ("concepts", "activities", "questions"):
+    for section in ("concepts", "activities", "questions", "exercises"):
         for i, item in enumerate(lesson.get(section, [])):
             try:
                 quote = str(item["source_quote"]).strip()
@@ -327,6 +333,9 @@ def check_content(lesson, title, pages):
                 if section == "questions" and (len(item["options"]) != 3 or
                     type(item["correct_index"]) is not int or not 0 <= item["correct_index"] < 3):
                     raise ValueError()
+                if section == "exercises" and (len(str(item["prompt"])) < 15
+                                                or len(str(item["solution"])) < 35):
+                    raise ValueError()
             except (ValueError, KeyError, TypeError):
                 errors.append(f"UNVERIFIED_{section}_{i+1}")
     if len(str(lesson.get("introduction", ""))) < 60:
@@ -334,7 +343,61 @@ def check_content(lesson, title, pages):
     return errors
 
 
-def render_html(lesson, pages, book):
+def scientific_review(lesson, pages):
+    """Independent second pass over the source and proposed answer key.
+
+    Model approval is advisory evidence, not a proof of scientific accuracy;
+    rejection, invalid JSON or unavailable reviewer always blocks publishing.
+    """
+    from openai import OpenAI
+    source = "\n".join(f"PDF PAGE {p}\n{text}" for p,text in pages)
+    errors = []
+    for name,key,base,model in configured_providers():
+        try:
+            response = OpenAI(api_key=key,base_url=base,timeout=90,max_retries=0
+                ).chat.completions.create(
+                    model=os.getenv("NABIL_LESSON_REVIEW_MODEL",model),
+                    temperature=0,response_format={"type":"json_object"},
+                    messages=[
+                        {"role":"system","content":(
+                            "You are a skeptical independent textbook fact checker. "
+                            "Compare EVERY concept, activity answer, multiple-choice correct answer, "
+                            "exercise solution and summary statement with the original PDF OCR. "
+                            "Check mathematical/scientific truth and whether the answer follows from "
+                            "the cited source. Return JSON {approved: boolean, errors: [specific errors]}. "
+                            "If diagrams or OCR are too ambiguous to verify a result, reject it. "
+                            "Do not add new claims or treat source quotes alone as proof.")},
+                        {"role":"user","content":json.dumps(
+                            {"source":source,"lesson":lesson},ensure_ascii=False)},
+                    ])
+            verdict=json.loads(response.choices[0].message.content)
+            if verdict.get("approved") is True and verdict.get("errors")==[]:
+                return {"pass":True,"reviewer":name,"errors":[]}
+            return {"pass":False,"reviewer":name,
+                    "errors":verdict.get("errors",["REVIEW_NOT_APPROVED"])}
+        except Exception as exc:
+            errors.append(f"{name}:{type(exc).__name__}")
+    return {"pass":False,"reviewer":None,"errors":["REVIEW_UNAVAILABLE",*errors]}
+
+
+def source_images(pdf, pages):
+    """Embed original figures and exercise layouts, not a guessed redraw."""
+    result={}
+    with tempfile.TemporaryDirectory(prefix="nabil_figures_") as directory:
+        for number,_ in pages:
+            prefix=str(Path(directory)/f"p{number}")
+            subprocess.run(["pdftoppm","-f",str(number),"-l",str(number),
+                            "-singlefile","-scale-to","1100","-jpeg",
+                            "-jpegopt","quality=72",str(pdf),prefix],
+                           check=True,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,timeout=45)
+            image=Path(prefix+".jpg").read_bytes()
+            if len(image)<5000:
+                raise ValueError("SOURCE_PAGE_RENDER_FAILED")
+            result[number]=image
+    return result
+
+
+def render_html(lesson, pages, book, images):
     e = lambda value: html.escape(str(value), quote=True)
     cards = "".join(
         f'<section class="card"><h2>{e(x["heading"])}</h2><p>{e(x["explanation"])}</p>'
@@ -350,7 +413,39 @@ def render_html(lesson, pages, book):
         + f'<button type="button" class="check">Check</button><output aria-live="polite"></output>'
           f'<span class="explanation" hidden>{e(x["explanation"])}</span></fieldset>'
         for i, x in enumerate(lesson["questions"]))
+    exercises = "".join(
+        f'<details class="card"><summary>Exercise {i+1}: {e(x["prompt"])}</summary>'
+        f'<p>{e(x["solution"])}</p><small>PDF p. {int(x["pdf_page"])}</small></details>'
+        for i,x in enumerate(lesson["exercises"]))
     summary = "".join(f"<li>{e(s)}</li>" for s in lesson["summary"])
+    original = "".join(
+        f'<figure class="card"><img loading="lazy" alt="Original source PDF page {number}" '
+        f'src="data:image/jpeg;base64,{base64.b64encode(images[number]).decode()}">'
+        f'<figcaption>{e(book["title"])} · PDF page {number}</figcaption></figure>'
+        for number,_ in pages)
+    source_text=" ".join(text for _,text in pages).lower()
+    lab = ""
+    if "free surface" in source_text and "horizontal" in source_text:
+        lab = '''<section class="card" id="source-lab"><h2>Explore the free surface</h2>
+<p>Change the vessel and liquid level. Observe that the free surface stays horizontal.</p>
+<label>Vessel <select id="vessel"><option value="wide">Wide</option>
+<option value="narrow">Narrow</option></select></label>
+<label>Liquid level <input id="liquid-level" type="range" min="25" max="135" value="85"></label>
+<svg viewBox="0 0 360 210" role="img" aria-label="Water surface remains horizontal as the vessel changes">
+<path id="vessel-outline" d="M70 25 L70 180 L290 180 L290 25" fill="none"
+stroke="#173b69" stroke-width="7"/>
+<path id="water-area" d="M73 85 L287 85 L287 177 L73 177 Z" fill="#54bce7" opacity=".7"/>
+<line id="waterline" x1="73" y1="85" x2="287" y2="85" stroke="#086a9d" stroke-width="4"/>
+</svg><p>The free surface is horizontal at every level.</p></section>
+<script>const vessel=document.getElementById("vessel"),level=document.getElementById("liquid-level");
+function updateLab(){const narrow=vessel.value==="narrow",left=narrow?130:73,right=narrow?230:287,
+y=Number(level.value);document.getElementById("vessel-outline").setAttribute("d",
+"M"+(left-3)+" 25 L"+(left-3)+" 180 L"+(right+3)+" 180 L"+(right+3)+" 25");
+document.getElementById("water-area").setAttribute("d",
+"M"+left+" "+y+" L"+right+" "+y+" L"+right+" 177 L"+left+" 177 Z");
+const line=document.getElementById("waterline");line.setAttribute("x1",left);
+line.setAttribute("x2",right);line.setAttribute("y1",y);line.setAttribute("y2",y)}
+vessel.addEventListener("change",updateLab);level.addEventListener("input",updateLab);</script>'''
     refs = ", ".join(str(p) for p, _ in pages)
     return f'''<!doctype html><html lang="{e(book.get("language", "en"))[:2].lower()}">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -359,22 +454,25 @@ def render_html(lesson, pages, book):
 main{{max-width:900px;margin:auto;padding:16px}}header,.card{{background:white;border-radius:18px;
 padding:18px;margin:14px 0;box-shadow:0 3px 14px #15304a1a}}header{{background:#173b69;color:white}}
 h1{{line-height:1.2}}h2{{color:#125b8f}}header small{{color:#e3f1ff}}small{{color:#315a7a}}
+img{{width:100%;height:auto;display:block}}figure{{margin:14px 0}}
 label{{display:block;padding:9px;margin:8px 0;border:1px solid #bed2e3;border-radius:9px}}
 button{{background:#096c83;color:white;border:0;border-radius:9px;padding:10px 18px;font:inherit}}
 output{{display:block;font-weight:700}}details summary{{cursor:pointer;font-weight:700}}
 @media(max-width:500px){{main{{padding:9px}}.card,header{{padding:14px}}}}</style></head>
 <body><main><header><h1>{e(lesson["title"])}</h1><p>{e(lesson["introduction"])}</p>
 <small>{e(book["title"])} · PDF pages {refs}</small></header>
-<h2>Learn</h2>{cards}<h2>Explore and solve</h2>{activities}
-<h2>Interactive worksheet</h2>{questions}<section class="card"><h2>Lesson summary</h2><ul>{summary}</ul></section>
+<h2>Learn</h2>{cards}<h2>Explore and solve</h2>{activities}{lab}
+<h2>Exercises and worked solutions</h2>{exercises}
+<h2>Interactive worksheet</h2>{questions}<section class="card" id="summary-card"><h2>Lesson summary</h2><ul>{summary}</ul></section>
+<section><h2>Original textbook figures and exercises</h2>{original}</section>
 <section class="card"><h2>Source</h2><p>{e(book["title"])} · Drive PDF ID {e(book["drive_file_id"])} · PDF pages {refs}</p></section>
 </main><script>document.querySelectorAll("fieldset").forEach(f=>f.querySelector("button").onclick=()=>{{
 const choice=f.querySelector("input:checked"),out=f.querySelector("output");
-out.textContent=choice?(Number(choice.value)===Number(f.dataset.answer)?"✓ Correct":"Try again · "+f.querySelector(".explanation").textContent):"Choose an answer first";
+out.textContent=choice?(Number(choice.value)===Number(f.dataset.answer)?"✓ Correct · ":"Try again · ")+f.querySelector(".explanation").textContent:"Choose an answer first";
 }});</script></body></html>'''
 
 
-def check_html(document, lesson):
+def check_html(document, lesson, pages):
     from bs4 import BeautifulSoup
     soup = BeautifulSoup(document, "html.parser")
     errors = []
@@ -382,21 +480,33 @@ def check_html(document, lesson):
         errors.append("MOBILE_OR_SEMANTIC_STRUCTURE_MISSING")
     if len(soup.select("fieldset[data-answer]")) != len(lesson["questions"]):
         errors.append("QUIZ_RENDER_MISMATCH")
-    if len(soup.select("details")) != len(lesson["activities"]):
-        errors.append("ACTIVITY_RENDER_MISMATCH")
+    if len(soup.select("details")) != len(lesson["activities"])+len(lesson["exercises"]):
+        errors.append("EXERCISES_OR_SOLUTIONS_MISSING")
+    if len(soup.select("img[src^='data:image/jpeg;base64,']")) != len(pages):
+        errors.append("ORIGINAL_SOURCE_FIGURES_MISSING")
+    if not soup.select_one("#summary-card"):
+        errors.append("SUMMARY_CARD_MISSING")
+    if soup.select_one("#source-lab") and (
+        not soup.select_one("#waterline") or "updateLab()" not in document or
+        not soup.select_one("#liquid-level")):
+        errors.append("SOURCE_LAB_INCOMPLETE")
     if "querySelectorAll" not in document or len(document.encode()) < 3500:
         errors.append("INTERACTIVITY_OR_CONTENT_MISSING")
+    if re.search(r"(?<!\\)\\\(|(?<!\\)\\\[|\$\$|\\frac\b|\\sqrt\b",soup.get_text(" ")):
+        errors.append("UNRENDERED_MATH_MARKUP")
+    if soup.select_one('meta[name=viewport]') and "width=device-width" not in str(soup.select_one('meta[name=viewport]')):
+        errors.append("MOBILE_VIEWPORT_INVALID")
     return errors
 
 
-def make_pptx(lesson, book, pages):
+def make_pptx(lesson, book, pages, images):
     """A separate visual export; all shapes and text are generated from checked JSON."""
     from pptx import Presentation
     from pptx.util import Inches, Pt
     from pptx.dml.color import RGBColor
     prs = Presentation()
     prs.slide_width, prs.slide_height = Inches(13.33), Inches(7.5)
-    def slide(title, body, n):
+    def slide(title, body, n, page=None):
         s = prs.slides.add_slide(prs.slide_layouts[6])
         bg = s.background.fill
         bg.solid()
@@ -413,15 +523,27 @@ def make_pptx(lesson, book, pages):
             for p in tf.paragraphs:
                 p.font.size = Pt(size); p.font.color.rgb = color
         textbox(title, 1, .55, 11.4, 1.2, 34, RGBColor(255,255,255))
-        textbox(body[:1050], 1.25, 2.2, 10.9, 3.85, 23, RGBColor(239,248,255))
+        width=7.1 if page in images else 10.9
+        textbox(body[:600], 1.25, 2.2, width, 3.85, 22, RGBColor(239,248,255))
+        if page in images:
+            from PIL import Image
+            picture=Image.open(io.BytesIO(images[page]))
+            if picture.height < 200:
+                raise ValueError("SOURCE_VISUAL_TOO_SMALL")
+            s.shapes.add_picture(io.BytesIO(images[page]), Inches(8.8), Inches(1.85),
+                                 height=Inches(4.5))
         textbox(f'NABIL AI  •  {book["title"]}  •  PDF pp. {pages[0][0]}–{pages[-1][0]}  •  {n}',
                 1, 6.7, 11.3, .4, 12, RGBColor(111, 222, 214))
     slide(lesson["title"], lesson["introduction"], 1)
     for i, item in enumerate(lesson["concepts"], 2):
-        slide(item["heading"], item["explanation"] + f'\n\nSource: PDF p. {item["pdf_page"]}', i)
+        slide(item["heading"], item["explanation"] + f'\n\nSource: PDF p. {item["pdf_page"]}',
+              i, int(item["pdf_page"]))
     offset = len(prs.slides)
     for i, item in enumerate(lesson["activities"], offset+1):
-        slide("Explore · " + item["prompt"], item["answer"], i)
+        slide("Explore · " + item["prompt"], item["answer"], i,int(item["pdf_page"]))
+    for item in lesson["exercises"]:
+        slide("Worked exercise · " + item["prompt"], item["solution"],
+              len(prs.slides)+1,int(item["pdf_page"]))
     slide("Quick review", "\n• ".join(lesson["summary"]), len(prs.slides)+1)
     stream = io.BytesIO(); prs.save(stream)
     return stream.getvalue()
@@ -430,10 +552,12 @@ def make_pptx(lesson, book, pages):
 def check_pptx(raw, lesson):
     from pptx import Presentation
     slides = list(Presentation(io.BytesIO(raw)).slides)
-    if len(slides) != 2 + len(lesson["concepts"]) + len(lesson["activities"]):
+    if len(slides) != 2 + len(lesson["concepts"]) + len(lesson["activities"])+len(lesson["exercises"]):
         return ["PPTX_SLIDE_COUNT_MISMATCH"]
     text = "\n".join(shape.text for slide in slides for shape in slide.shapes if shape.has_text_frame)
     missing = [x["heading"] for x in lesson["concepts"] if x["heading"] not in text]
+    if not any(shape.shape_type==13 for slide in slides for shape in slide.shapes):
+        return ["PPTX_SOURCE_IMAGES_MISSING"]
     return ["PPTX_CONCEPT_MISSING: " + x for x in missing]
 
 
@@ -450,8 +574,22 @@ def ensure_folder(service, parent, name):
     return created["id"]
 
 
+def find_named(service,parent,name):
+    safe=name.replace("'","\\'")
+    files=service.files().list(q=f"'{parent}' in parents and name='{safe}' and trashed=false",
+        fields="files(id,name,mimeType)",pageSize=20).execute().get("files",[])
+    if len(files)>1:
+        raise ValueError("AMBIGUOUS_EXISTING_DRIVE_FILE: "+name)
+    return files[0] if files else None
+
+
 def upload_verified(service, parent, name, raw, mime):
     from googleapiclient.http import MediaIoBaseUpload
+    existing=find_named(service,parent,name)
+    if existing:
+        if hashlib.sha256(download(service,existing["id"])).digest() != hashlib.sha256(raw).digest():
+            raise FileExistsError("DRIVE_ARTIFACT_EXISTS_WITH_DIFFERENT_CONTENT: "+name)
+        return existing
     item = service.files().create(body={"name":name, "parents":[parent]},
         media_body=MediaIoBaseUpload(io.BytesIO(raw), mimetype=mime, resumable=False),
         fields="id,name,size,webViewLink").execute()
@@ -459,6 +597,32 @@ def upload_verified(service, parent, name, raw, mime):
     if hashlib.sha256(readback).digest() != hashlib.sha256(raw).digest():
         raise ValueError("DRIVE_READBACK_HASH_MISMATCH")
     return item
+
+
+def read_ledger(service, default):
+    item=find_named(service,ROOT_FOLDER,LEDGER.name)
+    if not item:
+        return default,item
+    remote=json.loads(download(service,item["id"]).decode("utf-8-sig"))
+    if not isinstance(remote.get("books"),list):
+        raise ValueError("REMOTE_LEDGER_INVALID")
+    # Existing ledger on Drive is authoritative across Railway redeployments.
+    return remote,item
+
+
+def save_ledger(service,ledger,item):
+    from googleapiclient.http import MediaIoBaseUpload
+    raw=(json.dumps(ledger,ensure_ascii=False,indent=2)+"\n").encode()
+    media=MediaIoBaseUpload(io.BytesIO(raw),mimetype="application/json",resumable=False)
+    if item:
+        saved=service.files().update(fileId=item["id"],media_body=media,
+                                     fields="id,name").execute()
+    else:
+        saved=service.files().create(body={"name":LEDGER.name,"parents":[ROOT_FOLDER]},
+                                     media_body=media,fields="id,name").execute()
+    if download(service,saved["id"])!=raw:
+        raise ValueError("REMOTE_LEDGER_READBACK_FAILED")
+    return saved
 
 
 def run(report_path):
@@ -474,6 +638,7 @@ def run(report_path):
         root = service.files().get(fileId=ROOT_FOLDER, fields="id,name,capabilities(canAddChildren)").execute()
         if not root.get("capabilities", {}).get("canAddChildren"):
             raise PermissionError("OWNER_ROOT_NOT_WRITABLE")
+        ledger,ledger_item=read_ledger(service,ledger)
     except Exception as exc:
         report["status"]="BLOCKED_CREDENTIALS_OR_DRIVE"
         report["error"]=f"{type(exc).__name__}: {exc}"
@@ -505,7 +670,8 @@ def run(report_path):
             reader = PdfReader(str(pdf))
             entries = candidates(reader,pdf)
             finished = {x.get("lesson_key") for x in book.get("authored_lessons",[])
-                        if x.get("status") == "verified_complete" and x.get("drive_html_id")
+                        if x.get("status") in ("verified_complete","REQUIRES_TEACHER_REVIEW")
+                        and x.get("drive_html_id")
                         and x.get("drive_pptx_id")}
             available = [(title, start, end) for title, start, end in entries
                          if lesson_key(book,title,start) not in finished]
@@ -523,22 +689,29 @@ def run(report_path):
             checkpoint()
             lesson = generate(title,pages,book.get("language",""))
             failures = check_content(lesson,title,pages)
-            document = render_html(lesson,pages,book) if not failures else ""
-            failures.extend(check_html(document,lesson) if document else [])
+            if not failures:
+                review=scientific_review(lesson,pages)
+                attempt["scientific_review"]=review
+                if not review["pass"]:
+                    failures.append("SCIENTIFIC_REVIEW_REJECTED")
+            images=source_images(pdf,pages) if not failures else {}
+            document = render_html(lesson,pages,book,images) if not failures else ""
+            failures.extend(check_html(document,lesson,pages) if document else [])
             attempt["html_quality"]={"pass":not failures,"failures":failures}
             checkpoint()
             if failures:
                 raise ValueError("HTML_QUALITY_FAILED: " + ",".join(failures))
-            powerpoint = make_pptx(lesson,book,pages)
+            powerpoint = make_pptx(lesson,book,pages,images)
             failures = check_pptx(powerpoint,lesson)
-            attempt["pptx_quality"]={"pass":not failures,"failures":failures,"slides":2+len(lesson["concepts"])+len(lesson["activities"])}
+            attempt["pptx_quality"]={"pass":not failures,"failures":failures,"slides":2+len(lesson["concepts"])+len(lesson["activities"])+len(lesson["exercises"])}
             checkpoint()
             if failures:
                 raise ValueError("PPTX_QUALITY_FAILED: " + ",".join(failures))
             grade_folder = ensure_folder(service,ROOT_FOLDER,book["grade"])
             subject_folder = ensure_folder(service,grade_folder,book["subject"])
             folder = ensure_folder(service,subject_folder,title)
-            base = re.sub(r"[^a-zA-Z0-9_-]+","-",title).strip("-")[:55] or attempt["lesson_key"]
+            base = (re.sub(r"[^a-zA-Z0-9_-]+","-",title).strip("-")[:45]
+                    or "lesson")+"-"+attempt["lesson_key"]
             html_item = upload_verified(service,folder,base+".html",document.encode("utf-8"),"text/html")
             attempt["drive_html_id"]=html_item["id"]; checkpoint()
             ppt_item = upload_verified(service,folder,base+".pptx",powerpoint,
@@ -548,12 +721,13 @@ def run(report_path):
             record = {"title":title,"lesson_key":attempt["lesson_key"],
                       "source_pdf_pages":attempt["source_pdf_pages"],"source_sha256":attempt["source_sha256"],
                       "drive_folder_id":folder,"drive_html_id":html_item["id"],"drive_pptx_id":ppt_item["id"],
-                      "status":"verified_complete","completed_at":now()}
+                      "status":"REQUIRES_TEACHER_REVIEW","completed_at":now()}
             book.setdefault("authored_lessons",[]).append(record)
             ledger["updated"]=now()
+            ledger_item=save_ledger(service,ledger,ledger_item)
             LEDGER.write_text(json.dumps(ledger,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
             report["production"]=record
-            report["status"]="ONE_LESSON_COMPLETE"
+            report["status"]="ONE_PILOT_REVIEW_PENDING"
             checkpoint()
             break
         except Exception as exc:
@@ -574,7 +748,7 @@ def main():
     args=parser.parse_args()
     report=run(Path(args.report))
     print(json.dumps(report,ensure_ascii=False,indent=2))
-    return 0 if report["status"]=="ONE_LESSON_COMPLETE" else 2
+    return 0 if report["status"]=="ONE_PILOT_REVIEW_PENDING" else 2
 
 
 if __name__=="__main__":
