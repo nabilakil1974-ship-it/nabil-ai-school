@@ -133,6 +133,12 @@ def _entry(file, grade="", subject="", chapter_title=""):
     if chapter_title:
         aliases.append(title.replace("-", " "))
         title = re.sub(r"^\s*\d+\s*[-–.]\s*", "", chapter_title).strip()
+    if _grade(grade) == "9" and _norm(title) == _norm("CONDUCTEURS OHMIQUES"):
+        aliases.extend(["Ohmic Conductors", "Conducteurs ohmiques",
+                        "Ohmic resistor", "Conducteur ohmique"])
+    if _grade(grade) == "9" and _norm(title) == _norm("Lines and Circles"):
+        aliases.extend(["Line and Circle", "Droites et cercles",
+                        "Droite et cercle", "Lines & Circles"])
     return {"grade": grade, "subject": subject, "lesson": title.replace("-", " "),
             "aliases": aliases, "drive_file_id": file["id"],
             "filename": file["name"], "language": ""}
@@ -190,12 +196,16 @@ def _entries():
             items = payload.get("lessons", [])
             if not isinstance(items, list):
                 raise ValueError("INVALID_LESSON_CATALOG")
-        else:
-            legacy = os.getenv("NABIL_INTERACTIVE_LESSONS_FOLDER_ID", _DEFAULT_FOLDER).strip()
-            # Keep legacy lessons while the owner migrates to the grade/subject tree.
+        # Always retain the legacy Drive lesson collection, even when an
+        # explicit catalog is configured. Otherwise a catalog switch hides
+        # yesterday's working Ohmic Conductors HTML.
+        legacy = os.getenv("NABIL_INTERACTIVE_LESSONS_FOLDER_ID", _DEFAULT_FOLDER).strip()
+        try:
             for file in _list_children(service, legacy):
                 if file["name"].lower().endswith(".html"):
                     items.append(_entry(file))
+        except Exception:
+            log.exception("DRIVE_LEGACY_LESSON_COLLECTION_UNAVAILABLE folder=%s", legacy)
         try:
             owner = _owner_entries(service)
         except Exception as exc:
