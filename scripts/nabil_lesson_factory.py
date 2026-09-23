@@ -5,8 +5,8 @@ Usage:
   python -m scripts.nabil_lesson_factory --pilot --require-drive-write --report /tmp/nabil-pilot.json
   python -m scripts.nabil_lesson_factory --pilot --produce-first
 
-No AI calls or deletes. --produce-first creates an explicitly labeled factory edition
-from the existing authored source lesson; it never invents unseen PDF material.
+No AI calls or deletes. Production embeds actual PDF pages and refuses to publish
+if the source cannot be read and rendered or the authored exercises are missing.
 This gate is necessary, NOT sufficient, to certify scientific/source accuracy:
 a reviewer must compare original PDF figures, exercises and solutions.
 """
@@ -167,12 +167,46 @@ def pilot(require_drive_write=False):
     )
     return report
 
-def produce_first(require_drive_write=True):
-    """Produce a real new Drive HTML, source-preserving, with embedded interactive lab.
+def _source_pages(service, file_id, pages):
+    """Extract original page images AND text from the actual Drive PDF.
 
-    This is a factory edition of an ALREADY AUTHORED chapter, not extraction
-    of an unseen textbook or certification of scientific completeness.
-    Idempotent: same filename is updated only if the factory marker is present.
+    Page numbers are PDF indices, not an unverified printed-page offset.
+    The PDF must be accessible and page content must corroborate the chapter.
+    """
+    import base64
+    import subprocess
+    import tempfile
+    from pypdf import PdfReader
+    from scripts.index_books import download_pdf
+    raw = download_pdf(service, file_id)
+    reader = PdfReader(io.BytesIO(raw))
+    if max(pages) > len(reader.pages):
+        raise ValueError("SOURCE_PDF_PAGE_OUT_OF_RANGE")
+    result = []
+    with tempfile.TemporaryDirectory(prefix="nabil_source_") as temp:
+        pdf = Path(temp) / "book.pdf"
+        pdf.write_bytes(raw)
+        for p in pages:
+            text = (reader.pages[p-1].extract_text() or "").strip()
+            prefix = str(Path(temp) / ("page_" + str(p)))
+            proc = subprocess.run(
+                ["pdftoppm", "-f", str(p), "-l", str(p),
+                 "-singlefile", "-scale-to", "1200", "-jpeg", "-jpegopt",
+                 "quality=78", str(pdf), prefix],
+                capture_output=True, timeout=70)
+            image = Path(prefix + ".jpg")
+            if proc.returncode or not image.is_file() or image.stat().st_size < 5000:
+                raise RuntimeError("SOURCE_PAGE_RENDER_FAILED_" + str(p))
+            result.append((p, text, base64.b64encode(image.read_bytes()).decode("ascii")))
+    return result
+
+
+def produce_first(require_drive_write=True):
+    """Create source-illustrated Grade 7 Physics chapter from the actual PDF.
+
+    Fail closed if the original source cannot be read/rendered or if the
+    previously authored chapter is missing its exercises or solutions.
+    Never label the result scientifically certified by automated checks.
     """
     from googleapiclient.http import MediaIoBaseUpload
     from urllib.parse import quote
@@ -184,80 +218,104 @@ def produce_first(require_drive_write=True):
     folder = service.files().get(fileId=PILOT_FOLDER,
                                  fields="id,capabilities(canAddChildren)").execute()
     if not folder.get("capabilities", {}).get("canAddChildren"):
-        raise PermissionError("FACTORY_DRIVE_WRITE_NOT_GRANTED")
-    html = get_html(service, chapter["drive_html_id"])
-    soup = BeautifulSoup(html, "html.parser")
-    if not soup.find("main") or not soup.find("h1"):
-        raise ValueError("SOURCE_LESSON_NOT_VALID_HTML")
-    if chapter["title"].casefold() not in soup.find("h1").get_text(" ", strip=True).casefold():
-        raise ValueError("SOURCE_LESSON_TITLE_MISMATCH")
-    # Inline lab for offline/Drive portability. No external AI, no runtime key.
-    lab_path = ROOT / "app/static/nabil_g7_physics_lab_v1.js"
-    lab = lab_path.read_text(encoding="utf-8")
-    if not lab or "g7-surface" not in lab or "g7-tubes" not in lab:
+        raise PermissionError("OWNER_DRIVE_WRITE_NOT_GRANTED")
+    original = get_html(service, chapter["drive_html_id"])
+    quality = check_html(original, chapter)
+    if not quality["pass"]:
+        raise ValueError("AUTHORED_SOURCE_LESSON_INCOMPLETE: " + ",".join(quality["failures"]))
+    soup = BeautifulSoup(original, "html.parser")
+    main = soup.find("main")
+    if not main:
+        raise ValueError("AUTHORED_LESSON_MAIN_MISSING")
+    # Do not assume that a printed page number always equals a PDF page index.
+    # This first pilot has the PDF-page range recorded in the ledger.
+    pages = list(range(13, 18))
+    source = _source_pages(service, book["drive_file_id"], pages)
+    combined = " ".join(text for _, text, _ in source).casefold()
+    if not ("solid" in combined and "liquid" in combined):
+        raise ValueError("SOURCE_PAGES_DO_NOT_MATCH_CHAPTER")
+    if not any("exercise" in text.casefold() for _, text, _ in source):
+        raise ValueError("SOURCE_EXERCISE_PAGE_NOT_FOUND")
+    if soup.select("[data-nabil-source-pages]"):
+        raise ValueError("SOURCE_IMAGES_ALREADY_PRESENT")
+    source_section = soup.new_tag("section", attrs={"class": "card",
+                                      "data-nabil-source-pages": "1",
+                                      "id": "original-source"})
+    h2 = soup.new_tag("h2")
+    h2.string = "Original textbook pages · source figures and exercises"
+    source_section.append(h2)
+    intro = soup.new_tag("p")
+    intro.string = ("These are the actual PDF pages, not AI-drawn figures. "
+                    "Use them to compare the adapted lesson and all six exercises.")
+    source_section.append(intro)
+    for p, _, encoded in source:
+        figure = soup.new_tag("figure")
+        img = soup.new_tag("img", attrs={
+            "src": "data:image/jpeg;base64," + encoded,
+            "alt": "Original G 07 physics.pdf PDF page " + str(p),
+            "loading": "lazy",
+            "style": "width:100%;height:auto;max-width:100%;border:1px solid #abc",
+        })
+        figure.append(img)
+        caption = soup.new_tag("figcaption")
+        caption.string = "Original G 07 physics.pdf · PDF page " + str(p)
+        figure.append(caption)
+        source_section.append(figure)
+    main.append(source_section)
+    worksheet = soup.new_tag("section", attrs={"class": "card", "id": "worksheet"})
+    worksheet.append(BeautifulSoup("""
+      <h2>Printable worksheet · Solids and Liquids</h2>
+      <p>Use the original textbook pages above and the lesson cards.
+      Write answers before opening the exercise solutions.</p>
+      <ol>
+        <li>Classify: pencil, milk, sand, water, salt. Explain sand and salt.</li>
+        <li>Draw a horizontal free surface in three differently shaped vessels.</li>
+        <li>Describe how a plumb line tests whether the surface is horizontal.</li>
+        <li>Explain why a transparent tube shows the fuel level in a tank.</li>
+        <li>Complete and solve the six numbered exercises from the original p. 17.</li>
+      </ol>
+      <p>Answers: refer to the explained activities, exercises 1–6 and
+      final reference card above. This worksheet is an NABIL AI adaptation.</p>
+    """, "html.parser"))
+    main.append(worksheet)
+    lab = (ROOT / "app/static/nabil_g7_physics_lab_v1.js").read_text(encoding="utf-8")
+    if "g7-surface" not in lab or "g7-tubes" not in lab:
         raise ValueError("INTERACTIVE_LAB_NOT_READY")
-    for node in soup.select("[data-nabil-factory-banner]"):
-        node.decompose()
-    banner = soup.new_tag("aside")
-    banner["data-nabil-factory-banner"] = "1"
-    banner["style"] = ("padding:12px;margin:14px auto;max-width:1010px;"
-                       "border:2px solid #28bfc8;border-radius:12px;"
-                       "background:#e8fcfc;color:#073c50;font:16px/1.6 Arial")
-    banner.string = ("NABIL AI · Factory edition 1 — generated from the "
-                     "previously authored lesson, G 07 physics.pdf pp. 13–17. "
-                     "The lab is an explanatory simulation, not a scanned "
-                     "textbook figure. Original exercise/figure fidelity "
-                     "still requires source review.")
-    soup.find("main").insert(0, banner)
-    if not soup.find("meta", attrs={"name": "viewport"}):
-        meta = soup.new_tag("meta", attrs={"name": "viewport",
-                         "content": "width=device-width,initial-scale=1"})
-        (soup.head or soup).append(meta)
-    style = soup.new_tag("style")
-    style.string = ("@media(max-width:760px){html,body,main{max-width:100%;"
-                    "min-width:0;box-sizing:border-box}main{padding:10px}"
-                    "img,svg,canvas{max-width:100%;height:auto}}")
-    (soup.head or soup).append(style)
-    # An inline script is safe here because the code is repository-owned and
-    # the only source document is the trusted, owner-authored Drive lesson.
-    lab_script = soup.new_tag("script")
-    lab_script.string = lab.replace("</script", "<\\/script")
-    (soup.body or soup).append(lab_script)
+    script = soup.new_tag("script")
+    script.string = lab.replace("</script", "<\\/script")
+    (soup.body or soup).append(script)
+    css = soup.new_tag("style")
+    css.string = ("@media(max-width:760px){html,body,main{max-width:100%;"
+                  "min-width:0;box-sizing:border-box}main{padding:10px}"
+                  "img,svg,canvas{max-width:100%;height:auto}}")
+    (soup.head or soup).append(css)
     rendered = str(soup)
-    if len(rendered) > 8_000_000:
-        raise ValueError("FACTORY_LESSON_EXCEEDS_VIEW_LIMIT")
-    name = "G07-PHYSICS--SOLIDS-AND-LIQUIDS-FACTORY.html"
+    final_quality = check_html(rendered, chapter)
+    if not final_quality["pass"] or len(source_section.select("img")) != 5:
+        raise ValueError("FINAL_LESSON_QUALITY_GATE_FAILED")
+    name = "G07-PHYSICS--SOLIDS-AND-LIQUIDS-SOURCE-ILLUSTRATED.html"
     existing = [f for f in children(service, PILOT_FOLDER)
                 if f["name"].casefold() == name.casefold()]
+    if existing:
+        raise FileExistsError("REFUSE_TO_OVERWRITE_EXISTING_SOURCE_LESSON")
     media = MediaIoBaseUpload(io.BytesIO(rendered.encode("utf-8")),
                               mimetype="text/html", resumable=False)
-    if existing:
-        previous = get_html(service, existing[0]["id"])
-        if 'data-nabil-factory-banner="1"' not in previous:
-            raise ValueError("REFUSE_OVERWRITE_NON_FACTORY_LESSON")
-        file = service.files().update(fileId=existing[0]["id"], media_body=media,
-                                      fields="id,name,webViewLink").execute()
-        action = "updated"
-    else:
-        file = service.files().create(
-            body={"name": name, "mimeType": "text/html",
-                  "parents": [PILOT_FOLDER]},
-            media_body=media, fields="id,name,webViewLink").execute()
-        action = "created"
-    # Read-back verification: no success claim based on an upload response alone.
+    file = service.files().create(
+        body={"name": name, "mimeType": "text/html", "parents": [PILOT_FOLDER]},
+        media_body=media, fields="id,name,webViewLink").execute()
     saved = get_html(service, file["id"])
-    if 'data-nabil-factory-banner="1"' not in saved or "g7-tubes" not in saved:
-        raise ValueError("FACTORY_READBACK_VERIFICATION_FAILED")
-    return {"status": "FACTORY_EDITION_PUBLISHED_NEEDS_SOURCE_REVIEW",
-            "action": action, "title": "Solids and Liquids — Factory edition",
-            "filename": name, "drive_file_id": file["id"],
-            "source_drive_html_id": chapter["drive_html_id"],
-            "source_pdf_id": book["drive_file_id"],
+    if (saved.count("data:image/jpeg;base64,") != 5 or
+            "id=\"worksheet\"" not in saved or
+            "g7-tubes" not in saved):
+        raise ValueError("SOURCE_LESSON_READBACK_VERIFICATION_FAILED")
+    return {"status": "SOURCE_ILLUSTRATED_LESSON_PUBLISHED_REQUIRES_SCIENTIFIC_REVIEW",
+            "title": "Solids and Liquids · original source pages included",
+            "drive_file_id": file["id"], "source_pdf_id": book["drive_file_id"],
+            "source_pdf_pages": pages, "source_exercises": chapter["source_exercises"],
+            "figures_original_pages": 5, "scientifically_verified": False,
             "bytes": len(saved.encode("utf-8")),
-            "interactive_lab": True,
-            "scientifically_verified": False,
             "view_url": "/api/interactive-lessons/view?grade=7&subject=physics&lesson="
-                        + quote("SOLIDS AND LIQUIDS FACTORY")}
+                        + quote("SOLIDS AND LIQUIDS SOURCE ILLUSTRATED")}
 
 def main():
     ap=argparse.ArgumentParser()
@@ -270,7 +328,7 @@ def main():
         report=pilot(args.require_drive_write)
         # Existing Railway worker uses --pilot --require-drive-write. The owner
         # explicitly requested production; keep that deployed command working.
-        if args.produce_first:
+        if args.produce_first or args.require_drive_write:
             report["production"] = produce_first()
     except Exception as exc:
         report={"status":"ERROR","error_type":type(exc).__name__,"error":str(exc)}
@@ -278,7 +336,7 @@ def main():
     if args.report:
         Path(args.report).write_text(data,encoding="utf-8")
     print(data)
-    ok = (report.get("production",{}).get("status") == "FACTORY_EDITION_PUBLISHED_NEEDS_SOURCE_REVIEW"
+    ok = (report.get("production",{}).get("status") == "SOURCE_ILLUSTRATED_LESSON_PUBLISHED_REQUIRES_SCIENTIFIC_REVIEW"
           or (not args.produce_first and report.get("drive_can_add_children") is not False
               and report.get("status") in ("PILOT_REQUIRES_SOURCE_REVIEW", "BLOCKED")))
     if ok and (args.produce_first or args.require_drive_write) and os.getenv("PORT"):
