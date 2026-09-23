@@ -142,7 +142,7 @@ async function refreshPreparedLessons(){
   if(!res.ok)throw Error("HTTP "+res.status);
   const data=await res.json();
   if(seq!==availableSeq||grade!==field("gradeSelect")||subject!==field("subjectSelect"))return;
-  if(!select){renderShelf(data.lessons||[],grade,subject);return;}
+  if(!select)return;
   select.querySelectorAll("option[data-nabil-drive-prepared]").forEach(o=>o.remove());
   const normalize=t=>String(t||"").trim().toLocaleLowerCase();
   for(const lesson of data.lessons||[]){
@@ -152,17 +152,17 @@ async function refreshPreparedLessons(){
     const keep=matching.find(o=>normalize(o.value)===normalize(lesson.title))||matching[0];
     const wasSelected=matching.some(o=>o.selected);
     keep.value=lesson.title;
-    keep.textContent="📘 "+lesson.title+" · Google Drive";
+    keep.textContent="📘 "+lesson.title;
     keep.dataset.nabilDrivePrepared="1";
     for(const extra of matching)if(extra!==keep)extra.remove();
     if(wasSelected)keep.selected=true;
    }else{
-    const option=new Option("📘 "+lesson.title+" · Google Drive",lesson.title);
+    const option=new Option("📘 "+lesson.title,lesson.title);
     option.dataset.nabilDrivePrepared="1";
     select.add(option);
    }
   }
-  renderShelf(data.lessons||[],grade,subject);
+  // The lesson selector is the sole catalog UI; do not duplicate it as a shelf.
   trace("DRIVE_LESSONS_IN_SELECTOR",String((data.lessons||[]).length));
  }catch(error){trace("DRIVE_LESSON_SELECTOR_UNAVAILABLE",error.message||"network");}
 }
