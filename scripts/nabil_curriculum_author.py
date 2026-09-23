@@ -59,10 +59,10 @@ age-appropriate pedagogy with worked reasoning, not generic filler.
 """
 
 def _norm(s):
-    return re.sub(r"\\s+", " ", s).strip().casefold()
+    return re.sub(r"\s+", " ", s).strip().casefold()
 
 def _pages(raw, count):
-    m = re.fullmatch(r"(\\d+)-(\\d+)", raw)
+    m = re.fullmatch(r"(\d+)-(\d+)", raw)
     if not m:
         raise ValueError("PAGES_REQUIRE_EXPLICIT_START-END")
     first, last = map(int, m.groups())
