@@ -1,0 +1,29 @@
+name: NABIL Lesson Factory Acceptance
+on:
+  push:
+    branches: [feature/verified-drive-lesson-pipeline]
+    paths:
+      - 'scripts/nabil_curriculum_author.py'
+      - 'scripts/nabil_lesson_artifacts.py'
+      - 'scripts/verified_lesson_publisher.py'
+      - 'tests/test_nabil_lesson_factory_bundle.py'
+      - '.github/workflows/nabil-lesson-factory-acceptance.yml'
+  pull_request:
+    paths:
+      - 'scripts/nabil_curriculum_author.py'
+      - 'scripts/nabil_lesson_artifacts.py'
+      - 'scripts/verified_lesson_publisher.py'
+      - 'tests/test_nabil_lesson_factory_bundle.py'
+      - '.github/workflows/nabil-lesson-factory-acceptance.yml'
+jobs:
+  offline-factory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install pypdf pymupdf beautifulsoup4 python-pptx Pillow
+      - run: python -m compileall -q scripts/nabil_curriculum_author.py scripts/nabil_lesson_artifacts.py scripts/verified_lesson_publisher.py
+      - run: python -m unittest discover -s tests -p test_nabil_lesson_factory_bundle.py -v
