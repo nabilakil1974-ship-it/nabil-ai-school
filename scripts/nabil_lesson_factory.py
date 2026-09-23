@@ -229,13 +229,22 @@ def produce_first(require_drive_write=True):
         raise ValueError("AUTHORED_LESSON_MAIN_MISSING")
     # Do not assume that a printed page number always equals a PDF page index.
     # This first pilot has the PDF-page range recorded in the ledger.
-    pages = list(range(13, 18))
+    # Locate the chapter in PDF text; printed page numbers are not PDF indices.
+    from pypdf import PdfReader
+    from scripts.index_books import download_pdf
+    reader = PdfReader(io.BytesIO(download_pdf(service, book["drive_file_id"])))
+    extracted = [(page.extract_text() or "").casefold() for page in reader.pages]
+    matches = [i for i, page in enumerate(extracted)
+               if re.search(r"\bsolids?\b", page) and re.search(r"\bliquids?\b", page)]
+    if not matches:
+        raise ValueError("SOURCE_CHAPTER_NOT_LOCATABLE: verify scanned PDF pages manually; no upload")
+    start = matches[0]
+    end = next((i for i in range(start, min(start + 15, len(extracted)))
+                if re.search(r"\bexercises?\b", extracted[i])), None)
+    if end is None:
+        raise ValueError("SOURCE_EXERCISE_PAGE_NOT_FOUND: no upload")
+    pages = list(range(start + 1, end + 2))
     source = _source_pages(service, book["drive_file_id"], pages)
-    combined = " ".join(text for _, text, _ in source).casefold()
-    if not ("solid" in combined and "liquid" in combined):
-        raise ValueError("SOURCE_PAGES_DO_NOT_MATCH_CHAPTER")
-    if not any("exercise" in text.casefold() for _, text, _ in source):
-        raise ValueError("SOURCE_EXERCISE_PAGE_NOT_FOUND")
     if soup.select("[data-nabil-source-pages]"):
         raise ValueError("SOURCE_IMAGES_ALREADY_PRESENT")
     source_section = soup.new_tag("section", attrs={"class": "card",
@@ -291,7 +300,7 @@ def produce_first(require_drive_write=True):
     (soup.head or soup).append(css)
     rendered = str(soup)
     final_quality = check_html(rendered, chapter)
-    if not final_quality["pass"] or len(source_section.select("img")) != 5:
+    if not final_quality["pass"] or len(source_section.select("img")) != len(pages):
         raise ValueError("FINAL_LESSON_QUALITY_GATE_FAILED")
     name = "G07-PHYSICS--SOLIDS-AND-LIQUIDS-SOURCE-ILLUSTRATED.html"
     existing = [f for f in children(service, PILOT_FOLDER)
@@ -304,7 +313,7 @@ def produce_first(require_drive_write=True):
         body={"name": name, "mimeType": "text/html", "parents": [PILOT_FOLDER]},
         media_body=media, fields="id,name,webViewLink").execute()
     saved = get_html(service, file["id"])
-    if (saved.count("data:image/jpeg;base64,") != 5 or
+    if (saved.count("data:image/jpeg;base64,") != len(pages) or
             "id=\"worksheet\"" not in saved or
             "g7-tubes" not in saved):
         raise ValueError("SOURCE_LESSON_READBACK_VERIFICATION_FAILED")
@@ -312,7 +321,7 @@ def produce_first(require_drive_write=True):
             "title": "Solids and Liquids · original source pages included",
             "drive_file_id": file["id"], "source_pdf_id": book["drive_file_id"],
             "source_pdf_pages": pages, "source_exercises": chapter["source_exercises"],
-            "figures_original_pages": 5, "scientifically_verified": False,
+            "figures_original_pages": len(pages), "scientifically_verified": False,
             "bytes": len(saved.encode("utf-8")),
             "view_url": "/api/interactive-lessons/view?grade=7&subject=physics&lesson="
                         + quote("SOLIDS AND LIQUIDS SOURCE ILLUSTRATED")}
@@ -326,9 +335,8 @@ def main():
     args=ap.parse_args()
     try:
         report=pilot(args.require_drive_write)
-        # Existing Railway worker uses --pilot --require-drive-write. The owner
-        # explicitly requested production; keep that deployed command working.
-        if args.produce_first or args.require_drive_write:
+        # Pilot audits only; publishing requires explicit --produce-first.
+        if args.produce_first:
             report["production"] = produce_first()
     except Exception as exc:
         report={"status":"ERROR","error_type":type(exc).__name__,"error":str(exc)}
@@ -339,7 +347,7 @@ def main():
     ok = (report.get("production",{}).get("status") == "SOURCE_ILLUSTRATED_LESSON_PUBLISHED_REQUIRES_SCIENTIFIC_REVIEW"
           or (not args.produce_first and report.get("drive_can_add_children") is not False
               and report.get("status") in ("PILOT_REQUIRES_SOURCE_REVIEW", "BLOCKED")))
-    if ok and (args.produce_first or args.require_drive_write) and os.getenv("PORT"):
+    if ok and os.getenv("PORT"):
         # Railway expects a persistent process. Serve a minimal status endpoint
         # after the one-shot upload, rather than showing CRASHED on normal exit.
         from http.server import BaseHTTPRequestHandler, HTTPServer
