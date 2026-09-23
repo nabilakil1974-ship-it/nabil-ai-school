@@ -270,7 +270,7 @@ def main():
         report=pilot(args.require_drive_write)
         # Existing Railway worker uses --pilot --require-drive-write. The owner
         # explicitly requested production; keep that deployed command working.
-        if args.produce_first or args.require_drive_write:
+        if args.produce_first:
             report["production"] = produce_first()
     except Exception as exc:
         report={"status":"ERROR","error_type":type(exc).__name__,"error":str(exc)}
@@ -279,8 +279,8 @@ def main():
         Path(args.report).write_text(data,encoding="utf-8")
     print(data)
     ok = (report.get("production",{}).get("status") == "FACTORY_EDITION_PUBLISHED_NEEDS_SOURCE_REVIEW"
-          or (not (args.produce_first or args.require_drive_write)
-              and report["status"] == "PILOT_REQUIRES_SOURCE_REVIEW"))
+          or (not args.produce_first and report.get("drive_can_add_children") is not False
+              and report.get("status") in ("PILOT_REQUIRES_SOURCE_REVIEW", "BLOCKED")))
     if ok and (args.produce_first or args.require_drive_write) and os.getenv("PORT"):
         # Railway expects a persistent process. Serve a minimal status endpoint
         # after the one-shot upload, rather than showing CRASHED on normal exit.
