@@ -11,6 +11,7 @@ from pathlib import Path
 
 import fitz
 from bs4 import BeautifulSoup
+from PIL import Image
 from pptx import Presentation
 from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE
@@ -87,6 +88,12 @@ def _text(slide, text, x, y, w, h, size=22, color=WHITE, bold=False):
     run = p.add_run()
     run.text = str(text)
     run.font.name = "Aptos"
+    if len(str(text)) > 950:
+        raise ValueError("SLIDE_TEXT_OVERFLOW_SPLIT_CONTENT")
+    if len(str(text)) > 620:
+        size = min(size, 16)
+    elif len(str(text)) > 360:
+        size = min(size, 19)
     run.font.size = Pt(size)
     run.font.bold = bold
     run.font.color.rgb = color
@@ -100,8 +107,13 @@ def _slide(prs, title, body="", image=None, footer="", accent=CYAN):
     _text(slide, title, .55, .38, 12.0, .7, 27, accent, True)
     if image:
         _rect(slide, 6.55, 1.43, 6.35, 5.35, CARD, True)
-        slide.shapes.add_picture(str(image), Inches(6.7), Inches(1.55),
-                                 width=Inches(6.05), height=Inches(5.05))
+        with Image.open(image) as source_image:
+            iw, ih = source_image.size
+        scale = min(6.05 / iw, 5.05 / ih)
+        w, h = iw * scale, ih * scale
+        slide.shapes.add_picture(str(image), Inches(6.7 + (6.05-w)/2),
+                                 Inches(1.55 + (5.05-h)/2),
+                                 width=Inches(w), height=Inches(h))
         _rect(slide, .35, 1.43, 5.95, 5.35, CARD, True)
         _text(slide, body, .55, 1.67, 5.5, 4.75, 20)
     else:
