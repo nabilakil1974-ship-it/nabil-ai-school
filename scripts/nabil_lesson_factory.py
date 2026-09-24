@@ -1212,7 +1212,10 @@ def run(report_path, pilot_book_id=None, pilot_lesson=None, pilot_pages=None,
             continue
         seen_ids.add(book["drive_file_id"])
         attempt = {"book":book["title"],"book_id":book["drive_file_id"],"started":now()}
-        BOOK_DEADLINE=min(RUN_DEADLINE,time.monotonic()+120)
+        # A six-page multimodal pilot can need several image and claim reviews.
+        # Keep the normal per-book budget for batch runs while allowing the
+        # explicitly selected pilot to finish within the overall run deadline.
+        BOOK_DEADLINE=min(RUN_DEADLINE,time.monotonic()+(360 if pilot_book_id else 120))
         report["attempts"].append(attempt); checkpoint()
         progress("BOOK_STARTED",book=book["title"])
         try:
