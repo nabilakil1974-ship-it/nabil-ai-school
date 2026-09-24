@@ -66,6 +66,24 @@ class ReviewTests(unittest.TestCase):
             self.assertEqual(factory.independent_reviewer(
                 "openai", "model-a", "gemini", "model-b")[0], "groq")
 
+    def test_cloudflare_is_third_provider_only_with_credentials(self):
+        keys = {"GROQ_API_KEY": "groq-key", "OPENROUTER_API_KEY": "router-key",
+                "CLOUDFLARE_API_TOKEN": "cf-key", "CLOUDFLARE_ACCOUNT_ID": "account-id",
+                "NABIL_REVIEWER_PROVIDER": "cloudflare",
+                "NABIL_LESSON_REVIEW_MODEL": "@cf/google/gemma-4-26b-a4b-it"}
+        with patch.dict("os.environ", keys, clear=True):
+            providers = factory.configured_providers()
+            self.assertEqual({p[0] for p in providers},
+                             {"groq", "openrouter", "cloudflare"})
+            reviewer = factory.independent_reviewer("openrouter", "router-model",
+                "groq", "groq-vision-model")
+            self.assertEqual(reviewer[0], "cloudflare")
+            self.assertEqual(reviewer[2],
+                "https://api.cloudflare.com/client/v4/accounts/account-id/ai/v1")
+        with patch.dict("os.environ", {k: v for k, v in keys.items()
+                                      if k != "CLOUDFLARE_ACCOUNT_ID"}, clear=True):
+            self.assertNotIn("cloudflare", [p[0] for p in factory.configured_providers()])
+
     def test_three_roles_are_recorded_in_map_and_attempt(self):
         evidence_map, attempt = {}, {}
         for role, provider, model in (("visual_extractor", "gemini", "vision-a"),
