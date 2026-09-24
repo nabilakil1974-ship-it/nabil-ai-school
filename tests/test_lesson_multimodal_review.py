@@ -99,6 +99,18 @@ class ReviewTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "THREE_INDEPENDENT_PROVIDERS_REQUIRED"):
                 factory.visual_candidates({15: b"image"})
 
+    def test_failed_visual_extraction_stops_before_generation(self):
+        class BrokenClient:
+            def __init__(self, **kwargs):
+                self.chat = types.SimpleNamespace(completions=types.SimpleNamespace(
+                    create=lambda **kw: (_ for _ in ()).throw(RuntimeError("rate limit"))))
+        with patch.dict("sys.modules", {"openai": types.SimpleNamespace(OpenAI=BrokenClient)}), \
+             patch.dict("os.environ", {"NABIL_VISUAL_PROVIDER": "gemini",
+                                       "NABIL_VISUAL_MODEL": "vision-model"}), \
+             patch.object(factory, "configured_providers", return_value=self.providers):
+            with self.assertRaisesRegex(RuntimeError, "VISUAL_CANDIDATE_EXTRACTION_FAILED"):
+                factory.visual_candidates({15: b"source-image"})
+
     def test_generator_skips_extractor_and_reserved_reviewer(self):
         fake_openai = types.SimpleNamespace(OpenAI=lambda **kw: FakeClient(True))
         with patch.dict("sys.modules", {"openai": fake_openai}), patch.dict(
