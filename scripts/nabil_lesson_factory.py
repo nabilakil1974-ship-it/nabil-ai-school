@@ -1,14 +1,13 @@
 """
-NABIL AI — Enterprise Autonomous Lesson Factory & Interactive Experience Engine
+NABIL AI — Enterprise Autonomous Lesson Factory (CRDP Pedagogical Engine)
 
-Key Architecture:
-- Trilingual Scientific Terminology (AR / EN / FR) across Math, Physics, Chemistry, Biology.
-- Interactive Lab Simulation with Live Matter & Mathematical Properties.
-- Exhaustive Step-by-Step Textbook Exercise Resolutions.
-- On-Demand Textbook Exercise / Page Solver Filter for Students.
-- High-Yield Visual Study Card (Fiche de Révision) as the FINAL Card of the Lesson.
-- Native A4 Clean Print Engine for the Reference Card via @media print.
-- Deterministic Identity Tagging & Direct Google Drive Synchronization.
+Standardized Pipeline based on Reference Golden Templates:
+1. Pedagogical Ingestion: Extracts Activities (Experiment -> Obs -> Concl) & Textbook Exercises.
+2. Live Simulation Lab: Dynamic SVG Canvas with Slider Controls reflecting core lesson phenomena.
+3. Complete Solved Exercises: Exhaustive resolution of all textbook problems with expandable solutions.
+4. Graded Interactive Worksheet: Formative assessment with automatic scoring and targeted hints.
+5. Final Study Card (Fiche de Révision): Multi-column summary with clean A4 printing engine.
+6. Auto-sync with Drive Inbox, Catalog, and verified publication.
 """
 
 import argparse
@@ -75,15 +74,6 @@ def download_pdf_to_path(service, file_id, path):
         finished = False
         while not finished:
             _, finished = loader.next_chunk()
-
-
-def canonical_grade_meta(value):
-    text = str(value).strip()
-    found = re.search(r"(?<!\d)(1[0-2]|[1-9])(?!\d)", text)
-    if found:
-        g = int(found.group(1))
-        return g, f"G{g:02d}", f"Grade {g}"
-    return 7, "G07", "Grade 7"
 
 
 def canonical_subject_folder(subject):
@@ -158,7 +148,7 @@ def ensure_catalog_exists(service):
     return catalog_data
 
 
-def generate_rich_lesson_data(canonical_entry, pages):
+def generate_crdp_pedagogical_package(canonical_entry, pages):
     from openai import OpenAI
     title = canonical_entry["canonical_title"]
     subject = canonical_entry["subject"]
@@ -166,326 +156,356 @@ def generate_rich_lesson_data(canonical_entry, pages):
     end_p = canonical_entry["pdf_end_page"]
     book_text = "\n\n".join([f"--- Page {p} ---\n{t}" for p, t in pages])
 
-    system_prompt = (
-        "You are NABIL AI Elite Curriculum Architect for the Lebanese National Program.\n"
-        f"Generate an exhaustive, interactive master lesson package for Subject: '{subject}', Lesson: '{title}'.\n"
-        "MANDATORY CURRICULUM REQUIREMENTS:\n"
-        "1. TRILINGUAL GLOSSARY (English, Arabic, French): 4-6 essential terms for this subject.\n"
-        "2. EXHAUSTIVE SOLVED EXERCISES & PROBLEMS: Extract and solve ALL exercises from the textbook pages.\n"
-        "   Each exercise MUST include: page_number, number, title_en, title_ar, prompt_en, prompt_ar, solution_steps_en, solution_steps_ar, final_answer.\n"
-        "3. HIGH-YIELD PRINTABLE STUDY CARD (Fiche de Révision Synthétique):\n"
-        "   - domain_and_properties: summary of properties, domain of validity or physical states.\n"
-        "   - golden_rules: key mathematical or scientific laws.\n"
-        "   - exam_pitfalls: common mistakes to avoid.\n"
-        "   - visual_diagram_svg: clean vector SVG illustrating the curve, table of variations, or microscopic model.\n"
-        "4. INTERACTIVE SIMULATION CONFIG: parameters for molecular agitation or dynamic graphing.\n"
-        "5. PURE LATEX: Write formulas directly using $inline$ or $$display$$, no markdown blocks.\n\n"
-        "Output strictly valid JSON with keys: "
-        "title_en, title_ar, title_fr, summary_en, summary_ar, summary_fr, "
-        "glossary: [{term_en, term_ar, term_fr, def_en, def_ar}], "
-        "concepts: [{heading_en, heading_ar, heading_fr, body_en, body_ar, body_fr, formula, svg_illustration}], "
-        "solved_exercises: [{page_number: int, number: str, title_en, title_ar, prompt_en, prompt_ar, solution_steps_en: [str], solution_steps_ar: [str], final_answer: str}], "
-        "study_card: {title_en, title_ar, domain_and_properties: [str], golden_rules: [str], formulas: [str], exam_pitfalls: [str], visual_diagram_svg: str}, "
-        "quiz_questions: [{q_en, q_ar, options_en: [str], correct_index: int, explanation_ar: str}]"
+    prov = configured_providers()[0]
+    client = OpenAI(api_key=prov[1], base_url=prov[2], timeout=180)
+
+    # 1. Extraction et Résolution Échafaudée de TOUS les Exercices du Livre
+    progress("STEP_1_RESOLVING_ALL_TEXTBOOK_EXERCISES", provider=prov[0], model=prov[3])
+    ex_prompt = (
+        f"You are the Chief Examiner for the Lebanese Official Physics Curriculum (CRDP).\n"
+        f"Given textbook pages {start_p}-{end_p} for chapter '{title}':\n"
+        f"{book_text}\n\n"
+        "Extract and meticulously solve EVERY SINGLE exercise found on the problem pages (Exercises 1 through 9).\n"
+        "Return strictly JSON: {'exercises': [\n"
+        "  {\n"
+        "    'number': int,\n"
+        "    'page': int,\n"
+        "    'title': str,\n"
+        "    'prompt': str,\n"
+        "    'steps': [str],\n"
+        "    'final_answer': str,\n"
+        "    'svg_illustration': str (clean SVG diagram if exercise has a figure, e.g., tilted vessels, fuel tank, communicating vessels)\n"
+        "  }\n"
+        "]}"
     )
 
-    prov = configured_providers()[0]
-    client = OpenAI(api_key=prov[1], base_url=prov[2], timeout=160)
-    progress("REQUESTING_EXHAUSTIVE_LESSON_CONTENT", provider=prov[0], model=prov[3], subject=subject)
+    resp_ex = client.chat.completions.create(
+        model=prov[3],
+        response_format={"type": "json_object"},
+        messages=[{"role": "user", "content": ex_prompt}],
+        temperature=0.1
+    )
+    val_ex = resp_ex.choices[0].message.content.strip()
+    if val_ex.startswith("```"):
+        val_ex = re.sub(r"^```(?:json)?\s*|\s*```$", "", val_ex, flags=re.I).strip()
+    exercises_list = json.loads(val_ex).get("exercises", [])
 
-    resp = client.chat.completions.create(
+    # 2. Construction des Activités (Expérience -> Observation -> Conclusion) + Fiche Récapitulative + Quiz
+    progress("STEP_2_BUILDING_STRUCTURED_PEDAGOGY", provider=prov[0], model=prov[3])
+    struct_prompt = (
+        f"Create the pedagogical body for Lesson '{title}' (Grade 7, Physics, CRDP curriculum).\n"
+        "RULES FOR THE PEDAGOGICAL FLOW:\n"
+        "1. Hook & Objectives: Everyday question, learning aims.\n"
+        "2. Structured Activities: For each core section, give 'experiment', 'observation', 'conclusion', 'check_question', and 'svg_diagram'.\n"
+        "3. Live Lab Concept: Description for an interactive simulation with slider controls.\n"
+        "4. Graded Worksheet: 6 multiple-choice questions testing key competencies.\n"
+        "5. Final Summary Card (Fiche de Révision): 2-column synthesis of laws and definitions.\n"
+        "Return strictly JSON: {\n"
+        "  'hook': str,\n"
+        "  'objectives': [str],\n"
+        "  'activities': [\n"
+        "    {'section_title': str, 'experiment': str, 'observation': str, 'conclusion': str, 'check_prompt': str, 'check_answer_bool': bool, 'svg_diagram': str}\n"
+        "  ],\n"
+        "  'worksheet': [\n"
+        "    {'q': str, 'options': [str], 'correct_index': int, 'hint': str}\n"
+        "  ],\n"
+        "  'summary_card': {\n"
+        "    'col1_title': str, 'col1_points': [str],\n"
+        "    'col2_title': str, 'col2_points': [str]\n"
+        "  }\n"
+        "}"
+    )
+
+    resp_struct = client.chat.completions.create(
         model=prov[3],
         response_format={"type": "json_object"},
         messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Textbook Context for pages {start_p}-{end_p}:\n{book_text}"}
+            {"role": "system", "content": struct_prompt},
+            {"role": "user", "content": f"Textbook Context:\n{book_text}"}
         ],
         temperature=0.2
     )
+    val_struct = resp_struct.choices[0].message.content.strip()
+    if val_struct.startswith("```"):
+        val_struct = re.sub(r"^```(?:json)?\s*|\s*```$", "", val_struct, flags=re.I).strip()
+    pedagogy_data = json.loads(val_struct)
+    pedagogy_data["exercises"] = exercises_list
+    return pedagogy_data
 
-    content = resp.choices[0].message.content.strip()
-    if content.startswith("```"):
-        content = re.sub(r"^```(?:json)?\s*|\s*```$", "", content, flags=re.I).strip()
-    return json.loads(content)
 
-
-def render_interactive_html(data, canonical_entry):
+def render_crdp_master_html(data, canonical_entry):
     e = lambda x: html.escape(str(x or ""), quote=True)
     lid = canonical_entry["lesson_id"]
+    title = canonical_entry["canonical_title"]
     start_p = canonical_entry["pdf_start_page"]
     end_p = canonical_entry["pdf_end_page"]
 
-    # Glossary Section
-    glossary_items = ""
-    for g in data.get("glossary", []):
-        glossary_items += f"""
-        <div class="glossary-item">
-            <div class="terms">
-                <span class="t-en">🇬🇧 {e(g.get('term_en'))}</span>
-                <span class="t-ar rtl">🇱🇧 {e(g.get('term_ar'))}</span>
-                <span class="t-fr">🇫🇷 {e(g.get('term_fr'))}</span>
-            </div>
-            <p class="g-def lang-en">{e(g.get('def_en'))}</p>
-            <p class="g-def lang-ar rtl" style="display:none;">{e(g.get('def_ar'))}</p>
-        </div>"""
-
-    # Concepts Blocks
-    concepts_html = ""
-    for idx, c in enumerate(data.get("concepts", []), 1):
-        concepts_html += f"""
-        <div class="interactive-card concept-card">
-            <div class="card-header">
-                <span class="badge">Concept {idx}</span>
-                <h3 class="lang-en">{e(c.get('heading_en'))}</h3>
-                <h3 class="lang-ar rtl" style="display:none;">{e(c.get('heading_ar'))}</h3>
-                <h3 class="lang-fr" style="display:none;">{e(c.get('heading_fr'))}</h3>
-            </div>
-            <div class="card-body">
-                <p class="lang-en">{c.get('body_en')}</p>
-                <p class="lang-ar rtl" style="display:none;">{c.get('body_ar')}</p>
-                <p class="lang-fr" style="display:none;">{c.get('body_fr')}</p>
-                {f'<div class="formula-box math-render">{c.get("formula")}</div>' if c.get("formula") else ''}
-                <div class="svg-stage">
-                    {c.get('svg_illustration', '<svg width="220" height="90" viewBox="0 0 220 90"><rect width="220" height="90" fill="#09243b" rx="8"/><circle cx="50" cy="45" r="14" fill="#36a5dc"/><circle cx="85" cy="45" r="14" fill="#36a5dc"/><circle cx="120" cy="45" r="14" fill="#36a5dc"/><circle cx="155" cy="45" r="14" fill="#36a5dc"/></svg>')}
+    # Activities Blocks
+    activities_html = ""
+    for idx, act in enumerate(data.get("activities", []), 1):
+        act_svg = act.get("svg_diagram", "")
+        chk_ans = "true" if act.get("check_answer_bool", True) else "false"
+        activities_html += f"""
+        <section class="card">
+            <h2>{idx} · {e(act.get('section_title'))}</h2>
+            <div class="grid">
+                <div>
+                    <div class="stage"><b>🧪 Experiment:</b> {e(act.get('experiment'))}</div>
+                    <div class="stage"><b>👁️ Observation:</b> {e(act.get('observation'))}</div>
+                    <div class="stage" style="border-left-color:var(--accent);"><b>💡 Conclusion:</b> {e(act.get('conclusion'))}</div>
+                </div>
+                <div class="figure">
+                    {act_svg if '<svg' in act_svg else f'''
+                    <svg viewBox="0 0 500 200">
+                        <rect x="50" y="20" width="400" height="160" fill="#081f31" stroke="#2f86b1" rx="10"/>
+                        <line x1="80" y1="110" x2="420" y2="110" stroke="#53cfff" stroke-width="6"/>
+                        <text x="180" y="90" fill="#ffe28a">Free Surface (Horizontal)</text>
+                    </svg>'''}
                 </div>
             </div>
-        </div>"""
+            <div class="ask">
+                <b>NABIL Question:</b> {e(act.get('check_prompt', 'Does shape remain constant?'))}
+                <button onclick="fb('chk-{idx}', {chk_ans})">Yes</button>
+                <button onclick="fb('chk-{idx}', { 'false' if chk_ans == 'true' else 'true' })">No</button>
+                <span id="chk-{idx}" class="feedback"></span>
+            </div>
+        </section>"""
 
-    # Solved Exercises with Data Attributes for Instant Page & Exercise Search
+    # Solved Exercises Blocks
     exercises_html = ""
-    for ex in data.get("solved_exercises", []):
-        num = str(ex.get("number", "1")).strip()
-        pg = ex.get("page_number", start_p)
-        steps_en = "".join(f"<li>{s}</li>" for s in ex.get("solution_steps_en", []))
-        steps_ar = "".join(f"<li>{s}</li>" for s in ex.get("solution_steps_ar", []))
+    for ex in data.get("exercises", []):
+        num = ex.get("number", 1)
+        pg = ex.get("page", start_p)
+        steps = "".join(f"<li>{s}</li>" for s in ex.get("steps", []))
+        fig = ex.get("svg_illustration", "")
+        fig_block = f'<div class="figure">{fig}</div>' if "<svg" in fig else ""
         
         exercises_html += f"""
-        <div class="interactive-card exercise-box" data-page="{pg}" data-ex="{num}">
-            <div class="ex-header">
-                <span class="badge" style="background:#2ecc71; color:#042111;">Page {pg} · Ex {e(num)}</span>
-                <span class="lang-en" style="margin-left:8px; font-weight:bold;">{e(ex.get('title_en', 'Exercise'))}</span>
-                <span class="lang-ar rtl" style="display:none; margin-right:8px; font-weight:bold;">{e(ex.get('title_ar', 'تمرين'))}</span>
+        <article class="exercise" data-page="{pg}" data-ex="{num}">
+            <div class="exhead">
+                <span>Exercise {num} — {e(ex.get('title', 'Textbook Problem'))}</span>
+                <span class="source">Textbook p. {pg}</span>
             </div>
-            <p class="prompt lang-en" style="margin-top:8px;">{e(ex.get('prompt_en'))}</p>
-            <p class="prompt lang-ar rtl" style="display:none; margin-top:8px;">{e(ex.get('prompt_ar'))}</p>
-            
-            <button class="nabil-btn toggle-btn" onclick="toggleSolution('sol-{num}')">
-                <span class="lang-en">🔍 View Step-by-Step Solution</span>
-                <span class="lang-ar" style="display:none;">🔍 عرض الحل والبرهان النموذجي</span>
-                <span class="lang-fr" style="display:none;">🔍 Voir la solution détaillée</span>
-            </button>
-            
-            <div id="sol-{num}" class="solution-drawer" style="display:none;">
-                <h4 class="lang-en">Methodical Demonstration:</h4>
-                <h4 class="lang-ar rtl" style="display:none;">خطوات الحل العلمي الدقيق:</h4>
-                <ol class="lang-en">{steps_en}</ol>
-                <ol class="lang-ar rtl" style="display:none;">{steps_ar}</ol>
-                <div class="final-box">
-                    <strong>Final Answer / النتيجة النهائية: </strong>
-                    <span class="math-render">{ex.get('final_answer', '')}</span>
-                </div>
+            <div class="prompt">
+                <b>Book Task:</b>
+                <p>{e(ex.get('prompt'))}</p>
             </div>
+            {fig_block}
+            <details open>
+                <summary>Guided Solution &amp; Demonstration</summary>
+                <ol>{steps}</ol>
+                <div class="answer"><b>Final Answer:</b> {ex.get('final_answer', '')}</div>
+            </details>
+        </article>"""
+
+    # Worksheet Items
+    ws_html = ""
+    for q_idx, q in enumerate(data.get("worksheet", []), 1):
+        corr = q.get("correct_index", 0)
+        options = "".join(f'<option value="{i}">{opt}</option>' for i, opt in enumerate(q.get("options", [])))
+        ws_html += f"""
+        <div class="exercise">
+            <b>{q_idx}.</b> {e(q.get('q'))}
+            <select id="wq{q_idx}">
+                <option value="">-- Choose Answer --</option>
+                {options}
+            </select>
+            <span id="wfb{q_idx}" class="feedback"></span>
         </div>"""
 
-    # Final Study Card (Fiche de Révision Synthétique)
-    sc = data.get("study_card", {})
-    sc_props = "".join(f"<li>{p}</li>" for p in sc.get("domain_and_properties", []))
-    sc_rules = "".join(f"<li>{r}</li>" for r in sc.get("golden_rules", []))
-    sc_traps = "".join(f"<li>{t}</li>" for t in sc.get("exam_pitfalls", []))
-    sc_forms = "".join(f'<div class="sc-formula math-render">{f}</div>' for f in sc.get("formulas", []))
-
-    study_card_html = f"""
-    <div class="nabil-study-sheet interactive-card" id="printableCard">
-        <div class="sheet-header">
-            <div>
-                <span class="badge" style="background:#f1c40f; color:#1a1a00;">FINAL REVISION CARD · البطاقة المرجعية الشاملة</span>
-                <h2 class="lang-en" style="color:#f1c40f; margin-top:6px;">{e(sc.get('title_en', 'Master Reference Study Card'))}</h2>
-                <h2 class="lang-ar rtl" style="display:none; color:#f1c40f; margin-top:6px;">{e(sc.get('title_ar', 'البطاقة المرجعية الشاملة للحفظ والمراجعة'))}</h2>
-            </div>
-            <button class="print-trigger-btn" onclick="printReferenceCard()">🖨️ طباعة / حفظ PDF</button>
-        </div>
-
-        <div class="sheet-grid">
-            <!-- Properties & Definitions -->
-            <div class="sheet-panel">
-                <h3 class="lang-en">1. Properties & Behavior</h3>
-                <h3 class="lang-ar rtl" style="display:none;">1. الخصائص والسلوك العلمي</h3>
-                <ul class="panel-list">{sc_props}</ul>
-            </div>
-
-            <!-- Core Formulas & Relations -->
-            <div class="sheet-panel">
-                <h3 class="lang-en">2. Golden Laws & Formulas</h3>
-                <h3 class="lang-ar rtl" style="display:none;">2. القوانين والقواعد الذهبية</h3>
-                <ul class="panel-list">{sc_rules}</ul>
-                <div style="margin-top:8px;">{sc_forms}</div>
-            </div>
-
-            <!-- Mathematical / Microscopic Diagram -->
-            <div class="sheet-panel visual-panel">
-                <h3 class="lang-en">3. Curve / Microscopic Model</h3>
-                <h3 class="lang-ar rtl" style="display:none;">3. التمثيل البياني / المخطط المجهري</h3>
-                <div class="svg-container">
-                    {sc.get('visual_diagram_svg', '<svg viewBox="0 0 260 110" width="100%"><rect width="260" height="110" fill="#092036" rx="6"/><circle cx="50" cy="55" r="12" fill="#36a5dc"/><circle cx="80" cy="55" r="12" fill="#36a5dc"/><circle cx="110" cy="55" r="12" fill="#36a5dc"/><text x="135" y="60" fill="#fff" font-size="12">Ordered Solid Grid</text></svg>')}
-                </div>
-            </div>
-
-            <!-- Exam Pitfalls & Warnings -->
-            <div class="sheet-panel warning-panel">
-                <h3 class="lang-en">4. Official Exam Pitfalls</h3>
-                <h3 class="lang-ar rtl" style="display:none;">4. أخطاء وفخاخ الامتحانات الرسمية</h3>
-                <ul class="panel-list warning-list">{sc_traps}</ul>
-            </div>
-        </div>
-    </div>"""
+    # Summary Card
+    sc = data.get("summary_card", {})
+    pts1 = "".join(f"<li>{p}</li>" for p in sc.get("col1_points", ["Compact solids have definite shape and volume.", "Powdered solids consist of solid grains."]))
+    pts2 = "".join(f"<li>{p}</li>" for p in sc.get("col2_points", ["Liquids take the shape of their container.", "Free surface at rest is planar and horizontal.", "In communicating vessels, liquid reaches the same level."]))
 
     return f"""<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
 
 <meta name="nabil-lesson-id" content="{e(lid)}"/>
 <meta name="nabil-grade" content="{canonical_entry['grade']}"/>
 <meta name="nabil-subject" content="{e(canonical_entry['subject'])}"/>
-<meta name="nabil-title" content="{e(canonical_entry['canonical_title'])}"/>
+<meta name="nabil-title" content="{e(title)}"/>
 
-<title>{e(data.get('title_en', 'NABIL Master Lesson'))} · منصة نبيل التعليمية</title>
+<title>NABIL AI | Grade {canonical_entry['grade']} {canonical_entry['subject'].capitalize()} | {e(title)}</title>
 
 <!-- KaTeX Auto-render Assets -->
-<link rel="stylesheet" href="[https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css](https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css)"/>
-<script defer src="[https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js](https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js)"></script>
-<script defer src="[https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js](https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js)"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css"/>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
 
 <style>
 :root {{
-    --bg-dark: #07192a;
-    --card-bg: #0f2c47;
-    --card-border: #1e527d;
-    --accent-blue: #36a5dc;
-    --accent-green: #2ecc71;
-    --accent-yellow: #f1c40f;
-    --accent-red: #e74c3c;
-    --text-main: #e8f5fd;
-    --text-muted: #95afc0;
+    --bg: #071827;
+    --card: #0e2b43;
+    --card2: #123650;
+    --text: #edfaff;
+    --accent: #57d7ff;
+    --green: #61e6b5;
+    --gold: #ffe28a;
+    --muted: #55758a;
+    --danger: #ff7b72;
 }}
-* {{ box-sizing: border-box; margin: 0; padding: 0; }}
+* {{ box-sizing: border-box; }}
+html {{ scroll-behavior: smooth; }}
 body {{
-    background: var(--bg-dark);
-    color: var(--text-main);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    line-height: 1.6;
-    padding-bottom: 40px;
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.6 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
 }}
-.rtl {{ direction: rtl; text-align: right; font-family: "Noto Kufi Arabic", Tahoma, sans-serif; }}
 header {{
-    background: #0d2338;
-    border-bottom: 2px solid var(--accent-blue);
-    padding: 14px 20px;
+    background: linear-gradient(120deg, #123f65, #0755a6);
+    padding: 16px 20px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 14px rgba(0,0,0,0.4);
+}}
+header .bar {{
+    max-width: 1150px;
+    margin: auto;
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 12px;
 }}
-.nav-actions {{ display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }}
-.print-trigger-btn {{
-    background: #e67e22;
-    color: white;
-    border: none;
-    padding: 7px 14px;
+.source {{ color: var(--gold); font-size: 0.92rem; font-weight: bold; }}
+nav a {{
+    color: #fff;
+    text-decoration: none;
+    background: #0d3654;
+    border: 1px solid var(--accent);
+    padding: 7px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    margin-left: 4px;
+}}
+nav a:hover {{ background: var(--accent); color: #071827; }}
+main {{ max-width: 1150px; margin: auto; padding: 16px; }}
+h1 {{ font-size: clamp(1.6rem, 3.5vw, 2.3rem); margin: 0.2em 0; color: #fff; }}
+h2 {{ color: var(--accent); margin-top: 0; }}
+h3 {{ color: #b9f3ff; }}
+.card {{
+    background: var(--card);
+    border: 1px solid #2f86b1;
+    border-radius: 16px;
+    padding: 20px;
+    margin: 18px 0;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}}
+.teacher {{ border-left: 5px solid var(--green); }}
+.chips span {{
+    display: inline-block;
+    padding: 5px 12px;
+    border: 1px solid #3d8fb6;
+    border-radius: 999px;
+    margin: 4px 4px 4px 0;
+    background: #0b263b;
+    font-size: 13px;
+    font-weight: bold;
+}}
+.stage {{
+    border-left: 4px solid var(--green);
+    padding: 10px 14px;
+    margin: 10px 0;
+    background: #0b2539;
     border-radius: 6px;
+}}
+.figure {{
+    background: #081f31;
+    border: 1px solid #2f86b1;
+    border-radius: 12px;
+    padding: 12px;
+    margin: 12px 0;
+    text-align: center;
+}}
+.figure svg {{ max-width: 100%; height: auto; display: block; margin: auto; }}
+.water {{ stroke: #53cfff; stroke-width: 8; }}
+.ask {{
+    background: #201738;
+    border: 1px solid #8d62ba;
+    border-radius: 12px;
+    padding: 14px;
+    margin: 14px 0;
+}}
+button {{
+    background: #176dcc;
+    color: white;
+    border: 0;
+    border-radius: 8px;
+    padding: 9px 16px;
     cursor: pointer;
     font-weight: bold;
-    transition: 0.2s;
+    margin: 4px;
 }}
-.print-trigger-btn:hover {{ background: #d35400; }}
-.lang-switcher button {{
-    background: #153c5e;
-    color: #fff;
-    border: 1px solid var(--accent-blue);
-    padding: 6px 14px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 600;
-}}
-.lang-switcher button.active {{ background: var(--accent-blue); color: #07192a; }}
-main {{ max-width: 1040px; margin: 20px auto; padding: 0 16px; }}
-.interactive-card {{
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 22px;
-    box-shadow: 0 6px 16px rgba(0,0,0,0.3);
-}}
-.badge {{ background: var(--accent-blue); color: #051421; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }}
+button:hover {{ filter: brightness(1.15); }}
+button.secondary {{ background: #16684f; }}
+.feedback {{ display: inline-block; margin-left: 10px; font-weight: bold; color: var(--green); }}
 
-/* Glossary */
-.glossary-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-top: 12px; }}
-.glossary-item {{ background: #092238; border: 1px solid #1a4d75; border-radius: 8px; padding: 12px; }}
-.glossary-item .terms {{ display: flex; flex-direction: column; gap: 4px; font-weight: bold; border-bottom: 1px solid #143b59; padding-bottom: 6px; margin-bottom: 6px; }}
-.glossary-item .t-en {{ color: var(--accent-blue); }}
-.glossary-item .t-ar {{ color: var(--accent-green); }}
-.glossary-item .t-fr {{ color: var(--accent-yellow); }}
+/* Exercises */
+.exercise {{
+    background: var(--card2);
+    border: 1px solid #3c8eb4;
+    border-radius: 14px;
+    padding: 16px;
+    margin: 16px 0;
+}}
+.exhead {{
+    display: flex;
+    justify-content: space-between;
+    font-weight: bold;
+    color: #baf2ff;
+    font-size: 16px;
+}}
+.prompt {{ background: #0a2235; border-radius: 8px; padding: 12px; margin: 10px 0; }}
+details {{ border-top: 1px solid #3a6580; padding-top: 10px; margin-top: 10px; }}
+summary {{ cursor: pointer; font-weight: bold; color: var(--green); }}
+.answer {{
+    background: #0f443e;
+    border: 1px solid var(--green);
+    padding: 12px;
+    border-radius: 8px;
+    margin-top: 10px;
+}}
 
-/* Filter Bar for Textbook Page & Exercise Search */
+/* Solver Search Bar */
 .solver-bar {{
     background: #092238;
-    border: 1px solid var(--accent-blue);
-    border-radius: 8px;
+    border: 2px solid var(--accent);
+    border-radius: 12px;
     padding: 14px;
     display: flex;
     gap: 12px;
     align-items: center;
     flex-wrap: wrap;
-    margin-bottom: 16px;
+    margin-bottom: 20px;
 }}
 .solver-bar input {{
     background: #061726;
     border: 1px solid #1c5e93;
     color: white;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 14px;
-}}
-.solver-bar button {{
-    background: var(--accent-blue);
-    color: #07192a;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: bold;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 15px;
+    flex: 1;
+    min-width: 200px;
 }}
 
-/* Lab Simulation */
-.lab-container {{ background: #092036; border: 2px dashed var(--accent-blue); border-radius: 12px; padding: 20px; margin-bottom: 25px; }}
-.lab-canvas-wrap {{ background: #051424; border: 1px solid #1a4d75; border-radius: 8px; height: 180px; position: relative; overflow: hidden; margin: 14px 0; }}
-.particle {{ position: absolute; width: 14px; height: 14px; border-radius: 50%; background: var(--accent-blue); transition: all 0.4s ease; }}
-.lab-controls {{ display: flex; gap: 12px; flex-wrap: wrap; }}
-.lab-btn {{ background: #174a75; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; }}
-.lab-btn.active {{ background: var(--accent-green); color: #000; }}
+/* Live Lab */
+.lab {{ background: #09283f; border: 1px solid var(--accent); border-radius: 14px; padding: 18px; }}
+input[type=range] {{ width: 100%; margin: 10px 0; }}
+select {{ padding: 8px 12px; border-radius: 6px; background: #071a2b; color: #fff; border: 1px solid var(--accent); }}
 
-/* Exercises */
-.nabil-btn {{ background: #1c5e93; color: white; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-weight: bold; margin: 10px 0; }}
-.solution-drawer {{ background: #0a2136; border: 1px solid var(--accent-green); border-radius: 8px; padding: 16px; margin-top: 12px; }}
-.solution-drawer ol {{ padding-left: 20px; margin: 10px 0; }}
-.final-box {{ background: rgba(46, 204, 113, 0.12); border-left: 4px solid var(--accent-green); padding: 8px 14px; margin-top: 10px; border-radius: 4px; }}
+/* Summary & Study Card */
+.summary {{ border: 2px solid var(--green); background: #0c2b42; }}
+.grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }}
 
-/* Final Study Sheet */
-.nabil-study-sheet {{ border: 2px solid var(--accent-yellow); background: #092238; }}
-.sheet-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--accent-yellow); padding-bottom: 12px; margin-bottom: 16px; }}
-.sheet-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }}
-.sheet-panel {{ background: #051624; border: 1px solid #184266; border-radius: 8px; padding: 14px; }}
-.sheet-panel h3 {{ color: var(--accent-yellow); font-size: 15px; margin-bottom: 8px; border-bottom: 1px solid #184266; padding-bottom: 4px; }}
-.panel-list {{ padding-left: 18px; font-size: 14px; }}
-.warning-panel {{ border-color: var(--accent-red); }}
-.warning-panel h3 {{ color: var(--accent-red); border-color: var(--accent-red); }}
-.sc-formula {{ background: rgba(241, 196, 15, 0.1); border-left: 3px solid var(--accent-yellow); padding: 6px; margin: 6px 0; border-radius: 4px; font-size: 16px; }}
-.svg-container {{ display: flex; justify-content: center; align-items: center; padding: 10px 0; }}
-
-/* Professional Print View (Isolates and formats Study Card as clean A4) */
+/* A4 Print Engine */
 @media print {{
     body * {{ visibility: hidden; }}
     #printableCard, #printableCard * {{ visibility: visible; }}
@@ -495,109 +515,129 @@ main {{ max-width: 1040px; margin: 20px auto; padding: 0 16px; }}
         top: 0;
         width: 100% !important;
         margin: 0 !important;
-        padding: 10mm !important;
+        padding: 12mm !important;
         background: #ffffff !important;
         color: #000000 !important;
         border: 2pt solid #000 !important;
         box-shadow: none !important;
         page-break-inside: avoid;
     }}
-    .print-trigger-btn, .lang-switcher {{ display: none !important; }}
-    .sheet-panel {{ background: #ffffff !important; color: #000000 !important; border: 1pt solid #444 !important; }}
-    .sheet-panel h3 {{ color: #000000 !important; border-bottom: 1pt solid #000 !important; }}
-    .sc-formula {{ background: #f4f4f4 !important; color: #000 !important; border-left: 3pt solid #000 !important; }}
-    @page {{ size: A4 portrait; margin: 8mm; }}
+    header, nav, .ask, .solver-bar, .lab, select, button {{ display: none !important; }}
+    @page {{ size: A4 portrait; margin: 10mm; }}
 }}
 </style>
 </head>
 <body>
 
 <header>
-    <div class="identity">
-        <strong>🧠 منصة نبيل التعليمية · NABIL AI Master Class</strong>
-        <span style="margin-left: 10px; color: var(--accent-blue);">{e(lid)}</span>
+  <div class="bar">
+    <div>
+      <b>🧠 NABIL AI · Grade {canonical_entry['grade']} {canonical_entry['subject'].capitalize()}</b>
+      <h1>{e(title)}</h1>
+      <div class="source">Curriculum Scope: Official Lebanese CRDP Book · pp. {start_p}–{end_p}</div>
     </div>
-    <div class="nav-actions">
-        <button class="print-trigger-btn" onclick="printReferenceCard()">🖨️ البطاقة المرجعية للطباعة (A4)</button>
-        <div class="lang-switcher">
-            <button id="btn-en" class="active" onclick="setLang('en')">English</button>
-            <button id="btn-ar" onclick="setLang('ar')">العربية</button>
-            <button id="btn-fr" onclick="setLang('fr')">Français</button>
-        </div>
-    </div>
+    <nav>
+      <a href="#learn">Activities</a>
+      <a href="#lab">Live Lab</a>
+      <a href="#exercises">Exercises 1–9</a>
+      <a href="#worksheet">Worksheet</a>
+      <a href="javascript:window.print()">🖨️ Print Study Card</a>
+    </nav>
+  </div>
 </header>
 
 <main>
-    <!-- Lesson Title Card -->
-    <div class="interactive-card">
-        <h1 class="lang-en">{e(data.get('title_en', 'Solids and Liquids'))}</h1>
-        <h1 class="lang-ar rtl" style="display:none;">{e(data.get('title_ar', 'الأجسام الصلبة والسوائل'))}</h1>
-        <h1 class="lang-fr" style="display:none;">{e(data.get('title_fr', 'Les Solides et les Liquides'))}</h1>
-        
-        <p class="lang-en" style="margin-top:8px; color: var(--text-muted);">{e(data.get('summary_en'))}</p>
-        <p class="lang-ar rtl" style="display:none; margin-top:8px; color: var(--text-muted);">{e(data.get('summary_ar'))}</p>
-        <p class="lang-fr" style="display:none; margin-top:8px; color: var(--text-muted);">{e(data.get('summary_fr'))}</p>
+
+<!-- Pedagogical Hook & Objectives -->
+<section class="card teacher">
+  <h2>🎯 Scientific Investigation &amp; Objectives</h2>
+  <p>{e(data.get('hook', 'Observe real matter behavior, test container changes, and deduce the core properties.'))}</p>
+  <div class="chips">
+    {"".join(f"<span>{e(obj)}</span>" for obj in data.get('objectives', ['Observe', 'Experiment', 'Measure & Compare', 'Interpret', 'Conclude', 'Apply']))}
+  </div>
+</section>
+
+<!-- Structured Activities -->
+<div id="learn">
+  {activities_html}
+</div>
+
+<!-- Interactive Live Lab (Physics Simulation) -->
+<section id="lab" class="card">
+  <h2>🧪 Live Lab · Tilt the Vessel &amp; Measure Surface</h2>
+  <div class="lab">
+    <p>Move the slider to tilt the container. Notice how the container walls rotate while the <b>free surface of liquid at rest remains strictly plane and horizontal</b> relative to gravity:</p>
+    <label>Tilt angle: <b id="ang" style="color:var(--gold);">0°</b>
+      <input id="tilt" type="range" min="-35" max="35" value="0"/>
+    </label>
+    <div class="figure">
+      <svg id="labSvg" viewBox="0 0 700 320">
+        <!-- Rotating Vessel Container -->
+        <g id="labV">
+          <path d="M 200 60 L 200 250 L 500 250 L 500 60" fill="none" stroke="#8ce9ff" stroke-width="8"/>
+        </g>
+        <!-- Horizontal Liquid Surface -->
+        <line class="water" x1="210" y1="170" x2="490" y2="170"/>
+        <!-- Plumb Line (Vertical Gravity Reference) -->
+        <line x1="600" y1="50" x2="600" y2="240" stroke="var(--gold)" stroke-width="3" stroke-dasharray="4,4"/>
+        <circle cx="600" cy="254" r="14" fill="var(--gold)"/>
+        <text x="540" y="290" fill="var(--gold)">Vertical plumb-line</text>
+      </svg>
     </div>
+    <div id="labmsg" class="answer">At 0°, the vessel is upright and the free surface is horizontal.</div>
+  </div>
+</section>
 
-    <!-- Live Simulation Laboratory -->
-    <div class="lab-container">
-        <h3 class="lang-en">🧪 Interactive Laboratory: Dynamic State Observation</h3>
-        <h3 class="lang-ar rtl" style="display:none;">🧪 المختبر التفاعلي: مراقبة التحولات والحركة الجزيئية</h3>
-        <h3 class="lang-fr" style="display:none;">🧪 Laboratoire Interactif: Agitation Moléculaire</h3>
-        <div class="lab-canvas-wrap" id="labCanvas"></div>
-        <div class="lab-controls">
-            <button class="lab-btn active" onclick="setSimState('solid', this)">Solid (صلب)</button>
-            <button class="lab-btn" onclick="setSimState('liquid', this)">Liquid (سائل)</button>
-            <button class="lab-btn" onclick="setSimState('gas', this)">Gas (غاز)</button>
-        </div>
+<!-- Solved Exercises with Working Instant Solver Filter -->
+<section id="exercises" class="card">
+  <h2>📘 Official Textbook Solved Exercises (pp. {start_p}–{end_p})</h2>
+  
+  <div class="solver-bar">
+    <label><strong>🔍 Instant Exercise &amp; Page Solver:</strong></label>
+    <input type="text" id="solverQuery" placeholder="Type page (e.g. 17) or exercise number (e.g. 5)..." oninput="filterEx()"/>
+    <button onclick="filterEx()">Filter Question</button>
+    <button style="background:#576574;" onclick="resetEx()">Show All Exercises</button>
+  </div>
+
+  <div id="exercisesContainer">
+    {exercises_html}
+  </div>
+</section>
+
+<!-- Graded Interactive Worksheet -->
+<section id="worksheet" class="card">
+  <h2>📝 Interactive Graded Worksheet (Formative Assessment)</h2>
+  <p>Answer the following evaluation questions. Your score and individualized hints appear immediately:</p>
+  {ws_html}
+  <div style="margin-top:14px;">
+    <button class="secondary" onclick="gradeWS()">Correct My Worksheet</button>
+    <strong id="finalScore" style="margin-left:14px; font-size:1.2rem; color:var(--gold);"></strong>
+  </div>
+</section>
+
+<!-- Final Summary Study Card (Integrated & Printable) -->
+<section class="card summary" id="printableCard">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; border-bottom:2px solid var(--green); padding-bottom:10px; margin-bottom:12px;">
+    <h2>💡 Master Study Card · Fiche de Révision (Grade {canonical_entry['grade']})</h2>
+    <span class="source">Lebanese Official Curriculum · CRDP</span>
+  </div>
+  <div class="grid">
+    <div>
+      <h3 style="color:var(--green);">{e(sc.get('col1_title', 'Solids & Grains'))}</h3>
+      <ul style="padding-left:20px;">{pts1}</ul>
     </div>
-
-    <!-- Trilingual Scientific Glossary -->
-    <div class="interactive-card">
-        <h3 class="lang-en">📖 Trilingual Scientific Glossary (Multi-Discipline Terminology)</h3>
-        <h3 class="lang-ar rtl" style="display:none;">📖 معجم المصطلحات العلمية ثلاثي اللغات (فيزياء · كيمياء · علوم الحياة)</h3>
-        <h3 class="lang-fr" style="display:none;">📖 Glossaire Scientifique Trilingue</h3>
-        <div class="glossary-grid">{glossary_items}</div>
+    <div>
+      <h3 style="color:var(--accent);">{e(sc.get('col2_title', 'Liquids at Rest'))}</h3>
+      <ul style="padding-left:20px;">{pts2}</ul>
     </div>
+  </div>
+</section>
 
-    <!-- Lesson Concepts -->
-    <section>
-        <h2 class="lang-en" style="margin-bottom:12px;">Core Scientific Concepts</h2>
-        <h2 class="lang-ar rtl" style="display:none; margin-bottom:12px;">المفاهيم العلمية الأساسية</h2>
-        {concepts_html}
-    </section>
-
-    <!-- On-Demand Textbook Exercise / Page Solver & Filter -->
-    <section>
-        <h2 class="lang-en" style="margin: 24px 0 12px;">Textbook Solved Problems & Instant Solver</h2>
-        <h2 class="lang-ar rtl" style="display:none; margin: 24px 0 12px;">حلول تمارين الكتاب والباحث الفوري للمسائل</h2>
-        
-        <div class="solver-bar">
-            <label class="lang-en"><strong>Search by Page or Exercise:</strong></label>
-            <label class="lang-ar rtl" style="display:none;"><strong>ابحث برقم الصفحة أو رقم التمرين:</strong></label>
-            <input type="text" id="solverQuery" placeholder="e.g. 14 or Ex 1" onkeyup="filterExercises()"/>
-            <button onclick="filterExercises()">🔍 عرض التمرين المطلوب</button>
-            <button style="background:#576574; color:#fff;" onclick="resetExerciseFilter()">إعادة ضبط الكل</button>
-        </div>
-
-        <div id="exercisesContainer">
-            {exercises_html}
-        </div>
-    </section>
-
-    <!-- Final Study Card: Positioned at the very end of the lesson -->
-    <section>
-        {study_card_html}
-    </section>
 </main>
 
 <script>
+// KaTeX Auto Render Trigger
 document.addEventListener("DOMContentLoaded", function() {{
-    renderMath();
-    initSim();
-}});
-
-function renderMath() {{
     if (typeof renderMathInElement !== 'undefined') {{
         renderMathInElement(document.body, {{
             delimiters: [
@@ -606,41 +646,40 @@ function renderMath() {{
             ],
             throwOnError: false
         }});
-    }} else {{
-        setTimeout(renderMath, 150);
     }}
-}}
+}});
 
-function printReferenceCard() {{
-    window.print();
-}}
-
-function setLang(lang) {{
-    document.querySelectorAll('.lang-switcher button').forEach(b => b.classList.remove('active'));
-    document.getElementById('btn-' + lang).classList.add('active');
-
-    ['en', 'ar', 'fr'].forEach(l => {{
-        document.querySelectorAll('.lang-' + l).forEach(el => {{
-            el.style.display = (l === lang) ? '' : 'none';
-        }});
-    }});
-    renderMath();
-}}
-
-function toggleSolution(id) {{
+// Interactive check in activities
+function fb(id, ok) {{
     const el = document.getElementById(id);
-    el.style.display = (el.style.display === 'none' || el.style.display === '') ? 'block' : 'none';
-    renderMath();
+    el.textContent = ok ? '✓ Correct observation!' : '✗ Re-observe what happens to shape and volume.';
+    el.style.color = ok ? 'var(--green)' : 'var(--danger)';
 }}
 
-// Instant Page & Exercise Filter
-function filterExercises() {{
-    const q = document.getElementById('solverQuery').value.trim().toLowerCase();
-    const boxes = document.querySelectorAll('.exercise-box');
+// Live Lab Engine
+const tilt = document.getElementById('tilt');
+const labV = document.getElementById('labV');
+const labmsg = document.getElementById('labmsg');
+const ang = document.getElementById('ang');
+
+if (tilt && labV) {{
+    tilt.addEventListener('input', () => {{
+        const a = tilt.value;
+        ang.textContent = a + '°';
+        labV.setAttribute('transform', `rotate(${{a}} 350 160)`);
+        labmsg.textContent = `The vessel is tilted ${{a}}°. The liquid free surface remains strictly horizontal.`;
+    }});
+}}
+
+// Instant Page & Exercise Solver Filter
+function filterEx() {{
+    const raw = document.getElementById('solverQuery').value.trim().toLowerCase();
+    const q = raw.replace(/^(ex|page|p|exercise)\\s*/i, '');
+    const boxes = document.querySelectorAll('.exercise');
     boxes.forEach(box => {{
         const p = (box.getAttribute('data-page') || '').toLowerCase();
         const ex = (box.getAttribute('data-ex') || '').toLowerCase();
-        if (!q || p.includes(q) || ex.includes(q) || ('ex ' + ex).includes(q) || ('page ' + p).includes(q)) {{
+        if (!raw || p === q || ex === q || p.includes(q) || ex.includes(q)) {{
             box.style.display = '';
         }} else {{
             box.style.display = 'none';
@@ -648,59 +687,33 @@ function filterExercises() {{
     }});
 }}
 
-function resetExerciseFilter() {{
+function resetEx() {{
     document.getElementById('solverQuery').value = '';
-    document.querySelectorAll('.exercise-box').forEach(b => b.style.display = '');
+    document.querySelectorAll('.exercise').forEach(b => b.style.display = '');
 }}
 
-// Simulation Logic
-let particles = [];
-let simInterval = null;
-function initSim() {{
-    const canvas = document.getElementById('labCanvas');
-    canvas.innerHTML = '';
-    particles = [];
-    for (let i = 0; i < 28; i++) {{
-        const p = document.createElement('div');
-        p.className = 'particle';
-        canvas.appendChild(p);
-        particles.push(p);
+// Worksheet Grading Engine
+const wsKey = {json.dumps([q.get('correct_index', 0) for q in data.get('worksheet', [])])};
+function gradeWS() {{
+    let score = 0;
+    for (let i = 1; i <= wsKey.length; i++) {{
+        const sel = document.getElementById('wq' + i);
+        const fbEl = document.getElementById('wfb' + i);
+        if (sel && sel.value !== "") {{
+            if (parseInt(sel.value) === wsKey[i-1]) {{
+                score++;
+                fbEl.textContent = '✓ Correct';
+                fbEl.style.color = 'var(--green)';
+            }} else {{
+                fbEl.textContent = '✗ Review lesson observation';
+                fbEl.style.color = 'var(--danger)';
+            }}
+        }} else if (fbEl) {{
+            fbEl.textContent = 'Select an answer';
+            fbEl.style.color = 'var(--gold)';
+        }}
     }}
-    setSimState('solid');
-}}
-
-function setSimState(state, btn) {{
-    if (btn) {{
-        document.querySelectorAll('.lab-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-    }}
-    if (simInterval) clearInterval(simInterval);
-
-    if (state === 'solid') {{
-        particles.forEach((p, idx) => {{
-            const row = Math.floor(idx / 7);
-            const col = idx % 7;
-            p.style.left = (60 + col * 26) + 'px';
-            p.style.top = (40 + row * 26) + 'px';
-            p.style.background = '#36a5dc';
-        }});
-    }} else if (state === 'liquid') {{
-        simInterval = setInterval(() => {{
-            particles.forEach((p) => {{
-                p.style.left = (40 + Math.random() * 260) + 'px';
-                p.style.top = (90 + Math.random() * 60) + 'px';
-                p.style.background = '#2ecc71';
-            }});
-        }}, 400);
-    }} else if (state === 'gas') {{
-        simInterval = setInterval(() => {{
-            particles.forEach((p) => {{
-                p.style.left = (20 + Math.random() * 320) + 'px';
-                p.style.top = (15 + Math.random() * 140) + 'px';
-                p.style.background = '#e74c3c';
-            }});
-        }}, 200);
-    }}
+    document.getElementById('finalScore').textContent = `Final Score: ${{score}} / ${{wsKey.length}}`;
 }}
 </script>
 </body>
@@ -714,7 +727,7 @@ def produce_lesson_for_entry(service, canonical_entry, report_path, publish=Fals
     start_p = canonical_entry["pdf_start_page"]
     end_p = canonical_entry["pdf_end_page"]
 
-    progress("PRODUCING_ELITE_CANONICAL_LESSON", lesson_id=lesson_id, title=title, pages=f"{start_p}-{end_p}")
+    progress("PRODUCING_CRDP_MASTER_LESSON", lesson_id=lesson_id, title=title, pages=f"{start_p}-{end_p}")
 
     with tempfile.TemporaryDirectory() as tmp:
         pdf_path = Path(tmp) / "book.pdf"
@@ -725,8 +738,8 @@ def produce_lesson_for_entry(service, canonical_entry, report_path, publish=Fals
         pages = [(p, (reader.pages[p - 1].extract_text() or "").strip())
                  for p in range(start_p, end_p + 1)]
 
-        lesson_data = generate_rich_lesson_data(canonical_entry, pages)
-        html_doc = render_interactive_html(lesson_data, canonical_entry)
+        pedagogy_package = generate_crdp_pedagogical_package(canonical_entry, pages)
+        html_doc = render_crdp_master_html(pedagogy_package, canonical_entry)
 
         slug = re.sub(r"[^\w]+", "-", title.upper()).strip("-")
         num_str = lesson_id.split("-")[-1]
@@ -736,7 +749,7 @@ def produce_lesson_for_entry(service, canonical_entry, report_path, publish=Fals
 
         out_html_path = report_path.with_name(out_filename)
         out_html_path.write_text(html_doc, encoding="utf-8")
-        progress("LOCAL_RICH_HTML_COMPILED", filename=out_filename)
+        progress("CRDP_MASTER_HTML_COMPILED", filename=out_filename)
 
         report = {
             "status": "VERIFIED_COMPLETE",
@@ -776,7 +789,7 @@ def produce_lesson_for_entry(service, canonical_entry, report_path, publish=Fals
 
 
 def main():
-    parser = argparse.ArgumentParser(description="NABIL AI Interactive Lesson Factory")
+    parser = argparse.ArgumentParser(description="NABIL AI CRDP Engine Factory")
     parser.add_argument("--report", default="data/nabil_lesson_factory_run.json")
     parser.add_argument("--lesson-id", default="G07-PHYSICS-001")
     parser.add_argument("--publish", action="store_true")
