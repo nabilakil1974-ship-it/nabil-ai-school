@@ -111,6 +111,25 @@ class ReviewTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "VISUAL_CANDIDATE_EXTRACTION_FAILED"):
                 factory.visual_candidates({15: b"source-image"})
 
+    def test_rate_limit_stops_further_page_requests(self):
+        calls = []
+        class RateLimitError(Exception):
+            pass
+        def raise_limit(**kwargs):
+            calls.append(kwargs)
+            raise RateLimitError("quota exhausted")
+        class FakeVisionClient:
+            def __init__(self, **kwargs):
+                self.chat = types.SimpleNamespace(completions=types.SimpleNamespace(
+                    create=raise_limit))
+        with patch.dict("sys.modules", {"openai": types.SimpleNamespace(OpenAI=FakeVisionClient)}), \
+             patch.dict("os.environ", {"NABIL_VISUAL_PROVIDER": "gemini",
+                                       "NABIL_VISUAL_MODEL": "vision-model"}), \
+             patch.object(factory, "configured_providers", return_value=self.providers):
+            with self.assertRaisesRegex(RuntimeError, "15:RateLimitError"):
+                factory.visual_candidates({15: b"image-one", 16: b"image-two"})
+        self.assertEqual(len(calls), 1)
+
     def test_generator_skips_extractor_and_reserved_reviewer(self):
         fake_openai = types.SimpleNamespace(OpenAI=lambda **kw: FakeClient(True))
         with patch.dict("sys.modules", {"openai": fake_openai}), patch.dict(
