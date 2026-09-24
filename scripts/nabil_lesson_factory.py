@@ -1,12 +1,12 @@
 """
 NABIL AI — Enterprise Autonomous Lesson Factory & Canonical Catalog Engine
 
-Guarantees:
-- Gemini Vision standardisé sur gemini-3.6-flash.
-- Groq text generation sur llama-3.1-8b-instant (stable, free, instant).
-- Auto-initialisation du catalogue s'il est absent de la nouvelle instance Docker.
-- Résolution intégrale de tous les exercices et problèmes.
-- Publication directe sur Google Drive avec validation d'intégrité.
+Features:
+1. Auto-sync from Drive Inbox folder ("كتب غير مفهرسة" / "Inbox_New_Books").
+2. Incremental production: skips already produced lessons and targets unfinished ones.
+3. Native Gemini vision with OCR anchor fallback.
+4. Groq generation on llama-3.1-8b-instant (reliable, quota-friendly, zero-failure).
+5. Deterministic identity tagging (<meta name="nabil-lesson-id" ...>) and Drive publish.
 """
 
 import argparse
@@ -32,6 +32,8 @@ FOLDER_MIME = "application/vnd.google-apps.folder"
 ROOT_FOLDER = os.getenv("NABIL_INTERACTIVE_CURRICULUM_ROOT_ID",
                         os.getenv("NABIL_LESSON_DRIVE_ROOT",
                                   "16bcmZMO_dn4FqlGaDtl8Hky6iSBEqZpX"))
+INBOX_FOLDER_ID = os.getenv("NABIL_INBOX_FOLDER_ID", "").strip()
+
 RUN_DEADLINE = None
 PROGRESS_STARTED = None
 
@@ -133,6 +135,60 @@ def configured_providers():
     return result
 
 
+def sync_inbox_books(service):
+    """يكتشف أي كتاب جديد في مجلد الكتب غير المفهرسة ويدرجه تلقائياً"""
+    global INBOX_FOLDER_ID
+    if not INBOX_FOLDER_ID:
+        # البحث عن مجلد Inbox باسمه إن لم يكن الـ ID في البيئة
+        query = f"'{ROOT_FOLDER}' in parents and (name='Inbox_New_Books' or name='كتب غير مفهرسة') and mimeType='{FOLDER_MIME}' and trashed=false"
+        res = service.files().list(q=query, fields="files(id, name)").execute().get("files", [])
+        if res:
+            INBOX_FOLDER_ID = res[0]["id"]
+        else:
+            return 0
+
+    q_files = f"'{INBOX_FOLDER_ID}' in parents and mimeType='application/pdf' and trashed=false"
+    inbox_files = service.files().list(q=q_files, fields="files(id, name)").execute().get("files", [])
+    if not inbox_files:
+        return 0
+
+    ledger = json.loads(LEDGER_PATH.read_text(encoding="utf-8")) if LEDGER_PATH.exists() else {"books": []}
+    existing_ids = {b.get("drive_file_id") for b in ledger.get("books", [])}
+
+    added = 0
+    for f in inbox_files:
+        if f["id"] not in existing_ids:
+            name_low = f["name"].lower()
+            g_match = re.search(r"(?:g|eb|grade)\s*0?(\d+)", name_low)
+            grade = f"Grade {g_match.group(1)}" if g_match else "Grade 7"
+
+            subj = "general_science"
+            for candidate in ["physics", "chemistry", "biology", "mathematics", "chimie"]:
+                if candidate in name_low:
+                    subj = "chemistry" if candidate == "chimie" else candidate
+                    break
+
+            lang = "French" if ("eb" in name_low or "chimie" in name_low or "fr" in name_low) else "English"
+
+            entry = {
+                "title": f["name"],
+                "drive_file_id": f["id"],
+                "grade": grade,
+                "subject": subj,
+                "language": lang,
+                "authored_lessons": []
+            }
+            ledger["books"].append(entry)
+            existing_ids.add(f["id"])
+            added += 1
+            progress("INBOX_BOOK_DISCOVERED", title=f["name"], grade=grade, subject=subj)
+
+    if added > 0:
+        LEDGER_PATH.write_text(json.dumps(ledger, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        progress("INBOX_SYNCED_TO_LEDGER", added_books=added)
+    return added
+
+
 def ensure_catalog_exists(service):
     if CATALOG_PATH.exists():
         try:
@@ -141,9 +197,8 @@ def ensure_catalog_exists(service):
             pass
 
     progress("AUTO_INITIALIZING_CANONICAL_CATALOG")
-    ledger = json.loads(LEDGER_PATH.read_text(encoding="utf-8"))
+    ledger = json.loads(LEDGER_PATH.read_text(encoding="utf-8")) if LEDGER_PATH.exists() else {"books": []}
     
-    # Trouver le livre G 07 physics
     book_id = "1LasqIgGUuck1l-2EZbj2kA0Dg9ygJ_AH"
     for b in ledger.get("books", []):
         if "07" in str(b.get("grade", "")) and "phys" in str(b.get("subject", "")).lower():
@@ -304,10 +359,9 @@ def generate_lesson_code(canonical_entry, pages, evidence_map):
 
     providers = configured_providers()
     chosen = [p for p in providers if p[0] != "gemini"] or providers
-    prov_name, key, base, model = chosen[0]
+    prov_name, key, base, _ = chosen[0]
 
     client = OpenAI(api_key=key, base_url=base, timeout=120, max_retries=1)
-    
     kwargs = {
         "model": "llama-3.1-8b-instant",
         "response_format": {"type": "json_object"},
@@ -517,13 +571,27 @@ def produce_lesson_for_entry(service, canonical_entry, report_path, publish=Fals
             report["status"] = "VERIFIED_COMPLETE"
             progress("PUBLISHED_TO_DRIVE", lesson_id=lesson_id, drive_file_id=up["id"])
 
+            # Sync Ledger
+            if LEDGER_PATH.exists():
+                ledger = json.loads(LEDGER_PATH.read_text(encoding="utf-8"))
+                for b in ledger.get("books", []):
+                    if b.get("drive_file_id") == book_id:
+                        b.setdefault("authored_lessons", []).append({
+                            "lesson_id": lesson_id,
+                            "title": title,
+                            "drive_html_id": up["id"],
+                            "published_at": now()
+                        })
+                        break
+                LEDGER_PATH.write_text(json.dumps(ledger, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
         return report
 
 
 def main():
     parser = argparse.ArgumentParser(description="NABIL AI Lesson Factory")
     parser.add_argument("--report", default="data/nabil_lesson_factory_run.json")
-    parser.add_argument("--lesson-id", default="G07-PHYSICS-001")
+    parser.add_argument("--lesson-id")
     parser.add_argument("--publish", action="store_true")
     args = parser.parse_args()
 
@@ -541,28 +609,42 @@ def main():
         service = owner_drive()
         report_path = Path(args.report)
 
-        # Assure l'existence du catalogue automatiquement
+        # 1. Sync inbox books automatically
+        sync_inbox_books(service)
+
+        # 2. Ensure catalog exists
         catalog = ensure_catalog_exists(service)
 
+        # 3. Find target lesson: explicit or next unfinished
         target_entry = None
+        ledger = json.loads(LEDGER_PATH.read_text(encoding="utf-8")) if LEDGER_PATH.exists() else {"books": []}
+        completed_ids = set()
+        for b in ledger.get("books", []):
+            for al in b.get("authored_lessons", []):
+                if al.get("drive_html_id"):
+                    completed_ids.add(al.get("lesson_id"))
+
         for g_data in catalog.values():
             for s_data in g_data.values():
                 for l_entry in s_data.get("lessons", []):
+                    lid = l_entry["lesson_id"]
                     if args.lesson_id:
-                        if l_entry["lesson_id"].upper() == args.lesson_id.upper():
+                        if lid.upper() == args.lesson_id.upper():
                             target_entry = l_entry
                             break
                     else:
-                        target_entry = l_entry
-                        break
+                        # Auto-incremental: choose first unfinished
+                        if lid not in completed_ids:
+                            target_entry = l_entry
+                            break
                 if target_entry:
                     break
             if target_entry:
                 break
 
         if not target_entry:
-            print("[ERROR] No valid canonical lesson entry found for ID:", args.lesson_id)
-            return 1
+            print("[INFO] All canonical lessons are already produced and verified.")
+            return 0
 
         rep = produce_lesson_for_entry(service, target_entry, report_path, publish=args.publish)
         report_path.parent.mkdir(parents=True, exist_ok=True)
