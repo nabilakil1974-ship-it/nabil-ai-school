@@ -348,6 +348,7 @@ def visual_candidates(images):
         raise RuntimeError("VISUAL_MODEL_NOT_CONFIGURED")
     client = OpenAI(api_key=key, base_url=base, timeout=45, max_retries=0)
     candidates = {}
+    extraction_failures = []
     for page, image in images.items():
         messages = [
             {"role": "system", "content": (
@@ -387,6 +388,10 @@ def visual_candidates(images):
         except Exception as exc:
             progress("VISUAL_CANDIDATE_EXTRACTION_FAILED", page=page,
                      error_type=type(exc).__name__)
+            extraction_failures.append(f"{page}:{type(exc).__name__}")
+    if extraction_failures:
+        raise RuntimeError("VISUAL_CANDIDATE_EXTRACTION_FAILED: " +
+                           ",".join(extraction_failures))
     return candidates, name, model
 
 
