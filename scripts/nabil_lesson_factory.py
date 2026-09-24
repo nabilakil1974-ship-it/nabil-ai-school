@@ -1,12 +1,12 @@
 """
 NABIL AI — Enterprise Autonomous Lesson Factory & Canonical Catalog Engine
 
-Features:
-1. Auto-sync from Drive Inbox folder ("كتب غير مفهرسة" / "Inbox_New_Books").
-2. Incremental production: skips already produced lessons and targets unfinished ones.
-3. Native Gemini vision with OCR anchor fallback.
-4. Groq generation on llama-3.1-8b-instant (reliable, quota-friendly, zero-failure).
-5. Deterministic identity tagging (<meta name="nabil-lesson-id" ...>) and Drive publish.
+Optimized Configuration:
+- Text Generation: qwen/qwen3.8-27b on Groq.
+- Visual extraction: Robust OCR Anchors with Gemini fallback.
+- Auto-sync from Drive Inbox ("كتب غير مفهرسة" / "Inbox_New_Books").
+- Auto-initializes Canonical Catalog for G07 Physics.
+- Strict metadata injection and verified Google Drive publication.
 """
 
 import argparse
@@ -32,7 +32,7 @@ FOLDER_MIME = "application/vnd.google-apps.folder"
 ROOT_FOLDER = os.getenv("NABIL_INTERACTIVE_CURRICULUM_ROOT_ID",
                         os.getenv("NABIL_LESSON_DRIVE_ROOT",
                                   "16bcmZMO_dn4FqlGaDtl8Hky6iSBEqZpX"))
-INBOX_FOLDER_ID = os.getenv("NABIL_INBOX_FOLDER_ID", "").strip()
+INBOX_FOLDER_ID = os.getenv("NABIL_INBOX_FOLDER_ID", "1H-acXZB6Qd9ru-IWXTBVHP8MT-wt8NvF").strip()
 
 RUN_DEADLINE = None
 PROGRESS_STARTED = None
@@ -119,16 +119,14 @@ def canonical_subject_folder(subject):
 
 def configured_providers():
     options = {
-        "gemini": ("GEMINI_API_KEY", "https://generativelanguage.googleapis.com/v1beta/openai/",
-                   os.getenv("GEMINI_MODEL", "gemini-3.6-flash")),
         "groq": ("GROQ_API_KEY", "https://api.groq.com/openai/v1",
-                 os.getenv("GROQ_TEXT_MODEL", "llama-3.1-8b-instant")),
+                 os.getenv("GROQ_TEXT_MODEL", "qwen/qwen3.8-27b")),
         "openrouter": ("OPENROUTER_API_KEY", "https://openrouter.ai/api/v1",
                        os.getenv("OPENROUTER_TEXT_MODEL", "meta-llama/llama-3.1-8b-instruct:free")),
         "openai": ("OPENAI_API_KEY", None, os.getenv("OPENAI_TEXT_MODEL", "gpt-4.1-mini")),
     }
     result = []
-    for name in ["gemini", "groq", "openrouter", "openai"]:
+    for name in ["groq", "openrouter", "openai"]:
         env, base, model = options[name]
         if os.getenv(env, "").strip():
             result.append((name, os.environ[env].strip(), base, model))
@@ -136,10 +134,8 @@ def configured_providers():
 
 
 def sync_inbox_books(service):
-    """يكتشف أي كتاب جديد في مجلد الكتب غير المفهرسة ويدرجه تلقائياً"""
     global INBOX_FOLDER_ID
     if not INBOX_FOLDER_ID:
-        # البحث عن مجلد Inbox باسمه إن لم يكن الـ ID في البيئة
         query = f"'{ROOT_FOLDER}' in parents and (name='Inbox_New_Books' or name='كتب غير مفهرسة') and mimeType='{FOLDER_MIME}' and trashed=false"
         res = service.files().list(q=query, fields="files(id, name)").execute().get("files", [])
         if res:
@@ -358,15 +354,17 @@ def generate_lesson_code(canonical_entry, pages, evidence_map):
     ]
 
     providers = configured_providers()
-    chosen = [p for p in providers if p[0] != "gemini"] or providers
-    prov_name, key, base, _ = chosen[0]
+    chosen = providers[0]
+    prov_name, key, base, model = chosen
 
-    client = OpenAI(api_key=key, base_url=base, timeout=120, max_retries=1)
+    progress("ATTEMPTING_TEXT_GENERATION", provider=prov_name, model=model)
+    client = OpenAI(api_key=key, base_url=base, timeout=140, max_retries=1)
+    
     kwargs = {
-        "model": "llama-3.1-8b-instant",
+        "model": model,
         "response_format": {"type": "json_object"},
         "messages": messages,
-        "temperature": 0
+        "temperature": 0.2
     }
 
     resp = client.chat.completions.create(**kwargs)
@@ -383,7 +381,7 @@ def generate_lesson_code(canonical_entry, pages, evidence_map):
                 item["source_quote"] = catalog[eid]["text"]
             else:
                 item["pdf_page"] = pages[0][0]
-    return data, prov_name, kwargs["model"]
+    return data, prov_name, model
 
 
 def render_html_with_metadata(lesson, pages, canonical_entry):
@@ -571,7 +569,6 @@ def produce_lesson_for_entry(service, canonical_entry, report_path, publish=Fals
             report["status"] = "VERIFIED_COMPLETE"
             progress("PUBLISHED_TO_DRIVE", lesson_id=lesson_id, drive_file_id=up["id"])
 
-            # Sync Ledger
             if LEDGER_PATH.exists():
                 ledger = json.loads(LEDGER_PATH.read_text(encoding="utf-8"))
                 for b in ledger.get("books", []):
@@ -591,7 +588,7 @@ def produce_lesson_for_entry(service, canonical_entry, report_path, publish=Fals
 def main():
     parser = argparse.ArgumentParser(description="NABIL AI Lesson Factory")
     parser.add_argument("--report", default="data/nabil_lesson_factory_run.json")
-    parser.add_argument("--lesson-id")
+    parser.add_argument("--lesson-id", default="G07-PHYSICS-001")
     parser.add_argument("--publish", action="store_true")
     args = parser.parse_args()
 
@@ -609,13 +606,9 @@ def main():
         service = owner_drive()
         report_path = Path(args.report)
 
-        # 1. Sync inbox books automatically
         sync_inbox_books(service)
-
-        # 2. Ensure catalog exists
         catalog = ensure_catalog_exists(service)
 
-        # 3. Find target lesson: explicit or next unfinished
         target_entry = None
         ledger = json.loads(LEDGER_PATH.read_text(encoding="utf-8")) if LEDGER_PATH.exists() else {"books": []}
         completed_ids = set()
@@ -633,7 +626,6 @@ def main():
                             target_entry = l_entry
                             break
                     else:
-                        # Auto-incremental: choose first unfinished
                         if lid not in completed_ids:
                             target_entry = l_entry
                             break
