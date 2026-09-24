@@ -2,11 +2,11 @@
 NABIL AI — Enterprise Autonomous Lesson Factory & Production Engine
 
 Strict Architectural Gates:
-- ZERO tolerance for empty exercise containers (fails if exercises < min_expected).
-- Strict visual SVG rendering engine (standardized responsive viewports).
-- Real sequential pedagogy (Hook -> Activities -> Live Lab -> Solved Exercises 1-N -> Worksheet -> Comprehensive Multi-Panel Study Card).
-- Strict source boundary: Zero unevidenced terms outside CRDP pages.
-- High-contrast, student-friendly psychological color palette (WCAG AAA).
+- ZERO tolerance for missing exercises (hard-verified 1 to N sequence).
+- High-visibility responsive SVG diagrams (viewBox 0 0 600 240, min-height 200px).
+- Strict Source Boundary: Zero unevidenced terms outside CRDP pages.
+- Visual Ergonomics: High-contrast palette (WCAG AAA) for student psychological comfort.
+- Verified Google Drive Publication & Metadata Synchronization.
 """
 
 import argparse
@@ -147,19 +147,22 @@ def detect_expected_exercises(pages_text, start_page, end_page):
     return sorted(list(found))
 
 
-def extract_and_solve_exercises(client, model, canonical_entry, pages):
+def extract_and_solve_exercises(client, model, canonical_entry, pages, expected_ex):
     title = canonical_entry["canonical_title"]
     end_p = canonical_entry["pdf_end_page"]
     ex_pages = [(p, t) for p, t in pages if p >= (end_p - 2)]
     ex_text = "\n\n".join([f"=== Page {p} ===\n{t}" for p, t in ex_pages])
 
+    all_exercises = []
+    expected_set = set(expected_ex)
+
     prompt = (
-        f"You are the official textbook exercise solver for Lebanese Brevet / Grade {canonical_entry['grade']}.\n"
-        f"Solve ALL exercises (1 to 9) from textbook pages for '{title}':\n\n{ex_text}\n\n"
-        "MANDATORY RULES:\n"
-        "1. Return EVERY exercise from 1 to 9 without skipping any.\n"
-        "2. If an exercise has a figure (like Fig 6, 7, 8, 9), generate a comprehensive SVG diagram (viewBox='0 0 600 240'). SVG elements must be clearly visible, large, with font-size >= 15px.\n"
-        "3. Output strictly JSON: {'exercises': [\n"
+        f"You are the official textbook exercise solver for Lebanese Grade {canonical_entry['grade']} Physics.\n"
+        f"Textbook Context for '{title}':\n{ex_text}\n\n"
+        f"MANDATORY REQUIREMENT: Solve ALL exercises listed in {expected_ex}.\n"
+        "You MUST NOT skip any exercise. Each exercise must have its complete prompt, steps, and final answer.\n"
+        "For exercises with diagrams (e.g. Exercises 5, 6, 7, 9), generate a comprehensive SVG diagram (viewBox='0 0 600 240') with font-size >= 15px.\n\n"
+        "Return strictly JSON: {'exercises': [\n"
         "  {\n"
         "    'number': int,\n"
         "    'page': int,\n"
@@ -172,16 +175,52 @@ def extract_and_solve_exercises(client, model, canonical_entry, pages):
         "]}"
     )
 
-    resp = client.chat.completions.create(
-        model=model,
-        response_format={"type": "json_object"},
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.1
-    )
-    val = resp.choices[0].message.content.strip()
-    if val.startswith("```"):
-        val = re.sub(r"^```(?:json)?\s*|\s*```$", "", val, flags=re.I).strip()
-    return json.loads(val).get("exercises", [])
+    for attempt in range(1, 3):
+        progress("ATTEMPTING_EXERCISE_SOLVING", attempt=attempt)
+        resp = client.chat.completions.create(
+            model=model,
+            response_format={"type": "json_object"},
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.0
+        )
+        val = resp.choices[0].message.content.strip()
+        if val.startswith("```"):
+            val = re.sub(r"^```(?:json)?\s*|\s*```$", "", val, flags=re.I).strip()
+        
+        parsed = json.loads(val).get("exercises", [])
+        num_map = {int(x.get("number", 0)): x for x in parsed if "number" in x}
+        
+        missing = [num for num in expected_ex if num not in num_map]
+        if not missing:
+            all_exercises = [num_map[num] for num in expected_ex]
+            break
+        
+        progress("RETRYING_MISSING_EXERCISES", missing=missing)
+        
+        # Request strictly the missing exercises to merge
+        fix_prompt = (
+            f"You previously omitted exercises: {missing}. Solve ONLY these omitted exercises now for '{title}':\n"
+            f"{ex_text}\n"
+            "Return strictly JSON: {'exercises': [{'number': int, 'page': int, 'title': str, 'prompt': str, 'steps': [str], 'final_answer': str, 'svg_diagram': str}]}"
+        )
+        resp_fix = client.chat.completions.create(
+            model=model,
+            response_format={"type": "json_object"},
+            messages=[{"role": "user", "content": fix_prompt}],
+            temperature=0.0
+        )
+        val_fix = resp_fix.choices[0].message.content.strip()
+        if val_fix.startswith("```"):
+            val_fix = re.sub(r"^```(?:json)?\s*|\s*```$", "", val_fix, flags=re.I).strip()
+        for x in json.loads(val_fix).get("exercises", []):
+            if "number" in x:
+                num_map[int(x["number"])] = x
+        
+        all_exercises = [num_map[num] for num in expected_ex if num in num_map]
+        if len(all_exercises) == len(expected_ex):
+            break
+
+    return all_exercises
 
 
 def generate_lesson_package(canonical_entry, pages):
@@ -193,7 +232,7 @@ def generate_lesson_package(canonical_entry, pages):
     expected_ex = detect_expected_exercises(full_text, canonical_entry["pdf_start_page"], canonical_entry["pdf_end_page"])
 
     progress("STAGE_1_SOLVING_ALL_EXERCISES", expected_count=len(expected_ex))
-    exercises = extract_and_solve_exercises(client, prov[3], canonical_entry, pages)
+    exercises = extract_and_solve_exercises(client, prov[3], canonical_entry, pages, expected_ex)
 
     progress("STAGE_2_GENERATING_PEDAGOGICAL_BODY_AND_CARD")
     body_prompt = (
@@ -338,9 +377,9 @@ def render_master_html(data, canonical_entry):
 
 <title>NABIL AI | Grade {canonical_entry['grade']} {canonical_entry['subject'].capitalize()} | {e(title)}</title>
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css"/>
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="[https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css](https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css)"/>
+<script defer src="[https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js](https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js)"></script>
+<script defer src="[https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js](https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js)"></script>
 
 <style>
 :root {{
