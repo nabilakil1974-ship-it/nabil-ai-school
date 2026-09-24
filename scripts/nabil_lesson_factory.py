@@ -389,6 +389,8 @@ def visual_candidates(images):
             progress("VISUAL_CANDIDATE_EXTRACTION_FAILED", page=page,
                      error_type=type(exc).__name__)
             extraction_failures.append(f"{page}:{type(exc).__name__}")
+            if type(exc).__name__ == "RateLimitError":
+                break
     if extraction_failures:
         raise RuntimeError("VISUAL_CANDIDATE_EXTRACTION_FAILED: " +
                            ",".join(extraction_failures))
