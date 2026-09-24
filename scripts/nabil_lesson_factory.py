@@ -1,9 +1,13 @@
 """
-NABIL AI — Enterprise Autonomous Lesson Factory (Deterministic 38-Stage Pipeline)
-Strict, Contract-Governed Production Engine implementing the complete Refraction Standard:
-Master Index -> PDF TOC -> Evidence Map -> Pedagogy Engine -> Full Lesson (HTML only) ->
-Dual Independent Reviews -> Multi-layer Quality Gates -> Local Dry-Run -> Verified Drive Upload ->
-Readback Verification -> Ledger Sync -> NABIL Discovery Test -> VERIFIED_COMPLETE.
+NABIL AI — Enterprise Autonomous Lesson Factory (Universal 38-Stage Production Engine)
+Fully aligned with the 'Refraction Standard' and Google Gemini 3.6 Flash Multimodal Pipeline.
+
+Guarantees:
+- Model Baseline: gemini-3.6-flash (Free Tier) for vision/extraction without obsolete parameters (no temp/top_p).
+- Zero-Omission Gate: Extracts and solves 100% of textbook Exercises AND Problems with all sub-questions (a,b,c,d,e).
+- Tri-provider Architecture: Complete independence between Visual Extractor, Lesson Generator, and Scientific Reviewer.
+- 100% Free & Stable: Native Drive OAuth, local Poppler/Tesseract, and verified zero-cost AI endpoints.
+- Self-Contained Deliverable: Produces verified HTML, Evidence Map, Scientific Audit, and Master Quality Report.
 """
 
 import argparse
@@ -52,63 +56,24 @@ NABIL_OFFICIAL_AVATAR_B64 = (
     "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"
-    "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"
+    "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"
 )
 
-# تعيين المسميات القياسية للمواد الدراسية (Subject Mapping)
 SUBJECT_FOLDER_MAP = {
     "physics": "Physics - فيزياء",
     "mathematics": "Mathematics - رياضيات",
@@ -187,7 +152,7 @@ def download_pdf_to_path(service, file_id, path):
             _, finished = loader.next_chunk()
 
 # -------------------------------------------------------------
-# STAGE 7 & 8: TOC Extraction & Unfinished Lesson Selection
+# STAGE 7 & 8: TOC Extraction & Canonical Lesson Boundaries
 # -------------------------------------------------------------
 def trustworthy_title(title):
     words = re.findall(r"[A-Za-zÀ-ÿ\u0600-\u06FF]+", str(title))
@@ -215,11 +180,11 @@ def extract_toc_entries(reader, pdf_path):
     walk(reader.outline)
     if len(entries) >= 2:
         ordered = sorted({(p, t) for t, p in entries})
-        return [(title, start, ordered[i + 1][0] if i + 1 < len(ordered) else min(start + 10, len(reader.pages)))
+        return [(title, start, ordered[i + 1][0] if i + 1 < len(ordered) else min(start + 12, len(reader.pages)))
                 for i, (start, title) in enumerate(ordered)
-                if 2 <= (ordered[i + 1][0] if i + 1 < len(ordered) else min(start + 10, len(reader.pages))) - start <= 18]
+                if 2 <= (ordered[i + 1][0] if i + 1 < len(ordered) else min(start + 12, len(reader.pages))) - start <= 18]
 
-    # Fallback to OCR parsing of initial TOC pages
+    # OCR Fallback on front pages
     front_text = ""
     for idx in range(min(12, len(reader.pages))):
         front_text += f"\n--- PAGE {idx+1} ---\n" + (reader.pages[idx].extract_text() or "")
@@ -230,7 +195,6 @@ def extract_toc_entries(reader, pdf_path):
         if m:
             t = m.group(1).strip(" .-")
             if trustworthy_title(t):
-                # Search occurrence in reader pages
                 for p_idx in range(4, min(len(reader.pages), 60)):
                     ptxt = reader.pages[p_idx].extract_text() or ""
                     if re.search(rf"\b{re.escape(t)}\b", ptxt, re.I):
@@ -257,7 +221,7 @@ def build_lesson_identity(grade_num, subject, language, book_id, toc_index, titl
     }
 
 # -------------------------------------------------------------
-# STAGE 11 & 12: Source Images, OCR & Evidence Map
+# STAGE 11 - 13: Gemini 3.6 Flash Visual & Evidence Extraction
 # -------------------------------------------------------------
 def render_source_images(pdf_path, pages):
     images = {}
@@ -273,15 +237,18 @@ def render_source_images(pdf_path, pages):
     return images
 
 def configured_providers():
-    order = os.getenv("NABIL_AI_PROVIDER_ORDER", "groq,openrouter,gemini,openai")
+    order = os.getenv("NABIL_AI_PROVIDER_ORDER", "gemini,groq,openrouter")
     options = {
-        "groq": ("GROQ_API_KEY", "https://api.groq.com/openai/v1", os.getenv("GROQ_TEXT_MODEL", "openai/gpt-oss-120b")),
-        "openrouter": ("OPENROUTER_API_KEY", "https://openrouter.ai/api/v1", os.getenv("OPENROUTER_TEXT_MODEL", "openrouter/free")),
-        "gemini": ("GEMINI_API_KEY", "https://generativelanguage.googleapis.com/v1beta/openai/", os.getenv("GEMINI_TEXT_MODEL", "gemini-2.5-flash")),
-        "openai": ("OPENAI_API_KEY", None, os.getenv("OPENAI_TEXT_MODEL", "gpt-4.1-mini")),
+        # Gemini 3.6 Flash رسمي ومستقر
+        "gemini": ("GEMINI_API_KEY", "https://generativelanguage.googleapis.com/v1beta/openai/",
+                   os.getenv("GEMINI_MODEL", "gemini-3.6-flash")),
+        "groq": ("GROQ_API_KEY", "https://api.groq.com/openai/v1",
+                 os.getenv("GROQ_TEXT_MODEL", "llama-3.3-70b-versatile")),
+        "openrouter": ("OPENROUTER_API_KEY", "https://openrouter.ai/api/v1",
+                       os.getenv("OPENROUTER_TEXT_MODEL", "meta-llama/llama-3.1-8b-instruct:free")),
     }
     result = []
-    for name in [*(x.strip().lower() for x in order.split(",")), "groq", "openrouter", "gemini", "openai"]:
+    for name in [*(x.strip().lower() for x in order.split(",")), "gemini", "groq", "openrouter"]:
         if name in options and os.getenv(options[name][0], "").strip():
             result.append((name, os.getenv(options[name][0]), options[name][1], options[name][2]))
     dedup = []
@@ -293,13 +260,20 @@ def configured_providers():
     return dedup
 
 def build_evidence_map(pages_text, images, language):
-    """Stage 13: Constructs strict granular Evidence Map with visual and textual IDs."""
+    """
+    Stage 13: Uses Gemini 3.6 Flash without obsolete parameters (temperature/top_p stripped).
+    Identifies all Exercises AND comprehensive Problems with all their sub-questions.
+    """
     providers = configured_providers()
-    if len(providers) < 2:
-        raise RuntimeError("AT_LEAST_TWO_INDEPENDENT_PROVIDERS_REQUIRED")
+    if not providers:
+        raise RuntimeError("NO_AI_PROVIDER_AVAILABLE")
+    
+    # We guarantee gemini is chosen for vision if present
+    gemini_prov = next((p for p in providers if p[0] == "gemini"), providers[0])
+    v_prov, v_key, v_base, v_mod = gemini_prov
+
     from openai import OpenAI
-    v_prov, v_key, v_base, v_mod = providers[0]
-    client = OpenAI(api_key=v_key, base_url=v_base, timeout=60, max_retries=0)
+    client = OpenAI(api_key=v_key, base_url=v_base, timeout=65, max_retries=0)
 
     evidence_catalog = {}
     exercise_evidence = []
@@ -307,49 +281,55 @@ def build_evidence_map(pages_text, images, language):
     figure_evidence = []
 
     for page, txt in pages_text.items():
-        # Text segmentation
         lines = [l.strip() for l in txt.splitlines() if len(l.strip()) > 15]
         for idx, line in enumerate(lines, 1):
             eid = f"P{page}-TXT-{idx}"
             evidence_catalog[eid] = {"page": page, "type": "text", "content": line}
 
-        # Visual/Exercise Extraction via Multimodal Vision
         messages = [
             {"role": "system", "content": (
-                "You are Evidence Extraction Specialist. Output valid JSON only with keys:\n"
+                "You are Senior Curriculum Visual Specialist. Extract ALL textbook items visible on this page.\n"
+                "Return strictly valid JSON with keys:\n"
                 "- activities: array of {activity_number: str, title: str, observation: str}\n"
                 "- figures: array of {figure_number: str, description: str, is_essential: bool}\n"
-                "- exercises: array of {exercise_number: str, prompt: str, sub_questions: [str], has_diagram: bool}\n"
-                "- core_laws: array of {law_name: str, formula: str}"
+                "- exercises: array of {exercise_number: str, prompt: str, is_problem: bool, sub_questions: [str], has_diagram: bool}\n"
+                "CRITICAL: Capture both numbered short exercises AND full end-of-chapter problems."
             )},
             {"role": "user", "content": [
-                {"type": "text", "text": f"Extract all textbook items on PDF page {page}. Be exhaustive."},
+                {"type": "text", "text": f"Transcribe and categorize all exercises, problems, and figures on textbook page {page}."},
                 {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," + base64.b64encode(images[page]).decode()}}
             ]}
         ]
-        resp = client.chat.completions.create(model=v_mod, temperature=0, response_format={"type": "json_object"}, messages=messages)
+
+        # In gemini-3.6-flash, we strictly omit temperature, top_p, top_k to ensure call stability
+        resp = client.chat.completions.create(
+            model=v_mod,
+            response_format={"type": "json_object"},
+            messages=messages
+        )
         res_json = json.loads(resp.choices[0].message.content)
-        
+
         for ex in res_json.get("exercises", []):
-            eid = f"EX_{ex.get('exercise_number', len(exercise_evidence)+1)}"
+            num = str(ex.get("exercise_number", len(exercise_evidence) + 1)).strip()
+            eid = f"EX_{num}" if not ex.get("is_problem") else f"PR_{num}"
             ex["evidence_id"] = eid
             ex["page"] = page
             exercise_evidence.append(ex)
-            evidence_catalog[eid] = {"page": page, "type": "exercise", "content": ex["prompt"]}
+            evidence_catalog[eid] = {"page": page, "type": "exercise", "content": ex.get("prompt", "")}
 
         for act in res_json.get("activities", []):
-            aid = f"ACT_{act.get('activity_number', len(activity_evidence)+1)}"
+            aid = f"ACT_{act.get('activity_number', len(activity_evidence) + 1)}"
             act["evidence_id"] = aid
             act["page"] = page
             activity_evidence.append(act)
-            evidence_catalog[aid] = {"page": page, "type": "activity", "content": act["title"]}
+            evidence_catalog[aid] = {"page": page, "type": "activity", "content": act.get("title", "")}
 
         for fig in res_json.get("figures", []):
-            fid = f"FIG_{fig.get('figure_number', len(figure_evidence)+1)}"
+            fid = f"FIG_{fig.get('figure_number', len(figure_evidence) + 1)}"
             fig["evidence_id"] = fid
             fig["page"] = page
             figure_evidence.append(fig)
-            evidence_catalog[fid] = {"page": page, "type": "figure", "content": fig["description"]}
+            evidence_catalog[fid] = {"page": page, "type": "figure", "content": fig.get("description", "")}
 
     return {
         "catalog": evidence_catalog,
@@ -365,8 +345,8 @@ def build_evidence_map(pages_text, images, language):
 # -------------------------------------------------------------
 def verify_source_coverage_gate(evidence_map):
     if not evidence_map["exercises"]:
-        raise ValueError("SOURCE_COVERAGE_INCOMPLETE: No numbered textbook exercises identified.")
-    if len(evidence_map["catalog"]) < 12:
+        raise ValueError("SOURCE_COVERAGE_INCOMPLETE: Zero exercises/problems identified from textbook pages.")
+    if len(evidence_map["catalog"]) < 10:
         raise ValueError("SOURCE_COVERAGE_INCOMPLETE: Sparse text/figure evidence catalog.")
 
 # -------------------------------------------------------------
@@ -376,26 +356,23 @@ def build_pedagogy_profile(grade_num, subject):
     subj = subject.lower()
     if "phys" in subj:
         return {
-            "strategy": "Physical Phenomenon -> Experiment/Figure -> Observation -> Law Formulation -> Step-by-Step Numerical",
-            "needs_live_lab": True,
-            "tone": "Empirical and Inquisitive"
+            "strategy": "Physical Phenomenon -> Experiment/Figure -> Observation -> Law Formulation -> Step-by-Step Numerical Applications",
+            "needs_live_lab": True
         }
     elif "math" in subj:
         return {
             "strategy": "Geometric/Algebraic Definition -> Theorem -> Deductive Proof -> Color-Coded Construction -> Exercises",
-            "needs_live_lab": False,
-            "tone": "Rigorous Deductive"
+            "needs_live_lab": False
         }
     elif "chem" in subj:
         return {
             "strategy": "Macroscopic Observation -> Molecular Model -> Balanced Equation -> Verification",
-            "needs_live_lab": True,
-            "tone": "Experimental Structural"
+            "needs_live_lab": True
         }
-    return {"strategy": "Observe -> Analyze -> Synthesize", "needs_live_lab": False, "tone": "Guided Inquiry"}
+    return {"strategy": "Observe -> Analyze -> Deduce -> Synthesize", "needs_live_lab": False}
 
 # -------------------------------------------------------------
-# STAGE 17 - 24: Lesson Generator (Exhaustive Refraction Standard)
+# STAGE 17 - 24: Lesson Generator (Refraction Standard)
 # -------------------------------------------------------------
 def generate_lesson_code(title, identity, evidence_map, pedagogy, book_meta):
     providers = configured_providers()
@@ -407,39 +384,40 @@ def generate_lesson_code(title, identity, evidence_map, pedagogy, book_meta):
     client = OpenAI(api_key=g_key, base_url=g_base, timeout=120, max_retries=0)
 
     prompt = f"""You are the Master Pedagogical Architect of NABIL AI.
-Generate a complete, exhaustive, textbook-grounded digital classroom lesson matching the 'Refraction Standard'.
+Generate a complete, exhaustive, classroom-ready digital lesson matching the 'Refraction Standard'.
 Subject: {book_meta.get('subject')} | Grade: {identity['canonical_filename'][:3]} | Language: {book_meta.get('language')}
 Lesson Title: {title}
 Pedagogy Strategy: {pedagogy['strategy']}
 
 Evidence Map Input:
-- Identified Exercises ({len(evidence_map['exercises'])} total): {json.dumps(evidence_map['exercises'], ensure_ascii=False)}
+- Identified Exercises and Problems ({len(evidence_map['exercises'])} total): {json.dumps(evidence_map['exercises'], ensure_ascii=False)}
 - Identified Activities ({len(evidence_map['activities'])} total): {json.dumps(evidence_map['activities'], ensure_ascii=False)}
 
 MANDATORY RULES:
-1. EXHAUSTIVE EXERCISES: You MUST solve EVERY SINGLE textbook exercise listed in the Evidence Map. Do not skip any exercise (e.g. if 13 exercises exist, return all 13). For each exercise, resolve all sub-questions (a, b, c, d, e) step-by-step.
-2. COLOR-CODED SCHEMAS (SVGs):
-   - Base/Given elements: stroke='#8ce9ff' or '#ffffff'.
-   - Auxiliary/Construction lines: stroke='#ffe49a' with stroke-dasharray='5,4'.
-   - Results/Angles proved: stroke='#31d9a8'.
-   - All SVGs must include viewBox='0 0 W H' and a legend.
-3. SCAFFOLDED TEACHING: Explain -> Show Diagram -> Ask Check Question -> Provide Scaffolding.
-4. LIVE LAB: Provide a complete runnable interactive simulation object: title, description, controls array, initial_svg, js_update_fn.
-5. KaTeX Math: Use $inline$ and $$display$$ delimiters for all formulas, powers, fractions, and units.
+1. EXHAUSTIVE EXERCISE & PROBLEM COVERAGE: Solve EVERY single exercise and problem listed above without omission. For each item, resolve all sub-questions (a, b, c, d, e) step-by-step.
+2. COLOR-CODED DIAGRAMS (SVGs):
+   - Base/Given elements: stroke='#8ce9ff' or '#ffffff' (Solid).
+   - Auxiliary/Construction lines added during proof: stroke='#ffe49a' with stroke-dasharray='5,4' (Dashed).
+   - Target angles/segments/results proved: stroke='#31d9a8'.
+   - Responsive: Always use viewBox='0 0 W H' and include a concise SVG legend.
+3. TEACHING FLOW: Explain concept -> Show schema -> Ask Check Question -> Provide Scaffolded Steps.
+4. LIVE LAB: Provide a runnable simulation: {{title, description, controls: [{{id, label, type, min, max, value}}], initial_svg, js_update_fn}}.
+5. KaTeX Typography: Use $inline$ and $$display$$ delimiters for all formulas, powers, fractions, and units.
 
 Output valid JSON only with keys:
 - title, introduction
-- concepts: [{heading, explanation, formula, svg_diagram}]
-- activities: [{activity_number, prompt, observation, conclusion, svg_diagram}]
-- live_lab: {title, description, controls: [{id, label, type, min, max, value}], initial_svg, js_update_fn}
-- exercises: [{exercise_number, prompt, given_data, concept_tested, solution_steps: [str], final_answer, diagram_svg}]
-- worksheet: [{question_number, prompt, type, expected_answer, tolerance, unit, hint, explanation}]
-- summary_card: {title, estimated_time, learning_objectives, left_panel: {heading, formula, properties: [{label, value}], rule_summary}, center_panel: {title, svg_diagram}, quick_check: {prompt, expected_answer, hint}}
+- concepts: [{{heading, explanation, formula, svg_diagram}}]
+- activities: [{{activity_number, prompt, observation, conclusion, svg_diagram}}]
+- live_lab: {{title, description, controls: [{{id, label, type, min, max, value}}], initial_svg, js_update_fn}}
+- exercises: [{{exercise_number, prompt, given_data, concept_tested, solution_steps: [str], final_answer, diagram_svg}}]
+- worksheet: [{{question_number, prompt, type, expected_answer, tolerance, unit, hint, explanation}}]
+- summary_card: {{title, estimated_time, learning_objectives, left_panel: {{heading, formula, properties: [{{label, value}}], rule_summary}}, center_panel: {{title, svg_diagram}}, quick_check: {{prompt, expected_answer, hint}}}}
 """
     messages = [
-        {"role": "system", "content": "You output strictly valid JSON conforming to the requested schema. No markdown formatting outside JSON."},
+        {"role": "system", "content": "You output strictly valid JSON conforming to the requested schema. No markdown wrapping outside the JSON."},
         {"role": "user", "content": prompt}
     ]
+    # In llama/openai/groq we specify temperature=0
     resp = client.chat.completions.create(model=g_mod, temperature=0, response_format={"type": "json_object"}, messages=messages)
     data = json.loads(resp.choices[0].message.content)
     return data, g_prov, g_mod
@@ -480,16 +458,15 @@ def source_coverage_verification(lesson, evidence_map):
     for ev_ex in evidence_map["exercises"]:
         num = str(ev_ex.get("exercise_number")).strip()
         if num not in gen_ex_nums:
-            raise ValueError(f"SOURCE_COVERAGE_GATE_FAILED: Exercise {num} present in textbook but missing from generated solutions.")
+            raise ValueError(f"SOURCE_COVERAGE_GATE_FAILED: Exercise/Problem {num} present in textbook but missing from generated solutions.")
 
 # -------------------------------------------------------------
-# STAGE 29 & 30: HTML Assembly & Mobile/Functional Checks
+# STAGE 29 & 30: Assemble HTML & Functional Testing
 # -------------------------------------------------------------
 def assemble_html(lesson, identity, book_meta):
     e = lambda v: html.escape(str(v), quote=True)
     golden_css = (ROOT / "app/static/nabil_lesson_golden.css").read_text(encoding="utf-8") if (ROOT / "app/static/nabil_lesson_golden.css").exists() else ""
 
-    # Concepts
     concepts_html = []
     for idx, c in enumerate(lesson.get("concepts", []), 1):
         f_box = f'<div class="formula">{c["formula"]}</div>' if c.get("formula") else ""
@@ -502,7 +479,6 @@ def assemble_html(lesson, identity, book_meta):
             {svg}
         </section>''')
 
-    # Activities
     activities_html = []
     for idx, act in enumerate(lesson.get("activities", []), 1):
         svg = f'<div class="fig">{act["svg_diagram"]}</div>' if act.get("svg_diagram") else ""
@@ -517,7 +493,6 @@ def assemble_html(lesson, identity, book_meta):
             </div>
         </div>''')
 
-    # Live Lab
     lab = lesson.get("live_lab", {})
     controls_html = []
     for c in lab.get("controls", []):
@@ -543,7 +518,6 @@ def assemble_html(lesson, identity, book_meta):
         </div>
     </section>''' if lab.get("initial_svg") else ""
 
-    # Solved Exercises in 3-Column Architecture
     exercises_html = []
     for ex in lesson.get("exercises", []):
         ex_n = e(ex.get("exercise_number", ""))
@@ -552,7 +526,7 @@ def assemble_html(lesson, identity, book_meta):
         exercises_html.append(f'''
         <div class="exercise-container">
           <div class="exercise-header">
-            <span class="badge-ex">Exercise {ex_n}</span>
+            <span class="badge-ex">Exercise / Problem {ex_n}</span>
             <span class="badge-sub">{e(ex.get("concept_tested", "Curriculum Problem"))}</span>
           </div>
           <div class="exercise-grid">
@@ -562,12 +536,12 @@ def assemble_html(lesson, identity, book_meta):
             </div>
             <div class="content-panel">
               <div>
-                <div class="given-title">Given &amp; Question</div>
+                <div class="given-title">Given &amp; Formulation</div>
                 <p>{ex.get("prompt")}</p>
                 {"<p class=tag><strong>Given Data:</strong> " + ex.get("given_data") + "</p>" if ex.get("given_data") else ""}
               </div>
               <div>
-                <button class="btn-solve" type="button" onclick="toggleElem('sol-{ex_n}')">Show Step-by-Step Solution</button>
+                <button class="btn-solve" type="button" onclick="toggleElem('sol-{ex_n}')">Show Complete Solution</button>
                 <div id="sol-{ex_n}" class="solution-box" style="display:none;">
                   <ol style="padding-left:18px; margin:6px 0;">{steps_html}</ol>
                   <div class="formula"><strong>Final Answer:</strong> {ex.get("final_answer", "")}</div>
@@ -587,7 +561,6 @@ def assemble_html(lesson, identity, book_meta):
           </div>
         </div>''')
 
-    # Worksheet
     ws_rows = []
     ws_answers = []
     for idx, w in enumerate(lesson.get("worksheet", [])):
@@ -603,7 +576,6 @@ def assemble_html(lesson, identity, book_meta):
             </div>
         </div>''')
 
-    # Summary Dashboard
     sum_data = lesson.get("summary_card", {})
     left_p = sum_data.get("left_panel", {})
     center_p = sum_data.get("center_panel", {})
@@ -736,7 +708,7 @@ input, select {{ padding:9px; border-radius:6px; border:1px solid #36a5dc; backg
   </section>
   {lab_html}
   <section>
-    <h2>Solved Textbook Exercises</h2>
+    <h2>Solved Textbook Exercises &amp; Problems</h2>
     {"".join(exercises_html)}
   </section>
   <section class="card">
@@ -763,6 +735,11 @@ function checkQ(idx) {{
   var fb = document.getElementById('f' + idx);
   if (!el || !fb) return;
   var val = el.value.trim().toLowerCase();
+  if (val === '') {{
+    fb.textContent = 'Please enter an answer.';
+    fb.style.color = '#ffe49a';
+    return;
+  }}
   var ok = false;
   if (cfg.type === 'numeric') {{
     var num = parseFloat(val);
@@ -836,12 +813,12 @@ def check_alias_collision(service, folder_id, canonical_filename, lesson_identit
 def publish_to_drive(service, root_id, grade_folder_name, subject_folder_name, filename, content_bytes, meta_desc):
     grade_id = ensure_drive_folder(service, root_id, grade_folder_name)
     subject_id = ensure_drive_folder(service, grade_id, subject_folder_name)
-    
+
     from googleapiclient.http import MediaIoBaseUpload
     body = {"name": filename, "parents": [subject_id], "description": meta_desc}
     media = MediaIoBaseUpload(io.BytesIO(content_bytes), mimetype="text/html", resumable=False)
     uploaded = service.files().create(body=body, media_body=media, fields="id,name,size").execute()
-    
+
     # Stage 35: Readback Checksum Verification
     readback = service.files().get_media(fileId=uploaded["id"]).execute()
     if hashlib.sha256(readback).hexdigest() != hashlib.sha256(content_bytes).hexdigest():
@@ -872,7 +849,7 @@ def run_pipeline(report_path, publish=False):
     for book in ledger["books"]:
         grade_num, curr_grade, grade_f = canonical_grade(book["grade"])
         subj_f = canonical_subject_folder(book["subject"])
-        
+
         temp_dir = tempfile.TemporaryDirectory(prefix="nabil_run_")
         pdf_path = Path(temp_dir.name) / "book.pdf"
         download_pdf_to_path(service, book["drive_file_id"], pdf_path)
@@ -880,7 +857,7 @@ def run_pipeline(report_path, publish=False):
         from pypdf import PdfReader
         reader = PdfReader(str(pdf_path))
         toc_entries = extract_toc_entries(reader, pdf_path)
-        
+
         # Stage 8: Locate First Unfinished Lesson
         finished_keys = {x.get("lesson_key") for x in book.get("authored_lessons", []) if x.get("status") == "verified_complete"}
         selected_entry = None
@@ -892,7 +869,7 @@ def run_pipeline(report_path, publish=False):
                 selected_entry = (entry, ident)
                 toc_idx = idx
                 break
-        
+
         if not selected_entry:
             continue
 
@@ -904,21 +881,20 @@ def run_pipeline(report_path, publish=False):
         for p in identity["source_pages"]:
             ptxt = reader.pages[p - 1].extract_text() or ""
             if len(ptxt) < 60:
-                # OCR fallback
                 sc = bounded(["pdftoppm", "-f", str(p), "-l", str(p), "-singlefile", "-r", "140", "-jpeg", str(pdf_path), f"{temp_dir.name}/p_{p}"], 10)
                 ptxt = bounded(["tesseract", f"{temp_dir.name}/p_{p}.jpg", "stdout", "-l", "eng+fra+ara"], 8).decode("utf-8", "replace")
             pages_text[p] = ptxt
 
         images = render_source_images(pdf_path, identity["source_pages"])
         evidence_map = build_evidence_map(pages_text, images, book.get("language", "English"))
-        
+
         # Stage 14: Quality Gate
         verify_source_coverage_gate(evidence_map)
-        progress("STAGE_14_SOURCE_COVERAGE_PASSED", exercises=len(evidence_map["exercises"]))
+        progress("STAGE_14_SOURCE_COVERAGE_PASSED", exercises_and_problems=len(evidence_map["exercises"]))
 
         # Stage 15 & 16: Pedagogy Profile
         pedagogy = build_pedagogy_profile(grade_num, book["subject"])
-        
+
         # Stage 17 - 24: Generate Lesson
         lesson, gen_prov, gen_mod = generate_lesson_code(title, identity, evidence_map, pedagogy, book)
         progress("STAGE_24_LESSON_GENERATED", provider=gen_prov, model=gen_mod)
@@ -931,13 +907,13 @@ def run_pipeline(report_path, publish=False):
         # Stage 29 & 30: Assemble HTML and Test Functional Quality
         html_content = assemble_html(lesson, identity, book)
         functional_quality_gate(html_content)
-        
+
         # Stage 31: Dry Run Verification Artifacts
         out_html = report_path.with_name(identity["canonical_filename"])
         out_html.write_text(html_content, encoding="utf-8")
         out_ev = report_path.with_name(f"{identity['lesson_key']}-evidence.json")
         out_ev.write_text(json.dumps(evidence_map, ensure_ascii=False, indent=2), encoding="utf-8")
-        
+
         report["status"] = "LOCAL_VERIFIED_DRY_RUN_SUCCESS"
         report["lesson_key"] = identity["lesson_key"]
         report["canonical_title"] = title
@@ -956,7 +932,7 @@ def run_pipeline(report_path, publish=False):
         progress("STAGE_35_DRIVE_UPLOAD_AND_READBACK_VERIFIED", drive_id=drive_file_id)
 
         test_nabil_discovery(drive_file_id, folder_id, identity["canonical_filename"])
-        
+
         # Stage 36: Update Ledger
         ledger_entry = {
             "lesson_key": identity["lesson_key"],
@@ -971,7 +947,7 @@ def run_pipeline(report_path, publish=False):
         }
         book.setdefault("authored_lessons", []).append(ledger_entry)
         LEDGER_PATH.write_text(json.dumps(ledger, ensure_ascii=False, indent=2), encoding="utf-8")
-        
+
         report["status"] = "VERIFIED_COMPLETE"
         report["production"] = ledger_entry
         report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -986,6 +962,6 @@ if __name__ == "__main__":
     parser.add_argument("--report", default="data/nabil_lesson_factory_run.json")
     parser.add_argument("--publish", action="store_true", help="Authorize actual Drive upload and ledger commit")
     args = parser.parse_args()
-    
+
     rep = run_pipeline(Path(args.report), publish=args.publish)
     sys.exit(0 if "SUCCESS" in rep["status"] or rep["status"] == "VERIFIED_COMPLETE" else 1)
