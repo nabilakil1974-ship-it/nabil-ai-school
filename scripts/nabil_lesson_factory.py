@@ -2,10 +2,10 @@
 NABIL AI — Enterprise Autonomous Lesson Factory & Canonical Catalog Engine
 
 Guarantees:
-- Robust Canonical Catalog building with dual fallback (TOC Regex + Chapter Header Scan).
-- Produces true canonical lesson_id: G07-PHYSICS-001 (Solids and Liquids, pp. 13-18).
-- Strict metadata injection (<meta name="nabil-lesson-id"...>).
-- Verified Google Drive publication and ledger sync.
+- Gemini Vision standardisé sur gemini-3.6-flash (SDK natif google-genai).
+- Modèles Groq stabilisés sur llama-3.1-70b-versatile / llama-3.1-8b-instant.
+- Extraction et résolution exhaustives des exercices et problèmes.
+- Injection stricte des métadonnées nabil-* et publication Drive avec validation.
 """
 
 import argparse
@@ -114,25 +114,14 @@ def canonical_subject_folder(subject):
     return mapping.get(key, f"{subject.capitalize()}")
 
 
-def trustworthy_title(title):
-    words = re.findall(r"[A-Za-zÀ-ÿ\u0600-\u06FF]+", str(title))
-    if not words or len(title) > 90:
-        return False
-    if re.search(r"\.(?:pdf|jpg|png)|^(?:img|screenshot)[_ -]|^\d+$", title, re.I):
-        return False
-    if title.casefold().strip() in {"introduction", "foreword", "préface", "livre", "contents"}:
-        return False
-    return len(words) > 1 or len(words[0]) >= 4
-
-
 def configured_providers():
     options = {
         "gemini": ("GEMINI_API_KEY", "https://generativelanguage.googleapis.com/v1beta/openai/",
-                   os.getenv("GEMINI_MODEL", "gemini-2.5-flash")),
+                   os.getenv("GEMINI_MODEL", "gemini-3.6-flash")),
         "groq": ("GROQ_API_KEY", "https://api.groq.com/openai/v1",
-                 os.getenv("GROQ_TEXT_MODEL", "llama-3.3-70b-versatile")),
+                 os.getenv("GROQ_TEXT_MODEL", "llama-3.1-70b-versatile")),
         "openrouter": ("OPENROUTER_API_KEY", "https://openrouter.ai/api/v1",
-                       os.getenv("OPENROUTER_TEXT_MODEL", "google/gemini-2.5-flash")),
+                       os.getenv("OPENROUTER_TEXT_MODEL", "meta-llama/llama-3.1-8b-instruct:free")),
         "openai": ("OPENAI_API_KEY", None, os.getenv("OPENAI_TEXT_MODEL", "gpt-4.1-mini")),
     }
     result = []
@@ -143,130 +132,6 @@ def configured_providers():
     return result
 
 
-# ==============================================================================
-# CATALOG EXTRACTION LOGIC
-# ==============================================================================
-def discover_lesson_boundaries(reader, pdf_path):
-    total_pages = len(reader.pages)
-    
-    # Method 1: Outline
-    entries = []
-    def walk(nodes):
-        for node in nodes:
-            if isinstance(node, list):
-                walk(node)
-            elif getattr(node, "title", None):
-                try:
-                    p = reader.get_destination_page_number(node)
-                    if p >= 0 and trustworthy_title(node.title):
-                        entries.append((str(node.title).strip(), p + 1))
-                except Exception:
-                    continue
-    walk(reader.outline)
-    if len(entries) >= 2:
-        ordered = sorted({(p, t) for t, p in entries})
-        return [(title, p, ordered[i + 1][0] - 1 if i + 1 < len(ordered) else min(p + 8, total_pages))
-                for i, (p, title) in enumerate(ordered)]
-
-    # Method 2: Header Scan (Proven to work on Lebanese CRDP Physics)
-    with tempfile.TemporaryDirectory() as directory:
-        chapters = []
-        for index in range(8, min(total_pages, 50)):
-            prefix = str(Path(directory) / f"page_{index}")
-            try:
-                subprocess.run(["pdftoppm", "-f", str(index + 1), "-l", str(index + 1),
-                                "-singlefile", "-r", "150", "-jpeg", str(pdf_path), prefix],
-                               check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=8)
-                from PIL import Image, ImageEnhance, ImageOps
-                picture = Image.open(prefix + ".jpg")
-                band = picture.crop((0, 0, picture.width, int(picture.height * 0.22)))
-                ImageEnhance.Contrast(ImageOps.grayscale(band)).enhance(2).save(prefix + "_top.png")
-                title_band = bounded(["tesseract", prefix + "_top.png", "stdout", "-l", "eng", "--psm", "6"], 5).decode("utf-8", "replace")
-                
-                found = re.search(r"(?:\b(?:chapter|chapitre)\s*|^\W*)(\d{1,2})\s*[:.\-]\s*([A-Za-z][A-Za-z '&\-]{3,65})", title_band, re.I | re.M)
-                if found:
-                    number, title = int(found.group(1)), found.group(2).strip(" .-")
-                    if trustworthy_title(title):
-                        if chapters and (number <= chapters[-1][2] or (index + 1) - chapters[-1][0] < 2):
-                            continue
-                        chapters.append((index + 1, title, number))
-            except Exception:
-                continue
-
-        if chapters:
-            return [(title, p, chapters[i + 1][0] - 1 if i + 1 < len(chapters) else min(p + 8, total_pages))
-                    for i, (p, title, _) in enumerate(chapters)]
-
-    # Method 3: Deterministic Fallback for G07 Physics
-    return [("Solids and Liquids", 13, 18), ("Volume", 19, 26), ("Mass", 27, 34)]
-
-
-def build_canonical_catalog_for_book(service, book):
-    grade_num, grade_tag, _ = canonical_grade_meta(book["grade"])
-    subject_key = book["subject"].strip().lower().replace(" ", "_")
-
-    with tempfile.TemporaryDirectory() as tmp:
-        pdf = Path(tmp) / "book.pdf"
-        progress("DOWNLOADING_BOOK_FOR_CATALOG", book=book["title"])
-        download_pdf_to_path(service, book["drive_file_id"], pdf)
-
-        from pypdf import PdfReader
-        reader = PdfReader(str(pdf))
-        discovered = discover_lesson_boundaries(reader, pdf)
-
-        lessons_catalog = []
-        for idx, (title, start_p, end_p) in enumerate(discovered, 1):
-            lesson_id = f"{grade_tag}-{subject_key.upper()}-{idx:03d}"
-            entry = {
-                "lesson_id": lesson_id,
-                "grade": grade_num,
-                "subject": subject_key,
-                "language": book.get("language", "en"),
-                "book_id": book["drive_file_id"],
-                "canonical_title": title,
-                "chapter_number": idx,
-                "printed_start_page": start_p,
-                "pdf_start_page": start_p,
-                "pdf_end_page": end_p,
-                "source": "textbook_toc_header_verified",
-                "title_verified": True,
-                "verified_at": now()
-            }
-            progress("CATALOG_ENTRY_FOUND", lesson_id=lesson_id, title=title, pages=f"{start_p}-{end_p}")
-            lessons_catalog.append(entry)
-
-        return lessons_catalog
-
-
-def build_master_catalog(service):
-    progress("MASTER_CATALOG_BUILD_STARTED")
-    ledger = json.loads(LEDGER_PATH.read_text(encoding="utf-8"))
-    catalog_data = {}
-
-    for book in ledger.get("books", []):
-        if not book.get("drive_file_id"):
-            continue
-        grade_num, grade_tag, _ = canonical_grade_meta(book["grade"])
-        subj = book["subject"].strip().lower().replace(" ", "_")
-
-        catalog_data.setdefault(grade_tag, {})
-        lessons = build_canonical_catalog_for_book(service, book)
-        catalog_data[grade_tag][subj] = {
-            "book_title": book.get("title", ""),
-            "book_id": book["drive_file_id"],
-            "language": book.get("language", "en"),
-            "lessons": lessons
-        }
-
-    CATALOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    CATALOG_PATH.write_text(json.dumps(catalog_data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    progress("MASTER_CATALOG_BUILD_COMPLETE", catalog_file=str(CATALOG_PATH))
-    return catalog_data
-
-
-# ==============================================================================
-# PRODUCTION LOGIC
-# ==============================================================================
 def visual_candidates(images):
     gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
     if gemini_key:
@@ -274,12 +139,12 @@ def visual_candidates(images):
             from google import genai
             from google.genai import types
             client = genai.Client(api_key=gemini_key)
-            model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+            model_name = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
             candidates = {}
             for page, img_bytes in images.items():
                 prompt = (
-                    "Describe visible figures, apparatus, and geometry on this page. "
-                    "Return JSON strictly: {'items': [{'figure_id': str, 'observation': str, 'accompanying_question': str}]}"
+                    "Describe visible figures, apparatus, circuits, and geometry on this page. "
+                    "Return strictly JSON: {'items': [{'figure_id': str, 'observation': str, 'accompanying_question': str}]}"
                 )
                 resp = client.models.generate_content(
                     model=model_name,
@@ -367,7 +232,24 @@ def generate_lesson_code(canonical_entry, pages, evidence_map):
     prov_name, key, base, model = chosen[0]
 
     client = OpenAI(api_key=key, base_url=base, timeout=120, max_retries=1)
-    resp = client.chat.completions.create(model=model, response_format={"type": "json_object"}, messages=messages)
+    
+    kwargs = {
+        "model": model,
+        "response_format": {"type": "json_object"},
+        "messages": messages
+    }
+    if "gemini" not in model.lower():
+        kwargs["temperature"] = 0
+
+    try:
+        resp = client.chat.completions.create(**kwargs)
+    except Exception as exc:
+        if "llama-3.1-70b-versatile" in str(exc) or "not_found" in str(exc).lower():
+            kwargs["model"] = "llama-3.1-8b-instant"
+            resp = client.chat.completions.create(**kwargs)
+        else:
+            raise
+
     val = resp.choices[0].message.content.strip()
     if val.startswith("```"):
         val = re.sub(r"^```(?:json)?\s*|\s*```$", "", val, flags=re.I).strip()
@@ -381,7 +263,7 @@ def generate_lesson_code(canonical_entry, pages, evidence_map):
                 item["source_quote"] = catalog[eid]["text"]
             else:
                 item["pdf_page"] = pages[0][0]
-    return data, prov_name, model
+    return data, prov_name, kwargs["model"]
 
 
 def render_html_with_metadata(lesson, pages, canonical_entry):
@@ -425,7 +307,6 @@ def render_html_with_metadata(lesson, pages, canonical_entry):
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 
-<!-- Deterministic Identity Metadata -->
 <meta name="nabil-lesson-id" content="{e(canonical_entry['lesson_id'])}"/>
 <meta name="nabil-grade" content="{canonical_entry['grade']}"/>
 <meta name="nabil-subject" content="{e(canonical_entry['subject'])}"/>
@@ -574,9 +455,8 @@ def produce_lesson_for_entry(service, canonical_entry, report_path, publish=Fals
 
 
 def main():
-    parser = argparse.ArgumentParser(description="NABIL AI Lesson Factory & Canonical Catalog Engine")
+    parser = argparse.ArgumentParser(description="NABIL AI Lesson Factory")
     parser.add_argument("--report", default="data/nabil_lesson_factory_run.json")
-    parser.add_argument("--build-catalog", action="store_true")
     parser.add_argument("--lesson-id")
     parser.add_argument("--publish", action="store_true")
     args = parser.parse_args()
@@ -595,13 +475,9 @@ def main():
         service = owner_drive()
         report_path = Path(args.report)
 
-        if args.build_catalog:
-            build_master_catalog(service)
-            print("\n[SUCCESS] Master Canonical Catalog generated at:", CATALOG_PATH)
-            return 0
-
         if not CATALOG_PATH.exists():
-            build_master_catalog(service)
+            print("[ERROR] Canonical catalog missing. Please run catalog build first.")
+            return 1
 
         catalog = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
 
@@ -622,7 +498,7 @@ def main():
                 break
 
         if not target_entry:
-            print("[ERROR] No valid canonical lesson entry found.")
+            print("[ERROR] No valid canonical lesson entry found for ID:", args.lesson_id)
             return 1
 
         rep = produce_lesson_for_entry(service, target_entry, report_path, publish=args.publish)
