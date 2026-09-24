@@ -585,6 +585,7 @@ def generate(title, pages, language, evidence_map, previous_failures=None,
 
 def configured_providers():
     """Use existing platform credentials, in its configured priority order."""
+    cloudflare_account = os.getenv("CLOUDFLARE_ACCOUNT_ID", "").strip()
     options = {
         "groq": ("GROQ_API_KEY", "https://api.groq.com/openai/v1",
                  os.getenv("GROQ_TEXT_MODEL", "openai/gpt-oss-120b")),
@@ -592,6 +593,9 @@ def configured_providers():
                        os.getenv("OPENROUTER_TEXT_MODEL", "openrouter/free")),
         "gemini": ("GEMINI_API_KEY", "https://generativelanguage.googleapis.com/v1beta/openai/",
                    os.getenv("GEMINI_TEXT_MODEL", "gemini-3.6-flash")),
+        "cloudflare": ("CLOUDFLARE_API_TOKEN",
+                       f"https://api.cloudflare.com/client/v4/accounts/{cloudflare_account}/ai/v1",
+                       os.getenv("CLOUDFLARE_TEXT_MODEL", "@cf/google/gemma-4-26b-a4b-it")),
         "openai": ("OPENAI_API_KEY", None, os.getenv("OPENAI_TEXT_MODEL", "gpt-5.5")),
     }
     order = os.getenv("NABIL_AI_PROVIDER_ORDER", "groq,openrouter,gemini,openai")
@@ -599,11 +603,13 @@ def configured_providers():
     # Railway may configure a partial or outdated order. Never silently hide
     # a configured key merely because its provider is absent from that list.
     names = dict.fromkeys([*(x.strip().lower() for x in order.split(",")),
-                           "groq", "openrouter", "gemini", "openai"])
+                           "groq", "openrouter", "gemini", "cloudflare", "openai"])
     for name in names:
         if name not in options:
             continue
         env, base, model = options[name]
+        if name == "cloudflare" and not cloudflare_account:
+            continue
         if name=="openai" and os.getenv("NABIL_LESSON_ALLOW_PAID_OPENAI")!="1":
             continue
         if os.getenv(env, "").strip():
