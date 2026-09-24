@@ -4,12 +4,11 @@ Produce at most one verified, source-grounded lesson from registered Drive PDFs.
 NABIL AI — Enterprise Autonomous Lesson Factory (Rigorous Architectural Standard)
 Architecture:
 - Text Evidence (OCR) strictly separated from Visual Candidates (Multimodal Vision).
-- Gemini 3.6 Flash / Free Tier multimodal integration without obsolete parameters.
-- Robust endpoint URL formatting for Google AI Studio OpenAI-compatible gateway.
+- Gemini Multimodal Vision with resilient endpoint routing and multi-provider failover.
 - Independent Skeptical Scientific Review with full access to raw page images.
 - Exhaustive Coverage: Mandatory solution of all Exercises AND end-of-chapter Problems.
 - KaTeX typography integration and semantic color-coded SVG diagrams.
-- Avatar-free, modular HTML architecture designed to nest within the NABIL AI Platform Shell.
+- Clean modular HTML architecture designed to nest within the NABIL AI Platform Shell.
 - Dry-run safe by default; writes to Drive and Ledger require explicit --publish.
 """
 
@@ -67,10 +66,42 @@ def bounded(command, seconds, **kwargs):
     return out
 
 
+def configured_providers():
+    cloudflare_account = os.getenv("CLOUDFLARE_ACCOUNT_ID", "").strip()
+    
+    options = {
+        "gemini": ("GEMINI_API_KEY", "https://generativelanguage.googleapis.com/v1beta/openai/",
+                   os.getenv("GEMINI_MODEL", "gemini-2.0-flash")),
+        "groq": ("GROQ_API_KEY", "https://api.groq.com/openai/v1",
+                 os.getenv("GROQ_TEXT_MODEL", "llama-3.3-70b-versatile")),
+        "openrouter": ("OPENROUTER_API_KEY", "https://openrouter.ai/api/v1",
+                       os.getenv("OPENROUTER_TEXT_MODEL", "meta-llama/llama-3.1-8b-instruct:free")),
+        "cloudflare": ("CLOUDFLARE_API_TOKEN",
+                       f"https://api.cloudflare.com/client/v4/accounts/{cloudflare_account}/ai/v1",
+                       os.getenv("CLOUDFLARE_TEXT_MODEL", "@cf/google/gemma-4-26b-a4b-it")),
+        "openai": ("OPENAI_API_KEY", None, os.getenv("OPENAI_TEXT_MODEL", "gpt-4.1-mini")),
+    }
+    order = os.getenv("NABIL_AI_PROVIDER_ORDER", "gemini,groq,openrouter,openai")
+    result = []
+    names = dict.fromkeys([*(x.strip().lower() for x in order.split(",")),
+                           "gemini", "groq", "openrouter", "cloudflare", "openai"])
+    for name in names:
+        if name not in options:
+            continue
+        env, base, model = options[name]
+        if name == "cloudflare" and not cloudflare_account:
+            continue
+        if name == "openai" and os.getenv("NABIL_LESSON_ALLOW_PAID_OPENAI") != "1":
+            continue
+        if os.getenv(env, "").strip():
+            result.append((name, os.environ[env], base, model))
+    return result
+
+
 def vision_page_text(image, page):
     from openai import OpenAI
     models = {
-        "gemini": os.getenv("GEMINI_VISION_MODEL", os.getenv("GEMINI_MODEL", "gemini-3.6-flash")),
+        "gemini": os.getenv("GEMINI_VISION_MODEL", os.getenv("GEMINI_MODEL", "gemini-2.0-flash")),
         "openai": os.getenv("OPENAI_VISION_MODEL", "gpt-4.1-mini"),
         "openrouter": os.getenv("OPENROUTER_VISION_MODEL", "openrouter/free"),
         "groq": os.getenv("GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct"),
@@ -83,7 +114,7 @@ def vision_page_text(image, page):
             raise TimeoutError("VISION_DEADLINE_EXCEEDED")
         try:
             client = OpenAI(api_key=key, base_url=base, timeout=remaining, max_retries=1)
-            chosen_model = models.get(provider, "gemini-3.6-flash")
+            chosen_model = models.get(provider, "gemini-2.0-flash")
             
             response = client.chat.completions.create(
                 model=chosen_model,
@@ -329,80 +360,81 @@ def lesson_key(book, title, start):
 
 def visual_candidates(images):
     """
-    Extracts visual candidates from textbook pages with proper endpoint fallback.
-    Maintains strict separation between physical observation and inferences.
+    Extracts visual candidates from textbook pages with multi-provider failover.
+    Separates physical observations from deductions.
     """
     providers = configured_providers()
     if not providers:
         raise RuntimeError("NO_AI_PROVIDERS_AVAILABLE")
     from openai import OpenAI
-    
-    # Prioritize gemini if present; otherwise fallback to other active vision providers
-    candidate_providers = [p for p in providers if p[0] in ("gemini", "openai", "openrouter")]
-    if not candidate_providers:
-        candidate_providers = providers
 
-    name, key, base, default_model = candidate_providers[0]
-    model = os.getenv("NABIL_VISUAL_MODEL", default_model)
-    client = OpenAI(api_key=key, base_url=base, timeout=50, max_retries=1)
-    
+    vision_models = {
+        "gemini": os.getenv("GEMINI_MODEL", "gemini-2.0-flash"),
+        "openai": os.getenv("OPENAI_VISION_MODEL", "gpt-4.1-mini"),
+        "openrouter": os.getenv("OPENROUTER_VISION_MODEL", "openrouter/free"),
+        "groq": os.getenv("GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct"),
+    }
+
     candidates = {}
-    extraction_failures = []
-    
-    for page, image in images.items():
-        messages = [
-            {"role": "system", "content": (
-                "Describe only visible figures, graphs, circuits, apparatus, chemical structures, and "
-                "geometry on this textbook page. Identify a printed figure label if visible; "
-                "otherwise use a short location description. Keep observed relationships "
-                "separate from inferences. Return JSON {items:[{figure_id:string, observation:string, "
-                "accompanying_question:string}]}."
-            )},
-            {"role": "user", "content": [
-                {"type": "text", "text": f"PDF page {page}; extract tentative visual observations."},
-                {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," +
-                    base64.b64encode(image).decode("ascii")}}
-            ]},
-        ]
-        try:
-            kwargs = {
-                "model": model,
-                "response_format": {"type": "json_object"},
-                "messages": messages,
-            }
-            # Only set temperature on models that officially accept it
-            if "gemini" not in model.lower():
-                kwargs["temperature"] = 0
-                
-            response = client.chat.completions.create(**kwargs)
-            data = parse_provider_json(client, name, messages, response, model)
-            items = data.get("items", [])
-            if not isinstance(items, list):
-                continue
-            for index, item in enumerate(items[:30], 1):
-                if not isinstance(item, dict):
-                    continue
-                observation = item.get("observation")
-                figure = item.get("figure_id")
-                if not isinstance(observation, str) or not observation.strip():
-                    continue
-                if not isinstance(figure, str) or not figure.strip():
-                    continue
-                candidates[f"P{page}-VIS-{index}"] = {
-                    "page": page, "type": "visual_candidate", "figure_id": figure,
-                    "text": observation.strip(),
-                    "accompanying_question": str(item.get("accompanying_question", "")),
-                    "verified": False,
+    last_error = None
+
+    for prov_name, key, base, default_mod in providers:
+        model = vision_models.get(prov_name, default_mod)
+        client = OpenAI(api_key=key, base_url=base, timeout=45, max_retries=1)
+        prov_candidates = {}
+        failed = False
+
+        for page, image in images.items():
+            messages = [
+                {"role": "system", "content": (
+                    "Describe only visible figures, graphs, circuits, apparatus, chemical structures, and "
+                    "geometry on this textbook page. Identify a printed figure label if visible; "
+                    "otherwise use a short location description. Keep observed relationships "
+                    "separate from inferences. Return JSON {items:[{figure_id:string, observation:string, "
+                    "accompanying_question:string}]}."
+                )},
+                {"role": "user", "content": [
+                    {"type": "text", "text": f"PDF page {page}; extract tentative visual observations."},
+                    {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," +
+                        base64.b64encode(image).decode("ascii")}}
+                ]},
+            ]
+            try:
+                kwargs = {
+                    "model": model,
+                    "response_format": {"type": "json_object"},
+                    "messages": messages,
                 }
-        except Exception as exc:
-            progress("VISUAL_CANDIDATE_EXTRACTION_FAILED", page=page, error_type=type(exc).__name__)
-            extraction_failures.append(f"{page}:{type(exc).__name__}")
-            if type(exc).__name__ == "RateLimitError":
+                if "gemini" not in model.lower():
+                    kwargs["temperature"] = 0
+
+                response = client.chat.completions.create(**kwargs)
+                data = parse_provider_json(client, prov_name, messages, response, model)
+                items = data.get("items", [])
+                if isinstance(items, list):
+                    for index, item in enumerate(items[:30], 1):
+                        if not isinstance(item, dict):
+                            continue
+                        obs = item.get("observation")
+                        fig = item.get("figure_id")
+                        if obs and fig:
+                            prov_candidates[f"P{page}-VIS-{index}"] = {
+                                "page": page, "type": "visual_candidate", "figure_id": str(fig).strip(),
+                                "text": str(obs).strip(),
+                                "accompanying_question": str(item.get("accompanying_question", "")),
+                                "verified": False,
+                            }
+            except Exception as exc:
+                progress("VISUAL_PROVIDER_ATTEMPT_FAILED", provider=prov_name, page=page, error=type(exc).__name__)
+                last_error = f"{prov_name}:{type(exc).__name__}"
+                failed = True
                 break
-                
-    if extraction_failures:
-        raise RuntimeError("VISUAL_CANDIDATE_EXTRACTION_FAILED: " + ",".join(extraction_failures))
-    return candidates, name, model
+
+        if not failed and prov_candidates:
+            progress("VISUAL_EXTRACTION_SUCCESS", provider=prov_name, model=model, items_count=len(prov_candidates))
+            return prov_candidates, prov_name, model
+
+    raise RuntimeError("VISUAL_CANDIDATE_EXTRACTION_FAILED: " + str(last_error))
 
 
 def evidence_catalog(pages, candidates=None):
@@ -592,39 +624,6 @@ def generate(title, pages, language, evidence_map, previous_failures=None,
         except Exception as exc:
             errors.append(f"{provider}: {type(exc).__name__}: {str(exc)[:180]}")
     raise RuntimeError("ALL_CONFIGURED_PROVIDERS_FAILED: " + " | ".join(errors))
-
-
-def configured_providers():
-    cloudflare_account = os.getenv("CLOUDFLARE_ACCOUNT_ID", "").strip()
-    
-    # Officially supported, robust OpenAI-compatible gateways (trailing slash omitted)
-    options = {
-        "gemini": ("GEMINI_API_KEY", "[https://generativelanguage.googleapis.com/v1beta/openai](https://generativelanguage.googleapis.com/v1beta/openai)",
-                   os.getenv("GEMINI_MODEL", "gemini-3.6-flash")),
-        "groq": ("GROQ_API_KEY", "[https://api.groq.com/openai/v1](https://api.groq.com/openai/v1)",
-                 os.getenv("GROQ_TEXT_MODEL", "llama-3.3-70b-versatile")),
-        "openrouter": ("OPENROUTER_API_KEY", "[https://openrouter.ai/api/v1](https://openrouter.ai/api/v1)",
-                       os.getenv("OPENROUTER_TEXT_MODEL", "meta-llama/llama-3.1-8b-instruct:free")),
-        "cloudflare": ("CLOUDFLARE_API_TOKEN",
-                       f"[https://api.cloudflare.com/client/v4/accounts/](https://api.cloudflare.com/client/v4/accounts/){cloudflare_account}/ai/v1",
-                       os.getenv("CLOUDFLARE_TEXT_MODEL", "@cf/google/gemma-4-26b-a4b-it")),
-        "openai": ("OPENAI_API_KEY", None, os.getenv("OPENAI_TEXT_MODEL", "gpt-4.1-mini")),
-    }
-    order = os.getenv("NABIL_AI_PROVIDER_ORDER", "gemini,groq,openrouter,openai")
-    result = []
-    names = dict.fromkeys([*(x.strip().lower() for x in order.split(",")),
-                           "gemini", "groq", "openrouter", "cloudflare", "openai"])
-    for name in names:
-        if name not in options:
-            continue
-        env, base, model = options[name]
-        if name == "cloudflare" and not cloudflare_account:
-            continue
-        if name == "openai" and os.getenv("NABIL_LESSON_ALLOW_PAID_OPENAI") != "1":
-            continue
-        if os.getenv(env, "").strip():
-            result.append((name, os.environ[env], base, model))
-    return result
 
 
 def exercise_section_pages(pages):
@@ -990,7 +989,7 @@ h1,h2,h3,h4 {{ color:#8ce9ff; }}
 .grid {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; }}
 .fig {{ margin:14px 0; border:1px solid #2ca9dd; background:#09243b; border-radius:12px; padding:12px; text-align:center; }}
 .fig svg {{ max-width:100%; height:auto; display:block; margin:auto; }}
-.formula {{ border:1px solid #34b9ee; padding:14px; border-radius:10px; margin:12px 0; background:rgba(52,185,238,0.08); font-family:monospace; font-size:1.1rem; }}
+.formula {{ border:1px solid #34b9ee; padding:14px; border-radius:10px; margin:12px 0; background:rgba(52,185,238,0.08); font-size:1.1rem; }}
 .tag {{ color:#ffe49a; font-size:0.95rem; font-weight:bold; }}
 .btn {{ background:#1768c5; color:white; border:none; padding:10px 18px; border-radius:8px; cursor:pointer; font-weight:bold; margin:6px 0; }}
 .btn:hover {{ background:#2187ef; }}
