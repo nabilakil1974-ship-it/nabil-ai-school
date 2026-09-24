@@ -1,0 +1,71 @@
+name: Visual Evidence Pilot (read only)
+on:
+  push:
+    branches: [test/visual-evidence-pilot]
+  workflow_dispatch:
+jobs:
+  local-and-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: sudo apt-get update && sudo apt-get install -y poppler-utils tesseract-ocr
+      - run: python -m pip install openai pypdf google-api-python-client google-auth Pillow beautifulsoup4 python-pptx
+      - run: python -m unittest discover -s tests -p test_lesson_multimodal_review.py -v
+      - name: Probe actual source images with independent reviewer
+        id: probe
+        continue-on-error: true
+        env:
+          GOOGLE_DRIVE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_DRIVE_OAUTH_CLIENT_ID }}
+          GOOGLE_DRIVE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_DRIVE_OAUTH_CLIENT_SECRET }}
+          GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          NABIL_LESSON_ALLOW_PAID_OPENAI: ${{ vars.NABIL_LESSON_ALLOW_PAID_OPENAI }}
+          NABIL_VISUAL_PROVIDER: ${{ vars.NABIL_VISUAL_PROVIDER }}
+          NABIL_VISUAL_MODEL: ${{ vars.NABIL_VISUAL_MODEL }}
+          NABIL_REVIEWER_PROVIDER: ${{ vars.NABIL_REVIEWER_PROVIDER }}
+          NABIL_LESSON_REVIEW_MODEL: ${{ vars.NABIL_LESSON_REVIEW_MODEL }}
+        run: PYTHONPATH=. python tests/live_visual_pilot.py --report /tmp/live-vision-result.json
+      - name: Dry run one lesson; never publish
+        if: steps.probe.outcome == 'success'
+        continue-on-error: true
+        env:
+          GOOGLE_DRIVE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_DRIVE_OAUTH_CLIENT_ID }}
+          GOOGLE_DRIVE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_DRIVE_OAUTH_CLIENT_SECRET }}
+          GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          NABIL_LESSON_ALLOW_PAID_OPENAI: ${{ vars.NABIL_LESSON_ALLOW_PAID_OPENAI }}
+          NABIL_VISUAL_PROVIDER: ${{ vars.NABIL_VISUAL_PROVIDER }}
+          NABIL_VISUAL_MODEL: ${{ vars.NABIL_VISUAL_MODEL }}
+          NABIL_REVIEWER_PROVIDER: ${{ vars.NABIL_REVIEWER_PROVIDER }}
+          NABIL_LESSON_REVIEW_MODEL: ${{ vars.NABIL_LESSON_REVIEW_MODEL }}
+        run: >-
+          python -m scripts.nabil_lesson_factory
+          --report /tmp/solids-liquids-dry-run.json
+          --pilot-book-id 1LasqIgGUuck1l-2EZbj2kA0Dg9ygJ_AH
+          --pilot-lesson 'Solids and Liquids' --pilot-pages 13-18
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: visual-evidence-pilot-report
+          path: |
+            /tmp/live-vision-result.json
+            /tmp/solids-liquids-dry-run.json
+            /tmp/solids-liquids-dry-run-evidence-map.json
+            /tmp/solids-liquids-dry-run-lesson.html
+            /tmp/solids-liquids-dry-run-lesson.pptx
+          if-no-files-found: warn
+      - name: Require actual live success
+        if: always()
+        env:
+          PROBE_OUTCOME: ${{ steps.probe.outcome }}
+        run: test "$PROBE_OUTCOME" = success && test -f /tmp/solids-liquids-dry-run.json && python -c 'import json; assert json.load(open("/tmp/solids-liquids-dry-run.json"))["status"] == "LOCAL_VERIFIED_DRY_RUN_SUCCESS"'

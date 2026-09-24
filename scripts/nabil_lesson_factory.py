@@ -330,7 +330,67 @@ def lesson_key(book, title, start):
     return hashlib.sha256(f"{book['drive_file_id']}|{title}|{start}".encode()).hexdigest()[:20]
 
 
-def evidence_catalog(pages):
+def visual_candidates(images):
+    """Unverified figure observations proposed from page pixels, never approvals."""
+    providers = configured_providers()
+    if len({p[0] for p in providers}) < 3:
+        raise RuntimeError("THREE_INDEPENDENT_PROVIDERS_REQUIRED")
+    from openai import OpenAI
+    selected = os.getenv("NABIL_VISUAL_PROVIDER", "").strip().lower()
+    reserved_reviewer = os.getenv("NABIL_REVIEWER_PROVIDER", "").strip().lower()
+    choices = [p for p in providers if p[0] != reserved_reviewer
+               and (not selected or p[0] == selected)]
+    if not choices:
+        raise RuntimeError("VISUAL_EXTRACTOR_UNAVAILABLE")
+    name, key, base, default_model = choices[0]
+    model = os.getenv("NABIL_VISUAL_MODEL", default_model)
+    if not model:
+        raise RuntimeError("VISUAL_MODEL_NOT_CONFIGURED")
+    client = OpenAI(api_key=key, base_url=base, timeout=45, max_retries=0)
+    candidates = {}
+    for page, image in images.items():
+        messages = [
+            {"role": "system", "content": (
+                "Describe only visible figures, graphs, circuits, apparatus, structures and "
+                "geometry on this textbook page. Identify a printed figure label if visible; "
+                "otherwise use a short location description. Keep observed relationships "
+                "separate from inferences. Never answer an activity from general knowledge. "
+                "Return JSON {items:[{figure_id:string, observation:string, "
+                "accompanying_question:string}]}.")},
+            {"role": "user", "content": [
+                {"type": "text", "text": f"PDF page {page}; extract tentative visual observations."},
+                {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," +
+                    base64.b64encode(image).decode("ascii")}}]},
+        ]
+        try:
+            response = client.chat.completions.create(model=model, temperature=0,
+                response_format={"type": "json_object"}, messages=messages)
+            data = parse_provider_json(client, name, messages, response, model)
+            items = data.get("items", [])
+            if not isinstance(items, list):
+                continue
+            for index, item in enumerate(items[:30], 1):
+                if not isinstance(item, dict):
+                    continue
+                observation = item.get("observation")
+                figure = item.get("figure_id")
+                if not isinstance(observation, str) or not observation.strip():
+                    continue
+                if not isinstance(figure, str) or not figure.strip():
+                    continue
+                candidates[f"P{page}-VIS-{index}"] = {
+                    "page": page, "type": "visual_candidate", "figure_id": figure,
+                    "text": observation.strip(),
+                    "accompanying_question": str(item.get("accompanying_question", "")),
+                    "verified": False,
+                }
+        except Exception as exc:
+            progress("VISUAL_CANDIDATE_EXTRACTION_FAILED", page=page,
+                     error_type=type(exc).__name__)
+    return candidates, name, model
+
+
+def evidence_catalog(pages, candidates=None):
     """Immutable literal spans from each PDF page; IDs carry page provenance."""
     catalog={}
     for page,text in pages:
@@ -355,14 +415,16 @@ def evidence_catalog(pages):
             buffer=part
         if buffer:
             serial+=1; catalog[f"P{page}-{serial}"]={"page":page,"text":buffer}
+    catalog.update(candidates or {})
     return catalog
 
 
-def source_evidence_map(title, pages, catalog):
+def source_evidence_map(title, pages, catalog, visual_provider=None,
+                        visual_model=None):
     """Index source spans by the educational roles visibly present in the PDF.
 
-    Classification is only an index. The exact page text in catalog remains
-    the authority for every generated claim and visual.
+    Classification is only an index. Text spans are literal source excerpts;
+    visual candidates require independent review against the original image.
     """
     patterns={
         "objectives":r"objectives?|learn|aims?",
@@ -378,7 +440,20 @@ def source_evidence_map(title, pages, catalog):
                       if re.search(pattern,entry["text"],re.I)]
                 for name,pattern in patterns.items()}
     return {"title":title,"source_pdf_pages":[page for page,_ in pages],
-            "categories":categories,"evidence":catalog}
+            "categories":categories,"evidence":catalog,
+            "visual_extractor_provider":visual_provider,
+            "visual_extractor_model":visual_model,
+            "visual_evidence_status":"unverified_candidates"}
+
+
+def record_role_provenance(evidence_map, attempt, role, provider, model):
+    """Keep the on-disk evidence map and attempt report role identities aligned."""
+    if role not in ("generator", "visual_extractor", "reviewer"):
+        raise ValueError("UNKNOWN_PROVENANCE_ROLE")
+    for suffix, value in (("provider", provider), ("model", model)):
+        key = f"{role}_{suffix}"
+        evidence_map[key] = value
+        attempt[key] = value
 
 
 def attach_evidence(lesson,catalog):
@@ -392,6 +467,11 @@ def attach_evidence(lesson,catalog):
             if evidence:
                 item["pdf_page"]=evidence["page"]
                 item["source_quote"]=evidence["text"]
+                if evidence.get("type")=="visual_candidate":
+                    item["unverified_visual_candidate"]={
+                        "figure_id":evidence["figure_id"],
+                        "observation":evidence["text"],
+                        "accompanying_question":evidence["accompanying_question"]}
 
 
 def source_excerpt(reader, raw, start, end):
@@ -433,13 +513,15 @@ def parse_provider_json(client,provider,messages,response,model):
     return result
 
 
-def generate(title, pages, language, evidence_map, previous_failures=None):
+def generate(title, pages, language, evidence_map, previous_failures=None,
+             visual_provider=None, visual_model=None):
     from openai import OpenAI
     catalog=evidence_map["evidence"]
     source = json.dumps(evidence_map,ensure_ascii=False)
     messages = [
             {"role": "system", "content": (
-                "Create a complete, accurate classroom lesson solely from the supplied PDF text. "
+                "Create a complete, accurate classroom lesson from the supplied source map. "
+                "Visual candidates are unverified observations, never authoritative facts. "
                 "Return JSON with keys title, introduction, introduction_evidence_id, "
                 "concepts (array of objects: heading, explanation, "
                 "evidence_id, visual_evidence_id, example if source has one), "
@@ -458,7 +540,9 @@ def generate(title, pages, language, evidence_map, previous_failures=None):
                 "the claim or answer. Never create an evidence_id or pretend a diagram shows a value. "
                 "Do not invent source exercises or answers. A question in the source is NOT "
                 "evidence for its answer: cite an explicit source statement or a fully "
-                "verifiable worked derivation. Omit any activity whose answer cannot be "
+                "verifiable worked derivation. For visual answers cite the relevant "
+                "P{page}-VIS-{index} candidate, subject to independent image review. "
+                "Omit any activity whose answer cannot be "
                 "verified, and select another supported activity. If insufficient evidence "
                 "return {error: reason}. "
                 "Use the evidence map categories to cover objectives, concepts, activities, figures "
@@ -472,20 +556,28 @@ def generate(title, pages, language, evidence_map, previous_failures=None):
             "do not merely change their citations: "
             + json.dumps(previous_failures,ensure_ascii=False))})
     errors = []
-    for provider, api_key, base_url, model in configured_providers():
+    reserved_reviewer = os.getenv("NABIL_REVIEWER_PROVIDER", "").strip().lower()
+    eligible = [(provider, api_key, base_url,
+                 os.getenv("NABIL_LESSON_MODEL", model))
+                for provider, api_key, base_url, model in configured_providers()
+                if provider not in (visual_provider, reserved_reviewer)
+                and os.getenv("NABIL_LESSON_MODEL", model) != visual_model]
+    if not eligible:
+        raise RuntimeError("INDEPENDENT_REVIEWER_UNAVAILABLE")
+    for provider, api_key, base_url, chosen_model in eligible:
         try:
             client = OpenAI(api_key=api_key, base_url=base_url,
                             timeout=90, max_retries=0)
             response = client.chat.completions.create(
-                model=os.getenv("NABIL_LESSON_MODEL", model),
+                model=chosen_model,
                 temperature=0, response_format={"type": "json_object"},
                 messages=messages)
             result = parse_provider_json(client,provider,messages,response,
-                                         os.getenv("NABIL_LESSON_MODEL",model))
+                                         chosen_model)
             if result.get("error"):
                 raise ValueError("GENERATION_REFUSED: " + str(result["error"])[:200])
             attach_evidence(result,catalog)
-            return result
+            return result, provider, chosen_model
         except Exception as exc:
             errors.append(f"{provider}: {type(exc).__name__}: {str(exc)[:180]}")
     raise RuntimeError("ALL_CONFIGURED_PROVIDERS_FAILED: " + " | ".join(errors))
@@ -543,8 +635,9 @@ def check_content(lesson, title, pages, catalog):
                 # Collapse whitespace only; never tolerate changed words or
                 # fabricated source text.
                 if (len(quote) < 15 or
-                    re.sub(r"\s+"," ",quote) not in
-                    re.sub(r"\s+"," ",by_page[page])):
+                    (evidence.get("type") != "visual_candidate" and
+                     re.sub(r"\s+"," ",quote) not in
+                     re.sub(r"\s+"," ",by_page[page]))):
                     raise ValueError()
                 if section == "questions" and (len(item["options"]) != 3 or
                     type(item["correct_index"]) is not int or not 0 <= item["correct_index"] < 3):
@@ -565,7 +658,7 @@ def check_content(lesson, title, pages, catalog):
     return errors
 
 
-def repair_source_quotes(lesson,pages,catalog,failures):
+def repair_source_quotes(lesson,pages,catalog,failures,generator_provider):
     """One bounded attempt to replace invalid citations with catalog IDs.
 
     The original claims and answers remain unchanged; the scientific review
@@ -583,6 +676,8 @@ def repair_source_quotes(lesson,pages,catalog,failures):
         return False
     source=json.dumps(catalog,ensure_ascii=False)
     for provider,key,base,model in configured_providers():
+        if provider != generator_provider:
+            continue
         try:
             client=OpenAI(api_key=key,base_url=base,timeout=35,max_retries=0)
             messages=[
@@ -621,44 +716,82 @@ def repair_source_quotes(lesson,pages,catalog,failures):
     return False
 
 
-def scientific_review(lesson, pages):
-    """Independent second pass over the source and proposed answer key.
+def independent_reviewer(generator_provider, generator_model,
+                         visual_provider, visual_model):
+    """Fail closed unless a third, separately configured reviewer is available."""
+    if not visual_provider or not visual_model or visual_provider == generator_provider:
+        raise RuntimeError("INDEPENDENT_REVIEWER_UNAVAILABLE")
+    candidates = [p for p in configured_providers()
+                  if p[0] not in (generator_provider, visual_provider)]
+    selected = os.getenv("NABIL_REVIEWER_PROVIDER", "").strip().lower()
+    if selected:
+        candidates = [p for p in candidates if p[0] == selected]
+    if not candidates:
+        raise RuntimeError("INDEPENDENT_REVIEWER_UNAVAILABLE")
+    name, key, base, default_model = candidates[0]
+    model = os.getenv("NABIL_LESSON_REVIEW_MODEL", "").strip()
+    if not model:
+        raise RuntimeError("VISION_REVIEW_MODEL_NOT_CONFIGURED")
+    if model in (generator_model, visual_model):
+        raise RuntimeError("INDEPENDENT_REVIEWER_UNAVAILABLE")
+    return name, key, base, model
 
-    Model approval is advisory evidence, not a proof of scientific accuracy;
-    rejection, invalid JSON or unavailable reviewer always blocks publishing.
-    """
+
+def review_claim(client, provider, model, item, image, page_text, page):
+    """One claim and its cited original page; candidate descriptions are untrusted."""
+    content = [{"type": "text", "text": json.dumps(
+        {"pdf_page": page, "ocr": page_text, "claim": item}, ensure_ascii=False)},
+        {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," +
+         base64.b64encode(image).decode("ascii")}}]
+    messages = [
+        {"role": "system", "content": (
+            "You are an independent, skeptical scientific reviewer. Inspect the actual "
+            "textbook page image and OCR. Verify this ONE proposed claim and its cited "
+            "figure against what is visibly present on this page. Descriptions produced "
+            "by another model are unverified candidates. A question is not evidence for "
+            "its answer. Reject ambiguous drawings, unsupported answers, invented "
+            "measurements and theoretical leaps. Return JSON with approved (boolean) "
+            "and specific_reason (nonempty string).")},
+        {"role": "user", "content": content},
+    ]
+    response = client.chat.completions.create(model=model, temperature=0,
+        response_format={"type": "json_object"}, messages=messages)
+    verdict = parse_provider_json(client, provider, messages, response, model)
+    if type(verdict.get("approved")) is not bool or not verdict.get("specific_reason"):
+        raise ValueError("INVALID_VISUAL_REVIEW_VERDICT")
+    return verdict
+
+
+def scientific_review(lesson, pages, images, generator_provider, generator_model,
+                      visual_provider, visual_model):
+    """Review every cited claim directly against its original page image."""
     from openai import OpenAI
-    source = "\n".join(f"PDF PAGE {p}\n{text}" for p,text in pages)
-    errors = []
-    for name,key,base,model in configured_providers():
-        try:
-            client=OpenAI(api_key=key,base_url=base,timeout=90,max_retries=0)
-            messages=[
-                {"role":"system","content":(
-                    "You are a skeptical independent textbook fact checker. "
-                    "Compare EVERY introduction claim, concept, example, visual_evidence_id, "
-                    "activity answer, multiple-choice correct answer, worked solution step, "
-                    "exercise solution and summary statement with the original PDF OCR. "
-                    "Check mathematical/scientific truth and whether the answer follows from "
-                    "the cited source. Return JSON {approved: boolean, errors: [specific errors]}. "
-                    "If diagrams or OCR are too ambiguous to verify a result, reject it. "
-                    "Do not add new claims or treat source quotes alone as proof.")},
-                {"role":"user","content":json.dumps(
-                    {"source":source,"lesson":lesson},ensure_ascii=False)},
-            ]
-            response = client.chat.completions.create(
-                    model=os.getenv("NABIL_LESSON_REVIEW_MODEL",model),
-                    temperature=0,response_format={"type":"json_object"},
-                    messages=messages)
-            verdict=parse_provider_json(client,name,messages,response,
-                                        os.getenv("NABIL_LESSON_REVIEW_MODEL",model))
-            if verdict.get("approved") is True and verdict.get("errors")==[]:
-                return {"pass":True,"reviewer":name,"errors":[]}
-            return {"pass":False,"reviewer":name,
-                    "errors":verdict.get("errors",["REVIEW_NOT_APPROVED"])}
-        except Exception as exc:
-            errors.append(f"{name}:{type(exc).__name__}")
-    return {"pass":False,"reviewer":None,"errors":["REVIEW_UNAVAILABLE",*errors]}
+    name = None
+    model = None
+    try:
+        name, key, base, model = independent_reviewer(
+            generator_provider, generator_model, visual_provider, visual_model)
+        client = OpenAI(api_key=key, base_url=base, timeout=90, max_retries=0)
+        page_texts = dict(pages)
+        targets = [("introduction", lesson.get("introduction_source_page"),
+                    {"text": lesson.get("introduction"),
+                     "citation": lesson.get("introduction_source_quote")})]
+        for section in ("concepts", "activities", "questions", "exercises", "summary"):
+            for index, item in enumerate(lesson.get(section, []), 1):
+                targets.append((f"{section}_{index}", item.get("pdf_page"), item))
+        for label, page, item in targets:
+            if type(page) is not int or page not in images or page not in page_texts:
+                return {"pass": False, "reviewer": name, "model": model,
+                        "errors": [f"{label}:SOURCE_IMAGE_OR_PAGE_MISSING"]}
+            verdict = review_claim(client, name, model, item, images[page],
+                                   page_texts[page], page)
+            if verdict["approved"] is not True:
+                return {"pass": False, "reviewer": name, "model": model,
+                        "errors": [f"{label}:{verdict['specific_reason']}"]}
+        return {"pass": True, "reviewer": name, "model": model, "errors": []}
+    except Exception as exc:
+        return {"pass": False, "reviewer": name, "model": model,
+                "errors": ["REVIEW_UNAVAILABLE", type(exc).__name__ + ": " + str(exc)[:160]]}
 
 
 def source_images(pdf, pages):
@@ -1011,7 +1144,8 @@ def save_ledger(service,ledger,item):
     return saved
 
 
-def run(report_path, pilot_book_id=None, pilot_lesson=None, pilot_pages=None):
+def run(report_path, pilot_book_id=None, pilot_lesson=None, pilot_pages=None,
+        publish=False):
     global RUN_DEADLINE,BOOK_DEADLINE,PROGRESS_STARTED
     PROGRESS_STARTED=time.monotonic()
     RUN_DEADLINE=time.monotonic()+420
@@ -1028,9 +1162,12 @@ def run(report_path, pilot_book_id=None, pilot_lesson=None, pilot_pages=None):
     try:
         service = owner_drive()
         root = service.files().get(fileId=ROOT_FOLDER, fields="id,name,capabilities(canAddChildren)").execute()
-        if not root.get("capabilities", {}).get("canAddChildren"):
+        if publish and not root.get("capabilities", {}).get("canAddChildren"):
             raise PermissionError("OWNER_ROOT_NOT_WRITABLE")
-        ledger,ledger_item=read_ledger(service,ledger)
+        if publish:
+            ledger,ledger_item=read_ledger(service,ledger)
+        else:
+            ledger_item=None
     except Exception as exc:
         report["status"]="BLOCKED_CREDENTIALS_OR_DRIVE"
         report["error"]=f"{type(exc).__name__}: {exc}"
@@ -1094,7 +1231,9 @@ def run(report_path, pilot_book_id=None, pilot_lesson=None, pilot_pages=None):
                             "lesson_key":lesson_key(book,title,start)})
             progress("SOURCE_LESSON_SELECTED",lesson=title,pages=attempt["source_pdf_pages"])
             pages = source_excerpt(reader,pdf,start,end)
-            catalog=evidence_catalog(pages)
+            images=source_images(pdf,pages)
+            proposed_visuals, visual_provider, visual_model = visual_candidates(images)
+            catalog=evidence_catalog(pages,proposed_visuals)
             if len(catalog)<10:
                 raise ValueError("SOURCE_EVIDENCE_CATALOG_TOO_SPARSE")
             digest = hashlib.sha256()
@@ -1103,7 +1242,12 @@ def run(report_path, pilot_book_id=None, pilot_lesson=None, pilot_pages=None):
                     digest.update(chunk)
             attempt["source_sha256"]=digest.hexdigest()
             checkpoint()
-            evidence_map=source_evidence_map(title,pages,catalog)
+            evidence_map=source_evidence_map(title,pages,catalog,
+                                             visual_provider,visual_model)
+            record_role_provenance(evidence_map,attempt,"visual_extractor",
+                                   visual_provider,visual_model)
+            record_role_provenance(evidence_map,attempt,"generator",None,None)
+            record_role_provenance(evidence_map,attempt,"reviewer",None,None)
             evidence_path=report_path.with_name(report_path.stem+"-evidence-map.json")
             evidence_path.write_text(json.dumps(evidence_map,ensure_ascii=False,indent=2),encoding="utf-8")
             attempt["evidence_map_path"]=str(evidence_path)
@@ -1113,7 +1257,16 @@ def run(report_path, pilot_book_id=None, pilot_lesson=None, pilot_pages=None):
             previous_failures=[]
             for generation_attempt in (1,2):
                 progress("GENERATION_STARTED",lesson=title,attempt=generation_attempt)
-                lesson = generate(title,pages,book.get("language",""),evidence_map,previous_failures)
+                lesson, generator_provider, generator_model = generate(
+                    title,pages,book.get("language",""),evidence_map,
+                    previous_failures,visual_provider=visual_provider,
+                    visual_model=visual_model)
+                attempt["generator"]={"provider":generator_provider,
+                                       "model":generator_model}
+                record_role_provenance(evidence_map,attempt,"generator",
+                                       generator_provider,generator_model)
+                evidence_path.write_text(json.dumps(evidence_map,ensure_ascii=False,indent=2),
+                                         encoding="utf-8")
                 draft_path=report_path.with_name(report_path.stem+f"-draft-{generation_attempt}.json")
                 draft_path.write_text(json.dumps(lesson,ensure_ascii=False,indent=2),encoding="utf-8")
                 attempt.setdefault("draft_paths",[]).append(str(draft_path))
@@ -1122,12 +1275,19 @@ def run(report_path, pilot_book_id=None, pilot_lesson=None, pilot_pages=None):
                 if any(x.startswith("UNVERIFIED_") for x in failures):
                     progress("SOURCE_QUOTE_REPAIR_STARTED",count=sum(
                         x.startswith("UNVERIFIED_") for x in failures))
-                    if repair_source_quotes(lesson,pages,catalog,failures):
+                    if repair_source_quotes(lesson,pages,catalog,failures,
+                                            generator_provider):
                         failures=check_content(lesson,title,pages,catalog)
                 review=None
                 if not failures:
-                    review=scientific_review(lesson,pages)
+                    review=scientific_review(lesson,pages,images,
+                                             generator_provider,generator_model,
+                                             visual_provider,visual_model)
                     attempt["scientific_review"]=review
+                    record_role_provenance(evidence_map,attempt,"reviewer",
+                                           review.get("reviewer"),review.get("model"))
+                    evidence_path.write_text(json.dumps(evidence_map,ensure_ascii=False,indent=2),
+                                             encoding="utf-8")
                     if not review["pass"]:
                         failures.append("SCIENTIFIC_REVIEW_REJECTED")
                 previous_failures=(review["errors"] if review and not review["pass"]
@@ -1137,7 +1297,6 @@ def run(report_path, pilot_book_id=None, pilot_lesson=None, pilot_pages=None):
                 checkpoint()
                 if not failures:
                     break
-            images=source_images(pdf,pages) if not failures else {}
             document = render_html(lesson,pages,book,images,evidence_map) if not failures else ""
             failures.extend(check_html(document,lesson,pages,evidence_map) if document else [])
             attempt["html_quality"]={"pass":not failures,"failures":failures}
@@ -1156,6 +1315,11 @@ def run(report_path, pilot_book_id=None, pilot_lesson=None, pilot_pages=None):
             pptx_path.write_bytes(powerpoint)
             attempt["local_artifacts"]={"html":str(html_path),"pptx":str(pptx_path)}
             checkpoint()
+            if not publish:
+                report["status"]="LOCAL_VERIFIED_DRY_RUN_SUCCESS"
+                attempt["status"]="LOCAL_VERIFIED_DRY_RUN_SUCCESS"
+                checkpoint()
+                break
             progress("UPLOAD_STARTED",lesson=title)
             subject_folder = ensure_folder(service,ROOT_FOLDER,book["subject"])
             grade_folder = ensure_folder(service,subject_folder,book["grade"])
@@ -1214,6 +1378,8 @@ def main():
     parser.add_argument("--pilot-book-id",help="Only consider this registered Drive PDF ID")
     parser.add_argument("--pilot-lesson",help="Only consider this exact TOC lesson heading")
     parser.add_argument("--pilot-pages",help="Require exact inclusive PDF page range, e.g. 13-18")
+    parser.add_argument("--publish", action="store_true",
+                        help="Explicitly allow Drive writes and production ledger updates")
     args=parser.parse_args()
     pilot_pages=None
     if args.pilot_pages:
@@ -1226,7 +1392,8 @@ def main():
     old_handler=signal.signal(signal.SIGALRM,deadline_handler)
     signal.setitimer(signal.ITIMER_REAL,420)
     try:
-        report=run(Path(args.report),args.pilot_book_id,args.pilot_lesson,pilot_pages)
+        report=run(Path(args.report),args.pilot_book_id,args.pilot_lesson,pilot_pages,
+                   publish=args.publish)
     except TimeoutError as exc:
         report={"status":"RUN_DEADLINE_EXCEEDED","error":str(exc)}
         if Path(args.report).exists():
@@ -1238,7 +1405,8 @@ def main():
         signal.setitimer(signal.ITIMER_REAL,0)
         signal.signal(signal.SIGALRM,old_handler)
     print(json.dumps(report,ensure_ascii=False,indent=2))
-    return 0 if report["status"]=="ONE_PILOT_REVIEW_PENDING" else 2
+    return 0 if report["status"] in ("ONE_PILOT_REVIEW_PENDING",
+                                      "LOCAL_VERIFIED_DRY_RUN_SUCCESS") else 2
 
 
 if __name__=="__main__":
