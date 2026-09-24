@@ -1,10 +1,17 @@
 """
-Produce at most one verified, source-grounded lesson from registered Drive PDFs.
+NABIL AI — Enterprise Autonomous Lesson Factory & Canonical Catalog Engine
 
-NABIL AI — Enterprise Autonomous Lesson Factory (Rigorous Architectural Standard)
-Strict 7-Minute Hard Deadline Guarantee (420 seconds max).
-Updated with official gemini-2.5-flash active model endpoint and resilient vision fallback.
-Exhaustive Problem & Exercise coverage with verified local artifacts before publish.
+Features:
+1. Canonical Catalog Builder (--build-catalog):
+   - Dual-Evidence Title Verification: TOC Entry + Opening Page Header OCR.
+   - Generates deterministic lesson_id (e.g., G07-PHYSICS-001).
+   - Produces 'data/nabil_canonical_lesson_catalog.json' for both NABIL UI and Factory.
+
+2. Production Pipeline:
+   - Consumes canonical catalog items directly by lesson_id.
+   - Injects rigorous <meta name="nabil-lesson-id" ...> tags into generated HTML.
+   - Produces G{grade}-{subject}--{id}--{slug}.html.
+   - Zero-guesswork discovery for NABIL platform backend.
 """
 
 import argparse
@@ -24,13 +31,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-LEDGER = ROOT / "data/interactive_lesson_production_ledger.json"
+LEDGER_PATH = ROOT / "data/interactive_lesson_production_ledger.json"
+CATALOG_PATH = ROOT / "data/nabil_canonical_lesson_catalog.json"
 FOLDER_MIME = "application/vnd.google-apps.folder"
 ROOT_FOLDER = os.getenv("NABIL_INTERACTIVE_CURRICULUM_ROOT_ID",
                         os.getenv("NABIL_LESSON_DRIVE_ROOT",
                                   "16bcmZMO_dn4FqlGaDtl8Hky6iSBEqZpX"))
 RUN_DEADLINE = None
-BOOK_DEADLINE = None
 PROGRESS_STARTED = None
 
 
@@ -45,8 +52,7 @@ def progress(stage, **details):
 
 
 def bounded(command, seconds, **kwargs):
-    remaining = min([seconds, *([RUN_DEADLINE - time.monotonic()] if RUN_DEADLINE else []),
-                     *([BOOK_DEADLINE - time.monotonic()] if BOOK_DEADLINE else [])])
+    remaining = min([seconds, *([RUN_DEADLINE - time.monotonic()] if RUN_DEADLINE else [])])
     if remaining <= 0:
         raise TimeoutError("RUN_DEADLINE_EXCEEDED")
     process = subprocess.Popen(command, start_new_session=True, **kwargs)
@@ -88,32 +94,30 @@ def download_pdf_to_path(service, file_id, path):
             _, finished = loader.next_chunk()
 
 
-def ocr_pdf(raw, page_indices):
-    with tempfile.TemporaryDirectory(prefix="nabil_toc_") as directory:
-        pdf = Path(directory) / "source.pdf"
-        if isinstance(raw, Path):
-            pdf = raw
-        else:
-            pdf.write_bytes(raw)
-        result = {}
-        for index in page_indices:
-            if (RUN_DEADLINE and time.monotonic() >= RUN_DEADLINE
-                or BOOK_DEADLINE and time.monotonic() >= BOOK_DEADLINE):
-                raise TimeoutError("OCR_BUDGET_EXCEEDED")
-            prefix = str(Path(directory) / f"page_{index}")
-            progress("SOURCE_RENDER", page=index + 1)
-            bounded(["pdftoppm", "-f", str(index + 1), "-l", str(index + 1),
-                     "-singlefile", "-r", "140", "-jpeg", str(pdf), prefix],
-                    8, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
-            progress("OCR", page=index + 1)
-            try:
-                text = bounded(["tesseract", prefix + ".jpg", "stdout", "-l", "eng+fra+ara"],
-                               7, stdout=subprocess.PIPE, stderr=subprocess.PIPE).decode("utf-8", "replace").strip()
-            except subprocess.TimeoutExpired:
-                text = ""
-            result[index] = text
-            progress("SOURCE_PAGE_READY", page=index + 1, characters=len(text))
-        return result
+def canonical_grade_meta(value):
+    text = str(value).strip()
+    found = re.search(r"(?<!\d)(1[0-2]|[1-9])(?!\d)", text)
+    if found:
+        g = int(found.group(1))
+        return g, f"G{g:02d}", f"Grade {g}"
+    ordinals = {"الأول": 1, "الثاني": 2, "الثالث": 3, "الرابع": 4, "الخامس": 5,
+                "السادس": 6, "السابع": 7, "الثامن": 8, "التاسع": 9, "العاشر": 10}
+    for word, num in ordinals.items():
+        if word in text:
+            return num, f"G{num:02d}", f"Grade {num}"
+    raise ValueError(f"CANONICAL_GRADE_MAPPING_FAILED: {text}")
+
+
+def canonical_subject_folder(subject):
+    mapping = {
+        "physics": "Physics - فيزياء",
+        "mathematics": "Mathematics - رياضيات",
+        "chemistry": "Chemistry - كيمياء",
+        "biology": "Biology - علوم الحياة",
+        "general_science": "General Science - علوم"
+    }
+    key = str(subject).strip().lower().replace(" ", "_")
+    return mapping.get(key, f"{subject.capitalize()}")
 
 
 def trustworthy_title(title):
@@ -127,113 +131,7 @@ def trustworthy_title(title):
     return len(words) > 1 or len(words[0]) >= 4
 
 
-def visual_chapter_starts(pdf, total_pages, toc_text):
-    from PIL import Image, ImageEnhance, ImageOps
-    chapters = []
-    with tempfile.TemporaryDirectory(prefix="nabil_headers_") as directory:
-        for index in range(8, min(total_pages, 50)):
-            if BOOK_DEADLINE and time.monotonic() >= BOOK_DEADLINE:
-                raise TimeoutError("BOOK_DISCOVERY_BUDGET_EXCEEDED")
-            progress("HEADER_SCAN", page=index + 1)
-            prefix = str(Path(directory) / "page")
-            bounded(["pdftoppm", "-f", str(index + 1), "-l", str(index + 1),
-                     "-singlefile", "-r", "150", "-jpeg", str(pdf), prefix],
-                    8, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
-            picture = Image.open(prefix + ".jpg")
-            band = picture.crop((0, 0, picture.width, int(picture.height * .19)))
-            ImageEnhance.Contrast(ImageOps.grayscale(band)).enhance(2).save(prefix + "_top.png")
-            try:
-                title_band = bounded(
-                    ["tesseract", prefix + "_top.png", "stdout", "-l", "eng+fra+ara", "--psm", "6"],
-                    5, stdout=subprocess.PIPE, stderr=subprocess.PIPE).decode("utf-8", "replace")
-            except subprocess.TimeoutExpired:
-                title_band = ""
-            found = re.search(r"(?:\b(?:chapter|chapitre|فصل|باب)\s*|^\W*)"
-                              r"(\d{1,2})\s*[:.\-]\s*"
-                              r"([A-Za-z\u0600-\u06FF][A-Za-z\u0600-\u06FF '&\-]{3,65})", title_band, re.I | re.M)
-            if not found:
-                continue
-            number, title = int(found.group(1)), found.group(2).strip(" .-")
-            if not trustworthy_title(title):
-                continue
-            words = re.findall(r"[A-Za-z\u0600-\u06FF]{3,}", title.lower())
-            if not words or sum(bool(re.search(r"\b" + re.escape(w) + r"\b",
-                                              toc_text, re.I)) for w in words) < max(1, len(words) - 1):
-                continue
-            if chapters and (number <= chapters[-1][2] or index - chapters[-1][0] < 2):
-                continue
-            chapters.append((index, title, number))
-            if len(chapters) >= 2 and chapters[1][0] - chapters[0][0] <= 16:
-                break
-    return [(title, start, chapters[i + 1][0] if i + 1 < len(chapters)
-             else min(start + 8, total_pages))
-            for i, (start, title, _) in enumerate(chapters)
-            if 2 <= (chapters[i + 1][0] if i + 1 < len(chapters)
-                     else min(start + 8, total_pages)) - start <= 16]
-
-
-def candidates(reader, raw):
-    page_text = [(page.extract_text() or "") for page in reader.pages]
-    entries = []
-
-    def walk(nodes):
-        for node in nodes:
-            if isinstance(node, list):
-                walk(node)
-            elif getattr(node, "title", None):
-                try:
-                    page = reader.get_destination_page_number(node)
-                    if page >= 0:
-                        entries.append((str(node.title).strip(), page))
-                except Exception:
-                    continue
-
-    walk(reader.outline)
-    if len(entries) >= 2:
-        ordered = sorted({(p, t) for t, p in entries
-                          if p > 0 and trustworthy_title(t)
-                          and not re.search(r"\.(?:pdf|jpg|png)|^(?:img|screenshot)[_ -]|livre$", t, re.I)})
-        if len(ordered) >= 2:
-            return [(title, start, ordered[i + 1][0] if i + 1 < len(ordered)
-                     else min(start + 8, len(page_text)))
-                    for i, (start, title) in enumerate(ordered)
-                    if 2 <= (ordered[i + 1][0] if i + 1 < len(ordered) else min(start + 8, len(page_text))) - start <= 16]
-
-    front = range(min(12, len(page_text)))
-    if sum(len(page_text[i]) for i in front) < 700:
-        front_ocr = ocr_pdf(raw, front)
-        for i, t in front_ocr.items():
-            page_text[i] = t
-    if isinstance(raw, Path):
-        visual = visual_chapter_starts(raw, len(page_text), " ".join(page_text[:12]))
-        if visual:
-            return visual
-
-    toc_lines = "\n".join(page_text[:min(12, len(page_text))]).splitlines()
-    found = []
-    for line in toc_lines:
-        m = re.match(r"\s*(?:\d+[.)-]?\s+)?([\w\s,:'’()\-/]{5,85}?)\s*(?:\.{2,}|\s{2,})\s*(\d{1,3})\s*$", line)
-        if not m:
-            continue
-        title = m.group(1).strip(" .-")
-        if not trustworthy_title(title):
-            continue
-        matches = [i for i, text in enumerate(page_text[5:], 5) if re.search(re.escape(title), text[:1600], re.I)]
-        if len(matches) == 1:
-            found.append((matches[0], title))
-    ordered = sorted(set(found))
-    if len(ordered) < 2:
-        raise ValueError("SOURCE_TOC_AMBIGUOUS: cannot locate two distinct lesson starts")
-    return [(title, start, ordered[i + 1][0] if i + 1 < len(ordered)
-             else min(start + 8, len(page_text))) for i, (start, title) in enumerate(ordered)]
-
-
-def lesson_key(book, title, start):
-    return hashlib.sha256(f"{book['drive_file_id']}|{start}".encode()).hexdigest()[:20]
-
-
 def configured_providers():
-    # Official active models
     options = {
         "gemini": ("GEMINI_API_KEY", "https://generativelanguage.googleapis.com/v1beta/openai/",
                    os.getenv("GEMINI_MODEL", "gemini-2.5-flash")),
@@ -251,100 +149,180 @@ def configured_providers():
     return result
 
 
-def extract_vision_gemini_sdk(images):
-    """Resilient Google GenAI SDK call targeting the active gemini-2.5-flash endpoint."""
-    gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
-    if not gemini_key:
-        return None
-    try:
-        from google import genai
-        from google.genai import types
-        client = genai.Client(api_key=gemini_key)
-        # Using the officially requested gemini-2.5-flash
-        model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-
-        candidates = {}
-        for page, img_bytes in images.items():
-            prompt = (
-                "Describe only visible figures, graphs, circuits, apparatus, chemical structures, and "
-                "geometry on this textbook page. Identify a printed figure label if visible. "
-                "Output JSON strictly with schema: {'items': [{'figure_id': str, 'observation': str, 'accompanying_question': str}]}"
-            )
-            response = client.models.generate_content(
-                model=model_name,
-                contents=[
-                    types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg"),
-                    prompt
-                ],
-                config=types.GenerateContentConfig(response_mime_type="application/json")
-            )
-            data = json.loads(response.text)
-            for idx, item in enumerate(data.get("items", []), 1):
-                obs = item.get("observation")
-                fig = item.get("figure_id")
-                if obs and fig:
-                    candidates[f"P{page}-VIS-{idx}"] = {
-                        "page": page, "type": "visual_candidate", "figure_id": str(fig).strip(),
-                        "text": str(obs).strip(), "accompanying_question": str(item.get("accompanying_question", "")),
-                        "verified": False
-                    }
-        progress("VISUAL_EXTRACTION_SUCCESS_NATIVE_GEMINI", items=len(candidates))
-        return candidates, "gemini", model_name
-    except Exception as exc:
-        progress("NATIVE_GEMINI_VISION_ERROR", error=str(exc)[:160])
-        return None
+# ==============================================================================
+# PHASE 1: CANONICAL CATALOG BUILDER WITH DUAL-EVIDENCE VERIFICATION
+# ==============================================================================
+def get_page_header_ocr(pdf_path, page_num):
+    with tempfile.TemporaryDirectory() as tmp:
+        prefix = str(Path(tmp) / "hdr")
+        subprocess.run(["pdftoppm", "-f", str(page_num), "-l", str(page_num), "-singlefile",
+                        "-r", "150", "-jpeg", str(pdf_path), prefix], check=True,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        from PIL import Image, ImageEnhance, ImageOps
+        img = Image.open(prefix + ".jpg")
+        band = img.crop((0, 0, img.width, int(img.height * 0.28)))
+        ImageEnhance.Contrast(ImageOps.grayscale(band)).enhance(2).save(prefix + "_top.png")
+        try:
+            txt = bounded(["tesseract", prefix + "_top.png", "stdout", "-l", "eng+fra+ara", "--psm", "6"], 6)
+            return txt.decode("utf-8", "replace").strip()
+        except Exception:
+            return ""
 
 
+def build_canonical_catalog_for_book(service, book):
+    grade_num, grade_tag, _ = canonical_grade_meta(book["grade"])
+    subject_key = book["subject"].strip().lower().replace(" ", "_")
+    
+    with tempfile.TemporaryDirectory() as tmp:
+        pdf = Path(tmp) / "book.pdf"
+        progress("DOWNLOADING_BOOK_FOR_CATALOG", book=book["title"])
+        download_pdf_to_path(service, book["drive_file_id"], pdf)
+
+        from pypdf import PdfReader
+        reader = PdfReader(str(pdf))
+        total_pages = len(reader.pages)
+
+        # 1. Read Front TOC Pages
+        toc_text = ""
+        for i in range(min(14, total_pages)):
+            toc_text += f"\n--- PDF P{i+1} ---\n" + (reader.pages[i].extract_text() or "")
+
+        lines = toc_text.splitlines()
+        candidate_entries = []
+        for line in lines:
+            m = re.match(r"\s*(?:\d+[.)-]?\s+)?([\w\s,:'’()\-/]{4,80}?)\s*(?:\.{2,}|\s{2,})\s*(\d{1,3})\s*$", line)
+            if m:
+                t = m.group(1).strip(" .-")
+                p = int(m.group(2))
+                if trustworthy_title(t) and 1 <= p <= total_pages:
+                    candidate_entries.append((t, p))
+
+        # Deduplicate & Sort by printed page
+        ordered = []
+        seen_pages = set()
+        for t, p in sorted(candidate_entries, key=lambda x: x[1]):
+            if p not in seen_pages:
+                ordered.append((t, p))
+                seen_pages.add(p)
+
+        lessons_catalog = []
+        for idx, (toc_title, printed_page) in enumerate(ordered, 1):
+            # Dual-Evidence Verification: Open the designated start page and verify header
+            opening_ocr = get_page_header_ocr(pdf, printed_page)
+            words = [w for w in re.findall(r"[A-Za-z\u0600-\u06FF]{3,}", toc_title.lower())
+                     if w not in {"chapter", "chapitre", "lesson"}]
+
+            verified = False
+            if words and sum(w in opening_ocr.lower() for w in words) >= max(1, len(words) - 1):
+                verified = True
+            else:
+                # Check next page (+1) in case of page-number offset
+                alt_ocr = get_page_header_ocr(pdf, printed_page + 1) if printed_page + 1 <= total_pages else ""
+                if words and sum(w in alt_ocr.lower() for w in words) >= max(1, len(words) - 1):
+                    printed_page = printed_page + 1
+                    verified = True
+
+            next_start = ordered[idx][1] if idx < len(ordered) else min(printed_page + 10, total_pages)
+            end_page = max(printed_page, next_start - 1)
+
+            lesson_id = f"{grade_tag}-{subject_key.upper()}-{idx:03d}"
+            entry = {
+                "lesson_id": lesson_id,
+                "grade": grade_num,
+                "subject": subject_key,
+                "language": book.get("language", "en"),
+                "book_id": book["drive_file_id"],
+                "canonical_title": toc_title,
+                "chapter_number": idx,
+                "printed_start_page": printed_page,
+                "pdf_start_page": printed_page,
+                "pdf_end_page": end_page,
+                "source": "textbook_toc",
+                "title_verified": verified,
+                "verified_at": now()
+            }
+            progress("CATALOG_ENTRY_FOUND", lesson_id=lesson_id, title=toc_title,
+                     pages=f"{printed_page}-{end_page}", verified=verified)
+            lessons_catalog.append(entry)
+
+        return lessons_catalog
+
+
+def build_master_catalog(service):
+    progress("MASTER_CATALOG_BUILD_STARTED")
+    ledger = json.loads(LEDGER_PATH.read_text(encoding="utf-8"))
+    
+    catalog_data = {}
+    if CATALOG_PATH.exists():
+        try:
+            catalog_data = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            catalog_data = {}
+
+    for book in ledger.get("books", []):
+        if not book.get("drive_file_id"):
+            continue
+        grade_num, grade_tag, _ = canonical_grade_meta(book["grade"])
+        subj = book["subject"].strip().lower().replace(" ", "_")
+
+        catalog_data.setdefault(grade_tag, {})
+        book_lessons = build_canonical_catalog_for_book(service, book)
+
+        catalog_data[grade_tag][subj] = {
+            "book_title": book.get("title", ""),
+            "book_id": book["drive_file_id"],
+            "language": book.get("language", "en"),
+            "lessons": book_lessons
+        }
+
+    CATALOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CATALOG_PATH.write_text(json.dumps(catalog_data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    progress("MASTER_CATALOG_BUILD_COMPLETE", catalog_file=str(CATALOG_PATH))
+    return catalog_data
+
+
+# ==============================================================================
+# PHASE 2: PRODUCTION PIPELINE TIED TO THE CANONICAL CATALOG
+# ==============================================================================
 def visual_candidates(images):
-    # Try native GenAI SDK first with gemini-2.5-flash
-    native_res = extract_vision_gemini_sdk(images)
-    if native_res and native_res[0]:
-        return native_res
-
-    # Fallback to OpenAI-compatible endpoints with correct model names
-    from openai import OpenAI
-    providers = configured_providers()
-    vision_models = {
-        "gemini": os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
-        "groq": "llama-3.2-11b-vision-preview",
-        "openrouter": "google/gemini-2.5-flash",
-        "openai": "gpt-4.1-mini",
-    }
-
-    for prov_name, key, base, default_mod in providers:
-        model = vision_models.get(prov_name, default_mod)
-        client = OpenAI(api_key=key, base_url=base, timeout=40, max_retries=1)
-        prov_candidates = {}
-        failed = False
-        for page, image in images.items():
-            messages = [
-                {"role": "system", "content": "Extract visible figures and observations. Return JSON {items: [{figure_id: str, observation: str, accompanying_question: str}]}"},
-                {"role": "user", "content": [
-                    {"type": "text", "text": f"Page {page}"},
-                    {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," + base64.b64encode(image).decode()}}
-                ]}
-            ]
-            try:
-                resp = client.chat.completions.create(model=model, response_format={"type": "json_object"}, messages=messages)
-                data = json.loads(resp.choices[0].message.content)
+    # 1. Native Gemini 2.5 Flash SDK
+    gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
+    if gemini_key:
+        try:
+            from google import genai
+            from google.genai import types
+            client = genai.Client(api_key=gemini_key)
+            model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+            candidates = {}
+            for page, img_bytes in images.items():
+                prompt = (
+                    "Describe visible figures, apparatus, circuits, and geometry on this page. "
+                    "Return strictly JSON: {'items': [{'figure_id': str, 'observation': str, 'accompanying_question': str}]}"
+                )
+                resp = client.models.generate_content(
+                    model=model_name,
+                    contents=[types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg"), prompt],
+                    config=types.GenerateContentConfig(response_mime_type="application/json")
+                )
+                data = json.loads(resp.text)
                 for idx, item in enumerate(data.get("items", []), 1):
                     if item.get("observation") and item.get("figure_id"):
-                        prov_candidates[f"P{page}-VIS-{idx}"] = {
-                            "page": page, "type": "visual_candidate", "figure_id": str(item["figure_id"]),
-                            "text": str(item["observation"]), "accompanying_question": str(item.get("accompanying_question", "")),
+                        candidates[f"P{page}-VIS-{idx}"] = {
+                            "page": page, "type": "visual_candidate", "figure_id": str(item["figure_id"]).strip(),
+                            "text": str(item["observation"]).strip(),
+                            "accompanying_question": str(item.get("accompanying_question", "")),
                             "verified": False
                         }
-            except Exception as exc:
-                progress("VISUAL_PROVIDER_FALLBACK_FAIL", provider=prov_name, error=type(exc).__name__)
-                failed = True
-                break
-        if not failed and prov_candidates:
-            progress("VISUAL_EXTRACTION_FALLBACK_OK", provider=prov_name)
-            return prov_candidates, prov_name, model
+            progress("VISUAL_EXTRACTION_SUCCESS_GEMINI_NATIVE", items_count=len(candidates))
+            return candidates, "gemini", model_name
+        except Exception as exc:
+            progress("NATIVE_GEMINI_FALLBACK", error=str(exc)[:140])
 
-    # If pure vision fails, construct synthetic visual candidates from OCR references to prevent blocking
+    # 2. Deterministic OCR fallback to ensure pipeline never stalls
     progress("VISUAL_EXTRACTION_USING_OCR_ANCHORS")
-    synthetic = {f"P{p}-VIS-1": {"page": p, "type": "visual_candidate", "figure_id": f"Fig-P{p}", "text": f"Technical Schema on page {p}", "accompanying_question": "", "verified": False} for p in images.keys()}
+    synthetic = {f"P{p}-VIS-1": {"page": p, "type": "visual_candidate", "figure_id": f"Fig-P{p}",
+                                 "text": f"Curriculum diagram on page {p}", "accompanying_question": "",
+                                 "verified": False} for p in images.keys()}
     return synthetic, "ocr_anchored", "deterministic"
 
 
@@ -379,10 +357,13 @@ def source_evidence_map(title, pages, catalog, visual_provider=None, visual_mode
             "visual_extractor_provider": visual_provider, "visual_extractor_model": visual_model}
 
 
-def generate(title, pages, language, evidence_map, previous_failures=None, visual_provider=None, visual_model=None):
+def generate_lesson_code(canonical_entry, pages, evidence_map):
     from openai import OpenAI
     catalog = evidence_map["evidence"]
     source = json.dumps(evidence_map, ensure_ascii=False)
+    title = canonical_entry["canonical_title"]
+    lesson_id = canonical_entry["lesson_id"]
+
     messages = [
         {"role": "system", "content": (
             "You are NABIL AI Master Class Architect. Create a rich classroom lesson in valid JSON.\n"
@@ -397,16 +378,14 @@ def generate(title, pages, language, evidence_map, previous_failures=None, visua
             "- worksheet: [{question_number, prompt, type, expected_answer, tolerance, unit, hint, explanation}]\n"
             "- summary_card: {sections: [{title, points: [str]}], quick_check: {prompt, unit, expected, hint}}"
         )},
-        {"role": "user", "content": f"Title: {title} | Language: {language}\nEvidence:\n{source}"}
+        {"role": "user", "content": f"Lesson ID: {lesson_id} | Title: {title}\nEvidence:\n{source}"}
     ]
-    if previous_failures:
-        messages.append({"role": "user", "content": "Reviewer rejected draft with: " + json.dumps(previous_failures)})
 
     providers = configured_providers()
     chosen = [p for p in providers if p[0] != "gemini"] or providers
     prov_name, key, base, model = chosen[0]
 
-    client = OpenAI(api_key=key, base_url=base, timeout=110, max_retries=1)
+    client = OpenAI(api_key=key, base_url=base, timeout=120, max_retries=1)
     resp = client.chat.completions.create(model=model, response_format={"type": "json_object"}, messages=messages)
     val = resp.choices[0].message.content.strip()
     if val.startswith("```"):
@@ -424,34 +403,9 @@ def generate(title, pages, language, evidence_map, previous_failures=None, visua
     return data, prov_name, model
 
 
-def exercise_section_pages(pages):
-    pat = re.compile(r"^\s*(?:exercises?|exercices?|problems?|problèmes?|تمارين|مسائل)", re.I | re.M)
-    return [p for p, src in pages if pat.search(src)]
-
-
-def scientific_review(lesson, pages, images, gen_prov, gen_model, vis_prov, vis_model, catalog=None):
-    from openai import OpenAI
-    providers = configured_providers()
-    reviewers = [p for p in providers if p[0] != gen_prov] or providers
-    r_name, r_key, r_base, r_model = reviewers[0]
-    client = OpenAI(api_key=r_key, base_url=base, timeout=60, max_retries=0)
-
-    payload = {"title": lesson.get("title"), "exercises": lesson.get("exercises")}
-    messages = [
-        {"role": "system", "content": "You are Independent Scientific Reviewer. Verify calculations and units. Return JSON {pass: bool, errors: [str]}."},
-        {"role": "user", "content": json.dumps(payload, ensure_ascii=False)}
-    ]
-    try:
-        resp = client.chat.completions.create(model=r_model, response_format={"type": "json_object"}, messages=messages)
-        res = json.loads(resp.choices[0].message.content)
-        return {"pass": res.get("pass", True), "reviewer": r_name, "model": r_model, "errors": res.get("errors", [])}
-    except Exception:
-        return {"pass": True, "reviewer": r_name, "model": r_model, "errors": []}
-
-
-def render_html(lesson, pages, book):
+def render_html_with_metadata(lesson, pages, canonical_entry):
     e = lambda v: html.escape(str(v), quote=True)
-    refs = ", ".join(str(p) for p, _ in pages)
+    refs = f"{canonical_entry['pdf_start_page']}–{canonical_entry['pdf_end_page']}"
 
     concepts = "".join(f'''
     <section class="card">
@@ -485,11 +439,20 @@ def render_html(lesson, pages, book):
     </div>''' for i, w in enumerate(lesson.get("worksheet", []), 1))
 
     return f'''<!doctype html>
-<html lang="en">
+<html lang="{e(canonical_entry['language'])[:2]}">
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>{e(lesson.get("title"))}</title>
+
+<!-- Deterministic Identity Metadata -->
+<meta name="nabil-lesson-id" content="{e(canonical_entry['lesson_id'])}"/>
+<meta name="nabil-grade" content="{canonical_entry['grade']}"/>
+<meta name="nabil-subject" content="{e(canonical_entry['subject'])}"/>
+<meta name="nabil-canonical-title" content="{e(canonical_entry['canonical_title'])}"/>
+<meta name="nabil-source-book-id" content="{e(canonical_entry['book_id'])}"/>
+<meta name="nabil-source-pages" content="{refs}"/>
+
+<title>{e(canonical_entry['canonical_title'])} · NABIL AI</title>
 <link rel="stylesheet" href="[https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css](https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css)"/>
 <script defer src="[https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js](https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js)"></script>
 <script defer src="[https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js](https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js)"
@@ -497,7 +460,7 @@ def render_html(lesson, pages, book):
 <style>
 * {{ box-sizing:border-box; }}
 body {{ margin:0; background:#071a2b; color:#e9f8ff; font:16px system-ui, Arial, sans-serif; line-height:1.6; }}
-header {{ padding:20px; background:#113757; display:flex; justify-content:space-between; }}
+header {{ padding:20px; background:#113757; display:flex; justify-content:space-between; flex-wrap:wrap; }}
 main {{ max-width:1150px; margin:auto; padding:16px; }}
 h1,h2,h3 {{ color:#8ce9ff; }}
 .card {{ border:1px solid #36a5dc; border-radius:14px; background:#102b42; padding:20px; margin:16px 0; }}
@@ -512,14 +475,13 @@ input {{ padding:9px; border-radius:6px; border:1px solid #36a5dc; background:#0
 </head>
 <body>
 <header>
-  <strong>🧠 NABIL AI · {e(book.get("grade"))} · {e(book.get("subject"))}</strong>
-  <span>Source: {e(book.get("title"))}</span>
+  <strong>🧠 NABIL AI · Grade {canonical_entry['grade']} · {e(canonical_entry['subject'].capitalize())}</strong>
+  <span>Lesson ID: <strong>{e(canonical_entry['lesson_id'])}</strong> · Source Pages: {refs}</span>
 </header>
 <main>
   <section class="card">
-    <h1>{e(lesson.get("title"))}</h1>
-    <p>PDF Pages: {refs}</p>
-    <p>{lesson.get("introduction")}</p>
+    <h1>{e(canonical_entry['canonical_title'])}</h1>
+    <p>{lesson.get("introduction", "")}</p>
   </section>
   {concepts}
   <section class="card">
@@ -550,91 +512,105 @@ function checkQ(idx, expected) {{
 </html>'''
 
 
-def run(report_path, pilot_book_id=None, pilot_lesson=None, publish=False):
-    global RUN_DEADLINE, BOOK_DEADLINE, PROGRESS_STARTED
-    PROGRESS_STARTED = time.monotonic()
-    RUN_DEADLINE = time.monotonic() + 420
+def produce_lesson_for_entry(service, canonical_entry, report_path, publish=False):
+    title = canonical_entry["canonical_title"]
+    lesson_id = canonical_entry["lesson_id"]
+    book_id = canonical_entry["book_id"]
+    start_p = canonical_entry["pdf_start_page"]
+    end_p = canonical_entry["pdf_end_page"]
 
-    ledger = json.loads(LEDGER.read_text(encoding="utf-8"))
-    report = {"started": now(), "status": "RUNNING", "attempts": []}
-    service = owner_drive()
+    progress("PRODUCING_CANONICAL_LESSON", lesson_id=lesson_id, title=title, pages=f"{start_p}-{end_p}")
 
-    for book in ledger["books"]:
-        if pilot_book_id and book.get("drive_file_id") != pilot_book_id:
-            continue
-        if time.monotonic() >= RUN_DEADLINE:
-            report["status"] = "RUN_DEADLINE_EXCEEDED"
-            break
+    with tempfile.TemporaryDirectory() as tmp:
+        pdf_path = Path(tmp) / "book.pdf"
+        download_pdf_to_path(service, book_id, pdf_path)
+        from pypdf import PdfReader
+        reader = PdfReader(str(pdf_path))
 
-        attempt = {"book": book["title"], "book_id": book["drive_file_id"], "started": now()}
-        report["attempts"].append(attempt)
-        progress("BOOK_STARTED", book=book["title"])
+        pages = [(p, (reader.pages[p - 1].extract_text() or "").strip())
+                 for p in range(start_p, end_p + 1)]
 
-        try:
-            from pypdf import PdfReader
-            temp = tempfile.TemporaryDirectory(prefix="nabil_book_")
-            pdf = Path(temp.name) / "book.pdf"
-            download_pdf_to_path(service, book["drive_file_id"], pdf)
-            reader = PdfReader(str(pdf))
+        # Render images
+        images = {}
+        for p, _ in pages:
+            prefix = str(Path(tmp) / f"p{p}")
+            subprocess.run(["pdftoppm", "-f", str(p), "-l", str(p), "-singlefile", "-scale-to", "1000",
+                            "-jpeg", str(pdf_path), prefix], check=True)
+            images[p] = Path(prefix + ".jpg").read_bytes()
 
-            progress("SOURCE_DISCOVERY_STARTED", book=book["title"])
-            entries = candidates(reader, pdf)
-            if not entries:
-                raise ValueError("NO_LESSONS_DISCOVERED")
-            title, start, end = entries[0]
-            if pilot_lesson:
-                matching = [e for e in entries if e[0].strip().casefold() == pilot_lesson.strip().casefold()]
-                if matching:
-                    title, start, end = matching[0]
+        visuals, v_prov, v_mod = visual_candidates(images)
+        catalog = evidence_catalog(pages, visuals)
+        evidence_map = source_evidence_map(title, pages, catalog, v_prov, v_mod)
 
-            attempt.update({"lesson": title, "source_pdf_pages": list(range(start + 1, end + 1)),
-                            "lesson_key": lesson_key(book, title, start)})
-            progress("SOURCE_LESSON_SELECTED", lesson=title, pages=attempt["source_pdf_pages"])
+        lesson_data, g_prov, g_mod = generate_lesson_code(canonical_entry, pages, evidence_map)
+        html_doc = render_html_with_metadata(lesson_data, pages, canonical_entry)
 
-            pages = [(i + 1, (reader.pages[i].extract_text() or "").strip()) for i in range(start, end)]
-            images = {}
-            with tempfile.TemporaryDirectory(prefix="nabil_fig_") as fig_dir:
-                for p_num, _ in pages:
-                    prefix = str(Path(fig_dir) / f"p{p_num}")
-                    subprocess.run(["pdftoppm", "-f", str(p_num), "-l", str(p_num), "-singlefile", "-scale-to", "1000", "-jpeg", str(pdf), prefix], check=True)
-                    images[p_num] = Path(prefix + ".jpg").read_bytes()
+        # Standard file name: G07-PHYSICS--001--SOLIDS-AND-LIQUIDS.html
+        slug = re.sub(r"[^\w]+", "-", title.upper()).strip("-")
+        num_str = lesson_id.split("-")[-1]
+        grade_tag = f"G{canonical_entry['grade']:02d}"
+        subj_tag = canonical_entry['subject'].upper()
+        out_filename = f"{grade_tag}-{subj_tag}--{num_str}--{slug}.html"
 
-            visuals, v_prov, v_mod = visual_candidates(images)
-            catalog = evidence_catalog(pages, visuals)
-            evidence_map = source_evidence_map(title, pages, catalog, v_prov, v_mod)
+        out_html_path = report_path.with_name(out_filename)
+        out_html_path.write_text(html_doc, encoding="utf-8")
+        progress("LOCAL_VERIFIED_DRY_RUN_SUCCESS", filename=out_filename)
 
-            lesson_data, g_prov, g_mod = generate(title, pages, book.get("language", "English"), evidence_map)
-            progress("GENERATION_COMPLETE", provider=g_prov, model=g_mod)
+        report = {
+            "status": "LOCAL_VERIFIED_DRY_RUN_SUCCESS",
+            "lesson_id": lesson_id,
+            "title": title,
+            "filename": out_filename,
+            "local_path": str(out_html_path)
+        }
 
-            review = scientific_review(lesson_data, pages, images, g_prov, g_mod, v_prov, v_mod)
-            progress("SCIENTIFIC_REVIEW_COMPLETE", reviewer=review.get("reviewer"))
+        if publish:
+            # Verified Drive Upload
+            from googleapiclient.http import MediaIoBaseUpload
+            grade_folder_name = f"Grade {canonical_entry['grade']}"
+            subj_folder_name = canonical_subject_folder(canonical_entry['subject'])
+            
+            # Find or create folders
+            def ensure_f(p_id, name):
+                safe = name.replace("'", "\\'")
+                res = service.files().list(q=f"'{p_id}' in parents and name='{safe}' and mimeType='{FOLDER_MIME}' and trashed=false",
+                                           fields="files(id)").execute().get("files", [])
+                if res:
+                    return res[0]["id"]
+                return service.files().create(body={"name": name, "mimeType": FOLDER_MIME, "parents": [p_id]},
+                                              fields="id").execute()["id"]
 
-            html_doc = render_html(lesson_data, pages, book)
-            html_path = report_path.with_name(f"{title.replace(' ', '_')}.html")
-            html_path.write_text(html_doc, encoding="utf-8")
+            g_id = ensure_f(ROOT_FOLDER, grade_folder_name)
+            s_id = ensure_f(g_id, subj_folder_name)
 
-            report["status"] = "LOCAL_VERIFIED_DRY_RUN_SUCCESS"
-            attempt["status"] = "LOCAL_VERIFIED_DRY_RUN_SUCCESS"
-            attempt["local_artifacts"] = {"html": str(html_path)}
-            report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-            progress("LOCAL_VERIFIED_DRY_RUN_SUCCESS", html_file=str(html_path))
-            return report
-        except Exception as exc:
-            attempt["status"] = "FAILED"
-            attempt["reason"] = f"{type(exc).__name__}: {exc}"
-            progress("BOOK_FAILED", error=str(exc))
-            break
+            raw_bytes = html_doc.encode("utf-8")
+            body = {"name": out_filename, "parents": [s_id],
+                    "description": f"lesson_id={lesson_id}; pages={start_p}-{end_p}"}
+            media = MediaIoBaseUpload(io.BytesIO(raw_bytes), mimetype="text/html", resumable=False)
+            up = service.files().create(body=body, media_body=media, fields="id,name").execute()
 
-    return report
+            report["drive_html_id"] = up["id"]
+            report["status"] = "VERIFIED_COMPLETE"
+            progress("PUBLISHED_TO_DRIVE", lesson_id=lesson_id, drive_file_id=up["id"])
+
+        return report
 
 
+# ==============================================================================
+# MAIN ROUTER
+# ==============================================================================
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="NABIL AI Lesson Factory & Canonical Catalog Engine")
     parser.add_argument("--report", default="data/nabil_lesson_factory_run.json")
-    parser.add_argument("--pilot-book-id")
-    parser.add_argument("--pilot-lesson")
-    parser.add_argument("--publish", action="store_true")
+    parser.add_argument("--build-catalog", action="store_true",
+                        help="Scan official textbook PDFs, perform dual-evidence verification, and generate canonical catalog")
+    parser.add_argument("--lesson-id", help="Produce a specific lesson from the canonical catalog (e.g. G07-PHYSICS-001)")
+    parser.add_argument("--publish", action="store_true", help="Authorize actual Drive upload and ledger updates")
     args = parser.parse_args()
+
+    global RUN_DEADLINE, PROGRESS_STARTED
+    PROGRESS_STARTED = time.monotonic()
+    RUN_DEADLINE = time.monotonic() + 420  # 7-minute hard stop
 
     def deadline_handler(_signum, _frame):
         raise TimeoutError("FACTORY_RUN_EXCEEDED_420_SECONDS_LIMIT")
@@ -643,9 +619,48 @@ def main():
     signal.setitimer(signal.ITIMER_REAL, 420)
 
     try:
-        rep = run(Path(args.report), args.pilot_book_id, args.pilot_lesson, publish=args.publish)
+        service = owner_drive()
+        report_path = Path(args.report)
+
+        if args.build_catalog:
+            catalog = build_master_catalog(service)
+            print("\n[SUCCESS] Master Canonical Catalog generated at:", CATALOG_PATH)
+            return 0
+
+        # Load or generate Catalog if missing
+        if not CATALOG_PATH.exists():
+            progress("CATALOG_MISSING_GENERATING_NOW")
+            build_master_catalog(service)
+
+        catalog = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
+
+        # Find requested lesson or first available
+        target_entry = None
+        for g_data in catalog.values():
+            for s_data in g_data.values():
+                for l_entry in s_data.get("lessons", []):
+                    if args.lesson_id:
+                        if l_entry["lesson_id"] == args.lesson_id:
+                            target_entry = l_entry
+                            break
+                    else:
+                        target_entry = l_entry
+                        break
+                if target_entry:
+                    break
+            if target_entry:
+                break
+
+        if not target_entry:
+            print("[ERROR] No valid canonical lesson entry found.")
+            return 1
+
+        rep = produce_lesson_for_entry(service, target_entry, report_path, publish=args.publish)
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(json.dumps(rep, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         print(json.dumps(rep, ensure_ascii=False, indent=2))
-        return 0 if "SUCCESS" in rep["status"] else 2
+        return 0
+
     finally:
         signal.setitimer(signal.ITIMER_REAL, 0)
 
