@@ -5,6 +5,7 @@ NABIL AI — Enterprise Autonomous Lesson Factory (Rigorous Architectural Standa
 Architecture:
 - Text Evidence (OCR) strictly separated from Visual Candidates (Multimodal Vision).
 - Gemini 3.6 Flash / Free Tier multimodal integration without obsolete parameters.
+- Robust endpoint URL formatting for Google AI Studio OpenAI-compatible gateway.
 - Independent Skeptical Scientific Review with full access to raw page images.
 - Exhaustive Coverage: Mandatory solution of all Exercises AND end-of-chapter Problems.
 - KaTeX typography integration and semantic color-coded SVG diagrams.
@@ -69,22 +70,21 @@ def bounded(command, seconds, **kwargs):
 def vision_page_text(image, page):
     from openai import OpenAI
     models = {
-        "gemini": os.getenv("GEMINI_VISION_MODEL", "gemini-3.6-flash"),
+        "gemini": os.getenv("GEMINI_VISION_MODEL", os.getenv("GEMINI_MODEL", "gemini-3.6-flash")),
         "openai": os.getenv("OPENAI_VISION_MODEL", "gpt-4.1-mini"),
         "openrouter": os.getenv("OPENROUTER_VISION_MODEL", "openrouter/free"),
         "groq": os.getenv("GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct"),
     }
     errors = []
     for provider, key, base, _ in configured_providers():
-        remaining = min([20, *([RUN_DEADLINE - time.monotonic()] if RUN_DEADLINE else []),
+        remaining = min([25, *([RUN_DEADLINE - time.monotonic()] if RUN_DEADLINE else []),
                          *([BOOK_DEADLINE - time.monotonic()] if BOOK_DEADLINE else [])])
         if remaining <= 0:
             raise TimeoutError("VISION_DEADLINE_EXCEEDED")
         try:
-            client = OpenAI(api_key=key, base_url=base, timeout=remaining, max_retries=0)
+            client = OpenAI(api_key=key, base_url=base, timeout=remaining, max_retries=1)
             chosen_model = models.get(provider, "gemini-3.6-flash")
             
-            # Clean call parameters for gemini-3.6-flash compatibility
             response = client.chat.completions.create(
                 model=chosen_model,
                 messages=[{"role": "user", "content": [
@@ -301,12 +301,11 @@ def candidates(reader, raw):
                     for j, (start, title) in enumerate(ordered)
                     if 2 <= (ordered[j + 1][0] if j + 1 < len(ordered)
                              else min(start + 8, len(page_text))) - start <= 16]
-    toc = " ".join(page_text[:min(12, len(page_text))])
-    if not re.search(r"\bcontents\b|\bsommaire\b|فهرس", toc, re.I):
+    toc = " ".join(page_text[:min(12, len(page_text))]).splitlines()
+    if not any(re.search(r"\bcontents\b|\bsommaire\b|فهرس", line, re.I) for line in toc):
         raise ValueError("SOURCE_TOC_NOT_FOUND")
-    lines = "\n".join(page_text[:min(12, len(page_text))]).splitlines()
     found = []
-    for line in lines:
+    for line in toc:
         m = re.match(r"\s*(?:\d+[.)-]?\s+)?([\w\s,:'’()\-/]{5,85}?)\s*(?:\.{2,}|\s{2,})\s*(\d{1,3})\s*$", line)
         if not m:
             continue
@@ -330,21 +329,23 @@ def lesson_key(book, title, start):
 
 def visual_candidates(images):
     """
-    Extracts visual observations using Gemini 3.6 Flash without temperature/top_p.
+    Extracts visual candidates from textbook pages with proper endpoint fallback.
     Maintains strict separation between physical observation and inferences.
     """
     providers = configured_providers()
-    if len({p[0] for p in providers}) < 2:
-        raise RuntimeError("MULTIPLE_INDEPENDENT_PROVIDERS_REQUIRED")
+    if not providers:
+        raise RuntimeError("NO_AI_PROVIDERS_AVAILABLE")
     from openai import OpenAI
     
-    # Prioritize gemini for vision extraction
-    gemini_choices = [p for p in providers if p[0] == "gemini"]
-    choices = gemini_choices if gemini_choices else providers
-    name, key, base, default_model = choices[0]
+    # Prioritize gemini if present; otherwise fallback to other active vision providers
+    candidate_providers = [p for p in providers if p[0] in ("gemini", "openai", "openrouter")]
+    if not candidate_providers:
+        candidate_providers = providers
+
+    name, key, base, default_model = candidate_providers[0]
     model = os.getenv("NABIL_VISUAL_MODEL", default_model)
+    client = OpenAI(api_key=key, base_url=base, timeout=50, max_retries=1)
     
-    client = OpenAI(api_key=key, base_url=base, timeout=45, max_retries=0)
     candidates = {}
     extraction_failures = []
     
@@ -364,12 +365,16 @@ def visual_candidates(images):
             ]},
         ]
         try:
-            # Strictly avoid temperature and top_p for gemini-3.6-flash compatibility
-            response = client.chat.completions.create(
-                model=model,
-                response_format={"type": "json_object"},
-                messages=messages
-            )
+            kwargs = {
+                "model": model,
+                "response_format": {"type": "json_object"},
+                "messages": messages,
+            }
+            # Only set temperature on models that officially accept it
+            if "gemini" not in model.lower():
+                kwargs["temperature"] = 0
+                
+            response = client.chat.completions.create(**kwargs)
             data = parse_provider_json(client, name, messages, response, model)
             items = data.get("items", [])
             if not isinstance(items, list):
@@ -401,7 +406,6 @@ def visual_candidates(images):
 
 
 def evidence_catalog(pages, candidates=None):
-    """Catalog built strictly from ground-truth OCR text chunks, augmented with visual candidates."""
     catalog = {}
     for page, text in pages:
         chunks = re.split(r"\n\s*\n", text)
@@ -576,7 +580,6 @@ def generate(title, pages, language, evidence_map, previous_failures=None,
         try:
             client = OpenAI(api_key=api_key, base_url=base_url, timeout=120, max_retries=0)
             kwargs = {"model": chosen_model, "response_format": {"type": "json_object"}, "messages": messages}
-            # Only apply temperature if not gemini
             if "gemini" not in chosen_model.lower():
                 kwargs["temperature"] = 0
                 
@@ -593,9 +596,10 @@ def generate(title, pages, language, evidence_map, previous_failures=None,
 
 def configured_providers():
     cloudflare_account = os.getenv("CLOUDFLARE_ACCOUNT_ID", "").strip()
+    
+    # Officially supported, robust OpenAI-compatible gateways (trailing slash omitted)
     options = {
-        # Updated to Gemini 3.6 Flash
-        "gemini": ("GEMINI_API_KEY", "[https://generativelanguage.googleapis.com/v1beta/openai/](https://generativelanguage.googleapis.com/v1beta/openai/)",
+        "gemini": ("GEMINI_API_KEY", "[https://generativelanguage.googleapis.com/v1beta/openai](https://generativelanguage.googleapis.com/v1beta/openai)",
                    os.getenv("GEMINI_MODEL", "gemini-3.6-flash")),
         "groq": ("GROQ_API_KEY", "[https://api.groq.com/openai/v1](https://api.groq.com/openai/v1)",
                  os.getenv("GROQ_TEXT_MODEL", "llama-3.3-70b-versatile")),
@@ -660,7 +664,6 @@ def verify_exercise_diagrams(lesson_data):
 
 
 def check_content(lesson, title, pages, catalog):
-    """Rigorous Content & Citation Gate checking exact quotes against the textbook OCR catalog."""
     errors = []
     if re.sub(r"\W+", "", str(lesson.get("title", "")).casefold()) != re.sub(r"\W+", "", title.casefold()):
         errors.append("TITLE_MISMATCH")
@@ -771,7 +774,6 @@ def independent_reviewer(generator_provider, generator_model,
 
 def review_page_claims(client, provider, model, page, image, page_text,
                        claims, exercise_coverage=False):
-    """Independent review verifying claims directly against original textbook page images."""
     payload = {"pdf_page": page, "ocr": page_text, "claims": claims,
                "exercise_coverage_required": exercise_coverage}
     messages = [
@@ -847,10 +849,6 @@ def source_images(pdf, pages):
 
 
 def render_html(lesson, pages, book, images, evidence_map):
-    """
-    Renders clean, self-contained lesson card.
-    Avatar is excluded from inline code so the surrounding Platform UI handles branding cleanly.
-    """
     e = lambda value: html.escape(str(value), quote=True)
     golden_css = (ROOT / "app/static/nabil_lesson_golden.css").read_text(encoding="utf-8") if (ROOT / "app/static/nabil_lesson_golden.css").exists() else ""
     refs = ", ".join(str(p) for p, _ in pages)
@@ -913,7 +911,7 @@ def render_html(lesson, pages, book, images, evidence_map):
         </div>
     </section>''' if lab.get("initial_svg") else ""
 
-    # 4. Exercises & Problems (Exhaustive & Color-Coded)
+    # 4. Solved Exercises & Problems
     exercises_html = []
     for x in lesson.get("exercises", []):
         ex_n = e(x.get("exercise_number", ""))
@@ -927,7 +925,7 @@ def render_html(lesson, pages, book, images, evidence_map):
             {ext_note}
             <button class="btn" type="button" onclick="toggleElem('sol-{ex_n}')">Show Complete Solution &amp; Diagram</button>
             <div id="sol-{ex_n}" class="solution" style="display:none;">
-                <p><strong>Concept Tested / Theorem:</strong> {x.get("concept_tested", "")}</p>
+                <p><strong>Concept Tested / Law:</strong> {x.get("concept_tested", "")}</p>
                 <ol>{steps_html}</ol>
                 {svg_box}
                 <div class="formula"><strong>Final Answer:</strong> {x.get("final_answer", x.get("solution", ""))}</div>
@@ -992,7 +990,7 @@ h1,h2,h3,h4 {{ color:#8ce9ff; }}
 .grid {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; }}
 .fig {{ margin:14px 0; border:1px solid #2ca9dd; background:#09243b; border-radius:12px; padding:12px; text-align:center; }}
 .fig svg {{ max-width:100%; height:auto; display:block; margin:auto; }}
-.formula {{ border:1px solid #34b9ee; padding:14px; border-radius:10px; margin:12px 0; background:rgba(52,185,238,0.08); font-size:1.1rem; }}
+.formula {{ border:1px solid #34b9ee; padding:14px; border-radius:10px; margin:12px 0; background:rgba(52,185,238,0.08); font-family:monospace; font-size:1.1rem; }}
 .tag {{ color:#ffe49a; font-size:0.95rem; font-weight:bold; }}
 .btn {{ background:#1768c5; color:white; border:none; padding:10px 18px; border-radius:8px; cursor:pointer; font-weight:bold; margin:6px 0; }}
 .btn:hover {{ background:#2187ef; }}
