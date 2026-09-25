@@ -1933,8 +1933,8 @@ def main():
         # Probe the image model without any source material; no Drive access.
         from PIL import Image
         sample = io.BytesIO()
-        Image.new("RGB", (16, 16), "white").save(sample, format="PNG")
-        progress("AI_VISION_PROBE_START", image="generated_blank_16x16")
+        Image.new("RGB", (64, 64), "white").save(sample, format="PNG")
+        progress("AI_VISION_PROBE_START", image="generated_blank_64x64")
         response = execute_llm_completion(
             'Return only valid JSON: {"ok":true}', json_mode=True,
             image_base64=base64.b64encode(sample.getvalue()).decode("ascii"))
