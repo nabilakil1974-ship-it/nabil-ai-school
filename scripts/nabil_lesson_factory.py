@@ -738,6 +738,7 @@ def build_evidence_map(doc, entry: dict) -> dict:
     start_p = int(entry["pdf_start_page"])
     end_p = int(entry["pdf_end_page"])
     lesson_id = entry["lesson_id"]
+    book_id = entry["book_id"]
     if start_p < 1 or end_p < start_p or end_p > len(doc):
         raise RuntimeError(f"SOURCE_PAGE_OUT_OF_RANGE: {lesson_id}, pages {start_p}-{end_p}, book length {len(doc)}")
 
