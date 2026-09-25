@@ -235,7 +235,7 @@ def execute_llm_completion(prompt: str, json_mode: bool = True, temperature: flo
                 data = json.loads(resp.read().decode("utf-8"))
                 content = data["choices"][0]["message"]["content"].strip()
                 if content.startswith("```"):
-                    content = re.sub(r"^```(?:json)?\\s*|\\s*```$", "", content, flags=re.I).strip()
+                    content = re.sub(r"^```(?:json)?\s*|\s*```$", "", content, flags=re.I).strip()
                 return content
         except urllib.error.HTTPError as exc:
             # The AI-provider refusal is not a Google Drive or PDF download error.
@@ -281,7 +281,7 @@ def execute_llm_completion(prompt: str, json_mode: bool = True, temperature: flo
                     wait_seconds = float(retry_header)
                 except ValueError:
                     wait_match = re.search(
-                        r"(?i)try again in\\s+(\\d+(?:\\.\\d+)?)\\s*s(?:econds?)?",
+                        r"(?i)try again in\s+(\d+(?:\.\d+)?)\s*s(?:econds?)?",
                         detail,
                     )
                     wait_seconds = (float(wait_match.group(1)) if wait_match
