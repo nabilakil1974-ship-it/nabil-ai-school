@@ -55,6 +55,7 @@ from app.api import (
     routes_research,
     routes_worksheet,
     routes_interactive_lessons,
+    routes_lesson_factory,
     routes_lesson_export,
     routes_admin,
     routes_student,
@@ -343,6 +344,7 @@ app.include_router(
 app.include_router(routes_research.router, prefix="/api")
 app.include_router(routes_worksheet.router, prefix="/api")
 app.include_router(routes_interactive_lessons.router, prefix="/api")
+app.include_router(routes_lesson_factory.router, prefix="/api")
 app.include_router(routes_lesson_export.router, prefix="/api")
 
 # routes_admin already contains:
@@ -489,6 +491,7 @@ def _build_root_html() -> str:
         '<script src="/static/nabil_learning_v132.js?v=139"></script>\n'
         '<script src="/static/nabil_worksheet_v1.js?v=5"></script>\n'
         '<script src="/static/nabil_lesson_worksheet_card_v1.js?v=1"></script>\n'
+        '<script src="/static/nabil_factory_prepare_v1.js?v=1"></script>\n'
         '<script src="/static/nabil_drive_prepared_lesson_v1.js?v=6"></script>\n'
         '<script src="/static/nabil_voice_v133.js?v=133"></script>\n'
         '<script src="/static/nabil_open_tutor_v1.js?v=18"></script>\n'
