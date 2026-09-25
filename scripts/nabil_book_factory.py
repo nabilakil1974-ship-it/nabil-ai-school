@@ -494,17 +494,99 @@ def run(book_id: str, *, index_only: bool, publish: bool,
     return state
 
 
+def folder_pdf_ids(service, folder_id: str) -> list[str]:
+    """Read all direct PDF children of a selected Drive intake folder.
+
+    This never guesses a grade/subject from a filename or claims that a file
+    elsewhere on the user's Drive belongs to the production queue.
+    """
+    ids = []
+    token = None
+    while True:
+        params = {
+            "q": f"'{folder_id}' in parents and trashed = false and mimeType = 'application/pdf'",
+            "fields": "nextPageToken,files(id,name,mimeType)",
+            "pageSize": 1000,
+        }
+        if token:
+            params["pageToken"] = token
+        response = service.files().list(**params).execute()
+        for row in response.get("files", []):
+            if row.get("id") and row.get("mimeType") == "application/pdf":
+                ids.append(row["id"])
+        token = response.get("nextPageToken")
+        if not token:
+            return list(dict.fromkeys(ids))
+
+
+def run_folder(folder_id: str, *, grade: str = "", subject: str = "",
+               language: str = "", branch: str = "",
+               index_only: bool = False, watch: bool = False,
+               poll_seconds: int = 300) -> dict:
+    """One folder = a clearly classified collection of source PDFs.
+
+    Use --grade/subject/language for any new, unregistered PDFs in this
+    intake folder. Already registered books keep their manifest classification.
+    """
+    if poll_seconds < 60:
+        raise RuntimeError("WATCH_POLL_INTERVAL_TOO_SHORT: minimum 60 seconds")
+    service = factory.get_drive_service()
+    last_report = {"status": "NO_PDFS_FOUND", "books": []}
+    retry_not_before = {}
+    while True:
+        ids = folder_pdf_ids(service, folder_id)
+        report = {"status": "FOLDER_SCAN_COMPLETE", "source_folder_id": folder_id,
+                  "pdf_count": len(ids), "books": []}
+        for book_id in ids:
+            if watch and time.monotonic() < retry_not_before.get(book_id, 0):
+                report["books"].append({"book_id": book_id,
+                                        "status": "WAITING_AFTER_FAILURE"})
+                continue
+            try:
+                result = run(book_id, index_only=index_only,
+                             publish=not index_only, grade=grade,
+                             subject=subject, language=language, branch=branch)
+                report["books"].append({"book_id": book_id,
+                                        "status": result["status"]})
+            except Exception as exc:
+                report["books"].append({"book_id": book_id,
+                                        "status": "BLOCKED", "reason": str(exc)[:600]})
+                announce("BOOK_BLOCKED", book_id=book_id, error=str(exc)[:600])
+                retry_not_before[book_id] = time.monotonic() + 3600
+                if not watch:
+                    # No false success exit code when one-shot production fails.
+                    raise
+        announce("FOLDER_SCAN_STATUS", **report)
+        last_report = report
+        if not watch:
+            return report
+        time.sleep(poll_seconds)
+
+
 def main():
     ap=argparse.ArgumentParser(description="NABIL real TOC to final-Drive one-book production")
-    ap.add_argument("--book-id",required=True,help="Original Drive PDF ID; registered or newly classified") 
+    source=ap.add_mutually_exclusive_group(required=True)
+    source.add_argument("--book-id",help="One original Drive PDF ID")
+    source.add_argument("--source-folder-id",help="Drive folder containing original PDF books")
     ap.add_argument("--grade",default="",help="Required for new books, e.g. 7")
     ap.add_argument("--subject",default="",help="Required for new books, e.g. physics")
     ap.add_argument("--language",default="",help="Required for new books: en/fr")
     ap.add_argument("--branch",default="",help="Optional secondary stream")
     ap.add_argument("--index-only",action="store_true",help="Inspect and persist true source TOC without generating or uploading lessons")
+    ap.add_argument("--watch",action="store_true",help="Continuously scan intake folder for newly uploaded PDF books")
+    ap.add_argument("--poll-seconds",type=int,default=300,help="Folder watch interval (minimum 60s)")
     args=ap.parse_args()
-    result=run(args.book_id,index_only=args.index_only,publish=not args.index_only,
-               grade=args.grade,subject=args.subject,language=args.language,branch=args.branch)
+    if args.watch and not args.source_folder_id:
+        ap.error("--watch requires --source-folder-id")
+    if args.source_folder_id:
+        result=run_folder(args.source_folder_id,index_only=args.index_only,
+                          grade=args.grade,subject=args.subject,
+                          language=args.language,branch=args.branch,
+                          watch=args.watch,poll_seconds=args.poll_seconds)
+    else:
+        result=run(args.book_id,index_only=args.index_only,publish=not args.index_only,
+                   grade=args.grade,subject=args.subject,
+                   language=args.language,branch=args.branch)
     announce("FINAL_STATUS",status=result["status"])
 
 if __name__=="__main__":
