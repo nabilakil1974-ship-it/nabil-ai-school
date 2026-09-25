@@ -751,10 +751,50 @@ def extract_multimodal_page_figures(doc, page_num: int, cache_dir: Path,
             "caption (verbatim when readable), visual_description and confidence 0..1. "
             "Do not invent diagram labels or content. Empty array if none."
         )
-        extracted = json.loads(execute_llm_completion(
-            prompt, image_base64=base64.b64encode(pix.tobytes("png")).decode("ascii")))
-        if not isinstance(extracted.get("figures"), list):
-            raise RuntimeError("FIGURE_EVIDENCE_MISSING: vision figure schema invalid")
+        page_image = base64.b64encode(pix.tobytes("png")).decode("ascii")
+        extracted = None
+        response_shape = "no response"
+        # A vision model may return valid JSON with the WRONG root object.
+        # Re-ask on the SAME approved source page, never fabricate a box and
+        # never weaken downstream source-figure matching / scientific review.
+        for attempt in range(1, 3):
+            request_prompt = prompt
+            if attempt == 2:
+                request_prompt += (
+                    '\\nYour previous reply did NOT match the required structure. '
+                    'Use precisely this JSON root shape: '
+                    '{"figures":[{"printed_label":"3a","bbox_1000":'
+                    '[100,120,450,390],"caption":"","visual_description":'
+                    '"","confidence":0.9}]}. The example is ONLY a schema '
+                    'illustration, NOT evidence: replace all values solely '
+                    'with figures actually visible in the attached page. '
+                    'If the page contains no figures, reply {"figures":[]}. '
+                    'Do not return any other keys or explanations.'
+                )
+            raw_figures = execute_llm_completion(
+                request_prompt, json_mode=True, image_base64=page_image)
+            try:
+                proposed = json.loads(raw_figures)
+            except (ValueError, TypeError):
+                response_shape = "invalid_json"
+                proposed = None
+            if isinstance(proposed, dict):
+                response_shape = ",".join(sorted(str(k)[:40] for k in proposed))[:160] or "empty_object"
+                if isinstance(proposed.get("figures"), list):
+                    extracted = proposed
+                    break
+            elif proposed is not None:
+                response_shape = type(proposed).__name__
+            progress("FIGURE_VISION_SCHEMA_CHECK", page=page_num,
+                     attempt=attempt, valid=extracted is not None,
+                     response_shape=response_shape)
+        if extracted is None:
+            raise RuntimeError(
+                f"FIGURE_EVIDENCE_MISSING: page={page_num} vision figure "
+                f"schema invalid after 2 attempts; response_shape={response_shape}"
+            )
+        progress("FIGURE_VISION_SCHEMA_VALID", page=page_num,
+                 figure_candidates=len(extracted["figures"]))
         for idx, info in enumerate(extracted["figures"]):
             if not isinstance(info, dict) or float(info.get("confidence", 0)) < 0.75:
                 continue
