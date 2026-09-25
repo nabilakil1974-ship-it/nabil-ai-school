@@ -128,7 +128,8 @@ def factory_catalog(grade: str = "", subject: str = ""):
     """Discover actual preparable lessons, distinct from published Drive lessons."""
     entries = _entries()
     if grade:
-        entries = [e for e in entries if str(e["grade"]) == str(grade)]
+        from app.api.routes_interactive_lessons import _grade
+        entries = [e for e in entries if _grade(e["grade"]) == _grade(grade)]
     if subject:
         from app.api.routes_interactive_lessons import _subject
         entries = [e for e in entries if _subject(e["subject"]) == _subject(subject)]
