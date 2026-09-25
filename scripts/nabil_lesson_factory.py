@@ -414,7 +414,32 @@ def get_drive_service():
     from google.auth.transport.requests import Request
 
     scopes = ["https://www.googleapis.com/auth/drive"]
+    # Preserve the owner's ORIGINAL three-variable Railway OAuth workflow.
+    # These names were used by the preceding NABIL lesson factory; do not
+    # require a new consent flow if a working refresh token already exists.
+    owner_keys = (
+        "GOOGLE_DRIVE_OAUTH_CLIENT_ID",
+        "GOOGLE_DRIVE_OAUTH_CLIENT_SECRET",
+        "GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN",
+    )
+    owner_values = [os.getenv(name, "").strip() for name in owner_keys]
+    if all(owner_values):
+        credentials = Credentials(
+            token=None,
+            refresh_token=owner_values[2],
+            token_uri="https://oauth2.googleapis.com/token",
+            client_id=owner_values[0],
+            client_secret=owner_values[1],
+            scopes=scopes,
+        )
+        credentials.refresh(Request())
+        return build("drive", "v3", credentials=credentials,
+                     cache_discovery=False)
+
     raw_oauth = os.getenv("NABIL_DRIVE_OAUTH_TOKEN_JSON", "").strip()
+    if any(owner_values) and not raw_oauth:
+        missing = [name for name, value in zip(owner_keys, owner_values) if not value]
+        raise RuntimeError("OWNER_DRIVE_OAUTH_INCOMPLETE: missing " + ",".join(missing))
     if raw_oauth:
         try:
             info = json.loads(raw_oauth)
