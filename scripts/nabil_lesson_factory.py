@@ -402,37 +402,50 @@ def execute_preflight_checks(require_drive: bool = False) -> Dict[str, Any]:
 
 
 def get_drive_service():
-    """Lesson factory needs Drive write access; the textbook indexer's READONLY
-    service is intentionally NOT reused. Only this factory uses the broader scope.
+    """Use the owner's OAuth credentials for uploads to their personal My Drive.
+
+    A service account can read shared source PDFs but cannot own uploaded files
+    in personal Drive, even if shared as Editor. Keep tokens in Railway secrets;
+    never commit them to the repository.
     """
     from googleapiclient.discovery import build
     from google.oauth2 import service_account
+    from google.oauth2.credentials import Credentials
+    from google.auth.transport.requests import Request
 
     scopes = ["https://www.googleapis.com/auth/drive"]
+    raw_oauth = os.getenv("NABIL_DRIVE_OAUTH_TOKEN_JSON", "").strip()
+    if raw_oauth:
+        try:
+            info = json.loads(raw_oauth)
+            creds = Credentials.from_authorized_user_info(info, scopes=scopes)
+            if not creds.valid and creds.refresh_token:
+                creds.refresh(Request())
+            if not creds.valid:
+                raise RuntimeError("NABIL_DRIVE_OAUTH_REFRESH_REQUIRED")
+        except (ValueError, KeyError, TypeError) as exc:
+            raise RuntimeError("NABIL_DRIVE_OAUTH_TOKEN_INVALID: check Railway secret JSON") from exc
+        return build("drive", "v3", credentials=creds, cache_discovery=False)
+
+    # Keep existing read-only source access for index-only operations.
     try:
-        from app.core.config import settings
-        raw = (getattr(settings, "GOOGLE_DRIVE_CREDENTIALS_JSON", None) or "").strip()
-    except (ImportError, AttributeError):
-        raw = ""
-    raw = raw or os.getenv("GOOGLE_DRIVE_CREDENTIALS_JSON", "").strip()
-    if raw:
-        creds = service_account.Credentials.from_service_account_info(
-            json.loads(raw), scopes=scopes
-        )
+        from scripts.index_books import get_drive_service as base_get_drive
+        return base_get_drive()
+    except Exception:
+        pass
+
+    paths = [
+        os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "").strip(),
+        str(ROOT / "drive_service_account.json"),
+        str(ROOT / "credentials.json"),
+    ]
+    path = next((p for p in paths if p and Path(p).is_file()), None)
+    if path:
+        creds = service_account.Credentials.from_service_account_file(
+            path, scopes=scopes)
     else:
-        paths = [
-            os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "").strip(),
-            str(ROOT / "drive_service_account.json"),
-            str(ROOT / "credentials.json"),
-        ]
-        path = next((p for p in paths if p and Path(p).is_file()), None)
-        if path:
-            creds = service_account.Credentials.from_service_account_file(
-                path, scopes=scopes
-            )
-        else:
-            import google.auth
-            creds, _ = google.auth.default(scopes=scopes)
+        import google.auth
+        creds, _ = google.auth.default(scopes=scopes)
     return build("drive", "v3", credentials=creds, cache_discovery=False)
 
 
