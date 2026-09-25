@@ -651,38 +651,27 @@ def extract_multimodal_page_figures(doc, page_num: int, cache_dir: Path,
 
 
 def match_figure_to_item(item: dict, page_figures: List[Dict[str, Any]], page_rect) -> List[str]:
-    item_prompt = item.get("exact_source_prompt", item.get("raw_text", ""))
-    fig_match = re.search(r'(?:fig(?:ure)?\.?|document|doc|شكل|وثيقة)\s*(\d+)', item_prompt, re.I)
-    target_num = int(fig_match.group(1)) if fig_match else None
-
-    scored = []
-    for fig in page_figures:
-        score = 0
-        if target_num is not None and fig.get("printed_number") == target_num:
-            score += 15
-        if fig.get("caption") and any(w.lower() in item_prompt.lower() for w in re.split(r'\W+', fig["caption"]) if len(w) > 3):
-            score += 5
-
-        occ = fig.get("visual_occupancy", 0.1)
-        if 0.02 <= occ <= 0.90:
-            score += 3
-
-        item_bbox = item.get("bbox")
-        if item_bbox and fig.get("bbox"):
-            dist = abs(fig["bbox"][1] - item_bbox[3])
-            if dist < 120:
-                score += 4
-
-        if score > 0:
-            scored.append((score, fig))
-
-    scored.sort(key=lambda x: x[0], reverse=True)
-    if scored and scored[0][0] >= 4:
-        return [scored[0][1]["figure_id"]]
+    """Match by source figure number/letter, never by any random image on page."""
+    prompt = item.get("exact_source_prompt", item.get("raw_text", ""))
+    mentioned = re.findall(
+        r"(?:fig(?:ure)?\.?|document|doc|شكل|وثيقة)\s*(\d+[a-z]?)",
+        prompt, re.I,
+    )
+    wanted = {label.casefold() for label in mentioned}
+    if wanted:
+        matches = []
+        for fig in page_figures:
+            label = str(fig.get("printed_label") or "").casefold()
+            number = str(fig.get("printed_number") or "")
+            if any((w == label or (not re.search(r"[a-z]$", w) and w == number))
+                   for w in wanted):
+                matches.append(fig["figure_id"])
+        if not matches:
+            raise RuntimeError(f"FIGURE_EVIDENCE_MISSING: Source labelled figures {sorted(wanted)} were not extracted")
+        return list(dict.fromkeys(matches))
 
     if item.get("requires_figure"):
-        raise RuntimeError(f"FIGURE_EVIDENCE_MISSING: Mandatory diagram unverified for {item.get('exercise_id', 'Item')}")
-
+        raise RuntimeError("FIGURE_EVIDENCE_MISSING: Diagram required but textbook figure identity is unverified")
     return []
 
 
