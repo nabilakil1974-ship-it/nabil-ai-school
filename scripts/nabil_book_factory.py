@@ -416,7 +416,11 @@ def run(book_id: str, *, index_only: bool, publish: bool,
     pdf_hash=hashlib.sha256(book_path.read_bytes()).hexdigest()
     local_index=BOOK_INDEX_DIR/f"{book_id}.json"
     cached=json.loads(local_index.read_text(encoding="utf-8")) if local_index.exists() else None
-    root=factory.resolve_drive_root_id() if publish else None
+    root = factory.resolve_drive_root_id() if (
+        publish or os.getenv("NABIL_CURRICULUM_ROOT_ID")
+        or os.getenv("NABIL_INTERACTIVE_CURRICULUM_ROOT_ID")
+        or os.getenv("NABIL_LESSON_DRIVE_ROOT")
+    ) else None
     saved=remote_checkpoint(service,root,book_id) if root else None
     if saved and saved.get("source_pdf_sha256") != pdf_hash:
         raise RuntimeError("SOURCE_BOOK_CHANGED: manual source edition reconciliation required")
@@ -434,7 +438,17 @@ def run(book_id: str, *, index_only: bool, publish: bool,
     local_index.write_text(json.dumps(index,ensure_ascii=False,indent=2),encoding="utf-8")
     announce("BOOK_INDEX_VERIFIED", count=len(index["lessons"]), book_id=book_id)
     if index_only:
-        return {"status":"INDEXED_NOT_PRODUCED", "index_file":str(local_index),"lessons":index["lessons"]}
+        # Persist the source-derived TOC in Drive as well as Railway's
+        # replaceable /app filesystem. Do not overwrite a production ledger.
+        if root:
+            checkpoint = saved or {
+                "book_id": book_id, "source_pdf_sha256": pdf_hash,
+                "index": index, "lessons": {}
+            }
+            checkpoint["index"] = index
+            remote_checkpoint(service, root, book_id, checkpoint)
+        return {"status":"INDEXED_NOT_PRODUCED", "index_file":str(local_index),
+                "lessons":index["lessons"], "drive_checkpoint":bool(root)}
     if not publish:
         raise RuntimeError("PUBLISH_REQUIRED: full-book run must upload verified lessons to Drive")
     state=saved or {"book_id":book_id,"source_pdf_sha256":pdf_hash,"index":index,"lessons":{}}
