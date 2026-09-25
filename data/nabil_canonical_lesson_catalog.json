@@ -13,7 +13,11 @@
       "pdf_start_page": 13,
       "pdf_end_page": 18,
       "catalog_status": "PILOT_SOURCE_LOCK_ONLY",
-      "title_verification": "MUST_PASS_RUNTIME_TOC_AND_OPENING"
+      "title_verification": "MUST_PASS_RUNTIME_TOC_AND_OPENING",
+      "toc_pdf_page": 9,
+      "printed_start_page": 13,
+      "printed_end_page": 18,
+      "source_pages_verified_from": "Original scanned PDF visual inspection (chapter opener, TOC, six source pages)"
     }
   ]
 }
