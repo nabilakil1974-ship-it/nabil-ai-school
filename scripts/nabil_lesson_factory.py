@@ -78,7 +78,20 @@ FORBIDDEN_EDUCATIONAL_HARDCODE = [
 
 
 def assert_no_lesson_specific_hardcode(source_code: str):
-    found = [p for p in FORBIDDEN_EDUCATIONAL_HARDCODE if p.lower() in source_code.lower()]
+    # Scan executable/source content while excluding the detector's own
+    # forbidden-pattern declaration; otherwise the scanner detects itself.
+    import ast
+    tree = ast.parse(source_code)
+    lines = source_code.splitlines(keepends=True)
+    scan_lines = list(lines)
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Assign, ast.AnnAssign)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            if any(isinstance(t, ast.Name) and t.id == "FORBIDDEN_EDUCATIONAL_HARDCODE" for t in targets):
+                for idx in range(node.lineno - 1, node.end_lineno):
+                    scan_lines[idx] = "\n"
+    scan_source = "".join(scan_lines)
+    found = [p for p in FORBIDDEN_EDUCATIONAL_HARDCODE if p.lower() in scan_source.lower()]
     if found:
         raise RuntimeError(f"LESSON_SPECIFIC_HARDCODE_DETECTED: Found {found}")
 
@@ -89,7 +102,19 @@ def assert_no_markdown_urls_in_runtime_code(source_code: str):
         'scopes = ["[http',
         '](http',
     ]
-    found = [p for p in bad_patterns if p in source_code]
+    # Exclude this scanner's own bad-pattern declaration from the scan.
+    import ast
+    tree = ast.parse(source_code)
+    lines = source_code.splitlines(keepends=True)
+    scan_lines = list(lines)
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Assign, ast.AnnAssign)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            if any(isinstance(t, ast.Name) and t.id == "bad_patterns" for t in targets):
+                for idx in range(node.lineno - 1, node.end_lineno):
+                    scan_lines[idx] = "\n"
+    scan_source = "".join(scan_lines)
+    found = [p for p in bad_patterns if p in scan_source]
     if found:
         raise RuntimeError(f"MARKDOWN_URL_CONTAMINATION_DETECTED: Found banned markdown patterns -> {found}")
 
