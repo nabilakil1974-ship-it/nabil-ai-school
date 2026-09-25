@@ -1,12 +1,14 @@
 """
 NABIL AI — Enterprise Autonomous Lesson Factory & Production Engine
 Architecture:
-- Lazy / On-Demand Visual Evidence (Render ONLY referenced pages, cached by book_id:page:fig)
-- Strict Source-Locked Extraction (source_page + source_text_hash + raw_prompt)
+- Deterministic Visual Occupancy Engine (Calculates bounds, auto-fits viewBox to 75-85% occupancy)
+- Calm Educational Layered Palette (Eliminates blue-on-blue, high contrast, readable labels)
+- Explicit 390px Mobile Viewport Safety
+- VISUAL_LAYOUT_FAILED Quality Gate
+- Lazy / On-Demand Visual Evidence (Render ONLY referenced pages, cached)
+- Source-Locked Verbatim Exercises (source_page + source_text_hash + raw_prompt)
 - Deterministic 1:1 Pedagogy Matching Gate
-- Generic Modular Simulation Lab (Driven purely by lab_spec.type)
-- Dynamic Catalog Engine with Opening-Page Verification (--build-catalog)
-- Full Zero-Tolerance Quality Gates Suite
+- Generic Modular Lab Renderer (Purely driven by lab_spec_type)
 """
 
 import argparse
@@ -103,7 +105,84 @@ def configured_providers():
 
 
 # =========================================================================
-# 1. CATALOG ENGINE (TOC + Opening-Page Verification)
+# 1. VISUAL NORMALIZATION ENGINE (AUTO-FIT VIEWBOX & OCCUPANCY CHECK)
+# =========================================================================
+
+def normalize_and_fit_svg(svg_str, min_occupancy=0.55):
+    """
+    Parses SVG coordinates, calculates actual bounding box of scientific elements,
+    and refits the viewBox so that scientific content occupies 75-85% of display area.
+    Raises AssertionError(VISUAL_LAYOUT_FAILED) if occupancy is pathologically tiny.
+    """
+    if not svg_str or "<svg" not in svg_str:
+        return svg_str
+
+    # Extract all x/y coordinates from shapes
+    x_coords = [float(v) for v in re.findall(r'(?:x|cx|x1|x2)\s*=\s*["\']([\d\.]+)["\']', svg_str)]
+    y_coords = [float(v) for v in re.findall(r'(?:y|cy|y1|y2)\s*=\s*["\']([\d\.]+)["\']', svg_str)]
+    widths = [float(v) for v in re.findall(r'width\s*=\s*["\']([\d\.]+)["\']', svg_str)]
+    heights = [float(v) for v in re.findall(r'height\s*=\s*["\']([\d\.]+)["\']', svg_str)]
+    
+    # Path coordinates inspection
+    path_nums = [float(v) for v in re.findall(r'[MLCQZ\s]([\d\.]+)[,\s]+([\d\.]+)', svg_str)]
+    if path_nums:
+        x_coords.extend(path_nums[0::2])
+        y_coords.extend(path_nums[1::2])
+
+    if not x_coords or not y_coords:
+        return svg_str
+
+    min_x, max_x = min(x_coords), max(x_coords)
+    min_y, max_y = min(y_coords), max(y_coords)
+
+    # Adjust for widths/heights of rects
+    if widths:
+        max_x = max(max_x, min_x + max(widths))
+    if heights:
+        max_y = max(max_y, min_y + max(heights))
+
+    content_w = max(10.0, max_x - min_x)
+    content_h = max(10.0, max_y - min_y)
+
+    # Get original viewBox
+    vb_match = re.search(r'viewBox\s*=\s*["\']([\d\.\s\-]+)["\']', svg_str)
+    if vb_match:
+        orig_vb = [float(v) for v in vb_match.group(1).split()]
+        if len(orig_vb) == 4:
+            orig_area = orig_vb[2] * orig_vb[3]
+            content_area = content_w * content_h
+            occupancy = content_area / max(1.0, orig_area)
+
+            # FAIL-FAST QA GATE: Pathologically tiny diagram detection (e.g. 5% occupancy)
+            if occupancy < 0.12 and content_w < 120 and content_h < 80:
+                raise AssertionError(
+                    f"VISUAL_LAYOUT_FAILED: Tiny centered diagram detected! Occupancy is only {round(occupancy*100,1)}%. "
+                    "Scientific figure must fill 70-85% of drawing area."
+                )
+
+    # Auto-fit viewBox with 8% generous breathing padding
+    pad_x = max(15.0, content_w * 0.08)
+    pad_y = max(15.0, content_h * 0.08)
+    
+    new_vx = max(0, min_x - pad_x)
+    new_vy = max(0, min_y - pad_y)
+    new_vw = content_w + (pad_x * 2)
+    new_vh = content_h + (pad_y * 2)
+
+    new_viewbox = f'viewBox="{round(new_vx,1)} {round(new_vy,1)} {round(new_vw,1)} {round(new_vh,1)}"'
+    
+    if vb_match:
+        svg_str = re.sub(r'viewBox\s*=\s*["\'][\d\.\s\-]+["\']', new_viewbox, svg_str, count=1)
+    else:
+        svg_str = re.sub(r'<svg', f'<svg {new_viewbox}', svg_str, count=1)
+
+    # Ensure font size >= 15px for all labels
+    svg_str = re.sub(r'font-size\s*=\s*["\'](?:[0-9]|1[0-3])(?:px)?["\']', 'font-size="15px"', svg_str)
+    return svg_str
+
+
+# =========================================================================
+# 2. CATALOG ENGINE (TOC + Opening-Page Verification)
 # =========================================================================
 
 def build_or_verify_catalog(service, book_id, grade, subject, language="en"):
@@ -151,7 +230,6 @@ def build_or_verify_catalog(service, book_id, grade, subject, language="en"):
             if end_p < start_p:
                 end_p = start_p + 5
 
-            # Opening-Page Verification
             if start_p <= num_pages:
                 opening_page_text = (reader.pages[start_p - 1].extract_text() or "").lower()
                 clean_title_words = [w.lower() for w in re.findall(r"[A-Za-z]{3,}", raw_title)]
@@ -207,14 +285,10 @@ def load_catalog():
 
 
 # =========================================================================
-# 2. ON-DEMAND VISUAL EVIDENCE & LAZY PAGE RENDERING
+# 3. LAZY VISUAL EVIDENCE & DETERMINISTIC EVIDENCE MAP
 # =========================================================================
 
 def get_on_demand_visual_evidence(pdf_path, book_id, page_num, figure_id):
-    """
-    Renders ONLY the specific source page on-demand if not already cached.
-    Verifies that the requested figure is physically present on that page.
-    """
     cache_file = CACHE_DIR / f"{book_id}_p{page_num}_fig{figure_id}.json"
     if cache_file.exists():
         try:
@@ -224,7 +298,6 @@ def get_on_demand_visual_evidence(pdf_path, book_id, page_num, figure_id):
 
     progress("ON_DEMAND_VISUAL_PROCESSING", page=page_num, figure=figure_id)
     
-    # Check physical presence of image/drawing elements on the target page
     from pypdf import PdfReader
     reader = PdfReader(str(pdf_path))
     pdf_page = reader.pages[page_num - 1]
@@ -250,15 +323,10 @@ def get_on_demand_visual_evidence(pdf_path, book_id, page_num, figure_id):
     return evidence_record
 
 
-# =========================================================================
-# 3. DETERMINISTIC EVIDENCE MAP (Per-Page Source-Locked Extraction)
-# =========================================================================
-
 def build_deterministic_evidence_map(pages, pdf_path, book_id):
     activities_evidence = []
     exercise_evidence = []
 
-    # 1. Activities Evidence
     for page_num, page_text in pages:
         for m in re.finditer(r"(?:Activity|Activité|نشاط)\s*(\d+)[:\.\s\-]+([^\n\r]+)", page_text, re.I):
             act_num = int(m.group(1))
@@ -278,7 +346,6 @@ def build_deterministic_evidence_map(pages, pdf_path, book_id):
             dedup_acts.append(a)
     activities_evidence = dedup_acts
 
-    # 2. Exercises Evidence (Page-by-page preservation)
     ex_pattern = re.compile(
         r"(?:Exercise|Exercice|Problem|تمرين|مسألة)\s*(\d+)[:\.\s\-]+(.*?)(?=(?:Exercise|Exercice|Problem|تمرين|مسألة)\s*\d+|$)",
         re.DOTALL | re.I
@@ -296,7 +363,6 @@ def build_deterministic_evidence_map(pages, pdf_path, book_id):
                 content_hash = hashlib.sha256(clean_prompt.encode('utf-8')).hexdigest()[:16]
                 fig_refs = re.findall(r"(?:figure|fig\.|شكل)\s*(\d+)", clean_prompt, re.I)
 
-                # LAZY VISUAL EVIDENCE: Only process if a Figure is explicitly referenced
                 visual_evidence = []
                 for f_ref in fig_refs:
                     v_ev = get_on_demand_visual_evidence(pdf_path, book_id, page_num, f_ref)
@@ -334,10 +400,6 @@ def build_deterministic_evidence_map(pages, pdf_path, book_id):
     }
 
 
-# =========================================================================
-# 4. PEDAGOGY PROFILE COMPILER
-# =========================================================================
-
 def compile_pedagogy_profile(evidence_map, subject):
     act_count = len(evidence_map["activities_evidence"])
     ex_count = len(evidence_map["exercise_evidence"])
@@ -360,7 +422,7 @@ def compile_pedagogy_profile(evidence_map, subject):
 
 
 # =========================================================================
-# 5. AI TEACHING LAYER (NABIL METHOD OVER SOURCE-LOCKED PROMPTS)
+# 4. AI TEACHING LAYER (WITH STRICT OCCUPANCY PROMPTS)
 # =========================================================================
 
 def generate_pedagogical_theory(client, model, canonical_entry, evidence_map, profile):
@@ -375,6 +437,10 @@ def generate_pedagogical_theory(client, model, canonical_entry, evidence_map, pr
         f"PEDAGOGY REQUIREMENT: You MUST generate EXACTLY {profile['expected_activities_count']} activities "
         "matching 1:1 the activities evidenced in the source scans.\n"
         "STRICT PROHIBITION: Do NOT introduce surface tension, cohesion, adhesion, density formulas, or hydrostatic pressure.\n"
+        "MANDATORY VISUAL OCCUPANCY RULES:\n"
+        "1. For each activity, output a bold, wide SVG diagram.\n"
+        "2. The scientific elements (beakers, flasks, cubes, tubes) MUST occupy 75% to 85% of the SVG viewBox.\n"
+        "3. NEVER draw tiny isolated shapes in a vast empty box. Labels must have font-size >= 15px and clear contrasting colors.\n"
         "Output format strictly valid JSON: {\n"
         "  'hook_en': str, 'hook_ar': str,\n"
         "  'objectives': [str],\n"
@@ -405,13 +471,22 @@ def generate_pedagogical_theory(client, model, canonical_entry, evidence_map, pr
         model=model,
         response_format={"type": "json_object"},
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=1800,
+        max_tokens=1900,
         temperature=0.1
     )
     txt = resp.choices[0].message.content.strip()
     if txt.startswith("```"):
         txt = re.sub(r"^```(?:json)?\s*|\s*```$", "", txt, flags=re.I).strip()
-    return json.loads(txt)
+    data = json.loads(txt)
+
+    # AUTO-FIT AND NORMALIZE OCCUPANCY ON ALL ACTIVITIES & STUDY CARDS
+    for act in data.get("activities", []):
+        act["svg_diagram"] = normalize_and_fit_svg(act.get("svg_diagram", ""))
+
+    for p in data.get("study_card", {}).get("panels", []):
+        p["svg_diagram"] = normalize_and_fit_svg(p.get("svg_diagram", ""))
+
+    return data
 
 
 def solve_source_locked_exercises_adaptive(client, model, canonical_entry, evidence_map):
@@ -434,7 +509,7 @@ def solve_source_locked_exercises_adaptive(client, model, canonical_entry, evide
             f"{json.dumps(chunk, ensure_ascii=False)}\n\n"
             "MANDATORY INSTRUCTIONS:\n"
             "1. You are providing the SOLUTION & TEACHING LAYER ONLY. Do NOT alter the physical task.\n"
-            "2. If requires_figure is true, reconstruct a clean, faithful vector SVG diagram (viewBox='0 0 600 220').\n"
+            "2. If requires_figure is true, reconstruct a clean, faithful vector SVG diagram. The drawing MUST occupy 75-85% of the viewBox.\n"
             "3. Format NABIL's spoken Arabic analysis strictly as:\n"
             "   المعطى أعطانا: ...\n"
             "   هذا يعني: ...\n"
@@ -474,6 +549,7 @@ def solve_source_locked_exercises_adaptive(client, model, canonical_entry, evide
                     num = it.get("number")
                     orig = next((x for x in chunk if x["number"] == num), None)
                     if orig:
+                        norm_svg = normalize_and_fit_svg(it.get("svg_diagram", "")) if orig["requires_figure"] else ""
                         merged = {
                             "number": num,
                             "source_page": orig["source_page"],
@@ -484,7 +560,7 @@ def solve_source_locked_exercises_adaptive(client, model, canonical_entry, evide
                             "steps_en": it.get("steps_en", []),
                             "nabil_oral_ar": it.get("nabil_oral_ar", ""),
                             "final_answer": it.get("final_answer", ""),
-                            "svg_diagram": it.get("svg_diagram", "") if orig["requires_figure"] else "",
+                            "svg_diagram": norm_svg,
                             "requires_figure": orig["requires_figure"],
                             "figure_refs": orig["figure_refs"]
                         }
@@ -500,7 +576,7 @@ def solve_source_locked_exercises_adaptive(client, model, canonical_entry, evide
 
 
 # =========================================================================
-# 6. HARD QUALITY GATES (ZERO-TOLERANCE SUITE)
+# 5. HARD QUALITY GATES (ZERO-TOLERANCE SUITE)
 # =========================================================================
 
 def execute_deterministic_quality_gates(theory_data, solved_exercises, evidence_map, profile):
@@ -538,7 +614,7 @@ def execute_deterministic_quality_gates(theory_data, solved_exercises, evidence_
         if matched["source_page"] != orig["source_page"]:
             raise AssertionError(f"EXERCISE_SOURCE_MISMATCH: Page mismatch on exercise {orig['number']}")
 
-    # 4. Visual Evidence Gate
+    # 4. Visual Evidence & SVG Presence Gate
     for orig in evidence_map["exercise_evidence"]:
         if orig["requires_figure"]:
             matched = next(x for x in solved_exercises if x["number"] == orig["number"])
@@ -569,82 +645,35 @@ def execute_deterministic_quality_gates(theory_data, solved_exercises, evidence_
 
 
 # =========================================================================
-# 7. DYNAMIC MODULAR LAB RENDERER
-# =========================================================================
-
-def render_dynamic_live_lab(lab_type):
-    if not lab_type:
-        return ""
-
-    if lab_type == "fluid_tilt_surface":
-        return """
-        <section id="lab" class="card">
-          <h2>🧪 Live Lab · Tilt the Vessel &amp; Measure Surface</h2>
-          <div class="lab">
-            <p>Drag the slider to tilt the container. Observe that while the container rotates, the <b>liquid free surface at rest remains plane and horizontal</b> relative to the vertical reference:</p>
-            <label>Tilt angle: <b id="ang" style="color:var(--c-obs-bar);">0°</b>
-              <input id="tilt" type="range" min="-35" max="35" value="0"/>
-            </label>
-            <div class="figure">
-              <svg id="labSvg" viewBox="0 0 650 300">
-                <g id="labV">
-                  <path d="M 180 50 L 180 240 L 440 240 L 440 50" fill="none" stroke="#38bdf8" stroke-width="8"/>
-                </g>
-                <line class="water" x1="190" y1="150" x2="430" y2="150"/>
-                <line x1="550" y1="40" x2="550" y2="230" stroke="var(--c-obs-bar)" stroke-width="3" stroke-dasharray="5 5"/>
-                <circle cx="550" cy="245" r="14" fill="var(--c-obs-bar)"/>
-                <text x="495" y="280" fill="var(--c-obs-bar)" font-size="14">Vertical reference</text>
-              </svg>
-            </div>
-            <div id="labmsg" class="answer">At 0°, the vessel is upright and the free surface is horizontal.</div>
-          </div>
-        </section>"""
-
-    elif lab_type == "communicating_vessels":
-        return """
-        <section id="lab" class="card">
-          <h2>🧪 Live Lab · Communicating Vessels Equilibrium</h2>
-          <div class="lab">
-            <p>Adjust the liquid volume. Notice that the liquid level <b>remains in the exact same horizontal plane</b> across all branches regardless of tube diameter:</p>
-            <label>Water Height: <b id="volLabel" style="color:var(--c-obs-bar);">120 mL</b>
-              <input id="volSlider" type="range" min="60" max="180" value="120"/>
-            </label>
-            <div class="figure">
-              <svg viewBox="0 0 650 260">
-                <path d="M 100 40 L 100 200 L 200 200 L 200 40 M 200 200 L 360 200 M 360 40 L 360 200 L 420 200 L 420 40 M 420 200 L 540 200 L 540 40" fill="none" stroke="#38bdf8" stroke-width="7"/>
-                <line id="commWater" x1="105" y1="120" x2="535" y2="120" stroke="#38bdf8" stroke-width="8" stroke-dasharray="1000"/>
-                <line x1="50" y1="120" x2="600" y2="120" stroke="var(--c-concl-bar)" stroke-width="2" stroke-dasharray="6 4"/>
-              </svg>
-            </div>
-            <div class="answer">Free surfaces equalize to the same horizontal plane.</div>
-          </div>
-        </section>"""
-
-    return ""
-
-
-# =========================================================================
-# 8. HTML RENDERERS & SAFE NAVIGATION
+# 6. CALM EDUCATIONAL PALETTE & MODULAR CSS
 # =========================================================================
 
 def get_shared_css():
+    """
+    Calm Educational Layered Palette:
+    - Deep calm navy base
+    - Visibly distinct lighter neutral teaching cards
+    - Clean neutral/contrasting figure areas
+    - Distinct semantic accents for Exp, Obs, Concl, and Inquiry
+    - Full card width responsive figures on 390px mobile
+    """
     return """
     :root {
-      --bg-main: #07192b;
-      --text-main: #f8fafc;
+      --bg-main: #0b1523;
+      --text-main: #f1f5f9;
       --text-muted: #94a3b8;
-      --card-bg: #0d2742;
-      --card-border: #1e4a78;
-      --c-hook-border: #38bdf8;
-      --c-exp-bar: #38bdf8;
-      --c-obs-bar: #f59e0b;
-      --c-concl-bar: #10b981;
-      --c-lab-border: #06b6d4;
-      --c-ex-border: #10b981;
-      --c-sol-bg: #042e22;
-      --c-sol-text: #ecfdf5;
-      --c-card-gold: #fbbf24;
-      --c-arabic-box: #0a3359;
+      --card-bg: #132235;
+      --card-border: #1e3650;
+      
+      --c-accent-cyan: #38bdf8;
+      --c-accent-amber: #fbbf24;
+      --c-accent-green: #34d399;
+      --c-accent-purple: #c084fc;
+      
+      --fig-surface: #1a2d44;
+      --fig-border: #2b4566;
+      --sol-bg: #092c22;
+      --sol-border: #10b981;
     }
     * { box-sizing: border-box; }
     html { scroll-behavior: smooth; }
@@ -657,13 +686,13 @@ def get_shared_css():
       font-size: 16px;
     }
     header {
-      background: linear-gradient(135deg, #0e3052 0%, #034f8c 100%);
-      padding: 16px 22px;
+      background: linear-gradient(135deg, #0e1e32 0%, #152c48 100%);
+      padding: 16px 20px;
       position: sticky;
       top: 0;
       z-index: 100;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-      border-bottom: 2px solid var(--c-hook-border);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.45);
+      border-bottom: 2px solid var(--c-accent-cyan);
     }
     header .bar {
       max-width: 1150px;
@@ -674,12 +703,12 @@ def get_shared_css():
       flex-wrap: wrap;
       gap: 12px;
     }
-    .source { color: var(--c-obs-bar); font-size: 0.95rem; font-weight: bold; }
+    .source { color: var(--c-accent-amber); font-size: 0.95rem; font-weight: 700; }
     nav a, .nav-btn {
       color: #ffffff;
       text-decoration: none;
-      background: #0d365c;
-      border: 1px solid var(--c-hook-border);
+      background: #192d47;
+      border: 1px solid var(--c-accent-cyan);
       padding: 8px 14px;
       border-radius: 8px;
       font-size: 14px;
@@ -690,21 +719,21 @@ def get_shared_css():
       transition: all 0.25s ease;
     }
     nav a:hover, .nav-btn:hover {
-      background: var(--c-hook-border);
-      color: #07192b;
+      background: var(--c-accent-cyan);
+      color: #0b1523;
       transform: translateY(-1px);
     }
     .cta-exercises-box {
-      background: linear-gradient(135deg, #0a355c, #0e4c82);
-      border: 2px solid var(--c-ex-border);
+      background: linear-gradient(135deg, #122842, #183556);
+      border: 2px solid var(--c-accent-green);
       border-radius: 16px;
       padding: 24px;
       text-align: center;
       margin: 28px 0;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.35);
     }
     .cta-exercises-btn {
-      background: var(--c-ex-border);
+      background: var(--c-accent-green);
       color: #042114;
       font-size: 1.15rem;
       font-weight: 800;
@@ -718,12 +747,12 @@ def get_shared_css():
       transition: 0.25s;
     }
     .cta-exercises-btn:hover {
-      background: #34d399;
-      transform: scale(1.03);
+      background: #6ee7b7;
+      transform: scale(1.02);
     }
     main { max-width: 1150px; margin: auto; padding: 20px 16px; }
     h1 { font-size: clamp(1.6rem, 3.5vw, 2.3rem); margin: 0.2em 0; color: #ffffff; font-weight: 800; }
-    h2 { color: var(--c-hook-border); margin-top: 0; font-size: 1.4rem; }
+    h2 { color: var(--c-accent-cyan); margin-top: 0; font-size: 1.35rem; }
     h3 { color: #bae6fd; font-size: 1.15rem; }
     .card {
       background: var(--card-bg);
@@ -731,44 +760,80 @@ def get_shared_css():
       border-radius: 16px;
       padding: 22px;
       margin: 22px 0;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.35);
+      box-shadow: 0 8px 22px rgba(0,0,0,0.3);
     }
-    .card.teacher { border-left: 6px solid var(--c-hook-border); background: #0b2d4f; }
+    .card.teacher { border-left: 6px solid var(--c-accent-cyan); background: #12253a; }
     .chips span {
       display: inline-block;
       padding: 5px 12px;
-      border: 1px solid #3d8fb6;
+      border: 1px solid #335377;
       border-radius: 999px;
       margin: 4px 4px 4px 0;
-      background: #092644;
+      background: #172d47;
       font-size: 13px;
       font-weight: bold;
     }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    .stage-exp { border-left: 4px solid var(--c-exp-bar); padding: 12px 16px; margin: 10px 0; background: #0b2f54; border-radius: 8px; }
-    .stage-obs { border-left: 4px solid var(--c-obs-bar); padding: 12px 16px; margin: 10px 0; background: #2b2006; border-radius: 8px; }
-    .stage-concl { border-left: 4px solid var(--c-concl-bar); padding: 12px 16px; margin: 10px 0; background: #063828; border-radius: 8px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    
+    /* Semantic Teaching Cards */
+    .stage-exp {
+      border-left: 4px solid var(--c-accent-cyan);
+      padding: 12px 16px;
+      margin: 10px 0;
+      background: #10253d;
+      border-radius: 8px;
+    }
+    .stage-obs {
+      border-left: 4px solid var(--c-accent-amber);
+      padding: 12px 16px;
+      margin: 10px 0;
+      background: #26200c;
+      border-radius: 8px;
+    }
+    .stage-concl {
+      border-left: 4px solid var(--c-accent-green);
+      padding: 12px 16px;
+      margin: 10px 0;
+      background: #0d2820;
+      border-radius: 8px;
+    }
+    
+    /* Neutral High-Contrast Figure Area */
     .figure {
-      background: #081f36;
-      border: 1px solid #1e4a78;
+      background: var(--fig-surface);
+      border: 1px solid var(--fig-border);
       border-radius: 14px;
-      padding: 18px;
-      margin: 14px 0;
+      padding: 16px;
+      margin: 12px 0;
       text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     .figure svg {
       width: 100%;
-      max-width: 650px;
-      min-height: 210px;
       height: auto;
+      min-height: 200px;
+      max-height: 320px;
       display: block;
       margin: auto;
     }
-    .figure svg text { font-family: system-ui, sans-serif; font-weight: 700; fill: #e2e8f0; }
+    .figure svg text {
+      font-family: system-ui, sans-serif;
+      font-weight: 700;
+      fill: #f8fafc;
+    }
+    
     .water { stroke: #38bdf8; stroke-width: 8; }
-    .ask { background: #261942; border: 1px solid #9333ea; border-radius: 12px; padding: 14px; margin: 14px 0; }
+    .ask {
+      background: #1e1933;
+      border: 1px solid #8b5cf6;
+      border-radius: 12px;
+      padding: 14px;
+      margin: 14px 0;
+    }
     button {
-      background: #176dcc;
+      background: #2563eb;
       color: white;
       border: 0;
       border-radius: 8px;
@@ -778,10 +843,10 @@ def get_shared_css():
       margin: 4px;
     }
     button:hover { filter: brightness(1.15); }
-    button.secondary { background: #10b981; color: #042114; font-weight: 800; }
+    button.secondary { background: #059669; color: #ffffff; font-weight: 800; }
     .btn-toggle-ar {
-      background: #10416b;
-      border: 1px solid #38bdf8;
+      background: #172d47;
+      border: 1px solid var(--c-accent-cyan);
       color: #bae6fd;
       font-size: 13.5px;
       padding: 6px 12px;
@@ -791,8 +856,8 @@ def get_shared_css():
       display: inline-block;
     }
     .arabic-explanation-box {
-      background: var(--c-arabic-box);
-      border-right: 4px solid #38bdf8;
+      background: #0f2742;
+      border-right: 4px solid var(--c-accent-cyan);
       border-radius: 8px;
       padding: 14px;
       margin: 10px 0;
@@ -802,8 +867,8 @@ def get_shared_css():
       line-height: 1.7;
     }
     .nabil-oral-box {
-      background: #073829;
-      border-right: 5px solid var(--c-concl-bar);
+      background: #092c22;
+      border-right: 5px solid var(--c-accent-green);
       border-radius: 8px;
       padding: 16px;
       margin: 14px 0;
@@ -815,9 +880,9 @@ def get_shared_css():
     }
     .feedback { display: inline-block; margin-left: 10px; font-weight: bold; }
     .exercise {
-      background: #0c2b4a;
-      border: 1px solid #1e4a78;
-      border-left: 6px solid var(--c-ex-border);
+      background: #112338;
+      border: 1px solid var(--card-border);
+      border-left: 6px solid var(--c-accent-green);
       border-radius: 14px;
       padding: 20px;
       margin: 22px 0;
@@ -828,28 +893,45 @@ def get_shared_css():
       font-weight: bold;
       color: #6ee7b7;
       font-size: 1.1rem;
-      border-bottom: 1px solid #1a4a75;
+      border-bottom: 1px solid #1a3854;
       padding-bottom: 10px;
       margin-bottom: 12px;
     }
-    .prompt { background: #061c33; border-radius: 8px; padding: 14px; margin: 12px 0; font-size: 15.5px; color: #f1f5f9; }
+    .prompt {
+      background: #09192b;
+      border-radius: 8px;
+      padding: 14px;
+      margin: 12px 0;
+      font-size: 15.5px;
+      color: #f1f5f9;
+      border: 1px solid #152c48;
+    }
     details { margin-top: 10px; }
-    summary { cursor: pointer; font-weight: bold; color: var(--c-concl-bar); padding: 4px 0; font-size: 1.05rem; }
+    summary { cursor: pointer; font-weight: bold; color: var(--c-accent-green); padding: 4px 0; font-size: 1.05rem; }
     .answer {
-      background: var(--c-sol-bg);
-      border: 1px solid var(--c-concl-bar);
-      color: var(--c-sol-text);
+      background: var(--sol-bg);
+      border: 1px solid var(--sol-border);
+      color: #ecfdf5;
       padding: 14px 18px;
       border-radius: 8px;
       margin-top: 12px;
       font-weight: 600;
     }
-    .lab { background: #0a2f52; border: 1px solid var(--c-lab-border); border-radius: 14px; padding: 20px; }
+    .lab { background: #0e243a; border: 1px solid #0284c7; border-radius: 14px; padding: 20px; }
     input[type=range] { width: 100%; margin: 12px 0; }
-    select { padding: 8px 12px; border-radius: 6px; background: #07192b; color: #fff; border: 1px solid var(--c-hook-border); }
-    .summary { border: 2px solid var(--c-card-gold); background: #0c243d; box-shadow: 0 0 25px rgba(251, 191, 36, 0.15); }
+    select { padding: 8px 12px; border-radius: 6px; background: #07192b; color: #fff; border: 1px solid var(--c-accent-cyan); }
+    .summary { border: 2px solid var(--c-card-gold); background: #132438; box-shadow: 0 0 25px rgba(251, 191, 36, 0.12); }
     .sc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
-    .sc-panel { background: #071e36; border: 1px solid #1a4a75; border-radius: 12px; padding: 16px; }
+    .sc-panel { background: #0c1a2b; border: 1px solid #1e3a5a; border-radius: 12px; padding: 16px; }
+    
+    /* 390px Mobile Viewport Explicit Safety */
+    @media(max-width:768px) {
+      .grid { grid-template-columns: 1fr; }
+      .figure { padding: 8px; }
+      .figure svg { min-height: 180px; width: 100% !important; }
+      main { padding: 14px 10px; }
+      .card { padding: 16px; }
+    }
     @media print {
       body * { visibility: hidden; }
       #printableCard, #printableCard * { visibility: visible; }
@@ -868,9 +950,67 @@ def get_shared_css():
       header, nav, .ask, .lab, select, button, .cta-exercises-box, .btn-toggle-ar { display: none !important; }
       @page { size: A4 portrait; margin: 10mm; }
     }
-    @media(max-width:720px){ .grid { grid-template-columns: 1fr; } }
     """
 
+
+# =========================================================================
+# 7. DYNAMIC MODULAR LAB RENDERER
+# =========================================================================
+
+def render_dynamic_live_lab(lab_type):
+    if not lab_type:
+        return ""
+
+    if lab_type == "fluid_tilt_surface":
+        return """
+        <section id="lab" class="card">
+          <h2>🧪 Live Lab · Tilt the Vessel &amp; Measure Surface</h2>
+          <div class="lab">
+            <p>Drag the slider to tilt the container. Observe that while the container rotates, the <b>liquid free surface at rest remains plane and horizontal</b> relative to the vertical plumb-line:</p>
+            <label>Tilt angle: <b id="ang" style="color:var(--c-accent-amber);">0°</b>
+              <input id="tilt" type="range" min="-35" max="35" value="0"/>
+            </label>
+            <div class="figure">
+              <svg id="labSvg" viewBox="0 0 650 300">
+                <g id="labV">
+                  <path d="M 180 50 L 180 240 L 440 240 L 440 50" fill="none" stroke="#38bdf8" stroke-width="8"/>
+                </g>
+                <line class="water" x1="190" y1="150" x2="430" y2="150"/>
+                <line x1="550" y1="40" x2="550" y2="230" stroke="var(--c-accent-amber)" stroke-width="3" stroke-dasharray="5 5"/>
+                <circle cx="550" cy="245" r="14" fill="var(--c-accent-amber)"/>
+                <text x="480" y="280" fill="var(--c-accent-amber)" font-size="15">Vertical plumb-line</text>
+              </svg>
+            </div>
+            <div id="labmsg" class="answer">At 0°, the vessel is upright and the free surface is horizontal.</div>
+          </div>
+        </section>"""
+
+    elif lab_type == "communicating_vessels":
+        return """
+        <section id="lab" class="card">
+          <h2>🧪 Live Lab · Communicating Vessels Equilibrium</h2>
+          <div class="lab">
+            <p>Adjust the liquid volume. Notice that the liquid level <b>remains in the exact same horizontal plane</b> across all branches regardless of tube diameter:</p>
+            <label>Water Height: <b id="volLabel" style="color:var(--c-accent-amber);">120 mL</b>
+              <input id="volSlider" type="range" min="60" max="180" value="120"/>
+            </label>
+            <div class="figure">
+              <svg viewBox="0 0 650 260">
+                <path d="M 100 40 L 100 200 L 200 200 L 200 40 M 200 200 L 360 200 M 360 40 L 360 200 L 420 200 L 420 40 M 420 200 L 540 200 L 540 40" fill="none" stroke="#38bdf8" stroke-width="7"/>
+                <line id="commWater" x1="105" y1="120" x2="535" y2="120" stroke="#38bdf8" stroke-width="8"/>
+                <line x1="50" y1="120" x2="600" y2="120" stroke="var(--c-accent-green)" stroke-width="2" stroke-dasharray="6 4"/>
+              </svg>
+            </div>
+            <div class="answer">Free surfaces equalize to the same horizontal plane.</div>
+          </div>
+        </section>"""
+
+    return ""
+
+
+# =========================================================================
+# 8. HTML RENDERERS & SAFE NAVIGATION
+# =========================================================================
 
 def render_page_a(theory_data, canonical_entry, profile):
     e = html.escape
@@ -996,7 +1136,7 @@ def render_page_a(theory_data, canonical_entry, profile):
   {ws_html}
   <div style="margin-top:14px;">
     <button class="secondary" onclick="gradeWS()">Correct My Worksheet</button>
-    <strong id="finalScore" style="margin-left:14px; font-size:1.2rem; color:var(--c-obs-bar);"></strong>
+    <strong id="finalScore" style="margin-left:14px; font-size:1.2rem; color:var(--c-accent-amber);"></strong>
   </div>
 </section>
 
@@ -1023,7 +1163,7 @@ function toggleAr(id) {{
 function fb(id, ok) {{
   const el = document.getElementById(id);
   el.textContent = ok ? '✓ Correct observation!' : '✗ Re-check textbook observation.';
-  el.style.color = ok ? 'var(--c-concl-bar)' : 'var(--danger)';
+  el.style.color = ok ? 'var(--c-accent-green)' : '#ef4444';
 }}
 const tilt = document.getElementById('tilt');
 const labV = document.getElementById('labV');
@@ -1045,9 +1185,9 @@ function gradeWS() {{
     const fbEl = document.getElementById('wfb' + i);
     if (sel && sel.value !== "") {{
       if (parseInt(sel.value) === wsKeys[i-1]) {{
-        score++; fbEl.textContent = '✓ Correct'; fbEl.style.color = 'var(--c-concl-bar)';
+        score++; fbEl.textContent = '✓ Correct'; fbEl.style.color = 'var(--c-accent-green)';
       }} else {{
-        fbEl.textContent = '✗ Review observation'; fbEl.style.color = 'var(--danger)';
+        fbEl.textContent = '✗ Review observation'; fbEl.style.color = '#ef4444';
       }}
     }}
   }}
@@ -1083,6 +1223,7 @@ def render_page_b(exercises_list, canonical_entry):
         fig_html = f'<div class="figure ex-figure">{svg}</div>' if svg and "<svg" in svg else ""
         nabil_oral = ex.get("nabil_oral_ar", "")
 
+        # SOURCE-LOCKED DISPLAY: Injected verbatim from raw_prompt
         items_html += f"""
         <article class="exercise" id="ex{num}" data-ex-number="{num}" data-source-hash="{ex.get('source_text_hash', '')}">
           <div class="exhead">
@@ -1136,7 +1277,7 @@ def render_page_b(exercises_list, canonical_entry):
 <main>
 <div class="card teacher">
   <h2>📘 Official Textbook Resolution</h2>
-  <p>All textbook exercises solved below with step-by-step scientific justification, original geometric diagrams, and NABIL's Arabic spoken analysis.</p>
+  <p>All textbook exercises solved below with step-by-step scientific justification, fitted vector diagrams, and NABIL's Arabic spoken analysis.</p>
 </div>
 
 <div id="exercisesContainer">
@@ -1214,7 +1355,7 @@ def produce_lesson_for_entry(service, canonical_entry, report_path, publish=Fals
         theory_data = generate_pedagogical_theory(client, prov[3], canonical_entry, evidence_map, profile)
         solved_exercises = solve_source_locked_exercises_adaptive(client, prov[3], canonical_entry, evidence_map)
 
-        # 5. Strict Zero-Tolerance Quality Gates
+        # 5. Strict Zero-Tolerance Quality Gates (Includes VISUAL_LAYOUT_FAILED)
         execute_deterministic_quality_gates(theory_data, solved_exercises, evidence_map, profile)
 
         # 6. Render Output Files
