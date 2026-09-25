@@ -1685,7 +1685,14 @@ def promote_candidate(candidate: dict, entry: dict, drive_service) -> Tuple[str,
         return drive_service.files().create(body=meta, fields="id").execute()["id"]
 
     grade_fid = get_or_create_folder(f"Grade {entry['grade']}", root_id)
-    subject_fid = get_or_create_folder(entry['subject'], grade_fid)
+    subject_folder_names = {
+        "physics": "Physics - فيزياء",
+        "mathematics": "Mathematics - رياضيات",
+        "chemistry": "Chemistry - كيمياء",
+        "biology": "Biology - علوم الحياة",
+        "general_science": "General Science - علوم عامة",
+    }
+    subject_fid = get_or_create_folder(subject_folder_names.get(entry['subject'], entry['subject']), grade_fid)
 
     def get_existing_file(fname: str) -> Optional[dict]:
         q = f"name = '{fname}' and '{subject_fid}' in parents and trashed = false"
@@ -1749,12 +1756,12 @@ def promote_candidate(candidate: dict, entry: dict, drive_service) -> Tuple[str,
 # ==============================================================================
 # PRODUCTION PIPELINE ENTRY (LAZY DRIVE RESOLUTION)
 # ==============================================================================
-def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = False) -> dict:
+def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = False, allow_pilot_publish: bool = False) -> dict:
     lesson_id = entry["lesson_id"]
     book_id = entry["book_id"]
     progress("PRODUCTION_PIPELINE_START", lesson_id=lesson_id)
 
-    if lesson_id == "G07-PHYSICS-001" and publish:
+    if lesson_id == "G07-PHYSICS-001" and publish and not allow_pilot_publish:
         raise RuntimeError("PILOT_PUBLISH_PROHIBITED: Golden Pilot lesson G07-PHYSICS-001 is QA-only and cannot be published directly to Drive.")
 
     ver_file = VERSIONS_DIR / f"{lesson_id}.json"
