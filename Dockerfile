@@ -4,7 +4,8 @@ FROM python:3.11-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 WORKDIR /app
 
@@ -22,12 +23,15 @@ RUN apt-get update \
         ffmpeg \
         tesseract-ocr \
         tesseract-ocr-eng \
+        tesseract-ocr-fra \
+        tesseract-ocr-ara \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 # Use CPU-only PyTorch for multilingual embeddings, not multi-GB CUDA wheels.
 RUN python -m pip install --no-cache-dir 'torch==2.5.1+cpu' --index-url https://download.pytorch.org/whl/cpu
 RUN python -m pip install --no-cache-dir -r requirements.txt
+RUN python -m playwright install --with-deps chromium && chmod -R a+rX /ms-playwright
 
 COPY . .
 
@@ -37,7 +41,8 @@ RUN python -m scripts.validate_nabil_ui \
     && python -m scripts.test_worksheet_exports \
     && python -m scripts.test_textbook_scope \
     && python -m scripts.test_lesson_policy_formatter \
-    && python -m py_compile app/main.py app/api/routes_chat.py app/api/routes_worksheet.py scripts/start_server.py
+    && python -m py_compile app/main.py app/api/routes_chat.py app/api/routes_worksheet.py app/api/routes_interactive_lessons.py scripts/nabil_lesson_factory.py scripts/start_server.py \
+    && python -c "from app.api import routes_interactive_lessons as r; assert hasattr(r, 'router') and len(r.router.routes) >= 5"
 
 RUN useradd --create-home --shell /usr/sbin/nologin nabil \
     && chown -R nabil:nabil /app
