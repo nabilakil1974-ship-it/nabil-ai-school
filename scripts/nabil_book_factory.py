@@ -428,12 +428,22 @@ def run(book_id: str, *, index_only: bool, publish: bool,
             )
         # Service accounts have no personal My Drive storage quota even when
         # Editor: fail before OCR/checkpoint retries; Shared Drives are different.
-        if (not destination.get("driveId")
-                and not os.getenv("NABIL_DRIVE_OAUTH_TOKEN_JSON", "").strip()):
+        owner_oauth_keys = (
+            "GOOGLE_DRIVE_OAUTH_CLIENT_ID",
+            "GOOGLE_DRIVE_OAUTH_CLIENT_SECRET",
+            "GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN",
+        )
+        has_owner_oauth = all(os.getenv(k, "").strip() for k in owner_oauth_keys)
+        has_owner_oauth = has_owner_oauth or bool(
+            os.getenv("NABIL_DRIVE_OAUTH_TOKEN_JSON", "").strip()
+        )
+        if not destination.get("driveId") and not has_owner_oauth:
             raise RuntimeError(
-                "PERSONAL_DRIVE_REQUIRES_USER_OAUTH: service accounts cannot "
-                "upload new files into a personal My Drive. Authorize the "
-                "owner and set NABIL_DRIVE_OAUTH_TOKEN_JSON in Railway secrets."
+                "PERSONAL_DRIVE_REQUIRES_USER_OAUTH: set the existing "
+                "GOOGLE_DRIVE_OAUTH_CLIENT_ID, GOOGLE_DRIVE_OAUTH_CLIENT_SECRET "
+                "and GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN on this Railway service; "
+                "or NABIL_DRIVE_OAUTH_TOKEN_JSON. A service account cannot "
+                "own files in personal My Drive."
             )
         announce("DRIVE_DESTINATION_WRITE_PERMISSION_VERIFIED",
                  folder=destination.get("name", ""), folder_id=root_id)
