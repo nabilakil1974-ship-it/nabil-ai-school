@@ -41,7 +41,8 @@ RUN python -m scripts.validate_nabil_ui \
     && python -m scripts.test_worksheet_exports \
     && python -m scripts.test_textbook_scope \
     && python -m scripts.test_lesson_policy_formatter \
-    && python -m py_compile app/main.py app/api/routes_chat.py app/api/routes_worksheet.py app/api/routes_interactive_lessons.py scripts/nabil_lesson_factory.py scripts/start_server.py \
+    && python -m scripts.test_lesson_factory_bridge \
+    && python -m py_compile app/main.py app/api/routes_chat.py app/api/routes_worksheet.py app/api/routes_interactive_lessons.py app/api/routes_lesson_factory.py scripts/nabil_lesson_factory.py scripts/start_server.py \
     && python -c "from app.api import routes_interactive_lessons as r; assert hasattr(r, 'router') and len(r.router.routes) >= 5"
 
 RUN useradd --create-home --shell /usr/sbin/nologin nabil \
