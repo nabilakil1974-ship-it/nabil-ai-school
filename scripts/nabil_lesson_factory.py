@@ -723,6 +723,89 @@ def verify_title_double_evidence_strict(doc, entry: dict, opening_txt: str) -> b
         or "contents" in toc_normalized or "فهرس" in toc_normalized
     )
 
+def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
+                                   book_id: str, cache_dir: Path) -> List[dict]:
+    """Read numbered exercise regions from the real page image, not OCR digits.
+
+    Scanned textbooks frequently use circled numbers in two columns, which
+    plain OCR mistakes for letters. Two visual passes independently compare
+    the proposed prompts against the source page before accepting them.
+    """
+    assert_authorized_source_vision(lesson_id, book_id, page_num)
+    page = doc[page_num - 1]
+    image_bytes = page.get_pixmap(dpi=200).tobytes("png")
+    page_b64 = base64.b64encode(image_bytes).decode("ascii")
+    instruction = (
+        "Read this school textbook page, paying attention to TWO-COLUMN reading "
+        "order and circled exercise numbers. Return JSON with exercises array. "
+        "For every numbered exercise or problem return: number (integer), "
+        "section_type (EXERCISE or PROBLEM), exact_source_prompt (all words and "
+        "blanks verbatim, do not solve), subquestions (array of exact strings), "
+        "bbox_1000 (entire exercise prompt region, normalized x0,y0,x1,y1), "
+        "figure_labels (list of exact cited Figure numbers), confidence 0..1, "
+        "and unreadable_parts (array). Include each exercise exactly once; "
+        "do not confuse printed figure numbers, chapter numbers or page "
+        "numbers with exercise numbers. Preserve table entries and all "
+        "instructions. Do not invent any text. No numbered exercises -> []."
+    )
+    extracted = json.loads(execute_llm_completion(instruction, image_base64=page_b64))
+    rows = extracted.get("exercises")
+    if not isinstance(rows, list):
+        raise RuntimeError(f"EXERCISE_SOURCE_MISMATCH: invalid scan evidence p{page_num}")
+    if not rows:
+        return []
+    audit_prompt = (
+        "Independently compare these exercise transcriptions to the PROVIDED "
+        "original source page image. Return JSON: "
+        "{'checks':[{'number':int,'faithful':bool,'reason':str}]}. "
+        "Mark false for a missing part, wrong figure number, invented words, "
+        "wrong item boundaries, incorrect circled-number reading, or bad "
+        "two-column order. No favorable assumptions. Transcriptions: "
+        + json.dumps(rows, ensure_ascii=False)
+    )
+    review = json.loads(execute_llm_completion(audit_prompt, image_base64=page_b64))
+    checks = review.get("checks")
+    if not isinstance(checks, list):
+        raise RuntimeError(f"EXERCISE_SOURCE_MISMATCH: review missing p{page_num}")
+    approved = {int(x["number"]): x for x in checks if isinstance(x, dict)
+                and "number" in x and x.get("faithful") is True}
+    from fitz import Rect
+    result = []
+    for row in rows:
+        if not isinstance(row, dict):
+            raise RuntimeError(f"EXERCISE_SOURCE_MISMATCH: unexpected page item p{page_num}")
+        number = int(row["number"])
+        prompt = str(row.get("exact_source_prompt") or "").strip()
+        coords = row.get("bbox_1000")
+        if (number < 1 or number > 999 or len(prompt) < 10
+                or row.get("unreadable_parts")
+                or float(row.get("confidence", 0)) < 0.85
+                or number not in approved
+                or not isinstance(coords, list) or len(coords) != 4):
+            raise RuntimeError(f"EXERCISE_SOURCE_MISMATCH: unverified exercise {number} p{page_num}")
+        x0, y0, x1, y1 = [float(v) for v in coords]
+        if not (0 <= x0 < x1 <= 1000 and 0 <= y0 < y1 <= 1000):
+            raise RuntimeError(f"EXERCISE_SOURCE_MISMATCH: invalid region #{number} p{page_num}")
+        rect = Rect(x0*page.rect.width/1000, y0*page.rect.height/1000,
+                    x1*page.rect.width/1000, y1*page.rect.height/1000)
+        raw_region = page.get_pixmap(clip=rect, dpi=200).tobytes("png")
+        region_path = cache_dir / f"exercise_p{page_num}_{number}.png"
+        region_path.write_bytes(raw_region)
+        kind = str(row.get("section_type") or "EXERCISE").upper()
+        if kind not in ("EXERCISE", "PROBLEM"):
+            raise RuntimeError("EXERCISE_SOURCE_MISMATCH: invalid section type")
+        result.append({
+            "number": number, "section_type": kind, "exact_source_prompt": prompt,
+            "subquestions": list(row.get("subquestions") or []),
+            "source_page": page_num,
+            "source_bbox": [round(v, 1) for v in (rect.x0,rect.y0,rect.x1,rect.y1)],
+            "source_region_image_ref": str(region_path),
+            "source_region_sha256": hashlib.sha256(raw_region).hexdigest(),
+            "verified_against_source": True, "evidence_method": "TWO_PASS_SOURCE_PAGE_VISION"
+        })
+    return result
+
+
 def build_evidence_map(doc, entry: dict) -> dict:
     start_p = int(entry["pdf_start_page"])
     end_p = int(entry["pdf_end_page"])
@@ -779,42 +862,66 @@ def build_evidence_map(doc, entry: dict) -> dict:
         raise RuntimeError("EVIDENCE_EXTRACTION_INCOMPLETE: No verifiable concepts or activities found within source page range.")
 
     exercises = []
-    ex_pattern = re.compile(r'(?:^|\n)\s*(?:(Problem|Exercise|Problème|Exercice|تمرين|مسألة)\s*)?(\d+)[\.\-\)]\s+([^\n]+(?:\n(?!\s*(?:(?:Problem|Exercise|Problème|Exercice|تمرين|مسألة)\s*)?\d+[\.\-\)]\s+)[^\n]+)*)', re.I)
+    ex_pattern = re.compile(r'(?:^|\n)\\s*(?:(Problem|Exercise|Problème|Exercice|تمرين|مسألة)\\s*)?(\\d+)[\\.\\-\\)]\\s+([^\\n]+(?:\\n(?!\\s*(?:(?:Problem|Exercise|Problème|Exercice|تمرين|مسألة)\\s*)?\\d+[\\.\\-\\)]\\s+)[^\\n]+)*)', re.I)
+    exercise_section_seen = False
     for p in pages_evidence:
-        page_doc = doc[p["page_num"] - 1]
-        for m in ex_pattern.finditer(p["text"]):
-            kind = m.group(1)
-            ex_num = int(m.group(2))
-            content = " ".join(m.group(3).split())
-            if len(content) < 10:
+        page_num = p["page_num"]
+        if re.search(r"(?i)\b(exercises|problems|exercices|problèmes)\\b|تمارين|مسائل", p["text"]):
+            exercise_section_seen = True
+        source_page = doc[page_num - 1]
+        scanned = any(
+            (rect.width*rect.height)/(source_page.rect.width*source_page.rect.height) >= 0.80
+            for image in source_page.get_images(full=True)
+            for rect in source_page.get_image_rects(image[0])
+        )
+        if scanned:
+            if not exercise_section_seen and page_num < end_p - 1:
                 continue
-
-            sec_type = "PROBLEM" if kind and kind.upper() in ["PROBLEM", "PROBLÈME", "مسألة"] else "EXERCISE"
-            subs = [f"({s[0]}) {s[1].strip()}" for s in re.findall(r'(?:^|\s|\()([a-d])[\)\.]\s*([^\(\)\n]+)', content)]
-            req_fig = bool(re.search(r'(?:fig(?:ure)?\.?|document|doc|شكل|وثيقة)\s*(\d+)', content, re.I) or any(k in content.lower() for k in ["figure", "diagram", "sketch", "draw", "graph", "table"]))
-            matched_figs = match_figure_to_item({"exact_source_prompt": content, "requires_figure": req_fig}, p["figures"], page_doc.rect)
-            fig_hashes = [f["image_sha256"] for f in p["figures"] if f["figure_id"] in matched_figs]
-
-            norm_content = re.sub(r'\s+', ' ', content).strip().lower()
-            norm_page = re.sub(r'\s+', ' ', p["text"]).strip().lower()
-            is_faithful = norm_content in norm_page
-
-            exercises.append({
-                "exercise_id": f"{lesson_id}-{sec_type[:2]}-{ex_num:02d}",
-                "lesson_id": lesson_id,
-                "section_type": sec_type,
-                "number": ex_num,
-                "source_page": p["page_num"],
-                "exact_source_prompt": content,
+            rows = extract_scanned_page_exercises(doc, page_num, lesson_id, book_id, lesson_cache)
+        else:
+            rows = []
+            for m in ex_pattern.finditer(p["text"]):
+                prompt = " ".join(m.group(3).split())
+                if len(prompt) < 10:
+                    continue
+                kind = m.group(1)
+                rows.append({
+                    "number": int(m.group(2)),
+                    "section_type": ("PROBLEM" if kind and kind.upper() in
+                        ("PROBLEM", "PROBLÈME", "مسألة") else "EXERCISE"),
+                    "exact_source_prompt": prompt,
+                    "subquestions": [],
+                    "source_page": page_num,
+                    "verified_against_source": re.sub(r"\s+", " ", prompt).strip().casefold() in
+                        re.sub(r"\s+", " ", p["text"]).strip().casefold(),
+                    "evidence_method": "NATIVE_PDF_TEXT"
+                })
+        for row in rows:
+            content = row["exact_source_prompt"]
+            number = int(row["number"])
+            kind = row["section_type"]
+            req_fig = bool(re.search(r"(?:fig(?:ure)?\.?|document|doc|شكل|وثيقة)\s*\d+", content, re.I)
+                           or any(k in content.casefold() for k in ("diagram", "sketch", "draw", "graph")))
+            refs = match_figure_to_item({"exact_source_prompt": content,
+                                          "requires_figure": req_fig},
+                                         p["figures"], source_page.rect)
+            hashes = [f["image_sha256"] for f in p["figures"] if f["figure_id"] in refs]
+            subqs = row.get("subquestions") or []
+            ex = {
+                "exercise_id": f"{lesson_id}-{kind[:2]}-{number:02d}",
+                "lesson_id": lesson_id, "section_type": kind, "number": number,
+                "source_page": page_num, "exact_source_prompt": content,
                 "source_prompt_hash": hashlib.sha256(content.encode("utf-8")).hexdigest()[:16],
-                "subquestions": subs,
-                "requires_figure": req_fig,
-                "figure_refs": matched_figs,
-                "figure_hashes": fig_hashes,
-                "solution_mode": "ON_DEMAND",
-                "solution_status": "NOT_SOLVED",
-                "verified_against_source": is_faithful
-            })
+                "subquestions": subqs, "requires_figure": req_fig,
+                "figure_refs": refs, "figure_hashes": hashes,
+                "solution_mode": "ON_DEMAND", "solution_status": "NOT_SOLVED",
+                "verified_against_source": row["verified_against_source"],
+                "evidence_method": row.get("evidence_method", "NATIVE_PDF_TEXT")
+            }
+            for key in ("source_bbox", "source_region_image_ref", "source_region_sha256"):
+                if key in row:
+                    ex[key] = row[key]
+            exercises.append(ex)
 
     unique_ex = []
     seen = set()
