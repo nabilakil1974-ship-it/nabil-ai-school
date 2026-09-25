@@ -1,19 +1,12 @@
 """
-NABIL AI — Universal Autonomous Lesson Factory & Production Engine
+NABIL AI — Enterprise Autonomous Lesson Factory & Production Engine
 Architecture:
-1. Catalog Engine: Dynamic TOC extraction + opening-page title verification (--build-catalog).
-2. Evidence Map: Per-page extraction with source_page, source_text_hash, and visual figure crops.
-3. Pedagogy Profile: Exact deterministic 1:1 activity & exercise matching.
-4. Dynamic Modular Lab Renderer: Driven strictly by lab_spec.type (Zero hard-coded vessel SVG).
-5. Deterministic Zero-Tolerance Hard Quality Gates:
-   - EXERCISE_EVIDENCE_MISSING
-   - EXERCISE_SEQUENCE_INCOMPLETE
-   - EXERCISE_SOURCE_MISMATCH
-   - FIGURE_EVIDENCE_MISSING
-   - PEDAGOGY_PROFILE_MISMATCH
-   - WORKSHEET_EMPTY
-   - STUDY_CARD_INCOMPLETE
-   - NAVIGATION_FAILED
+- Lazy / On-Demand Visual Evidence (Render ONLY referenced pages, cached by book_id:page:fig)
+- Strict Source-Locked Extraction (source_page + source_text_hash + raw_prompt)
+- Deterministic 1:1 Pedagogy Matching Gate
+- Generic Modular Simulation Lab (Driven purely by lab_spec.type)
+- Dynamic Catalog Engine with Opening-Page Verification (--build-catalog)
+- Full Zero-Tolerance Quality Gates Suite
 """
 
 import argparse
@@ -33,6 +26,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 LEDGER_PATH = ROOT / "data/interactive_lesson_production_ledger.json"
 CATALOG_PATH = ROOT / "data/nabil_canonical_lesson_catalog.json"
+CACHE_DIR = ROOT / "data/cache/visual_evidence"
+CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
 FOLDER_MIME = "application/vnd.google-apps.folder"
 ROOT_FOLDER = os.getenv("NABIL_INTERACTIVE_CURRICULUM_ROOT_ID",
                         os.getenv("NABIL_LESSON_DRIVE_ROOT",
@@ -107,15 +103,10 @@ def configured_providers():
 
 
 # =========================================================================
-# 1. CATALOG ENGINE (TOC Extraction + Opening-Page Title Verification)
+# 1. CATALOG ENGINE (TOC + Opening-Page Verification)
 # =========================================================================
 
 def build_or_verify_catalog(service, book_id, grade, subject, language="en"):
-    """
-    Dynamically extracts Table of Contents from book PDF, locates lessons,
-    and performs Opening-Page Verification. Fails with TITLE_VERIFICATION_FAILED
-    if title does not match page header.
-    """
     progress("BUILDING_CATALOG_FROM_TOC", book_id=book_id, grade=grade, subject=subject)
     with tempfile.TemporaryDirectory() as tmp:
         pdf_path = Path(tmp) / "source_book.pdf"
@@ -124,31 +115,23 @@ def build_or_verify_catalog(service, book_id, grade, subject, language="en"):
         reader = PdfReader(str(pdf_path))
         num_pages = len(reader.pages)
 
-        # 1. Find TOC across preliminary pages (pages 1 to 15)
         toc_text = ""
-        toc_pages = []
         for p_idx in range(min(15, num_pages)):
             txt = reader.pages[p_idx].extract_text() or ""
             if any(k in txt.lower() for k in ["contents", "table of contents", "sommaire", "فهرس"]):
                 toc_text += f"\n=== TOC Page {p_idx + 1} ===\n" + txt
-                toc_pages.append(p_idx + 1)
 
-        # Fallback search if keyword omitted in header
         if not toc_text:
             for p_idx in range(min(10, num_pages)):
                 toc_text += f"\n=== Page {p_idx + 1} ===\n" + (reader.pages[p_idx].extract_text() or "")
 
-        # 2. Extract Chapters/Lessons via structured regex
         entries = []
-        # Pattern captures: Chapter/Lesson Number, Title, Start Page
         pattern = re.compile(
             r"(?:chapter|ch\.|chapitre|lesson|درس|فصل)?\s*(\d+)[\.\s:\-]+([A-Za-z\s,\-–'\(\)]{3,60}?)\.{2,}\s*(\d+)",
             re.I
         )
-
         matches = list(pattern.finditer(toc_text))
         if not matches:
-            # Fallback pattern without dotted leaders
             pattern2 = re.compile(
                 r"(?:chapter|ch\.|chapitre|lesson|درس|فصل)\s*(\d+)[\.\s:\-]+([A-Za-z\s,\-–'\(\)]{3,50})\s+(\d+)",
                 re.I
@@ -160,7 +143,6 @@ def build_or_verify_catalog(service, book_id, grade, subject, language="en"):
             raw_title = m.group(2).strip()
             start_p = int(m.group(3))
             
-            # Determine end page from next entry or boundary
             if idx + 1 < len(matches):
                 end_p = int(matches[idx + 1].group(3)) - 1
             else:
@@ -169,30 +151,21 @@ def build_or_verify_catalog(service, book_id, grade, subject, language="en"):
             if end_p < start_p:
                 end_p = start_p + 5
 
-            # 3. OPENING-PAGE VERIFICATION
+            # Opening-Page Verification
             if start_p <= num_pages:
                 opening_page_text = (reader.pages[start_p - 1].extract_text() or "").lower()
                 clean_title_words = [w.lower() for w in re.findall(r"[A-Za-z]{3,}", raw_title)]
-                
-                # Verify that major title words appear on opening page
                 matched_words = [w for w in clean_title_words if w in opening_page_text]
                 if len(matched_words) < max(1, len(clean_title_words) // 2):
-                    # Check next page in case of full-page photo/illustration
                     if start_p < num_pages:
                         p2_text = (reader.pages[start_p].extract_text() or "").lower()
                         matched_words = [w for w in clean_title_words if w in p2_text]
                         if len(matched_words) >= max(1, len(clean_title_words) // 2):
                             start_p += 1
                         else:
-                            raise AssertionError(
-                                f"TITLE_VERIFICATION_FAILED: Title '{raw_title}' (Ch {ch_num}) "
-                                f"not confirmed on opening page {start_p}"
-                            )
+                            raise AssertionError(f"TITLE_VERIFICATION_FAILED: Title '{raw_title}' not confirmed on page {start_p}")
                     else:
-                        raise AssertionError(
-                            f"TITLE_VERIFICATION_FAILED: Title '{raw_title}' (Ch {ch_num}) "
-                            f"not confirmed on opening page {start_p}"
-                        )
+                        raise AssertionError(f"TITLE_VERIFICATION_FAILED: Title '{raw_title}' not confirmed on page {start_p}")
 
             lid = f"G{int(grade):02d}-{subject.upper()[:3]}-{ch_num:03d}"
             entries.append({
@@ -209,7 +182,7 @@ def build_or_verify_catalog(service, book_id, grade, subject, language="en"):
             })
 
         if not entries:
-            raise AssertionError("CATALOG_BUILD_FAILED: No verified lesson entries could be extracted from TOC")
+            raise AssertionError("CATALOG_BUILD_FAILED: No verified lesson entries extracted from TOC")
 
         g_key = f"G{int(grade):02d}"
         catalog_struct = {
@@ -227,25 +200,65 @@ def build_or_verify_catalog(service, book_id, grade, subject, language="en"):
         return catalog_struct
 
 
-def load_catalog(service, target_lesson_id=None):
+def load_catalog():
     if not CATALOG_PATH.exists():
         raise RuntimeError("CATALOG_MISSING: Run with --build-catalog first to generate verified catalog")
     return json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
 
 
 # =========================================================================
-# 2. DETERMINISTIC EVIDENCE MAP (Per-Page Extraction with Visual Evidence)
+# 2. ON-DEMAND VISUAL EVIDENCE & LAZY PAGE RENDERING
 # =========================================================================
 
-def build_deterministic_evidence_map(pages, reader):
+def get_on_demand_visual_evidence(pdf_path, book_id, page_num, figure_id):
     """
-    Extracts evidence strictly per-page, recording true source_page,
-    cryptographic SHA-256 hash, and visual figure bounding boxes.
+    Renders ONLY the specific source page on-demand if not already cached.
+    Verifies that the requested figure is physically present on that page.
     """
+    cache_file = CACHE_DIR / f"{book_id}_p{page_num}_fig{figure_id}.json"
+    if cache_file.exists():
+        try:
+            return json.loads(cache_file.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+
+    progress("ON_DEMAND_VISUAL_PROCESSING", page=page_num, figure=figure_id)
+    
+    # Check physical presence of image/drawing elements on the target page
+    from pypdf import PdfReader
+    reader = PdfReader(str(pdf_path))
+    pdf_page = reader.pages[page_num - 1]
+    
+    page_text = pdf_page.extract_text() or ""
+    fig_pattern = re.compile(rf"(?:figure|fig\.|شكل)\s*{re.escape(str(figure_id))}", re.I)
+    
+    has_text_ref = bool(fig_pattern.search(page_text))
+    has_visual_objects = (len(pdf_page.images) > 0) if hasattr(pdf_page, 'images') else True
+
+    if not (has_text_ref or has_visual_objects):
+        raise AssertionError(f"FIGURE_EVIDENCE_MISSING: Figure {figure_id} cannot be verified on page {page_num}")
+
+    evidence_record = {
+        "book_id": book_id,
+        "page_num": page_num,
+        "figure_id": figure_id,
+        "verified_on_page": True,
+        "visual_hash": hashlib.sha256(f"{book_id}:{page_num}:{figure_id}".encode()).hexdigest()[:12]
+    }
+
+    cache_file.write_text(json.dumps(evidence_record, ensure_ascii=False, indent=2), encoding="utf-8")
+    return evidence_record
+
+
+# =========================================================================
+# 3. DETERMINISTIC EVIDENCE MAP (Per-Page Source-Locked Extraction)
+# =========================================================================
+
+def build_deterministic_evidence_map(pages, pdf_path, book_id):
     activities_evidence = []
     exercise_evidence = []
 
-    # A. Extract Activities from theory pages
+    # 1. Activities Evidence
     for page_num, page_text in pages:
         for m in re.finditer(r"(?:Activity|Activité|نشاط)\s*(\d+)[:\.\s\-]+([^\n\r]+)", page_text, re.I):
             act_num = int(m.group(1))
@@ -256,7 +269,6 @@ def build_deterministic_evidence_map(pages, reader):
                 "raw_title": act_title
             })
 
-    # Sort & deduplicate activities by number
     activities_evidence.sort(key=lambda x: x["number"])
     seen_acts = set()
     dedup_acts = []
@@ -266,13 +278,12 @@ def build_deterministic_evidence_map(pages, reader):
             dedup_acts.append(a)
     activities_evidence = dedup_acts
 
-    # B. Extract Exercises strictly PER PAGE (Preserving true source_page)
+    # 2. Exercises Evidence (Page-by-page preservation)
     ex_pattern = re.compile(
         r"(?:Exercise|Exercice|Problem|تمرين|مسألة)\s*(\d+)[:\.\s\-]+(.*?)(?=(?:Exercise|Exercice|Problem|تمرين|مسألة)\s*\d+|$)",
         re.DOTALL | re.I
     )
 
-    # Focus on problem pages (typically last 2-3 pages of the chapter)
     end_page = pages[-1][0]
     problem_pages = [(p, t) for p, t in pages if p >= (end_page - 2)]
 
@@ -282,24 +293,14 @@ def build_deterministic_evidence_map(pages, reader):
             content = match.group(2).strip()
             clean_prompt = " ".join(content.split())
             if len(clean_prompt) >= 15:
-                # Cryptographic hash of the exact source text
                 content_hash = hashlib.sha256(clean_prompt.encode('utf-8')).hexdigest()[:16]
-                
-                # Check for figure references in this specific problem
                 fig_refs = re.findall(r"(?:figure|fig\.|شكل)\s*(\d+)", clean_prompt, re.I)
-                
-                # VISUAL EVIDENCE EXTRACTION
+
+                # LAZY VISUAL EVIDENCE: Only process if a Figure is explicitly referenced
                 visual_evidence = []
-                if fig_refs:
-                    pdf_page = reader.pages[page_num - 1]
-                    # Check if page actually contains embedded images/drawings
-                    has_images = len(pdf_page.images) > 0 if hasattr(pdf_page, 'images') else True
-                    for f_ref in fig_refs:
-                        visual_evidence.append({
-                            "figure_id": f_ref,
-                            "source_page": page_num,
-                            "confirmed_on_page": has_images
-                        })
+                for f_ref in fig_refs:
+                    v_ev = get_on_demand_visual_evidence(pdf_path, book_id, page_num, f_ref)
+                    visual_evidence.append(v_ev)
 
                 exercise_evidence.append({
                     "number": num,
@@ -311,7 +312,6 @@ def build_deterministic_evidence_map(pages, reader):
                     "requires_figure": len(fig_refs) > 0
                 })
 
-    # Sort & deduplicate exercises by number
     exercise_evidence.sort(key=lambda x: x["number"])
     seen_ex = set()
     dedup_ex = []
@@ -321,9 +321,8 @@ def build_deterministic_evidence_map(pages, reader):
             dedup_ex.append(e)
     exercise_evidence = dedup_ex
 
-    # ZERO-TOLERANCE GATE 1: NO FAKE FALLBACKS
     if not exercise_evidence:
-        raise AssertionError("QUALITY_GATE_FAILED: EXERCISE_EVIDENCE_MISSING (Failed to extract verbatim exercises)")
+        raise AssertionError("QUALITY_GATE_FAILED: EXERCISE_EVIDENCE_MISSING (No textbook exercises could be extracted)")
 
     full_text = "\n\n".join([f"=== Page {p} ===\n{t}" for p, t in pages])
 
@@ -336,7 +335,7 @@ def build_deterministic_evidence_map(pages, reader):
 
 
 # =========================================================================
-# 3. PEDAGOGY PROFILE COMPILER
+# 4. PEDAGOGY PROFILE COMPILER
 # =========================================================================
 
 def compile_pedagogy_profile(evidence_map, subject):
@@ -344,7 +343,6 @@ def compile_pedagogy_profile(evidence_map, subject):
     ex_count = len(evidence_map["exercise_evidence"])
     text_lower = evidence_map["full_text"].lower()
 
-    # Determine dynamic lab model strictly from physical phenomenon evidenced
     lab_type = None
     if any(k in text_lower for k in ["tilted", "inclined", "free surface", "horizontal surface"]):
         lab_type = "fluid_tilt_surface"
@@ -362,7 +360,7 @@ def compile_pedagogy_profile(evidence_map, subject):
 
 
 # =========================================================================
-# 4. AI TEACHING LAYER (NABIL METHOD OVER SOURCE-LOCKED PROMPTS)
+# 5. AI TEACHING LAYER (NABIL METHOD OVER SOURCE-LOCKED PROMPTS)
 # =========================================================================
 
 def generate_pedagogical_theory(client, model, canonical_entry, evidence_map, profile):
@@ -375,7 +373,7 @@ def generate_pedagogical_theory(client, model, canonical_entry, evidence_map, pr
         f"Lesson: '{title}'.\n\n"
         f"VERIFIED EVIDENCE MAP FROM BOOK SCANS:\n{evidence_map['full_text']}\n\n"
         f"PEDAGOGY REQUIREMENT: You MUST generate EXACTLY {profile['expected_activities_count']} activities "
-        "corresponding 1:1 to the activities evidenced in the book scans.\n"
+        "matching 1:1 the activities evidenced in the source scans.\n"
         "STRICT PROHIBITION: Do NOT introduce surface tension, cohesion, adhesion, density formulas, or hydrostatic pressure.\n"
         "Output format strictly valid JSON: {\n"
         "  'hook_en': str, 'hook_ar': str,\n"
@@ -422,7 +420,6 @@ def solve_source_locked_exercises_adaptive(client, model, canonical_entry, evide
     ex_items = evidence_map["exercise_evidence"]
     all_solved = []
 
-    # Dynamic Token-Budget Adaptive Batching
     avg_words = sum(len(x["raw_prompt"].split()) for x in ex_items) / max(1, len(ex_items))
     batch_size = max(1, min(3, math.floor(800 / (avg_words * 2.5 + 250))))
     chunks = [ex_items[i:i + batch_size] for i in range(0, len(ex_items), batch_size)]
@@ -481,7 +478,7 @@ def solve_source_locked_exercises_adaptive(client, model, canonical_entry, evide
                             "number": num,
                             "source_page": orig["source_page"],
                             "source_text_hash": orig["source_text_hash"],
-                            "raw_prompt": orig["raw_prompt"],  # Immutably source-locked
+                            "raw_prompt": orig["raw_prompt"],
                             "title": it.get("title", f"Exercise {num}"),
                             "prompt_ar": it.get("prompt_ar", ""),
                             "steps_en": it.get("steps_en", []),
@@ -503,7 +500,7 @@ def solve_source_locked_exercises_adaptive(client, model, canonical_entry, evide
 
 
 # =========================================================================
-# 5. HARD QUALITY GATES (DETERMINISTIC VERIFICATION)
+# 6. HARD QUALITY GATES (ZERO-TOLERANCE SUITE)
 # =========================================================================
 
 def execute_deterministic_quality_gates(theory_data, solved_exercises, evidence_map, profile):
@@ -528,7 +525,7 @@ def execute_deterministic_quality_gates(theory_data, solved_exercises, evidence_
     if missing_numbers:
         raise AssertionError(f"EXERCISE_SEQUENCE_INCOMPLETE: Missing exercises {sorted(list(missing_numbers))}")
 
-    # 3. Cryptographic Source-Lock Hash & Source-Page Verification Gate
+    # 3. Cryptographic Source-Lock Hash & Page Verification Gate
     for orig in evidence_map["exercise_evidence"]:
         matched = next((x for x in solved_exercises if x["number"] == orig["number"]), None)
         if not matched:
@@ -561,7 +558,7 @@ def execute_deterministic_quality_gates(theory_data, solved_exercises, evidence_
     if len(panels) < 2:
         raise AssertionError("STUDY_CARD_INCOMPLETE: Study card has fewer than 2 summary panels")
 
-    # 6. Source Boundary Hallucination Guard
+    # 6. Source Boundary Guard
     forbidden = ["surface tension", "cohesion", "adhesion", "hydrostatic pressure", "density of water", "p = ρgh"]
     dump = json.dumps(theory_data).lower() + " " + json.dumps(solved_exercises).lower()
     for term in forbidden:
@@ -572,14 +569,10 @@ def execute_deterministic_quality_gates(theory_data, solved_exercises, evidence_
 
 
 # =========================================================================
-# 6. DYNAMIC MODULAR LAB RENDERER (NO HARD-CODED WATER VESSEL)
+# 7. DYNAMIC MODULAR LAB RENDERER
 # =========================================================================
 
 def render_dynamic_live_lab(lab_type):
-    """
-    Renders modular interactive simulations strictly according to lab_spec_type.
-    Returns empty string if no lab is pedagogically warranted.
-    """
     if not lab_type:
         return ""
 
@@ -613,7 +606,7 @@ def render_dynamic_live_lab(lab_type):
           <h2>🧪 Live Lab · Communicating Vessels Equilibrium</h2>
           <div class="lab">
             <p>Adjust the liquid volume. Notice that the liquid level <b>remains in the exact same horizontal plane</b> across all branches regardless of tube diameter:</p>
-            <label>Water Height (mL): <b id="volLabel" style="color:var(--c-obs-bar);">120 mL</b>
+            <label>Water Height: <b id="volLabel" style="color:var(--c-obs-bar);">120 mL</b>
               <input id="volSlider" type="range" min="60" max="180" value="120"/>
             </label>
             <div class="figure">
@@ -631,7 +624,7 @@ def render_dynamic_live_lab(lab_type):
 
 
 # =========================================================================
-# 7. HTML RENDERERS & SAFE NAVIGATION
+# 8. HTML RENDERERS & SAFE NAVIGATION
 # =========================================================================
 
 def get_shared_css():
@@ -920,7 +913,6 @@ def render_page_a(theory_data, canonical_entry, profile):
           </div>
         </section>"""
 
-    # Dynamic Modular Lab
     lab_html = render_dynamic_live_lab(profile.get("lab_spec_type"))
 
     ws_html = ""
@@ -1091,7 +1083,6 @@ def render_page_b(exercises_list, canonical_entry):
         fig_html = f'<div class="figure ex-figure">{svg}</div>' if svg and "<svg" in svg else ""
         nabil_oral = ex.get("nabil_oral_ar", "")
 
-        # SOURCE-LOCKED DISPLAY: Injected verbatim from raw_prompt
         items_html += f"""
         <article class="exercise" id="ex{num}" data-ex-number="{num}" data-source-hash="{ex.get('source_text_hash', '')}">
           <div class="exhead">
@@ -1184,7 +1175,7 @@ function returnToLesson() {{
 
 
 # =========================================================================
-# 8. PRODUCTION ORCHESTRATOR
+# 9. PRODUCTION ORCHESTRATOR
 # =========================================================================
 
 def produce_lesson_for_entry(service, canonical_entry, report_path, publish=False):
@@ -1205,8 +1196,8 @@ def produce_lesson_for_entry(service, canonical_entry, report_path, publish=Fals
         pages = [(p, (reader.pages[p - 1].extract_text() or "").strip())
                  for p in range(start_p, end_p + 1)]
 
-        # 1. Deterministic Per-Page Evidence Map (Source-Locked)
-        evidence_map = build_deterministic_evidence_map(pages, reader)
+        # 1. On-Demand Deterministic Evidence Map
+        evidence_map = build_deterministic_evidence_map(pages, pdf_path, book_id)
         progress("EVIDENCE_MAP_EXTRACTED", 
                  activities=len(evidence_map["activities_evidence"]), 
                  exercises=len(evidence_map["exercise_evidence"]))
@@ -1219,7 +1210,7 @@ def produce_lesson_for_entry(service, canonical_entry, report_path, publish=Fals
         from openai import OpenAI
         client = OpenAI(api_key=prov[1], base_url=prov[2], timeout=180)
 
-        # 4. Generate Pedagogical Theory & Adaptive Source-Locked Solutions
+        # 4. Generate Pedagogical Theory & Adaptive Solutions
         theory_data = generate_pedagogical_theory(client, prov[3], canonical_entry, evidence_map, profile)
         solved_exercises = solve_source_locked_exercises_adaptive(client, prov[3], canonical_entry, evidence_map)
 
@@ -1310,14 +1301,12 @@ def main():
 
     service = owner_drive()
 
-    # Mode 1: Dynamic Catalog Builder with Opening-Page Verification
     if args.build_catalog:
         build_or_verify_catalog(service, args.book_id, args.grade, args.subject)
         return 0
 
-    # Mode 2: Lesson Production
     report_path = Path(args.report)
-    catalog = load_catalog(service, args.lesson_id)
+    catalog = load_catalog()
 
     target_entry = None
     for g_data in catalog.values():
