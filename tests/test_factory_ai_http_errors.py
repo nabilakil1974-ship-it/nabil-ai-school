@@ -46,6 +46,28 @@ class FactoryAIHTTPErrorTests(unittest.TestCase):
         self.assertEqual(sent["model"], "google/gemini-2.5-flash")
         self.assertEqual(sent["messages"][0]["content"][1]["type"], "image_url")
 
+    def test_explicit_groq_vision_selected_without_using_exhausted_openrouter(self):
+        response = {"choices": [{"message": {"content": '{"ok":true}'}}]}
+        class FakeResponse:
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                return False
+            def read(self):
+                return json.dumps(response).encode("utf-8")
+        with patch.dict(os.environ, {
+            "OPENROUTER_API_KEY": "exhausted",
+            "GROQ_API_KEY": "groq-test-key",
+            "NABIL_FACTORY_AI_PROVIDER": "groq",
+        }, clear=True):
+            with patch.object(factory.urllib.request, "urlopen", return_value=FakeResponse()) as request:
+                factory.execute_llm_completion("Check", image_base64="iVBORw0KGgo=")
+        req = request.call_args.args[0]
+        self.assertIn("api.groq.com", req.full_url)
+        body = json.loads(req.data.decode("utf-8"))
+        self.assertEqual(body["model"], "qwen/qwen3.8-27b")
+        self.assertEqual(body["messages"][0]["content"][1]["type"], "image_url")
+
     def test_success_response_is_unchanged(self):
         response = {"choices": [{"message": {"content": '{"ok":true}'}}]}
         class FakeResponse:
