@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "policy": "Verified source-lock entries only. Additional lessons require independent TOC and opening-page verification; do not infer titles from filenames.",
+  "lessons": [
+    {
+      "lesson_id": "G07-PHYSICS-001",
+      "canonical_title": "Solids and Liquids",
+      "grade": 7,
+      "subject": "physics",
+      "language": "en",
+      "book_id": "1LasqIgGUuck1l-2EZbj2kA0Dg9ygJ_AH",
+      "source_book_title": "G 07 physics.pdf",
+      "pdf_start_page": 13,
+      "pdf_end_page": 18,
+      "catalog_status": "PILOT_SOURCE_LOCK_ONLY",
+      "title_verification": "MUST_PASS_RUNTIME_TOC_AND_OPENING"
+    }
+  ]
+}
