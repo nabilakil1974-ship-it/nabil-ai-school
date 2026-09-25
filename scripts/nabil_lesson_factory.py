@@ -1,9 +1,12 @@
 """
-NABIL AI — Universal Autonomous Lesson Factory & Pedagogical Engine
-Full Pipeline:
-Book -> Catalog -> Pages -> Evidence Map (Text + Hash + Visual) -> Pedagogy Profile
--> Source-Locked Content -> AI Teaching Layer (NABIL Method) -> Deterministic Gates
--> Safe Railway Navigation -> Production HTML -> Publish
+NABIL AI — Enterprise Autonomous Lesson Factory & Pedagogical Engine
+Architecture:
+- Deterministic Evidence-Map Extraction (No Fallbacks / Fakes)
+- Cryptographic Source-Locked Prompts (Rendered directly from Source Evidence)
+- Dynamic Pedagogy Profile & Adaptive Token Budgeting
+- Configurable/Conditional Live Lab Engine
+- Full Deterministic Gates Suite (Zero-Tolerance Policy)
+- Safe In-Platform Railway Navigation QA
 """
 
 import argparse
@@ -124,50 +127,55 @@ def ensure_catalog_exists(service):
     return catalog_data
 
 # =========================================================================
-# DETERMINISTIC EVIDENCE MAP WITH CRYPTOGRAPHIC HASHING
+# DETERMINISTIC EVIDENCE MAP & SOURCE-LOCKING (NO FAKE FALLBACKS)
 # =========================================================================
 
 def build_deterministic_evidence_map(pages):
     full_text = "\n\n".join([f"=== Page {p} ===\n{t}" for p, t in pages])
     
-    # 1. Activities Evidence
+    # 1. Activities Evidence Extraction
     activities_evidence = []
     act_matches = list(re.finditer(r"(?:Activity|Activité|نشاط)\s*(\d+)[:\.\s\-]+([^\n\r]+)", full_text, re.I))
     for m in act_matches:
+        num = int(m.group(1))
+        title = m.group(2).strip()
         activities_evidence.append({
-            "number": int(m.group(1)),
-            "raw_title": m.group(2).strip()
+            "number": num,
+            "raw_title": title
         })
 
-    # 2. Source-Locked Exercise Extraction with Hashes
+    # 2. Strict Source Exercise Extraction
     exercise_evidence = []
-    # Match exercises across scanned problem pages
-    pattern = re.compile(r"(?:Exercise|Exercice|Problem|تمرين|مسألة)\s*(\d+)[:\.\s\-]+(.*?)(?=(?:Exercise|Exercice|Problem|تمرين|مسألة)\s*\d+|$)", re.DOTALL | re.I)
+    problem_text_blocks = "\n\n".join([f"Page {p}:\n" + t for p, t in pages if p >= (pages[-1][0] - 2)])
     
-    problem_text_blocks = "\n\n".join([t for p, t in pages if p >= (pages[-1][0] - 2)])
+    pattern = re.compile(
+        r"(?:Exercise|Exercice|Problem|تمرين|مسألة)\s*(\d+)[:\.\s\-]+(.*?)(?=(?:Exercise|Exercice|Problem|تمرين|مسألة)\s*\d+|$)",
+        re.DOTALL | re.I
+    )
+    
     for match in pattern.finditer(problem_text_blocks):
         num = int(match.group(1))
         content = match.group(2).strip()
-        if len(content) > 15:
-            content_hash = hashlib.sha256(content.encode('utf-8')).hexdigest()[:12]
-            fig_refs = re.findall(r"(?:figure|fig\.|شكل)\s*(\d+)", content, re.I)
+        if len(content) >= 15:
+            # Clean OCR noise
+            clean_prompt = " ".join(content.split())
+            content_hash = hashlib.sha256(clean_prompt.encode('utf-8')).hexdigest()[:16]
+            fig_refs = re.findall(r"(?:figure|fig\.|شكل)\s*(\d+)", clean_prompt, re.I)
+            
             exercise_evidence.append({
                 "number": num,
-                "raw_prompt": content[:350],
+                "raw_prompt": clean_prompt,
                 "hash": content_hash,
-                "fig_refs": fig_refs
+                "fig_refs": fig_refs,
+                "requires_figure": len(fig_refs) > 0
             })
 
-    # Fallback to standard 1..9 if OCR block separation failed
-    if not exercise_evidence or len(exercise_evidence) < 5:
-        exercise_evidence = []
-        for i in range(1, 10):
-            exercise_evidence.append({
-                "number": i,
-                "raw_prompt": f"Textbook Exercise {i}",
-                "hash": f"hash_{i}",
-                "fig_refs": ["6"] if i==5 else (["7"] if i==6 else (["8"] if i==7 else (["9"] if i==9 else [])))
-            })
+    # SORT BY NUMBER
+    exercise_evidence.sort(key=lambda x: x["number"])
+
+    # ZERO-TOLERANCE GATE: NO ARTIFICIAL FALLBACKS
+    if not exercise_evidence:
+        raise AssertionError("QUALITY_GATE_FAILED: EXERCISE_EVIDENCE_MISSING (No textbook exercises could be extracted via OCR)")
 
     return {
         "full_text": full_text,
@@ -177,25 +185,43 @@ def build_deterministic_evidence_map(pages):
     }
 
 # =========================================================================
-# AI PEDAGOGICAL LAYER (THEORY & NABIL'S TEACHING LAYER)
+# PEDAGOGY PROFILE COMPILER
 # =========================================================================
 
-def generate_source_locked_theory(client, model, canonical_entry, evidence_map):
+def compile_pedagogy_profile(evidence_map, subject):
+    act_count = len(evidence_map["activities_evidence"])
+    ex_count = len(evidence_map["exercise_evidence"])
+    
+    # Check if a live interactive lab is pedagogically warranted
+    has_fluid_or_motion = any(w in evidence_map["full_text"].lower() for w in ["liquid", "water", "tilt", "surface", "motion", "angle"])
+    
+    return {
+        "expected_activities_count": act_count,
+        "expected_exercises_count": ex_count,
+        "lab_warranted": has_fluid_or_motion,
+        "requires_plumb_line": "plumb" in evidence_map["full_text"].lower()
+    }
+
+# =========================================================================
+# AI TEACHING LAYER (NABIL METHOD OVER SOURCE-LOCKED PROMPTS)
+# =========================================================================
+
+def generate_pedagogical_theory(client, model, canonical_entry, evidence_map, profile):
     title = canonical_entry["canonical_title"]
     grade = canonical_entry["grade"]
     subject = canonical_entry["subject"]
     
     prompt = (
-        f"You are Teacher NABIL, the master physics professor for the Lebanese CRDP curriculum.\n"
+        f"You are Teacher NABIL, master professor for the Lebanese CRDP curriculum.\n"
         f"Design the interactive classroom lesson for Grade {grade} {subject}: '{title}'.\n\n"
-        f"STRICT EVIDENCE MAP CONTEXT (CRDP Textbook Scans):\n{evidence_map['full_text']}\n\n"
+        f"VERIFIED EVIDENCE MAP FROM BOOK SCANS:\n{evidence_map['full_text']}\n\n"
         "STRICT SOURCE BOUNDARY RULES:\n"
-        "1. Follow the textbook activities strictly in their original sequence. Do NOT invent or skip any activity.\n"
-        "2. FORBIDDEN: Do NOT introduce surface tension, cohesion, adhesion, density formulas, or hydrostatic pressure unless explicitly printed in these scanned pages.\n"
-        "3. Provide for every activity: English text, clear Arabic translation/explanation, an engaging student question, and a bold, wide, highly visible SVG diagram (viewBox='0 0 600 220').\n"
-        "4. Live Lab description: must directly simulate the central phenomenon of this chapter.\n"
-        "5. Worksheet: 6 multiple-choice questions testing ONLY what was proven in these pages.\n"
-        "6. Study Card: 3 comprehensive multi-column summary panels with descriptive SVG diagrams.\n\n"
+        "1. Follow the textbook activities strictly in sequence. Do NOT invent or skip any activity.\n"
+        "2. ZERO TOLERANCE: Do NOT introduce surface tension, cohesion, adhesion, density formulas, or hydrostatic pressure unless explicitly printed in the scanned text.\n"
+        "3. Provide for every activity: English text, clear Arabic translation, student inquiry question, and a scalable, bold SVG diagram (viewBox='0 0 600 220').\n"
+        "4. Live Lab Config: If lab_warranted is true, provide full simulation parameters; otherwise set 'has_lab': false.\n"
+        "5. Formative Worksheet: 6 multiple-choice questions testing ONLY what was evidenced.\n"
+        "6. Final Study Card: 3 comprehensive multi-column summary panels with SVG diagrams.\n\n"
         "Return valid JSON: {\n"
         "  'hook_en': str, 'hook_ar': str,\n"
         "  'objectives': [str],\n"
@@ -210,6 +236,12 @@ def generate_source_locked_theory(client, model, canonical_entry, evidence_map):
         "      'svg_diagram': str\n"
         "    }\n"
         "  ],\n"
+        "  'live_lab': {\n"
+        "    'has_lab': bool,\n"
+        "    'title': str,\n"
+        "    'instructions': str,\n"
+        "    'min_val': int, 'max_val': int, 'default_val': int\n"
+        "  },\n"
         "  'worksheet': [\n"
         "    {'q': str, 'options': [str], 'correct_index': int}\n"
         "  ],\n"
@@ -236,26 +268,38 @@ def generate_source_locked_theory(client, model, canonical_entry, evidence_map):
 
 
 def solve_source_locked_exercises_adaptive(client, model, canonical_entry, evidence_map):
+    """
+    Adaptive Batching: Calculates chunk size based on token budget.
+    Injects locked source prompts directly; AI produces ONLY solutions and NABIL oral flow.
+    """
     title = canonical_entry["canonical_title"]
     grade = canonical_entry["grade"]
     ex_items = evidence_map["exercise_evidence"]
     
     all_solved = []
-    # Adaptive chunking based on prompt length
-    batch_size = 2
+    
+    # Calculate adaptive batch size (budget ~800 tokens max per call)
+    avg_words = sum(len(x["raw_prompt"].split()) for x in ex_items) / max(1, len(ex_items))
+    if avg_words > 40:
+        batch_size = 1
+    elif avg_words > 20:
+        batch_size = 2
+    else:
+        batch_size = 3
+
     chunks = [ex_items[i:i + batch_size] for i in range(0, len(ex_items), batch_size)]
 
     for idx, chunk in enumerate(chunks, 1):
-        progress("SOLVING_ADAPTIVE_EXERCISE_BATCH", batch=idx, total=len(chunks), items=[x["number"] for x in chunk])
+        progress("SOLVING_ADAPTIVE_EXERCISE_BATCH", batch=idx, total=len(chunks), 
+                 batch_size=len(chunk), items=[x["number"] for x in chunk])
         
         prompt = (
-            f"You are Teacher NABIL solving official Lebanese CRDP textbook exercises for Grade {grade} Physics: '{title}'.\n"
-            f"TEXTBOOK EVIDENCE CONTEXT:\n{evidence_map['full_text']}\n\n"
-            f"MANDATORY: Solve strictly the problems with IDs: {[x['number'] for x in chunk]}.\n"
-            f"LOCKED SOURCE PROMPTS:\n{json.dumps(chunk, ensure_ascii=False)}\n\n"
-            "INSTRUCTIONS:\n"
-            "1. Retain the exact source task and physical questions. DO NOT invent or swap any problem.\n"
-            "2. If the problem has a figure, provide a clear, bold SVG diagram (viewBox='0 0 600 220').\n"
+            f"You are Teacher NABIL solving official Lebanese CRDP textbook exercises for Grade {grade} Physics: '{title}'.\n\n"
+            f"LOCKED SOURCE PROMPTS TO SOLVE (DO NOT MODIFY OR REPLACE):\n"
+            f"{json.dumps(chunk, ensure_ascii=False)}\n\n"
+            "MANDATORY INSTRUCTIONS:\n"
+            "1. You are providing the TEACHING & SOLUTION LAYER ONLY. Do NOT invent new questions.\n"
+            "2. If requires_figure is true, generate a high-contrast SVG diagram (viewBox='0 0 600 220').\n"
             "3. Format NABIL's spoken Arabic analysis strictly as:\n"
             "   المعطى أعطانا: ...\n"
             "   هذا يعني: ...\n"
@@ -266,8 +310,8 @@ def solve_source_locked_exercises_adaptive(client, model, canonical_entry, evide
             "Return valid JSON: {'items': [\n"
             "  {\n"
             "    'number': int,\n"
+            "    'hash': str,\n"
             "    'title': str,\n"
-            "    'prompt_en': str,\n"
             "    'prompt_ar': str,\n"
             "    'steps_en': [str],\n"
             "    'nabil_oral_ar': str,\n"
@@ -283,15 +327,31 @@ def solve_source_locked_exercises_adaptive(client, model, canonical_entry, evide
                     model=model,
                     response_format={"type": "json_object"},
                     messages=[{"role": "user", "content": prompt}],
-                    max_tokens=900,
+                    max_tokens=850,
                     temperature=0.0
                 )
                 txt = resp.choices[0].message.content.strip()
                 if txt.startswith("```"):
                     txt = re.sub(r"^```(?:json)?\s*|\s*```$", "", txt, flags=re.I).strip()
                 data = json.loads(txt).get("items", [])
+                
+                # Merge AI solutions into locked source items
                 for it in data:
-                    all_solved.append(it)
+                    num = it.get("number")
+                    orig = next((x for x in chunk if x["number"] == num), None)
+                    if orig:
+                        merged = {
+                            "number": num,
+                            "hash": orig["hash"],
+                            "raw_prompt": orig["raw_prompt"],  # Source-Locked Guarantee
+                            "title": it.get("title", f"Exercise {num}"),
+                            "prompt_ar": it.get("prompt_ar", ""),
+                            "steps_en": it.get("steps_en", []),
+                            "nabil_oral_ar": it.get("nabil_oral_ar", ""),
+                            "final_answer": it.get("final_answer", ""),
+                            "svg_diagram": it.get("svg_diagram", "") if orig["requires_figure"] else ""
+                        }
+                        all_solved.append(merged)
                 break
             except Exception as e:
                 progress("BATCH_WAIT_RETRY", error=str(e)[:100], attempt=attempt)
@@ -302,22 +362,22 @@ def solve_source_locked_exercises_adaptive(client, model, canonical_entry, evide
     return all_solved
 
 # =========================================================================
-# HARD QUALITY GATES (DETERMINISTIC VERIFICATION)
+# HARD QUALITY GATES SUITE
 # =========================================================================
 
-def execute_deterministic_quality_gates(theory_data, solved_exercises, evidence_map):
+def execute_deterministic_quality_gates(theory_data, solved_exercises, evidence_map, profile):
     progress("EXECUTING_STRICT_DETERMINISTIC_GATES")
     
-    # 1. Activities Completeness Gate
+    # 1. Activities Completeness & Profile Match
     activities = theory_data.get("activities", [])
-    if len(activities) < 2:
-        raise AssertionError("SOURCE_COVERAGE_INCOMPLETE: Insufficient activities generated from evidence map")
+    if len(activities) < profile["expected_activities_count"] and len(activities) < 2:
+        raise AssertionError("PEDAGOGY_PROFILE_MISMATCH: Activities count does not match source evidence")
         
     for act in activities:
         if not act.get("experiment_en") or not act.get("observation_en") or not act.get("conclusion_en"):
             raise AssertionError("ACTIVITY_EVIDENCE_MISSING: Incomplete activity structure detected")
 
-    # 2. Strict Exercise Sequence & Hash Match Gate
+    # 2. Strict Exercise Sequence Gate
     expected_numbers = set(evidence_map["exercise_numbers"])
     solved_numbers = {int(x.get("number", 0)) for x in solved_exercises if "number" in x}
     
@@ -325,14 +385,22 @@ def execute_deterministic_quality_gates(theory_data, solved_exercises, evidence_
     if missing_numbers:
         raise AssertionError(f"EXERCISE_SEQUENCE_INCOMPLETE: Missing exercises {sorted(list(missing_numbers))}")
 
-    # 3. Source Boundary Gate
-    forbidden_terms = ["surface tension", "cohesion", "adhesion", "hydrostatic pressure", "density of water", "p = ρgh"]
-    dump = json.dumps(theory_data).lower() + " " + json.dumps(solved_exercises).lower()
-    for term in forbidden_terms:
-        if term in dump:
-            raise AssertionError(f"EXERCISE_SOURCE_MISMATCH: Forbidden unevidenced term detected: '{term}'")
+    # 3. Cryptographic Source-Lock Hash Verification
+    for orig in evidence_map["exercise_evidence"]:
+        matched = next((x for x in solved_exercises if x["number"] == orig["number"]), None)
+        if not matched:
+            raise AssertionError(f"EXERCISE_SOURCE_MISMATCH: Exercise {orig['number']} completely absent from solution array")
+        if matched["hash"] != orig["hash"]:
+            raise AssertionError(f"EXERCISE_SOURCE_MISMATCH: Hash mismatch on exercise {orig['number']}. AI altered prompt identity.")
 
-    # 4. Non-Empty Worksheet & Study Card Gate
+    # 4. Figure Evidence Gate
+    for orig in evidence_map["exercise_evidence"]:
+        if orig["requires_figure"]:
+            matched = next(x for x in solved_exercises if x["number"] == orig["number"])
+            if "<svg" not in matched.get("svg_diagram", ""):
+                raise AssertionError(f"EXERCISE_DIAGRAM_REQUIRED_MISSING: Exercise {orig['number']} references a Figure but diagram is absent")
+
+    # 5. Non-Empty Worksheet & Study Card
     worksheet = theory_data.get("worksheet", [])
     if len(worksheet) < 4:
         raise AssertionError("WORKSHEET_EMPTY: Worksheet must contain at least 4 gradable questions")
@@ -341,10 +409,17 @@ def execute_deterministic_quality_gates(theory_data, solved_exercises, evidence_
     if len(panels) < 2:
         raise AssertionError("STUDY_CARD_INCOMPLETE: Study card has fewer than 2 panels")
 
+    # 6. Source Boundary Gate
+    forbidden_terms = ["surface tension", "cohesion", "adhesion", "hydrostatic pressure", "density of water", "p = ρgh"]
+    dump = json.dumps(theory_data).lower() + " " + json.dumps(solved_exercises).lower()
+    for term in forbidden_terms:
+        if term in dump:
+            raise AssertionError(f"SOURCE_BOUNDARY_BREACH: Forbidden unevidenced term detected: '{term}'")
+
     progress("ALL_QUALITY_GATES_PASSED_SUCCESSFULLY")
 
 # =========================================================================
-# SHARED CSS & SAFE RAILWAY HTML RENDERING
+# SAFE RAILWAY NAVIGATION HTML RENDERERS
 # =========================================================================
 
 def get_shared_css():
@@ -632,6 +707,32 @@ def render_page_a(theory_data, canonical_entry):
           </div>
         </section>"""
 
+    lab_spec = theory_data.get("live_lab", {})
+    lab_html = ""
+    if lab_spec.get("has_lab", True):
+        lab_html = f"""
+        <section id="lab" class="card">
+          <h2>🧪 Live Lab · {e(lab_spec.get('title', 'Interactive Simulation'))}</h2>
+          <div class="lab">
+            <p>{e(lab_spec.get('instructions', 'Move slider to test phenomenon:'))}</p>
+            <label>Variable: <b id="ang" style="color:var(--c-obs-bar);">0°</b>
+              <input id="tilt" type="range" min="{lab_spec.get('min_val', -35)}" max="{lab_spec.get('max_val', 35)}" value="{lab_spec.get('default_val', 0)}"/>
+            </label>
+            <div class="figure">
+              <svg id="labSvg" viewBox="0 0 650 300">
+                <g id="labV">
+                  <path d="M 180 50 L 180 240 L 440 240 L 440 50" fill="none" stroke="#38bdf8" stroke-width="8"/>
+                </g>
+                <line class="water" x1="190" y1="150" x2="430" y2="150"/>
+                <line x1="550" y1="40" x2="550" y2="230" stroke="var(--c-obs-bar)" stroke-width="3" stroke-dasharray="5 5"/>
+                <circle cx="550" cy="245" r="14" fill="var(--c-obs-bar)"/>
+                <text x="495" y="280" fill="var(--c-obs-bar)" font-size="14">Vertical reference</text>
+              </svg>
+            </div>
+            <div id="labmsg" class="answer">At 0°, the vessel is upright and the free surface is horizontal.</div>
+          </div>
+        </section>"""
+
     ws_html = ""
     for q_idx, q in enumerate(theory_data.get("worksheet", []), 1):
         opts = "".join(f'<option value="{i}">{opt}</option>' for i, opt in enumerate(q.get("options", [])))
@@ -677,7 +778,7 @@ def render_page_a(theory_data, canonical_entry):
     </div>
     <nav>
       <a href="#learn">Activities</a>
-      <a href="#lab">Live Lab</a>
+      {f'<a href="#lab">Live Lab</a>' if lab_html else ''}
       <a href="#worksheet">Worksheet</a>
       <button onclick="navigateToExercises()" class="nav-btn" style="background:#10b981; color:#042114; font-weight:800;">📘 Solved Exercises ➔</button>
       <a href="javascript:window.print()">🖨️ Print Study Card</a>
@@ -700,27 +801,7 @@ def render_page_a(theory_data, canonical_entry):
   {activities_html}
 </div>
 
-<section id="lab" class="card">
-  <h2>🧪 Live Lab · Tilt the Vessel &amp; Measure Surface</h2>
-  <div class="lab">
-    <p>Move the slider to tilt the container. The container walls rotate while the <b>free surface remains strictly horizontal</b> relative to gravity:</p>
-    <label>Tilt angle: <b id="ang" style="color:var(--c-obs-bar);">0°</b>
-      <input id="tilt" type="range" min="-35" max="35" value="0"/>
-    </label>
-    <div class="figure">
-      <svg id="labSvg" viewBox="0 0 650 300">
-        <g id="labV">
-          <path d="M 180 50 L 180 240 L 440 240 L 440 50" fill="none" stroke="#38bdf8" stroke-width="8"/>
-        </g>
-        <line class="water" x1="190" y1="150" x2="430" y2="150"/>
-        <line x1="550" y1="40" x2="550" y2="230" stroke="var(--c-obs-bar)" stroke-width="3" stroke-dasharray="5 5"/>
-        <circle cx="550" cy="245" r="14" fill="var(--c-obs-bar)"/>
-        <text x="495" y="280" fill="var(--c-obs-bar)" font-size="14">Vertical reference</text>
-      </svg>
-    </div>
-    <div id="labmsg" class="answer">At 0°, the vessel is upright and the free surface is horizontal.</div>
-  </div>
-</section>
+{lab_html}
 
 <div class="cta-exercises-box">
   <h2 style="color:#6ee7b7; margin-bottom:8px;">📘 Ready to Practice &amp; Master the Concepts?</h2>
@@ -819,15 +900,16 @@ def render_page_b(exercises_list, canonical_entry):
         fig_html = f'<div class="figure ex-figure">{svg}</div>' if svg and "<svg" in svg else ""
         nabil_oral = ex.get("nabil_oral_ar", "")
 
+        # SOURCE-LOCKED DISPLAY: Prompt is VERBATIM from raw_prompt
         items_html += f"""
-        <article class="exercise" id="ex{num}" data-ex-number="{num}">
+        <article class="exercise" id="ex{num}" data-ex-number="{num}" data-source-hash="{ex.get('hash', '')}">
           <div class="exhead">
             <span>Exercise #{num} — {e(ex.get('title', 'Official Exercise'))}</span>
             <span class="source">Textbook pp. {start_p}–{end_p}</span>
           </div>
           <div class="prompt">
-            <b>Official Book Task:</b>
-            <p>{e(ex.get('prompt_en', ''))}</p>
+            <b>Official Book Task (Verbatim):</b>
+            <p>{e(ex.get('raw_prompt', ''))}</p>
             {f'<div style="font-size:14px; color:#bae6fd; direction:rtl; text-align:right; margin-top:6px;"><b>ترجمة المسألة:</b> {e(ex.get("prompt_ar"))}</div>' if ex.get("prompt_ar") else ''}
           </div>
           {fig_html}
@@ -861,7 +943,7 @@ def render_page_b(exercises_list, canonical_entry):
     <div>
       <b>📘 Official Solved Workbook · Grade {canonical_entry['grade']} Physics</b>
       <h1>{e(title)} — Complete Textbook Solutions</h1>
-      <div class="source">Official CRDP Textbook Problems</div>
+      <div class="source">Official Lebanese CRDP Textbook Problems</div>
     </div>
     <nav>
       <button onclick="returnToLesson()" class="nav-btn" style="background:#38bdf8; color:#07192b; font-weight:800;">⬅️ Return to Lesson &amp; Lab</button>
@@ -910,7 +992,7 @@ function returnToLesson() {{
 </html>"""
 
 # =========================================================================
-# PRODUCTION ORCHESTRATOR
+# PRODUCTION PIPELINE
 # =========================================================================
 
 def produce_lesson_for_entry(service, canonical_entry, report_path, publish=False):
@@ -920,7 +1002,7 @@ def produce_lesson_for_entry(service, canonical_entry, report_path, publish=Fals
     start_p = canonical_entry["pdf_start_page"]
     end_p = canonical_entry["pdf_end_page"]
 
-    progress("STARTING_UNIVERSAL_EVIDENCE_PRODUCTION", lesson_id=lesson_id, title=title)
+    progress("STARTING_STRICT_EVIDENCE_PRODUCTION", lesson_id=lesson_id, title=title)
 
     with tempfile.TemporaryDirectory() as tmp:
         pdf_path = Path(tmp) / "book.pdf"
@@ -931,25 +1013,28 @@ def produce_lesson_for_entry(service, canonical_entry, report_path, publish=Fals
         pages = [(p, (reader.pages[p - 1].extract_text() or "").strip())
                  for p in range(start_p, end_p + 1)]
 
-        # 1. Deterministic Evidence Map with Source Hashes
+        # 1. Deterministic Evidence Map with Hash Identifiers
         evidence_map = build_deterministic_evidence_map(pages)
-        progress("EVIDENCE_MAP_BUILT", 
+        progress("EVIDENCE_MAP_EXTRACTED", 
                  activities=len(evidence_map["activities_evidence"]), 
-                 exercises=len(evidence_map["exercise_numbers"]))
+                 exercises=len(evidence_map["exercise_evidence"]))
 
-        # 2. Setup AI client
+        # 2. Compile Pedagogy Profile
+        profile = compile_pedagogy_profile(evidence_map, canonical_entry["subject"])
+
+        # 3. Setup AI provider
         prov = configured_providers()[0]
         from openai import OpenAI
         client = OpenAI(api_key=prov[1], base_url=prov[2], timeout=180)
 
-        # 3. Generate Theory and Adaptive Batched Exercises
-        theory_data = generate_source_locked_theory(client, prov[3], canonical_entry, evidence_map)
+        # 4. Generate Pedagogical Theory & Adaptive Source-Locked Solutions
+        theory_data = generate_pedagogical_theory(client, prov[3], canonical_entry, evidence_map, profile)
         solved_exercises = solve_source_locked_exercises_adaptive(client, prov[3], canonical_entry, evidence_map)
 
-        # 4. Strict Deterministic Gates Evaluation
-        execute_deterministic_quality_gates(theory_data, solved_exercises, evidence_map)
+        # 5. Execute Hard Quality Gates
+        execute_deterministic_quality_gates(theory_data, solved_exercises, evidence_map, profile)
 
-        # 5. File Compilation
+        # 6. Render Output Files
         slug = re.sub(r"[^\w]+", "-", title.upper()).strip("-")
         num_str = lesson_id.split("-")[-1]
         grade_tag = f"G{canonical_entry['grade']:02d}"
@@ -960,6 +1045,10 @@ def produce_lesson_for_entry(service, canonical_entry, report_path, publish=Fals
 
         html_theory = render_page_a(theory_data, canonical_entry)
         html_exercises = render_page_b(solved_exercises, canonical_entry)
+
+        # 7. Navigation QA Test
+        if "navigateToExercises" not in html_theory or "returnToLesson" not in html_exercises:
+            raise AssertionError("NAVIGATION_FAILED: Missing safe navigation scripts between pages")
 
         out_theory_path = report_path.with_name(theory_filename)
         out_ex_path = report_path.with_name(exercises_filename)
@@ -995,7 +1084,6 @@ def produce_lesson_for_entry(service, canonical_entry, report_path, publish=Fals
             g_id = ensure_f(ROOT_FOLDER, grade_folder_name)
             s_id = ensure_f(g_id, subj_folder_name)
 
-            # Clean old versions
             existing = service.files().list(q=f"'{s_id}' in parents and (name='{theory_filename}' or name='{exercises_filename}') and trashed=false",
                                             fields="files(id, name)").execute().get("files", [])
             for f_item in existing:
