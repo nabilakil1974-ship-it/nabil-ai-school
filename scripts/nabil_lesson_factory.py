@@ -554,11 +554,11 @@ def extract_multimodal_page_figures(doc, page_num: int, cache_dir: Path,
                                  min(page.rect.width, rect.x1 + 15),
                                  min(page.rect.height, rect.y1 + 50))
             caption = page.get_text("text", clip=cap_area).strip()
-            match = re.search(r"(?:fig(?:ure)?\\.?|شكل|وثيقة)\\s*(\\d+[a-z]?)", caption, re.I)
+            match = re.search(r"(?:fig(?:ure)?\.?|شكل|وثيقة)\s*(\d+[a-z]?)", caption, re.I)
             label = match.group(1).lower() if match else None
             figures.append({
                 "figure_id": f"FIG_P{page_num}_E{idx+1}",
-                "printed_number": int(re.match(r"\\d+", label).group()) if label else None,
+                "printed_number": int(re.match(r"\d+", label).group()) if label else None,
                 "printed_label": label,
                 "source_page": page_num,
                 "bbox": [round(rect.x0, 1), round(rect.y0, 1),
@@ -626,7 +626,7 @@ def extract_multimodal_page_figures(doc, page_num: int, cache_dir: Path,
                              page.rect.x0 + x1*page.rect.width/1000,
                              page.rect.y0 + y1*page.rect.height/1000)
             label = str(info.get("printed_label") or "").strip().lower()
-            label_match = re.fullmatch(r"(\\d+)([a-z]?)", label)
+            label_match = re.fullmatch(r"(\d+)([a-z]?)", label)
             if label and not label_match:
                 continue
             content = page.get_pixmap(clip=rect, dpi=180).tobytes("png")
@@ -691,8 +691,8 @@ def verify_title_double_evidence_strict(doc, entry: dict, opening_txt: str) -> b
     from a filename or submit unauthorized preface pages to an AI provider.
     The canonical catalog records the TOC PDF page for scanned textbooks.
     """
-    title_clean = re.sub(r"[^\\w]+", " ", entry["canonical_title"].casefold()).strip()
-    opener = re.sub(r"[^\\w]+", " ", opening_txt.casefold())
+    title_clean = re.sub(r"[^\w]+", " ", entry["canonical_title"].casefold()).strip()
+    opener = re.sub(r"[^\w]+", " ", opening_txt.casefold())
     if not title_clean or title_clean not in opener:
         return False
 
@@ -700,7 +700,7 @@ def verify_title_double_evidence_strict(doc, entry: dict, opening_txt: str) -> b
     if toc_page is None:
         # Native-text PDFs may expose a genuine PDF bookmark TOC.
         for depth, name, p_num in doc.get_toc():
-            if re.sub(r"[^\\w]+", " ", name.casefold()).strip() == title_clean:
+            if re.sub(r"[^\w]+", " ", name.casefold()).strip() == title_clean:
                 return 1 <= p_num <= int(entry["pdf_start_page"])
         return False
 
@@ -728,7 +728,7 @@ def verify_title_double_evidence_strict(doc, entry: dict, opening_txt: str) -> b
             toc_txt = proc.stdout.strip()
             if toc_txt:
                 cache.write_text(toc_txt, encoding="utf-8")
-    toc_normalized = re.sub(r"[^\\w]+", " ", toc_txt.casefold())
+    toc_normalized = re.sub(r"[^\w]+", " ", toc_txt.casefold())
     return title_clean in toc_normalized and (
         "chapter" in toc_normalized or "chapitre" in toc_normalized
         or "contents" in toc_normalized or "فهرس" in toc_normalized
