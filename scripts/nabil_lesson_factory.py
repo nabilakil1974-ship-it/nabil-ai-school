@@ -228,54 +228,80 @@ def execute_llm_completion(prompt: str, json_mode: bool = True, temperature: flo
         payload["response_format"] = {"type": "json_object"}
 
     req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
-    try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            content = data["choices"][0]["message"]["content"].strip()
-            if content.startswith("```"):
-                content = re.sub(r"^```(?:json)?\s*|\s*```$", "", content, flags=re.I).strip()
-            return content
-    except urllib.error.HTTPError as exc:
-        # The AI-provider refusal is not a Google Drive or PDF download error.
-        # Include a short, sanitized explanation without disclosing API keys.
-        provider = "openrouter" if "openrouter.ai" in url else ("groq" if "groq.com" in url else "openai")
-        # Read upstream body once: Groq/edge providers may send non-JSON
-        # (including HTML or an empty 403). Never discard the only diagnostic.
+    max_attempts = 5
+    for attempt in range(1, max_attempts + 1):
         try:
-            raw_body = exc.read(4096).decode("utf-8", errors="replace")
-        except OSError:
-            raw_body = ""
-        content_type = str(exc.headers.get("Content-Type", "")).split(";")[0].lower()
-        detail, code = "", ""
-        if raw_body:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                content = data["choices"][0]["message"]["content"].strip()
+                if content.startswith("```"):
+                    content = re.sub(r"^```(?:json)?\\s*|\\s*```$", "", content, flags=re.I).strip()
+                return content
+        except urllib.error.HTTPError as exc:
+            # The AI-provider refusal is not a Google Drive or PDF download error.
+            # Include a short, sanitized explanation without disclosing API keys.
+            provider = "openrouter" if "openrouter.ai" in url else ("groq" if "groq.com" in url else "openai")
+            # Read upstream body once: Groq/edge providers may send non-JSON
+            # (including HTML or an empty 403). Never discard the only diagnostic.
             try:
-                upstream = json.loads(raw_body)
-                error = upstream.get("error", upstream) if isinstance(upstream, dict) else {}
-                if isinstance(error, dict):
-                    detail = str(error.get("message") or error.get("detail") or "")
-                    code = str(error.get("code") or error.get("type") or "")
-                elif isinstance(error, str):
-                    detail = error
-            except ValueError:
-                # Upstream access-control pages are often HTML, not JSON.
-                detail = re.sub(r"<[^>]+>", " ", raw_body)
-        detail = re.sub(r"\s+", " ", detail).strip()
-        code = re.sub(r"\s+", " ", code).strip()
-        if not detail:
-            detail = f"Empty or unrecognized provider 403 response (content_type={content_type or 'not-provided'})"
-        for secret_name in ("OPENROUTER_API_KEY", "OPENAI_API_KEY", "GROQ_API_KEY"):
-            secret = os.getenv(secret_name, "")
-            if secret:
-                detail, code = detail.replace(secret, "[REDACTED]"), code.replace(secret, "[REDACTED]")
-        detail = re.sub(r"(?i)\b(?:sk-or-v1-|sk-)[a-z0-9_-]{8,}", "[REDACTED]", detail)
-        code = re.sub(r"(?i)\b(?:sk-or-v1-|sk-)[a-z0-9_-]{8,}", "[REDACTED]", code)
-        reason = detail[:360] or "No explanatory error message provided by the AI provider"
-        progress("AI_PROVIDER_REQUEST_REJECTED", provider=provider, model=model,
-                 http_status=exc.code, provider_code=code[:80], detail=reason)
-        raise RuntimeError(
-            f"AI_PROVIDER_HTTP_ERROR: provider={provider} model={model} "
-            f"http_status={exc.code} provider_code={code[:80]} detail={reason}"
-        ) from None
+                raw_body = exc.read(4096).decode("utf-8", errors="replace")
+            except OSError:
+                raw_body = ""
+            content_type = str(exc.headers.get("Content-Type", "")).split(";")[0].lower()
+            detail, code = "", ""
+            if raw_body:
+                try:
+                    upstream = json.loads(raw_body)
+                    error = upstream.get("error", upstream) if isinstance(upstream, dict) else {}
+                    if isinstance(error, dict):
+                        detail = str(error.get("message") or error.get("detail") or "")
+                        code = str(error.get("code") or error.get("type") or "")
+                    elif isinstance(error, str):
+                        detail = error
+                except ValueError:
+                    # Upstream access-control pages are often HTML, not JSON.
+                    detail = re.sub(r"<[^>]+>", " ", raw_body)
+            detail = re.sub(r"\s+", " ", detail).strip()
+            code = re.sub(r"\s+", " ", code).strip()
+            if not detail:
+                detail = f"Empty or unrecognized provider 403 response (content_type={content_type or 'not-provided'})"
+            for secret_name in ("OPENROUTER_API_KEY", "OPENAI_API_KEY", "GROQ_API_KEY"):
+                secret = os.getenv(secret_name, "")
+                if secret:
+                    detail, code = detail.replace(secret, "[REDACTED]"), code.replace(secret, "[REDACTED]")
+            detail = re.sub(r"(?i)\b(?:sk-or-v1-|sk-)[a-z0-9_-]{8,}", "[REDACTED]", detail)
+            code = re.sub(r"(?i)\b(?:sk-or-v1-|sk-)[a-z0-9_-]{8,}", "[REDACTED]", code)
+            if exc.code == 429 and attempt < max_attempts:
+                # Groq commonly reports a fractional "Please try again in 15.78s".
+                # Honor server's Retry-After when numeric; otherwise parse its
+                # message. Keep the same provider and same textbook page, never
+                # silently send approved book images to another provider.
+                retry_header = str(exc.headers.get("Retry-After", "")).strip()
+                try:
+                    wait_seconds = float(retry_header)
+                except ValueError:
+                    wait_match = re.search(
+                        r"(?i)try again in\\s+(\\d+(?:\\.\\d+)?)\\s*s(?:econds?)?",
+                        detail,
+                    )
+                    wait_seconds = (float(wait_match.group(1)) if wait_match
+                                    else min(20.0 * attempt, 90.0))
+                wait_seconds = min(120.0, max(2.0, wait_seconds + 2.0))
+                progress(
+                    "AI_PROVIDER_RATE_LIMIT_WAIT", provider=provider, model=model,
+                    attempt=attempt, max_attempts=max_attempts,
+                    wait_seconds=round(wait_seconds, 2),
+                    http_status=429, provider_code=code[:80],
+                )
+                time.sleep(wait_seconds)
+                continue
+            reason = detail[:360] or "No explanatory error message provided by the AI provider"
+            progress("AI_PROVIDER_REQUEST_REJECTED", provider=provider, model=model,
+                     http_status=exc.code, provider_code=code[:80], detail=reason)
+            raise RuntimeError(
+                f"AI_PROVIDER_HTTP_ERROR: provider={provider} model={model} "
+                f"http_status={exc.code} provider_code={code[:80]} detail={reason}"
+            ) from None
 
 
 # ==============================================================================
