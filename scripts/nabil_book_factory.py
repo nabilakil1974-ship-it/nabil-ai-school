@@ -274,7 +274,23 @@ def _best_header_match(page, row: dict) -> tuple[float,str]:
 def verify_openers(doc, rows: list[dict]) -> list[dict]:
     """Cross-check exact book TOC vs physical chapter-opening images."""
     if all(row.get("pdf_start_page") for row in rows):
-        results=[dict(row) for row in rows]
+        # PDF bookmarks are useful hints, not proof that the title and source
+        # opening page agree. Verify each original opener before trusting it.
+        results = []
+        for row in rows:
+            page_num = int(row["pdf_start_page"])
+            if not 1 <= page_num <= len(doc):
+                raise RuntimeError("BOOKMARK_PAGE_OUT_OF_RANGE")
+            score, header = _best_header_match(doc[page_num-1], row)
+            if score < .92:
+                raise RuntimeError(
+                    f"BOOKMARK_OPENING_UNVERIFIED: chapter={row['chapter_number']} "
+                    f"page={page_num} score={score:.2f}"
+                )
+            results.append({**row, "heading_ocr_excerpt": header[:200],
+                            "opening_match_score": round(score, 3)})
+            announce("BOOKMARK_OPENING_VERIFIED", chapter=row["chapter_number"],
+                     pdf_page=page_num)
     else:
         results=[]
         lower=max(row["toc_pdf_page"] or 1 for row in rows)+1
@@ -339,6 +355,7 @@ def build_index(doc, book: dict, *, book_id: str, pdf_hash: str) -> dict:
                         "canonical_title": row["title"],
                         "grade": grade, "subject": subject, "language": lang,
                         "book_id": book_id, "source_book_title": book["title"],
+                        "source_key": ("" if book_id == pilot_book else namespace.rstrip("-")),
                         "pdf_start_page": row["pdf_start_page"],
                         "pdf_end_page": row["pdf_end_page"],
                         "toc_pdf_page": row.get("toc_pdf_page"),
