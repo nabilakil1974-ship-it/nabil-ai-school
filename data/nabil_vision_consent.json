@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "policy": "Owner-approved external vision transfer. Any page outside an approved lesson/book/page range must fail closed without sharing the image.",
+  "approved_scopes": [
+    {
+      "lesson_id": "G07-PHYSICS-001",
+      "book_id": "1LasqIgGUuck1l-2EZbj2kA0Dg9ygJ_AH",
+      "pdf_start_page": 13,
+      "pdf_end_page": 18,
+      "provider": "openrouter",
+      "purpose": "one unpublished pilot; extracted page images for visual source evidence",
+      "owner_approval_date": "2026-09-24"
+    }
+  ]
+}
