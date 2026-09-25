@@ -212,7 +212,8 @@ def execute_llm_completion(prompt: str, json_mode: bool = True, temperature: flo
         model = (os.getenv("OPENAI_VISION_MODEL", "gpt-4o-mini") if image_base64
                  else os.getenv("OPENAI_TEXT_MODEL", "gpt-4o-mini"))
 
-    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json",
+               "User-Agent": "NABIL-AI-Lesson-Factory/1.0"}
     
     messages_content = [{"type": "text", "text": prompt}]
     if image_base64:
