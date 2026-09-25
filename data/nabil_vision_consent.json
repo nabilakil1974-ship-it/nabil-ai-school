@@ -10,6 +10,15 @@
       "provider": "openrouter",
       "purpose": "one unpublished pilot; extracted page images for visual source evidence",
       "owner_approval_date": "2026-09-24"
+    },
+    {
+      "lesson_id_prefix": "G07-PHYSICS-",
+      "book_id": "1LasqIgGUuck1l-2EZbj2kA0Dg9ygJ_AH",
+      "pdf_start_page": 13,
+      "pdf_end_page": 127,
+      "provider": "openai",
+      "purpose": "Owner-authorized entire Grade 7 physics book source-page vision for chapter, figure and exercise evidence; not other books",
+      "owner_approval_date": "2026-09-26"
     }
   ]
 }
