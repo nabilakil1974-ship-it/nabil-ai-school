@@ -472,10 +472,29 @@ def resolve_canonical_entry(lesson_id: str) -> dict:
     return found
 
 
+def assert_authorized_source_vision(lesson_id: str, book_id: str, pdf_page: int):
+    """Only transfer textbook images approved by the owner for this exact book
+    and page range. Never treat a working API key as sharing consent.
+    """
+    consent_path = ROOT / "data/nabil_vision_consent.json"
+    if not consent_path.exists():
+        raise RuntimeError("VISION_SHARING_NOT_AUTHORIZED: consent catalog unavailable")
+    scopes = json.loads(consent_path.read_text(encoding="utf-8")).get("approved_scopes", [])
+    for item in scopes:
+        if (item.get("lesson_id") == lesson_id
+                and item.get("book_id") == book_id
+                and item.get("provider") == "openrouter"
+                and int(item["pdf_start_page"]) <= pdf_page <= int(item["pdf_end_page"])):
+            if not os.getenv("OPENROUTER_API_KEY"):
+                raise RuntimeError("AI_PROVIDER_NOT_CONFIGURED: OpenRouter required for approved visual evidence")
+            return
+    raise RuntimeError(f"VISION_SHARING_NOT_AUTHORIZED: {lesson_id} page {pdf_page}")
+
+
 # ==============================================================================
 # 6. MULTIMODAL EXTRACTION: TRUE VISION PAYLOAD, TOC & VECTOR GROUPING
 # ==============================================================================
-def extract_page_text_robust(doc, page_num: int) -> str:
+def extract_page_text_robust(doc, page_num: int, lesson_id: str, book_id: str, cache_dir: Path) -> str:
     page = doc[page_num - 1]
     txt = (page.get_text() or "").strip()
     if len(txt) >= 60:
@@ -493,7 +512,8 @@ def extract_page_text_robust(doc, page_num: int) -> str:
         except Exception:
             pass
 
-    page_img = CACHE_DIR / f"page_vision_{page_num}.png"
+    assert_authorized_source_vision(lesson_id, book_id, page_num)
+    page_img = cache_dir / f"page_vision_{page_num}.png"
     page.get_pixmap(dpi=150).save(str(page_img))
     b64_img = base64.b64encode(page_img.read_bytes()).decode("utf-8")
     prompt = "Extract all text, exercises, and formulas verbatim from this curriculum page. Return JSON: {'text': str}"
@@ -501,73 +521,132 @@ def extract_page_text_robust(doc, page_num: int) -> str:
     return json.loads(res).get("text", "")
 
 
-def extract_multimodal_page_figures(doc, page_num: int, cache_dir: Path) -> List[Dict[str, Any]]:
+def extract_multimodal_page_figures(doc, page_num: int, cache_dir: Path,
+                                    lesson_id: str, book_id: str) -> List[Dict[str, Any]]:
+    """Find actual figure regions. A scanned full-page bitmap is not a figure."""
     import fitz
+    from PIL import Image
+
     page = doc[page_num - 1]
     figures = []
-
+    has_scanned_page = False
     for idx, img in enumerate(page.get_images(full=True)):
         xref = img[0]
-        base_img = doc.extract_image(xref)
-        img_bytes = base_img["image"]
-        img_ext = base_img["ext"]
-        img_hash = hashlib.sha256(img_bytes).hexdigest()
-        fig_path = cache_dir / f"fig_p{page_num}_{idx+1}.{img_ext}"
-        fig_path.write_bytes(img_bytes)
-
         rects = page.get_image_rects(xref)
-        bbox = [round(rects[0].x0, 1), round(rects[0].y0, 1), round(rects[0].x1, 1), round(rects[0].y1, 1)] if rects else [0, 0, 0, 0]
-
-        caption_area = fitz.Rect(max(0, bbox[0]-15), bbox[3], min(page.rect.width, bbox[2]+15), min(page.rect.height, bbox[3]+45))
-        cap_txt = page.get_text("text", clip=caption_area).strip()
-        m = re.search(r'(?:fig(?:ure)?\.?|document|doc|شكل|وثيقة)\s*(\d+)', cap_txt, re.I)
-        printed_num = int(m.group(1)) if m else None
-
-        area_ratio = round((rects[0].width * rects[0].height) / (page.rect.width * page.rect.height), 3) if rects else 0.1
-
-        figures.append({
-            "figure_id": f"FIG_P{page_num}_{printed_num if printed_num else (idx+1)}",
-            "printed_number": printed_num,
-            "source_page": page_num,
-            "bbox": bbox,
-            "caption": cap_txt,
-            "image_path": str(fig_path),
-            "image_sha256": img_hash,
-            "visual_occupancy": area_ratio
-        })
-
-    drawings = page.get_drawings()
-    clusters = []
-    for d in drawings:
-        r = d["rect"]
-        if r.width > 20 and r.height > 20:
-            merged = False
-            for c in clusters:
-                if c.intersects(r) or (abs(c.y1 - r.y0) < 30 and abs(c.x0 - r.x0) < 50):
-                    c.include_rect(r)
-                    merged = True
-                    break
-            if not merged:
-                clusters.append(fitz.Rect(r))
-
-    for c_idx, c_rect in enumerate(clusters):
-        if c_rect.width > 60 and c_rect.height > 60:
-            v_pix = page.get_pixmap(clip=c_rect, dpi=150)
-            v_path = cache_dir / f"vector_grouped_p{page_num}_{c_idx+1}.png"
-            v_pix.save(str(v_path))
-            v_hash = hashlib.sha256(v_path.read_bytes()).hexdigest()
-            area_ratio = round((c_rect.width * c_rect.height) / (page.rect.width * page.rect.height), 3)
+        if not rects:
+            continue
+        for rect in rects:
+            area = (rect.width * rect.height) / (page.rect.width * page.rect.height)
+            if area >= 0.80:
+                has_scanned_page = True
+                continue
+            extracted = doc.extract_image(xref)
+            try:
+                with Image.open(io.BytesIO(extracted["image"])) as picture:
+                    out = io.BytesIO()
+                    picture.convert("RGB").save(out, format="PNG")
+                    img_bytes = out.getvalue()
+            except Exception as exc:
+                raise RuntimeError(f"FIGURE_EVIDENCE_MISSING: unreadable embedded image p{page_num}: {exc}")
+            path = cache_dir / f"fig_p{page_num}_embedded_{idx+1}.png"
+            path.write_bytes(img_bytes)
+            cap_area = fitz.Rect(max(0, rect.x0 - 15), rect.y1,
+                                 min(page.rect.width, rect.x1 + 15),
+                                 min(page.rect.height, rect.y1 + 50))
+            caption = page.get_text("text", clip=cap_area).strip()
+            match = re.search(r"(?:fig(?:ure)?\\.?|شكل|وثيقة)\\s*(\\d+[a-z]?)", caption, re.I)
+            label = match.group(1).lower() if match else None
             figures.append({
-                "figure_id": f"FIG_P{page_num}_V{c_idx+1}",
-                "printed_number": None,
+                "figure_id": f"FIG_P{page_num}_E{idx+1}",
+                "printed_number": int(re.match(r"\\d+", label).group()) if label else None,
+                "printed_label": label,
                 "source_page": page_num,
-                "bbox": [round(c_rect.x0, 1), round(c_rect.y0, 1), round(c_rect.x1, 1), round(c_rect.y1, 1)],
-                "caption": "Grouped Vector Graphic",
-                "image_path": str(v_path),
-                "image_sha256": v_hash,
-                "visual_occupancy": area_ratio
+                "bbox": [round(rect.x0, 1), round(rect.y0, 1),
+                         round(rect.x1, 1), round(rect.y1, 1)],
+                "caption": caption,
+                "image_path": str(path),
+                "image_sha256": hashlib.sha256(img_bytes).hexdigest(),
+                "visual_occupancy": round(area, 3),
+                "evidence_method": "EMBEDDED_IMAGE_WITH_SOURCE_BBOX"
             })
 
+    # Vector diagrams are cropped from the genuine PDF geometry.
+    if not has_scanned_page:
+        for idx, drawing in enumerate(page.get_drawings()):
+            rect = drawing["rect"]
+            if rect.width < 60 or rect.height < 60:
+                continue
+            pix = page.get_pixmap(clip=rect, dpi=180)
+            path = cache_dir / f"fig_p{page_num}_vector_{idx+1}.png"
+            pix.save(str(path))
+            content = path.read_bytes()
+            figures.append({
+                "figure_id": f"FIG_P{page_num}_V{idx+1}", "printed_number": None,
+                "printed_label": None, "source_page": page_num,
+                "bbox": [round(rect.x0, 1), round(rect.y0, 1),
+                         round(rect.x1, 1), round(rect.y1, 1)],
+                "caption": "Source PDF vector region", "image_path": str(path),
+                "image_sha256": hashlib.sha256(content).hexdigest(),
+                "visual_occupancy": round(
+                    rect.width * rect.height / (page.rect.width * page.rect.height), 3),
+                "evidence_method": "PDF_VECTOR_CROP"
+            })
+
+    if has_scanned_page:
+        # OCR cannot reveal where Fig. 3a, Fig. 3b, etc. are. Ask an approved
+        # vision provider for coordinates, then crop *the original PDF page*.
+        assert_authorized_source_vision(lesson_id, book_id, page_num)
+        pix = page.get_pixmap(dpi=180)
+        prompt = (
+            "Inspect this original scanned school textbook page. Return ONLY JSON "
+            "with a figures array. Identify each actual labelled Fig./Figure diagram "
+            "or photo separately; never return the whole page or a paragraph. "
+            "Each figure has printed_label (e.g. 3a, 3b, 6 or null), "
+            "bbox_1000=[left,top,right,bottom] normalized to 0..1000, "
+            "caption (verbatim when readable), visual_description and confidence 0..1. "
+            "Do not invent diagram labels or content. Empty array if none."
+        )
+        extracted = json.loads(execute_llm_completion(
+            prompt, image_base64=base64.b64encode(pix.tobytes("png")).decode("ascii")))
+        if not isinstance(extracted.get("figures"), list):
+            raise RuntimeError("FIGURE_EVIDENCE_MISSING: vision figure schema invalid")
+        for idx, info in enumerate(extracted["figures"]):
+            if not isinstance(info, dict) or float(info.get("confidence", 0)) < 0.75:
+                continue
+            coords = info.get("bbox_1000")
+            if (not isinstance(coords, list) or len(coords) != 4
+                    or not all(isinstance(v, (int, float)) for v in coords)):
+                continue
+            x0, y0, x1, y1 = [float(v) for v in coords]
+            if not (0 <= x0 < x1 <= 1000 and 0 <= y0 < y1 <= 1000
+                    and (x1-x0) >= 25 and (y1-y0) >= 25):
+                continue
+            rect = fitz.Rect(page.rect.x0 + x0*page.rect.width/1000,
+                             page.rect.y0 + y0*page.rect.height/1000,
+                             page.rect.x0 + x1*page.rect.width/1000,
+                             page.rect.y0 + y1*page.rect.height/1000)
+            label = str(info.get("printed_label") or "").strip().lower()
+            label_match = re.fullmatch(r"(\\d+)([a-z]?)", label)
+            if label and not label_match:
+                continue
+            content = page.get_pixmap(clip=rect, dpi=180).tobytes("png")
+            path = cache_dir / f"fig_p{page_num}_scanned_{idx+1}.png"
+            path.write_bytes(content)
+            figures.append({
+                "figure_id": f"FIG_P{page_num}_SCAN_{idx+1}",
+                "printed_number": int(label_match.group(1)) if label_match else None,
+                "printed_label": label or None, "source_page": page_num,
+                "bbox": [round(rect.x0, 1), round(rect.y0, 1),
+                         round(rect.x1, 1), round(rect.y1, 1)],
+                "caption": str(info.get("caption") or ""),
+                "visual_description": str(info.get("visual_description") or ""),
+                "image_path": str(path),
+                "image_sha256": hashlib.sha256(content).hexdigest(),
+                "visual_occupancy": round(
+                    rect.width*rect.height/(page.rect.width*page.rect.height), 3),
+                "confidence": float(info["confidence"]),
+                "evidence_method": "APPROVED_VISION_BOX_CROPPED_FROM_SOURCE_PDF"
+            })
     return figures
 
 
@@ -663,9 +742,11 @@ def build_evidence_map(doc, entry: dict) -> dict:
         raise RuntimeError(f"SOURCE_PAGE_OUT_OF_RANGE: {lesson_id}, pages {start_p}-{end_p}, book length {len(doc)}")
 
     pages_evidence = []
+    lesson_cache = CACHE_DIR / f"{book_id}_{lesson_id}"
+    lesson_cache.mkdir(parents=True, exist_ok=True)
     for p_num in range(start_p, end_p + 1):
-        txt = extract_page_text_robust(doc, p_num)
-        figs = extract_multimodal_page_figures(doc, p_num, CACHE_DIR)
+        txt = extract_page_text_robust(doc, p_num, lesson_id, book_id, lesson_cache)
+        figs = extract_multimodal_page_figures(doc, p_num, lesson_cache, lesson_id, book_id)
         p_hash = hashlib.sha256(txt.encode("utf-8")).hexdigest()[:16]
         pages_evidence.append({
             "page_num": p_num,
