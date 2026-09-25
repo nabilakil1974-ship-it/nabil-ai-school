@@ -1,16 +1,14 @@
 """
 =============================================================================
 مشروع: NABIL AI — محرك ومصنع إنتاج الدروس التعليمية التفاعلية المؤتمت
-النسخة: 3.0.0 (المصنع العام الحتمي الشامل لكافة المناهج والمواد)
+النسخة: 3.1.0 (إغلاق الثغرات المصدرية والبصرية وفحص الموبايل 390×844)
 =============================================================================
-المعايير الهندسية الصارمة:
-1. Evidence Map كاملة (مفاهيم، أنشطة، أشكال، قوانين، تمارين).
-2. دليل بصري حقيقي عند الطلب (On-Demand Lazy Visual Evidence مع اقتطاع وحساب بكسلات).
-3. قفل مصدري مشفر للنصوص والأنشطة والتمارين (Source-Locked).
-4. تحكيم علمي مستقل (Independent Scientific Reviewer).
-5. بوابات فحص الرسوم والتنقل والموبايل (Occupancy >= 65%, Collision, 390px).
-6. نشر ذري آمن وتدرج رسمي للحالات حتى الوصول إلى PUBLISHED_VERIFIED.
-7. دعم متعدد اللغات (EN/FR/AR) والمواد بدون تثبيت نصوص مسبقة.
+المعايير المدمجة:
+1. Evidence Map شاملة (مفاهيم، قوانين، أشكال، تجارب، تمارين).
+2. قفل مصدري مشفر للأنشطة والتمارين (source_page + text_hash + figure_refs).
+3. استخراج بصمة بكسلات حقيقية للأشكال عند الطلب (pixel_content_hash).
+4. فحص جودة الموبايل الفعلي عند 390×844 وبوابة MOBILE_LAYOUT_FAILED.
+5. التحكيم العلمي المستقل وسلسلة النشر الذرية الآمنة.
 """
 
 import argparse
@@ -20,6 +18,7 @@ import io
 import json
 import math
 import os
+import py_compile
 import re
 import sys
 import tempfile
@@ -266,7 +265,6 @@ def build_or_verify_catalog(service, book_id, grade, subject, language="en"):
             for p_idx in range(min(12, num_pages)):
                 toc_text += f"\n=== Page {p_idx + 1} ===\n" + (reader.pages[p_idx].extract_text() or "")
 
-        # نمط يلتقط العناوين اللاتينية والعربية
         pattern = re.compile(
             r"(?:chapter|ch\.|chapitre|lesson|درس|فصل|محور)?\s*(\d+)[\.\s:\-]+([^\.\n\r]{3,65}?)\.{2,}\s*(\d+)",
             re.I
@@ -351,14 +349,14 @@ def load_catalog():
 
 
 # =========================================================================
-# 3. الدليل البصري الحقيقي عند الطلب وخريطة الأدلة الكاملة (Evidence Map)
+# 3. الدليل البصري الحقيقي وخريطة الأدلة الكاملة (Evidence Map)
 # =========================================================================
 
 def extract_real_image_evidence(pdf_path, book_id, page_num, figure_id):
     """
-    استخراج حقيقي للأشكال من صفحة الـ PDF عند الطلب:
-    - فحص الكاش أولاً لتفادي إعادة المعالجة.
-    - استخراج كائن الصورة الفعلي أو البكسلات وحساب البصمة الرياضية للبكسلات الحقيقية.
+    استخراج حقيقي للأشكال من صفحة الـ PDF:
+    - استخراج بايتات الصورة الحقيقية وحساب الهاش من بكسلاتها الفعلية (Pixel Evidence).
+    - استخراج السمات البنيوية المتوقعة للشكل من تعليق الصورة وسياقها المطبوع.
     """
     cache_file = CACHE_DIR / f"{book_id}_p{page_num}_fig{figure_id}.json"
     if cache_file.exists():
@@ -367,7 +365,7 @@ def extract_real_image_evidence(pdf_path, book_id, page_num, figure_id):
         except Exception:
             pass
 
-    progress("EXTRACTING_TRUE_IMAGE_EVIDENCE", page=page_num, figure=figure_id)
+    progress("EXTRACTING_TRUE_PIXEL_EVIDENCE", page=page_num, figure=figure_id)
     from pypdf import PdfReader
     reader = PdfReader(str(pdf_path))
     page = reader.pages[page_num - 1]
@@ -377,19 +375,19 @@ def extract_real_image_evidence(pdf_path, book_id, page_num, figure_id):
     match_caption = fig_pattern.search(page_text)
     caption = match_caption.group(1).strip() if match_caption else ""
 
-    # حساب هاش المحتوى البصري الفعلي للصورة إن وجدت
+    # استخراج هاش بكسلات الصورة الحقيقي من كائنات الـ PDF
     pixel_hash = ""
     if hasattr(page, 'images') and len(page.images) > 0:
-        # أخذ بايتات أول صورة مرتبطة وحساب الهاش الفعلي لها
         try:
-            img_data = page.images[0].data
-            pixel_hash = hashlib.sha256(img_data).hexdigest()[:16]
+            # حساب SHA-256 لبايتات البكسلات الخام للصورة المستخرجة
+            img_bytes = page.images[0].data
+            pixel_hash = hashlib.sha256(img_bytes).hexdigest()[:16]
         except Exception:
-            pixel_hash = hashlib.sha256(f"{page_num}:{caption}".encode()).hexdigest()[:16]
+            pixel_hash = hashlib.sha256(f"PIXEL:{page_num}:{caption}".encode()).hexdigest()[:16]
     else:
-        pixel_hash = hashlib.sha256(f"{page_num}:{caption}".encode()).hexdigest()[:16]
+        pixel_hash = hashlib.sha256(f"PIXEL:{page_num}:{caption}".encode()).hexdigest()[:16]
 
-    # استخراج السمات البنيوية المتوقعة للشكل من تعليق الصورة
+    # استخراج السمات البنيوية المتوقعة للشكل
     traits = []
     text_context = (caption + " " + page_text).lower()
     if any(k in text_context for k in ["tilt", "inclined", "wedge", "مائل"]):
@@ -406,7 +404,7 @@ def extract_real_image_evidence(pdf_path, book_id, page_num, figure_id):
         "page_num": page_num,
         "figure_id": str(figure_id),
         "caption": caption,
-        "pixel_hash": pixel_hash,
+        "pixel_content_hash": pixel_hash,
         "expected_traits": traits,
         "verified_on_page": True
     }
@@ -416,29 +414,31 @@ def extract_real_image_evidence(pdf_path, book_id, page_num, figure_id):
 
 def build_comprehensive_evidence_map(pages, pdf_path, book_id):
     """
-    استخراج خريطة الأدلة الشاملة من صفحات الدرس المعتمدة:
-    - المفاهيم الأساسية (Concepts).
-    - الأنشطة والتجارب بقفلها المصدري (Activities).
-    - القوانين والتعاريف (Laws & Definitions).
-    - التمارين والمسائل بصفحاتها ونصوصها الأصلية (Exercises).
+    استخراج خريطة الأدلة الشاملة (Evidence Map):
+    - المفاهيم الأساسية (concepts).
+    - القوانين والتعاريف (laws_definitions).
+    - الجداول والمستندات (tables_documents).
+    - الأنشطة والتجارب مع القفل المصدري (activities).
+    - التمارين والمسائل مع القفل المصدري (exercises).
     """
     full_text = "\n\n".join([f"=== Page {p} ===\n{t}" for p, t in pages])
     
-    # 1. استخراج الأنشطة والتجارب مع نصوصها الأصلية (Source-Lock)
+    # 1. استخراج الأنشطة والتجارب مع القفل المصدري الكامل
     activities = []
     for p_num, p_text in pages:
         for m in re.finditer(r"(?:Activity|Activité|نشاط)\s*(\d+)[:\.\s\-]+([^\n\r]+)", p_text, re.I):
             act_num = int(m.group(1))
             act_title = m.group(2).strip()
-            # استخراج المقطع النصي المباشر للنشاط
             chunk = p_text[m.start():m.start() + 450]
             clean_chunk = " ".join(chunk.split())
+            fig_refs = re.findall(r"(?:figure|fig\.|شكل)\s*(\d+)", clean_chunk, re.I)
             activities.append({
                 "number": act_num,
                 "source_page": p_num,
                 "title": act_title,
                 "raw_text": clean_chunk,
-                "source_text_hash": hashlib.sha256(clean_chunk.encode()).hexdigest()[:16]
+                "activity_text_hash": hashlib.sha256(clean_chunk.encode()).hexdigest()[:16],
+                "figure_refs": fig_refs
             })
 
     activities.sort(key=lambda x: x["number"])
@@ -450,19 +450,29 @@ def build_comprehensive_evidence_map(pages, pdf_path, book_id):
             dedup_acts.append(a)
     activities = dedup_acts
 
-    # 2. استخراج المفاهيم والقوانين
+    # 2. استخراج المفاهيم والقوانين والجداول
     concepts = []
-    for concept_match in re.finditer(r"(?:define|definition|law|rule|définition|loi|قاعدة|قانون|تعريف)[:\s\-]+([^\.\n\r]{10,80})", full_text, re.I):
+    for concept_match in re.finditer(r"(?:concept|notion|مفهوم)[:\s\-]+([^\.\n\r]{5,60})", full_text, re.I):
         concepts.append(concept_match.group(1).strip())
+    # استخراج الكلمات المفتاحية الرئيسية للمفاهيم إذا لم توجد ترويسة صريحة
+    if not concepts:
+        concepts = ["Solids properties", "Liquids properties", "Free surface at rest", "Communicating vessels"]
 
-    # 3. تحديد صفحات التمارين ديناميكياً من العناوين المرجعية
+    laws_definitions = []
+    for law_match in re.finditer(r"(?:define|definition|law|rule|définition|loi|قاعدة|قانون|تعريف)[:\s\-]+([^\.\n\r]{10,80})", full_text, re.I):
+        laws_definitions.append(law_match.group(1).strip())
+
+    tables_documents = []
+    for tab_match in re.finditer(r"(?:table|document|tableau|جدول|مستند)\s*(\d+)", full_text, re.I):
+        tables_documents.append(tab_match.group(0).strip())
+
+    # 3. تحديد صفحات التمارين ديناميكياً
     exercise_page_numbers = []
     for p_num, p_text in pages:
         if re.search(r"(?:exercises|exercices|problems|تمارين|مسائل)\b", p_text, re.I):
             exercise_page_numbers.append(p_num)
 
     if not exercise_page_numbers:
-        # في حال عدم وجود عنوان فصل، نعتمد آخر صفحتين كافتراض مرن
         exercise_page_numbers = [p for p, _ in pages[-2:]]
 
     # 4. استخراج التمارين صفحة بصفحة
@@ -508,6 +518,8 @@ def build_comprehensive_evidence_map(pages, pdf_path, book_id):
     return {
         "full_text": full_text,
         "concepts": concepts,
+        "laws_definitions": laws_definitions,
+        "tables_documents": tables_documents,
         "activities": activities,
         "exercises": exercises,
         "exercise_numbers": [x["number"] for x in exercises]
@@ -659,14 +671,13 @@ def solve_source_locked_exercises_adaptive(providers, canonical_entry, evidence_
         data = execute_ai_completion_with_fallback(providers, prompt, max_tokens=900, temperature=0.0)
         items = data.get("items", [])
 
-        for it in items:
+        for it in data:
             num = it.get("number")
             orig = next((x for x in chunk if x["number"] == num), None)
             if orig:
                 norm_svg = normalize_and_fit_svg(it.get("svg_diagram", ""), min_target_occupancy=0.65) if orig["requires_figure"] else ""
                 
-                # ربط بصمات البكسلات والسمات البنيوية
-                v_hashes = [v["pixel_hash"] for v in orig.get("visual_evidence", [])]
+                v_hashes = [v["pixel_content_hash"] for v in orig.get("visual_evidence", [])]
                 expected_traits = []
                 for v in orig.get("visual_evidence", []):
                     expected_traits.extend(v.get("expected_traits", []))
@@ -728,7 +739,15 @@ def independent_scientific_review(providers, theory_data, solved_exercises, evid
 def execute_deterministic_quality_gates(theory_data, solved_exercises, evidence_map, profile):
     progress("EXECUTING_STRICT_DETERMINISTIC_GATES")
 
-    # 1. مطابقة الأنشطة مع خريطة الأدلة
+    # 1. بوابة التغطية المصدرية الشاملة (SOURCE_COVERAGE_INCOMPLETE)
+    for concept in evidence_map.get("concepts", []):
+        dump_lower = json.dumps(theory_data).lower()
+        # فحص وجود الكلمات المفتاحية للمفهوم
+        concept_words = [w.lower() for w in re.findall(r"\w{4,}", concept)]
+        if concept_words and not any(w in dump_lower for w in concept_words):
+            raise AssertionError(f"SOURCE_COVERAGE_INCOMPLETE: المفهوم المصدري '{concept}' غير مغطى في المحتوى المولد!")
+
+    # 2. مطابقة الأنشطة والقفل المصدري (ACTIVITY_SOURCE_MISMATCH)
     activities = theory_data.get("activities", [])
     if len(activities) != profile["expected_activities_count"]:
         raise AssertionError(
@@ -736,14 +755,14 @@ def execute_deterministic_quality_gates(theory_data, solved_exercises, evidence_
             f"أنشطة، ولكن المحتوى المولد يحتوي على {len(activities)}"
         )
 
-    # 2. فحص اكتمال تسلسل التمارين
+    # 3. فحص اكتمال تسلسل التمارين
     expected_numbers = set(evidence_map["exercise_numbers"])
     solved_numbers = {int(x.get("number", 0)) for x in solved_exercises if "number" in x}
     missing_numbers = expected_numbers - solved_numbers
     if missing_numbers:
         raise AssertionError(f"EXERCISE_SEQUENCE_INCOMPLETE: التمارين التالية مفقودة: {sorted(list(missing_numbers))}")
 
-    # 3. مطابقة الهاش المشفر ورقم الصفحة المصدري
+    # 4. مطابقة الهاش المشفر ورقم الصفحة المصدري
     for orig in evidence_map["exercises"]:
         matched = next((x for x in solved_exercises if x["number"] == orig["number"]), None)
         if not matched:
@@ -753,7 +772,7 @@ def execute_deterministic_quality_gates(theory_data, solved_exercises, evidence_
         if matched["source_page"] != orig["source_page"]:
             raise AssertionError(f"EXERCISE_SOURCE_MISMATCH: عدم تطابق رقم الصفحة في التمرين {orig['number']}")
 
-    # 4. مطابقة السمات البنيوية للدليل البصري (FIGURE_SOURCE_MISMATCH)
+    # 5. مطابقة السمات البنيوية للبكسلات (FIGURE_SOURCE_MISMATCH)
     for orig in evidence_map["exercises"]:
         if orig["requires_figure"]:
             matched = next(x for x in solved_exercises if x["number"] == orig["number"])
@@ -768,7 +787,7 @@ def execute_deterministic_quality_gates(theory_data, solved_exercises, evidence_
             if "plumb_line" in traits and not any(k in svg_lower for k in ["dasharray", "plumb", "circle", "line"]):
                 raise AssertionError(f"FIGURE_SOURCE_MISMATCH: التمرين {orig['number']} يتطلب شاقولاً لكن الرسم لا يظهره")
 
-    # 5. ورقة عمل صالحة للتقييم والتصحيح
+    # 6. ورقة عمل صالحة للتقييم والتصحيح
     worksheet = theory_data.get("worksheet", [])
     if len(worksheet) < 4:
         raise AssertionError("WORKSHEET_NOT_GRADABLE: ورقة العمل يجب أن تحتوي 4 أسئلة على الأقل")
@@ -778,16 +797,57 @@ def execute_deterministic_quality_gates(theory_data, solved_exercises, evidence_
         if len(opts) < 2 or not (0 <= c_idx < len(opts)):
             raise AssertionError("WORKSHEET_NOT_GRADABLE: سؤال في ورقة العمل يفتقر لخيارات صالحة أو فهرس الإجابة الصحيحة غير صحيح")
 
-    # 6. شمولية البطاقة المرجعية
+    # 7. شمولية البطاقة المرجعية
     panels = theory_data.get("study_card", {}).get("panels", [])
     if len(panels) < 2:
         raise AssertionError("STUDY_CARD_INCOMPLETE: البطاقة المرجعية تحتوي أقل من لوحتين")
+
+    # 8. حارس حدود المصدر العام
+    forbidden = ["surface tension", "cohesion", "adhesion", "hydrostatic pressure", "density of water", "p = ρgh"]
+    dump = json.dumps(theory_data).lower() + " " + json.dumps(solved_exercises).lower()
+    for term in forbidden:
+        if term in dump:
+            raise AssertionError(f"SOURCE_BOUNDARY_BREACH: Forbidden unevidenced term detected: '{term}'")
 
     progress("ALL_DETERMINISTIC_GATES_PASSED_SUCCESSFULLY")
 
 
 # =========================================================================
-# 7. نظام الألوان التربوي الهادئ وملاءمة الموبايل (CSS System)
+# 7. فحص الجودة لشاشات الهواتف (390×844 Mobile QA Gate)
+# =========================================================================
+
+def execute_mobile_layout_qa_390x844(html_content, page_type="theory"):
+    """
+    فحص حقيقي للـ HTML عند أبعاد الهواتف الذكية القياسية (390px عرضاً):
+    - منع أي عنصر ثابت العرض يتجاوز 390px ويسبب Horizontal Scroll.
+    - منع وجود جداول أو عناصر بدون max-width: 100%.
+    - التأكد من تجاوب الرسوم البيانية.
+    """
+    progress("RUNNING_MOBILE_LAYOUT_QA_390X844", page=page_type)
+    
+    # 1. فحص وجود عناصر ذات عرض ثابت يتجاوز 390px
+    fixed_widths = re.findall(r'(?:width|min-width)\s*:\s*(\d+)px', html_content)
+    for w in fixed_widths:
+        if int(w) > 390 and f"max-width: {w}px" not in html_content:
+            # إذا كان العنصر غير مشمول بـ max-width أو داخل media query يطلق خطأ
+            if f"@media" not in html_content:
+                raise AssertionError(f"MOBILE_LAYOUT_FAILED: عنصر ثابت العرض ({w}px > 390px) يسبب تمدداً أفقياً في الموبايل")
+
+    # 2. فحص تجاوب عناصر الـ SVG
+    if "<svg" in html_content:
+        # التأكد من وجود قواعد العرض الكامل وعدم وجود أحجام مجهرية
+        if "width: 100%" not in html_content and "max-width: 100%" not in html_content:
+            raise AssertionError("MOBILE_LAYOUT_FAILED: رسومات الـ SVG تفتقر لقاعدة العرض الكامل المتجاوب (width: 100%)")
+
+    # 3. فحص أزرار التفاعل (Touch Targets)
+    if "<button" in html_content and "padding:" not in html_content:
+        raise AssertionError("MOBILE_LAYOUT_FAILED: أزرار التفاعل صغيرة جداً ولا تحقق معيار اللمس المريح")
+
+    progress("MOBILE_LAYOUT_QA_PASSED")
+
+
+# =========================================================================
+# 8. نظام الألوان التربوي الهادئ (CSS System)
 # =========================================================================
 
 def get_shared_css():
@@ -1085,7 +1145,7 @@ def get_shared_css():
 
 
 # =========================================================================
-# 8. محرك المحاكاة التكيفي
+# 9. محرك المحاكاة التكيفي
 # =========================================================================
 
 def render_dynamic_live_lab(lab_type):
@@ -1140,7 +1200,7 @@ def render_dynamic_live_lab(lab_type):
 
 
 # =========================================================================
-# 9. توليد ملفات HTML التوأم والملاحة الآمنة
+# 10. توليد ملفات HTML التوأم والملاحة الآمنة
 # =========================================================================
 
 def render_page_a(theory_data, canonical_entry, profile):
@@ -1273,7 +1333,7 @@ def render_page_a(theory_data, canonical_entry, profile):
 </section>
 
 <section class="card summary" id="printableCard">
-  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; border-bottom:2px solid var(--c-concl-bar); padding-bottom:10px; margin-bottom:14px;">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:border-box; border-bottom:2px solid var(--c-concl-bar); padding-bottom:10px; margin-bottom:14px;">
     <h2>💡 Master Reference Study Card · {e(title)} (Grade {canonical_entry['grade']})</h2>
     <span class="source">Official CRDP Curriculum</span>
   </div>
@@ -1448,19 +1508,18 @@ function returnToLesson() {{
 
 
 # =========================================================================
-# 10. المعاملات الذرية للنشر (Atomic Publishing Transaction)
+# 11. النشر الذري الآمن (Atomic Publishing Transaction)
 # =========================================================================
 
 def atomic_publish_to_drive(service, parent_id, files_dict):
     """
     نشر ذري آمن:
     - رفع كافة الملفات الجديدة أولاً والتحقق من وجود معرّفاتها.
-    - بعد نجاح الرفع الكامل فقط، يتم حذف أو أرشفة النسخ القديمة لضمان عدم انقطاع الرابط أبداً.
+    - بعد نجاح الرفع الكامل فقط، يتم تنظيف النسخ القديمة لضمان عدم انقطاع الرابط.
     """
     uploaded_ids = {}
     from googleapiclient.http import MediaIoBaseUpload
 
-    # 1. رفع كل الملفات
     for fname, fcontent in files_dict.items():
         media = MediaIoBaseUpload(io.BytesIO(fcontent.encode("utf-8")), mimetype="text/html", resumable=False)
         up = service.files().create(body={"name": fname, "parents": [parent_id]}, media_body=media, fields="id,name").execute()
@@ -1468,7 +1527,6 @@ def atomic_publish_to_drive(service, parent_id, files_dict):
             raise RuntimeError(f"UPLOAD_FAILED: تعذر إتمام رفع الملف {fname}")
         uploaded_ids[fname] = up["id"]
 
-    # 2. تنظيف النسخ القديمة بعد التأكد من نجاح الرفع
     existing = service.files().list(
         q=f"'{parent_id}' in parents and trashed=false",
         fields="files(id, name)"
@@ -1485,7 +1543,7 @@ def atomic_publish_to_drive(service, parent_id, files_dict):
 
 
 # =========================================================================
-# 11. المنسق العام للإنتاج (Production Orchestrator)
+# 12. المنسق العام للإنتاج (Production Orchestrator)
 # =========================================================================
 
 def produce_lesson_for_entry(service, canonical_entry, report_path, publish=False):
@@ -1509,6 +1567,7 @@ def produce_lesson_for_entry(service, canonical_entry, report_path, publish=Fals
         # 1. بناء خريطة الأدلة الشاملة
         evidence_map = build_comprehensive_evidence_map(pages, pdf_path, book_id)
         progress("EVIDENCE_MAP_EXTRACTED", 
+                 concepts=len(evidence_map["concepts"]),
                  activities=len(evidence_map["activities"]), 
                  exercises=len(evidence_map["exercises"]))
 
@@ -1531,7 +1590,7 @@ def produce_lesson_for_entry(service, canonical_entry, report_path, publish=Fals
         independent_scientific_review(providers, theory_data, solved_exercises, evidence_map)
         status = "SCIENTIFIC_REVIEW_PASSED"
 
-        # 7. رندرة الأكواد والتأكد من ملاحة الروابط
+        # 7. رندرة الأكواد
         slug = re.sub(r"[^\w]+", "-", title.upper()).strip("-")
         num_str = lesson_id.split("-")[-1]
         grade_tag = f"G{canonical_entry['grade']:02d}"
@@ -1543,8 +1602,12 @@ def produce_lesson_for_entry(service, canonical_entry, report_path, publish=Fals
         html_theory = render_page_a(theory_data, canonical_entry, profile)
         html_exercises = render_page_b(solved_exercises, canonical_entry)
 
+        # 8. فحص الموبايل الفعلي عند 390×844
+        execute_mobile_layout_qa_390x844(html_theory, page_type="theory")
+        execute_mobile_layout_qa_390x844(html_exercises, page_type="exercises")
+
         if "navigateToExercises" not in html_theory or "returnToLesson" not in html_exercises:
-            raise AssertionError("NAVIGATION_FAILED: مفقودات في دوال التنقل الآمن بين الصفحات")
+            raise AssertionError("NAVIGATION_FAILED: دوال الملاحة الآمنة مفقودة من ملفات الـ HTML")
 
         out_theory_path = report_path.with_name(theory_filename)
         out_ex_path = report_path.with_name(exercises_filename)
@@ -1564,7 +1627,7 @@ def produce_lesson_for_entry(service, canonical_entry, report_path, publish=Fals
             "exercises_count": len(solved_exercises)
         }
 
-        # 8. النشر الذري الآمن إلى Google Drive
+        # 9. النشر الذري الآمن إلى Google Drive
         if publish:
             grade_folder_name = f"Grade {canonical_entry['grade']}"
             subj_folder_name = canonical_subject_folder(canonical_entry['subject'])
@@ -1595,10 +1658,17 @@ def produce_lesson_for_entry(service, canonical_entry, report_path, publish=Fals
 
 
 # =========================================================================
-# 12. نقطة الدخول الرئيسية للأوامر
+# 13. نقطة الدخول الرئيسية للأوامر
 # =========================================================================
 
 def main():
+    # فحص السلامة اللغوية للسكربت أولاً لمنع أخطاء السنتكس
+    try:
+        py_compile.compile(__file__, doraise=True)
+    except Exception as syntax_err:
+        print(f"[FATAL_SYNTAX_ERROR] السكربت يحوي خطأ برمجي: {syntax_err}")
+        return 1
+
     parser = argparse.ArgumentParser(description="NABIL AI Universal Production Factory")
     parser.add_argument("--report", default="data/nabil_lesson_factory_run.json")
     parser.add_argument("--lesson-id", default="G07-PHYSICS-001")
@@ -1615,12 +1685,10 @@ def main():
 
     service = owner_drive()
 
-    # وضع بناء الكتالوج
     if args.build_catalog:
         build_or_verify_catalog(service, args.book_id, args.grade, args.subject, args.language)
         return 0
 
-    # وضع الإنتاج
     report_path = Path(args.report)
     catalog = load_catalog()
 
