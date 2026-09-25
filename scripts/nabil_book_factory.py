@@ -43,7 +43,7 @@ def announce(stage: str, **kwargs):
                       "stage": stage, **kwargs}, ensure_ascii=False), flush=True)
 
 
-def registered_book(book_id: str) -> dict:
+def registered_book(book_id: str, *, drive_service=None, grade: str = "", subject: str = "", language: str = "", branch: str = "") -> dict:
     matches = []
     for path in MANIFESTS:
         if not path.is_file():
@@ -52,7 +52,28 @@ def registered_book(book_id: str) -> dict:
             if book.get("drive_file_id") == book_id:
                 matches.append(book)
     if not matches:
-        raise RuntimeError("BOOK_NOT_IN_SOURCE_MANIFEST: select a registered original PDF")
+        if not all((str(grade).strip(), str(subject).strip(), str(language).strip())):
+            raise RuntimeError(
+                "NEW_BOOK_METADATA_REQUIRED: choose grade, subject, language; do not infer them from PDF filename"
+            )
+        if drive_service is None:
+            drive_service = factory.get_drive_service()
+        meta = drive_service.files().get(
+            fileId=book_id, fields="id,name,mimeType,trashed"
+        ).execute()
+        if (meta.get("id") != book_id or meta.get("trashed")
+                or meta.get("mimeType") != "application/pdf"):
+            raise RuntimeError("SOURCE_IS_NOT_ORIGINAL_DRIVE_PDF")
+        _ = grade_number(grade)
+        _ = subject_name(subject)
+        if language.strip().lower() not in ("english", "français", "french", "en", "fr"):
+            raise RuntimeError("BOOK_LANGUAGE_UNSUPPORTED: provide English or Français")
+        return {
+            "grade": grade.strip(), "subject": subject.strip(),
+            "language": language.strip(), "title": meta["name"],
+            "drive_file_id": book_id, "branch": branch.strip(),
+            "registration": "SOURCE_DRIVE_PDF_CLASSIFIED_BY_OWNER",
+        }
     # A shared PDF in two secondary streams is not two source PDFs.
     if len({(b['language'], b['subject']) for b in matches}) != 1:
         raise RuntimeError("BOOK_MANIFEST_AMBIGUOUS: same PDF has incompatible subjects/languages")
@@ -72,7 +93,10 @@ def grade_number(grade: str) -> int:
             return n
     for word, value in (("السابع", 7), ("الثامن", 8), ("التاسع", 9),
                         ("الأول ثانوي", 10), ("الثاني ثانوي", 11),
-                        ("الثالث ثانوي", 12)):
+                        ("الثالث ثانوي", 12),
+                        ("الصف الأول", 1), ("الصف الثاني", 2),
+                        ("الصف الثالث", 3), ("الصف الرابع", 4),
+                        ("الصف الخامس", 5), ("الصف السادس", 6)):
         if word in grade:
             return value
     raise RuntimeError(f"BOOK_GRADE_UNSUPPORTED: {grade}")
@@ -302,21 +326,29 @@ def build_index(doc, book: dict, *, book_id: str, pdf_hash: str) -> dict:
     toc = verify_openers(doc, toc)
     subject = subject_name(book["subject"])
     grade = grade_number(book["grade"])
-    lang = "fr" if "fran" in book.get("language", "").lower() else "en"
+    lang = "fr" if book.get("language", "").casefold() in ("fr", "french", "français") else "en"
     entries=[]
     for row in toc:
         number=row["chapter_number"]
-        entries.append({"lesson_id": f"G{grade:02d}-{subject.upper().replace('_','-')}-{number:03d}",
+        # Original pilot ID stays stable; other source PDFs include a unique
+        # source ID fragment so EN/FR or different editions never collide.
+        pilot_book = "1LasqIgGUuck1l-2EZbj2kA0Dg9ygJ_AH"
+        namespace = "" if book_id == pilot_book else hashlib.sha256(
+            book_id.encode("utf-8")).hexdigest()[:8].upper() + "-"
+        entries.append({"lesson_id": f"G{grade:02d}-{subject.upper().replace('_','-')}-{namespace}{number:03d}",
                         "canonical_title": row["title"],
                         "grade": grade, "subject": subject, "language": lang,
                         "book_id": book_id, "source_book_title": book["title"],
                         "pdf_start_page": row["pdf_start_page"],
                         "pdf_end_page": row["pdf_end_page"],
                         "toc_pdf_page": row.get("toc_pdf_page"),
+                        "source_book_sha256": pdf_hash,
+                        "source_index_method": "TOC_PLUS_INDEPENDENT_OPENER",
                         "chapter_number": number,
                         "catalog_status": "SOURCE_TOC_AND_OPENING_VERIFIED_NOT_PRODUCED",
                         "source_pdf_sha256": pdf_hash})
-    return {"schema_version": 1, "book_id": book_id, "source_pdf_sha256": pdf_hash,
+    return {"schema_version": 2, "book_id": book_id, "source_pdf_sha256": pdf_hash,
+            "source_book": {k: book.get(k) for k in ("title", "grade", "subject", "language", "branch", "registration")},
             "total_pdf_pages": len(doc), "index_method": "ACTUAL_TOC_PLUS_PHYSICAL_OPENING_LOCAL_OCR",
             "indexed_at": datetime.now(timezone.utc).isoformat(), "lessons": entries}
 
@@ -353,13 +385,16 @@ def remote_checkpoint(service, root_id: str, book_id: str, data: dict | None = N
     return data
 
 
-def run(book_id: str, *, index_only: bool, publish: bool) -> dict:
+def run(book_id: str, *, index_only: bool, publish: bool,
+        grade: str = "", subject: str = "", language: str = "",
+        branch: str = "") -> dict:
     import fitz
     factory.PROGRESS_STARTED=time.monotonic()
-    book=registered_book(book_id)
+    service=factory.get_drive_service()
+    book=registered_book(book_id, drive_service=service, grade=grade,
+                         subject=subject, language=language, branch=branch)
     announce("BOOK_SELECTED", book_id=book_id, title=book["title"], grade=book["grade"])
     factory.execute_preflight_checks(require_drive=publish)
-    service=factory.get_drive_service()
     book_path=factory.resolve_source_book_pdf(book_id,service)
     pdf_hash=hashlib.sha256(book_path.read_bytes()).hexdigest()
     local_index=BOOK_INDEX_DIR/f"{book_id}.json"
@@ -368,9 +403,13 @@ def run(book_id: str, *, index_only: bool, publish: bool) -> dict:
     saved=remote_checkpoint(service,root,book_id) if root else None
     if saved and saved.get("source_pdf_sha256") != pdf_hash:
         raise RuntimeError("SOURCE_BOOK_CHANGED: manual source edition reconciliation required")
-    if cached and cached.get("source_pdf_sha256") == pdf_hash:
+    if (cached and cached.get("schema_version") == 2
+            and cached.get("source_pdf_sha256") == pdf_hash
+            and cached.get("index_method") == "ACTUAL_TOC_PLUS_PHYSICAL_OPENING_LOCAL_OCR"):
         index=cached
-    elif saved and saved.get("index",{}).get("source_pdf_sha256") == pdf_hash:
+    elif (saved and saved.get("index",{}).get("schema_version") == 2
+          and saved.get("index",{}).get("source_pdf_sha256") == pdf_hash
+          and saved.get("index",{}).get("index_method") == "ACTUAL_TOC_PLUS_PHYSICAL_OPENING_LOCAL_OCR"):
         index=saved["index"]
     else:
         with fitz.open(str(book_path)) as doc:
@@ -402,7 +441,23 @@ def run(book_id: str, *, index_only: bool, publish: bool) -> dict:
             report=factory.produce_lesson_for_entry(entry,drive_service=service,publish=True,allow_pilot_publish=True)
             if report.get("status")!="PUBLISHED_VERIFIED":
                 raise RuntimeError("LESSON_NOT_PUBLISHED_VERIFIED")
+            ev_file = factory.PERM_EVIDENCE_DIR / f"{lid}.json"
+            if not ev_file.is_file():
+                raise RuntimeError("EXERCISE_INDEX_NOT_PERSISTED: source evidence absent")
+            evidence = json.loads(ev_file.read_text(encoding="utf-8"))
+            exercise_index = [{
+                "exercise_id": ex["exercise_id"],
+                "number": ex["number"],
+                "section_type": ex["section_type"],
+                "source_page": ex["source_page"],
+                "exact_source_prompt": ex["exact_source_prompt"],
+                "subquestions": ex.get("subquestions", []),
+                "figure_refs": ex.get("figure_refs", []),
+                "source_prompt_hash": ex["source_prompt_hash"],
+            } for ex in evidence["exercise_evidence"]]
             state["lessons"][lid]={"status":"PUBLISHED_VERIFIED",
+                "source_exercises": exercise_index,
+                "indexed_exercise_count": len(exercise_index),
                 "drive_theory_id":report["drive_theory_id"],
                 "drive_exercises_id":report["drive_exercises_id"],
                 "source_pages":report["source_pages"],
@@ -424,10 +479,15 @@ def run(book_id: str, *, index_only: bool, publish: bool) -> dict:
 
 def main():
     ap=argparse.ArgumentParser(description="NABIL real TOC to final-Drive one-book production")
-    ap.add_argument("--book-id",required=True,help="Original PDF Drive file ID, registered in source manifest")
+    ap.add_argument("--book-id",required=True,help="Original Drive PDF ID; registered or newly classified") 
+    ap.add_argument("--grade",default="",help="Required for new books, e.g. 7")
+    ap.add_argument("--subject",default="",help="Required for new books, e.g. physics")
+    ap.add_argument("--language",default="",help="Required for new books: en/fr")
+    ap.add_argument("--branch",default="",help="Optional secondary stream")
     ap.add_argument("--index-only",action="store_true",help="Inspect and persist true source TOC without generating or uploading lessons")
     args=ap.parse_args()
-    result=run(args.book_id,index_only=args.index_only,publish=not args.index_only)
+    result=run(args.book_id,index_only=args.index_only,publish=not args.index_only,
+               grade=args.grade,subject=args.subject,language=args.language,branch=args.branch)
     announce("FINAL_STATUS",status=result["status"])
 
 if __name__=="__main__":
