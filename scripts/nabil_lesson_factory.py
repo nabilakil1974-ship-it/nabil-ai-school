@@ -508,6 +508,22 @@ def resolve_canonical_entry(lesson_id: str) -> dict:
                                 break
 
     if not found:
+        # Book factory discovers source chapter records automatically; its
+        # cached indexes extend the old one-pilot catalog, never replace it.
+        # On-Demand routes can resolve lessons from the same source index.
+        for book_index in sorted((ROOT / "data/factory_book_indexes").glob("*.json")):
+            try:
+                source = json.loads(book_index.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            for entry in source.get("lessons", []):
+                if entry.get("lesson_id", "").upper() == lesson_id.upper():
+                    found = entry
+                    break
+            if found:
+                break
+
+    if not found:
         raise RuntimeError(f"LESSON_NOT_FOUND_IN_CATALOG: {lesson_id}")
 
     required = ["lesson_id", "canonical_title", "grade", "subject", "book_id", "pdf_start_page", "pdf_end_page", "language"]
@@ -1795,8 +1811,12 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
     seq_str = seq_match.group(1) if seq_match else "001"
     grade_str = f"G{int(entry.get('grade', 7)):02d}"
 
-    filename_a = f"{grade_str}-{slug_subj}--{seq_str}--{slug_title}.html"
-    filename_b = f"{grade_str}-{slug_subj}--{seq_str}--{slug_title}--EXERCISES.html"
+    # Two source PDFs may share grade/subject/title. Never overwrite a French
+    # edition or revised textbook because its chapter number happens to match.
+    source_key = re.sub(r"[^A-Za-z0-9]", "", entry.get("source_key", "")).upper()
+    stem = f"{grade_str}-{slug_subj}--{source_key}--{seq_str}--{slug_title}" if source_key else f"{grade_str}-{slug_subj}--{seq_str}--{slug_title}"
+    filename_a = stem + ".html"
+    filename_b = stem + "--EXERCISES.html"
 
     candidate = {
         "lesson_id": lesson_id,
