@@ -414,6 +414,20 @@ def run(book_id: str, *, index_only: bool, publish: bool,
                          subject=subject, language=language, branch=branch)
     announce("BOOK_SELECTED", book_id=book_id, title=book["title"], grade=book["grade"])
     factory.execute_preflight_checks(require_drive=publish)
+    if publish:
+        root_id = factory.resolve_drive_root_id()
+        destination = service.files().get(
+            fileId=root_id, fields="id,name,mimeType,capabilities(canAddChildren)"
+        ).execute()
+        if (destination.get("mimeType") != "application/vnd.google-apps.folder"
+                or destination.get("capabilities", {}).get("canAddChildren") is not True):
+            raise RuntimeError(
+                "DRIVE_DESTINATION_NOT_WRITABLE: production identity cannot add "
+                "files to the selected curriculum root. Grant the Railway Drive "
+                "service account Editor access before running OCR/production."
+            )
+        announce("DRIVE_DESTINATION_WRITE_PERMISSION_VERIFIED",
+                 folder=destination.get("name", ""), folder_id=root_id)
     book_path=factory.resolve_source_book_pdf(book_id,service)
     pdf_hash=hashlib.sha256(book_path.read_bytes()).hexdigest()
     local_index=BOOK_INDEX_DIR/f"{book_id}.json"
