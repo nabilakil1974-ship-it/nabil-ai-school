@@ -566,7 +566,12 @@ def assert_authorized_source_vision(lesson_id: str, book_id: str, pdf_page: int)
             ("openai", os.getenv("OPENAI_API_KEY"))
         ) if key), None)
     for item in scopes:
-        if (item.get("lesson_id") == lesson_id
+        lesson_allowed = (
+            item.get("lesson_id") == lesson_id
+            or bool(item.get("lesson_id_prefix")
+                    and lesson_id.startswith(item["lesson_id_prefix"]))
+        )
+        if (lesson_allowed
                 and item.get("book_id") == book_id
                 and item.get("provider") == provider
                 and int(item["pdf_start_page"]) <= pdf_page <= int(item["pdf_end_page"])):
