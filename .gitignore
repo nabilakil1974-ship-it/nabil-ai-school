@@ -1,0 +1,6 @@
+# Never commit personal OAuth credentials or Google client secrets
+nabil_drive_oauth_token.json
+client_secret.json
+credentials.json
+token.json
+*.oauth-token.json
