@@ -402,23 +402,37 @@ def execute_preflight_checks(require_drive: bool = False) -> Dict[str, Any]:
 
 
 def get_drive_service():
-    try:
-        from scripts.index_books import get_drive_service as base_get_drive
-        return base_get_drive()
-    except Exception:
-        pass
-
-    creds_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "/app/credentials.json")
-    scopes = ["https://www.googleapis.com/auth/drive"]
-    if os.path.exists(creds_path):
-        from google.oauth2 import service_account
-        from googleapiclient.discovery import build
-        creds = service_account.Credentials.from_service_account_file(creds_path, scopes=scopes)
-        return build("drive", "v3", credentials=creds, cache_discovery=False)
-
-    import google.auth
+    """Lesson factory needs Drive write access; the textbook indexer's READONLY
+    service is intentionally NOT reused. Only this factory uses the broader scope.
+    """
     from googleapiclient.discovery import build
-    creds, _ = google.auth.default(scopes=scopes)
+    from google.oauth2 import service_account
+
+    scopes = ["https://www.googleapis.com/auth/drive"]
+    try:
+        from app.core.config import settings
+        raw = (getattr(settings, "GOOGLE_DRIVE_CREDENTIALS_JSON", None) or "").strip()
+    except (ImportError, AttributeError):
+        raw = ""
+    raw = raw or os.getenv("GOOGLE_DRIVE_CREDENTIALS_JSON", "").strip()
+    if raw:
+        creds = service_account.Credentials.from_service_account_info(
+            json.loads(raw), scopes=scopes
+        )
+    else:
+        paths = [
+            os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "").strip(),
+            str(ROOT / "drive_service_account.json"),
+            str(ROOT / "credentials.json"),
+        ]
+        path = next((p for p in paths if p and Path(p).is_file()), None)
+        if path:
+            creds = service_account.Credentials.from_service_account_file(
+                path, scopes=scopes
+            )
+        else:
+            import google.auth
+            creds, _ = google.auth.default(scopes=scopes)
     return build("drive", "v3", credentials=creds, cache_discovery=False)
 
 
