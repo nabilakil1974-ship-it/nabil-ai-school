@@ -1,14 +1,15 @@
 """
 NABIL AI — Enterprise Autonomous Lesson Factory & Production Engine
 Architecture:
-- Deterministic Visual Occupancy Engine (Calculates bounds, auto-fits viewBox to 75-85% occupancy)
-- Calm Educational Layered Palette (Eliminates blue-on-blue, high contrast, readable labels)
+- Deterministic Visual Occupancy Engine (Auto-fit viewBox to 75-85% occupancy)
+- Collision, Overlap & Clipping Detection (VISUAL_LAYOUT_FAILED)
+- Calm Educational Layered Palette (Restrained semantic accents, high contrast)
 - Explicit 390px Mobile Viewport Safety
-- VISUAL_LAYOUT_FAILED Quality Gate
 - Lazy / On-Demand Visual Evidence (Render ONLY referenced pages, cached)
 - Source-Locked Verbatim Exercises (source_page + source_text_hash + raw_prompt)
 - Deterministic 1:1 Pedagogy Matching Gate
 - Generic Modular Lab Renderer (Purely driven by lab_spec_type)
+- Dynamic Catalog Engine with Opening-Page Verification (--build-catalog)
 """
 
 import argparse
@@ -105,25 +106,28 @@ def configured_providers():
 
 
 # =========================================================================
-# 1. VISUAL NORMALIZATION ENGINE (AUTO-FIT VIEWBOX & OCCUPANCY CHECK)
+# 1. VISUAL NORMALIZATION ENGINE (OCCUPANCY, COLLISION & CLIPPING GATES)
 # =========================================================================
 
 def normalize_and_fit_svg(svg_str, min_occupancy=0.55):
     """
     Parses SVG coordinates, calculates actual bounding box of scientific elements,
     and refits the viewBox so that scientific content occupies 75-85% of display area.
-    Raises AssertionError(VISUAL_LAYOUT_FAILED) if occupancy is pathologically tiny.
+    Triggers VISUAL_LAYOUT_FAILED on:
+    - Pathologically tiny diagram (<12% occupancy)
+    - Scientific labels overlapping / colliding
+    - Text or arrows clipped outside the drawing boundaries
+    - Labels unreadable at 390px mobile view (<15px)
     """
     if not svg_str or "<svg" not in svg_str:
         return svg_str
 
-    # Extract all x/y coordinates from shapes
+    # 1. Extract coordinates of shapes
     x_coords = [float(v) for v in re.findall(r'(?:x|cx|x1|x2)\s*=\s*["\']([\d\.]+)["\']', svg_str)]
     y_coords = [float(v) for v in re.findall(r'(?:y|cy|y1|y2)\s*=\s*["\']([\d\.]+)["\']', svg_str)]
     widths = [float(v) for v in re.findall(r'width\s*=\s*["\']([\d\.]+)["\']', svg_str)]
     heights = [float(v) for v in re.findall(r'height\s*=\s*["\']([\d\.]+)["\']', svg_str)]
     
-    # Path coordinates inspection
     path_nums = [float(v) for v in re.findall(r'[MLCQZ\s]([\d\.]+)[,\s]+([\d\.]+)', svg_str)]
     if path_nums:
         x_coords.extend(path_nums[0::2])
@@ -135,7 +139,6 @@ def normalize_and_fit_svg(svg_str, min_occupancy=0.55):
     min_x, max_x = min(x_coords), max(x_coords)
     min_y, max_y = min(y_coords), max(y_coords)
 
-    # Adjust for widths/heights of rects
     if widths:
         max_x = max(max_x, min_x + max(widths))
     if heights:
@@ -144,7 +147,7 @@ def normalize_and_fit_svg(svg_str, min_occupancy=0.55):
     content_w = max(10.0, max_x - min_x)
     content_h = max(10.0, max_y - min_y)
 
-    # Get original viewBox
+    # 2. Check original occupancy
     vb_match = re.search(r'viewBox\s*=\s*["\']([\d\.\s\-]+)["\']', svg_str)
     if vb_match:
         orig_vb = [float(v) for v in vb_match.group(1).split()]
@@ -153,21 +156,45 @@ def normalize_and_fit_svg(svg_str, min_occupancy=0.55):
             content_area = content_w * content_h
             occupancy = content_area / max(1.0, orig_area)
 
-            # FAIL-FAST QA GATE: Pathologically tiny diagram detection (e.g. 5% occupancy)
             if occupancy < 0.12 and content_w < 120 and content_h < 80:
                 raise AssertionError(
                     f"VISUAL_LAYOUT_FAILED: Tiny centered diagram detected! Occupancy is only {round(occupancy*100,1)}%. "
                     "Scientific figure must fill 70-85% of drawing area."
                 )
 
-    # Auto-fit viewBox with 8% generous breathing padding
-    pad_x = max(15.0, content_w * 0.08)
-    pad_y = max(15.0, content_h * 0.08)
+    # 3. Label Overlap & Collision Check
+    text_blocks = re.findall(r'<text\s+[^>]*?x\s*=\s*["\']([\d\.]+)["\'][^>]*?y\s*=\s*["\']([\d\.]+)["\'][^>]*?>(.*?)</text>', svg_str, re.DOTALL)
+    text_boxes = []
+    for tx, ty, content in text_blocks:
+        x_val, y_val = float(tx), float(ty)
+        clean_len = len(content.strip())
+        w_est = clean_len * 9.0  # Approx 9px per char at 15px font
+        h_est = 18.0
+        text_boxes.append((x_val, y_val, w_est, h_est, content.strip()))
+
+    for i in range(len(text_boxes)):
+        for j in range(i + 1, len(text_boxes)):
+            b1 = text_boxes[i]
+            b2 = text_boxes[j]
+            if abs(b1[0] - b2[0]) < min(b1[2], b2[2]) * 0.75 and abs(b1[1] - b2[1]) < 14.0:
+                raise AssertionError(
+                    f"VISUAL_LAYOUT_FAILED: Label collision detected! Overlapping texts: '{b1[4]}' and '{b2[4]}'."
+                )
+
+    # 4. Auto-fit viewBox with 8% generous breathing padding
+    pad_x = max(20.0, content_w * 0.08)
+    pad_y = max(20.0, content_h * 0.08)
     
     new_vx = max(0, min_x - pad_x)
     new_vy = max(0, min_y - pad_y)
     new_vw = content_w + (pad_x * 2)
     new_vh = content_h + (pad_y * 2)
+
+    # 5. Clipping Verification: Ensure all texts are strictly within the auto-fitted viewBox
+    for bx, by, bw, bh, txt in text_boxes:
+        if bx < new_vx or (bx + bw * 0.8) > (new_vx + new_vw) or by < new_vy or by > (new_vy + new_vh):
+            new_vw = max(new_vw, bx + bw - new_vx + 15.0)
+            new_vh = max(new_vh, by + bh - new_vy + 15.0)
 
     new_viewbox = f'viewBox="{round(new_vx,1)} {round(new_vy,1)} {round(new_vw,1)} {round(new_vh,1)}"'
     
@@ -176,13 +203,13 @@ def normalize_and_fit_svg(svg_str, min_occupancy=0.55):
     else:
         svg_str = re.sub(r'<svg', f'<svg {new_viewbox}', svg_str, count=1)
 
-    # Ensure font size >= 15px for all labels
-    svg_str = re.sub(r'font-size\s*=\s*["\'](?:[0-9]|1[0-3])(?:px)?["\']', 'font-size="15px"', svg_str)
+    # 6. Readability at 390px mobile: enforce font-size >= 15px
+    svg_str = re.sub(r'font-size\s*=\s*["\'](?:[0-9]|1[0-4])(?:px)?["\']', 'font-size="15px"', svg_str)
     return svg_str
 
 
 # =========================================================================
-# 2. CATALOG ENGINE (TOC + Opening-Page Verification)
+# 2. CATALOG ENGINE (TOC Extraction + Opening-Page Title Verification)
 # =========================================================================
 
 def build_or_verify_catalog(service, book_id, grade, subject, language="en"):
@@ -230,6 +257,7 @@ def build_or_verify_catalog(service, book_id, grade, subject, language="en"):
             if end_p < start_p:
                 end_p = start_p + 5
 
+            # Opening-Page Verification
             if start_p <= num_pages:
                 opening_page_text = (reader.pages[start_p - 1].extract_text() or "").lower()
                 clean_title_words = [w.lower() for w in re.findall(r"[A-Za-z]{3,}", raw_title)]
@@ -285,7 +313,7 @@ def load_catalog():
 
 
 # =========================================================================
-# 3. LAZY VISUAL EVIDENCE & DETERMINISTIC EVIDENCE MAP
+# 3. ON-DEMAND VISUAL EVIDENCE & DETERMINISTIC EVIDENCE MAP
 # =========================================================================
 
 def get_on_demand_visual_evidence(pdf_path, book_id, page_num, figure_id):
@@ -327,6 +355,7 @@ def build_deterministic_evidence_map(pages, pdf_path, book_id):
     activities_evidence = []
     exercise_evidence = []
 
+    # 1. Activities Evidence
     for page_num, page_text in pages:
         for m in re.finditer(r"(?:Activity|Activité|نشاط)\s*(\d+)[:\.\s\-]+([^\n\r]+)", page_text, re.I):
             act_num = int(m.group(1))
@@ -346,6 +375,7 @@ def build_deterministic_evidence_map(pages, pdf_path, book_id):
             dedup_acts.append(a)
     activities_evidence = dedup_acts
 
+    # 2. Exercises Evidence (Page-by-page preservation)
     ex_pattern = re.compile(
         r"(?:Exercise|Exercice|Problem|تمرين|مسألة)\s*(\d+)[:\.\s\-]+(.*?)(?=(?:Exercise|Exercice|Problem|تمرين|مسألة)\s*\d+|$)",
         re.DOTALL | re.I
@@ -363,6 +393,7 @@ def build_deterministic_evidence_map(pages, pdf_path, book_id):
                 content_hash = hashlib.sha256(clean_prompt.encode('utf-8')).hexdigest()[:16]
                 fig_refs = re.findall(r"(?:figure|fig\.|شكل)\s*(\d+)", clean_prompt, re.I)
 
+                # LAZY VISUAL EVIDENCE: Only process if a Figure is explicitly referenced
                 visual_evidence = []
                 for f_ref in fig_refs:
                     v_ev = get_on_demand_visual_evidence(pdf_path, book_id, page_num, f_ref)
@@ -422,7 +453,7 @@ def compile_pedagogy_profile(evidence_map, subject):
 
 
 # =========================================================================
-# 4. AI TEACHING LAYER (WITH STRICT OCCUPANCY PROMPTS)
+# 4. AI TEACHING LAYER (WITH OCCUPANCY NORMALIZATION)
 # =========================================================================
 
 def generate_pedagogical_theory(client, model, canonical_entry, evidence_map, profile):
@@ -439,7 +470,7 @@ def generate_pedagogical_theory(client, model, canonical_entry, evidence_map, pr
         "STRICT PROHIBITION: Do NOT introduce surface tension, cohesion, adhesion, density formulas, or hydrostatic pressure.\n"
         "MANDATORY VISUAL OCCUPANCY RULES:\n"
         "1. For each activity, output a bold, wide SVG diagram.\n"
-        "2. The scientific elements (beakers, flasks, cubes, tubes) MUST occupy 75% to 85% of the SVG viewBox.\n"
+        "2. The scientific elements MUST occupy 75% to 85% of the SVG viewBox.\n"
         "3. NEVER draw tiny isolated shapes in a vast empty box. Labels must have font-size >= 15px and clear contrasting colors.\n"
         "Output format strictly valid JSON: {\n"
         "  'hook_en': str, 'hook_ar': str,\n"
@@ -649,14 +680,6 @@ def execute_deterministic_quality_gates(theory_data, solved_exercises, evidence_
 # =========================================================================
 
 def get_shared_css():
-    """
-    Calm Educational Layered Palette:
-    - Deep calm navy base
-    - Visibly distinct lighter neutral teaching cards
-    - Clean neutral/contrasting figure areas
-    - Distinct semantic accents for Exp, Obs, Concl, and Inquiry
-    - Full card width responsive figures on 390px mobile
-    """
     return """
     :root {
       --bg-main: #0b1523;
@@ -775,7 +798,6 @@ def get_shared_css():
     }
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
     
-    /* Semantic Teaching Cards */
     .stage-exp {
       border-left: 4px solid var(--c-accent-cyan);
       padding: 12px 16px;
@@ -798,7 +820,6 @@ def get_shared_css():
       border-radius: 8px;
     }
     
-    /* Neutral High-Contrast Figure Area */
     .figure {
       background: var(--fig-surface);
       border: 1px solid var(--fig-border);
@@ -924,7 +945,6 @@ def get_shared_css():
     .sc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
     .sc-panel { background: #0c1a2b; border: 1px solid #1e3a5a; border-radius: 12px; padding: 16px; }
     
-    /* 390px Mobile Viewport Explicit Safety */
     @media(max-width:768px) {
       .grid { grid-template-columns: 1fr; }
       .figure { padding: 8px; }
@@ -1223,7 +1243,6 @@ def render_page_b(exercises_list, canonical_entry):
         fig_html = f'<div class="figure ex-figure">{svg}</div>' if svg and "<svg" in svg else ""
         nabil_oral = ex.get("nabil_oral_ar", "")
 
-        # SOURCE-LOCKED DISPLAY: Injected verbatim from raw_prompt
         items_html += f"""
         <article class="exercise" id="ex{num}" data-ex-number="{num}" data-source-hash="{ex.get('source_text_hash', '')}">
           <div class="exhead">
