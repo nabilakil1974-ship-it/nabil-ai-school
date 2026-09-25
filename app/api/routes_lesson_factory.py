@@ -14,6 +14,7 @@ import secrets
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 from urllib.parse import quote
 
@@ -28,6 +29,68 @@ router = APIRouter(prefix="/interactive-lessons/factory", tags=["lesson-factory"
 
 _guard = threading.Lock()
 _jobs: dict[str, dict] = {}
+_index_cache: dict = {"expires": 0.0, "entries": []}
+
+
+def _generated_entries() -> list[dict]:
+    """Book-factory indexes, including Drive checkpoints from a separate worker.
+
+    The original source-derived index is the only source of lesson titles;
+    never manufacture a row from file names or assume chapter numbering.
+    """
+    rows = []
+    local = ROOT / "data/factory_book_indexes"
+    for filename in sorted(local.glob("*.json")):
+        try:
+            payload = json.loads(filename.read_text(encoding="utf-8"))
+            rows.extend(payload.get("lessons", []))
+        except (OSError, ValueError, TypeError):
+            continue
+    if time.monotonic() < _index_cache["expires"]:
+        rows.extend(_index_cache["entries"])
+    else:
+        remote = []
+        root = (os.getenv("NABIL_CURRICULUM_ROOT_ID")
+                or os.getenv("NABIL_INTERACTIVE_CURRICULUM_ROOT_ID")
+                or os.getenv("NABIL_LESSON_DRIVE_ROOT"))
+        if root:
+            try:
+                from scripts.nabil_lesson_factory import get_drive_service
+                svc = get_drive_service()
+                q = ("name = 'NABIL Factory Checkpoints' "
+                     "and mimeType = 'application/vnd.google-apps.folder' "
+                     f"and '{root}' in parents and trashed = false")
+                parents = svc.files().list(q=q, fields="files(id)").execute().get("files", [])
+                if len(parents) == 1:
+                    token = None
+                    while True:
+                        params = {
+                            "q": f"'{parents[0]['id']}' in parents and trashed = false "
+                                 "and mimeType = 'application/json'",
+                            "fields": "nextPageToken,files(id,name)",
+                            "pageSize": 1000,
+                        }
+                        if token:
+                            params["pageToken"] = token
+                        page = svc.files().list(**params).execute()
+                        for item in page.get("files", []):
+                            if not item.get("name", "").startswith("BOOK_"):
+                                continue
+                            raw = svc.files().get_media(fileId=item["id"]).execute()
+                            record = json.loads(raw)
+                            if record.get("source_pdf_sha256") == record.get(
+                                    "index", {}).get("source_pdf_sha256"):
+                                remote.extend(record["index"].get("lessons", []))
+                        token = page.get("nextPageToken")
+                        if not token:
+                            break
+            except Exception:
+                # The original catalog still works if a Drive read is down;
+                # never pretend that missing remote entries were verified.
+                remote = []
+        _index_cache.update(expires=time.monotonic() + 300, entries=remote)
+        rows.extend(remote)
+    return [row for row in rows if isinstance(row, dict)]
 
 
 def _authorized(token: str | None) -> None:
@@ -47,9 +110,15 @@ def _entries() -> list[dict]:
             raise ValueError("invalid catalog list")
     except (KeyError, ValueError, json.JSONDecodeError):
         raise HTTPException(503, "CANONICAL_CATALOG_INVALID")
-    # No speculative titles or filenames: only source-locked actual lessons.
-    return [e for e in entries if isinstance(e, dict)
-            and all(e.get(k) is not None for k in (
+    # Generated entries from verified book TOC supersede the old one-lesson
+    # pilot entry (which is retained for backwards compatibility).
+    merged = {e["lesson_id"]: e for e in entries if isinstance(e, dict)
+              and e.get("lesson_id")}
+    for row in _generated_entries():
+        if row.get("lesson_id"):
+            merged[row["lesson_id"]] = row
+    return [e for e in merged.values()
+            if all(e.get(k) is not None for k in (
                 "lesson_id", "canonical_title", "book_id", "grade",
                 "subject", "language", "pdf_start_page", "pdf_end_page"))]
 
@@ -161,7 +230,9 @@ def prepare(payload: dict, x_nabil_factory_token: str | None = Header(default=No
         match = re.search(r"-(\d{3})$", lesson_id)
         if not match:
             raise HTTPException(422, "INVALID_CANONICAL_LESSON_ID")
-        base = f"{grade}-{subject}--{match.group(1)}--{title}"
+        source_key = re.sub(r"[^A-Za-z0-9]", "", entry.get("source_key", "")).upper()
+        base = (f"{grade}-{subject}--{source_key}--{match.group(1)}--{title}"
+                if source_key else f"{grade}-{subject}--{match.group(1)}--{title}")
         _jobs[lesson_id] = {
             "lesson_id": lesson_id, "title": entry["canonical_title"],
             "status": "RUNNING", "stage": "STARTING", "message": "",
