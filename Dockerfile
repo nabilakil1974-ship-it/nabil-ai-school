@@ -31,7 +31,7 @@ COPY requirements.txt .
 # Use CPU-only PyTorch for multilingual embeddings, not multi-GB CUDA wheels.
 RUN python -m pip install --no-cache-dir 'torch==2.5.1+cpu' --index-url https://download.pytorch.org/whl/cpu
 RUN python -m pip install --no-cache-dir -r requirements.txt
-RUN python -m playwright install --with-deps chromium && chmod -R a+rX /ms-playwright
+RUN python -m playwright install --with-deps --only-shell chromium && chmod -R a+rX /ms-playwright
 
 COPY . .
 
