@@ -1,1612 +1,558 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+"""Serve prepared interactive HTML lessons from Google Drive, never from app/static.
 
+Configure NABIL_INTERACTIVE_LESSONS_FOLDER_ID (shared with the backend service
+account) or NABIL_INTERACTIVE_LESSONS_CATALOG_FILE_ID for an explicit JSON catalog.
+The catalog is stored on Drive, NOT in the repository:
+{"lessons":[{"grade":"الصف التاسع","subject":"فيزياء","lesson":"Conducteurs ohmiques",
+"language":"Français","drive_file_id":"...","aliases":["Ohmic conductors"]}]}
 """
-NABIL AI — Universal Pedagogical Lesson Factory
-Version: 25.0.0 (Pure Plain-Text URLs & Strict Markdown Contamination Guard)
-Strict Fail-Closed Architecture across all 400+ Curriculum Lessons.
-Applicable to Mathematics, Physics, Chemistry, Biology & General Science.
-"""
-
-import os
-import sys
-import time
-import html
 import io
-import json
-import math
-import re
-import hashlib
-import argparse
-import tempfile
-import shutil
 import base64
-import py_compile
-import subprocess
-import urllib.request
-from datetime import datetime, timezone
+import logging
+import uuid
+import json
+import os
+import re
+import unicodedata
+from time import monotonic
+from threading import Lock
+from urllib.parse import quote
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple
 
-sys.path.insert(0, "/app")
-sys.path.insert(0, os.path.abspath("."))
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import HTMLResponse
+from googleapiclient.http import MediaIoBaseDownload
 
-ROOT = Path(__file__).resolve().parents[1] if len(Path(__file__).resolve().parents) > 1 else Path("/app")
-CATALOG_PATH = ROOT / "data/nabil_canonical_lesson_catalog.json"
-PERM_EVIDENCE_DIR = ROOT / "data/evidence_maps"
-CACHE_DIR = ROOT / "data/cache/visual_evidence"
-VERSIONS_DIR = ROOT / "data/versions"
-ARTIFACTS_DIR = VERSIONS_DIR / "artifacts"
-OUT_DIR = ROOT / "output"
-
-for d in [PERM_EVIDENCE_DIR, CACHE_DIR, VERSIONS_DIR, ARTIFACTS_DIR, OUT_DIR]:
-    d.mkdir(parents=True, exist_ok=True)
-
-PROGRESS_STARTED = None
+router = APIRouter(prefix="/interactive-lessons", tags=["drive-interactive-lessons"])
+log = logging.getLogger("nabil_ai.drive_lessons")
+_CACHE = {"at": 0.0, "entries": []}
+_CACHE_LOCK = Lock()
+_CACHE_SECONDS = 10  # New owner-uploaded lessons become visible without redeployment.
+_OWNER_ROOT = "16bcmZMO_dn4FqlGaDtl8Hky6iSBEqZpX"
+_DEFAULT_FOLDER = "19Y7wVw2hBYG6_aHe6nygXVZmRJXoHvoM"  # Existing Drive lesson collection; configurable.
 
 
-def now():
-    return datetime.now(timezone.utc).isoformat()
+def clean_display_title(raw_title: str) -> str:
+    """إزالة المعرفات والأرقام التقنية (مثل 001 أو بادئات الفصول) من العنوان الظاهر للطالب."""
+    cleaned = re.sub(r"^\s*\d{2,3}\s*(?:--|[-_ ]+)\s*", "", str(raw_title or ""))
+    cleaned = re.sub(r"\s+\d{2,3}$", "", cleaned)
+    cleaned = re.sub(r"\b[A-Z]\d{2}-[A-Z]+-\d{3}\b", "", cleaned)
+    return cleaned.strip() or raw_title
 
 
-def progress(stage: str, **details):
-    elapsed = round(time.monotonic() - PROGRESS_STARTED, 1) if PROGRESS_STARTED else 0
-    print(json.dumps({"time": now(), "elapsed_seconds": elapsed, "stage": stage, **details}, ensure_ascii=False), flush=True)
+def _service():
+    from scripts.index_books import get_drive_service
+    return get_drive_service()
 
 
-# ==============================================================================
-# 1. STRICT ANTI-HARDCODE & MARKDOWN CONTAMINATION SCANNER
-# ==============================================================================
-FORBIDDEN_EDUCATIONAL_HARDCODE = [
-    "a solid has a definite shape",
-    "a liquid has a definite volume",
-    "free surface of a liquid",
-    "standard macroscopic rule applied",
-    "solid wooden block",
-    "cylinder vessel",
-    "communicating vessels",
-    "standard pedagogical investigation",
-    "documented curriculum phenomenon",
-    "y = 2 * x",
-    "y = 2*x",
-    "conclusive solution for",
-    "evaluation conforming to level",
-    "directly observed curriculum setup",
-    "procedure structured under official curriculum guidelines",
-    "core principle p.",
-]
+def _download(service, file_id):
+    stream = io.BytesIO()
+    media = service.files().get_media(fileId=file_id)
+    loader = MediaIoBaseDownload(stream, media)
+    done = False
+    while not done:
+        _, done = loader.next_chunk()
+        if stream.tell() > 8_000_000:
+            raise ValueError("INTERACTIVE_LESSON_TOO_LARGE")
+    return stream.getvalue()
 
 
-def assert_no_lesson_specific_hardcode(source_code: str):
-    # Scan executable/source content while excluding the detector's own
-    # forbidden-pattern declaration; otherwise the scanner detects itself.
-    import ast
-    tree = ast.parse(source_code)
-    lines = source_code.splitlines(keepends=True)
-    scan_lines = list(lines)
-    for node in ast.walk(tree):
-        if isinstance(node, (ast.Assign, ast.AnnAssign)):
-            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
-            if any(isinstance(t, ast.Name) and t.id == "FORBIDDEN_EDUCATIONAL_HARDCODE" for t in targets):
-                for idx in range(node.lineno - 1, node.end_lineno):
-                    scan_lines[idx] = "\n"
-    scan_source = "".join(scan_lines)
-    found = [p for p in FORBIDDEN_EDUCATIONAL_HARDCODE if p.lower() in scan_source.lower()]
-    if found:
-        raise RuntimeError(f"LESSON_SPECIFIC_HARDCODE_DETECTED: Found {found}")
+def _norm(value):
+    value = unicodedata.normalize("NFKC", str(value or "")).casefold()
+    value = re.sub(r"[\u064b-\u065f]", "", value)
+    return re.sub(r"[^\w]+", "", value, flags=re.UNICODE)
 
 
-def assert_no_markdown_urls_in_runtime_code(source_code: str):
-    bad_patterns = [
-        'src="[http',
-        'scopes = ["[http',
-        '](http',
-    ]
-    # Exclude this scanner's own bad-pattern declaration from the scan.
-    import ast
-    tree = ast.parse(source_code)
-    lines = source_code.splitlines(keepends=True)
-    scan_lines = list(lines)
-    for node in ast.walk(tree):
-        if isinstance(node, (ast.Assign, ast.AnnAssign)):
-            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
-            if any(isinstance(t, ast.Name) and t.id == "bad_patterns" for t in targets):
-                for idx in range(node.lineno - 1, node.end_lineno):
-                    scan_lines[idx] = "\n"
-    scan_source = "".join(scan_lines)
-    found = [p for p in bad_patterns if p in scan_source]
-    if found:
-        raise RuntimeError(f"MARKDOWN_URL_CONTAMINATION_DETECTED: Found banned markdown patterns -> {found}")
-
-
-# ==============================================================================
-# 2. UNIVERSAL PEDAGOGY & CURRICULUM PROFILES
-# ==============================================================================
-PEDAGOGY_PROFILES = {
-    "L1": {"strategy": ["observe", "explore", "describe", "practice", "check"], "max_concepts": 1},
-    "L2": {"strategy": ["phenomenon", "investigation", "observation", "interpretation", "rule", "application", "check"], "max_concepts": 1},
-    "L3": {"strategy": ["problem", "analysis", "model", "reasoning", "derivation", "application", "verification"], "max_concepts": 2},
-}
-
-SUBJECT_PROFILES = {
-    "physics": {
-        "sequence": ["phenomenon", "experiment", "observation", "interpretation", "law", "application"],
-        "visual_types": ["source_figure", "scientific_diagram", "graph", "simulation"],
-    },
-    "chemistry": {
-        "sequence": ["phenomenon", "experiment", "observation", "particle_model", "equation", "application"],
-        "visual_types": ["apparatus", "molecular_model", "equation", "table"],
-    },
-    "biology": {
-        "sequence": ["observation", "structure", "function", "relationship", "interpretation", "application"],
-        "visual_types": ["source_figure", "labelled_diagram", "process_diagram"],
-    },
-    "mathematics": {
-        "sequence": ["prerequisite", "concept", "worked_example", "reasoning", "guided_practice", "independent_practice"],
-        "visual_types": ["geometric_figure", "graph", "number_line", "table"],
-    },
-    "general_science": {
-        "sequence": ["phenomenon", "investigation", "observation", "concept", "application"],
-        "visual_types": ["source_figure", "scientific_diagram", "table"],
+def _grade(value):
+    """Match Arabic and international grade labels without treating G10 as G1."""
+    s = _norm(value)
+    names = {
+        1: ("الأول", "first", "premier"), 2: ("الثاني", "second", "deuxieme"),
+        3: ("الثالث", "third", "troisieme"), 4: ("الرابع", "fourth", "quatrieme"),
+        5: ("الخامس", "fifth", "cinquieme"), 6: ("السادس", "sixth", "sixieme"),
+        7: ("السابع", "seventh", "septieme"), 8: ("الثامن", "eighth", "huitieme"),
+        9: ("التاسع", "ninth", "neuvieme"), 10: ("العاشر", "tenth", "dixieme"),
+        11: ("الحاديعشر", "eleventh", "onzieme"), 12: ("الثانيعشر", "twelfth", "douzieme"),
     }
+    digits = re.search(r"(?:grade|class|eb|g|الصف)?0?([1-9]|1[0-2])(?:$|[^0-9])", s)
+    if digits:
+        return str(int(digits.group(1)))
+    for number, labels in ((12, ("الثالثثانوي",)), (11, ("الثانيثانوي",)), (10, ("الأولثانوي",))):
+        if any(label in s for label in labels):
+            return str(number)
+    for number, labels in names.items():
+        if any(label in s for label in labels):
+            return str(number)
+    return s
+
+
+_SUBJECT_ALIASES = {
+    "physics": ("physics", "physique", "فيزياء", "الفيزياء"),
+    "mathematics": ("mathematics", "math", "maths", "mathematiques", "رياضيات", "الرياضيات"),
+    "chemistry": ("chemistry", "chimie", "كيمياء", "الكيمياء"),
+    "biology": ("biology", "life science", "lifescience", "biologie", "علوم الحياة", "بيولوجي"),
+    "general_science": ("general science", "science", "sciences", "علوم", "العلوم"),
 }
 
 
-def resolve_pedagogy_profile(entry: dict) -> dict:
-    if "grade" not in entry or entry["grade"] is None:
-        raise RuntimeError("CANONICAL_CATALOG_CORRUPT: Missing grade")
-    if "language" not in entry or not str(entry["language"]).strip():
-        raise RuntimeError("CANONICAL_CATALOG_CORRUPT: Missing mandatory field 'language'")
-
-    grade = int(entry["grade"])
-    subject = entry.get("subject", "").strip().lower().replace(" ", "_")
-
-    if subject not in SUBJECT_PROFILES:
-        raise RuntimeError(f"PEDAGOGY_PROFILE_MISMATCH: Unknown curriculum subject '{subject}'")
-
-    level = "L1" if grade <= 6 else ("L2" if grade <= 9 else "L3")
-    return {
-        "level": level,
-        "level_profile": PEDAGOGY_PROFILES[level],
-        "subject": subject,
-        "subject_profile": SUBJECT_PROFILES[subject],
-        "language": entry["language"],
-        "grade": grade,
-    }
-
-
-# ==============================================================================
-# 3. LLM INFERENCE ENGINE (FAIL-CLOSED)
-# ==============================================================================
-def execute_llm_completion(prompt: str, json_mode: bool = True, temperature: float = 0.0, image_base64: Optional[str] = None) -> str:
-    api_key = os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("GROQ_API_KEY")
-    if not api_key:
-        raise RuntimeError("AI_PROVIDER_NOT_CONFIGURED: Missing LLM API key for intelligent grounded operations.")
-
-    if os.getenv("OPENROUTER_API_KEY"):
-        url = "https://openrouter.ai/api/v1/chat/completions"
-        model = os.getenv("OPENROUTER_TEXT_MODEL", "google/gemini-flash-1.5")
-    elif os.getenv("GROQ_API_KEY"):
-        url = "https://api.groq.com/openai/v1/chat/completions"
-        model = os.getenv("GROQ_TEXT_MODEL", "llama-3.1-70b-versatile")
-    else:
-        url = "https://api.openai.com/v1/chat/completions"
-        model = os.getenv("OPENAI_TEXT_MODEL", "gpt-4o-mini")
-
-    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    
-    messages_content = [{"type": "text", "text": prompt}]
-    if image_base64:
-        messages_content.append({"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}})
-
-    payload = {
-        "model": model,
-        "messages": [{"role": "user", "content": messages_content if image_base64 else prompt}],
-        "temperature": temperature
-    }
-    if json_mode:
-        payload["response_format"] = {"type": "json_object"}
-
-    req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        data = json.loads(resp.read().decode("utf-8"))
-        content = data["choices"][0]["message"]["content"].strip()
-        if content.startswith("```"):
-            content = re.sub(r"^```(?:json)?\s*|\s*```$", "", content, flags=re.I).strip()
-        return content
-
-
-# ==============================================================================
-# 4. MATHEMATICAL RENDERING ENGINE (PURE PLAIN-TEXT MATHJAX URL)
-# ==============================================================================
-class MathRenderingEngine:
-    @staticmethod
-    def render_inline(expr: str) -> str:
-        return f"\\({expr.strip()}\\)"
-
-    @staticmethod
-    def render_display(expr: str) -> str:
-        return f"\\[\n{expr.strip()}\n\\]"
-
-    @staticmethod
-    def normalize_math(text: str, source_page: int, bbox: List[float], image_ref: str) -> Tuple[str, bool, List[Dict[str, Any]]]:
-        if not text:
-            return text, True, []
-
-        verified = True
-        math_records = []
-
-        for m in re.finditer(r'(?<!\w)(\d+|[a-zA-Z])\s*/\s*(\d+|[a-zA-Z])(?!\w)', text):
-            math_records.append({
-                "raw": m.group(0),
-                "raw_source_text": text,
-                "normalized_math": f"\\frac{{{m.group(1)}}}{{{m.group(2)}}}",
-                "latex": f"\\frac{{{m.group(1)}}}{{{m.group(2)}}}",
-                "verified": True,
-                "source_page": source_page,
-                "source_bbox": bbox,
-                "source_image_ref": image_ref,
-                "verification_status": "VERIFIED"
-            })
-
-        for m in re.finditer(r'\b([a-zA-Z])\s*=\s*([^,\n\.]+)', text):
-            raw_eq = m.group(0)
-            is_balanced = raw_eq.count('(') == raw_eq.count(')') and raw_eq.count('{') == raw_eq.count('}')
-            status = "VERIFIED" if is_balanced else "MATH_EXPRESSION_UNVERIFIED"
-            math_records.append({
-                "raw": raw_eq,
-                "raw_source_text": text,
-                "normalized_math": f"{m.group(1)} = {m.group(2).strip()}",
-                "latex": f"{m.group(1)} = {m.group(2).strip()}",
-                "verified": is_balanced,
-                "source_page": source_page,
-                "source_bbox": bbox,
-                "source_image_ref": image_ref,
-                "verification_status": status
-            })
-            if not is_balanced:
-                verified = False
-
-        try:
-            text = re.sub(r'\(\s*([^()]+)\s*\)\s*/\s*\(\s*([^()]+)\s*\)', r'\\(\\frac{\1}{\2}\\)', text)
-            text = re.sub(r'(?<!\w)(\d+|[a-zA-Z])\s*/\s*(\d+|[a-zA-Z])(?!\w)', r'\\(\\frac{\1}{\2}\\)', text)
-            text = re.sub(r'\bsqrt\s*\(\s*([^()]+)\s*\)', r'\\(\\sqrt{\1}\\)', text)
-            text = re.sub(r'\broot\[\s*(\d+)\s*\]\s*\(\s*([^()]+)\s*\)', r'\\(\\sqrt[\1]{\2}\\)', text)
-            text = re.sub(r'\blim_\{\s*([^}]+)\s*\}', r'\\(\\lim_{\1}\\)', text)
-            text = re.sub(r'\bint\s+([^$]+?)\s+d([a-zA-Z])\b', r'\\(\\int \1 \\, d\2\\)', text)
-            text = re.sub(r'\bvec\(\s*([a-zA-Z]{1,2})\s*\)', r'\\(\\vec{\1}\\)', text)
-            text = re.sub(r'\b(cm|m|mm|kg|g|s|mol|N|J|W|Pa)3\b', r'\1\\(^3\\)', text)
-            text = re.sub(r'\b(cm|m|mm|kg|g|s|mol|N|J|W|Pa)2\b', r'\1\\(^2\\)', text)
-            text = re.sub(r'\b([a-zA-Z])\^(\d+|\{[^}]+\})', r'\1\\(^{\2}\\)', text)
-            text = re.sub(r'\b([A-Z][a-z]?)(\d+)\b', r'\1\\(_{\2}\\)', text)
-            text = re.sub(r'\s*->\s*', r' \\(\\rightarrow\\) ', text)
-        except Exception:
-            verified = False
-
-        return text, verified, math_records
-
-    @staticmethod
-    def inject_mathjax_head() -> str:
-        return '''<script>
-window.MathJax = {
-  tex: { inlineMath: [['\\\\(', '\\\\)']], displayMath: [['\\\\[', '\\\\]']], processEscapes: true },
-  options: { renderActions: { addMenu: [] } },
-  chtml: { scale: 0.95 }
-};
-</script>
-<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
-'''
-
-
-# ==============================================================================
-# 5. PREFLIGHT & DRIVE SERVICE (PURE PLAIN-TEXT SCOPES)
-# ==============================================================================
-def execute_preflight_checks(require_drive: bool = False) -> Dict[str, Any]:
-    progress("PREFLIGHT: Executing universal runtime verification...")
-    report = {"status": "PASS", "dependencies": {}}
-
-    required = [("pypdf", "pypdf"), ("PIL", "Pillow"), ("googleapiclient", "google-api-python-client"), ("google.auth", "google-auth"), ("playwright", "playwright")]
-    for mod, pkg in required:
-        try:
-            __import__(mod)
-            report["dependencies"][pkg] = True
-        except ImportError:
-            report["dependencies"][pkg] = False
-            raise RuntimeError(f"DEPENDENCY_MISSING:{pkg}")
-
-    try:
-        import fitz
-        report["dependencies"]["PyMuPDF"] = True
-    except ImportError:
-        report["dependencies"]["PyMuPDF"] = False
-        raise RuntimeError("DEPENDENCY_MISSING:PyMuPDF")
-
-    if require_drive:
-        root_id = resolve_drive_root_id()
-        try:
-            service = get_drive_service()
-            about = service.about().get(fields="user(emailAddress)").execute()
-            report["drive_user"] = about.get("user", {}).get("emailAddress")
-        except Exception as e:
-            raise RuntimeError(f"DRIVE_AUTH_FAILED:{e}")
-
-    for d in [PERM_EVIDENCE_DIR, CACHE_DIR, OUT_DIR, ARTIFACTS_DIR]:
-        d.mkdir(parents=True, exist_ok=True)
-        if not os.access(d, os.W_OK):
-            raise RuntimeError(f"CANNOT_WRITE_DIR:{d}")
-
-    progress("PREFLIGHT: Universal environment verified.")
-    return report
-
-
-def get_drive_service():
-    try:
-        from scripts.index_books import get_drive_service as base_get_drive
-        return base_get_drive()
-    except Exception:
-        pass
-
-    creds_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "/app/credentials.json")
-    scopes = ["https://www.googleapis.com/auth/drive"]
-    if os.path.exists(creds_path):
-        from google.oauth2 import service_account
-        from googleapiclient.discovery import build
-        creds = service_account.Credentials.from_service_account_file(creds_path, scopes=scopes)
-        return build("drive", "v3", credentials=creds, cache_discovery=False)
-
-    import google.auth
-    from googleapiclient.discovery import build
-    creds, _ = google.auth.default(scopes=scopes)
-    return build("drive", "v3", credentials=creds, cache_discovery=False)
-
-
-def resolve_drive_root_id() -> str:
-    root_id = os.getenv("NABIL_CURRICULUM_ROOT_ID",
-                        os.getenv("NABIL_INTERACTIVE_CURRICULUM_ROOT_ID",
-                                  os.getenv("NABIL_LESSON_DRIVE_ROOT", ""))).strip()
-    if not root_id:
-        raise RuntimeError("NABIL_CURRICULUM_ROOT_ID_NOT_CONFIGURED: Set NABIL_CURRICULUM_ROOT_ID in environment.")
-    return root_id
-
-
-def resolve_source_book_pdf(book_id: str, drive_service=None) -> Path:
-    cache_dir = Path("/tmp/nabil_source_books")
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    target = cache_dir / f"{book_id}.pdf"
-
-    if target.exists() and target.stat().st_size > 20000:
-        try:
-            import fitz
-            doc = fitz.open(str(target))
-            if len(doc) >= 1:
-                doc.close()
-                return target
-            doc.close()
-        except Exception:
-            target.unlink(missing_ok=True)
-
-    candidates = [Path(f"/app/data/books/{book_id}.pdf"), Path(f"/app/books/{book_id}.pdf"), Path(f"data/books/{book_id}.pdf"), Path(f"{book_id}.pdf")]
-    for c in candidates:
-        if c.exists() and c.stat().st_size > 20000:
-            try:
-                import fitz
-                doc = fitz.open(str(c))
-                if len(doc) >= 1:
-                    doc.close()
-                    shutil.copy2(c, target)
-                    return target
-                doc.close()
-            except Exception:
-                pass
-
-    if not drive_service:
-        drive_service = get_drive_service()
-
-    progress("DOWNLOADING_SOURCE_PDF", file_id=book_id)
-    from googleapiclient.http import MediaIoBaseDownload
-    with target.open("wb") as fh:
-        loader = MediaIoBaseDownload(fh, drive_service.files().get_media(fileId=book_id))
-        done = False
-        while not done:
-            _, done = loader.next_chunk()
-
-    try:
-        import fitz
-        doc = fitz.open(str(target))
-        if len(doc) < 1:
-            doc.close()
-            target.unlink(missing_ok=True)
-            raise ValueError("Zero-page PDF")
-        doc.close()
-    except Exception as e:
-        target.unlink(missing_ok=True)
-        raise RuntimeError(f"SOURCE_PDF_NOT_FOUND: PDF is corrupted or unreadable ({e})")
-
-    return target
-
-
-def load_canonical_catalog() -> dict:
-    candidates = [CATALOG_PATH, ROOT / "config/canonical_lessons_catalog.json", ROOT / "canonical_lessons_catalog.json", ROOT / "lessons_catalog.json"]
-    for c in candidates:
-        if c.exists():
-            try:
-                data = json.loads(c.read_text(encoding="utf-8"))
-                if isinstance(data, dict) and data:
-                    return data
-            except Exception:
-                pass
-    raise RuntimeError("CANONICAL_CATALOG_NOT_FOUND")
-
-
-def resolve_canonical_entry(lesson_id: str) -> dict:
-    catalog = load_canonical_catalog()
-    found = None
-    if "lessons" in catalog and isinstance(catalog["lessons"], list):
-        for e in catalog["lessons"]:
-            if e.get("lesson_id", "").upper() == lesson_id.upper():
-                found = e
-                break
-    else:
-        for g_k, g_v in catalog.items():
-            if isinstance(g_v, dict):
-                for s_k, s_v in g_v.items():
-                    if isinstance(s_v, dict) and "lessons" in s_v:
-                        for e in s_v["lessons"]:
-                            if e.get("lesson_id", "").upper() == lesson_id.upper():
-                                found = e
-                                break
-                    elif isinstance(s_v, list):
-                        for e in s_v:
-                            if isinstance(e, dict) and e.get("lesson_id", "").upper() == lesson_id.upper():
-                                found = e
-                                break
-
-    if not found:
-        raise RuntimeError(f"LESSON_NOT_FOUND_IN_CATALOG: {lesson_id}")
-
-    required = ["lesson_id", "canonical_title", "grade", "subject", "book_id", "pdf_start_page", "pdf_end_page", "language"]
-    for f in required:
-        if f not in found or found[f] is None:
-            raise RuntimeError(f"CANONICAL_CATALOG_CORRUPT: Missing mandatory field '{f}' in {lesson_id}")
-
-    return found
-
-
-# ==============================================================================
-# 6. MULTIMODAL EXTRACTION: TRUE VISION PAYLOAD, TOC & VECTOR GROUPING
-# ==============================================================================
-def extract_page_text_robust(doc, page_num: int) -> str:
-    page = doc[page_num - 1]
-    txt = (page.get_text() or "").strip()
-    if len(txt) >= 60:
-        return txt
-
-    if shutil.which("tesseract"):
-        try:
-            pix = page.get_pixmap(dpi=200)
-            with tempfile.NamedTemporaryFile(suffix=".png") as img_tmp:
-                pix.save(img_tmp.name)
-                res = subprocess.run(["tesseract", img_tmp.name, "stdout", "-l", "eng+fra+ara", "--oem", "1"], capture_output=True, text=True, timeout=30)
-                ocr_txt = res.stdout.strip()
-                if len(ocr_txt) >= 60:
-                    return ocr_txt
-        except Exception:
-            pass
-
-    page_img = CACHE_DIR / f"page_vision_{page_num}.png"
-    page.get_pixmap(dpi=150).save(str(page_img))
-    b64_img = base64.b64encode(page_img.read_bytes()).decode("utf-8")
-    prompt = "Extract all text, exercises, and formulas verbatim from this curriculum page. Return JSON: {'text': str}"
-    res = execute_llm_completion(prompt, json_mode=True, image_base64=b64_img)
-    return json.loads(res).get("text", "")
-
-
-def extract_multimodal_page_figures(doc, page_num: int, cache_dir: Path) -> List[Dict[str, Any]]:
-    import fitz
-    page = doc[page_num - 1]
-    figures = []
-
-    for idx, img in enumerate(page.get_images(full=True)):
-        xref = img[0]
-        base_img = doc.extract_image(xref)
-        img_bytes = base_img["image"]
-        img_ext = base_img["ext"]
-        img_hash = hashlib.sha256(img_bytes).hexdigest()
-        fig_path = cache_dir / f"fig_p{page_num}_{idx+1}.{img_ext}"
-        fig_path.write_bytes(img_bytes)
-
-        rects = page.get_image_rects(xref)
-        bbox = [round(rects[0].x0, 1), round(rects[0].y0, 1), round(rects[0].x1, 1), round(rects[0].y1, 1)] if rects else [0, 0, 0, 0]
-
-        caption_area = fitz.Rect(max(0, bbox[0]-15), bbox[3], min(page.rect.width, bbox[2]+15), min(page.rect.height, bbox[3]+45))
-        cap_txt = page.get_text("text", clip=caption_area).strip()
-        m = re.search(r'(?:fig(?:ure)?\.?|document|doc|شكل|وثيقة)\s*(\d+)', cap_txt, re.I)
-        printed_num = int(m.group(1)) if m else None
-
-        area_ratio = round((rects[0].width * rects[0].height) / (page.rect.width * page.rect.height), 3) if rects else 0.1
-
-        figures.append({
-            "figure_id": f"FIG_P{page_num}_{printed_num if printed_num else (idx+1)}",
-            "printed_number": printed_num,
-            "source_page": page_num,
-            "bbox": bbox,
-            "caption": cap_txt,
-            "image_path": str(fig_path),
-            "image_sha256": img_hash,
-            "visual_occupancy": area_ratio
-        })
-
-    drawings = page.get_drawings()
-    clusters = []
-    for d in drawings:
-        r = d["rect"]
-        if r.width > 20 and r.height > 20:
-            merged = False
-            for c in clusters:
-                if c.intersects(r) or (abs(c.y1 - r.y0) < 30 and abs(c.x0 - r.x0) < 50):
-                    c.include_rect(r)
-                    merged = True
-                    break
-            if not merged:
-                clusters.append(fitz.Rect(r))
-
-    for c_idx, c_rect in enumerate(clusters):
-        if c_rect.width > 60 and c_rect.height > 60:
-            v_pix = page.get_pixmap(clip=c_rect, dpi=150)
-            v_path = cache_dir / f"vector_grouped_p{page_num}_{c_idx+1}.png"
-            v_pix.save(str(v_path))
-            v_hash = hashlib.sha256(v_path.read_bytes()).hexdigest()
-            area_ratio = round((c_rect.width * c_rect.height) / (page.rect.width * page.rect.height), 3)
-            figures.append({
-                "figure_id": f"FIG_P{page_num}_V{c_idx+1}",
-                "printed_number": None,
-                "source_page": page_num,
-                "bbox": [round(c_rect.x0, 1), round(c_rect.y0, 1), round(c_rect.x1, 1), round(c_rect.y1, 1)],
-                "caption": "Grouped Vector Graphic",
-                "image_path": str(v_path),
-                "image_sha256": v_hash,
-                "visual_occupancy": area_ratio
-            })
-
-    return figures
-
-
-def match_figure_to_item(item: dict, page_figures: List[Dict[str, Any]], page_rect) -> List[str]:
-    item_prompt = item.get("exact_source_prompt", item.get("raw_text", ""))
-    fig_match = re.search(r'(?:fig(?:ure)?\.?|document|doc|شكل|وثيقة)\s*(\d+)', item_prompt, re.I)
-    target_num = int(fig_match.group(1)) if fig_match else None
-
-    scored = []
-    for fig in page_figures:
-        score = 0
-        if target_num is not None and fig.get("printed_number") == target_num:
-            score += 15
-        if fig.get("caption") and any(w.lower() in item_prompt.lower() for w in re.split(r'\W+', fig["caption"]) if len(w) > 3):
-            score += 5
-
-        occ = fig.get("visual_occupancy", 0.1)
-        if 0.02 <= occ <= 0.90:
-            score += 3
-
-        item_bbox = item.get("bbox")
-        if item_bbox and fig.get("bbox"):
-            dist = abs(fig["bbox"][1] - item_bbox[3])
-            if dist < 120:
-                score += 4
-
-        if score > 0:
-            scored.append((score, fig))
-
-    scored.sort(key=lambda x: x[0], reverse=True)
-    if scored and scored[0][0] >= 4:
-        return [scored[0][1]["figure_id"]]
-
-    if item.get("requires_figure"):
-        raise RuntimeError(f"FIGURE_EVIDENCE_MISSING: Mandatory diagram unverified for {item.get('exercise_id', 'Item')}")
-
-    return []
-
-
-def verify_title_double_evidence_strict(doc, entry: dict, opening_txt: str) -> bool:
-    title_clean = re.sub(r'^\s*\d+[\.\-–\s]+', '', entry["canonical_title"]).strip().lower()
-    words = [w for w in re.split(r'\W+', title_clean) if len(w) > 2]
-
-    matches_opening = sum(1 for w in words if w in opening_txt.lower())
-    if matches_opening < max(1, len(words) // 2):
-        return False
-
-    toc_found = False
-    for p_idx in range(min(15, len(doc))):
-        toc_page_txt = (doc[p_idx].get_text() or "").lower()
-        if any(h in toc_page_txt for h in ["contents", "table des matières", "فهرس", "المحتويات"]):
-            if any(w in toc_page_txt for w in words):
-                toc_found = True
-                break
-    return toc_found
-
-
-def build_evidence_map(doc, entry: dict) -> dict:
-    start_p = int(entry["pdf_start_page"])
-    end_p = int(entry["pdf_end_page"])
-    lesson_id = entry["lesson_id"]
-
-    pages_evidence = []
-    for p_num in range(start_p, end_p + 1):
-        txt = extract_page_text_robust(doc, p_num)
-        figs = extract_multimodal_page_figures(doc, p_num, CACHE_DIR)
-        p_hash = hashlib.sha256(txt.encode("utf-8")).hexdigest()[:16]
-        pages_evidence.append({
-            "page_num": p_num,
-            "text": txt,
-            "text_hash": p_hash,
-            "figures": figs
-        })
-
-    if not verify_title_double_evidence_strict(doc, entry, pages_evidence[0]["text"]):
-        raise AssertionError(f"TITLE_VERIFICATION_FAILED: Strict Double Evidence TOC + Opening failed for '{entry['canonical_title']}'.")
-
-    concepts = []
-    act_regex = re.compile(r"(?:Activity|Activité|نشاط|Section|Partie|Chapitre|فقرة)\s*(\d*)[:\s.-]+([^\n.]+)", re.I)
-    for p in pages_evidence:
-        page_doc = doc[p["page_num"] - 1]
-        for m in act_regex.finditer(p["text"]):
-            act_num = int(m.group(1)) if m.group(1) else len(concepts) + 1
-            act_title = m.group(2).strip()
-            chunk = " ".join(p["text"][m.start():m.start() + 500].split())
-            matched_figs = match_figure_to_item({"raw_text": chunk, "requires_figure": False}, p["figures"], page_doc.rect)
-            fig_ref = matched_figs[0] if matched_figs else "NONE"
-            
-            rects = page_doc.search_for(act_title[:20])
-            act_bbox = [round(rects[0].x0, 1), round(rects[0].y0, 1), round(rects[0].x1, 1), round(rects[0].y1, 1)] if rects else [0.0, 0.0, page_doc.rect.width, 100.0]
-
-            norm_chunk, math_ok, math_recs = MathRenderingEngine.normalize_math(chunk, p["page_num"], act_bbox, fig_ref)
-
-            concepts.append({
-                "concept_id": f"C{act_num:02d}",
-                "title": act_title,
-                "source_page": p["page_num"],
-                "raw_text": chunk,
-                "normalized_text": norm_chunk,
-                "figure_refs": matched_figs,
-                "math_records": math_recs,
-                "sha256": hashlib.sha256(chunk.encode("utf-8")).hexdigest()[:16]
-            })
-
-    if not concepts:
-        raise RuntimeError("EVIDENCE_EXTRACTION_INCOMPLETE: No verifiable concepts or activities found within source page range.")
-
-    exercises = []
-    ex_pattern = re.compile(r'(?:^|\n)\s*(?:(Problem|Exercise|Problème|Exercice|تمرين|مسألة)\s*)?(\d+)[\.\-\)]\s+([^\n]+(?:\n(?!\s*(?:(?:Problem|Exercise|Problème|Exercice|تمرين|مسألة)\s*)?\d+[\.\-\)]\s+)[^\n]+)*)', re.I)
-    for p in pages_evidence:
-        page_doc = doc[p["page_num"] - 1]
-        for m in ex_pattern.finditer(p["text"]):
-            kind = m.group(1)
-            ex_num = int(m.group(2))
-            content = " ".join(m.group(3).split())
-            if len(content) < 10:
-                continue
-
-            sec_type = "PROBLEM" if kind and kind.upper() in ["PROBLEM", "PROBLÈME", "مسألة"] else "EXERCISE"
-            subs = [f"({s[0]}) {s[1].strip()}" for s in re.findall(r'(?:^|\s|\()([a-d])[\)\.]\s*([^\(\)\n]+)', content)]
-            req_fig = bool(re.search(r'(?:fig(?:ure)?\.?|document|doc|شكل|وثيقة)\s*(\d+)', content, re.I) or any(k in content.lower() for k in ["figure", "diagram", "sketch", "draw", "graph", "table"]))
-            matched_figs = match_figure_to_item({"exact_source_prompt": content, "requires_figure": req_fig}, p["figures"], page_doc.rect)
-            fig_hashes = [f["image_sha256"] for f in p["figures"] if f["figure_id"] in matched_figs]
-
-            norm_content = re.sub(r'\s+', ' ', content).strip().lower()
-            norm_page = re.sub(r'\s+', ' ', p["text"]).strip().lower()
-            is_faithful = norm_content in norm_page
-
-            exercises.append({
-                "exercise_id": f"{lesson_id}-{sec_type[:2]}-{ex_num:02d}",
-                "lesson_id": lesson_id,
-                "section_type": sec_type,
-                "number": ex_num,
-                "source_page": p["page_num"],
-                "exact_source_prompt": content,
-                "source_prompt_hash": hashlib.sha256(content.encode("utf-8")).hexdigest()[:16],
-                "subquestions": subs,
-                "requires_figure": req_fig,
-                "figure_refs": matched_figs,
-                "figure_hashes": fig_hashes,
-                "solution_mode": "ON_DEMAND",
-                "solution_status": "NOT_SOLVED",
-                "verified_against_source": is_faithful
-            })
-
-    unique_ex = []
-    seen = set()
-    for e in sorted(exercises, key=lambda x: (x["section_type"], x["number"])):
-        k = (e["section_type"], e["number"])
-        if k not in seen:
-            seen.add(k)
-            unique_ex.append(e)
-
-    ex_c, pr_c = 0, 0
-    for e in unique_ex:
-        if e["section_type"] == "EXERCISE" and ex_c < 2:
-            e["solution_mode"] = "PRE_SOLVED"
-            ex_c += 1
-        elif e["section_type"] == "PROBLEM" and pr_c < 3:
-            e["solution_mode"] = "PRE_SOLVED"
-            pr_c += 1
-
-    ev_map = {
-        "lesson_id": lesson_id,
-        "book_id": entry["book_id"],
-        "source_lock": {"start": start_p, "end": end_p},
-        "pages_evidence": pages_evidence,
-        "concepts": concepts,
-        "exercise_evidence": unique_ex,
-        "canonical_title": entry["canonical_title"]
-    }
-
-    perm_path = PERM_EVIDENCE_DIR / f"{lesson_id}.json"
-    perm_path.write_text(json.dumps(ev_map, ensure_ascii=False, indent=2), encoding="utf-8")
-    return ev_map
-
-
-# ==============================================================================
-# 7. MULTI-MODAL GROUNDED SOLVER & STRICT FAIL-CLOSED VERIFIER
-# ==============================================================================
-def grounded_subject_solver(exercise: dict, evidence_map: dict, profile: dict) -> Dict[str, Any]:
-    prompt = exercise["exact_source_prompt"]
-    page = exercise["source_page"]
-    subj = profile["subject"]
-    grade = profile.get("grade", 7)
-
-    fig_base64 = None
-    if exercise.get("figure_refs"):
-        for p in evidence_map["pages_evidence"]:
-            if p["page_num"] == page:
-                for f in p["figures"]:
-                    if f["figure_id"] in exercise["figure_refs"]:
-                        try:
-                            fig_base64 = base64.b64encode(Path(f["image_path"]).read_bytes()).decode("utf-8")
-                        except Exception:
-                            pass
-                        break
-
-    query = (
-        f"You are Teacher NABIL, master professor of Lebanese {subj.capitalize()} Grade {grade}.\n"
-        f"Solve this official textbook exercise verbatim from Page {page}.\n"
-        f"Prompt: {prompt}\n"
-        f"Subquestions: {json.dumps(exercise.get('subquestions', []))}\n\n"
-        "RULES:\n"
-        "1. Step-by-step rigorous deduction, derivation, and calculation. Analyze accompanying figure if provided. No generic text or placeholders.\n"
-        "2. State formulas, substitutions with units, and clear final answer.\n"
-        "Return strictly JSON: {'steps': [str], 'final_answer': str}"
-    )
-
-    try:
-        res = execute_llm_completion(query, json_mode=True, temperature=0.0, image_base64=fig_base64)
-        parsed = json.loads(res)
-        if not parsed.get("steps") or not parsed.get("final_answer"):
-            raise ValueError("Incomplete solver response schema")
-        
-        verify_prompt = (
-            f"Verify if this solution correctly answers the exercise prompt without contradictions.\n"
-            f"Prompt: {prompt}\nSolution: {json.dumps(parsed, ensure_ascii=False)}\n"
-            "Return strictly JSON: {'valid': bool}"
-        )
-        val_res = json.loads(execute_llm_completion(verify_prompt, json_mode=True, temperature=0.0))
-        if not val_res.get("valid", False):
-            raise RuntimeError("SOLVER_SOLUTION_VALIDATION_FAILED")
-
-        exercise["solution_status"] = "SOLVED"
-        return parsed
-    except Exception as e:
-        raise RuntimeError(f"PRE_SOLVE_FAILED: grounded solver unavailable or failed for Ex #{exercise['number']}: {e}")
-
-
-def solve_exercise_on_demand_payload(lesson_id: str, sec_type: str, ex_num: int) -> Dict[str, Any]:
-    """Universal On-Demand Backend Resolution — Zero Hardcode."""
-    ev_path = PERM_EVIDENCE_DIR / f"{lesson_id}.json"
-    if not ev_path.exists():
-        raise RuntimeError(f"EVIDENCE_NOT_FOUND: {lesson_id}")
-
-    ev_map = json.loads(ev_path.read_text(encoding="utf-8"))
-    entry = resolve_canonical_entry(lesson_id)
-    profile = resolve_pedagogy_profile(entry)
-
-    matched = None
-    for ex in ev_map.get("exercise_evidence", []):
-        if ex["section_type"].upper() == sec_type.upper() and int(ex["number"]) == int(ex_num):
-            matched = ex
+def _subject(value):
+    normalized = _norm(value)
+    for key, aliases in _SUBJECT_ALIASES.items():
+        if normalized in {_norm(alias) for alias in aliases}:
+            return key
+    return normalized
+
+
+def _list_children(service, folder_id):
+    """Page through a Drive folder; folders and HTML only."""
+    token = None
+    while True:
+        result = service.files().list(
+            q=f"'{folder_id}' in parents and trashed=false",
+            fields="nextPageToken,files(id,name,mimeType)",
+            pageSize=1000, pageToken=token,
+        ).execute()
+        yield from result.get("files", [])
+        token = result.get("nextPageToken")
+        if not token:
             break
 
-    if not matched:
-        raise RuntimeError(f"EXERCISE_NOT_FOUND: {sec_type} #{ex_num} in lesson {lesson_id}")
 
-    sol = grounded_subject_solver(matched, ev_map, profile)
-    return {"status": "SUCCESS", "solution": sol}
-
-
-# ==============================================================================
-# 8. EVIDENCE-DRIVEN SYNTHESIS
-# ==============================================================================
-def synthesize_concept_narrative(concept: dict, profile: dict) -> dict:
-    prompt = (
-        f"You are grounding a lesson explanation STRICTLY in the following extracted textbook text. "
-        f"Generate plausible wrong answers (distractors) derived from common misconceptions of this text.\n\n"
-        f"TEXT: {concept['raw_text']}\n\n"
-        f"Subject: {profile['subject']}, Level: {profile['level']}\n"
-        "Return strictly JSON: {"
-        "'phenomenon': str, 'investigation': str, 'observation': str, 'interpretation': str, 'conclusion': str, "
-        "'distractor_1': str, 'distractor_2': str, 'formulas': [str], 'units': [str]"
-        "} — every field must be traceable to the TEXT above."
-    )
-    try:
-        res = execute_llm_completion(prompt, json_mode=True, temperature=0.0)
-        parsed = json.loads(res)
-        for k in ["phenomenon", "investigation", "observation", "interpretation", "conclusion", "distractor_1", "distractor_2"]:
-            if not parsed.get(k):
-                raise ValueError(f"Missing field {k}")
-        return parsed
-    except Exception as e:
-        raise RuntimeError(f"NARRATIVE_SYNTHESIS_FAILED: Unable to ground concept narrative from evidence ({e})")
-
-
-def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> dict:
-    title = entry["canonical_title"]
-    concepts = ev_map["concepts"]
-
-    activities_theory = []
-    worksheet = []
-    panels = ""
-
-    for idx, c in enumerate(concepts, 1):
-        p_num = c["source_page"]
-        narrative = synthesize_concept_narrative(c, profile)
-
-        fig_html = ""
-        for p in ev_map["pages_evidence"]:
-            if p["page_num"] == p_num and p["figures"]:
-                for f in p["figures"]:
-                    if f["figure_id"] in c.get("figure_refs", []):
-                        with open(f["image_path"], "rb") as fh:
-                            b64 = base64.b64encode(fh.read()).decode("ascii")
-                        fig_html = f'''<div class="figure" style="text-align:center; margin:14px 0;">
-                            <img src="data:image/png;base64,{b64}" alt="{html.escape(c['title'])}" onclick="zoomImage(this)" style="max-width:100%; height:auto; border-radius:8px; border:1px solid #cbd5e1; cursor:zoom-in; transition: transform 0.2s;"/>
-                            <div style="font-size:12px; color:#64748b; margin-top:4px;">Official Curriculum Figure: Page {p_num} (Click to Zoom)</div>
-                        </div>'''
-                        break
-
-        activities_theory.append({
-            "activity_num": c["concept_id"].replace("C", ""),
-            "title": c["title"],
-            "source_page": p_num,
-            "phenomenon": narrative["phenomenon"],
-            "investigation": narrative["investigation"],
-            "observation": narrative["observation"],
-            "interpretation": narrative["interpretation"],
-            "conclusion": narrative["conclusion"],
-            "visual_html": fig_html,
-            "student_question": {
-                "q": f"Based on verified findings in '{c['title']}', what is confirmed?",
-                "options": [narrative["conclusion"], narrative["distractor_1"], narrative["distractor_2"]],
-                "correct_index": 0,
-                "feedback": "Correct! Directly grounded in verified curriculum evidence."
-            }
-        })
-
-        if idx <= 5:
-            worksheet.append({
-                "id": idx,
-                "concept_id": c["concept_id"],
-                "source_page": p_num,
-                "source_hash": c["sha256"],
-                "evidence_ref": c["concept_id"],
-                "question": f"Which scientific deduction is confirmed regarding '{c['title']}'?",
-                "options": [narrative["conclusion"], narrative["distractor_1"], narrative["distractor_2"]],
-                "correct_index": 0,
-                "explanation": f"Grounded directly in curriculum evidence on page {p_num} (Ref: {c['concept_id']})."
-            })
-
-        formulas_html = "".join([f"<li><b>Formula/Law:</b> {html.escape(f)}</li>" for f in narrative.get("formulas", [])])
-        units_html = "".join([f"<li><b>Units:</b> {html.escape(u)}</li>" for u in narrative.get("units", [])])
-        subject_metadata = f"<ul style='margin:4px 0 0 16px; padding:0; font-size:12px; color:#0369a1;'>{formulas_html}{units_html}</ul>" if (narrative.get("formulas") or narrative.get("units")) else ""
-
-        panels += f'''<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:14px; box-shadow:0 2px 4px rgba(0,0,0,0.04);">
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">
-                <span style="font-weight:700; color:#0369a1; font-size:15px;">{html.escape(c["title"])}</span>
-                <span style="font-size:11px; background:#e0f2fe; color:#0284c7; padding:2px 6px; border-radius:4px; font-weight:600;">p. {c["source_page"]}</span>
-            </div>
-            <div style="margin-top:8px; font-size:13px; color:#334155; line-height:1.5;"><b>Extracted Principle:</b> {html.escape(narrative["conclusion"])}</div>
-            {subject_metadata}
-            {fig_html}
-            <div style="margin-top:8px; font-size:12px; color:#059669; font-weight:600;">✓ Verified Evidence Grounding</div>
-        </div>'''
-
-    ref_card_html = f'''
-    <!-- NABIL Golden Reference Final Study Card -->
-    <div id="goldenReferenceCard" style="margin-top:28px; background:linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border:2px solid #0284c7; border-radius:14px; padding:20px; box-shadow:0 4px 12px rgba(2,132,199,0.08);">
-      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; border-bottom:2px solid #0284c7; padding-bottom:12px;">
-        <div>
-          <span style="background:#0284c7; color:#fff; font-size:11px; font-weight:800; padding:3px 8px; border-radius:4px; text-transform:uppercase;">Golden Reference Card</span>
-          <h2 style="margin:4px 0 0 0; font-size:20px; color:#0f172a;">{html.escape(title)}</h2>
-        </div>
-        <span style="font-size:13px; font-weight:600; color:#64748b;">{profile["subject"].capitalize()} • Level {profile["level"]}</span>
-      </div>
-      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:14px; margin-top:16px;">
-        {panels}
-      </div>
-      <div style="margin-top:16px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px 14px; font-size:12px; color:#1e40af; display:flex; align-items:center; gap:8px;">
-        <span>📌</span>
-        <span><b>Study Reminder:</b> Formulated strictly from official textbook page ranges {ev_map["source_lock"]["start"]}–{ev_map["source_lock"]["end"]}.</span>
-      </div>
-    </div>'''
-
-    return {
-        "title": title,
-        "activities": activities_theory,
-        "lab_html": "",
-        "has_active_sim": False,
-        "worksheet": worksheet,
-        "reference_card_html": ref_card_html
-    }
-
-
-# ==============================================================================
-# 9. TWIN-PAGE HTML COMPILATION
-# ==============================================================================
-def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict) -> str:
-    clean_title = html.escape(re.sub(r'^\s*\d{2,3}\s*(?:--|[-_ ]+)\s*', '', entry["canonical_title"]))
-    clean_title = html.escape(re.sub(r'\s+\d{2,3}$', '', clean_title).strip())
-    lang = entry.get("language", "en")
-
-    acts_html = ""
-    for act in theory["activities"]:
-        q = act["student_question"]
-        opts = "".join([f'<button onclick="gradeStep(this, {i == q["correct_index"]}, \'{html.escape(q["feedback"])}\')" class="q-opt">{html.escape(o)}</button>' for i, o in enumerate(q["options"])])
-        acts_html += f'''
-        <div class="card" style="margin-top:20px;">
-          <h3 style="color:#0369a1; margin-top:0;">{act["activity_num"]}. {html.escape(act["title"])}</h3>
-          <p><b>Phenomenon:</b> {html.escape(act["phenomenon"])}</p>
-          <p><b>Investigation:</b> {html.escape(act["investigation"])}</p>
-          {act["visual_html"]}
-          <p><b>Observation:</b> {html.escape(act["observation"])}</p>
-          <p><b>Scientific Deduction:</b> <b>{html.escape(act["conclusion"])}</b></p>
-          <div style="background:#f1f5f9; padding:12px; border-radius:6px; margin-top:12px;">
-            <div style="font-weight:600; font-size:14px; margin-bottom:8px;">Check Understanding: {html.escape(q["q"])}</div>
-            <div style="display:flex; gap:8px; flex-wrap:wrap;">{opts}</div>
-            <div class="step-fb" style="margin-top:8px; font-size:13px; font-weight:600; display:none;"></div>
-          </div>
-        </div>'''
-
-    ws_items = ""
-    for idx, item in enumerate(theory["worksheet"]):
-        opts = "".join([f'<button onclick="gradeWs(this, {i == item["correct_index"]}, \'{html.escape(item["explanation"])}\')" class="q-opt">{html.escape(o)}</button>' for i, o in enumerate(item["options"])])
-        ws_items += f'''
-        <div class="ws-item" style="margin-bottom:14px; padding:12px; background:#fff; border:1px solid #e2e8f0; border-radius:6px;">
-          <div style="font-weight:600; margin-bottom:6px;">Question {idx+1}: {html.escape(item["question"])} <span style="font-size:11px; color:#64748b;">(p. {item['source_page']})</span></div>
-          <div style="display:flex; gap:8px; flex-wrap:wrap;">{opts}</div>
-          <div class="ws-fb" style="margin-top:6px; font-size:12px; font-weight:600; display:none;"></div>
-        </div>'''
-
-    return f'''<!DOCTYPE html>
-<html lang="{html.escape(lang)}">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="nabil-lesson-id" content="{html.escape(entry['lesson_id'])}">
-<meta name="nabil-canonical-title" content="{clean_title}">
-<meta name="nabil-grade" content="{entry.get('grade', 7)}">
-<meta name="nabil-subject" content="{html.escape(entry.get('subject', 'Physics'))}">
-<meta name="nabil-source-book-id" content="{html.escape(entry['book_id'])}">
-<meta name="nabil-source-pages" content="{entry['pdf_start_page']}-{entry['pdf_end_page']}">
-<title>{clean_title} - NABIL Universal Engine</title>
-{MathRenderingEngine.inject_mathjax_head()}
-<style>
-  :root {{ --primary: #0284c7; --bg: #f8fafc; --card: #ffffff; --text: #0f172a; --text-muted: #64748b; }}
-  body {{ font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 16px; overflow-x: hidden; max-width: 100vw; box-sizing: border-box; }}
-  .container {{ max-width: 860px; margin: 0 auto; width: 100%; box-sizing: border-box; }}
-  .header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; }}
-  .card {{ background: var(--card); border-radius: 8px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }}
-  .nav-btn {{ background: var(--primary); color: #fff; padding: 10px 16px; border-radius: 6px; text-decoration: none; font-weight: 600; cursor: pointer; border: none; font-size: 14px; min-height: 44px; display: inline-flex; align-items: center; }}
-  .q-opt {{ background:#fff; border:1px solid #cbd5e1; padding:8px 14px; border-radius:4px; cursor:pointer; font-size:13px; font-weight:500; min-height: 44px; }}
-  .q-opt:hover {{ background:#e2e8f0; }}
-  #zoomModal {{ display:none; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); justify-content:center; align-items:center; cursor:zoom-out; }}
-  #zoomModal img {{ max-width:90%; max-height:90%; border-radius:8px; box-shadow:0 4px 20px rgba(0,0,0,0.5); }}
-</style>
-</head>
-<body>
-<div class="container">
-  <div class="header">
-    <h1 style="margin:0; font-size:22px;">{clean_title}</h1>
-    <button onclick="navigateToExercises()" class="nav-btn">View Exercises ➔</button>
-  </div>
-  {acts_html}
-  <div class="card" style="margin-top:24px;">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-      <h3 style="margin:0; color:#0284c7;">📝 Interactive Student Worksheet</h3>
-      <div id="wsScoreBadge" style="font-size:13px; font-weight:bold; color:#059669;">Score: 0 / {len(theory['worksheet'])}</div>
-    </div>
-    <div style="width:100%; background:#e2e8f0; height:6px; border-radius:3px; margin:12px 0;">
-      <div id="wsProgressBar" style="width:0%; background:#0284c7; height:6px; border-radius:3px; transition:width 0.3s ease;"></div>
-    </div>
-    {ws_items}
-  </div>
-  {theory.get("reference_card_html", "")}
-</div>
-<div id="zoomModal" onclick="this.style.display='none'"><img id="zoomImg" src=""></div>
-<script>
-let answeredCount = 0;
-let score = 0;
-const totalQuestions = {len(theory['worksheet'])};
-
-function zoomImage(img) {{
-  const modal = document.getElementById('zoomModal');
-  const modalImg = document.getElementById('zoomImg');
-  modal.style.display = 'flex';
-  modalImg.src = img.src;
-}}
-
-function navigateToExercises() {{
-  const url = new URL(window.location.href);
-  if (url.searchParams.has('lesson')) {{
-    url.searchParams.set('view', 'exercises');
-    window.location.href = url.toString();
-  }} else {{
-    const cur = window.location.pathname.split('/').pop();
-    window.location.href = cur.replace('.html', '--EXERCISES.html');
-  }}
-}}
-function gradeStep(btn, isCorrect, fb) {{
-  const box = btn.parentElement.nextElementSibling;
-  box.style.display = 'block';
-  box.style.color = isCorrect ? '#059669' : '#dc2626';
-  box.innerHTML = (isCorrect ? '✓ ' : '✗ ') + fb;
-}}
-function gradeWs(btn, isCorrect, exp) {{
-  const parent = btn.parentElement;
-  if (parent.dataset.answered) return;
-  parent.dataset.answered = 'true';
-  answeredCount++;
-  if (isCorrect) score++;
-
-  const box = parent.nextElementSibling;
-  box.style.display = 'block';
-  box.style.color = isCorrect ? '#059669' : '#dc2626';
-  box.innerHTML = (isCorrect ? 'Correct! ' : 'Incorrect. ') + exp;
-
-  document.getElementById('wsProgressBar').style.width = ((answeredCount / totalQuestions) * 100) + '%';
-  document.getElementById('wsScoreBadge').innerText = 'Score: ' + score + ' / ' + totalQuestions;
-}}
-</script>
-</body>
-</html>'''
-
-
-def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: dict) -> str:
-    clean_title = html.escape(re.sub(r'^\s*\d{2,3}\s*(?:--|[-_ ]+)\s*', '', entry["canonical_title"]))
-    clean_title = html.escape(re.sub(r'\s+\d{2,3}$', '', clean_title).strip())
-    lesson_id = entry["lesson_id"]
-    lang = entry.get("language", "en")
-
-    ex_cards = ""
-    for ex in exercises:
-        ex_num = ex["number"]
-        sec_type = ex["section_type"]
-
-        ex_fig_html = ""
-        if ex.get("figure_refs"):
-            for p in ev_map["pages_evidence"]:
-                if p["page_num"] == ex["source_page"]:
-                    for f in p["figures"]:
-                        if f["figure_id"] in ex["figure_refs"]:
-                            try:
-                                b64 = base64.b64encode(Path(f["image_path"]).read_bytes()).decode("ascii")
-                                ex_fig_html = f'''<div style="text-align:center; margin:12px 0;">
-                                  <img src="data:image/png;base64,{b64}" alt="Exercise Figure" onclick="zoomImage(this)" style="max-width:100%; max-height:220px; border-radius:8px; border:1px solid #cbd5e1; cursor:zoom-in;"/>
-                                  <div style="font-size:11px; color:#64748b; margin-top:3px;">Source Figure for {sec_type} {ex_num} (Click to Zoom)</div>
-                                </div>'''
-                            except Exception:
-                                pass
-                            break
-
-        if ex["solution_mode"] == "PRE_SOLVED":
-            sol = grounded_subject_solver(ex, ev_map, profile)
-            steps_html = "<br>".join([f"• <b>Step:</b> {s}" for s in sol["steps"]])
-            sol_box = f'''
-            <div style="margin-top:10px; padding:12px; background:#ecfdf5; border-radius:6px; font-size:13px; color:#065f46; line-height:1.6;">
-              <b>Step-by-Step Model Solution:</b><br>
-              {steps_html}<br>
-              • <b>Final Answer:</b> {sol["final_answer"]}
-            </div>'''
-        else:
-            sol_box = f'''
-            <div id="demandBox_{sec_type}_{ex_num}" style="margin-top:10px;">
-              <button onclick="requestServerSolution('{lesson_id}', '{sec_type}', {ex_num})" class="nav-btn" style="background:#475569; padding:8px 14px; font-size:12px;">Solve {sec_type} {ex_num} On-Demand ⚡</button>
-              <div id="demandAns_{sec_type}_{ex_num}" style="display:none; margin-top:8px; padding:12px; background:#eff6ff; border-radius:6px; font-size:13px; color:#1e40af; line-height:1.6;"></div>
-            </div>'''
-
-        sub_html = ""
-        if ex.get("subquestions"):
-            sub_items = "".join([f"<li style='margin-top:4px;'>{html.escape(sq)}</li>" for sq in ex["subquestions"]])
-            sub_html = f"<ul style='margin:6px 0 0 16px; padding:0; font-size:13px; color:#334155;'>{sub_items}</ul>"
-
-        ex_cards += f'''
-        <div class="card" style="margin-top:16px;">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h3 style="margin:0; font-size:16px;">{sec_type} {ex_num}</h3>
-            <span style="font-size:12px; color:#64748b;">Source Page {ex["source_page"]}</span>
-          </div>
-          <p style="margin:10px 0; font-size:14px; line-height:1.5;">{html.escape(ex["exact_source_prompt"])}</p>
-          {ex_fig_html}
-          {sub_html}
-          {sol_box}
-        </div>'''
-
-    return f'''<!DOCTYPE html>
-<html lang="{html.escape(lang)}">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="nabil-lesson-id" content="{html.escape(entry['lesson_id'])}">
-<meta name="nabil-canonical-title" content="{clean_title}">
-<meta name="nabil-grade" content="{entry.get('grade', 7)}">
-<meta name="nabil-subject" content="{html.escape(entry.get('subject', 'Physics'))}">
-<meta name="nabil-source-book-id" content="{html.escape(entry['book_id'])}">
-<meta name="nabil-source-pages" content="{entry['pdf_start_page']}-{entry['pdf_end_page']}">
-<title>{clean_title} - Official Exercises</title>
-{MathRenderingEngine.inject_mathjax_head()}
-<style>
-  :root {{ --primary: #0284c7; --bg: #f8fafc; --card: #ffffff; --text: #0f172a; --text-muted: #64748b; }}
-  body {{ font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 16px; overflow-x: hidden; max-width: 100vw; box-sizing: border-box; }}
-  .container {{ max-width: 860px; margin: 0 auto; width: 100%; box-sizing: border-box; }}
-  .header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; }}
-  .card {{ background: var(--card); border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }}
-  .nav-btn {{ background: var(--primary); color: #fff; padding: 10px 16px; border-radius: 6px; text-decoration: none; font-weight: 600; cursor: pointer; border: none; font-size: 13px; min-height: 44px; display: inline-flex; align-items: center; }}
-  #zoomModal {{ display:none; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); justify-content:center; align-items:center; cursor:zoom-out; }}
-  #zoomModal img {{ max-width:90%; max-height:90%; border-radius:8px; box-shadow:0 4px 20px rgba(0,0,0,0.5); }}
-</style>
-</head>
-<body>
-<div class="container">
-  <div class="header">
-    <h1 style="margin:0; font-size:20px;">{clean_title} - Exercises &amp; Problems</h1>
-    <button onclick="returnToLesson()" class="nav-btn" style="background:#475569;">⬅ Back to Lesson</button>
-  </div>
-  {ex_cards}
-</div>
-<div id="zoomModal" onclick="this.style.display='none'"><img id="zoomImg" src=""></div>
-<script>
-function zoomImage(img) {{
-  const modal = document.getElementById('zoomModal');
-  const modalImg = document.getElementById('zoomImg');
-  modal.style.display = 'flex';
-  modalImg.src = img.src;
-}}
-
-function returnToLesson() {{
-  const url = new URL(window.location.href);
-  if (url.searchParams.has('view')) {{
-    url.searchParams.delete('view');
-    window.location.href = url.toString();
-  }} else {{
-    const cur = window.location.pathname.split('/').pop();
-    window.location.href = cur.replace('--EXERCISES.html', '.html');
-  }}
-}}
-
-async function requestServerSolution(lessonId, secType, exNum) {{
-  const ansBox = document.getElementById('demandAns_' + secType + '_' + exNum);
-  ansBox.style.display = 'block';
-  ansBox.innerHTML = '<i>Connecting to NABIL Solver Backend...</i>';
-
-  try {{
-    const resp = await fetch('/api/interactive-lessons/solve-on-demand', {{
-      method: 'POST',
-      headers: {{ 'Content-Type': 'application/json' }},
-      body: JSON.stringify({{ lesson_id: lessonId, section_type: secType, exercise_number: exNum }})
-    }});
-    const data = await resp.json();
-    if (data.status === 'SUCCESS') {{
-      const sol = data.solution;
-      let stepsHtml = sol.steps.map(s => '• ' + s).join('<br>');
-      ansBox.innerHTML = '<b>Verified Resolution:</b><br>' + stepsHtml + '<br><b>Answer:</b> ' + sol.final_answer;
-    }} else {{
-      ansBox.innerHTML = '<b>Error:</b> ' + (data.error || 'Unable to retrieve solution');
-      ansBox.style.color = '#dc2626';
-    }}
-  }} catch (err) {{
-    ansBox.innerHTML = '<b>Network Error:</b> Failed to reach solver endpoint.';
-    ansBox.style.color = '#dc2626';
-  }}
-}}
-</script>
-</body>
-</html>'''
-
-
-# ==============================================================================
-# 11. QUALITY GATES & REAL PLAYWRIGHT CHROMIUM COMPREHENSIVE QA (390x844)
-# ==============================================================================
-def run_real_playwright_chromium_qa(html_path: str) -> bool:
-    try:
-        from playwright.sync_api import sync_playwright
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            page = browser.new_page(viewport={"width": 390, "height": 844})
-            page.goto(f"file://{Path(html_path).resolve()}")
-            
-            try:
-                page.wait_for_selector('mjx-container', timeout=5000)
-            except Exception:
-                pass
-            
-            check_result = page.evaluate("""() => {
-                const doc = document.documentElement;
-                
-                if (doc.scrollWidth > doc.clientWidth + 2) {
-                    return { passed: false, reason: "HORIZONTAL_OVERFLOW" };
-                }
-
-                const buttons = Array.from(document.querySelectorAll('button, .q-opt'));
-                for (let b of buttons) {
-                    if (b.getBoundingClientRect().height < 43) {
-                        return { passed: false, reason: "TOUCH_TARGET_TOO_SMALL", height: b.getBoundingClientRect().height };
-                    }
-                }
-
-                const bodyText = document.body.innerText;
-                if (bodyText.includes('\\\\(') || bodyText.includes('\\\\[')) {
-                    return { passed: false, reason: "RAW_LATEX_DETECTED" };
-                }
-
-                const allElements = document.querySelectorAll('img, .card, mjx-container, p, h1, h2, h3');
-                for (let el of allElements) {
-                    const rect = el.getBoundingClientRect();
-                    if (rect.right > 392 || rect.left < -2) {
-                        return { passed: false, reason: "ELEMENT_BOUNDING_BOX_OVERFLOW", tag: el.tagName, right: rect.right };
-                    }
-                }
-
-                const mathContentPresent = document.body.innerHTML.includes('\\\\(') || document.body.innerHTML.includes('\\\\[');
-                const mjxCount = document.querySelectorAll('mjx-container').length;
-                if (mathContentPresent && mjxCount === 0) {
-                    return { passed: false, reason: "MATHJAX_CONTAINER_MISSING_DESPITE_MATH" };
-                }
-
-                return { passed: true };
-            }""")
-            browser.close()
-            
-            if not check_result.get("passed", False):
-                return False
-        return True
-    except Exception as e:
-        raise RuntimeError(f"PLAYWRIGHT_CHROMIUM_QA_EXECUTION_FAILED: {e}")
-
-
-def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
-    progress("QUALITY_GATES: Auditing candidate against Real Playwright Chromium Comprehensive QA...")
-    report = []
-
-    def check(name: str, cond: bool, severity: str, det: str = ""):
-        report.append({"name": name, "passed": bool(cond), "severity": severity, "details": det})
-        if not cond and severity == "CRITICAL":
-            raise AssertionError(f"QUALITY_GATE_FAILED: {name} -> {det}")
-
-    ev_map = candidate["evidence_map"]
-    s_lock = ev_map["source_lock"]
-    expected_p = s_lock["end"] - s_lock["start"] + 1
-    check("SOURCE_COVERAGE_INCOMPLETE", len(ev_map["pages_evidence"]) == expected_p, "CRITICAL", f"{len(ev_map['pages_evidence'])}/{expected_p} pages")
-
-    ex_nums = sorted([e["number"] for e in candidate["exercises"] if e["section_type"] == "EXERCISE"])
-    check("EXERCISE_SEQUENCE_INCOMPLETE", len(ex_nums) > 0 and ex_nums == list(range(1, len(ex_nums) + 1)), "CRITICAL", f"Exercises: {ex_nums}")
-
-    for e in candidate["exercises"]:
-        check("EXERCISE_SOURCE_MISMATCH", len(e["exact_source_prompt"]) >= 10, "CRITICAL", f"Ex {e['number']}")
-        check("EXERCISE_FIDELITY_UNVERIFIED", e.get("verified_against_source", False), "CRITICAL", f"Ex {e['number']} source mismatch")
-        if e["requires_figure"]:
-            check("EXERCISE_DIAGRAM_REQUIRED_MISSING", len(e["figure_refs"]) > 0, "CRITICAL", f"Ex {e['number']}")
-
-    check("PRE_SOLVE_FAILED", all(e["solution_status"] == "SOLVED" for e in candidate["exercises"] if e["solution_mode"] == "PRE_SOLVED"), "CRITICAL", "Pre-solved exercises unverified")
-    check("WORKSHEET_NOT_GRADABLE", all("correct_index" in q for q in candidate["theory"]["worksheet"]), "CRITICAL", "Worksheet grading keys")
-    check("REFERENCE_CARD_CONTENT_INCOMPLETE", "goldenReferenceCard" in candidate["page_a_html"], "CRITICAL", "Golden reference card missing")
-
-    with tempfile.NamedTemporaryFile(suffix=".html", mode="w", encoding="utf-8", delete=False) as tmp_a:
-        tmp_a.write(candidate["page_a_html"])
-        path_a = tmp_a.name
-    with tempfile.NamedTemporaryFile(suffix=".html", mode="w", encoding="utf-8", delete=False) as tmp_b:
-        tmp_b.write(candidate["page_b_html"])
-        path_b = tmp_b.name
-
-    try:
-        qa_a = run_real_playwright_chromium_qa(path_a)
-        qa_b = run_real_playwright_chromium_qa(path_b)
-    finally:
-        Path(path_a).unlink(missing_ok=True)
-        Path(path_b).unlink(missing_ok=True)
-
-    check("MATH_RENDERING_FAILED", qa_a and qa_b, "CRITICAL", "MathJax successful rendering & bounding box overflow checks verified via real Playwright Chromium execution")
-    check("MOBILE_REAL_PLAYWRIGHT_CHROMIUM_QA_390_844", qa_a and qa_b, "CRITICAL", "Real Playwright Chromium headless browser QA verified for 390x844 bounds, bounding boxes clipping & touch targets")
-
-    check("NAVIGATION_FAILED", "navigateToExercises" in candidate["page_a_html"] and "returnToLesson" in candidate["page_b_html"], "CRITICAL", "Navigation intact")
-
-    return {"passed": True, "gates": report}
-
-
-def independent_scientific_review(entry: dict, candidate: dict) -> dict:
-    dump = json.dumps(candidate["theory"]).lower()
-    issues = [forbidden for forbidden in FORBIDDEN_EDUCATIONAL_HARDCODE if forbidden in dump]
-    if issues:
-        raise RuntimeError(f"SCIENTIFIC_REVIEW_REJECTED: Found hardcode violations -> {issues}")
-
-    prompt = (
-        f"You are an Independent Senior Curriculum Auditor for Lebanese {entry['subject'].capitalize()} Grade {entry['grade']}.\n"
-        f"Audit this complete lesson payload including evidence concepts and exercise solutions for absolute scientific rigor.\n"
-        f"Lesson Title: {entry['canonical_title']}\n"
-        f"Evidence Concepts: {json.dumps(candidate['evidence_map']['concepts'], ensure_ascii=False)}\n"
-        f"Exercises & Solutions: {json.dumps(candidate['exercises'], ensure_ascii=False)}\n\n"
-        "Return strictly JSON: {'approved': bool, 'issues': [str], 'scientific_notes': str}"
-    )
-
-    try:
-        res = execute_llm_completion(prompt, json_mode=True, temperature=0.0)
-        parsed = json.loads(res)
-        if not parsed.get("approved", False):
-            raise RuntimeError(f"SCIENTIFIC_REVIEW_REJECTED: Audit failed -> {parsed.get('issues')}")
-        return parsed
-    except Exception as e:
-        raise RuntimeError(f"SCIENTIFIC_REVIEW_REJECTED: reviewer unavailable or failed: {e}")
-
-
-# ==============================================================================
-# 12. ATOMIC PROMOTION & POST-UPLOAD SHA-256 VERIFICATION
-# ==============================================================================
-def rollback_lesson_drive(drive_service, lesson_id: str, target_version: int):
-    root_id = resolve_drive_root_id()
-    ver_file = VERSIONS_DIR / f"{lesson_id}.json"
-    if not ver_file.exists():
-        raise RuntimeError("ROLLBACK_VERSION_NOT_FOUND")
-
-    meta = json.loads(ver_file.read_text(encoding="utf-8"))
-    old_a = ARTIFACTS_DIR / f"{lesson_id}_v{target_version}_A.html"
-    old_b = ARTIFACTS_DIR / f"{lesson_id}_v{target_version}_B.html"
-
-    if not (old_a.exists() and old_b.exists()):
-        raise RuntimeError(f"ROLLBACK_ARTIFACTS_MISSING: Version v{target_version} files not found")
-
-    content_a = old_a.read_text(encoding="utf-8")
-    content_b = old_b.read_text(encoding="utf-8")
-
-    from googleapiclient.http import MediaIoBaseUpload
-    if meta.get("drive_theory_id"):
-        media_a = MediaIoBaseUpload(io.BytesIO(content_a.encode("utf-8")), mimetype="text/html", resumable=True)
-        drive_service.files().update(fileId=meta["drive_theory_id"], media_body=media_a).execute()
-
-    if meta.get("drive_exercises_id"):
-        media_b = MediaIoBaseUpload(io.BytesIO(content_b.encode("utf-8")), mimetype="text/html", resumable=True)
-        drive_service.files().update(fileId=meta["drive_exercises_id"], media_body=media_b).execute()
-
-    meta["published_version"] = target_version
-    meta["status"] = "ROLLED_BACK"
-    meta["history"].append({"action": "ROLLBACK", "target": target_version, "time": now()})
-    ver_file.write_text(json.dumps(meta, indent=2), encoding="utf-8")
-    progress("ROLLBACK_DRIVE_EXECUTING_SUCCESS", lesson_id=lesson_id, target_version=target_version)
-
-
-def promote_candidate(candidate: dict, entry: dict, drive_service) -> Tuple[str, str]:
-    """Atomic Promotion with Post-Upload SHA-256 Verification & Safe Revert Backup."""
-    root_id = resolve_drive_root_id()
-    from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
-
-    def get_or_create_folder(name: str, parent: str) -> str:
-        q = f"name = '{name}' and mimeType = 'application/vnd.google-apps.folder' and '{parent}' in parents and trashed = false"
-        res = drive_service.files().list(q=q, fields="files(id)").execute().get("files", [])
-        if len(res) > 1:
-            raise RuntimeError(f"DRIVE_FOLDER_DUPLICATE_FAILED: Multiple folders named '{name}' under {parent}")
-        if res:
-            return res[0]["id"]
-        meta = {"name": name, "mimeType": "application/vnd.google-apps.folder", "parents": [parent]}
-        return drive_service.files().create(body=meta, fields="id").execute()["id"]
-
-    grade_fid = get_or_create_folder(f"Grade {entry['grade']}", root_id)
-    subject_fid = get_or_create_folder(entry['subject'], grade_fid)
-
-    def get_existing_file(fname: str) -> Optional[dict]:
-        q = f"name = '{fname}' and '{subject_fid}' in parents and trashed = false"
-        files = drive_service.files().list(q=q, fields="files(id, name)").execute().get("files", [])
-        return files[0] if files else None
-
-    existing_a = get_existing_file(candidate["filename_a"])
-    existing_b = get_existing_file(candidate["filename_b"])
-    backup_data_a = None
-    backup_data_b = None
-    if existing_a:
-        backup_data_a = drive_service.files().get_media(fileId=existing_a["id"]).execute()
-    if existing_b:
-        backup_data_b = drive_service.files().get_media(fileId=existing_b["id"]).execute()
-
-    def upload_or_update(fname: str, content: str, existing: Optional[dict]) -> str:
-        media = MediaIoBaseUpload(io.BytesIO(content.encode("utf-8")), mimetype="text/html", resumable=True)
-        if existing:
-            drive_service.files().update(fileId=existing["id"], media_body=media).execute()
-            return existing["id"]
-        return drive_service.files().create(body={"name": fname, "parents": [subject_fid]}, media_body=media, fields="id").execute()["id"]
-
-    tid = None
-    eid = None
-    try:
-        tid = upload_or_update(candidate["filename_a"], candidate["page_a_html"], existing_a)
-        eid = upload_or_update(candidate["filename_b"], candidate["page_b_html"], existing_b)
-
-        def verify_remote_sha256(file_id: str, local_content: str):
-            fh = io.BytesIO()
-            downloader = MediaIoBaseDownload(fh, drive_service.files().get_media(fileId=file_id))
-            done = False
-            while not done:
-                _, done = downloader.next_chunk()
-            remote_sha = hashlib.sha256(fh.getvalue()).hexdigest()
-            local_sha = hashlib.sha256(local_content.encode("utf-8")).hexdigest()
-            if remote_sha != local_sha:
-                raise RuntimeError(f"POST_UPLOAD_VERIFICATION_FAILED: SHA256 mismatch for file id {file_id}")
-
-        verify_remote_sha256(tid, candidate["page_a_html"])
-        verify_remote_sha256(eid, candidate["page_b_html"])
-
-    except Exception as e:
-        if tid and existing_a and backup_data_a:
-            revert_media_a = MediaIoBaseUpload(io.BytesIO(backup_data_a), mimetype="text/html", resumable=True)
-            drive_service.files().update(fileId=tid, media_body=revert_media_a).execute()
-        elif tid and not existing_a:
-            drive_service.files().delete(fileId=tid).execute()
-
-        if eid and existing_b and backup_data_b:
-            revert_media_b = MediaIoBaseUpload(io.BytesIO(backup_data_b), mimetype="text/html", resumable=True)
-            drive_service.files().update(fileId=eid, media_body=revert_media_b).execute()
-        elif eid and not existing_b:
-            drive_service.files().delete(fileId=eid).execute()
-
-        raise RuntimeError(f"ATOMIC_PROMOTION_FAILED: Transaction rolled back safely ({e})")
-
-    return tid, eid
-
-
-# ==============================================================================
-# PRODUCTION PIPELINE ENTRY (LAZY DRIVE RESOLUTION)
-# ==============================================================================
-def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = False) -> dict:
-    lesson_id = entry["lesson_id"]
-    book_id = entry["book_id"]
-    progress("PRODUCTION_PIPELINE_START", lesson_id=lesson_id)
-
-    if lesson_id == "G07-PHYSICS-001" and publish:
-        raise RuntimeError("PILOT_PUBLISH_PROHIBITED: Golden Pilot lesson G07-PHYSICS-001 is QA-only and cannot be published directly to Drive.")
-
-    ver_file = VERSIONS_DIR / f"{lesson_id}.json"
-    if ver_file.exists():
-        ver_meta = json.loads(ver_file.read_text(encoding="utf-8"))
-        candidate_v = ver_meta.get("published_version", 0) + 1
+def _entry(file, grade="", subject="", chapter_title=""):
+    stem = file["name"].rsplit(".", 1)[0]
+    parts = stem.split("--", 1)
+    if len(parts) == 2:
+        prefix, title = parts
+        match = re.match(r"(?:EB|G)0?(\d{1,2})[-_ ]+(.+)", prefix, re.I)
+        if match:
+            grade = match.group(1)
+            subject = match.group(2)
     else:
-        ver_meta = {"lesson_id": lesson_id, "published_version": 0, "history": []}
-        candidate_v = 1
-
-    profile = resolve_pedagogy_profile(entry)
-    
-    if drive_service is None and (publish or not Path(f"/app/data/books/{book_id}.pdf").exists()):
-        drive_service = get_drive_service()
-
-    pdf_path = resolve_source_book_pdf(book_id, drive_service)
-    import fitz
-    doc = fitz.open(str(pdf_path))
-    ev_map = build_evidence_map(doc, entry)
-    doc.close()
-
-    theory = synthesize_universal_pedagogy(entry, ev_map, profile)
-    exercises = ev_map["exercise_evidence"]
-
-    page_a = render_lesson_page_a(entry, theory, ev_map)
-    page_b = render_lesson_page_b(entry, exercises, profile, ev_map)
-
-    slug_subj = re.sub(r'[^\w]+', '-', entry.get("subject", "PHYSICS")).upper()
-    slug_title = re.sub(r'[^\w]+', '-', entry["canonical_title"]).upper()
-    seq_match = re.search(r'-(\d{3})$', lesson_id)
-    seq_str = seq_match.group(1) if seq_match else "001"
-    grade_str = f"G{int(entry.get('grade', 7)):02d}"
-
-    filename_a = f"{grade_str}-{slug_subj}--{seq_str}--{slug_title}.html"
-    filename_b = f"{grade_str}-{slug_subj}--{seq_str}--{slug_title}--EXERCISES.html"
-
-    candidate = {
-        "lesson_id": lesson_id,
-        "candidate_version": candidate_v,
-        "filename_a": filename_a,
-        "filename_b": filename_b,
-        "page_a_html": page_a,
-        "page_b_html": page_b,
-        "evidence_map": ev_map,
-        "theory": theory,
-        "exercises": exercises,
-        "hashes": {
-            "page_a": hashlib.sha256(page_a.encode("utf-8")).hexdigest(),
-            "page_b": hashlib.sha256(page_b.encode("utf-8")).hexdigest(),
-            "evidence": hashlib.sha256(json.dumps(ev_map).encode("utf-8")).hexdigest()
-        }
+        match = re.match(r"(?:EB|G)[-_ ]?0?(\d{1,2})[-_ ]+(.*)", stem, re.I)
+        title = match.group(2) if match else stem
+        grade = match.group(1) if match else grade
+    title = clean_display_title(re.sub(r"[-_ ]+(?:BILINGUAL|FRANCAIS|ENGLISH)$", "", title, flags=re.I))
+    aliases = []
+    if _grade(grade) == "7" and _subject(subject) == "physics" and _norm(title) == _norm("Solids and Liquids"):
+        aliases = ["Solid and liquid states", "Solids and liquids",
+                   "Les états solide et liquide", "Solides et liquides"]
+    if chapter_title:
+        aliases.append(title.replace("-", " "))
+        title = re.sub(r"^\s*\d+\s*[-–.]\s*", "", chapter_title).strip()
+    if _grade(grade) == "9" and _norm(title) == _norm("CONDUCTEURS OHMIQUES"):
+        aliases.extend(["Ohmic Conductors", "Conducteurs ohmiques",
+                        "Ohmic resistor", "Conducteur ohmique"])
+    if _grade(grade) == "9" and _norm(title) == _norm("Lines and Circles"):
+        aliases.extend(["Line and Circle", "Droites et cercles",
+                        "Droite et cercle", "Lines & Circles"])
+    return {
+        "grade": grade, "subject": subject, "lesson": title.replace("-", " "),
+        "aliases": aliases, "drive_file_id": file["id"],
+        "filename": file["name"], "language": ""
     }
 
-    gates_res = run_all_quality_gates(candidate)
-    review_res = independent_scientific_review(entry, candidate)
 
-    path_a = OUT_DIR / filename_a
-    path_b = OUT_DIR / filename_b
-
-    (ARTIFACTS_DIR / f"{lesson_id}_v{candidate_v}_A.html").write_text(page_a, encoding="utf-8")
-    (ARTIFACTS_DIR / f"{lesson_id}_v{candidate_v}_B.html").write_text(page_b, encoding="utf-8")
-
-    path_a.write_text(page_a, encoding="utf-8")
-    path_b.write_text(page_b, encoding="utf-8")
-    progress("LOCAL_ARTIFACTS_COMPILED", file_a=filename_a, file_b=filename_b)
-
-    drive_theory_id = None
-    drive_exercises_id = None
-    status_str = "QA_PASSED_LOCAL"
-    if publish:
-        if drive_service is None:
-            drive_service = get_drive_service()
-        drive_theory_id, drive_exercises_id = promote_candidate(candidate, entry, drive_service)
-        ver_meta["published_version"] = candidate_v
-        ver_meta["drive_theory_id"] = drive_theory_id
-        ver_meta["drive_exercises_id"] = drive_exercises_id
-        ver_meta["history"].append({"action": "PUBLISH", "version": candidate_v, "time": now()})
-        ver_file.write_text(json.dumps(ver_meta, indent=2), encoding="utf-8")
-        status_str = "PUBLISHED_VERIFIED"
-        progress("ATOMIC_PUBLISHED_AND_VERIFIED_TO_DRIVE", theory_id=drive_theory_id, exercises_id=drive_exercises_id)
-
-    rep = {
-        "status": status_str,
-        "lesson_id": lesson_id,
-        "candidate_version": candidate_v,
-        "canonical_title": entry["canonical_title"],
-        "source_book_id": entry["book_id"],
-        "source_pages": f"{entry['pdf_start_page']}..{entry['pdf_end_page']}",
-        "evidence_hash": candidate["hashes"]["evidence"][:16],
-        "activities_count": len(theory["activities"]),
-        "exercises_count": len(exercises),
-        "drive_theory_id": drive_theory_id,
-        "drive_exercises_id": drive_exercises_id,
-        "gates_report": gates_res["gates"],
-        "scientific_review": review_res,
-        "local_files": [str(path_a), str(path_b)]
-    }
-    return rep
+def _owner_entries(service):
+    """Find source HTML in owner root / Grade / Subject / optional Lessons."""
+    root = os.getenv("NABIL_INTERACTIVE_CURRICULUM_ROOT_ID", _OWNER_ROOT).strip()
+    entries = []
+    for grade_folder in _list_children(service, root):
+        if grade_folder.get("mimeType") != "application/vnd.google-apps.folder":
+            continue
+        match = re.search(r"(?:grade|صف)\s*0?(\d{1,2})", grade_folder["name"], re.I)
+        if not match:
+            continue
+        grade = match.group(1)
+        try:
+            children = list(_list_children(service, grade_folder["id"]))
+        except Exception:
+            log.exception("DRIVE_GRADE_FOLDER_UNREADABLE grade=%s", grade)
+            continue
+        for child in children:
+            if child["name"].lower().endswith(".html"):
+                entries.append(_entry(child, grade))
+            elif child.get("mimeType") == "application/vnd.google-apps.folder":
+                subject = child["name"].split("-", 1)[0].strip()
+                try:
+                    subject_files = list(_list_children(service, child["id"]))
+                    for file in subject_files:
+                        if file["name"].lower().endswith(".html"):
+                            entries.append(_entry(file, grade, subject))
+                        elif file.get("mimeType") == "application/vnd.google-apps.folder":
+                            for nested in _list_children(service, file["id"]):
+                                if nested["name"].lower().endswith(".html"):
+                                    entries.append(_entry(nested, grade, subject, file["name"]))
+                except Exception:
+                    log.exception("DRIVE_SUBJECT_FOLDER_UNREADABLE grade=%s subject=%s", grade, subject)
+    return entries
 
 
-# ==============================================================================
-# MAIN ENTRY POINT
-# ==============================================================================
-def main():
-    global PROGRESS_STARTED
-    PROGRESS_STARTED = time.monotonic()
+def _entries():
+    now = monotonic()
+    if now - _CACHE["at"] < _CACHE_SECONDS:
+        return _CACHE["entries"]
+    with _CACHE_LOCK:
+        if monotonic() - _CACHE["at"] < _CACHE_SECONDS:
+            return _CACHE["entries"]
+        service = _service()
+        items = []
+        catalog_id = os.getenv("NABIL_INTERACTIVE_LESSONS_CATALOG_FILE_ID", "").strip()
+        if catalog_id:
+            payload = json.loads(_download(service, catalog_id).decode("utf-8-sig"))
+            items = payload.get("lessons", [])
+            if not isinstance(items, list):
+                raise ValueError("INVALID_LESSON_CATALOG")
 
-    source_code = Path(__file__).read_text(encoding="utf-8")
-    assert_no_lesson_specific_hardcode(source_code)
-    assert_no_markdown_urls_in_runtime_code(source_code)
+        legacy = os.getenv("NABIL_INTERACTIVE_LESSONS_FOLDER_ID", _DEFAULT_FOLDER).strip()
+        try:
+            for file in _list_children(service, legacy):
+                if file["name"].lower().endswith(".html"):
+                    items.append(_entry(file))
+        except Exception:
+            log.exception("DRIVE_LEGACY_LESSON_COLLECTION_UNAVAILABLE folder=%s", legacy)
+        try:
+            owner = _owner_entries(service)
+        except Exception as exc:
+            log.warning("OWNER_CURRICULUM_ROOT_UNAVAILABLE root=%s error=%s",
+                        os.getenv("NABIL_INTERACTIVE_CURRICULUM_ROOT_ID", _OWNER_ROOT),
+                        type(exc).__name__)
+            owner = []
 
-    py_compile.compile(__file__, doraise=True)
+        keyed = {}
+        for x in items:
+            if not isinstance(x, dict) or not x.get("drive_file_id") or not x.get("lesson"):
+                continue
+            key = (_grade(x.get("grade")), _subject(x.get("subject")),
+                   _norm(x.get("lesson")))
+            previous = keyed.get(key)
+            if previous is None or ("BILINGUAL" in str(x.get("filename", "")).upper()
+                                    and "BILINGUAL" not in str(previous.get("filename", "")).upper()):
+                keyed[key] = x
+        for item in owner:
+            keyed[(_grade(item["grade"]), _subject(item["subject"]),
+                   _norm(item["lesson"]))] = item
 
-    parser = argparse.ArgumentParser(description="NABIL AI Universal Production Factory")
-    parser.add_argument("--lesson-id", type=str, default="G07-PHYSICS-001", help="Target canonical lesson ID")
-    parser.add_argument("--publish", action="store_true", help="Publish directly to Google Drive")
-    parser.add_argument("--rollback", type=int, default=None, help="Target version to rollback")
-    args = parser.parse_args()
-
-    if args.rollback is not None:
-        drive_service = get_drive_service()
-        rollback_lesson_drive(drive_service, args.lesson_id, args.rollback)
-        return 0
-
-    execute_preflight_checks(require_drive=args.publish)
-    entry = resolve_canonical_entry(args.lesson_id)
-    
-    drive_service = get_drive_service() if args.publish else None
-
-    report = produce_lesson_for_entry(entry, drive_service=drive_service, publish=args.publish)
-    print(json.dumps(report, ensure_ascii=False, indent=2))
-    return 0
+        entries = list(keyed.values())
+        log.info("DRIVE_LESSON_DISCOVERY entries=%d owner_entries=%d",
+                 len(entries), len(owner))
+        _CACHE.update(at=monotonic(), entries=entries)
+        return entries
 
 
-if __name__ == "__main__":
-    main()
+def _resolve(grade, subject, lesson, language):
+    matches = []
+    for item in _entries():
+        if item.get("grade") and _grade(item["grade"]) != _grade(grade):
+            continue
+        if item.get("subject") and _subject(item["subject"]) != _subject(subject):
+            continue
+        titles = [item["lesson"], clean_display_title(item["lesson"])] + list(item.get("aliases") or [])
+        if _norm(lesson) not in {_norm(title) for title in titles}:
+            continue
+        if language and item.get("language") and not item.get("bilingual") and _norm(language) != _norm(item["language"]):
+            continue
+        matches.append(item)
+    log.info("DRIVE_LESSON_MATCH grade=%r subject=%r lesson=%r language=%r count=%d", grade, subject, lesson, language, len(matches))
+    if len(matches) > 1:
+        bilingual = [x for x in matches if x.get("bilingual") or "BILINGUAL" in str(x.get("filename", "")).upper()]
+        if len(bilingual) == 1:
+            matches = bilingual
+        else:
+            raise HTTPException(409, "Multiple prepared lessons match; specify the language and textbook.")
+    if not matches:
+        raise HTTPException(404, "No prepared interactive lesson in the configured Google Drive collection.")
+    return matches[0]
+
+
+def _inline_drive_images(service, item, markup):
+    """Relative images in Drive HTML do not resolve against the API view URL."""
+    from bs4 import BeautifulSoup
+    from pathlib import PurePosixPath
+    soup = BeautifulSoup(markup, "html.parser")
+    images = [img for img in soup.select("img[src]")
+              if not img["src"].startswith(("data:", "http:", "https:", "/"))]
+    if not images:
+        return markup
+    parents = service.files().get(fileId=item["drive_file_id"],
+                                  fields="parents").execute().get("parents") or []
+    if len(parents) != 1:
+        raise ValueError("LESSON_IMAGE_PARENT_UNAVAILABLE")
+    files = {f["name"]: f for f in _list_children(service, parents[0])}
+    for img in images:
+        name = img["src"].split("?", 1)[0]
+        if PurePosixPath(name).name != name or name not in files:
+            raise ValueError("LESSON_IMAGE_MISSING_" + name)
+        mime = files[name].get("mimeType")
+        if mime not in ("image/png", "image/jpeg", "image/webp", "image/svg+xml"):
+            raise ValueError("LESSON_IMAGE_INVALID_TYPE_" + name)
+        data = _download(service, files[name]["id"])
+        if len(data) > 2_000_000:
+            raise ValueError("LESSON_IMAGE_TOO_LARGE_" + name)
+        img["src"] = "data:" + mime + ";base64," + base64.b64encode(data).decode("ascii")
+    return str(soup)
+
+
+def _set_initial_language(markup, language):
+    """Apply requested language after the lesson initializes its own default."""
+    wanted = "fr" if _norm(language) in {_norm(x) for x in ("fr", "French", "Français")} else "en"
+    if "</body>" not in markup.lower() or "lesson-language" not in markup:
+        return markup
+    js = ('<script>window.addEventListener("load",function(){'
+          'var s=document.getElementById("lesson-language");'
+          'if(s){s.value="' + wanted + '";'
+          's.dispatchEvent(new Event("change",{bubbles:true}));}'
+          '});</script>')
+    return re.sub(r"</body>", lambda m: js + m.group(0), markup, count=1, flags=re.I)
+
+
+@router.post("/solve-on-demand")
+def solve_exercise_on_demand(payload: dict):
+    """Return a source-indexed solution; never fabricate a textbook answer."""
+    lesson_id = str(payload.get("lesson_id") or "").strip()
+    section_type = str(payload.get("section_type") or "EXERCISE").upper()
+    try:
+        number = int(payload.get("exercise_number"))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="INVALID_PAYLOAD")
+    if not re.fullmatch(r"[A-Za-z0-9_-]{3,90}", lesson_id) or section_type not in {"EXERCISE", "PROBLEM"} or not 1 <= number <= 999:
+        raise HTTPException(status_code=400, detail="INVALID_PAYLOAD")
+    from scripts.nabil_lesson_factory import solve_exercise_on_demand_payload
+    try:
+        return solve_exercise_on_demand_payload(lesson_id, section_type, number)
+    except RuntimeError as exc:
+        reason = str(exc).split(":", 1)[0]
+        if reason in {"EXERCISE_NOT_FOUND", "EVIDENCE_NOT_FOUND", "LESSON_NOT_FOUND_IN_CATALOG"}:
+            raise HTTPException(status_code=404, detail=reason)
+        log.exception("ON_DEMAND_SOLUTION_FAILED lesson_id=%s section=%s number=%s",
+                      lesson_id, section_type, number)
+        raise HTTPException(status_code=503, detail="ON_DEMAND_SOLUTION_UNAVAILABLE")
+
+
+
+@router.get("/diagnose")
+def diagnose(grade: str, subject: str, lesson: str, language: str = ""):
+    """Temporary owner-facing, read-only end-to-end trace; no AI calls."""
+    trace = uuid.uuid4().hex[:12]
+    steps = []
+    def step(stage, **details):
+        record = {"step": len(steps)+1, "stage": stage, **details}
+        steps.append(record)
+        log.info("DRIVE_LESSON_DIAGNOSTIC trace=%s step=%s stage=%s details=%s",
+                 trace, record["step"], stage, details)
+    step("REQUEST_RECEIVED", grade=grade, subject=subject, lesson=lesson, language=language)
+    try:
+        step("DRIVE_AUTH_START")
+        service = _service()
+        step("DRIVE_AUTH_OK")
+        folder = os.getenv("NABIL_INTERACTIVE_LESSONS_FOLDER_ID", _DEFAULT_FOLDER).strip()
+        catalog_id = os.getenv("NABIL_INTERACTIVE_LESSONS_CATALOG_FILE_ID", "").strip()
+        step("SOURCE_SELECTED", source="catalog" if catalog_id else "folder",
+             folder=folder if not catalog_id else None)
+        _CACHE["at"] = 0.0
+        items = _entries()
+        step("DRIVE_LIST_OK", count=len(items),
+             filenames=[x.get("filename", x.get("lesson")) for x in items[:30]])
+        matches = []
+        for item in items:
+            if item.get("grade") and _grade(item["grade"]) != _grade(grade):
+                continue
+            if item.get("subject") and _subject(item["subject"]) != _subject(subject):
+                continue
+            if _norm(lesson) not in {_norm(x) for x in [item["lesson"]] + list(item.get("aliases") or [])}:
+                continue
+            if language and item.get("language") and not item.get("bilingual") and _norm(language) != _norm(item["language"]):
+                continue
+            matches.append(item)
+        step("TITLE_MATCH", count=len(matches),
+             filenames=[x.get("filename", x["lesson"]) for x in matches])
+        if not matches:
+            step("NO_PREPARED_LESSON", next="AI_TEXTBOOK_FALLBACK")
+            return {"trace": trace, "found": False, "steps": steps}
+        item = _resolve(grade, subject, lesson, language)
+        step("FILE_SELECTED", filename=item.get("filename", item["lesson"]))
+        data = _download(service, item["drive_file_id"])
+        step("FILE_DOWNLOADED", bytes=len(data))
+        if b"<html" not in data[:4096].lower() and b"<!doctype html" not in data[:4096].lower():
+            raise ValueError("INVALID_PREPARED_LESSON_HTML")
+        step("HTML_VERIFIED", next="DISPLAY_DRIVE_LESSON_WITHOUT_AI")
+        return {"trace": trace, "found": True, "steps": steps}
+    except Exception as exc:
+        step("DIAGNOSTIC_FAILED", error_type=type(exc).__name__,
+             http_status=getattr(getattr(exc, "resp", None), "status", None),
+             next="AI_TEXTBOOK_FALLBACK")
+        log.exception("DRIVE_LESSON_DIAGNOSTIC_FAILED trace=%s", trace)
+        return {"trace": trace, "found": False, "steps": steps}
+
+
+@router.get("/drive-status")
+def drive_status():
+    """Owner-facing check that separates legacy collection from grade folders."""
+    service = _service()
+    root = os.getenv("NABIL_INTERACTIVE_CURRICULUM_ROOT_ID", _OWNER_ROOT).strip()
+    result = {"owner_root": root, "owner_access": False, "grade_folders": [],
+              "owner_lessons": [], "legacy_lessons": []}
+    try:
+        result["grade_folders"] = [x["name"] for x in _list_children(service, root)
+                                   if x.get("mimeType") == "application/vnd.google-apps.folder"]
+        result["owner_lessons"] = [
+            {"grade": x["grade"], "subject": x["subject"], "title": x["lesson"]}
+            for x in _owner_entries(service)]
+        result["owner_access"] = True
+    except Exception as exc:
+        result["owner_error"] = type(exc).__name__
+        log.exception("DRIVE_OWNER_FOLDER_CHECK_FAILED root=%s", root)
+    try:
+        folder = os.getenv("NABIL_INTERACTIVE_LESSONS_FOLDER_ID", _DEFAULT_FOLDER).strip()
+        result["legacy_lessons"] = [x["name"] for x in _list_children(service, folder)
+                                     if x["name"].lower().endswith(".html")]
+    except Exception as exc:
+        result["legacy_error"] = type(exc).__name__
+    return result
+
+
+@router.get("/search")
+def search_prepared(title: str, grade: str = "", subject: str = "", language: str = ""):
+    """Resolve an explicitly named textbook lesson from homepage, without AI."""
+    wanted = re.sub(r"^\s*(?:chapter|chapitre|الفصل|الدرس)\s*\d+\s*[:.\-–]?\s*", "", title, flags=re.I)
+    if len(wanted.strip()) < 4:
+        raise HTTPException(400, "Lesson title required.")
+    matches = []
+    for item in _entries():
+        if grade and _grade(item.get("grade")) != _grade(grade):
+            continue
+        if subject and _subject(item.get("subject")) != _subject(subject):
+            continue
+        if _norm(wanted) not in {_norm(x) for x in [item["lesson"], *(item.get("aliases") or [])]}:
+            continue
+        matches.append(item)
+    unique = {}
+    for item in matches:
+        unique[(_grade(item.get("grade")), _subject(item.get("subject")), _norm(item["lesson"]))] = item
+    if not unique:
+        raise HTTPException(404, "No verified prepared lesson matches this title.")
+    if len(unique) != 1:
+        raise HTTPException(409, "Specify grade and subject to disambiguate the lesson.")
+    item = next(iter(unique.values()))
+    data = _download(_service(), item["drive_file_id"])
+    if b"<html" not in data[:4096].lower() and b"<!doctype html" not in data[:4096].lower():
+        raise HTTPException(422, "Prepared Drive file is not HTML.")
+    qs = ("grade=" + quote(str(item["grade"])) + "&subject=" + quote(str(item["subject"]))
+          + "&lesson=" + quote(item["lesson"]) + "&language=" + quote(language))
+    return {"found": True, "title": clean_display_title(item["lesson"]), "grade": item["grade"],
+            "subject": item["subject"], "url": "/api/interactive-lessons/view?" + qs,
+            "source": "google_drive", "bytes": len(data)}
+
+
+@router.get("/available")
+def available(grade: str, subject: str):
+    """Live prepared lessons for the selected grade/subject; never invent titles."""
+    try:
+        entries = [item for item in _entries()
+                   if _grade(item.get("grade")) == _grade(grade)
+                   and _subject(item.get("subject")) == _subject(subject)]
+        seen = set()
+        lessons = []
+        for item in entries:
+            # حظر ملفات التمارين من القائمة المنسدلة للدروس الأساسية
+            filename = str(item.get("filename", ""))
+            if re.search(r"--EXERCISES\.html$", filename, re.I):
+                continue
+
+            key = _norm(item["lesson"])
+            if key not in seen:
+                seen.add(key)
+                lessons.append({
+                    "title": clean_display_title(item["lesson"]),
+                    "raw_title": item["lesson"],
+                    "aliases": item.get("aliases", []),
+                    "filename": filename
+                })
+        return {"grade": grade, "subject": subject, "lessons": lessons,
+                "source": "google_drive", "count": len(lessons)}
+    except Exception as exc:
+        log.exception("DRIVE_AVAILABLE_FAILED")
+        raise HTTPException(503, detail={"reason": type(exc).__name__})
+
+
+@router.get("/resolve")
+def resolve(grade: str, subject: str, lesson: str, language: str = ""):
+    trace = uuid.uuid4().hex[:12]
+    started = monotonic()
+    log.info("DRIVE_LESSON_LOOKUP_START trace=%s grade=%r subject=%r lesson=%r language=%r",
+             trace, grade, subject, lesson, language)
+    try:
+        item = _resolve(grade, subject, lesson, language)
+        log.info("DRIVE_LESSON_FOUND trace=%s file=%s name=%r",
+                 trace, item["drive_file_id"], item.get("filename", item["lesson"]))
+        html_bytes = _download(_service(), item["drive_file_id"])
+        if b"<html" not in html_bytes[:4096].lower() and b"<!doctype html" not in html_bytes[:4096].lower():
+            raise ValueError("INVALID_PREPARED_LESSON_HTML")
+        log.info("DRIVE_LESSON_READ_OK trace=%s bytes=%d elapsed_ms=%d",
+                 trace, len(html_bytes), round((monotonic()-started)*1000))
+        url = ("/api/interactive-lessons/view?grade=" + quote(grade)
+               + "&subject=" + quote(subject) + "&lesson=" + quote(lesson)
+               + "&language=" + quote(language) + "&trace=" + quote(trace))
+        return {"found": True, "title": clean_display_title(item["lesson"]), "url": url, "trace": trace,
+                "source": "google_drive", "bytes": len(html_bytes)}
+    except HTTPException as exc:
+        log.warning("DRIVE_LESSON_LOOKUP_RESULT trace=%s status=%d reason=%s elapsed_ms=%d",
+                    trace, exc.status_code, exc.detail, round((monotonic()-started)*1000))
+        raise HTTPException(exc.status_code, detail={"trace": trace, "stage": "match",
+                                                     "reason": str(exc.detail)})
+    except Exception as exc:
+        log.exception("DRIVE_LESSON_LOOKUP_FAILED trace=%s stage=connect_list_or_read error_type=%s elapsed_ms=%d",
+                      trace, type(exc).__name__, round((monotonic()-started)*1000))
+        raise HTTPException(503, detail={"trace": trace, "stage": "connect_list_or_read",
+                                         "reason": type(exc).__name__})
+
+
+@router.get("/view", response_class=HTMLResponse)
+def view(grade: str, subject: str, lesson: str, language: str = "", trace: str = "", exercise: int | None = None, page: int | None = None, worksheet: int | None = None):
+    trace = re.sub(r"[^a-zA-Z0-9]", "", trace)[:24] or uuid.uuid4().hex[:12]
+    log.info("DRIVE_LESSON_VIEW_START trace=%s lesson=%r", trace, lesson)
+    try:
+        item = _resolve(grade, subject, lesson, language)
+        service = _service()
+        html = _download(service, item["drive_file_id"]).decode("utf-8-sig")
+        html = _inline_drive_images(service, item, html)
+        if "<html" not in html.lower():
+            raise ValueError("NOT_AN_HTML_LESSON")
+        if _norm(language) in {_norm("Français"), _norm("French"), _norm("fr")}:
+            html = re.sub(r"<body(\s[^>]*)?>", lambda m: m.group(0).replace("<body", '<body class="frmode"') if "class=" not in m.group(0) else re.sub(r'class="([^"]*)"', lambda c: 'class="' + c.group(1) + ' frmode"', m.group(0), count=1), html, count=1, flags=re.I)
+        elif _norm(language) in {_norm("English"), _norm("Anglais"), _norm("en")}:
+            html = re.sub(r'<body([^>]*)class="([^"]*)"', lambda m: '<body' + m.group(1) + 'class="' + re.sub(r"\bfrmode\b", "", m.group(2)).strip() + '"', html, count=1, flags=re.I)
+        html = _set_initial_language(html, language)
+        if "</head>" in html.lower():
+            html = re.sub(r"</head>", '<link rel="stylesheet" href="/static/nabil_lesson_color_cards_v1.css?v=1"></head>', html, count=1, flags=re.I)
+        if (_grade(grade) == "7" and _subject(subject) == "physics"
+                and _norm(item["lesson"]) == _norm("Solids and Liquids")
+                and "</body>" in html.lower()):
+            html = re.sub(
+                r"</body>",
+                '<script src="/static/nabil_g7_physics_lab_v1.js?v=1"></script></body>',
+                html, count=1, flags=re.I,
+            )
+        if exercise is not None or page is not None or worksheet is not None:
+            if sum(x is not None for x in (exercise, page, worksheet)) > 1:
+                raise HTTPException(400, "Specify exercise OR printed book page, not both.")
+            if exercise is not None and not 1 <= exercise <= 999:
+                raise HTTPException(400, "Invalid exercise number.")
+            if page is not None and not 1 <= page <= 9999:
+                raise HTTPException(400, "Invalid printed page.")
+            if worksheet is not None and worksheet != 1:
+                raise HTTPException(400, "Invalid worksheet selection.")
+            if "</body>" in html.lower():
+                html = re.sub(r"</body>", '<script src="/static/nabil_lesson_focus_v1.js?v=1"></script></body>', html, count=1, flags=re.I)
+        if 'id="lesson-language"' in html and "</body>" in html.lower():
+            html = re.sub(r"</body>", '<script src="/static/nabil_lesson_sticky_language_v1.js?v=1"></script><script src="/static/nabil_lesson_teacher_audio_v1.js?v=5"></script></body>', html, count=1, flags=re.I)
+        log.info("DRIVE_LESSON_VIEW_OK trace=%s file=%s bytes=%d", trace, item["drive_file_id"], len(html.encode("utf-8")))
+        return HTMLResponse(html, headers={
+            "Cache-Control": "private, no-store",
+            "Content-Security-Policy": "default-src 'self' data: blob: https:; script-src 'unsafe-inline' 'self' https:; style-src 'unsafe-inline' 'self' https:; frame-ancestors 'self'",
+        })
+    except HTTPException as exc:
+        log.warning("DRIVE_LESSON_VIEW_FAILED trace=%s status=%d", trace, exc.status_code)
+        raise
+    except Exception as exc:
+        log.exception("DRIVE_LESSON_VIEW_FAILED trace=%s error_type=%s", trace, type(exc).__name__)
+        raise HTTPException(503, detail={"trace": trace, "stage": "view", "reason": type(exc).__name__}) from exc
