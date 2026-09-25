@@ -404,7 +404,9 @@ def remote_checkpoint(service, root_id: str, book_id: str, data: dict | None = N
 
 def run(book_id: str, *, index_only: bool, publish: bool,
         grade: str = "", subject: str = "", language: str = "",
-        branch: str = "") -> dict:
+        branch: str = "", max_new_lessons: int = 0) -> dict:
+    if max_new_lessons < 0:
+        raise RuntimeError("MAX_NEW_LESSONS_INVALID: must be zero or positive")
     import fitz
     factory.PROGRESS_STARTED=time.monotonic()
     service=factory.get_drive_service()
@@ -456,6 +458,7 @@ def run(book_id: str, *, index_only: bool, publish: bool,
         raise RuntimeError("CHECKPOINT_INDEX_MISMATCH")
     remote_checkpoint(service,root,book_id,state)
     done=0
+    newly_published=0
     for entry in index["lessons"]:
         lid=entry["lesson_id"]
         old=state["lessons"].get(lid,{})
@@ -495,7 +498,18 @@ def run(book_id: str, *, index_only: bool, publish: bool,
                 "completed_at":datetime.now(timezone.utc).isoformat()}
             remote_checkpoint(service,root,book_id,state)
             done+=1
-            announce("LESSON_PUBLISHED",lesson_id=lid,done=done,total=len(index["lessons"]))
+            newly_published+=1
+            announce("LESSON_PUBLISHED",lesson_id=lid,done=done,total=len(index["lessons"]),
+                     drive_theory_id=report["drive_theory_id"],
+                     drive_exercises_id=report["drive_exercises_id"])
+            if max_new_lessons and newly_published >= max_new_lessons:
+                state["status"] = "FIRST_LESSON_PUBLISHED_VERIFIED" if max_new_lessons == 1 else "PARTIAL_PRODUCTION_VERIFIED"
+                remote_checkpoint(service, root, book_id, state)
+                announce("PILOT_STOP_AFTER_VERIFIED_UPLOAD",
+                         lesson_id=lid, new_lessons=newly_published,
+                         drive_theory_id=report["drive_theory_id"],
+                         drive_exercises_id=report["drive_exercises_id"])
+                return state
         except Exception as exc:
             state["lessons"][lid]={"status":"BLOCKED","error":str(exc)[:1200],
                                   "blocked_at":datetime.now(timezone.utc).isoformat()}
@@ -587,11 +601,19 @@ def main():
     ap.add_argument("--language",default="",help="Required for new books: en/fr")
     ap.add_argument("--branch",default="",help="Optional secondary stream")
     ap.add_argument("--index-only",action="store_true",help="Inspect and persist true source TOC without generating or uploading lessons")
+    ap.add_argument("--max-new-lessons",type=int,default=0,
+                    help="Stop after exactly N newly published verified lessons (1 for first-lesson pilot; 0 full book)")
     ap.add_argument("--watch",action="store_true",help="Continuously scan intake folder for newly uploaded PDF books")
     ap.add_argument("--poll-seconds",type=int,default=300,help="Folder watch interval (minimum 60s)")
     args=ap.parse_args()
     if args.watch and not args.source_folder_id:
         ap.error("--watch requires --source-folder-id")
+    if args.max_new_lessons < 0:
+        ap.error("--max-new-lessons cannot be negative")
+    if args.source_folder_id and args.max_new_lessons:
+        ap.error("--max-new-lessons requires --book-id, not --source-folder-id")
+    if args.index_only and args.max_new_lessons:
+        ap.error("--index-only cannot generate lessons")
     if args.source_folder_id:
         result=run_folder(args.source_folder_id,index_only=args.index_only,
                           grade=args.grade,subject=args.subject,
@@ -600,7 +622,8 @@ def main():
     else:
         result=run(args.book_id,index_only=args.index_only,publish=not args.index_only,
                    grade=args.grade,subject=args.subject,
-                   language=args.language,branch=args.branch)
+                   language=args.language,branch=args.branch,
+                   max_new_lessons=args.max_new_lessons)
     announce("FINAL_STATUS",status=result["status"])
 
 if __name__=="__main__":
