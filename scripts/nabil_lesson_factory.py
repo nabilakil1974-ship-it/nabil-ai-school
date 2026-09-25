@@ -862,11 +862,11 @@ def build_evidence_map(doc, entry: dict) -> dict:
         raise RuntimeError("EVIDENCE_EXTRACTION_INCOMPLETE: No verifiable concepts or activities found within source page range.")
 
     exercises = []
-    ex_pattern = re.compile(r'(?:^|\n)\\s*(?:(Problem|Exercise|Problème|Exercice|تمرين|مسألة)\\s*)?(\\d+)[\\.\\-\\)]\\s+([^\\n]+(?:\\n(?!\\s*(?:(?:Problem|Exercise|Problème|Exercice|تمرين|مسألة)\\s*)?\\d+[\\.\\-\\)]\\s+)[^\\n]+)*)', re.I)
+    ex_pattern = re.compile(r'(?:^|\n)\s*(?:(Problem|Exercise|Problème|Exercice|تمرين|مسألة)\s*)?(\d+)[\.\-\)]\s+([^\n]+(?:\n(?!\s*(?:(?:Problem|Exercise|Problème|Exercice|تمرين|مسألة)\s*)?\d+[\.\-\)]\s+)[^\n]+)*)', re.I)
     exercise_section_seen = False
     for p in pages_evidence:
         page_num = p["page_num"]
-        if re.search(r"(?i)\b(exercises|problems|exercices|problèmes)\\b|تمارين|مسائل", p["text"]):
+        if re.search(r"(?i)\b(exercises|problems|exercices|problèmes)\b|تمارين|مسائل", p["text"]):
             exercise_section_seen = True
         source_page = doc[page_num - 1]
         scanned = any(
