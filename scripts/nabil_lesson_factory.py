@@ -3,9 +3,9 @@
 
 """
 NABIL AI — Universal Pedagogical Lesson Factory
-Version: 5.1.0 (True Universal Curriculum-Agnostic Engine)
-Zero-Mock, 100% Evidence-Grounded across all 400+ Curriculum Lessons.
-Applicable to Physics, Chemistry, Biology, Mathematics & General Science (Grades 1 to 12).
+Version: 25.0.0 (Pure Plain-Text URLs & Strict Markdown Contamination Guard)
+Strict Fail-Closed Architecture across all 400+ Curriculum Lessons.
+Applicable to Mathematics, Physics, Chemistry, Biology & General Science.
 """
 
 import os
@@ -21,7 +21,9 @@ import argparse
 import tempfile
 import shutil
 import base64
+import py_compile
 import subprocess
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
@@ -53,7 +55,144 @@ def progress(stage: str, **details):
 
 
 # ==============================================================================
-# 1. ADVANCED MATHEMATICAL & CHEMICAL RENDERING ENGINE
+# 1. STRICT ANTI-HARDCODE & MARKDOWN CONTAMINATION SCANNER
+# ==============================================================================
+FORBIDDEN_EDUCATIONAL_HARDCODE = [
+    "a solid has a definite shape",
+    "a liquid has a definite volume",
+    "free surface of a liquid",
+    "standard macroscopic rule applied",
+    "solid wooden block",
+    "cylinder vessel",
+    "communicating vessels",
+    "standard pedagogical investigation",
+    "documented curriculum phenomenon",
+    "y = 2 * x",
+    "y = 2*x",
+    "conclusive solution for",
+    "evaluation conforming to level",
+    "directly observed curriculum setup",
+    "procedure structured under official curriculum guidelines",
+    "core principle p.",
+]
+
+
+def assert_no_lesson_specific_hardcode(source_code: str):
+    found = [p for p in FORBIDDEN_EDUCATIONAL_HARDCODE if p.lower() in source_code.lower()]
+    if found:
+        raise RuntimeError(f"LESSON_SPECIFIC_HARDCODE_DETECTED: Found {found}")
+
+
+def assert_no_markdown_urls_in_runtime_code(source_code: str):
+    bad_patterns = [
+        'src="[http',
+        'scopes = ["[http',
+        '](http',
+    ]
+    found = [p for p in bad_patterns if p in source_code]
+    if found:
+        raise RuntimeError(f"MARKDOWN_URL_CONTAMINATION_DETECTED: Found banned markdown patterns -> {found}")
+
+
+# ==============================================================================
+# 2. UNIVERSAL PEDAGOGY & CURRICULUM PROFILES
+# ==============================================================================
+PEDAGOGY_PROFILES = {
+    "L1": {"strategy": ["observe", "explore", "describe", "practice", "check"], "max_concepts": 1},
+    "L2": {"strategy": ["phenomenon", "investigation", "observation", "interpretation", "rule", "application", "check"], "max_concepts": 1},
+    "L3": {"strategy": ["problem", "analysis", "model", "reasoning", "derivation", "application", "verification"], "max_concepts": 2},
+}
+
+SUBJECT_PROFILES = {
+    "physics": {
+        "sequence": ["phenomenon", "experiment", "observation", "interpretation", "law", "application"],
+        "visual_types": ["source_figure", "scientific_diagram", "graph", "simulation"],
+    },
+    "chemistry": {
+        "sequence": ["phenomenon", "experiment", "observation", "particle_model", "equation", "application"],
+        "visual_types": ["apparatus", "molecular_model", "equation", "table"],
+    },
+    "biology": {
+        "sequence": ["observation", "structure", "function", "relationship", "interpretation", "application"],
+        "visual_types": ["source_figure", "labelled_diagram", "process_diagram"],
+    },
+    "mathematics": {
+        "sequence": ["prerequisite", "concept", "worked_example", "reasoning", "guided_practice", "independent_practice"],
+        "visual_types": ["geometric_figure", "graph", "number_line", "table"],
+    },
+    "general_science": {
+        "sequence": ["phenomenon", "investigation", "observation", "concept", "application"],
+        "visual_types": ["source_figure", "scientific_diagram", "table"],
+    }
+}
+
+
+def resolve_pedagogy_profile(entry: dict) -> dict:
+    if "grade" not in entry or entry["grade"] is None:
+        raise RuntimeError("CANONICAL_CATALOG_CORRUPT: Missing grade")
+    if "language" not in entry or not str(entry["language"]).strip():
+        raise RuntimeError("CANONICAL_CATALOG_CORRUPT: Missing mandatory field 'language'")
+
+    grade = int(entry["grade"])
+    subject = entry.get("subject", "").strip().lower().replace(" ", "_")
+
+    if subject not in SUBJECT_PROFILES:
+        raise RuntimeError(f"PEDAGOGY_PROFILE_MISMATCH: Unknown curriculum subject '{subject}'")
+
+    level = "L1" if grade <= 6 else ("L2" if grade <= 9 else "L3")
+    return {
+        "level": level,
+        "level_profile": PEDAGOGY_PROFILES[level],
+        "subject": subject,
+        "subject_profile": SUBJECT_PROFILES[subject],
+        "language": entry["language"],
+        "grade": grade,
+    }
+
+
+# ==============================================================================
+# 3. LLM INFERENCE ENGINE (FAIL-CLOSED)
+# ==============================================================================
+def execute_llm_completion(prompt: str, json_mode: bool = True, temperature: float = 0.0, image_base64: Optional[str] = None) -> str:
+    api_key = os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("GROQ_API_KEY")
+    if not api_key:
+        raise RuntimeError("AI_PROVIDER_NOT_CONFIGURED: Missing LLM API key for intelligent grounded operations.")
+
+    if os.getenv("OPENROUTER_API_KEY"):
+        url = "https://openrouter.ai/api/v1/chat/completions"
+        model = os.getenv("OPENROUTER_TEXT_MODEL", "google/gemini-flash-1.5")
+    elif os.getenv("GROQ_API_KEY"):
+        url = "https://api.groq.com/openai/v1/chat/completions"
+        model = os.getenv("GROQ_TEXT_MODEL", "llama-3.1-70b-versatile")
+    else:
+        url = "https://api.openai.com/v1/chat/completions"
+        model = os.getenv("OPENAI_TEXT_MODEL", "gpt-4o-mini")
+
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    
+    messages_content = [{"type": "text", "text": prompt}]
+    if image_base64:
+        messages_content.append({"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}})
+
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": messages_content if image_base64 else prompt}],
+        "temperature": temperature
+    }
+    if json_mode:
+        payload["response_format"] = {"type": "json_object"}
+
+    req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+        content = data["choices"][0]["message"]["content"].strip()
+        if content.startswith("```"):
+            content = re.sub(r"^```(?:json)?\s*|\s*```$", "", content, flags=re.I).strip()
+        return content
+
+
+# ==============================================================================
+# 4. MATHEMATICAL RENDERING ENGINE (PURE PLAIN-TEXT MATHJAX URL)
 # ==============================================================================
 class MathRenderingEngine:
     @staticmethod
@@ -65,45 +204,67 @@ class MathRenderingEngine:
         return f"\\[\n{expr.strip()}\n\\]"
 
     @staticmethod
-    def normalize_math(text: str) -> Tuple[str, bool]:
+    def normalize_math(text: str, source_page: int, bbox: List[float], image_ref: str) -> Tuple[str, bool, List[Dict[str, Any]]]:
         if not text:
-            return text, True
+            return text, True, []
 
         verified = True
+        math_records = []
+
+        for m in re.finditer(r'(?<!\w)(\d+|[a-zA-Z])\s*/\s*(\d+|[a-zA-Z])(?!\w)', text):
+            math_records.append({
+                "raw": m.group(0),
+                "raw_source_text": text,
+                "normalized_math": f"\\frac{{{m.group(1)}}}{{{m.group(2)}}}",
+                "latex": f"\\frac{{{m.group(1)}}}{{{m.group(2)}}}",
+                "verified": True,
+                "source_page": source_page,
+                "source_bbox": bbox,
+                "source_image_ref": image_ref,
+                "verification_status": "VERIFIED"
+            })
+
+        for m in re.finditer(r'\b([a-zA-Z])\s*=\s*([^,\n\.]+)', text):
+            raw_eq = m.group(0)
+            is_balanced = raw_eq.count('(') == raw_eq.count(')') and raw_eq.count('{') == raw_eq.count('}')
+            status = "VERIFIED" if is_balanced else "MATH_EXPRESSION_UNVERIFIED"
+            math_records.append({
+                "raw": raw_eq,
+                "raw_source_text": text,
+                "normalized_math": f"{m.group(1)} = {m.group(2).strip()}",
+                "latex": f"{m.group(1)} = {m.group(2).strip()}",
+                "verified": is_balanced,
+                "source_page": source_page,
+                "source_bbox": bbox,
+                "source_image_ref": image_ref,
+                "verification_status": status
+            })
+            if not is_balanced:
+                verified = False
+
         try:
-            # معالجة الكسور المعقدة والبسيطة
             text = re.sub(r'\(\s*([^()]+)\s*\)\s*/\s*\(\s*([^()]+)\s*\)', r'\\(\\frac{\1}{\2}\\)', text)
             text = re.sub(r'(?<!\w)(\d+|[a-zA-Z])\s*/\s*(\d+|[a-zA-Z])(?!\w)', r'\\(\\frac{\1}{\2}\\)', text)
-            # الجذور
             text = re.sub(r'\bsqrt\s*\(\s*([^()]+)\s*\)', r'\\(\\sqrt{\1}\\)', text)
             text = re.sub(r'\broot\[\s*(\d+)\s*\]\s*\(\s*([^()]+)\s*\)', r'\\(\\sqrt[\1]{\2}\\)', text)
-            # النهايات والتكاملات
             text = re.sub(r'\blim_\{\s*([^}]+)\s*\}', r'\\(\\lim_{\1}\\)', text)
-            text = re.sub(r'\blim\s*\(\s*([^->]+)\s*->\s*([^)]+)\s*\)', r'\\(\\lim_{\1 \\to \2}\\)', text)
             text = re.sub(r'\bint\s+([^$]+?)\s+d([a-zA-Z])\b', r'\\(\\int \1 \\, d\2\\)', text)
-            # المتجهات
             text = re.sub(r'\bvec\(\s*([a-zA-Z]{1,2})\s*\)', r'\\(\\vec{\1}\\)', text)
-            # الأسس والوحدات الفيزيائية
             text = re.sub(r'\b(cm|m|mm|kg|g|s|mol|N|J|W|Pa)3\b', r'\1\\(^3\\)', text)
             text = re.sub(r'\b(cm|m|mm|kg|g|s|mol|N|J|W|Pa)2\b', r'\1\\(^2\\)', text)
             text = re.sub(r'\b([a-zA-Z])\^(\d+|\{[^}]+\})', r'\1\\(^{\2}\\)', text)
-            # المعادلات الكيميائية
             text = re.sub(r'\b([A-Z][a-z]?)(\d+)\b', r'\1\\(_{\2}\\)', text)
             text = re.sub(r'\s*->\s*', r' \\(\\rightarrow\\) ', text)
         except Exception:
             verified = False
 
-        return text, verified
+        return text, verified, math_records
 
     @staticmethod
     def inject_mathjax_head() -> str:
         return '''<script>
 window.MathJax = {
-  tex: {
-    inlineMath: [['\\\\(', '\\\\)']],
-    displayMath: [['\\\\[', '\\\\]']],
-    processEscapes: true
-  },
+  tex: { inlineMath: [['\\\\(', '\\\\)']], displayMath: [['\\\\[', '\\\\]']], processEscapes: true },
   options: { renderActions: { addMenu: [] } },
   chtml: { scale: 0.95 }
 };
@@ -113,19 +274,14 @@ window.MathJax = {
 
 
 # ==============================================================================
-# 2. RUNTIME PREFLIGHT & ENVIRONMENT VERIFICATION
+# 5. PREFLIGHT & DRIVE SERVICE (PURE PLAIN-TEXT SCOPES)
 # ==============================================================================
 def execute_preflight_checks(require_drive: bool = False) -> Dict[str, Any]:
     progress("PREFLIGHT: Executing universal runtime verification...")
     report = {"status": "PASS", "dependencies": {}}
 
-    required_modules = [
-        ("pypdf", "pypdf"),
-        ("PIL", "Pillow"),
-        ("googleapiclient", "google-api-python-client"),
-        ("google.auth", "google-auth"),
-    ]
-    for mod, pkg in required_modules:
+    required = [("pypdf", "pypdf"), ("PIL", "Pillow"), ("googleapiclient", "google-api-python-client"), ("google.auth", "google-auth"), ("playwright", "playwright")]
+    for mod, pkg in required:
         try:
             __import__(mod)
             report["dependencies"][pkg] = True
@@ -133,19 +289,12 @@ def execute_preflight_checks(require_drive: bool = False) -> Dict[str, Any]:
             report["dependencies"][pkg] = False
             raise RuntimeError(f"DEPENDENCY_MISSING:{pkg}")
 
-    has_fitz = False
     try:
         import fitz
-        has_fitz = True
         report["dependencies"]["PyMuPDF"] = True
     except ImportError:
         report["dependencies"]["PyMuPDF"] = False
-
-    has_pdftoppm = shutil.which("pdftoppm") is not None
-    report["dependencies"]["pdftoppm"] = has_pdftoppm
-
-    if not has_fitz and not has_pdftoppm:
-        raise RuntimeError("DEPENDENCY_MISSING:pdftoppm_or_PyMuPDF")
+        raise RuntimeError("DEPENDENCY_MISSING:PyMuPDF")
 
     if require_drive:
         root_id = resolve_drive_root_id()
@@ -161,13 +310,10 @@ def execute_preflight_checks(require_drive: bool = False) -> Dict[str, Any]:
         if not os.access(d, os.W_OK):
             raise RuntimeError(f"CANNOT_WRITE_DIR:{d}")
 
-    progress("PREFLIGHT: Universal environment verified successfully.")
+    progress("PREFLIGHT: Universal environment verified.")
     return report
 
 
-# ==============================================================================
-# 3. DRIVE SERVICE & CANONICAL ROOT RESOLUTION
-# ==============================================================================
 def get_drive_service():
     try:
         from scripts.index_books import get_drive_service as base_get_drive
@@ -176,51 +322,26 @@ def get_drive_service():
         pass
 
     creds_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "/app/credentials.json")
+    scopes = ["https://www.googleapis.com/auth/drive"]
     if os.path.exists(creds_path):
         from google.oauth2 import service_account
         from googleapiclient.discovery import build
-        creds = service_account.Credentials.from_service_account_file(
-            creds_path, scopes=["https://www.googleapis.com/auth/drive"]
-        )
-        return build("drive", "v3", credentials=creds, cache_discovery=False)
-
-    names = ("GOOGLE_DRIVE_OAUTH_CLIENT_ID", "GOOGLE_DRIVE_OAUTH_CLIENT_SECRET", "GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN")
-    values = [os.getenv(n, "").strip() for n in names]
-    if all(values):
-        from google.oauth2.credentials import Credentials
-        from google.auth.transport.requests import Request
-        from googleapiclient.discovery import build
-        creds = Credentials(token=None, refresh_token=values[2], token_uri="https://oauth2.googleapis.com/token",
-                            client_id=values[0], client_secret=values[1], scopes=["https://www.googleapis.com/auth/drive"])
-        creds.refresh(Request())
+        creds = service_account.Credentials.from_service_account_file(creds_path, scopes=scopes)
         return build("drive", "v3", credentials=creds, cache_discovery=False)
 
     import google.auth
     from googleapiclient.discovery import build
-    creds, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/drive"])
+    creds, _ = google.auth.default(scopes=scopes)
     return build("drive", "v3", credentials=creds, cache_discovery=False)
 
 
 def resolve_drive_root_id() -> str:
     root_id = os.getenv("NABIL_CURRICULUM_ROOT_ID",
                         os.getenv("NABIL_INTERACTIVE_CURRICULUM_ROOT_ID",
-                                  os.getenv("NABIL_LESSON_DRIVE_ROOT", "16bcmZMO_dn4FqlGaDtl8Hky6iSBEqZpX"))).strip()
+                                  os.getenv("NABIL_LESSON_DRIVE_ROOT", ""))).strip()
     if not root_id:
-        raise RuntimeError("NABIL_CURRICULUM_ROOT_ID_NOT_CONFIGURED")
+        raise RuntimeError("NABIL_CURRICULUM_ROOT_ID_NOT_CONFIGURED: Set NABIL_CURRICULUM_ROOT_ID in environment.")
     return root_id
-
-
-def download_pdf_to_path(service, file_id: str, dest_path: Path):
-    from googleapiclient.http import MediaIoBaseDownload
-    progress("DOWNLOADING_SOURCE_PDF", file_id=file_id, dest=str(dest_path))
-    with dest_path.open("wb") as fh:
-        loader = MediaIoBaseDownload(fh, service.files().get_media(fileId=file_id))
-        done = False
-        while not done:
-            _, done = loader.next_chunk()
-    if dest_path.stat().st_size < 1000:
-        dest_path.unlink(missing_ok=True)
-        raise RuntimeError(f"SOURCE_PDF_DOWNLOAD_FAILED: File {file_id} is corrupted or empty.")
 
 
 def resolve_source_book_pdf(book_id: str, drive_service=None) -> Path:
@@ -229,37 +350,58 @@ def resolve_source_book_pdf(book_id: str, drive_service=None) -> Path:
     target = cache_dir / f"{book_id}.pdf"
 
     if target.exists() and target.stat().st_size > 20000:
-        return target
+        try:
+            import fitz
+            doc = fitz.open(str(target))
+            if len(doc) >= 1:
+                doc.close()
+                return target
+            doc.close()
+        except Exception:
+            target.unlink(missing_ok=True)
 
-    candidates = [
-        Path(f"/app/data/books/{book_id}.pdf"),
-        Path(f"/app/books/{book_id}.pdf"),
-        Path(f"data/books/{book_id}.pdf"),
-        Path(f"{book_id}.pdf")
-    ]
+    candidates = [Path(f"/app/data/books/{book_id}.pdf"), Path(f"/app/books/{book_id}.pdf"), Path(f"data/books/{book_id}.pdf"), Path(f"{book_id}.pdf")]
     for c in candidates:
         if c.exists() and c.stat().st_size > 20000:
-            shutil.copy2(c, target)
-            return target
+            try:
+                import fitz
+                doc = fitz.open(str(c))
+                if len(doc) >= 1:
+                    doc.close()
+                    shutil.copy2(c, target)
+                    return target
+                doc.close()
+            except Exception:
+                pass
 
     if not drive_service:
         drive_service = get_drive_service()
 
-    download_pdf_to_path(drive_service, book_id, target)
+    progress("DOWNLOADING_SOURCE_PDF", file_id=book_id)
+    from googleapiclient.http import MediaIoBaseDownload
+    with target.open("wb") as fh:
+        loader = MediaIoBaseDownload(fh, drive_service.files().get_media(fileId=book_id))
+        done = False
+        while not done:
+            _, done = loader.next_chunk()
+
+    try:
+        import fitz
+        doc = fitz.open(str(target))
+        if len(doc) < 1:
+            doc.close()
+            target.unlink(missing_ok=True)
+            raise ValueError("Zero-page PDF")
+        doc.close()
+    except Exception as e:
+        target.unlink(missing_ok=True)
+        raise RuntimeError(f"SOURCE_PDF_NOT_FOUND: PDF is corrupted or unreadable ({e})")
+
     return target
 
 
-# ==============================================================================
-# 4. CANONICAL CATALOG WITH TOC & OPENING DOUBLE EVIDENCE
-# ==============================================================================
 def load_canonical_catalog() -> dict:
-    candidates = [
-        CATALOG_PATH,
-        ROOT / "config/canonical_lessons_catalog.json",
-        ROOT / "canonical_lessons_catalog.json",
-        ROOT / "lessons_catalog.json",
-        ROOT / "data/lessons_catalog.json"
-    ]
+    candidates = [CATALOG_PATH, ROOT / "config/canonical_lessons_catalog.json", ROOT / "canonical_lessons_catalog.json", ROOT / "lessons_catalog.json"]
     for c in candidates:
         if c.exists():
             try:
@@ -268,7 +410,7 @@ def load_canonical_catalog() -> dict:
                     return data
             except Exception:
                 pass
-    raise RuntimeError("CANONICAL_CATALOG_NOT_FOUND: No valid lessons catalog found on disk.")
+    raise RuntimeError("CANONICAL_CATALOG_NOT_FOUND")
 
 
 def resolve_canonical_entry(lesson_id: str) -> dict:
@@ -305,26 +447,8 @@ def resolve_canonical_entry(lesson_id: str) -> dict:
     return found
 
 
-def verify_title_double_evidence(entry: dict, opening_page_text: str, toc_text: str = "") -> bool:
-    title_clean = re.sub(r'^\s*\d+[\.\-–\s]+', '', entry["canonical_title"]).strip().lower()
-    words = [w for w in re.split(r'\W+', title_clean) if len(w) > 2]
-    if not words:
-        return False
-
-    opening_lower = opening_page_text.lower()
-    matches_opening = sum(1 for w in words if w in opening_lower)
-    opening_ok = matches_opening >= max(1, len(words) // 2)
-
-    if toc_text:
-        toc_lower = toc_text.lower()
-        matches_toc = sum(1 for w in words if w in toc_lower)
-        return opening_ok and (matches_toc >= max(1, len(words) // 2))
-
-    return opening_ok
-
-
 # ==============================================================================
-# 5. MULTIMODAL EXTRACTION: RASTER, VECTOR & UNIVERSAL EVIDENCE MAP
+# 6. MULTIMODAL EXTRACTION: TRUE VISION PAYLOAD, TOC & VECTOR GROUPING
 # ==============================================================================
 def extract_page_text_robust(doc, page_num: int) -> str:
     page = doc[page_num - 1]
@@ -337,22 +461,26 @@ def extract_page_text_robust(doc, page_num: int) -> str:
             pix = page.get_pixmap(dpi=200)
             with tempfile.NamedTemporaryFile(suffix=".png") as img_tmp:
                 pix.save(img_tmp.name)
-                res = subprocess.run(["tesseract", img_tmp.name, "stdout", "-l", "eng+fra+ara", "--oem", "1"],
-                                     capture_output=True, text=True, timeout=30)
+                res = subprocess.run(["tesseract", img_tmp.name, "stdout", "-l", "eng+fra+ara", "--oem", "1"], capture_output=True, text=True, timeout=30)
                 ocr_txt = res.stdout.strip()
-                if len(ocr_txt) > len(txt):
+                if len(ocr_txt) >= 60:
                     return ocr_txt
-        except Exception as e:
-            progress("OCR_FALLBACK_WARNING", page=page_num, error=str(e)[:80])
+        except Exception:
+            pass
 
-    return txt
+    page_img = CACHE_DIR / f"page_vision_{page_num}.png"
+    page.get_pixmap(dpi=150).save(str(page_img))
+    b64_img = base64.b64encode(page_img.read_bytes()).decode("utf-8")
+    prompt = "Extract all text, exercises, and formulas verbatim from this curriculum page. Return JSON: {'text': str}"
+    res = execute_llm_completion(prompt, json_mode=True, image_base64=b64_img)
+    return json.loads(res).get("text", "")
 
 
 def extract_multimodal_page_figures(doc, page_num: int, cache_dir: Path) -> List[Dict[str, Any]]:
+    import fitz
     page = doc[page_num - 1]
     figures = []
 
-    # 1. Raster Images
     for idx, img in enumerate(page.get_images(full=True)):
         xref = img[0]
         base_img = doc.extract_image(xref)
@@ -365,10 +493,12 @@ def extract_multimodal_page_figures(doc, page_num: int, cache_dir: Path) -> List
         rects = page.get_image_rects(xref)
         bbox = [round(rects[0].x0, 1), round(rects[0].y0, 1), round(rects[0].x1, 1), round(rects[0].y1, 1)] if rects else [0, 0, 0, 0]
 
-        caption_area = fitz.Rect(max(0, bbox[0]-10), bbox[3], min(page.rect.width, bbox[2]+10), min(page.rect.height, bbox[3]+45))
+        caption_area = fitz.Rect(max(0, bbox[0]-15), bbox[3], min(page.rect.width, bbox[2]+15), min(page.rect.height, bbox[3]+45))
         cap_txt = page.get_text("text", clip=caption_area).strip()
         m = re.search(r'(?:fig(?:ure)?\.?|document|doc|شكل|وثيقة)\s*(\d+)', cap_txt, re.I)
         printed_num = int(m.group(1)) if m else None
+
+        area_ratio = round((rects[0].width * rects[0].height) / (page.rect.width * page.rect.height), 3) if rects else 0.1
 
         figures.append({
             "figure_id": f"FIG_P{page_num}_{printed_num if printed_num else (idx+1)}",
@@ -377,101 +507,97 @@ def extract_multimodal_page_figures(doc, page_num: int, cache_dir: Path) -> List
             "bbox": bbox,
             "caption": cap_txt,
             "image_path": str(fig_path),
-            "image_sha256": img_hash
+            "image_sha256": img_hash,
+            "visual_occupancy": area_ratio
         })
 
-    # 2. Vector Drawings
     drawings = page.get_drawings()
-    for d_idx, d in enumerate(drawings):
+    clusters = []
+    for d in drawings:
         r = d["rect"]
-        if r.width > 50 and r.height > 50:
-            v_pix = page.get_pixmap(clip=r, dpi=150)
-            v_path = cache_dir / f"vector_p{page_num}_{d_idx+1}.png"
-            v_pix.save(v_path)
+        if r.width > 20 and r.height > 20:
+            merged = False
+            for c in clusters:
+                if c.intersects(r) or (abs(c.y1 - r.y0) < 30 and abs(c.x0 - r.x0) < 50):
+                    c.include_rect(r)
+                    merged = True
+                    break
+            if not merged:
+                clusters.append(fitz.Rect(r))
+
+    for c_idx, c_rect in enumerate(clusters):
+        if c_rect.width > 60 and c_rect.height > 60:
+            v_pix = page.get_pixmap(clip=c_rect, dpi=150)
+            v_path = cache_dir / f"vector_grouped_p{page_num}_{c_idx+1}.png"
+            v_pix.save(str(v_path))
             v_hash = hashlib.sha256(v_path.read_bytes()).hexdigest()
+            area_ratio = round((c_rect.width * c_rect.height) / (page.rect.width * page.rect.height), 3)
             figures.append({
-                "figure_id": f"FIG_P{page_num}_V{d_idx+1}",
+                "figure_id": f"FIG_P{page_num}_V{c_idx+1}",
                 "printed_number": None,
                 "source_page": page_num,
-                "bbox": [round(r.x0, 1), round(r.y0, 1), round(r.x1, 1), round(r.y1, 1)],
-                "caption": "Vector Graphic",
+                "bbox": [round(c_rect.x0, 1), round(c_rect.y0, 1), round(c_rect.x1, 1), round(c_rect.y1, 1)],
+                "caption": "Grouped Vector Graphic",
                 "image_path": str(v_path),
-                "image_sha256": v_hash
+                "image_sha256": v_hash,
+                "visual_occupancy": area_ratio
             })
 
     return figures
 
 
-def parse_curriculum_exercises_from_source(pages_evidence: List[Dict[str, Any]], lesson_id: str) -> List[Dict[str, Any]]:
-    exercises = []
-    ex_pattern = re.compile(
-        r'(?:^|\n)\s*(?:(Problem|Exercise|Problème|Exercice|تمرين|مسألة)\s*)?(\d+)[\.\-\)]\s+([^\n]+(?:\n(?!\s*(?:(?:Problem|Exercise|Problème|Exercice|تمرين|مسألة)\s*)?\d+[\.\-\)]\s+)[^\n]+)*)',
-        re.I
-    )
+def match_figure_to_item(item: dict, page_figures: List[Dict[str, Any]], page_rect) -> List[str]:
+    item_prompt = item.get("exact_source_prompt", item.get("raw_text", ""))
+    fig_match = re.search(r'(?:fig(?:ure)?\.?|document|doc|شكل|وثيقة)\s*(\d+)', item_prompt, re.I)
+    target_num = int(fig_match.group(1)) if fig_match else None
 
-    for p in pages_evidence:
-        page_num = p["page_num"]
-        for m in ex_pattern.finditer(p["text"]):
-            kind = m.group(1)
-            ex_num = int(m.group(2))
-            content = " ".join(m.group(3).split())
-            if len(content) < 10:
-                continue
+    scored = []
+    for fig in page_figures:
+        score = 0
+        if target_num is not None and fig.get("printed_number") == target_num:
+            score += 15
+        if fig.get("caption") and any(w.lower() in item_prompt.lower() for w in re.split(r'\W+', fig["caption"]) if len(w) > 3):
+            score += 5
 
-            sec_type = "PROBLEM" if kind and kind.upper() in ["PROBLEM", "PROBLÈME", "مسألة"] else "EXERCISE"
+        occ = fig.get("visual_occupancy", 0.1)
+        if 0.02 <= occ <= 0.90:
+            score += 3
 
-            subs = re.findall(r'(?:^|\s|\()([a-d])[\)\.]\s*([^\(\)\n]+)', content)
-            sub_list = [f"({s[0]}) {s[1].strip()}" for s in subs]
+        item_bbox = item.get("bbox")
+        if item_bbox and fig.get("bbox"):
+            dist = abs(fig["bbox"][1] - item_bbox[3])
+            if dist < 120:
+                score += 4
 
-            fig_refs = []
-            fig_hashes = []
-            fig_match = re.search(r'(?:fig(?:ure)?\.?|document|doc|شكل|وثيقة)\s*(\d+)', content, re.I)
-            req_fig = bool(fig_match or any(k in content.lower() for k in ["figure", "diagram", "sketch", "draw", "curve", "graph", "table", "tableau"]))
+        if score > 0:
+            scored.append((score, fig))
 
-            for f in p["figures"]:
-                if fig_match and f["printed_number"] == int(fig_match.group(1)):
-                    fig_refs.append(f["figure_id"])
-                    fig_hashes.append(f["image_sha256"])
+    scored.sort(key=lambda x: x[0], reverse=True)
+    if scored and scored[0][0] >= 4:
+        return [scored[0][1]["figure_id"]]
 
-            exercises.append({
-                "exercise_id": f"{lesson_id}-{sec_type[:2]}-{ex_num:02d}",
-                "lesson_id": lesson_id,
-                "section_type": sec_type,
-                "number": ex_num,
-                "source_page": page_num,
-                "exact_source_prompt": content,
-                "source_prompt_hash": hashlib.sha256(content.encode("utf-8")).hexdigest()[:16],
-                "subquestions": sub_list,
-                "requires_figure": req_fig,
-                "figure_refs": fig_refs,
-                "figure_hashes": fig_hashes,
-                "solution_mode": "ON_DEMAND",
-                "solution_status": "NOT_SOLVED",
-                "verified_against_source": True
-            })
+    if item.get("requires_figure"):
+        raise RuntimeError(f"FIGURE_EVIDENCE_MISSING: Mandatory diagram unverified for {item.get('exercise_id', 'Item')}")
 
-    unique_ex = []
-    seen = set()
-    for e in sorted(exercises, key=lambda x: (x["section_type"], x["number"])):
-        k = (e["section_type"], e["number"])
-        if k not in seen:
-            seen.add(k)
-            unique_ex.append(e)
+    return []
 
-    # ديناميكية تحديد أول تمرينين وأول 3 مسائل كـ PRE_SOLVED
-    ex_c = 0
-    pr_c = 0
-    for e in unique_ex:
-        if e["section_type"] == "EXERCISE" and ex_c < 2:
-            e["solution_mode"] = "PRE_SOLVED"
-            e["solution_status"] = "SOLVED"
-            ex_c += 1
-        elif e["section_type"] == "PROBLEM" and pr_c < 3:
-            e["solution_mode"] = "PRE_SOLVED"
-            e["solution_status"] = "SOLVED"
-            pr_c += 1
 
-    return unique_ex
+def verify_title_double_evidence_strict(doc, entry: dict, opening_txt: str) -> bool:
+    title_clean = re.sub(r'^\s*\d+[\.\-–\s]+', '', entry["canonical_title"]).strip().lower()
+    words = [w for w in re.split(r'\W+', title_clean) if len(w) > 2]
+
+    matches_opening = sum(1 for w in words if w in opening_txt.lower())
+    if matches_opening < max(1, len(words) // 2):
+        return False
+
+    toc_found = False
+    for p_idx in range(min(15, len(doc))):
+        toc_page_txt = (doc[p_idx].get_text() or "").lower()
+        if any(h in toc_page_txt for h in ["contents", "table des matières", "فهرس", "المحتويات"]):
+            if any(w in toc_page_txt for w in words):
+                toc_found = True
+                break
+    return toc_found
 
 
 def build_evidence_map(doc, entry: dict) -> dict:
@@ -491,160 +617,282 @@ def build_evidence_map(doc, entry: dict) -> dict:
             "figures": figs
         })
 
-    if not verify_title_double_evidence(entry, pages_evidence[0]["text"]):
-        raise AssertionError(f"TITLE_VERIFICATION_FAILED: Canonical title '{entry['canonical_title']}' not verified in page {start_p}.")
+    if not verify_title_double_evidence_strict(doc, entry, pages_evidence[0]["text"]):
+        raise AssertionError(f"TITLE_VERIFICATION_FAILED: Strict Double Evidence TOC + Opening failed for '{entry['canonical_title']}'.")
 
-    activities = []
-    act_regex = re.compile(r"(?:Activity|Activité|نشاط|Section|Partie|فقرة)\s*(\d*)[:\s.-]+([^\n.]+)", re.I)
+    concepts = []
+    act_regex = re.compile(r"(?:Activity|Activité|نشاط|Section|Partie|Chapitre|فقرة)\s*(\d*)[:\s.-]+([^\n.]+)", re.I)
     for p in pages_evidence:
+        page_doc = doc[p["page_num"] - 1]
         for m in act_regex.finditer(p["text"]):
-            act_num = int(m.group(1)) if m.group(1) else len(activities) + 1
+            act_num = int(m.group(1)) if m.group(1) else len(concepts) + 1
             act_title = m.group(2).strip()
-            chunk = p["text"][m.start():m.start() + 500]
-            clean_chunk = " ".join(chunk.split())
-            matching_figs = [f["figure_id"] for f in p["figures"] if f.get("printed_number") is not None]
+            chunk = " ".join(p["text"][m.start():m.start() + 500].split())
+            matched_figs = match_figure_to_item({"raw_text": chunk, "requires_figure": False}, p["figures"], page_doc.rect)
+            fig_ref = matched_figs[0] if matched_figs else "NONE"
+            
+            rects = page_doc.search_for(act_title[:20])
+            act_bbox = [round(rects[0].x0, 1), round(rects[0].y0, 1), round(rects[0].x1, 1), round(rects[0].y1, 1)] if rects else [0.0, 0.0, page_doc.rect.width, 100.0]
 
-            activities.append({
-                "activity_num": act_num,
+            norm_chunk, math_ok, math_recs = MathRenderingEngine.normalize_math(chunk, p["page_num"], act_bbox, fig_ref)
+
+            concepts.append({
+                "concept_id": f"C{act_num:02d}",
                 "title": act_title,
                 "source_page": p["page_num"],
-                "source_text_hash": hashlib.sha256(clean_chunk.encode("utf-8")).hexdigest()[:16],
-                "raw_text": clean_chunk,
-                "figure_refs": matching_figs
+                "raw_text": chunk,
+                "normalized_text": norm_chunk,
+                "figure_refs": matched_figs,
+                "math_records": math_recs,
+                "sha256": hashlib.sha256(chunk.encode("utf-8")).hexdigest()[:16]
             })
 
-    if not activities:
-        for p in pages_evidence:
-            paras = [para.strip() for para in p["text"].split("\n\n") if len(para.strip()) > 80]
-            if paras:
-                activities.append({
-                    "activity_num": len(activities) + 1,
-                    "title": f"Investigation - Page {p['page_num']}",
-                    "source_page": p["page_num"],
-                    "source_text_hash": hashlib.sha256(paras[0].encode("utf-8")).hexdigest()[:16],
-                    "raw_text": paras[0][:400],
-                    "figure_refs": [f["figure_id"] for f in p["figures"]]
-                })
+    if not concepts:
+        raise RuntimeError("EVIDENCE_EXTRACTION_INCOMPLETE: No verifiable concepts or activities found within source page range.")
 
-    exercises = parse_curriculum_exercises_from_source(pages_evidence, lesson_id)
+    exercises = []
+    ex_pattern = re.compile(r'(?:^|\n)\s*(?:(Problem|Exercise|Problème|Exercice|تمرين|مسألة)\s*)?(\d+)[\.\-\)]\s+([^\n]+(?:\n(?!\s*(?:(?:Problem|Exercise|Problème|Exercice|تمرين|مسألة)\s*)?\d+[\.\-\)]\s+)[^\n]+)*)', re.I)
+    for p in pages_evidence:
+        page_doc = doc[p["page_num"] - 1]
+        for m in ex_pattern.finditer(p["text"]):
+            kind = m.group(1)
+            ex_num = int(m.group(2))
+            content = " ".join(m.group(3).split())
+            if len(content) < 10:
+                continue
+
+            sec_type = "PROBLEM" if kind and kind.upper() in ["PROBLEM", "PROBLÈME", "مسألة"] else "EXERCISE"
+            subs = [f"({s[0]}) {s[1].strip()}" for s in re.findall(r'(?:^|\s|\()([a-d])[\)\.]\s*([^\(\)\n]+)', content)]
+            req_fig = bool(re.search(r'(?:fig(?:ure)?\.?|document|doc|شكل|وثيقة)\s*(\d+)', content, re.I) or any(k in content.lower() for k in ["figure", "diagram", "sketch", "draw", "graph", "table"]))
+            matched_figs = match_figure_to_item({"exact_source_prompt": content, "requires_figure": req_fig}, p["figures"], page_doc.rect)
+            fig_hashes = [f["image_sha256"] for f in p["figures"] if f["figure_id"] in matched_figs]
+
+            norm_content = re.sub(r'\s+', ' ', content).strip().lower()
+            norm_page = re.sub(r'\s+', ' ', p["text"]).strip().lower()
+            is_faithful = norm_content in norm_page
+
+            exercises.append({
+                "exercise_id": f"{lesson_id}-{sec_type[:2]}-{ex_num:02d}",
+                "lesson_id": lesson_id,
+                "section_type": sec_type,
+                "number": ex_num,
+                "source_page": p["page_num"],
+                "exact_source_prompt": content,
+                "source_prompt_hash": hashlib.sha256(content.encode("utf-8")).hexdigest()[:16],
+                "subquestions": subs,
+                "requires_figure": req_fig,
+                "figure_refs": matched_figs,
+                "figure_hashes": fig_hashes,
+                "solution_mode": "ON_DEMAND",
+                "solution_status": "NOT_SOLVED",
+                "verified_against_source": is_faithful
+            })
+
+    unique_ex = []
+    seen = set()
+    for e in sorted(exercises, key=lambda x: (x["section_type"], x["number"])):
+        k = (e["section_type"], e["number"])
+        if k not in seen:
+            seen.add(k)
+            unique_ex.append(e)
+
+    ex_c, pr_c = 0, 0
+    for e in unique_ex:
+        if e["section_type"] == "EXERCISE" and ex_c < 2:
+            e["solution_mode"] = "PRE_SOLVED"
+            ex_c += 1
+        elif e["section_type"] == "PROBLEM" and pr_c < 3:
+            e["solution_mode"] = "PRE_SOLVED"
+            pr_c += 1
 
     ev_map = {
         "lesson_id": lesson_id,
         "book_id": entry["book_id"],
         "source_lock": {"start": start_p, "end": end_p},
         "pages_evidence": pages_evidence,
-        "activities_evidence": activities,
-        "exercise_evidence": exercises
+        "concepts": concepts,
+        "exercise_evidence": unique_ex,
+        "canonical_title": entry["canonical_title"]
     }
 
     perm_path = PERM_EVIDENCE_DIR / f"{lesson_id}.json"
     perm_path.write_text(json.dumps(ev_map, ensure_ascii=False, indent=2), encoding="utf-8")
-
     return ev_map
 
 
 # ==============================================================================
-# 6. UNIVERSAL EVIDENCE-GROUNDED PEDAGOGY ENGINE
+# 7. MULTI-MODAL GROUNDED SOLVER & STRICT FAIL-CLOSED VERIFIER
 # ==============================================================================
-def synthesize_universal_pedagogy(entry: dict, ev_map: dict) -> dict:
-    title = entry["canonical_title"]
-    subject = entry.get("subject", "Physics").capitalize()
-    grade = int(entry.get("grade", 7))
-    acts = ev_map["activities_evidence"]
+def grounded_subject_solver(exercise: dict, evidence_map: dict, profile: dict) -> Dict[str, Any]:
+    prompt = exercise["exact_source_prompt"]
+    page = exercise["source_page"]
+    subj = profile["subject"]
+    grade = profile.get("grade", 7)
 
-    level_tag = "L1" if grade <= 6 else ("L2" if grade <= 9 else "L3")
+    fig_base64 = None
+    if exercise.get("figure_refs"):
+        for p in evidence_map["pages_evidence"]:
+            if p["page_num"] == page:
+                for f in p["figures"]:
+                    if f["figure_id"] in exercise["figure_refs"]:
+                        try:
+                            fig_base64 = base64.b64encode(Path(f["image_path"]).read_bytes()).decode("utf-8")
+                        except Exception:
+                            pass
+                        break
+
+    query = (
+        f"You are Teacher NABIL, master professor of Lebanese {subj.capitalize()} Grade {grade}.\n"
+        f"Solve this official textbook exercise verbatim from Page {page}.\n"
+        f"Prompt: {prompt}\n"
+        f"Subquestions: {json.dumps(exercise.get('subquestions', []))}\n\n"
+        "RULES:\n"
+        "1. Step-by-step rigorous deduction, derivation, and calculation. Analyze accompanying figure if provided. No generic text or placeholders.\n"
+        "2. State formulas, substitutions with units, and clear final answer.\n"
+        "Return strictly JSON: {'steps': [str], 'final_answer': str}"
+    )
+
+    try:
+        res = execute_llm_completion(query, json_mode=True, temperature=0.0, image_base64=fig_base64)
+        parsed = json.loads(res)
+        if not parsed.get("steps") or not parsed.get("final_answer"):
+            raise ValueError("Incomplete solver response schema")
+        
+        verify_prompt = (
+            f"Verify if this solution correctly answers the exercise prompt without contradictions.\n"
+            f"Prompt: {prompt}\nSolution: {json.dumps(parsed, ensure_ascii=False)}\n"
+            "Return strictly JSON: {'valid': bool}"
+        )
+        val_res = json.loads(execute_llm_completion(verify_prompt, json_mode=True, temperature=0.0))
+        if not val_res.get("valid", False):
+            raise RuntimeError("SOLVER_SOLUTION_VALIDATION_FAILED")
+
+        exercise["solution_status"] = "SOLVED"
+        return parsed
+    except Exception as e:
+        raise RuntimeError(f"PRE_SOLVE_FAILED: grounded solver unavailable or failed for Ex #{exercise['number']}: {e}")
+
+
+def solve_exercise_on_demand_payload(lesson_id: str, sec_type: str, ex_num: int) -> Dict[str, Any]:
+    """Universal On-Demand Backend Resolution — Zero Hardcode."""
+    ev_path = PERM_EVIDENCE_DIR / f"{lesson_id}.json"
+    if not ev_path.exists():
+        raise RuntimeError(f"EVIDENCE_NOT_FOUND: {lesson_id}")
+
+    ev_map = json.loads(ev_path.read_text(encoding="utf-8"))
+    entry = resolve_canonical_entry(lesson_id)
+    profile = resolve_pedagogy_profile(entry)
+
+    matched = None
+    for ex in ev_map.get("exercise_evidence", []):
+        if ex["section_type"].upper() == sec_type.upper() and int(ex["number"]) == int(ex_num):
+            matched = ex
+            break
+
+    if not matched:
+        raise RuntimeError(f"EXERCISE_NOT_FOUND: {sec_type} #{ex_num} in lesson {lesson_id}")
+
+    sol = grounded_subject_solver(matched, ev_map, profile)
+    return {"status": "SUCCESS", "solution": sol}
+
+
+# ==============================================================================
+# 8. EVIDENCE-DRIVEN SYNTHESIS
+# ==============================================================================
+def synthesize_concept_narrative(concept: dict, profile: dict) -> dict:
+    prompt = (
+        f"You are grounding a lesson explanation STRICTLY in the following extracted textbook text. "
+        f"Generate plausible wrong answers (distractors) derived from common misconceptions of this text.\n\n"
+        f"TEXT: {concept['raw_text']}\n\n"
+        f"Subject: {profile['subject']}, Level: {profile['level']}\n"
+        "Return strictly JSON: {"
+        "'phenomenon': str, 'investigation': str, 'observation': str, 'interpretation': str, 'conclusion': str, "
+        "'distractor_1': str, 'distractor_2': str, 'formulas': [str], 'units': [str]"
+        "} — every field must be traceable to the TEXT above."
+    )
+    try:
+        res = execute_llm_completion(prompt, json_mode=True, temperature=0.0)
+        parsed = json.loads(res)
+        for k in ["phenomenon", "investigation", "observation", "interpretation", "conclusion", "distractor_1", "distractor_2"]:
+            if not parsed.get(k):
+                raise ValueError(f"Missing field {k}")
+        return parsed
+    except Exception as e:
+        raise RuntimeError(f"NARRATIVE_SYNTHESIS_FAILED: Unable to ground concept narrative from evidence ({e})")
+
+
+def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> dict:
+    title = entry["canonical_title"]
+    concepts = ev_map["concepts"]
 
     activities_theory = []
-    for act in acts:
-        p_num = act["source_page"]
-        clean_txt = act["raw_text"]
-        norm_txt, _ = MathRenderingEngine.normalize_math(clean_txt)
+    worksheet = []
+    panels = ""
 
-        # استخراج الشكل الحقيقي
+    for idx, c in enumerate(concepts, 1):
+        p_num = c["source_page"]
+        narrative = synthesize_concept_narrative(c, profile)
+
         fig_html = ""
         for p in ev_map["pages_evidence"]:
             if p["page_num"] == p_num and p["figures"]:
-                f_item = p["figures"][0]
-                with open(f_item["image_path"], "rb") as fh:
-                    b64 = base64.b64encode(fh.read()).decode("ascii")
-                fig_html = f'''<div class="figure" style="text-align:center; margin:14px 0;">
-                    <img src="data:image/png;base64,{b64}" alt="{html.escape(act['title'])}" style="max-width:100%; height:auto; border-radius:8px; border:1px solid #cbd5e1;"/>
-                    <div style="font-size:12px; color:#64748b; margin-top:4px;">Official Textbook Evidence: Page {p_num}</div>
-                </div>'''
-                break
-
-        sentences = [s.strip() for s in re.split(r'[\.\n]+', clean_txt) if len(s.strip()) > 20]
-        obs_text = norm_txt[:160] + "..." if len(norm_txt) > 160 else norm_txt
-        concl_text = sentences[-1] if sentences else f"Core principle established on page {p_num}."
+                for f in p["figures"]:
+                    if f["figure_id"] in c.get("figure_refs", []):
+                        with open(f["image_path"], "rb") as fh:
+                            b64 = base64.b64encode(fh.read()).decode("ascii")
+                        fig_html = f'''<div class="figure" style="text-align:center; margin:14px 0;">
+                            <img src="data:image/png;base64,{b64}" alt="{html.escape(c['title'])}" onclick="zoomImage(this)" style="max-width:100%; height:auto; border-radius:8px; border:1px solid #cbd5e1; cursor:zoom-in; transition: transform 0.2s;"/>
+                            <div style="font-size:12px; color:#64748b; margin-top:4px;">Official Curriculum Figure: Page {p_num} (Click to Zoom)</div>
+                        </div>'''
+                        break
 
         activities_theory.append({
-            "activity_num": act["activity_num"],
-            "title": act["title"],
+            "activity_num": c["concept_id"].replace("C", ""),
+            "title": c["title"],
             "source_page": p_num,
-            "phenomenon": f"Curriculum evidence observed on textbook page {p_num}.",
-            "experiment": f"Standard pedagogical setup for {act['title']}.",
-            "observation": f"Direct observation from source: {obs_text}",
-            "interpretation": f"Scientific evaluation structured under Level {level_tag} methodology.",
-            "conclusion": concl_text,
+            "phenomenon": narrative["phenomenon"],
+            "investigation": narrative["investigation"],
+            "observation": narrative["observation"],
+            "interpretation": narrative["interpretation"],
+            "conclusion": narrative["conclusion"],
             "visual_html": fig_html,
             "student_question": {
-                "q": f"Based on verified findings in {act['title']}, what is confirmed?",
-                "options": ["Confirmed by direct evidence", "Contradicted by observation"],
+                "q": f"Based on verified findings in '{c['title']}', what is confirmed?",
+                "options": [narrative["conclusion"], narrative["distractor_1"], narrative["distractor_2"]],
                 "correct_index": 0,
                 "feedback": "Correct! Directly grounded in verified curriculum evidence."
             }
         })
 
-    # ورقة عمل مبنية ديناميكياً 100% من الاستنتاجات الحقيقية
-    worksheet = []
-    for idx, act in enumerate(activities_theory[:4]):
-        worksheet.append({
-            "id": idx + 1,
-            "concept_id": f"{entry['lesson_id']}-C{idx+1:02d}",
-            "question": f"Which core principle is verified regarding {act['title']}?",
-            "options": [
-                f"{act['conclusion']}",
-                "Observation contradicts textbook findings",
-                "Properties vary randomly without physical law"
-            ],
-            "correct_index": 0,
-            "explanation": f"Grounded directly in curriculum evidence on page {act['source_page']}."
-        })
+        if idx <= 5:
+            worksheet.append({
+                "id": idx,
+                "concept_id": c["concept_id"],
+                "source_page": p_num,
+                "source_hash": c["sha256"],
+                "evidence_ref": c["concept_id"],
+                "question": f"Which scientific deduction is confirmed regarding '{c['title']}'?",
+                "options": [narrative["conclusion"], narrative["distractor_1"], narrative["distractor_2"]],
+                "correct_index": 0,
+                "explanation": f"Grounded directly in curriculum evidence on page {p_num} (Ref: {c['concept_id']})."
+            })
 
-    return {
-        "title": title,
-        "subject": subject,
-        "grade": grade,
-        "level_tag": level_tag,
-        "activities": activities_theory,
-        "worksheet": worksheet,
-        "reference_card_html": build_golden_reference_card(entry, ev_map)
-    }
-
-
-def build_golden_reference_card(entry: dict, ev_map: dict) -> str:
-    title = entry["canonical_title"]
-    subject = entry.get("subject", "Physics").capitalize()
-    acts = ev_map["activities_evidence"]
-
-    panels = ""
-    for act in acts:
-        p_title = html.escape(act["title"])
-        p_num = act["source_page"]
-        clean_excerpt = act.get("raw_text", "")
-        sentences = [s.strip() for s in re.split(r'[\.\n]+', clean_excerpt) if len(s.strip()) > 25]
-        rule_text = sentences[0] if sentences else f"Verified rule from page {p_num}."
+        formulas_html = "".join([f"<li><b>Formula/Law:</b> {html.escape(f)}</li>" for f in narrative.get("formulas", [])])
+        units_html = "".join([f"<li><b>Units:</b> {html.escape(u)}</li>" for u in narrative.get("units", [])])
+        subject_metadata = f"<ul style='margin:4px 0 0 16px; padding:0; font-size:12px; color:#0369a1;'>{formulas_html}{units_html}</ul>" if (narrative.get("formulas") or narrative.get("units")) else ""
 
         panels += f'''<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:14px; box-shadow:0 2px 4px rgba(0,0,0,0.04);">
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">
-                <span style="font-weight:700; color:#0369a1; font-size:15px;">{p_title}</span>
-                <span style="font-size:11px; background:#e0f2fe; color:#0284c7; padding:2px 6px; border-radius:4px; font-weight:600;">p. {p_num}</span>
+                <span style="font-weight:700; color:#0369a1; font-size:15px;">{html.escape(c["title"])}</span>
+                <span style="font-size:11px; background:#e0f2fe; color:#0284c7; padding:2px 6px; border-radius:4px; font-weight:600;">p. {c["source_page"]}</span>
             </div>
-            <div style="margin-top:8px; font-size:13px; color:#334155; line-height:1.5;"><b>Scientific Principle:</b> {html.escape(rule_text)}</div>
+            <div style="margin-top:8px; font-size:13px; color:#334155; line-height:1.5;"><b>Extracted Principle:</b> {html.escape(narrative["conclusion"])}</div>
+            {subject_metadata}
+            {fig_html}
             <div style="margin-top:8px; font-size:12px; color:#059669; font-weight:600;">✓ Verified Evidence Grounding</div>
         </div>'''
 
-    return f'''
+    ref_card_html = f'''
     <!-- NABIL Golden Reference Final Study Card -->
     <div id="goldenReferenceCard" style="margin-top:28px; background:linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border:2px solid #0284c7; border-radius:14px; padding:20px; box-shadow:0 4px 12px rgba(2,132,199,0.08);">
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; border-bottom:2px solid #0284c7; padding-bottom:12px;">
@@ -652,7 +900,7 @@ def build_golden_reference_card(entry: dict, ev_map: dict) -> str:
           <span style="background:#0284c7; color:#fff; font-size:11px; font-weight:800; padding:3px 8px; border-radius:4px; text-transform:uppercase;">Golden Reference Card</span>
           <h2 style="margin:4px 0 0 0; font-size:20px; color:#0f172a;">{html.escape(title)}</h2>
         </div>
-        <span style="font-size:13px; font-weight:600; color:#64748b;">{html.escape(subject)} • Grade {entry.get("grade", 7)}</span>
+        <span style="font-size:13px; font-weight:600; color:#64748b;">{profile["subject"].capitalize()} • Level {profile["level"]}</span>
       </div>
       <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:14px; margin-top:16px;">
         {panels}
@@ -663,66 +911,23 @@ def build_golden_reference_card(entry: dict, ev_map: dict) -> str:
       </div>
     </div>'''
 
-
-# ==============================================================================
-# 7. DETERMINISTIC QUALITY GATES & FAIL-CLOSED VERIFICATION
-# ==============================================================================
-def run_all_quality_gates(entry: dict, ev_map: dict, theory: dict, exercises: list, page_a_html: str, page_b_html: str) -> Dict[str, Any]:
-    progress("QUALITY_GATES: Executing universal fail-closed verification suite...")
-    report = []
-
-    def check(name: str, condition: bool, details: str = ""):
-        report.append({"gate": name, "passed": bool(condition), "details": details})
-        if not condition:
-            raise AssertionError(f"QUALITY_GATE_FAILED: {name} -> {details}")
-
-    # 1. نطاق الصفحات
-    s_lock = ev_map["source_lock"]
-    for p in ev_map["pages_evidence"]:
-        check("SOURCE_PAGE_OUT_OF_RANGE", s_lock["start"] <= p["page_num"] <= s_lock["end"], f"Page {p['page_num']}")
-
-    expected_p_count = s_lock["end"] - s_lock["start"] + 1
-    check("SOURCE_COVERAGE_INCOMPLETE", len(ev_map["pages_evidence"]) == expected_p_count, f"{len(ev_map['pages_evidence'])}/{expected_p_count} pages")
-
-    # 2. فحص تسلسل التمارين المستمرة 1..N
-    ex_nums = sorted([e["number"] for e in exercises if e["section_type"] == "EXERCISE"])
-    check("EXERCISE_SEQUENCE_INCOMPLETE", len(ex_nums) > 0 and ex_nums == list(range(1, len(ex_nums) + 1)), f"Sequence mismatch: {ex_nums}")
-
-    # 3. فحص نصوص التمارين والرسوم
-    for e in exercises:
-        check("EXERCISE_SOURCE_MISMATCH", len(e["exact_source_prompt"]) >= 10, f"Ex {e['number']} prompt too short")
-        if e["requires_figure"]:
-            check("EXERCISE_DIAGRAM_REQUIRED_MISSING", len(e["figure_refs"]) > 0 or len(e["figure_hashes"]) > 0, f"Ex {e['number']} missing required figure")
-
-    pre_solved = [e for e in exercises if e["solution_mode"] == "PRE_SOLVED"]
-    check("PRE_SOLVE_FAILED", len(pre_solved) >= 1, "At least one pre-solved exercise required")
-
-    # 4. ورقة العمل والبطاقة المرجعية
-    ws = theory.get("worksheet", [])
-    check("WORKSHEET_EMPTY", len(ws) > 0, "No worksheet items")
-    for q in ws:
-        check("WORKSHEET_NOT_GRADABLE", "correct_index" in q and "options" in q, "Missing grading metadata")
-    check("WORKSHEET_SOURCE_MISMATCH", all("concept_id" in q for q in ws), "Concept refs missing")
-
-    ref_card = theory.get("reference_card_html", "")
-    check("REFERENCE_CARD_CONTENT_INCOMPLETE", "goldenReferenceCard" in ref_card and "Scientific Principle" in ref_card, "Golden card structure missing")
-    check("REFERENCE_CARD_VISUAL_FAILED", "border:2px solid" in ref_card and "Study Reminder" in ref_card, "Golden card visual missing")
-
-    # 5. Math & Mobile
-    check("MATH_RENDERING_FAILED", "MathJax" in page_a_html and "MathJax" in page_b_html, "MathJax not injected")
-    check("MOBILE_LAYOUT_FAILED", "width=device-width" in page_a_html and "min-height: 44px" in page_a_html, "Mobile viewport not enforced")
-    check("NAVIGATION_FAILED", "navigateToExercises" in page_a_html and "returnToLesson" in page_b_html, "Navigation links missing")
-
-    progress("ALL_QUALITY_GATES_PASSED_SUCCESSFULLY")
-    return {"status": "PASS", "gates": report}
+    return {
+        "title": title,
+        "activities": activities_theory,
+        "lab_html": "",
+        "has_active_sim": False,
+        "worksheet": worksheet,
+        "reference_card_html": ref_card_html
+    }
 
 
 # ==============================================================================
-# 8. TWIN-PAGE HTML COMPILATION
+# 9. TWIN-PAGE HTML COMPILATION
 # ==============================================================================
 def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict) -> str:
     clean_title = html.escape(re.sub(r'^\s*\d{2,3}\s*(?:--|[-_ ]+)\s*', '', entry["canonical_title"]))
     clean_title = html.escape(re.sub(r'\s+\d{2,3}$', '', clean_title).strip())
+    lang = entry.get("language", "en")
 
     acts_html = ""
     for act in theory["activities"]:
@@ -732,10 +937,10 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict) -> str:
         <div class="card" style="margin-top:20px;">
           <h3 style="color:#0369a1; margin-top:0;">{act["activity_num"]}. {html.escape(act["title"])}</h3>
           <p><b>Phenomenon:</b> {html.escape(act["phenomenon"])}</p>
-          <p><b>Experiment:</b> {html.escape(act["experiment"])}</p>
+          <p><b>Investigation:</b> {html.escape(act["investigation"])}</p>
           {act["visual_html"]}
           <p><b>Observation:</b> {html.escape(act["observation"])}</p>
-          <p><b>Conclusion:</b> <b>{html.escape(act["conclusion"])}</b></p>
+          <p><b>Scientific Deduction:</b> <b>{html.escape(act["conclusion"])}</b></p>
           <div style="background:#f1f5f9; padding:12px; border-radius:6px; margin-top:12px;">
             <div style="font-weight:600; font-size:14px; margin-bottom:8px;">Check Understanding: {html.escape(q["q"])}</div>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">{opts}</div>
@@ -748,32 +953,35 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict) -> str:
         opts = "".join([f'<button onclick="gradeWs(this, {i == item["correct_index"]}, \'{html.escape(item["explanation"])}\')" class="q-opt">{html.escape(o)}</button>' for i, o in enumerate(item["options"])])
         ws_items += f'''
         <div class="ws-item" style="margin-bottom:14px; padding:12px; background:#fff; border:1px solid #e2e8f0; border-radius:6px;">
-          <div style="font-weight:600; margin-bottom:6px;">Question {idx+1}: {html.escape(item["question"])}</div>
+          <div style="font-weight:600; margin-bottom:6px;">Question {idx+1}: {html.escape(item["question"])} <span style="font-size:11px; color:#64748b;">(p. {item['source_page']})</span></div>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">{opts}</div>
           <div class="ws-fb" style="margin-top:6px; font-size:12px; font-weight:600; display:none;"></div>
         </div>'''
 
     return f'''<!DOCTYPE html>
-<html lang="en">
+<html lang="{html.escape(lang)}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="nabil-lesson-id" content="{html.escape(entry['lesson_id'])}">
+<meta name="nabil-canonical-title" content="{clean_title}">
 <meta name="nabil-grade" content="{entry.get('grade', 7)}">
 <meta name="nabil-subject" content="{html.escape(entry.get('subject', 'Physics'))}">
 <meta name="nabil-source-book-id" content="{html.escape(entry['book_id'])}">
 <meta name="nabil-source-pages" content="{entry['pdf_start_page']}-{entry['pdf_end_page']}">
-<title>{clean_title} - NABIL Interactive</title>
+<title>{clean_title} - NABIL Universal Engine</title>
 {MathRenderingEngine.inject_mathjax_head()}
 <style>
   :root {{ --primary: #0284c7; --bg: #f8fafc; --card: #ffffff; --text: #0f172a; --text-muted: #64748b; }}
-  body {{ font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 16px; overflow-x: hidden; }}
+  body {{ font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 16px; overflow-x: hidden; max-width: 100vw; box-sizing: border-box; }}
   .container {{ max-width: 860px; margin: 0 auto; width: 100%; box-sizing: border-box; }}
   .header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; }}
   .card {{ background: var(--card); border-radius: 8px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }}
   .nav-btn {{ background: var(--primary); color: #fff; padding: 10px 16px; border-radius: 6px; text-decoration: none; font-weight: 600; cursor: pointer; border: none; font-size: 14px; min-height: 44px; display: inline-flex; align-items: center; }}
   .q-opt {{ background:#fff; border:1px solid #cbd5e1; padding:8px 14px; border-radius:4px; cursor:pointer; font-size:13px; font-weight:500; min-height: 44px; }}
   .q-opt:hover {{ background:#e2e8f0; }}
+  #zoomModal {{ display:none; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); justify-content:center; align-items:center; cursor:zoom-out; }}
+  #zoomModal img {{ max-width:90%; max-height:90%; border-radius:8px; box-shadow:0 4px 20px rgba(0,0,0,0.5); }}
 </style>
 </head>
 <body>
@@ -795,10 +1003,18 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict) -> str:
   </div>
   {theory.get("reference_card_html", "")}
 </div>
+<div id="zoomModal" onclick="this.style.display='none'"><img id="zoomImg" src=""></div>
 <script>
 let answeredCount = 0;
 let score = 0;
 const totalQuestions = {len(theory['worksheet'])};
+
+function zoomImage(img) {{
+  const modal = document.getElementById('zoomModal');
+  const modalImg = document.getElementById('zoomImg');
+  modal.style.display = 'flex';
+  modalImg.src = img.src;
+}}
 
 function navigateToExercises() {{
   const url = new URL(window.location.href);
@@ -836,23 +1052,41 @@ function gradeWs(btn, isCorrect, exp) {{
 </html>'''
 
 
-def render_lesson_page_b(entry: dict, exercises: list) -> str:
+def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: dict) -> str:
     clean_title = html.escape(re.sub(r'^\s*\d{2,3}\s*(?:--|[-_ ]+)\s*', '', entry["canonical_title"]))
     clean_title = html.escape(re.sub(r'\s+\d{2,3}$', '', clean_title).strip())
     lesson_id = entry["lesson_id"]
+    lang = entry.get("language", "en")
 
     ex_cards = ""
     for ex in exercises:
         ex_num = ex["number"]
         sec_type = ex["section_type"]
 
+        ex_fig_html = ""
+        if ex.get("figure_refs"):
+            for p in ev_map["pages_evidence"]:
+                if p["page_num"] == ex["source_page"]:
+                    for f in p["figures"]:
+                        if f["figure_id"] in ex["figure_refs"]:
+                            try:
+                                b64 = base64.b64encode(Path(f["image_path"]).read_bytes()).decode("ascii")
+                                ex_fig_html = f'''<div style="text-align:center; margin:12px 0;">
+                                  <img src="data:image/png;base64,{b64}" alt="Exercise Figure" onclick="zoomImage(this)" style="max-width:100%; max-height:220px; border-radius:8px; border:1px solid #cbd5e1; cursor:zoom-in;"/>
+                                  <div style="font-size:11px; color:#64748b; margin-top:3px;">Source Figure for {sec_type} {ex_num} (Click to Zoom)</div>
+                                </div>'''
+                            except Exception:
+                                pass
+                            break
+
         if ex["solution_mode"] == "PRE_SOLVED":
+            sol = grounded_subject_solver(ex, ev_map, profile)
+            steps_html = "<br>".join([f"• <b>Step:</b> {s}" for s in sol["steps"]])
             sol_box = f'''
             <div style="margin-top:10px; padding:12px; background:#ecfdf5; border-radius:6px; font-size:13px; color:#065f46; line-height:1.6;">
               <b>Step-by-Step Model Solution:</b><br>
-              • <b>Given:</b> Identified from official curriculum Page {ex["source_page"]}.<br>
-              • <b>Scientific Principle:</b> Evaluated strictly against verified curriculum evidence.<br>
-              • <b>Final Answer:</b> Conclusive resolution conforming to official textbook criteria.
+              {steps_html}<br>
+              • <b>Final Answer:</b> {sol["final_answer"]}
             </div>'''
         else:
             sol_box = f'''
@@ -864,7 +1098,7 @@ def render_lesson_page_b(entry: dict, exercises: list) -> str:
         sub_html = ""
         if ex.get("subquestions"):
             sub_items = "".join([f"<li style='margin-top:4px;'>{html.escape(sq)}</li>" for sq in ex["subquestions"]])
-            sub_html = f"<ul style='margin:6px 0 0 16px; padding:0; font-size:13px; color:#334155;'>{sub_html}</ul>"
+            sub_html = f"<ul style='margin:6px 0 0 16px; padding:0; font-size:13px; color:#334155;'>{sub_items}</ul>"
 
         ex_cards += f'''
         <div class="card" style="margin-top:16px;">
@@ -873,38 +1107,52 @@ def render_lesson_page_b(entry: dict, exercises: list) -> str:
             <span style="font-size:12px; color:#64748b;">Source Page {ex["source_page"]}</span>
           </div>
           <p style="margin:10px 0; font-size:14px; line-height:1.5;">{html.escape(ex["exact_source_prompt"])}</p>
+          {ex_fig_html}
           {sub_html}
           {sol_box}
         </div>'''
 
     return f'''<!DOCTYPE html>
-<html lang="en">
+<html lang="{html.escape(lang)}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="nabil-lesson-id" content="{html.escape(entry['lesson_id'])}">
+<meta name="nabil-canonical-title" content="{clean_title}">
 <meta name="nabil-grade" content="{entry.get('grade', 7)}">
 <meta name="nabil-subject" content="{html.escape(entry.get('subject', 'Physics'))}">
+<meta name="nabil-source-book-id" content="{html.escape(entry['book_id'])}">
+<meta name="nabil-source-pages" content="{entry['pdf_start_page']}-{entry['pdf_end_page']}">
 <title>{clean_title} - Official Exercises</title>
 {MathRenderingEngine.inject_mathjax_head()}
 <style>
   :root {{ --primary: #0284c7; --bg: #f8fafc; --card: #ffffff; --text: #0f172a; --text-muted: #64748b; }}
-  body {{ font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 16px; overflow-x: hidden; }}
+  body {{ font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 16px; overflow-x: hidden; max-width: 100vw; box-sizing: border-box; }}
   .container {{ max-width: 860px; margin: 0 auto; width: 100%; box-sizing: border-box; }}
   .header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; }}
   .card {{ background: var(--card); border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }}
   .nav-btn {{ background: var(--primary); color: #fff; padding: 10px 16px; border-radius: 6px; text-decoration: none; font-weight: 600; cursor: pointer; border: none; font-size: 13px; min-height: 44px; display: inline-flex; align-items: center; }}
+  #zoomModal {{ display:none; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); justify-content:center; align-items:center; cursor:zoom-out; }}
+  #zoomModal img {{ max-width:90%; max-height:90%; border-radius:8px; box-shadow:0 4px 20px rgba(0,0,0,0.5); }}
 </style>
 </head>
 <body>
 <div class="container">
   <div class="header">
     <h1 style="margin:0; font-size:20px;">{clean_title} - Exercises &amp; Problems</h1>
-    <button onclick="returnToLesson()" class="nav-btn" style="background:#475569;">⬅ Back to Theory</button>
+    <button onclick="returnToLesson()" class="nav-btn" style="background:#475569;">⬅ Back to Lesson</button>
   </div>
   {ex_cards}
 </div>
+<div id="zoomModal" onclick="this.style.display='none'"><img id="zoomImg" src=""></div>
 <script>
+function zoomImage(img) {{
+  const modal = document.getElementById('zoomModal');
+  const modalImg = document.getElementById('zoomImg');
+  modal.style.display = 'flex';
+  modalImg.src = img.src;
+}}
+
 function returnToLesson() {{
   const url = new URL(window.location.href);
   if (url.searchParams.has('view')) {{
@@ -947,28 +1195,286 @@ async function requestServerSolution(lessonId, secType, exNum) {{
 
 
 # ==============================================================================
-# 9. PRODUCTION PIPELINE WITH ATOMIC ARTIFACTS
+# 11. QUALITY GATES & REAL PLAYWRIGHT CHROMIUM COMPREHENSIVE QA (390x844)
+# ==============================================================================
+def run_real_playwright_chromium_qa(html_path: str) -> bool:
+    try:
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page(viewport={"width": 390, "height": 844})
+            page.goto(f"file://{Path(html_path).resolve()}")
+            
+            try:
+                page.wait_for_selector('mjx-container', timeout=5000)
+            except Exception:
+                pass
+            
+            check_result = page.evaluate("""() => {
+                const doc = document.documentElement;
+                
+                if (doc.scrollWidth > doc.clientWidth + 2) {
+                    return { passed: false, reason: "HORIZONTAL_OVERFLOW" };
+                }
+
+                const buttons = Array.from(document.querySelectorAll('button, .q-opt'));
+                for (let b of buttons) {
+                    if (b.getBoundingClientRect().height < 43) {
+                        return { passed: false, reason: "TOUCH_TARGET_TOO_SMALL", height: b.getBoundingClientRect().height };
+                    }
+                }
+
+                const bodyText = document.body.innerText;
+                if (bodyText.includes('\\\\(') || bodyText.includes('\\\\[')) {
+                    return { passed: false, reason: "RAW_LATEX_DETECTED" };
+                }
+
+                const allElements = document.querySelectorAll('img, .card, mjx-container, p, h1, h2, h3');
+                for (let el of allElements) {
+                    const rect = el.getBoundingClientRect();
+                    if (rect.right > 392 || rect.left < -2) {
+                        return { passed: false, reason: "ELEMENT_BOUNDING_BOX_OVERFLOW", tag: el.tagName, right: rect.right };
+                    }
+                }
+
+                const mathContentPresent = document.body.innerHTML.includes('\\\\(') || document.body.innerHTML.includes('\\\\[');
+                const mjxCount = document.querySelectorAll('mjx-container').length;
+                if (mathContentPresent && mjxCount === 0) {
+                    return { passed: false, reason: "MATHJAX_CONTAINER_MISSING_DESPITE_MATH" };
+                }
+
+                return { passed: true };
+            }""")
+            browser.close()
+            
+            if not check_result.get("passed", False):
+                return False
+        return True
+    except Exception as e:
+        raise RuntimeError(f"PLAYWRIGHT_CHROMIUM_QA_EXECUTION_FAILED: {e}")
+
+
+def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
+    progress("QUALITY_GATES: Auditing candidate against Real Playwright Chromium Comprehensive QA...")
+    report = []
+
+    def check(name: str, cond: bool, severity: str, det: str = ""):
+        report.append({"name": name, "passed": bool(cond), "severity": severity, "details": det})
+        if not cond and severity == "CRITICAL":
+            raise AssertionError(f"QUALITY_GATE_FAILED: {name} -> {det}")
+
+    ev_map = candidate["evidence_map"]
+    s_lock = ev_map["source_lock"]
+    expected_p = s_lock["end"] - s_lock["start"] + 1
+    check("SOURCE_COVERAGE_INCOMPLETE", len(ev_map["pages_evidence"]) == expected_p, "CRITICAL", f"{len(ev_map['pages_evidence'])}/{expected_p} pages")
+
+    ex_nums = sorted([e["number"] for e in candidate["exercises"] if e["section_type"] == "EXERCISE"])
+    check("EXERCISE_SEQUENCE_INCOMPLETE", len(ex_nums) > 0 and ex_nums == list(range(1, len(ex_nums) + 1)), "CRITICAL", f"Exercises: {ex_nums}")
+
+    for e in candidate["exercises"]:
+        check("EXERCISE_SOURCE_MISMATCH", len(e["exact_source_prompt"]) >= 10, "CRITICAL", f"Ex {e['number']}")
+        check("EXERCISE_FIDELITY_UNVERIFIED", e.get("verified_against_source", False), "CRITICAL", f"Ex {e['number']} source mismatch")
+        if e["requires_figure"]:
+            check("EXERCISE_DIAGRAM_REQUIRED_MISSING", len(e["figure_refs"]) > 0, "CRITICAL", f"Ex {e['number']}")
+
+    check("PRE_SOLVE_FAILED", all(e["solution_status"] == "SOLVED" for e in candidate["exercises"] if e["solution_mode"] == "PRE_SOLVED"), "CRITICAL", "Pre-solved exercises unverified")
+    check("WORKSHEET_NOT_GRADABLE", all("correct_index" in q for q in candidate["theory"]["worksheet"]), "CRITICAL", "Worksheet grading keys")
+    check("REFERENCE_CARD_CONTENT_INCOMPLETE", "goldenReferenceCard" in candidate["page_a_html"], "CRITICAL", "Golden reference card missing")
+
+    with tempfile.NamedTemporaryFile(suffix=".html", mode="w", encoding="utf-8", delete=False) as tmp_a:
+        tmp_a.write(candidate["page_a_html"])
+        path_a = tmp_a.name
+    with tempfile.NamedTemporaryFile(suffix=".html", mode="w", encoding="utf-8", delete=False) as tmp_b:
+        tmp_b.write(candidate["page_b_html"])
+        path_b = tmp_b.name
+
+    try:
+        qa_a = run_real_playwright_chromium_qa(path_a)
+        qa_b = run_real_playwright_chromium_qa(path_b)
+    finally:
+        Path(path_a).unlink(missing_ok=True)
+        Path(path_b).unlink(missing_ok=True)
+
+    check("MATH_RENDERING_FAILED", qa_a and qa_b, "CRITICAL", "MathJax successful rendering & bounding box overflow checks verified via real Playwright Chromium execution")
+    check("MOBILE_REAL_PLAYWRIGHT_CHROMIUM_QA_390_844", qa_a and qa_b, "CRITICAL", "Real Playwright Chromium headless browser QA verified for 390x844 bounds, bounding boxes clipping & touch targets")
+
+    check("NAVIGATION_FAILED", "navigateToExercises" in candidate["page_a_html"] and "returnToLesson" in candidate["page_b_html"], "CRITICAL", "Navigation intact")
+
+    return {"passed": True, "gates": report}
+
+
+def independent_scientific_review(entry: dict, candidate: dict) -> dict:
+    dump = json.dumps(candidate["theory"]).lower()
+    issues = [forbidden for forbidden in FORBIDDEN_EDUCATIONAL_HARDCODE if forbidden in dump]
+    if issues:
+        raise RuntimeError(f"SCIENTIFIC_REVIEW_REJECTED: Found hardcode violations -> {issues}")
+
+    prompt = (
+        f"You are an Independent Senior Curriculum Auditor for Lebanese {entry['subject'].capitalize()} Grade {entry['grade']}.\n"
+        f"Audit this complete lesson payload including evidence concepts and exercise solutions for absolute scientific rigor.\n"
+        f"Lesson Title: {entry['canonical_title']}\n"
+        f"Evidence Concepts: {json.dumps(candidate['evidence_map']['concepts'], ensure_ascii=False)}\n"
+        f"Exercises & Solutions: {json.dumps(candidate['exercises'], ensure_ascii=False)}\n\n"
+        "Return strictly JSON: {'approved': bool, 'issues': [str], 'scientific_notes': str}"
+    )
+
+    try:
+        res = execute_llm_completion(prompt, json_mode=True, temperature=0.0)
+        parsed = json.loads(res)
+        if not parsed.get("approved", False):
+            raise RuntimeError(f"SCIENTIFIC_REVIEW_REJECTED: Audit failed -> {parsed.get('issues')}")
+        return parsed
+    except Exception as e:
+        raise RuntimeError(f"SCIENTIFIC_REVIEW_REJECTED: reviewer unavailable or failed: {e}")
+
+
+# ==============================================================================
+# 12. ATOMIC PROMOTION & POST-UPLOAD SHA-256 VERIFICATION
+# ==============================================================================
+def rollback_lesson_drive(drive_service, lesson_id: str, target_version: int):
+    root_id = resolve_drive_root_id()
+    ver_file = VERSIONS_DIR / f"{lesson_id}.json"
+    if not ver_file.exists():
+        raise RuntimeError("ROLLBACK_VERSION_NOT_FOUND")
+
+    meta = json.loads(ver_file.read_text(encoding="utf-8"))
+    old_a = ARTIFACTS_DIR / f"{lesson_id}_v{target_version}_A.html"
+    old_b = ARTIFACTS_DIR / f"{lesson_id}_v{target_version}_B.html"
+
+    if not (old_a.exists() and old_b.exists()):
+        raise RuntimeError(f"ROLLBACK_ARTIFACTS_MISSING: Version v{target_version} files not found")
+
+    content_a = old_a.read_text(encoding="utf-8")
+    content_b = old_b.read_text(encoding="utf-8")
+
+    from googleapiclient.http import MediaIoBaseUpload
+    if meta.get("drive_theory_id"):
+        media_a = MediaIoBaseUpload(io.BytesIO(content_a.encode("utf-8")), mimetype="text/html", resumable=True)
+        drive_service.files().update(fileId=meta["drive_theory_id"], media_body=media_a).execute()
+
+    if meta.get("drive_exercises_id"):
+        media_b = MediaIoBaseUpload(io.BytesIO(content_b.encode("utf-8")), mimetype="text/html", resumable=True)
+        drive_service.files().update(fileId=meta["drive_exercises_id"], media_body=media_b).execute()
+
+    meta["published_version"] = target_version
+    meta["status"] = "ROLLED_BACK"
+    meta["history"].append({"action": "ROLLBACK", "target": target_version, "time": now()})
+    ver_file.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    progress("ROLLBACK_DRIVE_EXECUTING_SUCCESS", lesson_id=lesson_id, target_version=target_version)
+
+
+def promote_candidate(candidate: dict, entry: dict, drive_service) -> Tuple[str, str]:
+    """Atomic Promotion with Post-Upload SHA-256 Verification & Safe Revert Backup."""
+    root_id = resolve_drive_root_id()
+    from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
+
+    def get_or_create_folder(name: str, parent: str) -> str:
+        q = f"name = '{name}' and mimeType = 'application/vnd.google-apps.folder' and '{parent}' in parents and trashed = false"
+        res = drive_service.files().list(q=q, fields="files(id)").execute().get("files", [])
+        if len(res) > 1:
+            raise RuntimeError(f"DRIVE_FOLDER_DUPLICATE_FAILED: Multiple folders named '{name}' under {parent}")
+        if res:
+            return res[0]["id"]
+        meta = {"name": name, "mimeType": "application/vnd.google-apps.folder", "parents": [parent]}
+        return drive_service.files().create(body=meta, fields="id").execute()["id"]
+
+    grade_fid = get_or_create_folder(f"Grade {entry['grade']}", root_id)
+    subject_fid = get_or_create_folder(entry['subject'], grade_fid)
+
+    def get_existing_file(fname: str) -> Optional[dict]:
+        q = f"name = '{fname}' and '{subject_fid}' in parents and trashed = false"
+        files = drive_service.files().list(q=q, fields="files(id, name)").execute().get("files", [])
+        return files[0] if files else None
+
+    existing_a = get_existing_file(candidate["filename_a"])
+    existing_b = get_existing_file(candidate["filename_b"])
+    backup_data_a = None
+    backup_data_b = None
+    if existing_a:
+        backup_data_a = drive_service.files().get_media(fileId=existing_a["id"]).execute()
+    if existing_b:
+        backup_data_b = drive_service.files().get_media(fileId=existing_b["id"]).execute()
+
+    def upload_or_update(fname: str, content: str, existing: Optional[dict]) -> str:
+        media = MediaIoBaseUpload(io.BytesIO(content.encode("utf-8")), mimetype="text/html", resumable=True)
+        if existing:
+            drive_service.files().update(fileId=existing["id"], media_body=media).execute()
+            return existing["id"]
+        return drive_service.files().create(body={"name": fname, "parents": [subject_fid]}, media_body=media, fields="id").execute()["id"]
+
+    tid = None
+    eid = None
+    try:
+        tid = upload_or_update(candidate["filename_a"], candidate["page_a_html"], existing_a)
+        eid = upload_or_update(candidate["filename_b"], candidate["page_b_html"], existing_b)
+
+        def verify_remote_sha256(file_id: str, local_content: str):
+            fh = io.BytesIO()
+            downloader = MediaIoBaseDownload(fh, drive_service.files().get_media(fileId=file_id))
+            done = False
+            while not done:
+                _, done = downloader.next_chunk()
+            remote_sha = hashlib.sha256(fh.getvalue()).hexdigest()
+            local_sha = hashlib.sha256(local_content.encode("utf-8")).hexdigest()
+            if remote_sha != local_sha:
+                raise RuntimeError(f"POST_UPLOAD_VERIFICATION_FAILED: SHA256 mismatch for file id {file_id}")
+
+        verify_remote_sha256(tid, candidate["page_a_html"])
+        verify_remote_sha256(eid, candidate["page_b_html"])
+
+    except Exception as e:
+        if tid and existing_a and backup_data_a:
+            revert_media_a = MediaIoBaseUpload(io.BytesIO(backup_data_a), mimetype="text/html", resumable=True)
+            drive_service.files().update(fileId=tid, media_body=revert_media_a).execute()
+        elif tid and not existing_a:
+            drive_service.files().delete(fileId=tid).execute()
+
+        if eid and existing_b and backup_data_b:
+            revert_media_b = MediaIoBaseUpload(io.BytesIO(backup_data_b), mimetype="text/html", resumable=True)
+            drive_service.files().update(fileId=eid, media_body=revert_media_b).execute()
+        elif eid and not existing_b:
+            drive_service.files().delete(fileId=eid).execute()
+
+        raise RuntimeError(f"ATOMIC_PROMOTION_FAILED: Transaction rolled back safely ({e})")
+
+    return tid, eid
+
+
+# ==============================================================================
+# PRODUCTION PIPELINE ENTRY (LAZY DRIVE RESOLUTION)
 # ==============================================================================
 def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = False) -> dict:
     lesson_id = entry["lesson_id"]
     book_id = entry["book_id"]
     progress("PRODUCTION_PIPELINE_START", lesson_id=lesson_id)
 
-    pdf_path = resolve_source_book_pdf(book_id, drive_service)
+    if lesson_id == "G07-PHYSICS-001" and publish:
+        raise RuntimeError("PILOT_PUBLISH_PROHIBITED: Golden Pilot lesson G07-PHYSICS-001 is QA-only and cannot be published directly to Drive.")
 
+    ver_file = VERSIONS_DIR / f"{lesson_id}.json"
+    if ver_file.exists():
+        ver_meta = json.loads(ver_file.read_text(encoding="utf-8"))
+        candidate_v = ver_meta.get("published_version", 0) + 1
+    else:
+        ver_meta = {"lesson_id": lesson_id, "published_version": 0, "history": []}
+        candidate_v = 1
+
+    profile = resolve_pedagogy_profile(entry)
+    
+    if drive_service is None and (publish or not Path(f"/app/data/books/{book_id}.pdf").exists()):
+        drive_service = get_drive_service()
+
+    pdf_path = resolve_source_book_pdf(book_id, drive_service)
     import fitz
     doc = fitz.open(str(pdf_path))
-
     ev_map = build_evidence_map(doc, entry)
     doc.close()
 
-    theory = synthesize_universal_pedagogy(entry, ev_map)
+    theory = synthesize_universal_pedagogy(entry, ev_map, profile)
     exercises = ev_map["exercise_evidence"]
 
     page_a = render_lesson_page_a(entry, theory, ev_map)
-    page_b = render_lesson_page_b(entry, exercises)
-
-    gates_res = run_all_quality_gates(entry, ev_map, theory, exercises, page_a, page_b)
+    page_b = render_lesson_page_b(entry, exercises, profile, ev_map)
 
     slug_subj = re.sub(r'[^\w]+', '-', entry.get("subject", "PHYSICS")).upper()
     slug_title = re.sub(r'[^\w]+', '-', entry["canonical_title"]).upper()
@@ -979,8 +1485,31 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
     filename_a = f"{grade_str}-{slug_subj}--{seq_str}--{slug_title}.html"
     filename_b = f"{grade_str}-{slug_subj}--{seq_str}--{slug_title}--EXERCISES.html"
 
+    candidate = {
+        "lesson_id": lesson_id,
+        "candidate_version": candidate_v,
+        "filename_a": filename_a,
+        "filename_b": filename_b,
+        "page_a_html": page_a,
+        "page_b_html": page_b,
+        "evidence_map": ev_map,
+        "theory": theory,
+        "exercises": exercises,
+        "hashes": {
+            "page_a": hashlib.sha256(page_a.encode("utf-8")).hexdigest(),
+            "page_b": hashlib.sha256(page_b.encode("utf-8")).hexdigest(),
+            "evidence": hashlib.sha256(json.dumps(ev_map).encode("utf-8")).hexdigest()
+        }
+    }
+
+    gates_res = run_all_quality_gates(candidate)
+    review_res = independent_scientific_review(entry, candidate)
+
     path_a = OUT_DIR / filename_a
     path_b = OUT_DIR / filename_b
+
+    (ARTIFACTS_DIR / f"{lesson_id}_v{candidate_v}_A.html").write_text(page_a, encoding="utf-8")
+    (ARTIFACTS_DIR / f"{lesson_id}_v{candidate_v}_B.html").write_text(page_b, encoding="utf-8")
 
     path_a.write_text(page_a, encoding="utf-8")
     path_b.write_text(page_b, encoding="utf-8")
@@ -988,70 +1517,66 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
 
     drive_theory_id = None
     drive_exercises_id = None
+    status_str = "QA_PASSED_LOCAL"
     if publish:
-        root_id = resolve_drive_root_id()
-        from googleapiclient.http import MediaIoBaseUpload
-
-        def get_or_create_folder(name: str, parent: str) -> str:
-            q = f"name = '{name}' and mimeType = 'application/vnd.google-apps.folder' and '{parent}' in parents and trashed = false"
-            res = drive_service.files().list(q=q, fields="files(id)").execute().get("files", [])
-            if len(res) > 1:
-                raise RuntimeError(f"DRIVE_FOLDER_DUPLICATE_FAILED: Multiple folders named '{name}' under {parent}")
-            if res:
-                return res[0]["id"]
-            meta = {"name": name, "mimeType": "application/vnd.google-apps.folder", "parents": [parent]}
-            return drive_service.files().create(body=meta, fields="id").execute()["id"]
-
-        grade_fid = get_or_create_folder(f"Grade {entry['grade']}", root_id)
-        subject_fid = get_or_create_folder(entry['subject'], grade_fid)
-
-        def sync_file(fname: str, content: str) -> str:
-            q = f"name = '{fname}' and '{subject_fid}' in parents and trashed = false"
-            files = drive_service.files().list(q=q, fields="files(id)").execute().get("files", [])
-            if len(files) > 1:
-                raise RuntimeError(f"DUPLICATE_LESSON_FAILED: Multiple files found on Drive matching {fname}")
-            media = MediaIoBaseUpload(io.BytesIO(content.encode("utf-8")), mimetype="text/html", resumable=True)
-            if files:
-                drive_service.files().update(fileId=files[0]["id"], media_body=media).execute()
-                return files[0]["id"]
-            return drive_service.files().create(body={"name": fname, "parents": [subject_fid]}, media_body=media, fields="id").execute()["id"]
-
-        drive_theory_id = sync_file(filename_a, page_a)
-        drive_exercises_id = sync_file(filename_b, page_b)
-        progress("PUBLISHED_TO_DRIVE", theory_id=drive_theory_id, exercises_id=drive_exercises_id)
+        if drive_service is None:
+            drive_service = get_drive_service()
+        drive_theory_id, drive_exercises_id = promote_candidate(candidate, entry, drive_service)
+        ver_meta["published_version"] = candidate_v
+        ver_meta["drive_theory_id"] = drive_theory_id
+        ver_meta["drive_exercises_id"] = drive_exercises_id
+        ver_meta["history"].append({"action": "PUBLISH", "version": candidate_v, "time": now()})
+        ver_file.write_text(json.dumps(ver_meta, indent=2), encoding="utf-8")
+        status_str = "PUBLISHED_VERIFIED"
+        progress("ATOMIC_PUBLISHED_AND_VERIFIED_TO_DRIVE", theory_id=drive_theory_id, exercises_id=drive_exercises_id)
 
     rep = {
-        "status": "PUBLISHED_VERIFIED" if publish else "QA_PASSED_LOCAL",
+        "status": status_str,
         "lesson_id": lesson_id,
+        "candidate_version": candidate_v,
         "canonical_title": entry["canonical_title"],
         "source_book_id": entry["book_id"],
         "source_pages": f"{entry['pdf_start_page']}..{entry['pdf_end_page']}",
-        "evidence_hash": hashlib.sha256(json.dumps(ev_map, ensure_ascii=False).encode("utf-8")).hexdigest()[:16],
+        "evidence_hash": candidate["hashes"]["evidence"][:16],
         "activities_count": len(theory["activities"]),
         "exercises_count": len(exercises),
         "drive_theory_id": drive_theory_id,
         "drive_exercises_id": drive_exercises_id,
         "gates_report": gates_res["gates"],
+        "scientific_review": review_res,
         "local_files": [str(path_a), str(path_b)]
     }
     return rep
 
 
 # ==============================================================================
-# 10. MAIN ENTRY POINT
+# MAIN ENTRY POINT
 # ==============================================================================
 def main():
     global PROGRESS_STARTED
     PROGRESS_STARTED = time.monotonic()
 
+    source_code = Path(__file__).read_text(encoding="utf-8")
+    assert_no_lesson_specific_hardcode(source_code)
+    assert_no_markdown_urls_in_runtime_code(source_code)
+
+    py_compile.compile(__file__, doraise=True)
+
     parser = argparse.ArgumentParser(description="NABIL AI Universal Production Factory")
     parser.add_argument("--lesson-id", type=str, default="G07-PHYSICS-001", help="Target canonical lesson ID")
     parser.add_argument("--publish", action="store_true", help="Publish directly to Google Drive")
+    parser.add_argument("--rollback", type=int, default=None, help="Target version to rollback")
     args = parser.parse_args()
+
+    if args.rollback is not None:
+        drive_service = get_drive_service()
+        rollback_lesson_drive(drive_service, args.lesson_id, args.rollback)
+        return 0
 
     execute_preflight_checks(require_drive=args.publish)
     entry = resolve_canonical_entry(args.lesson_id)
-    drive_service = get_drive_service()
+    
+    drive_service = get_drive_service() if args.publish else None
 
     report = produce_lesson_for_entry(entry, drive_service=drive_service, publish=args.publish)
     print(json.dumps(report, ensure_ascii=False, indent=2))
@@ -1059,4 +1584,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
