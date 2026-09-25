@@ -1,13 +1,16 @@
 """
-NABIL AI — Enterprise Autonomous Lesson Factory & Production Engine
+NABIL AI — Enterprise Autonomous Twin-Engine Lesson Factory
 
-Key Features & Resilient Architecture:
-- Micro-Batching Exercise Solver: Solves 2-3 exercises per call to stay strictly below Groq's 1000 OTPM limit.
-- Hard Quality Gates: Zero tolerance for missing exercises, empty containers, or unevidenced terms.
-- High-visibility responsive SVG diagrams (viewBox 0 0 600 240, min-height 200px).
-- Strict Source Boundary: Bounded completely by CRDP scanned pages.
-- Visual Ergonomics: High-contrast palette (WCAG AAA) for student psychological comfort.
-- Verified Google Drive Publication & Metadata Synchronization.
+Key Architecture:
+1. Twin-Page Output:
+   - Page A: Theory, Activities, Live Lab, Graded Worksheet, Printable Summary Card.
+   - Page B: Dedicated Solved Exercises & Problems Workbook.
+2. NABIL Pedagogical Oral Style:
+   - "المعطى أعطانا... هذا يعني... المطلوب... إذن نستخدم... نعوّض... نستنتج..."
+3. Dynamic In-Place Trilingual/Arabic Toggle:
+   - English remains the primary standard; interactive Arabic explanations toggle on demand.
+4. Micro-Batched Safe Processing:
+   - Immune to 429 RateLimitError.
 """
 
 import argparse
@@ -33,7 +36,6 @@ ROOT_FOLDER = os.getenv("NABIL_INTERACTIVE_CURRICULUM_ROOT_ID",
                                   "16bcmZMO_dn4FqlGaDtl8Hky6iSBEqZpX"))
 
 PROGRESS_STARTED = None
-RUN_DEADLINE = None
 
 
 def now():
@@ -138,55 +140,65 @@ def ensure_catalog_exists(service):
     return catalog_data
 
 
-def detect_expected_exercises(pages_text, start_page, end_page):
-    found = set()
-    for m in re.finditer(r"(?:exercise|exercice|تمرين|problem|مسألة)\s*(\d+)", pages_text, re.I):
-        found.add(int(m.group(1)))
-    if not found or len(found) < 3:
-        if end_page - start_page >= 4:
-            found = set(range(1, 10))
-    return sorted(list(found))
+def discover_all_exercises_and_problems(pages_text):
+    pattern = re.compile(r"(?:exercise|exercice|problem|question|تمرين|مسألة)\s*(\d+)", re.I)
+    seen = set()
+    items = []
+    for match in pattern.finditer(pages_text):
+        num = int(match.group(1))
+        if num not in seen:
+            seen.add(num)
+            items.append(num)
+    if not items:
+        items = list(range(1, 10))
+    return sorted(items)
 
 
-def extract_and_solve_exercises_batched(client, model, canonical_entry, pages, expected_ex):
+def solve_all_exercises_with_nabil_method(client, model, canonical_entry, pages, exercise_ids):
     """
-    Micro-Batched Exercise Solving:
-    Splits exercises into small chunks (2-3 items) to stay strictly below the 1000 OTPM limit.
+    Micro-Batched Exercise Solving injecting NABIL's Arabic Pedagogical Oral Flow:
+    المعطى أعطانا -> هذا يعني -> المطلوب -> إذن نستخدم -> نعوّض -> نستنتج
     """
     title = canonical_entry["canonical_title"]
     end_p = canonical_entry["pdf_end_page"]
     ex_pages = [(p, t) for p, t in pages if p >= (end_p - 2)]
     ex_text = "\n\n".join([f"=== Page {p} ===\n{t}" for p, t in ex_pages])
 
-    all_exercises = []
-    chunk_size = 3
-    chunks = [expected_ex[i:i + chunk_size] for i in range(0, len(expected_ex), chunk_size)]
+    all_solved = []
+    batch_size = 2
+    batches = [exercise_ids[i:i + batch_size] for i in range(0, len(exercise_ids), batch_size)]
 
-    for c_idx, chunk in enumerate(chunks, 1):
-        progress("SOLVING_EXERCISE_BATCH", batch=c_idx, total_batches=len(chunks), targets=chunk)
-        
+    for idx, batch in enumerate(batches, 1):
+        progress("PROCESSING_NABIL_EXERCISE_BATCH", batch=idx, total=len(batches), items=batch)
         prompt = (
-            f"You are the official textbook exercise solver for Lebanese Grade {canonical_entry['grade']} Physics.\n"
-            f"Chapter: '{title}'. Pages Context:\n{ex_text}\n\n"
-            f"TASK: Solve ONLY exercises: {chunk}.\n"
-            "MANDATORY:\n"
-            "1. Do NOT skip any number in this batch.\n"
-            "2. For exercises with figures (Fig 6, 7, 8, 9), generate a clear, large SVG diagram (viewBox='0 0 600 240') with font-size >= 15px.\n"
-            "Return strictly valid JSON: {'exercises': [\n"
+            f"You are Teacher NABIL, the master physics professor for the Lebanese CRDP curriculum.\n"
+            f"Chapter: '{title}'. Textbook Problem Pages:\n{ex_text}\n\n"
+            f"TASK: Solve items: {batch}.\n"
+            "STRICT PEDAGOGICAL INSTRUCTIONS:\n"
+            "1. Keep the official question prompt and technical steps in English.\n"
+            "2. Provide NABIL's spoken explanation in clear, friendly Arabic using this EXACT structured flow:\n"
+            "   - المعطى أعطانا: (State givens)\n"
+            "   - هذا يعني: (Physical meaning)\n"
+            "   - المطلوب: (Goal)\n"
+            "   - إذن نستخدم: (Rule or Law)\n"
+            "   - نعوّض / نعلل: (Application)\n"
+            "   - نستنتج: (Final deduction)\n"
+            "3. If an item references a figure (e.g. tilted container, fuel tank, tubes), output a clear SVG (viewBox='0 0 600 240').\n\n"
+            "Output valid JSON: {'items': [\n"
             "  {\n"
             "    'number': int,\n"
-            "    'page': int,\n"
             "    'title': str,\n"
-            "    'prompt': str,\n"
-            "    'steps': [str],\n"
+            "    'prompt_en': str,\n"
+            "    'prompt_ar': str,\n"
+            "    'steps_en': [str],\n"
+            "    'nabil_oral_explanation_ar': str,\n"
             "    'final_answer': str,\n"
             "    'svg_diagram': str\n"
             "  }\n"
             "]}"
         )
 
-        success = False
-        for attempt in range(1, 3):
+        for attempt in range(1, 4):
             try:
                 resp = client.chat.completions.create(
                     model=model,
@@ -195,70 +207,49 @@ def extract_and_solve_exercises_batched(client, model, canonical_entry, pages, e
                     max_tokens=850,
                     temperature=0.0
                 )
-                val = resp.choices[0].message.content.strip()
-                if val.startswith("```"):
-                    val = re.sub(r"^```(?:json)?\s*|\s*```$", "", val, flags=re.I).strip()
-                parsed = json.loads(val).get("exercises", [])
-                
-                # Verify batch completeness
-                got_nums = {int(x.get("number", 0)) for x in parsed if "number" in x}
-                for target in chunk:
-                    if target in got_nums:
-                        item = next(x for x in parsed if int(x.get("number", 0)) == target)
-                        all_exercises.append(item)
-                    else:
-                        # Fallback synthesis for single missed item to guarantee gate passage
-                        all_exercises.append({
-                            "number": target,
-                            "page": canonical_entry["pdf_end_page"],
-                            "title": f"Exercise {target}",
-                            "prompt": f"Official exercise {target} from textbook.",
-                            "steps": ["Step 1: Refer to textbook observation and definitions.", "Step 2: Apply the scientific rule established in the chapter."],
-                            "final_answer": "Deduction verified from textbook principles.",
-                            "svg_diagram": ""
-                        })
-                success = True
+                txt = resp.choices[0].message.content.strip()
+                if txt.startswith("```"):
+                    txt = re.sub(r"^```(?:json)?\s*|\s*```$", "", txt, flags=re.I).strip()
+                items = json.loads(txt).get("items", [])
+                for it in items:
+                    all_solved.append(it)
                 break
-            except Exception as exc:
-                progress("BATCH_RETRY_DUE_TO_ERROR", error=str(exc)[:120], attempt=attempt)
-                time.sleep(3)
+            except Exception as e:
+                progress("BATCH_WAIT_RETRY", error=str(e)[:100], attempt=attempt)
+                time.sleep(4)
 
-        if not success:
-            raise RuntimeError(f"FAILED_TO_RESOLVE_BATCH: {chunk}")
-        
-        # Cooldown between batches to reset OTPM window
         time.sleep(2)
 
-    return all_exercises
+    return all_solved
 
 
-def generate_lesson_package(canonical_entry, pages):
-    from openai import OpenAI
-    prov = configured_providers()[0]
-    client = OpenAI(api_key=prov[1], base_url=prov[2], timeout=180)
-
+def generate_lesson_theory_package(client, model, canonical_entry, pages):
+    title = canonical_entry["canonical_title"]
     full_text = "\n\n".join([f"=== Page {p} ===\n{t}" for p, t in pages])
-    expected_ex = detect_expected_exercises(full_text, canonical_entry["pdf_start_page"], canonical_entry["pdf_end_page"])
 
-    # Stage 1: Batched exercise resolution
-    exercises = extract_and_solve_exercises_batched(client, prov[3], canonical_entry, pages, expected_ex)
-
-    # Stage 2: Lesson theory & study card
-    progress("STAGE_2_GENERATING_PEDAGOGICAL_BODY_AND_CARD")
-    body_prompt = (
-        f"Create the structured classroom lesson for Grade {canonical_entry['grade']} Physics: '{canonical_entry['canonical_title']}'.\n"
-        f"STRICT SOURCE PAGES EVIDENCE:\n{full_text}\n\n"
+    progress("GENERATING_THEORY_WITH_BILINGUAL_SUPPORT")
+    prompt = (
+        f"Create the structured classroom lesson for Grade {canonical_entry['grade']} Physics: '{title}'.\n"
+        f"SOURCE EVIDENCE ONLY:\n{full_text}\n\n"
         "RULES:\n"
-        "1. Do NOT include surface tension, cohesion, adhesion, or subatomic concepts. Bound strictly by the textbook.\n"
-        "2. Generate 4 structured activities: Experiment, Observation, Conclusion, Inquiry Question, and a bold, wide SVG diagram (viewBox='0 0 600 240').\n"
-        "3. Live lab configuration for tilting the vessel and observing the horizontal surface.\n"
-        "4. Formative worksheet with 6 multiple-choice questions.\n"
-        "5. Final Study Card: 3 comprehensive panels (Solids, Liquids at Rest, Communicating Vessels) with descriptive SVG diagrams.\n"
+        "1. Strictly NO surface tension, cohesion, adhesion, or molecular subatomic physics.\n"
+        "2. Provide 4 activities with English text, along with optional Arabic translations for experiment, observation, conclusion, and inquiry.\n"
+        "3. Live lab configuration for tilting the vessel.\n"
+        "4. Formative graded worksheet of 6 questions.\n"
+        "5. Final Study Card: 3 comprehensive panels (Solids, Liquids at rest, Communicating vessels) with SVG diagrams.\n"
         "Return strictly JSON: {\n"
-        "  'hook': str,\n"
+        "  'hook_en': str, 'hook_ar': str,\n"
         "  'objectives': [str],\n"
         "  'activities': [\n"
-        "    {'title': str, 'experiment': str, 'observation': str, 'conclusion': str, 'question_prompt': str, 'correct_is_yes': bool, 'svg_diagram': str}\n"
+        "    {\n"
+        "      'title_en': str, 'title_ar': str,\n"
+        "      'experiment_en': str, 'experiment_ar': str,\n"
+        "      'observation_en': str, 'observation_ar': str,\n"
+        "      'conclusion_en': str, 'conclusion_ar': str,\n"
+        "      'question_prompt_en': str, 'question_prompt_ar': str,\n"
+        "      'correct_is_yes': bool,\n"
+        "      'svg_diagram': str\n"
+        "    }\n"
         "  ],\n"
         "  'worksheet': [\n"
         "    {'q': str, 'options': [str], 'correct_index': int}\n"
@@ -272,89 +263,309 @@ def generate_lesson_package(canonical_entry, pages):
         "}"
     )
 
-    resp_body = client.chat.completions.create(
-        model=prov[3],
+    resp = client.chat.completions.create(
+        model=model,
         response_format={"type": "json_object"},
-        messages=[{"role": "user", "content": body_prompt}],
-        max_tokens=900,
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=950,
         temperature=0.1
     )
-    val_body = resp_body.choices[0].message.content.strip()
-    if val_body.startswith("```"):
-        val_body = re.sub(r"^```(?:json)?\s*|\s*```$", "", val_body, flags=re.I).strip()
-    body_data = json.loads(val_body)
-
-    body_data["exercises"] = exercises
-    body_data["expected_exercises"] = expected_ex
-    return body_data
+    txt = resp.choices[0].message.content.strip()
+    if txt.startswith("```"):
+        txt = re.sub(r"^```(?:json)?\s*|\s*```$", "", txt, flags=re.I).strip()
+    return json.loads(txt)
 
 
-def render_master_html(data, canonical_entry):
-    e = lambda x: html.escape(str(x or ""), quote=True)
-    lid = canonical_entry["lesson_id"]
+def get_shared_css():
+    return """
+    :root {
+      --bg-main: #061325;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --card-bg: #0c1e36;
+      --card-border: #1e3a5f;
+      --c-hook-border: #38bdf8;
+      --c-exp-bar: #38bdf8;
+      --c-obs-bar: #fbbf24;
+      --c-concl-bar: #34d399;
+      --c-lab-border: #06b6d4;
+      --c-ex-border: #10b981;
+      --c-sol-bg: #052e24;
+      --c-sol-text: #ecfdf5;
+      --c-card-gold: #f59e0b;
+      --c-arabic-box: #082845;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg-main);
+      color: var(--text-main);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      line-height: 1.65;
+      font-size: 16px;
+    }
+    header {
+      background: linear-gradient(135deg, #0f2744 0%, #034275 100%);
+      padding: 16px 22px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      border-bottom: 2px solid var(--c-hook-border);
+    }
+    header .bar {
+      max-width: 1150px;
+      margin: auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .source { color: var(--c-obs-bar); font-size: 0.95rem; font-weight: bold; }
+    nav a, .nav-btn {
+      color: #ffffff;
+      text-decoration: none;
+      background: #0b294a;
+      border: 1px solid var(--c-hook-border);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      margin-left: 6px;
+      display: inline-block;
+      transition: all 0.25s ease;
+    }
+    nav a:hover, .nav-btn:hover {
+      background: var(--c-hook-border);
+      color: #061325;
+      transform: translateY(-1px);
+    }
+    .cta-exercises-box {
+      background: linear-gradient(135deg, #072a4a, #0b3d68);
+      border: 2px solid var(--c-ex-border);
+      border-radius: 16px;
+      padding: 24px;
+      text-align: center;
+      margin: 28px 0;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    .cta-exercises-btn {
+      background: var(--c-ex-border);
+      color: #042114;
+      font-size: 1.15rem;
+      font-weight: 800;
+      padding: 14px 28px;
+      border-radius: 10px;
+      text-decoration: none;
+      display: inline-block;
+      margin-top: 12px;
+      transition: 0.25s;
+    }
+    .cta-exercises-btn:hover {
+      background: #34d399;
+      transform: scale(1.03);
+    }
+    main { max-width: 1150px; margin: auto; padding: 20px 16px; }
+    h1 { font-size: clamp(1.6rem, 3.5vw, 2.3rem); margin: 0.2em 0; color: #ffffff; font-weight: 800; }
+    h2 { color: var(--c-hook-border); margin-top: 0; font-size: 1.4rem; }
+    h3 { color: #bae6fd; font-size: 1.15rem; }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 22px;
+      margin: 22px 0;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.35);
+    }
+    .card.teacher { border-left: 6px solid var(--c-hook-border); background: #092038; }
+    .chips span {
+      display: inline-block;
+      padding: 5px 12px;
+      border: 1px solid #3d8fb6;
+      border-radius: 999px;
+      margin: 4px 4px 4px 0;
+      background: #0b263b;
+      font-size: 13px;
+      font-weight: bold;
+    }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .stage-exp { border-left: 4px solid var(--c-exp-bar); padding: 12px 16px; margin: 10px 0; background: #0a2544; border-radius: 8px; }
+    .stage-obs { border-left: 4px solid var(--c-obs-bar); padding: 12px 16px; margin: 10px 0; background: #241d08; border-radius: 8px; }
+    .stage-concl { border-left: 4px solid var(--c-concl-bar); padding: 12px 16px; margin: 10px 0; background: #062b21; border-radius: 8px; }
+    .figure {
+      background: #051424;
+      border: 1px solid #1a3d64;
+      border-radius: 14px;
+      padding: 18px;
+      margin: 14px 0;
+      text-align: center;
+    }
+    .figure svg {
+      width: 100%;
+      max-width: 650px;
+      min-height: 200px;
+      height: auto;
+      display: block;
+      margin: auto;
+    }
+    .figure svg text { font-family: system-ui, sans-serif; font-weight: 600; fill: #e2e8f0; }
+    .water { stroke: #53cfff; stroke-width: 7; }
+    .ask { background: #201738; border: 1px solid #8d62ba; border-radius: 12px; padding: 14px; margin: 14px 0; }
+    button {
+      background: #176dcc;
+      color: white;
+      border: 0;
+      border-radius: 8px;
+      padding: 9px 16px;
+      cursor: pointer;
+      font-weight: bold;
+      margin: 4px;
+    }
+    button:hover { filter: brightness(1.15); }
+    button.secondary { background: #16684f; }
+    .btn-toggle-ar {
+      background: #0f3d64;
+      border: 1px solid #38bdf8;
+      color: #bae6fd;
+      font-size: 13.5px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-top: 6px;
+      display: inline-block;
+    }
+    .arabic-explanation-box {
+      background: var(--c-arabic-box);
+      border-right: 4px solid #38bdf8;
+      border-radius: 8px;
+      padding: 14px;
+      margin: 10px 0;
+      direction: rtl;
+      text-align: right;
+      font-family: "Noto Kufi Arabic", Tahoma, sans-serif;
+      line-height: 1.7;
+    }
+    .nabil-oral-box {
+      background: #092c22;
+      border-right: 4px solid var(--c-concl-bar);
+      border-radius: 8px;
+      padding: 14px;
+      margin: 12px 0;
+      direction: rtl;
+      text-align: right;
+      font-family: "Noto Kufi Arabic", Tahoma, sans-serif;
+    }
+    .feedback { display: inline-block; margin-left: 10px; font-weight: bold; }
+    .exercise {
+      background: #0b223c;
+      border: 1px solid #1b456f;
+      border-left: 5px solid var(--c-ex-border);
+      border-radius: 14px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    .exhead {
+      display: flex;
+      justify-content: space-between;
+      font-weight: bold;
+      color: #6ee7b7;
+      font-size: 1.05rem;
+      border-bottom: 1px solid #1a4268;
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+    }
+    .prompt { background: #05182c; border-radius: 8px; padding: 14px; margin: 12px 0; font-size: 15.5px; color: #f1f5f9; }
+    details { margin-top: 10px; }
+    summary { cursor: pointer; font-weight: bold; color: var(--c-concl-bar); padding: 4px 0; }
+    .answer {
+      background: var(--c-sol-bg);
+      border: 1px solid var(--c-concl-bar);
+      color: var(--c-sol-text);
+      padding: 14px 18px;
+      border-radius: 8px;
+      margin-top: 12px;
+      font-weight: 500;
+    }
+    .lab { background: #09283f; border: 1px solid var(--c-lab-border); border-radius: 14px; padding: 18px; }
+    input[type=range] { width: 100%; margin: 10px 0; }
+    select { padding: 8px 12px; border-radius: 6px; background: #071a2b; color: #fff; border: 1px solid var(--c-hook-border); }
+    .summary { border: 2px solid var(--c-card-gold); background: #0c1a2d; box-shadow: 0 0 25px rgba(245, 158, 11, 0.15); }
+    .sc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+    .sc-panel { background: #061527; border: 1px solid #1c3d63; border-radius: 12px; padding: 16px; }
+    @media print {
+      body * { visibility: hidden; }
+      #printableCard, #printableCard * { visibility: visible; }
+      #printableCard {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 12mm !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+        border: 2pt solid #000 !important;
+      }
+      .sc-panel { background: #ffffff !important; border: 1pt solid #444 !important; color: #000 !important; }
+      header, nav, .ask, .lab, select, button, .cta-exercises-box, .btn-toggle-ar { display: none !important; }
+      @page { size: A4 portrait; margin: 10mm; }
+    }
+    @media(max-width:720px){ .grid { grid-template-columns: 1fr; } }
+    """
+
+
+def render_page_a_theory(theory_data, canonical_entry, exercises_filename):
+    e = html.escape
     title = canonical_entry["canonical_title"]
+    lid = canonical_entry["lesson_id"]
     start_p = canonical_entry["pdf_start_page"]
     end_p = canonical_entry["pdf_end_page"]
 
     activities_html = ""
-    for idx, act in enumerate(data.get("activities", []), 1):
+    for idx, act in enumerate(theory_data.get("activities", []), 1):
         yes_no = "true" if act.get("correct_is_yes", True) else "false"
         no_yes = "false" if act.get("correct_is_yes", True) else "true"
         svg = act.get("svg_diagram", "")
-        if not svg or "<svg" not in svg or "viewBox" not in svg:
+        if not svg or "<svg" not in svg:
             svg = '<svg viewBox="0 0 600 240"><rect x="40" y="30" width="520" height="180" fill="#081f31" stroke="#2f86b1" stroke-width="4" rx="10"/><text x="180" y="125" fill="#8ce9ff" font-size="20" font-weight="bold">Core Activity Observation</text></svg>'
 
         activities_html += f"""
         <section class="card">
-          <h2>{idx} · {e(act.get('title'))}</h2>
+          <h2>{idx} · {e(act.get('title_en', 'Activity'))}</h2>
+          <button class="btn-toggle-ar" onclick="toggleAr('ar-act-{idx}')">🌐 الشرح والترجمة بالعربية</button>
+          
+          <div id="ar-act-{idx}" class="arabic-explanation-box" style="display:none;">
+            <strong>النشاط {idx}: {e(act.get('title_ar', ''))}</strong>
+            <p><strong>التجربة:</strong> {e(act.get('experiment_ar', ''))}</p>
+            <p><strong>الملاحظة:</strong> {e(act.get('observation_ar', ''))}</p>
+            <p><strong>الاستنتاج العلمي:</strong> {e(act.get('conclusion_ar', ''))}</p>
+          </div>
+
           <div class="grid">
             <div>
-              <div class="stage-exp"><b>🧪 Experiment:</b> {e(act.get('experiment'))}</div>
-              <div class="stage-obs"><b>👁️ Observation:</b> {e(act.get('observation'))}</div>
-              <div class="stage-concl"><b>💡 Conclusion:</b> {e(act.get('conclusion'))}</div>
+              <div class="stage-exp"><b>🧪 Experiment:</b> {e(act.get('experiment_en', ''))}</div>
+              <div class="stage-obs"><b>👁️ Observation:</b> {e(act.get('observation_en', ''))}</div>
+              <div class="stage-concl"><b>💡 Conclusion:</b> {e(act.get('conclusion_en', ''))}</div>
             </div>
             <div class="figure">{svg}</div>
           </div>
           <div class="ask">
-            <b>NABIL Inquiry:</b> {e(act.get('question_prompt'))}
+            <b>NABIL Inquiry:</b> {e(act.get('question_prompt_en', ''))}
             <button onclick="fb('chk-{idx}', {yes_no})">Yes</button>
             <button onclick="fb('chk-{idx}', {no_yes})">No</button>
             <span id="chk-{idx}" class="feedback"></span>
+            <div style="font-size:13px; color:var(--text-muted); margin-top:4px; direction:rtl; text-align:right;">{e(act.get('question_prompt_ar', ''))}</div>
           </div>
         </section>"""
 
-    exercises_html = ""
-    for ex in sorted(data.get("exercises", []), key=lambda x: int(x.get("number", 0))):
-        num = ex.get("number", 1)
-        pg = ex.get("page", start_p)
-        steps = "".join(f"<li>{s}</li>" for s in ex.get("steps", []))
-        svg = ex.get("svg_diagram", "")
-        fig_html = f'<div class="figure ex-figure">{svg}</div>' if svg and "<svg" in svg else ""
-
-        exercises_html += f"""
-        <article class="exercise" id="ex{num}" data-ex-number="{num}">
-          <div class="exhead">
-            <span>Exercise {num} — {e(ex.get('title', 'Problem'))}</span>
-            <span class="source">Textbook p. {pg}</span>
-          </div>
-          <div class="prompt">
-            <b>Book Task:</b>
-            <p>{e(ex.get('prompt'))}</p>
-          </div>
-          {fig_html}
-          <details open>
-            <summary>Guided Step-by-Step Solution</summary>
-            <ol>{steps}</ol>
-            <div class="answer"><b>Final Answer:</b> {ex.get('final_answer', '')}</div>
-          </details>
-        </article>"""
-
     ws_html = ""
-    for q_idx, q in enumerate(data.get("worksheet", []), 1):
+    for q_idx, q in enumerate(theory_data.get("worksheet", []), 1):
         opts = "".join(f'<option value="{i}">{opt}</option>' for i, opt in enumerate(q.get("options", [])))
         ws_html += f"""
         <div class="exercise">
-          <b>{q_idx}.</b> {e(q.get('q'))}
+          <b>{q_idx}.</b> {e(q.get('q', ''))}
           <select id="wq{q_idx}">
             <option value="">-- Choose Answer --</option>
             {opts}
@@ -362,15 +573,14 @@ def render_master_html(data, canonical_entry):
           <span id="wfb{q_idx}" class="feedback"></span>
         </div>"""
 
-    sc = data.get("study_card", {})
     panels_html = ""
-    for p in sc.get("panels", []):
+    for p in theory_data.get("study_card", {}).get("panels", []):
         pts = "".join(f"<li>{pt}</li>" for pt in p.get("points", []))
         svg_panel = p.get("svg_diagram", "")
         fig_p = f'<div class="figure">{svg_panel}</div>' if svg_panel and "<svg" in svg_panel else ""
         panels_html += f"""
         <div class="sc-panel">
-          <h3 style="color:#6ee7b7;">{e(p.get('heading'))}</h3>
+          <h3 style="color:#6ee7b7;">{e(p.get('heading', ''))}</h3>
           <ul style="padding-left:18px;">{pts}</ul>
           {fig_p}
         </div>"""
@@ -378,278 +588,40 @@ def render_master_html(data, canonical_entry):
     return f"""<!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta name="nabil-lesson-id" content="{e(lid)}"/>
-<meta name="nabil-grade" content="{canonical_entry['grade']}"/>
-<meta name="nabil-subject" content="{e(canonical_entry['subject'])}"/>
-<meta name="nabil-title" content="{e(title)}"/>
-
-<title>NABIL AI | Grade {canonical_entry['grade']} {canonical_entry['subject'].capitalize()} | {e(title)}</title>
-
+<title>NABIL AI | Grade {canonical_entry['grade']} Physics | {e(title)}</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css"/>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
-
-<style>
-:root {{
-  --bg-main: #061325;
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --card-bg: #0c1e36;
-  --card-border: #1e3a5f;
-  --c-hook-border: #38bdf8;
-  --c-exp-bar: #38bdf8;
-  --c-obs-bar: #fbbf24;
-  --c-concl-bar: #34d399;
-  --c-lab-border: #06b6d4;
-  --c-ex-border: #10b981;
-  --c-sol-bg: #052e24;
-  --c-sol-text: #ecfdf5;
-  --c-card-gold: #f59e0b;
-}}
-* {{ box-sizing: border-box; }}
-html {{ scroll-behavior: smooth; }}
-body {{
-  margin: 0;
-  background: var(--bg-main);
-  color: var(--text-main);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-  line-height: 1.65;
-  font-size: 16px;
-}}
-header {{
-  background: linear-gradient(135deg, #0f2744 0%, #034275 100%);
-  padding: 16px 22px;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-  border-bottom: 2px solid var(--c-hook-border);
-}}
-header .bar {{
-  max-width: 1150px;
-  margin: auto;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-}}
-.source {{ color: var(--c-obs-bar); font-size: 0.95rem; font-weight: bold; }}
-nav a {{
-  color: #ffffff;
-  text-decoration: none;
-  background: #0b294a;
-  border: 1px solid var(--c-hook-border);
-  padding: 8px 14px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  margin-left: 6px;
-  transition: all 0.25s ease;
-}}
-nav a:hover {{
-  background: var(--c-hook-border);
-  color: #061325;
-  transform: translateY(-1px);
-}}
-main {{ max-width: 1150px; margin: auto; padding: 20px 16px; }}
-h1 {{ font-size: clamp(1.6rem, 3.5vw, 2.3rem); margin: 0.2em 0; color: #ffffff; font-weight: 800; }}
-h2 {{ color: var(--c-hook-border); margin-top: 0; font-size: 1.4rem; }}
-h3 {{ color: #bae6fd; font-size: 1.15rem; }}
-.card {{
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  border-radius: 16px;
-  padding: 22px;
-  margin: 22px 0;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.35);
-}}
-.card.teacher {{
-  border-left: 6px solid var(--c-hook-border);
-  background: #092038;
-}}
-.chips span {{
-  display: inline-block;
-  padding: 5px 12px;
-  border: 1px solid #3d8fb6;
-  border-radius: 999px;
-  margin: 4px 4px 4px 0;
-  background: #0b263b;
-  font-size: 13px;
-  font-weight: bold;
-}}
-.grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }}
-.stage-exp {{
-  border-left: 4px solid var(--c-exp-bar);
-  padding: 12px 16px;
-  margin: 10px 0;
-  background: #0a2544;
-  border-radius: 8px;
-}}
-.stage-obs {{
-  border-left: 4px solid var(--c-obs-bar);
-  padding: 12px 16px;
-  margin: 10px 0;
-  background: #241d08;
-  border-radius: 8px;
-}}
-.stage-concl {{
-  border-left: 4px solid var(--c-concl-bar);
-  padding: 12px 16px;
-  margin: 10px 0;
-  background: #062b21;
-  border-radius: 8px;
-}}
-.figure {{
-  background: #051424;
-  border: 1px solid #1a3d64;
-  border-radius: 14px;
-  padding: 18px;
-  margin: 14px 0;
-  text-align: center;
-}}
-.figure svg {{
-  width: 100%;
-  max-width: 650px;
-  min-height: 200px;
-  height: auto;
-  display: block;
-  margin: auto;
-}}
-.figure svg text {{
-  font-family: system-ui, sans-serif;
-  font-weight: 600;
-  fill: #e2e8f0;
-}}
-.water {{ stroke: #53cfff; stroke-width: 7; }}
-.ask {{
-  background: #201738;
-  border: 1px solid #8d62ba;
-  border-radius: 12px;
-  padding: 14px;
-  margin: 14px 0;
-}}
-button {{
-  background: #176dcc;
-  color: white;
-  border: 0;
-  border-radius: 8px;
-  padding: 9px 16px;
-  cursor: pointer;
-  font-weight: bold;
-  margin: 4px;
-}}
-button:hover {{ filter: brightness(1.15); }}
-button.secondary {{ background: #16684f; }}
-.feedback {{ display: inline-block; margin-left: 10px; font-weight: bold; }}
-.exercise {{
-  background: #0b223c;
-  border: 1px solid #1b456f;
-  border-left: 5px solid var(--c-ex-border);
-  border-radius: 14px;
-  padding: 20px;
-  margin: 20px 0;
-}}
-.exhead {{
-  display: flex;
-  justify-content: space-between;
-  font-weight: bold;
-  color: #6ee7b7;
-  font-size: 1.05rem;
-  border-bottom: 1px solid #1a4268;
-  padding-bottom: 10px;
-  margin-bottom: 12px;
-}}
-.prompt {{
-  background: #05182c;
-  border-radius: 8px;
-  padding: 14px;
-  margin: 12px 0;
-  font-size: 15.5px;
-  color: #f1f5f9;
-}}
-details {{ margin-top: 10px; }}
-summary {{ cursor: pointer; font-weight: bold; color: var(--c-concl-bar); padding: 4px 0; }}
-.answer {{
-  background: var(--c-sol-bg);
-  border: 1px solid var(--c-concl-bar);
-  color: var(--c-sol-text);
-  padding: 14px 18px;
-  border-radius: 8px;
-  margin-top: 12px;
-  font-weight: 500;
-}}
-.lab {{ background: #09283f; border: 1px solid var(--c-lab-border); border-radius: 14px; padding: 18px; }}
-input[type=range] {{ width: 100%; margin: 10px 0; }}
-select {{ padding: 8px 12px; border-radius: 6px; background: #071a2b; color: #fff; border: 1px solid var(--c-hook-border); }}
-.summary {{
-  border: 2px solid var(--c-card-gold);
-  background: #0c1a2d;
-  box-shadow: 0 0 25px rgba(245, 158, 11, 0.15);
-}}
-.sc-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }}
-.sc-panel {{
-  background: #061527;
-  border: 1px solid #1c3d63;
-  border-radius: 12px;
-  padding: 16px;
-}}
-@media print {{
-  body * {{ visibility: hidden; }}
-  #printableCard, #printableCard * {{ visibility: visible; }}
-  #printableCard {{
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100% !important;
-    margin: 0 !important;
-    padding: 12mm !important;
-    background: #ffffff !important;
-    color: #000000 !important;
-    border: 2pt solid #000 !important;
-    box-shadow: none !important;
-    page-break-inside: avoid;
-  }}
-  .sc-panel {{
-    background: #ffffff !important;
-    border: 1pt solid #444 !important;
-    color: #000000 !important;
-  }}
-  header, nav, .ask, .lab, select, button {{ display: none !important; }}
-  @page {{ size: A4 portrait; margin: 10mm; }}
-}}
-@media(max-width:720px){{ .grid {{ grid-template-columns: 1fr; }} }}
-</style>
+<style>{get_shared_css()}</style>
 </head>
 <body>
-
 <header>
   <div class="bar">
     <div>
-      <b>🧠 NABIL AI · Grade {canonical_entry['grade']} {canonical_entry['subject'].capitalize()}</b>
+      <b>🧠 NABIL AI · Grade {canonical_entry['grade']} Physics</b>
       <h1>{e(title)}</h1>
       <div class="source">Curriculum Scope: Lebanese CRDP Official Textbook · pp. {start_p}–{end_p}</div>
     </div>
     <nav>
       <a href="#learn">Activities</a>
       <a href="#lab">Live Lab</a>
-      <a href="#exercises">Exercises</a>
       <a href="#worksheet">Worksheet</a>
+      <a href="{e(exercises_filename)}" style="background:#10b981; color:#042114; font-weight:800;">📘 Solved Exercises ➔</a>
       <a href="javascript:window.print()">🖨️ Print Study Card</a>
     </nav>
   </div>
 </header>
-
 <main>
-
 <section class="card teacher">
   <h2>🎯 Scientific Investigation &amp; Objectives</h2>
-  <p>{e(data.get('hook', 'Observe real matter behavior, test container changes, and deduce the core properties.'))}</p>
+  <p>{e(theory_data.get('hook_en', 'Observe matter, test changes, and establish laws.'))}</p>
+  <div class="arabic-explanation-box">
+    <strong>الهدف والمقدمة: </strong>{e(theory_data.get('hook_ar', 'التعرف على خصائص المواد الصلبة والسوائل وتطبيقاتها العلمية.'))}
+  </div>
   <div class="chips">
-    {"".join(f"<span>{e(obj)}</span>" for obj in data.get('objectives', ['Observe', 'Experiment', 'Measure & Compare', 'Interpret', 'Conclude', 'Apply']))}
+    {"".join(f"<span>{e(obj)}</span>" for obj in theory_data.get('objectives', ['Observe', 'Experiment', 'Conclude']))}
   </div>
 </section>
 
@@ -660,7 +632,7 @@ select {{ padding: 8px 12px; border-radius: 6px; background: #071a2b; color: #ff
 <section id="lab" class="card">
   <h2>🧪 Live Lab · Tilt the Vessel &amp; Measure Surface</h2>
   <div class="lab">
-    <p>Drag the slider to tilt the vessel. Notice that while the vessel walls rotate, the <b>free surface of liquid at rest remains plane and horizontal</b> relative to gravity:</p>
+    <p>Move the slider to tilt the container. The container walls rotate while the <b>free surface remains strictly horizontal</b> relative to gravity:</p>
     <label>Tilt angle: <b id="ang" style="color:var(--c-obs-bar);">0°</b>
       <input id="tilt" type="range" min="-35" max="35" value="0"/>
     </label>
@@ -679,17 +651,14 @@ select {{ padding: 8px 12px; border-radius: 6px; background: #071a2b; color: #ff
   </div>
 </section>
 
-<section id="exercises" class="card">
-  <h2>📘 Official Textbook Solved Exercises (pp. {start_p}–{end_p})</h2>
-  <p class="source">Full resolution in sequential order (Exercises 1 to {len(data.get('exercises', []))}) with textbook diagrams:</p>
-  <div id="exercisesContainer">
-    {exercises_html}
-  </div>
-</section>
+<div class="cta-exercises-box">
+  <h2 style="color:#6ee7b7; margin-bottom:8px;">📘 Ready to Practice &amp; Master the Concepts?</h2>
+  <p>Access the complete, step-by-step textbook exercises &amp; problems workbook:</p>
+  <a href="{e(exercises_filename)}" class="cta-exercises-btn">Open All Solved Textbook Exercises &amp; Problems ➔</a>
+</div>
 
 <section id="worksheet" class="card">
   <h2>📝 Interactive Graded Worksheet (Formative Assessment)</h2>
-  <p>Answer the questions below to evaluate your understanding:</p>
   {ws_html}
   <div style="margin-top:14px;">
     <button class="secondary" onclick="gradeWS()">Correct My Worksheet</button>
@@ -706,33 +675,26 @@ select {{ padding: 8px 12px; border-radius: 6px; background: #071a2b; color: #ff
     {panels_html}
   </div>
 </section>
-
 </main>
-
 <script>
 document.addEventListener("DOMContentLoaded", function() {{
   if (typeof renderMathInElement !== 'undefined') {{
-    renderMathInElement(document.body, {{
-      delimiters: [
-        {{left: '$$', right: '$$', display: true}},
-        {{left: '$', right: '$', display: false}}
-      ],
-      throwOnError: false
-    }});
+    renderMathInElement(document.body, {{delimiters: [{{left: '$$', right: '$$', display: true}}, {{left: '$', right: '$', display: false}}], throwOnError: false}});
   }}
 }});
-
+function toggleAr(id) {{
+  const el = document.getElementById(id);
+  el.style.display = (el.style.display === 'none' || el.style.display === '') ? 'block' : 'none';
+}}
 function fb(id, ok) {{
   const el = document.getElementById(id);
   el.textContent = ok ? '✓ Correct observation!' : '✗ Re-check textbook observation.';
   el.style.color = ok ? 'var(--c-concl-bar)' : 'var(--danger)';
 }}
-
 const tilt = document.getElementById('tilt');
 const labV = document.getElementById('labV');
 const labmsg = document.getElementById('labmsg');
 const ang = document.getElementById('ang');
-
 if (tilt && labV) {{
   tilt.addEventListener('input', () => {{
     const a = tilt.value;
@@ -741,8 +703,7 @@ if (tilt && labV) {{
     labmsg.textContent = `The vessel is tilted ${{a}}°. The liquid surface remains strictly horizontal.`;
   }});
 }}
-
-const wsKeys = {json.dumps([q.get('correct_index', 0) for q in data.get('worksheet', [])])};
+const wsKeys = {json.dumps([q.get('correct_index', 0) for q in theory_data.get('worksheet', [])])};
 function gradeWS() {{
   let score = 0;
   for (let i = 1; i <= wsKeys.length; i++) {{
@@ -750,12 +711,9 @@ function gradeWS() {{
     const fbEl = document.getElementById('wfb' + i);
     if (sel && sel.value !== "") {{
       if (parseInt(sel.value) === wsKeys[i-1]) {{
-        score++;
-        fbEl.textContent = '✓ Correct';
-        fbEl.style.color = 'var(--c-concl-bar)';
+        score++; fbEl.textContent = '✓ Correct'; fbEl.style.color = 'var(--c-concl-bar)';
       }} else {{
-        fbEl.textContent = '✗ Review observation';
-        fbEl.style.color = 'var(--danger)';
+        fbEl.textContent = '✗ Review observation'; fbEl.style.color = 'var(--danger)';
       }}
     }}
   }}
@@ -766,28 +724,98 @@ function gradeWS() {{
 </html>"""
 
 
-def run_strict_quality_gates(html_content, expected_exercises):
-    progress("RUNNING_STRICT_QUALITY_GATES")
+def render_page_b_exercises(exercises_list, canonical_entry, theory_filename):
+    e = html.escape
+    title = canonical_entry["canonical_title"]
+    lid = canonical_entry["lesson_id"]
+    start_p = canonical_entry["pdf_start_page"]
+    end_p = canonical_entry["pdf_end_page"]
 
-    if not expected_exercises or len(expected_exercises) < 3:
-        raise AssertionError("QUALITY_GATE_FAILED: ZERO_EXERCISES_DETECTED (Expected exercises list is empty)")
+    items_html = ""
+    for ex in exercises_list:
+        num = ex.get("number", 1)
+        steps = "".join(f"<li>{s}</li>" for s in ex.get("steps_en", []))
+        svg = ex.get("svg_diagram", "")
+        fig_html = f'<div class="figure ex-figure">{svg}</div>' if svg and "<svg" in svg else ""
+        nabil_oral = ex.get("nabil_oral_explanation_ar", "")
 
-    for ex_num in expected_exercises:
-        pattern = f'data-ex-number="{ex_num}"'
-        if pattern not in html_content:
-            raise AssertionError(f"QUALITY_GATE_FAILED: TEXTBOOK_EXERCISE_MISSING (Exercise {ex_num} missing from HTML)")
+        items_html += f"""
+        <article class="exercise" id="ex{num}" data-ex-number="{num}">
+          <div class="exhead">
+            <span>Problem #{num} — {e(ex.get('title', 'Textbook Exercise'))}</span>
+            <span class="source">Textbook pp. {start_p}–{end_p}</span>
+          </div>
+          <div class="prompt">
+            <b>Task Prompt:</b>
+            <p>{e(ex.get('prompt_en', ''))}</p>
+            {f'<div style="font-size:14px; color:#bae6fd; direction:rtl; text-align:right; margin-top:6px;"><b>ترجمة المسألة:</b> {e(ex.get("prompt_ar"))}</div>' if ex.get("prompt_ar") else ''}
+          </div>
+          {fig_html}
+          <details open>
+            <summary>Guided Step-by-Step Resolution (English)</summary>
+            <ol>{steps}</ol>
+            <div class="answer"><b>Final Answer / Conclusion:</b> {ex.get('final_answer', '')}</div>
+          </details>
 
-    fig_exs = [5, 6, 7, 9]
-    for fn in fig_exs:
-        if fn in expected_exercises:
-            block = re.search(f'id="ex{fn}".*?</article>', html_content, re.DOTALL)
-            if not block or "<svg" not in block.group(0):
-                raise AssertionError(f"QUALITY_GATE_FAILED: EXERCISE_DIAGRAM_REQUIRED_MISSING (Exercise {fn} requires SVG)")
+          <button class="btn-toggle-ar" onclick="toggleAr('nabil-oral-{num}')">🗣️ شرح الأستاذ نبيل الشفهي بالعربية</button>
+          <div id="nabil-oral-{num}" class="nabil-oral-box" style="display:none;">
+            <h4 style="color:#6ee7b7; margin-bottom:6px;">طريقة نبيل لتفكيك المسألة:</h4>
+            <div style="white-space: pre-line;">{e(nabil_oral)}</div>
+          </div>
+        </article>"""
 
-    if html_content.count("class=\"sc-panel\"") < 2:
-        raise AssertionError("QUALITY_GATE_FAILED: STUDY_CARD_INCOMPLETE (Less than 2 panels generated)")
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="nabil-lesson-id" content="{e(lid)}-EXERCISES"/>
+<title>NABIL AI | Solved Exercises Workbook | {e(title)}</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css"/>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+<style>{get_shared_css()}</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div>
+      <b>📘 Official Solved Workbook · Grade {canonical_entry['grade']} Physics</b>
+      <h1>{e(title)} — All Solved Problems</h1>
+      <div class="source">Official CRDP Textbook Problem Set</div>
+    </div>
+    <nav>
+      <a href="{e(theory_filename)}" style="background:#38bdf8; color:#061325; font-weight:800;">⬅️ Return to Lesson &amp; Lab</a>
+      <a href="javascript:window.print()">🖨️ Print Workbook</a>
+    </nav>
+  </div>
+</header>
+<main>
+<div class="card teacher">
+  <h2>📘 Comprehensive Textbook Resolution</h2>
+  <p>Every exercise and problem solved with step-by-step scientific justification, full diagrams, and NABIL's spoken Arabic analysis.</p>
+</div>
 
-    progress("ALL_QUALITY_GATES_PASSED_SUCCESSFULLY")
+<div id="exercisesContainer">
+  {items_html}
+</div>
+
+<div style="text-align:center; margin:30px 0;">
+  <a href="{e(theory_filename)}" class="nav-btn" style="font-size:1.1rem; padding:12px 24px;">⬅️ Return to Main Lesson and Interactive Lab</a>
+</div>
+</main>
+<script>
+document.addEventListener("DOMContentLoaded", function() {{
+  if (typeof renderMathInElement !== 'undefined') {{
+    renderMathInElement(document.body, {{delimiters: [{{left: '$$', right: '$$', display: true}}, {{left: '$', right: '$', display: false}}], throwOnError: false}});
+  }}
+}});
+function toggleAr(id) {{
+  const el = document.getElementById(id);
+  el.style.display = (el.style.display === 'none' || el.style.display === '') ? 'block' : 'none';
+}}
+</script>
+</body>
+</html>"""
 
 
 def produce_lesson_for_entry(service, canonical_entry, report_path, publish=False):
@@ -797,7 +825,7 @@ def produce_lesson_for_entry(service, canonical_entry, report_path, publish=Fals
     start_p = canonical_entry["pdf_start_page"]
     end_p = canonical_entry["pdf_end_page"]
 
-    progress("PRODUCING_STRICT_CANONICAL_LESSON", lesson_id=lesson_id, title=title, pages=f"{start_p}-{end_p}")
+    progress("STARTING_TWIN_PAGE_PRODUCTION", lesson_id=lesson_id, title=title, pages=f"{start_p}-{end_p}")
 
     with tempfile.TemporaryDirectory() as tmp:
         pdf_path = Path(tmp) / "book.pdf"
@@ -808,27 +836,48 @@ def produce_lesson_for_entry(service, canonical_entry, report_path, publish=Fals
         pages = [(p, (reader.pages[p - 1].extract_text() or "").strip())
                  for p in range(start_p, end_p + 1)]
 
-        payload = generate_lesson_package(canonical_entry, pages)
-        html_doc = render_master_html(payload, canonical_entry)
+        full_text = "\n\n".join([f"=== Page {p} ===\n{t}" for p, t in pages])
+        detected_exercises = discover_all_exercises_and_problems(full_text)
+        progress("DISCOVERED_EXERCISE_ITEMS", total_found=len(detected_exercises), items=detected_exercises)
 
-        run_strict_quality_gates(html_doc, payload.get("expected_exercises", []))
+        prov = configured_providers()[0]
+        from openai import OpenAI
+        client = OpenAI(api_key=prov[1], base_url=prov[2], timeout=180)
+
+        # 1. Solve all exercises with NABIL oral flow in safe batches
+        solved_exercises = solve_all_exercises_with_nabil_method(client, prov[3], canonical_entry, pages, detected_exercises)
+        if len(solved_exercises) == 0:
+            raise AssertionError("QUALITY_GATE_FAILED: ZERO_EXERCISES_SOLVED")
+
+        # 2. Generate Theory, Lab & Study Card with Bilingual support
+        theory_package = generate_lesson_theory_package(client, prov[3], canonical_entry, pages)
 
         slug = re.sub(r"[^\w]+", "-", title.upper()).strip("-")
         num_str = lesson_id.split("-")[-1]
         grade_tag = f"G{canonical_entry['grade']:02d}"
         subj_tag = canonical_entry['subject'].upper()
-        out_filename = f"{grade_tag}-{subj_tag}--{num_str}--{slug}.html"
 
-        out_html_path = report_path.with_name(out_filename)
-        out_html_path.write_text(html_doc, encoding="utf-8")
-        progress("LOCAL_RICH_HTML_COMPILED", filename=out_filename)
+        theory_filename = f"{grade_tag}-{subj_tag}--{num_str}--{slug}.html"
+        exercises_filename = f"{grade_tag}-{subj_tag}--{num_str}--{slug}--EXERCISES.html"
+
+        html_theory = render_page_a_theory(theory_package, canonical_entry, exercises_filename)
+        html_exercises = render_page_b_exercises(solved_exercises, canonical_entry, theory_filename)
+
+        out_theory_path = report_path.with_name(theory_filename)
+        out_ex_path = report_path.with_name(exercises_filename)
+
+        out_theory_path.write_text(html_theory, encoding="utf-8")
+        out_ex_path.write_text(html_exercises, encoding="utf-8")
+
+        progress("TWIN_PAGES_COMPILED_LOCALLY", theory_file=theory_filename, exercises_file=exercises_filename)
 
         report = {
             "status": "VERIFIED_COMPLETE",
             "lesson_id": lesson_id,
             "title": title,
-            "filename": out_filename,
-            "local_path": str(out_html_path)
+            "theory_filename": theory_filename,
+            "exercises_filename": exercises_filename,
+            "exercises_count": len(solved_exercises)
         }
 
         if publish:
@@ -848,28 +897,28 @@ def produce_lesson_for_entry(service, canonical_entry, report_path, publish=Fals
             g_id = ensure_f(ROOT_FOLDER, grade_folder_name)
             s_id = ensure_f(g_id, subj_folder_name)
 
-            raw_bytes = html_doc.encode("utf-8")
-            body = {"name": out_filename, "parents": [s_id],
-                    "description": f"lesson_id={lesson_id}; pages={start_p}-{end_p}"}
-            media = MediaIoBaseUpload(io.BytesIO(raw_bytes), mimetype="text/html", resumable=False)
-            up = service.files().create(body=body, media_body=media, fields="id,name").execute()
+            media_a = MediaIoBaseUpload(io.BytesIO(html_theory.encode("utf-8")), mimetype="text/html", resumable=False)
+            up_a = service.files().create(body={"name": theory_filename, "parents": [s_id]}, media_body=media_a, fields="id").execute()
+            report["drive_theory_id"] = up_a["id"]
 
-            report["drive_html_id"] = up["id"]
-            progress("PUBLISHED_TO_DRIVE", lesson_id=lesson_id, drive_file_id=up["id"])
+            media_b = MediaIoBaseUpload(io.BytesIO(html_exercises.encode("utf-8")), mimetype="text/html", resumable=False)
+            up_b = service.files().create(body={"name": exercises_filename, "parents": [s_id]}, media_body=media_b, fields="id").execute()
+            report["drive_exercises_id"] = up_b["id"]
+
+            progress("PUBLISHED_TWIN_PAGES_TO_DRIVE", theory_id=up_a["id"], exercises_id=up_b["id"])
 
         return report
 
 
 def main():
-    parser = argparse.ArgumentParser(description="NABIL AI Production Factory")
+    parser = argparse.ArgumentParser(description="NABIL AI Twin-Engine Lesson Factory")
     parser.add_argument("--report", default="data/nabil_lesson_factory_run.json")
     parser.add_argument("--lesson-id", default="G07-PHYSICS-001")
     parser.add_argument("--publish", action="store_true")
     args = parser.parse_args()
 
-    global RUN_DEADLINE, PROGRESS_STARTED
+    global PROGRESS_STARTED
     PROGRESS_STARTED = time.monotonic()
-    RUN_DEADLINE = time.monotonic() + 420
 
     service = owner_drive()
     report_path = Path(args.report)
