@@ -180,19 +180,37 @@ def resolve_pedagogy_profile(entry: dict) -> dict:
 # 3. LLM INFERENCE ENGINE (FAIL-CLOSED)
 # ==============================================================================
 def execute_llm_completion(prompt: str, json_mode: bool = True, temperature: float = 0.0, image_base64: Optional[str] = None) -> str:
-    api_key = os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("GROQ_API_KEY")
+    # Select explicitly when several server-side keys exist. Default preserves
+    # the original OpenRouter-first behavior to avoid unapproved image sharing.
+    preferred = os.getenv("NABIL_FACTORY_AI_PROVIDER", "auto").strip().lower()
+    keys = {
+        "openrouter": os.getenv("OPENROUTER_API_KEY"),
+        "groq": os.getenv("GROQ_API_KEY"),
+        "openai": os.getenv("OPENAI_API_KEY"),
+    }
+    if preferred not in ("auto", *keys):
+        raise RuntimeError(f"AI_PROVIDER_INVALID: {preferred}")
+    if preferred == "auto":
+        provider = next((name for name in ("openrouter", "groq", "openai")
+                         if keys[name]), None)
+    else:
+        provider = preferred
+    api_key = keys.get(provider) if provider else None
     if not api_key:
-        raise RuntimeError("AI_PROVIDER_NOT_CONFIGURED: Missing LLM API key for intelligent grounded operations.")
+        raise RuntimeError(f"AI_PROVIDER_NOT_CONFIGURED: provider={provider or preferred}")
 
-    if os.getenv("OPENROUTER_API_KEY"):
+    if provider == "openrouter":
         url = "https://openrouter.ai/api/v1/chat/completions"
         model = (os.getenv("OPENROUTER_VISION_MODEL") if image_base64 else None) or os.getenv("OPENROUTER_TEXT_MODEL", "google/gemini-2.5-flash")
-    elif os.getenv("GROQ_API_KEY"):
+    elif provider == "groq":
         url = "https://api.groq.com/openai/v1/chat/completions"
-        model = (os.getenv("GROQ_VISION_MODEL") if image_base64 else None) or os.getenv("GROQ_TEXT_MODEL", "llama-3.3-70b-versatile")
+        # A text-only model must never silently receive a textbook page image.
+        model = (os.getenv("GROQ_VISION_MODEL", "qwen/qwen3.8-27b") if image_base64
+                 else os.getenv("GROQ_TEXT_MODEL", "llama-3.3-70b-versatile"))
     else:
         url = "https://api.openai.com/v1/chat/completions"
-        model = (os.getenv("OPENAI_VISION_MODEL") if image_base64 else None) or os.getenv("OPENAI_TEXT_MODEL", "gpt-4o-mini")
+        model = (os.getenv("OPENAI_VISION_MODEL", "gpt-4o-mini") if image_base64
+                 else os.getenv("OPENAI_TEXT_MODEL", "gpt-4o-mini"))
 
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     
@@ -501,22 +519,32 @@ def resolve_canonical_entry(lesson_id: str) -> dict:
 
 
 def assert_authorized_source_vision(lesson_id: str, book_id: str, pdf_page: int):
-    """Only transfer textbook images approved by the owner for this exact book
-    and page range. Never treat a working API key as sharing consent.
+    """Only transfer textbook images approved for this provider and source range.
+
+    A working API key or a successful AI probe never grants sharing consent.
     """
     consent_path = ROOT / "data/nabil_vision_consent.json"
     if not consent_path.exists():
         raise RuntimeError("VISION_SHARING_NOT_AUTHORIZED: consent catalog unavailable")
     scopes = json.loads(consent_path.read_text(encoding="utf-8")).get("approved_scopes", [])
+    provider = os.getenv("NABIL_FACTORY_AI_PROVIDER", "auto").strip().lower()
+    if provider == "auto":
+        provider = next((name for name, key in (
+            ("openrouter", os.getenv("OPENROUTER_API_KEY")),
+            ("groq", os.getenv("GROQ_API_KEY")),
+            ("openai", os.getenv("OPENAI_API_KEY"))
+        ) if key), None)
     for item in scopes:
         if (item.get("lesson_id") == lesson_id
                 and item.get("book_id") == book_id
-                and item.get("provider") == "openrouter"
+                and item.get("provider") == provider
                 and int(item["pdf_start_page"]) <= pdf_page <= int(item["pdf_end_page"])):
-            if not os.getenv("OPENROUTER_API_KEY"):
-                raise RuntimeError("AI_PROVIDER_NOT_CONFIGURED: OpenRouter required for approved visual evidence")
+            if not os.getenv(f"{provider.upper()}_API_KEY"):
+                raise RuntimeError(f"AI_PROVIDER_NOT_CONFIGURED: {provider} required for approved visual evidence")
             return
-    raise RuntimeError(f"VISION_SHARING_NOT_AUTHORIZED: {lesson_id} page {pdf_page}")
+    raise RuntimeError(
+        f"VISION_SHARING_NOT_AUTHORIZED: provider={provider} lesson_id={lesson_id} page={pdf_page}"
+    )
 
 
 # ==============================================================================
