@@ -117,7 +117,7 @@ class NabilUiIntegrationTests(unittest.TestCase):
             self.assertIn(marker, theme)
         self.assertIn("اختر فرع الثالث ثانوي أولًا", strict)
         self.assertIn("curriculum_strict.js?v=138", self.html)
-        self.assertIn("nabil_reference_theme.css?v=19", self.html)
+        self.assertIn("nabil_reference_theme.css?v=20", self.html)
 
     def test_third_secondary_branch_catalog_precedes_old_unbranched_index(self):
         backend = (ROOT / "app" / "api" / "routes_chat.py").read_text(encoding="utf-8")
