@@ -417,7 +417,7 @@ def run(book_id: str, *, index_only: bool, publish: bool,
     if publish:
         root_id = factory.resolve_drive_root_id()
         destination = service.files().get(
-            fileId=root_id, fields="id,name,mimeType,capabilities(canAddChildren)"
+            fileId=root_id, fields="id,name,mimeType,driveId,capabilities(canAddChildren)"
         ).execute()
         if (destination.get("mimeType") != "application/vnd.google-apps.folder"
                 or destination.get("capabilities", {}).get("canAddChildren") is not True):
@@ -425,6 +425,15 @@ def run(book_id: str, *, index_only: bool, publish: bool,
                 "DRIVE_DESTINATION_NOT_WRITABLE: production identity cannot add "
                 "files to the selected curriculum root. Grant the Railway Drive "
                 "service account Editor access before running OCR/production."
+            )
+        # Service accounts have no personal My Drive storage quota even when
+        # Editor: fail before OCR/checkpoint retries; Shared Drives are different.
+        if (not destination.get("driveId")
+                and not os.getenv("NABIL_DRIVE_OAUTH_TOKEN_JSON", "").strip()):
+            raise RuntimeError(
+                "PERSONAL_DRIVE_REQUIRES_USER_OAUTH: service accounts cannot "
+                "upload new files into a personal My Drive. Authorize the "
+                "owner and set NABIL_DRIVE_OAUTH_TOKEN_JSON in Railway secrets."
             )
         announce("DRIVE_DESTINATION_WRITE_PERMISSION_VERIFIED",
                  folder=destination.get("name", ""), folder_id=root_id)
