@@ -71,7 +71,7 @@ class MathRenderingEngine:
 
         verified = True
         try:
-            # الكسور المركبة والبسيطة
+            # معالجة الكسور المعقدة والبسيطة
             text = re.sub(r'\(\s*([^()]+)\s*\)\s*/\s*\(\s*([^()]+)\s*\)', r'\\(\\frac{\1}{\2}\\)', text)
             text = re.sub(r'(?<!\w)(\d+|[a-zA-Z])\s*/\s*(\d+|[a-zA-Z])(?!\w)', r'\\(\\frac{\1}{\2}\\)', text)
             # الجذور
@@ -458,7 +458,7 @@ def parse_curriculum_exercises_from_source(pages_evidence: List[Dict[str, Any]],
             seen.add(k)
             unique_ex.append(e)
 
-    # ديناميكية تحديد أول 2 تمارين وأول 3 مسائل
+    # ديناميكية تحديد أول تمرينين وأول 3 مسائل كـ PRE_SOLVED
     ex_c = 0
     pr_c = 0
     for e in unique_ex:
