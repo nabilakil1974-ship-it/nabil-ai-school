@@ -238,15 +238,30 @@ def execute_llm_completion(prompt: str, json_mode: bool = True, temperature: flo
         # The AI-provider refusal is not a Google Drive or PDF download error.
         # Include a short, sanitized explanation without disclosing API keys.
         provider = "openrouter" if "openrouter.ai" in url else ("groq" if "groq.com" in url else "openai")
+        # Read upstream body once: Groq/edge providers may send non-JSON
+        # (including HTML or an empty 403). Never discard the only diagnostic.
         try:
-            upstream = json.loads(exc.read(4096).decode("utf-8", errors="replace"))
-            error = upstream.get("error", upstream) if isinstance(upstream, dict) else {}
-            detail = str(error.get("message", "")) if isinstance(error, dict) else ""
-            code = str(error.get("code", "")) if isinstance(error, dict) else ""
-        except (ValueError, OSError):
-            detail, code = "", ""
+            raw_body = exc.read(4096).decode("utf-8", errors="replace")
+        except OSError:
+            raw_body = ""
+        content_type = str(exc.headers.get("Content-Type", "")).split(";")[0].lower()
+        detail, code = "", ""
+        if raw_body:
+            try:
+                upstream = json.loads(raw_body)
+                error = upstream.get("error", upstream) if isinstance(upstream, dict) else {}
+                if isinstance(error, dict):
+                    detail = str(error.get("message") or error.get("detail") or "")
+                    code = str(error.get("code") or error.get("type") or "")
+                elif isinstance(error, str):
+                    detail = error
+            except ValueError:
+                # Upstream access-control pages are often HTML, not JSON.
+                detail = re.sub(r"<[^>]+>", " ", raw_body)
         detail = re.sub(r"\s+", " ", detail).strip()
         code = re.sub(r"\s+", " ", code).strip()
+        if not detail:
+            detail = f"Empty or unrecognized provider 403 response (content_type={content_type or 'not-provided'})"
         for secret_name in ("OPENROUTER_API_KEY", "OPENAI_API_KEY", "GROQ_API_KEY"):
             secret = os.getenv(secret_name, "")
             if secret:
