@@ -891,8 +891,8 @@ def verify_title_double_evidence_strict(doc, entry: dict, opening_txt: str) -> b
     from a filename or submit unauthorized preface pages to an AI provider.
     The canonical catalog records the TOC PDF page for scanned textbooks.
     """
-    title_clean = re.sub(r"[^\\w]+", " ", entry["canonical_title"].casefold()).strip()
-    opener = re.sub(r"[^\\w]+", " ", opening_txt.casefold())
+    title_clean = re.sub(r"[^\w]+", " ", entry["canonical_title"].casefold()).strip()
+    opener = re.sub(r"[^\w]+", " ", opening_txt.casefold())
     if not title_clean:
         return False
     if title_clean not in opener:
@@ -916,7 +916,7 @@ def verify_title_double_evidence_strict(doc, entry: dict, opening_txt: str) -> b
             raise RuntimeError(
                 f"TITLE_VERIFICATION_FAILED: chapter opening OCR unavailable p{page_no}")
         opener_header = re.sub(
-            r"[^\\w]+", " ", proc.stdout.casefold()).strip()
+            r"[^\w]+", " ", proc.stdout.casefold()).strip()
         if title_clean not in opener_header:
             progress("TITLE_OPENING_EVIDENCE_FAILED", page=page_no,
                      expected_title=entry["canonical_title"],
