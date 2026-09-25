@@ -24,6 +24,7 @@ import base64
 import py_compile
 import subprocess
 import urllib.request
+import urllib.error
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
@@ -208,12 +209,39 @@ def execute_llm_completion(prompt: str, json_mode: bool = True, temperature: flo
         payload["response_format"] = {"type": "json_object"}
 
     req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        data = json.loads(resp.read().decode("utf-8"))
-        content = data["choices"][0]["message"]["content"].strip()
-        if content.startswith("```"):
-            content = re.sub(r"^```(?:json)?\s*|\s*```$", "", content, flags=re.I).strip()
-        return content
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            content = data["choices"][0]["message"]["content"].strip()
+            if content.startswith("```"):
+                content = re.sub(r"^```(?:json)?\s*|\s*```$", "", content, flags=re.I).strip()
+            return content
+    except urllib.error.HTTPError as exc:
+        # The AI-provider refusal is not a Google Drive or PDF download error.
+        # Include a short, sanitized explanation without disclosing API keys.
+        provider = "openrouter" if "openrouter.ai" in url else ("groq" if "groq.com" in url else "openai")
+        try:
+            upstream = json.loads(exc.read(4096).decode("utf-8", errors="replace"))
+            error = upstream.get("error", upstream) if isinstance(upstream, dict) else {}
+            detail = str(error.get("message", "")) if isinstance(error, dict) else ""
+            code = str(error.get("code", "")) if isinstance(error, dict) else ""
+        except (ValueError, OSError):
+            detail, code = "", ""
+        detail = re.sub(r"\s+", " ", detail).strip()
+        code = re.sub(r"\s+", " ", code).strip()
+        for secret_name in ("OPENROUTER_API_KEY", "OPENAI_API_KEY", "GROQ_API_KEY"):
+            secret = os.getenv(secret_name, "")
+            if secret:
+                detail, code = detail.replace(secret, "[REDACTED]"), code.replace(secret, "[REDACTED]")
+        detail = re.sub(r"(?i)\b(?:sk-or-v1-|sk-)[a-z0-9_-]{8,}", "[REDACTED]", detail)
+        code = re.sub(r"(?i)\b(?:sk-or-v1-|sk-)[a-z0-9_-]{8,}", "[REDACTED]", code)
+        reason = detail[:360] or "No explanatory error message provided by the AI provider"
+        progress("AI_PROVIDER_REQUEST_REJECTED", provider=provider, model=model,
+                 http_status=exc.code, provider_code=code[:80], detail=reason)
+        raise RuntimeError(
+            f"AI_PROVIDER_HTTP_ERROR: provider={provider} model={model} "
+            f"http_status={exc.code} provider_code={code[:80]} detail={reason}"
+        ) from None
 
 
 # ==============================================================================
@@ -1814,6 +1842,7 @@ def main():
 
     parser = argparse.ArgumentParser(description="NABIL AI Universal Production Factory")
     parser.add_argument("--lesson-id", type=str, default="G07-PHYSICS-001", help="Target canonical lesson ID")
+    parser.add_argument("--check-ai", action="store_true", help="Probe vision with generated blank image; no textbook page or Drive access")
     parser.add_argument("--publish", action="store_true", help="Publish directly to Google Drive")
     parser.add_argument("--rollback", type=int, default=None, help="Target version to rollback")
     args = parser.parse_args()
@@ -1824,6 +1853,18 @@ def main():
         return 0
 
     execute_preflight_checks(require_drive=args.publish)
+    if args.check_ai:
+        # Probe the image model without any source material; no Drive access.
+        from PIL import Image
+        sample = io.BytesIO()
+        Image.new("RGB", (16, 16), "white").save(sample, format="PNG")
+        progress("AI_VISION_PROBE_START", image="generated_blank_16x16")
+        response = execute_llm_completion(
+            'Return only valid JSON: {"ok":true}', json_mode=True,
+            image_base64=base64.b64encode(sample.getvalue()).decode("ascii"))
+        json.loads(response)
+        progress("AI_VISION_PROBE_PASS")
+        return 0
     entry = resolve_canonical_entry(args.lesson_id)
     
     drive_service = get_drive_service() if args.publish else None
