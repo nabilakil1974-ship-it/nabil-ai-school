@@ -891,10 +891,40 @@ def verify_title_double_evidence_strict(doc, entry: dict, opening_txt: str) -> b
     from a filename or submit unauthorized preface pages to an AI provider.
     The canonical catalog records the TOC PDF page for scanned textbooks.
     """
-    title_clean = re.sub(r"[^\w]+", " ", entry["canonical_title"].casefold()).strip()
-    opener = re.sub(r"[^\w]+", " ", opening_txt.casefold())
-    if not title_clean or title_clean not in opener:
+    title_clean = re.sub(r"[^\\w]+", " ", entry["canonical_title"].casefold()).strip()
+    opener = re.sub(r"[^\\w]+", " ", opening_txt.casefold())
+    if not title_clean:
         return False
+    if title_clean not in opener:
+        # Stylized printed headers are often missed by full-page OCR even
+        # when body text is readable. Re-read the real PDF header locally.
+        import fitz
+        page_no = int(entry["pdf_start_page"])
+        page = doc[page_no - 1]
+        r = page.rect
+        header = page.get_pixmap(
+            clip=fitz.Rect(r.x0, r.y0, r.x1, r.y0 + r.height * 0.20),
+            dpi=300)
+        with tempfile.TemporaryDirectory(prefix="nabil_title_ocr_") as directory:
+            image_path = Path(directory) / "opening_header.png"
+            header.save(str(image_path))
+            proc = subprocess.run(
+                ["tesseract", str(image_path), "stdout", "-l", "eng+fra",
+                 "--psm", "6"],
+                capture_output=True, text=True, timeout=35)
+        if proc.returncode != 0:
+            raise RuntimeError(
+                f"TITLE_VERIFICATION_FAILED: chapter opening OCR unavailable p{page_no}")
+        opener_header = re.sub(
+            r"[^\\w]+", " ", proc.stdout.casefold()).strip()
+        if title_clean not in opener_header:
+            progress("TITLE_OPENING_EVIDENCE_FAILED", page=page_no,
+                     expected_title=entry["canonical_title"],
+                     header_excerpt=opener_header[:180])
+            return False
+        progress("TITLE_OPENING_HEADER_VERIFIED", page=page_no,
+                 title=entry["canonical_title"],
+                 method="SOURCE_HEADER_LOCAL_OCR_300DPI")
 
     toc_page = entry.get("toc_pdf_page")
     if toc_page is None:
@@ -1028,8 +1058,19 @@ def build_evidence_map(doc, entry: dict) -> dict:
     pages_evidence = []
     lesson_cache = CACHE_DIR / f"{book_id}_{lesson_id}"
     lesson_cache.mkdir(parents=True, exist_ok=True)
+    opening_text = extract_page_text_robust(
+        doc, start_p, lesson_id, book_id, lesson_cache)
+    # Validate the two physical title sources BEFORE costly page-by-page vision.
+    if not verify_title_double_evidence_strict(doc, entry, opening_text):
+        raise AssertionError(
+            f"TITLE_VERIFICATION_FAILED: Strict Double Evidence TOC + Opening "
+            f"failed for '{entry['canonical_title']}'.")
+    progress("LESSON_TITLE_DOUBLE_EVIDENCE_VERIFIED",
+             lesson_id=lesson_id, title=entry["canonical_title"],
+             opener_pdf_page=start_p, toc_pdf_page=entry.get("toc_pdf_page"))
     for p_num in range(start_p, end_p + 1):
-        txt = extract_page_text_robust(doc, p_num, lesson_id, book_id, lesson_cache)
+        txt = (opening_text if p_num == start_p else
+               extract_page_text_robust(doc, p_num, lesson_id, book_id, lesson_cache))
         figs = extract_multimodal_page_figures(doc, p_num, lesson_cache, lesson_id, book_id)
         p_hash = hashlib.sha256(txt.encode("utf-8")).hexdigest()[:16]
         pages_evidence.append({
@@ -1038,9 +1079,6 @@ def build_evidence_map(doc, entry: dict) -> dict:
             "text_hash": p_hash,
             "figures": figs
         })
-
-    if not verify_title_double_evidence_strict(doc, entry, pages_evidence[0]["text"]):
-        raise AssertionError(f"TITLE_VERIFICATION_FAILED: Strict Double Evidence TOC + Opening failed for '{entry['canonical_title']}'.")
 
     concepts = []
     act_regex = re.compile(r"(?:Activity|Activité|نشاط|Section|Partie|Chapitre|فقرة)\s*(\d*)[:\s.-]+([^\n.]+)", re.I)
