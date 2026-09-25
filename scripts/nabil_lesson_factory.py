@@ -608,27 +608,59 @@ def match_figure_to_item(item: dict, page_figures: List[Dict[str, Any]], page_re
 
 
 def verify_title_double_evidence_strict(doc, entry: dict, opening_txt: str) -> bool:
-    title_clean = re.sub(r'^\s*\d+[\.\-–\s]+', '', entry["canonical_title"]).strip().lower()
-    words = [w for w in re.split(r'\W+', title_clean) if len(w) > 2]
-
-    matches_opening = sum(1 for w in words if w in opening_txt.lower())
-    if matches_opening < max(1, len(words) // 2):
+    """Require both the chapter opener and the real book TOC. Never infer TOC
+    from a filename or submit unauthorized preface pages to an AI provider.
+    The canonical catalog records the TOC PDF page for scanned textbooks.
+    """
+    title_clean = re.sub(r"[^\\w]+", " ", entry["canonical_title"].casefold()).strip()
+    opener = re.sub(r"[^\\w]+", " ", opening_txt.casefold())
+    if not title_clean or title_clean not in opener:
         return False
 
-    toc_found = False
-    for p_idx in range(min(15, len(doc))):
-        toc_page_txt = (doc[p_idx].get_text() or "").lower()
-        if any(h in toc_page_txt for h in ["contents", "table des matières", "فهرس", "المحتويات"]):
-            if any(w in toc_page_txt for w in words):
-                toc_found = True
-                break
-    return toc_found
+    toc_page = entry.get("toc_pdf_page")
+    if toc_page is None:
+        # Native-text PDFs may expose a genuine PDF bookmark TOC.
+        for depth, name, p_num in doc.get_toc():
+            if re.sub(r"[^\\w]+", " ", name.casefold()).strip() == title_clean:
+                return 1 <= p_num <= int(entry["pdf_start_page"])
+        return False
 
+    toc_page = int(toc_page)
+    if not 1 <= toc_page <= len(doc) or toc_page >= int(entry["pdf_start_page"]):
+        return False
+    toc_txt = (doc[toc_page - 1].get_text() or "").strip()
+    if not toc_txt:
+        if not shutil.which("tesseract"):
+            raise RuntimeError("DEPENDENCY_MISSING:tesseract for scanned textbook TOC")
+        # Local OCR: exactly the catalogued TOC page, NOT an external transfer.
+        cache = CACHE_DIR / f"toc_{entry['book_id']}_p{toc_page}.txt"
+        if cache.exists():
+            toc_txt = cache.read_text(encoding="utf-8")
+        else:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                image_path = Path(temp_dir) / "toc.png"
+                doc[toc_page - 1].get_pixmap(dpi=200).save(str(image_path))
+                proc = subprocess.run(
+                    ["tesseract", str(image_path), "stdout", "-l", "eng+fra", "--psm", "3"],
+                    capture_output=True, text=True, timeout=60,
+                )
+            if proc.returncode != 0:
+                raise RuntimeError("TITLE_VERIFICATION_FAILED: local TOC OCR unavailable")
+            toc_txt = proc.stdout.strip()
+            if toc_txt:
+                cache.write_text(toc_txt, encoding="utf-8")
+    toc_normalized = re.sub(r"[^\\w]+", " ", toc_txt.casefold())
+    return title_clean in toc_normalized and (
+        "chapter" in toc_normalized or "chapitre" in toc_normalized
+        or "contents" in toc_normalized or "فهرس" in toc_normalized
+    )
 
 def build_evidence_map(doc, entry: dict) -> dict:
     start_p = int(entry["pdf_start_page"])
     end_p = int(entry["pdf_end_page"])
     lesson_id = entry["lesson_id"]
+    if start_p < 1 or end_p < start_p or end_p > len(doc):
+        raise RuntimeError(f"SOURCE_PAGE_OUT_OF_RANGE: {lesson_id}, pages {start_p}-{end_p}, book length {len(doc)}")
 
     pages_evidence = []
     for p_num in range(start_p, end_p + 1):
