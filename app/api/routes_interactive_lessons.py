@@ -507,12 +507,29 @@ def resolve(grade: str, subject: str, lesson: str, language: str = ""):
 
 
 @router.get("/view", response_class=HTMLResponse)
-def view(grade: str, subject: str, lesson: str, language: str = "", trace: str = "", exercise: int | None = None, page: int | None = None, worksheet: int | None = None):
+def view(grade: str, subject: str, lesson: str, language: str = "", trace: str = "", exercise: int | None = None, page: int | None = None, worksheet: int | None = None, view: str = ""):
     trace = re.sub(r"[^a-zA-Z0-9]", "", trace)[:24] or uuid.uuid4().hex[:12]
     log.info("DRIVE_LESSON_VIEW_START trace=%s lesson=%r", trace, lesson)
     try:
         item = _resolve(grade, subject, lesson, language)
         service = _service()
+        if view not in ("", "exercises"):
+            raise HTTPException(400, "INVALID_LESSON_VIEW")
+        if view == "exercises":
+            # Exercises are a sibling artifact of the same canonical lesson,
+            # never a separate lesson in the student's selector.
+            fname = str(item.get("filename") or "")
+            if not fname.lower().endswith(".html") or re.search(r"--EXERCISES\.html$", fname, re.I):
+                raise HTTPException(404, "LESSON_EXERCISES_NOT_FOUND")
+            parents = service.files().get(fileId=item["drive_file_id"], fields="parents").execute().get("parents") or []
+            if len(parents) != 1:
+                raise HTTPException(404, "LESSON_EXERCISES_NOT_FOUND")
+            target_name = fname[:-5] + "--EXERCISES.html"
+            siblings = [f for f in _list_children(service, parents[0])
+                        if f.get("name", "").casefold() == target_name.casefold()]
+            if len(siblings) != 1:
+                raise HTTPException(404, "LESSON_EXERCISES_NOT_FOUND")
+            item = {**item, "drive_file_id": siblings[0]["id"], "filename": siblings[0]["name"]}
         html = _download(service, item["drive_file_id"]).decode("utf-8-sig")
         html = _inline_drive_images(service, item, html)
         if "<html" not in html.lower():
