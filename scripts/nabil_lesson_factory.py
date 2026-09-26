@@ -1422,23 +1422,23 @@ def _lesson_scope_for_exercise_gate(ev_map: dict) -> List[dict]:
     return scope
 
 
-def generate_ai_practice_if_book_insufficient(entry: dict, ev_map: dict,
-                                               profile: dict,
-                                               desired_count: int = 3) -> List[dict]:
-    """Generate gated practice when the book yields fewer than two exercises.
+def required_ai_practice_count(textbook_count: int) -> int:
+    """Return the required number of AI practice exercises."""
+    if textbook_count <= 0:
+        return 2
+    if textbook_count == 1:
+        return 3
+    return 0
 
-    Source priority is absolute: every verified textbook exercise is preserved.
-    If the book yields 0 or 1 verified exercise, keep those and add exactly
-    the requested AI exercise count after strict lesson scientific gating.
-    With 2+ verified textbook exercises, generate nothing.
-    """
+
+def generate_ai_practice_for_insufficient_book_exercises(
+        entry: dict, ev_map: dict, profile: dict) -> List[dict]:
+    """Supplement insufficient book exercises using the fixed product rule."""
     textbook_count = len(ev_map.get("exercise_evidence") or [])
-    if textbook_count >= 2:
+    desired_count = required_ai_practice_count(textbook_count)
+    if desired_count == 0:
         progress("AI_ADDITIONAL_PRACTICE_SKIPPED_BOOK_SUFFICIENT",
                  textbook_count=textbook_count)
-        return []
-
-    if desired_count < 1:
         return []
 
     progress("AI_ADDITIONAL_PRACTICE_REQUIRED_BOOK_INSUFFICIENT",
@@ -2199,10 +2199,10 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
         check("EXERCISE_SEQUENCE_INCOMPLETE",
               ex_nums == list(range(1, len(ex_nums) + 1)),
               "CRITICAL", f"Exercises: {ex_nums}")
-    # Product policy: 2+ verified textbook exercises => no AI practice.
-    # With 0 or 1 textbook exercise, retain the source exercise(s) and add
-    # exactly three scientifically gated AI exercises.
-    expected_ai = 0 if len(textbook) >= 2 else 3
+    # 0 source exercises: add 2 AI exercises.
+    # 1 source exercise: preserve it and add 3 AI exercises.
+    # 2 or more source exercises: add no AI exercises.
+    expected_ai = required_ai_practice_count(len(textbook))
     check("AI_FALLBACK_POLICY_VIOLATION",
           len(generated) == expected_ai, "CRITICAL",
           f"textbook={len(textbook)}, generated={len(generated)}, "
@@ -2431,8 +2431,8 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
 
     theory = synthesize_universal_pedagogy(entry, ev_map, profile)
     textbook_exercises = list(ev_map["exercise_evidence"])
-    generated_practice = generate_ai_practice_if_book_insufficient(
-        entry, ev_map, profile, desired_count=3)
+    generated_practice = generate_ai_practice_for_insufficient_book_exercises(
+        entry, ev_map, profile)
     exercises = textbook_exercises + generated_practice
     if generated_practice:
         # Keep the candidate/evidence payload self-describing for scientific
