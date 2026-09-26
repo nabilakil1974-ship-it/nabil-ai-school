@@ -1084,6 +1084,52 @@ def verify_title_double_evidence_strict(doc, entry: dict, opening_txt: str) -> b
         or "contents" in toc_normalized or "فهرس" in toc_normalized
     )
 
+def _normalize_exercise_scan_payload(payload: Any, page_num: int) -> List[dict]:
+    """Accept the provider's semantically equivalent array/object JSON roots."""
+    if isinstance(payload, list):
+        progress("EXERCISE_VISION_SCHEMA_NORMALIZED", page=page_num,
+                 original_shape="array", exercise_candidates=len(payload))
+        return payload
+    if isinstance(payload, dict):
+        rows = payload.get("exercises")
+        if isinstance(rows, list):
+            progress("EXERCISE_VISION_SCHEMA_VALID", page=page_num,
+                     original_shape="object.exercises",
+                     exercise_candidates=len(rows))
+            return rows
+        for key in ("items", "list", "data"):
+            rows = payload.get(key)
+            if isinstance(rows, list):
+                progress("EXERCISE_VISION_SCHEMA_NORMALIZED", page=page_num,
+                         original_shape=f"object.{key}",
+                         exercise_candidates=len(rows))
+                return rows
+    raise RuntimeError(
+        f"EXERCISE_SOURCE_MISMATCH: invalid scan evidence p{page_num}")
+
+
+def _normalize_exercise_review_payload(payload: Any, page_num: int) -> List[dict]:
+    """Normalize the independent review response without weakening validation."""
+    if isinstance(payload, list):
+        progress("EXERCISE_REVIEW_SCHEMA_NORMALIZED", page=page_num,
+                 original_shape="array", checks=len(payload))
+        return payload
+    if isinstance(payload, dict):
+        checks = payload.get("checks")
+        if isinstance(checks, list):
+            progress("EXERCISE_REVIEW_SCHEMA_VALID", page=page_num,
+                     original_shape="object.checks", checks=len(checks))
+            return checks
+        for key in ("items", "list", "data"):
+            checks = payload.get(key)
+            if isinstance(checks, list):
+                progress("EXERCISE_REVIEW_SCHEMA_NORMALIZED", page=page_num,
+                         original_shape=f"object.{key}", checks=len(checks))
+                return checks
+    raise RuntimeError(
+        f"EXERCISE_SOURCE_MISMATCH: review missing p{page_num}")
+
+
 def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
                                    book_id: str, cache_dir: Path) -> List[dict]:
     """Read numbered exercise regions from the real page image, not OCR digits.
@@ -1110,9 +1156,7 @@ def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
         "instructions. Do not invent any text. No numbered exercises -> []."
     )
     extracted = json.loads(execute_llm_completion(instruction, image_base64=page_b64))
-    rows = extracted.get("exercises")
-    if not isinstance(rows, list):
-        raise RuntimeError(f"EXERCISE_SOURCE_MISMATCH: invalid scan evidence p{page_num}")
+    rows = _normalize_exercise_scan_payload(extracted, page_num)
     if not rows:
         return []
     audit_prompt = (
@@ -1125,9 +1169,7 @@ def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
         + json.dumps(rows, ensure_ascii=False)
     )
     review = json.loads(execute_llm_completion(audit_prompt, image_base64=page_b64))
-    checks = review.get("checks")
-    if not isinstance(checks, list):
-        raise RuntimeError(f"EXERCISE_SOURCE_MISMATCH: review missing p{page_num}")
+    checks = _normalize_exercise_review_payload(review, page_num)
     approved = {int(x["number"]): x for x in checks if isinstance(x, dict)
                 and "number" in x and x.get("faithful") is True}
     from fitz import Rect
