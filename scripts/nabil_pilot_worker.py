@@ -118,15 +118,24 @@ def supervise(stop_event=None) -> None:
 
     apply_runtime_defaults(cfg)
     retry_seconds = max(60, int(cfg.get("retry_seconds", 300)))
+    max_attempts = max(
+        1, int(os.getenv(
+            "NABIL_PILOT_MAX_ATTEMPTS_PER_BOOT",
+            str(cfg.get("max_attempts_per_boot", 1)),
+        ))
+    )
     announce(
         "AUTONOMOUS_PILOT_SUPERVISOR_STARTED",
         lesson_id=cfg["lesson_id"],
         retry_seconds=retry_seconds,
+        max_attempts_per_boot=max_attempts,
     )
 
-    while True:
+    attempts = 0
+    while attempts < max_attempts:
         if stop_event is not None and stop_event.is_set():
             return
+        attempts += 1
         try:
             if run_once(cfg):
                 return
@@ -134,9 +143,19 @@ def supervise(stop_event=None) -> None:
             announce(
                 "AUTONOMOUS_PILOT_ATTEMPT_BLOCKED",
                 lesson_id=cfg["lesson_id"],
+                attempt=attempts,
+                max_attempts_per_boot=max_attempts,
                 reason=str(exc)[:900],
                 retry_seconds=retry_seconds,
             )
+        if attempts >= max_attempts:
+            announce(
+                "AUTONOMOUS_PILOT_PAUSED_BUDGET_GUARD",
+                lesson_id=cfg["lesson_id"],
+                attempts=attempts,
+                reason="wait for code/config change before another paid attempt",
+            )
+            raise SystemExit(75)
         if stop_event is None:
             time.sleep(retry_seconds)
         elif stop_event.wait(retry_seconds):
