@@ -105,6 +105,51 @@ class SmartFailoverTest(unittest.TestCase):
             factory.get_last_llm_provenance()["provider"],
             "openrouter")
 
+    def test_openrouter_401_is_quarantined_then_openai_used(self):
+        env = {
+            "NABIL_FACTORY_AI_PROVIDER": "groq",
+            "NABIL_FACTORY_AI_FAILOVER_PROVIDERS": "openrouter,openai",
+            "GROQ_API_KEY": "groq-test-key",
+            "OPENROUTER_API_KEY": "openrouter-test-key",
+            "OPENAI_API_KEY": "openai-test-key",
+        }
+
+        def fake_urlopen(req, timeout=60):
+            if "groq.com" in req.full_url:
+                raise _rate_limit(req.full_url, 120)
+            if "openrouter.ai" in req.full_url:
+                body = io.BytesIO(json.dumps({
+                    "error": {
+                        "message": "Missing Authentication header",
+                        "code": "401",
+                    }
+                }).encode("utf-8"))
+                raise urllib.error.HTTPError(
+                    url=req.full_url,
+                    code=401,
+                    msg="Unauthorized",
+                    hdrs={"Content-Type": "application/json"},
+                    fp=body,
+                )
+            if "api.openai.com" in req.full_url:
+                return _FakeResponse({
+                    "choices": [{"message": {"content": '{"ok": true}'}}]
+                })
+            raise AssertionError("Unexpected provider " + req.full_url)
+
+        with mock.patch.dict(os.environ, env, clear=False), \
+             mock.patch.object(factory.urllib.request, "urlopen",
+                               side_effect=fake_urlopen), \
+             mock.patch.object(factory.time, "sleep") as sleep:
+            out = factory.execute_llm_completion(
+                'Return {"ok": true}', json_mode=True)
+
+        self.assertEqual(json.loads(out), {"ok": True})
+        self.assertFalse(sleep.called)
+        prov = factory.get_last_llm_provenance()
+        self.assertEqual(prov["provider"], "openai")
+        self.assertTrue(prov["used_failover"])
+
     def test_all_three_long_cooldowns_fail_fast_without_sleeping(self):
         env = {
             "NABIL_FACTORY_AI_PROVIDER": "groq",
