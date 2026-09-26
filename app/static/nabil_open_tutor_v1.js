@@ -1458,10 +1458,7 @@ async function request({
      getStudent()
    );
 
-   data.append(
-     "activity_mode",
-     "general_exercises"
-   );
+   data.append("activity_mode","general_exercises");
 
    data.append(
      "teaching_mode",
@@ -1541,10 +1538,8 @@ async function request({
 
    try{
 
-     response=
-       await fetch(
-         "/api/chat",
-         {
+    response=await fetch("/api/chat",{
+         
            method:"POST",
            body:data,
            signal:aborter.signal
