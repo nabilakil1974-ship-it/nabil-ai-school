@@ -2375,6 +2375,44 @@ def grounded_subject_solver(exercise: dict, evidence_map: dict, profile: dict) -
         raise RuntimeError(f"PRE_SOLVE_FAILED: grounded solver unavailable or failed for Ex #{exercise['number']}: {e}")
 
 
+def prepare_verified_solutions(entry: dict, exercises: list,
+                               profile: dict, ev_map: dict,
+                               drive_service=None,
+                               persist: bool = False) -> None:
+    """Solve once, persist each verified result, and resume independently."""
+    page_checkpoints = None
+    checkpoint_root = None
+    if persist:
+        if drive_service is None:
+            raise RuntimeError("SOLUTION_CHECKPOINT_REQUIRES_DRIVE_SERVICE")
+        from scripts import nabil_page_checkpoint as page_checkpoints
+        checkpoint_root = resolve_drive_root_id()
+
+    for ex in exercises:
+        if ex.get("solution_mode") != "PRE_SOLVED":
+            continue
+        cached = None
+        if page_checkpoints:
+            cached = page_checkpoints.load_solution(
+                drive_service, checkpoint_root, entry, ex)
+        if cached is not None:
+            ex["solution_status"] = "SOLVED"
+            ex["_pre_solved_solution"] = cached
+            progress("SOLUTION_RESTORED_FROM_DRIVE",
+                     exercise_id=ex.get("exercise_id"),
+                     number=ex.get("number"))
+            continue
+
+        sol = grounded_subject_solver(ex, ev_map, profile)
+        ex["_pre_solved_solution"] = sol
+        if page_checkpoints:
+            page_checkpoints.save_solution(
+                drive_service, checkpoint_root, entry, ex, sol)
+            progress("SOLUTION_SAVED_TO_DRIVE",
+                     exercise_id=ex.get("exercise_id"),
+                     number=ex.get("number"))
+
+
 def solve_exercise_on_demand_payload(lesson_id: str, sec_type: str, ex_num: int) -> Dict[str, Any]:
     """Universal On-Demand Backend Resolution — Zero Hardcode."""
     ev_path = PERM_EVIDENCE_DIR / f"{lesson_id}.json"
@@ -2726,7 +2764,10 @@ def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: di
                             break
 
         if ex["solution_mode"] == "PRE_SOLVED":
-            sol = grounded_subject_solver(ex, ev_map, profile)
+            sol = ex.get("_pre_solved_solution")
+            if sol is None:
+                sol = grounded_subject_solver(ex, ev_map, profile)
+                ex["_pre_solved_solution"] = sol
             steps_html = "<br>".join([f"• <b>Step:</b> {s}" for s in sol["steps"]])
             sol_box = f'''
             <div style="margin-top:10px; padding:12px; background:#ecfdf5; border-radius:6px; font-size:13px; color:#065f46; line-height:1.6;">
@@ -3180,6 +3221,9 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
         # separately identifiable by source_origin=TEXTBOOK.
         ev_map["exercise_evidence"] = exercises
 
+    prepare_verified_solutions(
+        entry, exercises, profile, ev_map,
+        drive_service=drive_service, persist=publish)
     page_a = render_lesson_page_a(entry, theory, ev_map)
     page_b = render_lesson_page_b(entry, exercises, profile, ev_map)
 
