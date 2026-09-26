@@ -214,8 +214,13 @@ def main() -> None:
     stop = threading.Event()
     pilot_done = threading.Event()
 
+    # Auto-enable only on the dedicated nabil-ai-school Railway service.
+    # Other services connected to the same repository must never start a
+    # duplicate paid pilot worker. An explicit env override still wins.
+    service_name = os.environ.get("RAILWAY_SERVICE_NAME", "").strip().lower()
+    pilot_default = "1" if service_name == "nabil-ai-school" else "0"
     auto_pilot = os.environ.get(
-        "NABIL_AUTO_FACTORY_PILOT", "1"
+        "NABIL_AUTO_FACTORY_PILOT", pilot_default
     ).strip().lower()
     pilot_supervisor = None
     if auto_pilot not in {"0", "false", "no", "off"}:
