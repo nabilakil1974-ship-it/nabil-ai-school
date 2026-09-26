@@ -1,0 +1,80 @@
+name: NABIL Factory Core Smoke
+
+on:
+  push:
+    paths:
+      - "scripts/nabil_lesson_factory.py"
+      - "scripts/nabil_i18n.py"
+      - "scripts/nabil_interactive_lab.py"
+      - "scripts/nabil_quiz_engine.py"
+      - ".github/workflows/nabil_factory_core_smoke.yml"
+  workflow_dispatch:
+
+jobs:
+  core-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile real factory modules
+        run: |
+          python -m py_compile             scripts/nabil_i18n.py             scripts/nabil_interactive_lab.py             scripts/nabil_quiz_engine.py             scripts/nabil_lesson_factory.py
+
+      - name: Import and exercise enrichment engines
+        run: |
+          python - <<'PY'
+          from scripts.nabil_i18n import resolve_lang_code, narrative_language_instruction
+          from scripts.nabil_interactive_lab import render_verified_lab
+          from scripts.nabil_quiz_engine import build_full_quiz_items, render_quiz_html
+          import scripts.nabil_lesson_factory as factory
+
+          assert resolve_lang_code("Arabic") == "ar"
+          assert "Modern Standard Arabic" in narrative_language_instruction("ar")
+
+          # Test-only fixture: verifies renderer behavior, never production evidence.
+          spec = {
+              "supported": True,
+              "kind": "FORMULA_CALCULATOR",
+              "title": "Fixture",
+              "instructions": "Enter values",
+              "observation": "Fixture observation",
+              "evidence_ref": "C01",
+              "formula": {"output": "y", "input_a": "a", "input_b": "b", "operator": "+"},
+          }
+          lab_html, active = render_verified_lab(spec, "en", "C01")
+          assert active
+          assert 'type="number"' in lab_html
+          assert 'type="range"' not in lab_html
+          assert ' min=' not in lab_html and ' max=' not in lab_html
+
+          activities = [{
+              "activity_num": "01",
+              "concept_id": "C01",
+              "source_page": 1,
+              "conclusion": "fixture",
+              "student_question": {
+                  "q": "Fixture?",
+                  "options": ["A", "B", "C"],
+                  "correct_index": 0,
+              },
+          }]
+          items = build_full_quiz_items(activities)
+          quiz_html = render_quiz_html(items, "en")
+          assert len(items) == len(activities)
+          assert 'id="fullQuizBlock"' in quiz_html
+
+          for required in (
+              "build_evidence_map",
+              "synthesize_universal_pedagogy",
+              "run_all_quality_gates",
+              "independent_scientific_review",
+              "produce_lesson_for_entry",
+          ):
+              assert hasattr(factory, required), required
+
+          print("NABIL_FACTORY_CORE_SMOKE_OK")
+          PY
