@@ -299,6 +299,76 @@ def save_exercises(service, root_id, doc, entry, page_num, rows,
                  provider, vision_model, data)
 
 
+def _solution_filename(exercise):
+    safe = re.sub(r"[^A-Za-z0-9_-]", "_",
+                  str(exercise.get("exercise_id") or "exercise"))
+    return "SOLUTION_%s.json" % safe
+
+
+def load_solution(service, root_id, entry, exercise):
+    """Restore a verified solved exercise independently of page extraction."""
+    folder = _folder(service, root_id, entry, create=False)
+    if not folder:
+        return None
+    filename = _solution_filename(exercise)
+    fid = _children(service, folder, filename)
+    if not fid:
+        return None
+    raw = service.files().get_media(fileId=fid).execute()
+    record = json.loads(raw.decode("utf-8") if isinstance(raw, bytes)
+                        else raw)
+    expected = {
+        "schema": CACHE_SCHEMA,
+        "book_id": entry["book_id"],
+        "lesson_id": entry["lesson_id"],
+        "exercise_id": exercise.get("exercise_id"),
+        "source_prompt_hash": exercise.get("source_prompt_hash"),
+        "source_origin": exercise.get("source_origin"),
+    }
+    if not isinstance(record, dict) or any(
+            record.get(k) != v for k, v in expected.items()):
+        return None
+    solution = record.get("solution")
+    if (not isinstance(solution, dict)
+            or not isinstance(solution.get("steps"), list)
+            or not solution.get("final_answer")):
+        raise RuntimeError(
+            "SOLUTION_CHECKPOINT_CORRUPT: " + filename)
+    return solution
+
+
+def save_solution(service, root_id, entry, exercise, solution):
+    """Persist one independently verified exercise solution."""
+    if (not isinstance(solution, dict)
+            or not isinstance(solution.get("steps"), list)
+            or not solution.get("final_answer")):
+        raise RuntimeError("SOLUTION_CHECKPOINT_INVALID")
+    folder = _folder(service, root_id, entry, create=True)
+    filename = _solution_filename(exercise)
+    body = {
+        "schema": CACHE_SCHEMA,
+        "book_id": entry["book_id"],
+        "lesson_id": entry["lesson_id"],
+        "exercise_id": exercise.get("exercise_id"),
+        "source_prompt_hash": exercise.get("source_prompt_hash"),
+        "source_origin": exercise.get("source_origin"),
+        "actual_provenance": _collect_actual_provenance(solution),
+        "solution": solution,
+    }
+    payload = json.dumps(body, ensure_ascii=False).encode("utf-8")
+    media = MediaIoBaseUpload(
+        io.BytesIO(payload), mimetype="application/json",
+        resumable=False)
+    old = _children(service, folder, filename)
+    if old:
+        service.files().update(
+            fileId=old, media_body=media, fields="id").execute()
+    else:
+        service.files().create(body={
+            "name": filename, "parents": [folder],
+        }, media_body=media, fields="id").execute()
+
+
 def invalidate_page(service, root_id, entry, page_num):
     folder = _folder(service, root_id, entry, create=False)
     if not folder:
