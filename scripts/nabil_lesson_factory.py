@@ -278,15 +278,43 @@ def execute_llm_completion(prompt: str, json_mode: bool = True, temperature: flo
                 # silently send approved book images to another provider.
                 retry_header = str(exc.headers.get("Retry-After", "")).strip()
                 try:
-                    wait_seconds = float(retry_header)
+                    retry_after = float(retry_header)
                 except ValueError:
-                    wait_match = re.search(
-                        r"(?i)try again in\s+(\d+(?:\.\d+)?)\s*s(?:econds?)?",
-                        detail,
+                    retry_after = 0.0
+                # A daily token ceiling often answers "5m12.336s" rather
+                # than "15.7s". Previously this was capped at 120 seconds,
+                # causing five unnecessary requests and total pilot failure.
+                duration = re.search(
+                    r"(?i)try again in\\s+"
+                    r"(?:(\\d+(?:\\.\\d+)?)\\s*h(?:ours?)?\\s*)?"
+                    r"(?:(\\d+(?:\\.\\d+)?)\\s*m(?:in(?:utes?)?)?\\s*)?"
+                    r"(?:(\\d+(?:\\.\\d+)?)\\s*s(?:ec(?:onds?)?)?)?",
+                    detail,
+                )
+                indicated = 0.0
+                if duration and any(group is not None for group in duration.groups()):
+                    hours, minutes, seconds = duration.groups()
+                    indicated = (3600 * float(hours or 0)
+                                 + 60 * float(minutes or 0)
+                                 + float(seconds or 0))
+                wait_seconds = max(
+                    retry_after, indicated, min(20.0 * attempt, 90.0)
+                ) + 2.0
+                max_wait = max(30.0, min(3600.0, float(
+                    os.getenv("NABIL_FACTORY_MAX_RATE_LIMIT_WAIT_SECONDS", "1800")
+                )))
+                if wait_seconds > max_wait:
+                    progress(
+                        "AI_PROVIDER_RATE_LIMIT_LONG_COOLDOWN",
+                        provider=provider, model=model,
+                        required_wait_seconds=round(wait_seconds, 2),
+                        max_wait_seconds=max_wait,
                     )
-                    wait_seconds = (float(wait_match.group(1)) if wait_match
-                                    else min(20.0 * attempt, 90.0))
-                wait_seconds = min(120.0, max(2.0, wait_seconds + 2.0))
+                    raise RuntimeError(
+                        f"AI_PROVIDER_COOLDOWN_EXCEEDS_RUN_LIMIT: provider={provider} "
+                        f"model={model} wait_seconds={wait_seconds:.1f}"
+                    ) from None
+
                 progress(
                     "AI_PROVIDER_RATE_LIMIT_WAIT", provider=provider, model=model,
                     attempt=attempt, max_attempts=max_attempts,
