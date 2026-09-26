@@ -3211,15 +3211,20 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
         doc.close()
 
     theory = synthesize_universal_pedagogy(entry, ev_map, profile)
-    textbook_exercises = list(ev_map["exercise_evidence"])
+    # Work on shallow copies so cached solutions/status do not contaminate
+    # the immutable source-evidence payload or its evidence hash.
+    textbook_exercises = [
+        dict(ex) for ex in ev_map["exercise_evidence"]
+    ]
     generated_practice = generate_ai_practice_for_insufficient_book_exercises(
         entry, ev_map, profile)
     exercises = textbook_exercises + generated_practice
     if generated_practice:
-        # Keep the candidate/evidence payload self-describing for scientific
-        # review and on-demand solving. The official book evidence remains
-        # separately identifiable by source_origin=TEXTBOOK.
-        ev_map["exercise_evidence"] = exercises
+        # Keep source/AI provenance visible to QA without embedding solved
+        # outputs back into the evidence map.
+        ev_map["exercise_evidence"] = [
+            dict(ex) for ex in exercises
+        ]
 
     prepare_verified_solutions(
         entry, exercises, profile, ev_map,
