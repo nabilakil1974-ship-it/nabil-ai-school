@@ -448,7 +448,7 @@ def execute_llm_completion(
             "NABIL_FACTORY_MAX_FAILOVER_REQUESTS", "12"))))
     max_all_wait = max(
         0.0, min(1800.0, float(os.getenv(
-            "NABIL_FACTORY_MAX_ALL_PROVIDER_WAIT_SECONDS", "120"))))
+            "NABIL_FACTORY_MAX_ALL_PROVIDER_WAIT_SECONDS", "30"))))
     provider_attempts = {p: 0 for p in candidates}
     total_requests = 0
 
@@ -583,6 +583,20 @@ def execute_llm_completion(
                 )
                 continue
 
+            if exc.code in (408, 425, 500, 502, 503, 504):
+                transient_cooldown = 10.0
+                _AI_PROVIDER_COOLDOWNS[provider] = (
+                    time.monotonic() + transient_cooldown)
+                progress(
+                    "AI_PROVIDER_TRANSIENT_FAILOVER",
+                    provider=provider,
+                    model=model,
+                    http_status=exc.code,
+                    cooldown_seconds=transient_cooldown,
+                    provider_code=code[:80],
+                )
+                continue
+
             reason = detail[:360]
             progress(
                 "AI_PROVIDER_REQUEST_REJECTED",
@@ -598,6 +612,16 @@ def execute_llm_completion(
                 f"http_status={exc.code} "
                 f"provider_code={code[:80]} detail={reason}"
             ) from None
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            _AI_PROVIDER_COOLDOWNS[provider] = time.monotonic() + 10.0
+            progress(
+                "AI_PROVIDER_NETWORK_FAILOVER",
+                provider=provider,
+                model=model,
+                error_type=type(exc).__name__,
+                cooldown_seconds=10.0,
+            )
+            continue
 
     remaining = {
         p: round(max(
