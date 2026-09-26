@@ -284,7 +284,7 @@ def _provider_request_config(provider: str, image_base64: Optional[str]):
             os.getenv("OPENROUTER_VISION_MODEL")
             if image_base64 else None
         ) or os.getenv(
-            "OPENROUTER_TEXT_MODEL", "google/gemini-2.5-flash")
+            "OPENROUTER_TEXT_MODEL", "google/gemini-3.6-flash")
     elif provider == "groq":
         url = "https://api.groq.com/openai/v1/chat/completions"
         model = (
@@ -1819,7 +1819,7 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
         "groq": os.getenv("GROQ_VISION_MODEL", "qwen/qwen3.8-27b"),
         "openrouter": os.getenv("OPENROUTER_VISION_MODEL",
                                os.getenv("OPENROUTER_TEXT_MODEL",
-                                         "google/gemini-2.5-flash")),
+                                         "google/gemini-3.6-flash")),
         "openai": os.getenv("OPENAI_VISION_MODEL", "gpt-4o-mini"),
     }.get(source_provider, "none")
     if persist_pages:
