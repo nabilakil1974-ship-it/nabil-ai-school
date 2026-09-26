@@ -514,6 +514,22 @@ def execute_llm_completion(
                     messages_content if image_base64 else prompt)
             }],
             "temperature": temperature,
+            # OpenRouter may otherwise assume a very large provider maximum
+            # (for Gemini 3.6 Flash this can be 65k+ output tokens), which can
+            # trigger a 402 credit preflight even for a tiny JSON response.
+            # Keep factory calls bounded and configurable.
+            "max_tokens": max(
+                256,
+                min(
+                    8192,
+                    int(os.getenv(
+                        "NABIL_FACTORY_VISION_MAX_OUTPUT_TOKENS"
+                        if image_base64
+                        else "NABIL_FACTORY_TEXT_MAX_OUTPUT_TOKENS",
+                        "2048" if image_base64 else "4096",
+                    )),
+                ),
+            ),
         }
         if json_mode:
             payload["response_format"] = {"type": "json_object"}
