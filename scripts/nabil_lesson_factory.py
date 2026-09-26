@@ -881,6 +881,55 @@ def extract_multimodal_page_figures(doc, page_num: int, cache_dir: Path,
                     str(info.get("caption") or "").lower(), re.I)
             label = (label_match.group(1) + label_match.group(2)
                      if label_match else "")
+            # Never infer figure numbers by left-to-right order. On genuine
+            # scanned pages, captions are often *below* the vision bounding
+            # box and Groq may omit printed_label. Read ONLY the adjoining
+            # physical caption strip using LOCAL OCR; the figure number must
+            # appear directly next to this source image, not elsewhere on page.
+            if shutil.which("tesseract"):
+                caption_rect = fitz.Rect(
+                    max(page.rect.x0, rect.x0 - 4),
+                    max(page.rect.y0, rect.y1 - 12),
+                    min(page.rect.x1, rect.x1 + 4),
+                    min(page.rect.y1, rect.y1 + 56),
+                )
+                if caption_rect.width > 25 and caption_rect.height > 15:
+                    with tempfile.TemporaryDirectory(
+                            prefix="nabil_caption_") as cap_dir:
+                        cap_path = Path(cap_dir) / "caption.png"
+                        page.get_pixmap(clip=caption_rect, dpi=300).save(
+                            str(cap_path))
+                        cap_proc = subprocess.run(
+                            ["tesseract", str(cap_path), "stdout",
+                             "-l", "eng+fra", "--psm", "6"],
+                            capture_output=True, text=True, timeout=16)
+                    if cap_proc.returncode == 0:
+                        caption_source = cap_proc.stdout.strip()
+                        source_labels = {
+                            m.group(1) + m.group(2).lower()
+                            for m in re.finditer(
+                                r"(?i)\\bfig(?:ure)?[\\.,:]?\\s*"
+                                r"(\\d+)([a-z]?)\\s*[:;\\.,]?",
+                                caption_source)
+                        }
+                        if len(source_labels) == 1:
+                            source_label = next(iter(source_labels))
+                            if label and label != source_label:
+                                progress("FIGURE_LABEL_SOURCE_CONFLICT",
+                                         page=page_num,
+                                         claimed=label, source=source_label)
+                                continue
+                            label = source_label
+                            label_match = re.fullmatch(
+                                r"(\\d+)([a-z]?)", label)
+                            progress("FIGURE_LABEL_LOCAL_SOURCE_VERIFIED",
+                                     page=page_num, figure_label=label,
+                                     caption_excerpt=caption_source[:120])
+                        elif len(source_labels) > 1:
+                            progress("FIGURE_CAPTION_AMBIGUOUS",
+                                     page=page_num,
+                                     labels=sorted(source_labels))
+                            continue
             content = page.get_pixmap(clip=rect, dpi=180).tobytes("png")
             path = cache_dir / f"fig_p{page_num}_scanned_{idx+1}.png"
             path.write_bytes(content)
