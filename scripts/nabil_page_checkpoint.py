@@ -321,9 +321,14 @@ def load_solution(service, root_id, entry, exercise):
         "schema": CACHE_SCHEMA,
         "book_id": entry["book_id"],
         "lesson_id": entry["lesson_id"],
+        "source_pdf_sha256": entry.get("source_pdf_sha256")
+                              or entry.get("source_book_sha256"),
         "exercise_id": exercise.get("exercise_id"),
         "source_prompt_hash": exercise.get("source_prompt_hash"),
         "source_origin": exercise.get("source_origin"),
+        "source_page": exercise.get("source_page"),
+        "figure_hashes": list(exercise.get("figure_hashes") or []),
+        "scope_concept_ids": list(exercise.get("scope_concept_ids") or []),
     }
     if not isinstance(record, dict) or any(
             record.get(k) != v for k, v in expected.items()):
@@ -349,9 +354,14 @@ def save_solution(service, root_id, entry, exercise, solution):
         "schema": CACHE_SCHEMA,
         "book_id": entry["book_id"],
         "lesson_id": entry["lesson_id"],
+        "source_pdf_sha256": entry.get("source_pdf_sha256")
+                              or entry.get("source_book_sha256"),
         "exercise_id": exercise.get("exercise_id"),
         "source_prompt_hash": exercise.get("source_prompt_hash"),
         "source_origin": exercise.get("source_origin"),
+        "source_page": exercise.get("source_page"),
+        "figure_hashes": list(exercise.get("figure_hashes") or []),
+        "scope_concept_ids": list(exercise.get("scope_concept_ids") or []),
         "actual_provenance": _collect_actual_provenance(solution),
         "solution": solution,
     }
