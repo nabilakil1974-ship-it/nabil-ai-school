@@ -5734,6 +5734,13 @@ the same lesson Visual Engine; never describe it as rendered without one.
                             "LESSON_PACKAGE_CACHE_HIT grade=%r subject=%r lesson=%r",
                             grade, subject, lesson,
                         )
+                                               cached_solution_card = build_scientific_solution_card(
+                            message=str(message or ""),
+                            reply=str(cached_lesson["reply"] or ""),
+                            subject=str(subject or ""),
+                            drawings=cached_lesson["drawings"],
+                        )
+
                         return ChatResponse(
                             conversation_id=str(conversation.id),
                             reply=cached_lesson["reply"],
@@ -5745,6 +5752,7 @@ the same lesson Visual Engine; never describe it as rendered without one.
                                 if cached_lesson["drawings"] else None
                             ),
                             student_profile=profile_to_dict(learning_profile),
+                            solution_card=cached_solution_card,
                         )
             print(f"BOOK_RAG_SCOPE_MATCH grade={grade!r} subject={subject!r} language={selected_language!r} curriculum={book_curriculum!r} retrieved={len(source_chunks)}", flush=True)
         except HTTPException:
