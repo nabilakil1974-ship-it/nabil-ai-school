@@ -1497,11 +1497,30 @@ def rescue_missing_labeled_figures(doc, page_num: int, cache_dir: Path,
             progress("TARGETED_FIGURE_RESCUE_REJECTED", page=page_num,
                      label=label, reason="INVALID_BBOX")
             continue
-        if (image_rect.width < 20 or image_rect.height < 20
-                or caption_rect.width < 12 or caption_rect.height < 8):
+        if image_rect.width < 20 or image_rect.height < 20:
             progress("TARGETED_FIGURE_RESCUE_REJECTED", page=page_num,
-                     label=label, reason="BBOX_TOO_SMALL")
+                     label=label, reason="IMAGE_BBOX_TOO_SMALL")
             continue
+
+        # A model may return an extremely tight box around the printed
+        # "Fig. N" token. Expand only the caption box locally before OCR;
+        # the actual figure crop is never enlarged or inferred. Acceptance
+        # still requires unique LOCAL OCR of the requested source label.
+        if caption_rect.width < 24 or caption_rect.height < 14:
+            cx = (caption_rect.x0 + caption_rect.x1) / 2
+            cy = (caption_rect.y0 + caption_rect.y1) / 2
+            half_w = max(12.0, caption_rect.width / 2 + 8.0)
+            half_h = max(7.0, caption_rect.height / 2 + 5.0)
+            caption_rect = fitz.Rect(
+                max(page.rect.x0, cx - half_w),
+                max(page.rect.y0, cy - half_h),
+                min(page.rect.x1, cx + half_w),
+                min(page.rect.y1, cy + half_h),
+            )
+            progress("TARGETED_FIGURE_CAPTION_BOX_PADDED",
+                     page=page_num, label=label,
+                     width=round(caption_rect.width, 1),
+                     height=round(caption_rect.height, 1))
 
         # The caption must be physically close to its proposed source figure;
         # this prevents a valid Fig. 1 caption elsewhere on the page from
