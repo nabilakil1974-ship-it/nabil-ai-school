@@ -88,7 +88,39 @@ def _source_signature(doc, page_num):
 
 
 def _model_signature(provider, vision_model):
+    # Compatibility key for deciding whether an old checkpoint belongs to the
+    # same requested primary run configuration. This is NOT evidence origin.
     return {"provider": provider, "vision_model": vision_model}
+
+
+def _collect_actual_provenance(value):
+    """Collect actual provider/model metadata embedded in evidence objects."""
+    found = []
+
+    def walk(node):
+        if isinstance(node, dict):
+            if (
+                "provider" in node
+                and "model" in node
+                and ("used_failover" in node or "completed_at" in node)
+            ):
+                item = {
+                    "provider": node.get("provider"),
+                    "model": node.get("model"),
+                    "primary_provider": node.get("primary_provider"),
+                    "used_failover": bool(node.get("used_failover", False)),
+                    "completed_at": node.get("completed_at"),
+                }
+                if item not in found:
+                    found.append(item)
+            for child in node.values():
+                walk(child)
+        elif isinstance(node, list):
+            for child in node:
+                walk(child)
+
+    walk(value)
+    return found
 
 
 def _load_record(service, root_id, doc, entry, page_num, kind,
@@ -134,6 +166,8 @@ def _save_record(service, root_id, doc, entry, page_num, kind,
         "page_num": page_num,
         "source_page_sha256": _source_signature(doc, page_num),
         **_model_signature(provider, vision_model),
+        "provider_fields_role": "CHECKPOINT_COMPATIBILITY_KEY_NOT_EVIDENCE_ORIGIN",
+        "actual_provenance": _collect_actual_provenance(data),
         "data": data,
     }
     payload = json.dumps(body, ensure_ascii=False).encode("utf-8")
@@ -175,12 +209,16 @@ def _source_crop(doc, page_num, row, kind):
             buffer = io.BytesIO()
             picture.convert("RGB").save(buffer, format="PNG")
             return buffer.getvalue()
-    if row.get("evidence_method") not in (
+    method = row.get("evidence_method")
+    if method not in (
         "PDF_VECTOR_CROP",
         "APPROVED_VISION_BOX_CROPPED_FROM_SOURCE_PDF",
+        "TARGETED_HIGHRES_VISION_PLUS_LOCAL_CAPTION_OCR",
     ):
         raise ValueError("Unexpected source image method")
-    return doc[page_num - 1].get_pixmap(clip=area, dpi=180).tobytes("png")
+    dpi = 220 if method == "TARGETED_HIGHRES_VISION_PLUS_LOCAL_CAPTION_OCR" else 180
+    return doc[page_num - 1].get_pixmap(
+        clip=area, dpi=dpi).tobytes("png")
 
 
 def load_page(service, root_id, doc, entry, page_num, cache_dir,
