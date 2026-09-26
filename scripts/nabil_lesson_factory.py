@@ -644,6 +644,20 @@ def execute_llm_completion(
                 )
                 continue
 
+            if exc.code == 402 and "in-flight requests" in detail.casefold():
+                transient_cooldown = 3.0
+                _AI_PROVIDER_COOLDOWNS[provider] = (
+                    time.monotonic() + transient_cooldown)
+                progress(
+                    "AI_PROVIDER_INFLIGHT_LIMIT_RETRY",
+                    provider=provider,
+                    model=model,
+                    http_status=exc.code,
+                    cooldown_seconds=transient_cooldown,
+                    detail=detail[:240],
+                )
+                continue
+
             if exc.code in (400, 401, 402, 403, 404, 422):
                 quarantine_seconds = 3600.0
                 _AI_PROVIDER_COOLDOWNS[provider] = (
