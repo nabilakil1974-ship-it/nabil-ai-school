@@ -732,8 +732,7 @@ def extract_multimodal_page_figures(doc, page_num: int, cache_dir: Path,
                 "printed_number": int(re.match(r"\d+", label).group()) if label else None,
                 "printed_label": label,
                 "source_page": page_num,
-                "bbox": [round(rect.x0, 1), round(rect.y0, 1),
-                         round(rect.x1, 1), round(rect.y1, 1)],
+                "bbox": [rect.x0, rect.y0, rect.x1, rect.y1],
                 "caption": caption,
                 "image_path": str(path),
                 "image_sha256": hashlib.sha256(img_bytes).hexdigest(),
@@ -754,8 +753,7 @@ def extract_multimodal_page_figures(doc, page_num: int, cache_dir: Path,
             figures.append({
                 "figure_id": f"FIG_P{page_num}_V{idx+1}", "printed_number": None,
                 "printed_label": None, "source_page": page_num,
-                "bbox": [round(rect.x0, 1), round(rect.y0, 1),
-                         round(rect.x1, 1), round(rect.y1, 1)],
+                "bbox": [rect.x0, rect.y0, rect.x1, rect.y1],
                 "caption": "Source PDF vector region", "image_path": str(path),
                 "image_sha256": hashlib.sha256(content).hexdigest(),
                 "visual_occupancy": round(
@@ -937,8 +935,7 @@ def extract_multimodal_page_figures(doc, page_num: int, cache_dir: Path,
                 "figure_id": f"FIG_P{page_num}_SCAN_{idx+1}",
                 "printed_number": int(label_match.group(1)) if label_match else None,
                 "printed_label": label or None, "source_page": page_num,
-                "bbox": [round(rect.x0, 1), round(rect.y0, 1),
-                         round(rect.x1, 1), round(rect.y1, 1)],
+                "bbox": [rect.x0, rect.y0, rect.x1, rect.y1],
                 "caption": str(info.get("caption") or ""),
                 "visual_description": str(info.get("visual_description") or ""),
                 "image_path": str(path),
@@ -1134,7 +1131,7 @@ def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
             "number": number, "section_type": kind, "exact_source_prompt": prompt,
             "subquestions": list(row.get("subquestions") or []),
             "source_page": page_num,
-            "source_bbox": [round(v, 1) for v in (rect.x0,rect.y0,rect.x1,rect.y1)],
+            "source_bbox": [rect.x0, rect.y0, rect.x1, rect.y1],
             "source_region_image_ref": str(region_path),
             "source_region_sha256": hashlib.sha256(raw_region).hexdigest(),
             "verified_against_source": True, "evidence_method": "TWO_PASS_SOURCE_PAGE_VISION"
@@ -1142,7 +1139,7 @@ def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
     return result
 
 
-def build_evidence_map(doc, entry: dict) -> dict:
+def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False) -> dict:
     start_p = int(entry["pdf_start_page"])
     end_p = int(entry["pdf_end_page"])
     lesson_id = entry["lesson_id"]
@@ -1153,6 +1150,25 @@ def build_evidence_map(doc, entry: dict) -> dict:
     pages_evidence = []
     lesson_cache = CACHE_DIR / f"{book_id}_{lesson_id}"
     lesson_cache.mkdir(parents=True, exist_ok=True)
+    page_checkpoints = None
+    checkpoint_root = None
+    source_provider = os.getenv("NABIL_FACTORY_AI_PROVIDER", "auto").strip().lower()
+    if source_provider == "auto":
+        source_provider = next(
+            (name for name in ("openrouter", "groq", "openai")
+             if os.getenv(name.upper() + "_API_KEY")), "none")
+    source_model = {
+        "groq": os.getenv("GROQ_VISION_MODEL", "qwen/qwen3.8-27b"),
+        "openrouter": os.getenv("OPENROUTER_VISION_MODEL",
+                               os.getenv("OPENROUTER_TEXT_MODEL",
+                                         "google/gemini-2.5-flash")),
+        "openai": os.getenv("OPENAI_VISION_MODEL", "gpt-4o-mini"),
+    }.get(source_provider, "none")
+    if persist_pages:
+        if drive_service is None:
+            raise RuntimeError("PAGE_CHECKPOINT_REQUIRES_DRIVE_SERVICE")
+        from scripts import nabil_page_checkpoint as page_checkpoints
+        checkpoint_root = resolve_drive_root_id()
     opening_text = extract_page_text_robust(
         doc, start_p, lesson_id, book_id, lesson_cache)
     # Validate the two physical title sources BEFORE costly page-by-page vision.
@@ -1164,16 +1180,54 @@ def build_evidence_map(doc, entry: dict) -> dict:
              lesson_id=lesson_id, title=entry["canonical_title"],
              opener_pdf_page=start_p, toc_pdf_page=entry.get("toc_pdf_page"))
     for p_num in range(start_p, end_p + 1):
+        saved_page = (page_checkpoints.load_page(
+            drive_service, checkpoint_root, doc, entry, p_num, lesson_cache,
+            source_provider, source_model) if page_checkpoints else None)
+        if saved_page is not None:
+            if any(
+                f.get("evidence_method") ==
+                "APPROVED_VISION_BOX_CROPPED_FROM_SOURCE_PDF"
+                for f in saved_page["figures"]
+            ):
+                assert_authorized_source_vision(lesson_id, book_id, p_num)
+            pages_evidence.append(saved_page)
+            progress("PAGE_EVIDENCE_RESTORED_FROM_DRIVE",
+                     lesson_id=lesson_id, page=p_num,
+                     figures=len(saved_page["figures"]))
+            continue
         txt = (opening_text if p_num == start_p else
                extract_page_text_robust(doc, p_num, lesson_id, book_id, lesson_cache))
-        figs = extract_multimodal_page_figures(doc, p_num, lesson_cache, lesson_id, book_id)
-        p_hash = hashlib.sha256(txt.encode("utf-8")).hexdigest()[:16]
-        pages_evidence.append({
+        figs = extract_multimodal_page_figures(
+            doc, p_num, lesson_cache, lesson_id, book_id)
+        page_evidence = {
             "page_num": p_num,
             "text": txt,
-            "text_hash": p_hash,
-            "figures": figs
-        })
+            "text_hash": hashlib.sha256(txt.encode("utf-8")).hexdigest()[:16],
+            "figures": figs,
+        }
+        if page_checkpoints:
+            # Save only when source labels mentioned by the real OCR text are
+            # linked to source-page image crops. Never cache an unverified page.
+            mentions = {m.lower() for m in re.findall(
+                r"(?i)\bfig(?:ure)?\.?\s*(\d+[a-z]?)", txt)}
+            found = {
+                str(f.get("printed_label") or "").lower() for f in figs
+            } | {
+                str(f.get("printed_number")) for f in figs
+                if f.get("printed_number") is not None
+            }
+            if not mentions or mentions.issubset(found):
+                page_checkpoints.save_page(
+                    drive_service, checkpoint_root, doc, entry,
+                    page_evidence, source_provider, source_model)
+                progress("PAGE_EVIDENCE_SAVED_TO_DRIVE",
+                         lesson_id=lesson_id, page=p_num,
+                         figures=len(figs))
+            else:
+                progress("PAGE_EVIDENCE_NOT_SAVED_UNVERIFIED_FIGURES",
+                         lesson_id=lesson_id, page=p_num,
+                         missing_labels=sorted(mentions - found))
+        pages_evidence.append(page_evidence)
 
     concepts = []
     act_regex = re.compile(r"(?:Activity|Activité|نشاط|Section|Partie|Chapitre|فقرة)\s*(\d*)[:\s.-]+([^\n.]+)", re.I)
@@ -1221,7 +1275,25 @@ def build_evidence_map(doc, entry: dict) -> dict:
         if scanned:
             if not exercise_section_seen and page_num < end_p - 1:
                 continue
-            rows = extract_scanned_page_exercises(doc, page_num, lesson_id, book_id, lesson_cache)
+            rows = (page_checkpoints.load_exercises(
+                drive_service, checkpoint_root, doc, entry, page_num,
+                lesson_cache, source_provider, source_model)
+                if page_checkpoints else None)
+            if rows is not None:
+                assert_authorized_source_vision(lesson_id, book_id, page_num)
+                progress("EXERCISES_RESTORED_FROM_DRIVE",
+                         page=page_num, count=len(rows))
+            else:
+                rows = extract_scanned_page_exercises(
+                    doc, page_num, lesson_id, book_id, lesson_cache)
+                if page_checkpoints:
+                    # Two independent source-image reads already confirmed
+                    # the exact text/bbox for every returned exercise.
+                    page_checkpoints.save_exercises(
+                        drive_service, checkpoint_root, doc, entry,
+                        page_num, rows, source_provider, source_model)
+                    progress("EXERCISES_SAVED_TO_DRIVE",
+                             page=page_num, count=len(rows))
         else:
             rows = []
             for m in ex_pattern.finditer(p["text"]):
@@ -2068,8 +2140,11 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
     pdf_path = resolve_source_book_pdf(book_id, drive_service)
     import fitz
     doc = fitz.open(str(pdf_path))
-    ev_map = build_evidence_map(doc, entry)
-    doc.close()
+    try:
+        ev_map = build_evidence_map(
+            doc, entry, drive_service=drive_service, persist_pages=publish)
+    finally:
+        doc.close()
 
     theory = synthesize_universal_pedagogy(entry, ev_map, profile)
     exercises = ev_map["exercise_evidence"]
