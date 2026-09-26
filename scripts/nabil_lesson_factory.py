@@ -1472,6 +1472,127 @@ def rescue_missing_labeled_figures(doc, page_num: int, cache_dir: Path,
             page.rect.y0 + y1 * page.rect.height / 1000,
         )
 
+    def local_caption_fallback(label: str, image_rect):
+        """Locate an exact source Fig/Figure label by LOCAL full-page OCR.
+
+        This is used only when the provider's proposed caption box is wrong.
+        The external model still proposes the figure image box; local OCR must
+        independently find exactly one matching printed label physically next
+        to that box. Nothing is inferred from figure order.
+        """
+        with tempfile.TemporaryDirectory(
+                prefix="nabil_targeted_page_ocr_") as page_ocr_dir:
+            full_path = Path(page_ocr_dir) / "page.png"
+            full_pix = page.get_pixmap(dpi=350)
+            full_pix.save(str(full_path))
+            proc = subprocess.run(
+                ["tesseract", str(full_path), "stdout",
+                 "-l", "eng+fra", "--psm", "6", "tsv"],
+                capture_output=True, text=True, timeout=35)
+        if proc.returncode != 0 or not proc.stdout.strip():
+            return None
+
+        rows = []
+        raw_lines = proc.stdout.splitlines()
+        if not raw_lines:
+            return None
+        header = raw_lines[0].split("\t")
+        for raw_line in raw_lines[1:]:
+            cols = raw_line.split("\t")
+            if len(cols) != len(header):
+                continue
+            row = dict(zip(header, cols))
+            if row.get("level") != "5":
+                continue
+            token = str(row.get("text") or "").strip()
+            if not token:
+                continue
+            try:
+                row["_left"] = int(row["left"])
+                row["_top"] = int(row["top"])
+                row["_width"] = int(row["width"])
+                row["_height"] = int(row["height"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            rows.append(row)
+
+        grouped = {}
+        for row in rows:
+            key = (
+                row.get("block_num"), row.get("par_num"),
+                row.get("line_num"))
+            grouped.setdefault(key, []).append(row)
+
+        occurrences = []
+        wanted_norm = re.sub(r"[^0-9a-z]", "", label.casefold())
+        for line_rows in grouped.values():
+            line_rows.sort(key=lambda row: row["_left"])
+            for pos, row in enumerate(line_rows):
+                token = str(row.get("text") or "")
+                token_letters = re.sub(
+                    r"[^a-z]", "", token.casefold())
+                match_rows = None
+                if re.fullmatch(
+                        rf"(?i)fig(?:ure)?[\.,:]?{re.escape(wanted_norm)}[\.:;]?",
+                        token):
+                    match_rows = [row]
+                elif token_letters in ("fig", "figure"):
+                    for nxt in line_rows[pos + 1:pos + 3]:
+                        nxt_norm = re.sub(
+                            r"[^0-9a-z]", "",
+                            str(nxt.get("text") or "").casefold())
+                        if nxt_norm == wanted_norm:
+                            match_rows = [row, nxt]
+                            break
+                if not match_rows:
+                    continue
+
+                px0 = min(r["_left"] for r in match_rows)
+                py0 = min(r["_top"] for r in match_rows)
+                px1 = max(r["_left"] + r["_width"] for r in match_rows)
+                py1 = max(r["_top"] + r["_height"] for r in match_rows)
+                label_rect = fitz.Rect(
+                    page.rect.x0 + px0 * page.rect.width / full_pix.width,
+                    page.rect.y0 + py0 * page.rect.height / full_pix.height,
+                    page.rect.x0 + px1 * page.rect.width / full_pix.width,
+                    page.rect.y0 + py1 * page.rect.height / full_pix.height,
+                )
+                horizontal_gap = max(
+                    0.0, image_rect.x0 - label_rect.x1,
+                    label_rect.x0 - image_rect.x1)
+                vertical_gap = max(
+                    0.0, image_rect.y0 - label_rect.y1,
+                    label_rect.y0 - image_rect.y1)
+                # A real caption should be very close to its figure. This
+                # rejects body text such as "Observe figure 1" elsewhere.
+                if (horizontal_gap <= page.rect.width * 0.12
+                        and vertical_gap <= page.rect.height * 0.08):
+                    occurrences.append(label_rect)
+
+        if len(occurrences) != 1:
+            progress(
+                "TARGETED_FIGURE_LOCAL_PAGE_LABEL_AMBIGUOUS",
+                page=page_num, label=label,
+                adjacent_matches=len(occurrences))
+            return None
+
+        label_rect = occurrences[0]
+        caption_rect = fitz.Rect(
+            max(page.rect.x0,
+                image_rect.x0 - page.rect.width * 0.015),
+            max(page.rect.y0,
+                label_rect.y0 - page.rect.height * 0.008),
+            min(page.rect.x1,
+                image_rect.x1 + page.rect.width * 0.015),
+            min(page.rect.y1,
+                label_rect.y1 + page.rect.height * 0.018),
+        )
+        progress(
+            "TARGETED_FIGURE_LOCAL_PAGE_LABEL_VERIFIED",
+            page=page_num, label=label,
+            method="FULL_PAGE_LOCAL_OCR_ADJACENT_TO_MODEL_IMAGE")
+        return caption_rect
+
     rescued = []
     for idx, item in enumerate(candidates):
         if not isinstance(item, dict):
@@ -1559,6 +1680,41 @@ def rescue_missing_labeled_figures(doc, page_num: int, cache_dir: Path,
                 r"(\d+)([a-z]?)\s*[:;\.,]?",
                 caption_source)
         }
+        if source_labels != {label}:
+            # The provider may have returned a caption box on nearby body
+            # text even when its image box is correct. Do not trust or widen
+            # that box blindly. Re-locate the requested printed label using
+            # LOCAL full-page OCR and require a unique occurrence physically
+            # adjacent to the proposed source image.
+            fallback_rect = local_caption_fallback(label, image_rect)
+            if fallback_rect is not None:
+                with tempfile.TemporaryDirectory(
+                        prefix="nabil_targeted_caption_fallback_") as cap_dir:
+                    cap_path = Path(cap_dir) / "caption.png"
+                    page.get_pixmap(
+                        clip=fallback_rect, dpi=350).save(str(cap_path))
+                    retry_proc = subprocess.run(
+                        ["tesseract", str(cap_path), "stdout",
+                         "-l", "eng+fra", "--psm", "6"],
+                        capture_output=True, text=True, timeout=20)
+                if retry_proc.returncode == 0:
+                    retry_source = retry_proc.stdout.strip()
+                    retry_labels = {
+                        mm.group(1) + mm.group(2).lower()
+                        for mm in re.finditer(
+                            r"(?i)\bfig(?:ure)?[\.,:]?\s*"
+                            r"(\d+)([a-z]?)\s*[:;\.,]?",
+                            retry_source)
+                    }
+                    if retry_labels == {label}:
+                        caption_rect = fallback_rect
+                        caption_source = retry_source
+                        source_labels = retry_labels
+                        progress(
+                            "TARGETED_FIGURE_CAPTION_RECOVERED_LOCALLY",
+                            page=page_num, label=label,
+                            caption_excerpt=caption_source[:120])
+
         if source_labels != {label}:
             progress("TARGETED_FIGURE_RESCUE_REJECTED", page=page_num,
                      label=label,
