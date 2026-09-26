@@ -870,14 +870,14 @@ def extract_multimodal_page_figures(doc, page_num: int, cache_dir: Path,
                              page.rect.y0 + y1*page.rect.height/1000)
             label_raw = str(info.get("printed_label") or "").strip().lower()
             label_match = re.fullmatch(
-                r"(?:fig(?:ure)?\\.?\\s*)?(\\d+)([a-z]?)\\.?",
+                r"(?:fig(?:ure)?\.?\s*)?(\d+)([a-z]?)\.?",
                 label_raw, re.I)
             if not label_match:
                 # The model sometimes puts the authentic "Fig. 1" label in
                 # caption instead of printed_label. Accept this exact
                 # structural format, not an inferred figure number.
                 label_match = re.match(
-                    r"\\s*(?:fig(?:ure)?\\.?\\s*)(\\d+)([a-z]?)(?![\\da-z])",
+                    r"\s*(?:fig(?:ure)?\.?\s*)(\d+)([a-z]?)(?![\da-z])",
                     str(info.get("caption") or "").lower(), re.I)
             label = (label_match.group(1) + label_match.group(2)
                      if label_match else "")
