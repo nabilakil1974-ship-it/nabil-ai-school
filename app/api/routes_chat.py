@@ -15,6 +15,7 @@ from app.core.textbook_lesson_gate import lesson_page_issues
 from app.core.platform_support import PLATFORM_HELP
 from app.core.textbook_page_citations import render_verified_page_citations, resolve_book_printed_page
 from app.core.lesson_quality import missing_practice_exercises, practice_exercise_numbers, drawing_matches_subject, deduplicate_lesson_sections
+from app.core.scientific_solution_card import build_scientific_solution_card
 from typing import Optional
 from datetime import datetime
 
@@ -3892,7 +3893,7 @@ class ChatResponse(BaseModel):
     drawings: list[dict] = Field(default_factory=list)
     drawing: Optional[dict] = None
     student_profile: Optional[dict] = None
-
+    solution_card: Optional[dict] = None
 
 class TeacherAssessmentRequest(BaseModel):
     grade: str
@@ -7168,7 +7169,16 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
                 if item.get("book_id") and item.get("pdf_page") else None
             ),
         })
+    # ==========================================================
+    # NABIL SCIENTIFIC SOLUTION CARD — BACKEND CONTRACT
+    # ==========================================================
 
+    solution_card = build_scientific_solution_card(
+        message=str(message or ""),
+        reply=str(reply_text or ""),
+        subject=str(subject or ""),
+        drawings=drawings,
+    )
     return ChatResponse(
         conversation_id=str(
             conversation.id
@@ -7185,4 +7195,5 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
         student_profile=profile_to_dict(
             learning_profile
         ),
+        solution_card=solution_card,
     )
