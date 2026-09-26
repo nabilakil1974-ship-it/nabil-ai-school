@@ -260,9 +260,16 @@ def main() -> None:
 
     service_name = os.environ.get("RAILWAY_SERVICE_NAME", "").strip().lower()
     backup_default = "1" if service_name == "nabil-ai-school" else "0"
-    auto_backup = os.environ.get(
-        "NABIL_AUTO_PROJECT_BACKUP", backup_default
-    ).strip().lower()
+    backup_emergency_off = os.environ.get(
+        "NABIL_PROJECT_BACKUP_EMERGENCY_OFF", "0"
+    ).strip().lower() in {"1", "true", "yes", "on"}
+    if service_name == "nabil-ai-school" and not backup_emergency_off:
+        auto_backup = "1"
+        os.environ["NABIL_AUTO_PROJECT_BACKUP"] = "1"
+    else:
+        auto_backup = os.environ.get(
+            "NABIL_AUTO_PROJECT_BACKUP", backup_default
+        ).strip().lower()
     backup_thread = None
     if auto_backup not in {"0", "false", "no", "off"}:
         backup_thread = threading.Thread(
@@ -286,6 +293,9 @@ def main() -> None:
     ).strip().lower() in {"1", "true", "yes", "on"}
     if service_name == "nabil-ai-school" and not emergency_off:
         auto_pilot = "1"
+        # Propagate the forced-on state into the subprocess. The worker itself
+        # also reads NABIL_AUTO_FACTORY_PILOT and must not see a stale "0".
+        os.environ["NABIL_AUTO_FACTORY_PILOT"] = "1"
     else:
         auto_pilot = os.environ.get(
             "NABIL_AUTO_FACTORY_PILOT", pilot_default
