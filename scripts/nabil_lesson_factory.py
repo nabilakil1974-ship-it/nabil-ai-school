@@ -776,8 +776,8 @@ def extract_multimodal_page_figures(doc, page_num: int, cache_dir: Path,
                 continue
             pix = page.get_pixmap(clip=rect, dpi=180)
             path = cache_dir / f"fig_p{page_num}_vector_{idx+1}.png"
-            pix.save(str(path))
-            content = path.read_bytes()
+            content = pix.tobytes("png")
+            path.write_bytes(content)
             figures.append({
                 "figure_id": f"FIG_P{page_num}_V{idx+1}", "printed_number": None,
                 "printed_label": None, "source_page": page_num,
