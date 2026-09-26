@@ -35,7 +35,7 @@ import re
 from typing import Dict, Any, Optional, List, Tuple
 
 # Import sibling module; both are add-ons imported by nabil_book_factory.py
-from nabil_i18n import t as _t
+from scripts.nabil_i18n import t as _t
 
 
 _FORMULA_LAB_PATTERN = re.compile(
