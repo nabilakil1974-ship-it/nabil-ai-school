@@ -17,6 +17,7 @@ SCIENCE_COMMAND = (
 )
 MATH_COMMAND = (sys.executable, "-u", "-m", "scripts.index_math_textbooks")
 PILOT_COMMAND = (sys.executable, "-u", "-m", "scripts.nabil_pilot_worker")
+BACKUP_COMMAND = (sys.executable, "-u", "-m", "scripts.nabil_project_backup")
 
 
 def _terminate(worker) -> None:
@@ -28,6 +29,41 @@ def _terminate(worker) -> None:
     except subprocess.TimeoutExpired:
         worker.kill()
         worker.wait()
+
+
+def _run_project_backup_once(stop: threading.Event) -> None:
+    if stop.wait(5):
+        return
+    try:
+        worker = subprocess.Popen(
+            BACKUP_COMMAND,
+            cwd="/app",
+            env={**os.environ, "PYTHONUNBUFFERED": "1"},
+        )
+        print(
+            f"PROJECT_BACKUP_PROCESS_STARTED pid={worker.pid}",
+            flush=True,
+        )
+        while not stop.is_set():
+            try:
+                exit_code = worker.wait(timeout=2)
+                break
+            except subprocess.TimeoutExpired:
+                continue
+        else:
+            exit_code = None
+        if stop.is_set():
+            _terminate(worker)
+            return
+        print(
+            f"PROJECT_BACKUP_PROCESS_COMPLETE code={exit_code}",
+            flush=True,
+        )
+    except Exception as exc:
+        print(
+            f"PROJECT_BACKUP_PROCESS_ERROR {type(exc).__name__}: {exc}",
+            flush=True,
+        )
 
 
 def _supervise_pilot(stop: threading.Event,
@@ -222,10 +258,25 @@ def main() -> None:
     stop = threading.Event()
     pilot_done = threading.Event()
 
+    service_name = os.environ.get("RAILWAY_SERVICE_NAME", "").strip().lower()
+    backup_default = "1" if service_name == "nabil-ai-school" else "0"
+    auto_backup = os.environ.get(
+        "NABIL_AUTO_PROJECT_BACKUP", backup_default
+    ).strip().lower()
+    backup_thread = None
+    if auto_backup not in {"0", "false", "no", "off"}:
+        backup_thread = threading.Thread(
+            target=_run_project_backup_once,
+            args=(stop,),
+            daemon=True,
+            name="nabil-project-backup",
+        )
+        backup_thread.start()
+        print("PROJECT_BACKUP_AUTO enabled", flush=True)
+
     # Auto-enable only on the dedicated nabil-ai-school Railway service.
     # Other services connected to the same repository must never start a
     # duplicate paid pilot worker. An explicit env override still wins.
-    service_name = os.environ.get("RAILWAY_SERVICE_NAME", "").strip().lower()
     pilot_default = "1" if service_name == "nabil-ai-school" else "0"
     # On the dedicated factory service the golden pilot is always armed unless
     # the explicit emergency kill switch is set. This avoids stale Railway
@@ -284,6 +335,8 @@ def main() -> None:
         uvicorn.run("app.main:app", host="0.0.0.0", port=port)
     finally:
         stop.set()
+        if backup_thread is not None:
+            backup_thread.join(timeout=15)
         if pilot_supervisor is not None:
             pilot_supervisor.join(timeout=15)
         if supervisor is not None:
