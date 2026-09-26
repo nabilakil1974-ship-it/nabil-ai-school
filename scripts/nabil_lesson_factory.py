@@ -32,6 +32,11 @@ from typing import Dict, List, Any, Optional, Tuple
 sys.path.insert(0, "/app")
 sys.path.insert(0, os.path.abspath("."))
 
+# وحدات الإثراء الحقيقية: تعريب + مختبر موثق + Quiz كامل التغطية.
+from scripts.nabil_i18n import resolve_lang_code, html_dir_attr, narrative_language_instruction, t as ui_t
+from scripts.nabil_interactive_lab import render_verified_lab, validate_lab_spec
+from scripts.nabil_quiz_engine import build_full_quiz_items, render_quiz_html
+
 ROOT = Path(__file__).resolve().parents[1] if len(Path(__file__).resolve().parents) > 1 else Path("/app")
 CATALOG_PATH = ROOT / "data/nabil_canonical_lesson_catalog.json"
 PERM_EVIDENCE_DIR = ROOT / "data/evidence_maps"
@@ -2623,13 +2628,113 @@ def synthesize_concept_narrative(
         raise RuntimeError(f"NARRATIVE_SYNTHESIS_FAILED: Unable to ground concept narrative from evidence ({e})")
 
 
+def _normalized_lab_evidence(value: str) -> str:
+    # تطبيع بسيط للتحقق من أن الاقتباس الذي استند إليه المختبر موجود فعلاً في الدليل.
+    return re.sub(r"\\s+", " ", str(value or "")).strip().lower()
+
+
+def _deduction_question(lang_code: str, title: str) -> str:
+    # صياغة السؤال بحسب لغة الدرس، من دون تغيير المصطلح العلمي الأصلي.
+    if lang_code == "ar":
+        return f"أي استنتاج علمي تؤكده الأدلة الخاصة بـ «{title}»؟"
+    if lang_code == "fr":
+        return f"Quelle déduction scientifique est confirmée par les preuves concernant « {title} » ?"
+    return f"Which scientific deduction is confirmed by the evidence for '{title}'?"
+
+
+def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile: dict,
+                            figure_image_base64: Optional[str] = None,
+                            vision_context: Optional[Dict[str, Any]] = None) -> dict:
+    """
+    يبني Lab Spec من الدليل نفسه.
+    لا يُسمح للموديل بإدخال أرقام أو قوانين أو سلوك غير موجود في النص/الشكل الموثق.
+    إذا المفهوم لا يناسب مختبراً من الأنواع المدعومة، يعيد supported=false.
+    """
+    lang_code = resolve_lang_code(entry["language"])
+    math_records = concept.get("math_records") or []
+    prompt = (
+        "You are designing ONE optional interactive educational lab strictly from verified curriculum evidence.\n"
+        "Do NOT force a lab onto every concept. If the evidence is insufficient or no supported interaction fits, return supported=false.\n"
+        "Allowed kinds only:\n"
+        "1) FORMULA_CALCULATOR: only when an explicit two-input formula using +, -, *, or / exists in SOURCE or MATH_RECORDS. "
+        "Never invent min/max/default/step values; the student will enter numbers.\n"
+        "2) ORIENTATION_INVARIANT: only when SOURCE/FIGURE explicitly establishes that an observable element keeps a horizontal or vertical orientation while its surrounding object changes orientation.\n"
+        "3) SHAPE_RESPONSE: only when SOURCE/FIGURE explicitly establishes that the observed object's shape is fixed or conforms to a changed container/boundary.\n"
+        "Every supported lab must contain an exact evidence quote from SOURCE when evidence_basis=text. "
+        "If evidence_basis=figure, a verified source figure must be supplied.\n"
+        "Student-facing title/instructions/observation must stay within the scientific meaning of the evidence.\n"
+        + narrative_language_instruction(lang_code) + "\n\n"
+        f"CONCEPT_ID: {concept['concept_id']}\n"
+        f"SUBJECT: {profile['subject']}\n"
+        f"SOURCE: {concept.get('raw_text','')}\n"
+        f"MATH_RECORDS: {json.dumps(math_records, ensure_ascii=False)}\n"
+        f"GROUNDED_NARRATIVE: {json.dumps(narrative, ensure_ascii=False)}\n\n"
+        "Return strict JSON. For unsupported: "
+        "{'supported': false, 'reason': str, 'evidence_ref': str}. "
+        "For supported include: supported=true, kind, title, instructions, observation, evidence_ref, evidence_basis ('text'|'figure'), evidence_quote. "
+        "FORMULA_CALCULATOR additionally: source_formula and formula={output,input_a,input_b,operator,output_unit}. "
+        "ORIENTATION_INVARIANT additionally: invariant_orientation ('horizontal'|'vertical'). "
+        "SHAPE_RESPONSE additionally: behavior ('fixed'|'conforms')."
+    )
+    raw = execute_llm_completion(
+        prompt, json_mode=True, temperature=0.0,
+        image_base64=figure_image_base64,
+        vision_context=vision_context)
+    try:
+        spec = json.loads(raw)
+    except Exception as exc:
+        raise RuntimeError(f"LAB_SPEC_JSON_INVALID: {exc}")
+
+    if not isinstance(spec, dict):
+        raise RuntimeError("LAB_SPEC_INVALID: expected object")
+    if spec.get("evidence_ref") != concept.get("concept_id"):
+        raise RuntimeError("LAB_SPEC_EVIDENCE_REF_MISMATCH")
+    if spec.get("supported") is not True:
+        return {
+            "supported": False,
+            "reason": str(spec.get("reason") or "NO_VERIFIED_LAB_SPEC"),
+            "evidence_ref": concept["concept_id"],
+        }
+
+    basis = str(spec.get("evidence_basis") or "").lower()
+    quote = str(spec.get("evidence_quote") or "").strip()
+    if basis == "text":
+        if not quote:
+            raise RuntimeError("LAB_SPEC_TEXT_EVIDENCE_MISSING")
+        source_norm = _normalized_lab_evidence(concept.get("raw_text", ""))
+        quote_norm = _normalized_lab_evidence(quote)
+        if quote_norm not in source_norm:
+            raise RuntimeError("LAB_SPEC_TEXT_EVIDENCE_NOT_FOUND")
+    elif basis == "figure":
+        if not figure_image_base64 or not concept.get("figure_refs"):
+            raise RuntimeError("LAB_SPEC_FIGURE_EVIDENCE_MISSING")
+    else:
+        raise RuntimeError("LAB_SPEC_EVIDENCE_BASIS_INVALID")
+
+    if str(spec.get("kind") or "").upper() == "FORMULA_CALCULATOR":
+        source_formula = _normalized_lab_evidence(spec.get("source_formula", ""))
+        formula_haystack = _normalized_lab_evidence(
+            str(concept.get("raw_text", "")) + " " +
+            " ".join(str(r.get("raw") or "") for r in math_records if isinstance(r, dict))
+        )
+        if not source_formula or source_formula not in formula_haystack:
+            raise RuntimeError("LAB_FORMULA_NOT_PRESENT_IN_SOURCE")
+
+    validate_lab_spec(spec)
+    return spec
+
+
 def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> dict:
+    # هذا هو قلب الشرح: نفهم المفهوم من الدليل، نشرحه تربوياً، ثم نضيف Lab فقط إذا كان موثقاً.
     title = entry["canonical_title"]
     concepts = ev_map["concepts"]
+    lang_code = resolve_lang_code(entry["language"])
 
     activities_theory = []
     worksheet = []
     panels = ""
+    all_labs_html = []
+    has_active_sim = False
 
     for idx, c in enumerate(concepts, 1):
         p_num = c["source_page"]
@@ -2644,20 +2749,23 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
                         fig_images.append(f["image_path"])
                         fig_html += f'''<div class="figure" style="text-align:center; margin:14px 0;">
                             <img src="data:image/png;base64,{b64}" alt="{html.escape(c['title'])}" onclick="zoomImage(this)" style="max-width:100%; height:auto; border-radius:8px; border:1px solid #cbd5e1; cursor:zoom-in; transition: transform 0.2s;"/>
-                            <div style="font-size:12px; color:#64748b; margin-top:4px;">Official Curriculum Figure: Page {p_num} (Click to Zoom)</div>
+                            <div style="font-size:12px; color:#64748b; margin-top:4px;">Source figure • p. {p_num}</div>
                         </div>'''
-        # Multiple source figures (e.g. 3a/3b) must be read together.
+
+        # إذا كان للمفهوم أكثر من شكل، ندمجها بصرياً حتى يراها المراجع/المولّد معاً.
         figure_image_base64 = None
         if fig_images:
-            from PIL import Image, ImageOps
+            from PIL import Image
             pictures = []
             for filename in fig_images:
                 with Image.open(filename) as image:
                     pic = image.convert("RGB")
                     pic.thumbnail((1100, 850))
                     pictures.append(pic.copy())
-            canvas = Image.new("RGB", (max(im.width for im in pictures),
-                                       sum(im.height for im in pictures) + 8*(len(pictures)-1)), "white")
+            canvas = Image.new(
+                "RGB",
+                (max(im.width for im in pictures), sum(im.height for im in pictures) + 8*(len(pictures)-1)),
+                "white")
             top = 0
             for pic in pictures:
                 canvas.paste(pic, (0, top))
@@ -2665,16 +2773,31 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
             buffered = io.BytesIO()
             canvas.save(buffered, format="PNG")
             figure_image_base64 = base64.b64encode(buffered.getvalue()).decode("ascii")
+
+        vision_context = ({
+            "lesson_id": entry["lesson_id"],
+            "book_id": entry["book_id"],
+            "pdf_page": p_num,
+        } if figure_image_base64 else None)
+
         narrative = synthesize_concept_narrative(
             c, profile, figure_image_base64,
-            vision_context=({
-                "lesson_id": entry["lesson_id"],
-                "book_id": entry["book_id"],
-                "pdf_page": p_num,
-            } if figure_image_base64 else None))
+            vision_context=vision_context)
 
-        activities_theory.append({
+        lab_spec = build_verified_lab_spec(
+            entry, c, narrative, profile,
+            figure_image_base64=figure_image_base64,
+            vision_context=vision_context)
+        lab_html, lab_active = render_verified_lab(
+            lab_spec, lang_code, c["concept_id"])
+        if lab_active:
+            all_labs_html.append(lab_html)
+            has_active_sim = True
+
+        question_text = _deduction_question(lang_code, c["title"])
+        activity = {
             "activity_num": c["concept_id"].replace("C", ""),
+            "concept_id": c["concept_id"],
             "title": c["title"],
             "source_page": p_num,
             "phenomenon": narrative["phenomenon"],
@@ -2683,68 +2806,78 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
             "interpretation": narrative["interpretation"],
             "conclusion": narrative["conclusion"],
             "visual_html": fig_html,
+            "lab_spec": lab_spec,
+            "lab_html": lab_html,
+            "has_active_sim": lab_active,
             "student_question": {
-                "q": f"Based on verified findings in '{c['title']}', what is confirmed?",
+                "q": question_text,
                 "options": [narrative["conclusion"], narrative["distractor_1"], narrative["distractor_2"]],
                 "correct_index": 0,
-                "feedback": "Correct! Directly grounded in verified curriculum evidence."
+                "feedback": ui_t(lang_code, "ws_correct")
             }
+        }
+        activities_theory.append(activity)
+
+        # لا يوجد سقف خمسة أسئلة: كل مفهوم موثق يدخل في التقييم.
+        worksheet.append({
+            "id": idx,
+            "concept_id": c["concept_id"],
+            "source_page": p_num,
+            "source_hash": c["sha256"],
+            "evidence_ref": c["concept_id"],
+            "question": question_text,
+            "options": [narrative["conclusion"], narrative["distractor_1"], narrative["distractor_2"]],
+            "correct_index": 0,
+            "explanation": narrative["conclusion"],
         })
 
-        if idx <= 5:
-            worksheet.append({
-                "id": idx,
-                "concept_id": c["concept_id"],
-                "source_page": p_num,
-                "source_hash": c["sha256"],
-                "evidence_ref": c["concept_id"],
-                "question": f"Which scientific deduction is confirmed regarding '{c['title']}'?",
-                "options": [narrative["conclusion"], narrative["distractor_1"], narrative["distractor_2"]],
-                "correct_index": 0,
-                "explanation": f"Grounded directly in curriculum evidence on page {p_num} (Ref: {c['concept_id']})."
-            })
+        formulas_html = "".join(
+            [f"<li><b>Formula/Law:</b> {html.escape(f)}</li>" for f in narrative.get("formulas", [])])
+        units_html = "".join(
+            [f"<li><b>Units:</b> {html.escape(u)}</li>" for u in narrative.get("units", [])])
+        subject_metadata = (
+            f"<ul style='margin:4px 0 0 16px;padding:0;font-size:12px;color:#0369a1;'>{formulas_html}{units_html}</ul>"
+            if (narrative.get("formulas") or narrative.get("units")) else "")
 
-        formulas_html = "".join([f"<li><b>Formula/Law:</b> {html.escape(f)}</li>" for f in narrative.get("formulas", [])])
-        units_html = "".join([f"<li><b>Units:</b> {html.escape(u)}</li>" for u in narrative.get("units", [])])
-        subject_metadata = f"<ul style='margin:4px 0 0 16px; padding:0; font-size:12px; color:#0369a1;'>{formulas_html}{units_html}</ul>" if (narrative.get("formulas") or narrative.get("units")) else ""
-
-        panels += f'''<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:14px; box-shadow:0 2px 4px rgba(0,0,0,0.04);">
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">
-                <span style="font-weight:700; color:#0369a1; font-size:15px;">{html.escape(c["title"])}</span>
-                <span style="font-size:11px; background:#e0f2fe; color:#0284c7; padding:2px 6px; border-radius:4px; font-weight:600;">p. {c["source_page"]}</span>
+        panels += f'''<div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:10px;padding:14px;box-shadow:0 2px 4px rgba(0,0,0,0.04);">
+            <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">
+                <span style="font-weight:700;color:#0369a1;font-size:15px;">{html.escape(c["title"])}</span>
+                <span style="font-size:11px;background:#e0f2fe;color:#0284c7;padding:2px 6px;border-radius:4px;font-weight:600;">p. {c["source_page"]}</span>
             </div>
-            <div style="margin-top:8px; font-size:13px; color:#334155; line-height:1.5;"><b>Extracted Principle:</b> {html.escape(narrative["conclusion"])}</div>
+            <div style="margin-top:8px;font-size:13px;color:#334155;line-height:1.5;"><b>{html.escape(ui_t(lang_code, "conclusion"))}:</b> {html.escape(narrative["conclusion"])}</div>
             {subject_metadata}
-            {fig_html}
-            <div style="margin-top:8px; font-size:12px; color:#059669; font-weight:600;">✓ Verified Evidence Grounding</div>
+            <div style="margin-top:8px;font-size:12px;color:#059669;font-weight:600;">✓ Evidence Grounded</div>
         </div>'''
 
+    quiz_items = build_full_quiz_items(activities_theory)
+    quiz_html = render_quiz_html(quiz_items, lang_code)
+
     ref_card_html = f'''
-    <!-- NABIL Golden Reference Final Study Card -->
-    <div id="goldenReferenceCard" style="margin-top:28px; background:linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border:2px solid #0284c7; border-radius:14px; padding:20px; box-shadow:0 4px 12px rgba(2,132,199,0.08);">
-      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; border-bottom:2px solid #0284c7; padding-bottom:12px;">
+    <div id="goldenReferenceCard" style="margin-top:28px;background:linear-gradient(135deg,#f8fafc 0%,#f1f5f9 100%);border:2px solid #0284c7;border-radius:14px;padding:20px;box-shadow:0 4px 12px rgba(2,132,199,0.08);">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;border-bottom:2px solid #0284c7;padding-bottom:12px;">
         <div>
-          <span style="background:#0284c7; color:#fff; font-size:11px; font-weight:800; padding:3px 8px; border-radius:4px; text-transform:uppercase;">Golden Reference Card</span>
-          <h2 style="margin:4px 0 0 0; font-size:20px; color:#0f172a;">{html.escape(title)}</h2>
+          <span style="background:#0284c7;color:#fff;font-size:11px;font-weight:800;padding:3px 8px;border-radius:4px;">{html.escape(ui_t(lang_code, "golden_reference_card"))}</span>
+          <h2 style="margin:4px 0 0 0;font-size:20px;color:#0f172a;">{html.escape(title)}</h2>
         </div>
-        <span style="font-size:13px; font-weight:600; color:#64748b;">{profile["subject"].capitalize()} • Level {profile["level"]}</span>
+        <span style="font-size:13px;font-weight:600;color:#64748b;">{profile["subject"].capitalize()} • Level {profile["level"]}</span>
       </div>
-      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:14px; margin-top:16px;">
-        {panels}
-      </div>
-      <div style="margin-top:16px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px 14px; font-size:12px; color:#1e40af; display:flex; align-items:center; gap:8px;">
-        <span>📌</span>
-        <span><b>Study Reminder:</b> Formulated strictly from official textbook page ranges {ev_map["source_lock"]["start"]}–{ev_map["source_lock"]["end"]}.</span>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:16px;">{panels}</div>
+      <div style="margin-top:16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;font-size:12px;color:#1e40af;">
+        📌 <b>{html.escape(ui_t(lang_code, "study_reminder"))}:</b>
+        p. {ev_map["source_lock"]["start"]}–{ev_map["source_lock"]["end"]}
       </div>
     </div>'''
 
     return {
         "title": title,
+        "lang_code": lang_code,
         "activities": activities_theory,
-        "lab_html": "",
-        "has_active_sim": False,
+        "lab_html": "\n".join(all_labs_html),
+        "has_active_sim": has_active_sim,
         "worksheet": worksheet,
-        "reference_card_html": ref_card_html
+        "quiz_items": quiz_items,
+        "quiz_html": quiz_html,
+        "reference_card_html": ref_card_html,
     }
 
 
@@ -2752,41 +2885,51 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
 # 9. TWIN-PAGE HTML COMPILATION
 # ==============================================================================
 def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict) -> str:
-    clean_title = html.escape(re.sub(r'^\s*\d{2,3}\s*(?:--|[-_ ]+)\s*', '', entry["canonical_title"]))
-    clean_title = html.escape(re.sub(r'\s+\d{2,3}$', '', clean_title).strip())
-    lang = entry.get("language", "en")
+    # صفحة الدرس: الشرح المتسلسل + الشكل/المختبر عند الحاجة + التقييم + البطاقة النهائية.
+    clean_title = html.escape(re.sub(r'^\\s*\\d{2,3}\\s*(?:--|[-_ ]+)\\s*', '', entry["canonical_title"]))
+    clean_title = html.escape(re.sub(r'\\s+\\d{2,3}$', '', clean_title).strip())
+    lang_code = theory.get("lang_code") or resolve_lang_code(entry.get("language", "en"))
+    direction = html_dir_attr(lang_code)
 
     acts_html = ""
     for act in theory["activities"]:
         q = act["student_question"]
-        opts = "".join([f'<button onclick="gradeStep(this, {i == q["correct_index"]}, \'{html.escape(q["feedback"])}\')" class="q-opt">{html.escape(o)}</button>' for i, o in enumerate(q["options"])])
+        opts = "".join([
+            f'<button type="button" onclick="gradeStep(this, {str(i == q["correct_index"]).lower()}, \'{html.escape(q["feedback"])}\')" class="q-opt">{html.escape(o)}</button>'
+            for i, o in enumerate(q["options"])
+        ])
         acts_html += f'''
         <div class="card" style="margin-top:20px;">
-          <h3 style="color:#0369a1; margin-top:0;">{act["activity_num"]}. {html.escape(act["title"])}</h3>
-          <p><b>Phenomenon:</b> {html.escape(act["phenomenon"])}</p>
-          <p><b>Investigation:</b> {html.escape(act["investigation"])}</p>
+          <h3 style="color:#0369a1;margin-top:0;">{act["activity_num"]}. {html.escape(act["title"])}</h3>
+          <p><b>{html.escape(ui_t(lang_code, "phenomenon"))}:</b> {html.escape(act["phenomenon"])}</p>
+          <p><b>{html.escape(ui_t(lang_code, "investigation"))}:</b> {html.escape(act["investigation"])}</p>
           {act["visual_html"]}
-          <p><b>Observation:</b> {html.escape(act["observation"])}</p>
-          <p><b>Scientific Deduction:</b> <b>{html.escape(act["conclusion"])}</b></p>
-          <div style="background:#f1f5f9; padding:12px; border-radius:6px; margin-top:12px;">
-            <div style="font-weight:600; font-size:14px; margin-bottom:8px;">Check Understanding: {html.escape(q["q"])}</div>
-            <div style="display:flex; gap:8px; flex-wrap:wrap;">{opts}</div>
-            <div class="step-fb" style="margin-top:8px; font-size:13px; font-weight:600; display:none;"></div>
+          {act.get("lab_html", "")}
+          <p><b>{html.escape(ui_t(lang_code, "observation"))}:</b> {html.escape(act["observation"])}</p>
+          <p><b>{html.escape(ui_t(lang_code, "interpretation"))}:</b> {html.escape(act["interpretation"])}</p>
+          <p><b>{html.escape(ui_t(lang_code, "conclusion"))}:</b> <b>{html.escape(act["conclusion"])}</b></p>
+          <div style="background:#f1f5f9;padding:12px;border-radius:6px;margin-top:12px;">
+            <div style="font-weight:600;font-size:14px;margin-bottom:8px;">{html.escape(ui_t(lang_code, "check_understanding"))}: {html.escape(q["q"])}</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">{opts}</div>
+            <div class="step-fb" style="margin-top:8px;font-size:13px;font-weight:600;display:none;"></div>
           </div>
         </div>'''
 
     ws_items = ""
     for idx, item in enumerate(theory["worksheet"]):
-        opts = "".join([f'<button onclick="gradeWs(this, {i == item["correct_index"]}, \'{html.escape(item["explanation"])}\')" class="q-opt">{html.escape(o)}</button>' for i, o in enumerate(item["options"])])
+        opts = "".join([
+            f'<button type="button" onclick="gradeWs(this, {str(i == item["correct_index"]).lower()}, \'{html.escape(item["explanation"])}\')" class="q-opt">{html.escape(o)}</button>'
+            for i, o in enumerate(item["options"])
+        ])
         ws_items += f'''
-        <div class="ws-item" style="margin-bottom:14px; padding:12px; background:#fff; border:1px solid #e2e8f0; border-radius:6px;">
-          <div style="font-weight:600; margin-bottom:6px;">Question {idx+1}: {html.escape(item["question"])} <span style="font-size:11px; color:#64748b;">(p. {item['source_page']})</span></div>
-          <div style="display:flex; gap:8px; flex-wrap:wrap;">{opts}</div>
-          <div class="ws-fb" style="margin-top:6px; font-size:12px; font-weight:600; display:none;"></div>
+        <div class="ws-item" style="margin-bottom:14px;padding:12px;background:#fff;border:1px solid #e2e8f0;border-radius:6px;">
+          <div style="font-weight:600;margin-bottom:6px;">{html.escape(ui_t(lang_code, "question_label"))} {idx+1}: {html.escape(item["question"])} <span style="font-size:11px;color:#64748b;">(p. {item['source_page']})</span></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">{opts}</div>
+          <div class="ws-fb" style="margin-top:6px;font-size:12px;font-weight:600;display:none;"></div>
         </div>'''
 
     return f'''<!DOCTYPE html>
-<html lang="{html.escape(lang)}">
+<html lang="{html.escape(lang_code)}" dir="{direction}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -2799,80 +2942,59 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict) -> str:
 <title>{clean_title} - NABIL Universal Engine</title>
 {MathRenderingEngine.inject_mathjax_head()}
 <style>
-  :root {{ --primary: #0284c7; --bg: #f8fafc; --card: #ffffff; --text: #0f172a; --text-muted: #64748b; }}
-  body {{ font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 16px; overflow-x: hidden; max-width: 100vw; box-sizing: border-box; }}
-  .container {{ max-width: 860px; margin: 0 auto; width: 100%; box-sizing: border-box; }}
-  .header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; }}
-  .card {{ background: var(--card); border-radius: 8px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }}
-  .nav-btn {{ background: var(--primary); color: #fff; padding: 10px 16px; border-radius: 6px; text-decoration: none; font-weight: 600; cursor: pointer; border: none; font-size: 14px; min-height: 44px; display: inline-flex; align-items: center; }}
-  .q-opt {{ background:#fff; border:1px solid #cbd5e1; padding:8px 14px; border-radius:4px; cursor:pointer; font-size:13px; font-weight:500; min-height: 44px; }}
+  :root {{ --primary:#0284c7;--bg:#f8fafc;--card:#ffffff;--text:#0f172a;--text-muted:#64748b; }}
+  body {{ font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);margin:0;padding:16px;overflow-x:hidden;max-width:100vw;box-sizing:border-box; }}
+  .container {{ max-width:860px;margin:0 auto;width:100%;box-sizing:border-box; }}
+  .header {{ display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:2px solid #e2e8f0;padding-bottom:12px;flex-wrap:wrap; }}
+  .card {{ background:var(--card);border-radius:8px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,0.08); }}
+  .nav-btn {{ background:var(--primary);color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none;font-weight:600;cursor:pointer;border:none;font-size:14px;min-height:44px;display:inline-flex;align-items:center; }}
+  .q-opt {{ background:#fff;border:1px solid #cbd5e1;padding:8px 14px;border-radius:4px;cursor:pointer;font-size:13px;font-weight:500;min-height:44px; }}
   .q-opt:hover {{ background:#e2e8f0; }}
-  #zoomModal {{ display:none; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); justify-content:center; align-items:center; cursor:zoom-out; }}
-  #zoomModal img {{ max-width:90%; max-height:90%; border-radius:8px; box-shadow:0 4px 20px rgba(0,0,0,0.5); }}
+  .interactive-lab input {{ min-height:44px;font-size:16px; }}
+  #zoomModal {{ display:none;position:fixed;z-index:9999;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);justify-content:center;align-items:center;cursor:zoom-out; }}
+  #zoomModal img {{ max-width:90%;max-height:90%;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.5); }}
+  @media(max-width:480px){{ body{{padding:10px;}} .card{{padding:14px;}} .interactive-lab svg{{max-width:100%;height:auto;}} }}
 </style>
 </head>
 <body>
 <div class="container">
   <div class="header">
-    <h1 style="margin:0; font-size:22px;">{clean_title}</h1>
-    <button onclick="navigateToExercises()" class="nav-btn">View Exercises ➔</button>
+    <h1 style="margin:0;font-size:22px;">{clean_title}</h1>
+    <button type="button" onclick="navigateToExercises()" class="nav-btn">{html.escape(ui_t(lang_code, "view_exercises"))}</button>
   </div>
   {acts_html}
   <div class="card" style="margin-top:24px;">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-      <h3 style="margin:0; color:#0284c7;">📝 Interactive Student Worksheet</h3>
-      <div id="wsScoreBadge" style="font-size:13px; font-weight:bold; color:#059669;">Score: 0 / {len(theory['worksheet'])}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+      <h3 style="margin:0;color:#0284c7;">{html.escape(ui_t(lang_code, "worksheet_title"))}</h3>
+      <div id="wsScoreBadge" style="font-size:13px;font-weight:bold;color:#059669;">{html.escape(ui_t(lang_code, "score_label"))}: 0 / {len(theory['worksheet'])}</div>
     </div>
-    <div style="width:100%; background:#e2e8f0; height:6px; border-radius:3px; margin:12px 0;">
-      <div id="wsProgressBar" style="width:0%; background:#0284c7; height:6px; border-radius:3px; transition:width 0.3s ease;"></div>
+    <div style="width:100%;background:#e2e8f0;height:6px;border-radius:3px;margin:12px 0;">
+      <div id="wsProgressBar" style="width:0%;background:#0284c7;height:6px;border-radius:3px;transition:width 0.3s ease;"></div>
     </div>
     {ws_items}
   </div>
+  {theory.get("quiz_html", "")}
   {theory.get("reference_card_html", "")}
 </div>
 <div id="zoomModal" onclick="this.style.display='none'"><img id="zoomImg" src=""></div>
 <script>
-let answeredCount = 0;
-let score = 0;
-const totalQuestions = {len(theory['worksheet'])};
-
-function zoomImage(img) {{
-  const modal = document.getElementById('zoomModal');
-  const modalImg = document.getElementById('zoomImg');
-  modal.style.display = 'flex';
-  modalImg.src = img.src;
+let answeredCount=0;
+let score=0;
+const totalQuestions={len(theory['worksheet'])};
+function zoomImage(img){{const modal=document.getElementById('zoomModal');document.getElementById('zoomImg').src=img.src;modal.style.display='flex';}}
+function navigateToExercises(){{
+  const url=new URL(window.location.href);
+  if(url.searchParams.has('lesson')){{url.searchParams.set('view','exercises');window.location.href=url.toString();}}
+  else{{const cur=window.location.pathname.split('/').pop();window.location.href=cur.replace('.html','--EXERCISES.html');}}
 }}
-
-function navigateToExercises() {{
-  const url = new URL(window.location.href);
-  if (url.searchParams.has('lesson')) {{
-    url.searchParams.set('view', 'exercises');
-    window.location.href = url.toString();
-  }} else {{
-    const cur = window.location.pathname.split('/').pop();
-    window.location.href = cur.replace('.html', '--EXERCISES.html');
-  }}
+function gradeStep(btn,isCorrect,fb){{
+  const box=btn.parentElement.nextElementSibling;box.style.display='block';box.style.color=isCorrect?'#059669':'#dc2626';box.textContent=(isCorrect?'✓ ':'✗ ')+fb;
 }}
-function gradeStep(btn, isCorrect, fb) {{
-  const box = btn.parentElement.nextElementSibling;
-  box.style.display = 'block';
-  box.style.color = isCorrect ? '#059669' : '#dc2626';
-  box.innerHTML = (isCorrect ? '✓ ' : '✗ ') + fb;
-}}
-function gradeWs(btn, isCorrect, exp) {{
-  const parent = btn.parentElement;
-  if (parent.dataset.answered) return;
-  parent.dataset.answered = 'true';
-  answeredCount++;
-  if (isCorrect) score++;
-
-  const box = parent.nextElementSibling;
-  box.style.display = 'block';
-  box.style.color = isCorrect ? '#059669' : '#dc2626';
-  box.innerHTML = (isCorrect ? 'Correct! ' : 'Incorrect. ') + exp;
-
-  document.getElementById('wsProgressBar').style.width = ((answeredCount / totalQuestions) * 100) + '%';
-  document.getElementById('wsScoreBadge').innerText = 'Score: ' + score + ' / ' + totalQuestions;
+function gradeWs(btn,isCorrect,exp){{
+  const parent=btn.parentElement;if(parent.dataset.answered)return;parent.dataset.answered='true';answeredCount++;if(isCorrect)score++;
+  const box=parent.nextElementSibling;box.style.display='block';box.style.color=isCorrect?'#059669':'#dc2626';box.textContent=(isCorrect?'✓ ':'✗ ')+exp;
+  document.getElementById('wsProgressBar').style.width=((answeredCount/totalQuestions)*100)+'%';
+  document.getElementById('wsScoreBadge').textContent='{html.escape(ui_t(lang_code, "score_label"))}: '+score+' / '+totalQuestions;
 }}
 </script>
 </body>
@@ -3171,6 +3293,28 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
     check("WORKSHEET_NOT_GRADABLE", all("correct_index" in q for q in candidate["theory"]["worksheet"]), "CRITICAL", "Worksheet grading keys")
     check("REFERENCE_CARD_CONTENT_INCOMPLETE", "goldenReferenceCard" in candidate["page_a_html"], "CRITICAL", "Golden reference card missing")
 
+    # التقييم يجب أن يغطي كل المفاهيم، وليس أول خمسة فقط.
+    quiz_items = candidate["theory"].get("quiz_items") or []
+    activities = candidate["theory"].get("activities") or []
+    check("FULL_QUIZ_COVERAGE_INCOMPLETE",
+          len(quiz_items) == len(activities) and len(quiz_items) > 0,
+          "CRITICAL", f"quiz={len(quiz_items)} concepts={len(activities)}")
+    check("FULL_QUIZ_RENDER_MISSING",
+          'id="fullQuizBlock"' in candidate["page_a_html"],
+          "CRITICAL", "Full quiz HTML missing")
+
+    # أي مختبر معلن يجب أن يكون تفاعلاً حقيقياً موثقاً، لا بطاقة أو Stub.
+    lab_activities = [a for a in activities if (a.get("lab_spec") or {}).get("supported") is True]
+    for act in lab_activities:
+        lab_html = act.get("lab_html") or ""
+        check("LAB_RENDER_MISSING", bool(lab_html), "CRITICAL", f"concept={act.get('concept_id')}")
+        check("LAB_STUB_FORBIDDEN",
+              'data-lab-kind=' in lab_html and '<script>' in lab_html and ('<svg' in lab_html or 'type="number"' in lab_html),
+              "CRITICAL", f"concept={act.get('concept_id')}")
+        check("LAB_FAKE_NUMERIC_RANGE_FORBIDDEN",
+              'type="range"' not in lab_html and ' min=' not in lab_html and ' max=' not in lab_html,
+              "CRITICAL", f"concept={act.get('concept_id')}")
+
     with tempfile.NamedTemporaryFile(suffix=".html", mode="w", encoding="utf-8", delete=False) as tmp_a:
         tmp_a.write(candidate["page_a_html"])
         path_a = tmp_a.name
@@ -3200,7 +3344,11 @@ def independent_scientific_review(entry: dict, candidate: dict) -> dict:
         f"Audit this complete lesson payload including evidence concepts and exercise solutions for absolute scientific rigor.\n"
         f"Lesson Title: {entry['canonical_title']}\n"
         f"Evidence Concepts: {json.dumps(candidate['evidence_map']['concepts'], ensure_ascii=False)}\n"
+        f"Interactive Lab Specs: {json.dumps([a.get('lab_spec') for a in candidate['theory'].get('activities', [])], ensure_ascii=False)}\n"
+        f"Quiz Items: {json.dumps(candidate['theory'].get('quiz_items', []), ensure_ascii=False)}\n"
         f"Exercises & Solutions: {json.dumps(candidate['exercises'], ensure_ascii=False)}\n\n"
+        "Reject any lab that introduces a scientific behavior, formula, orientation, shape rule, unit, or numeric claim not supported by the evidence. "
+        "Also verify that every quiz answer follows the evidence. "
         "Return strictly JSON: {'approved': bool, 'issues': [str], 'scientific_notes': str}"
     )
 
