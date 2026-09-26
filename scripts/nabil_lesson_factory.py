@@ -1358,7 +1358,11 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
                 "source_prompt_hash": hashlib.sha256(content.encode("utf-8")).hexdigest()[:16],
                 "subquestions": subqs, "requires_figure": req_fig,
                 "figure_refs": refs, "figure_hashes": hashes,
-                "solution_mode": "ON_DEMAND", "solution_status": "NOT_SOLVED",
+                # Every exercise that the factory can faithfully extract from
+                # the official book is kept. There is deliberately NO numeric
+                # cap such as "first 2 exercises".
+                "solution_mode": "PRE_SOLVED", "solution_status": "NOT_SOLVED",
+                "source_origin": "TEXTBOOK",
                 "verified_against_source": row["verified_against_source"],
                 "evidence_method": row.get("evidence_method", "NATIVE_PDF_TEXT")
             }
@@ -1375,14 +1379,11 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
             seen.add(k)
             unique_ex.append(e)
 
-    ex_c, pr_c = 0, 0
+    # All verified textbook exercises remain in the lesson.  AI-generated
+    # practice is considered only later, and only when zero book exercises
+    # could be faithfully extracted.
     for e in unique_ex:
-        if e["section_type"] == "EXERCISE" and ex_c < 2:
-            e["solution_mode"] = "PRE_SOLVED"
-            ex_c += 1
-        elif e["section_type"] == "PROBLEM" and pr_c < 3:
-            e["solution_mode"] = "PRE_SOLVED"
-            pr_c += 1
+        e["solution_mode"] = "PRE_SOLVED"
 
     ev_map = {
         "lesson_id": lesson_id,
@@ -1400,13 +1401,180 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
 
 
 # ==============================================================================
+# 6B. TEXTBOOK-FIRST EXERCISE POLICY + STRICT AI FALLBACK
+# ==============================================================================
+def _lesson_scope_for_exercise_gate(ev_map: dict) -> List[dict]:
+    """Compact, source-grounded lesson scope used by the exercise gate."""
+    scope = []
+    for c in ev_map.get("concepts", []):
+        text = str(c.get("normalized_text") or c.get("raw_text") or "").strip()
+        if not text:
+            continue
+        scope.append({
+            "concept_id": c.get("concept_id"),
+            "title": c.get("title"),
+            "source_page": c.get("source_page"),
+            "text": text[:1600],
+        })
+    if not scope:
+        raise RuntimeError(
+            "AI_ADDITIONAL_PRACTICE_PROHIBITED: no verified lesson concepts")
+    return scope
+
+
+def generate_ai_practice_only_if_book_empty(entry: dict, ev_map: dict,
+                                            profile: dict,
+                                            desired_count: int = 2) -> List[dict]:
+    """Generate replacement practice ONLY when the book yielded zero exercises.
+
+    Each candidate is independently checked against verified lesson evidence.
+    Rejected candidates never reach the student; the generator is asked again.
+    """
+    if ev_map.get("exercise_evidence"):
+        progress("AI_ADDITIONAL_PRACTICE_SKIPPED_BOOK_HAS_EXERCISES",
+                 count=len(ev_map["exercise_evidence"]))
+        return []
+
+    if desired_count < 1:
+        return []
+
+    scope = _lesson_scope_for_exercise_gate(ev_map)
+    accepted = []
+    rejected_reasons = []
+
+    for round_no in range(1, 4):
+        remaining = desired_count - len(accepted)
+        if remaining <= 0:
+            break
+
+        generator_prompt = (
+            f"You are creating additional practice for Lebanese "
+            f"{profile['subject']} Grade {profile['grade']}.\n"
+            f"Lesson title: {entry['canonical_title']}\n"
+            "The official textbook yielded ZERO reliably extractable exercises. "
+            "Generate candidate practice ONLY from the VERIFIED LESSON SCOPE "
+            "below. Do not introduce a law, definition, symbol, apparatus, "
+            "formula, fact, or prerequisite that is absent from this scope. "
+            "Do not require a figure. Make each question solvable entirely from "
+            "what the student learned in this lesson. Return JSON exactly as "
+            "{'candidates':[{'prompt':str,'subquestions':[str],"
+            "'solution_outline':str,'concept_ids':[str]}]}. "
+            f"Return at least {max(remaining * 2, 4)} candidates so rejected "
+            "ones can be discarded.\nVERIFIED LESSON SCOPE:\n"
+            + json.dumps(scope, ensure_ascii=False)
+        )
+        if rejected_reasons:
+            generator_prompt += (
+                "\nDo NOT repeat these previously rejected defects:\n"
+                + json.dumps(rejected_reasons[-8:], ensure_ascii=False)
+            )
+
+        generated = json.loads(execute_llm_completion(
+            generator_prompt, json_mode=True, temperature=0.2))
+        candidates = generated.get("candidates")
+        if not isinstance(candidates, list):
+            raise RuntimeError(
+                "AI_ADDITIONAL_PRACTICE_SCHEMA_INVALID: candidates missing")
+
+        for candidate in candidates:
+            if len(accepted) >= desired_count:
+                break
+            if not isinstance(candidate, dict):
+                continue
+            prompt_text = str(candidate.get("prompt") or "").strip()
+            subqs = candidate.get("subquestions") or []
+            outline = str(candidate.get("solution_outline") or "").strip()
+            claimed_ids = candidate.get("concept_ids") or []
+            if (len(prompt_text) < 10 or not isinstance(subqs, list)
+                    or not outline):
+                rejected_reasons.append("incomplete candidate schema")
+                progress("EXERCISE_REJECTED_SCHEMA",
+                         round=round_no,
+                         prompt_excerpt=prompt_text[:80])
+                continue
+
+            gate_prompt = (
+                "Act as a strict curriculum exercise gate. Compare ONE proposed "
+                "exercise with the VERIFIED LESSON SCOPE. Approve only if every "
+                "fact, rule, relation and required reasoning is directly "
+                "supported by that scope, the task is age-appropriate, internally "
+                "consistent, solvable without outside knowledge, and its supplied "
+                "solution outline is scientifically correct. Reject if uncertain. "
+                "Return JSON exactly as "
+                "{'approved':bool,'reasons':[str],'supported_concept_ids':[str],"
+                "'solution_consistent':bool,'within_scope':bool}.\n"
+                "VERIFIED LESSON SCOPE:\n"
+                + json.dumps(scope, ensure_ascii=False)
+                + "\nCANDIDATE:\n"
+                + json.dumps(candidate, ensure_ascii=False)
+            )
+            verdict = json.loads(execute_llm_completion(
+                gate_prompt, json_mode=True, temperature=0.0))
+            approved = bool(
+                verdict.get("approved")
+                and verdict.get("solution_consistent")
+                and verdict.get("within_scope")
+                and isinstance(verdict.get("supported_concept_ids"), list)
+                and verdict.get("supported_concept_ids")
+            )
+            if not approved:
+                reasons = verdict.get("reasons")
+                if not isinstance(reasons, list):
+                    reasons = ["scientific/scope gate rejected candidate"]
+                rejected_reasons.extend(str(x) for x in reasons)
+                progress("EXERCISE_REJECTED_SCIENTIFIC_GATE",
+                         round=round_no,
+                         prompt_excerpt=prompt_text[:100],
+                         reasons=[str(x) for x in reasons][:5])
+                continue
+
+            idx = len(accepted) + 1
+            supported = [str(x) for x in verdict["supported_concept_ids"]]
+            accepted.append({
+                "exercise_id": f"{entry['lesson_id']}-AI-{idx:02d}",
+                "lesson_id": entry["lesson_id"],
+                "section_type": "ADDITIONAL_PRACTICE",
+                "number": idx,
+                "source_page": None,
+                "exact_source_prompt": prompt_text,
+                "source_prompt_hash": hashlib.sha256(
+                    prompt_text.encode("utf-8")).hexdigest()[:16],
+                "subquestions": [str(x) for x in subqs],
+                "requires_figure": False,
+                "figure_refs": [],
+                "figure_hashes": [],
+                "solution_mode": "PRE_SOLVED",
+                "solution_status": "NOT_SOLVED",
+                "source_origin": "AI_ADDITIONAL_PRACTICE",
+                "verified_against_source": False,
+                "scientific_gate_passed": True,
+                "scope_concept_ids": supported,
+                "generator_claimed_concept_ids": [
+                    str(x) for x in claimed_ids],
+                "evidence_method":
+                    "AI_GENERATED_AFTER_SOURCE_SCOPE_SCIENTIFIC_GATE",
+            })
+            progress("AI_ADDITIONAL_PRACTICE_ACCEPTED",
+                     number=idx, round=round_no,
+                     supported_concepts=supported)
+
+    if len(accepted) < desired_count:
+        raise RuntimeError(
+            "AI_ADDITIONAL_PRACTICE_INSUFFICIENT: "
+            f"accepted={len(accepted)}/{desired_count}; "
+            f"rejections={rejected_reasons[-8:]}")
+    return accepted
+
+
+# ==============================================================================
 # 7. MULTI-MODAL GROUNDED SOLVER & STRICT FAIL-CLOSED VERIFIER
 # ==============================================================================
 def grounded_subject_solver(exercise: dict, evidence_map: dict, profile: dict) -> Dict[str, Any]:
     prompt = exercise["exact_source_prompt"]
-    page = exercise["source_page"]
+    page = exercise.get("source_page")
     subj = profile["subject"]
     grade = profile.get("grade", 7)
+    source_origin = exercise.get("source_origin", "TEXTBOOK")
 
     fig_base64 = None
     if exercise.get("figure_refs"):
@@ -1420,14 +1588,41 @@ def grounded_subject_solver(exercise: dict, evidence_map: dict, profile: dict) -
                             raise RuntimeError(f"FIGURE_EVIDENCE_MISSING: Cannot read referenced source image: {exc}")
                         break
 
+    if source_origin == "TEXTBOOK":
+        provenance = f"official textbook exercise verbatim from Page {page}"
+        scope_note = ""
+    else:
+        provenance = (
+            "additional practice exercise already approved by the strict "
+            "lesson-scope scientific gate"
+        )
+        supported = set(exercise.get("scope_concept_ids") or [])
+        supported_scope = [
+            {
+                "concept_id": c.get("concept_id"),
+                "text": c.get("normalized_text") or c.get("raw_text"),
+            }
+            for c in evidence_map.get("concepts", [])
+            if c.get("concept_id") in supported
+        ]
+        scope_note = (
+            "\nYou MUST solve using only these verified lesson concepts: "
+            + json.dumps(supported_scope, ensure_ascii=False)
+        )
+
     query = (
-        f"You are Teacher NABIL, master professor of Lebanese {subj.capitalize()} Grade {grade}.\n"
-        f"Solve this official textbook exercise verbatim from Page {page}.\n"
+        f"You are Teacher NABIL, master professor of Lebanese "
+        f"{subj.capitalize()} Grade {grade}.\n"
+        f"Solve this {provenance}.\n"
         f"Prompt: {prompt}\n"
-        f"Subquestions: {json.dumps(exercise.get('subquestions', []))}\n\n"
+        f"Subquestions: {json.dumps(exercise.get('subquestions', []))}"
+        f"{scope_note}\n\n"
         "RULES:\n"
-        "1. Step-by-step rigorous deduction, derivation, and calculation. Analyze accompanying figure if provided. No generic text or placeholders.\n"
+        "1. Step-by-step rigorous deduction, derivation, and calculation. "
+        "Analyze an accompanying figure only when a verified source figure "
+        "is actually provided. No generic text or placeholders.\n"
         "2. State formulas, substitutions with units, and clear final answer.\n"
+        "3. Never introduce knowledge outside the verified lesson scope.\n"
         "Return strictly JSON: {'steps': [str], 'final_answer': str}"
     )
 
@@ -1760,6 +1955,19 @@ def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: di
     for ex in exercises:
         ex_num = ex["number"]
         sec_type = ex["section_type"]
+        source_origin = ex.get("source_origin", "TEXTBOOK")
+        if source_origin == "TEXTBOOK":
+            provenance_html = (
+                f'<span style="font-size:12px; color:#64748b;">'
+                f'Source Page {ex["source_page"]}</span>'
+            )
+            card_title = f"{sec_type} {ex_num}"
+        else:
+            provenance_html = (
+                '<span style="font-size:12px; color:#64748b;">'
+                'Additional Practice — passed lesson scientific gate</span>'
+            )
+            card_title = f"Additional Practice {ex_num}"
 
         ex_fig_html = ""
         if ex.get("figure_refs"):
@@ -1801,8 +2009,8 @@ def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: di
         ex_cards += f'''
         <div class="card" style="margin-top:16px;">
           <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h3 style="margin:0; font-size:16px;">{sec_type} {ex_num}</h3>
-            <span style="font-size:12px; color:#64748b;">Source Page {ex["source_page"]}</span>
+            <h3 style="margin:0; font-size:16px;">{card_title}</h3>
+            {provenance_html}
           </div>
           <p style="margin:10px 0; font-size:14px; line-height:1.5;">{html.escape(ex["exact_source_prompt"])}</p>
           {ex_fig_html}
@@ -1966,14 +2174,47 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
     expected_p = s_lock["end"] - s_lock["start"] + 1
     check("SOURCE_COVERAGE_INCOMPLETE", len(ev_map["pages_evidence"]) == expected_p, "CRITICAL", f"{len(ev_map['pages_evidence'])}/{expected_p} pages")
 
-    ex_nums = sorted([e["number"] for e in candidate["exercises"] if e["section_type"] == "EXERCISE"])
-    check("EXERCISE_SEQUENCE_INCOMPLETE", len(ex_nums) > 0 and ex_nums == list(range(1, len(ex_nums) + 1)), "CRITICAL", f"Exercises: {ex_nums}")
+    textbook = [
+        e for e in candidate["exercises"]
+        if e.get("source_origin", "TEXTBOOK") == "TEXTBOOK"
+    ]
+    generated = [
+        e for e in candidate["exercises"]
+        if e.get("source_origin") == "AI_ADDITIONAL_PRACTICE"
+    ]
+    ex_nums = sorted([
+        e["number"] for e in textbook
+        if e["section_type"] == "EXERCISE"
+    ])
+    if ex_nums:
+        check("EXERCISE_SEQUENCE_INCOMPLETE",
+              ex_nums == list(range(1, len(ex_nums) + 1)),
+              "CRITICAL", f"Exercises: {ex_nums}")
+    check("AI_FALLBACK_USED_DESPITE_BOOK_EXERCISES",
+          not (textbook and generated), "CRITICAL",
+          f"textbook={len(textbook)}, generated={len(generated)}")
+    check("NO_PRACTICE_AVAILABLE",
+          bool(textbook or generated), "CRITICAL",
+          "Neither verified textbook exercises nor gated AI practice exists")
 
     for e in candidate["exercises"]:
-        check("EXERCISE_SOURCE_MISMATCH", len(e["exact_source_prompt"]) >= 10, "CRITICAL", f"Ex {e['number']}")
-        check("EXERCISE_FIDELITY_UNVERIFIED", e.get("verified_against_source", False), "CRITICAL", f"Ex {e['number']} source mismatch")
+        origin = e.get("source_origin", "TEXTBOOK")
+        check("EXERCISE_PROMPT_INVALID",
+              len(e["exact_source_prompt"]) >= 10,
+              "CRITICAL", f"Ex {e['number']}")
+        if origin == "TEXTBOOK":
+            check("EXERCISE_FIDELITY_UNVERIFIED",
+                  e.get("verified_against_source", False),
+                  "CRITICAL", f"Ex {e['number']} source mismatch")
+        else:
+            check("AI_EXERCISE_SCIENTIFIC_GATE_FAILED",
+                  e.get("scientific_gate_passed", False)
+                  and bool(e.get("scope_concept_ids")),
+                  "CRITICAL", f"Additional practice {e['number']}")
         if e["requires_figure"]:
-            check("EXERCISE_DIAGRAM_REQUIRED_MISSING", len(e["figure_refs"]) > 0, "CRITICAL", f"Ex {e['number']}")
+            check("EXERCISE_DIAGRAM_REQUIRED_MISSING",
+                  len(e["figure_refs"]) > 0,
+                  "CRITICAL", f"Ex {e['number']}")
 
     check("PRE_SOLVE_FAILED", all(e["solution_status"] == "SOLVED" for e in candidate["exercises"] if e["solution_mode"] == "PRE_SOLVED"), "CRITICAL", "Pre-solved exercises unverified")
     check("WORKSHEET_NOT_GRADABLE", all("correct_index" in q for q in candidate["theory"]["worksheet"]), "CRITICAL", "Worksheet grading keys")
@@ -2175,7 +2416,15 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
         doc.close()
 
     theory = synthesize_universal_pedagogy(entry, ev_map, profile)
-    exercises = ev_map["exercise_evidence"]
+    textbook_exercises = list(ev_map["exercise_evidence"])
+    generated_practice = generate_ai_practice_only_if_book_empty(
+        entry, ev_map, profile, desired_count=2)
+    exercises = textbook_exercises + generated_practice
+    if generated_practice:
+        # Keep the candidate/evidence payload self-describing for scientific
+        # review and on-demand solving. The official book evidence remains
+        # separately identifiable by source_origin=TEXTBOOK.
+        ev_map["exercise_evidence"] = exercises
 
     page_a = render_lesson_page_a(entry, theory, ev_map)
     page_b = render_lesson_page_b(entry, exercises, profile, ev_map)
