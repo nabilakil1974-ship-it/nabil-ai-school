@@ -981,6 +981,195 @@ def extract_multimodal_page_figures(doc, page_num: int, cache_dir: Path,
     return figures
 
 
+def _normalize_targeted_figure_payload(payload: Any, page_num: int) -> List[dict]:
+    """Normalize only container shape; scientific/source checks happen later."""
+    if isinstance(payload, list):
+        progress("TARGETED_FIGURE_SCHEMA_NORMALIZED", page=page_num,
+                 original_shape="array", candidates=len(payload))
+        return payload
+    if isinstance(payload, dict):
+        figures = payload.get("figures")
+        if isinstance(figures, list):
+            progress("TARGETED_FIGURE_SCHEMA_VALID", page=page_num,
+                     original_shape="object.figures", candidates=len(figures))
+            return figures
+        for key in ("list", "items", "data"):
+            figures = payload.get(key)
+            if isinstance(figures, list):
+                progress("TARGETED_FIGURE_SCHEMA_NORMALIZED", page=page_num,
+                         original_shape=f"object.{key}",
+                         candidates=len(figures))
+                return figures
+    raise RuntimeError(
+        f"FIGURE_EVIDENCE_MISSING: targeted rescue schema invalid p{page_num}")
+
+
+def rescue_missing_labeled_figures(doc, page_num: int, cache_dir: Path,
+                                   lesson_id: str, book_id: str,
+                                   missing_labels: set,
+                                   existing_figures: List[Dict[str, Any]]
+                                   ) -> List[Dict[str, Any]]:
+    """Second-pass rescue for source labels missed by the normal vision pass.
+
+    Vision proposes image/caption boxes at higher resolution; LOCAL OCR of the
+    proposed caption box must independently verify exactly that printed label.
+    No figure number is inferred from order or neighboring figures.
+    """
+    import fitz
+
+    wanted = {
+        str(label).strip().lower() for label in missing_labels
+        if re.fullmatch(r"\d+[a-z]?", str(label).strip().lower())
+    }
+    existing = {
+        str(f.get("printed_label") or "").strip().lower()
+        for f in existing_figures
+    }
+    wanted -= existing
+    if not wanted:
+        return []
+
+    assert_authorized_source_vision(lesson_id, book_id, page_num)
+    page = doc[page_num - 1]
+    page_png = page.get_pixmap(dpi=300).tobytes("png")
+    page_b64 = base64.b64encode(page_png).decode("ascii")
+    prompt = (
+        "TARGETED SOURCE-FIGURE RESCUE. Inspect this original textbook page at "
+        "high resolution. Locate ONLY these missing printed figure labels: "
+        f"{sorted(wanted)}. For each label that is actually visible, return "
+        "one object with printed_label, image_bbox_1000 (the image/diagram only, "
+        "not neighboring figures), caption_bbox_1000 (tight box containing its "
+        "printed 'Fig. N' caption), and confidence 0..1. Never infer a label "
+        "from left-to-right order. Never merge two figures into one box. "
+        "If a requested printed label cannot be seen, omit it. Return JSON "
+        "exactly as {'figures':[...]} and no explanation."
+    )
+    raw = execute_llm_completion(
+        prompt, json_mode=True, image_base64=page_b64)
+    candidates = _normalize_targeted_figure_payload(
+        json.loads(raw), page_num)
+
+    def norm_rect(coords):
+        if (not isinstance(coords, list) or len(coords) != 4
+                or not all(isinstance(v, (int, float)) for v in coords)):
+            return None
+        x0, y0, x1, y1 = [float(v) for v in coords]
+        if not (0 <= x0 < x1 <= 1000 and 0 <= y0 < y1 <= 1000):
+            return None
+        return fitz.Rect(
+            page.rect.x0 + x0 * page.rect.width / 1000,
+            page.rect.y0 + y0 * page.rect.height / 1000,
+            page.rect.x0 + x1 * page.rect.width / 1000,
+            page.rect.y0 + y1 * page.rect.height / 1000,
+        )
+
+    rescued = []
+    for idx, item in enumerate(candidates):
+        if not isinstance(item, dict):
+            continue
+        raw_label = str(item.get("printed_label") or "").strip().lower()
+        m = re.fullmatch(r"(?:fig(?:ure)?\.?\s*)?(\d+)([a-z]?)\.?",
+                         raw_label, re.I)
+        label = (m.group(1) + m.group(2).lower()) if m else ""
+        if label not in wanted:
+            continue
+        try:
+            confidence = float(item.get("confidence", 0))
+        except (TypeError, ValueError):
+            confidence = 0.0
+        if confidence < 0.80:
+            progress("TARGETED_FIGURE_RESCUE_REJECTED", page=page_num,
+                     label=label, reason="LOW_CONFIDENCE")
+            continue
+
+        image_rect = norm_rect(item.get("image_bbox_1000"))
+        caption_rect = norm_rect(item.get("caption_bbox_1000"))
+        if image_rect is None or caption_rect is None:
+            progress("TARGETED_FIGURE_RESCUE_REJECTED", page=page_num,
+                     label=label, reason="INVALID_BBOX")
+            continue
+        if (image_rect.width < 20 or image_rect.height < 20
+                or caption_rect.width < 12 or caption_rect.height < 8):
+            progress("TARGETED_FIGURE_RESCUE_REJECTED", page=page_num,
+                     label=label, reason="BBOX_TOO_SMALL")
+            continue
+
+        # The caption must be physically close to its proposed source figure;
+        # this prevents a valid Fig. 1 caption elsewhere on the page from
+        # authorizing the wrong crop.
+        horizontal_gap = max(
+            0.0, image_rect.x0 - caption_rect.x1,
+            caption_rect.x0 - image_rect.x1)
+        vertical_gap = max(
+            0.0, image_rect.y0 - caption_rect.y1,
+            caption_rect.y0 - image_rect.y1)
+        if (horizontal_gap > page.rect.width * 0.12
+                or vertical_gap > page.rect.height * 0.16):
+            progress("TARGETED_FIGURE_RESCUE_REJECTED", page=page_num,
+                     label=label, reason="CAPTION_NOT_ADJACENT")
+            continue
+
+        with tempfile.TemporaryDirectory(
+                prefix="nabil_targeted_caption_") as cap_dir:
+            cap_path = Path(cap_dir) / "caption.png"
+            page.get_pixmap(
+                clip=caption_rect, dpi=350).save(str(cap_path))
+            proc = subprocess.run(
+                ["tesseract", str(cap_path), "stdout",
+                 "-l", "eng+fra", "--psm", "6"],
+                capture_output=True, text=True, timeout=20)
+        if proc.returncode != 0:
+            progress("TARGETED_FIGURE_RESCUE_REJECTED", page=page_num,
+                     label=label, reason="LOCAL_OCR_FAILED")
+            continue
+
+        caption_source = proc.stdout.strip()
+        source_labels = {
+            mm.group(1) + mm.group(2).lower()
+            for mm in re.finditer(
+                r"(?i)\bfig(?:ure)?[\.,:]?\s*"
+                r"(\d+)([a-z]?)\s*[:;\.,]?",
+                caption_source)
+        }
+        if source_labels != {label}:
+            progress("TARGETED_FIGURE_RESCUE_REJECTED", page=page_num,
+                     label=label,
+                     reason="LOCAL_CAPTION_LABEL_NOT_UNIQUE",
+                     source_labels=sorted(source_labels),
+                     caption_excerpt=caption_source[:120])
+            continue
+
+        image_bytes = page.get_pixmap(
+            clip=image_rect, dpi=220).tobytes("png")
+        path = cache_dir / (
+            f"fig_p{page_num}_targeted_{label}_{idx+1}.png")
+        path.write_bytes(image_bytes)
+        rescued.append({
+            "figure_id": f"FIG_P{page_num}_TARGET_{label}",
+            "printed_number": int(re.match(r"\d+", label).group()),
+            "printed_label": label,
+            "source_page": page_num,
+            "bbox": [
+                image_rect.x0, image_rect.y0,
+                image_rect.x1, image_rect.y1,
+            ],
+            "caption": caption_source,
+            "visual_description": "",
+            "image_path": str(path),
+            "image_sha256": hashlib.sha256(image_bytes).hexdigest(),
+            "visual_occupancy": round(
+                image_rect.width * image_rect.height /
+                (page.rect.width * page.rect.height), 3),
+            "confidence": confidence,
+            "evidence_method":
+                "TARGETED_HIGHRES_VISION_PLUS_LOCAL_CAPTION_OCR",
+        })
+        progress("TARGETED_FIGURE_RESCUE_ACCEPTED", page=page_num,
+                 label=label, caption_excerpt=caption_source[:120])
+
+    return rescued
+
+
 def match_figure_to_item(item: dict, page_figures: List[Dict[str, Any]], page_rect) -> List[str]:
     """Match by source figure number/letter, never by any random image on page."""
     prompt = item.get("exact_source_prompt", item.get("raw_text", ""))
@@ -1269,24 +1458,46 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
                extract_page_text_robust(doc, p_num, lesson_id, book_id, lesson_cache))
         figs = extract_multimodal_page_figures(
             doc, p_num, lesson_cache, lesson_id, book_id)
+        # Source-first completeness check. If the normal pass missed a
+        # printed figure label that the real page text mentions, make one
+        # targeted higher-resolution rescue attempt. The rescue still requires
+        # independent LOCAL OCR of the exact caption box.
+        mentions = {m.lower() for m in re.findall(
+            r"(?i)\bfig(?:ure)?\.?\s*(\d+[a-z]?)", txt)}
+        found = {
+            str(f.get("printed_label") or "").lower() for f in figs
+        } | {
+            str(f.get("printed_number")) for f in figs
+            if f.get("printed_number") is not None
+        }
+        missing = mentions - found
+        if missing:
+            progress("TARGETED_FIGURE_RESCUE_START",
+                     lesson_id=lesson_id, page=p_num,
+                     missing_labels=sorted(missing))
+            rescued = rescue_missing_labeled_figures(
+                doc, p_num, lesson_cache, lesson_id, book_id,
+                missing, figs)
+            if rescued:
+                figs.extend(rescued)
+                found = {
+                    str(f.get("printed_label") or "").lower() for f in figs
+                } | {
+                    str(f.get("printed_number")) for f in figs
+                    if f.get("printed_number") is not None
+                }
+                missing = mentions - found
+
         page_evidence = {
             "page_num": p_num,
             "text": txt,
             "text_hash": hashlib.sha256(txt.encode("utf-8")).hexdigest()[:16],
             "figures": figs,
+            "unverified_figure_labels": sorted(missing),
         }
         if page_checkpoints:
-            # Save only when source labels mentioned by the real OCR text are
-            # linked to source-page image crops. Never cache an unverified page.
-            mentions = {m.lower() for m in re.findall(
-                r"(?i)\bfig(?:ure)?\.?\s*(\d+[a-z]?)", txt)}
-            found = {
-                str(f.get("printed_label") or "").lower() for f in figs
-            } | {
-                str(f.get("printed_number")) for f in figs
-                if f.get("printed_number") is not None
-            }
-            if not mentions or mentions.issubset(found):
+            # Never cache an incomplete page as a completed checkpoint.
+            if not missing:
                 page_checkpoints.save_page(
                     drive_service, checkpoint_root, doc, entry,
                     page_evidence, source_provider, source_model)
@@ -1296,7 +1507,7 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
             else:
                 progress("PAGE_EVIDENCE_NOT_SAVED_UNVERIFIED_FIGURES",
                          lesson_id=lesson_id, page=p_num,
-                         missing_labels=sorted(mentions - found))
+                         missing_labels=sorted(missing))
         pages_evidence.append(page_evidence)
 
     concepts = []
@@ -2224,6 +2435,15 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
     s_lock = ev_map["source_lock"]
     expected_p = s_lock["end"] - s_lock["start"] + 1
     check("SOURCE_COVERAGE_INCOMPLETE", len(ev_map["pages_evidence"]) == expected_p, "CRITICAL", f"{len(ev_map['pages_evidence'])}/{expected_p} pages")
+
+    unresolved_figures = {
+        p["page_num"]: p.get("unverified_figure_labels", [])
+        for p in ev_map["pages_evidence"]
+        if p.get("unverified_figure_labels")
+    }
+    check("SOURCE_FIGURE_COVERAGE_INCOMPLETE",
+          not unresolved_figures, "CRITICAL",
+          f"unverified_source_figures={unresolved_figures}")
 
     textbook = [
         e for e in candidate["exercises"]
