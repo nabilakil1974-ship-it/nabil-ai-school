@@ -2653,6 +2653,18 @@ def _normalized_lab_evidence(value: str) -> str:
     return re.sub(r"\\s+", " ", str(value or "")).strip().lower()
 
 
+def _canonical_lab_evidence_ref(value: Any) -> Optional[str]:
+    """Normalize only syntactic variants of a concept reference.
+
+    This does not infer or repair semantic content: values such as C1 and c01
+    are the same explicit numeric concept reference. Anything else is rejected.
+    """
+    match = re.fullmatch(r"\s*[cC]0*(\d+)\s*", str(value or ""))
+    if not match:
+        return None
+    return f"C{int(match.group(1)):02d}"
+
+
 def _deduction_question(lang_code: str, title: str) -> str:
     # صياغة السؤال بحسب لغة الدرس، من دون تغيير المصطلح العلمي الأصلي.
     if lang_code == "ar":
@@ -2685,6 +2697,8 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
         "Student-facing title/instructions/observation must stay within the scientific meaning of the evidence.\n"
         + narrative_language_instruction(lang_code) + "\n\n"
         f"CONCEPT_ID: {concept['concept_id']}\n"
+        f"EVIDENCE_REF_REQUIRED_EXACTLY: {concept['concept_id']}\n"
+        "Copy EVIDENCE_REF_REQUIRED_EXACTLY verbatim into evidence_ref; do not rename, shorten, or renumber it.\n"
         f"SUBJECT: {profile['subject']}\n"
         f"SOURCE: {concept.get('raw_text','')}\n"
         f"MATH_RECORDS: {json.dumps(math_records, ensure_ascii=False)}\n"
@@ -2707,8 +2721,15 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
 
     if not isinstance(spec, dict):
         raise RuntimeError("LAB_SPEC_INVALID: expected object")
-    if spec.get("evidence_ref") != concept.get("concept_id"):
+    expected_ref = str(concept.get("concept_id") or "").strip().upper()
+    returned_ref = _canonical_lab_evidence_ref(spec.get("evidence_ref"))
+    if returned_ref != expected_ref:
+        progress(
+            "LAB_SPEC_EVIDENCE_REF_REJECTED",
+            expected=expected_ref,
+            actual=str(spec.get("evidence_ref") or ""))
         raise RuntimeError("LAB_SPEC_EVIDENCE_REF_MISMATCH")
+    spec["evidence_ref"] = expected_ref
     if spec.get("supported") is not True:
         return {
             "supported": False,
