@@ -475,3 +475,27 @@ Effective immediately for NABIL AI and the lesson factory:
 - Mathematical/scientific notation must preserve semantic pronunciation: fractions, powers, roots, derivatives, functions, chemical formulas, ions, units, symbols, variables, and operators must be spoken according to their mathematical/scientific meaning, not character-by-character unless that is the correct convention.
 - Mixed Arabic/foreign sentences must switch pronunciation language at the term boundary without corrupting the written term or the surrounding Arabic explanation.
 - This behavior applies across lesson explanation, worked examples, exercise solutions, interactive labs, quizzes, final cards, and read-aloud/voice mode.
+
+
+## FACTORY PHASE — EVIDENCE-GROUNDED LAB + FULL QUIZ + I18N — 2026-09-26
+
+Implemented on main without replacing the existing 3500+ line real factory pipeline.
+
+Commits in this phase:
+- `3b7c2f77a460adacd9fa0bc1d4233e70502da956` — fail-closed Arabic/French/English lesson localization.
+- `ed5398f2ce8979899922d3dc5ebb5e4b9d98577a` — full-coverage grounded lesson quiz engine; no arbitrary pass threshold.
+- `383f1f7eac117a485f4caac27358f581541dc99b` — fail-closed interactive lab renderer; no invented slider ranges/default scientific values.
+- `11353509910f071bc88828b4bc95633aa67dbe77` — integration into real `scripts/nabil_lesson_factory.py` with evidence-backed Lab Specs, full quiz coverage, localized Page A, lab QA gates, and scientific-review inclusion.
+- `0b960dd1937858f9caae0e5c2e0a1767f967d8f6` — dedicated factory core smoke workflow.
+
+Verified GitHub Actions run: `36244545644` = SUCCESS. The workflow compiled all four real modules, imported the real factory, exercised lab/quiz renderers with explicitly test-only fixtures, and verified the core real factory entry points remained present.
+
+Non-negotiable behavior now enforced in code:
+- Lab is optional and evidence-driven; unsupported concepts return no lab rather than a fake one.
+- Supported lab specs must point to the current concept evidence; text evidence must be found in source text, figure evidence requires a verified source figure.
+- Formula lab requires a formula actually present in source/math records and forbids min/max/default/step fabricated ranges.
+- Any declared lab must contain real interaction code and visual/input behavior; card-only stubs fail the quality gate.
+- Quiz covers every synthesized concept; the old first-five cap is removed.
+- Independent scientific review now audits Lab Specs and Quiz Items too.
+
+NEXT REAL ACCEPTANCE: run the real G07-PHYSICS-001 lesson again through the production pipeline and inspect the generated HTML/Drive artifact for actual evidence-selected labs, quiz, mobile QA, and scientific review. Do not call this production E2E accepted until that real lesson run passes.
