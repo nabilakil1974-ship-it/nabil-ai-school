@@ -163,7 +163,7 @@ def _source_crop(doc, page_num, row, kind):
     if kind == "EXERCISES":
         return doc[page_num - 1].get_pixmap(clip=area, dpi=200).tobytes("png")
     if row.get("evidence_method") == "EMBEDDED_IMAGE_WITH_SOURCE_BBOX":
-        found = re.search(r"_E(\\d+)$", row.get("figure_id", ""))
+        found = re.search(r"_E(\d+)$", row.get("figure_id", ""))
         if not found:
             raise ValueError("Embedded source image xref index missing")
         embeds = doc[page_num - 1].get_images(full=True)
