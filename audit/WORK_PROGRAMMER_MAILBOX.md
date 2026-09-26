@@ -465,3 +465,13 @@ Effective immediately for NABIL AI and the lesson factory:
 - Prefer the correct complete engineering solution over an easy workaround. Any temporary fallback must preserve correctness, be explicitly labeled, and must not weaken scientific/source/quality gates.
 
 **Acceptance rule:** any implementation that appears to work only because of dummy data, hardcoded lesson-specific content, mocked provider/Drive behavior, skipped real execution, or a superficial command/status is a FAIL.
+
+
+## NABIL TEACHING & VOICE RULE — 2026-09-26
+
+- The pedagogical explanation style used by ChatGPT/NABIL in the approved lesson examples is the baseline teaching style: concept-by-concept, clear scientific progression, explanation before conclusion, visual/experiment when useful, then application, quiz, and final summary card.
+- NABIL speaks all Arabic explanatory text in clear Modern Standard Arabic (الفصحى).
+- Foreign scientific/technical terms must be preserved in writing when pedagogically appropriate and pronounced in their original language. English terms are pronounced in English; French terms in French. Do not Arabize their pronunciation.
+- Mathematical/scientific notation must preserve semantic pronunciation: fractions, powers, roots, derivatives, functions, chemical formulas, ions, units, symbols, variables, and operators must be spoken according to their mathematical/scientific meaning, not character-by-character unless that is the correct convention.
+- Mixed Arabic/foreign sentences must switch pronunciation language at the term boundary without corrupting the written term or the surrounding Arabic explanation.
+- This behavior applies across lesson explanation, worked examples, exercise solutions, interactive labs, quizzes, final cards, and read-aloud/voice mode.
