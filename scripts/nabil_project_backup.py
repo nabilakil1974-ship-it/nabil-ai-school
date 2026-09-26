@@ -51,11 +51,13 @@ def _sha256(path: Path) -> str:
 
 
 def _find_or_create_backup_folder(service) -> str:
+    parent_id = factory.resolve_drive_root_id()
     escaped = BACKUP_FOLDER_NAME.replace("'", "\\'")
     resp = service.files().list(
         q=(
-            "name='%s' and mimeType='application/vnd.google-apps.folder' "
-            "and trashed=false" % escaped
+            "'%s' in parents and name='%s' "
+            "and mimeType='application/vnd.google-apps.folder' "
+            "and trashed=false" % (parent_id, escaped)
         ),
         spaces="drive",
         fields="files(id,name,createdTime)",
@@ -69,6 +71,7 @@ def _find_or_create_backup_folder(service) -> str:
         body={
             "name": BACKUP_FOLDER_NAME,
             "mimeType": "application/vnd.google-apps.folder",
+            "parents": [parent_id],
         },
         fields="id",
     ).execute()
@@ -140,7 +143,7 @@ def upload_backup(path: Path, manifest: dict) -> dict:
 
     existing = _existing_backup(service, folder_id, path.name)
     media = MediaFileUpload(
-        str(path), mimetype="application/zip", resumable=True
+        str(path), mimetype="application/zip", resumable=False
     )
     if existing:
         uploaded = service.files().update(
