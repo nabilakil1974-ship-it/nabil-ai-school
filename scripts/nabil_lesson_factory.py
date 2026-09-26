@@ -285,10 +285,10 @@ def execute_llm_completion(prompt: str, json_mode: bool = True, temperature: flo
                 # than "15.7s". Previously this was capped at 120 seconds,
                 # causing five unnecessary requests and total pilot failure.
                 duration = re.search(
-                    r"(?i)try again in\\s+"
-                    r"(?:(\\d+(?:\\.\\d+)?)\\s*h(?:ours?)?\\s*)?"
-                    r"(?:(\\d+(?:\\.\\d+)?)\\s*m(?:in(?:utes?)?)?\\s*)?"
-                    r"(?:(\\d+(?:\\.\\d+)?)\\s*s(?:ec(?:onds?)?)?)?",
+                    r"(?i)try again in\s+"
+                    r"(?:(\d+(?:\.\d+)?)\s*h(?:ours?)?\s*)?"
+                    r"(?:(\d+(?:\.\d+)?)\s*m(?:in(?:utes?)?)?\s*)?"
+                    r"(?:(\d+(?:\.\d+)?)\s*s(?:ec(?:onds?)?)?)?",
                     detail,
                 )
                 indicated = 0.0
