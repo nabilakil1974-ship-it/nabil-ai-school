@@ -72,6 +72,14 @@ def _supervise_pilot(stop: threading.Event,
                 )
                 return
 
+            if exit_code == 75:
+                print(
+                    "AUTONOMOUS_PILOT_PROCESS_PAUSED_BUDGET_GUARD; "
+                    "no automatic paid retry until next deploy/restart",
+                    flush=True,
+                )
+                return
+
             print(
                 f"AUTONOMOUS_PILOT_PROCESS_EXITED code={exit_code}; "
                 f"retrying in {retry_seconds}s",
@@ -219,9 +227,18 @@ def main() -> None:
     # duplicate paid pilot worker. An explicit env override still wins.
     service_name = os.environ.get("RAILWAY_SERVICE_NAME", "").strip().lower()
     pilot_default = "1" if service_name == "nabil-ai-school" else "0"
-    auto_pilot = os.environ.get(
-        "NABIL_AUTO_FACTORY_PILOT", pilot_default
-    ).strip().lower()
+    # On the dedicated factory service the golden pilot is always armed unless
+    # the explicit emergency kill switch is set. This avoids stale Railway
+    # variables silently disabling the one-shot autonomous pilot.
+    emergency_off = os.environ.get(
+        "NABIL_FACTORY_PILOT_EMERGENCY_OFF", "0"
+    ).strip().lower() in {"1", "true", "yes", "on"}
+    if service_name == "nabil-ai-school" and not emergency_off:
+        auto_pilot = "1"
+    else:
+        auto_pilot = os.environ.get(
+            "NABIL_AUTO_FACTORY_PILOT", pilot_default
+        ).strip().lower()
     pilot_supervisor = None
     if auto_pilot not in {"0", "false", "no", "off"}:
         pilot_supervisor = threading.Thread(
