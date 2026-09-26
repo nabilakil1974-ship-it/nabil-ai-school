@@ -1,0 +1,17 @@
+{
+  "enabled": true,
+  "book_id": "1LasqIgGUuck1l-2EZbj2kA0Dg9ygJ_AH",
+  "lesson_id": "G07-PHYSICS-001",
+  "curriculum_root_id": "16bcmZMO_dn4FqlGaDtl8Hky6iSBEqZpX",
+  "primary_provider": "groq",
+  "failover_providers": "openrouter",
+  "groq_vision_model": "qwen/qwen3.8-27b",
+  "openrouter_vision_model": "google/gemini-3.6-flash",
+  "openrouter_text_model": "google/gemini-3.6-flash",
+  "vision_max_output_tokens": 2048,
+  "text_max_output_tokens": 4096,
+  "max_all_provider_wait_seconds": 30,
+  "max_new_lessons": 1,
+  "retry_seconds": 300,
+  "purpose": "Autonomous one-lesson golden pilot only; stop permanently after G07-PHYSICS-001 is published and verified."
+}
