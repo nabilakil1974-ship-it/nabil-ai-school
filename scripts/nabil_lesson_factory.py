@@ -985,7 +985,13 @@ def extract_page_text_robust(doc, page_num: int, lesson_id: str, book_id: str, c
     page.get_pixmap(dpi=150).save(str(page_img))
     b64_img = base64.b64encode(page_img.read_bytes()).decode("utf-8")
     prompt = "Extract all text, exercises, and formulas verbatim from this curriculum page. Return JSON: {'text': str}"
-    res = execute_llm_completion(prompt, json_mode=True, image_base64=b64_img)
+    res = execute_llm_completion(
+        prompt, json_mode=True, image_base64=b64_img,
+        vision_context={
+            "lesson_id": lesson_id,
+            "book_id": book_id,
+            "pdf_page": page_num,
+        })
     return json.loads(res).get("text", "")
 
 
@@ -1093,7 +1099,13 @@ def extract_multimodal_page_figures(doc, page_num: int, cache_dir: Path,
                     'Do not return any other keys or explanations.'
                 )
             raw_figures = execute_llm_completion(
-                request_prompt, json_mode=True, image_base64=page_image)
+                request_prompt, json_mode=True, image_base64=page_image,
+                vision_context={
+                    "lesson_id": lesson_id,
+                    "book_id": book_id,
+                    "pdf_page": page_num,
+                })
+            vision_provenance = get_last_llm_provenance()
             try:
                 proposed = json.loads(raw_figures)
             except (ValueError, TypeError):
@@ -1240,6 +1252,7 @@ def extract_multimodal_page_figures(doc, page_num: int, cache_dir: Path,
                 "visual_occupancy": round(
                     rect.width*rect.height/(page.rect.width*page.rect.height), 3),
                 "confidence": confidence,
+                "ai_provenance": dict(vision_provenance),
                 "evidence_method": "APPROVED_VISION_BOX_CROPPED_FROM_SOURCE_PDF"
             })
         progress("FIGURE_VISION_CROPS_VERIFIED", page=page_num,
@@ -1314,7 +1327,13 @@ def rescue_missing_labeled_figures(doc, page_num: int, cache_dir: Path,
         "exactly as {'figures':[...]} and no explanation."
     )
     raw = execute_llm_completion(
-        prompt, json_mode=True, image_base64=page_b64)
+        prompt, json_mode=True, image_base64=page_b64,
+        vision_context={
+            "lesson_id": lesson_id,
+            "book_id": book_id,
+            "pdf_page": page_num,
+        })
+    rescue_provenance = get_last_llm_provenance()
     candidates = _normalize_targeted_figure_payload(
         json.loads(raw), page_num)
 
@@ -1430,6 +1449,7 @@ def rescue_missing_labeled_figures(doc, page_num: int, cache_dir: Path,
                 image_rect.width * image_rect.height /
                 (page.rect.width * page.rect.height), 3),
             "confidence": confidence,
+            "ai_provenance": dict(rescue_provenance),
             "evidence_method":
                 "TARGETED_HIGHRES_VISION_PLUS_LOCAL_CAPTION_OCR",
         })
@@ -1613,7 +1633,14 @@ def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
         "numbers with exercise numbers. Preserve table entries and all "
         "instructions. Do not invent any text. No numbered exercises -> []."
     )
-    extracted = json.loads(execute_llm_completion(instruction, image_base64=page_b64))
+    extracted = json.loads(execute_llm_completion(
+        instruction, image_base64=page_b64,
+        vision_context={
+            "lesson_id": lesson_id,
+            "book_id": book_id,
+            "pdf_page": page_num,
+        }))
+    extraction_provenance = get_last_llm_provenance()
     rows = _normalize_exercise_scan_payload(extracted, page_num)
     if not rows:
         return []
@@ -1626,7 +1653,14 @@ def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
         "two-column order. No favorable assumptions. Transcriptions: "
         + json.dumps(rows, ensure_ascii=False)
     )
-    review = json.loads(execute_llm_completion(audit_prompt, image_base64=page_b64))
+    review = json.loads(execute_llm_completion(
+        audit_prompt, image_base64=page_b64,
+        vision_context={
+            "lesson_id": lesson_id,
+            "book_id": book_id,
+            "pdf_page": page_num,
+        }))
+    audit_provenance = get_last_llm_provenance()
     checks = _normalize_exercise_review_payload(review, page_num)
     approved = {int(x["number"]): x for x in checks if isinstance(x, dict)
                 and "number" in x and x.get("faithful") is True}
@@ -1662,7 +1696,12 @@ def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
             "source_bbox": [rect.x0, rect.y0, rect.x1, rect.y1],
             "source_region_image_ref": str(region_path),
             "source_region_sha256": hashlib.sha256(raw_region).hexdigest(),
-            "verified_against_source": True, "evidence_method": "TWO_PASS_SOURCE_PAGE_VISION"
+            "verified_against_source": True,
+            "ai_provenance": {
+                "extraction": dict(extraction_provenance),
+                "audit": dict(audit_provenance),
+            },
+            "evidence_method": "TWO_PASS_SOURCE_PAGE_VISION"
         })
     return result
 
@@ -2158,8 +2197,16 @@ def grounded_subject_solver(exercise: dict, evidence_map: dict, profile: dict) -
     )
 
     try:
-        res = execute_llm_completion(query, json_mode=True, temperature=0.0, image_base64=fig_base64)
+        res = execute_llm_completion(
+            query, json_mode=True, temperature=0.0,
+            image_base64=fig_base64,
+            vision_context=({
+                "lesson_id": exercise.get("lesson_id"),
+                "book_id": evidence_map.get("book_id"),
+                "pdf_page": page,
+            } if fig_base64 else None))
         parsed = json.loads(res)
+        solution_provenance = get_last_llm_provenance()
         if not parsed.get("steps") or not parsed.get("final_answer"):
             raise ValueError("Incomplete solver response schema")
         
@@ -2168,11 +2215,17 @@ def grounded_subject_solver(exercise: dict, evidence_map: dict, profile: dict) -
             f"Prompt: {prompt}\nSolution: {json.dumps(parsed, ensure_ascii=False)}\n"
             "Return strictly JSON: {'valid': bool}"
         )
-        val_res = json.loads(execute_llm_completion(verify_prompt, json_mode=True, temperature=0.0))
+        val_res = json.loads(execute_llm_completion(
+            verify_prompt, json_mode=True, temperature=0.0))
+        verification_provenance = get_last_llm_provenance()
         if not val_res.get("valid", False):
             raise RuntimeError("SOLVER_SOLUTION_VALIDATION_FAILED")
 
         exercise["solution_status"] = "SOLVED"
+        parsed["ai_provenance"] = {
+            "solution": dict(solution_provenance),
+            "verification": dict(verification_provenance),
+        }
         return parsed
     except Exception as e:
         raise RuntimeError(f"PRE_SOLVE_FAILED: grounded solver unavailable or failed for Ex #{exercise['number']}: {e}")
@@ -2204,7 +2257,10 @@ def solve_exercise_on_demand_payload(lesson_id: str, sec_type: str, ex_num: int)
 # ==============================================================================
 # 8. EVIDENCE-DRIVEN SYNTHESIS
 # ==============================================================================
-def synthesize_concept_narrative(concept: dict, profile: dict, figure_image_base64: Optional[str] = None) -> dict:
+def synthesize_concept_narrative(
+        concept: dict, profile: dict,
+        figure_image_base64: Optional[str] = None,
+        vision_context: Optional[Dict[str, Any]] = None) -> dict:
     prompt = (
         f"You are grounding a lesson explanation STRICTLY in the following extracted textbook text and source figure, when provided. "
         f"Generate plausible wrong answers (distractors) derived from common misconceptions of this text.\n\n"
@@ -2216,7 +2272,10 @@ def synthesize_concept_narrative(concept: dict, profile: dict, figure_image_base
         "} — every field must be traceable to the TEXT above."
     )
     try:
-        res = execute_llm_completion(prompt, json_mode=True, temperature=0.0, image_base64=figure_image_base64)
+        res = execute_llm_completion(
+            prompt, json_mode=True, temperature=0.0,
+            image_base64=figure_image_base64,
+            vision_context=vision_context)
         parsed = json.loads(res)
         for k in ["phenomenon", "investigation", "observation", "interpretation", "conclusion", "distractor_1", "distractor_2"]:
             if not parsed.get(k):
@@ -2268,7 +2327,13 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
             buffered = io.BytesIO()
             canvas.save(buffered, format="PNG")
             figure_image_base64 = base64.b64encode(buffered.getvalue()).decode("ascii")
-        narrative = synthesize_concept_narrative(c, profile, figure_image_base64)
+        narrative = synthesize_concept_narrative(
+            c, profile, figure_image_base64,
+            vision_context=({
+                "lesson_id": entry["lesson_id"],
+                "book_id": entry["book_id"],
+                "pdf_page": p_num,
+            } if figure_image_base64 else None))
 
         activities_theory.append({
             "activity_num": c["concept_id"].replace("C", ""),
