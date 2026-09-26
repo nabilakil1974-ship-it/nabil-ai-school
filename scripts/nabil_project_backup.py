@@ -90,14 +90,12 @@ def _existing_backup(service, folder_id: str, name: str):
 
 
 def create_backup() -> tuple[Path, dict]:
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%SZ")
     commit = (
         os.getenv("RAILWAY_GIT_COMMIT_SHA")
         or os.getenv("GIT_COMMIT_SHA")
         or "unknown"
     )
-    short = commit[:12] if commit != "unknown" else "unknown"
-    name = f"NABIL_AI_FULL_PROJECT_{timestamp}_{short}.zip"
+    name = "NABIL_AI_FULL_PROJECT_LATEST.zip"
     out = Path(tempfile.gettempdir()) / name
 
     files = sorted(
@@ -141,24 +139,25 @@ def upload_backup(path: Path, manifest: dict) -> dict:
     folder_id = _find_or_create_backup_folder(service)
 
     existing = _existing_backup(service, folder_id, path.name)
-    if existing:
-        return {
-            "status": "ALREADY_EXISTS",
-            "folder_id": folder_id,
-            "file": existing,
-            "sha256": manifest["zip_sha256"],
-        }
-
     media = MediaFileUpload(
         str(path), mimetype="application/zip", resumable=True
     )
-    uploaded = service.files().create(
-        body={"name": path.name, "parents": [folder_id]},
-        media_body=media,
-        fields="id,name,size,md5Checksum,webViewLink,modifiedTime",
-    ).execute()
+    if existing:
+        uploaded = service.files().update(
+            fileId=existing["id"],
+            media_body=media,
+            fields="id,name,size,md5Checksum,webViewLink,modifiedTime",
+        ).execute()
+        status = "REPLACED_LATEST"
+    else:
+        uploaded = service.files().create(
+            body={"name": path.name, "parents": [folder_id]},
+            media_body=media,
+            fields="id,name,size,md5Checksum,webViewLink,modifiedTime",
+        ).execute()
+        status = "UPLOADED_LATEST"
 
-    sha_name = path.name + ".sha256.txt"
+    sha_name = "NABIL_AI_FULL_PROJECT_LATEST.sha256.txt"
     sha_path = path.with_name(sha_name)
     sha_path.write_text(
         manifest["zip_sha256"] + "  " + path.name + "\n",
@@ -167,14 +166,22 @@ def upload_backup(path: Path, manifest: dict) -> dict:
     sha_media = MediaFileUpload(
         str(sha_path), mimetype="text/plain", resumable=False
     )
-    service.files().create(
-        body={"name": sha_name, "parents": [folder_id]},
-        media_body=sha_media,
-        fields="id",
-    ).execute()
+    existing_sha = _existing_backup(service, folder_id, sha_name)
+    if existing_sha:
+        service.files().update(
+            fileId=existing_sha["id"],
+            media_body=sha_media,
+            fields="id",
+        ).execute()
+    else:
+        service.files().create(
+            body={"name": sha_name, "parents": [folder_id]},
+            media_body=sha_media,
+            fields="id",
+        ).execute()
 
     return {
-        "status": "UPLOADED",
+        "status": status,
         "folder_id": folder_id,
         "file": uploaded,
         "sha256": manifest["zip_sha256"],
