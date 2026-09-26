@@ -28,6 +28,15 @@
       "provider": "groq",
       "purpose": "Owner requests first source-verified physics lesson production using the now-working Groq provider; scope is only original pilot pages 13–18",
       "owner_approval_date": "2026-09-26"
+    },
+    {
+      "lesson_id": "G07-PHYSICS-001",
+      "book_id": "1LasqIgGUuck1l-2EZbj2kA0Dg9ygJ_AH",
+      "pdf_start_page": 13,
+      "pdf_end_page": 18,
+      "provider": "cloudflare",
+      "purpose": "Owner-approved Cloudflare Workers AI vision failover for the unpublished first pilot only; source pages 13–18.",
+      "owner_approval_date": "2026-09-26"
     }
   ]
 }
