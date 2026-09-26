@@ -134,6 +134,58 @@ class CheckpointTest(unittest.TestCase):
             self.drive, "root", self.doc, self.entry, 1, self.cache,
             "groq", "qwen/qwen3.8-27b"))
 
+    def test_targeted_rescue_roundtrip_and_provenance(self):
+        targeted = self.page.get_pixmap(
+            clip=fitz.Rect(*self.area), dpi=220).tobytes("png")
+        source_path = self.cache / "fig_p1_targeted_1.png"
+        source_path.write_bytes(targeted)
+        figure = {
+            "figure_id": "FIG_P1_TARGET_1",
+            "printed_label": "1",
+            "printed_number": 1,
+            "source_page": 1,
+            "bbox": self.area,
+            "image_path": str(source_path),
+            "image_sha256": hashlib.sha256(targeted).hexdigest(),
+            "ai_provenance": {
+                "provider": "openrouter",
+                "model": "vision-model",
+                "primary_provider": "groq",
+                "used_failover": True,
+                "completed_at": "2026-09-26T00:00:00+00:00",
+            },
+            "evidence_method":
+                "TARGETED_HIGHRES_VISION_PLUS_LOCAL_CAPTION_OCR",
+        }
+        cp.save_page(
+            self.drive, "root", self.doc, self.entry,
+            {"page_num": 1, "text": "Fig. 1", "figures": [figure]},
+            "groq", "qwen/qwen3.8-27b")
+        resumed = cp.load_page(
+            self.drive, "root", self.doc, self.entry,
+            1, self.cache, "groq", "qwen/qwen3.8-27b")
+        self.assertEqual(
+            resumed["figures"][0]["image_sha256"],
+            hashlib.sha256(targeted).hexdigest())
+        self.assertEqual(
+            resumed["figures"][0]["ai_provenance"]["provider"],
+            "openrouter")
+
+        # Inspect the stored JSON record: top-level provider/model are clearly
+        # labelled as compatibility keys, while actual provenance is explicit.
+        folder = cp._folder(
+            self.drive, "root", self.entry, create=False)
+        fid = cp._children(
+            self.drive, folder, "PAGE_0001.json")
+        record = json.loads(
+            self.drive.items[fid]["data"].decode("utf-8"))
+        self.assertEqual(
+            record["provider_fields_role"],
+            "CHECKPOINT_COMPATIBILITY_KEY_NOT_EVIDENCE_ORIGIN")
+        self.assertEqual(
+            record["actual_provenance"][0]["provider"],
+            "openrouter")
+
     def test_source_hash_blocks_reuse(self):
         cp.save_page(self.drive, "root", self.doc, self.entry,
                      {"page_num": 1, "text": "text", "figures": []},
