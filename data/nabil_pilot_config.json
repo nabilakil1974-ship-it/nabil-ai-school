@@ -13,5 +13,6 @@
   "max_all_provider_wait_seconds": 30,
   "max_new_lessons": 1,
   "retry_seconds": 300,
-  "purpose": "Autonomous one-lesson golden pilot only; stop permanently after G07-PHYSICS-001 is published and verified."
+  "purpose": "Autonomous one-lesson golden pilot only; stop permanently after G07-PHYSICS-001 is published and verified.",
+  "groq_text_model": "qwen/qwen3.8-27b"
 }
