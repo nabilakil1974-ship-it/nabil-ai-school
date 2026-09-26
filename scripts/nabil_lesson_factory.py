@@ -553,6 +553,26 @@ def execute_llm_completion(
                     content = re.sub(
                         r"^```(?:json)?\s*|\s*```$",
                         "", content, flags=re.I).strip()
+                # إذا طلب المستدعي JSON فلا نعيد نصاً مقطوعاً أو فاسداً.
+                # لا نحاول إصلاحه أو تخمين الجزء الناقص؛ نرفض استجابة المزود
+                # وننتقل لمزوّد آخر ضمن failover الحقيقي.
+                if json_mode:
+                    try:
+                        json.loads(content)
+                    except json.JSONDecodeError as exc:
+                        _AI_PROVIDER_COOLDOWNS[provider] = time.monotonic() + 10.0
+                        progress(
+                            "AI_PROVIDER_INVALID_JSON_FAILOVER",
+                            provider=provider,
+                            model=model,
+                            provider_attempt=provider_attempts[provider],
+                            total_requests=total_requests,
+                            json_error=str(exc)[:220],
+                            response_chars=len(content),
+                            cooldown_seconds=10.0,
+                        )
+                        continue
+
                 _LAST_LLM_PROVENANCE = {
                     "provider": provider,
                     "model": model,
