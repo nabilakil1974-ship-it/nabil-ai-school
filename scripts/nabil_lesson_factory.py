@@ -937,26 +937,40 @@ def resolve_canonical_entry(lesson_id: str) -> dict:
 def assert_authorized_source_vision(
         lesson_id: str, book_id: str, pdf_page: int,
         provider_override: Optional[str] = None):
-    """Require explicit owner consent for the selected provider/source page."""
-    provider = provider_override
-    if not provider:
-        provider = os.getenv(
-            "NABIL_FACTORY_AI_PROVIDER", "auto").strip().lower()
-        if provider == "auto":
-            keys = _provider_keys()
-            provider = next(
-                (name for name in ("openrouter", "groq", "openai")
-                 if keys.get(name)), None)
+    """Require explicit owner consent for at least one eligible provider.
+
+    When a concrete provider produced stored evidence, provider_override pins
+    revalidation to that exact provider. Otherwise the configured failover pool
+    is checked so an unauthorized primary cannot block an authorized fallback.
+    """
     context = {
         "lesson_id": lesson_id,
         "book_id": book_id,
         "pdf_page": pdf_page,
     }
-    if not provider or not _vision_provider_authorized(
-            provider, context, require_key=True):
+    if provider_override:
+        if _vision_provider_authorized(
+                provider_override, context, require_key=True):
+            return
         raise RuntimeError(
             "VISION_SHARING_NOT_AUTHORIZED: "
-            f"provider={provider} lesson_id={lesson_id} page={pdf_page}")
+            f"provider={provider_override} lesson_id={lesson_id} "
+            f"page={pdf_page}")
+
+    preferred = os.getenv(
+        "NABIL_FACTORY_AI_PROVIDER", "auto").strip().lower()
+    keys = _provider_keys()
+    candidates = _provider_order(preferred, keys)
+    authorized = [
+        p for p in candidates
+        if _vision_provider_authorized(
+            p, context, require_key=True)
+    ]
+    if authorized:
+        return
+    raise RuntimeError(
+        "VISION_SHARING_NOT_AUTHORIZED: "
+        f"providers={candidates} lesson_id={lesson_id} page={pdf_page}")
 
 
 # ==============================================================================
@@ -1751,12 +1765,16 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
             drive_service, checkpoint_root, doc, entry, p_num, lesson_cache,
             source_provider, source_model) if page_checkpoints else None)
         if saved_page is not None:
-            if any(
-                f.get("evidence_method") ==
-                "APPROVED_VISION_BOX_CROPPED_FROM_SOURCE_PDF"
-                for f in saved_page["figures"]
-            ):
-                assert_authorized_source_vision(lesson_id, book_id, p_num)
+            for restored_figure in saved_page["figures"]:
+                if restored_figure.get("evidence_method") in (
+                    "APPROVED_VISION_BOX_CROPPED_FROM_SOURCE_PDF",
+                    "TARGETED_HIGHRES_VISION_PLUS_LOCAL_CAPTION_OCR",
+                ):
+                    provenance = restored_figure.get("ai_provenance") or {}
+                    actual_provider = provenance.get("provider")
+                    assert_authorized_source_vision(
+                        lesson_id, book_id, p_num,
+                        provider_override=actual_provider)
             pages_evidence.append(saved_page)
             progress("PAGE_EVIDENCE_RESTORED_FROM_DRIVE",
                      lesson_id=lesson_id, page=p_num,
