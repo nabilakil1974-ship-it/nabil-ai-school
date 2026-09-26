@@ -809,6 +809,29 @@ def extract_multimodal_page_figures(doc, page_num: int, cache_dir: Path,
                 if isinstance(proposed.get("figures"), list):
                     extracted = proposed
                     break
+                # Groq JSON mode can wrap the requested figures in "list" or
+                # return a SINGLE figure object. Normalize structure only:
+                # coordinates, labels, confidence and scientific evidence are
+                # still independently validated below.
+                if (set(proposed) == {"list"}
+                        and isinstance(proposed["list"], list)
+                        and all(isinstance(v, dict) for v in proposed["list"])):
+                    extracted = {"figures": proposed["list"]}
+                    progress("FIGURE_VISION_SCHEMA_NORMALIZED", page=page_num,
+                             original_shape="list", figure_candidates=len(proposed["list"]))
+                    break
+                if "bbox_1000" in proposed and "confidence" in proposed:
+                    extracted = {"figures": [proposed]}
+                    progress("FIGURE_VISION_SCHEMA_NORMALIZED", page=page_num,
+                             original_shape="single_figure", figure_candidates=1)
+                    break
+            elif isinstance(proposed, list):
+                response_shape = "array"
+                if all(isinstance(v, dict) for v in proposed):
+                    extracted = {"figures": proposed}
+                    progress("FIGURE_VISION_SCHEMA_NORMALIZED", page=page_num,
+                             original_shape="array", figure_candidates=len(proposed))
+                    break
             elif proposed is not None:
                 response_shape = type(proposed).__name__
             progress("FIGURE_VISION_SCHEMA_CHECK", page=page_num,
@@ -821,8 +844,17 @@ def extract_multimodal_page_figures(doc, page_num: int, cache_dir: Path,
             )
         progress("FIGURE_VISION_SCHEMA_VALID", page=page_num,
                  figure_candidates=len(extracted["figures"]))
+        rejected_figures = []
         for idx, info in enumerate(extracted["figures"]):
-            if not isinstance(info, dict) or float(info.get("confidence", 0)) < 0.75:
+            if not isinstance(info, dict):
+                rejected_figures.append("not_an_object")
+                continue
+            try:
+                confidence = float(info.get("confidence", 0))
+            except (ValueError, TypeError):
+                confidence = 0.0
+            if confidence < 0.75:
+                rejected_figures.append("low_or_missing_confidence")
                 continue
             coords = info.get("bbox_1000")
             if (not isinstance(coords, list) or len(coords) != 4
@@ -836,10 +868,19 @@ def extract_multimodal_page_figures(doc, page_num: int, cache_dir: Path,
                              page.rect.y0 + y0*page.rect.height/1000,
                              page.rect.x0 + x1*page.rect.width/1000,
                              page.rect.y0 + y1*page.rect.height/1000)
-            label = str(info.get("printed_label") or "").strip().lower()
-            label_match = re.fullmatch(r"(\d+)([a-z]?)", label)
-            if label and not label_match:
-                continue
+            label_raw = str(info.get("printed_label") or "").strip().lower()
+            label_match = re.fullmatch(
+                r"(?:fig(?:ure)?\\.?\\s*)?(\\d+)([a-z]?)\\.?",
+                label_raw, re.I)
+            if not label_match:
+                # The model sometimes puts the authentic "Fig. 1" label in
+                # caption instead of printed_label. Accept this exact
+                # structural format, not an inferred figure number.
+                label_match = re.match(
+                    r"\\s*(?:fig(?:ure)?\\.?\\s*)(\\d+)([a-z]?)(?![\\da-z])",
+                    str(info.get("caption") or "").lower(), re.I)
+            label = (label_match.group(1) + label_match.group(2)
+                     if label_match else "")
             content = page.get_pixmap(clip=rect, dpi=180).tobytes("png")
             path = cache_dir / f"fig_p{page_num}_scanned_{idx+1}.png"
             path.write_bytes(content)
@@ -855,9 +896,14 @@ def extract_multimodal_page_figures(doc, page_num: int, cache_dir: Path,
                 "image_sha256": hashlib.sha256(content).hexdigest(),
                 "visual_occupancy": round(
                     rect.width*rect.height/(page.rect.width*page.rect.height), 3),
-                "confidence": float(info["confidence"]),
+                "confidence": confidence,
                 "evidence_method": "APPROVED_VISION_BOX_CROPPED_FROM_SOURCE_PDF"
             })
+        progress("FIGURE_VISION_CROPS_VERIFIED", page=page_num,
+                 candidates=len(extracted["figures"]),
+                 accepted=len(figures),
+                 printed_labels=[f.get("printed_label") for f in figures],
+                 rejected=rejected_figures[:8])
     return figures
 
 
