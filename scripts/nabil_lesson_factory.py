@@ -179,157 +179,435 @@ def resolve_pedagogy_profile(entry: dict) -> dict:
 # ==============================================================================
 # 3. LLM INFERENCE ENGINE (FAIL-CLOSED)
 # ==============================================================================
-def execute_llm_completion(prompt: str, json_mode: bool = True, temperature: float = 0.0, image_base64: Optional[str] = None) -> str:
-    # Select explicitly when several server-side keys exist. Default preserves
-    # the original OpenRouter-first behavior to avoid unapproved image sharing.
-    preferred = os.getenv("NABIL_FACTORY_AI_PROVIDER", "auto").strip().lower()
-    keys = {
+_AI_PROVIDER_COOLDOWNS: Dict[str, float] = {}
+_LAST_LLM_PROVENANCE: Dict[str, Any] = {}
+
+
+def get_last_llm_provenance() -> Dict[str, Any]:
+    """Return metadata for the provider/model that actually answered last."""
+    return dict(_LAST_LLM_PROVENANCE)
+
+
+def _provider_keys() -> Dict[str, Optional[str]]:
+    return {
         "openrouter": os.getenv("OPENROUTER_API_KEY"),
         "groq": os.getenv("GROQ_API_KEY"),
         "openai": os.getenv("OPENAI_API_KEY"),
     }
-    if preferred not in ("auto", *keys):
-        raise RuntimeError(f"AI_PROVIDER_INVALID: {preferred}")
-    if preferred == "auto":
-        provider = next((name for name in ("openrouter", "groq", "openai")
-                         if keys[name]), None)
-    else:
-        provider = preferred
-    api_key = keys.get(provider) if provider else None
-    if not api_key:
-        raise RuntimeError(f"AI_PROVIDER_NOT_CONFIGURED: provider={provider or preferred}")
 
+
+def _provider_order(preferred: str, keys: Dict[str, Optional[str]]) -> List[str]:
+    """Primary provider first, then configured failover providers, no duplicates."""
+    valid = ("groq", "openrouter", "openai")
+    if preferred not in ("auto", *valid):
+        raise RuntimeError(f"AI_PROVIDER_INVALID: {preferred}")
+
+    if preferred == "auto":
+        primary = next(
+            (name for name in ("openrouter", "groq", "openai")
+             if keys.get(name)), None)
+    else:
+        primary = preferred
+
+    if not primary or not keys.get(primary):
+        raise RuntimeError(
+            f"AI_PROVIDER_NOT_CONFIGURED: provider={primary or preferred}")
+
+    raw = os.getenv(
+        "NABIL_FACTORY_AI_FAILOVER_PROVIDERS",
+        "openrouter,openai,groq",
+    )
+    requested = [
+        token.strip().lower() for token in raw.split(",") if token.strip()
+    ]
+    invalid = [name for name in requested if name not in valid]
+    if invalid:
+        raise RuntimeError(
+            "AI_PROVIDER_FAILOVER_INVALID: " + ",".join(invalid))
+
+    order = [primary]
+    for name in requested:
+        if name not in order and keys.get(name):
+            order.append(name)
+    return order
+
+
+def _vision_provider_authorized(provider: str, vision_context: Dict[str, Any],
+                                require_key: bool = True) -> bool:
+    """Check explicit owner consent for one provider/source page."""
+    consent_path = ROOT / "data/nabil_vision_consent.json"
+    if not consent_path.exists():
+        return False
+    lesson_id = str(vision_context.get("lesson_id") or "")
+    book_id = str(vision_context.get("book_id") or "")
+    try:
+        pdf_page = int(vision_context.get("pdf_page"))
+    except (TypeError, ValueError):
+        return False
+    try:
+        scopes = json.loads(
+            consent_path.read_text(encoding="utf-8")
+        ).get("approved_scopes", [])
+    except Exception:
+        return False
+
+    for item in scopes:
+        lesson_allowed = (
+            item.get("lesson_id") == lesson_id
+            or bool(
+                item.get("lesson_id_prefix")
+                and lesson_id.startswith(item["lesson_id_prefix"])
+            )
+        )
+        if (
+            lesson_allowed
+            and item.get("book_id") == book_id
+            and item.get("provider") == provider
+            and int(item["pdf_start_page"]) <= pdf_page
+            <= int(item["pdf_end_page"])
+        ):
+            if require_key and not os.getenv(f"{provider.upper()}_API_KEY"):
+                return False
+            return True
+    return False
+
+
+def _provider_request_config(provider: str, image_base64: Optional[str]):
+    keys = _provider_keys()
+    api_key = keys.get(provider)
+    if not api_key:
+        raise RuntimeError(
+            f"AI_PROVIDER_NOT_CONFIGURED: provider={provider}")
     if provider == "openrouter":
         url = "https://openrouter.ai/api/v1/chat/completions"
-        model = (os.getenv("OPENROUTER_VISION_MODEL") if image_base64 else None) or os.getenv("OPENROUTER_TEXT_MODEL", "google/gemini-2.5-flash")
+        model = (
+            os.getenv("OPENROUTER_VISION_MODEL")
+            if image_base64 else None
+        ) or os.getenv(
+            "OPENROUTER_TEXT_MODEL", "google/gemini-2.5-flash")
     elif provider == "groq":
         url = "https://api.groq.com/openai/v1/chat/completions"
-        # A text-only model must never silently receive a textbook page image.
-        model = (os.getenv("GROQ_VISION_MODEL", "qwen/qwen3.8-27b") if image_base64
-                 else os.getenv("GROQ_TEXT_MODEL", "llama-3.3-70b-versatile"))
-    else:
+        model = (
+            os.getenv("GROQ_VISION_MODEL", "qwen/qwen3.8-27b")
+            if image_base64
+            else os.getenv(
+                "GROQ_TEXT_MODEL", "llama-3.3-70b-versatile")
+        )
+    elif provider == "openai":
         url = "https://api.openai.com/v1/chat/completions"
-        model = (os.getenv("OPENAI_VISION_MODEL", "gpt-4o-mini") if image_base64
-                 else os.getenv("OPENAI_TEXT_MODEL", "gpt-4o-mini"))
+        model = (
+            os.getenv("OPENAI_VISION_MODEL", "gpt-4o-mini")
+            if image_base64
+            else os.getenv("OPENAI_TEXT_MODEL", "gpt-4o-mini")
+        )
+    else:
+        raise RuntimeError(f"AI_PROVIDER_INVALID: {provider}")
+    return api_key, url, model
 
-    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json",
-               "User-Agent": "NABIL-AI-Lesson-Factory/1.0"}
-    
-    messages_content = [{"type": "text", "text": prompt}]
+
+def _parse_rate_limit_wait_seconds(exc, detail: str,
+                                   provider_attempt: int) -> float:
+    retry_header = str(exc.headers.get("Retry-After", "")).strip()
+    try:
+        retry_after = float(retry_header)
+    except ValueError:
+        retry_after = 0.0
+    duration = re.search(
+        r"(?i)try again in\s+"
+        r"(?:(\d+(?:\.\d+)?)\s*h(?:ours?)?\s*)?"
+        r"(?:(\d+(?:\.\d+)?)\s*m(?:in(?:utes?)?)?\s*)?"
+        r"(?:(\d+(?:\.\d+)?)\s*s(?:ec(?:onds?)?)?)?",
+        detail,
+    )
+    indicated = 0.0
+    if duration and any(
+            group is not None for group in duration.groups()):
+        hours, minutes, seconds = duration.groups()
+        indicated = (
+            3600 * float(hours or 0)
+            + 60 * float(minutes or 0)
+            + float(seconds or 0)
+        )
+    return max(
+        retry_after,
+        indicated,
+        min(20.0 * max(1, provider_attempt), 90.0),
+    ) + 2.0
+
+
+def _next_provider_or_wait(candidates: List[str],
+                           cooldowns: Dict[str, float],
+                           now_mono: float):
+    """Pure scheduling helper: use an available provider or shortest cooldown."""
+    available = [
+        p for p in candidates if cooldowns.get(p, 0.0) <= now_mono
+    ]
+    if available:
+        return "provider", available[0], 0.0
+    earliest = min(candidates, key=lambda p: cooldowns.get(p, now_mono))
+    wait = max(0.0, cooldowns.get(earliest, now_mono) - now_mono)
+    return "wait", earliest, wait
+
+
+def _sanitize_provider_error(exc):
+    try:
+        raw_body = exc.read(4096).decode("utf-8", errors="replace")
+    except OSError:
+        raw_body = ""
+    content_type = str(
+        exc.headers.get("Content-Type", "")
+    ).split(";")[0].lower()
+    detail, code = "", ""
+    if raw_body:
+        try:
+            upstream = json.loads(raw_body)
+            error = (
+                upstream.get("error", upstream)
+                if isinstance(upstream, dict) else {}
+            )
+            if isinstance(error, dict):
+                detail = str(
+                    error.get("message") or error.get("detail") or "")
+                code = str(
+                    error.get("code") or error.get("type") or "")
+            elif isinstance(error, str):
+                detail = error
+        except ValueError:
+            detail = re.sub(r"<[^>]+>", " ", raw_body)
+    detail = re.sub(r"\s+", " ", detail).strip()
+    code = re.sub(r"\s+", " ", code).strip()
+    if not detail:
+        detail = (
+            "Empty or unrecognized provider response "
+            f"(content_type={content_type or 'not-provided'})"
+        )
+    for secret_name in (
+        "OPENROUTER_API_KEY", "OPENAI_API_KEY", "GROQ_API_KEY"
+    ):
+        secret = os.getenv(secret_name, "")
+        if secret:
+            detail = detail.replace(secret, "[REDACTED]")
+            code = code.replace(secret, "[REDACTED]")
+    detail = re.sub(
+        r"(?i)\b(?:sk-or-v1-|sk-)[a-z0-9_-]{8,}",
+        "[REDACTED]", detail)
+    code = re.sub(
+        r"(?i)\b(?:sk-or-v1-|sk-)[a-z0-9_-]{8,}",
+        "[REDACTED]", code)
+    return detail, code
+
+
+def execute_llm_completion(
+        prompt: str,
+        json_mode: bool = True,
+        temperature: float = 0.0,
+        image_base64: Optional[str] = None,
+        vision_context: Optional[Dict[str, Any]] = None) -> str:
+    """Execute with rate-limit failover while preserving source consent.
+
+    A 429 never sleeps on one provider while another configured, explicitly
+    authorized provider is available. If every candidate is cooling down, wait
+    only for the shortest cooldown; if that shortest wait is still too long,
+    fail fast so durable checkpoints can be resumed later instead of burning a
+    Railway session idling.
+    """
+    global _LAST_LLM_PROVENANCE
+
+    preferred = os.getenv(
+        "NABIL_FACTORY_AI_PROVIDER", "auto").strip().lower()
+    keys = _provider_keys()
+    candidates = _provider_order(preferred, keys)
+
+    # Source images may move between providers ONLY when the owner explicitly
+    # approved that exact lesson/book/page for each fallback provider.
     if image_base64:
-        messages_content.append({"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}})
+        if vision_context is None:
+            candidates = candidates[:1]
+        else:
+            candidates = [
+                p for p in candidates
+                if _vision_provider_authorized(
+                    p, vision_context, require_key=True)
+            ]
+            if not candidates:
+                raise RuntimeError(
+                    "VISION_SHARING_NOT_AUTHORIZED: no configured provider "
+                    "is approved for this source page")
 
-    payload = {
-        "model": model,
-        "messages": [{"role": "user", "content": messages_content if image_base64 else prompt}],
-        "temperature": temperature
-    }
-    if json_mode:
-        payload["response_format"] = {"type": "json_object"}
+    primary = candidates[0]
+    progress(
+        "AI_PROVIDER_FAILOVER_POOL",
+        primary=primary,
+        candidates=candidates,
+        image_request=bool(image_base64),
+        vision_context=vision_context if image_base64 else None,
+    )
 
-    req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
-    max_attempts = 5
-    for attempt in range(1, max_attempts + 1):
+    max_requests = max(
+        3, min(30, int(os.getenv(
+            "NABIL_FACTORY_MAX_FAILOVER_REQUESTS", "12"))))
+    max_all_wait = max(
+        0.0, min(1800.0, float(os.getenv(
+            "NABIL_FACTORY_MAX_ALL_PROVIDER_WAIT_SECONDS", "120"))))
+    provider_attempts = {p: 0 for p in candidates}
+    total_requests = 0
+
+    while total_requests < max_requests:
+        now_mono = time.monotonic()
+        mode, provider, wait_seconds = _next_provider_or_wait(
+            candidates, _AI_PROVIDER_COOLDOWNS, now_mono)
+
+        if mode == "wait":
+            if wait_seconds > max_all_wait:
+                remaining = {
+                    p: round(max(
+                        0.0,
+                        _AI_PROVIDER_COOLDOWNS.get(p, now_mono)
+                        - now_mono), 2)
+                    for p in candidates
+                }
+                progress(
+                    "AI_ALL_PROVIDERS_COOLING_DOWN_FAIL_FAST",
+                    candidates=candidates,
+                    remaining_seconds=remaining,
+                    shortest_provider=provider,
+                    shortest_wait_seconds=round(wait_seconds, 2),
+                    max_all_provider_wait_seconds=max_all_wait,
+                )
+                raise RuntimeError(
+                    "AI_ALL_PROVIDERS_COOLING_DOWN: "
+                    f"shortest_provider={provider} "
+                    f"wait_seconds={wait_seconds:.1f} "
+                    f"remaining={remaining}")
+            progress(
+                "AI_ALL_PROVIDERS_COOLING_DOWN_WAIT_SHORTEST",
+                provider=provider,
+                wait_seconds=round(wait_seconds, 2),
+                candidates=candidates,
+            )
+            time.sleep(wait_seconds + 0.25)
+            continue
+
+        provider_attempts[provider] += 1
+        total_requests += 1
+        api_key, url, model = _provider_request_config(
+            provider, image_base64)
+
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "User-Agent": "NABIL-AI-Lesson-Factory/1.0",
+        }
+        messages_content = [{"type": "text", "text": prompt}]
+        if image_base64:
+            messages_content.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/png;base64,{image_base64}"
+                },
+            })
+        payload = {
+            "model": model,
+            "messages": [{
+                "role": "user",
+                "content": (
+                    messages_content if image_base64 else prompt)
+            }],
+            "temperature": temperature,
+        }
+        if json_mode:
+            payload["response_format"] = {"type": "json_object"}
+
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers=headers,
+        )
+
         try:
             with urllib.request.urlopen(req, timeout=60) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 content = data["choices"][0]["message"]["content"].strip()
                 if content.startswith("```"):
-                    content = re.sub(r"^```(?:json)?\s*|\s*```$", "", content, flags=re.I).strip()
+                    content = re.sub(
+                        r"^```(?:json)?\s*|\s*```$",
+                        "", content, flags=re.I).strip()
+                _LAST_LLM_PROVENANCE = {
+                    "provider": provider,
+                    "model": model,
+                    "primary_provider": primary,
+                    "used_failover": provider != primary,
+                    "request_index": total_requests,
+                    "provider_attempt": provider_attempts[provider],
+                    "completed_at": now(),
+                }
+                if provider != primary:
+                    progress(
+                        "AI_PROVIDER_FAILOVER_SUCCESS",
+                        primary=primary,
+                        actual_provider=provider,
+                        model=model,
+                        request_index=total_requests,
+                    )
                 return content
         except urllib.error.HTTPError as exc:
-            # The AI-provider refusal is not a Google Drive or PDF download error.
-            # Include a short, sanitized explanation without disclosing API keys.
-            provider = "openrouter" if "openrouter.ai" in url else ("groq" if "groq.com" in url else "openai")
-            # Read upstream body once: Groq/edge providers may send non-JSON
-            # (including HTML or an empty 403). Never discard the only diagnostic.
-            try:
-                raw_body = exc.read(4096).decode("utf-8", errors="replace")
-            except OSError:
-                raw_body = ""
-            content_type = str(exc.headers.get("Content-Type", "")).split(";")[0].lower()
-            detail, code = "", ""
-            if raw_body:
-                try:
-                    upstream = json.loads(raw_body)
-                    error = upstream.get("error", upstream) if isinstance(upstream, dict) else {}
-                    if isinstance(error, dict):
-                        detail = str(error.get("message") or error.get("detail") or "")
-                        code = str(error.get("code") or error.get("type") or "")
-                    elif isinstance(error, str):
-                        detail = error
-                except ValueError:
-                    # Upstream access-control pages are often HTML, not JSON.
-                    detail = re.sub(r"<[^>]+>", " ", raw_body)
-            detail = re.sub(r"\s+", " ", detail).strip()
-            code = re.sub(r"\s+", " ", code).strip()
-            if not detail:
-                detail = f"Empty or unrecognized provider 403 response (content_type={content_type or 'not-provided'})"
-            for secret_name in ("OPENROUTER_API_KEY", "OPENAI_API_KEY", "GROQ_API_KEY"):
-                secret = os.getenv(secret_name, "")
-                if secret:
-                    detail, code = detail.replace(secret, "[REDACTED]"), code.replace(secret, "[REDACTED]")
-            detail = re.sub(r"(?i)\b(?:sk-or-v1-|sk-)[a-z0-9_-]{8,}", "[REDACTED]", detail)
-            code = re.sub(r"(?i)\b(?:sk-or-v1-|sk-)[a-z0-9_-]{8,}", "[REDACTED]", code)
-            if exc.code == 429 and attempt < max_attempts:
-                # Groq commonly reports a fractional "Please try again in 15.78s".
-                # Honor server's Retry-After when numeric; otherwise parse its
-                # message. Keep the same provider and same textbook page, never
-                # silently send approved book images to another provider.
-                retry_header = str(exc.headers.get("Retry-After", "")).strip()
-                try:
-                    retry_after = float(retry_header)
-                except ValueError:
-                    retry_after = 0.0
-                # A daily token ceiling often answers "5m12.336s" rather
-                # than "15.7s". Previously this was capped at 120 seconds,
-                # causing five unnecessary requests and total pilot failure.
-                duration = re.search(
-                    r"(?i)try again in\s+"
-                    r"(?:(\d+(?:\.\d+)?)\s*h(?:ours?)?\s*)?"
-                    r"(?:(\d+(?:\.\d+)?)\s*m(?:in(?:utes?)?)?\s*)?"
-                    r"(?:(\d+(?:\.\d+)?)\s*s(?:ec(?:onds?)?)?)?",
-                    detail,
-                )
-                indicated = 0.0
-                if duration and any(group is not None for group in duration.groups()):
-                    hours, minutes, seconds = duration.groups()
-                    indicated = (3600 * float(hours or 0)
-                                 + 60 * float(minutes or 0)
-                                 + float(seconds or 0))
-                wait_seconds = max(
-                    retry_after, indicated, min(20.0 * attempt, 90.0)
-                ) + 2.0
-                max_wait = max(30.0, min(3600.0, float(
-                    os.getenv("NABIL_FACTORY_MAX_RATE_LIMIT_WAIT_SECONDS", "1800")
-                )))
-                if wait_seconds > max_wait:
-                    progress(
-                        "AI_PROVIDER_RATE_LIMIT_LONG_COOLDOWN",
-                        provider=provider, model=model,
-                        required_wait_seconds=round(wait_seconds, 2),
-                        max_wait_seconds=max_wait,
-                    )
-                    raise RuntimeError(
-                        f"AI_PROVIDER_COOLDOWN_EXCEEDS_RUN_LIMIT: provider={provider} "
-                        f"model={model} wait_seconds={wait_seconds:.1f}"
-                    ) from None
-
+            detail, code = _sanitize_provider_error(exc)
+            if exc.code == 429:
+                cooldown = _parse_rate_limit_wait_seconds(
+                    exc, detail, provider_attempts[provider])
+                max_provider_wait = max(
+                    30.0, min(3600.0, float(os.getenv(
+                        "NABIL_FACTORY_MAX_RATE_LIMIT_WAIT_SECONDS",
+                        "1800"))))
+                if cooldown > max_provider_wait:
+                    # Treat a very long provider cooldown as unavailable for
+                    # this run; the other providers still get an immediate try.
+                    cooldown = max_provider_wait
+                _AI_PROVIDER_COOLDOWNS[provider] = (
+                    time.monotonic() + cooldown)
+                next_now = time.monotonic()
+                ready_alternatives = [
+                    p for p in candidates
+                    if p != provider
+                    and _AI_PROVIDER_COOLDOWNS.get(p, 0.0) <= next_now
+                ]
                 progress(
-                    "AI_PROVIDER_RATE_LIMIT_WAIT", provider=provider, model=model,
-                    attempt=attempt, max_attempts=max_attempts,
-                    wait_seconds=round(wait_seconds, 2),
-                    http_status=429, provider_code=code[:80],
+                    "AI_PROVIDER_RATE_LIMIT_FAILOVER",
+                    provider=provider,
+                    model=model,
+                    provider_attempt=provider_attempts[provider],
+                    total_requests=total_requests,
+                    cooldown_seconds=round(cooldown, 2),
+                    ready_alternatives=ready_alternatives,
+                    provider_code=code[:80],
                 )
-                time.sleep(wait_seconds)
                 continue
-            reason = detail[:360] or "No explanatory error message provided by the AI provider"
-            progress("AI_PROVIDER_REQUEST_REJECTED", provider=provider, model=model,
-                     http_status=exc.code, provider_code=code[:80], detail=reason)
+
+            reason = detail[:360]
+            progress(
+                "AI_PROVIDER_REQUEST_REJECTED",
+                provider=provider,
+                model=model,
+                http_status=exc.code,
+                provider_code=code[:80],
+                detail=reason,
+            )
             raise RuntimeError(
-                f"AI_PROVIDER_HTTP_ERROR: provider={provider} model={model} "
-                f"http_status={exc.code} provider_code={code[:80]} detail={reason}"
+                "AI_PROVIDER_HTTP_ERROR: "
+                f"provider={provider} model={model} "
+                f"http_status={exc.code} "
+                f"provider_code={code[:80]} detail={reason}"
             ) from None
+
+    remaining = {
+        p: round(max(
+            0.0, _AI_PROVIDER_COOLDOWNS.get(p, 0.0)
+            - time.monotonic()), 2)
+        for p in candidates
+    }
+    raise RuntimeError(
+        "AI_PROVIDER_FAILOVER_EXHAUSTED: "
+        f"requests={total_requests} remaining={remaining}")
 
 
 # ==============================================================================
@@ -656,38 +934,29 @@ def resolve_canonical_entry(lesson_id: str) -> dict:
     return found
 
 
-def assert_authorized_source_vision(lesson_id: str, book_id: str, pdf_page: int):
-    """Only transfer textbook images approved for this provider and source range.
-
-    A working API key or a successful AI probe never grants sharing consent.
-    """
-    consent_path = ROOT / "data/nabil_vision_consent.json"
-    if not consent_path.exists():
-        raise RuntimeError("VISION_SHARING_NOT_AUTHORIZED: consent catalog unavailable")
-    scopes = json.loads(consent_path.read_text(encoding="utf-8")).get("approved_scopes", [])
-    provider = os.getenv("NABIL_FACTORY_AI_PROVIDER", "auto").strip().lower()
-    if provider == "auto":
-        provider = next((name for name, key in (
-            ("openrouter", os.getenv("OPENROUTER_API_KEY")),
-            ("groq", os.getenv("GROQ_API_KEY")),
-            ("openai", os.getenv("OPENAI_API_KEY"))
-        ) if key), None)
-    for item in scopes:
-        lesson_allowed = (
-            item.get("lesson_id") == lesson_id
-            or bool(item.get("lesson_id_prefix")
-                    and lesson_id.startswith(item["lesson_id_prefix"]))
-        )
-        if (lesson_allowed
-                and item.get("book_id") == book_id
-                and item.get("provider") == provider
-                and int(item["pdf_start_page"]) <= pdf_page <= int(item["pdf_end_page"])):
-            if not os.getenv(f"{provider.upper()}_API_KEY"):
-                raise RuntimeError(f"AI_PROVIDER_NOT_CONFIGURED: {provider} required for approved visual evidence")
-            return
-    raise RuntimeError(
-        f"VISION_SHARING_NOT_AUTHORIZED: provider={provider} lesson_id={lesson_id} page={pdf_page}"
-    )
+def assert_authorized_source_vision(
+        lesson_id: str, book_id: str, pdf_page: int,
+        provider_override: Optional[str] = None):
+    """Require explicit owner consent for the selected provider/source page."""
+    provider = provider_override
+    if not provider:
+        provider = os.getenv(
+            "NABIL_FACTORY_AI_PROVIDER", "auto").strip().lower()
+        if provider == "auto":
+            keys = _provider_keys()
+            provider = next(
+                (name for name in ("openrouter", "groq", "openai")
+                 if keys.get(name)), None)
+    context = {
+        "lesson_id": lesson_id,
+        "book_id": book_id,
+        "pdf_page": pdf_page,
+    }
+    if not provider or not _vision_provider_authorized(
+            provider, context, require_key=True):
+        raise RuntimeError(
+            "VISION_SHARING_NOT_AUTHORIZED: "
+            f"provider={provider} lesson_id={lesson_id} page={pdf_page}")
 
 
 # ==============================================================================
