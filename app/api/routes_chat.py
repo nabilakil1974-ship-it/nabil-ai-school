@@ -5734,12 +5734,13 @@ the same lesson Visual Engine; never describe it as rendered without one.
                             "LESSON_PACKAGE_CACHE_HIT grade=%r subject=%r lesson=%r",
                             grade, subject, lesson,
                         )
-                                               cached_solution_card = build_scientific_solution_card(
+
+                        cached_solution_card = build_scientific_solution_card(
                             message=str(message or ""),
                             reply=str(cached_lesson["reply"] or ""),
                             subject=str(subject or ""),
                             drawings=cached_lesson["drawings"],
-                        )
+                        )           
 
                         return ChatResponse(
                             conversation_id=str(conversation.id),
