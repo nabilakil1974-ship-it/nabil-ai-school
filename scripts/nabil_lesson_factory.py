@@ -553,6 +553,37 @@ def execute_llm_completion(
         except urllib.error.HTTPError as exc:
             detail, code = _sanitize_provider_error(exc)
             if exc.code == 429:
+                terminal_quota_tokens = (
+                    "credit_balance_exhausted",
+                    "insufficient_quota",
+                    "billing_hard_limit_reached",
+                    "billing_not_active",
+                    "payment_required",
+                )
+                combined_error = (code + " " + detail).casefold()
+                if any(token in combined_error
+                       for token in terminal_quota_tokens):
+                    quarantine_seconds = 86400.0
+                    _AI_PROVIDER_COOLDOWNS[provider] = (
+                        time.monotonic() + quarantine_seconds)
+                    ready_alternatives = [
+                        p for p in candidates
+                        if p != provider
+                        and _AI_PROVIDER_COOLDOWNS.get(p, 0.0)
+                        <= time.monotonic()
+                    ]
+                    progress(
+                        "AI_PROVIDER_QUOTA_EXHAUSTED_FAILOVER",
+                        provider=provider,
+                        model=model,
+                        provider_attempt=provider_attempts[provider],
+                        total_requests=total_requests,
+                        quarantine_seconds=quarantine_seconds,
+                        ready_alternatives=ready_alternatives,
+                        provider_code=code[:80],
+                    )
+                    continue
+
                 cooldown = _parse_rate_limit_wait_seconds(
                     exc, detail, provider_attempts[provider])
                 max_provider_wait = max(
