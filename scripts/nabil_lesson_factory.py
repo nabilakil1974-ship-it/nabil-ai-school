@@ -908,8 +908,8 @@ def extract_multimodal_page_figures(doc, page_num: int, cache_dir: Path,
                         source_labels = {
                             m.group(1) + m.group(2).lower()
                             for m in re.finditer(
-                                r"(?i)\\bfig(?:ure)?[\\.,:]?\\s*"
-                                r"(\\d+)([a-z]?)\\s*[:;\\.,]?",
+                                r"(?i)\bfig(?:ure)?[\.,:]?\s*"
+                                r"(\d+)([a-z]?)\s*[:;\.,]?",
                                 caption_source)
                         }
                         if len(source_labels) == 1:
@@ -921,7 +921,7 @@ def extract_multimodal_page_figures(doc, page_num: int, cache_dir: Path,
                                 continue
                             label = source_label
                             label_match = re.fullmatch(
-                                r"(\\d+)([a-z]?)", label)
+                                r"(\d+)([a-z]?)", label)
                             progress("FIGURE_LABEL_LOCAL_SOURCE_VERIFIED",
                                      page=page_num, figure_label=label,
                                      caption_excerpt=caption_source[:120])
