@@ -269,8 +269,13 @@ def _inline_drive_images(service, item, markup):
     from bs4 import BeautifulSoup
     from pathlib import PurePosixPath
     soup = BeautifulSoup(markup, "html.parser")
-    images = [img for img in soup.select("img[src]")
-              if not img["src"].startswith(("data:", "http:", "https:", "/"))]
+    images = [
+    img for img in soup.select("img[src]")
+    if str(img.get("src") or "").strip()
+    and not str(img.get("src") or "").strip().startswith(
+        ("data:", "http:", "https:", "/")
+    )
+]
     if not images:
         return markup
     parents = service.files().get(fileId=item["drive_file_id"],
