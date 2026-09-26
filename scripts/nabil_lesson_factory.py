@@ -385,7 +385,7 @@ def _sanitize_provider_error(exc):
         "OPENROUTER_API_KEY", "OPENAI_API_KEY", "GROQ_API_KEY"
     ):
         secret = os.getenv(secret_name, "")
-        if secret:
+        if secret and len(secret) >= 8:
             detail = detail.replace(secret, "[REDACTED]")
             code = code.replace(secret, "[REDACTED]")
     detail = re.sub(
@@ -594,6 +594,28 @@ def execute_llm_completion(
                     http_status=exc.code,
                     cooldown_seconds=transient_cooldown,
                     provider_code=code[:80],
+                )
+                continue
+
+            if exc.code in (400, 401, 402, 403, 404, 422):
+                quarantine_seconds = 3600.0
+                _AI_PROVIDER_COOLDOWNS[provider] = (
+                    time.monotonic() + quarantine_seconds)
+                ready_alternatives = [
+                    p for p in candidates
+                    if p != provider
+                    and _AI_PROVIDER_COOLDOWNS.get(p, 0.0)
+                    <= time.monotonic()
+                ]
+                progress(
+                    "AI_PROVIDER_UNAVAILABLE_FAILOVER",
+                    provider=provider,
+                    model=model,
+                    http_status=exc.code,
+                    quarantine_seconds=quarantine_seconds,
+                    ready_alternatives=ready_alternatives,
+                    provider_code=code[:80],
+                    detail=detail[:240],
                 )
                 continue
 
