@@ -32,6 +32,12 @@ from typing import Dict, List, Any, Optional, Tuple
 sys.path.insert(0, "/app")
 sys.path.insert(0, os.path.abspath("."))
 
+# ================================================================================
+# 🟦 شرح عربي — وحدات الإثراء الخارجية
+# هنا يتم استيراد: الترجمة + محرك المختبرات الموثقة + محرك الـQuiz.
+# المختبر نفسه لا يُرسم بالكامل في هذا الملف؛ render_verified_lab يأتي من
+# scripts/nabil_interactive_lab.py ويُستدعى لاحقاً من قلب بناء الدرس.
+# ================================================================================
 # وحدات الإثراء الحقيقية: تعريب + مختبر موثق + Quiz كامل التغطية.
 from scripts.nabil_i18n import resolve_lang_code, html_dir_attr, narrative_language_instruction, t as ui_t
 from scripts.nabil_interactive_lab import render_verified_lab, validate_lab_spec
@@ -126,6 +132,12 @@ def assert_no_markdown_urls_in_runtime_code(source_code: str):
 
 
 # ==============================================================================
+# ================================================================================
+# 🟨 شرح عربي — طريقة التعليم حسب العمر والمادة
+# PEDAGOGY_PROFILES تحدد أسلوب L1/L2/L3.
+# SUBJECT_PROFILES تحدد تسلسل Physics/Chemistry/Biology/Mathematics/Science.
+# هذه المنطقة تقول للمصنع أي تسلسل تربوي مناسب، لكنها لا تعرض HTML بنفسها.
+# ================================================================================
 # 2. UNIVERSAL PEDAGOGY & CURRICULUM PROFILES
 # ==============================================================================
 PEDAGOGY_PROFILES = {
@@ -1141,6 +1153,11 @@ def extract_page_text_robust(doc, page_num: int, lesson_id: str, book_id: str, c
     return json.loads(res).get("text", "")
 
 
+# ================================================================================
+# 🟪 شرح عربي — استخراج الرسومات الحقيقية من الكتاب
+# هذه الدالة تبحث عن الصور/الرسومات داخل PDF وتحفظها كدليل بصري.
+# مهم: هذه ليست بطاقة الرسم الجديدة؛ هي مرحلة استخراج Evidence فقط.
+# ================================================================================
 def extract_multimodal_page_figures(doc, page_num: int, cache_dir: Path,
                                     lesson_id: str, book_id: str) -> List[Dict[str, Any]]:
     """Find actual figure regions. A scanned full-page bitmap is not a figure."""
@@ -2620,6 +2637,14 @@ def solve_exercise_on_demand_payload(lesson_id: str, sec_type: str, ex_num: int)
 # ==============================================================================
 # 8. EVIDENCE-DRIVEN SYNTHESIS
 # ==============================================================================
+# ================================================================================
+# 🟩 الشرح — بداية توليد شرح المفهوم
+# هذه الدالة synthesize_concept_narrative هي التي تطلب من الذكاء الاصطناعي
+# تحويل دليل الكتاب إلى: phenomenon / investigation / observation /
+# interpretation / conclusion.
+# ملاحظة مهمة: في BASE v25 لا يوجد بعد teacher_explanation و explanation_steps
+# بالشكل الغني الذي اتفقنا عليه لاحقاً؛ لذلك هذه نقطة تطوير أساسية.
+# ================================================================================
 def synthesize_concept_narrative(
         concept: dict, profile: dict,
         figure_image_base64: Optional[str] = None,
@@ -2674,6 +2699,12 @@ def _deduction_question(lang_code: str, title: str) -> str:
     return f"Which scientific deduction is confirmed by the evidence for '{title}'?"
 
 
+# ================================================================================
+# 🧪 المختبرات — بناء مواصفة المختبر Lab Spec
+# هنا يقرر المصنع هل الدليل يسمح بمختبر موثق أم لا.
+# الأنواع القديمة المدعومة فقط: FORMULA_CALCULATOR / ORIENTATION_INVARIANT / SHAPE_RESPONSE.
+# إذا الدليل لا يكفي يرجع supported=false ولا يخترع تجربة.
+# ================================================================================
 def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile: dict,
                             figure_image_base64: Optional[str] = None,
                             vision_context: Optional[Dict[str, Any]] = None) -> dict:
@@ -2765,6 +2796,10 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
     return spec
 
 
+# ================================================================================
+# ❤️ قلب الدرس — يجمع الشرح + الرسم المصدر + المختبر + الأسئلة + البطاقة النهائية
+# هنا يتم المرور على كل Concept وربطه بالدليل الحقيقي.
+# ================================================================================
 def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> dict:
     # هذا هو قلب الشرح: نفهم المفهوم من الدليل، نشرحه تربوياً، ثم نضيف Lab فقط إذا كان موثقاً.
     title = entry["canonical_title"]
@@ -2788,6 +2823,11 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
                         with open(f["image_path"], "rb") as fh:
                             b64 = base64.b64encode(fh.read()).decode("ascii")
                         fig_images.append(f["image_path"])
+# -------------------------------------------------------------------------------
+# 🖼️ الرسم داخل صفحة الدرس — الشكل القديم
+# هنا تُعرض صورة الشكل المستخرجة من الكتاب داخل <img> ويمكن تكبيرها.
+# هذه ليست بعد بطاقة الرسم المرجعية الجديدة ذات الأعمدة والأفاتار.
+# -------------------------------------------------------------------------------
                         fig_html += f'''<div class="figure" style="text-align:center; margin:14px 0;">
                             <img src="data:image/png;base64,{b64}" alt="{html.escape(c['title'])}" onclick="zoomImage(this)" style="max-width:100%; height:auto; border-radius:8px; border:1px solid #cbd5e1; cursor:zoom-in; transition: transform 0.2s;"/>
                             <div style="font-size:12px; color:#64748b; margin-top:4px;">Source figure • p. {p_num}</div>
@@ -2821,10 +2861,16 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
             "pdf_page": p_num,
         } if figure_image_base64 else None)
 
+# -------------------------------------------------------------------------------
+# 🧠 هنا يتم استدعاء مولّد الشرح الفعلي للمفهوم.
+# -------------------------------------------------------------------------------
         narrative = synthesize_concept_narrative(
             c, profile, figure_image_base64,
             vision_context=vision_context)
 
+# -------------------------------------------------------------------------------
+# 🧪 هنا يتم: بناء Lab Spec ثم تحويله إلى HTML تفاعلي عبر render_verified_lab.
+# -------------------------------------------------------------------------------
         lab_spec = build_verified_lab_spec(
             entry, c, narrative, profile,
             figure_image_base64=figure_image_base64,
@@ -2835,6 +2881,9 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
             all_labs_html.append(lab_html)
             has_active_sim = True
 
+# -------------------------------------------------------------------------------
+# ❓ هنا يُبنى سؤال تحقق بعد المفهوم، مع جواب صحيح ومشتتين.
+# -------------------------------------------------------------------------------
         question_text = _deduction_question(lang_code, c["title"])
         activity = {
             "activity_num": c["concept_id"].replace("C", ""),
@@ -2893,6 +2942,11 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
     quiz_items = build_full_quiz_items(activities_theory)
     quiz_html = render_quiz_html(quiz_items, lang_code)
 
+# ================================================================================
+# 🟦 البطاقة الأخيرة القديمة — Golden Reference Card
+# هذه بطاقة خلاصة للمفاهيم والقوانين والمصطلحات، وليست بطاقة الرسم الجديدة.
+# في BASE v25 هي Grid من panels، كل Panel فيه عنوان المفهوم + Conclusion + formulas/units.
+# ================================================================================
     ref_card_html = f'''
     <div id="goldenReferenceCard" style="margin-top:28px;background:linear-gradient(135deg,#f8fafc 0%,#f1f5f9 100%);border:2px solid #0284c7;border-radius:14px;padding:20px;box-shadow:0 4px 12px rgba(2,132,199,0.08);">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;border-bottom:2px solid #0284c7;padding-bottom:12px;">
@@ -2925,6 +2979,12 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
 # ==============================================================================
 # 9. TWIN-PAGE HTML COMPILATION
 # ==============================================================================
+# ================================================================================
+# 📘 صفحة الدرس A
+# تعرض: مفهوم → phenomenon → investigation → الرسم المصدر → المختبر →
+# observation → interpretation → conclusion → سؤال تحقق.
+# ثم Worksheet + Quiz + Golden Reference Card في النهاية.
+# ================================================================================
 def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict) -> str:
     # صفحة الدرس: الشرح المتسلسل + الشكل/المختبر عند الحاجة + التقييم + البطاقة النهائية.
     clean_title = html.escape(re.sub(r'^\\s*\\d{2,3}\\s*(?:--|[-_ ]+)\\s*', '', entry["canonical_title"]))
@@ -2944,7 +3004,13 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict) -> str:
           <h3 style="color:#0369a1;margin-top:0;">{act["activity_num"]}. {html.escape(act["title"])}</h3>
           <p><b>{html.escape(ui_t(lang_code, "phenomenon"))}:</b> {html.escape(act["phenomenon"])}</p>
           <p><b>{html.escape(ui_t(lang_code, "investigation"))}:</b> {html.escape(act["investigation"])}</p>
+# -------------------------------------------------------------------------------
+# 🖼️ هنا يدخل الشكل/الصورة في تسلسل الشرح داخل صفحة الدرس.
+# -------------------------------------------------------------------------------
           {act["visual_html"]}
+# -------------------------------------------------------------------------------
+# 🧪 هنا يدخل المختبر مباشرة بعد الرسم في صفحة الدرس.
+# -------------------------------------------------------------------------------
           {act.get("lab_html", "")}
           <p><b>{html.escape(ui_t(lang_code, "observation"))}:</b> {html.escape(act["observation"])}</p>
           <p><b>{html.escape(ui_t(lang_code, "interpretation"))}:</b> {html.escape(act["interpretation"])}</p>
@@ -3014,6 +3080,9 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict) -> str:
     </div>
     {ws_items}
   </div>
+# -------------------------------------------------------------------------------
+# 📝 هنا يظهر الـQuiz ثم البطاقة النهائية القديمة في آخر صفحة الدرس.
+# -------------------------------------------------------------------------------
   {theory.get("quiz_html", "")}
   {theory.get("reference_card_html", "")}
 </div>
@@ -3042,6 +3111,11 @@ function gradeWs(btn,isCorrect,exp){{
 </html>'''
 
 
+# ================================================================================
+# 🧩 صفحة التمارين B
+# هذه الصفحة تعرض تمارين الكتاب/الممارسة، الشكل المرتبط بالتمرين،
+# والحل Step-by-Step أو زر الحل عند الطلب.
+# ================================================================================
 def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: dict) -> str:
     clean_title = html.escape(re.sub(r'^\s*\d{2,3}\s*(?:--|[-_ ]+)\s*', '', entry["canonical_title"]))
     clean_title = html.escape(re.sub(r'\s+\d{2,3}$', '', clean_title).strip())
@@ -3066,6 +3140,11 @@ def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: di
             )
             card_title = f"Additional Practice {ex_num}"
 
+# -------------------------------------------------------------------------------
+# 🖼️ رسم التمرين القديم
+# إذا للتمرين figure_refs موثقة، يعرض صورة المصدر داخل بطاقة التمرين.
+# لا يوجد هنا بعد Scientific Solution Card الجديدة ذات التخطيط المرجعي.
+# -------------------------------------------------------------------------------
         ex_fig_html = ""
         if ex.get("figure_refs"):
             for p in ev_map["pages_evidence"]:
@@ -3082,6 +3161,11 @@ def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: di
                                 pass
                             break
 
+# -------------------------------------------------------------------------------
+# ✅ حل التمرين
+# إذا PRE_SOLVED: يستعمل الحل المحسوب/المتحقق منه ويعرض Steps + Final Answer.
+# وإلا يعرض زر Solve On-Demand.
+# -------------------------------------------------------------------------------
         if ex["solution_mode"] == "PRE_SOLVED":
             sol = ex.get("_pre_solved_solution")
             if sol is None:
@@ -3274,6 +3358,10 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
     expected_p = s_lock["end"] - s_lock["start"] + 1
     check("SOURCE_COVERAGE_INCOMPLETE", len(ev_map["pages_evidence"]) == expected_p, "CRITICAL", f"{len(ev_map['pages_evidence'])}/{expected_p} pages")
 
+# ================================================================================
+# 🚧 Quality Gates
+# هذه المنطقة تمنع نجاح الدرس إذا بقيت رسومات غير موثقة أو أسئلة/مختبرات ناقصة.
+# ================================================================================
     unresolved_figures = {
         p["page_num"]: p.get("unverified_figure_labels", [])
         for p in ev_map["pages_evidence"]
@@ -3332,6 +3420,10 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
 
     check("PRE_SOLVE_FAILED", all(e["solution_status"] == "SOLVED" for e in candidate["exercises"] if e["solution_mode"] == "PRE_SOLVED"), "CRITICAL", "Pre-solved exercises unverified")
     check("WORKSHEET_NOT_GRADABLE", all("correct_index" in q for q in candidate["theory"]["worksheet"]), "CRITICAL", "Worksheet grading keys")
+# -------------------------------------------------------------------------------
+# 🟦 Gate البطاقة الأخيرة: يتأكد فقط من وجود goldenReferenceCard.
+# لا يفحص بعد جودة بطاقة الرسم الجديدة لأنها غير موجودة في BASE v25.
+# -------------------------------------------------------------------------------
     check("REFERENCE_CARD_CONTENT_INCOMPLETE", "goldenReferenceCard" in candidate["page_a_html"], "CRITICAL", "Golden reference card missing")
 
     # التقييم يجب أن يغطي كل المفاهيم، وليس أول خمسة فقط.
@@ -3345,6 +3437,9 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
           "CRITICAL", "Full quiz HTML missing")
 
     # أي مختبر معلن يجب أن يكون تفاعلاً حقيقياً موثقاً، لا بطاقة أو Stub.
+# -------------------------------------------------------------------------------
+# 🧪 Gates المختبرات: يتحقق من المختبرات المدعومة داخل activities.
+# -------------------------------------------------------------------------------
     lab_activities = [a for a in activities if (a.get("lab_spec") or {}).get("supported") is True]
     for act in lab_activities:
         lab_html = act.get("lab_html") or ""
