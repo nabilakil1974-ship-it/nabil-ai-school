@@ -451,3 +451,17 @@ Still required before production PASS: push/build, Railway deployed SHA, actual 
 - Commit `d0b2bbad16ca191c3f8681dc50a20d4a8b342024` deployed successfully and the new script/theme/button were present live.
 - Live browser testing found the visible worksheet button did not open its panel: a later legacy script can rebuild the control node after the original direct click listener is attached.
 - Fixed with delegated document-level click handling and cache-busted worksheet script v2. A new build/deploy and live retest are required before PASS.
+
+
+## OWNER NON-NEGOTIABLE ENGINEERING RULE — 2026-09-26
+
+Effective immediately for NABIL AI and the lesson factory:
+
+- Do not use stubs, mocks, placeholders, fabricated values, fake progress, synthetic success states, or shortcut implementations in place of real execution.
+- Do not take an easier path that bypasses the owner's required real workflow, source verification, end-to-end processing, or production integration.
+- A feature is not complete because its interface, command, function name, report, or status exists. Completion requires the underlying real work to execute and be verified against the actual source/system.
+- Never manufacture missing textbook content, lesson metadata, figures, page references, exercise answers, file IDs, Drive outputs, provider results, QA results, or completion states. If evidence/input/access is missing, fail closed and report the exact blocker.
+- Test fixtures/mocks are allowed only inside explicitly isolated automated tests when clearly labeled as test-only and must never be presented as production evidence or substitute for a real end-to-end acceptance test.
+- Prefer the correct complete engineering solution over an easy workaround. Any temporary fallback must preserve correctness, be explicitly labeled, and must not weaken scientific/source/quality gates.
+
+**Acceptance rule:** any implementation that appears to work only because of dummy data, hardcoded lesson-specific content, mocked provider/Drive behavior, skipped real execution, or a superficial command/status is a FAIL.
