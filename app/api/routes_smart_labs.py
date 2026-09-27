@@ -145,10 +145,11 @@ def _verify_question_locked_spec(spec: dict[str, Any], question: str) -> dict[st
 
 
 def _standalone_html(lab_html: str, lang: str, title: str) -> str:
-    # The lab renderer escapes all model-provided student text. This wrapper
-    # only supplies the same speech contract used on NABIL lesson pages.
+    # The lab renderer escapes all model-provided student text. Source images
+    # never enter this wrapper. Voice prefers the server's male neural NABIL
+    # voices; browser speech is only a male-first fallback.
     title_safe = html_lib.escape(title or "NABIL Smart Lab")
-    speech_lang = {"ar": "ar-LB", "fr": "fr-FR", "en": "en-US"}[lang]
+    speech_lang = {"ar": "ar-SA", "fr": "fr-FR", "en": "en-US"}[lang]
     return f"""<!doctype html>
 <html lang="{lang}" dir="{'rtl' if lang == 'ar' else 'ltr'}">
 <head>
@@ -156,22 +157,60 @@ def _standalone_html(lab_html: str, lang: str, title: str) -> str:
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>{title_safe}</title>
 <style>
-html,body{{margin:0;padding:0;background:#f8fafc;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}}
-body{{padding:10px;box-sizing:border-box}}
-button,input{{font:inherit}}
+html,body{{margin:0;padding:0;background:#05172d;color:#eef8ff;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;overflow-x:hidden}}
+body{{padding:10px;box-sizing:border-box;max-width:100vw}}
+button,input,select{{font:inherit;min-height:44px}}
+svg,canvas,img{{display:block;max-width:100%!important;height:auto!important}}
+.interactive-lab,.nabil-reference-smart-lab,.nabil-smart-lab{{max-width:100%!important;min-width:0!important;box-sizing:border-box!important}}
+@media(max-width:430px){{
+ body{{padding:6px}}
+ .interactive-lab,.nabil-reference-smart-lab,.nabil-smart-lab{{border-radius:12px!important;padding:8px!important}}
+ button,input,select{{max-width:100%!important}}
+}}
 </style>
 <script>
+let nabilStandaloneAudio=null;
+function nabilMaleBrowserVoice(raw){{
+  const code=raw.startsWith("fr")?"fr":raw.startsWith("en")?"en":"ar";
+  const prefix=code==="fr"?"fr":code==="en"?"en":"ar";
+  const hints=code==="ar"?["hamed","naayf","maged","tarik","male"]:
+              code==="fr"?["henri","paul","claude","male"]:
+                           ["guy","david","mark","ryan","george","male"];
+  const voices=speechSynthesis?.getVoices?.()||[];
+  const scoped=voices.filter(v=>String(v.lang||"").toLowerCase().startsWith(prefix));
+  return scoped.find(v=>hints.some(h=>String(v.name||"").toLowerCase().includes(h)))
+      ||scoped.find(v=>v.localService)||scoped[0]||null;
+}}
+async function nabilStandaloneSpeak(text,language){{
+  const spoken=String(text||"").trim(); if(!spoken)return;
+  const raw=String(language||"{lang}").toLowerCase();
+  const label=raw.startsWith("fr")?"Français":raw.startsWith("en")?"English":"العربية";
+  try{{
+    if(nabilStandaloneAudio){{nabilStandaloneAudio.pause();nabilStandaloneAudio=null}}
+    speechSynthesis?.cancel?.();
+    const body=new FormData();body.append("text",spoken);body.append("language",label);
+    const response=await fetch("/api/tts",{{method:"POST",body}});
+    if(response.ok){{
+      const blob=await response.blob();const url=URL.createObjectURL(blob);
+      const audio=new Audio(url);nabilStandaloneAudio=audio;
+      audio.onended=()=>{{URL.revokeObjectURL(url);if(nabilStandaloneAudio===audio)nabilStandaloneAudio=null}};
+      audio.onerror=()=>URL.revokeObjectURL(url);
+      await audio.play();return;
+    }}
+  }}catch(_e){{}}
+  try{{
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(spoken);
+    u.lang=raw.startsWith("fr")?"fr-FR":raw.startsWith("en")?"en-US":"{speech_lang}";
+    u.voice=nabilMaleBrowserVoice(raw);u.rate=.88;speechSynthesis.speak(u);
+  }}catch(_e){{}}
+}}
 window.NABILLessonE2E={{
-  stopSpeech:function(){{try{{speechSynthesis.cancel()}}catch(_e){{}}}},
-  speak:function(text,language){{
-    try{{
-      speechSynthesis.cancel();
-      const u=new SpeechSynthesisUtterance(String(text||""));
-      const raw=String(language||"{lang}").toLowerCase();
-      u.lang=raw.startsWith("fr")?"fr-FR":raw.startsWith("en")?"en-US":"{speech_lang}";
-      u.rate=.88;speechSynthesis.speak(u);
-    }}catch(_e){{}}
-  }}
+  stopSpeech:function(){{
+    try{{if(nabilStandaloneAudio){{nabilStandaloneAudio.pause();nabilStandaloneAudio=null}}}}catch(_e){{}}
+    try{{speechSynthesis.cancel()}}catch(_e){{}}
+  }},
+  speak:nabilStandaloneSpeak
 }};
 </script>
 </head>
