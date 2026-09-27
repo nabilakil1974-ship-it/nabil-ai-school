@@ -3196,6 +3196,38 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
                 )
             hashes = [f["image_sha256"] for f in p["figures"] if f["figure_id"] in refs]
             subqs = row.get("subquestions") or []
+
+            # When an exercise depends on a verified source figure, NABIL must
+            # redraw its semantics instead of exposing the textbook crop.
+            if refs and reconstructed is None:
+                source_figure_paths = [
+                    f["image_path"] for f in p["figures"]
+                    if f["figure_id"] in refs and f.get("image_path")
+                ]
+                reconstructed = build_nabil_explanatory_redrawing(
+                    source_text=(
+                        str(content) + "\n" +
+                        "\n".join(str(x) for x in subqs)
+                    ),
+                    page_num=page_num,
+                    figure_paths=source_figure_paths,
+                    vision_context={
+                        "lesson_id": lesson_id,
+                        "book_id": book_id,
+                        "pdf_page": page_num,
+                    } if source_figure_paths else None,
+                    purpose=f"exercise_{kind}_{number}",
+                    visual_required=True,
+                )
+                if reconstructed is None and req_fig:
+                    progress(
+                        "SKIPPED_EXERCISE_NABIL_REDRAW_UNVERIFIED",
+                        page=page_num,
+                        number=number,
+                        reason="SOURCE_FIGURE_CANNOT_BE_SAFELY_REPRESENTED_WITHOUT_SCAN",
+                    )
+                    continue
+
             ex = {
                 "exercise_id": f"{lesson_id}-{kind[:2]}-{number:02d}",
                 "lesson_id": lesson_id, "section_type": kind, "number": number,
