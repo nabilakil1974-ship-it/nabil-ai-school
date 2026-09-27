@@ -6768,16 +6768,37 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
     check(
         "GEOMETRY_VISUAL_PROOF_MARKS_MISSING",
         all(
-            'data-visual-proof-marks=' in str(a.get("lab_html") or "")
+            'data-proof-marks="evidence-gated"' in str(a.get("lab_html") or "")
             and 'data-teacher-pointer="sentence-synced"' in str(a.get("lab_html") or "")
             and all(
                 str(mark.get("evidence_quote") or "").strip()
                 for mark in ((a.get("lab_spec") or {}).get("marks") or [])
             )
+            and all(
+                str(step.get("evidence_quote") or "").strip()
+                and isinstance(step.get("target_ids") or [], list)
+                for step in ((a.get("lab_spec") or {}).get("proof_steps") or [])
+            )
             for a in geometry_acts
         ),
         "CRITICAL",
         "Geometry proof labs must reveal evidence-backed equality/angle/perpendicular/parallel/midpoint/symmetry marks while NABIL explains",
+    )
+    check(
+        "SENTENCE_POINTER_SYNC_MISSING",
+        all(
+            'data-teacher-pointer="sentence-synced"' in str(a.get("lab_html") or "")
+            for a in candidate["theory"].get("activities", [])
+            if a.get("has_active_sim")
+        )
+        and all(
+            'data-teacher-pointer="sentence-synced"' in str(
+                e.get("_prebuilt_lab_html") or "")
+            for e in candidate.get("exercises") or []
+            if e.get("_prebuilt_lab_active")
+        ),
+        "CRITICAL",
+        "Every concept/exercise lab must expose sentence-synchronized NABIL pointer behavior",
     )
 
 
