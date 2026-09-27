@@ -1103,17 +1103,34 @@ def assert_authorized_source_vision(
 def extract_page_text_robust(doc, page_num: int, lesson_id: str, book_id: str, cache_dir: Path) -> str:
     page = doc[page_num - 1]
     txt = (page.get_text() or "").strip()
-    if len(txt) >= 60:
+    scanned = any(
+        (rect.width * rect.height) / (page.rect.width * page.rect.height) >= 0.80
+        for image in page.get_images(full=True)
+        for rect in page.get_image_rects(image[0])
+    )
+    # A scanned textbook can contain a partial/low-quality hidden OCR layer.
+    # For source segmentation, re-read the real page locally at high resolution
+    # instead of accepting a merely "long enough" hidden text layer.
+    if len(txt) >= 60 and not scanned:
         return txt
 
     if shutil.which("tesseract"):
         try:
-            pix = page.get_pixmap(dpi=200)
+            pix = page.get_pixmap(dpi=300 if scanned else 220)
             with tempfile.NamedTemporaryFile(suffix=".png") as img_tmp:
                 pix.save(img_tmp.name)
-                res = subprocess.run(["tesseract", img_tmp.name, "stdout", "-l", "eng+fra+ara", "--oem", "1"], capture_output=True, text=True, timeout=30)
+                res = subprocess.run(
+                    ["tesseract", img_tmp.name, "stdout", "-l", "eng+fra+ara",
+                     "--oem", "1", "--psm", "3"],
+                    capture_output=True, text=True, timeout=45)
                 ocr_txt = res.stdout.strip()
                 if len(ocr_txt) >= 60:
+                    progress(
+                        "SOURCE_PAGE_LOCAL_OCR_SELECTED",
+                        page=page_num,
+                        scanned=scanned,
+                        chars=len(ocr_txt),
+                    )
                     return ocr_txt
         except Exception:
             pass
@@ -2628,30 +2645,115 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
         pages_evidence.append(page_evidence)
 
     concepts = []
-    act_regex = re.compile(r"(?:Activity|Activité|نشاط|Section|Partie|Chapitre|فقرة)\s*(\d*)[:\s.-]+([^\n.]+)", re.I)
-    for p in pages_evidence:
-        page_doc = doc[p["page_num"] - 1]
-        for m in act_regex.finditer(p["text"]):
-            act_num = int(m.group(1)) if m.group(1) else len(concepts) + 1
-            act_title = m.group(2).strip()
-            chunk = " ".join(p["text"][m.start():m.start() + 500].split())
-            matched_figs = match_figure_to_item({"raw_text": chunk, "requires_figure": False}, p["figures"], page_doc.rect)
-            fig_ref = matched_figs[0] if matched_figs else "NONE"
-            
-            rects = page_doc.search_for(act_title[:20])
-            act_bbox = [round(rects[0].x0, 1), round(rects[0].y0, 1), round(rects[0].x1, 1), round(rects[0].y1, 1)] if rects else [0.0, 0.0, page_doc.rect.width, 100.0]
+    act_regex = re.compile(
+        r"(?:Activity|Activité|نشاط)\s*(\d*)[:\s.-]+([^\n.]+)", re.I)
+    numbered_section_regex = re.compile(
+        r"(?im)^\s*(\d+)\s+([A-ZÀ-ÖØ-Ý][^\n]{2,90})")
 
-            norm_chunk, math_ok, math_recs = MathRenderingEngine.normalize_math(chunk, p["page_num"], act_bbox, fig_ref)
+    def _concept_title_key(value: str) -> str:
+        return re.sub(r"[^a-z0-9]+", " ", str(value or "").casefold()).strip()
+
+    next_concept_num = 1
+    for p in pages_evidence:
+        page_text = str(p["text"] or "")
+        if re.search(
+                r"(?i)\b(exercises|problems|exercices|problèmes)\b|تمارين|مسائل",
+                page_text):
+            continue
+        page_doc = doc[p["page_num"] - 1]
+        activity_matches = list(act_regex.finditer(page_text))
+        headings = []
+        for m in activity_matches:
+            headings.append({
+                "start": m.start(),
+                "end_head": m.end(),
+                "title": m.group(2).strip(),
+                "declared_num": (
+                    int(m.group(1)) if str(m.group(1) or "").isdigit()
+                    else None),
+                "kind": "ACTIVITY",
+            })
+
+        # Standalone numbered content after the last activity is still part of
+        # the lesson (notably explanatory sections that are not called Activity).
+        # Ignore broad numbered section headers that merely precede activities.
+        last_activity_start = (
+            max((m.start() for m in activity_matches), default=-1))
+        for m in numbered_section_regex.finditer(page_text):
+            title = m.group(2).strip(" .:-")
+            key = _concept_title_key(title)
+            if not key or key == _concept_title_key(entry["canonical_title"]):
+                continue
+            if activity_matches and m.start() < last_activity_start:
+                continue
+            if re.search(r"(?i)chapter|contents|objectives|exercise", title):
+                continue
+            # Avoid duplicating an Activity heading that OCR also exposed as a
+            # bare numbered heading.
+            if any(
+                key == _concept_title_key(h["title"])
+                or key in _concept_title_key(h["title"])
+                or _concept_title_key(h["title"]) in key
+                for h in headings
+            ):
+                continue
+            headings.append({
+                "start": m.start(),
+                "end_head": m.end(),
+                "title": title,
+                "declared_num": None,
+                "kind": "SECTION",
+            })
+
+        headings.sort(key=lambda h: h["start"])
+        for pos, heading in enumerate(headings):
+            end = (
+                headings[pos + 1]["start"]
+                if pos + 1 < len(headings)
+                else len(page_text)
+            )
+            raw_chunk = page_text[heading["start"]:end].strip()
+            chunk = " ".join(raw_chunk.split())
+            if len(chunk) < 25:
+                continue
+
+            concept_num = heading["declared_num"]
+            if concept_num is None or any(
+                    x.get("concept_id") == f"C{concept_num:02d}"
+                    for x in concepts):
+                while any(
+                        x.get("concept_id") == f"C{next_concept_num:02d}"
+                        for x in concepts):
+                    next_concept_num += 1
+                concept_num = next_concept_num
+            next_concept_num = max(next_concept_num, concept_num + 1)
+
+            matched_figs = match_figure_to_item(
+                {"raw_text": chunk, "requires_figure": False},
+                p["figures"], page_doc.rect)
+            fig_ref = matched_figs[0] if matched_figs else "NONE"
+
+            rects = page_doc.search_for(heading["title"][:20])
+            act_bbox = (
+                [round(rects[0].x0, 1), round(rects[0].y0, 1),
+                 round(rects[0].x1, 1), round(rects[0].y1, 1)]
+                if rects
+                else [0.0, 0.0, page_doc.rect.width, 100.0]
+            )
+            norm_chunk, math_ok, math_recs = MathRenderingEngine.normalize_math(
+                chunk, p["page_num"], act_bbox, fig_ref)
 
             concepts.append({
-                "concept_id": f"C{act_num:02d}",
-                "title": act_title,
+                "concept_id": f"C{concept_num:02d}",
+                "title": heading["title"],
                 "source_page": p["page_num"],
                 "raw_text": chunk,
                 "normalized_text": norm_chunk,
                 "figure_refs": matched_figs,
                 "math_records": math_recs,
-                "sha256": hashlib.sha256(chunk.encode("utf-8")).hexdigest()[:16]
+                "source_section_kind": heading["kind"],
+                "sha256": hashlib.sha256(
+                    chunk.encode("utf-8")).hexdigest()[:16],
             })
 
     if not concepts:
