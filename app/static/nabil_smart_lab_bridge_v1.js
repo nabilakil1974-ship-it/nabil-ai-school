@@ -139,7 +139,20 @@ function wireExerciseCards(){
   card.dataset.nabilLabWired="1";
   const btn=qs(".nabil-explain-lab-btn",card);
   if(!btn)return;
-  btn.addEventListener("click",()=>buildQuestionLab(cleanSource(qs(".nabil-exercise-prompt",card)||card),btn));
+  const holder=qs(".nabil-prebuilt-exercise-lab",card);
+  const prebuilt=holder?qs(".interactive-lab",holder):null;
+  if(prebuilt){
+   btn.dataset.nabilLabSource="prebuilt";
+   btn.addEventListener("click",()=>{
+    holder.hidden=false;
+    playOneExistingLab(prebuilt);
+   });
+   return;
+  }
+  // Only non-indexed/free-form tasks may ask the runtime AI for a new lab.
+  btn.dataset.nabilLabSource="runtime-ai-fallback";
+  btn.addEventListener("click",()=>buildQuestionLab(
+    cleanSource(qs(".nabil-exercise-prompt",card)||card),btn));
  });
 }
 function wireLessonQuestionTool(){
