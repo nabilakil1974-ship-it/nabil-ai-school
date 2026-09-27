@@ -149,10 +149,16 @@ function wireExerciseCards(){
    });
    return;
   }
-  // Only non-indexed/free-form tasks may ask the runtime AI for a new lab.
-  btn.dataset.nabilLabSource="runtime-ai-fallback";
-  btn.addEventListener("click",()=>buildQuestionLab(
-    cleanSource(qs(".nabil-exercise-prompt",card)||card),btn));
+  // Factory exercise pages are indexed artifacts. Missing prebuilt lab is a
+  // publication defect, never a reason to generate a fresh AI lab per student.
+  btn.dataset.nabilLabSource="missing-prebuilt";
+  btn.addEventListener("click",()=>showMessage(
+    langCode()==="ar"
+      ?"هذا التمرين المفهرس لم يصل معه مختبره الجاهز. يجب إعادة نشر الدرس."
+      :langCode()==="fr"
+        ?"Le laboratoire préconstruit de cet exercice indexé manque. La leçon doit être republiée."
+        :"This indexed exercise is missing its prebuilt lab. The lesson must be republished."
+  ));
  });
 }
 function wireLessonQuestionTool(){
