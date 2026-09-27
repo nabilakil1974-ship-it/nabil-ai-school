@@ -4582,6 +4582,7 @@ def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: di
 {MathRenderingEngine.inject_mathjax_head()}
 <script defer src="/static/nabil_scientific_solution_cards_e2e.js?v=3"></script>
 <script defer src="/static/nabil_lesson_e2e_runtime_v1.js?v=1"></script>
+<script defer src="/static/nabil_smart_lab_bridge_v1.js?v=1"></script>
 <style>
   :root {{ --primary: #0284c7; --bg: #f8fafc; --card: #ffffff; --text: #0f172a; --text-muted: #64748b; }}
   body {{ font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 16px; overflow-x: hidden; max-width: 100vw; box-sizing: border-box; }}
