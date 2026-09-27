@@ -21,14 +21,20 @@ class BookFirstLessonTests(unittest.TestCase):
         self.assertEqual(source_signature(base), source_signature(list(base)))
         self.assertNotEqual(source_signature(base), source_signature(changed))
 
-    def test_preview_shows_figure_crops_not_full_page_on_board(self):
+    def test_preview_never_renders_source_raster_to_students(self):
         js = pathlib.Path("app/static/nabil_book_first_preview_v1.js").read_text("utf-8")
-        self.assertIn("figure_image_urls", js)
-        self.assertIn("Original textbook figure", js)
-        self.assertIn("Open the original textbook page in full size", js)
-        self.assertIn("content.textContent=\"The original indexed page is available below.", js)
-        self.assertIn("sourceImageLoaded=true;updateStatus()", js)
-        self.assertNotIn('img.src=path', js)
+        self.assertIn("INTERNAL EVIDENCE ONLY", js)
+        self.assertIn("grounded in the indexed textbook", js)
+        self.assertIn("verified internally", js)
+        for forbidden in (
+            "originalPageImage",
+            "figure_image_urls",
+            "page_image_url",
+            "Original textbook figure",
+            "Open original textbook page",
+            "عرض الصورة الأصلية لصفحة الكتاب",
+        ):
+            self.assertNotIn(forbidden, js)
 
     def test_failed_ai_request_never_marks_lesson_ready(self):
         js = pathlib.Path("app/static/nabil_book_first_preview_v1.js").read_text("utf-8")
