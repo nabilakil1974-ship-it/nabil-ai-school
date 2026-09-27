@@ -2076,7 +2076,11 @@ def _rescue_unverified_exercise(
         "(integer), section_type (EXERCISE or PROBLEM), exact_source_prompt "
         "(all visible words and blanks verbatim, do not solve), subquestions "
         "(array of exact strings), figure_labels (array of exact printed figure "
-        "labels), confidence (0..1), unreadable_parts (array). "
+        "labels), blank_count (integer), confidence (0..1), unreadable_parts "
+        "(array). Represent EVERY visibly empty answer box, underline blank, or "
+        "fill-in slot in exact_source_prompt with the literal token [BLANK] in "
+        "its exact reading position. Empty boxes are source content and must not "
+        "disappear. blank_count must equal the number of visible answer blanks. "
         "If the requested exercise number is not visibly present and readable "
         "in this crop, set verified_visible_number=false. Do not infer missing "
         "words and do not correct the textbook."
@@ -2109,7 +2113,10 @@ def _rescue_unverified_exercise(
         "against this SAME original high-resolution crop. Return JSON object "
         "with faithful (bool), number_visible (bool), complete (bool), "
         "reason (string). Mark false for any missing word, invented word, "
-        "wrong number, wrong item boundary, or omitted visible subquestion. "
+        "wrong number, wrong item boundary, omitted visible subquestion, or "
+        "a missing/misplaced [BLANK] token. Independently count the visible "
+        "answer boxes/blanks in the crop and require that count to match "
+        "blank_count and the number of [BLANK] tokens in exact_source_prompt. "
         "Proposed transcription: "
         + json.dumps(payload, ensure_ascii=False)
     )
@@ -2176,8 +2183,11 @@ def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
         "section_type (EXERCISE or PROBLEM), exact_source_prompt (all words and "
         "blanks verbatim, do not solve), subquestions (array of exact strings), "
         "bbox_1000 (entire exercise prompt region, normalized x0,y0,x1,y1), "
-        "figure_labels (list of exact cited Figure numbers), confidence 0..1, "
-        "and unreadable_parts (array). Include each exercise exactly once; "
+        "figure_labels (list of exact cited Figure numbers), blank_count "
+        "(integer), confidence 0..1, and unreadable_parts (array). Represent "
+        "EVERY visibly empty answer box, underline blank, or fill-in slot with "
+        "the literal token [BLANK] at its exact reading position, and set "
+        "blank_count to the number of visible blanks. Include each exercise exactly once; "
         "do not confuse printed figure numbers, chapter numbers or page "
         "numbers with exercise numbers. Preserve table entries and all "
         "instructions. Do not invent any text. No numbered exercises -> []."
@@ -2201,8 +2211,11 @@ def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
         "original source page image. Return JSON: "
         "{'checks':[{'number':int,'faithful':bool,'reason':str}]}. "
         "Mark false for a missing part, wrong figure number, invented words, "
-        "wrong item boundaries, incorrect circled-number reading, or bad "
-        "two-column order. No favorable assumptions. Transcriptions: "
+        "wrong item boundaries, incorrect circled-number reading, bad "
+        "two-column order, or any missing/misplaced [BLANK] token. Independently "
+        "count visible answer blanks for each exercise and reject a transcription "
+        "when blank_count or the number of [BLANK] tokens does not match. "
+        "No favorable assumptions. Transcriptions: "
         + json.dumps(rows, ensure_ascii=False)
     )
     review = _execute_llm_json_strict(
@@ -3208,7 +3221,19 @@ def grounded_subject_solver(exercise: dict, evidence_map: dict, profile: dict) -
 
     if source_origin == "TEXTBOOK":
         provenance = f"official textbook exercise verbatim from Page {page}"
-        supported_scope = all_scope
+        source_exercise_examples = [
+            {
+                "source_kind": "TEXTBOOK_EXERCISE_EVIDENCE",
+                "exercise_id": e.get("exercise_id"),
+                "number": e.get("number"),
+                "source_page": e.get("source_page"),
+                "text": e.get("exact_source_prompt"),
+            }
+            for e in evidence_map.get("exercise_evidence", [])
+            if e.get("verified_against_source") is True
+            and str(e.get("exact_source_prompt") or "").strip()
+        ]
+        supported_scope = all_scope + source_exercise_examples
     else:
         provenance = (
             "additional practice exercise already approved by the strict "
@@ -3260,13 +3285,18 @@ def grounded_subject_solver(exercise: dict, evidence_map: dict, profile: dict) -
         f"Subquestions: {json.dumps(exercise.get('subquestions', []))}"
         f"{scope_note}{reconstructed_note}\n\n"
         "STRICT SOURCE RULES:\n"
-        "1. Answer the textbook task directly and minimally.\n"
+        "1. Answer the textbook task directly and minimally. The final_answer "
+        "must itself answer EVERY explicit requested action/subquestion; do not "
+        "leave a required part only in the reasoning steps.\n"
         "2. Every explanatory fact, law, property, example, material, unit, "
         "quantity, or scientific relationship must come from the exercise "
         "prompt, VERIFIED LESSON EVIDENCE, or a verified attached figure.\n"
         "3. Do not add general textbook knowledge merely because it is true. "
         "For example/list/classification questions, give the requested answer "
-        "without adding unrelated background facts.\n"
+        "without adding unrelated background facts. Preserve exact source labels "
+        "and example names when available; do not generalize them. Do not add "
+        "unrequested drawing actions such as shading, coloring, measuring, "
+        "marking, or construction steps unless the prompt/source requires them.\n"
         f"4. {figure_rule}\n"
         "5. If the prompt asks for a drawing, describe only what must be drawn "
         "from the verified rule and visible source geometry.\n"
@@ -3311,13 +3341,19 @@ def grounded_subject_solver(exercise: dict, evidence_map: dict, profile: dict) -
             "Return strict JSON: {"
             "'keep_step_indexes':[int],"
             "'final_answer_valid':bool,"
+            "'final_answer_complete':bool,"
             "'figure_faithful':bool,"
+            "'no_unrequested_actions':bool,"
             "'pruned_solution_valid':bool,"
             "'reasons':[str]"
             "}. keep_step_indexes are ZERO-BASED indexes of steps that can remain "
-            "unchanged. pruned_solution_valid=true only when keeping exactly "
+            "unchanged. final_answer_complete=true only when the final answer "
+            "itself answers every explicit requested action/subquestion. "
+            "no_unrequested_actions=false for extra procedures such as shading, "
+            "coloring, measuring, marking or construction not requested/supported "
+            "by source evidence. pruned_solution_valid=true only when keeping exactly "
             "those steps plus the unchanged final answer produces a correct, "
-            "complete-enough, source-grounded solution. If no figure is attached, "
+            "complete, source-grounded solution. If no figure is attached, "
             "figure_faithful must be true.\n"
             f"Exercise: {prompt}\n"
             f"VERIFIED LESSON EVIDENCE: "
@@ -3349,7 +3385,9 @@ def grounded_subject_solver(exercise: dict, evidence_map: dict, profile: dict) -
                 keep = []
             if not (
                 verdict.get("final_answer_valid") is True
+                and verdict.get("final_answer_complete") is True
                 and verdict.get("figure_faithful") is True
+                and verdict.get("no_unrequested_actions") is True
                 and verdict.get("pruned_solution_valid") is True
                 and keep
             ):
