@@ -3409,18 +3409,47 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
     check("WORKSHEET_NOT_GRADABLE", all("correct_index" in q for q in candidate["theory"]["worksheet"]), "CRITICAL", "Worksheet grading keys")
     check("REFERENCE_CARD_CONTENT_INCOMPLETE", "goldenReferenceCard" in candidate["page_a_html"], "CRITICAL", "Golden reference card missing")
 
-    # Full-coverage quiz: every concept must have a worksheet item, not a
-    # capped subset. Directly guards against regressions of the old
-    # "if idx <= 5" cap that silently dropped quiz coverage.
+    # Full-coverage quiz: every concept must be represented.
     concept_count = len(ev_map["concepts"])
     worksheet_count = len(candidate["theory"]["worksheet"])
+    quiz_items = candidate["theory"].get("quiz_items") or []
+    activities = candidate["theory"].get("activities") or []
     check("QUIZ_COVERAGE_INCOMPLETE",
-          worksheet_count == concept_count, "CRITICAL",
-          f"worksheet has {worksheet_count} items for {concept_count} concepts")
+          worksheet_count == concept_count
+          and len(quiz_items) == concept_count
+          and len(activities) == concept_count,
+          "CRITICAL",
+          f"worksheet={worksheet_count}, quiz={len(quiz_items)}, "
+          f"activities={len(activities)}, concepts={concept_count}")
 
     check("FULL_QUIZ_BLOCK_MISSING",
           "fullQuizBlock" in candidate["page_a_html"], "CRITICAL",
           "Full quiz with pass/fail scoring missing from Page A")
+
+    # Every declared lab must be evidence-validated and genuinely interactive.
+    lab_activities = [
+        a for a in activities
+        if (a.get("lab_spec") or {}).get("supported") is True
+    ]
+    for act in lab_activities:
+        spec = act.get("lab_spec") or {}
+        lab_html = act.get("lab_html") or ""
+        validate_lab_spec(spec)
+        check("LAB_RENDER_MISSING",
+              bool(lab_html), "CRITICAL",
+              f"concept={act.get('concept_id')}")
+        check("LAB_STUB_FORBIDDEN",
+              'data-lab-kind=' in lab_html
+              and '<script>' in lab_html
+              and ('<svg' in lab_html or 'type="number"' in lab_html),
+              "CRITICAL",
+              f"concept={act.get('concept_id')}")
+        check("LAB_FAKE_NUMERIC_RANGE_FORBIDDEN",
+              'type="range"' not in lab_html
+              and ' min=' not in lab_html
+              and ' max=' not in lab_html,
+              "CRITICAL",
+              f"concept={act.get('concept_id')}")
 
     with tempfile.NamedTemporaryFile(suffix=".html", mode="w", encoding="utf-8", delete=False) as tmp_a:
         tmp_a.write(candidate["page_a_html"])
@@ -3466,7 +3495,11 @@ def independent_scientific_review(entry: dict, candidate: dict) -> dict:
         f"Audit this complete lesson payload including evidence concepts and exercise solutions for absolute scientific rigor.\n"
         f"Lesson Title: {entry['canonical_title']}\n"
         f"Evidence Concepts: {json.dumps(candidate['evidence_map']['concepts'], ensure_ascii=False)}\n"
+        f"Interactive Lab Specs: {json.dumps([a.get('lab_spec') for a in candidate['theory'].get('activities', [])], ensure_ascii=False)}\n"
+        f"Quiz Items: {json.dumps(candidate['theory'].get('quiz_items', []), ensure_ascii=False)}\n"
         f"Exercises & Solutions: {json.dumps(candidate['exercises'], ensure_ascii=False)}\n\n"
+        "Reject any lab that introduces a scientific behavior, formula, orientation, shape rule, unit, "
+        "or numeric claim not supported by the evidence. Verify every quiz answer against the evidence. "
         "Return strictly JSON: {'approved': bool, 'issues': [str], 'scientific_notes': str}"
     )
 
