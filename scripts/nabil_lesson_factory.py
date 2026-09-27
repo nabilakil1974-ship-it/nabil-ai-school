@@ -5537,7 +5537,7 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict, lab_index: Opt
 {MathRenderingEngine.inject_mathjax_head()}
 <script defer src="/static/nabil_scientific_solution_cards_e2e.js?v=4"></script>
 <script defer src="/static/nabil_lesson_e2e_runtime_v1.js?v=3"></script>
-<script defer src="/static/nabil_smart_lab_bridge_v1.js?v=2"></script>
+<script defer src="/static/nabil_smart_lab_bridge_v1.js?v=3"></script>
 <style>
 {reference_renderer_css()}
 #zoomModal {{ display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,.88); justify-content:center; align-items:center; cursor:zoom-out; }}
@@ -5990,7 +5990,7 @@ def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: di
 {MathRenderingEngine.inject_mathjax_head()}
 <script defer src="/static/nabil_scientific_solution_cards_e2e.js?v=4"></script>
 <script defer src="/static/nabil_lesson_e2e_runtime_v1.js?v=3"></script>
-<script defer src="/static/nabil_smart_lab_bridge_v1.js?v=2"></script>
+<script defer src="/static/nabil_smart_lab_bridge_v1.js?v=3"></script>
 <style>
 {reference_renderer_css()}
 #zoomModal {{ display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,.88); justify-content:center; align-items:center; cursor:zoom-out; }}
