@@ -137,6 +137,9 @@ jobs:
           assert "exercise_solution_audit_" in source_text
           assert "[BLANK]" in source_text
           assert "blank_count" in source_text
+          assert "EXERCISE_PAGE_HIGHRES_RESCUE_ACCEPTED" in source_text
+          assert "exercise_scan_highres_rescue_p" in source_text
+          assert "blank_count_mismatch" in source_text
           assert "final_answer_complete" in source_text
           assert "no_unrequested_actions" in source_text
           assert "TEXTBOOK_EXERCISE_EVIDENCE" in source_text
