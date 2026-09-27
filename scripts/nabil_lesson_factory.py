@@ -470,6 +470,129 @@ def resolve_teaching_signature(concept: dict, profile: dict) -> dict:
     }
 
 
+
+def build_teaching_steps(
+        concept: dict, narrative: dict, profile: dict,
+        lab_spec: Optional[dict] = None) -> list:
+    """Build the student-facing teaching sequence without adding new science.
+
+    The scientific sentences are reused from the already source-audited
+    narrative or from the evidence-locked GEOMETRY_PROOF steps.  This function
+    decides only pedagogical order/labels for the learner's age and subject.
+    """
+    sig = resolve_teaching_signature(concept, profile)
+    lang = resolve_lang_code(profile["language"])
+    subject = sig["subject"]
+    mode = sig["mode"]
+    concept_id = str(concept.get("concept_id") or "")
+    source_page = concept.get("source_page")
+    lab_key = f"concept:{concept_id}"
+
+    if isinstance(lab_spec, dict) and str(lab_spec.get("kind") or "").upper() == "GEOMETRY_PROOF":
+        out = []
+        for idx, proof in enumerate(lab_spec.get("proof_steps") or [], 1):
+            sentence = str(proof.get("text") or "").strip()
+            if not sentence:
+                continue
+            out.append({
+                "step_id": f"{concept_id}-S{idx:02d}",
+                "concept_id": concept_id,
+                "kind": "reasoning",
+                "order": idx,
+                "label": str(proof.get("title") or "").strip(),
+                "sentence": sentence,
+                "formula": str(proof.get("formula") or "").strip(),
+                "evidence": {
+                    "concept_id": concept_id,
+                    "source_page": source_page,
+                    "quote": str(proof.get("evidence_quote") or "").strip(),
+                },
+                "visual_cues": [{
+                    "cue_type": "proof_visual_marks",
+                    "target_ids": [str(v) for v in proof.get("target_ids") or []],
+                    "reveal_marks": [str(v) for v in proof.get("reveal_marks") or []],
+                }],
+                "lab_key": lab_key,
+            })
+        if out:
+            return out
+
+    labels = {
+        "ar": {
+            "math_geometry": ["المعطيات", "ابنِ الفكرة", "لاحظ", "فكّر في السبب", "استنتج"],
+            "math_functions": ["ابدأ من الدالة", "ادرس", "لاحظ العلاقة", "فسّر", "استنتج"],
+            "math_algebra": ["حدّد المطلوب", "نفّذ خطوة", "لاحظ", "لماذا هذه الخطوة صحيحة؟", "النتيجة"],
+            "math_default": ["ابدأ من المعطى", "جرّب", "لاحظ", "فكّر", "استنتج"],
+            "physics": ["شاهد الظاهرة", "جرّب", "لاحظ", "فسّر", "استنتج القانون أو القاعدة"],
+            "chemistry": ["ابدأ من التغيّر", "جرّب أو تتبّع", "لاحظ", "فسّر على المستوى الجسيمي", "استنتج"],
+            "biology": ["لاحظ", "تتبّع البنية أو العملية", "ما الوظيفة؟", "فسّر العلاقة", "استنتج"],
+            "general_science": ["لاحظ الظاهرة", "اختبر", "سجّل الملاحظة", "فسّر", "استنتج"],
+        },
+        "fr": {
+            "math_geometry": ["Données", "Construis l’idée", "Observe", "Justifie", "Conclus"],
+            "math_functions": ["Pars de la fonction", "Étudie", "Observe la relation", "Interprète", "Conclus"],
+            "math_algebra": ["Identifie l’objectif", "Transforme", "Observe", "Justifie", "Résultat"],
+            "math_default": ["Pars des données", "Essaie", "Observe", "Réfléchis", "Conclus"],
+            "physics": ["Observe le phénomène", "Expérimente", "Observe", "Interprète", "Énonce la loi ou la règle"],
+            "chemistry": ["Pars du changement", "Expérimente", "Observe", "Interprète au niveau particulaire", "Conclus"],
+            "biology": ["Observe", "Repère la structure ou le processus", "Quelle fonction ?", "Interprète la relation", "Conclus"],
+            "general_science": ["Observe le phénomène", "Teste", "Note l’observation", "Interprète", "Conclus"],
+        },
+        "en": {
+            "math_geometry": ["Givens", "Build the idea", "Notice", "Why is this valid?", "Conclude"],
+            "math_functions": ["Start from the function", "Study", "Notice the relation", "Interpret", "Conclude"],
+            "math_algebra": ["Identify the target", "Transform", "Notice", "Why is this valid?", "Result"],
+            "math_default": ["Start from the givens", "Try", "Notice", "Think", "Conclude"],
+            "physics": ["See the phenomenon", "Try the experiment", "Observe", "Explain", "State the law or rule"],
+            "chemistry": ["Start from the change", "Try or trace", "Observe", "Interpret at particle level", "Conclude"],
+            "biology": ["Observe", "Trace the structure or process", "What is its function?", "Explain the relation", "Conclude"],
+            "general_science": ["Observe the phenomenon", "Test", "Record the observation", "Explain", "Conclude"],
+        },
+    }
+    if subject == "mathematics":
+        label_key = {
+            "geometry": "math_geometry",
+            "functions": "math_functions",
+            "algebra": "math_algebra",
+        }.get(mode, "math_default")
+    else:
+        label_key = subject if subject in {
+            "physics", "chemistry", "biology", "general_science"
+        } else "general_science"
+    display = labels.get(lang, labels["en"])[label_key]
+    fields = [
+        ("hook", "phenomenon"),
+        ("student_try", "investigation"),
+        ("observation", "observation"),
+        ("reasoning", "interpretation"),
+        ("law_or_rule", "conclusion"),
+    ]
+    out = []
+    order = 0
+    for pos, (kind, field) in enumerate(fields):
+        sentence = str(narrative.get(field) or "").strip()
+        if not sentence:
+            continue
+        order += 1
+        out.append({
+            "step_id": f"{concept_id}-S{order:02d}",
+            "concept_id": concept_id,
+            "kind": kind,
+            "order": order,
+            "label": display[pos],
+            "sentence": sentence,
+            "formula": "",
+            "evidence": {
+                "concept_id": concept_id,
+                "source_page": source_page,
+                "quote": str(concept.get("raw_text") or "")[:700],
+            },
+            "visual_cues": [{"cue_type": "point", "target_ids": []}],
+            "lab_key": lab_key,
+        })
+    return out
+
+
 def resolve_pedagogy_profile(entry: dict) -> dict:
     if "grade" not in entry or entry["grade"] is None:
         raise RuntimeError("CANONICAL_CATALOG_CORRUPT: Missing grade")
@@ -4961,6 +5084,8 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
             "generated_content_scope_audited": narrative.get("_scope_audited", False),
             "removed_generated_fields": narrative.get("_removed_generated_fields", []),
             "teaching_signature": resolve_teaching_signature(c, profile),
+            "teaching_steps": build_teaching_steps(
+                c, narrative, profile, lab_spec=lab_spec),
         })
 
         if question_ready:
