@@ -2275,6 +2275,83 @@ def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
     )
     audit_provenance = get_last_llm_provenance()
     checks = _normalize_exercise_review_payload(review, page_num)
+
+    # Do not interpret an incomplete audit schema as a source rejection. Ask
+    # again against the SAME source page and SAME candidate transcriptions.
+    # This remains fail-closed: no item is approved until every required audit
+    # field is explicitly present with the correct type.
+    expected_review_numbers = {
+        int(row["number"]) for row in rows
+        if isinstance(row, dict) and "number" in row
+    }
+
+    def _exercise_review_schema_complete(items: List[dict]) -> bool:
+        if not isinstance(items, list):
+            return False
+        seen = set()
+        for item in items:
+            if not isinstance(item, dict) or "number" not in item:
+                return False
+            try:
+                item_number = int(item["number"])
+            except (TypeError, ValueError):
+                return False
+            if item_number in seen:
+                return False
+            seen.add(item_number)
+            if not isinstance(item.get("faithful"), bool):
+                return False
+            if not isinstance(item.get("blank_count_visible"), int) or isinstance(
+                    item.get("blank_count_visible"), bool):
+                return False
+            if not isinstance(item.get("blank_tokens_match"), bool):
+                return False
+            if not isinstance(item.get("reason"), str):
+                return False
+        return seen == expected_review_numbers
+
+    if not _exercise_review_schema_complete(checks):
+        progress(
+            "EXERCISE_REVIEW_SCHEMA_RETRY_REQUIRED",
+            page=page_num,
+            expected_numbers=sorted(expected_review_numbers),
+        )
+        strict_review_prompt = (
+            "Re-audit these candidate exercise transcriptions against the SAME "
+            "original textbook page image. Return EXACTLY one strict JSON object "
+            "with key checks. checks must contain exactly one object for every "
+            "candidate exercise number, no omissions and no extras. Every object "
+            "must contain all fields: number (integer), faithful (boolean), "
+            "blank_count_visible (integer >= 0), blank_tokens_match (boolean), "
+            "reason (string). Count visible answer boxes/blanks independently "
+            "from the source image. faithful=false for any missing/invented word, "
+            "wrong boundary/number/figure/table entry, or blank mismatch. "
+            "Do not repair or reinterpret candidate text. Candidates: "
+            + json.dumps(rows, ensure_ascii=False)
+        )
+        strict_review = _execute_llm_json_strict(
+            strict_review_prompt,
+            image_base64=page_b64,
+            vision_context={
+                "lesson_id": lesson_id,
+                "book_id": book_id,
+                "pdf_page": page_num,
+            },
+            purpose=f"exercise_review_schema_retry_p{page_num}",
+            max_attempts=3,
+        )
+        checks = _normalize_exercise_review_payload(strict_review, page_num)
+        audit_provenance = get_last_llm_provenance()
+        if not _exercise_review_schema_complete(checks):
+            raise RuntimeError(
+                f"EXERCISE_REVIEW_SCHEMA_INCOMPLETE: p{page_num}"
+            )
+        progress(
+            "EXERCISE_REVIEW_SCHEMA_RETRY_ACCEPTED",
+            page=page_num,
+            checks=len(checks),
+        )
+
     approved = {
         int(x["number"]): x
         for x in checks
