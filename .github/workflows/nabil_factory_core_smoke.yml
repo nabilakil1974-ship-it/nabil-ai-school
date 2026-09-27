@@ -121,6 +121,10 @@ jobs:
           assert "Skip exercise when its required source figure is unverified" not in source_text
           assert "Never invent or infer" in source_text
           assert "SOURCE_FIGURE_REQUIRED_COVERAGE_INCOMPLETE" in source_text
+          assert "AI_RECONSTRUCTED_DIAGRAM_FROM_VERIFIED_TEXT" in source_text
+          assert "TEXT_DIAGRAM_RECONSTRUCTION_ACCEPTED" in source_text
+          assert "TEXT_DIAGRAM_RECONSTRUCTION_NOT_POSSIBLE" in source_text
+          assert "reconstructed_diagram_verified" in source_text
           assert "OPTIONAL_SOURCE_FIGURE_SKIPPED" in source_text
           assert "EXERCISE_SEQUENCE_INCOMPLETE" not in source_text
           assert "EXERCISE_NUMBERING_INVALID" in source_text
