@@ -3,7 +3,7 @@
 
 """
 NABIL AI — Universal Pedagogical Lesson Factory
-Version: 25.0.0 (Pure Plain-Text URLs & Strict Markdown Contamination Guard)
+Version: 26.0.0 (End-to-End Lesson Runtime + Scientific Solution Cards)
 Strict Fail-Closed Architecture across all 400+ Curriculum Lessons.
 Applicable to Mathematics, Physics, Chemistry, Biology & General Science.
 """
@@ -2577,6 +2577,69 @@ def prepare_verified_solutions(entry: dict, exercises: list,
                      number=ex.get("number"))
 
 
+def build_factory_solution_card_spec(
+        entry: dict, exercise: dict, solution: dict) -> Dict[str, Any]:
+    """Build the approved Scientific Solution Card payload from verified data only.
+
+    This layer never solves or changes a scientific value. It only maps the
+    already-verified solver output into the shared frontend card contract.
+    """
+    lang_code = resolve_lang_code(entry.get("language", "en"))
+    subject = str(entry.get("subject", "")).strip()
+    kind_map = {
+        "mathematics": "mathematics",
+        "math": "mathematics",
+        "physics": "physics",
+        "chemistry": "chemistry",
+        "biology": "biology",
+        "science": "general_science",
+        "general science": "general_science",
+    }
+    kind = kind_map.get(subject.lower(), subject.lower() or "general_science")
+    steps = [
+        str(step).strip() for step in solution.get("steps", [])
+        if str(step).strip()
+    ]
+    final_answer = str(solution.get("final_answer") or "").strip()
+    if not steps or not final_answer:
+        raise RuntimeError("SCIENTIFIC_SOLUTION_CARD_REQUIRES_VERIFIED_SOLUTION")
+
+    sections = [{
+        "label": ui_t(lang_code, "solution_steps"),
+        "items": steps,
+    }]
+    method = str(solution.get("method") or "").strip()
+    if method:
+        sections.insert(0, {
+            "label": ui_t(lang_code, "formula_law"),
+            "items": [method],
+        })
+    verification = solution.get("verification") or []
+    if isinstance(verification, str):
+        verification = [verification] if verification.strip() else []
+    else:
+        verification = [
+            str(item).strip() for item in verification if str(item).strip()
+        ]
+
+    return {
+        "kind": kind,
+        "subject": subject,
+        "language": lang_code,
+        "title": str(exercise.get("exact_source_prompt") or entry["canonical_title"])[:220],
+        "sections": sections,
+        "key_results": [final_answer],
+        "verification": verification,
+        "source": {
+            "lesson_id": entry["lesson_id"],
+            "book_id": entry["book_id"],
+            "source_page": exercise.get("source_page"),
+            "exercise_id": exercise.get("exercise_id"),
+            "source_origin": exercise.get("source_origin", "TEXTBOOK"),
+        },
+    }
+
+
 def solve_exercise_on_demand_payload(lesson_id: str, sec_type: str, ex_num: int) -> Dict[str, Any]:
     """Universal On-Demand Backend Resolution — Zero Hardcode."""
     ev_path = PERM_EVIDENCE_DIR / f"{lesson_id}.json"
@@ -2597,7 +2660,8 @@ def solve_exercise_on_demand_payload(lesson_id: str, sec_type: str, ex_num: int)
         raise RuntimeError(f"EXERCISE_NOT_FOUND: {sec_type} #{ex_num} in lesson {lesson_id}")
 
     sol = grounded_subject_solver(matched, ev_map, profile)
-    return {"status": "SUCCESS", "solution": sol}
+    card = build_factory_solution_card_spec(entry, matched, sol)
+    return {"status": "SUCCESS", "solution": sol, "solution_card": card}
 
 
 # ==============================================================================
@@ -2653,9 +2717,11 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
                         with open(f["image_path"], "rb") as fh:
                             b64 = base64.b64encode(fh.read()).decode("ascii")
                         fig_images.append(f["image_path"])
+                        figure_caption = ui_t(
+                            lesson_lang_code, "official_figure_caption", page=p_num)
                         fig_html += f'''<div class="figure" style="text-align:center; margin:14px 0;">
                             <img src="data:image/png;base64,{b64}" alt="{html.escape(c['title'])}" onclick="zoomImage(this)" style="max-width:100%; height:auto; border-radius:8px; border:1px solid #cbd5e1; cursor:zoom-in; transition: transform 0.2s;"/>
-                            <div style="font-size:12px; color:#64748b; margin-top:4px;">Official Curriculum Figure: Page {p_num} (Click to Zoom)</div>
+                            <div style="font-size:12px; color:#64748b; margin-top:4px;">{html.escape(figure_caption)}</div>
                         </div>'''
         # Multiple source figures (e.g. 3a/3b) must be read together.
         figure_image_base64 = None
@@ -2704,10 +2770,12 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
             "lab_html": concept_lab_html,
             "has_active_sim": concept_has_sim,
             "student_question": {
-                "q": f"Based on verified findings in '{c['title']}', what is confirmed?",
+                "q": ui_t(
+                    lesson_lang_code, "based_on_verified_findings",
+                    title=c["title"]),
                 "options": [narrative["conclusion"], narrative["distractor_1"], narrative["distractor_2"]],
                 "correct_index": 0,
-                "feedback": "Correct! Directly grounded in verified curriculum evidence."
+                "feedback": ui_t(lesson_lang_code, "grounded_feedback")
             }
         })
 
@@ -2720,14 +2788,20 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
             "source_page": p_num,
             "source_hash": c["sha256"],
             "evidence_ref": c["concept_id"],
-            "question": f"Which scientific deduction is confirmed regarding '{c['title']}'?",
+            "question": ui_t(
+                lesson_lang_code, "confirmed_deduction_question",
+                title=c["title"]),
             "options": [narrative["conclusion"], narrative["distractor_1"], narrative["distractor_2"]],
             "correct_index": 0,
-            "explanation": f"Grounded directly in curriculum evidence on page {p_num} (Ref: {c['concept_id']})."
+            "explanation": ui_t(
+                lesson_lang_code, "grounded_explanation",
+                page=p_num, ref=c["concept_id"])
         })
 
-        formulas_html = "".join([f"<li><b>Formula/Law:</b> {html.escape(f)}</li>" for f in narrative.get("formulas", [])])
-        units_html = "".join([f"<li><b>Units:</b> {html.escape(u)}</li>" for u in narrative.get("units", [])])
+        formula_label = html.escape(ui_t(lesson_lang_code, "formula_law"))
+        units_label = html.escape(ui_t(lesson_lang_code, "units_label"))
+        formulas_html = "".join([f"<li><b>{formula_label}:</b> {html.escape(f)}</li>" for f in narrative.get("formulas", [])])
+        units_html = "".join([f"<li><b>{units_label}:</b> {html.escape(u)}</li>" for u in narrative.get("units", [])])
         subject_metadata = f"<ul style='margin:4px 0 0 16px; padding:0; font-size:12px; color:#0369a1;'>{formulas_html}{units_html}</ul>" if (narrative.get("formulas") or narrative.get("units")) else ""
 
         panels += f'''<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:14px; box-shadow:0 2px 4px rgba(0,0,0,0.04);">
@@ -2735,10 +2809,10 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
                 <span style="font-weight:700; color:#0369a1; font-size:15px;">{html.escape(c["title"])}</span>
                 <span style="font-size:11px; background:#e0f2fe; color:#0284c7; padding:2px 6px; border-radius:4px; font-weight:600;">p. {c["source_page"]}</span>
             </div>
-            <div style="margin-top:8px; font-size:13px; color:#334155; line-height:1.5;"><b>Extracted Principle:</b> {html.escape(narrative["conclusion"])}</div>
+            <div style="margin-top:8px; font-size:13px; color:#334155; line-height:1.5;"><b>{html.escape(ui_t(lesson_lang_code, "extracted_principle"))}:</b> {html.escape(narrative["conclusion"])}</div>
             {subject_metadata}
             {fig_html}
-            <div style="margin-top:8px; font-size:12px; color:#059669; font-weight:600;">✓ Verified Evidence Grounding</div>
+            <div style="margin-top:8px; font-size:12px; color:#059669; font-weight:600;">{html.escape(ui_t(lesson_lang_code, "verified_evidence_grounding"))}</div>
         </div>'''
 
     ref_card_html = f'''
@@ -2746,7 +2820,7 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
     <div id="goldenReferenceCard" style="margin-top:28px; background:linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border:2px solid #0284c7; border-radius:14px; padding:20px; box-shadow:0 4px 12px rgba(2,132,199,0.08);">
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; border-bottom:2px solid #0284c7; padding-bottom:12px;">
         <div>
-          <span style="background:#0284c7; color:#fff; font-size:11px; font-weight:800; padding:3px 8px; border-radius:4px; text-transform:uppercase;">Golden Reference Card</span>
+          <span style="background:#0284c7; color:#fff; font-size:11px; font-weight:800; padding:3px 8px; border-radius:4px; text-transform:uppercase;">{html.escape(ui_t(lesson_lang_code, "golden_reference_card"))}</span>
           <h2 style="margin:4px 0 0 0; font-size:20px; color:#0f172a;">{html.escape(title)}</h2>
         </div>
         <span style="font-size:13px; font-weight:600; color:#64748b;">{profile["subject"].capitalize()} • Level {profile["level"]}</span>
@@ -2756,7 +2830,7 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
       </div>
       <div style="margin-top:16px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px 14px; font-size:12px; color:#1e40af; display:flex; align-items:center; gap:8px;">
         <span>📌</span>
-        <span><b>Study Reminder:</b> Formulated strictly from official textbook page ranges {ev_map["source_lock"]["start"]}–{ev_map["source_lock"]["end"]}.</span>
+        <span><b>{html.escape(ui_t(lesson_lang_code, "study_reminder"))}:</b> {html.escape(ui_t(lesson_lang_code, "study_reminder_text", start=ev_map["source_lock"]["start"], end=ev_map["source_lock"]["end"]))}</span>
       </div>
     </div>'''
 
@@ -2817,7 +2891,7 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict) -> str:
         opts = "".join([f'<button onclick="gradeWs(this, {i == item["correct_index"]}, \'{html.escape(item["explanation"])}\')" class="q-opt">{html.escape(o)}</button>' for i, o in enumerate(item["options"])])
         ws_items += f'''
         <div class="ws-item" style="margin-bottom:14px; padding:12px; background:#fff; border:1px solid #e2e8f0; border-radius:6px;">
-          <div style="font-weight:600; margin-bottom:6px;">Question {idx+1}: {html.escape(item["question"])} <span style="font-size:11px; color:#64748b;">(p. {item['source_page']})</span></div>
+          <div style="font-weight:600; margin-bottom:6px;">{html.escape(ui_t(page_a_lang_code, "question_label"))} {idx+1}: {html.escape(item["question"])} <span style="font-size:11px; color:#64748b;">(p. {item['source_page']})</span></div>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">{opts}</div>
           <div class="ws-fb" style="margin-top:6px; font-size:12px; font-weight:600; display:none;"></div>
         </div>'''
@@ -2835,6 +2909,8 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict) -> str:
 <meta name="nabil-source-pages" content="{entry['pdf_start_page']}-{entry['pdf_end_page']}">
 <title>{clean_title} - NABIL Universal Engine</title>
 {MathRenderingEngine.inject_mathjax_head()}
+<script defer src="/static/nabil_scientific_solution_cards_e2e.js?v=2"></script>
+<script defer src="/static/nabil_lesson_e2e_runtime_v1.js?v=1"></script>
 <style>
   :root {{ --primary: #0284c7; --bg: #f8fafc; --card: #ffffff; --text: #0f172a; --text-muted: #64748b; }}
   body {{ font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 16px; overflow-x: hidden; max-width: 100vw; box-sizing: border-box; }}
@@ -2852,13 +2928,13 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict) -> str:
 <div class="container">
   <div class="header">
     <h1 style="margin:0; font-size:22px;">{clean_title}</h1>
-    <button onclick="navigateToExercises()" class="nav-btn">View Exercises ➔</button>
+    <button onclick="navigateToExercises()" class="nav-btn">{html.escape(ui_t(page_a_lang_code, "view_exercises"))}</button>
   </div>
   {acts_html}
   <div class="card" style="margin-top:24px;">
     <div style="display:flex; justify-content:space-between; align-items:center;">
-      <h3 style="margin:0; color:#0284c7;">📝 Interactive Student Worksheet</h3>
-      <div id="wsScoreBadge" style="font-size:13px; font-weight:bold; color:#059669;">Score: 0 / {len(theory['worksheet'])}</div>
+      <h3 style="margin:0; color:#0284c7;">{html.escape(ui_t(page_a_lang_code, "worksheet_title"))}</h3>
+      <div id="wsScoreBadge" style="font-size:13px; font-weight:bold; color:#059669;">{html.escape(ui_t(page_a_lang_code, "score_label"))}: 0 / {len(theory['worksheet'])}</div>
     </div>
     <div style="width:100%; background:#e2e8f0; height:6px; border-radius:3px; margin:12px 0;">
       <div id="wsProgressBar" style="width:0%; background:#0284c7; height:6px; border-radius:3px; transition:width 0.3s ease;"></div>
@@ -2907,10 +2983,10 @@ function gradeWs(btn, isCorrect, exp) {{
   const box = parent.nextElementSibling;
   box.style.display = 'block';
   box.style.color = isCorrect ? '#059669' : '#dc2626';
-  box.innerHTML = (isCorrect ? 'Correct! ' : 'Incorrect. ') + exp;
+  box.innerHTML = (isCorrect ? '${html.escape(ui_t(page_a_lang_code, "ws_correct"))}' : '${html.escape(ui_t(page_a_lang_code, "ws_incorrect"))}') + exp;
 
   document.getElementById('wsProgressBar').style.width = ((answeredCount / totalQuestions) * 100) + '%';
-  document.getElementById('wsScoreBadge').innerText = 'Score: ' + score + ' / ' + totalQuestions;
+  document.getElementById('wsScoreBadge').innerText = '${html.escape(ui_t(page_a_lang_code, "score_label"))}: ' + score + ' / ' + totalQuestions;
 }}
 </script>
 </body>
@@ -2962,7 +3038,7 @@ def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: di
                                 b64 = base64.b64encode(Path(f["image_path"]).read_bytes()).decode("ascii")
                                 ex_fig_html = f'''<div style="text-align:center; margin:12px 0;">
                                   <img src="data:image/png;base64,{b64}" alt="Exercise Figure" onclick="zoomImage(this)" style="max-width:100%; max-height:220px; border-radius:8px; border:1px solid #cbd5e1; cursor:zoom-in;"/>
-                                  <div style="font-size:11px; color:#64748b; margin-top:3px;">Source Figure for {sec_type} {ex_num} (Click to Zoom)</div>
+                                  <div style="font-size:11px; color:#64748b; margin-top:3px;">{html.escape(ui_t(page_b_lang_code, "exercise_figure_caption", sec=localized_sec_type, num=ex_num))}</div>
                                 </div>'''
                             except Exception:
                                 pass
@@ -2974,12 +3050,17 @@ def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: di
                 sol = grounded_subject_solver(ex, ev_map, profile)
                 ex["_pre_solved_solution"] = sol
             step_label = ui_t(page_b_lang_code, "step_label")
-            steps_html = "<br>".join([f"• <b>{step_label}:</b> {s}" for s in sol["steps"]])
+            steps_html = "<br>".join([f"• <b>{step_label}:</b> {html.escape(str(step))}" for step in sol["steps"]])
+            card_spec = build_factory_solution_card_spec(entry, ex, sol)
+            card_json = html.escape(
+                json.dumps(card_spec, ensure_ascii=False), quote=True)
             sol_box = f'''
-            <div style="margin-top:10px; padding:12px; background:#ecfdf5; border-radius:6px; font-size:13px; color:#065f46; line-height:1.6;">
-              {verified_js}<br>
-              {steps_html}<br>
-              • <b>{final_answer_js}:</b> {sol["final_answer"]}
+            <div data-nabil-solution-card="{card_json}" style="margin-top:10px;">
+              <div class="nabil-solution-fallback" style="padding:12px; background:#ecfdf5; border-radius:6px; font-size:13px; color:#065f46; line-height:1.6;">
+                {verified_js}<br>
+                {steps_html}<br>
+                • <b>{final_answer_js}:</b> {html.escape(str(sol["final_answer"]))}
+              </div>
             </div>'''
         else:
             solve_label = ui_t(page_b_lang_code, "solve_on_demand", sec=sec_type, num=ex_num)
@@ -3019,6 +3100,8 @@ def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: di
 <meta name="nabil-source-pages" content="{entry['pdf_start_page']}-{entry['pdf_end_page']}">
 <title>{clean_title} - Official Exercises</title>
 {MathRenderingEngine.inject_mathjax_head()}
+<script defer src="/static/nabil_scientific_solution_cards_e2e.js?v=2"></script>
+<script defer src="/static/nabil_lesson_e2e_runtime_v1.js?v=1"></script>
 <style>
   :root {{ --primary: #0284c7; --bg: #f8fafc; --card: #ffffff; --text: #0f172a; --text-muted: #64748b; }}
   body {{ font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 16px; overflow-x: hidden; max-width: 100vw; box-sizing: border-box; }}
@@ -3033,8 +3116,8 @@ def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: di
 <body>
 <div class="container">
   <div class="header">
-    <h1 style="margin:0; font-size:20px;">{clean_title} - Exercises &amp; Problems</h1>
-    <button onclick="returnToLesson()" class="nav-btn" style="background:#475569;">⬅ Back to Lesson</button>
+    <h1 style="margin:0; font-size:20px;">{html.escape(ui_t(page_b_lang_code, "exercises_page_title", title=html.unescape(clean_title)))}</h1>
+    <button onclick="returnToLesson()" class="nav-btn" style="background:#475569;">{html.escape(ui_t(page_b_lang_code, "back_to_lesson"))}</button>
   </div>
   {ex_cards}
 </div>
@@ -3072,8 +3155,12 @@ async function requestServerSolution(lessonId, secType, exNum) {{
     const data = await resp.json();
     if (data.status === 'SUCCESS') {{
       const sol = data.solution;
-      let stepsHtml = sol.steps.map(s => '• ' + s).join('<br>');
-      ansBox.innerHTML = '{verified_js}' + stepsHtml + '<br><b>{final_answer_js}:</b> ' + sol.final_answer;
+      if (data.solution_card && window.NABILScientificCards?.renderCard) {{
+        window.NABILScientificCards.renderCard(data.solution_card, ansBox);
+      }} else {{
+        let stepsHtml = sol.steps.map(s => '• ' + s).join('<br>');
+        ansBox.innerHTML = '{verified_js}' + stepsHtml + '<br><b>{final_answer_js}:</b> ' + sol.final_answer;
+      }}
     }} else {{
       ansBox.innerHTML = '{error_js}' + (data.error || 'Unable to retrieve solution');
       ansBox.style.color = '#dc2626';
@@ -3253,6 +3340,21 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
     check("MOBILE_REAL_PLAYWRIGHT_CHROMIUM_QA_390_844", qa_a and qa_b, "CRITICAL", "Real Playwright Chromium headless browser QA verified for 390x844 bounds, bounding boxes clipping & touch targets")
 
     check("NAVIGATION_FAILED", "navigateToExercises" in candidate["page_a_html"] and "returnToLesson" in candidate["page_b_html"], "CRITICAL", "Navigation intact")
+    check("E2E_RUNTIME_NOT_WIRED",
+          all("nabil_lesson_e2e_runtime_v1.js" in page for page in
+              (candidate["page_a_html"], candidate["page_b_html"])),
+          "CRITICAL",
+          "Generated lesson/exercise pages must load the shared E2E runtime")
+    check("SCIENTIFIC_CARD_RENDERER_NOT_WIRED",
+          all("nabil_scientific_solution_cards_e2e.js" in page for page in
+              (candidate["page_a_html"], candidate["page_b_html"])),
+          "CRITICAL",
+          "Generated pages must use the approved Scientific Solution Card renderer")
+    if any(e.get("solution_mode") == "PRE_SOLVED" for e in candidate["exercises"]):
+        check("PRE_SOLVED_SCIENTIFIC_CARD_MISSING",
+              "data-nabil-solution-card" in candidate["page_b_html"],
+              "CRITICAL",
+              "Verified pre-solved exercises must render through Scientific Solution Card")
 
     return {"passed": True, "gates": report}
 
