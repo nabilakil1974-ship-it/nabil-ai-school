@@ -135,12 +135,41 @@ function renderDrawing(d){
  return "";
 }
 
-function renderVisual(spec){
+function copyFor(spec={}){
+ const raw=text(spec.language||spec.lang).toLowerCase();
+ const lang=/^ar|arab|العرب/.test(raw)?"ar":/^fr|french|fran/.test(raw)?"fr":"en";
+ if(lang==="ar")return {
+   analysis:"📘 الاستدلال العلمي", functionAnalysis:"📘 دراسة الدالة",
+   visual:"🧭 التمثيل العلمي", graph:"📈 الرسم وجدول التغيّرات",
+   missing:"لم يُرفق بهذه البطاقة رسم موثّق.",
+   teacher:"نفهم المعطيات، نختار القاعدة المناسبة، نحل خطوة خطوة، ثم نتحقق.",
+   final:"✅ البطاقة النهائية", verification:"التحقق", enlarge:"🔎 تكبير الرسم",
+   fallback:"راجع الاستدلال الموثّق أعلاه."
+ };
+ if(lang==="fr")return {
+   analysis:"📘 Raisonnement scientifique", functionAnalysis:"📘 Étude de fonction",
+   visual:"🧭 Représentation scientifique", graph:"📈 Courbe et variations",
+   missing:"Aucun visuel vérifié n’a été fourni pour cette carte.",
+   teacher:"On lit les données, on choisit la règle, on résout étape par étape, puis on vérifie.",
+   final:"✅ Carte finale", verification:"Vérification", enlarge:"🔎 Agrandir le schéma",
+   fallback:"Voir le raisonnement vérifié ci-dessus."
+ };
+ return {
+   analysis:"📘 Scientific Reasoning", functionAnalysis:"📘 Function Analysis",
+   visual:"🧭 Scientific Visual", graph:"📈 Graph & Variation",
+   missing:"No verified visual was supplied for this card.",
+   teacher:"We read the givens, choose the right rule, solve step by step, then verify.",
+   final:"✅ Final Card", verification:"Verification", enlarge:"🔎 Enlarge visual",
+   fallback:"See the verified reasoning above."
+ };
+}
+
+function renderVisual(spec,copy){
  const drawings=arr(spec.drawings);
  const rendered=drawings.map(renderDrawing).filter(Boolean);
  if(rendered.length)return rendered.join("");
  if(text(spec.visual_html))return spec.visual_html;
- return '<div class="nabil-sci-missing">No verified visual was supplied for this card.</div>';
+ return '<div class="nabil-sci-missing">'+esc(copy.missing)+'</div>';
 }
 
 function renderVariationTable(table){
@@ -162,6 +191,7 @@ function renderVariationTable(table){
 
 function renderCard(spec={},target){
  ensureStyle();
+ const copy=copyFor(spec);
  const host=typeof target==="string"?document.querySelector(target):target;
  if(!host)throw Error("NABIL Scientific Card target missing");
  const kind=detectKind(spec.title||"",spec.subject||"",spec);
@@ -180,12 +210,12 @@ function renderCard(spec={},target){
  </div>
  <div class="nabil-sci-grid">
    <div class="nabil-sci-panel nabil-sci-analysis">
-     <h3>${kind==="function_study"?"📘 Function Analysis":"📘 Scientific Reasoning"}</h3>
+     <h3>${kind==="function_study"?copy.functionAnalysis:copy.analysis}</h3>
      ${sections.map(s=>`<div class="nabil-sci-section"><div class="nabil-sci-label">${esc(s.label)}</div><ul class="nabil-sci-list">${s.items.map(v=>`<li>${esc(v)}</li>`).join("")}</ul></div>`).join("")}
    </div>
    <div class="nabil-sci-panel nabil-sci-visual">
-     <h3>${kind==="function_study"?"📈 Graph & Variation":"🧭 Scientific Visual"}</h3>
-     <div class="nabil-sci-visual-stage">${renderVisual(spec)}</div>
+     <h3>${kind==="function_study"?copy.graph:copy.visual}</h3>
+     <div class="nabil-sci-visual-stage">${renderVisual(spec,copy)}</div>
      ${kind==="function_study"&&fs.variation_table?renderVariationTable(fs.variation_table):
        (kind==="function_study"&&text(fs.variation_text)?`<div class="nabil-sci-table-wrap"><div style="padding:10px;white-space:pre-wrap">${esc(fs.variation_text)}</div></div>`:"")}
      <div class="nabil-sci-visual-note">Only verified/source-backed drawings are rendered here.</div>
@@ -193,16 +223,16 @@ function renderCard(spec={},target){
    <div class="nabil-sci-panel nabil-sci-teacher-panel">
      <div class="nabil-sci-teacher">
        <img class="nabil-sci-avatar" src="${esc(spec.avatar_src||"/static/nabil-avatar-v3.png")}" alt="NABIL AI" onerror="this.style.display='none'">
-       <div><strong>NABIL AI</strong><p>${esc(spec.teacher_note||"نفهم المعطيات، نختار القاعدة المناسبة، نحل خطوة خطوة، ثم نتحقق.")}</p></div>
+       <div><strong>NABIL AI</strong><p>${esc(spec.teacher_note||copy.teacher)}</p></div>
      </div>
    </div>
  </div>
  <div class="nabil-sci-final">
-   <h3>✅ Final Card</h3>
+   <h3>${esc(copy.final)}</h3>
    ${results.length?`<div class="nabil-sci-results">${results.map(v=>`<span class="nabil-sci-chip">${esc(v)}</span>`).join("")}</div>`:
-     `<div class="nabil-sci-results"><span class="nabil-sci-chip">See the verified reasoning above.</span></div>`}
-   ${verification.length?`<div class="nabil-sci-verify"><b>Verification:</b><ul class="nabil-sci-list">${verification.map(v=>`<li>${esc(v)}</li>`).join("")}</ul></div>`:""}
-   <div class="nabil-sci-tools"><button type="button" data-nabil-enlarge>🔎 Enlarge visual</button></div>
+     `<div class="nabil-sci-results"><span class="nabil-sci-chip">${esc(copy.fallback)}</span></div>`}
+   ${verification.length?`<div class="nabil-sci-verify"><b>${esc(copy.verification)}:</b><ul class="nabil-sci-list">${verification.map(v=>`<li>${esc(v)}</li>`).join("")}</ul></div>`:""}
+   <div class="nabil-sci-tools"><button type="button" data-nabil-enlarge>${esc(copy.enlarge)}</button></div>
  </div>`;
  host.replaceChildren(card);
  const enlarge=card.querySelector("[data-nabil-enlarge]");
@@ -218,7 +248,13 @@ function renderCard(spec={},target){
  return card;
 }
 
-function renderFromChat({result={},question="",target}={}){
+function renderFromChat(arg={},legacyQuestion="",legacyTarget=null){
+ let result={},question="",target=null;
+ if(arg&&typeof arg==="object"&&("reply" in arg||"solution_card" in arg)&&!("result" in arg)){
+   result=arg;question=legacyQuestion||"";target=legacyTarget;
+ }else{
+   result=arg?.result||{};question=arg?.question||"";target=arg?.target||null;
+ }
  const spec=(result&&result.solution_card&&typeof result.solution_card==="object")
    ?Object.assign({},result.solution_card,{drawings:Array.isArray(result.drawings)?result.drawings:(result.solution_card.drawings||[])})
    :deriveSpecFromChat(result,question);
