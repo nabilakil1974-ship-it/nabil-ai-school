@@ -115,7 +115,7 @@ jobs:
           source_text = factory.Path(factory.__file__).read_text(encoding="utf-8")
           assert "plausible from general knowledge" in source_text
           assert "scope_snapshot_sha256" in source_text
-          assert "strict lesson-scope solution auditor" in source_text
+          assert "DELETE-FIRST source-grounding auditor" in source_text
           assert "SKIPPED_UNVERIFIED_LAB" in source_text
           assert "SKIPPED_UNVERIFIED_SOURCE_FIGURE" in source_text
           assert "Skip exercise when its required source figure is unverified" not in source_text
