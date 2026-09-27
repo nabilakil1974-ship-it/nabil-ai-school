@@ -495,7 +495,7 @@ def _build_root_html() -> str:
         '<script src="/static/nabil_lesson_worksheet_card_v1.js?v=1"></script>\n'
         '<script src="/static/nabil_factory_prepare_v1.js?v=1"></script>\n'
         '<script src="/static/nabil_drive_prepared_lesson_v1.js?v=7"></script>\n'
-        '<script src="/static/nabil_voice_v133.js?v=133"></script>\n'
+        '<script src="/static/nabil_browser_tts_v1.js?v=1"></script>\n'\n        '<script src="/static/nabil_voice_v133.js?v=133"></script>\n'
         '<script src="/static/nabil_scientific_solution_cards_e2e.js?v=4"></script>\n'
         '<script src="/static/nabil_open_tutor_v1.js?v=18"></script>\n'
         '<script src="/static/nabil_ionic_diagram_fix.js?v=1"></script>\n'
