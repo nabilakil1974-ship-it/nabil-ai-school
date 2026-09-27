@@ -258,8 +258,13 @@ async function sendPayload({audio=null}={}){
  if(file&&!String(file.type||"").startsWith("image/")&&!/\.(pdf|docx)$/i.test(file.name||"")){setStatus(L.badFile,true);return;}
  const fd=new FormData();
  fd.append("student_id",getStudentId());
- fd.append("activity_mode","general_exercises");
- fd.append("teaching_mode","lesson_e2e");
+ if(file){
+   fd.append("activity_mode","general_exercises");
+   fd.append("teaching_mode","home_live_tutor");
+ }else{
+   fd.append("activity_mode","lesson");
+   fd.append("teaching_mode","interactive");
+ }
  fd.append("grade",lessonMeta.grade);
  fd.append("subject",lessonMeta.subject);
  fd.append("lesson",lessonMeta.lesson);
