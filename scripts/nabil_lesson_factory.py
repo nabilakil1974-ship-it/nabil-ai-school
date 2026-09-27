@@ -4857,14 +4857,24 @@ def render_whole_lesson_smart_lab(
             continue
         match = re.search(r'data-demo-ms="(\d+)"', lab_html)
         demo_ms = max(3500, min(30000, int(match.group(1)) if match else 9000))
-        flow = [
-            [labels["see"], str(act.get("phenomenon") or "")],
-            [labels["try"], str(act.get("investigation") or "")],
-            [labels["notice"], str(act.get("observation") or "")],
-            [labels["think"], str(act.get("interpretation") or "")],
-            [labels["conclude"], str(act.get("conclusion") or "")],
-        ]
-        flow = [{"label": k, "text": v} for k, v in flow if v.strip()]
+        teaching_steps = act.get("teaching_steps") or []
+        if teaching_steps:
+            flow = [{
+                "label": str(step.get("label") or ""),
+                "text": str(step.get("sentence") or ""),
+                "formula": str(step.get("formula") or ""),
+                "kind": str(step.get("kind") or ""),
+            } for step in teaching_steps if str(step.get("sentence") or "").strip()]
+        else:
+            fallback_flow = [
+                [labels["see"], str(act.get("phenomenon") or "")],
+                [labels["try"], str(act.get("investigation") or "")],
+                [labels["notice"], str(act.get("observation") or "")],
+                [labels["think"], str(act.get("interpretation") or "")],
+                [labels["conclude"], str(act.get("conclusion") or "")],
+            ]
+            flow = [{"label": k, "text": v, "formula": "", "kind": ""}
+                    for k, v in fallback_flow if v.strip()]
         srcdoc = (
             '<!doctype html><html><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
@@ -4877,6 +4887,8 @@ def render_whole_lesson_smart_lab(
             "concept_id": str(act.get("concept_id") or ""),
             "title": str(act.get("title") or ""),
             "flow": flow,
+            "teaching_mode": str((act.get("teaching_signature") or {}).get("mode") or "default"),
+            "teaching_level": str((act.get("teaching_signature") or {}).get("level") or ""),
             "srcdoc": srcdoc,
             "demo_ms": demo_ms,
         })
@@ -4921,7 +4933,22 @@ def render_whole_lesson_smart_lab(
   const frame=document.getElementById('nabilWholeLessonFrame'),titleEl=document.getElementById('nabilWholeLessonTitle'),flowEl=document.getElementById('nabilWholeLessonFlow'),timeline=document.getElementById('nabilWholeTimeline');
   function stop(){{runToken++;try{{window.NABILLessonE2E?.stopSpeech?.()}}catch(_e){{}}}}
   function buildTimeline(){{timeline.innerHTML='';slides.forEach((_,i)=>{{const b=document.createElement('button');b.className='wl-dot';b.textContent=i+1;b.onclick=()=>{{stop();idx=i;render()}};timeline.appendChild(b)}})}}
-  function render(){{const s=slides[idx];titleEl.textContent=(idx+1)+'. '+s.title;flowEl.innerHTML='';s.flow.forEach(r=>{{const d=document.createElement('div');d.className='wl-row';const b=document.createElement('b');b.textContent=r.label+': ';const span=document.createElement('span');span.textContent=r.text;d.append(b,span);flowEl.appendChild(d)}});loadingToken++;frame.srcdoc=s.srcdoc;[...timeline.children].forEach((b,i)=>b.className='wl-dot '+(i<idx?'done':i===idx?'on':''))}}
+  function render(){{
+    const s=slides[idx];titleEl.textContent=(idx+1)+'. '+s.title;flowEl.innerHTML='';
+    s.flow.forEach(r=>{{
+      const d=document.createElement('div');d.className='wl-row';
+      const b=document.createElement('b');b.textContent=r.label+': ';
+      const span=document.createElement('span');span.textContent=r.text;d.append(b,span);
+      if(r.formula){{
+        const f=document.createElement('div');f.textContent=r.formula;
+        f.style.cssText='direction:ltr;text-align:center;margin-top:6px;padding:6px;border:1px dashed #315d79;border-radius:7px;font-family:Cambria Math,serif;color:#fff';
+        d.appendChild(f);
+      }}
+      flowEl.appendChild(d);
+    }});
+    loadingToken++;frame.srcdoc=s.srcdoc;
+    [...timeline.children].forEach((b,i)=>b.className='wl-dot '+(i<idx?'done':i===idx?'on':''));
+  }}
   function demoCurrent(done){{const my=++loadingToken;const launch=()=>{{if(my!==loadingToken)return;try{{frame.contentDocument?.querySelector('.interactive-lab')?.dispatchEvent(new CustomEvent('nabil:demo'))}}catch(_e){{}}if(done)setTimeout(done,slides[idx].demo_ms)}};if(frame.contentDocument?.readyState==='complete')setTimeout(launch,180);else frame.onload=()=>setTimeout(launch,180)}}
   function playAll(){{stop();const token=runToken;idx=0;const next=()=>{{if(token!==runToken||idx>=slides.length)return;render();demoCurrent(()=>{{if(token!==runToken)return;idx++;if(idx<slides.length)setTimeout(next,400)}})}};next()}}
   document.getElementById('nabilWholePrev').onclick=()=>{{stop();idx=(idx+slides.length-1)%slides.length;render()}};
@@ -6413,6 +6440,42 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
         "CRITICAL",
         "Every lesson must ship one final Smart Board orchestrating all verified concept labs",
     )
+    check(
+        "TEACHING_ENGINE_SEQUENCE_INCOMPLETE",
+        all(
+            bool(a.get("teaching_signature"))
+            and a.get("teaching_signature", {}).get("autonomous_teacher") is True
+            and len(a.get("teaching_steps") or []) >= 3
+            and all(
+                str(step.get("sentence") or "").strip()
+                and str(step.get("lab_key") or "") == "concept:" + str(a.get("concept_id") or "")
+                and (step.get("evidence") or {}).get("concept_id") == a.get("concept_id")
+                for step in (a.get("teaching_steps") or [])
+            )
+            for a in candidate["theory"].get("activities", [])
+        ),
+        "CRITICAL",
+        "Every concept must carry an age/subject-specific evidence-locked teaching sequence linked to its concept lab",
+    )
+    geometry_acts = [
+        a for a in candidate["theory"].get("activities", [])
+        if str((a.get("lab_spec") or {}).get("kind") or "").upper() == "GEOMETRY_PROOF"
+    ]
+    check(
+        "GEOMETRY_VISUAL_PROOF_MARKS_MISSING",
+        all(
+            'data-visual-proof-marks=' in str(a.get("lab_html") or "")
+            and 'data-teacher-pointer="sentence-synced"' in str(a.get("lab_html") or "")
+            and all(
+                str(mark.get("evidence_quote") or "").strip()
+                for mark in ((a.get("lab_spec") or {}).get("marks") or [])
+            )
+            for a in geometry_acts
+        ),
+        "CRITICAL",
+        "Geometry proof labs must reveal evidence-backed equality/angle/perpendicular/parallel/midpoint/symmetry marks while NABIL explains",
+    )
+
 
     check(
         "PREBUILT_CONCEPT_LAB_INDEX_INCOMPLETE",
