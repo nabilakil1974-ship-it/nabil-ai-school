@@ -10,6 +10,13 @@ const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const arr=v=>Array.isArray(v)?v.filter(x=>x!==null&&x!==undefined&&String(x).trim()!==""):[];
 const text=v=>String(v??"").trim();
 
+function runtimeLabKey(question){
+ let h=2166136261;
+ const value=String(question||"");
+ for(let i=0;i<value.length;i++){h^=value.charCodeAt(i);h=Math.imul(h,16777619);}
+ return "runtime-question:"+((h>>>0).toString(16));
+}
+
 function langOf(spec={}){
  const v=text(spec.language).toLowerCase();
  if(v==="fr"||v.includes("fran"))return "fr";
