@@ -47,6 +47,48 @@ def _verify_question_locked_spec(spec: dict[str, Any], question: str) -> dict[st
     kind = str(spec.get("kind") or "").strip().upper()
     source = _norm(question)
 
+    quote = _norm(spec.get("evidence_quote", ""))
+    if not quote or quote not in source:
+        raise RuntimeError("SMART_LAB_EVIDENCE_QUOTE_NOT_FOUND")
+
+    advanced_required_quotes = {
+        "DC_SERIES_CIRCUIT": {
+            "series_resistance_sum",
+            "series_same_current",
+            "ohms_law",
+            "open_switch_zero_current",
+        },
+        "OPTICS_REFLECTION": {
+            "normal_perpendicular_surface",
+            "angles_measured_from_normal",
+            "reflection_law",
+        },
+        "IONIC_COMPOUND": {
+            "ionic_bond",
+            "cation_charge",
+            "anion_charge",
+            "ion_ratio",
+            "electron_transfer",
+            "charge_neutrality",
+        },
+    }
+    if kind in advanced_required_quotes:
+        evidence_quotes = spec.get("evidence_quotes")
+        if not isinstance(evidence_quotes, dict):
+            raise RuntimeError("SMART_LAB_ADVANCED_EVIDENCE_QUOTES_MISSING")
+        missing = advanced_required_quotes[kind] - set(evidence_quotes)
+        if missing:
+            raise RuntimeError(
+                "SMART_LAB_ADVANCED_EVIDENCE_QUOTES_INCOMPLETE:" +
+                ",".join(sorted(missing))
+            )
+        for claim in sorted(advanced_required_quotes[kind]):
+            exact_quote = _norm(evidence_quotes.get(claim, ""))
+            if not exact_quote or exact_quote not in source:
+                raise RuntimeError(
+                    f"SMART_LAB_ADVANCED_EVIDENCE_QUOTE_NOT_FOUND:{claim}"
+                )
+
     # Generic source-backed sequence labs must never introduce a step that is
     # absent from the actual student question/passage.
     if kind == "EVIDENCE_SEQUENCE":
@@ -153,7 +195,13 @@ Unsupported:
 {{"supported":false,"reason":"...","evidence_ref":"USER_QUESTION"}}
 Supported common fields:
 {{"supported":true,"kind":"...","title":"...","instructions":"...","observation":"...",
-"evidence_ref":"USER_QUESTION", ...kind-specific fields...}}
+"evidence_ref":"USER_QUESTION","evidence_quote":"EXACT contiguous quote from USER_SOURCE", ...kind-specific fields...}}
+For DC_SERIES_CIRCUIT add evidence_quotes with exact USER_SOURCE quotes for:
+series_resistance_sum, series_same_current, ohms_law, open_switch_zero_current.
+For OPTICS_REFLECTION add evidence_quotes with exact USER_SOURCE quotes for:
+normal_perpendicular_surface, angles_measured_from_normal, reflection_law.
+For IONIC_COMPOUND add evidence_quotes with exact USER_SOURCE quotes for:
+ionic_bond, cation_charge, anion_charge, ion_ratio, electron_transfer, charge_neutrality.
 """
     try:
         spec = _execute_llm_json_strict(
