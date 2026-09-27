@@ -314,3 +314,43 @@ jobs:
 
           print("NABIL_FACTORY_CORE_SMOKE_OK")
           PY
+
+      - name: Build verified E2E upload manifest
+        if: success()
+        run: |
+          {
+            echo "NABIL AI END-TO-END LABS BUNDLE"
+            echo "commit=$(git rev-parse HEAD)"
+            echo "workflow=NABIL Factory Core Smoke"
+            echo "status=PASS"
+            echo
+            echo "FILES:"
+            sha256sum \
+              scripts/nabil_lesson_factory.py \
+              scripts/nabil_interactive_lab.py \
+              scripts/nabil_advanced_lab.py \
+              app/api/routes_smart_labs.py \
+              app/api/routes_interactive_lessons.py \
+              app/static/nabil_smart_lab_bridge_v1.js \
+              app/main.py \
+              .github/workflows/nabil_factory_core_smoke.yml
+          } > NABIL_E2E_MANIFEST.txt
+
+      - name: Upload verified E2E labs bundle
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NABIL_E2E_LABS_END_TO_END
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            scripts/nabil_lesson_factory.py
+            scripts/nabil_interactive_lab.py
+            scripts/nabil_advanced_lab.py
+            app/api/routes_smart_labs.py
+            app/api/routes_interactive_lessons.py
+            app/static/nabil_smart_lab_bridge_v1.js
+            app/main.py
+            .github/workflows/nabil_factory_core_smoke.yml
+            NABIL_E2E_MANIFEST.txt
+
