@@ -75,6 +75,19 @@ jobs:
           assert "angleText" not in orientation_html
           assert "0°" not in orientation_html
 
+          # Malformed provider JSON must be retried from the original request,
+          # never silently "repaired" into possibly altered textbook wording.
+          original_llm = factory.execute_llm_completion
+          malformed_then_valid = iter([
+              '{"exercises":[{"number":1,"exact_source_prompt":"bad "quote""}]}',
+              '{"exercises":[]}',
+          ])
+          factory.execute_llm_completion = lambda *args, **kwargs: next(malformed_then_valid)
+          retry_payload = factory._execute_llm_json_strict(
+              "fixture", purpose="smoke_invalid_json", max_attempts=2)
+          assert retry_payload == {"exercises": []}
+          factory.execute_llm_completion = original_llm
+
           shape_spec = {
               "supported": True,
               "kind": "SHAPE_RESPONSE",
