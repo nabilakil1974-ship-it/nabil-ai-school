@@ -316,14 +316,16 @@ jobs:
               assert hasattr(factory, required), required
 
           source = factory.Path(factory.__file__).read_text(encoding="utf-8")
-          assert "nabil_scientific_solution_cards_e2e.js?v=3" in source
-          assert "nabil_lesson_e2e_runtime_v1.js?v=1" in source
+          assert "nabil_scientific_solution_cards_e2e.js?v=4" in source
+          assert "nabil_lesson_e2e_runtime_v1.js?v=2" in source
           assert "data-nabil-solution-card" in source
           assert "LAB_FAKE_NUMERIC_RANGE_FORBIDDEN" in source
           assert "REFERENCE_RENDERER_CONTRACT" in source
           assert "EXERCISE_SOLUTION_LAB_LINKAGE_INCOMPLETE" in source
           assert "STUDENT_SOURCE_RASTER_UI_FORBIDDEN" in source
           assert "REFERENCE_MOBILE_VIEWPORT = (390, 844)" in source
+          assert "SCIENTIFIC_SOLUTION_CARD_LAB_KEY_MISSING" in source
+          assert "nabil-prebuilt-lab-index/v2" in source
 
           print("NABIL_FACTORY_CORE_SMOKE_OK")
           PY
@@ -426,12 +428,39 @@ jobs:
           assert "originalPageImage" not in page_b
           assert "page_image_url" not in page_b
 
+          runtime = factory.Path(
+              "app/static/nabil_lesson_e2e_runtime_v1.js"
+          ).read_text(encoding="utf-8")
+          assert "semanticMathSpeech" in runtime
+          assert "maleHints" in runtime
+          assert '"hamed"' in runtime and '"guy"' in runtime and '"henri"' in runtime
+
+          chat_route = factory.Path(
+              "app/api/routes_chat.py"
+          ).read_text(encoding="utf-8")
+          assert "العربية الفصحى المبسطة" in chat_route
+          assert "ar-SA-HamedNeural" in chat_route
+          assert "en-US-GuyNeural" in chat_route
+          assert "fr-FR-HenriNeural" in chat_route
+          assert "لا تقل مطلقاً «شرطة» أو «سلاش»" in chat_route
+
+          preview = factory.Path(
+              "app/static/nabil_book_first_preview_v1.js"
+          ).read_text(encoding="utf-8")
+          assert "INTERNAL EVIDENCE ONLY" in preview
+          assert "originalPageImage" not in preview
+          assert "page_image_url" not in preview
+          assert "figure_image_urls" not in preview
+
           bridge = factory.Path(
               "app/static/nabil_smart_lab_bridge_v1.js"
           ).read_text(encoding="utf-8")
           assert 'btn.dataset.nabilLabSource="prebuilt"' in bridge
           assert 'btn.dataset.nabilLabSource="missing-prebuilt"' in bridge
           assert "runtime-ai-fallback" not in bridge
+          assert "nabil:solution-ready" in bridge
+          assert "buildInlineQuestionLab" in bridge
+          assert "nabil-solution-runtime-lab" in bridge
 
           route = factory.Path(
               "app/api/routes_interactive_lessons.py"
