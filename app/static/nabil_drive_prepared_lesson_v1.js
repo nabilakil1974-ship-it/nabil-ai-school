@@ -41,6 +41,12 @@ mobileStyle.textContent=`
 #nabilPreparedDriveShelf,#nabilDriveInteractiveLesson{min-width:0!important;max-width:100%!important;overflow-wrap:anywhere!important}
 #nabilPreparedDriveShelf button,#nabilDriveInteractiveLesson a{min-height:44px!important;white-space:normal!important}
 #nabilDriveInteractiveLesson iframe{max-width:100%!important;min-width:0!important}
+#nabilDriveInteractiveLesson:fullscreen{width:100vw!important;height:100vh!important;max-width:none!important;margin:0!important;border:0!important;border-radius:0!important;padding:10px!important;background:#05172d!important;display:flex!important;flex-direction:column!important}
+#nabilDriveInteractiveLesson:fullscreen iframe{flex:1 1 auto!important;width:100%!important;height:auto!important;min-height:0!important;border-radius:12px!important}
+#nabilDriveInteractiveLesson:fullscreen h2{margin:0 0 8px!important}
+#nabilDriveInteractiveLesson:fullscreen .nabil-prepared-actions{margin:0 0 8px!important}
+#nabilDriveInteractiveLesson.nabil-fullscreen-fallback{position:fixed!important;inset:0!important;z-index:2147483000!important;width:100vw!important;height:100vh!important;max-width:none!important;margin:0!important;border:0!important;border-radius:0!important;padding:10px!important;background:#05172d!important;display:flex!important;flex-direction:column!important}
+#nabilDriveInteractiveLesson.nabil-fullscreen-fallback iframe{flex:1 1 auto!important;height:auto!important;min-height:0!important}
 @media(max-width:600px){
  #nabilPreparedDriveShelf,#nabilDriveInteractiveLesson{padding:9px!important;margin:10px 0!important}
  #nabilPreparedDriveShelf button,#nabilDriveInteractiveLesson a{flex-basis:100%!important;width:100%!important}
@@ -114,14 +120,37 @@ function showPrepared(data,grade,subject,lesson){
  const frame=document.createElement("iframe");frame.title=data.title;frame.src=data.url;
  frame.style.cssText="display:block;width:100%;max-width:100%;min-width:0;height:min(78vh,900px);min-height:430px;border:0;border-radius:10px;background:#09263f";
  frame.setAttribute("loading","eager");frame.setAttribute("sandbox","allow-scripts allow-forms allow-modals allow-downloads allow-popups");
- const buttons=document.createElement("div");buttons.style.cssText="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0";
+ const buttons=document.createElement("div");buttons.className="nabil-prepared-actions";buttons.style.cssText="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0";
  function action(label,url,download=false){
   const link=document.createElement("a");link.textContent=label;link.href=url;
   if(!download){link.target="_blank";link.rel="noopener";}
   link.style.cssText="flex:1 1 180px;min-width:0;max-width:100%;box-sizing:border-box;padding:12px;border-radius:9px;background:#12577b;color:white;text-align:center;text-decoration:none;overflow-wrap:anywhere";
   buttons.append(link);
  }
- action("↗ عرض الدرس كاملًا",data.url);
+ const full=document.createElement("button");full.type="button";full.textContent="↗ عرض الدرس كاملًا";
+ full.style.cssText="flex:1 1 180px;min-width:0;max-width:100%;box-sizing:border-box;padding:12px;border-radius:9px;background:#12577b;color:white;text-align:center;border:0;cursor:pointer;font:inherit;font-weight:800;overflow-wrap:anywhere";
+ full.onclick=async()=>{
+  // IMPORTANT: enlarge the SAME rendered lesson. Never navigate/re-render,
+  // so cards, open lab tab, progress and Golden Reference Card stay identical.
+  if(document.fullscreenElement===card){
+   try{await document.exitFullscreen()}catch(_e){}
+   full.textContent="↗ عرض الدرس كاملًا";return;
+  }
+  if(card.requestFullscreen){
+   try{
+    await card.requestFullscreen();
+    full.textContent="↙ العودة للحجم العادي";
+    return;
+   }catch(_e){}
+  }
+  card.classList.toggle("nabil-fullscreen-fallback");
+  document.body.style.overflow=card.classList.contains("nabil-fullscreen-fallback")?"hidden":"";
+  full.textContent=card.classList.contains("nabil-fullscreen-fallback")?"↙ العودة للحجم العادي":"↗ عرض الدرس كاملًا";
+ };
+ document.addEventListener("fullscreenchange",()=>{
+  if(document.fullscreenElement!==card)full.textContent="↗ عرض الدرس كاملًا";
+ });
+ buttons.append(full);
  const ppt=new URL("/api/lesson-export/prepared",location.origin);
  for(const [key,value] of Object.entries({grade,subject,lesson,language:field("languageSelect"),format:"pptx"}))ppt.searchParams.set(key,value);
  action("📊 عرض PowerPoint / تنزيل PPTX",ppt.pathname+ppt.search,true);
