@@ -276,6 +276,200 @@ SUBJECT_PROFILES = {
 }
 
 
+
+TEACHING_ENGINE_PROFILES = {
+    "L1": {
+        "learner": "early primary",
+        "pace": "one concrete idea at a time; very short sentences; frequent visible checks",
+        "teacher_moves": [
+            "show one concrete object/action",
+            "ask the learner to predict or point",
+            "name what was observed",
+            "state one simple rule",
+            "let the learner imitate or try",
+            "check with one short question",
+        ],
+    },
+    "L2": {
+        "learner": "upper primary/intermediate",
+        "pace": "short connected steps; ask why before stating the rule; guided practice before independence",
+        "teacher_moves": [
+            "start from a visible phenomenon, diagram or problem",
+            "ask a focused prediction",
+            "run or inspect the evidence",
+            "compare what changed and what stayed invariant",
+            "explain why in student language",
+            "formulate the rule/property",
+            "apply it to one guided case",
+            "check understanding before moving on",
+        ],
+    },
+    "L3": {
+        "learner": "secondary",
+        "pace": "compact but rigorous; connect representations; derive or justify before exam-style application",
+        "teacher_moves": [
+            "state the problem or mathematical/scientific target",
+            "separate givens from what must be proved/found",
+            "choose and justify the property/model",
+            "derive or prove step by step",
+            "connect formula, graph, diagram or microscopic model",
+            "verify signs, units, domain, assumptions or logical conditions",
+            "apply to a representative problem",
+            "end with a concise synthesis and independent check",
+        ],
+    },
+}
+
+SUBJECT_TEACHING_ENGINES = {
+    "mathematics": {
+        "default": [
+            "activate the exact prerequisite",
+            "show the object/problem",
+            "let the learner notice a pattern",
+            "name/define the idea",
+            "derive or prove the property",
+            "work one example while explaining WHY each step is legal",
+            "let the learner try a nearby case",
+            "verify and summarize",
+        ],
+        "geometry": [
+            "read givens directly on the figure",
+            "mark only verified equalities/parallelism/perpendicularity/midpoints",
+            "state exactly what is required",
+            "choose the theorem/property and explain why its conditions hold",
+            "build the proof one relation at a time while the matching visual mark appears",
+            "distinguish what is given from what is proved",
+            "finish with a compact proof chain and a check question",
+        ],
+        "functions": [
+            "identify the expression and domain first",
+            "study limits/intercepts/asymptotes only when applicable",
+            "compute and interpret the derivative",
+            "build sign/variation reasoning",
+            "connect the variation table to the graph",
+            "highlight maxima/minima and verified intersections",
+            "check the graph against the algebra",
+        ],
+        "algebra": [
+            "identify the target and known form",
+            "choose the transformation/property",
+            "perform one algebraic move at a time",
+            "explain why equivalence is preserved",
+            "check by substitution or reverse operation when appropriate",
+        ],
+        "statistics_probability": [
+            "identify population/data/events",
+            "organize the given information visually",
+            "choose the exact statistic/probability rule",
+            "calculate with units/denominators visible",
+            "interpret the result in the problem context",
+        ],
+    },
+    "physics": {
+        "default": [
+            "show the physical situation",
+            "identify system, variables and directions",
+            "predict what should happen",
+            "run/inspect the experiment or diagram",
+            "state the observation",
+            "explain the physical reason/model",
+            "derive/state the law with units and sign convention",
+            "apply and verify",
+        ],
+    },
+    "chemistry": {
+        "default": [
+            "start from the observable change or chemical question",
+            "separate macroscopic observation from particle interpretation",
+            "identify species/symbols/charges from evidence",
+            "show particle/electron/bond changes visually",
+            "write and balance the equation only when supported",
+            "check atom/charge conservation",
+            "apply to a nearby case",
+        ],
+    },
+    "biology": {
+        "default": [
+            "observe the structure/process",
+            "identify parts using verified labels",
+            "connect each structure to its function",
+            "follow the process in causal order",
+            "compare normal/changed states only when evidence supports it",
+            "formulate the biological relationship",
+            "apply and check understanding",
+        ],
+    },
+    "general_science": {
+        "default": [
+            "observe the phenomenon",
+            "ask a testable question",
+            "inspect evidence or run the activity",
+            "record what changes and what remains",
+            "interpret without exceeding the evidence",
+            "formulate the concept",
+            "apply and check",
+        ],
+    },
+}
+
+
+def _mathematics_teaching_mode(concept: dict) -> str:
+    text = (
+        str(concept.get("title") or "") + " " +
+        str(concept.get("raw_text") or "")
+    ).casefold()
+    if re.search(
+        r"triangle|circle|angle|tangent|parallel|perpendicular|"
+        r"midpoint|bisector|congruen|similar|polygon|geometry|"
+        r"مثلث|دائرة|زاوية|مماس|متواز|عمود|منتصف|منصف|هندس",
+        text,
+    ):
+        return "geometry"
+    if re.search(
+        r"function|fonction|domain|domaine|limit|limite|derivative|"
+        r"dérivée|asymptote|variation|graph|دال|نهاية|مشتق|مقارب",
+        text,
+    ):
+        return "functions"
+    if re.search(
+        r"probability|probabilité|statistics|statistique|mean|median|"
+        r"احتمال|إحصاء|متوسط|وسيط",
+        text,
+    ):
+        return "statistics_probability"
+    if re.search(
+        r"equation|inequality|factor|expand|polynomial|identity|"
+        r"معادلة|متراجحة|تحليل|نشر|كثير حدود",
+        text,
+    ):
+        return "algebra"
+    return "default"
+
+
+def resolve_teaching_signature(concept: dict, profile: dict) -> dict:
+    subject = profile["subject"]
+    level = profile["level"]
+    level_spec = TEACHING_ENGINE_PROFILES[level]
+    subject_spec = SUBJECT_TEACHING_ENGINES[subject]
+    mode = (
+        _mathematics_teaching_mode(concept)
+        if subject == "mathematics"
+        else "default"
+    )
+    sequence = subject_spec.get(mode) or subject_spec["default"]
+    return {
+        "level": level,
+        "learner": level_spec["learner"],
+        "pace": level_spec["pace"],
+        "teacher_moves": list(level_spec["teacher_moves"]),
+        "subject": subject,
+        "mode": mode,
+        "subject_sequence": list(sequence),
+        "autonomous_teacher": True,
+        "human_teacher_required": False,
+    }
+
+
 def resolve_pedagogy_profile(entry: dict) -> dict:
     if "grade" not in entry or entry["grade"] is None:
         raise RuntimeError("CANONICAL_CATALOG_CORRUPT: Missing grade")
@@ -4197,8 +4391,13 @@ def synthesize_concept_narrative(
         figure_image_base64: Optional[str] = None,
         vision_context: Optional[Dict[str, Any]] = None) -> dict:
     narrative_lang_code = resolve_lang_code(profile["language"])
+    teaching_signature = resolve_teaching_signature(concept, profile)
     prompt = (
-        f"You are Teacher NABIL teaching this concept live in class, grounded STRICTLY in the extracted textbook text and verified source figure when provided. "
+        f"You are Teacher NABIL, an autonomous digital teacher teaching this concept so a learner can understand it without a human teacher operating the lesson. "
+        "Stay grounded STRICTLY in the extracted textbook text and verified source figure when provided. "
+        "Teach like an excellent student-facing tutor: start directly, use small logical steps, explain WHY each move is made, ask the learner to notice/predict/try, and never dump textbook prose. "
+        f"AGE/LEVEL TEACHING CONTRACT: {json.dumps(teaching_signature, ensure_ascii=False)}. "
+        "Follow the subject_sequence as the pedagogical order, but NEVER add a scientific or mathematical fact that is not supported by evidence. "
         "Do NOT sound like a scanned textbook and do NOT reproduce textbook layout. Re-teach the idea in a natural classroom flow: "
         "phenomenon = what the learner should first LOOK AT or wonder about; "
         "investigation = what the learner should TRY or manipulate; "
@@ -4207,7 +4406,9 @@ def synthesize_concept_narrative(
         "conclusion = the concise rule the learner should formulate. "
         "Keep each field short, concrete and age-appropriate. The lesson flow must feel like: SEE → TRY → NOTICE → THINK → CONCLUDE → APPLY. "
         f"Generate plausible wrong answers (distractors) derived only from common misconceptions of this same text.\n\n"
-        f"{narrative_language_instruction(narrative_lang_code)}\n\n"
+        f"{narrative_language_instruction(narrative_lang_code)}\n"
+        + ("When the lesson language is Arabic, write clear Modern Standard Arabic (فصحى) only; understand dialect but do not imitate it. " if narrative_lang_code == "ar" else "")
+        + "Preserve established mathematical/scientific terminology, symbols and units.\n\n"
         f"TEXT: {concept['raw_text']}\n\n"
         f"Subject: {profile['subject']}, Level: {profile['level']}\n"
         "Return strictly JSON: {"
@@ -4629,6 +4830,7 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
             "student_question": student_question,
             "generated_content_scope_audited": narrative.get("_scope_audited", False),
             "removed_generated_fields": narrative.get("_removed_generated_fields", []),
+            "teaching_signature": resolve_teaching_signature(c, profile),
         })
 
         if question_ready:
