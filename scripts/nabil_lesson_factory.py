@@ -4144,6 +4144,10 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
         "Required fields: cation={symbol,charge}, anion={symbol,charge}, cation_ratio, anion_ratio, electron_transfer_count, bond_type='ionic'.\n"
         "7) EVIDENCE_SEQUENCE: for ANY subject when SOURCE explicitly gives two or more ordered or structurally related evidence-backed ideas, parts, stages, transformations, constructions, grammatical steps, historical developments, geographic relations, or other explainable sequence that can be highlighted or animated without inventing a missing fact. "
         "Required field: steps=[{label:str,evidence_quote:str}] with 2..8 ordered steps; every evidence_quote must be an exact contiguous SOURCE quote.\n"
+        "8) EVIDENCE_REVEAL: universal fallback for ANY subject/concept when no richer lab kind fits. "
+        "Use 1..8 exact SOURCE-backed items and reveal/highlight them interactively. "
+        "Required field: items=[{label:str,evidence_quote:str}], each evidence_quote an exact contiguous SOURCE quote. "
+        "This means every concept can still have a real interactive lab without inventing science.\n"
         "For DC_SERIES_CIRCUIT, OPTICS_REFLECTION and IONIC_COMPOUND also return evidence_quotes: an object containing an EXACT SOURCE quote for EACH scientific invariant declared by the spec.\n"
         "Every supported lab must contain an exact evidence quote from SOURCE when evidence_basis=text. "
         "If evidence_basis=figure, a verified source figure must be supplied.\n"
@@ -4161,6 +4165,7 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
         "ORIENTATION_INVARIANT additionally: invariant_orientation ('horizontal'|'vertical'). "
         "SHAPE_RESPONSE additionally: behavior ('fixed'|'conforms'). "
         "EVIDENCE_SEQUENCE additionally: steps=[{label,evidence_quote}]. "
+        "EVIDENCE_REVEAL additionally: items=[{label,evidence_quote}]. "
         "Advanced kinds must include the exact fields listed above plus evidence_quotes."
     )
     try:
@@ -4177,11 +4182,42 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
     if not isinstance(spec, dict):
         raise RuntimeError("LAB_SPEC_INVALID: expected object")
     if spec.get("supported") is not True:
-        return {
-            "supported": False,
-            "reason": str(spec.get("reason") or "NO_VERIFIED_LAB_SPEC"),
+        # Universal classroom contract: every concept must still have an
+        # interactive lab. When no richer simulation is justified, fall back
+        # deterministically to an evidence-reveal lab built only from the
+        # verified source text. No new scientific claim is introduced.
+        source_text = str(concept.get("raw_text") or "").strip()
+        if not source_text:
+            raise RuntimeError("LAB_FALLBACK_SOURCE_EMPTY")
+        fallback_quote = source_text[:700]
+        spec = {
+            "supported": True,
+            "kind": "EVIDENCE_REVEAL",
+            "title": str(concept.get("title") or "NABIL Interactive Explanation"),
+            "instructions": {
+                "ar": "استكشف الفكرة مع نبيل خطوة خطوة.",
+                "fr": "Explore l’idée avec NABIL étape par étape.",
+                "en": "Explore the idea with NABIL step by step.",
+            }.get(resolve_lang_code(entry.get("language", "en")), "Explore the idea with NABIL step by step."),
+            "observation": {
+                "ar": "كل ما يظهر هنا مأخوذ من الدليل الموثق لهذه الفكرة.",
+                "fr": "Tout ce qui apparaît ici vient de la preuve vérifiée de cette idée.",
+                "en": "Everything shown here comes from the verified evidence for this idea.",
+            }.get(resolve_lang_code(entry.get("language", "en")), "Everything shown here comes from the verified evidence for this idea."),
             "evidence_ref": concept["concept_id"],
+            "evidence_basis": "text",
+            "evidence_quote": fallback_quote,
+            "items": [{
+                "label": str(concept.get("title") or "Verified idea"),
+                "evidence_quote": fallback_quote,
+            }],
+            "fallback_reason": str(spec.get("reason") or "NO_RICHER_LAB_KIND"),
         }
+        progress(
+            "LAB_UNIVERSAL_EVIDENCE_REVEAL_FALLBACK",
+            concept_id=concept.get("concept_id"),
+            source_page=concept.get("source_page"),
+        )
     if spec.get("evidence_ref") != concept.get("concept_id"):
         # evidence_ref is provenance metadata, not a scientific claim. The lab
         # has just been generated from this concept's locked SOURCE/FIGURE, so
@@ -4273,6 +4309,20 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
             if not label or not quote or quote not in source_norm:
                 raise RuntimeError(
                     f"LAB_SEQUENCE_EVIDENCE_QUOTE_NOT_FOUND:{index}")
+
+    if kind == "EVIDENCE_REVEAL":
+        items = spec.get("items")
+        if not isinstance(items, list) or not 1 <= len(items) <= 8:
+            raise RuntimeError("LAB_REVEAL_ITEMS_INVALID")
+        source_norm = _normalized_lab_evidence(concept.get("raw_text", ""))
+        for index, item in enumerate(items):
+            if not isinstance(item, dict):
+                raise RuntimeError(f"LAB_REVEAL_ITEM_INVALID:{index}")
+            label = str(item.get("label") or "").strip()
+            quote = _normalized_lab_evidence(item.get("evidence_quote", ""))
+            if not label or not quote or quote not in source_norm:
+                raise RuntimeError(
+                    f"LAB_REVEAL_EVIDENCE_QUOTE_NOT_FOUND:{index}")
 
     validate_lab_spec(spec)
     return spec
