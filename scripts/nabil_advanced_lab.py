@@ -20,11 +20,13 @@ import json
 import math
 import re
 from typing import Any, Dict, Tuple
+from scripts.nabil_geometry_lab import validate_geometry_proof_spec, render_geometry_proof_lab
 
 ADVANCED_LAB_KINDS={
     "DC_SERIES_CIRCUIT",
     "OPTICS_REFLECTION",
     "IONIC_COMPOUND",
+    "GEOMETRY_PROOF",
 }
 
 def _safe_id(value:str)->str:
@@ -33,13 +35,13 @@ def _safe_id(value:str)->str:
 def _labels(lang:str)->Dict[str,str]:
     if lang=="ar":
         return {
-            "close":"أغلق السويتش","open":"افتح السويتش",
-            "switch_open":"OPEN — لا يمر current",
-            "switch_closed":"CLOSED — يمر current",
-            "source_voltage":"Source voltage",
-            "explain":"▶ اشرح من البداية","stop":"■ إيقاف الشرح",
-            "drag_source":"اسحب مصدر الضوء","transfer":"⚡ نفّذ electron transfer",
-            "reset":"↺ إعادة",
+            "close":"أغلق المفتاح","open":"افتح المفتاح",
+            "switch_open":"المفتاح مفتوح — لا يمر تيار كهربائي",
+            "switch_closed":"المفتاح مغلق — يمر تيار كهربائي",
+            "source_voltage":"توتر المصدر",
+            "explain":"▶ اشرح من البداية","stop":"■ أوقف الشرح",
+            "drag_source":"حرّك مصدر الضوء","transfer":"⚡ نفّذ انتقال الإلكترونات",
+            "reset":"↺ أعد التجربة",
         }
     if lang=="fr":
         return {
@@ -111,6 +113,8 @@ def validate_advanced_lab_spec(spec:Dict[str,Any])->Dict[str,Any]:
             raise RuntimeError(f"LAB_IONIC_ELECTRON_TRANSFER_INCONSISTENT:declared={transfer}:expected={expected}")
         if transfer>8:
             raise RuntimeError("LAB_IONIC_TRANSFER_COUNT_UNSUPPORTED")
+    elif kind=="GEOMETRY_PROOF":
+        validate_geometry_proof_spec(spec)
     return spec
 
 def _voice_helpers(lang:str)->str:
@@ -393,4 +397,6 @@ def render_advanced_verified_lab(spec:Dict[str,Any],lang_code:str,lab_id:str)->T
         return _render_optics(spec,lang_code,lab_id),True
     if kind=="IONIC_COMPOUND":
         return _render_ionic(spec,lang_code,lab_id),True
+    if kind=="GEOMETRY_PROOF":
+        return render_geometry_proof_lab(spec,lang_code,lab_id)
     raise RuntimeError(f"LAB_ADVANCED_KIND_UNSUPPORTED:{kind}")
