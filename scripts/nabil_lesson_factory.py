@@ -3500,6 +3500,35 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
               "CRITICAL",
               f"concept={act.get('concept_id')}")
 
+        lab_kind = str(spec.get("kind") or "").upper()
+        if lab_kind in {"DC_SERIES_CIRCUIT", "OPTICS_REFLECTION", "IONIC_COMPOUND"}:
+            check("LAB_TEACHER_POINTER_NOT_SYNCED",
+                  'data-teacher-pointer="synced"' in lab_html
+                  and 'teacherArrow' in lab_html
+                  and 'pointTeacher' in lab_html,
+                  "CRITICAL",
+                  f"concept={act.get('concept_id')} kind={lab_kind}")
+        if lab_kind == "DC_SERIES_CIRCUIT":
+            check("LAB_OPEN_CIRCUIT_CURRENT_GUARD_MISSING",
+                  "OPEN_CIRCUIT_ZERO_CURRENT" in lab_html
+                  and "CURRENT_REQUIRES_CLOSED_SWITCH" in lab_html
+                  and "switchClosed?V/Rt:0" in lab_html,
+                  "CRITICAL",
+                  f"concept={act.get('concept_id')}")
+        elif lab_kind == "OPTICS_REFLECTION":
+            check("LAB_OPTICS_NORMAL_REFERENCE_GUARD_MISSING",
+                  'data-angle-reference="normal"' in lab_html
+                  and "ANGLES_FROM_NORMAL" in lab_html
+                  and "I_EQUALS_R" in lab_html,
+                  "CRITICAL",
+                  f"concept={act.get('concept_id')}")
+        elif lab_kind == "IONIC_COMPOUND":
+            check("LAB_IONIC_NEUTRALITY_GUARD_MISSING",
+                  'data-charge-neutral="true"' in lab_html
+                  and "CHARGE_NEUTRALITY" in lab_html,
+                  "CRITICAL",
+                  f"concept={act.get('concept_id')}")
+
     with tempfile.NamedTemporaryFile(suffix=".html", mode="w", encoding="utf-8", delete=False) as tmp_a:
         tmp_a.write(candidate["page_a_html"])
         path_a = tmp_a.name
