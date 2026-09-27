@@ -4282,23 +4282,42 @@ def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: di
                             break
 
         if ex["solution_mode"] == "PRE_SOLVED":
-            sol = ex.get("_pre_solved_solution")
-            if sol is None:
-                sol = grounded_subject_solver(ex, ev_map, profile)
-                ex["_pre_solved_solution"] = sol
-            step_label = ui_t(page_b_lang_code, "step_label")
-            steps_html = "<br>".join([f"• <b>{step_label}:</b> {html.escape(str(step))}" for step in sol["steps"]])
-            card_spec = build_factory_solution_card_spec(entry, ex, sol)
-            card_json = html.escape(
-                json.dumps(card_spec, ensure_ascii=False), quote=True)
-            sol_box = f'''
-            <div data-nabil-solution-card="{card_json}" style="margin-top:10px;">
-              <div class="nabil-solution-fallback" style="padding:12px; background:#ecfdf5; border-radius:6px; font-size:13px; color:#065f46; line-height:1.6;">
-                {verified_js}<br>
-                {steps_html}<br>
-                • <b>{final_answer_js}:</b> {html.escape(str(sol["final_answer"]))}
-              </div>
-            </div>'''
+            if ex.get("solution_status") == "OMITTED_UNVERIFIED":
+                omitted_note = {
+                    "ar": "لم يُعرض الحل الآلي لأن كل ادعاء فيه لم يمكن توثيقه بأمان من نص الدرس/الشكل الأصلي.",
+                    "fr": "La solution automatique n'est pas affichée car toutes ses affirmations n'ont pas pu être vérifiées à partir du texte/figure source.",
+                    "en": "Automatic solution omitted because every claim could not be safely verified against the lesson text/source figure.",
+                }.get(
+                    page_b_lang_code,
+                    "Automatic solution omitted because every claim could not be safely verified against the lesson text/source figure."
+                )
+                sol_box = (
+                    '<div style="margin-top:10px;padding:12px;background:#fff7ed;'
+                    'border:1px solid #fed7aa;border-radius:6px;font-size:13px;'
+                    'color:#9a3412;line-height:1.6;">'
+                    + html.escape(omitted_note) + '</div>'
+                )
+            else:
+                sol = ex.get("_pre_solved_solution")
+                if sol is None:
+                    sol = grounded_subject_solver(ex, ev_map, profile)
+                    ex["_pre_solved_solution"] = sol
+                step_label = ui_t(page_b_lang_code, "step_label")
+                steps_html = "<br>".join([
+                    f"• <b>{step_label}:</b> {html.escape(str(step))}"
+                    for step in sol["steps"]
+                ])
+                card_spec = build_factory_solution_card_spec(entry, ex, sol)
+                card_json = html.escape(
+                    json.dumps(card_spec, ensure_ascii=False), quote=True)
+                sol_box = f'''
+                <div data-nabil-solution-card="{card_json}" style="margin-top:10px;">
+                  <div class="nabil-solution-fallback" style="padding:12px; background:#ecfdf5; border-radius:6px; font-size:13px; color:#065f46; line-height:1.6;">
+                    {verified_js}<br>
+                    {steps_html}<br>
+                    • <b>{final_answer_js}:</b> {html.escape(str(sol["final_answer"]))}
+                  </div>
+                </div>'''
         else:
             solve_label = ui_t(page_b_lang_code, "solve_on_demand", sec=sec_type, num=ex_num)
             sol_box = f'''
@@ -4560,7 +4579,30 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
                   has_verified_source_figure or has_verified_reconstruction,
                   "CRITICAL", f"Ex {e['number']}")
 
-    check("PRE_SOLVE_FAILED", all(e["solution_status"] == "SOLVED" for e in candidate["exercises"] if e["solution_mode"] == "PRE_SOLVED"), "CRITICAL", "Pre-solved exercises unverified")
+    pre_solved_statuses = [
+        e.get("solution_status")
+        for e in candidate["exercises"]
+        if e.get("solution_mode") == "PRE_SOLVED"
+    ]
+    check(
+        "PRE_SOLVE_STATUS_INVALID",
+        all(s in {"SOLVED", "OMITTED_UNVERIFIED"} for s in pre_solved_statuses),
+        "CRITICAL",
+        f"statuses={pre_solved_statuses}",
+    )
+    solved_items = [
+        e for e in candidate["exercises"]
+        if e.get("solution_status") == "SOLVED"
+    ]
+    check(
+        "SOLUTION_SOURCE_SCOPE_AUDIT_MISSING",
+        all(
+            (e.get("_pre_solved_solution") or {}).get("source_scope_audited") is True
+            for e in solved_items
+        ),
+        "CRITICAL",
+        "Every displayed solved exercise must pass text/figure source-scope audit",
+    )
     check("WORKSHEET_NOT_GRADABLE", all("correct_index" in q for q in candidate["theory"]["worksheet"]), "CRITICAL", "Worksheet grading keys")
     check("REFERENCE_CARD_CONTENT_INCOMPLETE", "goldenReferenceCard" in candidate["page_a_html"], "CRITICAL", "Golden reference card missing")
     check(
