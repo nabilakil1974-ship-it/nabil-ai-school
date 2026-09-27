@@ -452,6 +452,8 @@ jobs:
           assert "TEACHING_ENGINE_SEQUENCE_INCOMPLETE" in source
           assert "GEOMETRY_VISUAL_PROOF_MARKS_MISSING" in source
           assert "FORMAL_ARABIC_TEACHING_FAILED" in source
+          assert "BROWSER_TTS_CONTRACT_NOT_WIRED" in source
+          assert "BROWSER_TTS_CONTRACT_INVALID" in source
           assert "SECONDARY_YEAR_TEACHING" in source
           assert "_subject_teaching_mode" in source
 
@@ -550,6 +552,27 @@ jobs:
               "lab_spec": concept_spec,
               "lab_html": concept_html,
               "has_active_sim": True,
+              "teaching_signature": {
+                  "mode": "default", "level": "L2",
+                  "secondary_year_contract": None,
+              },
+              "teaching_steps": [
+                  {"step_id": "C01-S01", "concept_id": "C01",
+                   "label": "See", "sentence": "Look at the object.",
+                   "kind": "hook", "formula": "",
+                   "lab_key": "concept:C01",
+                   "evidence": {"concept_id": "C01", "source_page": 1}},
+                  {"step_id": "C01-S02", "concept_id": "C01",
+                   "label": "Notice", "sentence": "Its shape remains.",
+                   "kind": "observation", "formula": "",
+                   "lab_key": "concept:C01",
+                   "evidence": {"concept_id": "C01", "source_page": 1}},
+                  {"step_id": "C01-S03", "concept_id": "C01",
+                   "label": "Conclude", "sentence": "Fixture conclusion.",
+                   "kind": "law_or_rule", "formula": "",
+                   "lab_key": "concept:C01",
+                   "evidence": {"concept_id": "C01", "source_page": 1}},
+              ],
           }]
           whole_html = factory.render_whole_lesson_smart_lab(
               "Fixture Lesson", activities_fixture, "en")
@@ -572,6 +595,12 @@ jobs:
           assert lab_index["runtime_ai_required_for_indexed_labs"] is False
           assert lab_index["renderer_contract"] == factory.REFERENCE_RENDERER_CONTRACT
           assert lab_index["translation_languages"] == ["ar", "en", "fr"]
+          assert lab_index["voice"]["engine"] == "SpeechSynthesis"
+          assert lab_index["voice"]["paid_endpoint"] is False
+          assert lab_index["voice"]["male_voice_preferred"] is True
+          assert lab_index["voice"]["male_voice_guaranteed"] is False
+          assert lab_index["concept_labs"][0]["teaching_steps_count"] == 3
+          assert lab_index["whole_lesson_lab"]["teaching_story"] is True
           assert lab_index["whole_lesson_lab"]["active"] is True
           assert lab_index["whole_lesson_lab"]["key"] == "lesson:whole"
           assert 'data-whole-lesson-smart-lab="true"' in whole_html
@@ -610,6 +639,13 @@ jobs:
           assert "maleVoiceGuaranteed:false" in browser_tts
           assert "/api/tts" not in browser_tts
           assert "fetch(" not in browser_tts
+
+          main_source = factory.Path("app/main.py").read_text(encoding="utf-8")
+          assert "nabil_browser_tts_v1.js?v=1" in main_source
+          assert (
+              main_source.index("nabil_browser_tts_v1.js?v=1")
+              < main_source.index("nabil_voice_v133.js?v=133")
+          )
 
           smart_route = factory.Path(
               "app/api/routes_smart_labs.py"
