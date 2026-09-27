@@ -169,6 +169,11 @@ function progressive(text,duration,token){
  tick();
 }
 async function speak(text,requested=lang){
+ const pageLang=window.NABILPageLanguage?.get?.();
+ if(["ar","en","fr"].includes(pageLang)){
+   requested=pageLang;
+   try{text=window.NABILPageLanguage?.translateText?.(text,pageLang)||text}catch(_e){}
+ }
  const clean=stripSpeech(text,requested);if(!clean)return;
  stopSpeech();const token=++speechToken;
  if(typeof window.nabilSpeakClear==="function"){
