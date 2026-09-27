@@ -3175,14 +3175,29 @@ def grounded_subject_solver(exercise: dict, evidence_map: dict, profile: dict) -
                 for f in p["figures"]:
                     if f["figure_id"] in exercise["figure_refs"]:
                         try:
-                            fig_base64 = base64.b64encode(Path(f["image_path"]).read_bytes()).decode("ascii")
+                            fig_base64 = base64.b64encode(
+                                Path(f["image_path"]).read_bytes()
+                            ).decode("ascii")
                         except Exception as exc:
-                            raise RuntimeError(f"FIGURE_EVIDENCE_MISSING: Cannot read referenced source image: {exc}")
+                            raise RuntimeError(
+                                "FIGURE_EVIDENCE_MISSING: Cannot read "
+                                f"referenced source image: {exc}")
                         break
+
+    all_scope = [
+        {
+            "concept_id": c.get("concept_id"),
+            "title": c.get("title"),
+            "source_page": c.get("source_page"),
+            "text": c.get("normalized_text") or c.get("raw_text"),
+        }
+        for c in evidence_map.get("concepts", [])
+        if str(c.get("normalized_text") or c.get("raw_text") or "").strip()
+    ]
 
     if source_origin == "TEXTBOOK":
         provenance = f"official textbook exercise verbatim from Page {page}"
-        scope_note = ""
+        supported_scope = all_scope
     else:
         provenance = (
             "additional practice exercise already approved by the strict "
@@ -3190,17 +3205,18 @@ def grounded_subject_solver(exercise: dict, evidence_map: dict, profile: dict) -
         )
         supported = set(exercise.get("scope_concept_ids") or [])
         supported_scope = [
-            {
-                "concept_id": c.get("concept_id"),
-                "text": c.get("normalized_text") or c.get("raw_text"),
-            }
-            for c in evidence_map.get("concepts", [])
-            if c.get("concept_id") in supported
+            item for item in all_scope
+            if item.get("concept_id") in supported
         ]
-        scope_note = (
-            "\nYou MUST solve using only these verified lesson concepts: "
-            + json.dumps(supported_scope, ensure_ascii=False)
-        )
+
+    if not supported_scope:
+        raise RuntimeError(
+            "PRE_SOLVE_FAILED: no verified lesson scope for exercise")
+
+    scope_note = (
+        "\nVERIFIED LESSON EVIDENCE — use this and the exercise itself only:\n"
+        + json.dumps(supported_scope, ensure_ascii=False)
+    )
 
     reconstructed_note = ""
     if exercise.get("reconstructed_diagram_verified"):
@@ -3214,6 +3230,16 @@ def grounded_subject_solver(exercise: dict, evidence_map: dict, profile: dict) -
         )
 
     solver_lang_code = resolve_lang_code(profile["language"])
+    figure_rule = (
+        "A verified source figure is attached. Treat only relationships actually "
+        "visible in that figure as visual evidence. Never claim that objects are "
+        "connected, aligned, equal, parallel, at the same level, measured, or "
+        "made of a particular material unless the prompt, verified lesson text, "
+        "or attached figure establishes that relationship."
+        if fig_base64 else
+        "No source figure is attached. Do not infer any missing geometry or "
+        "visual relationship."
+    )
     query = (
         f"You are Teacher NABIL, master professor of Lebanese "
         f"{subj.capitalize()} Grade {grade}.\n"
@@ -3222,76 +3248,148 @@ def grounded_subject_solver(exercise: dict, evidence_map: dict, profile: dict) -
         f"Prompt: {prompt}\n"
         f"Subquestions: {json.dumps(exercise.get('subquestions', []))}"
         f"{scope_note}{reconstructed_note}\n\n"
-        "RULES:\n"
-        "1. Step-by-step rigorous deduction, derivation, and calculation. "
-        "Analyze an accompanying figure only when a verified source figure "
-        "is actually provided. No generic text or placeholders.\n"
-        "2. State formulas, substitutions with units, and clear final answer.\n"
-        "3. Never introduce knowledge outside the verified lesson scope.\n"
+        "STRICT SOURCE RULES:\n"
+        "1. Answer the textbook task directly and minimally.\n"
+        "2. Every explanatory fact, law, property, example, material, unit, "
+        "quantity, or scientific relationship must come from the exercise "
+        "prompt, VERIFIED LESSON EVIDENCE, or a verified attached figure.\n"
+        "3. Do not add general textbook knowledge merely because it is true. "
+        "For example/list/classification questions, give the requested answer "
+        "without adding unrelated background facts.\n"
+        f"4. {figure_rule}\n"
+        "5. If the prompt asks for a drawing, describe only what must be drawn "
+        "from the verified rule and visible source geometry.\n"
         "Return strictly JSON: {'steps': [str], 'final_answer': str}"
     )
 
-    try:
-        res = execute_llm_completion(
-            query, json_mode=True, temperature=0.0,
+    vision_context = ({
+        "lesson_id": exercise.get("lesson_id"),
+        "book_id": evidence_map.get("book_id"),
+        "pdf_page": page,
+    } if fig_base64 else None)
+
+    def _generate_solution(extra_instruction: str = "") -> Tuple[dict, dict]:
+        raw = execute_llm_completion(
+            query + extra_instruction,
+            json_mode=True,
+            temperature=0.0,
             image_base64=fig_base64,
-            vision_context=({
-                "lesson_id": exercise.get("lesson_id"),
-                "book_id": evidence_map.get("book_id"),
-                "pdf_page": page,
-            } if fig_base64 else None))
-        parsed = json.loads(res)
-        solution_provenance = get_last_llm_provenance()
-        if not parsed.get("steps") or not parsed.get("final_answer"):
-            raise ValueError("Incomplete solver response schema")
-        
-        if source_origin == "TEXTBOOK":
-            verify_prompt = (
-                f"Verify if this solution correctly answers the exercise prompt "
-                f"without contradictions.\nPrompt: {prompt}\n"
-                f"Solution: {json.dumps(parsed, ensure_ascii=False)}\n"
-                "Return strictly JSON: {'valid': bool}"
+            vision_context=vision_context)
+        parsed = json.loads(raw)
+        provenance_data = get_last_llm_provenance()
+        if not isinstance(parsed.get("steps"), list) or not parsed.get("steps"):
+            raise ValueError("Incomplete solver steps")
+        if not str(parsed.get("final_answer") or "").strip():
+            raise ValueError("Incomplete solver final answer")
+        return parsed, dict(provenance_data)
+
+    def _audit_solution(candidate: dict) -> Tuple[dict, dict]:
+        audit_prompt = (
+            "Act as a DELETE-FIRST source-grounding auditor for a school "
+            "exercise solution. Compare every step and the final answer against "
+            "the exercise prompt, VERIFIED LESSON EVIDENCE, and the attached "
+            "verified source figure when present.\n"
+            "Reject unsupported embellishment even if scientifically true. "
+            "A direct answer required by the exercise may be kept, but its "
+            "explanation may not introduce outside facts. Any statement about "
+            "connections, relative levels, orientation, shape, measurements, "
+            "materials, or geometry must be stated in the prompt/evidence or be "
+            "visibly established by the attached figure.\n"
+            "Return strict JSON: {"
+            "'keep_step_indexes':[int],"
+            "'final_answer_valid':bool,"
+            "'figure_faithful':bool,"
+            "'pruned_solution_valid':bool,"
+            "'reasons':[str]"
+            "}. keep_step_indexes are ZERO-BASED indexes of steps that can remain "
+            "unchanged. pruned_solution_valid=true only when keeping exactly "
+            "those steps plus the unchanged final answer produces a correct, "
+            "complete-enough, source-grounded solution. If no figure is attached, "
+            "figure_faithful must be true.\n"
+            f"Exercise: {prompt}\n"
+            f"VERIFIED LESSON EVIDENCE: "
+            f"{json.dumps(supported_scope, ensure_ascii=False)}\n"
+            f"Candidate solution: {json.dumps(candidate, ensure_ascii=False)}"
+        )
+        raw = execute_llm_completion(
+            audit_prompt,
+            json_mode=True,
+            temperature=0.0,
+            image_base64=fig_base64,
+            vision_context=vision_context)
+        parsed_audit = json.loads(raw)
+        return parsed_audit, dict(get_last_llm_provenance())
+
+    try:
+        parsed, solution_provenance = _generate_solution()
+        audit, verification_provenance = _audit_solution(parsed)
+
+        def _apply_delete_first(candidate: dict, verdict: dict) -> Optional[dict]:
+            try:
+                keep = sorted({
+                    int(x) for x in (verdict.get("keep_step_indexes") or [])
+                    if 0 <= int(x) < len(candidate.get("steps") or [])
+                })
+            except (TypeError, ValueError):
+                keep = []
+            if not (
+                verdict.get("final_answer_valid") is True
+                and verdict.get("figure_faithful") is True
+                and verdict.get("pruned_solution_valid") is True
+                and keep
+            ):
+                return None
+            removed = [
+                idx for idx in range(len(candidate["steps"])) if idx not in keep
+            ]
+            for idx in removed:
+                progress(
+                    "REMOVED_OUT_OF_SCOPE_SOLUTION_STEP",
+                    exercise_id=exercise.get("exercise_id"),
+                    number=exercise.get("number"),
+                    step_index=idx,
+                )
+            cleaned = dict(candidate)
+            cleaned["steps"] = [candidate["steps"][idx] for idx in keep]
+            cleaned["scope_audit_reasons"] = list(verdict.get("reasons") or [])
+            return cleaned
+
+        cleaned = _apply_delete_first(parsed, audit)
+        if cleaned is None:
+            progress(
+                "SOLUTION_STRICT_REGENERATION_REQUIRED",
+                exercise_id=exercise.get("exercise_id"),
+                number=exercise.get("number"),
+                reasons=[str(x) for x in (audit.get("reasons") or [])][:6],
             )
-        else:
-            verify_prompt = (
-                "Act as a strict lesson-scope solution auditor. Verify that this "
-                "solution correctly answers the AI practice exercise AND uses "
-                "only the verified lesson concepts below. Reject any new law, "
-                "definition, scientific fact, apparatus/material, quantity, unit, "
-                "formula, prerequisite, or reasoning not supported by those "
-                "concepts. New numeric inputs are allowed only when applying a "
-                "verified formula/relation with verified units. Reject if any "
-                "step relies on outside knowledge.\n"
-                f"Prompt: {prompt}\n"
-                f"Verified lesson concepts: "
-                f"{json.dumps(supported_scope, ensure_ascii=False)}\n"
-                f"Solution: {json.dumps(parsed, ensure_ascii=False)}\n"
-                "Return strictly JSON: "
-                "{'valid': bool, 'within_scope': bool, 'reasons': [str]}"
+            correction = (
+                "\n\nYour previous candidate failed source/figure grounding. "
+                "Generate a NEW, shorter solution from scratch. Do not repeat "
+                "the rejected claims. Use only the prompt, verified lesson "
+                "evidence, and attached verified figure. Auditor reasons: "
+                + json.dumps(audit.get("reasons") or [], ensure_ascii=False)
             )
-        val_res = json.loads(execute_llm_completion(
-            verify_prompt, json_mode=True, temperature=0.0))
-        verification_provenance = get_last_llm_provenance()
-        if source_origin == "TEXTBOOK":
-            solution_valid = bool(val_res.get("valid", False))
-        else:
-            solution_valid = bool(
-                val_res.get("valid", False)
-                and val_res.get("within_scope", False)
-            )
-        if not solution_valid:
+            parsed, solution_provenance = _generate_solution(correction)
+            audit, verification_provenance = _audit_solution(parsed)
+            cleaned = _apply_delete_first(parsed, audit)
+
+        if cleaned is None:
             raise RuntimeError(
                 "SOLVER_SOLUTION_VALIDATION_FAILED:"
-                f"{val_res.get('reasons', [])}")
+                f"{audit.get('reasons', [])}")
 
         exercise["solution_status"] = "SOLVED"
-        parsed["ai_provenance"] = {
+        cleaned["ai_provenance"] = {
             "solution": dict(solution_provenance),
             "verification": dict(verification_provenance),
         }
-        return parsed
+        cleaned["source_scope_audited"] = True
+        return cleaned
     except Exception as e:
-        raise RuntimeError(f"PRE_SOLVE_FAILED: grounded solver unavailable or failed for Ex #{exercise['number']}: {e}")
+        raise RuntimeError(
+            "PRE_SOLVE_FAILED: grounded solver unavailable or failed for "
+            f"Ex #{exercise['number']}: {e}")
+
 
 
 def prepare_verified_solutions(entry: dict, exercises: list,
@@ -3322,7 +3420,21 @@ def prepare_verified_solutions(entry: dict, exercises: list,
                      number=ex.get("number"))
             continue
 
-        sol = grounded_subject_solver(ex, ev_map, profile)
+        try:
+            sol = grounded_subject_solver(ex, ev_map, profile)
+        except RuntimeError as exc:
+            if not str(exc).startswith("PRE_SOLVE_FAILED"):
+                raise
+            ex["solution_status"] = "OMITTED_UNVERIFIED"
+            ex["_pre_solved_solution"] = None
+            ex["solution_omission_reason"] = str(exc)[:500]
+            progress(
+                "SKIPPED_UNVERIFIED_EXERCISE_SOLUTION",
+                exercise_id=ex.get("exercise_id"),
+                number=ex.get("number"),
+                reason=str(exc)[:240],
+            )
+            continue
         ex["_pre_solved_solution"] = sol
         if page_checkpoints:
             page_checkpoints.save_solution(
