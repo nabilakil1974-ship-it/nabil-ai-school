@@ -5378,7 +5378,9 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
         "REFERENCE_CARD_CONCEPT_COVERAGE_INCOMPLETE",
         candidate["page_a_html"].count('class="nabil-reference-concept"') == len(ev_map["concepts"]),
         "CRITICAL",
-        f"reference_concepts={candidate['page_a_html'].count('class=\"nabil-reference-concept\"')}, concepts={len(ev_map['concepts'])}",
+        "reference_concepts="
+        + str(candidate["page_a_html"].count('class="nabil-reference-concept"'))
+        + ", concepts=" + str(len(ev_map["concepts"])),
     )
     lab_index = candidate.get("lab_index") or {}
     concept_lab_index = lab_index.get("concept_labs") or []
