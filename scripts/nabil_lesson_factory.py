@@ -3613,9 +3613,10 @@ def grounded_subject_solver(exercise: dict, evidence_map: dict, profile: dict) -
     reconstructed_note = ""
     if exercise.get("reconstructed_diagram_verified"):
         reconstructed_note = (
-            "\nThe original textbook figure was unavailable. Use ONLY this "
-            "independently verified text-grounded schematic plan; it is an "
-            "illustrative reconstruction, not source-image evidence: "
+            "\nUse ONLY this independently verified NABIL schematic plan as "
+            "the student-facing visual. The original textbook/source image, if "
+            "available, is hidden evidence only and must never be reproduced "
+            "or exposed to the student: "
             + json.dumps(
                 exercise.get("reconstructed_diagram_plan") or {},
                 ensure_ascii=False)
@@ -5038,17 +5039,19 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
                   and bool(e.get("scope_concept_ids")),
                   "CRITICAL", f"Additional practice {e['number']}")
         if e["requires_figure"]:
-            has_verified_source_figure = len(e["figure_refs"]) > 0
             has_verified_reconstruction = bool(
                 e.get("reconstructed_diagram_verified")
                 and e.get("reconstructed_diagram_svg")
                 and e.get("reconstructed_diagram_plan")
-                and e.get("reconstructed_diagram_method")
-                    == "AI_RECONSTRUCTED_DIAGRAM_FROM_VERIFIED_TEXT"
+                and e.get("reconstructed_diagram_method") in {
+                    "AI_RECONSTRUCTED_DIAGRAM_FROM_VERIFIED_TEXT",
+                    "NABIL_EXPLANATORY_REDRAW_FROM_LOCKED_EVIDENCE",
+                }
             )
             check("EXERCISE_DIAGRAM_REQUIRED_MISSING",
-                  has_verified_source_figure or has_verified_reconstruction,
-                  "CRITICAL", f"Ex {e['number']}")
+                  has_verified_reconstruction,
+                  "CRITICAL",
+                  f"Ex {e['number']} must have a NABIL redraw; source scan is hidden")
 
     pre_solved_statuses = [
         e.get("solution_status")
@@ -5193,6 +5196,24 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
     check("MATH_RENDERING_FAILED", qa_a and qa_b, "CRITICAL", "MathJax successful rendering & bounding box overflow checks verified via real Playwright Chromium execution")
     check("MOBILE_REAL_PLAYWRIGHT_CHROMIUM_QA_390_844", qa_a and qa_b, "CRITICAL", "Real Playwright Chromium headless browser QA verified for 390x844 bounds, bounding boxes clipping & touch targets")
 
+    check(
+        "STUDENT_SOURCE_SCAN_FORBIDDEN",
+        "data:image/" not in candidate["page_a_html"]
+        and "data:image/" not in candidate["page_b_html"],
+        "CRITICAL",
+        "Textbook/source raster images are evidence-only and must not be embedded in student lesson HTML",
+    )
+    check(
+        "NABIL_VISUAL_PIPELINE_MISSING",
+        all(
+            (a.get("has_active_sim") is True)
+            or not a.get("source_figure_used_as_hidden_evidence")
+            or a.get("visual_method") == "NABIL_EXPLANATORY_REDRAW_FROM_LOCKED_EVIDENCE"
+            for a in candidate["theory"].get("activities", [])
+        ),
+        "CRITICAL",
+        "Every concept that used a hidden source figure must teach through a verified NABIL lab/redraw",
+    )
     check("NAVIGATION_FAILED", "navigateToExercises" in candidate["page_a_html"] and "returnToLesson" in candidate["page_b_html"], "CRITICAL", "Navigation intact")
     check("E2E_RUNTIME_NOT_WIRED",
           all("nabil_lesson_e2e_runtime_v1.js" in page for page in
