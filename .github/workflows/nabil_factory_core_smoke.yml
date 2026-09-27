@@ -10,6 +10,9 @@ on:
       - "scripts/nabil_quiz_engine.py"
       - "app/static/nabil_scientific_solution_cards_e2e.js"
       - "app/static/nabil_lesson_e2e_runtime_v1.js"
+      - "app/static/nabil_smart_lab_bridge_v1.js"
+      - "app/api/routes_smart_labs.py"
+      - "app/main.py"
       - ".github/workflows/nabil_factory_core_smoke.yml"
   workflow_dispatch:
 
@@ -31,6 +34,7 @@ jobs:
         run: |
           node --check app/static/nabil_scientific_solution_cards_e2e.js
           node --check app/static/nabil_lesson_e2e_runtime_v1.js
+          node --check app/static/nabil_smart_lab_bridge_v1.js
 
       - name: Import and exercise enrichment engines
         run: |
@@ -117,7 +121,11 @@ jobs:
           assert "plausible from general knowledge" in source_text
           assert "scope_snapshot_sha256" in source_text
           assert "DELETE-FIRST source-grounding auditor" in source_text
-          assert "SKIPPED_UNVERIFIED_LAB" in source_text
+          assert "LAB_UNIVERSAL_EVIDENCE_REVEAL_FALLBACK" in source_text
+          assert "LAB_REQUIRED_FOR_EVERY_CONCEPT" in source_text
+          assert "STUDENT_SOURCE_SCAN_FORBIDDEN" in source_text
+          assert "NABIL_EXPLANATORY_REDRAW_FROM_LOCKED_EVIDENCE" in source_text
+          assert "REFERENCE_CARD_CONCEPT_COVERAGE_INCOMPLETE" in source_text
           assert "SKIPPED_UNVERIFIED_SOURCE_FIGURE" in source_text
           assert "Skip exercise when its required source figure is unverified" not in source_text
           assert "SOURCE_FIGURE_REQUIRED_COVERAGE_INCOMPLETE" in source_text
@@ -175,6 +183,21 @@ jobs:
           assert active
           assert "pointerdown" in shape_html and "pointermove" in shape_html
           assert "dropB" in shape_html
+
+          reveal_spec = {
+              "supported": True,
+              "kind": "EVIDENCE_REVEAL",
+              "title": "Universal fixture",
+              "instructions": "Explore.",
+              "observation": "Verified only.",
+              "evidence_ref": "C07",
+              "items": [{"label": "Idea", "evidence_quote": "Verified idea"}],
+          }
+          reveal_html, active = render_verified_lab(reveal_spec, "en", "C07")
+          assert active
+          assert 'data-lab-kind="EVIDENCE_REVEAL"' in reveal_html
+          assert "nabil-reveal-item" in reveal_html
+          assert "nabil:demo" in reveal_html
 
           # Advanced science fixtures verify deterministic invariants and the
           # synchronized teacher pointer. These are test fixtures, not lesson evidence.
