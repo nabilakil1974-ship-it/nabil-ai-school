@@ -504,7 +504,7 @@ def _build_root_html() -> str:
         '<script src="/static/nabil_universal_language_v1.js?v=1"></script>\n'
         '<script src="/static/nabil_drive_home_requests_v1.js?v=7"></script>\n'
         '<script src="/static/nabil_universal_lesson_actions_v1.js?v=2"></script>\n'
-        '<script src="/static/nabil_smart_lab_bridge_v1.js?v=2"></script>\n'
+        '<script src="/static/nabil_smart_lab_bridge_v1.js?v=3"></script>\n'
     )
     boundary = html.lower().rfind("</body>")
     if boundary < 0:
