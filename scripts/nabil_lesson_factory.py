@@ -5095,12 +5095,12 @@ def _is_translatable_display_string(value: str) -> bool:
 
 
 def _extract_translation_candidates(markup: str) -> List[str]:
-    """Collect static and dynamic student-visible strings without modifying HTML."""
-    from bs4 import BeautifulSoup, NavigableString
+    """Collect static/dynamic display strings using Python stdlib only."""
+    from html.parser import HTMLParser
 
-    soup = BeautifulSoup(markup, "html.parser")
     ordered: List[str] = []
     seen = set()
+    script_chunks: List[str] = []
 
     def add(value):
         text = re.sub(r"\s+", " ", str(value or "")).strip()
@@ -5108,38 +5108,59 @@ def _extract_translation_candidates(markup: str) -> List[str]:
             seen.add(text)
             ordered.append(text)
 
-    for node in soup.find_all(string=True):
-        if not isinstance(node, NavigableString):
-            continue
-        parent = getattr(node, "parent", None)
-        if not parent or parent.name in {"script", "style", "noscript"}:
-            continue
-        add(str(node))
+    class Collector(HTMLParser):
+        def __init__(self):
+            super().__init__(convert_charrefs=True)
+            self.skip_depth = 0
+            self.in_script = False
+
+        def handle_starttag(self, tag, attrs):
+            lower = tag.lower()
+            if lower == "script":
+                self.in_script = True
+                return
+            if lower in {"style", "noscript"}:
+                self.skip_depth += 1
+                return
+            if self.skip_depth == 0:
+                amap = dict(attrs)
+                for attr in ("title", "placeholder", "aria-label"):
+                    add(amap.get(attr))
+
+        def handle_endtag(self, tag):
+            lower = tag.lower()
+            if lower == "script":
+                self.in_script = False
+            elif lower in {"style", "noscript"} and self.skip_depth:
+                self.skip_depth -= 1
+
+        def handle_data(self, data):
+            if self.in_script:
+                script_chunks.append(data)
+            elif self.skip_depth == 0:
+                add(data)
+
+    parser = Collector()
+    parser.feed(markup)
+    parser.close()
 
     # Labs/whole-lesson/proof engines keep some display strings in JS data and
-    # reveal them later. Include human-readable string literals so the runtime
-    # MutationObserver can translate those dynamic updates too.
-    for script in soup.find_all("script"):
-        source = script.string or script.get_text() or ""
-        for match in re.finditer(r'"((?:\\.|[^"\\])*)"', source):
-            raw = match.group(1)
-            try:
-                value = json.loads('"' + raw + '"')
-            except Exception:
-                value = raw.replace('\\"', '"').replace("\\n", " ")
-            add(value)
-        for match in re.finditer(r"'((?:\\.|[^'\\])*)'", source):
-            raw = match.group(1)
-            if "\\" in raw and not re.search(r"\\[nrt'\\]", raw):
-                continue
-            add(raw.replace("\\'", "'").replace("\\n", " "))
-
-    # Attributes visible to assistive technology/student hints.
-    for tag in soup.find_all(True):
-        for attr in ("title", "placeholder", "aria-label"):
-            add(tag.get(attr))
+    # reveal them later. Include human-readable literals so the runtime
+    # MutationObserver translates those dynamic updates too.
+    source = "\n".join(script_chunks)
+    for match in re.finditer(r'"((?:\\.|[^"\\])*)"', source):
+        raw = match.group(1)
+        try:
+            value = json.loads('"' + raw + '"')
+        except Exception:
+            value = raw.replace('\\"', '"').replace("\\n", " ")
+        add(value)
+    for match in re.finditer(r"'((?:\\.|[^'\\])*)'", source):
+        raw = match.group(1)
+        if "\\" in raw and not re.search(r"\\[nrt'\\]", raw):
+            continue
+        add(raw.replace("\\'", "'").replace("\\n", " "))
     return ordered
-
 
 def _translation_integrity_tokens(value: str) -> Tuple[List[str], List[str]]:
     text = str(value or "")
