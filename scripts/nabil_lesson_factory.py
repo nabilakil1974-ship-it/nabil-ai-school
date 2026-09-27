@@ -2560,6 +2560,184 @@ def _render_verified_text_diagram_svg(plan: dict) -> str:
     return svg
 
 
+
+def build_nabil_explanatory_redrawing(
+        source_text: str,
+        page_num: int,
+        figure_paths: Optional[List[str]] = None,
+        vision_context: Optional[Dict[str, Any]] = None,
+        purpose: str = "concept_visual",
+        visual_required: bool = False) -> Optional[dict]:
+    """Create a NEW NABIL schematic from locked evidence, never expose the scan.
+
+    Source figures may be inspected by vision, but their pixels are never
+    returned to the student. The model proposes only semantic objects and
+    relations; deterministic SVG is rendered locally and independently audited
+    against the same locked text/figure evidence.
+    """
+    source_text = str(source_text or "").strip()
+    figure_paths = [str(p) for p in (figure_paths or []) if p and Path(p).is_file()]
+    if len(source_text) < 12 and not figure_paths:
+        return None
+
+    figure_b64 = None
+    if figure_paths:
+        from PIL import Image
+        pics = []
+        for filename in figure_paths[:4]:
+            with Image.open(filename) as image:
+                pic = image.convert("RGB")
+                pic.thumbnail((1200, 850))
+                pics.append(pic.copy())
+        if pics:
+            canvas = Image.new(
+                "RGB",
+                (max(p.width for p in pics),
+                 sum(p.height for p in pics) + 10 * (len(pics) - 1)),
+                "white",
+            )
+            top = 0
+            for pic in pics:
+                canvas.paste(pic, (0, top))
+                top += pic.height + 10
+            buf = io.BytesIO()
+            canvas.save(buf, format="PNG")
+            figure_b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+
+    request = (
+        "You are NABIL, a classroom teacher creating a NEW explanatory schematic, "
+        "not reproducing textbook artwork. Use the locked source text and, when "
+        "provided, the verified source figure ONLY as evidence. The student must "
+        "never see the source scan. Decide whether a visual is pedagogically useful. "
+        "If not useful and VISUAL_REQUIRED is false, return "
+        "{'needed':false,'reason':str}. If VISUAL_REQUIRED is true, needed must be "
+        "true unless the evidence is insufficient, in which case return "
+        "{'needed':false,'reason':'INSUFFICIENT_EVIDENCE'}. "
+        "For a visual return strict JSON with needed=true, title, objects, relations. "
+        "objects: at most 24 items, kind in rect|ellipse|line|arrow|point|text, "
+        "id, label, x,y and optional x2,y2,w,h,rx,ry. Each object must contain "
+        "evidence_basis='text' or 'figure'. For text basis include evidence_quote "
+        "that is an EXACT contiguous quote from SOURCE_TEXT. For figure basis use "
+        "evidence_quote='' and only encode something visibly verifiable in the "
+        "provided source figure. relations has type,a,b,evidence_basis,evidence_quote "
+        "under the same rule. Coordinates are presentation layout only, never data. "
+        "Do not copy decorative styling, page layout, colors, icons, or typography "
+        "from the textbook. Do not invent labels, measurements, geometry, direction, "
+        "scientific behavior, historical facts, grammar rules, or missing steps. "
+        f"VISUAL_REQUIRED={str(bool(visual_required)).lower()}\n"
+        "SOURCE_TEXT:\n" + source_text
+    )
+    plan = _execute_llm_json_strict(
+        request,
+        image_base64=figure_b64,
+        vision_context=vision_context if figure_b64 else None,
+        purpose=f"{purpose}_plan_p{page_num}",
+        max_attempts=3,
+    )
+    if not isinstance(plan, dict) or plan.get("needed") is not True:
+        progress(
+            "NABIL_EXPLANATORY_REDRAW_NOT_BUILT",
+            page=page_num,
+            purpose=purpose,
+            reason=str(plan.get("reason") if isinstance(plan, dict) else "INVALID_PLAN")[:240],
+        )
+        return None
+
+    objects = plan.get("objects")
+    relations = plan.get("relations")
+    if not isinstance(objects, list) or not objects or not isinstance(relations, list):
+        raise RuntimeError("NABIL_REDRAW_SCHEMA_INVALID")
+    source_norm = _normalized_lab_evidence(source_text)
+    ids = set()
+    allowed_kinds = {"rect", "ellipse", "line", "arrow", "point", "text"}
+    for obj in objects:
+        if not isinstance(obj, dict):
+            raise RuntimeError("NABIL_REDRAW_OBJECT_INVALID")
+        if str(obj.get("kind") or "").lower() not in allowed_kinds:
+            raise RuntimeError("NABIL_REDRAW_OBJECT_KIND_INVALID")
+        oid = str(obj.get("id") or "").strip()
+        if not oid or oid in ids:
+            raise RuntimeError("NABIL_REDRAW_OBJECT_ID_INVALID")
+        ids.add(oid)
+        basis = str(obj.get("evidence_basis") or "").lower()
+        quote = _normalized_lab_evidence(obj.get("evidence_quote", ""))
+        if basis == "text":
+            if not quote or quote not in source_norm:
+                raise RuntimeError("NABIL_REDRAW_TEXT_EVIDENCE_NOT_FOUND")
+        elif basis == "figure":
+            if not figure_b64:
+                raise RuntimeError("NABIL_REDRAW_FIGURE_EVIDENCE_MISSING")
+        else:
+            raise RuntimeError("NABIL_REDRAW_EVIDENCE_BASIS_INVALID")
+    for rel in relations:
+        if not isinstance(rel, dict):
+            raise RuntimeError("NABIL_REDRAW_RELATION_INVALID")
+        if str(rel.get("a") or "") not in ids or str(rel.get("b") or "") not in ids:
+            raise RuntimeError("NABIL_REDRAW_RELATION_ENDPOINT_INVALID")
+        basis = str(rel.get("evidence_basis") or "").lower()
+        quote = _normalized_lab_evidence(rel.get("evidence_quote", ""))
+        if basis == "text":
+            if not quote or quote not in source_norm:
+                raise RuntimeError("NABIL_REDRAW_RELATION_TEXT_EVIDENCE_NOT_FOUND")
+        elif basis == "figure":
+            if not figure_b64:
+                raise RuntimeError("NABIL_REDRAW_RELATION_FIGURE_EVIDENCE_MISSING")
+        else:
+            raise RuntimeError("NABIL_REDRAW_RELATION_EVIDENCE_BASIS_INVALID")
+
+    audit_prompt = (
+        "Independently audit this proposed NABIL explanatory schematic against "
+        "the SAME locked SOURCE_TEXT and source figure if provided. It must be a "
+        "fresh schematic, not a textbook-page reproduction. Reject any object, "
+        "label, orientation, measurement, connection, process step or relation "
+        "that is not directly supported by text or visibly supported by the "
+        "source figure. Also reject if the schematic copies page styling/layout "
+        "rather than teaching the concept. Return strict JSON exactly: "
+        "{'approved':bool,'all_claims_traceable':bool,'no_invented_science':bool,"
+        "'not_source_scan_reproduction':bool,'pedagogically_useful':bool,'reason':str}.\n"
+        "SOURCE_TEXT:\n" + source_text + "\nPLAN:\n" +
+        json.dumps(plan, ensure_ascii=False)
+    )
+    audit = _execute_llm_json_strict(
+        audit_prompt,
+        image_base64=figure_b64,
+        vision_context=vision_context if figure_b64 else None,
+        purpose=f"{purpose}_audit_p{page_num}",
+        max_attempts=3,
+    )
+    if not isinstance(audit, dict) or not (
+        audit.get("approved") is True
+        and audit.get("all_claims_traceable") is True
+        and audit.get("no_invented_science") is True
+        and audit.get("not_source_scan_reproduction") is True
+        and audit.get("pedagogically_useful") is True
+    ):
+        progress(
+            "NABIL_EXPLANATORY_REDRAW_REJECTED",
+            page=page_num,
+            purpose=purpose,
+            reason=str(audit.get("reason") if isinstance(audit, dict) else "INVALID_AUDIT")[:240],
+        )
+        return None
+
+    svg = _render_verified_text_diagram_svg(plan)
+    progress(
+        "NABIL_EXPLANATORY_REDRAW_ACCEPTED",
+        page=page_num,
+        purpose=purpose,
+        objects=len(objects),
+        relations=len(relations),
+    )
+    return {
+        "verified": True,
+        "method": "NABIL_EXPLANATORY_REDRAW_FROM_LOCKED_EVIDENCE",
+        "plan": plan,
+        "svg": svg,
+        "source_text_sha256": hashlib.sha256(source_text.encode("utf-8")).hexdigest(),
+        "used_source_figure_as_hidden_evidence": bool(figure_b64),
+    }
+
+
 def build_text_grounded_exercise_diagram(
         entry: dict, prompt_text: str, subquestions: list,
         page_num: int, concepts: list) -> Optional[dict]:
