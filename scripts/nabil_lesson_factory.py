@@ -5168,9 +5168,9 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
           "CRITICAL", "Golden reference card missing")
     check(
         "REFERENCE_CARD_CONCEPT_COVERAGE_INCOMPLETE",
-        candidate["page_a_html"].count('class="nabil-reference-concept"') == concept_count,
+        candidate["page_a_html"].count('class="nabil-reference-concept"') == len(ev_map["concepts"]),
         "CRITICAL",
-        f"reference_concepts={candidate['page_a_html'].count('class=\"nabil-reference-concept\"')}, concepts={concept_count}",
+        f"reference_concepts={candidate['page_a_html'].count('class=\"nabil-reference-concept\"')}, concepts={len(ev_map['concepts'])}",
     )
     check(
         "GENERATED_CONTENT_SCOPE_AUDIT_MISSING",
@@ -5237,7 +5237,13 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
         check("LAB_STUB_FORBIDDEN",
               'data-lab-kind=' in lab_html
               and '<script>' in lab_html
-              and ('<svg' in lab_html or 'type="number"' in lab_html),
+              and (
+                  '<svg' in lab_html
+                  or 'type="number"' in lab_html
+                  or 'nabil-seq-step' in lab_html
+                  or 'nabil-reveal-item' in lab_html
+              )
+              and 'nabil:demo' in lab_html,
               "CRITICAL",
               f"concept={act.get('concept_id')}")
         check("LAB_FAKE_NUMERIC_RANGE_FORBIDDEN",
