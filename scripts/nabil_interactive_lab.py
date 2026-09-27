@@ -691,6 +691,7 @@ def _render_geometry_proof(spec:Dict[str,Any],lang_code:str,lab_id:str)->str:
     return f"""
 <section class="interactive-lab nabil-live-lab nabil-geometry-proof" id="lab_{safe}"
  data-lab-kind="GEOMETRY_PROOF" data-demo-ms="{max(7000,len(steps)*3300)}"
+ data-renderer-contract="NABIL_REFERENCE_RENDERER_V1" data-teacher-pointer="sentence-synced"
  data-visual-proof-marks="equal_segments,equal_angles,perpendicular,parallel,midpoint,symmetry_axis">
  <style>
  #lab_{safe}{{background:#071827!important;color:#f8fbff!important;border:1px solid #24506f!important;border-radius:16px!important;padding:12px!important}}
@@ -1005,6 +1006,7 @@ def render_verified_lab(spec:Dict[str,Any],lang_code:str,lab_id:str)->Tuple[str,
         raw=_render_evidence_reveal(spec,lang_code,lab_id)
     elif kind=="GEOMETRY_PROOF":
         raw=_render_geometry_proof(spec,lang_code,lab_id)
+        return raw,True
     elif kind in ADVANCED_LAB_KINDS:
         raw,active=render_advanced_verified_lab(spec,lang_code,lab_id)
         if not active:
