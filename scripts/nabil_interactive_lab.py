@@ -1,218 +1,165 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-NABIL AI — Interactive Lab Generator
-Add-on module: does NOT replace nabil_book_factory.py, imported by it.
+NABIL AI — محرك عرض المختبرات التفاعلية الموثقة.
 
-Replaces the current hardcoded stubs:
-    "lab_html": "",
-    "has_active_sim": False
-
-Design principle (fail-closed, consistent with the rest of the factory):
-A lab is only generated when the concept's own extracted text describes an
-observable variable relationship (e.g. "as X increases, Y increases/decreases",
-a formula, a measurable quantity). We NEVER invent a simulation for a concept
-that doesn't actually describe one — that would be exactly the kind of
-unverified/invented content the factory's anti-hardcode gates exist to catch.
-
-Two lab kinds are supported:
-  - FORMULA_LAB: concept's math_records contain a real formula (e.g. d = m/v).
-    Renders sliders for each input variable, computes the output live in JS,
-    matching MathRenderingEngine's LaTeX output exactly (no separate math path).
-  - QUALITATIVE_LAB: concept describes a qualitative observable change
-    (e.g. "solids keep their shape, liquids take the shape of the container").
-    Renders a state-toggle interactive that lets the student pick states and
-    see the grounded observation text update — still grounded, still no
-    invented numeric behavior.
-
-If neither pattern is detected in the concept's own text, this module
-returns has_active_sim=False and lab_html="" exactly as before — it must
-never force a lab onto content that doesn't support one.
+المبدأ:
+- هذا الملف لا يقرر قاعدة علمية من عنده.
+- يستقبل Lab Spec تم توليده والتحقق من مرجعه داخل المصنع.
+- لا يضع sliders رقمية ولا min/max/default مخترعة.
+- إذا المواصفة ناقصة أو نوع التجربة غير مدعوم يفشل Fail-Closed.
 """
-
 import html
 import re
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Dict,Any,Tuple
+try:
+    from scripts.nabil_i18n import t as _t
+except Exception:
+    from nabil_i18n import t as _t
 
-# Import sibling module; both are add-ons imported by nabil_book_factory.py
-from scripts.nabil_i18n import t as _t
+_ALLOWED_KINDS={"FORMULA_CALCULATOR","ORIENTATION_INVARIANT","SHAPE_RESPONSE"}
+_ALLOWED_OPS={"+","-","*","/"}
 
+def _safe_id(value:str)->str:
+    return re.sub(r"[^a-zA-Z0-9_]","_",str(value or "lab"))
 
-_FORMULA_LAB_PATTERN = re.compile(
-    r"\b([a-zA-Z])\s*=\s*([a-zA-Z])\s*/\s*([a-zA-Z])\b"      # e.g. d = m/v
-    r"|\b([a-zA-Z])\s*=\s*([a-zA-Z])\s*\*\s*([a-zA-Z])\b"     # e.g. F = m*a
-    r"|\b([a-zA-Z])\s*=\s*([a-zA-Z])\s*\+\s*([a-zA-Z])\b"     # e.g. p = a+b
-)
+def validate_lab_spec(spec:Dict[str,Any])->Dict[str,Any]:
+    # هذا التحقق يمنع أي Lab شكلي أو مواصفة ناقصة من المرور.
+    if not isinstance(spec,dict):
+        raise RuntimeError("LAB_SPEC_INVALID: expected object")
+    if spec.get("supported") is not True:
+        raise RuntimeError("LAB_SPEC_NOT_SUPPORTED")
+    kind=str(spec.get("kind") or "").strip().upper()
+    if kind not in _ALLOWED_KINDS:
+        raise RuntimeError(f"LAB_KIND_UNSUPPORTED: {kind}")
+    for key in ("title","instructions","observation","evidence_ref"):
+        if not str(spec.get(key) or "").strip():
+            raise RuntimeError(f"LAB_SPEC_MISSING_FIELD: {key}")
 
-_QUALITATIVE_STATE_PATTERN = re.compile(
-    r"(?i)\b(solid|liquid|gas|صلب|سائل|غاز|solide|liquide|gaz)\b"
-)
+    if kind=="FORMULA_CALCULATOR":
+        formula=spec.get("formula") or {}
+        for key in ("output","input_a","input_b","operator"):
+            if not str(formula.get(key) or "").strip():
+                raise RuntimeError(f"LAB_FORMULA_MISSING_FIELD: {key}")
+        if formula["operator"] not in _ALLOWED_OPS:
+            raise RuntimeError("LAB_FORMULA_OPERATOR_UNSUPPORTED")
+        # ممنوع اختراع مجال رقمي. الطالب يدخل القيم بنفسه.
+        if any(k in formula for k in ("min","max","default","initial","step")):
+            raise RuntimeError("LAB_FORMULA_FAKE_RANGE_FORBIDDEN")
 
+    if kind=="ORIENTATION_INVARIANT":
+        if str(spec.get("invariant_orientation") or "").lower() not in ("horizontal","vertical"):
+            raise RuntimeError("LAB_ORIENTATION_INVALID")
 
-def _extract_formula_variables(concept: dict) -> Optional[Tuple[str, str, str, str]]:
-    """Look for a simple two-input formula in this concept's OWN math_records
-    or raw text. Returns (output_var, op, input_a, input_b) or None.
+    if kind=="SHAPE_RESPONSE":
+        if str(spec.get("behavior") or "").lower() not in ("fixed","conforms"):
+            raise RuntimeError("LAB_SHAPE_BEHAVIOR_INVALID")
+    return spec
 
-    Grounded: only fires on a formula the extraction pipeline itself already
-    recorded (concept['math_records']) or found verbatim in raw_text — never
-    on a formula synthesized separately from the source page.
-    """
-    haystacks: List[str] = [str(concept.get("raw_text") or "")]
-    for rec in concept.get("math_records", []) or []:
-        raw = str(rec.get("raw") or "")
-        if raw:
-            haystacks.append(raw)
-
-    for text in haystacks:
-        m = _FORMULA_LAB_PATTERN.search(text)
-        if not m:
-            continue
-        groups = m.groups()
-        if groups[0]:  # division: a = b/c
-            return (groups[0], "/", groups[1], groups[2])
-        if groups[3]:  # multiplication
-            return (groups[3], "*", groups[4], groups[5])
-        if groups[6]:  # addition
-            return (groups[6], "+", groups[7], groups[8])
-    return None
-
-
-def _has_qualitative_state_language(concept: dict) -> bool:
-    text = str(concept.get("raw_text") or "")
-    return bool(_QUALITATIVE_STATE_PATTERN.search(text))
-
-
-def build_formula_lab_html(
-        concept: dict, output_var: str, op: str, in_a: str, in_b: str,
-        lang_code: str, lab_id: str) -> str:
-    """A real interactive: two sliders, live-computed output, grounded in
-    the exact formula extracted from the source page. No fabricated ranges —
-    uses a neutral 1-100 domain since the source rarely specifies numeric
-    bounds; if the concept text DOES specify bounds/units those are shown
-    as-is in the label rather than invented.
-    """
-    js_op = {"/": "/", "*": "*", "+": "+"}[op]
-    safe_lab_id = re.sub(r"[^a-zA-Z0-9_]", "_", lab_id)
-    title = html.escape(concept.get("title", ""))
-    instructions = _t(lang_code, "lab_instructions")
-    hypothesis_label = _t(lang_code, "lab_hypothesis")
-    run_label = _t(lang_code, "lab_run")
-    reset_label = _t(lang_code, "lab_reset")
-    result_label = _t(lang_code, "lab_result")
-    conclusion_prompt = _t(lang_code, "lab_conclusion_prompt")
-
-    return f'''
-    <div class="interactive-lab" id="lab_{safe_lab_id}" style="margin-top:14px; background:#f0f9ff; border:1px solid #7dd3fc; border-radius:10px; padding:16px;">
-      <div style="font-weight:700; color:#0369a1; margin-bottom:8px;">{_t(lang_code, "lab_title")} — {title}</div>
-      <div style="font-size:12px; color:#475569; margin-bottom:10px;">{html.escape(instructions)}: {html.escape(output_var)} = {html.escape(in_a)} {html.escape(js_op)} {html.escape(in_b)}</div>
-      <div style="display:flex; flex-direction:column; gap:10px;">
-        <label style="font-size:13px;">{html.escape(in_a)}: <span id="{safe_lab_id}_a_val">50</span>
-          <input type="range" id="{safe_lab_id}_a" min="1" max="100" value="50" style="width:100%;" oninput="labUpdate_{safe_lab_id}()">
-        </label>
-        <label style="font-size:13px;">{html.escape(in_b)}: <span id="{safe_lab_id}_b_val">50</span>
-          <input type="range" id="{safe_lab_id}_b" min="1" max="100" value="50" style="width:100%;" oninput="labUpdate_{safe_lab_id}()">
-        </label>
+def _render_formula(spec:Dict[str,Any],lang_code:str,lab_id:str)->str:
+    # مختبر العلاقة الرياضية: لا قيم جاهزة. يدخل الطالب القيم ويرى النتيجة الحقيقية.
+    f=spec["formula"]; safe=_safe_id(lab_id); op=f["operator"]
+    js_expr={"+":"a+b","-":"a-b","*":"a*b","/":"(b===0?NaN:a/b)"}[op]
+    output=html.escape(str(f["output"]))
+    unit=html.escape(str(f.get("output_unit") or ""))
+    unit_suffix=(" "+unit) if unit else ""
+    return f"""
+    <section class="interactive-lab" id="lab_{safe}" data-lab-kind="FORMULA_CALCULATOR"
+      style="margin-top:16px;background:#f0f9ff;border:1px solid #7dd3fc;border-radius:12px;padding:16px;">
+      <h3 style="margin:0 0 8px;color:#0369a1;">{html.escape(_t(lang_code,'lab_title'))} — {html.escape(spec['title'])}</h3>
+      <p style="margin:0 0 12px;color:#334155;">{html.escape(spec['instructions'])}</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <label>{html.escape(str(f['input_a']))}<input id="{safe}_a" type="number" inputmode="decimal" style="width:100%;box-sizing:border-box;padding:10px;margin-top:4px;"></label>
+        <label>{html.escape(str(f['input_b']))}<input id="{safe}_b" type="number" inputmode="decimal" style="width:100%;box-sizing:border-box;padding:10px;margin-top:4px;"></label>
       </div>
-      <div style="margin-top:10px; padding:10px; background:#fff; border-radius:6px; font-size:14px;">
-        <b>{html.escape(result_label)}:</b> {html.escape(output_var)} = <span id="{safe_lab_id}_result" style="font-weight:700; color:#0284c7;">—</span>
+      <button type="button" class="nav-btn" style="margin-top:12px;" onclick="run_{safe}()">{html.escape(_t(lang_code,'lab_run'))}</button>
+      <div id="{safe}_result" style="margin-top:12px;padding:10px;background:#fff;border-radius:8px;display:none;"></div>
+      <p style="font-size:12px;color:#475569;margin:10px 0 0;">{html.escape(spec['observation'])}</p>
+      <script>
+      function run_{safe}(){{
+        const a=Number(document.getElementById('{safe}_a').value);
+        const b=Number(document.getElementById('{safe}_b').value);
+        const box=document.getElementById('{safe}_result');
+        box.style.display='block';
+        if(!Number.isFinite(a)||!Number.isFinite(b)){{box.textContent='—';return;}}
+        const out={js_expr};
+        box.textContent=Number.isFinite(out)?'{output} = '+out+'{unit_suffix}':'—';
+      }}
+      </script>
+    </section>"""
+
+def _render_orientation(spec:Dict[str,Any],lang_code:str,lab_id:str)->str:
+    # مختبر اتجاه/ثبات بصري: الميل يغيّر الجسم، أما العنصر الذي تثبت قاعدته العلمية فيبقى وفق المواصفة.
+    safe=_safe_id(lab_id)
+    orient=str(spec["invariant_orientation"]).lower()
+    transform="rotate(0 150 95)" if orient=="horizontal" else "rotate(90 150 95)"
+    return f"""
+    <section class="interactive-lab" id="lab_{safe}" data-lab-kind="ORIENTATION_INVARIANT"
+      style="margin-top:16px;background:#f0f9ff;border:1px solid #7dd3fc;border-radius:12px;padding:16px;">
+      <h3 style="margin:0 0 8px;color:#0369a1;">{html.escape(_t(lang_code,'lab_title'))} — {html.escape(spec['title'])}</h3>
+      <p style="margin:0 0 10px;color:#334155;">{html.escape(spec['instructions'])}</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+        <button type="button" class="q-opt" onclick="tilt_{safe}(-1)">↙</button>
+        <button type="button" class="q-opt" onclick="tilt_{safe}(0)">●</button>
+        <button type="button" class="q-opt" onclick="tilt_{safe}(1)">↘</button>
       </div>
-      <div style="margin-top:8px; font-size:12px; color:#334155;">{html.escape(conclusion_prompt)}</div>
-      <textarea id="{safe_lab_id}_hyp" placeholder="{html.escape(hypothesis_label)}" style="width:100%; margin-top:6px; padding:6px; border:1px solid #cbd5e1; border-radius:4px; font-size:13px; box-sizing:border-box;" rows="2"></textarea>
-    </div>
-    <script>
-    function labUpdate_{safe_lab_id}() {{
-      const a = parseFloat(document.getElementById('{safe_lab_id}_a').value);
-      const b = parseFloat(document.getElementById('{safe_lab_id}_b').value);
-      document.getElementById('{safe_lab_id}_a_val').innerText = a;
-      document.getElementById('{safe_lab_id}_b_val').innerText = b;
-      let result;
-      if ('{js_op}' === '/') result = b !== 0 ? (a / b) : NaN;
-      else if ('{js_op}' === '*') result = a * b;
-      else result = a + b;
-      document.getElementById('{safe_lab_id}_result').innerText = isFinite(result) ? result.toFixed(2) : '—';
-    }}
-    labUpdate_{safe_lab_id}();
-    </script>'''
+      <svg viewBox="0 0 300 190" role="img" aria-label="{html.escape(spec['title'])}" style="width:100%;max-width:520px;background:#fff;border-radius:10px;border:1px solid #cbd5e1;">
+        <g id="{safe}_moving" transform="rotate(0 150 100)">
+          <path d="M75 45 L225 45 L205 155 L95 155 Z" fill="none" stroke="#334155" stroke-width="5"/>
+        </g>
+        <line x1="98" y1="95" x2="202" y2="95" stroke="#0284c7" stroke-width="7" transform="{transform}"/>
+      </svg>
+      <p style="font-size:12px;color:#475569;margin:10px 0 0;">{html.escape(spec['observation'])}</p>
+      <script>
+      function tilt_{safe}(dir){{
+        const angle=dir<0?-18:(dir>0?18:0);
+        document.getElementById('{safe}_moving').setAttribute('transform','rotate('+angle+' 150 100)');
+      }}
+      </script>
+    </section>"""
 
+def _render_shape(spec:Dict[str,Any],lang_code:str,lab_id:str)->str:
+    # مختبر استجابة الشكل: يغيّر الطالب الوعاء، والسلوك المرئي يأتي من behavior الموثق لا من تخمين المحرك.
+    safe=_safe_id(lab_id); fixed=str(spec["behavior"]).lower()=="fixed"
+    fixed_js="true" if fixed else "false"
+    return f"""
+    <section class="interactive-lab" id="lab_{safe}" data-lab-kind="SHAPE_RESPONSE"
+      style="margin-top:16px;background:#f0f9ff;border:1px solid #7dd3fc;border-radius:12px;padding:16px;">
+      <h3 style="margin:0 0 8px;color:#0369a1;">{html.escape(_t(lang_code,'lab_title'))} — {html.escape(spec['title'])}</h3>
+      <p style="margin:0 0 10px;color:#334155;">{html.escape(spec['instructions'])}</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+        <button type="button" class="q-opt" onclick="shape_{safe}('wide')">A</button>
+        <button type="button" class="q-opt" onclick="shape_{safe}('narrow')">B</button>
+      </div>
+      <svg viewBox="0 0 320 190" style="width:100%;max-width:520px;background:#fff;border-radius:10px;border:1px solid #cbd5e1;">
+        <path id="{safe}_vessel" d="M70 40 L250 40 L230 160 L90 160 Z" fill="none" stroke="#334155" stroke-width="5"/>
+        <rect id="{safe}_matter" x="115" y="95" width="90" height="55" rx="8" fill="#7dd3fc" opacity="0.85"/>
+      </svg>
+      <p style="font-size:12px;color:#475569;margin:10px 0 0;">{html.escape(spec['observation'])}</p>
+      <script>
+      function shape_{safe}(kind){{
+        const vessel=document.getElementById('{safe}_vessel');
+        const matter=document.getElementById('{safe}_matter');
+        vessel.setAttribute('d',kind==='wide'?'M70 40 L250 40 L230 160 L90 160 Z':'M115 35 L205 35 L190 160 L130 160 Z');
+        const fixed={fixed_js};
+        if(!fixed){{
+          if(kind==='wide'){{matter.setAttribute('x','96');matter.setAttribute('width','128');}}
+          else{{matter.setAttribute('x','132');matter.setAttribute('width','56');}}
+        }}
+      }}
+      </script>
+    </section>"""
 
-def build_qualitative_lab_html(
-        concept: dict, lang_code: str, lab_id: str) -> str:
-    """State-toggle interactive for qualitative concepts (e.g. states of
-    matter). The observation text shown for each state comes verbatim from
-    concept['raw_text'] segments already extracted — this module does not
-    invent new observations, it only presents the existing grounded text
-    interactively instead of as static prose.
-    """
-    safe_lab_id = re.sub(r"[^a-zA-Z0-9_]", "_", lab_id)
-    title = html.escape(concept.get("title", ""))
-    text = str(concept.get("raw_text") or "")
-
-    states_found = sorted(set(
-        m.group(1).lower() for m in _QUALITATIVE_STATE_PATTERN.finditer(text)
-    ))
-    if not states_found:
-        raise RuntimeError(
-            "LAB_GENERATION_INCONSISTENT: qualitative pattern matched but "
-            "no state tokens extracted"
-        )
-
-    buttons = ""
-    panels = ""
-    for i, state in enumerate(states_found):
-        # Grounded observation: the sentence(s) in raw_text mentioning this
-        # state token, not a generated description.
-        sentences = re.split(r"(?<=[.!?؟])\s+", text)
-        matching = [s.strip() for s in sentences if state in s.lower()]
-        observation = " ".join(matching) if matching else text[:240]
-        buttons += (
-            f'<button onclick="labShowState_{safe_lab_id}(\'{state}\')" '
-            f'class="q-opt" style="min-height:38px;">{html.escape(state.capitalize())}</button>'
-        )
-        panels += (
-            f'<div id="{safe_lab_id}_panel_{state}" style="display:none; '
-            f'margin-top:8px; padding:10px; background:#fff; border-radius:6px; '
-            f'font-size:13px;">{html.escape(observation)}</div>'
-        )
-
-    import json as _json
-    states_js_array = _json.dumps(states_found)
-    return f'''
-    <div class="interactive-lab" id="lab_{safe_lab_id}" style="margin-top:14px; background:#f0f9ff; border:1px solid #7dd3fc; border-radius:10px; padding:16px;">
-      <div style="font-weight:700; color:#0369a1; margin-bottom:8px;">{_t(lang_code, "lab_title")} — {title}</div>
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">{buttons}</div>
-      {panels}
-    </div>
-    <script>
-    function labShowState_{safe_lab_id}(state) {{
-      const states = {states_js_array};
-      states.forEach(function(s) {{
-        const el = document.getElementById('{safe_lab_id}_panel_' + s);
-        if (el) el.style.display = (s === state) ? 'block' : 'none';
-      }});
-    }}
-    </script>'''
-
-
-def generate_lab_for_concept(
-        concept: dict, lang_code: str) -> Tuple[str, bool]:
-    """Main entry point. Returns (lab_html, has_active_sim).
-
-    Fail-closed by design: if the concept's own extracted text doesn't
-    contain a detectable formula or qualitative-state pattern, returns
-    ("", False) exactly like the current stub — we do not force a lab
-    onto ungrounded content.
-    """
-    concept_id = concept.get("concept_id", "C00")
-    lab_id = concept_id
-
-    formula = _extract_formula_variables(concept)
-    if formula:
-        output_var, op, in_a, in_b = formula
-        return build_formula_lab_html(
-            concept, output_var, op, in_a, in_b, lang_code, lab_id
-        ), True
-
-    if _has_qualitative_state_language(concept):
-        return build_qualitative_lab_html(concept, lang_code, lab_id), True
-
-    return "", False
+def render_verified_lab(spec:Dict[str,Any],lang_code:str,lab_id:str)->Tuple[str,bool]:
+    # نقطة الدخول الوحيدة: المختبر لا يظهر قبل نجاح validate_lab_spec.
+    if not isinstance(spec,dict) or spec.get("supported") is not True:
+        return "",False
+    validate_lab_spec(spec)
+    kind=str(spec["kind"]).upper()
+    if kind=="FORMULA_CALCULATOR":
+        return _render_formula(spec,lang_code,lab_id),True
+    if kind=="ORIENTATION_INVARIANT":
+        return _render_orientation(spec,lang_code,lab_id),True
+    if kind=="SHAPE_RESPONSE":
+        return _render_shape(spec,lang_code,lab_id),True
+    raise RuntimeError(f"LAB_KIND_UNSUPPORTED: {kind}")
