@@ -4794,8 +4794,6 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict, lab_index: Opt
 <meta name="nabil-source-pages" content="{entry['pdf_start_page']}-{entry['pdf_end_page']}">
 <meta name="nabil-renderer-contract" content="{REFERENCE_RENDERER_CONTRACT}">
 <meta name="nabil-translation-languages" content="ar,en,fr">
-<meta name="nabil-renderer-contract" content="{REFERENCE_RENDERER_CONTRACT}">
-<meta name="nabil-translation-languages" content="ar,en,fr">
 <title>{clean_title} - NABIL Universal Engine</title>
 {MathRenderingEngine.inject_mathjax_head()}
 <script defer src="/static/nabil_scientific_solution_cards_e2e.js?v=3"></script>
@@ -5238,6 +5236,8 @@ def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: di
 <meta name="nabil-subject" content="{html.escape(entry.get('subject', 'Physics'))}">
 <meta name="nabil-source-book-id" content="{html.escape(entry['book_id'])}">
 <meta name="nabil-source-pages" content="{entry['pdf_start_page']}-{entry['pdf_end_page']}">
+<meta name="nabil-renderer-contract" content="{REFERENCE_RENDERER_CONTRACT}">
+<meta name="nabil-translation-languages" content="ar,en,fr">
 <title>{clean_title} - Official Exercises</title>
 {MathRenderingEngine.inject_mathjax_head()}
 <script defer src="/static/nabil_scientific_solution_cards_e2e.js?v=3"></script>
