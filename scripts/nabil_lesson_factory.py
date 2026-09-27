@@ -414,6 +414,147 @@ SUBJECT_TEACHING_ENGINES = {
 
 
 
+
+# Topic modes change HOW NABIL teaches, never WHAT is scientifically true.
+# Content still comes only from Evidence Map / verified solution.
+SUBJECT_TEACHING_ENGINES["mathematics"].update({
+    "trigonometry": [
+        "identify the angle/triangle/circle data and the exact target",
+        "place the known relations on the visual before calculating",
+        "choose the relevant verified trigonometric relation",
+        "transform one step at a time with exact symbolic notation",
+        "connect algebraic result to the geometry",
+        "check sign, interval/quadrant and reasonableness when applicable",
+    ],
+    "vectors_analytic_geometry": [
+        "place points/vectors in the coordinate system",
+        "separate geometric information from coordinate data",
+        "build the required vector/line relation step by step",
+        "show each coordinate operation beside the visual",
+        "interpret the algebraic result geometrically",
+        "verify the final relation on the diagram",
+    ],
+    "sequences": [
+        "identify how the terms are defined and what is known",
+        "generate only source-supported terms or relations",
+        "look for the relevant recurrence/direct-form structure",
+        "derive the requested relation one step at a time",
+        "connect symbolic result to term behavior",
+        "check with a permitted term/example",
+    ],
+    "complex_numbers": [
+        "separate algebraic and geometric representations",
+        "identify the requested form or geometric meaning",
+        "perform one legal complex-number transformation at a time",
+        "connect modulus/argument/affix to the diagram when applicable",
+        "verify the result in the alternate representation",
+    ],
+})
+SUBJECT_TEACHING_ENGINES["physics"].update({
+    "mechanics": [
+        "define the system and reference frame",
+        "mark directions, known quantities and target on the diagram",
+        "predict the motion/effect qualitatively",
+        "select the source-supported law/model",
+        "derive with signs and units visible",
+        "connect equation to motion/force/energy representation",
+        "verify dimensions, sign and physical meaning",
+    ],
+    "electricity": [
+        "identify components and actual circuit connections",
+        "mark current/voltage directions only when supported",
+        "predict the circuit state before calculation",
+        "apply the verified circuit law one relation at a time",
+        "animate current only when the circuit state permits it",
+        "check units, conservation and component values",
+    ],
+    "optics": [
+        "identify the optical elements and reference lines",
+        "mark normals/axes/points only when established",
+        "trace the verified ray construction step by step",
+        "state the applicable optical relation",
+        "connect the construction to the conclusion",
+        "check orientation/angles against the evidence",
+    ],
+    "waves": [
+        "identify what is oscillating/propagating and the measured variables",
+        "show the time/space representation",
+        "connect period, frequency, wavelength or speed only when present",
+        "derive the requested relation with units",
+        "relate the graph/animation to the physical meaning",
+        "verify the result against the observed behavior",
+    ],
+})
+SUBJECT_TEACHING_ENGINES["chemistry"].update({
+    "acid_base": [
+        "identify the given species/solution information",
+        "separate observation from acid-base interpretation",
+        "write only evidence-supported species/reactions",
+        "track the relevant transfer/equilibrium visually",
+        "calculate with units and definitions visible",
+        "check chemical and charge consistency",
+    ],
+    "redox": [
+        "identify the species before and after change",
+        "track oxidation states/electron transfer only when supported",
+        "separate oxidation from reduction",
+        "balance the verified transformation systematically",
+        "check atoms and charge",
+        "connect the symbolic equation to the observed process",
+    ],
+    "organic": [
+        "identify the verified functional group/structure",
+        "show the structural change visually",
+        "name the reaction/property only when supported",
+        "track atoms/groups through the transformation",
+        "write the verified equation or product",
+        "check structure and conservation",
+    ],
+    "quantitative": [
+        "list the measured/given quantities with units",
+        "identify the exact amount-of-substance relation",
+        "convert units before substitution",
+        "calculate symbolically then numerically",
+        "connect the number to the chemical meaning",
+        "check units and conservation",
+    ],
+})
+SUBJECT_TEACHING_ENGINES["biology"].update({
+    "cell": [
+        "zoom from whole structure to the verified cell component",
+        "identify each labelled part before naming a function",
+        "connect structure to function one relation at a time",
+        "animate transport/process only when evidence supports it",
+        "summarize the cell-level relationship",
+        "check by asking the learner to locate or explain one part",
+    ],
+    "genetics": [
+        "identify the given genetic entities and generations/data",
+        "separate observation/data from inheritance interpretation",
+        "track chromosomes/alleles/process stages visually when supported",
+        "build the reasoning chain without skipping a generation or condition",
+        "verify ratios/conclusions against the supplied data",
+        "finish with one transfer question",
+    ],
+    "physiology": [
+        "locate the organ/structure in the system",
+        "follow the verified path of matter/signal/process",
+        "connect each structure to its role",
+        "explain causal links in order",
+        "compare states only when evidence supports the comparison",
+        "check the whole pathway from start to finish",
+    ],
+    "ecology": [
+        "identify organisms/populations/environmental factors",
+        "map verified relationships visually",
+        "follow matter/energy/interaction in the supported direction",
+        "interpret changes without inventing causes",
+        "connect local relation to the system-level conclusion",
+        "check using the same evidence map",
+    ],
+})
+
+
 SECONDARY_YEAR_TEACHING = {
     10: {
         "stage": "first_secondary",
@@ -490,6 +631,29 @@ def _mathematics_teaching_mode(concept: dict) -> str:
         text,
     ):
         return "functions"
+    if re.search(
+        r"trigon|sine|cosine|tangent ratio|sinus|cosinus|trigonom|"
+        r"جيب|جيب تمام|مثلثات",
+        text,
+    ):
+        return "trigonometry"
+    if re.search(
+        r"vector|coordinate|analytic geometry|droite|repère|vecteur|"
+        r"متجه|إحداثي|معلم|مستقيم",
+        text,
+    ):
+        return "vectors_analytic_geometry"
+    if re.search(
+        r"sequence|suite|recurrence|récurrence|متتالية|تراجعية",
+        text,
+    ):
+        return "sequences"
+    if re.search(
+        r"complex number|nombre complexe|affix|module|argument|"
+        r"عدد مركب|لاحقة|مطال",
+        text,
+    ):
+        return "complex_numbers"
     if re.search(
         r"probability|probabilité|statistics|statistique|mean|median|"
         r"احتمال|إحصاء|متوسط|وسيط",
