@@ -4578,7 +4578,7 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
 # ==============================================================================
 # 9. TWIN-PAGE HTML COMPILATION
 # ==============================================================================
-def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict) -> str:
+def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict, lab_index: Optional[dict] = None) -> str:
     clean_title = html.escape(re.sub(r'^\s*\d{2,3}\s*(?:--|[-_ ]+)\s*', '', entry["canonical_title"]))
     clean_title = html.escape(re.sub(r'\s+\d{2,3}$', '', clean_title).strip())
     lang = entry.get("language", "en")
@@ -4691,6 +4691,7 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict) -> str:
 </style>
 </head>
 <body>
+{_lab_index_script(lab_index or build_prebuilt_lab_index(entry, theory, []))}
 <div class="container">
   <div class="header">
     <h1 style="margin:0; font-size:22px;">{clean_title}</h1>
@@ -4763,7 +4764,165 @@ function gradeWs(btn, isCorrect, exp) {{
 </html>'''
 
 
-def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: dict) -> str:
+
+def _deterministic_evidence_reveal_spec(
+        evidence_id: str, title: str, source_text: str, lang_code: str) -> dict:
+    """No-LLM fallback: a real interactive lab using only supplied evidence."""
+    quote = str(source_text or "").strip()[:1200]
+    if not quote:
+        raise RuntimeError("PREBUILT_LAB_SOURCE_EMPTY")
+    return {
+        "supported": True,
+        "kind": "EVIDENCE_REVEAL",
+        "title": str(title or "NABIL Interactive Explanation"),
+        "instructions": {
+            "ar": "استكشف المعطيات مع نبيل خطوة خطوة.",
+            "fr": "Explore les données avec NABIL étape par étape.",
+            "en": "Explore the givens with NABIL step by step.",
+        }.get(lang_code, "Explore the givens with NABIL step by step."),
+        "observation": {
+            "ar": "هذا المختبر مبني فقط على المعطيات الموثقة.",
+            "fr": "Ce laboratoire utilise uniquement les données vérifiées.",
+            "en": "This lab uses only the verified givens.",
+        }.get(lang_code, "This lab uses only the verified givens."),
+        "evidence_ref": evidence_id,
+        "evidence_basis": "text",
+        "evidence_quote": quote,
+        "items": [{
+            "label": str(title or "Verified task"),
+            "evidence_quote": quote,
+        }],
+        "prebuilt": True,
+    }
+
+
+def prepare_prebuilt_exercise_labs(
+        entry: dict, exercises: list, profile: dict) -> None:
+    """Generate every exercise lab ONCE during lesson production.
+
+    Student runtime never needs an LLM for an indexed exercise. Richer lab
+    kinds are attempted from the exact verified prompt; if no richer kind is
+    justified, an evidence-only interactive reveal is prebuilt deterministically.
+    """
+    lang_code = resolve_lang_code(entry.get("language", "en"))
+    for ex in exercises:
+        evidence_id = str(ex.get("exercise_id") or
+                          f"{entry['lesson_id']}-EX-{ex.get('number')}")
+        source_text = (
+            str(ex.get("exact_source_prompt") or "").strip()
+            + "\n"
+            + "\n".join(str(x) for x in (ex.get("subquestions") or []))
+        ).strip()
+        pseudo_concept = {
+            "concept_id": evidence_id,
+            "title": (
+                f"{ex.get('section_type', 'EXERCISE')} {ex.get('number', '')}"
+            ).strip(),
+            "source_page": ex.get("source_page"),
+            "raw_text": source_text,
+            "normalized_text": source_text,
+            "figure_refs": [],
+            "math_records": [],
+        }
+        minimal_narrative = {
+            "phenomenon": "",
+            "investigation": "",
+            "observation": "",
+            "interpretation": "",
+            "conclusion": "",
+            "distractor_1": "",
+            "distractor_2": "",
+            "formulas": [],
+            "units": [],
+            "_scope_audited": True,
+        }
+        try:
+            spec = build_verified_lab_spec(
+                entry, pseudo_concept, minimal_narrative, profile,
+                figure_image_base64=None, vision_context=None)
+        except Exception as exc:
+            progress(
+                "EXERCISE_RICH_LAB_FALLBACK_TO_PREBUILT_REVEAL",
+                exercise_id=evidence_id,
+                reason=str(exc)[:240],
+            )
+            spec = _deterministic_evidence_reveal_spec(
+                evidence_id,
+                pseudo_concept["title"],
+                source_text,
+                lang_code,
+            )
+        if spec.get("supported") is not True:
+            spec = _deterministic_evidence_reveal_spec(
+                evidence_id,
+                pseudo_concept["title"],
+                source_text,
+                lang_code,
+            )
+        # Exercise lab provenance is canonicalized to the exercise index key.
+        spec["evidence_ref"] = evidence_id
+        lab_html, active = render_verified_lab(spec, lang_code, evidence_id)
+        if not active or not lab_html:
+            raise RuntimeError(
+                f"PREBUILT_EXERCISE_LAB_RENDER_FAILED:{evidence_id}"
+            )
+        ex["_prebuilt_lab_spec"] = spec
+        ex["_prebuilt_lab_html"] = lab_html
+        ex["_prebuilt_lab_active"] = True
+        ex["_prebuilt_lab_key"] = f"exercise:{evidence_id}"
+        progress(
+            "PREBUILT_EXERCISE_LAB_READY",
+            exercise_id=evidence_id,
+            kind=spec.get("kind"),
+        )
+
+
+def build_prebuilt_lab_index(entry: dict, theory: dict, exercises: list) -> dict:
+    """Serializable lesson/exercise lab directory shipped with the artifact."""
+    concept_labs = []
+    for act in theory.get("activities", []):
+        spec = act.get("lab_spec") or {}
+        concept_labs.append({
+            "key": f"concept:{act.get('concept_id')}",
+            "concept_id": act.get("concept_id"),
+            "title": act.get("title"),
+            "kind": spec.get("kind"),
+            "prebuilt": True,
+            "active": bool(act.get("has_active_sim")),
+        })
+    exercise_labs = []
+    for ex in exercises:
+        spec = ex.get("_prebuilt_lab_spec") or {}
+        exercise_labs.append({
+            "key": ex.get("_prebuilt_lab_key"),
+            "exercise_id": ex.get("exercise_id"),
+            "number": ex.get("number"),
+            "section_type": ex.get("section_type"),
+            "kind": spec.get("kind"),
+            "prebuilt": True,
+            "active": bool(ex.get("_prebuilt_lab_active")),
+        })
+    return {
+        "schema": "nabil-prebuilt-lab-index/v1",
+        "lesson_id": entry.get("lesson_id"),
+        "grade": entry.get("grade"),
+        "subject": entry.get("subject"),
+        "concept_labs": concept_labs,
+        "exercise_labs": exercise_labs,
+        "runtime_ai_required_for_indexed_labs": False,
+    }
+
+
+def _lab_index_script(lab_index: dict) -> str:
+    payload = json.dumps(lab_index, ensure_ascii=False, separators=(",", ":"))
+    payload = payload.replace("</", "<\\/")
+    return (
+        '<script id="nabilLabIndex" type="application/json">'
+        + payload + '</script>'
+    )
+
+
+def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: dict, lab_index: Optional[dict] = None) -> str:
     clean_title = html.escape(re.sub(r'^\s*\d{2,3}\s*(?:--|[-_ ]+)\s*', '', entry["canonical_title"]))
     clean_title = html.escape(re.sub(r'\s+\d{2,3}$', '', clean_title).strip())
     lesson_id = entry["lesson_id"]
@@ -4875,7 +5034,10 @@ def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: di
             {provenance_html}
           </div>
           <p class="nabil-exercise-prompt" style="margin:10px 0; font-size:14px; line-height:1.5;">{html.escape(ex["exact_source_prompt"])}</p>
-          <button type="button" class="nabil-explain-lab-btn nav-btn" style="background:#0f766e;margin:2px 0 8px;">🧪 {html.escape({"ar":"اشرح هذا التمرين بالمختبر","fr":"Expliquer cet exercice avec un laboratoire","en":"Explain this exercise with a lab"}.get(page_b_lang_code,"Explain this exercise with a lab"))}</button>
+          <button type="button" class="nabil-explain-lab-btn nav-btn" data-nabil-prebuilt-lab="true" style="background:#0f766e;margin:2px 0 8px;">🧪 {html.escape({"ar":"اشرح هذا التمرين بالمختبر","fr":"Expliquer cet exercice avec un laboratoire","en":"Explain this exercise with a lab"}.get(page_b_lang_code,"Explain this exercise with a lab"))}</button>
+          <div class="nabil-prebuilt-exercise-lab" data-lab-key="{html.escape(str(ex.get("_prebuilt_lab_key") or ""))}" hidden>
+            {ex.get("_prebuilt_lab_html", "")}
+          </div>
           {ex_fig_html}
           {sub_html}
           {sol_box}
@@ -4909,6 +5071,7 @@ def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: di
 </style>
 </head>
 <body>
+{_lab_index_script(lab_index or build_prebuilt_lab_index(entry, {"activities": []}, exercises))}
 <div class="container">
   <div class="header">
     <h1 style="margin:0; font-size:20px;">{html.escape(ui_t(page_b_lang_code, "exercises_page_title", title=html.unescape(clean_title)))}</h1>
@@ -5530,8 +5693,11 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
     prepare_verified_solutions(
         entry, exercises, profile, ev_map,
         drive_service=drive_service, persist=publish)
-    page_a = render_lesson_page_a(entry, theory, ev_map)
-    page_b = render_lesson_page_b(entry, exercises, profile, ev_map)
+    prepare_prebuilt_exercise_labs(entry, exercises, profile)
+    lab_index = build_prebuilt_lab_index(entry, theory, exercises)
+    page_a = render_lesson_page_a(entry, theory, ev_map, lab_index=lab_index)
+    page_b = render_lesson_page_b(
+        entry, exercises, profile, ev_map, lab_index=lab_index)
 
     slug_subj = re.sub(r'[^\w]+', '-', entry.get("subject", "PHYSICS")).upper()
     slug_title = re.sub(r'[^\w]+', '-', entry["canonical_title"]).upper()
@@ -5556,6 +5722,7 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
         "evidence_map": ev_map,
         "theory": theory,
         "exercises": exercises,
+        "lab_index": lab_index,
         "hashes": {
             "page_a": hashlib.sha256(page_a.encode("utf-8")).hexdigest(),
             "page_b": hashlib.sha256(page_b.encode("utf-8")).hexdigest(),
@@ -5601,6 +5768,9 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
         "evidence_hash": candidate["hashes"]["evidence"][:16],
         "activities_count": len(theory["activities"]),
         "exercises_count": len(exercises),
+        "prebuilt_concept_labs": len(lab_index.get("concept_labs") or []),
+        "prebuilt_exercise_labs": len(lab_index.get("exercise_labs") or []),
+        "runtime_ai_required_for_indexed_labs": False,
         "drive_theory_id": drive_theory_id,
         "drive_exercises_id": drive_exercises_id,
         "gates_report": gates_res["gates"],
