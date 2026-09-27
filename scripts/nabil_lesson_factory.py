@@ -3009,7 +3009,7 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict) -> str:
 <meta name="nabil-source-pages" content="{entry['pdf_start_page']}-{entry['pdf_end_page']}">
 <title>{clean_title} - NABIL Universal Engine</title>
 {MathRenderingEngine.inject_mathjax_head()}
-<script defer src="/static/nabil_scientific_solution_cards_e2e.js?v=2"></script>
+<script defer src="/static/nabil_scientific_solution_cards_e2e.js?v=3"></script>
 <script defer src="/static/nabil_lesson_e2e_runtime_v1.js?v=1"></script>
 <style>
   :root {{ --primary: #0284c7; --bg: #f8fafc; --card: #ffffff; --text: #0f172a; --text-muted: #64748b; }}
@@ -3200,7 +3200,7 @@ def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: di
 <meta name="nabil-source-pages" content="{entry['pdf_start_page']}-{entry['pdf_end_page']}">
 <title>{clean_title} - Official Exercises</title>
 {MathRenderingEngine.inject_mathjax_head()}
-<script defer src="/static/nabil_scientific_solution_cards_e2e.js?v=2"></script>
+<script defer src="/static/nabil_scientific_solution_cards_e2e.js?v=3"></script>
 <script defer src="/static/nabil_lesson_e2e_runtime_v1.js?v=1"></script>
 <style>
   :root {{ --primary: #0284c7; --bg: #f8fafc; --card: #ffffff; --text: #0f172a; --text-muted: #64748b; }}
