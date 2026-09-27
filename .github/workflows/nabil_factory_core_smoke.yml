@@ -125,6 +125,9 @@ jobs:
           assert "TEXT_DIAGRAM_RECONSTRUCTION_NOT_POSSIBLE" in source_text
           assert "reconstructed_diagram_verified" in source_text
           assert "OPTIONAL_SOURCE_FIGURE_SKIPPED" in source_text
+          assert "REMOVED_OUT_OF_SCOPE_GENERATED_CONTENT" in source_text
+          assert "SKIPPED_UNVERIFIED_QUIZ_ITEM" in source_text
+          assert "GENERATED_CONTENT_SCOPE_AUDIT_MISSING" in source_text
           assert "EXERCISE_SEQUENCE_INCOMPLETE" not in source_text
           assert "EXERCISE_NUMBERING_INVALID" in source_text
           factory.execute_llm_completion = original_llm
@@ -234,6 +237,16 @@ jobs:
           quiz_html = render_quiz_html(items, "en")
           assert len(items) == len(activities)
           assert 'id="fullQuizBlock"' in quiz_html
+          activities_with_omission = activities + [{
+              "activity_num": "02",
+              "concept_id": "C02",
+              "source_page": 1,
+              "conclusion": "",
+              "student_question": None,
+          }]
+          omitted_items = build_full_quiz_items(activities_with_omission)
+          assert len(omitted_items) == 1
+          assert render_quiz_html([], "en") == ""
 
           for required in (
               "build_evidence_map",
