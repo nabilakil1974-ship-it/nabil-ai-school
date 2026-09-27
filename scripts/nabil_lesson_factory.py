@@ -2654,11 +2654,21 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
         return re.sub(r"[^a-z0-9]+", " ", str(value or "").casefold()).strip()
 
     next_concept_num = 1
+    concept_exercise_section_seen = False
+    exercise_section_start_page = None
     for p in pages_evidence:
         page_text = str(p["text"] or "")
         if re.search(
                 r"(?i)\b(exercises|problems|exercices|problèmes)\b|تمارين|مسائل",
                 page_text):
+            concept_exercise_section_seen = True
+            if exercise_section_start_page is None:
+                exercise_section_start_page = int(p["page_num"])
+                progress(
+                    "EXERCISE_SECTION_BOUNDARY_LOCKED",
+                    page=exercise_section_start_page,
+                )
+        if concept_exercise_section_seen:
             continue
         page_doc = doc[p["page_num"] - 1]
         activity_matches = list(act_regex.finditer(page_text))
@@ -2941,6 +2951,7 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
         "source_lock": {"start": start_p, "end": end_p},
         "pages_evidence": pages_evidence,
         "concepts": concepts,
+        "exercise_section_start_page": exercise_section_start_page,
         "exercise_evidence": unique_ex,
         "canonical_title": entry["canonical_title"]
     }
@@ -4504,6 +4515,24 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
     s_lock = ev_map["source_lock"]
     expected_p = s_lock["end"] - s_lock["start"] + 1
     check("SOURCE_COVERAGE_INCOMPLETE", len(ev_map["pages_evidence"]) == expected_p, "CRITICAL", f"{len(ev_map['pages_evidence'])}/{expected_p} pages")
+
+    exercise_start = ev_map.get("exercise_section_start_page")
+    leaked_concepts = [
+        {
+            "concept_id": concept.get("concept_id"),
+            "title": concept.get("title"),
+            "source_page": concept.get("source_page"),
+        }
+        for concept in ev_map.get("concepts", [])
+        if exercise_start is not None
+        and int(concept.get("source_page") or -1) >= int(exercise_start)
+    ]
+    check(
+        "LESSON_CONCEPT_LEAKED_FROM_EXERCISE_SECTION",
+        not leaked_concepts,
+        "CRITICAL",
+        f"exercise_start_page={exercise_start}, leaked={leaked_concepts}",
+    )
 
     required_unresolved_figures = {
         p["page_num"]: p.get("required_unverified_figure_labels", [])
