@@ -2729,6 +2729,13 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
         "Never invent min/max/default/step values; the student will enter numbers.\n"
         "2) ORIENTATION_INVARIANT: only when SOURCE/FIGURE explicitly establishes that an observable element keeps a horizontal or vertical orientation while its surrounding object changes orientation.\n"
         "3) SHAPE_RESPONSE: only when SOURCE/FIGURE explicitly establishes that the observed object's shape is fixed or conforms to a changed container/boundary.\n"
+        "4) DC_SERIES_CIRCUIT: only when SOURCE explicitly supports a two-resistor series circuit, Ohm's law, same-current-in-series, series equivalent resistance, AND the open/closed-switch current rule. "
+        "Required fields: resistors=[two source labels], switch_control=true, rules={series_resistance_sum:true,series_same_current:true,ohms_law:true,open_switch_zero_current:true}.\n"
+        "5) OPTICS_REFLECTION: only when SOURCE explicitly supports a normal perpendicular to the reflecting surface, angles measured from the normal, AND angle of incidence equals angle of reflection. "
+        "Required fields: angles_measured_from_normal=true, normal_perpendicular_surface=true, law='angle_of_incidence_equals_angle_of_reflection'.\n"
+        "6) IONIC_COMPOUND: only when SOURCE explicitly supports ionic electron transfer, the cation/anion charges, the whole-number ion ratio, and charge neutrality. "
+        "Required fields: cation={symbol,charge}, anion={symbol,charge}, cation_ratio, anion_ratio, electron_transfer_count, bond_type='ionic'.\n"
+        "For DC_SERIES_CIRCUIT, OPTICS_REFLECTION and IONIC_COMPOUND also return evidence_quotes: an object containing an EXACT SOURCE quote for EACH scientific invariant declared by the spec.\n"
         "Every supported lab must contain an exact evidence quote from SOURCE when evidence_basis=text. "
         "If evidence_basis=figure, a verified source figure must be supplied.\n"
         "Student-facing title/instructions/observation must stay within the scientific meaning of the evidence.\n"
@@ -2743,7 +2750,8 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
         "For supported include: supported=true, kind, title, instructions, observation, evidence_ref, evidence_basis ('text'|'figure'), evidence_quote. "
         "FORMULA_CALCULATOR additionally: source_formula and formula={output,input_a,input_b,operator,output_unit}. "
         "ORIENTATION_INVARIANT additionally: invariant_orientation ('horizontal'|'vertical'). "
-        "SHAPE_RESPONSE additionally: behavior ('fixed'|'conforms')."
+        "SHAPE_RESPONSE additionally: behavior ('fixed'|'conforms'). "
+        "Advanced kinds must include the exact fields listed above plus evidence_quotes."
     )
     raw = execute_llm_completion(
         prompt, json_mode=True, temperature=0.0,
@@ -2780,7 +2788,8 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
     else:
         raise RuntimeError("LAB_SPEC_EVIDENCE_BASIS_INVALID")
 
-    if str(spec.get("kind") or "").upper() == "FORMULA_CALCULATOR":
+    kind = str(spec.get("kind") or "").upper()
+    if kind == "FORMULA_CALCULATOR":
         source_formula = _normalized_lab_evidence(spec.get("source_formula", ""))
         formula_haystack = _normalized_lab_evidence(
             str(concept.get("raw_text", "")) + " " +
@@ -2788,6 +2797,46 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
         )
         if not source_formula or source_formula not in formula_haystack:
             raise RuntimeError("LAB_FORMULA_NOT_PRESENT_IN_SOURCE")
+
+    # Advanced science labs must prove each declared invariant with an exact
+    # textbook quote before deterministic rendering is allowed. This prevents
+    # a visually impressive lab from silently introducing a scientific rule.
+    advanced_required_quotes = {
+        "DC_SERIES_CIRCUIT": {
+            "series_resistance_sum",
+            "series_same_current",
+            "ohms_law",
+            "open_switch_zero_current",
+        },
+        "OPTICS_REFLECTION": {
+            "normal_perpendicular_surface",
+            "angles_measured_from_normal",
+            "reflection_law",
+        },
+        "IONIC_COMPOUND": {
+            "ionic_bond",
+            "cation_charge",
+            "anion_charge",
+            "ion_ratio",
+            "electron_transfer",
+            "charge_neutrality",
+        },
+    }
+    if kind in advanced_required_quotes:
+        evidence_quotes = spec.get("evidence_quotes")
+        if not isinstance(evidence_quotes, dict):
+            raise RuntimeError("LAB_ADVANCED_EVIDENCE_QUOTES_MISSING")
+        source_norm = _normalized_lab_evidence(concept.get("raw_text", ""))
+        missing = advanced_required_quotes[kind] - set(evidence_quotes)
+        if missing:
+            raise RuntimeError(
+                "LAB_ADVANCED_EVIDENCE_QUOTES_INCOMPLETE:" +
+                ",".join(sorted(missing)))
+        for claim in sorted(advanced_required_quotes[kind]):
+            exact_quote = _normalized_lab_evidence(evidence_quotes.get(claim, ""))
+            if not exact_quote or exact_quote not in source_norm:
+                raise RuntimeError(
+                    f"LAB_ADVANCED_EVIDENCE_QUOTE_NOT_FOUND:{claim}")
 
     validate_lab_spec(spec)
     return spec
