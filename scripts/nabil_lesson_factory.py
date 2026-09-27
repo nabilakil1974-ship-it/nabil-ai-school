@@ -952,6 +952,34 @@ def build_teaching_steps(
             "general_science": ["Observe the phenomenon", "Test", "Record the observation", "Explain", "Conclude"],
         },
     }
+    labels["ar"].update({
+        "language": ["اقرأ في السياق", "جرّب", "لاحظ النمط", "فسّر", "استنتج القاعدة"],
+        "history": ["حدّد السياق", "رتّب الأدلة", "لاحظ", "فسّر العلاقة", "ركّب الخلاصة"],
+        "geography": ["اقرأ الخريطة أو البيانات", "قارن", "لاحظ النمط", "فسّر", "استنتج"],
+        "civics": ["ابدأ من الحالة", "حدّد المفهوم", "طبّق القاعدة", "فسّر", "استنتج"],
+        "philosophy": ["اطرح الإشكالية", "حدّد المفاهيم", "حلّل الحجة", "اختبر الترابط", "ركّب الخلاصة"],
+        "social_science": ["اقرأ المعطيات", "نظّمها", "لاحظ العلاقة", "فسّر", "استنتج"],
+        "computer_science": ["حدّد المطلوب", "تتبّع الخطوات", "لاحظ تغيّر الحالة", "فسّر", "استنتج الطريقة"],
+    })
+    labels["fr"].update({
+        "language": ["Lis en contexte", "Essaie", "Observe le modèle", "Explique", "Formule la règle"],
+        "history": ["Situe le contexte", "Ordonne les preuves", "Observe", "Interprète", "Synthétise"],
+        "geography": ["Lis la carte ou les données", "Compare", "Observe", "Interprète", "Conclus"],
+        "civics": ["Pars de la situation", "Identifie le concept", "Applique la règle", "Explique", "Conclus"],
+        "philosophy": ["Pose la problématique", "Définis les concepts", "Analyse l’argument", "Vérifie le raisonnement", "Synthétise"],
+        "social_science": ["Lis les données", "Organise", "Observe la relation", "Interprète", "Conclus"],
+        "computer_science": ["Identifie l’objectif", "Trace les étapes", "Observe l’état", "Explique", "Dégage la méthode"],
+    })
+    labels["en"].update({
+        "language": ["Read in context", "Try", "Notice the pattern", "Explain", "State the rule"],
+        "history": ["Set the context", "Order the evidence", "Notice", "Interpret", "Synthesize"],
+        "geography": ["Read the map or data", "Compare", "Notice the pattern", "Interpret", "Conclude"],
+        "civics": ["Start from the case", "Identify the concept", "Apply the rule", "Explain", "Conclude"],
+        "philosophy": ["State the problem", "Define the concepts", "Analyze the argument", "Test the reasoning", "Synthesize"],
+        "social_science": ["Read the data", "Organize it", "Notice the relation", "Interpret", "Conclude"],
+        "computer_science": ["Identify the target", "Trace the steps", "Notice the state", "Explain", "Extract the method"],
+    })
+
     if subject == "mathematics":
         label_key = {
             "geometry": "math_geometry",
@@ -959,9 +987,20 @@ def build_teaching_steps(
             "algebra": "math_algebra",
         }.get(mode, "math_default")
     else:
-        label_key = subject if subject in {
+        label_key = {
+            "arabic_language": "language",
+            "english_language": "language",
+            "french_language": "language",
+            "history": "history",
+            "geography": "geography",
+            "civics": "civics",
+            "philosophy": "philosophy",
+            "economics": "social_science",
+            "sociology": "social_science",
+            "computer_science": "computer_science",
+        }.get(subject, subject if subject in {
             "physics", "chemistry", "biology", "general_science"
-        } else "general_science"
+        } else "general_science")
     display = labels.get(lang, labels["en"])[label_key]
     fields = [
         ("hook", "phenomenon"),
