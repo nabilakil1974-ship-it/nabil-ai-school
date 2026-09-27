@@ -28,7 +28,7 @@ except Exception:
         validate_advanced_lab_spec,
     )
 
-_ALLOWED_KINDS={"FORMULA_CALCULATOR","ORIENTATION_INVARIANT","SHAPE_RESPONSE","EVIDENCE_SEQUENCE"} | ADVANCED_LAB_KINDS
+_ALLOWED_KINDS={"FORMULA_CALCULATOR","ORIENTATION_INVARIANT","SHAPE_RESPONSE","EVIDENCE_SEQUENCE","EVIDENCE_REVEAL"} | ADVANCED_LAB_KINDS
 _ALLOWED_OPS={"+","-","*","/"}
 
 def _safe_id(value:str)->str:
@@ -73,6 +73,13 @@ def validate_lab_spec(spec:Dict[str,Any])->Dict[str,Any]:
         for i,step in enumerate(steps):
             if not isinstance(step,dict) or not str(step.get("label") or "").strip() or not str(step.get("evidence_quote") or "").strip():
                 raise RuntimeError(f"LAB_SEQUENCE_STEP_INVALID:{i}")
+    if kind=="EVIDENCE_REVEAL":
+        items=spec.get("items")
+        if not isinstance(items,list) or not 1<=len(items)<=8:
+            raise RuntimeError("LAB_REVEAL_ITEMS_INVALID")
+        for i,item in enumerate(items):
+            if not isinstance(item,dict) or not str(item.get("label") or "").strip() or not str(item.get("evidence_quote") or "").strip():
+                raise RuntimeError(f"LAB_REVEAL_ITEM_INVALID:{i}")
     if kind in ADVANCED_LAB_KINDS:
         validate_advanced_lab_spec(spec)
     return spec
@@ -363,6 +370,79 @@ def _render_sequence(spec:Dict[str,Any],lang_code:str,lab_id:str)->str:
  </script>
 </section>"""
 
+
+def _render_evidence_reveal(spec:Dict[str,Any],lang_code:str,lab_id:str)->str:
+    """Universal interactive teaching lab for any evidence-backed paragraph/task."""
+    safe=_safe_id(lab_id)
+    items=spec["items"]
+    explain={"ar":"▶ اشرح الفكرة","fr":"▶ Expliquer l’idée","en":"▶ Explain the idea"}.get(lang_code,"▶ Explain the idea")
+    next_label={"ar":"التالي","fr":"Suivant","en":"Next"}.get(lang_code,"Next")
+    reset_label={"ar":"إعادة","fr":"Recommencer","en":"Reset"}.get(lang_code,"Reset")
+    rows="".join(
+        f'<button type="button" id="{safe}_item_{i}" class="nabil-reveal-item" '
+        f'style="display:block;width:100%;text-align:start;padding:12px;margin:7px 0;'
+        f'border:1px solid #334155;border-radius:10px;background:#fff;color:#0f172a;">'
+        f'<b>{i+1}. {html.escape(str(item["label"]))}</b>'
+        f'<span style="display:block;font-size:12px;color:#475569;margin-top:4px;">'
+        f'{html.escape(str(item["evidence_quote"]))}</span></button>'
+        for i,item in enumerate(items)
+    )
+    labels=[str(item["label"]) for item in items]
+    demo_ms=max(5000,len(items)*2800)
+    return f"""
+<section class="interactive-lab nabil-live-lab" id="lab_{safe}"
+ data-lab-kind="EVIDENCE_REVEAL" data-teacher-pointer="synced"
+ data-demo-ms="{demo_ms}"
+ style="margin-top:16px;background:#071827;border:1px solid #24506f;border-radius:14px;padding:16px;color:#f8fafc;">
+ <h3 style="margin:0 0 6px;color:#2de1ff;">{html.escape(spec["title"])}</h3>
+ <p style="margin:0 0 12px;color:#dbeafe;">{html.escape(spec["instructions"])}</p>
+ <div style="position:relative;padding-inline-start:10px;">
+   <div id="{safe}_pointer" style="position:absolute;inset-inline-start:0;top:7px;width:5px;height:48px;border-radius:6px;background:#2de1ff;box-shadow:0 0 14px #2de1ff;transition:transform .4s ease;"></div>
+   <div>{rows}</div>
+ </div>
+ <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+   <button type="button" id="{safe}_teach" class="nav-btn">{html.escape(explain)}</button>
+   <button type="button" id="{safe}_next" class="q-opt">{html.escape(next_label)}</button>
+   <button type="button" id="{safe}_reset" class="q-opt">{html.escape(reset_label)}</button>
+ </div>
+ <p style="font-size:12px;color:#b6c8d8;">{html.escape(spec["observation"])}</p>
+ <script>
+ (()=>{{
+   const root=document.getElementById('lab_{safe}');
+   const pointer=document.getElementById('{safe}_pointer');
+   const labels={json.dumps(labels,ensure_ascii=False)};
+   let index=0,token=0,timers=[];
+   function stopAll(){{token++;timers.forEach(clearTimeout);timers=[];try{{window.NABILLessonE2E?.stopSpeech?.();}}catch(_e){{}}}}
+   function focus(i){{
+     index=((i%labels.length)+labels.length)%labels.length;
+     document.querySelectorAll('#lab_{safe} .nabil-reveal-item').forEach((el,j)=>{{
+       el.style.borderColor=j===index?'#2de1ff':'#334155';
+       el.style.boxShadow=j===index?'0 0 18px rgba(45,225,255,.25)':'none';
+     }});
+     const el=document.getElementById('{safe}_item_'+index);
+     if(el) pointer.style.transform='translateY('+Math.max(0,el.offsetTop-7)+'px)';
+   }}
+   function speakCurrent(){{
+     focus(index);
+     try{{window.NABILLessonE2E?.speak?.(labels[index],{json.dumps(lang_code)});}}catch(_e){{}}
+   }}
+   function play(){{
+     stopAll();const mine=token;index=0;
+     const next=()=>{{
+       if(mine!==token||index>=labels.length)return;
+       speakCurrent();index++;timers.push(setTimeout(next,2400));
+     }};next();
+   }}
+   document.getElementById('{safe}_teach').addEventListener('click',play);
+   document.getElementById('{safe}_next').addEventListener('click',()=>{{stopAll();index=(index+1)%labels.length;speakCurrent();}});
+   document.getElementById('{safe}_reset').addEventListener('click',()=>{{stopAll();index=0;focus(0);}});
+   document.querySelectorAll('#lab_{safe} .nabil-reveal-item').forEach((el,i)=>el.addEventListener('click',()=>{{stopAll();index=i;speakCurrent();}}));
+   root.addEventListener('nabil:demo',play);
+   focus(0);
+ }})();
+ </script>
+</section>"""
+
 def render_verified_lab(spec:Dict[str,Any],lang_code:str,lab_id:str)->Tuple[str,bool]:
     # نقطة الدخول الوحيدة: المختبر لا يظهر قبل نجاح validate_lab_spec.
     if not isinstance(spec,dict) or spec.get("supported") is not True:
@@ -377,6 +457,8 @@ def render_verified_lab(spec:Dict[str,Any],lang_code:str,lab_id:str)->Tuple[str,
         return _render_shape(spec,lang_code,lab_id),True
     if kind=="EVIDENCE_SEQUENCE":
         return _render_sequence(spec,lang_code,lab_id),True
+    if kind=="EVIDENCE_REVEAL":
+        return _render_evidence_reveal(spec,lang_code,lab_id),True
     if kind in ADVANCED_LAB_KINDS:
         return render_advanced_verified_lab(spec,lang_code,lab_id)
     raise RuntimeError(f"LAB_KIND_UNSUPPORTED: {kind}")
