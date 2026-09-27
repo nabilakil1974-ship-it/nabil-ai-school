@@ -7,6 +7,8 @@ on:
       - "scripts/nabil_i18n.py"
       - "scripts/nabil_interactive_lab.py"
       - "scripts/nabil_quiz_engine.py"
+      - "app/static/nabil_scientific_solution_cards_e2e.js"
+      - "app/static/nabil_lesson_e2e_runtime_v1.js"
       - ".github/workflows/nabil_factory_core_smoke.yml"
   workflow_dispatch:
 
@@ -23,6 +25,11 @@ jobs:
       - name: Compile real factory modules
         run: |
           python -m py_compile             scripts/nabil_i18n.py             scripts/nabil_interactive_lab.py             scripts/nabil_quiz_engine.py             scripts/nabil_lesson_factory.py
+
+      - name: Validate approved E2E JavaScript
+        run: |
+          node --check app/static/nabil_scientific_solution_cards_e2e.js
+          node --check app/static/nabil_lesson_e2e_runtime_v1.js
 
       - name: Import and exercise enrichment engines
         run: |
@@ -72,9 +79,17 @@ jobs:
               "synthesize_universal_pedagogy",
               "run_all_quality_gates",
               "independent_scientific_review",
+              "build_verified_lab_spec",
+              "build_factory_solution_card_spec",
               "produce_lesson_for_entry",
           ):
               assert hasattr(factory, required), required
+
+          source = factory.Path(factory.__file__).read_text(encoding="utf-8")
+          assert "nabil_scientific_solution_cards_e2e.js?v=3" in source
+          assert "nabil_lesson_e2e_runtime_v1.js?v=1" in source
+          assert "data-nabil-solution-card" in source
+          assert "LAB_FAKE_NUMERIC_RANGE_FORBIDDEN" in source
 
           print("NABIL_FACTORY_CORE_SMOKE_OK")
           PY
