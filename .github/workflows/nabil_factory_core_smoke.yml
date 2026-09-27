@@ -390,6 +390,29 @@ jobs:
           assert "resolve_teaching_signature" in source
           assert "WHOLE_LESSON_SMART_LAB_MISSING" in source
           assert "GEOMETRY_PROOF" in source
+          assert "FULL_PAGE_TRANSLATION_INCOMPLETE" in source
+          assert "build_trilingual_page_translation" in source
+
+          # Translation shell is tested without network/provider access.
+          original_translate = factory._translate_strings_batch
+          try:
+              def fake_translate(values, source_lang, target_lang, purpose):
+                  prefix = {"ar": "AR ", "en": "EN ", "fr": "FR "}[target_lang]
+                  return {v: prefix + v for v in values}
+              factory._translate_strings_batch = fake_translate
+              translated_html, translated_report = factory.build_trilingual_page_translation(
+                  "<!doctype html><html><body><h1>Lesson title</h1>"
+                  "<button>Explain this concept</button></body></html>",
+                  "en", "fixture_translation")
+          finally:
+              factory._translate_strings_batch = original_translate
+          assert translated_report["complete"] is True
+          assert translated_report["languages"] == ["ar", "en", "fr"]
+          assert 'id="nabilPageLanguage"' in translated_html
+          assert 'id="nabilPageTranslationBundle"' in translated_html
+          assert 'data-nabil-lang="ar"' in translated_html
+          assert 'data-nabil-lang="fr"' in translated_html
+          assert 'data-nabil-translation-complete="true"' in translated_html
 
           print("NABIL_FACTORY_CORE_SMOKE_OK")
           PY
