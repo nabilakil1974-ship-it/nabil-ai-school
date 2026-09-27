@@ -3,7 +3,7 @@
 
 """
 NABIL AI — Universal Pedagogical Lesson Factory
-Version: 26.0.0 (End-to-End Lesson Runtime + Scientific Solution Cards)
+Version: 27.0.0 (Golden Reference Renderer Contract + End-to-End Labs)
 Strict Fail-Closed Architecture across all 400+ Curriculum Lessons.
 Applicable to Mathematics, Physics, Chemistry, Biology & General Science.
 """
@@ -59,6 +59,123 @@ def now():
 def progress(stage: str, **details):
     elapsed = round(time.monotonic() - PROGRESS_STARTED, 1) if PROGRESS_STARTED else 0
     print(json.dumps({"time": now(), "elapsed_seconds": elapsed, "stage": stage, **details}, ensure_ascii=False), flush=True)
+
+
+# ==============================================================================
+# GOLDEN REFERENCE RENDERER CONTRACT — CONTENT-AGNOSTIC
+# ==============================================================================
+# This is the visual/interaction contract distilled from the approved golden
+# reference lesson.  It contains NO lesson-specific science.  Scientific data
+# comes only from Evidence Map -> audited narrative/solution -> verified lab.
+REFERENCE_RENDERER_CONTRACT = "NABIL_REFERENCE_RENDERER_V1"
+REFERENCE_RENDERER_LANGUAGES = ("ar", "en", "fr")
+REFERENCE_MOBILE_VIEWPORT = (390, 844)
+
+
+def reference_renderer_css() -> str:
+    """Shared lesson/exercise presentation contract for every subject/grade."""
+    return r"""
+:root{
+ --nabil-ref-page:#05172d;--nabil-ref-header:#002973;
+ --nabil-ref-panel:#081e33;--nabil-ref-card:#062039;
+ --nabil-ref-deep:#0b1c36;--nabil-ref-control:#0d223d;
+ --nabil-ref-border:#13618f;--nabil-ref-cyan:#14c8f5;
+ --nabil-ref-cyan-text:#65dfff;--nabil-ref-text:#eef8ff;
+ --nabil-ref-muted:#b9d7ea;--nabil-ref-green:#009e48;
+ --nabil-ref-red:#ea202c;--nabil-ref-blue:#0874e8;
+ --nabil-ref-purple:#5a35ca;--nabil-ref-yellow:#ffd447;
+}
+*{box-sizing:border-box}
+html{color-scheme:dark;background:var(--nabil-ref-page)}
+body{
+ margin:0!important;padding:14px!important;max-width:100vw!important;
+ overflow-x:hidden!important;background:var(--nabil-ref-page)!important;
+ color:var(--nabil-ref-text)!important;
+ font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif!important;
+}
+.container{width:100%!important;max-width:1180px!important;margin:0 auto!important;min-width:0!important}
+.header{
+ display:flex!important;justify-content:space-between!important;align-items:center!important;
+ gap:10px!important;flex-wrap:wrap!important;padding:12px 14px!important;
+ background:linear-gradient(90deg,#05172d,var(--nabil-ref-header),#05172d)!important;
+ border:1px solid #0b4d7f!important;border-radius:16px!important;
+ position:sticky;top:4px;z-index:30;
+}
+.header h1{color:var(--nabil-ref-cyan-text)!important;overflow-wrap:anywhere}
+.header-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
+.card,.nabil-concept-card,.nabil-exercise-card,.ws-item,
+#goldenReferenceCard,.lesson-final-card,.nabil-sci-card{
+ background:linear-gradient(180deg,#08243d,#061d33)!important;
+ color:var(--nabil-ref-text)!important;
+ border:1px solid var(--nabil-ref-border)!important;
+ border-radius:16px!important;box-shadow:0 12px 28px rgba(0,0,0,.28)!important;
+ min-width:0!important;max-width:100%!important;
+}
+.card{padding:16px!important}
+.nabil-concept-card h3,.nabil-exercise-card h3,#goldenReferenceCard h2,
+.nabil-reference-concept>div>span:first-child{
+ color:var(--nabil-ref-cyan-text)!important;
+}
+.nabil-teacher-step{
+ background:#0b2a45!important;color:var(--nabil-ref-text)!important;
+ border-inline-start-color:var(--nabil-ref-cyan)!important;
+}
+.nav-btn,.q-opt,.nabil-smart-lab-action{
+ min-height:44px!important;border-radius:10px!important;
+ border:1px solid #1f77aa!important;color:#fff!important;
+ background:#0f3655!important;padding:9px 12px!important;
+ font:inherit!important;font-weight:800!important;cursor:pointer;
+ max-width:100%;
+}
+.q-opt{background:#0d2b45!important}
+.nav-btn[style*="#0f766e"],.nabil-explain-lab-btn{background:#0f766e!important;border-color:#39c7b0!important}
+.nav-btn[style*="#7c3aed"]{background:var(--nabil-ref-purple)!important;border-color:#9b7af1!important}
+.nabil-prebuilt-exercise-lab,.interactive-lab{
+ width:100%!important;max-width:100%!important;min-width:0!important;
+ overflow:hidden!important;
+}
+.interactive-lab svg,.nabil-prebuilt-exercise-lab svg,
+.nabil-explanatory-visual svg,.nabil-sci-visual-stage svg{
+ display:block!important;width:100%!important;max-width:100%!important;height:auto!important;
+}
+.nabil-reference-concept{
+ background:linear-gradient(160deg,#0f3151,#0a2239)!important;
+ color:var(--nabil-ref-text)!important;border:1px solid #2f5f86!important;
+ border-radius:14px!important;padding:12px!important;min-width:0!important;
+}
+.nabil-reference-concept *{color:inherit}
+#goldenReferenceCard{
+ background:radial-gradient(circle at 50% -20%,#153f68,#07192d 70%)!important;
+ border:1px solid #2d638d!important;padding:16px!important;
+}
+#goldenReferenceCard>div:first-child{border-bottom-color:#2d638d!important}
+#goldenReferenceCard [style*="#334155"],
+#goldenReferenceCard [style*="#64748b"]{color:#d7e9f6!important}
+#goldenReferenceCard [style*="#0369a1"]{color:var(--nabil-ref-cyan-text)!important}
+#goldenReferenceCard [style*="#eff6ff"]{
+ background:#0b2943!important;border-color:#315f82!important;color:#dff5ff!important;
+}
+img[data-source-scan],.source-page-scan,.textbook-page-scan{display:none!important}
+mjx-container{max-width:100%!important;overflow-x:auto;overflow-y:hidden}
+table{max-width:100%}
+@media(max-width:430px){
+ body{padding:6px!important}
+ .container{max-width:100%!important;margin:0!important}
+ .header{position:relative!important;display:block!important;padding:10px!important}
+ .header h1{font-size:20px!important;margin:0 0 9px!important}
+ .header-actions,.header>div{width:100%!important}
+ .header-actions{display:grid!important;grid-template-columns:1fr!important}
+ .header button,.header select,.nav-btn{width:100%!important;justify-content:center!important}
+ .card,.nabil-concept-card,.nabil-exercise-card,#goldenReferenceCard{padding:10px!important;border-radius:13px!important}
+ .nabil-teacher-step{padding:9px!important;margin:7px 0!important}
+ .nabil-reference-concept{padding:10px!important}
+ .nabil-prebuilt-exercise-lab,.interactive-lab{margin-inline:0!important}
+ .nabil-sci-grid{grid-template-columns:1fr!important}
+ .nabil-sci-panel{min-width:0!important}
+ .nabil-sci-table-wrap{max-width:100%!important;overflow-x:auto!important}
+ button,input,select,textarea{font-size:16px!important}
+}
+"""
 
 
 # ==============================================================================
@@ -3900,6 +4017,9 @@ def build_factory_solution_card_spec(
         ]
 
     return {
+        "renderer_contract": REFERENCE_RENDERER_CONTRACT,
+        "lab_key": str(exercise.get("_prebuilt_lab_key") or ""),
+        "exercise_id": str(exercise.get("exercise_id") or ""),
         "kind": kind,
         "subject": subject,
         "language": lang_code,
@@ -4672,22 +4792,19 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict, lab_index: Opt
 <meta name="nabil-subject" content="{html.escape(entry.get('subject', 'Physics'))}">
 <meta name="nabil-source-book-id" content="{html.escape(entry['book_id'])}">
 <meta name="nabil-source-pages" content="{entry['pdf_start_page']}-{entry['pdf_end_page']}">
+<meta name="nabil-renderer-contract" content="{REFERENCE_RENDERER_CONTRACT}">
+<meta name="nabil-translation-languages" content="ar,en,fr">
+<meta name="nabil-renderer-contract" content="{REFERENCE_RENDERER_CONTRACT}">
+<meta name="nabil-translation-languages" content="ar,en,fr">
 <title>{clean_title} - NABIL Universal Engine</title>
 {MathRenderingEngine.inject_mathjax_head()}
 <script defer src="/static/nabil_scientific_solution_cards_e2e.js?v=3"></script>
 <script defer src="/static/nabil_lesson_e2e_runtime_v1.js?v=1"></script>
 <script defer src="/static/nabil_smart_lab_bridge_v1.js?v=1"></script>
 <style>
-  :root {{ --primary: #0284c7; --bg: #f8fafc; --card: #ffffff; --text: #0f172a; --text-muted: #64748b; }}
-  body {{ font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 16px; overflow-x: hidden; max-width: 100vw; box-sizing: border-box; }}
-  .container {{ max-width: 860px; margin: 0 auto; width: 100%; box-sizing: border-box; }}
-  .header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; }}
-  .card {{ background: var(--card); border-radius: 8px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }}
-  .nav-btn {{ background: var(--primary); color: #fff; padding: 10px 16px; border-radius: 6px; text-decoration: none; font-weight: 600; cursor: pointer; border: none; font-size: 14px; min-height: 44px; display: inline-flex; align-items: center; }}
-  .q-opt {{ background:#fff; border:1px solid #cbd5e1; padding:8px 14px; border-radius:4px; cursor:pointer; font-size:13px; font-weight:500; min-height: 44px; }}
-  .q-opt:hover {{ background:#e2e8f0; }}
-  #zoomModal {{ display:none; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); justify-content:center; align-items:center; cursor:zoom-out; }}
-  #zoomModal img {{ max-width:90%; max-height:90%; border-radius:8px; box-shadow:0 4px 20px rgba(0,0,0,0.5); }}
+{reference_renderer_css()}
+#zoomModal {{ display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,.88); justify-content:center; align-items:center; cursor:zoom-out; }}
+#zoomModal img {{ max-width:92%; max-height:92%; border-radius:10px; }}
 </style>
 </head>
 <body>
@@ -4695,7 +4812,7 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict, lab_index: Opt
 <div class="container">
   <div class="header">
     <h1 style="margin:0; font-size:22px;">{clean_title}</h1>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+    <div class="header-actions" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
       <button type="button" id="nabilExplainWholeLessonLabs" class="nav-btn" style="background:#0f766e;">🧪 {html.escape({"ar":"اشرح الدرس كاملًا بالمختبرات","fr":"Expliquer toute la leçon avec les laboratoires","en":"Explain the whole lesson with labs"}.get(page_a_lang_code,"Explain the whole lesson with labs"))}</button>
       <button type="button" onclick="document.getElementById('goldenReferenceCard')?.scrollIntoView({behavior:'smooth',block:'start'})" class="nav-btn" style="background:#7c3aed;">📌 {html.escape({"ar":"البطاقة النهائية","fr":"Carte finale","en":"Final reference card"}.get(page_a_lang_code,"Final reference card"))}</button>
       <button onclick="navigateToExercises()" class="nav-btn">{html.escape(ui_t(page_a_lang_code, "view_exercises"))}</button>
@@ -4921,37 +5038,59 @@ def prepare_prebuilt_exercise_labs(
 
 
 def build_prebuilt_lab_index(entry: dict, theory: dict, exercises: list) -> dict:
-    """Serializable lesson/exercise lab directory shipped with the artifact."""
+    """Serializable concept/exercise/solution lab directory shipped once.
+
+    Contract:
+      concept id -> lab key
+      exercise id -> solution card -> SAME lab key
+    Indexed students never regenerate these labs at runtime.
+    """
     concept_labs = []
     for act in theory.get("activities", []):
         spec = act.get("lab_spec") or {}
+        key = f"concept:{act.get('concept_id')}"
         concept_labs.append({
-            "key": f"concept:{act.get('concept_id')}",
+            "key": key,
             "artifact": "theory",
             "concept_id": act.get("concept_id"),
             "title": act.get("title"),
             "kind": spec.get("kind"),
+            "renderer_contract": REFERENCE_RENDERER_CONTRACT,
+            "translation_languages": list(REFERENCE_RENDERER_LANGUAGES),
+            "teacher_pointer": "sentence_synced",
             "prebuilt": True,
             "active": bool(act.get("has_active_sim")),
         })
     exercise_labs = []
     for ex in exercises:
         spec = ex.get("_prebuilt_lab_spec") or {}
+        key = str(ex.get("_prebuilt_lab_key") or "")
+        ex["_solution_lab_key"] = key
         exercise_labs.append({
-            "key": ex.get("_prebuilt_lab_key"),
+            "key": key,
+            "solution_lab_key": key,
             "artifact": "exercises",
             "exercise_id": ex.get("exercise_id"),
             "number": ex.get("number"),
             "section_type": ex.get("section_type"),
             "kind": spec.get("kind"),
+            "renderer_contract": REFERENCE_RENDERER_CONTRACT,
+            "translation_languages": list(REFERENCE_RENDERER_LANGUAGES),
+            "teacher_pointer": "sentence_synced",
             "prebuilt": True,
             "active": bool(ex.get("_prebuilt_lab_active")),
         })
     return {
-        "schema": "nabil-prebuilt-lab-index/v1",
+        "schema": "nabil-prebuilt-lab-index/v2",
+        "renderer_contract": REFERENCE_RENDERER_CONTRACT,
         "lesson_id": entry.get("lesson_id"),
         "grade": entry.get("grade"),
         "subject": entry.get("subject"),
+        "translation_languages": list(REFERENCE_RENDERER_LANGUAGES),
+        "mobile_reference_viewport": {
+            "width": REFERENCE_MOBILE_VIEWPORT[0],
+            "height": REFERENCE_MOBILE_VIEWPORT[1],
+        },
         "concept_labs": concept_labs,
         "exercise_labs": exercise_labs,
         "runtime_ai_required_for_indexed_labs": False,
@@ -5073,7 +5212,7 @@ def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: di
             sub_html = f"<ul style='margin:6px 0 0 16px; padding:0; font-size:13px; color:#334155;'>{sub_items}</ul>"
 
         ex_cards += f'''
-        <div class="card nabil-exercise-card" data-nabil-exercise-number="{ex_num}" data-nabil-section-type="{html.escape(sec_type)}" style="margin-top:16px;">
+        <div class="card nabil-exercise-card" data-nabil-exercise-number="{ex_num}" data-nabil-section-type="{html.escape(sec_type)}" data-nabil-solution-lab-key="{html.escape(str(ex.get("_solution_lab_key") or ex.get("_prebuilt_lab_key") or ""))}" style="margin-top:16px;">
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <h3 style="margin:0; font-size:16px;">{card_title}</h3>
             {provenance_html}
@@ -5105,14 +5244,9 @@ def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: di
 <script defer src="/static/nabil_lesson_e2e_runtime_v1.js?v=1"></script>
 <script defer src="/static/nabil_smart_lab_bridge_v1.js?v=1"></script>
 <style>
-  :root {{ --primary: #0284c7; --bg: #f8fafc; --card: #ffffff; --text: #0f172a; --text-muted: #64748b; }}
-  body {{ font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 16px; overflow-x: hidden; max-width: 100vw; box-sizing: border-box; }}
-  .container {{ max-width: 860px; margin: 0 auto; width: 100%; box-sizing: border-box; }}
-  .header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; }}
-  .card {{ background: var(--card); border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }}
-  .nav-btn {{ background: var(--primary); color: #fff; padding: 10px 16px; border-radius: 6px; text-decoration: none; font-weight: 600; cursor: pointer; border: none; font-size: 13px; min-height: 44px; display: inline-flex; align-items: center; }}
-  #zoomModal {{ display:none; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); justify-content:center; align-items:center; cursor:zoom-out; }}
-  #zoomModal img {{ max-width:90%; max-height:90%; border-radius:8px; box-shadow:0 4px 20px rgba(0,0,0,0.5); }}
+{reference_renderer_css()}
+#zoomModal {{ display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,.88); justify-content:center; align-items:center; cursor:zoom-out; }}
+#zoomModal img {{ max-width:92%; max-height:92%; border-radius:10px; }}
 </style>
 </head>
 <body>
@@ -5387,7 +5521,8 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
     exercise_lab_index = lab_index.get("exercise_labs") or []
     check(
         "PREBUILT_LAB_INDEX_SCHEMA_INVALID",
-        lab_index.get("schema") == "nabil-prebuilt-lab-index/v1"
+        lab_index.get("schema") == "nabil-prebuilt-lab-index/v2"
+        and lab_index.get("renderer_contract") == REFERENCE_RENDERER_CONTRACT
         and lab_index.get("lesson_id") == candidate.get("lesson_id")
         and lab_index.get("runtime_ai_required_for_indexed_labs") is False,
         "CRITICAL",
@@ -5574,6 +5709,42 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
         and "data:image/" not in candidate["page_b_html"],
         "CRITICAL",
         "Textbook/source raster images are evidence-only and must not be embedded in student lesson HTML",
+    )
+    forbidden_raster_tokens = (
+        "page_image_url", "figure_image_urls", "originalPageImage",
+        "عرض الصورة الأصلية لصفحة الكتاب", "Open original textbook page",
+        "Actual scanned page from the indexed government textbook",
+    )
+    check(
+        "STUDENT_SOURCE_RASTER_UI_FORBIDDEN",
+        all(
+            token not in candidate["page_a_html"]
+            and token not in candidate["page_b_html"]
+            for token in forbidden_raster_tokens
+        ),
+        "CRITICAL",
+        "Textbook scans/figure pixels may be internal evidence only; student HTML may contain verified NABIL redraws/SVG only",
+    )
+    check(
+        "REFERENCE_RENDERER_CONTRACT_MISSING",
+        all(
+            f'name="nabil-renderer-contract" content="{REFERENCE_RENDERER_CONTRACT}"' in page
+            for page in (candidate["page_a_html"], candidate["page_b_html"])
+        ),
+        "CRITICAL",
+        "Both student pages must use the approved content-agnostic golden reference renderer contract",
+    )
+    check(
+        "EXERCISE_SOLUTION_LAB_LINKAGE_INCOMPLETE",
+        all(
+            bool(e.get("_prebuilt_lab_key"))
+            and e.get("_solution_lab_key") == e.get("_prebuilt_lab_key")
+            for e in candidate.get("exercises") or []
+        )
+        and candidate["page_b_html"].count("data-nabil-solution-lab-key=")
+            == len(candidate.get("exercises") or []),
+        "CRITICAL",
+        "Every exercise/solution card must link to exactly its own prebuilt lab key",
     )
     check(
         "NABIL_VISUAL_PIPELINE_MISSING",
@@ -5937,6 +6108,9 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
         "prebuilt_concept_labs": len(lab_index.get("concept_labs") or []),
         "prebuilt_exercise_labs": len(lab_index.get("exercise_labs") or []),
         "runtime_ai_required_for_indexed_labs": False,
+        "renderer_contract": REFERENCE_RENDERER_CONTRACT,
+        "mobile_reference_viewport": {"width": 390, "height": 844},
+        "source_raster_student_facing": False,
         "drive_theory_id": drive_theory_id,
         "drive_exercises_id": drive_exercises_id,
         "drive_labs_id": drive_labs_id,
