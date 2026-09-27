@@ -500,7 +500,7 @@ def _build_root_html() -> str:
         '<script src="/static/nabil_open_tutor_v1.js?v=18"></script>\n'
         '<script src="/static/nabil_ionic_diagram_fix.js?v=1"></script>\n'
         '<script src="/static/nabil_research_v1.js?v=2"></script>\n'
-        '<script src="/static/nabil_book_first_preview_v1.js?v=8"></script>\n'
+        '<script src="/static/nabil_book_first_preview_v1.js?v=9"></script>\n'
         '<script src="/static/nabil_universal_language_v1.js?v=1"></script>\n'
         '<script src="/static/nabil_drive_home_requests_v1.js?v=7"></script>\n'
         '<script src="/static/nabil_universal_lesson_actions_v1.js?v=2"></script>\n'
