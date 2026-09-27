@@ -5058,6 +5058,319 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
     }
 
 
+
+# ==============================================================================
+# PREBUILT FULL-PAGE AR / EN / FR TRANSLATION
+# ==============================================================================
+def _looks_like_formula_only(value: str) -> bool:
+    text = re.sub(r"\s+", " ", str(value or "")).strip()
+    if not text:
+        return True
+    letters = re.findall(r"[A-Za-zÀ-ÿ\u0600-\u06ff]", text)
+    operators = re.findall(r"[=+\-×÷*/^∠⊥≅≤≥<>√∞]", text)
+    # Mathematical labels/formulas stay canonical and are never sent through
+    # translation. This protects point labels, equations and symbolic results.
+    return bool(operators) and len(letters) <= max(5, len(text) // 5)
+
+
+def _is_translatable_display_string(value: str) -> bool:
+    text = re.sub(r"\s+", " ", str(value or "")).strip()
+    if len(text) < 2 or len(text) > 1200:
+        return False
+    if _looks_like_formula_only(text):
+        return False
+    if "://" in text or text.startswith(("#", ".", "/", "{", "}", "[", "]")):
+        return False
+    if re.search(r"</?[A-Za-z][^>]*>", text):
+        return False
+    if re.fullmatch(r"[A-Za-z0-9_.:/#-]+", text):
+        # Keep human one-word labels, reject ids/paths/camelCase/code tokens.
+        if any(ch in text for ch in "_./:#") or re.search(r"[a-z][A-Z]", text):
+            return False
+        if "-" in text and text.lower() not in {"step-by-step"}:
+            return False
+    if not re.search(r"[A-Za-zÀ-ÿ\u0600-\u06ff]", text):
+        return False
+    return True
+
+
+def _extract_translation_candidates(markup: str) -> List[str]:
+    """Collect static and dynamic student-visible strings without modifying HTML."""
+    from bs4 import BeautifulSoup, NavigableString
+
+    soup = BeautifulSoup(markup, "html.parser")
+    ordered: List[str] = []
+    seen = set()
+
+    def add(value):
+        text = re.sub(r"\s+", " ", str(value or "")).strip()
+        if text and text not in seen and _is_translatable_display_string(text):
+            seen.add(text)
+            ordered.append(text)
+
+    for node in soup.find_all(string=True):
+        if not isinstance(node, NavigableString):
+            continue
+        parent = getattr(node, "parent", None)
+        if not parent or parent.name in {"script", "style", "noscript"}:
+            continue
+        add(str(node))
+
+    # Labs/whole-lesson/proof engines keep some display strings in JS data and
+    # reveal them later. Include human-readable string literals so the runtime
+    # MutationObserver can translate those dynamic updates too.
+    for script in soup.find_all("script"):
+        source = script.string or script.get_text() or ""
+        for match in re.finditer(r'"((?:\\.|[^"\\])*)"', source):
+            raw = match.group(1)
+            try:
+                value = json.loads('"' + raw + '"')
+            except Exception:
+                value = raw.replace('\\"', '"').replace("\\n", " ")
+            add(value)
+        for match in re.finditer(r"'((?:\\.|[^'\\])*)'", source):
+            raw = match.group(1)
+            if "\\" in raw and not re.search(r"\\[nrt'\\]", raw):
+                continue
+            add(raw.replace("\\'", "'").replace("\\n", " "))
+
+    # Attributes visible to assistive technology/student hints.
+    for tag in soup.find_all(True):
+        for attr in ("title", "placeholder", "aria-label"):
+            add(tag.get(attr))
+    return ordered
+
+
+def _translation_integrity_tokens(value: str) -> Tuple[List[str], List[str]]:
+    text = str(value or "")
+    numbers = re.findall(r"(?<![\w])[-+]?\d+(?:[.,]\d+)?(?:%|°)?", text)
+    protected = re.findall(
+        r"(?:[A-Z][A-Za-z]?\d{0,3}|[A-Z]{1,4}\d*|"
+        r"[A-Za-z]\d*[₀₁₂₃₄₅₆₇₈₉]*|"
+        r"Ω|V|A|mA|kΩ|kg|g|m|cm|mm|s|ms|mol|Pa|N|J|W|Hz)"
+        r"(?=\b|[^A-Za-zÀ-ÿ])",
+        text,
+    )
+    return numbers, protected
+
+
+def _translate_strings_batch(
+        strings: List[str], source_lang: str, target_lang: str,
+        purpose: str) -> Dict[str, str]:
+    if target_lang == source_lang:
+        return {value: value for value in strings}
+    if not strings:
+        return {}
+    target_name = {"ar": "Modern Standard Arabic", "en": "English",
+                   "fr": "French"}[target_lang]
+    source_name = {"ar": "Modern Standard Arabic", "en": "English",
+                   "fr": "French"}.get(source_lang, source_lang)
+    output: Dict[str, str] = {}
+    batch_size = 55
+    for start in range(0, len(strings), batch_size):
+        batch = strings[start:start + batch_size]
+        items = [{"id": str(start + i), "text": value}
+                 for i, value in enumerate(batch)]
+        prompt = (
+            "You are a strict translation-only engine for a school lesson. "
+            f"Translate each item from {source_name} to {target_name}. "
+            "Do not add, omit, explain, simplify or correct scientific content. "
+            "Preserve every number exactly as written. Preserve mathematical "
+            "expressions, point/segment labels, variable names, chemical formulas, "
+            "units and standard symbols exactly. Keep NABIL as NABIL. "
+            "Use clear school-level Modern Standard Arabic when target is Arabic. "
+            "Return strict JSON exactly as {\"items\":[{\"id\":\"...\",\"text\":\"...\"}]}. "
+            "The item count and ids must match.\nITEMS:\n" +
+            json.dumps(items, ensure_ascii=False)
+        )
+        result = _execute_llm_json_strict(
+            prompt,
+            purpose=f"{purpose}_{target_lang}_{start}",
+            max_attempts=3,
+        )
+        translated = result.get("items") if isinstance(result, dict) else None
+        if not isinstance(translated, list) or len(translated) != len(items):
+            raise RuntimeError(
+                f"PAGE_TRANSLATION_SCHEMA_INVALID:{target_lang}:{start}")
+        by_id = {
+            str(row.get("id")): str(row.get("text") or "").strip()
+            for row in translated if isinstance(row, dict)
+        }
+        for item in items:
+            source = item["text"]
+            value = by_id.get(item["id"], "")
+            if not value:
+                raise RuntimeError(
+                    f"PAGE_TRANSLATION_EMPTY:{target_lang}:{item['id']}")
+            src_numbers, src_protected = _translation_integrity_tokens(source)
+            dst_numbers, dst_protected = _translation_integrity_tokens(value)
+            if src_numbers != dst_numbers:
+                raise RuntimeError(
+                    f"PAGE_TRANSLATION_NUMBER_CHANGED:{target_lang}:{item['id']}")
+            # Protected token order may contain ordinary one-letter words in
+            # prose. Enforce exact preservation only when the source looks
+            # mathematical/scientific enough to make those tokens meaningful.
+            if (
+                re.search(r"[=+\-×÷*/^∠⊥≅Ω₀₁₂₃₄₅₆₇₈₉]", source)
+                and src_protected != dst_protected
+            ):
+                raise RuntimeError(
+                    f"PAGE_TRANSLATION_SYMBOL_CHANGED:{target_lang}:{item['id']}")
+            output[source] = value
+    return output
+
+
+def build_trilingual_page_translation(
+        markup: str, source_lang_code: str, purpose: str
+        ) -> Tuple[str, Dict[str, Any]]:
+    source_lang = (
+        source_lang_code if source_lang_code in REFERENCE_RENDERER_LANGUAGES
+        else "en"
+    )
+    candidates = _extract_translation_candidates(markup)
+    bundles = {source_lang: {value: value for value in candidates}}
+    for target in REFERENCE_RENDERER_LANGUAGES:
+        if target == source_lang:
+            continue
+        bundles[target] = _translate_strings_batch(
+            candidates, source_lang, target, purpose)
+    if any(len(bundles.get(lang, {})) != len(candidates)
+           for lang in REFERENCE_RENDERER_LANGUAGES):
+        raise RuntimeError("FULL_PAGE_TRANSLATION_COVERAGE_INCOMPLETE")
+
+    payload = json.dumps(
+        {
+            "source": source_lang,
+            "languages": list(REFERENCE_RENDERER_LANGUAGES),
+            "strings": bundles,
+        },
+        ensure_ascii=False, separators=(",", ":"),
+    ).replace("</", "<\\/")
+
+    language_bar = r'''
+<div id="nabilPageLanguage" data-nabil-page-language="true"
+ style="position:sticky;top:4px;z-index:2147482000;display:flex;gap:6px;
+ align-items:center;justify-content:center;flex-wrap:wrap;margin:0 auto 8px;
+ width:max-content;max-width:100%;background:#061725;border:1px solid #2b6485;
+ border-radius:13px;padding:6px 8px;box-shadow:0 7px 22px #0007;direction:ltr">
+ <span aria-hidden="true">🌐</span>
+ <button type="button" data-nabil-lang="ar" style="min-height:40px">العربية</button>
+ <button type="button" data-nabil-lang="en" style="min-height:40px">English</button>
+ <button type="button" data-nabil-lang="fr" style="min-height:40px">Français</button>
+</div>
+'''
+    runtime = r'''
+<script id="nabilPageTranslationRuntime">
+(()=>{
+"use strict";
+const data=JSON.parse(document.getElementById("nabilPageTranslationBundle").textContent);
+const source=data.source,strings=data.strings||{},langs=data.languages||["ar","en","fr"];
+const originals=new WeakMap();
+const reverse={};
+langs.forEach(lang=>{reverse[lang]=new Map(Object.entries(strings[lang]||{}).map(([a,b])=>[String(b),a]))});
+function trimmedParts(v){const m=String(v||"").match(/^(\s*)([\s\S]*?)(\s*)$/);return m||["","","",""]}
+function baseFor(value){
+ const t=String(value||"").trim();if(!t)return "";
+ if((strings[source]||{})[t]!==undefined)return t;
+ for(const lang of langs){const hit=reverse[lang]?.get(t);if(hit!==undefined)return hit}
+ return t;
+}
+function translateNode(node,lang){
+ if(!node||node.nodeType!==Node.TEXT_NODE)return;
+ const p=node.parentElement;if(!p||["SCRIPT","STYLE","NOSCRIPT"].includes(p.tagName))return;
+ const parts=trimmedParts(node.nodeValue),current=parts[2];if(!current)return;
+ let base=originals.get(node);
+ const inferred=baseFor(current);
+ if(!base||(strings[source]||{})[inferred]!==undefined&&current!==((strings[lang]||{})[base]||base)){
+   base=inferred;originals.set(node,base);
+ }
+ const out=(strings[lang]||{})[base];
+ if(out!==undefined&&current!==out)node.nodeValue=parts[1]+out+parts[3];
+}
+function translateAttrs(root,lang){
+ (root.querySelectorAll?.("[title],[placeholder],[aria-label]")||[]).forEach(el=>{
+  ["title","placeholder","aria-label"].forEach(attr=>{
+   if(!el.hasAttribute(attr))return;
+   const key="__nabilBase_"+attr.replace("-","_");
+   let base=el.dataset[key]||baseFor(el.getAttribute(attr));
+   el.dataset[key]=base;
+   const out=(strings[lang]||{})[base];if(out!==undefined)el.setAttribute(attr,out);
+  })
+ })
+}
+let applying=false,current=source;
+function apply(lang){
+ if(!langs.includes(lang))lang=source;
+ applying=true;current=lang;
+ document.documentElement.lang=lang;
+ document.documentElement.dir=lang==="ar"?"rtl":"ltr";
+ const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
+ const nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);
+ nodes.forEach(n=>translateNode(n,lang));translateAttrs(document,lang);
+ document.querySelectorAll("#nabilPageLanguage [data-nabil-lang]").forEach(b=>{
+  const on=b.dataset.nabilLang===lang;b.setAttribute("aria-pressed",String(on));
+  b.style.background=on?"#0b84bd":"#153955";b.style.borderColor=on?"#7af3ff":"#426d8b";
+ });
+ try{localStorage.setItem("nabil.lesson.page.language",lang)}catch(_e){}
+ applying=false;
+ window.dispatchEvent(new CustomEvent("nabil:page-language-change",{detail:{language:lang}}));
+}
+document.getElementById("nabilPageLanguage")?.addEventListener("click",e=>{
+ const b=e.target.closest("[data-nabil-lang]");if(b)apply(b.dataset.nabilLang)
+});
+const observer=new MutationObserver(records=>{
+ if(applying)return;applying=true;
+ for(const rec of records){
+  if(rec.type==="characterData")translateNode(rec.target,current);
+  for(const added of rec.addedNodes||[]){
+   if(added.nodeType===Node.TEXT_NODE)translateNode(added,current);
+   else if(added.nodeType===Node.ELEMENT_NODE){
+    const w=document.createTreeWalker(added,NodeFilter.SHOW_TEXT);
+    while(w.nextNode())translateNode(w.currentNode,current);translateAttrs(added,current);
+   }
+  }
+ }
+ applying=false;
+});
+observer.observe(document.body,{subtree:true,childList:true,characterData:true});
+let initial=source;try{const saved=localStorage.getItem("nabil.lesson.page.language");if(langs.includes(saved))initial=saved}catch(_e){}
+apply(initial);
+window.NABILPageLanguage={apply,get:()=>current,source};
+})();
+</script>
+'''
+    bundle_script = (
+        '<script id="nabilPageTranslationBundle" type="application/json">'
+        + payload + '</script>'
+    )
+    if "<body" not in markup.lower():
+        raise RuntimeError("FULL_PAGE_TRANSLATION_BODY_MISSING")
+    markup = re.sub(
+        r"(<body[^>]*>)",
+        lambda m: (
+            m.group(1)
+            + '\n<div data-nabil-translation-complete="true" hidden></div>\n'
+            + language_bar + bundle_script
+        ),
+        markup, count=1, flags=re.I,
+    )
+    markup = re.sub(
+        r"</body>", lambda m: runtime + "\n" + m.group(0),
+        markup, count=1, flags=re.I,
+    )
+    report = {
+        "source_language": source_lang,
+        "languages": list(REFERENCE_RENDERER_LANGUAGES),
+        "candidate_strings": len(candidates),
+        "translated_counts": {
+            lang: len(bundles.get(lang, {}))
+            for lang in REFERENCE_RENDERER_LANGUAGES
+        },
+        "complete": True,
+    }
+    return markup, report
+
+
 # ==============================================================================
 # 9. TWIN-PAGE HTML COMPILATION
 # ==============================================================================
@@ -5612,9 +5925,9 @@ def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: di
 <meta name="nabil-translation-languages" content="ar,en,fr">
 <title>{clean_title} - Official Exercises</title>
 {MathRenderingEngine.inject_mathjax_head()}
-<script defer src="/static/nabil_scientific_solution_cards_e2e.js?v=3"></script>
-<script defer src="/static/nabil_lesson_e2e_runtime_v1.js?v=1"></script>
-<script defer src="/static/nabil_smart_lab_bridge_v1.js?v=1"></script>
+<script defer src="/static/nabil_scientific_solution_cards_e2e.js?v=4"></script>
+<script defer src="/static/nabil_lesson_e2e_runtime_v1.js?v=2"></script>
+<script defer src="/static/nabil_smart_lab_bridge_v1.js?v=2"></script>
 <style>
 {reference_renderer_css()}
 #zoomModal {{ display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,.88); justify-content:center; align-items:center; cursor:zoom-out; }}
@@ -6110,6 +6423,35 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
         "CRITICAL",
         "Textbook scans/figure pixels may be internal evidence only; student HTML may contain verified NABIL redraws/SVG only",
     )
+    translation_report = candidate.get("translation_report") or {}
+    check(
+        "FULL_PAGE_TRANSLATION_INCOMPLETE",
+        all(
+            (translation_report.get(key) or {}).get("complete") is True
+            and (translation_report.get(key) or {}).get("languages")
+                == list(REFERENCE_RENDERER_LANGUAGES)
+            and all(
+                int(((translation_report.get(key) or {}).get(
+                    "translated_counts") or {}).get(lang, -1))
+                == int((translation_report.get(key) or {}).get(
+                    "candidate_strings", -2))
+                for lang in REFERENCE_RENDERER_LANGUAGES
+            )
+            for key in ("page_a", "page_b")
+        )
+        and all(
+            'id="nabilPageLanguage"' in page
+            and 'id="nabilPageTranslationBundle"' in page
+            and 'data-nabil-translation-complete="true"' in page
+            and 'data-nabil-lang="ar"' in page
+            and 'data-nabil-lang="en"' in page
+            and 'data-nabil-lang="fr"' in page
+            for page in (candidate["page_a_html"], candidate["page_b_html"])
+        ),
+        "CRITICAL",
+        "Lesson and exercise pages must ship complete prebuilt Arabic/English/French translation dictionaries and one global language control",
+    )
+
     check(
         "REFERENCE_RENDERER_CONTRACT_MISSING",
         all(
@@ -6408,9 +6750,17 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
         drive_service=drive_service, persist=publish)
     prepare_prebuilt_exercise_labs(entry, exercises, profile, ev_map)
     lab_index = build_prebuilt_lab_index(entry, theory, exercises)
-    page_a = render_lesson_page_a(entry, theory, ev_map, lab_index=lab_index)
-    page_b = render_lesson_page_b(
+    page_a_raw = render_lesson_page_a(
+        entry, theory, ev_map, lab_index=lab_index)
+    page_b_raw = render_lesson_page_b(
         entry, exercises, profile, ev_map, lab_index=lab_index)
+    source_lang_code = resolve_lang_code(entry.get("language", "en"))
+    page_a, translation_a = build_trilingual_page_translation(
+        page_a_raw, source_lang_code,
+        purpose=f"lesson_page_translation_{lesson_id}")
+    page_b, translation_b = build_trilingual_page_translation(
+        page_b_raw, source_lang_code,
+        purpose=f"exercise_page_translation_{lesson_id}")
 
     slug_subj = re.sub(r'[^\w]+', '-', entry.get("subject", "PHYSICS")).upper()
     slug_title = re.sub(r'[^\w]+', '-', entry["canonical_title"]).upper()
@@ -6441,6 +6791,10 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
         "theory": theory,
         "exercises": exercises,
         "lab_index": lab_index,
+        "translation_report": {
+            "page_a": translation_a,
+            "page_b": translation_b,
+        },
         "hashes": {
             "page_a": hashlib.sha256(page_a.encode("utf-8")).hexdigest(),
             "page_b": hashlib.sha256(page_b.encode("utf-8")).hexdigest(),
@@ -6508,6 +6862,7 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
         "renderer_contract": REFERENCE_RENDERER_CONTRACT,
         "mobile_reference_viewport": {"width": 390, "height": 844},
         "source_raster_student_facing": False,
+        "translation_report": candidate.get("translation_report"),
         "drive_theory_id": drive_theory_id,
         "drive_exercises_id": drive_exercises_id,
         "drive_labs_id": drive_labs_id,
