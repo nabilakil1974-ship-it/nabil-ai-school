@@ -360,7 +360,16 @@ def render_geometry_proof_lab(spec: Dict[str, Any], lang: str, lab_id: str) -> T
     step=i;render();const s=steps[i];const my=token;
     const sentences=(s.text+' '+(s.formula||'')).split(/(?<=[.!?؟])\s+/).filter(Boolean);
     let k=0;
-    const next=async()=>{{if(my!==token)return;if(k>=sentences.length){{done?.();return}};const key=(s.targets&&s.targets[Math.min(k,s.targets.length-1)])||(s.reveal&&s.reveal[0])||'';focusKey(key);const txt=sentences[k++];try{{await Promise.resolve(window.NABILLessonE2E?.speak?.(txt,{json.dumps(lang)}));}}catch(_e){{}}setTimeout(next,Math.max(900,txt.split(/\s+/).length*260))}};
+    const next=async()=>{{
+      if(my!==token)return;
+      if(k>=sentences.length){{done?.();return}}
+      const key=(s.targets&&s.targets[Math.min(k,s.targets.length-1)])||(s.reveal&&s.reveal[0])||'';
+      focusKey(key);
+      const txt=sentences[k++];
+      try{{await Promise.resolve(window.NABILLessonE2E?.speak?.(txt,{json.dumps(lang)}));}}catch(_e){{}}
+      if(my!==token)return;
+      setTimeout(next,180);
+    }};
     next();
   }}
   function playAll(){{token++;const my=token;let i=0;const next=()=>{{if(my!==token)return;if(i>=steps.length)return;speakOne(i++,next)}};next()}}
