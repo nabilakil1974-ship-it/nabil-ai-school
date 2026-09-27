@@ -5240,6 +5240,11 @@ def main():
     parser.add_argument("--lesson-id", type=str, default="G07-PHYSICS-001", help="Target canonical lesson ID")
     parser.add_argument("--check-ai", action="store_true", help="Probe vision with generated blank image; no textbook page or Drive access")
     parser.add_argument("--publish", action="store_true", help="Publish directly to Google Drive")
+    parser.add_argument(
+        "--allow-pilot-publish",
+        action="store_true",
+        help="Explicitly allow publishing the already QA-approved Golden Pilot lesson",
+    )
     parser.add_argument("--rollback", type=int, default=None, help="Target version to rollback")
     args = parser.parse_args()
 
@@ -5265,7 +5270,12 @@ def main():
     
     drive_service = get_drive_service() if args.publish else None
 
-    report = produce_lesson_for_entry(entry, drive_service=drive_service, publish=args.publish)
+    report = produce_lesson_for_entry(
+        entry,
+        drive_service=drive_service,
+        publish=args.publish,
+        allow_pilot_publish=args.allow_pilot_publish,
+    )
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0
 
