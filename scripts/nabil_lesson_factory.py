@@ -295,6 +295,74 @@ SUBJECT_PROFILES = {
     }
 }
 
+# Non-science subjects use the same evidence-first architecture. These
+# profiles define teaching order/visual form only; lesson facts still come
+# exclusively from Evidence Map.
+SUBJECT_PROFILES.update({
+    "arabic_language": {
+        "sequence": ["context", "reading", "meaning", "language_pattern", "rule", "guided_practice", "application"],
+        "visual_types": ["text_highlight", "sentence_structure", "sequence", "table"],
+    },
+    "english_language": {
+        "sequence": ["context", "reading", "meaning", "language_pattern", "rule", "guided_practice", "application"],
+        "visual_types": ["text_highlight", "sentence_structure", "sequence", "table"],
+    },
+    "french_language": {
+        "sequence": ["context", "reading", "meaning", "language_pattern", "rule", "guided_practice", "application"],
+        "visual_types": ["text_highlight", "sentence_structure", "sequence", "table"],
+    },
+    "history": {
+        "sequence": ["context", "source", "chronology", "evidence", "cause_effect", "interpretation", "synthesis"],
+        "visual_types": ["timeline", "map", "source_excerpt", "comparison_table"],
+    },
+    "geography": {
+        "sequence": ["map_or_data", "observation", "comparison", "pattern", "interpretation", "application"],
+        "visual_types": ["map", "chart", "table", "process_diagram"],
+    },
+    "civics": {
+        "sequence": ["situation", "concept", "rule", "rights_responsibilities", "case_application", "check"],
+        "visual_types": ["scenario", "flowchart", "comparison_table"],
+    },
+    "philosophy": {
+        "sequence": ["problematic", "concepts", "argument", "reasoning", "comparison", "synthesis", "critical_check"],
+        "visual_types": ["argument_map", "concept_map", "comparison_table"],
+    },
+    "economics": {
+        "sequence": ["situation", "data", "concept", "relationship", "interpretation", "application", "check"],
+        "visual_types": ["chart", "table", "flowchart", "graph"],
+    },
+    "sociology": {
+        "sequence": ["situation", "data", "concept", "relationship", "interpretation", "application", "check"],
+        "visual_types": ["chart", "table", "relationship_map"],
+    },
+    "computer_science": {
+        "sequence": ["problem", "inputs_outputs", "algorithm", "trace", "test", "debug", "application"],
+        "visual_types": ["flowchart", "trace_table", "state_diagram", "code_highlight"],
+    },
+})
+
+SUBJECT_ALIASES = {
+    "math": "mathematics", "maths": "mathematics",
+    "mathématiques": "mathematics", "رياضيات": "mathematics",
+    "physique": "physics", "فيزياء": "physics",
+    "chimie": "chemistry", "كيمياء": "chemistry",
+    "biologie": "biology", "أحياء": "biology",
+    "science": "general_science", "sciences": "general_science", "علوم": "general_science",
+    "arabic": "arabic_language", "arabic_language": "arabic_language",
+    "العربية": "arabic_language", "لغة_عربية": "arabic_language",
+    "english": "english_language", "english_language": "english_language",
+    "الإنجليزية": "english_language", "الانجليزية": "english_language",
+    "french": "french_language", "français": "french_language",
+    "french_language": "french_language", "الفرنسية": "french_language",
+    "histoire": "history", "تاريخ": "history",
+    "géographie": "geography", "جغرافيا": "geography",
+    "civic_education": "civics", "تربية_مدنية": "civics", "مدنيات": "civics",
+    "philosophie": "philosophy", "فلسفة": "philosophy",
+    "économie": "economics", "اقتصاد": "economics",
+    "sociologie": "sociology", "علم_الاجتماع": "sociology", "اجتماع": "sociology",
+    "informatics": "computer_science", "informatique": "computer_science",
+    "معلوماتية": "computer_science",
+}
 
 
 TEACHING_ENGINE_PROFILES = {
@@ -842,7 +910,9 @@ def resolve_pedagogy_profile(entry: dict) -> dict:
         raise RuntimeError("CANONICAL_CATALOG_CORRUPT: Missing mandatory field 'language'")
 
     grade = int(entry["grade"])
-    subject = entry.get("subject", "").strip().lower().replace(" ", "_")
+    subject_raw = entry.get("subject", "").strip()
+    subject_key = subject_raw.lower().replace(" ", "_")
+    subject = SUBJECT_ALIASES.get(subject_key, subject_key)
 
     if subject not in SUBJECT_PROFILES:
         raise RuntimeError(f"PEDAGOGY_PROFILE_MISMATCH: Unknown curriculum subject '{subject}'")
@@ -852,7 +922,9 @@ def resolve_pedagogy_profile(entry: dict) -> dict:
         "level": level,
         "level_profile": PEDAGOGY_PROFILES[level],
         "subject": subject,
+        "subject_raw": subject_raw,
         "subject_profile": SUBJECT_PROFILES[subject],
+        "branch": entry.get("branch") or entry.get("track") or "",
         "language": entry["language"],
         "grade": grade,
     }
