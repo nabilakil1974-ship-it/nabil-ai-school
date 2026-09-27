@@ -503,6 +503,99 @@ SUBJECT_TEACHING_ENGINES = {
 
 
 
+# Teaching engines for languages/humanities remain evidence-driven.
+SUBJECT_TEACHING_ENGINES.update({
+    "arabic_language": {"default": [
+        "read the source in context",
+        "highlight the exact word/sentence feature",
+        "ask the learner to infer meaning or pattern",
+        "explain the language rule from the evidence",
+        "apply it to one guided item",
+        "let the learner produce or analyze a nearby item",
+        "check and summarize",
+    ]},
+    "english_language": {"default": [
+        "read/listen to the source in context",
+        "highlight the target expression or structure",
+        "infer meaning/pattern from examples",
+        "state the language rule or usage clearly",
+        "practice one guided item",
+        "let the learner respond independently",
+        "check and reformulate",
+    ]},
+    "french_language": {"default": [
+        "read/listen to the source in context",
+        "highlight the target expression or structure",
+        "infer meaning/pattern from examples",
+        "state the language rule or usage clearly",
+        "practice one guided item",
+        "let the learner respond independently",
+        "check and reformulate",
+    ]},
+    "history": {"default": [
+        "place the event/source in its verified context",
+        "identify actors, dates and places only from evidence",
+        "arrange the verified chronology",
+        "distinguish evidence from interpretation",
+        "explain supported causes/consequences",
+        "connect the pieces into a concise historical synthesis",
+        "check with a source-based question",
+    ]},
+    "geography": {"default": [
+        "read the map/data/source first",
+        "locate and identify verified features",
+        "compare values/regions/patterns",
+        "describe what the evidence shows",
+        "interpret the supported relationship",
+        "apply the same reading method to a nearby case",
+        "check the conclusion against the data",
+    ]},
+    "civics": {"default": [
+        "start from the verified situation or text",
+        "identify the civic concept/rule",
+        "separate rights, duties and institutions when present",
+        "explain how the rule applies to the case",
+        "compare alternatives without adding an outside claim",
+        "check with a practical scenario",
+    ]},
+    "philosophy": {"default": [
+        "state the source's problem/question",
+        "define concepts from the source context",
+        "reconstruct the argument and premises",
+        "show the reasoning relation step by step",
+        "compare positions only when the source provides them",
+        "build a concise synthesis",
+        "check whether the conclusion follows from the presented argument",
+    ]},
+    "economics": {"default": [
+        "identify the economic situation and variables",
+        "read the verified table/graph/data",
+        "define the relevant concept from the lesson",
+        "trace the supported relationship",
+        "interpret the result in context",
+        "apply to a guided case",
+        "check against the original data",
+    ]},
+    "sociology": {"default": [
+        "identify the social situation/source",
+        "read the verified data or statements",
+        "define the relevant concept",
+        "map the supported relationships",
+        "interpret without exceeding the evidence",
+        "apply to a guided case",
+        "check against the source",
+    ]},
+    "computer_science": {"default": [
+        "state the exact problem, inputs and expected outputs",
+        "trace the given algorithm/code/state",
+        "show one execution step at a time",
+        "explain why each step changes the state",
+        "test with source-supported examples",
+        "identify an error only when the trace proves it",
+        "summarize the reusable method",
+    ]},
+})
+
 # Topic modes change HOW NABIL teaches, never WHAT is scientifically true.
 # Content still comes only from Evidence Map / verified solution.
 SUBJECT_TEACHING_ENGINES["mathematics"].update({
