@@ -4349,23 +4349,39 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
     check("PRE_SOLVE_FAILED", all(e["solution_status"] == "SOLVED" for e in candidate["exercises"] if e["solution_mode"] == "PRE_SOLVED"), "CRITICAL", "Pre-solved exercises unverified")
     check("WORKSHEET_NOT_GRADABLE", all("correct_index" in q for q in candidate["theory"]["worksheet"]), "CRITICAL", "Worksheet grading keys")
     check("REFERENCE_CARD_CONTENT_INCOMPLETE", "goldenReferenceCard" in candidate["page_a_html"], "CRITICAL", "Golden reference card missing")
+    check(
+        "GENERATED_CONTENT_SCOPE_AUDIT_MISSING",
+        all(
+            a.get("generated_content_scope_audited") is True
+            for a in candidate["theory"].get("activities", [])
+        ),
+        "CRITICAL",
+        "Every generated lesson narrative must pass delete-only source-scope auditing",
+    )
 
-    # Full-coverage quiz: every concept must be represented.
+    # Quiz coverage applies only to generated question content that survived
+    # the independent source-scope audit. Unsafe/out-of-scope generated quiz
+    # material is omitted at item level rather than failing the whole lesson.
     concept_count = len(ev_map["concepts"])
     worksheet_count = len(candidate["theory"]["worksheet"])
     quiz_items = candidate["theory"].get("quiz_items") or []
     activities = candidate["theory"].get("activities") or []
-    check("QUIZ_COVERAGE_INCOMPLETE",
-          worksheet_count == concept_count
-          and len(quiz_items) == concept_count
+    eligible_quiz_count = int(
+        candidate["theory"].get("quiz_eligible_count", len(quiz_items)))
+    check("QUIZ_VERIFIED_COVERAGE_INCONSISTENT",
+          worksheet_count == eligible_quiz_count
+          and len(quiz_items) == eligible_quiz_count
           and len(activities) == concept_count,
           "CRITICAL",
           f"worksheet={worksheet_count}, quiz={len(quiz_items)}, "
-          f"activities={len(activities)}, concepts={concept_count}")
+          f"eligible={eligible_quiz_count}, activities={len(activities)}, "
+          f"concepts={concept_count}")
 
     check("FULL_QUIZ_BLOCK_MISSING",
-          "fullQuizBlock" in candidate["page_a_html"], "CRITICAL",
-          "Full quiz with pass/fail scoring missing from Page A")
+          (eligible_quiz_count == 0)
+          or ("fullQuizBlock" in candidate["page_a_html"]),
+          "CRITICAL",
+          "Verified quiz items exist but full quiz block is missing from Page A")
 
     # Every declared lab must be evidence-validated and genuinely interactive.
     lab_activities = [
