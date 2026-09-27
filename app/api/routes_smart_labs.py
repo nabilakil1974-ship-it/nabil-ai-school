@@ -198,6 +198,7 @@ def _standalone_html(lab_html: str, lang: str, title: str) -> str:
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>{title_safe}</title>
+<script src="/static/nabil_browser_tts_v1.js?v=1"></script>
 <style>
 html,body{{margin:0;padding:0;background:#05172d;color:#eef8ff;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;overflow-x:hidden}}
 body{{padding:10px;box-sizing:border-box;max-width:100vw}}
@@ -225,24 +226,17 @@ function nabilMaleBrowserVoice(raw){{
 async function nabilStandaloneSpeak(text,language){{
   const spoken=String(text||"").trim(); if(!spoken)return;
   const raw=String(language||"{lang}").toLowerCase();
-  if(!window.speechSynthesis||!window.SpeechSynthesisUtterance)return;
-  const synth=window.speechSynthesis;
-  synth.cancel();
-  if(!(synth.getVoices?.()||[]).length){{
-    await new Promise(resolve=>{{
-      let done=false;
-      const finish=()=>{{if(done)return;done=true;resolve();}};
-      try{{synth.addEventListener("voiceschanged",finish,{{once:true}});}}catch(_e){{}}
-      setTimeout(finish,650);
-    }});
+  const label=raw.startsWith("fr")?"Français":raw.startsWith("en")?"English":"العربية";
+  if(window.NABILBrowserTTS?.speak){{
+    return await window.NABILBrowserTTS.speak(spoken,label);
   }}
+  const synth=window.speechSynthesis;
+  if(!synth||!window.SpeechSynthesisUtterance)return;
+  synth.cancel();
   const u=new SpeechSynthesisUtterance(spoken);
   u.lang=raw.startsWith("fr")?"fr-FR":raw.startsWith("en")?"en-US":"{speech_lang}";
-  u.voice=nabilMaleBrowserVoice(raw);
-  u.rate=.88;u.pitch=.94;
-  return await new Promise(resolve=>{{
-    u.onend=resolve;u.onerror=resolve;synth.speak(u);
-  }});
+  u.voice=nabilMaleBrowserVoice(raw);u.rate=.88;u.pitch=.94;
+  return await new Promise(resolve=>{{u.onend=resolve;u.onerror=resolve;synth.speak(u);}});
 }}
 window.NABILLessonE2E={{
   stopSpeech:function(){{
