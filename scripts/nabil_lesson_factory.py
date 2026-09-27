@@ -4076,8 +4076,15 @@ def synthesize_concept_narrative(
         vision_context: Optional[Dict[str, Any]] = None) -> dict:
     narrative_lang_code = resolve_lang_code(profile["language"])
     prompt = (
-        f"You are grounding a lesson explanation STRICTLY in the following extracted textbook text and source figure, when provided. "
-        f"Generate plausible wrong answers (distractors) derived from common misconceptions of this text.\n\n"
+        f"You are Teacher NABIL teaching this concept live in class, grounded STRICTLY in the extracted textbook text and verified source figure when provided. "
+        "Do NOT sound like a scanned textbook and do NOT reproduce textbook layout. Re-teach the idea in a natural classroom flow: "
+        "phenomenon = what the learner should first LOOK AT or wonder about; "
+        "investigation = what the learner should TRY or manipulate; "
+        "observation = what the learner can NOTICE from the evidence; "
+        "interpretation = the short WHY/WHAT-DOES-THIS-MEAN discussion; "
+        "conclusion = the concise rule the learner should formulate. "
+        "Keep each field short, concrete and age-appropriate. The lesson flow must feel like: SEE → TRY → NOTICE → THINK → CONCLUDE → APPLY. "
+        f"Generate plausible wrong answers (distractors) derived only from common misconceptions of this same text.\n\n"
         f"{narrative_language_instruction(narrative_lang_code)}\n\n"
         f"TEXT: {concept['raw_text']}\n\n"
         f"Subject: {profile['subject']}, Level: {profile['level']}\n"
@@ -4513,7 +4520,7 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
                 + html.escape(ui_t(lesson_lang_code, "extracted_principle"))
                 + ':</b> ' + html.escape(str(narrative["conclusion"])) + '</div>'
             )
-        panels += f'''<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:14px; box-shadow:0 2px 4px rgba(0,0,0,0.04);">
+        panels += f'''<div class="nabil-reference-concept" data-reference-concept="{html.escape(str(c["concept_id"]))}" style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:14px; box-shadow:0 2px 4px rgba(0,0,0,0.04);">
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">
                 <span style="font-weight:700; color:#0369a1; font-size:15px;">{html.escape(c["title"])}</span>
             </div>
@@ -4538,7 +4545,7 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
       </div>
       <div style="margin-top:16px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px 14px; font-size:12px; color:#1e40af; display:flex; align-items:center; gap:8px;">
         <span>📌</span>
-        <span><b>{html.escape(ui_t(lesson_lang_code, "study_reminder"))}:</b> {html.escape(ui_t(lesson_lang_code, "study_reminder_text", start=ev_map["source_lock"]["start"], end=ev_map["source_lock"]["end"]))}</span>
+        <span><b>{html.escape(ui_t(lesson_lang_code, "study_reminder"))}:</b> {html.escape({"ar":"راجع الفكرة بالمختبر، ثم حاول أن تقول الاستنتاج بكلماتك قبل الانتقال للتمرين.","fr":"Rejoue le laboratoire, puis formule la conclusion avec tes propres mots avant l’exercice.","en":"Replay the lab, then state the conclusion in your own words before the exercise."}.get(lesson_lang_code,"Replay the lab, then state the conclusion in your own words before the exercise."))}</span>
       </div>
     </div>'''
 
@@ -4594,18 +4601,45 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict) -> str:
             <div style="display:flex; gap:8px; flex-wrap:wrap;">{opts}</div>
             <div class="step-fb" style="margin-top:8px; font-size:13px; font-weight:600; display:none;"></div>
           </div>'''
+        flow_labels = {
+            "ar": {
+                "phenomenon": "👀 شوف",
+                "investigation": "🖐️ جرّب",
+                "observation": "🔎 لاحظ",
+                "interpretation": "💡 فكّر",
+                "conclusion": "✅ استنتج",
+            },
+            "fr": {
+                "phenomenon": "👀 Observe",
+                "investigation": "🖐️ Essaie",
+                "observation": "🔎 Remarque",
+                "interpretation": "💡 Réfléchis",
+                "conclusion": "✅ Conclus",
+            },
+            "en": {
+                "phenomenon": "👀 See",
+                "investigation": "🖐️ Try",
+                "observation": "🔎 Notice",
+                "interpretation": "💡 Think",
+                "conclusion": "✅ Conclude",
+            },
+        }.get(page_a_lang_code, {})
         generated_rows = []
-        for field, label_key in (
-            ("phenomenon", "phenomenon"),
-            ("investigation", "investigation"),
-            ("observation", "observation"),
-            ("conclusion", "conclusion"),
+        for field in (
+            "phenomenon",
+            "investigation",
+            "observation",
+            "interpretation",
+            "conclusion",
         ):
             value = str(act.get(field) or "").strip()
             if value:
+                label = flow_labels.get(field, field.title())
                 generated_rows.append(
-                    f'<p><b>{html.escape(ui_t(page_a_lang_code, label_key))}:'
-                    f'</b> {html.escape(value)}</p>'
+                    '<div class="nabil-teacher-step" data-step="' + html.escape(field) + '" '
+                    'style="margin:9px 0;padding:10px 12px;border-inline-start:4px solid #0ea5e9;'
+                    'background:#f8fafc;border-radius:8px;line-height:1.65;">'
+                    '<b>' + html.escape(label) + ':</b> ' + html.escape(value) + '</div>'
                 )
         generated_html = "".join(generated_rows)
         acts_html += f'''
@@ -4662,6 +4696,7 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict) -> str:
     <h1 style="margin:0; font-size:22px;">{clean_title}</h1>
     <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
       <button type="button" id="nabilExplainWholeLessonLabs" class="nav-btn" style="background:#0f766e;">🧪 {html.escape({"ar":"اشرح الدرس كاملًا بالمختبرات","fr":"Expliquer toute la leçon avec les laboratoires","en":"Explain the whole lesson with labs"}.get(page_a_lang_code,"Explain the whole lesson with labs"))}</button>
+      <button type="button" onclick="document.getElementById('goldenReferenceCard')?.scrollIntoView({behavior:'smooth',block:'start'})" class="nav-btn" style="background:#7c3aed;">📌 {html.escape({"ar":"البطاقة النهائية","fr":"Carte finale","en":"Final reference card"}.get(page_a_lang_code,"Final reference card"))}</button>
       <button onclick="navigateToExercises()" class="nav-btn">{html.escape(ui_t(page_a_lang_code, "view_exercises"))}</button>
     </div>
   </div>
@@ -5128,7 +5163,15 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
         "Every displayed solved exercise must pass text/figure source-scope audit",
     )
     check("WORKSHEET_NOT_GRADABLE", all("correct_index" in q for q in candidate["theory"]["worksheet"]), "CRITICAL", "Worksheet grading keys")
-    check("REFERENCE_CARD_CONTENT_INCOMPLETE", "goldenReferenceCard" in candidate["page_a_html"], "CRITICAL", "Golden reference card missing")
+    check("REFERENCE_CARD_CONTENT_INCOMPLETE",
+          "goldenReferenceCard" in candidate["page_a_html"],
+          "CRITICAL", "Golden reference card missing")
+    check(
+        "REFERENCE_CARD_CONCEPT_COVERAGE_INCOMPLETE",
+        candidate["page_a_html"].count('class="nabil-reference-concept"') == concept_count,
+        "CRITICAL",
+        f"reference_concepts={candidate['page_a_html'].count('class=\"nabil-reference-concept\"')}, concepts={concept_count}",
+    )
     check(
         "GENERATED_CONTENT_SCOPE_AUDIT_MISSING",
         all(
@@ -5167,12 +5210,16 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
     # failure is blocked earlier; supported=false is allowed only as a verified
     # "no evidence-backed interaction fits" decision.
     check(
-        "LAB_DECISION_MISSING",
-        all(isinstance(a.get("lab_spec"), dict)
-            and isinstance((a.get("lab_spec") or {}).get("supported"), bool)
-            for a in activities),
+        "LAB_REQUIRED_FOR_EVERY_CONCEPT",
+        all(
+            isinstance(a.get("lab_spec"), dict)
+            and (a.get("lab_spec") or {}).get("supported") is True
+            and a.get("has_active_sim") is True
+            and bool(a.get("lab_html"))
+            for a in activities
+        ),
         "CRITICAL",
-        "Every concept requires an explicit evidence-gated lab decision",
+        "Every lesson concept/paragraph must have a verified interactive lab",
     )
 
     # Every declared lab must be evidence-validated and genuinely interactive.
