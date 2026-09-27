@@ -127,6 +127,17 @@ def validate_geometry_proof_spec(spec: Dict[str, Any]) -> Dict[str, Any]:
         reveal = step.get("reveal_marks") or []
         if not isinstance(reveal, list) or any(str(x) not in mark_ids for x in reveal):
             raise RuntimeError(f"LAB_GEOMETRY_PROOF_STEP_MARK_INVALID:{i}")
+        targets = step.get("target_ids") or []
+        allowed_targets = (
+            set(mark_ids)
+            | {f"point:{label}" for label in labels}
+            | {f"segment:{sid}" for sid in seg_ids}
+        )
+        if (
+            not isinstance(targets, list)
+            or any(str(x) not in allowed_targets for x in targets)
+        ):
+            raise RuntimeError(f"LAB_GEOMETRY_PROOF_STEP_TARGET_INVALID:{i}")
     return spec
 
 
