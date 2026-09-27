@@ -337,6 +337,13 @@ function install(){
  });
  addReadButtons();
  const observer=new MutationObserver(()=>addReadButtons());observer.observe(document.body,{subtree:true,childList:true});
+ if(typeof window.__nabilScientificNativeSpeak!=="function"){
+  window.__nabilScientificNativeSpeak=(spoken,language)=>{
+    const raw=String(language||"").toLowerCase();
+    const code=/fran|^fr/.test(raw)?"fr":/arab|عرب|^ar/.test(raw)?"ar":"en";
+    return speak(spoken,code);
+  };
+ }
  window.NABILLessonE2E={sendPayload,speak,stopSpeech,renderResult,lessonMeta};
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install,{once:true});else install();
