@@ -7,6 +7,7 @@ on:
       - "scripts/nabil_i18n.py"
       - "scripts/nabil_interactive_lab.py"
       - "scripts/nabil_advanced_lab.py"
+      - "scripts/nabil_geometry_lab.py"
       - "scripts/nabil_quiz_engine.py"
       - "app/static/nabil_scientific_solution_cards_e2e.js"
       - "app/static/nabil_lesson_e2e_runtime_v1.js"
@@ -32,6 +33,7 @@ jobs:
           python -m py_compile \
             scripts/nabil_i18n.py \
             scripts/nabil_advanced_lab.py \
+            scripts/nabil_geometry_lab.py \
             scripts/nabil_interactive_lab.py \
             scripts/nabil_quiz_engine.py \
             scripts/nabil_lesson_factory.py \
@@ -51,6 +53,7 @@ jobs:
           from scripts.nabil_i18n import resolve_lang_code, narrative_language_instruction
           from scripts.nabil_interactive_lab import render_verified_lab
           from scripts.nabil_advanced_lab import validate_advanced_lab_spec
+          from scripts.nabil_geometry_lab import validate_geometry_proof_spec
           from scripts.nabil_quiz_engine import build_full_quiz_items, render_quiz_html
           import scripts.nabil_lesson_factory as factory
 
@@ -278,6 +281,62 @@ jobs:
           except RuntimeError:
               pass
 
+          geometry_spec = {
+              "supported": True,
+              "kind": "GEOMETRY_PROOF",
+              "title": "Geometry proof fixture",
+              "instructions": "Follow the proof.",
+              "observation": "Only verified relations are marked.",
+              "evidence_ref": "C08",
+              "points": [
+                  {"label": "A", "x": 18, "y": 72},
+                  {"label": "B", "x": 82, "y": 72},
+                  {"label": "C", "x": 50, "y": 18},
+                  {"label": "M", "x": 50, "y": 72},
+              ],
+              "segments": [
+                  {"id": "AC", "a": "A", "b": "C"},
+                  {"id": "BC", "a": "B", "b": "C"},
+                  {"id": "AM", "a": "A", "b": "M"},
+                  {"id": "MB", "a": "M", "b": "B"},
+                  {"id": "CM", "a": "C", "b": "M"},
+              ],
+              "marks": [
+                  {"id": "equal_sides", "type": "equal_segments",
+                   "targets": ["AC", "BC"], "style_index": 1,
+                   "evidence_quote": "AC = BC"},
+                  {"id": "midpoint_parts", "type": "midpoint",
+                   "targets": ["AM", "MB"], "style_index": 2,
+                   "evidence_quote": "AM = MB"},
+                  {"id": "right_m", "type": "perpendicular",
+                   "angles": [{"a": "C", "vertex": "M", "b": "A"}],
+                   "evidence_quote": "CM is perpendicular to AB"},
+              ],
+              "proof_steps": [
+                  {"title": "Equal sides", "text": "Mark AC and BC equal.",
+                   "formula": "AC = BC", "target_ids": ["equal_sides"],
+                   "reveal_marks": ["equal_sides"], "evidence_quote": "AC = BC"},
+                  {"title": "Midpoint", "text": "Mark AM and MB equal.",
+                   "formula": "AM = MB", "target_ids": ["midpoint_parts"],
+                   "reveal_marks": ["equal_sides", "midpoint_parts"],
+                   "evidence_quote": "AM = MB"},
+                  {"title": "Perpendicular", "text": "Show the right-angle square.",
+                   "formula": "CM ⟂ AB", "target_ids": ["right_m"],
+                   "reveal_marks": ["equal_sides", "midpoint_parts", "right_m"],
+                   "evidence_quote": "CM is perpendicular to AB"},
+              ],
+          }
+          validate_geometry_proof_spec(geometry_spec)
+          geometry_html, active = render_verified_lab(
+              geometry_spec, "en", "C08")
+          assert active
+          assert 'data-lab-kind="GEOMETRY_PROOF"' in geometry_html
+          assert 'data-proof-marks="evidence-gated"' in geometry_html
+          assert "geo-mark" in geometry_html
+          assert "teacherArrow" in geometry_html
+          assert "equal_segments" in geometry_html
+          assert "perpendicular" in geometry_html
+
           activities = [{
               "activity_num": "01",
               "concept_id": "C01",
@@ -326,6 +385,11 @@ jobs:
           assert "REFERENCE_MOBILE_VIEWPORT = (390, 844)" in source
           assert "SCIENTIFIC_SOLUTION_CARD_LAB_KEY_MISSING" in source
           assert "nabil-prebuilt-lab-index/v2" in source
+          assert "TEACHING_ENGINE_PROFILES" in source
+          assert "SUBJECT_TEACHING_ENGINES" in source
+          assert "resolve_teaching_signature" in source
+          assert "WHOLE_LESSON_SMART_LAB_MISSING" in source
+          assert "GEOMETRY_PROOF" in source
 
           print("NABIL_FACTORY_CORE_SMOKE_OK")
           PY
@@ -390,16 +454,26 @@ jobs:
               concept_spec, "en", "C01")
           assert active is True
 
+          activities_fixture = [{
+              "concept_id": "C01",
+              "title": "Solid shape",
+              "phenomenon": "Look at the object.",
+              "investigation": "Try changing its place.",
+              "observation": "Its shape remains.",
+              "interpretation": "The observation is unchanged.",
+              "conclusion": "Fixture conclusion.",
+              "lab_spec": concept_spec,
+              "lab_html": concept_html,
+              "has_active_sim": True,
+          }]
+          whole_html = factory.render_whole_lesson_smart_lab(
+              "Fixture Lesson", activities_fixture, "en")
           theory = {
-              "activities": [{
-                  "concept_id": "C01",
-                  "title": "Solid shape",
-                  "lab_spec": concept_spec,
-                  "lab_html": concept_html,
-                  "has_active_sim": True,
-              }],
+              "activities": activities_fixture,
               "worksheet": [],
               "quiz_html": "",
+              "whole_lesson_lab_html": whole_html,
+              "whole_lesson_lab_active": bool(whole_html),
               "reference_card_html":
                   '<div id="goldenReferenceCard">'
                   '<div class="nabil-reference-concept" '
@@ -413,6 +487,10 @@ jobs:
           assert lab_index["runtime_ai_required_for_indexed_labs"] is False
           assert lab_index["renderer_contract"] == factory.REFERENCE_RENDERER_CONTRACT
           assert lab_index["translation_languages"] == ["ar", "en", "fr"]
+          assert lab_index["whole_lesson_lab"]["active"] is True
+          assert lab_index["whole_lesson_lab"]["key"] == "lesson:whole"
+          assert 'data-whole-lesson-smart-lab="true"' in whole_html
+          assert 'id="nabilWholeLessonFrame"' in whole_html
           assert exercise["_solution_lab_key"] == exercise["_prebuilt_lab_key"]
 
           page_b = factory.render_lesson_page_b(
