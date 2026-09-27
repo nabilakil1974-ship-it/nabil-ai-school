@@ -3138,7 +3138,17 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
             "evidence_ref": concept["concept_id"],
         }
     if spec.get("evidence_ref") != concept.get("concept_id"):
-        raise RuntimeError("LAB_SPEC_EVIDENCE_REF_MISMATCH")
+        progress(
+            "SKIPPED_UNVERIFIED_LAB",
+            concept_id=concept.get("concept_id"),
+            source_page=concept.get("source_page"),
+            reason="LAB_SPEC_EVIDENCE_REF_MISMATCH",
+        )
+        return {
+            "supported": False,
+            "reason": "LAB_SPEC_EVIDENCE_REF_MISMATCH",
+            "evidence_ref": concept["concept_id"],
+        }
 
     basis = str(spec.get("evidence_basis") or "").lower()
     quote = str(spec.get("evidence_quote") or "").strip()
