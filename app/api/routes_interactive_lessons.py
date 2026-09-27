@@ -334,6 +334,43 @@ def solve_exercise_on_demand(payload: dict):
 
 
 
+
+@router.get("/lab-index")
+def get_prebuilt_lab_index(
+        grade: str, subject: str, lesson: str, language: str = ""):
+    """Read the prebuilt lesson/exercise lab directory. No AI call."""
+    item = _resolve(grade, subject, lesson, language)
+    service = _service()
+    markup = _download(service, item["drive_file_id"]).decode(
+        "utf-8", errors="replace")
+    match = re.search(
+        r'<script[^>]+id=["\']nabilLabIndex["\'][^>]*>([\s\S]*?)</script>',
+        markup, re.I)
+    if not match:
+        raise HTTPException(
+            status_code=404,
+            detail="PREBUILT_LAB_INDEX_NOT_FOUND",
+        )
+    try:
+        payload = json.loads(match.group(1).replace("<\\/", "</"))
+    except Exception as exc:
+        log.exception(
+            "PREBUILT_LAB_INDEX_INVALID file_id=%s",
+            item.get("drive_file_id"))
+        raise HTTPException(
+            status_code=500,
+            detail="PREBUILT_LAB_INDEX_INVALID",
+        ) from exc
+    if not isinstance(payload, dict):
+        raise HTTPException(
+            status_code=500,
+            detail="PREBUILT_LAB_INDEX_INVALID",
+        )
+    payload["source"] = "prebuilt_drive_artifact"
+    payload["runtime_ai_required_for_indexed_labs"] = False
+    return payload
+
+
 @router.get("/diagnose")
 def diagnose(grade: str, subject: str, lesson: str, language: str = ""):
     """Temporary owner-facing, read-only end-to-end trace; no AI calls."""
