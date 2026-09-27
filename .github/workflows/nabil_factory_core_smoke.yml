@@ -133,6 +133,8 @@ jobs:
           assert "REMOVED_OUT_OF_SCOPE_SOLUTION_STEP" in source_text
           assert "SKIPPED_UNVERIFIED_EXERCISE_SOLUTION" in source_text
           assert "SOLUTION_SOURCE_SCOPE_AUDIT_MISSING" in source_text
+          assert "exercise_solution_" in source_text
+          assert "exercise_solution_audit_" in source_text
           assert "PRE_SOLVE_STATUS_INVALID" in source_text
           assert "SKIPPED_UNVERIFIED_QUIZ_ITEM" in source_text
           assert "GENERATED_CONTENT_SCOPE_AUDIT_MISSING" in source_text
