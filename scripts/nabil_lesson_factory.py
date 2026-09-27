@@ -5079,6 +5079,8 @@ def render_whole_lesson_smart_lab(
             "all": "▶ اشرح الدرس من البداية",
             "stop": "■ أوقف الشرح",
             "teacher": "نبيل يشرح الآن",
+            "first_transition": "نبدأ الآن بالفكرة:",
+            "next_transition": "ننتقل الآن إلى الفكرة التالية:",
             "see": "انظر", "try": "جرّب", "notice": "لاحظ",
             "think": "فكّر", "conclude": "استنتج",
         },
@@ -5089,6 +5091,8 @@ def render_whole_lesson_smart_lab(
             "current": "🔊 Expliquer ce concept",
             "all": "▶ Expliquer toute la leçon",
             "stop": "■ Arrêter", "teacher": "NABIL explique",
+            "first_transition": "Commençons par l’idée :",
+            "next_transition": "Passons maintenant à l’idée suivante :",
             "see": "Observe", "try": "Essaie", "notice": "Remarque",
             "think": "Réfléchis", "conclude": "Conclus",
         },
@@ -5099,6 +5103,8 @@ def render_whole_lesson_smart_lab(
             "current": "🔊 Explain this concept",
             "all": "▶ Explain the whole lesson",
             "stop": "■ Stop", "teacher": "NABIL is explaining",
+            "first_transition": "We begin with the idea:",
+            "next_transition": "Now we move to the next idea:",
             "see": "See", "try": "Try", "notice": "Notice",
             "think": "Think", "conclude": "Conclude",
         },
@@ -5142,6 +5148,8 @@ def render_whole_lesson_smart_lab(
             "flow": flow,
             "teaching_mode": str((act.get("teaching_signature") or {}).get("mode") or "default"),
             "teaching_level": str((act.get("teaching_signature") or {}).get("level") or ""),
+            "first_transition": labels["first_transition"],
+            "next_transition": labels["next_transition"],
             "srcdoc": srcdoc,
             "demo_ms": demo_ms,
         })
@@ -5203,7 +5211,27 @@ def render_whole_lesson_smart_lab(
     [...timeline.children].forEach((b,i)=>b.className='wl-dot '+(i<idx?'done':i===idx?'on':''));
   }}
   function demoCurrent(done){{const my=++loadingToken;const launch=()=>{{if(my!==loadingToken)return;try{{frame.contentDocument?.querySelector('.interactive-lab')?.dispatchEvent(new CustomEvent('nabil:demo'))}}catch(_e){{}}if(done)setTimeout(done,slides[idx].demo_ms)}};if(frame.contentDocument?.readyState==='complete')setTimeout(launch,180);else frame.onload=()=>setTimeout(launch,180)}}
-  function playAll(){{stop();const token=runToken;idx=0;const next=()=>{{if(token!==runToken||idx>=slides.length)return;render();demoCurrent(()=>{{if(token!==runToken)return;idx++;if(idx<slides.length)setTimeout(next,400)}})}};next()}}
+  async function announceConcept(index){{
+    const s=slides[index];
+    const prefix=index===0?s.first_transition:s.next_transition;
+    const message=(prefix+' '+s.title).trim();
+    try{{await Promise.resolve(window.NABILLessonE2E?.speak?.(message,{json.dumps(lang_code)}));}}catch(_e){{}}
+  }}
+  function playAll(){{
+    stop();const token=runToken;idx=0;
+    const next=async()=>{{
+      if(token!==runToken||idx>=slides.length)return;
+      render();
+      await announceConcept(idx);
+      if(token!==runToken)return;
+      demoCurrent(()=>{{
+        if(token!==runToken)return;
+        idx++;
+        if(idx<slides.length)setTimeout(next,350);
+      }});
+    }};
+    next();
+  }}
   document.getElementById('nabilWholePrev').onclick=()=>{{stop();idx=(idx+slides.length-1)%slides.length;render()}};
   document.getElementById('nabilWholeNext').onclick=()=>{{stop();idx=(idx+1)%slides.length;render()}};
   document.getElementById('nabilWholeCurrent').onclick=()=>{{stop();demoCurrent()}};
