@@ -4027,6 +4027,8 @@ def build_factory_solution_card_spec(
         "sections": sections,
         "key_results": [final_answer],
         "verification": verification,
+        "lab_key": str(exercise.get("_solution_lab_key") or exercise.get("_prebuilt_lab_key") or ""),
+        "renderer_contract": REFERENCE_RENDERER_CONTRACT,
         "source": {
             "lesson_id": entry["lesson_id"],
             "book_id": entry["book_id"],
@@ -5745,6 +5747,18 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
             == len(candidate.get("exercises") or []),
         "CRITICAL",
         "Every exercise/solution card must link to exactly its own prebuilt lab key",
+    )
+    check(
+        "SCIENTIFIC_SOLUTION_CARD_LAB_KEY_MISSING",
+        all(
+            (
+                e.get("solution_status") != "SOLVED"
+                or str(e.get("_prebuilt_lab_key") or "") in candidate["page_b_html"]
+            )
+            for e in candidate.get("exercises") or []
+        ),
+        "CRITICAL",
+        "Every displayed solved exercise must carry the same lab key into its Scientific Solution Card",
     )
     check(
         "NABIL_VISUAL_PIPELINE_MISSING",
