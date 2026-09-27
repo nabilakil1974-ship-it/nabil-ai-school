@@ -320,6 +320,10 @@ jobs:
           assert "nabil_lesson_e2e_runtime_v1.js?v=1" in source
           assert "data-nabil-solution-card" in source
           assert "LAB_FAKE_NUMERIC_RANGE_FORBIDDEN" in source
+          assert "REFERENCE_RENDERER_CONTRACT" in source
+          assert "EXERCISE_SOLUTION_LAB_LINKAGE_INCOMPLETE" in source
+          assert "STUDENT_SOURCE_RASTER_UI_FORBIDDEN" in source
+          assert "REFERENCE_MOBILE_VIEWPORT = (390, 844)" in source
 
           print("NABIL_FACTORY_CORE_SMOKE_OK")
           PY
@@ -401,10 +405,13 @@ jobs:
           }
           lab_index = factory.build_prebuilt_lab_index(
               entry, theory, [exercise])
-          assert lab_index["schema"] == "nabil-prebuilt-lab-index/v1"
+          assert lab_index["schema"] == "nabil-prebuilt-lab-index/v2"
           assert len(lab_index["concept_labs"]) == 1
           assert len(lab_index["exercise_labs"]) == 1
           assert lab_index["runtime_ai_required_for_indexed_labs"] is False
+          assert lab_index["renderer_contract"] == factory.REFERENCE_RENDERER_CONTRACT
+          assert lab_index["translation_languages"] == ["ar", "en", "fr"]
+          assert exercise["_solution_lab_key"] == exercise["_prebuilt_lab_key"]
 
           page_b = factory.render_lesson_page_b(
               entry, [exercise], profile, ev_map, lab_index=lab_index)
@@ -414,6 +421,10 @@ jobs:
           assert 'data-lab-kind="EVIDENCE_REVEAL"' in page_b
           assert "nabil_smart_lab_bridge_v1.js" in page_b
           assert "data:image/" not in page_b
+          assert 'name="nabil-renderer-contract"' in page_b
+          assert 'data-nabil-solution-lab-key=' in page_b
+          assert "originalPageImage" not in page_b
+          assert "page_image_url" not in page_b
 
           bridge = factory.Path(
               "app/static/nabil_smart_lab_bridge_v1.js"
