@@ -133,9 +133,13 @@ def _entry(file, grade="", subject="", chapter_title=""):
         grade = match.group(1) if match else grade
     title = clean_display_title(re.sub(r"[-_ ]+(?:BILINGUAL|FRANCAIS|ENGLISH)$", "", title, flags=re.I))
     aliases = []
-    if _grade(grade) == "7" and _subject(subject) == "physics" and _norm(title) == _norm("Solids and Liquids"):
+    if _grade(grade) == "7" and _subject(subject) == "physics" and _norm(title) in {
+        _norm("Solids and Liquids"), _norm("NABIL SOLIDE AND LIQUID")
+    }:
         aliases = ["Solid and liquid states", "Solids and liquids",
-                   "Les états solide et liquide", "Solides et liquides"]
+                   "Les états solide et liquide", "Solides et liquides",
+                   "NABIL SOLIDE AND LIQUID"]
+        title = "Solids and Liquids"
     if chapter_title:
         aliases.append(title.replace("-", " "))
         title = re.sub(r"^\s*\d+\s*[-–.]\s*", "", chapter_title).strip()
