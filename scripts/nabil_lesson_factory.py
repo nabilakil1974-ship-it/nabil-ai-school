@@ -71,6 +71,26 @@ REFERENCE_RENDERER_CONTRACT = "NABIL_REFERENCE_RENDERER_V1"
 REFERENCE_RENDERER_LANGUAGES = ("ar", "en", "fr")
 REFERENCE_MOBILE_VIEWPORT = (390, 844)
 
+_ARABIC_COLLOQUIAL_TOKENS = (
+    "هلق", "شو", "بدك", "بدي", "فيك", "هيك", "هيدا", "هيدي",
+    "هني", "ليش", "يلا", "خلينا", "رح ", "عم ", "منشوف", "منعمل",
+)
+
+
+def _assert_formal_arabic_text(value: str, *, purpose: str) -> None:
+    """Reject generated/translated Arabic dialect in student teaching text.
+
+    Never run this against raw textbook evidence; only NABIL-authored teaching
+    or translation output is checked.
+    """
+    text = " " + re.sub(r"\s+", " ", str(value or "")).strip() + " "
+    found = [tok.strip() for tok in _ARABIC_COLLOQUIAL_TOKENS
+             if tok in text]
+    if found:
+        raise RuntimeError(
+            f"FORMAL_ARABIC_REQUIRED:{purpose}:"
+            + ",".join(sorted(set(found))))
+
 
 def reference_renderer_css() -> str:
     """Shared lesson/exercise presentation contract for every subject/grade."""
@@ -4770,10 +4790,21 @@ def synthesize_concept_narrative(
         for k in ["phenomenon", "investigation", "observation", "interpretation", "conclusion", "distractor_1", "distractor_2"]:
             if not parsed.get(k):
                 raise ValueError(f"Missing field {k}")
-        return sanitize_generated_narrative(
+        cleaned = sanitize_generated_narrative(
             concept, parsed, profile,
             figure_image_base64=figure_image_base64,
             vision_context=vision_context)
+        if narrative_lang_code == "ar":
+            for key in (
+                "phenomenon", "investigation", "observation",
+                "interpretation", "conclusion", "distractor_1", "distractor_2",
+            ):
+                _assert_formal_arabic_text(
+                    cleaned.get(key, ""),
+                    purpose=f"narrative_{concept.get('concept_id')}_{key}",
+                )
+            cleaned["_formal_arabic_verified"] = True
+        return cleaned
     except Exception as e:
         raise RuntimeError(f"NARRATIVE_SYNTHESIS_FAILED: Unable to ground concept narrative from evidence ({e})")
 
@@ -5332,6 +5363,10 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
             "student_question": student_question,
             "generated_content_scope_audited": narrative.get("_scope_audited", False),
             "removed_generated_fields": narrative.get("_removed_generated_fields", []),
+            "formal_arabic_verified": (
+                narrative.get("_formal_arabic_verified", False)
+                if lesson_lang_code == "ar" else True
+            ),
             "teaching_signature": resolve_teaching_signature(c, profile),
             "teaching_steps": build_teaching_steps(
                 c, narrative, profile, lab_spec=lab_spec),
@@ -5611,6 +5646,9 @@ def _translate_strings_batch(
             ):
                 raise RuntimeError(
                     f"PAGE_TRANSLATION_SYMBOL_CHANGED:{target_lang}:{item['id']}")
+            if target_lang == "ar":
+                _assert_formal_arabic_text(
+                    value, purpose=f"{purpose}_ar_{item['id']}")
             output[source] = value
     return output
 
@@ -6745,6 +6783,16 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
         ).hexdigest(),
         "CRITICAL",
         "Every lesson publish must include a separately hashed --LABS.json artifact",
+    )
+
+    check(
+        "FORMAL_ARABIC_TEACHING_FAILED",
+        all(
+            a.get("formal_arabic_verified") is True
+            for a in candidate["theory"].get("activities", [])
+        ),
+        "CRITICAL",
+        "NABIL-authored Arabic teaching must use clear Modern Standard Arabic only",
     )
 
     check(
