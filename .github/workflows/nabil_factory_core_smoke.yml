@@ -116,6 +116,7 @@ jobs:
           assert "plausible from general knowledge" in source_text
           assert "scope_snapshot_sha256" in source_text
           assert "strict lesson-scope solution auditor" in source_text
+          assert "SKIPPED_UNVERIFIED_LAB" in source_text
           assert "EXERCISE_SEQUENCE_INCOMPLETE" not in source_text
           assert "EXERCISE_NUMBERING_INVALID" in source_text
           factory.execute_llm_completion = original_llm
