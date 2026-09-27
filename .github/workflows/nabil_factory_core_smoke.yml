@@ -376,7 +376,7 @@ jobs:
 
           source = factory.Path(factory.__file__).read_text(encoding="utf-8")
           assert "nabil_scientific_solution_cards_e2e.js?v=4" in source
-          assert "nabil_lesson_e2e_runtime_v1.js?v=2" in source
+          assert "nabil_lesson_e2e_runtime_v1.js?v=3" in source
           assert "data-nabil-solution-card" in source
           assert "LAB_FAKE_NUMERIC_RANGE_FORBIDDEN" in source
           assert "REFERENCE_RENDERER_CONTRACT" in source
