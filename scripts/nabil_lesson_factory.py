@@ -5094,13 +5094,10 @@ def promote_candidate(candidate: dict, entry: dict, drive_service) -> Tuple[str,
 # ==============================================================================
 # PRODUCTION PIPELINE ENTRY (LAZY DRIVE RESOLUTION)
 # ==============================================================================
-def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = False, allow_pilot_publish: bool = False) -> dict:
+def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = False) -> dict:
     lesson_id = entry["lesson_id"]
     book_id = entry["book_id"]
     progress("PRODUCTION_PIPELINE_START", lesson_id=lesson_id)
-
-    if lesson_id == "G07-PHYSICS-001" and publish and not allow_pilot_publish:
-        raise RuntimeError("PILOT_PUBLISH_PROHIBITED: Golden Pilot lesson G07-PHYSICS-001 is QA-only and cannot be published directly to Drive.")
 
     ver_file = VERSIONS_DIR / f"{lesson_id}.json"
     if ver_file.exists():
@@ -5240,11 +5237,6 @@ def main():
     parser.add_argument("--lesson-id", type=str, default="G07-PHYSICS-001", help="Target canonical lesson ID")
     parser.add_argument("--check-ai", action="store_true", help="Probe vision with generated blank image; no textbook page or Drive access")
     parser.add_argument("--publish", action="store_true", help="Publish directly to Google Drive")
-    parser.add_argument(
-        "--allow-pilot-publish",
-        action="store_true",
-        help="Explicitly allow publishing the already QA-approved Golden Pilot lesson",
-    )
     parser.add_argument("--rollback", type=int, default=None, help="Target version to rollback")
     args = parser.parse_args()
 
@@ -5270,12 +5262,7 @@ def main():
     
     drive_service = get_drive_service() if args.publish else None
 
-    report = produce_lesson_for_entry(
-        entry,
-        drive_service=drive_service,
-        publish=args.publish,
-        allow_pilot_publish=args.allow_pilot_publish,
-    )
+    report = produce_lesson_for_entry(entry, drive_service=drive_service, publish=args.publish)
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0
 
