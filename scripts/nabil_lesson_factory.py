@@ -408,7 +408,8 @@ def execute_llm_completion(
         json_mode: bool = True,
         temperature: float = 0.0,
         image_base64: Optional[str] = None,
-        vision_context: Optional[Dict[str, Any]] = None) -> str:
+        vision_context: Optional[Dict[str, Any]] = None,
+        preferred_provider_override: Optional[str] = None) -> str:
     """Execute with rate-limit failover while preserving source consent.
 
     A 429 never sleeps on one provider while another configured, explicitly
@@ -419,8 +420,10 @@ def execute_llm_completion(
     """
     global _LAST_LLM_PROVENANCE
 
-    preferred = os.getenv(
-        "NABIL_FACTORY_AI_PROVIDER", "auto").strip().lower()
+    preferred = (
+        preferred_provider_override
+        or os.getenv("NABIL_FACTORY_AI_PROVIDER", "auto")
+    ).strip().lower()
     keys = _provider_keys()
     candidates = _provider_order(preferred, keys)
 
@@ -1891,8 +1894,28 @@ def _execute_llm_json_strict(
         "- Preserve source wording exactly; serialization escaping must not "
         "change the underlying textbook text."
     )
+    # A malformed JSON response is a provider-quality failure, not a reason
+    # to ask the same provider for the same malformed serialization three
+    # times. Rotate through configured/authorized providers while always
+    # re-reading the ORIGINAL source image.
+    configured = _provider_order(
+        os.getenv("NABIL_FACTORY_AI_PROVIDER", "auto").strip().lower(),
+        _provider_keys(),
+    )
+    if image_base64 and vision_context is not None:
+        configured = [
+            p for p in configured
+            if _vision_provider_authorized(
+                p, vision_context, require_key=True)
+        ]
+    if not configured:
+        raise RuntimeError(
+            "AI_JSON_RETRY_NO_AUTHORIZED_PROVIDER:"
+            f"{purpose}")
+
     last_error = None
     for attempt in range(1, attempts + 1):
+        preferred_retry_provider = configured[(attempt - 1) % len(configured)]
         effective_prompt = (
             base_prompt if attempt == 1
             else base_prompt + strict_suffix +
@@ -1904,6 +1927,7 @@ def _execute_llm_json_strict(
             temperature=0.0,
             image_base64=image_base64,
             vision_context=vision_context,
+            preferred_provider_override=preferred_retry_provider,
         )
         try:
             return json.loads(raw)
@@ -1919,6 +1943,8 @@ def _execute_llm_json_strict(
                 char=exc.pos,
                 provider=get_last_llm_provenance().get("provider"),
                 model=get_last_llm_provenance().get("model"),
+                preferred_retry_provider=preferred_retry_provider,
+                retry_provider_cycle=configured,
                 image_request=bool(image_base64),
                 vision_context=vision_context if image_base64 else None,
             )
