@@ -443,6 +443,154 @@ def _render_evidence_reveal(spec:Dict[str,Any],lang_code:str,lab_id:str)->str:
  </script>
 </section>"""
 
+
+REFERENCE_RENDERER_CONTRACT="NABIL_REFERENCE_RENDERER_V1"
+
+def _reference_contract_wrap(raw_html:str,spec:Dict[str,Any],lang_code:str,lab_id:str)->str:
+    """Apply the owner-approved NABIL lab shell without changing science.
+
+    The wrapped renderer remains content-agnostic: all scientific text/behavior
+    comes from the already-validated Lab Spec.  The shell only standardizes
+    presentation, NABIL teacher presence, pointer, controls and phone layout.
+    """
+    safe=_safe_id(lab_id)
+    shell_id=f"nabil_ref_{safe}"
+    explain={
+        "ar":"🔊 اشرح هذه الفكرة",
+        "fr":"🔊 Expliquer cette idée",
+        "en":"🔊 Explain this idea",
+    }.get(lang_code,"🔊 Explain this idea")
+    explain_all={
+        "ar":"▶ اشرح من البداية",
+        "fr":"▶ Expliquer depuis le début",
+        "en":"▶ Explain from the beginning",
+    }.get(lang_code,"▶ Explain from the beginning")
+    stop={
+        "ar":"■ إيقاف",
+        "fr":"■ Arrêter",
+        "en":"■ Stop",
+    }.get(lang_code,"■ Stop")
+    cues=[]
+    kind=str(spec.get("kind") or "").upper()
+    if kind=="EVIDENCE_SEQUENCE":
+        cues=[str(x.get("label") or "").strip() for x in spec.get("steps") or []]
+    elif kind=="EVIDENCE_REVEAL":
+        cues=[str(x.get("label") or "").strip() for x in spec.get("items") or []]
+    else:
+        cues=[
+            str(spec.get("instructions") or "").strip(),
+            str(spec.get("observation") or "").strip(),
+        ]
+    cues=[x for x in cues if x]
+    return f"""
+<section id="{shell_id}" class="nabil-reference-smart-lab"
+ data-renderer-contract="{REFERENCE_RENDERER_CONTRACT}"
+ data-teacher-pointer="sentence-synced" data-lab-ref="{safe}">
+ <style>
+ #{shell_id}{{position:relative;margin:16px 0;background:#071827;color:#eef8ff;
+   border:1px solid #24506f;border-radius:18px;padding:12px;overflow:hidden;
+   box-shadow:0 18px 42px rgba(0,0,0,.34);min-width:0;max-width:100%}}
+ #{shell_id} .nabil-ref-head{{display:flex;align-items:center;justify-content:space-between;
+   gap:8px;flex-wrap:wrap;margin-bottom:8px}}
+ #{shell_id} .nabil-ref-teacher{{display:flex;align-items:center;gap:7px;padding:6px 10px;
+   border:1px solid #2b6485;border-radius:999px;background:#061725;color:#eafaff;
+   font-size:12px;font-weight:900}}
+ #{shell_id} .nabil-ref-orb{{width:19px;height:19px;border-radius:50%;
+   background:radial-gradient(circle at 35% 30%,#fff,#2de1ff 35%,#0c5d76 70%);
+   box-shadow:0 0 16px #2de1ff99}}
+ #{shell_id} .interactive-lab{{margin:0!important;background:#081e33!important;
+   color:#eef8ff!important;border:1px solid #176895!important;border-radius:15px!important;
+   padding:12px!important;box-shadow:none!important;min-width:0!important;max-width:100%!important}}
+ #{shell_id} .interactive-lab h3{{color:#65dfff!important}}
+ #{shell_id} .interactive-lab p,#{shell_id} .interactive-lab label{{color:#dbeefe!important}}
+ #{shell_id} .interactive-lab svg{{display:block!important;width:100%!important;max-width:100%!important;
+   height:auto!important;background:#061827!important}}
+ #{shell_id} .interactive-lab input,#{shell_id} .interactive-lab select{{
+   min-height:44px!important;max-width:100%!important;background:#061827!important;
+   color:#fff!important;border:1px solid #315f82!important;border-radius:8px!important}}
+ #{shell_id} .interactive-lab button{{min-height:44px!important;max-width:100%!important;
+   white-space:normal!important}}
+ #{shell_id} .nabil-ref-controls{{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}}
+ #{shell_id} .nabil-ref-controls button{{min-height:44px;border-radius:10px;border:1px solid #2b6485;
+   background:#0f3655;color:#fff;padding:9px 12px;font:800 13px system-ui;cursor:pointer}}
+ #{shell_id} .nabil-ref-controls .primary{{background:#0f766e;border-color:#39c7b0}}
+ #{shell_id} .nabil-ref-controls .stop{{background:#5a2330;border-color:#bd546b}}
+ #{shell_id} .teacherArrow{{position:absolute;inset:0;width:100%;height:100%;
+   pointer-events:none;z-index:9;overflow:visible}}
+ #{shell_id} .teacherArrow line{{stroke:#2de1ff;stroke-width:2.5;stroke-dasharray:8 6;
+   filter:drop-shadow(0 0 4px #2de1ff);transition:x2 .28s ease,y2 .28s ease}}
+ #{shell_id} .nabil-ref-focused{{outline:3px solid #ffd447!important;outline-offset:2px!important;
+   filter:drop-shadow(0 0 8px rgba(255,212,71,.55))}}
+ @media(max-width:430px){{
+   #{shell_id}{{padding:7px;border-radius:13px}}
+   #{shell_id} .interactive-lab{{padding:8px!important}}
+   #{shell_id} .nabil-ref-controls{{display:grid;grid-template-columns:1fr 1fr}}
+   #{shell_id} .nabil-ref-controls button{{width:100%}}
+ }}
+ </style>
+ <div class="nabil-ref-head">
+   <div class="nabil-ref-teacher"><span class="nabil-ref-orb"></span><span>NABIL</span></div>
+   <span style="font-size:11px;color:#9ccbe4">{html.escape(str(spec.get("title") or ""))}</span>
+ </div>
+ <svg class="teacherArrow" aria-hidden="true">
+   <defs><marker id="{safe}_ref_arr" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3z" fill="#2de1ff"/></marker></defs>
+   <line id="{safe}_ref_line" x1="96%" y1="32" x2="50%" y2="120" marker-end="url(#{safe}_ref_arr)"/>
+ </svg>
+ <div class="nabil-ref-body">{raw_html}</div>
+ <div class="nabil-ref-controls">
+   <button type="button" id="{safe}_ref_current">{html.escape(explain)}</button>
+   <button type="button" class="primary" id="{safe}_ref_all">{html.escape(explain_all)}</button>
+   <button type="button" class="stop" id="{safe}_ref_stop">{html.escape(stop)}</button>
+ </div>
+ <script>
+ (()=>{{
+   const shell=document.getElementById('{shell_id}');
+   const inner=shell?.querySelector('.interactive-lab');
+   const line=document.getElementById('{safe}_ref_line');
+   const cues={json.dumps(cues,ensure_ascii=False)};
+   let cueIndex=0,token=0;
+   function targets(){{
+     if(!inner)return [];
+     const preferred=[...inner.querySelectorAll(
+       '.nabil-seq-step,.nabil-reveal-item,svg,input,select,[id$="_result"],p'
+     )].filter(x=>x.offsetParent!==null);
+     return preferred.length?preferred:[inner];
+   }}
+   function point(index){{
+     const list=targets();if(!list.length||!line)return;
+     const target=list[Math.max(0,Math.min(index,list.length-1))];
+     shell.querySelectorAll('.nabil-ref-focused').forEach(x=>x.classList.remove('nabil-ref-focused'));
+     target.classList.add('nabil-ref-focused');
+     const sr=shell.getBoundingClientRect(),tr=target.getBoundingClientRect();
+     const x2=Math.max(18,Math.min(sr.width-18,tr.left-sr.left+tr.width/2));
+     const y2=Math.max(52,Math.min(sr.height-18,tr.top-sr.top+Math.min(tr.height/2,60)));
+     line.setAttribute('x2',x2);line.setAttribute('y2',y2);
+   }}
+   async function speakCue(index){{
+     if(!cues.length)return;
+     cueIndex=((index%cues.length)+cues.length)%cues.length;
+     point(cueIndex);
+     try{{await Promise.resolve(window.NABILLessonE2E?.speak?.(cues[cueIndex],{json.dumps(lang_code)}));}}catch(_e){{}}
+   }}
+   async function playAll(){{
+     token++;const mine=token;
+     for(let i=0;i<cues.length;i++){{
+       if(mine!==token)return;
+       await speakCue(i);
+       if(mine!==token)return;
+       await new Promise(r=>setTimeout(r,260));
+     }}
+   }}
+   document.getElementById('{safe}_ref_current')?.addEventListener('click',()=>{{token++;speakCue(cueIndex);}});
+   document.getElementById('{safe}_ref_all')?.addEventListener('click',playAll);
+   document.getElementById('{safe}_ref_stop')?.addEventListener('click',()=>{{token++;try{{window.NABILLessonE2E?.stopSpeech?.()}}catch(_e){{}}}});
+   inner?.addEventListener('nabil:demo',()=>{{cueIndex=0;point(0);}});
+   window.addEventListener('resize',()=>point(cueIndex),{{passive:true}});
+   requestAnimationFrame(()=>point(0));
+ }})();
+ </script>
+</section>"""
+
 def render_verified_lab(spec:Dict[str,Any],lang_code:str,lab_id:str)->Tuple[str,bool]:
     # نقطة الدخول الوحيدة: المختبر لا يظهر قبل نجاح validate_lab_spec.
     if not isinstance(spec,dict) or spec.get("supported") is not True:
@@ -450,15 +598,19 @@ def render_verified_lab(spec:Dict[str,Any],lang_code:str,lab_id:str)->Tuple[str,
     validate_lab_spec(spec)
     kind=str(spec["kind"]).upper()
     if kind=="FORMULA_CALCULATOR":
-        return _render_formula(spec,lang_code,lab_id),True
-    if kind=="ORIENTATION_INVARIANT":
-        return _render_orientation(spec,lang_code,lab_id),True
-    if kind=="SHAPE_RESPONSE":
-        return _render_shape(spec,lang_code,lab_id),True
-    if kind=="EVIDENCE_SEQUENCE":
-        return _render_sequence(spec,lang_code,lab_id),True
-    if kind=="EVIDENCE_REVEAL":
-        return _render_evidence_reveal(spec,lang_code,lab_id),True
-    if kind in ADVANCED_LAB_KINDS:
-        return render_advanced_verified_lab(spec,lang_code,lab_id)
-    raise RuntimeError(f"LAB_KIND_UNSUPPORTED: {kind}")
+        raw=_render_formula(spec,lang_code,lab_id)
+    elif kind=="ORIENTATION_INVARIANT":
+        raw=_render_orientation(spec,lang_code,lab_id)
+    elif kind=="SHAPE_RESPONSE":
+        raw=_render_shape(spec,lang_code,lab_id)
+    elif kind=="EVIDENCE_SEQUENCE":
+        raw=_render_sequence(spec,lang_code,lab_id)
+    elif kind=="EVIDENCE_REVEAL":
+        raw=_render_evidence_reveal(spec,lang_code,lab_id)
+    elif kind in ADVANCED_LAB_KINDS:
+        raw,active=render_advanced_verified_lab(spec,lang_code,lab_id)
+        if not active:
+            return "",False
+    else:
+        raise RuntimeError(f"LAB_KIND_UNSUPPORTED: {kind}")
+    return _reference_contract_wrap(raw,spec,lang_code,lab_id),True
