@@ -78,15 +78,37 @@ jobs:
           # Malformed provider JSON must be retried from the original request,
           # never silently "repaired" into possibly altered textbook wording.
           original_llm = factory.execute_llm_completion
+          original_keys = factory._provider_keys
+          original_auth = factory._vision_provider_authorized
+          original_env_provider = __import__("os").environ.get("NABIL_FACTORY_AI_PROVIDER")
           malformed_then_valid = iter([
               '{"exercises":[{"number":1,"exact_source_prompt":"bad "quote""}]}',
               '{"exercises":[]}',
           ])
-          factory.execute_llm_completion = lambda *args, **kwargs: next(malformed_then_valid)
+          provider_calls = []
+          def fake_llm(*args, **kwargs):
+              provider_calls.append(kwargs.get("preferred_provider_override"))
+              return next(malformed_then_valid)
+          factory.execute_llm_completion = fake_llm
+          factory._provider_keys = lambda: {
+              "openrouter": "x", "openai": "y", "groq": "z"}
+          factory._vision_provider_authorized = lambda *args, **kwargs: True
+          __import__("os").environ["NABIL_FACTORY_AI_PROVIDER"] = "openrouter"
           retry_payload = factory._execute_llm_json_strict(
-              "fixture", purpose="smoke_invalid_json", max_attempts=2)
+              "fixture",
+              image_base64="fixture",
+              vision_context={"lesson_id":"L","book_id":"B","pdf_page":1},
+              purpose="smoke_invalid_json",
+              max_attempts=2)
           assert retry_payload == {"exercises": []}
+          assert provider_calls == ["openrouter", "openai"], provider_calls
           factory.execute_llm_completion = original_llm
+          factory._provider_keys = original_keys
+          factory._vision_provider_authorized = original_auth
+          if original_env_provider is None:
+              __import__("os").environ.pop("NABIL_FACTORY_AI_PROVIDER", None)
+          else:
+              __import__("os").environ["NABIL_FACTORY_AI_PROVIDER"] = original_env_provider
 
           shape_spec = {
               "supported": True,
