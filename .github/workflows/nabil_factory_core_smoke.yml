@@ -106,6 +106,12 @@ jobs:
           source_text = factory.Path(factory.__file__).read_text(encoding="utf-8")
           assert "excluded_providers=malformed_providers" in source_text
           assert "EXERCISE_TARGETED_RESCUE_ACCEPTED" in source_text
+          assert "SKIPPED_UNVERIFIED_EXERCISE" in source_text
+          assert factory.required_ai_practice_count(0) == 2
+          assert factory.required_ai_practice_count(1) == 0
+          assert factory.required_ai_practice_count(5) == 0
+          assert "EXERCISE_SEQUENCE_INCOMPLETE" not in source_text
+          assert "EXERCISE_NUMBERING_INVALID" in source_text
           factory.execute_llm_completion = original_llm
           factory._provider_keys = original_keys
           factory._vision_provider_authorized = original_auth
