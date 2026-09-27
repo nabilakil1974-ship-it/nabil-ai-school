@@ -2983,10 +2983,10 @@ function gradeWs(btn, isCorrect, exp) {{
   const box = parent.nextElementSibling;
   box.style.display = 'block';
   box.style.color = isCorrect ? '#059669' : '#dc2626';
-  box.innerHTML = (isCorrect ? '${html.escape(ui_t(page_a_lang_code, "ws_correct"))}' : '${html.escape(ui_t(page_a_lang_code, "ws_incorrect"))}') + exp;
+  box.innerHTML = (isCorrect ? '{html.escape(ui_t(page_a_lang_code, "ws_correct"))}' : '{html.escape(ui_t(page_a_lang_code, "ws_incorrect"))}') + exp;
 
   document.getElementById('wsProgressBar').style.width = ((answeredCount / totalQuestions) * 100) + '%';
-  document.getElementById('wsScoreBadge').innerText = '${html.escape(ui_t(page_a_lang_code, "score_label"))}: ' + score + ' / ' + totalQuestions;
+  document.getElementById('wsScoreBadge').innerText = '{html.escape(ui_t(page_a_lang_code, "score_label"))}: ' + score + ' / ' + totalQuestions;
 }}
 </script>
 </body>
