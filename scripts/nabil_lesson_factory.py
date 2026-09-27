@@ -4853,6 +4853,7 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
         "Allowed mark types: equal_segments, equal_angles, perpendicular, parallel, midpoint, symmetry_axis. "
         "Every mark MUST carry evidence_quote copied exactly from SOURCE. Equal segment marks use targets=[segment ids]; equal angle/perpendicular marks use angles=[{a,vertex,b}]; parallel/midpoint use targets; symmetry_axis uses axis_segment and optional point_pairs. "
         "Every proof step MUST contain title,text,formula,target_ids,reveal_marks,evidence_quote; evidence_quote must be an exact SOURCE quote. "
+        "In target_ids use ONLY a mark id, point:<point label>, or segment:<segment id>; order target_ids to match the spoken sentences so the teacher arrow follows the sentence meaning. "
         "Never add an equality tick, equal-angle arc, right-angle square, parallel arrow, midpoint mark, congruence implication or symmetry effect merely because the sketch looks that way.\n"
         "8) EVIDENCE_SEQUENCE: for ANY subject when SOURCE explicitly gives two or more ordered or structurally related evidence-backed ideas, parts, stages, transformations, constructions, grammatical steps, historical developments, geographic relations, or other explainable sequence that can be highlighted or animated without inventing a missing fact. "
         "Required field: steps=[{label:str,evidence_quote:str}] with 2..8 ordered steps; every evidence_quote must be an exact contiguous SOURCE quote.\n"
