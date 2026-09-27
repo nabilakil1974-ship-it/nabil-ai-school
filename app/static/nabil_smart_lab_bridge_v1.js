@@ -63,7 +63,11 @@ function ensureModal(){
  "#nabilSmartLabHead{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:10px 12px;color:#e9fbff;background:#06111f;border-bottom:1px solid #24506f}"+
  "#nabilSmartLabFrame{border:0;width:100%;flex:1;background:#f8fafc}"+
  ".nabil-smart-lab-action{border:1px solid #2dd4bf;background:#0f766e;color:#fff;border-radius:9px;min-height:42px;padding:8px 12px;font:700 13px system-ui;cursor:pointer}"+
- ".nabil-smart-lab-action:disabled{opacity:.55;cursor:wait}.nabil-smart-lab-inline{margin:8px 0;display:flex;gap:8px;flex-wrap:wrap}";
+ ".nabil-smart-lab-action:disabled{opacity:.55;cursor:wait}.nabil-smart-lab-inline{margin:8px 0;display:flex;gap:8px;flex-wrap:wrap}"+
+ ".nabil-solution-runtime-lab{margin-top:12px;border:1px solid #24506f;border-radius:14px;background:#06111f;overflow:hidden}"+
+ ".nabil-solution-runtime-lab-head{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:9px 10px;background:#0b2943;color:#dff7ff;font-weight:800}"+
+ ".nabil-solution-runtime-lab iframe{display:block;width:100%;height:min(680px,72vh);border:0;background:#05172d}"+
+ "@media(max-width:430px){#nabilSmartLabModal{padding:4px}#nabilSmartLabShell{width:100vw;height:100dvh;max-width:none;max-height:none;border-radius:0}#nabilSmartLabHead{padding:8px}#nabilSmartLabFrame{min-height:0}.nabil-smart-lab-action{min-height:44px;font-size:14px}.nabil-solution-runtime-lab iframe{height:66vh}}";
  document.head.appendChild(style);
  modal=document.createElement("div");modal.id="nabilSmartLabModal";modal.hidden=true;
  modal.innerHTML='<div id="nabilSmartLabShell"><div id="nabilSmartLabHead"><strong id="nabilSmartLabTitle">NABIL Smart Lab</strong><button type="button" class="nabil-smart-lab-action" id="nabilSmartLabClose"></button></div><iframe id="nabilSmartLabFrame" title="NABIL Smart Lab" sandbox="allow-scripts allow-same-origin"></iframe></div>';
@@ -97,6 +101,39 @@ async function buildQuestionLab(source,trigger){
   qs("#nabilSmartLabFrame",modal).srcdoc=data.html;
  }catch(err){showMessage(String(err?.message||labels().none));}
  finally{if(trigger){trigger.disabled=false;trigger.textContent=old||labels().ask;}}
+}
+
+async function buildInlineQuestionLab(source,card,labKey){
+ const question=String(source||"").replace(/\s+/g," ").trim();
+ if(!card||question.length<3)return;
+ if(card.querySelector(".nabil-solution-runtime-lab"))return;
+ const holder=document.createElement("section");
+ holder.className="nabil-solution-runtime-lab";
+ holder.dataset.labKey=String(labKey||"");
+ const head=document.createElement("div");head.className="nabil-solution-runtime-lab-head";
+ const title=document.createElement("span");title.textContent=langCode()==="ar"?"🧪 المختبر المرتبط بهذا الحل":langCode()==="fr"?"🧪 Laboratoire lié à cette solution":"🧪 Lab linked to this solution";
+ const status=document.createElement("span");status.textContent=labels().busy;status.style.fontSize="12px";status.style.color="#b9d7ea";
+ head.append(title,status);holder.append(head);card.append(holder);
+ try{
+   const sc=scope();
+   const res=await fetch("/api/smart-labs/from-question",{
+     method:"POST",headers:{"Content-Type":"application/json"},
+     body:JSON.stringify({question,grade:sc.grade,subject:sc.subject,language:sc.language})
+   });
+   const data=await res.json().catch(()=>({}));
+   if(!res.ok)throw Error(String(data?.detail?.reason||data?.detail||labels().none));
+   if(!data.found||!data.html){status.textContent=data.reason||labels().none;return;}
+   status.textContent=data.title||"NABIL Smart Lab";
+   const frame=document.createElement("iframe");
+   frame.title=data.title||"NABIL Smart Lab";
+   frame.setAttribute("sandbox","allow-scripts allow-same-origin");
+   frame.srcdoc=data.html;
+   holder.append(frame);
+   card.dataset.nabilLabSource="runtime-question";
+   card.dataset.nabilSolutionLabKey=String(labKey||card.dataset.nabilSolutionLabKey||"runtime-question");
+ }catch(err){
+   status.textContent=String(err?.message||labels().none);
+ }
 }
 
 function playOneExistingLab(lab){
@@ -187,6 +224,12 @@ function wireStudentMessages(){
   bubble.appendChild(row);
  });
 }
+window.addEventListener("nabil:solution-ready",event=>{
+ const d=event?.detail||{};
+ if(d.mode!=="general_exercises"||!d.card)return;
+ buildInlineQuestionLab(d.question,d.card,d.labKey);
+});
+
 function wireAll(){
  wireConceptLabs();wireWholeLesson();wireExerciseCards();wireLessonQuestionTool();wireMainComposer();wireStudentMessages();
 }
