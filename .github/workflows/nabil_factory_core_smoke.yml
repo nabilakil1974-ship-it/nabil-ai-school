@@ -337,6 +337,59 @@ jobs:
           assert "equal_segments" in geometry_html
           assert "perpendicular" in geometry_html
 
+          # Teaching engine: subject/topic and secondary-year depth are
+          # pedagogical metadata only; all science remains evidence-locked.
+          math_concept = {
+              "concept_id": "C-MATH",
+              "title": "Study of a function",
+              "raw_text": "Study the derivative and variation of the function.",
+              "source_page": 1,
+          }
+          for grade, stage in ((10, "first_secondary"),
+                               (11, "second_secondary"),
+                               (12, "third_secondary")):
+              prof = {
+                  "subject": "mathematics", "language": "en",
+                  "level": "L3", "grade": grade,
+              }
+              sig = factory.resolve_teaching_signature(math_concept, prof)
+              assert sig["mode"] == "functions"
+              assert sig["secondary_year_contract"]["stage"] == stage
+              assert sig["autonomous_teacher"] is True
+              assert sig["human_teacher_required"] is False
+
+          physics_sig = factory.resolve_teaching_signature(
+              {"concept_id": "P", "title": "Electric circuit",
+               "raw_text": "current voltage resistance", "source_page": 1},
+              {"subject": "physics", "language": "en",
+               "level": "L3", "grade": 11})
+          assert physics_sig["mode"] == "electricity"
+
+          narrative = {
+              "phenomenon": "Look at the verified graph.",
+              "investigation": "Try the verified relation.",
+              "observation": "Notice the variation.",
+              "interpretation": "Explain the relation.",
+              "conclusion": "State the verified conclusion.",
+          }
+          teaching_steps = factory.build_teaching_steps(
+              math_concept, narrative,
+              {"subject": "mathematics", "language": "en",
+               "level": "L3", "grade": 12})
+          assert len(teaching_steps) == 5
+          assert all(x["lab_key"] == "concept:C-MATH" for x in teaching_steps)
+          assert all(x["evidence"]["concept_id"] == "C-MATH"
+                     for x in teaching_steps)
+
+          factory._assert_formal_arabic_text(
+              "لنلاحظ المعطيات ثم نستنتج القاعدة.", purpose="fixture")
+          try:
+              factory._assert_formal_arabic_text(
+                  "هلق منشوف شو بدنا نعمل.", purpose="fixture_bad")
+              raise AssertionError("colloquial Arabic must fail closed")
+          except RuntimeError as exc:
+              assert "FORMAL_ARABIC_REQUIRED" in str(exc)
+
           activities = [{
               "activity_num": "01",
               "concept_id": "C01",
@@ -395,6 +448,9 @@ jobs:
           assert "build_teaching_steps" in source
           assert "TEACHING_ENGINE_SEQUENCE_INCOMPLETE" in source
           assert "GEOMETRY_VISUAL_PROOF_MARKS_MISSING" in source
+          assert "FORMAL_ARABIC_TEACHING_FAILED" in source
+          assert "SECONDARY_YEAR_TEACHING" in source
+          assert "_subject_teaching_mode" in source
 
           # Translation shell is tested without network/provider access.
           original_translate = factory._translate_strings_batch
