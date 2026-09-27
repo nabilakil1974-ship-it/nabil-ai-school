@@ -6,6 +6,7 @@ on:
       - "scripts/nabil_lesson_factory.py"
       - "scripts/nabil_i18n.py"
       - "scripts/nabil_interactive_lab.py"
+      - "scripts/nabil_advanced_lab.py"
       - "scripts/nabil_quiz_engine.py"
       - "app/static/nabil_scientific_solution_cards_e2e.js"
       - "app/static/nabil_lesson_e2e_runtime_v1.js"
@@ -24,7 +25,7 @@ jobs:
 
       - name: Compile real factory modules
         run: |
-          python -m py_compile             scripts/nabil_i18n.py             scripts/nabil_interactive_lab.py             scripts/nabil_quiz_engine.py             scripts/nabil_lesson_factory.py
+          python -m py_compile             scripts/nabil_i18n.py             scripts/nabil_advanced_lab.py             scripts/nabil_interactive_lab.py             scripts/nabil_quiz_engine.py             scripts/nabil_lesson_factory.py
 
       - name: Validate approved E2E JavaScript
         run: |
@@ -36,6 +37,7 @@ jobs:
           python - <<'PY'
           from scripts.nabil_i18n import resolve_lang_code, narrative_language_instruction
           from scripts.nabil_interactive_lab import render_verified_lab
+          from scripts.nabil_advanced_lab import validate_advanced_lab_spec
           from scripts.nabil_quiz_engine import build_full_quiz_items, render_quiz_html
           import scripts.nabil_lesson_factory as factory
 
@@ -57,6 +59,76 @@ jobs:
           assert 'type="number"' in lab_html
           assert 'type="range"' not in lab_html
           assert ' min=' not in lab_html and ' max=' not in lab_html
+
+          # Advanced science fixtures verify deterministic invariants and the
+          # synchronized teacher pointer. These are test fixtures, not lesson evidence.
+          circuit_spec = {
+              "supported": True,
+              "kind": "DC_SERIES_CIRCUIT",
+              "title": "Series circuit fixture",
+              "instructions": "Inspect the switch and circuit.",
+              "observation": "Fixture observation",
+              "evidence_ref": "C02",
+              "resistors": ["R1", "R2"],
+              "switch_control": True,
+              "rules": {
+                  "series_resistance_sum": True,
+                  "series_same_current": True,
+                  "ohms_law": True,
+                  "open_switch_zero_current": True,
+              },
+          }
+          circuit_html, active = render_verified_lab(circuit_spec, "en", "C02")
+          assert active
+          assert 'data-teacher-pointer="synced"' in circuit_html
+          assert "OPEN_CIRCUIT_ZERO_CURRENT" in circuit_html
+          assert "switchClosed?V/Rt:0" in circuit_html
+
+          optics_spec = {
+              "supported": True,
+              "kind": "OPTICS_REFLECTION",
+              "title": "Reflection fixture",
+              "instructions": "Drag the source.",
+              "observation": "Fixture observation",
+              "evidence_ref": "C03",
+              "angles_measured_from_normal": True,
+              "normal_perpendicular_surface": True,
+              "law": "angle_of_incidence_equals_angle_of_reflection",
+          }
+          optics_html, active = render_verified_lab(optics_spec, "en", "C03")
+          assert active
+          assert 'data-angle-reference="normal"' in optics_html
+          assert "I_EQUALS_R" in optics_html
+          assert 'data-teacher-pointer="synced"' in optics_html
+
+          ionic_spec = {
+              "supported": True,
+              "kind": "IONIC_COMPOUND",
+              "title": "MgCl2 fixture",
+              "instructions": "Observe electron transfer.",
+              "observation": "Fixture observation",
+              "evidence_ref": "C04",
+              "cation": {"symbol": "Mg", "charge": 2},
+              "anion": {"symbol": "Cl", "charge": -1},
+              "cation_ratio": 1,
+              "anion_ratio": 2,
+              "electron_transfer_count": 2,
+              "bond_type": "ionic",
+          }
+          validate_advanced_lab_spec(ionic_spec)
+          ionic_html, active = render_verified_lab(ionic_spec, "en", "C04")
+          assert active
+          assert 'data-charge-neutral="true"' in ionic_html
+          assert "MgCl2" in ionic_html
+          assert 'data-teacher-pointer="synced"' in ionic_html
+
+          invalid_ionic = dict(ionic_spec)
+          invalid_ionic["anion_ratio"] = 1
+          try:
+              validate_advanced_lab_spec(invalid_ionic)
+              raise AssertionError("invalid ionic ratio must fail")
+          except RuntimeError:
+              pass
 
           activities = [{
               "activity_num": "01",
