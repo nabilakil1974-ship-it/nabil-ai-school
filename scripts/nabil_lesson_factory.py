@@ -5378,6 +5378,65 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
         "CRITICAL",
         f"reference_concepts={candidate['page_a_html'].count('class=\"nabil-reference-concept\"')}, concepts={len(ev_map['concepts'])}",
     )
+    lab_index = candidate.get("lab_index") or {}
+    concept_lab_index = lab_index.get("concept_labs") or []
+    exercise_lab_index = lab_index.get("exercise_labs") or []
+    check(
+        "PREBUILT_LAB_INDEX_SCHEMA_INVALID",
+        lab_index.get("schema") == "nabil-prebuilt-lab-index/v1"
+        and lab_index.get("lesson_id") == candidate.get("lesson_id")
+        and lab_index.get("runtime_ai_required_for_indexed_labs") is False,
+        "CRITICAL",
+        "Standalone/embedded lab index must identify this lesson and declare zero runtime AI for indexed labs",
+    )
+    check(
+        "PREBUILT_CONCEPT_LAB_INDEX_INCOMPLETE",
+        len(concept_lab_index) == len(ev_map.get("concepts") or [])
+        and all(x.get("prebuilt") is True and x.get("active") is True
+                and str(x.get("key") or "").startswith("concept:")
+                for x in concept_lab_index),
+        "CRITICAL",
+        f"indexed_concept_labs={len(concept_lab_index)}, concepts={len(ev_map.get('concepts') or [])}",
+    )
+    check(
+        "PREBUILT_EXERCISE_LAB_INDEX_INCOMPLETE",
+        len(exercise_lab_index) == len(candidate.get("exercises") or [])
+        and all(x.get("prebuilt") is True and x.get("active") is True
+                and str(x.get("key") or "").startswith("exercise:")
+                for x in exercise_lab_index),
+        "CRITICAL",
+        f"indexed_exercise_labs={len(exercise_lab_index)}, exercises={len(candidate.get('exercises') or [])}",
+    )
+    check(
+        "PREBUILT_LAB_INDEX_NOT_EMBEDDED",
+        'id="nabilLabIndex"' in candidate["page_a_html"]
+        and 'id="nabilLabIndex"' in candidate["page_b_html"],
+        "CRITICAL",
+        "Both lesson and exercise pages must carry the same prebuilt lab index",
+    )
+    check(
+        "PREBUILT_EXERCISE_LABS_NOT_EMBEDDED",
+        candidate["page_b_html"].count(
+            'class="nabil-prebuilt-exercise-lab"')
+        == len(candidate.get("exercises") or [])
+        and candidate["page_b_html"].count(
+            'data-nabil-prebuilt-lab="true"')
+        == len(candidate.get("exercises") or []),
+        "CRITICAL",
+        "Every indexed exercise must ship with its ready-to-run lab HTML",
+    )
+    check(
+        "STANDALONE_LAB_INDEX_ARTIFACT_MISSING",
+        bool(candidate.get("filename_labs"))
+        and bool(candidate.get("lab_index_json"))
+        and candidate.get("hashes", {}).get("labs")
+        == hashlib.sha256(
+            str(candidate.get("lab_index_json") or "").encode("utf-8")
+        ).hexdigest(),
+        "CRITICAL",
+        "Every lesson publish must include a separately hashed --LABS.json artifact",
+    )
+
     check(
         "GENERATED_CONTENT_SCOPE_AUDIT_MISSING",
         all(
