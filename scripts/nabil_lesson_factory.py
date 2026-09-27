@@ -2641,10 +2641,14 @@ def generate_ai_practice_for_insufficient_book_exercises(
             "exercises are available, generate AT LEAST 3 additional AI practice "
             "exercises. Preserve every verified textbook exercise and generate "
             "the AI practice ONLY from the VERIFIED LESSON SCOPE "
-            "below. Do not introduce a law, definition, symbol, apparatus, "
-            "formula, fact, or prerequisite that is absent from this scope. "
-            "Do not require a figure. Make each question solvable entirely from "
-            "what the student learned in this lesson. Return JSON exactly as "
+            "below. Do not introduce a law, definition, scientific concept, "
+            "symbol, apparatus, material, quantity, unit, formula, fact, "
+            "prerequisite, or real-world scenario that is absent from this scope. "
+            "A new numeric value is allowed only as a practice input to a formula "
+            "or quantitative relation explicitly present in the verified scope, "
+            "using only units already present there. Do not require a figure. "
+            "Make each question solvable entirely from what the student learned "
+            "in THIS lesson, with no outside knowledge. Return JSON exactly as "
             "{'candidates':[{'prompt':str,'subquestions':[str],"
             "'solution_outline':str,'concept_ids':[str]}]}. "
             f"Return at least {max(remaining * 2, 4)} candidates so rejected "
@@ -2684,10 +2688,15 @@ def generate_ai_practice_for_insufficient_book_exercises(
             gate_prompt = (
                 "Act as a strict curriculum exercise gate. Compare ONE proposed "
                 "exercise with the VERIFIED LESSON SCOPE. Approve only if every "
-                "fact, rule, relation and required reasoning is directly "
-                "supported by that scope, the task is age-appropriate, internally "
-                "consistent, solvable without outside knowledge, and its supplied "
-                "solution outline is scientifically correct. Reject if uncertain. "
+                "fact, rule, relation, concept, apparatus/material, quantity, "
+                "unit, formula, scenario, and required reasoning is directly "
+                "supported by that scope. New numeric inputs are permitted only "
+                "for a verified formula/relation and verified units already in "
+                "scope. The task must be age-appropriate, internally consistent, "
+                "solvable without outside knowledge, and its supplied solution "
+                "outline scientifically correct. Reject if anything is merely "
+                "plausible from general knowledge rather than traceable to this "
+                "lesson. Reject if uncertain. "
                 "Return JSON exactly as "
                 "{'approved':bool,'reasons':[str],'supported_concept_ids':[str],"
                 "'solution_consistent':bool,'within_scope':bool}.\n"
@@ -2698,12 +2707,22 @@ def generate_ai_practice_for_insufficient_book_exercises(
             )
             verdict = json.loads(execute_llm_completion(
                 gate_prompt, json_mode=True, temperature=0.0))
+            supported_ids = [
+                str(x) for x in (verdict.get("supported_concept_ids") or [])
+            ] if isinstance(verdict.get("supported_concept_ids"), list) else []
+            actual_scope_ids = {
+                str(item.get("concept_id")) for item in scope
+                if item.get("concept_id")
+            }
+            supported_ids_valid = bool(
+                supported_ids
+                and set(supported_ids).issubset(actual_scope_ids)
+            )
             approved = bool(
                 verdict.get("approved")
                 and verdict.get("solution_consistent")
                 and verdict.get("within_scope")
-                and isinstance(verdict.get("supported_concept_ids"), list)
-                and verdict.get("supported_concept_ids")
+                and supported_ids_valid
             )
             if not approved:
                 reasons = verdict.get("reasons")
@@ -2717,7 +2736,7 @@ def generate_ai_practice_for_insufficient_book_exercises(
                 continue
 
             idx = len(accepted) + 1
-            supported = [str(x) for x in verdict["supported_concept_ids"]]
+            supported = supported_ids
             accepted.append({
                 "exercise_id": f"{entry['lesson_id']}-AI-{idx:02d}",
                 "lesson_id": entry["lesson_id"],
@@ -2737,6 +2756,14 @@ def generate_ai_practice_for_insufficient_book_exercises(
                 "verified_against_source": False,
                 "scientific_gate_passed": True,
                 "scope_concept_ids": supported,
+                "scope_snapshot_sha256": hashlib.sha256(
+                    json.dumps(
+                        [item for item in scope
+                         if str(item.get("concept_id")) in set(supported)],
+                        ensure_ascii=False,
+                        sort_keys=True,
+                    ).encode("utf-8")
+                ).hexdigest(),
                 "generator_claimed_concept_ids": [
                     str(x) for x in claimed_ids],
                 "evidence_method":
@@ -2830,16 +2857,44 @@ def grounded_subject_solver(exercise: dict, evidence_map: dict, profile: dict) -
         if not parsed.get("steps") or not parsed.get("final_answer"):
             raise ValueError("Incomplete solver response schema")
         
-        verify_prompt = (
-            f"Verify if this solution correctly answers the exercise prompt without contradictions.\n"
-            f"Prompt: {prompt}\nSolution: {json.dumps(parsed, ensure_ascii=False)}\n"
-            "Return strictly JSON: {'valid': bool}"
-        )
+        if source_origin == "TEXTBOOK":
+            verify_prompt = (
+                f"Verify if this solution correctly answers the exercise prompt "
+                f"without contradictions.\nPrompt: {prompt}\n"
+                f"Solution: {json.dumps(parsed, ensure_ascii=False)}\n"
+                "Return strictly JSON: {'valid': bool}"
+            )
+        else:
+            verify_prompt = (
+                "Act as a strict lesson-scope solution auditor. Verify that this "
+                "solution correctly answers the AI practice exercise AND uses "
+                "only the verified lesson concepts below. Reject any new law, "
+                "definition, scientific fact, apparatus/material, quantity, unit, "
+                "formula, prerequisite, or reasoning not supported by those "
+                "concepts. New numeric inputs are allowed only when applying a "
+                "verified formula/relation with verified units. Reject if any "
+                "step relies on outside knowledge.\n"
+                f"Prompt: {prompt}\n"
+                f"Verified lesson concepts: "
+                f"{json.dumps(supported_scope, ensure_ascii=False)}\n"
+                f"Solution: {json.dumps(parsed, ensure_ascii=False)}\n"
+                "Return strictly JSON: "
+                "{'valid': bool, 'within_scope': bool, 'reasons': [str]}"
+            )
         val_res = json.loads(execute_llm_completion(
             verify_prompt, json_mode=True, temperature=0.0))
         verification_provenance = get_last_llm_provenance()
-        if not val_res.get("valid", False):
-            raise RuntimeError("SOLVER_SOLUTION_VALIDATION_FAILED")
+        if source_origin == "TEXTBOOK":
+            solution_valid = bool(val_res.get("valid", False))
+        else:
+            solution_valid = bool(
+                val_res.get("valid", False)
+                and val_res.get("within_scope", False)
+            )
+        if not solution_valid:
+            raise RuntimeError(
+                "SOLVER_SOLUTION_VALIDATION_FAILED:"
+                f"{val_res.get('reasons', [])}")
 
         exercise["solution_status"] = "SOLVED"
         parsed["ai_provenance"] = {
