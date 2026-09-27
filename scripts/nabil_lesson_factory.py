@@ -2231,6 +2231,16 @@ def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
                 str(review_item.get("reason") or "not_approved")[:180])
         if not isinstance(coords, list) or len(coords) != 4:
             rejection_reasons.append("invalid_bbox_shape")
+        else:
+            try:
+                bx0, by0, bx1, by1 = [float(v) for v in coords]
+                if not (0 <= bx0 < bx1 <= 1000 and 0 <= by0 < by1 <= 1000):
+                    rejection_reasons.append("invalid_bbox_bounds")
+            except (TypeError, ValueError):
+                rejection_reasons.append("invalid_bbox_values")
+        kind_candidate = str(row.get("section_type") or "EXERCISE").upper()
+        if kind_candidate not in ("EXERCISE", "PROBLEM"):
+            rejection_reasons.append("invalid_section_type")
 
         if rejection_reasons:
             progress(
@@ -2242,16 +2252,29 @@ def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
             rescued = _rescue_unverified_exercise(
                 page, row, page_num, lesson_id, book_id)
             if rescued is None:
-                raise RuntimeError(
-                    f"EXERCISE_SOURCE_MISMATCH: unverified exercise "
-                    f"{number} p{page_num}; reasons={rejection_reasons}")
+                progress(
+                    "SKIPPED_UNVERIFIED_EXERCISE",
+                    page=page_num,
+                    number=number,
+                    reasons=rejection_reasons,
+                )
+                # Fail closed at ITEM level: never display/solve an exercise
+                # that could not be verified, but do not discard the whole
+                # verified lesson because one page item is unreadable.
+                continue
             row = rescued
             prompt = str(row["exact_source_prompt"]).strip()
             coords = row["bbox_1000"]
 
         x0, y0, x1, y1 = [float(v) for v in coords]
         if not (0 <= x0 < x1 <= 1000 and 0 <= y0 < y1 <= 1000):
-            raise RuntimeError(f"EXERCISE_SOURCE_MISMATCH: invalid region #{number} p{page_num}")
+            progress(
+                "SKIPPED_UNVERIFIED_EXERCISE",
+                page=page_num,
+                number=number,
+                reasons=["invalid_region_after_rescue"],
+            )
+            continue
         rect = Rect(x0*page.rect.width/1000, y0*page.rect.height/1000,
                     x1*page.rect.width/1000, y1*page.rect.height/1000)
         raw_region = row.get("_rescue_crop_bytes")
@@ -2261,7 +2284,13 @@ def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
         region_path.write_bytes(raw_region)
         kind = str(row.get("section_type") or "EXERCISE").upper()
         if kind not in ("EXERCISE", "PROBLEM"):
-            raise RuntimeError("EXERCISE_SOURCE_MISMATCH: invalid section type")
+            progress(
+                "SKIPPED_UNVERIFIED_EXERCISE",
+                page=page_num,
+                number=number,
+                reasons=["invalid_section_type_after_rescue"],
+            )
+            continue
         result.append({
             "number": number, "section_type": kind, "exact_source_prompt": prompt,
             "subquestions": list(row.get("subquestions") or []),
@@ -2523,9 +2552,10 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
             seen.add(k)
             unique_ex.append(e)
 
-    # All verified textbook exercises remain in the lesson.  AI-generated
-    # practice is considered only later, and only when zero book exercises
-    # could be faithfully extracted.
+    # All verified textbook exercises remain in the lesson. Unverified page
+    # items are skipped, never guessed. AI-generated practice is considered
+    # only later, and only when zero book exercises could be faithfully
+    # extracted.
     for e in unique_ex:
         e["solution_mode"] = "PRE_SOLVED"
 
@@ -2567,12 +2597,13 @@ def _lesson_scope_for_exercise_gate(ev_map: dict) -> List[dict]:
 
 
 def required_ai_practice_count(textbook_count: int) -> int:
-    """Return the required number of AI practice exercises."""
-    if textbook_count <= 0:
-        return 2
-    if textbook_count == 1:
-        return 3
-    return 0
+    """Use AI practice only when the lesson has zero verified book exercises.
+
+    Product rule: preserve and solve every verified textbook exercise. If even
+    one verified textbook exercise exists, do not replace or pad it with AI.
+    AI practice is a fallback only when no book exercise can be verified.
+    """
+    return 2 if textbook_count <= 0 else 0
 
 
 def generate_ai_practice_for_insufficient_book_exercises(
@@ -2602,10 +2633,10 @@ def generate_ai_practice_for_insufficient_book_exercises(
             f"You are creating additional practice for Lebanese "
             f"{profile['subject']} Grade {profile['grade']}.\n"
             f"Lesson title: {entry['canonical_title']}\n"
-            f"The official textbook yielded only {textbook_count} reliably "
-            "extractable exercise(s), which is insufficient under the product "
-            "rule (minimum 2 source exercises). Preserve every source exercise; "
-            "generate ADDITIONAL practice ONLY from the VERIFIED LESSON SCOPE "
+            f"The official textbook yielded {textbook_count} reliably "
+            "extractable exercise(s). This AI fallback is permitted ONLY because "
+            "zero textbook exercises were verified. Generate practice ONLY from "
+            "the VERIFIED LESSON SCOPE "
             "below. Do not introduce a law, definition, symbol, apparatus, "
             "formula, fact, or prerequisite that is absent from this scope. "
             "Do not require a figure. Make each question solvable entirely from "
@@ -3697,12 +3728,14 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
         if e["section_type"] == "EXERCISE"
     ])
     if ex_nums:
-        check("EXERCISE_SEQUENCE_INCOMPLETE",
-              ex_nums == list(range(1, len(ex_nums) + 1)),
-              "CRITICAL", f"Exercises: {ex_nums}")
-    # 0 source exercises: add 2 AI exercises.
-    # 1 source exercise: preserve it and add 3 AI exercises.
-    # 2 or more source exercises: add no AI exercises.
+        check("EXERCISE_NUMBERING_INVALID",
+              all(int(n) > 0 for n in ex_nums)
+              and len(ex_nums) == len(set(ex_nums)),
+              "CRITICAL", f"Verified exercises: {ex_nums}")
+    # Missing numbers are allowed when those page items could not be verified.
+    # We never invent/fill a missing textbook exercise.
+    # 0 verified source exercises: add 2 gated AI practice exercises.
+    # 1 or more verified source exercises: preserve/solve them; add no AI.
     expected_ai = required_ai_practice_count(len(textbook))
     check("AI_FALLBACK_POLICY_VIOLATION",
           len(generated) == expected_ai, "CRITICAL",
