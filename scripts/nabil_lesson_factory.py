@@ -35,7 +35,7 @@ sys.path.insert(0, os.path.abspath("."))
 from scripts.nabil_i18n import (
     resolve_lang_code, t as ui_t, html_dir_attr, narrative_language_instruction,
 )
-from scripts.nabil_interactive_lab import generate_lab_for_concept
+from scripts.nabil_interactive_lab import render_verified_lab, validate_lab_spec
 from scripts.nabil_quiz_engine import build_full_quiz_items, render_quiz_html
 
 ROOT = Path(__file__).resolve().parents[1] if len(Path(__file__).resolve().parents) > 1 else Path("/app")
@@ -2697,6 +2697,102 @@ def synthesize_concept_narrative(
         raise RuntimeError(f"NARRATIVE_SYNTHESIS_FAILED: Unable to ground concept narrative from evidence ({e})")
 
 
+def _normalized_lab_evidence(value: str) -> str:
+    # تطبيع بسيط للتحقق من أن الاقتباس الذي استند إليه المختبر موجود فعلاً في الدليل.
+    return re.sub(r"\\s+", " ", str(value or "")).strip().lower()
+
+
+def _deduction_question(lang_code: str, title: str) -> str:
+    # صياغة السؤال بحسب لغة الدرس، من دون تغيير المصطلح العلمي الأصلي.
+    if lang_code == "ar":
+        return f"أي استنتاج علمي تؤكده الأدلة الخاصة بـ «{title}»؟"
+    if lang_code == "fr":
+        return f"Quelle déduction scientifique est confirmée par les preuves concernant « {title} » ?"
+    return f"Which scientific deduction is confirmed by the evidence for '{title}'?"
+
+
+def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile: dict,
+                            figure_image_base64: Optional[str] = None,
+                            vision_context: Optional[Dict[str, Any]] = None) -> dict:
+    """
+    يبني Lab Spec من الدليل نفسه.
+    لا يُسمح للموديل بإدخال أرقام أو قوانين أو سلوك غير موجود في النص/الشكل الموثق.
+    إذا المفهوم لا يناسب مختبراً من الأنواع المدعومة، يعيد supported=false.
+    """
+    lang_code = resolve_lang_code(entry["language"])
+    math_records = concept.get("math_records") or []
+    prompt = (
+        "You are designing ONE optional interactive educational lab strictly from verified curriculum evidence.\n"
+        "Do NOT force a lab onto every concept. If the evidence is insufficient or no supported interaction fits, return supported=false.\n"
+        "Allowed kinds only:\n"
+        "1) FORMULA_CALCULATOR: only when an explicit two-input formula using +, -, *, or / exists in SOURCE or MATH_RECORDS. "
+        "Never invent min/max/default/step values; the student will enter numbers.\n"
+        "2) ORIENTATION_INVARIANT: only when SOURCE/FIGURE explicitly establishes that an observable element keeps a horizontal or vertical orientation while its surrounding object changes orientation.\n"
+        "3) SHAPE_RESPONSE: only when SOURCE/FIGURE explicitly establishes that the observed object's shape is fixed or conforms to a changed container/boundary.\n"
+        "Every supported lab must contain an exact evidence quote from SOURCE when evidence_basis=text. "
+        "If evidence_basis=figure, a verified source figure must be supplied.\n"
+        "Student-facing title/instructions/observation must stay within the scientific meaning of the evidence.\n"
+        + narrative_language_instruction(lang_code) + "\n\n"
+        f"CONCEPT_ID: {concept['concept_id']}\n"
+        f"SUBJECT: {profile['subject']}\n"
+        f"SOURCE: {concept.get('raw_text','')}\n"
+        f"MATH_RECORDS: {json.dumps(math_records, ensure_ascii=False)}\n"
+        f"GROUNDED_NARRATIVE: {json.dumps(narrative, ensure_ascii=False)}\n\n"
+        "Return strict JSON. For unsupported: "
+        "{'supported': false, 'reason': str, 'evidence_ref': str}. "
+        "For supported include: supported=true, kind, title, instructions, observation, evidence_ref, evidence_basis ('text'|'figure'), evidence_quote. "
+        "FORMULA_CALCULATOR additionally: source_formula and formula={output,input_a,input_b,operator,output_unit}. "
+        "ORIENTATION_INVARIANT additionally: invariant_orientation ('horizontal'|'vertical'). "
+        "SHAPE_RESPONSE additionally: behavior ('fixed'|'conforms')."
+    )
+    raw = execute_llm_completion(
+        prompt, json_mode=True, temperature=0.0,
+        image_base64=figure_image_base64,
+        vision_context=vision_context)
+    try:
+        spec = json.loads(raw)
+    except Exception as exc:
+        raise RuntimeError(f"LAB_SPEC_JSON_INVALID: {exc}")
+
+    if not isinstance(spec, dict):
+        raise RuntimeError("LAB_SPEC_INVALID: expected object")
+    if spec.get("evidence_ref") != concept.get("concept_id"):
+        raise RuntimeError("LAB_SPEC_EVIDENCE_REF_MISMATCH")
+    if spec.get("supported") is not True:
+        return {
+            "supported": False,
+            "reason": str(spec.get("reason") or "NO_VERIFIED_LAB_SPEC"),
+            "evidence_ref": concept["concept_id"],
+        }
+
+    basis = str(spec.get("evidence_basis") or "").lower()
+    quote = str(spec.get("evidence_quote") or "").strip()
+    if basis == "text":
+        if not quote:
+            raise RuntimeError("LAB_SPEC_TEXT_EVIDENCE_MISSING")
+        source_norm = _normalized_lab_evidence(concept.get("raw_text", ""))
+        quote_norm = _normalized_lab_evidence(quote)
+        if quote_norm not in source_norm:
+            raise RuntimeError("LAB_SPEC_TEXT_EVIDENCE_NOT_FOUND")
+    elif basis == "figure":
+        if not figure_image_base64 or not concept.get("figure_refs"):
+            raise RuntimeError("LAB_SPEC_FIGURE_EVIDENCE_MISSING")
+    else:
+        raise RuntimeError("LAB_SPEC_EVIDENCE_BASIS_INVALID")
+
+    if str(spec.get("kind") or "").upper() == "FORMULA_CALCULATOR":
+        source_formula = _normalized_lab_evidence(spec.get("source_formula", ""))
+        formula_haystack = _normalized_lab_evidence(
+            str(concept.get("raw_text", "")) + " " +
+            " ".join(str(r.get("raw") or "") for r in math_records if isinstance(r, dict))
+        )
+        if not source_formula or source_formula not in formula_haystack:
+            raise RuntimeError("LAB_FORMULA_NOT_PRESENT_IN_SOURCE")
+
+    validate_lab_spec(spec)
+    return spec
+
+
 def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> dict:
     title = entry["canonical_title"]
     concepts = ev_map["concepts"]
@@ -2742,23 +2838,25 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
             buffered = io.BytesIO()
             canvas.save(buffered, format="PNG")
             figure_image_base64 = base64.b64encode(buffered.getvalue()).decode("ascii")
+        vision_context = ({
+            "lesson_id": entry["lesson_id"],
+            "book_id": entry["book_id"],
+            "pdf_page": p_num,
+        } if figure_image_base64 else None)
         narrative = synthesize_concept_narrative(
             c, profile, figure_image_base64,
-            vision_context=({
-                "lesson_id": entry["lesson_id"],
-                "book_id": entry["book_id"],
-                "pdf_page": p_num,
-            } if figure_image_base64 else None))
+            vision_context=vision_context)
 
-        # Source-grounded interactive lab: only produced when this concept's
-        # own extracted text actually describes a formula or qualitative
-        # state relationship. Fails closed to "" / False otherwise, exactly
-        # like the previous hardcoded stub — no lab is invented.
-        concept_lab_html, concept_has_sim = generate_lab_for_concept(
-            c, lesson_lang_code)
+        lab_spec = build_verified_lab_spec(
+            entry, c, narrative, profile,
+            figure_image_base64=figure_image_base64,
+            vision_context=vision_context)
+        concept_lab_html, concept_has_sim = render_verified_lab(
+            lab_spec, lesson_lang_code, c["concept_id"])
 
         activities_theory.append({
             "activity_num": c["concept_id"].replace("C", ""),
+            "concept_id": c["concept_id"],
             "title": c["title"],
             "source_page": p_num,
             "phenomenon": narrative["phenomenon"],
@@ -2767,6 +2865,7 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
             "interpretation": narrative["interpretation"],
             "conclusion": narrative["conclusion"],
             "visual_html": fig_html,
+            "lab_spec": lab_spec,
             "lab_html": concept_lab_html,
             "has_active_sim": concept_has_sim,
             "student_question": {
@@ -2852,6 +2951,7 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
         "lab_html": "\n".join(all_labs_html),
         "has_active_sim": any_active_sim,
         "worksheet": worksheet,
+        "quiz_items": full_quiz_items,
         "quiz_html": full_quiz_html,
         "reference_card_html": ref_card_html
     }
