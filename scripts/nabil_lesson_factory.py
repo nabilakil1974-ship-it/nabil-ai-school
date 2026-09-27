@@ -3917,8 +3917,9 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
     lang_code = resolve_lang_code(entry["language"])
     math_records = concept.get("math_records") or []
     prompt = (
-        "You are designing ONE optional interactive educational lab strictly from verified curriculum evidence.\n"
-        "Do NOT force a lab onto every concept. If the evidence is insufficient or no supported interaction fits, return supported=false.\n"
+        "You are designing ONE evidence-grounded interactive educational lab strictly from verified curriculum evidence.\n"
+        "If the SOURCE or verified FIGURE explicitly describes a manipulable change, observable invariant, quantitative relation, ordered process, or experiment that fits one of the allowed kinds, you MUST return supported=true and build it. "
+        "Return supported=false only when no allowed interaction can be supported without adding scientific information. Never suppress an applicable lab just because the specification is difficult to produce.\n"
         "Allowed kinds only:\n"
         "1) FORMULA_CALCULATOR: only when an explicit two-input formula using +, -, *, or / exists in SOURCE or MATH_RECORDS. "
         "Never invent min/max/default/step values; the student will enter numbers.\n"
@@ -3930,6 +3931,8 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
         "Required fields: angles_measured_from_normal=true, normal_perpendicular_surface=true, law='angle_of_incidence_equals_angle_of_reflection'.\n"
         "6) IONIC_COMPOUND: only when SOURCE explicitly supports ionic electron transfer, the cation/anion charges, the whole-number ion ratio, and charge neutrality. "
         "Required fields: cation={symbol,charge}, anion={symbol,charge}, cation_ratio, anion_ratio, electron_transfer_count, bond_type='ionic'.\n"
+        "7) EVIDENCE_SEQUENCE: for Biology, Chemistry, Physics, General Science, or Mathematics only when SOURCE explicitly gives an ordered process, transformation, construction, or sequence that can be animated without inventing a missing step. "
+        "Required field: steps=[{label:str,evidence_quote:str}] with 2..8 ordered steps; every evidence_quote must be an exact contiguous SOURCE quote.\n"
         "For DC_SERIES_CIRCUIT, OPTICS_REFLECTION and IONIC_COMPOUND also return evidence_quotes: an object containing an EXACT SOURCE quote for EACH scientific invariant declared by the spec.\n"
         "Every supported lab must contain an exact evidence quote from SOURCE when evidence_basis=text. "
         "If evidence_basis=figure, a verified source figure must be supplied.\n"
@@ -3946,16 +3949,19 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
         "FORMULA_CALCULATOR additionally: source_formula and formula={output,input_a,input_b,operator,output_unit}. "
         "ORIENTATION_INVARIANT additionally: invariant_orientation ('horizontal'|'vertical'). "
         "SHAPE_RESPONSE additionally: behavior ('fixed'|'conforms'). "
+        "EVIDENCE_SEQUENCE additionally: steps=[{label,evidence_quote}]. "
         "Advanced kinds must include the exact fields listed above plus evidence_quotes."
     )
-    raw = execute_llm_completion(
-        prompt, json_mode=True, temperature=0.0,
-        image_base64=figure_image_base64,
-        vision_context=vision_context)
     try:
-        spec = json.loads(raw)
+        spec = _execute_llm_json_strict(
+            prompt,
+            image_base64=figure_image_base64,
+            vision_context=vision_context,
+            purpose=f"lab_spec_{concept.get('concept_id')}",
+            max_attempts=3,
+        )
     except Exception as exc:
-        raise RuntimeError(f"LAB_SPEC_JSON_INVALID: {exc}")
+        raise RuntimeError(f"LAB_SPEC_JSON_INVALID: {exc}") from exc
 
     if not isinstance(spec, dict):
         raise RuntimeError("LAB_SPEC_INVALID: expected object")
@@ -3966,17 +3972,17 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
             "evidence_ref": concept["concept_id"],
         }
     if spec.get("evidence_ref") != concept.get("concept_id"):
+        # evidence_ref is provenance metadata, not a scientific claim. The lab
+        # has just been generated from this concept's locked SOURCE/FIGURE, so
+        # canonicalize a model formatting mistake instead of silently deleting
+        # an otherwise verifiable interactive lab.
         progress(
-            "SKIPPED_UNVERIFIED_LAB",
+            "LAB_SPEC_EVIDENCE_REF_CANONICALIZED",
             concept_id=concept.get("concept_id"),
             source_page=concept.get("source_page"),
-            reason="LAB_SPEC_EVIDENCE_REF_MISMATCH",
+            received_ref=str(spec.get("evidence_ref") or "")[:120],
         )
-        return {
-            "supported": False,
-            "reason": "LAB_SPEC_EVIDENCE_REF_MISMATCH",
-            "evidence_ref": concept["concept_id"],
-        }
+        spec["evidence_ref"] = concept["concept_id"]
 
     basis = str(spec.get("evidence_basis") or "").lower()
     quote = str(spec.get("evidence_quote") or "").strip()
@@ -4042,6 +4048,20 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
             if not exact_quote or exact_quote not in source_norm:
                 raise RuntimeError(
                     f"LAB_ADVANCED_EVIDENCE_QUOTE_NOT_FOUND:{claim}")
+
+    if kind == "EVIDENCE_SEQUENCE":
+        steps = spec.get("steps")
+        if not isinstance(steps, list) or not 2 <= len(steps) <= 8:
+            raise RuntimeError("LAB_SEQUENCE_STEPS_INVALID")
+        source_norm = _normalized_lab_evidence(concept.get("raw_text", ""))
+        for index, step in enumerate(steps):
+            if not isinstance(step, dict):
+                raise RuntimeError(f"LAB_SEQUENCE_STEP_INVALID:{index}")
+            label = str(step.get("label") or "").strip()
+            quote = _normalized_lab_evidence(step.get("evidence_quote", ""))
+            if not label or not quote or quote not in source_norm:
+                raise RuntimeError(
+                    f"LAB_SEQUENCE_EVIDENCE_QUOTE_NOT_FOUND:{index}")
 
     validate_lab_spec(spec)
     return spec
@@ -4111,16 +4131,16 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
             if not reason.startswith("LAB_"):
                 raise
             progress(
-                "SKIPPED_UNVERIFIED_LAB",
+                "LAB_PIPELINE_BLOCKED",
                 concept_id=c.get("concept_id"),
                 source_page=p_num,
                 reason=reason[:240],
             )
-            lab_spec = {
-                "supported": False,
-                "reason": reason,
-                "evidence_ref": c["concept_id"],
-            }
+            # Technical/specification failures are not equivalent to "this
+            # concept has no lab". Fail closed so an applicable animated lab
+            # can never disappear silently and still be published.
+            raise RuntimeError(
+                f"LAB_PIPELINE_FAILED:{c.get('concept_id')}:{reason}") from exc
         concept_lab_html, concept_has_sim = render_verified_lab(
             lab_spec, lesson_lang_code, c["concept_id"])
 
@@ -4855,6 +4875,18 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
           or ("fullQuizBlock" in candidate["page_a_html"]),
           "CRITICAL",
           "Verified quiz items exist but full quiz block is missing from Page A")
+
+    # Every concept must have an explicit lab decision. A technical generation
+    # failure is blocked earlier; supported=false is allowed only as a verified
+    # "no evidence-backed interaction fits" decision.
+    check(
+        "LAB_DECISION_MISSING",
+        all(isinstance(a.get("lab_spec"), dict)
+            and isinstance((a.get("lab_spec") or {}).get("supported"), bool)
+            for a in activities),
+        "CRITICAL",
+        "Every concept requires an explicit evidence-gated lab decision",
+    )
 
     # Every declared lab must be evidence-validated and genuinely interactive.
     lab_activities = [
