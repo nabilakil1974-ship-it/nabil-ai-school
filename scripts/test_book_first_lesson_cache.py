@@ -61,10 +61,13 @@ class BookFirstLessonTests(unittest.TestCase):
         self.assertIn("printed_page", preview)
         self.assertIn("figure_image_urls", preview)
 
-    def test_broken_original_figures_are_hidden_without_fake_picture(self):
+    def test_source_raster_is_not_rendered_and_preview_timeout_stays_safe(self):
         js = pathlib.Path("app/static/nabil_book_first_preview_v1.js").read_text("utf-8")
-        self.assertIn('original.onerror=()=>holder.remove()', js)
+        self.assertIn("INTERNAL EVIDENCE ONLY", js)
         self.assertIn("previewTimeout", js)
+        self.assertNotIn("original.onerror=()=>holder.remove()", js)
+        self.assertNotIn("figure_image_urls", js)
+        self.assertNotIn("page_image_url", js)
         self.assertNotIn('controller.abort();\\n    if(el.isConnected)', js)
 
     def test_figure_route_excludes_full_page_backgrounds(self):
