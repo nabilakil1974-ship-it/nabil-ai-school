@@ -1,5 +1,6 @@
-/* NABIL book-first preview: a fast book-backed entry while /api/chat runs.
- * Excerpt != verified visual analysis. The original page is offered for inspection.
+/* NABIL book-first grounding: a fast book-backed entry while /api/chat runs.
+ * Textbook page/figure pixels are INTERNAL EVIDENCE ONLY.
+ * The student UI never renders or links original textbook raster images.
  */
 (()=>{
 "use strict";
@@ -96,18 +97,15 @@ function show(form,id){
   let lessonReady=false;
   let lessonFailed=false;
   let sourceIndexed=false;
-  let sourceImageLoaded=false;
   const updateStatus=()=>{
     if(!el.isConnected||id!==pending)return;
     if(lessonFailed){
-      status.textContent="⚠️ The original textbook page is available, but the AI explanation did not complete.";
+      status.textContent="⚠️ The indexed textbook source was verified, but the AI explanation did not complete.";
       return;
     }
-    if(lessonReady&&sourceIndexed)status.textContent=sourceImageLoaded
-      ?"✅ The lesson and original textbook page are ready below."
-      :"✅ The lesson is ready; the indexed textbook page is loading below.";
-    else if(lessonReady)status.textContent="✅ The lesson is ready below; the textbook preview is separate.";
-    else if(sourceIndexed)status.textContent="✅ Exact textbook page indexed; NABIL AI is preparing the explanation.";
+    if(lessonReady&&sourceIndexed)status.textContent="✅ The lesson is ready and grounded in the indexed textbook.";
+    else if(lessonReady)status.textContent="✅ The lesson is ready below.";
+    else if(sourceIndexed)status.textContent="✅ Exact textbook source indexed; NABIL AI is preparing the explanation.";
   };
   const chosen=String(form.get("book_page")||"").trim()||
     printedPageFromMessage(form.get("message"));
@@ -128,33 +126,13 @@ function show(form,id){
   content.textContent="I’m opening the official textbook first. This book-backed entrance appears immediately while NABIL AI prepares the full interactive explanation.";
   const page=document.createElement("strong");
   page.style.cssText="display:block;color:#a4f3d3";
-  const figureWrap=document.createElement("div");
-  figureWrap.style.cssText="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:10px";
-  const originalPage=document.createElement("details");
-  originalPage.style.cssText="margin:12px 0;border:1px solid #3984aa;border-radius:10px;padding:9px";
-  originalPage.hidden=true;
-  const pageToggle=document.createElement("summary");
-  pageToggle.textContent="📷 عرض الصورة الأصلية لصفحة الكتاب";
-  pageToggle.style.cssText="cursor:pointer;color:#a8eaff";
-  const originalPageImage=document.createElement("img");
-  originalPageImage.alt="Actual scanned page from the indexed government textbook";
-  originalPageImage.loading="lazy";
-  originalPageImage.style.cssText="display:block;max-width:100%;width:auto;height:auto;margin:12px auto;background:#fff";
-  originalPageImage.onload=()=>{sourceImageLoaded=true;updateStatus()};
-  originalPageImage.onerror=()=>{ originalPage.hidden=true; sourceImageLoaded=false; updateStatus(); };
-  originalPage.append(pageToggle,originalPageImage);
-  const link=document.createElement("a");
-  link.textContent="🔎 Open original textbook page at full size";
-  link.rel="noopener noreferrer";
-  link.target="_blank";
-  link.style.cssText="display:none;color:#a8eaff";
   const close=document.createElement("button");
   close.type="button";
   close.setAttribute("aria-label","Close preview");
   close.textContent="×";
   close.onclick=()=>el.remove();
   close.style.cssText="position:absolute;right:8px;top:2px;background:transparent;color:#fff;font-size:27px;border:0;cursor:pointer";
-  el.append(head,close,status,content,page,originalPage,figureWrap,link);
+  el.append(head,close,status,content,page);
   const chat=document.getElementById("chat");
   if(chat)chat.appendChild(el); else document.body.appendChild(el);
   try{el.scrollIntoView({behavior:"smooth",block:"nearest"})}catch(_e){}
@@ -181,41 +159,15 @@ function show(form,id){
     sourceIndexed=true;
     updateStatus();
     page.textContent=result.book_title+" | PRINTED PAGE "+result.printed_page;
-    // OCR is retrieval data, NOT verified student-facing prose: chemical shell
-    // superscripts and mixed columns are frequently corrupted in raw excerpts.
-    // Show the actual page image and let the separate tutor explain it.
-    content.textContent="The original indexed page is available below. NABIL AI explains its actual concepts separately; raw PDF extraction is not a student explanation.";
-    const path=result.page_image_url;
-    const figures=Array.isArray(result.figure_image_urls)?result.figure_image_urls:[];
-    figureWrap.replaceChildren();
-    figures.slice(0,3).forEach((src,index)=>{
-      if(!/^\/api\/textbooks\/[a-z0-9-]+\/pages\/\d+\/figures\/\d+\/image$/i.test(src))return;
-      const holder=document.createElement("figure");
-      holder.style.cssText="margin:0;background:#071d31;border:1px solid #3984aa;border-radius:10px;padding:8px";
-      const original=document.createElement("img");
-      original.loading="lazy";
-      original.onerror=()=>holder.remove();
-      original.src=src;
-      original.alt="Original figure extracted from the verified textbook page";
-      original.style.cssText="display:block;width:100%;height:220px;object-fit:contain;border-radius:7px;background:#fff";
-      const cap=document.createElement("figcaption");
-      cap.textContent="📐 Original textbook figure · printed page "+result.printed_page;
-      cap.style.cssText="font-size:12px;margin-top:6px;color:#a8eaff";
-      holder.append(original,cap); figureWrap.appendChild(holder);
-    });
-    if(path&&/^\/api\/textbooks\/[a-z0-9-]+\/pages\/\d+\/image$/i.test(path)){
-      originalPage.hidden=false;
-      originalPageImage.src=path;
-      link.href=path;
-      link.textContent="🔎 Open the original textbook page in full size";
-      link.style.display="inline-block";
-    }
+    // Source page/figure pixels remain internal evidence only.
+    // Student-facing teaching is rendered by NABIL's verified cards/labs.
+    content.textContent="The indexed textbook source is verified internally. NABIL teaches it using verified explanation, redraws and interactive labs.";
   }).catch(()=>{
     window.clearTimeout(previewTimeout);
     if(el.isConnected&&id===pending){
       if(!lessonReady)status.textContent="The independent textbook preview timed out or failed";
       else updateStatus();
-      content.textContent="The lesson request is separate. Open the sourced page links in the lesson when available; the preview failure does not mean the book was not indexed.";
+      content.textContent="The lesson request is separate. A preview failure does not mean the indexed book source is unavailable.";
     }
   });
   const fail=()=>{
