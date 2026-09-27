@@ -3131,14 +3131,14 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
 
     if not isinstance(spec, dict):
         raise RuntimeError("LAB_SPEC_INVALID: expected object")
-    if spec.get("evidence_ref") != concept.get("concept_id"):
-        raise RuntimeError("LAB_SPEC_EVIDENCE_REF_MISMATCH")
     if spec.get("supported") is not True:
         return {
             "supported": False,
             "reason": str(spec.get("reason") or "NO_VERIFIED_LAB_SPEC"),
             "evidence_ref": concept["concept_id"],
         }
+    if spec.get("evidence_ref") != concept.get("concept_id"):
+        raise RuntimeError("LAB_SPEC_EVIDENCE_REF_MISMATCH")
 
     basis = str(spec.get("evidence_basis") or "").lower()
     quote = str(spec.get("evidence_quote") or "").strip()
