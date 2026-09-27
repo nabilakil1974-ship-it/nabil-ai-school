@@ -169,6 +169,15 @@ function wireConceptLabs(){
 }
 let lessonRunToken=0;
 async function playWholeLesson(){
+ const whole=qs("#nabilWholeLessonSmartLab");
+ const wholePlay=qs("#nabilWholePlay",whole||document);
+ if(whole&&wholePlay){
+   lessonRunToken++;
+   try{window.NABILLessonE2E?.stopSpeech?.()}catch(_e){}
+   whole.scrollIntoView({behavior:"smooth",block:"start"});
+   setTimeout(()=>wholePlay.click(),420);
+   return;
+ }
  const labs=qsa(".nabil-concept-card .interactive-lab");
  if(!labs.length){showMessage(labels().none);return;}
  const token=++lessonRunToken;
