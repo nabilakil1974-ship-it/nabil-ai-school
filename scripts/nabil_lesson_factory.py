@@ -5947,7 +5947,7 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict, lab_index: Opt
 <meta name="nabil-translation-languages" content="ar,en,fr">
 <title>{clean_title} - NABIL Universal Engine</title>
 {MathRenderingEngine.inject_mathjax_head()}
-<script defer src="/static/nabil_scientific_solution_cards_e2e.js?v=4"></script>
+<script defer src="/static/nabil_browser_tts_v1.js?v=1"></script>\n<script defer src="/static/nabil_scientific_solution_cards_e2e.js?v=4"></script>
 <script defer src="/static/nabil_lesson_e2e_runtime_v1.js?v=4"></script>
 <script defer src="/static/nabil_smart_lab_bridge_v1.js?v=3"></script>
 <style>
@@ -6400,7 +6400,7 @@ def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: di
 <meta name="nabil-translation-languages" content="ar,en,fr">
 <title>{clean_title} - Official Exercises</title>
 {MathRenderingEngine.inject_mathjax_head()}
-<script defer src="/static/nabil_scientific_solution_cards_e2e.js?v=4"></script>
+<script defer src="/static/nabil_browser_tts_v1.js?v=1"></script>\n<script defer src="/static/nabil_scientific_solution_cards_e2e.js?v=4"></script>
 <script defer src="/static/nabil_lesson_e2e_runtime_v1.js?v=4"></script>
 <script defer src="/static/nabil_smart_lab_bridge_v1.js?v=3"></script>
 <style>
