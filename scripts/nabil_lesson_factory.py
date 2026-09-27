@@ -413,11 +413,70 @@ SUBJECT_TEACHING_ENGINES = {
 }
 
 
-def _mathematics_teaching_mode(concept: dict) -> str:
-    text = (
+
+SECONDARY_YEAR_TEACHING = {
+    10: {
+        "stage": "first_secondary",
+        "depth": "build the secondary-school model from prerequisite ideas; keep one new abstraction visible at a time",
+        "assessment": "guided transfer before independent multi-step work",
+    },
+    11: {
+        "stage": "second_secondary",
+        "depth": "connect several representations and require explicit justification of each chosen law/property",
+        "assessment": "multi-step application with an intermediate self-check",
+    },
+    12: {
+        "stage": "third_secondary",
+        "depth": "exam-ready synthesis: select the method independently, justify assumptions, and verify the final result rigorously",
+        "assessment": "representative exam-style transfer after the concept is understood, never before",
+    },
+}
+
+
+def _concept_teaching_text(concept: dict) -> str:
+    return (
         str(concept.get("title") or "") + " " +
         str(concept.get("raw_text") or "")
     ).casefold()
+
+
+def _subject_teaching_mode(concept: dict, subject: str) -> str:
+    """Choose a PEDAGOGICAL mode only; this never creates subject facts."""
+    text = _concept_teaching_text(concept)
+    if subject == "mathematics":
+        return _mathematics_teaching_mode(concept)
+    if subject == "physics":
+        if re.search(r"motion|velocity|speed|acceleration|force|energy|momentum|mouvement|vitesse|accélération|force|énergie|حركة|سرعة|تسارع|قوة|طاقة", text):
+            return "mechanics"
+        if re.search(r"circuit|current|voltage|resistance|electric|circuit|courant|tension|résistance|دارة|تيار|توتر|جهد|مقاومة|كهرب", text):
+            return "electricity"
+        if re.search(r"light|mirror|lens|reflection|refraction|optics|lumière|miroir|lentille|réflexion|réfraction|ضوء|مرآة|عدسة|انعكاس|انكسار|بصري", text):
+            return "optics"
+        if re.search(r"wave|frequency|period|sound|onde|fréquence|période|son|موجة|تواتر|تردد|دور|صوت", text):
+            return "waves"
+    if subject == "chemistry":
+        if re.search(r"acid|base|ph|acide|base|حمض|قاعدة", text):
+            return "acid_base"
+        if re.search(r"oxid|reduc|redox|electro|أكسد|اختزال|كهروكيمي", text):
+            return "redox"
+        if re.search(r"organic|hydrocarbon|alcohol|ester|organique|hydrocarbure|alcool|عضوي|هيدروكربون|كحول|إستر", text):
+            return "organic"
+        if re.search(r"mole|stoich|molar|amount of substance|quantité de matière|مول|ستوكيومتر|كمية المادة", text):
+            return "quantitative"
+    if subject == "biology":
+        if re.search(r"cell|membrane|organelle|cellule|membrane|خلية|غشاء|عضية", text):
+            return "cell"
+        if re.search(r"gene|dna|chromosome|inherit|gène|adn|chromosome|hérédit|جين|وراث|صبغي|كروموسوم", text):
+            return "genetics"
+        if re.search(r"organ|system|blood|respir|digest|nerve|organe|système|sang|تنفس|هضم|عصب|عضو|جهاز|دم", text):
+            return "physiology"
+        if re.search(r"ecosystem|ecology|population|food chain|écosystème|écologie|سلسلة غذائية|نظام بيئي|بيئة", text):
+            return "ecology"
+    return "default"
+
+
+def _mathematics_teaching_mode(concept: dict) -> str:
+    text = _concept_teaching_text(concept)
     if re.search(
         r"triangle|circle|angle|tangent|parallel|perpendicular|"
         r"midpoint|bisector|congruen|similar|polygon|geometry|"
@@ -451,12 +510,10 @@ def resolve_teaching_signature(concept: dict, profile: dict) -> dict:
     level = profile["level"]
     level_spec = TEACHING_ENGINE_PROFILES[level]
     subject_spec = SUBJECT_TEACHING_ENGINES[subject]
-    mode = (
-        _mathematics_teaching_mode(concept)
-        if subject == "mathematics"
-        else "default"
-    )
+    mode = _subject_teaching_mode(concept, subject)
     sequence = subject_spec.get(mode) or subject_spec["default"]
+    grade = int(profile.get("grade") or 0)
+    secondary_year = SECONDARY_YEAR_TEACHING.get(grade) if level == "L3" else None
     return {
         "level": level,
         "learner": level_spec["learner"],
@@ -465,6 +522,7 @@ def resolve_teaching_signature(concept: dict, profile: dict) -> dict:
         "subject": subject,
         "mode": mode,
         "subject_sequence": list(sequence),
+        "secondary_year_contract": dict(secondary_year) if secondary_year else None,
         "autonomous_teacher": True,
         "human_teacher_required": False,
     }
