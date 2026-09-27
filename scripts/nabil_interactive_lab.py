@@ -21,12 +21,20 @@ try:
         render_advanced_verified_lab,
         validate_advanced_lab_spec,
     )
+    from scripts.nabil_geometry_lab import (
+        render_geometry_proof_lab,
+        validate_geometry_proof_spec,
+    )
 except Exception:
     from nabil_i18n import t as _t
     from nabil_advanced_lab import (
         ADVANCED_LAB_KINDS,
         render_advanced_verified_lab,
         validate_advanced_lab_spec,
+    )
+    from nabil_geometry_lab import (
+        render_geometry_proof_lab,
+        validate_geometry_proof_spec,
     )
 
 _ALLOWED_KINDS={"FORMULA_CALCULATOR","ORIENTATION_INVARIANT","SHAPE_RESPONSE","EVIDENCE_SEQUENCE","EVIDENCE_REVEAL","GEOMETRY_PROOF"} | ADVANCED_LAB_KINDS
@@ -68,92 +76,7 @@ def validate_lab_spec(spec:Dict[str,Any])->Dict[str,Any]:
             raise RuntimeError("LAB_SHAPE_BEHAVIOR_INVALID")
 
     if kind=="GEOMETRY_PROOF":
-        points=spec.get("points")
-        segments=spec.get("segments")
-        marks=spec.get("marks")
-        proof_steps=spec.get("proof_steps")
-        if not isinstance(points,list) or not 2<=len(points)<=24:
-            raise RuntimeError("LAB_GEOMETRY_POINTS_INVALID")
-        point_ids=set()
-        for i,p in enumerate(points):
-            if not isinstance(p,dict):
-                raise RuntimeError(f"LAB_GEOMETRY_POINT_INVALID:{i}")
-            label=str(p.get("label") or "").strip()
-            if not label or label in point_ids:
-                raise RuntimeError(f"LAB_GEOMETRY_POINT_LABEL_INVALID:{i}")
-            try:
-                x=float(p.get("x")); y=float(p.get("y"))
-            except (TypeError,ValueError) as exc:
-                raise RuntimeError(f"LAB_GEOMETRY_POINT_COORD_INVALID:{i}") from exc
-            if not (0<=x<=100 and 0<=y<=100):
-                raise RuntimeError(f"LAB_GEOMETRY_POINT_COORD_RANGE:{i}")
-            point_ids.add(label)
-        if not isinstance(segments,list) or not 1<=len(segments)<=36:
-            raise RuntimeError("LAB_GEOMETRY_SEGMENTS_INVALID")
-        seg_ids=set()
-        for i,seg in enumerate(segments):
-            if not isinstance(seg,dict):
-                raise RuntimeError(f"LAB_GEOMETRY_SEGMENT_INVALID:{i}")
-            sid=str(seg.get("id") or "").strip()
-            a=str(seg.get("a") or "").strip(); b=str(seg.get("b") or "").strip()
-            if not sid or sid in seg_ids or a not in point_ids or b not in point_ids or a==b:
-                raise RuntimeError(f"LAB_GEOMETRY_SEGMENT_REF_INVALID:{i}")
-            seg_ids.add(sid)
-        if not isinstance(marks,list) or len(marks)>32:
-            raise RuntimeError("LAB_GEOMETRY_MARKS_INVALID")
-        allowed_marks={"equal_segments","equal_angles","perpendicular","parallel","midpoint","symmetry_axis"}
-        mark_ids=set()
-        for i,mark in enumerate(marks):
-            if not isinstance(mark,dict):
-                raise RuntimeError(f"LAB_GEOMETRY_MARK_INVALID:{i}")
-            mtype=str(mark.get("type") or "").strip().lower()
-            if mtype not in allowed_marks:
-                raise RuntimeError(f"LAB_GEOMETRY_MARK_TYPE_INVALID:{i}:{mtype}")
-            mid=str(mark.get("id") or f"M{i+1}").strip()
-            if not mid or mid in mark_ids:
-                raise RuntimeError(f"LAB_GEOMETRY_MARK_ID_INVALID:{i}")
-            mark["id"]=mid; mark_ids.add(mid)
-            if not str(mark.get("evidence_quote") or "").strip():
-                raise RuntimeError(f"LAB_GEOMETRY_MARK_EVIDENCE_MISSING:{i}")
-            if mtype in {"equal_segments","parallel","midpoint"}:
-                targets=mark.get("targets")
-                if not isinstance(targets,list) or len(targets)<2 or any(str(t) not in seg_ids for t in targets):
-                    raise RuntimeError(f"LAB_GEOMETRY_MARK_TARGET_INVALID:{i}")
-            elif mtype in {"equal_angles","perpendicular"}:
-                angles=mark.get("angles")
-                need=2 if mtype=="equal_angles" else 1
-                if not isinstance(angles,list) or len(angles)<need:
-                    raise RuntimeError(f"LAB_GEOMETRY_ANGLE_MARK_INVALID:{i}")
-                for j,a in enumerate(angles):
-                    if not isinstance(a,dict):
-                        raise RuntimeError(f"LAB_GEOMETRY_ANGLE_REF_INVALID:{i}:{j}")
-                    refs=[str(a.get(k) or "").strip() for k in ("a","vertex","b")]
-                    if any(v not in point_ids for v in refs) or len(set(refs))<3:
-                        raise RuntimeError(f"LAB_GEOMETRY_ANGLE_REF_INVALID:{i}:{j}")
-            elif mtype=="symmetry_axis":
-                if str(mark.get("axis_segment") or "") not in seg_ids:
-                    raise RuntimeError(f"LAB_GEOMETRY_SYMMETRY_AXIS_INVALID:{i}")
-                pairs=mark.get("point_pairs") or []
-                if not isinstance(pairs,list):
-                    raise RuntimeError(f"LAB_GEOMETRY_SYMMETRY_PAIRS_INVALID:{i}")
-                for j,pair in enumerate(pairs):
-                    if not isinstance(pair,(list,tuple)) or len(pair)!=2 or any(str(v) not in point_ids for v in pair):
-                        raise RuntimeError(f"LAB_GEOMETRY_SYMMETRY_PAIR_INVALID:{i}:{j}")
-        if not isinstance(proof_steps,list) or not 1<=len(proof_steps)<=14:
-            raise RuntimeError("LAB_GEOMETRY_PROOF_STEPS_INVALID")
-        known_targets=point_ids|seg_ids|mark_ids
-        for i,step in enumerate(proof_steps):
-            if not isinstance(step,dict):
-                raise RuntimeError(f"LAB_GEOMETRY_PROOF_STEP_INVALID:{i}")
-            for key in ("title","text","evidence_quote"):
-                if not str(step.get(key) or "").strip():
-                    raise RuntimeError(f"LAB_GEOMETRY_PROOF_STEP_FIELD_MISSING:{i}:{key}")
-            targets=step.get("target_ids") or []
-            reveals=step.get("reveal_marks") or []
-            if not isinstance(targets,list) or any(str(t) not in known_targets for t in targets):
-                raise RuntimeError(f"LAB_GEOMETRY_PROOF_TARGET_INVALID:{i}")
-            if not isinstance(reveals,list) or any(str(m) not in mark_ids for m in reveals):
-                raise RuntimeError(f"LAB_GEOMETRY_PROOF_REVEAL_INVALID:{i}")
+        validate_geometry_proof_spec(spec)
 
     if kind=="EVIDENCE_SEQUENCE":
         steps=spec.get("steps")
@@ -1005,7 +928,9 @@ def render_verified_lab(spec:Dict[str,Any],lang_code:str,lab_id:str)->Tuple[str,
     elif kind=="EVIDENCE_REVEAL":
         raw=_render_evidence_reveal(spec,lang_code,lab_id)
     elif kind=="GEOMETRY_PROOF":
-        raw=_render_geometry_proof(spec,lang_code,lab_id)
+        raw,active=render_geometry_proof_lab(spec,lang_code,lab_id)
+        if not active:
+            return "",False
         return raw,True
     elif kind in ADVANCED_LAB_KINDS:
         raw,active=render_advanced_verified_lab(spec,lang_code,lab_id)
