@@ -2553,9 +2553,8 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
             unique_ex.append(e)
 
     # All verified textbook exercises remain in the lesson. Unverified page
-    # items are skipped, never guessed. AI-generated practice is considered
-    # only later, and only when zero book exercises could be faithfully
-    # extracted.
+    # items are skipped, never guessed. If fewer than 3 textbook exercises are
+    # verified, evidence-gated AI practice fills only the missing count up to 3.
     for e in unique_ex:
         e["solution_mode"] = "PRE_SOLVED"
 
@@ -2597,13 +2596,16 @@ def _lesson_scope_for_exercise_gate(ev_map: dict) -> List[dict]:
 
 
 def required_ai_practice_count(textbook_count: int) -> int:
-    """Use AI practice only when the lesson has zero verified book exercises.
+    """Supplement verified textbook exercises until the lesson has 3 practices.
 
-    Product rule: preserve and solve every verified textbook exercise. If even
-    one verified textbook exercise exists, do not replace or pad it with AI.
-    AI practice is a fallback only when no book exercise can be verified.
+    Product rule:
+    - preserve and solve every verified textbook exercise;
+    - never replace a verified textbook exercise with AI;
+    - when fewer than 3 verified textbook exercises exist, add only enough
+      evidence-gated AI practice to bring the total practice count to 3.
     """
-    return 2 if textbook_count <= 0 else 0
+    count = max(0, int(textbook_count))
+    return max(0, 3 - count)
 
 
 def generate_ai_practice_for_insufficient_book_exercises(
@@ -2634,9 +2636,10 @@ def generate_ai_practice_for_insufficient_book_exercises(
             f"{profile['subject']} Grade {profile['grade']}.\n"
             f"Lesson title: {entry['canonical_title']}\n"
             f"The official textbook yielded {textbook_count} reliably "
-            "extractable exercise(s). This AI fallback is permitted ONLY because "
-            "zero textbook exercises were verified. Generate practice ONLY from "
-            "the VERIFIED LESSON SCOPE "
+            "extractable exercise(s). The product requires at least 3 practice "
+            "items per lesson, so add only the number needed to reach 3. "
+            "Preserve every verified textbook exercise and generate additional "
+            "practice ONLY from the VERIFIED LESSON SCOPE "
             "below. Do not introduce a law, definition, symbol, apparatus, "
             "formula, fact, or prerequisite that is absent from this scope. "
             "Do not require a figure. Make each question solvable entirely from "
@@ -3734,8 +3737,8 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
               "CRITICAL", f"Verified exercises: {ex_nums}")
     # Missing numbers are allowed when those page items could not be verified.
     # We never invent/fill a missing textbook exercise.
-    # 0 verified source exercises: add 2 gated AI practice exercises.
-    # 1 or more verified source exercises: preserve/solve them; add no AI.
+    # Preserve all verified source exercises. If fewer than 3 are available,
+    # add only enough gated AI practice to bring total practice to 3.
     expected_ai = required_ai_practice_count(len(textbook))
     check("AI_FALLBACK_POLICY_VIOLATION",
           len(generated) == expected_ai, "CRITICAL",
