@@ -118,9 +118,8 @@ def validate_advanced_lab_spec(spec:Dict[str,Any])->Dict[str,Any]:
     return spec
 
 def _voice_helpers(lang:str)->str:
-    # Keep the lab on the platform voice path. When the lesson runtime exists,
-    # it performs semantic/mixed-language pronunciation rather than reading
-    # raw mathematical punctuation character by character.
+    # Browser-only TTS: free SpeechSynthesis, male-first voice selection.
+    # No paid/neural TTS endpoint is required by the lab renderer.
     return f"""
       const teacherLang={json.dumps(lang)};
       let teacherToken=0,teacherTimer=0;
@@ -128,26 +127,40 @@ def _voice_helpers(lang:str)->str:
         teacherToken++;
         if(teacherTimer){{clearTimeout(teacherTimer);teacherTimer=0;}}
         try{{window.NABILLessonE2E?.stopSpeech?.();}}catch(_e){{}}
-        try{{window.stopNabilNeuralVoice?.();}}catch(_e){{}}
+        try{{window.speechSynthesis?.cancel?.();}}catch(_e){{}}
+      }}
+      function teacherMaleVoice(code){{
+        const synth=window.speechSynthesis;
+        const voices=synth?.getVoices?.()||[];
+        const hints=code==='ar'?['hamed','naayf','maged','tarik','male']:
+                    code==='fr'?['henri','paul','claude','male']:
+                                 ['guy','david','mark','ryan','george','male'];
+        const scoped=voices.filter(v=>String(v.lang||'').toLowerCase().startsWith(code));
+        return scoped.find(v=>hints.some(h=>String(v.name||'').toLowerCase().includes(h)))
+            ||scoped.find(v=>v.localService)||scoped[0]||null;
       }}
       function teacherSpeakCue(text,target,onDone){{
         const token=teacherToken; pointTeacher(target);
-        const words=String(text).trim().split(/\\s+/).filter(Boolean).length;
         const finish=()=>{{if(token===teacherToken&&onDone)onDone();}};
         if(window.NABILLessonE2E?.speak){{
-          try{{Promise.resolve(window.NABILLessonE2E.speak(text,teacherLang)).catch(()=>{{}});}}
-          catch(_e){{}}
-          teacherTimer=setTimeout(finish,Math.max(1700,words*390));
-          return;
-        }}
-        if(typeof window.nabilSpeakClear==='function'){{
           try{{
-            const label=teacherLang==='ar'?'Arabic':teacherLang==='fr'?'French':'English';
-            Promise.resolve(window.nabilSpeakClear(text,label,{{onend:finish,onerror:finish}})).catch(finish);
+            Promise.resolve(window.NABILLessonE2E.speak(text,teacherLang))
+              .then(finish).catch(finish);
             return;
           }}catch(_e){{}}
         }}
-        finish();
+        try{{
+          const synth=window.speechSynthesis;
+          if(!synth||!window.SpeechSynthesisUtterance){{finish();return;}}
+          synth.cancel();
+          const u=new SpeechSynthesisUtterance(String(text||''));
+          u.lang=teacherLang==='ar'?'ar-SA':teacherLang==='fr'?'fr-FR':'en-US';
+          u.voice=teacherMaleVoice(teacherLang);
+          u.rate=.88;u.pitch=.94;u.onend=finish;u.onerror=finish;synth.speak(u);
+          return;
+        }}catch(_e){{}}
+        const words=String(text).trim().split(/\s+/).filter(Boolean).length;
+        teacherTimer=setTimeout(finish,Math.max(1700,words*390));
       }}
       function playTeacherCues(cues){{
         teacherStop(); const token=teacherToken; let i=0;
@@ -158,6 +171,7 @@ def _voice_helpers(lang:str)->str:
         next();
       }}
     """
+
 
 def _render_circuit(spec:Dict[str,Any],lang:str,lab_id:str)->str:
     safe=_safe_id(lab_id); L=_labels(lang)
