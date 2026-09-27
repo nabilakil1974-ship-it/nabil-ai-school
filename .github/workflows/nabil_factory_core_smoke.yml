@@ -10,6 +10,7 @@ on:
       - "scripts/nabil_geometry_lab.py"
       - "scripts/nabil_quiz_engine.py"
       - "app/static/nabil_scientific_solution_cards_e2e.js"
+      - "app/static/nabil_browser_tts_v1.js"
       - "app/static/nabil_lesson_e2e_runtime_v1.js"
       - "app/static/nabil_smart_lab_bridge_v1.js"
       - "app/api/routes_smart_labs.py"
@@ -43,6 +44,7 @@ jobs:
 
       - name: Validate approved E2E JavaScript
         run: |
+          node --check app/static/nabil_browser_tts_v1.js
           node --check app/static/nabil_scientific_solution_cards_e2e.js
           node --check app/static/nabil_lesson_e2e_runtime_v1.js
           node --check app/static/nabil_smart_lab_bridge_v1.js
