@@ -89,66 +89,182 @@ def _render_formula(spec:Dict[str,Any],lang_code:str,lab_id:str)->str:
     </section>"""
 
 def _render_orientation(spec:Dict[str,Any],lang_code:str,lab_id:str)->str:
-    # مختبر اتجاه/ثبات بصري: الميل يغيّر الجسم، أما العنصر الذي تثبت قاعدته العلمية فيبقى وفق المواصفة.
+    """Direct-manipulation orientation lab.
+
+    The learner drags the vessel left/right with mouse, pen, or finger. Only
+    the vessel rotates; the evidence-backed invariant element remains at the
+    verified horizontal/vertical orientation.
+    """
     safe=_safe_id(lab_id)
     orient=str(spec["invariant_orientation"]).lower()
-    transform="rotate(0 150 95)" if orient=="horizontal" else "rotate(90 150 95)"
+    invariant_line=(
+        '<line x1="93" y1="96" x2="207" y2="96" stroke="#0284c7" '
+        'stroke-width="8" stroke-linecap="round"/>'
+        if orient=="horizontal" else
+        '<line x1="150" y1="45" x2="150" y2="148" stroke="#0284c7" '
+        'stroke-width="8" stroke-linecap="round"/>'
+    )
+    drag_hint={"ar":"اسحب الوعاء يمينًا ويسارًا","fr":"Fais glisser le récipient à gauche et à droite","en":"Drag the vessel left and right"}.get(lang_code,"Drag the vessel left and right")
+    reset_label={"ar":"إعادة","fr":"Réinitialiser","en":"Reset"}.get(lang_code,"Reset")
     return f"""
-    <section class="interactive-lab" id="lab_{safe}" data-lab-kind="ORIENTATION_INVARIANT"
-      style="margin-top:16px;background:#f0f9ff;border:1px solid #7dd3fc;border-radius:12px;padding:16px;">
-      <h3 style="margin:0 0 8px;color:#0369a1;">{html.escape(_t(lang_code,'lab_title'))} — {html.escape(spec['title'])}</h3>
-      <p style="margin:0 0 10px;color:#334155;">{html.escape(spec['instructions'])}</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-        <button type="button" class="q-opt" onclick="tilt_{safe}(-1)">↙</button>
-        <button type="button" class="q-opt" onclick="tilt_{safe}(0)">●</button>
-        <button type="button" class="q-opt" onclick="tilt_{safe}(1)">↘</button>
+    <section class="interactive-lab nabil-live-lab" id="lab_{safe}" data-lab-kind="ORIENTATION_INVARIANT"
+      style="margin-top:16px;background:#f0f9ff;border:1px solid #7dd3fc;border-radius:14px;padding:16px;box-shadow:0 8px 24px rgba(2,132,199,.08);">
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap;">
+        <div>
+          <h3 style="margin:0 0 6px;color:#0369a1;">{html.escape(_t(lang_code,'lab_title'))} — {html.escape(spec['title'])}</h3>
+          <p style="margin:0;color:#334155;">{html.escape(spec['instructions'])}</p>
+        </div>
+        <button type="button" class="q-opt" onclick="reset_{safe}()" style="min-height:44px;">↺ {html.escape(reset_label)}</button>
       </div>
-      <svg viewBox="0 0 300 190" role="img" aria-label="{html.escape(spec['title'])}" style="width:100%;max-width:520px;background:#fff;border-radius:10px;border:1px solid #cbd5e1;">
-        <g id="{safe}_moving" transform="rotate(0 150 100)">
-          <path d="M75 45 L225 45 L205 155 L95 155 Z" fill="none" stroke="#334155" stroke-width="5"/>
+      <div style="margin:12px 0 8px;font-size:12px;font-weight:700;color:#0369a1;">☝ {html.escape(drag_hint)}</div>
+      <svg id="{safe}_stage" viewBox="0 0 300 190" role="img" aria-label="{html.escape(spec['title'])}"
+        style="width:100%;max-width:560px;background:linear-gradient(#ffffff,#f8fafc);border-radius:12px;border:1px solid #cbd5e1;touch-action:none;user-select:none;cursor:grab;">
+        <defs>
+          <filter id="{safe}_shadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="4" stdDeviation="4" flood-opacity=".15"/>
+          </filter>
+        </defs>
+        <rect x="18" y="18" width="264" height="154" rx="16" fill="#f8fafc"/>
+        <g id="{safe}_moving" transform="rotate(0 150 100)" filter="url(#{safe}_shadow)">
+          <path d="M75 45 L225 45 L205 155 L95 155 Z" fill="#ffffff" stroke="#334155" stroke-width="5"/>
+          <circle id="{safe}_grab" cx="150" cy="32" r="12" fill="#0ea5e9" stroke="#ffffff" stroke-width="4"/>
+          <path d="M143 32h14M150 25v14" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round"/>
         </g>
-        <line x1="98" y1="95" x2="202" y2="95" stroke="#0284c7" stroke-width="7" transform="{transform}"/>
+        <g id="{safe}_invariant">{invariant_line}</g>
+        <text id="{safe}_angleText" x="150" y="181" text-anchor="middle" font-size="11" fill="#64748b">0°</text>
       </svg>
       <p style="font-size:12px;color:#475569;margin:10px 0 0;">{html.escape(spec['observation'])}</p>
       <script>
-      function tilt_{safe}(dir){{
-        const angle=dir<0?-18:(dir>0?18:0);
-        document.getElementById('{safe}_moving').setAttribute('transform','rotate('+angle+' 150 100)');
-      }}
+      (()=>{{
+        const stage=document.getElementById('{safe}_stage');
+        const moving=document.getElementById('{safe}_moving');
+        const angleText=document.getElementById('{safe}_angleText');
+        let active=false,startX=0,startAngle=0,angle=0,pid=null;
+        function apply(next){{
+          angle=Math.max(-28,Math.min(28,next));
+          moving.setAttribute('transform','rotate('+angle.toFixed(1)+' 150 100)');
+          angleText.textContent=angle.toFixed(0)+'°';
+        }}
+        function localX(e){{
+          const pt=stage.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;
+          return pt.matrixTransform(stage.getScreenCTM().inverse()).x;
+        }}
+        stage.addEventListener('pointerdown',e=>{{
+          active=true;pid=e.pointerId;startX=localX(e);startAngle=angle;
+          stage.setPointerCapture?.(pid);stage.style.cursor='grabbing';e.preventDefault();
+        }});
+        stage.addEventListener('pointermove',e=>{{
+          if(!active||e.pointerId!==pid)return;
+          apply(startAngle+(localX(e)-startX)*0.34);e.preventDefault();
+        }});
+        const end=e=>{{
+          if(!active||e.pointerId!==pid)return;
+          active=false;stage.releasePointerCapture?.(pid);stage.style.cursor='grab';
+        }};
+        stage.addEventListener('pointerup',end);
+        stage.addEventListener('pointercancel',end);
+        window.reset_{safe}=()=>apply(0);
+      }})();
       </script>
     </section>"""
 
+
 def _render_shape(spec:Dict[str,Any],lang_code:str,lab_id:str)->str:
-    # مختبر استجابة الشكل: يغيّر الطالب الوعاء، والسلوك المرئي يأتي من behavior الموثق لا من تخمين المحرك.
-    safe=_safe_id(lab_id); fixed=str(spec["behavior"]).lower()=="fixed"
+    """Drag-and-drop state/shape lab with two real drop zones."""
+    safe=_safe_id(lab_id)
+    fixed=str(spec["behavior"]).lower()=="fixed"
     fixed_js="true" if fixed else "false"
+    drag_hint={"ar":"اسحب المادة من الوعاء A إلى الوعاء B","fr":"Fais glisser la matière du récipient A vers B","en":"Drag the material from vessel A to vessel B"}.get(lang_code,"Drag the material from vessel A to vessel B")
+    reset_label={"ar":"إعادة","fr":"Réinitialiser","en":"Reset"}.get(lang_code,"Reset")
     return f"""
-    <section class="interactive-lab" id="lab_{safe}" data-lab-kind="SHAPE_RESPONSE"
-      style="margin-top:16px;background:#f0f9ff;border:1px solid #7dd3fc;border-radius:12px;padding:16px;">
-      <h3 style="margin:0 0 8px;color:#0369a1;">{html.escape(_t(lang_code,'lab_title'))} — {html.escape(spec['title'])}</h3>
-      <p style="margin:0 0 10px;color:#334155;">{html.escape(spec['instructions'])}</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-        <button type="button" class="q-opt" onclick="shape_{safe}('wide')">A</button>
-        <button type="button" class="q-opt" onclick="shape_{safe}('narrow')">B</button>
+    <section class="interactive-lab nabil-live-lab" id="lab_{safe}" data-lab-kind="SHAPE_RESPONSE"
+      style="margin-top:16px;background:#f0f9ff;border:1px solid #7dd3fc;border-radius:14px;padding:16px;box-shadow:0 8px 24px rgba(2,132,199,.08);">
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap;">
+        <div>
+          <h3 style="margin:0 0 6px;color:#0369a1;">{html.escape(_t(lang_code,'lab_title'))} — {html.escape(spec['title'])}</h3>
+          <p style="margin:0;color:#334155;">{html.escape(spec['instructions'])}</p>
+        </div>
+        <button type="button" class="q-opt" onclick="reset_{safe}()" style="min-height:44px;">↺ {html.escape(reset_label)}</button>
       </div>
-      <svg viewBox="0 0 320 190" style="width:100%;max-width:520px;background:#fff;border-radius:10px;border:1px solid #cbd5e1;">
-        <path id="{safe}_vessel" d="M70 40 L250 40 L230 160 L90 160 Z" fill="none" stroke="#334155" stroke-width="5"/>
-        <rect id="{safe}_matter" x="115" y="95" width="90" height="55" rx="8" fill="#7dd3fc" opacity="0.85"/>
+      <div style="margin:12px 0 8px;font-size:12px;font-weight:700;color:#0369a1;">☝ {html.escape(drag_hint)}</div>
+      <svg id="{safe}_stage" viewBox="0 0 420 220" role="img" aria-label="{html.escape(spec['title'])}"
+        style="width:100%;max-width:620px;background:linear-gradient(#ffffff,#f8fafc);border-radius:12px;border:1px solid #cbd5e1;touch-action:none;user-select:none;">
+        <defs>
+          <filter id="{safe}_shadow" x="-30%" y="-30%" width="160%" height="160%">
+            <feDropShadow dx="0" dy="5" stdDeviation="5" flood-opacity=".18"/>
+          </filter>
+        </defs>
+        <text x="105" y="30" text-anchor="middle" font-size="15" font-weight="700" fill="#334155">A</text>
+        <text x="315" y="30" text-anchor="middle" font-size="15" font-weight="700" fill="#334155">B</text>
+        <path id="{safe}_vesselA" d="M45 48 L165 48 L150 190 L60 190 Z" fill="#fff" stroke="#334155" stroke-width="4"/>
+        <path id="{safe}_vesselB" d="M262 48 L368 48 L352 190 L278 190 Z" fill="#fff" stroke="#334155" stroke-width="4"/>
+        <g id="{safe}_matter" filter="url(#{safe}_shadow)" style="cursor:grab">
+          <path id="{safe}_matterShape" d="M70 116 L140 116 L137 178 L73 178 Z" fill="#38bdf8" opacity=".82" stroke="#0284c7" stroke-width="2"/>
+          <circle cx="105" cy="145" r="11" fill="#ffffff" opacity=".92"/>
+          <path d="M98 145h14M105 138v14" stroke="#0284c7" stroke-width="2.5" stroke-linecap="round"/>
+        </g>
+        <rect id="{safe}_dropA" x="38" y="40" width="134" height="158" rx="14" fill="transparent" stroke="transparent" stroke-width="4"/>
+        <rect id="{safe}_dropB" x="254" y="40" width="122" height="158" rx="14" fill="transparent" stroke="transparent" stroke-width="4"/>
       </svg>
+      <div id="{safe}_state" aria-live="polite" style="margin-top:8px;font-size:12px;font-weight:700;color:#0369a1;"></div>
       <p style="font-size:12px;color:#475569;margin:10px 0 0;">{html.escape(spec['observation'])}</p>
       <script>
-      function shape_{safe}(kind){{
-        const vessel=document.getElementById('{safe}_vessel');
+      (()=>{{
+        const stage=document.getElementById('{safe}_stage');
         const matter=document.getElementById('{safe}_matter');
-        vessel.setAttribute('d',kind==='wide'?'M70 40 L250 40 L230 160 L90 160 Z':'M115 35 L205 35 L190 160 L130 160 Z');
+        const shape=document.getElementById('{safe}_matterShape');
+        const state=document.getElementById('{safe}_state');
+        const dropA=document.getElementById('{safe}_dropA');
+        const dropB=document.getElementById('{safe}_dropB');
         const fixed={fixed_js};
-        if(!fixed){{
-          if(kind==='wide'){{matter.setAttribute('x','96');matter.setAttribute('width','128');}}
-          else{{matter.setAttribute('x','132');matter.setAttribute('width','56');}}
+        let active=false,pid=null,start={{x:0,y:0}},offset={{x:0,y:0}},home='A';
+        function svgPoint(e){{
+          const pt=stage.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;
+          return pt.matrixTransform(stage.getScreenCTM().inverse());
         }}
-      }}
+        function setTransform(x,y){{offset={{x:x,y:y}};matter.setAttribute('transform','translate('+x+' '+y+')');}}
+        function inBox(p,el){{
+          const b=el.getBBox();
+          return p.x>=b.x&&p.x<=b.x+b.width&&p.y>=b.y&&p.y<=b.y+b.height;
+        }}
+        function setShape(dest){{
+          if(fixed){{shape.setAttribute('d','M70 116 L140 116 L137 178 L73 178 Z');return;}}
+          if(dest==='B')shape.setAttribute('d','M285 115 L345 115 L340 178 L290 178 Z');
+          else shape.setAttribute('d','M70 116 L140 116 L137 178 L73 178 Z');
+        }}
+        function snap(dest){{
+          home=dest;
+          if(dest==='B'){{
+            if(fixed){{setShape('A');setTransform(210,0);}}
+            else{{setTransform(0,0);setShape('B');}}
+          }}else{{setTransform(0,0);setShape('A');}}
+          dropA.setAttribute('stroke','transparent');dropB.setAttribute('stroke','transparent');
+          state.textContent=dest;
+        }}
+        matter.addEventListener('pointerdown',e=>{{
+          active=true;pid=e.pointerId;start=svgPoint(e);
+          matter.setPointerCapture?.(pid);matter.style.cursor='grabbing';e.preventDefault();
+        }});
+        matter.addEventListener('pointermove',e=>{{
+          if(!active||e.pointerId!==pid)return;
+          const p=svgPoint(e),dx=p.x-start.x,dy=p.y-start.y;
+          matter.setAttribute('transform','translate('+(offset.x+dx)+' '+(offset.y+dy)+')');
+          dropA.setAttribute('stroke',inBox(p,dropA)?'#38bdf8':'transparent');
+          dropB.setAttribute('stroke',inBox(p,dropB)?'#38bdf8':'transparent');
+          e.preventDefault();
+        }});
+        const end=e=>{{
+          if(!active||e.pointerId!==pid)return;
+          const p=svgPoint(e);active=false;matter.releasePointerCapture?.(pid);matter.style.cursor='grab';
+          if(inBox(p,dropB))snap('B');else if(inBox(p,dropA))snap('A');else snap(home);
+        }};
+        matter.addEventListener('pointerup',end);
+        matter.addEventListener('pointercancel',end);
+        window.reset_{safe}=()=>{{home='A';setTransform(0,0);setShape('A');state.textContent='';}};
+      }})();
       </script>
     </section>"""
+
 
 def render_verified_lab(spec:Dict[str,Any],lang_code:str,lab_id:str)->Tuple[str,bool]:
     # نقطة الدخول الوحيدة: المختبر لا يظهر قبل نجاح validate_lab_spec.
