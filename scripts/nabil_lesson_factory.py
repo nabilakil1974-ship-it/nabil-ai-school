@@ -2558,6 +2558,47 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
     for e in unique_ex:
         e["solution_mode"] = "PRE_SOLVED"
 
+    # An unresolved printed figure is critical only when accepted lesson
+    # content actually refers to that figure. Otherwise it remains explicitly
+    # recorded as skipped/unverified and is never rendered or used as evidence.
+    def _explicit_figure_labels(text_value: str) -> set:
+        return {
+            str(label).casefold()
+            for label in re.findall(
+                r"(?:fig(?:ure)?\.?|document|doc|شكل|وثيقة)\s*(\d+[a-z]?)",
+                str(text_value or ""),
+                re.I,
+            )
+        }
+
+    for page_item in pages_evidence:
+        unresolved = {
+            str(x).casefold()
+            for x in (page_item.get("unverified_figure_labels") or [])
+        }
+        used_labels = set()
+        if unresolved:
+            page_no = int(page_item["page_num"])
+            for concept in concepts:
+                if int(concept.get("source_page") or -1) == page_no:
+                    used_labels |= _explicit_figure_labels(
+                        concept.get("raw_text", ""))
+            for exercise in unique_ex:
+                if int(exercise.get("source_page") or -1) == page_no:
+                    used_labels |= _explicit_figure_labels(
+                        exercise.get("exact_source_prompt", ""))
+        required_unverified = sorted(unresolved & used_labels)
+        optional_unverified = sorted(unresolved - used_labels)
+        page_item["required_unverified_figure_labels"] = required_unverified
+        page_item["skipped_unverified_figure_labels"] = optional_unverified
+        for label in optional_unverified:
+            progress(
+                "SKIPPED_UNVERIFIED_SOURCE_FIGURE",
+                page=page_item["page_num"],
+                figure_label=label,
+                reason="NOT_REFERENCED_BY_ACCEPTED_CONCEPT_OR_EXERCISE",
+            )
+
     ev_map = {
         "lesson_id": lesson_id,
         "book_id": entry["book_id"],
@@ -3775,14 +3816,22 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
     expected_p = s_lock["end"] - s_lock["start"] + 1
     check("SOURCE_COVERAGE_INCOMPLETE", len(ev_map["pages_evidence"]) == expected_p, "CRITICAL", f"{len(ev_map['pages_evidence'])}/{expected_p} pages")
 
-    unresolved_figures = {
-        p["page_num"]: p.get("unverified_figure_labels", [])
+    required_unresolved_figures = {
+        p["page_num"]: p.get("required_unverified_figure_labels", [])
         for p in ev_map["pages_evidence"]
-        if p.get("unverified_figure_labels")
+        if p.get("required_unverified_figure_labels")
     }
-    check("SOURCE_FIGURE_COVERAGE_INCOMPLETE",
-          not unresolved_figures, "CRITICAL",
-          f"unverified_source_figures={unresolved_figures}")
+    skipped_optional_figures = {
+        p["page_num"]: p.get("skipped_unverified_figure_labels", [])
+        for p in ev_map["pages_evidence"]
+        if p.get("skipped_unverified_figure_labels")
+    }
+    check("SOURCE_FIGURE_REQUIRED_COVERAGE_INCOMPLETE",
+          not required_unresolved_figures, "CRITICAL",
+          f"required_unverified_source_figures={required_unresolved_figures}")
+    check("OPTIONAL_SOURCE_FIGURE_SKIPPED",
+          not skipped_optional_figures, "WARNING",
+          f"skipped_unverified_source_figures={skipped_optional_figures}")
 
     textbook = [
         e for e in candidate["exercises"]
