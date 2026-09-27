@@ -463,9 +463,14 @@ def execute_llm_completion(
     max_requests = max(
         3, min(30, int(os.getenv(
             "NABIL_FACTORY_MAX_FAILOVER_REQUESTS", "12"))))
+    # Source-grounding passes often have only one healthy fallback left
+    # after a malformed-JSON provider is excluded and another provider is out
+    # of quota. A normal transient 429 cooldown around 30-60s must not abort
+    # the whole lesson. Keep the wait bounded/configurable, but default to 60s
+    # so a short source-critical cooldown can recover in the same run.
     max_all_wait = max(
         0.0, min(1800.0, float(os.getenv(
-            "NABIL_FACTORY_MAX_ALL_PROVIDER_WAIT_SECONDS", "30"))))
+            "NABIL_FACTORY_MAX_ALL_PROVIDER_WAIT_SECONDS", "60"))))
     provider_attempts = {p: 0 for p in candidates}
     total_requests = 0
 
