@@ -150,7 +150,6 @@ function liveNode(){
 function stopSpeech(){
  speechToken++;
  if(speechTimer){clearTimeout(speechTimer);speechTimer=0;}
- try{window.stopNabilNeuralVoice?.()}catch(_e){}
  try{window.speechSynthesis?.cancel?.()}catch(_e){}
  const live=liveNode();live.style.display="none";live.textContent="";
 }
@@ -176,38 +175,43 @@ async function speak(text,requested=lang){
  }
  const clean=stripSpeech(text,requested);if(!clean)return;
  stopSpeech();const token=++speechToken;
- if(typeof window.nabilSpeakClear==="function"){
-   let duration=0,started=false;
-   try{
-    await Promise.resolve(window.nabilSpeakClear(clean,langLabel(requested),{
-      onduration:d=>{duration=Number(d)||0;},
-      onstart:()=>{if(!started){started=true;progressive(clean,duration,token);}},
-      onend:()=>{if(token===speechToken){const n=liveNode();n.textContent=clean;setTimeout(()=>{if(token===speechToken)n.style.display="none";},900);}},
-      onerror:()=>{if(token===speechToken)liveNode().style.display="none";}
-    }));
-    return;
-   }catch(_e){}
- }
  const synth=window.speechSynthesis;
  if(!synth||!window.SpeechSynthesisUtterance)return;
+ if(!(synth.getVoices?.()||[]).length){
+   await new Promise(resolve=>{
+     let done=false;
+     const finish=()=>{if(done)return;done=true;resolve();};
+     try{synth.addEventListener("voiceschanged",finish,{once:true});}catch(_e){}
+     setTimeout(finish,650);
+   });
+ }
  const segments=tokenizeSegments(clean,requested);
  let shown="";
  const live=liveNode();live.style.display="block";live.textContent="";
- const run=i=>{
-   if(token!==speechToken||i>=segments.length){if(token===speechToken)setTimeout(()=>{if(token===speechToken)live.style.display="none";},900);return;}
-   const seg=segments[i],u=new SpeechSynthesisUtterance(seg.text);
-   u.lang=seg.lang==="ar"?"ar-SA":seg.lang==="fr"?"fr-FR":"en-US";
-   u.voice=preferredVoice(seg.lang);u.rate=Math.max(.72,Math.min(1.12,Number(window.nabilVoicePace||.9)));
-   u.onstart=()=>{shown+=seg.text;live.textContent=shown;live.scrollTop=live.scrollHeight;};
-   u.onboundary=e=>{
-     if(token!==speechToken)return;
-     const before=shown.slice(0,Math.max(0,shown.length-seg.text.length));
-     live.textContent=before+seg.text.slice(0,(e.charIndex||0)+1);
+ return await new Promise(resolve=>{
+   const run=i=>{
+     if(token!==speechToken){resolve();return;}
+     if(i>=segments.length){
+       if(token===speechToken)setTimeout(()=>{if(token===speechToken)live.style.display="none";},900);
+       resolve();return;
+     }
+     const seg=segments[i],u=new SpeechSynthesisUtterance(seg.text);
+     u.lang=seg.lang==="ar"?"ar-SA":seg.lang==="fr"?"fr-FR":"en-US";
+     u.voice=preferredVoice(seg.lang);
+     u.rate=Math.max(.72,Math.min(1.12,Number(window.nabilVoicePace||.9)));
+     u.pitch=.94;
+     u.onstart=()=>{shown+=seg.text;live.textContent=shown;live.scrollTop=live.scrollHeight;};
+     u.onboundary=e=>{
+       if(token!==speechToken)return;
+       const before=shown.slice(0,Math.max(0,shown.length-seg.text.length));
+       live.textContent=before+seg.text.slice(0,(e.charIndex||0)+1);
+     };
+     u.onend=()=>run(i+1);
+     u.onerror=()=>run(i+1);
+     synth.speak(u);
    };
-   u.onend=()=>run(i+1);u.onerror=()=>run(i+1);
-   synth.speak(u);
- };
- run(0);
+   run(0);
+ });
 }
 
 function getStudentId(){
