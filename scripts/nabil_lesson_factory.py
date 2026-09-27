@@ -4682,6 +4682,136 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
     return spec
 
 
+
+def render_whole_lesson_smart_lab(
+        title: str, activities: list, lang_code: str) -> str:
+    """One final Smart Board that orchestrates every already-verified concept lab.
+
+    It introduces no new science.  Each slide uses the audited narrative and
+    loads that concept's prebuilt lab inside an isolated iframe, so ids/scripts
+    do not collide with the concept lab already embedded beside its paragraph.
+    """
+    if not activities:
+        return ""
+    labels = {
+        "ar": {
+            "title": "🧠 مختبر نبيل الشامل للدرس",
+            "subtitle": "سيشرح نبيل الدرس من الفكرة الأولى حتى الأخيرة، مع المختبر المناسب لكل فكرة.",
+            "prev": "◀ الفكرة السابقة",
+            "next": "الفكرة التالية ▶",
+            "current": "🔊 اشرح هذه الفكرة",
+            "all": "▶ اشرح الدرس من البداية",
+            "stop": "■ أوقف الشرح",
+            "teacher": "نبيل يشرح الآن",
+            "see": "انظر", "try": "جرّب", "notice": "لاحظ",
+            "think": "فكّر", "conclude": "استنتج",
+        },
+        "fr": {
+            "title": "🧠 Laboratoire intégral de la leçon",
+            "subtitle": "NABIL enseigne la leçon du premier concept au dernier avec le laboratoire vérifié de chaque idée.",
+            "prev": "◀ Concept précédent", "next": "Concept suivant ▶",
+            "current": "🔊 Expliquer ce concept",
+            "all": "▶ Expliquer toute la leçon",
+            "stop": "■ Arrêter", "teacher": "NABIL explique",
+            "see": "Observe", "try": "Essaie", "notice": "Remarque",
+            "think": "Réfléchis", "conclude": "Conclus",
+        },
+        "en": {
+            "title": "🧠 NABIL Whole-Lesson Smart Lab",
+            "subtitle": "NABIL teaches the lesson from the first concept to the last, using each concept's verified lab.",
+            "prev": "◀ Previous concept", "next": "Next concept ▶",
+            "current": "🔊 Explain this concept",
+            "all": "▶ Explain the whole lesson",
+            "stop": "■ Stop", "teacher": "NABIL is explaining",
+            "see": "See", "try": "Try", "notice": "Notice",
+            "think": "Think", "conclude": "Conclude",
+        },
+    }[lang_code if lang_code in {"ar", "fr", "en"} else "en"]
+    slides = []
+    for act in activities:
+        lab_html = str(act.get("lab_html") or "")
+        if not lab_html:
+            continue
+        match = re.search(r'data-demo-ms="(\d+)"', lab_html)
+        demo_ms = max(3500, min(30000, int(match.group(1)) if match else 9000))
+        flow = [
+            [labels["see"], str(act.get("phenomenon") or "")],
+            [labels["try"], str(act.get("investigation") or "")],
+            [labels["notice"], str(act.get("observation") or "")],
+            [labels["think"], str(act.get("interpretation") or "")],
+            [labels["conclude"], str(act.get("conclusion") or "")],
+        ]
+        flow = [{"label": k, "text": v} for k, v in flow if v.strip()]
+        srcdoc = (
+            '<!doctype html><html><head><meta charset="utf-8">'
+            '<meta name="viewport" content="width=device-width,initial-scale=1">'
+            '<style>html,body{margin:0;background:#05172d;color:#eef8ff;overflow-x:hidden}'
+            'body{padding:4px}*{box-sizing:border-box}</style>'
+            '<script>try{window.NABILLessonE2E=parent.NABILLessonE2E}catch(e){}</script>'
+            '</head><body>' + lab_html + '</body></html>'
+        )
+        slides.append({
+            "concept_id": str(act.get("concept_id") or ""),
+            "title": str(act.get("title") or ""),
+            "flow": flow,
+            "srcdoc": srcdoc,
+            "demo_ms": demo_ms,
+        })
+    if not slides:
+        return ""
+    payload = json.dumps(slides, ensure_ascii=False).replace("</", "<\\/")
+    return f'''
+<section id="nabilWholeLessonSmartLab" class="nabil-whole-lesson-smart-lab"
+ data-whole-lesson-smart-lab="true" data-renderer-contract="{REFERENCE_RENDERER_CONTRACT}"
+ data-concept-count="{len(slides)}" style="margin-top:26px;background:#071827;color:#eef8ff;border:1px solid #24506f;border-radius:18px;padding:13px;box-shadow:0 18px 42px #0006;">
+ <style>
+ #nabilWholeLessonSmartLab .wl-top{{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}}
+ #nabilWholeLessonSmartLab .wl-teacher{{display:flex;align-items:center;gap:7px;background:#061725;border:1px solid #2b6485;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:800}}
+ #nabilWholeLessonSmartLab .wl-orb{{width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#2de1ff 35%,#0c5d76 70%);box-shadow:0 0 16px #2de1ff99}}
+ #nabilWholeLessonSmartLab .wl-layout{{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(280px,.8fr);gap:11px;margin-top:10px}}
+ #nabilWholeLessonSmartLab .wl-stage{{background:#020912;border:1px solid #1c4569;border-radius:14px;overflow:hidden;min-width:0}}
+ #nabilWholeLessonSmartLab iframe{{display:block;width:100%;height:590px;border:0;background:#05172d}}
+ #nabilWholeLessonSmartLab .wl-panel{{background:#061725;border:1px solid #1a3b55;border-radius:13px;padding:11px;min-width:0}}
+ #nabilWholeLessonSmartLab .wl-flow{{display:grid;gap:7px;margin-top:8px}}
+ #nabilWholeLessonSmartLab .wl-row{{padding:8px 9px;border-inline-start:3px solid #2de1ff;background:#09243b;border-radius:8px;line-height:1.55}}
+ #nabilWholeLessonSmartLab .wl-row b{{color:#65dfff}}
+ #nabilWholeLessonSmartLab .wl-controls{{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}}
+ #nabilWholeLessonSmartLab button{{min-height:44px;border:1px solid #426d8b;background:#153955;color:#fff;padding:8px 11px;border-radius:9px;font-weight:800}}
+ #nabilWholeLessonSmartLab .wl-play{{background:#6047a8;border-color:#a98cff}}
+ #nabilWholeLessonSmartLab .wl-stop{{background:#5a2330;border-color:#bd546b}}
+ #nabilWholeLessonSmartLab .wl-timeline{{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}}
+ #nabilWholeLessonSmartLab .wl-dot{{width:32px;height:32px;min-height:32px;border-radius:50%;padding:0;background:#071725;color:#9fb5c9;border:1px solid #31506b}}
+ #nabilWholeLessonSmartLab .wl-dot.on{{background:#0b5d70;border-color:#2de1ff;color:#fff}}
+ #nabilWholeLessonSmartLab .wl-dot.done{{background:#0d4c3c;border-color:#55e6a4;color:#fff}}
+ @media(max-width:920px){{#nabilWholeLessonSmartLab .wl-layout{{grid-template-columns:1fr}}#nabilWholeLessonSmartLab iframe{{height:520px}}}}
+ @media(max-width:430px){{#nabilWholeLessonSmartLab{{padding:7px}}#nabilWholeLessonSmartLab iframe{{height:66vh;min-height:430px}}#nabilWholeLessonSmartLab .wl-controls{{display:grid;grid-template-columns:1fr 1fr}}}}
+ </style>
+ <div class="wl-top"><div><h2 style="margin:0;color:#65dfff">{html.escape(labels["title"])}</h2><p style="margin:4px 0;color:#b9d7ea">{html.escape(labels["subtitle"])}</p></div>
+ <div class="wl-teacher"><span class="wl-orb"></span><span>{html.escape(labels["teacher"])}</span></div></div>
+ <div class="wl-layout"><div class="wl-stage"><iframe id="nabilWholeLessonFrame" title="{html.escape(labels["title"])}"></iframe></div>
+ <aside class="wl-panel"><div style="font-size:11px;color:#9fb5c9">{html.escape(title)}</div><h3 id="nabilWholeLessonTitle" style="color:#ffd76b;margin:6px 0"></h3><div class="wl-flow" id="nabilWholeLessonFlow"></div></aside></div>
+ <div class="wl-controls"><button id="nabilWholePrev">{html.escape(labels["prev"])}</button><button id="nabilWholeNext">{html.escape(labels["next"])}</button><button id="nabilWholeCurrent">{html.escape(labels["current"])}</button><button class="wl-play" id="nabilWholePlay">{html.escape(labels["all"])}</button><button class="wl-stop" id="nabilWholeStop">{html.escape(labels["stop"])}</button></div>
+ <div class="wl-timeline" id="nabilWholeTimeline"></div>
+ <script>
+ (()=>{{
+  const slides={payload};let idx=0,runToken=0,loadingToken=0;
+  const frame=document.getElementById('nabilWholeLessonFrame'),titleEl=document.getElementById('nabilWholeLessonTitle'),flowEl=document.getElementById('nabilWholeLessonFlow'),timeline=document.getElementById('nabilWholeTimeline');
+  function stop(){{runToken++;try{{window.NABILLessonE2E?.stopSpeech?.()}}catch(_e){{}}}}
+  function buildTimeline(){{timeline.innerHTML='';slides.forEach((_,i)=>{{const b=document.createElement('button');b.className='wl-dot';b.textContent=i+1;b.onclick=()=>{{stop();idx=i;render()}};timeline.appendChild(b)}})}}
+  function render(){{const s=slides[idx];titleEl.textContent=(idx+1)+'. '+s.title;flowEl.innerHTML='';s.flow.forEach(r=>{{const d=document.createElement('div');d.className='wl-row';const b=document.createElement('b');b.textContent=r.label+': ';const span=document.createElement('span');span.textContent=r.text;d.append(b,span);flowEl.appendChild(d)}});loadingToken++;frame.srcdoc=s.srcdoc;[...timeline.children].forEach((b,i)=>b.className='wl-dot '+(i<idx?'done':i===idx?'on':''))}}
+  function demoCurrent(done){{const my=++loadingToken;const launch=()=>{{if(my!==loadingToken)return;try{{frame.contentDocument?.querySelector('.interactive-lab')?.dispatchEvent(new CustomEvent('nabil:demo'))}}catch(_e){{}}if(done)setTimeout(done,slides[idx].demo_ms)}};if(frame.contentDocument?.readyState==='complete')setTimeout(launch,180);else frame.onload=()=>setTimeout(launch,180)}}
+  function playAll(){{stop();const token=runToken;idx=0;const next=()=>{{if(token!==runToken||idx>=slides.length)return;render();demoCurrent(()=>{{if(token!==runToken)return;idx++;if(idx<slides.length)setTimeout(next,400)}})}};next()}}
+  document.getElementById('nabilWholePrev').onclick=()=>{{stop();idx=(idx+slides.length-1)%slides.length;render()}};
+  document.getElementById('nabilWholeNext').onclick=()=>{{stop();idx=(idx+1)%slides.length;render()}};
+  document.getElementById('nabilWholeCurrent').onclick=()=>{{stop();demoCurrent()}};
+  document.getElementById('nabilWholePlay').onclick=playAll;
+  document.getElementById('nabilWholeStop').onclick=stop;
+  buildTimeline();render();
+ }})();
+ </script>
+</section>'''
+
+
 def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> dict:
     title = entry["canonical_title"]
     concepts = ev_map["concepts"]
@@ -4903,6 +5033,9 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
     ]
     any_active_sim = bool(all_labs_html)
 
+    whole_lesson_lab_html = render_whole_lesson_smart_lab(
+        title, activities_theory, lesson_lang_code)
+
     # Full-coverage quiz: reuses the exact grounded conclusion/distractor
     # fields already produced per concept above — no new LLM calls, no new
     # invented content, same evidence guarantee as the worksheet.
@@ -4919,7 +5052,9 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
         "quiz_html": full_quiz_html,
         "quiz_eligible_count": sum(
             1 for act in activities_theory if act.get("student_question")),
-        "reference_card_html": ref_card_html
+        "reference_card_html": ref_card_html,
+        "whole_lesson_lab_html": whole_lesson_lab_html,
+        "whole_lesson_lab_active": bool(whole_lesson_lab_html),
     }
 
 
@@ -5056,6 +5191,7 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict, lab_index: Opt
     {ws_items}
   </div>
   {theory.get("quiz_html", "")}
+  {theory.get("whole_lesson_lab_html", "")}
   {theory.get("reference_card_html", "")}
 </div>
 <div id="zoomModal" onclick="this.style.display='none'"><img id="zoomImg" src=""></div>
@@ -5319,6 +5455,14 @@ def build_prebuilt_lab_index(entry: dict, theory: dict, exercises: list) -> dict
         },
         "concept_labs": concept_labs,
         "exercise_labs": exercise_labs,
+        "whole_lesson_lab": {
+            "key": "lesson:whole",
+            "artifact": "theory",
+            "renderer_contract": REFERENCE_RENDERER_CONTRACT,
+            "concept_keys": [x["key"] for x in concept_labs],
+            "prebuilt": True,
+            "active": bool(theory.get("whole_lesson_lab_active")),
+        },
         "runtime_ai_required_for_indexed_labs": False,
     }
 
@@ -5756,6 +5900,19 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
         "CRITICAL",
         "Standalone/embedded lab index must identify this lesson and declare zero runtime AI for indexed labs",
     )
+    whole_lab = lab_index.get("whole_lesson_lab") or {}
+    check(
+        "WHOLE_LESSON_SMART_LAB_MISSING",
+        whole_lab.get("key") == "lesson:whole"
+        and whole_lab.get("prebuilt") is True
+        and whole_lab.get("active") is True
+        and len(whole_lab.get("concept_keys") or []) == len(concept_lab_index)
+        and 'data-whole-lesson-smart-lab="true"' in candidate["page_a_html"]
+        and 'id="nabilWholeLessonFrame"' in candidate["page_a_html"],
+        "CRITICAL",
+        "Every lesson must ship one final Smart Board orchestrating all verified concept labs",
+    )
+
     check(
         "PREBUILT_CONCEPT_LAB_INDEX_INCOMPLETE",
         len(concept_lab_index) == len(ev_map.get("concepts") or [])
