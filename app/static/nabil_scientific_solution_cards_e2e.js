@@ -292,6 +292,8 @@ function renderCard(spec={},target){
  host.replaceChildren(card);
  card.dataset.nabilSpeechText=speechTextFromSpec(spec);
  card.dataset.nabilSpeechLanguage=playbackLanguage(spec);
+ if(text(spec.lab_key))card.dataset.nabilSolutionLabKey=text(spec.lab_key);
+ if(text(spec.renderer_contract))card.dataset.nabilRendererContract=text(spec.renderer_contract);
 
  card.querySelector("[data-nabil-enlarge]")?.addEventListener("click",()=>{
    const stage=card.querySelector(".nabil-sci-visual-stage");
