@@ -365,14 +365,15 @@ def _render_sequence(spec:Dict[str,Any],lang_code:str,lab_id:str)->str:
      const el=document.getElementById('{safe}_step_'+i);
      if(el) pointer.style.transform='translateY('+(el.offsetTop)+'px)';
    }}
-   function play(){{
-     stopAll();const mine=token;let i=0;
-     const next=()=>{{
-       if(mine!==token||i>=labels.length)return;
+   async function play(){{
+     stopAll();const mine=token;
+     for(let i=0;i<labels.length;i++){{
+       if(mine!==token)return;
        focus(i);
-       try{{window.NABILLessonE2E?.speak?.(labels[i],{json.dumps(lang_code)});}}catch(_e){{}}
-       i++;timers.push(setTimeout(next,2800));
-     }};next();
+       try{{await Promise.resolve(window.NABILLessonE2E?.speak?.(labels[i],{json.dumps(lang_code)}));}}catch(_e){{}}
+       if(mine!==token)return;
+       await new Promise(resolve=>timers.push(setTimeout(resolve,220)));
+     }}
    }}
    document.getElementById('{safe}_teach').addEventListener('click',play);
    document.getElementById('{safe}_stop').addEventListener('click',stopAll);
@@ -434,16 +435,20 @@ def _render_evidence_reveal(spec:Dict[str,Any],lang_code:str,lab_id:str)->str:
      const el=document.getElementById('{safe}_item_'+index);
      if(el) pointer.style.transform='translateY('+Math.max(0,el.offsetTop-7)+'px)';
    }}
-   function speakCurrent(){{
+   async function speakCurrent(){{
      focus(index);
-     try{{window.NABILLessonE2E?.speak?.(labels[index],{json.dumps(lang_code)});}}catch(_e){{}}
+     try{{await Promise.resolve(window.NABILLessonE2E?.speak?.(labels[index],{json.dumps(lang_code)}));}}catch(_e){{}}
    }}
-   function play(){{
+   async function play(){{
      stopAll();const mine=token;index=0;
-     const next=()=>{{
-       if(mine!==token||index>=labels.length)return;
-       speakCurrent();index++;timers.push(setTimeout(next,2400));
-     }};next();
+     while(index<labels.length){{
+       if(mine!==token)return;
+       await speakCurrent();
+       if(mine!==token)return;
+       index++;
+       if(index<labels.length)
+         await new Promise(resolve=>timers.push(setTimeout(resolve,220)));
+     }}
    }}
    document.getElementById('{safe}_teach').addEventListener('click',play);
    document.getElementById('{safe}_next').addEventListener('click',()=>{{stopAll();index=(index+1)%labels.length;speakCurrent();}});
