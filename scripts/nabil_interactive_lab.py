@@ -14,10 +14,20 @@ import re
 from typing import Dict,Any,Tuple
 try:
     from scripts.nabil_i18n import t as _t
+    from scripts.nabil_advanced_lab import (
+        ADVANCED_LAB_KINDS,
+        render_advanced_verified_lab,
+        validate_advanced_lab_spec,
+    )
 except Exception:
     from nabil_i18n import t as _t
+    from nabil_advanced_lab import (
+        ADVANCED_LAB_KINDS,
+        render_advanced_verified_lab,
+        validate_advanced_lab_spec,
+    )
 
-_ALLOWED_KINDS={"FORMULA_CALCULATOR","ORIENTATION_INVARIANT","SHAPE_RESPONSE"}
+_ALLOWED_KINDS={"FORMULA_CALCULATOR","ORIENTATION_INVARIANT","SHAPE_RESPONSE"} | ADVANCED_LAB_KINDS
 _ALLOWED_OPS={"+","-","*","/"}
 
 def _safe_id(value:str)->str:
@@ -54,6 +64,8 @@ def validate_lab_spec(spec:Dict[str,Any])->Dict[str,Any]:
     if kind=="SHAPE_RESPONSE":
         if str(spec.get("behavior") or "").lower() not in ("fixed","conforms"):
             raise RuntimeError("LAB_SHAPE_BEHAVIOR_INVALID")
+    if kind in ADVANCED_LAB_KINDS:
+        validate_advanced_lab_spec(spec)
     return spec
 
 def _render_formula(spec:Dict[str,Any],lang_code:str,lab_id:str)->str:
@@ -277,4 +289,6 @@ def render_verified_lab(spec:Dict[str,Any],lang_code:str,lab_id:str)->Tuple[str,
         return _render_orientation(spec,lang_code,lab_id),True
     if kind=="SHAPE_RESPONSE":
         return _render_shape(spec,lang_code,lab_id),True
+    if kind in ADVANCED_LAB_KINDS:
+        return render_advanced_verified_lab(spec,lang_code,lab_id)
     raise RuntimeError(f"LAB_KIND_UNSUPPORTED: {kind}")
