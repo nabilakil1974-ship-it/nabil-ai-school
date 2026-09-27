@@ -4271,9 +4271,15 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
         "Required fields: angles_measured_from_normal=true, normal_perpendicular_surface=true, law='angle_of_incidence_equals_angle_of_reflection'.\n"
         "6) IONIC_COMPOUND: only when SOURCE explicitly supports ionic electron transfer, the cation/anion charges, the whole-number ion ratio, and charge neutrality. "
         "Required fields: cation={symbol,charge}, anion={symbol,charge}, cation_ratio, anion_ratio, electron_transfer_count, bond_type='ionic'.\n"
-        "7) EVIDENCE_SEQUENCE: for ANY subject when SOURCE explicitly gives two or more ordered or structurally related evidence-backed ideas, parts, stages, transformations, constructions, grammatical steps, historical developments, geographic relations, or other explainable sequence that can be highlighted or animated without inventing a missing fact. "
+        "7) GEOMETRY_PROOF: prefer this for geometry theorems/proofs/constructions when SOURCE or verified FIGURE supports named points/segments and proof relations. "
+        "Required: points=[{label,x,y}] with x,y as 0..100 LAYOUT coordinates only; segments=[{id,a,b}]; marks=[...]; proof_steps=[...]. "
+        "Allowed mark types: equal_segments, equal_angles, perpendicular, parallel, midpoint, symmetry_axis. "
+        "Every mark MUST carry evidence_quote copied exactly from SOURCE. Equal segment marks use targets=[segment ids]; equal angle/perpendicular marks use angles=[{a,vertex,b}]; parallel/midpoint use targets; symmetry_axis uses axis_segment and optional point_pairs. "
+        "Every proof step MUST contain title,text,formula,target_ids,reveal_marks,evidence_quote; evidence_quote must be an exact SOURCE quote. "
+        "Never add an equality tick, equal-angle arc, right-angle square, parallel arrow, midpoint mark, congruence implication or symmetry effect merely because the sketch looks that way.\n"
+        "8) EVIDENCE_SEQUENCE: for ANY subject when SOURCE explicitly gives two or more ordered or structurally related evidence-backed ideas, parts, stages, transformations, constructions, grammatical steps, historical developments, geographic relations, or other explainable sequence that can be highlighted or animated without inventing a missing fact. "
         "Required field: steps=[{label:str,evidence_quote:str}] with 2..8 ordered steps; every evidence_quote must be an exact contiguous SOURCE quote.\n"
-        "8) EVIDENCE_REVEAL: universal fallback for ANY subject/concept when no richer lab kind fits. "
+        "9) EVIDENCE_REVEAL: universal fallback for ANY subject/concept when no richer lab kind fits. "
         "Use 1..8 exact SOURCE-backed items and reveal/highlight them interactively. "
         "Required field: items=[{label:str,evidence_quote:str}], each evidence_quote an exact contiguous SOURCE quote. "
         "This means every concept can still have a real interactive lab without inventing science.\n"
@@ -4293,9 +4299,10 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
         "FORMULA_CALCULATOR additionally: source_formula and formula={output,input_a,input_b,operator,output_unit}. "
         "ORIENTATION_INVARIANT additionally: invariant_orientation ('horizontal'|'vertical'). "
         "SHAPE_RESPONSE additionally: behavior ('fixed'|'conforms'). "
+        "GEOMETRY_PROOF additionally uses the exact points/segments/marks/proof_steps schema above. "
         "EVIDENCE_SEQUENCE additionally: steps=[{label,evidence_quote}]. "
         "EVIDENCE_REVEAL additionally: items=[{label,evidence_quote}]. "
-        "Advanced kinds must include the exact fields listed above plus evidence_quotes."
+        "Advanced science kinds must include the exact fields listed above plus evidence_quotes."
     )
     try:
         spec = _execute_llm_json_strict(
@@ -4424,6 +4431,23 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
             if not exact_quote or exact_quote not in source_norm:
                 raise RuntimeError(
                     f"LAB_ADVANCED_EVIDENCE_QUOTE_NOT_FOUND:{claim}")
+
+    if kind == "GEOMETRY_PROOF":
+        source_norm = _normalized_lab_evidence(concept.get("raw_text", ""))
+        marks = spec.get("marks")
+        proof_steps = spec.get("proof_steps")
+        if not isinstance(marks, list) or not isinstance(proof_steps, list):
+            raise RuntimeError("LAB_GEOMETRY_EVIDENCE_STRUCTURE_MISSING")
+        for index, mark in enumerate(marks):
+            quote = _normalized_lab_evidence((mark or {}).get("evidence_quote", ""))
+            if not quote or quote not in source_norm:
+                raise RuntimeError(
+                    f"LAB_GEOMETRY_MARK_EVIDENCE_NOT_FOUND:{index}")
+        for index, step in enumerate(proof_steps):
+            quote = _normalized_lab_evidence((step or {}).get("evidence_quote", ""))
+            if not quote or quote not in source_norm:
+                raise RuntimeError(
+                    f"LAB_GEOMETRY_STEP_EVIDENCE_NOT_FOUND:{index}")
 
     if kind == "EVIDENCE_SEQUENCE":
         steps = spec.get("steps")
