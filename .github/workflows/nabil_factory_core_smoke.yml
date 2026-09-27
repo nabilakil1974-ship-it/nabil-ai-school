@@ -60,6 +60,35 @@ jobs:
           assert 'type="range"' not in lab_html
           assert ' min=' not in lab_html and ' max=' not in lab_html
 
+          orientation_spec = {
+              "supported": True,
+              "kind": "ORIENTATION_INVARIANT",
+              "title": "Orientation fixture",
+              "instructions": "Drag the vessel.",
+              "observation": "Fixture observation",
+              "evidence_ref": "C05",
+              "invariant_orientation": "horizontal",
+          }
+          orientation_html, active = render_verified_lab(orientation_spec, "en", "C05")
+          assert active
+          assert "pointerdown" in orientation_html and "pointermove" in orientation_html
+          assert "angleText" not in orientation_html
+          assert "0°" not in orientation_html
+
+          shape_spec = {
+              "supported": True,
+              "kind": "SHAPE_RESPONSE",
+              "title": "Shape fixture",
+              "instructions": "Drag material.",
+              "observation": "Fixture observation",
+              "evidence_ref": "C06",
+              "behavior": "conforms",
+          }
+          shape_html, active = render_verified_lab(shape_spec, "en", "C06")
+          assert active
+          assert "pointerdown" in shape_html and "pointermove" in shape_html
+          assert "dropB" in shape_html
+
           # Advanced science fixtures verify deterministic invariants and the
           # synchronized teacher pointer. These are test fixtures, not lesson evidence.
           circuit_spec = {
