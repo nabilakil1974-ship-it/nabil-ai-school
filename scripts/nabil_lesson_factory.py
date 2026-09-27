@@ -4577,7 +4577,11 @@ def build_factory_solution_card_spec(
 
     return {
         "renderer_contract": REFERENCE_RENDERER_CONTRACT,
-        "lab_key": str(exercise.get("_prebuilt_lab_key") or ""),
+        "lab_key": str(
+            exercise.get("_solution_lab_key")
+            or exercise.get("_prebuilt_lab_key")
+            or ""
+        ),
         "exercise_id": str(exercise.get("exercise_id") or ""),
         "kind": kind,
         "subject": subject,
@@ -4586,8 +4590,6 @@ def build_factory_solution_card_spec(
         "sections": sections,
         "key_results": [final_answer],
         "verification": verification,
-        "lab_key": str(exercise.get("_solution_lab_key") or exercise.get("_prebuilt_lab_key") or ""),
-        "renderer_contract": REFERENCE_RENDERER_CONTRACT,
         "source": {
             "lesson_id": entry["lesson_id"],
             "book_id": entry["book_id"],
@@ -6237,6 +6239,12 @@ def build_prebuilt_lab_index(entry: dict, theory: dict, exercises: list) -> dict
             "renderer_contract": REFERENCE_RENDERER_CONTRACT,
             "translation_languages": list(REFERENCE_RENDERER_LANGUAGES),
             "teacher_pointer": "sentence_synced",
+            "teaching_mode": (act.get("teaching_signature") or {}).get("mode"),
+            "teaching_level": (act.get("teaching_signature") or {}).get("level"),
+            "secondary_year_contract": (
+                act.get("teaching_signature") or {}
+            ).get("secondary_year_contract"),
+            "teaching_steps_count": len(act.get("teaching_steps") or []),
             "prebuilt": True,
             "active": bool(act.get("has_active_sim")),
         })
@@ -6266,6 +6274,12 @@ def build_prebuilt_lab_index(entry: dict, theory: dict, exercises: list) -> dict
         "grade": entry.get("grade"),
         "subject": entry.get("subject"),
         "translation_languages": list(REFERENCE_RENDERER_LANGUAGES),
+        "voice": {
+            "engine": "SpeechSynthesis",
+            "paid_endpoint": False,
+            "male_voice_preferred": True,
+            "male_voice_guaranteed": False,
+        },
         "mobile_reference_viewport": {
             "width": REFERENCE_MOBILE_VIEWPORT[0],
             "height": REFERENCE_MOBILE_VIEWPORT[1],
@@ -6277,6 +6291,7 @@ def build_prebuilt_lab_index(entry: dict, theory: dict, exercises: list) -> dict
             "artifact": "theory",
             "renderer_contract": REFERENCE_RENDERER_CONTRACT,
             "concept_keys": [x["key"] for x in concept_labs],
+            "teaching_story": True,
             "prebuilt": True,
             "active": bool(theory.get("whole_lesson_lab_active")),
         },
@@ -7052,6 +7067,30 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
               (candidate["page_a_html"], candidate["page_b_html"])),
           "CRITICAL",
           "Generated lesson/exercise pages must load the shared E2E runtime")
+    check(
+        "BROWSER_TTS_CONTRACT_NOT_WIRED",
+        all("nabil_browser_tts_v1.js?v=1" in page for page in
+            (candidate["page_a_html"], candidate["page_b_html"])),
+        "CRITICAL",
+        "All generated student pages must use the free browser SpeechSynthesis voice contract",
+    )
+    browser_tts_path = ROOT / "app/static/nabil_browser_tts_v1.js"
+    browser_tts_source = (
+        browser_tts_path.read_text(encoding="utf-8")
+        if browser_tts_path.exists() else ""
+    )
+    check(
+        "BROWSER_TTS_CONTRACT_INVALID",
+        bool(browser_tts_source)
+        and 'engine:"SpeechSynthesis"' in browser_tts_source
+        and "SpeechSynthesisUtterance" in browser_tts_source
+        and "maleVoicePreferred:true" in browser_tts_source
+        and "paidEndpoint:false" in browser_tts_source
+        and "/api/tts" not in browser_tts_source
+        and "fetch(" not in browser_tts_source,
+        "CRITICAL",
+        "NABIL lesson voice must be browser SpeechSynthesis only; male voice is preferred when the device supplies one",
+    )
     check("SCIENTIFIC_CARD_RENDERER_NOT_WIRED",
           all("nabil_scientific_solution_cards_e2e.js" in page for page in
               (candidate["page_a_html"], candidate["page_b_html"])),
@@ -7074,6 +7113,7 @@ def independent_scientific_review(entry: dict, candidate: dict) -> dict:
         f"Lesson Title: {entry['canonical_title']}\n"
         f"Evidence Concepts: {json.dumps(candidate['evidence_map']['concepts'], ensure_ascii=False)}\n"
         f"Interactive Lab Specs: {json.dumps([a.get('lab_spec') for a in candidate['theory'].get('activities', [])], ensure_ascii=False)}\n"
+        f"Teaching Steps: {json.dumps([a.get('teaching_steps') for a in candidate['theory'].get('activities', [])], ensure_ascii=False)}\n"
         f"Quiz Items: {json.dumps(candidate['theory'].get('quiz_items', []), ensure_ascii=False)}\n"
         f"Exercises & Solutions: {json.dumps(candidate['exercises'], ensure_ascii=False)}\n\n"
         "Reject any lab that introduces a scientific behavior, formula, orientation, shape rule, unit, "
@@ -7412,6 +7452,12 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
         "renderer_contract": REFERENCE_RENDERER_CONTRACT,
         "mobile_reference_viewport": {"width": 390, "height": 844},
         "source_raster_student_facing": False,
+        "voice_engine": "SpeechSynthesis",
+        "voice_paid_endpoint": False,
+        "male_voice_preferred": True,
+        "male_voice_guaranteed": False,
+        "autonomous_teaching_engine": True,
+        "whole_lesson_smart_lab": bool(theory.get("whole_lesson_lab_active")),
         "translation_report": candidate.get("translation_report"),
         "drive_theory_id": drive_theory_id,
         "drive_exercises_id": drive_exercises_id,
