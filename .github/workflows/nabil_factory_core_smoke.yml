@@ -126,6 +126,12 @@ jobs:
           assert "reconstructed_diagram_verified" in source_text
           assert "OPTIONAL_SOURCE_FIGURE_SKIPPED" in source_text
           assert "REMOVED_OUT_OF_SCOPE_GENERATED_CONTENT" in source_text
+          assert "SOURCE_PAGE_LOCAL_OCR_SELECTED" in source_text
+          assert "source_section_kind" in source_text
+          assert "REMOVED_OUT_OF_SCOPE_SOLUTION_STEP" in source_text
+          assert "SKIPPED_UNVERIFIED_EXERCISE_SOLUTION" in source_text
+          assert "SOLUTION_SOURCE_SCOPE_AUDIT_MISSING" in source_text
+          assert "PRE_SOLVE_STATUS_INVALID" in source_text
           assert "SKIPPED_UNVERIFIED_QUIZ_ITEM" in source_text
           assert "GENERATED_CONTENT_SCOPE_AUDIT_MISSING" in source_text
           assert "EXERCISE_SEQUENCE_INCOMPLETE" not in source_text
