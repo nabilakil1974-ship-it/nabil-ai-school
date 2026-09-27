@@ -112,6 +112,10 @@ jobs:
           assert factory.required_ai_practice_count(2) == 3
           assert factory.required_ai_practice_count(3) == 0
           assert factory.required_ai_practice_count(5) == 0
+          source_text = factory.Path(factory.__file__).read_text(encoding="utf-8")
+          assert "plausible from general knowledge" in source_text
+          assert "scope_snapshot_sha256" in source_text
+          assert "strict lesson-scope solution auditor" in source_text
           assert "EXERCISE_SEQUENCE_INCOMPLETE" not in source_text
           assert "EXERCISE_NUMBERING_INVALID" in source_text
           factory.execute_llm_completion = original_llm
