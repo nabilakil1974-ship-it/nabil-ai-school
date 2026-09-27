@@ -5319,15 +5319,49 @@ function translateAttrs(root,lang){
   })
  })
 }
+const frameObservers=new WeakMap();
+function translateRoot(root,lang){
+ if(!root)return;
+ const walker=(root.ownerDocument||document).createTreeWalker(root,NodeFilter.SHOW_TEXT);
+ const nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);
+ nodes.forEach(n=>translateNode(n,lang));translateAttrs(root,lang);
+}
+function watchFrame(frame){
+ try{
+  const doc=frame.contentDocument;if(!doc?.body)return;
+  translateRoot(doc.body,current);
+  if(frameObservers.has(frame))frameObservers.get(frame).disconnect();
+  const obs=new MutationObserver(records=>{
+   if(applying)return;applying=true;
+   for(const rec of records){
+    if(rec.type==="characterData")translateNode(rec.target,current);
+    for(const added of rec.addedNodes||[]){
+     if(added.nodeType===Node.TEXT_NODE)translateNode(added,current);
+     else if(added.nodeType===Node.ELEMENT_NODE)translateRoot(added,current);
+    }
+   }
+   applying=false;
+  });
+  obs.observe(doc.body,{subtree:true,childList:true,characterData:true});
+  frameObservers.set(frame,obs);
+ }catch(_e){}
+}
+function translateFrames(lang){
+ document.querySelectorAll("iframe").forEach(frame=>{
+  try{watchFrame(frame)}catch(_e){}
+  if(!frame.dataset.nabilTranslationWatch){
+   frame.dataset.nabilTranslationWatch="1";
+   frame.addEventListener("load",()=>watchFrame(frame));
+  }
+ })
+}
 let applying=false,current=source;
 function apply(lang){
  if(!langs.includes(lang))lang=source;
  applying=true;current=lang;
  document.documentElement.lang=lang;
  document.documentElement.dir=lang==="ar"?"rtl":"ltr";
- const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
- const nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);
- nodes.forEach(n=>translateNode(n,lang));translateAttrs(document,lang);
+ translateRoot(document.body,lang);translateFrames(lang);
  document.querySelectorAll("#nabilPageLanguage [data-nabil-lang]").forEach(b=>{
   const on=b.dataset.nabilLang===lang;b.setAttribute("aria-pressed",String(on));
   b.style.background=on?"#0b84bd":"#153955";b.style.borderColor=on?"#7af3ff":"#426d8b";
@@ -5346,8 +5380,9 @@ const observer=new MutationObserver(records=>{
   for(const added of rec.addedNodes||[]){
    if(added.nodeType===Node.TEXT_NODE)translateNode(added,current);
    else if(added.nodeType===Node.ELEMENT_NODE){
-    const w=document.createTreeWalker(added,NodeFilter.SHOW_TEXT);
-    while(w.nextNode())translateNode(w.currentNode,current);translateAttrs(added,current);
+    translateRoot(added,current);
+    if(added.tagName==="IFRAME")watchFrame(added);
+    else added.querySelectorAll?.("iframe").forEach(watchFrame);
    }
   }
  }
@@ -5356,7 +5391,14 @@ const observer=new MutationObserver(records=>{
 observer.observe(document.body,{subtree:true,childList:true,characterData:true});
 let initial=source;try{const saved=localStorage.getItem("nabil.lesson.page.language");if(langs.includes(saved))initial=saved}catch(_e){}
 apply(initial);
-window.NABILPageLanguage={apply,get:()=>current,source};
+window.NABILPageLanguage={
+ apply,get:()=>current,source,
+ translateText:(value,lang=current)=>{
+  const raw=String(value||""),base=baseFor(raw.trim());
+  const out=(strings[lang]||{})[base];
+  return out===undefined?raw:out;
+ }
+};
 })();
 </script>
 '''
