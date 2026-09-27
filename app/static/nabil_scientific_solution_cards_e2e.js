@@ -408,6 +408,14 @@ function installGeneralExercisesBridge(){
          bubble.replaceChildren(host);
          try{
            const card=renderFromChat(data,question,host);
+           const labKey=runtimeLabKey(question);
+           card.dataset.nabilSolutionLabKey=labKey;
+           card.dataset.nabilRuntimeQuestion=question;
+           try{
+             window.dispatchEvent(new CustomEvent("nabil:solution-ready",{
+               detail:{question,card,labKey,mode:"general_exercises",result:data}
+             }));
+           }catch(_e){}
 
            // The smart-learning panel clones the legacy bubble. If it has already
            // rendered, replace its old prose with the same canonical card too.
@@ -417,7 +425,11 @@ function installGeneralExercisesBridge(){
                const panelHost=document.createElement("div");
                panelHost.className="nabil-general-scientific-panel-host";
                panel.replaceChildren(panelHost);
-               try{renderFromChat(data,question,panelHost)}catch(_e){}
+               try{
+                 const panelCard=renderFromChat(data,question,panelHost);
+                 panelCard.dataset.nabilSolutionLabKey=labKey;
+                 panelCard.dataset.nabilRuntimeQuestion=question;
+               }catch(_e){}
              }
            },220);
 
