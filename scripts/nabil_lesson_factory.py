@@ -2205,11 +2205,51 @@ def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
     extraction_provenance = get_last_llm_provenance()
     rows = _normalize_exercise_scan_payload(extracted, page_num)
     if not rows:
-        return []
+        # A first-pass page read may miss small circled exercise numbers or a
+        # compact two-column exercise page. Re-read the SAME original page at
+        # higher resolution before concluding that no exercises exist.
+        highres_bytes = page.get_pixmap(dpi=320).tobytes("png")
+        highres_b64 = base64.b64encode(highres_bytes).decode("ascii")
+        rescue_instruction = (
+            "Re-inspect this SAME original textbook page at high resolution. "
+            "Return JSON with exercises array containing EVERY visibly numbered "
+            "exercise/problem on the page, preserving two-column reading order. "
+            "For each item return number, section_type, exact_source_prompt, "
+            "subquestions, bbox_1000, figure_labels, blank_count, confidence, "
+            "unreadable_parts. Preserve every printed word and every visible "
+            "answer blank as [BLANK]. Do not solve, infer, renumber, or invent. "
+            "If there are genuinely no numbered exercises, return "
+            "{\"exercises\":[]}.")
+        rescued_scan = _execute_llm_json_strict(
+            rescue_instruction,
+            image_base64=highres_b64,
+            vision_context={
+                "lesson_id": lesson_id,
+                "book_id": book_id,
+                "pdf_page": page_num,
+            },
+            purpose=f"exercise_scan_highres_rescue_p{page_num}",
+        )
+        rows = _normalize_exercise_scan_payload(rescued_scan, page_num)
+        if rows:
+            extraction_provenance = get_last_llm_provenance()
+            page_b64 = highres_b64
+            progress(
+                "EXERCISE_PAGE_HIGHRES_RESCUE_ACCEPTED",
+                page=page_num,
+                exercise_candidates=len(rows),
+            )
+        else:
+            progress(
+                "EXERCISE_PAGE_HIGHRES_RESCUE_EMPTY",
+                page=page_num,
+            )
+            return []
     audit_prompt = (
         "Independently compare these exercise transcriptions to the PROVIDED "
         "original source page image. Return JSON: "
-        "{'checks':[{'number':int,'faithful':bool,'reason':str}]}. "
+        "{'checks':[{'number':int,'faithful':bool,'blank_count_visible':int,"
+        "'blank_tokens_match':bool,'reason':str}]}. "
         "Mark false for a missing part, wrong figure number, invented words, "
         "wrong item boundaries, incorrect circled-number reading, bad "
         "two-column order, or any missing/misplaced [BLANK] token. Independently "
@@ -2230,8 +2270,15 @@ def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
     )
     audit_provenance = get_last_llm_provenance()
     checks = _normalize_exercise_review_payload(review, page_num)
-    approved = {int(x["number"]): x for x in checks if isinstance(x, dict)
-                and "number" in x and x.get("faithful") is True}
+    approved = {
+        int(x["number"]): x
+        for x in checks
+        if isinstance(x, dict)
+        and "number" in x
+        and x.get("faithful") is True
+        and x.get("blank_tokens_match") is True
+        and isinstance(x.get("blank_count_visible"), int)
+    }
     from fitz import Rect
     result = []
     for row in rows:
@@ -2252,13 +2299,30 @@ def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
                 rejection_reasons.append("low_confidence")
         except (TypeError, ValueError):
             rejection_reasons.append("invalid_confidence")
+        review_item = next(
+            (x for x in checks if isinstance(x, dict)
+             and str(x.get("number")) == str(number)), {})
         if number not in approved:
-            review_item = next(
-                (x for x in checks if isinstance(x, dict)
-                 and str(x.get("number")) == str(number)), {})
             rejection_reasons.append(
                 "independent_review_rejected:" +
                 str(review_item.get("reason") or "not_approved")[:180])
+        else:
+            visible_blank_count = int(review_item.get("blank_count_visible", 0))
+            token_blank_count = prompt.count("[BLANK]")
+            try:
+                declared_blank_count = int(row.get("blank_count", -1))
+            except (TypeError, ValueError):
+                declared_blank_count = -1
+            if not (
+                declared_blank_count == visible_blank_count
+                and token_blank_count == visible_blank_count
+            ):
+                rejection_reasons.append(
+                    "blank_count_mismatch:"
+                    f"declared={declared_blank_count},"
+                    f"tokens={token_blank_count},"
+                    f"visible={visible_blank_count}"
+                )
         if not isinstance(coords, list) or len(coords) != 4:
             rejection_reasons.append("invalid_bbox_shape")
         else:
