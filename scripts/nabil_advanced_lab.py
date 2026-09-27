@@ -178,10 +178,10 @@ def _render_circuit(spec:Dict[str,Any],lang:str,lab_id:str)->str:
     r1=html.escape(str(spec["resistors"][0])); r2=html.escape(str(spec["resistors"][1]))
     if lang=="ar":
         cues=[
-            {"target":"switch","text":"أولاً ننظر إلى switch. إذا كان OPEN فالدائرة open circuit ولا يمر current."},
+            {"target":"switch","text":"أولًا ننظر إلى المفتاح. إذا كان مفتوحًا فالدارة مفتوحة، ولذلك لا يمر تيار كهربائي."},
             {"target":"r1","text":f"هذه هي {r1}. وهي موصولة على التوالي مع المقاومة الثانية."},
-            {"target":"r2","text":f"وهذه هي {r2}. في series يمر current نفسه في المقاومتين عندما يكون switch CLOSED."},
-            {"target":"path","text":"عند إغلاق switch يصبح المسار الكهربائي كاملاً، وعندها فقط نُظهر حركة current في الحلقة."},
+            {"target":"r2","text":f"وهذه هي {r2}. في التوصيل على التوالي يمر التيار الكهربائي نفسه في المقاومتين عندما يكون المفتاح مغلقًا."},
+            {"target":"path","text":"عند إغلاق المفتاح يصبح المسار الكهربائي كاملًا، وعندها فقط نُظهر حركة التيار الكهربائي في الدارة."},
         ]
     elif lang=="fr":
         cues=[
@@ -270,10 +270,10 @@ def _render_optics(spec:Dict[str,Any],lang:str,lab_id:str)->str:
     safe=_safe_id(lab_id); L=_labels(lang)
     if lang=="ar":
         cues=[
-            {"target":"incident","text":"هذا هو incident ray القادم إلى نقطة السقوط."},
-            {"target":"normal","text":"وهذا هو normal، وهو عمودي على سطح المرآة عند نقطة السقوط."},
-            {"target":"angle_i","text":"angle of incidence تُقاس بين incident ray و normal، وليس من سطح المرآة."},
-            {"target":"reflected","text":"وهذا هو reflected ray. حسب law of reflection تكون angle of reflection مساوية لـ angle of incidence."},
+            {"target":"incident","text":"هذا هو الشعاع الساقط المتجه إلى نقطة السقوط."},
+            {"target":"normal","text":"وهذا هو الناظم، وهو عمودي على سطح المرآة عند نقطة السقوط."},
+            {"target":"angle_i","text":"تُقاس زاوية السقوط بين الشعاع الساقط والناظم، وليس انطلاقًا من سطح المرآة."},
+            {"target":"reflected","text":"وهذا هو الشعاع المنعكس. وفق قانون الانعكاس تساوي زاوية الانعكاس زاوية السقوط."},
         ]
     elif lang=="fr":
         cues=[
@@ -341,9 +341,9 @@ def _render_ionic(spec:Dict[str,Any],lang:str,lab_id:str)->str:
     formula=cs+("" if cr==1 else str(cr))+an+("" if ar==1 else str(ar))
     if lang=="ar":
         cues=[
-            {"target":"cation","text":f"نبدأ بالـ {cs}. حسب الدليل الموثق يتحول إلى ion موجب."},
-            {"target":"electron","text":f"الترابط ionic، لذلك نتابع electron transfer بعدد {transfer} إلكترون."},
-            {"target":"anion","text":f"الـ {an} يستقبل الإلكترونات بحسب الشحنة الموثقة."},
+            {"target":"cation","text":f"نبدأ بـ {cs}. وفق الدليل الموثق يتحول إلى أيون موجب."},
+            {"target":"electron","text":f"الرابطة أيونية، لذلك نتابع انتقال {transfer} إلكترونًا وفق الدليل الموثق."},
+            {"target":"anion","text":f"يستقبل {an} الإلكترونات وفق الشحنة الموثقة."},
             {"target":"formula","text":f"نسبة الأيونات الموثقة هي {cr} إلى {ar}. لذلك الصيغة المتعادلة هي {formula}، ومجموع الشحنات يساوي صفرًا."},
         ]
     elif lang=="fr":
