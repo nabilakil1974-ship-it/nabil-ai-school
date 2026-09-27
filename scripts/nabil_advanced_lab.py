@@ -181,7 +181,7 @@ def _render_circuit(spec:Dict[str,Any],lang:str,lab_id:str)->str:
         ]
     return f"""
 <section class="interactive-lab nabil-science-lab" id="lab_{safe}"
- data-lab-kind="DC_SERIES_CIRCUIT" data-teacher-pointer="synced"
+ data-lab-kind="DC_SERIES_CIRCUIT" data-teacher-pointer="synced" data-demo-ms="11000"
  data-science-rule="OPEN_CIRCUIT_ZERO_CURRENT;CURRENT_REQUIRES_CLOSED_SWITCH;SERIES_SAME_CURRENT"
  style="margin-top:16px;background:#071827;color:#f8fafc;border:1px solid #24506f;border-radius:14px;padding:16px;">
  <h3 style="margin-top:0;color:#2de1ff;">{html.escape(spec["title"])}</h3>
@@ -238,8 +238,10 @@ def _render_circuit(spec:Dict[str,Any],lang:str,lab_id:str)->str:
    const style=document.createElement('style');style.textContent='@keyframes {safe}_flow{{to{{stroke-dashoffset:-42}}}} @keyframes {safe}_pointer{{to{{stroke-dashoffset:-28}}}} #{safe}_teacherArrow{{animation:{safe}_pointer .85s linear infinite}}';document.head.appendChild(style);
    q('{safe}_switch').addEventListener('click',()=>{{teacherStop();switchClosed=!switchClosed;pointTeacher('switch');renderSwitch();}});
    toggle.addEventListener('click',()=>{{teacherStop();switchClosed=!switchClosed;pointTeacher('switch');renderSwitch();}});
-   q('{safe}_teach').addEventListener('click',()=>playTeacherCues({json.dumps(cues,ensure_ascii=False)}));
+   const runDemo=()=>playTeacherCues({json.dumps(cues,ensure_ascii=False)});
+   q('{safe}_teach').addEventListener('click',runDemo);
    q('{safe}_stop').addEventListener('click',teacherStop);
+   q('lab_{safe}').addEventListener('nabil:demo',runDemo);
    ['{safe}_V','{safe}_R1','{safe}_R2'].forEach(id=>q(id).addEventListener('input',calculate));
    renderSwitch();
  }})();
@@ -270,7 +272,7 @@ def _render_optics(spec:Dict[str,Any],lang:str,lab_id:str)->str:
             {"target":"reflected","text":"This is the reflected ray. The law of reflection requires equal incidence and reflection angles."},
         ]
     return f"""
-<section class="interactive-lab nabil-science-lab" id="lab_{safe}" data-lab-kind="OPTICS_REFLECTION"
+<section class="interactive-lab nabil-science-lab" id="lab_{safe}" data-lab-kind="OPTICS_REFLECTION" data-demo-ms="11000"
  data-teacher-pointer="synced" data-angle-reference="normal"
  data-science-rule="ANGLES_FROM_NORMAL;NORMAL_PERPENDICULAR_SURFACE;I_EQUALS_R"
  style="margin-top:16px;background:#071827;color:#f8fafc;border:1px solid #24506f;border-radius:14px;padding:16px;">
@@ -307,7 +309,9 @@ def _render_optics(spec:Dict[str,Any],lang:str,lab_id:str)->str:
   q('{safe}_source').addEventListener('pointermove',e=>{{if(!drag||e.pointerId!==pid)return;const p=local(e);S={{x:p.x,y:p.y}};update();e.preventDefault();}});
   const end=e=>{{if(!drag||e.pointerId!==pid)return;drag=false;q('{safe}_source').releasePointerCapture?.(pid);}};q('{safe}_source').addEventListener('pointerup',end);q('{safe}_source').addEventListener('pointercancel',end);
   const style=document.createElement('style');style.textContent='@keyframes {safe}_pointer{{to{{stroke-dashoffset:-28}}}} #{safe}_teacherArrow{{animation:{safe}_pointer .85s linear infinite}}';document.head.appendChild(style);
-  q('{safe}_teach').addEventListener('click',()=>playTeacherCues({json.dumps(cues,ensure_ascii=False)}));q('{safe}_stop').addEventListener('click',teacherStop);update();
+  const runDemo=()=>playTeacherCues({json.dumps(cues,ensure_ascii=False)});
+  q('{safe}_teach').addEventListener('click',runDemo);q('{safe}_stop').addEventListener('click',teacherStop);
+  q('lab_{safe}').addEventListener('nabil:demo',runDemo);update();
  }})();
  </script>
 </section>"""
@@ -350,7 +354,7 @@ def _render_ionic(spec:Dict[str,Any],lang:str,lab_id:str)->str:
         electrons.append(f'<circle id="{safe}_e_{i}" cx="{x:.1f}" cy="{y:.1f}" r="7" fill="#c084fc" stroke="#fff" stroke-width="2"/>')
     c_charge_label=f"{cs}{cq}+" if cq!=1 else f"{cs}+"
     return f"""
-<section class="interactive-lab nabil-science-lab" id="lab_{safe}" data-lab-kind="IONIC_COMPOUND" data-teacher-pointer="synced" data-charge-neutral="true"
+<section class="interactive-lab nabil-science-lab" id="lab_{safe}" data-lab-kind="IONIC_COMPOUND" data-teacher-pointer="synced" data-charge-neutral="true" data-demo-ms="12000"
  data-science-rule="IONIC_ELECTRON_TRANSFER;CHARGE_NEUTRALITY"
  style="margin-top:16px;background:#071827;color:#f8fafc;border:1px solid #24506f;border-radius:14px;padding:16px;">
  <h3 style="margin-top:0;color:#2de1ff;">{html.escape(spec["title"])}</h3><p>{html.escape(spec["instructions"])}</p>
@@ -373,7 +377,9 @@ def _render_ionic(spec:Dict[str,Any],lang:str,lab_id:str)->str:
   function reset(){{transferred=false;for(let i=0;i<electronCount;i++){{const e=q('{safe}_e_'+i);if(e){{e.style.opacity='1';e.removeAttribute('transform');e.style.transition='';}}}}q('{safe}_cationCharge').setAttribute('opacity','0');for(let i=0;i<anionCount;i++)q('{safe}_anionCharge_'+i)?.setAttribute('opacity','0');q('{safe}_formula').setAttribute('opacity','0');q('{safe}_status').textContent='';}}
   function transfer(){{if(transferred)return;transferred=true;pointTeacher('electron');const positions={json.dumps(positions)};for(let i=0;i<electronCount;i++){{const e=q('{safe}_e_'+i);if(!e)continue;const targetIndex=i%anionCount,tx=positions[targetIndex][0]-310,ty=positions[targetIndex][1]-215;e.style.transition='transform .65s ease';e.setAttribute('transform','translate('+tx+' '+ty+')');}}setTimeout(()=>{{q('{safe}_cationCharge').setAttribute('opacity','1');for(let i=0;i<anionCount;i++)q('{safe}_anionCharge_'+i)?.setAttribute('opacity','1');q('{safe}_formula').setAttribute('opacity','1');q('{safe}_status').textContent='net charge = 0';pointTeacher('formula');}},700);}}
   const style=document.createElement('style');style.textContent='@keyframes {safe}_pointer{{to{{stroke-dashoffset:-28}}}} #{safe}_teacherArrow{{animation:{safe}_pointer .85s linear infinite}}';document.head.appendChild(style);
-  q('{safe}_transfer').addEventListener('click',transfer);q('{safe}_teach').addEventListener('click',()=>playTeacherCues({json.dumps(cues,ensure_ascii=False)}));q('{safe}_stop').addEventListener('click',teacherStop);q('{safe}_reset').addEventListener('click',()=>{{teacherStop();reset();pointTeacher('cation');}});reset();
+  const runDemo=()=>{{reset();transfer();playTeacherCues({json.dumps(cues,ensure_ascii=False)});}};
+  q('{safe}_transfer').addEventListener('click',transfer);q('{safe}_teach').addEventListener('click',runDemo);q('{safe}_stop').addEventListener('click',teacherStop);q('{safe}_reset').addEventListener('click',()=>{{teacherStop();reset();pointTeacher('cation');}});
+  q('lab_{safe}').addEventListener('nabil:demo',runDemo);reset();
  }})();
  </script>
 </section>"""
