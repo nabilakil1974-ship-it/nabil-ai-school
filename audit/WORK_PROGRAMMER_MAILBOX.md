@@ -499,3 +499,29 @@ Non-negotiable behavior now enforced in code:
 - Independent scientific review now audits Lab Specs and Quiz Items too.
 
 NEXT REAL ACCEPTANCE: run the real G07-PHYSICS-001 lesson again through the production pipeline and inspect the generated HTML/Drive artifact for actual evidence-selected labs, quiz, mobile QA, and scientific review. Do not call this production E2E accepted until that real lesson run passes.
+
+## OWNER GOAL — AUTONOMOUS NABIL TEACHER (2026-09-28)
+
+This is the current north-star acceptance target and must stay in the task list until live acceptance.
+
+**Goal:** NABIL teaches, not merely answers. A learner at home or in class must be able to open a lesson and be taught from beginning to end without a human teacher being required to operate the lesson.
+
+Mandatory end-to-end behavior:
+- Source book TOC -> lesson boundaries -> Evidence Map -> audited teaching narrative -> concept cards -> verified interactive lab for every concept -> textbook exercises -> verified solution card -> lab for every solution -> final synthesis -> whole-lesson Smart Lab -> QA -> scientific review -> atomic Drive publish.
+- NABIL SOLIDE AND LIQUID is the content-agnostic Golden Renderer Contract. Do not hard-code that lesson's science.
+- NABIL's teaching must be student-close and age-appropriate, not a textbook dump. Teaching strategy changes by grade band, subject and concept type while all claims remain evidence-locked.
+- Arabic teaching is clear Modern Standard Arabic (فصحى). NABIL is male in Arabic, English and French.
+- Mathematical notation is real mathematical notation (fractions, roots, powers, symbols); speech says mathematical meaning, never punctuation names such as slash/dash.
+- Textbook page/figure raster images are internal evidence only and must never appear in the student UI.
+- Every concept and every solved exercise has a stable lab key and a real linked lab.
+- New student questions/exercises also receive solution -> lab linkage at runtime.
+- Geometry/math labs must be proof-aware: verified equal segments show congruence ticks; verified equal angles show matching arcs; perpendicularity shows a right-angle square; parallel lines show matching arrow marks; midpoint/bisection shows equal-part marks; symmetry shows a genuine mirror/symmetry effect. These marks may appear only after the corresponding fact is verified, never because the sketch merely looks that way.
+- Teacher arrow is sentence-synchronized. The visual target and proof marks change with the sentence being spoken.
+- Add a Whole-Lesson Smart Lab that orchestrates the complete verified lesson C01 -> C02 -> ... as one teacher-led experience, using the already verified concept narratives/labs and introducing no new scientific claim.
+- Phone 390x844 is a release gate: no page horizontal overflow, full SVG visibility, touch-safe controls, readable cards and no NABIL/pointer overlap.
+- Full-page AR/EN/FR translation is required across lesson cards, labs, controls, solution cards and final reference card.
+- Scientific fail-closed remains higher priority than visual richness: unverified claim/value/condition/figure inference/lab behavior = FAIL, not guesswork.
+- After implementation, run the factory on at least one real representative lesson, compare the generated lesson against this target and the approved reference behavior, fix gaps, then rerun QA. Do not mark the target green from code inspection alone.
+- Rebuild the full End-to-End upload bundle only after the above changes and tests. The owner said he will not upload the earlier bundle.
+
+Acceptance summary: **NABIL must behave as an autonomous digital teacher, not a response generator.**
