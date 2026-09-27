@@ -5603,7 +5603,7 @@ def rollback_lesson_drive(drive_service, lesson_id: str, target_version: int):
     progress("ROLLBACK_DRIVE_EXECUTING_SUCCESS", lesson_id=lesson_id, target_version=target_version)
 
 
-def promote_candidate(candidate: dict, entry: dict, drive_service) -> Tuple[str, str]:
+def promote_candidate(candidate: dict, entry: dict, drive_service) -> Tuple[str, str, str]:
     """Atomic Promotion with Post-Upload SHA-256 Verification & Safe Revert Backup."""
     root_id = resolve_drive_root_id()
     from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
@@ -5635,15 +5635,24 @@ def promote_candidate(candidate: dict, entry: dict, drive_service) -> Tuple[str,
 
     existing_a = get_existing_file(candidate["filename_a"])
     existing_b = get_existing_file(candidate["filename_b"])
+    existing_labs = get_existing_file(candidate["filename_labs"])
     backup_data_a = None
     backup_data_b = None
+    backup_data_labs = None
     if existing_a:
         backup_data_a = drive_service.files().get_media(fileId=existing_a["id"]).execute()
     if existing_b:
         backup_data_b = drive_service.files().get_media(fileId=existing_b["id"]).execute()
+    if existing_labs:
+        backup_data_labs = drive_service.files().get_media(
+            fileId=existing_labs["id"]).execute()
 
-    def upload_or_update(fname: str, content: str, existing: Optional[dict]) -> str:
-        media = MediaIoBaseUpload(io.BytesIO(content.encode("utf-8")), mimetype="text/html", resumable=True)
+    def upload_or_update(fname: str, content: str, existing: Optional[dict],
+                         mimetype: str = "text/html") -> str:
+        media = MediaIoBaseUpload(
+            io.BytesIO(content.encode("utf-8")),
+            mimetype=mimetype,
+            resumable=True)
         if existing:
             drive_service.files().update(fileId=existing["id"], media_body=media).execute()
             return existing["id"]
@@ -5651,9 +5660,15 @@ def promote_candidate(candidate: dict, entry: dict, drive_service) -> Tuple[str,
 
     tid = None
     eid = None
+    lid = None
     try:
-        tid = upload_or_update(candidate["filename_a"], candidate["page_a_html"], existing_a)
-        eid = upload_or_update(candidate["filename_b"], candidate["page_b_html"], existing_b)
+        tid = upload_or_update(
+            candidate["filename_a"], candidate["page_a_html"], existing_a)
+        eid = upload_or_update(
+            candidate["filename_b"], candidate["page_b_html"], existing_b)
+        lid = upload_or_update(
+            candidate["filename_labs"], candidate["lab_index_json"],
+            existing_labs, mimetype="application/json")
 
         def verify_remote_sha256(file_id: str, local_content: str):
             fh = io.BytesIO()
@@ -5668,6 +5683,7 @@ def promote_candidate(candidate: dict, entry: dict, drive_service) -> Tuple[str,
 
         verify_remote_sha256(tid, candidate["page_a_html"])
         verify_remote_sha256(eid, candidate["page_b_html"])
+        verify_remote_sha256(lid, candidate["lab_index_json"])
 
     except Exception as e:
         if tid and existing_a and backup_data_a:
@@ -5682,9 +5698,19 @@ def promote_candidate(candidate: dict, entry: dict, drive_service) -> Tuple[str,
         elif eid and not existing_b:
             drive_service.files().delete(fileId=eid).execute()
 
+        if lid and existing_labs and backup_data_labs:
+            revert_media_labs = MediaIoBaseUpload(
+                io.BytesIO(backup_data_labs),
+                mimetype="application/json",
+                resumable=True)
+            drive_service.files().update(
+                fileId=lid, media_body=revert_media_labs).execute()
+        elif lid and not existing_labs:
+            drive_service.files().delete(fileId=lid).execute()
+
         raise RuntimeError(f"ATOMIC_PROMOTION_FAILED: Transaction rolled back safely ({e})")
 
-    return tid, eid
+    return tid, eid, lid
 
 
 # ==============================================================================
@@ -5754,14 +5780,19 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
     stem = f"{grade_str}-{slug_subj}--{source_key}--{seq_str}--{slug_title}" if source_key else f"{grade_str}-{slug_subj}--{seq_str}--{slug_title}"
     filename_a = stem + ".html"
     filename_b = stem + "--EXERCISES.html"
+    filename_labs = stem + "--LABS.json"
+    lab_index_json = json.dumps(
+        lab_index, ensure_ascii=False, indent=2, sort_keys=True)
 
     candidate = {
         "lesson_id": lesson_id,
         "candidate_version": candidate_v,
         "filename_a": filename_a,
         "filename_b": filename_b,
+        "filename_labs": filename_labs,
         "page_a_html": page_a,
         "page_b_html": page_b,
+        "lab_index_json": lab_index_json,
         "evidence_map": ev_map,
         "theory": theory,
         "exercises": exercises,
@@ -5769,6 +5800,7 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
         "hashes": {
             "page_a": hashlib.sha256(page_a.encode("utf-8")).hexdigest(),
             "page_b": hashlib.sha256(page_b.encode("utf-8")).hexdigest(),
+            "labs": hashlib.sha256(lab_index_json.encode("utf-8")).hexdigest(),
             "evidence": hashlib.sha256(json.dumps(ev_map).encode("utf-8")).hexdigest()
         }
     }
@@ -5778,28 +5810,43 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
 
     path_a = OUT_DIR / filename_a
     path_b = OUT_DIR / filename_b
+    path_labs = OUT_DIR / filename_labs
 
     (ARTIFACTS_DIR / f"{lesson_id}_v{candidate_v}_A.html").write_text(page_a, encoding="utf-8")
     (ARTIFACTS_DIR / f"{lesson_id}_v{candidate_v}_B.html").write_text(page_b, encoding="utf-8")
+    (ARTIFACTS_DIR / f"{lesson_id}_v{candidate_v}_LABS.json").write_text(
+        lab_index_json, encoding="utf-8")
 
     path_a.write_text(page_a, encoding="utf-8")
     path_b.write_text(page_b, encoding="utf-8")
-    progress("LOCAL_ARTIFACTS_COMPILED", file_a=filename_a, file_b=filename_b)
+    path_labs.write_text(lab_index_json, encoding="utf-8")
+    progress(
+        "LOCAL_ARTIFACTS_COMPILED",
+        file_a=filename_a,
+        file_b=filename_b,
+        file_labs=filename_labs)
 
     drive_theory_id = None
     drive_exercises_id = None
+    drive_labs_id = None
     status_str = "QA_PASSED_LOCAL"
     if publish:
         if drive_service is None:
             drive_service = get_drive_service()
-        drive_theory_id, drive_exercises_id = promote_candidate(candidate, entry, drive_service)
+        drive_theory_id, drive_exercises_id, drive_labs_id = promote_candidate(
+            candidate, entry, drive_service)
         ver_meta["published_version"] = candidate_v
         ver_meta["drive_theory_id"] = drive_theory_id
         ver_meta["drive_exercises_id"] = drive_exercises_id
+        ver_meta["drive_labs_id"] = drive_labs_id
         ver_meta["history"].append({"action": "PUBLISH", "version": candidate_v, "time": now()})
         ver_file.write_text(json.dumps(ver_meta, indent=2), encoding="utf-8")
         status_str = "PUBLISHED_VERIFIED"
-        progress("ATOMIC_PUBLISHED_AND_VERIFIED_TO_DRIVE", theory_id=drive_theory_id, exercises_id=drive_exercises_id)
+        progress(
+            "ATOMIC_PUBLISHED_AND_VERIFIED_TO_DRIVE",
+            theory_id=drive_theory_id,
+            exercises_id=drive_exercises_id,
+            labs_id=drive_labs_id)
 
     rep = {
         "status": status_str,
@@ -5816,9 +5863,10 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
         "runtime_ai_required_for_indexed_labs": False,
         "drive_theory_id": drive_theory_id,
         "drive_exercises_id": drive_exercises_id,
+        "drive_labs_id": drive_labs_id,
         "gates_report": gates_res["gates"],
         "scientific_review": review_res,
-        "local_files": [str(path_a), str(path_b)]
+        "local_files": [str(path_a), str(path_b), str(path_labs)]
     }
     return rep
 
