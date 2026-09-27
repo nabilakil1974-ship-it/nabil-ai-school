@@ -341,32 +341,69 @@ def get_prebuilt_lab_index(
     """Read the prebuilt lesson/exercise lab directory. No AI call."""
     item = _resolve(grade, subject, lesson, language)
     service = _service()
-    markup = _download(service, item["drive_file_id"]).decode(
-        "utf-8", errors="replace")
-    match = re.search(
-        r'<script[^>]+id=["\']nabilLabIndex["\'][^>]*>([\s\S]*?)</script>',
-        markup, re.I)
-    if not match:
-        raise HTTPException(
-            status_code=404,
-            detail="PREBUILT_LAB_INDEX_NOT_FOUND",
-        )
-    try:
-        payload = json.loads(match.group(1).replace("<\\/", "</"))
-    except Exception as exc:
-        log.exception(
-            "PREBUILT_LAB_INDEX_INVALID file_id=%s",
-            item.get("drive_file_id"))
-        raise HTTPException(
-            status_code=500,
-            detail="PREBUILT_LAB_INDEX_INVALID",
-        ) from exc
+    payload = None
+    source = None
+
+    # Preferred source: independently published sibling --LABS.json artifact.
+    # This avoids parsing the lesson HTML and allows NABIL to discover labs
+    # without loading the full lesson or invoking any AI.
+    theory_name = str(item.get("filename") or "")
+    if theory_name.lower().endswith(".html"):
+        labs_name = theory_name[:-5] + "--LABS.json"
+        parents = service.files().get(
+            fileId=item["drive_file_id"], fields="parents").execute().get(
+                "parents") or []
+        if len(parents) == 1:
+            siblings = {
+                f.get("name"): f
+                for f in _list_children(service, parents[0])
+            }
+            labs_file = siblings.get(labs_name)
+            if labs_file:
+                try:
+                    payload = json.loads(
+                        _download(service, labs_file["id"]).decode(
+                            "utf-8", errors="strict"))
+                    source = "prebuilt_drive_lab_index_json"
+                except Exception as exc:
+                    log.exception(
+                        "PREBUILT_LAB_INDEX_JSON_INVALID file_id=%s",
+                        labs_file.get("id"))
+                    raise HTTPException(
+                        status_code=500,
+                        detail="PREBUILT_LAB_INDEX_INVALID",
+                    ) from exc
+
+    # Backward-compatible fallback for lessons published before standalone
+    # --LABS.json existed. Newly generated lessons are required by QA to ship it.
+    if payload is None:
+        markup = _download(service, item["drive_file_id"]).decode(
+            "utf-8", errors="replace")
+        match = re.search(
+            r'<script[^>]+id=["\']nabilLabIndex["\'][^>]*>([\s\S]*?)</script>',
+            markup, re.I)
+        if not match:
+            raise HTTPException(
+                status_code=404,
+                detail="PREBUILT_LAB_INDEX_NOT_FOUND",
+            )
+        try:
+            payload = json.loads(match.group(1).replace("<\\/", "</"))
+            source = "embedded_prebuilt_lab_index"
+        except Exception as exc:
+            log.exception(
+                "PREBUILT_LAB_INDEX_INVALID file_id=%s",
+                item.get("drive_file_id"))
+            raise HTTPException(
+                status_code=500,
+                detail="PREBUILT_LAB_INDEX_INVALID",
+            ) from exc
     if not isinstance(payload, dict):
         raise HTTPException(
             status_code=500,
             detail="PREBUILT_LAB_INDEX_INVALID",
         )
-    payload["source"] = "prebuilt_drive_artifact"
+    payload["source"] = source or "prebuilt_drive_artifact"
     payload["runtime_ai_required_for_indexed_labs"] = False
     return payload
 
