@@ -117,6 +117,9 @@ jobs:
           assert "scope_snapshot_sha256" in source_text
           assert "strict lesson-scope solution auditor" in source_text
           assert "SKIPPED_UNVERIFIED_LAB" in source_text
+          assert "SKIPPED_UNVERIFIED_SOURCE_FIGURE" in source_text
+          assert "SOURCE_FIGURE_REQUIRED_COVERAGE_INCOMPLETE" in source_text
+          assert "OPTIONAL_SOURCE_FIGURE_SKIPPED" in source_text
           assert "EXERCISE_SEQUENCE_INCOMPLETE" not in source_text
           assert "EXERCISE_NUMBERING_INVALID" in source_text
           factory.execute_llm_completion = original_llm
