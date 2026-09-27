@@ -430,6 +430,7 @@ jobs:
           source = factory.Path(factory.__file__).read_text(encoding="utf-8")
           assert "nabil_scientific_solution_cards_e2e.js?v=4" in source
           assert "nabil_lesson_e2e_runtime_v1.js?v=4" in source
+          assert "nabil_browser_tts_v1.js?v=1" in source
           assert "data-nabil-solution-card" in source
           assert "LAB_FAKE_NUMERIC_RANGE_FORBIDDEN" in source
           assert "REFERENCE_RENDERER_CONTRACT" in source
@@ -598,12 +599,23 @@ jobs:
           assert "nabilSpeakClear" not in runtime
           assert "/api/tts" not in runtime
 
+          browser_tts = factory.Path(
+              "app/static/nabil_browser_tts_v1.js"
+          ).read_text(encoding="utf-8")
+          assert 'engine:"SpeechSynthesis"' in browser_tts
+          assert "SpeechSynthesisUtterance" in browser_tts
+          assert "maleVoicePreferred:true" in browser_tts
+          assert "maleVoiceGuaranteed:false" in browser_tts
+          assert "/api/tts" not in browser_tts
+          assert "fetch(" not in browser_tts
+
           smart_route = factory.Path(
               "app/api/routes_smart_labs.py"
           ).read_text(encoding="utf-8")
           assert "SpeechSynthesisUtterance" in smart_route
           assert "/api/tts" not in smart_route
           assert "GEOMETRY_PROOF" in smart_route
+          assert "nabil_browser_tts_v1.js?v=1" in smart_route
 
           interactive = factory.Path(
               "scripts/nabil_interactive_lab.py"
@@ -662,6 +674,7 @@ jobs:
               app/api/routes_smart_labs.py \
               app/api/routes_interactive_lessons.py \
               app/static/nabil_smart_lab_bridge_v1.js \
+              app/static/nabil_browser_tts_v1.js \
               app/static/nabil_lesson_e2e_runtime_v1.js \
               app/static/nabil_scientific_solution_cards_e2e.js \
               app/static/nabil_reference_theme.css \
