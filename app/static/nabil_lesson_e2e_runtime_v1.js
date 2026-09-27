@@ -84,12 +84,29 @@ let recorder=null,micStream=null,micChunks=[],recording=false,busy=false;
 let speechTimer=0,speechToken=0,lastAnswerText="";
 
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
-function stripSpeech(text){
- return String(text||"")
+function semanticMathSpeech(text,code){
+ let t=String(text||"");
+ const div=code==="ar"?" على ":code==="fr"?" sur ":" over ";
+ const root=code==="ar"?"الجذر التربيعي لـ ":code==="fr"?"racine carrée de ":"square root of ";
+ const sq=code==="ar"?" تربيع":code==="fr"?" au carré":" squared";
+ const cube=code==="ar"?" تكعيب":code==="fr"?" au cube":" cubed";
+ // Convert common LaTeX math to meaning before stripping markup.
+ for(let i=0;i<4;i++){
+  t=t.replace(/\\frac\s*\{([^{}]+)\}\s*\{([^{}]+)\}/g,(_,a,b)=>a+div+b);
+ }
+ t=t.replace(/\\sqrt\s*\{([^{}]+)\}/g,(_,a)=>root+a);
+ t=t.replace(/([A-Za-z0-9)\]}]+)\s*\^\s*\{?2\}?/g,(_,a)=>a+sq);
+ t=t.replace(/([A-Za-z0-9)\]}]+)\s*\^\s*\{?3\}?/g,(_,a)=>a+cube);
+ t=t.replace(/\s*\/\s*/g,div);
+ return t;
+}
+function stripSpeech(text,code=lang){
+ return semanticMathSpeech(text,code)
   .replace(/<_?DRAWINGS?_JSON>[\s\S]*?<\/?_?DRAWINGS?_JSON>/gi," ")
   .replace(/<PROGRESS_JSON>[\s\S]*?<\/PROGRESS_JSON>/gi," ")
   .replace(/\\\[|\\\]|\\\(|\\\)/g," ")
-  .replace(/\\(?:frac|sqrt|text|mathrm|mathbf)\b/g," ")
+  .replace(/\\(?:text|mathrm|mathbf)\b/g," ")
+  .replace(/[{}]/g," ")
   .replace(/[*#_~]/g," ")
   .replace(/\x60/g," ")
   .replace(/\s+/g," ").trim();
@@ -98,8 +115,14 @@ function langLabel(code){return code==="ar"?"العربية":code==="fr"?"Franç
 function preferredVoice(code){
  const prefix=code==="ar"?"ar":code==="fr"?"fr":"en";
  const voices=window.speechSynthesis?.getVoices?.()||[];
- return voices.find(v=>String(v.lang||"").toLowerCase().startsWith(prefix)&&v.localService)
-     ||voices.find(v=>String(v.lang||"").toLowerCase().startsWith(prefix))||null;
+ const maleHints=code==="ar"
+   ?["hamed","naayf","maged","tarik","male"]
+   :code==="fr"
+     ?["henri","paul","claude","male"]
+     :["guy","david","mark","ryan","george","male"];
+ const scoped=voices.filter(v=>String(v.lang||"").toLowerCase().startsWith(prefix));
+ const male=scoped.find(v=>maleHints.some(h=>String(v.name||"").toLowerCase().includes(h)));
+ return male||scoped.find(v=>v.localService)||scoped[0]||null;
 }
 function tokenizeSegments(text,base){
  if(base!=="ar")return [{text,lang:base}];
@@ -146,7 +169,7 @@ function progressive(text,duration,token){
  tick();
 }
 async function speak(text,requested=lang){
- const clean=stripSpeech(text);if(!clean)return;
+ const clean=stripSpeech(text,requested);if(!clean)return;
  stopSpeech();const token=++speechToken;
  if(typeof window.nabilSpeakClear==="function"){
    let duration=0,started=false;
