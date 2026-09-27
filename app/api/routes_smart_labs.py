@@ -113,7 +113,6 @@ def _verify_question_locked_spec(
             "electron_transfer",
             "charge_neutrality",
         },
-        "GEOMETRY_PROOF": set(),
     }
     if kind in advanced_required_quotes:
         evidence_quotes = spec.get("evidence_quotes")
@@ -188,8 +187,8 @@ def _verify_question_locked_spec(
 
 def _standalone_html(lab_html: str, lang: str, title: str) -> str:
     # The lab renderer escapes all model-provided student text. Source images
-    # never enter this wrapper. Voice prefers the server's male neural NABIL
-    # voices; browser speech is only a male-first fallback.
+    # never enter this wrapper. Student-facing voice uses the free browser
+    # SpeechSynthesis contract only, with a male voice preferred when available.
     title_safe = html_lib.escape(title or "NABIL Smart Lab")
     speech_lang = {"ar": "ar-SA", "fr": "fr-FR", "en": "en-US"}[lang]
     return f"""<!doctype html>
