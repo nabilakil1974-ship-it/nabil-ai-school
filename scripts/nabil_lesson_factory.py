@@ -3280,14 +3280,16 @@ def grounded_subject_solver(exercise: dict, evidence_map: dict, profile: dict) -
     } if fig_base64 else None)
 
     def _generate_solution(extra_instruction: str = "") -> Tuple[dict, dict]:
-        raw = execute_llm_completion(
+        parsed = _execute_llm_json_strict(
             query + extra_instruction,
-            json_mode=True,
-            temperature=0.0,
             image_base64=fig_base64,
-            vision_context=vision_context)
-        parsed = json.loads(raw)
+            vision_context=vision_context,
+            purpose=f"exercise_solution_{exercise.get('exercise_id')}",
+            max_attempts=3,
+        )
         provenance_data = get_last_llm_provenance()
+        if not isinstance(parsed, dict):
+            raise ValueError("Incomplete solver response schema")
         if not isinstance(parsed.get("steps"), list) or not parsed.get("steps"):
             raise ValueError("Incomplete solver steps")
         if not str(parsed.get("final_answer") or "").strip():
@@ -3322,13 +3324,15 @@ def grounded_subject_solver(exercise: dict, evidence_map: dict, profile: dict) -
             f"{json.dumps(supported_scope, ensure_ascii=False)}\n"
             f"Candidate solution: {json.dumps(candidate, ensure_ascii=False)}"
         )
-        raw = execute_llm_completion(
+        parsed_audit = _execute_llm_json_strict(
             audit_prompt,
-            json_mode=True,
-            temperature=0.0,
             image_base64=fig_base64,
-            vision_context=vision_context)
-        parsed_audit = json.loads(raw)
+            vision_context=vision_context,
+            purpose=f"exercise_solution_audit_{exercise.get('exercise_id')}",
+            max_attempts=3,
+        )
+        if not isinstance(parsed_audit, dict):
+            raise ValueError("Incomplete solution audit schema")
         return parsed_audit, dict(get_last_llm_provenance())
 
     try:
