@@ -232,6 +232,8 @@ Build ONE safe interactive visual laboratory only when the source can support it
 GRADE: {request.grade}
 SUBJECT: {request.subject}
 LANGUAGE: {lang}
+If LANGUAGE is ar, use clear Modern Standard Arabic (فصحى) in titles/instructions/observations.
+Preserve established scientific terms, symbols, formulas and units exactly; never replace them with colloquial or non-scientific wording.
 USER_SOURCE:
 <<<{question}>>>
 
@@ -307,8 +309,12 @@ ionic_bond, cation_charge, anion_charge, ion_ratio, electron_transfer, charge_ne
         "found": True,
         "kind": str(spec.get("kind") or ""),
         "title": str(spec.get("title") or "NABIL Smart Lab"),
+        "renderer_contract": "NABIL_REFERENCE_RENDERER_V1",
+        "teacher_pointer": "sentence-synced",
+        "language": lang,
         "html": _standalone_html(
             lab_html, lang, str(spec.get("title") or "NABIL Smart Lab")
         ),
         "source": "student_question_locked",
+        "source_raster_student_facing": False,
     }
