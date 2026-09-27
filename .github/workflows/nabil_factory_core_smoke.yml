@@ -102,6 +102,10 @@ jobs:
               max_attempts=2)
           assert retry_payload == {"exercises": []}
           assert provider_calls == ["openrouter", "openai"], provider_calls
+          assert hasattr(factory, "_rescue_unverified_exercise")
+          source_text = factory.Path(factory.__file__).read_text(encoding="utf-8")
+          assert "excluded_providers=malformed_providers" in source_text
+          assert "EXERCISE_TARGETED_RESCUE_ACCEPTED" in source_text
           factory.execute_llm_completion = original_llm
           factory._provider_keys = original_keys
           factory._vision_provider_authorized = original_auth
