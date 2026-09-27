@@ -135,6 +135,11 @@ jobs:
           assert "SOLUTION_SOURCE_SCOPE_AUDIT_MISSING" in source_text
           assert "exercise_solution_" in source_text
           assert "exercise_solution_audit_" in source_text
+          assert "[BLANK]" in source_text
+          assert "blank_count" in source_text
+          assert "final_answer_complete" in source_text
+          assert "no_unrequested_actions" in source_text
+          assert "TEXTBOOK_EXERCISE_EVIDENCE" in source_text
           assert "PRE_SOLVE_STATUS_INVALID" in source_text
           assert "SKIPPED_UNVERIFIED_QUIZ_ITEM" in source_text
           assert "GENERATED_CONTENT_SCOPE_AUDIT_MISSING" in source_text
