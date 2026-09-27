@@ -392,6 +392,9 @@ jobs:
           assert "GEOMETRY_PROOF" in source
           assert "FULL_PAGE_TRANSLATION_INCOMPLETE" in source
           assert "build_trilingual_page_translation" in source
+          assert "build_teaching_steps" in source
+          assert "TEACHING_ENGINE_SEQUENCE_INCOMPLETE" in source
+          assert "GEOMETRY_VISUAL_PROOF_MARKS_MISSING" in source
 
           # Translation shell is tested without network/provider access.
           original_translate = factory._translate_strings_batch
@@ -535,14 +538,27 @@ jobs:
           assert "semanticMathSpeech" in runtime
           assert "maleHints" in runtime
           assert '"hamed"' in runtime and '"guy"' in runtime and '"henri"' in runtime
+          assert "SpeechSynthesisUtterance" in runtime
+          assert "nabilSpeakClear" not in runtime
+          assert "/api/tts" not in runtime
+
+          smart_route = factory.Path(
+              "app/api/routes_smart_labs.py"
+          ).read_text(encoding="utf-8")
+          assert "SpeechSynthesisUtterance" in smart_route
+          assert "/api/tts" not in smart_route
+          assert "GEOMETRY_PROOF" in smart_route
+
+          interactive = factory.Path(
+              "scripts/nabil_interactive_lab.py"
+          ).read_text(encoding="utf-8")
+          assert "render_geometry_proof_lab" in interactive
+          assert "validate_geometry_proof_spec" in interactive
 
           chat_route = factory.Path(
               "app/api/routes_chat.py"
           ).read_text(encoding="utf-8")
           assert "العربية الفصحى المبسطة" in chat_route
-          assert "ar-SA-HamedNeural" in chat_route
-          assert "en-US-GuyNeural" in chat_route
-          assert "fr-FR-HenriNeural" in chat_route
           assert "لا تقل مطلقاً «شرطة» أو «سلاش»" in chat_route
 
           preview = factory.Path(
@@ -586,9 +602,13 @@ jobs:
               scripts/nabil_lesson_factory.py \
               scripts/nabil_interactive_lab.py \
               scripts/nabil_advanced_lab.py \
+              scripts/nabil_geometry_lab.py \
               app/api/routes_smart_labs.py \
               app/api/routes_interactive_lessons.py \
               app/static/nabil_smart_lab_bridge_v1.js \
+              app/static/nabil_lesson_e2e_runtime_v1.js \
+              app/static/nabil_scientific_solution_cards_e2e.js \
+              app/static/nabil_reference_theme.css \
               app/main.py \
               .github/workflows/nabil_factory_core_smoke.yml
           } > NABIL_E2E_MANIFEST.txt
