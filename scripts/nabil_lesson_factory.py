@@ -4927,6 +4927,7 @@ def build_prebuilt_lab_index(entry: dict, theory: dict, exercises: list) -> dict
         spec = act.get("lab_spec") or {}
         concept_labs.append({
             "key": f"concept:{act.get('concept_id')}",
+            "artifact": "theory",
             "concept_id": act.get("concept_id"),
             "title": act.get("title"),
             "kind": spec.get("kind"),
@@ -4938,6 +4939,7 @@ def build_prebuilt_lab_index(entry: dict, theory: dict, exercises: list) -> dict
         spec = ex.get("_prebuilt_lab_spec") or {}
         exercise_labs.append({
             "key": ex.get("_prebuilt_lab_key"),
+            "artifact": "exercises",
             "exercise_id": ex.get("exercise_id"),
             "number": ex.get("number"),
             "section_type": ex.get("section_type"),
@@ -5639,12 +5641,17 @@ def rollback_lesson_drive(drive_service, lesson_id: str, target_version: int):
     meta = json.loads(ver_file.read_text(encoding="utf-8"))
     old_a = ARTIFACTS_DIR / f"{lesson_id}_v{target_version}_A.html"
     old_b = ARTIFACTS_DIR / f"{lesson_id}_v{target_version}_B.html"
+    old_labs = ARTIFACTS_DIR / f"{lesson_id}_v{target_version}_LABS.json"
 
     if not (old_a.exists() and old_b.exists()):
         raise RuntimeError(f"ROLLBACK_ARTIFACTS_MISSING: Version v{target_version} files not found")
 
     content_a = old_a.read_text(encoding="utf-8")
     content_b = old_b.read_text(encoding="utf-8")
+    content_labs = (
+        old_labs.read_text(encoding="utf-8")
+        if old_labs.exists() else None
+    )
 
     from googleapiclient.http import MediaIoBaseUpload
     if meta.get("drive_theory_id"):
@@ -5654,6 +5661,14 @@ def rollback_lesson_drive(drive_service, lesson_id: str, target_version: int):
     if meta.get("drive_exercises_id"):
         media_b = MediaIoBaseUpload(io.BytesIO(content_b.encode("utf-8")), mimetype="text/html", resumable=True)
         drive_service.files().update(fileId=meta["drive_exercises_id"], media_body=media_b).execute()
+
+    if meta.get("drive_labs_id") and content_labs is not None:
+        media_labs = MediaIoBaseUpload(
+            io.BytesIO(content_labs.encode("utf-8")),
+            mimetype="application/json",
+            resumable=True)
+        drive_service.files().update(
+            fileId=meta["drive_labs_id"], media_body=media_labs).execute()
 
     meta["published_version"] = target_version
     meta["status"] = "ROLLED_BACK"
