@@ -299,6 +299,7 @@ Allowed kinds:
    Required: points=[{label,x,y}] using 0..100 layout coordinates; segments=[{id,a,b}];
    marks with type equal_segments|equal_angles|perpendicular|parallel|midpoint|symmetry_axis and an exact evidence_quote for every mark;
    proof_steps=[{title,text,formula,target_ids,reveal_marks,evidence_quote}].
+   target_ids may contain only a mark id, point:<label>, or segment:<id>, in the same order as the spoken sentences.
    Equal-segment facts must show congruence ticks; equal-angle facts matching arcs; perpendicularity a right-angle square; parallelism matching arrow marks; midpoint equal-part marks; symmetry a highlighted axis/pair effect.
    NEVER create a proof mark from the appearance of the sketch. Every mark and every proof step needs an exact quote from USER_SOURCE or VERIFIED_SOLUTION.
 9. EVIDENCE_REVEAL is the universal fallback for any subject/question when no richer simulation fits.
