@@ -37,10 +37,29 @@ def _verify_question_locked_spec(spec: dict[str, Any], question: str) -> dict[st
     if not isinstance(spec, dict):
         raise RuntimeError("SMART_LAB_SPEC_INVALID")
     if spec.get("supported") is not True:
-        return {
-            "supported": False,
-            "reason": str(spec.get("reason") or "NO_SAFE_INTERACTIVE_MODEL"),
+        source_quote = str(question or "").strip()[:1200]
+        if not source_quote:
+            return {
+                "supported": False,
+                "reason": "QUESTION_EMPTY",
+                "evidence_ref": "USER_QUESTION",
+            }
+        # Universal exercise/question contract: every real student task can at
+        # least be explored as an interactive evidence reveal, while richer
+        # science/math labs still take precedence when justified.
+        spec = {
+            "supported": True,
+            "kind": "EVIDENCE_REVEAL",
+            "title": "NABIL Interactive Explanation",
+            "instructions": "Explore the verified givens and task step by step.",
+            "observation": "Only information present in the student question is shown.",
             "evidence_ref": "USER_QUESTION",
+            "evidence_quote": source_quote,
+            "items": [{
+                "label": "Question evidence",
+                "evidence_quote": source_quote,
+            }],
+            "fallback_reason": str(spec.get("reason") or "NO_RICHER_LAB_KIND"),
         }
 
     spec["evidence_ref"] = "USER_QUESTION"
@@ -89,8 +108,19 @@ def _verify_question_locked_spec(spec: dict[str, Any], question: str) -> dict[st
                     f"SMART_LAB_ADVANCED_EVIDENCE_QUOTE_NOT_FOUND:{claim}"
                 )
 
-    # Generic source-backed sequence labs must never introduce a step that is
-    # absent from the actual student question/passage.
+    # Generic source-backed labs must never introduce a step/item absent from
+    # the actual student question/passage.
+    if kind == "EVIDENCE_REVEAL":
+        items = spec.get("items")
+        if not isinstance(items, list) or not 1 <= len(items) <= 8:
+            raise RuntimeError("SMART_LAB_REVEAL_INVALID")
+        for index, item in enumerate(items):
+            item_quote = _norm((item or {}).get("evidence_quote", ""))
+            if not item_quote or item_quote not in source:
+                raise RuntimeError(
+                    f"SMART_LAB_REVEAL_EVIDENCE_NOT_FOUND:{index}"
+                )
+
     if kind == "EVIDENCE_SEQUENCE":
         steps = spec.get("steps")
         if not isinstance(steps, list) or not 2 <= len(steps) <= 8:
@@ -185,6 +215,8 @@ Allowed kinds:
    electron_transfer_count, bond_type='ionic'. Charges/ratios must be scientifically consistent.
 7. EVIDENCE_SEQUENCE for ANY subject when USER_SOURCE contains at least two ordered or structurally related facts/steps/parts that can be highlighted sequentially.
    Required: steps=[{{label,evidence_quote}}], 2..8 steps. Every evidence_quote must be an exact contiguous quote from USER_SOURCE.
+8. EVIDENCE_REVEAL is the universal fallback for any subject/question when no richer simulation fits.
+   Required: items=[{{label,evidence_quote}}], 1..8 items, each evidence_quote an exact contiguous quote from USER_SOURCE.
 
 Never invent a measurement, label, charge, formula, historical fact, grammatical rule, geometry condition,
 scientific behavior, or missing step.
