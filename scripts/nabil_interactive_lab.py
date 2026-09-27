@@ -229,14 +229,13 @@ def _render_shape(spec:Dict[str,Any],lang_code:str,lab_id:str)->str:
         }}
         function setShape(dest){{
           if(fixed){{shape.setAttribute('d','M70 116 L140 116 L137 178 L73 178 Z');return;}}
-          if(dest==='B')shape.setAttribute('d','M285 115 L345 115 L340 178 L290 178 Z');
+          if(dest==='B')shape.setAttribute('d','M75 115 L135 115 L130 178 L80 178 Z');
           else shape.setAttribute('d','M70 116 L140 116 L137 178 L73 178 Z');
         }}
         function snap(dest){{
           home=dest;
           if(dest==='B'){{
-            if(fixed){{setShape('A');setTransform(210,0);}}
-            else{{setTransform(0,0);setShape('B');}}
+            setShape('B');setTransform(210,0);
           }}else{{setTransform(0,0);setShape('A');}}
           dropA.setAttribute('stroke','transparent');dropB.setAttribute('stroke','transparent');
           state.textContent=dest;
