@@ -103,7 +103,20 @@ async function buildQuestionLab(source,trigger){
  finally{if(trigger){trigger.disabled=false;trigger.textContent=old||labels().ask;}}
 }
 
-async function buildInlineQuestionLab(source,card,labKey){
+function verifiedSolutionEvidence(result){
+ const card=result?.solution_card;
+ if(!card||typeof card!=="object")return "";
+ const safe={
+  subject:card.subject||"",
+  title:card.title||"",
+  sections:Array.isArray(card.sections)?card.sections:[],
+  key_results:Array.isArray(card.key_results)?card.key_results:[],
+  verification:Array.isArray(card.verification)?card.verification:[]
+ };
+ try{return JSON.stringify(safe)}catch(_e){return ""}
+}
+
+async function buildInlineQuestionLab(source,card,labKey,result){
  const question=String(source||"").replace(/\s+/g," ").trim();
  if(!card||question.length<3)return;
  if(card.querySelector(".nabil-solution-runtime-lab"))return;
@@ -118,7 +131,7 @@ async function buildInlineQuestionLab(source,card,labKey){
    const sc=scope();
    const res=await fetch("/api/smart-labs/from-question",{
      method:"POST",headers:{"Content-Type":"application/json"},
-     body:JSON.stringify({question,grade:sc.grade,subject:sc.subject,language:sc.language})
+     body:JSON.stringify({question,verified_solution:verifiedSolutionEvidence(result),grade:sc.grade,subject:sc.subject,language:sc.language})
    });
    const data=await res.json().catch(()=>({}));
    if(!res.ok)throw Error(String(data?.detail?.reason||data?.detail||labels().none));
@@ -227,7 +240,7 @@ function wireStudentMessages(){
 window.addEventListener("nabil:solution-ready",event=>{
  const d=event?.detail||{};
  if(d.mode!=="general_exercises"||!d.card)return;
- buildInlineQuestionLab(d.question,d.card,d.labKey);
+ buildInlineQuestionLab(d.question,d.card,d.labKey,d.result);
 });
 
 function wireAll(){
