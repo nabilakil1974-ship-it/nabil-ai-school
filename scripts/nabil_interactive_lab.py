@@ -143,19 +143,18 @@ def _render_orientation(spec:Dict[str,Any],lang_code:str,lab_id:str)->str:
           <path d="M143 32h14M150 25v14" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round"/>
         </g>
         <g id="{safe}_invariant">{invariant_line}</g>
-        <text id="{safe}_angleText" x="150" y="181" text-anchor="middle" font-size="11" fill="#64748b">0°</text>
       </svg>
       <p style="font-size:12px;color:#475569;margin:10px 0 0;">{html.escape(spec['observation'])}</p>
       <script>
       (()=>{{
         const stage=document.getElementById('{safe}_stage');
         const moving=document.getElementById('{safe}_moving');
-        const angleText=document.getElementById('{safe}_angleText');
         let active=false,startX=0,startAngle=0,angle=0,pid=null;
         function apply(next){{
+          // The clamp is a UI-only gesture bound, not a scientific measurement.
+          // Never expose this presentation angle as textbook data.
           angle=Math.max(-28,Math.min(28,next));
           moving.setAttribute('transform','rotate('+angle.toFixed(1)+' 150 100)');
-          angleText.textContent=angle.toFixed(0)+'°';
         }}
         function localX(e){{
           const pt=stage.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;
