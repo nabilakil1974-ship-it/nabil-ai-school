@@ -1864,6 +1864,71 @@ def verify_title_double_evidence_strict(doc, entry: dict, opening_txt: str) -> b
         or "contents" in toc_normalized or "فهرس" in toc_normalized
     )
 
+def _execute_llm_json_strict(
+        prompt: str,
+        *,
+        image_base64: Optional[str] = None,
+        vision_context: Optional[Dict[str, Any]] = None,
+        purpose: str = "factory_json",
+        max_attempts: int = 3) -> Any:
+    """Require parseable RFC-8259 JSON; retry from the original source if malformed.
+
+    We deliberately do NOT repair malformed source transcriptions after the
+    fact. A repair model could alter quoted textbook text. Instead, every retry
+    re-reads the same authorized source image with a stricter serialization
+    contract, preserving the source-first/fail-closed guarantee.
+    """
+    attempts = max(1, min(4, int(max_attempts)))
+    base_prompt = str(prompt)
+    strict_suffix = (
+        "\n\nSTRICT JSON SERIALIZATION CONTRACT:\n"
+        "- Return exactly one valid RFC-8259 JSON value and nothing else.\n"
+        "- Use double quotes for every object key and every JSON string.\n"
+        "- Escape every double quote, backslash, newline, tab, and other "
+        "control character inside string values correctly.\n"
+        "- No comments, no trailing commas, no Markdown fences, no Python "
+        "dict syntax, and no explanatory text outside the JSON.\n"
+        "- Preserve source wording exactly; serialization escaping must not "
+        "change the underlying textbook text."
+    )
+    last_error = None
+    for attempt in range(1, attempts + 1):
+        effective_prompt = (
+            base_prompt if attempt == 1
+            else base_prompt + strict_suffix +
+            f"\nThis is strict JSON retry {attempt} of {attempts}."
+        )
+        raw = execute_llm_completion(
+            effective_prompt,
+            json_mode=True,
+            temperature=0.0,
+            image_base64=image_base64,
+            vision_context=vision_context,
+        )
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError as exc:
+            last_error = exc
+            progress(
+                "AI_JSON_INVALID_RETRY",
+                purpose=purpose,
+                attempt=attempt,
+                max_attempts=attempts,
+                line=exc.lineno,
+                column=exc.colno,
+                char=exc.pos,
+                provider=get_last_llm_provenance().get("provider"),
+                model=get_last_llm_provenance().get("model"),
+                image_request=bool(image_base64),
+                vision_context=vision_context if image_base64 else None,
+            )
+    raise RuntimeError(
+        f"AI_JSON_INVALID_AFTER_RETRIES:{purpose}:"
+        f"line={getattr(last_error, 'lineno', 0)}:"
+        f"column={getattr(last_error, 'colno', 0)}"
+    ) from last_error
+
+
 def _normalize_exercise_scan_payload(payload: Any, page_num: int) -> List[dict]:
     """Accept the provider's semantically equivalent array/object JSON roots."""
     if isinstance(payload, list):
@@ -1935,13 +2000,16 @@ def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
         "numbers with exercise numbers. Preserve table entries and all "
         "instructions. Do not invent any text. No numbered exercises -> []."
     )
-    extracted = json.loads(execute_llm_completion(
-        instruction, image_base64=page_b64,
+    extracted = _execute_llm_json_strict(
+        instruction,
+        image_base64=page_b64,
         vision_context={
             "lesson_id": lesson_id,
             "book_id": book_id,
             "pdf_page": page_num,
-        }))
+        },
+        purpose=f"exercise_scan_p{page_num}",
+    )
     extraction_provenance = get_last_llm_provenance()
     rows = _normalize_exercise_scan_payload(extracted, page_num)
     if not rows:
@@ -1955,13 +2023,16 @@ def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
         "two-column order. No favorable assumptions. Transcriptions: "
         + json.dumps(rows, ensure_ascii=False)
     )
-    review = json.loads(execute_llm_completion(
-        audit_prompt, image_base64=page_b64,
+    review = _execute_llm_json_strict(
+        audit_prompt,
+        image_base64=page_b64,
         vision_context={
             "lesson_id": lesson_id,
             "book_id": book_id,
             "pdf_page": page_num,
-        }))
+        },
+        purpose=f"exercise_review_p{page_num}",
+    )
     audit_provenance = get_last_llm_provenance()
     checks = _normalize_exercise_review_payload(review, page_num)
     approved = {int(x["number"]): x for x in checks if isinstance(x, dict)
