@@ -4797,7 +4797,7 @@ def _deterministic_evidence_reveal_spec(
 
 
 def prepare_prebuilt_exercise_labs(
-        entry: dict, exercises: list, profile: dict) -> None:
+        entry: dict, exercises: list, profile: dict, ev_map: dict) -> None:
     """Generate every exercise lab ONCE during lesson production.
 
     Student runtime never needs an LLM for an indexed exercise. Richer lab
@@ -4813,6 +4813,44 @@ def prepare_prebuilt_exercise_labs(
             + "\n"
             + "\n".join(str(x) for x in (ex.get("subquestions") or []))
         ).strip()
+        figure_paths = []
+        figure_refs = list(ex.get("figure_refs") or [])
+        if figure_refs:
+            for page_item in ev_map.get("pages_evidence", []):
+                if int(page_item.get("page_num") or -1) != int(
+                        ex.get("source_page") or -2):
+                    continue
+                for fig in page_item.get("figures") or []:
+                    if (fig.get("figure_id") in figure_refs
+                            and fig.get("image_path")
+                            and Path(fig["image_path"]).is_file()):
+                        figure_paths.append(str(fig["image_path"]))
+
+        figure_image_base64 = None
+        if figure_paths:
+            from PIL import Image
+            pics = []
+            for filename in figure_paths[:4]:
+                with Image.open(filename) as image:
+                    pic = image.convert("RGB")
+                    pic.thumbnail((1100, 850))
+                    pics.append(pic.copy())
+            if pics:
+                canvas = Image.new(
+                    "RGB",
+                    (max(im.width for im in pics),
+                     sum(im.height for im in pics) + 8 * (len(pics) - 1)),
+                    "white",
+                )
+                top = 0
+                for pic in pics:
+                    canvas.paste(pic, (0, top))
+                    top += pic.height + 8
+                buf = io.BytesIO()
+                canvas.save(buf, format="PNG")
+                figure_image_base64 = base64.b64encode(
+                    buf.getvalue()).decode("ascii")
+
         pseudo_concept = {
             "concept_id": evidence_id,
             "title": (
@@ -4821,7 +4859,7 @@ def prepare_prebuilt_exercise_labs(
             "source_page": ex.get("source_page"),
             "raw_text": source_text,
             "normalized_text": source_text,
-            "figure_refs": [],
+            "figure_refs": figure_refs,
             "math_records": [],
         }
         minimal_narrative = {
@@ -4839,7 +4877,12 @@ def prepare_prebuilt_exercise_labs(
         try:
             spec = build_verified_lab_spec(
                 entry, pseudo_concept, minimal_narrative, profile,
-                figure_image_base64=None, vision_context=None)
+                figure_image_base64=figure_image_base64,
+                vision_context={
+                    "lesson_id": entry.get("lesson_id"),
+                    "book_id": entry.get("book_id"),
+                    "pdf_page": ex.get("source_page"),
+                } if figure_image_base64 else None)
         except Exception as exc:
             progress(
                 "EXERCISE_RICH_LAB_FALLBACK_TO_PREBUILT_REVEAL",
@@ -5693,7 +5736,7 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
     prepare_verified_solutions(
         entry, exercises, profile, ev_map,
         drive_service=drive_service, persist=publish)
-    prepare_prebuilt_exercise_labs(entry, exercises, profile)
+    prepare_prebuilt_exercise_labs(entry, exercises, profile, ev_map)
     lab_index = build_prebuilt_lab_index(entry, theory, exercises)
     page_a = render_lesson_page_a(entry, theory, ev_map, lab_index=lab_index)
     page_b = render_lesson_page_b(
