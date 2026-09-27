@@ -21,7 +21,7 @@ warning to the teacher. This module:
 import html
 from typing import List, Dict, Any
 
-from nabil_i18n import t as _t
+from scripts.nabil_i18n import t as _t
 
 PASS_THRESHOLD_FRACTION = 0.70  # configurable; matches typical Lebanese 70% pass mark
 
