@@ -302,16 +302,40 @@ def _inline_drive_images(service, item, markup):
 
 
 def _set_initial_language(markup, language):
-    """Apply requested language after the lesson initializes its own default."""
-    wanted = "fr" if _norm(language) in {_norm(x) for x in ("fr", "French", "Français")} else "en"
-    if "</body>" not in markup.lower() or "lesson-language" not in markup:
+    """Apply the requested student language to new and legacy lesson pages."""
+    norm = _norm(language)
+    if norm in {_norm(x) for x in ("ar", "Arabic", "العربية")}:
+        wanted = "ar"
+    elif norm in {_norm(x) for x in ("fr", "French", "Français")}:
+        wanted = "fr"
+    else:
+        wanted = "en"
+    if "</body>" not in markup.lower():
+        return markup
+
+    # New factory pages ship one complete AR/EN/FR translation bundle.
+    if 'id="nabilPageTranslationBundle"' in markup:
+        js = (
+            '<script>window.addEventListener("load",function(){'
+            'try{window.NABILPageLanguage&&window.NABILPageLanguage.apply("'
+            + wanted + '");}catch(e){}'
+            '});</script>'
+        )
+        return re.sub(
+            r"</body>", lambda m: js + m.group(0),
+            markup, count=1, flags=re.I)
+
+    # Backward-compatible prepared lessons with their own selector.
+    if "lesson-language" not in markup:
         return markup
     js = ('<script>window.addEventListener("load",function(){'
           'var s=document.getElementById("lesson-language");'
           'if(s){s.value="' + wanted + '";'
           's.dispatchEvent(new Event("change",{bubbles:true}));}'
           '});</script>')
-    return re.sub(r"</body>", lambda m: js + m.group(0), markup, count=1, flags=re.I)
+    return re.sub(
+        r"</body>", lambda m: js + m.group(0),
+        markup, count=1, flags=re.I)
 
 
 @router.post("/solve-on-demand")
@@ -626,7 +650,11 @@ def view(grade: str, subject: str, lesson: str, language: str = "", trace: str =
             html = re.sub(r"</head>", '<link rel="stylesheet" href="/static/nabil_lesson_color_cards_v1.css?v=1"></head>', html, count=1, flags=re.I)
         if (_grade(grade) == "7" and _subject(subject) == "physics"
                 and _norm(item["lesson"]) == _norm("Solids and Liquids")
+                and 'name="nabil-renderer-contract"' not in html
                 and "</body>" in html.lower()):
+            # Compatibility only for the old hand-authored lesson. New factory
+            # output already contains its evidence-gated labs and must never
+            # receive a lesson-specific runtime patch.
             html = re.sub(
                 r"</body>",
                 '<script src="/static/nabil_g7_physics_lab_v1.js?v=1"></script></body>',
