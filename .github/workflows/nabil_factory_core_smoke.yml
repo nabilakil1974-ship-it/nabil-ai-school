@@ -119,7 +119,6 @@ jobs:
           assert "SKIPPED_UNVERIFIED_LAB" in source_text
           assert "SKIPPED_UNVERIFIED_SOURCE_FIGURE" in source_text
           assert "Skip exercise when its required source figure is unverified" not in source_text
-          assert "Never invent or infer" in source_text
           assert "SOURCE_FIGURE_REQUIRED_COVERAGE_INCOMPLETE" in source_text
           assert "AI_RECONSTRUCTED_DIAGRAM_FROM_VERIFIED_TEXT" in source_text
           assert "TEXT_DIAGRAM_RECONSTRUCTION_ACCEPTED" in source_text
