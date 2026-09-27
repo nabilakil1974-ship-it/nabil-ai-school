@@ -189,7 +189,6 @@ svg,canvas,img{{display:block;max-width:100%!important;height:auto!important}}
 }}
 </style>
 <script>
-let nabilStandaloneAudio=null;
 function nabilMaleBrowserVoice(raw){{
   const code=raw.startsWith("fr")?"fr":raw.startsWith("en")?"en":"ar";
   const prefix=code==="fr"?"fr":code==="en"?"en":"ar";
@@ -204,30 +203,27 @@ function nabilMaleBrowserVoice(raw){{
 async function nabilStandaloneSpeak(text,language){{
   const spoken=String(text||"").trim(); if(!spoken)return;
   const raw=String(language||"{lang}").toLowerCase();
-  const label=raw.startsWith("fr")?"Français":raw.startsWith("en")?"English":"العربية";
-  try{{
-    if(nabilStandaloneAudio){{nabilStandaloneAudio.pause();nabilStandaloneAudio=null}}
-    speechSynthesis?.cancel?.();
-    const body=new FormData();body.append("text",spoken);body.append("language",label);
-    const response=await fetch("/api/tts",{{method:"POST",body}});
-    if(response.ok){{
-      const blob=await response.blob();const url=URL.createObjectURL(blob);
-      const audio=new Audio(url);nabilStandaloneAudio=audio;
-      audio.onended=()=>{{URL.revokeObjectURL(url);if(nabilStandaloneAudio===audio)nabilStandaloneAudio=null}};
-      audio.onerror=()=>URL.revokeObjectURL(url);
-      await audio.play();return;
-    }}
-  }}catch(_e){{}}
-  try{{
-    speechSynthesis.cancel();
-    const u=new SpeechSynthesisUtterance(spoken);
-    u.lang=raw.startsWith("fr")?"fr-FR":raw.startsWith("en")?"en-US":"{speech_lang}";
-    u.voice=nabilMaleBrowserVoice(raw);u.rate=.88;speechSynthesis.speak(u);
-  }}catch(_e){{}}
+  if(!window.speechSynthesis||!window.SpeechSynthesisUtterance)return;
+  const synth=window.speechSynthesis;
+  synth.cancel();
+  if(!(synth.getVoices?.()||[]).length){{
+    await new Promise(resolve=>{{
+      let done=false;
+      const finish=()=>{{if(done)return;done=true;resolve();}};
+      try{{synth.addEventListener("voiceschanged",finish,{{once:true}});}}catch(_e){{}}
+      setTimeout(finish,650);
+    }});
+  }}
+  const u=new SpeechSynthesisUtterance(spoken);
+  u.lang=raw.startsWith("fr")?"fr-FR":raw.startsWith("en")?"en-US":"{speech_lang}";
+  u.voice=nabilMaleBrowserVoice(raw);
+  u.rate=.88;u.pitch=.94;
+  return await new Promise(resolve=>{{
+    u.onend=resolve;u.onerror=resolve;synth.speak(u);
+  }});
 }}
 window.NABILLessonE2E={{
   stopSpeech:function(){{
-    try{{if(nabilStandaloneAudio){{nabilStandaloneAudio.pause();nabilStandaloneAudio=null}}}}catch(_e){{}}
     try{{speechSynthesis.cancel()}}catch(_e){{}}
   }},
   speak:nabilStandaloneSpeak
