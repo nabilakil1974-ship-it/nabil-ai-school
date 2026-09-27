@@ -34,7 +34,9 @@ def _norm(value: str) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip().casefold()
 
 
-def _verify_question_locked_spec(spec: dict[str, Any], evidence_source: str) -> dict[str, Any]:
+def _verify_question_locked_spec(
+        spec: dict[str, Any], evidence_source: str, lang: str = "en"
+        ) -> dict[str, Any]:
     if not isinstance(spec, dict):
         raise RuntimeError("SMART_LAB_SPEC_INVALID")
     if spec.get("supported") is not True:
@@ -48,16 +50,36 @@ def _verify_question_locked_spec(spec: dict[str, Any], evidence_source: str) -> 
         # Universal exercise/question contract: every real student task can at
         # least be explored as an interactive evidence reveal, while richer
         # science/math labs still take precedence when justified.
+        fallback_text = {
+            "ar": {
+                "title": "شرح نبيل التفاعلي",
+                "instructions": "استكشف المعطيات الموثقة والمطلوب خطوةً خطوة.",
+                "observation": "لا يظهر هنا إلا ما تدعمه معطيات السؤال والحل الموثق.",
+                "label": "دليل السؤال",
+            },
+            "fr": {
+                "title": "Explication interactive de NABIL",
+                "instructions": "Explore les données vérifiées et la tâche étape par étape.",
+                "observation": "Seules les informations appuyées par la question et la solution vérifiée sont affichées.",
+                "label": "Preuve de la question",
+            },
+            "en": {
+                "title": "NABIL Interactive Explanation",
+                "instructions": "Explore the verified givens and task step by step.",
+                "observation": "Only information supported by the question and verified solution is shown.",
+                "label": "Question evidence",
+            },
+        }.get(lang, {})
         spec = {
             "supported": True,
             "kind": "EVIDENCE_REVEAL",
-            "title": "NABIL Interactive Explanation",
-            "instructions": "Explore the verified givens and task step by step.",
-            "observation": "Only information present in the student question is shown.",
+            "title": fallback_text.get("title", "NABIL Interactive Explanation"),
+            "instructions": fallback_text.get("instructions", "Explore the verified givens step by step."),
+            "observation": fallback_text.get("observation", "Only verified information is shown."),
             "evidence_ref": "USER_QUESTION",
             "evidence_quote": source_quote,
             "items": [{
-                "label": "Question evidence",
+                "label": fallback_text.get("label", "Question evidence"),
                 "evidence_quote": source_quote,
             }],
             "fallback_reason": str(spec.get("reason") or "NO_RICHER_LAB_KIND"),
@@ -312,7 +334,7 @@ For GEOMETRY_PROOF, every marks[].evidence_quote and proof_steps[].evidence_quot
             purpose="smart_lab_from_question",
             max_attempts=3,
         )
-        spec = _verify_question_locked_spec(spec, evidence_source)
+        spec = _verify_question_locked_spec(spec, evidence_source, lang)
     except RuntimeError as exc:
         raise HTTPException(
             status_code=422,
