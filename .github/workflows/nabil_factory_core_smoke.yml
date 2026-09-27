@@ -12,6 +12,7 @@ on:
       - "app/static/nabil_lesson_e2e_runtime_v1.js"
       - "app/static/nabil_smart_lab_bridge_v1.js"
       - "app/api/routes_smart_labs.py"
+      - "app/api/routes_interactive_lessons.py"
       - "app/main.py"
       - ".github/workflows/nabil_factory_core_smoke.yml"
   workflow_dispatch:
@@ -28,7 +29,15 @@ jobs:
 
       - name: Compile real factory modules
         run: |
-          python -m py_compile             scripts/nabil_i18n.py             scripts/nabil_advanced_lab.py             scripts/nabil_interactive_lab.py             scripts/nabil_quiz_engine.py             scripts/nabil_lesson_factory.py
+          python -m py_compile \
+            scripts/nabil_i18n.py \
+            scripts/nabil_advanced_lab.py \
+            scripts/nabil_interactive_lab.py \
+            scripts/nabil_quiz_engine.py \
+            scripts/nabil_lesson_factory.py \
+            app/api/routes_smart_labs.py \
+            app/api/routes_interactive_lessons.py \
+            app/main.py
 
       - name: Validate approved E2E JavaScript
         run: |
@@ -315,6 +324,113 @@ jobs:
           print("NABIL_FACTORY_CORE_SMOKE_OK")
           PY
 
+      - name: Runtime smoke prebuilt indexed labs
+        run: |
+          python - <<'PY'
+          import scripts.nabil_lesson_factory as factory
+
+          entry = {
+              "lesson_id": "TEST-L1",
+              "canonical_title": "Fixture Lesson",
+              "language": "en",
+              "subject": "physics",
+              "grade": 7,
+              "book_id": "B",
+              "pdf_start_page": 1,
+              "pdf_end_page": 1,
+          }
+          profile = {
+              "subject": "physics",
+              "language": "en",
+              "level": "L2",
+              "grade": 7,
+          }
+          ev_map = {
+              "pages_evidence": [{"page_num": 1, "figures": []}],
+          }
+          exercise = {
+              "exercise_id": "TEST-L1-EX-1",
+              "number": 1,
+              "section_type": "EXERCISE",
+              "source_origin": "TEXTBOOK",
+              "source_page": 1,
+              "exact_source_prompt": "Explain why a solid keeps its shape.",
+              "subquestions": [],
+              "figure_refs": [],
+              "requires_figure": False,
+              "solution_mode": "PRE_SOLVED",
+              "solution_status": "OMITTED_UNVERIFIED",
+              "verified_against_source": True,
+          }
+
+          original_builder = factory.build_verified_lab_spec
+          try:
+              def force_safe_fallback(*args, **kwargs):
+                  raise RuntimeError("LAB_FIXTURE_FORCE_FALLBACK")
+              factory.build_verified_lab_spec = force_safe_fallback
+              factory.prepare_prebuilt_exercise_labs(
+                  entry, [exercise], profile, ev_map)
+          finally:
+              factory.build_verified_lab_spec = original_builder
+
+          assert exercise["_prebuilt_lab_active"] is True
+          assert exercise["_prebuilt_lab_spec"]["kind"] == "EVIDENCE_REVEAL"
+          assert 'data-lab-kind="EVIDENCE_REVEAL"' in exercise["_prebuilt_lab_html"]
+          assert "nabil:demo" in exercise["_prebuilt_lab_html"]
+
+          concept_spec = factory._deterministic_evidence_reveal_spec(
+              "C01", "Solid shape", "A solid keeps its shape.", "en")
+          concept_html, active = factory.render_verified_lab(
+              concept_spec, "en", "C01")
+          assert active is True
+
+          theory = {
+              "activities": [{
+                  "concept_id": "C01",
+                  "title": "Solid shape",
+                  "lab_spec": concept_spec,
+                  "lab_html": concept_html,
+                  "has_active_sim": True,
+              }],
+              "worksheet": [],
+              "quiz_html": "",
+              "reference_card_html":
+                  '<div id="goldenReferenceCard">'
+                  '<div class="nabil-reference-concept" '
+                  'data-reference-concept="C01">Solid shape</div></div>',
+          }
+          lab_index = factory.build_prebuilt_lab_index(
+              entry, theory, [exercise])
+          assert lab_index["schema"] == "nabil-prebuilt-lab-index/v1"
+          assert len(lab_index["concept_labs"]) == 1
+          assert len(lab_index["exercise_labs"]) == 1
+          assert lab_index["runtime_ai_required_for_indexed_labs"] is False
+
+          page_b = factory.render_lesson_page_b(
+              entry, [exercise], profile, ev_map, lab_index=lab_index)
+          assert 'id="nabilLabIndex"' in page_b
+          assert 'data-nabil-prebuilt-lab="true"' in page_b
+          assert 'class="nabil-prebuilt-exercise-lab"' in page_b
+          assert 'data-lab-kind="EVIDENCE_REVEAL"' in page_b
+          assert "nabil_smart_lab_bridge_v1.js" in page_b
+          assert "data:image/" not in page_b
+
+          bridge = factory.Path(
+              "app/static/nabil_smart_lab_bridge_v1.js"
+          ).read_text(encoding="utf-8")
+          assert 'btn.dataset.nabilLabSource="prebuilt"' in bridge
+          assert 'btn.dataset.nabilLabSource="missing-prebuilt"' in bridge
+          assert "runtime-ai-fallback" not in bridge
+
+          route = factory.Path(
+              "app/api/routes_interactive_lessons.py"
+          ).read_text(encoding="utf-8")
+          assert "prebuilt_drive_lab_index_json" in route
+          assert "PREBUILT_LAB_INDEX_NOT_FOUND" in route
+
+          print("NABIL_PREBUILT_LABS_RUNTIME_SMOKE_OK")
+          PY
+
       - name: Build verified E2E upload manifest
         if: success()
         run: |
@@ -336,21 +452,26 @@ jobs:
               .github/workflows/nabil_factory_core_smoke.yml
           } > NABIL_E2E_MANIFEST.txt
 
-      - name: Upload verified E2E labs bundle
+      - name: Build exact full-repository ZIP from tested commit
+        if: success()
+        id: package
+        run: |
+          SHORT_SHA="$(git rev-parse --short=8 HEAD)"
+          ZIP_NAME="NABIL_AI_END_TO_END_${SHORT_SHA}.zip"
+          git archive --format=zip --output "${ZIP_NAME}" HEAD
+          zip -q -u "${ZIP_NAME}" NABIL_E2E_MANIFEST.txt
+          sha256sum "${ZIP_NAME}" > NABIL_E2E_ZIP_SHA256.txt
+          echo "zip_name=${ZIP_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload verified full-repository ZIP
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: NABIL_E2E_LABS_END_TO_END
           if-no-files-found: error
           retention-days: 7
+          compression-level: 0
           path: |
-            scripts/nabil_lesson_factory.py
-            scripts/nabil_interactive_lab.py
-            scripts/nabil_advanced_lab.py
-            app/api/routes_smart_labs.py
-            app/api/routes_interactive_lessons.py
-            app/static/nabil_smart_lab_bridge_v1.js
-            app/main.py
-            .github/workflows/nabil_factory_core_smoke.yml
-            NABIL_E2E_MANIFEST.txt
+            ${{ steps.package.outputs.zip_name }}
+            NABIL_E2E_ZIP_SHA256.txt
 
