@@ -4256,21 +4256,15 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
 
     for idx, c in enumerate(concepts, 1):
         p_num = c["source_page"]
+        # Textbook figures are EVIDENCE ONLY. Their pixels are never placed in
+        # the student lesson. NABIL may inspect them to build an independently
+        # audited redraw or interactive lab.
         fig_images = []
-        fig_html = ""
         for p in ev_map["pages_evidence"]:
             if p["page_num"] == p_num and p["figures"]:
                 for f in p["figures"]:
                     if f["figure_id"] in c.get("figure_refs", []):
-                        with open(f["image_path"], "rb") as fh:
-                            b64 = base64.b64encode(fh.read()).decode("ascii")
                         fig_images.append(f["image_path"])
-                        figure_caption = ui_t(
-                            lesson_lang_code, "official_figure_caption", page=p_num)
-                        fig_html += f'''<div class="figure" style="text-align:center; margin:14px 0;">
-                            <img src="data:image/png;base64,{b64}" alt="{html.escape(c['title'])}" onclick="zoomImage(this)" style="max-width:100%; height:auto; border-radius:8px; border:1px solid #cbd5e1; cursor:zoom-in; transition: transform 0.2s;"/>
-                            <div style="font-size:12px; color:#64748b; margin-top:4px;">{html.escape(figure_caption)}</div>
-                        </div>'''
         # Multiple source figures (e.g. 3a/3b) must be read together.
         figure_image_base64 = None
         if fig_images:
@@ -4322,6 +4316,34 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
         concept_lab_html, concept_has_sim = render_verified_lab(
             lab_spec, lesson_lang_code, c["concept_id"])
 
+        concept_visual = None
+        if not concept_has_sim:
+            concept_visual = build_nabil_explanatory_redrawing(
+                source_text=c.get("raw_text", ""),
+                page_num=p_num,
+                figure_paths=fig_images,
+                vision_context=vision_context,
+                purpose=f"concept_{c['concept_id']}",
+                visual_required=bool(c.get("figure_refs")),
+            )
+        if c.get("figure_refs") and not concept_has_sim and not concept_visual:
+            raise RuntimeError(
+                f"NABIL_VISUAL_REQUIRED_BUT_NOT_VERIFIED:{c['concept_id']}:p{p_num}"
+            )
+        concept_visual_html = ""
+        if concept_visual:
+            caption = {
+                "ar": "رسم NABIL التوضيحي المبني على الدليل",
+                "fr": "Schéma explicatif NABIL fondé sur les preuves",
+                "en": "NABIL explanatory visual built from verified evidence",
+            }.get(lesson_lang_code, "NABIL explanatory visual built from verified evidence")
+            concept_visual_html = (
+                '<div class="nabil-explanatory-visual" style="margin:14px 0;">'
+                + str(concept_visual["svg"])
+                + '<div style="font-size:11px;color:#64748b;margin-top:5px;">'
+                + html.escape(caption) + '</div></div>'
+            )
+
         question_ready = all(
             str(narrative.get(k) or "").strip()
             for k in ("conclusion", "distractor_1", "distractor_2")
@@ -4359,7 +4381,12 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
             "observation": narrative.get("observation", ""),
             "interpretation": narrative.get("interpretation", ""),
             "conclusion": narrative.get("conclusion", ""),
-            "visual_html": fig_html,
+            "visual_html": concept_visual_html,
+            "visual_method": (
+                concept_visual.get("method") if concept_visual else
+                ("INTERACTIVE_LAB" if concept_has_sim else None)
+            ),
+            "source_figure_used_as_hidden_evidence": bool(fig_images),
             "lab_spec": lab_spec,
             "lab_html": concept_lab_html,
             "has_active_sim": concept_has_sim,
@@ -4406,11 +4433,10 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
         panels += f'''<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:14px; box-shadow:0 2px 4px rgba(0,0,0,0.04);">
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">
                 <span style="font-weight:700; color:#0369a1; font-size:15px;">{html.escape(c["title"])}</span>
-                <span style="font-size:11px; background:#e0f2fe; color:#0284c7; padding:2px 6px; border-radius:4px; font-weight:600;">p. {c["source_page"]}</span>
             </div>
             {principle_html}
             {subject_metadata}
-            {fig_html}
+            {concept_visual_html}
             <div style="margin-top:8px; font-size:12px; color:#059669; font-weight:600;">{html.escape(ui_t(lesson_lang_code, "verified_evidence_grounding"))}</div>
         </div>'''
 
@@ -4513,7 +4539,7 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict) -> str:
         opts = "".join([f'<button onclick="gradeWs(this, {i == item["correct_index"]}, \'{html.escape(item["explanation"])}\')" class="q-opt">{html.escape(o)}</button>' for i, o in enumerate(item["options"])])
         ws_items += f'''
         <div class="ws-item" style="margin-bottom:14px; padding:12px; background:#fff; border:1px solid #e2e8f0; border-radius:6px;">
-          <div style="font-weight:600; margin-bottom:6px;">{html.escape(ui_t(page_a_lang_code, "question_label"))} {idx+1}: {html.escape(item["question"])} <span style="font-size:11px; color:#64748b;">(p. {item['source_page']})</span></div>
+          <div style="font-weight:600; margin-bottom:6px;">{html.escape(ui_t(page_a_lang_code, "question_label"))} {idx+1}: {html.escape(item["question"])}</div>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">{opts}</div>
           <div class="ws-fb" style="margin-top:6px; font-size:12px; font-weight:600; display:none;"></div>
         </div>'''
@@ -4643,8 +4669,12 @@ def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: di
         )
         if source_origin == "TEXTBOOK":
             provenance_html = (
-                f'<span style="font-size:12px; color:#64748b;">'
-                f'{ui_t(page_b_lang_code, "source_page")} {ex["source_page"]}</span>'
+                '<span style="font-size:12px; color:#059669;">'
+                '✓ ' + html.escape({
+                    "ar": "موثّق من المصدر",
+                    "fr": "Vérifié à la source",
+                    "en": "Source verified",
+                }.get(page_b_lang_code, "Source verified")) + '</span>'
             )
             card_title = f"{localized_sec_type} {ex_num}"
         else:
@@ -4667,20 +4697,8 @@ def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: di
                 + '<div style="font-size:11px;color:#64748b;margin-top:4px;">'
                 + html.escape(note) + '</div></div>'
             )
-        elif ex.get("figure_refs"):
-            for p in ev_map["pages_evidence"]:
-                if p["page_num"] == ex["source_page"]:
-                    for f in p["figures"]:
-                        if f["figure_id"] in ex["figure_refs"]:
-                            try:
-                                b64 = base64.b64encode(Path(f["image_path"]).read_bytes()).decode("ascii")
-                                ex_fig_html = f'''<div style="text-align:center; margin:12px 0;">
-                                  <img src="data:image/png;base64,{b64}" alt="Exercise Figure" onclick="zoomImage(this)" style="max-width:100%; max-height:220px; border-radius:8px; border:1px solid #cbd5e1; cursor:zoom-in;"/>
-                                  <div style="font-size:11px; color:#64748b; margin-top:3px;">{html.escape(ui_t(page_b_lang_code, "exercise_figure_caption", sec=localized_sec_type, num=ex_num))}</div>
-                                </div>'''
-                            except Exception:
-                                pass
-                            break
+        # Original textbook figure pixels are deliberately not student-facing.
+        # A verified NABIL redraw is required when the exercise needs a figure.
 
         if ex["solution_mode"] == "PRE_SOLVED":
             if ex.get("solution_status") == "OMITTED_UNVERIFIED":
