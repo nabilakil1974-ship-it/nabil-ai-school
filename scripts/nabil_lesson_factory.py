@@ -2314,6 +2314,203 @@ def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
     return result
 
 
+def _render_verified_text_diagram_svg(plan: dict) -> str:
+    """Render a reviewed text-grounded diagram plan as deterministic SVG."""
+    allowed = {"rect", "ellipse", "line", "arrow", "point", "text"}
+    objects = plan.get("objects") or []
+    if not isinstance(objects, list) or not objects:
+        raise RuntimeError("TEXT_DIAGRAM_OBJECTS_MISSING")
+
+    def num(value, default=0.0):
+        try:
+            return max(0.0, min(1000.0, float(value)))
+        except (TypeError, ValueError):
+            return float(default)
+
+    parts = [
+        '<svg class="nabil-text-grounded-diagram" viewBox="0 0 1000 600" '
+        'role="img" xmlns="http://www.w3.org/2000/svg" '
+        'style="max-width:100%;height:auto;border:1px solid #cbd5e1;'
+        'border-radius:10px;background:#fff;">',
+        '<defs><marker id="nabilArrow" markerWidth="10" markerHeight="10" '
+        'refX="9" refY="3" orient="auto" markerUnits="strokeWidth">'
+        '<path d="M0,0 L0,6 L9,3 z" fill="currentColor"/></marker></defs>',
+    ]
+    for obj in objects[:40]:
+        if not isinstance(obj, dict):
+            continue
+        kind = str(obj.get("kind") or "").lower()
+        if kind not in allowed:
+            continue
+        label = html.escape(str(obj.get("label") or ""))
+        x = num(obj.get("x"), 100)
+        y = num(obj.get("y"), 100)
+        if kind == "rect":
+            w = max(5.0, min(900.0, num(obj.get("w"), 120)))
+            h = max(5.0, min(500.0, num(obj.get("h"), 80)))
+            parts.append(
+                f'<rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" '
+                f'height="{h:.1f}" rx="8" fill="none" stroke="currentColor" '
+                f'stroke-width="3"/>')
+        elif kind == "ellipse":
+            rx = max(4.0, min(450.0, num(obj.get("rx"), 50)))
+            ry = max(4.0, min(250.0, num(obj.get("ry"), 30)))
+            parts.append(
+                f'<ellipse cx="{x:.1f}" cy="{y:.1f}" rx="{rx:.1f}" '
+                f'ry="{ry:.1f}" fill="none" stroke="currentColor" '
+                f'stroke-width="3"/>')
+        elif kind in ("line", "arrow"):
+            x2 = num(obj.get("x2"), x + 100)
+            y2 = num(obj.get("y2"), y)
+            marker = ' marker-end="url(#nabilArrow)"' if kind == "arrow" else ""
+            parts.append(
+                f'<line x1="{x:.1f}" y1="{y:.1f}" x2="{x2:.1f}" '
+                f'y2="{y2:.1f}" stroke="currentColor" stroke-width="3"{marker}/>')
+        elif kind == "point":
+            parts.append(
+                f'<circle cx="{x:.1f}" cy="{y:.1f}" r="7" fill="currentColor"/>')
+        elif kind == "text":
+            parts.append(
+                f'<text x="{x:.1f}" y="{y:.1f}" font-size="28" '
+                f'font-family="Arial, sans-serif">{label}</text>')
+        if label and kind != "text":
+            parts.append(
+                f'<text x="{x + 10:.1f}" y="{max(24.0, y - 10):.1f}" '
+                f'font-size="24" font-family="Arial, sans-serif">{label}</text>')
+    parts.append("</svg>")
+    svg = "".join(parts)
+    if "<svg" not in svg or "</svg>" not in svg:
+        raise RuntimeError("TEXT_DIAGRAM_RENDER_FAILED")
+    return svg
+
+
+def build_text_grounded_exercise_diagram(
+        entry: dict, prompt_text: str, subquestions: list,
+        page_num: int, concepts: list) -> Optional[dict]:
+    """Reconstruct a schematic only when verified text fully supports it.
+
+    The output is never treated as the original textbook figure. Scientific
+    objects/relations must be traceable to exact evidence quotes; layout
+    coordinates are illustrative only and independently audited.
+    """
+    page_scope = [
+        {
+            "concept_id": c.get("concept_id"),
+            "text": c.get("raw_text") or c.get("normalized_text") or "",
+        }
+        for c in concepts
+        if int(c.get("source_page") or -1) == int(page_num)
+    ]
+    source_blob = (
+        str(prompt_text or "").strip() + "\n" +
+        "\n".join(str(x) for x in (subquestions or [])) + "\n" +
+        "\n".join(str(x.get("text") or "") for x in page_scope)
+    ).strip()
+    if len(source_blob) < 20:
+        return None
+
+    request = (
+        "You are reconstructing a SIMPLE SCHEMATIC for a textbook exercise "
+        "ONLY from verified text. The original figure is unavailable and MUST "
+        "NOT be guessed. If the text does not fully specify every scientific "
+        "object and relation needed to solve the exercise, return "
+        "{\"reconstructable\":false,\"reason\":str}. "
+        "If reconstructable, return JSON with reconstructable=true, reason, "
+        "objects and relations. objects is an array of at most 20 items with "
+        "kind limited to rect|ellipse|line|arrow|point|text, id, label, x,y "
+        "and when needed x2,y2,w,h,rx,ry, plus evidence_quote. Coordinates are "
+        "only illustrative page layout. relations is an array with type, a, b, "
+        "and evidence_quote. EVERY evidence_quote must be an exact contiguous "
+        "quote from VERIFIED TEXT. Do not add an object, label, orientation, "
+        "relative position, scale, measurement, angle, or scientific relation "
+        "unless the verified text explicitly supports it. A reference such as "
+        "'see Fig. 6' by itself is NOT enough. Never imitate or claim to "
+        "reproduce the missing textbook image.\nVERIFIED TEXT:\n" + source_blob
+    )
+    plan = _execute_llm_json_strict(
+        request, purpose=f"text_diagram_plan_p{page_num}")
+    if not isinstance(plan, dict) or plan.get("reconstructable") is not True:
+        progress(
+            "TEXT_DIAGRAM_RECONSTRUCTION_NOT_POSSIBLE",
+            page=page_num,
+            reason=str(plan.get("reason") if isinstance(plan, dict) else
+                       "INVALID_PLAN")[:240],
+        )
+        return None
+
+    source_norm = _normalized_lab_evidence(source_blob)
+    objects = plan.get("objects")
+    relations = plan.get("relations")
+    if not isinstance(objects, list) or not objects:
+        return None
+    if not isinstance(relations, list):
+        return None
+    allowed_kinds = {"rect", "ellipse", "line", "arrow", "point", "text"}
+    ids = set()
+    for obj in objects:
+        if not isinstance(obj, dict):
+            return None
+        if str(obj.get("kind") or "").lower() not in allowed_kinds:
+            return None
+        oid = str(obj.get("id") or "").strip()
+        quote = _normalized_lab_evidence(obj.get("evidence_quote", ""))
+        if not oid or oid in ids or not quote or quote not in source_norm:
+            return None
+        ids.add(oid)
+    for rel in relations:
+        if not isinstance(rel, dict):
+            return None
+        quote = _normalized_lab_evidence(rel.get("evidence_quote", ""))
+        if (str(rel.get("a") or "") not in ids
+                or str(rel.get("b") or "") not in ids
+                or not quote or quote not in source_norm):
+            return None
+
+    audit_prompt = (
+        "Act as an independent scientific diagram auditor. Decide whether this "
+        "schematic plan can be drawn from VERIFIED TEXT without inventing any "
+        "scientific information. Coordinates are merely visual layout, but "
+        "object existence, labels, orientation, relative placement, connections, "
+        "measurements and scientific relations must all be text-supported. "
+        "Reject if the exercise cannot be solved from the text-grounded plan "
+        "without relying on the missing original image. Return strict JSON: "
+        "{\"approved\":bool,\"all_claims_traceable\":bool,"
+        "\"no_unstated_geometry\":bool,\"sufficient_for_exercise\":bool,"
+        "\"reason\":str}.\nVERIFIED TEXT:\n" + source_blob +
+        "\nPLAN:\n" + json.dumps(plan, ensure_ascii=False)
+    )
+    audit = _execute_llm_json_strict(
+        audit_prompt, purpose=f"text_diagram_audit_p{page_num}")
+    if not isinstance(audit, dict) or not (
+            audit.get("approved") is True
+            and audit.get("all_claims_traceable") is True
+            and audit.get("no_unstated_geometry") is True
+            and audit.get("sufficient_for_exercise") is True):
+        progress(
+            "TEXT_DIAGRAM_RECONSTRUCTION_REJECTED",
+            page=page_num,
+            reason=str(audit.get("reason") if isinstance(audit, dict) else
+                       "INVALID_AUDIT")[:240],
+        )
+        return None
+
+    svg = _render_verified_text_diagram_svg(plan)
+    progress(
+        "TEXT_DIAGRAM_RECONSTRUCTION_ACCEPTED",
+        page=page_num,
+        objects=len(objects),
+        relations=len(relations),
+    )
+    return {
+        "verified": True,
+        "method": "AI_RECONSTRUCTED_DIAGRAM_FROM_VERIFIED_TEXT",
+        "plan": plan,
+        "svg": svg,
+        "source_text_sha256": hashlib.sha256(
+            source_blob.encode("utf-8")).hexdigest(),
+    }
+
+
 def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False) -> dict:
     start_p = int(entry["pdf_start_page"])
     end_p = int(entry["pdf_end_page"])
@@ -2519,6 +2716,7 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
             kind = row["section_type"]
             req_fig = bool(re.search(r"(?:fig(?:ure)?\.?|document|doc|شكل|وثيقة)\s*\d+", content, re.I)
                            or any(k in content.casefold() for k in ("diagram", "sketch", "draw", "graph")))
+            reconstructed = None
             try:
                 refs = match_figure_to_item(
                     {"exact_source_prompt": content,
@@ -2528,17 +2726,25 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
                 reason = str(exc)
                 if not reason.startswith("FIGURE_EVIDENCE_MISSING"):
                     raise
+                reconstructed = build_text_grounded_exercise_diagram(
+                    entry, content, row.get("subquestions") or [],
+                    page_num, concepts)
+                if reconstructed is None:
+                    progress(
+                        "SKIPPED_UNVERIFIED_EXERCISE",
+                        page=page_num,
+                        number=number,
+                        reasons=[reason,
+                                 "TEXT_GROUNDED_DIAGRAM_NOT_RECONSTRUCTABLE"],
+                    )
+                    continue
+                refs = []
                 progress(
-                    "SKIPPED_UNVERIFIED_EXERCISE",
+                    "EXERCISE_USING_TEXT_GROUNDED_DIAGRAM",
                     page=page_num,
                     number=number,
-                    reasons=[reason],
+                    method=reconstructed["method"],
                 )
-                # The textbook prompt may be readable, but if solving it
-                # requires a source figure whose identity/crop could not be
-                # verified, fail closed at ITEM level. Never invent or infer
-                # the missing diagram; continue with the remaining exercises.
-                continue
             hashes = [f["image_sha256"] for f in p["figures"] if f["figure_id"] in refs]
             subqs = row.get("subquestions") or []
             ex = {
@@ -2554,7 +2760,17 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
                 "solution_mode": "PRE_SOLVED", "solution_status": "NOT_SOLVED",
                 "source_origin": "TEXTBOOK",
                 "verified_against_source": row["verified_against_source"],
-                "evidence_method": row.get("evidence_method", "NATIVE_PDF_TEXT")
+                "evidence_method": row.get("evidence_method", "NATIVE_PDF_TEXT"),
+                "reconstructed_diagram_verified": bool(reconstructed),
+                "reconstructed_diagram_method": (
+                    reconstructed.get("method") if reconstructed else None),
+                "reconstructed_diagram_plan": (
+                    reconstructed.get("plan") if reconstructed else None),
+                "reconstructed_diagram_svg": (
+                    reconstructed.get("svg") if reconstructed else None),
+                "reconstructed_diagram_source_sha256": (
+                    reconstructed.get("source_text_sha256")
+                    if reconstructed else None),
             }
             for key in ("source_bbox", "source_region_image_ref", "source_region_sha256"):
                 if key in row:
@@ -2601,7 +2817,8 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
                     used_labels |= _explicit_figure_labels(
                         concept.get("raw_text", ""))
             for exercise in unique_ex:
-                if int(exercise.get("source_page") or -1) == page_no:
+                if (int(exercise.get("source_page") or -1) == page_no
+                        and not exercise.get("reconstructed_diagram_verified")):
                     used_labels |= _explicit_figure_labels(
                         exercise.get("exact_source_prompt", ""))
         required_unverified = sorted(unresolved & used_labels)
@@ -2883,6 +3100,17 @@ def grounded_subject_solver(exercise: dict, evidence_map: dict, profile: dict) -
             + json.dumps(supported_scope, ensure_ascii=False)
         )
 
+    reconstructed_note = ""
+    if exercise.get("reconstructed_diagram_verified"):
+        reconstructed_note = (
+            "\nThe original textbook figure was unavailable. Use ONLY this "
+            "independently verified text-grounded schematic plan; it is an "
+            "illustrative reconstruction, not source-image evidence: "
+            + json.dumps(
+                exercise.get("reconstructed_diagram_plan") or {},
+                ensure_ascii=False)
+        )
+
     solver_lang_code = resolve_lang_code(profile["language"])
     query = (
         f"You are Teacher NABIL, master professor of Lebanese "
@@ -2891,7 +3119,7 @@ def grounded_subject_solver(exercise: dict, evidence_map: dict, profile: dict) -
         f"Solve this {provenance}.\n"
         f"Prompt: {prompt}\n"
         f"Subquestions: {json.dumps(exercise.get('subquestions', []))}"
-        f"{scope_note}\n\n"
+        f"{scope_note}{reconstructed_note}\n\n"
         "RULES:\n"
         "1. Step-by-step rigorous deduction, derivation, and calculation. "
         "Analyze an accompanying figure only when a verified source figure "
@@ -3613,7 +3841,19 @@ def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: di
             card_title = f"{ui_t(page_b_lang_code, 'additional_practice')} {ex_num}"
 
         ex_fig_html = ""
-        if ex.get("figure_refs"):
+        if ex.get("reconstructed_diagram_verified") and ex.get("reconstructed_diagram_svg"):
+            note = {
+                "ar": "رسم تخطيطي معاد بناؤه من النص الموثق — ليس صورة الكتاب الأصلية",
+                "fr": "Schéma reconstruit à partir du texte vérifié — ce n’est pas la figure originale du manuel",
+                "en": "Schematic reconstructed from verified text — not the original textbook figure",
+            }.get(page_b_lang_code, "Schematic reconstructed from verified text — not the original textbook figure")
+            ex_fig_html = (
+                '<div style="text-align:center; margin:12px 0;">'
+                + str(ex["reconstructed_diagram_svg"])
+                + '<div style="font-size:11px;color:#64748b;margin-top:4px;">'
+                + html.escape(note) + '</div></div>'
+            )
+        elif ex.get("figure_refs"):
             for p in ev_map["pages_evidence"]:
                 if p["page_num"] == ex["source_page"]:
                     for f in p["figures"]:
@@ -3895,8 +4135,16 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
                   and bool(e.get("scope_concept_ids")),
                   "CRITICAL", f"Additional practice {e['number']}")
         if e["requires_figure"]:
+            has_verified_source_figure = len(e["figure_refs"]) > 0
+            has_verified_reconstruction = bool(
+                e.get("reconstructed_diagram_verified")
+                and e.get("reconstructed_diagram_svg")
+                and e.get("reconstructed_diagram_plan")
+                and e.get("reconstructed_diagram_method")
+                    == "AI_RECONSTRUCTED_DIAGRAM_FROM_VERIFIED_TEXT"
+            )
             check("EXERCISE_DIAGRAM_REQUIRED_MISSING",
-                  len(e["figure_refs"]) > 0,
+                  has_verified_source_figure or has_verified_reconstruction,
                   "CRITICAL", f"Ex {e['number']}")
 
     check("PRE_SOLVE_FAILED", all(e["solution_status"] == "SOLVED" for e in candidate["exercises"] if e["solution_mode"] == "PRE_SOLVED"), "CRITICAL", "Pre-solved exercises unverified")
