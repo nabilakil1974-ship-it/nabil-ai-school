@@ -3320,6 +3320,132 @@ def solve_exercise_on_demand_payload(lesson_id: str, sec_type: str, ex_num: int)
 # ==============================================================================
 # 8. EVIDENCE-DRIVEN SYNTHESIS
 # ==============================================================================
+def sanitize_generated_narrative(
+        concept: dict, narrative: dict, profile: dict,
+        figure_image_base64: Optional[str] = None,
+        vision_context: Optional[Dict[str, Any]] = None) -> dict:
+    """Remove unsupported generated claims at field/item level.
+
+    The official source concept is never edited here. Only AI-generated
+    explanation fields, distractors, formulas and units can be removed.
+    """
+    scalar_fields = [
+        "phenomenon", "investigation", "observation", "interpretation",
+        "conclusion", "distractor_1", "distractor_2",
+    ]
+    source_text = str(concept.get("raw_text") or "")
+    audit_prompt = (
+        "You are a strict curriculum-grounding auditor. Compare the GENERATED "
+        "content with the VERIFIED SOURCE text and the verified source figure "
+        "when supplied. This audit is DELETE-ONLY: never rewrite, repair, add, "
+        "or improve any generated statement.\n"
+        "For phenomenon, investigation, observation, interpretation and "
+        "conclusion: keep a field only when every scientific claim is supported "
+        "by the source evidence.\n"
+        "For distractor_1 and distractor_2: keep only when it is intentionally "
+        "incorrect as a misconception, uses only concepts/vocabulary within the "
+        "lesson scope, and introduces no outside fact, law, apparatus, unit, "
+        "quantity or prerequisite.\n"
+        "For formulas and units: keep only indexes whose entire item is explicitly "
+        "supported by the verified evidence.\n"
+        "If uncertain, remove it. Return strict JSON exactly as "
+        "{\"keep_fields\":[str],\"keep_formula_indexes\":[int],"
+        "\"keep_unit_indexes\":[int],\"removed_reasons\":{str:str}}.\n"
+        "Allowed keep_fields: " + json.dumps(scalar_fields) + "\n"
+        "VERIFIED SOURCE:\n" + source_text + "\nGENERATED:\n" +
+        json.dumps(narrative, ensure_ascii=False)
+    )
+    try:
+        audit = _execute_llm_json_strict(
+            audit_prompt,
+            image_base64=figure_image_base64,
+            vision_context=vision_context,
+            purpose=f"narrative_scope_audit_{concept.get('concept_id')}",
+        )
+    except Exception as exc:
+        progress(
+            "GENERATED_NARRATIVE_AUDIT_FAILED_CONTENT_REMOVED",
+            concept_id=concept.get("concept_id"),
+            reason=str(exc)[:240],
+        )
+        audit = {
+            "keep_fields": [],
+            "keep_formula_indexes": [],
+            "keep_unit_indexes": [],
+            "removed_reasons": {
+                "all": "AUDIT_UNAVAILABLE_FAIL_CLOSED"
+            },
+        }
+
+    if not isinstance(audit, dict):
+        audit = {}
+    keep_fields = {
+        str(x) for x in (audit.get("keep_fields") or [])
+        if str(x) in scalar_fields
+    }
+    formula_indexes = {
+        int(x) for x in (audit.get("keep_formula_indexes") or [])
+        if isinstance(x, int) or (isinstance(x, str) and x.isdigit())
+    }
+    unit_indexes = {
+        int(x) for x in (audit.get("keep_unit_indexes") or [])
+        if isinstance(x, int) or (isinstance(x, str) and x.isdigit())
+    }
+    reasons = audit.get("removed_reasons")
+    if not isinstance(reasons, dict):
+        reasons = {}
+
+    cleaned = dict(narrative)
+    removed = []
+    for field in scalar_fields:
+        value = str(cleaned.get(field) or "").strip()
+        if value and field not in keep_fields:
+            removed.append(field)
+            cleaned[field] = ""
+            progress(
+                "REMOVED_OUT_OF_SCOPE_GENERATED_CONTENT",
+                concept_id=concept.get("concept_id"),
+                component="narrative_field",
+                field=field,
+                reason=str(reasons.get(field) or "NOT_VERIFIED_AGAINST_SOURCE")[:240],
+            )
+
+    formulas = list(cleaned.get("formulas") or [])
+    kept_formulas = []
+    for idx, value in enumerate(formulas):
+        if idx in formula_indexes:
+            kept_formulas.append(value)
+        else:
+            progress(
+                "REMOVED_OUT_OF_SCOPE_GENERATED_CONTENT",
+                concept_id=concept.get("concept_id"),
+                component="formula",
+                field=str(idx),
+                reason=str(reasons.get(f"formula_{idx}") or
+                           "FORMULA_NOT_VERIFIED_AGAINST_SOURCE")[:240],
+            )
+    cleaned["formulas"] = kept_formulas
+
+    units = list(cleaned.get("units") or [])
+    kept_units = []
+    for idx, value in enumerate(units):
+        if idx in unit_indexes:
+            kept_units.append(value)
+        else:
+            progress(
+                "REMOVED_OUT_OF_SCOPE_GENERATED_CONTENT",
+                concept_id=concept.get("concept_id"),
+                component="unit",
+                field=str(idx),
+                reason=str(reasons.get(f"unit_{idx}") or
+                           "UNIT_NOT_VERIFIED_AGAINST_SOURCE")[:240],
+            )
+    cleaned["units"] = kept_units
+    cleaned["_removed_generated_fields"] = removed
+    cleaned["_scope_audited"] = True
+    return cleaned
+
+
 def synthesize_concept_narrative(
         concept: dict, profile: dict,
         figure_image_base64: Optional[str] = None,
@@ -3345,7 +3471,10 @@ def synthesize_concept_narrative(
         for k in ["phenomenon", "investigation", "observation", "interpretation", "conclusion", "distractor_1", "distractor_2"]:
             if not parsed.get(k):
                 raise ValueError(f"Missing field {k}")
-        return parsed
+        return sanitize_generated_narrative(
+            concept, parsed, profile,
+            figure_image_base64=figure_image_base64,
+            vision_context=vision_context)
     except Exception as e:
         raise RuntimeError(f"NARRATIVE_SYNTHESIS_FAILED: Unable to ground concept narrative from evidence ({e})")
 
@@ -3559,55 +3688,95 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
             c, profile, figure_image_base64,
             vision_context=vision_context)
 
-        lab_spec = build_verified_lab_spec(
-            entry, c, narrative, profile,
-            figure_image_base64=figure_image_base64,
-            vision_context=vision_context)
+        try:
+            lab_spec = build_verified_lab_spec(
+                entry, c, narrative, profile,
+                figure_image_base64=figure_image_base64,
+                vision_context=vision_context)
+        except RuntimeError as exc:
+            reason = str(exc)
+            if not reason.startswith("LAB_"):
+                raise
+            progress(
+                "SKIPPED_UNVERIFIED_LAB",
+                concept_id=c.get("concept_id"),
+                source_page=p_num,
+                reason=reason[:240],
+            )
+            lab_spec = {
+                "supported": False,
+                "reason": reason,
+                "evidence_ref": c["concept_id"],
+            }
         concept_lab_html, concept_has_sim = render_verified_lab(
             lab_spec, lesson_lang_code, c["concept_id"])
+
+        question_ready = all(
+            str(narrative.get(k) or "").strip()
+            for k in ("conclusion", "distractor_1", "distractor_2")
+        )
+        student_question = None
+        if question_ready:
+            student_question = {
+                "q": ui_t(
+                    lesson_lang_code, "based_on_verified_findings",
+                    title=c["title"]),
+                "options": [
+                    narrative["conclusion"],
+                    narrative["distractor_1"],
+                    narrative["distractor_2"],
+                ],
+                "correct_index": 0,
+                "feedback": ui_t(lesson_lang_code, "grounded_feedback"),
+            }
+        else:
+            progress(
+                "SKIPPED_UNVERIFIED_QUIZ_ITEM",
+                concept_id=c.get("concept_id"),
+                source_page=p_num,
+                reason="GENERATED_QUIZ_CONTENT_REMOVED_BY_SCOPE_AUDIT",
+            )
 
         activities_theory.append({
             "activity_num": c["concept_id"].replace("C", ""),
             "concept_id": c["concept_id"],
             "title": c["title"],
             "source_page": p_num,
-            "phenomenon": narrative["phenomenon"],
-            "investigation": narrative["investigation"],
-            "observation": narrative["observation"],
-            "interpretation": narrative["interpretation"],
-            "conclusion": narrative["conclusion"],
+            "source_excerpt": c.get("raw_text", ""),
+            "phenomenon": narrative.get("phenomenon", ""),
+            "investigation": narrative.get("investigation", ""),
+            "observation": narrative.get("observation", ""),
+            "interpretation": narrative.get("interpretation", ""),
+            "conclusion": narrative.get("conclusion", ""),
             "visual_html": fig_html,
             "lab_spec": lab_spec,
             "lab_html": concept_lab_html,
             "has_active_sim": concept_has_sim,
-            "student_question": {
-                "q": ui_t(
-                    lesson_lang_code, "based_on_verified_findings",
-                    title=c["title"]),
-                "options": [narrative["conclusion"], narrative["distractor_1"], narrative["distractor_2"]],
-                "correct_index": 0,
-                "feedback": ui_t(lesson_lang_code, "grounded_feedback")
-            }
+            "student_question": student_question,
+            "generated_content_scope_audited": narrative.get("_scope_audited", False),
+            "removed_generated_fields": narrative.get("_removed_generated_fields", []),
         })
 
-        # No cap: every concept gets a worksheet item, not just the first 5 —
-        # a lesson with more than 5 concepts previously lost quiz coverage
-        # for the rest silently.
-        worksheet.append({
-            "id": idx,
-            "concept_id": c["concept_id"],
-            "source_page": p_num,
-            "source_hash": c["sha256"],
-            "evidence_ref": c["concept_id"],
-            "question": ui_t(
-                lesson_lang_code, "confirmed_deduction_question",
-                title=c["title"]),
-            "options": [narrative["conclusion"], narrative["distractor_1"], narrative["distractor_2"]],
-            "correct_index": 0,
-            "explanation": ui_t(
-                lesson_lang_code, "grounded_explanation",
-                page=p_num, ref=c["concept_id"])
-        })
+        if question_ready:
+            worksheet.append({
+                "id": len(worksheet) + 1,
+                "concept_id": c["concept_id"],
+                "source_page": p_num,
+                "source_hash": c["sha256"],
+                "evidence_ref": c["concept_id"],
+                "question": ui_t(
+                    lesson_lang_code, "confirmed_deduction_question",
+                    title=c["title"]),
+                "options": [
+                    narrative["conclusion"],
+                    narrative["distractor_1"],
+                    narrative["distractor_2"],
+                ],
+                "correct_index": 0,
+                "explanation": ui_t(
+                    lesson_lang_code, "grounded_explanation",
+                    page=p_num, ref=c["concept_id"]),
+            })
 
         formula_label = html.escape(ui_t(lesson_lang_code, "formula_law"))
         units_label = html.escape(ui_t(lesson_lang_code, "units_label"))
@@ -3615,12 +3784,20 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
         units_html = "".join([f"<li><b>{units_label}:</b> {html.escape(u)}</li>" for u in narrative.get("units", [])])
         subject_metadata = f"<ul style='margin:4px 0 0 16px; padding:0; font-size:12px; color:#0369a1;'>{formulas_html}{units_html}</ul>" if (narrative.get("formulas") or narrative.get("units")) else ""
 
+        principle_html = ""
+        if str(narrative.get("conclusion") or "").strip():
+            principle_html = (
+                '<div style="margin-top:8px; font-size:13px; color:#334155; '
+                'line-height:1.5;"><b>'
+                + html.escape(ui_t(lesson_lang_code, "extracted_principle"))
+                + ':</b> ' + html.escape(str(narrative["conclusion"])) + '</div>'
+            )
         panels += f'''<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:14px; box-shadow:0 2px 4px rgba(0,0,0,0.04);">
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">
                 <span style="font-weight:700; color:#0369a1; font-size:15px;">{html.escape(c["title"])}</span>
                 <span style="font-size:11px; background:#e0f2fe; color:#0284c7; padding:2px 6px; border-radius:4px; font-weight:600;">p. {c["source_page"]}</span>
             </div>
-            <div style="margin-top:8px; font-size:13px; color:#334155; line-height:1.5;"><b>{html.escape(ui_t(lesson_lang_code, "extracted_principle"))}:</b> {html.escape(narrative["conclusion"])}</div>
+            {principle_html}
             {subject_metadata}
             {fig_html}
             <div style="margin-top:8px; font-size:12px; color:#059669; font-weight:600;">{html.escape(ui_t(lesson_lang_code, "verified_evidence_grounding"))}</div>
@@ -3665,6 +3842,8 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
         "worksheet": worksheet,
         "quiz_items": full_quiz_items,
         "quiz_html": full_quiz_html,
+        "quiz_eligible_count": sum(
+            1 for act in activities_theory if act.get("student_question")),
         "reference_card_html": ref_card_html
     }
 
@@ -3680,22 +3859,42 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict) -> str:
 
     acts_html = ""
     for act in theory["activities"]:
-        q = act["student_question"]
-        opts = "".join([f'<button onclick="gradeStep(this, {i == q["correct_index"]}, \'{html.escape(q["feedback"])}\')" class="q-opt">{html.escape(o)}</button>' for i, o in enumerate(q["options"])])
-        acts_html += f'''
-        <div class="card" style="margin-top:20px;">
-          <h3 style="color:#0369a1; margin-top:0;">{act["activity_num"]}. {html.escape(act["title"])}</h3>
-          <p><b>{ui_t(page_a_lang_code, "phenomenon")}:</b> {html.escape(act["phenomenon"])}</p>
-          <p><b>{ui_t(page_a_lang_code, "investigation")}:</b> {html.escape(act["investigation"])}</p>
-          {act["visual_html"]}
-          {act.get("lab_html", "")}
-          <p><b>{ui_t(page_a_lang_code, "observation")}:</b> {html.escape(act["observation"])}</p>
-          <p><b>{ui_t(page_a_lang_code, "conclusion")}:</b> <b>{html.escape(act["conclusion"])}</b></p>
+        q = act.get("student_question")
+        question_html = ""
+        if q:
+            opts = "".join([
+                f'<button onclick="gradeStep(this, {i == q["correct_index"]}, '
+                f'\'{html.escape(q["feedback"])}\')" class="q-opt">'
+                f'{html.escape(o)}</button>'
+                for i, o in enumerate(q["options"])
+            ])
+            question_html = f'''
           <div style="background:#f1f5f9; padding:12px; border-radius:6px; margin-top:12px;">
             <div style="font-weight:600; font-size:14px; margin-bottom:8px;">{ui_t(page_a_lang_code, "check_understanding")}: {html.escape(q["q"])}</div>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">{opts}</div>
             <div class="step-fb" style="margin-top:8px; font-size:13px; font-weight:600; display:none;"></div>
-          </div>
+          </div>'''
+        generated_rows = []
+        for field, label_key in (
+            ("phenomenon", "phenomenon"),
+            ("investigation", "investigation"),
+            ("observation", "observation"),
+            ("conclusion", "conclusion"),
+        ):
+            value = str(act.get(field) or "").strip()
+            if value:
+                generated_rows.append(
+                    f'<p><b>{html.escape(ui_t(page_a_lang_code, label_key))}:'
+                    f'</b> {html.escape(value)}</p>'
+                )
+        generated_html = "".join(generated_rows)
+        acts_html += f'''
+        <div class="card" style="margin-top:20px;">
+          <h3 style="color:#0369a1; margin-top:0;">{act["activity_num"]}. {html.escape(act["title"])}</h3>
+          {generated_html}
+          {act["visual_html"]}
+          {act.get("lab_html", "")}
+          {question_html}
         </div>'''
 
     ws_items = ""
