@@ -409,7 +409,8 @@ def execute_llm_completion(
         temperature: float = 0.0,
         image_base64: Optional[str] = None,
         vision_context: Optional[Dict[str, Any]] = None,
-        preferred_provider_override: Optional[str] = None) -> str:
+        preferred_provider_override: Optional[str] = None,
+        excluded_providers: Optional[set] = None) -> str:
     """Execute with rate-limit failover while preserving source consent.
 
     A 429 never sleeps on one provider while another configured, explicitly
@@ -442,6 +443,13 @@ def execute_llm_completion(
                 raise RuntimeError(
                     "VISION_SHARING_NOT_AUTHORIZED: no configured provider "
                     "is approved for this source page")
+    if excluded_providers:
+        excluded = {str(p).strip().lower() for p in excluded_providers}
+        candidates = [p for p in candidates if p not in excluded]
+        if not candidates:
+            raise RuntimeError(
+                "AI_PROVIDER_POOL_EXHAUSTED_AFTER_JSON_FAILURES:"
+                + ",".join(sorted(excluded)))
 
     primary = candidates[0]
     progress(
@@ -1914,6 +1922,7 @@ def _execute_llm_json_strict(
             f"{purpose}")
 
     last_error = None
+    malformed_providers = set()
     for attempt in range(1, attempts + 1):
         preferred_retry_provider = configured[(attempt - 1) % len(configured)]
         effective_prompt = (
@@ -1928,11 +1937,15 @@ def _execute_llm_json_strict(
             image_base64=image_base64,
             vision_context=vision_context,
             preferred_provider_override=preferred_retry_provider,
+            excluded_providers=malformed_providers,
         )
         try:
             return json.loads(raw)
         except json.JSONDecodeError as exc:
             last_error = exc
+            actual_bad_provider = get_last_llm_provenance().get("provider")
+            if actual_bad_provider:
+                malformed_providers.add(str(actual_bad_provider).lower())
             progress(
                 "AI_JSON_INVALID_RETRY",
                 purpose=purpose,
@@ -1945,6 +1958,7 @@ def _execute_llm_json_strict(
                 model=get_last_llm_provenance().get("model"),
                 preferred_retry_provider=preferred_retry_provider,
                 retry_provider_cycle=configured,
+                excluded_after_malformed=sorted(malformed_providers),
                 image_request=bool(image_base64),
                 vision_context=vision_context if image_base64 else None,
             )
@@ -1999,6 +2013,131 @@ def _normalize_exercise_review_payload(payload: Any, page_num: int) -> List[dict
                 return checks
     raise RuntimeError(
         f"EXERCISE_SOURCE_MISMATCH: review missing p{page_num}")
+
+
+def _rescue_unverified_exercise(
+        page, row: dict, page_num: int, lesson_id: str, book_id: str) -> Optional[dict]:
+    """Re-read one rejected exercise from a high-resolution source crop.
+
+    This is stricter than accepting the first page transcription: the candidate
+    bbox is cropped from the original PDF, re-transcribed, then independently
+    audited against that exact crop. No guessed repair is allowed.
+    """
+    from fitz import Rect
+    try:
+        number = int(row.get("number"))
+        coords = row.get("bbox_1000")
+        if not isinstance(coords, list) or len(coords) != 4:
+            return None
+        x0, y0, x1, y1 = [float(v) for v in coords]
+        if not (0 <= x0 < x1 <= 1000 and 0 <= y0 < y1 <= 1000):
+            return None
+    except (TypeError, ValueError):
+        return None
+
+    # Pad the proposed source region so the circled number and any nearby
+    # figure reference are not clipped. Padding is presentation geometry only.
+    px = page.rect.width * 0.035
+    py = page.rect.height * 0.025
+    rect = Rect(
+        max(page.rect.x0, x0 * page.rect.width / 1000 - px),
+        max(page.rect.y0, y0 * page.rect.height / 1000 - py),
+        min(page.rect.x1, x1 * page.rect.width / 1000 + px),
+        min(page.rect.y1, y1 * page.rect.height / 1000 + py),
+    )
+    crop_bytes = page.get_pixmap(clip=rect, dpi=320).tobytes("png")
+    crop_b64 = base64.b64encode(crop_bytes).decode("ascii")
+    context = {
+        "lesson_id": lesson_id,
+        "book_id": book_id,
+        "pdf_page": page_num,
+    }
+    prompt = (
+        f"This is a HIGH-RESOLUTION crop from the original textbook page. "
+        f"Verify and transcribe ONLY the visibly printed exercise numbered {number}. "
+        "Return one JSON object with: verified_visible_number (bool), number "
+        "(integer), section_type (EXERCISE or PROBLEM), exact_source_prompt "
+        "(all visible words and blanks verbatim, do not solve), subquestions "
+        "(array of exact strings), figure_labels (array of exact printed figure "
+        "labels), confidence (0..1), unreadable_parts (array). "
+        "If the requested exercise number is not visibly present and readable "
+        "in this crop, set verified_visible_number=false. Do not infer missing "
+        "words and do not correct the textbook."
+    )
+    payload = _execute_llm_json_strict(
+        prompt,
+        image_base64=crop_b64,
+        vision_context=context,
+        purpose=f"exercise_rescue_extract_p{page_num}_n{number}",
+    )
+    if not isinstance(payload, dict):
+        return None
+    if payload.get("verified_visible_number") is not True:
+        return None
+    try:
+        if int(payload.get("number")) != number:
+            return None
+        confidence = float(payload.get("confidence", 0))
+    except (TypeError, ValueError):
+        return None
+    prompt_text = str(payload.get("exact_source_prompt") or "").strip()
+    kind = str(payload.get("section_type") or "EXERCISE").upper()
+    if (kind not in ("EXERCISE", "PROBLEM") or len(prompt_text) < 10
+            or confidence < 0.90 or payload.get("unreadable_parts")):
+        return None
+    extraction_provenance = get_last_llm_provenance()
+
+    audit_prompt = (
+        f"Independently audit the proposed transcription of exercise {number} "
+        "against this SAME original high-resolution crop. Return JSON object "
+        "with faithful (bool), number_visible (bool), complete (bool), "
+        "reason (string). Mark false for any missing word, invented word, "
+        "wrong number, wrong item boundary, or omitted visible subquestion. "
+        "Proposed transcription: "
+        + json.dumps(payload, ensure_ascii=False)
+    )
+    audit = _execute_llm_json_strict(
+        audit_prompt,
+        image_base64=crop_b64,
+        vision_context=context,
+        purpose=f"exercise_rescue_audit_p{page_num}_n{number}",
+    )
+    audit_provenance = get_last_llm_provenance()
+    if not isinstance(audit, dict):
+        return None
+    if not (audit.get("faithful") is True
+            and audit.get("number_visible") is True
+            and audit.get("complete") is True):
+        progress(
+            "EXERCISE_TARGETED_RESCUE_REJECTED",
+            page=page_num,
+            number=number,
+            reason=str(audit.get("reason") or "")[:240],
+        )
+        return None
+
+    progress(
+        "EXERCISE_TARGETED_RESCUE_ACCEPTED",
+        page=page_num,
+        number=number,
+        extraction_provider=extraction_provenance.get("provider"),
+        audit_provider=audit_provenance.get("provider"),
+        confidence=confidence,
+    )
+    return {
+        "number": number,
+        "section_type": kind,
+        "exact_source_prompt": prompt_text,
+        "subquestions": list(payload.get("subquestions") or []),
+        "figure_labels": list(payload.get("figure_labels") or []),
+        "bbox_1000": coords,
+        "_rescue_crop_rect": [rect.x0, rect.y0, rect.x1, rect.y1],
+        "_rescue_crop_bytes": crop_bytes,
+        "_rescue_extraction_provenance": dict(extraction_provenance),
+        "_rescue_audit_provenance": dict(audit_provenance),
+        "confidence": confidence,
+        "unreadable_parts": [],
+    }
 
 
 def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
@@ -2071,18 +2210,53 @@ def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
         number = int(row["number"])
         prompt = str(row.get("exact_source_prompt") or "").strip()
         coords = row.get("bbox_1000")
-        if (number < 1 or number > 999 or len(prompt) < 10
-                or row.get("unreadable_parts")
-                or float(row.get("confidence", 0)) < 0.85
-                or number not in approved
-                or not isinstance(coords, list) or len(coords) != 4):
-            raise RuntimeError(f"EXERCISE_SOURCE_MISMATCH: unverified exercise {number} p{page_num}")
+        rejection_reasons = []
+        if number < 1 or number > 999:
+            rejection_reasons.append("number_out_of_range")
+        if len(prompt) < 10:
+            rejection_reasons.append("prompt_too_short")
+        if row.get("unreadable_parts"):
+            rejection_reasons.append("unreadable_parts")
+        try:
+            if float(row.get("confidence", 0)) < 0.85:
+                rejection_reasons.append("low_confidence")
+        except (TypeError, ValueError):
+            rejection_reasons.append("invalid_confidence")
+        if number not in approved:
+            review_item = next(
+                (x for x in checks if isinstance(x, dict)
+                 and str(x.get("number")) == str(number)), {})
+            rejection_reasons.append(
+                "independent_review_rejected:" +
+                str(review_item.get("reason") or "not_approved")[:180])
+        if not isinstance(coords, list) or len(coords) != 4:
+            rejection_reasons.append("invalid_bbox_shape")
+
+        if rejection_reasons:
+            progress(
+                "EXERCISE_TARGETED_RESCUE_START",
+                page=page_num,
+                number=number,
+                reasons=rejection_reasons,
+            )
+            rescued = _rescue_unverified_exercise(
+                page, row, page_num, lesson_id, book_id)
+            if rescued is None:
+                raise RuntimeError(
+                    f"EXERCISE_SOURCE_MISMATCH: unverified exercise "
+                    f"{number} p{page_num}; reasons={rejection_reasons}")
+            row = rescued
+            prompt = str(row["exact_source_prompt"]).strip()
+            coords = row["bbox_1000"]
+
         x0, y0, x1, y1 = [float(v) for v in coords]
         if not (0 <= x0 < x1 <= 1000 and 0 <= y0 < y1 <= 1000):
             raise RuntimeError(f"EXERCISE_SOURCE_MISMATCH: invalid region #{number} p{page_num}")
         rect = Rect(x0*page.rect.width/1000, y0*page.rect.height/1000,
                     x1*page.rect.width/1000, y1*page.rect.height/1000)
-        raw_region = page.get_pixmap(clip=rect, dpi=200).tobytes("png")
+        raw_region = row.get("_rescue_crop_bytes")
+        if not isinstance(raw_region, (bytes, bytearray)):
+            raw_region = page.get_pixmap(clip=rect, dpi=200).tobytes("png")
         region_path = cache_dir / f"exercise_p{page_num}_{number}.png"
         region_path.write_bytes(raw_region)
         kind = str(row.get("section_type") or "EXERCISE").upper()
@@ -2097,10 +2271,16 @@ def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
             "source_region_sha256": hashlib.sha256(raw_region).hexdigest(),
             "verified_against_source": True,
             "ai_provenance": {
-                "extraction": dict(extraction_provenance),
-                "audit": dict(audit_provenance),
+                "extraction": dict(row.get(
+                    "_rescue_extraction_provenance", extraction_provenance)),
+                "audit": dict(row.get(
+                    "_rescue_audit_provenance", audit_provenance)),
             },
-            "evidence_method": "TWO_PASS_SOURCE_PAGE_VISION"
+            "evidence_method": (
+                "TARGETED_HIGHRES_TWO_PASS_EXERCISE_VISION"
+                if row.get("_rescue_extraction_provenance")
+                else "TWO_PASS_SOURCE_PAGE_VISION"
+            )
         })
     return result
 
