@@ -10,6 +10,7 @@ NABIL AI — محرك عرض المختبرات التفاعلية الموثق�
 - إذا المواصفة ناقصة أو نوع التجربة غير مدعوم يفشل Fail-Closed.
 """
 import html
+import json
 import re
 from typing import Dict,Any,Tuple
 try:
@@ -27,7 +28,7 @@ except Exception:
         validate_advanced_lab_spec,
     )
 
-_ALLOWED_KINDS={"FORMULA_CALCULATOR","ORIENTATION_INVARIANT","SHAPE_RESPONSE"} | ADVANCED_LAB_KINDS
+_ALLOWED_KINDS={"FORMULA_CALCULATOR","ORIENTATION_INVARIANT","SHAPE_RESPONSE","EVIDENCE_SEQUENCE"} | ADVANCED_LAB_KINDS
 _ALLOWED_OPS={"+","-","*","/"}
 
 def _safe_id(value:str)->str:
@@ -64,6 +65,14 @@ def validate_lab_spec(spec:Dict[str,Any])->Dict[str,Any]:
     if kind=="SHAPE_RESPONSE":
         if str(spec.get("behavior") or "").lower() not in ("fixed","conforms"):
             raise RuntimeError("LAB_SHAPE_BEHAVIOR_INVALID")
+
+    if kind=="EVIDENCE_SEQUENCE":
+        steps=spec.get("steps")
+        if not isinstance(steps,list) or not 2<=len(steps)<=8:
+            raise RuntimeError("LAB_SEQUENCE_STEPS_INVALID")
+        for i,step in enumerate(steps):
+            if not isinstance(step,dict) or not str(step.get("label") or "").strip() or not str(step.get("evidence_quote") or "").strip():
+                raise RuntimeError(f"LAB_SEQUENCE_STEP_INVALID:{i}")
     if kind in ADVANCED_LAB_KINDS:
         validate_advanced_lab_spec(spec)
     return spec
@@ -76,7 +85,7 @@ def _render_formula(spec:Dict[str,Any],lang_code:str,lab_id:str)->str:
     unit=html.escape(str(f.get("output_unit") or ""))
     unit_suffix=(" "+unit) if unit else ""
     return f"""
-    <section class="interactive-lab" id="lab_{safe}" data-lab-kind="FORMULA_CALCULATOR"
+    <section class="interactive-lab nabil-live-lab" id="lab_{safe}" data-lab-kind="FORMULA_CALCULATOR" data-demo-ms="5000"
       style="margin-top:16px;background:#f0f9ff;border:1px solid #7dd3fc;border-radius:12px;padding:16px;">
       <h3 style="margin:0 0 8px;color:#0369a1;">{html.escape(_t(lang_code,'lab_title'))} — {html.escape(spec['title'])}</h3>
       <p style="margin:0 0 12px;color:#334155;">{html.escape(spec['instructions'])}</p>
@@ -97,6 +106,11 @@ def _render_formula(spec:Dict[str,Any],lang_code:str,lab_id:str)->str:
         const out={js_expr};
         box.textContent=Number.isFinite(out)?'{output} = '+out+'{unit_suffix}':'—';
       }}
+      document.getElementById('lab_{safe}').addEventListener('nabil:demo',()=>{{
+        const box=document.getElementById('{safe}_result');box.style.display='block';
+        box.textContent={json.dumps(str(spec["observation"]))};
+        try{{window.NABILLessonE2E?.speak?.({json.dumps(str(spec["instructions"]) + ". " + str(spec["observation"]))},{json.dumps(lang_code)});}}catch(_e){{}}
+      }});
       </script>
     </section>"""
 
@@ -119,7 +133,7 @@ def _render_orientation(spec:Dict[str,Any],lang_code:str,lab_id:str)->str:
     drag_hint={"ar":"اسحب الوعاء يمينًا ويسارًا","fr":"Fais glisser le récipient à gauche et à droite","en":"Drag the vessel left and right"}.get(lang_code,"Drag the vessel left and right")
     reset_label={"ar":"إعادة","fr":"Réinitialiser","en":"Reset"}.get(lang_code,"Reset")
     return f"""
-    <section class="interactive-lab nabil-live-lab" id="lab_{safe}" data-lab-kind="ORIENTATION_INVARIANT"
+    <section class="interactive-lab nabil-live-lab" id="lab_{safe}" data-lab-kind="ORIENTATION_INVARIANT" data-demo-ms="7000"
       style="margin-top:16px;background:#f0f9ff;border:1px solid #7dd3fc;border-radius:14px;padding:16px;box-shadow:0 8px 24px rgba(2,132,199,.08);">
       <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap;">
         <div>
@@ -175,6 +189,10 @@ def _render_orientation(spec:Dict[str,Any],lang_code:str,lab_id:str)->str:
         stage.addEventListener('pointerup',end);
         stage.addEventListener('pointercancel',end);
         window.reset_{safe}=()=>apply(0);
+        document.getElementById('lab_{safe}').addEventListener('nabil:demo',()=>{{
+          try{{window.NABILLessonE2E?.speak?.({json.dumps(str(spec["instructions"]) + ". " + str(spec["observation"]))},{json.dumps(lang_code)});}}catch(_e){{}}
+          apply(-20);setTimeout(()=>apply(20),1300);setTimeout(()=>apply(0),2800);
+        }});
       }})();
       </script>
     </section>"""
@@ -188,7 +206,7 @@ def _render_shape(spec:Dict[str,Any],lang_code:str,lab_id:str)->str:
     drag_hint={"ar":"اسحب المادة من الوعاء A إلى الوعاء B","fr":"Fais glisser la matière du récipient A vers B","en":"Drag the material from vessel A to vessel B"}.get(lang_code,"Drag the material from vessel A to vessel B")
     reset_label={"ar":"إعادة","fr":"Réinitialiser","en":"Reset"}.get(lang_code,"Reset")
     return f"""
-    <section class="interactive-lab nabil-live-lab" id="lab_{safe}" data-lab-kind="SHAPE_RESPONSE"
+    <section class="interactive-lab nabil-live-lab" id="lab_{safe}" data-lab-kind="SHAPE_RESPONSE" data-demo-ms="7000"
       style="margin-top:16px;background:#f0f9ff;border:1px solid #7dd3fc;border-radius:14px;padding:16px;box-shadow:0 8px 24px rgba(2,132,199,.08);">
       <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap;">
         <div>
@@ -271,10 +289,79 @@ def _render_shape(spec:Dict[str,Any],lang_code:str,lab_id:str)->str:
         matter.addEventListener('pointerup',end);
         matter.addEventListener('pointercancel',end);
         window.reset_{safe}=()=>{{home='A';setTransform(0,0);setShape('A');state.textContent='';}};
+        document.getElementById('lab_{safe}').addEventListener('nabil:demo',()=>{{
+          try{{window.NABILLessonE2E?.speak?.({json.dumps(str(spec["instructions"]) + ". " + str(spec["observation"]))},{json.dumps(lang_code)});}}catch(_e){{}}
+          snap('A');setTimeout(()=>snap('B'),1100);setTimeout(()=>snap('A'),3000);
+        }});
       }})();
       </script>
     </section>"""
 
+
+
+def _render_sequence(spec:Dict[str,Any],lang_code:str,lab_id:str)->str:
+    """Cross-subject evidence sequence: animate only exact source-backed steps."""
+    safe=_safe_id(lab_id)
+    steps=spec["steps"]
+    explain={"ar":"▶ اشرح الفكرة","fr":"▶ Expliquer l’idée","en":"▶ Explain the idea"}.get(lang_code,"▶ Explain the idea")
+    stop={"ar":"■ إيقاف","fr":"■ Arrêter","en":"■ Stop"}.get(lang_code,"■ Stop")
+    step_cards="".join(
+        f'<div id="{safe}_step_{i}" class="nabil-seq-step" '
+        f'style="padding:10px;border:1px solid #334155;border-radius:10px;background:#fff;color:#0f172a;">'
+        f'<b>{i+1}. {html.escape(str(step["label"]))}</b>'
+        f'<div style="font-size:12px;color:#475569;margin-top:4px;">'
+        f'{html.escape(str(step["evidence_quote"]))}</div></div>'
+        for i,step in enumerate(steps)
+    )
+    demo_ms=max(6000,len(steps)*3200)
+    labels=[str(step["label"]) for step in steps]
+    return f"""
+<section class="interactive-lab nabil-live-lab" id="lab_{safe}"
+ data-lab-kind="EVIDENCE_SEQUENCE" data-teacher-pointer="synced"
+ data-demo-ms="{demo_ms}"
+ style="margin-top:16px;background:#071827;border:1px solid #24506f;border-radius:14px;padding:16px;color:#f8fafc;">
+ <h3 style="margin:0 0 6px;color:#2de1ff;">{html.escape(spec["title"])}</h3>
+ <p style="margin:0 0 12px;color:#dbeafe;">{html.escape(spec["instructions"])}</p>
+ <div style="position:relative;">
+  <div id="{safe}_pointer" style="position:absolute;left:-8px;top:12px;width:5px;height:42px;border-radius:6px;background:#2de1ff;box-shadow:0 0 14px #2de1ff;transition:transform .45s ease;"></div>
+  <div id="{safe}_steps" style="display:grid;gap:8px;padding-left:8px;">{step_cards}</div>
+ </div>
+ <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+  <button type="button" id="{safe}_teach" class="nav-btn">{html.escape(explain)}</button>
+  <button type="button" id="{safe}_stop" class="q-opt">{html.escape(stop)}</button>
+ </div>
+ <p style="font-size:12px;color:#b6c8d8;">{html.escape(spec["observation"])}</p>
+ <script>
+ (()=>{{
+   const root=document.getElementById('lab_{safe}');
+   const pointer=document.getElementById('{safe}_pointer');
+   const labels={json.dumps(labels,ensure_ascii=False)};
+   let token=0,timers=[];
+   function stopAll(){{token++;timers.forEach(clearTimeout);timers=[];try{{window.NABILLessonE2E?.stopSpeech?.();}}catch(_e){{}}}}
+   function focus(i){{
+     document.querySelectorAll('#{safe}_steps .nabil-seq-step').forEach((el,j)=>{{
+       el.style.borderColor=j===i?'#2de1ff':'#334155';
+       el.style.boxShadow=j===i?'0 0 18px rgba(45,225,255,.25)':'none';
+     }});
+     const el=document.getElementById('{safe}_step_'+i);
+     if(el) pointer.style.transform='translateY('+(el.offsetTop)+'px)';
+   }}
+   function play(){{
+     stopAll();const mine=token;let i=0;
+     const next=()=>{{
+       if(mine!==token||i>=labels.length)return;
+       focus(i);
+       try{{window.NABILLessonE2E?.speak?.(labels[i],{json.dumps(lang_code)});}}catch(_e){{}}
+       i++;timers.push(setTimeout(next,2800));
+     }};next();
+   }}
+   document.getElementById('{safe}_teach').addEventListener('click',play);
+   document.getElementById('{safe}_stop').addEventListener('click',stopAll);
+   root.addEventListener('nabil:demo',play);
+   focus(0);
+ }})();
+ </script>
+</section>"""
 
 def render_verified_lab(spec:Dict[str,Any],lang_code:str,lab_id:str)->Tuple[str,bool]:
     # نقطة الدخول الوحيدة: المختبر لا يظهر قبل نجاح validate_lab_spec.
@@ -288,6 +375,8 @@ def render_verified_lab(spec:Dict[str,Any],lang_code:str,lab_id:str)->Tuple[str,
         return _render_orientation(spec,lang_code,lab_id),True
     if kind=="SHAPE_RESPONSE":
         return _render_shape(spec,lang_code,lab_id),True
+    if kind=="EVIDENCE_SEQUENCE":
+        return _render_sequence(spec,lang_code,lab_id),True
     if kind in ADVANCED_LAB_KINDS:
         return render_advanced_verified_lab(spec,lang_code,lab_id)
     raise RuntimeError(f"LAB_KIND_UNSUPPORTED: {kind}")
