@@ -128,7 +128,7 @@ def _voice_helpers(lang:str)->str:
       }}
       function teacherSpeakCue(text,target,onDone){{
         const token=teacherToken; pointTeacher(target);
-        const words=String(text).trim().split(/\s+/).filter(Boolean).length;
+        const words=String(text).trim().split(/\\s+/).filter(Boolean).length;
         const finish=()=>{{if(token===teacherToken&&onDone)onDone();}};
         if(window.NABILLessonE2E?.speak){{
           try{{Promise.resolve(window.NABILLessonE2E.speak(text,teacherLang)).catch(()=>{{}});}}
