@@ -434,7 +434,7 @@ function renderAnswer(result,question){
  if(!figureOnly&&result?.solution_card&&window.NABILScientificCards?.renderFromChat){
    try{
      const scientificHost=document.createElement("div");
-     window.NABILScientificCards.renderFromChat(result,questionText,scientificHost);
+     window.NABILScientificCards.renderFromChat({result,question:questionText,target:scientificHost});
      const scientificCard=scientificHost.querySelector(".nabil-sci-card");
      if(scientificCard){
        explanation.replaceChildren(...scientificHost.childNodes);
