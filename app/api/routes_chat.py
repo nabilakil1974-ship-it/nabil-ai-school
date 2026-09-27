@@ -4051,7 +4051,7 @@ def _detect_spoken_reply_language(message: str, ui_language: str) -> str:
     if any(x in low for x in french_switch):
         return "Français"
 
-    # If the student is actually speaking Arabic, answer in Arabic naturally.
+    # If the student is speaking Arabic, answer in clear Modern Standard Arabic.
     if re.search(r"[\u0600-\u06FF]", raw):
         return "العربية"
 
@@ -4064,17 +4064,22 @@ def _detect_spoken_reply_language(message: str, ui_language: str) -> str:
 
 
 def _spoken_math_cleanup(text: str, language: str) -> str:
-    """Prepare mathematical text for natural TTS without saying 'slash'."""
+    """Prepare mathematical/scientific text for semantic TTS.
+
+    Screen notation remains untouched. Audio says the mathematical meaning:
+    fractions as over/sur/على, roots and powers semantically, never "slash"
+    or punctuation names.
+    """
     t = str(text or "")
     lang = (language or "").strip()
     if lang == "English":
-        word = " over "
+        over, root, squared, cubed = " over ", " square root of ", " squared", " cubed"
     elif lang == "Français":
-        word = " sur "
+        over, root, squared, cubed = " sur ", " racine carrée de ", " au carré", " au cube"
     else:
-        word = " على "
-    # A slash joining vocabulary is NOT a division: "increasing/decreasing"
-    # and "numerator/denominator" must never sound like fractions.
+        over, root, squared, cubed = " على ", " الجذر التربيعي لـ ", " تربيع", " تكعيب"
+
+    # Preserve semantic paired terminology before interpreting slash as division.
     t = re.sub(
         r"(?i)\b(increasing|numerator|vertical|horizontal|maximum|"
         r"croissante|numérateur|verticale|horizontale)\s*/\s*"
@@ -4085,15 +4090,34 @@ def _spoken_math_cleanup(text: str, language: str) -> str:
         else r"\1 أو \2",
         t,
     )
-    # Only the remaining '/' symbols represent mathematical division.
-    t = re.sub(r"\s*/\s*", word, t)
+
+    # LaTeX fractions/roots are spoken by meaning. Iterate to support simple nesting.
+    for _ in range(4):
+        t2 = re.sub(
+            r"\\frac\s*\{([^{}]+)\}\s*\{([^{}]+)\}",
+            lambda m: f"{m.group(1)}{over}{m.group(2)}",
+            t,
+        )
+        if t2 == t:
+            break
+        t = t2
+    t = re.sub(
+        r"\\sqrt\s*\{([^{}]+)\}",
+        lambda m: root + m.group(1),
+        t,
+    )
+    t = re.sub(r"([A-Za-z0-9)\]}]+)\s*\^\s*\{?2\}?", lambda m: m.group(1) + squared, t)
+    t = re.sub(r"([A-Za-z0-9)\]}]+)\s*\^\s*\{?3\}?", lambda m: m.group(1) + cubed, t)
+    t = re.sub(r"\s*/\s*", over, t)
+    t = re.sub(r"\\\[|\\\]|\\\(|\\\)", " ", t)
+    t = re.sub(r"\\(?:text|mathrm|mathbf)\b", " ", t)
+    t = t.replace("{", " ").replace("}", " ")
+
     if lang not in {"العربية", "Arabic"}:
         return re.sub(r"\s{2,}", " ", t).strip()
 
-    # The Arabic neural voice frequently mispronounces raw English textbook
-    # terms in Lebanese code-switched math explanations. Keep the scientific
-    # wording identical on SCREEN; adjust AUDIO phonetics only. Do not rewrite
-    # a native English/French response or any algebraic value.
+    # Screen keeps the canonical foreign term. This mapping is AUDIO-only so
+    # the Arabic male voice pronounces established scientific terms clearly.
     phonetics = {
         "vertical asymptote": "فيرتيكال أسيمبتوت",
         "horizontal asymptote": "هوريزونتال أسيمبتوت",
@@ -4114,10 +4138,12 @@ def _spoken_math_cleanup(text: str, language: str) -> str:
         "maximum": "ماكسيموم",
         "minimum": "مينيموم",
     }
-    # Longer phrases first; preserve surrounding Arabic words and punctuation.
     for term in sorted(phonetics, key=len, reverse=True):
-        t = re.sub(r"(?i)(?<![A-Za-z])" + re.escape(term) + r"(?![A-Za-z])",
-                   phonetics[term], t)
+        t = re.sub(
+            r"(?i)(?<![A-Za-z])" + re.escape(term) + r"(?![A-Za-z])",
+            phonetics[term],
+            t,
+        )
     return re.sub(r"\s{2,}", " ", t).strip()
 
 @router.post("/lesson-voice-chat")
@@ -4151,14 +4177,14 @@ async def lesson_voice_chat(
 
     if reply_language == "العربية":
         oral_instructions = """
-أنت الأستاذ الصوتي في NABIL AI. افهم كلام الطالب باللهجة اللبنانية الطبيعية حتى لو خلط عربي بـEnglish أو Français، وردّ بلبنانية واضحة ودافئة عندما يتكلم لبنانياً، وبفصحى مبسطة عندما يختار الفصحى. حافظ على المصطلحات العلمية بلغة الكتاب، وتكلّم بصوت معلّم هادئ وواضح.
-إذا طلب الطالب العربية فانتقل إليها فوراً حتى لو كانت لغة الدرس إنكليزية أو فرنسية. لا تترجم مصطلحات المادة الأجنبية إذا كان الطالب اعتاد عليها؛ استخدم numerator/denominator وderivative أو numérateur/dénominateur وdérivée بحسب لغة كتابه.
-لا تقرأ الجواب المكتوب حرفياً؛ اشرح شفهياً وبجمل قصيرة، وابدأ من الخطوة التي يسأل عنها الطالب.
-إذا قال إنه لم يفهم، أعد الفكرة بطريقة أبسط. وإذا قال «لماذا؟» فاشرح سبب القانون أو الخطوة.
-في الرياضيات والفيزياء والكيمياء اقرأ الصيغ بشكل طبيعي: استخدم كلمة «على» للقسمة، ولا تقل «شرطة» أو «سلاش».
-لا تقرأ LaTeX أو JSON أو DRAWINGS_JSON. لا تخترع معطيات غير موجودة.
+أنت الأستاذ نبيل الصوتي في NABIL AI، وأنت معلّم رجل. افهم كلام الطالب باللهجة اللبنانية الطبيعية حتى لو خلط العربية بـEnglish أو Français، لكن عندما يكون الرد بالعربية فتكلّم دائماً بالعربية الفصحى المبسطة والواضحة، لا باللهجة العامية. حافظ على المصطلحات العلمية الصحيحة كما ترد في لغة الكتاب، وتكلّم بصوت معلّم هادئ وواضح.
+إذا طلب الطالب العربية فانتقل إليها فوراً، مع إبقاء المصطلح العلمي الأجنبي بصيغته الصحيحة عند الحاجة؛ مثل numerator/denominator وderivative أو numérateur/dénominateur وdérivée بحسب لغة المادة.
+لا تقرأ الجواب المكتوب حرفياً؛ اشرح شفهياً بجمل فصيحة قصيرة، وابدأ من الخطوة التي يسأل عنها الطالب.
+إذا لم يفهم الطالب فأعد الفكرة بطريقة أبسط، وإذا سأل «لماذا؟» فاشرح سبب القانون أو الخطوة.
+اقرأ الرياضيات بالمعنى: الكسر «ثلاثة أرباع» أو «ثلاثة على أربعة» بحسب السياق، والجذر والمقادير والأسس بمعناها. لا تقل مطلقاً «شرطة» أو «سلاش» أو أسماء علامات الترقيم بدل المعنى الرياضي.
+لا تقرأ LaTeX أو JSON أو DRAWINGS_JSON، ولا تخترع معطيات غير موجودة.
 في التمارين العامة اعتمد آخر مسألة ظاهرة، وفي الدرس ابق ضمن سياق الدرس الحالي.
-بعد كل شرح قصير اترك مجالاً للطالب أن يقاطعك ويسأل.
+بعد كل شرح قصير اترك مجالاً للطالب أن يسأل.
 """.strip()
     elif reply_language == "Français":
         oral_instructions = """
@@ -4207,7 +4233,7 @@ In general-exercises mode use the latest visible worked problem as context; in l
     cleaned = re.sub(r"<PROGRESS_JSON>[\s\S]*?</PROGRESS_JSON>", "", cleaned, flags=re.I)
     cleaned = re.sub(r"```[\s\S]*?```", "", cleaned).strip()
     if not cleaned:
-        cleaned = "طيب، خبرني أي خطوة بدك نرجع نشرحها سوا؟" if is_arabic else "Tell me which step you want me to explain again."
+        cleaned = "حسنًا، أخبرني أيَّ خطوة تريد أن أشرحها من جديد." if is_arabic else "Tell me which step you want me to explain again."
 
     return {
         "reply": cleaned,
@@ -5426,6 +5452,9 @@ GENERAL EXERCISES MODE / حل تمارين عامة
 - قبل إنهاء الجواب تحقق أن آخر قسم نصي هو Final Answer / Réponse finale / الجواب النهائي أو Rule Summary بعد اكتمال الحل، وليس عبارة مبتورة.
 
 أسلوب العرض:
+- إذا كانت لغة الجواب العربية فاستخدم العربية الفصحى المبسطة فقط، حتى لو كتب الطالب باللهجة.
+- اكتب الكسور الرياضية بصيغة LaTeX الحقيقية مثل \\frac{3}{4}، لا كنص 3/4 عندما يكون المقصود كسرًا رياضيًا.
+- حافظ على المصطلحات العلمية والرموز القياسية صحيحة، ولا تترجم المصطلح إلى تعبير غير علمي.
 - أخرج كل سؤال على شكل Solution Board مستقلة.
 - في قسم المعطيات والمطلوب والقانون وخلاصة القاعدة استخدم نقاطًا موجزة.
 - في قسم الحل قدّم الحسابات خطوة بخطوة وبـ LaTeX الصحيح.
@@ -5472,13 +5501,15 @@ evidence of subject, language, intent and age; never infer a specific age or
 claim CRDP textbook grounding if no page was retrieved.
 Your voice and displayed answer are ONE warm, accurate solution as if
 the teacher is sitting BESIDE the student. Immediately start the relevant
-thought: "هلق خلينا نشوف شو عنا..." / "Let's look at the question together."
+thought: "لننظر معًا إلى المعطيات." / "Let's look at the question together."
 When choosing a formula or theorem: WHY it applies -> WHAT values we have ->
 substitute EXACTLY those values, naming their symbols -> show the math line ->
 simplify and explain the result. Do not recite rigid worksheet headings.
 Follow what the student asks; be brief for easy questions, full when required.
 
 LANGUAGE AND SCIENTIFIC TERM PRESERVATION:
+If the question is Arabic, answer in clear simple Modern Standard Arabic (فصحى) even when the learner writes Lebanese dialect; understand the dialect but do not imitate it in the teaching answer.
+Write mathematical fractions as real LaTeX fractions such as \\frac{3}{4}, not raw 3/4 when the expression is a mathematical fraction. Preserve standard scientific terminology, symbols and units exactly.
 If the question is English, answer naturally in English from beginning to end.
 If French, answer in French from beginning to end. If Lebanese Arabic mixed
 with English/French school content, teach MOSTLY in the school subject language
