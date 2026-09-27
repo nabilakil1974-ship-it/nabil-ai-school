@@ -3931,7 +3931,7 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
         "Required fields: angles_measured_from_normal=true, normal_perpendicular_surface=true, law='angle_of_incidence_equals_angle_of_reflection'.\n"
         "6) IONIC_COMPOUND: only when SOURCE explicitly supports ionic electron transfer, the cation/anion charges, the whole-number ion ratio, and charge neutrality. "
         "Required fields: cation={symbol,charge}, anion={symbol,charge}, cation_ratio, anion_ratio, electron_transfer_count, bond_type='ionic'.\n"
-        "7) EVIDENCE_SEQUENCE: for Biology, Chemistry, Physics, General Science, or Mathematics only when SOURCE explicitly gives an ordered process, transformation, construction, or sequence that can be animated without inventing a missing step. "
+        "7) EVIDENCE_SEQUENCE: for ANY subject when SOURCE explicitly gives two or more ordered or structurally related evidence-backed ideas, parts, stages, transformations, constructions, grammatical steps, historical developments, geographic relations, or other explainable sequence that can be highlighted or animated without inventing a missing fact. "
         "Required field: steps=[{label:str,evidence_quote:str}] with 2..8 ordered steps; every evidence_quote must be an exact contiguous SOURCE quote.\n"
         "For DC_SERIES_CIRCUIT, OPTICS_REFLECTION and IONIC_COMPOUND also return evidence_quotes: an object containing an EXACT SOURCE quote for EACH scientific invariant declared by the spec.\n"
         "Every supported lab must contain an exact evidence quote from SOURCE when evidence_basis=text. "
@@ -4322,7 +4322,7 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict) -> str:
                 )
         generated_html = "".join(generated_rows)
         acts_html += f'''
-        <div class="card" style="margin-top:20px;">
+        <div class="card nabil-concept-card" data-nabil-concept-id="{html.escape(str(act["concept_id"]))}" style="margin-top:20px;">
           <h3 style="color:#0369a1; margin-top:0;">{act["activity_num"]}. {html.escape(act["title"])}</h3>
           {generated_html}
           {act["visual_html"]}
@@ -4355,6 +4355,7 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict) -> str:
 {MathRenderingEngine.inject_mathjax_head()}
 <script defer src="/static/nabil_scientific_solution_cards_e2e.js?v=3"></script>
 <script defer src="/static/nabil_lesson_e2e_runtime_v1.js?v=1"></script>
+<script defer src="/static/nabil_smart_lab_bridge_v1.js?v=1"></script>
 <style>
   :root {{ --primary: #0284c7; --bg: #f8fafc; --card: #ffffff; --text: #0f172a; --text-muted: #64748b; }}
   body {{ font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 16px; overflow-x: hidden; max-width: 100vw; box-sizing: border-box; }}
@@ -4372,7 +4373,10 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict) -> str:
 <div class="container">
   <div class="header">
     <h1 style="margin:0; font-size:22px;">{clean_title}</h1>
-    <button onclick="navigateToExercises()" class="nav-btn">{html.escape(ui_t(page_a_lang_code, "view_exercises"))}</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+      <button type="button" id="nabilExplainWholeLessonLabs" class="nav-btn" style="background:#0f766e;">🧪 {html.escape({"ar":"اشرح الدرس كاملًا بالمختبرات","fr":"Expliquer toute la leçon avec les laboratoires","en":"Explain the whole lesson with labs"}.get(page_a_lang_code,"Explain the whole lesson with labs"))}</button>
+      <button onclick="navigateToExercises()" class="nav-btn">{html.escape(ui_t(page_a_lang_code, "view_exercises"))}</button>
+    </div>
   </div>
   {acts_html}
   <div class="card" style="margin-top:24px;">
@@ -4551,12 +4555,13 @@ def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: di
             sub_html = f"<ul style='margin:6px 0 0 16px; padding:0; font-size:13px; color:#334155;'>{sub_items}</ul>"
 
         ex_cards += f'''
-        <div class="card" style="margin-top:16px;">
+        <div class="card nabil-exercise-card" data-nabil-exercise-number="{ex_num}" data-nabil-section-type="{html.escape(sec_type)}" style="margin-top:16px;">
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <h3 style="margin:0; font-size:16px;">{card_title}</h3>
             {provenance_html}
           </div>
-          <p style="margin:10px 0; font-size:14px; line-height:1.5;">{html.escape(ex["exact_source_prompt"])}</p>
+          <p class="nabil-exercise-prompt" style="margin:10px 0; font-size:14px; line-height:1.5;">{html.escape(ex["exact_source_prompt"])}</p>
+          <button type="button" class="nabil-explain-lab-btn nav-btn" style="background:#0f766e;margin:2px 0 8px;">🧪 {html.escape({"ar":"اشرح هذا التمرين بالمختبر","fr":"Expliquer cet exercice avec un laboratoire","en":"Explain this exercise with a lab"}.get(page_b_lang_code,"Explain this exercise with a lab"))}</button>
           {ex_fig_html}
           {sub_html}
           {sol_box}
