@@ -2519,9 +2519,26 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
             kind = row["section_type"]
             req_fig = bool(re.search(r"(?:fig(?:ure)?\.?|document|doc|شكل|وثيقة)\s*\d+", content, re.I)
                            or any(k in content.casefold() for k in ("diagram", "sketch", "draw", "graph")))
-            refs = match_figure_to_item({"exact_source_prompt": content,
-                                          "requires_figure": req_fig},
-                                         p["figures"], source_page.rect)
+            try:
+                refs = match_figure_to_item(
+                    {"exact_source_prompt": content,
+                     "requires_figure": req_fig},
+                    p["figures"], source_page.rect)
+            except RuntimeError as exc:
+                reason = str(exc)
+                if not reason.startswith("FIGURE_EVIDENCE_MISSING"):
+                    raise
+                progress(
+                    "SKIPPED_UNVERIFIED_EXERCISE",
+                    page=page_num,
+                    number=number,
+                    reasons=[reason],
+                )
+                # The textbook prompt may be readable, but if solving it
+                # requires a source figure whose identity/crop could not be
+                # verified, fail closed at ITEM level. Never invent or infer
+                # the missing diagram; continue with the remaining exercises.
+                continue
             hashes = [f["image_sha256"] for f in p["figures"] if f["figure_id"] in refs]
             subqs = row.get("subquestions") or []
             ex = {
