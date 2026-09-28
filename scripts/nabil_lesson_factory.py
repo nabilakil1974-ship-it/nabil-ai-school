@@ -2249,8 +2249,233 @@ def _iter_canonical_lesson_entries(catalog: dict):
                         yield entry
 
 
-def _registered_books_from_catalog() -> List[dict]:
-    """Return one metadata record per unique registered source book."""
+
+def _drive_escape_query_value(value: str) -> str:
+    return str(value or "").replace("\\", "\\\\").replace("'", "\\'")
+
+
+def _drive_list_folder_children(drive_service, folder_id: str) -> List[dict]:
+    """Return all non-trashed direct children, including Shared Drive items."""
+    rows: List[dict] = []
+    page_token = None
+    query = f"'{_drive_escape_query_value(folder_id)}' in parents and trashed = false"
+    while True:
+        response = drive_service.files().list(
+            q=query,
+            spaces="drive",
+            fields="nextPageToken,files(id,name,mimeType,parents,description)",
+            pageSize=1000,
+            pageToken=page_token,
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True,
+        ).execute()
+        rows.extend(response.get("files") or [])
+        page_token = response.get("nextPageToken")
+        if not page_token:
+            return rows
+
+
+def _drive_walk_curriculum_pdfs(drive_service, root_id: str) -> List[dict]:
+    """Recursively walk the configured curriculum root and return real PDFs."""
+    folder_mime = "application/vnd.google-apps.folder"
+    pdf_mime = "application/pdf"
+    queue: List[Tuple[str, List[str]]] = [(str(root_id), [])]
+    visited = set()
+    pdfs: List[dict] = []
+    while queue:
+        folder_id, parent_parts = queue.pop(0)
+        if folder_id in visited:
+            continue
+        visited.add(folder_id)
+        for item in _drive_list_folder_children(drive_service, folder_id):
+            item_id = str(item.get("id") or "").strip()
+            if not item_id:
+                continue
+            name = str(item.get("name") or "").strip()
+            mime = str(item.get("mimeType") or "")
+            path_parts = parent_parts + [name]
+            if mime == folder_mime:
+                queue.append((item_id, path_parts))
+                continue
+            if mime == pdf_mime or name.casefold().endswith(".pdf"):
+                row = dict(item)
+                row["drive_path_parts"] = path_parts
+                row["drive_path"] = " / ".join(path_parts)
+                pdfs.append(row)
+    return pdfs
+
+
+_DRIVE_GRADE_WORDS = {
+    "first": 1, "premier": 1, "première": 1, "الأول": 1, "الاول": 1,
+    "second": 2, "deuxième": 2, "الثاني": 2,
+    "third": 3, "troisième": 3, "الثالث": 3,
+    "fourth": 4, "quatrième": 4, "الرابع": 4,
+    "fifth": 5, "cinquième": 5, "الخامس": 5,
+    "sixth": 6, "sixième": 6, "السادس": 6,
+    "seventh": 7, "septième": 7, "السابع": 7,
+    "eighth": 8, "huitième": 8, "الثامن": 8,
+    "ninth": 9, "neuvième": 9, "التاسع": 9,
+    "tenth": 10, "dixième": 10, "العاشر": 10,
+    "eleventh": 11, "onzième": 11, "الحادي عشر": 11,
+    "twelfth": 12, "douzième": 12, "الثاني عشر": 12,
+}
+
+
+def _infer_drive_grade(text: str) -> Optional[int]:
+    low = str(text or "").casefold()
+    for pattern in (
+        r"\bgrade[\s._-]*0?(\d{1,2})\b",
+        r"\bg[\s._-]*0?(\d{1,2})\b",
+        r"\beb[\s._-]*0?(\d{1,2})\b",
+        r"\bclass[\s._-]*0?(\d{1,2})\b",
+        r"(?:صف|الصف)[\s._-]*(\d{1,2})",
+    ):
+        match = re.search(pattern, low, flags=re.I)
+        if match:
+            value = int(match.group(1))
+            return value if 1 <= value <= 12 else None
+    for word, value in _DRIVE_GRADE_WORDS.items():
+        if word in low:
+            return value
+    return None
+
+
+_DRIVE_SUBJECT_HINTS = {
+    "mathematics": ("mathematics", "maths", "building up mathematics", "mathématique", "mathématiques", "رياضيات"),
+    "physics": ("physics", "physique", "فيزياء"),
+    "chemistry": ("chemistry", "chimie", "كيمياء"),
+    "biology": ("biology", "biologie", "أحياء", "احياء"),
+    "general_science": ("general science", "science générale", "sciences générales", "علوم عامة"),
+    "arabic_language": ("arabic language", "لغة عربية", "اللغة العربية"),
+    "english_language": ("english language", "لغة إنكليزية", "لغة انكليزية", "اللغة الإنجليزية", "اللغة الانجليزية"),
+    "french_language": ("french language", "langue française", "français", "لغة فرنسية", "اللغة الفرنسية"),
+    "history": ("history", "histoire", "تاريخ"),
+    "geography": ("geography", "géographie", "جغرافيا"),
+    "civics": ("civics", "civic education", "تربية مدنية", "مدنيات"),
+    "philosophy": ("philosophy", "philosophie", "فلسفة"),
+    "economics": ("economics", "économie", "اقتصاد"),
+    "sociology": ("sociology", "sociologie", "علم الاجتماع", "اجتماع"),
+    "computer_science": ("computer science", "informatics", "informatique", "معلوماتية"),
+}
+
+
+def _infer_drive_subject(text: str) -> str:
+    low = str(text or "").casefold()
+    for canonical, hints in _DRIVE_SUBJECT_HINTS.items():
+        if any(hint.casefold() in low for hint in hints):
+            return canonical
+    # Conservative generic science fallback comes last so physics/chemistry/
+    # biology are never swallowed by a parent folder named Science.
+    if any(x in low for x in ("science", "sciences", "علوم")):
+        return "general_science"
+    return ""
+
+
+def _infer_drive_language(text: str) -> str:
+    low = str(text or "").casefold()
+    if "building up mathematics" in low:
+        return "en"
+    if any(x in low for x in ("english", "anglais", "إنكليزي", "انكليزي", "إنجليزي", "انجليزي")):
+        return "en"
+    if any(x in low for x in ("french", "français", "francais", "فرنسي", "الفرنسية")):
+        return "fr"
+    if any(x in low for x in ("arabic", "arabe", "عربي", "العربية")):
+        return "ar"
+    return ""
+
+
+def discover_curriculum_books_from_drive(
+        drive_service=None, grade: Any = None, subject: Any = None) -> List[dict]:
+    """Drive root -> folders -> PDFs -> normalized curriculum book metadata.
+
+    No lesson title, book id, grade list or subject list is hard-coded as a
+    production target. Grade/subject hints are classification vocabulary only.
+    """
+    if drive_service is None:
+        drive_service = get_drive_service()
+    root_id = resolve_drive_root_id()
+    wanted_grade = _normalize_grade_selector(grade)
+    wanted_subject = (
+        _normalize_subject_selector(subject) if subject not in (None, "") else ""
+    )
+
+    books: List[dict] = []
+    ambiguous: List[dict] = []
+    for item in _drive_walk_curriculum_pdfs(drive_service, root_id):
+        context = " / ".join(item.get("drive_path_parts") or [str(item.get("name") or "")])
+        actual_grade = _infer_drive_grade(context)
+        actual_subject = _infer_drive_subject(context)
+        language = _infer_drive_language(context)
+
+        if wanted_grade is not None and actual_grade != wanted_grade:
+            continue
+        if wanted_subject and actual_subject != wanted_subject:
+            continue
+
+        if actual_grade is None or not actual_subject:
+            ambiguous.append({
+                "book_id": item.get("id"),
+                "title": item.get("name"),
+                "drive_path": item.get("drive_path"),
+                "grade": actual_grade,
+                "subject": actual_subject or None,
+            })
+            continue
+
+        books.append({
+            "book_id": str(item["id"]),
+            "title": str(item.get("name") or ""),
+            "grade": actual_grade,
+            "subject": actual_subject,
+            "language": language,
+            "drive_path": item.get("drive_path"),
+            "discovered_from": "google_drive_curriculum_root",
+        })
+
+    unique = {}
+    for meta in books:
+        unique.setdefault(meta["book_id"], meta)
+    result = list(unique.values())
+    result.sort(key=lambda x: (
+        int(x.get("grade") or 999),
+        str(x.get("subject") or ""),
+        str(x.get("language") or ""),
+        str(x.get("title") or "").casefold(),
+    ))
+    progress(
+        "DRIVE_CURRICULUM_DISCOVERY_COMPLETE",
+        root_id=root_id,
+        grade=wanted_grade,
+        subject=wanted_subject or None,
+        books=len(result),
+        ambiguous_pdfs=len(ambiguous),
+    )
+    if ambiguous:
+        progress(
+            "DRIVE_CURRICULUM_AMBIGUOUS_PDFS",
+            count=len(ambiguous),
+            sample=ambiguous[:10],
+        )
+    return result
+
+
+
+def _registered_books_from_catalog(
+        drive_service=None, grade: Any = None, subject: Any = None) -> List[dict]:
+    """Compatibility name: real Drive discovery is now the primary book registry."""
+    drive_error = None
+    try:
+        discovered = discover_curriculum_books_from_drive(
+            drive_service=drive_service, grade=grade, subject=subject)
+        if discovered:
+            return discovered
+    except Exception as exc:
+        drive_error = exc
+        progress(
+            "DRIVE_CURRICULUM_DISCOVERY_FAILED",
+            error=f"{type(exc).__name__}: {exc}")
+
+    # Existing canonical records remain a fail-safe for already indexed material.
     catalog = load_canonical_catalog()
     books = {}
     for entry in _iter_canonical_lesson_entries(catalog):
@@ -2258,25 +2483,42 @@ def _registered_books_from_catalog() -> List[dict]:
         if not book_id:
             continue
         meta = books.setdefault(book_id, {"book_id": book_id})
-        for key in ("grade", "subject", "language", "branch", "track"):
+        for key in ("grade", "subject", "language", "branch", "track", "title"):
             value = entry.get(key)
             if value not in (None, "") and key not in meta:
                 meta[key] = value
-    if not books:
-        raise RuntimeError("BOOK_INDEX_NO_REGISTERED_BOOKS")
-    return list(books.values())
+    matched = [
+        meta for meta in books.values()
+        if _book_matches_scope(meta, grade=grade, subject=subject)
+    ]
+    if matched:
+        return matched
+    if drive_error is not None:
+        raise RuntimeError(
+            f"BOOK_DISCOVERY_FAILED: {type(drive_error).__name__}: {drive_error}")
+    raise RuntimeError(
+        f"BOOK_INDEX_SCOPE_EMPTY: grade={grade!r} subject={subject!r}")
 
 
 def _metadata_for_book(book_id: str) -> dict:
-    for meta in _registered_books_from_catalog():
-        if meta["book_id"] == book_id:
-            return meta
+    """Resolve known metadata without requiring a whole-Drive walk."""
+    try:
+        catalog = load_canonical_catalog()
+        for entry in _iter_canonical_lesson_entries(catalog):
+            if str(entry.get("book_id") or "").strip() == str(book_id):
+                return {
+                    key: entry.get(key)
+                    for key in ("book_id", "grade", "subject", "language",
+                                "branch", "track", "title")
+                    if entry.get(key) not in (None, "")
+                }
+    except Exception:
+        pass
     return {"book_id": book_id}
-
 
 def build_all_registered_book_indexes(drive_service=None, force: bool = False) -> dict:
     """Index every unique book registered in the canonical catalog, truthfully."""
-    books = _registered_books_from_catalog()
+    books = _registered_books_from_catalog(drive_service=drive_service)
     report = {
         "status": "RUNNING",
         "schema": "NABIL_ALL_BOOK_INDEX_V1",
@@ -2360,8 +2602,10 @@ def build_scoped_book_indexes(
         drive_service=None, force: bool = False,
         grade: Any = None, subject: Any = None) -> dict:
     """Index every registered book matching a grade and/or subject selector."""
+    books = _registered_books_from_catalog(
+        drive_service=drive_service, grade=grade, subject=subject)
     books = [
-        meta for meta in _registered_books_from_catalog()
+        meta for meta in books
         if _book_matches_scope(meta, grade=grade, subject=subject)
     ]
     if not books:
@@ -8758,6 +9002,199 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
     return rep
 
 
+
+# ==============================================================================
+# AUTONOMOUS CURRICULUM PRODUCTION — DRIVE -> BOOKS -> LESSONS -> PUBLISH
+# ==============================================================================
+def _indexed_lessons_for_book_ids(book_ids: set) -> List[dict]:
+    lessons: List[dict] = []
+    for index_path in sorted(BOOK_INDEX_DIR.glob("*.json")):
+        if index_path.name.startswith("_"):
+            continue
+        try:
+            payload = json.loads(index_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if payload.get("status") != "INDEXED":
+            continue
+        if str(payload.get("book_id") or "") not in book_ids:
+            continue
+        for entry in payload.get("lessons") or []:
+            if isinstance(entry, dict):
+                lessons.append(entry)
+    lessons.sort(key=lambda e: (
+        _normalize_grade_selector(e.get("grade")) or 999,
+        str(e.get("subject") or ""),
+        str(e.get("book_id") or ""),
+        int(e.get("pdf_start_page") or 0),
+        str(e.get("canonical_title") or "").casefold(),
+    ))
+    return lessons
+
+
+def produce_curriculum_scope(
+        drive_service=None, grade: Any = None, subject: Any = None,
+        publish: bool = False, force_book_index: bool = False) -> dict:
+    """Produce every discovered lesson in the requested Drive curriculum scope.
+
+    With grade only: every discovered subject/book/lesson in that grade.
+    With no grade/subject: every discovered grade, in numeric order.
+    A failed lesson is recorded and the factory continues to the next lesson.
+    """
+    if drive_service is None:
+        drive_service = get_drive_service()
+
+    books = discover_curriculum_books_from_drive(
+        drive_service=drive_service, grade=grade, subject=subject)
+    if not books:
+        raise RuntimeError(
+            f"CURRICULUM_SCOPE_EMPTY: grade={grade!r} subject={subject!r}")
+
+    # Index every real source book first.
+    indexed_books = []
+    failed_books = []
+    for pos, meta in enumerate(books, 1):
+        try:
+            idx = build_book_lesson_index(
+                meta["book_id"],
+                drive_service=drive_service,
+                force=force_book_index,
+                book_metadata=meta,
+            )
+            indexed_books.append({
+                "book_id": meta["book_id"],
+                "title": meta.get("title"),
+                "grade": meta.get("grade"),
+                "subject": meta.get("subject"),
+                "language": meta.get("language"),
+                "lesson_count": idx.get("lesson_count", 0),
+            })
+        except Exception as exc:
+            failed_books.append({
+                "book_id": meta.get("book_id"),
+                "title": meta.get("title"),
+                "grade": meta.get("grade"),
+                "subject": meta.get("subject"),
+                "error": f"{type(exc).__name__}: {exc}",
+            })
+            progress(
+                "CURRICULUM_BOOK_FAILED",
+                position=pos, total=len(books),
+                book_id=meta.get("book_id"), error=str(exc))
+
+    good_ids = {row["book_id"] for row in indexed_books}
+    lessons = _indexed_lessons_for_book_ids(good_ids)
+    if not lessons and indexed_books:
+        raise RuntimeError("CURRICULUM_NO_DISCOVERED_LESSONS_AFTER_INDEX")
+
+    report = {
+        "status": "RUNNING",
+        "schema": "NABIL_AUTONOMOUS_CURRICULUM_PRODUCTION_V1",
+        "generated_at": now(),
+        "requested_grade": _normalize_grade_selector(grade),
+        "requested_subject": (
+            _normalize_subject_selector(subject)
+            if subject not in (None, "") else None),
+        "publish": bool(publish),
+        "books_discovered": len(books),
+        "books_indexed": len(indexed_books),
+        "books_failed": failed_books,
+        "lessons_discovered": len(lessons),
+        "lessons_completed": [],
+        "lessons_failed": [],
+    }
+
+    progress(
+        "CURRICULUM_PRODUCTION_START",
+        grade=report["requested_grade"],
+        subject=report["requested_subject"],
+        books=len(books), lessons=len(lessons), publish=bool(publish))
+
+    current_grade = None
+    current_subject = None
+    for position, entry in enumerate(lessons, 1):
+        lesson_grade = _normalize_grade_selector(entry.get("grade"))
+        lesson_subject = _normalize_subject_selector(entry.get("subject"))
+        if lesson_grade != current_grade:
+            current_grade = lesson_grade
+            current_subject = None
+            progress(
+                "CURRICULUM_GRADE_START",
+                grade=current_grade, lesson_position=position,
+                total_lessons=len(lessons))
+        if lesson_subject != current_subject:
+            current_subject = lesson_subject
+            progress(
+                "CURRICULUM_SUBJECT_START",
+                grade=current_grade, subject=current_subject,
+                lesson_position=position, total_lessons=len(lessons))
+
+        lesson_id = str(entry.get("lesson_id") or "")
+        title = str(entry.get("canonical_title") or "")
+        try:
+            lesson_report = produce_lesson_for_entry(
+                entry, drive_service=drive_service, publish=publish)
+            report["lessons_completed"].append({
+                "position": position,
+                "lesson_id": lesson_id,
+                "title": title,
+                "grade": lesson_grade,
+                "subject": lesson_subject,
+                "status": lesson_report.get("status"),
+                "drive_theory_id": lesson_report.get("drive_theory_id"),
+                "drive_exercises_id": lesson_report.get("drive_exercises_id"),
+                "drive_labs_id": lesson_report.get("drive_labs_id"),
+            })
+            progress(
+                "CURRICULUM_LESSON_COMPLETE",
+                position=position, total=len(lessons),
+                grade=lesson_grade, subject=lesson_subject,
+                lesson_id=lesson_id, title=title)
+        except Exception as exc:
+            report["lessons_failed"].append({
+                "position": position,
+                "lesson_id": lesson_id,
+                "title": title,
+                "grade": lesson_grade,
+                "subject": lesson_subject,
+                "error": f"{type(exc).__name__}: {exc}",
+            })
+            progress(
+                "CURRICULUM_LESSON_FAILED",
+                position=position, total=len(lessons),
+                grade=lesson_grade, subject=lesson_subject,
+                lesson_id=lesson_id, title=title,
+                error=f"{type(exc).__name__}: {exc}")
+            # Batch mode is resilient: one bad lesson never prevents later
+            # lessons/subjects/grades from being attempted.
+
+    report["completed_count"] = len(report["lessons_completed"])
+    report["failed_count"] = len(report["lessons_failed"])
+    report["book_failed_count"] = len(report["books_failed"])
+    report["status"] = (
+        "COMPLETED"
+        if not report["lessons_failed"] and not report["books_failed"]
+        else "PARTIAL_FAILURE"
+    )
+    report["completed_at"] = now()
+    batch_report_path = BOOK_INDEX_DIR / (
+        f"_production_grade_{report['requested_grade']}.json"
+        if report["requested_grade"] is not None
+        else "_production_all_grades.json"
+    )
+    batch_report_path.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    progress(
+        "CURRICULUM_PRODUCTION_COMPLETE",
+        status=report["status"],
+        completed=report["completed_count"],
+        failed=report["failed_count"],
+        book_failed=report["book_failed_count"],
+        report=str(batch_report_path))
+    return report
+
+
+
 # ==============================================================================
 # MAIN ENTRY POINT
 # ==============================================================================
@@ -8803,8 +9240,25 @@ def main():
         progress("AI_VISION_PROBE_PASS")
         return 0
 
-    # No target means the safe universal action: index the whole registered curriculum.
-    if not any((args.lesson_id, args.grade, args.subject, args.lesson, args.index_book, args.index_all_books)):
+    # No explicit target:
+    #   --publish => autonomously produce the entire Drive curriculum grade by grade.
+    #   otherwise => safely index the entire discovered curriculum.
+    no_target = not any((
+        args.lesson_id, args.grade, args.subject, args.lesson,
+        args.index_book, args.index_all_books))
+    if no_target and args.publish:
+        drive_service = get_drive_service()
+        execute_preflight_checks(require_drive=True)
+        report = produce_curriculum_scope(
+            drive_service=drive_service,
+            grade=None,
+            subject=None,
+            publish=True,
+            force_book_index=args.force_book_index,
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        return 0 if report["status"] == "COMPLETED" else 2
+    if no_target:
         args.index_all_books = True
 
     if args.index_all_books:
@@ -8826,9 +9280,22 @@ def main():
         print(json.dumps(book_index, ensure_ascii=False, indent=2))
         return 0
 
-    # Grade and/or subject without a lesson means: index that complete scope.
+    # Grade/subject without a lesson:
+    #   --publish => produce every discovered lesson in that scope.
+    #   otherwise => index every discovered book in that scope.
     if (args.grade or args.subject) and not (args.lesson or args.lesson_id):
         drive_service = get_drive_service()
+        if args.publish:
+            execute_preflight_checks(require_drive=True)
+            report = produce_curriculum_scope(
+                drive_service=drive_service,
+                grade=args.grade,
+                subject=args.subject,
+                publish=True,
+                force_book_index=args.force_book_index,
+            )
+            print(json.dumps(report, ensure_ascii=False, indent=2))
+            return 0 if report["status"] == "COMPLETED" else 2
         report = build_scoped_book_indexes(
             drive_service=drive_service,
             force=args.force_book_index,
