@@ -139,6 +139,33 @@ def validate_geometry_proof_spec(spec: Dict[str, Any]) -> Dict[str, Any]:
             or any(str(x) not in allowed_targets for x in targets)
         ):
             raise RuntimeError(f"LAB_GEOMETRY_PROOF_STEP_TARGET_INVALID:{i}")
+    interaction = spec.get("interaction")
+    if interaction is not None:
+        if not isinstance(interaction, dict):
+            raise RuntimeError("LAB_GEOMETRY_INTERACTION_INVALID")
+        draggable = interaction.get("draggable_points") or []
+        if not isinstance(draggable, list) or any(str(x) not in labels for x in draggable):
+            raise RuntimeError("LAB_GEOMETRY_DRAG_POINT_INVALID")
+        if draggable and not str(interaction.get("evidence_quote") or "").strip():
+            raise RuntimeError("LAB_GEOMETRY_DRAG_EVIDENCE_MISSING")
+        constraints = interaction.get("constraints") or {}
+        if not isinstance(constraints, dict):
+            raise RuntimeError("LAB_GEOMETRY_DRAG_CONSTRAINT_INVALID")
+        for label in draggable:
+            c = constraints.get(str(label)) or {"type": "free"}
+            ctype = str(c.get("type") or "")
+            if not isinstance(c, dict) or ctype not in {"free","horizontal","vertical","segment","circle"}:
+                raise RuntimeError(f"LAB_GEOMETRY_DRAG_CONSTRAINT_INVALID:{label}")
+            if ctype == "segment" and str(c.get("segment_id") or "") not in seg_ids:
+                raise RuntimeError(f"LAB_GEOMETRY_DRAG_SEGMENT_INVALID:{label}")
+            if ctype == "circle":
+                if str(c.get("center") or "") not in labels:
+                    raise RuntimeError(f"LAB_GEOMETRY_DRAG_CIRCLE_CENTER_INVALID:{label}")
+                try:
+                    if float(c.get("radius")) <= 0:
+                        raise ValueError()
+                except Exception as exc:
+                    raise RuntimeError(f"LAB_GEOMETRY_DRAG_CIRCLE_RADIUS_INVALID:{label}") from exc
     return spec
 
 
@@ -332,15 +359,18 @@ def render_geometry_proof_lab(spec: Dict[str, Any], lang: str, lab_id: str) -> T
   const q=id=>document.getElementById(id);
   const steps={json.dumps(step_payload,ensure_ascii=False)};
   const xy={json.dumps(target_xy,ensure_ascii=False)};
-  let step=0,token=0;
-  function clear(){{
+  const authoredPoints={json.dumps({k:[float(v[0]),float(v[1])] for k,v in pts.items()},ensure_ascii=False)};
+  const segmentDefs={json.dumps([{"id":str(s["id"]),"a":str(s["a"]),"b":str(s["b"])} for s in (spec.get("segments") or [])],ensure_ascii=False)};
+  const interaction={json.dumps(spec.get("interaction") or {},ensure_ascii=False)};
+  let step=0,token=0,dragLabel=null,dragPid=null;
+  function clearFocus(){{
     q('lab_{safe}').querySelectorAll('.geo-mark').forEach(x=>x.classList.remove('on'));
     q('lab_{safe}').querySelectorAll('.geo-focus').forEach(x=>x.classList.remove('geo-focus'));
   }}
   function targetPoint(key){{
     const p=xy[key];if(!p)return [500,95];return p;
   }}
-  function focusKey(key){{
+  function arrowTo(key){{
     const p=targetPoint(key),arrow=q('{safe}_teacherArrow');arrow.setAttribute('x2',p[0]);arrow.setAttribute('y2',p[1]);
     let el=null;
     if(key.startsWith('segment:'))el=q('{safe}_seg_'+key.slice(8).replace(/[^a-zA-Z0-9_]/g,'_'));
@@ -348,26 +378,84 @@ def render_geometry_proof_lab(spec: Dict[str, Any], lang: str, lab_id: str) -> T
     else el=q('{safe}_mark_'+String(key).replace(/[^a-zA-Z0-9_]/g,'_'));
     el?.classList.add('geo-focus');
   }}
-  function render(){{
-    const s=steps[step];clear();
+  function renderStep(){{
+    const s=steps[step];clearFocus();
     const established=[];
      for(let j=0;j<=step;j++) (steps[j].reveal||[]).forEach(id=>{{if(!established.includes(id))established.push(id)}});
      established.forEach(id=>q('{safe}_mark_'+String(id).replace(/[^a-zA-Z0-9_]/g,'_'))?.classList.add('on'));
-    focusKey((s.targets&&s.targets[0])||s.reveal[0]||'');
+    arrowTo((s.targets&&s.targets[0])||s.reveal[0]||'');
     q('{safe}_title').textContent=s.title;q('{safe}_text').textContent=s.text;q('{safe}_formula').textContent=s.formula||'';
     q('{safe}_formula').style.display=s.formula?'block':'none';q('{safe}_count').textContent=(step+1)+' / '+steps.length;
     [...q('{safe}_timeline').children].forEach((b,i)=>b.className='geo-dot '+(i<step?'done':i===step?'on':''));
   }}
-  function buildTimeline(){{q('{safe}_timeline').innerHTML='';steps.forEach((_,i)=>{{const b=document.createElement('button');b.className='geo-dot';b.textContent=i+1;b.onclick=()=>{{token++;step=i;render()}};q('{safe}_timeline').appendChild(b)}})}}
+
+  function svgLocal(e){{
+    const svg=q('{safe}_teacherArrow')?.ownerSVGElement;
+    const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;
+    return p.matrixTransform(svg.getScreenCTM().inverse());
+  }}
+  function pointGroup(label){{return q('{safe}_pt_'+String(label).replace(/[^a-zA-Z0-9_]/g,'_'))}}
+  function pointXY(label){{
+    const c=pointGroup(label)?.querySelector('circle');
+    return c?[Number(c.getAttribute('cx')),Number(c.getAttribute('cy'))]:(authoredPoints[label]||[0,0]);
+  }}
+  function setPointXY(label,x,y){{
+    const grp=pointGroup(label);if(!grp)return;
+    x=Math.max(18,Math.min(622,x));y=Math.max(18,Math.min(402,y));
+    const c=grp.querySelector('circle'),t=grp.querySelector('text');
+    c?.setAttribute('cx',x);c?.setAttribute('cy',y);
+    t?.setAttribute('x',x+9);t?.setAttribute('y',y-8);
+    xy['point:'+label]=[x,y];
+  }}
+  function projectConstraint(label,p){{
+    const c=(interaction.constraints||{{}})[label]||{{type:'free'}};
+    const original=authoredPoints[label]||[p.x,p.y];
+    if(c.type==='horizontal') return [p.x,original[1]];
+    if(c.type==='vertical') return [original[0],p.y];
+    if(c.type==='segment'){{
+      const s=segmentDefs.find(x=>x.id===String(c.segment_id));if(!s)return original;
+      const A=pointXY(s.a),B=pointXY(s.b),vx=B[0]-A[0],vy=B[1]-A[1],d=vx*vx+vy*vy||1;
+      const tt=Math.max(0,Math.min(1,((p.x-A[0])*vx+(p.y-A[1])*vy)/d));
+      return [A[0]+tt*vx,A[1]+tt*vy];
+    }}
+    if(c.type==='circle'){{
+      const C=pointXY(String(c.center)),r=Number(c.radius)||0,dx=p.x-C[0],dy=p.y-C[1],L=Math.hypot(dx,dy)||1;
+      return [C[0]+dx/L*r,C[1]+dy/L*r];
+    }}
+    return [p.x,p.y];
+  }}
+  function refreshDynamicGeometry(){{
+    segmentDefs.forEach(s=>{{
+      const A=pointXY(s.a),B=pointXY(s.b),el=q('{safe}_seg_'+String(s.id).replace(/[^a-zA-Z0-9_]/g,'_'));
+      if(el){{el.setAttribute('x1',A[0]);el.setAttribute('y1',A[1]);el.setAttribute('x2',B[0]);el.setAttribute('y2',B[1]);}}
+      xy['segment:'+s.id]=[(A[0]+B[0])/2,(A[1]+B[1])/2];
+    }});
+  }}
+  function installReferenceDrag(){{
+    const allowed=new Set(Array.isArray(interaction.draggable_points)?interaction.draggable_points.map(String):[]);
+    allowed.forEach(label=>{{
+      const c=pointGroup(label)?.querySelector('circle');if(!c)return;
+      c.style.cursor='grab';c.style.touchAction='none';
+      c.addEventListener('pointerdown',e=>{{token++;dragLabel=label;dragPid=e.pointerId;c.setPointerCapture?.(dragPid);c.style.cursor='grabbing';e.preventDefault()}});
+      c.addEventListener('pointermove',e=>{{
+        if(dragLabel!==label||e.pointerId!==dragPid)return;
+        const p=svgLocal(e),qv=projectConstraint(label,p);setPointXY(label,qv[0],qv[1]);refreshDynamicGeometry();renderStep();e.preventDefault();
+      }});
+      const end=e=>{{if(dragLabel===label&&e.pointerId===dragPid){{dragLabel=null;dragPid=null;c.style.cursor='grab'}}}};
+      c.addEventListener('pointerup',end);c.addEventListener('pointercancel',end);
+    }});
+  }}
+
+  function buildTimeline(){{q('{safe}_timeline').innerHTML='';steps.forEach((_,i)=>{{const b=document.createElement('button');b.className='geo-dot';b.textContent=i+1;b.onclick=()=>{{token++;step=i;renderStep()}};q('{safe}_timeline').appendChild(b)}})}}
   async function speakOne(i,done){{
-    step=i;render();const s=steps[i];const my=token;
+    step=i;renderStep();const s=steps[i];const my=token;
     const sentences=(s.text+' '+(s.formula||'')).split(/(?<=[.!?؟])\s+/).filter(Boolean);
     let k=0;
     const next=async()=>{{
       if(my!==token)return;
       if(k>=sentences.length){{done?.();return}}
       const key=(s.targets&&s.targets[Math.min(k,s.targets.length-1)])||(s.reveal&&s.reveal[0])||'';
-      focusKey(key);
+      arrowTo(key);
       const txt=sentences[k++];
       try{{await Promise.resolve(window.NABILLessonE2E?.speak?.(txt,{json.dumps(lang)}));}}catch(_e){{}}
       if(my!==token)return;
@@ -388,8 +476,8 @@ def render_geometry_proof_lab(spec: Dict[str, Any], lang: str, lab_id: str) -> T
      }};
      next();
    }}
-  q('{safe}_prev').onclick=()=>{{token++;step=(step+steps.length-1)%steps.length;render()}};
-  q('{safe}_next').onclick=()=>{{token++;step=(step+1)%steps.length;render()}};
+  q('{safe}_prev').onclick=()=>{{token++;step=(step+steps.length-1)%steps.length;renderStep()}};
+  q('{safe}_next').onclick=()=>{{token++;step=(step+1)%steps.length;renderStep()}};
   q('{safe}_speak').onclick=()=>{{token++;speakOne(step)}};
   q('{safe}_all').onclick=playAll;
   function stopTeaching(){{
@@ -398,12 +486,12 @@ def render_geometry_proof_lab(spec: Dict[str, Any], lang: str, lab_id: str) -> T
      q('lab_{safe}').dispatchEvent(new CustomEvent('nabil:teacher-stopped',{{detail:{{labRef:'{safe}'}},bubbles:true}}));
    }}
    q('{safe}_stop').onclick=stopTeaching;
-  q('{safe}_reset').onclick=()=>{{stopTeaching();step=0;render()}};
+  q('{safe}_reset').onclick=()=>{{stopTeaching();step=0;renderStep()}};
   q('lab_{safe}').addEventListener('nabil:demo',playAll);
    q('lab_{safe}').addEventListener('nabil:teach-all',playAll);
    q('lab_{safe}').addEventListener('nabil:teach-stop',stopTeaching);
    q('lab_{safe}').addEventListener('nabil:teacher-stop',stopTeaching);
-  buildTimeline();render();
+  buildTimeline();renderStep();installReferenceDrag();
  }})();
  </script>
 </section>""", True
