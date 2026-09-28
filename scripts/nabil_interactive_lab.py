@@ -608,18 +608,27 @@ def _reference_contract_wrap(raw_html:str,spec:Dict[str,Any],lang_code:str,lab_i
        .find(el=>visible(el)&&(el.id.endsWith('_'+slug)||el.id.endsWith(slug)));
      return suffix||null;
    }}
+   // Approved Smart Board reference pattern:
+   // clearFocus() -> arrowTo(element) -> renderStep(index)
+   function clearFocus(){{
+     shell?.querySelectorAll('.nabil-ref-focused').forEach(x=>x.classList.remove('nabil-ref-focused'));
+   }}
+   function arrowTo(target){{
+     if(!line||!target)return;
+     clearFocus();
+     target.classList.add('nabil-ref-focused');
+     const sr=shell.getBoundingClientRect(),tr=target.getBoundingClientRect();
+     const x2=Math.max(18,Math.min(sr.width-18,tr.left-sr.left+tr.width/2));
+     const y2=Math.max(52,Math.min(sr.height-18,tr.top-sr.top+Math.min(tr.height/2,60)));
+     line.setAttribute('x2',x2);line.setAttribute('y2',y2);
+   }}
    function point(index,targetIds=[]){{
      if(!line)return;
      const explicit=(Array.isArray(targetIds)?targetIds:[]).map(targetById).find(Boolean);
      const list=fallbackTargets();
      const target=explicit||(list.length?list[Math.max(0,Math.min(index,list.length-1))]:inner);
      if(!target)return;
-     shell.querySelectorAll('.nabil-ref-focused').forEach(x=>x.classList.remove('nabil-ref-focused'));
-     target.classList.add('nabil-ref-focused');
-     const sr=shell.getBoundingClientRect(),tr=target.getBoundingClientRect();
-     const x2=Math.max(18,Math.min(sr.width-18,tr.left-sr.left+tr.width/2));
-     const y2=Math.max(52,Math.min(sr.height-18,tr.top-sr.top+Math.min(tr.height/2,60)));
-     line.setAttribute('x2',x2);line.setAttribute('y2',y2);
+     arrowTo(target);
    }}
    function publishTeacherState(detail){{
      // Renderers own the science.  The shell publishes the verified transition
@@ -633,6 +642,12 @@ def _reference_contract_wrap(raw_html:str,spec:Dict[str,Any],lang_code:str,lab_i
          try{{inner.dataset[name]=typeof v==='object'?JSON.stringify(v):String(v)}}catch(_e){{}}
        }});
      }}
+   }}
+   function renderStep(index){{
+     if(!teacherSteps.length)return null;
+     cueIndex=((index%teacherSteps.length)+teacherSteps.length)%teacherSteps.length;
+     const detail=renderStep(cueIndex)||{{}};
+     return detail;
    }}
    async function speakCue(index){{
      if(!cues.length)return;
