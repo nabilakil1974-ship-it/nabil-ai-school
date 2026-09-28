@@ -164,6 +164,22 @@ body{
  border-radius:14px!important;padding:12px!important;min-width:0!important;
 }
 .nabil-reference-concept *{color:inherit}
+
+/* APPROVED NABIL SCIENTIFIC CARD — concept + final */
+.nabil-sci-card{--bg:#07192d;--panel:#0d2945;--panel2:#0a2239;--line:#2f5f86;--cyan:#6ce7ff;--gold:#ffd36a;--green:#7ce6b8;--red:#ff8b98;--txt:#f4fbff;--muted:#bed4e5;background:radial-gradient(circle at 50% -20%,#153f68,#07192d 70%)!important;color:var(--txt)!important;border:1px solid #2d638d!important;border-radius:22px!important;padding:14px!important;box-shadow:0 16px 44px rgba(0,0,0,.24)!important;margin:14px 0!important;overflow:hidden!important;width:100%!important;box-sizing:border-box!important}
+.nabil-sci-top{display:flex;gap:12px;align-items:center;justify-content:space-between;border-bottom:1px solid #2a5479;padding:2px 4px 11px;flex-wrap:wrap}
+.nabil-sci-brand{font-weight:900;color:var(--cyan);letter-spacing:.7px}.nabil-sci-badge{font-size:.75rem;border:1px solid #46789e;border-radius:999px;padding:4px 10px;color:#d8efff}
+.nabil-sci-title{margin:9px 0 2px;font-size:clamp(1.15rem,3vw,1.65rem);line-height:1.25;overflow-wrap:anywhere;color:#f4fbff!important}
+.nabil-sci-grid{display:grid;grid-template-columns:minmax(250px,.92fr) minmax(390px,1.55fr) minmax(190px,.64fr);gap:12px;margin-top:12px;align-items:stretch}
+.nabil-sci-panel{background:linear-gradient(160deg,#0f3151,#0a2239)!important;border:1px solid var(--line)!important;border-radius:17px!important;padding:13px!important;min-width:0}
+.nabil-sci-panel h3{margin:0 0 9px;color:#9eeeff!important;font-size:1rem}.nabil-sci-section{border-top:1px solid #284e6f;padding-top:9px;margin-top:9px}.nabil-sci-label{font-weight:800;color:#8fe8ff}.nabil-sci-value{color:#fff;white-space:pre-wrap;overflow-wrap:anywhere}
+.nabil-sci-visual{min-height:310px;display:flex;flex-direction:column;gap:10px}.nabil-sci-visual-stage{flex:1;display:block;background:#061827;border:1px solid #274d6d;border-radius:14px;padding:10px;overflow:auto}.nabil-sci-visual-stage svg,.nabil-sci-visual-stage canvas,.nabil-sci-visual-stage img{display:block;max-width:100%;height:auto;max-height:480px}
+.nabil-sci-teacher{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:8px;min-height:100%}.nabil-sci-avatar{width:min(100%,180px);max-height:230px;object-fit:contain;filter:drop-shadow(0 12px 22px rgba(0,0,0,.25))}.nabil-sci-teacher strong{color:var(--cyan);font-size:1.05rem}.nabil-sci-teacher p{margin:0;color:#d7e9f6;line-height:1.5}
+.nabil-sci-final{margin-top:12px;background:linear-gradient(145deg,#0e3547,#0b2939);border:1px solid #3b8b8a;border-radius:16px;padding:12px}.nabil-sci-final h3{margin:0 0 7px;color:#8ff3d7!important}.nabil-sci-results{display:flex;gap:8px;flex-wrap:wrap}.nabil-sci-chip{border:1px solid #41769a;background:#0c2a45;border-radius:999px;padding:5px 9px;font-size:.84rem;overflow-wrap:anywhere}.nabil-sci-verify{margin-top:9px;border-inline-start:4px solid var(--green);background:#0d2d36;border-radius:9px;padding:9px 10px}.nabil-sci-list{margin:0;padding-inline-start:18px;line-height:1.65}.nabil-sci-list li{margin:5px 0;overflow-wrap:anywhere}
+.nabil-sci-tools{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.nabil-sci-tools button{border:1px solid #4d80a5;background:#123d60;color:white;border-radius:10px;padding:8px 11px;cursor:pointer;font:inherit}.nabil-flow-row{margin:8px 0;padding:9px 11px;border-radius:10px;background:#0b2a45;border-inline-start:4px solid #14c8f5;line-height:1.55}.nabil-flow-row b{color:#8fe8ff}.nabil-flow-row.nabil-conclude{border-inline-start-color:#7ce6b8;background:#0d2d36}.nabil-flow-row.nabil-apply{border-inline-start-color:#ffd36a;background:#302b18}
+@media(max-width:1080px){.nabil-sci-grid{grid-template-columns:minmax(250px,.9fr) minmax(360px,1.5fr)}.nabil-sci-teacher-panel{grid-column:1/-1}.nabil-sci-teacher{flex-direction:row;text-align:start;justify-content:flex-start}.nabil-sci-avatar{width:110px}}
+@media(max-width:760px){.nabil-sci-card{padding:10px!important;border-radius:16px!important}.nabil-sci-grid{grid-template-columns:1fr!important}.nabil-sci-panel{padding:11px!important}.nabil-sci-teacher-panel{grid-column:auto}.nabil-sci-teacher{flex-direction:row;text-align:start}.nabil-sci-avatar{width:84px;max-height:112px}.nabil-sci-visual{min-height:250px}}
+
 #goldenReferenceCard{
  background:radial-gradient(circle at 50% -20%,#153f68,#07192d 70%)!important;
  border:1px solid #2d638d!important;padding:16px!important;
@@ -4775,9 +4791,19 @@ def required_ai_practice_count(textbook_count: int) -> int:
 
 
 def generate_ai_practice_for_insufficient_book_exercises(
-        entry: dict, ev_map: dict, profile: dict) -> List[dict]:
-    """Supplement insufficient book exercises using the fixed product rule."""
-    textbook_count = len(ev_map.get("exercise_evidence") or [])
+        entry: dict, ev_map: dict, profile: dict,
+        verified_textbook_count: Optional[int] = None) -> List[dict]:
+    """Add strictly lesson-grounded AI practice only when <=2 textbook exercises survived.
+
+    Important: the trigger is the number of textbook exercises that were actually
+    solved and scientifically verified, not the number merely extracted.
+    Rejected AI candidates are discarded individually; they never cancel the lesson.
+    """
+    textbook_count = (
+        max(0, int(verified_textbook_count))
+        if verified_textbook_count is not None
+        else len(ev_map.get("exercise_evidence") or [])
+    )
     desired_count = required_ai_practice_count(textbook_count)
     if desired_count == 0:
         progress("AI_ADDITIONAL_PRACTICE_SKIPPED_BOOK_SUFFICIENT",
@@ -4826,12 +4852,22 @@ def generate_ai_practice_for_insufficient_book_exercises(
                 + json.dumps(rejected_reasons[-8:], ensure_ascii=False)
             )
 
-        generated = json.loads(execute_llm_completion(
-            generator_prompt, json_mode=True, temperature=0.2))
+        try:
+            generated = json.loads(execute_llm_completion(
+                generator_prompt, json_mode=True, temperature=0.2))
+        except Exception as exc:
+            rejected_reasons.append(f"AI generator unavailable: {exc}")
+            progress(
+                "AI_ADDITIONAL_PRACTICE_GENERATOR_FAILED_EXERCISE_ONLY",
+                round=round_no, reason=str(exc)[:240])
+            continue
         candidates = generated.get("candidates")
         if not isinstance(candidates, list):
-            raise RuntimeError(
-                "AI_ADDITIONAL_PRACTICE_SCHEMA_INVALID: candidates missing")
+            rejected_reasons.append("AI candidate list missing")
+            progress(
+                "AI_ADDITIONAL_PRACTICE_SCHEMA_REJECTED_EXERCISE_ONLY",
+                round=round_no)
+            continue
 
         for candidate in candidates:
             if len(accepted) >= desired_count:
@@ -4870,8 +4906,17 @@ def generate_ai_practice_for_insufficient_book_exercises(
                 + "\nCANDIDATE:\n"
                 + json.dumps(candidate, ensure_ascii=False)
             )
-            verdict = json.loads(execute_llm_completion(
-                gate_prompt, json_mode=True, temperature=0.0))
+            try:
+                verdict = json.loads(execute_llm_completion(
+                    gate_prompt, json_mode=True, temperature=0.0))
+            except Exception as exc:
+                rejected_reasons.append(f"scientific gate unavailable: {exc}")
+                progress(
+                    "EXERCISE_REJECTED_SCIENTIFIC_GATE_UNAVAILABLE",
+                    round=round_no,
+                    prompt_excerpt=prompt_text[:100],
+                    reason=str(exc)[:240])
+                continue
             supported_ids = [
                 str(x) for x in (verdict.get("supported_concept_ids") or [])
             ] if isinstance(verdict.get("supported_concept_ids"), list) else []
@@ -4939,10 +4984,13 @@ def generate_ai_practice_for_insufficient_book_exercises(
                      supported_concepts=supported)
 
     if len(accepted) < desired_count:
-        raise RuntimeError(
-            "AI_ADDITIONAL_PRACTICE_INSUFFICIENT: "
-            f"accepted={len(accepted)}/{desired_count}; "
-            f"rejections={rejected_reasons[-8:]}")
+        # Never sacrifice a scientifically valid lesson because an optional AI
+        # exercise could not pass the strict scope gate. Invalid exercises are
+        # discarded individually. The target remains >=3 valid AI exercises.
+        progress(
+            "AI_ADDITIONAL_PRACTICE_BELOW_TARGET_LESSON_PRESERVED",
+            accepted=len(accepted), target=desired_count,
+            rejections=rejected_reasons[-8:])
     return accepted
 
 
@@ -5261,6 +5309,88 @@ def prepare_verified_solutions(entry: dict, exercises: list,
                      exercise_id=ex.get("exercise_id"),
                      number=ex.get("number"))
 
+
+
+def retain_only_verified_solved_exercises(
+        exercises: list, *, origin: Optional[str] = None) -> List[dict]:
+    """Drop only the exercise that cannot be solved/verified; never drop the lesson."""
+    kept = []
+    for ex in exercises:
+        if origin and ex.get("source_origin", "TEXTBOOK") != origin:
+            continue
+        solved = (
+            ex.get("solution_status") == "SOLVED"
+            and isinstance(ex.get("_pre_solved_solution"), dict)
+            and bool(ex["_pre_solved_solution"].get("steps"))
+            and bool(str(ex["_pre_solved_solution"].get("final_answer") or "").strip())
+        )
+        if solved:
+            kept.append(ex)
+        else:
+            progress(
+                "EXERCISE_DROPPED_NOT_LESSON",
+                exercise_id=ex.get("exercise_id"),
+                number=ex.get("number"),
+                origin=ex.get("source_origin", "TEXTBOOK"),
+                reason=str(ex.get("solution_omission_reason") or
+                           "NOT_SCIENTIFICALLY_VERIFIED")[:240],
+            )
+    return kept
+
+
+def strip_source_rasters_from_student_html(
+        html_text: str, ev_map: dict, page_name: str) -> str:
+    """Absolute student-facing ban on textbook/page/figure raster pixels.
+
+    Source figures remain available internally to OCR/vision/scientific audit.
+    Only NABIL-generated SVG/redraw/lab visuals may reach the lesson pages.
+    """
+    source_paths = set()
+    source_basenames = set()
+    for page in ev_map.get("pages_evidence", []):
+        for fig in page.get("figures") or []:
+            raw = str(fig.get("image_path") or "").strip()
+            if raw:
+                source_paths.add(raw)
+                source_basenames.add(Path(raw).name)
+
+    img_re = re.compile(r"<img\b[^>]*>", re.I | re.S)
+    src_re = re.compile(r"\bsrc\s*=\s*([\"'])(.*?)\1", re.I | re.S)
+    removed = 0
+
+    def scrub(match):
+        nonlocal removed
+        tag = match.group(0)
+        sm = src_re.search(tag)
+        src_value = sm.group(2).strip() if sm else ""
+        low = src_value.lower()
+        is_source = (
+            low.startswith("data:image/")
+            or low.startswith("file:")
+            or any(path and path in src_value for path in source_paths)
+            or any(name and name in src_value for name in source_basenames)
+            or ("page" in low and ("cache" in low or "source" in low))
+            or ("figure" in low and ("cache" in low or "source" in low))
+        )
+        if is_source:
+            removed += 1
+            return "<!-- NABIL: source textbook raster removed; evidence remains internal -->"
+        return tag
+
+    cleaned = img_re.sub(scrub, html_text)
+    if removed:
+        progress("STUDENT_SOURCE_RASTERS_REMOVED",
+                 page=page_name, count=removed)
+
+    # Belt-and-suspenders: source raster data URLs must never survive.
+    if re.search(r"<img\b[^>]*\bsrc\s*=\s*['\"]data:image/", cleaned, re.I | re.S):
+        raise RuntimeError(
+            f"STUDENT_SOURCE_RASTER_LEAK_BLOCKED:{page_name}")
+    for raw in source_paths:
+        if raw and raw in cleaned:
+            raise RuntimeError(
+                f"STUDENT_SOURCE_RASTER_PATH_LEAK_BLOCKED:{page_name}")
+    return cleaned
 
 def build_factory_solution_card_spec(
         entry: dict, exercise: dict, solution: dict) -> Dict[str, Any]:
@@ -6249,24 +6379,54 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
             <div style="margin-top:8px; font-size:12px; color:#059669; font-weight:600;">{html.escape(ui_t(lesson_lang_code, "verified_evidence_grounding"))}</div>
         </div>'''
 
+    final_labels = {
+        "ar":{"analysis":"📘 خلاصة الأفكار","visual":"📈 الرسوم والتمثيل","final":"✅ البطاقة النهائية","verify":"التحقق","badge":"ملخص الدرس","read":"🔊 قراءة البطاقة","stop":"⏹ إيقاف الصوت","enlarge":"🔎 تكبير"},
+        "fr":{"analysis":"📘 Synthèse des idées","visual":"📈 Visuels","final":"✅ Carte finale","verify":"Vérification","badge":"Résumé de la leçon","read":"🔊 Lire la carte","stop":"⏹ Arrêter","enlarge":"🔎 Agrandir"},
+        "en":{"analysis":"📘 Concept Summary","visual":"📈 Visuals","final":"✅ Final Card","verify":"Verification","badge":"Lesson Summary","read":"🔊 Read card","stop":"⏹ Stop voice","enlarge":"🔎 Enlarge"},
+    }.get(lesson_lang_code,{})
+    final_results=[str(x.get("conclusion") or "").strip() for x in activities_theory if str(x.get("conclusion") or "").strip()]
+    final_chips="".join('<span class="nabil-sci-chip">'+html.escape(v)+'</span>' for v in final_results)
+    final_analysis="".join(
+        '<div class="nabil-sci-section"><div class="nabil-sci-label">'+html.escape(str(x.get("title") or ""))+
+        '</div><div class="nabil-sci-value">'+html.escape(str(x.get("conclusion") or x.get("observation") or ""))+'</div></div>'
+        for x in activities_theory
+    )
+    final_visuals="".join(
+        '<div class="nabil-reference-concept" data-reference-concept="'+html.escape(str(x.get("concept_id") or ""))+'">'+
+        '<div class="nabil-sci-label">'+html.escape(str(x.get("title") or ""))+'</div>'+str(x.get("visual_html") or "")+'</div>'
+        for x in activities_theory
+    )
+    final_verify="".join('<li>'+html.escape(str(x.get("title") or ""))+': '+html.escape(ui_t(lesson_lang_code,"verified_evidence_grounding"))+'</li>' for x in activities_theory)
+    teacher_note={"ar":"راجع كل فكرة بالترتيب: شاهد، جرّب، لاحظ، فكّر، استنتج، ثم طبّق.","fr":"Revois chaque idée : observe, essaie, remarque, réfléchis, conclus puis applique.","en":"Review each idea: See, Try, Notice, Think, Conclude, then Apply."}.get(lesson_lang_code,"Review each idea.")
+    final_speech=" ".join([str(title)]+[str(x.get("title") or "")+". "+str(x.get("conclusion") or "") for x in activities_theory])
+
     ref_card_html = f'''
-    <!-- NABIL Golden Reference Final Study Card -->
-    <div id="goldenReferenceCard" style="margin-top:28px; background:linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border:2px solid #0284c7; border-radius:14px; padding:20px; box-shadow:0 4px 12px rgba(2,132,199,0.08);">
-      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; border-bottom:2px solid #0284c7; padding-bottom:12px;">
-        <div>
-          <span style="background:#0284c7; color:#fff; font-size:11px; font-weight:800; padding:3px 8px; border-radius:4px; text-transform:uppercase;">{html.escape(ui_t(lesson_lang_code, "golden_reference_card"))}</span>
-          <h2 style="margin:4px 0 0 0; font-size:20px; color:#0f172a;">{html.escape(title)}</h2>
+    <section id="goldenReferenceCard" class="nabil-sci-card lesson-final-card">
+      <div class="nabil-sci-top">
+        <div><div class="nabil-sci-brand">NABIL AI | منصة نبيل التعليمية الذكية</div><h2 class="nabil-sci-title">{html.escape(title)}</h2></div>
+        <div class="nabil-sci-badge">{html.escape(final_labels.get("badge","Lesson Summary"))}</div>
+      </div>
+      <div class="nabil-sci-grid">
+        <div class="nabil-sci-panel nabil-sci-analysis"><h3>{html.escape(final_labels.get("analysis","📘 Concept Summary"))}</h3>{final_analysis}</div>
+        <div class="nabil-sci-panel nabil-sci-visual"><h3>{html.escape(final_labels.get("visual","📈 Visuals"))}</h3><div class="nabil-sci-visual-stage">{final_visuals}</div></div>
+        <div class="nabil-sci-panel nabil-sci-teacher-panel"><div class="nabil-sci-teacher">
+          <img class="nabil-sci-avatar" src="/static/nabil-profile.jpg" alt="NABIL AI" onerror="this.style.display='none'">
+          <div><strong>NABIL AI</strong><p>{html.escape(teacher_note)}</p></div>
+        </div></div>
+      </div>
+      <div class="nabil-sci-final">
+        <h3>{html.escape(final_labels.get("final","✅ Final Card"))}</h3>
+        <div class="nabil-sci-results">{final_chips}</div>
+        <div class="nabil-sci-verify"><b>{html.escape(final_labels.get("verify","Verification"))}:</b><ul class="nabil-sci-list">{final_verify}</ul></div>
+        <div class="nabil-sci-tools">
+          <button type="button" onclick="document.querySelector('#goldenReferenceCard .nabil-sci-visual-stage')?.requestFullscreen?.()">{html.escape(final_labels.get("enlarge","🔎 Enlarge"))}</button>
+          <button type="button" onclick="nabilReadFinalCard()">{html.escape(final_labels.get("read","🔊 Read card"))}</button>
+          <button type="button" onclick="nabilStopFinalCard()">{html.escape(final_labels.get("stop","⏹ Stop voice"))}</button>
         </div>
-        <span style="font-size:13px; font-weight:600; color:#64748b;">{profile["subject"].capitalize()} • Level {profile["level"]}</span>
       </div>
-      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:14px; margin-top:16px;">
-        {panels}
-      </div>
-      <div style="margin-top:16px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px 14px; font-size:12px; color:#1e40af; display:flex; align-items:center; gap:8px;">
-        <span>📌</span>
-        <span><b>{html.escape(ui_t(lesson_lang_code, "study_reminder"))}:</b> {html.escape({"ar":"راجع الفكرة بالمختبر، ثم حاول أن تقول الاستنتاج بكلماتك قبل الانتقال للتمرين.","fr":"Rejoue le laboratoire, puis formule la conclusion avec tes propres mots avant l’exercice.","en":"Replay the lab, then state the conclusion in your own words before the exercise."}.get(lesson_lang_code,"Replay the lab, then state the conclusion in your own words before the exercise."))}</span>
-      </div>
-    </div>'''
+      <script type="application/json" id="nabilFinalCardSpeech">{html.escape(json.dumps({"text":final_speech,"lang":lesson_lang_code},ensure_ascii=False))}</script>
+    </section>'''
+
 
     # Aggregate labs across all concepts that actually produced one.
     all_labs_html = [
@@ -6739,20 +6899,41 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict, lab_index: Opt
             if value:
                 label = flow_labels.get(field, field.title())
                 generated_rows.append(
-                    '<div class="nabil-teacher-step" data-step="' + html.escape(field) + '" '
-                    'style="margin:9px 0;padding:10px 12px;border-inline-start:4px solid #0ea5e9;'
-                    'background:#f8fafc;border-radius:8px;line-height:1.65;">'
+                    '<div class="nabil-flow-row ' + ('nabil-conclude' if field == 'conclusion' else '') + '" data-step="' + html.escape(field) + '">'
                     '<b>' + html.escape(label) + ':</b> ' + html.escape(value) + '</div>'
                 )
+        apply_text = str(act.get("student_question") or "").strip()
+        if apply_text:
+            apply_label = {"ar":"✍️ طبّق","fr":"✍️ Applique","en":"✍️ Apply"}.get(page_a_lang_code,"✍️ Apply")
+            generated_rows.append(
+                '<div class="nabil-flow-row nabil-apply" data-step="application"><b>'
+                + html.escape(apply_label) + ':</b> ' + html.escape(apply_text) + '</div>'
+            )
         generated_html = "".join(generated_rows)
-        acts_html += f'''
-        <div class="card nabil-concept-card" data-nabil-concept-id="{html.escape(str(act["concept_id"]))}" style="margin-top:20px;">
-          <h3 style="color:#0369a1; margin-top:0;">{act["activity_num"]}. {html.escape(act["title"])}</h3>
-          {generated_html}
-          {act["visual_html"]}
-          {act.get("lab_html", "")}
-          {question_html}
-        </div>'''
+        concept_badge = {"ar":"بطاقة فكرة","fr":"Carte concept","en":"Concept Card"}.get(page_a_lang_code,"Concept Card")
+        analysis_label = {"ar":"📘 الشرح","fr":"📘 Explication","en":"📘 Explanation"}.get(page_a_lang_code,"📘 Explanation")
+        visual_label = {"ar":"🧪 الرسم والمختبر","fr":"🧪 Visuel et laboratoire","en":"🧪 Visual & Lab"}.get(page_a_lang_code,"🧪 Visual & Lab")
+        teacher_note = {"ar":"شاهد، جرّب، لاحظ، فكّر، استنتج، ثم طبّق.","fr":"Observe, essaie, remarque, réfléchis, conclus puis applique.","en":"See, Try, Notice, Think, Conclude, then Apply."}.get(page_a_lang_code,"See, Try, Notice, Think, Conclude, then Apply.")
+        acts_html += f"""
+        <section class="nabil-sci-card nabil-concept-card" data-nabil-concept-id="{html.escape(str(act["concept_id"]))}">
+          <div class="nabil-sci-top">
+            <div><div class="nabil-sci-brand">NABIL AI | منصة نبيل التعليمية الذكية</div>
+            <h2 class="nabil-sci-title">{act["activity_num"]}. {html.escape(act["title"])}</h2></div>
+            <div class="nabil-sci-badge">{html.escape(concept_badge)}</div>
+          </div>
+          <div class="nabil-sci-grid">
+            <div class="nabil-sci-panel nabil-sci-analysis"><h3>{html.escape(analysis_label)}</h3>{generated_html}</div>
+            <div class="nabil-sci-panel nabil-sci-visual"><h3>{html.escape(visual_label)}</h3>
+              <div class="nabil-sci-visual-stage">{act["visual_html"]}{act.get("lab_html","")}</div>
+            </div>
+            <div class="nabil-sci-panel nabil-sci-teacher-panel"><div class="nabil-sci-teacher">
+              <img class="nabil-sci-avatar" src="/static/nabil-profile.jpg" alt="NABIL AI" onerror="this.style.display='none'">
+              <div><strong>NABIL AI</strong><p>{html.escape(teacher_note)}</p></div>
+            </div></div>
+          </div>
+          <div class="nabil-sci-final"><h3>{html.escape({"ar":"✍️ طبّق وتحقق","fr":"✍️ Applique et vérifie","en":"✍️ Apply & Check"}.get(page_a_lang_code,"✍️ Apply & Check"))}</h3>{question_html}</div>
+        </section>"""
+
 
     ws_items = ""
     for idx, item in enumerate(theory["worksheet"]):
@@ -6840,6 +7021,17 @@ function startNABILWholeLesson() {{
   }}, 280);
 }}
 document.getElementById('nabilExplainWholeLessonLabs')?.addEventListener('click', startNABILWholeLesson);
+
+function nabilReadFinalCard(){{
+  try{{
+    const n=document.getElementById('nabilFinalCardSpeech'); if(!n)return;
+    const d=JSON.parse(n.textContent||'{{}}'), spoken=String(d.text||'').trim(); if(!spoken)return;
+    try{{window.NABILLessonE2E?.stopSpeech?.()}}catch(_e){{}}
+    if(window.NABILLessonE2E?.speak){{window.NABILLessonE2E.speak(spoken,d.lang||'en');return;}}
+    if('speechSynthesis' in window){{window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(spoken);u.lang=d.lang==='ar'?'ar':d.lang==='fr'?'fr-FR':'en-US';window.speechSynthesis.speak(u);}}
+  }}catch(_e){{}}
+}}
+function nabilStopFinalCard(){{try{{window.NABILLessonE2E?.stopSpeech?.()}}catch(_e){{}}try{{window.speechSynthesis?.cancel?.()}}catch(_e){{}}}}
 
 function navigateToExercises() {{
   const url = new URL(window.location.href);
@@ -7025,11 +7217,24 @@ def prepare_prebuilt_exercise_labs(
             )
         # Exercise lab provenance is canonicalized to the exercise index key.
         spec["evidence_ref"] = evidence_id
-        lab_html, active = render_verified_lab(spec, lang_code, evidence_id)
+        try:
+            lab_html, active = render_verified_lab(
+                spec, lang_code, evidence_id)
+        except Exception as exc:
+            ex["_exercise_render_rejected"] = True
+            ex["_exercise_render_rejection_reason"] = str(exc)[:500]
+            progress(
+                "EXERCISE_DROPPED_LAB_RENDER_FAILED_NOT_LESSON",
+                exercise_id=evidence_id, reason=str(exc)[:240])
+            continue
         if not active or not lab_html:
-            raise RuntimeError(
-                f"PREBUILT_EXERCISE_LAB_RENDER_FAILED:{evidence_id}"
-            )
+            ex["_exercise_render_rejected"] = True
+            ex["_exercise_render_rejection_reason"] = (
+                f"PREBUILT_EXERCISE_LAB_RENDER_FAILED:{evidence_id}")
+            progress(
+                "EXERCISE_DROPPED_LAB_RENDER_FAILED_NOT_LESSON",
+                exercise_id=evidence_id)
+            continue
         ex["_prebuilt_lab_spec"] = spec
         ex["_prebuilt_lab_html"] = lab_html
         ex["_prebuilt_lab_active"] = True
@@ -7535,6 +7740,12 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
     check("REFERENCE_CARD_CONTENT_INCOMPLETE",
           "goldenReferenceCard" in candidate["page_a_html"],
           "CRITICAL", "Golden reference card missing")
+    check("APPROVED_CARD_LAYOUT_MISSING",
+          all(x in candidate["page_a_html"] for x in ("nabil-sci-card","nabil-sci-grid","nabil-sci-analysis","nabil-sci-visual","nabil-sci-teacher-panel","nabil-sci-final")),
+          "CRITICAL", "Approved NABIL card division/colors missing")
+    check("TEACHING_FLOW_APPLY_MISSING",
+          candidate["page_a_html"].count('data-step="application"') == len(ev_map["concepts"]),
+          "CRITICAL", "Every concept must end with Apply")
     check(
         "REFERENCE_CARD_CONCEPT_COVERAGE_INCOMPLETE",
         candidate["page_a_html"].count('class="nabil-reference-concept"') == len(ev_map["concepts"]),
@@ -7809,6 +8020,32 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
 
     check("MATH_RENDERING_FAILED", qa_a and qa_b, "CRITICAL", "MathJax successful rendering & bounding box overflow checks verified via real Playwright Chromium execution")
     check("MOBILE_REAL_PLAYWRIGHT_CHROMIUM_QA_390_844", qa_a and qa_b, "CRITICAL", "Real Playwright Chromium headless browser QA verified for 390x844 bounds, bounding boxes clipping & touch targets")
+
+    check(
+        "ONLY_VERIFIED_SOLVED_EXERCISES_STUDENT_FACING",
+        all(
+            e.get("solution_status") == "SOLVED"
+            and isinstance(e.get("_pre_solved_solution"), dict)
+            and bool(e.get("_prebuilt_lab_key"))
+            for e in candidate.get("exercises") or []
+        ),
+        "CRITICAL",
+        "Any exercise that cannot be solved, scientifically verified, and rendered is dropped individually; the lesson remains",
+    )
+    check(
+        "AI_EXERCISE_SCOPE_GATE_REQUIRED",
+        all(
+            e.get("source_origin") != "AI_ADDITIONAL_PRACTICE"
+            or (
+                e.get("scientific_gate_passed") is True
+                and bool(e.get("scope_concept_ids"))
+                and e.get("solution_status") == "SOLVED"
+            )
+            for e in candidate.get("exercises") or []
+        ),
+        "CRITICAL",
+        "AI practice must be traceable to verified lesson concepts and pass the scientific gate",
+    )
 
     check(
         "STUDENT_SOURCE_SCAN_FORBIDDEN",
@@ -8164,30 +8401,68 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
         doc.close()
 
     theory = synthesize_universal_pedagogy(entry, ev_map, profile)
-    # Work on shallow copies so cached solutions/status do not contaminate
-    # the immutable source-evidence payload or its evidence hash.
-    textbook_exercises = [
-        dict(ex) for ex in ev_map["exercise_evidence"]
-    ]
-    generated_practice = generate_ai_practice_for_insufficient_book_exercises(
-        entry, ev_map, profile)
-    exercises = textbook_exercises + generated_practice
-    if generated_practice:
-        # Keep source/AI provenance visible to QA without embedding solved
-        # outputs back into the evidence map.
-        ev_map["exercise_evidence"] = [
-            dict(ex) for ex in exercises
-        ]
 
+    # 1) Attempt EVERY verified textbook exercise first.
+    textbook_exercises = [dict(ex) for ex in ev_map["exercise_evidence"]]
     prepare_verified_solutions(
-        entry, exercises, profile, ev_map,
+        entry, textbook_exercises, profile, ev_map,
         drive_service=drive_service, persist=publish)
+    verified_textbook = retain_only_verified_solved_exercises(
+        textbook_exercises, origin="TEXTBOOK")
+    progress(
+        "TEXTBOOK_EXERCISE_SOLVE_SUMMARY",
+        extracted=len(textbook_exercises),
+        verified_solved=len(verified_textbook),
+        dropped=len(textbook_exercises) - len(verified_textbook))
+
+    # 2) If only 0, 1, or 2 textbook exercises survived, ask AI for >=3
+    #    ADDITIONAL exercises. Every candidate must pass the strict lesson-scope
+    #    scientific gate; invented/out-of-scope exercises are discarded alone.
+    generated_practice = generate_ai_practice_for_insufficient_book_exercises(
+        entry, ev_map, profile,
+        verified_textbook_count=len(verified_textbook))
+    if generated_practice:
+        prepare_verified_solutions(
+            entry, generated_practice, profile, ev_map,
+            drive_service=drive_service, persist=publish)
+    verified_ai = retain_only_verified_solved_exercises(
+        generated_practice, origin="AI_ADDITIONAL_PRACTICE")
+
+    # The lesson survives exercise-level rejection. Only scientifically verified
+    # solved exercises become student-facing.
+    exercises = verified_textbook + verified_ai
+
+    # 3) Build exercise labs individually. A bad exercise/lab is dropped, not
+    #    the whole lesson.
     prepare_prebuilt_exercise_labs(entry, exercises, profile, ev_map)
+    exercises = [
+        ex for ex in exercises
+        if not ex.get("_exercise_render_rejected")
+        and ex.get("_prebuilt_lab_key")
+        and ex.get("_pre_solved_solution")
+        and ex.get("solution_status") == "SOLVED"
+    ]
+    progress(
+        "FINAL_STUDENT_EXERCISE_SET",
+        textbook=sum(1 for ex in exercises
+                     if ex.get("source_origin", "TEXTBOOK") == "TEXTBOOK"),
+        ai=sum(1 for ex in exercises
+               if ex.get("source_origin") == "AI_ADDITIONAL_PRACTICE"),
+        total=len(exercises))
+
     lab_index = build_prebuilt_lab_index(entry, theory, exercises)
     page_a_raw = render_lesson_page_a(
         entry, theory, ev_map, lab_index=lab_index)
     page_b_raw = render_lesson_page_b(
         entry, exercises, profile, ev_map, lab_index=lab_index)
+
+    # Source/book raster pixels are NEVER student-facing. They may be used only
+    # internally as hidden scientific evidence for OCR/vision/audit/redraw.
+    page_a_raw = strip_source_rasters_from_student_html(
+        page_a_raw, ev_map, "LESSON")
+    page_b_raw = strip_source_rasters_from_student_html(
+        page_b_raw, ev_map, "EXERCISES")
+
     source_lang_code = resolve_lang_code(entry.get("language", "en"))
     page_a, translation_a = build_trilingual_page_translation(
         page_a_raw, source_lang_code,
