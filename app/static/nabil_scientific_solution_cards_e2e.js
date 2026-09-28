@@ -308,7 +308,8 @@ function renderCard(spec={},target){
  });
  card.querySelector("[data-nabil-stop]")?.addEventListener("click",()=>{
    try{window.stopNabilNeuralVoice?.();window.speechSynthesis?.cancel?.()}catch(_e){}
- });
+ try{card.dispatchEvent(new CustomEvent("nabil:teach-stop",{bubbles:true}))}catch(_e){}
+  });
  try{window.MathJax?.typesetPromise?.([card])}catch(_e){}
  return card;
 }
@@ -333,15 +334,21 @@ function renderFromChat(resultOrArgs={},questionArg="",targetArg=null){
 }
 
 function speakCard(card){
- if(!card)return;
- const spoken=text(card.dataset.nabilSpeechText);
- const language=text(card.dataset.nabilSpeechLanguage)||"English";
- if(!spoken)return;
- try{window.stopNabilNeuralVoice?.();window.speechSynthesis?.cancel?.()}catch(_e){}
- const fn=window.__nabilScientificNativeSpeak||window.nabilSpeakClear;
- if(typeof fn==="function"){
-   try{return Promise.resolve(fn(spoken,language,{nabilScientificCard:true})).catch(()=>{})}catch(_e){}
- }
+  if(!card)return;
+  const spoken=text(card.dataset.nabilSpeechText);
+  const language=text(card.dataset.nabilSpeechLanguage)||"English";
+  if(!spoken)return;
+  try{window.stopNabilNeuralVoice?.();window.speechSynthesis?.cancel?.()}catch(_e){}
+  const fn=window.__nabilScientificNativeSpeak||window.nabilSpeakClear;
+  if(typeof fn==="function"){
+    try{
+      return Promise.resolve(fn(spoken,language,{
+        nabilScientificCard:true,
+        onstart:()=>{try{card.dispatchEvent(new CustomEvent("nabil:card-speech-start",{bubbles:true,detail:{language}}))}catch(_e){}},
+        onend:()=>{try{card.dispatchEvent(new CustomEvent("nabil:card-speech-complete",{bubbles:true,detail:{language}}))}catch(_e){}}
+      })).catch(()=>{})
+    }catch(_e){}
+  }
 }
 
 function hydrate(root=document){
