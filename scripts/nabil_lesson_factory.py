@@ -68,6 +68,7 @@ def progress(stage: str, **details):
 # reference lesson.  It contains NO lesson-specific science.  Scientific data
 # comes only from Evidence Map -> audited narrative/solution -> verified lab.
 REFERENCE_RENDERER_CONTRACT = "NABIL_REFERENCE_RENDERER_V1"
+SMARTBOARD_REFERENCE_ENGINE = "renderStep|clearFocus|arrowTo|progressive-reveal|constrained-drag"
 REFERENCE_RENDERER_LANGUAGES = ("ar", "en", "fr")
 REFERENCE_MOBILE_VIEWPORT = (390, 844)
 
@@ -6401,6 +6402,14 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
         "For DC_SERIES_CIRCUIT, OPTICS_REFLECTION and IONIC_COMPOUND also return evidence_quotes: an object containing an EXACT SOURCE quote for EACH scientific invariant declared by the spec.\n"
         "Every supported lab must contain an exact evidence quote from SOURCE when evidence_basis=text. "
         "If evidence_basis=figure, a verified source figure must be supplied.\n"
+        "For GEOMETRY_PROOF, when SOURCE explicitly supports meaningful manipulation, also return "
+        "interaction with draggable_points, constraints, and an exact evidence_quote. Allowed constraint types are "
+        "free, horizontal, vertical, segment, circle. For segment use segment_id; for circle use center and radius. "
+        "Do not make a point draggable if the proven construction cannot remain true.\\n"
+        "SMART BOARD REFERENCE ENGINE: every supported lab must be expressed as progressive visual states. "
+        "teacher_script target_ids must name real renderer objects; state_after contains only evidence-backed visible changes. "
+        "The renderer shows the state/reveal first, then moves the teacher arrow to the narrated object, then speaks the consequence. "
+        "Use meaningful manipulation when safe; otherwise use progressive reveal/highlight, never decorative fake motion.\\n"
         "Every supported lab MUST include teacher_script with 2..12 steps derived from THIS evidence, never a canned demo. "
         "Each step contains say,target_ids,action,state_before,state_after,scientific_constraints,evidence_quote. "
         "Allowed actions: point,highlight,set_state,animate,observe,explain,conclude. "
