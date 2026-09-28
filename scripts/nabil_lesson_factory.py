@@ -2239,9 +2239,26 @@ def _toc_numbered_line_count(text: str) -> int:
     )
 
 
+def _toc_monotonic_entry_count(text: str) -> int:
+    pages = []
+    for raw in str(text or "").splitlines():
+        line = re.sub(r"\s+", " ", raw).strip()
+        match = re.match(r"^.+?(?:\s*\.{2,}\s*|\s+)(\d{1,4})\s*$", line)
+        if match:
+            pages.append(int(match.group(1)))
+    if not pages:
+        return 0
+    count, last = 1, pages[0]
+    for value in pages[1:]:
+        if value >= last:
+            count += 1
+            last = value
+    return count
+
+
 def _detect_toc_pages(doc, max_scan_pages: int = 40) -> List[int]:
-    """Detect native-text or scanned physical TOC pages from the real PDF."""
-    candidates = []
+    """Choose a trustworthy TOC block, not every page that merely contains numbers."""
+    scored = []
     limit = min(len(doc), max_scan_pages)
     for pdf_page in range(1, limit + 1):
         native = _page_text_for_book_index(doc, pdf_page)
@@ -2249,21 +2266,37 @@ def _detect_toc_pages(doc, max_scan_pages: int = 40) -> List[int]:
         if not _TOC_HINT_RE.search(native) and _toc_numbered_line_count(native) < 4:
             text = _toc_page_text(doc, pdf_page, allow_ocr=True)
         numbered = _toc_numbered_line_count(text)
-        if _TOC_HINT_RE.search(text) or numbered >= 4:
-            candidates.append(pdf_page)
-            progress("BOOK_INDEX_TOC_PAGE_DETECTED",
-                     pdf_page=pdf_page,
-                     method="native_text" if text == native else "local_ocr",
-                     numbered_lines=numbered)
-    if not candidates:
+        monotonic = _toc_monotonic_entry_count(text)
+        hint = bool(_TOC_HINT_RE.search(text))
+        # A heading alone is insufficient. Require actual page-bearing TOC rows.
+        if numbered < 3 or monotonic < 3:
+            continue
+        score = numbered * 3 + monotonic * 2 + (8 if hint else 0)
+        scored.append((score, pdf_page, text == native, numbered, monotonic))
+
+    if not scored:
         return []
-    expanded = set(candidates)
-    for p in list(candidates):
-        if p + 1 <= limit:
-            nxt = _toc_page_text(doc, p + 1, allow_ocr=True)
-            if _toc_numbered_line_count(nxt) >= 3:
-                expanded.add(p + 1)
-    return sorted(expanded)
+
+    scored.sort(reverse=True)
+    best_score, best_page, _, _, _ = scored[0]
+    selected = {best_page}
+    # Only attach adjacent pages that themselves contain a meaningful TOC continuation.
+    for _, page, _, numbered, monotonic in scored[1:]:
+        if abs(page - best_page) <= 2 and numbered >= 3 and monotonic >= 3:
+            selected.add(page)
+
+    for score, page, native_used, numbered, monotonic in scored:
+        if page in selected:
+            progress("BOOK_INDEX_TOC_PAGE_DETECTED",
+                     pdf_page=page,
+                     method="native_text" if native_used else "local_ocr",
+                     numbered_lines=numbered,
+                     monotonic_entries=monotonic,
+                     score=score)
+    progress("BOOK_INDEX_TOC_BLOCK_SELECTED",
+             pages=sorted(selected), strongest_page=best_page,
+             strongest_score=best_score)
+    return sorted(selected)
 
 
 def _parse_toc_entries(doc, toc_pages: List[int]) -> List[dict]:
@@ -2299,24 +2332,59 @@ def _parse_toc_entries(doc, toc_pages: List[int]) -> List[dict]:
     return unique
 
 
+def _title_match_score(title: str, page_text: str) -> int:
+    tokens = [
+        token.casefold() for token in re.findall(r"\w+", str(title or ""), flags=re.UNICODE)
+        if len(token) >= 4 and not token.isdigit()
+    ]
+    if not tokens:
+        return 0
+    low = str(page_text or "").casefold()
+    return sum(1 for token in tokens if token in low)
+
+
 def _candidate_pdf_offsets(doc, toc_entries: List[dict]) -> List[int]:
+    """Verify printed->PDF offsets against real page text, with bounded OCR fallback."""
     offsets = []
-    for entry in toc_entries[:20]:
-        tokens = [
-            token.casefold() for token in re.findall(r"\w+", entry["title"], flags=re.UNICODE)
-            if len(token) >= 4
-        ]
-        if not tokens:
-            continue
-        for pdf_page in range(1, len(doc) + 1):
-            text = _page_text_for_book_index(doc, pdf_page).casefold()
-            hits = sum(1 for token in tokens if token in text)
-            required = 1 if len(tokens) == 1 else min(2, len(tokens))
+    entries = [e for e in toc_entries[:12] if e.get("printed_page")]
+    # Front matter normally creates a modest positive offset. Include small negative
+    # offsets for books whose PDF omits covers/front matter.
+    candidate_offsets = range(-5, min(31, len(doc)))
+    scored = {}
+    for offset in candidate_offsets:
+        votes = 0
+        tested = 0
+        for entry in entries[:6]:
+            pdf_page = int(entry["printed_page"]) + offset
+            if not (1 <= pdf_page <= len(doc)):
+                continue
+            tested += 1
+            native = _page_text_for_book_index(doc, pdf_page)
+            text = native
+            tokens = [t for t in re.findall(r"\w+", entry["title"], flags=re.UNICODE)
+                      if len(t) >= 4 and not t.isdigit()]
+            required = 1 if len(tokens) <= 2 else 2
+            hits = _title_match_score(entry["title"], text)
+            if hits < required and len(re.sub(r"\s+", "", native)) < 120:
+                text = _toc_page_text(doc, pdf_page, allow_ocr=True)
+                hits = _title_match_score(entry["title"], text)
             if hits >= required:
-                offset = pdf_page - entry["printed_page"]
-                if -10 <= offset <= 60:
-                    offsets.append(offset)
-                    break
+                votes += 1
+        if tested:
+            scored[offset] = votes
+    if not scored:
+        return []
+    best_votes = max(scored.values())
+    if best_votes <= 0:
+        return []
+    # Return repeated offsets so the existing resolver's vote logic remains intact.
+    for offset, votes in scored.items():
+        offsets.extend([offset] * votes)
+    progress("BOOK_INDEX_OFFSET_CANDIDATES",
+             best_votes=best_votes,
+             candidates=[{"offset": o, "votes": v}
+                         for o, v in sorted(scored.items(), key=lambda kv: (-kv[1], kv[0]))
+                         if v > 0][:8])
     return offsets
 
 
@@ -2324,16 +2392,21 @@ def _resolve_printed_to_pdf_offset(doc, toc_entries: List[dict]) -> int:
     offsets = _candidate_pdf_offsets(doc, toc_entries)
     if not offsets:
         raise RuntimeError(
-            "BOOK_INDEX_PAGE_OFFSET_UNVERIFIED: could not map printed TOC pages to physical PDF pages"
-        )
+            "BOOK_INDEX_PAGE_OFFSET_UNVERIFIED: could not map printed TOC pages to physical PDF pages")
     counts = {}
     for offset in offsets:
         counts[offset] = counts.get(offset, 0) + 1
-    best_offset, votes = max(counts.items(), key=lambda pair: pair[1])
+    ranked = sorted(counts.items(), key=lambda pair: (-pair[1], pair[0]))
+    best_offset, votes = ranked[0]
     if votes < 2 and len(toc_entries) >= 2:
         raise RuntimeError(
-            f"BOOK_INDEX_PAGE_OFFSET_AMBIGUOUS: best_offset={best_offset}, votes={votes}"
-        )
+            f"BOOK_INDEX_PAGE_OFFSET_AMBIGUOUS: best_offset={best_offset}, votes={votes}")
+    if len(ranked) > 1 and ranked[1][1] == votes:
+        raise RuntimeError(
+            f"BOOK_INDEX_PAGE_OFFSET_AMBIGUOUS_TIE: candidates={ranked[:4]}")
+    progress("BOOK_INDEX_PAGE_OFFSET_VERIFIED",
+             offset=best_offset, votes=votes,
+             alternatives=[{"offset": o, "votes": v} for o, v in ranked[1:4]])
     return best_offset
 
 
@@ -2425,6 +2498,67 @@ def _drive_list_folder_children(drive_service, folder_id: str) -> List[dict]:
         page_token = response.get("nextPageToken")
         if not page_token:
             return rows
+
+
+
+def _drive_list_accessible_pdfs(drive_service) -> List[dict]:
+    """List accessible Drive PDFs without assuming a curriculum-root folder name."""
+    rows, page_token = [], None
+    while True:
+        response = drive_service.files().list(
+            q="trashed = false and mimeType = 'application/pdf'",
+            spaces="drive",
+            fields="nextPageToken,files(id,name,mimeType,parents,description)",
+            pageSize=1000,
+            pageToken=page_token,
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True,
+        ).execute()
+        rows.extend(response.get("files") or [])
+        page_token = response.get("nextPageToken")
+        if not page_token:
+            return rows
+
+
+def _drive_ancestor_names(drive_service, item: dict, max_depth: int = 8) -> List[str]:
+    """Return verified parent names nearest->farthest; metadata only."""
+    names = []
+    parents = [str(x) for x in (item.get("parents") or []) if str(x).strip()]
+    seen = set()
+    depth = 0
+    while parents and depth < max_depth:
+        parent_id = parents[0]
+        if parent_id in seen:
+            break
+        seen.add(parent_id)
+        depth += 1
+        try:
+            meta = drive_service.files().get(
+                fileId=parent_id,
+                fields="id,name,mimeType,parents",
+                supportsAllDrives=True,
+            ).execute()
+        except Exception:
+            break
+        name = str(meta.get("name") or "").strip()
+        if name:
+            names.append(name)
+        parents = [str(x) for x in (meta.get("parents") or []) if str(x).strip()]
+    return names
+
+
+def _drive_discover_pdfs_without_root(drive_service) -> List[dict]:
+    """Discover curriculum candidates from accessible PDFs, then classify by real metadata."""
+    out = []
+    for item in _drive_list_accessible_pdfs(drive_service):
+        row = dict(item)
+        ancestors = _drive_ancestor_names(drive_service, row)
+        path_parts = list(reversed(ancestors)) + [str(row.get("name") or "")]
+        row["drive_path_parts"] = path_parts
+        row["drive_path"] = " / ".join(x for x in path_parts if x)
+        out.append(row)
+    progress("DRIVE_ROOTLESS_PDF_DISCOVERY", pdfs=len(out))
+    return out
 
 
 def _drive_walk_curriculum_pdfs(drive_service, root_id: str) -> List[dict]:
@@ -2538,42 +2672,45 @@ def _infer_drive_language(text: str) -> str:
 
 def discover_curriculum_books_from_drive(
         drive_service=None, grade: Any = None, subject: Any = None) -> List[dict]:
-    """Drive root -> folders -> PDFs -> normalized curriculum book metadata.
-
-    No lesson title, book id, grade list or subject list is hard-coded as a
-    production target. Grade/subject hints are classification vocabulary only.
-    """
+    """Discover real curriculum PDFs. Root is optional; Drive metadata is authoritative."""
     if drive_service is None:
         drive_service = get_drive_service()
-    root_id = resolve_drive_root_id(drive_service=drive_service)
     wanted_grade = _normalize_grade_selector(grade)
     wanted_subject = (
         _normalize_subject_selector(subject) if subject not in (None, "") else ""
     )
 
-    books: List[dict] = []
-    ambiguous: List[dict] = []
-    for item in _drive_walk_curriculum_pdfs(drive_service, root_id):
+    root_id = None
+    discovery_method = "configured_or_inferred_root"
+    try:
+        root_id = resolve_drive_root_id(drive_service=drive_service)
+        source_pdfs = _drive_walk_curriculum_pdfs(drive_service, root_id)
+    except Exception as exc:
+        progress("DRIVE_CURRICULUM_ROOT_UNAVAILABLE",
+                 error=f"{type(exc).__name__}: {exc}",
+                 fallback="accessible_pdf_metadata")
+        discovery_method = "accessible_pdf_metadata"
+        source_pdfs = _drive_discover_pdfs_without_root(drive_service)
+
+    books, ambiguous = [], []
+    for item in source_pdfs:
         context = " / ".join(item.get("drive_path_parts") or [str(item.get("name") or "")])
         actual_grade = _infer_drive_grade(context)
         actual_subject = _infer_drive_subject(context)
         language = _infer_drive_language(context)
 
+        # Scope is applied only after metadata classification.
         if wanted_grade is not None and actual_grade != wanted_grade:
             continue
         if wanted_subject and actual_subject != wanted_subject:
             continue
-
         if actual_grade is None or not actual_subject:
             ambiguous.append({
-                "book_id": item.get("id"),
-                "title": item.get("name"),
+                "book_id": item.get("id"), "title": item.get("name"),
                 "drive_path": item.get("drive_path"),
-                "grade": actual_grade,
-                "subject": actual_subject or None,
+                "grade": actual_grade, "subject": actual_subject or None,
             })
             continue
-
         books.append({
             "book_id": str(item["id"]),
             "title": str(item.get("name") or ""),
@@ -2581,7 +2718,7 @@ def discover_curriculum_books_from_drive(
             "subject": actual_subject,
             "language": language,
             "drive_path": item.get("drive_path"),
-            "discovered_from": "google_drive_curriculum_root",
+            "discovered_from": discovery_method,
         })
 
     unique = {}
@@ -2589,27 +2726,16 @@ def discover_curriculum_books_from_drive(
         unique.setdefault(meta["book_id"], meta)
     result = list(unique.values())
     result.sort(key=lambda x: (
-        int(x.get("grade") or 999),
-        str(x.get("subject") or ""),
-        str(x.get("language") or ""),
-        str(x.get("title") or "").casefold(),
-    ))
-    progress(
-        "DRIVE_CURRICULUM_DISCOVERY_COMPLETE",
-        root_id=root_id,
-        grade=wanted_grade,
-        subject=wanted_subject or None,
-        books=len(result),
-        ambiguous_pdfs=len(ambiguous),
-    )
+        int(x.get("grade") or 999), str(x.get("subject") or ""),
+        str(x.get("language") or ""), str(x.get("title") or "").casefold()))
+    progress("DRIVE_CURRICULUM_DISCOVERY_COMPLETE",
+             root_id=root_id, discovery_method=discovery_method,
+             grade=wanted_grade, subject=wanted_subject or None,
+             books=len(result), ambiguous_pdfs=len(ambiguous))
     if ambiguous:
-        progress(
-            "DRIVE_CURRICULUM_AMBIGUOUS_PDFS",
-            count=len(ambiguous),
-            sample=ambiguous[:10],
-        )
+        progress("DRIVE_CURRICULUM_AMBIGUOUS_PDFS",
+                 count=len(ambiguous), sample=ambiguous[:10])
     return result
-
 
 
 def _registered_books_from_catalog(
