@@ -112,9 +112,19 @@ def _verify_question_locked_spec(
     teacher_script = spec.get("teacher_script")
     if not isinstance(teacher_script, list) or not 2 <= len(teacher_script) <= 12:
         raise RuntimeError("SMART_LAB_TEACHER_SCRIPT_REQUIRED")
+    allowed_actions = {"point", "highlight", "set_state", "animate", "observe", "explain", "conclude"}
     for index, step in enumerate(teacher_script):
         if not isinstance(step, dict) or not str(step.get("say") or "").strip():
             raise RuntimeError(f"SMART_LAB_TEACHER_STEP_INVALID:{index}")
+        target_ids = step.get("target_ids")
+        if not isinstance(target_ids, list) or not target_ids or any(not str(x or "").strip() for x in target_ids):
+            raise RuntimeError(f"SMART_LAB_TEACHER_TARGET_REQUIRED:{index}")
+        if str(step.get("action") or "").strip() not in allowed_actions:
+            raise RuntimeError(f"SMART_LAB_TEACHER_ACTION_INVALID:{index}")
+        if not isinstance(step.get("state_before"), dict) or not isinstance(step.get("state_after"), dict):
+            raise RuntimeError(f"SMART_LAB_TEACHER_STATE_INVALID:{index}")
+        if not isinstance(step.get("scientific_constraints"), list):
+            raise RuntimeError(f"SMART_LAB_TEACHER_CONSTRAINTS_INVALID:{index}")
         exact_quote = _norm(step.get("evidence_quote", ""))
         if not exact_quote or exact_quote not in source:
             raise RuntimeError(f"SMART_LAB_TEACHER_EVIDENCE_NOT_FOUND:{index}")
@@ -228,6 +238,8 @@ def _standalone_html(lab_html: str, lang: str, title: str) -> str:
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>{title_safe}</title>
 <script src="/static/nabil_browser_tts_v1.js?v=1"></script>
+<script src="/static/nabil_lesson_e2e_runtime_v1.js?v=1"></script>
+<script src="/static/nabil_smart_lab_bridge_v1.js?v=1"></script>
 <style>
 html,body{{margin:0;padding:0;background:#05172d;color:#eef8ff;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;overflow-x:hidden}}
 body{{padding:10px;box-sizing:border-box;max-width:100vw}}
@@ -357,7 +369,8 @@ For EVERY supported lab, also return teacher_script with 2..12 evidence-locked t
 teacher_script=[{{"say":"...","target_ids":["..."],"action":"point|highlight|set_state|animate|observe|explain|conclude",
 "state_before":{{}},"state_after":{{}},"scientific_constraints":[],"evidence_quote":"EXACT contiguous quote from USER_SOURCE or VERIFIED_SOLUTION"}}].
 Rules:
-- target_ids must refer only to real ids/elements in this lab; order them as NABIL speaks.
+- target_ids must be non-empty and refer only to renderer-supported real ids/elements for the selected kind; never invent DOM ids.
+- order target_ids in the same order NABIL speaks, so the pointer follows the narrated object.
 - apply state_after visually BEFORE speaking a consequence of that state.
 - never animate current/charge flow while switch_closed=false; visibly close the switch first.
 - never invent a state, action, constraint, or spoken scientific claim absent from USER_SOURCE or VERIFIED_SOLUTION.
@@ -397,6 +410,7 @@ Rules:
         "title": str(spec.get("title") or "NABIL Smart Lab"),
         "renderer_contract": "NABIL_REFERENCE_RENDERER_V1",
         "teacher_pointer": "sentence-synced",
+        "teacher_lifecycle": "start|state|step|complete|stopped",
         "language": lang,
         "html": _standalone_html(
             lab_html, lang, str(spec.get("title") or "NABIL Smart Lab")
