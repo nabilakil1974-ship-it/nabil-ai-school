@@ -2344,49 +2344,170 @@ def _title_match_score(title: str, page_text: str) -> int:
     return sum(1 for token in tokens if token in low)
 
 
+def _offset_probe_entries(toc_entries: List[dict], limit: int = 8) -> List[dict]:
+    """Choose spread-out TOC anchors so one noisy OCR row cannot decide the offset."""
+    valid = []
+    for entry in toc_entries:
+        try:
+            printed = int(entry.get("printed_page"))
+        except (TypeError, ValueError):
+            continue
+        title = str(entry.get("title") or "").strip()
+        if printed < 1 or len(title) < 3:
+            continue
+        valid.append(entry)
+    if len(valid) <= limit:
+        return valid
+    # Sample across the whole TOC instead of trusting only the first rows/column.
+    picks = []
+    for i in range(limit):
+        idx = round(i * (len(valid) - 1) / max(1, limit - 1))
+        if valid[idx] not in picks:
+            picks.append(valid[idx])
+    return picks
+
+
+def _offset_search_ranges(doc, toc_entries: List[dict]) -> List[range]:
+    """Adaptive offset windows; no book-specific or manually supplied offset."""
+    if not toc_entries:
+        return []
+    toc_pages = [
+        int(e.get("toc_pdf_page")) for e in toc_entries
+        if str(e.get("toc_pdf_page") or "").isdigit()
+    ]
+    printed = [
+        int(e.get("printed_page")) for e in toc_entries
+        if str(e.get("printed_page") or "").isdigit()
+    ]
+    if not printed:
+        return []
+
+    # Stage 1 preserves the old fast path. Stage 2/3 handle books with long
+    # front matter or PDFs whose physical pages are far from printed numbering.
+    max_offset = max(-5, len(doc) - min(printed))
+    ranges = [range(-5, min(31, max_offset + 1))]
+
+    if max_offset >= 31:
+        # The first real lesson normally cannot begin before the detected TOC.
+        # Use that fact only to prioritize the search, never as proof of offset.
+        if toc_pages:
+            likely = max(toc_pages) + 1 - min(printed)
+            lo = max(-10, likely - 18)
+            hi = min(max_offset + 1, likely + 31)
+            if hi > lo:
+                ranges.append(range(lo, hi))
+        ranges.append(range(31, min(81, max_offset + 1)))
+    if max_offset >= 81:
+        ranges.append(range(81, min(151, max_offset + 1)))
+    return ranges
+
+
+def _score_offset_against_entries(doc, entries: List[dict], offset: int) -> dict:
+    """Return evidence for one offset using title matches on actual destination pages."""
+    votes = 0
+    tested = 0
+    details = []
+    for entry in entries:
+        pdf_page = int(entry["printed_page"]) + int(offset)
+        if not (1 <= pdf_page <= len(doc)):
+            continue
+        tested += 1
+        native = _page_text_for_book_index(doc, pdf_page)
+        text = native
+        tokens = [
+            t for t in re.findall(r"\w+", str(entry.get("title") or ""), flags=re.UNICODE)
+            if len(t) >= 4 and not t.isdigit()
+        ]
+        required = 1 if len(tokens) <= 2 else 2
+        hits = _title_match_score(entry.get("title") or "", text)
+        used_ocr = False
+        if hits < required and len(re.sub(r"\s+", "", native)) < 120:
+            text = _toc_page_text(doc, pdf_page, allow_ocr=True)
+            hits = _title_match_score(entry.get("title") or "", text)
+            used_ocr = text != native
+        matched = hits >= required
+        if matched:
+            votes += 1
+        details.append({
+            "title": str(entry.get("title") or "")[:120],
+            "printed_page": int(entry["printed_page"]),
+            "pdf_page": pdf_page,
+            "hits": hits,
+            "required": required,
+            "matched": matched,
+            "ocr": used_ocr,
+        })
+    return {"offset": int(offset), "votes": votes, "tested": tested, "details": details}
+
+
 def _candidate_pdf_offsets(doc, toc_entries: List[dict]) -> List[int]:
-    """Verify printed->PDF offsets against real page text, with bounded OCR fallback."""
-    offsets = []
-    entries = [e for e in toc_entries[:12] if e.get("printed_page")]
-    # Front matter normally creates a modest positive offset. Include small negative
-    # offsets for books whose PDF omits covers/front matter.
-    candidate_offsets = range(-5, min(31, len(doc)))
+    """Verify printed->PDF offsets against real pages with adaptive bounded search.
+
+    The previous implementation hard-stopped at offset 30. That can reject a
+    valid book with long front matter. This version expands only when the fast
+    window does not produce a trustworthy result and still requires repeated
+    title evidence from the real destination pages.
+    """
+    entries = _offset_probe_entries(toc_entries, limit=8)
+    if not entries:
+        return []
+
     scored = {}
-    for offset in candidate_offsets:
-        votes = 0
-        tested = 0
-        for entry in entries[:6]:
-            pdf_page = int(entry["printed_page"]) + offset
-            if not (1 <= pdf_page <= len(doc)):
+    tested_offsets = set()
+    stages = _offset_search_ranges(doc, toc_entries)
+    for stage_no, offsets in enumerate(stages, 1):
+        for offset in offsets:
+            if offset in tested_offsets:
                 continue
-            tested += 1
-            native = _page_text_for_book_index(doc, pdf_page)
-            text = native
-            tokens = [t for t in re.findall(r"\w+", entry["title"], flags=re.UNICODE)
-                      if len(t) >= 4 and not t.isdigit()]
-            required = 1 if len(tokens) <= 2 else 2
-            hits = _title_match_score(entry["title"], text)
-            if hits < required and len(re.sub(r"\s+", "", native)) < 120:
-                text = _toc_page_text(doc, pdf_page, allow_ocr=True)
-                hits = _title_match_score(entry["title"], text)
-            if hits >= required:
-                votes += 1
-        if tested:
-            scored[offset] = votes
+            tested_offsets.add(offset)
+            result = _score_offset_against_entries(doc, entries, offset)
+            if result["tested"]:
+                scored[offset] = result
+
+        ranked = sorted(
+            scored.values(),
+            key=lambda item: (-item["votes"], -item["tested"], abs(item["offset"]), item["offset"]),
+        )
+        if ranked:
+            best = ranked[0]
+            second_votes = ranked[1]["votes"] if len(ranked) > 1 else -1
+            progress(
+                "BOOK_INDEX_OFFSET_SEARCH_STAGE",
+                stage=stage_no,
+                tested_offsets=len(tested_offsets),
+                best_offset=best["offset"],
+                best_votes=best["votes"],
+                best_tested=best["tested"],
+                second_votes=second_votes,
+            )
+            # Stop early only on repeated, unique evidence. Two votes are enough
+            # for small TOCs; larger TOCs require three anchors when available.
+            required_votes = 2 if len(entries) < 4 else 3
+            if best["votes"] >= required_votes and best["votes"] > second_votes:
+                break
+
     if not scored:
         return []
-    best_votes = max(scored.values())
+    ranked = sorted(
+        scored.values(),
+        key=lambda item: (-item["votes"], -item["tested"], abs(item["offset"]), item["offset"]),
+    )
+    best_votes = ranked[0]["votes"]
     if best_votes <= 0:
         return []
-    # Return repeated offsets so the existing resolver's vote logic remains intact.
-    for offset, votes in scored.items():
-        offsets.extend([offset] * votes)
-    progress("BOOK_INDEX_OFFSET_CANDIDATES",
-             best_votes=best_votes,
-             candidates=[{"offset": o, "votes": v}
-                         for o, v in sorted(scored.items(), key=lambda kv: (-kv[1], kv[0]))
-                         if v > 0][:8])
-    return offsets
+
+    progress(
+        "BOOK_INDEX_OFFSET_CANDIDATES",
+        best_votes=best_votes,
+        candidates=[
+            {"offset": item["offset"], "votes": item["votes"], "tested": item["tested"]}
+            for item in ranked[:8] if item["votes"] > 0
+        ],
+    )
+    repeated = []
+    for item in ranked:
+        repeated.extend([item["offset"]] * item["votes"])
+    return repeated
 
 
 def _resolve_printed_to_pdf_offset(doc, toc_entries: List[dict]) -> int:
@@ -2397,7 +2518,7 @@ def _resolve_printed_to_pdf_offset(doc, toc_entries: List[dict]) -> int:
     counts = {}
     for offset in offsets:
         counts[offset] = counts.get(offset, 0) + 1
-    ranked = sorted(counts.items(), key=lambda pair: (-pair[1], pair[0]))
+    ranked = sorted(counts.items(), key=lambda pair: (-pair[1], abs(pair[0]), pair[0]))
     best_offset, votes = ranked[0]
     if votes < 2 and len(toc_entries) >= 2:
         raise RuntimeError(
@@ -2405,11 +2526,25 @@ def _resolve_printed_to_pdf_offset(doc, toc_entries: List[dict]) -> int:
     if len(ranked) > 1 and ranked[1][1] == votes:
         raise RuntimeError(
             f"BOOK_INDEX_PAGE_OFFSET_AMBIGUOUS_TIE: candidates={ranked[:4]}")
-    progress("BOOK_INDEX_PAGE_OFFSET_VERIFIED",
-             offset=best_offset, votes=votes,
-             alternatives=[{"offset": o, "votes": v} for o, v in ranked[1:4]])
-    return best_offset
 
+    # Final independent verification before accepting the mapping. This prevents
+    # a single noisy TOC row from shifting every lesson range in the book.
+    anchors = _offset_probe_entries(toc_entries, limit=8)
+    verification = _score_offset_against_entries(doc, anchors, best_offset)
+    minimum = 2 if len(anchors) >= 2 else 1
+    if verification["votes"] < minimum:
+        raise RuntimeError(
+            "BOOK_INDEX_PAGE_OFFSET_UNVERIFIED_FINAL: "
+            f"offset={best_offset}, votes={verification['votes']}, tested={verification['tested']}")
+
+    progress(
+        "BOOK_INDEX_PAGE_OFFSET_VERIFIED",
+        offset=best_offset,
+        votes=verification["votes"],
+        tested=verification["tested"],
+        alternatives=[{"offset": o, "votes": v} for o, v in ranked[1:4]],
+    )
+    return best_offset
 
 def _lesson_slug(book_id: str, number: int) -> str:
     return f"{_book_index_safe_id(book_id).upper()}-AUTO-{number:03d}"
