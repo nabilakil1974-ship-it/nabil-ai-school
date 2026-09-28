@@ -5598,6 +5598,13 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
         "For DC_SERIES_CIRCUIT, OPTICS_REFLECTION and IONIC_COMPOUND also return evidence_quotes: an object containing an EXACT SOURCE quote for EACH scientific invariant declared by the spec.\n"
         "Every supported lab must contain an exact evidence quote from SOURCE when evidence_basis=text. "
         "If evidence_basis=figure, a verified source figure must be supplied.\n"
+        "Every supported lab MUST include teacher_script with 2..12 steps derived from THIS evidence, never a canned demo. "
+        "Each step contains say,target_ids,action,state_before,state_after,scientific_constraints,evidence_quote. "
+        "Allowed actions: point,highlight,set_state,animate,observe,explain,conclude. "
+        "Apply state_after BEFORE NABIL speaks its consequence; target_ids follow the sentence meaning. "
+        "For circuits, current/charge flow is forbidden while switch_closed=false; close the switch visibly first. "
+        "For every domain, animate/reveal a result only after its evidence-backed conditions are established. "
+        "All states/actions/constraints come from SOURCE or verified FIGURE; never invent science for animation.\n"
         "Student-facing title/instructions/observation must stay within the scientific meaning of the evidence.\n"
         + narrative_language_instruction(lang_code) + "\n\n"
         f"CONCEPT_ID: {concept['concept_id']}\n"
@@ -5660,6 +5667,15 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
                 "evidence_quote": fallback_quote,
             }],
             "fallback_reason": str(spec.get("reason") or "NO_RICHER_LAB_KIND"),
+            "teacher_script": [
+                {"say": str(concept.get("title") or "Observe the verified evidence."), "target_ids": ["evidence:0"], "action": "point",
+                 "state_before": {"revealed_index": -1}, "state_after": {"revealed_index": 0},
+                 "scientific_constraints": ["Reveal only verified source evidence."], "evidence_quote": fallback_quote},
+                {"say": str(narrative.get("conclusion") or narrative.get("observation") or concept.get("title") or "Conclude from the verified evidence."),
+                 "target_ids": ["evidence:0"], "action": "conclude",
+                 "state_before": {"revealed_index": 0}, "state_after": {"revealed_index": 0},
+                 "scientific_constraints": ["Do not exceed verified source evidence."], "evidence_quote": fallback_quote},
+            ],
         }
         progress(
             "LAB_UNIVERSAL_EVIDENCE_REVEAL_FALLBACK",
@@ -5789,6 +5805,33 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
                 raise RuntimeError(
                     f"LAB_REVEAL_EVIDENCE_QUOTE_NOT_FOUND:{index}")
 
+    teacher_script = spec.get("teacher_script")
+    if not isinstance(teacher_script, list) or not 2 <= len(teacher_script) <= 12:
+        raise RuntimeError("LAB_TEACHER_SCRIPT_REQUIRED")
+    allowed_teacher_actions = {"point","highlight","set_state","animate","observe","explain","conclude"}
+    source_norm = _normalized_lab_evidence(concept.get("raw_text", ""))
+    switch_closed = False
+    for step_index, step in enumerate(teacher_script):
+        if not isinstance(step, dict) or not str(step.get("say") or "").strip():
+            raise RuntimeError(f"LAB_TEACHER_STEP_INVALID:{step_index}")
+        if str(step.get("action") or "") not in allowed_teacher_actions:
+            raise RuntimeError(f"LAB_TEACHER_ACTION_INVALID:{step_index}")
+        if not isinstance(step.get("target_ids", []), list) or not isinstance(step.get("state_before"), dict) or not isinstance(step.get("state_after"), dict):
+            raise RuntimeError(f"LAB_TEACHER_STATE_INVALID:{step_index}")
+        if not isinstance(step.get("scientific_constraints"), list):
+            raise RuntimeError(f"LAB_TEACHER_CONSTRAINTS_INVALID:{step_index}")
+        q = _normalized_lab_evidence(step.get("evidence_quote", ""))
+        if not q or (basis == "text" and q not in source_norm):
+            raise RuntimeError(f"LAB_TEACHER_EVIDENCE_NOT_FOUND:{step_index}")
+        if kind == "DC_SERIES_CIRCUIT":
+            before=step.get("state_before") or {}; after=step.get("state_after") or {}
+            if "switch_closed" in before and bool(before["switch_closed"]) != switch_closed:
+                raise RuntimeError(f"LAB_CIRCUIT_STATE_DISCONTINUITY:{step_index}")
+            next_closed=bool(after.get("switch_closed",switch_closed))
+            words=(str(step.get("say") or "")+" "+str(step.get("action") or "")).lower()
+            if any(x in words for x in ("current","charge flow","تيار","مرور الشحن")) and not next_closed:
+                raise RuntimeError(f"LAB_CIRCUIT_FLOW_WITH_OPEN_SWITCH:{step_index}")
+            switch_closed=next_closed
     validate_lab_spec(spec)
     return spec
 
@@ -6823,6 +6866,14 @@ def _deterministic_evidence_reveal_spec(
             "evidence_quote": quote,
         }],
         "prebuilt": True,
+        "teacher_script": [
+            {"say": str(title or "Read the verified task."), "target_ids": ["evidence:0"], "action": "point",
+             "state_before": {"revealed_index": -1}, "state_after": {"revealed_index": 0},
+             "scientific_constraints": ["Use only verified exercise evidence."], "evidence_quote": quote},
+            {"say": str(title or "Work from the verified givens."), "target_ids": ["evidence:0"], "action": "explain",
+             "state_before": {"revealed_index": 0}, "state_after": {"revealed_index": 0},
+             "scientific_constraints": ["Do not introduce unsupported givens or relations."], "evidence_quote": quote},
+        ],
     }
 
 
