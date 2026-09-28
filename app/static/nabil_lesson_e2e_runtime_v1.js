@@ -382,6 +382,13 @@ function install(){
   };
  }
  window.NABILLessonE2E={sendPayload,speak,stopSpeech,renderResult,lessonMeta};
+  // Teacher labs already send their verified sentence to NABILLessonE2E.speak().
+  // This listener only guarantees that a teacher stop event also stops browser TTS.
+  if(!window.__NABIL_E2E_TEACHER_STOP_BRIDGE__){
+    window.__NABIL_E2E_TEACHER_STOP_BRIDGE__=true;
+    document.addEventListener("nabil:teacher-stopped",stopSpeech);
+    document.addEventListener("nabil:teach-stop",stopSpeech);
+  }
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install,{once:true});else install();
 })();
