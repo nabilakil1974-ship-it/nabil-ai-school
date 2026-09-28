@@ -41,14 +41,8 @@ async function waitVoices(){
 function splitMixed(text,base){
  const raw=String(text||"").trim();
  if(base!=="ar")return raw?[{text:raw,code:base}]:[];
- // In Arabic teaching, pronounce Latin scientific terms with an English voice
- // while the surrounding explanation remains Modern Standard Arabic.
- const parts=raw.split(/([A-Za-z][A-Za-z0-9_.+-]*(?:\s+[A-Za-z][A-Za-z0-9_.+-]*)*)/g)
-   .filter(Boolean);
- return parts.map(part=>({
-  text:part,
-  code:/[A-Za-z]/.test(part)&&!/[\u0600-\u06FF]/.test(part)?"en":"ar"
- })).filter(x=>x.text.trim());
+ const parts=raw.split(/([A-Za-z][A-Za-z0-9_.+-]*(?:\s+[A-Za-z][A-Za-z0-9_.+-]*)*)/g).filter(Boolean);
+ return parts.map(part=>({text:part,code:/[A-Za-z]/.test(part)&&!/[\u0600-\u06FF]/.test(part)?"en":"ar"})).filter(x=>x.text.trim());
 }
 function stop(){
  token++;
@@ -85,13 +79,11 @@ async function speak(text,language,options={}){
    u.voice=voiceFor(seg.code);
    u.rate=Math.max(.72,Math.min(1.12,Number(window.nabilVoicePace||.9)));
    u.pitch=.94;
-   u.onstart=()=>{
-    if(!started){started=true;try{options.onstart?.()}catch(_e){}}
-   };
+   u.onstart=()=>{if(!started){started=true;try{options.onstart?.()}catch(_e){}}};
+   u.onboundary=e=>{try{options.onboundary?.(e)}catch(_e){}};
    u.onend=next;
    u.onerror=event=>{
     if(mine!==token){resolve();return}
-    // Continue to the next segment; only surface the error if all speech fails.
     try{options.onsegmenterror?.(event)}catch(_e){}
     next();
    };
@@ -102,14 +94,18 @@ async function speak(text,language,options={}){
 }
 
 window.NABILBrowserTTS={
- version:"1.0.0",
+ version:"1.0.1",
  engine:"SpeechSynthesis",
  paidEndpoint:false,
  maleVoicePreferred:true,
  maleVoiceGuaranteed:false,
  speak,stop,voiceFor,codeOf
 };
-// Compatibility contract: old callers now resolve to the free browser engine.
 window.nabilSpeakClear=(spoken,language,options={})=>speak(spoken,language,options);
 window.stopNabilNeuralVoice=stop;
+
+// Keep teacher-lab stop events synchronized with browser speech.
+// Speaking itself remains owned by the verified teacher_script renderer.
+document.addEventListener("nabil:teacher-stopped",stop);
+document.addEventListener("nabil:teach-stop",stop);
 })();
