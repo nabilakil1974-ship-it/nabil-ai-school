@@ -1879,6 +1879,380 @@ def resolve_source_book_pdf(book_id: str, drive_service=None) -> Path:
 
     return target
 
+# ==============================================================================
+# AUTOMATIC BOOK -> TOC -> LESSONS -> ACTIVITIES/EXERCISES INDEX
+# ============================================================================== 
+BOOK_INDEX_DIR = ROOT / "data/factory_book_indexes"
+BOOK_INDEX_DIR.mkdir(parents=True, exist_ok=True)
+
+_TOC_HINT_RE = re.compile(
+    r"(?i)(contents?|table\s+of\s+contents?|sommaire|table\s+des\s+mati[eè]res|فهرس|المحتويات)"
+)
+
+_EXERCISE_RE = re.compile(
+    r"(?im)^\s*(exercise|exercises|activity|activities|problem|problems|"
+    r"application|applications|practice|worksheet|exercice|exercices|"
+    r"activité|activités|problème|problèmes|تمرين|تمارين|نشاط|أنشطة|مسألة|مسائل|تطبيق|تطبيقات)"
+    r"(?:\s*(?:no\.?|n°|#)?\s*(\d+[A-Za-z]?))?\s*[:.\-–—)]?\s*(.*)$"
+)
+
+
+def _book_index_safe_id(book_id: str) -> str:
+    return re.sub(r"[^A-Za-z0-9_.-]+", "_", str(book_id or "").strip())
+
+
+def _clean_toc_title(value: str) -> str:
+    value = re.sub(r"\s+", " ", str(value or "")).strip(" .\t-–—")
+    value = re.sub(
+        r"(?i)^(chapter|unit|lesson|chapitre|unité|leçon|درس|وحدة|فصل)"
+        r"\s*(?:\d+[A-Za-z]?)?\s*[:.\-–—]*\s*", "", value
+    ).strip()
+    return value
+
+
+def _page_text_for_book_index(doc, pdf_page: int) -> str:
+    if pdf_page < 1 or pdf_page > len(doc):
+        return ""
+    try:
+        text = doc[pdf_page - 1].get_text("text") or ""
+    except Exception:
+        text = ""
+    return re.sub(r"\r\n?", "\n", text).strip()
+
+
+def _detect_toc_pages(doc, max_scan_pages: int = 40) -> List[int]:
+    candidates = []
+    limit = min(len(doc), max_scan_pages)
+    for pdf_page in range(1, limit + 1):
+        text = _page_text_for_book_index(doc, pdf_page)
+        if not text:
+            continue
+        lines = [x.strip() for x in text.splitlines() if x.strip()]
+        numbered_lines = sum(
+            1 for line in lines
+            if re.search(r"(?:\.{2,}|\s{2,})\d{1,4}\s*$", line)
+        )
+        if _TOC_HINT_RE.search(text) or numbered_lines >= 4:
+            candidates.append(pdf_page)
+    if not candidates:
+        return []
+    expanded = set(candidates)
+    for p in list(candidates):
+        if p + 1 <= limit:
+            nxt = _page_text_for_book_index(doc, p + 1)
+            numbered = sum(
+                1 for line in nxt.splitlines()
+                if re.search(r"(?:\.{2,}|\s{2,})\d{1,4}\s*$", line.strip())
+            )
+            if numbered >= 3:
+                expanded.add(p + 1)
+    return sorted(expanded)
+
+
+def _parse_toc_entries(doc, toc_pages: List[int]) -> List[dict]:
+    entries = []
+    for toc_pdf_page in toc_pages:
+        text = _page_text_for_book_index(doc, toc_pdf_page)
+        for raw_line in text.splitlines():
+            line = re.sub(r"\s+", " ", raw_line).strip()
+            if not line:
+                continue
+            match = re.match(r"^(?P<title>.+?)(?:\s*\.{2,}\s*|\s+)(?P<page>\d{1,4})\s*$", line)
+            if not match:
+                continue
+            title = _clean_toc_title(match.group("title"))
+            try:
+                printed_page = int(match.group("page"))
+            except ValueError:
+                continue
+            if len(title) < 3 or _TOC_HINT_RE.fullmatch(title):
+                continue
+            entries.append({
+                "title": title,
+                "printed_page": printed_page,
+                "toc_pdf_page": toc_pdf_page,
+                "toc_line": raw_line.strip(),
+            })
+    unique, seen = [], set()
+    for item in entries:
+        key = (item["title"].casefold(), item["printed_page"])
+        if key not in seen:
+            seen.add(key)
+            unique.append(item)
+    return unique
+
+
+def _candidate_pdf_offsets(doc, toc_entries: List[dict]) -> List[int]:
+    offsets = []
+    for entry in toc_entries[:20]:
+        tokens = [
+            token.casefold() for token in re.findall(r"\w+", entry["title"], flags=re.UNICODE)
+            if len(token) >= 4
+        ]
+        if not tokens:
+            continue
+        for pdf_page in range(1, len(doc) + 1):
+            text = _page_text_for_book_index(doc, pdf_page).casefold()
+            hits = sum(1 for token in tokens if token in text)
+            required = 1 if len(tokens) == 1 else min(2, len(tokens))
+            if hits >= required:
+                offset = pdf_page - entry["printed_page"]
+                if -10 <= offset <= 60:
+                    offsets.append(offset)
+                    break
+    return offsets
+
+
+def _resolve_printed_to_pdf_offset(doc, toc_entries: List[dict]) -> int:
+    offsets = _candidate_pdf_offsets(doc, toc_entries)
+    if not offsets:
+        raise RuntimeError(
+            "BOOK_INDEX_PAGE_OFFSET_UNVERIFIED: could not map printed TOC pages to physical PDF pages"
+        )
+    counts = {}
+    for offset in offsets:
+        counts[offset] = counts.get(offset, 0) + 1
+    best_offset, votes = max(counts.items(), key=lambda pair: pair[1])
+    if votes < 2 and len(toc_entries) >= 2:
+        raise RuntimeError(
+            f"BOOK_INDEX_PAGE_OFFSET_AMBIGUOUS: best_offset={best_offset}, votes={votes}"
+        )
+    return best_offset
+
+
+def _lesson_slug(book_id: str, number: int) -> str:
+    return f"{_book_index_safe_id(book_id).upper()}-AUTO-{number:03d}"
+
+
+def _extract_lesson_works(doc, start_page: int, end_page: int) -> List[dict]:
+    works = []
+    sequence = 0
+    for pdf_page in range(start_page, end_page + 1):
+        text = _page_text_for_book_index(doc, pdf_page)
+        for line_no, raw_line in enumerate(text.splitlines(), 1):
+            line = re.sub(r"\s+", " ", raw_line).strip()
+            if not line:
+                continue
+            match = _EXERCISE_RE.match(line)
+            if not match:
+                continue
+            sequence += 1
+            label = (match.group(1) or "").strip()
+            printed_number = (match.group(2) or "").strip()
+            remainder = (match.group(3) or "").strip()
+            kind_lower = label.casefold()
+            if any(x in kind_lower for x in ("activity", "activité", "نشاط", "أنشطة")):
+                work_type = "activity"
+            elif any(x in kind_lower for x in ("problem", "problème", "مسألة", "مسائل")):
+                work_type = "problem"
+            else:
+                work_type = "exercise"
+            works.append({
+                "work_id": f"W{sequence:03d}",
+                "type": work_type,
+                "label": label,
+                "printed_number": printed_number or None,
+                "pdf_page": pdf_page,
+                "line_number": line_no,
+                "source_heading": line,
+                "source_preview": remainder[:500],
+            })
+    return works
+
+
+def _iter_canonical_lesson_entries(catalog: dict):
+    """Yield every lesson-like record from supported canonical catalog shapes."""
+    if not isinstance(catalog, dict):
+        return
+    lessons = catalog.get("lessons")
+    if isinstance(lessons, list):
+        for entry in lessons:
+            if isinstance(entry, dict):
+                yield entry
+        return
+    for grade_value in catalog.values():
+        if not isinstance(grade_value, dict):
+            continue
+        for subject_value in grade_value.values():
+            if isinstance(subject_value, dict) and isinstance(subject_value.get("lessons"), list):
+                for entry in subject_value["lessons"]:
+                    if isinstance(entry, dict):
+                        yield entry
+            elif isinstance(subject_value, list):
+                for entry in subject_value:
+                    if isinstance(entry, dict):
+                        yield entry
+
+
+def _registered_books_from_catalog() -> List[dict]:
+    """Return one metadata record per unique registered source book."""
+    catalog = load_canonical_catalog()
+    books = {}
+    for entry in _iter_canonical_lesson_entries(catalog):
+        book_id = str(entry.get("book_id") or "").strip()
+        if not book_id:
+            continue
+        meta = books.setdefault(book_id, {"book_id": book_id})
+        for key in ("grade", "subject", "language", "branch", "track"):
+            value = entry.get(key)
+            if value not in (None, "") and key not in meta:
+                meta[key] = value
+    if not books:
+        raise RuntimeError("BOOK_INDEX_NO_REGISTERED_BOOKS")
+    return list(books.values())
+
+
+def _metadata_for_book(book_id: str) -> dict:
+    for meta in _registered_books_from_catalog():
+        if meta["book_id"] == book_id:
+            return meta
+    return {"book_id": book_id}
+
+
+def build_all_registered_book_indexes(drive_service=None, force: bool = False) -> dict:
+    """Index every unique book registered in the canonical catalog, truthfully."""
+    books = _registered_books_from_catalog()
+    report = {
+        "status": "RUNNING",
+        "schema": "NABIL_ALL_BOOK_INDEX_V1",
+        "generated_at": now(),
+        "book_count": len(books),
+        "indexed": [],
+        "failed": [],
+    }
+    progress("ALL_BOOK_INDEX_START", books=len(books))
+    for position, meta in enumerate(books, 1):
+        book_id = meta["book_id"]
+        try:
+            result = build_book_lesson_index(
+                book_id,
+                drive_service=drive_service,
+                force=force,
+                book_metadata=meta,
+            )
+            report["indexed"].append({
+                "book_id": book_id,
+                "position": position,
+                "lesson_count": result.get("lesson_count", 0),
+                "work_count": result.get("work_count", 0),
+                "index_path": str(BOOK_INDEX_DIR / f"{_book_index_safe_id(book_id)}.json"),
+            })
+        except Exception as exc:
+            report["failed"].append({
+                "book_id": book_id,
+                "position": position,
+                "error": f"{type(exc).__name__}: {exc}",
+            })
+            progress("ALL_BOOK_INDEX_BOOK_FAILED", book_id=book_id, error=str(exc))
+    report["indexed_count"] = len(report["indexed"])
+    report["failed_count"] = len(report["failed"])
+    report["status"] = "INDEXED" if not report["failed"] else "PARTIAL_FAILURE"
+    report["completed_at"] = now()
+    summary_path = BOOK_INDEX_DIR / "_all_books_report.json"
+    summary_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    progress("ALL_BOOK_INDEX_COMPLETE", indexed=report["indexed_count"], failed=report["failed_count"], output=str(summary_path))
+    return report
+
+
+def build_book_lesson_index(book_id: str, drive_service=None, force: bool = False, book_metadata: Optional[dict] = None) -> dict:
+    """Drive/local PDF -> TOC -> lessons -> page ranges -> linked activities/exercises."""
+    import fitz
+
+    safe_id = _book_index_safe_id(book_id)
+    book_metadata = dict(book_metadata or _metadata_for_book(book_id))
+    output_path = BOOK_INDEX_DIR / f"{safe_id}.json"
+    if output_path.exists() and not force:
+        try:
+            existing = json.loads(output_path.read_text(encoding="utf-8"))
+            if existing.get("book_id") == book_id and existing.get("status") == "INDEXED" and existing.get("lessons"):
+                progress("BOOK_INDEX_CACHE_HIT", book_id=book_id, lessons=len(existing["lessons"]))
+                return existing
+        except Exception:
+            pass
+
+    pdf_path = resolve_source_book_pdf(book_id, drive_service=drive_service)
+    doc = fitz.open(str(pdf_path))
+    try:
+        if len(doc) < 1:
+            raise RuntimeError("BOOK_INDEX_EMPTY_PDF")
+        progress("BOOK_INDEX_START", book_id=book_id, pdf_pages=len(doc))
+        toc_pages = _detect_toc_pages(doc)
+        if not toc_pages:
+            raise RuntimeError("BOOK_INDEX_TOC_NOT_FOUND: no trustworthy physical TOC pages detected")
+        toc_entries = _parse_toc_entries(doc, toc_pages)
+        if not toc_entries:
+            raise RuntimeError("BOOK_INDEX_TOC_EMPTY: TOC pages found but no lesson/page entries parsed")
+        offset = _resolve_printed_to_pdf_offset(doc, toc_entries)
+
+        valid_entries = []
+        for entry in toc_entries:
+            pdf_start = entry["printed_page"] + offset
+            if 1 <= pdf_start <= len(doc):
+                valid_entries.append({**entry, "pdf_start_page": pdf_start})
+        valid_entries.sort(key=lambda x: (x["pdf_start_page"], x["printed_page"]))
+
+        deduped, seen_starts = [], set()
+        for item in valid_entries:
+            if item["pdf_start_page"] not in seen_starts:
+                seen_starts.add(item["pdf_start_page"])
+                deduped.append(item)
+        if not deduped:
+            raise RuntimeError("BOOK_INDEX_NO_VALID_LESSON_STARTS")
+
+        lessons = []
+        for idx, item in enumerate(deduped):
+            start_page = item["pdf_start_page"]
+            end_page = deduped[idx + 1]["pdf_start_page"] - 1 if idx + 1 < len(deduped) else len(doc)
+            if end_page < start_page:
+                raise RuntimeError(f"BOOK_INDEX_INVALID_LESSON_RANGE: {item['title']} {start_page}-{end_page}")
+            lesson_id = _lesson_slug(book_id, idx + 1)
+            works = _extract_lesson_works(doc, start_page, end_page)
+            lesson = {
+                "lesson_id": lesson_id,
+                "canonical_title": item["title"],
+                "book_id": book_id,
+                "grade": book_metadata.get("grade"),
+                "subject": book_metadata.get("subject"),
+                "language": book_metadata.get("language"),
+                "branch": book_metadata.get("branch") or book_metadata.get("track") or "",
+                "toc_pdf_page": item["toc_pdf_page"],
+                "printed_start_page": item["printed_page"],
+                "pdf_start_page": start_page,
+                "pdf_end_page": end_page,
+                "works": works,
+                "activities": [w for w in works if w["type"] == "activity"],
+                "exercises": [w for w in works if w["type"] in ("exercise", "problem")],
+            }
+            lessons.append(lesson)
+            progress(
+                "BOOK_INDEX_LESSON", book_id=book_id, lesson_id=lesson_id,
+                title=item["title"], pages=f"{start_page}-{end_page}", works=len(works)
+            )
+
+        result = {
+            "status": "INDEXED",
+            "schema": "NABIL_BOOK_INDEX_V1",
+            "generated_at": now(),
+            "book_id": book_id,
+            "source_pdf": str(pdf_path),
+            "pdf_pages": len(doc),
+            "toc_pdf_pages": toc_pages,
+            "printed_to_pdf_offset": offset,
+            "lesson_count": len(lessons),
+            "work_count": sum(len(lesson["works"]) for lesson in lessons),
+            "lessons": lessons,
+        }
+        tmp = output_path.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+        tmp.replace(output_path)
+        progress(
+            "BOOK_INDEX_COMPLETE", book_id=book_id, lessons=result["lesson_count"],
+            works=result["work_count"], output=str(output_path)
+        )
+        return result
+    finally:
+        doc.close()
+
 
 def load_canonical_catalog() -> dict:
     candidates = [CATALOG_PATH, ROOT / "config/canonical_lessons_catalog.json", ROOT / "canonical_lessons_catalog.json", ROOT / "lessons_catalog.json"]
@@ -7709,6 +8083,9 @@ def main():
 
     parser = argparse.ArgumentParser(description="NABIL AI Universal Production Factory")
     parser.add_argument("--lesson-id", type=str, default="G07-PHYSICS-001", help="Target canonical lesson ID")
+    parser.add_argument("--index-book", type=str, default=None, help="Google Drive book file ID: download and automatically index TOC, lessons and works")
+    parser.add_argument("--index-all-books", action="store_true", help="Index every unique source book registered in the canonical catalog")
+    parser.add_argument("--force-book-index", action="store_true", help="Rebuild automatic book index even when a cached index exists")
     parser.add_argument("--check-ai", action="store_true", help="Probe vision with generated blank image; no textbook page or Drive access")
     parser.add_argument("--publish", action="store_true", help="Publish directly to Google Drive")
     parser.add_argument("--rollback", type=int, default=None, help="Target version to rollback")
@@ -7717,6 +8094,25 @@ def main():
     if args.rollback is not None:
         drive_service = get_drive_service()
         rollback_lesson_drive(drive_service, args.lesson_id, args.rollback)
+        return 0
+
+    if args.index_all_books:
+        drive_service = get_drive_service()
+        report = build_all_registered_book_indexes(
+            drive_service=drive_service,
+            force=args.force_book_index,
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        return 0 if report["failed_count"] == 0 else 2
+
+    if args.index_book:
+        drive_service = get_drive_service()
+        book_index = build_book_lesson_index(
+            args.index_book,
+            drive_service=drive_service,
+            force=args.force_book_index,
+        )
+        print(json.dumps(book_index, ensure_ascii=False, indent=2))
         return 0
 
     execute_preflight_checks(require_drive=args.publish)
