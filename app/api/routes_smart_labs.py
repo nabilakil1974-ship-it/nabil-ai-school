@@ -83,11 +83,41 @@ def _verify_question_locked_spec(
                 "evidence_quote": source_quote,
             }],
             "fallback_reason": str(spec.get("reason") or "NO_RICHER_LAB_KIND"),
+            "teacher_script": [
+                {
+                    "say": fallback_text.get("instructions", "Explore the verified givens step by step."),
+                    "target_ids": ["evidence-item-0"],
+                    "action": "point",
+                    "state_before": {},
+                    "state_after": {},
+                    "scientific_constraints": [],
+                    "evidence_quote": source_quote,
+                },
+                {
+                    "say": fallback_text.get("observation", "Only verified information is shown."),
+                    "target_ids": ["evidence-item-0"],
+                    "action": "conclude",
+                    "state_before": {},
+                    "state_after": {},
+                    "scientific_constraints": [],
+                    "evidence_quote": source_quote,
+                },
+            ],
         }
 
     spec["evidence_ref"] = "USER_QUESTION"
     kind = str(spec.get("kind") or "").strip().upper()
     source = _norm(evidence_source)
+
+    teacher_script = spec.get("teacher_script")
+    if not isinstance(teacher_script, list) or not 2 <= len(teacher_script) <= 12:
+        raise RuntimeError("SMART_LAB_TEACHER_SCRIPT_REQUIRED")
+    for index, step in enumerate(teacher_script):
+        if not isinstance(step, dict) or not str(step.get("say") or "").strip():
+            raise RuntimeError(f"SMART_LAB_TEACHER_STEP_INVALID:{index}")
+        exact_quote = _norm(step.get("evidence_quote", ""))
+        if not exact_quote or exact_quote not in source:
+            raise RuntimeError(f"SMART_LAB_TEACHER_EVIDENCE_NOT_FOUND:{index}")
 
     quote = _norm(spec.get("evidence_quote", ""))
     if not quote or quote not in source:
@@ -239,6 +269,7 @@ async function nabilStandaloneSpeak(text,language){{
 }}
 window.NABILLessonE2E={{
   stopSpeech:function(){{
+    try{{window.NABILBrowserTTS?.stop?.()}}catch(_e){{}}
     try{{speechSynthesis.cancel()}}catch(_e){{}}
   }},
   speak:nabilStandaloneSpeak
@@ -321,6 +352,15 @@ normal_perpendicular_surface, angles_measured_from_normal, reflection_law.
 For IONIC_COMPOUND add evidence_quotes with exact USER_SOURCE quotes for:
 ionic_bond, cation_charge, anion_charge, ion_ratio, electron_transfer, charge_neutrality.
 For GEOMETRY_PROOF, every marks[].evidence_quote and proof_steps[].evidence_quote must be an exact contiguous quote from USER_SOURCE or VERIFIED_SOLUTION.
+
+For EVERY supported lab, also return teacher_script with 2..12 evidence-locked teaching steps:
+teacher_script=[{{"say":"...","target_ids":["..."],"action":"point|highlight|set_state|animate|observe|explain|conclude",
+"state_before":{{}},"state_after":{{}},"scientific_constraints":[],"evidence_quote":"EXACT contiguous quote from USER_SOURCE or VERIFIED_SOLUTION"}}].
+Rules:
+- target_ids must refer only to real ids/elements in this lab; order them as NABIL speaks.
+- apply state_after visually BEFORE speaking a consequence of that state.
+- never animate current/charge flow while switch_closed=false; visibly close the switch first.
+- never invent a state, action, constraint, or spoken scientific claim absent from USER_SOURCE or VERIFIED_SOLUTION.
 """
     try:
         spec = _execute_llm_json_strict(
