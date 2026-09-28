@@ -158,6 +158,9 @@ function stopOneExistingLab(lab){
  try{window.NABILLessonE2E?.stopSpeech?.()}catch(_e){}
  const host=teacherHostForLab(lab);
  try{host?.dispatchEvent(new CustomEvent("nabil:teach-stop",{bubbles:false}))}catch(_e){}
+ if(host!==lab){
+  try{lab.dispatchEvent(new CustomEvent("nabil:teach-stop",{bubbles:false}))}catch(_e){}
+ }
 }
 function playOneExistingLab(lab){
  if(!lab)return;
@@ -167,9 +170,15 @@ function playOneExistingLab(lab){
  setTimeout(()=>{
   // New factory contract: the verified teacher_script controls pointer,
   // scientific state and speech. Keep nabil:demo only for old published labs.
-  if(host&&host!==lab&&host.dataset.teacherPointer){
+  const verifiedTeacher=!!(host&&(
+   host.dataset.teacherPointer||
+   host.getAttribute("data-teacher-pointer")||
+   host.querySelector?.("[data-teacher-pointer]")
+  ));
+  if(verifiedTeacher){
    host.dispatchEvent(new CustomEvent("nabil:teach-all",{bubbles:false}));
   }else{
+   // Backward compatibility only for older published labs.
    lab.dispatchEvent(new CustomEvent("nabil:demo",{bubbles:false}));
   }
  },450);
@@ -207,11 +216,25 @@ async function playWholeLesson(){
   const ms=Math.max(2500,Math.min(30000,Number(lab.dataset.demoMs)||6500));
   await new Promise(resolve=>{
    let done=false;
-   const finish=()=>{if(done)return;done=true;clearTimeout(timer);host?.removeEventListener("nabil:teacher-complete",finish);resolve();};
+   const finish=()=>{
+    if(done)return;done=true;clearTimeout(timer);
+    host?.removeEventListener("nabil:teacher-complete",finish);
+    host?.removeEventListener("nabil:teacher-stopped",finish);
+    resolve();
+   };
    host?.addEventListener("nabil:teacher-complete",finish,{once:true});
+   host?.addEventListener("nabil:teacher-stopped",finish,{once:true});
    const timer=setTimeout(finish,ms);
   });
+  if(token!==lessonRunToken){stopOneExistingLab(lab);return;}
  }
+}
+function stopWholeLesson(){
+ lessonRunToken++;
+ try{window.NABILLessonE2E?.stopSpeech?.()}catch(_e){}
+ qsa(".nabil-concept-card .interactive-lab").forEach(stopOneExistingLab);
+ const whole=qs("#nabilWholeLessonSmartLab");
+ try{whole?.dispatchEvent(new CustomEvent("nabil:teach-stop",{bubbles:false}))}catch(_e){}
 }
 function wireWholeLesson(){
  const btn=qs("#nabilExplainWholeLessonLabs");
@@ -282,5 +305,5 @@ function wireAll(){
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",wireAll,{once:true});else wireAll();
 new MutationObserver(()=>wireAll()).observe(document.documentElement,{subtree:true,childList:true});
-window.NABILSmartLabs={buildQuestionLab,playWholeLesson,playOneExistingLab,stopOneExistingLab};
+window.NABILSmartLabs={buildQuestionLab,playWholeLesson,stopWholeLesson,playOneExistingLab,stopOneExistingLab};
 })();
