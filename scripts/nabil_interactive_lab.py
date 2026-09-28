@@ -611,16 +611,27 @@ def _reference_contract_wrap(raw_html:str,spec:Dict[str,Any],lang_code:str,lab_i
    }}
    async function playAll(){{
      token++;const mine=token;
+     shell?.dispatchEvent(new CustomEvent('nabil:teacher-start',{{detail:{{labRef:'{safe}',stepCount:cues.length}}}}));
      for(let i=0;i<cues.length;i++){{
        if(mine!==token)return;
        await speakCue(i);
        if(mine!==token)return;
        await new Promise(r=>setTimeout(r,260));
      }}
+     if(mine===token){{
+       shell?.dispatchEvent(new CustomEvent('nabil:teacher-complete',{{detail:{{labRef:'{safe}',stepCount:cues.length}}}}));
+     }}
+   }}
+   function stopTeaching(){{
+     token++;
+     try{{window.NABILLessonE2E?.stopSpeech?.()}}catch(_e){{}}
+     shell?.dispatchEvent(new CustomEvent('nabil:teacher-stopped',{{detail:{{labRef:'{safe}'}}}}));
    }}
    document.getElementById('{safe}_ref_current')?.addEventListener('click',()=>{{token++;speakCue(cueIndex);}});
    document.getElementById('{safe}_ref_all')?.addEventListener('click',playAll);
-   document.getElementById('{safe}_ref_stop')?.addEventListener('click',()=>{{token++;try{{window.NABILLessonE2E?.stopSpeech?.()}}catch(_e){{}}}});
+   document.getElementById('{safe}_ref_stop')?.addEventListener('click',stopTeaching);
+   shell?.addEventListener('nabil:teach-all',playAll);
+   shell?.addEventListener('nabil:teach-stop',stopTeaching);
    inner?.addEventListener('nabil:demo',()=>{{cueIndex=0;point(0);}});
    window.addEventListener('resize',()=>point(cueIndex),{{passive:true}});
    requestAnimationFrame(()=>point(0));
