@@ -136,6 +136,25 @@ def validate_advanced_lab_spec(spec: Dict[str, Any]) -> Dict[str, Any]:
     return spec
 
 
+
+def _teacher_cues_from_spec(spec: Dict[str, Any], fallback: list[dict]) -> list[dict]:
+    """Use the factory's evidence-verified teacher_script as the Smart Board timeline."""
+    out = []
+    for step in spec.get("teacher_script") or []:
+        if not isinstance(step, dict):
+            continue
+        say = str(step.get("say") or "").strip()
+        targets = step.get("target_ids") or []
+        if say and isinstance(targets, list) and targets:
+            out.append({
+                "target": str(targets[0]),
+                "text": say,
+                "action": str(step.get("action") or "point"),
+                "state_before": step.get("state_before") if isinstance(step.get("state_before"), dict) else {},
+                "state_after": step.get("state_after") if isinstance(step.get("state_after"), dict) else {},
+            })
+    return out or fallback
+
 def _voice_helpers(lang: str) -> str:
     return f"""
       const teacherLang={json.dumps(lang)};
@@ -278,7 +297,7 @@ def _render_circuit(spec: Dict[str, Any], lang: str, lab_id: str) -> str:
    toggle.addEventListener('click',()=>{{teacherStop();switchClosed=!switchClosed;pointTeacher('switch');renderSwitch();}});
    const runDemo=()=>{{
      switchClosed=false;renderSwitch();
-     const demoCues={json.dumps(cues,ensure_ascii=False)};
+     const demoCues={json.dumps(_teacher_cues_from_spec(spec,cues),ensure_ascii=False)};
      teacherStop();const token=teacherToken;let i=0;
      q('lab_{safe}').dispatchEvent(new CustomEvent('nabil:teacher-start',{{detail:{{labRef:'{safe}',stepCount:demoCues.length}},bubbles:true}}));
      const next=()=>{{
@@ -287,7 +306,9 @@ def _render_circuit(spec: Dict[str, Any], lang: str, lab_id: str) -> str:
          q('lab_{safe}').dispatchEvent(new CustomEvent('nabil:teacher-complete',{{detail:{{labRef:'{safe}',stepCount:demoCues.length}},bubbles:true}}));return;
        }}
        const cue=demoCues[i++];
-       if(cue.state==='closed'){{switchClosed=true;renderSwitch();}}
+       const after=cue.state_after||{{}};
+        if(Object.prototype.hasOwnProperty.call(after,'switch_closed')){{switchClosed=Boolean(after.switch_closed);renderSwitch();}}
+        else if(cue.state==='closed'){{switchClosed=true;renderSwitch();}}
        teacherSpeakCue(cue.text,cue.target,next);
      }};next();
    }};
@@ -375,7 +396,7 @@ def _render_optics(spec: Dict[str, Any], lang: str, lab_id: str) -> str:
   q('{safe}_source').addEventListener('pointerup',end);q('{safe}_source').addEventListener('pointercancel',end);
   const style=document.createElement('style');style.textContent='@keyframes {safe}_pointer{{to{{stroke-dashoffset:-28}}}} #{safe}_teacherArrow{{animation:{safe}_pointer .85s linear infinite}}';document.head.appendChild(style);
   const runDemo=()=>{{
-     const demoCues={json.dumps(cues,ensure_ascii=False)};
+     const demoCues={json.dumps(_teacher_cues_from_spec(spec,cues),ensure_ascii=False)};
      q('lab_{safe}').dispatchEvent(new CustomEvent('nabil:teacher-start',{{detail:{{labRef:'{safe}',stepCount:demoCues.length}},bubbles:true}}));
      playTeacherCues(demoCues,()=>q('lab_{safe}').dispatchEvent(new CustomEvent('nabil:teacher-complete',{{detail:{{labRef:'{safe}',stepCount:demoCues.length}},bubbles:true}})));
    }};
@@ -462,14 +483,15 @@ def _render_ionic(spec: Dict[str, Any], lang: str, lab_id: str) -> str:
   function transfer(){{if(transferred)return;transferred=true;pointTeacher('electron');const positions={json.dumps(positions)};for(let i=0;i<electronCount;i++){{const e=q('{safe}_e_'+i);if(!e)continue;const targetIndex=i%anionCount,tx=positions[targetIndex][0]-310,ty=positions[targetIndex][1]-215;e.style.transition='transform .65s ease';e.setAttribute('transform','translate('+tx+' '+ty+')');}}setTimeout(()=>{{q('{safe}_cationCharge').setAttribute('opacity','1');for(let i=0;i<anionCount;i++)q('{safe}_anionCharge_'+i)?.setAttribute('opacity','1');q('{safe}_formula').setAttribute('opacity','1');q('{safe}_status').textContent='net charge = 0';pointTeacher('formula');}},700);}}
   const style=document.createElement('style');style.textContent='@keyframes {safe}_pointer{{to{{stroke-dashoffset:-28}}}} #{safe}_teacherArrow{{animation:{safe}_pointer .85s linear infinite}}';document.head.appendChild(style);
   const runDemo=()=>{{
-     reset();const demoCues={json.dumps(cues,ensure_ascii=False)};
+     reset();const demoCues={json.dumps(_teacher_cues_from_spec(spec,cues),ensure_ascii=False)};
      teacherStop();const token=teacherToken;let i=0;
      q('lab_{safe}').dispatchEvent(new CustomEvent('nabil:teacher-start',{{detail:{{labRef:'{safe}',stepCount:demoCues.length}},bubbles:true}}));
      const next=()=>{{
        if(token!==teacherToken)return;
        if(i>=demoCues.length){{q('lab_{safe}').dispatchEvent(new CustomEvent('nabil:teacher-complete',{{detail:{{labRef:'{safe}',stepCount:demoCues.length}},bubbles:true}}));return;}}
        const cue=demoCues[i++];
-       if(cue.target==='electron'&&!transferred)transfer();
+       const after=cue.state_after||{{}};
+        if((cue.target==='electron'||after.electron_transfer===true||after.transferred===true)&&!transferred)transfer();
        teacherSpeakCue(cue.text,cue.target,next);
      }};next();
    }};
