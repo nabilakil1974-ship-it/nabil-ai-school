@@ -306,6 +306,73 @@ def assert_renderer_family_contract() -> None:
                 f"RENDERER_FAMILY_CONTRACT_MISSING:{module_name}:{callable_name}")
 
 
+def assert_localization_and_quiz_contracts() -> None:
+    """Fail closed if the shared localization/quiz add-ons drift from the factory.
+
+    Behavioral preflight:
+    - AR/FR/EN expose the same UI key set and correct text direction;
+    - narrative-language instructions resolve for every supported language;
+    - the quiz engine preserves full concept coverage (no silent 5-item cap).
+    """
+    import scripts.nabil_i18n as i18n
+    import scripts.nabil_quiz_engine as quiz
+
+    supported = tuple(getattr(i18n, "SUPPORTED_LANGUAGES", ()))
+    if supported != ("ar", "fr", "en"):
+        raise RuntimeError(
+            f"I18N_CONTRACT_MISMATCH:supported_languages={supported!r}")
+
+    tables = getattr(i18n, "UI_STRINGS", None)
+    if not isinstance(tables, dict):
+        raise RuntimeError("I18N_CONTRACT_MISSING:UI_STRINGS")
+
+    baseline_keys = None
+    for lang in supported:
+        table = tables.get(lang)
+        if not isinstance(table, dict) or not table:
+            raise RuntimeError(f"I18N_CONTRACT_MISSING_TABLE:{lang}")
+        keys = set(table)
+        if baseline_keys is None:
+            baseline_keys = keys
+        elif keys != baseline_keys:
+            missing = sorted(baseline_keys - keys)
+            extra = sorted(keys - baseline_keys)
+            raise RuntimeError(
+                f"I18N_KEYSET_MISMATCH:{lang}:missing={missing}:extra={extra}")
+        direction = i18n.html_dir_attr(lang)
+        expected_direction = "rtl" if lang == "ar" else "ltr"
+        if direction != expected_direction:
+            raise RuntimeError(
+                f"I18N_DIRECTION_MISMATCH:{lang}:{direction}")
+        instruction = i18n.narrative_language_instruction(lang)
+        if not isinstance(instruction, str) or not instruction.strip():
+            raise RuntimeError(
+                f"I18N_NARRATIVE_INSTRUCTION_MISSING:{lang}")
+
+    # Seven already-grounded synthetic activities verify there is no
+    # historical five-question cap. No LLM/network call is made here.
+    synthetic = []
+    for idx in range(1, 8):
+        synthetic.append({
+            "activity_num": f"C{idx:02d}",
+            "source_page": idx,
+            "conclusion": f"verified conclusion {idx}",
+            "student_question": {
+                "q": f"verified question {idx}",
+                "options": ["A", "B", "C"],
+                "correct_index": 0,
+            },
+        })
+    items = quiz.build_full_quiz_items(synthetic)
+    if len(items) != len(synthetic):
+        raise RuntimeError(
+            f"QUIZ_FULL_COVERAGE_CONTRACT_FAILED:"
+            f"expected={len(synthetic)}:actual={len(items)}")
+    rendered = quiz.render_quiz_html(items, "en")
+    if "NABIL_QUIZ_TOTAL = 7" not in rendered or 'id="fullQuizBlock"' not in rendered:
+        raise RuntimeError("QUIZ_RENDER_CONTRACT_FAILED:full_coverage_marker_missing")
+
+
 def _inventory_norm(value: str) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip().casefold()
 
@@ -8479,6 +8546,7 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
     book_id = entry["book_id"]
     progress("PRODUCTION_PIPELINE_START", lesson_id=lesson_id)
     assert_renderer_family_contract()
+    assert_localization_and_quiz_contracts()
 
     ver_file = VERSIONS_DIR / f"{lesson_id}.json"
     if ver_file.exists():
