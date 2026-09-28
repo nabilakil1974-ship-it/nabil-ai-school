@@ -63,7 +63,10 @@ def validate_lab_spec(spec:Dict[str,Any])->Dict[str,Any]:
     for i,step in enumerate(teacher_script):
         if not isinstance(step,dict) or not str(step.get("say") or "").strip() or str(step.get("action") or "") not in allowed:
             raise RuntimeError(f"LAB_TEACHER_STEP_INVALID:{i}")
-        if not isinstance(step.get("target_ids",[]),list) or not isinstance(step.get("state_before"),dict) or not isinstance(step.get("state_after"),dict):
+        target_ids=step.get("target_ids")
+        if not isinstance(target_ids,list) or not target_ids or any(not str(x or "").strip() for x in target_ids):
+            raise RuntimeError(f"LAB_TEACHER_TARGET_REQUIRED:{i}")
+        if not isinstance(step.get("state_before"),dict) or not isinstance(step.get("state_after"),dict):
             raise RuntimeError(f"LAB_TEACHER_STATE_INVALID:{i}")
         if not isinstance(step.get("scientific_constraints"),list) or not str(step.get("evidence_quote") or "").strip():
             raise RuntimeError(f"LAB_TEACHER_EVIDENCE_INVALID:{i}")
@@ -660,9 +663,14 @@ def _reference_contract_wrap(raw_html:str,spec:Dict[str,Any],lang_code:str,lab_i
    function stopTeaching(){{
      token++;
      try{{window.NABILLessonE2E?.stopSpeech?.()}}catch(_e){{}}
+     try{{inner?.dispatchEvent(new CustomEvent('nabil:teacher-stop',{{bubbles:false}}))}}catch(_e){{}}
+     shell?.querySelectorAll('.nabil-ref-focused').forEach(x=>x.classList.remove('nabil-ref-focused'));
      shell?.dispatchEvent(new CustomEvent('nabil:teacher-stopped',{{detail:{{labRef:'{safe}'}}}}));
    }}
-   document.getElementById('{safe}_ref_current')?.addEventListener('click',()=>{{token++;speakCue(cueIndex);}});
+   document.getElementById('{safe}_ref_current')?.addEventListener('click',async()=>{{
+     token++;const mine=token;await speakCue(cueIndex);
+     if(mine===token && cues.length) cueIndex=(cueIndex+1)%cues.length;
+   }});
    document.getElementById('{safe}_ref_all')?.addEventListener('click',playAll);
    document.getElementById('{safe}_ref_stop')?.addEventListener('click',stopTeaching);
    shell?.addEventListener('nabil:teach-all',playAll);
