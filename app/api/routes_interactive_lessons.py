@@ -646,6 +646,23 @@ def view(grade: str, subject: str, lesson: str, language: str = "", trace: str =
         elif _norm(language) in {_norm("English"), _norm("Anglais"), _norm("en")}:
             html = re.sub(r'<body([^>]*)class="([^"]*)"', lambda m: '<body' + m.group(1) + 'class="' + re.sub(r"\bfrmode\b", "", m.group(2)).strip() + '"', html, count=1, flags=re.I)
         html = _set_initial_language(html, language)
+
+        # New factory pages already contain evidence-gated labs. Attach only the
+        # shared NABIL runtime/bridge; never inject lesson-specific science.
+        if 'name="nabil-renderer-contract"' in html and "</body>" in html.lower():
+            runtime_tags = []
+            if "/static/nabil_browser_tts_v1.js" not in html:
+                runtime_tags.append('<script src="/static/nabil_browser_tts_v1.js?v=1"></script>')
+            if "/static/nabil_lesson_e2e_runtime_v1.js" not in html:
+                runtime_tags.append('<script src="/static/nabil_lesson_e2e_runtime_v1.js?v=1"></script>')
+            if "/static/nabil_smart_lab_bridge_v1.js" not in html:
+                runtime_tags.append('<script src="/static/nabil_smart_lab_bridge_v1.js?v=1"></script>')
+            if runtime_tags:
+                html = re.sub(
+                    r"</body>", "".join(runtime_tags) + "</body>",
+                    html, count=1, flags=re.I,
+                )
+
         if "</head>" in html.lower():
             html = re.sub(r"</head>", '<link rel="stylesheet" href="/static/nabil_lesson_color_cards_v1.css?v=1"></head>', html, count=1, flags=re.I)
         if (_grade(grade) == "7" and _subject(subject) == "physics"
