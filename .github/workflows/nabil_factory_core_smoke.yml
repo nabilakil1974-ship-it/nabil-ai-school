@@ -13,7 +13,10 @@ on:
       - "app/static/nabil_browser_tts_v1.js"
       - "app/static/nabil_lesson_e2e_runtime_v1.js"
       - "app/static/nabil_smart_lab_bridge_v1.js"
+      - "app/static/nabil_book_first_preview_v1.js"
+      - "app/static/nabil_reference_theme.css"
       - "app/api/routes_smart_labs.py"
+      - "app/api/routes_chat.py"
       - "app/api/routes_interactive_lessons.py"
       - "app/main.py"
       - ".github/workflows/nabil_factory_core_smoke.yml"
@@ -639,6 +642,7 @@ jobs:
           assert "maleVoiceGuaranteed:false" in browser_tts
           assert "/api/tts" not in browser_tts
           assert "fetch(" not in browser_tts
+          assert 'document.addEventListener("nabil:teacher-stop",stop)' in browser_tts
 
           main_source = factory.Path("app/main.py").read_text(encoding="utf-8")
           assert "nabil_browser_tts_v1.js?v=1" in main_source
@@ -674,6 +678,9 @@ jobs:
           assert "originalPageImage" not in preview
           assert "page_image_url" not in preview
           assert "figure_image_urls" not in preview
+          assert "/api/textbooks/lesson-preview" in preview
+          assert "/api/chat" in preview
+          assert "installNotebookSummary" in preview
 
           bridge = factory.Path(
               "app/static/nabil_smart_lab_bridge_v1.js"
@@ -684,6 +691,10 @@ jobs:
           assert "nabil:solution-ready" in bridge
           assert "buildInlineQuestionLab" in bridge
           assert "nabil-solution-runtime-lab" in bridge
+          assert "nabil:teach-all" in bridge
+          assert "nabil:teach-stop" in bridge
+          assert "nabil:teacher-complete" in bridge
+          assert "stopWholeLesson" in bridge
 
           route = factory.Path(
               "app/api/routes_interactive_lessons.py"
@@ -709,9 +720,13 @@ jobs:
               scripts/nabil_interactive_lab.py \
               scripts/nabil_advanced_lab.py \
               scripts/nabil_geometry_lab.py \
+              scripts/nabil_i18n.py \
+              scripts/nabil_quiz_engine.py \
               app/api/routes_smart_labs.py \
               app/api/routes_interactive_lessons.py \
+              app/api/routes_chat.py \
               app/static/nabil_smart_lab_bridge_v1.js \
+              app/static/nabil_book_first_preview_v1.js \
               app/static/nabil_browser_tts_v1.js \
               app/static/nabil_lesson_e2e_runtime_v1.js \
               app/static/nabil_scientific_solution_cards_e2e.js \
@@ -742,4 +757,3 @@ jobs:
           path: |
             ${{ steps.package.outputs.zip_name }}
             NABIL_E2E_ZIP_SHA256.txt
-
