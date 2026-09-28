@@ -70,6 +70,9 @@ UI_STRINGS = {
         "verified_evidence_grounding": "✓ التوثيق بالدليل متحقق",
         "exercises_page_title": "{title} - التمارين والمسائل",
         "solution_steps": "خطوات الحل",
+        "quiz_remaining": "متبقية",
+        "quiz_explanation": "التفسير",
+        "quiz_evidence": "الدليل",
     },
     "fr": {
         "view_exercises": "Voir les exercices ➔",
@@ -126,6 +129,9 @@ UI_STRINGS = {
         "verified_evidence_grounding": "✓ Ancrage dans les preuves vérifié",
         "exercises_page_title": "{title} - Exercices et problèmes",
         "solution_steps": "Étapes de résolution",
+        "quiz_remaining": "restantes",
+        "quiz_explanation": "Explication",
+        "quiz_evidence": "Preuve",
     },
     "en": {
         "view_exercises": "View Exercises ➔",
@@ -182,6 +188,9 @@ UI_STRINGS = {
         "verified_evidence_grounding": "✓ Verified Evidence Grounding",
         "exercises_page_title": "{title} - Exercises & Problems",
         "solution_steps": "Solution Steps",
+        "quiz_remaining": "remaining",
+        "quiz_explanation": "Explanation",
+        "quiz_evidence": "Evidence",
     },
 }
 
@@ -224,7 +233,9 @@ def t(lang_code: str, key: str, **kwargs) -> str:
 
 
 def html_dir_attr(lang_code: str) -> str:
-    """Return the HTML dir attribute ('rtl' for Arabic, else 'ltr')."""
+    """Return HTML direction and fail closed for an unsupported language."""
+    if lang_code not in SUPPORTED_LANGUAGES:
+        raise RuntimeError(f"LANGUAGE_NOT_SUPPORTED: {lang_code}")
     return "rtl" if lang_code == "ar" else "ltr"
 
 
@@ -246,5 +257,7 @@ def narrative_language_instruction(lang_code: str) -> str:
         f"solution steps, final answers) strictly in {names[lang_code]}. "
         f"Keep any mathematical notation, chemical formulas, and units in "
         f"their standard international symbolic form (unaffected by "
-        f"language). Do not mix languages within a single field."
+        f"language). Keep prose in the declared lesson language; standard "
+        f"mathematical/scientific symbols, formulas, units, and source-authentic "
+        f"technical terms may remain unchanged when translation would reduce precision."
     )
