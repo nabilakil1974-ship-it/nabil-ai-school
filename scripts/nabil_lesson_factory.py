@@ -5988,33 +5988,59 @@ def render_whole_lesson_smart_lab(
     loadingToken++;frame.srcdoc=s.srcdoc;
     [...timeline.children].forEach((b,i)=>b.className='wl-dot '+(i<idx?'done':i===idx?'on':''));
   }}
-  function demoCurrent(done){{const my=++loadingToken;const launch=()=>{{if(my!==loadingToken)return;try{{frame.contentDocument?.querySelector('.interactive-lab')?.dispatchEvent(new CustomEvent('nabil:demo'))}}catch(_e){{}}if(done)setTimeout(done,slides[idx].demo_ms)}};if(frame.contentDocument?.readyState==='complete')setTimeout(launch,180);else frame.onload=()=>setTimeout(launch,180)}}
+  function teachCurrent(){{
+    const my=++loadingToken;
+    return new Promise(resolve=>{{
+      let settled=false;
+      const finish=()=>{{if(settled)return;settled=true;resolve()}};
+      const launch=()=>{{
+        if(my!==loadingToken){{finish();return}}
+        try{{
+          const doc=frame.contentDocument;
+          const shell=doc?.querySelector('.nabil-reference-smart-lab');
+          if(!shell){{finish();return}}
+          const onComplete=()=>{{shell.removeEventListener('nabil:teacher-complete',onComplete);finish()}};
+          shell.addEventListener('nabil:teacher-complete',onComplete,{{once:true}});
+          shell.dispatchEvent(new CustomEvent('nabil:teach-all'));
+        }}catch(_e){{finish()}}
+      }};
+      if(frame.contentDocument?.readyState==='complete')setTimeout(launch,120);
+      else frame.onload=()=>setTimeout(launch,120);
+    }});
+  }}
   async function announceConcept(index){{
     const s=slides[index];
     const prefix=index===0?s.first_transition:s.next_transition;
     const message=(prefix+' '+s.title).trim();
     try{{await Promise.resolve(window.NABILLessonE2E?.speak?.(message,{json.dumps(lang_code)}));}}catch(_e){{}}
   }}
-  function playAll(){{
+  async function playAll(){{
     stop();const token=runToken;idx=0;
-    const next=async()=>{{
-      if(token!==runToken||idx>=slides.length)return;
+    for(idx=0;idx<slides.length;idx++){{
+      if(token!==runToken)return;
       render();
       await announceConcept(idx);
       if(token!==runToken)return;
-      demoCurrent(()=>{{
-        if(token!==runToken)return;
-        idx++;
-        if(idx<slides.length)setTimeout(next,350);
-      }});
-    }};
-    next();
+      await teachCurrent();
+      if(token!==runToken)return;
+      [...timeline.children].forEach((b,i)=>b.className='wl-dot '+(i<=idx?'done':''));
+      await new Promise(r=>setTimeout(r,220));
+    }}
   }}
   document.getElementById('nabilWholePrev').onclick=()=>{{stop();idx=(idx+slides.length-1)%slides.length;render()}};
   document.getElementById('nabilWholeNext').onclick=()=>{{stop();idx=(idx+1)%slides.length;render()}};
-  document.getElementById('nabilWholeCurrent').onclick=()=>{{stop();demoCurrent()}};
+  document.getElementById('nabilWholeCurrent').onclick=()=>{{stop();teachCurrent()}};
   document.getElementById('nabilWholePlay').onclick=playAll;
-  document.getElementById('nabilWholeStop').onclick=stop;
+  document.getElementById('nabilWholeStop').onclick=()=>{{
+    stop();
+    try{{frame.contentDocument?.querySelector('.nabil-reference-smart-lab')?.dispatchEvent(new CustomEvent('nabil:teach-stop'))}}catch(_e){{}}
+  }};
+  window.NABILWholeLessonOrchestrator={{
+    play:playAll,
+    stop:()=>document.getElementById('nabilWholeStop')?.click(),
+    current:()=>teachCurrent(),
+    goTo:(i)=>{{stop();idx=Math.max(0,Math.min(slides.length-1,Number(i)||0));render();}}
+  }};
   buildTimeline();render();
  }})();
  </script>
@@ -6800,6 +6826,20 @@ function zoomImage(img) {{
   modal.style.display = 'flex';
   modalImg.src = img.src;
 }}
+
+function startNABILWholeLesson() {{
+  const lab = document.getElementById('nabilWholeLessonSmartLab');
+  if (!lab) return;
+  lab.scrollIntoView({behavior:'smooth', block:'start'});
+  setTimeout(() => {{
+    if (window.NABILWholeLessonOrchestrator?.play) {{
+      window.NABILWholeLessonOrchestrator.play();
+    }} else {{
+      document.getElementById('nabilWholePlay')?.click();
+    }}
+  }}, 280);
+}}
+document.getElementById('nabilExplainWholeLessonLabs')?.addEventListener('click', startNABILWholeLesson);
 
 function navigateToExercises() {{
   const url = new URL(window.location.href);
