@@ -65,6 +65,31 @@ jobs:
           assert resolve_lang_code("Arabic") == "ar"
           assert "Modern Standard Arabic" in narrative_language_instruction("ar")
 
+          # Every verified lab now requires a real teacher_script.  These helpers are
+          # test-only evidence-locked fixtures; production still gets scripts from
+          # the factory and remains fail-closed.
+          def fixture_teacher(ref, first_target, second_target, quote="Verified fixture evidence"):
+              return [
+                  {
+                      "say": "Observe the verified element.",
+                      "target_ids": [first_target],
+                      "action": "point",
+                      "state_before": {},
+                      "state_after": {},
+                      "scientific_constraints": ["fixture_evidence_only"],
+                      "evidence_quote": quote,
+                  },
+                  {
+                      "say": "Conclude only from the verified evidence.",
+                      "target_ids": [second_target],
+                      "action": "conclude",
+                      "state_before": {},
+                      "state_after": {},
+                      "scientific_constraints": ["fixture_evidence_only"],
+                      "evidence_quote": quote,
+                  },
+              ]
+
           # Test-only fixture: verifies renderer behavior, never production evidence.
           spec = {
               "supported": True,
@@ -73,10 +98,12 @@ jobs:
               "instructions": "Enter values",
               "observation": "Fixture observation",
               "evidence_ref": "C01",
+              "teacher_script": fixture_teacher("C01", "C01_a", "C01_result"),
               "formula": {"output": "y", "input_a": "a", "input_b": "b", "operator": "+"},
           }
           lab_html, active = render_verified_lab(spec, "en", "C01")
           assert active
+          assert 'data-teacher-pointer="sentence-synced"' in lab_html
           assert 'type="number"' in lab_html
           assert 'type="range"' not in lab_html
           assert ' min=' not in lab_html and ' max=' not in lab_html
@@ -88,6 +115,7 @@ jobs:
               "instructions": "Drag the vessel.",
               "observation": "Fixture observation",
               "evidence_ref": "C05",
+              "teacher_script": fixture_teacher("C05", "C05_grab", "C05_invariant"),
               "invariant_orientation": "horizontal",
           }
           orientation_html, active = render_verified_lab(orientation_spec, "en", "C05")
@@ -194,6 +222,7 @@ jobs:
               "instructions": "Drag material.",
               "observation": "Fixture observation",
               "evidence_ref": "C06",
+              "teacher_script": fixture_teacher("C06", "C06_matter", "C06_dropB"),
               "behavior": "conforms",
           }
           shape_html, active = render_verified_lab(shape_spec, "en", "C06")
@@ -208,6 +237,8 @@ jobs:
               "instructions": "Explore.",
               "observation": "Verified only.",
               "evidence_ref": "C07",
+              "teacher_script": fixture_teacher(
+                  "C07", "C07_item_0", "C07_item_0", "Verified idea"),
               "items": [{"label": "Idea", "evidence_quote": "Verified idea"}],
           }
           reveal_html, active = render_verified_lab(reveal_spec, "en", "C07")
@@ -225,6 +256,26 @@ jobs:
               "instructions": "Inspect the switch and circuit.",
               "observation": "Fixture observation",
               "evidence_ref": "C02",
+              "teacher_script": [
+                  {
+                      "say": "First close the switch.",
+                      "target_ids": ["C02_switch"],
+                      "action": "set_state",
+                      "state_before": {"switch_closed": False},
+                      "state_after": {"switch_closed": True},
+                      "scientific_constraints": ["open_switch_zero_current"],
+                      "evidence_quote": "Open switch means zero current.",
+                  },
+                  {
+                      "say": "With the switch closed, current can flow through the series path.",
+                      "target_ids": ["C02_current"],
+                      "action": "observe",
+                      "state_before": {"switch_closed": True},
+                      "state_after": {"switch_closed": True},
+                      "scientific_constraints": ["series_same_current", "ohms_law"],
+                      "evidence_quote": "Closed series circuit carries the same current.",
+                  },
+              ],
               "resistors": ["R1", "R2"],
               "switch_control": True,
               "rules": {
@@ -247,6 +298,9 @@ jobs:
               "instructions": "Drag the source.",
               "observation": "Fixture observation",
               "evidence_ref": "C03",
+              "teacher_script": fixture_teacher(
+                  "C03", "C03_normal", "C03_reflected",
+                  "Angles are measured from the normal and incidence equals reflection."),
               "angles_measured_from_normal": True,
               "normal_perpendicular_surface": True,
               "law": "angle_of_incidence_equals_angle_of_reflection",
@@ -264,6 +318,9 @@ jobs:
               "instructions": "Observe electron transfer.",
               "observation": "Fixture observation",
               "evidence_ref": "C04",
+              "teacher_script": fixture_teacher(
+                  "C04", "C04_cation", "C04_formula",
+                  "The verified ion ratio is charge neutral."),
               "cation": {"symbol": "Mg", "charge": 2},
               "anion": {"symbol": "Cl", "charge": -1},
               "cation_ratio": 1,
@@ -293,6 +350,9 @@ jobs:
               "instructions": "Follow the proof.",
               "observation": "Only verified relations are marked.",
               "evidence_ref": "C08",
+              "teacher_script": fixture_teacher(
+                  "C08", "equal_sides", "right_m",
+                  "The proof uses only the verified marked relations."),
               "points": [
                   {"label": "A", "x": 18, "y": 72},
                   {"label": "B", "x": 82, "y": 72},
