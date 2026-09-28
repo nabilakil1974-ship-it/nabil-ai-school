@@ -550,36 +550,157 @@ def search_prepared(title: str, grade: str = "", subject: str = "", language: st
             "source": "google_drive", "bytes": len(data)}
 
 
+
+def _indexed_factory_lessons(grade: str, subject: str):
+    """Read real lesson titles discovered from textbook TOCs by the factory.
+
+    This is read-only: no AI call and no invented titles. Prepared Drive HTML
+    remains authoritative for whether a discovered lesson can already be opened.
+    """
+    index_dir = Path(__file__).resolve().parents[2] / "data" / "factory_book_indexes"
+    rows = []
+    if not index_dir.exists():
+        return rows
+
+    for index_path in sorted(index_dir.glob("*.json")):
+        if index_path.name.startswith("_"):
+            continue
+        try:
+            payload = json.loads(index_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError, UnicodeError):
+            continue
+        if payload.get("status") != "INDEXED":
+            continue
+        for lesson in payload.get("lessons") or []:
+            if not isinstance(lesson, dict):
+                continue
+            if _grade(lesson.get("grade")) != _grade(grade):
+                continue
+            if _subject(lesson.get("subject")) != _subject(subject):
+                continue
+            title = clean_display_title(
+                str(lesson.get("canonical_title") or "").strip())
+            if not title:
+                continue
+            rows.append({
+                "title": title,
+                "raw_title": str(lesson.get("canonical_title") or title),
+                "lesson_id": str(lesson.get("lesson_id") or ""),
+                "book_id": str(lesson.get("book_id") or ""),
+                "language": str(lesson.get("language") or ""),
+                "pdf_start_page": lesson.get("pdf_start_page"),
+                "pdf_end_page": lesson.get("pdf_end_page"),
+                "source": "factory_book_index",
+            })
+
+    # Stable order: source book then physical lesson order, without inventing
+    # curriculum ordering when page metadata is absent.
+    rows.sort(key=lambda x: (
+        x["book_id"],
+        int(x["pdf_start_page"] or 10**9),
+        _norm(x["title"]),
+    ))
+    unique = {}
+    for row in rows:
+        unique.setdefault(
+            (row["book_id"], _norm(row["title"])), row)
+    return list(unique.values())
+
+
+def _prepared_lookup_for_scope(grade: str, subject: str):
+    """Map already-published Drive HTML to normalized lesson titles/aliases."""
+    lookup = {}
+    for item in _entries():
+        if _grade(item.get("grade")) != _grade(grade):
+            continue
+        if _subject(item.get("subject")) != _subject(subject):
+            continue
+        filename = str(item.get("filename", ""))
+        if re.search(r"--EXERCISES\.html$", filename, re.I):
+            continue
+        names = [
+            item.get("lesson"),
+            clean_display_title(item.get("lesson", "")),
+            *(item.get("aliases") or []),
+        ]
+        for name in names:
+            if name:
+                lookup[_norm(name)] = item
+    return lookup
+
+
+
 @router.get("/available")
 def available(grade: str, subject: str):
-    """Live prepared lessons for the selected grade/subject; never invent titles."""
+    """Real textbook TOC lessons first; prepared Drive HTML is openability state.
+
+    The selector may show a lesson as soon as the factory has indexed it from
+    the real textbook TOC. `prepared=true` means its published HTML exists and
+    /resolve can open it now. Legacy prepared lessons are retained as fallback.
+    """
     try:
-        entries = [item for item in _entries()
-                   if _grade(item.get("grade")) == _grade(grade)
-                   and _subject(item.get("subject")) == _subject(subject)]
-        seen = set()
+        indexed = _indexed_factory_lessons(grade, subject)
+        prepared_lookup = _prepared_lookup_for_scope(grade, subject)
+
         lessons = []
-        for item in entries:
-            # حظر ملفات التمارين من القائمة المنسدلة للدروس الأساسية
-            filename = str(item.get("filename", ""))
+        seen = set()
+
+        # Primary source: textbook TOC indexes produced by the factory.
+        for row in indexed:
+            key = _norm(row["title"])
+            prepared = prepared_lookup.get(key)
+            item = {
+                **row,
+                "prepared": bool(prepared),
+                "available_to_open": bool(prepared),
+                "filename": str(prepared.get("filename", "")) if prepared else "",
+                "drive_file_id": str(prepared.get("drive_file_id", "")) if prepared else "",
+            }
+            lessons.append(item)
+            seen.add(key)
+
+        # Compatibility fallback: never hide already-published lessons merely
+        # because an older book has not yet been re-indexed by the new factory.
+        for prepared in _entries():
+            if _grade(prepared.get("grade")) != _grade(grade):
+                continue
+            if _subject(prepared.get("subject")) != _subject(subject):
+                continue
+            filename = str(prepared.get("filename", ""))
             if re.search(r"--EXERCISES\.html$", filename, re.I):
                 continue
+            title = clean_display_title(prepared["lesson"])
+            key = _norm(title)
+            if key in seen:
+                continue
+            seen.add(key)
+            lessons.append({
+                "title": title,
+                "raw_title": prepared["lesson"],
+                "aliases": prepared.get("aliases", []),
+                "filename": filename,
+                "drive_file_id": str(prepared.get("drive_file_id", "")),
+                "prepared": True,
+                "available_to_open": True,
+                "source": "prepared_drive_fallback",
+            })
 
-            key = _norm(item["lesson"])
-            if key not in seen:
-                seen.add(key)
-                lessons.append({
-                    "title": clean_display_title(item["lesson"]),
-                    "raw_title": item["lesson"],
-                    "aliases": item.get("aliases", []),
-                    "filename": filename
-                })
-        return {"grade": grade, "subject": subject, "lessons": lessons,
-                "source": "google_drive", "count": len(lessons)}
+        source = (
+            "factory_book_index+prepared_drive"
+            if indexed else "prepared_drive_fallback")
+        return {
+            "grade": grade,
+            "subject": subject,
+            "lessons": lessons,
+            "source": source,
+            "indexed_count": len(indexed),
+            "prepared_count": sum(1 for x in lessons if x.get("prepared")),
+            "count": len(lessons),
+        }
     except Exception as exc:
         log.exception("DRIVE_AVAILABLE_FAILED")
-        raise HTTPException(503, detail={"reason": type(exc).__name__})
-
+        raise HTTPException(
+            503, detail={"reason": type(exc).__name__}) from exc
 
 @router.get("/resolve")
 def resolve(grade: str, subject: str, lesson: str, language: str = ""):
