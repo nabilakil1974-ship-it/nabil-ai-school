@@ -307,7 +307,7 @@ function renderCard(spec={},target){
    speakCard(card);
  });
  card.querySelector("[data-nabil-stop]")?.addEventListener("click",()=>{
-   try{window.stopNabilNeuralVoice?.();window.speechSynthesis?.cancel?.()}catch(_e){}
+   try{window.NABILBrowserTTS?.stop?.();window.stopNabilNeuralVoice?.();window.speechSynthesis?.cancel?.()}catch(_e){}
  try{card.dispatchEvent(new CustomEvent("nabil:teach-stop",{bubbles:true}))}catch(_e){}
   });
  try{window.MathJax?.typesetPromise?.([card])}catch(_e){}
@@ -338,8 +338,8 @@ function speakCard(card){
   const spoken=text(card.dataset.nabilSpeechText);
   const language=text(card.dataset.nabilSpeechLanguage)||"English";
   if(!spoken)return;
-  try{window.stopNabilNeuralVoice?.();window.speechSynthesis?.cancel?.()}catch(_e){}
-  const fn=window.__nabilScientificNativeSpeak||window.nabilSpeakClear;
+  try{window.NABILBrowserTTS?.stop?.();window.stopNabilNeuralVoice?.();window.speechSynthesis?.cancel?.()}catch(_e){}
+  const fn=window.NABILBrowserTTS?.speak||window.__nabilScientificNativeSpeak||window.nabilSpeakClear;
   if(typeof fn==="function"){
     try{
       return Promise.resolve(fn(spoken,language,{
@@ -450,7 +450,7 @@ function installGeneralExercisesBridge(){
            },220);
 
            window.__nabilScientificGeneralPending=false;
-           try{window.stopNabilNeuralVoice?.();window.speechSynthesis?.cancel?.()}catch(_e){}
+           try{window.NABILBrowserTTS?.stop?.();window.stopNabilNeuralVoice?.();window.speechSynthesis?.cancel?.()}catch(_e){}
            window.setTimeout(()=>speakCard(card),120);
            card.scrollIntoView({behavior:"smooth",block:"nearest"});
          }catch(error){
