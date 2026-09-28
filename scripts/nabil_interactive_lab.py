@@ -580,22 +580,56 @@ def _reference_contract_wrap(raw_html:str,spec:Dict[str,Any],lang_code:str,lab_i
    const cues={json.dumps(cues,ensure_ascii=False)};
    const teacherSteps={json.dumps(teacher_steps,ensure_ascii=False)};
    let cueIndex=0,token=0;
-   function targets(){{
+   function visible(el){{
+     if(!el)return false;
+     const r=el.getBoundingClientRect?.();
+     return !!r && r.width>0 && r.height>0;
+   }}
+   function fallbackTargets(){{
      if(!inner)return [];
      const preferred=[...inner.querySelectorAll(
-       '.nabil-seq-step,.nabil-reveal-item,svg,input,select,[id$="_result"],p'
-     )].filter(x=>x.offsetParent!==null);
+       '.nabil-seq-step,.nabil-reveal-item,[data-teacher-target],svg g[id],svg path[id],svg line[id],svg circle[id],input,select,[id$="_result"],p'
+     )].filter(visible);
      return preferred.length?preferred:[inner];
    }}
-   function point(index){{
-     const list=targets();if(!list.length||!line)return;
-     const target=list[Math.max(0,Math.min(index,list.length-1))];
+   function targetById(raw){{
+     if(!inner||!raw)return null;
+     const key=String(raw),slug=key.replace(/[^a-zA-Z0-9_]/g,'_');
+     const direct=[key,slug,'{safe}_'+slug,'{safe}_'+key]
+       .map(id=>document.getElementById(id)).find(el=>el&&inner.contains(el)&&visible(el));
+     if(direct)return direct;
+     const data=[...inner.querySelectorAll('[data-teacher-target]')]
+       .find(el=>String(el.dataset.teacherTarget||'')===key&&visible(el));
+     if(data)return data;
+     const suffix=[...inner.querySelectorAll('[id]')]
+       .find(el=>visible(el)&&(el.id.endsWith('_'+slug)||el.id.endsWith(slug)));
+     return suffix||null;
+   }}
+   function point(index,targetIds=[]){{
+     if(!line)return;
+     const explicit=(Array.isArray(targetIds)?targetIds:[]).map(targetById).find(Boolean);
+     const list=fallbackTargets();
+     const target=explicit||(list.length?list[Math.max(0,Math.min(index,list.length-1))]:inner);
+     if(!target)return;
      shell.querySelectorAll('.nabil-ref-focused').forEach(x=>x.classList.remove('nabil-ref-focused'));
      target.classList.add('nabil-ref-focused');
      const sr=shell.getBoundingClientRect(),tr=target.getBoundingClientRect();
      const x2=Math.max(18,Math.min(sr.width-18,tr.left-sr.left+tr.width/2));
      const y2=Math.max(52,Math.min(sr.height-18,tr.top-sr.top+Math.min(tr.height/2,60)));
      line.setAttribute('x2',x2);line.setAttribute('y2',y2);
+   }}
+   function publishTeacherState(detail){{
+     // Renderers own the science.  The shell publishes the verified transition
+     // before narration so a renderer can visibly apply state_after first.
+     inner?.dispatchEvent(new CustomEvent('nabil:teacher-state',{{detail,bubbles:true}}));
+     shell?.dispatchEvent(new CustomEvent('nabil:teacher-step',{{detail}}));
+     const after=detail.state_after||{{}};
+     if(inner){{
+       Object.entries(after).forEach(([k,v])=>{{
+         const name='teacher'+String(k).replace(/(^|_)([a-z])/g,(_m,_p,c)=>c.toUpperCase());
+         try{{inner.dataset[name]=typeof v==='object'?JSON.stringify(v):String(v)}}catch(_e){{}}
+       }});
+     }}
    }}
    async function speakCue(index){{
      if(!cues.length)return;
@@ -604,9 +638,10 @@ def _reference_contract_wrap(raw_html:str,spec:Dict[str,Any],lang_code:str,lab_i
      const detail={{index:cueIndex,action:step.action||"point",target_ids:step.target_ids||[],
        state_before:step.state_before||{{}},state_after:step.state_after||{{}},
        scientific_constraints:step.scientific_constraints||[],evidence_quote:step.evidence_quote||""}};
-     inner?.dispatchEvent(new CustomEvent("nabil:teacher-state",{{detail}}));
-     shell?.dispatchEvent(new CustomEvent("nabil:teacher-step",{{detail}}));
-     point(cueIndex);
+     publishTeacherState(detail);
+     point(cueIndex,detail.target_ids);
+     // Let the renderer paint the verified state transition before speech.
+     await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
      try{{await Promise.resolve(window.NABILLessonE2E?.speak?.(cues[cueIndex],{json.dumps(lang_code)}));}}catch(_e){{}}
    }}
    async function playAll(){{
@@ -632,9 +667,9 @@ def _reference_contract_wrap(raw_html:str,spec:Dict[str,Any],lang_code:str,lab_i
    document.getElementById('{safe}_ref_stop')?.addEventListener('click',stopTeaching);
    shell?.addEventListener('nabil:teach-all',playAll);
    shell?.addEventListener('nabil:teach-stop',stopTeaching);
-   inner?.addEventListener('nabil:demo',()=>{{cueIndex=0;point(0);}});
-   window.addEventListener('resize',()=>point(cueIndex),{{passive:true}});
-   requestAnimationFrame(()=>point(0));
+   inner?.addEventListener('nabil:demo',()=>{{cueIndex=0;point(0,(teacherSteps[0]||{{}}).target_ids||[]);}});
+   window.addEventListener('resize',()=>point(cueIndex,(teacherSteps[cueIndex]||{{}}).target_ids||[]),{{passive:true}});
+   requestAnimationFrame(()=>point(0,(teacherSteps[0]||{{}}).target_ids||[]));
  }})();
  </script>
 </section>"""
