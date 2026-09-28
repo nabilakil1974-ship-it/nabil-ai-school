@@ -42,7 +42,7 @@ function splitMixed(text,base){
  const raw=String(text||"").trim();
  if(base!=="ar")return raw?[{text:raw,code:base}]:[];
  const parts=raw.split(/([A-Za-z][A-Za-z0-9_.+-]*(?:\s+[A-Za-z][A-Za-z0-9_.+-]*)*)/g).filter(Boolean);
- return parts.map(part=>({text:part,code:/[A-Za-z]/.test(part)&&!/[\u0600-\u06FF]/.test(part)?"en":"ar"})).filter(x=>x.text.trim());
+ return parts.map(part=>({text:part,code:/[A-Za-z]/.test(part)&&!/[؀-ۿ]/.test(part)?"en":"ar"})).filter(x=>x.text.trim());
 }
 function stop(){
  token++;
@@ -94,7 +94,7 @@ async function speak(text,language,options={}){
 }
 
 window.NABILBrowserTTS={
- version:"1.0.1",
+ version:"1.0.2",
  engine:"SpeechSynthesis",
  paidEndpoint:false,
  maleVoicePreferred:true,
@@ -108,4 +108,5 @@ window.stopNabilNeuralVoice=stop;
 // Speaking itself remains owned by the verified teacher_script renderer.
 document.addEventListener("nabil:teacher-stopped",stop);
 document.addEventListener("nabil:teach-stop",stop);
+document.addEventListener("nabil:teacher-stop",stop);
 })();
