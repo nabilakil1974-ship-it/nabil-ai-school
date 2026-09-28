@@ -149,11 +149,30 @@ async function buildInlineQuestionLab(source,card,labKey,result){
  }
 }
 
-function playOneExistingLab(lab){
+function teacherHostForLab(lab){
+ if(!lab)return null;
+ return lab.closest(".nabil-reference-smart-lab")||lab;
+}
+function stopOneExistingLab(lab){
  if(!lab)return;
  try{window.NABILLessonE2E?.stopSpeech?.()}catch(_e){}
+ const host=teacherHostForLab(lab);
+ try{host?.dispatchEvent(new CustomEvent("nabil:teach-stop",{bubbles:false}))}catch(_e){}
+}
+function playOneExistingLab(lab){
+ if(!lab)return;
+ stopOneExistingLab(lab);
  lab.scrollIntoView({behavior:"smooth",block:"center"});
- setTimeout(()=>lab.dispatchEvent(new CustomEvent("nabil:demo",{bubbles:false})),450);
+ const host=teacherHostForLab(lab);
+ setTimeout(()=>{
+  // New factory contract: the verified teacher_script controls pointer,
+  // scientific state and speech. Keep nabil:demo only for old published labs.
+  if(host&&host!==lab&&host.dataset.teacherPointer){
+   host.dispatchEvent(new CustomEvent("nabil:teach-all",{bubbles:false}));
+  }else{
+   lab.dispatchEvent(new CustomEvent("nabil:demo",{bubbles:false}));
+  }
+ },450);
 }
 function wireConceptLabs(){
  qsa(".nabil-concept-card").forEach(card=>{
@@ -184,8 +203,14 @@ async function playWholeLesson(){
  for(const lab of labs){
   if(token!==lessonRunToken)return;
   playOneExistingLab(lab);
-  const ms=Math.max(2500,Math.min(20000,Number(lab.dataset.demoMs)||6500));
-  await new Promise(r=>setTimeout(r,ms));
+  const host=teacherHostForLab(lab);
+  const ms=Math.max(2500,Math.min(30000,Number(lab.dataset.demoMs)||6500));
+  await new Promise(resolve=>{
+   let done=false;
+   const finish=()=>{if(done)return;done=true;clearTimeout(timer);host?.removeEventListener("nabil:teacher-complete",finish);resolve();};
+   host?.addEventListener("nabil:teacher-complete",finish,{once:true});
+   const timer=setTimeout(finish,ms);
+  });
  }
 }
 function wireWholeLesson(){
@@ -257,5 +282,5 @@ function wireAll(){
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",wireAll,{once:true});else wireAll();
 new MutationObserver(()=>wireAll()).observe(document.documentElement,{subtree:true,childList:true});
-window.NABILSmartLabs={buildQuestionLab,playWholeLesson,playOneExistingLab};
+window.NABILSmartLabs={buildQuestionLab,playWholeLesson,playOneExistingLab,stopOneExistingLab};
 })();
