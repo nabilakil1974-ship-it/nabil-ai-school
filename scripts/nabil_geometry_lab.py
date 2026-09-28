@@ -135,6 +135,7 @@ def validate_geometry_proof_spec(spec: Dict[str, Any]) -> Dict[str, Any]:
         )
         if (
             not isinstance(targets, list)
+            or not targets
             or any(str(x) not in allowed_targets for x in targets)
         ):
             raise RuntimeError(f"LAB_GEOMETRY_PROOF_STEP_TARGET_INVALID:{i}")
@@ -349,7 +350,9 @@ def render_geometry_proof_lab(spec: Dict[str, Any], lang: str, lab_id: str) -> T
   }}
   function render(){{
     const s=steps[step];clear();
-    s.reveal.forEach(id=>q('{safe}_mark_'+String(id).replace(/[^a-zA-Z0-9_]/g,'_'))?.classList.add('on'));
+    const established=[];
+     for(let j=0;j<=step;j++) (steps[j].reveal||[]).forEach(id=>{{if(!established.includes(id))established.push(id)}});
+     established.forEach(id=>q('{safe}_mark_'+String(id).replace(/[^a-zA-Z0-9_]/g,'_'))?.classList.add('on'));
     focusKey((s.targets&&s.targets[0])||s.reveal[0]||'');
     q('{safe}_title').textContent=s.title;q('{safe}_text').textContent=s.text;q('{safe}_formula').textContent=s.formula||'';
     q('{safe}_formula').style.display=s.formula?'block':'none';q('{safe}_count').textContent=(step+1)+' / '+steps.length;
@@ -372,14 +375,34 @@ def render_geometry_proof_lab(spec: Dict[str, Any], lang: str, lab_id: str) -> T
     }};
     next();
   }}
-  function playAll(){{token++;const my=token;let i=0;const next=()=>{{if(my!==token)return;if(i>=steps.length)return;speakOne(i++,next)}};next()}}
+  function playAll(){{
+     token++;const my=token;let i=0;
+     q('lab_{safe}').dispatchEvent(new CustomEvent('nabil:teacher-start',{{detail:{{labRef:'{safe}',stepCount:steps.length}},bubbles:true}}));
+     const next=()=>{{
+       if(my!==token)return;
+       if(i>=steps.length){{
+         q('lab_{safe}').dispatchEvent(new CustomEvent('nabil:teacher-complete',{{detail:{{labRef:'{safe}',stepCount:steps.length}},bubbles:true}}));
+         return;
+       }}
+       speakOne(i++,next);
+     }};
+     next();
+   }}
   q('{safe}_prev').onclick=()=>{{token++;step=(step+steps.length-1)%steps.length;render()}};
   q('{safe}_next').onclick=()=>{{token++;step=(step+1)%steps.length;render()}};
   q('{safe}_speak').onclick=()=>{{token++;speakOne(step)}};
   q('{safe}_all').onclick=playAll;
-  q('{safe}_stop').onclick=()=>{{token++;try{{window.NABILLessonE2E?.stopSpeech?.()}}catch(_e){{}}}};
-  q('{safe}_reset').onclick=()=>{{token++;step=0;render()}};
+  function stopTeaching(){{
+     token++;try{{window.NABILLessonE2E?.stopSpeech?.()}}catch(_e){{}}
+     q('lab_{safe}').querySelectorAll('.geo-focus').forEach(x=>x.classList.remove('geo-focus'));
+     q('lab_{safe}').dispatchEvent(new CustomEvent('nabil:teacher-stopped',{{detail:{{labRef:'{safe}'}},bubbles:true}}));
+   }}
+   q('{safe}_stop').onclick=stopTeaching;
+  q('{safe}_reset').onclick=()=>{{stopTeaching();step=0;render()}};
   q('lab_{safe}').addEventListener('nabil:demo',playAll);
+   q('lab_{safe}').addEventListener('nabil:teach-all',playAll);
+   q('lab_{safe}').addEventListener('nabil:teach-stop',stopTeaching);
+   q('lab_{safe}').addEventListener('nabil:teacher-stop',stopTeaching);
   buildTimeline();render();
  }})();
  </script>
