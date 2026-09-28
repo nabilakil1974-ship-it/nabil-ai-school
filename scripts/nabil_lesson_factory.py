@@ -2154,6 +2154,160 @@ def build_all_registered_book_indexes(drive_service=None, force: bool = False) -
     return report
 
 
+
+def _normalize_grade_selector(value: Any) -> Optional[int]:
+    """Normalize CLI/catalog grade values such as 7, G07, EB7 or Grade 7."""
+    if value in (None, ""):
+        return None
+    if isinstance(value, int):
+        return value
+    text = str(value).strip()
+    match = re.search(r"(\d{1,2})", text)
+    if not match:
+        raise RuntimeError(f"GRADE_SELECTOR_INVALID: {value}")
+    return int(match.group(1))
+
+
+def _normalize_subject_selector(value: Any) -> str:
+    """Use the same subject aliases as the teaching engine."""
+    text = str(value or "").strip().casefold().replace(" ", "_")
+    return SUBJECT_ALIASES.get(text, text)
+
+
+def _book_matches_scope(meta: dict, grade: Any = None, subject: Any = None) -> bool:
+    wanted_grade = _normalize_grade_selector(grade)
+    wanted_subject = _normalize_subject_selector(subject) if subject not in (None, "") else ""
+    if wanted_grade is not None:
+        try:
+            actual_grade = _normalize_grade_selector(meta.get("grade"))
+        except RuntimeError:
+            return False
+        if actual_grade != wanted_grade:
+            return False
+    if wanted_subject:
+        actual_subject = _normalize_subject_selector(meta.get("subject"))
+        if actual_subject != wanted_subject:
+            return False
+    return True
+
+
+def build_scoped_book_indexes(
+        drive_service=None, force: bool = False,
+        grade: Any = None, subject: Any = None) -> dict:
+    """Index every registered book matching a grade and/or subject selector."""
+    books = [
+        meta for meta in _registered_books_from_catalog()
+        if _book_matches_scope(meta, grade=grade, subject=subject)
+    ]
+    if not books:
+        raise RuntimeError(
+            f"BOOK_INDEX_SCOPE_EMPTY: grade={grade!r} subject={subject!r}")
+
+    report = {
+        "status": "RUNNING",
+        "schema": "NABIL_SCOPED_BOOK_INDEX_V1",
+        "generated_at": now(),
+        "grade": _normalize_grade_selector(grade),
+        "subject": _normalize_subject_selector(subject) if subject not in (None, "") else None,
+        "book_count": len(books),
+        "indexed": [],
+        "failed": [],
+    }
+    progress(
+        "SCOPED_BOOK_INDEX_START", books=len(books),
+        grade=report["grade"], subject=report["subject"])
+
+    for position, meta in enumerate(books, 1):
+        book_id = meta["book_id"]
+        try:
+            result = build_book_lesson_index(
+                book_id,
+                drive_service=drive_service,
+                force=force,
+                book_metadata=meta,
+            )
+            report["indexed"].append({
+                "book_id": book_id,
+                "position": position,
+                "grade": meta.get("grade"),
+                "subject": meta.get("subject"),
+                "lesson_count": result.get("lesson_count", 0),
+                "work_count": result.get("work_count", 0),
+                "index_path": str(
+                    BOOK_INDEX_DIR / f"{_book_index_safe_id(book_id)}.json"),
+            })
+        except Exception as exc:
+            report["failed"].append({
+                "book_id": book_id,
+                "position": position,
+                "error": f"{type(exc).__name__}: {exc}",
+            })
+            progress(
+                "SCOPED_BOOK_INDEX_BOOK_FAILED",
+                book_id=book_id, error=str(exc))
+
+    report["indexed_count"] = len(report["indexed"])
+    report["failed_count"] = len(report["failed"])
+    report["status"] = "INDEXED" if not report["failed"] else "PARTIAL_FAILURE"
+    report["completed_at"] = now()
+    progress(
+        "SCOPED_BOOK_INDEX_COMPLETE",
+        indexed=report["indexed_count"], failed=report["failed_count"])
+    return report
+
+
+def _indexed_lessons_for_scope(grade: Any = None, subject: Any = None) -> List[dict]:
+    """Read discovered lessons from completed per-book indexes for a scope."""
+    lessons: List[dict] = []
+    for index_path in sorted(BOOK_INDEX_DIR.glob("*.json")):
+        if index_path.name.startswith("_"):
+            continue
+        try:
+            payload = json.loads(index_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if payload.get("status") != "INDEXED":
+            continue
+        for entry in payload.get("lessons") or []:
+            if isinstance(entry, dict) and _book_matches_scope(
+                    entry, grade=grade, subject=subject):
+                lessons.append(entry)
+    return lessons
+
+
+def resolve_lesson_selector(
+        lesson: str, grade: Any = None, subject: Any = None) -> dict:
+    """Resolve a lesson by exact/fuzzy title inside the requested grade/subject."""
+    needle = re.sub(r"\s+", " ", str(lesson or "")).strip().casefold()
+    if not needle:
+        raise RuntimeError("LESSON_SELECTOR_EMPTY")
+
+    candidates = _indexed_lessons_for_scope(grade=grade, subject=subject)
+    exact = [
+        e for e in candidates
+        if re.sub(r"\s+", " ", str(e.get("canonical_title") or "")).strip().casefold() == needle
+        or str(e.get("lesson_id") or "").strip().casefold() == needle
+    ]
+    if len(exact) == 1:
+        return exact[0]
+    if len(exact) > 1:
+        raise RuntimeError(
+            "LESSON_SELECTOR_AMBIGUOUS: " +
+            "; ".join(f"{e.get('lesson_id')}={e.get('canonical_title')}" for e in exact[:20]))
+
+    partial = [
+        e for e in candidates
+        if needle in re.sub(r"\s+", " ", str(e.get("canonical_title") or "")).strip().casefold()
+    ]
+    if len(partial) == 1:
+        return partial[0]
+    if len(partial) > 1:
+        raise RuntimeError(
+            "LESSON_SELECTOR_AMBIGUOUS: " +
+            "; ".join(f"{e.get('lesson_id')}={e.get('canonical_title')}" for e in partial[:20]))
+    raise RuntimeError(
+        f"LESSON_SELECTOR_NOT_FOUND: lesson={lesson!r} grade={grade!r} subject={subject!r}")
+
 def build_book_lesson_index(book_id: str, drive_service=None, force: bool = False, book_metadata: Optional[dict] = None) -> dict:
     """Drive/local PDF -> TOC -> lessons -> page ranges -> linked activities/exercises."""
     import fitz
@@ -8078,23 +8232,44 @@ def main():
     source_code = Path(__file__).read_text(encoding="utf-8")
     assert_no_lesson_specific_hardcode(source_code)
     assert_no_markdown_urls_in_runtime_code(source_code)
-
     py_compile.compile(__file__, doraise=True)
 
     parser = argparse.ArgumentParser(description="NABIL AI Universal Production Factory")
-    parser.add_argument("--lesson-id", type=str, default="G07-PHYSICS-001", help="Target canonical lesson ID")
-    parser.add_argument("--index-book", type=str, default=None, help="Google Drive book file ID: download and automatically index TOC, lessons and works")
+    parser.add_argument("--lesson-id", type=str, default=None, help="Exact canonical/discovered lesson ID")
+    parser.add_argument("--grade", type=str, default=None, help="Grade selector, e.g. 7, G07, EB7, 9")
+    parser.add_argument("--subject", type=str, default=None, help="Subject selector, e.g. physics, mathematics, فيزياء, رياضيات")
+    parser.add_argument("--lesson", type=str, default=None, help="Lesson title/name inside the selected grade/subject")
+    parser.add_argument("--index-book", type=str, default=None, help="Google Drive book file ID: index its TOC, lessons and works")
     parser.add_argument("--index-all-books", action="store_true", help="Index every unique source book registered in the canonical catalog")
-    parser.add_argument("--force-book-index", action="store_true", help="Rebuild automatic book index even when a cached index exists")
+    parser.add_argument("--force-book-index", action="store_true", help="Rebuild book indexes even when a valid cached index exists")
     parser.add_argument("--check-ai", action="store_true", help="Probe vision with generated blank image; no textbook page or Drive access")
-    parser.add_argument("--publish", action="store_true", help="Publish directly to Google Drive")
-    parser.add_argument("--rollback", type=int, default=None, help="Target version to rollback")
+    parser.add_argument("--publish", action="store_true", help="Publish produced lesson directly to Google Drive")
+    parser.add_argument("--rollback", type=int, default=None, help="Target version to rollback; requires --lesson-id")
     args = parser.parse_args()
 
     if args.rollback is not None:
+        if not args.lesson_id:
+            raise RuntimeError("ROLLBACK_REQUIRES_LESSON_ID")
         drive_service = get_drive_service()
         rollback_lesson_drive(drive_service, args.lesson_id, args.rollback)
         return 0
+
+    if args.check_ai:
+        execute_preflight_checks(require_drive=False)
+        from PIL import Image
+        sample = io.BytesIO()
+        Image.new("RGB", (64, 64), "white").save(sample, format="PNG")
+        progress("AI_VISION_PROBE_START", image="generated_blank_64x64")
+        response = execute_llm_completion(
+            'Return only valid JSON: {"ok":true}', json_mode=True,
+            image_base64=base64.b64encode(sample.getvalue()).decode("ascii"))
+        json.loads(response)
+        progress("AI_VISION_PROBE_PASS")
+        return 0
+
+    # No target means the safe universal action: index the whole registered curriculum.
+    if not any((args.lesson_id, args.grade, args.subject, args.lesson, args.index_book, args.index_all_books)):
+        args.index_all_books = True
 
     if args.index_all_books:
         drive_service = get_drive_service()
@@ -8115,24 +8290,44 @@ def main():
         print(json.dumps(book_index, ensure_ascii=False, indent=2))
         return 0
 
-    execute_preflight_checks(require_drive=args.publish)
-    if args.check_ai:
-        # Probe the image model without any source material; no Drive access.
-        from PIL import Image
-        sample = io.BytesIO()
-        Image.new("RGB", (64, 64), "white").save(sample, format="PNG")
-        progress("AI_VISION_PROBE_START", image="generated_blank_64x64")
-        response = execute_llm_completion(
-            'Return only valid JSON: {"ok":true}', json_mode=True,
-            image_base64=base64.b64encode(sample.getvalue()).decode("ascii"))
-        json.loads(response)
-        progress("AI_VISION_PROBE_PASS")
-        return 0
-    entry = resolve_canonical_entry(args.lesson_id)
-    
-    drive_service = get_drive_service() if args.publish else None
+    # Grade and/or subject without a lesson means: index that complete scope.
+    if (args.grade or args.subject) and not (args.lesson or args.lesson_id):
+        drive_service = get_drive_service()
+        report = build_scoped_book_indexes(
+            drive_service=drive_service,
+            force=args.force_book_index,
+            grade=args.grade,
+            subject=args.subject,
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        return 0 if report["failed_count"] == 0 else 2
 
-    report = produce_lesson_for_entry(entry, drive_service=drive_service, publish=args.publish)
+    # A lesson title is dynamic: first ensure its grade/subject books are indexed,
+    # then resolve the real discovered lesson and feed the unchanged production pipeline.
+    if args.lesson:
+        if not args.grade or not args.subject:
+            raise RuntimeError("LESSON_SELECTOR_REQUIRES_GRADE_AND_SUBJECT")
+        drive_service = get_drive_service()
+        scope_report = build_scoped_book_indexes(
+            drive_service=drive_service,
+            force=args.force_book_index,
+            grade=args.grade,
+            subject=args.subject,
+        )
+        if scope_report["failed_count"]:
+            raise RuntimeError(
+                f"LESSON_SCOPE_INDEX_INCOMPLETE: failed_books={scope_report['failed_count']}")
+        entry = resolve_lesson_selector(
+            args.lesson, grade=args.grade, subject=args.subject)
+    elif args.lesson_id:
+        entry = resolve_canonical_entry(args.lesson_id)
+    else:
+        raise RuntimeError("TARGET_REQUIRED: use --index-all-books, --index-book, --grade/--subject, --lesson, or --lesson-id")
+
+    execute_preflight_checks(require_drive=args.publish)
+    drive_service = get_drive_service() if args.publish else None
+    report = produce_lesson_for_entry(
+        entry, drive_service=drive_service, publish=args.publish)
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0
 
