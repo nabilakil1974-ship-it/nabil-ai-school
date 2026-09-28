@@ -1980,13 +1980,94 @@ def get_drive_service():
     return build("drive", "v3", credentials=creds, cache_discovery=False)
 
 
-def resolve_drive_root_id() -> str:
-    root_id = os.getenv("NABIL_CURRICULUM_ROOT_ID",
-                        os.getenv("NABIL_INTERACTIVE_CURRICULUM_ROOT_ID",
-                                  os.getenv("NABIL_LESSON_DRIVE_ROOT", ""))).strip()
-    if not root_id:
-        raise RuntimeError("NABIL_CURRICULUM_ROOT_ID_NOT_CONFIGURED: Set NABIL_CURRICULUM_ROOT_ID in environment.")
-    return root_id
+def _looks_like_grade_folder(name: str) -> bool:
+    text = str(name or "").casefold()
+    if re.search(r"\b(?:grade|class|eb|g)[\s._-]*0?(?:[1-9]|1[0-2])\b", text, re.I):
+        return True
+    if re.search(r"(?:صف|الصف)[\s._-]*(?:[1-9]|1[0-2])", text):
+        return True
+    words = (
+        "first","second","third","fourth","fifth","sixth","seventh","eighth",
+        "ninth","tenth","eleventh","twelfth","premier","deuxième","deuxieme",
+        "troisième","troisieme","quatrième","quatrieme","cinquième","cinquieme",
+        "sixième","sixieme","septième","septieme","huitième","huitieme",
+        "neuvième","neuvieme","dixième","dixieme","onzième","onzieme",
+        "douzième","douzieme","الأول","الاول","الثاني","الثالث","الرابع",
+        "الخامس","السادس","السابع","الثامن","التاسع","العاشر",
+        "الحادي عشر","الثاني عشر",
+    )
+    return any(word in text for word in words)
+
+
+def _drive_parent_ids(drive_service, file_id: str) -> List[str]:
+    try:
+        meta = drive_service.files().get(
+            fileId=str(file_id), fields="id,name,mimeType,parents",
+            supportsAllDrives=True).execute()
+    except Exception:
+        return []
+    return [str(x) for x in (meta.get("parents") or []) if str(x).strip()]
+
+
+def _discover_curriculum_root_from_registered_books(drive_service) -> str:
+    """Infer the Drive curriculum root from a real registered source book."""
+    catalog = load_canonical_catalog()
+    seed_ids = []
+    for entry in _iter_canonical_lesson_entries(catalog):
+        book_id = str(entry.get("book_id") or "").strip()
+        if book_id and book_id not in seed_ids:
+            seed_ids.append(book_id)
+    if not seed_ids:
+        raise RuntimeError("CURRICULUM_ROOT_AUTODISCOVERY_NO_REGISTERED_DRIVE_BOOK")
+
+    folder_mime = "application/vnd.google-apps.folder"
+    for seed_id in seed_ids[:12]:
+        current_ids = _drive_parent_ids(drive_service, seed_id)
+        visited, fallback = set(), ""
+        depth = 0
+        while current_ids and depth < 12:
+            parent_id = current_ids[0]
+            if parent_id in visited:
+                break
+            visited.add(parent_id)
+            depth += 1
+            try:
+                children = _drive_list_folder_children(drive_service, parent_id)
+            except Exception:
+                break
+            grade_folders = [
+                row for row in children
+                if row.get("mimeType") == folder_mime
+                and _looks_like_grade_folder(row.get("name", ""))
+            ]
+            if grade_folders:
+                fallback = parent_id
+                if len(grade_folders) >= 2:
+                    progress("DRIVE_CURRICULUM_ROOT_AUTODISCOVERED",
+                             method="registered_book_ancestor",
+                             grade_folders=len(grade_folders))
+                    return parent_id
+            current_ids = _drive_parent_ids(drive_service, parent_id)
+        if fallback:
+            progress("DRIVE_CURRICULUM_ROOT_AUTODISCOVERED",
+                     method="registered_book_single_grade_fallback",
+                     grade_folders=1)
+            return fallback
+    raise RuntimeError(
+        "CURRICULUM_ROOT_AUTODISCOVERY_FAILED:"
+        " no ancestor with recognizable grade folders")
+
+
+def resolve_drive_root_id(drive_service=None) -> str:
+    root_id = os.getenv(
+        "NABIL_CURRICULUM_ROOT_ID",
+        os.getenv("NABIL_INTERACTIVE_CURRICULUM_ROOT_ID",
+                  os.getenv("NABIL_LESSON_DRIVE_ROOT", ""))).strip()
+    if root_id:
+        return root_id
+    if drive_service is None:
+        drive_service = get_drive_service()
+    return _discover_curriculum_root_from_registered_books(drive_service)
 
 
 def resolve_source_book_pdf(book_id: str, drive_service=None) -> Path:
@@ -2085,31 +2166,102 @@ def _page_text_for_book_index(doc, pdf_page: int) -> str:
     return re.sub(r"\r\n?", "\n", text).strip()
 
 
+def _available_tesseract_languages() -> List[str]:
+    if not shutil.which("tesseract"):
+        return []
+    try:
+        proc = subprocess.run(["tesseract", "--list-langs"],
+                              capture_output=True, text=True, timeout=15)
+    except Exception:
+        return []
+    if proc.returncode != 0:
+        return []
+    return [
+        line.strip() for line in proc.stdout.splitlines()
+        if line.strip() and not line.lower().startswith("list of available")
+    ]
+
+
+def _ocr_toc_page(doc, pdf_page: int) -> str:
+    """Local OCR fallback for scanned TOC pages; no external page transfer."""
+    if pdf_page < 1 or pdf_page > len(doc):
+        return ""
+    langs = _available_tesseract_languages()
+    if not langs:
+        return ""
+    preferred = [x for x in ("eng", "fra", "ara") if x in langs] or langs[:1]
+    try:
+        page_sig = hashlib.sha1(
+            doc[pdf_page - 1].get_pixmap(dpi=40, alpha=False).samples
+        ).hexdigest()[:16]
+    except Exception:
+        page_sig = f"{len(doc)}_{pdf_page}"
+    cache = CACHE_DIR / f"book_toc_scan_{page_sig}.txt"
+    if cache.exists():
+        try:
+            return cache.read_text(encoding="utf-8").strip()
+        except Exception:
+            pass
+    try:
+        with tempfile.TemporaryDirectory(prefix="nabil_toc_scan_") as td:
+            image_path = Path(td) / f"toc_p{pdf_page}.png"
+            doc[pdf_page - 1].get_pixmap(dpi=220, alpha=False).save(str(image_path))
+            proc = subprocess.run(
+                ["tesseract", str(image_path), "stdout",
+                 "-l", "+".join(preferred), "--psm", "3"],
+                capture_output=True, text=True, timeout=75)
+        if proc.returncode != 0:
+            return ""
+        text = re.sub(r"\r\n?", "\n", proc.stdout or "").strip()
+        if text:
+            cache.write_text(text, encoding="utf-8")
+        return text
+    except Exception:
+        return ""
+
+
+def _toc_page_text(doc, pdf_page: int, allow_ocr: bool = True) -> str:
+    native = _page_text_for_book_index(doc, pdf_page)
+    if len(re.sub(r"\s+", "", native)) >= 80:
+        return native
+    if allow_ocr:
+        scanned = _ocr_toc_page(doc, pdf_page)
+        if len(re.sub(r"\s+", "", scanned)) > len(re.sub(r"\s+", "", native)):
+            return scanned
+    return native
+
+
+def _toc_numbered_line_count(text: str) -> int:
+    return sum(
+        1 for raw in str(text or "").splitlines()
+        if re.search(r"(?:\.{2,}|\s+|[-–—]\s*)\d{1,4}\s*$",
+                     re.sub(r"\s+", " ", raw).strip())
+    )
+
+
 def _detect_toc_pages(doc, max_scan_pages: int = 40) -> List[int]:
+    """Detect native-text or scanned physical TOC pages from the real PDF."""
     candidates = []
     limit = min(len(doc), max_scan_pages)
     for pdf_page in range(1, limit + 1):
-        text = _page_text_for_book_index(doc, pdf_page)
-        if not text:
-            continue
-        lines = [x.strip() for x in text.splitlines() if x.strip()]
-        numbered_lines = sum(
-            1 for line in lines
-            if re.search(r"(?:\.{2,}|\s{2,})\d{1,4}\s*$", line)
-        )
-        if _TOC_HINT_RE.search(text) or numbered_lines >= 4:
+        native = _page_text_for_book_index(doc, pdf_page)
+        text = native
+        if not _TOC_HINT_RE.search(native) and _toc_numbered_line_count(native) < 4:
+            text = _toc_page_text(doc, pdf_page, allow_ocr=True)
+        numbered = _toc_numbered_line_count(text)
+        if _TOC_HINT_RE.search(text) or numbered >= 4:
             candidates.append(pdf_page)
+            progress("BOOK_INDEX_TOC_PAGE_DETECTED",
+                     pdf_page=pdf_page,
+                     method="native_text" if text == native else "local_ocr",
+                     numbered_lines=numbered)
     if not candidates:
         return []
     expanded = set(candidates)
     for p in list(candidates):
         if p + 1 <= limit:
-            nxt = _page_text_for_book_index(doc, p + 1)
-            numbered = sum(
-                1 for line in nxt.splitlines()
-                if re.search(r"(?:\.{2,}|\s{2,})\d{1,4}\s*$", line.strip())
-            )
-            if numbered >= 3:
+            nxt = _toc_page_text(doc, p + 1, allow_ocr=True)
+            if _toc_numbered_line_count(nxt) >= 3:
                 expanded.add(p + 1)
     return sorted(expanded)
 
@@ -2117,7 +2269,7 @@ def _detect_toc_pages(doc, max_scan_pages: int = 40) -> List[int]:
 def _parse_toc_entries(doc, toc_pages: List[int]) -> List[dict]:
     entries = []
     for toc_pdf_page in toc_pages:
-        text = _page_text_for_book_index(doc, toc_pdf_page)
+        text = _toc_page_text(doc, toc_pdf_page, allow_ocr=True)
         for raw_line in text.splitlines():
             line = re.sub(r"\s+", " ", raw_line).strip()
             if not line:
@@ -2393,7 +2545,7 @@ def discover_curriculum_books_from_drive(
     """
     if drive_service is None:
         drive_service = get_drive_service()
-    root_id = resolve_drive_root_id()
+    root_id = resolve_drive_root_id(drive_service=drive_service)
     wanted_grade = _normalize_grade_selector(grade)
     wanted_subject = (
         _normalize_subject_selector(subject) if subject not in (None, "") else ""
