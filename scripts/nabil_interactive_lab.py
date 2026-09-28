@@ -55,6 +55,27 @@ def validate_lab_spec(spec:Dict[str,Any])->Dict[str,Any]:
     for key in ("title","instructions","observation","evidence_ref"):
         if not str(spec.get(key) or "").strip():
             raise RuntimeError(f"LAB_SPEC_MISSING_FIELD: {key}")
+    teacher_script=spec.get("teacher_script")
+    if not isinstance(teacher_script,list) or not 2<=len(teacher_script)<=12:
+        raise RuntimeError("LAB_TEACHER_SCRIPT_REQUIRED")
+    allowed={"point","highlight","set_state","animate","observe","explain","conclude"}
+    switch_closed=False
+    for i,step in enumerate(teacher_script):
+        if not isinstance(step,dict) or not str(step.get("say") or "").strip() or str(step.get("action") or "") not in allowed:
+            raise RuntimeError(f"LAB_TEACHER_STEP_INVALID:{i}")
+        if not isinstance(step.get("target_ids",[]),list) or not isinstance(step.get("state_before"),dict) or not isinstance(step.get("state_after"),dict):
+            raise RuntimeError(f"LAB_TEACHER_STATE_INVALID:{i}")
+        if not isinstance(step.get("scientific_constraints"),list) or not str(step.get("evidence_quote") or "").strip():
+            raise RuntimeError(f"LAB_TEACHER_EVIDENCE_INVALID:{i}")
+        if kind=="DC_SERIES_CIRCUIT":
+            before=step.get("state_before") or {}; after=step.get("state_after") or {}
+            if "switch_closed" in before and bool(before["switch_closed"])!=switch_closed:
+                raise RuntimeError(f"LAB_CIRCUIT_STATE_DISCONTINUITY:{i}")
+            next_closed=bool(after.get("switch_closed",switch_closed))
+            words=(str(step.get("say") or "")+" "+str(step.get("action") or "")).lower()
+            if any(x in words for x in ("current","charge flow","تيار","مرور الشحن")) and not next_closed:
+                raise RuntimeError(f"LAB_CIRCUIT_FLOW_WITH_OPEN_SWITCH:{i}")
+            switch_closed=next_closed
 
     if kind=="FORMULA_CALCULATOR":
         formula=spec.get("formula") or {}
@@ -488,17 +509,8 @@ def _reference_contract_wrap(raw_html:str,spec:Dict[str,Any],lang_code:str,lab_i
         "fr":"■ Arrêter",
         "en":"■ Stop",
     }.get(lang_code,"■ Stop")
-    cues=[]
-    kind=str(spec.get("kind") or "").upper()
-    if kind=="EVIDENCE_SEQUENCE":
-        cues=[str(x.get("label") or "").strip() for x in spec.get("steps") or []]
-    elif kind=="EVIDENCE_REVEAL":
-        cues=[str(x.get("label") or "").strip() for x in spec.get("items") or []]
-    else:
-        cues=[
-            str(spec.get("instructions") or "").strip(),
-            str(spec.get("observation") or "").strip(),
-        ]
+    teacher_steps=list(spec.get("teacher_script") or [])
+    cues=[str(x.get("say") or "").strip() for x in teacher_steps]
     cues=[x for x in cues if x]
     return f"""
 <section id="{shell_id}" class="nabil-reference-smart-lab"
@@ -566,6 +578,7 @@ def _reference_contract_wrap(raw_html:str,spec:Dict[str,Any],lang_code:str,lab_i
    const inner=shell?.querySelector('.interactive-lab');
    const line=document.getElementById('{safe}_ref_line');
    const cues={json.dumps(cues,ensure_ascii=False)};
+   const teacherSteps={json.dumps(teacher_steps,ensure_ascii=False)};
    let cueIndex=0,token=0;
    function targets(){{
      if(!inner)return [];
@@ -587,6 +600,12 @@ def _reference_contract_wrap(raw_html:str,spec:Dict[str,Any],lang_code:str,lab_i
    async function speakCue(index){{
      if(!cues.length)return;
      cueIndex=((index%cues.length)+cues.length)%cues.length;
+     const step=teacherSteps[cueIndex]||{{}};
+     const detail={{index:cueIndex,action:step.action||"point",target_ids:step.target_ids||[],
+       state_before:step.state_before||{{}},state_after:step.state_after||{{}},
+       scientific_constraints:step.scientific_constraints||[],evidence_quote:step.evidence_quote||""}};
+     inner?.dispatchEvent(new CustomEvent("nabil:teacher-state",{{detail}}));
+     shell?.dispatchEvent(new CustomEvent("nabil:teacher-step",{{detail}}));
      point(cueIndex);
      try{{await Promise.resolve(window.NABILLessonE2E?.speak?.(cues[cueIndex],{json.dumps(lang_code)}));}}catch(_e){{}}
    }}
@@ -629,7 +648,6 @@ def render_verified_lab(spec:Dict[str,Any],lang_code:str,lab_id:str)->Tuple[str,
         raw,active=render_geometry_proof_lab(spec,lang_code,lab_id)
         if not active:
             return "",False
-        return raw,True
     elif kind in ADVANCED_LAB_KINDS:
         raw,active=render_advanced_verified_lab(spec,lang_code,lab_id)
         if not active:
