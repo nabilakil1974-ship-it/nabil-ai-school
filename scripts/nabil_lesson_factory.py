@@ -17,6 +17,7 @@ import json
 import math
 import re
 import hashlib
+import difflib
 import argparse
 import tempfile
 import shutil
@@ -2258,7 +2259,13 @@ def _toc_monotonic_entry_count(text: str) -> int:
 
 
 def _detect_toc_pages(doc, max_scan_pages: int = 40) -> List[int]:
-    """Choose a trustworthy TOC block, not every page that merely contains numbers."""
+    """Detect TOC candidates, then verify them against real lesson pages.
+
+    Raw OCR shape is only a candidate signal.  A page is accepted as the TOC
+    only when its parsed title/page rows can produce a repeated, unique mapping
+    to physical PDF pages.  This prevents a numbered exercise/list page from
+    winning merely because it has many trailing numbers.
+    """
     scored = []
     limit = min(len(doc), max_scan_pages)
     for pdf_page in range(1, limit + 1):
@@ -2269,35 +2276,86 @@ def _detect_toc_pages(doc, max_scan_pages: int = 40) -> List[int]:
         numbered = _toc_numbered_line_count(text)
         monotonic = _toc_monotonic_entry_count(text)
         hint = bool(_TOC_HINT_RE.search(text))
-        # A heading alone is insufficient. Require actual page-bearing TOC rows.
         if numbered < 3 or monotonic < 3:
             continue
-        score = numbered * 3 + monotonic * 2 + (8 if hint else 0)
-        scored.append((score, pdf_page, text == native, numbered, monotonic))
+        # Reward consistency, not just raw numbered-line count.
+        consistency = monotonic / max(1, numbered)
+        score = numbered * 2 + monotonic * 4 + (12 if hint else 0) + round(consistency * 12)
+        scored.append({
+            "score": score, "page": pdf_page, "native": text == native,
+            "numbered": numbered, "monotonic": monotonic,
+            "consistency": round(consistency, 3),
+        })
 
     if not scored:
         return []
 
-    scored.sort(reverse=True)
-    best_score, best_page, _, _, _ = scored[0]
-    selected = {best_page}
-    # Only attach adjacent pages that themselves contain a meaningful TOC continuation.
-    for _, page, _, numbered, monotonic in scored[1:]:
-        if abs(page - best_page) <= 2 and numbered >= 3 and monotonic >= 3:
-            selected.add(page)
+    scored.sort(key=lambda x: (-x["score"], -x["consistency"], x["page"]))
+    # Verify several independent candidates. Adjacent candidate pages are treated
+    # as one possible multi-page TOC block.
+    candidate_blocks = []
+    seen = set()
+    for item in scored[:12]:
+        page = item["page"]
+        if page in seen:
+            continue
+        block = {page}
+        for other in scored:
+            if abs(other["page"] - page) <= 2 and other["numbered"] >= 3 and other["monotonic"] >= 3:
+                block.add(other["page"])
+        block = tuple(sorted(block))
+        seen.update(block)
+        candidate_blocks.append((item, block))
 
-    for score, page, native_used, numbered, monotonic in scored:
-        if page in selected:
-            progress("BOOK_INDEX_TOC_PAGE_DETECTED",
-                     pdf_page=page,
-                     method="native_text" if native_used else "local_ocr",
-                     numbered_lines=numbered,
-                     monotonic_entries=monotonic,
-                     score=score)
-    progress("BOOK_INDEX_TOC_BLOCK_SELECTED",
-             pages=sorted(selected), strongest_page=best_page,
-             strongest_score=best_score)
-    return sorted(selected)
+    verified = []
+    for item, block in candidate_blocks:
+        entries = _parse_toc_entries(doc, list(block))
+        progress(
+            "BOOK_INDEX_TOC_CANDIDATE",
+            pages=list(block), strongest_page=item["page"], raw_score=item["score"],
+            numbered_lines=item["numbered"], monotonic_entries=item["monotonic"],
+            parsed_entries=len(entries), consistency=item["consistency"],
+        )
+        if len(entries) < 2:
+            continue
+        try:
+            offset = _resolve_printed_to_pdf_offset(doc, entries)
+        except RuntimeError as exc:
+            progress(
+                "BOOK_INDEX_TOC_CANDIDATE_REJECTED",
+                pages=list(block), reason=str(exc)[:260],
+            )
+            continue
+        anchors = _offset_probe_entries(entries, limit=8)
+        evidence = _score_offset_against_entries(doc, anchors, offset)
+        verified.append({
+            "pages": list(block), "offset": offset,
+            "votes": evidence["votes"], "tested": evidence["tested"],
+            "entries": len(entries), "raw_score": item["score"],
+            "strongest_page": item["page"],
+        })
+
+    if not verified:
+        return []
+
+    verified.sort(key=lambda x: (-x["votes"], -x["entries"], -x["raw_score"], x["strongest_page"]))
+    best = verified[0]
+    progress(
+        "BOOK_INDEX_TOC_BLOCK_SELECTED",
+        pages=best["pages"], strongest_page=best["strongest_page"],
+        strongest_score=best["raw_score"], verified_offset=best["offset"],
+        verification_votes=best["votes"], parsed_entries=best["entries"],
+    )
+    for page in best["pages"]:
+        meta = next((x for x in scored if x["page"] == page), None)
+        if meta:
+            progress(
+                "BOOK_INDEX_TOC_PAGE_DETECTED", pdf_page=page,
+                method="native_text" if meta["native"] else "local_ocr",
+                numbered_lines=meta["numbered"], monotonic_entries=meta["monotonic"],
+                score=meta["score"], verified=True,
+            )
+    return best["pages"]
 
 
 def _parse_toc_entries(doc, toc_pages: List[int]) -> List[dict]:
@@ -2334,14 +2392,34 @@ def _parse_toc_entries(doc, toc_pages: List[int]) -> List[dict]:
 
 
 def _title_match_score(title: str, page_text: str) -> int:
-    tokens = [
+    """OCR-tolerant token score for matching a TOC title to a real page."""
+    title_tokens = [
         token.casefold() for token in re.findall(r"\w+", str(title or ""), flags=re.UNICODE)
         if len(token) >= 4 and not token.isdigit()
     ]
-    if not tokens:
+    if not title_tokens:
         return 0
-    low = str(page_text or "").casefold()
-    return sum(1 for token in tokens if token in low)
+    page_tokens = [
+        token.casefold() for token in re.findall(r"\w+", str(page_text or ""), flags=re.UNICODE)
+        if len(token) >= 3 and not token.isdigit()
+    ]
+    if not page_tokens:
+        return 0
+    page_set = set(page_tokens)
+    hits = 0
+    for token in title_tokens:
+        if token in page_set:
+            hits += 1
+            continue
+        # Tesseract commonly changes one character in headings.  Fuzzy matching
+        # is deliberately limited to similarly-sized words to avoid false votes.
+        for candidate in page_tokens:
+            if abs(len(candidate) - len(token)) > 2:
+                continue
+            if difflib.SequenceMatcher(None, token, candidate).ratio() >= 0.82:
+                hits += 1
+                break
+    return hits
 
 
 def _offset_probe_entries(toc_entries: List[dict], limit: int = 8) -> List[dict]:
@@ -3155,7 +3233,7 @@ def build_book_lesson_index(book_id: str, drive_service=None, force: bool = Fals
         progress("BOOK_INDEX_START", book_id=book_id, pdf_pages=len(doc))
         toc_pages = _detect_toc_pages(doc)
         if not toc_pages:
-            raise RuntimeError("BOOK_INDEX_TOC_NOT_FOUND: no trustworthy physical TOC pages detected")
+            raise RuntimeError("BOOK_INDEX_TOC_NOT_VERIFIED: no TOC candidate matched real lesson pages")
         toc_entries = _parse_toc_entries(doc, toc_pages)
         if not toc_entries:
             raise RuntimeError("BOOK_INDEX_TOC_EMPTY: TOC pages found but no lesson/page entries parsed")
