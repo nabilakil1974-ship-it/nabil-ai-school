@@ -2909,6 +2909,84 @@ def _lesson_entries_from_typography(doc) -> List[dict]:
     return []
 
 
+def _title_looks_ocr_damaged(title: str) -> bool:
+    """Detect obvious OCR damage without guessing the intended curriculum title."""
+    value = re.sub(r"\s+", " ", str(title or "")).strip()
+    if not value:
+        return True
+    if re.match(r"^(?:[=\-_*]+\s*|hapter\b|hapt(?:er)?\b|on\s+\d+\s*:|oo\s+\d+\s*:|wass\b)", value, re.I):
+        return True
+    if re.search(r"(?i)\b(?:hapter|hapt|esson|nit)\s*\d+\b", value) and not re.search(r"(?i)\b(?:chapter|lesson|unit)\s*\d+\b", value):
+        return True
+    # A leading orphan symbol/letter before a numbered structural heading is suspicious.
+    if re.match(r"^[^\w]{0,2}[a-z]?\s*\d+\s*:\s*", value, re.I):
+        return True
+    return False
+
+
+def _page_work_signals(text: str) -> dict:
+    """Extract page-level structural work signals; no lesson facts are inferred."""
+    lines = [re.sub(r"\s+", " ", x).strip() for x in str(text or "").splitlines() if x.strip()]
+    head = lines[:24]
+    activity1 = any(re.search(r"(?i)^\s*(?:activity|activit[eé])\s*(?:no\.?\s*)?1\b", x) for x in head)
+    exercise1 = any(re.search(r"(?i)^\s*(?:exercise|exercice|problem|probl[eè]me)\s*(?:no\.?\s*)?1\b", x) for x in head)
+    exercises_block = any(re.search(r"(?i)^\s*(?:exercises|exercices|problems|probl[eè]mes)\s*[:\-–—]?\s*$", x) for x in lines[:40])
+    explicit_heading = _page_has_explicit_curriculum_heading(text)
+    title_like = any(
+        2 <= len(re.findall(r"\w+", x, flags=re.UNICODE)) <= 10
+        and len(x) <= 100 and not x.endswith(("?", "!", "."))
+        and not _structural_label_only_title(x)
+        for x in head[:8]
+    )
+    return {
+        "activity1": activity1,
+        "exercise1": exercise1,
+        "exercises_block": exercises_block,
+        "explicit_heading": explicit_heading,
+        "title_like": title_like,
+    }
+
+
+def _compound_boundary_evidence(doc, pdf_page: int) -> dict:
+    """Combine independent structural signals around a proposed boundary page."""
+    current_text = _structural_page_text(doc, pdf_page)
+    current = _page_work_signals(current_text)
+    previous = []
+    for p in range(max(1, pdf_page - 3), pdf_page):
+        previous.append((p, _page_work_signals(_structural_page_text(doc, p))))
+    prior_exercises = any(sig["exercises_block"] for _, sig in previous)
+    prior_work = any(sig["exercise1"] or sig["exercises_block"] for _, sig in previous)
+    score = 0
+    if current["explicit_heading"]:
+        score += 8
+    if current["activity1"]:
+        score += 3
+    if current["title_like"]:
+        score += 2
+    if prior_exercises:
+        score += 5
+    elif prior_work:
+        score += 2
+    strong_cycle = bool(current["activity1"] and prior_exercises and current["title_like"])
+    return {
+        "score": score,
+        "strong_cycle": strong_cycle,
+        "current": current,
+        "prior_exercises": prior_exercises,
+        "prior_pages": [p for p, sig in previous if sig["exercise1"] or sig["exercises_block"]],
+    }
+
+
+def _span_boundary_cycles(doc, start_page: int, end_page: int) -> List[int]:
+    """Return strong Exercise(s)->Activity 1 reset pages inside a lesson span."""
+    out = []
+    for page in range(start_page + 1, end_page + 1):
+        evidence = _compound_boundary_evidence(doc, page)
+        if evidence["strong_cycle"]:
+            out.append(page)
+    return out
+
+
 def _lesson_index_route_quality(doc, entries: List[dict], route: str) -> dict:
     """Generic fail-closed gate before any discovery route may become an index."""
     rows = _dedupe_direct_lesson_entries(entries, len(doc))
@@ -2921,13 +2999,15 @@ def _lesson_index_route_quality(doc, entries: List[dict], route: str) -> dict:
     titles = [str(x.get("title") or "").strip() for x in rows]
     suspicious_titles = []
     forbidden_structural_titles = []
+    damaged_titles = []
     for title in titles:
         words = re.findall(r"\w+", title, flags=re.UNICODE)
         if title.endswith(("?", "!")) or len(words) > 18:
             suspicious_titles.append(title)
         if re.match(r"^[a-z]\b", title):
             suspicious_titles.append(title)
-        # Generic section labels are never curriculum lesson titles by themselves.
+        if _title_looks_ocr_damaged(title):
+            damaged_titles.append(title)
         if re.fullmatch(
                 r"(?i)\s*(?:objectives?|learning objectives?|activities?|"
                 r"exercises?|problems?|questions?|review|summary|introduction|"
@@ -2942,31 +3022,52 @@ def _lesson_index_route_quality(doc, entries: List[dict], route: str) -> dict:
         reasons.append("structural_label_used_as_lesson_title")
 
     spans = []
+    unresolved_cycles = []
+    suspicious_spans = []
     if starts:
         for a, b in zip(starts, starts[1:]):
             spans.append(b - a)
         spans.append(len(doc) + 1 - starts[-1])
     if spans and len(spans) >= 2:
+        ordered = sorted(spans)
+        median_span = ordered[len(ordered)//2]
         previous = sorted(spans[:-1])
-        median_prev = previous[len(previous)//2] if previous else 0
-        # A fallback heading route must not let one weak final heading swallow
-        # most of the book. This catches structural false positives without
-        # imposing a fixed lesson length on normal indexes.
+        median_prev = previous[len(previous)//2] if previous else median_span
         if route in ("ocr_explicit_headings", "native_explicit_headings", "native_typography", "ai_ocr_structural", "vision_structural"):
             if spans[-1] > max(40, median_prev * 6 if median_prev else 40):
                 reasons.append("implausible_final_lesson_span")
             if len(rows) < 3 and len(doc) >= 60:
                 reasons.append("insufficient_structure_for_long_book")
+        # Final/refined maps get a stricter adaptive span/cycle audit. This is
+        # intentionally evidence-driven rather than a fixed textbook length.
+        if route in ("boundary_recovery", "final_verified_map"):
+            adaptive = max(16, int(math.ceil((median_span or 8) * 2.2)))
+            for idx, span in enumerate(spans):
+                a = starts[idx]
+                b = starts[idx+1] - 1 if idx + 1 < len(starts) else len(doc)
+                cycles = _span_boundary_cycles(doc, a, b)
+                if cycles:
+                    unresolved_cycles.append({"range": [a, b], "pages": cycles})
+                if span >= adaptive and cycles:
+                    suspicious_spans.append({"range": [a, b], "span": span, "cycles": cycles})
+            if unresolved_cycles:
+                reasons.append("unresolved_exercises_to_activity1_boundaries")
+            if suspicious_spans:
+                reasons.append("suspicious_long_spans_after_recovery")
+            if damaged_titles:
+                reasons.append("unrepaired_ocr_damaged_titles")
 
     passed = not reasons
     return {
         "passed": passed, "route": route, "count": len(rows),
-        "reasons": reasons, "starts": starts[:20],
-        "spans": spans[:20], "suspicious_titles": suspicious_titles[:6],
-        "forbidden_structural_titles": forbidden_structural_titles[:6],
+        "reasons": reasons, "starts": starts[:40],
+        "spans": spans[:40], "suspicious_titles": suspicious_titles[:10],
+        "damaged_titles": damaged_titles[:10],
+        "forbidden_structural_titles": forbidden_structural_titles[:10],
+        "unresolved_cycles": unresolved_cycles[:20],
+        "suspicious_spans": suspicious_spans[:20],
         "entries": rows,
     }
-
 
 def _accept_index_route(doc, entries: List[dict], route: str, attempts: List[dict]) -> Optional[List[dict]]:
     report = _lesson_index_route_quality(doc, entries, route)
@@ -3270,43 +3371,53 @@ def _page_has_explicit_curriculum_heading(text: str) -> bool:
 
 
 def _recover_missing_lesson_boundaries(doc, entries: List[dict], book_id: str, route: str) -> Tuple[List[dict], dict]:
-    """Recover missed boundaries without turning activities/objectives into lessons.
+    """Recover missed lesson boundaries from multiple independent structural signals.
 
-    Activity/Exercise numbering resets only nominate pages. Acceptance requires
-    independent heading evidence on the same page and guards against splitting
-    one real lesson into adjacent pseudo-lessons.
+    A numbering reset never proves a lesson by itself. A page becomes a strong
+    candidate when the previous pages close with Exercises and the new page
+    restarts Activity 1 beside title-like/heading evidence. LLM classification
+    adjudicates only nominated pages and must quote same-page evidence.
     """
     rows = _dedupe_direct_lesson_entries(entries, len(doc))
     report = {"attempted": False, "added": 0, "candidate_pages": [], "reason": "not_needed",
-              "rejected_candidates": []}
+              "rejected_candidates": [], "suspicious_spans": []}
     if len(rows) < 2:
         return rows, report
 
     starts = [int(x["pdf_start_page"]) for x in rows]
     spans = [b-a for a,b in zip(starts, starts[1:])] + [len(doc)+1-starts[-1]]
-    base = sorted(spans)[len(spans)//2] if spans else 0
+    ordered = sorted(spans)
+    base = ordered[len(ordered)//2] if ordered else 0
     suspicious = []
     for idx, span in enumerate(spans):
-        threshold = max(18, (base * 3 if base else 24))
-        if span >= threshold:
-            a = starts[idx]
-            b = (starts[idx+1]-1) if idx+1 < len(starts) else len(doc)
-            suspicious.append((a,b,span))
+        a = starts[idx]
+        b = (starts[idx+1]-1) if idx+1 < len(starts) else len(doc)
+        cycles = _span_boundary_cycles(doc, a, b)
+        adaptive = max(16, int(math.ceil((base or 8) * 2.2)))
+        # Either an unusually long range OR repeated work-cycle evidence is enough
+        # to trigger a second pass. It is not enough to accept a boundary.
+        if span >= adaptive or cycles:
+            suspicious.append((a,b,span,cycles))
     if not suspicious:
         return rows, report
 
     report["attempted"] = True
-    report["reason"] = "suspicious_span"
+    report["reason"] = "suspicious_span_or_work_cycle"
+    report["suspicious_spans"] = [
+        {"range":[a,b], "span":span, "cycle_pages":cycles} for a,b,span,cycles in suspicious
+    ]
+
     candidate_pages = []
-    for a,b,_ in suspicious:
+    for a,b,_,cycles in suspicious:
+        cycle_set = set(cycles)
         for page in range(a+1, b+1):
             text = _structural_page_text(doc, page)
-            score = _boundary_signal_score(text)
-            # A reset-only score (2) is insufficient. Require either an explicit
-            # curriculum heading or stronger combined structural evidence.
-            explicit = _page_has_explicit_curriculum_heading(text)
-            if explicit or score >= 7:
-                candidate_pages.append((score + (6 if explicit else 0), page))
+            basic = _boundary_signal_score(text)
+            compound = _compound_boundary_evidence(doc, page)
+            explicit = compound["current"]["explicit_heading"]
+            if explicit or compound["strong_cycle"] or basic >= 7 or page in cycle_set:
+                score = basic + int(compound["score"]) + (8 if page in cycle_set else 0)
+                candidate_pages.append((score, page))
 
     max_candidates = max(12, min(80, int(os.getenv("NABIL_BOOK_INDEX_BOUNDARY_MAX_CANDIDATES", "48"))))
     pages = sorted({p for _,p in sorted(candidate_pages, key=lambda x:(-x[0],x[1]))[:max_candidates]})
@@ -3320,21 +3431,29 @@ def _recover_missing_lesson_boundaries(doc, entries: List[dict], book_id: str, r
     for pos in range(0, len(pages), batch_size):
         batch_pages = pages[pos:pos+batch_size]
         payload_parts = []
+        evidence_by_page = {}
         for page in batch_pages:
-            excerpt = _structural_text_excerpt(_structural_page_text(doc, page), max_lines=22, max_chars=2200)
-            payload_parts.append(f"=== PDF PAGE {page} ===\n{excerpt}")
+            excerpt = _structural_text_excerpt(_structural_page_text(doc, page), max_lines=26, max_chars=2600)
+            compound = _compound_boundary_evidence(doc, page)
+            evidence_by_page[page] = compound
+            payload_parts.append(
+                f"=== PDF PAGE {page} ===\n"
+                f"STRUCTURAL CLUES: prior_exercises={compound['prior_exercises']}; "
+                f"activity1={compound['current']['activity1']}; explicit_heading={compound['current']['explicit_heading']}\n"
+                f"{excerpt}"
+            )
         prompt = """You are doing a SECOND-PASS boundary audit of a school textbook index.
-Some long page ranges may contain missed lesson/chapter/unit starts.
+Some page ranges contain missed lesson/chapter/unit starts.
 Return JSON only:
 {"lesson_starts":[{"pdf_page":integer,"title":string,"confidence":number,"evidence_line":string}]}
 STRICT RULES:
 - Select only a genuine new curriculum lesson/chapter/unit start, not an Activity/Exercise/Objectives subsection.
-- Activity 1 or Exercise 1 reset is only a clue and is NEVER sufficient proof.
-- Require a visible lesson/chapter/unit heading or an equally strong recurring lesson-opening heading pattern.
-- title and evidence_line must be visibly present on that SAME supplied page.
-- Copy the visible title; do not invent, normalize, complete, or repair missing words.
+- An Activity 1 reset is NOT sufficient alone. It becomes meaningful when a previous lesson closed with Exercises and the new page also has a visible lesson-opening title/pattern.
+- Prefer the repeated structural level used by the book; do not promote a subsection to lesson level.
+- title and evidence_line must be visibly supported on that SAME supplied page.
+- Copy the visible title as faithfully as OCR allows. Do not use outside knowledge.
 - Never return Objectives, Activity, Exercise, Problem, Review, Summary, Introduction, Example, Assessment or Evaluation as the lesson title.
-- Reject prose, questions, running headers, page numbers and OCR fragments.
+- Reject prose, questions, running headers and page numbers.
 - If uncertain, omit. Empty lesson_starts is valid.
 PAGES:\n""" + "\n\n".join(payload_parts)
         try:
@@ -3354,21 +3473,23 @@ PAGES:\n""" + "\n\n".join(payload_parts)
             except (TypeError,ValueError):
                 continue
             title = _normalize_discovered_heading(item.get("title") or "")
-            page_text = _structural_page_text(doc, page)
+            page_text = _structural_page_text(doc, page) if page in allowed else ""
+            compound = evidence_by_page.get(page) or {"score":0,"strong_cycle":False,"current":{},"prior_exercises":False}
             reason = None
+            # Do not lower the gate blindly: 0.78 is allowed only when the
+            # independent Exercise(s)->Activity 1 cycle is strong. Otherwise .86 remains.
+            min_conf = .78 if compound.get("strong_cycle") and int(compound.get("score") or 0) >= 10 else .86
             if page not in allowed:
                 reason = "page_not_nominated"
-            elif conf < .86:
-                reason = "confidence_below_086"
+            elif conf < min_conf:
+                reason = f"confidence_below_{str(min_conf).replace('.', '_')}"
             elif not title or _structural_label_only_title(title):
                 reason = "structural_label_or_empty_title"
             elif not _ai_structural_title_supported(doc,page,title):
                 reason = "title_not_supported_on_same_page"
-            elif not _page_has_explicit_curriculum_heading(page_text) and _boundary_signal_score(page_text) < 7:
-                reason = "no_independent_heading_evidence"
+            elif not compound.get("current",{}).get("explicit_heading") and not compound.get("strong_cycle") and _boundary_signal_score(page_text) < 7:
+                reason = "no_independent_boundary_evidence"
             else:
-                # Adjacent page starts are dangerous: never split a real lesson
-                # merely because Activity 1 appears on the next page.
                 neighbor = None
                 for p0, old in existing_by_page.items():
                     if abs(page-p0) <= 1:
@@ -3378,68 +3499,99 @@ PAGES:\n""" + "\n\n".join(payload_parts)
                     old_title = str(neighbor.get("title") or "")
                     if _same_heading_identity(title, old_title):
                         reason = "adjacent_duplicate_heading"
-                    elif not _page_has_explicit_curriculum_heading(page_text):
-                        reason = "adjacent_boundary_without_explicit_heading"
+                    elif not compound.get("current",{}).get("explicit_heading") and not compound.get("strong_cycle"):
+                        reason = "adjacent_boundary_without_strong_evidence"
             if reason:
-                report["rejected_candidates"].append({"pdf_page":page,"title":title,"reason":reason})
+                report["rejected_candidates"].append({
+                    "pdf_page":page,"title":title,"confidence":conf,"required_confidence":min_conf,
+                    "compound_score":compound.get("score"),"strong_cycle":compound.get("strong_cycle"),"reason":reason})
                 continue
             recovered.append({"title":title,"pdf_start_page":page,
                               "discovery_method":"boundary_recovery",
                               "toc_pdf_page":None,"printed_page":None,
                               "structural_confidence":round(conf,3),
+                              "boundary_evidence":compound,
                               "structural_evidence":str(item.get("evidence_line") or "")[:300]})
+            progress("BOOK_INDEX_BOUNDARY_ACCEPTED", pdf_page=page, title=title[:140], confidence=round(conf,3),
+                     strong_cycle=bool(compound.get("strong_cycle")), score=int(compound.get("score") or 0))
 
     if not recovered:
-        progress("BOOK_INDEX_BOUNDARY_RECOVERY_EMPTY", suspicious_spans=suspicious,
-                 candidates=len(pages), rejected=report["rejected_candidates"][:12])
+        progress("BOOK_INDEX_BOUNDARY_RECOVERY_EMPTY", suspicious_spans=report["suspicious_spans"],
+                 candidates=len(pages), rejected=report["rejected_candidates"][:20])
         return rows, report
 
     merged = _dedupe_direct_lesson_entries(rows + recovered, len(doc))
-    quality = _lesson_index_route_quality(doc, merged, "boundary_recovery")
-    report["quality_gate"] = {k:v for k,v in quality.items() if k != "entries"}
+    # Intermediate quality checks title/ordering. The strict unresolved-cycle
+    # audit is applied after title repair in build_book_lesson_index().
+    quality = _lesson_index_route_quality(doc, merged, "ai_ocr_structural")
+    report["intermediate_quality_gate"] = {k:v for k,v in quality.items() if k != "entries"}
     if not quality["passed"]:
         progress("BOOK_INDEX_BOUNDARY_RECOVERY_REJECTED", reasons=quality["reasons"], added=len(recovered))
         return rows, report
     report["added"] = len(merged)-len(rows)
     progress("BOOK_INDEX_BOUNDARY_RECOVERY_ACCEPTED", added=report["added"], lessons=len(merged),
-             starts=quality["starts"], spans=quality["spans"],
-             rejected=report["rejected_candidates"][:12])
+             starts=quality["starts"], spans=quality["spans"], rejected=report["rejected_candidates"][:20])
     return quality["entries"], report
 
+def _fuzzy_title_supported_on_page(doc, pdf_page: int, candidate: str, original: str) -> bool:
+    """Allow only tiny OCR repairs, never semantic title invention."""
+    text = _structural_page_text(doc, pdf_page)
+    norm = lambda v: re.sub(r"[^\w]+", " ", str(v or "").casefold(), flags=re.UNICODE).strip()
+    cand = norm(candidate); old = norm(original); page = norm(text)
+    if not cand or not old:
+        return False
+    if cand in page:
+        return True
+    # Candidate must remain very close to the OCR title and share its meaningful tokens.
+    ratio = difflib.SequenceMatcher(None, cand, old).ratio()
+    old_tokens = {t for t in old.split() if len(t) >= 3 and not t.isdigit()}
+    cand_tokens = {t for t in cand.split() if len(t) >= 3 and not t.isdigit()}
+    overlap = len(old_tokens & cand_tokens) / max(1, len(old_tokens | cand_tokens))
+    return ratio >= .82 and (overlap >= .50 or abs(len(cand)-len(old)) <= 2)
+
+
 def _repair_ocr_damaged_titles(doc, entries: List[dict]) -> Tuple[List[dict], dict]:
-    """Conservative title cleanup: replacement must be present verbatim in local page text."""
+    """Repair only demonstrable OCR damage; unresolved damaged titles remain fatal."""
     rows = [dict(x) for x in entries]
-    changed = []
+    changed, unresolved = [], []
     for row in rows:
         title = str(row.get("title") or "").strip()
-        # Only target obvious OCR damage; normal titles are left untouched.
-        damaged = bool(re.match(r"^(?:[=\-_*]+\s*|hapter\b|on\s+\d+\s*:|oo\s+\d+\s*:|wass\b)", title, re.I))
-        if not damaged:
+        if not _title_looks_ocr_damaged(title):
             continue
         page = int(row.get("pdf_start_page") or 0)
-        excerpt = _structural_text_excerpt(_structural_page_text(doc,page), max_lines=24, max_chars=2400)
-        prompt = f"""Recover the exact visible curriculum heading from this OCR/native page excerpt.
-Return JSON only: {{\"title\":string,\"confidence\":number}}.
-Do not infer or correct from general knowledge. The returned title must occur in the supplied excerpt after whitespace/punctuation normalization. If not certain, return the original title exactly.
-ORIGINAL: {title}\nPAGE {page}:\n{excerpt}"""
+        excerpt = _structural_text_excerpt(_structural_page_text(doc,page), max_lines=28, max_chars=2800)
+        prompt = f"""Recover the curriculum heading from OCR damage using ONLY this page excerpt.
+Return JSON only: {{"title":string,"confidence":number,"evidence_line":string}}.
+Rules:
+- This is OCR repair, not content completion from general knowledge.
+- Preserve the visible wording and number; repair only characters/words clearly damaged by OCR.
+- If the page does not support a repair, return the ORIGINAL title exactly.
+ORIGINAL: {title}\nPDF PAGE {page}:\n{excerpt}"""
         try:
             data = _execute_llm_json_strict(prompt, purpose="book_index_title_repair", max_attempts=1)
-        except Exception:
+        except Exception as exc:
+            unresolved.append({"pdf_page":page,"title":title,"reason":"repair_call_failed","error":str(exc)[:180]})
             continue
         candidate = _normalize_discovered_heading(data.get("title") if isinstance(data,dict) else "")
         try: conf=float(data.get("confidence",0)) if isinstance(data,dict) else 0
         except (TypeError,ValueError): conf=0
-        if (conf >= .88 and candidate and candidate != title
+        if (conf >= .90 and candidate and candidate != title
                 and not _structural_label_only_title(candidate)
-                and _ai_structural_title_supported(doc,page,candidate)):
+                and (_ai_structural_title_supported(doc,page,candidate)
+                     or _fuzzy_title_supported_on_page(doc,page,candidate,title))):
             row["original_discovered_title"] = title
             row["title"] = candidate
-            row["title_repair_method"] = "same_page_evidence"
-            changed.append({"pdf_page":page,"from":title,"to":candidate})
+            row["title_repair_method"] = "same_page_evidence_or_tiny_ocr_fuzzy"
+            row["title_repair_confidence"] = round(conf,3)
+            changed.append({"pdf_page":page,"from":title,"to":candidate,"confidence":round(conf,3)})
+        else:
+            unresolved.append({"pdf_page":page,"title":title,"candidate":candidate,"confidence":round(conf,3),
+                               "reason":"repair_not_strictly_supported"})
     if changed:
         progress("BOOK_INDEX_TITLE_REPAIR", changed=changed)
-    return rows, {"changed":changed}
-
+    if unresolved:
+        progress("BOOK_INDEX_TITLE_REPAIR_UNRESOLVED", unresolved=unresolved[:20])
+    return rows, {"changed":changed,"unresolved":unresolved}
 
 def _lesson_slug(book_id: str, number: int) -> str:
     return f"{_book_index_safe_id(book_id).upper()}-AUTO-{number:03d}"
@@ -4066,11 +4218,12 @@ def build_book_lesson_index(book_id: str, drive_service=None, force: bool = Fals
         valid_entries, boundary_report = _recover_missing_lesson_boundaries(
             doc, valid_entries, book_id, str(discovery.get("route") or ""))
         valid_entries, title_repair_report = _repair_ocr_damaged_titles(doc, valid_entries)
-        final_quality = _lesson_index_route_quality(doc, valid_entries, "boundary_recovery")
+        final_quality = _lesson_index_route_quality(doc, valid_entries, "final_verified_map")
         if not final_quality["passed"]:
             raise RuntimeError("BOOK_INDEX_FINAL_QUALITY_FAILED:" + json.dumps(
                 {k:v for k,v in final_quality.items() if k != "entries"}, ensure_ascii=False))
         valid_entries = final_quality["entries"]
+        progress("BOOK_INDEX_LESSON_MAP_VERIFIED", lessons=final_quality["count"], starts=final_quality["starts"], spans=final_quality["spans"])
         discovery["boundary_recovery"] = boundary_report
         discovery["title_repair"] = title_repair_report
         valid_entries.sort(key=lambda x: (int(x["pdf_start_page"]), str(x.get("title") or "").casefold()))
