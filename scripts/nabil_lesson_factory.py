@@ -2659,6 +2659,214 @@ def _resolve_printed_to_pdf_offset(doc, toc_entries: List[dict]) -> int:
     )
     return best_offset
 
+
+def _normalize_discovered_heading(value: str) -> str:
+    value = re.sub(r"\s+", " ", str(value or "")).strip(" .\t-–—:;|•")
+    value = re.sub(r"(?i)^(?:chapter|lesson|unit|part|section|chapitre|leçon|unité|partie|section|درس|الوحدة|وحدة|الفصل|فصل)\s*(?:\d+[A-Za-z]?|[IVXLCDM]+|[٠-٩]+)?\s*[:.\-–—]*\s*", "", value).strip()
+    return value
+
+
+def _heading_title_is_plausible(value: str) -> bool:
+    title = _normalize_discovered_heading(value)
+    if not (3 <= len(title) <= 140):
+        return False
+    if _TOC_HINT_RE.fullmatch(title):
+        return False
+    if re.fullmatch(r"[\W\d_]+", title, flags=re.UNICODE):
+        return False
+    words = re.findall(r"\w+", title, flags=re.UNICODE)
+    return 1 <= len(words) <= 18
+
+
+def _dedupe_direct_lesson_entries(entries: List[dict], doc_len: int) -> List[dict]:
+    cleaned = []
+    seen_pages = set()
+    last_title = ""
+    last_page = -99
+    for raw in sorted(entries, key=lambda x: int(x.get("pdf_start_page") or 0)):
+        try:
+            page = int(raw.get("pdf_start_page"))
+        except (TypeError, ValueError):
+            continue
+        title = _normalize_discovered_heading(raw.get("title") or "")
+        if not (1 <= page <= doc_len) or not _heading_title_is_plausible(title):
+            continue
+        norm = re.sub(r"\W+", " ", title.casefold(), flags=re.UNICODE).strip()
+        # Repeated running headers on consecutive pages are not new lessons.
+        if norm == last_title and page <= last_page + 2:
+            continue
+        if page in seen_pages:
+            continue
+        cleaned.append({**raw, "title": title, "pdf_start_page": page})
+        seen_pages.add(page)
+        last_title, last_page = norm, page
+    return cleaned
+
+
+def _lesson_entries_from_pdf_outline(doc) -> List[dict]:
+    """Route A: use the PDF's own outline/bookmarks when they point to real pages."""
+    try:
+        outline = doc.get_toc(simple=True) or []
+    except Exception:
+        return []
+    rows = []
+    for item in outline:
+        if not isinstance(item, (list, tuple)) or len(item) < 3:
+            continue
+        level, title, page = item[0], str(item[1] or "").strip(), item[2]
+        try:
+            page = int(page)
+            level = int(level)
+        except (TypeError, ValueError):
+            continue
+        if level > 3 or not _heading_title_is_plausible(title):
+            continue
+        rows.append({"title": title, "pdf_start_page": page,
+                     "discovery_method": "pdf_outline", "toc_pdf_page": None,
+                     "printed_page": None})
+    rows = _dedupe_direct_lesson_entries(rows, len(doc))
+    # Prefer the deepest repeated outline level that gives a useful lesson set.
+    if len(rows) >= 2:
+        progress("BOOK_INDEX_ROUTE_SUCCESS", route="pdf_outline", lessons=len(rows))
+        return rows
+    return []
+
+
+_LESSON_HEADING_RE = re.compile(
+    r"(?i)^\s*(?:chapter|lesson|unit|part|chapitre|leçon|unité|partie|"
+    r"درس|الوحدة|وحدة|الفصل|فصل)\s*(?:\d+[A-Za-z]?|[IVXLCDM]+|[٠-٩]+)?"
+    r"\s*[:.\-–—]?\s*(.{2,140})$"
+)
+
+
+def _lesson_entries_from_explicit_headings(doc, *, allow_ocr: bool = False) -> List[dict]:
+    """Route C/E: explicit Chapter/Lesson/Unit headings from native text, then OCR."""
+    rows = []
+    for pdf_page in range(1, len(doc) + 1):
+        native = _page_text_for_book_index(doc, pdf_page)
+        texts = [("native_heading", native)]
+        if allow_ocr and len(re.sub(r"\s+", "", native)) < 120:
+            scanned = _ocr_toc_page(doc, pdf_page)
+            if scanned:
+                texts.append(("ocr_heading", scanned))
+        found = None
+        method = None
+        for candidate_method, text in texts:
+            # Headings should occur near the beginning of a page; avoid exercise bodies.
+            for raw in text.splitlines()[:14]:
+                line = re.sub(r"\s+", " ", raw).strip()
+                m = _LESSON_HEADING_RE.match(line)
+                if not m:
+                    continue
+                title = _normalize_discovered_heading(line)
+                if _heading_title_is_plausible(title):
+                    found, method = title, candidate_method
+                    break
+            if found:
+                break
+        if found:
+            rows.append({"title": found, "pdf_start_page": pdf_page,
+                         "discovery_method": method, "toc_pdf_page": None,
+                         "printed_page": None})
+    return _dedupe_direct_lesson_entries(rows, len(doc))
+
+
+def _lesson_entries_from_typography(doc) -> List[dict]:
+    """Route D: infer lesson starts from unusually large top-of-page native headings."""
+    candidates = []
+    for pdf_page in range(1, len(doc) + 1):
+        try:
+            page = doc[pdf_page - 1]
+            blocks = page.get_text("dict").get("blocks") or []
+        except Exception:
+            continue
+        spans = []
+        for block in blocks:
+            for line in block.get("lines") or []:
+                for span in line.get("spans") or []:
+                    text = re.sub(r"\s+", " ", str(span.get("text") or "")).strip()
+                    size = float(span.get("size") or 0)
+                    bbox = span.get("bbox") or [0, 0, 0, 0]
+                    if text and size > 0:
+                        spans.append((text, size, float(bbox[1] or 0), float(page.rect.height or 1)))
+        if len(spans) < 2:
+            continue
+        sizes = sorted(x[1] for x in spans)
+        median = sizes[len(sizes)//2]
+        top = [x for x in spans if x[2] <= x[3] * .38 and x[1] >= max(median * 1.35, median + 2.0)]
+        top.sort(key=lambda x: (-x[1], x[2]))
+        for text, size, y, height in top[:4]:
+            if _heading_title_is_plausible(text):
+                candidates.append({"title": text, "pdf_start_page": pdf_page,
+                                   "discovery_method": "typographic_heading",
+                                   "toc_pdf_page": None, "printed_page": None,
+                                   "heading_font_size": round(size, 2)})
+                break
+    rows = _dedupe_direct_lesson_entries(candidates, len(doc))
+    # Typography is deliberately conservative: require several separated starts.
+    if len(rows) >= 3:
+        return rows
+    return []
+
+
+def _discover_lesson_starts_multi_route(doc) -> Tuple[List[dict], dict]:
+    """Try independent indexing routes in confidence order; never guess an offset."""
+    attempts = []
+
+    outline = _lesson_entries_from_pdf_outline(doc)
+    attempts.append({"route": "pdf_outline", "count": len(outline)})
+    if len(outline) >= 2:
+        return outline, {"route": "pdf_outline", "attempts": attempts,
+                         "toc_pdf_pages": [], "printed_to_pdf_offset": None}
+
+    toc_pages = _detect_toc_pages(doc)
+    attempts.append({"route": "verified_toc", "count": len(toc_pages)})
+    if toc_pages:
+        toc_entries = _parse_toc_entries(doc, toc_pages)
+        try:
+            offset = _resolve_printed_to_pdf_offset(doc, toc_entries)
+        except RuntimeError as exc:
+            attempts[-1]["error"] = str(exc)[:260]
+        else:
+            direct = []
+            for entry in toc_entries:
+                page = int(entry["printed_page"]) + offset
+                if 1 <= page <= len(doc):
+                    direct.append({**entry, "pdf_start_page": page,
+                                   "discovery_method": "verified_toc"})
+            direct = _dedupe_direct_lesson_entries(direct, len(doc))
+            if len(direct) >= 2:
+                progress("BOOK_INDEX_ROUTE_SUCCESS", route="verified_toc", lessons=len(direct), offset=offset)
+                return direct, {"route": "verified_toc", "attempts": attempts,
+                                "toc_pdf_pages": toc_pages,
+                                "printed_to_pdf_offset": offset}
+
+    explicit = _lesson_entries_from_explicit_headings(doc, allow_ocr=False)
+    attempts.append({"route": "native_explicit_headings", "count": len(explicit)})
+    if len(explicit) >= 2:
+        progress("BOOK_INDEX_ROUTE_SUCCESS", route="native_explicit_headings", lessons=len(explicit))
+        return explicit, {"route": "native_explicit_headings", "attempts": attempts,
+                          "toc_pdf_pages": [], "printed_to_pdf_offset": None}
+
+    typography = _lesson_entries_from_typography(doc)
+    attempts.append({"route": "native_typography", "count": len(typography)})
+    if len(typography) >= 3:
+        progress("BOOK_INDEX_ROUTE_SUCCESS", route="native_typography", lessons=len(typography))
+        return typography, {"route": "native_typography", "attempts": attempts,
+                            "toc_pdf_pages": [], "printed_to_pdf_offset": None}
+
+    ocr_explicit = _lesson_entries_from_explicit_headings(doc, allow_ocr=True)
+    attempts.append({"route": "ocr_explicit_headings", "count": len(ocr_explicit)})
+    if len(ocr_explicit) >= 2:
+        progress("BOOK_INDEX_ROUTE_SUCCESS", route="ocr_explicit_headings", lessons=len(ocr_explicit))
+        return ocr_explicit, {"route": "ocr_explicit_headings", "attempts": attempts,
+                              "toc_pdf_pages": [], "printed_to_pdf_offset": None}
+
+    progress("BOOK_INDEX_ALL_ROUTES_FAILED", attempts=attempts)
+    return [], {"route": None, "attempts": attempts,
+                "toc_pdf_pages": [], "printed_to_pdf_offset": None}
+
+
 def _lesson_slug(book_id: str, number: int) -> str:
     return f"{_book_index_safe_id(book_id).upper()}-AUTO-{number:03d}"
 
@@ -3266,20 +3474,14 @@ def build_book_lesson_index(book_id: str, drive_service=None, force: bool = Fals
         if len(doc) < 1:
             raise RuntimeError("BOOK_INDEX_EMPTY_PDF")
         progress("BOOK_INDEX_START", book_id=book_id, pdf_pages=len(doc))
-        toc_pages = _detect_toc_pages(doc)
-        if not toc_pages:
-            raise RuntimeError("BOOK_INDEX_TOC_NOT_VERIFIED: no TOC candidate matched real lesson pages")
-        toc_entries = _parse_toc_entries(doc, toc_pages)
-        if not toc_entries:
-            raise RuntimeError("BOOK_INDEX_TOC_EMPTY: TOC pages found but no lesson/page entries parsed")
-        offset = _resolve_printed_to_pdf_offset(doc, toc_entries)
-
-        valid_entries = []
-        for entry in toc_entries:
-            pdf_start = entry["printed_page"] + offset
-            if 1 <= pdf_start <= len(doc):
-                valid_entries.append({**entry, "pdf_start_page": pdf_start})
-        valid_entries.sort(key=lambda x: (x["pdf_start_page"], x["printed_page"]))
+        valid_entries, discovery = _discover_lesson_starts_multi_route(doc)
+        if not valid_entries:
+            raise RuntimeError(
+                "BOOK_INDEX_LESSON_STARTS_NOT_VERIFIED: all indexing routes failed: "
+                + json.dumps(discovery.get("attempts") or [], ensure_ascii=False))
+        toc_pages = discovery.get("toc_pdf_pages") or []
+        offset = discovery.get("printed_to_pdf_offset")
+        valid_entries.sort(key=lambda x: (int(x["pdf_start_page"]), str(x.get("title") or "").casefold()))
 
         deduped, seen_starts = [], set()
         for item in valid_entries:
@@ -3305,8 +3507,9 @@ def build_book_lesson_index(book_id: str, drive_service=None, force: bool = Fals
                 "subject": book_metadata.get("subject"),
                 "language": book_metadata.get("language"),
                 "branch": book_metadata.get("branch") or book_metadata.get("track") or "",
-                "toc_pdf_page": item["toc_pdf_page"],
-                "printed_start_page": item["printed_page"],
+                "toc_pdf_page": item.get("toc_pdf_page"),
+                "printed_start_page": item.get("printed_page"),
+                "discovery_method": item.get("discovery_method") or discovery.get("route"),
                 "pdf_start_page": start_page,
                 "pdf_end_page": end_page,
                 "works": works,
@@ -3328,6 +3531,8 @@ def build_book_lesson_index(book_id: str, drive_service=None, force: bool = Fals
             "pdf_pages": len(doc),
             "toc_pdf_pages": toc_pages,
             "printed_to_pdf_offset": offset,
+            "index_discovery_route": discovery.get("route"),
+            "index_discovery_attempts": discovery.get("attempts") or [],
             "lesson_count": len(lessons),
             "work_count": sum(len(lesson["works"]) for lesson in lessons),
             "lessons": lessons,
