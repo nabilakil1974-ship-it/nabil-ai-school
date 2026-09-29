@@ -17,7 +17,6 @@ import json
 import math
 import re
 import hashlib
-import difflib
 import argparse
 import tempfile
 import shutil
@@ -69,7 +68,6 @@ def progress(stage: str, **details):
 # reference lesson.  It contains NO lesson-specific science.  Scientific data
 # comes only from Evidence Map -> audited narrative/solution -> verified lab.
 REFERENCE_RENDERER_CONTRACT = "NABIL_REFERENCE_RENDERER_V1"
-SMARTBOARD_REFERENCE_ENGINE = "renderStep|clearFocus|arrowTo|progressive-reveal|constrained-drag"
 REFERENCE_RENDERER_LANGUAGES = ("ar", "en", "fr")
 REFERENCE_MOBILE_VIEWPORT = (390, 844)
 
@@ -308,73 +306,6 @@ def assert_renderer_family_contract() -> None:
                 f"RENDERER_FAMILY_CONTRACT_MISSING:{module_name}:{callable_name}")
 
 
-def assert_localization_and_quiz_contracts() -> None:
-    """Fail closed if the shared localization/quiz add-ons drift from the factory.
-
-    Behavioral preflight:
-    - AR/FR/EN expose the same UI key set and correct text direction;
-    - narrative-language instructions resolve for every supported language;
-    - the quiz engine preserves full concept coverage (no silent 5-item cap).
-    """
-    import scripts.nabil_i18n as i18n
-    import scripts.nabil_quiz_engine as quiz
-
-    supported = tuple(getattr(i18n, "SUPPORTED_LANGUAGES", ()))
-    if supported != ("ar", "fr", "en"):
-        raise RuntimeError(
-            f"I18N_CONTRACT_MISMATCH:supported_languages={supported!r}")
-
-    tables = getattr(i18n, "UI_STRINGS", None)
-    if not isinstance(tables, dict):
-        raise RuntimeError("I18N_CONTRACT_MISSING:UI_STRINGS")
-
-    baseline_keys = None
-    for lang in supported:
-        table = tables.get(lang)
-        if not isinstance(table, dict) or not table:
-            raise RuntimeError(f"I18N_CONTRACT_MISSING_TABLE:{lang}")
-        keys = set(table)
-        if baseline_keys is None:
-            baseline_keys = keys
-        elif keys != baseline_keys:
-            missing = sorted(baseline_keys - keys)
-            extra = sorted(keys - baseline_keys)
-            raise RuntimeError(
-                f"I18N_KEYSET_MISMATCH:{lang}:missing={missing}:extra={extra}")
-        direction = i18n.html_dir_attr(lang)
-        expected_direction = "rtl" if lang == "ar" else "ltr"
-        if direction != expected_direction:
-            raise RuntimeError(
-                f"I18N_DIRECTION_MISMATCH:{lang}:{direction}")
-        instruction = i18n.narrative_language_instruction(lang)
-        if not isinstance(instruction, str) or not instruction.strip():
-            raise RuntimeError(
-                f"I18N_NARRATIVE_INSTRUCTION_MISSING:{lang}")
-
-    # Seven already-grounded synthetic activities verify there is no
-    # historical five-question cap. No LLM/network call is made here.
-    synthetic = []
-    for idx in range(1, 8):
-        synthetic.append({
-            "activity_num": f"C{idx:02d}",
-            "source_page": idx,
-            "conclusion": f"verified conclusion {idx}",
-            "student_question": {
-                "q": f"verified question {idx}",
-                "options": ["A", "B", "C"],
-                "correct_index": 0,
-            },
-        })
-    items = quiz.build_full_quiz_items(synthetic)
-    if len(items) != len(synthetic):
-        raise RuntimeError(
-            f"QUIZ_FULL_COVERAGE_CONTRACT_FAILED:"
-            f"expected={len(synthetic)}:actual={len(items)}")
-    rendered = quiz.render_quiz_html(items, "en")
-    if "NABIL_QUIZ_TOTAL = 7" not in rendered or 'id="fullQuizBlock"' not in rendered:
-        raise RuntimeError("QUIZ_RENDER_CONTRACT_FAILED:full_coverage_marker_missing")
-
-
 def _inventory_norm(value: str) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip().casefold()
 
@@ -461,73 +392,6 @@ SUBJECT_PROFILES = {
         "visual_types": ["source_figure", "scientific_diagram", "table"],
     }
 }
-
-LEBANESE_CERD_PEDAGOGICAL_CONTRACT = {
-    "schema":"nabil-cerd-pedagogical-plan/v1",
-    "required_sections":["header","competencies","learning_objectives","prerequisites",
-      "diagnostic_assessment","problem_situation","investigation","construction",
-      "institutionalization","application","formative_assessment","summative_assessment",
-      "resources_ict","final_synthesis"],
-    "grounding_rule":"evidence_map_only_for_curriculum_and_scientific_claims",
-}
-
-def build_cerd_lesson_plan(entry: dict, theory: dict, ev_map: dict, lang: str="en") -> dict:
-    title=str(entry.get("canonical_title") or entry.get("title") or "").strip()
-    subject=str(entry.get("subject") or "").strip(); grade=entry.get("grade")
-    if not title or not subject or grade in (None,""): raise RuntimeError("CERD_PLAN_HEADER_UNVERIFIED")
-    concepts=[]
-    for c in (theory.get("concepts") or theory.get("concept_cards") or []):
-        v=(c.get("title") or c.get("concept") or c.get("name") or c.get("summary")) if isinstance(c,dict) else c
-        v=re.sub(r"\s+"," ",str(v or "")).strip()
-        if v and v not in concepts: concepts.append(v)
-    concepts=concepts[:8]
-    activities=list(ev_map.get("activities") or ev_map.get("activity_evidence") or [])
-    exercises=list(ev_map.get("exercise_evidence") or [])
-    profile=SUBJECT_PROFILES.get(normalize_subject(subject),SUBJECT_PROFILES.get("general_science",{}))
-    sequence=list(profile.get("sequence") or [])
-    prereq=concepts[:1] if sequence and sequence[0]=="prerequisite" else []
-    plan={"schema":LEBANESE_CERD_PEDAGOGICAL_CONTRACT["schema"],
-      "header":{"subject":subject,"grade":grade,"unit":entry.get("unit") or entry.get("chapter"),
-        "lesson_title":title,"duration_minutes":entry.get("duration_minutes"),
-        "source_pages":[entry.get("pdf_start_page"),entry.get("pdf_end_page")]},
-      "competencies":[{"statement":x,"grounded":True} for x in concepts] or [{"statement":title,"grounded":True}],
-      "learning_objectives":[{"action":"demonstrate","target":x,"grounded":True} for x in concepts] or [{"action":"complete","target":title,"grounded":True}],
-      "prerequisites":prereq,"diagnostic_assessment":{"purpose":"check_prerequisites","items":prereq},
-      "problem_situation":{"source":"verified_lesson_opening","activities":activities[:1]},
-      "investigation":{"activities":activities},"construction":{"teaching_sequence":sequence},
-      "institutionalization":{"concepts":concepts},"application":{"textbook_exercises":exercises},
-      "formative_assessment":{"worksheet_items":list(theory.get("worksheet") or [])},
-      "summative_assessment":{"quiz_available":bool(theory.get("quiz_html")),"final_check":True},
-      "resources_ict":{"official_source_book":entry.get("book_id"),"verified_labs":bool(theory.get("whole_lesson_lab_html")),"interactive_resources":True},
-      "final_synthesis":{"reference_card_available":bool(theory.get("reference_card_html")),"concepts":concepts}}
-    missing=[k for k in LEBANESE_CERD_PEDAGOGICAL_CONTRACT["required_sections"] if k not in plan]
-    if missing: raise RuntimeError("CERD_PEDAGOGICAL_CONTRACT_FAILED:"+",".join(missing))
-    return plan
-
-def render_cerd_lesson_plan_html(plan: dict, lang: str="en") -> str:
-    lang=resolve_lang_code(lang)
-    title={"ar":"تحضير الدرس","fr":"Fiche de préparation","en":"Lesson Plan"}.get(lang,"Lesson Plan")
-    labels={"competencies":("الكفايات المستهدفة","Compétences","Competencies"),
-      "learning_objectives":("الأهداف التعلمية","Objectifs d’apprentissage","Learning objectives"),
-      "prerequisites":("المكتسبات القبلية","Prérequis","Prerequisites"),
-      "diagnostic_assessment":("التقويم التشخيصي","Évaluation diagnostique","Diagnostic assessment"),
-      "problem_situation":("الوضعية المشكلة","Situation-problème","Problem situation"),
-      "investigation":("الاستقصاء والبناء","Investigation et construction","Investigation & construction"),
-      "institutionalization":("الإرساء","Institutionnalisation","Institutionalization"),
-      "application":("التطبيق","Application","Application"),
-      "formative_assessment":("التقويم التكويني","Évaluation formative","Formative assessment"),
-      "summative_assessment":("التقويم الختامي","Évaluation sommative","Summative assessment"),
-      "resources_ict":("الوسائل وICT","Ressources et TIC","Resources & ICT"),
-      "final_synthesis":("الخلاصة","Synthèse","Final synthesis")}
-    li={"ar":0,"fr":1,"en":2}[lang]
-    def dump(v):
-        if v in (None,"",[],{}): return "—"
-        return html.escape(json.dumps(v,ensure_ascii=False,indent=2) if isinstance(v,(dict,list)) else str(v))
-    sections="".join('<section class="nabil-cerd-section"><h3>'+html.escape(lbl[li])+'</h3><pre style="white-space:pre-wrap;overflow-wrap:anywhere">'+dump(plan.get(k))+'</pre></section>' for k,lbl in labels.items())
-    h=plan["header"]
-    return ('<div id="nabilCerdLessonPlan" class="card nabil-cerd-plan" style="display:none;margin-top:16px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><h2 style="margin:0">'+html.escape(title)+'</h2><button type="button" class="nav-btn" onclick="window.print()">Print / PDF</button></div><p><b>'+html.escape(str(h.get("subject") or ""))+'</b> — '+html.escape(str(h.get("grade") or ""))+' — '+html.escape(str(h.get("lesson_title") or ""))+'</p>'+sections+'</div>')
-
-
 
 # Non-science subjects use the same evidence-first architecture. These
 # profiles define teaching order/visual form only; lesson facts still come
@@ -2049,94 +1913,13 @@ def get_drive_service():
     return build("drive", "v3", credentials=creds, cache_discovery=False)
 
 
-def _looks_like_grade_folder(name: str) -> bool:
-    text = str(name or "").casefold()
-    if re.search(r"\b(?:grade|class|eb|g)[\s._-]*0?(?:[1-9]|1[0-2])\b", text, re.I):
-        return True
-    if re.search(r"(?:صف|الصف)[\s._-]*(?:[1-9]|1[0-2])", text):
-        return True
-    words = (
-        "first","second","third","fourth","fifth","sixth","seventh","eighth",
-        "ninth","tenth","eleventh","twelfth","premier","deuxième","deuxieme",
-        "troisième","troisieme","quatrième","quatrieme","cinquième","cinquieme",
-        "sixième","sixieme","septième","septieme","huitième","huitieme",
-        "neuvième","neuvieme","dixième","dixieme","onzième","onzieme",
-        "douzième","douzieme","الأول","الاول","الثاني","الثالث","الرابع",
-        "الخامس","السادس","السابع","الثامن","التاسع","العاشر",
-        "الحادي عشر","الثاني عشر",
-    )
-    return any(word in text for word in words)
-
-
-def _drive_parent_ids(drive_service, file_id: str) -> List[str]:
-    try:
-        meta = drive_service.files().get(
-            fileId=str(file_id), fields="id,name,mimeType,parents",
-            supportsAllDrives=True).execute()
-    except Exception:
-        return []
-    return [str(x) for x in (meta.get("parents") or []) if str(x).strip()]
-
-
-def _discover_curriculum_root_from_registered_books(drive_service) -> str:
-    """Infer the Drive curriculum root from a real registered source book."""
-    catalog = load_canonical_catalog()
-    seed_ids = []
-    for entry in _iter_canonical_lesson_entries(catalog):
-        book_id = str(entry.get("book_id") or "").strip()
-        if book_id and book_id not in seed_ids:
-            seed_ids.append(book_id)
-    if not seed_ids:
-        raise RuntimeError("CURRICULUM_ROOT_AUTODISCOVERY_NO_REGISTERED_DRIVE_BOOK")
-
-    folder_mime = "application/vnd.google-apps.folder"
-    for seed_id in seed_ids[:12]:
-        current_ids = _drive_parent_ids(drive_service, seed_id)
-        visited, fallback = set(), ""
-        depth = 0
-        while current_ids and depth < 12:
-            parent_id = current_ids[0]
-            if parent_id in visited:
-                break
-            visited.add(parent_id)
-            depth += 1
-            try:
-                children = _drive_list_folder_children(drive_service, parent_id)
-            except Exception:
-                break
-            grade_folders = [
-                row for row in children
-                if row.get("mimeType") == folder_mime
-                and _looks_like_grade_folder(row.get("name", ""))
-            ]
-            if grade_folders:
-                fallback = parent_id
-                if len(grade_folders) >= 2:
-                    progress("DRIVE_CURRICULUM_ROOT_AUTODISCOVERED",
-                             method="registered_book_ancestor",
-                             grade_folders=len(grade_folders))
-                    return parent_id
-            current_ids = _drive_parent_ids(drive_service, parent_id)
-        if fallback:
-            progress("DRIVE_CURRICULUM_ROOT_AUTODISCOVERED",
-                     method="registered_book_single_grade_fallback",
-                     grade_folders=1)
-            return fallback
-    raise RuntimeError(
-        "CURRICULUM_ROOT_AUTODISCOVERY_FAILED:"
-        " no ancestor with recognizable grade folders")
-
-
-def resolve_drive_root_id(drive_service=None) -> str:
-    root_id = os.getenv(
-        "NABIL_CURRICULUM_ROOT_ID",
-        os.getenv("NABIL_INTERACTIVE_CURRICULUM_ROOT_ID",
-                  os.getenv("NABIL_LESSON_DRIVE_ROOT", ""))).strip()
-    if root_id:
-        return root_id
-    if drive_service is None:
-        drive_service = get_drive_service()
-    return _discover_curriculum_root_from_registered_books(drive_service)
+def resolve_drive_root_id() -> str:
+    root_id = os.getenv("NABIL_CURRICULUM_ROOT_ID",
+                        os.getenv("NABIL_INTERACTIVE_CURRICULUM_ROOT_ID",
+                                  os.getenv("NABIL_LESSON_DRIVE_ROOT", ""))).strip()
+    if not root_id:
+        raise RuntimeError("NABIL_CURRICULUM_ROOT_ID_NOT_CONFIGURED: Set NABIL_CURRICULUM_ROOT_ID in environment.")
+    return root_id
 
 
 def resolve_source_book_pdf(book_id: str, drive_service=None) -> Path:
@@ -2235,200 +2018,39 @@ def _page_text_for_book_index(doc, pdf_page: int) -> str:
     return re.sub(r"\r\n?", "\n", text).strip()
 
 
-def _available_tesseract_languages() -> List[str]:
-    if not shutil.which("tesseract"):
-        return []
-    try:
-        proc = subprocess.run(["tesseract", "--list-langs"],
-                              capture_output=True, text=True, timeout=15)
-    except Exception:
-        return []
-    if proc.returncode != 0:
-        return []
-    return [
-        line.strip() for line in proc.stdout.splitlines()
-        if line.strip() and not line.lower().startswith("list of available")
-    ]
-
-
-def _ocr_toc_page(doc, pdf_page: int) -> str:
-    """Local OCR fallback for scanned TOC pages; no external page transfer."""
-    if pdf_page < 1 or pdf_page > len(doc):
-        return ""
-    langs = _available_tesseract_languages()
-    if not langs:
-        return ""
-    preferred = [x for x in ("eng", "fra", "ara") if x in langs] or langs[:1]
-    try:
-        page_sig = hashlib.sha1(
-            doc[pdf_page - 1].get_pixmap(dpi=40, alpha=False).samples
-        ).hexdigest()[:16]
-    except Exception:
-        page_sig = f"{len(doc)}_{pdf_page}"
-    cache = CACHE_DIR / f"book_toc_scan_{page_sig}.txt"
-    if cache.exists():
-        try:
-            return cache.read_text(encoding="utf-8").strip()
-        except Exception:
-            pass
-    try:
-        with tempfile.TemporaryDirectory(prefix="nabil_toc_scan_") as td:
-            image_path = Path(td) / f"toc_p{pdf_page}.png"
-            doc[pdf_page - 1].get_pixmap(dpi=220, alpha=False).save(str(image_path))
-            proc = subprocess.run(
-                ["tesseract", str(image_path), "stdout",
-                 "-l", "+".join(preferred), "--psm", "3"],
-                capture_output=True, text=True, timeout=75)
-        if proc.returncode != 0:
-            return ""
-        text = re.sub(r"\r\n?", "\n", proc.stdout or "").strip()
-        if text:
-            cache.write_text(text, encoding="utf-8")
-        return text
-    except Exception:
-        return ""
-
-
-def _toc_page_text(doc, pdf_page: int, allow_ocr: bool = True) -> str:
-    native = _page_text_for_book_index(doc, pdf_page)
-    if len(re.sub(r"\s+", "", native)) >= 80:
-        return native
-    if allow_ocr:
-        scanned = _ocr_toc_page(doc, pdf_page)
-        if len(re.sub(r"\s+", "", scanned)) > len(re.sub(r"\s+", "", native)):
-            return scanned
-    return native
-
-
-def _toc_numbered_line_count(text: str) -> int:
-    return sum(
-        1 for raw in str(text or "").splitlines()
-        if re.search(r"(?:\.{2,}|\s+|[-–—]\s*)\d{1,4}\s*$",
-                     re.sub(r"\s+", " ", raw).strip())
-    )
-
-
-def _toc_monotonic_entry_count(text: str) -> int:
-    pages = []
-    for raw in str(text or "").splitlines():
-        line = re.sub(r"\s+", " ", raw).strip()
-        match = re.match(r"^.+?(?:\s*\.{2,}\s*|\s+)(\d{1,4})\s*$", line)
-        if match:
-            pages.append(int(match.group(1)))
-    if not pages:
-        return 0
-    count, last = 1, pages[0]
-    for value in pages[1:]:
-        if value >= last:
-            count += 1
-            last = value
-    return count
-
-
 def _detect_toc_pages(doc, max_scan_pages: int = 40) -> List[int]:
-    """Detect TOC candidates, then verify them against real lesson pages.
-
-    Raw OCR shape is only a candidate signal.  A page is accepted as the TOC
-    only when its parsed title/page rows can produce a repeated, unique mapping
-    to physical PDF pages.  This prevents a numbered exercise/list page from
-    winning merely because it has many trailing numbers.
-    """
-    scored = []
+    candidates = []
     limit = min(len(doc), max_scan_pages)
     for pdf_page in range(1, limit + 1):
-        native = _page_text_for_book_index(doc, pdf_page)
-        text = native
-        if not _TOC_HINT_RE.search(native) and _toc_numbered_line_count(native) < 4:
-            text = _toc_page_text(doc, pdf_page, allow_ocr=True)
-        numbered = _toc_numbered_line_count(text)
-        monotonic = _toc_monotonic_entry_count(text)
-        hint = bool(_TOC_HINT_RE.search(text))
-        if numbered < 3 or monotonic < 3:
+        text = _page_text_for_book_index(doc, pdf_page)
+        if not text:
             continue
-        # Reward consistency, not just raw numbered-line count.
-        consistency = monotonic / max(1, numbered)
-        score = numbered * 2 + monotonic * 4 + (12 if hint else 0) + round(consistency * 12)
-        scored.append({
-            "score": score, "page": pdf_page, "native": text == native,
-            "numbered": numbered, "monotonic": monotonic,
-            "consistency": round(consistency, 3),
-        })
-
-    if not scored:
-        return []
-
-    scored.sort(key=lambda x: (-x["score"], -x["consistency"], x["page"]))
-    # Verify several independent candidates. Adjacent candidate pages are treated
-    # as one possible multi-page TOC block.
-    candidate_blocks = []
-    seen = set()
-    for item in scored[:20]:
-        page = item["page"]
-        if page in seen:
-            continue
-        block = {page}
-        for other in scored:
-            if abs(other["page"] - page) <= 2 and other["numbered"] >= 3 and other["monotonic"] >= 3:
-                block.add(other["page"])
-        block = tuple(sorted(block))
-        seen.update(block)
-        candidate_blocks.append((item, block))
-
-    verified = []
-    for item, block in candidate_blocks:
-        entries = _parse_toc_entries(doc, list(block))
-        progress(
-            "BOOK_INDEX_TOC_CANDIDATE",
-            pages=list(block), strongest_page=item["page"], raw_score=item["score"],
-            numbered_lines=item["numbered"], monotonic_entries=item["monotonic"],
-            parsed_entries=len(entries), consistency=item["consistency"],
+        lines = [x.strip() for x in text.splitlines() if x.strip()]
+        numbered_lines = sum(
+            1 for line in lines
+            if re.search(r"(?:\.{2,}|\s{2,})\d{1,4}\s*$", line)
         )
-        if len(entries) < 2:
-            continue
-        try:
-            offset = _resolve_printed_to_pdf_offset(doc, entries)
-        except RuntimeError as exc:
-            progress(
-                "BOOK_INDEX_TOC_CANDIDATE_REJECTED",
-                pages=list(block), reason=str(exc)[:260],
-            )
-            continue
-        anchors = _offset_probe_entries(entries, limit=8)
-        evidence = _score_offset_against_entries(doc, anchors, offset)
-        verified.append({
-            "pages": list(block), "offset": offset,
-            "votes": evidence["votes"], "tested": evidence["tested"],
-            "entries": len(entries), "raw_score": item["score"],
-            "strongest_page": item["page"],
-        })
-
-    if not verified:
+        if _TOC_HINT_RE.search(text) or numbered_lines >= 4:
+            candidates.append(pdf_page)
+    if not candidates:
         return []
-
-    verified.sort(key=lambda x: (-x["votes"], -x["entries"], -x["raw_score"], x["strongest_page"]))
-    best = verified[0]
-    progress(
-        "BOOK_INDEX_TOC_BLOCK_SELECTED",
-        pages=best["pages"], strongest_page=best["strongest_page"],
-        strongest_score=best["raw_score"], verified_offset=best["offset"],
-        verification_votes=best["votes"], parsed_entries=best["entries"],
-    )
-    for page in best["pages"]:
-        meta = next((x for x in scored if x["page"] == page), None)
-        if meta:
-            progress(
-                "BOOK_INDEX_TOC_PAGE_DETECTED", pdf_page=page,
-                method="native_text" if meta["native"] else "local_ocr",
-                numbered_lines=meta["numbered"], monotonic_entries=meta["monotonic"],
-                score=meta["score"], verified=True,
+    expanded = set(candidates)
+    for p in list(candidates):
+        if p + 1 <= limit:
+            nxt = _page_text_for_book_index(doc, p + 1)
+            numbered = sum(
+                1 for line in nxt.splitlines()
+                if re.search(r"(?:\.{2,}|\s{2,})\d{1,4}\s*$", line.strip())
             )
-    return best["pages"]
+            if numbered >= 3:
+                expanded.add(p + 1)
+    return sorted(expanded)
 
 
 def _parse_toc_entries(doc, toc_pages: List[int]) -> List[dict]:
     entries = []
     for toc_pdf_page in toc_pages:
-        text = _toc_page_text(doc, toc_pdf_page, allow_ocr=True)
+        text = _page_text_for_book_index(doc, toc_pdf_page)
         for raw_line in text.splitlines():
             line = re.sub(r"\s+", " ", raw_line).strip()
             if not line:
@@ -2458,1240 +2080,43 @@ def _parse_toc_entries(doc, toc_pages: List[int]) -> List[dict]:
     return unique
 
 
-def _title_match_score(title: str, page_text: str) -> int:
-    """OCR-tolerant token score for matching a TOC title to a real page."""
-    title_tokens = [
-        token.casefold() for token in re.findall(r"\w+", str(title or ""), flags=re.UNICODE)
-        if len(token) >= 4 and not token.isdigit()
-    ]
-    if not title_tokens:
-        return 0
-    page_tokens = [
-        token.casefold() for token in re.findall(r"\w+", str(page_text or ""), flags=re.UNICODE)
-        if len(token) >= 3 and not token.isdigit()
-    ]
-    if not page_tokens:
-        return 0
-    page_set = set(page_tokens)
-    hits = 0
-    for token in title_tokens:
-        if token in page_set:
-            hits += 1
-            continue
-        # Tesseract commonly changes one character in headings.  Fuzzy matching
-        # is deliberately limited to similarly-sized words to avoid false votes.
-        for candidate in page_tokens:
-            if abs(len(candidate) - len(token)) > 2:
-                continue
-            if difflib.SequenceMatcher(None, token, candidate).ratio() >= 0.82:
-                hits += 1
-                break
-    return hits
-
-
-def _offset_probe_entries(toc_entries: List[dict], limit: int = 8) -> List[dict]:
-    """Choose spread-out TOC anchors so one noisy OCR row cannot decide the offset."""
-    valid = []
-    for entry in toc_entries:
-        try:
-            printed = int(entry.get("printed_page"))
-        except (TypeError, ValueError):
-            continue
-        title = str(entry.get("title") or "").strip()
-        if printed < 1 or len(title) < 3:
-            continue
-        valid.append(entry)
-    if len(valid) <= limit:
-        return valid
-    # Sample across the whole TOC instead of trusting only the first rows/column.
-    picks = []
-    for i in range(limit):
-        idx = round(i * (len(valid) - 1) / max(1, limit - 1))
-        if valid[idx] not in picks:
-            picks.append(valid[idx])
-    return picks
-
-
-def _offset_search_ranges(doc, toc_entries: List[dict]) -> List[range]:
-    """Adaptive offset windows; no book-specific or manually supplied offset."""
-    if not toc_entries:
-        return []
-    toc_pages = [
-        int(e.get("toc_pdf_page")) for e in toc_entries
-        if str(e.get("toc_pdf_page") or "").isdigit()
-    ]
-    printed = [
-        int(e.get("printed_page")) for e in toc_entries
-        if str(e.get("printed_page") or "").isdigit()
-    ]
-    if not printed:
-        return []
-
-    # Stage 1 preserves the old fast path. Stage 2/3 handle books with long
-    # front matter or PDFs whose physical pages are far from printed numbering.
-    max_offset = max(-5, len(doc) - min(printed))
-    ranges = [range(-5, min(31, max_offset + 1))]
-
-    if max_offset >= 31:
-        # The first real lesson normally cannot begin before the detected TOC.
-        # Use that fact only to prioritize the search, never as proof of offset.
-        if toc_pages:
-            likely = max(toc_pages) + 1 - min(printed)
-            lo = max(-10, likely - 18)
-            hi = min(max_offset + 1, likely + 31)
-            if hi > lo:
-                ranges.append(range(lo, hi))
-        ranges.append(range(31, min(81, max_offset + 1)))
-    if max_offset >= 81:
-        ranges.append(range(81, min(151, max_offset + 1)))
-    return ranges
-
-
-def _score_offset_against_entries(doc, entries: List[dict], offset: int) -> dict:
-    """Return evidence for one offset using title matches on actual destination pages."""
-    votes = 0
-    tested = 0
-    details = []
-    for entry in entries:
-        pdf_page = int(entry["printed_page"]) + int(offset)
-        if not (1 <= pdf_page <= len(doc)):
-            continue
-        tested += 1
-        native = _page_text_for_book_index(doc, pdf_page)
-        text = native
-        tokens = [
-            t for t in re.findall(r"\w+", str(entry.get("title") or ""), flags=re.UNICODE)
-            if len(t) >= 4 and not t.isdigit()
-        ]
-        required = 1 if len(tokens) <= 2 else 2
-        hits = _title_match_score(entry.get("title") or "", text)
-        used_ocr = False
-        if hits < required:
-            # A page may contain plenty of native text and still have a broken or
-            # image-only heading.  Native-text length is therefore NOT evidence
-            # that OCR is unnecessary.  OCR is cached per physical page, so this
-            # remains bounded while rescuing scanned/mixed PDFs.
-            scanned = _ocr_toc_page(doc, pdf_page)
-            if scanned:
-                ocr_hits = _title_match_score(entry.get("title") or "", scanned)
-                if ocr_hits > hits:
-                    text = scanned
-                    hits = ocr_hits
-                    used_ocr = True
-        matched = hits >= required
-        if matched:
-            votes += 1
-        details.append({
-            "title": str(entry.get("title") or "")[:120],
-            "printed_page": int(entry["printed_page"]),
-            "pdf_page": pdf_page,
-            "hits": hits,
-            "required": required,
-            "matched": matched,
-            "ocr": used_ocr,
-        })
-    return {"offset": int(offset), "votes": votes, "tested": tested, "details": details}
-
-
 def _candidate_pdf_offsets(doc, toc_entries: List[dict]) -> List[int]:
-    """Verify printed->PDF offsets against real pages with adaptive bounded search.
-
-    The previous implementation hard-stopped at offset 30. That can reject a
-    valid book with long front matter. This version expands only when the fast
-    window does not produce a trustworthy result and still requires repeated
-    title evidence from the real destination pages.
-    """
-    entries = _offset_probe_entries(toc_entries, limit=6)
-    if not entries:
-        return []
-
-    scored = {}
-    tested_offsets = set()
-    stages = _offset_search_ranges(doc, toc_entries)
-    for stage_no, offsets in enumerate(stages, 1):
-        for offset in offsets:
-            if offset in tested_offsets:
-                continue
-            tested_offsets.add(offset)
-            result = _score_offset_against_entries(doc, entries, offset)
-            if result["tested"]:
-                scored[offset] = result
-
-        ranked = sorted(
-            scored.values(),
-            key=lambda item: (-item["votes"], -item["tested"], abs(item["offset"]), item["offset"]),
-        )
-        if ranked:
-            best = ranked[0]
-            second_votes = ranked[1]["votes"] if len(ranked) > 1 else -1
-            progress(
-                "BOOK_INDEX_OFFSET_SEARCH_STAGE",
-                search_stage=stage_no,
-                tested_offsets=len(tested_offsets),
-                best_offset=best["offset"],
-                best_votes=best["votes"],
-                best_tested=best["tested"],
-                second_votes=second_votes,
-            )
-            # Stop early only on repeated, unique evidence. Two votes are enough
-            # for small TOCs; larger TOCs require three anchors when available.
-            required_votes = 2 if len(entries) < 4 else 3
-            if best["votes"] >= required_votes and best["votes"] > second_votes:
-                break
-
-    if not scored:
-        return []
-    ranked = sorted(
-        scored.values(),
-        key=lambda item: (-item["votes"], -item["tested"], abs(item["offset"]), item["offset"]),
-    )
-    best_votes = ranked[0]["votes"]
-    if best_votes <= 0:
-        return []
-
-    progress(
-        "BOOK_INDEX_OFFSET_CANDIDATES",
-        best_votes=best_votes,
-        candidates=[
-            {"offset": item["offset"], "votes": item["votes"], "tested": item["tested"]}
-            for item in ranked[:8] if item["votes"] > 0
-        ],
-    )
-    repeated = []
-    for item in ranked:
-        repeated.extend([item["offset"]] * item["votes"])
-    return repeated
-
-
-def _verify_offset_bounds_and_monotonicity(doc, toc_entries: List[dict], offset: int) -> bool:
-    """Validity gate only: an offset must map >=2 increasing printed pages into the PDF.
-
-    Important: monotonicity is NOT a tie-breaker by itself. Adding the same
-    constant to increasing printed page numbers preserves their order for every
-    candidate offset, so using this alone would silently guess among ties.
-    """
-    previous_printed = None
-    previous_pdf = None
-    valid = 0
-    for entry in toc_entries:
-        try:
-            printed = int(entry.get("printed_page"))
-        except (TypeError, ValueError):
+    offsets = []
+    for entry in toc_entries[:20]:
+        tokens = [
+            token.casefold() for token in re.findall(r"\w+", entry["title"], flags=re.UNICODE)
+            if len(token) >= 4
+        ]
+        if not tokens:
             continue
-        pdf_page = printed + int(offset)
-        if not (1 <= pdf_page <= len(doc)):
-            continue
-        if previous_printed is not None and printed <= previous_printed:
-            continue
-        if previous_pdf is not None and pdf_page <= previous_pdf:
-            return False
-        previous_printed = printed
-        previous_pdf = pdf_page
-        valid += 1
-    return valid >= 2
-
-
-def _offset_tie_evidence(doc, toc_entries: List[dict], offset: int) -> dict:
-    """Rescore a tied offset on the widest independent evidence available."""
-    valid_entries = []
-    for entry in toc_entries:
-        try:
-            printed = int(entry.get("printed_page"))
-        except (TypeError, ValueError):
-            continue
-        if 1 <= printed + int(offset) <= len(doc):
-            valid_entries.append(entry)
-    # Use up to 12 spread-out anchors for tie resolution, rather than the six
-    # anchors used by the fast search. This is still bounded and OCR is cached.
-    anchors = _offset_probe_entries(valid_entries, limit=12)
-    score = _score_offset_against_entries(doc, anchors, offset)
-    hit_sum = sum(int(d.get("hits") or 0) for d in score.get("details") or [])
-    strong = sum(
-        1 for d in score.get("details") or []
-        if d.get("matched") and int(d.get("hits") or 0) >= int(d.get("required") or 1) + 1
-    )
-    return {
-        **score,
-        "hit_sum": hit_sum,
-        "strong_matches": strong,
-        "coverage": (score["votes"] / score["tested"]) if score.get("tested") else 0.0,
-    }
+        for pdf_page in range(1, len(doc) + 1):
+            text = _page_text_for_book_index(doc, pdf_page).casefold()
+            hits = sum(1 for token in tokens if token in text)
+            required = 1 if len(tokens) == 1 else min(2, len(tokens))
+            if hits >= required:
+                offset = pdf_page - entry["printed_page"]
+                if -10 <= offset <= 60:
+                    offsets.append(offset)
+                    break
+    return offsets
 
 
 def _resolve_printed_to_pdf_offset(doc, toc_entries: List[dict]) -> int:
-    """Resolve printed->physical PDF offset without guessing on ambiguous ties.
-
-    Fast search proposes offsets. A unique winner is then verified on hold-out
-    rows when available. If the fast search ties, every tied candidate is
-    rescored against a wider spread of real TOC titles. We accept a tie-break
-    only when one candidate has strictly stronger page-title evidence.
-    """
     offsets = _candidate_pdf_offsets(doc, toc_entries)
     if not offsets:
         raise RuntimeError(
-            "BOOK_INDEX_PAGE_OFFSET_UNVERIFIED: could not map printed TOC pages to physical PDF pages")
-
+            "BOOK_INDEX_PAGE_OFFSET_UNVERIFIED: could not map printed TOC pages to physical PDF pages"
+        )
     counts = {}
     for offset in offsets:
         counts[offset] = counts.get(offset, 0) + 1
-    ranked = sorted(counts.items(), key=lambda pair: (-pair[1], abs(pair[0]), pair[0]))
-    best_offset, votes = ranked[0]
-
+    best_offset, votes = max(counts.items(), key=lambda pair: pair[1])
     if votes < 2 and len(toc_entries) >= 2:
         raise RuntimeError(
-            f"BOOK_INDEX_PAGE_OFFSET_AMBIGUOUS: best_offset={best_offset}, votes={votes}")
-
-    tied = [off for off, v in ranked if v == votes]
-    tie_mode = "unique_fast_vote"
-    if len(tied) > 1:
-        evidence = []
-        for off in tied:
-            if not _verify_offset_bounds_and_monotonicity(doc, toc_entries, off):
-                continue
-            ev = _offset_tie_evidence(doc, toc_entries, off)
-            evidence.append(ev)
-        evidence.sort(key=lambda x: (
-            -int(x.get("votes") or 0),
-            -int(x.get("strong_matches") or 0),
-            -int(x.get("hit_sum") or 0),
-            -float(x.get("coverage") or 0.0),
-            abs(int(x.get("offset") or 0)),
-            int(x.get("offset") or 0),
-        ))
-        progress(
-            "BOOK_INDEX_OFFSET_TIE_EVIDENCE",
-            candidates=[{
-                "offset": e["offset"], "votes": e["votes"],
-                "tested": e["tested"], "strong_matches": e["strong_matches"],
-                "hit_sum": e["hit_sum"], "coverage": round(e["coverage"], 3),
-            } for e in evidence[:8]],
+            f"BOOK_INDEX_PAGE_OFFSET_AMBIGUOUS: best_offset={best_offset}, votes={votes}"
         )
-        if not evidence:
-            raise RuntimeError(
-                f"BOOK_INDEX_PAGE_OFFSET_AMBIGUOUS_TIE: candidates={ranked[:8]}")
-        winner = evidence[0]
-        runner = evidence[1] if len(evidence) > 1 else None
-        winner_key = (winner["votes"], winner["strong_matches"], winner["hit_sum"], round(winner["coverage"], 6))
-        runner_key = ((runner["votes"], runner["strong_matches"], runner["hit_sum"], round(runner["coverage"], 6))
-                      if runner else None)
-        # Never choose merely because abs(offset) is smaller. Evidence must make
-        # the winner unique; otherwise the verified-TOC route fails closed and
-        # the multi-route indexer is free to try another structural route.
-        if runner_key is not None and winner_key == runner_key:
-            raise RuntimeError(
-                "BOOK_INDEX_PAGE_OFFSET_AMBIGUOUS_TIE: "
-                f"no evidence-unique winner among {[(e['offset'], e['votes'], e['strong_matches'], e['hit_sum']) for e in evidence[:8]]}")
-        best_offset = int(winner["offset"])
-        votes = int(winner["votes"])
-        tie_mode = "wider_title_evidence"
-
-    if not _verify_offset_bounds_and_monotonicity(doc, toc_entries, best_offset):
-        raise RuntimeError(
-            f"BOOK_INDEX_PAGE_OFFSET_INVALID_MAPPING: offset={best_offset}")
-
-    search_anchors = _offset_probe_entries(toc_entries, limit=6)
-    search_keys = {
-        (str(e.get("title") or "").casefold(), int(e.get("printed_page") or 0))
-        for e in search_anchors
-    }
-    holdout_pool = [
-        e for e in toc_entries
-        if (str(e.get("title") or "").casefold(), int(e.get("printed_page") or 0))
-        not in search_keys
-    ]
-    if holdout_pool:
-        verification_anchors = _offset_probe_entries(holdout_pool, limit=6)
-        verification_mode = "independent_holdout"
-    else:
-        verification_anchors = _offset_probe_entries(toc_entries, limit=8)
-        verification_mode = "same_anchor_small_toc"
-
-    verification = _score_offset_against_entries(doc, verification_anchors, best_offset)
-    minimum = 2 if len(verification_anchors) >= 2 else 1
-    if verification["votes"] < minimum:
-        raise RuntimeError(
-            "BOOK_INDEX_PAGE_OFFSET_UNVERIFIED_FINAL: "
-            f"offset={best_offset}, mode={verification_mode}, "
-            f"votes={verification['votes']}, tested={verification['tested']}")
-
-    progress(
-        "BOOK_INDEX_PAGE_OFFSET_VERIFIED",
-        offset=best_offset,
-        votes=verification["votes"],
-        tested=verification["tested"],
-        verification_mode=verification_mode,
-        tie_resolution=tie_mode,
-        search_anchor_count=len(search_anchors),
-        holdout_anchor_count=(len(verification_anchors) if verification_mode == "independent_holdout" else 0),
-        alternatives=[{"offset": o, "votes": v} for o, v in ranked if o != best_offset][:4],
-    )
     return best_offset
 
-def _normalize_discovered_heading(value: str) -> str:
-    value = re.sub(r"\s+", " ", str(value or "")).strip(" .\t-–—:;|•")
-    value = re.sub(r"(?i)^(?:chapter|lesson|unit|part|section|chapitre|leçon|unité|partie|section|درس|الوحدة|وحدة|الفصل|فصل)\s*(?:\d+[A-Za-z]?|[IVXLCDM]+|[٠-٩]+)?\s*[:.\-–—]*\s*", "", value).strip()
-    return value
-
-
-def _heading_title_is_plausible(value: str) -> bool:
-    title = _normalize_discovered_heading(value)
-    if not (3 <= len(title) <= 140):
-        return False
-    if _TOC_HINT_RE.fullmatch(title):
-        return False
-    if re.fullmatch(r"[\W\d_]+", title, flags=re.UNICODE):
-        return False
-    words = re.findall(r"\w+", title, flags=re.UNICODE)
-    return 1 <= len(words) <= 18
-
-
-def _dedupe_direct_lesson_entries(entries: List[dict], doc_len: int) -> List[dict]:
-    cleaned = []
-    seen_pages = set()
-    last_title = ""
-    last_page = -99
-    for raw in sorted(entries, key=lambda x: int(x.get("pdf_start_page") or 0)):
-        try:
-            page = int(raw.get("pdf_start_page"))
-        except (TypeError, ValueError):
-            continue
-        title = _normalize_discovered_heading(raw.get("title") or "")
-        if not (1 <= page <= doc_len) or not _heading_title_is_plausible(title):
-            continue
-        norm = re.sub(r"\W+", " ", title.casefold(), flags=re.UNICODE).strip()
-        # Repeated running headers on consecutive pages are not new lessons.
-        if norm == last_title and page <= last_page + 2:
-            continue
-        if page in seen_pages:
-            continue
-        cleaned.append({**raw, "title": title, "pdf_start_page": page})
-        seen_pages.add(page)
-        last_title, last_page = norm, page
-    return cleaned
-
-
-def _lesson_entries_from_pdf_outline(doc) -> List[dict]:
-    """Route A: use the PDF's own outline/bookmarks when they point to real pages."""
-    try:
-        outline = doc.get_toc(simple=True) or []
-    except Exception:
-        return []
-    rows = []
-    for item in outline:
-        if not isinstance(item, (list, tuple)) or len(item) < 3:
-            continue
-        level, title, page = item[0], str(item[1] or "").strip(), item[2]
-        try:
-            page = int(page)
-            level = int(level)
-        except (TypeError, ValueError):
-            continue
-        if level > 3 or not _heading_title_is_plausible(title):
-            continue
-        rows.append({"title": title, "pdf_start_page": page,
-                     "discovery_method": "pdf_outline", "toc_pdf_page": None,
-                     "printed_page": None})
-    rows = _dedupe_direct_lesson_entries(rows, len(doc))
-    # Prefer the deepest repeated outline level that gives a useful lesson set.
-    if len(rows) >= 2:
-        progress("BOOK_INDEX_ROUTE_SUCCESS", route="pdf_outline", lessons=len(rows))
-        return rows
-    return []
-
-
-_LESSON_HEADING_RE = re.compile(
-    r"(?i)^\s*(?:chapter|lesson|unit|part|chapitre|leçon|unité|partie|"
-    r"درس|الوحدة|وحدة|الفصل|فصل)\s*(?:\d+[A-Za-z]?|[IVXLCDM]+|[٠-٩]+)?"
-    r"\s*[:.\-–—]?\s*(.{2,140})$"
-)
-
-
-def _lesson_entries_from_explicit_headings(doc, *, allow_ocr: bool = False) -> List[dict]:
-    """Route C/E: explicit Chapter/Lesson/Unit headings from native text, then OCR."""
-    rows = []
-    for pdf_page in range(1, len(doc) + 1):
-        native = _page_text_for_book_index(doc, pdf_page)
-        texts = [("native_heading", native)]
-        if allow_ocr and len(re.sub(r"\s+", "", native)) < 120:
-            scanned = _ocr_toc_page(doc, pdf_page)
-            if scanned:
-                texts.append(("ocr_heading", scanned))
-        found = None
-        method = None
-        for candidate_method, text in texts:
-            # Headings should occur near the beginning of a page; avoid exercise bodies.
-            for raw in text.splitlines()[:14]:
-                line = re.sub(r"\s+", " ", raw).strip()
-                m = _LESSON_HEADING_RE.match(line)
-                if not m:
-                    continue
-                title = _normalize_discovered_heading(line)
-                if _heading_title_is_plausible(title):
-                    found, method = title, candidate_method
-                    break
-            if found:
-                break
-        if found:
-            rows.append({"title": found, "pdf_start_page": pdf_page,
-                         "discovery_method": method, "toc_pdf_page": None,
-                         "printed_page": None})
-    return _dedupe_direct_lesson_entries(rows, len(doc))
-
-
-def _lesson_entries_from_typography(doc) -> List[dict]:
-    """Route D: infer lesson starts from unusually large top-of-page native headings."""
-    candidates = []
-    for pdf_page in range(1, len(doc) + 1):
-        try:
-            page = doc[pdf_page - 1]
-            blocks = page.get_text("dict").get("blocks") or []
-        except Exception:
-            continue
-        spans = []
-        for block in blocks:
-            for line in block.get("lines") or []:
-                for span in line.get("spans") or []:
-                    text = re.sub(r"\s+", " ", str(span.get("text") or "")).strip()
-                    size = float(span.get("size") or 0)
-                    bbox = span.get("bbox") or [0, 0, 0, 0]
-                    if text and size > 0:
-                        spans.append((text, size, float(bbox[1] or 0), float(page.rect.height or 1)))
-        if len(spans) < 2:
-            continue
-        sizes = sorted(x[1] for x in spans)
-        median = sizes[len(sizes)//2]
-        top = [x for x in spans if x[2] <= x[3] * .38 and x[1] >= max(median * 1.35, median + 2.0)]
-        top.sort(key=lambda x: (-x[1], x[2]))
-        for text, size, y, height in top[:4]:
-            if _heading_title_is_plausible(text):
-                candidates.append({"title": text, "pdf_start_page": pdf_page,
-                                   "discovery_method": "typographic_heading",
-                                   "toc_pdf_page": None, "printed_page": None,
-                                   "heading_font_size": round(size, 2)})
-                break
-    rows = _dedupe_direct_lesson_entries(candidates, len(doc))
-    # Typography is deliberately conservative: require several separated starts.
-    if len(rows) >= 3:
-        return rows
-    return []
-
-
-def _title_looks_ocr_damaged(title: str) -> bool:
-    """Conservative OCR detector; normal numbered curriculum titles are valid."""
-    t = re.sub(r"\s+", " ", str(title or "")).strip()
-    if not t: return True
-    lexical = re.sub(r"^\s*\d+\s*[:.\-–—]\s*", "", t).strip()
-    if not lexical: return True
-    if re.match(r"(?i)^(?:hapter|esson|nit|hapitre|e[cç]on)\b", lexical): return True
-    first = re.match(r"^([A-Za-zÀ-ÿ]{1,12})\b", lexical)
-    if first and first.group(1)[:1].islower():
-        allowed={"a","an","the","of","in","on","to","and","or","for","with","de","du","des","la","le","les","un","une","et"}
-        if first.group(1).casefold() not in allowed: return True
-    return "\ufffd" in lexical
-
-
-def _page_work_signals(text: str) -> dict:
-    """Extract page-level structural work signals; no lesson facts are inferred."""
-    lines = [re.sub(r"\s+", " ", x).strip() for x in str(text or "").splitlines() if x.strip()]
-    head = lines[:24]
-    activity1 = any(re.search(r"(?i)^\s*(?:activity|activit[eé])\s*(?:no\.?\s*)?1\b", x) for x in head)
-    exercise1 = any(re.search(r"(?i)^\s*(?:exercise|exercice|problem|probl[eè]me)\s*(?:no\.?\s*)?1\b", x) for x in head)
-    exercises_block = any(re.search(r"(?i)^\s*(?:exercises|exercices|problems|probl[eè]mes)\s*[:\-–—]?\s*$", x) for x in lines[:40])
-    explicit_heading = _page_has_explicit_curriculum_heading(text)
-    title_like = any(
-        2 <= len(re.findall(r"\w+", x, flags=re.UNICODE)) <= 10
-        and len(x) <= 100 and not x.endswith(("?", "!", "."))
-        and not _structural_label_only_title(x)
-        for x in head[:8]
-    )
-    return {
-        "activity1": activity1,
-        "exercise1": exercise1,
-        "exercises_block": exercises_block,
-        "explicit_heading": explicit_heading,
-        "title_like": title_like,
-    }
-
-
-def _compound_boundary_evidence(doc, pdf_page: int) -> dict:
-    """Combine independent structural signals around a proposed boundary page."""
-    current_text = _structural_page_text(doc, pdf_page)
-    current = _page_work_signals(current_text)
-    previous = []
-    for p in range(max(1, pdf_page - 3), pdf_page):
-        previous.append((p, _page_work_signals(_structural_page_text(doc, p))))
-    prior_exercises = any(sig["exercises_block"] for _, sig in previous)
-    prior_work = any(sig["exercise1"] or sig["exercises_block"] for _, sig in previous)
-    score = 0
-    if current["explicit_heading"]:
-        score += 8
-    if current["activity1"]:
-        score += 3
-    if current["title_like"]:
-        score += 2
-    if prior_exercises:
-        score += 5
-    elif prior_work:
-        score += 2
-    strong_cycle = bool(current["activity1"] and prior_exercises and current["title_like"])
-    return {
-        "score": score,
-        "strong_cycle": strong_cycle,
-        "current": current,
-        "prior_exercises": prior_exercises,
-        "prior_pages": [p for p, sig in previous if sig["exercise1"] or sig["exercises_block"]],
-    }
-
-
-def _span_boundary_cycles(doc, start_page: int, end_page: int) -> List[int]:
-    """Return strong Exercise(s)->Activity 1 reset pages inside a lesson span."""
-    out = []
-    for page in range(start_page + 1, end_page + 1):
-        evidence = _compound_boundary_evidence(doc, page)
-        if evidence["strong_cycle"]:
-            out.append(page)
-    return out
-
-
-def _lesson_index_route_quality(doc, entries: List[dict], route: str) -> dict:
-    """Generic fail-closed gate before any discovery route may become an index."""
-    rows = _dedupe_direct_lesson_entries(entries, len(doc))
-    reasons = []
-    if len(rows) < 2:
-        reasons.append("too_few_lesson_starts")
-    starts = [int(x.get("pdf_start_page") or 0) for x in rows]
-    if starts != sorted(set(starts)):
-        reasons.append("non_unique_or_non_monotonic_starts")
-    titles = [str(x.get("title") or "").strip() for x in rows]
-    suspicious_titles = []
-    forbidden_structural_titles = []
-    damaged_titles = []
-    for title in titles:
-        words = re.findall(r"\w+", title, flags=re.UNICODE)
-        if title.endswith(("?", "!")) or len(words) > 18:
-            suspicious_titles.append(title)
-        if re.match(r"^[a-z]\b", title):
-            suspicious_titles.append(title)
-        if _title_looks_ocr_damaged(title):
-            damaged_titles.append(title)
-        if re.fullmatch(
-                r"(?i)\s*(?:objectives?|learning objectives?|activities?|"
-                r"exercises?|problems?|questions?|review|summary|introduction|"
-                r"applications?|examples?|assessment|evaluation|"
-                r"objectifs?|activit[eé]s?|exercices?|probl[eè]mes?|"
-                r"r[eé]vision|r[eé]sum[eé]|introduction)\s*[:\-–—]?\s*",
-                title):
-            forbidden_structural_titles.append(title)
-    if suspicious_titles:
-        reasons.append("sentence_like_titles")
-    if forbidden_structural_titles:
-        reasons.append("structural_label_used_as_lesson_title")
-
-    spans = []
-    unresolved_cycles = []
-    suspicious_spans = []
-    if starts:
-        for a, b in zip(starts, starts[1:]):
-            spans.append(b - a)
-        spans.append(len(doc) + 1 - starts[-1])
-    if spans and len(spans) >= 2:
-        ordered = sorted(spans)
-        median_span = ordered[len(ordered)//2]
-        previous = sorted(spans[:-1])
-        median_prev = previous[len(previous)//2] if previous else median_span
-        if route in ("ocr_explicit_headings", "native_explicit_headings", "native_typography", "ai_ocr_structural", "vision_structural"):
-            if spans[-1] > max(40, median_prev * 6 if median_prev else 40):
-                reasons.append("implausible_final_lesson_span")
-            if len(rows) < 3 and len(doc) >= 60:
-                reasons.append("insufficient_structure_for_long_book")
-        # Final/refined maps get a stricter adaptive span/cycle audit. This is
-        # intentionally evidence-driven rather than a fixed textbook length.
-        if route in ("boundary_recovery", "final_verified_map"):
-            adaptive = max(16, int(math.ceil((median_span or 8) * 2.2)))
-            for idx, span in enumerate(spans):
-                a = starts[idx]
-                b = starts[idx+1] - 1 if idx + 1 < len(starts) else len(doc)
-                cycles = _span_boundary_cycles(doc, a, b)
-                # a+1 commonly contains Activity 1 belonging to the lesson heading
-                # on page a. Only deeper interior resets remain unresolved.
-                interior_cycles = [p for p in cycles if p > a + 1]
-                if interior_cycles:
-                    unresolved_cycles.append({"range": [a, b], "pages": interior_cycles})
-                if span >= adaptive and interior_cycles:
-                    suspicious_spans.append({"range": [a, b], "span": span, "cycles": interior_cycles})
-            if unresolved_cycles:
-                reasons.append("unresolved_exercises_to_activity1_boundaries")
-            if suspicious_spans:
-                reasons.append("suspicious_long_spans_after_recovery")
-            if damaged_titles:
-                reasons.append("unrepaired_ocr_damaged_titles")
-
-    passed = not reasons
-    return {
-        "passed": passed, "route": route, "count": len(rows),
-        "reasons": reasons, "starts": starts[:40],
-        "spans": spans[:40], "suspicious_titles": suspicious_titles[:10],
-        "damaged_titles": damaged_titles[:10],
-        "forbidden_structural_titles": forbidden_structural_titles[:10],
-        "unresolved_cycles": unresolved_cycles[:20],
-        "suspicious_spans": suspicious_spans[:20],
-        "entries": rows,
-    }
-
-def _accept_index_route(doc, entries: List[dict], route: str, attempts: List[dict]) -> Optional[List[dict]]:
-    report = _lesson_index_route_quality(doc, entries, route)
-    if attempts and attempts[-1].get("route") == route:
-        attempts[-1]["quality_gate"] = {k: v for k, v in report.items() if k != "entries"}
-    if not report["passed"]:
-        progress("BOOK_INDEX_ROUTE_REJECTED", route=route, reasons=report["reasons"], starts=report["starts"], spans=report["spans"])
-        return None
-    progress("BOOK_INDEX_ROUTE_SUCCESS", route=route, lessons=report["count"])
-    return report["entries"]
-
-
-
-def _structural_page_text(doc, pdf_page: int) -> str:
-    """Best local text for book-structure recovery; never invents content."""
-    native = _page_text_for_book_index(doc, pdf_page)
-    if len(re.sub(r"\s+", "", native)) >= 180:
-        return native
-    ocr = _ocr_toc_page(doc, pdf_page)
-    return ocr if len(re.sub(r"\s+", "", ocr)) > len(re.sub(r"\s+", "", native)) else native
-
-
-def _structural_text_excerpt(text: str, max_lines: int = 18, max_chars: int = 1800) -> str:
-    lines = []
-    for raw in str(text or "").splitlines()[:max_lines * 2]:
-        line = re.sub(r"\s+", " ", raw).strip()
-        if not line:
-            continue
-        lines.append(line[:240])
-        if len(lines) >= max_lines:
-            break
-    return "\n".join(lines)[:max_chars]
-
-
-def _ai_structural_title_supported(doc, pdf_page: int, title: str) -> bool:
-    """Require an AI-proposed heading to be visibly recoverable on that same page."""
-    title = _normalize_discovered_heading(title)
-    if not _heading_title_is_plausible(title):
-        return False
-    text = _structural_page_text(doc, pdf_page)
-    tokens = [t.casefold() for t in re.findall(r"\w+", title, flags=re.UNICODE)
-              if len(t) >= 3 and not t.isdigit()]
-    if not tokens:
-        return False
-    hits = _title_match_score(title, text)
-    required = 1 if len(tokens) <= 2 else max(2, min(4, math.ceil(len(tokens) * .45)))
-    # Exact normalized containment is especially useful when OCR punctuation differs.
-    norm_title = re.sub(r"[^\w]+", " ", title.casefold(), flags=re.UNICODE).strip()
-    norm_text = re.sub(r"[^\w]+", " ", text.casefold(), flags=re.UNICODE)
-    return norm_title in norm_text or hits >= required
-
-
-def _lesson_entries_from_ai_ocr_structure(doc) -> List[dict]:
-    """Route F: ask the configured text LLM to classify LOCAL OCR/native excerpts.
-
-    The model receives text only, never a source image. Every proposed lesson start
-    is independently re-checked against the local page text before it can enter the
-    common route quality gate.
-    """
-    page_records = []
-    for pdf_page in range(1, len(doc) + 1):
-        text = _structural_page_text(doc, pdf_page)
-        excerpt = _structural_text_excerpt(text)
-        if excerpt:
-            page_records.append({"pdf_page": pdf_page, "excerpt": excerpt})
-    if not page_records:
-        return []
-
-    rows = []
-    batch_size = max(8, min(24, int(os.getenv("NABIL_BOOK_INDEX_AI_TEXT_BATCH_PAGES", "18"))))
-    for start in range(0, len(page_records), batch_size):
-        batch = page_records[start:start + batch_size]
-        payload = "\n\n".join(
-            f"=== PDF PAGE {r['pdf_page']} ===\n{r['excerpt']}" for r in batch
-        )
-        prompt = f"""You are classifying STRUCTURE in OCR/native text from a school textbook.
-Return JSON only with this schema:
-{{"lesson_starts":[{{"pdf_page": integer, "title": string, "confidence": number, "evidence_line": string}}]}}
-
-STRICT RULES:
-- Select only genuine starts of lessons/chapters/units that a student would recognize as a curriculum section.
-- Do NOT turn prose sentences, questions, exercise prompts, running headers, page numbers, introductions, or fragments into lesson titles.
-- The title and evidence_line MUST be visibly present in the supplied text for that SAME pdf_page.
-- Never invent or repair a title that is not present.
-- If uncertain, omit it. Empty lesson_starts is valid.
-- confidence is 0..1 and must reflect structural certainty, not topic relevance.
-
-PAGES:\n{payload}"""
-        try:
-            data = _execute_llm_json_strict(prompt, purpose="book_index_ai_ocr_structure", max_attempts=2)
-        except Exception as exc:
-            progress("BOOK_INDEX_AI_TEXT_BATCH_FAILED", first_page=batch[0]["pdf_page"], last_page=batch[-1]["pdf_page"], error=str(exc)[:300])
-            continue
-        items = data.get("lesson_starts") if isinstance(data, dict) else None
-        if not isinstance(items, list):
-            continue
-        allowed_pages = {r["pdf_page"] for r in batch}
-        for item in items:
-            if not isinstance(item, dict):
-                continue
-            try:
-                page = int(item.get("pdf_page"))
-                confidence = float(item.get("confidence", 0))
-            except (TypeError, ValueError):
-                continue
-            title = _normalize_discovered_heading(item.get("title") or "")
-            if page not in allowed_pages or confidence < .72:
-                continue
-            if not _ai_structural_title_supported(doc, page, title):
-                progress("BOOK_INDEX_AI_TEXT_CANDIDATE_REJECTED", pdf_page=page, title=title[:140], reason="title_not_supported_on_page")
-                continue
-            rows.append({
-                "title": title, "pdf_start_page": page,
-                "discovery_method": "ai_ocr_structural",
-                "toc_pdf_page": None, "printed_page": None,
-                "structural_confidence": round(confidence, 3),
-                "structural_evidence": str(item.get("evidence_line") or "")[:300],
-            })
-    return _dedupe_direct_lesson_entries(rows, len(doc))
-
-
-def _vision_index_context(book_id: str, pdf_page: int) -> dict:
-    return {
-        "lesson_id": f"BOOK-INDEX-{_book_index_safe_id(book_id)}",
-        "book_id": str(book_id),
-        "pdf_page": int(pdf_page),
-    }
-
-
-def _lesson_entries_from_vision_structure(doc, book_id: str) -> List[dict]:
-    """Route G: authorized page-image recovery for scanned books.
-
-    Vision is attempted only for pages that the owner has explicitly authorized
-    under the normal source-vision consent contract. Unsupported/unauthorized
-    pages are skipped rather than weakening privacy or fail-closed behavior.
-    """
-    # Candidate reduction: use local text/ocr to avoid sending every page.
-    candidates = []
-    for pdf_page in range(1, len(doc) + 1):
-        text = _structural_page_text(doc, pdf_page)
-        lines = [re.sub(r"\s+", " ", x).strip() for x in text.splitlines()[:16] if x.strip()]
-        score = 0
-        if any(_LESSON_HEADING_RE.match(x) for x in lines):
-            score += 6
-        if any(2 <= len(re.findall(r"\w+", x, flags=re.UNICODE)) <= 10 and len(x) <= 90 for x in lines[:6]):
-            score += 2
-        if any(re.search(r"(?i)\b(chapter|lesson|unit|part|chapitre|leçon|unité|partie)\b|درس|وحدة|فصل", x) for x in lines[:10]):
-            score += 4
-        if score >= 2:
-            candidates.append((score, pdf_page))
-    # Keep broad coverage but bounded cost. Page order matters for final index.
-    max_pages = max(8, min(60, int(os.getenv("NABIL_BOOK_INDEX_VISION_MAX_PAGES", "36"))))
-    candidate_pages = sorted(p for _, p in sorted(candidates, key=lambda x: (-x[0], x[1]))[:max_pages])
-    rows = []
-    for pdf_page in candidate_pages:
-        context = _vision_index_context(book_id, pdf_page)
-        try:
-            # Authorization is checked before rendering/sending the page.
-            assert_authorized_source_vision(context["lesson_id"], context["book_id"], pdf_page)
-        except Exception:
-            continue
-        try:
-            pix = doc[pdf_page - 1].get_pixmap(dpi=150, alpha=False)
-            b64 = base64.b64encode(pix.tobytes("png")).decode("ascii")
-            prompt = """Inspect this textbook page ONLY for document structure. Return JSON:
-{"is_lesson_start": boolean, "title": string, "confidence": number, "visible_evidence": string}
-Rules: true only if this page visibly begins a curriculum lesson/chapter/unit. Do not classify prose, questions, exercises, running headers or fragments as titles. Copy the visible title exactly; never invent it. If uncertain return false."""
-            data = _execute_llm_json_strict(
-                prompt, image_base64=b64, vision_context=context,
-                purpose="book_index_vision_structure", max_attempts=2)
-        except Exception as exc:
-            progress("BOOK_INDEX_VISION_PAGE_FAILED", pdf_page=pdf_page, error=str(exc)[:300])
-            continue
-        if not isinstance(data, dict) or data.get("is_lesson_start") is not True:
-            continue
-        try:
-            confidence = float(data.get("confidence", 0))
-        except (TypeError, ValueError):
-            confidence = 0
-        title = _normalize_discovered_heading(data.get("title") or "")
-        if confidence < .80 or not _heading_title_is_plausible(title):
-            continue
-        rows.append({
-            "title": title, "pdf_start_page": pdf_page,
-            "discovery_method": "vision_structural",
-            "toc_pdf_page": None, "printed_page": None,
-            "structural_confidence": round(confidence, 3),
-            "structural_evidence": str(data.get("visible_evidence") or "")[:300],
-        })
-    return _dedupe_direct_lesson_entries(rows, len(doc))
-
-def _discover_lesson_starts_multi_route(doc, book_id: str) -> Tuple[List[dict], dict]:
-    """Try independent indexing routes in confidence order; every route passes a quality gate."""
-    attempts = []
-
-    outline = _lesson_entries_from_pdf_outline(doc)
-    attempts.append({"route": "pdf_outline", "count": len(outline)})
-    accepted = _accept_index_route(doc, outline, "pdf_outline", attempts) if outline else None
-    if accepted:
-        return accepted, {"route": "pdf_outline", "attempts": attempts, "toc_pdf_pages": [], "printed_to_pdf_offset": None}
-
-    toc_pages = _detect_toc_pages(doc)
-    attempts.append({"route": "verified_toc", "count": len(toc_pages)})
-    if toc_pages:
-        toc_entries = _parse_toc_entries(doc, toc_pages)
-        try:
-            offset = _resolve_printed_to_pdf_offset(doc, toc_entries)
-        except RuntimeError as exc:
-            attempts[-1]["error"] = str(exc)[:500]
-        else:
-            direct = []
-            for entry in toc_entries:
-                page = int(entry["printed_page"]) + offset
-                if 1 <= page <= len(doc):
-                    direct.append({**entry, "pdf_start_page": page, "discovery_method": "verified_toc"})
-            accepted = _accept_index_route(doc, direct, "verified_toc", attempts)
-            if accepted:
-                return accepted, {"route": "verified_toc", "attempts": attempts, "toc_pdf_pages": toc_pages, "printed_to_pdf_offset": offset}
-
-    explicit = _lesson_entries_from_explicit_headings(doc, allow_ocr=False)
-    attempts.append({"route": "native_explicit_headings", "count": len(explicit)})
-    accepted = _accept_index_route(doc, explicit, "native_explicit_headings", attempts) if explicit else None
-    if accepted:
-        return accepted, {"route": "native_explicit_headings", "attempts": attempts, "toc_pdf_pages": [], "printed_to_pdf_offset": None}
-
-    typography = _lesson_entries_from_typography(doc)
-    attempts.append({"route": "native_typography", "count": len(typography)})
-    accepted = _accept_index_route(doc, typography, "native_typography", attempts) if typography else None
-    if accepted:
-        return accepted, {"route": "native_typography", "attempts": attempts, "toc_pdf_pages": [], "printed_to_pdf_offset": None}
-
-    ocr_explicit = _lesson_entries_from_explicit_headings(doc, allow_ocr=True)
-    attempts.append({"route": "ocr_explicit_headings", "count": len(ocr_explicit)})
-    accepted = _accept_index_route(doc, ocr_explicit, "ocr_explicit_headings", attempts) if ocr_explicit else None
-    if accepted:
-        return accepted, {"route": "ocr_explicit_headings", "attempts": attempts, "toc_pdf_pages": [], "printed_to_pdf_offset": None}
-
-    ai_structural = _lesson_entries_from_ai_ocr_structure(doc)
-    attempts.append({"route": "ai_ocr_structural", "count": len(ai_structural)})
-    accepted = _accept_index_route(doc, ai_structural, "ai_ocr_structural", attempts) if ai_structural else None
-    if accepted:
-        return accepted, {"route": "ai_ocr_structural", "attempts": attempts, "toc_pdf_pages": [], "printed_to_pdf_offset": None}
-
-    vision_structural = _lesson_entries_from_vision_structure(doc, book_id)
-    attempts.append({"route": "vision_structural", "count": len(vision_structural)})
-    accepted = _accept_index_route(doc, vision_structural, "vision_structural", attempts) if vision_structural else None
-    if accepted:
-        return accepted, {"route": "vision_structural", "attempts": attempts, "toc_pdf_pages": [], "printed_to_pdf_offset": None}
-
-    progress("BOOK_INDEX_ALL_ROUTES_FAILED", attempts=attempts)
-    return [], {"route": None, "attempts": attempts, "toc_pdf_pages": [], "printed_to_pdf_offset": None}
-
-def _boundary_signal_score(text: str) -> int:
-    """Score only structural signals; never create curriculum content."""
-    lines = [re.sub(r"\s+", " ", x).strip() for x in str(text or "").splitlines() if x.strip()]
-    head = lines[:18]
-    score = 0
-    if any(_LESSON_HEADING_RE.match(x) for x in head):
-        score += 8
-    if any(re.search(r"(?i)\b(chapter|lesson|unit|part|chapitre|le[cç]on|unit[eé]|partie)\s*\d+\b|(?:فصل|درس|وحدة)\s*\d+", x) for x in head[:12]):
-        score += 7
-    # A numbering reset is a boundary clue, never sufficient by itself.
-    if any(re.search(r"(?i)^\s*(activity|activit[eé]|exercise|exercice|problem|probl[eè]me)\s*(?:no\.?\s*)?1\b", x) for x in head):
-        score += 2
-    # Short title-like material near the top gives a weak supporting signal.
-    if any(2 <= len(re.findall(r"\w+", x, flags=re.UNICODE)) <= 9 and len(x) <= 90
-           and not x.endswith(("?", "!", ".")) for x in head[:7]):
-        score += 1
-    return score
-
-
-def _structural_label_only_title(title: str) -> bool:
-    return bool(re.fullmatch(
-        r"(?i)\s*(?:objectives?|learning objectives?|activities?|exercises?|"
-        r"problems?|questions?|review|summary|introduction|applications?|"
-        r"examples?|assessment|evaluation|objectifs?|activit[eé]s?|"
-        r"exercices?|probl[eè]mes?|r[eé]vision|r[eé]sum[eé]|introduction)"
-        r"\s*[:\-–—]?\s*", str(title or "").strip()))
-
-
-def _heading_identity_tokens(title: str) -> set:
-    stop = {"chapter","lesson","unit","part","chapitre","lecon","leçon","unite","unité",
-            "partie","the","a","an","of","and","et","de","du","la","le","les"}
-    return {t.casefold() for t in re.findall(r"\w+", str(title or ""), flags=re.UNICODE)
-            if len(t) >= 3 and t.casefold() not in stop and not t.isdigit()}
-
-
-def _same_heading_identity(a: str, b: str) -> bool:
-    aa, bb = _heading_identity_tokens(a), _heading_identity_tokens(b)
-    if not aa or not bb:
-        return False
-    inter = len(aa & bb)
-    return inter >= 1 and inter / max(1, min(len(aa), len(bb))) >= .60
-
-
-def _page_has_explicit_curriculum_heading(text: str) -> bool:
-    head = [re.sub(r"\s+", " ", x).strip() for x in str(text or "").splitlines() if x.strip()][:14]
-    return any(re.search(
-        r"(?i)\b(?:chapter|lesson|unit|part|chapitre|le[cç]on|unit[eé]|partie)\s*\d+\b|"
-        r"(?:فصل|درس|وحدة)\s*\d+", x) for x in head)
-
-
-def _recover_missing_lesson_boundaries(doc, entries: List[dict], book_id: str, route: str) -> Tuple[List[dict], dict]:
-    """Recover missed lesson boundaries from multiple independent structural signals.
-
-    A numbering reset never proves a lesson by itself. A page becomes a strong
-    candidate when the previous pages close with Exercises and the new page
-    restarts Activity 1 beside title-like/heading evidence. LLM classification
-    adjudicates only nominated pages and must quote same-page evidence.
-    """
-    rows = _dedupe_direct_lesson_entries(entries, len(doc))
-    report = {"attempted": False, "added": 0, "candidate_pages": [], "reason": "not_needed",
-              "rejected_candidates": [], "suspicious_spans": []}
-    if len(rows) < 2:
-        return rows, report
-
-    starts = [int(x["pdf_start_page"]) for x in rows]
-    spans = [b-a for a,b in zip(starts, starts[1:])] + [len(doc)+1-starts[-1]]
-    ordered = sorted(spans)
-    base = ordered[len(ordered)//2] if ordered else 0
-    suspicious = []
-    for idx, span in enumerate(spans):
-        a = starts[idx]
-        b = (starts[idx+1]-1) if idx+1 < len(starts) else len(doc)
-        cycles = _span_boundary_cycles(doc, a, b)
-        adaptive = max(16, int(math.ceil((base or 8) * 2.2)))
-        # Either an unusually long range OR repeated work-cycle evidence is enough
-        # to trigger a second pass. It is not enough to accept a boundary.
-        if span >= adaptive or cycles:
-            suspicious.append((a,b,span,cycles))
-    if not suspicious:
-        return rows, report
-
-    report["attempted"] = True
-    report["reason"] = "suspicious_span_or_work_cycle"
-    report["suspicious_spans"] = [
-        {"range":[a,b], "span":span, "cycle_pages":cycles} for a,b,span,cycles in suspicious
-    ]
-
-    candidate_pages = []
-    for a,b,_,cycles in suspicious:
-        cycle_set = set(cycles)
-        for page in range(a+1, b+1):
-            text = _structural_page_text(doc, page)
-            basic = _boundary_signal_score(text)
-            compound = _compound_boundary_evidence(doc, page)
-            explicit = compound["current"]["explicit_heading"]
-            if explicit or compound["strong_cycle"] or basic >= 7 or page in cycle_set:
-                score = basic + int(compound["score"]) + (8 if page in cycle_set else 0)
-                candidate_pages.append((score, page))
-
-    max_candidates = max(12, min(80, int(os.getenv("NABIL_BOOK_INDEX_BOUNDARY_MAX_CANDIDATES", "48"))))
-    pages = sorted({p for _,p in sorted(candidate_pages, key=lambda x:(-x[0],x[1]))[:max_candidates]})
-    report["candidate_pages"] = pages
-    if not pages:
-        return rows, report
-
-    recovered = []
-    batch_size = max(6, min(18, int(os.getenv("NABIL_BOOK_INDEX_BOUNDARY_BATCH_PAGES", "12"))))
-    existing_by_page = {int(x["pdf_start_page"]): x for x in rows}
-    for pos in range(0, len(pages), batch_size):
-        batch_pages = pages[pos:pos+batch_size]
-        payload_parts = []
-        evidence_by_page = {}
-        for page in batch_pages:
-            excerpt = _structural_text_excerpt(_structural_page_text(doc, page), max_lines=26, max_chars=2600)
-            compound = _compound_boundary_evidence(doc, page)
-            evidence_by_page[page] = compound
-            payload_parts.append(
-                f"=== PDF PAGE {page} ===\n"
-                f"STRUCTURAL CLUES: prior_exercises={compound['prior_exercises']}; "
-                f"activity1={compound['current']['activity1']}; explicit_heading={compound['current']['explicit_heading']}\n"
-                f"{excerpt}"
-            )
-        prompt = """You are doing a SECOND-PASS boundary audit of a school textbook index.
-Some page ranges contain missed lesson/chapter/unit starts.
-Return JSON only:
-{"lesson_starts":[{"pdf_page":integer,"title":string,"confidence":number,"evidence_line":string}]}
-STRICT RULES:
-- Select only a genuine new curriculum lesson/chapter/unit start, not an Activity/Exercise/Objectives subsection.
-- An Activity 1 reset is NOT sufficient alone. It becomes meaningful when a previous lesson closed with Exercises and the new page also has a visible lesson-opening title/pattern.
-- Prefer the repeated structural level used by the book; do not promote a subsection to lesson level.
-- title and evidence_line must be visibly supported on that SAME supplied page.
-- Copy the visible title as faithfully as OCR allows. Do not use outside knowledge.
-- Never return Objectives, Activity, Exercise, Problem, Review, Summary, Introduction, Example, Assessment or Evaluation as the lesson title.
-- Reject prose, questions, running headers and page numbers.
-- If uncertain, omit. Empty lesson_starts is valid.
-PAGES:\n""" + "\n\n".join(payload_parts)
-        try:
-            data = _execute_llm_json_strict(prompt, purpose="book_index_boundary_recovery", max_attempts=2)
-        except Exception as exc:
-            progress("BOOK_INDEX_BOUNDARY_BATCH_FAILED", pages=batch_pages, error=str(exc)[:300])
-            continue
-        items = data.get("lesson_starts") if isinstance(data, dict) else None
-        if not isinstance(items, list):
-            continue
-        allowed = set(batch_pages)
-        for item in items:
-            if not isinstance(item, dict):
-                continue
-            try:
-                page = int(item.get("pdf_page")); conf = float(item.get("confidence",0))
-            except (TypeError,ValueError):
-                continue
-            title = _normalize_discovered_heading(item.get("title") or "")
-            page_text = _structural_page_text(doc, page) if page in allowed else ""
-            compound = evidence_by_page.get(page) or {"score":0,"strong_cycle":False,"current":{},"prior_exercises":False}
-            reason = None
-            # Do not lower the gate blindly: 0.78 is allowed only when the
-            # independent Exercise(s)->Activity 1 cycle is strong. Otherwise .86 remains.
-            min_conf = .78 if compound.get("strong_cycle") and int(compound.get("score") or 0) >= 10 else .86
-            if page not in allowed:
-                reason = "page_not_nominated"
-            elif conf < min_conf:
-                reason = f"confidence_below_{str(min_conf).replace('.', '_')}"
-            elif not title or _structural_label_only_title(title):
-                reason = "structural_label_or_empty_title"
-            elif not _ai_structural_title_supported(doc,page,title):
-                reason = "title_not_supported_on_same_page"
-            elif not compound.get("current",{}).get("explicit_heading") and not compound.get("strong_cycle") and _boundary_signal_score(page_text) < 7:
-                reason = "no_independent_boundary_evidence"
-            else:
-                neighbor = None
-                for p0, old in existing_by_page.items():
-                    if abs(page-p0) <= 1:
-                        neighbor = old
-                        break
-                if neighbor is not None:
-                    old_title = str(neighbor.get("title") or "")
-                    if _same_heading_identity(title, old_title):
-                        reason = "adjacent_duplicate_heading"
-                    elif not compound.get("current",{}).get("explicit_heading") and not compound.get("strong_cycle"):
-                        reason = "adjacent_boundary_without_strong_evidence"
-            if reason:
-                report["rejected_candidates"].append({
-                    "pdf_page":page,"title":title,"confidence":conf,"required_confidence":min_conf,
-                    "compound_score":compound.get("score"),"strong_cycle":compound.get("strong_cycle"),"reason":reason})
-                continue
-            recovered.append({"title":title,"pdf_start_page":page,
-                              "discovery_method":"boundary_recovery",
-                              "toc_pdf_page":None,"printed_page":None,
-                              "structural_confidence":round(conf,3),
-                              "boundary_evidence":compound,
-                              "structural_evidence":str(item.get("evidence_line") or "")[:300]})
-            progress("BOOK_INDEX_BOUNDARY_ACCEPTED", pdf_page=page, title=title[:140], confidence=round(conf,3),
-                     strong_cycle=bool(compound.get("strong_cycle")), score=int(compound.get("score") or 0))
-
-    if not recovered:
-        progress("BOOK_INDEX_BOUNDARY_RECOVERY_EMPTY", suspicious_spans=report["suspicious_spans"],
-                 candidates=len(pages), rejected=report["rejected_candidates"][:20])
-        return rows, report
-
-    # Keep evidence-backed recovered boundaries independently. A single bad OCR
-    # title must not discard the other valid boundaries from this recovery pass.
-    accepted = list(rows)
-    per_item_rejected = []
-    for candidate in sorted(recovered, key=lambda x: int(x["pdf_start_page"])):
-        title = str(candidate.get("title") or "").strip()
-        page = int(candidate["pdf_start_page"])
-        local_bad = (
-            not title
-            or _structural_label_only_title(title)
-            or title.endswith(("?", "!"))
-            or len(re.findall(r"\\w+", title, flags=re.UNICODE)) > 18
-        )
-        if local_bad:
-            per_item_rejected.append({"pdf_page":page,"title":title,
-                                      "reason":"candidate_local_quality_failed"})
-            progress("BOOK_INDEX_BOUNDARY_REJECTED", pdf_page=page, title=title,
-                     reason="candidate_local_quality_failed")
-            continue
-        accepted = _dedupe_direct_lesson_entries(accepted + [candidate], len(doc))
-        progress("BOOK_INDEX_BOUNDARY_INCREMENTAL_ACCEPTED",
-                 pdf_page=page, title=title,
-                 strong_cycle=bool((candidate.get("boundary_evidence") or {}).get("strong_cycle")))
-
-    merged = _dedupe_direct_lesson_entries(accepted, len(doc))
-    quality = _lesson_index_route_quality(doc, merged, "ai_ocr_structural")
-    report["intermediate_quality_gate"] = {k:v for k,v in quality.items() if k != "entries"}
-    report["rejected_candidates"].extend(per_item_rejected)
-    report["added"] = len(merged)-len(rows)
-    if report["added"] <= 0:
-        progress("BOOK_INDEX_BOUNDARY_RECOVERY_REJECTED",
-                 reasons=quality.get("reasons") or ["no_boundary_survived"],
-                 added=0, rejected=report["rejected_candidates"][:20])
-        return rows, report
-
-    # Global defects are intentionally left for the strict final verifier after
-    # title repair. Do not roll back good boundaries because another candidate
-    # has a damaged OCR title.
-    progress("BOOK_INDEX_BOUNDARY_RECOVERY_ACCEPTED", added=report["added"], lessons=len(merged),
-             starts=[int(x["pdf_start_page"]) for x in merged],
-             intermediate_reasons=quality.get("reasons") or [],
-             rejected=report["rejected_candidates"][:20])
-    return merged, report
-
-def _fuzzy_title_supported_on_page(doc, pdf_page: int, candidate: str, original: str) -> bool:
-    """Allow only tiny OCR repairs, never semantic title invention."""
-    text = _structural_page_text(doc, pdf_page)
-    norm = lambda v: re.sub(r"[^\w]+", " ", str(v or "").casefold(), flags=re.UNICODE).strip()
-    cand = norm(candidate); old = norm(original); page = norm(text)
-    if not cand or not old:
-        return False
-    if cand in page:
-        return True
-    # Candidate must remain very close to the OCR title and share its meaningful tokens.
-    ratio = difflib.SequenceMatcher(None, cand, old).ratio()
-    old_tokens = {t for t in old.split() if len(t) >= 3 and not t.isdigit()}
-    cand_tokens = {t for t in cand.split() if len(t) >= 3 and not t.isdigit()}
-    overlap = len(old_tokens & cand_tokens) / max(1, len(old_tokens | cand_tokens))
-    return ratio >= .82 and (overlap >= .50 or abs(len(cand)-len(old)) <= 2)
-
-
-def _repair_ocr_damaged_titles(doc, entries: List[dict]) -> Tuple[List[dict], dict]:
-    """Repair only demonstrable OCR damage; unresolved damaged titles remain fatal."""
-    rows = [dict(x) for x in entries]
-    changed, unresolved = [], []
-    for row in rows:
-        title = str(row.get("title") or "").strip()
-        if not _title_looks_ocr_damaged(title):
-            continue
-        page = int(row.get("pdf_start_page") or 0)
-        excerpt = _structural_text_excerpt(_structural_page_text(doc,page), max_lines=28, max_chars=2800)
-        prompt = f"""Recover the curriculum heading from OCR damage using ONLY this page excerpt.
-Return JSON only: {{"title":string,"confidence":number,"evidence_line":string}}.
-Rules:
-- This is OCR repair, not content completion from general knowledge.
-- Preserve the visible wording and number; repair only characters/words clearly damaged by OCR.
-- If the page does not support a repair, return the ORIGINAL title exactly.
-ORIGINAL: {title}\nPDF PAGE {page}:\n{excerpt}"""
-        try:
-            data = _execute_llm_json_strict(prompt, purpose="book_index_title_repair", max_attempts=1)
-        except Exception as exc:
-            unresolved.append({"pdf_page":page,"title":title,"reason":"repair_call_failed","error":str(exc)[:180]})
-            continue
-        candidate = _normalize_discovered_heading(data.get("title") if isinstance(data,dict) else "")
-        try: conf=float(data.get("confidence",0)) if isinstance(data,dict) else 0
-        except (TypeError,ValueError): conf=0
-        if (conf >= .90 and candidate and candidate != title
-                and not _structural_label_only_title(candidate)
-                and (_ai_structural_title_supported(doc,page,candidate)
-                     or _fuzzy_title_supported_on_page(doc,page,candidate,title))):
-            row["original_discovered_title"] = title
-            row["title"] = candidate
-            row["title_repair_method"] = "same_page_evidence_or_tiny_ocr_fuzzy"
-            row["title_repair_confidence"] = round(conf,3)
-            changed.append({"pdf_page":page,"from":title,"to":candidate,"confidence":round(conf,3)})
-        else:
-            unresolved.append({"pdf_page":page,"title":title,"candidate":candidate,"confidence":round(conf,3),
-                               "reason":"repair_not_strictly_supported"})
-    if changed:
-        progress("BOOK_INDEX_TITLE_REPAIR", changed=changed)
-    if unresolved:
-        progress("BOOK_INDEX_TITLE_REPAIR_UNRESOLVED", unresolved=unresolved[:20])
-    return rows, {"changed":changed,"unresolved":unresolved}
 
 def _lesson_slug(book_id: str, number: int) -> str:
     return f"{_book_index_safe_id(book_id).upper()}-AUTO-{number:03d}"
@@ -3702,12 +2127,6 @@ def _extract_lesson_works(doc, start_page: int, end_page: int) -> List[dict]:
     sequence = 0
     for pdf_page in range(start_page, end_page + 1):
         text = _page_text_for_book_index(doc, pdf_page)
-        # Scanned/mixed textbooks can have exercises visible only in the page image.
-        # Use cached local OCR when native text is weak; never invent work headings.
-        if len(re.sub(r"\s+", "", text)) < 180:
-            ocr_text = _ocr_toc_page(doc, pdf_page)
-            if len(re.sub(r"\s+", "", ocr_text)) > len(re.sub(r"\s+", "", text)):
-                text = ocr_text
         for line_no, raw_line in enumerate(text.splitlines(), 1):
             line = re.sub(r"\s+", " ", raw_line).strip()
             if not line:
@@ -3763,286 +2182,8 @@ def _iter_canonical_lesson_entries(catalog: dict):
                         yield entry
 
 
-
-def _drive_escape_query_value(value: str) -> str:
-    return str(value or "").replace("\\", "\\\\").replace("'", "\\'")
-
-
-def _drive_list_folder_children(drive_service, folder_id: str) -> List[dict]:
-    """Return all non-trashed direct children, including Shared Drive items."""
-    rows: List[dict] = []
-    page_token = None
-    query = f"'{_drive_escape_query_value(folder_id)}' in parents and trashed = false"
-    while True:
-        response = drive_service.files().list(
-            q=query,
-            spaces="drive",
-            fields="nextPageToken,files(id,name,mimeType,parents,description)",
-            pageSize=1000,
-            pageToken=page_token,
-            supportsAllDrives=True,
-            includeItemsFromAllDrives=True,
-        ).execute()
-        rows.extend(response.get("files") or [])
-        page_token = response.get("nextPageToken")
-        if not page_token:
-            return rows
-
-
-
-def _drive_list_accessible_pdfs(drive_service) -> List[dict]:
-    """List accessible Drive PDFs without assuming a curriculum-root folder name."""
-    rows, page_token = [], None
-    while True:
-        response = drive_service.files().list(
-            q="trashed = false and mimeType = 'application/pdf'",
-            spaces="drive",
-            fields="nextPageToken,files(id,name,mimeType,parents,description)",
-            pageSize=1000,
-            pageToken=page_token,
-            supportsAllDrives=True,
-            includeItemsFromAllDrives=True,
-        ).execute()
-        rows.extend(response.get("files") or [])
-        page_token = response.get("nextPageToken")
-        if not page_token:
-            return rows
-
-
-def _drive_ancestor_names(drive_service, item: dict, max_depth: int = 8) -> List[str]:
-    """Return verified parent names nearest->farthest; metadata only."""
-    names = []
-    parents = [str(x) for x in (item.get("parents") or []) if str(x).strip()]
-    seen = set()
-    depth = 0
-    while parents and depth < max_depth:
-        parent_id = parents[0]
-        if parent_id in seen:
-            break
-        seen.add(parent_id)
-        depth += 1
-        try:
-            meta = drive_service.files().get(
-                fileId=parent_id,
-                fields="id,name,mimeType,parents",
-                supportsAllDrives=True,
-            ).execute()
-        except Exception:
-            break
-        name = str(meta.get("name") or "").strip()
-        if name:
-            names.append(name)
-        parents = [str(x) for x in (meta.get("parents") or []) if str(x).strip()]
-    return names
-
-
-def _drive_discover_pdfs_without_root(drive_service) -> List[dict]:
-    """Discover curriculum candidates from accessible PDFs, then classify by real metadata."""
-    out = []
-    for item in _drive_list_accessible_pdfs(drive_service):
-        row = dict(item)
-        ancestors = _drive_ancestor_names(drive_service, row)
-        path_parts = list(reversed(ancestors)) + [str(row.get("name") or "")]
-        row["drive_path_parts"] = path_parts
-        row["drive_path"] = " / ".join(x for x in path_parts if x)
-        out.append(row)
-    progress("DRIVE_ROOTLESS_PDF_DISCOVERY", pdfs=len(out))
-    return out
-
-
-def _drive_walk_curriculum_pdfs(drive_service, root_id: str) -> List[dict]:
-    """Recursively walk the configured curriculum root and return real PDFs."""
-    folder_mime = "application/vnd.google-apps.folder"
-    pdf_mime = "application/pdf"
-    queue: List[Tuple[str, List[str]]] = [(str(root_id), [])]
-    visited = set()
-    pdfs: List[dict] = []
-    while queue:
-        folder_id, parent_parts = queue.pop(0)
-        if folder_id in visited:
-            continue
-        visited.add(folder_id)
-        for item in _drive_list_folder_children(drive_service, folder_id):
-            item_id = str(item.get("id") or "").strip()
-            if not item_id:
-                continue
-            name = str(item.get("name") or "").strip()
-            mime = str(item.get("mimeType") or "")
-            path_parts = parent_parts + [name]
-            if mime == folder_mime:
-                queue.append((item_id, path_parts))
-                continue
-            if mime == pdf_mime or name.casefold().endswith(".pdf"):
-                row = dict(item)
-                row["drive_path_parts"] = path_parts
-                row["drive_path"] = " / ".join(path_parts)
-                pdfs.append(row)
-    return pdfs
-
-
-_DRIVE_GRADE_WORDS = {
-    "first": 1, "premier": 1, "première": 1, "الأول": 1, "الاول": 1,
-    "second": 2, "deuxième": 2, "الثاني": 2,
-    "third": 3, "troisième": 3, "الثالث": 3,
-    "fourth": 4, "quatrième": 4, "الرابع": 4,
-    "fifth": 5, "cinquième": 5, "الخامس": 5,
-    "sixth": 6, "sixième": 6, "السادس": 6,
-    "seventh": 7, "septième": 7, "السابع": 7,
-    "eighth": 8, "huitième": 8, "الثامن": 8,
-    "ninth": 9, "neuvième": 9, "التاسع": 9,
-    "tenth": 10, "dixième": 10, "العاشر": 10,
-    "eleventh": 11, "onzième": 11, "الحادي عشر": 11,
-    "twelfth": 12, "douzième": 12, "الثاني عشر": 12,
-}
-
-
-def _infer_drive_grade(text: str) -> Optional[int]:
-    low = str(text or "").casefold()
-    for pattern in (
-        r"\bgrade[\s._-]*0?(\d{1,2})\b",
-        r"\bg[\s._-]*0?(\d{1,2})\b",
-        r"\beb[\s._-]*0?(\d{1,2})\b",
-        r"\bclass[\s._-]*0?(\d{1,2})\b",
-        r"(?:صف|الصف)[\s._-]*(\d{1,2})",
-    ):
-        match = re.search(pattern, low, flags=re.I)
-        if match:
-            value = int(match.group(1))
-            return value if 1 <= value <= 12 else None
-    for word, value in _DRIVE_GRADE_WORDS.items():
-        if word in low:
-            return value
-    return None
-
-
-_DRIVE_SUBJECT_HINTS = {
-    "mathematics": ("mathematics", "maths", "building up mathematics", "mathématique", "mathématiques", "رياضيات"),
-    "physics": ("physics", "physique", "فيزياء"),
-    "chemistry": ("chemistry", "chimie", "كيمياء"),
-    "biology": ("biology", "biologie", "أحياء", "احياء"),
-    "general_science": ("general science", "science générale", "sciences générales", "علوم عامة"),
-    "arabic_language": ("arabic language", "لغة عربية", "اللغة العربية"),
-    "english_language": ("english language", "لغة إنكليزية", "لغة انكليزية", "اللغة الإنجليزية", "اللغة الانجليزية"),
-    "french_language": ("french language", "langue française", "français", "لغة فرنسية", "اللغة الفرنسية"),
-    "history": ("history", "histoire", "تاريخ"),
-    "geography": ("geography", "géographie", "جغرافيا"),
-    "civics": ("civics", "civic education", "تربية مدنية", "مدنيات"),
-    "philosophy": ("philosophy", "philosophie", "فلسفة"),
-    "economics": ("economics", "économie", "اقتصاد"),
-    "sociology": ("sociology", "sociologie", "علم الاجتماع", "اجتماع"),
-    "computer_science": ("computer science", "informatics", "informatique", "معلوماتية"),
-}
-
-
-def _infer_drive_subject(text: str) -> str:
-    low = str(text or "").casefold()
-    for canonical, hints in _DRIVE_SUBJECT_HINTS.items():
-        if any(hint.casefold() in low for hint in hints):
-            return canonical
-    # Conservative generic science fallback comes last so physics/chemistry/
-    # biology are never swallowed by a parent folder named Science.
-    if any(x in low for x in ("science", "sciences", "علوم")):
-        return "general_science"
-    return ""
-
-
-def _infer_drive_language(text: str) -> str:
-    low = str(text or "").casefold()
-    if "building up mathematics" in low:
-        return "en"
-    if any(x in low for x in ("english", "anglais", "إنكليزي", "انكليزي", "إنجليزي", "انجليزي")):
-        return "en"
-    if any(x in low for x in ("french", "français", "francais", "فرنسي", "الفرنسية")):
-        return "fr"
-    if any(x in low for x in ("arabic", "arabe", "عربي", "العربية")):
-        return "ar"
-    return ""
-
-
-def discover_curriculum_books_from_drive(
-        drive_service=None, grade: Any = None, subject: Any = None) -> List[dict]:
-    """Discover real curriculum PDFs. Root is optional; Drive metadata is authoritative."""
-    if drive_service is None:
-        drive_service = get_drive_service()
-    wanted_grade = _normalize_grade_selector(grade)
-    wanted_subject = (
-        _normalize_subject_selector(subject) if subject not in (None, "") else ""
-    )
-
-    root_id = None
-    discovery_method = "configured_or_inferred_root"
-    try:
-        root_id = resolve_drive_root_id(drive_service=drive_service)
-        source_pdfs = _drive_walk_curriculum_pdfs(drive_service, root_id)
-    except Exception as exc:
-        progress("DRIVE_CURRICULUM_ROOT_UNAVAILABLE",
-                 error=f"{type(exc).__name__}: {exc}",
-                 fallback="accessible_pdf_metadata")
-        discovery_method = "accessible_pdf_metadata"
-        source_pdfs = _drive_discover_pdfs_without_root(drive_service)
-
-    books, ambiguous = [], []
-    for item in source_pdfs:
-        context = " / ".join(item.get("drive_path_parts") or [str(item.get("name") or "")])
-        actual_grade = _infer_drive_grade(context)
-        actual_subject = _infer_drive_subject(context)
-        language = _infer_drive_language(context)
-
-        # Scope is applied only after metadata classification.
-        if wanted_grade is not None and actual_grade != wanted_grade:
-            continue
-        if wanted_subject and actual_subject != wanted_subject:
-            continue
-        if actual_grade is None or not actual_subject:
-            ambiguous.append({
-                "book_id": item.get("id"), "title": item.get("name"),
-                "drive_path": item.get("drive_path"),
-                "grade": actual_grade, "subject": actual_subject or None,
-            })
-            continue
-        books.append({
-            "book_id": str(item["id"]),
-            "title": str(item.get("name") or ""),
-            "grade": actual_grade,
-            "subject": actual_subject,
-            "language": language,
-            "drive_path": item.get("drive_path"),
-            "discovered_from": discovery_method,
-        })
-
-    unique = {}
-    for meta in books:
-        unique.setdefault(meta["book_id"], meta)
-    result = list(unique.values())
-    result.sort(key=lambda x: (
-        int(x.get("grade") or 999), str(x.get("subject") or ""),
-        str(x.get("language") or ""), str(x.get("title") or "").casefold()))
-    progress("DRIVE_CURRICULUM_DISCOVERY_COMPLETE",
-             root_id=root_id, discovery_method=discovery_method,
-             grade=wanted_grade, subject=wanted_subject or None,
-             books=len(result), ambiguous_pdfs=len(ambiguous))
-    if ambiguous:
-        progress("DRIVE_CURRICULUM_AMBIGUOUS_PDFS",
-                 count=len(ambiguous), sample=ambiguous[:10])
-    return result
-
-
-def _registered_books_from_catalog(
-        drive_service=None, grade: Any = None, subject: Any = None) -> List[dict]:
-    """Compatibility name: real Drive discovery is now the primary book registry."""
-    drive_error = None
-    try:
-        discovered = discover_curriculum_books_from_drive(
-            drive_service=drive_service, grade=grade, subject=subject)
-        if discovered:
-            return discovered
-    except Exception as exc:
-        drive_error = exc
-        progress(
-            "DRIVE_CURRICULUM_DISCOVERY_FAILED",
-            error=f"{type(exc).__name__}: {exc}")
-
-    # Existing canonical records remain a fail-safe for already indexed material.
+def _registered_books_from_catalog() -> List[dict]:
+    """Return one metadata record per unique registered source book."""
     catalog = load_canonical_catalog()
     books = {}
     for entry in _iter_canonical_lesson_entries(catalog):
@@ -4050,42 +2191,25 @@ def _registered_books_from_catalog(
         if not book_id:
             continue
         meta = books.setdefault(book_id, {"book_id": book_id})
-        for key in ("grade", "subject", "language", "branch", "track", "title"):
+        for key in ("grade", "subject", "language", "branch", "track"):
             value = entry.get(key)
             if value not in (None, "") and key not in meta:
                 meta[key] = value
-    matched = [
-        meta for meta in books.values()
-        if _book_matches_scope(meta, grade=grade, subject=subject)
-    ]
-    if matched:
-        return matched
-    if drive_error is not None:
-        raise RuntimeError(
-            f"BOOK_DISCOVERY_FAILED: {type(drive_error).__name__}: {drive_error}")
-    raise RuntimeError(
-        f"BOOK_INDEX_SCOPE_EMPTY: grade={grade!r} subject={subject!r}")
+    if not books:
+        raise RuntimeError("BOOK_INDEX_NO_REGISTERED_BOOKS")
+    return list(books.values())
 
 
 def _metadata_for_book(book_id: str) -> dict:
-    """Resolve known metadata without requiring a whole-Drive walk."""
-    try:
-        catalog = load_canonical_catalog()
-        for entry in _iter_canonical_lesson_entries(catalog):
-            if str(entry.get("book_id") or "").strip() == str(book_id):
-                return {
-                    key: entry.get(key)
-                    for key in ("book_id", "grade", "subject", "language",
-                                "branch", "track", "title")
-                    if entry.get(key) not in (None, "")
-                }
-    except Exception:
-        pass
+    for meta in _registered_books_from_catalog():
+        if meta["book_id"] == book_id:
+            return meta
     return {"book_id": book_id}
+
 
 def build_all_registered_book_indexes(drive_service=None, force: bool = False) -> dict:
     """Index every unique book registered in the canonical catalog, truthfully."""
-    books = _registered_books_from_catalog(drive_service=drive_service)
+    books = _registered_books_from_catalog()
     report = {
         "status": "RUNNING",
         "schema": "NABIL_ALL_BOOK_INDEX_V1",
@@ -4169,10 +2293,8 @@ def build_scoped_book_indexes(
         drive_service=None, force: bool = False,
         grade: Any = None, subject: Any = None) -> dict:
     """Index every registered book matching a grade and/or subject selector."""
-    books = _registered_books_from_catalog(
-        drive_service=drive_service, grade=grade, subject=subject)
     books = [
-        meta for meta in books
+        meta for meta in _registered_books_from_catalog()
         if _book_matches_scope(meta, grade=grade, subject=subject)
     ]
     if not books:
@@ -4306,27 +2428,20 @@ def build_book_lesson_index(book_id: str, drive_service=None, force: bool = Fals
         if len(doc) < 1:
             raise RuntimeError("BOOK_INDEX_EMPTY_PDF")
         progress("BOOK_INDEX_START", book_id=book_id, pdf_pages=len(doc))
-        valid_entries, discovery = _discover_lesson_starts_multi_route(doc, book_id)
-        if not valid_entries:
-            raise RuntimeError(
-                "BOOK_INDEX_LESSON_STARTS_NOT_VERIFIED: all indexing routes failed: "
-                + json.dumps(discovery.get("attempts") or [], ensure_ascii=False))
-        toc_pages = discovery.get("toc_pdf_pages") or []
-        offset = discovery.get("printed_to_pdf_offset")
-        # Second pass: recover missed boundaries inside suspiciously large spans,
-        # then conservatively repair only titles that are visibly OCR-damaged.
-        valid_entries, boundary_report = _recover_missing_lesson_boundaries(
-            doc, valid_entries, book_id, str(discovery.get("route") or ""))
-        valid_entries, title_repair_report = _repair_ocr_damaged_titles(doc, valid_entries)
-        final_quality = _lesson_index_route_quality(doc, valid_entries, "final_verified_map")
-        if not final_quality["passed"]:
-            raise RuntimeError("BOOK_INDEX_FINAL_QUALITY_FAILED:" + json.dumps(
-                {k:v for k,v in final_quality.items() if k != "entries"}, ensure_ascii=False))
-        valid_entries = final_quality["entries"]
-        progress("BOOK_INDEX_LESSON_MAP_VERIFIED", lessons=final_quality["count"], starts=final_quality["starts"], spans=final_quality["spans"])
-        discovery["boundary_recovery"] = boundary_report
-        discovery["title_repair"] = title_repair_report
-        valid_entries.sort(key=lambda x: (int(x["pdf_start_page"]), str(x.get("title") or "").casefold()))
+        toc_pages = _detect_toc_pages(doc)
+        if not toc_pages:
+            raise RuntimeError("BOOK_INDEX_TOC_NOT_FOUND: no trustworthy physical TOC pages detected")
+        toc_entries = _parse_toc_entries(doc, toc_pages)
+        if not toc_entries:
+            raise RuntimeError("BOOK_INDEX_TOC_EMPTY: TOC pages found but no lesson/page entries parsed")
+        offset = _resolve_printed_to_pdf_offset(doc, toc_entries)
+
+        valid_entries = []
+        for entry in toc_entries:
+            pdf_start = entry["printed_page"] + offset
+            if 1 <= pdf_start <= len(doc):
+                valid_entries.append({**entry, "pdf_start_page": pdf_start})
+        valid_entries.sort(key=lambda x: (x["pdf_start_page"], x["printed_page"]))
 
         deduped, seen_starts = [], set()
         for item in valid_entries:
@@ -4352,9 +2467,8 @@ def build_book_lesson_index(book_id: str, drive_service=None, force: bool = Fals
                 "subject": book_metadata.get("subject"),
                 "language": book_metadata.get("language"),
                 "branch": book_metadata.get("branch") or book_metadata.get("track") or "",
-                "toc_pdf_page": item.get("toc_pdf_page"),
-                "printed_start_page": item.get("printed_page"),
-                "discovery_method": item.get("discovery_method") or discovery.get("route"),
+                "toc_pdf_page": item["toc_pdf_page"],
+                "printed_start_page": item["printed_page"],
                 "pdf_start_page": start_page,
                 "pdf_end_page": end_page,
                 "works": works,
@@ -4376,8 +2490,6 @@ def build_book_lesson_index(book_id: str, drive_service=None, force: bool = Fals
             "pdf_pages": len(doc),
             "toc_pdf_pages": toc_pages,
             "printed_to_pdf_offset": offset,
-            "index_discovery_route": discovery.get("route"),
-            "index_discovery_attempts": discovery.get("attempts") or [],
             "lesson_count": len(lessons),
             "work_count": sum(len(lesson["works"]) for lesson in lessons),
             "lessons": lessons,
@@ -7700,14 +5812,6 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
         "For DC_SERIES_CIRCUIT, OPTICS_REFLECTION and IONIC_COMPOUND also return evidence_quotes: an object containing an EXACT SOURCE quote for EACH scientific invariant declared by the spec.\n"
         "Every supported lab must contain an exact evidence quote from SOURCE when evidence_basis=text. "
         "If evidence_basis=figure, a verified source figure must be supplied.\n"
-        "For GEOMETRY_PROOF, when SOURCE explicitly supports meaningful manipulation, also return "
-        "interaction with draggable_points, constraints, and an exact evidence_quote. Allowed constraint types are "
-        "free, horizontal, vertical, segment, circle. For segment use segment_id; for circle use center and radius. "
-        "Do not make a point draggable if the proven construction cannot remain true.\\n"
-        "SMART BOARD REFERENCE ENGINE: every supported lab must be expressed as progressive visual states. "
-        "teacher_script target_ids must name real renderer objects; state_after contains only evidence-backed visible changes. "
-        "The renderer shows the state/reveal first, then moves the teacher arrow to the narrated object, then speaks the consequence. "
-        "Use meaningful manipulation when safe; otherwise use progressive reveal/highlight, never decorative fake motion.\\n"
         "Every supported lab MUST include teacher_script with 2..12 steps derived from THIS evidence, never a canned demo. "
         "Each step contains say,target_ids,action,state_before,state_after,scientific_constraints,evidence_quote. "
         "Allowed actions: point,highlight,set_state,animate,observe,explain,conclude. "
@@ -8925,9 +7029,6 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict, lab_index: Opt
           <div class="ws-fb" style="margin-top:6px; font-size:12px; font-weight:600; display:none;"></div>
         </div>'''
 
-    cerd_plan = build_cerd_lesson_plan(entry, theory, ev_map, page_a_lang_code)
-    cerd_plan_html = render_cerd_lesson_plan_html(cerd_plan, page_a_lang_code)
-
     return f'''<!DOCTYPE html>
 <html lang="{html.escape(lang)}" dir="{html_dir_attr(page_a_lang_code)}">
 <head>
@@ -8958,13 +7059,11 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict, lab_index: Opt
   <div class="header">
     <h1 style="margin:0; font-size:22px;">{clean_title}</h1>
     <div class="header-actions" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
-      <button type="button" id="nabilLessonPlanBtn" class="nav-btn" onclick="const p=document.getElementById('nabilCerdLessonPlan');if(p){{p.style.display=p.style.display==='none'?'block':'none';p.scrollIntoView({{behavior:'smooth',block:'start'}});}}">📋 {html.escape({"ar":"تحضير الدرس","fr":"Fiche de préparation","en":"Lesson Plan"}.get(page_a_lang_code,"Lesson Plan"))}</button>
       <button type="button" id="nabilExplainWholeLessonLabs" class="nav-btn" style="background:#0f766e;">🧪 {html.escape({"ar":"اشرح الدرس كاملًا بالمختبرات","fr":"Expliquer toute la leçon avec les laboratoires","en":"Explain the whole lesson with labs"}.get(page_a_lang_code,"Explain the whole lesson with labs"))}</button>
       <button type="button" onclick="document.getElementById('goldenReferenceCard')?.scrollIntoView({behavior:'smooth',block:'start'})" class="nav-btn" style="background:#7c3aed;">📌 {html.escape({"ar":"البطاقة النهائية","fr":"Carte finale","en":"Final reference card"}.get(page_a_lang_code,"Final reference card"))}</button>
       <button onclick="navigateToExercises()" class="nav-btn">{html.escape(ui_t(page_a_lang_code, "view_exercises"))}</button>
     </div>
   </div>
-  {cerd_plan_html}
   {acts_html}
   <div class="card" style="margin-top:24px;">
     <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -10380,7 +8479,6 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
     book_id = entry["book_id"]
     progress("PRODUCTION_PIPELINE_START", lesson_id=lesson_id)
     assert_renderer_family_contract()
-    assert_localization_and_quiz_contracts()
 
     ver_file = VERSIONS_DIR / f"{lesson_id}.json"
     if ver_file.exists():
@@ -10592,199 +8690,6 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
     return rep
 
 
-
-# ==============================================================================
-# AUTONOMOUS CURRICULUM PRODUCTION — DRIVE -> BOOKS -> LESSONS -> PUBLISH
-# ==============================================================================
-def _indexed_lessons_for_book_ids(book_ids: set) -> List[dict]:
-    lessons: List[dict] = []
-    for index_path in sorted(BOOK_INDEX_DIR.glob("*.json")):
-        if index_path.name.startswith("_"):
-            continue
-        try:
-            payload = json.loads(index_path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            continue
-        if payload.get("status") != "INDEXED":
-            continue
-        if str(payload.get("book_id") or "") not in book_ids:
-            continue
-        for entry in payload.get("lessons") or []:
-            if isinstance(entry, dict):
-                lessons.append(entry)
-    lessons.sort(key=lambda e: (
-        _normalize_grade_selector(e.get("grade")) or 999,
-        str(e.get("subject") or ""),
-        str(e.get("book_id") or ""),
-        int(e.get("pdf_start_page") or 0),
-        str(e.get("canonical_title") or "").casefold(),
-    ))
-    return lessons
-
-
-def produce_curriculum_scope(
-        drive_service=None, grade: Any = None, subject: Any = None,
-        publish: bool = False, force_book_index: bool = False) -> dict:
-    """Produce every discovered lesson in the requested Drive curriculum scope.
-
-    With grade only: every discovered subject/book/lesson in that grade.
-    With no grade/subject: every discovered grade, in numeric order.
-    A failed lesson is recorded and the factory continues to the next lesson.
-    """
-    if drive_service is None:
-        drive_service = get_drive_service()
-
-    books = discover_curriculum_books_from_drive(
-        drive_service=drive_service, grade=grade, subject=subject)
-    if not books:
-        raise RuntimeError(
-            f"CURRICULUM_SCOPE_EMPTY: grade={grade!r} subject={subject!r}")
-
-    # Index every real source book first.
-    indexed_books = []
-    failed_books = []
-    for pos, meta in enumerate(books, 1):
-        try:
-            idx = build_book_lesson_index(
-                meta["book_id"],
-                drive_service=drive_service,
-                force=force_book_index,
-                book_metadata=meta,
-            )
-            indexed_books.append({
-                "book_id": meta["book_id"],
-                "title": meta.get("title"),
-                "grade": meta.get("grade"),
-                "subject": meta.get("subject"),
-                "language": meta.get("language"),
-                "lesson_count": idx.get("lesson_count", 0),
-            })
-        except Exception as exc:
-            failed_books.append({
-                "book_id": meta.get("book_id"),
-                "title": meta.get("title"),
-                "grade": meta.get("grade"),
-                "subject": meta.get("subject"),
-                "error": f"{type(exc).__name__}: {exc}",
-            })
-            progress(
-                "CURRICULUM_BOOK_FAILED",
-                position=pos, total=len(books),
-                book_id=meta.get("book_id"), error=str(exc))
-
-    good_ids = {row["book_id"] for row in indexed_books}
-    lessons = _indexed_lessons_for_book_ids(good_ids)
-    if not lessons and indexed_books:
-        raise RuntimeError("CURRICULUM_NO_DISCOVERED_LESSONS_AFTER_INDEX")
-
-    report = {
-        "status": "RUNNING",
-        "schema": "NABIL_AUTONOMOUS_CURRICULUM_PRODUCTION_V1",
-        "generated_at": now(),
-        "requested_grade": _normalize_grade_selector(grade),
-        "requested_subject": (
-            _normalize_subject_selector(subject)
-            if subject not in (None, "") else None),
-        "publish": bool(publish),
-        "books_discovered": len(books),
-        "books_indexed": len(indexed_books),
-        "books_failed": failed_books,
-        "lessons_discovered": len(lessons),
-        "lessons_completed": [],
-        "lessons_failed": [],
-    }
-
-    progress(
-        "CURRICULUM_PRODUCTION_START",
-        grade=report["requested_grade"],
-        subject=report["requested_subject"],
-        books=len(books), lessons=len(lessons), publish=bool(publish))
-
-    current_grade = None
-    current_subject = None
-    for position, entry in enumerate(lessons, 1):
-        lesson_grade = _normalize_grade_selector(entry.get("grade"))
-        lesson_subject = _normalize_subject_selector(entry.get("subject"))
-        if lesson_grade != current_grade:
-            current_grade = lesson_grade
-            current_subject = None
-            progress(
-                "CURRICULUM_GRADE_START",
-                grade=current_grade, lesson_position=position,
-                total_lessons=len(lessons))
-        if lesson_subject != current_subject:
-            current_subject = lesson_subject
-            progress(
-                "CURRICULUM_SUBJECT_START",
-                grade=current_grade, subject=current_subject,
-                lesson_position=position, total_lessons=len(lessons))
-
-        lesson_id = str(entry.get("lesson_id") or "")
-        title = str(entry.get("canonical_title") or "")
-        try:
-            lesson_report = produce_lesson_for_entry(
-                entry, drive_service=drive_service, publish=publish)
-            report["lessons_completed"].append({
-                "position": position,
-                "lesson_id": lesson_id,
-                "title": title,
-                "grade": lesson_grade,
-                "subject": lesson_subject,
-                "status": lesson_report.get("status"),
-                "drive_theory_id": lesson_report.get("drive_theory_id"),
-                "drive_exercises_id": lesson_report.get("drive_exercises_id"),
-                "drive_labs_id": lesson_report.get("drive_labs_id"),
-            })
-            progress(
-                "CURRICULUM_LESSON_COMPLETE",
-                position=position, total=len(lessons),
-                grade=lesson_grade, subject=lesson_subject,
-                lesson_id=lesson_id, title=title)
-        except Exception as exc:
-            report["lessons_failed"].append({
-                "position": position,
-                "lesson_id": lesson_id,
-                "title": title,
-                "grade": lesson_grade,
-                "subject": lesson_subject,
-                "error": f"{type(exc).__name__}: {exc}",
-            })
-            progress(
-                "CURRICULUM_LESSON_FAILED",
-                position=position, total=len(lessons),
-                grade=lesson_grade, subject=lesson_subject,
-                lesson_id=lesson_id, title=title,
-                error=f"{type(exc).__name__}: {exc}")
-            # Batch mode is resilient: one bad lesson never prevents later
-            # lessons/subjects/grades from being attempted.
-
-    report["completed_count"] = len(report["lessons_completed"])
-    report["failed_count"] = len(report["lessons_failed"])
-    report["book_failed_count"] = len(report["books_failed"])
-    report["status"] = (
-        "COMPLETED"
-        if not report["lessons_failed"] and not report["books_failed"]
-        else "PARTIAL_FAILURE"
-    )
-    report["completed_at"] = now()
-    batch_report_path = BOOK_INDEX_DIR / (
-        f"_production_grade_{report['requested_grade']}.json"
-        if report["requested_grade"] is not None
-        else "_production_all_grades.json"
-    )
-    batch_report_path.write_text(
-        json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-    progress(
-        "CURRICULUM_PRODUCTION_COMPLETE",
-        status=report["status"],
-        completed=report["completed_count"],
-        failed=report["failed_count"],
-        book_failed=report["book_failed_count"],
-        report=str(batch_report_path))
-    return report
-
-
-
 # ==============================================================================
 # MAIN ENTRY POINT
 # ==============================================================================
@@ -10830,25 +8735,8 @@ def main():
         progress("AI_VISION_PROBE_PASS")
         return 0
 
-    # No explicit target:
-    #   --publish => autonomously produce the entire Drive curriculum grade by grade.
-    #   otherwise => safely index the entire discovered curriculum.
-    no_target = not any((
-        args.lesson_id, args.grade, args.subject, args.lesson,
-        args.index_book, args.index_all_books))
-    if no_target and args.publish:
-        drive_service = get_drive_service()
-        execute_preflight_checks(require_drive=True)
-        report = produce_curriculum_scope(
-            drive_service=drive_service,
-            grade=None,
-            subject=None,
-            publish=True,
-            force_book_index=args.force_book_index,
-        )
-        print(json.dumps(report, ensure_ascii=False, indent=2))
-        return 0 if report["status"] == "COMPLETED" else 2
-    if no_target:
+    # No target means the safe universal action: index the whole registered curriculum.
+    if not any((args.lesson_id, args.grade, args.subject, args.lesson, args.index_book, args.index_all_books)):
         args.index_all_books = True
 
     if args.index_all_books:
@@ -10870,22 +8758,9 @@ def main():
         print(json.dumps(book_index, ensure_ascii=False, indent=2))
         return 0
 
-    # Grade/subject without a lesson:
-    #   --publish => produce every discovered lesson in that scope.
-    #   otherwise => index every discovered book in that scope.
+    # Grade and/or subject without a lesson means: index that complete scope.
     if (args.grade or args.subject) and not (args.lesson or args.lesson_id):
         drive_service = get_drive_service()
-        if args.publish:
-            execute_preflight_checks(require_drive=True)
-            report = produce_curriculum_scope(
-                drive_service=drive_service,
-                grade=args.grade,
-                subject=args.subject,
-                publish=True,
-                force_book_index=args.force_book_index,
-            )
-            print(json.dumps(report, ensure_ascii=False, indent=2))
-            return 0 if report["status"] == "COMPLETED" else 2
         report = build_scoped_book_indexes(
             drive_service=drive_service,
             force=args.force_book_index,
