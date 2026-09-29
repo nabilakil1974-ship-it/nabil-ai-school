@@ -3520,18 +3520,49 @@ PAGES:\n""" + "\n\n".join(payload_parts)
                  candidates=len(pages), rejected=report["rejected_candidates"][:20])
         return rows, report
 
-    merged = _dedupe_direct_lesson_entries(rows + recovered, len(doc))
-    # Intermediate quality checks title/ordering. The strict unresolved-cycle
-    # audit is applied after title repair in build_book_lesson_index().
+    # Keep evidence-backed recovered boundaries independently. A single bad OCR
+    # title must not discard the other valid boundaries from this recovery pass.
+    accepted = list(rows)
+    per_item_rejected = []
+    for candidate in sorted(recovered, key=lambda x: int(x["pdf_start_page"])):
+        title = str(candidate.get("title") or "").strip()
+        page = int(candidate["pdf_start_page"])
+        local_bad = (
+            not title
+            or _structural_label_only_title(title)
+            or title.endswith(("?", "!"))
+            or len(re.findall(r"\\w+", title, flags=re.UNICODE)) > 18
+        )
+        if local_bad:
+            per_item_rejected.append({"pdf_page":page,"title":title,
+                                      "reason":"candidate_local_quality_failed"})
+            progress("BOOK_INDEX_BOUNDARY_REJECTED", pdf_page=page, title=title,
+                     reason="candidate_local_quality_failed")
+            continue
+        accepted = _dedupe_direct_lesson_entries(accepted + [candidate], len(doc))
+        progress("BOOK_INDEX_BOUNDARY_INCREMENTAL_ACCEPTED",
+                 pdf_page=page, title=title,
+                 strong_cycle=bool((candidate.get("boundary_evidence") or {}).get("strong_cycle")))
+
+    merged = _dedupe_direct_lesson_entries(accepted, len(doc))
     quality = _lesson_index_route_quality(doc, merged, "ai_ocr_structural")
     report["intermediate_quality_gate"] = {k:v for k,v in quality.items() if k != "entries"}
-    if not quality["passed"]:
-        progress("BOOK_INDEX_BOUNDARY_RECOVERY_REJECTED", reasons=quality["reasons"], added=len(recovered))
-        return rows, report
+    report["rejected_candidates"].extend(per_item_rejected)
     report["added"] = len(merged)-len(rows)
+    if report["added"] <= 0:
+        progress("BOOK_INDEX_BOUNDARY_RECOVERY_REJECTED",
+                 reasons=quality.get("reasons") or ["no_boundary_survived"],
+                 added=0, rejected=report["rejected_candidates"][:20])
+        return rows, report
+
+    # Global defects are intentionally left for the strict final verifier after
+    # title repair. Do not roll back good boundaries because another candidate
+    # has a damaged OCR title.
     progress("BOOK_INDEX_BOUNDARY_RECOVERY_ACCEPTED", added=report["added"], lessons=len(merged),
-             starts=quality["starts"], spans=quality["spans"], rejected=report["rejected_candidates"][:20])
-    return quality["entries"], report
+             starts=[int(x["pdf_start_page"]) for x in merged],
+             intermediate_reasons=quality.get("reasons") or [],
+             rejected=report["rejected_candidates"][:20])
+    return merged, report
 
 def _fuzzy_title_supported_on_page(doc, pdf_page: int, candidate: str, original: str) -> bool:
     """Allow only tiny OCR repairs, never semantic title invention."""
