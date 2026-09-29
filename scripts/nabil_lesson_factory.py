@@ -2559,7 +2559,7 @@ def _candidate_pdf_offsets(doc, toc_entries: List[dict]) -> List[int]:
             second_votes = ranked[1]["votes"] if len(ranked) > 1 else -1
             progress(
                 "BOOK_INDEX_OFFSET_SEARCH_STAGE",
-                stage=stage_no,
+                search_stage=stage_no,
                 tested_offsets=len(tested_offsets),
                 best_offset=best["offset"],
                 best_votes=best["votes"],
