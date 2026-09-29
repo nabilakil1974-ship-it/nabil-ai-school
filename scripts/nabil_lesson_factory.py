@@ -3206,6 +3206,159 @@ def _discover_lesson_starts_multi_route(doc, book_id: str) -> Tuple[List[dict], 
     progress("BOOK_INDEX_ALL_ROUTES_FAILED", attempts=attempts)
     return [], {"route": None, "attempts": attempts, "toc_pdf_pages": [], "printed_to_pdf_offset": None}
 
+def _boundary_signal_score(text: str) -> int:
+    """Score only structural signals; never create curriculum content."""
+    lines = [re.sub(r"\s+", " ", x).strip() for x in str(text or "").splitlines() if x.strip()]
+    head = lines[:18]
+    score = 0
+    if any(_LESSON_HEADING_RE.match(x) for x in head):
+        score += 8
+    if any(re.search(r"(?i)\b(chapter|lesson|unit|part|chapitre|le[cç]on|unit[eé]|partie)\s*\d+\b|(?:فصل|درس|وحدة)\s*\d+", x) for x in head[:12]):
+        score += 7
+    # A numbering reset is a boundary clue, never sufficient by itself.
+    if any(re.search(r"(?i)^\s*(activity|activit[eé]|exercise|exercice|problem|probl[eè]me)\s*(?:no\.?\s*)?1\b", x) for x in head):
+        score += 2
+    # Short title-like material near the top gives a weak supporting signal.
+    if any(2 <= len(re.findall(r"\w+", x, flags=re.UNICODE)) <= 9 and len(x) <= 90
+           and not x.endswith(("?", "!", ".")) for x in head[:7]):
+        score += 1
+    return score
+
+
+def _recover_missing_lesson_boundaries(doc, entries: List[dict], book_id: str, route: str) -> Tuple[List[dict], dict]:
+    """Second-pass recovery for suspiciously large gaps in an otherwise verified map.
+
+    Candidate pages come from local structural evidence (heading/layout/numbering-reset).
+    The text LLM may classify those candidates, but every accepted title must still be
+    recoverable on the same local page and the merged map must pass the common gate.
+    """
+    rows = _dedupe_direct_lesson_entries(entries, len(doc))
+    report = {"attempted": False, "added": 0, "candidate_pages": [], "reason": "not_needed"}
+    if len(rows) < 2:
+        return rows, report
+    starts = [int(x["pdf_start_page"]) for x in rows]
+    spans = [b-a for a,b in zip(starts, starts[1:])] + [len(doc)+1-starts[-1]]
+    base = sorted(spans)[len(spans)//2] if spans else 0
+    # Trigger only on a strong outlier; do not impose a universal fixed lesson length.
+    suspicious = []
+    for idx, span in enumerate(spans):
+        threshold = max(18, (base * 3 if base else 24))
+        if span >= threshold:
+            a = starts[idx]
+            b = (starts[idx+1]-1) if idx+1 < len(starts) else len(doc)
+            suspicious.append((a,b,span))
+    if not suspicious:
+        return rows, report
+
+    report["attempted"] = True
+    report["reason"] = "suspicious_span"
+    candidate_pages = []
+    for a,b,_ in suspicious:
+        # Do not reconsider the already accepted start page itself.
+        for page in range(a+1, b+1):
+            text = _structural_page_text(doc, page)
+            score = _boundary_signal_score(text)
+            if score >= 2:
+                candidate_pages.append((score,page))
+    # Keep broad coverage while bounding LLM cost; preserve page order.
+    max_candidates = max(12, min(80, int(os.getenv("NABIL_BOOK_INDEX_BOUNDARY_MAX_CANDIDATES", "48"))))
+    pages = sorted({p for _,p in sorted(candidate_pages, key=lambda x:(-x[0],x[1]))[:max_candidates]})
+    report["candidate_pages"] = pages
+    if not pages:
+        return rows, report
+
+    recovered = []
+    batch_size = max(6, min(18, int(os.getenv("NABIL_BOOK_INDEX_BOUNDARY_BATCH_PAGES", "12"))))
+    for pos in range(0, len(pages), batch_size):
+        batch_pages = pages[pos:pos+batch_size]
+        payload_parts = []
+        for page in batch_pages:
+            excerpt = _structural_text_excerpt(_structural_page_text(doc, page), max_lines=22, max_chars=2200)
+            payload_parts.append(f"=== PDF PAGE {page} ===\n{excerpt}")
+        prompt = """You are doing a SECOND-PASS boundary audit of a school textbook index.
+Some long page ranges may contain missed lesson/chapter/unit starts.
+Return JSON only:
+{\"lesson_starts\":[{\"pdf_page\":integer,\"title\":string,\"confidence\":number,\"evidence_line\":string}]}
+STRICT RULES:
+- Select only a genuine new curriculum lesson/chapter/unit start, not an Activity/Exercise subsection.
+- A reset to Activity 1 or Exercise 1 is only a clue; it is NOT by itself proof of a new lesson.
+- title and evidence_line must be visibly present on that SAME supplied page.
+- Copy the visible title; do not invent, normalize, complete, or repair missing words.
+- Reject prose, questions, running headers, page numbers and OCR fragments.
+- If uncertain, omit. Empty lesson_starts is valid.
+PAGES:\n""" + "\n\n".join(payload_parts)
+        try:
+            data = _execute_llm_json_strict(prompt, purpose="book_index_boundary_recovery", max_attempts=2)
+        except Exception as exc:
+            progress("BOOK_INDEX_BOUNDARY_BATCH_FAILED", pages=batch_pages, error=str(exc)[:300])
+            continue
+        items = data.get("lesson_starts") if isinstance(data, dict) else None
+        if not isinstance(items, list):
+            continue
+        allowed = set(batch_pages)
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            try:
+                page = int(item.get("pdf_page")); conf = float(item.get("confidence",0))
+            except (TypeError,ValueError):
+                continue
+            title = _normalize_discovered_heading(item.get("title") or "")
+            if page not in allowed or conf < .82 or not _ai_structural_title_supported(doc,page,title):
+                continue
+            recovered.append({"title":title,"pdf_start_page":page,
+                              "discovery_method":"boundary_recovery",
+                              "toc_pdf_page":None,"printed_page":None,
+                              "structural_confidence":round(conf,3),
+                              "structural_evidence":str(item.get("evidence_line") or "")[:300]})
+    if not recovered:
+        progress("BOOK_INDEX_BOUNDARY_RECOVERY_EMPTY", suspicious_spans=suspicious, candidates=len(pages))
+        return rows, report
+
+    merged = _dedupe_direct_lesson_entries(rows + recovered, len(doc))
+    quality = _lesson_index_route_quality(doc, merged, "boundary_recovery")
+    report["quality_gate"] = {k:v for k,v in quality.items() if k != "entries"}
+    if not quality["passed"]:
+        progress("BOOK_INDEX_BOUNDARY_RECOVERY_REJECTED", reasons=quality["reasons"], added=len(recovered))
+        return rows, report
+    report["added"] = len(merged)-len(rows)
+    progress("BOOK_INDEX_BOUNDARY_RECOVERY_ACCEPTED", added=report["added"], lessons=len(merged), starts=quality["starts"], spans=quality["spans"])
+    return quality["entries"], report
+
+
+def _repair_ocr_damaged_titles(doc, entries: List[dict]) -> Tuple[List[dict], dict]:
+    """Conservative title cleanup: replacement must be present verbatim in local page text."""
+    rows = [dict(x) for x in entries]
+    changed = []
+    for row in rows:
+        title = str(row.get("title") or "").strip()
+        # Only target obvious OCR damage; normal titles are left untouched.
+        damaged = bool(re.match(r"^(?:[=\-_*]+\s*|hapter\b|on\s+\d+\s*:|oo\s+\d+\s*:|wass\b)", title, re.I))
+        if not damaged:
+            continue
+        page = int(row.get("pdf_start_page") or 0)
+        excerpt = _structural_text_excerpt(_structural_page_text(doc,page), max_lines=24, max_chars=2400)
+        prompt = f"""Recover the exact visible curriculum heading from this OCR/native page excerpt.
+Return JSON only: {{\"title\":string,\"confidence\":number}}.
+Do not infer or correct from general knowledge. The returned title must occur in the supplied excerpt after whitespace/punctuation normalization. If not certain, return the original title exactly.
+ORIGINAL: {title}\nPAGE {page}:\n{excerpt}"""
+        try:
+            data = _execute_llm_json_strict(prompt, purpose="book_index_title_repair", max_attempts=1)
+        except Exception:
+            continue
+        candidate = _normalize_discovered_heading(data.get("title") if isinstance(data,dict) else "")
+        try: conf=float(data.get("confidence",0)) if isinstance(data,dict) else 0
+        except (TypeError,ValueError): conf=0
+        if conf >= .88 and candidate and candidate != title and _ai_structural_title_supported(doc,page,candidate):
+            row["original_discovered_title"] = title
+            row["title"] = candidate
+            row["title_repair_method"] = "same_page_evidence"
+            changed.append({"pdf_page":page,"from":title,"to":candidate})
+    if changed:
+        progress("BOOK_INDEX_TITLE_REPAIR", changed=changed)
+    return rows, {"changed":changed}
+
+
 def _lesson_slug(book_id: str, number: int) -> str:
     return f"{_book_index_safe_id(book_id).upper()}-AUTO-{number:03d}"
 
@@ -3826,6 +3979,18 @@ def build_book_lesson_index(book_id: str, drive_service=None, force: bool = Fals
                 + json.dumps(discovery.get("attempts") or [], ensure_ascii=False))
         toc_pages = discovery.get("toc_pdf_pages") or []
         offset = discovery.get("printed_to_pdf_offset")
+        # Second pass: recover missed boundaries inside suspiciously large spans,
+        # then conservatively repair only titles that are visibly OCR-damaged.
+        valid_entries, boundary_report = _recover_missing_lesson_boundaries(
+            doc, valid_entries, book_id, str(discovery.get("route") or ""))
+        valid_entries, title_repair_report = _repair_ocr_damaged_titles(doc, valid_entries)
+        final_quality = _lesson_index_route_quality(doc, valid_entries, "boundary_recovery")
+        if not final_quality["passed"]:
+            raise RuntimeError("BOOK_INDEX_FINAL_QUALITY_FAILED:" + json.dumps(
+                {k:v for k,v in final_quality.items() if k != "entries"}, ensure_ascii=False))
+        valid_entries = final_quality["entries"]
+        discovery["boundary_recovery"] = boundary_report
+        discovery["title_repair"] = title_repair_report
         valid_entries.sort(key=lambda x: (int(x["pdf_start_page"]), str(x.get("title") or "").casefold()))
 
         deduped, seen_starts = [], set()
