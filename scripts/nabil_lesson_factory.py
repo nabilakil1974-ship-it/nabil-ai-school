@@ -5929,10 +5929,31 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
     # evidence-locked repair of the EXISTING spec.  If repair still fails,
     # downgrade only this lab to the deterministic EVIDENCE_REVEAL contract.
     # We never fabricate domain state transitions for a richer lab.
+    def _teacher_script_shape_valid(value: Any) -> bool:
+        if not isinstance(value, list) or not 2 <= len(value) <= 12:
+            return False
+        allowed_actions = {"point", "highlight", "set_state", "animate", "observe", "explain", "conclude"}
+        for teacher_step in value:
+            if not isinstance(teacher_step, dict):
+                return False
+            if not str(teacher_step.get("say") or "").strip():
+                return False
+            if str(teacher_step.get("action") or "") not in allowed_actions:
+                return False
+            if not isinstance(teacher_step.get("target_ids"), list):
+                return False
+            if not isinstance(teacher_step.get("state_before"), dict):
+                return False
+            if not isinstance(teacher_step.get("state_after"), dict):
+                return False
+            if not isinstance(teacher_step.get("scientific_constraints"), list):
+                return False
+            if not str(teacher_step.get("evidence_quote") or "").strip():
+                return False
+        return True
+
     teacher_script = spec.get("teacher_script")
-    if spec.get("supported") is True and (
-            not isinstance(teacher_script, list)
-            or not 2 <= len(teacher_script) <= 12):
+    if spec.get("supported") is True and not _teacher_script_shape_valid(teacher_script):
         progress(
             "LAB_TEACHER_SCRIPT_REPAIR_START",
             concept_id=concept.get("concept_id"),
@@ -5969,7 +5990,7 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
             )
             if isinstance(candidate, dict) and candidate.get("repairable") is not False:
                 candidate_script = candidate.get("teacher_script")
-                if isinstance(candidate_script, list) and 2 <= len(candidate_script) <= 12:
+                if _teacher_script_shape_valid(candidate_script):
                     # SECURITY/SCIENCE BOUNDARY: the repair model is allowed to
                     # supply ONLY teacher_script.  Never accept a rewritten kind,
                     # law, geometry, circuit state, evidence basis, quote, or any
