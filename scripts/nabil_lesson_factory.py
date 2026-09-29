@@ -2238,42 +2238,111 @@ def _iter_canonical_lesson_entries(catalog: dict):
 
 
 def _drive_list_curriculum_pdfs(drive_service=None) -> List[dict]:
-    """Recursively discover real PDFs below the configured curriculum Drive root."""
+    """Recursively discover curriculum PDFs below the configured Drive root.
+
+    Supports normal folders/PDFs and Google Drive shortcuts.  The configured
+    root itself may also be a shortcut.  Discovery stays strictly inside that
+    root; it never falls back to unrelated PDFs elsewhere in the owner's Drive.
+    """
     if drive_service is None:
         drive_service = get_drive_service()
+
+    folder_mime = "application/vnd.google-apps.folder"
+    shortcut_mime = "application/vnd.google-apps.shortcut"
     root_id = resolve_drive_root_id()
-    out, queue, seen = [], [(root_id, "")], set()
+
+    def _get_item(file_id: str) -> dict:
+        return drive_service.files().get(
+            fileId=file_id,
+            fields="id,name,mimeType,description,shortcutDetails(targetId,targetMimeType)",
+            supportsAllDrives=True,
+        ).execute()
+
+    # Resolve a shortcut configured as the curriculum root.
+    root_meta = _get_item(root_id)
+    if str(root_meta.get("mimeType") or "") == shortcut_mime:
+        details = root_meta.get("shortcutDetails") or {}
+        target_id = str(details.get("targetId") or "").strip()
+        target_mime = str(details.get("targetMimeType") or "").strip()
+        if not target_id:
+            raise RuntimeError("CURRICULUM_DRIVE_ROOT_SHORTCUT_INVALID")
+        if target_mime == "application/pdf":
+            return [{
+                "book_id": target_id,
+                "name": str(root_meta.get("name") or f"{target_id}.pdf"),
+                "drive_path": str(root_meta.get("name") or "").strip(),
+                "description": str(root_meta.get("description") or ""),
+            }]
+        if target_mime != folder_mime:
+            raise RuntimeError(f"CURRICULUM_DRIVE_ROOT_NOT_FOLDER:{target_mime or 'unknown'}")
+        root_id = target_id
+        root_meta = _get_item(root_id)
+
+    root_mime = str(root_meta.get("mimeType") or "")
+    if root_mime == "application/pdf":
+        return [{
+            "book_id": root_id,
+            "name": str(root_meta.get("name") or f"{root_id}.pdf"),
+            "drive_path": str(root_meta.get("name") or "").strip(),
+            "description": str(root_meta.get("description") or ""),
+        }]
+    if root_mime != folder_mime:
+        raise RuntimeError(f"CURRICULUM_DRIVE_ROOT_NOT_FOLDER:{root_mime or 'unknown'}")
+
+    out, queue, seen_folders, seen_pdfs = [], [(root_id, "")], set(), set()
     while queue:
         folder_id, parent_path = queue.pop(0)
-        if folder_id in seen:
+        if folder_id in seen_folders:
             continue
-        seen.add(folder_id)
+        seen_folders.add(folder_id)
         token = None
         while True:
             resp = drive_service.files().list(
                 q=f"'{folder_id}' in parents and trashed=false",
-                fields="nextPageToken,files(id,name,mimeType,description)",
-                pageSize=1000, pageToken=token,
-                supportsAllDrives=True, includeItemsFromAllDrives=True,
+                fields=("nextPageToken,files(id,name,mimeType,description,"
+                        "shortcutDetails(targetId,targetMimeType))"),
+                pageSize=1000,
+                pageToken=token,
+                supportsAllDrives=True,
+                includeItemsFromAllDrives=True,
             ).execute()
             for item in resp.get("files") or []:
+                item_id = str(item.get("id") or "").strip()
                 name = str(item.get("name") or "").strip()
                 path = f"{parent_path}/{name}".strip("/")
                 mime = str(item.get("mimeType") or "")
-                if mime == "application/vnd.google-apps.folder":
-                    queue.append((item["id"], path))
-                elif mime == "application/pdf" or name.casefold().endswith(".pdf"):
+                description = str(item.get("description") or "")
+
+                effective_id = item_id
+                effective_mime = mime
+                if mime == shortcut_mime:
+                    details = item.get("shortcutDetails") or {}
+                    effective_id = str(details.get("targetId") or "").strip()
+                    effective_mime = str(details.get("targetMimeType") or "").strip()
+                    if not effective_id:
+                        continue
+
+                if effective_mime == folder_mime:
+                    queue.append((effective_id, path))
+                elif effective_mime == "application/pdf" or name.casefold().endswith(".pdf"):
+                    if effective_id in seen_pdfs:
+                        continue
+                    seen_pdfs.add(effective_id)
                     out.append({
-                        "book_id": item["id"], "name": name, "drive_path": path,
-                        "description": str(item.get("description") or ""),
+                        "book_id": effective_id,
+                        "name": name or f"{effective_id}.pdf",
+                        "drive_path": path,
+                        "description": description,
                     })
             token = resp.get("nextPageToken")
             if not token:
                 break
-    if not out:
-        raise RuntimeError("CURRICULUM_DRIVE_NO_PDFS")
-    return out
 
+    if not out:
+        raise RuntimeError(
+            f"CURRICULUM_DRIVE_NO_PDFS: root={root_id}; "
+            "root was readable but contained no reachable PDF files or PDF shortcuts")
+    return out
 
 def _discover_lesson_boundaries_without_toc(doc) -> List[dict]:
     """Find evidence-backed lesson starts when a printed TOC is absent/unreadable.
