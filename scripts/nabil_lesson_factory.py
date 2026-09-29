@@ -5923,6 +5923,133 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
             concept_id=concept.get("concept_id"),
             source_page=concept.get("source_page"),
         )
+    # A provider can return a scientifically useful supported lab while omitting
+    # the teacher_script object.  That is a recoverable output-shape failure,
+    # not a reason to discard the verified lesson.  First ask for a bounded,
+    # evidence-locked repair of the EXISTING spec.  If repair still fails,
+    # downgrade only this lab to the deterministic EVIDENCE_REVEAL contract.
+    # We never fabricate domain state transitions for a richer lab.
+    teacher_script = spec.get("teacher_script")
+    if spec.get("supported") is True and (
+            not isinstance(teacher_script, list)
+            or not 2 <= len(teacher_script) <= 12):
+        progress(
+            "LAB_TEACHER_SCRIPT_REPAIR_START",
+            concept_id=concept.get("concept_id"),
+            source_page=concept.get("source_page"),
+            kind=str(spec.get("kind") or ""),
+        )
+        repair_prompt = (
+            "Repair ONLY the missing/invalid teacher_script of this already generated "
+            "evidence-grounded lab. Do not add, remove, or alter any scientific claim, "
+            "number, law, relation, geometry mark, circuit rule, or evidence quote. "
+            "Return the COMPLETE lab spec as strict JSON. teacher_script must contain "
+            "2..12 steps. Each step must contain say,target_ids,action,state_before,"
+            "state_after,scientific_constraints,evidence_quote. Allowed actions: "
+            "point,highlight,set_state,animate,observe,explain,conclude. Every "
+            "evidence_quote must be an exact contiguous quote from SOURCE when the "
+            "lab uses text evidence. target_ids must refer only to objects already "
+            "present in the supplied lab spec. Apply state_after before speaking its "
+            "consequence. Never animate/reveal a consequence before its verified "
+            "condition is established. For a DC circuit, current/charge flow is "
+            "forbidden while switch_closed=false; visibly close the switch first. "
+            "If you cannot repair without inventing information, return "
+            "{\"repairable\":false}.\n\n"
+            f"SOURCE:\n{concept.get('raw_text','')}\n\n"
+            f"EXISTING_LAB_SPEC:\n{json.dumps(spec, ensure_ascii=False)}"
+        )
+        repaired = None
+        try:
+            candidate = _execute_llm_json_strict(
+                repair_prompt,
+                image_base64=figure_image_base64,
+                vision_context=vision_context,
+                purpose=f"lab_teacher_script_repair_{concept.get('concept_id')}",
+                max_attempts=2,
+            )
+            if isinstance(candidate, dict) and candidate.get("repairable") is not False:
+                candidate_script = candidate.get("teacher_script")
+                if isinstance(candidate_script, list) and 2 <= len(candidate_script) <= 12:
+                    # SECURITY/SCIENCE BOUNDARY: the repair model is allowed to
+                    # supply ONLY teacher_script.  Never accept a rewritten kind,
+                    # law, geometry, circuit state, evidence basis, quote, or any
+                    # other scientific field from the repair response.
+                    repaired = dict(spec)
+                    repaired["teacher_script"] = candidate_script
+        except Exception as exc:
+            progress(
+                "LAB_TEACHER_SCRIPT_REPAIR_PROVIDER_FAILED",
+                concept_id=concept.get("concept_id"),
+                reason=str(exc)[:300],
+            )
+
+        if repaired is not None:
+            spec = repaired
+            progress(
+                "LAB_TEACHER_SCRIPT_REPAIRED",
+                concept_id=concept.get("concept_id"),
+                steps=len(spec.get("teacher_script") or []),
+            )
+        else:
+            source_text = str(concept.get("raw_text") or "").strip()
+            if not source_text:
+                raise RuntimeError("LAB_TEACHER_SCRIPT_REPAIR_FAILED_SOURCE_EMPTY")
+            fallback_quote = source_text[:700]
+            conclusion = str(
+                narrative.get("conclusion")
+                or narrative.get("observation")
+                or concept.get("title")
+                or "Conclude from the verified evidence."
+            ).strip()
+            spec = {
+                "supported": True,
+                "kind": "EVIDENCE_REVEAL",
+                "title": str(concept.get("title") or "NABIL Interactive Explanation"),
+                "instructions": {
+                    "ar": "استكشف الفكرة مع نبيل خطوة خطوة.",
+                    "fr": "Explore l’idée avec NABIL étape par étape.",
+                    "en": "Explore the idea with NABIL step by step.",
+                }.get(lang_code, "Explore the idea with NABIL step by step."),
+                "observation": {
+                    "ar": "كل ما يظهر هنا مأخوذ من الدليل الموثق لهذه الفكرة.",
+                    "fr": "Tout ce qui apparaît ici vient de la preuve vérifiée de cette idée.",
+                    "en": "Everything shown here comes from the verified evidence for this idea.",
+                }.get(lang_code, "Everything shown here comes from the verified evidence for this idea."),
+                "evidence_ref": concept["concept_id"],
+                "evidence_basis": "text",
+                "evidence_quote": fallback_quote,
+                "items": [{
+                    "label": str(concept.get("title") or "Verified idea"),
+                    "evidence_quote": fallback_quote,
+                }],
+                "fallback_reason": "TEACHER_SCRIPT_OUTPUT_SHAPE_UNRECOVERABLE",
+                "teacher_script": [
+                    {
+                        "say": str(concept.get("title") or "Observe the verified evidence."),
+                        "target_ids": ["evidence:0"],
+                        "action": "point",
+                        "state_before": {"revealed_index": -1},
+                        "state_after": {"revealed_index": 0},
+                        "scientific_constraints": ["Reveal only verified source evidence."],
+                        "evidence_quote": fallback_quote,
+                    },
+                    {
+                        "say": conclusion,
+                        "target_ids": ["evidence:0"],
+                        "action": "conclude",
+                        "state_before": {"revealed_index": 0},
+                        "state_after": {"revealed_index": 0},
+                        "scientific_constraints": ["Do not exceed verified source evidence."],
+                        "evidence_quote": fallback_quote,
+                    },
+                ],
+            }
+            progress(
+                "LAB_TEACHER_SCRIPT_SAFE_EVIDENCE_REVEAL_FALLBACK",
+                concept_id=concept.get("concept_id"),
+                source_page=concept.get("source_page"),
+            )
+
     if spec.get("evidence_ref") != concept.get("concept_id"):
         # evidence_ref is provenance metadata, not a scientific claim. The lab
         # has just been generated from this concept's locked SOURCE/FIGURE, so
