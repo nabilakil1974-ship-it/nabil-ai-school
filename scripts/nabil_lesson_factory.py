@@ -2010,8 +2010,64 @@ def _clean_toc_title(value: str) -> str:
 _BOOK_INDEX_TEXT_CACHE: Dict[Tuple[int, int], str] = {}
 
 
+def _page_is_scanned(page) -> bool:
+    """True when a page is essentially a full-page image (scanned textbook)."""
+    try:
+        page_area = max(float(page.rect.width * page.rect.height), 1.0)
+        for image in page.get_images(full=True):
+            for rect in page.get_image_rects(image[0]):
+                if float(rect.width * rect.height) / page_area >= 0.80:
+                    return True
+    except Exception:
+        pass
+    return False
+
+
+def _render_book_page_image(page, *, dpi: int = 300) -> Path:
+    """Render the real PDF page to an image before reading it.
+
+    This is the same input strategy used for scanned curriculum pages: the
+    physical page is rendered first, so indexing never depends on a missing or
+    broken hidden text layer.
+    """
+    tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+    tmp.close()
+    path = Path(tmp.name)
+    page.get_pixmap(dpi=dpi, alpha=False).save(str(path))
+    return path
+
+
+def _local_ocr_from_page_image(image_path: Path) -> str:
+    """Read a rendered curriculum page locally; try layouts useful for TOCs."""
+    if not shutil.which("tesseract"):
+        return ""
+    candidates = []
+    for psm in (3, 6, 11):
+        try:
+            res = subprocess.run(
+                ["tesseract", str(image_path), "stdout", "-l", "eng+fra+ara",
+                 "--oem", "1", "--psm", str(psm)],
+                capture_output=True, text=True, timeout=45,
+            )
+            txt = re.sub(r"\r\n?", "\n", res.stdout or "").strip()
+            if txt:
+                # Prefer useful structure, not just maximum character count.
+                numbered = sum(1 for line in txt.splitlines()
+                               if re.search(r"\b\d{1,4}\s*$", line.strip()))
+                score = len(txt) + numbered * 120
+                candidates.append((score, txt))
+        except Exception:
+            continue
+    return max(candidates, key=lambda x: x[0])[1] if candidates else ""
+
+
 def _page_text_for_book_index(doc, pdf_page: int) -> str:
-    """Fast native-text read with local OCR fallback for scanned textbooks."""
+    """Read a book page from the rendered page image when needed.
+
+    Native text is used only for genuinely text-based pages. Scanned/image
+    books are rendered to PNG and OCR-read locally, matching the proven
+    PDF->page-image->reading path instead of trusting page.get_text().
+    """
     if pdf_page < 1 or pdf_page > len(doc):
         return ""
     key = (id(doc), int(pdf_page))
@@ -2020,36 +2076,35 @@ def _page_text_for_book_index(doc, pdf_page: int) -> str:
 
     page = doc[pdf_page - 1]
     try:
-        text = re.sub(r"\r\n?", "\n", page.get_text("text") or "").strip()
+        native = re.sub(r"\r\n?", "\n", page.get_text("text") or "").strip()
     except Exception:
-        text = ""
+        native = ""
+    scanned = _page_is_scanned(page)
 
-    # Keep good native text. Image-only/scanned pages fall through to local OCR.
-    if len(text) >= 60:
-        _BOOK_INDEX_TEXT_CACHE[key] = text
-        return text
+    if len(native) >= 60 and not scanned:
+        _BOOK_INDEX_TEXT_CACHE[key] = native
+        return native
 
+    image_path = None
     ocr_text = ""
-    if shutil.which("tesseract"):
-        try:
-            pix = page.get_pixmap(dpi=300, alpha=False)
-            with tempfile.NamedTemporaryFile(suffix=".png") as img_tmp:
-                pix.save(img_tmp.name)
-                res = subprocess.run(
-                    ["tesseract", img_tmp.name, "stdout", "-l", "eng+fra+ara",
-                     "--oem", "1", "--psm", "3"],
-                    capture_output=True, text=True, timeout=45,
-                )
-            ocr_text = re.sub(r"\r\n?", "\n", res.stdout or "").strip()
-            if ocr_text:
-                progress("BOOK_INDEX_LOCAL_OCR", page=pdf_page, chars=len(ocr_text))
-        except Exception as exc:
-            progress("BOOK_INDEX_LOCAL_OCR_FAILED", page=pdf_page, error=str(exc))
+    try:
+        image_path = _render_book_page_image(page, dpi=300 if scanned else 240)
+        ocr_text = _local_ocr_from_page_image(image_path)
+        if ocr_text:
+            progress("BOOK_INDEX_RENDERED_PAGE_READ", page=pdf_page,
+                     scanned=scanned, chars=len(ocr_text))
+    except Exception as exc:
+        progress("BOOK_INDEX_RENDERED_PAGE_READ_FAILED", page=pdf_page, error=str(exc))
+    finally:
+        if image_path:
+            try:
+                image_path.unlink(missing_ok=True)
+            except Exception:
+                pass
 
-    final = ocr_text if len(ocr_text) > len(text) else text
+    final = ocr_text if len(ocr_text) >= max(20, len(native)) else native
     _BOOK_INDEX_TEXT_CACHE[key] = final
     return final
-
 
 def _toc_numbered_line(line: str) -> bool:
     line = str(line or "").strip()
@@ -2094,7 +2149,11 @@ def _parse_toc_entries(doc, toc_pages: List[int]) -> List[dict]:
             match = re.match(r"^(?P<title>.+?)(?:\s*\.{2,}\s*|\s+)(?P<page>\d{1,4})\s*$", line)
             if not match:
                 continue
-            title = _clean_toc_title(match.group("title"))
+            raw_title = match.group("title")
+            # Keep the real title but remove a standalone chapter/unit ordinal
+            # commonly emitted by OCR at the left edge of a TOC row.
+            raw_title = re.sub(r"^\s*(?:chapter|chapitre|unit|unité|lesson|leçon)?\s*\d{1,3}\s*[:.\-–—]?\s+", "", raw_title, flags=re.I)
+            title = _clean_toc_title(raw_title)
             try:
                 printed_page = int(match.group("page"))
             except ValueError:
@@ -2937,26 +2996,24 @@ def extract_page_text_robust(doc, page_num: int, lesson_id: str, book_id: str, c
     if len(txt) >= 60 and not scanned:
         return txt
 
-    if shutil.which("tesseract"):
-        try:
-            pix = page.get_pixmap(dpi=300 if scanned else 220)
-            with tempfile.NamedTemporaryFile(suffix=".png") as img_tmp:
-                pix.save(img_tmp.name)
-                res = subprocess.run(
-                    ["tesseract", img_tmp.name, "stdout", "-l", "eng+fra+ara",
-                     "--oem", "1", "--psm", "3"],
-                    capture_output=True, text=True, timeout=45)
-                ocr_txt = res.stdout.strip()
-                if len(ocr_txt) >= 60:
-                    progress(
-                        "SOURCE_PAGE_LOCAL_OCR_SELECTED",
-                        page=page_num,
-                        scanned=scanned,
-                        chars=len(ocr_txt),
-                    )
-                    return ocr_txt
-        except Exception:
-            pass
+    image_path = None
+    try:
+        image_path = _render_book_page_image(page, dpi=300 if scanned else 240)
+        ocr_txt = _local_ocr_from_page_image(image_path)
+        if len(ocr_txt) >= 60:
+            progress(
+                "SOURCE_PAGE_RENDERED_OCR_SELECTED",
+                page=page_num, scanned=scanned, chars=len(ocr_txt),
+            )
+            return ocr_txt
+    except Exception:
+        pass
+    finally:
+        if image_path:
+            try:
+                image_path.unlink(missing_ok=True)
+            except Exception:
+                pass
 
     assert_authorized_source_vision(lesson_id, book_id, page_num)
     page_img = cache_dir / f"page_vision_{page_num}.png"
