@@ -4395,11 +4395,25 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
                                          "google/gemini-3.6-flash")),
         "openai": os.getenv("OPENAI_VISION_MODEL", "gpt-4o-mini"),
     }.get(source_provider, "none")
-    if persist_pages:
-        if drive_service is None:
-            raise RuntimeError("PAGE_CHECKPOINT_REQUIRES_DRIVE_SERVICE")
-        from scripts import nabil_page_checkpoint as page_checkpoints
-        checkpoint_root = resolve_drive_root_id()
+    # Page checkpoints are recovery infrastructure, not scientific evidence.
+    # Missing Drive/root must never abort lesson generation.  When configured,
+    # checkpoints remain enabled; otherwise the factory continues normally.
+    checkpoint_root = None
+    page_checkpoints = None
+    if persist_pages and drive_service is not None:
+        checkpoint_root = str(os.getenv("NABIL_CURRICULUM_ROOT_ID") or "").strip() or None
+        if checkpoint_root:
+            from scripts import nabil_page_checkpoint as page_checkpoints
+        else:
+            progress(
+                "CHECKPOINT_DISABLED_NO_ROOT_ID",
+                lesson_id=lesson_id,
+                reason="NABIL_CURRICULUM_ROOT_ID_NOT_CONFIGURED")
+    elif persist_pages and page_checkpoints is not None and checkpoint_root:
+        progress(
+            "CHECKPOINT_DISABLED_NO_DRIVE",
+            lesson_id=lesson_id,
+            reason="DRIVE_SERVICE_UNAVAILABLE")
     opening_text = extract_page_text_robust(
         doc, start_p, lesson_id, book_id, lesson_cache)
     # Validate the two physical title sources BEFORE costly page-by-page vision.
