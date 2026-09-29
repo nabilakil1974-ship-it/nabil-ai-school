@@ -4710,21 +4710,35 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
                     f["image_path"] for f in p["figures"]
                     if f["figure_id"] in refs and f.get("image_path")
                 ]
-                reconstructed = build_nabil_explanatory_redrawing(
-                    source_text=(
-                        str(content) + "\n" +
-                        "\n".join(str(x) for x in subqs)
-                    ),
-                    page_num=page_num,
-                    figure_paths=source_figure_paths,
-                    vision_context={
-                        "lesson_id": lesson_id,
-                        "book_id": book_id,
-                        "pdf_page": page_num,
-                    } if source_figure_paths else None,
-                    purpose=f"exercise_{kind}_{number}",
-                    visual_required=True,
-                )
+                try:
+                    reconstructed = build_nabil_explanatory_redrawing(
+                        source_text=(
+                            str(content) + "\n" +
+                            "\n".join(str(x) for x in subqs)
+                        ),
+                        page_num=page_num,
+                        figure_paths=source_figure_paths,
+                        vision_context={
+                            "lesson_id": lesson_id,
+                            "book_id": book_id,
+                            "pdf_page": page_num,
+                        } if source_figure_paths else None,
+                        purpose=f"exercise_{kind}_{number}",
+                        visual_required=True,
+                    )
+                except RuntimeError as exc:
+                    # Exercise-level redraw evidence failure must not abort the
+                    # whole lesson. Keep the universal fail-closed rule: reject
+                    # this exercise only; never invent or expose the source scan.
+                    if str(exc) != "NABIL_REDRAW_TEXT_EVIDENCE_NOT_FOUND":
+                        raise
+                    progress(
+                        "SKIPPED_EXERCISE_NABIL_REDRAW_UNVERIFIED",
+                        page=page_num,
+                        number=number,
+                        reason=str(exc),
+                    )
+                    continue
                 if reconstructed is None and req_fig:
                     progress(
                         "SKIPPED_EXERCISE_NABIL_REDRAW_UNVERIFIED",
