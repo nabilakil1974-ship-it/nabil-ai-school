@@ -1441,14 +1441,13 @@ def execute_llm_completion(
     max_requests = max(
         3, min(30, int(os.getenv(
             "NABIL_FACTORY_MAX_FAILOVER_REQUESTS", "12"))))
-    # Source-grounding passes often have only one healthy fallback left
-    # after a malformed-JSON provider is excluded and another provider is out
-    # of quota. A normal transient 429 cooldown around 30-60s must not abort
-    # the whole lesson. Keep the wait bounded/configurable, but default to 60s
-    # so a short source-critical cooldown can recover in the same run.
+    # A temporary 429 on the last healthy provider must not discard a lesson
+    # that has already completed expensive OCR/vision work.  Keep this bounded
+    # and configurable; long quota quarantines still lose to the shortest
+    # healthy-provider cooldown selected by _next_provider_or_wait().
     max_all_wait = max(
         0.0, min(1800.0, float(os.getenv(
-            "NABIL_FACTORY_MAX_ALL_PROVIDER_WAIT_SECONDS", "60"))))
+            "NABIL_FACTORY_MAX_ALL_PROVIDER_WAIT_SECONDS", "300"))))
     provider_attempts = {p: 0 for p in candidates}
     total_requests = 0
 
@@ -8506,13 +8505,29 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
     
     if drive_service is None and (publish or not Path(f"/app/data/books/{book_id}.pdf").exists()):
         drive_service = get_drive_service()
+    elif drive_service is None:
+        # Best-effort recovery channel. A local-book dry run remains valid if
+        # Drive auth is unavailable; publication still requires Drive normally.
+        try:
+            drive_service = get_drive_service()
+            progress("RECOVERY_CHECKPOINT_DRIVE_READY", lesson_id=lesson_id)
+        except Exception as exc:
+            progress(
+                "RECOVERY_CHECKPOINT_DRIVE_UNAVAILABLE_CONTINUING_LOCAL",
+                lesson_id=lesson_id, reason=str(exc)[:240])
+            drive_service = None
 
     pdf_path = resolve_source_book_pdf(book_id, drive_service)
     import fitz
     doc = fitz.open(str(pdf_path))
     try:
+        # Checkpointing is recovery infrastructure, not publication.
+        # If Drive is already available, persist verified page evidence even in
+        # dry-run mode so a transient provider/process failure can resume work.
         ev_map = build_evidence_map(
-            doc, entry, drive_service=drive_service, persist_pages=publish)
+            doc, entry,
+            drive_service=drive_service,
+            persist_pages=(drive_service is not None))
     finally:
         doc.close()
 
