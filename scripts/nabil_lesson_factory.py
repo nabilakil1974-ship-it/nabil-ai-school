@@ -2007,14 +2007,55 @@ def _clean_toc_title(value: str) -> str:
     return value
 
 
+_BOOK_INDEX_TEXT_CACHE: Dict[Tuple[int, int], str] = {}
+
+
 def _page_text_for_book_index(doc, pdf_page: int) -> str:
+    """Fast native-text read with local OCR fallback for scanned textbooks."""
     if pdf_page < 1 or pdf_page > len(doc):
         return ""
+    key = (id(doc), int(pdf_page))
+    if key in _BOOK_INDEX_TEXT_CACHE:
+        return _BOOK_INDEX_TEXT_CACHE[key]
+
+    page = doc[pdf_page - 1]
     try:
-        text = doc[pdf_page - 1].get_text("text") or ""
+        text = re.sub(r"\r\n?", "\n", page.get_text("text") or "").strip()
     except Exception:
         text = ""
-    return re.sub(r"\r\n?", "\n", text).strip()
+
+    # Keep good native text. Image-only/scanned pages fall through to local OCR.
+    if len(text) >= 60:
+        _BOOK_INDEX_TEXT_CACHE[key] = text
+        return text
+
+    ocr_text = ""
+    if shutil.which("tesseract"):
+        try:
+            pix = page.get_pixmap(dpi=300, alpha=False)
+            with tempfile.NamedTemporaryFile(suffix=".png") as img_tmp:
+                pix.save(img_tmp.name)
+                res = subprocess.run(
+                    ["tesseract", img_tmp.name, "stdout", "-l", "eng+fra+ara",
+                     "--oem", "1", "--psm", "3"],
+                    capture_output=True, text=True, timeout=45,
+                )
+            ocr_text = re.sub(r"\r\n?", "\n", res.stdout or "").strip()
+            if ocr_text:
+                progress("BOOK_INDEX_LOCAL_OCR", page=pdf_page, chars=len(ocr_text))
+        except Exception as exc:
+            progress("BOOK_INDEX_LOCAL_OCR_FAILED", page=pdf_page, error=str(exc))
+
+    final = ocr_text if len(ocr_text) > len(text) else text
+    _BOOK_INDEX_TEXT_CACHE[key] = final
+    return final
+
+
+def _toc_numbered_line(line: str) -> bool:
+    line = str(line or "").strip()
+    # OCR often collapses dot leaders / columns to one space.
+    return bool(re.search(r"\b\d{1,4}\s*$", line) and
+                len(re.sub(r"\d{1,4}\s*$", "", line).strip(" .-–—\t")) >= 3)
 
 
 def _detect_toc_pages(doc, max_scan_pages: int = 40) -> List[int]:
@@ -2025,24 +2066,20 @@ def _detect_toc_pages(doc, max_scan_pages: int = 40) -> List[int]:
         if not text:
             continue
         lines = [x.strip() for x in text.splitlines() if x.strip()]
-        numbered_lines = sum(
-            1 for line in lines
-            if re.search(r"(?:\.{2,}|\s{2,})\d{1,4}\s*$", line)
-        )
+        numbered_lines = sum(1 for line in lines if _toc_numbered_line(line))
         if _TOC_HINT_RE.search(text) or numbered_lines >= 4:
             candidates.append(pdf_page)
     if not candidates:
         return []
+
     expanded = set(candidates)
     for p in list(candidates):
-        if p + 1 <= limit:
-            nxt = _page_text_for_book_index(doc, p + 1)
-            numbered = sum(
-                1 for line in nxt.splitlines()
-                if re.search(r"(?:\.{2,}|\s{2,})\d{1,4}\s*$", line.strip())
-            )
-            if numbered >= 3:
-                expanded.add(p + 1)
+        for neighbor in (p - 1, p + 1):
+            if 1 <= neighbor <= limit:
+                nxt = _page_text_for_book_index(doc, neighbor)
+                numbered = sum(1 for line in nxt.splitlines() if _toc_numbered_line(line))
+                if numbered >= 3:
+                    expanded.add(neighbor)
     return sorted(expanded)
 
 
@@ -2064,6 +2101,8 @@ def _parse_toc_entries(doc, toc_pages: List[int]) -> List[dict]:
                 continue
             if len(title) < 3 or _TOC_HINT_RE.fullmatch(title):
                 continue
+            if printed_page < 1:
+                continue
             entries.append({
                 "title": title,
                 "printed_page": printed_page,
@@ -2080,6 +2119,7 @@ def _parse_toc_entries(doc, toc_pages: List[int]) -> List[dict]:
 
 
 def _candidate_pdf_offsets(doc, toc_entries: List[dict]) -> List[int]:
+    """Resolve printed->physical offset without OCR-scanning the whole book repeatedly."""
     offsets = []
     for entry in toc_entries[:20]:
         tokens = [
@@ -2088,34 +2128,50 @@ def _candidate_pdf_offsets(doc, toc_entries: List[dict]) -> List[int]:
         ]
         if not tokens:
             continue
-        for pdf_page in range(1, len(doc) + 1):
+        printed = int(entry["printed_page"])
+        # Textbooks normally differ by front-matter offset. Search only plausible range.
+        lo = max(1, printed - 10)
+        hi = min(len(doc), printed + 60)
+        for pdf_page in range(lo, hi + 1):
             text = _page_text_for_book_index(doc, pdf_page).casefold()
             hits = sum(1 for token in tokens if token in text)
             required = 1 if len(tokens) == 1 else min(2, len(tokens))
             if hits >= required:
-                offset = pdf_page - entry["printed_page"]
-                if -10 <= offset <= 60:
-                    offsets.append(offset)
-                    break
+                offsets.append(pdf_page - printed)
+                break
     return offsets
 
 
 def _resolve_printed_to_pdf_offset(doc, toc_entries: List[dict]) -> int:
     offsets = _candidate_pdf_offsets(doc, toc_entries)
-    if not offsets:
-        raise RuntimeError(
-            "BOOK_INDEX_PAGE_OFFSET_UNVERIFIED: could not map printed TOC pages to physical PDF pages"
-        )
-    counts = {}
-    for offset in offsets:
-        counts[offset] = counts.get(offset, 0) + 1
-    best_offset, votes = max(counts.items(), key=lambda pair: pair[1])
-    if votes < 2 and len(toc_entries) >= 2:
-        raise RuntimeError(
-            f"BOOK_INDEX_PAGE_OFFSET_AMBIGUOUS: best_offset={best_offset}, votes={votes}"
-        )
-    return best_offset
+    if offsets:
+        counts = {}
+        for offset in offsets:
+            counts[offset] = counts.get(offset, 0) + 1
+        best_offset, votes = max(counts.items(), key=lambda pair: pair[1])
+        if votes >= 2 or len(toc_entries) < 2:
+            return best_offset
 
+    # Deterministic fallback: use PDF page labels when the document exposes them.
+    label_votes = []
+    for pdf_page in range(1, len(doc) + 1):
+        try:
+            label = str(doc[pdf_page - 1].get_label() or "").strip()
+        except Exception:
+            label = ""
+        if label.isdigit():
+            label_votes.append(pdf_page - int(label))
+    if label_votes:
+        counts = {}
+        for offset in label_votes:
+            if -10 <= offset <= 60:
+                counts[offset] = counts.get(offset, 0) + 1
+        if counts:
+            return max(counts.items(), key=lambda pair: pair[1])[0]
+
+    raise RuntimeError(
+        "BOOK_INDEX_PAGE_OFFSET_UNVERIFIED: could not map printed TOC pages to physical PDF pages"
+    )
 
 def _lesson_slug(book_id: str, number: int) -> str:
     return f"{_book_index_safe_id(book_id).upper()}-AUTO-{number:03d}"
@@ -2181,6 +2237,81 @@ def _iter_canonical_lesson_entries(catalog: dict):
                         yield entry
 
 
+def _drive_list_curriculum_pdfs(drive_service=None) -> List[dict]:
+    """Recursively discover real PDFs below the configured curriculum Drive root."""
+    if drive_service is None:
+        drive_service = get_drive_service()
+    root_id = resolve_drive_root_id()
+    out, queue, seen = [], [(root_id, "")], set()
+    while queue:
+        folder_id, parent_path = queue.pop(0)
+        if folder_id in seen:
+            continue
+        seen.add(folder_id)
+        token = None
+        while True:
+            resp = drive_service.files().list(
+                q=f"'{folder_id}' in parents and trashed=false",
+                fields="nextPageToken,files(id,name,mimeType,description)",
+                pageSize=1000, pageToken=token,
+                supportsAllDrives=True, includeItemsFromAllDrives=True,
+            ).execute()
+            for item in resp.get("files") or []:
+                name = str(item.get("name") or "").strip()
+                path = f"{parent_path}/{name}".strip("/")
+                mime = str(item.get("mimeType") or "")
+                if mime == "application/vnd.google-apps.folder":
+                    queue.append((item["id"], path))
+                elif mime == "application/pdf" or name.casefold().endswith(".pdf"):
+                    out.append({
+                        "book_id": item["id"], "name": name, "drive_path": path,
+                        "description": str(item.get("description") or ""),
+                    })
+            token = resp.get("nextPageToken")
+            if not token:
+                break
+    if not out:
+        raise RuntimeError("CURRICULUM_DRIVE_NO_PDFS")
+    return out
+
+
+def _discover_lesson_boundaries_without_toc(doc) -> List[dict]:
+    """Find evidence-backed lesson starts when a printed TOC is absent/unreadable.
+
+    This deliberately does NOT split by arbitrary page counts. A boundary is
+    accepted only when an OCR/native-text page contains a strong lesson/chapter
+    heading. If evidence is insufficient the caller fails closed.
+    """
+    explicit = re.compile(
+        r"(?i)^\s*(?:chapter|unit|lesson|chapitre|unité|leçon|"
+        r"الفصل|الوحدة|الدرس)\s*(?:[0-9ivxlcdm]+|[A-Z]|[٠-٩]+)?\s*[:.\-–—]?\s*(.+?)\s*$")
+    starts = []
+    for pdf_page in range(1, len(doc) + 1):
+        text = _page_text_for_book_index(doc, pdf_page)
+        lines = [re.sub(r"\s+", " ", x).strip() for x in text.splitlines() if x.strip()]
+        for line in lines[:18]:
+            m = explicit.match(line)
+            if not m:
+                continue
+            title = _clean_toc_title(line)
+            if len(title) < 3 or len(title) > 160:
+                continue
+            starts.append({
+                "title": title, "printed_page": pdf_page,
+                "toc_pdf_page": None, "toc_line": line,
+                "pdf_start_page": pdf_page, "boundary_source": "verified_heading",
+            })
+            break
+    deduped, seen_pages = [], set()
+    for item in starts:
+        if item["pdf_start_page"] not in seen_pages:
+            seen_pages.add(item["pdf_start_page"]); deduped.append(item)
+    if len(deduped) < 2:
+        raise RuntimeError(
+            "BOOK_INDEX_LESSON_BOUNDARIES_UNVERIFIED: no TOC and fewer than two verified lesson/chapter headings")
+    return deduped
+
+
 def _registered_books_from_catalog() -> List[dict]:
     """Return one metadata record per unique registered source book."""
     catalog = load_canonical_catalog()
@@ -2194,8 +2325,8 @@ def _registered_books_from_catalog() -> List[dict]:
             value = entry.get(key)
             if value not in (None, "") and key not in meta:
                 meta[key] = value
-    if not books:
-        raise RuntimeError("BOOK_INDEX_NO_REGISTERED_BOOKS")
+    # The canonical catalog is optional for discovery. Drive is authoritative
+    # for finding curriculum PDFs; an empty catalog must not block indexing.
     return list(books.values())
 
 
@@ -2208,7 +2339,13 @@ def _metadata_for_book(book_id: str) -> dict:
 
 def build_all_registered_book_indexes(drive_service=None, force: bool = False) -> dict:
     """Index every unique book registered in the canonical catalog, truthfully."""
-    books = _registered_books_from_catalog()
+    catalog_books = {m["book_id"]: m for m in _registered_books_from_catalog()}
+    discovered = _drive_list_curriculum_pdfs(drive_service=drive_service)
+    books = []
+    for item in discovered:
+        meta = dict(item)
+        meta.update(catalog_books.get(item["book_id"], {}))
+        books.append(meta)
     report = {
         "status": "RUNNING",
         "schema": "NABIL_ALL_BOOK_INDEX_V1",
@@ -2288,17 +2425,51 @@ def _book_matches_scope(meta: dict, grade: Any = None, subject: Any = None) -> b
     return True
 
 
+def _probe_drive_book_metadata(meta: dict, drive_service=None) -> dict:
+    """Infer scope metadata without requiring TOC/lesson indexing to succeed."""
+    import fitz
+    book_id = str(meta.get("book_id") or "").strip()
+    if not book_id:
+        raise RuntimeError("BOOK_METADATA_PROBE_MISSING_BOOK_ID")
+    pdf_path = resolve_source_book_pdf(book_id, drive_service=drive_service)
+    doc = fitz.open(str(pdf_path))
+    try:
+        if len(doc) < 1:
+            raise RuntimeError("BOOK_INDEX_EMPTY_PDF")
+        return _infer_book_metadata_for_index(book_id, drive_service, doc, meta)
+    finally:
+        doc_id = id(doc)
+        for cache_key in [k for k in _BOOK_INDEX_TEXT_CACHE if k[0] == doc_id]:
+            _BOOK_INDEX_TEXT_CACHE.pop(cache_key, None)
+        doc.close()
+
+
 def build_scoped_book_indexes(
         drive_service=None, force: bool = False,
         grade: Any = None, subject: Any = None) -> dict:
     """Index every registered book matching a grade and/or subject selector."""
-    books = [
-        meta for meta in _registered_books_from_catalog()
-        if _book_matches_scope(meta, grade=grade, subject=subject)
-    ]
+    catalog_books = {m["book_id"]: m for m in _registered_books_from_catalog()}
+    discovered = _drive_list_curriculum_pdfs(drive_service=drive_service)
+    books = []
+    # Prefer metadata already proven by the catalog/name/path. Unknown books are
+    # indexed once so cover OCR can infer their real grade/subject; no random PDF
+    # is ever relabelled as the requested scope.
+    for item in discovered:
+        meta = dict(item)
+        meta.update(catalog_books.get(item["book_id"], {}))
+        if _book_matches_scope(meta, grade=grade, subject=subject):
+            books.append(meta)
+            continue
+        if not meta.get("grade") or not meta.get("subject"):
+            try:
+                inferred = _probe_drive_book_metadata(meta, drive_service=drive_service)
+                if _book_matches_scope(inferred, grade=grade, subject=subject):
+                    books.append(inferred)
+            except Exception as exc:
+                progress("SCOPED_BOOK_DISCOVERY_SKIPPED", book_id=meta.get("book_id"), error=str(exc))
     if not books:
         raise RuntimeError(
-            f"BOOK_INDEX_SCOPE_EMPTY: grade={grade!r} subject={subject!r}")
+            f"BOOK_INDEX_SCOPE_EMPTY_AFTER_DRIVE_DISCOVERY: grade={grade!r} subject={subject!r}")
 
     report = {
         "status": "RUNNING",
@@ -2405,6 +2576,69 @@ def resolve_lesson_selector(
     raise RuntimeError(
         f"LESSON_SELECTOR_NOT_FOUND: lesson={lesson!r} grade={grade!r} subject={subject!r}")
 
+def _infer_book_metadata_for_index(book_id: str, drive_service, doc, metadata: dict) -> dict:
+    """Fill missing grade/subject/language from Drive filename + locally read cover pages."""
+    out = dict(metadata or {})
+    name = ""
+    if drive_service:
+        try:
+            meta = drive_service.files().get(fileId=book_id, fields="name,description").execute()
+            name = str(meta.get("name") or "")
+            out["source_name"] = name
+        except Exception:
+            pass
+
+    sample_parts = [name]
+    for page_num in range(1, min(len(doc), 8) + 1):
+        sample_parts.append(_page_text_for_book_index(doc, page_num))
+    sample = "\n".join(sample_parts)
+    folded = sample.casefold()
+
+    if out.get("grade") in (None, ""):
+        m = re.search(r"(?i)\b(?:grade|eb|basic\s+education\s+grade)\s*[-:]?\s*(\d{1,2})\b", sample)
+        if m:
+            out["grade"] = int(m.group(1))
+        else:
+            # OCR occasionally reads Eight as Tight; filename is preferred when available.
+            words = {"seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12}
+            for word, number in words.items():
+                if re.search(rf"(?i)\bgrade\s+{word}\b", sample):
+                    out["grade"] = number
+                    break
+
+    if not out.get("subject"):
+        subject_patterns = [
+            ("mathematics", r"\b(mathematics|mathématiques|maths?)\b|رياضيات"),
+            ("physics", r"\b(physics|physique)\b|فيزياء"),
+            ("chemistry", r"\b(chemistry|chimie)\b|كيمياء"),
+            ("biology", r"\b(biology|biologie)\b|أحياء"),
+            ("general_science", r"\b(general\s+science|sciences?)\b|علوم"),
+            ("english_language", r"\benglish\b|الإنجليزية|الانجليزية"),
+            ("french_language", r"\b(french|français)\b|الفرنسية"),
+            ("arabic_language", r"\barabic\b|العربية"),
+        ]
+        for subject, pattern in subject_patterns:
+            if re.search(pattern, folded, flags=re.I):
+                out["subject"] = subject
+                break
+
+    if not out.get("language"):
+        # Prefer explicit filename markers, then script/subject hints.
+        if re.search(r"(?i)\b(french|français|francais)\b", name):
+            out["language"] = "fr"
+        elif re.search(r"(?i)\b(english|anglais)\b", name):
+            out["language"] = "en"
+        elif re.search(r"[\u0600-\u06ff]", sample):
+            out["language"] = "ar"
+        elif re.search(r"\b(le|la|les|des|chapitre|exercice)\b", folded):
+            out["language"] = "fr"
+        else:
+            out["language"] = "en"
+
+    out.setdefault("book_id", book_id)
+    return out
+
+
 def build_book_lesson_index(book_id: str, drive_service=None, force: bool = False, book_metadata: Optional[dict] = None) -> dict:
     """Drive/local PDF -> TOC -> lessons -> page ranges -> linked activities/exercises."""
     import fitz
@@ -2426,20 +2660,25 @@ def build_book_lesson_index(book_id: str, drive_service=None, force: bool = Fals
     try:
         if len(doc) < 1:
             raise RuntimeError("BOOK_INDEX_EMPTY_PDF")
-        progress("BOOK_INDEX_START", book_id=book_id, pdf_pages=len(doc))
+        book_metadata = _infer_book_metadata_for_index(
+            book_id, drive_service, doc, book_metadata)
+        progress("BOOK_INDEX_START", book_id=book_id, pdf_pages=len(doc),
+                 grade=book_metadata.get("grade"), subject=book_metadata.get("subject"),
+                 language=book_metadata.get("language"))
         toc_pages = _detect_toc_pages(doc)
-        if not toc_pages:
-            raise RuntimeError("BOOK_INDEX_TOC_NOT_FOUND: no trustworthy physical TOC pages detected")
-        toc_entries = _parse_toc_entries(doc, toc_pages)
-        if not toc_entries:
-            raise RuntimeError("BOOK_INDEX_TOC_EMPTY: TOC pages found but no lesson/page entries parsed")
-        offset = _resolve_printed_to_pdf_offset(doc, toc_entries)
-
-        valid_entries = []
-        for entry in toc_entries:
-            pdf_start = entry["printed_page"] + offset
-            if 1 <= pdf_start <= len(doc):
-                valid_entries.append({**entry, "pdf_start_page": pdf_start})
+        toc_entries = _parse_toc_entries(doc, toc_pages) if toc_pages else []
+        if toc_entries:
+            offset = _resolve_printed_to_pdf_offset(doc, toc_entries)
+            valid_entries = []
+            for entry in toc_entries:
+                pdf_start = entry["printed_page"] + offset
+                if 1 <= pdf_start <= len(doc):
+                    valid_entries.append({**entry, "pdf_start_page": pdf_start,
+                                          "boundary_source": "printed_toc"})
+        else:
+            progress("BOOK_INDEX_TOC_FALLBACK_TO_VERIFIED_HEADINGS", book_id=book_id)
+            offset = None
+            valid_entries = _discover_lesson_boundaries_without_toc(doc)
         valid_entries.sort(key=lambda x: (x["pdf_start_page"], x["printed_page"]))
 
         deduped, seen_starts = [], set()
@@ -2485,6 +2724,8 @@ def build_book_lesson_index(book_id: str, drive_service=None, force: bool = Fals
             "schema": "NABIL_BOOK_INDEX_V1",
             "generated_at": now(),
             "book_id": book_id,
+            "book_metadata": book_metadata,
+            "index_method": "printed_toc" if toc_entries else "verified_headings",
             "source_pdf": str(pdf_path),
             "pdf_pages": len(doc),
             "toc_pdf_pages": toc_pages,
@@ -2502,6 +2743,9 @@ def build_book_lesson_index(book_id: str, drive_service=None, force: bool = Fals
         )
         return result
     finally:
+        doc_id = id(doc)
+        for cache_key in [k for k in _BOOK_INDEX_TEXT_CACHE if k[0] == doc_id]:
+            _BOOK_INDEX_TEXT_CACHE.pop(cache_key, None)
         doc.close()
 
 
@@ -8899,7 +9143,7 @@ def main():
     parser.add_argument("--subject", type=str, default=None, help="Subject selector, e.g. physics, mathematics, فيزياء, رياضيات")
     parser.add_argument("--lesson", type=str, default=None, help="Lesson title/name inside the selected grade/subject")
     parser.add_argument("--index-book", type=str, default=None, help="Google Drive book file ID: index its TOC, lessons and works")
-    parser.add_argument("--index-all-books", action="store_true", help="Index every unique source book registered in the canonical catalog")
+    parser.add_argument("--index-all-books", action="store_true", help="Discover and index every curriculum PDF under the configured Google Drive root")
     parser.add_argument("--force-book-index", action="store_true", help="Rebuild book indexes even when a valid cached index exists")
     parser.add_argument("--check-ai", action="store_true", help="Probe vision with generated blank image; no textbook page or Drive access")
     parser.add_argument("--publish", action="store_true", help="Publish produced lesson directly to Google Drive")
@@ -8926,7 +9170,7 @@ def main():
         progress("AI_VISION_PROBE_PASS")
         return 0
 
-    # No target means the safe universal action: index the whole registered curriculum.
+    # No target means the universal action: discover and index the whole Drive curriculum.
     if not any((args.lesson_id, args.grade, args.subject, args.lesson, args.index_book, args.index_all_books)):
         args.index_all_books = True
 
