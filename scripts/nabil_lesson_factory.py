@@ -2295,7 +2295,7 @@ def _detect_toc_pages(doc, max_scan_pages: int = 40) -> List[int]:
     # as one possible multi-page TOC block.
     candidate_blocks = []
     seen = set()
-    for item in scored[:12]:
+    for item in scored[:20]:
         page = item["page"]
         if page in seen:
             continue
@@ -2499,10 +2499,18 @@ def _score_offset_against_entries(doc, entries: List[dict], offset: int) -> dict
         required = 1 if len(tokens) <= 2 else 2
         hits = _title_match_score(entry.get("title") or "", text)
         used_ocr = False
-        if hits < required and len(re.sub(r"\s+", "", native)) < 120:
-            text = _toc_page_text(doc, pdf_page, allow_ocr=True)
-            hits = _title_match_score(entry.get("title") or "", text)
-            used_ocr = text != native
+        if hits < required:
+            # A page may contain plenty of native text and still have a broken or
+            # image-only heading.  Native-text length is therefore NOT evidence
+            # that OCR is unnecessary.  OCR is cached per physical page, so this
+            # remains bounded while rescuing scanned/mixed PDFs.
+            scanned = _ocr_toc_page(doc, pdf_page)
+            if scanned:
+                ocr_hits = _title_match_score(entry.get("title") or "", scanned)
+                if ocr_hits > hits:
+                    text = scanned
+                    hits = ocr_hits
+                    used_ocr = True
         matched = hits >= required
         if matched:
             votes += 1
@@ -2526,7 +2534,7 @@ def _candidate_pdf_offsets(doc, toc_entries: List[dict]) -> List[int]:
     window does not produce a trustworthy result and still requires repeated
     title evidence from the real destination pages.
     """
-    entries = _offset_probe_entries(toc_entries, limit=8)
+    entries = _offset_probe_entries(toc_entries, limit=6)
     if not entries:
         return []
 
@@ -2605,21 +2613,48 @@ def _resolve_printed_to_pdf_offset(doc, toc_entries: List[dict]) -> int:
         raise RuntimeError(
             f"BOOK_INDEX_PAGE_OFFSET_AMBIGUOUS_TIE: candidates={ranked[:4]}")
 
-    # Final independent verification before accepting the mapping. This prevents
-    # a single noisy TOC row from shifting every lesson range in the book.
-    anchors = _offset_probe_entries(toc_entries, limit=8)
-    verification = _score_offset_against_entries(doc, anchors, best_offset)
-    minimum = 2 if len(anchors) >= 2 else 1
+    # Verify on TOC rows that were NOT used to choose the offset whenever the
+    # TOC is large enough.  This is a real hold-out check, not a second pass over
+    # the same anchors.  Small TOCs cannot provide independent rows, so they are
+    # explicitly reported as same-anchor verification instead of being mislabeled.
+    search_anchors = _offset_probe_entries(toc_entries, limit=6)
+    search_keys = {
+        (str(e.get("title") or "").casefold(), int(e.get("printed_page") or 0))
+        for e in search_anchors
+    }
+    holdout_pool = [
+        e for e in toc_entries
+        if (str(e.get("title") or "").casefold(), int(e.get("printed_page") or 0))
+        not in search_keys
+    ]
+    if holdout_pool:
+        verification_anchors = _offset_probe_entries(holdout_pool, limit=4)
+        verification_mode = "independent_holdout"
+    else:
+        verification_anchors = search_anchors
+        verification_mode = "same_anchor_small_toc"
+
+    verification = _score_offset_against_entries(
+        doc, verification_anchors, best_offset)
+    if verification_mode == "independent_holdout":
+        minimum = 2 if len(verification_anchors) >= 2 else 1
+    else:
+        minimum = 2 if len(verification_anchors) >= 2 else 1
     if verification["votes"] < minimum:
         raise RuntimeError(
             "BOOK_INDEX_PAGE_OFFSET_UNVERIFIED_FINAL: "
-            f"offset={best_offset}, votes={verification['votes']}, tested={verification['tested']}")
+            f"offset={best_offset}, mode={verification_mode}, "
+            f"votes={verification['votes']}, tested={verification['tested']}")
 
     progress(
         "BOOK_INDEX_PAGE_OFFSET_VERIFIED",
         offset=best_offset,
         votes=verification["votes"],
         tested=verification["tested"],
+        verification_mode=verification_mode,
+        search_anchor_count=len(search_anchors),
+        holdout_anchor_count=(len(verification_anchors)
+                              if verification_mode == "independent_holdout" else 0),
         alternatives=[{"offset": o, "votes": v} for o, v in ranked[1:4]],
     )
     return best_offset
