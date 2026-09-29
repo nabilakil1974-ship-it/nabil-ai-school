@@ -2940,7 +2940,7 @@ def _lesson_index_route_quality(doc, entries: List[dict], route: str) -> dict:
         # A fallback heading route must not let one weak final heading swallow
         # most of the book. This catches structural false positives without
         # imposing a fixed lesson length on normal indexes.
-        if route in ("ocr_explicit_headings", "native_explicit_headings", "native_typography"):
+        if route in ("ocr_explicit_headings", "native_explicit_headings", "native_typography", "ai_ocr_structural", "vision_structural"):
             if spans[-1] > max(40, median_prev * 6 if median_prev else 40):
                 reasons.append("implausible_final_lesson_span")
             if len(rows) < 3 and len(doc) >= 60:
@@ -2966,7 +2966,186 @@ def _accept_index_route(doc, entries: List[dict], route: str, attempts: List[dic
     return report["entries"]
 
 
-def _discover_lesson_starts_multi_route(doc) -> Tuple[List[dict], dict]:
+
+def _structural_page_text(doc, pdf_page: int) -> str:
+    """Best local text for book-structure recovery; never invents content."""
+    native = _page_text_for_book_index(doc, pdf_page)
+    if len(re.sub(r"\s+", "", native)) >= 180:
+        return native
+    ocr = _ocr_toc_page(doc, pdf_page)
+    return ocr if len(re.sub(r"\s+", "", ocr)) > len(re.sub(r"\s+", "", native)) else native
+
+
+def _structural_text_excerpt(text: str, max_lines: int = 18, max_chars: int = 1800) -> str:
+    lines = []
+    for raw in str(text or "").splitlines()[:max_lines * 2]:
+        line = re.sub(r"\s+", " ", raw).strip()
+        if not line:
+            continue
+        lines.append(line[:240])
+        if len(lines) >= max_lines:
+            break
+    return "\n".join(lines)[:max_chars]
+
+
+def _ai_structural_title_supported(doc, pdf_page: int, title: str) -> bool:
+    """Require an AI-proposed heading to be visibly recoverable on that same page."""
+    title = _normalize_discovered_heading(title)
+    if not _heading_title_is_plausible(title):
+        return False
+    text = _structural_page_text(doc, pdf_page)
+    tokens = [t.casefold() for t in re.findall(r"\w+", title, flags=re.UNICODE)
+              if len(t) >= 3 and not t.isdigit()]
+    if not tokens:
+        return False
+    hits = _title_match_score(title, text)
+    required = 1 if len(tokens) <= 2 else max(2, min(4, math.ceil(len(tokens) * .45)))
+    # Exact normalized containment is especially useful when OCR punctuation differs.
+    norm_title = re.sub(r"[^\w]+", " ", title.casefold(), flags=re.UNICODE).strip()
+    norm_text = re.sub(r"[^\w]+", " ", text.casefold(), flags=re.UNICODE)
+    return norm_title in norm_text or hits >= required
+
+
+def _lesson_entries_from_ai_ocr_structure(doc) -> List[dict]:
+    """Route F: ask the configured text LLM to classify LOCAL OCR/native excerpts.
+
+    The model receives text only, never a source image. Every proposed lesson start
+    is independently re-checked against the local page text before it can enter the
+    common route quality gate.
+    """
+    page_records = []
+    for pdf_page in range(1, len(doc) + 1):
+        text = _structural_page_text(doc, pdf_page)
+        excerpt = _structural_text_excerpt(text)
+        if excerpt:
+            page_records.append({"pdf_page": pdf_page, "excerpt": excerpt})
+    if not page_records:
+        return []
+
+    rows = []
+    batch_size = max(8, min(24, int(os.getenv("NABIL_BOOK_INDEX_AI_TEXT_BATCH_PAGES", "18"))))
+    for start in range(0, len(page_records), batch_size):
+        batch = page_records[start:start + batch_size]
+        payload = "\n\n".join(
+            f"=== PDF PAGE {r['pdf_page']} ===\n{r['excerpt']}" for r in batch
+        )
+        prompt = f"""You are classifying STRUCTURE in OCR/native text from a school textbook.
+Return JSON only with this schema:
+{{"lesson_starts":[{{"pdf_page": integer, "title": string, "confidence": number, "evidence_line": string}}]}}
+
+STRICT RULES:
+- Select only genuine starts of lessons/chapters/units that a student would recognize as a curriculum section.
+- Do NOT turn prose sentences, questions, exercise prompts, running headers, page numbers, introductions, or fragments into lesson titles.
+- The title and evidence_line MUST be visibly present in the supplied text for that SAME pdf_page.
+- Never invent or repair a title that is not present.
+- If uncertain, omit it. Empty lesson_starts is valid.
+- confidence is 0..1 and must reflect structural certainty, not topic relevance.
+
+PAGES:\n{payload}"""
+        try:
+            data = _execute_llm_json_strict(prompt, purpose="book_index_ai_ocr_structure", max_attempts=2)
+        except Exception as exc:
+            progress("BOOK_INDEX_AI_TEXT_BATCH_FAILED", first_page=batch[0]["pdf_page"], last_page=batch[-1]["pdf_page"], error=str(exc)[:300])
+            continue
+        items = data.get("lesson_starts") if isinstance(data, dict) else None
+        if not isinstance(items, list):
+            continue
+        allowed_pages = {r["pdf_page"] for r in batch}
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            try:
+                page = int(item.get("pdf_page"))
+                confidence = float(item.get("confidence", 0))
+            except (TypeError, ValueError):
+                continue
+            title = _normalize_discovered_heading(item.get("title") or "")
+            if page not in allowed_pages or confidence < .72:
+                continue
+            if not _ai_structural_title_supported(doc, page, title):
+                progress("BOOK_INDEX_AI_TEXT_CANDIDATE_REJECTED", pdf_page=page, title=title[:140], reason="title_not_supported_on_page")
+                continue
+            rows.append({
+                "title": title, "pdf_start_page": page,
+                "discovery_method": "ai_ocr_structural",
+                "toc_pdf_page": None, "printed_page": None,
+                "structural_confidence": round(confidence, 3),
+                "structural_evidence": str(item.get("evidence_line") or "")[:300],
+            })
+    return _dedupe_direct_lesson_entries(rows, len(doc))
+
+
+def _vision_index_context(book_id: str, pdf_page: int) -> dict:
+    return {
+        "lesson_id": f"BOOK-INDEX-{_book_index_safe_id(book_id)}",
+        "book_id": str(book_id),
+        "pdf_page": int(pdf_page),
+    }
+
+
+def _lesson_entries_from_vision_structure(doc, book_id: str) -> List[dict]:
+    """Route G: authorized page-image recovery for scanned books.
+
+    Vision is attempted only for pages that the owner has explicitly authorized
+    under the normal source-vision consent contract. Unsupported/unauthorized
+    pages are skipped rather than weakening privacy or fail-closed behavior.
+    """
+    # Candidate reduction: use local text/ocr to avoid sending every page.
+    candidates = []
+    for pdf_page in range(1, len(doc) + 1):
+        text = _structural_page_text(doc, pdf_page)
+        lines = [re.sub(r"\s+", " ", x).strip() for x in text.splitlines()[:16] if x.strip()]
+        score = 0
+        if any(_LESSON_HEADING_RE.match(x) for x in lines):
+            score += 6
+        if any(2 <= len(re.findall(r"\w+", x, flags=re.UNICODE)) <= 10 and len(x) <= 90 for x in lines[:6]):
+            score += 2
+        if any(re.search(r"(?i)\b(chapter|lesson|unit|part|chapitre|leçon|unité|partie)\b|درس|وحدة|فصل", x) for x in lines[:10]):
+            score += 4
+        if score >= 2:
+            candidates.append((score, pdf_page))
+    # Keep broad coverage but bounded cost. Page order matters for final index.
+    max_pages = max(8, min(60, int(os.getenv("NABIL_BOOK_INDEX_VISION_MAX_PAGES", "36"))))
+    candidate_pages = sorted(p for _, p in sorted(candidates, key=lambda x: (-x[0], x[1]))[:max_pages])
+    rows = []
+    for pdf_page in candidate_pages:
+        context = _vision_index_context(book_id, pdf_page)
+        try:
+            # Authorization is checked before rendering/sending the page.
+            assert_authorized_source_vision(context["lesson_id"], context["book_id"], pdf_page)
+        except Exception:
+            continue
+        try:
+            pix = doc[pdf_page - 1].get_pixmap(dpi=150, alpha=False)
+            b64 = base64.b64encode(pix.tobytes("png")).decode("ascii")
+            prompt = """Inspect this textbook page ONLY for document structure. Return JSON:
+{"is_lesson_start": boolean, "title": string, "confidence": number, "visible_evidence": string}
+Rules: true only if this page visibly begins a curriculum lesson/chapter/unit. Do not classify prose, questions, exercises, running headers or fragments as titles. Copy the visible title exactly; never invent it. If uncertain return false."""
+            data = _execute_llm_json_strict(
+                prompt, image_base64=b64, vision_context=context,
+                purpose="book_index_vision_structure", max_attempts=2)
+        except Exception as exc:
+            progress("BOOK_INDEX_VISION_PAGE_FAILED", pdf_page=pdf_page, error=str(exc)[:300])
+            continue
+        if not isinstance(data, dict) or data.get("is_lesson_start") is not True:
+            continue
+        try:
+            confidence = float(data.get("confidence", 0))
+        except (TypeError, ValueError):
+            confidence = 0
+        title = _normalize_discovered_heading(data.get("title") or "")
+        if confidence < .80 or not _heading_title_is_plausible(title):
+            continue
+        rows.append({
+            "title": title, "pdf_start_page": pdf_page,
+            "discovery_method": "vision_structural",
+            "toc_pdf_page": None, "printed_page": None,
+            "structural_confidence": round(confidence, 3),
+            "structural_evidence": str(data.get("visible_evidence") or "")[:300],
+        })
+    return _dedupe_direct_lesson_entries(rows, len(doc))
+
+def _discover_lesson_starts_multi_route(doc, book_id: str) -> Tuple[List[dict], dict]:
     """Try independent indexing routes in confidence order; every route passes a quality gate."""
     attempts = []
 
@@ -3012,6 +3191,18 @@ def _discover_lesson_starts_multi_route(doc) -> Tuple[List[dict], dict]:
     if accepted:
         return accepted, {"route": "ocr_explicit_headings", "attempts": attempts, "toc_pdf_pages": [], "printed_to_pdf_offset": None}
 
+    ai_structural = _lesson_entries_from_ai_ocr_structure(doc)
+    attempts.append({"route": "ai_ocr_structural", "count": len(ai_structural)})
+    accepted = _accept_index_route(doc, ai_structural, "ai_ocr_structural", attempts) if ai_structural else None
+    if accepted:
+        return accepted, {"route": "ai_ocr_structural", "attempts": attempts, "toc_pdf_pages": [], "printed_to_pdf_offset": None}
+
+    vision_structural = _lesson_entries_from_vision_structure(doc, book_id)
+    attempts.append({"route": "vision_structural", "count": len(vision_structural)})
+    accepted = _accept_index_route(doc, vision_structural, "vision_structural", attempts) if vision_structural else None
+    if accepted:
+        return accepted, {"route": "vision_structural", "attempts": attempts, "toc_pdf_pages": [], "printed_to_pdf_offset": None}
+
     progress("BOOK_INDEX_ALL_ROUTES_FAILED", attempts=attempts)
     return [], {"route": None, "attempts": attempts, "toc_pdf_pages": [], "printed_to_pdf_offset": None}
 
@@ -3024,6 +3215,12 @@ def _extract_lesson_works(doc, start_page: int, end_page: int) -> List[dict]:
     sequence = 0
     for pdf_page in range(start_page, end_page + 1):
         text = _page_text_for_book_index(doc, pdf_page)
+        # Scanned/mixed textbooks can have exercises visible only in the page image.
+        # Use cached local OCR when native text is weak; never invent work headings.
+        if len(re.sub(r"\s+", "", text)) < 180:
+            ocr_text = _ocr_toc_page(doc, pdf_page)
+            if len(re.sub(r"\s+", "", ocr_text)) > len(re.sub(r"\s+", "", text)):
+                text = ocr_text
         for line_no, raw_line in enumerate(text.splitlines(), 1):
             line = re.sub(r"\s+", " ", raw_line).strip()
             if not line:
@@ -3622,7 +3819,7 @@ def build_book_lesson_index(book_id: str, drive_service=None, force: bool = Fals
         if len(doc) < 1:
             raise RuntimeError("BOOK_INDEX_EMPTY_PDF")
         progress("BOOK_INDEX_START", book_id=book_id, pdf_pages=len(doc))
-        valid_entries, discovery = _discover_lesson_starts_multi_route(doc)
+        valid_entries, discovery = _discover_lesson_starts_multi_route(doc, book_id)
         if not valid_entries:
             raise RuntimeError(
                 "BOOK_INDEX_LESSON_STARTS_NOT_VERIFIED: all indexing routes failed: "
