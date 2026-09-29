@@ -2297,27 +2297,30 @@ def _iter_canonical_lesson_entries(catalog: dict):
 
 
 def _drive_list_curriculum_pdfs(drive_service=None) -> List[dict]:
-    """Recursively discover curriculum PDFs below the configured Drive root.
+    """Discover curriculum PDFs strictly below the configured Drive root.
 
-    Supports normal folders/PDFs and Google Drive shortcuts.  The configured
-    root itself may also be a shortcut.  Discovery stays strictly inside that
-    root; it never falls back to unrelated PDFs elsewhere in the owner's Drive.
+    Primary path: recursive parent traversal.
+    Recovery path: search visible PDFs/shortcuts and prove ancestry back to the
+    configured curriculum root.  The recovery path never admits an unrelated
+    PDF merely because it is visible to the OAuth credential.
     """
     if drive_service is None:
         drive_service = get_drive_service()
 
     folder_mime = "application/vnd.google-apps.folder"
     shortcut_mime = "application/vnd.google-apps.shortcut"
-    root_id = resolve_drive_root_id()
+    pdf_mime = "application/pdf"
+    configured_root_id = resolve_drive_root_id()
+    root_id = configured_root_id
 
     def _get_item(file_id: str) -> dict:
         return drive_service.files().get(
             fileId=file_id,
-            fields="id,name,mimeType,description,shortcutDetails(targetId,targetMimeType)",
+            fields=("id,name,mimeType,description,parents,"
+                    "shortcutDetails(targetId,targetMimeType)"),
             supportsAllDrives=True,
         ).execute()
 
-    # Resolve a shortcut configured as the curriculum root.
     root_meta = _get_item(root_id)
     if str(root_meta.get("mimeType") or "") == shortcut_mime:
         details = root_meta.get("shortcutDetails") or {}
@@ -2325,7 +2328,7 @@ def _drive_list_curriculum_pdfs(drive_service=None) -> List[dict]:
         target_mime = str(details.get("targetMimeType") or "").strip()
         if not target_id:
             raise RuntimeError("CURRICULUM_DRIVE_ROOT_SHORTCUT_INVALID")
-        if target_mime == "application/pdf":
+        if target_mime == pdf_mime:
             return [{
                 "book_id": target_id,
                 "name": str(root_meta.get("name") or f"{target_id}.pdf"),
@@ -2333,12 +2336,13 @@ def _drive_list_curriculum_pdfs(drive_service=None) -> List[dict]:
                 "description": str(root_meta.get("description") or ""),
             }]
         if target_mime != folder_mime:
-            raise RuntimeError(f"CURRICULUM_DRIVE_ROOT_NOT_FOLDER:{target_mime or 'unknown'}")
+            raise RuntimeError(
+                f"CURRICULUM_DRIVE_ROOT_NOT_FOLDER:{target_mime or 'unknown'}")
         root_id = target_id
         root_meta = _get_item(root_id)
 
     root_mime = str(root_meta.get("mimeType") or "")
-    if root_mime == "application/pdf":
+    if root_mime == pdf_mime:
         return [{
             "book_id": root_id,
             "name": str(root_meta.get("name") or f"{root_id}.pdf"),
@@ -2346,9 +2350,28 @@ def _drive_list_curriculum_pdfs(drive_service=None) -> List[dict]:
             "description": str(root_meta.get("description") or ""),
         }]
     if root_mime != folder_mime:
-        raise RuntimeError(f"CURRICULUM_DRIVE_ROOT_NOT_FOLDER:{root_mime or 'unknown'}")
+        raise RuntimeError(
+            f"CURRICULUM_DRIVE_ROOT_NOT_FOLDER:{root_mime or 'unknown'}")
 
-    out, queue, seen_folders, seen_pdfs = [], [(root_id, "")], set(), set()
+    out: List[dict] = []
+    seen_pdfs = set()
+
+    def _append_pdf(book_id: str, name: str, path: str, description: str) -> None:
+        book_id = str(book_id or "").strip()
+        if not book_id or book_id in seen_pdfs:
+            return
+        seen_pdfs.add(book_id)
+        out.append({
+            "book_id": book_id,
+            "name": str(name or f"{book_id}.pdf").strip(),
+            "drive_path": str(path or name or "").strip("/"),
+            "description": str(description or ""),
+        })
+
+    # Normal recursive traversal first.  This is fast when Drive exposes folder
+    # children normally to the active OAuth identity.
+    queue = [(root_id, "")]
+    seen_folders = set()
     while queue:
         folder_id, parent_path = queue.pop(0)
         if folder_id in seen_folders:
@@ -2358,7 +2381,8 @@ def _drive_list_curriculum_pdfs(drive_service=None) -> List[dict]:
         while True:
             resp = drive_service.files().list(
                 q=f"'{folder_id}' in parents and trashed=false",
-                fields=("nextPageToken,files(id,name,mimeType,description,"
+                spaces="drive",
+                fields=("nextPageToken,files(id,name,mimeType,description,parents,"
                         "shortcutDetails(targetId,targetMimeType))"),
                 pageSize=1000,
                 pageToken=token,
@@ -2383,25 +2407,94 @@ def _drive_list_curriculum_pdfs(drive_service=None) -> List[dict]:
 
                 if effective_mime == folder_mime:
                     queue.append((effective_id, path))
-                elif effective_mime == "application/pdf" or name.casefold().endswith(".pdf"):
-                    if effective_id in seen_pdfs:
-                        continue
-                    seen_pdfs.add(effective_id)
-                    out.append({
-                        "book_id": effective_id,
-                        "name": name or f"{effective_id}.pdf",
-                        "drive_path": path,
-                        "description": description,
-                    })
+                elif effective_mime == pdf_mime or name.casefold().endswith(".pdf"):
+                    _append_pdf(effective_id, name, path, description)
             token = resp.get("nextPageToken")
             if not token:
                 break
 
-    if not out:
-        raise RuntimeError(
-            f"CURRICULUM_DRIVE_NO_PDFS: root={root_id}; "
-            "root was readable but contained no reachable PDF files or PDF shortcuts")
-    return out
+    if out:
+        progress("CURRICULUM_DRIVE_DISCOVERY", root=root_id,
+                 method="recursive_parents", pdf_count=len(out))
+        return out
+
+    # Some shared/My-Drive layouts allow direct file access but do not enumerate
+    # children reliably from the configured root.  Recover by searching visible
+    # PDF files/shortcuts, then PROVE that the item itself descends from root.
+    # This is intentionally not a global-PDF fallback.
+    meta_cache = {root_id: root_meta}
+
+    def _meta(file_id: str) -> Optional[dict]:
+        file_id = str(file_id or "").strip()
+        if not file_id:
+            return None
+        if file_id in meta_cache:
+            return meta_cache[file_id]
+        try:
+            meta_cache[file_id] = _get_item(file_id)
+        except Exception:
+            meta_cache[file_id] = None
+        return meta_cache[file_id]
+
+    def _is_descendant(item: dict) -> bool:
+        frontier = [str(x) for x in (item.get("parents") or []) if str(x).strip()]
+        visited = set()
+        while frontier:
+            parent_id = frontier.pop()
+            if parent_id == root_id:
+                return True
+            if parent_id in visited:
+                continue
+            visited.add(parent_id)
+            parent = _meta(parent_id)
+            if not parent:
+                continue
+            frontier.extend(
+                str(x) for x in (parent.get("parents") or []) if str(x).strip())
+        return False
+
+    token = None
+    while True:
+        resp = drive_service.files().list(
+            q=("trashed=false and (mimeType='application/pdf' or "
+               "mimeType='application/vnd.google-apps.shortcut')"),
+            spaces="drive",
+            fields=("nextPageToken,files(id,name,mimeType,description,parents,"
+                    "shortcutDetails(targetId,targetMimeType))"),
+            pageSize=1000,
+            pageToken=token,
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True,
+        ).execute()
+        for item in resp.get("files") or []:
+            if not _is_descendant(item):
+                continue
+            item_id = str(item.get("id") or "").strip()
+            name = str(item.get("name") or "").strip()
+            mime = str(item.get("mimeType") or "")
+            description = str(item.get("description") or "")
+            effective_id = item_id
+            effective_mime = mime
+            if mime == shortcut_mime:
+                details = item.get("shortcutDetails") or {}
+                effective_id = str(details.get("targetId") or "").strip()
+                effective_mime = str(details.get("targetMimeType") or "").strip()
+            if effective_id and (effective_mime == pdf_mime or name.casefold().endswith(".pdf")):
+                _append_pdf(effective_id, name, name, description)
+        token = resp.get("nextPageToken")
+        if not token:
+            break
+
+    if out:
+        progress("CURRICULUM_DRIVE_DISCOVERY", root=root_id,
+                 method="verified_ancestry_search", pdf_count=len(out))
+        return out
+
+    raise RuntimeError(
+        f"CURRICULUM_DRIVE_NO_PDFS: configured_root={configured_root_id}; "
+        f"resolved_root={root_id}; root is readable, recursive enumeration "
+        "returned no PDFs, and ancestry-verified Drive search found no PDFs "
+        "below that root")
 
 def _discover_lesson_boundaries_without_toc(doc) -> List[dict]:
     """Find evidence-backed lesson starts when a printed TOC is absent/unreadable.
