@@ -2596,27 +2596,132 @@ def _candidate_pdf_offsets(doc, toc_entries: List[dict]) -> List[int]:
     return repeated
 
 
+def _verify_offset_bounds_and_monotonicity(doc, toc_entries: List[dict], offset: int) -> bool:
+    """Validity gate only: an offset must map >=2 increasing printed pages into the PDF.
+
+    Important: monotonicity is NOT a tie-breaker by itself. Adding the same
+    constant to increasing printed page numbers preserves their order for every
+    candidate offset, so using this alone would silently guess among ties.
+    """
+    previous_printed = None
+    previous_pdf = None
+    valid = 0
+    for entry in toc_entries:
+        try:
+            printed = int(entry.get("printed_page"))
+        except (TypeError, ValueError):
+            continue
+        pdf_page = printed + int(offset)
+        if not (1 <= pdf_page <= len(doc)):
+            continue
+        if previous_printed is not None and printed <= previous_printed:
+            continue
+        if previous_pdf is not None and pdf_page <= previous_pdf:
+            return False
+        previous_printed = printed
+        previous_pdf = pdf_page
+        valid += 1
+    return valid >= 2
+
+
+def _offset_tie_evidence(doc, toc_entries: List[dict], offset: int) -> dict:
+    """Rescore a tied offset on the widest independent evidence available."""
+    valid_entries = []
+    for entry in toc_entries:
+        try:
+            printed = int(entry.get("printed_page"))
+        except (TypeError, ValueError):
+            continue
+        if 1 <= printed + int(offset) <= len(doc):
+            valid_entries.append(entry)
+    # Use up to 12 spread-out anchors for tie resolution, rather than the six
+    # anchors used by the fast search. This is still bounded and OCR is cached.
+    anchors = _offset_probe_entries(valid_entries, limit=12)
+    score = _score_offset_against_entries(doc, anchors, offset)
+    hit_sum = sum(int(d.get("hits") or 0) for d in score.get("details") or [])
+    strong = sum(
+        1 for d in score.get("details") or []
+        if d.get("matched") and int(d.get("hits") or 0) >= int(d.get("required") or 1) + 1
+    )
+    return {
+        **score,
+        "hit_sum": hit_sum,
+        "strong_matches": strong,
+        "coverage": (score["votes"] / score["tested"]) if score.get("tested") else 0.0,
+    }
+
+
 def _resolve_printed_to_pdf_offset(doc, toc_entries: List[dict]) -> int:
+    """Resolve printed->physical PDF offset without guessing on ambiguous ties.
+
+    Fast search proposes offsets. A unique winner is then verified on hold-out
+    rows when available. If the fast search ties, every tied candidate is
+    rescored against a wider spread of real TOC titles. We accept a tie-break
+    only when one candidate has strictly stronger page-title evidence.
+    """
     offsets = _candidate_pdf_offsets(doc, toc_entries)
     if not offsets:
         raise RuntimeError(
             "BOOK_INDEX_PAGE_OFFSET_UNVERIFIED: could not map printed TOC pages to physical PDF pages")
+
     counts = {}
     for offset in offsets:
         counts[offset] = counts.get(offset, 0) + 1
     ranked = sorted(counts.items(), key=lambda pair: (-pair[1], abs(pair[0]), pair[0]))
     best_offset, votes = ranked[0]
+
     if votes < 2 and len(toc_entries) >= 2:
         raise RuntimeError(
             f"BOOK_INDEX_PAGE_OFFSET_AMBIGUOUS: best_offset={best_offset}, votes={votes}")
-    if len(ranked) > 1 and ranked[1][1] == votes:
-        raise RuntimeError(
-            f"BOOK_INDEX_PAGE_OFFSET_AMBIGUOUS_TIE: candidates={ranked[:4]}")
 
-    # Verify on TOC rows that were NOT used to choose the offset whenever the
-    # TOC is large enough.  This is a real hold-out check, not a second pass over
-    # the same anchors.  Small TOCs cannot provide independent rows, so they are
-    # explicitly reported as same-anchor verification instead of being mislabeled.
+    tied = [off for off, v in ranked if v == votes]
+    tie_mode = "unique_fast_vote"
+    if len(tied) > 1:
+        evidence = []
+        for off in tied:
+            if not _verify_offset_bounds_and_monotonicity(doc, toc_entries, off):
+                continue
+            ev = _offset_tie_evidence(doc, toc_entries, off)
+            evidence.append(ev)
+        evidence.sort(key=lambda x: (
+            -int(x.get("votes") or 0),
+            -int(x.get("strong_matches") or 0),
+            -int(x.get("hit_sum") or 0),
+            -float(x.get("coverage") or 0.0),
+            abs(int(x.get("offset") or 0)),
+            int(x.get("offset") or 0),
+        ))
+        progress(
+            "BOOK_INDEX_OFFSET_TIE_EVIDENCE",
+            candidates=[{
+                "offset": e["offset"], "votes": e["votes"],
+                "tested": e["tested"], "strong_matches": e["strong_matches"],
+                "hit_sum": e["hit_sum"], "coverage": round(e["coverage"], 3),
+            } for e in evidence[:8]],
+        )
+        if not evidence:
+            raise RuntimeError(
+                f"BOOK_INDEX_PAGE_OFFSET_AMBIGUOUS_TIE: candidates={ranked[:8]}")
+        winner = evidence[0]
+        runner = evidence[1] if len(evidence) > 1 else None
+        winner_key = (winner["votes"], winner["strong_matches"], winner["hit_sum"], round(winner["coverage"], 6))
+        runner_key = ((runner["votes"], runner["strong_matches"], runner["hit_sum"], round(runner["coverage"], 6))
+                      if runner else None)
+        # Never choose merely because abs(offset) is smaller. Evidence must make
+        # the winner unique; otherwise the verified-TOC route fails closed and
+        # the multi-route indexer is free to try another structural route.
+        if runner_key is not None and winner_key == runner_key:
+            raise RuntimeError(
+                "BOOK_INDEX_PAGE_OFFSET_AMBIGUOUS_TIE: "
+                f"no evidence-unique winner among {[(e['offset'], e['votes'], e['strong_matches'], e['hit_sum']) for e in evidence[:8]]}")
+        best_offset = int(winner["offset"])
+        votes = int(winner["votes"])
+        tie_mode = "wider_title_evidence"
+
+    if not _verify_offset_bounds_and_monotonicity(doc, toc_entries, best_offset):
+        raise RuntimeError(
+            f"BOOK_INDEX_PAGE_OFFSET_INVALID_MAPPING: offset={best_offset}")
+
     search_anchors = _offset_probe_entries(toc_entries, limit=6)
     search_keys = {
         (str(e.get("title") or "").casefold(), int(e.get("printed_page") or 0))
@@ -2628,18 +2733,14 @@ def _resolve_printed_to_pdf_offset(doc, toc_entries: List[dict]) -> int:
         not in search_keys
     ]
     if holdout_pool:
-        verification_anchors = _offset_probe_entries(holdout_pool, limit=4)
+        verification_anchors = _offset_probe_entries(holdout_pool, limit=6)
         verification_mode = "independent_holdout"
     else:
-        verification_anchors = search_anchors
+        verification_anchors = _offset_probe_entries(toc_entries, limit=8)
         verification_mode = "same_anchor_small_toc"
 
-    verification = _score_offset_against_entries(
-        doc, verification_anchors, best_offset)
-    if verification_mode == "independent_holdout":
-        minimum = 2 if len(verification_anchors) >= 2 else 1
-    else:
-        minimum = 2 if len(verification_anchors) >= 2 else 1
+    verification = _score_offset_against_entries(doc, verification_anchors, best_offset)
+    minimum = 2 if len(verification_anchors) >= 2 else 1
     if verification["votes"] < minimum:
         raise RuntimeError(
             "BOOK_INDEX_PAGE_OFFSET_UNVERIFIED_FINAL: "
@@ -2652,13 +2753,12 @@ def _resolve_printed_to_pdf_offset(doc, toc_entries: List[dict]) -> int:
         votes=verification["votes"],
         tested=verification["tested"],
         verification_mode=verification_mode,
+        tie_resolution=tie_mode,
         search_anchor_count=len(search_anchors),
-        holdout_anchor_count=(len(verification_anchors)
-                              if verification_mode == "independent_holdout" else 0),
-        alternatives=[{"offset": o, "votes": v} for o, v in ranked[1:4]],
+        holdout_anchor_count=(len(verification_anchors) if verification_mode == "independent_holdout" else 0),
+        alternatives=[{"offset": o, "votes": v} for o, v in ranked if o != best_offset][:4],
     )
     return best_offset
-
 
 def _normalize_discovered_heading(value: str) -> str:
     value = re.sub(r"\s+", " ", str(value or "")).strip(" .\t-–—:;|•")
@@ -2809,15 +2909,72 @@ def _lesson_entries_from_typography(doc) -> List[dict]:
     return []
 
 
+def _lesson_index_route_quality(doc, entries: List[dict], route: str) -> dict:
+    """Generic fail-closed gate before any discovery route may become an index."""
+    rows = _dedupe_direct_lesson_entries(entries, len(doc))
+    reasons = []
+    if len(rows) < 2:
+        reasons.append("too_few_lesson_starts")
+    starts = [int(x.get("pdf_start_page") or 0) for x in rows]
+    if starts != sorted(set(starts)):
+        reasons.append("non_unique_or_non_monotonic_starts")
+    titles = [str(x.get("title") or "").strip() for x in rows]
+    suspicious_titles = []
+    for title in titles:
+        words = re.findall(r"\w+", title, flags=re.UNICODE)
+        if title.endswith(("?", "!")) or len(words) > 18:
+            suspicious_titles.append(title)
+        if re.match(r"^[a-z]\b", title):
+            suspicious_titles.append(title)
+    if suspicious_titles:
+        reasons.append("sentence_like_titles")
+
+    spans = []
+    if starts:
+        for a, b in zip(starts, starts[1:]):
+            spans.append(b - a)
+        spans.append(len(doc) + 1 - starts[-1])
+    if spans and len(spans) >= 2:
+        previous = sorted(spans[:-1])
+        median_prev = previous[len(previous)//2] if previous else 0
+        # A fallback heading route must not let one weak final heading swallow
+        # most of the book. This catches structural false positives without
+        # imposing a fixed lesson length on normal indexes.
+        if route in ("ocr_explicit_headings", "native_explicit_headings", "native_typography"):
+            if spans[-1] > max(40, median_prev * 6 if median_prev else 40):
+                reasons.append("implausible_final_lesson_span")
+            if len(rows) < 3 and len(doc) >= 60:
+                reasons.append("insufficient_structure_for_long_book")
+
+    passed = not reasons
+    return {
+        "passed": passed, "route": route, "count": len(rows),
+        "reasons": reasons, "starts": starts[:20],
+        "spans": spans[:20], "suspicious_titles": suspicious_titles[:6],
+        "entries": rows,
+    }
+
+
+def _accept_index_route(doc, entries: List[dict], route: str, attempts: List[dict]) -> Optional[List[dict]]:
+    report = _lesson_index_route_quality(doc, entries, route)
+    if attempts and attempts[-1].get("route") == route:
+        attempts[-1]["quality_gate"] = {k: v for k, v in report.items() if k != "entries"}
+    if not report["passed"]:
+        progress("BOOK_INDEX_ROUTE_REJECTED", route=route, reasons=report["reasons"], starts=report["starts"], spans=report["spans"])
+        return None
+    progress("BOOK_INDEX_ROUTE_SUCCESS", route=route, lessons=report["count"])
+    return report["entries"]
+
+
 def _discover_lesson_starts_multi_route(doc) -> Tuple[List[dict], dict]:
-    """Try independent indexing routes in confidence order; never guess an offset."""
+    """Try independent indexing routes in confidence order; every route passes a quality gate."""
     attempts = []
 
     outline = _lesson_entries_from_pdf_outline(doc)
     attempts.append({"route": "pdf_outline", "count": len(outline)})
-    if len(outline) >= 2:
-        return outline, {"route": "pdf_outline", "attempts": attempts,
-                         "toc_pdf_pages": [], "printed_to_pdf_offset": None}
+    accepted = _accept_index_route(doc, outline, "pdf_outline", attempts) if outline else None
+    if accepted:
+        return accepted, {"route": "pdf_outline", "attempts": attempts, "toc_pdf_pages": [], "printed_to_pdf_offset": None}
 
     toc_pages = _detect_toc_pages(doc)
     attempts.append({"route": "verified_toc", "count": len(toc_pages)})
@@ -2826,46 +2983,37 @@ def _discover_lesson_starts_multi_route(doc) -> Tuple[List[dict], dict]:
         try:
             offset = _resolve_printed_to_pdf_offset(doc, toc_entries)
         except RuntimeError as exc:
-            attempts[-1]["error"] = str(exc)[:260]
+            attempts[-1]["error"] = str(exc)[:500]
         else:
             direct = []
             for entry in toc_entries:
                 page = int(entry["printed_page"]) + offset
                 if 1 <= page <= len(doc):
-                    direct.append({**entry, "pdf_start_page": page,
-                                   "discovery_method": "verified_toc"})
-            direct = _dedupe_direct_lesson_entries(direct, len(doc))
-            if len(direct) >= 2:
-                progress("BOOK_INDEX_ROUTE_SUCCESS", route="verified_toc", lessons=len(direct), offset=offset)
-                return direct, {"route": "verified_toc", "attempts": attempts,
-                                "toc_pdf_pages": toc_pages,
-                                "printed_to_pdf_offset": offset}
+                    direct.append({**entry, "pdf_start_page": page, "discovery_method": "verified_toc"})
+            accepted = _accept_index_route(doc, direct, "verified_toc", attempts)
+            if accepted:
+                return accepted, {"route": "verified_toc", "attempts": attempts, "toc_pdf_pages": toc_pages, "printed_to_pdf_offset": offset}
 
     explicit = _lesson_entries_from_explicit_headings(doc, allow_ocr=False)
     attempts.append({"route": "native_explicit_headings", "count": len(explicit)})
-    if len(explicit) >= 2:
-        progress("BOOK_INDEX_ROUTE_SUCCESS", route="native_explicit_headings", lessons=len(explicit))
-        return explicit, {"route": "native_explicit_headings", "attempts": attempts,
-                          "toc_pdf_pages": [], "printed_to_pdf_offset": None}
+    accepted = _accept_index_route(doc, explicit, "native_explicit_headings", attempts) if explicit else None
+    if accepted:
+        return accepted, {"route": "native_explicit_headings", "attempts": attempts, "toc_pdf_pages": [], "printed_to_pdf_offset": None}
 
     typography = _lesson_entries_from_typography(doc)
     attempts.append({"route": "native_typography", "count": len(typography)})
-    if len(typography) >= 3:
-        progress("BOOK_INDEX_ROUTE_SUCCESS", route="native_typography", lessons=len(typography))
-        return typography, {"route": "native_typography", "attempts": attempts,
-                            "toc_pdf_pages": [], "printed_to_pdf_offset": None}
+    accepted = _accept_index_route(doc, typography, "native_typography", attempts) if typography else None
+    if accepted:
+        return accepted, {"route": "native_typography", "attempts": attempts, "toc_pdf_pages": [], "printed_to_pdf_offset": None}
 
     ocr_explicit = _lesson_entries_from_explicit_headings(doc, allow_ocr=True)
     attempts.append({"route": "ocr_explicit_headings", "count": len(ocr_explicit)})
-    if len(ocr_explicit) >= 2:
-        progress("BOOK_INDEX_ROUTE_SUCCESS", route="ocr_explicit_headings", lessons=len(ocr_explicit))
-        return ocr_explicit, {"route": "ocr_explicit_headings", "attempts": attempts,
-                              "toc_pdf_pages": [], "printed_to_pdf_offset": None}
+    accepted = _accept_index_route(doc, ocr_explicit, "ocr_explicit_headings", attempts) if ocr_explicit else None
+    if accepted:
+        return accepted, {"route": "ocr_explicit_headings", "attempts": attempts, "toc_pdf_pages": [], "printed_to_pdf_offset": None}
 
     progress("BOOK_INDEX_ALL_ROUTES_FAILED", attempts=attempts)
-    return [], {"route": None, "attempts": attempts,
-                "toc_pdf_pages": [], "printed_to_pdf_offset": None}
-
+    return [], {"route": None, "attempts": attempts, "toc_pdf_pages": [], "printed_to_pdf_offset": None}
 
 def _lesson_slug(book_id: str, number: int) -> str:
     return f"{_book_index_safe_id(book_id).upper()}-AUTO-{number:03d}"
