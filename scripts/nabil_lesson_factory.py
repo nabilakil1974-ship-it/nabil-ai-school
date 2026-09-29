@@ -462,6 +462,73 @@ SUBJECT_PROFILES = {
     }
 }
 
+LEBANESE_CERD_PEDAGOGICAL_CONTRACT = {
+    "schema":"nabil-cerd-pedagogical-plan/v1",
+    "required_sections":["header","competencies","learning_objectives","prerequisites",
+      "diagnostic_assessment","problem_situation","investigation","construction",
+      "institutionalization","application","formative_assessment","summative_assessment",
+      "resources_ict","final_synthesis"],
+    "grounding_rule":"evidence_map_only_for_curriculum_and_scientific_claims",
+}
+
+def build_cerd_lesson_plan(entry: dict, theory: dict, ev_map: dict, lang: str="en") -> dict:
+    title=str(entry.get("canonical_title") or entry.get("title") or "").strip()
+    subject=str(entry.get("subject") or "").strip(); grade=entry.get("grade")
+    if not title or not subject or grade in (None,""): raise RuntimeError("CERD_PLAN_HEADER_UNVERIFIED")
+    concepts=[]
+    for c in (theory.get("concepts") or theory.get("concept_cards") or []):
+        v=(c.get("title") or c.get("concept") or c.get("name") or c.get("summary")) if isinstance(c,dict) else c
+        v=re.sub(r"\s+"," ",str(v or "")).strip()
+        if v and v not in concepts: concepts.append(v)
+    concepts=concepts[:8]
+    activities=list(ev_map.get("activities") or ev_map.get("activity_evidence") or [])
+    exercises=list(ev_map.get("exercise_evidence") or [])
+    profile=SUBJECT_PROFILES.get(normalize_subject(subject),SUBJECT_PROFILES.get("general_science",{}))
+    sequence=list(profile.get("sequence") or [])
+    prereq=concepts[:1] if sequence and sequence[0]=="prerequisite" else []
+    plan={"schema":LEBANESE_CERD_PEDAGOGICAL_CONTRACT["schema"],
+      "header":{"subject":subject,"grade":grade,"unit":entry.get("unit") or entry.get("chapter"),
+        "lesson_title":title,"duration_minutes":entry.get("duration_minutes"),
+        "source_pages":[entry.get("pdf_start_page"),entry.get("pdf_end_page")]},
+      "competencies":[{"statement":x,"grounded":True} for x in concepts] or [{"statement":title,"grounded":True}],
+      "learning_objectives":[{"action":"demonstrate","target":x,"grounded":True} for x in concepts] or [{"action":"complete","target":title,"grounded":True}],
+      "prerequisites":prereq,"diagnostic_assessment":{"purpose":"check_prerequisites","items":prereq},
+      "problem_situation":{"source":"verified_lesson_opening","activities":activities[:1]},
+      "investigation":{"activities":activities},"construction":{"teaching_sequence":sequence},
+      "institutionalization":{"concepts":concepts},"application":{"textbook_exercises":exercises},
+      "formative_assessment":{"worksheet_items":list(theory.get("worksheet") or [])},
+      "summative_assessment":{"quiz_available":bool(theory.get("quiz_html")),"final_check":True},
+      "resources_ict":{"official_source_book":entry.get("book_id"),"verified_labs":bool(theory.get("whole_lesson_lab_html")),"interactive_resources":True},
+      "final_synthesis":{"reference_card_available":bool(theory.get("reference_card_html")),"concepts":concepts}}
+    missing=[k for k in LEBANESE_CERD_PEDAGOGICAL_CONTRACT["required_sections"] if k not in plan]
+    if missing: raise RuntimeError("CERD_PEDAGOGICAL_CONTRACT_FAILED:"+",".join(missing))
+    return plan
+
+def render_cerd_lesson_plan_html(plan: dict, lang: str="en") -> str:
+    lang=resolve_lang_code(lang)
+    title={"ar":"تحضير الدرس","fr":"Fiche de préparation","en":"Lesson Plan"}.get(lang,"Lesson Plan")
+    labels={"competencies":("الكفايات المستهدفة","Compétences","Competencies"),
+      "learning_objectives":("الأهداف التعلمية","Objectifs d’apprentissage","Learning objectives"),
+      "prerequisites":("المكتسبات القبلية","Prérequis","Prerequisites"),
+      "diagnostic_assessment":("التقويم التشخيصي","Évaluation diagnostique","Diagnostic assessment"),
+      "problem_situation":("الوضعية المشكلة","Situation-problème","Problem situation"),
+      "investigation":("الاستقصاء والبناء","Investigation et construction","Investigation & construction"),
+      "institutionalization":("الإرساء","Institutionnalisation","Institutionalization"),
+      "application":("التطبيق","Application","Application"),
+      "formative_assessment":("التقويم التكويني","Évaluation formative","Formative assessment"),
+      "summative_assessment":("التقويم الختامي","Évaluation sommative","Summative assessment"),
+      "resources_ict":("الوسائل وICT","Ressources et TIC","Resources & ICT"),
+      "final_synthesis":("الخلاصة","Synthèse","Final synthesis")}
+    li={"ar":0,"fr":1,"en":2}[lang]
+    def dump(v):
+        if v in (None,"",[],{}): return "—"
+        return html.escape(json.dumps(v,ensure_ascii=False,indent=2) if isinstance(v,(dict,list)) else str(v))
+    sections="".join('<section class="nabil-cerd-section"><h3>'+html.escape(lbl[li])+'</h3><pre style="white-space:pre-wrap;overflow-wrap:anywhere">'+dump(plan.get(k))+'</pre></section>' for k,lbl in labels.items())
+    h=plan["header"]
+    return ('<div id="nabilCerdLessonPlan" class="card nabil-cerd-plan" style="display:none;margin-top:16px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><h2 style="margin:0">'+html.escape(title)+'</h2><button type="button" class="nav-btn" onclick="window.print()">Print / PDF</button></div><p><b>'+html.escape(str(h.get("subject") or ""))+'</b> — '+html.escape(str(h.get("grade") or ""))+' — '+html.escape(str(h.get("lesson_title") or ""))+'</p>'+sections+'</div>')
+
+
+
 # Non-science subjects use the same evidence-first architecture. These
 # profiles define teaching order/visual form only; lesson facts still come
 # exclusively from Evidence Map.
@@ -2910,18 +2977,17 @@ def _lesson_entries_from_typography(doc) -> List[dict]:
 
 
 def _title_looks_ocr_damaged(title: str) -> bool:
-    """Detect obvious OCR damage without guessing the intended curriculum title."""
-    value = re.sub(r"\s+", " ", str(title or "")).strip()
-    if not value:
-        return True
-    if re.match(r"^(?:[=\-_*]+\s*|hapter\b|hapt(?:er)?\b|on\s+\d+\s*:|oo\s+\d+\s*:|wass\b)", value, re.I):
-        return True
-    if re.search(r"(?i)\b(?:hapter|hapt|esson|nit)\s*\d+\b", value) and not re.search(r"(?i)\b(?:chapter|lesson|unit)\s*\d+\b", value):
-        return True
-    # A leading orphan symbol/letter before a numbered structural heading is suspicious.
-    if re.match(r"^[^\w]{0,2}[a-z]?\s*\d+\s*:\s*", value, re.I):
-        return True
-    return False
+    """Conservative OCR detector; normal numbered curriculum titles are valid."""
+    t = re.sub(r"\s+", " ", str(title or "")).strip()
+    if not t: return True
+    lexical = re.sub(r"^\s*\d+\s*[:.\-–—]\s*", "", t).strip()
+    if not lexical: return True
+    if re.match(r"(?i)^(?:hapter|esson|nit|hapitre|e[cç]on)\b", lexical): return True
+    first = re.match(r"^([A-Za-zÀ-ÿ]{1,12})\b", lexical)
+    if first and first.group(1)[:1].islower():
+        allowed={"a","an","the","of","in","on","to","and","or","for","with","de","du","des","la","le","les","un","une","et"}
+        if first.group(1).casefold() not in allowed: return True
+    return "\ufffd" in lexical
 
 
 def _page_work_signals(text: str) -> dict:
@@ -3046,10 +3112,13 @@ def _lesson_index_route_quality(doc, entries: List[dict], route: str) -> dict:
                 a = starts[idx]
                 b = starts[idx+1] - 1 if idx + 1 < len(starts) else len(doc)
                 cycles = _span_boundary_cycles(doc, a, b)
-                if cycles:
-                    unresolved_cycles.append({"range": [a, b], "pages": cycles})
-                if span >= adaptive and cycles:
-                    suspicious_spans.append({"range": [a, b], "span": span, "cycles": cycles})
+                # a+1 commonly contains Activity 1 belonging to the lesson heading
+                # on page a. Only deeper interior resets remain unresolved.
+                interior_cycles = [p for p in cycles if p > a + 1]
+                if interior_cycles:
+                    unresolved_cycles.append({"range": [a, b], "pages": interior_cycles})
+                if span >= adaptive and interior_cycles:
+                    suspicious_spans.append({"range": [a, b], "span": span, "cycles": interior_cycles})
             if unresolved_cycles:
                 reasons.append("unresolved_exercises_to_activity1_boundaries")
             if suspicious_spans:
@@ -8856,6 +8925,9 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict, lab_index: Opt
           <div class="ws-fb" style="margin-top:6px; font-size:12px; font-weight:600; display:none;"></div>
         </div>'''
 
+    cerd_plan = build_cerd_lesson_plan(entry, theory, ev_map, page_a_lang_code)
+    cerd_plan_html = render_cerd_lesson_plan_html(cerd_plan, page_a_lang_code)
+
     return f'''<!DOCTYPE html>
 <html lang="{html.escape(lang)}" dir="{html_dir_attr(page_a_lang_code)}">
 <head>
@@ -8886,11 +8958,13 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict, lab_index: Opt
   <div class="header">
     <h1 style="margin:0; font-size:22px;">{clean_title}</h1>
     <div class="header-actions" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+      <button type="button" id="nabilLessonPlanBtn" class="nav-btn" onclick="const p=document.getElementById('nabilCerdLessonPlan');if(p){{p.style.display=p.style.display==='none'?'block':'none';p.scrollIntoView({{behavior:'smooth',block:'start'}});}}">📋 {html.escape({"ar":"تحضير الدرس","fr":"Fiche de préparation","en":"Lesson Plan"}.get(page_a_lang_code,"Lesson Plan"))}</button>
       <button type="button" id="nabilExplainWholeLessonLabs" class="nav-btn" style="background:#0f766e;">🧪 {html.escape({"ar":"اشرح الدرس كاملًا بالمختبرات","fr":"Expliquer toute la leçon avec les laboratoires","en":"Explain the whole lesson with labs"}.get(page_a_lang_code,"Explain the whole lesson with labs"))}</button>
       <button type="button" onclick="document.getElementById('goldenReferenceCard')?.scrollIntoView({behavior:'smooth',block:'start'})" class="nav-btn" style="background:#7c3aed;">📌 {html.escape({"ar":"البطاقة النهائية","fr":"Carte finale","en":"Final reference card"}.get(page_a_lang_code,"Final reference card"))}</button>
       <button onclick="navigateToExercises()" class="nav-btn">{html.escape(ui_t(page_a_lang_code, "view_exercises"))}</button>
     </div>
   </div>
+  {cerd_plan_html}
   {acts_html}
   <div class="card" style="margin-top:24px;">
     <div style="display:flex; justify-content:space-between; align-items:center;">
