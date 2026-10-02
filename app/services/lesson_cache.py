@@ -1,44 +1,776 @@
-"""Persistent lesson-package cache keyed by exact curriculum lesson and source set."""
+"""
+Persistent reusable lesson-package storage for NABIL AI.
+
+Core rules
+----------
+1. A published Golden lesson is served directly from storage.
+2. Serving a published lesson must NOT require:
+   - textbook RAG
+   - BookChunk search
+   - embedding model loading
+   - Groq / OpenRouter / Gemini
+   - laboratory regeneration
+3. The strict source_signature check is preserved for verification workflows.
+4. Labs are stored already rendered/verified and are never generated here.
+5. Student requests must never force regeneration.
+6. Regeneration/rebuild is reserved for factory/admin/teacher workflows.
+"""
+
 import json
+from typing import Any, Optional
+
 from sqlalchemy.orm import Session
+
 from app.db.models import LessonPackage
+from app.core.lesson_cache_contract import (
+    lesson_cache_key,
+    source_signature,
+)
 
 
-from app.core.lesson_cache_contract import lesson_cache_key, source_signature
+PUBLISHED_STATUS = "published"
+NEEDS_REBUILD_STATUS = "needs_rebuild"
 
-def get_cached_lesson(db: Session, cache_key: str, signature: str):
-    item = db.query(LessonPackage).filter(LessonPackage.cache_key == cache_key).first()
-    if item is None or item.source_signature != signature:
-        return None
+DEFAULT_TEACHING_MODE = "default"
+DEFAULT_LAB_ENGINE_VERSION = "1"
+
+
+# ---------------------------------------------------------------------------
+# JSON HELPERS
+# ---------------------------------------------------------------------------
+
+def _load_json_list(
+    value: Optional[str],
+) -> Optional[list]:
+    """
+    Decode a stored JSON list safely.
+
+    Returns:
+        list:
+            when valid.
+
+        None:
+            when the stored JSON is malformed or is not a list.
+
+    We deliberately fail closed instead of silently replacing corrupt
+    published data.
+    """
+
     try:
-        drawings = json.loads(item.drawings_json or "[]")
-        sources = json.loads(item.sources_json or "[]")
+        parsed = json.loads(value or "[]")
     except Exception:
         return None
-    if not isinstance(drawings, list) or not isinstance(sources, list):
-        return None
-    return {"reply": item.reply, "drawings": drawings, "sources": sources}
 
+    if not isinstance(parsed, list):
+        return None
+
+    return parsed
+
+
+def _load_json_object(
+    value: Optional[str],
+) -> Optional[dict]:
+    """
+    Decode an optional JSON object.
+
+    Empty/None means that no object was stored.
+
+    A malformed non-empty value returns None. The caller can distinguish
+    "not stored" from "stored but corrupt" by checking the original value.
+    """
+
+    if not value:
+        return None
+
+    try:
+        parsed = json.loads(value)
+    except Exception:
+        return None
+
+    if not isinstance(parsed, dict):
+        return None
+
+    return parsed
+
+
+def _dump_json_list(
+    value: list,
+) -> str:
+    """
+    Encode a list deterministically enough for persistent storage.
+    """
+
+    if not isinstance(value, list):
+        raise TypeError("Expected a list")
+
+    return json.dumps(
+        value,
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+
+
+def _dump_json_object(
+    value: Optional[dict],
+) -> Optional[str]:
+    """
+    Encode an optional JSON object.
+    """
+
+    if value is None:
+        return None
+
+    if not isinstance(value, dict):
+        raise TypeError("Expected a dict or None")
+
+    return json.dumps(
+        value,
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+
+
+# ---------------------------------------------------------------------------
+# PACKAGE SERIALIZATION
+# ---------------------------------------------------------------------------
+
+def _package_to_dict(
+    item: LessonPackage,
+) -> Optional[dict[str, Any]]:
+    """
+    Convert a LessonPackage ORM object into the complete package consumed
+    by the chat route / frontend.
+
+    No AI, RAG, embeddings, TTS, lab generation, or external request occurs
+    here.
+    """
+
+    if item is None:
+        return None
+
+    if not item.reply:
+        return None
+
+    drawings = _load_json_list(
+        item.drawings_json
+    )
+
+    if drawings is None:
+        return None
+
+    sources = _load_json_list(
+        item.sources_json
+    )
+
+    if sources is None:
+        return None
+
+    lab_spec = _load_json_object(
+        item.lab_spec_json
+    )
+
+    # Fail closed if a lab spec was stored but is malformed.
+    if item.lab_spec_json and lab_spec is None:
+        return None
+
+    return {
+        "cache_key": item.cache_key,
+        "source_signature": item.source_signature,
+
+        "grade": item.grade,
+        "branch": item.branch or "",
+        "subject": item.subject,
+        "curriculum": item.curriculum,
+        "language": item.language,
+        "lesson": item.lesson,
+
+        "teaching_mode": (
+            item.teaching_mode
+            or DEFAULT_TEACHING_MODE
+        ),
+
+        "reply": item.reply,
+        "drawings": drawings,
+        "sources": sources,
+
+        # Verified lab already generated by the factory.
+        "lab_html": item.lab_html,
+
+        # Optional structured lab specification.
+        "lab_spec": lab_spec,
+
+        "lab_engine_version": (
+            item.lab_engine_version
+            or DEFAULT_LAB_ENGINE_VERSION
+        ),
+
+        # Google Drive reference to the published Golden artifact.
+        "drive_file_id": item.drive_file_id,
+        "drive_url": item.drive_url,
+
+        "package_status": (
+            item.package_status
+            or PUBLISHED_STATUS
+        ),
+
+        "created_at": (
+            item.created_at.isoformat()
+            if item.created_at
+            else None
+        ),
+
+        "updated_at": (
+            item.updated_at.isoformat()
+            if item.updated_at
+            else None
+        ),
+    }
+
+
+# ---------------------------------------------------------------------------
+# FAST PATH
+# ---------------------------------------------------------------------------
+
+def get_published_lesson(
+    db: Session,
+    *,
+    cache_key: str,
+) -> Optional[dict[str, Any]]:
+    """
+    ZERO-AI FAST PATH.
+
+    This lookup is designed to run BEFORE:
+
+        BookChunk lookup
+        search_book_pages()
+        RAG
+        embedding model loading
+        Groq
+        OpenRouter
+        Gemini
+        laboratory generation
+
+    IMPORTANT
+    ---------
+    This function deliberately does NOT require source_signature.
+
+    Requiring source_signature here would normally force the request to load
+    or search source chunks first, defeating the purpose of serving a
+    pre-published Golden lesson at effectively zero AI cost.
+
+    The source signature is still stored and strict verification remains
+    available through get_cached_lesson().
+    """
+
+    if not cache_key:
+        return None
+
+    item = (
+        db.query(LessonPackage)
+        .filter(
+            LessonPackage.cache_key == cache_key,
+            LessonPackage.package_status == PUBLISHED_STATUS,
+        )
+        .first()
+    )
+
+    if item is None:
+        return None
+
+    return _package_to_dict(item)
+
+
+def get_published_lesson_by_identity(
+    db: Session,
+    *,
+    grade: str,
+    branch: str,
+    subject: str,
+    curriculum: str,
+    language: str,
+    lesson: str,
+    teaching_mode: str = DEFAULT_TEACHING_MODE,
+) -> Optional[dict[str, Any]]:
+    """
+    Fast published-package lookup from the exact curriculum identity.
+
+    This function calculates the internal deterministic cache key and then
+    performs the zero-AI lookup.
+
+    It does not access BookChunk or calculate embeddings.
+    """
+
+    if not grade:
+        return None
+
+    if not subject:
+        return None
+
+    if not curriculum:
+        return None
+
+    if not language:
+        return None
+
+    if not lesson:
+        return None
+
+    key = lesson_cache_key(
+        grade=grade,
+        branch=branch or "",
+        subject=subject,
+        curriculum=curriculum,
+        language=language,
+        lesson=lesson,
+        teaching_mode=(
+            teaching_mode
+            or DEFAULT_TEACHING_MODE
+        ),
+    )
+
+    return get_published_lesson(
+        db,
+        cache_key=key,
+    )
+
+
+# ---------------------------------------------------------------------------
+# STRICT SOURCE-VERIFIED LOOKUP
+# ---------------------------------------------------------------------------
+
+def get_cached_lesson(
+    db: Session,
+    cache_key: str,
+    signature: str,
+) -> Optional[dict[str, Any]]:
+    """
+    Strict source-scoped lookup.
+
+    This preserves the original NABIL AI source_signature safety behavior.
+
+    Use it when source chunks are already available and the application wants
+    to prove that the stored package corresponds to exactly that source set.
+
+    Do NOT make this the first step of a normal request for an already
+    published Golden lesson. The normal request should use
+    get_published_lesson() first.
+    """
+
+    if not cache_key:
+        return None
+
+    if not signature:
+        return None
+
+    item = (
+        db.query(LessonPackage)
+        .filter(
+            LessonPackage.cache_key == cache_key
+        )
+        .first()
+    )
+
+    if item is None:
+        return None
+
+    if item.source_signature != signature:
+        return None
+
+    if (
+        item.package_status
+        and item.package_status != PUBLISHED_STATUS
+    ):
+        return None
+
+    return _package_to_dict(item)
+
+
+# ---------------------------------------------------------------------------
+# SAVE / PUBLISH
+# ---------------------------------------------------------------------------
 
 def save_cached_lesson(
-    db: Session, *, cache_key: str, signature: str, grade: str, branch: str,
-    subject: str, curriculum: str, language: str, lesson: str,
-    reply: str, drawings: list[dict], sources: list[dict],
+    db: Session,
+    *,
+    cache_key: str,
+    signature: str,
+    grade: str,
+    branch: str,
+    subject: str,
+    curriculum: str,
+    language: str,
+    lesson: str,
+    reply: str,
+    drawings: list[dict],
+    sources: list[dict],
+
+    teaching_mode: str = DEFAULT_TEACHING_MODE,
+
+    lab_html: Optional[str] = None,
+    lab_spec: Optional[dict] = None,
+    lab_engine_version: str = DEFAULT_LAB_ENGINE_VERSION,
+
+    drive_file_id: Optional[str] = None,
+    drive_url: Optional[str] = None,
+
+    package_status: str = PUBLISHED_STATUS,
 ) -> None:
-    if not reply or not signature:
+    """
+    Save or update a reusable lesson package.
+
+    This function ONLY stores already-prepared material.
+
+    It does NOT:
+    - generate lesson content
+    - call an LLM
+    - perform RAG
+    - calculate embeddings
+    - generate a lab
+    - render a lab
+    - call TTS
+
+    Those operations belong to the factory/publishing pipeline.
+    """
+
+    if not cache_key:
         return
-    item = db.query(LessonPackage).filter(LessonPackage.cache_key == cache_key).first()
+
+    if not signature:
+        return
+
+    if not grade:
+        return
+
+    if not subject:
+        return
+
+    if not curriculum:
+        return
+
+    if not language:
+        return
+
+    if not lesson:
+        return
+
+    if not reply:
+        return
+
+    if not isinstance(drawings, list):
+        raise TypeError(
+            "drawings must be a list"
+        )
+
+    if not isinstance(sources, list):
+        raise TypeError(
+            "sources must be a list"
+        )
+
+    if (
+        lab_spec is not None
+        and not isinstance(lab_spec, dict)
+    ):
+        raise TypeError(
+            "lab_spec must be a dict or None"
+        )
+
+    item = (
+        db.query(LessonPackage)
+        .filter(
+            LessonPackage.cache_key == cache_key
+        )
+        .first()
+    )
+
     if item is None:
-        item = LessonPackage(cache_key=cache_key)
-    item.source_signature = signature
-    item.grade = str(grade or "")
-    item.branch = str(branch or "")
-    item.subject = str(subject or "")
-    item.curriculum = str(curriculum or "")
-    item.language = str(language or "")
-    item.lesson = str(lesson or "")
+        item = LessonPackage(
+            cache_key=cache_key
+        )
+
+    item.source_signature = str(signature)
+
+    item.grade = str(
+        grade or ""
+    )
+
+    item.branch = str(
+        branch or ""
+    )
+
+    item.subject = str(
+        subject or ""
+    )
+
+    item.curriculum = str(
+        curriculum or ""
+    )
+
+    item.language = str(
+        language or ""
+    )
+
+    item.lesson = str(
+        lesson or ""
+    )
+
+    item.teaching_mode = str(
+        teaching_mode
+        or DEFAULT_TEACHING_MODE
+    )
+
     item.reply = str(reply)
-    item.drawings_json = json.dumps(drawings or [], ensure_ascii=False)
-    item.sources_json = json.dumps(sources or [], ensure_ascii=False)
+
+    item.drawings_json = _dump_json_list(
+        drawings
+    )
+
+    item.sources_json = _dump_json_list(
+        sources
+    )
+
+    item.lab_html = (
+        str(lab_html)
+        if lab_html
+        else None
+    )
+
+    item.lab_spec_json = _dump_json_object(
+        lab_spec
+    )
+
+    item.lab_engine_version = str(
+        lab_engine_version
+        or DEFAULT_LAB_ENGINE_VERSION
+    )
+
+    item.drive_file_id = (
+        str(drive_file_id)
+        if drive_file_id
+        else None
+    )
+
+    item.drive_url = (
+        str(drive_url)
+        if drive_url
+        else None
+    )
+
+    item.package_status = str(
+        package_status
+        or PUBLISHED_STATUS
+    )
+
     db.add(item)
     db.commit()
+
+
+def save_published_lesson(
+    db: Session,
+    *,
+    grade: str,
+    branch: str,
+    subject: str,
+    curriculum: str,
+    language: str,
+    lesson: str,
+    teaching_mode: str,
+    signature: str,
+    reply: str,
+    drawings: list[dict],
+    sources: list[dict],
+
+    lab_html: Optional[str] = None,
+    lab_spec: Optional[dict] = None,
+    lab_engine_version: str = DEFAULT_LAB_ENGINE_VERSION,
+
+    drive_file_id: Optional[str] = None,
+    drive_url: Optional[str] = None,
+) -> str:
+    """
+    Factory/publisher helper.
+
+    Creates the deterministic internal lesson key and stores the complete
+    package as published.
+
+    Returns:
+        str: deterministic cache key.
+    """
+
+    key = lesson_cache_key(
+        grade=grade,
+        branch=branch or "",
+        subject=subject,
+        curriculum=curriculum,
+        language=language,
+        lesson=lesson,
+        teaching_mode=(
+            teaching_mode
+            or DEFAULT_TEACHING_MODE
+        ),
+    )
+
+    save_cached_lesson(
+        db,
+        cache_key=key,
+        signature=signature,
+        grade=grade,
+        branch=branch or "",
+        subject=subject,
+        curriculum=curriculum,
+        language=language,
+        lesson=lesson,
+        teaching_mode=(
+            teaching_mode
+            or DEFAULT_TEACHING_MODE
+        ),
+        reply=reply,
+        drawings=drawings,
+        sources=sources,
+        lab_html=lab_html,
+        lab_spec=lab_spec,
+        lab_engine_version=lab_engine_version,
+        drive_file_id=drive_file_id,
+        drive_url=drive_url,
+        package_status=PUBLISHED_STATUS,
+    )
+
+    return key
+
+
+# ---------------------------------------------------------------------------
+# SOURCE SIGNATURE HELPER
+# ---------------------------------------------------------------------------
+
+def build_source_signature(
+    source_chunks: list[dict],
+) -> str:
+    """
+    Public wrapper around the deterministic source_signature helper.
+
+    This is useful in the factory/publishing path.
+
+    It performs no AI operation.
+    """
+
+    return source_signature(
+        source_chunks or []
+    )
+
+
+# ---------------------------------------------------------------------------
+# STATUS / REBUILD CONTROL
+# ---------------------------------------------------------------------------
+
+def mark_lesson_for_rebuild(
+    db: Session,
+    *,
+    cache_key: str,
+) -> bool:
+    """
+    Mark a lesson package for rebuild by the factory.
+
+    IMPORTANT:
+    This function does NOT rebuild or regenerate anything.
+
+    Student-facing routes must not call this merely because a student writes:
+        refresh
+        regenerate
+        جدد
+        أعد التوليد
+
+    Rebuild control belongs to factory/admin/teacher workflows.
+    """
+
+    if not cache_key:
+        return False
+
+    item = (
+        db.query(LessonPackage)
+        .filter(
+            LessonPackage.cache_key == cache_key
+        )
+        .first()
+    )
+
+    if item is None:
+        return False
+
+    item.package_status = NEEDS_REBUILD_STATUS
+
+    db.add(item)
+    db.commit()
+
+    return True
+
+
+def publish_existing_lesson(
+    db: Session,
+    *,
+    cache_key: str,
+) -> bool:
+    """
+    Mark an existing stored package as published.
+
+    Does not regenerate its content.
+    """
+
+    if not cache_key:
+        return False
+
+    item = (
+        db.query(LessonPackage)
+        .filter(
+            LessonPackage.cache_key == cache_key
+        )
+        .first()
+    )
+
+    if item is None:
+        return False
+
+    if not item.reply:
+        return False
+
+    item.package_status = PUBLISHED_STATUS
+
+    db.add(item)
+    db.commit()
+
+    return True
+
+
+# ---------------------------------------------------------------------------
+# ADMINISTRATIVE DELETE
+# ---------------------------------------------------------------------------
+
+def delete_cached_lesson(
+    db: Session,
+    *,
+    cache_key: str,
+) -> bool:
+    """
+    Delete a stored package.
+
+    Intended only for explicit factory/admin operations.
+
+    Normal student requests must never delete or invalidate a Golden lesson.
+    """
+
+    if not cache_key:
+        return False
+
+    item = (
+        db.query(LessonPackage)
+        .filter(
+            LessonPackage.cache_key == cache_key
+        )
+        .first()
+    )
+
+    if item is None:
+        return False
+
+    db.delete(item)
+    db.commit()
+
+    return True
