@@ -1,0 +1,15 @@
+name: NABIL CI
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - run: pip install -r requirements.txt
+      - run: python -m py_compile app/api/routes_chat.py app/services/lesson_cache.py app/services/golden_store.py app/services/payment_verification.py scripts/check_payment_inbox.py scripts/nabil_lesson_factory.py scripts/nabil_interactive_lab.py scripts/nabil_advanced_lab.py
