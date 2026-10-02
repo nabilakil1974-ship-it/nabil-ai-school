@@ -646,7 +646,12 @@ def _reference_contract_wrap(raw_html:str,spec:Dict[str,Any],lang_code:str,lab_i
    function renderStep(index){{
      if(!teacherSteps.length)return null;
      cueIndex=((index%teacherSteps.length)+teacherSteps.length)%teacherSteps.length;
-     const detail=renderStep(cueIndex)||{{}};
+     const step=teacherSteps[cueIndex]||{{}};
+     const detail={{index:cueIndex,action:step.action||"point",target_ids:step.target_ids||[],
+       state_before:step.state_before||{{}},state_after:step.state_after||{{}},
+       scientific_constraints:step.scientific_constraints||[],evidence_quote:step.evidence_quote||""}};
+     publishTeacherState(detail);
+     point(cueIndex,detail.target_ids);
      return detail;
    }}
    async function speakCue(index){{
