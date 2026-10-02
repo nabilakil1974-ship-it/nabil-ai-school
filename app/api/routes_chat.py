@@ -43,7 +43,7 @@ from starlette.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
  
 from app.db.session import get_db
-from app.db.models import Conversation, Message, Student, BookChunk
+from app.db.models import Conversation, Message, Student, BookChunk, LessonPackage
 from app.db.student_learning import StudentLearningProfile
 from app.services.ai_gateway import get_ai_gateway
 from app.services.rag_search import search_book_pages, build_context_block, find_nearest_book_exercises
@@ -5350,11 +5350,9 @@ async def voice_chat(
     book_exercise_chunks = []
     _lesson_cache_key = None
     _lesson_source_signature = None
-    _force_lesson_refresh = bool(re.search(
-        r"(?i)\b(?:refresh|regenerate|rebuild|new version)\b|"
-        r"جدد|جدّد|أعد بناء|اعد بناء|نسخة جديدة",
-        str(message or ""),
-    ))
+    # Student messages must NEVER force regeneration of an already prepared
+    # lesson package. Refresh/regenerate is an authoring/factory operation only.
+    _force_lesson_refresh = False
     if general_exercises_mode:
         selected_language = _explicit_language_label or "AUTO_FROM_QUESTION_OR_IMAGE"
         student_profile_context = profile_to_dict(learning_profile)
@@ -5597,6 +5595,75 @@ the same lesson Visual Engine; never describe it as rendered without one.
         # This also makes the absence of official source material explicit.
         book_curriculum = resolve_textbook_curriculum(curriculum, selected_language)
         book_context = ""
+
+        # FAST PATH — prepared lesson packages are served BEFORE any textbook
+        # lookup, embedding-model load, RAG search, or AI call. This is the
+        # normal path for Golden/published lessons. The source_signature stored
+        # with the package remains intact and is refreshed only by the factory
+        # when that package is rebuilt from its verified sources.
+        if (
+            _nabil_lesson_start_request(message)
+            and _page_request is None
+            and _exercise_request is None
+            and str(activity_mode or "lesson") == "lesson"
+            and str(teaching_mode or "full_lesson") in {"full_lesson", "board_lesson"}
+        ):
+            _lesson_cache_key = lesson_cache_key(
+                grade, branch or "", subject, book_curriculum,
+                selected_language, lesson, teaching_mode or "full_lesson",
+            )
+            _prepared = (
+                db.query(LessonPackage)
+                .filter(LessonPackage.cache_key == _lesson_cache_key)
+                .first()
+            )
+            if _prepared is not None:
+                try:
+                    _prepared_drawings = json.loads(_prepared.drawings_json or "[]")
+                    _prepared_sources = json.loads(_prepared.sources_json or "[]")
+                except Exception:
+                    _prepared_drawings = None
+                    _prepared_sources = None
+
+                if (
+                    isinstance(_prepared_drawings, list)
+                    and isinstance(_prepared_sources, list)
+                    and str(_prepared.reply or "").strip()
+                ):
+                    db.add(Message(
+                        conversation_id=conversation.id,
+                        role="teacher",
+                        content=str(_prepared.reply),
+                    ))
+                    db.commit()
+                    lesson_generation_logger.info(
+                        "LESSON_PACKAGE_FAST_HIT grade=%r subject=%r lesson=%r key=%s",
+                        grade, subject, lesson, _lesson_cache_key,
+                    )
+                    _prepared_solution_card = build_scientific_solution_card(
+                        message=str(message or ""),
+                        reply=str(_prepared.reply or ""),
+                        subject=str(subject or ""),
+                        drawings=_prepared_drawings,
+                    )
+                    return ChatResponse(
+                        conversation_id=str(conversation.id),
+                        reply=str(_prepared.reply),
+                        sources=_prepared_sources,
+                        transcribed_text=transcribed_text,
+                        drawings=_prepared_drawings,
+                        drawing=(
+                            _prepared_drawings[0]
+                            if _prepared_drawings else None
+                        ),
+                        student_profile=profile_to_dict(learning_profile),
+                        solution_card=_prepared_solution_card,
+                    )
+                lesson_generation_logger.warning(
+                    "LESSON_PACKAGE_FAST_INVALID grade=%r subject=%r lesson=%r key=%s",
+                    grade, subject, lesson, _lesson_cache_key,
+                )
+
         try:
             scoped_chunks = (
                 db.query(BookChunk.id)
@@ -5750,42 +5817,41 @@ the same lesson Visual Engine; never describe it as rendered without one.
                 _lesson_source_signature = source_signature(
                     source_chunks + book_exercise_chunks
                 )
-                if not _force_lesson_refresh:
-                    cached_lesson = get_cached_lesson(
-                        db, _lesson_cache_key, _lesson_source_signature
+                cached_lesson = get_cached_lesson(
+                    db, _lesson_cache_key, _lesson_source_signature
+                )
+                if cached_lesson:
+                    db.add(Message(
+                        conversation_id=conversation.id,
+                        role="teacher",
+                        content=cached_lesson["reply"],
+                    ))
+                    db.commit()
+                    lesson_generation_logger.info(
+                        "LESSON_PACKAGE_CACHE_HIT grade=%r subject=%r lesson=%r",
+                        grade, subject, lesson,
                     )
-                    if cached_lesson:
-                        db.add(Message(
-                            conversation_id=conversation.id,
-                            role="teacher",
-                            content=cached_lesson["reply"],
-                        ))
-                        db.commit()
-                        lesson_generation_logger.info(
-                            "LESSON_PACKAGE_CACHE_HIT grade=%r subject=%r lesson=%r",
-                            grade, subject, lesson,
-                        )
 
-                        cached_solution_card = build_scientific_solution_card(
-                            message=str(message or ""),
-                            reply=str(cached_lesson["reply"] or ""),
-                            subject=str(subject or ""),
-                            drawings=cached_lesson["drawings"],
-                        )           
+                    cached_solution_card = build_scientific_solution_card(
+                        message=str(message or ""),
+                        reply=str(cached_lesson["reply"] or ""),
+                        subject=str(subject or ""),
+                        drawings=cached_lesson["drawings"],
+                    )           
 
-                        return ChatResponse(
-                            conversation_id=str(conversation.id),
-                            reply=cached_lesson["reply"],
-                            sources=cached_lesson["sources"],
-                            transcribed_text=transcribed_text,
-                            drawings=cached_lesson["drawings"],
-                            drawing=(
-                                cached_lesson["drawings"][0]
-                                if cached_lesson["drawings"] else None
-                            ),
-                            student_profile=profile_to_dict(learning_profile),
-                            solution_card=cached_solution_card,
-                        )
+                    return ChatResponse(
+                        conversation_id=str(conversation.id),
+                        reply=cached_lesson["reply"],
+                        sources=cached_lesson["sources"],
+                        transcribed_text=transcribed_text,
+                        drawings=cached_lesson["drawings"],
+                        drawing=(
+                            cached_lesson["drawings"][0]
+                            if cached_lesson["drawings"] else None
+                        ),
+                        student_profile=profile_to_dict(learning_profile),
+                        solution_card=cached_solution_card,
+                    )
             print(f"BOOK_RAG_SCOPE_MATCH grade={grade!r} subject={subject!r} language={selected_language!r} curriculum={book_curriculum!r} retrieved={len(source_chunks)}", flush=True)
         except HTTPException:
             raise
@@ -7084,11 +7150,11 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
             # resolved from BookPage in the selected textbook. The model is not
             # allowed to invent the page or its PDF location.
             if not re.search(
-                r"\\[BOOK_FIGURE_PAGE\\s*:\\s*" + str(_requested_printed_page) + r"\\]",
+                r"\[BOOK_FIGURE_PAGE\s*:\s*" + str(_requested_printed_page) + r"\]",
                 reply_text, re.I,
             ):
                 reply_text = (
-                    f"[BOOK_FIGURE_PAGE:{_requested_printed_page}]\\n\\n"
+                    f"[BOOK_FIGURE_PAGE:{_requested_printed_page}]\n\n"
                     + reply_text
                 )
         reply_text = render_verified_page_citations(reply_text, source_chunks)
