@@ -55,6 +55,34 @@ from app.services.lesson_cache import lesson_cache_key, source_signature, get_ca
 lesson_generation_logger = logging.getLogger("nabil_ai.lesson")
 
 router = APIRouter()
+
+# One in-process single-flight per prepared lesson key. This prevents a burst of
+# students from starting duplicate RAG/AI generation for the same missing lesson.
+# Published/prepared lessons still take the zero-AI fast path below.
+_LESSON_INFLIGHT: dict[str, asyncio.Event] = {}
+_LESSON_INFLIGHT_GUARD = asyncio.Lock()
+_LESSON_SINGLEFLIGHT_WAIT_SECONDS = 45.0
+
+
+async def _claim_lesson_generation(cache_key: str) -> tuple[bool, asyncio.Event]:
+    async with _LESSON_INFLIGHT_GUARD:
+        event = _LESSON_INFLIGHT.get(cache_key)
+        if event is None:
+            event = asyncio.Event()
+            _LESSON_INFLIGHT[cache_key] = event
+            return True, event
+        return False, event
+
+
+async def _finish_lesson_generation(cache_key: str, event: Optional[asyncio.Event]) -> None:
+    if not cache_key or event is None:
+        return
+    async with _LESSON_INFLIGHT_GUARD:
+        current = _LESSON_INFLIGHT.get(cache_key)
+        if current is event:
+            _LESSON_INFLIGHT.pop(cache_key, None)
+            event.set()
+
  
  
 SYSTEM_PROMPT = """
@@ -5029,15 +5057,22 @@ async def voice_chat(
     db: Session = Depends(get_db),
 ):
  
-    try:
-        ai = get_ai_gateway()
- 
-    except Exception as exc:
-        raise HTTPException(
-            status_code=500,
-            detail=f"خطأ في إعداد NABIL AI: {exc}",
-        ) from exc
- 
+    # Keep the prepared-lesson path completely AI-free. The gateway is created
+    # lazily only when transcription or genuinely new generation is required.
+    ai = None
+
+    def _ai_gateway():
+        nonlocal ai
+        if ai is None:
+            try:
+                ai = get_ai_gateway()
+            except Exception as exc:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"خطأ في إعداد NABIL AI: {exc}",
+                ) from exc
+        return ai
+
     image_bytes = None
     image_mime_type = "image/jpeg"
     transcribed_text = None
@@ -5051,7 +5086,7 @@ async def voice_chat(
         try:
             audio_bytes = await audio.read()
  
-            transcribed_text = ai.transcribe(
+            transcribed_text = _ai_gateway().transcribe(
                 audio_bytes=audio_bytes,
                 filename=audio.filename or "voice.webm",
             )
@@ -5350,6 +5385,8 @@ async def voice_chat(
     book_exercise_chunks = []
     _lesson_cache_key = None
     _lesson_source_signature = None
+    _lesson_singleflight_leader = False
+    _lesson_singleflight_event = None
     # Student messages must NEVER force regeneration of an already prepared
     # lesson package. Refresh/regenerate is an authoring/factory operation only.
     _force_lesson_refresh = False
@@ -5664,6 +5701,83 @@ the same lesson Visual Engine; never describe it as rendered without one.
                     grade, subject, lesson, _lesson_cache_key,
                 )
 
+            # Cache miss: exactly one request becomes the generator for this key.
+            # Other students wait for that same package instead of paying for
+            # duplicate RAG/AI work. Student text can never force regeneration.
+            _lesson_singleflight_leader, _lesson_singleflight_event = await _claim_lesson_generation(
+                _lesson_cache_key
+            )
+            if not _lesson_singleflight_leader:
+                lesson_generation_logger.info(
+                    "LESSON_SINGLEFLIGHT_WAIT grade=%r subject=%r lesson=%r key=%s",
+                    grade, subject, lesson, _lesson_cache_key,
+                )
+                try:
+                    await asyncio.wait_for(
+                        _lesson_singleflight_event.wait(),
+                        timeout=_LESSON_SINGLEFLIGHT_WAIT_SECONDS,
+                    )
+                except asyncio.TimeoutError as exc:
+                    raise HTTPException(
+                        status_code=503,
+                        detail=(
+                            "يتم تجهيز هذا الدرس الآن لطالب آخر. "
+                            "أعد فتح الدرس بعد لحظات؛ لن نبدأ توليدًا مكررًا."
+                        ),
+                        headers={"Retry-After": "5"},
+                    ) from exc
+
+                _prepared = (
+                    db.query(LessonPackage)
+                    .filter(LessonPackage.cache_key == _lesson_cache_key)
+                    .first()
+                )
+                if _prepared is None:
+                    raise HTTPException(
+                        status_code=503,
+                        detail="تعذر تجهيز نسخة الدرس المحفوظة هذه المرة. حاول مجددًا بعد لحظات.",
+                        headers={"Retry-After": "5"},
+                    )
+                try:
+                    _prepared_drawings = json.loads(_prepared.drawings_json or "[]")
+                    _prepared_sources = json.loads(_prepared.sources_json or "[]")
+                except Exception as exc:
+                    raise HTTPException(
+                        status_code=503,
+                        detail="نسخة الدرس المحفوظة غير صالحة وتحتاج إعادة بناء من المصنع.",
+                    ) from exc
+                if not (
+                    isinstance(_prepared_drawings, list)
+                    and isinstance(_prepared_sources, list)
+                    and str(_prepared.reply or "").strip()
+                ):
+                    raise HTTPException(
+                        status_code=503,
+                        detail="نسخة الدرس المحفوظة غير مكتملة وتحتاج إعادة بناء من المصنع.",
+                    )
+                db.add(Message(
+                    conversation_id=conversation.id,
+                    role="teacher",
+                    content=str(_prepared.reply),
+                ))
+                db.commit()
+                _prepared_solution_card = build_scientific_solution_card(
+                    message=str(message or ""),
+                    reply=str(_prepared.reply or ""),
+                    subject=str(subject or ""),
+                    drawings=_prepared_drawings,
+                )
+                return ChatResponse(
+                    conversation_id=str(conversation.id),
+                    reply=str(_prepared.reply),
+                    sources=_prepared_sources,
+                    transcribed_text=transcribed_text,
+                    drawings=_prepared_drawings,
+                    drawing=_prepared_drawings[0] if _prepared_drawings else None,
+                    student_profile=profile_to_dict(learning_profile),
+                    solution_card=_prepared_solution_card,
+                )
+
         try:
             scoped_chunks = (
                 db.query(BookChunk.id)
@@ -5837,7 +5951,9 @@ the same lesson Visual Engine; never describe it as rendered without one.
                         reply=str(cached_lesson["reply"] or ""),
                         subject=str(subject or ""),
                         drawings=cached_lesson["drawings"],
-                    )           
+                    )
+                    if _lesson_singleflight_leader:
+                        await _finish_lesson_generation(_lesson_cache_key, _lesson_singleflight_event)
 
                     return ChatResponse(
                         conversation_id=str(conversation.id),
@@ -5854,6 +5970,8 @@ the same lesson Visual Engine; never describe it as rendered without one.
                     )
             print(f"BOOK_RAG_SCOPE_MATCH grade={grade!r} subject={subject!r} language={selected_language!r} curriculum={book_curriculum!r} retrieved={len(source_chunks)}", flush=True)
         except HTTPException:
+            if _lesson_singleflight_leader:
+                await _finish_lesson_generation(_lesson_cache_key, _lesson_singleflight_event)
             raise
         except Exception as exc:
             print(f"BOOK_RAG_UNAVAILABLE grade={grade!r} subject={subject!r} language={selected_language!r} curriculum={book_curriculum!r}: {type(exc).__name__}: {exc}", flush=True)
@@ -6385,7 +6503,7 @@ Do not produce JSON transport as visible prose.
             )
             try:
                 raw_reply = await run_in_threadpool(
-                    ai.generate,
+                    _ai_gateway().generate,
                     instructions=_generation_instructions,
                     messages=history_messages,
                     image_bytes=image_bytes or _source_image,
@@ -6418,7 +6536,7 @@ Do not produce JSON transport as visible prose.
                     raise TimeoutError("Book vision and provider attempts exceeded lesson response budget") from vision_exc
                 raw_reply = await asyncio.wait_for(
                     run_in_threadpool(
-                        ai.generate,
+                        _ai_gateway().generate,
                         instructions=_generation_instructions,
                         messages=_text_only_history,
                         image_bytes=None,
@@ -6447,6 +6565,8 @@ Do not produce JSON transport as visible prose.
             grade, subject, lesson, teaching_mode, len(source_chunks),
             type(exc).__name__,
         )
+        if _lesson_singleflight_leader:
+            await _finish_lesson_generation(_lesson_cache_key, _lesson_singleflight_event)
         raise HTTPException(
             status_code=503,
             detail=(
@@ -6504,7 +6624,7 @@ Do not invent hidden data. Return only the missing exercises and their drawing J
             try:
                 _repair_ai_calls += 1
                 _repair_started_at = time.monotonic()
-                repair_reply = await run_in_threadpool(ai.generate,
+                repair_reply = await run_in_threadpool(_ai_gateway().generate,
                     instructions=lesson_instructions if lesson_start_from_book else SYSTEM_PROMPT,
                     messages=[{"role": "user", "content": repair_prompt}],
                     max_output_tokens=5200,
@@ -6592,7 +6712,7 @@ Mandatory:
 
             try:
                 _repair_ai_calls += 1
-                repaired_reply = await run_in_threadpool(ai.generate,
+                repaired_reply = await run_in_threadpool(_ai_gateway().generate,
                     instructions=SYSTEM_PROMPT,
                     messages=[{"role": "user", "content": repair_prompt}],
                     max_output_tokens=7000,
@@ -6698,7 +6818,7 @@ Replace it completely.
 """.strip()
             try:
                 _repair_ai_calls += 1
-                _science_repaired = await run_in_threadpool(ai.generate,
+                _science_repaired = await run_in_threadpool(_ai_gateway().generate,
                     instructions=SYSTEM_PROMPT,
                     messages=[{"role": "user", "content": _science_repair_prompt}],
                     max_output_tokens=7000,
@@ -6780,7 +6900,7 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
 
             try:
                 _repair_ai_calls += 1
-                repaired = await run_in_threadpool(ai.generate,
+                repaired = await run_in_threadpool(_ai_gateway().generate,
                     instructions=SYSTEM_PROMPT,
                     messages=[{"role":"user","content":repair_prompt}],
                     max_output_tokens=8000,
@@ -6835,7 +6955,7 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
                 _repair_ai_calls += 1
                 _replacement = await asyncio.wait_for(
                     run_in_threadpool(
-                        ai.generate,
+                        _ai_gateway().generate,
                         instructions=_quality_instruction + _explicit_language_instruction,
                         messages=[{"role": "user", "content": lesson_prompt}],
                         image_bytes=None,
@@ -7210,6 +7330,9 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
         except Exception:
             db.rollback()
             lesson_generation_logger.exception("LESSON_PACKAGE_CACHE_SAVE_FAILED")
+
+    if _lesson_singleflight_leader:
+        await _finish_lesson_generation(_lesson_cache_key, _lesson_singleflight_event)
 
     # ==========================================
     # SAVE
