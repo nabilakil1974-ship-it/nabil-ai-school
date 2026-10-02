@@ -5,6 +5,7 @@
 import os
 import json
 import asyncio
+import hashlib
 import logging
 import time
 import math
@@ -55,6 +56,38 @@ from app.services.lesson_cache import lesson_cache_key, source_signature, get_ca
 lesson_generation_logger = logging.getLogger("nabil_ai.lesson")
 
 router = APIRouter()
+
+# Persistent TTS cache: identical cleaned text + voice + language is generated once.
+# Set NABIL_TTS_CACHE_DIR to a mounted persistent volume in production.
+_TTS_CACHE_DIR = Path(os.getenv("NABIL_TTS_CACHE_DIR", "data/tts_cache"))
+_TTS_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+_TTS_NEW_GENERATIONS_PER_MINUTE = max(1, int(os.getenv("NABIL_TTS_NEW_GENERATIONS_PER_MINUTE", "12")))
+_TTS_GENERATION_TIMES: list[float] = []
+_TTS_RATE_GUARD = asyncio.Lock()
+_TTS_INFLIGHT: dict[str, asyncio.Lock] = {}
+_TTS_INFLIGHT_GUARD = asyncio.Lock()
+
+
+async def _tts_generation_slot_available() -> bool:
+    """Rate-limit only NEW TTS generations; cache hits are never charged."""
+    now = time.monotonic()
+    async with _TTS_RATE_GUARD:
+        cutoff = now - 60.0
+        _TTS_GENERATION_TIMES[:] = [t for t in _TTS_GENERATION_TIMES if t >= cutoff]
+        if len(_TTS_GENERATION_TIMES) >= _TTS_NEW_GENERATIONS_PER_MINUTE:
+            return False
+        _TTS_GENERATION_TIMES.append(now)
+        return True
+
+
+async def _tts_key_lock(cache_key: str) -> asyncio.Lock:
+    """Single-flight lock so simultaneous students do not generate the same MP3 twice."""
+    async with _TTS_INFLIGHT_GUARD:
+        lock = _TTS_INFLIGHT.get(cache_key)
+        if lock is None:
+            lock = asyncio.Lock()
+            _TTS_INFLIGHT[cache_key] = lock
+        return lock
 
 # One in-process single-flight per prepared lesson key. This prevents a burst of
 # students from starting duplicate RAG/AI generation for the same missing lesson.
@@ -4277,26 +4310,23 @@ async def nabil_text_to_speech(
     language: Optional[str] = Form("العربية"),
 ):
     """
-    Free neural TTS for NABIL AI.
-    Arabic defaults to a clear male neural voice.
-    No API key is exposed to students.
+    Generate a neural MP3 only once for each exact cleaned text/voice/language tuple.
+    Later requests return the same persistent MP3 without another TTS call.
     """
     clean_text = (text or "").strip()
     if not clean_text:
-        raise HTTPException(
-            status_code=400,
-            detail="Text is required.",
-        )
+        raise HTTPException(status_code=400, detail="Text is required.")
 
-    # A long worked solution must not silently lose all speech after word 5000.
-    # Speak the actual answer in bounded chunks, preserving every step/order.
-    # One request still has a finite bound to protect the shared web server.
     if len(clean_text) > 20000:
         raise HTTPException(
             status_code=413,
             detail="الجواب طويل جدًا للقراءة دفعة واحدة. اختَر بطاقة أو خطوة لقراءتها.",
         )
-    clean_text = _spoken_math_cleanup(clean_text, language or "العربية")
+
+    lang = str(language or "العربية").strip() or "العربية"
+    clean_text = _spoken_math_cleanup(clean_text, lang)
+    # Stable normalization prevents whitespace-only differences from creating new audio.
+    clean_text = re.sub(r"\s+", " ", clean_text).strip()
 
     voice_map = {
         "العربية": "ar-SA-HamedNeural",
@@ -4305,76 +4335,106 @@ async def nabil_text_to_speech(
         "Français": "fr-FR-HenriNeural",
         "French": "fr-FR-HenriNeural",
     }
-    voice = voice_map.get(
-        language or "",
-        "ar-SA-HamedNeural",
-    )
+    voice = voice_map.get(lang, "ar-SA-HamedNeural")
 
-    try:
-        import edge_tts
-        from fastapi.responses import Response
+    cache_material = f"{clean_text}\nVOICE={voice}\nLANG={lang}"
+    cache_key = hashlib.sha256(cache_material.encode("utf-8")).hexdigest()
+    audio_path = _TTS_CACHE_DIR / f"{cache_key}.mp3"
+    etag = f'"{cache_key}"'
+    cache_headers = {
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "ETag": etag,
+        "X-NABIL-TTS-Key": cache_key,
+    }
 
-        # Edge TTS can reject very long single segments. Break on sentence/
-        # word boundaries and concatenate MP3 frames in the original order.
-        # Do not chop the user's final steps or independently rewrite them.
-        remaining = clean_text
-        speech_chunks = []
-        while remaining:
-            if len(remaining) <= 3400:
-                speech_chunks.append(remaining)
-                break
-            candidate = remaining[:3400]
-            cut = max(
-                candidate.rfind("، "), candidate.rfind(". "),
-                candidate.rfind("؛ "), candidate.rfind("? "),
-                candidate.rfind("! "), candidate.rfind(" "),
+    from fastapi.responses import Response
+
+    # Zero-generation fast path.
+    if audio_path.is_file() and audio_path.stat().st_size > 0:
+        headers = dict(cache_headers)
+        headers["X-NABIL-TTS-Cache"] = "HIT"
+        return Response(content=audio_path.read_bytes(), media_type="audio/mpeg", headers=headers)
+
+    # Single-flight: only one request may generate this exact audio.
+    key_lock = await _tts_key_lock(cache_key)
+    async with key_lock:
+        # Another request may have completed while this request was waiting.
+        if audio_path.is_file() and audio_path.stat().st_size > 0:
+            headers = dict(cache_headers)
+            headers["X-NABIL-TTS-Cache"] = "HIT-AFTER-WAIT"
+            return Response(content=audio_path.read_bytes(), media_type="audio/mpeg", headers=headers)
+
+        # Limit NEW generations only. Frontend should fall back to speechSynthesis on 429.
+        if not await _tts_generation_slot_available():
+            raise HTTPException(
+                status_code=429,
+                detail="TTS generation limit reached; use browser speechSynthesis fallback.",
+                headers={
+                    "Retry-After": "60",
+                    "X-NABIL-TTS-Fallback": "speechSynthesis",
+                },
             )
-            if cut < 1900:
-                cut = 3400
-            else:
-                cut += 1
-            speech_chunks.append(remaining[:cut].strip())
-            remaining = remaining[cut:].strip()
 
-        audio_parts = []
-        for segment in speech_chunks:
-            communicator = edge_tts.Communicate(
-                segment,
-                voice=voice,
-                rate="-15%",
-                volume="+0%",
-                pitch="-2Hz",
-            )
-            async for chunk in communicator.stream():
-                if chunk.get("type") == "audio":
-                    data = chunk.get("data")
-                    if data:
-                        audio_parts.append(data)
+        try:
+            import edge_tts
 
-        if not audio_parts:
-            raise RuntimeError("No audio received from TTS service.")
+            remaining = clean_text
+            speech_chunks: list[str] = []
+            while remaining:
+                if len(remaining) <= 3400:
+                    speech_chunks.append(remaining)
+                    break
+                candidate = remaining[:3400]
+                cut = max(
+                    candidate.rfind("، "), candidate.rfind(". "),
+                    candidate.rfind("؛ "), candidate.rfind("? "),
+                    candidate.rfind("! "), candidate.rfind(" "),
+                )
+                cut = 3400 if cut < 1900 else cut + 1
+                speech_chunks.append(remaining[:cut].strip())
+                remaining = remaining[cut:].strip()
 
-        return Response(
-            content=b"".join(audio_parts),
-            media_type="audio/mpeg",
-            headers={
-                "Cache-Control": "no-store",
-            },
-        )
+            audio_parts: list[bytes] = []
+            for segment in speech_chunks:
+                communicator = edge_tts.Communicate(
+                    segment,
+                    voice=voice,
+                    rate="-15%",
+                    volume="+0%",
+                    pitch="-2Hz",
+                )
+                async for chunk in communicator.stream():
+                    if chunk.get("type") == "audio":
+                        data = chunk.get("data")
+                        if data:
+                            audio_parts.append(data)
 
-    except ImportError as exc:
-        raise HTTPException(
-            status_code=503,
-            detail="edge-tts is not installed on the server.",
-        ) from exc
+            if not audio_parts:
+                raise RuntimeError("No audio received from TTS service.")
 
-    except Exception as exc:
-        raise HTTPException(
-            status_code=502,
-            detail=f"TTS generation failed: {exc}",
-        ) from exc
+            audio_bytes = b"".join(audio_parts)
+            tmp_path = audio_path.with_suffix(".mp3.tmp")
+            tmp_path.write_bytes(audio_bytes)
+            os.replace(tmp_path, audio_path)
 
+            headers = dict(cache_headers)
+            headers["X-NABIL-TTS-Cache"] = "MISS-STORED"
+            return Response(content=audio_bytes, media_type="audio/mpeg", headers=headers)
 
+        except ImportError as exc:
+            raise HTTPException(
+                status_code=503,
+                detail="edge-tts is not installed on the server; use browser speechSynthesis fallback.",
+                headers={"X-NABIL-TTS-Fallback": "speechSynthesis"},
+            ) from exc
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(
+                status_code=502,
+                detail=f"TTS generation failed: {exc}",
+                headers={"X-NABIL-TTS-Fallback": "speechSynthesis"},
+            ) from exc
 
 
 def _assessment_subject_key(subject: str) -> str:
