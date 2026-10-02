@@ -37,6 +37,9 @@ except Exception:
         validate_geometry_proof_spec,
     )
 
+LAB_ENGINE_VERSION="NABIL_LAB_ENGINE_V1"
+REFERENCE_RENDERER_CONTRACT="NABIL_REFERENCE_RENDERER_V1"
+
 _ALLOWED_KINDS={"FORMULA_CALCULATOR","ORIENTATION_INVARIANT","SHAPE_RESPONSE","EVIDENCE_SEQUENCE","EVIDENCE_REVEAL","GEOMETRY_PROOF"} | ADVANCED_LAB_KINDS
 _ALLOWED_OPS={"+","-","*","/"}
 
@@ -486,8 +489,6 @@ def _render_evidence_reveal(spec:Dict[str,Any],lang_code:str,lab_id:str)->str:
 
 
 
-REFERENCE_RENDERER_CONTRACT="NABIL_REFERENCE_RENDERER_V1"
-
 def _reference_contract_wrap(raw_html:str,spec:Dict[str,Any],lang_code:str,lab_id:str)->str:
     """Apply the owner-approved NABIL lab shell without changing science.
 
@@ -518,6 +519,7 @@ def _reference_contract_wrap(raw_html:str,spec:Dict[str,Any],lang_code:str,lab_i
     return f"""
 <section id="{shell_id}" class="nabil-reference-smart-lab"
  data-renderer-contract="{REFERENCE_RENDERER_CONTRACT}"
+ data-lab-engine="{LAB_ENGINE_VERSION}"
  data-teacher-pointer="sentence-synced" data-lab-ref="{safe}">
  <style>
  #{shell_id}{{position:relative;margin:16px 0;background:#071827;color:#eef8ff;
