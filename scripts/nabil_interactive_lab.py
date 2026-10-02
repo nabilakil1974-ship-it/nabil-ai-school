@@ -37,6 +37,11 @@ except Exception:
         validate_geometry_proof_spec,
     )
 
+# Stable contract version used by published-lab writer and runtime reader.
+# Change only when the persisted lab artifact contract intentionally changes.
+LAB_ENGINE_VERSION = "nabil-interactive-lab-v1"
+
+
 _ALLOWED_KINDS={"FORMULA_CALCULATOR","ORIENTATION_INVARIANT","SHAPE_RESPONSE","EVIDENCE_SEQUENCE","EVIDENCE_REVEAL","GEOMETRY_PROOF"} | ADVANCED_LAB_KINDS
 _ALLOWED_OPS={"+","-","*","/"}
 
