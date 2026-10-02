@@ -71,6 +71,187 @@ REFERENCE_RENDERER_CONTRACT = "NABIL_REFERENCE_RENDERER_V1"
 REFERENCE_RENDERER_LANGUAGES = ("ar", "en", "fr")
 REFERENCE_MOBILE_VIEWPORT = (390, 844)
 
+
+# ============================================================================== 
+# PUBLISHED LAB ARTIFACT STORE — BUILD ONCE, SERVE MANY
+# ============================================================================== 
+# Only factory-produced, quality-gated lab HTML is written here. Runtime/student
+# requests must read these static artifacts; they must not invoke AI/RAG to rebuild
+# an already published lab.
+PUBLISHED_LABS_DIR = ROOT / "data" / "published_labs"
+PUBLISHED_LABS_INDEX = PUBLISHED_LABS_DIR / "index.json"
+PUBLISHED_LABS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _published_lab_safe_part(value: str) -> str:
+    value = str(value or "").strip()
+    value = re.sub(r"[^A-Za-z0-9._-]+", "-", value)
+    value = re.sub(r"-{2,}", "-", value).strip("-.")
+    return value or "unknown"
+
+
+def _published_lab_artifact_key(
+        lesson_id: str, lab_key: str, language: str,
+        engine_version: str = REFERENCE_RENDERER_CONTRACT) -> str:
+    raw = "|".join(str(x or "").strip().casefold() for x in (
+        lesson_id, lab_key, language, engine_version,
+    ))
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _atomic_write_text(path: Path, content: str) -> None:
+    """Replace a static artifact atomically; never expose a half-written file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        tmp.write_text(content, encoding="utf-8")
+        os.replace(tmp, path)
+    finally:
+        if tmp.exists():
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
+
+
+def _load_published_labs_index() -> dict:
+    if not PUBLISHED_LABS_INDEX.exists():
+        return {"schema": "nabil-published-labs/v1", "labs": {}, "lessons": {}}
+    try:
+        data = json.loads(PUBLISHED_LABS_INDEX.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise RuntimeError(f"PUBLISHED_LABS_INDEX_INVALID:{exc}") from exc
+    if not isinstance(data, dict):
+        raise RuntimeError("PUBLISHED_LABS_INDEX_INVALID:ROOT_NOT_OBJECT")
+    if not isinstance(data.get("labs", {}), dict):
+        raise RuntimeError("PUBLISHED_LABS_INDEX_INVALID:LABS_NOT_OBJECT")
+    if not isinstance(data.get("lessons", {}), dict):
+        raise RuntimeError("PUBLISHED_LABS_INDEX_INVALID:LESSONS_NOT_OBJECT")
+    data.setdefault("schema", "nabil-published-labs/v1")
+    data.setdefault("labs", {})
+    data.setdefault("lessons", {})
+    return data
+
+
+def _persist_one_verified_lab(
+        *, lesson_id: str, lab_key: str, language: str, html_text: str,
+        kind: str, spec: Optional[dict] = None) -> dict:
+    """Persist HTML already built by the factory; validate spec again when present."""
+    lesson_id = str(lesson_id or "").strip()
+    lab_key = str(lab_key or "").strip()
+    language = resolve_lang_code(language or "en")
+    html_text = str(html_text or "")
+    if not lesson_id or not lab_key:
+        raise RuntimeError("PUBLISHED_LAB_IDENTITY_REQUIRED")
+    if not html_text.strip():
+        raise RuntimeError(f"PUBLISHED_LAB_HTML_EMPTY:{lesson_id}:{lab_key}")
+    if spec is not None:
+        if not isinstance(spec, dict):
+            raise RuntimeError(f"PUBLISHED_LAB_SPEC_INVALID:{lesson_id}:{lab_key}")
+        # Preserve the existing fail-closed scientific/evidence validation.
+        validate_lab_spec(spec)
+
+    artifact_key = _published_lab_artifact_key(lesson_id, lab_key, language)
+    rel = (Path(_published_lab_safe_part(lesson_id)) /
+           _published_lab_safe_part(language) /
+           _published_lab_safe_part(REFERENCE_RENDERER_CONTRACT) /
+           f"{artifact_key}.html")
+    out = PUBLISHED_LABS_DIR / rel
+    payload = html_text.encode("utf-8")
+    sha = hashlib.sha256(payload).hexdigest()
+    if not out.exists() or hashlib.sha256(out.read_bytes()).hexdigest() != sha:
+        _atomic_write_text(out, html_text)
+    return {
+        "artifact_key": artifact_key,
+        "lesson_id": lesson_id,
+        "lab_key": lab_key,
+        "language": language,
+        "kind": str(kind or "lab"),
+        "renderer_contract": REFERENCE_RENDERER_CONTRACT,
+        "path": rel.as_posix(),
+        "sha256": sha,
+        "bytes": len(payload),
+    }
+
+
+def persist_quality_gated_labs(entry: dict, theory: dict, exercises: list) -> dict:
+    """Publish all prebuilt labs only AFTER lesson QA + scientific review succeed."""
+    lesson_id = str(entry.get("lesson_id") or "").strip()
+    language = resolve_lang_code(entry.get("language", "en"))
+    records = []
+
+    for act in theory.get("activities") or []:
+        lab_html = str(act.get("lab_html") or "")
+        if not lab_html.strip():
+            continue
+        concept_id = str(act.get("concept_id") or "").strip()
+        records.append(_persist_one_verified_lab(
+            lesson_id=lesson_id,
+            lab_key=f"concept:{concept_id}",
+            language=language,
+            html_text=lab_html,
+            kind=str((act.get("lab_spec") or {}).get("kind") or "concept"),
+            spec=act.get("lab_spec"),
+        ))
+
+    for ex in exercises or []:
+        lab_html = str(ex.get("_prebuilt_lab_html") or "")
+        lab_key = str(ex.get("_prebuilt_lab_key") or "").strip()
+        if not lab_html.strip() or not lab_key:
+            continue
+        records.append(_persist_one_verified_lab(
+            lesson_id=lesson_id,
+            lab_key=lab_key,
+            language=language,
+            html_text=lab_html,
+            kind=str((ex.get("_prebuilt_lab_spec") or {}).get("kind") or "exercise"),
+            spec=ex.get("_prebuilt_lab_spec"),
+        ))
+
+    # This is the complete autonomous teacher-led lesson lab assembled from the
+    # already verified concept labs/teaching steps. Persist the exact generated HTML.
+    whole_html = str(theory.get("whole_lesson_lab_html") or "")
+    if whole_html.strip():
+        records.append(_persist_one_verified_lab(
+            lesson_id=lesson_id,
+            lab_key="lesson:whole",
+            language=language,
+            html_text=whole_html,
+            kind="whole_lesson_teacher",
+            spec=None,
+        ))
+
+    index = _load_published_labs_index()
+    lesson_record_keys = []
+    for record in records:
+        key = record["artifact_key"]
+        index["labs"][key] = record
+        lesson_record_keys.append(key)
+    index["lessons"][lesson_id] = {
+        "lesson_id": lesson_id,
+        "language": language,
+        "renderer_contract": REFERENCE_RENDERER_CONTRACT,
+        "artifact_keys": lesson_record_keys,
+        "runtime_ai_required": False,
+        "updated_at": now(),
+    }
+    index["updated_at"] = now()
+    _atomic_write_text(
+        PUBLISHED_LABS_INDEX,
+        json.dumps(index, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+    )
+    progress(
+        "PUBLISHED_STATIC_LABS_READY",
+        lesson_id=lesson_id,
+        artifacts=len(records),
+        index=str(PUBLISHED_LABS_INDEX),
+    )
+    return {
+        "lesson_id": lesson_id,
+        "artifacts": records,
+        "index": str(PUBLISHED_LABS_INDEX),
+    }
+
 _ARABIC_COLLOQUIAL_TOKENS = (
     "هلق", "شو", "بدك", "بدي", "فيك", "هيك", "هيدا", "هيدي",
     "هني", "ليش", "يلا", "خلينا", "رح ", "عم ", "منشوف", "منعمل",
@@ -9271,6 +9452,10 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
     gates_res = run_all_quality_gates(candidate)
     review_res = independent_scientific_review(entry, candidate)
 
+    # QA and independent scientific review have passed. Only now freeze the
+    # already-rendered labs as static reusable artifacts for every student.
+    published_labs = persist_quality_gated_labs(entry, theory, exercises)
+
     path_a = OUT_DIR / filename_a
     path_b = OUT_DIR / filename_b
     path_labs = OUT_DIR / filename_labs
@@ -9324,6 +9509,8 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
         "prebuilt_concept_labs": len(lab_index.get("concept_labs") or []),
         "prebuilt_exercise_labs": len(lab_index.get("exercise_labs") or []),
         "runtime_ai_required_for_indexed_labs": False,
+        "published_static_labs": len(published_labs.get("artifacts") or []),
+        "published_labs_index": published_labs.get("index"),
         "renderer_contract": REFERENCE_RENDERER_CONTRACT,
         "mobile_reference_viewport": {"width": 390, "height": 844},
         "source_raster_student_facing": False,
