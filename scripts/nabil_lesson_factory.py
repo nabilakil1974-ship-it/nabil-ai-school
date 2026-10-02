@@ -45,6 +45,7 @@ CACHE_DIR = ROOT / "data/cache/visual_evidence"
 VERSIONS_DIR = ROOT / "data/versions"
 ARTIFACTS_DIR = VERSIONS_DIR / "artifacts"
 OUT_DIR = ROOT / "output"
+GOLDEN_REGISTRY_PATH = ROOT / "data" / "golden_lessons_registry.json"
 
 for d in [PERM_EVIDENCE_DIR, CACHE_DIR, VERSIONS_DIR, ARTIFACTS_DIR, OUT_DIR]:
     d.mkdir(parents=True, exist_ok=True)
@@ -7863,7 +7864,7 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict, lab_index: Opt
 <meta name="nabil-translation-languages" content="ar,en,fr">
 <title>{clean_title} - NABIL Universal Engine</title>
 {MathRenderingEngine.inject_mathjax_head()}
-<script defer src="/static/nabil_browser_tts_v1.js?v=1"></script>\n<script defer src="/static/nabil_scientific_solution_cards_e2e.js?v=4"></script>
+<script defer src="/static/nabil_browser_tts_v1.js?v=1"></script>\n<script defer src="/static/nabil_lab_voice_v1.js?v=1"></script>\n<script defer src="/static/nabil_scientific_solution_cards_e2e.js?v=4"></script>
 <script defer src="/static/nabil_lesson_e2e_runtime_v1.js?v=4"></script>
 <script defer src="/static/nabil_smart_lab_bridge_v1.js?v=3"></script>
 <style>
@@ -8375,7 +8376,7 @@ def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: di
 <meta name="nabil-translation-languages" content="ar,en,fr">
 <title>{clean_title} - Official Exercises</title>
 {MathRenderingEngine.inject_mathjax_head()}
-<script defer src="/static/nabil_browser_tts_v1.js?v=1"></script>\n<script defer src="/static/nabil_scientific_solution_cards_e2e.js?v=4"></script>
+<script defer src="/static/nabil_browser_tts_v1.js?v=1"></script>\n<script defer src="/static/nabil_lab_voice_v1.js?v=1"></script>\n<script defer src="/static/nabil_scientific_solution_cards_e2e.js?v=4"></script>
 <script defer src="/static/nabil_lesson_e2e_runtime_v1.js?v=4"></script>
 <script defer src="/static/nabil_smart_lab_bridge_v1.js?v=3"></script>
 <style>
@@ -9180,6 +9181,43 @@ def rollback_lesson_drive(drive_service, lesson_id: str, target_version: int):
     progress("ROLLBACK_DRIVE_EXECUTING_SUCCESS", lesson_id=lesson_id, target_version=target_version)
 
 
+
+def _update_golden_registry(entry: dict, *, version: str, theory_id: str,
+                            exercises_id: str | None = None, labs_id: str | None = None) -> None:
+    """Atomically register a successfully verified Drive publication."""
+    try:
+        data = json.loads(GOLDEN_REGISTRY_PATH.read_text(encoding="utf-8")) if GOLDEN_REGISTRY_PATH.exists() else {}
+    except Exception as exc:
+        raise RuntimeError(f"GOLDEN_REGISTRY_INVALID:{exc}") from exc
+    if not isinstance(data, dict):
+        data = {}
+    lessons = data.setdefault("lessons", {})
+    lesson_id = str(entry.get("lesson_id") or "").strip().upper()
+    if not lesson_id:
+        raise RuntimeError("GOLDEN_REGISTRY_LESSON_ID_REQUIRED")
+    language = resolve_lang_code(entry.get("language") or "en")
+    lessons[lesson_id] = {
+        "lesson_id": lesson_id,
+        "title": str(entry.get("canonical_title") or lesson_id),
+        "grade": str(entry.get("grade") or ""),
+        "branch": str(entry.get("branch") or ""),
+        "subject": str(entry.get("subject") or ""),
+        "curriculum": str(entry.get("curriculum") or "Lebanese"),
+        "language": language,
+        "version": str(version),
+        "drive_file_id": theory_id,
+        "drive_theory_id": theory_id,
+        "drive_exercises_id": exercises_id,
+        "drive_labs_id": labs_id,
+        "drive_url": f"https://drive.google.com/file/d/{theory_id}/view",
+        "runtime_ai_required": False,
+        "updated_at": now(),
+    }
+    data["schema"] = "nabil-golden-lessons/v1"
+    data["updated_at"] = now()
+    _atomic_write_text(GOLDEN_REGISTRY_PATH, json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\\n")
+
+
 def promote_candidate(candidate: dict, entry: dict, drive_service) -> Tuple[str, str, str]:
     """Atomic Promotion with Post-Upload SHA-256 Verification & Safe Revert Backup."""
     root_id = resolve_drive_root_id()
@@ -9225,15 +9263,21 @@ def promote_candidate(candidate: dict, entry: dict, drive_service) -> Tuple[str,
             fileId=existing_labs["id"]).execute()
 
     def upload_or_update(fname: str, content: str, existing: Optional[dict],
-                         mimetype: str = "text/html") -> str:
-        media = MediaIoBaseUpload(
-            io.BytesIO(content.encode("utf-8")),
-            mimetype=mimetype,
-            resumable=True)
+                         mimetype: str = "text/html", artifact: str = "theory") -> str:
+        media = MediaIoBaseUpload(io.BytesIO(content.encode("utf-8")), mimetype=mimetype, resumable=True)
+        props = {
+            "nabil_lesson_id": str(entry.get("lesson_id") or "").strip().upper(),
+            "nabil_language": resolve_lang_code(entry.get("language") or "en"),
+            "nabil_version": str(candidate.get("version") or candidate.get("candidate_version") or "0.01"),
+            "nabil_artifact": artifact,
+            "nabil_golden": "true",
+        }
+        body={"name": fname, "appProperties": props}
         if existing:
-            drive_service.files().update(fileId=existing["id"], media_body=media).execute()
+            drive_service.files().update(fileId=existing["id"], body=body, media_body=media).execute()
             return existing["id"]
-        return drive_service.files().create(body={"name": fname, "parents": [subject_fid]}, media_body=media, fields="id").execute()["id"]
+        body["parents"]=[subject_fid]
+        return drive_service.files().create(body=body, media_body=media, fields="id").execute()["id"]
 
     tid = None
     eid = None
@@ -9242,10 +9286,10 @@ def promote_candidate(candidate: dict, entry: dict, drive_service) -> Tuple[str,
         tid = upload_or_update(
             candidate["filename_a"], candidate["page_a_html"], existing_a)
         eid = upload_or_update(
-            candidate["filename_b"], candidate["page_b_html"], existing_b)
+            candidate["filename_b"], candidate["page_b_html"], existing_b, artifact="exercises")
         lid = upload_or_update(
             candidate["filename_labs"], candidate["lab_index_json"],
-            existing_labs, mimetype="application/json")
+            existing_labs, mimetype="application/json", artifact="labs")
 
         def verify_remote_sha256(file_id: str, local_content: str):
             fh = io.BytesIO()
@@ -9488,6 +9532,10 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
         ver_meta["drive_exercises_id"] = drive_exercises_id
         ver_meta["drive_labs_id"] = drive_labs_id
         ver_meta["history"].append({"action": "PUBLISH", "version": candidate_v, "time": now()})
+        _update_golden_registry(
+            entry, version=str(candidate_v), theory_id=drive_theory_id,
+            exercises_id=drive_exercises_id, labs_id=drive_labs_id,
+        )
         ver_file.write_text(json.dumps(ver_meta, indent=2), encoding="utf-8")
         status_str = "PUBLISHED_VERIFIED"
         progress(
