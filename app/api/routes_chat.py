@@ -50,7 +50,7 @@ from app.services.ai_gateway import get_ai_gateway
 from app.services.rag_search import search_book_pages, build_context_block, find_nearest_book_exercises
 from app.services.textbook_page_request import (parse_textbook_page_request, indexed_textbook_page_context, parse_textbook_exercise_request, indexed_textbook_exercise_context)
 from app.services.textbook_scope import resolve_textbook_curriculum
-from app.services.lesson_cache import lesson_cache_key, source_signature, get_cached_lesson, save_cached_lesson
+from app.services.lesson_cache import lesson_cache_key, source_signature, save_cached_lesson
  
  
 lesson_generation_logger = logging.getLogger("nabil_ai.lesson")
@@ -5991,43 +5991,6 @@ the same lesson Visual Engine; never describe it as rendered without one.
                 _lesson_source_signature = source_signature(
                     source_chunks + book_exercise_chunks
                 )
-                cached_lesson = get_cached_lesson(
-                    db, _lesson_cache_key, _lesson_source_signature
-                )
-                if cached_lesson:
-                    db.add(Message(
-                        conversation_id=conversation.id,
-                        role="teacher",
-                        content=cached_lesson["reply"],
-                    ))
-                    db.commit()
-                    lesson_generation_logger.info(
-                        "LESSON_PACKAGE_CACHE_HIT grade=%r subject=%r lesson=%r",
-                        grade, subject, lesson,
-                    )
-
-                    cached_solution_card = build_scientific_solution_card(
-                        message=str(message or ""),
-                        reply=str(cached_lesson["reply"] or ""),
-                        subject=str(subject or ""),
-                        drawings=cached_lesson["drawings"],
-                    )
-                    if _lesson_singleflight_leader:
-                        await _finish_lesson_generation(_lesson_cache_key, _lesson_singleflight_event)
-
-                    return ChatResponse(
-                        conversation_id=str(conversation.id),
-                        reply=cached_lesson["reply"],
-                        sources=cached_lesson["sources"],
-                        transcribed_text=transcribed_text,
-                        drawings=cached_lesson["drawings"],
-                        drawing=(
-                            cached_lesson["drawings"][0]
-                            if cached_lesson["drawings"] else None
-                        ),
-                        student_profile=profile_to_dict(learning_profile),
-                        solution_card=cached_solution_card,
-                    )
             print(f"BOOK_RAG_SCOPE_MATCH grade={grade!r} subject={subject!r} language={selected_language!r} curriculum={book_curriculum!r} retrieved={len(source_chunks)}", flush=True)
         except HTTPException:
             if _lesson_singleflight_leader:
