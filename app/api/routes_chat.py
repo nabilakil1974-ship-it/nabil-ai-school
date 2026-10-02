@@ -5,7 +5,6 @@
 import os
 import json
 import asyncio
-import hashlib
 import logging
 import time
 import math
@@ -50,44 +49,18 @@ from app.services.ai_gateway import get_ai_gateway
 from app.services.rag_search import search_book_pages, build_context_block, find_nearest_book_exercises
 from app.services.textbook_page_request import (parse_textbook_page_request, indexed_textbook_page_context, parse_textbook_exercise_request, indexed_textbook_exercise_context)
 from app.services.textbook_scope import resolve_textbook_curriculum
-from app.services.lesson_cache import lesson_cache_key, source_signature, save_cached_lesson
+from app.services.lesson_cache import (
+    lesson_cache_key, lesson_package_key, normalize_language, normalize_package_version,
+    source_signature, get_cached_lesson, get_published_lesson, save_cached_lesson,
+)
+from app.services.golden_store import fetch_golden_from_drive, list_registry_entries
+from app.services.nabil_protection import enforce_student_request
+from app.services.nabil_finance import record_event, assert_ai_budget_available
  
  
 lesson_generation_logger = logging.getLogger("nabil_ai.lesson")
 
 router = APIRouter()
-
-# Persistent TTS cache: identical cleaned text + voice + language is generated once.
-# Set NABIL_TTS_CACHE_DIR to a mounted persistent volume in production.
-_TTS_CACHE_DIR = Path(os.getenv("NABIL_TTS_CACHE_DIR", "data/tts_cache"))
-_TTS_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-_TTS_NEW_GENERATIONS_PER_MINUTE = max(1, int(os.getenv("NABIL_TTS_NEW_GENERATIONS_PER_MINUTE", "12")))
-_TTS_GENERATION_TIMES: list[float] = []
-_TTS_RATE_GUARD = asyncio.Lock()
-_TTS_INFLIGHT: dict[str, asyncio.Lock] = {}
-_TTS_INFLIGHT_GUARD = asyncio.Lock()
-
-
-async def _tts_generation_slot_available() -> bool:
-    """Rate-limit only NEW TTS generations; cache hits are never charged."""
-    now = time.monotonic()
-    async with _TTS_RATE_GUARD:
-        cutoff = now - 60.0
-        _TTS_GENERATION_TIMES[:] = [t for t in _TTS_GENERATION_TIMES if t >= cutoff]
-        if len(_TTS_GENERATION_TIMES) >= _TTS_NEW_GENERATIONS_PER_MINUTE:
-            return False
-        _TTS_GENERATION_TIMES.append(now)
-        return True
-
-
-async def _tts_key_lock(cache_key: str) -> asyncio.Lock:
-    """Single-flight lock so simultaneous students do not generate the same MP3 twice."""
-    async with _TTS_INFLIGHT_GUARD:
-        lock = _TTS_INFLIGHT.get(cache_key)
-        if lock is None:
-            lock = asyncio.Lock()
-            _TTS_INFLIGHT[cache_key] = lock
-        return lock
 
 # One in-process single-flight per prepared lesson key. This prevents a burst of
 # students from starting duplicate RAG/AI generation for the same missing lesson.
@@ -817,6 +790,17 @@ def get_curriculum_lessons(
     return []
 
 
+def _golden_language_keys(language: str) -> list[str]:
+    requested = str(language or "").strip()
+    aliases = {
+        "english": ["English", "en", "english"], "en": ["English", "en", "english"],
+        "français": ["Français", "fr", "francais", "french"], "francais": ["Français", "fr", "francais", "french"],
+        "french": ["Français", "fr", "francais", "french"], "fr": ["Français", "fr", "francais", "french"],
+        "العربية": ["العربية", "ar", "arabic"], "arabic": ["العربية", "ar", "arabic"], "ar": ["العربية", "ar", "arabic"],
+    }
+    return aliases.get(requested.casefold(), [requested] if requested else [])
+
+
 @router.get("/curriculum/lessons")
 def curriculum_lessons(
     grade: str,
@@ -825,15 +809,35 @@ def curriculum_lessons(
     branch: Optional[str] = None,
 ):
     """Strict grade + subject + language lesson endpoint for the student UI."""
-    return {
-        "grade": grade,
-        "subject": subject,
-        "language": language,
-        "branch": branch,
-        "lessons": get_curriculum_lessons(grade, branch, subject, language),
-        "source": "crdp_master_curriculum_index",
-        "strict": True,
-    }
+    # Golden-only student selector. Legacy title-only lessons are intentionally
+    # excluded: the student must receive a stable lesson_id that maps to a
+    # published Golden artifact.
+    published = {str(x.get("lesson_id") or "").strip().upper(): x for x in list_registry_entries()}
+    options = []
+    try:
+        master = json.loads(MASTER_CURRICULUM_INDEX_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        master = {}
+    catalog = master.get("catalog", {}) if isinstance(master, dict) else {}
+    gkey = _master_grade_key(grade, branch)
+    skey = _master_subject_key(subject)
+    langs = (((catalog.get(gkey) or {}).get("subjects") or {}).get(skey) or {}).get("languages") or {}
+    for lk in _golden_language_keys(language):
+        node = langs.get(lk) if isinstance(langs, dict) else None
+        if not isinstance(node, dict):
+            continue
+        for item in node.get("lessons", []):
+            if not isinstance(item, dict):
+                continue
+            lid = str(item.get("lesson_id") or item.get("id") or "").strip().upper()
+            reg = published.get(lid)
+            if not lid or not reg:
+                continue
+            title = str(item.get("title") or item.get("lesson") or item.get("name") or reg.get("title") or lid).strip()
+            options.append({"title": title, "lesson_id": lid, "version": str(reg.get("version") or "0.01")})
+        break
+    return {"grade":grade,"subject":subject,"language":language,"branch":branch,"lessons":options,
+            "source":"nabil_golden_registry","strict":True,"golden_only":True}
 
 
 def build_curriculum_guardrail(
@@ -3955,6 +3959,12 @@ class ChatResponse(BaseModel):
     drawing: Optional[dict] = None
     student_profile: Optional[dict] = None
     solution_card: Optional[dict] = None
+    lesson_id: Optional[str] = None
+    package_version: Optional[str] = None
+    lesson_html: Optional[str] = None
+    lab_html: Optional[str] = None
+    golden: bool = False
+    zero_ai: bool = False
 
 class TeacherAssessmentRequest(BaseModel):
     grade: str
@@ -4009,6 +4019,7 @@ def get_student_profile(
 
 @router.post("/avatar-chat")
 async def avatar_chat(
+    request: Request,
     message: str = Form(...),
     student_id: str = Form(...),
     grade: Optional[str] = Form(None),
@@ -4020,11 +4031,14 @@ async def avatar_chat(
     answer general student questions without weakening lesson curriculum rules.
     """
     clean_message = (message or "").strip()
+    _avatar_fingerprint = enforce_student_request(request, student_id, clean_message)
     if not clean_message:
         raise HTTPException(status_code=400, detail="Message is required.")
 
     try:
+        assert_ai_budget_available()
         ai = get_ai_gateway()
+        record_event(event_type="avatar_ai_gateway", student_hash=_avatar_fingerprint, cache_hit=False)
     except Exception as exc:
         raise HTTPException(
             status_code=500,
@@ -4310,23 +4324,26 @@ async def nabil_text_to_speech(
     language: Optional[str] = Form("العربية"),
 ):
     """
-    Generate a neural MP3 only once for each exact cleaned text/voice/language tuple.
-    Later requests return the same persistent MP3 without another TTS call.
+    Free neural TTS for NABIL AI.
+    Arabic defaults to a clear male neural voice.
+    No API key is exposed to students.
     """
     clean_text = (text or "").strip()
     if not clean_text:
-        raise HTTPException(status_code=400, detail="Text is required.")
+        raise HTTPException(
+            status_code=400,
+            detail="Text is required.",
+        )
 
+    # A long worked solution must not silently lose all speech after word 5000.
+    # Speak the actual answer in bounded chunks, preserving every step/order.
+    # One request still has a finite bound to protect the shared web server.
     if len(clean_text) > 20000:
         raise HTTPException(
             status_code=413,
             detail="الجواب طويل جدًا للقراءة دفعة واحدة. اختَر بطاقة أو خطوة لقراءتها.",
         )
-
-    lang = str(language or "العربية").strip() or "العربية"
-    clean_text = _spoken_math_cleanup(clean_text, lang)
-    # Stable normalization prevents whitespace-only differences from creating new audio.
-    clean_text = re.sub(r"\s+", " ", clean_text).strip()
+    clean_text = _spoken_math_cleanup(clean_text, language or "العربية")
 
     voice_map = {
         "العربية": "ar-SA-HamedNeural",
@@ -4335,106 +4352,76 @@ async def nabil_text_to_speech(
         "Français": "fr-FR-HenriNeural",
         "French": "fr-FR-HenriNeural",
     }
-    voice = voice_map.get(lang, "ar-SA-HamedNeural")
+    voice = voice_map.get(
+        language or "",
+        "ar-SA-HamedNeural",
+    )
 
-    cache_material = f"{clean_text}\nVOICE={voice}\nLANG={lang}"
-    cache_key = hashlib.sha256(cache_material.encode("utf-8")).hexdigest()
-    audio_path = _TTS_CACHE_DIR / f"{cache_key}.mp3"
-    etag = f'"{cache_key}"'
-    cache_headers = {
-        "Cache-Control": "public, max-age=31536000, immutable",
-        "ETag": etag,
-        "X-NABIL-TTS-Key": cache_key,
-    }
+    try:
+        import edge_tts
+        from fastapi.responses import Response
 
-    from fastapi.responses import Response
-
-    # Zero-generation fast path.
-    if audio_path.is_file() and audio_path.stat().st_size > 0:
-        headers = dict(cache_headers)
-        headers["X-NABIL-TTS-Cache"] = "HIT"
-        return Response(content=audio_path.read_bytes(), media_type="audio/mpeg", headers=headers)
-
-    # Single-flight: only one request may generate this exact audio.
-    key_lock = await _tts_key_lock(cache_key)
-    async with key_lock:
-        # Another request may have completed while this request was waiting.
-        if audio_path.is_file() and audio_path.stat().st_size > 0:
-            headers = dict(cache_headers)
-            headers["X-NABIL-TTS-Cache"] = "HIT-AFTER-WAIT"
-            return Response(content=audio_path.read_bytes(), media_type="audio/mpeg", headers=headers)
-
-        # Limit NEW generations only. Frontend should fall back to speechSynthesis on 429.
-        if not await _tts_generation_slot_available():
-            raise HTTPException(
-                status_code=429,
-                detail="TTS generation limit reached; use browser speechSynthesis fallback.",
-                headers={
-                    "Retry-After": "60",
-                    "X-NABIL-TTS-Fallback": "speechSynthesis",
-                },
+        # Edge TTS can reject very long single segments. Break on sentence/
+        # word boundaries and concatenate MP3 frames in the original order.
+        # Do not chop the user's final steps or independently rewrite them.
+        remaining = clean_text
+        speech_chunks = []
+        while remaining:
+            if len(remaining) <= 3400:
+                speech_chunks.append(remaining)
+                break
+            candidate = remaining[:3400]
+            cut = max(
+                candidate.rfind("، "), candidate.rfind(". "),
+                candidate.rfind("؛ "), candidate.rfind("? "),
+                candidate.rfind("! "), candidate.rfind(" "),
             )
+            if cut < 1900:
+                cut = 3400
+            else:
+                cut += 1
+            speech_chunks.append(remaining[:cut].strip())
+            remaining = remaining[cut:].strip()
 
-        try:
-            import edge_tts
+        audio_parts = []
+        for segment in speech_chunks:
+            communicator = edge_tts.Communicate(
+                segment,
+                voice=voice,
+                rate="-15%",
+                volume="+0%",
+                pitch="-2Hz",
+            )
+            async for chunk in communicator.stream():
+                if chunk.get("type") == "audio":
+                    data = chunk.get("data")
+                    if data:
+                        audio_parts.append(data)
 
-            remaining = clean_text
-            speech_chunks: list[str] = []
-            while remaining:
-                if len(remaining) <= 3400:
-                    speech_chunks.append(remaining)
-                    break
-                candidate = remaining[:3400]
-                cut = max(
-                    candidate.rfind("، "), candidate.rfind(". "),
-                    candidate.rfind("؛ "), candidate.rfind("? "),
-                    candidate.rfind("! "), candidate.rfind(" "),
-                )
-                cut = 3400 if cut < 1900 else cut + 1
-                speech_chunks.append(remaining[:cut].strip())
-                remaining = remaining[cut:].strip()
+        if not audio_parts:
+            raise RuntimeError("No audio received from TTS service.")
 
-            audio_parts: list[bytes] = []
-            for segment in speech_chunks:
-                communicator = edge_tts.Communicate(
-                    segment,
-                    voice=voice,
-                    rate="-15%",
-                    volume="+0%",
-                    pitch="-2Hz",
-                )
-                async for chunk in communicator.stream():
-                    if chunk.get("type") == "audio":
-                        data = chunk.get("data")
-                        if data:
-                            audio_parts.append(data)
+        return Response(
+            content=b"".join(audio_parts),
+            media_type="audio/mpeg",
+            headers={
+                "Cache-Control": "no-store",
+            },
+        )
 
-            if not audio_parts:
-                raise RuntimeError("No audio received from TTS service.")
+    except ImportError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="edge-tts is not installed on the server.",
+        ) from exc
 
-            audio_bytes = b"".join(audio_parts)
-            tmp_path = audio_path.with_suffix(".mp3.tmp")
-            tmp_path.write_bytes(audio_bytes)
-            os.replace(tmp_path, audio_path)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"TTS generation failed: {exc}",
+        ) from exc
 
-            headers = dict(cache_headers)
-            headers["X-NABIL-TTS-Cache"] = "MISS-STORED"
-            return Response(content=audio_bytes, media_type="audio/mpeg", headers=headers)
 
-        except ImportError as exc:
-            raise HTTPException(
-                status_code=503,
-                detail="edge-tts is not installed on the server; use browser speechSynthesis fallback.",
-                headers={"X-NABIL-TTS-Fallback": "speechSynthesis"},
-            ) from exc
-        except HTTPException:
-            raise
-        except Exception as exc:
-            raise HTTPException(
-                status_code=502,
-                detail=f"TTS generation failed: {exc}",
-                headers={"X-NABIL-TTS-Fallback": "speechSynthesis"},
-            ) from exc
 
 
 def _assessment_subject_key(subject: str) -> str:
@@ -5097,6 +5084,7 @@ This block is internal and will be removed before display.
     response_model=ChatResponse,
 )
 async def voice_chat(
+    request: Request,
     audio: Optional[UploadFile] = File(None),
     image: Optional[UploadFile] = File(None),
     document: Optional[UploadFile] = File(None),
@@ -5110,6 +5098,8 @@ async def voice_chat(
     language: Optional[str] = Form(None),
     nabil_explanation_language: Optional[str] = Form(None),
     lesson: Optional[str] = Form(None),
+    lesson_id: Optional[str] = Form(None),
+    package_version: Optional[str] = Form("0.01"),
     book_page: Optional[str] = Form(None),
     teaching_mode: Optional[str] = Form("full_lesson"),
     activity_mode: Optional[str] = Form("lesson"),
@@ -5117,6 +5107,9 @@ async def voice_chat(
     db: Session = Depends(get_db),
 ):
  
+    # Protection runs before transcription/RAG/AI so abusive bursts cannot create cost.
+    _student_fingerprint = enforce_student_request(request, student_id, message)
+
     # Keep the prepared-lesson path completely AI-free. The gateway is created
     # lazily only when transcription or genuinely new generation is required.
     ai = None
@@ -5124,8 +5117,10 @@ async def voice_chat(
     def _ai_gateway():
         nonlocal ai
         if ai is None:
+            assert_ai_budget_available()
             try:
                 ai = get_ai_gateway()
+                record_event(event_type="chat_ai_gateway", student_hash=_student_fingerprint, lesson_id=str(lesson_id or ""), cache_hit=False)
             except Exception as exc:
                 raise HTTPException(
                     status_code=500,
@@ -5407,6 +5402,55 @@ async def voice_chat(
         db.commit()
         db.refresh(conversation)
  
+    # ==========================================
+    # GOLDEN LESSON — ZERO-AI RUNTIME PATH
+    # lesson_id is authoritative. No legacy/title fallback is allowed.
+    # ==========================================
+    if str(lesson_id or "").strip():
+        try:
+            _golden_lang = normalize_language(language or "en")
+            _golden_ver = normalize_package_version(package_version or "0.01")
+            _golden_key = lesson_package_key(str(lesson_id), _golden_lang, _golden_ver)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+        _golden_cached = get_published_lesson(db, cache_key=_golden_key)
+        if _golden_cached and str(_golden_cached.get("reply") or "").strip():
+            record_event(event_type="golden_cache_hit", student_hash=_student_fingerprint, lesson_id=str(lesson_id), cache_hit=True)
+            return ChatResponse(
+                conversation_id=str(conversation.id), reply=str(_golden_cached["reply"]),
+                sources=_golden_cached.get("sources") or [], drawings=_golden_cached.get("drawings") or [],
+                drawing=((_golden_cached.get("drawings") or [None])[0]), student_profile=profile_to_dict(learning_profile),
+                lesson_id=str(lesson_id).strip().upper(), package_version=_golden_ver,
+                lesson_html=_golden_cached.get("lesson_html"), lab_html=_golden_cached.get("lab_html"),
+                golden=True, zero_ai=True,
+            )
+
+        # Cache miss: Drive only. A missing Golden artifact FAILS CLOSED and never
+        # falls through to RAG/Groq/Gemini/OpenRouter.
+        try:
+            _golden = await run_in_threadpool(fetch_golden_from_drive, str(lesson_id), _golden_lang, _golden_ver)
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except Exception as exc:
+            lesson_generation_logger.exception("GOLDEN_DRIVE_FETCH_FAILED lesson_id=%r", lesson_id)
+            raise HTTPException(status_code=503, detail="تعذر جلب الحزمة الذهبية من Google Drive. لم يتم تشغيل أي ذكاء اصطناعي.") from exc
+
+        save_cached_lesson(
+            db, cache_key=_golden_key, signature=str(_golden["sha256"]),
+            grade=grade or "", branch=branch or "", subject=subject or "", curriculum=curriculum or "Lebanese",
+            language=_golden["language"], lesson=_golden["title"], teaching_mode=teaching_mode or "full_lesson",
+            reply=_golden["reply"], drawings=[], sources=_golden["sources"], lesson_id=_golden["lesson_id"],
+            version=_golden["version"], drive_file_id=_golden["drive_file_id"], drive_url=_golden.get("drive_url"),
+            package_status="published", lesson_html=_golden.get("lesson_html"),
+        )
+        record_event(event_type="golden_drive_fill", student_hash=_student_fingerprint, lesson_id=_golden["lesson_id"], cache_hit=False)
+        return ChatResponse(
+            conversation_id=str(conversation.id), reply=_golden["reply"], sources=_golden["sources"], drawings=[],
+            student_profile=profile_to_dict(learning_profile), lesson_id=_golden["lesson_id"],
+            package_version=_golden["version"], lesson_html=_golden.get("lesson_html"), golden=True, zero_ai=True,
+        )
+
     # ==========================================
     # HISTORY
     # ==========================================
@@ -5991,6 +6035,43 @@ the same lesson Visual Engine; never describe it as rendered without one.
                 _lesson_source_signature = source_signature(
                     source_chunks + book_exercise_chunks
                 )
+                cached_lesson = get_cached_lesson(
+                    db, _lesson_cache_key, _lesson_source_signature
+                )
+                if cached_lesson:
+                    db.add(Message(
+                        conversation_id=conversation.id,
+                        role="teacher",
+                        content=cached_lesson["reply"],
+                    ))
+                    db.commit()
+                    lesson_generation_logger.info(
+                        "LESSON_PACKAGE_CACHE_HIT grade=%r subject=%r lesson=%r",
+                        grade, subject, lesson,
+                    )
+
+                    cached_solution_card = build_scientific_solution_card(
+                        message=str(message or ""),
+                        reply=str(cached_lesson["reply"] or ""),
+                        subject=str(subject or ""),
+                        drawings=cached_lesson["drawings"],
+                    )
+                    if _lesson_singleflight_leader:
+                        await _finish_lesson_generation(_lesson_cache_key, _lesson_singleflight_event)
+
+                    return ChatResponse(
+                        conversation_id=str(conversation.id),
+                        reply=cached_lesson["reply"],
+                        sources=cached_lesson["sources"],
+                        transcribed_text=transcribed_text,
+                        drawings=cached_lesson["drawings"],
+                        drawing=(
+                            cached_lesson["drawings"][0]
+                            if cached_lesson["drawings"] else None
+                        ),
+                        student_profile=profile_to_dict(learning_profile),
+                        solution_card=cached_solution_card,
+                    )
             print(f"BOOK_RAG_SCOPE_MATCH grade={grade!r} subject={subject!r} language={selected_language!r} curriculum={book_curriculum!r} retrieved={len(source_chunks)}", flush=True)
         except HTTPException:
             if _lesson_singleflight_leader:
@@ -7449,3 +7530,38 @@ Do not include internal routing instructions such as scope/exercise_index/card_i
         ),
         solution_card=solution_card,
     )
+# ==========================================================
+# NABIL payment activation — signed one-time transaction binding
+# ==========================================================
+from pydantic import BaseModel as _NabilBaseModel
+from app.db.subscription import PaymentRecord as _NabilPaymentRecord
+from app.db.student_learning import StudentLearningProfile as _NabilStudentLearningProfile
+from app.services.payment_verification import verify_activation_code as _verify_activation_code
+from app.services.subscription_service import activate_one_month as _activate_one_month, subscription_state as _subscription_state
+
+class _NabilActivationRequest(_NabilBaseModel):
+    student_id: str
+    transaction_reference: str
+    activation_code: str
+
+@router.post("/payment/activate")
+def nabil_activate_verified_payment(payload: _NabilActivationRequest, db: Session = Depends(get_db)):
+    student_id = str(payload.student_id or "").strip()
+    tx = str(payload.transaction_reference or "").strip().upper()
+    payment = db.query(_NabilPaymentRecord).filter(
+        _NabilPaymentRecord.student_id == student_id,
+        _NabilPaymentRecord.transaction_reference == tx,
+    ).first()
+    if payment is None or payment.status != "verified_pending_activation":
+        raise HTTPException(status_code=400, detail="PAYMENT_NOT_READY_FOR_ACTIVATION")
+    if not _verify_activation_code(student_id, tx, payload.activation_code):
+        raise HTTPException(status_code=400, detail="INVALID_ACTIVATION_CODE")
+    profile = db.query(_NabilStudentLearningProfile).filter_by(student_id=student_id).first()
+    if profile is None:
+        profile = _NabilStudentLearningProfile(student_id=student_id)
+        db.add(profile); db.flush()
+    _activate_one_month(profile)
+    payment.status = "activated"
+    payment.verified_at = datetime.utcnow()
+    db.add(profile); db.add(payment); db.commit(); db.refresh(profile)
+    return {"ok": True, "subscription": _subscription_state(profile)}
