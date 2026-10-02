@@ -1,0 +1,49 @@
+name: NABIL Payment Inbox Check
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install OCR runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tesseract-ocr tesseract-ocr-eng tesseract-ocr-ara poppler-utils
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Check required secrets
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NABIL_PAYMENT_GMAIL_APP_PASSWORD: ${{ secrets.NABIL_PAYMENT_GMAIL_APP_PASSWORD }}
+          NABIL_PAYMENT_SECRET: ${{ secrets.NABIL_PAYMENT_SECRET }}
+          WHISH_RECEIVER_NUMBER: ${{ secrets.WHISH_RECEIVER_NUMBER }}
+        run: |
+          test -n "$DATABASE_URL" || (echo "Missing DATABASE_URL" && exit 1)
+          test -n "$NABIL_PAYMENT_GMAIL_APP_PASSWORD" || (echo "Missing NABIL_PAYMENT_GMAIL_APP_PASSWORD" && exit 1)
+          test -n "$NABIL_PAYMENT_SECRET" || (echo "Missing NABIL_PAYMENT_SECRET" && exit 1)
+          test -n "$WHISH_RECEIVER_NUMBER" || (echo "Missing WHISH_RECEIVER_NUMBER" && exit 1)
+
+      - name: Check payment inbox
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NABIL_PAYMENT_EMAIL: paymentnabilai@gmail.com
+          NABIL_PAYMENT_GMAIL_APP_PASSWORD: ${{ secrets.NABIL_PAYMENT_GMAIL_APP_PASSWORD }}
+          NABIL_PAYMENT_SECRET: ${{ secrets.NABIL_PAYMENT_SECRET }}
+          WHISH_RECEIVER_NUMBER: ${{ secrets.WHISH_RECEIVER_NUMBER }}
+          NABIL_MONTHLY_PRICE_USD: ${{ vars.NABIL_MONTHLY_PRICE_USD }}
+          NABIL_PAYMENT_MAX_RECEIPT_AGE_HOURS: "72"
+        run: python -m scripts.check_payment_inbox
