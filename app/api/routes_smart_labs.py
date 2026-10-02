@@ -1,16 +1,130 @@
 from __future__ import annotations
 
 import html as html_lib
+import json
+import os
 import re
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from scripts.nabil_interactive_lab import render_verified_lab, validate_lab_spec
+from scripts.nabil_interactive_lab import (
+    LAB_ENGINE_VERSION,
+    REFERENCE_RENDERER_CONTRACT,
+    render_verified_lab,
+    validate_lab_spec,
+)
 from scripts.nabil_lesson_factory import _execute_llm_json_strict
 
 router = APIRouter(prefix="/smart-labs", tags=["smart-labs"])
+
+
+# ---------------------------------------------------------------------------
+# Published lesson labs: zero-AI runtime path
+# ---------------------------------------------------------------------------
+# The factory publishes verified standalone HTML once. Students only read it.
+# This directory can be populated from the factory / Drive sync during deploy.
+_PUBLISHED_LABS_DIR = Path(
+    os.getenv("NABIL_PUBLISHED_LABS_DIR", "data/published_labs")
+).resolve()
+_PUBLISHED_LABS_INDEX = _PUBLISHED_LABS_DIR / "index.json"
+
+
+def _safe_token(value: str) -> str:
+    return re.sub(r"[^a-zA-Z0-9._-]+", "-", str(value or "").strip()).strip("-").lower()
+
+
+def _published_key(
+    lesson_id: str,
+    language: str,
+    engine_version: str = LAB_ENGINE_VERSION,
+) -> str:
+    lesson = _safe_token(lesson_id)
+    lang = _lang(language)
+    engine = _safe_token(engine_version)
+    if not lesson:
+        raise HTTPException(status_code=400, detail="LESSON_ID_REQUIRED")
+    return f"{lesson}__{lang}__{engine}"
+
+
+def _load_published_index() -> dict[str, Any]:
+    if not _PUBLISHED_LABS_INDEX.is_file():
+        return {}
+    try:
+        payload = json.loads(_PUBLISHED_LABS_INDEX.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _published_lab_record(lesson_id: str, language: str) -> dict[str, Any] | None:
+    key = _published_key(lesson_id, language)
+    raw = _load_published_index().get(key)
+    if not isinstance(raw, dict):
+        return None
+
+    rel = str(raw.get("html_file") or "").strip()
+    if not rel:
+        return None
+
+    candidate = (_PUBLISHED_LABS_DIR / rel).resolve()
+    try:
+        candidate.relative_to(_PUBLISHED_LABS_DIR)
+    except ValueError:
+        return None
+    if not candidate.is_file():
+        return None
+
+    try:
+        html_text = candidate.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    if not html_text.strip():
+        return None
+
+    return {
+        "key": key,
+        "lesson_id": str(raw.get("lesson_id") or lesson_id),
+        "language": _lang(str(raw.get("language") or language)),
+        "kind": str(raw.get("kind") or ""),
+        "title": str(raw.get("title") or "NABIL Smart Lab"),
+        "engine_version": str(raw.get("engine_version") or LAB_ENGINE_VERSION),
+        "renderer_contract": str(
+            raw.get("renderer_contract") or REFERENCE_RENDERER_CONTRACT
+        ),
+        "source_signature": str(raw.get("source_signature") or ""),
+        "html": html_text,
+    }
+
+
+@router.get("/published/{lesson_id}")
+def get_published_lab(lesson_id: str, language: str = "ar"):
+    """
+    Zero-AI student path.
+
+    If the factory already published this lesson lab, return the exact saved
+    standalone HTML. This endpoint never calls RAG, embeddings, an LLM or TTS.
+    """
+    item = _published_lab_record(lesson_id, language)
+    if item is None:
+        return {
+            "found": False,
+            "lesson_id": lesson_id,
+            "language": _lang(language),
+            "reason": "PUBLISHED_LAB_NOT_READY",
+            "generation_started": False,
+        }
+    return {
+        "found": True,
+        **item,
+        "teacher_pointer": "sentence-synced",
+        "teacher_lifecycle": "start|state|step|complete|stopped",
+        "source": "published_verified_lab",
+        "ai_used": False,
+        "generation_started": False,
+    }
 
 
 class SmartLabRequest(BaseModel):
@@ -408,7 +522,7 @@ Rules:
         "found": True,
         "kind": str(spec.get("kind") or ""),
         "title": str(spec.get("title") or "NABIL Smart Lab"),
-        "renderer_contract": "NABIL_REFERENCE_RENDERER_V1",
+        "renderer_contract": REFERENCE_RENDERER_CONTRACT,
         "teacher_pointer": "sentence-synced",
         "teacher_lifecycle": "start|state|step|complete|stopped",
         "language": lang,
