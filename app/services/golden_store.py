@@ -1,253 +1,91 @@
 """NABIL AI Golden lesson runtime store.
 
-Zero-AI runtime contract:
-lesson_id -> synchronized Golden catalogue/registry -> Drive artifact -> student.
-No RAG, embeddings or LLM calls occur in this module.
+Zero-AI runtime contract: Golden lessons are generated/approved once, grouped
+into an immutable package, and rendered many times identically for students.
+No LLM/RAG generation occurs here.
 """
 from __future__ import annotations
-
-import hashlib
-import html as html_lib
-import io
-import json
-import os
-import re
+import hashlib, html as html_lib, io, json, os, re
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any, Optional
 from urllib.request import Request, urlopen
-
 from app.services.lesson_cache import normalize_lesson_id, normalize_language, normalize_package_version
-
-GOLDEN_REGISTRY_PATH = Path(os.getenv("NABIL_GOLDEN_REGISTRY_PATH", "data/golden_lessons_registry.json"))
-GOLDEN_LINKS_PATH = Path(os.getenv("NABIL_GOLDEN_LINKS_PATH", "data/golden_lesson_links.json"))
-
-
+GOLDEN_REGISTRY_PATH=Path(os.getenv('NABIL_GOLDEN_REGISTRY_PATH','data/golden_lessons_registry.json'))
+GOLDEN_LINKS_PATH=Path(os.getenv('NABIL_GOLDEN_LINKS_PATH','data/golden_lesson_links.json'))
+ARTIFACT_ORDER=('lesson','activities','exercises','worksheets','solutions','visuals','labs','master_lab','golden_card')
 class _VisibleText(HTMLParser):
-    BLOCKS = {"p","div","section","article","h1","h2","h3","h4","li","tr","br"}
-    def __init__(self) -> None:
-        super().__init__(convert_charrefs=True)
-        self.parts: list[str] = []
-    def handle_starttag(self, tag: str, attrs) -> None:
-        if tag.lower() in self.BLOCKS:
-            self.parts.append("\n")
-    def handle_endtag(self, tag: str) -> None:
-        if tag.lower() in self.BLOCKS:
-            self.parts.append("\n")
-    def handle_data(self, data: str) -> None:
-        if data and data.strip():
-            self.parts.append(data.strip() + " ")
-    def text(self) -> str:
-        value = html_lib.unescape("".join(self.parts))
-        value = re.sub(r"[ \t]+", " ", value)
-        value = re.sub(r"\n\s*\n\s*\n+", "\n\n", value)
-        return value.strip()
-
-
-def html_to_student_text(value: str) -> str:
-    parser = _VisibleText()
-    parser.feed(value or "")
-    return parser.text()
-
-
-def _load_lessons(path: Path) -> dict[str, Any]:
-    if not path.exists():
-        return {}
-    raw = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(raw, dict):
-        raise RuntimeError(f"GOLDEN_JSON_INVALID:{path}")
-    lessons = raw.get("lessons")
-    if lessons is None and all(isinstance(v, dict) for v in raw.values()):
-        lessons = raw
-    if not isinstance(lessons, dict):
-        raise RuntimeError(f"GOLDEN_LESSONS_INVALID:{path}")
-    return lessons
-
-
-def _registry() -> dict[str, Any]:
-    return {"lessons": _load_lessons(GOLDEN_REGISTRY_PATH)}
-
-
-def _catalogue_entry(lesson_id: str) -> Optional[dict[str, Any]]:
-    lid = normalize_lesson_id(lesson_id)
-    item = _load_lessons(GOLDEN_LINKS_PATH).get(lid)
-    if not isinstance(item, dict):
-        return None
-    if item.get("golden") is False or str(item.get("status") or "available") != "available":
-        return None
-    return dict(item)
-
-
-def get_registry_entry(lesson_id: str) -> Optional[dict[str, Any]]:
-    lid = normalize_lesson_id(lesson_id)
-    base = _registry()["lessons"].get(lid)
-    synced = _catalogue_entry(lid)
-    if not isinstance(base, dict) and not isinstance(synced, dict):
-        return None
-    merged: dict[str, Any] = dict(base or {})
-    if synced:
-        merged.update({k: v for k, v in synced.items() if v not in (None, "")})
-    merged.setdefault("lesson_id", lid)
-    return merged
-
-
-def list_registry_entries() -> list[dict[str, Any]]:
-    ids = set(_registry()["lessons"].keys()) | set(_load_lessons(GOLDEN_LINKS_PATH).keys())
-    out: list[dict[str, Any]] = []
-    for lid in sorted(ids):
-        row = get_registry_entry(lid)
-        if row:
-            out.append(row)
-    return out
-
-
+ BLOCKS={'p','div','section','article','h1','h2','h3','h4','li','tr','br'}
+ def __init__(self):super().__init__(convert_charrefs=True);self.parts=[]
+ def handle_starttag(self,tag,attrs):
+  if tag.lower() in self.BLOCKS:self.parts.append('\n')
+ def handle_endtag(self,tag):
+  if tag.lower() in self.BLOCKS:self.parts.append('\n')
+ def handle_data(self,data):
+  if data and data.strip():self.parts.append(data.strip()+' ')
+ def text(self):
+  v=html_lib.unescape(''.join(self.parts));v=re.sub(r'[ \t]+',' ',v);return re.sub(r'\n\s*\n\s*\n+','\n\n',v).strip()
+def html_to_student_text(v):p=_VisibleText();p.feed(v or '');return p.text()
+def _load_lessons(path):
+ if not path.exists():return {}
+ raw=json.loads(path.read_text(encoding='utf-8')); lessons=raw.get('lessons') if isinstance(raw,dict) else None
+ if lessons is None and isinstance(raw,dict) and all(isinstance(v,dict) for v in raw.values()):lessons=raw
+ if not isinstance(lessons,dict):raise RuntimeError(f'GOLDEN_LESSONS_INVALID:{path}')
+ return lessons
+def _registry():return {'lessons':_load_lessons(GOLDEN_REGISTRY_PATH)}
+def _catalogue_entry(lid):
+ item=_load_lessons(GOLDEN_LINKS_PATH).get(normalize_lesson_id(lid))
+ if not isinstance(item,dict) or item.get('golden') is False or str(item.get('status') or 'available')!='available':return None
+ return dict(item)
+def get_registry_entry(lid):
+ lid=normalize_lesson_id(lid);base=_registry()['lessons'].get(lid);synced=_catalogue_entry(lid)
+ if not isinstance(base,dict) and not isinstance(synced,dict):return None
+ merged=dict(base or {});merged.update({k:v for k,v in (synced or {}).items() if v not in (None,'')});merged.setdefault('lesson_id',lid);return merged
+def list_registry_entries():
+ ids=set(_registry()['lessons'])|set(_load_lessons(GOLDEN_LINKS_PATH));return [x for lid in sorted(ids) if (x:=get_registry_entry(lid))]
 def _drive_service():
-    from scripts.index_books import get_drive_service
-    return get_drive_service()
-
-
-def _discover_on_drive(service, lesson_id: str, language: str, version: str) -> Optional[dict[str, Any]]:
-    lid = normalize_lesson_id(lesson_id)
-    lang = normalize_language(language)
-    ver = normalize_package_version(version)
-    q = (
-        "trashed = false and "
-        f"appProperties has {{ key='nabil_lesson_id' and value='{lid}' }} and "
-        "appProperties has { key='nabil_golden' and value='true' } and "
-        "appProperties has { key='nabil_artifact' and value='theory' }"
-    )
-    rows = service.files().list(q=q, fields="files(id,name,mimeType,modifiedTime,webViewLink,appProperties)", pageSize=20).execute().get("files", [])
-    candidates = []
-    for row in rows:
-        props = row.get("appProperties") or {}
-        if normalize_language(props.get("nabil_language") or lang) == lang and normalize_package_version(props.get("nabil_version") or ver) == ver:
-            candidates.append(row)
-    if not candidates:
-        return None
-    candidates.sort(key=lambda r: str(r.get("modifiedTime") or ""), reverse=True)
-    if len(candidates) > 1 and str(candidates[0].get("modifiedTime")) == str(candidates[1].get("modifiedTime")):
-        raise RuntimeError(f"GOLDEN_DRIVE_DUPLICATE:{lid}:{lang}:{ver}")
-    return candidates[0]
-
-
-def _download_bytes(service, file_id: str, mime_type: str) -> bytes:
-    from googleapiclient.http import MediaIoBaseDownload
-    request = service.files().export_media(fileId=file_id, mimeType="text/html") if mime_type == "application/vnd.google-apps.document" else service.files().get_media(fileId=file_id)
-    fh = io.BytesIO()
-    dl = MediaIoBaseDownload(fh, request)
-    done = False
-    while not done:
-        _, done = dl.next_chunk()
-    return fh.getvalue()
-
-
-def _anonymous_google_doc_export(file_id: str) -> bytes:
-    if not re.fullmatch(r"[A-Za-z0-9_-]{10,200}", file_id or ""):
-        raise ValueError("INVALID_GOLDEN_DRIVE_FILE_ID")
-    url = f"https://docs.google.com/document/d/{file_id}/export?format=html"
-    request = Request(url, headers={"User-Agent": "NABIL-AI-Golden/1.0"})
-    with urlopen(request, timeout=20) as response:
-        data = response.read(12_000_001)
-    if not data or len(data) > 12_000_000:
-        raise RuntimeError("GOLDEN_PUBLIC_EXPORT_INVALID_SIZE")
-    return data
-
-
-def _browser_drive_preview(file_id: str, title: str) -> str:
-    """Fallback for private Docs the signed-in student's browser can read.
-
-    Railway must not fail the lesson merely because its server/service account
-    cannot export a private owner Doc.  The browser already carries the owner's
-    Google session, so hand the document to Google Docs preview in an iframe.
-    """
-    if not re.fullmatch(r"[A-Za-z0-9_-]{10,200}", file_id or ""):
-        raise ValueError("INVALID_GOLDEN_DRIVE_FILE_ID")
-    safe_title = html_lib.escape(title or "NABIL Golden lesson")
-    src = f"https://docs.google.com/document/d/{file_id}/preview"
-    return (
-        "<!doctype html><html><head><meta charset='utf-8'>"
-        "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-        "<title>" + safe_title + "</title>"
-        "<style>html,body{margin:0;width:100%;height:100%;background:#071d30;overflow:hidden}"
-        "iframe{border:0;width:100%;height:100%;display:block;background:white}</style>"
-        "</head><body><iframe src='" + src + "' title='" + safe_title + "' "
-        "allow='clipboard-read; clipboard-write' referrerpolicy='no-referrer-when-downgrade'></iframe>"
-        "</body></html>"
-    )
-
-
-def fetch_golden_from_drive(lesson_id: str, language: str = "en", version: str = "0.01") -> dict[str, Any]:
-    lid = normalize_lesson_id(lesson_id)
-    lang = normalize_language(language)
-    ver = normalize_package_version(version)
-    entry = get_registry_entry(lid) or {}
-    file_id = str(entry.get("drive_file_id") or entry.get("drive_theory_id") or "").strip()
-    metadata = None
-    payload = None
-    browser_preview = False
-
-    if file_id:
-        try:
-            service = _drive_service()
-            metadata = service.files().get(fileId=file_id, fields="id,name,mimeType,modifiedTime,webViewLink,appProperties").execute()
-            props = metadata.get("appProperties") or {}
-            if props.get("nabil_lesson_id") and normalize_lesson_id(props["nabil_lesson_id"]) != lid:
-                raise RuntimeError("GOLDEN_DRIVE_IDENTITY_MISMATCH")
-            payload = _download_bytes(service, file_id, str(metadata.get("mimeType") or ""))
-        except Exception:
-            try:
-                payload = _anonymous_google_doc_export(file_id)
-                metadata = {
-                    "id": file_id,
-                    "name": str(entry.get("title") or lid),
-                    "mimeType": "application/vnd.google-apps.document",
-                    "webViewLink": str(entry.get("drive_url") or f"https://docs.google.com/document/d/{file_id}/edit"),
-                    "appProperties": {},
-                }
-            except Exception:
-                # The two server-side readers are unauthorized. Do not return
-                # another 503 loop: render Google's authenticated browser preview.
-                preview = _browser_drive_preview(file_id, str(entry.get("title") or lid))
-                payload = preview.encode("utf-8")
-                metadata = {
-                    "id": file_id,
-                    "name": str(entry.get("title") or lid),
-                    "mimeType": "text/html",
-                    "webViewLink": str(entry.get("drive_url") or f"https://docs.google.com/document/d/{file_id}/edit"),
-                    "appProperties": {},
-                }
-                browser_preview = True
-    else:
-        service = _drive_service()
-        metadata = _discover_on_drive(service, lid, lang, ver)
-        if metadata is None:
-            raise FileNotFoundError(f"GOLDEN_LESSON_NOT_PUBLISHED:{lid}:{lang}:{ver}")
-        file_id = str(metadata["id"])
-        payload = _download_bytes(service, file_id, str(metadata.get("mimeType") or ""))
-
-    assert payload is not None and metadata is not None
-    text = payload.decode("utf-8", errors="replace").strip()
-    if not text:
-        raise RuntimeError("GOLDEN_DRIVE_ARTIFACT_EMPTY")
-    mime = str(metadata.get("mimeType") or "")
-    is_html = "html" in mime or "google-apps.document" in mime or text.lstrip().lower().startswith(("<!doctype html", "<html"))
-    lesson_html = text if is_html else ""
-    reply = html_to_student_text(text) if is_html else text
-    if not reply and not browser_preview:
-        raise RuntimeError("GOLDEN_STUDENT_TEXT_EMPTY")
-    if browser_preview:
-        reply = str(entry.get("title") or lid)
-    sha = hashlib.sha256(payload).hexdigest()
-    return {
-        "lesson_id": lid,
-        "language": normalize_language(entry.get("language") or lang),
-        "version": normalize_package_version(entry.get("version") or ver),
-        "title": str(entry.get("title") or metadata.get("name") or lid),
-        "reply": reply,
-        "lesson_html": lesson_html,
-        "drive_file_id": file_id,
-        "drive_url": metadata.get("webViewLink") or entry.get("drive_url") or f"https://drive.google.com/file/d/{file_id}/view",
-        "sha256": sha,
-        "browser_drive_preview": browser_preview,
-        "sources": [{"type":"golden_drive_browser_preview" if browser_preview else "golden_drive","lesson_id":lid,"drive_file_id":file_id,"sha256":sha}],
-    }
+ from scripts.index_books import get_drive_service
+ return get_drive_service()
+def _download_bytes(service,fid,mime):
+ from googleapiclient.http import MediaIoBaseDownload
+ req=service.files().export_media(fileId=fid,mimeType='text/html') if mime=='application/vnd.google-apps.document' else service.files().get_media(fileId=fid);fh=io.BytesIO();dl=MediaIoBaseDownload(fh,req);done=False
+ while not done:_,done=dl.next_chunk()
+ return fh.getvalue()
+def _anonymous_google_doc_export(fid):
+ if not re.fullmatch(r'[A-Za-z0-9_-]{10,200}',fid or ''):raise ValueError('INVALID_GOLDEN_DRIVE_FILE_ID')
+ with urlopen(Request(f'https://docs.google.com/document/d/{fid}/export?format=html',headers={'User-Agent':'NABIL-AI-Golden/1.0'}),timeout=20) as r:data=r.read(12_000_001)
+ if not data or len(data)>12_000_000:raise RuntimeError('GOLDEN_PUBLIC_EXPORT_INVALID_SIZE')
+ return data
+def _browser_preview(fid,title):
+ safe=html_lib.escape(title or 'NABIL Golden artifact');src=f'https://docs.google.com/document/d/{fid}/preview'
+ return f"<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{safe}</title><style>html,body{{margin:0;width:100%;height:100%;background:#071d30}}iframe{{border:0;width:100%;height:100%;display:block;background:white}}</style></head><body><iframe src='{src}' title='{safe}'></iframe></body></html>"
+def _fetch_artifact(service,a):
+ fid=str(a.get('drive_file_id') or '');mime=str(a.get('mime_type') or '');title=str(a.get('name') or a.get('artifact_id') or 'Golden artifact');preview=False
+ if not fid:return None
+ try:payload=_download_bytes(service,fid,mime)
+ except Exception:
+  try:payload=_anonymous_google_doc_export(fid);mime='application/vnd.google-apps.document'
+  except Exception:payload=_browser_preview(fid,title).encode();mime='text/html';preview=True
+ text=payload.decode('utf-8',errors='replace').strip();is_html='html' in mime or 'google-apps.document' in mime or text.lower().startswith(('<!doctype html','<html'))
+ return {**a,'html':text if is_html else '','text':title if preview else (html_to_student_text(text) if is_html else text),'sha256':hashlib.sha256(payload).hexdigest(),'browser_drive_preview':preview}
+def fetch_golden_from_drive(lesson_id,language='en',version='0.01'):
+ lid=normalize_lesson_id(lesson_id);entry=get_registry_entry(lid)
+ if not entry or not entry.get('golden'):raise FileNotFoundError(f'GOLDEN_LESSON_NOT_PUBLISHED:{lid}')
+ package=entry.get('package') or {}
+ if package and (package.get('runtime_ai_generation') is not False or package.get('generation_policy')!='GENERATE_ONCE_RENDER_MANY'):raise RuntimeError(f'GOLDEN_PACKAGE_POLICY_INVALID:{lid}')
+ groups=package.get('artifacts') if isinstance(package.get('artifacts'),dict) else {}
+ # Backward-compatible package for an older Golden catalogue entry.
+ if not groups:
+  fid=str(entry.get('drive_file_id') or entry.get('drive_theory_id') or '')
+  if not fid:raise FileNotFoundError(f'GOLDEN_PACKAGE_EMPTY:{lid}')
+  groups={'lesson':[{'artifact_id':f'{lid}-LESSON','kind':'lesson','drive_file_id':fid,'name':entry.get('title') or lid,'url':entry.get('drive_url'),'mime_type':entry.get('mime_type') or 'application/vnd.google-apps.document'}]}
+ service=_drive_service();rendered={k:[] for k in ARTIFACT_ORDER};sources=[]
+ for kind in ARTIFACT_ORDER:
+  for a in groups.get(kind,[]) or []:
+   item=_fetch_artifact(service,a)
+   if item:
+    rendered[kind].append(item);sources.append({'type':'golden_package_artifact','lesson_id':lid,'kind':kind,'artifact_id':item.get('artifact_id'),'drive_file_id':item.get('drive_file_id'),'sha256':item.get('sha256')})
+ lesson_items=rendered['lesson']
+ if not lesson_items:raise RuntimeError(f'GOLDEN_PACKAGE_NO_LESSON:{lid}')
+ primary=lesson_items[0];fingerprint=str(package.get('content_fingerprint') or hashlib.sha256(json.dumps([(s['artifact_id'],s['sha256']) for s in sources],sort_keys=True).encode()).hexdigest())
+ return {'lesson_id':lid,'language':normalize_language(entry.get('language') or language),'version':normalize_package_version(entry.get('version') or version),'title':str(entry.get('title') or primary.get('name') or lid),'reply':primary.get('text') or entry.get('title') or lid,'lesson_html':primary.get('html') or '','drive_file_id':primary.get('drive_file_id'),'drive_url':primary.get('url') or entry.get('drive_url'),'sha256':primary.get('sha256'),'browser_drive_preview':bool(primary.get('browser_drive_preview')),'golden_package':rendered,'package_schema':package.get('package_schema') or 'nabil.golden.package.v1','generation_policy':'GENERATE_ONCE_RENDER_MANY','runtime_ai_generation':False,'immutable':True,'content_fingerprint':fingerprint,'sources':sources}
