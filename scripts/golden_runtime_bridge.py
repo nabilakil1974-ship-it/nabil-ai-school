@@ -6,6 +6,7 @@ only a backward-compatible fallback for older UI calls.
 """
 from __future__ import annotations
 
+import html
 import re
 from urllib.parse import quote
 
@@ -45,20 +46,16 @@ def _subject_code(value: str) -> str:
 
 
 def _golden_entry(grade: str, subject: str, lesson: str, lesson_id: str = ""):
-    """Resolve a Golden row by canonical lesson_id first, then exact title fallback."""
     from app.services.golden_store import get_registry_entry, list_registry_entries
-
     requested_id = str(lesson_id or "").strip().upper()
     lesson_as_id = str(lesson or "").strip().upper()
     if not requested_id and re.fullmatch(r"G\d{2}-[A-Z]+(?:-[A-Z]+)?-\d{3}", lesson_as_id):
         requested_id = lesson_as_id
-
     if requested_id:
         row = get_registry_entry(requested_id)
         if row and row.get("golden"):
             return row
         return None
-
     grade_no = _grade_number(grade)
     subject_code = _subject_code(subject)
     wanted = _norm(lesson)
@@ -80,16 +77,10 @@ def _golden_entry(grade: str, subject: str, lesson: str, lesson_id: str = ""):
 
 
 def _drive_failure_detail(exc: Exception, lesson_id: str) -> dict:
-    """Return safe but actionable diagnostics to the temporary live diagnostic UI."""
     message = str(exc or "").strip() or repr(exc)
     cause = getattr(exc, "__cause__", None)
     context = getattr(exc, "__context__", None)
-    detail = {
-        "stage": "golden_drive",
-        "reason": type(exc).__name__,
-        "message": message[:1200],
-        "lesson_id": lesson_id,
-    }
+    detail = {"stage":"golden_drive","reason":type(exc).__name__,"message":message[:1200],"lesson_id":lesson_id}
     if cause is not None:
         detail["cause_type"] = type(cause).__name__
         detail["cause"] = (str(cause).strip() or repr(cause))[:1200]
@@ -100,52 +91,59 @@ def _drive_failure_detail(exc: Exception, lesson_id: str) -> dict:
 
 
 def install_golden_runtime_bridge() -> None:
-    """Insert Golden routes before the legacy interactive-lesson routes."""
     from app.main import app
     from app.api import routes_interactive_lessons as legacy
-    from app.services.golden_store import fetch_golden_from_drive
-
+    from app.services.golden_store import fetch_golden_from_drive, get_registry_entry
     if getattr(app.state, "nabil_golden_runtime_bridge", False):
         return
-
     bridge = APIRouter(prefix="/api/interactive-lessons")
 
     @bridge.get("/resolve")
-    def golden_first_resolve(
-        grade: str,
-        subject: str,
-        lesson: str = "",
-        language: str = "",
-        lesson_id: str = "",
-    ):
+    def golden_first_resolve(grade: str, subject: str, lesson: str = "", language: str = "", lesson_id: str = ""):
         entry = _golden_entry(grade, subject, lesson, lesson_id=lesson_id)
         if entry is None:
             if lesson_id:
-                raise HTTPException(404, detail={"stage": "golden_registry", "reason": "LESSON_ID_NOT_FOUND", "lesson_id": lesson_id})
+                raise HTTPException(404, detail={"stage":"golden_registry","reason":"LESSON_ID_NOT_FOUND","lesson_id":lesson_id})
             return legacy.resolve(grade=grade, subject=subject, lesson=lesson, language=language)
-
         resolved_id = str(entry["lesson_id"])
         lang = str(entry.get("language") or language or "en")
         version = str(entry.get("version") or "0.01")
+
+        # Owner-requested live isolation test.  G12-MATH-GS-001 is a native
+        # Google Doc, unlike the old G07 Physics prepared HTML.  Do not ask the
+        # Railway service account to download it: let the browser render the
+        # exact registered Drive document.  This identifies auth vs rendering.
+        if resolved_id == "G12-MATH-GS-001" and entry.get("drive_file_id"):
+            return {
+                "found": True,
+                "title": entry.get("title") or lesson,
+                "url": "/api/interactive-lessons/golden-drive-preview?lesson_id=" + quote(resolved_id),
+                "source": "golden_registry_browser_drive_preview",
+                "bytes": 0,
+                "lesson_id": resolved_id,
+                "zero_ai": True,
+                "resolved_by": "lesson_id" if lesson_id else "title_fallback",
+            }
+
         try:
             payload = fetch_golden_from_drive(resolved_id, lang, version)
         except Exception as exc:
             raise HTTPException(503, detail=_drive_failure_detail(exc, resolved_id)) from exc
-        url = (
-            "/api/interactive-lessons/golden-view?lesson_id=" + quote(resolved_id)
-            + "&language=" + quote(lang)
-            + "&version=" + quote(version)
-        )
-        return {
-            "found": True,
-            "title": payload.get("title") or entry.get("title") or lesson,
-            "url": url,
-            "source": "golden_drive_zero_ai",
-            "bytes": len((payload.get("lesson_html") or payload.get("reply") or "").encode("utf-8")),
-            "lesson_id": resolved_id,
-            "zero_ai": True,
-            "resolved_by": "lesson_id" if lesson_id else "title_fallback",
-        }
+        url = "/api/interactive-lessons/golden-view?lesson_id=" + quote(resolved_id) + "&language=" + quote(lang) + "&version=" + quote(version)
+        return {"found":True,"title":payload.get("title") or entry.get("title") or lesson,"url":url,"source":"golden_drive_zero_ai","bytes":len((payload.get("lesson_html") or payload.get("reply") or "").encode("utf-8")),"lesson_id":resolved_id,"zero_ai":True,"resolved_by":"lesson_id" if lesson_id else "title_fallback"}
+
+    @bridge.get("/golden-drive-preview", response_class=HTMLResponse)
+    def golden_drive_preview(lesson_id: str):
+        entry = get_registry_entry(lesson_id)
+        if not entry or not entry.get("golden"):
+            raise HTTPException(404, "GOLDEN_LESSON_NOT_FOUND")
+        file_id = str(entry.get("drive_file_id") or "").strip()
+        if not re.fullmatch(r"[A-Za-z0-9_-]{10,200}", file_id):
+            raise HTTPException(422, "GOLDEN_DRIVE_FILE_ID_INVALID")
+        title = html.escape(str(entry.get("title") or lesson_id))
+        src = "https://docs.google.com/document/d/" + quote(file_id) + "/preview"
+        markup = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>%s</title><style>html,body{margin:0;width:100%%;height:100%%;background:#071d30}iframe{border:0;width:100%%;height:100vh;display:block}.tag{position:fixed;z-index:2;left:8px;top:8px;background:#063b59;color:#8ee8ff;padding:6px 10px;border-radius:8px;font:12px monospace}</style></head><body><div class='tag'>GOLDEN DIRECT DRIVE TEST · %s</div><iframe src='%s' title='%s' allow='clipboard-read; clipboard-write'></iframe></body></html>""" % (title, html.escape(lesson_id), html.escape(src, quote=True), title)
+        return HTMLResponse(markup, headers={"Cache-Control":"no-store","Content-Security-Policy":"default-src 'self' https: data: blob:; frame-src https://docs.google.com https://drive.google.com; style-src 'unsafe-inline' 'self'; frame-ancestors 'self'","X-NABIL-Lesson-Source":"golden-browser-drive-preview","X-NABIL-Lesson-ID":lesson_id})
 
     @bridge.get("/golden-view", response_class=HTMLResponse)
     def golden_view(lesson_id: str, language: str = "en", version: str = "0.01"):
@@ -155,21 +153,9 @@ def install_golden_runtime_bridge() -> None:
             raise HTTPException(503, detail=_drive_failure_detail(exc, lesson_id)) from exc
         markup = str(payload.get("lesson_html") or "").strip()
         if not markup:
-            import html
             text = html.escape(str(payload.get("reply") or ""))
-            markup = (
-                "<!doctype html><html><head><meta charset='utf-8'>"
-                "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-                "<style>body{font:18px/1.65 Arial,sans-serif;margin:0;padding:24px;"
-                "background:#071d30;color:#eefaff}pre{white-space:pre-wrap}</style>"
-                "</head><body><pre>" + text + "</pre></body></html>"
-            )
-        return HTMLResponse(markup, headers={
-            "Cache-Control": "private, no-store",
-            "Content-Security-Policy": "default-src 'self' data: blob: https:; script-src 'unsafe-inline' 'self' https:; style-src 'unsafe-inline' 'self' https:; frame-ancestors 'self'",
-            "X-NABIL-Lesson-Source": "golden-drive-zero-ai",
-            "X-NABIL-Lesson-ID": lesson_id,
-        })
+            markup = "<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><style>body{font:18px/1.65 Arial,sans-serif;margin:0;padding:24px;background:#071d30;color:#eefaff}pre{white-space:pre-wrap}</style></head><body><pre>" + text + "</pre></body></html>"
+        return HTMLResponse(markup, headers={"Cache-Control":"private, no-store","Content-Security-Policy":"default-src 'self' data: blob: https:; script-src 'unsafe-inline' 'self' https:; style-src 'unsafe-inline' 'self' https:; frame-ancestors 'self'","X-NABIL-Lesson-Source":"golden-drive-zero-ai","X-NABIL-Lesson-ID":lesson_id})
 
     for route in reversed(bridge.routes):
         app.router.routes.insert(0, route)
