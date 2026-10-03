@@ -17,6 +17,7 @@ from fastapi.responses import HTMLResponse
 
 GOLDEN_ARTIFACT_DIR = Path("data/golden_artifacts")
 RENDERER_URL = "/static/nabil_classroom_engine_v10.js?v=15"
+READABILITY_CSS_URL = "/static/nabil_classroom_readability_v1.css?v=1"
 _CACHE = {"at": 0.0, "rows": []}
 LANG_CODES = {"EN", "FR", "AR"}
 BRANCH_CODES = {"GS", "LS", "SV", "SE", "ES", "LH", "HUM"}
@@ -163,7 +164,7 @@ def _source(entry):
 
 def _page(entry, text, source):
     payload = json.dumps({"lesson_id": entry["lesson_id"], "title": entry["title"], "text": text, "source": source}, ensure_ascii=False).replace("</", "<\\/")
-    return f'''<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(entry['title'])}</title><style>html,body,#nabil-classroom-root{{margin:0;min-height:100%;background:#030b14}}</style></head><body><main id="nabil-classroom-root"></main><script>window.__NABIL_GOLDEN__={payload};</script><script src="{RENDERER_URL}"></script><script>(function(){{var r=window.NABILClassroomV10,p=window.__NABIL_GOLDEN__,root=document.getElementById('nabil-classroom-root');if(r&&p)r.mount(root,p.text,p.title,p);else root.innerHTML='<pre style="color:#f99">NABIL classroom failed to load</pre>';}})();</script></body></html>'''
+    return f'''<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(entry['title'])}</title><style>html,body,#nabil-classroom-root{{margin:0;min-height:100%;background:#030b14}}</style><link rel="stylesheet" href="{READABILITY_CSS_URL}"></head><body><main id="nabil-classroom-root"></main><script>window.__NABIL_GOLDEN__={payload};</script><script src="{RENDERER_URL}"></script><script>(function(){{var r=window.NABILClassroomV10,p=window.__NABIL_GOLDEN__,root=document.getElementById('nabil-classroom-root');if(r&&p)r.mount(root,p.text,p.title,p);else root.innerHTML='<pre style="color:#f99">NABIL classroom failed to load</pre>';}})();</script></body></html>'''
 
 
 def build_router() -> APIRouter:
