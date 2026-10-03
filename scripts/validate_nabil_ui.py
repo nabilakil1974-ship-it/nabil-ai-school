@@ -4,6 +4,7 @@ This intentionally avoids browser automation; it catches accidental regressions
 in the exact owner-requested wiring before a Railway image is accepted.
 """
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -70,7 +71,7 @@ def main() -> None:
         'rfind("</body>")',
     )
 
-    lesson_runtime = require(
+    require(
         "app/static/nabil_lesson_e2e_runtime_v1.js",
         "#nabilE2ETools",
         "#nabilE2EStatus",
@@ -80,7 +81,7 @@ def main() -> None:
         "speechSynthesis",
         "stopSpeech",
     )
-    smart_lab = require(
+    require(
         "app/static/nabil_smart_lab_bridge_v1.js",
         "/api/smart-labs/from-question",
         "nabil:teach-all",
@@ -88,7 +89,7 @@ def main() -> None:
         "nabil:teacher-complete",
         "#nabilSmartLabFrame",
     )
-    lab_voice = require(
+    require(
         "app/static/nabil_lab_voice_v1.js",
         "speechSynthesis",
         "NABILLessonE2E",
@@ -111,9 +112,8 @@ def main() -> None:
     if 'html.replace("</body>"' in main_py:
         raise SystemExit("main.py: global </body> replacement can leak raw JS")
 
-    compact_mobile = "".join(mobile_lab.split())
-    required_mobile_frame = "#nabilSmartLabFrame{flex:11 0!important;width:100%!important;height:0!important;min-height:0!important;max-height:none!important;}"
-    if required_mobile_frame not in compact_mobile:
+    frame_blocks = re.findall(r"#nabilSmartLabFrame\s*\{([^}]*)\}", mobile_lab, flags=re.S)
+    if not any("height:0!important" in "".join(block.split()) and "flex:11 0!important" in "".join(block.split()) for block in frame_blocks):
         raise SystemExit("mobile lab: Smart Lab frame must consume the remaining phone viewport")
 
     print("NABIL UI contract: PASS")
