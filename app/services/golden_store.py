@@ -15,6 +15,7 @@ import re
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any, Optional
+from urllib.request import Request, urlopen
 
 from app.services.lesson_cache import normalize_lesson_id, normalize_language, normalize_package_version
 
@@ -80,12 +81,7 @@ def list_registry_entries() -> list[dict[str, Any]]:
 
 
 def _drive_service():
-    """Use the same proven Drive authentication path as the physics/index pipeline.
-
-    The previous Golden-only service-account file made production diverge from the
-    already-working Drive lesson route.  One Drive client means Golden mathematics
-    can read the same owner Drive that physics already reads on Railway.
-    """
+    """Use the same proven read-only Drive client as the indexed-book pipeline."""
     from scripts.index_books import get_drive_service
     return get_drive_service()
 
@@ -134,35 +130,78 @@ def _download_bytes(service, file_id: str, mime_type: str) -> bytes:
     return fh.getvalue()
 
 
+def _anonymous_google_doc_export(file_id: str) -> bytes:
+    """Fallback for owner Docs shared by link but not explicitly with the service account.
+
+    This never follows a user supplied host: only the registry's Drive id is inserted
+    into Google's fixed export endpoint.  It lets the Golden registry remain the
+    authoritative map while avoiding an unnecessary AI/RAG fallback.
+    """
+    if not re.fullmatch(r"[A-Za-z0-9_-]{10,200}", file_id or ""):
+        raise ValueError("INVALID_GOLDEN_DRIVE_FILE_ID")
+    url = f"https://docs.google.com/document/d/{file_id}/export?format=html"
+    request = Request(url, headers={"User-Agent": "NABIL-AI-Golden/1.0"})
+    with urlopen(request, timeout=20) as response:
+        data = response.read(12_000_001)
+    if not data or len(data) > 12_000_000:
+        raise RuntimeError("GOLDEN_PUBLIC_EXPORT_INVALID_SIZE")
+    return data
+
+
 def fetch_golden_from_drive(lesson_id: str, language: str = "en", version: str = "0.01") -> dict[str, Any]:
     lid = normalize_lesson_id(lesson_id)
     lang = normalize_language(language)
     ver = normalize_package_version(version)
     entry = get_registry_entry(lid) or {}
-    service = _drive_service()
 
     file_id = str(entry.get("drive_theory_id") or entry.get("drive_file_id") or "").strip()
     metadata = None
+    payload = None
+    authenticated_error = None
+
+    # Registered IDs are authoritative.  First use the same authenticated Drive
+    # client as physics.  If that service account cannot see an owner Google Doc,
+    # try Google's read-only link export before declaring the Golden unavailable.
     if file_id:
-        metadata = service.files().get(
-            fileId=file_id,
-            fields="id,name,mimeType,modifiedTime,webViewLink,appProperties",
-        ).execute()
-        props = metadata.get("appProperties") or {}
-        if props.get("nabil_lesson_id") and normalize_lesson_id(props["nabil_lesson_id"]) != lid:
-            raise RuntimeError("GOLDEN_DRIVE_IDENTITY_MISMATCH")
+        try:
+            service = _drive_service()
+            metadata = service.files().get(
+                fileId=file_id,
+                fields="id,name,mimeType,modifiedTime,webViewLink,appProperties",
+            ).execute()
+            props = metadata.get("appProperties") or {}
+            if props.get("nabil_lesson_id") and normalize_lesson_id(props["nabil_lesson_id"]) != lid:
+                raise RuntimeError("GOLDEN_DRIVE_IDENTITY_MISMATCH")
+            payload = _download_bytes(service, file_id, str(metadata.get("mimeType") or ""))
+        except Exception as exc:
+            authenticated_error = exc
+            try:
+                payload = _anonymous_google_doc_export(file_id)
+                metadata = {
+                    "id": file_id,
+                    "name": str(entry.get("title") or lid),
+                    "mimeType": "application/vnd.google-apps.document",
+                    "webViewLink": f"https://docs.google.com/document/d/{file_id}/edit",
+                    "appProperties": {},
+                }
+            except Exception as public_exc:
+                raise RuntimeError(
+                    f"GOLDEN_DRIVE_UNREADABLE:{type(authenticated_error).__name__}:{type(public_exc).__name__}"
+                ) from public_exc
     else:
+        service = _drive_service()
         metadata = _discover_on_drive(service, lid, lang, ver)
         if metadata is None:
             raise FileNotFoundError(f"GOLDEN_LESSON_NOT_PUBLISHED:{lid}:{lang}:{ver}")
         file_id = str(metadata["id"])
+        payload = _download_bytes(service, file_id, str(metadata.get("mimeType") or ""))
 
-    payload = _download_bytes(service, file_id, str(metadata.get("mimeType") or ""))
+    assert payload is not None and metadata is not None
     text = payload.decode("utf-8", errors="replace").strip()
     if not text:
         raise RuntimeError("GOLDEN_DRIVE_ARTIFACT_EMPTY")
     mime = str(metadata.get("mimeType") or "")
-    is_html = "html" in mime or text.lstrip().lower().startswith(("<!doctype html", "<html"))
+    is_html = "html" in mime or "google-apps.document" in mime or text.lstrip().lower().startswith(("<!doctype html", "<html"))
     lesson_html = text if is_html else ""
     reply = html_to_student_text(text) if is_html else text
     if not reply:
