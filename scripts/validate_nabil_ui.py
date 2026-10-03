@@ -70,8 +70,6 @@ def main() -> None:
         'rfind("</body>")',
     )
 
-    # Production lesson diagnostics: this is the NABIL-screen panel used to
-    # surface send/read/voice/runtime errors while testing a generated lesson.
     lesson_runtime = require(
         "app/static/nabil_lesson_e2e_runtime_v1.js",
         "#nabilE2ETools",
@@ -106,16 +104,17 @@ def main() -> None:
         ".nabil-solution-runtime-lab iframe",
     )
 
-    # Reject known regressions that previously exposed code or reintroduced
-    # a stand-alone grade splash.
     if ".selection-stage{display:none!important}" not in theme.replace(" ", ""):
         raise SystemExit("theme: grade-only landing stage must remain hidden")
     if "replaceChildren();stage.hidden=true" not in open_tutor.replace(" ", ""):
         raise SystemExit("open tutor: legacy grade landing must remain retired")
     if 'html.replace("</body>"' in main_py:
         raise SystemExit("main.py: global </body> replacement can leak raw JS")
-    if "height:auto!important" in mobile_lab.split("#nabilSmartLabFrame", 2)[-1].split(".nabil-smart-lab-inline", 1)[0]:
-        raise SystemExit("mobile lab: Smart Lab frame must not collapse to height:auto")
+
+    compact_mobile = "".join(mobile_lab.split())
+    required_mobile_frame = "#nabilSmartLabFrame{flex:11 0!important;width:100%!important;height:0!important;min-height:0!important;max-height:none!important;}"
+    if required_mobile_frame not in compact_mobile:
+        raise SystemExit("mobile lab: Smart Lab frame must consume the remaining phone viewport")
 
     print("NABIL UI contract: PASS")
     print(" - owner reference blue palette")
