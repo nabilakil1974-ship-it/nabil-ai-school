@@ -12,6 +12,11 @@ from urllib.parse import quote
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse
 
+# TEMPORARY DIAGNOSTIC: prove the Start Lesson -> Golden Drive path with one
+# known lesson before generalising. Remove after the live Railway check passes.
+_DIAGNOSTIC_GOLDEN_LESSON_ID = "G12-MATH-GS-001"
+_DIAGNOSTIC_GOLDEN_TITLE = "Irrational Functions"
+
 
 def _norm(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", str(value or "").casefold())
@@ -67,13 +72,21 @@ def _golden_entry(grade: str, subject: str, lesson: str):
     return matches[0] if matches else None
 
 
+def _diagnostic_entry():
+    """Return the exact known Golden row by ID, independent of UI title matching."""
+    from app.services.golden_store import get_registry_entry
+    row = get_registry_entry(_DIAGNOSTIC_GOLDEN_LESSON_ID)
+    if not row or not row.get("golden"):
+        raise HTTPException(503, detail={"stage":"diagnostic_registry", "reason":"KNOWN_GOLDEN_ID_MISSING", "lesson_id":_DIAGNOSTIC_GOLDEN_LESSON_ID})
+    return row
+
+
 def install_golden_runtime_bridge() -> None:
     """Insert Golden routes before the legacy interactive-lesson routes."""
     from app.main import app
     from app.api import routes_interactive_lessons as legacy
     from app.services.golden_store import fetch_golden_from_drive
 
-    # Idempotent across reload/import patterns.
     if getattr(app.state, "nabil_golden_runtime_bridge", False):
         return
 
@@ -81,19 +94,21 @@ def install_golden_runtime_bridge() -> None:
 
     @bridge.get("/resolve")
     def golden_first_resolve(grade: str, subject: str, lesson: str, language: str = ""):
-        entry = _golden_entry(grade, subject, lesson)
+        # TEMP diagnostic: when the selected title is Irrational Functions,
+        # bypass all grade/subject/title inference and force the exact known ID.
+        diagnostic = _norm(lesson) == _norm(_DIAGNOSTIC_GOLDEN_TITLE)
+        entry = _diagnostic_entry() if diagnostic else _golden_entry(grade, subject, lesson)
         if entry is None:
             return legacy.resolve(grade=grade, subject=subject, lesson=lesson, language=language)
-        lesson_id = str(entry["lesson_id"])
+        lesson_id = _DIAGNOSTIC_GOLDEN_LESSON_ID if diagnostic else str(entry["lesson_id"])
         lang = str(entry.get("language") or language or "en")
         version = str(entry.get("version") or "0.01")
         try:
             payload = fetch_golden_from_drive(lesson_id, lang, version)
         except Exception as exc:
-            # Golden is fail-closed: never spend AI or silently substitute RAG.
             raise HTTPException(
                 503,
-                detail={"stage": "golden_drive", "reason": type(exc).__name__, "lesson_id": lesson_id},
+                detail={"stage": "golden_drive", "reason": type(exc).__name__, "lesson_id": lesson_id, "diagnostic_forced": diagnostic},
             ) from exc
         url = (
             "/api/interactive-lessons/golden-view?lesson_id=" + quote(lesson_id)
@@ -108,6 +123,7 @@ def install_golden_runtime_bridge() -> None:
             "bytes": len((payload.get("lesson_html") or payload.get("reply") or "").encode("utf-8")),
             "lesson_id": lesson_id,
             "zero_ai": True,
+            "diagnostic_forced": diagnostic,
         }
 
     @bridge.get("/golden-view", response_class=HTMLResponse)
@@ -121,7 +137,6 @@ def install_golden_runtime_bridge() -> None:
             ) from exc
         markup = str(payload.get("lesson_html") or "").strip()
         if not markup:
-            # A Golden artifact may be plain text; render it safely without AI.
             import html
             text = html.escape(str(payload.get("reply") or ""))
             markup = (
@@ -135,10 +150,9 @@ def install_golden_runtime_bridge() -> None:
             "Cache-Control": "private, no-store",
             "Content-Security-Policy": "default-src 'self' data: blob: https:; script-src 'unsafe-inline' 'self' https:; style-src 'unsafe-inline' 'self' https:; frame-ancestors 'self'",
             "X-NABIL-Lesson-Source": "golden-drive-zero-ai",
+            "X-NABIL-Diagnostic-Lesson-ID": lesson_id,
         })
 
-    # APIRouter.include_router would append after the legacy duplicate /resolve.
-    # Insert these route objects at the front so Golden wins deterministically.
     for route in reversed(bridge.routes):
         app.router.routes.insert(0, route)
     app.state.nabil_golden_runtime_bridge = True
