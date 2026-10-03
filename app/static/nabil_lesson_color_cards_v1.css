@@ -1,3 +1,4 @@
+@import url('/static/nabil_mobile_lab_fix_v15.css?v=15');
 /* Visually distinct concept and textbook exercise cards. Applied to authored Drive lessons. */
 main > section.card, main > section.grid > article.card {
  --accent:#50c8f5;
