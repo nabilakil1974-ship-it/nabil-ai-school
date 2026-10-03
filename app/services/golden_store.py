@@ -1,7 +1,7 @@
 """NABIL AI Golden lesson runtime store.
 
 Zero-AI runtime contract:
-lesson_id -> Golden registry -> Drive artifact -> student.
+lesson_id -> synchronized Golden catalogue/registry -> Drive artifact -> student.
 No RAG, embeddings or LLM calls occur in this module.
 """
 from __future__ import annotations
@@ -20,6 +20,7 @@ from urllib.request import Request, urlopen
 from app.services.lesson_cache import normalize_lesson_id, normalize_language, normalize_package_version
 
 GOLDEN_REGISTRY_PATH = Path(os.getenv("NABIL_GOLDEN_REGISTRY_PATH", "data/golden_lessons_registry.json"))
+GOLDEN_LINKS_PATH = Path(os.getenv("NABIL_GOLDEN_LINKS_PATH", "data/golden_lesson_links.json"))
 
 
 class _VisibleText(HTMLParser):
@@ -49,39 +50,58 @@ def html_to_student_text(value: str) -> str:
     return parser.text()
 
 
-def _registry() -> dict[str, Any]:
-    if not GOLDEN_REGISTRY_PATH.exists():
-        return {"lessons": {}}
-    raw = json.loads(GOLDEN_REGISTRY_PATH.read_text(encoding="utf-8"))
+def _load_lessons(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    raw = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
-        raise RuntimeError("GOLDEN_REGISTRY_INVALID")
+        raise RuntimeError(f"GOLDEN_JSON_INVALID:{path}")
     lessons = raw.get("lessons")
     if lessons is None and all(isinstance(v, dict) for v in raw.values()):
         lessons = raw
     if not isinstance(lessons, dict):
-        raise RuntimeError("GOLDEN_REGISTRY_LESSONS_INVALID")
-    return {**raw, "lessons": lessons}
+        raise RuntimeError(f"GOLDEN_LESSONS_INVALID:{path}")
+    return lessons
+
+
+def _registry() -> dict[str, Any]:
+    return {"lessons": _load_lessons(GOLDEN_REGISTRY_PATH)}
+
+
+def _catalogue_entry(lesson_id: str) -> Optional[dict[str, Any]]:
+    lid = normalize_lesson_id(lesson_id)
+    item = _load_lessons(GOLDEN_LINKS_PATH).get(lid)
+    if not isinstance(item, dict):
+        return None
+    if item.get("golden") is False or str(item.get("status") or "available") != "available":
+        return None
+    return dict(item)
 
 
 def get_registry_entry(lesson_id: str) -> Optional[dict[str, Any]]:
     lid = normalize_lesson_id(lesson_id)
-    item = _registry()["lessons"].get(lid)
-    return dict(item) if isinstance(item, dict) else None
+    base = _registry()["lessons"].get(lid)
+    synced = _catalogue_entry(lid)
+    if not isinstance(base, dict) and not isinstance(synced, dict):
+        return None
+    merged: dict[str, Any] = dict(base or {})
+    if synced:
+        merged.update({k: v for k, v in synced.items() if v not in (None, "")})
+    merged.setdefault("lesson_id", lid)
+    return merged
 
 
 def list_registry_entries() -> list[dict[str, Any]]:
+    ids = set(_registry()["lessons"].keys()) | set(_load_lessons(GOLDEN_LINKS_PATH).keys())
     out: list[dict[str, Any]] = []
-    for lid, item in _registry()["lessons"].items():
-        if not isinstance(item, dict):
-            continue
-        row = dict(item)
-        row.setdefault("lesson_id", str(lid).upper())
-        out.append(row)
+    for lid in sorted(ids):
+        row = get_registry_entry(lid)
+        if row:
+            out.append(row)
     return out
 
 
 def _drive_service():
-    """Use the same proven read-only Drive client as the indexed-book pipeline."""
     from scripts.index_books import get_drive_service
     return get_drive_service()
 
@@ -96,17 +116,11 @@ def _discover_on_drive(service, lesson_id: str, language: str, version: str) -> 
         "appProperties has { key='nabil_golden' and value='true' } and "
         "appProperties has { key='nabil_artifact' and value='theory' }"
     )
-    rows = service.files().list(
-        q=q,
-        fields="files(id,name,mimeType,modifiedTime,webViewLink,appProperties)",
-        pageSize=20,
-    ).execute().get("files", [])
+    rows = service.files().list(q=q, fields="files(id,name,mimeType,modifiedTime,webViewLink,appProperties)", pageSize=20).execute().get("files", [])
     candidates = []
     for row in rows:
         props = row.get("appProperties") or {}
-        row_lang = normalize_language(props.get("nabil_language") or lang)
-        row_ver = normalize_package_version(props.get("nabil_version") or ver)
-        if row_lang == lang and row_ver == ver:
+        if normalize_language(props.get("nabil_language") or lang) == lang and normalize_package_version(props.get("nabil_version") or ver) == ver:
             candidates.append(row)
     if not candidates:
         return None
@@ -118,10 +132,7 @@ def _discover_on_drive(service, lesson_id: str, language: str, version: str) -> 
 
 def _download_bytes(service, file_id: str, mime_type: str) -> bytes:
     from googleapiclient.http import MediaIoBaseDownload
-    if mime_type == "application/vnd.google-apps.document":
-        request = service.files().export_media(fileId=file_id, mimeType="text/html")
-    else:
-        request = service.files().get_media(fileId=file_id)
+    request = service.files().export_media(fileId=file_id, mimeType="text/html") if mime_type == "application/vnd.google-apps.document" else service.files().get_media(fileId=file_id)
     fh = io.BytesIO()
     dl = MediaIoBaseDownload(fh, request)
     done = False
@@ -131,12 +142,6 @@ def _download_bytes(service, file_id: str, mime_type: str) -> bytes:
 
 
 def _anonymous_google_doc_export(file_id: str) -> bytes:
-    """Fallback for owner Docs shared by link but not explicitly with the service account.
-
-    This never follows a user supplied host: only the registry's Drive id is inserted
-    into Google's fixed export endpoint.  It lets the Golden registry remain the
-    authoritative map while avoiding an unnecessary AI/RAG fallback.
-    """
     if not re.fullmatch(r"[A-Za-z0-9_-]{10,200}", file_id or ""):
         raise ValueError("INVALID_GOLDEN_DRIVE_FILE_ID")
     url = f"https://docs.google.com/document/d/{file_id}/export?format=html"
@@ -153,22 +158,15 @@ def fetch_golden_from_drive(lesson_id: str, language: str = "en", version: str =
     lang = normalize_language(language)
     ver = normalize_package_version(version)
     entry = get_registry_entry(lid) or {}
-
-    file_id = str(entry.get("drive_theory_id") or entry.get("drive_file_id") or "").strip()
+    file_id = str(entry.get("drive_file_id") or entry.get("drive_theory_id") or "").strip()
     metadata = None
     payload = None
     authenticated_error = None
 
-    # Registered IDs are authoritative.  First use the same authenticated Drive
-    # client as physics.  If that service account cannot see an owner Google Doc,
-    # try Google's read-only link export before declaring the Golden unavailable.
     if file_id:
         try:
             service = _drive_service()
-            metadata = service.files().get(
-                fileId=file_id,
-                fields="id,name,mimeType,modifiedTime,webViewLink,appProperties",
-            ).execute()
+            metadata = service.files().get(fileId=file_id, fields="id,name,mimeType,modifiedTime,webViewLink,appProperties").execute()
             props = metadata.get("appProperties") or {}
             if props.get("nabil_lesson_id") and normalize_lesson_id(props["nabil_lesson_id"]) != lid:
                 raise RuntimeError("GOLDEN_DRIVE_IDENTITY_MISMATCH")
@@ -181,13 +179,11 @@ def fetch_golden_from_drive(lesson_id: str, language: str = "en", version: str =
                     "id": file_id,
                     "name": str(entry.get("title") or lid),
                     "mimeType": "application/vnd.google-apps.document",
-                    "webViewLink": f"https://docs.google.com/document/d/{file_id}/edit",
+                    "webViewLink": str(entry.get("drive_url") or f"https://docs.google.com/document/d/{file_id}/edit"),
                     "appProperties": {},
                 }
             except Exception as public_exc:
-                raise RuntimeError(
-                    f"GOLDEN_DRIVE_UNREADABLE:{type(authenticated_error).__name__}:{type(public_exc).__name__}"
-                ) from public_exc
+                raise RuntimeError(f"GOLDEN_DRIVE_UNREADABLE:{type(authenticated_error).__name__}:{type(public_exc).__name__}") from public_exc
     else:
         service = _drive_service()
         metadata = _discover_on_drive(service, lid, lang, ver)
@@ -215,7 +211,7 @@ def fetch_golden_from_drive(lesson_id: str, language: str = "en", version: str =
         "reply": reply,
         "lesson_html": lesson_html,
         "drive_file_id": file_id,
-        "drive_url": metadata.get("webViewLink") or f"https://drive.google.com/file/d/{file_id}/view",
+        "drive_url": metadata.get("webViewLink") or entry.get("drive_url") or f"https://drive.google.com/file/d/{file_id}/view",
         "sha256": sha,
         "sources": [{"type":"golden_drive","lesson_id":lid,"drive_file_id":file_id,"sha256":sha}],
     }
