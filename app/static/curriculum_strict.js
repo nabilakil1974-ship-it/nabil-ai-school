@@ -1,77 +1,23 @@
 (() => {
-  "use strict";
-  const byId=id=>document.getElementById(id), clean=v=>String(v??"").trim();
-  const grade=()=>byId("gradeSelect"), subject=()=>byId("subjectSelect"), language=()=>byId("languageSelect"), branch=()=>byId("branchSelect"), lesson=()=>byId("lessonSelect");
-  let requestSeq=0;
-  function resetLessons(message="اختر الدرس"){
-    const el=lesson(); if(!el)return; el.innerHTML="";
-    const opt=document.createElement("option"); opt.value=""; opt.textContent=message; opt.dataset.lessonId=""; opt.dataset.packageVersion=""; el.appendChild(opt);
-    el.dataset.lessonId=""; el.dataset.packageVersion=""; el.dataset.strictCurriculum="1";
-  }
-  function normalizeLessonItem(item){
-    // Golden-only: title-only legacy rows are intentionally rejected.
-    if(typeof item==="string")return null;
-    if(!item||typeof item!=="object")return null;
-    const title=clean(item.title??item.lesson??item.name??item.canonical_title); if(!title)return null;
-    return {title,lessonId:clean(item.lesson_id??item.lessonId??item.id),version:clean(item.version??item.package_version??item.published_version)};
-  }
-  function syncSelectedLessonIdentity(){
-    const el=lesson(); if(!el)return; const opt=el.options?.[el.selectedIndex];
-    el.dataset.lessonId=clean(opt?.dataset?.lessonId); el.dataset.packageVersion=clean(opt?.dataset?.packageVersion);
-    window.NABILSelectedLesson={title:clean(el.value),lesson_id:clean(el.dataset.lessonId),version:clean(el.dataset.packageVersion)};
-    try{window.dispatchEvent(new CustomEvent("nabil:lesson-selected",{detail:window.NABILSelectedLesson}));}catch(_){}
-  }
-  async function fetchCurriculumLessons(q){
-    let res=await fetch("/api/chat/curriculum/lessons?"+q,{cache:"no-store"});
-    if(res.status===404)res=await fetch("/api/curriculum/lessons?"+q,{cache:"no-store"});
-    return res;
-  }
-  async function refreshStrictLessons(){
-    const g=clean(grade()?.value),s=clean(subject()?.value),l=clean(language()?.value),b=clean(branch()?.value),seq=++requestSeq; resetLessons();
-    if(g.startsWith("الثالث ثانوي")&&!g.includes(" - ")&&!b){resetLessons("اختر فرع الثالث ثانوي أولًا");return;}
-    if(!g||!s||!l)return;
-    const q=new URLSearchParams({grade:g,subject:s,language:l}); if(b)q.set("branch",b);
-    try{
-      const res=await fetchCurriculumLessons(q.toString()); if(!res.ok)throw Error("curriculum "+res.status); const data=await res.json(); if(seq!==requestSeq)return;
-      const normalized=[],seen=new Set();
-      for(const raw of (Array.isArray(data?.lessons)?data.lessons:[])){const item=normalizeLessonItem(raw);if(!item||!item.lessonId)continue;const key="id:"+item.lessonId;if(seen.has(key))continue;seen.add(key);normalized.push(item);}
-      resetLessons(normalized.length?"اختر الدرس":"لا توجد دروس ذهبية منشورة بهذه اللغة"); const el=lesson(); if(!el)return;
-      for(const item of normalized){const opt=document.createElement("option");opt.value=item.title;opt.textContent=item.title;opt.dataset.lessonId=item.lessonId;opt.dataset.packageVersion=item.version;el.appendChild(opt);} el.dataset.strictCurriculum="1";syncSelectedLessonIdentity();
-    }catch(err){if(seq!==requestSeq)return;console.error("NABIL strict curriculum:",err);resetLessons("لا توجد دروس ذهبية منشورة لهذا الاختيار");}
-  }
-  function bind(){
-    for(const el of [grade(),subject(),language(),branch()]){if(!el||el.dataset.strictCurriculumBound)continue;el.dataset.strictCurriculumBound="1";el.addEventListener("change",()=>setTimeout(refreshStrictLessons,0));}
-    const le=lesson();if(le&&!le.dataset.nabilLessonIdentityBound){le.dataset.nabilLessonIdentityBound="1";le.addEventListener("change",syncSelectedLessonIdentity);} syncSelectedLessonIdentity();
-  }
-  // Golden identity is attached ONLY to the one request caused by pressing
-  // "Start Lesson". Follow-up chat questions remain normal tutor requests and
-  // therefore do not re-open the whole Golden package on every message.
-  let goldenStartPending=false;
-  function bindGoldenStart(){
-    const btn=byId("startLesson");
-    if(!btn||btn.dataset.nabilGoldenStartBound)return;
-    btn.dataset.nabilGoldenStartBound="1";
-    btn.addEventListener("click",()=>{
-      const selected=window.NABILSelectedLesson||{};
-      goldenStartPending=Boolean(clean(selected.lesson_id));
-    },true);
-  }
-  const originalFetch=window.fetch.bind(window);
-  window.fetch=function(input,init={}){
-    try{
-      const url=typeof input==="string"?input:String(input?.url||"");
-      const body=init?.body;
-      if(goldenStartPending&&/\/api\/chat(?:\?|$)/.test(url)&&body instanceof FormData){
-        const selected=window.NABILSelectedLesson||{};
-        const id=clean(selected.lesson_id),version=clean(selected.version);
-        goldenStartPending=false;
-        if(id)body.set("lesson_id",id);
-        if(version)body.set("package_version",version);
-      }
-    }catch(err){goldenStartPending=false;console.error("NABIL Golden identity bridge:",err);}
-    return originalFetch(input,init);
-  };
-  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>{bind();bindGoldenStart();setTimeout(refreshStrictLessons,250);});else{bind();bindGoldenStart();setTimeout(refreshStrictLessons,250);}
-  setTimeout(()=>{bind();bindGoldenStart();refreshStrictLessons();},1200); setTimeout(()=>{bind();bindGoldenStart();refreshStrictLessons();},1800);
-  window.NABILStrictCurriculum={refresh:refreshStrictLessons,getSelectedLessonId(){return clean(window.NABILSelectedLesson?.lesson_id);},getSelectedLesson(){return {...(window.NABILSelectedLesson||{title:"",lesson_id:"",version:""})};}};
+"use strict";
+const byId=id=>document.getElementById(id),clean=v=>String(v??"").trim();
+const grade=()=>byId("gradeSelect"),subject=()=>byId("subjectSelect"),language=()=>byId("languageSelect"),branch=()=>byId("branchSelect"),lesson=()=>byId("lessonSelect");
+const LOCAL_GOLDEN=[{"title":"Irrational Functions","lesson_id":"G12-MATH-GS-001","version":"0.01"},{"title":"Inverse Function","lesson_id":"G12-MATH-GS-002","version":"0.01"},{"title":"Inverse Trigonometric Functions","lesson_id":"G12-MATH-GS-003","version":"0.01"},{"title":"Differential Calculus","lesson_id":"G12-MATH-GS-004","version":"0.01"},{"title":"Natural Logarithm","lesson_id":"G12-MATH-GS-005","version":"0.01"},{"title":"Exponential Function","lesson_id":"G12-MATH-GS-006","version":"0.01"},{"title":"Power Functions","lesson_id":"G12-MATH-GS-007","version":"0.01"},{"title":"Second and Higher Order Derivatives","lesson_id":"G12-MATH-GS-008","version":"0.01"},{"title":"Sequences","lesson_id":"G12-MATH-GS-009","version":"0.01"},{"title":"Circular Functions","lesson_id":"G12-MATH-GS-010","version":"0.01"},{"title":"Measures of Central Tendency","lesson_id":"G12-MATH-GS-011","version":"0.01"},{"title":"Measures of Dispersion","lesson_id":"G12-MATH-GS-012","version":"0.01"},{"title":"Integral","lesson_id":"G12-MATH-GS-013","version":"0.01"},{"title":"Properties of the Integral","lesson_id":"G12-MATH-GS-014","version":"0.01"},{"title":"Integration Techniques","lesson_id":"G12-MATH-GS-015","version":"0.01"},{"title":"Mean Value of a Function","lesson_id":"G12-MATH-GS-016","version":"0.01"},{"title":"Applications to Integration","lesson_id":"G12-MATH-GS-017","version":"0.01"},{"title":"First Order Differential Equations","lesson_id":"G12-MATH-GS-018","version":"0.01"},{"title":"Linear Second Order Differential Equations with Constant Coefficients","lesson_id":"G12-MATH-GS-019","version":"0.01"},{"title":"Combinations","lesson_id":"G12-MATH-GS-020","version":"0.01"},{"title":"Conditional Probability","lesson_id":"G12-MATH-GS-021","version":"0.01"},{"title":"Random Variables","lesson_id":"G12-MATH-GS-022","version":"0.01"},{"title":"Self-Evaluation — Guided Review & Hints","lesson_id":"G12-MATH-GS-023","version":"0.01"}];
+let requestSeq=0,goldenStartPending=false;
+function resetLessons(message="اختر الدرس"){const el=lesson();if(!el)return;el.innerHTML="";const o=document.createElement("option");o.value="";o.textContent=message;o.dataset.lessonId="";o.dataset.packageVersion="";el.appendChild(o);el.dataset.lessonId="";el.dataset.packageVersion="";el.dataset.strictCurriculum="1";}
+function syncSelected(){const el=lesson();if(!el)return;const o=el.options?.[el.selectedIndex];el.dataset.lessonId=clean(o?.dataset?.lessonId);el.dataset.packageVersion=clean(o?.dataset?.packageVersion);window.NABILSelectedLesson={title:clean(el.value),lesson_id:clean(el.dataset.lessonId),version:clean(el.dataset.packageVersion)};try{window.dispatchEvent(new CustomEvent("nabil:lesson-selected",{detail:window.NABILSelectedLesson}));}catch(_){}}
+function isG12GS(){const g=clean(grade()?.value).toLowerCase(),s=clean(subject()?.value).toLowerCase(),l=clean(language()?.value).toLowerCase(),b=clean(branch()?.value).toUpperCase();return (g.includes("الثالث ثانوي")||g.includes("grade 12")||g==="g12"||g.includes("terminale"))&&(s.includes("رياض")||s.includes("math"))&&["english","en"].includes(l)&&b==="GS";}
+async function serverLessons(q){let r=await fetch("/api/chat/curriculum/lessons?"+q,{cache:"no-store"});if(r.status===404)r=await fetch("/api/curriculum/lessons?"+q,{cache:"no-store"});if(!r.ok)return[];const d=await r.json();return Array.isArray(d?.lessons)?d.lessons:[];}
+async function refresh(){const g=clean(grade()?.value),s=clean(subject()?.value),l=clean(language()?.value),b=clean(branch()?.value),seq=++requestSeq;resetLessons();if(g.startsWith("الثالث ثانوي")&&!g.includes(" - ")&&!b){resetLessons("اختر فرع الثالث ثانوي أولًا");return;}if(!g||!s||!l)return;const q=new URLSearchParams({grade:g,subject:s,language:l});if(b)q.set("branch",b);try{let rows=await serverLessons(q.toString());if(seq!==requestSeq)return;if(!rows.length&&isG12GS())rows=LOCAL_GOLDEN;const seen=new Set(),items=[];for(const x of rows){if(!x||typeof x!=="object")continue;const id=clean(x.lesson_id??x.lessonId??x.id),title=clean(x.title??x.lesson??x.name);if(!id||!title||seen.has(id))continue;seen.add(id);items.push({title,lesson_id:id,version:clean(x.version)||"0.01"});}items.sort((a,b)=>a.lesson_id.localeCompare(b.lesson_id,undefined,{numeric:true}));resetLessons(items.length?"اختر الدرس":"لا توجد دروس ذهبية منشورة لهذا الاختيار");const el=lesson();for(const x of items){const o=document.createElement("option");o.value=x.title;o.textContent=x.title;o.dataset.lessonId=x.lesson_id;o.dataset.packageVersion=x.version;el.appendChild(o);}syncSelected();}catch(e){console.error("NABIL Golden curriculum:",e);if(isG12GS()){const el=lesson();resetLessons("اختر الدرس");for(const x of LOCAL_GOLDEN){const o=document.createElement("option");o.value=x.title;o.textContent=x.title;o.dataset.lessonId=x.lesson_id;o.dataset.packageVersion=x.version;el.appendChild(o);}syncSelected();}else resetLessons("تعذر تحميل فهرس الدروس الذهبية");}}
+function bind(){for(const el of[grade(),subject(),language(),branch()]){if(!el||el.dataset.strictCurriculumBound)continue;el.dataset.strictCurriculumBound="1";el.addEventListener("change",()=>setTimeout(refresh,0));}const le=lesson();if(le&&!le.dataset.nabilLessonIdentityBound){le.dataset.nabilLessonIdentityBound="1";le.addEventListener("change",syncSelected);}syncSelected();const btn=byId("startLesson");if(btn&&!btn.dataset.nabilGoldenStartBound){btn.dataset.nabilGoldenStartBound="1";btn.addEventListener("click",()=>{goldenStartPending=Boolean(clean(window.NABILSelectedLesson?.lesson_id));},true);}}
+const originalFetch=window.fetch.bind(window);
+window.fetch=function(input,init={}){try{const url=typeof input==="string"?input:String(input?.url||""),body=init?.body;if(goldenStartPending&&/\/api\/chat(?:\?|$)/.test(url)&&body instanceof FormData){const x=window.NABILSelectedLesson||{};goldenStartPending=false;if(clean(x.lesson_id))body.set("lesson_id",clean(x.lesson_id));if(clean(x.version))body.set("package_version",clean(x.version));}}catch(e){goldenStartPending=false;console.error("NABIL Golden identity bridge:",e);}return originalFetch(input,init);};
+function studentId(){try{if(typeof window.getStudentId==="function")return clean(window.getStudentId());return clean(localStorage.getItem("nabil_student_id"));}catch(_){return"";}}
+function badge(){let e=byId("nabilSubscriptionBadge");if(e)return e;e=document.createElement("button");e.id="nabilSubscriptionBadge";e.type="button";e.style.cssText="position:fixed;top:10px;right:10px;z-index:2147483000;border:0;border-radius:999px;padding:8px 12px;background:#0f766e;color:white;font:700 13px system-ui;box-shadow:0 4px 14px #0003;cursor:pointer";e.textContent="الاشتراك…";e.title="حالة الفترة التجريبية/الاشتراك — اضغط لإدخال رمز التفعيل";e.onclick=activate;document.body.appendChild(e);return e;}
+async function subscription(){const sid=studentId();if(!sid)return;const e=badge();try{const r=await originalFetch("/api/student/"+encodeURIComponent(sid)+"/subscription",{cache:"no-store"});if(!r.ok)throw Error();const s=await r.json(),d=Math.max(0,Number(s.remaining_days||0));e.textContent=s.state==="active"?"اشتراك: "+d+" يوم":s.state==="trial"?"تجريبي: "+d+" يوم":"انتهى الاشتراك";e.style.background=s.state==="expired"?"#b91c1c":s.state==="trial"?"#a16207":"#0f766e";}catch(_){e.textContent="حالة الاشتراك";}}
+async function activate(){const sid=studentId();if(!sid){alert("سجّل الدخول أولًا.");return;}const tx=prompt("أدخل رقم العملية Transaction Reference الموجود على إيصال Whish:");if(!clean(tx))return;const code=prompt("أدخل رمز التفعيل الذي وصلك من NABIL AI:");if(!clean(code))return;try{const r=await originalFetch("/api/student/"+encodeURIComponent(sid)+"/payment/activate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({transaction_reference:clean(tx),activation_code:clean(code)})}),d=await r.json().catch(()=>({}));if(!r.ok)throw Error(clean(d.detail)||"تعذر التفعيل");alert("تم تفعيل الاشتراك بنجاح.");await subscription();}catch(e){alert(e.message||"تعذر التفعيل");}}
+function start(){bind();setTimeout(refresh,250);setTimeout(subscription,500);}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",start);else start();
+setTimeout(()=>{bind();refresh();},1200);setTimeout(()=>{bind();refresh();},1800);
+window.NABILStrictCurriculum={refresh,getSelectedLessonId(){return clean(window.NABILSelectedLesson?.lesson_id);},getSelectedLesson(){return{...(window.NABILSelectedLesson||{title:"",lesson_id:"",version:""})};}};
 })();
