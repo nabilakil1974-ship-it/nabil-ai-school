@@ -37,6 +37,9 @@ except Exception:
         validate_geometry_proof_spec,
     )
 
+LAB_ENGINE_VERSION="NABIL_LAB_ENGINE_V1"
+REFERENCE_RENDERER_CONTRACT="NABIL_REFERENCE_RENDERER_V1"
+
 _ALLOWED_KINDS={"FORMULA_CALCULATOR","ORIENTATION_INVARIANT","SHAPE_RESPONSE","EVIDENCE_SEQUENCE","EVIDENCE_REVEAL","GEOMETRY_PROOF"} | ADVANCED_LAB_KINDS
 _ALLOWED_OPS={"+","-","*","/"}
 
@@ -63,7 +66,10 @@ def validate_lab_spec(spec:Dict[str,Any])->Dict[str,Any]:
     for i,step in enumerate(teacher_script):
         if not isinstance(step,dict) or not str(step.get("say") or "").strip() or str(step.get("action") or "") not in allowed:
             raise RuntimeError(f"LAB_TEACHER_STEP_INVALID:{i}")
-        if not isinstance(step.get("target_ids",[]),list) or not isinstance(step.get("state_before"),dict) or not isinstance(step.get("state_after"),dict):
+        target_ids=step.get("target_ids")
+        if not isinstance(target_ids,list) or not target_ids or any(not str(x or "").strip() for x in target_ids):
+            raise RuntimeError(f"LAB_TEACHER_TARGET_REQUIRED:{i}")
+        if not isinstance(step.get("state_before"),dict) or not isinstance(step.get("state_after"),dict):
             raise RuntimeError(f"LAB_TEACHER_STATE_INVALID:{i}")
         if not isinstance(step.get("scientific_constraints"),list) or not str(step.get("evidence_quote") or "").strip():
             raise RuntimeError(f"LAB_TEACHER_EVIDENCE_INVALID:{i}")
@@ -483,8 +489,6 @@ def _render_evidence_reveal(spec:Dict[str,Any],lang_code:str,lab_id:str)->str:
 
 
 
-REFERENCE_RENDERER_CONTRACT="NABIL_REFERENCE_RENDERER_V1"
-
 def _reference_contract_wrap(raw_html:str,spec:Dict[str,Any],lang_code:str,lab_id:str)->str:
     """Apply the owner-approved NABIL lab shell without changing science.
 
@@ -515,6 +519,7 @@ def _reference_contract_wrap(raw_html:str,spec:Dict[str,Any],lang_code:str,lab_i
     return f"""
 <section id="{shell_id}" class="nabil-reference-smart-lab"
  data-renderer-contract="{REFERENCE_RENDERER_CONTRACT}"
+ data-lab-engine="{LAB_ENGINE_VERSION}"
  data-teacher-pointer="sentence-synced" data-lab-ref="{safe}">
  <style>
  #{shell_id}{{position:relative;margin:16px 0;background:#071827;color:#eef8ff;
@@ -605,18 +610,27 @@ def _reference_contract_wrap(raw_html:str,spec:Dict[str,Any],lang_code:str,lab_i
        .find(el=>visible(el)&&(el.id.endsWith('_'+slug)||el.id.endsWith(slug)));
      return suffix||null;
    }}
+   // Approved Smart Board reference pattern:
+   // clearFocus() -> arrowTo(element) -> renderStep(index)
+   function clearFocus(){{
+     shell?.querySelectorAll('.nabil-ref-focused').forEach(x=>x.classList.remove('nabil-ref-focused'));
+   }}
+   function arrowTo(target){{
+     if(!line||!target)return;
+     clearFocus();
+     target.classList.add('nabil-ref-focused');
+     const sr=shell.getBoundingClientRect(),tr=target.getBoundingClientRect();
+     const x2=Math.max(18,Math.min(sr.width-18,tr.left-sr.left+tr.width/2));
+     const y2=Math.max(52,Math.min(sr.height-18,tr.top-sr.top+Math.min(tr.height/2,60)));
+     line.setAttribute('x2',x2);line.setAttribute('y2',y2);
+   }}
    function point(index,targetIds=[]){{
      if(!line)return;
      const explicit=(Array.isArray(targetIds)?targetIds:[]).map(targetById).find(Boolean);
      const list=fallbackTargets();
      const target=explicit||(list.length?list[Math.max(0,Math.min(index,list.length-1))]:inner);
      if(!target)return;
-     shell.querySelectorAll('.nabil-ref-focused').forEach(x=>x.classList.remove('nabil-ref-focused'));
-     target.classList.add('nabil-ref-focused');
-     const sr=shell.getBoundingClientRect(),tr=target.getBoundingClientRect();
-     const x2=Math.max(18,Math.min(sr.width-18,tr.left-sr.left+tr.width/2));
-     const y2=Math.max(52,Math.min(sr.height-18,tr.top-sr.top+Math.min(tr.height/2,60)));
-     line.setAttribute('x2',x2);line.setAttribute('y2',y2);
+     arrowTo(target);
    }}
    function publishTeacherState(detail){{
      // Renderers own the science.  The shell publishes the verified transition
@@ -630,6 +644,17 @@ def _reference_contract_wrap(raw_html:str,spec:Dict[str,Any],lang_code:str,lab_i
          try{{inner.dataset[name]=typeof v==='object'?JSON.stringify(v):String(v)}}catch(_e){{}}
        }});
      }}
+   }}
+   function renderStep(index){{
+     if(!teacherSteps.length)return null;
+     cueIndex=((index%teacherSteps.length)+teacherSteps.length)%teacherSteps.length;
+     const step=teacherSteps[cueIndex]||{{}};
+     const detail={{index:cueIndex,action:step.action||"point",target_ids:step.target_ids||[],
+       state_before:step.state_before||{{}},state_after:step.state_after||{{}},
+       scientific_constraints:step.scientific_constraints||[],evidence_quote:step.evidence_quote||""}};
+     publishTeacherState(detail);
+     point(cueIndex,detail.target_ids);
+     return detail;
    }}
    async function speakCue(index){{
      if(!cues.length)return;
@@ -660,9 +685,14 @@ def _reference_contract_wrap(raw_html:str,spec:Dict[str,Any],lang_code:str,lab_i
    function stopTeaching(){{
      token++;
      try{{window.NABILLessonE2E?.stopSpeech?.()}}catch(_e){{}}
+     try{{inner?.dispatchEvent(new CustomEvent('nabil:teacher-stop',{{bubbles:false}}))}}catch(_e){{}}
+     shell?.querySelectorAll('.nabil-ref-focused').forEach(x=>x.classList.remove('nabil-ref-focused'));
      shell?.dispatchEvent(new CustomEvent('nabil:teacher-stopped',{{detail:{{labRef:'{safe}'}}}}));
    }}
-   document.getElementById('{safe}_ref_current')?.addEventListener('click',()=>{{token++;speakCue(cueIndex);}});
+   document.getElementById('{safe}_ref_current')?.addEventListener('click',async()=>{{
+     token++;const mine=token;await speakCue(cueIndex);
+     if(mine===token && cues.length) cueIndex=(cueIndex+1)%cues.length;
+   }});
    document.getElementById('{safe}_ref_all')?.addEventListener('click',playAll);
    document.getElementById('{safe}_ref_stop')?.addEventListener('click',stopTeaching);
    shell?.addEventListener('nabil:teach-all',playAll);
