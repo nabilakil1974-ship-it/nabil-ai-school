@@ -1,0 +1,51 @@
+name: Sync Golden Lesson Links
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 * * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-golden-lesson-links
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Synchronize Drive lesson links
+        env:
+          GOOGLE_DRIVE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS_JSON }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+        run: python scripts/sync_golden_lesson_links.py
+
+      - name: Commit catalogue changes
+        run: |
+          if git diff --quiet -- data/golden_lesson_links.json; then
+            echo "Golden lesson link catalogue already synchronized."
+            exit 0
+          fi
+          git config user.name "nabil-ai-sync[bot]"
+          git config user.email "nabil-ai-sync[bot]@users.noreply.github.com"
+          git add data/golden_lesson_links.json
+          git commit -m "Sync Golden lesson links from Google Drive"
+          git push
