@@ -49,7 +49,6 @@ def _golden_entry(grade: str, subject: str, lesson: str, lesson_id: str = ""):
     from app.services.golden_store import get_registry_entry, list_registry_entries
 
     requested_id = str(lesson_id or "").strip().upper()
-    # Backward/forward compatibility: callers may put the canonical ID in `lesson`.
     lesson_as_id = str(lesson or "").strip().upper()
     if not requested_id and re.fullmatch(r"G\d{2}-[A-Z]+(?:-[A-Z]+)?-\d{3}", lesson_as_id):
         requested_id = lesson_as_id
@@ -58,7 +57,6 @@ def _golden_entry(grade: str, subject: str, lesson: str, lesson_id: str = ""):
         row = get_registry_entry(requested_id)
         if row and row.get("golden"):
             return row
-        # An explicit canonical ID must never silently resolve to another title.
         return None
 
     grade_no = _grade_number(grade)
@@ -79,6 +77,26 @@ def _golden_entry(grade: str, subject: str, lesson: str, lesson_id: str = ""):
     if len(matches) > 1:
         raise HTTPException(409, "Multiple Golden lessons match this title; send lesson_id.")
     return matches[0] if matches else None
+
+
+def _drive_failure_detail(exc: Exception, lesson_id: str) -> dict:
+    """Return safe but actionable diagnostics to the temporary live diagnostic UI."""
+    message = str(exc or "").strip() or repr(exc)
+    cause = getattr(exc, "__cause__", None)
+    context = getattr(exc, "__context__", None)
+    detail = {
+        "stage": "golden_drive",
+        "reason": type(exc).__name__,
+        "message": message[:1200],
+        "lesson_id": lesson_id,
+    }
+    if cause is not None:
+        detail["cause_type"] = type(cause).__name__
+        detail["cause"] = (str(cause).strip() or repr(cause))[:1200]
+    elif context is not None and context is not exc:
+        detail["context_type"] = type(context).__name__
+        detail["context"] = (str(context).strip() or repr(context))[:1200]
+    return detail
 
 
 def install_golden_runtime_bridge() -> None:
@@ -102,9 +120,6 @@ def install_golden_runtime_bridge() -> None:
     ):
         entry = _golden_entry(grade, subject, lesson, lesson_id=lesson_id)
         if entry is None:
-            # Preserve the legacy path only for title-based old clients. An explicit
-            # lesson_id is authoritative and should fail clearly rather than become
-            # a misleading legacy 404 for a differently named lesson.
             if lesson_id:
                 raise HTTPException(404, detail={"stage": "golden_registry", "reason": "LESSON_ID_NOT_FOUND", "lesson_id": lesson_id})
             return legacy.resolve(grade=grade, subject=subject, lesson=lesson, language=language)
@@ -115,10 +130,7 @@ def install_golden_runtime_bridge() -> None:
         try:
             payload = fetch_golden_from_drive(resolved_id, lang, version)
         except Exception as exc:
-            raise HTTPException(
-                503,
-                detail={"stage": "golden_drive", "reason": type(exc).__name__, "lesson_id": resolved_id},
-            ) from exc
+            raise HTTPException(503, detail=_drive_failure_detail(exc, resolved_id)) from exc
         url = (
             "/api/interactive-lessons/golden-view?lesson_id=" + quote(resolved_id)
             + "&language=" + quote(lang)
@@ -140,10 +152,7 @@ def install_golden_runtime_bridge() -> None:
         try:
             payload = fetch_golden_from_drive(lesson_id, language, version)
         except Exception as exc:
-            raise HTTPException(
-                503,
-                detail={"stage": "golden_drive", "reason": type(exc).__name__, "lesson_id": lesson_id},
-            ) from exc
+            raise HTTPException(503, detail=_drive_failure_detail(exc, lesson_id)) from exc
         markup = str(payload.get("lesson_html") or "").strip()
         if not markup:
             import html
