@@ -35,9 +35,11 @@ RUN python -m playwright install --with-deps --only-shell chromium && chmod -R a
 
 COPY . .
 
-# Owner V12 readability layer: append after every legacy theme rule so mobile
-# explanations, scientific terms, steps and warnings remain visually separated.
-RUN cat app/static/nabil_mobile_readability_v12.css >> app/static/nabil_reference_theme.css
+# Owner V12/V15 readability layers: append after every legacy theme rule.
+# V15 is deliberately last because Smart Lab iframes need a real phone viewport
+# height and must override the generic fluid-iframe rule from the readability layer.
+RUN cat app/static/nabil_mobile_readability_v12.css >> app/static/nabil_reference_theme.css \
+    && cat app/static/nabil_mobile_lab_fix_v15.css >> app/static/nabil_reference_theme.css
 
 # Fail the image build if the production landing/learning UI contract regresses.
 RUN python -m scripts.validate_nabil_ui \
