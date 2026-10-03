@@ -1,0 +1,133 @@
+G12-MATH-GS-001 — NABIL FULL TEACHING VOICE — CORRECTED
+
+NABIL: قبل أي derivative أو limit، بدي منك سؤال واحد فقط: «وين الدالة موجودة أصلًا؟» لأن وجود radical يعني أن domain هو الذي يقود كل شيء بعده. إذا أخطأنا هنا، كل graph وكل derivative بعده يصير مبنيًا على أرض غلط.
+
+STUDENT TURN
+خذ f(x)=√((x−1)(x+3)). لا تحسب derivative. فقط قل لي: متى يكون ما تحت الجذر ≥0؟ ارسم 1 و−3 على number line، وحدد الإشارات بنفسك.
+
+NABIL: ممتاز. لما تحصل D=(−∞,−3]∪[1,+∞)، وقف. شو يعني هذا هندسيًا؟ يعني graph فيه فرعين منفصلين، وما بحق لك توصل بينهم بخط داخل (−3,1). هذا أول قرار رسم، وليس تفصيلًا ثانويًا.
+
+WHY THIS ORDER?
+NABIL: أنا لا أريدك تحفظ sequence لأنني قلت لك. أريدك تفهمه: Domain يقول أين أبحث. Endpoints تقول أين يبدأ/ينتهي branch. Limits تقول ماذا يحدث قرب الحدود. Derivative تقول كيف يتحرك branch. Asymptote لا أقبلها إلا ببرهان limit. بعد كل ذلك فقط نرسم.
+
+GUIDED EXERCISE — SOLVE WITH ME
+Study f(x)=√(x²+2x+5) at +∞.
+المعطى: radical quadratic.
+ماذا يعني؟ عند +∞، dominant part يشبه √(x²)=x، لكن هذا لا يكفي لإثبات asymptote.
+المطلوب: هل يوجد line y=x+b؟
+NABIL: بدل التخمين، قارن مع x+1 لأن x²+2x+5 قريب من (x+1)².
+نحسب الفرق ونستخدم conjugate:
+f(x)−(x+1)=4/[√(x²+2x+5)+x+1]→0.
+إذن y=x+1 asymptote عند +∞.
+CHECK: لا أنقل نفس النتيجة تلقائيًا إلى −∞، لأن √(x²)=|x| وهناك |x|=−x.
+
+ERROR DETECTIVE
+NABIL: إذا قلت «x=a خارج domain إذن vertical asymptote»، أوقفك فورًا. الخارج من domain قد يكون endpoint، hole، أو asymptote. الحكم يأتي من one-sided limit، لا من exclusion وحده.
+
+VISUAL DISCOVERY LAB — DOMAIN BUILDER
+Student changes a,b,c in √(ax²+bx+c). First show sign chart on x-axis, then allowed intervals, then reveal graph only on allowed x. Do not reveal graph before domain state=verified.
+
+VISUAL DISCOVERY LAB — ASYMPTOTE TESTER
+Show candidate line and live Δ(x)=f(x)−line. Label ASYMPTOTE only when numerical/symbolic state verifies Δ→0; otherwise show only direction.
+
+NABIL FINAL HABIT
+DOMAIN → BRANCHES/ENDPOINTS → LIMITS → DERIVATIVE → VARIATIONS → ASYMPTOTES → GRAPH → CHECK.
+
+BIG QUESTION
+An irrational function contains the variable under a radical. The first question is therefore not “differentiate it,” but “where does the function exist?”
+
+LEARNING TARGETS
+1. Study and graph irrational functions.
+2. Determine asymptotes and asymptotic directions when they exist.
+3. Reuse the complete function-study plan: domain, endpoints, limits, derivatives, variations, asymptotes, and graph.
+
+1. DOMAIN FIRST
+For f(x)=sqrt(g(x)), require g(x)≥0. For f(x)=1/sqrt(g(x)), require g(x)>0. Solve this condition before limits or derivatives.
+Example: f(x)=sqrt(x+2). Domain: x≥−2, so D=[−2,+∞). The graph has an endpoint at A(−2,0).
+Example: h(x)=sqrt((x−1)(x+3)). Solve (x−1)(x+3)≥0, giving D=(−∞,−3]∪[1,+∞).
+
+2. ENDPOINTS
+If a finite endpoint a belongs to D, the curve may have endpoint A(a,f(a)). Do not call every domain boundary a vertical asymptote. First inspect the function and its limit.
+
+3. COMPLETE STUDY PLAN
+A. Determine D.
+B. Identify finite endpoints.
+C. Compute limits at domain boundaries and ±∞ when meaningful.
+D. Search for asymptotes/asymptotic directions.
+E. Compute f′ on the interior of D.
+F. Determine the sign of f′ and variation intervals.
+G. Compute key points and endpoints.
+H. Draw a graph consistent with all evidence.
+
+4. HORIZONTAL AND VERTICAL ASYMPTOTES
+If lim f(x)=L as x→±∞, then y=L is a horizontal asymptote in that direction. If f(x) becomes unbounded as x approaches a finite boundary a from within D, test x=a as a vertical asymptote. Never infer an asymptote merely because a is excluded from D.
+
+5. OBLIQUE ASYMPTOTE
+To test y=ax+b, study f(x)−(ax+b). If its limit is 0 as x→±∞, then y=ax+b is an oblique asymptote in that direction.
+
+6. ASYMPTOTIC DIRECTION
+A curve can have a direction of slope a at infinity even when f(x)−(ax+b) does not tend to 0 for any b. “Same direction” is weaker than “same line.”
+
+7. RATIONALIZATION TOOL
+Radicals often produce indeterminate differences. Use the conjugate.
+Example: f(x)=sqrt(x²+1)−x for x→+∞.
+f(x)=1/[sqrt(x²+1)+x]. Hence lim f(x)=0.
+
+8. LARGE-X RADICAL STRUCTURE
+For sqrt(x²+αx+β), factor |x|. The absolute value is essential: |x|=x for x>0 but |x|=−x for x<0.
+
+9. WORKED EXAMPLE — DOMAIN + ENDPOINT
+Study f(x)=sqrt(x+2). D=[−2,+∞). Endpoint A(−2,0). f′(x)=1/[2sqrt(x+2)]>0 for x>−2. Therefore f is increasing and has a vertical tangent at the endpoint.
+
+10. WORKED EXAMPLE — DISCONNECTED DOMAIN
+Let f(x)=sqrt((x−1)(x+3)). D=(−∞,−3]∪[1,+∞). Endpoints: A(−3,0), B(1,0). Study the two branches separately.
+
+11. WORKED EXAMPLE — OBLIQUE BEHAVIOR
+Let f(x)=sqrt(x²+2x+5). For x→+∞, compare with x+1: f(x)−(x+1)=4/[sqrt(x²+2x+5)+x+1]→0. Hence y=x+1 is an asymptote as x→+∞.
+
+12. DERIVATIVE OF A RADICAL COMPOSITE
+If f(x)=sqrt(u(x)) and u(x)>0, then f′(x)=u′(x)/(2sqrt(u(x))). Domain analysis comes first.
+
+13. VISUAL DISCOVERY LAB — DOMAIN BUILDER
+Interactive controls change parameters in f(x)=sqrt(ax²+bx+c). Shade where ax²+bx+c≥0. Students predict the domain before reveal.
+
+14. VISUAL DISCOVERY LAB — ASYMPTOTE TESTER
+Display f and candidate line y=ax+b. A slider moves x while a live panel shows Δ(x)=f(x)−(ax+b). If Δ→0, label the line asymptote.
+
+15. ACTIVITY — PLAN BEFORE CALCULATION
+Order: Domain → Endpoints → Limits → Asymptotes → Derivative → Sign → Variations → Graph.
+
+16. ERROR DETECTIVE — FORGETTING THE DOMAIN
+Wrong: differentiate sqrt(x−3) for every real x. Correction: first x−3≥0, so D=[3,+∞).
+
+17. ERROR DETECTIVE — FORGETTING |x|
+Wrong: sqrt(x²)=x for all x. Correct: sqrt(x²)=|x|.
+
+18. ERROR DETECTIVE — EXCLUDED POINT = ASYMPTOTE
+Wrong: x=a is not in D, therefore x=a is a vertical asymptote. Correct: prove the appropriate one-sided limit is infinite.
+
+19. ERROR DETECTIVE — DIRECTION VS ASYMPTOTE
+Correct: prove f(x)−(ax+b)→0; otherwise you may have only an asymptotic direction.
+
+20. PRACTICE LADDER — LEVEL 1
+A. D for sqrt(5−x): x≤5.
+B. D for 1/sqrt(x−2): x>2.
+C. D for sqrt(x²−9): x≤−3 or x≥3.
+
+21. PRACTICE LADDER — LEVEL 2
+For f(x)=sqrt(x²+4), f is even, f′(x)=x/sqrt(x²+4), decreases on (−∞,0] and increases on [0,+∞), minimum f(0)=2.
+
+22. PRACTICE LADDER — LEVEL 3
+sqrt(x²+4)−x=4/[sqrt(x²+4)+x]→0 at +∞, so y=x is an asymptote there. Repeat separately at −∞.
+
+23. CHALLENGE
+For f(x)=sqrt(x²+αx+β), investigate an oblique asymptote at +∞. Comparing with x+α/2 gives difference tending to 0 when defined there.
+
+24. FINAL CHECK
+Verify domain, endpoints, one-sided limits, derivative signs, variations, asymptotes, +∞/−∞ separately, and sqrt(x²)=|x|.
+
+25. GOLDEN SUMMARY
+Domain comes first. Radical expressions at infinity often require |x| or rationalization. An asymptote y=ax+b requires f(x)−(ax+b)→0. The graph must agree with domain, limits, derivative, variations, endpoints, and asymptotic behavior.
+
+NABIL FINAL RULE
+Never draw first and justify later. Build the curve from mathematical evidence.
