@@ -1,8 +1,8 @@
 """Production bridge: Golden lesson registry -> Drive -> student, with zero AI.
 
-Installed before Uvicorn starts. It gives registered Golden lessons precedence over
-legacy prepared-HTML lookup while preserving the existing resolver/view for every
-non-Golden lesson.
+Installed before Uvicorn starts. Registered Golden lessons take precedence over
+legacy prepared-HTML lookup. lesson_id is the canonical key; title matching is
+only a backward-compatible fallback for older UI calls.
 """
 from __future__ import annotations
 
@@ -11,11 +11,6 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse
-
-# TEMPORARY DIAGNOSTIC: prove the Start Lesson -> Golden Drive path with one
-# known lesson before generalising. Remove after the live Railway check passes.
-_DIAGNOSTIC_GOLDEN_LESSON_ID = "G12-MATH-GS-001"
-_DIAGNOSTIC_GOLDEN_TITLE = "Irrational Functions"
 
 
 def _norm(value: str) -> str:
@@ -49,36 +44,41 @@ def _subject_code(value: str) -> str:
     return ""
 
 
-def _golden_entry(grade: str, subject: str, lesson: str):
-    from app.services.golden_store import list_registry_entries
+def _golden_entry(grade: str, subject: str, lesson: str, lesson_id: str = ""):
+    """Resolve a Golden row by canonical lesson_id first, then exact title fallback."""
+    from app.services.golden_store import get_registry_entry, list_registry_entries
+
+    requested_id = str(lesson_id or "").strip().upper()
+    # Backward/forward compatibility: callers may put the canonical ID in `lesson`.
+    lesson_as_id = str(lesson or "").strip().upper()
+    if not requested_id and re.fullmatch(r"G\d{2}-[A-Z]+(?:-[A-Z]+)?-\d{3}", lesson_as_id):
+        requested_id = lesson_as_id
+
+    if requested_id:
+        row = get_registry_entry(requested_id)
+        if row and row.get("golden"):
+            return row
+        # An explicit canonical ID must never silently resolve to another title.
+        return None
 
     grade_no = _grade_number(grade)
     subject_code = _subject_code(subject)
     wanted = _norm(lesson)
     matches = []
     for row in list_registry_entries():
-        lesson_id = str(row.get("lesson_id") or "").upper()
+        row_id = str(row.get("lesson_id") or "").upper()
         title = str(row.get("title") or "")
         if not row.get("golden") or _norm(title) != wanted:
             continue
-        parts = lesson_id.split("-")
+        parts = row_id.split("-")
         if grade_no and (not parts or parts[0] != f"G{int(grade_no):02d}"):
             continue
         if subject_code and (len(parts) < 2 or parts[1] != subject_code):
             continue
         matches.append(row)
     if len(matches) > 1:
-        raise HTTPException(409, "Multiple Golden lessons match this title.")
+        raise HTTPException(409, "Multiple Golden lessons match this title; send lesson_id.")
     return matches[0] if matches else None
-
-
-def _diagnostic_entry():
-    """Return the exact known Golden row by ID, independent of UI title matching."""
-    from app.services.golden_store import get_registry_entry
-    row = get_registry_entry(_DIAGNOSTIC_GOLDEN_LESSON_ID)
-    if not row or not row.get("golden"):
-        raise HTTPException(503, detail={"stage":"diagnostic_registry", "reason":"KNOWN_GOLDEN_ID_MISSING", "lesson_id":_DIAGNOSTIC_GOLDEN_LESSON_ID})
-    return row
 
 
 def install_golden_runtime_bridge() -> None:
@@ -93,25 +93,34 @@ def install_golden_runtime_bridge() -> None:
     bridge = APIRouter(prefix="/api/interactive-lessons")
 
     @bridge.get("/resolve")
-    def golden_first_resolve(grade: str, subject: str, lesson: str, language: str = ""):
-        # TEMP diagnostic: when the selected title is Irrational Functions,
-        # bypass all grade/subject/title inference and force the exact known ID.
-        diagnostic = _norm(lesson) == _norm(_DIAGNOSTIC_GOLDEN_TITLE)
-        entry = _diagnostic_entry() if diagnostic else _golden_entry(grade, subject, lesson)
+    def golden_first_resolve(
+        grade: str,
+        subject: str,
+        lesson: str = "",
+        language: str = "",
+        lesson_id: str = "",
+    ):
+        entry = _golden_entry(grade, subject, lesson, lesson_id=lesson_id)
         if entry is None:
+            # Preserve the legacy path only for title-based old clients. An explicit
+            # lesson_id is authoritative and should fail clearly rather than become
+            # a misleading legacy 404 for a differently named lesson.
+            if lesson_id:
+                raise HTTPException(404, detail={"stage": "golden_registry", "reason": "LESSON_ID_NOT_FOUND", "lesson_id": lesson_id})
             return legacy.resolve(grade=grade, subject=subject, lesson=lesson, language=language)
-        lesson_id = _DIAGNOSTIC_GOLDEN_LESSON_ID if diagnostic else str(entry["lesson_id"])
+
+        resolved_id = str(entry["lesson_id"])
         lang = str(entry.get("language") or language or "en")
         version = str(entry.get("version") or "0.01")
         try:
-            payload = fetch_golden_from_drive(lesson_id, lang, version)
+            payload = fetch_golden_from_drive(resolved_id, lang, version)
         except Exception as exc:
             raise HTTPException(
                 503,
-                detail={"stage": "golden_drive", "reason": type(exc).__name__, "lesson_id": lesson_id, "diagnostic_forced": diagnostic},
+                detail={"stage": "golden_drive", "reason": type(exc).__name__, "lesson_id": resolved_id},
             ) from exc
         url = (
-            "/api/interactive-lessons/golden-view?lesson_id=" + quote(lesson_id)
+            "/api/interactive-lessons/golden-view?lesson_id=" + quote(resolved_id)
             + "&language=" + quote(lang)
             + "&version=" + quote(version)
         )
@@ -121,9 +130,9 @@ def install_golden_runtime_bridge() -> None:
             "url": url,
             "source": "golden_drive_zero_ai",
             "bytes": len((payload.get("lesson_html") or payload.get("reply") or "").encode("utf-8")),
-            "lesson_id": lesson_id,
+            "lesson_id": resolved_id,
             "zero_ai": True,
-            "diagnostic_forced": diagnostic,
+            "resolved_by": "lesson_id" if lesson_id else "title_fallback",
         }
 
     @bridge.get("/golden-view", response_class=HTMLResponse)
@@ -150,7 +159,7 @@ def install_golden_runtime_bridge() -> None:
             "Cache-Control": "private, no-store",
             "Content-Security-Policy": "default-src 'self' data: blob: https:; script-src 'unsafe-inline' 'self' https:; style-src 'unsafe-inline' 'self' https:; frame-ancestors 'self'",
             "X-NABIL-Lesson-Source": "golden-drive-zero-ai",
-            "X-NABIL-Diagnostic-Lesson-ID": lesson_id,
+            "X-NABIL-Lesson-ID": lesson_id,
         })
 
     for route in reversed(bridge.routes):
