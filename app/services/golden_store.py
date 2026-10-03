@@ -153,6 +153,29 @@ def _anonymous_google_doc_export(file_id: str) -> bytes:
     return data
 
 
+def _browser_drive_preview(file_id: str, title: str) -> str:
+    """Fallback for private Docs the signed-in student's browser can read.
+
+    Railway must not fail the lesson merely because its server/service account
+    cannot export a private owner Doc.  The browser already carries the owner's
+    Google session, so hand the document to Google Docs preview in an iframe.
+    """
+    if not re.fullmatch(r"[A-Za-z0-9_-]{10,200}", file_id or ""):
+        raise ValueError("INVALID_GOLDEN_DRIVE_FILE_ID")
+    safe_title = html_lib.escape(title or "NABIL Golden lesson")
+    src = f"https://docs.google.com/document/d/{file_id}/preview"
+    return (
+        "<!doctype html><html><head><meta charset='utf-8'>"
+        "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+        "<title>" + safe_title + "</title>"
+        "<style>html,body{margin:0;width:100%;height:100%;background:#071d30;overflow:hidden}"
+        "iframe{border:0;width:100%;height:100%;display:block;background:white}</style>"
+        "</head><body><iframe src='" + src + "' title='" + safe_title + "' "
+        "allow='clipboard-read; clipboard-write' referrerpolicy='no-referrer-when-downgrade'></iframe>"
+        "</body></html>"
+    )
+
+
 def fetch_golden_from_drive(lesson_id: str, language: str = "en", version: str = "0.01") -> dict[str, Any]:
     lid = normalize_lesson_id(lesson_id)
     lang = normalize_language(language)
@@ -161,7 +184,7 @@ def fetch_golden_from_drive(lesson_id: str, language: str = "en", version: str =
     file_id = str(entry.get("drive_file_id") or entry.get("drive_theory_id") or "").strip()
     metadata = None
     payload = None
-    authenticated_error = None
+    browser_preview = False
 
     if file_id:
         try:
@@ -171,8 +194,7 @@ def fetch_golden_from_drive(lesson_id: str, language: str = "en", version: str =
             if props.get("nabil_lesson_id") and normalize_lesson_id(props["nabil_lesson_id"]) != lid:
                 raise RuntimeError("GOLDEN_DRIVE_IDENTITY_MISMATCH")
             payload = _download_bytes(service, file_id, str(metadata.get("mimeType") or ""))
-        except Exception as exc:
-            authenticated_error = exc
+        except Exception:
             try:
                 payload = _anonymous_google_doc_export(file_id)
                 metadata = {
@@ -182,8 +204,19 @@ def fetch_golden_from_drive(lesson_id: str, language: str = "en", version: str =
                     "webViewLink": str(entry.get("drive_url") or f"https://docs.google.com/document/d/{file_id}/edit"),
                     "appProperties": {},
                 }
-            except Exception as public_exc:
-                raise RuntimeError(f"GOLDEN_DRIVE_UNREADABLE:{type(authenticated_error).__name__}:{type(public_exc).__name__}") from public_exc
+            except Exception:
+                # The two server-side readers are unauthorized. Do not return
+                # another 503 loop: render Google's authenticated browser preview.
+                preview = _browser_drive_preview(file_id, str(entry.get("title") or lid))
+                payload = preview.encode("utf-8")
+                metadata = {
+                    "id": file_id,
+                    "name": str(entry.get("title") or lid),
+                    "mimeType": "text/html",
+                    "webViewLink": str(entry.get("drive_url") or f"https://docs.google.com/document/d/{file_id}/edit"),
+                    "appProperties": {},
+                }
+                browser_preview = True
     else:
         service = _drive_service()
         metadata = _discover_on_drive(service, lid, lang, ver)
@@ -200,8 +233,10 @@ def fetch_golden_from_drive(lesson_id: str, language: str = "en", version: str =
     is_html = "html" in mime or "google-apps.document" in mime or text.lstrip().lower().startswith(("<!doctype html", "<html"))
     lesson_html = text if is_html else ""
     reply = html_to_student_text(text) if is_html else text
-    if not reply:
+    if not reply and not browser_preview:
         raise RuntimeError("GOLDEN_STUDENT_TEXT_EMPTY")
+    if browser_preview:
+        reply = str(entry.get("title") or lid)
     sha = hashlib.sha256(payload).hexdigest()
     return {
         "lesson_id": lid,
@@ -213,5 +248,6 @@ def fetch_golden_from_drive(lesson_id: str, language: str = "en", version: str =
         "drive_file_id": file_id,
         "drive_url": metadata.get("webViewLink") or entry.get("drive_url") or f"https://drive.google.com/file/d/{file_id}/view",
         "sha256": sha,
-        "sources": [{"type":"golden_drive","lesson_id":lid,"drive_file_id":file_id,"sha256":sha}],
+        "browser_drive_preview": browser_preview,
+        "sources": [{"type":"golden_drive_browser_preview" if browser_preview else "golden_drive","lesson_id":lid,"drive_file_id":file_id,"sha256":sha}],
     }
