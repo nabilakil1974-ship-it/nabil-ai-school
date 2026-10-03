@@ -801,7 +801,7 @@ def _golden_language_keys(language: str) -> list[str]:
     return aliases.get(requested.casefold(), [requested] if requested else [])
 
 
-@router.get("/curriculum/lessons")
+# RETIRED: canonical Golden catalogue is registered in app/main.py
 def curriculum_lessons(
     grade: str,
     subject: str,

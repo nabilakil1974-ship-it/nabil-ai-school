@@ -65,6 +65,9 @@ from app.api import (
 )
 
 
+from app.services import golden_catalogue
+
+
 # ==========================================================
 # PostgreSQL extensions
 # ==========================================================
@@ -328,6 +331,8 @@ app.add_middleware(GZipMiddleware, minimum_size=4096, compresslevel=4)
 # API routers
 # ==========================================================
 
+app.include_router(golden_catalogue.build_router(), prefix="/api", tags=["golden-catalogue"])
+
 app.include_router(
     routes_health.router,
     prefix="/api",
@@ -489,12 +494,12 @@ def _build_root_html() -> str:
     html = html[:head_boundary] + direct_entry_css + theme_css + html[head_boundary:]
 
     scripts = (
-        '<script src="/static/curriculum_strict.js?v=138"></script>\n'
+        '<script src="/static/curriculum_strict.js?v=139"></script>\n'
         '<script src="/static/nabil_learning_v132.js?v=139"></script>\n'
         '<script src="/static/nabil_worksheet_v1.js?v=5"></script>\n'
         '<script src="/static/nabil_lesson_worksheet_card_v1.js?v=1"></script>\n'
         '<script src="/static/nabil_factory_prepare_v1.js?v=1"></script>\n'
-        '<script src="/static/nabil_drive_prepared_lesson_v1.js?v=7"></script>\n'
+        '<script src="/static/nabil_drive_prepared_lesson_v1.js?v=8"></script>\n'
         '<script src="/static/nabil_browser_tts_v1.js?v=1"></script>\n'
         '<script src="/static/nabil_voice_v133.js?v=133"></script>\n'
         '<script src="/static/nabil_scientific_solution_cards_e2e.js?v=4"></script>\n'
