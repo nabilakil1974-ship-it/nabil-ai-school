@@ -18,6 +18,7 @@ from fastapi.responses import HTMLResponse
 
 GOLDEN_ARTIFACT_DIR = Path("data/golden_artifacts")
 RENDERER_URL = "/static/nabil_reference_classroom_v16.js?v=1"
+INTERRUPT_FIX_URL = "/static/nabil_reference_interrupt_fix_v17.js?v=1"
 READABILITY_CSS_URL = "/static/nabil_classroom_readability_v1.css?v=1"
 _CACHE = {"at": 0.0, "rows": []}
 LANG_CODES = {"EN", "FR", "AR"}
@@ -132,7 +133,7 @@ def _source(entry):
 
 def _page(entry,text,source):
     payload=json.dumps({"lesson_id":entry["lesson_id"],"title":entry["title"],"text":text,"source":source},ensure_ascii=False).replace("</","<\\/")
-    return f'''<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(entry['title'])}</title><style>html,body,#nabil-classroom-root{{margin:0;min-height:100%;background:#030b14}}</style><link rel="stylesheet" href="{READABILITY_CSS_URL}"></head><body><main id="nabil-classroom-root"></main><script>window.__NABIL_GOLDEN__={payload};</script><script src="{RENDERER_URL}"></script><script>(function(){{var r=window.NABILReferenceClassroomV16,p=window.__NABIL_GOLDEN__,root=document.getElementById('nabil-classroom-root');if(r&&p)r.mount(root,p.text,p.title,p);else root.innerHTML='<pre style="color:#f99">NABIL reference classroom failed to load</pre>';}})();</script></body></html>'''
+    return f'''<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(entry['title'])}</title><style>html,body,#nabil-classroom-root{{margin:0;min-height:100%;background:#030b14}}</style><link rel="stylesheet" href="{READABILITY_CSS_URL}"></head><body><main id="nabil-classroom-root"></main><script>window.__NABIL_GOLDEN__={payload};</script><script src="{INTERRUPT_FIX_URL}"></script><script src="{RENDERER_URL}"></script><script>(function(){{var r=window.NABILReferenceClassroomV16,p=window.__NABIL_GOLDEN__,root=document.getElementById('nabil-classroom-root');if(r&&p)r.mount(root,p.text,p.title,p);else root.innerHTML='<pre style="color:#f99">NABIL reference classroom failed to load</pre>';}})();</script></body></html>'''
 
 
 def build_router()->APIRouter:
@@ -152,14 +153,14 @@ def build_router()->APIRouter:
         requested_lang=_lang(language); actual_lang=m["language"] or _lang(entry.get("language"))
         if requested_lang and actual_lang and requested_lang!=actual_lang: raise HTTPException(404,"GOLDEN_LANGUAGE_MISMATCH")
         text,source=_source(entry)
-        return {"found":True,"title":entry["title"],"url":"/api/interactive-lessons/golden-classroom?lesson_id="+quote(lid),"source":source,"bytes":len(text.encode()),"lesson_id":lid,"zero_ai":True,"renderer":"nabil_reference_classroom_v16","reference_cards":True,"interrupt_resume_same_line":True,"lab_contract":"requirement_5_fail_closed"}
+        return {"found":True,"title":entry["title"],"url":"/api/interactive-lessons/golden-classroom?lesson_id="+quote(lid),"source":source,"bytes":len(text.encode()),"lesson_id":lid,"zero_ai":True,"renderer":"nabil_reference_classroom_v16","reference_cards":True,"interrupt_resume_same_line":True,"interrupt_chat_contract":"formdata_v17","lab_contract":"requirement_5_fail_closed"}
 
     @router.get("/interactive-lessons/golden-classroom",response_class=HTMLResponse)
     def classroom(lesson_id:str):
         entry=_entry(lesson_id)
         if not entry: raise HTTPException(404,"GOLDEN_LESSON_NOT_FOUND")
         text,source=_source(entry)
-        return HTMLResponse(_page(entry,text,source),headers={"Cache-Control":"no-store","X-NABIL-Lesson-ID":entry["lesson_id"],"X-NABIL-Lesson-Source":source,"X-NABIL-Renderer":"reference-v16","X-NABIL-Lab-Contract":"requirement-5-fail-closed"})
+        return HTMLResponse(_page(entry,text,source),headers={"Cache-Control":"no-store","X-NABIL-Lesson-ID":entry["lesson_id"],"X-NABIL-Lesson-Source":source,"X-NABIL-Renderer":"reference-v16","X-NABIL-Interrupt-Contract":"formdata-v17","X-NABIL-Lab-Contract":"requirement-5-fail-closed"})
 
     @router.get("/interactive-lessons/golden-structured-view",response_class=HTMLResponse)
     def old_structured(lesson_id:str): return classroom(lesson_id)
