@@ -37,6 +37,7 @@ from scripts.nabil_i18n import (
 )
 from scripts.nabil_interactive_lab import render_verified_lab, validate_lab_spec
 from scripts.nabil_quiz_engine import build_full_quiz_items, render_quiz_html
+from scripts.nabil_requirement5_gate import validate_requirement5_lab, assert_requirement5_publishable
 
 ROOT = Path(__file__).resolve().parents[1] if len(Path(__file__).resolve().parents) > 1 else Path("/app")
 CATALOG_PATH = ROOT / "data/nabil_canonical_lesson_catalog.json"
@@ -6867,6 +6868,21 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
                 raise RuntimeError(f"LAB_CIRCUIT_FLOW_WITH_OPEN_SWITCH:{step_index}")
             switch_closed=next_closed
     validate_lab_spec(spec)
+    # REQUIREMENT_5_FINAL_GATE
+    # Final fail-closed source/science/visual acceptance. This runs AFTER the
+    # existing domain validators and BEFORE the spec can leave the factory.
+    spec = validate_requirement5_lab(
+        spec,
+        source_text=str(concept.get("raw_text") or ""),
+        source_figure_verified=bool(
+            figure_image_base64 and (concept.get("figure_refs") or vision_context)
+        ),
+    )
+    assert_requirement5_publishable(
+        spec,
+        lesson_id=str(entry.get("lesson_id") or ""),
+        lab_id=str(concept.get("concept_id") or ""),
+    )
     return spec
 
 
