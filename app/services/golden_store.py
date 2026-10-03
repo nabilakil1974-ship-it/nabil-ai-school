@@ -1,7 +1,7 @@
 """NABIL AI Golden lesson runtime store.
 
 Zero-AI runtime contract:
-lesson_id -> local LessonPackage -> Drive Golden artifact -> local cache.
+lesson_id -> Golden registry -> Drive artifact -> student.
 No RAG, embeddings or LLM calls occur in this module.
 """
 from __future__ import annotations
@@ -19,8 +19,6 @@ from typing import Any, Optional
 from app.services.lesson_cache import normalize_lesson_id, normalize_language, normalize_package_version
 
 GOLDEN_REGISTRY_PATH = Path(os.getenv("NABIL_GOLDEN_REGISTRY_PATH", "data/golden_lessons_registry.json"))
-SERVICE_ACCOUNT_PATH = Path(os.getenv("NABIL_DRIVE_SERVICE_ACCOUNT", "drive_service_account.json"))
-DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 
 
 class _VisibleText(HTMLParser):
@@ -82,12 +80,14 @@ def list_registry_entries() -> list[dict[str, Any]]:
 
 
 def _drive_service():
-    if not SERVICE_ACCOUNT_PATH.exists():
-        raise RuntimeError(f"DRIVE_SERVICE_ACCOUNT_MISSING:{SERVICE_ACCOUNT_PATH}")
-    from google.oauth2 import service_account
-    from googleapiclient.discovery import build
-    creds = service_account.Credentials.from_service_account_file(str(SERVICE_ACCOUNT_PATH), scopes=DRIVE_SCOPES)
-    return build("drive", "v3", credentials=creds, cache_discovery=False)
+    """Use the same proven Drive authentication path as the physics/index pipeline.
+
+    The previous Golden-only service-account file made production diverge from the
+    already-working Drive lesson route.  One Drive client means Golden mathematics
+    can read the same owner Drive that physics already reads on Railway.
+    """
+    from scripts.index_books import get_drive_service
+    return get_drive_service()
 
 
 def _discover_on_drive(service, lesson_id: str, language: str, version: str) -> Optional[dict[str, Any]]:
