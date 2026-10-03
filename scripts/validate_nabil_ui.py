@@ -70,6 +70,42 @@ def main() -> None:
         'rfind("</body>")',
     )
 
+    # Production lesson diagnostics: this is the NABIL-screen panel used to
+    # surface send/read/voice/runtime errors while testing a generated lesson.
+    lesson_runtime = require(
+        "app/static/nabil_lesson_e2e_runtime_v1.js",
+        "#nabilE2ETools",
+        "#nabilE2EStatus",
+        "#nabilE2ESend",
+        "#nabilE2EReadPage",
+        "SpeechSynthesisUtterance",
+        "speechSynthesis",
+        "stopSpeech",
+    )
+    smart_lab = require(
+        "app/static/nabil_smart_lab_bridge_v1.js",
+        "/api/smart-labs/from-question",
+        "nabil:teach-all",
+        "nabil:teach-stop",
+        "nabil:teacher-complete",
+        "#nabilSmartLabFrame",
+    )
+    lab_voice = require(
+        "app/static/nabil_lab_voice_v1.js",
+        "speechSynthesis",
+        "NABILLessonE2E",
+        "NABILBrowserTTS",
+    )
+    mobile_lab = require(
+        "app/static/nabil_mobile_lab_fix_v15.css",
+        "#nabilSmartLabModal",
+        "#nabilSmartLabShell",
+        "#nabilSmartLabFrame",
+        "height:0!important",
+        "100dvh",
+        ".nabil-solution-runtime-lab iframe",
+    )
+
     # Reject known regressions that previously exposed code or reintroduced
     # a stand-alone grade splash.
     if ".selection-stage{display:none!important}" not in theme.replace(" ", ""):
@@ -78,6 +114,8 @@ def main() -> None:
         raise SystemExit("open tutor: legacy grade landing must remain retired")
     if 'html.replace("</body>"' in main_py:
         raise SystemExit("main.py: global </body> replacement can leak raw JS")
+    if "height:auto!important" in mobile_lab.split("#nabilSmartLabFrame", 2)[-1].split(".nabil-smart-lab-inline", 1)[0]:
+        raise SystemExit("mobile lab: Smart Lab frame must not collapse to height:auto")
 
     print("NABIL UI contract: PASS")
     print(" - owner reference blue palette")
@@ -86,6 +124,10 @@ def main() -> None:
     print(" - same voice/pace and LTR foreign-language answer board")
     print(" - verified diagrams and full-size preview, paced visible transcript")
     print(" - smart learning actions render real results below answer tools")
+    print(" - lesson diagnostic panel + status/read/send controls are wired")
+    print(" - Smart Lab teach/stop/completion bridge is wired")
+    print(" - lesson/lab speech contracts are wired")
+    print(" - phone Smart Lab keeps a real remaining-viewport height")
 
 
 if __name__ == "__main__":
