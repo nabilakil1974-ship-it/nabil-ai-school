@@ -93,6 +93,7 @@ def main() -> None:
         "speechSynthesis",
         "NABILLessonE2E",
         "NABILBrowserTTS",
+        "window.NABILLabVoice={stop,speak,play}",
     )
     require(
         "app/static/nabil_mobile_lab_fix_v15.css",
