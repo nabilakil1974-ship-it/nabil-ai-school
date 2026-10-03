@@ -49,3 +49,4 @@ jobs:
           git add app/main.py app/api/routes_chat.py
           git diff --cached --quiet || git commit -m 'Register canonical Golden routes normally'
           git push
+# trigger: 2
