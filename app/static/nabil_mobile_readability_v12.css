@@ -1,6 +1,5 @@
-/* NABIL AI V14 — phone-first lesson readability.
-   Teaching prose, scientific terms, warnings, problems, exercises and lab content
-   must read as separate teaching units — especially on a 390px phone. */
+/* NABIL AI V16 — phone-first lesson readability and hard viewport reset.
+   The phone must never inherit the legacy desktop rail/sidebar geometry. */
 
 #nabilOpenExplanation .nabil-open-answer-text,
 body.nabil-lesson-active .teacher .bubble,
@@ -12,23 +11,14 @@ body.nabil-lesson-active .exercise-section-card {
   overflow-wrap:break-word!important;
   word-break:normal!important;
 }
-
-/* Do not let explanation, note, problem and next idea visually run together. */
 #nabilOpenExplanation .nabil-open-answer-text > * + *,
 body.nabil-lesson-active .teacher .bubble > * + *,
 body.nabil-lesson-active .lesson-concept-card > * + *,
 body.nabil-lesson-active .exercise-section-card > * + * { margin-top:.92em!important; }
-
 #nabilOpenExplanation .nabil-open-answer-text p,
 body.nabil-lesson-active .teacher .bubble p,
 body.nabil-lesson-active .lesson-concept-card p,
-body.nabil-lesson-active .exercise-section-card p {
-  display:block!important;
-  clear:both!important;
-  margin:.72em 0!important;
-}
-
-/* Scientific / mathematical vocabulary stays readable as a term, not fused with prose. */
+body.nabil-lesson-active .exercise-section-card p {display:block!important;clear:both!important;margin:.72em 0!important;}
 #nabilOpenExplanation .nabil-open-answer-text strong,
 #nabilOpenExplanation .nabil-open-answer-text b,
 body.nabil-lesson-active .teacher .bubble strong,
@@ -36,30 +26,11 @@ body.nabil-lesson-active .teacher .bubble b,
 body.nabil-lesson-active .lesson-concept-card strong,
 body.nabil-lesson-active .lesson-concept-card b,
 body.nabil-lesson-active .exercise-section-card strong,
-body.nabil-lesson-active .exercise-section-card b {
-  display:inline;
-  color:#7ee7ff!important;
-  font-weight:850!important;
-  line-height:inherit!important;
-}
-
-/* Formulae / literal scientific notation. */
+body.nabil-lesson-active .exercise-section-card b {display:inline;color:#7ee7ff!important;font-weight:850!important;line-height:inherit!important;}
 #nabilOpenExplanation .nabil-open-answer-text code,
 body.nabil-lesson-active .teacher .bubble code,
 body.nabil-lesson-active .lesson-concept-card code,
-body.nabil-lesson-active .exercise-section-card code {
-  display:inline-block;
-  max-width:100%;
-  padding:.10em .44em;
-  border:1px solid #247da5;
-  border-radius:6px;
-  background:#0a2a45!important;
-  color:#ffe37b!important;
-  font:700 .96em/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;
-  vertical-align:baseline;
-}
-
-/* Explanation / Attention / Example / Exercise headings are true visual separators. */
+body.nabil-lesson-active .exercise-section-card code {display:inline-block;max-width:100%;padding:.10em .44em;border:1px solid #247da5;border-radius:6px;background:#0a2a45!important;color:#ffe37b!important;font:700 .96em/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;vertical-align:baseline;}
 #nabilOpenExplanation .nabil-open-answer-text h1,
 #nabilOpenExplanation .nabil-open-answer-text h2,
 #nabilOpenExplanation .nabil-open-answer-text h3,
@@ -71,21 +42,7 @@ body.nabil-lesson-active .teacher .bubble h4,
 body.nabil-lesson-active .lesson-concept-card h2,
 body.nabil-lesson-active .lesson-concept-card h3,
 body.nabil-lesson-active .exercise-section-card h3,
-body.nabil-lesson-active .exercise-section-card h4 {
-  display:block!important;
-  clear:both!important;
-  width:100%!important;
-  box-sizing:border-box!important;
-  margin:1.28em 0 .58em!important;
-  padding:.48em .72em!important;
-  border-inline-start:4px solid #14c8f5;
-  border-radius:9px;
-  background:#0a2944!important;
-  color:#7ee7ff!important;
-  line-height:1.38!important;
-}
-
-/* Problems/exercises are separated from the teaching sentence above. */
+body.nabil-lesson-active .exercise-section-card h4 {display:block!important;clear:both!important;width:100%!important;box-sizing:border-box!important;margin:1.28em 0 .58em!important;padding:.48em .72em!important;border-inline-start:4px solid #14c8f5;border-radius:9px;background:#0a2944!important;color:#7ee7ff!important;line-height:1.38!important;}
 #nabilOpenExplanation .nabil-open-answer-text ul,
 #nabilOpenExplanation .nabil-open-answer-text ol,
 body.nabil-lesson-active .teacher .bubble ul,
@@ -93,94 +50,78 @@ body.nabil-lesson-active .teacher .bubble ol,
 body.nabil-lesson-active .lesson-concept-card ul,
 body.nabil-lesson-active .lesson-concept-card ol,
 body.nabil-lesson-active .exercise-section-card ul,
-body.nabil-lesson-active .exercise-section-card ol {
-  display:block!important;
-  clear:both!important;
-  margin:.82em 0 1.08em!important;
-  padding-inline-start:1.65em!important;
-}
+body.nabil-lesson-active .exercise-section-card ol {display:block!important;clear:both!important;margin:.82em 0 1.08em!important;padding-inline-start:1.65em!important;}
 #nabilOpenExplanation .nabil-open-answer-text li,
 body.nabil-lesson-active .teacher .bubble li,
 body.nabil-lesson-active .lesson-concept-card li,
-body.nabil-lesson-active .exercise-section-card li {
-  display:list-item!important;
-  margin:.54em 0!important;
-  padding-inline-start:.24em;
-}
-
-/* Attention / warning / teacher-note blocks are physically separate. */
+body.nabil-lesson-active .exercise-section-card li {display:list-item!important;margin:.54em 0!important;padding-inline-start:.24em;}
 #nabilOpenExplanation .nabil-open-answer-text blockquote,
 body.nabil-lesson-active .teacher .bubble blockquote,
 body.nabil-lesson-active .lesson-concept-card blockquote,
-body.nabil-lesson-active .exercise-section-card blockquote {
-  display:block!important;
-  clear:both!important;
-  width:100%!important;
-  box-sizing:border-box!important;
-  margin:1.08em 0!important;
-  padding:.82em 1em!important;
-  border-inline-start:4px solid #ffd447!important;
-  border-radius:9px;
-  background:#102f49!important;
-  color:#f4fbff!important;
-}
-
-/* Tables, maths, diagrams and labs never crush neighbouring text. */
+body.nabil-lesson-active .exercise-section-card blockquote {display:block!important;clear:both!important;width:100%!important;box-sizing:border-box!important;margin:1.08em 0!important;padding:.82em 1em!important;border-inline-start:4px solid #ffd447!important;border-radius:9px;background:#102f49!important;color:#f4fbff!important;}
 #nabilOpenExplanation .nabil-open-answer-text table,
 body.nabil-lesson-active .teacher .bubble table,
 body.nabil-lesson-active .lesson-concept-card table,
-body.nabil-lesson-active .exercise-section-card table {
-  display:block!important;
-  width:100%!important;
-  max-width:100%!important;
-  overflow-x:auto!important;
-  border-collapse:collapse;
-  margin:1.05em 0!important;
-}
+body.nabil-lesson-active .exercise-section-card table {display:block!important;width:100%!important;max-width:100%!important;overflow-x:auto!important;border-collapse:collapse;margin:1.05em 0!important;}
 #nabilOpenExplanation .nabil-open-answer-text mjx-container,
 #nabilOpenExplanation .nabil-open-answer-text pre,
 body.nabil-lesson-active .teacher .bubble mjx-container,
 body.nabil-lesson-active .teacher .bubble pre,
 body.nabil-lesson-active .lesson-concept-card mjx-container,
-body.nabil-lesson-active .exercise-section-card mjx-container {
-  display:block;
-  max-width:100%!important;
-  overflow-x:auto!important;
-  overflow-y:hidden!important;
-  margin:.78em 0!important;
-}
+body.nabil-lesson-active .exercise-section-card mjx-container {display:block;max-width:100%!important;overflow-x:auto!important;overflow-y:hidden!important;margin:.78em 0!important;}
 
 @media screen and (max-width:900px){
-  html,body { max-width:100%!important; overflow-x:hidden!important; }
-  #nabilHomeTutorHost #nabilOpenExplanation,
+  html,body {width:100%!important;max-width:100%!important;min-width:0!important;overflow-x:hidden!important;margin:0!important;}
+  body.nabil-lesson-active {padding:0!important;margin:0!important;width:100vw!important;max-width:100vw!important;overflow-x:hidden!important;}
+
+  /* Hard reset every legacy desktop offset/grid that can leave a thin vertical rail. */
+  body.nabil-lesson-active .header,
+  body.nabil-lesson-active main.container,
+  body.nabil-lesson-active .container,
+  body.nabil-lesson-active .lesson-layout,
+  body.nabil-lesson-active .lesson-main-column,
+  body.nabil-lesson-active .lesson-side-stack,
+  body.nabil-lesson-active .lesson-wide-stack,
+  body.nabil-lesson-active .lesson-card-stack,
+  body.nabil-lesson-active #chat,
+  body.nabil-lesson-active .chat,
+  body.nabil-lesson-active .exercise-board,
+  body.nabil-lesson-active #nabilLearningDock {
+    position:relative!important;inset:auto!important;left:auto!important;right:auto!important;
+    transform:none!important;float:none!important;
+    width:100%!important;max-width:100%!important;min-width:0!important;
+    margin-left:0!important;margin-right:0!important;
+    box-sizing:border-box!important;
+  }
+  body.nabil-lesson-active main.container,
+  body.nabil-lesson-active .container {padding-left:8px!important;padding-right:8px!important;}
+  body.nabil-lesson-active .lesson-layout,
   body.nabil-lesson-active .lesson-main-column,
   body.nabil-lesson-active .lesson-wide-stack,
   body.nabil-lesson-active .lesson-side-stack,
-  body.nabil-lesson-active .lesson-card-stack,
-  body.nabil-lesson-active .lesson-concept-card,
-  body.nabil-lesson-active .exercise-section-card {
-    width:100%!important;
-    min-width:0!important;
-    max-width:100%!important;
-    box-sizing:border-box!important;
+  body.nabil-lesson-active .lesson-card-stack {display:block!important;grid-template-columns:minmax(0,1fr)!important;}
+
+  /* Desktop tutor/sidebar becomes an in-flow top card on phones, never a side rail. */
+  body.nabil-lesson-active .lesson-tutor-card {
+    position:relative!important;inset:auto!important;left:auto!important;right:auto!important;
+    transform:none!important;float:none!important;
+    width:100%!important;max-width:100%!important;min-width:0!important;
+    height:auto!important;max-height:none!important;margin:0 0 10px!important;
+    box-sizing:border-box!important;overflow:hidden!important;
   }
-  #nabilHomeTutorHost #nabilOpenExplanation { padding:6px!important; overflow-x:hidden!important; }
+
+  #nabilHomeTutorHost #nabilOpenExplanation,
+  body.nabil-lesson-active .lesson-concept-card,
+  body.nabil-lesson-active .exercise-section-card {width:100%!important;min-width:0!important;max-width:100%!important;box-sizing:border-box!important;}
+  #nabilHomeTutorHost #nabilOpenExplanation {padding:6px!important;overflow-x:hidden!important;}
   #nabilOpenExplanation .nabil-open-answer-text,
   body.nabil-lesson-active .teacher .bubble,
   body.nabil-lesson-active .lesson-concept-card,
-  body.nabil-lesson-active .exercise-section-card {
-    width:100%!important;
-    max-width:100%!important;
-    box-sizing:border-box!important;
-    padding:12px 13px!important;
-    font-size:clamp(16px,4.25vw,18px)!important;
-    line-height:1.74!important;
-  }
+  body.nabil-lesson-active .exercise-section-card {width:100%!important;max-width:100%!important;box-sizing:border-box!important;padding:12px 13px!important;font-size:clamp(16px,4.25vw,18px)!important;line-height:1.74!important;}
   #nabilOpenExplanation .nabil-open-answer-text p,
   body.nabil-lesson-active .teacher .bubble p,
   body.nabil-lesson-active .lesson-concept-card p,
-  body.nabil-lesson-active .exercise-section-card p { margin:.78em 0!important; }
-
+  body.nabil-lesson-active .exercise-section-card p {margin:.78em 0!important;}
   #nabilOpenExplanation .nabil-open-answer-text h1,
   #nabilOpenExplanation .nabil-open-answer-text h2,
   #nabilOpenExplanation .nabil-open-answer-text h3,
@@ -192,13 +133,7 @@ body.nabil-lesson-active .exercise-section-card mjx-container {
   body.nabil-lesson-active .lesson-concept-card h2,
   body.nabil-lesson-active .lesson-concept-card h3,
   body.nabil-lesson-active .exercise-section-card h3,
-  body.nabil-lesson-active .exercise-section-card h4 {
-    font-size:clamp(17px,4.7vw,21px)!important;
-    margin:1.25em 0 .62em!important;
-    padding:.55em .68em!important;
-  }
-
-  /* On phones, important scientific terms get enough air to remain visible in dense prose. */
+  body.nabil-lesson-active .exercise-section-card h4 {font-size:clamp(17px,4.7vw,21px)!important;margin:1.25em 0 .62em!important;padding:.55em .68em!important;}
   #nabilOpenExplanation .nabil-open-answer-text strong,
   #nabilOpenExplanation .nabil-open-answer-text b,
   body.nabil-lesson-active .teacher .bubble strong,
@@ -206,41 +141,29 @@ body.nabil-lesson-active .exercise-section-card mjx-container {
   body.nabil-lesson-active .lesson-concept-card strong,
   body.nabil-lesson-active .lesson-concept-card b,
   body.nabil-lesson-active .exercise-section-card strong,
-  body.nabil-lesson-active .exercise-section-card b {
-    padding-inline:.06em;
-    -webkit-box-decoration-break:clone;
-    box-decoration-break:clone;
-  }
-
+  body.nabil-lesson-active .exercise-section-card b {padding-inline:.06em;-webkit-box-decoration-break:clone;box-decoration-break:clone;}
   #nabilOpenExplanation .nabil-open-answer-text blockquote,
   body.nabil-lesson-active .teacher .bubble blockquote,
   body.nabil-lesson-active .lesson-concept-card blockquote,
-  body.nabil-lesson-active .exercise-section-card blockquote {
-    margin:1.12em 0!important;
-    padding:.85em .88em!important;
-  }
-
+  body.nabil-lesson-active .exercise-section-card blockquote {margin:1.12em 0!important;padding:.85em .88em!important;}
   #nabilOpenExplanation .nabil-open-answer-text code,
   body.nabil-lesson-active .teacher .bubble code,
   body.nabil-lesson-active .lesson-concept-card code,
-  body.nabil-lesson-active .exercise-section-card code {
-    white-space:normal!important;
-    overflow-wrap:anywhere!important;
-  }
+  body.nabil-lesson-active .exercise-section-card code {white-space:normal!important;overflow-wrap:anywhere!important;}
   #nabilOpenExplanation .nabil-open-answer-text li + li,
   body.nabil-lesson-active .teacher .bubble li + li,
   body.nabil-lesson-active .lesson-concept-card li + li,
-  body.nabil-lesson-active .exercise-section-card li + li { margin-top:.68em!important; }
+  body.nabil-lesson-active .exercise-section-card li + li {margin-top:.68em!important;}
+  img,svg,canvas,video {max-width:100%!important;height:auto;}
+  /* Do not globally set iframe height:auto: Smart Lab owns its viewport contract. */
+  iframe {max-width:100%!important;}
+  #nabilHomeTutorHost:has(#nabilOpenAnswer.has-answer) .nabil-open-head .nabil-open-mini-avatar {height:clamp(82px,22vw,118px)!important;}
+  #nabilHomeTutorHost #nabilOpenAnswer.has-answer {padding:6px!important;max-height:none!important;overflow:visible!important;}
+}
 
-  img,svg,canvas,video,iframe { max-width:100%!important; height:auto; }
-
-  /* Tutor becomes compact after answering so the lesson owns the phone viewport. */
-  #nabilHomeTutorHost:has(#nabilOpenAnswer.has-answer) .nabil-open-head .nabil-open-mini-avatar {
-    height:clamp(82px,22vw,118px)!important;
-  }
-  #nabilHomeTutorHost #nabilOpenAnswer.has-answer {
-    padding:6px!important;
-    max-height:none!important;
-    overflow:visible!important;
-  }
+@media screen and (max-width:430px){
+  body.nabil-lesson-active .header,
+  body.nabil-lesson-active main.container,
+  body.nabil-lesson-active .container {width:100vw!important;max-width:100vw!important;margin:0!important;}
+  body.nabil-lesson-active .controls {width:100%!important;max-width:100%!important;margin:0!important;}
 }
