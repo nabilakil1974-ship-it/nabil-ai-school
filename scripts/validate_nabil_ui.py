@@ -105,6 +105,13 @@ def main() -> None:
         "100dvh",
         ".nabil-solution-runtime-lab iframe",
     )
+    interactive_route = require(
+        "app/api/routes_interactive_lessons.py",
+        "/static/nabil_browser_tts_v1.js",
+        "/static/nabil_lesson_e2e_runtime_v1.js",
+        "/static/nabil_smart_lab_bridge_v1.js",
+        "/static/nabil_lab_voice_v1.js",
+    )
 
     if ".selection-stage{display:none!important}" not in theme.replace(" ", ""):
         raise SystemExit("theme: grade-only landing stage must remain hidden")
@@ -122,7 +129,7 @@ def main() -> None:
     print(" - smart learning actions render real results below answer tools")
     print(" - lesson diagnostic panel + status/read/send controls are wired")
     print(" - Smart Lab teach/stop/completion bridge is wired")
-    print(" - lesson/lab speech contracts are wired")
+    print(" - lesson/lab speech helper is loaded by the prepared lesson route")
     print(" - phone Smart Lab keeps a real remaining-viewport height")
 
 
