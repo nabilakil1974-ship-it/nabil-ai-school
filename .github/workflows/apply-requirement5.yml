@@ -1,0 +1,50 @@
+name: Apply Requirement 5 Gate
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'scripts/nabil_requirement5_gate.py'
+      - 'scripts/apply_requirement5_patch.py'
+      - '.github/workflows/apply-requirement5.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-r5:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Apply deterministic Requirement 5 patch
+        run: python scripts/apply_requirement5_patch.py
+      - name: Verify syntax
+        run: |
+          python -m py_compile scripts/nabil_requirement5_gate.py
+          python -m py_compile scripts/nabil_lesson_factory.py
+      - name: Verify gate is wired exactly once
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('scripts/nabil_lesson_factory.py').read_text(encoding='utf-8')
+          assert s.count('# REQUIREMENT_5_FINAL_GATE') == 1
+          assert 'validate_requirement5_lab(' in s
+          assert 'assert_requirement5_publishable(' in s
+          print('R5_WIRING_VERIFIED')
+          PY
+      - name: Commit patched factory
+        run: |
+          if git diff --quiet; then
+            echo 'Requirement 5 already wired.'
+            exit 0
+          fi
+          git config user.name 'nabil-ai-r5-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add scripts/nabil_lesson_factory.py
+          git commit -m 'Requirement 5: enforce source-locked scientific visual lab gate'
+          git push
