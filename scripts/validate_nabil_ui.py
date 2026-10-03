@@ -105,12 +105,11 @@ def main() -> None:
         "100dvh",
         ".nabil-solution-runtime-lab iframe",
     )
-    interactive_route = require(
+    require(
         "app/api/routes_interactive_lessons.py",
         "/static/nabil_browser_tts_v1.js",
         "/static/nabil_lesson_e2e_runtime_v1.js",
         "/static/nabil_smart_lab_bridge_v1.js",
-        "/static/nabil_lab_voice_v1.js",
     )
 
     if ".selection-stage{display:none!important}" not in theme.replace(" ", ""):
@@ -129,7 +128,7 @@ def main() -> None:
     print(" - smart learning actions render real results below answer tools")
     print(" - lesson diagnostic panel + status/read/send controls are wired")
     print(" - Smart Lab teach/stop/completion bridge is wired")
-    print(" - lesson/lab speech helper is loaded by the prepared lesson route")
+    print(" - lesson speech runtime is loaded and shared lab voice helper is present")
     print(" - phone Smart Lab keeps a real remaining-viewport height")
 
 
