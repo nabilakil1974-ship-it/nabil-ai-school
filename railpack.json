@@ -14,7 +14,7 @@
       "tesseract-ocr",
       "poppler-utils"
     ],
-    "startCommand": "python -m scripts.start_server"
+    "startCommand": "python -m scripts.start_server_golden"
   },
   "steps": {
     "install": {
