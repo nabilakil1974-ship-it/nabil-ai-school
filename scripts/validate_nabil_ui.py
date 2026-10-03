@@ -113,7 +113,11 @@ def main() -> None:
         raise SystemExit("main.py: global </body> replacement can leak raw JS")
 
     frame_blocks = re.findall(r"#nabilSmartLabFrame\s*\{([^}]*)\}", mobile_lab, flags=re.S)
-    if not any("height:0!important" in "".join(block.split()) and "flex:11 0!important" in "".join(block.split()) for block in frame_blocks):
+    if not any(
+        "height:0!important" in "".join(block.split())
+        and "flex:1 1 0!important" in " ".join(block.split())
+        for block in frame_blocks
+    ):
         raise SystemExit("mobile lab: Smart Lab frame must consume the remaining phone viewport")
 
     print("NABIL UI contract: PASS")
