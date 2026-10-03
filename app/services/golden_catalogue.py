@@ -1,13 +1,15 @@
 """Canonical Golden lesson catalogue and zero-runtime-AI classroom routes.
 
 Golden selection is strict by lesson_id/grade/subject/branch. The classroom uses the
-reference-card renderer. Scientific lesson-aware labs remain a separate fail-closed
-contract (requirement 5): this module never fabricates lab values or behaviour.
+reference-card renderer. Requirement 5 is fail-closed: only pre-published verified
+lesson-aware labs for the exact lesson/lab id may be rendered; runtime never invents
+lab values, behaviour, or a fallback from another lesson.
 """
 from __future__ import annotations
 
 import html
 import json
+import os
 import re
 import time
 from pathlib import Path
@@ -17,8 +19,11 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse
 
 GOLDEN_ARTIFACT_DIR = Path("data/golden_artifacts")
+PUBLISHED_LABS_DIR = Path(os.getenv("NABIL_PUBLISHED_LABS_DIR", "data/published_labs")).resolve()
+PUBLISHED_LABS_INDEX = PUBLISHED_LABS_DIR / "index.json"
 RENDERER_URL = "/static/nabil_reference_classroom_v16.js?v=1"
 INTERRUPT_FIX_URL = "/static/nabil_reference_interrupt_fix_v17.js?v=1"
+VERIFIED_LAB_LOADER_URL = "/static/nabil_verified_lab_loader_v18.js?v=1"
 READABILITY_CSS_URL = "/static/nabil_classroom_readability_v1.css?v=1"
 _CACHE = {"at": 0.0, "rows": []}
 LANG_CODES = {"EN", "FR", "AR"}
@@ -131,9 +136,55 @@ def _source(entry):
     return str(item["text"]).strip(),"golden_drive_0.01"
 
 
+def _safe_token(value):
+    return re.sub(r"[^a-zA-Z0-9._-]+", "-", str(value or "").strip()).strip("-").lower()
+
+
+def _published_index():
+    if not PUBLISHED_LABS_INDEX.is_file(): return {}
+    try:
+        data=json.loads(PUBLISHED_LABS_INDEX.read_text(encoding="utf-8"))
+    except (OSError,ValueError,TypeError): return {}
+    return data if isinstance(data,dict) else {}
+
+
+def _verified_lab(lesson_id, lab_id, language):
+    """Resolve one exact verified lab. Supports v18 multi-lab records and legacy master-lab records."""
+    lid=str(lesson_id or "").strip().upper(); wanted=_safe_token(lab_id); lang=(_lang(language) or "AR").lower()
+    if not lid or not wanted: return None
+    index=_published_index(); candidates=[]
+    for key,raw in index.items():
+        if not isinstance(raw,dict): continue
+        raw_lid=str(raw.get("lesson_id") or "").strip().upper()
+        raw_lab=_safe_token(raw.get("lab_id") or raw.get("concept_id") or raw.get("solution_id") or ("master-lab" if str(raw.get("kind") or "").lower() in {"master_lab","masterlab"} else ""))
+        raw_lang=(_lang(raw.get("language")) or "AR").lower()
+        if raw_lid==lid and raw_lab==wanted and raw_lang==lang: candidates.append(raw)
+    # Backward-compatible master lab only; never map a concept/solution lab to a legacy lesson-wide lab.
+    if not candidates and wanted in {"master-lab","master_lab","masterlab"}:
+        for raw in index.values():
+            if isinstance(raw,dict) and str(raw.get("lesson_id") or "").strip().upper()==lid and (_lang(raw.get("language")) or "AR").lower()==lang:
+                candidates.append(raw)
+    if not candidates: return None
+    raw=candidates[0]
+    # Published factory output is considered verified only when it carries provenance.
+    verified=raw.get("verified") is True or (bool(str(raw.get("source_signature") or "").strip()) and bool(str(raw.get("renderer_contract") or "").strip()))
+    if not verified: return None
+    rel=str(raw.get("html_file") or "").strip()
+    if not rel: return None
+    candidate=(PUBLISHED_LABS_DIR/rel).resolve()
+    try: candidate.relative_to(PUBLISHED_LABS_DIR)
+    except ValueError: return None
+    if not candidate.is_file(): return None
+    try: html_text=candidate.read_text(encoding="utf-8")
+    except OSError: return None
+    if not html_text.strip(): return None
+    return {"found":True,"verified":True,"lesson_id":lid,"lab_id":wanted,"language":lang,"kind":str(raw.get("kind") or ""),"title":str(raw.get("title") or "NABIL Smart Lab"),"engine_version":str(raw.get("engine_version") or ""),"renderer_contract":str(raw.get("renderer_contract") or ""),"source_signature":str(raw.get("source_signature") or ""),"concept_id":str(raw.get("concept_id") or ""),"solution_id":str(raw.get("solution_id") or ""),"teacher_pointer":"sentence-synced","teacher_lifecycle":"start|state|step|complete|stopped","source":"published_verified_lab_v18","ai_used":False,"generation_started":False,"html":html_text}
+
+
 def _page(entry,text,source):
-    payload=json.dumps({"lesson_id":entry["lesson_id"],"title":entry["title"],"text":text,"source":source},ensure_ascii=False).replace("</","<\\/")
-    return f'''<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(entry['title'])}</title><style>html,body,#nabil-classroom-root{{margin:0;min-height:100%;background:#030b14}}</style><link rel="stylesheet" href="{READABILITY_CSS_URL}"></head><body><main id="nabil-classroom-root"></main><script>window.__NABIL_GOLDEN__={payload};</script><script src="{INTERRUPT_FIX_URL}"></script><script src="{RENDERER_URL}"></script><script>(function(){{var r=window.NABILReferenceClassroomV16,p=window.__NABIL_GOLDEN__,root=document.getElementById('nabil-classroom-root');if(r&&p)r.mount(root,p.text,p.title,p);else root.innerHTML='<pre style="color:#f99">NABIL reference classroom failed to load</pre>';}})();</script></body></html>'''
+    meta=_meta(entry["lesson_id"]) or {}
+    payload=json.dumps({"lesson_id":entry["lesson_id"],"title":entry["title"],"text":text,"source":source,"language":(meta.get("language") or entry.get("language") or "ar")},ensure_ascii=False).replace("</","<\\/")
+    return f'''<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(entry['title'])}</title><style>html,body,#nabil-classroom-root{{margin:0;min-height:100%;background:#030b14}}</style><link rel="stylesheet" href="{READABILITY_CSS_URL}"></head><body><main id="nabil-classroom-root"></main><script>window.__NABIL_GOLDEN__={payload};</script><script src="{INTERRUPT_FIX_URL}"></script><script src="{RENDERER_URL}"></script><script src="{VERIFIED_LAB_LOADER_URL}"></script><script>(function(){{var r=window.NABILReferenceClassroomV16,p=window.__NABIL_GOLDEN__,root=document.getElementById('nabil-classroom-root');if(r&&p)r.mount(root,p.text,p.title,p);else root.innerHTML='<pre style="color:#f99">NABIL reference classroom failed to load</pre>';}})();</script></body></html>'''
 
 
 def build_router()->APIRouter:
@@ -153,14 +204,22 @@ def build_router()->APIRouter:
         requested_lang=_lang(language); actual_lang=m["language"] or _lang(entry.get("language"))
         if requested_lang and actual_lang and requested_lang!=actual_lang: raise HTTPException(404,"GOLDEN_LANGUAGE_MISMATCH")
         text,source=_source(entry)
-        return {"found":True,"title":entry["title"],"url":"/api/interactive-lessons/golden-classroom?lesson_id="+quote(lid),"source":source,"bytes":len(text.encode()),"lesson_id":lid,"zero_ai":True,"renderer":"nabil_reference_classroom_v16","reference_cards":True,"interrupt_resume_same_line":True,"interrupt_chat_contract":"formdata_v17","lab_contract":"requirement_5_fail_closed"}
+        return {"found":True,"title":entry["title"],"url":"/api/interactive-lessons/golden-classroom?lesson_id="+quote(lid),"source":source,"bytes":len(text.encode()),"lesson_id":lid,"zero_ai":True,"renderer":"nabil_reference_classroom_v16","reference_cards":True,"interrupt_resume_same_line":True,"interrupt_chat_contract":"formdata_v17","lab_contract":"verified_multi_lab_v18_fail_closed"}
+
+    @router.get("/interactive-lessons/verified-lab")
+    def verified_lab(lesson_id:str,lab_id:str,language:str="ar"):
+        if not _entry(lesson_id): raise HTTPException(404,"GOLDEN_LESSON_NOT_FOUND")
+        item=_verified_lab(lesson_id,lab_id,language)
+        if item is None:
+            return {"found":False,"verified":False,"lesson_id":str(lesson_id).strip().upper(),"lab_id":_safe_token(lab_id),"language":(_lang(language) or "AR").lower(),"reason":"PUBLISHED_LAB_NOT_READY","generation_started":False,"fallback":False}
+        return item
 
     @router.get("/interactive-lessons/golden-classroom",response_class=HTMLResponse)
     def classroom(lesson_id:str):
         entry=_entry(lesson_id)
         if not entry: raise HTTPException(404,"GOLDEN_LESSON_NOT_FOUND")
         text,source=_source(entry)
-        return HTMLResponse(_page(entry,text,source),headers={"Cache-Control":"no-store","X-NABIL-Lesson-ID":entry["lesson_id"],"X-NABIL-Lesson-Source":source,"X-NABIL-Renderer":"reference-v16","X-NABIL-Interrupt-Contract":"formdata-v17","X-NABIL-Lab-Contract":"requirement-5-fail-closed"})
+        return HTMLResponse(_page(entry,text,source),headers={"Cache-Control":"no-store","X-NABIL-Lesson-ID":entry["lesson_id"],"X-NABIL-Lesson-Source":source,"X-NABIL-Renderer":"reference-v16","X-NABIL-Interrupt-Contract":"formdata-v17","X-NABIL-Lab-Contract":"verified-multi-lab-v18-fail-closed"})
 
     @router.get("/interactive-lessons/golden-structured-view",response_class=HTMLResponse)
     def old_structured(lesson_id:str): return classroom(lesson_id)
