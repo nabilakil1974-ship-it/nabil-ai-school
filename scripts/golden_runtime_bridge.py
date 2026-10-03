@@ -7,7 +7,7 @@ from pathlib import Path
 from urllib.parse import quote
 from fastapi import APIRouter,HTTPException
 from fastapi.responses import HTMLResponse
-GOLDEN_ARTIFACT_DIR=Path("data/golden_artifacts");RENDERER_URL="/static/nabil_golden_structured_renderer_v1.js?v=4"
+GOLDEN_ARTIFACT_DIR=Path("data/golden_artifacts");RENDERER_URL="/static/nabil_golden_structured_renderer_v1.js?v=5"
 def _norm(v):return re.sub(r"[^a-z0-9]+","",str(v or "").casefold())
 def _grade_number(v):
  raw=str(v or "");compact=_norm(raw)
@@ -72,7 +72,7 @@ def install_golden_runtime_bridge():
   if not text:raise HTTPException(500,detail={"stage":"golden_artifact","reason":"EMPTY_ARTIFACT","lesson_id":lesson_id})
   title=str(entry.get("title") or lesson_id);jt=json.dumps(text,ensure_ascii=False).replace("</","<\\/");jtitle=json.dumps(title,ensure_ascii=False).replace("</","<\\/")
   markup=f'''<!doctype html><html lang="ar"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="nabil-lesson-id" content="{html.escape(lesson_id)}"><meta name="nabil-canonical-title" content="{html.escape(title)}"><title>{html.escape(title)}</title></head><body style="margin:0;background:#071d30"><div id="boot" style="color:#dff7ff;padding:20px;font-family:Arial">Loading NABIL teaching lesson…</div><script src="{RENDERER_URL}"></script><script>(function(){{try{{if(!window.NABILGoldenStructuredRenderer)throw new Error('RENDERER_NOT_LOADED');const doc=window.NABILGoldenStructuredRenderer.render({jt},{jtitle});document.open();document.write(doc);document.close();setTimeout(()=>window.NABILGoldenStructuredRenderer.activate(document),0);}}catch(e){{console.error('NABIL_GOLDEN_RENDER_ERROR',e);document.body.innerHTML='<pre style="color:white">'+String(e&&e.stack||e)+'</pre>';}}}})();</script></body></html>'''
-  return HTMLResponse(markup,headers={"Cache-Control":"no-store","Content-Security-Policy":"default-src 'self' data: blob:; script-src 'unsafe-inline' 'self'; style-src 'unsafe-inline' 'self'; frame-ancestors 'self'","X-NABIL-Lesson-Source":"golden-structured-artifact","X-NABIL-Lesson-ID":lesson_id,"X-NABIL-Renderer":"teaching-v4"})
+  return HTMLResponse(markup,headers={"Cache-Control":"no-store","Content-Security-Policy":"default-src 'self' data: blob:; script-src 'unsafe-inline' 'self'; style-src 'unsafe-inline' 'self'; frame-ancestors 'self'","X-NABIL-Lesson-Source":"golden-structured-artifact","X-NABIL-Lesson-ID":lesson_id,"X-NABIL-Renderer":"teaching-v5"})
  @bridge.get("/golden-view",response_class=HTMLResponse)
  def drive_view(lesson_id:str,language:str="en",version:str="0.01"):
   try:payload=fetch_golden_from_drive(lesson_id,language,version)
