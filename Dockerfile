@@ -35,6 +35,10 @@ RUN python -m playwright install --with-deps --only-shell chromium && chmod -R a
 
 COPY . .
 
+# Owner V12 readability layer: append after every legacy theme rule so mobile
+# explanations, scientific terms, steps and warnings remain visually separated.
+RUN cat app/static/nabil_mobile_readability_v12.css >> app/static/nabil_reference_theme.css
+
 # Fail the image build if the production landing/learning UI contract regresses.
 RUN python -m scripts.validate_nabil_ui \
     && python -m scripts.test_ui_integration \
