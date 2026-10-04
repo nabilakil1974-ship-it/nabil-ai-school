@@ -3,6 +3,31 @@
 **Repository:** `nabilakil1974-ship-it/nabil-ai-school`  
 **Purpose of this file:** This is the authoritative handoff for Claude. Do not redesign the goal, weaken the gates, or replace the Golden system with generic lesson generation. Read the current code before changing anything and preserve working behavior.
 
+## URGENT CURRENT TASK — 2026-10-04
+
+The immediate blocker is **not Drive synchronization**. Stop spending time on cron/sync until the already-present catalogue entries can actually appear in NABIL.
+
+Observed live fact: **even Golden lessons already present in `data/NABIL_GOLDEN_CATALOGUE.json` do not appear in NABIL's lesson selector.** Therefore trace and repair the complete runtime path first:
+
+`data/NABIL_GOLDEN_CATALOGUE.json -> app/services/golden_registry.py -> app/services/golden_catalogue.py -> registered router in app/main.py -> /api/chat/curriculum/lessons and/or /api/curriculum/lessons -> app/static/curriculum_strict.js -> NABIL lesson dropdown`
+
+Required action for Claude:
+
+1. Inspect the current deployed code and determine the exact break in that path. Do not guess.
+2. Verify `golden_registry.rows()` actually returns the catalogue rows at runtime.
+3. Verify `golden_catalogue.build_router()` is registered under the prefix expected by the browser.
+4. Hit the real Railway catalogue endpoint and record HTTP status + JSON/body.
+5. Inspect `curriculum_strict.js` request URLs, query parameters, canonical-source check and `golden=true` filtering.
+6. Fix any route-prefix, response-schema, field, filtering, grade/subject/language/branch normalization, startup/import, static-JS or deployment mismatch that prevents the existing rows from displaying.
+7. Do **not** add a fake/static fallback list. The UI must display only canonical catalogue rows.
+8. After the fix, deploy and test Mathematics on Railway: select grade + subject + language and prove the existing Golden lesson names appear.
+9. Launch one existing lesson and verify the same `lesson_id` flows into the Golden classroom.
+10. Only after this live path works should catalogue synchronization from Drive be revisited.
+
+Acceptance condition for this urgent task: **an entry already present in `data/NABIL_GOLDEN_CATALOGUE.json` must visibly appear in NABIL on Railway and launch through the canonical Golden path.** A passing CI/build alone is not acceptance.
+
+---
+
 ## 0. Product goal
 
 NABIL AI must behave like a complete intelligent Lebanese-curriculum teacher, not like a PDF viewer, text chatbot, or generic AI lesson generator.
