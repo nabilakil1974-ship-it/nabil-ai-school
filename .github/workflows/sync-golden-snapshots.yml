@@ -1,7 +1,7 @@
 name: Sync Golden snapshots
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "* * * * *"
   workflow_dispatch: {}
 permissions:
   contents: write
