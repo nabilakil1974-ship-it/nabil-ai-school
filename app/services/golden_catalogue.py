@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse
 
 GOLDEN_ARTIFACT_DIR=Path("data/golden_artifacts")
 PUBLISHED_LABS_DIR=Path(os.getenv("NABIL_PUBLISHED_LABS_DIR","data/published_labs")).resolve()
-PUBLISHED_LABS_INDEX=PUBLISHED_LABS_DIR/"index.json"
+PUBLISHED_LABS_INDEX=PUBLISHED_LABS_INDEX=PUBLISHED_LABS_DIR/"index.json"
 NABIL_CATALOGUE_JSON=Path("data/NABIL_GOLDEN_CATALOGUE.json")
 RENDERER_URL="/static/nabil_reference_classroom_v16.js?v=1"
 INTERRUPT_FIX_URL="/static/nabil_reference_interrupt_fix_v17.js?v=1"
@@ -35,8 +35,8 @@ def _subject(v):
 def _branch(v):
     x=_norm(v);u=str(v or "").strip().upper()
     if not x:return ""
-    if u=="GS" or "علومعامة" in x:return "GS"
-    if u in {"LS","SV"} or "علومالحياة" in x:return "LS"
+    if u=="GS" or "علومعامة" in x or "العامة" in x:return "GS"
+    if u in {"LS","SV"} or "علومالحياة" in x or "الحياة" in x:return "LS"
     if u in {"SE","ES"} or "اجتماع" in x or "اقتصاد" in x:return "SE"
     if u in {"LH","HUM"} or "آداب" in x or "انساني" in x:return "LH"
     return ""
@@ -56,7 +56,8 @@ def _meta(lid):
     return {"grade":grade,"subject":subject,"branch":branch,"language":lang,"seq":p[-1]}
 
 def _registry_rows():
-    rows={}
+    """قراءة الدروس حصرياً من ملف NABIL_GOLDEN_CATALOGUE.json لضمان التحديث الفوري."""
+    rows = {}
     if NABIL_CATALOGUE_JSON.is_file():
         try:
             cat_data = json.loads(NABIL_CATALOGUE_JSON.read_text(encoding="utf-8"))
@@ -72,11 +73,19 @@ def _registry_rows():
                 title = str(e.get("title") or lid)
                 lang = str(e.get("language") or "English")
                 lang_code = "fr" if "fr" in lang.lower() else ("ar" if "ar" in lang.lower() else "en")
+                
+                # استخراج الصف والفرع والمادة مباشرة من المعرف أو الحقول الداخلية
+                m = _meta(lid)
+                grade_val = str(e.get("grade") or (m["grade"] if m else ""))
+                branch_val = str(e.get("branch") or (m["branch"] if m else ""))
+                
                 rows[lid] = {
                     "lesson_id": lid,
                     "title": title,
                     "language": lang_code,
                     "version": str(e.get("version") or "0.01"),
+                    "grade": grade_val,
+                    "branch": branch_val,
                     "drive_file_id": fid,
                     "drive_theory_id": fid,
                     "drive_url": e.get("drive_url") or f"https://docs.google.com/document/d/{fid}/edit",
@@ -85,28 +94,6 @@ def _registry_rows():
                 }
         except Exception as exc:
             logging.getLogger("nabil_ai.golden").warning("Failed to parse NABIL_GOLDEN_CATALOGUE.json: %s", exc)
-
-    try:
-        from app.services.golden_store import list_registry_entries
-        for e in list_registry_entries():
-            lid=str(e.get("lesson_id") or "").strip().upper()
-            if not lid or lid in rows: continue
-            fid=str(e.get("drive_file_id") or e.get("drive_theory_id") or "").strip()
-            if not fid:continue
-            title=str(e.get("title") or lid)
-            rows[lid]={
-                "lesson_id":lid,
-                "title":title,
-                "language":str(e.get("language") or "en"),
-                "version":str(e.get("version") or "0.01"),
-                "drive_file_id":fid,
-                "drive_theory_id":fid,
-                "drive_url":e.get("drive_url") or f"https://docs.google.com/document/d/{fid}/edit",
-                "mime_type":"application/vnd.google-apps.document",
-                "golden":True
-            }
-    except Exception:
-        pass
 
     return [rows[k] for k in sorted(rows)]
 
@@ -122,10 +109,10 @@ def _catalogue(grade, subject, language="", branch=""):
         # مطابقة الصف بدقة تامة
         if m["grade"] and gn and m["grade"] != gn:
             continue
-        # مطابقة المادة بدقة
+        # مطابقة المادة بدقة تامة
         if m["subject"] and sc and m["subject"] != sc:
             continue
-        # مطابقة الفرع للصف الثاني عشر (الثالث ثانوي) إذا تم تحديده
+        # مطابقة الفرع حصرياً للصف الثاني عشر (الثالث ثانوي) إذا تم اختياره
         if gn == "12" and bc:
             if m["branch"] and m["branch"] != bc:
                 continue
