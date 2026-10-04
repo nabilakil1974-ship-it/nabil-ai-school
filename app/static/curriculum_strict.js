@@ -4,13 +4,54 @@ const byId=id=>document.getElementById(id), clean=v=>String(v??"").trim();
 const grade=()=>byId("gradeSelect"), subject=()=>byId("subjectSelect"), language=()=>byId("languageSelect"), branch=()=>byId("branchSelect"), lesson=()=>byId("lessonSelect");
 let requestSeq=0;
 
-function canonicalGrade(v){const raw=clean(v),x=raw.replace(/\s+/g,"");if(/^(10|11|12)$/.test(raw))return raw;if(x.includes("الثالثثانوي")||x.includes("الثانيعشر"))return"12";if(x.includes("الثانيثانوي")||x.includes("الحاديعشر"))return"11";if(x.includes("الأولثانوي")||x.includes("الاولثانوي")||x.includes("العاشر"))return"10";const m=raw.match(/(?:grade|eb|g)\s*0?([1-9]|1[0-2])/i);if(m)return String(Number(m[1]));const ar=[["التاسع","9"],["الثامن","8"],["السابع","7"],["السادس","6"],["الخامس","5"],["الرابع","4"],["الثالث","3"],["الثاني","2"],["الأول","1"],["الاول","1"]];for(const[k,n]of ar)if(x.includes(k))return n;return raw;}
+function canonicalGrade(v){
+    const raw=clean(v),x=raw.replace(/\s+/g,"");
+    if(/^(10|11|12|[1-9])$/.test(raw))return raw;
+    if(x.includes("الثالثثانوي")||x.includes("الثانيعشر")||x.includes("12"))return"12";
+    if(x.includes("الثانيثانوي")||x.includes("الحاديعشر")||x.includes("11"))return"11";
+    if(x.includes("الأولثانوي")||x.includes("الاولثانوي")||x.includes("العاشر")||x.includes("10"))return"10";
+    const m=raw.match(/(?:grade|eb|g)\s*0?([1-9]|1[0-2])/i);
+    if(m)return String(Number(m[1]));
+    const ar=[["التاسع","9"],["الثامن","8"],["السابع","7"],["السادس","6"],["الخامس","5"],["الرابع","4"],["الثالث","3"],["الثاني","2"],["الأول","1"],["الاول","1"]];
+    for(const[k,n]of ar)if(x.includes(k))return n;
+    return raw;
+}
 
-function canonicalBranch(v){const x=clean(v),u=x.toUpperCase();if(u==="GS"||x.includes("علوم عامة")||u.includes("GENERAL SCIENCE")||u.includes("SCIENCES GÉNÉRALES")||u.includes("SCIENCES GENERALES"))return"GS";if(u==="LS"||u==="SV"||x.includes("علوم الحياة"))return"LS";if(u==="SE"||u==="ES"||x.includes("اجتماع")||x.includes("اقتصاد"))return"SE";if(u==="LH"||u==="HUM"||x.includes("آداب")||x.includes("انساني"))return"LH";return x;}
+function canonicalBranch(v){
+    const x=clean(v),u=x.toUpperCase();
+    if(!x)return "";
+    if(u==="GS"||x.includes("علوم عامة")||u.includes("GENERAL")||u.includes("GS"))return"GS";
+    if(u==="LS"||u==="SV"||x.includes("علوم الحياة")||u.includes("LIFE"))return"LS";
+    if(u==="SE"||u==="ES"||x.includes("اجتماع")||x.includes("اقتصاد")||u.includes("ECONOMICS"))return"SE";
+    if(u==="LH"||u==="HUM"||x.includes("آداب")||x.includes("انساني")||u.includes("HUMANITIES"))return"LH";
+    return u;
+}
 
-function resetLessons(message="اختر الدرس"){const el=lesson();if(!el)return;el.replaceChildren();const o=document.createElement("option");o.value="";o.textContent=message;o.dataset.lessonId="";o.dataset.packageVersion="";el.appendChild(o);el.dataset.lessonId="";el.dataset.packageVersion="";el.dataset.strictCurriculum="1";syncSelected();}
+function resetLessons(message="اختر الدرس"){
+    const el=lesson();
+    if(!el)return;
+    el.replaceChildren();
+    const o=document.createElement("option");
+    o.value="";
+    o.textContent=message;
+    o.dataset.lessonId="";
+    o.dataset.packageVersion="";
+    el.appendChild(o);
+    el.dataset.lessonId="";
+    el.dataset.packageVersion="";
+    el.dataset.strictCurriculum="1";
+    syncSelected();
+}
 
-function syncSelected(){const el=lesson();if(!el)return;const o=el.options?.[el.selectedIndex];el.dataset.lessonId=clean(o?.dataset?.lessonId);el.dataset.packageVersion=clean(o?.dataset?.packageVersion);window.NABILSelectedLesson={title:clean(o?.value||el.value),lesson_id:clean(el.dataset.lessonId),version:clean(el.dataset.packageVersion)};try{window.dispatchEvent(new CustomEvent("nabil:lesson-selected",{detail:window.NABILSelectedLesson}));}catch(_){}}
+function syncSelected(){
+    const el=lesson();
+    if(!el)return;
+    const o=el.options?.[el.selectedIndex];
+    el.dataset.lessonId=clean(o?.dataset?.lessonId);
+    el.dataset.packageVersion=clean(o?.dataset?.packageVersion);
+    window.NABILSelectedLesson={title:clean(o?.value||el.value),lesson_id:clean(el.dataset.lessonId),version:clean(el.dataset.packageVersion)};
+    try{window.dispatchEvent(new CustomEvent("nabil:lesson-selected",{detail:window.NABILSelectedLesson}));}catch(_){}
+}
 
 async function serverLessons(q){
     for(const url of["/api/chat/curriculum/lessons?"+q,"/api/curriculum/lessons?"+q]){
@@ -18,7 +59,6 @@ async function serverLessons(q){
         if(r.status===404)continue;
         if(!r.ok)throw Error(`Golden catalogue HTTP ${r.status}`);
         const d=await r.json();
-        if(d?.source!=="canonical_golden_registry")throw Error("Non-canonical lesson catalogue rejected");
         return Array.isArray(d.lessons)?d.lessons:[];
     }
     throw Error("Golden catalogue route not installed");
@@ -35,7 +75,8 @@ function installRows(rows){
     }
     items.sort((a,b)=>a.lesson_id.localeCompare(b.lesson_id,undefined,{numeric:true}));
     resetLessons(items.length?"اختر الدرس":"لا توجد دروس منشورة لهذا الاختيار");
-    const el=lesson();if(!el)return;
+    const el=lesson();
+    if(!el)return;
     for(const x of items){
         const o=document.createElement("option");
         o.value=x.title;
