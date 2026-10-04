@@ -116,7 +116,7 @@ class NabilUiIntegrationTests(unittest.TestCase):
         ):
             self.assertIn(marker, theme)
         self.assertIn("اختر فرع الثالث ثانوي أولًا", strict)
-        self.assertIn("curriculum_strict.js?v=138", self.html)
+        self.assertIn("curriculum_strict.js?v=139", self.html)
         self.assertIn("nabil_reference_theme.css?v=21", self.html)
 
     def test_third_secondary_branch_catalog_precedes_old_unbranched_index(self):
