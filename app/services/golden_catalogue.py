@@ -13,17 +13,17 @@ RENDERER_URL="/static/nabil_reference_classroom_v16.js?v=1"
 INTERRUPT_FIX_URL="/static/nabil_reference_interrupt_fix_v17.js?v=1"
 VERIFIED_LAB_LOADER_URL="/static/nabil_verified_lab_loader_v19.js?v=1"
 READABILITY_CSS_URL="/static/nabil_classroom_readability_v1.css?v=1"
-_CACHE={"at":0.0,"rows":[]}; LANG_CODES={"EN","FR","AR"}; BRANCH_CODES={"GS","LS","SV","SE","ES","LH","HUM"}
+LANG_CODES={"EN","FR","AR"}; BRANCH_CODES={"GS","LS","SV","SE","ES","LH","HUM"}
 
-def _norm(v): return re.sub(r"[^a-z0-9\u0600-\u06ff]+","",str(v or "").casefold())
+def _norm(v):return re.sub(r"[^a-z0-9\u0600-\u06ff]+","",str(v or "").casefold())
 def _grade(v):
- raw=str(v or "").strip(); x=_norm(raw)
- if re.fullmatch(r"(?:[1-9]|10|11|12)",raw): return str(int(raw))
- for names,n in [(("الثالثثانوي","الصفالثالثثانوي","الثانيعشر","الصفالثانيعشر"),"12"),(("الثانيثانوي","الصفالثانيثانوي","الحاديعشر","الصفالحاديعشر"),"11"),(("الأولثانوي","الاولثانوي","الصفالأولثانوي","الصفالاولثانوي","العاشر","الصفالعاشر"),"10")]:
-  if any(_norm(k) in x for k in names): return n
- for k,n in [("التاسع","9"),("الثامن","8"),("السابع","7"),("السادس","6"),("الخامس","5"),("الرابع","4"),("الثالث","3"),("الثاني","2"),("الأول","1"),("الاول","1")]:
+ raw=str(v or "").strip();x=_norm(raw)
+ if re.fullmatch(r"(?:[1-9]|10|11|12)",raw):return str(int(raw))
+ m=re.search(r"(?:grade|eb|g)0?([1-9]|1[0-2])$",x)
+ if m:return str(int(m.group(1)))
+ for k,n in [("الثانيعشر","12"),("الثالثثانوي","12"),("الحاديعشر","11"),("الثانيثانوي","11"),("العاشر","10"),("الأولثانوي","10"),("الاولثانوي","10"),("التاسع","9"),("الثامن","8"),("السابع","7"),("السادس","6"),("الخامس","5"),("الرابع","4"),("الثالث","3"),("الثاني","2"),("الأول","1"),("الاول","1")]:
   if _norm(k) in x:return n
- m=re.search(r"(?:grade|eb|g)0?([1-9]|1[0-2])$",x); return str(int(m.group(1))) if m else ""
+ return ""
 def _subject(v):
  x=_norm(v)
  if "رياض" in x or x in {"math","maths","mathematics","mathematiques"}:return "MATH"
@@ -57,9 +57,7 @@ def _meta(lid):
 def _registry_rows():
  """Canonical Golden catalogue = the PUBLISHED registry (data/golden_lesson_links.json, synced from Drive,
  merged with data/golden_lessons_registry.json by golden_store). Disk only: opening the platform or picking a
- lesson never needs a live Google Drive/OAuth call. Drive stays the source of truth (via the sync script) and is
- only contacted to fetch lesson TEXT, never to build the list. Nothing is invented: a lesson must be explicitly
- golden=true, status available, carry a valid lesson_id and a Drive file id."""
+ lesson never needs a live Google Drive/OAuth call."""
  from app.services.golden_store import list_registry_entries
  rows={}
  for e in list_registry_entries():
@@ -71,6 +69,7 @@ def _registry_rows():
   title=str(e.get("title") or lid);title=re.sub("^"+re.escape(lid)+r"\s*[—–:-]?\s*","",title,flags=re.I).strip() or lid
   rows[lid]={"lesson_id":lid,"title":title,"language":str(e.get("language") or "en"),"version":str(e.get("version") or "0.01"),"drive_file_id":fid,"drive_theory_id":fid,"drive_url":e.get("drive_url") or f"https://docs.google.com/document/d/{fid}/edit","mime_type":e.get("mime_type") or "application/vnd.google-apps.document","golden":True}
  return [rows[k] for k in sorted(rows)]
+
 def _catalogue(grade,subject,language="",branch=""):
  gn,sc,bc,lc=_grade(grade),_subject(subject),_branch(branch),_lang(language);out=[]
  if not gn or not sc:return out
@@ -83,13 +82,14 @@ def _catalogue(grade,subject,language="",branch=""):
   if lc and rl and lc!=rl:continue
   out.append({k:row[k] for k in ("lesson_id","title","version","language","golden")})
  return out
+
 def _entry(lid):
  lid=str(lid or "").strip().upper();return next((r for r in _registry_rows() if r["lesson_id"]==lid),None)
+
 def _source(entry):
  lid=entry["lesson_id"];local=GOLDEN_ARTIFACT_DIR/f"{lid}.txt"
  if local.exists() and (text:=local.read_text(encoding="utf-8").strip()):return text,"golden_structured_artifact"
- from app.services.golden_store import _drive_service,_fetch_artifact
- item=_fetch_artifact(_drive_service(),{"drive_file_id":entry["drive_file_id"],"mime_type":entry["mime_type"],"name":entry["title"],"artifact_id":lid+"-LESSON"})
+ item=golden_registry.lesson_text(lid)
  if not item or not str(item.get("text") or "").strip():raise RuntimeError("GOLDEN_TEACHING_TEXT_EMPTY:"+lid)
  return str(item["text"]).strip(),"golden_drive_0.01"
 
@@ -103,9 +103,9 @@ def _published_index():
  try:data=json.loads(PUBLISHED_LABS_INDEX.read_text(encoding="utf-8"))
  except (OSError,ValueError,TypeError):return {}
  return data if isinstance(data,dict) else {}
+
 def _lesson_lab_records(lesson_id,language=""):
- lid=str(lesson_id or "").strip().upper();lang=(_lang(language) or "").lower();idx=_published_index();labs=idx.get("labs") if isinstance(idx.get("labs"),dict) else {};lesson=(idx.get("lessons") or {}).get(lid,{}) if isinstance(idx.get("lessons"),dict) else {}
- keys=lesson.get("artifact_keys") or [] if isinstance(lesson,dict) else [];out=[]
+ lid=str(lesson_id or "").strip().upper();lang=(_lang(language) or "").lower();idx=_published_index();labs=idx.get("labs") if isinstance(idx.get("labs"),dict) else {};lesson=(idx.get("lessons") or {}).get(lid,{}) if isinstance(idx.get("lessons"),dict) else {};keys=lesson.get("artifact_keys") or [] if isinstance(lesson,dict) else [];out=[]
  for key in keys:
   raw=labs.get(key)
   if not isinstance(raw,dict) or str(raw.get("lesson_id") or "").strip().upper()!=lid:continue
@@ -125,11 +125,11 @@ def _lesson_lab_records(lesson_id,language=""):
   if not contract:continue
   out.append({**raw,"artifact_key":str(raw.get("artifact_key") or key),"lab_id":str(raw.get("lab_key") or raw.get("lab_id") or ""),"path":rel,"verified":True,"source_signature":expected,"html":payload.decode("utf-8")})
  return out
+
 def _verified_lab(lesson_id,lab_id,language):
  wanted=str(lab_id or "").strip().casefold()
  for raw in _lesson_lab_records(lesson_id,language):
-  if str(raw.get("lab_id") or "").strip().casefold()==wanted:
-   return {"found":True,"verified":True,"lesson_id":str(lesson_id).strip().upper(),"lab_id":raw["lab_id"],"language":str(raw.get("language") or language),"kind":str(raw.get("kind") or ""),"title":str(raw.get("title") or "NABIL Smart Lab"),"renderer_contract":str(raw.get("renderer_contract") or ""),"source_signature":str(raw.get("source_signature") or ""),"teacher_pointer":"sentence-synced","teacher_lifecycle":"start|state|step|complete|stopped","source":"factory_quality_gated_static_lab","ai_used":False,"generation_started":False,"html":raw["html"]}
+  if str(raw.get("lab_id") or "").strip().casefold()==wanted:return {"found":True,"verified":True,"lesson_id":str(lesson_id).strip().upper(),"lab_id":raw["lab_id"],"language":str(raw.get("language") or language),"kind":str(raw.get("kind") or ""),"title":str(raw.get("title") or "NABIL Smart Lab"),"renderer_contract":str(raw.get("renderer_contract") or ""),"source_signature":str(raw.get("source_signature") or ""),"teacher_pointer":"sentence-synced","teacher_lifecycle":"start|state|step|complete|stopped","source":"factory_quality_gated_static_lab","ai_used":False,"generation_started":False,"html":raw["html"]}
  return None
 
 def _page(entry,text,source):
@@ -172,3 +172,6 @@ def build_router()->APIRouter:
  @router.get("/interactive-lessons/golden-structured-view",response_class=HTMLResponse)
  def old_structured(lesson_id:str):return classroom(lesson_id)
  return router
+```[cite: 7]
+
+قم بنسخ هذا الكود بالكامل، وضعه داخل ملف `app/services/golden_catalogue.py` في مشروعك، ثم احفظ الملف وارفعه إلى المستودع ليتم نشره على Railway[cite: 7].
