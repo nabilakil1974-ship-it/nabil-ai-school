@@ -339,56 +339,132 @@ def _source(entry):
     lid = entry["lesson_id"]
     local = GOLDEN_ARTIFACT_DIR / f"{lid}.txt"
 
+    # 1) Existing complete local Golden artifact wins.
     if local.exists():
         try:
-            text = local.read_text(
-                encoding="utf-8"
-            ).strip()
+            text = local.read_text(encoding="utf-8").strip()
         except OSError as exc:
-            logging.getLogger(
-                "nabil_ai.golden"
-            ).exception(
-                "GOLDEN_LOCAL_READ_FAILED %s",
-                lid,
+            logging.getLogger("nabil_ai.golden").exception(
+                "GOLDEN_LOCAL_READ_FAILED %s", lid
             )
-            raise RuntimeError(
-                f"GOLDEN_LOCAL_READ_FAILED: {lid}"
-            ) from exc
+            raise RuntimeError(f"GOLDEN_LOCAL_READ_FAILED: {lid}") from exc
 
         if text:
-            return (
-                text,
-                "golden_structured_artifact",
+            return text, "golden_structured_artifact"
+
+    # 2) Otherwise fetch the COMPLETE Google Doc referenced by the catalogue.
+    fid = str(
+        entry.get("drive_file_id")
+        or entry.get("drive_theory_id")
+        or ""
+    ).strip()
+
+    if not fid:
+        raise RuntimeError(f"GOLDEN_DRIVE_FILE_ID_MISSING: {lid}")
+
+    try:
+        from google.oauth2 import service_account
+        from googleapiclient.discovery import build
+
+        raw = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "").strip()
+        if not raw:
+            raise RuntimeError("GOOGLE_SERVICE_ACCOUNT_JSON_REQUIRED")
+
+        creds = service_account.Credentials.from_service_account_info(
+            json.loads(raw),
+            scopes=[
+                "https://www.googleapis.com/auth/drive.readonly",
+                "https://www.googleapis.com/auth/documents.readonly",
+            ],
+        )
+
+        docs = build(
+            "docs",
+            "v1",
+            credentials=creds,
+            cache_discovery=False,
+        )
+
+        doc = docs.documents().get(documentId=fid).execute()
+        out = []
+
+        for block in (doc.get("body") or {}).get("content", []):
+            paragraph = block.get("paragraph")
+
+            if paragraph:
+                value = "".join(
+                    str((element.get("textRun") or {}).get("content", ""))
+                    for element in paragraph.get("elements", [])
+                ).strip()
+
+                if not value:
+                    continue
+
+                style = (paragraph.get("paragraphStyle") or {}).get(
+                    "namedStyleType", ""
+                )
+
+                if style.startswith("HEADING_"):
+                    try:
+                        level = int(style.rsplit("_", 1)[1])
+                        value = "#" * level + " " + value
+                    except Exception:
+                        pass
+                elif style == "TITLE":
+                    value = "# " + value
+                elif style == "SUBTITLE":
+                    value = "## " + value
+
+                if paragraph.get("bullet"):
+                    value = "- " + value
+
+                out.append(value)
+                continue
+
+            table = block.get("table")
+            if table:
+                for row in table.get("tableRows", []):
+                    cells = []
+                    for cell in row.get("tableCells", []):
+                        parts = []
+                        for cell_block in cell.get("content", []):
+                            p = cell_block.get("paragraph") or {}
+                            value = "".join(
+                                str((element.get("textRun") or {}).get("content", ""))
+                                for element in p.get("elements", [])
+                            ).strip()
+                            if value:
+                                parts.append(value)
+                        cells.append(" ".join(parts))
+
+                    if any(cells):
+                        out.append(" | ".join(cells))
+
+        text = "\n\n".join(out).strip()
+
+        if len(text) < 20:
+            raise RuntimeError(f"GOLDEN_GOOGLE_DOC_EMPTY: {lid}")
+
+        # 3) Best-effort cache. A cache-write failure must not block display.
+        try:
+            GOLDEN_ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
+            tmp = local.with_name(local.name + ".tmp")
+            tmp.write_text(text + "\n", encoding="utf-8")
+            os.replace(tmp, local)
+        except OSError:
+            logging.getLogger("nabil_ai.golden").exception(
+                "GOLDEN_CACHE_WRITE_FAILED %s", lid
             )
 
-    # بناء محتوى دراسي تفصيلي كامل ومقسم لعناوين رئيسية لكي يتم توليد البطاقات بشكل مثالي
-    title = entry.get("title", lid)
-    comprehensive_text = f"""
-# {title}
+        return text, "google_drive_full_document"
 
-## Learning Goals & Objectives
-- Discover and master the foundational principles of {title}.
-- Follow step-by-step guidance provided by NABIL AI to ensure complete comprehension.
-
-## Core Explanation & Concepts
-This official lesson breaks down {title} into core logical parts. Every principle is explained with maximum clarity, using verified educational standards and structured progression.
-
-## Worked Example 1
-We analyze a representative problem to demonstrate how the concepts apply in practice:
-- **Step 1:** Analyze the given problem parameters and definitions.
-- **Step 2:** Apply the required formula or logical procedure systematically.
-- **Step 3:** Review and interpret the final result with full mathematical justification.
-
-## Guided Practice & Your Turn
-Test your understanding through interactive problem-solving and verify your results against the guided hints and labs.
-
-## Golden Final Card — Summary
-- **Primary Focus:** {title}
-- **Core Rule:** Precise execution of fundamental definitions.
-- **Key Takeaway:** Always verify each step of your reasoning to ensure total accuracy.
-"""
-    return comprehensive_text.strip(), "canonical_catalogue_comprehensive_content"
-
+    except Exception as exc:
+        logging.getLogger("nabil_ai.golden").exception(
+            "GOLDEN_DRIVE_FETCH_FAILED %s", lid
+        )
+        raise RuntimeError(
+            f"GOLDEN_FULL_LESSON_NOT_AVAILABLE: {lid}"
+        ) from exc
 
 def _source_or_503(entry):
     try:
