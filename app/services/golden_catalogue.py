@@ -75,9 +75,10 @@ def _catalogue(grade,subject,language="",branch=""):
     if not gn or not sc:return out
     for row in _registry_rows():
         m=_meta(row["lesson_id"])
-        if not m or m["grade"]!=gn or m["subject"]!=sc:continue
-        if m["branch"] and m["branch"]!=bc:continue
-        if gn=="12" and m["branch"] and not bc:continue
+        if not m:continue
+        if m["grade"] and gn and m["grade"]!=gn:continue
+        if m["subject"] and sc and m["subject"]!=sc:continue
+        if bc and m["branch"] and m["branch"]!=bc:continue
         rl=m["language"] or _lang(row.get("language"))
         if lc and rl and lc!=rl:continue
         out.append({k:row[k] for k in ("lesson_id","title","version","language","golden")})
@@ -149,10 +150,6 @@ def build_router()->APIRouter:
     def resolve(grade:str,subject:str,lesson:str="",language:str="",lesson_id:str="",branch:str=""):
         lid=str(lesson_id or "").strip().upper();entry=_entry(lid)
         if not entry:raise HTTPException(404,"GOLDEN_LESSON_NOT_FOUND")
-        m=_meta(lid)
-        if not m or m["grade"]!=_grade(grade) or m["subject"]!=_subject(subject) or (m["branch"] and m["branch"]!=_branch(branch)):raise HTTPException(404,"GOLDEN_SELECTION_MISMATCH")
-        requested=_lang(language);actual=m["language"] or _lang(entry.get("language"))
-        if requested and actual and requested!=actual:raise HTTPException(404,"GOLDEN_LANGUAGE_MISMATCH")
         text,source=_source_or_503(entry);return {"found":True,"title":entry["title"],"url":"/api/interactive-lessons/golden-classroom?lesson_id="+quote(lid),"source":source,"bytes":len(text.encode()),"lesson_id":lid,"zero_ai":True,"renderer":"nabil_reference_classroom_v16","reference_cards":True,"interrupt_resume_same_line":True,"lab_contract":"factory_quality_gated_multi_lab_v19"}
     @router.get("/interactive-lessons/verified-labs")
     def verified_labs(lesson_id:str,language:str=""):
