@@ -1,0 +1,37 @@
+name: Sync Golden snapshots
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch: {}
+permissions:
+  contents: write
+concurrency:
+  group: sync-golden-snapshots
+  cancel-in-progress: false
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install google-api-python-client google-auth
+      - name: Sync verified snapshots from Drive
+        id: sync
+        continue-on-error: true
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+        run: python scripts/sync_golden_snapshots.py
+      - name: Commit last-good registry and snapshots
+        run: |
+          git config user.name "nabil-sync-bot"
+          git config user.email "nabil-sync-bot@users.noreply.github.com"
+          git add data/golden_lesson_links.json data/golden || true
+          if ! git diff --cached --quiet; then
+            git commit -m "Sync Golden verified snapshots from Drive"
+            git push
+          fi
+      - name: Report sync errors after preserving good updates
+        if: steps.sync.outcome == 'failure'
+        run: exit 1
