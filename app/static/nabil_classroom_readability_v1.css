@@ -1,99 +1,28 @@
-/* NABIL classroom readability — separated teaching prose + mobile-first scientific terms. */
-#nabil-classroom-root, #nabil-classroom-root * { min-width:0; }
-#nabil-classroom-root .nrc-wrap,
-#nabil-classroom-root .nrc-stage,
-#nabil-classroom-root .nrc-board,
-#nabil-classroom-root .nrc-teacher,
-#nabil-classroom-root .nrc-card { max-width:100%; }
-#nabil-classroom-root .nrc-card { overflow:hidden; }
-#nabil-classroom-root .nrc-head { align-items:flex-start; }
-#nabil-classroom-root .nrc-head h2 { line-height:1.35 !important; overflow-wrap:anywhere; }
-#nabil-classroom-root .nrc-line {
-  display:block !important;
-  margin:0 0 1rem !important;
-  padding:.72rem .85rem !important;
-  border-radius:12px;
-  background:rgba(255,255,255,.035);
-  font-size:clamp(18px,1.7vw,21px) !important;
-  line-height:1.9 !important;
-  white-space:pre-wrap !important;
-  overflow-wrap:anywhere !important;
-  word-break:normal !important;
-  text-wrap:pretty;
-}
-#nabil-classroom-root .nrc-line + .nrc-line { margin-top:.45rem !important; }
-#nabil-classroom-root .nrc-line.active {
-  padding:.85rem 1rem !important;
-  margin:.45rem 0 1.1rem !important;
-  line-height:1.9 !important;
-  background:#061725;
-}
-/* Keep scientific terms visually distinct from the explanation that follows. */
-#nabil-classroom-root .nrc-line strong,
-#nabil-classroom-root .nrc-line b,
-#nabil-classroom-root .nrc-line code,
-#nabil-classroom-root .nrc-line em {
-  display:inline-block;
-  max-width:100%;
-  margin:.1rem .15rem;
-  padding:.08rem .38rem;
-  border-radius:7px;
-  overflow-wrap:anywhere;
-}
-#nabil-classroom-root .nrc-line strong,
-#nabil-classroom-root .nrc-line b { color:#9eeeff; background:rgba(103,232,255,.08); }
-#nabil-classroom-root .nrc-card[data-role=rule] .nrc-line,
-#nabil-classroom-root .nrc-card[data-role=concept] .nrc-line { border-inline-start:3px solid rgba(103,232,255,.48); }
-#nabil-classroom-root .nrc-card[data-role=practice] .nrc-line,
-#nabil-classroom-root .nrc-card[data-role=check] .nrc-line,
-#nabil-classroom-root .nrc-card[data-role=assessment] .nrc-line { border-inline-start:3px solid rgba(255,211,106,.62); }
-#nabil-classroom-root .nrc-card[data-role=solution] .nrc-line { border-inline-start:3px solid rgba(124,230,184,.62); }
-#nabil-classroom-root .nrc-teacher [data-teacher],
-#nabil-classroom-root [data-answer] {
-  display:block;
-  margin:.65rem 0;
-  padding:.85rem;
-  border-radius:12px;
-  background:rgba(255,255,255,.04);
-  line-height:1.85 !important;
-  white-space:pre-wrap !important;
-  overflow-wrap:anywhere !important;
-}
-#nabil-classroom-root img,
-#nabil-classroom-root svg,
-#nabil-classroom-root canvas,
-#nabil-classroom-root iframe { max-width:100% !important; height:auto; }
-#nabil-classroom-root pre,
-#nabil-classroom-root table { max-width:100%; overflow-x:auto; }
-#nabil-classroom-root .nrc-btn,
-#nabil-classroom-root .nrc-ask button,
-#nabil-classroom-root .nrc-ask input { min-height:44px; }
-@media (max-width:850px) {
-  html,body { overflow-x:hidden !important; }
-  #nabil-classroom-root .nrc { padding:4px !important; width:100%; overflow-x:hidden; }
-  #nabil-classroom-root .nrc-wrap { width:100%; margin:0; }
-  #nabil-classroom-root .nrc-stage { display:block !important; width:100%; }
-  #nabil-classroom-root .nrc-board,
-  #nabil-classroom-root .nrc-teacher,
-  #nabil-classroom-root .nrc-card { width:100% !important; padding:12px !important; border-radius:14px; }
-  #nabil-classroom-root .nrc-teacher { position:static !important; margin-top:10px; }
-  #nabil-classroom-root .nrc-top { position:sticky; top:0; width:100%; padding:8px; gap:6px; }
-  #nabil-classroom-root .nrc-top .nrc-brand { width:100%; margin:0 0 3px; }
-  #nabil-classroom-root .nrc-btn { flex:1 1 calc(50% - 6px); padding:9px 8px; }
-  #nabil-classroom-root .nrc-title { font-size:23px; line-height:1.35; margin:14px 6px; overflow-wrap:anywhere; }
-  #nabil-classroom-root .nrc-head h2 { font-size:21px !important; }
-  #nabil-classroom-root .nrc-icon { font-size:25px; }
-  #nabil-classroom-root .nrc-line { font-size:18px !important; line-height:1.8 !important; margin-bottom:.8rem !important; padding:.72rem .75rem !important; }
-  #nabil-classroom-root .nrc-line.active { padding:.8rem !important; }
-  #nabil-classroom-root .nrc-teacher [data-teacher],
-  #nabil-classroom-root [data-answer] { font-size:17px; line-height:1.75 !important; }
-  #nabil-classroom-root .nrc-dots { overflow-x:auto; flex-wrap:nowrap; padding-bottom:6px; }
-  #nabil-classroom-root .nrc-dot { flex:0 0 31px; width:31px; height:31px; }
-}
-@media (max-width:430px) {
-  #nabil-classroom-root .nrc-btn { flex-basis:100%; width:100%; }
-  #nabil-classroom-root .nrc-card { padding:10px !important; }
-  #nabil-classroom-root .nrc-line { font-size:17px !important; line-height:1.78 !important; }
-  #nabil-classroom-root .nrc-head { gap:7px; }
-  #nabil-classroom-root .nrc-head h2 { font-size:20px !important; }
-}
+/* NABIL classroom readability — full lesson, top-to-bottom, mobile-first. */
+#nabil-classroom-root,#nabil-classroom-root *{min-width:0;box-sizing:border-box}
+#nabil-classroom-root .nrc-wrap,#nabil-classroom-root .nrc-stage,#nabil-classroom-root .nrc-board,#nabil-classroom-root .nrc-teacher,#nabil-classroom-root .nrc-card{max-width:100%}
+/* FULL LESSON MODE: every authored card remains visible from first to last. */
+#nabil-classroom-root .nrc-card[hidden]{display:block!important}
+#nabil-classroom-root .nrc-stage{display:block!important}
+#nabil-classroom-root .nrc-board{width:min(100%,1050px)!important;margin:0 auto!important;padding:22px!important}
+#nabil-classroom-root .nrc-card{display:block!important;overflow:hidden;min-height:0!important;margin:0 0 28px!important;padding:22px!important}
+#nabil-classroom-root .nrc-card+ .nrc-card{margin-top:28px!important}
+#nabil-classroom-root .nrc-head{align-items:flex-start;margin-bottom:18px!important;padding-bottom:14px!important}
+#nabil-classroom-root .nrc-head h2{line-height:1.35!important;overflow-wrap:anywhere;margin:0!important}
+#nabil-classroom-root .nrc-line{display:block!important;margin:0 0 1.15rem!important;padding:.8rem .95rem!important;border-radius:12px;background:rgba(255,255,255,.035);font-size:clamp(18px,1.7vw,21px)!important;line-height:1.95!important;white-space:pre-wrap!important;overflow-wrap:anywhere!important;word-break:normal!important;text-wrap:pretty;opacity:1!important}
+#nabil-classroom-root .nrc-line+.nrc-line{margin-top:.55rem!important}
+#nabil-classroom-root .nrc-line.active{padding:.9rem 1rem!important;margin:.55rem 0 1.2rem!important;line-height:1.95!important;background:#061725}
+#nabil-classroom-root .nrc-line strong,#nabil-classroom-root .nrc-line b,#nabil-classroom-root .nrc-line code,#nabil-classroom-root .nrc-line em{display:inline-block;max-width:100%;margin:.1rem .15rem;padding:.08rem .38rem;border-radius:7px;overflow-wrap:anywhere}
+#nabil-classroom-root .nrc-line strong,#nabil-classroom-root .nrc-line b{color:#9eeeff;background:rgba(103,232,255,.08)}
+#nabil-classroom-root .nrc-card[data-role=rule] .nrc-line,#nabil-classroom-root .nrc-card[data-role=concept] .nrc-line{border-inline-start:3px solid rgba(103,232,255,.48)}
+#nabil-classroom-root .nrc-card[data-role=practice] .nrc-line,#nabil-classroom-root .nrc-card[data-role=check] .nrc-line,#nabil-classroom-root .nrc-card[data-role=assessment] .nrc-line{border-inline-start:3px solid rgba(255,211,106,.62)}
+#nabil-classroom-root .nrc-card[data-role=solution] .nrc-line{border-inline-start:3px solid rgba(124,230,184,.62)}
+/* Teacher remains available but no longer steals a second column from the full lesson. */
+#nabil-classroom-root .nrc-teacher{position:static!important;width:min(100%,1050px)!important;margin:28px auto 0!important}
+#nabil-classroom-root .nrc-teacher [data-teacher],#nabil-classroom-root [data-answer]{display:block;margin:.65rem 0;padding:.85rem;border-radius:12px;background:rgba(255,255,255,.04);line-height:1.85!important;white-space:pre-wrap!important;overflow-wrap:anywhere!important}
+#nabil-classroom-root img,#nabil-classroom-root svg,#nabil-classroom-root canvas,#nabil-classroom-root iframe{max-width:100%!important;height:auto}
+#nabil-classroom-root pre,#nabil-classroom-root table{max-width:100%;overflow-x:auto}
+#nabil-classroom-root .nrc-btn,#nabil-classroom-root .nrc-ask button,#nabil-classroom-root .nrc-ask input{min-height:44px}
+#nabil-classroom-root .nrc-dots{display:none!important}
+@media(max-width:850px){html,body{overflow-x:hidden!important}#nabil-classroom-root .nrc{padding:4px!important;width:100%;overflow-x:hidden}#nabil-classroom-root .nrc-wrap{width:100%;margin:0}#nabil-classroom-root .nrc-stage{display:block!important;width:100%}#nabil-classroom-root .nrc-board,#nabil-classroom-root .nrc-teacher,#nabil-classroom-root .nrc-card{width:100%!important;padding:12px!important;border-radius:14px}#nabil-classroom-root .nrc-card{margin-bottom:18px!important}#nabil-classroom-root .nrc-card+.nrc-card{margin-top:18px!important}#nabil-classroom-root .nrc-teacher{position:static!important;margin-top:18px!important}#nabil-classroom-root .nrc-top{position:sticky;top:0;width:100%;padding:8px;gap:6px}#nabil-classroom-root .nrc-top .nrc-brand{width:100%;margin:0 0 3px}#nabil-classroom-root .nrc-btn{flex:1 1 calc(50% - 6px);padding:9px 8px}#nabil-classroom-root .nrc-title{font-size:23px;line-height:1.35;margin:14px 6px;overflow-wrap:anywhere}#nabil-classroom-root .nrc-head h2{font-size:21px!important}#nabil-classroom-root .nrc-icon{font-size:25px}#nabil-classroom-root .nrc-line{font-size:18px!important;line-height:1.85!important;margin-bottom:.9rem!important;padding:.72rem .75rem!important}#nabil-classroom-root .nrc-line.active{padding:.8rem!important}#nabil-classroom-root .nrc-teacher [data-teacher],#nabil-classroom-root [data-answer]{font-size:17px;line-height:1.75!important}}
+@media(max-width:430px){#nabil-classroom-root .nrc-btn{flex-basis:100%;width:100%}#nabil-classroom-root .nrc-card{padding:10px!important}#nabil-classroom-root .nrc-line{font-size:17px!important;line-height:1.8!important}#nabil-classroom-root .nrc-head{gap:7px}#nabil-classroom-root .nrc-head h2{font-size:20px!important}}
