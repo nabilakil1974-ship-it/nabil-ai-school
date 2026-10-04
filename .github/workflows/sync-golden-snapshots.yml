@@ -17,19 +17,19 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install google-api-python-client google-auth
-      - name: Sync verified snapshots from Drive
+      - name: Sync canonical Golden snapshots from Drive
         id: sync
         continue-on-error: true
         env:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
         run: python scripts/sync_golden_snapshots.py
-      - name: Commit last-good registry and snapshots
+      - name: Commit canonical catalogue and last-good snapshots
         run: |
           git config user.name "nabil-sync-bot"
           git config user.email "nabil-sync-bot@users.noreply.github.com"
-          git add data/golden_lesson_links.json data/golden || true
+          git add data/NABIL_GOLDEN_CATALOGUE.json data/golden || true
           if ! git diff --cached --quiet; then
-            git commit -m "Sync Golden verified snapshots from Drive"
+            git commit -m "Sync Golden runtime snapshots from Drive"
             git push
           fi
       - name: Report sync errors after preserving good updates
