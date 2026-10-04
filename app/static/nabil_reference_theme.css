@@ -1763,3 +1763,68 @@ body.nabil-lesson-active .controls>*{
   .nabil-sci-avatar{width:72px!important;max-height:96px!important;object-fit:contain!important}
   h1,h2,h3,p,li,.formula,.nabil-sci-chip{overflow-wrap:anywhere!important}
 }
+
+
+/* ============================================================
+   TEMP HOME LOCK — OWNER REQUEST 2026-10-04
+   HOME ONLY: keep avatar + "ابدأ الدرس". Hide everything else.
+   This is visual-only; no feature code is deleted.
+   ============================================================ */
+
+body:not(.nabil-lesson-active) #nabilHomeTutorHost,
+body:not(.nabil-lesson-active) #nabilHome #homeVoiceBtn,
+body:not(.nabil-lesson-active) #nabilHome .selection-stage,
+body:not(.nabil-lesson-active) #nabilHome .skip-home,
+body:not(.nabil-lesson-active) #nabilHome .lesson-mode-layer,
+body:not(.nabil-lesson-active) #nabilHome .hand-cue,
+body:not(.nabil-lesson-active) #nabilHome .avatar-eye-glow,
+body:not(.nabil-lesson-active) #nabilHome .avatar-mouth {
+  display:none!important;
+}
+
+/* Keep the real avatar visible. */
+body:not(.nabil-lesson-active) #nabilHome .home-bg,
+body:not(.nabil-lesson-active) #nabilHome .home-vignette,
+body:not(.nabil-lesson-active) #nabilHome .profile-real,
+body:not(.nabil-lesson-active) #nabilHome .avatar-live-zone {
+  display:block!important;
+}
+
+/* Keep ONLY Start Lesson as the active home control. */
+body:not(.nabil-lesson-active) #nabilHome #homeStartShortcut {
+  display:flex!important;
+  visibility:visible!important;
+  pointer-events:auto!important;
+  position:fixed!important;
+  left:auto!important;
+  right:max(18px,env(safe-area-inset-right))!important;
+  top:auto!important;
+  bottom:max(18px,env(safe-area-inset-bottom))!important;
+  transform:none!important;
+  z-index:10080!important;
+  width:auto!important;
+  min-width:150px!important;
+  max-width:calc(100vw - 36px)!important;
+  min-height:54px!important;
+  margin:0!important;
+  align-items:center!important;
+  justify-content:center!important;
+}
+
+/* Earlier mobile rules hid the avatar. Override them explicitly. */
+@media(max-width:900px) {
+  body:not(.nabil-lesson-active) #nabilHome .profile-real,
+  body:not(.nabil-lesson-active) #nabilHome .avatar-live-zone {
+    display:block!important;
+  }
+
+  body:not(.nabil-lesson-active) #nabilHome #homeStartShortcut {
+    right:max(10px,env(safe-area-inset-right))!important;
+    bottom:max(10px,env(safe-area-inset-bottom))!important;
+    left:auto!important;
+    width:auto!important;
+    min-width:132px!important;
+    max-width:calc(100vw - 20px)!important;
+    min-height:50px!important;
+  }
+}
