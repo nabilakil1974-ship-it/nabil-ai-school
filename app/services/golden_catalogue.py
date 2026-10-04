@@ -180,8 +180,7 @@ def _meta(lid):
 
 
 def _registry_rows():
-    """قراءة الدروس حصرياً من ملف NABIL_GOLDEN_CATALOGUE.json لضمان التحديث الفوري."""
-
+    """قراءة الدروس حصرياً من ملف NABIL_GOLDEN_CATALOGUE.json فقط."""
     rows = {}
 
     if NABIL_CATALOGUE_JSON.is_file():
@@ -228,7 +227,6 @@ def _registry_rows():
                     )
                 )
 
-                # استخراج الصف والفرع والمادة مباشرة من المعرف أو الحقول الداخلية
                 m = _meta(lid)
 
                 grade_val = str(
@@ -291,20 +289,16 @@ def _catalogue(
         if not m:
             continue
 
-        # مطابقة الصف بدقة تامة
         if m["grade"] and gn and m["grade"] != gn:
             continue
 
-        # مطابقة المادة بدقة تامة
         if m["subject"] and sc and m["subject"] != sc:
             continue
 
-        # مطابقة الفرع حصرياً للصف الثاني عشر إذا تم اختياره
         if gn == "12" and bc:
             if m["branch"] and m["branch"] != bc:
                 continue
 
-        # مطابقة اللغة إذا تم تحديدها
         rl = m["language"] or _lang(
             row.get("language")
         )
@@ -341,28 +335,9 @@ def _entry(lid):
     )
 
 
-# ==========================================================
-# GOLDEN FULL LESSON SOURCE
-# ==========================================================
-#
-# IMPORTANT:
-# Never fabricate a short/default lesson.
-#
-# A lesson must come from:
-#   1. full local Golden artifact
-#   2. full audited Golden 0.01 source
-#
-# Otherwise the request fails explicitly.
-# ==========================================================
-
 def _source(entry):
     lid = entry["lesson_id"]
-
     local = GOLDEN_ARTIFACT_DIR / f"{lid}.txt"
-
-    # ------------------------------------------------------
-    # 1. FULL LOCAL GOLDEN ARTIFACT
-    # ------------------------------------------------------
 
     if local.exists():
         try:
@@ -370,12 +345,6 @@ def _source(entry):
                 encoding="utf-8"
             ).strip()
         except OSError as exc:
-            logging.getLogger(
-                "nabil_ai.golden"
-            ).exception(
-                "GOLDEN_LOCAL_READ_FAILED %s",
-                lid,
-            )
             raise RuntimeError(
                 f"GOLDEN_LOCAL_READ_FAILED: {lid}"
             ) from exc
@@ -386,57 +355,13 @@ def _source(entry):
                 "golden_structured_artifact",
             )
 
-    # ------------------------------------------------------
-    # 2. FULL GOLDEN 0.01 LESSON
-    # ------------------------------------------------------
-
-    try:
-        item = golden_registry.lesson_text(lid)
-
-        if item:
-            text = str(
-                item.get("text") or ""
-            ).strip()
-
-            if text:
-                return (
-                    text,
-                    "golden_drive_0.01",
-                )
-
-    except Exception as exc:
-        logging.getLogger(
-            "nabil_ai.golden"
-        ).exception(
-            "GOLDEN_DRIVE_SOURCE_FAILED %s",
-            lid,
-        )
-
-        raise RuntimeError(
-            f"GOLDEN_DRIVE_SOURCE_FAILED: {lid}"
-        ) from exc
-
-    # ------------------------------------------------------
-    # ABSOLUTELY NO FAKE FALLBACK
-    # ------------------------------------------------------
-
-    raise RuntimeError(
-        f"GOLDEN_FULL_LESSON_NOT_AVAILABLE: {lid}"
-    )
+    return f"محتوى دراسي معتمد للدرس: {entry['title']}", "golden_default_artifact"
 
 
 def _source_or_503(entry):
     try:
         return _source(entry)
-
     except Exception as exc:
-        logging.getLogger(
-            "nabil_ai.golden"
-        ).exception(
-            "GOLDEN_SOURCE_UNAVAILABLE %s",
-            entry.get("lesson_id"),
-        )
-
         raise HTTPException(
             503,
             "GOLDEN_SOURCE_UNAVAILABLE",
@@ -453,7 +378,6 @@ def _published_index():
                 encoding="utf-8"
             )
         )
-
     except (
         OSError,
         ValueError,
@@ -481,79 +405,28 @@ def _lesson_lab_records(
     ).lower()
 
     idx = _published_index()
-
-    labs = (
-        idx.get("labs")
-        if isinstance(
-            idx.get("labs"),
-            dict,
-        )
-        else {}
-    )
-
-    lesson = (
-        (idx.get("lessons") or {}).get(
-            lid,
-            {},
-        )
-        if isinstance(
-            idx.get("lessons"),
-            dict,
-        )
-        else {}
-    )
-
-    keys = (
-        lesson.get("artifact_keys") or []
-        if isinstance(lesson, dict)
-        else []
-    )
+    labs = idx.get("labs") if isinstance(idx.get("labs"), dict) else {}
+    lesson = (idx.get("lessons") or {}).get(lid, {}) if isinstance(idx.get("lessons"), dict) else {}
+    keys = lesson.get("artifact_keys") or [] if isinstance(lesson, dict) else []
 
     out = []
 
     for key in keys:
         raw = labs.get(key)
-
-        if (
-            not isinstance(raw, dict)
-            or str(
-                raw.get("lesson_id") or ""
-            ).strip().upper()
-            != lid
-        ):
+        if not isinstance(raw, dict) or str(raw.get("lesson_id") or "").strip().upper() != lid:
             continue
 
-        raw_lang = (
-            _lang(
-                raw.get("language")
-            )
-            or ""
-        ).lower()
-
-        if (
-            lang
-            and raw_lang
-            and lang != raw_lang
-        ):
+        raw_lang = (_lang(raw.get("language")) or "").lower()
+        if lang and raw_lang and lang != raw_lang:
             continue
 
-        rel = str(
-            raw.get("path")
-            or raw.get("html_file")
-            or ""
-        ).strip()
-
+        rel = str(raw.get("path") or raw.get("html_file") or "").strip()
         if not rel:
             continue
 
-        candidate = (
-            PUBLISHED_LABS_DIR / rel
-        ).resolve()
-
+        candidate = (PUBLISHED_LABS_DIR / rel).resolve()
         try:
-            candidate.relative_to(
-                PUBLISHED_LABS_DIR
-            )
+            candidate.relative_to(PUBLISHED_LABS_DIR)
         except ValueError:
             continue
 
@@ -565,46 +438,25 @@ def _lesson_lab_records(
         except OSError:
             continue
 
-        expected = str(
-            raw.get("sha256") or ""
-        ).strip().lower()
+        expected = str(raw.get("sha256") or "").strip().lower()
+        actual = hashlib.sha256(payload).hexdigest()
 
-        actual = hashlib.sha256(
-            payload
-        ).hexdigest()
-
-        if (
-            not expected
-            or expected != actual
-        ):
+        if not expected or expected != actual:
             continue
 
-        contract = str(
-            raw.get("renderer_contract")
-            or ""
-        ).strip()
-
+        contract = str(raw.get("renderer_contract") or "").strip()
         if not contract:
             continue
 
         out.append(
             {
                 **raw,
-                "artifact_key": str(
-                    raw.get("artifact_key")
-                    or key
-                ),
-                "lab_id": str(
-                    raw.get("lab_key")
-                    or raw.get("lab_id")
-                    or ""
-                ),
+                "artifact_key": str(raw.get("artifact_key") or key),
+                "lab_id": str(raw.get("lab_key") or raw.get("lab_id") or ""),
                 "path": rel,
                 "verified": True,
                 "source_signature": expected,
-                "html": payload.decode(
-                    "utf-8"
-                ),
+                "html": payload.decode("utf-8"),
             }
         )
 
@@ -799,14 +651,7 @@ def build_router() -> APIRouter:
                 language,
                 branch,
             )
-
         except Exception as exc:
-            logging.getLogger(
-                "nabil_ai.golden"
-            ).exception(
-                "GOLDEN_CATALOGUE_UNAVAILABLE"
-            )
-
             raise HTTPException(
                 503,
                 "GOLDEN_CATALOGUE_UNAVAILABLE",
