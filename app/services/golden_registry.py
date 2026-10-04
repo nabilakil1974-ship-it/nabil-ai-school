@@ -1,8 +1,13 @@
 """Snapshot-backed Golden registry.
 
-Runtime contract: lesson_id -> data/golden_lesson_links.json -> verified local snapshot.
-The student runtime never needs Google Drive. Drive remains the synchronization source.
-Supports the existing NABIL link registry and schema-2 snapshot registry.
+Runtime catalogue contract:
+  lesson_id -> data/NABIL_GOLDEN_CATALOGUE.json
+Runtime content contract:
+  lesson_id -> verified local snapshot when available.
+
+The student runtime never scans Google Drive. Maintainers update the canonical
+catalogue whenever a new Golden lesson/material is completed. SUPERSEDED files
+must never be entered in the canonical catalogue.
 """
 from __future__ import annotations
 import hashlib, json, os, re, threading
@@ -12,7 +17,7 @@ LESSON_ID_RE=re.compile(r"^G(?:0[1-9]|1[0-2])-[A-Z0-9]+(?:-[A-Z0-9]+)*-\d{3}$",r
 KINDS=("lesson","exercises","worksheet","lab","pptx")
 _lock=threading.Lock(); _cache={"key":None,"lessons":{},"dups":set()}
 
-def registry_path(): return Path(os.getenv("GOLDEN_REGISTRY","data/golden_lesson_links.json"))
+def registry_path(): return Path(os.getenv("GOLDEN_REGISTRY","data/NABIL_GOLDEN_CATALOGUE.json"))
 def data_root(): return Path(os.getenv("GOLDEN_DATA_ROOT",".")).resolve()
 
 def _legacy_asset(it):
@@ -21,35 +26,34 @@ def _legacy_asset(it):
 def normalize(raw):
  lessons={}; dups=set()
  if not isinstance(raw,dict): return lessons,dups
- # New snapshot schema.
- if raw.get("schema")==2 and isinstance(raw.get("lessons"),dict):
-  for lid,ent in raw["lessons"].items():
+ src=raw.get("lessons")
+ # Canonical maintained catalogue: {schema_version, lessons:[...]}
+ if isinstance(src,list):
+  for it in src:
+   if not isinstance(it,dict): continue
+   lid=str(it.get("lesson_id") or "").upper()
+   if not LESSON_ID_RE.fullmatch(lid): continue
+   if str(it.get("title") or "").strip().upper().startswith("SUPERSEDED"): continue
+   if lid in lessons: dups.add(lid); continue
+   ent=dict(it); ent["assets"]={"lesson":_legacy_asset(it)}
+   lessons[lid]=ent
+  return lessons,dups
+ # Snapshot schema retained for compatibility if an explicitly configured registry uses it.
+ if raw.get("schema")==2 and isinstance(src,dict):
+  for lid,ent in src.items():
    lid=str(lid).upper()
    if LESSON_ID_RE.fullmatch(lid) and isinstance(ent,dict) and isinstance(ent.get("assets"),dict): lessons[lid]=ent
   return lessons,dups
- # Existing NABIL schema: {schema_version, lessons:{lesson_id:{...}}}
- src=raw.get("lessons")
  if isinstance(src,dict):
   for key,val in src.items():
    if not isinstance(val,dict): continue
    lid=str(val.get("lesson_id") or key).upper()
    if not LESSON_ID_RE.fullmatch(lid): continue
+   if str(val.get("title") or "").strip().upper().startswith("SUPERSEDED"): continue
    if lid in lessons: dups.add(lid); continue
-   if isinstance(val.get("assets"),dict): ent=dict(val)
-   else:
-    ent={k:v for k,v in val.items() if k not in {"assets"}}
-    ent["assets"]={"lesson":_legacy_asset(val)}
+   ent=dict(val)
+   if not isinstance(ent.get("assets"),dict): ent["assets"]={"lesson":_legacy_asset(val)}
    lessons[lid]=ent
-  return lessons,dups
- if isinstance(src,list): items=src
- elif isinstance(raw,list): items=raw
- else: items=[]
- for it in items:
-  if not isinstance(it,dict): continue
-  lid=str(it.get("lesson_id") or "").upper()
-  if not LESSON_ID_RE.fullmatch(lid): continue
-  if lid in lessons: dups.add(lid); continue
-  lessons[lid]={**it,"assets":{"lesson":_legacy_asset(it)}}
  return lessons,dups
 
 def load():
