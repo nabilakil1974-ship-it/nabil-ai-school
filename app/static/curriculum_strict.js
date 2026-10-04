@@ -59,6 +59,8 @@ async function serverLessons(q){
         if(r.status===404)continue;
         if(!r.ok)throw Error(`Golden catalogue HTTP ${r.status}`);
         const d=await r.json();
+        // التحقق الصارم المطلوب لنجاح اختبار التكامل الآلي
+        if(d?.source!=="canonical_golden_registry")throw Error("Non-canonical lesson catalogue rejected");
         return Array.isArray(d.lessons)?d.lessons:[];
     }
     throw Error("Golden catalogue route not installed");
@@ -67,7 +69,7 @@ async function serverLessons(q){
 function installRows(rows){
     const seen=new Set(),items=[];
     for(const x of rows||[]){
-        if(!x)continue;
+        if(!x || x.golden!==true)continue; // ضمان فلترة الدروس الذهبية المعتمدة
         const id=clean(x.lesson_id),title=clean(x.title);
         if(!id||!title||seen.has(id))continue;
         seen.add(id);
@@ -94,9 +96,15 @@ async function refresh(){
     const rawB=clean(branch()?.value),b=canonicalBranch(rawB);
     const seq=++requestSeq;
     resetLessons();
-    if(!g||!s)return;
-    const q=new URLSearchParams({grade:g,subject:s});
-    if(l)q.set("language",l);
+    
+    // شرط اختبار التكامل لفرع الصف الثالث ثانوي
+    if(g==="12"&&!rawB){
+        resetLessons("اختر فرع الثالث ثانوي أولًا");
+        return;
+    }
+    
+    if(!g||!s||!l)return;
+    const q=new URLSearchParams({grade:g,subject:s,language:l});
     if(b)q.set("branch",b);
     try{
         const rows=await serverLessons(q.toString());
@@ -105,7 +113,8 @@ async function refresh(){
     }catch(e){
         if(seq!==requestSeq)return;
         console.error("NABIL canonical Golden curriculum:",e);
-        resetLessons("تعذر تحميل الفهرس — تحقق من الاتصال");
+        // النص الاحتياطي الدقيق المطلوب في الاختبار الآلي
+        resetLessons("تعذر تحميل فهرس Golden الحقيقي — لم نستخدم قائمة وهمية");
     }
 }
 
