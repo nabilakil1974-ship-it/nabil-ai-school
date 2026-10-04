@@ -1,0 +1,57 @@
+name: Sync complete Golden catalogue from Drive
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/30 * * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-golden-drive
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Drive dependencies
+        run: pip install google-api-python-client google-auth google-auth-oauthlib
+      - name: Synchronize every canonical Golden lesson Grade 1-12
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          GOLDEN_DRIVE_FOLDER_ID: ${{ vars.GOLDEN_DRIVE_FOLDER_ID }}
+        run: python scripts/sync_golden_from_drive.py
+      - name: Validate complete registry
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('data/golden_lesson_links.json')
+          d=json.loads(p.read_text(encoding='utf-8'))
+          assert d.get('schema') == 2
+          assert d.get('count') == len(d.get('lessons',{}))
+          grades={int(v['grade']) for v in d['lessons'].values()}
+          assert grades == set(range(1,13)), f'incomplete grades: {sorted(grades)}'
+          ids=list(d['lessons'])
+          assert len(ids)==len(set(ids))
+          print('VALID COMPLETE GOLDEN CATALOGUE:', len(ids), 'lessons, grades', sorted(grades))
+          PY
+      - name: Commit only when Drive changed
+        run: |
+          if git diff --quiet -- data/golden_lesson_links.json data/golden_snapshots; then
+            echo 'Golden catalogue unchanged.'
+            exit 0
+          fi
+          git config user.name 'nabil-golden-sync'
+          git config user.email 'actions@users.noreply.github.com'
+          git add data/golden_lesson_links.json data/golden_snapshots
+          git commit -m 'Sync complete Golden catalogue and snapshots from Drive'
+          git push
