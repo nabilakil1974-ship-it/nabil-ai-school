@@ -119,12 +119,17 @@ def _catalogue(grade, subject, language="", branch=""):
         m = _meta(row["lesson_id"])
         if not m:
             continue
+        # مطابقة الصف بدقة تامة
         if m["grade"] and gn and m["grade"] != gn:
             continue
+        # مطابقة المادة بدقة
         if m["subject"] and sc and m["subject"] != sc:
             continue
-        if bc and m["branch"] and m["branch"] != bc:
-            continue
+        # مطابقة الفرع للصف الثاني عشر (الثالث ثانوي) إذا تم تحديده
+        if gn == "12" and bc:
+            if m["branch"] and m["branch"] != bc:
+                continue
+        # مطابقة اللغة إذا تم تحديدها
         rl = m["language"] or _lang(row.get("language"))
         if lc and rl and lc != rl:
             continue
