@@ -1,0 +1,68 @@
+name: Auto-sync NABIL Golden catalogue from master Sheet
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-golden-catalogue-sheet
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Google APIs
+        run: pip install google-api-python-client google-auth
+
+      - name: Read ALL_GOLDEN and rebuild runtime catalogue
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          GOLDEN_CATALOGUE_SHEET_ID: 1BHO6mxegYXPBjvNUIjYhaOrOswXPrICKXlvkaN0licI
+          GOLDEN_CATALOGUE_RANGE: ALL_GOLDEN!A:R
+        run: python scripts/sync_golden_catalogue_from_sheet.py
+
+      - name: Validate generated catalogue
+        run: |
+          python - <<'PY'
+          import json, re
+          from pathlib import Path
+          p = Path('data/NABIL_GOLDEN_CATALOGUE.json')
+          d = json.loads(p.read_text(encoding='utf-8'))
+          lessons = d.get('lessons', [])
+          ids = [x['lesson_id'] for x in lessons]
+          assert lessons, 'catalogue must not be empty'
+          assert len(ids) == len(set(ids)), 'duplicate lesson_id'
+          assert d.get('count') == len(lessons), 'count mismatch'
+          assert all(x.get('title') for x in lessons), 'missing title'
+          assert all(not x['title'].upper().startswith('SUPERSEDED') for x in lessons)
+          assert all(re.fullmatch(r'G(?:0[1-9]|1[0-2])-[A-Z0-9]+(?:-[A-Z0-9]+)*-\d{3}', x['lesson_id'], re.I) for x in lessons)
+          print('VALID:', len(lessons), 'Golden lessons')
+          PY
+
+      - name: Commit automatically only when Sheet changed
+        run: |
+          if git diff --quiet -- data/NABIL_GOLDEN_CATALOGUE.json; then
+            echo 'Master Sheet and GitHub catalogue are already identical.'
+            exit 0
+          fi
+          git config user.name 'nabil-golden-catalogue-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add data/NABIL_GOLDEN_CATALOGUE.json
+          git commit -m 'Auto-sync Golden lesson names from master catalogue'
+          git pull --rebase origin main
+          git push origin HEAD:main
