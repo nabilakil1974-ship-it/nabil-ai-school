@@ -180,7 +180,7 @@ def _meta(lid):
 
 
 def _registry_rows():
-    """قراءة الدروس حصرياً من ملف NABIL_GOLDEN_CATALOGUE.json فقط."""
+    """قراءة الدروس حصرياً من ملف NABIL_GOLDEN_CATALOGUE.json لضمان التحديث الفوري."""
     rows = {}
 
     if NABIL_CATALOGUE_JSON.is_file():
@@ -345,6 +345,12 @@ def _source(entry):
                 encoding="utf-8"
             ).strip()
         except OSError as exc:
+            logging.getLogger(
+                "nabil_ai.golden"
+            ).exception(
+                "GOLDEN_LOCAL_READ_FAILED %s",
+                lid,
+            )
             raise RuntimeError(
                 f"GOLDEN_LOCAL_READ_FAILED: {lid}"
             ) from exc
@@ -362,6 +368,12 @@ def _source_or_503(entry):
     try:
         return _source(entry)
     except Exception as exc:
+        logging.getLogger(
+            "nabil_ai.golden"
+        ).exception(
+            "GOLDEN_SOURCE_UNAVAILABLE %s",
+            entry.get("lesson_id"),
+        )
         raise HTTPException(
             503,
             "GOLDEN_SOURCE_UNAVAILABLE",
@@ -651,7 +663,14 @@ def build_router() -> APIRouter:
                 language,
                 branch,
             )
+
         except Exception as exc:
+            logging.getLogger(
+                "nabil_ai.golden"
+            ).exception(
+                "GOLDEN_CATALOGUE_UNAVAILABLE"
+            )
+
             raise HTTPException(
                 503,
                 "GOLDEN_CATALOGUE_UNAVAILABLE",
