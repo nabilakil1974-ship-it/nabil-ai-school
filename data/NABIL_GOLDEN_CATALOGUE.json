@@ -9,8 +9,9 @@
     "required_package": ["explanation","worked_examples","source_exercises","solutions","worksheet","visuals","concept_or_solution_labs","assessment","golden_final_card","whole_lesson_lab"],
     "green_rule": "A lesson is package_complete only after every required component is verified; catalogue presence alone is not completion."
   },
-  "last_verified_from_drive": "2026-10-04",
+  "last_verified_from_drive": "2026-10-05",
   "lessons": [
+    {"lesson_id":"G01-MATH-EN-001","grade":"1","subject":"Mathematics","language":"English","title":"Positioning","drive_file_id":"1q2mKIgDzPkE4igia0O30Yx6l0fPmYGnsa-jPbHBCSJ0","status":"verified_from_drive"},
     {"lesson_id":"G01-MATH-EN-002","grade":"1","subject":"Mathematics","language":"English","title":"The numbers from 1 to 3","drive_file_id":"1vdGr_zkrTxog3VO-Pauyezh_irC81Xy_y_jEvfX8pRQ","status":"verified_from_drive"},
     {"lesson_id":"G01-MATH-EN-003","grade":"1","subject":"Mathematics","language":"English","title":"The numbers from 1 to 5","drive_file_id":"1AGXqyiOGS24sd25KqRuUgimFHC1_HlO8Jhu8UmfOkZM","status":"verified_from_drive"},
     {"lesson_id":"G01-MATH-EN-004","grade":"1","subject":"Mathematics","language":"English","title":"Comparing the numbers from 1 to 5","drive_file_id":"1ncC82I7JIzat5C4CXf27rrJxC7hA1i-Ck3d_RVU-vwU","status":"verified_from_drive"},
