@@ -1,4 +1,10 @@
 /* NABIL AI — screenshot reference palette 2026-09-19. */
+:root {
+  --nabil-ref-page: #05172d;
+  --nabil-ref-header: #002973;
+  --nabil-ref-panel: #081e33;
+  --nabil-ref-green: #009e48;
+}
 :root{--nabil-navy:#06182e;--nabil-page:#071d32;--nabil-header:#0a3565;--nabil-toolbar:#08355f;--nabil-panel:#0b263f;--nabil-card:#0a2238;--nabil-card-deep:#081d31;--nabil-border:#145f91;--nabil-cyan:#14c8f5;--nabil-cyan-light:#66dcff;--nabil-text:#eef8ff;--nabil-muted:#bad6e9;--nabil-green:#0bb353;--nabil-red:#e5232e;--nabil-blue:#0b6de5;--nabil-purple:#5934c7;--nabil-yellow:#ffd44f}
 html{color-scheme:dark}body{background:var(--nabil-page)!important;color:var(--nabil-text)!important}header,.header,.app-header,.platform-header{background:linear-gradient(90deg,var(--nabil-navy),var(--nabil-header))!important;color:var(--nabil-text)}
 .container,.lesson-layout,.lesson-main-column{background:transparent}.lesson-info,.lesson-tutor-card,.lesson-concept-card,.function-study-card,.lesson-final-card,.lesson-quick-check,.lesson-summary-card,.lesson-card,.teacher .bubble,.nabil-visual,.lesson-wide-stack,.lesson-side-stack,.lesson-card-stack{color:var(--nabil-text)}
