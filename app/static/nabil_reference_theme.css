@@ -1,41 +1,39 @@
-/* NABIL AI — screenshot reference palette and contracts */
+/* NABIL AI — screenshot reference palette 2026-09-19. */
 :root {
   --nabil-ref-page: #05172d;
   --nabil-ref-header: #002973;
   --nabil-ref-panel: #081e33;
   --nabil-ref-green: #009e48;
 }
-
-:root {
-  --nabil-navy: #06182e;
-  --nabil-page: #071d32;
-  --nabil-header: #0a3565;
-  --nabil-toolbar: #08355f;
-  --nabil-panel: #0b263f;
-  --nabil-card: #0a2238;
-  --nabil-card-deep: #081d31;
-  --nabil-border: #145f91;
-  --nabil-cyan: #14c8f5;
-  --nabil-cyan-light: #66dcff;
-  --nabil-text: #eef8ff;
-  --nabil-muted: #bad6e9;
-  --nabil-green: #0bb353;
-  --nabil-red: #e5232e;
-  --nabil-blue: #0b6de5;
-  --nabil-purple: #5934c7;
-  --nabil-yellow: #ffd44f;
-}
-
-html {
-  color-scheme: dark;
-}
-
-body {
-  background: var(--nabil-page) !important;
-  color: var(--nabil-text) !important;
-}
-
-.nabil-visual {
-  background-color: var(--nabil-card-deep) !important;
-  border-color: var(--nabil-border) !important;
+:root{--nabil-navy:#06182e;--nabil-page:#071d32;--nabil-header:#0a3565;--nabil-toolbar:#08355f;--nabil-panel:#0b263f;--nabil-card:#0a2238;--nabil-card-deep:#081d31;--nabil-border:#145f91;--nabil-cyan:#14c8f5;--nabil-cyan-light:#66dcff;--nabil-text:#eef8ff;--nabil-muted:#bad6e9;--nabil-green:#0bb353;--nabil-red:#e5232e;--nabil-blue:#0b6de5;--nabil-purple:#5934c7;--nabil-yellow:#ffd44f}
+html{color-scheme:dark}body{background:var(--nabil-page)!important;color:var(--nabil-text)!important}header,.header,.app-header,.platform-header{background:linear-gradient(90deg,var(--nabil-navy),var(--nabil-header))!important;color:var(--nabil-text)}
+.container,.lesson-layout,.lesson-main-column{background:transparent}.lesson-info,.lesson-tutor-card,.lesson-concept-card,.function-study-card,.lesson-final-card,.lesson-quick-check,.lesson-summary-card,.lesson-card,.teacher .bubble,.nabil-visual,.lesson-wide-stack,.lesson-side-stack,.lesson-card-stack{color:var(--nabil-text)}
+.lesson-info,.lesson-tutor-card,.lesson-concept-card,.function-study-card,.lesson-final-card,.lesson-quick-check,.lesson-summary-card,.lesson-card,.teacher .bubble.has-lesson-visual{background:var(--nabil-panel)!important;border-color:var(--nabil-border)!important}.lesson-tutor-card{background:linear-gradient(180deg,#0d2843,#071d35)!important;border:1px solid var(--nabil-border)!important;border-radius:14px!important}.lesson-tutor-name,.lesson-tutor-subtitle,.lesson-concept-card h2,.lesson-concept-card h3,.function-study-card h2,.function-study-card h3{color:var(--nabil-cyan-light)!important}
+.lesson-avatar-live{background:radial-gradient(ellipse at 50% 36%,#133c61 0%,#08233f 66%,#06182e 100%)!important;border:1px solid var(--nabil-border);border-radius:16px;overflow:hidden}.lesson-avatar-live img{max-width:100%;height:auto;object-fit:contain}
+.lesson-tutor-message,.lesson-tutor-quick-check{background:var(--nabil-card)!important;color:var(--nabil-text)!important;border-color:var(--nabil-border)!important}.lesson-tutor-quick-check{border-inline-start:3px solid var(--nabil-cyan)!important}.nabil-visual,.nabil-visual-wrap,.lesson-visual,.lesson-figure,.lesson-figure-card,.lesson-graph,.drawing-container,.teacher .bubble.has-lesson-visual svg{background-color:var(--nabil-card-deep)!important;border-color:var(--nabil-border)!important}.nabil-visual svg,.lesson-visual svg,.lesson-figure svg,.lesson-graph svg{max-width:100%;height:auto}
+.lesson-action-bar button,.lesson-tutor-secondary-actions button,#nabilLearningDock button{background:#123957;color:var(--nabil-text);border:1px solid var(--nabil-border);border-radius:9px}#sendBtn,.nabil-primary-button{background:var(--nabil-blue)!important;color:#fff!important}#startLessonBtn,.start-lesson,.start-btn{background:var(--nabil-green)!important;color:#fff!important}#micBtn,.nabil-talk-button{background:var(--nabil-red)!important;color:#fff!important}.input-area,textarea#messageInput{background:var(--nabil-card-deep);color:var(--nabil-text)}textarea#messageInput{border-color:var(--nabil-border);font:inherit}textarea#messageInput::placeholder{color:var(--nabil-muted)}
+#nabilLearningDock{box-sizing:border-box!important;width:100%!important;max-width:none!important;margin:14px 0 22px!important;background:var(--nabil-panel)!important;border:1px solid var(--nabil-border)!important;color:var(--nabil-text)!important}#nabilLearningDock .nv132-header strong{color:var(--nabil-cyan-light)}#nabilLearningDock .nv132-grid button{background:#123957!important;border-color:#32678d!important}#nabilLearningDock .nv132-grid button:hover{background:#165580!important}#nabilLearningDock .nv132-grid button:focus-visible,.lesson-action-bar button:focus-visible,#nabilOpenTalk:focus-visible{outline:3px solid var(--nabil-cyan-light);outline-offset:2px}
+#nabilOpenTutor{margin:10px 0 16px;padding:12px 14px;background:var(--nabil-panel);border:1px solid var(--nabil-border);border-radius:14px;display:grid;gap:10px}#nabilOpenTutor h2{margin:0;color:var(--nabil-cyan-light);font-size:clamp(16px,2vw,22px)}#nabilOpenTutor p{margin:0;color:var(--nabil-muted);line-height:1.5}#nabilOpenTutor .nabil-open-actions{display:flex;gap:8px;flex-wrap:wrap}#nabilOpenTutor button{padding:10px 15px;min-height:44px;color:#fff;background:#0a508b;border:1px solid var(--nabil-cyan);border-radius:10px;font:inherit;font-weight:700;cursor:pointer}#nabilOpenTalk{background:var(--nabil-red)!important;border-color:#ff7881!important}#nabilOpenTutor [role=status]{font-size:13px;min-height:1.3em;color:var(--nabil-muted)}#nabilOpenTutor [role=status].error{color:#ffb4b4}#nabilOpenAnswer{display:none;max-width:100%;min-width:0;overflow-wrap:anywhere;border:1px solid var(--nabil-border);border-radius:12px;padding:13px;background:var(--nabil-card-deep)}#nabilOpenAnswer.has-answer{display:block}#nabilOpenAnswer .nabil-visual{max-width:100%;overflow:auto}#nabilOpenAnswer svg{max-width:100%;height:auto}
+#nabilHome{background:#06182e!important;color:var(--nabil-text)!important}#nabilHome .home-bg{background-color:#06182e!important}#nabilHomeTutorHost{position:absolute;left:1.2%;top:11%;width:min(36vw,490px);max-height:79vh;overflow-y:auto;overflow-x:hidden;z-index:110;pointer-events:auto;scrollbar-color:#32678d transparent}#nabilHomeTutorHost #nabilOpenTutor{margin:0!important;background:rgba(8,30,52,.94)!important;border:1px solid #3776a2!important;box-shadow:0 12px 38px rgba(0,0,0,.35)}#nabilHomeTutorHost:has(#nabilOpenAnswer.has-answer){width:min(52vw,720px)}#nabilHomeTutorHost #nabilOpenAnswer{max-height:50vh;overflow:auto}#nabilHomeTutorHost #nabilOpenTutor h2{color:#79d9ff!important}#nabilHomeTutorHost .nabil-open-mini-avatar{display:none}#nabilHomeTutorHost [role=status]{direction:auto}
+body.nabil-lesson-active{overflow-x:hidden!important;overflow-y:auto!important;min-height:100dvh!important;background:#071d32!important}body.nabil-lesson-active::before{display:none!important;content:none!important;background:none!important}
+body.nabil-lesson-active #nabilHome,body.nabil-lesson-active #nabilProfessorGateway,#nabilHome[hidden]{display:none!important;visibility:hidden!important;pointer-events:none!important;height:0!important;min-height:0!important;max-height:0!important;margin:0!important;padding:0!important;overflow:hidden!important}
+body.nabil-lesson-active .home-bg,body.nabil-lesson-active .home-vignette,body.nabil-lesson-active .profile-real,body.nabil-lesson-active .avatar-live-zone,body.nabil-lesson-active .avatar-eye-glow,body.nabil-lesson-active .avatar-mouth,body.nabil-lesson-active .hand-cue,body.nabil-lesson-active .nabil-open-mini-avatar,body.nabil-lesson-active .lesson-avatar-live{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;max-height:0!important;margin:0!important;padding:0!important;border:0!important}body.nabil-lesson-active #nabilHomeTutorHost{display:none!important;height:0!important;min-height:0!important;margin:0!important;padding:0!important;overflow:hidden!important}
+/* Hard second-view guard: even if legacy navigation forgets nabil-lesson-active, leaving landing mode removes the entire avatar splash and its tutor card/reserved space. */
+body:not(.nabil-home-lock) #nabilHome,body:not(.nabil-home-lock) #nabilProfessorGateway,body:not(.nabil-home-lock) #nabilHomeTutorHost{display:none!important;visibility:hidden!important;pointer-events:none!important;height:0!important;min-height:0!important;max-height:0!important;margin:0!important;padding:0!important;border:0!important;overflow:hidden!important}body:not(.nabil-home-lock) .home-bg,body:not(.nabil-home-lock) .home-vignette,body:not(.nabil-home-lock) .profile-real,body:not(.nabil-home-lock) .avatar-live-zone,body:not(.nabil-home-lock) .avatar-eye-glow,body:not(.nabil-home-lock) .avatar-mouth,body:not(.nabil-home-lock) .hand-cue,body:not(.nabil-home-lock) .nabil-open-mini-avatar,body:not(.nabil-home-lock) .lesson-avatar-live{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;max-height:0!important;margin:0!important;padding:0!important;border:0!important}
+body.nabil-lesson-active .header,body.nabil-lesson-active main.container{display:block!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;margin-top:0!important;padding-top:0!important}body.nabil-lesson-active .lesson-layout{margin-top:0!important;padding-top:0!important;min-height:0!important}
+#nabilReturnHomeFloating{display:none!important;position:fixed!important;left:14px!important;bottom:max(16px,env(safe-area-inset-bottom))!important;z-index:10060!important;min-width:108px!important;min-height:48px!important;border-radius:12px!important;border:1px solid #5cd6ff!important;padding:10px 16px!important;background:#0c4b81!important;color:#fff!important;box-shadow:0 8px 22px #0008!important;font-size:15px!important;cursor:pointer!important}body.nabil-lesson-active #nabilReturnHomeFloating{display:block!important}body.nabil-home-lock #nabilReturnHomeFloating{display:none!important}
+@media(max-width:900px){html,body{max-width:100%!important;overflow-x:hidden!important}#nabilHome{transform:none!important;width:100%!important;min-height:100dvh!important;overflow-x:hidden!important;overflow-y:auto!important}#nabilHome .home-bg,#nabilHome .home-vignette,#nabilHome .profile-real,#nabilHome .avatar-live-zone{display:none!important}#nabilHomeTutorHost{position:relative!important;inset:auto!important;width:100%!important;max-height:none!important;overflow:visible!important}#nabilHomeTutorHost .nabil-open-mini-avatar{display:block!important;max-width:165px!important;max-height:170px!important;object-fit:contain;margin:auto;background:#0a2036;border-radius:16px}body.nabil-lesson-active #nabilHomeTutorHost,body.nabil-lesson-active .nabil-open-mini-avatar,body:not(.nabil-home-lock) #nabilHomeTutorHost,body:not(.nabil-home-lock) .nabil-open-mini-avatar{display:none!important;height:0!important;min-height:0!important;max-height:0!important;margin:0!important;padding:0!important}}
+/* إخفاء الأفاتار الكبيرة وبطاقتها في أسفل الصفحة نهائياً */
+.avatar-live-zone,
+.lesson-avatar-live,
+.nabil-open-mini-avatar {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  max-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
 }
