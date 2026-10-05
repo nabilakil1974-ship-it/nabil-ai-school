@@ -23,3 +23,17 @@ body:not(.nabil-home-lock) #nabilHome,body:not(.nabil-home-lock) #nabilProfessor
 body.nabil-lesson-active .header,body.nabil-lesson-active main.container{display:block!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;margin-top:0!important;padding-top:0!important}body.nabil-lesson-active .lesson-layout{margin-top:0!important;padding-top:0!important;min-height:0!important}
 #nabilReturnHomeFloating{display:none!important;position:fixed!important;left:14px!important;bottom:max(16px,env(safe-area-inset-bottom))!important;z-index:10060!important;min-width:108px!important;min-height:48px!important;border-radius:12px!important;border:1px solid #5cd6ff!important;padding:10px 16px!important;background:#0c4b81!important;color:#fff!important;box-shadow:0 8px 22px #0008!important;font-size:15px!important;cursor:pointer!important}body.nabil-lesson-active #nabilReturnHomeFloating{display:block!important}body.nabil-home-lock #nabilReturnHomeFloating{display:none!important}
 @media(max-width:900px){html,body{max-width:100%!important;overflow-x:hidden!important}#nabilHome{transform:none!important;width:100%!important;min-height:100dvh!important;overflow-x:hidden!important;overflow-y:auto!important}#nabilHome .home-bg,#nabilHome .home-vignette,#nabilHome .profile-real,#nabilHome .avatar-live-zone{display:none!important}#nabilHomeTutorHost{position:relative!important;inset:auto!important;width:100%!important;max-height:none!important;overflow:visible!important}#nabilHomeTutorHost .nabil-open-mini-avatar{display:block!important;max-width:165px!important;max-height:170px!important;object-fit:contain;margin:auto;background:#0a2036;border-radius:16px}body.nabil-lesson-active #nabilHomeTutorHost,body.nabil-lesson-active .nabil-open-mini-avatar,body:not(.nabil-home-lock) #nabilHomeTutorHost,body:not(.nabil-home-lock) .nabil-open-mini-avatar{display:none!important;height:0!important;min-height:0!important;max-height:0!important;margin:0!important;padding:0!important}}
+/* إخفاء الأفاتار الكبيرة وبطاقتها في أسفل الصفحة نهائياً */
+.avatar-live-zone,
+.lesson-avatar-live,
+.nabil-open-mini-avatar {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  max-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+}
