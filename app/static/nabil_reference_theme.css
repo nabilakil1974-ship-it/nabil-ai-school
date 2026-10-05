@@ -1,4 +1,4 @@
-/* NABIL AI — UI Theme & Variables */
+/* NABIL AI — screenshot reference palette and contracts */
 :root {
   --nabil-ref-page: #05172d;
   --nabil-ref-header: #002973;
@@ -33,4 +33,9 @@ html {
 body {
   background: var(--nabil-page) !important;
   color: var(--nabil-text) !important;
+}
+
+.nabil-visual {
+  background-color: var(--nabil-card-deep) !important;
+  border-color: var(--nabil-border) !important;
 }
