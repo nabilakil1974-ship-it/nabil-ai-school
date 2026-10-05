@@ -1,0 +1,118 @@
+LESSON_ID: G01-MATH-EN-002
+TITLE: The Numbers from 1 to 3
+GRADE: 1
+LANGUAGE: English
+AGE BAND: 6–7 years
+SOURCE: Grade 1.pdf — printed pages 16–17; PDF pages 17–18
+BOOK_ID: 1E0nbR-pfQlPtu5WTMjxANPYAZ2jibnQV
+
+GOLDEN SOURCE ARTIFACT
+This repository artifact mirrors the verified Google Drive Golden lesson for runtime availability.
+Drive file ID: 1vdGr_zkrTxog3VO-Pauyezh_irC81Xy_y_jEvfX8pRQ
+
+START OF STUDENT EXPERIENCE
+
+NABIL:
+“مرحبا يا بطل! 👋
+اليوم معنا 3 أرقام صغار… بس مهمّين كثير:
+1 — 2 — 3
+بس انتبه: ما بدي منك تحفظ شكل الرقم وبس.
+بديك تعرف شو يعني الرقم.”
+
+[على الشاشة تظهر ⭐ واحدة]
+NABIL:
+“طالع منيح. كم نجمة شايف؟”
+
+CONCEPT_ID: G01-MATH-EN-002-C01
+LAB_KEY: concept:C01
+IDEA 1 — ONE OBJECT ↔ ONE ↔ 1
+⭐ = one = 1
+
+CONCEPT_ID: G01-MATH-EN-002-C02
+LAB_KEY: concept:C02
+IDEA 2 — COUNTING TWO OBJECTS
+🚗 🚗 = two = 2
+
+EXERCISE_ID: G01-MATH-EN-002-EX01
+LAB_KEY: exercise:EX01
+YOUR TURN 1 — COUNT AND CHOOSE
+🟢 🟢 = 2
+
+CONCEPT_ID: G01-MATH-EN-002-C03
+LAB_KEY: concept:C03
+IDEA 3 — COUNTING THREE OBJECTS
+🧸 🧸 🧸 = three = 3
+
+EXERCISE_ID: G01-MATH-EN-002-EX02
+LAB_KEY: exercise:EX02
+YOUR TURN 2 — BUILD A COLLECTION
+Build 3 stars.
+
+CONCEPT_ID: G01-MATH-EN-002-C04
+LAB_KEY: concept:C04
+IDEA 4 — ARRANGEMENT CAN CHANGE, QUANTITY STAYS
+The arrangement can change while the quantity remains 3.
+
+EXERCISE_ID: G01-MATH-EN-002-EX03
+LAB_KEY: exercise:EX03
+MATCH QUANTITY TO NUMERAL
+⭐ → 1
+🍎 🍎 → 2
+🔵 🔵 🔵 → 3
+
+CONCEPT_ID: G01-MATH-EN-002-C05
+LAB_KEY: concept:C05
+IDEA 5 — READING THE NUMERALS 1, 2, 3
+1 → one object
+2 → two objects
+3 → three objects
+
+EXERCISE_ID: G01-MATH-EN-002-EX04
+LAB_KEY: exercise:EX04
+NUMERAL → BUILD THE QUANTITY
+
+CONCEPT_ID: G01-MATH-EN-002-C06
+LAB_KEY: concept:C06
+IDEA 6 — WRITING / TRACING 1, 2, 3 AFTER MEANING
+
+EXERCISE_ID: G01-MATH-EN-002-EX05
+LAB_KEY: exercise:EX05
+ERROR DETECTIVE
+🍓 🍓 🍓 → 3
+
+MISCONCEPTION CLINIC
+- Count every object exactly once.
+- Do not skip an object.
+- Choose the numeral by quantity, not by shape.
+- Spreading objects apart does not change their number.
+
+EXERCISE_ID: G01-MATH-EN-002-EX06
+LAB_KEY: exercise:EX06
+MIXED PRACTICE
+
+EXERCISE_ID: G01-MATH-EN-002-EX07
+LAB_KEY: exercise:EX07
+TRANSFER CHALLENGE — NABIL-CREATED
+A → C → B means 1 → 2 → 3.
+
+EXERCISE_ID: G01-MATH-EN-002-EX08
+LAB_KEY: exercise:EX08
+FINAL ASSESSMENT
+Count, match, build, read, and check the error.
+
+GOLDEN SUMMARY
+⭐ = one = 1
+⭐ ⭐ = two = 2
+⭐ ⭐ ⭐ = three = 3
+TOUCH → COUNT → LAST NUMBER → CHOOSE THE NUMERAL → CHECK
+
+END OF STUDENT EXPERIENCE
+
+NABIL_INTERNAL — FACTORY / RUNTIME CONTRACT
+LESSON_ID: G01-MATH-EN-002
+LAB KEYS:
+- concept:C01 … concept:C06
+- exercise:EX01 … exercise:EX08
+- lesson:whole
+FINAL NABIL RULE:
+SEE → TOUCH → COUNT → SAY → MATCH → CHECK.
