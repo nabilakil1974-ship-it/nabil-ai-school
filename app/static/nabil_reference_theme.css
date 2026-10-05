@@ -39,7 +39,7 @@ body.nabil-lesson-active .header,body.nabil-lesson-active main.container{display
   pointer-events: none !important;
 }
 
-/* تنسيق عصري ونظيف للأزرار والحقول لمنع الازدحام */
+/* تنسيق نظري مريح للأزرار */
 .lesson-action-bar button, 
 .lesson-tutor-secondary-actions button, 
 #nabilLearningDock button,
@@ -47,10 +47,4 @@ body.nabil-lesson-active .header,body.nabil-lesson-active main.container{display
   transition: all 0.2s ease-in-out;
   font-weight: 600;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.lesson-action-bar button:hover, 
-#nabilLearningDock button:hover {
-  transform: translateY(-2px);
-  filter: brightness(1.15);
 }
