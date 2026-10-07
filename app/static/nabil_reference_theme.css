@@ -37,3 +37,6 @@ body.nabil-lesson-active .header,body.nabil-lesson-active main.container{display
   overflow: hidden !important;
   pointer-events: none !important;
 }
+
+/* Contract guard: retired/hidden selection stage must never become visible. */
+.selection-stage[hidden]{display:none!important}
