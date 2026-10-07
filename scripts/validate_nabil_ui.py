@@ -4,7 +4,6 @@ This intentionally avoids browser automation; it catches accidental regressions
 in the exact owner-requested wiring before a Railway image is accepted.
 """
 from pathlib import Path
-import re
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -17,40 +16,17 @@ def require(path: str, *needles: str) -> str:
     return text
 
 
-def require_css_variables(path: str, expected: dict[str, str]) -> str:
-    """Validate CSS custom-property values while allowing normal whitespace."""
-    text = (ROOT / path).read_text(encoding="utf-8")
-    missing = []
-    for name, value in expected.items():
-        pattern = rf"{re.escape(name)}\s*:\s*{re.escape(value)}\s*;"
-        if re.search(pattern, text, flags=re.IGNORECASE) is None:
-            missing.append(f"{name}: {value}")
-    if missing:
-        raise SystemExit(f"{path}: missing required CSS variables: {missing}")
-    return text
-
-
 def main() -> None:
-    theme = require_css_variables(
+    theme = require(
         "app/static/nabil_reference_theme.css",
-        {
-            "--nabil-ref-page": "#05172d",
-            "--nabil-ref-header": "#002973",
-            "--nabil-ref-panel": "#081e33",
-            "--nabil-ref-green": "#009e48",
-        },
-    )
-    for needle in (
+        "--nabil-ref-page:#05172d",
+        "--nabil-ref-header:#002973",
+        "--nabil-ref-panel:#081e33",
+        "--nabil-ref-green:#009e48",
         "#nabilHomeTutorHost",
         "#nabilLearningDock",
         ".nabil-visual",
-    ):
-        if needle not in theme:
-            raise SystemExit(
-                f"app/static/nabil_reference_theme.css: "
-                f"missing required contract string: {needle}"
-            )
-
+    )
     open_tutor = require(
         "app/static/nabil_open_tutor_v1.js",
         'data.append("activity_mode","general_exercises")',
@@ -136,9 +112,8 @@ def main() -> None:
         "/static/nabil_smart_lab_bridge_v1.js",
     )
 
-    compact_theme = re.sub(r"\\s+", "", theme)
-    if ".selection-stage[hidden]{display:none!important}" not in compact_theme:
-        raise SystemExit("theme: hidden grade-only landing stage contract missing")
+    if ".selection-stage{display:none!important}" not in theme.replace(" ", ""):
+        raise SystemExit("theme: grade-only landing stage must remain hidden")
     if "replaceChildren();stage.hidden=true" not in open_tutor.replace(" ", ""):
         raise SystemExit("open tutor: legacy grade landing must remain retired")
     if 'html.replace("</body>"' in main_py:
