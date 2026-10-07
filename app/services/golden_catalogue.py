@@ -366,12 +366,32 @@ def _source(entry):
         from google.oauth2 import service_account
         from googleapiclient.discovery import build
 
-        raw = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "").strip()
-        if not raw:
-            raise RuntimeError("GOOGLE_SERVICE_ACCOUNT_JSON_REQUIRED")
+        # Railway already stores the Drive service-account JSON under
+        # GOOGLE_DRIVE_CREDENTIALS_JSON. Older code looked only for
+        # GOOGLE_SERVICE_ACCOUNT_JSON, so catalogue rows were visible but most
+        # lessons could not open from Drive unless a local snapshot existed.
+        raw = (
+            os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "").strip()
+            or os.environ.get("GOOGLE_DRIVE_CREDENTIALS_JSON", "").strip()
+        )
+
+        if raw:
+            credential_info = json.loads(raw)
+        else:
+            # app/main.py writes this file from GOOGLE_DRIVE_CREDENTIALS_JSON
+            # when that setting is present. Keep it as a final read-only
+            # compatibility path; never fall back to a different lesson.
+            credential_file = Path("drive_service_account.json")
+            if not credential_file.is_file():
+                raise RuntimeError(
+                    "GOOGLE_DRIVE_SERVICE_ACCOUNT_CREDENTIALS_REQUIRED"
+                )
+            credential_info = json.loads(
+                credential_file.read_text(encoding="utf-8")
+            )
 
         creds = service_account.Credentials.from_service_account_info(
-            json.loads(raw),
+            credential_info,
             scopes=[
                 "https://www.googleapis.com/auth/drive.readonly",
                 "https://www.googleapis.com/auth/documents.readonly",
