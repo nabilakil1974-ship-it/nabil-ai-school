@@ -136,8 +136,9 @@ def main() -> None:
         "/static/nabil_smart_lab_bridge_v1.js",
     )
 
-    if ".selection-stage{display:none!important}" not in theme.replace(" ", ""):
-        raise SystemExit("theme: grade-only landing stage must remain hidden")
+    compact_theme = re.sub(r"\\s+", "", theme)
+    if ".selection-stage[hidden]{display:none!important}" not in compact_theme:
+        raise SystemExit("theme: hidden grade-only landing stage contract missing")
     if "replaceChildren();stage.hidden=true" not in open_tutor.replace(" ", ""):
         raise SystemExit("open tutor: legacy grade landing must remain retired")
     if 'html.replace("</body>"' in main_py:
