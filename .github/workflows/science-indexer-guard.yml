@@ -1,0 +1,32 @@
+name: Science Indexer Guard
+
+on:
+  push:
+    paths:
+      - scripts/index_science_textbooks.py
+      - scripts/science_worker.py
+      - scripts/index_books.py
+      - scripts/test_science_worker_lock.py
+      - .github/workflows/science-indexer-guard.yml
+  pull_request:
+    paths:
+      - scripts/index_science_textbooks.py
+      - scripts/science_worker.py
+      - scripts/index_books.py
+      - scripts/test_science_worker_lock.py
+      - .github/workflows/science-indexer-guard.yml
+  workflow_dispatch:
+
+jobs:
+  verify-indexer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile science entrypoints and regression
+        run: python -m py_compile scripts/index_science_textbooks.py scripts/science_worker.py scripts/index_books.py scripts/test_science_worker_lock.py
+      - name: Verify matching exclusive locks and finally release
+        run: python -m scripts.test_science_worker_lock
