@@ -12,4 +12,13 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: "3.11"}
       - run: pip install -r requirements.txt
-      - run: python -m py_compile app/api/routes_chat.py app/api/routes_student.py app/api/routes_smart_labs.py app/services/lesson_cache.py app/services/golden_store.py app/services/payment_verification.py app/services/subscription_service.py scripts/check_payment_inbox.py scripts/nabil_lesson_factory.py scripts/nabil_interactive_lab.py scripts/nabil_advanced_lab.py
+      - run: python -m py_compile app/api/routes_chat.py app/api/routes_student.py app/api/routes_smart_labs.py app/services/lesson_cache.py app/services/golden_store.py app/services/lesson_package_registry.py app/api/routes_content_registry.py app/services/payment_verification.py app/services/subscription_service.py scripts/check_payment_inbox.py scripts/nabil_lesson_factory.py scripts/nabil_interactive_lab.py scripts/nabil_advanced_lab.py
+
+  platform-content-registry:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - run: pip install -r requirements.txt
+      - run: python scripts/test_platform_content_registry.py
