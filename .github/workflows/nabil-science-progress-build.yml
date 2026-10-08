@@ -1,0 +1,30 @@
+name: NABIL Science Progress Build
+
+on:
+  push:
+    paths:
+      - scripts/science_progress.py
+      - scripts/science_progress_summary.py
+      - scripts/test_science_progress_summary.py
+      - .github/workflows/nabil-science-progress-build.yml
+  pull_request:
+    paths:
+      - scripts/science_progress.py
+      - scripts/science_progress_summary.py
+      - scripts/test_science_progress_summary.py
+      - .github/workflows/nabil-science-progress-build.yml
+  workflow_dispatch:
+
+jobs:
+  science-progress:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Syntax-check progress scripts
+        run: python -m py_compile scripts/science_progress.py scripts/science_progress_summary.py scripts/test_science_progress_summary.py
+      - name: Check totals without touching live DB or Drive
+        run: python -m scripts.test_science_progress_summary
