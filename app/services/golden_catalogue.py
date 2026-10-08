@@ -77,35 +77,10 @@ def _grade(v):
 
 
 def _subject(v):
-    x = _norm(v)
-
-    if "رياض" in x or x in {
-        "math",
-        "maths",
-        "mathematics",
-        "mathematiques",
-    }:
-        return "MATH"
-
-    if "فيز" in x or x in {
-        "physics",
-        "physique",
-    }:
-        return "PHYSICS"
-
-    if "كيمي" in x or x in {
-        "chemistry",
-        "chimie",
-    }:
-        return "CHEMISTRY"
-
-    if "علومالحياة" in x or x in {
-        "biology",
-        "biologie",
-    }:
-        return "BIOLOGY"
-
-    return ""
+    # Universal subject normalizer shared with the batch-package registry.
+    # This removes the old Math/Physics/Chemistry/Biology-only bottleneck.
+    from app.services.lesson_package_registry import canonical_subject
+    return canonical_subject(v)
 
 
 def _branch(v):
@@ -798,9 +773,45 @@ def build_router() -> APIRouter:
                 "GOLDEN_CATALOGUE_UNAVAILABLE",
             ) from exc
 
+        # READY/queued batch packages may already exist before a Drive
+        # catalogue sync. Merge exact package identities without fuzzy fallback.
+        try:
+            from app.services.lesson_package_registry import (
+                filter_rows as _package_filter_rows,
+                public_row as _package_public_row,
+            )
+            packaged = _package_filter_rows(
+                grade=grade,
+                subject=subject,
+                language=language,
+                branch=branch,
+            )
+            by_id = {str(x.get("lesson_id") or "").upper(): dict(x) for x in rows}
+            for raw in packaged:
+                pub = _package_public_row(raw)
+                lid = str(pub.get("lesson_id") or "").upper()
+                if not lid:
+                    continue
+                current = by_id.get(lid, {})
+                current.update({
+                    "lesson_id": lid,
+                    "title": pub.get("title") or current.get("title") or lid,
+                    "language": pub.get("language") or current.get("language") or "",
+                    "golden": True,
+                    "runtime_ready": bool(pub.get("runtime_ready")),
+                    "package_status": pub.get("status"),
+                    "registry_source": pub.get("registry_source"),
+                })
+                by_id[lid] = current
+            rows = [by_id[k] for k in sorted(by_id)]
+        except Exception:
+            logging.getLogger("nabil_ai.golden").exception(
+                "BATCH_PACKAGE_CATALOGUE_MERGE_FAILED"
+            )
+
         return {
             "source":
-                "canonical_golden_registry",
+                "canonical_golden_registry_plus_batch_packages",
             "runtime_ai": False,
             "count": len(rows),
             "lessons": rows,
@@ -820,6 +831,35 @@ def build_router() -> APIRouter:
         lid = str(
             lesson_id or ""
         ).strip().upper()
+
+        # New batch-production path: if an exact READY lesson package exists,
+        # serve its verified HTML directly. No AI call and no alternate lesson.
+        try:
+            from app.services.lesson_package_registry import get_artifact, get_lesson
+            packaged = get_lesson(lid)
+            packaged_html = get_artifact(lid, "lesson_html")
+        except Exception:
+            packaged = None
+            packaged_html = None
+
+        if packaged and packaged_html is not None:
+            return {
+                "found": True,
+                "title": packaged.get("title") or lid,
+                "url": (
+                    "/api/content-registry/artifact/"
+                    + quote(lid)
+                    + "/lesson_html"
+                ),
+                "source": "batch_verified_lesson_package",
+                "bytes": packaged_html.stat().st_size,
+                "lesson_id": lid,
+                "zero_ai": True,
+                "renderer": "packaged_complete_lesson",
+                "reference_cards": True,
+                "interrupt_resume_same_line": True,
+                "lab_contract": "packaged_p3_or_embedded_verified_labs",
+            }
 
         entry = _entry(lid)
 
