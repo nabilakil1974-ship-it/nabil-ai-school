@@ -103,9 +103,14 @@ def grade_number(grade: str) -> int:
 
 
 def subject_name(value: str) -> str:
-    values = {"فيزياء": "physics", "رياضيات": "mathematics", "كيمياء": "chemistry",
-              "علوم الحياة": "biology", "علوم عامة": "general_science"}
-    result = values.get(value.strip(), value.strip().lower().replace(" ", "_"))
+    values = {
+        "فيزياء": "physics", "الفيزياء": "physics",
+        "رياضيات": "mathematics", "الرياضيات": "mathematics",
+        "كيمياء": "chemistry", "الكيمياء": "chemistry",
+        "علوم الحياة": "biology", "علوم عامة": "general_science",
+    }
+    raw = value.strip()
+    result = values.get(raw, raw.lower().replace(" ", "_"))
     if result not in factory.SUBJECT_PROFILES:
         raise RuntimeError(f"BOOK_SUBJECT_UNSUPPORTED: {value}")
     return result
