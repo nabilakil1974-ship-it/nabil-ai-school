@@ -2830,6 +2830,26 @@ def run_real_playwright_chromium_qa(
 
             check_result = page.evaluate("""() => {
                 const doc = document.documentElement;
+                const clip = (value, limit=100) =>
+                  Array.from(String(value || '')).slice(0, limit).join('');
+                const mathRoots = Array.from(
+                  document.querySelectorAll('mjx-container')
+                );
+                let mathItems = [];
+                try {
+                  const collection = window.MathJax?.startup?.document?.math;
+                  if (
+                    collection
+                    && typeof collection[Symbol.iterator] === 'function'
+                  ) {
+                    mathItems = Array.from(collection);
+                  }
+                } catch (_e) {}
+                const sourceTexFor = el => {
+                  const idx = mathRoots.indexOf(el);
+                  if (idx < 0 || !mathItems[idx]) return "";
+                  return clip(mathItems[idx].math || "", 220);
+                };
 
                 if (doc.scrollWidth > doc.clientWidth + 2) {
                     const offenders = Array.from(
@@ -2842,7 +2862,8 @@ def run_real_playwright_chromium_qa(
                         right: Math.round(r.right),
                         left: Math.round(r.left),
                         width: Math.round(r.width),
-                        text: (el.innerText || '').trim().slice(0, 100)
+                        text: clip((el.innerText || '').trim(), 100),
+                        sourceTex: sourceTexFor(el)
                       };
                     }).filter(x =>
                       x.right > doc.clientWidth + 2 || x.left < -2
@@ -2869,7 +2890,7 @@ def run_real_playwright_chromium_qa(
                           passed: false,
                           reason: "TOUCH_TARGET_TOO_SMALL",
                           height: b.getBoundingClientRect().height,
-                          text: (b.innerText || '').slice(0, 80),
+                          text: clip(b.innerText || '', 80),
                           renderer: doc.dataset.nabilMathRenderer || "none"
                         };
                     }
@@ -2896,7 +2917,8 @@ def run_real_playwright_chromium_qa(
                           tag: el.tagName,
                           right: rect.right,
                           left: rect.left,
-                          text: (el.innerText || '').slice(0, 80)
+                          text: clip(el.innerText || '', 80),
+                          sourceTex: sourceTexFor(el)
                         };
                     }
                 }
@@ -3190,9 +3212,11 @@ html,body,.container{
 }
 mjx-container{
   box-sizing:border-box!important;
+  min-width:0!important;
   max-width:100%!important;
   overflow-x:auto!important;
   overflow-y:hidden!important;
+  vertical-align:middle!important;
 }
 mjx-container[display="true"]{
   display:block!important;
@@ -3207,17 +3231,91 @@ mjx-container[display="true"]{
 </style>
 """
 
+    math_runtime_js = r"""
+<script id="nabilMathRuntimeSelfHealV1">
+(function(){
+  const SUP = {
+    '0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹',
+    '+':'⁺','-':'⁻','n':'ⁿ','m':'ᵐ','i':'ⁱ','x':'ˣ','y':'ʸ','a':'ᵃ','b':'ᵇ'
+  };
+  const toSup = value => Array.from(String(value||'')).map(ch => SUP[ch] || ch).join('');
+  function readableMathFallbackV2(){
+    if (document.querySelector('mjx-container')) return;
+    const root = document.body;
+    if (!root) return;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walker.nextNode()) {
+      const n = walker.currentNode;
+      const tag = n.parentElement ? n.parentElement.tagName : '';
+      if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'TEXTAREA') continue;
+      const v = n.nodeValue || '';
+      if (v.includes('\\(') || v.includes('\\[')) nodes.push(n);
+    }
+    for (const n of nodes) {
+      let t = n.nodeValue || '';
+      t = t
+        .replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '($1)/($2)')
+        .replace(/\\sqrt\{([^{}]+)\}/g, '√($1)')
+        .replace(/\\times/g, '×')
+        .replace(/\\div/g, '÷')
+        .replace(/\\cdot/g, '·')
+        .replace(/\\leq?/g, '≤')
+        .replace(/\\geq?/g, '≥')
+        .replace(/\\neq/g, '≠')
+        .replace(/\\rightarrow/g, '→')
+        .replace(/\\left|\\right/g, '')
+        .replace(/\^\{([^{}]+)\}/g, (_m,x)=>toSup(x))
+        .replace(/\^([0-9+\-nmixtyab]+)/g, (_m,x)=>toSup(x))
+        .replace(/_\{([^{}]+)\}/g, '_$1')
+        .replace(/\\\(|\\\)|\\\[|\\\]/g, '');
+      n.nodeValue = t;
+    }
+    document.documentElement.dataset.nabilMathRenderer = 'readable-fallback';
+    document.documentElement.dataset.nabilMathFallback = 'true';
+  }
+  window.__NABIL_READABLE_MATH_FALLBACK = readableMathFallbackV2;
+})();
+</script>
+"""
+
+    mathjax_config_repairs = 0
+
     def heal_page(markup: str) -> str:
+        nonlocal mathjax_config_repairs
         fixed = markup.replace(
             'style="min-height:40px"',
             'style="min-height:44px"',
         )
+
+        # Root fix: the cached renderer emitted JS string literals '\\(' as
+        # source text '\(' (one slash), which JavaScript interpreted as plain
+        # '('; MathJax then treated ordinary parentheses as math delimiters.
+        bad_mathjax = (
+            "tex: { inlineMath: [['\\(', '\\)']], "
+            "displayMath: [['\\[', '\\]']], processEscapes: true },"
+        )
+        good_mathjax = (
+            "tex: { inlineMath: [['\\\\(', '\\\\)']], "
+            "displayMath: [['\\\\[', '\\\\]']], processEscapes: true },"
+        )
+        if bad_mathjax in fixed:
+            fixed = fixed.replace(bad_mathjax, good_mathjax, 1)
+            mathjax_config_repairs += 1
+
+        injected = mobile_css + "\n" + math_runtime_js
         if 'id="nabilQaMobileSelfHealV2"' not in fixed:
             if "</head>" in fixed:
                 fixed = fixed.replace(
-                    "</head>", mobile_css + "\n</head>", 1)
+                    "</head>", injected + "\n</head>", 1)
             else:
-                fixed = mobile_css + fixed
+                fixed = injected + fixed
+        elif 'id="nabilMathRuntimeSelfHealV1"' not in fixed:
+            if "</head>" in fixed:
+                fixed = fixed.replace(
+                    "</head>", math_runtime_js + "\n</head>", 1)
+            else:
+                fixed = math_runtime_js + fixed
         return fixed
 
     healed_a = heal_page(healed_a)
@@ -3245,6 +3343,13 @@ mjx-container[display="true"]{
             gate="TEACHING_FLOW_APPLY_MISSING",
             repaired_concepts=repaired_apply,
             expected_concepts=concept_count,
+        )
+    if mathjax_config_repairs:
+        progress(
+            "MATHJAX_DELIMITER_CONFIG_LOCAL_REPAIRED",
+            repaired_pages=mathjax_config_repairs,
+            inline_delimiters="\\\\( ... \\\\)",
+            display_delimiters="\\\\[ ... \\\\]",
         )
     if changed_a or changed_b:
         progress(

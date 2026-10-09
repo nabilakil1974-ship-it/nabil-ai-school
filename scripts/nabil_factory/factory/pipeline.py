@@ -124,9 +124,12 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
     def _translate_page_cached(raw_html: str, unit_id: str, purpose: str):
         source_hash = hashlib.sha256(
             raw_html.encode("utf-8")).hexdigest()
+        # Paid translation cache must depend on translation semantics,
+        # not on unrelated renderer/QA code. This key matches the already
+        # verified V7 translation policy; bump it ONLY when translation logic,
+        # locking, numeric preservation, or Arabic normalization changes.
         prompt_version = (
-            "TRILINGUAL_PAGE_TRANSLATION_V7_SELFHEAL_"
-            + self_heal_logic_fingerprint()[:16]
+            "TRILINGUAL_PAGE_TRANSLATION_V7_SELFHEAL_6037750d2063fb4f"
         )
         checkpoint_root = str(
             os.getenv("NABIL_CURRICULUM_ROOT_ID") or "").strip() or None
