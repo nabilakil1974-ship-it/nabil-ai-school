@@ -6242,6 +6242,9 @@ def grounded_subject_solver(exercise: dict, evidence_map: dict, profile: dict) -
         }
         cleaned["source_scope_audited"] = True
         return cleaned
+    except (ProviderDailyQuotaError, ProviderTransientError,
+            ProviderUnavailableError, NeedsAttentionError):
+        raise
     except Exception as e:
         raise RuntimeError(
             "PRE_SOLVE_FAILED: grounded solver unavailable or failed for "
@@ -6539,6 +6542,9 @@ def sanitize_generated_narrative(
             vision_context=vision_context,
             purpose=f"narrative_scope_audit_{concept.get('concept_id')}",
         )
+    except (ProviderDailyQuotaError, ProviderTransientError,
+            ProviderUnavailableError, NeedsAttentionError):
+        raise
     except Exception as exc:
         progress(
             "GENERATED_NARRATIVE_AUDIT_FAILED_CONTENT_REMOVED",
