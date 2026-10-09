@@ -259,7 +259,10 @@ def _translate_strings_batch(
     source_name = {"ar": "Modern Standard Arabic", "en": "English",
                    "fr": "French"}.get(source_lang, source_lang)
     output: Dict[str, str] = {}
-    batch_size = 55
+    # Small translation batches are deliberate: large JSON arrays were being
+    # truncated/re-shaped by providers. Keep batches bounded and recover only
+    # the affected chunk/item instead of failing the whole lesson.
+    batch_size = 8
     for start in range(0, len(strings), batch_size):
         batch = strings[start:start + batch_size]
         items = []
@@ -290,13 +293,51 @@ def _translate_strings_batch(
             max_attempts=3,
         )
         translated = result.get("items") if isinstance(result, dict) else None
-        if not isinstance(translated, list) or len(translated) != len(items):
-            raise RuntimeError(
-                f"PAGE_TRANSLATION_SCHEMA_INVALID:{target_lang}:{start}")
+        expected_ids = {item["id"] for item in items}
         by_id = {
             str(row.get("id")): str(row.get("text") or "").strip()
-            for row in translated if isinstance(row, dict)
+            for row in (translated or []) if isinstance(row, dict)
         }
+        schema_ok = (
+            isinstance(translated, list)
+            and set(by_id) == expected_ids
+            and all(by_id.get(item_id) for item_id in expected_ids)
+        )
+        if not schema_ok:
+            progress(
+                "PAGE_TRANSLATION_BATCH_SCHEMA_RECOVERY",
+                target_lang=target_lang,
+                start=start,
+                batch_count=len(items),
+                returned_count=(len(translated) if isinstance(translated, list) else -1),
+            )
+            by_id = {}
+            for item in items:
+                item_id = item["id"]
+                single_prompt = (
+                    "You are a strict translation-only engine for a school lesson. "
+                    f"Translate this one item from {source_name} to {target_name}. "
+                    "Do not add, omit, explain, simplify or correct scientific content. "
+                    "Preserve immutable __NABIL_LOCK_*__ tokens byte-for-byte and exactly once. "
+                    "Return strict JSON exactly as "
+                    "{\"items\":[{\"id\":\"...\",\"text\":\"...\"}]}.\nITEM:\n"
+                    + json.dumps(item, ensure_ascii=False)
+                )
+                single = _execute_llm_json_strict(
+                    single_prompt,
+                    purpose=f"{purpose}_{target_lang}_{item_id}_schema_recovery",
+                    max_attempts=3,
+                )
+                rows = single.get("items") if isinstance(single, dict) else None
+                if (
+                    not isinstance(rows, list)
+                    or len(rows) != 1
+                    or str(rows[0].get("id")) != item_id
+                    or not str(rows[0].get("text") or "").strip()
+                ):
+                    raise RuntimeError(
+                        f"PAGE_TRANSLATION_SCHEMA_INVALID:{target_lang}:{item_id}")
+                by_id[item_id] = str(rows[0]["text"]).strip()
         for item in items:
             item_id = item["id"]
             source = batch[int(item_id) - start]
