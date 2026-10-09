@@ -282,7 +282,21 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
 
     review_res = independent_scientific_review(entry, candidate)
 
-    # QA and independent scientific review have passed. Only now freeze the
+    title_review = dict(ev_map.get("title_verification") or {})
+    candidate["review_status"] = str(
+        review_res.get("review_status") or "UNREVIEWED")
+    candidate["needs_review"] = bool(
+        title_review.get("needs_review")
+        or review_res.get("needs_review")
+        or candidate["review_status"] != "REVIEWED"
+    )
+    candidate["review_reasons"] = {
+        "title": title_review,
+        "scientific_review": review_res,
+    }
+
+    # QA and independent scientific review have passed or were explicitly
+    # classified as non-blocking review debt. Only now freeze the
     # already-rendered labs as static reusable artifacts for every student.
     published_labs = persist_quality_gated_labs(entry, theory, exercises)
 
@@ -318,17 +332,28 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
         ver_meta["drive_exercises_id"] = drive_exercises_id
         ver_meta["drive_labs_id"] = drive_labs_id
         ver_meta["history"].append({"action": "PUBLISH", "version": candidate_v, "time": now()})
-        _update_golden_registry(
-            entry, version=str(candidate_v), theory_id=drive_theory_id,
-            exercises_id=drive_exercises_id, labs_id=drive_labs_id,
-        )
+        if candidate.get("needs_review"):
+            status_str = "PUBLISHED_UNVERIFIED"
+            progress(
+                "ATOMIC_PUBLISHED_UNVERIFIED_TO_DRIVE",
+                theory_id=drive_theory_id,
+                exercises_id=drive_exercises_id,
+                labs_id=drive_labs_id,
+                review_status=candidate.get("review_status"),
+                review_reasons=candidate.get("review_reasons"),
+            )
+        else:
+            _update_golden_registry(
+                entry, version=str(candidate_v), theory_id=drive_theory_id,
+                exercises_id=drive_exercises_id, labs_id=drive_labs_id,
+            )
+            status_str = "PUBLISHED_VERIFIED"
+            progress(
+                "ATOMIC_PUBLISHED_AND_VERIFIED_TO_DRIVE",
+                theory_id=drive_theory_id,
+                exercises_id=drive_exercises_id,
+                labs_id=drive_labs_id)
         ver_file.write_text(json.dumps(ver_meta, indent=2), encoding="utf-8")
-        status_str = "PUBLISHED_VERIFIED"
-        progress(
-            "ATOMIC_PUBLISHED_AND_VERIFIED_TO_DRIVE",
-            theory_id=drive_theory_id,
-            exercises_id=drive_exercises_id,
-            labs_id=drive_labs_id)
 
     rep = {
         "status": status_str,
@@ -372,6 +397,9 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
         "drive_labs_id": drive_labs_id,
         "gates_report": gates_res["gates"],
         "scientific_review": review_res,
+        "review_status": candidate.get("review_status"),
+        "needs_review": bool(candidate.get("needs_review")),
+        "review_reasons": candidate.get("review_reasons"),
         "local_files": [str(path_a), str(path_b), str(path_labs)]
     }
     return rep
