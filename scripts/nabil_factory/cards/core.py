@@ -212,11 +212,12 @@ def _translation_integrity_tokens(value: str) -> Tuple[List[str], List[str]]:
 
 
 _TRANSLATION_LOCK_RE = re.compile(
-    r"(?<![\\w])[-+]?\\d+(?:[.,]\\d+)?(?:%|°)?"
-    r"|(?:[A-Z][A-Za-z]?\\d{0,3}|[A-Z]{1,4}\\d*|"
-    r"[A-Za-z]\\d*[₀₁₂₃₄₅₆₇₈₉]*|"
+    r"(?<!\w)(?:[-+]?\d+(?:[.,]\d+)?(?:%|°)?|"
+    r"[A-Z][A-Za-z]?\d{0,3}|[A-Z]{1,4}\d*|"
+    r"[A-Za-z]\d*[₀₁₂₃₄₅₆₇₈₉]*|"
     r"Ω|V|A|mA|kΩ|kg|g|m|cm|mm|s|ms|mol|Pa|N|J|W|Hz)"
-    r"(?=\\b|[^A-Za-zÀ-ÿ])"
+    r"(?=\b|[^A-Za-zÀ-ÿ])"
+    r"|[=×÷*/^∠⊥≅≤≥<>±√∞≈≠]"
 )
 
 
@@ -224,7 +225,7 @@ def _lock_scientific_translation_tokens(value: str, item_id: str):
     text = str(value or "")
     # Lock scientific tokens only when the string is actually mathematical/
     # scientific. Plain prose is left untouched.
-    if not re.search(r"[=+\\-×÷*/^∠⊥≅Ω₀₁₂₃₄₅₆₇₈₉]|\\d", text):
+    if not re.search(r"[=+\-×÷*/^∠⊥≅Ω₀₁₂₃₄₅₆₇₈₉]|\d", text):
         return text, []
     locks = []
     def repl(match):
@@ -311,17 +312,13 @@ def _translate_strings_batch(
             if src_numbers != dst_numbers:
                 raise RuntimeError(
                     f"PAGE_TRANSLATION_NUMBER_CHANGED:{target_lang}:{item['id']}")
-            # Protected token order may contain ordinary one-letter words in
-            # prose. Enforce exact preservation only when the source looks
-            # mathematical/scientific enough to make those tokens meaningful.
+            # Arabic/French may reorder prose around an unchanged formula.
+            # Preserve the exact scientific token multiset; structural math
+            # operators are locked before translation above.
             if (
                 re.search(r"[=+\-×÷*/^∠⊥≅Ω₀₁₂₃₄₅₆₇₈₉]", source)
-                and src_protected != dst_protected
+                and sorted(src_protected) != sorted(dst_protected)
             ):
-                # Locked transport should make this unreachable. If a provider
-                # still mutates a scientific token, fail only this translation
-                # item with an explicit diagnostic instead of silently changing
-                # mathematics.
                 raise RuntimeError(
                     f"PAGE_TRANSLATION_SYMBOL_CHANGED:{target_lang}:{item_id}")
             if target_lang == "ar":
