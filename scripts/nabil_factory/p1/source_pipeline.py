@@ -1818,118 +1818,145 @@ def match_figure_to_item(item: dict, page_figures: List[Dict[str, Any]], page_re
     return []
 
 
-def verify_title_double_evidence_strict(doc, entry: dict, opening_txt: str) -> bool:
-    """Require both the chapter opener and the real book TOC. Never infer TOC
-    from a filename or submit unauthorized preface pages to an AI provider.
-    The canonical catalog records the TOC PDF page for scanned textbooks.
-    """
-    title_clean = re.sub(r"[^\w]+", " ", entry["canonical_title"].casefold()).strip()
-    opener = re.sub(r"[^\w]+", " ", opening_txt.casefold())
-    if not title_clean:
-        return False
-    if title_clean not in opener:
-        # Stylized printed headers are often missed by full-page OCR even
-        # when body text is readable. Re-read the real PDF header locally.
-        import fitz
-        page_no = int(entry["pdf_start_page"])
-        page = doc[page_no - 1]
-        r = page.rect
-        header = page.get_pixmap(
-            clip=fitz.Rect(r.x0, r.y0, r.x1, r.y0 + r.height * 0.20),
-            dpi=300)
-        with tempfile.TemporaryDirectory(prefix="nabil_title_ocr_") as directory:
-            image_path = Path(directory) / "opening_header.png"
-            header.save(str(image_path))
-            proc = subprocess.run(
-                ["tesseract", str(image_path), "stdout", "-l", "eng+fra",
-                 "--psm", "6"],
-                capture_output=True, text=True, timeout=35)
-        if proc.returncode != 0:
-            raise RuntimeError(
-                f"TITLE_VERIFICATION_FAILED: chapter opening OCR unavailable p{page_no}")
-        opener_header = re.sub(
-            r"[^\w]+", " ", proc.stdout.casefold()).strip()
-        if title_clean not in opener_header:
-            progress("TITLE_OPENING_EVIDENCE_FAILED", page=page_no,
-                     expected_title=entry["canonical_title"],
-                     header_excerpt=opener_header[:180])
-            return False
-        progress("TITLE_OPENING_HEADER_VERIFIED", page=page_no,
-                 title=entry["canonical_title"],
-                 method="SOURCE_HEADER_LOCAL_OCR_300DPI")
+def verify_title_double_evidence_strict(
+        doc, entry: dict, opening_txt: str) -> TitleDecision:
+    """Fuzzy double-evidence title verification. Never raises.
 
+    The physical opener and the physical TOC remain independent evidence.
+    OCR variation is normalized/fuzzy-matched; strong disagreement becomes a
+    needs_review flag instead of terminating the book pipeline.
+    """
+    expected = str(entry.get("canonical_title") or "").strip()
+    lesson_id = str(entry.get("lesson_id") or "")
+    opener_parts = [str(opening_txt or "")]
+
+    try:
+        if shutil.which("tesseract"):
+            import fitz
+            page_no = int(entry["pdf_start_page"])
+            page = doc[page_no - 1]
+            r = page.rect
+            header = page.get_pixmap(
+                clip=fitz.Rect(
+                    r.x0, r.y0, r.x1, r.y0 + r.height * 0.22),
+                dpi=300,
+            )
+            with tempfile.TemporaryDirectory(
+                    prefix="nabil_title_ocr_") as directory:
+                image_path = Path(directory) / "opening_header.png"
+                header.save(str(image_path))
+                for psm in (6, 11):
+                    proc = subprocess.run(
+                        [
+                            "tesseract", str(image_path), "stdout",
+                            "-l", "eng+fra", "--psm", str(psm),
+                        ],
+                        capture_output=True,
+                        text=True,
+                        timeout=35,
+                    )
+                    if proc.returncode == 0 and proc.stdout.strip():
+                        opener_parts.append(proc.stdout)
+    except Exception as exc:
+        progress(
+            "TITLE_OPENER_OCR_WARNING",
+            lesson_id=lesson_id,
+            reason=str(exc)[:240],
+        )
+
+    opener_blob = "\n".join(opener_parts)
+    opener_title = best_title_candidate(opener_blob, expected)
+
+    toc_parts = []
     toc_page = entry.get("toc_pdf_page")
     if toc_page is None:
-        # Native-text PDFs may expose a genuine PDF bookmark TOC.
-        for depth, name, p_num in doc.get_toc():
-            if re.sub(r"[^\w]+", " ", name.casefold()).strip() == title_clean:
-                return 1 <= p_num <= int(entry["pdf_start_page"])
-        return False
+        try:
+            for _depth, name, p_num in doc.get_toc():
+                if 1 <= int(p_num) <= int(entry["pdf_start_page"]):
+                    toc_parts.append(str(name or ""))
+        except Exception as exc:
+            progress(
+                "TITLE_TOC_BOOKMARK_WARNING",
+                lesson_id=lesson_id,
+                reason=str(exc)[:240],
+            )
+    else:
+        try:
+            toc_page = int(toc_page)
+            if 1 <= toc_page <= len(doc):
+                native = (doc[toc_page - 1].get_text() or "").strip()
+                if native:
+                    toc_parts.append(native)
+                if shutil.which("tesseract"):
+                    page = doc[toc_page - 1]
+                    with tempfile.TemporaryDirectory(
+                            prefix="nabil_toc_title_ocr_") as directory:
+                        image_path = Path(directory) / "toc.png"
+                        page.get_pixmap(dpi=260).save(str(image_path))
+                        for psm in (11, 12, 6, 3):
+                            proc = subprocess.run(
+                                [
+                                    "tesseract", str(image_path), "stdout",
+                                    "-l", "eng+fra", "--psm", str(psm),
+                                ],
+                                capture_output=True,
+                                text=True,
+                                timeout=45,
+                            )
+                            if proc.returncode == 0 and proc.stdout.strip():
+                                toc_parts.append(proc.stdout)
+        except Exception as exc:
+            progress(
+                "TITLE_TOC_OCR_WARNING",
+                lesson_id=lesson_id,
+                reason=str(exc)[:240],
+            )
 
-    toc_page = int(toc_page)
-    if not 1 <= toc_page <= len(doc) or toc_page >= int(entry["pdf_start_page"]):
-        return False
-    toc_txt = (doc[toc_page - 1].get_text() or "").strip()
-    if not toc_txt:
-        if not shutil.which("tesseract"):
-            raise RuntimeError("DEPENDENCY_MISSING:tesseract for scanned textbook TOC")
-        # Local OCR: exactly the catalogued TOC page, NOT an external transfer.
-        cache = CACHE_DIR / f"toc_{entry['book_id']}_p{toc_page}.txt"
-        if cache.exists():
-            toc_txt = cache.read_text(encoding="utf-8")
-        else:
-            with tempfile.TemporaryDirectory() as temp_dir:
-                image_path = Path(temp_dir) / "toc.png"
-                doc[toc_page - 1].get_pixmap(dpi=200).save(str(image_path))
-                proc = subprocess.run(
-                    ["tesseract", str(image_path), "stdout", "-l", "eng+fra", "--psm", "3"],
-                    capture_output=True, text=True, timeout=60,
-                )
-            if proc.returncode != 0:
-                raise RuntimeError("TITLE_VERIFICATION_FAILED: local TOC OCR unavailable")
-            toc_txt = proc.stdout.strip()
-            if toc_txt:
-                cache.write_text(toc_txt, encoding="utf-8")
-    toc_normalized = re.sub(r"[^\w]+", " ", toc_txt.casefold())
+    toc_blob = "\n".join(toc_parts)
+    toc_title = best_title_candidate(toc_blob, expected)
 
-    # Dense page OCR (PSM 3) can miss short first-row titles on graphical TOC
-    # pages even while correctly reading "TABLE OF CONTENTS". Before failing,
-    # re-read the exact same catalogued TOC page locally with sparse modes.
-    # This preserves strict double evidence; it does not infer a title from a
-    # filename, manifest, or model.
-    if title_clean not in toc_normalized and shutil.which("tesseract"):
-        import fitz
-        page = doc[toc_page - 1]
-        with tempfile.TemporaryDirectory(prefix="nabil_toc_title_ocr_") as temp_dir:
-            image_path = Path(temp_dir) / "toc_title.png"
-            page.get_pixmap(dpi=260).save(str(image_path))
-            sparse_parts = []
-            for psm in (11, 12, 6):
-                proc = subprocess.run(
-                    ["tesseract", str(image_path), "stdout", "-l", "eng+fra",
-                     "--psm", str(psm)],
-                    capture_output=True, text=True, timeout=45,
-                )
-                if proc.returncode == 0 and proc.stdout.strip():
-                    sparse_parts.append(proc.stdout)
-                    sparse_normalized = re.sub(
-                        r"[^\w]+", " ", proc.stdout.casefold())
-                    if title_clean in sparse_normalized:
-                        progress(
-                            "TITLE_TOC_SPARSE_OCR_VERIFIED",
-                            page=toc_page,
-                            title=entry["canonical_title"],
-                            psm=psm,
-                        )
-                        toc_txt = toc_txt + "\n" + proc.stdout
-                        toc_normalized = re.sub(
-                            r"[^\w]+", " ", toc_txt.casefold())
-                        break
-
-    return title_clean in toc_normalized and (
-        "chapter" in toc_normalized or "chapitre" in toc_normalized
-        or "contents" in toc_normalized or "فهرس" in toc_normalized
+    decision = verify_title(
+        toc_title,
+        opener_title,
+        fallback_title=expected or f"Lesson {lesson_id}",
+        emit=progress,
+        lesson_id=lesson_id,
     )
+
+    # Third anchor: the indexed canonical title identifies which chapter the
+    # pipeline intended to build. Agreement between two wrong OCR snippets must
+    # not silently switch the lesson identity.
+    if expected and decision.title:
+        expected_score = similarity(decision.title, expected)
+        if expected_score < REVIEW_FLOOR:
+            decision = TitleDecision(
+                decision.title,
+                decision.status,
+                decision.score,
+                True,
+                (
+                    decision.reason + "; "
+                    if decision.reason else ""
+                ) + (
+                    "chosen physical title disagrees with indexed canonical "
+                    f"title (score={expected_score:.1f})"
+                ),
+            )
+            progress(
+                "TITLE_FALLBACK_LOW_CONFIDENCE",
+                lesson_id=lesson_id,
+                status=decision.status,
+                score=round(decision.score, 1),
+                needs_review=True,
+                toc=toc_title,
+                opener=opener_title,
+                chosen=decision.title,
+                canonical=expected,
+                canonical_score=round(expected_score, 1),
+                reason=decision.reason,
+            )
+
+    return decision
 
 def _execute_llm_json_strict(
         prompt: str,
@@ -3183,13 +3210,31 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
     opening_text = extract_page_text_robust(
         doc, start_p, lesson_id, book_id, lesson_cache)
     # Validate the two physical title sources BEFORE costly page-by-page vision.
-    if not verify_title_double_evidence_strict(doc, entry, opening_text):
-        raise AssertionError(
-            f"TITLE_VERIFICATION_FAILED: Strict Double Evidence TOC + Opening "
-            f"failed for '{entry['canonical_title']}'.")
-    progress("LESSON_TITLE_DOUBLE_EVIDENCE_VERIFIED",
-             lesson_id=lesson_id, title=entry["canonical_title"],
-             opener_pdf_page=start_p, toc_pdf_page=entry.get("toc_pdf_page"))
+    # OCR disagreement no longer kills the book; it becomes explicit review
+    # metadata and can only publish to the unverified review lane.
+    title_decision = verify_title_double_evidence_strict(
+        doc, entry, opening_text)
+    entry["_title_verification"] = title_decision.to_dict()
+    if title_decision.needs_review:
+        progress(
+            "LESSON_TITLE_NEEDS_REVIEW_CONTINUE",
+            lesson_id=lesson_id,
+            title=entry["canonical_title"],
+            chosen_title=title_decision.title,
+            status=title_decision.status,
+            score=round(title_decision.score, 1),
+            reason=title_decision.reason,
+        )
+    else:
+        progress(
+            "LESSON_TITLE_DOUBLE_EVIDENCE_VERIFIED",
+            lesson_id=lesson_id,
+            title=entry["canonical_title"],
+            chosen_title=title_decision.title,
+            score=round(title_decision.score, 1),
+            opener_pdf_page=start_p,
+            toc_pdf_page=entry.get("toc_pdf_page"),
+        )
     for p_num in range(start_p, end_p + 1):
         saved_page = (page_checkpoints.load_page(
             drive_service, checkpoint_root, doc, entry, p_num, lesson_cache,
@@ -3665,6 +3710,8 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
         "exercise_section_start_page": exercise_section_start_page,
         "exercise_evidence": unique_ex,
         "canonical_title": entry["canonical_title"],
+        "title_verification": dict(
+            entry.get("_title_verification") or {}),
         "disproved_exercise_numbers": sorted({
             str(x) for x in (
                 entry.get("_completeness_disproved_numbers") or [])
