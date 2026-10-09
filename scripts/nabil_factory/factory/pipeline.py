@@ -116,7 +116,10 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
     def _translate_page_cached(raw_html: str, unit_id: str, purpose: str):
         source_hash = hashlib.sha256(
             raw_html.encode("utf-8")).hexdigest()
-        prompt_version = "TRILINGUAL_PAGE_TRANSLATION_V5_COSTSAFE"
+        prompt_version = (
+            "TRILINGUAL_PAGE_TRANSLATION_V7_SELFHEAL_"
+            + self_heal_logic_fingerprint()[:16]
+        )
         checkpoint_root = str(
             os.getenv("NABIL_CURRICULUM_ROOT_ID") or "").strip() or None
         checkpoint_api = None
