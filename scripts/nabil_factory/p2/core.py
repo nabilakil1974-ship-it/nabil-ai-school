@@ -4149,49 +4149,91 @@ def _scientific_review_projection(candidate: dict) -> dict:
     }
 
 def independent_scientific_review(entry: dict, candidate: dict) -> dict:
+    """Structured reviewer + deterministic local triage.
+
+    The reviewer reports typed issues only; it does not decide PASS/BLOCK.
+    Blocking is performed locally by scientific_gate(), which also checks
+    numeric power claims exactly.
+    """
     review_payload = _scientific_review_projection(candidate)
+    normalized_payload = normalize_payload_strings(review_payload)
+    lesson_text = json.dumps(
+        normalized_payload,
+        ensure_ascii=False,
+        sort_keys=True,
+    )
+
     subject = str(entry.get("subject") or "").lower()
     math_rule = (
         "For mathematics, ordinary arithmetic evaluation and direct power "
-        "manipulation needed to solve a verified textbook prompt are allowed "
-        "computational steps. Do NOT require each arithmetic transformation to "
-        "be restated in the concept text. Still reject advanced methods that are "
-        "outside this grade/lesson (for example logarithms or a geometric-series "
-        "formula) unless the verified textbook prompt/evidence itself introduces "
-        "them. "
+        "manipulation required by a verified textbook exercise are allowed. "
+        "Do not report them as unsupported merely because concept prose does "
+        "not restate each arithmetic step. "
         if "math" in subject else ""
     )
     prompt = (
         f"You are an Independent Senior Curriculum Auditor for Lebanese "
         f"{entry['subject'].capitalize()} Grade {entry['grade']}.\n"
-        "Audit ONLY the projected student-facing payload below. Internal OCR "
-        "drafts, rejected intermediate generations, provider metadata and prior "
-        "audit comments are intentionally excluded because they are not "
-        "published to students.\n"
-        f"Lesson Title: {entry['canonical_title']}\n"
-        f"Projected Payload: "
-        f"{json.dumps(review_payload, ensure_ascii=False)}\n\n"
+        "Inspect ONLY the STUDENT-FACING payload below. For every issue, return "
+        "a VERBATIM quote copied from this payload, a category from exactly: "
+        "ocr_typo|spacing|symbol|formatting|formula_error|wrong_concept|"
+        "false_statement|unclear_evidence, a short message, and confidence 0..1. "
+        "Do not decide whether the lesson passes. Do not cite hidden textbook "
+        "OCR or prior audit comments; they are not part of the student lesson. "
         + math_rule
-        + "Reject any DISPLAYED lab, teaching claim, quiz answer, exercise "
-        "solution step or final answer that introduces unsupported scientific "
-        "content, changes a verified textbook prompt, or exceeds the verified "
-        "lesson/source scope. Verify every displayed numeric result and formula "
-        "against the prompt/evidence. Do not reject merely because raw OCR history "
-        "or a previously rejected draft is absent from this projection. "
-        "Return strictly JSON: {'approved': bool, 'issues': [str], "
-        "'scientific_notes': str}"
+        + "Return strict JSON exactly: "
+        "{\"issues\":[{\"category\":\"...\","
+        "\"quote\":\"verbatim excerpt\","
+        "\"message\":\"...\",\"confidence\":0.0}]}.\n"
+        f"Lesson Title: {entry['canonical_title']}\n"
+        f"STUDENT-FACING PAYLOAD:\n{lesson_text}"
     )
 
     try:
-        res = execute_llm_completion(
-            prompt, json_mode=True, temperature=0.0,
+        raw = execute_llm_completion(
+            prompt,
+            json_mode=True,
+            temperature=0.0,
             operation=f"scientific_review_{entry.get('lesson_id')}",
-            unit_id=str(entry.get("lesson_id") or "lesson"))
-        parsed = json.loads(res)
-        if not parsed.get("approved", False):
+            unit_id=str(entry.get("lesson_id") or "lesson"),
+        )
+        try:
+            report = report_from_json(raw)
+        except Exception as exc:
+            raise NeedsAttentionError(
+                f"SCIENTIFIC_REVIEW_SCHEMA_INVALID:{exc}",
+                operation="scientific_review",
+                unit_id=str(entry.get("lesson_id") or "lesson"),
+                reason=str(exc),
+            ) from exc
+
+        gate = scientific_gate(
+            lesson_text,
+            report,
+            emit=progress,
+        )
+        result = {
+            "approved": gate.verdict != "BLOCK",
+            "verdict": gate.verdict,
+            "needs_review": gate.needs_review,
+            "block_reasons": gate.block_reasons,
+            "flagged": gate.flagged,
+            "noise_count": gate.noise_count,
+            "issues": [
+                issue.model_dump()
+                for issue in report.issues
+            ],
+        }
+        if gate.verdict == "BLOCK":
             raise ScientificGateBlocked(
-                f"SCIENTIFIC_REVIEW_REJECTED:{parsed.get('issues')}")
-        return parsed
+                "SCIENTIFIC_REVIEW_REJECTED:"
+                + json.dumps(
+                    gate.block_reasons,
+                    ensure_ascii=False,
+                )
+            )
+        return result
+
     except (ProviderDailyQuotaError, ProviderTransientError,
             ProviderUnavailableError, NeedsAttentionError,
             ScientificGateBlocked):
@@ -4201,5 +4243,6 @@ def independent_scientific_review(entry: dict, candidate: dict) -> dict:
             f"SCIENTIFIC_REVIEW_UNAVAILABLE:{e}",
             operation="scientific_review",
             unit_id=str(entry.get("lesson_id") or "lesson"),
-            reason=str(e)) from e
+            reason=str(e),
+        ) from e
 
