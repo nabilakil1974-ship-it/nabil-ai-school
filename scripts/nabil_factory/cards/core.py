@@ -914,26 +914,44 @@ def prepare_prebuilt_exercise_labs(
             "units": [],
             "_scope_audited": True,
         }
-        try:
-            spec = build_verified_lab_spec(
-                entry, pseudo_concept, minimal_narrative, profile,
-                figure_image_base64=figure_image_base64,
-                vision_context={
-                    "lesson_id": entry.get("lesson_id"),
-                    "book_id": entry.get("book_id"),
-                    "pdf_page": ex.get("source_page"),
-                } if figure_image_base64 else None)
-        except Exception as exc:
-            progress(
-                "EXERCISE_RICH_LAB_FALLBACK_TO_PREBUILT_REVEAL",
-                exercise_id=evidence_id,
-                reason=str(exc)[:240],
-            )
+        # Cost-safe production contract:
+        # textbook exercise labs are deterministic and evidence-locked by
+        # default. Do NOT spend one paid LLM call per exercise on every retry.
+        # Rich exercise-specific simulations are optional enrichment and can be
+        # generated later without blocking lesson publication.
+        if os.getenv("NABIL_RICH_EXERCISE_LABS", "0").strip().lower() in (
+                "1", "true", "yes", "on"):
+            try:
+                spec = build_verified_lab_spec(
+                    entry, pseudo_concept, minimal_narrative, profile,
+                    figure_image_base64=figure_image_base64,
+                    vision_context={
+                        "lesson_id": entry.get("lesson_id"),
+                        "book_id": entry.get("book_id"),
+                        "pdf_page": ex.get("source_page"),
+                    } if figure_image_base64 else None)
+            except Exception as exc:
+                progress(
+                    "EXERCISE_RICH_LAB_DEFERRED_USE_PREBUILT_REVEAL",
+                    exercise_id=evidence_id,
+                    reason=str(exc)[:240],
+                )
+                spec = _deterministic_evidence_reveal_spec(
+                    evidence_id,
+                    pseudo_concept["title"],
+                    source_text,
+                    lang_code,
+                )
+        else:
             spec = _deterministic_evidence_reveal_spec(
                 evidence_id,
                 pseudo_concept["title"],
                 source_text,
                 lang_code,
+            )
+            progress(
+                "EXERCISE_LAB_COST_SAFE_PREBUILT_REVEAL",
+                exercise_id=evidence_id,
             )
         if spec.get("supported") is not True:
             spec = _deterministic_evidence_reveal_spec(
