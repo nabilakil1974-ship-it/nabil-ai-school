@@ -23,11 +23,36 @@ class ProviderErrorInfo:
     message:str
 
 class ProviderTransientError(RuntimeError):
-    def __init__(self,message,*,retry_after_seconds=None,status_code=None):
-        super().__init__(message);self.retry_after_seconds=retry_after_seconds;self.status_code=status_code
-class ProviderDailyQuotaError(ProviderTransientError): pass
-class ProviderUnavailableError(RuntimeError): pass
-class NeedsAttentionError(RuntimeError): pass
+    """Typed provider pause signal; never parse its text at the pipeline boundary."""
+    def __init__(self,message,*,retry_after_seconds=None,status_code=None,
+                 operation=None,unit_id=None,reason=None,remaining=None):
+        super().__init__(message)
+        self.transient=True
+        self.retry_after_seconds=retry_after_seconds
+        self.next_retry_seconds=retry_after_seconds
+        self.status_code=status_code
+        self.operation=operation
+        self.unit_id=unit_id
+        self.reason=reason or str(message)
+        self.remaining=dict(remaining or {})
+
+class ProviderDailyQuotaError(ProviderTransientError):
+    pass
+
+class ProviderUnavailableError(RuntimeError):
+    def __init__(self,message,*,operation=None,unit_id=None,reason=None):
+        super().__init__(message)
+        self.operation=operation
+        self.unit_id=unit_id
+        self.reason=reason or str(message)
+
+class NeedsAttentionError(RuntimeError):
+    def __init__(self,message,*,operation=None,unit_id=None,reason=None):
+        super().__init__(message)
+        self.operation=operation
+        self.unit_id=unit_id
+        self.reason=reason or str(message)
+
 class CheckpointWriteError(RuntimeError): pass
 class ScientificGateBlocked(RuntimeError): pass
 
