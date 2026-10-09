@@ -197,7 +197,7 @@ jobs:
           assert "reconstructed_diagram_verified" in source_text
           assert "OPTIONAL_SOURCE_FIGURE_SKIPPED" in source_text
           assert "REMOVED_OUT_OF_SCOPE_GENERATED_CONTENT" in source_text
-          assert "SOURCE_PAGE_LOCAL_OCR_SELECTED" in source_text
+          assert "SOURCE_PAGE_RENDERED_OCR_SELECTED" in source_text
           assert "EXERCISE_SECTION_BOUNDARY_LOCKED" in source_text
           assert "LESSON_CONCEPT_LEAKED_FROM_EXERCISE_SECTION" in source_text
           assert "source_section_kind" in source_text
