@@ -10,6 +10,7 @@ on:
       - "scripts/nabil_requirement5_gate.py"
       - "scripts/nabil_scientific_lab_coverage.py"
       - "scripts/test_nabil_scientific_lab_coverage.py"
+      - "scripts/test_real_produce_lesson_503_integration.py"
       - "scripts/nabil_geometry_lab.py"
       - "scripts/nabil_quiz_engine.py"
       - "app/static/nabil_scientific_solution_cards_e2e.js"
@@ -43,6 +44,7 @@ jobs:
             scripts/nabil_requirement5_gate.py \
             scripts/nabil_scientific_lab_coverage.py \
             scripts/test_nabil_scientific_lab_coverage.py \
+            scripts/test_real_produce_lesson_503_integration.py \
             scripts/nabil_geometry_lab.py \
             scripts/nabil_interactive_lab.py \
             scripts/nabil_quiz_engine.py \
@@ -50,6 +52,9 @@ jobs:
             app/api/routes_smart_labs.py \
             app/api/routes_interactive_lessons.py \
             app/main.py
+
+      - name: Run real produce_lesson 503 integration
+        run: python scripts/test_real_produce_lesson_503_integration.py
 
       - name: Run grades 1-12 scientific lab coverage matrix
         run: |
@@ -766,8 +771,9 @@ jobs:
           assert "wireConceptLabs" in bridge
           assert "runtime-ai-fallback" not in bridge
           assert "buildQuestionLab" in bridge
-          assert "nabilSmartLab" in bridge
-          assert "interactive-lab" in bridge
+          assert 'data-nabil-lab-source="evidence-fallback"' in bridge
+          assert 'data-nabil-prebuilt-missing="true"' in bridge
+          assert bridge.count("fallbackHtml(q)") >= 2
           assert "nabil:teach-all" in bridge
           assert "nabil:teach-stop" in bridge
           assert "nabil:teacher-complete" in bridge
