@@ -414,6 +414,58 @@ def _translate_strings_batch(
     return output
 
 
+def normalize_cached_trilingual_translation_html(
+        markup: str) -> Tuple[str, int]:
+    """Normalize previously cached Arabic translations before reuse.
+
+    This runs locally and does not call any AI provider. It updates only the
+    Arabic values inside NABIL's translation JSON bundle, then re-applies the
+    same formal-Arabic gate before returning the cached page.
+    """
+    text = str(markup or "")
+    pattern = re.compile(
+        r'(<script id="nabilPageTranslationBundle" type="application/json">)'
+        r'(.*?)'
+        r'(</script>)',
+        re.S,
+    )
+    match = pattern.search(text)
+    if not match:
+        return text, 0
+    try:
+        payload = json.loads(match.group(2))
+    except Exception as exc:
+        raise RuntimeError(
+            "CACHED_TRANSLATION_BUNDLE_INVALID:" + str(exc)) from exc
+    strings = payload.get("strings")
+    if not isinstance(strings, dict):
+        return text, 0
+    arabic = strings.get("ar")
+    if not isinstance(arabic, dict):
+        return text, 0
+
+    changed = 0
+    normalized = {}
+    for key, value in arabic.items():
+        before = str(value or "")
+        after = _normalize_formal_arabic_translation(before)
+        _assert_formal_arabic_text(
+            after, purpose="cached_page_translation_ar")
+        normalized[str(key)] = after
+        if after != before:
+            changed += 1
+    strings["ar"] = normalized
+    payload["strings"] = strings
+
+    encoded = json.dumps(
+        payload, ensure_ascii=False, separators=(",", ":")
+    ).replace("</", "<\\/")
+    rebuilt = (
+        text[:match.start(2)] + encoded + text[match.end(2):]
+    )
+    return rebuilt, changed
+
+
 def build_trilingual_page_translation(
         markup: str, source_lang_code: str, purpose: str
         ) -> Tuple[str, Dict[str, Any]]:

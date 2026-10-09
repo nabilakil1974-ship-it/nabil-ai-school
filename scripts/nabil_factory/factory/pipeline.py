@@ -134,12 +134,36 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
                 and isinstance(saved.get("html"), str)
                 and isinstance(saved.get("report"), dict)
             ):
+                cached_html, normalized_count = (
+                    normalize_cached_trilingual_translation_html(saved["html"])
+                )
+                if normalized_count:
+                    checkpoint_api.save_paid_unit(
+                        drive_service, checkpoint_root, entry,
+                        operation="page_translation",
+                        unit_id=unit_id,
+                        source_hash=source_hash,
+                        prompt_version=prompt_version,
+                        payload={
+                            "html": cached_html,
+                            "report": saved["report"],
+                        },
+                        provenance={
+                            "policy": "LOCAL_FORMAL_ARABIC_NORMALIZATION",
+                        },
+                    )
+                    progress(
+                        "PAGE_TRANSLATION_CACHED_ARABIC_NORMALIZED",
+                        lesson_id=lesson_id,
+                        unit_id=unit_id,
+                        normalized_count=normalized_count,
+                    )
                 progress(
                     "PAGE_TRANSLATION_RESTORED_FROM_DRIVE",
                     lesson_id=lesson_id,
                     unit_id=unit_id,
                 )
-                return saved["html"], saved["report"]
+                return cached_html, saved["report"]
 
         translated_html, report = build_trilingual_page_translation(
             raw_html, source_lang_code, purpose=purpose)
