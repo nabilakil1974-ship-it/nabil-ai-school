@@ -598,8 +598,11 @@ def run(book_id: str, *, index_only: bool, publish: bool,
             # authorizes promotion only AFTER all original science/mobile gates.
             report=factory.produce_lesson_for_entry(
                 entry, drive_service=service, publish=True)
-            if report.get("status")!="PUBLISHED_VERIFIED":
-                raise RuntimeError("LESSON_NOT_PUBLISHED_VERIFIED")
+            report_status = str(report.get("status") or "")
+            if report_status not in {
+                    "PUBLISHED_VERIFIED", "PUBLISHED_UNVERIFIED"}:
+                raise RuntimeError(
+                    f"LESSON_PUBLICATION_STATE_INVALID:{report_status}")
             ev_file = factory.PERM_EVIDENCE_DIR / f"{lid}.json"
             if not ev_file.is_file():
                 raise RuntimeError("EXERCISE_INDEX_NOT_PERSISTED: source evidence absent")
@@ -614,7 +617,7 @@ def run(book_id: str, *, index_only: bool, publish: bool,
                 "figure_refs": ex.get("figure_refs", []),
                 "source_prompt_hash": ex["source_prompt_hash"],
             } for ex in evidence["exercise_evidence"]]
-            state["lessons"][lid]={"status":"PUBLISHED_VERIFIED",
+            state["lessons"][lid]={"status":report_status,
                 "source_exercises": exercise_index,
                 "indexed_exercise_count": len(exercise_index),
                 "drive_theory_id":report["drive_theory_id"],
@@ -623,13 +626,24 @@ def run(book_id: str, *, index_only: bool, publish: bool,
                 "pending_source_count":int(report.get("pending_source_count") or 0),
                 "pending_source_items":list(report.get("pending_source_items") or []),
                 "pending_source_retry_after_epoch":report.get("pending_source_retry_after_epoch"),
+                "needs_review":bool(report.get("needs_review")),
+                "review_status":report.get("review_status"),
+                "review_reasons":report.get("review_reasons"),
                 "completed_at":datetime.now(timezone.utc).isoformat()}
             remote_checkpoint(service,root,book_id,state)
-            done+=1
-            newly_published+=1
-            announce("LESSON_PUBLISHED",lesson_id=lid,done=done,total=len(index["lessons"]),
-                     drive_theory_id=report["drive_theory_id"],
-                     drive_exercises_id=report["drive_exercises_id"])
+            if report_status == "PUBLISHED_VERIFIED":
+                done+=1
+                newly_published+=1
+                announce("LESSON_PUBLISHED",lesson_id=lid,done=done,total=len(index["lessons"]),
+                         drive_theory_id=report["drive_theory_id"],
+                         drive_exercises_id=report["drive_exercises_id"])
+            else:
+                announce(
+                    "LESSON_PUBLISHED_UNVERIFIED_CONTINUE_BOOK",
+                    lesson_id=lid,
+                    review_status=report.get("review_status"),
+                    drive_theory_id=report["drive_theory_id"],
+                    drive_exercises_id=report["drive_exercises_id"])
             if max_new_lessons and newly_published >= max_new_lessons:
                 state["status"] = "FIRST_LESSON_PUBLISHED_VERIFIED" if max_new_lessons == 1 else "PARTIAL_PRODUCTION_VERIFIED"
                 remote_checkpoint(service, root, book_id, state)
@@ -748,7 +762,7 @@ def run(book_id: str, *, index_only: bool, publish: bool,
         row for row in state.get("lessons", {}).values()
         if row.get("status") in {
             "DEFERRED_REPAIR", "BLOCKED_SCIENTIFIC", "BLOCKED_TRUTH",
-            "NEEDS_ATTENTION", "PAUSED_TRANSIENT",
+            "PUBLISHED_UNVERIFIED", "NEEDS_ATTENTION", "PAUSED_TRANSIENT",
             "PAUSED_PROVIDER_UNAVAILABLE",
         }
     ]
