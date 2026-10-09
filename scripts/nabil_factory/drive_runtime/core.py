@@ -623,9 +623,14 @@ def promote_candidate(candidate: dict, entry: dict, drive_service) -> Tuple[str,
         "general_science": "General Science - علوم عامة",
     }
     subject_fid = get_or_create_folder(subject_folder_names.get(entry['subject'], entry['subject']), grade_fid)
+    needs_review = bool(candidate.get("needs_review"))
+    target_fid = (
+        get_or_create_folder("Needs Review - مراجعة مطلوبة", subject_fid)
+        if needs_review else subject_fid
+    )
 
     def get_existing_file(fname: str) -> Optional[dict]:
-        q = f"name = '{fname}' and '{subject_fid}' in parents and trashed = false"
+        q = f"name = '{fname}' and '{target_fid}' in parents and trashed = false"
         files = drive_service.files().list(q=q, fields="files(id, name)").execute().get("files", [])
         return files[0] if files else None
 
@@ -651,13 +656,18 @@ def promote_candidate(candidate: dict, entry: dict, drive_service) -> Tuple[str,
             "nabil_language": resolve_lang_code(entry.get("language") or "en"),
             "nabil_version": str(candidate.get("version") or candidate.get("candidate_version") or "0.01"),
             "nabil_artifact": artifact,
-            "nabil_golden": "true",
+            "nabil_golden": "false" if needs_review else "true",
+            "nabil_review_status": str(
+                candidate.get("review_status") or
+                ("NEEDS_REVIEW" if needs_review else "REVIEWED")
+            ),
+            "nabil_needs_review": "true" if needs_review else "false",
         }
         body={"name": fname, "appProperties": props}
         if existing:
             drive_service.files().update(fileId=existing["id"], body=body, media_body=media).execute()
             return existing["id"]
-        body["parents"]=[subject_fid]
+        body["parents"]=[target_fid]
         return drive_service.files().create(body=body, media_body=media, fields="id").execute()["id"]
 
     tid = None
