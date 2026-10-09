@@ -18,6 +18,7 @@ from scripts.nabil_transient_resilience_v1781 import CheckpointWriteError
 CACHE_SCHEMA = "PAGE_EVIDENCE_V1_SOURCE_LOCKED"
 FACTORY_STATE_SCHEMA = "NABIL_FACTORY_RECOVERY_STATE_V1782"
 SOLUTION_PROMPT_VERSION = "NABIL_GROUNDED_SOLUTION_V1782"
+PAID_UNIT_SCHEMA = "NABIL_PAID_UNIT_V1783"
 _FOLDER_CACHE = {}
 
 
@@ -408,6 +409,66 @@ def save_solution(service, root_id, entry, exercise, solution,
     }
     _write_json_verified(service, folder, filename, body)
 
+
+
+def _paid_unit_filename(operation, unit_id):
+    safe_op = re.sub(r"[^A-Za-z0-9_-]", "_", str(operation or "operation"))
+    safe_unit = re.sub(r"[^A-Za-z0-9_-]", "_", str(unit_id or "unit"))
+    return "PAID_%s_%s.json" % (safe_op[:70], safe_unit[:90])
+
+
+def load_paid_unit(service, root_id, entry, *, operation, unit_id,
+                   source_hash, prompt_version):
+    """Restore one verified paid-stage result only for the exact source/prompt."""
+    folder = _folder(service, root_id, entry, create=False)
+    if not folder:
+        return None
+    filename = _paid_unit_filename(operation, unit_id)
+    fid = _children(service, folder, filename)
+    if not fid:
+        return None
+    raw = service.files().get_media(fileId=fid).execute()
+    record = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+    expected = {
+        "schema": PAID_UNIT_SCHEMA,
+        "book_id": entry.get("book_id"),
+        "lesson_id": entry.get("lesson_id"),
+        "source_pdf_sha256": (
+            entry.get("source_pdf_sha256") or entry.get("source_book_sha256")),
+        "operation": str(operation),
+        "unit_id": str(unit_id),
+        "source_hash": str(source_hash),
+        "prompt_version": str(prompt_version),
+    }
+    if not isinstance(record, dict) or any(
+            record.get(k) != v for k, v in expected.items()):
+        return None
+    payload = record.get("payload")
+    if payload is None:
+        raise RuntimeError("PAID_UNIT_CHECKPOINT_CORRUPT:" + filename)
+    return payload
+
+
+def save_paid_unit(service, root_id, entry, *, operation, unit_id,
+                   source_hash, prompt_version, payload, provenance=None):
+    """Persist and read-back verify one paid-stage result."""
+    folder = _folder(service, root_id, entry, create=True)
+    body = {
+        "schema": PAID_UNIT_SCHEMA,
+        "book_id": entry.get("book_id"),
+        "lesson_id": entry.get("lesson_id"),
+        "source_pdf_sha256": (
+            entry.get("source_pdf_sha256") or entry.get("source_book_sha256")),
+        "operation": str(operation),
+        "unit_id": str(unit_id),
+        "source_hash": str(source_hash),
+        "prompt_version": str(prompt_version),
+        "actual_provenance": dict(provenance or {}),
+        "payload": payload,
+    }
+    _write_json_verified(
+        service, folder, _paid_unit_filename(operation, unit_id), body)
+    return payload
 
 
 def _factory_state_filename():
