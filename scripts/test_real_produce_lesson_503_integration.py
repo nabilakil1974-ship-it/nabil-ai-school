@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 import copy
 import hashlib
 import tempfile
-from pathlib import Path
-
 import fitz
 
 import scripts.nabil_lesson_factory as factory
