@@ -10043,6 +10043,15 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
             operation=operation,
             retry_seconds=retry,
         )
+        if state.get("status") == STATUS_NEEDS_ATTENTION:
+            capped = NeedsAttentionError(
+                state.get("reason") or "PAUSE_RESUME_CYCLE_CAP_EXCEEDED",
+                operation=operation,
+                unit_id=unit_id,
+                reason=state.get("reason"),
+            )
+            capped.state = state
+            raise capped from exc
         exc.state = state
         raise
     except ProviderUnavailableError as exc:
@@ -10061,6 +10070,15 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
             unit_id=unit_id,
             operation=operation,
         )
+        if state.get("status") == STATUS_NEEDS_ATTENTION:
+            capped = NeedsAttentionError(
+                state.get("reason") or "PAUSE_RESUME_CYCLE_CAP_EXCEEDED",
+                operation=operation,
+                unit_id=unit_id,
+                reason=state.get("reason"),
+            )
+            capped.state = state
+            raise capped from exc
         exc.state = state
         raise
     except NeedsAttentionError as exc:
