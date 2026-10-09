@@ -769,6 +769,114 @@ def build_teaching_steps(
             "visual_cues": [{"cue_type": "point", "target_ids": []}],
             "lab_key": lab_key,
         })
+
+    # Self-heal pedagogical structure locally. The source-scope auditor may
+    # legitimately delete generated narrative fields; that must not collapse
+    # the teacher sequence below the required three steps. Fill only from
+    # already-verified source evidence, never from new scientific generation.
+    if len(out) < 3:
+        raw_source = re.sub(
+            r"\s+", " ", str(concept.get("raw_text") or "")).strip()
+        source_chunks = [
+            part.strip()
+            for part in re.split(r"(?<=[.!?;:])\s+|\n+", raw_source)
+            if part.strip()
+        ]
+        if raw_source and raw_source not in source_chunks:
+            source_chunks.append(raw_source)
+
+        existing = {
+            re.sub(r"\s+", " ", str(step.get("sentence") or "")).strip()
+            for step in out
+            if str(step.get("sentence") or "").strip()
+        }
+        fallback_labels = (
+            list(sig.get("subject_sequence") or [])
+            or list(sig.get("teacher_moves") or [])
+            or ["Observe", "Reason", "Apply"]
+        )
+
+        for chunk in source_chunks:
+            if len(out) >= 3:
+                break
+            normalized = re.sub(r"\s+", " ", chunk).strip()
+            if not normalized or normalized in existing:
+                continue
+            order += 1
+            out.append({
+                "step_id": f"{concept_id}-S{order:02d}",
+                "concept_id": concept_id,
+                "kind": "evidence_read",
+                "order": order,
+                "label": str(
+                    fallback_labels[(order - 1) % len(fallback_labels)]
+                ).strip() or f"Step {order}",
+                "sentence": normalized,
+                "formula": "",
+                "evidence": {
+                    "concept_id": concept_id,
+                    "source_page": source_page,
+                    "quote": raw_source[:700],
+                },
+                "visual_cues": [{"cue_type": "point", "target_ids": []}],
+                "lab_key": lab_key,
+            })
+            existing.add(normalized)
+
+        # If the verified source is one compact sentence, create pedagogical
+        # moves around that SAME evidence. These prompts add no scientific fact.
+        safe_prompts = {
+            "ar": [
+                "اقرأ الدليل الموثق بعناية.",
+                "حدّد الفكرة التي يثبتها الدليل الموثق.",
+                "طبّق الفكرة بالاعتماد على الدليل الموثق فقط.",
+            ],
+            "fr": [
+                "Lis attentivement la preuve vérifiée.",
+                "Repère l'idée établie par la preuve vérifiée.",
+                "Applique l'idée en utilisant uniquement la preuve vérifiée.",
+            ],
+            "en": [
+                "Read the verified evidence carefully.",
+                "Identify the idea established by the verified evidence.",
+                "Apply the idea using only the verified evidence.",
+            ],
+        }.get(lang, [
+            "Read the verified evidence carefully.",
+            "Identify the idea established by the verified evidence.",
+            "Apply the idea using only the verified evidence.",
+        ])
+
+        for prompt_text in safe_prompts:
+            if len(out) >= 3:
+                break
+            order += 1
+            out.append({
+                "step_id": f"{concept_id}-S{order:02d}",
+                "concept_id": concept_id,
+                "kind": "evidence_guided",
+                "order": order,
+                "label": str(
+                    fallback_labels[(order - 1) % len(fallback_labels)]
+                ).strip() or f"Step {order}",
+                "sentence": prompt_text,
+                "formula": "",
+                "evidence": {
+                    "concept_id": concept_id,
+                    "source_page": source_page,
+                    "quote": raw_source[:700],
+                },
+                "visual_cues": [{"cue_type": "point", "target_ids": []}],
+                "lab_key": lab_key,
+            })
+
+        if len(out) >= 3:
+            progress(
+                "TEACHING_SEQUENCE_SELF_HEALED_FROM_VERIFIED_EVIDENCE",
+                concept_id=concept_id,
+                source_page=source_page,
+                step_count=len(out),
+            )
     return out
 
 
