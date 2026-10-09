@@ -37,6 +37,15 @@
       "provider": "cloudflare",
       "purpose": "Owner-approved Cloudflare Workers AI vision failover for the unpublished first pilot only; source pages 13–18.",
       "owner_approval_date": "2026-09-26"
+    },
+    {
+      "lesson_id_prefix": "G07-MATHEMATICS-",
+      "book_id": "1E-nj01QlpvZCa_kHy92qQDlm6ko1ba_D",
+      "pdf_start_page": 15,
+      "pdf_end_page": 66,
+      "provider": "openai",
+      "purpose": "Owner-approved source-page vision for the first five Grade 7 Mathematics Golden lessons only; pages 15-66.",
+      "owner_approval_date": "2026-10-09"
     }
   ]
 }
