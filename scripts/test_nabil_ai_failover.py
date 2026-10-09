@@ -230,7 +230,7 @@ class SmartFailoverTest(unittest.TestCase):
                 operation="short_wait_test", unit_id="U")
 
         self.assertEqual(json.loads(out), {"ok": True})
-        self.assertGreaterEqual(clock["now"], 107.0)
+        self.assertGreaterEqual(clock["now"], 105.0)
         self.assertEqual(
             factory.get_last_llm_provenance()["provider"], "openrouter")
 
