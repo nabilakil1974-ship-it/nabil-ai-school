@@ -1524,18 +1524,23 @@ def _vision_provider_authorized(provider: str, vision_context: Dict[str, Any],
 
     for item in scopes:
         lesson_allowed = (
-            item.get("lesson_id") == lesson_id
+            item.get("all_lessons") is True
+            or item.get("lesson_id") == lesson_id
             or bool(
                 item.get("lesson_id_prefix")
                 and lesson_id.startswith(item["lesson_id_prefix"])
             )
         )
+        book_allowed = (
+            item.get("all_books") is True
+            or item.get("book_id") in (book_id, "*")
+        )
         if (
             lesson_allowed
-            and item.get("book_id") == book_id
+            and book_allowed
             and item.get("provider") == provider
-            and int(item["pdf_start_page"]) <= pdf_page
-            <= int(item["pdf_end_page"])
+            and int(item.get("pdf_start_page", 1)) <= pdf_page
+            <= int(item.get("pdf_end_page", 1000000))
         ):
             if require_key and not os.getenv(f"{provider.upper()}_API_KEY"):
                 return False
