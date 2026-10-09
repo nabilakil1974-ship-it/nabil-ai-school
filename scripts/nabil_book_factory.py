@@ -505,7 +505,8 @@ def run(book_id: str, *, index_only: bool, publish: bool,
         try:
             # The owner's full-book command, unlike the single QA-only pilot,
             # authorizes promotion only AFTER all original science/mobile gates.
-            report=factory.produce_lesson_for_entry(entry,drive_service=service,publish=True,allow_pilot_publish=True)
+            report=factory.produce_lesson_for_entry(
+                entry, drive_service=service, publish=True)
             if report.get("status")!="PUBLISHED_VERIFIED":
                 raise RuntimeError("LESSON_NOT_PUBLISHED_VERIFIED")
             ev_file = factory.PERM_EVIDENCE_DIR / f"{lid}.json"
@@ -543,11 +544,73 @@ def run(book_id: str, *, index_only: bool, publish: bool,
                          drive_theory_id=report["drive_theory_id"],
                          drive_exercises_id=report["drive_exercises_id"])
                 return state
-        except Exception as exc:
-            state["lessons"][lid]={"status":"BLOCKED","error":str(exc)[:1200],
-                                  "blocked_at":datetime.now(timezone.utc).isoformat()}
+        except (factory.ProviderDailyQuotaError,
+                factory.ProviderTransientError) as exc:
+            recovery = getattr(exc, "state", {}) or {}
+            state["lessons"][lid] = {
+                "status": "PAUSED_TRANSIENT",
+                "reason": str(exc)[:1200],
+                "unit_id": recovery.get("unit_id") or getattr(exc, "unit_id", None),
+                "operation": recovery.get("operation") or getattr(exc, "operation", None),
+                "next_retry_at": recovery.get("next_retry_at"),
+                "retry_after_seconds": (
+                    recovery.get("retry_after_seconds")
+                    or getattr(exc, "retry_after_seconds", None)),
+                "paused_at": datetime.now(timezone.utc).isoformat(),
+            }
             remote_checkpoint(service,root,book_id,state)
-            announce("BOOK_STOPPED_ON_BLOCKED_LESSON",lesson_id=lid,reason=str(exc)[:800])
+            announce(
+                "BOOK_PAUSED_TRANSIENT",
+                lesson_id=lid,
+                unit_id=state["lessons"][lid].get("unit_id"),
+                operation=state["lessons"][lid].get("operation"),
+                next_retry_at=state["lessons"][lid].get("next_retry_at"),
+                retry_after_seconds=state["lessons"][lid].get("retry_after_seconds"),
+            )
+            raise
+        except factory.ProviderUnavailableError as exc:
+            state["lessons"][lid] = {
+                "status": "PAUSED_PROVIDER_UNAVAILABLE",
+                "reason": str(exc)[:1200],
+                "paused_at": datetime.now(timezone.utc).isoformat(),
+            }
+            remote_checkpoint(service,root,book_id,state)
+            announce(
+                "BOOK_PAUSED_PROVIDER_UNAVAILABLE",
+                lesson_id=lid, reason=str(exc)[:800])
+            raise
+        except factory.NeedsAttentionError as exc:
+            state["lessons"][lid] = {
+                "status": "NEEDS_ATTENTION",
+                "reason": str(exc)[:1200],
+                "paused_at": datetime.now(timezone.utc).isoformat(),
+            }
+            remote_checkpoint(service,root,book_id,state)
+            announce(
+                "BOOK_NEEDS_ATTENTION",
+                lesson_id=lid, reason=str(exc)[:800])
+            raise
+        except factory.ScientificGateBlocked as exc:
+            state["lessons"][lid] = {
+                "status": "BLOCKED",
+                "error": str(exc)[:1200],
+                "blocked_at": datetime.now(timezone.utc).isoformat(),
+            }
+            remote_checkpoint(service,root,book_id,state)
+            announce(
+                "BOOK_STOPPED_ON_BLOCKED_LESSON",
+                lesson_id=lid, reason=str(exc)[:800])
+            raise
+        except Exception as exc:
+            state["lessons"][lid] = {
+                "status": "NEEDS_ATTENTION",
+                "error": str(exc)[:1200],
+                "paused_at": datetime.now(timezone.utc).isoformat(),
+            }
+            remote_checkpoint(service,root,book_id,state)
+            announce(
+                "BOOK_STOPPED_NEEDS_ATTENTION",
+                lesson_id=lid, reason=str(exc)[:800])
             raise
     state["status"]="ALL_CHAPTERS_PUBLISHED_VERIFIED"
     remote_checkpoint(service,root,book_id,state)
@@ -609,13 +672,72 @@ def run_folder(folder_id: str, *, grade: str = "", subject: str = "",
                              subject=subject, language=language, branch=branch)
                 report["books"].append({"book_id": book_id,
                                         "status": result["status"]})
-            except Exception as exc:
-                report["books"].append({"book_id": book_id,
-                                        "status": "BLOCKED", "reason": str(exc)[:600]})
-                announce("BOOK_BLOCKED", book_id=book_id, error=str(exc)[:600])
-                retry_not_before[book_id] = time.monotonic() + 3600
+            except (factory.ProviderDailyQuotaError,
+                    factory.ProviderTransientError) as exc:
+                retry_seconds = max(
+                    1, int(getattr(exc, "retry_after_seconds", None) or 60))
+                report["books"].append({
+                    "book_id": book_id,
+                    "status": "PAUSED_TRANSIENT",
+                    "reason": str(exc)[:600],
+                    "retry_after_seconds": retry_seconds,
+                })
+                announce(
+                    "BOOK_WATCH_PAUSED_TRANSIENT",
+                    book_id=book_id,
+                    retry_after_seconds=retry_seconds,
+                    next_retry_at=(getattr(exc, "state", {}) or {}).get(
+                        "next_retry_at"),
+                )
+                retry_not_before[book_id] = time.monotonic() + retry_seconds
                 if not watch:
-                    # No false success exit code when one-shot production fails.
+                    raise
+            except factory.ProviderUnavailableError as exc:
+                report["books"].append({
+                    "book_id": book_id,
+                    "status": "PAUSED_PROVIDER_UNAVAILABLE",
+                    "reason": str(exc)[:600],
+                })
+                announce(
+                    "BOOK_PROVIDER_UNAVAILABLE",
+                    book_id=book_id, error=str(exc)[:600])
+                # Human action is required; do not spin the provider loop.
+                retry_not_before[book_id] = float("inf")
+                if not watch:
+                    raise
+            except factory.NeedsAttentionError as exc:
+                report["books"].append({
+                    "book_id": book_id,
+                    "status": "NEEDS_ATTENTION",
+                    "reason": str(exc)[:600],
+                })
+                announce(
+                    "BOOK_NEEDS_ATTENTION",
+                    book_id=book_id, error=str(exc)[:600])
+                retry_not_before[book_id] = float("inf")
+                if not watch:
+                    raise
+            except factory.ScientificGateBlocked as exc:
+                report["books"].append({
+                    "book_id": book_id,
+                    "status": "BLOCKED",
+                    "reason": str(exc)[:600],
+                })
+                announce("BOOK_BLOCKED", book_id=book_id, error=str(exc)[:600])
+                retry_not_before[book_id] = float("inf")
+                if not watch:
+                    raise
+            except Exception as exc:
+                report["books"].append({
+                    "book_id": book_id,
+                    "status": "NEEDS_ATTENTION",
+                    "reason": str(exc)[:600],
+                })
+                announce(
+                    "BOOK_NEEDS_ATTENTION",
+                    book_id=book_id, error=str(exc)[:600])
+                retry_not_before[book_id] = float("inf")
+                if not watch:
                     raise
         announce("FOLDER_SCAN_STATUS", **report)
         last_report = report
