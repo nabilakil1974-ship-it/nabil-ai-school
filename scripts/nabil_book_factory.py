@@ -346,9 +346,9 @@ def build_index(doc, book: dict, *, book_id: str, pdf_hash: str) -> dict:
     if book_id == "1E-nj01QlpvZCa_kHy92qQDlm6ko1ba_D":
         source_rows = [
             ("Powers", 13),
-            ("Prallelepiped, cube and prism", 22),
+            ("Parallelepiped (Cuboid), cube and prism", 22),
             ("Prime numbers", 31),
-            ("Triangles: Case of equality (congruent triangles)", 39),
+            ("Triangles - Case of equality (Congruent triangles)", 39),
             ("Signed numbers: Addition and subtraction", 52),
             ("Signed numbers: Multiplication and division", 65),
             ("Angles and lines", 76),
@@ -356,7 +356,7 @@ def build_index(doc, book: dict, *, book_id: str, pdf_hash: str) -> dict:
             ("Decimals and fractions", 94),
             ("Locating a point", 101),
             ("Algebraic expressions", 109),
-            ("The perpendicular bisector of a segment. The bisector of an angle", 117),
+            ("The perpendicular bisector of a segment The bisector of an angle", 117),
             ("Translation", 125),
             ("Equations", 132),
             ("Fixed points. Variable points", 142),
