@@ -1578,13 +1578,19 @@ def _provider_request_config(provider: str, image_base64: Optional[str]):
 
 def _parse_rate_limit_wait_seconds(exc, detail: str,
                                    provider_attempt: int) -> float:
+    """Return provider-declared wait exactly when available.
+
+    Only use bounded exponential backoff when the provider supplied no
+    Retry-After/header/message duration. This prevents a generic floor from
+    turning a 1-5 second provider recovery into a needless long pause.
+    """
     retry_header = str(exc.headers.get("Retry-After", "")).strip()
     try:
         retry_after = float(retry_header)
     except ValueError:
         retry_after = 0.0
     duration = re.search(
-        r"(?i)try again in\s+"
+        r"(?i)(?:try again|retry)(?:\s+after|\s+in)?\s+"
         r"(?:(\d+(?:\.\d+)?)\s*h(?:ours?)?\s*)?"
         r"(?:(\d+(?:\.\d+)?)\s*m(?:in(?:utes?)?)?\s*)?"
         r"(?:(\d+(?:\.\d+)?)\s*s(?:ec(?:onds?)?)?)?",
@@ -1599,11 +1605,10 @@ def _parse_rate_limit_wait_seconds(exc, detail: str,
             + 60 * float(minutes or 0)
             + float(seconds or 0)
         )
-    return max(
-        retry_after,
-        indicated,
-        min(20.0 * max(1, provider_attempt), 90.0),
-    ) + 2.0
+    explicit = max(retry_after, indicated)
+    if explicit > 0:
+        return explicit
+    return min(5.0 * (2 ** max(0, provider_attempt - 1)), 120.0)
 
 
 def _next_provider_or_wait(candidates: List[str],
@@ -1934,7 +1939,10 @@ def execute_llm_completion(
                 continue
 
             if exc.code in (408, 425, 500, 502, 503, 504):
-                transient_cooldown = 10.0
+                transient_cooldown = _parse_rate_limit_wait_seconds(
+                    exc, detail, provider_attempts[provider])
+                transient_cooldown = max(
+                    1.0, min(120.0, float(transient_cooldown)))
                 _AI_PROVIDER_COOLDOWNS[provider] = (
                     time.monotonic() + transient_cooldown)
                 progress(
