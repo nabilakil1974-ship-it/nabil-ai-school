@@ -2802,31 +2802,51 @@ def run_real_playwright_chromium_qa(
                 wait_until="domcontentloaded",
             )
 
-            try:
-                page.wait_for_function(
-                    """() => {
-                      const root = document.documentElement;
-                      return !!document.querySelector('mjx-container')
-                        || root.dataset.nabilMathFallback === 'true'
-                        || (
-                          !document.body.innerText.includes('\\\\(')
-                          && !document.body.innerText.includes('\\\\[')
-                        );
-                    }""",
-                    timeout=12000,
-                )
-            except Exception:
+            # Wait only on math delimiters that are actually visible in page
+            # text nodes. Never infer "math present" from script/config source,
+            # because the MathJax config itself contains \\( / \\[ tokens.
+            visible_math_js = """() => {
+              const walker = document.createTreeWalker(
+                document.body, NodeFilter.SHOW_TEXT
+              );
+              while (walker.nextNode()) {
+                const n = walker.currentNode;
+                const p = n.parentElement;
+                if (!p) continue;
+                const tag = p.tagName;
+                if (tag === 'SCRIPT' || tag === 'STYLE'
+                    || tag === 'TEXTAREA' || tag === 'NOSCRIPT') continue;
+                const v = n.nodeValue || '';
+                if (v.includes('\\\\(') || v.includes('\\\\[')) {
+                  return true;
+                }
+              }
+              return false;
+            }"""
+            visible_math_present = bool(page.evaluate(visible_math_js))
+            if visible_math_present:
                 try:
-                    page.evaluate(
-                        """() => {
-                          if (window.__NABIL_READABLE_MATH_FALLBACK) {
-                            window.__NABIL_READABLE_MATH_FALLBACK();
-                          }
-                        }"""
+                    page.wait_for_function(
+                        """() => (
+                          !!document.querySelector('mjx-container')
+                          || document.documentElement.dataset.nabilMathFallback === 'true'
+                        )""",
+                        timeout=8000,
                     )
-                    page.wait_for_timeout(150)
                 except Exception:
-                    pass
+                    # CDN unavailable/slow: use the deterministic local renderer
+                    # immediately, then validate its visible result.
+                    try:
+                        page.evaluate(
+                            """() => {
+                              if (window.__NABIL_READABLE_MATH_FALLBACK) {
+                                window.__NABIL_READABLE_MATH_FALLBACK();
+                              }
+                            }"""
+                        )
+                        page.wait_for_timeout(150)
+                    except Exception:
+                        pass
 
             check_result = page.evaluate("""() => {
                 const doc = document.documentElement;
@@ -2885,19 +2905,45 @@ def run_real_playwright_chromium_qa(
                   document.querySelectorAll('button, .q-opt')
                 );
                 for (let b of buttons) {
-                    if (b.getBoundingClientRect().height < 43) {
+                    const style = getComputedStyle(b);
+                    const rect = b.getBoundingClientRect();
+                    const visible = (
+                      style.display !== 'none'
+                      && style.visibility !== 'hidden'
+                      && Number(style.opacity || '1') !== 0
+                      && rect.width > 0
+                      && rect.height > 0
+                    );
+                    if (visible && rect.height < 43) {
                         return {
                           passed: false,
                           reason: "TOUCH_TARGET_TOO_SMALL",
-                          height: b.getBoundingClientRect().height,
+                          height: rect.height,
                           text: clip(b.innerText || '', 80),
                           renderer: doc.dataset.nabilMathRenderer || "none"
                         };
                     }
                 }
 
-                const bodyText = document.body.innerText;
-                if (bodyText.includes('\\\\(') || bodyText.includes('\\\\[')) {
+                const visibleTextNodes = [];
+                const textWalker = document.createTreeWalker(
+                  document.body, NodeFilter.SHOW_TEXT
+                );
+                while (textWalker.nextNode()) {
+                    const n = textWalker.currentNode;
+                    const p = n.parentElement;
+                    if (!p) continue;
+                    const tag = p.tagName;
+                    if (tag === 'SCRIPT' || tag === 'STYLE'
+                        || tag === 'TEXTAREA' || tag === 'NOSCRIPT') continue;
+                    visibleTextNodes.push(n.nodeValue || '');
+                }
+                const visibleBodyText = visibleTextNodes.join(' ');
+                const visibleRawMath = (
+                  visibleBodyText.includes('\\\\(')
+                  || visibleBodyText.includes('\\\\[')
+                );
+                if (visibleRawMath) {
                     return {
                       passed: false,
                       reason: "RAW_LATEX_DETECTED",
@@ -2923,13 +2969,15 @@ def run_real_playwright_chromium_qa(
                     }
                 }
 
-                const originalMathPresent =
-                  document.documentElement.innerHTML.includes('\\\\(')
-                  || document.documentElement.innerHTML.includes('\\\\[');
                 const mjxCount =
                   document.querySelectorAll('mjx-container').length;
                 const fallbackReady =
                   doc.dataset.nabilMathFallback === 'true';
+                // At this point visible raw delimiters must be gone. A page with
+                // no visible raw delimiters and no MathJax nodes is valid when
+                // it contains only Unicode/plain readable math. Do not count
+                // delimiter strings inside scripts/configuration as lesson math.
+                const originalMathPresent = visibleRawMath;
 
                 if (originalMathPresent && mjxCount === 0 && !fallbackReady) {
                     return {
@@ -2965,6 +3013,7 @@ def run_real_playwright_chromium_qa(
                   renderer: doc.dataset.nabilMathRenderer || "none",
                   mjxCount,
                   mathPresent: originalMathPresent,
+                  visibleRawMath,
                   fallbackUsed: fallbackReady
                 };
             }""")
