@@ -353,8 +353,9 @@ def _translate_strings_batch(
                 batch_count=len(items),
                 returned_count=(len(translated) if isinstance(translated, list) else -1),
             )
-            by_id = {}
-            for item in items:
+            # Keep valid rows already returned. Missing/bad rows are repaired
+            # individually below by the self-healing supervisor.
+        for item in items:
                 item_id = item["id"]
                 single_prompt = (
                     "You are a strict translation-only engine for a school lesson. "
@@ -383,38 +384,96 @@ def _translate_strings_batch(
         for item in items:
             item_id = item["id"]
             source = batch[int(item_id) - start]
-            value = by_id.get(item_id, "")
-            if not value:
-                raise RuntimeError(
-                    f"PAGE_TRANSLATION_EMPTY:{target_lang}:{item_id}")
-            value = _restore_scientific_translation_tokens(
-                value, lock_maps.get(item_id, []),
-                target_lang, item_id)
-            src_numbers, _ = _translation_integrity_tokens(source)
-            dst_numbers, _ = _translation_integrity_tokens(value)
-            if src_numbers != dst_numbers:
-                raise RuntimeError(
-                    f"PAGE_TRANSLATION_NUMBER_CHANGED:{target_lang}:{item['id']}")
-            # Scientific labels, units and operators are protected by immutable
-            # placeholders before translation and validated by
-            # _restore_scientific_translation_tokens(). Do not re-tokenize
-            # translated prose: Arabic/French grammar can legitimately alter
-            # surrounding Latin-letter fragments and create false failures.
-            if target_lang == "ar":
-                normalized_value = _normalize_formal_arabic_translation(value)
-                if normalized_value != value:
-                    progress(
-                        "PAGE_TRANSLATION_FORMAL_ARABIC_LOCAL_NORMALIZED",
-                        item_id=item_id,
-                    )
-                    value = normalized_value
-                    src_numbers_retry, _ = _translation_integrity_tokens(source)
-                    dst_numbers_retry, _ = _translation_integrity_tokens(value)
-                    if src_numbers_retry != dst_numbers_retry:
+            raw_value = by_id.get(item_id, "")
+            locks = lock_maps.get(item_id, [])
+
+            def _finalize_translation_candidate(candidate_value: str) -> str:
+                if not str(candidate_value or "").strip():
+                    raise RuntimeError(
+                        f"PAGE_TRANSLATION_EMPTY:{target_lang}:{item_id}")
+
+                value = _restore_scientific_translation_tokens(
+                    str(candidate_value).strip(),
+                    locks, target_lang, item_id)
+
+                src_numbers, _ = _translation_integrity_tokens(source)
+                dst_numbers, _ = _translation_integrity_tokens(value)
+                if src_numbers != dst_numbers:
+                    numeric_repaired = repair_numeric_spans_exact(
+                        source, value)
+                    if numeric_repaired is not None:
+                        value = numeric_repaired
+                        progress(
+                            "PAGE_TRANSLATION_NUMBER_LOCAL_REPAIRED",
+                            target_lang=target_lang,
+                            item_id=item_id,
+                        )
+                    src_numbers, _ = _translation_integrity_tokens(source)
+                    dst_numbers, _ = _translation_integrity_tokens(value)
+                    if src_numbers != dst_numbers:
                         raise RuntimeError(
                             f"PAGE_TRANSLATION_NUMBER_CHANGED:{target_lang}:{item_id}")
-                _assert_formal_arabic_text(
-                    value, purpose=f"{purpose}_ar_{item_id}")
+
+                if target_lang == "ar":
+                    normalized_value = _normalize_formal_arabic_translation(
+                        value)
+                    if normalized_value != value:
+                        progress(
+                            "PAGE_TRANSLATION_FORMAL_ARABIC_LOCAL_NORMALIZED",
+                            item_id=item_id,
+                        )
+                        value = normalized_value
+                    _assert_formal_arabic_text(
+                        value, purpose=f"{purpose}_ar_{item_id}")
+                return value
+
+            def _smart_translation_repair(exc: Exception, attempt: int) -> str:
+                repair_prompt = (
+                    "You are repairing ONE rejected school translation item. "
+                    f"Exact validator error: {type(exc).__name__}:{exc}. "
+                    f"Translate from {source_name} to {target_name}. "
+                    "Return the same meaning and no extra content. Preserve every "
+                    "immutable __NABIL_LOCK_*__ token byte-for-byte exactly once. "
+                    "Preserve all numbers, formulas, variables, units and symbols. "
+                    "For Arabic use complete Modern Standard Arabic only. "
+                    "Return strict JSON exactly as "
+                    "{\"items\":[{\"id\":\"...\",\"text\":\"...\"}]}.\nITEM:\n"
+                    + json.dumps(item, ensure_ascii=False)
+                )
+                repaired = _execute_llm_json_strict(
+                    repair_prompt,
+                    purpose=(
+                        f"{purpose}_{target_lang}_{item_id}_self_heal_{attempt}"
+                    ),
+                    max_attempts=1,
+                )
+                rows = repaired.get("items") if isinstance(repaired, dict) else None
+                if (
+                    not isinstance(rows, list)
+                    or len(rows) != 1
+                    or str(rows[0].get("id")) != item_id
+                    or not str(rows[0].get("text") or "").strip()
+                ):
+                    raise RuntimeError(
+                        f"PAGE_TRANSLATION_SCHEMA_INVALID:{target_lang}:{item_id}")
+                return _finalize_translation_candidate(rows[0]["text"])
+
+            def _safe_source_fallback(_exc: Exception) -> str:
+                # Translation-only failure must not kill the lesson. The exact
+                # verified source text is the safe last-line fallback.
+                progress(
+                    "PAGE_TRANSLATION_SAFE_SOURCE_FALLBACK",
+                    target_lang=target_lang,
+                    item_id=item_id,
+                )
+                return source
+
+            value = guardrail_execute(
+                operation=f"page_translation:{target_lang}:{item_id}",
+                fn=lambda: _finalize_translation_candidate(raw_value),
+                ai_repair=_smart_translation_repair,
+                fallback=_safe_source_fallback,
+            )
             output[source] = value
     return output
 
@@ -450,16 +509,24 @@ def normalize_cached_trilingual_translation_html(
         return text, 0
 
     changed = 0
-    normalized = {}
-    for key, value in arabic.items():
-        before = str(value or "")
-        after = _normalize_formal_arabic_translation(before)
-        _assert_formal_arabic_text(
-            after, purpose="cached_page_translation_ar")
-        normalized[str(key)] = after
-        if after != before:
-            changed += 1
-    strings["ar"] = normalized
+    for lang, mapping in list(strings.items()):
+        if not isinstance(mapping, dict):
+            continue
+        healed = {}
+        for key, value in mapping.items():
+            source_text = str(key)
+            before = str(value or "")
+            repaired_numbers = repair_numeric_spans_exact(
+                source_text, before)
+            after = source_text if repaired_numbers is None else repaired_numbers
+            if lang == "ar":
+                after = _normalize_formal_arabic_translation(after)
+                _assert_formal_arabic_text(
+                    after, purpose="cached_page_translation_ar")
+            healed[source_text] = after
+            if after != before:
+                changed += 1
+        strings[lang] = healed
     payload["strings"] = strings
 
     encoded = json.dumps(
