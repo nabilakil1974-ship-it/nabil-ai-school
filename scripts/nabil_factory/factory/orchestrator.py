@@ -13,7 +13,7 @@ _PARTS = [
     "scripts/nabil_factory/factory/guards.py",
     "scripts/nabil_factory/p2/core.py",
     "scripts/nabil_factory/factory/providers.py",
-    "scripts/nabil_factory/p1/core.py",
+    "scripts/nabil_factory/p1/source_pipeline.py",
     "scripts/nabil_factory/factory/pipeline.py",
 ]
 
