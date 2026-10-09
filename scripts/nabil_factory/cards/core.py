@@ -296,15 +296,17 @@ def _translate_strings_batch(
         return {value: value for value in strings}
     if not strings:
         return {}
-    target_name = {"ar": "Modern Standard Arabic", "en": "English",
-                   "fr": "French"}[target_lang]
-    source_name = {"ar": "Modern Standard Arabic", "en": "English",
-                   "fr": "French"}.get(source_lang, source_lang)
+
+    target_name = {
+        "ar": "Modern Standard Arabic", "en": "English", "fr": "French"
+    }[target_lang]
+    source_name = {
+        "ar": "Modern Standard Arabic", "en": "English", "fr": "French"
+    }.get(source_lang, source_lang)
+
     output: Dict[str, str] = {}
-    # Small translation batches are deliberate: large JSON arrays were being
-    # truncated/re-shaped by providers. Keep batches bounded and recover only
-    # the affected chunk/item instead of failing the whole lesson.
     batch_size = 8
+
     for start in range(0, len(strings), batch_size):
         batch = strings[start:start + batch_size]
         items = []
@@ -315,6 +317,7 @@ def _translate_strings_batch(
                 value, item_id)
             items.append({"id": item_id, "text": wire_text})
             lock_maps[item_id] = locks
+
         prompt = (
             "You are a strict translation-only engine for a school lesson. "
             f"Translate each item from {source_name} to {target_name}. "
@@ -324,11 +327,14 @@ def _translate_strings_batch(
             "units and standard symbols exactly. Any token shaped like "
             "__NABIL_LOCK_000_000__ is immutable: copy it byte-for-byte, "
             "exactly once, in the translated item. Keep NABIL as NABIL. "
-            "When target is Arabic, use complete school-level Modern Standard Arabic only; never use Lebanese/Levantine colloquial forms such as رح, عم, بدنا, هيدا, هيك, شو, or incomplete/truncated words. "
-            "Return strict JSON exactly as {\"items\":[{\"id\":\"...\",\"text\":\"...\"}]}. "
-            "The item count and ids must match.\nITEMS:\n" +
-            json.dumps(items, ensure_ascii=False)
+            "When target is Arabic, use complete school-level Modern Standard "
+            "Arabic only; never use colloquial forms or incomplete words. "
+            "Return strict JSON exactly as "
+            "{\"items\":[{\"id\":\"...\",\"text\":\"...\"}]}. "
+            "The item count and ids must match.\nITEMS:\n"
+            + json.dumps(items, ensure_ascii=False)
         )
+
         result = _execute_llm_json_strict(
             prompt,
             purpose=f"{purpose}_{target_lang}_{start}",
@@ -338,12 +344,15 @@ def _translate_strings_batch(
         expected_ids = {item["id"] for item in items}
         by_id = {
             str(row.get("id")): str(row.get("text") or "").strip()
-            for row in (translated or []) if isinstance(row, dict)
+            for row in (translated or [])
+            if isinstance(row, dict)
+            and str(row.get("id")) in expected_ids
+            and str(row.get("text") or "").strip()
         }
+
         schema_ok = (
             isinstance(translated, list)
             and set(by_id) == expected_ids
-            and all(by_id.get(item_id) for item_id in expected_ids)
         )
         if not schema_ok:
             progress(
@@ -351,36 +360,11 @@ def _translate_strings_batch(
                 target_lang=target_lang,
                 start=start,
                 batch_count=len(items),
-                returned_count=(len(translated) if isinstance(translated, list) else -1),
+                returned_count=(
+                    len(translated) if isinstance(translated, list) else -1
+                ),
             )
-            # Keep valid rows already returned. Missing/bad rows are repaired
-            # individually below by the self-healing supervisor.
-        for item in items:
-                item_id = item["id"]
-                single_prompt = (
-                    "You are a strict translation-only engine for a school lesson. "
-                    f"Translate this one item from {source_name} to {target_name}. "
-                    "Do not add, omit, explain, simplify or correct scientific content. "
-                    "Preserve immutable __NABIL_LOCK_*__ tokens byte-for-byte and exactly once. "
-                    "Return strict JSON exactly as "
-                    "{\"items\":[{\"id\":\"...\",\"text\":\"...\"}]}.\nITEM:\n"
-                    + json.dumps(item, ensure_ascii=False)
-                )
-                single = _execute_llm_json_strict(
-                    single_prompt,
-                    purpose=f"{purpose}_{target_lang}_{item_id}_schema_recovery",
-                    max_attempts=3,
-                )
-                rows = single.get("items") if isinstance(single, dict) else None
-                if (
-                    not isinstance(rows, list)
-                    or len(rows) != 1
-                    or str(rows[0].get("id")) != item_id
-                    or not str(rows[0].get("text") or "").strip()
-                ):
-                    raise RuntimeError(
-                        f"PAGE_TRANSLATION_SCHEMA_INVALID:{target_lang}:{item_id}")
-                by_id[item_id] = str(rows[0]["text"]).strip()
+
         for item in items:
             item_id = item["id"]
             source = batch[int(item_id) - start]
@@ -399,10 +383,9 @@ def _translate_strings_batch(
                 src_numbers, _ = _translation_integrity_tokens(source)
                 dst_numbers, _ = _translation_integrity_tokens(value)
                 if src_numbers != dst_numbers:
-                    numeric_repaired = repair_numeric_spans_exact(
-                        source, value)
-                    if numeric_repaired is not None:
-                        value = numeric_repaired
+                    repaired = repair_numeric_spans_exact(source, value)
+                    if repaired is not None:
+                        value = repaired
                         progress(
                             "PAGE_TRANSLATION_NUMBER_LOCAL_REPAIRED",
                             target_lang=target_lang,
@@ -412,42 +395,47 @@ def _translate_strings_batch(
                     dst_numbers, _ = _translation_integrity_tokens(value)
                     if src_numbers != dst_numbers:
                         raise RuntimeError(
-                            f"PAGE_TRANSLATION_NUMBER_CHANGED:{target_lang}:{item_id}")
+                            f"PAGE_TRANSLATION_NUMBER_CHANGED:"
+                            f"{target_lang}:{item_id}")
 
                 if target_lang == "ar":
-                    normalized_value = _normalize_formal_arabic_translation(
-                        value)
-                    if normalized_value != value:
+                    normalized = _normalize_formal_arabic_translation(value)
+                    if normalized != value:
                         progress(
                             "PAGE_TRANSLATION_FORMAL_ARABIC_LOCAL_NORMALIZED",
                             item_id=item_id,
                         )
-                        value = normalized_value
+                        value = normalized
                     _assert_formal_arabic_text(
                         value, purpose=f"{purpose}_ar_{item_id}")
                 return value
 
-            def _smart_translation_repair(exc: Exception, attempt: int) -> str:
+            def _smart_translation_repair(
+                    exc: Exception, attempt: int) -> str:
                 repair_prompt = (
-                    "You are repairing ONE rejected school translation item. "
-                    f"Exact validator error: {type(exc).__name__}:{exc}. "
+                    "Repair ONE rejected school translation item. "
+                    f"Validator error: {type(exc).__name__}:{exc}. "
                     f"Translate from {source_name} to {target_name}. "
                     "Return the same meaning and no extra content. Preserve every "
                     "immutable __NABIL_LOCK_*__ token byte-for-byte exactly once. "
                     "Preserve all numbers, formulas, variables, units and symbols. "
                     "For Arabic use complete Modern Standard Arabic only. "
                     "Return strict JSON exactly as "
-                    "{\"items\":[{\"id\":\"...\",\"text\":\"...\"}]}.\nITEM:\n"
-                    + json.dumps(item, ensure_ascii=False)
+                    "{\"items\":[{\"id\":\"...\",\"text\":\"...\"}]}.\n"
+                    "ITEM:\n" + json.dumps(item, ensure_ascii=False)
                 )
                 repaired = _execute_llm_json_strict(
                     repair_prompt,
                     purpose=(
-                        f"{purpose}_{target_lang}_{item_id}_self_heal_{attempt}"
+                        f"{purpose}_{target_lang}_{item_id}_self_heal_"
+                        f"{attempt}"
                     ),
                     max_attempts=1,
                 )
-                rows = repaired.get("items") if isinstance(repaired, dict) else None
+                rows = (
+                    repaired.get("items")
+                    if isinstance(repaired, dict) else None
+                )
                 if (
                     not isinstance(rows, list)
                     or len(rows) != 1
@@ -455,16 +443,16 @@ def _translate_strings_batch(
                     or not str(rows[0].get("text") or "").strip()
                 ):
                     raise RuntimeError(
-                        f"PAGE_TRANSLATION_SCHEMA_INVALID:{target_lang}:{item_id}")
+                        f"PAGE_TRANSLATION_SCHEMA_INVALID:"
+                        f"{target_lang}:{item_id}")
                 return _finalize_translation_candidate(rows[0]["text"])
 
-            def _safe_source_fallback(_exc: Exception) -> str:
-                # Translation-only failure must not kill the lesson. The exact
-                # verified source text is the safe last-line fallback.
+            def _safe_source_fallback(exc: Exception) -> str:
                 progress(
                     "PAGE_TRANSLATION_SAFE_SOURCE_FALLBACK",
                     target_lang=target_lang,
                     item_id=item_id,
+                    reason=f"{type(exc).__name__}:{exc}"[:320],
                 )
                 return source
 
@@ -475,8 +463,8 @@ def _translate_strings_batch(
                 fallback=_safe_source_fallback,
             )
             output[source] = value
-    return output
 
+    return output
 
 def normalize_cached_trilingual_translation_html(
         markup: str) -> Tuple[str, int]:
