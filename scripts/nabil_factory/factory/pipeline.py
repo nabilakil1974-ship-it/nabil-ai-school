@@ -216,6 +216,22 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
         page_b_raw, "exercises",
         purpose=f"exercise_page_translation_{lesson_id}")
 
+    # Legacy bridge toward the typed text/math contract. Run AFTER translation
+    # cache restore so this costs zero provider calls and also heals cached
+    # language dictionaries. Genuine math remains delimited; prose accidentally
+    # wrapped as math is deterministically demoted before Playwright/MathJax.
+    page_a, mixed_a = normalize_legacy_mixed_math_html(
+        page_a, context=f"{lesson_id}:theory")
+    page_b, mixed_b = normalize_legacy_mixed_math_html(
+        page_b, context=f"{lesson_id}:exercises")
+    if mixed_a or mixed_b:
+        progress(
+            "MIXED_MATH_CONTRACT_APPLIED",
+            lesson_id=lesson_id,
+            theory_demoted=mixed_a,
+            exercises_demoted=mixed_b,
+        )
+
     slug_subj = re.sub(r'[^\w]+', '-', entry.get("subject", "PHYSICS")).upper()
     slug_title = re.sub(r'[^\w]+', '-', entry["canonical_title"]).upper()
     seq_match = re.search(r'-(\d{3})$', lesson_id)
