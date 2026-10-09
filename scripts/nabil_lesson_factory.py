@@ -595,7 +595,7 @@ def assert_renderer_family_contract() -> None:
                 f"RENDERER_FAMILY_CONTRACT_MISSING:{module_name}:{callable_name}")
 
 
-from scripts.nabil_factory.source_completeness import (
+from scripts.nabil_factory.p1.source_completeness import (
     attach_and_verify_source_completeness,
     build_independent_source_inventory,
 )
