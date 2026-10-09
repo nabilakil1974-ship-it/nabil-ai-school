@@ -102,10 +102,10 @@ def _persist_factory_recovery_state(
         status=status,
         reason=str(reason)[:1200],
         unit_id=str(unit_id or ""),
+        operation=str(operation or ""),
         retry_seconds=retry_seconds,
         max_pause_cycles=max_cycles,
     )
-    state["operation"] = str(operation or "")
     if drive_service is not None:
         from scripts import nabil_page_checkpoint as page_checkpoints
         checkpoint_root = resolve_drive_root_id()
