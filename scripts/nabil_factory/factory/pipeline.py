@@ -112,11 +112,60 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
         page_b_raw, ev_map, "EXERCISES")
 
     source_lang_code = resolve_lang_code(entry.get("language", "en"))
-    page_a, translation_a = build_trilingual_page_translation(
-        page_a_raw, source_lang_code,
+
+    def _translate_page_cached(raw_html: str, unit_id: str, purpose: str):
+        source_hash = hashlib.sha256(
+            raw_html.encode("utf-8")).hexdigest()
+        prompt_version = "TRILINGUAL_PAGE_TRANSLATION_V5_COSTSAFE"
+        checkpoint_root = str(
+            os.getenv("NABIL_CURRICULUM_ROOT_ID") or "").strip() or None
+        checkpoint_api = None
+        if drive_service is not None and checkpoint_root:
+            from scripts import nabil_page_checkpoint as checkpoint_api
+            saved = checkpoint_api.load_paid_unit(
+                drive_service, checkpoint_root, entry,
+                operation="page_translation",
+                unit_id=unit_id,
+                source_hash=source_hash,
+                prompt_version=prompt_version,
+            )
+            if (
+                isinstance(saved, dict)
+                and isinstance(saved.get("html"), str)
+                and isinstance(saved.get("report"), dict)
+            ):
+                progress(
+                    "PAGE_TRANSLATION_RESTORED_FROM_DRIVE",
+                    lesson_id=lesson_id,
+                    unit_id=unit_id,
+                )
+                return saved["html"], saved["report"]
+
+        translated_html, report = build_trilingual_page_translation(
+            raw_html, source_lang_code, purpose=purpose)
+
+        if checkpoint_api is not None:
+            checkpoint_api.save_paid_unit(
+                drive_service, checkpoint_root, entry,
+                operation="page_translation",
+                unit_id=unit_id,
+                source_hash=source_hash,
+                prompt_version=prompt_version,
+                payload={"html": translated_html, "report": report},
+                provenance=dict(get_last_llm_provenance()),
+            )
+            progress(
+                "PAGE_TRANSLATION_SAVED_TO_DRIVE",
+                lesson_id=lesson_id,
+                unit_id=unit_id,
+            )
+        return translated_html, report
+
+    page_a, translation_a = _translate_page_cached(
+        page_a_raw, "theory",
         purpose=f"lesson_page_translation_{lesson_id}")
-    page_b, translation_b = build_trilingual_page_translation(
-        page_b_raw, source_lang_code,
+    page_b, translation_b = _translate_page_cached(
+        page_b_raw, "exercises",
         purpose=f"exercise_page_translation_{lesson_id}")
 
     slug_subj = re.sub(r'[^\w]+', '-', entry.get("subject", "PHYSICS")).upper()

@@ -359,8 +359,50 @@ def _translate_strings_batch(
             # translated prose: Arabic/French grammar can legitimately alter
             # surrounding Latin-letter fragments and create false failures.
             if target_lang == "ar":
-                _assert_formal_arabic_text(
-                    value, purpose=f"{purpose}_ar_{item['id']}")
+                try:
+                    _assert_formal_arabic_text(
+                        value, purpose=f"{purpose}_ar_{item['id']}")
+                except RuntimeError as formal_exc:
+                    progress(
+                        "PAGE_TRANSLATION_FORMAL_ARABIC_ITEM_RETRY",
+                        item_id=item_id,
+                        reason=str(formal_exc)[:240],
+                    )
+                    repair_prompt = (
+                        "Translate this ONE item into strict Modern Standard Arabic only. "
+                        "Do not use colloquial Lebanese/Levantine words such as رح, بدنا, "
+                        "هيدا, هيك, شو, منيح. Preserve every immutable "
+                        "__NABIL_LOCK_*__ token byte-for-byte and exactly once. "
+                        "Do not add, omit, explain, simplify, or change mathematics. "
+                        "Return strict JSON exactly as "
+                        "{\"items\":[{\"id\":\"...\",\"text\":\"...\"}]}.\nITEM:\n"
+                        + json.dumps(item, ensure_ascii=False)
+                    )
+                    repaired = _execute_llm_json_strict(
+                        repair_prompt,
+                        purpose=f"{purpose}_ar_{item_id}_formal_retry",
+                        max_attempts=2,
+                    )
+                    rows = repaired.get("items") if isinstance(repaired, dict) else None
+                    if (
+                        not isinstance(rows, list)
+                        or len(rows) != 1
+                        or str(rows[0].get("id")) != item_id
+                        or not str(rows[0].get("text") or "").strip()
+                    ):
+                        raise RuntimeError(
+                            f"PAGE_TRANSLATION_FORMAL_ARABIC_RETRY_INVALID:{item_id}")
+                    value = _restore_scientific_translation_tokens(
+                        str(rows[0]["text"]).strip(),
+                        lock_maps.get(item_id, []),
+                        target_lang, item_id)
+                    src_numbers_retry, _ = _translation_integrity_tokens(source)
+                    dst_numbers_retry, _ = _translation_integrity_tokens(value)
+                    if src_numbers_retry != dst_numbers_retry:
+                        raise RuntimeError(
+                            f"PAGE_TRANSLATION_NUMBER_CHANGED:{target_lang}:{item_id}")
+                    _assert_formal_arabic_text(
+                        value, purpose=f"{purpose}_ar_{item_id}_formal_retry")
             output[source] = value
     return output
 
