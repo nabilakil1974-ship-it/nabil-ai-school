@@ -6480,9 +6480,12 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
         "Every proof step MUST contain title,text,formula,target_ids,reveal_marks,evidence_quote; evidence_quote must be an exact SOURCE quote. "
         "In target_ids use ONLY a mark id, point:<point label>, or segment:<segment id>; order target_ids to match the spoken sentences so the teacher arrow follows the sentence meaning. "
         "Never add an equality tick, equal-angle arc, right-angle square, parallel arrow, midpoint mark, congruence implication or symmetry effect merely because the sketch looks that way.\n"
-        "8) EVIDENCE_SEQUENCE: for ANY subject when SOURCE explicitly gives two or more ordered or structurally related evidence-backed ideas, parts, stages, transformations, constructions, grammatical steps, historical developments, geographic relations, or other explainable sequence that can be highlighted or animated without inventing a missing fact. "
+        "8) PROCEDURE_OBSERVATION: prefer this when SOURCE explicitly describes a practical experiment, investigation, hands-on procedure, materials/apparatus, ordered actions, and/or observable outcomes. "
+        "Required: procedure_steps=[{label,evidence_quote}] with 1..8 exact SOURCE-backed steps; observations=[{label,evidence_quote}] with 1..6 exact SOURCE-backed observations; materials=[{label,evidence_quote}] is optional and may contain ONLY materials/apparatus explicitly named by SOURCE. "
+        "Never invent apparatus, quantities, safety instructions, control variables, measurements, outcomes, or procedural steps. If SOURCE does not state them, omit them.\n"
+        "9) EVIDENCE_SEQUENCE: for ANY subject when SOURCE explicitly gives two or more ordered or structurally related evidence-backed ideas, parts, stages, transformations, constructions, grammatical steps, historical developments, geographic relations, or other explainable sequence that can be highlighted or animated without inventing a missing fact. "
         "Required field: steps=[{label:str,evidence_quote:str}] with 2..8 ordered steps; every evidence_quote must be an exact contiguous SOURCE quote.\n"
-        "9) EVIDENCE_REVEAL: universal fallback for ANY subject/concept when no richer lab kind fits. "
+        "10) EVIDENCE_REVEAL: universal fallback for ANY subject/concept when no richer lab kind fits. "
         "Use 1..8 exact SOURCE-backed items and reveal/highlight them interactively. "
         "Required field: items=[{label:str,evidence_quote:str}], each evidence_quote an exact contiguous SOURCE quote. "
         "This means every concept can still have a real interactive lab without inventing science.\n"
@@ -6497,9 +6500,13 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
         "For every domain, animate/reveal a result only after its evidence-backed conditions are established. "
         "All states/actions/constraints come from SOURCE or verified FIGURE; never invent science for animation.\n"
         "Student-facing title/instructions/observation must stay within the scientific meaning of the evidence.\n"
+        "AGE APPROPRIATENESS: Grades 1-3 use one short concrete action/observation at a time and minimal text; Grades 4-9 use a guided prediction/procedure/observation flow; Grades 10-12 may use rigorous variables, relations, and interpretation ONLY when those details are explicitly supported by SOURCE. "
+        "Age adaptation changes wording and interaction pacing only; it must never add scientific content.\n"
         + narrative_language_instruction(lang_code) + "\n\n"
         f"CONCEPT_ID: {concept['concept_id']}\n"
         f"SUBJECT: {profile['subject']}\n"
+        f"GRADE: {profile.get('grade', entry.get('grade', ''))}\n"
+        f"PEDAGOGY_LEVEL: {profile.get('level', '')}\n"
         f"SOURCE: {concept.get('raw_text','')}\n"
         f"MATH_RECORDS: {json.dumps(math_records, ensure_ascii=False)}\n"
         f"GROUNDED_NARRATIVE: {json.dumps(narrative, ensure_ascii=False)}\n\n"
@@ -6510,6 +6517,7 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
         "ORIENTATION_INVARIANT additionally: invariant_orientation ('horizontal'|'vertical'). "
         "SHAPE_RESPONSE additionally: behavior ('fixed'|'conforms'). "
         "GEOMETRY_PROOF additionally uses the exact points/segments/marks/proof_steps schema above. "
+        "PROCEDURE_OBSERVATION additionally: materials=[{label,evidence_quote}] optional, procedure_steps=[{label,evidence_quote}], observations=[{label,evidence_quote}]. "
         "EVIDENCE_SEQUENCE additionally: steps=[{label,evidence_quote}]. "
         "EVIDENCE_REVEAL additionally: items=[{label,evidence_quote}]. "
         "Advanced science kinds must include the exact fields listed above plus evidence_quotes."
@@ -6562,6 +6570,12 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
                 {"say": str(concept.get("title") or "Observe the verified evidence."), "target_ids": ["evidence:0"], "action": "point",
                  "state_before": {"revealed_index": -1}, "state_after": {"revealed_index": 0},
                  "scientific_constraints": ["Reveal only verified source evidence."], "evidence_quote": fallback_quote},
+                {"say": str(concept.get("title") or "Focus on the verified evidence."), "target_ids": ["evidence:0"], "action": "highlight",
+                 "state_before": {"revealed_index": 0}, "state_after": {"revealed_index": 0},
+                 "scientific_constraints": ["Highlight only verified source evidence."], "evidence_quote": fallback_quote},
+                {"say": str(narrative.get("observation") or concept.get("title") or "Observe the verified evidence."), "target_ids": ["evidence:0"], "action": "observe",
+                 "state_before": {"revealed_index": 0}, "state_after": {"revealed_index": 0},
+                 "scientific_constraints": ["Do not exceed verified source evidence."], "evidence_quote": fallback_quote},
                 {"say": str(narrative.get("conclusion") or narrative.get("observation") or concept.get("title") or "Conclude from the verified evidence."),
                  "target_ids": ["evidence:0"], "action": "conclude",
                  "state_before": {"revealed_index": 0}, "state_after": {"revealed_index": 0},
@@ -6815,6 +6829,25 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
             if not quote or quote not in source_norm:
                 raise RuntimeError(
                     f"LAB_GEOMETRY_STEP_EVIDENCE_NOT_FOUND:{index}")
+
+    if kind == "PROCEDURE_OBSERVATION":
+        source_norm = _normalized_lab_evidence(concept.get("raw_text", ""))
+        groups = (
+            ("materials", spec.get("materials") or [], 0, 8),
+            ("procedure_steps", spec.get("procedure_steps"), 1, 8),
+            ("observations", spec.get("observations"), 1, 6),
+        )
+        for group_name, group_items, minimum, maximum in groups:
+            if not isinstance(group_items, list) or not minimum <= len(group_items) <= maximum:
+                raise RuntimeError(f"LAB_PROCEDURE_{group_name.upper()}_INVALID")
+            for index, item in enumerate(group_items):
+                if not isinstance(item, dict):
+                    raise RuntimeError(f"LAB_PROCEDURE_{group_name.upper()}_ITEM_INVALID:{index}")
+                label = str(item.get("label") or "").strip()
+                quote = _normalized_lab_evidence(item.get("evidence_quote", ""))
+                if not label or not quote or quote not in source_norm:
+                    raise RuntimeError(
+                        f"LAB_PROCEDURE_{group_name.upper()}_EVIDENCE_NOT_FOUND:{index}")
 
     if kind == "EVIDENCE_SEQUENCE":
         steps = spec.get("steps")
