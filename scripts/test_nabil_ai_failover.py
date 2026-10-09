@@ -6,6 +6,7 @@ import urllib.error
 from unittest import mock
 
 import scripts.nabil_lesson_factory as factory
+from scripts.nabil_transient_resilience_v1781 import ProviderTransientError
 
 
 class _FakeResponse:
@@ -177,6 +178,109 @@ class SmartFailoverTest(unittest.TestCase):
                     'Return {"ok": true}', json_mode=True)
 
         self.assertFalse(sleep.called)
+
+    def test_shortest_wait_within_threshold_waits_and_recovers(self):
+        env = {
+            "NABIL_FACTORY_AI_PROVIDER": "groq",
+            "NABIL_FACTORY_AI_FAILOVER_PROVIDERS": "openrouter",
+            "NABIL_FACTORY_MAX_ALL_PROVIDER_WAIT_SECONDS": "30",
+            "GROQ_API_KEY": "g",
+            "OPENROUTER_API_KEY": "o",
+        }
+        clock = {"now": 100.0}
+        calls = {"groq": 0, "openrouter": 0}
+
+        def monotonic():
+            return clock["now"]
+
+        def sleep(seconds):
+            clock["now"] += float(seconds)
+
+        def fake_urlopen(req, timeout=60):
+            if "groq.com" in req.full_url:
+                calls["groq"] += 1
+                if calls["groq"] == 1:
+                    raise _rate_limit(req.full_url, 20)
+                return _FakeResponse({
+                    "choices": [{"message": {"content": '{"ok": true}'}}]
+                })
+            if "openrouter.ai" in req.full_url:
+                calls["openrouter"] += 1
+                if calls["openrouter"] == 1:
+                    raise _rate_limit(req.full_url, 5)
+                return _FakeResponse({
+                    "choices": [{"message": {"content": '{"ok": true}'}}]
+                })
+            raise AssertionError(req.full_url)
+
+        with mock.patch.dict(os.environ, env, clear=False), \
+             mock.patch.object(factory.urllib.request, "urlopen",
+                               side_effect=fake_urlopen), \
+             mock.patch.object(factory.time, "monotonic",
+                               side_effect=monotonic), \
+             mock.patch.object(factory.time, "sleep", side_effect=sleep):
+            out = factory.execute_llm_completion(
+                'Return {"ok": true}', json_mode=True,
+                operation="short_wait_test", unit_id="U")
+
+        self.assertEqual(json.loads(out), {"ok": True})
+        self.assertGreaterEqual(clock["now"], 107.0)
+        self.assertEqual(
+            factory.get_last_llm_provenance()["provider"], "openrouter")
+
+    def test_request_cap_becomes_typed_pause_with_shortest_remaining(self):
+        env = {
+            "NABIL_FACTORY_AI_PROVIDER": "groq",
+            "NABIL_FACTORY_AI_FAILOVER_PROVIDERS": "openrouter,openai",
+            "NABIL_FACTORY_MAX_ALL_PROVIDER_WAIT_SECONDS": "30",
+            "NABIL_FACTORY_MAX_FAILOVER_REQUESTS": "9",
+            "GROQ_API_KEY": "g",
+            "OPENROUTER_API_KEY": "o",
+            "OPENAI_API_KEY": "a",
+        }
+        clock = {"now": 100.0}
+        request_count = {"n": 0}
+
+        def monotonic():
+            return clock["now"]
+
+        def sleep(seconds):
+            clock["now"] += float(seconds)
+
+        def fake_urlopen(req, timeout=60):
+            request_count["n"] += 1
+            body = io.BytesIO(json.dumps({
+                "error": {"message": "Service unavailable", "code": "503"}
+            }).encode("utf-8"))
+            raise urllib.error.HTTPError(
+                url=req.full_url,
+                code=503,
+                msg="Service Unavailable",
+                hdrs={"Content-Type": "application/json"},
+                fp=body,
+            )
+
+        with mock.patch.dict(os.environ, env, clear=False), \
+             mock.patch.object(factory.urllib.request, "urlopen",
+                               side_effect=fake_urlopen), \
+             mock.patch.object(factory.time, "monotonic",
+                               side_effect=monotonic), \
+             mock.patch.object(factory.time, "sleep", side_effect=sleep):
+            with self.assertRaises(ProviderTransientError) as caught:
+                factory.execute_llm_completion(
+                    'Return {"ok": true}', json_mode=True,
+                    operation="cap_test", unit_id="CAP-U")
+
+        exc = caught.exception
+        self.assertEqual(request_count["n"], 9)
+        self.assertEqual(exc.operation, "cap_test")
+        self.assertEqual(exc.unit_id, "CAP-U")
+        self.assertEqual(exc.reason, "requests=9")
+        self.assertEqual(exc.retry_after_seconds, 10)
+        self.assertTrue(exc.remaining)
+        self.assertLess(
+            exc.retry_after_seconds,
+            max(exc.remaining.values()) + 1)
 
     def test_pilot_page_14_is_authorized_for_all_three_providers(self):
         context = {
