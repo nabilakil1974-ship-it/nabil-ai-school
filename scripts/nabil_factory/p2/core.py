@@ -4148,12 +4148,43 @@ def _scientific_review_projection(candidate: dict) -> dict:
         "exercises": exercises,
     }
 
+def run_review(call_reviewer, lesson_text: str, *, retries: int = 2):
+    """Return (ReviewerReport | None, reviewed). Never fake a clean report."""
+    last_err = None
+    attempts = max(1, int(retries) + 1)
+    for attempt in range(attempts):
+        try:
+            raw = call_reviewer(lesson_text)
+            report = report_from_json(raw)
+            progress(
+                "REVIEWER_CALL_SUCCEEDED",
+                attempt=attempt + 1,
+                issue_count=len(report.issues),
+            )
+            return report, True
+        except Exception as exc:
+            last_err = exc
+            progress(
+                "REVIEWER_CALL_FAILED",
+                attempt=attempt + 1,
+                error=f"{type(exc).__name__}: {str(exc)[:200]}",
+            )
+            if attempt + 1 < attempts:
+                time.sleep(min(2 ** attempt, 8))
+    progress(
+        "REVIEWER_UNAVAILABLE",
+        error=f"{type(last_err).__name__}: {str(last_err)[:200]}"
+        if last_err is not None else "unknown",
+    )
+    return None, False
+
+
 def independent_scientific_review(entry: dict, candidate: dict) -> dict:
     """Structured reviewer + deterministic local triage.
 
     The reviewer reports typed issues only; it does not decide PASS/BLOCK.
-    Blocking is performed locally by scientific_gate(), which also checks
-    numeric power claims exactly.
+    If review is unavailable or malformed after bounded retries, deterministic
+    checks still run and the lesson is marked UNREVIEWED/needs_review.
     """
     review_payload = _scientific_review_projection(candidate)
     normalized_payload = normalize_payload_strings(review_payload)
@@ -4189,60 +4220,57 @@ def independent_scientific_review(entry: dict, candidate: dict) -> dict:
         f"STUDENT-FACING PAYLOAD:\n{lesson_text}"
     )
 
-    try:
-        raw = execute_llm_completion(
+    def _call(_lesson_text: str) -> str:
+        return execute_llm_completion(
             prompt,
             json_mode=True,
             temperature=0.0,
             operation=f"scientific_review_{entry.get('lesson_id')}",
             unit_id=str(entry.get("lesson_id") or "lesson"),
         )
-        try:
-            report = report_from_json(raw)
-        except Exception as exc:
-            raise NeedsAttentionError(
-                f"SCIENTIFIC_REVIEW_SCHEMA_INVALID:{exc}",
-                operation="scientific_review",
-                unit_id=str(entry.get("lesson_id") or "lesson"),
-                reason=str(exc),
-            ) from exc
 
-        gate = scientific_gate(
-            lesson_text,
-            report,
-            emit=progress,
-        )
-        result = {
-            "approved": gate.verdict != "BLOCK",
-            "verdict": gate.verdict,
-            "needs_review": gate.needs_review,
-            "block_reasons": gate.block_reasons,
-            "flagged": gate.flagged,
-            "noise_count": gate.noise_count,
-            "issues": [
-                issue.model_dump()
-                for issue in report.issues
-            ],
-        }
-        if gate.verdict == "BLOCK":
-            raise ScientificGateBlocked(
-                "SCIENTIFIC_REVIEW_REJECTED:"
-                + json.dumps(
-                    gate.block_reasons,
-                    ensure_ascii=False,
-                )
+    report, reviewed = run_review(
+        _call,
+        lesson_text,
+        retries=int(os.getenv("NABIL_SCI_REVIEW_RETRIES", "2")),
+    )
+
+    effective_report = report if report is not None else ReviewerReport()
+    gate = scientific_gate(
+        lesson_text,
+        effective_report,
+        emit=progress,
+    )
+
+    result = {
+        "approved": gate.verdict != "BLOCK",
+        "verdict": gate.verdict,
+        "needs_review": bool(gate.needs_review or not reviewed),
+        "review_status": "REVIEWED" if reviewed else "UNREVIEWED",
+        "block_reasons": gate.block_reasons,
+        "flagged": gate.flagged,
+        "noise_count": gate.noise_count,
+        "issues": [
+            issue.model_dump()
+            for issue in effective_report.issues
+        ],
+    }
+
+    if gate.verdict == "BLOCK":
+        raise ScientificGateBlocked(
+            "SCIENTIFIC_REVIEW_REJECTED:"
+            + json.dumps(
+                gate.block_reasons,
+                ensure_ascii=False,
             )
-        return result
+        )
 
-    except (ProviderDailyQuotaError, ProviderTransientError,
-            ProviderUnavailableError, NeedsAttentionError,
-            ScientificGateBlocked):
-        raise
-    except Exception as e:
-        raise NeedsAttentionError(
-            f"SCIENTIFIC_REVIEW_UNAVAILABLE:{e}",
-            operation="scientific_review",
-            unit_id=str(entry.get("lesson_id") or "lesson"),
-            reason=str(e),
-        ) from e
+    if not reviewed:
+        progress(
+            "SCIENTIFIC_REVIEW_CONTINUE_UNREVIEWED",
+            lesson_id=str(entry.get("lesson_id") or ""),
+            deterministic_verdict=gate.verdict,
+            needs_review=True,
+        )
+    return result
 
