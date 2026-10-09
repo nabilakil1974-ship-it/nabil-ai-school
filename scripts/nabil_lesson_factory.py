@@ -1962,6 +1962,39 @@ def execute_llm_completion(
                 )
                 continue
 
+            if exc.code == 402:
+                affordable = re.search(
+                    r"can only afford\s+(\d+)",
+                    detail, re.I)
+                if affordable:
+                    affordable_tokens = int(affordable.group(1))
+                    requested_tokens = int(payload.get("max_tokens") or 0)
+                    # OpenRouter credit preflight can reject a request only
+                    # because its configured output ceiling is a few tokens
+                    # above the currently affordable amount. Do not quarantine
+                    # a healthy provider for one hour. Adapt the ceiling with a
+                    # safety margin and retry the SAME source unit.
+                    if 512 <= affordable_tokens < requested_tokens:
+                        adapted_tokens = max(
+                            512, min(requested_tokens - 1,
+                                     affordable_tokens - 64))
+                        env_name = (
+                            "NABIL_FACTORY_VISION_MAX_OUTPUT_TOKENS"
+                            if image_base64
+                            else "NABIL_FACTORY_TEXT_MAX_OUTPUT_TOKENS"
+                        )
+                        os.environ[env_name] = str(adapted_tokens)
+                        progress(
+                            "AI_PROVIDER_CREDIT_CAP_ADAPTED",
+                            provider=provider,
+                            model=model,
+                            requested_max_tokens=requested_tokens,
+                            affordable_max_tokens=affordable_tokens,
+                            adapted_max_tokens=adapted_tokens,
+                            image_request=bool(image_base64),
+                        )
+                        continue
+
             if exc.code == 402 and "in-flight requests" in detail.casefold():
                 transient_cooldown = 3.0
                 _AI_PROVIDER_COOLDOWNS[provider] = (
