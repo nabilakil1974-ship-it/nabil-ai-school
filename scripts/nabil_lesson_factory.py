@@ -72,6 +72,8 @@ REDRAW_PROMPT_VERSION = "NABIL_REDRAW_V1783"
 TEXT_DIAGRAM_PROMPT_VERSION = "NABIL_TEXT_DIAGRAM_V1783"
 CONCEPT_NARRATIVE_PROMPT_VERSION = "NABIL_CONCEPT_NARRATIVE_V1783"
 LAB_SPEC_PROMPT_VERSION = "NABIL_LAB_SPEC_V1783"
+EXERCISE_SCAN_PROMPT_VERSION = "NABIL_EXERCISE_SCAN_V1784"
+EXERCISE_REVIEW_PROMPT_VERSION = "NABIL_EXERCISE_REVIEW_V1784"
 
 for d in [PERM_EVIDENCE_DIR, CACHE_DIR, VERSIONS_DIR, ARTIFACTS_DIR, OUT_DIR, RECOVERY_STATE_DIR]:
     d.mkdir(parents=True, exist_ok=True)
@@ -4536,8 +4538,9 @@ def _rescue_unverified_exercise(
     }
 
 
-def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
-                                   book_id: str, cache_dir: Path) -> List[dict]:
+def extract_scanned_page_exercises(
+        doc, page_num: int, lesson_id: str, book_id: str, cache_dir: Path,
+        *, drive_service=None, checkpoint_root=None, entry=None) -> List[dict]:
     """Read numbered exercise regions from the real page image, not OCR digits.
 
     Scanned textbooks frequently use circled numbers in two columns, which
@@ -4548,6 +4551,16 @@ def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
     page = doc[page_num - 1]
     image_bytes = page.get_pixmap(dpi=200).tobytes("png")
     page_b64 = base64.b64encode(image_bytes).decode("ascii")
+
+    # Durable *stage* checkpoints: a provider pause during the independent
+    # review must never force the expensive extraction pass to run again.
+    # This is separate from the final EXERCISES page checkpoint, which is only
+    # written after both passes and all item-level verification succeed.
+    stage_cp = None
+    source_page_hash = hashlib.sha256(
+        page.get_pixmap(dpi=72).samples).hexdigest()
+    if drive_service is not None and checkpoint_root and entry is not None:
+        from scripts import nabil_page_checkpoint as stage_cp
     instruction = (
         "Read this school textbook page, paying attention to TWO-COLUMN reading "
         "order and circled exercise numbers. Return JSON with exercises array. "
@@ -4564,17 +4577,34 @@ def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
         "numbers with exercise numbers. Preserve table entries and all "
         "instructions. Do not invent any text. No numbered exercises -> []."
     )
-    extracted = _execute_llm_json_strict(
-        instruction,
-        image_base64=page_b64,
-        vision_context={
-            "lesson_id": lesson_id,
-            "book_id": book_id,
-            "pdf_page": page_num,
-        },
-        purpose=f"exercise_scan_p{page_num}",
+    scan_unit = f"page:{page_num}"
+    scan_record = (
+        stage_cp.load_paid_unit(
+            drive_service, checkpoint_root, entry,
+            operation="exercise_scan",
+            unit_id=scan_unit,
+            source_hash=source_page_hash,
+            prompt_version=EXERCISE_SCAN_PROMPT_VERSION,
+        ) if stage_cp else None
     )
-    extraction_provenance = get_last_llm_provenance()
+    if isinstance(scan_record, dict) and "data" in scan_record:
+        extracted = scan_record["data"]
+        extraction_provenance = dict(
+            scan_record.get("provenance") or {})
+        progress("EXERCISE_SCAN_STAGE_RESTORED_FROM_DRIVE",
+                 page=page_num)
+    else:
+        extracted = _execute_llm_json_strict(
+            instruction,
+            image_base64=page_b64,
+            vision_context={
+                "lesson_id": lesson_id,
+                "book_id": book_id,
+                "pdf_page": page_num,
+            },
+            purpose=f"exercise_scan_p{page_num}",
+        )
+        extraction_provenance = get_last_llm_provenance()
     rows = _normalize_exercise_scan_payload(extracted, page_num)
     if not rows:
         # A first-pass page read may miss small circled exercise numbers or a
@@ -4603,20 +4633,48 @@ def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
             purpose=f"exercise_scan_highres_rescue_p{page_num}",
         )
         rows = _normalize_exercise_scan_payload(rescued_scan, page_num)
+        extracted = rescued_scan
+        extraction_provenance = get_last_llm_provenance()
+        page_b64 = highres_b64
         if rows:
-            extraction_provenance = get_last_llm_provenance()
-            page_b64 = highres_b64
             progress(
                 "EXERCISE_PAGE_HIGHRES_RESCUE_ACCEPTED",
                 page=page_num,
                 exercise_candidates=len(rows),
             )
         else:
+            if stage_cp:
+                stage_cp.save_paid_unit(
+                    drive_service, checkpoint_root, entry,
+                    operation="exercise_scan",
+                    unit_id=scan_unit,
+                    source_hash=source_page_hash,
+                    prompt_version=EXERCISE_SCAN_PROMPT_VERSION,
+                    payload={"data": extracted,
+                             "provenance": extraction_provenance},
+                    provenance=extraction_provenance,
+                )
+                progress("EXERCISE_SCAN_STAGE_SAVED_TO_DRIVE",
+                         page=page_num, count=0)
             progress(
                 "EXERCISE_PAGE_HIGHRES_RESCUE_EMPTY",
                 page=page_num,
             )
             return []
+    if stage_cp and scan_record is None:
+        stage_cp.save_paid_unit(
+            drive_service, checkpoint_root, entry,
+            operation="exercise_scan",
+            unit_id=scan_unit,
+            source_hash=source_page_hash,
+            prompt_version=EXERCISE_SCAN_PROMPT_VERSION,
+            payload={"data": extracted,
+                     "provenance": extraction_provenance},
+            provenance=extraction_provenance,
+        )
+        progress("EXERCISE_SCAN_STAGE_SAVED_TO_DRIVE",
+                 page=page_num, count=len(rows))
+
     audit_prompt = (
         "Independently compare these exercise transcriptions to the PROVIDED "
         "original source page image. Return JSON: "
@@ -4630,17 +4688,38 @@ def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
         "No favorable assumptions. Transcriptions: "
         + json.dumps(rows, ensure_ascii=False)
     )
-    review = _execute_llm_json_strict(
-        audit_prompt,
-        image_base64=page_b64,
-        vision_context={
-            "lesson_id": lesson_id,
-            "book_id": book_id,
-            "pdf_page": page_num,
-        },
-        purpose=f"exercise_review_p{page_num}",
+    review_source_hash = hashlib.sha256(
+        (source_page_hash + "|" + json.dumps(
+            rows, sort_keys=True, ensure_ascii=False, default=str)
+        ).encode("utf-8")).hexdigest()
+    review_unit = f"page:{page_num}"
+    review_record = (
+        stage_cp.load_paid_unit(
+            drive_service, checkpoint_root, entry,
+            operation="exercise_review",
+            unit_id=review_unit,
+            source_hash=review_source_hash,
+            prompt_version=EXERCISE_REVIEW_PROMPT_VERSION,
+        ) if stage_cp else None
     )
-    audit_provenance = get_last_llm_provenance()
+    if isinstance(review_record, dict) and "data" in review_record:
+        review = review_record["data"]
+        audit_provenance = dict(
+            review_record.get("provenance") or {})
+        progress("EXERCISE_REVIEW_STAGE_RESTORED_FROM_DRIVE",
+                 page=page_num)
+    else:
+        review = _execute_llm_json_strict(
+            audit_prompt,
+            image_base64=page_b64,
+            vision_context={
+                "lesson_id": lesson_id,
+                "book_id": book_id,
+                "pdf_page": page_num,
+            },
+            purpose=f"exercise_review_p{page_num}",
+        )
+        audit_provenance = get_last_llm_provenance()
     checks = _normalize_exercise_review_payload(review, page_num)
 
     # Do not interpret an incomplete audit schema as a source rejection. Ask
@@ -4718,6 +4797,20 @@ def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
             page=page_num,
             checks=len(checks),
         )
+
+    if stage_cp and review_record is None:
+        stage_cp.save_paid_unit(
+            drive_service, checkpoint_root, entry,
+            operation="exercise_review",
+            unit_id=review_unit,
+            source_hash=review_source_hash,
+            prompt_version=EXERCISE_REVIEW_PROMPT_VERSION,
+            payload={"data": checks,
+                     "provenance": audit_provenance},
+            provenance=audit_provenance,
+        )
+        progress("EXERCISE_REVIEW_STAGE_SAVED_TO_DRIVE",
+                 page=page_num, checks=len(checks))
 
     approved = {
         int(x["number"]): x
@@ -5525,7 +5618,10 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
                          page=page_num, count=len(rows))
             else:
                 rows = extract_scanned_page_exercises(
-                    doc, page_num, lesson_id, book_id, lesson_cache)
+                    doc, page_num, lesson_id, book_id, lesson_cache,
+                    drive_service=drive_service,
+                    checkpoint_root=checkpoint_root,
+                    entry=entry)
                 if page_checkpoints:
                     # Two independent source-image reads already confirmed
                     # the exact text/bbox for every returned exercise.
