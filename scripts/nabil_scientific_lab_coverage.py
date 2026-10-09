@@ -39,7 +39,7 @@ _SUBJECT_ALIASES = {
 
 RICH_SCIENCE_KINDS = {
     "ORIENTATION_INVARIANT", "SHAPE_RESPONSE", "DC_SERIES_CIRCUIT",
-    "OPTICS_REFLECTION", "IONIC_COMPOUND",
+    "OPTICS_REFLECTION", "IONIC_COMPOUND", "PROCEDURE_OBSERVATION",
 }
 MATH_APPLICATION_KINDS = {"FORMULA_CALCULATOR", "GEOMETRY_PROOF"}
 EVIDENCE_ACTIVITY_KINDS = {"EVIDENCE_SEQUENCE", "EVIDENCE_REVEAL"}
@@ -79,6 +79,8 @@ def lab_activity_class(subject: str, kind: str) -> str:
         if kind in EVIDENCE_ACTIVITY_KINDS:
             return "mathematical_evidence_exploration"
         return "mathematical_simulation"
+    if kind == "PROCEDURE_OBSERVATION":
+        return "scientific_practical_procedure"
     if kind in RICH_SCIENCE_KINDS:
         return "scientific_simulation"
     if kind == "EVIDENCE_SEQUENCE":
