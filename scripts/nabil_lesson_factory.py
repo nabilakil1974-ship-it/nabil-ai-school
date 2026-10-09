@@ -9582,7 +9582,29 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
     finally:
         doc.close()
 
-    theory = synthesize_universal_pedagogy(entry, ev_map, profile)
+    try:
+        theory = synthesize_universal_pedagogy(entry, ev_map, profile)
+    except RuntimeError as exc:
+        # Provider/quota failures can be wrapped by the scientific/lab pipeline
+        # (e.g. LAB_PIPELINE_FAILED:C01:...AI_ALL_PROVIDERS_COOLING_DOWN).
+        # Reclassify the complete causal message here so the real factory exits
+        # as a durable pause rather than leaking a traceback.
+        chain=[]
+        cur=exc
+        seen=set()
+        while cur is not None and id(cur) not in seen:
+            seen.add(id(cur)); chain.append(str(cur))
+            cur=getattr(cur,"__cause__",None) or getattr(cur,"__context__",None)
+        wrapped=RuntimeError(" | ".join(chain))
+        concept_match=re.search(r"LAB_PIPELINE_FAILED:([^:|]+)",str(exc))
+        unit=(concept_match.group(1) if concept_match else entry.get("lesson_id"))
+        _raise_if_provider_pause_required(
+            entry, drive_service,
+            unit_id=str(unit or "theory"),
+            operation="theory_lab_synthesis",
+            exc=wrapped,
+        )
+        raise
 
     # 1) Attempt EVERY verified textbook exercise first.
     textbook_exercises = [dict(ex) for ex in ev_map["exercise_evidence"]]
