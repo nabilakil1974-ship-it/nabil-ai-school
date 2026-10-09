@@ -68,6 +68,10 @@ ARTIFACTS_DIR = VERSIONS_DIR / "artifacts"
 OUT_DIR = ROOT / "output"
 GOLDEN_REGISTRY_PATH = ROOT / "data" / "golden_lessons_registry.json"
 RECOVERY_STATE_DIR = ROOT / "data" / "factory_recovery_state"
+REDRAW_PROMPT_VERSION = "NABIL_REDRAW_V1783"
+TEXT_DIAGRAM_PROMPT_VERSION = "NABIL_TEXT_DIAGRAM_V1783"
+CONCEPT_NARRATIVE_PROMPT_VERSION = "NABIL_CONCEPT_NARRATIVE_V1783"
+LAB_SPEC_PROMPT_VERSION = "NABIL_LAB_SPEC_V1783"
 
 for d in [PERM_EVIDENCE_DIR, CACHE_DIR, VERSIONS_DIR, ARTIFACTS_DIR, OUT_DIR, RECOVERY_STATE_DIR]:
     d.mkdir(parents=True, exist_ok=True)
@@ -4945,6 +4949,7 @@ def build_nabil_explanatory_redrawing(
         purpose=f"{purpose}_plan_p{page_num}",
         max_attempts=3,
     )
+    plan_provenance = dict(get_last_llm_provenance())
     if not isinstance(plan, dict) or plan.get("needed") is not True:
         progress(
             "NABIL_EXPLANATORY_REDRAW_NOT_BUILT",
@@ -5016,6 +5021,7 @@ def build_nabil_explanatory_redrawing(
         purpose=f"{purpose}_audit_p{page_num}",
         max_attempts=3,
     )
+    audit_provenance = dict(get_last_llm_provenance())
     if not isinstance(audit, dict) or not (
         audit.get("approved") is True
         and audit.get("all_claims_traceable") is True
@@ -5046,6 +5052,10 @@ def build_nabil_explanatory_redrawing(
         "svg": svg,
         "source_text_sha256": hashlib.sha256(source_text.encode("utf-8")).hexdigest(),
         "used_source_figure_as_hidden_evidence": bool(figure_b64),
+        "ai_provenance": {
+            "plan": plan_provenance,
+            "audit": audit_provenance,
+        },
     }
 
 
@@ -5094,6 +5104,7 @@ def build_text_grounded_exercise_diagram(
     )
     plan = _execute_llm_json_strict(
         request, purpose=f"text_diagram_plan_p{page_num}")
+    plan_provenance = dict(get_last_llm_provenance())
     if not isinstance(plan, dict) or plan.get("reconstructable") is not True:
         progress(
             "TEXT_DIAGRAM_RECONSTRUCTION_NOT_POSSIBLE",
@@ -5146,6 +5157,7 @@ def build_text_grounded_exercise_diagram(
     )
     audit = _execute_llm_json_strict(
         audit_prompt, purpose=f"text_diagram_audit_p{page_num}")
+    audit_provenance = dict(get_last_llm_provenance())
     if not isinstance(audit, dict) or not (
             audit.get("approved") is True
             and audit.get("all_claims_traceable") is True
@@ -5173,6 +5185,10 @@ def build_text_grounded_exercise_diagram(
         "svg": svg,
         "source_text_sha256": hashlib.sha256(
             source_blob.encode("utf-8")).hexdigest(),
+        "ai_provenance": {
+            "plan": plan_provenance,
+            "audit": audit_provenance,
+        },
     }
 
 
@@ -5529,22 +5545,62 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
                     f["image_path"] for f in p["figures"]
                     if f["figure_id"] in refs and f.get("image_path")
                 ]
-                try:
-                    reconstructed = build_nabil_explanatory_redrawing(
-                        source_text=(
-                            str(content) + "\n" +
-                            "\n".join(str(x) for x in subqs)
-                        ),
-                        page_num=page_num,
-                        figure_paths=source_figure_paths,
-                        vision_context={
-                            "lesson_id": lesson_id,
-                            "book_id": book_id,
-                            "pdf_page": page_num,
-                        } if source_figure_paths else None,
-                        purpose=f"exercise_{kind}_{number}",
-                        visual_required=True,
+                redraw_unit = f"p{page_num}_{kind}_{number}"
+                redraw_source_hash = hashlib.sha256(json.dumps({
+                    "prompt": str(content),
+                    "subquestions": [str(x) for x in subqs],
+                    "figure_hashes": [
+                        f.get("image_sha256") for f in p["figures"]
+                        if f["figure_id"] in refs
+                    ],
+                }, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
+                if page_checkpoints:
+                    reconstructed = page_checkpoints.load_paid_unit(
+                        drive_service, checkpoint_root, entry,
+                        operation="explanatory_redrawing",
+                        unit_id=redraw_unit,
+                        source_hash=redraw_source_hash,
+                        prompt_version=REDRAW_PROMPT_VERSION,
                     )
+                    if reconstructed is not None:
+                        progress(
+                            "EXPLANATORY_REDRAW_RESTORED_FROM_DRIVE",
+                            page=page_num, number=number, unit_id=redraw_unit)
+                try:
+                    if reconstructed is None:
+                        reconstructed = build_nabil_explanatory_redrawing(
+                            source_text=(
+                                str(content) + "\n" +
+                                "\n".join(str(x) for x in subqs)
+                            ),
+                            page_num=page_num,
+                            figure_paths=source_figure_paths,
+                            vision_context={
+                                "lesson_id": lesson_id,
+                                "book_id": book_id,
+                                "pdf_page": page_num,
+                            } if source_figure_paths else None,
+                            purpose=f"exercise_{kind}_{number}",
+                            visual_required=True,
+                        )
+                        if reconstructed is not None and page_checkpoints:
+                            prov = (
+                                reconstructed.get("ai_provenance", {})
+                                .get("audit", {})
+                            )
+                            page_checkpoints.save_paid_unit(
+                                drive_service, checkpoint_root, entry,
+                                operation="explanatory_redrawing",
+                                unit_id=redraw_unit,
+                                source_hash=redraw_source_hash,
+                                prompt_version=REDRAW_PROMPT_VERSION,
+                                payload=reconstructed,
+                                provenance=prov,
+                            )
+                            progress(
+                                "EXPLANATORY_REDRAW_SAVED_TO_DRIVE",
+                                page=page_num, number=number,
+                                unit_id=redraw_unit)
                 except RuntimeError as exc:
                     # Exercise-level redraw evidence failure must not abort the
                     # whole lesson. Keep the universal fail-closed rule: reject
@@ -7334,9 +7390,18 @@ def render_whole_lesson_smart_lab(
 </section>'''
 
 
-def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> dict:
+def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict,
+                                  drive_service=None) -> dict:
     title = entry["canonical_title"]
     concepts = ev_map["concepts"]
+
+    theory_checkpoints = None
+    theory_checkpoint_root = None
+    if drive_service is not None:
+        theory_checkpoint_root = str(
+            os.getenv("NABIL_CURRICULUM_ROOT_ID") or "").strip() or None
+        if theory_checkpoint_root:
+            from scripts import nabil_page_checkpoint as theory_checkpoints
 
     activities_theory = []
     worksheet = []
@@ -7378,15 +7443,82 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
             "book_id": entry["book_id"],
             "pdf_page": p_num,
         } if figure_image_base64 else None)
-        narrative = synthesize_concept_narrative(
-            c, profile, figure_image_base64,
-            vision_context=vision_context)
+        concept_source_hash = hashlib.sha256(json.dumps({
+            "raw_text": c.get("raw_text", ""),
+            "figure_refs": list(c.get("figure_refs") or []),
+            "figure_hashes": [
+                f.get("image_sha256")
+                for p in ev_map.get("pages_evidence", [])
+                if p.get("page_num") == p_num
+                for f in p.get("figures", [])
+                if f.get("figure_id") in (c.get("figure_refs") or [])
+            ],
+        }, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
+
+        narrative = None
+        if theory_checkpoints:
+            narrative = theory_checkpoints.load_paid_unit(
+                drive_service, theory_checkpoint_root, entry,
+                operation="concept_narrative",
+                unit_id=c["concept_id"],
+                source_hash=concept_source_hash,
+                prompt_version=CONCEPT_NARRATIVE_PROMPT_VERSION,
+            )
+            if narrative is not None:
+                progress("CONCEPT_NARRATIVE_RESTORED_FROM_DRIVE",
+                         concept_id=c["concept_id"])
+        if narrative is None:
+            narrative = synthesize_concept_narrative(
+                c, profile, figure_image_base64,
+                vision_context=vision_context)
+            if theory_checkpoints:
+                theory_checkpoints.save_paid_unit(
+                    drive_service, theory_checkpoint_root, entry,
+                    operation="concept_narrative",
+                    unit_id=c["concept_id"],
+                    source_hash=concept_source_hash,
+                    prompt_version=CONCEPT_NARRATIVE_PROMPT_VERSION,
+                    payload=narrative,
+                    provenance=get_last_llm_provenance(),
+                )
+                progress("CONCEPT_NARRATIVE_SAVED_TO_DRIVE",
+                         concept_id=c["concept_id"])
+
+        lab_source_hash = hashlib.sha256(json.dumps({
+            "concept_source_hash": concept_source_hash,
+            "narrative": narrative,
+        }, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
+        lab_spec = None
+        if theory_checkpoints:
+            lab_spec = theory_checkpoints.load_paid_unit(
+                drive_service, theory_checkpoint_root, entry,
+                operation="lab_spec",
+                unit_id=c["concept_id"],
+                source_hash=lab_source_hash,
+                prompt_version=LAB_SPEC_PROMPT_VERSION,
+            )
+            if lab_spec is not None:
+                progress("LAB_SPEC_RESTORED_FROM_DRIVE",
+                         concept_id=c["concept_id"])
 
         try:
-            lab_spec = build_verified_lab_spec(
-                entry, c, narrative, profile,
-                figure_image_base64=figure_image_base64,
-                vision_context=vision_context)
+            if lab_spec is None:
+                lab_spec = build_verified_lab_spec(
+                    entry, c, narrative, profile,
+                    figure_image_base64=figure_image_base64,
+                    vision_context=vision_context)
+                if theory_checkpoints:
+                    theory_checkpoints.save_paid_unit(
+                        drive_service, theory_checkpoint_root, entry,
+                        operation="lab_spec",
+                        unit_id=c["concept_id"],
+                        source_hash=lab_source_hash,
+                        prompt_version=LAB_SPEC_PROMPT_VERSION,
+                        payload=lab_spec,
+                        provenance=get_last_llm_provenance(),
+                    )
+                    progress("LAB_SPEC_SAVED_TO_DRIVE",
+                             concept_id=c["concept_id"])
         except RuntimeError as exc:
             reason = str(exc)
             if not reason.startswith("LAB_"):
@@ -9654,7 +9786,8 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
     finally:
         doc.close()
 
-    theory = synthesize_universal_pedagogy(entry, ev_map, profile)
+    theory = synthesize_universal_pedagogy(
+        entry, ev_map, profile, drive_service=drive_service)
 
     # 1) Attempt EVERY verified textbook exercise first.
     textbook_exercises = [dict(ex) for ex in ev_map["exercise_evidence"]]
