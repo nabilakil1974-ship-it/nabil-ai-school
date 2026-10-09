@@ -13,7 +13,11 @@ from pathlib import Path
 
 from googleapiclient.http import MediaIoBaseUpload
 
+from scripts.nabil_transient_resilience_v1781 import CheckpointWriteError
+
 CACHE_SCHEMA = "PAGE_EVIDENCE_V1_SOURCE_LOCKED"
+FACTORY_STATE_SCHEMA = "NABIL_FACTORY_RECOVERY_STATE_V1782"
+SOLUTION_PROMPT_VERSION = "NABIL_GROUNDED_SOLUTION_V1782"
 _FOLDER_CACHE = {}
 
 
@@ -74,6 +78,46 @@ def _folder(service, root_id, entry, create):
     if folder:
         _FOLDER_CACHE[key] = folder
     return folder
+
+
+def _write_json_verified(service, folder, filename, body):
+    """Write one Drive checkpoint atomically enough for recovery and verify bytes.
+
+    Google Drive create/update is followed by a full read-back.  The factory
+    must never continue after an unverified checkpoint write.
+    """
+    payload = json.dumps(
+        body, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    media = MediaIoBaseUpload(
+        io.BytesIO(payload), mimetype="application/json", resumable=False)
+    old = _children(service, folder, filename)
+    try:
+        if old:
+            fid = service.files().update(
+                fileId=old, media_body=media, fields="id").execute()["id"]
+        else:
+            fid = service.files().create(
+                body={"name": filename, "parents": [folder]},
+                media_body=media, fields="id").execute()["id"]
+        raw = service.files().get_media(fileId=fid).execute()
+        remote = raw if isinstance(raw, bytes) else str(raw).encode("utf-8")
+        # Parse and canonicalize on both sides so harmless JSON whitespace/order
+        # changes cannot create a false mismatch.
+        remote_obj = json.loads(remote.decode("utf-8"))
+        remote_canon = json.dumps(
+            remote_obj, ensure_ascii=False, sort_keys=True,
+            separators=(",", ":")).encode("utf-8")
+        if hashlib.sha256(remote_canon).hexdigest() != hashlib.sha256(payload).hexdigest():
+            raise CheckpointWriteError(
+                "CHECKPOINT_READBACK_MISMATCH:" + filename)
+        return fid
+    except CheckpointWriteError:
+        raise
+    except Exception as exc:
+        raise CheckpointWriteError(
+            "CHECKPOINT_WRITE_OR_READBACK_FAILED:%s:%s"
+            % (filename, exc)) from exc
 
 
 def _filename(page_num, kind):
@@ -170,18 +214,7 @@ def _save_record(service, root_id, doc, entry, page_num, kind,
         "actual_provenance": _collect_actual_provenance(data),
         "data": data,
     }
-    payload = json.dumps(body, ensure_ascii=False).encode("utf-8")
-    media = MediaIoBaseUpload(io.BytesIO(payload),
-                              mimetype="application/json",
-                              resumable=False)
-    old = _children(service, folder, filename)
-    if old:
-        service.files().update(fileId=old, media_body=media,
-                               fields="id").execute()
-    else:
-        service.files().create(body={
-            "name": filename, "parents": [folder],
-        }, media_body=media, fields="id").execute()
+    _write_json_verified(service, folder, filename, body)
 
 
 def _source_crop(doc, page_num, row, kind):
@@ -305,7 +338,9 @@ def _solution_filename(exercise):
     return "SOLUTION_%s.json" % safe
 
 
-def load_solution(service, root_id, entry, exercise):
+def load_solution(service, root_id, entry, exercise,
+                  prompt_version=SOLUTION_PROMPT_VERSION,
+                  operation="exercise_solution"):
     """Restore a verified solved exercise independently of page extraction."""
     folder = _folder(service, root_id, entry, create=False)
     if not folder:
@@ -329,6 +364,8 @@ def load_solution(service, root_id, entry, exercise):
         "source_page": exercise.get("source_page"),
         "figure_hashes": list(exercise.get("figure_hashes") or []),
         "scope_concept_ids": list(exercise.get("scope_concept_ids") or []),
+        "prompt_version": prompt_version,
+        "operation": operation,
     }
     if not isinstance(record, dict) or any(
             record.get(k) != v for k, v in expected.items()):
@@ -342,7 +379,9 @@ def load_solution(service, root_id, entry, exercise):
     return solution
 
 
-def save_solution(service, root_id, entry, exercise, solution):
+def save_solution(service, root_id, entry, exercise, solution,
+                  prompt_version=SOLUTION_PROMPT_VERSION,
+                  operation="exercise_solution"):
     """Persist one independently verified exercise solution."""
     if (not isinstance(solution, dict)
             or not isinstance(solution.get("steps"), list)
@@ -362,21 +401,59 @@ def save_solution(service, root_id, entry, exercise, solution):
         "source_page": exercise.get("source_page"),
         "figure_hashes": list(exercise.get("figure_hashes") or []),
         "scope_concept_ids": list(exercise.get("scope_concept_ids") or []),
+        "prompt_version": prompt_version,
+        "operation": operation,
         "actual_provenance": _collect_actual_provenance(solution),
         "solution": solution,
     }
-    payload = json.dumps(body, ensure_ascii=False).encode("utf-8")
-    media = MediaIoBaseUpload(
-        io.BytesIO(payload), mimetype="application/json",
-        resumable=False)
-    old = _children(service, folder, filename)
-    if old:
-        service.files().update(
-            fileId=old, media_body=media, fields="id").execute()
-    else:
-        service.files().create(body={
-            "name": filename, "parents": [folder],
-        }, media_body=media, fields="id").execute()
+    _write_json_verified(service, folder, filename, body)
+
+
+
+def _factory_state_filename():
+    return "FACTORY_STATE.json"
+
+
+def load_factory_state(service, root_id, entry):
+    folder = _folder(service, root_id, entry, create=False)
+    if not folder:
+        return None
+    fid = _children(service, folder, _factory_state_filename())
+    if not fid:
+        return None
+    raw = service.files().get_media(fileId=fid).execute()
+    data = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+    if not isinstance(data, dict):
+        raise RuntimeError("FACTORY_STATE_CORRUPT")
+    if data.get("schema") != FACTORY_STATE_SCHEMA:
+        return None
+    if data.get("book_id") != entry.get("book_id"):
+        return None
+    if data.get("lesson_id") != entry.get("lesson_id"):
+        return None
+    expected_source = (
+        entry.get("source_pdf_sha256") or entry.get("source_book_sha256"))
+    if data.get("source_pdf_sha256") != expected_source:
+        return None
+    return data
+
+
+def save_factory_state(service, root_id, entry, state):
+    """Persist recovery/pause status next to page/solution checkpoints."""
+    if not isinstance(state, dict) or not str(state.get("status") or "").strip():
+        raise RuntimeError("FACTORY_STATE_INVALID")
+    folder = _folder(service, root_id, entry, create=True)
+    body = {
+        "schema": FACTORY_STATE_SCHEMA,
+        "book_id": entry.get("book_id"),
+        "lesson_id": entry.get("lesson_id"),
+        "source_pdf_sha256": (
+            entry.get("source_pdf_sha256") or entry.get("source_book_sha256")),
+        **state,
+    }
+    _write_json_verified(
+        service, folder, _factory_state_filename(), body)
+    return body
 
 
 def invalidate_page(service, root_id, entry, page_num):
