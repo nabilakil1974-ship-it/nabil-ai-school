@@ -9,6 +9,8 @@ _ROOT = Path(__file__).resolve().parents[3]
 _PARTS = [
     "scripts/nabil_factory/factory/shared.py",
     "scripts/nabil_factory/factory/supervisor.py",
+    "scripts/nabil_factory/factory/title_verifier.py",
+    "scripts/nabil_factory/factory/scientific_gate.py",
     "scripts/nabil_factory/cards/math_contract.py",
     "scripts/nabil_factory/cards/core.py",
     "scripts/nabil_factory/drive_runtime/core.py",
