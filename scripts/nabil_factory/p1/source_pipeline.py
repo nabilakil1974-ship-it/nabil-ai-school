@@ -2435,7 +2435,7 @@ def extract_scanned_page_exercises(
             "{'checks':[{'number':int,'faithful':bool,'blank_count_visible':int,"
             "'blank_tokens_match':bool,'reason':str}]}. "
         )
-        "Mark false for a missing part, wrong figure number, invented words, "
+        + "Mark false for a missing part, wrong figure number, invented words, "
         "wrong item boundaries, incorrect circled-number reading, bad "
         "two-column order, or any missing/misplaced [BLANK] token. Independently "
         "count visible answer blanks for each exercise and reject a transcription "
