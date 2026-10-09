@@ -229,6 +229,18 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
         "renderer_contract": REFERENCE_RENDERER_CONTRACT,
         "mobile_reference_viewport": {"width": 390, "height": 844},
         "source_raster_student_facing": False,
+        "source_completeness_status": (
+            (ev_map.get("source_completeness") or {}).get("status")
+        ),
+        "pending_source_count": int(
+            (ev_map.get("source_backlog") or {}).get("pending_count") or 0
+        ),
+        "pending_source_items": list(
+            (ev_map.get("source_backlog") or {}).get("pending") or []
+        ),
+        "pending_source_retry_after_epoch": (
+            (ev_map.get("source_backlog") or {}).get("next_retry_epoch")
+        ),
         "voice_engine": "SpeechSynthesis",
         "voice_paid_endpoint": False,
         "male_voice_preferred": True,

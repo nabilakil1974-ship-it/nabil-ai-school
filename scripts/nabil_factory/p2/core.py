@@ -2703,10 +2703,20 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
     expected_p = s_lock["end"] - s_lock["start"] + 1
     check("SOURCE_COVERAGE_INCOMPLETE", len(ev_map["pages_evidence"]) == expected_p, "CRITICAL", f"{len(ev_map['pages_evidence'])}/{expected_p} pages")
     completeness = ev_map.get("source_completeness") or {}
+    deferred_source_ok = (
+        completeness.get("status") == "DEFERRED"
+        and completeness.get("backlog_persisted") is True
+    )
     check(
         "SOURCE_INVENTORY_COMPLETENESS_FAILED",
-        completeness.get("passed") is True,
+        completeness.get("passed") is True or deferred_source_ok,
         "CRITICAL",
+        json.dumps(completeness, ensure_ascii=False)[:1200],
+    )
+    check(
+        "SOURCE_ITEMS_DEFERRED_TO_BACKLOG",
+        not deferred_source_ok,
+        "WARNING",
         json.dumps(completeness, ensure_ascii=False)[:1200],
     )
 

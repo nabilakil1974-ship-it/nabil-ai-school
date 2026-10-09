@@ -1,9 +1,9 @@
-"""Source completeness inventory/gate for NABIL lesson production.
+"""Source completeness inventory for NABIL lesson production.
 
-This module is intentionally independent from rendering, providers and Drive.
-It only compares source-page evidence with verified extracted evidence.
+Completeness is tracked independently from generation. Verified source items may
+ship immediately; unresolved items are recorded in a durable backlog and retried
+later. Nothing unresolved is invented or rendered to students.
 """
-import json
 import re
 
 
@@ -31,7 +31,7 @@ def build_independent_source_inventory(ev_map: dict) -> dict:
 
 
 def attach_and_verify_source_completeness(ev_map: dict) -> dict:
-    """Require every explicit source exercise/figure reference to be accounted for."""
+    """Attach COMPLETE or DEFERRED status without blocking verified production."""
     inventory = build_independent_source_inventory(ev_map)
     accepted_ex = {
         str(x.get("number"))
@@ -58,17 +58,17 @@ def attach_and_verify_source_completeness(ev_map: dict) -> dict:
     missing_ex = sorted(
         set(inventory["exercise_numbers"]) - accepted_ex - disproved_ex)
     missing_fig = sorted(set(inventory["figure_labels"]) - accounted_figs)
+    complete = not missing_ex and not missing_fig
     report = {
-        "passed": not missing_ex and not missing_fig,
+        "passed": complete,
+        "status": "COMPLETE" if complete else "DEFERRED",
+        "blocking": False,
         "inventory": inventory,
         "missing_exercise_numbers": missing_ex,
         "disproved_exercise_numbers": sorted(disproved_ex),
         "missing_figure_labels": missing_fig,
+        "backlog_persisted": bool(ev_map.get("source_backlog_persisted")) or complete,
     }
     ev_map["source_inventory"] = inventory
     ev_map["source_completeness"] = report
-    if not report["passed"]:
-        raise RuntimeError(
-            "SOURCE_COMPLETENESS_GATE_FAILED:"
-            + json.dumps(report, ensure_ascii=False))
     return report

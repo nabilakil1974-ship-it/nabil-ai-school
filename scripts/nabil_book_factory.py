@@ -572,9 +572,24 @@ def run(book_id: str, *, index_only: bool, publish: bool,
         lid=entry["lesson_id"]
         old=state["lessons"].get(lid,{})
         if old.get("status")=="PUBLISHED_VERIFIED" and old.get("drive_theory_id") and old.get("drive_exercises_id"):
-            done+=1
-            announce("LESSON_ALREADY_PUBLISHED_SKIPPED",lesson_id=lid)
-            continue
+            pending_count = int(old.get("pending_source_count") or 0)
+            retry_epoch = float(old.get("pending_source_retry_after_epoch") or 0)
+            if pending_count == 0:
+                done+=1
+                announce("LESSON_ALREADY_PUBLISHED_SKIPPED",lesson_id=lid)
+                continue
+            if retry_epoch > time.time():
+                done+=1
+                announce(
+                    "LESSON_PUBLISHED_WITH_DEFERRED_SOURCE_WAITING",
+                    lesson_id=lid,
+                    pending_source_count=pending_count,
+                    retry_after_epoch=retry_epoch)
+                continue
+            announce(
+                "LESSON_DEFERRED_SOURCE_RETRY_DUE",
+                lesson_id=lid,
+                pending_source_count=pending_count)
         state["lessons"][lid]={"status":"RUNNING","started_at":datetime.now(timezone.utc).isoformat()}
         remote_checkpoint(service,root,book_id,state)
         announce("LESSON_START",lesson_id=lid,title=entry["canonical_title"])
@@ -605,6 +620,9 @@ def run(book_id: str, *, index_only: bool, publish: bool,
                 "drive_theory_id":report["drive_theory_id"],
                 "drive_exercises_id":report["drive_exercises_id"],
                 "source_pages":report["source_pages"],
+                "pending_source_count":int(report.get("pending_source_count") or 0),
+                "pending_source_items":list(report.get("pending_source_items") or []),
+                "pending_source_retry_after_epoch":report.get("pending_source_retry_after_epoch"),
                 "completed_at":datetime.now(timezone.utc).isoformat()}
             remote_checkpoint(service,root,book_id,state)
             done+=1

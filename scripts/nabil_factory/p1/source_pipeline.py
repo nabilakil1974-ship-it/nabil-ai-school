@@ -3671,9 +3671,9 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
         })
     }
 
-    # Independent completeness gate runs before the permanent Evidence Map is accepted.
-    # If a two-column scan checkpoint is incomplete, refresh ONLY the source
-    # page(s) that visibly contain missing exercise numbers, then rebuild once.
+    # Source backlog policy:
+    # ship verified lesson content now; unresolved source items are recorded and
+    # retried later, independently, then merged into the SAME lesson checkpoint.
     inventory = build_independent_source_inventory(ev_map)
     accepted_numbers = {
         str(x.get("number")) for x in ev_map.get("exercise_evidence") or []
@@ -3685,81 +3685,147 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
         set(inventory.get("exercise_numbers") or [])
         - accepted_numbers
         - disproved_numbers)
-    if (
-        missing_numbers
-        and not entry.get("_completeness_recovery_attempted")
-        and page_checkpoints
-        and checkpoint_root
-    ):
-        recovery_pages = []
-        recovery_outcomes = []
-        for page_item in pages_evidence:
-            page_num = int(page_item["page_num"])
-            page_inventory = build_independent_source_inventory({
-                "pages_evidence": [page_item]
-            })
-            visible_on_page = set(
-                page_inventory.get("exercise_numbers") or [])
-            page_missing = [
-                n for n in missing_numbers if n in visible_on_page
-            ]
-            if not page_missing:
-                continue
-            progress(
-                "SOURCE_COMPLETENESS_TARGETED_RECOVERY_START",
-                page=page_num, missing_numbers=page_missing)
+
+    pending_items = []
+    for page_item in pages_evidence:
+        page_num = int(page_item["page_num"])
+        page_inventory = build_independent_source_inventory({
+            "pages_evidence": [page_item]
+        })
+        visible_on_page = set(page_inventory.get("exercise_numbers") or [])
+        for number in missing_numbers:
+            if number in visible_on_page:
+                pending_items.append({
+                    "kind": "exercise",
+                    "page": page_num,
+                    "number": int(number),
+                })
+
+    backlog_record = None
+    backlog_hash = str(
+        entry.get("source_pdf_sha256")
+        or entry.get("source_book_sha256")
+        or entry.get("book_id")
+        or lesson_id
+    )
+    backlog_retry_seconds = max(
+        300, min(86400, int(os.getenv(
+            "NABIL_SOURCE_BACKLOG_RETRY_SECONDS", "1800"))))
+    if page_checkpoints and checkpoint_root:
+        backlog_record = page_checkpoints.load_paid_unit(
+            drive_service, checkpoint_root, entry,
+            operation="source_backlog",
+            unit_id="lesson",
+            source_hash=backlog_hash,
+            prompt_version="SOURCE_BACKLOG_V1",
+        )
+
+    # Only a PREVIOUSLY recorded backlog that has reached its retry time is
+    # retried. The first encounter never stalls production.
+    due_for_retry = (
+        bool(pending_items)
+        and isinstance(backlog_record, dict)
+        and float(backlog_record.get("next_retry_epoch") or 0) <= time.time()
+        and not entry.get("_source_backlog_retry_attempted")
+    )
+    if due_for_retry:
+        recovered_any = False
+        grouped = {}
+        for item in pending_items:
+            grouped.setdefault(int(item["page"]), []).append(int(item["number"]))
+        for page_num, wanted in sorted(grouped.items()):
             existing_rows = page_checkpoints.load_exercises(
                 drive_service, checkpoint_root, doc, entry, page_num,
                 lesson_cache, source_provider, source_model) or []
             recovery_outcome = {}
-            recovered_rows = extract_scanned_page_exercises(
-                doc, page_num, lesson_id, book_id, lesson_cache,
-                drive_service=drive_service,
-                checkpoint_root=checkpoint_root,
-                entry=entry,
-                target_numbers=[int(n) for n in page_missing],
-                recovery_outcome=recovery_outcome)
+            try:
+                recovered_rows = extract_scanned_page_exercises(
+                    doc, page_num, lesson_id, book_id, lesson_cache,
+                    drive_service=drive_service,
+                    checkpoint_root=checkpoint_root,
+                    entry=entry,
+                    target_numbers=wanted,
+                    recovery_outcome=recovery_outcome)
+            except Exception as exc:
+                progress(
+                    "SOURCE_BACKLOG_RETRY_DEFERRED_AGAIN",
+                    page=page_num,
+                    requested=wanted,
+                    reason=(type(exc).__name__ + ":" + str(exc))[:900],
+                )
+                continue
+
             merged = {
                 (str(row.get("section_type") or "EXERCISE"), int(row["number"])): row
                 for row in existing_rows
                 if isinstance(row, dict) and "number" in row
             }
+            before = len(merged)
             for row in recovered_rows:
                 merged[
                     (str(row.get("section_type") or "EXERCISE"), int(row["number"]))
                 ] = row
+            if len(merged) > before:
+                recovered_any = True
             merged_rows = [
                 merged[key] for key in sorted(
-                    merged,
-                    key=lambda item: (item[0], item[1])
-                )
+                    merged, key=lambda item: (item[0], item[1]))
             ]
             page_checkpoints.save_exercises(
                 drive_service, checkpoint_root, doc, entry,
                 page_num, merged_rows, source_provider, source_model)
-            recovery_outcomes.append(recovery_outcome)
             progress(
-                "SOURCE_COMPLETENESS_TARGETED_RECOVERY_SAVED",
+                "SOURCE_BACKLOG_RETRY_MERGED",
                 page=page_num,
-                requested=page_missing,
+                requested=wanted,
                 recovered=sorted(
                     int(row["number"]) for row in recovered_rows),
-                total=len(merged_rows))
-            recovery_pages.append(page_num)
-        if recovery_pages:
+                total=len(merged_rows),
+            )
+
+        if recovered_any:
             retry_entry = dict(entry)
-            retry_entry["_completeness_recovery_attempted"] = True
-            disproved = set(
-                retry_entry.get("_completeness_disproved_numbers") or [])
-            # Only an explicit independent visual exists_on_page=false decision
-            # may remove an OCR candidate from the completeness inventory.
-            for item in locals().get("recovery_outcomes", []):
-                disproved.update(
-                    str(n) for n in item.get("confirmed_absent", []))
-            retry_entry["_completeness_disproved_numbers"] = sorted(disproved)
+            retry_entry["_source_backlog_retry_attempted"] = True
             return build_evidence_map(
                 doc, retry_entry, drive_service=drive_service,
                 persist_pages=persist_pages)
+
+    # Persist unresolved work beside this lesson. A later run retries only these
+    # source items and merges successful results into the same lesson.
+    if page_checkpoints and checkpoint_root:
+        next_retry_epoch = time.time() + backlog_retry_seconds
+        backlog_payload = {
+            "lesson_id": lesson_id,
+            "book_id": entry.get("book_id"),
+            "pending": pending_items,
+            "pending_count": len(pending_items),
+            "next_retry_epoch": next_retry_epoch,
+            "retry_seconds": backlog_retry_seconds,
+            "updated_at": now(),
+        }
+        page_checkpoints.save_paid_unit(
+            drive_service, checkpoint_root, entry,
+            operation="source_backlog",
+            unit_id="lesson",
+            source_hash=backlog_hash,
+            prompt_version="SOURCE_BACKLOG_V1",
+            payload=backlog_payload,
+            provenance={"policy": "DEFER_AND_MERGE"},
+        )
+        ev_map["source_backlog_persisted"] = True
+        ev_map["source_backlog"] = backlog_payload
+        progress(
+            "SOURCE_BACKLOG_SAVED_CONTINUE_PRODUCTION",
+            pending_count=len(pending_items),
+            pending=pending_items,
+            next_retry_epoch=next_retry_epoch,
+        )
+    else:
+        ev_map["source_backlog_persisted"] = not pending_items
+        ev_map["source_backlog"] = {
+            "pending": pending_items,
+            "pending_count": len(pending_items),
+        }
 
     attach_and_verify_source_completeness(ev_map)
     perm_path = PERM_EVIDENCE_DIR / f"{lesson_id}.json"
