@@ -4051,20 +4051,95 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
     return {"passed": True, "gates": report}
 
 
+def _scientific_review_projection(candidate: dict) -> dict:
+    """Project only student-facing scientific content for final review.
+
+    Raw OCR noise, rejected intermediate drafts, provider metadata and internal
+    audit-history strings must not be reviewed as if they were published facts.
+    The final reviewer sees the verified source wording actually used plus the
+    exact displayed solutions/labs/teaching steps.
+    """
+    concepts = []
+    for concept in (candidate.get("evidence_map") or {}).get("concepts") or []:
+        text = str(
+            concept.get("normalized_text")
+            or concept.get("raw_text")
+            or ""
+        ).strip()
+        concepts.append({
+            "concept_id": concept.get("concept_id"),
+            "title": concept.get("title"),
+            "source_page": concept.get("source_page"),
+            "verified_text": text,
+        })
+
+    exercises = []
+    for ex in candidate.get("exercises") or []:
+        solution = ex.get("_pre_solved_solution") or {}
+        exercises.append({
+            "exercise_id": ex.get("exercise_id"),
+            "section_type": ex.get("section_type"),
+            "number": ex.get("number"),
+            "source_origin": ex.get("source_origin", "TEXTBOOK"),
+            "source_page": ex.get("source_page"),
+            "exact_source_prompt": ex.get("exact_source_prompt"),
+            "subquestions": ex.get("subquestions") or [],
+            "verified_against_source": ex.get("verified_against_source"),
+            "displayed_solution": {
+                "steps": solution.get("steps") or [],
+                "final_answer": solution.get("final_answer"),
+                "verification": solution.get("verification") or [],
+                "method": solution.get("method"),
+            },
+        })
+
+    return {
+        "concepts": concepts,
+        "labs": [
+            a.get("lab_spec")
+            for a in (candidate.get("theory") or {}).get("activities", [])
+        ],
+        "teaching_steps": [
+            a.get("teaching_steps")
+            for a in (candidate.get("theory") or {}).get("activities", [])
+        ],
+        "quiz_items": (candidate.get("theory") or {}).get("quiz_items", []),
+        "exercises": exercises,
+    }
+
+
 def independent_scientific_review(entry: dict, candidate: dict) -> dict:
-    # A genuine textbook phrase is not a code hardcode: audit evidence, not a word blacklist.
+    review_payload = _scientific_review_projection(candidate)
+    subject = str(entry.get("subject") or "").lower()
+    math_rule = (
+        "For mathematics, ordinary arithmetic evaluation and direct power "
+        "manipulation needed to solve a verified textbook prompt are allowed "
+        "computational steps. Do NOT require each arithmetic transformation to "
+        "be restated in the concept text. Still reject advanced methods that are "
+        "outside this grade/lesson (for example logarithms or a geometric-series "
+        "formula) unless the verified textbook prompt/evidence itself introduces "
+        "them. "
+        if "math" in subject else ""
+    )
     prompt = (
-        f"You are an Independent Senior Curriculum Auditor for Lebanese {entry['subject'].capitalize()} Grade {entry['grade']}.\n"
-        f"Audit this complete lesson payload including evidence concepts and exercise solutions for absolute scientific rigor.\n"
+        f"You are an Independent Senior Curriculum Auditor for Lebanese "
+        f"{entry['subject'].capitalize()} Grade {entry['grade']}.\n"
+        "Audit ONLY the projected student-facing payload below. Internal OCR "
+        "drafts, rejected intermediate generations, provider metadata and prior "
+        "audit comments are intentionally excluded because they are not "
+        "published to students.\n"
         f"Lesson Title: {entry['canonical_title']}\n"
-        f"Evidence Concepts: {json.dumps(candidate['evidence_map']['concepts'], ensure_ascii=False)}\n"
-        f"Interactive Lab Specs: {json.dumps([a.get('lab_spec') for a in candidate['theory'].get('activities', [])], ensure_ascii=False)}\n"
-        f"Teaching Steps: {json.dumps([a.get('teaching_steps') for a in candidate['theory'].get('activities', [])], ensure_ascii=False)}\n"
-        f"Quiz Items: {json.dumps(candidate['theory'].get('quiz_items', []), ensure_ascii=False)}\n"
-        f"Exercises & Solutions: {json.dumps(candidate['exercises'], ensure_ascii=False)}\n\n"
-        "Reject any lab that introduces a scientific behavior, formula, orientation, shape rule, unit, "
-        "or numeric claim not supported by the evidence. Verify every quiz answer against the evidence. "
-        "Return strictly JSON: {'approved': bool, 'issues': [str], 'scientific_notes': str}"
+        f"Projected Payload: "
+        f"{json.dumps(review_payload, ensure_ascii=False)}\n\n"
+        + math_rule
+        + "Reject any DISPLAYED lab, teaching claim, quiz answer, exercise "
+        "solution step or final answer that introduces unsupported scientific "
+        "content, changes a verified textbook prompt, or exceeds the verified "
+        "lesson/source scope. Verify every displayed numeric result and formula "
+        "against the prompt/evidence. Do not reject merely because raw OCR history "
+        "or a previously rejected draft is absent from this projection. "
+        "Return strictly JSON: {'approved': bool, 'issues': [str], "
+        "'scientific_notes': str}"
     )
 
     try:
@@ -4087,3 +4162,4 @@ def independent_scientific_review(entry: dict, candidate: dict) -> dict:
             operation="scientific_review",
             unit_id=str(entry.get("lesson_id") or "lesson"),
             reason=str(e)) from e
+
