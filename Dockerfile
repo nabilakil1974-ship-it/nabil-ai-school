@@ -1,6 +1,7 @@
 # Explicit Docker build avoids Railpack/BuildKit's generated secret mounts.
 # Railway environment variables are supplied only when the container runs.
-FROM python:3.11-slim-bookworm
+# Use Google's public Docker Hub mirror to avoid Docker Hub anonymous-pull 429s on Railway builders.
+FROM mirror.gcr.io/library/python:3.11-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
