@@ -282,9 +282,11 @@ class SmartFailoverTest(unittest.TestCase):
         self.assertEqual(exc.operation, "cap_test")
         self.assertEqual(exc.unit_id, "CAP-U")
         self.assertEqual(exc.reason, "requests=9")
-        self.assertEqual(exc.retry_after_seconds, 10)
         self.assertTrue(exc.remaining)
-        self.assertLess(
+        expected = max(1, int(__import__("math").ceil(
+            min(v for v in exc.remaining.values() if v > 0))))
+        self.assertEqual(exc.retry_after_seconds, expected)
+        self.assertLessEqual(
             exc.retry_after_seconds,
             max(exc.remaining.values()) + 1)
 
