@@ -56,6 +56,7 @@ from scripts.nabil_transient_resilience_v1781 import (
     EXIT_PAUSED_TRANSIENT,
     EXIT_PROVIDER_UNAVAILABLE,
     EXIT_NEEDS_ATTENTION,
+    ScientificGateBlocked,
 )
 
 ROOT = Path(__file__).resolve().parents[1] if len(Path(__file__).resolve().parents) > 1 else Path("/app")
@@ -1689,7 +1690,9 @@ def execute_llm_completion(
         image_base64: Optional[str] = None,
         vision_context: Optional[Dict[str, Any]] = None,
         preferred_provider_override: Optional[str] = None,
-        excluded_providers: Optional[set] = None) -> str:
+        excluded_providers: Optional[set] = None,
+        operation: str = "provider_call",
+        unit_id: Optional[str] = None) -> str:
     """Execute with rate-limit failover while preserving source consent.
 
     A 429 never sleeps on one provider while another configured, explicitly
@@ -1748,8 +1751,9 @@ def execute_llm_completion(
     # healthy-provider cooldown selected by _next_provider_or_wait().
     max_all_wait = max(
         0.0, min(1800.0, float(os.getenv(
-            "NABIL_FACTORY_MAX_ALL_PROVIDER_WAIT_SECONDS", "300"))))
+            "NABIL_FACTORY_MAX_ALL_PROVIDER_WAIT_SECONDS", "30"))))
     provider_attempts = {p: 0 for p in candidates}
+    permanent_quarantined = set()
     total_requests = 0
 
     while total_requests < max_requests:
@@ -1774,11 +1778,17 @@ def execute_llm_completion(
                     shortest_wait_seconds=round(wait_seconds, 2),
                     max_all_provider_wait_seconds=max_all_wait,
                 )
-                raise RuntimeError(
-                    "AI_ALL_PROVIDERS_COOLING_DOWN: "
-                    f"shortest_provider={provider} "
-                    f"wait_seconds={wait_seconds:.1f} "
-                    f"remaining={remaining}")
+                raise ProviderTransientError(
+                    "AI_ALL_PROVIDERS_COOLING_DOWN",
+                    retry_after_seconds=max(1, int(math.ceil(wait_seconds))),
+                    operation=operation,
+                    unit_id=unit_id or operation,
+                    reason=(
+                        f"shortest_provider={provider} "
+                        f"wait_seconds={wait_seconds:.1f}"
+                    ),
+                    remaining=remaining,
+                )
             progress(
                 "AI_ALL_PROVIDERS_COOLING_DOWN_WAIT_SHORTEST",
                 provider=provider,
@@ -1882,6 +1892,7 @@ def execute_llm_completion(
                     quarantine_seconds = 86400.0
                     _AI_PROVIDER_COOLDOWNS[provider] = (
                         time.monotonic() + quarantine_seconds)
+                    permanent_quarantined.add(provider)
                     ready_alternatives = [
                         p for p in candidates
                         if p != provider
@@ -1898,6 +1909,13 @@ def execute_llm_completion(
                         ready_alternatives=ready_alternatives,
                         provider_code=code[:80],
                     )
+                    if len(permanent_quarantined) >= len(candidates):
+                        raise ProviderUnavailableError(
+                            "ALL_AUTHORISED_PROVIDERS_QUARANTINED",
+                            operation=operation,
+                            unit_id=unit_id or operation,
+                            reason="billing_or_credit_exhausted",
+                        )
                     continue
 
                 cooldown = _parse_rate_limit_wait_seconds(
@@ -1958,13 +1976,23 @@ def execute_llm_completion(
                 )
                 continue
 
-            if exc.code in (400, 401, 402, 403, 404, 422):
+            if exc.code in (400, 422):
+                raise NeedsAttentionError(
+                    f"AI_PROVIDER_REQUEST_NEEDS_ATTENTION:http_status={exc.code}",
+                    operation=operation,
+                    unit_id=unit_id or operation,
+                    reason=detail[:360],
+                ) from None
+
+            if exc.code in (401, 402, 403, 404):
                 quarantine_seconds = 3600.0
                 _AI_PROVIDER_COOLDOWNS[provider] = (
                     time.monotonic() + quarantine_seconds)
+                permanent_quarantined.add(provider)
                 ready_alternatives = [
                     p for p in candidates
                     if p != provider
+                    and p not in permanent_quarantined
                     and _AI_PROVIDER_COOLDOWNS.get(p, 0.0)
                     <= time.monotonic()
                 ]
@@ -1978,6 +2006,13 @@ def execute_llm_completion(
                     provider_code=code[:80],
                     detail=detail[:240],
                 )
+                if len(permanent_quarantined) >= len(candidates):
+                    raise ProviderUnavailableError(
+                        "ALL_AUTHORISED_PROVIDERS_QUARANTINED",
+                        operation=operation,
+                        unit_id=unit_id or operation,
+                        reason=detail[:360],
+                    ) from None
                 continue
 
             reason = detail[:360]
@@ -1989,11 +2024,14 @@ def execute_llm_completion(
                 provider_code=code[:80],
                 detail=reason,
             )
-            raise RuntimeError(
+            raise NeedsAttentionError(
                 "AI_PROVIDER_HTTP_ERROR: "
                 f"provider={provider} model={model} "
                 f"http_status={exc.code} "
-                f"provider_code={code[:80]} detail={reason}"
+                f"provider_code={code[:80]} detail={reason}",
+                operation=operation,
+                unit_id=unit_id or operation,
+                reason=reason,
             ) from None
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
             _AI_PROVIDER_COOLDOWNS[provider] = time.monotonic() + 10.0
@@ -2006,15 +2044,30 @@ def execute_llm_completion(
             )
             continue
 
+    now_mono = time.monotonic()
+    usable = [p for p in candidates if p not in permanent_quarantined]
+    if not usable:
+        raise ProviderUnavailableError(
+            "AI_PROVIDER_FAILOVER_EXHAUSTED_NO_USABLE_PROVIDER",
+            operation=operation,
+            unit_id=unit_id or operation,
+            reason=f"requests={total_requests}",
+        )
     remaining = {
         p: round(max(
-            0.0, _AI_PROVIDER_COOLDOWNS.get(p, 0.0)
-            - time.monotonic()), 2)
-        for p in candidates
+            0.0, _AI_PROVIDER_COOLDOWNS.get(p, 0.0) - now_mono), 2)
+        for p in usable
     }
-    raise RuntimeError(
-        "AI_PROVIDER_FAILOVER_EXHAUSTED: "
-        f"requests={total_requests} remaining={remaining}")
+    positive_waits = [v for v in remaining.values() if v > 0]
+    shortest_wait = min(positive_waits) if positive_waits else 1.0
+    raise ProviderTransientError(
+        "AI_PROVIDER_FAILOVER_EXHAUSTED",
+        retry_after_seconds=max(1, int(math.ceil(shortest_wait))),
+        operation=operation,
+        unit_id=unit_id or operation,
+        reason=f"requests={total_requests}",
+        remaining=remaining,
+    )
 
 
 # ==============================================================================
@@ -3420,7 +3473,9 @@ def extract_page_text_robust(doc, page_num: int, lesson_id: str, book_id: str, c
             "lesson_id": lesson_id,
             "book_id": book_id,
             "pdf_page": page_num,
-        })
+        },
+        operation=f"page_text_vision_p{page_num}",
+        unit_id=f"page:{page_num}:text")
     return json.loads(res).get("text", "")
 
 
@@ -3533,7 +3588,9 @@ def extract_multimodal_page_figures(doc, page_num: int, cache_dir: Path,
                     "lesson_id": lesson_id,
                     "book_id": book_id,
                     "pdf_page": page_num,
-                })
+                },
+                operation=f"page_figure_detection_p{page_num}",
+                unit_id=f"page:{page_num}:figures")
             vision_provenance = get_last_llm_provenance()
             try:
                 proposed = json.loads(raw_figures)
@@ -3761,7 +3818,9 @@ def rescue_missing_labeled_figures(doc, page_num: int, cache_dir: Path,
             "lesson_id": lesson_id,
             "book_id": book_id,
             "pdf_page": page_num,
-        })
+        },
+        operation=f"figure_rescue_p{page_num}",
+        unit_id=f"page:{page_num}:figure_rescue")
     rescue_provenance = get_last_llm_provenance()
     candidates = _normalize_targeted_figure_payload(
         json.loads(raw), page_num)
@@ -4229,6 +4288,8 @@ def _execute_llm_json_strict(
             vision_context=vision_context,
             preferred_provider_override=preferred_retry_provider,
             excluded_providers=malformed_providers,
+            operation=purpose,
+            unit_id=purpose,
         )
         try:
             return json.loads(raw)
@@ -5729,7 +5790,9 @@ def generate_ai_practice_for_insufficient_book_exercises(
 
         try:
             generated = json.loads(execute_llm_completion(
-                generator_prompt, json_mode=True, temperature=0.2))
+                generator_prompt, json_mode=True, temperature=0.2,
+                operation=f"ai_practice_generate_round_{round_no}",
+                unit_id=f"ai_practice:round:{round_no}"))
         except Exception as exc:
             rejected_reasons.append(f"AI generator unavailable: {exc}")
             progress(
@@ -5783,7 +5846,9 @@ def generate_ai_practice_for_insufficient_book_exercises(
             )
             try:
                 verdict = json.loads(execute_llm_completion(
-                    gate_prompt, json_mode=True, temperature=0.0))
+                    gate_prompt, json_mode=True, temperature=0.0,
+                    operation=f"ai_practice_gate_round_{round_no}",
+                    unit_id=f"ai_practice_gate:round:{round_no}"))
             except Exception as exc:
                 rejected_reasons.append(f"scientific gate unavailable: {exc}")
                 progress(
@@ -6541,7 +6606,9 @@ def synthesize_concept_narrative(
         res = execute_llm_completion(
             prompt, json_mode=True, temperature=0.0,
             image_base64=figure_image_base64,
-            vision_context=vision_context)
+            vision_context=vision_context,
+            operation=f"concept_narrative_{concept.get('concept_id')}",
+            unit_id=str(concept.get("concept_id") or "concept"))
         parsed = json.loads(res)
         for k in ["phenomenon", "investigation", "observation", "interpretation", "conclusion", "distractor_1", "distractor_2"]:
             if not parsed.get(k):
@@ -9325,7 +9392,10 @@ def independent_scientific_review(entry: dict, candidate: dict) -> dict:
     )
 
     try:
-        res = execute_llm_completion(prompt, json_mode=True, temperature=0.0)
+        res = execute_llm_completion(
+            prompt, json_mode=True, temperature=0.0,
+            operation=f"scientific_review_{entry.get('lesson_id')}",
+            unit_id=str(entry.get("lesson_id") or "lesson"))
         parsed = json.loads(res)
         if not parsed.get("approved", False):
             raise RuntimeError(f"SCIENTIFIC_REVIEW_REJECTED: Audit failed -> {parsed.get('issues')}")
@@ -9842,7 +9912,9 @@ def main():
         progress("AI_VISION_PROBE_START", image="generated_blank_64x64")
         response = execute_llm_completion(
             'Return only valid JSON: {"ok":true}', json_mode=True,
-            image_base64=base64.b64encode(sample.getvalue()).decode("ascii"))
+            image_base64=base64.b64encode(sample.getvalue()).decode("ascii"),
+            operation="ai_vision_probe",
+            unit_id="ai_vision_probe")
         json.loads(response)
         progress("AI_VISION_PROBE_PASS")
         return 0
