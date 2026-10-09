@@ -10,6 +10,7 @@ on:
       - "scripts/nabil_requirement5_gate.py"
       - "scripts/nabil_scientific_lab_coverage.py"
       - "scripts/test_nabil_scientific_lab_coverage.py"
+      - "scripts/test_provider_choke_point_static.py"
       - "scripts/test_real_produce_lesson_503_integration.py"
       - "scripts/nabil_geometry_lab.py"
       - "scripts/nabil_quiz_engine.py"
@@ -44,6 +45,7 @@ jobs:
             scripts/nabil_requirement5_gate.py \
             scripts/nabil_scientific_lab_coverage.py \
             scripts/test_nabil_scientific_lab_coverage.py \
+            scripts/test_provider_choke_point_static.py \
             scripts/test_real_produce_lesson_503_integration.py \
             scripts/nabil_geometry_lab.py \
             scripts/nabil_interactive_lab.py \
@@ -63,6 +65,7 @@ jobs:
         run: |
           python scripts/test_nabil_scientific_lab_coverage.py
           python scripts/test_v1781_transient_resilience.py
+          python scripts/test_provider_choke_point_static.py
 
       - name: Validate approved E2E JavaScript
         run: |
