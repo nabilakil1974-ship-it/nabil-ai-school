@@ -61,8 +61,14 @@ def _retry(v):
             h=getattr(owner,"headers",None);raw=h.get("Retry-After") if h else None
             if raw:return max(1,int(float(raw)))
         except Exception:pass
-    m=re.search(r"retry(?:ing)?\s+(?:in|after)\s+([0-9]+(?:\.[0-9]+)?)\s*s",_txt(v),re.I)
-    return max(1,int(float(m.group(1)))) if m else _duration(_txt(v))
+    text=_txt(v)
+    m=re.search(r"retry(?:ing)?\s+(?:in|after)\s+([0-9]+(?:\.[0-9]+)?)\s*s",text,re.I)
+    if m:
+        return max(1,int(float(m.group(1))))
+    m=re.search(r"\bwait_seconds\s*[=:]\s*([0-9]+(?:\.[0-9]+)?)",text,re.I)
+    if m:
+        return max(1,int(float(m.group(1))))
+    return _duration(text)
 
 def classify_provider_error(v):
     t=_txt(v);low=t.casefold();c=_code(v);r=_retry(v)
@@ -74,7 +80,7 @@ def classify_provider_error(v):
         return ProviderErrorInfo("auth_billing",c,r,t)
     if c==400 or any(x in low for x in ("content policy","safety policy","blocked by safety","content refusal","invalid argument","bad request","invalid schema","schema validation","malformed prompt")):
         return ProviderErrorInfo("needs_attention",c,r,t)
-    if c in {408,409,425,429,500,502,503,504} or any(x in low for x in ("timeout","timed out","deadline exceeded","temporarily unavailable","high demand","overloaded","rate limit","too many requests","service unavailable")):
+    if c in {408,409,425,429,500,502,503,504} or any(x in low for x in ("timeout","timed out","deadline exceeded","temporarily unavailable","high demand","overloaded","rate limit","too many requests","service unavailable","all_providers_cooling_down","all providers cooling down","cooling_down","cooling down")):
         return ProviderErrorInfo("transient",c,r,t)
     if c in {402,403,404}:return ProviderErrorInfo("needs_attention",c,r,t)
     return ProviderErrorInfo("unknown",c,r,t)
