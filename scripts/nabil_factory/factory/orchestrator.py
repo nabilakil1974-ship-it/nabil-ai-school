@@ -8,6 +8,7 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parents[3]
 _PARTS = [
     "scripts/nabil_factory/factory/shared.py",
+    "scripts/nabil_factory/factory/supervisor.py",
     "scripts/nabil_factory/cards/core.py",
     "scripts/nabil_factory/drive_runtime/core.py",
     "scripts/nabil_factory/factory/guards.py",
