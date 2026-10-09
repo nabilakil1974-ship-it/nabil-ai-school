@@ -18,10 +18,14 @@ _LEAD_NUM = re.compile(
     re.I,
 )
 _ZW = re.compile(r"[\u200b-\u200f\u202a-\u202e\ufeff]")
+_DIGIT_MAP = str.maketrans(
+    "٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹",
+    "01234567890123456789",
+)
 
 
 def normalize_title(s: str, *, strip_numbering: bool = True) -> str:
-    s = unicodedata.normalize("NFKC", s or "")
+    s = unicodedata.normalize("NFKC", s or "").translate(_DIGIT_MAP)
     s = _ZW.sub("", s)
     if strip_numbering:
         s = _LEAD_NUM.sub("", s)
@@ -38,7 +42,8 @@ def normalize_title(s: str, *, strip_numbering: bool = True) -> str:
 
 
 def _digits(s: str) -> list[str]:
-    return re.findall(r"\d+", unicodedata.normalize("NFKC", s or ""))
+    normalized = unicodedata.normalize("NFKC", s or "").translate(_DIGIT_MAP)
+    return re.findall(r"\d+", normalized)
 
 
 def similarity(a: str, b: str) -> float:
