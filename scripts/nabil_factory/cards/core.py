@@ -86,7 +86,7 @@ class MathRenderingEngine:
         return '''<script>
 window.__NABIL_MATHJAX_READY = false;
 window.MathJax = {
-  tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']], processEscapes: true },
+  tex: { inlineMath: [['\\\\(', '\\\\)']], displayMath: [['\\\\[', '\\\\]']], processEscapes: true },
   options: { renderActions: { addMenu: [] } },
   chtml: { scale: 0.95 },
   startup: {

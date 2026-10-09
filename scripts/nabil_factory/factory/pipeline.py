@@ -122,8 +122,18 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
     source_lang_code = resolve_lang_code(entry.get("language", "en"))
 
     def _translate_page_cached(raw_html: str, unit_id: str, purpose: str):
+        # Paid translation is keyed by translatable content, not by the
+        # JavaScript escaping form of the MathJax delimiter config. Canonicalize
+        # this renderer-only difference so the corrected renderer can reuse the
+        # already-paid translation checkpoint with zero provider calls.
+        hash_html = raw_html.replace(
+            "tex: { inlineMath: [['\\\\(', '\\\\)']], "
+            "displayMath: [['\\\\[', '\\\\]']], processEscapes: true },",
+            "tex: { inlineMath: [['\\(', '\\)']], "
+            "displayMath: [['\\[', '\\]']], processEscapes: true },",
+        )
         source_hash = hashlib.sha256(
-            raw_html.encode("utf-8")).hexdigest()
+            hash_html.encode("utf-8")).hexdigest()
         # Paid translation cache must depend on translation semantics,
         # not on unrelated renderer/QA code. This key matches the already
         # verified V7 translation policy; bump it ONLY when translation logic,
