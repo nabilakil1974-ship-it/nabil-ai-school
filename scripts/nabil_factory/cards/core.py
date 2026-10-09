@@ -211,6 +211,41 @@ def _translation_integrity_tokens(value: str) -> Tuple[List[str], List[str]]:
     return numbers, protected
 
 
+_TRANSLATION_LOCK_RE = re.compile(
+    r"(?<![\\w])[-+]?\\d+(?:[.,]\\d+)?(?:%|°)?"
+    r"|(?:[A-Z][A-Za-z]?\\d{0,3}|[A-Z]{1,4}\\d*|"
+    r"[A-Za-z]\\d*[₀₁₂₃₄₅₆₇₈₉]*|"
+    r"Ω|V|A|mA|kΩ|kg|g|m|cm|mm|s|ms|mol|Pa|N|J|W|Hz)"
+    r"(?=\\b|[^A-Za-zÀ-ÿ])"
+)
+
+
+def _lock_scientific_translation_tokens(value: str, item_id: str):
+    text = str(value or "")
+    # Lock scientific tokens only when the string is actually mathematical/
+    # scientific. Plain prose is left untouched.
+    if not re.search(r"[=+\\-×÷*/^∠⊥≅Ω₀₁₂₃₄₅₆₇₈₉]|\\d", text):
+        return text, []
+    locks = []
+    def repl(match):
+        key = f"__NABIL_LOCK_{item_id}_{len(locks):03d}__"
+        locks.append((key, match.group(0)))
+        return key
+    return _TRANSLATION_LOCK_RE.sub(repl, text), locks
+
+
+def _restore_scientific_translation_tokens(
+        translated: str, locks: List[Tuple[str, str]],
+        target_lang: str, item_id: str) -> str:
+    value = str(translated or "")
+    for key, original in locks:
+        if value.count(key) != 1:
+            raise RuntimeError(
+                f"PAGE_TRANSLATION_LOCK_CHANGED:{target_lang}:{item_id}")
+        value = value.replace(key, original)
+    return value
+
+
 def _translate_strings_batch(
         strings: List[str], source_lang: str, target_lang: str,
         purpose: str) -> Dict[str, str]:
@@ -226,15 +261,23 @@ def _translate_strings_batch(
     batch_size = 55
     for start in range(0, len(strings), batch_size):
         batch = strings[start:start + batch_size]
-        items = [{"id": str(start + i), "text": value}
-                 for i, value in enumerate(batch)]
+        items = []
+        lock_maps = {}
+        for i, value in enumerate(batch):
+            item_id = str(start + i)
+            wire_text, locks = _lock_scientific_translation_tokens(
+                value, item_id)
+            items.append({"id": item_id, "text": wire_text})
+            lock_maps[item_id] = locks
         prompt = (
             "You are a strict translation-only engine for a school lesson. "
             f"Translate each item from {source_name} to {target_name}. "
             "Do not add, omit, explain, simplify or correct scientific content. "
             "Preserve every number exactly as written. Preserve mathematical "
             "expressions, point/segment labels, variable names, chemical formulas, "
-            "units and standard symbols exactly. Keep NABIL as NABIL. "
+            "units and standard symbols exactly. Any token shaped like "
+            "__NABIL_LOCK_000_000__ is immutable: copy it byte-for-byte, "
+            "exactly once, in the translated item. Keep NABIL as NABIL. "
             "Use clear school-level Modern Standard Arabic when target is Arabic. "
             "Return strict JSON exactly as {\"items\":[{\"id\":\"...\",\"text\":\"...\"}]}. "
             "The item count and ids must match.\nITEMS:\n" +
@@ -254,11 +297,15 @@ def _translate_strings_batch(
             for row in translated if isinstance(row, dict)
         }
         for item in items:
-            source = item["text"]
-            value = by_id.get(item["id"], "")
+            item_id = item["id"]
+            source = batch[int(item_id) - start]
+            value = by_id.get(item_id, "")
             if not value:
                 raise RuntimeError(
-                    f"PAGE_TRANSLATION_EMPTY:{target_lang}:{item['id']}")
+                    f"PAGE_TRANSLATION_EMPTY:{target_lang}:{item_id}")
+            value = _restore_scientific_translation_tokens(
+                value, lock_maps.get(item_id, []),
+                target_lang, item_id)
             src_numbers, src_protected = _translation_integrity_tokens(source)
             dst_numbers, dst_protected = _translation_integrity_tokens(value)
             if src_numbers != dst_numbers:
@@ -271,8 +318,12 @@ def _translate_strings_batch(
                 re.search(r"[=+\-×÷*/^∠⊥≅Ω₀₁₂₃₄₅₆₇₈₉]", source)
                 and src_protected != dst_protected
             ):
+                # Locked transport should make this unreachable. If a provider
+                # still mutates a scientific token, fail only this translation
+                # item with an explicit diagnostic instead of silently changing
+                # mathematics.
                 raise RuntimeError(
-                    f"PAGE_TRANSLATION_SYMBOL_CHANGED:{target_lang}:{item['id']}")
+                    f"PAGE_TRANSLATION_SYMBOL_CHANGED:{target_lang}:{item_id}")
             if target_lang == "ar":
                 _assert_formal_arabic_text(
                     value, purpose=f"{purpose}_ar_{item['id']}")
