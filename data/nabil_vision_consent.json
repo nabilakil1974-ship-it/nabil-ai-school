@@ -46,6 +46,24 @@
       "provider": "openai",
       "purpose": "Owner-approved source-page vision for the first five Grade 7 Mathematics Golden lessons only; pages 15-66.",
       "owner_approval_date": "2026-10-09"
+    },
+    {
+      "all_books": true,
+      "all_lessons": true,
+      "pdf_start_page": 1,
+      "pdf_end_page": 100000,
+      "provider": "openrouter",
+      "purpose": "Owner-approved source-page vision for all pages of all curriculum books in NABIL AI; explicit approval granted in chat.",
+      "owner_approval_date": "2026-10-09"
+    },
+    {
+      "all_books": true,
+      "all_lessons": true,
+      "pdf_start_page": 1,
+      "pdf_end_page": 100000,
+      "provider": "groq",
+      "purpose": "Owner-approved source-page vision for all pages of all curriculum books in NABIL AI; explicit approval granted in chat.",
+      "owner_approval_date": "2026-10-09"
     }
   ]
 }
