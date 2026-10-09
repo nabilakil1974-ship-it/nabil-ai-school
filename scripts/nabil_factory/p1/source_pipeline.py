@@ -1979,8 +1979,9 @@ def _execute_llm_json_strict(
 
     last_error = None
     malformed_providers = set()
+    malformed_counts = {}
+    preferred_retry_provider = configured[0]
     for attempt in range(1, attempts + 1):
-        preferred_retry_provider = configured[(attempt - 1) % len(configured)]
         effective_prompt = (
             base_prompt if attempt == 1
             else base_prompt + strict_suffix +
@@ -2003,7 +2004,20 @@ def _execute_llm_json_strict(
             last_error = exc
             actual_bad_provider = get_last_llm_provenance().get("provider")
             if actual_bad_provider:
-                malformed_providers.add(str(actual_bad_provider).lower())
+                bad = str(actual_bad_provider).lower()
+                malformed_counts[bad] = malformed_counts.get(bad, 0) + 1
+                # One malformed serialization is often a truncation/escaping
+                # glitch. Give the same provider one STRICT retry before
+                # excluding it and consuming another provider's quota.
+                if malformed_counts[bad] >= 2:
+                    malformed_providers.add(bad)
+                    remaining = [
+                        p for p in configured if p not in malformed_providers
+                    ]
+                    if remaining:
+                        preferred_retry_provider = remaining[0]
+                else:
+                    preferred_retry_provider = bad
             progress(
                 "AI_JSON_INVALID_RETRY",
                 purpose=purpose,
@@ -2208,7 +2222,8 @@ def _rescue_unverified_exercise(
 def extract_scanned_page_exercises(
         doc, page_num: int, lesson_id: str, book_id: str, cache_dir: Path,
         *, drive_service=None, checkpoint_root=None, entry=None,
-        force_refresh: bool = False) -> List[dict]:
+        force_refresh: bool = False,
+        target_numbers: Optional[List[int]] = None) -> List[dict]:
     """Read numbered exercise regions from the real page image, not OCR digits.
 
     Scanned textbooks frequently use circled numbers in two columns, which
@@ -2217,8 +2232,15 @@ def extract_scanned_page_exercises(
     """
     assert_authorized_source_vision(lesson_id, book_id, page_num)
     page = doc[page_num - 1]
+    target_numbers_norm = sorted({
+        int(n) for n in (target_numbers or [])
+        if str(n).strip().isdigit()
+    })
+    target_set = set(target_numbers_norm)
+    targeted_recovery = bool(target_numbers_norm)
     image_bytes = page.get_pixmap(
-        dpi=320 if force_refresh else 200).tobytes("png")
+        dpi=320 if (force_refresh or targeted_recovery) else 200
+    ).tobytes("png")
     page_b64 = base64.b64encode(image_bytes).decode("ascii")
 
     # Durable *stage* checkpoints: a provider pause during the independent
@@ -2231,9 +2253,20 @@ def extract_scanned_page_exercises(
     if drive_service is not None and checkpoint_root and entry is not None:
         from scripts import nabil_page_checkpoint as stage_cp
     instruction = (
-        ("COMPLETENESS RECOVERY: scan the ENTIRE page at high resolution, "
-         "including BOTH columns from top to bottom; do not stop after the first "
-         "column or after the first consecutive exercise sequence. " if force_refresh else "")
+        (
+            "TARGETED COMPLETENESS RECOVERY: inspect the ENTIRE page at high "
+            "resolution but return ONLY the exercises whose printed numbers are "
+            + ", ".join(str(n) for n in target_numbers_norm)
+            + ". Search both columns from top to bottom. Do not return other "
+            "exercise numbers. "
+            if targeted_recovery else
+            (
+                "COMPLETENESS RECOVERY: scan the ENTIRE page at high resolution, "
+                "including BOTH columns from top to bottom; do not stop after the "
+                "first column or after the first consecutive exercise sequence. "
+                if force_refresh else ""
+            )
+        )
         + "Read this school textbook page, paying attention to TWO-COLUMN reading "
         "order and circled exercise numbers. Return JSON with exercises array. "
         "For every numbered exercise or problem return: number (integer), "
@@ -2249,14 +2282,28 @@ def extract_scanned_page_exercises(
         "numbers with exercise numbers. Preserve table entries and all "
         "instructions. Do not invent any text. No numbered exercises -> []."
     )
-    scan_unit = f"page:{page_num}"
+    target_tag = (
+        "-".join(str(n) for n in target_numbers_norm)
+        if targeted_recovery else "all"
+    )
+    scan_unit = (
+        f"page:{page_num}:missing:{target_tag}"
+        if targeted_recovery else f"page:{page_num}"
+    )
+    scan_operation = (
+        "exercise_scan_missing" if targeted_recovery else "exercise_scan"
+    )
+    scan_prompt_version = (
+        EXERCISE_SCAN_PROMPT_VERSION + ":TARGETED_V1"
+        if targeted_recovery else EXERCISE_SCAN_PROMPT_VERSION
+    )
     scan_record = (
         stage_cp.load_paid_unit(
             drive_service, checkpoint_root, entry,
-            operation="exercise_scan",
+            operation=scan_operation,
             unit_id=scan_unit,
             source_hash=source_page_hash,
-            prompt_version=EXERCISE_SCAN_PROMPT_VERSION,
+            prompt_version=scan_prompt_version,
         ) if stage_cp and not force_refresh else None
     )
     if isinstance(scan_record, dict) and "data" in scan_record:
@@ -2274,10 +2321,26 @@ def extract_scanned_page_exercises(
                 "book_id": book_id,
                 "pdf_page": page_num,
             },
-            purpose=f"exercise_scan_p{page_num}",
+            purpose=(
+                f"exercise_scan_missing_p{page_num}_{target_tag}"
+                if targeted_recovery else f"exercise_scan_p{page_num}"
+            ),
         )
         extraction_provenance = get_last_llm_provenance()
     rows = _normalize_exercise_scan_payload(extracted, page_num)
+    if targeted_recovery:
+        rows = [
+            row for row in rows
+            if isinstance(row, dict)
+            and str(row.get("number", "")).strip().isdigit()
+            and int(row["number"]) in target_set
+        ]
+        progress(
+            "EXERCISE_TARGETED_COMPLETENESS_SCAN_FILTERED",
+            page=page_num,
+            requested=target_numbers_norm,
+            found=sorted(int(row["number"]) for row in rows),
+        )
     if not rows:
         # A first-pass page read may miss small circled exercise numbers or a
         # compact two-column exercise page. Re-read the SAME original page at
@@ -2285,10 +2348,17 @@ def extract_scanned_page_exercises(
         highres_bytes = page.get_pixmap(dpi=320).tobytes("png")
         highres_b64 = base64.b64encode(highres_bytes).decode("ascii")
         rescue_instruction = (
-            "Re-inspect this SAME original textbook page at high resolution. "
-            "Return JSON with exercises array containing EVERY visibly numbered "
-            "exercise/problem on the page, preserving two-column reading order. "
-            "For each item return number, section_type, exact_source_prompt, "
+            (
+                "Re-inspect this SAME original textbook page at high resolution "
+                "and return ONLY exercise numbers "
+                + ", ".join(str(n) for n in target_numbers_norm)
+                + ". Search both columns. "
+                if targeted_recovery else
+                "Re-inspect this SAME original textbook page at high resolution. "
+                "Return JSON with exercises array containing EVERY visibly numbered "
+                "exercise/problem on the page, preserving two-column reading order. "
+            )
+            + "For each item return number, section_type, exact_source_prompt, "
             "subquestions, bbox_1000, figure_labels, blank_count, confidence, "
             "unreadable_parts. Preserve every printed word and every visible "
             "answer blank as [BLANK]. Do not solve, infer, renumber, or invent. "
@@ -2305,6 +2375,13 @@ def extract_scanned_page_exercises(
             purpose=f"exercise_scan_highres_rescue_p{page_num}",
         )
         rows = _normalize_exercise_scan_payload(rescued_scan, page_num)
+        if targeted_recovery:
+            rows = [
+                row for row in rows
+                if isinstance(row, dict)
+                and str(row.get("number", "")).strip().isdigit()
+                and int(row["number"]) in target_set
+            ]
         extracted = rescued_scan
         extraction_provenance = get_last_llm_provenance()
         page_b64 = highres_b64
@@ -2318,10 +2395,10 @@ def extract_scanned_page_exercises(
             if stage_cp:
                 stage_cp.save_paid_unit(
                     drive_service, checkpoint_root, entry,
-                    operation="exercise_scan",
+                    operation=scan_operation,
                     unit_id=scan_unit,
                     source_hash=source_page_hash,
-                    prompt_version=EXERCISE_SCAN_PROMPT_VERSION,
+                    prompt_version=scan_prompt_version,
                     payload={"data": extracted,
                              "provenance": extraction_provenance},
                     provenance=extraction_provenance,
@@ -2336,10 +2413,10 @@ def extract_scanned_page_exercises(
     if stage_cp and scan_record is None:
         stage_cp.save_paid_unit(
             drive_service, checkpoint_root, entry,
-            operation="exercise_scan",
+            operation=scan_operation,
             unit_id=scan_unit,
             source_hash=source_page_hash,
-            prompt_version=EXERCISE_SCAN_PROMPT_VERSION,
+            prompt_version=scan_prompt_version,
             payload={"data": extracted,
                      "provenance": extraction_provenance},
             provenance=extraction_provenance,
@@ -2364,14 +2441,24 @@ def extract_scanned_page_exercises(
         (source_page_hash + "|" + json.dumps(
             rows, sort_keys=True, ensure_ascii=False, default=str)
         ).encode("utf-8")).hexdigest()
-    review_unit = f"page:{page_num}"
+    review_unit = (
+        f"page:{page_num}:missing:{target_tag}"
+        if targeted_recovery else f"page:{page_num}"
+    )
+    review_operation = (
+        "exercise_review_missing" if targeted_recovery else "exercise_review"
+    )
+    review_prompt_version = (
+        EXERCISE_REVIEW_PROMPT_VERSION + ":TARGETED_V1"
+        if targeted_recovery else EXERCISE_REVIEW_PROMPT_VERSION
+    )
     review_record = (
         stage_cp.load_paid_unit(
             drive_service, checkpoint_root, entry,
-            operation="exercise_review",
+            operation=review_operation,
             unit_id=review_unit,
             source_hash=review_source_hash,
-            prompt_version=EXERCISE_REVIEW_PROMPT_VERSION,
+            prompt_version=review_prompt_version,
         ) if stage_cp and not force_refresh else None
     )
     if isinstance(review_record, dict) and "data" in review_record:
@@ -2389,7 +2476,10 @@ def extract_scanned_page_exercises(
                 "book_id": book_id,
                 "pdf_page": page_num,
             },
-            purpose=f"exercise_review_p{page_num}",
+            purpose=(
+                f"exercise_review_missing_p{page_num}_{target_tag}"
+                if targeted_recovery else f"exercise_review_p{page_num}"
+            ),
         )
         audit_provenance = get_last_llm_provenance()
     checks = _normalize_exercise_review_payload(review, page_num)
@@ -2473,10 +2563,10 @@ def extract_scanned_page_exercises(
     if stage_cp and review_record is None:
         stage_cp.save_paid_unit(
             drive_service, checkpoint_root, entry,
-            operation="exercise_review",
+            operation=review_operation,
             unit_id=review_unit,
             source_hash=review_source_hash,
-            prompt_version=EXERCISE_REVIEW_PROMPT_VERSION,
+            prompt_version=review_prompt_version,
             payload={"data": checks,
                      "provenance": audit_provenance},
             provenance=audit_provenance,
@@ -3571,18 +3661,40 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
             progress(
                 "SOURCE_COMPLETENESS_TARGETED_RECOVERY_START",
                 page=page_num, missing_numbers=page_missing)
-            refreshed = extract_scanned_page_exercises(
+            existing_rows = page_checkpoints.load_exercises(
+                drive_service, checkpoint_root, doc, entry, page_num,
+                lesson_cache, source_provider, source_model) or []
+            recovered_rows = extract_scanned_page_exercises(
                 doc, page_num, lesson_id, book_id, lesson_cache,
                 drive_service=drive_service,
                 checkpoint_root=checkpoint_root,
                 entry=entry,
-                force_refresh=True)
+                target_numbers=[int(n) for n in page_missing])
+            merged = {
+                (str(row.get("section_type") or "EXERCISE"), int(row["number"])): row
+                for row in existing_rows
+                if isinstance(row, dict) and "number" in row
+            }
+            for row in recovered_rows:
+                merged[
+                    (str(row.get("section_type") or "EXERCISE"), int(row["number"]))
+                ] = row
+            merged_rows = [
+                merged[key] for key in sorted(
+                    merged,
+                    key=lambda item: (item[0], item[1])
+                )
+            ]
             page_checkpoints.save_exercises(
                 drive_service, checkpoint_root, doc, entry,
-                page_num, refreshed, source_provider, source_model)
+                page_num, merged_rows, source_provider, source_model)
             progress(
                 "SOURCE_COMPLETENESS_TARGETED_RECOVERY_SAVED",
-                page=page_num, extracted=len(refreshed))
+                page=page_num,
+                requested=page_missing,
+                recovered=sorted(
+                    int(row["number"]) for row in recovered_rows),
+                total=len(merged_rows))
             recovery_pages.append(page_num)
         if recovery_pages:
             retry_entry = dict(entry)
