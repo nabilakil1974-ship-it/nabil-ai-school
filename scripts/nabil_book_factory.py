@@ -674,6 +674,17 @@ def run(book_id: str, *, index_only: bool, publish: bool,
                 lesson_id=lid, reason=str(exc)[:800])
             raise
         except factory.NeedsAttentionError as exc:
+            if factory.is_recoverable_factory_error(exc):
+                state["lessons"][lid] = {
+                    "status": "DEFERRED_REPAIR",
+                    "reason": str(exc)[:1200],
+                    "deferred_at": datetime.now(timezone.utc).isoformat(),
+                }
+                remote_checkpoint(service,root,book_id,state)
+                announce(
+                    "LESSON_DEFERRED_REPAIR_CONTINUE_BOOK",
+                    lesson_id=lid, reason=str(exc)[:800])
+                continue
             state["lessons"][lid] = {
                 "status": "NEEDS_ATTENTION",
                 "reason": str(exc)[:1200],
@@ -685,17 +696,30 @@ def run(book_id: str, *, index_only: bool, publish: bool,
                 lesson_id=lid, reason=str(exc)[:800])
             raise
         except factory.ScientificGateBlocked as exc:
+            # Never publish unverified science, but do not kill the whole book.
+            # Defer this lesson and continue producing independent lessons.
             state["lessons"][lid] = {
-                "status": "BLOCKED",
+                "status": "BLOCKED_SCIENTIFIC",
                 "error": str(exc)[:1200],
                 "blocked_at": datetime.now(timezone.utc).isoformat(),
             }
             remote_checkpoint(service,root,book_id,state)
             announce(
-                "BOOK_STOPPED_ON_BLOCKED_LESSON",
+                "LESSON_SCIENTIFIC_BLOCK_DEFERRED_CONTINUE_BOOK",
                 lesson_id=lid, reason=str(exc)[:800])
-            raise
+            continue
         except Exception as exc:
+            if factory.is_recoverable_factory_error(exc):
+                state["lessons"][lid] = {
+                    "status": "DEFERRED_REPAIR",
+                    "error": str(exc)[:1200],
+                    "deferred_at": datetime.now(timezone.utc).isoformat(),
+                }
+                remote_checkpoint(service,root,book_id,state)
+                announce(
+                    "LESSON_DEFERRED_REPAIR_CONTINUE_BOOK",
+                    lesson_id=lid, reason=str(exc)[:800])
+                continue
             state["lessons"][lid] = {
                 "status": "NEEDS_ATTENTION",
                 "error": str(exc)[:1200],
@@ -706,7 +730,18 @@ def run(book_id: str, *, index_only: bool, publish: bool,
                 "BOOK_STOPPED_NEEDS_ATTENTION",
                 lesson_id=lid, reason=str(exc)[:800])
             raise
-    state["status"]="ALL_CHAPTERS_PUBLISHED_VERIFIED"
+    unresolved = [
+        row for row in state.get("lessons", {}).values()
+        if row.get("status") in {
+            "DEFERRED_REPAIR", "BLOCKED_SCIENTIFIC",
+            "NEEDS_ATTENTION", "PAUSED_TRANSIENT",
+            "PAUSED_PROVIDER_UNAVAILABLE",
+        }
+    ]
+    state["status"] = (
+        "PARTIAL_PRODUCTION_WITH_DEFERRED_REPAIRS"
+        if unresolved else "ALL_CHAPTERS_PUBLISHED_VERIFIED"
+    )
     remote_checkpoint(service,root,book_id,state)
     announce("BOOK_DONE",book_id=book_id,done=done,total=len(index["lessons"]))
     return state
