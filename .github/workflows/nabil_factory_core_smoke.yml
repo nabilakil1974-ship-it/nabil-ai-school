@@ -7,6 +7,12 @@ on:
       - "scripts/nabil_i18n.py"
       - "scripts/nabil_interactive_lab.py"
       - "scripts/nabil_advanced_lab.py"
+      - "scripts/nabil_requirement5_gate.py"
+      - "scripts/nabil_scientific_lab_coverage.py"
+      - "scripts/test_nabil_scientific_lab_coverage.py"
+      - "scripts/test_provider_choke_point_static.py"
+      - "scripts/test_nabil_ai_failover.py"
+      - "scripts/test_real_produce_lesson_503_integration.py"
       - "scripts/nabil_geometry_lab.py"
       - "scripts/nabil_quiz_engine.py"
       - "app/static/nabil_scientific_solution_cards_e2e.js"
@@ -37,6 +43,12 @@ jobs:
           python -m py_compile \
             scripts/nabil_i18n.py \
             scripts/nabil_advanced_lab.py \
+            scripts/nabil_requirement5_gate.py \
+            scripts/nabil_scientific_lab_coverage.py \
+            scripts/test_nabil_scientific_lab_coverage.py \
+            scripts/test_provider_choke_point_static.py \
+            scripts/test_nabil_ai_failover.py \
+            scripts/test_real_produce_lesson_503_integration.py \
             scripts/nabil_geometry_lab.py \
             scripts/nabil_interactive_lab.py \
             scripts/nabil_quiz_engine.py \
@@ -44,6 +56,19 @@ jobs:
             app/api/routes_smart_labs.py \
             app/api/routes_interactive_lessons.py \
             app/main.py
+
+      - name: Install real-pipeline integration dependencies
+        run: python -m pip install --disable-pip-version-check --quiet PyMuPDF google-api-python-client
+
+      - name: Run real produce_lesson 503 integration
+        run: python scripts/test_real_produce_lesson_503_integration.py
+
+      - name: Run grades 1-12 scientific lab coverage matrix
+        run: |
+          python scripts/test_nabil_scientific_lab_coverage.py
+          python scripts/test_v1781_transient_resilience.py
+          python scripts/test_provider_choke_point_static.py
+          python scripts/test_nabil_ai_failover.py
 
       - name: Validate approved E2E JavaScript
         run: |
@@ -154,7 +179,13 @@ jobs:
           assert hasattr(factory, "_rescue_unverified_exercise")
           source_text = factory.Path(factory.__file__).read_text(encoding="utf-8")
           assert "excluded_providers=malformed_providers" in source_text
-          assert 'NABIL_FACTORY_MAX_ALL_PROVIDER_WAIT_SECONDS", "60"' in source_text
+          # The legacy hard-coded all-provider wait literal was removed; V17.81
+          # now owns bounded pause/resume semantics explicitly.
+          resilience_source = factory.Path(
+              "scripts/nabil_transient_resilience_v1781.py"
+          ).read_text(encoding="utf-8")
+          assert "PAUSED_TRANSIENT" in resilience_source
+          assert "Retry-After" in resilience_source
           assert "EXERCISE_TARGETED_RESCUE_ACCEPTED" in source_text
           assert "SKIPPED_UNVERIFIED_EXERCISE" in source_text
           assert factory.required_ai_practice_count(0) == 3
@@ -180,7 +211,7 @@ jobs:
           assert "reconstructed_diagram_verified" in source_text
           assert "OPTIONAL_SOURCE_FIGURE_SKIPPED" in source_text
           assert "REMOVED_OUT_OF_SCOPE_GENERATED_CONTENT" in source_text
-          assert "SOURCE_PAGE_LOCAL_OCR_SELECTED" in source_text
+          assert "SOURCE_PAGE_RENDERED_OCR_SELECTED" in source_text
           assert "EXERCISE_SECTION_BOUNDARY_LOCKED" in source_text
           assert "LESSON_CONCEPT_LEAKED_FROM_EXERCISE_SECTION" in source_text
           assert "source_section_kind" in source_text
@@ -745,12 +776,13 @@ jobs:
           bridge = factory.Path(
               "app/static/nabil_smart_lab_bridge_v1.js"
           ).read_text(encoding="utf-8")
-          assert 'btn.dataset.nabilLabSource="prebuilt"' in bridge
-          assert 'btn.dataset.nabilLabSource="missing-prebuilt"' in bridge
+          assert "playOneExistingLab" in bridge
+          assert "wireConceptLabs" in bridge
           assert "runtime-ai-fallback" not in bridge
-          assert "nabil:solution-ready" in bridge
-          assert "buildInlineQuestionLab" in bridge
-          assert "nabil-solution-runtime-lab" in bridge
+          assert "buildQuestionLab" in bridge
+          assert 'data-nabil-lab-source="evidence-fallback"' in bridge
+          assert 'data-nabil-prebuilt-missing="true"' in bridge
+          assert bridge.count("fallbackHtml(q)") >= 2
           assert "nabil:teach-all" in bridge
           assert "nabil:teach-stop" in bridge
           assert "nabil:teacher-complete" in bridge
@@ -780,6 +812,7 @@ jobs:
               scripts/nabil_interactive_lab.py \
               scripts/nabil_advanced_lab.py \
               scripts/nabil_geometry_lab.py \
+              scripts/nabil_scientific_lab_coverage.py \
               scripts/nabil_i18n.py \
               scripts/nabil_quiz_engine.py \
               app/api/routes_smart_labs.py \

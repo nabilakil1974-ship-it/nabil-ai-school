@@ -17,6 +17,10 @@ from scripts.nabil_interactive_lab import (
     validate_lab_spec,
 )
 from scripts.nabil_lesson_factory import _execute_llm_json_strict
+from scripts.nabil_requirement5_gate import (
+    validate_requirement5_lab,
+    assert_requirement5_publishable,
+)
 
 router = APIRouter(prefix="/smart-labs", tags=["smart-labs"])
 
@@ -191,6 +195,7 @@ def _verify_question_locked_spec(
             "instructions": fallback_text.get("instructions", "Explore the verified givens step by step."),
             "observation": fallback_text.get("observation", "Only verified information is shown."),
             "evidence_ref": "USER_QUESTION",
+            "evidence_basis": "text",
             "evidence_quote": source_quote,
             "items": [{
                 "label": fallback_text.get("label", "Question evidence"),
@@ -202,24 +207,43 @@ def _verify_question_locked_spec(
                     "say": fallback_text.get("instructions", "Explore the verified givens step by step."),
                     "target_ids": ["evidence-item-0"],
                     "action": "point",
-                    "state_before": {},
-                    "state_after": {},
-                    "scientific_constraints": [],
+                    "state_before": {"revealed_index": -1},
+                    "state_after": {"revealed_index": 0},
+                    "scientific_constraints": ["Use only verified question/solution evidence."],
+                    "evidence_quote": source_quote,
+                },
+                {
+                    "say": fallback_text.get("instructions", "Focus on the verified givens."),
+                    "target_ids": ["evidence-item-0"],
+                    "action": "highlight",
+                    "state_before": {"revealed_index": 0},
+                    "state_after": {"revealed_index": 0},
+                    "scientific_constraints": ["Highlight only verified evidence."],
+                    "evidence_quote": source_quote,
+                },
+                {
+                    "say": fallback_text.get("observation", "Only verified information is shown."),
+                    "target_ids": ["evidence-item-0"],
+                    "action": "observe",
+                    "state_before": {"revealed_index": 0},
+                    "state_after": {"revealed_index": 0},
+                    "scientific_constraints": ["Observe only verified evidence."],
                     "evidence_quote": source_quote,
                 },
                 {
                     "say": fallback_text.get("observation", "Only verified information is shown."),
                     "target_ids": ["evidence-item-0"],
                     "action": "conclude",
-                    "state_before": {},
-                    "state_after": {},
-                    "scientific_constraints": [],
+                    "state_before": {"revealed_index": 0},
+                    "state_after": {"revealed_index": 0},
+                    "scientific_constraints": ["Do not add a conclusion absent from verified evidence."],
                     "evidence_quote": source_quote,
                 },
             ],
         }
 
     spec["evidence_ref"] = "USER_QUESTION"
+    spec["evidence_basis"] = "text"
     kind = str(spec.get("kind") or "").strip().upper()
     source = _norm(evidence_source)
 
@@ -316,6 +340,22 @@ def _verify_question_locked_spec(
                     f"SMART_LAB_REVEAL_EVIDENCE_NOT_FOUND:{index}"
                 )
 
+    if kind == "PROCEDURE_OBSERVATION":
+        groups = (
+            ("materials", spec.get("materials") or [], 0, 8),
+            ("procedure_steps", spec.get("procedure_steps"), 1, 8),
+            ("observations", spec.get("observations"), 1, 6),
+        )
+        for group_name, items, minimum, maximum in groups:
+            if not isinstance(items, list) or not minimum <= len(items) <= maximum:
+                raise RuntimeError(f"SMART_LAB_PROCEDURE_{group_name.upper()}_INVALID")
+            for index, item in enumerate(items):
+                exact_quote = _norm((item or {}).get("evidence_quote", ""))
+                if not isinstance(item, dict) or not str(item.get("label") or "").strip():
+                    raise RuntimeError(f"SMART_LAB_PROCEDURE_{group_name.upper()}_ITEM_INVALID:{index}")
+                if not exact_quote or exact_quote not in source:
+                    raise RuntimeError(f"SMART_LAB_PROCEDURE_{group_name.upper()}_EVIDENCE_NOT_FOUND:{index}")
+
     if kind == "EVIDENCE_SEQUENCE":
         steps = spec.get("steps")
         if not isinstance(steps, list) or not 2 <= len(steps) <= 8:
@@ -336,6 +376,16 @@ def _verify_question_locked_spec(
             raise RuntimeError("SMART_LAB_FORMULA_NOT_IN_QUESTION")
 
     validate_lab_spec(spec)
+    spec = validate_requirement5_lab(
+        spec,
+        source_text=evidence_source,
+        source_figure_verified=False,
+    )
+    assert_requirement5_publishable(
+        spec,
+        lesson_id="USER_QUESTION",
+        lab_id="USER_QUESTION",
+    )
     return spec
 
 
@@ -451,14 +501,17 @@ Allowed kinds:
    electron_transfer_count, bond_type='ionic'. Charges/ratios must be scientifically consistent.
 7. EVIDENCE_SEQUENCE for ANY subject when USER_SOURCE contains at least two ordered or structurally related facts/steps/parts that can be highlighted sequentially.
    Required: steps=[{{label,evidence_quote}}], 2..8 steps. Every evidence_quote must be an exact contiguous quote from USER_SOURCE.
-8. GEOMETRY_PROOF for geometry exercises/theorems when USER_SOURCE and/or VERIFIED_SOLUTION contains enough verified point/segment/relation evidence.
+8. PROCEDURE_OBSERVATION when USER_SOURCE or VERIFIED_SOLUTION explicitly describes a practical experiment/procedure and its observable result.
+   Required: procedure_steps=[{label,evidence_quote}] with 1..8 exact contiguous quotes; observations=[{label,evidence_quote}] with 1..6 exact contiguous quotes; optional materials=[{label,evidence_quote}] only for explicitly named apparatus/materials.
+   Never invent apparatus, quantities, safety instructions, variables, measurements, outcomes or missing steps.
+9. GEOMETRY_PROOF for geometry exercises/theorems when USER_SOURCE and/or VERIFIED_SOLUTION contains enough verified point/segment/relation evidence.
    Required: points=[{label,x,y}] using 0..100 layout coordinates; segments=[{id,a,b}];
    marks with type equal_segments|equal_angles|perpendicular|parallel|midpoint|symmetry_axis and an exact evidence_quote for every mark;
    proof_steps=[{title,text,formula,target_ids,reveal_marks,evidence_quote}].
    target_ids may contain only a mark id, point:<label>, or segment:<id>, in the same order as the spoken sentences.
    Equal-segment facts must show congruence ticks; equal-angle facts matching arcs; perpendicularity a right-angle square; parallelism matching arrow marks; midpoint equal-part marks; symmetry a highlighted axis/pair effect.
    NEVER create a proof mark from the appearance of the sketch. Every mark and every proof step needs an exact quote from USER_SOURCE or VERIFIED_SOLUTION.
-9. EVIDENCE_REVEAL is the universal fallback for any subject/question when no richer simulation fits.
+10. EVIDENCE_REVEAL is the universal fallback for any subject/question when no richer simulation fits.
    Required: items=[{{label,evidence_quote}}], 1..8 items, each evidence_quote an exact contiguous quote from USER_SOURCE.
 
 Never invent a measurement, label, charge, formula, historical fact, grammatical rule, geometry condition,
@@ -470,7 +523,7 @@ Unsupported:
 {{"supported":false,"reason":"...","evidence_ref":"USER_QUESTION"}}
 Supported common fields:
 {{"supported":true,"kind":"...","title":"...","instructions":"...","observation":"...",
-"evidence_ref":"USER_QUESTION","evidence_quote":"EXACT contiguous quote from USER_SOURCE", ...kind-specific fields...}}
+"evidence_ref":"USER_QUESTION","evidence_basis":"text","evidence_quote":"EXACT contiguous quote from USER_SOURCE", ...kind-specific fields...}}
 For DC_SERIES_CIRCUIT add evidence_quotes with exact USER_SOURCE quotes for:
 series_resistance_sum, series_same_current, ohms_law, open_switch_zero_current.
 For OPTICS_REFLECTION add evidence_quotes with exact USER_SOURCE quotes for:

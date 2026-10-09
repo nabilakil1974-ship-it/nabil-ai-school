@@ -91,6 +91,26 @@ def validate_requirement5_lab(
             if basis == "text" and quote not in source:
                 raise RuntimeError(f"R5_CLAIM_OUTSIDE_LESSON:{claim}")
 
+    if kind == "PROCEDURE_OBSERVATION":
+        groups = (
+            ("materials", spec.get("materials") or [], 0, 8),
+            ("procedure_steps", spec.get("procedure_steps"), 1, 8),
+            ("observations", spec.get("observations"), 1, 6),
+        )
+        for group_name, items, minimum, maximum in groups:
+            if not isinstance(items, list) or not minimum <= len(items) <= maximum:
+                raise RuntimeError(f"R5_PROCEDURE_{group_name.upper()}_INVALID")
+            for i, item in enumerate(items):
+                if not isinstance(item, dict) or not str(item.get("label") or "").strip():
+                    raise RuntimeError(f"R5_PROCEDURE_{group_name.upper()}_ITEM_INVALID:{i}")
+                quote = _norm(item.get("evidence_quote"))
+                if not quote:
+                    raise RuntimeError(f"R5_PROCEDURE_{group_name.upper()}_QUOTE_REQUIRED:{i}")
+                if basis == "text" and quote not in source:
+                    raise RuntimeError(f"R5_PROCEDURE_{group_name.upper()}_OUTSIDE_SOURCE:{i}")
+                if basis == "figure" and not source_figure_verified:
+                    raise RuntimeError(f"R5_PROCEDURE_{group_name.upper()}_UNVERIFIED_FIGURE:{i}")
+
     # Universal evidence fallback must never masquerade as a richer simulation.
     if kind == "EVIDENCE_REVEAL":
         items = spec.get("items")
@@ -119,7 +139,7 @@ def validate_requirement5_lab(
     motion_required = {
         "FORMULA_CALCULATOR", "ORIENTATION_INVARIANT", "SHAPE_RESPONSE",
         "DC_SERIES_CIRCUIT", "OPTICS_REFLECTION", "IONIC_COMPOUND",
-        "GEOMETRY_PROOF", "EVIDENCE_SEQUENCE",
+        "GEOMETRY_PROOF", "PROCEDURE_OBSERVATION", "EVIDENCE_SEQUENCE",
     }
     if kind in motion_required and not ({"animate", "set_state"} & set(actions)):
         raise RuntimeError("R5_REFERENCE_ANIMATION_MISSING")

@@ -38,6 +38,26 @@ from scripts.nabil_i18n import (
 from scripts.nabil_interactive_lab import render_verified_lab, validate_lab_spec
 from scripts.nabil_quiz_engine import build_full_quiz_items, render_quiz_html
 from scripts.nabil_requirement5_gate import validate_requirement5_lab, assert_requirement5_publishable
+from scripts.nabil_scientific_lab_coverage import (
+    validate_and_annotate_curriculum_lab,
+    validate_lesson_scientific_lab_coverage,
+)
+from scripts.nabil_transient_resilience_v1781 import (
+    classify_provider_error,
+    ProviderTransientError,
+    ProviderDailyQuotaError,
+    ProviderUnavailableError,
+    NeedsAttentionError,
+    CheckpointWriteError,
+    save_state as save_resilience_state,
+    STATUS_PAUSED_TRANSIENT,
+    STATUS_PROVIDER_UNAVAILABLE,
+    STATUS_NEEDS_ATTENTION,
+    EXIT_PAUSED_TRANSIENT,
+    EXIT_PROVIDER_UNAVAILABLE,
+    EXIT_NEEDS_ATTENTION,
+    ScientificGateBlocked,
+)
 
 ROOT = Path(__file__).resolve().parents[1] if len(Path(__file__).resolve().parents) > 1 else Path("/app")
 CATALOG_PATH = ROOT / "data/nabil_canonical_lesson_catalog.json"
@@ -47,8 +67,15 @@ VERSIONS_DIR = ROOT / "data/versions"
 ARTIFACTS_DIR = VERSIONS_DIR / "artifacts"
 OUT_DIR = ROOT / "output"
 GOLDEN_REGISTRY_PATH = ROOT / "data" / "golden_lessons_registry.json"
+RECOVERY_STATE_DIR = ROOT / "data" / "factory_recovery_state"
+REDRAW_PROMPT_VERSION = "NABIL_REDRAW_V1783"
+TEXT_DIAGRAM_PROMPT_VERSION = "NABIL_TEXT_DIAGRAM_V1783"
+CONCEPT_NARRATIVE_PROMPT_VERSION = "NABIL_CONCEPT_NARRATIVE_V1783"
+LAB_SPEC_PROMPT_VERSION = "NABIL_LAB_SPEC_V1783"
+EXERCISE_SCAN_PROMPT_VERSION = "NABIL_EXERCISE_SCAN_V1784"
+EXERCISE_REVIEW_PROMPT_VERSION = "NABIL_EXERCISE_REVIEW_V1784"
 
-for d in [PERM_EVIDENCE_DIR, CACHE_DIR, VERSIONS_DIR, ARTIFACTS_DIR, OUT_DIR]:
+for d in [PERM_EVIDENCE_DIR, CACHE_DIR, VERSIONS_DIR, ARTIFACTS_DIR, OUT_DIR, RECOVERY_STATE_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
 PROGRESS_STARTED = None
@@ -61,6 +88,85 @@ def now():
 def progress(stage: str, **details):
     elapsed = round(time.monotonic() - PROGRESS_STARTED, 1) if PROGRESS_STARTED else 0
     print(json.dumps({"time": now(), "elapsed_seconds": elapsed, "stage": stage, **details}, ensure_ascii=False), flush=True)
+
+
+
+def _persist_factory_recovery_state(
+        entry: dict, drive_service, *, status: str, reason: str,
+        unit_id: str, operation: str,
+        retry_seconds: Optional[int] = None) -> dict:
+    """Persist pause/attention state locally and, when available, to Drive."""
+    max_cycles = max(1, int(os.getenv(
+        "NABIL_FACTORY_MAX_PAUSE_RESUME_CYCLES", "12")))
+    state = save_resilience_state(
+        RECOVERY_STATE_DIR,
+        lesson_id=str(entry.get("lesson_id") or "unknown"),
+        status=status,
+        reason=str(reason)[:1200],
+        unit_id=str(unit_id or ""),
+        operation=str(operation or ""),
+        retry_seconds=retry_seconds,
+        max_pause_cycles=max_cycles,
+    )
+    if drive_service is not None:
+        from scripts import nabil_page_checkpoint as page_checkpoints
+        checkpoint_root = resolve_drive_root_id()
+        state = page_checkpoints.save_factory_state(
+            drive_service, checkpoint_root, entry, state)
+    progress(
+        "FACTORY_RECOVERY_STATE_SAVED",
+        lesson_id=entry.get("lesson_id"),
+        status=state.get("status"),
+        unit_id=unit_id,
+        operation=operation,
+        retry_after_seconds=state.get("retry_after_seconds"),
+        next_retry_at=state.get("next_retry_at"),
+    )
+    return state
+
+
+def _raise_if_provider_pause_required(
+        entry: dict, drive_service, *, unit_id: str,
+        operation: str, exc: Exception) -> None:
+    """Normalize legacy provider errors to typed signals without persisting.
+
+    Persistence happens once at the produce_lesson_for_entry boundary.
+    """
+    if isinstance(exc, (ProviderDailyQuotaError, ProviderTransientError,
+                        ProviderUnavailableError, NeedsAttentionError)):
+        if not getattr(exc, "operation", None):
+            exc.operation = operation
+        if not getattr(exc, "unit_id", None):
+            exc.unit_id = unit_id
+        raise exc
+
+    info = classify_provider_error(exc)
+    if info.kind == "daily_quota":
+        raise ProviderDailyQuotaError(
+            info.message,
+            retry_after_seconds=info.retry_after_seconds or 21600,
+            status_code=info.status_code,
+            operation=operation,
+            unit_id=unit_id,
+            reason=info.message,
+        ) from exc
+    if info.kind == "transient":
+        raise ProviderTransientError(
+            info.message,
+            retry_after_seconds=info.retry_after_seconds or 60,
+            status_code=info.status_code,
+            operation=operation,
+            unit_id=unit_id,
+            reason=info.message,
+        ) from exc
+    if info.kind == "auth_billing":
+        raise ProviderUnavailableError(
+            info.message, operation=operation, unit_id=unit_id,
+            reason=info.message) from exc
+    if info.kind == "needs_attention":
+        raise NeedsAttentionError(
+            info.message, operation=operation, unit_id=unit_id,
+            reason=info.message) from exc
 
 
 # ==============================================================================
@@ -1420,18 +1526,23 @@ def _vision_provider_authorized(provider: str, vision_context: Dict[str, Any],
 
     for item in scopes:
         lesson_allowed = (
-            item.get("lesson_id") == lesson_id
+            item.get("all_lessons") is True
+            or item.get("lesson_id") == lesson_id
             or bool(
                 item.get("lesson_id_prefix")
                 and lesson_id.startswith(item["lesson_id_prefix"])
             )
         )
+        book_allowed = (
+            item.get("all_books") is True
+            or item.get("book_id") in (book_id, "*")
+        )
         if (
             lesson_allowed
-            and item.get("book_id") == book_id
+            and book_allowed
             and item.get("provider") == provider
-            and int(item["pdf_start_page"]) <= pdf_page
-            <= int(item["pdf_end_page"])
+            and int(item.get("pdf_start_page", 1)) <= pdf_page
+            <= int(item.get("pdf_end_page", 1000000))
         ):
             if require_key and not os.getenv(f"{provider.upper()}_API_KEY"):
                 return False
@@ -1474,13 +1585,19 @@ def _provider_request_config(provider: str, image_base64: Optional[str]):
 
 def _parse_rate_limit_wait_seconds(exc, detail: str,
                                    provider_attempt: int) -> float:
+    """Return provider-declared wait exactly when available.
+
+    Only use bounded exponential backoff when the provider supplied no
+    Retry-After/header/message duration. This prevents a generic floor from
+    turning a 1-5 second provider recovery into a needless long pause.
+    """
     retry_header = str(exc.headers.get("Retry-After", "")).strip()
     try:
         retry_after = float(retry_header)
     except ValueError:
         retry_after = 0.0
     duration = re.search(
-        r"(?i)try again in\s+"
+        r"(?i)(?:try again|retry)(?:\s+after|\s+in)?\s+"
         r"(?:(\d+(?:\.\d+)?)\s*h(?:ours?)?\s*)?"
         r"(?:(\d+(?:\.\d+)?)\s*m(?:in(?:utes?)?)?\s*)?"
         r"(?:(\d+(?:\.\d+)?)\s*s(?:ec(?:onds?)?)?)?",
@@ -1495,11 +1612,10 @@ def _parse_rate_limit_wait_seconds(exc, detail: str,
             + 60 * float(minutes or 0)
             + float(seconds or 0)
         )
-    return max(
-        retry_after,
-        indicated,
-        min(20.0 * max(1, provider_attempt), 90.0),
-    ) + 2.0
+    explicit = max(retry_after, indicated)
+    if explicit > 0:
+        return explicit
+    return min(5.0 * (2 ** max(0, provider_attempt - 1)), 120.0)
 
 
 def _next_provider_or_wait(candidates: List[str],
@@ -1571,7 +1687,9 @@ def execute_llm_completion(
         image_base64: Optional[str] = None,
         vision_context: Optional[Dict[str, Any]] = None,
         preferred_provider_override: Optional[str] = None,
-        excluded_providers: Optional[set] = None) -> str:
+        excluded_providers: Optional[set] = None,
+        operation: str = "provider_call",
+        unit_id: Optional[str] = None) -> str:
     """Execute with rate-limit failover while preserving source consent.
 
     A 429 never sleeps on one provider while another configured, explicitly
@@ -1630,8 +1748,9 @@ def execute_llm_completion(
     # healthy-provider cooldown selected by _next_provider_or_wait().
     max_all_wait = max(
         0.0, min(1800.0, float(os.getenv(
-            "NABIL_FACTORY_MAX_ALL_PROVIDER_WAIT_SECONDS", "300"))))
+            "NABIL_FACTORY_MAX_ALL_PROVIDER_WAIT_SECONDS", "30"))))
     provider_attempts = {p: 0 for p in candidates}
+    permanent_quarantined = set()
     total_requests = 0
 
     while total_requests < max_requests:
@@ -1656,11 +1775,17 @@ def execute_llm_completion(
                     shortest_wait_seconds=round(wait_seconds, 2),
                     max_all_provider_wait_seconds=max_all_wait,
                 )
-                raise RuntimeError(
-                    "AI_ALL_PROVIDERS_COOLING_DOWN: "
-                    f"shortest_provider={provider} "
-                    f"wait_seconds={wait_seconds:.1f} "
-                    f"remaining={remaining}")
+                raise ProviderTransientError(
+                    "AI_ALL_PROVIDERS_COOLING_DOWN",
+                    retry_after_seconds=max(1, int(math.ceil(wait_seconds))),
+                    operation=operation,
+                    unit_id=unit_id or operation,
+                    reason=(
+                        f"shortest_provider={provider} "
+                        f"wait_seconds={wait_seconds:.1f}"
+                    ),
+                    remaining=remaining,
+                )
             progress(
                 "AI_ALL_PROVIDERS_COOLING_DOWN_WAIT_SHORTEST",
                 provider=provider,
@@ -1764,6 +1889,7 @@ def execute_llm_completion(
                     quarantine_seconds = 86400.0
                     _AI_PROVIDER_COOLDOWNS[provider] = (
                         time.monotonic() + quarantine_seconds)
+                    permanent_quarantined.add(provider)
                     ready_alternatives = [
                         p for p in candidates
                         if p != provider
@@ -1780,6 +1906,13 @@ def execute_llm_completion(
                         ready_alternatives=ready_alternatives,
                         provider_code=code[:80],
                     )
+                    if len(permanent_quarantined) >= len(candidates):
+                        raise ProviderUnavailableError(
+                            "ALL_AUTHORISED_PROVIDERS_QUARANTINED",
+                            operation=operation,
+                            unit_id=unit_id or operation,
+                            reason="billing_or_credit_exhausted",
+                        )
                     continue
 
                 cooldown = _parse_rate_limit_wait_seconds(
@@ -1813,7 +1946,10 @@ def execute_llm_completion(
                 continue
 
             if exc.code in (408, 425, 500, 502, 503, 504):
-                transient_cooldown = 10.0
+                transient_cooldown = _parse_rate_limit_wait_seconds(
+                    exc, detail, provider_attempts[provider])
+                transient_cooldown = max(
+                    1.0, min(120.0, float(transient_cooldown)))
                 _AI_PROVIDER_COOLDOWNS[provider] = (
                     time.monotonic() + transient_cooldown)
                 progress(
@@ -1825,6 +1961,39 @@ def execute_llm_completion(
                     provider_code=code[:80],
                 )
                 continue
+
+            if exc.code == 402:
+                affordable = re.search(
+                    r"can only afford\s+(\d+)",
+                    detail, re.I)
+                if affordable:
+                    affordable_tokens = int(affordable.group(1))
+                    requested_tokens = int(payload.get("max_tokens") or 0)
+                    # OpenRouter credit preflight can reject a request only
+                    # because its configured output ceiling is a few tokens
+                    # above the currently affordable amount. Do not quarantine
+                    # a healthy provider for one hour. Adapt the ceiling with a
+                    # safety margin and retry the SAME source unit.
+                    if 512 <= affordable_tokens < requested_tokens:
+                        adapted_tokens = max(
+                            512, min(requested_tokens - 1,
+                                     affordable_tokens - 64))
+                        env_name = (
+                            "NABIL_FACTORY_VISION_MAX_OUTPUT_TOKENS"
+                            if image_base64
+                            else "NABIL_FACTORY_TEXT_MAX_OUTPUT_TOKENS"
+                        )
+                        os.environ[env_name] = str(adapted_tokens)
+                        progress(
+                            "AI_PROVIDER_CREDIT_CAP_ADAPTED",
+                            provider=provider,
+                            model=model,
+                            requested_max_tokens=requested_tokens,
+                            affordable_max_tokens=affordable_tokens,
+                            adapted_max_tokens=adapted_tokens,
+                            image_request=bool(image_base64),
+                        )
+                        continue
 
             if exc.code == 402 and "in-flight requests" in detail.casefold():
                 transient_cooldown = 3.0
@@ -1840,13 +2009,23 @@ def execute_llm_completion(
                 )
                 continue
 
-            if exc.code in (400, 401, 402, 403, 404, 422):
+            if exc.code in (400, 422):
+                raise NeedsAttentionError(
+                    f"AI_PROVIDER_REQUEST_NEEDS_ATTENTION:http_status={exc.code}",
+                    operation=operation,
+                    unit_id=unit_id or operation,
+                    reason=detail[:360],
+                ) from None
+
+            if exc.code in (401, 402, 403, 404):
                 quarantine_seconds = 3600.0
                 _AI_PROVIDER_COOLDOWNS[provider] = (
                     time.monotonic() + quarantine_seconds)
+                permanent_quarantined.add(provider)
                 ready_alternatives = [
                     p for p in candidates
                     if p != provider
+                    and p not in permanent_quarantined
                     and _AI_PROVIDER_COOLDOWNS.get(p, 0.0)
                     <= time.monotonic()
                 ]
@@ -1860,6 +2039,13 @@ def execute_llm_completion(
                     provider_code=code[:80],
                     detail=detail[:240],
                 )
+                if len(permanent_quarantined) >= len(candidates):
+                    raise ProviderUnavailableError(
+                        "ALL_AUTHORISED_PROVIDERS_QUARANTINED",
+                        operation=operation,
+                        unit_id=unit_id or operation,
+                        reason=detail[:360],
+                    ) from None
                 continue
 
             reason = detail[:360]
@@ -1871,11 +2057,14 @@ def execute_llm_completion(
                 provider_code=code[:80],
                 detail=reason,
             )
-            raise RuntimeError(
+            raise NeedsAttentionError(
                 "AI_PROVIDER_HTTP_ERROR: "
                 f"provider={provider} model={model} "
                 f"http_status={exc.code} "
-                f"provider_code={code[:80]} detail={reason}"
+                f"provider_code={code[:80]} detail={reason}",
+                operation=operation,
+                unit_id=unit_id or operation,
+                reason=reason,
             ) from None
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
             _AI_PROVIDER_COOLDOWNS[provider] = time.monotonic() + 10.0
@@ -1888,15 +2077,30 @@ def execute_llm_completion(
             )
             continue
 
+    now_mono = time.monotonic()
+    usable = [p for p in candidates if p not in permanent_quarantined]
+    if not usable:
+        raise ProviderUnavailableError(
+            "AI_PROVIDER_FAILOVER_EXHAUSTED_NO_USABLE_PROVIDER",
+            operation=operation,
+            unit_id=unit_id or operation,
+            reason=f"requests={total_requests}",
+        )
     remaining = {
         p: round(max(
-            0.0, _AI_PROVIDER_COOLDOWNS.get(p, 0.0)
-            - time.monotonic()), 2)
-        for p in candidates
+            0.0, _AI_PROVIDER_COOLDOWNS.get(p, 0.0) - now_mono), 2)
+        for p in usable
     }
-    raise RuntimeError(
-        "AI_PROVIDER_FAILOVER_EXHAUSTED: "
-        f"requests={total_requests} remaining={remaining}")
+    positive_waits = [v for v in remaining.values() if v > 0]
+    shortest_wait = min(positive_waits) if positive_waits else 1.0
+    raise ProviderTransientError(
+        "AI_PROVIDER_FAILOVER_EXHAUSTED",
+        retry_after_seconds=max(1, int(math.ceil(shortest_wait))),
+        operation=operation,
+        unit_id=unit_id or operation,
+        reason=f"requests={total_requests}",
+        remaining=remaining,
+    )
 
 
 # ==============================================================================
@@ -2035,9 +2239,25 @@ def get_drive_service():
     from google.auth.transport.requests import Request
 
     scopes = ["https://www.googleapis.com/auth/drive"]
-    # Preserve the owner's ORIGINAL three-variable Railway OAuth workflow.
-    # These names were used by the preceding NABIL lesson factory; do not
-    # require a new consent flow if a working refresh token already exists.
+
+    # Prefer the complete owner OAuth JSON generated by authorize_drive_owner.py.
+    # This is the canonical credential after an explicit re-authorization and
+    # must take precedence over legacy split variables that may contain a
+    # revoked refresh token.
+    raw_oauth = os.getenv("NABIL_DRIVE_OAUTH_TOKEN_JSON", "").strip()
+    if raw_oauth:
+        try:
+            info = json.loads(raw_oauth)
+            creds = Credentials.from_authorized_user_info(info, scopes=scopes)
+            if not creds.valid and creds.refresh_token:
+                creds.refresh(Request())
+            if not creds.valid:
+                raise RuntimeError("NABIL_DRIVE_OAUTH_REFRESH_REQUIRED")
+        except (ValueError, KeyError, TypeError) as exc:
+            raise RuntimeError("NABIL_DRIVE_OAUTH_TOKEN_INVALID: check Railway secret JSON") from exc
+        return build("drive", "v3", credentials=creds, cache_discovery=False)
+
+    # Legacy three-variable OAuth remains as a fallback only.
     owner_keys = (
         "GOOGLE_DRIVE_OAUTH_CLIENT_ID",
         "GOOGLE_DRIVE_OAUTH_CLIENT_SECRET",
@@ -2057,21 +2277,9 @@ def get_drive_service():
         return build("drive", "v3", credentials=credentials,
                      cache_discovery=False)
 
-    raw_oauth = os.getenv("NABIL_DRIVE_OAUTH_TOKEN_JSON", "").strip()
-    if any(owner_values) and not raw_oauth:
+    if any(owner_values):
         missing = [name for name, value in zip(owner_keys, owner_values) if not value]
         raise RuntimeError("OWNER_DRIVE_OAUTH_INCOMPLETE: missing " + ",".join(missing))
-    if raw_oauth:
-        try:
-            info = json.loads(raw_oauth)
-            creds = Credentials.from_authorized_user_info(info, scopes=scopes)
-            if not creds.valid and creds.refresh_token:
-                creds.refresh(Request())
-            if not creds.valid:
-                raise RuntimeError("NABIL_DRIVE_OAUTH_REFRESH_REQUIRED")
-        except (ValueError, KeyError, TypeError) as exc:
-            raise RuntimeError("NABIL_DRIVE_OAUTH_TOKEN_INVALID: check Railway secret JSON") from exc
-        return build("drive", "v3", credentials=creds, cache_discovery=False)
 
     # Keep existing read-only source access for index-only operations.
     try:
@@ -3302,7 +3510,9 @@ def extract_page_text_robust(doc, page_num: int, lesson_id: str, book_id: str, c
             "lesson_id": lesson_id,
             "book_id": book_id,
             "pdf_page": page_num,
-        })
+        },
+        operation=f"page_text_vision_p{page_num}",
+        unit_id=f"page:{page_num}:text")
     return json.loads(res).get("text", "")
 
 
@@ -3415,7 +3625,9 @@ def extract_multimodal_page_figures(doc, page_num: int, cache_dir: Path,
                     "lesson_id": lesson_id,
                     "book_id": book_id,
                     "pdf_page": page_num,
-                })
+                },
+                operation=f"page_figure_detection_p{page_num}",
+                unit_id=f"page:{page_num}:figures")
             vision_provenance = get_last_llm_provenance()
             try:
                 proposed = json.loads(raw_figures)
@@ -3643,7 +3855,9 @@ def rescue_missing_labeled_figures(doc, page_num: int, cache_dir: Path,
             "lesson_id": lesson_id,
             "book_id": book_id,
             "pdf_page": page_num,
-        })
+        },
+        operation=f"figure_rescue_p{page_num}",
+        unit_id=f"page:{page_num}:figure_rescue")
     rescue_provenance = get_last_llm_provenance()
     candidates = _normalize_targeted_figure_payload(
         json.loads(raw), page_num)
@@ -4043,6 +4257,41 @@ def verify_title_double_evidence_strict(doc, entry: dict, opening_txt: str) -> b
             if toc_txt:
                 cache.write_text(toc_txt, encoding="utf-8")
     toc_normalized = re.sub(r"[^\w]+", " ", toc_txt.casefold())
+
+    # Dense page OCR (PSM 3) can miss short first-row titles on graphical TOC
+    # pages even while correctly reading "TABLE OF CONTENTS". Before failing,
+    # re-read the exact same catalogued TOC page locally with sparse modes.
+    # This preserves strict double evidence; it does not infer a title from a
+    # filename, manifest, or model.
+    if title_clean not in toc_normalized and shutil.which("tesseract"):
+        import fitz
+        page = doc[toc_page - 1]
+        with tempfile.TemporaryDirectory(prefix="nabil_toc_title_ocr_") as temp_dir:
+            image_path = Path(temp_dir) / "toc_title.png"
+            page.get_pixmap(dpi=260).save(str(image_path))
+            sparse_parts = []
+            for psm in (11, 12, 6):
+                proc = subprocess.run(
+                    ["tesseract", str(image_path), "stdout", "-l", "eng+fra",
+                     "--psm", str(psm)],
+                    capture_output=True, text=True, timeout=45,
+                )
+                if proc.returncode == 0 and proc.stdout.strip():
+                    sparse_parts.append(proc.stdout)
+                    sparse_normalized = re.sub(
+                        r"[^\w]+", " ", proc.stdout.casefold())
+                    if title_clean in sparse_normalized:
+                        progress(
+                            "TITLE_TOC_SPARSE_OCR_VERIFIED",
+                            page=toc_page,
+                            title=entry["canonical_title"],
+                            psm=psm,
+                        )
+                        toc_txt = toc_txt + "\n" + proc.stdout
+                        toc_normalized = re.sub(
+                            r"[^\w]+", " ", toc_txt.casefold())
+                        break
+
     return title_clean in toc_normalized and (
         "chapter" in toc_normalized or "chapitre" in toc_normalized
         or "contents" in toc_normalized or "فهرس" in toc_normalized
@@ -4111,6 +4360,8 @@ def _execute_llm_json_strict(
             vision_context=vision_context,
             preferred_provider_override=preferred_retry_provider,
             excluded_providers=malformed_providers,
+            operation=purpose,
+            unit_id=purpose,
         )
         try:
             return json.loads(raw)
@@ -4320,8 +4571,9 @@ def _rescue_unverified_exercise(
     }
 
 
-def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
-                                   book_id: str, cache_dir: Path) -> List[dict]:
+def extract_scanned_page_exercises(
+        doc, page_num: int, lesson_id: str, book_id: str, cache_dir: Path,
+        *, drive_service=None, checkpoint_root=None, entry=None) -> List[dict]:
     """Read numbered exercise regions from the real page image, not OCR digits.
 
     Scanned textbooks frequently use circled numbers in two columns, which
@@ -4332,6 +4584,16 @@ def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
     page = doc[page_num - 1]
     image_bytes = page.get_pixmap(dpi=200).tobytes("png")
     page_b64 = base64.b64encode(image_bytes).decode("ascii")
+
+    # Durable *stage* checkpoints: a provider pause during the independent
+    # review must never force the expensive extraction pass to run again.
+    # This is separate from the final EXERCISES page checkpoint, which is only
+    # written after both passes and all item-level verification succeed.
+    stage_cp = None
+    source_page_hash = hashlib.sha256(
+        page.get_pixmap(dpi=72).samples).hexdigest()
+    if drive_service is not None and checkpoint_root and entry is not None:
+        from scripts import nabil_page_checkpoint as stage_cp
     instruction = (
         "Read this school textbook page, paying attention to TWO-COLUMN reading "
         "order and circled exercise numbers. Return JSON with exercises array. "
@@ -4348,17 +4610,34 @@ def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
         "numbers with exercise numbers. Preserve table entries and all "
         "instructions. Do not invent any text. No numbered exercises -> []."
     )
-    extracted = _execute_llm_json_strict(
-        instruction,
-        image_base64=page_b64,
-        vision_context={
-            "lesson_id": lesson_id,
-            "book_id": book_id,
-            "pdf_page": page_num,
-        },
-        purpose=f"exercise_scan_p{page_num}",
+    scan_unit = f"page:{page_num}"
+    scan_record = (
+        stage_cp.load_paid_unit(
+            drive_service, checkpoint_root, entry,
+            operation="exercise_scan",
+            unit_id=scan_unit,
+            source_hash=source_page_hash,
+            prompt_version=EXERCISE_SCAN_PROMPT_VERSION,
+        ) if stage_cp else None
     )
-    extraction_provenance = get_last_llm_provenance()
+    if isinstance(scan_record, dict) and "data" in scan_record:
+        extracted = scan_record["data"]
+        extraction_provenance = dict(
+            scan_record.get("provenance") or {})
+        progress("EXERCISE_SCAN_STAGE_RESTORED_FROM_DRIVE",
+                 page=page_num)
+    else:
+        extracted = _execute_llm_json_strict(
+            instruction,
+            image_base64=page_b64,
+            vision_context={
+                "lesson_id": lesson_id,
+                "book_id": book_id,
+                "pdf_page": page_num,
+            },
+            purpose=f"exercise_scan_p{page_num}",
+        )
+        extraction_provenance = get_last_llm_provenance()
     rows = _normalize_exercise_scan_payload(extracted, page_num)
     if not rows:
         # A first-pass page read may miss small circled exercise numbers or a
@@ -4387,20 +4666,48 @@ def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
             purpose=f"exercise_scan_highres_rescue_p{page_num}",
         )
         rows = _normalize_exercise_scan_payload(rescued_scan, page_num)
+        extracted = rescued_scan
+        extraction_provenance = get_last_llm_provenance()
+        page_b64 = highres_b64
         if rows:
-            extraction_provenance = get_last_llm_provenance()
-            page_b64 = highres_b64
             progress(
                 "EXERCISE_PAGE_HIGHRES_RESCUE_ACCEPTED",
                 page=page_num,
                 exercise_candidates=len(rows),
             )
         else:
+            if stage_cp:
+                stage_cp.save_paid_unit(
+                    drive_service, checkpoint_root, entry,
+                    operation="exercise_scan",
+                    unit_id=scan_unit,
+                    source_hash=source_page_hash,
+                    prompt_version=EXERCISE_SCAN_PROMPT_VERSION,
+                    payload={"data": extracted,
+                             "provenance": extraction_provenance},
+                    provenance=extraction_provenance,
+                )
+                progress("EXERCISE_SCAN_STAGE_SAVED_TO_DRIVE",
+                         page=page_num, count=0)
             progress(
                 "EXERCISE_PAGE_HIGHRES_RESCUE_EMPTY",
                 page=page_num,
             )
             return []
+    if stage_cp and scan_record is None:
+        stage_cp.save_paid_unit(
+            drive_service, checkpoint_root, entry,
+            operation="exercise_scan",
+            unit_id=scan_unit,
+            source_hash=source_page_hash,
+            prompt_version=EXERCISE_SCAN_PROMPT_VERSION,
+            payload={"data": extracted,
+                     "provenance": extraction_provenance},
+            provenance=extraction_provenance,
+        )
+        progress("EXERCISE_SCAN_STAGE_SAVED_TO_DRIVE",
+                 page=page_num, count=len(rows))
+
     audit_prompt = (
         "Independently compare these exercise transcriptions to the PROVIDED "
         "original source page image. Return JSON: "
@@ -4414,17 +4721,38 @@ def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
         "No favorable assumptions. Transcriptions: "
         + json.dumps(rows, ensure_ascii=False)
     )
-    review = _execute_llm_json_strict(
-        audit_prompt,
-        image_base64=page_b64,
-        vision_context={
-            "lesson_id": lesson_id,
-            "book_id": book_id,
-            "pdf_page": page_num,
-        },
-        purpose=f"exercise_review_p{page_num}",
+    review_source_hash = hashlib.sha256(
+        (source_page_hash + "|" + json.dumps(
+            rows, sort_keys=True, ensure_ascii=False, default=str)
+        ).encode("utf-8")).hexdigest()
+    review_unit = f"page:{page_num}"
+    review_record = (
+        stage_cp.load_paid_unit(
+            drive_service, checkpoint_root, entry,
+            operation="exercise_review",
+            unit_id=review_unit,
+            source_hash=review_source_hash,
+            prompt_version=EXERCISE_REVIEW_PROMPT_VERSION,
+        ) if stage_cp else None
     )
-    audit_provenance = get_last_llm_provenance()
+    if isinstance(review_record, dict) and "data" in review_record:
+        review = review_record["data"]
+        audit_provenance = dict(
+            review_record.get("provenance") or {})
+        progress("EXERCISE_REVIEW_STAGE_RESTORED_FROM_DRIVE",
+                 page=page_num)
+    else:
+        review = _execute_llm_json_strict(
+            audit_prompt,
+            image_base64=page_b64,
+            vision_context={
+                "lesson_id": lesson_id,
+                "book_id": book_id,
+                "pdf_page": page_num,
+            },
+            purpose=f"exercise_review_p{page_num}",
+        )
+        audit_provenance = get_last_llm_provenance()
     checks = _normalize_exercise_review_payload(review, page_num)
 
     # Do not interpret an incomplete audit schema as a source rejection. Ask
@@ -4502,6 +4830,20 @@ def extract_scanned_page_exercises(doc, page_num: int, lesson_id: str,
             page=page_num,
             checks=len(checks),
         )
+
+    if stage_cp and review_record is None:
+        stage_cp.save_paid_unit(
+            drive_service, checkpoint_root, entry,
+            operation="exercise_review",
+            unit_id=review_unit,
+            source_hash=review_source_hash,
+            prompt_version=EXERCISE_REVIEW_PROMPT_VERSION,
+            payload={"data": checks,
+                     "provenance": audit_provenance},
+            provenance=audit_provenance,
+        )
+        progress("EXERCISE_REVIEW_STAGE_SAVED_TO_DRIVE",
+                 page=page_num, checks=len(checks))
 
     approved = {
         int(x["number"]): x
@@ -4785,6 +5127,7 @@ def build_nabil_explanatory_redrawing(
         purpose=f"{purpose}_plan_p{page_num}",
         max_attempts=3,
     )
+    plan_provenance = dict(get_last_llm_provenance())
     if not isinstance(plan, dict) or plan.get("needed") is not True:
         progress(
             "NABIL_EXPLANATORY_REDRAW_NOT_BUILT",
@@ -4856,6 +5199,7 @@ def build_nabil_explanatory_redrawing(
         purpose=f"{purpose}_audit_p{page_num}",
         max_attempts=3,
     )
+    audit_provenance = dict(get_last_llm_provenance())
     if not isinstance(audit, dict) or not (
         audit.get("approved") is True
         and audit.get("all_claims_traceable") is True
@@ -4886,6 +5230,10 @@ def build_nabil_explanatory_redrawing(
         "svg": svg,
         "source_text_sha256": hashlib.sha256(source_text.encode("utf-8")).hexdigest(),
         "used_source_figure_as_hidden_evidence": bool(figure_b64),
+        "ai_provenance": {
+            "plan": plan_provenance,
+            "audit": audit_provenance,
+        },
     }
 
 
@@ -4934,6 +5282,7 @@ def build_text_grounded_exercise_diagram(
     )
     plan = _execute_llm_json_strict(
         request, purpose=f"text_diagram_plan_p{page_num}")
+    plan_provenance = dict(get_last_llm_provenance())
     if not isinstance(plan, dict) or plan.get("reconstructable") is not True:
         progress(
             "TEXT_DIAGRAM_RECONSTRUCTION_NOT_POSSIBLE",
@@ -4986,6 +5335,7 @@ def build_text_grounded_exercise_diagram(
     )
     audit = _execute_llm_json_strict(
         audit_prompt, purpose=f"text_diagram_audit_p{page_num}")
+    audit_provenance = dict(get_last_llm_provenance())
     if not isinstance(audit, dict) or not (
             audit.get("approved") is True
             and audit.get("all_claims_traceable") is True
@@ -5013,6 +5363,10 @@ def build_text_grounded_exercise_diagram(
         "svg": svg,
         "source_text_sha256": hashlib.sha256(
             source_blob.encode("utf-8")).hexdigest(),
+        "ai_provenance": {
+            "plan": plan_provenance,
+            "audit": audit_provenance,
+        },
     }
 
 
@@ -5297,7 +5651,10 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
                          page=page_num, count=len(rows))
             else:
                 rows = extract_scanned_page_exercises(
-                    doc, page_num, lesson_id, book_id, lesson_cache)
+                    doc, page_num, lesson_id, book_id, lesson_cache,
+                    drive_service=drive_service,
+                    checkpoint_root=checkpoint_root,
+                    entry=entry)
                 if page_checkpoints:
                     # Two independent source-image reads already confirmed
                     # the exact text/bbox for every returned exercise.
@@ -5369,22 +5726,62 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
                     f["image_path"] for f in p["figures"]
                     if f["figure_id"] in refs and f.get("image_path")
                 ]
-                try:
-                    reconstructed = build_nabil_explanatory_redrawing(
-                        source_text=(
-                            str(content) + "\n" +
-                            "\n".join(str(x) for x in subqs)
-                        ),
-                        page_num=page_num,
-                        figure_paths=source_figure_paths,
-                        vision_context={
-                            "lesson_id": lesson_id,
-                            "book_id": book_id,
-                            "pdf_page": page_num,
-                        } if source_figure_paths else None,
-                        purpose=f"exercise_{kind}_{number}",
-                        visual_required=True,
+                redraw_unit = f"p{page_num}_{kind}_{number}"
+                redraw_source_hash = hashlib.sha256(json.dumps({
+                    "prompt": str(content),
+                    "subquestions": [str(x) for x in subqs],
+                    "figure_hashes": [
+                        f.get("image_sha256") for f in p["figures"]
+                        if f["figure_id"] in refs
+                    ],
+                }, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
+                if page_checkpoints:
+                    reconstructed = page_checkpoints.load_paid_unit(
+                        drive_service, checkpoint_root, entry,
+                        operation="explanatory_redrawing",
+                        unit_id=redraw_unit,
+                        source_hash=redraw_source_hash,
+                        prompt_version=REDRAW_PROMPT_VERSION,
                     )
+                    if reconstructed is not None:
+                        progress(
+                            "EXPLANATORY_REDRAW_RESTORED_FROM_DRIVE",
+                            page=page_num, number=number, unit_id=redraw_unit)
+                try:
+                    if reconstructed is None:
+                        reconstructed = build_nabil_explanatory_redrawing(
+                            source_text=(
+                                str(content) + "\n" +
+                                "\n".join(str(x) for x in subqs)
+                            ),
+                            page_num=page_num,
+                            figure_paths=source_figure_paths,
+                            vision_context={
+                                "lesson_id": lesson_id,
+                                "book_id": book_id,
+                                "pdf_page": page_num,
+                            } if source_figure_paths else None,
+                            purpose=f"exercise_{kind}_{number}",
+                            visual_required=True,
+                        )
+                        if reconstructed is not None and page_checkpoints:
+                            prov = (
+                                reconstructed.get("ai_provenance", {})
+                                .get("audit", {})
+                            )
+                            page_checkpoints.save_paid_unit(
+                                drive_service, checkpoint_root, entry,
+                                operation="explanatory_redrawing",
+                                unit_id=redraw_unit,
+                                source_hash=redraw_source_hash,
+                                prompt_version=REDRAW_PROMPT_VERSION,
+                                payload=reconstructed,
+                                provenance=prov,
+                            )
+                            progress(
+                                "EXPLANATORY_REDRAW_SAVED_TO_DRIVE",
+                                page=page_num, number=number,
+                                unit_id=redraw_unit)
                 except RuntimeError as exc:
                     # Exercise-level redraw evidence failure must not abort the
                     # whole lesson. Keep the universal fail-closed rule: reject
@@ -5611,7 +6008,12 @@ def generate_ai_practice_for_insufficient_book_exercises(
 
         try:
             generated = json.loads(execute_llm_completion(
-                generator_prompt, json_mode=True, temperature=0.2))
+                generator_prompt, json_mode=True, temperature=0.2,
+                operation=f"ai_practice_generate_round_{round_no}",
+                unit_id=f"ai_practice:round:{round_no}"))
+        except (ProviderDailyQuotaError, ProviderTransientError,
+                ProviderUnavailableError, NeedsAttentionError):
+            raise
         except Exception as exc:
             rejected_reasons.append(f"AI generator unavailable: {exc}")
             progress(
@@ -5665,7 +6067,12 @@ def generate_ai_practice_for_insufficient_book_exercises(
             )
             try:
                 verdict = json.loads(execute_llm_completion(
-                    gate_prompt, json_mode=True, temperature=0.0))
+                    gate_prompt, json_mode=True, temperature=0.0,
+                    operation=f"ai_practice_gate_round_{round_no}",
+                    unit_id=f"ai_practice_gate:round:{round_no}"))
+            except (ProviderDailyQuotaError, ProviderTransientError,
+                    ProviderUnavailableError, NeedsAttentionError):
+                raise
             except Exception as exc:
                 rejected_reasons.append(f"scientific gate unavailable: {exc}")
                 progress(
@@ -6008,6 +6415,9 @@ def grounded_subject_solver(exercise: dict, evidence_map: dict, profile: dict) -
         }
         cleaned["source_scope_audited"] = True
         return cleaned
+    except (ProviderDailyQuotaError, ProviderTransientError,
+            ProviderUnavailableError, NeedsAttentionError):
+        raise
     except Exception as e:
         raise RuntimeError(
             "PRE_SOLVE_FAILED: grounded solver unavailable or failed for "
@@ -6019,7 +6429,12 @@ def prepare_verified_solutions(entry: dict, exercises: list,
                                profile: dict, ev_map: dict,
                                drive_service=None,
                                persist: bool = False) -> None:
-    """Solve once, persist each verified result, and resume independently."""
+    """Solve once, checkpoint each verified exercise, and resume independently.
+
+    Provider/transient failures pause the lesson; they are never converted into
+    OMITTED_UNVERIFIED.  Scientific/source validation failures keep the original
+    item-level fail-closed omission policy.
+    """
     page_checkpoints = None
     checkpoint_root = None
     if persist:
@@ -6031,6 +6446,7 @@ def prepare_verified_solutions(entry: dict, exercises: list,
     for ex in exercises:
         if ex.get("solution_mode") != "PRE_SOLVED":
             continue
+        unit_id = str(ex.get("exercise_id") or ex.get("number") or "exercise")
         cached = None
         if page_checkpoints:
             cached = page_checkpoints.load_solution(
@@ -6048,6 +6464,15 @@ def prepare_verified_solutions(entry: dict, exercises: list,
         except RuntimeError as exc:
             if not str(exc).startswith("PRE_SOLVE_FAILED"):
                 raise
+            _raise_if_provider_pause_required(
+                entry, drive_service,
+                unit_id=unit_id,
+                operation="exercise_solution",
+                exc=exc,
+            )
+            # Reaching here means the failure was not a provider availability,
+            # quota, request-shape, or content-refusal class. Preserve the
+            # scientific/source fail-closed item policy.
             ex["solution_status"] = "OMITTED_UNVERIFIED"
             ex["_pre_solved_solution"] = None
             ex["solution_omission_reason"] = str(exc)[:500]
@@ -6058,14 +6483,16 @@ def prepare_verified_solutions(entry: dict, exercises: list,
                 reason=str(exc)[:240],
             )
             continue
+
         ex["_pre_solved_solution"] = sol
         if page_checkpoints:
             page_checkpoints.save_solution(
                 drive_service, checkpoint_root, entry, ex, sol)
+            # save_solution performs remote read-back verification; failure is
+            # fail-closed and propagates as CheckpointWriteError.
             progress("SOLUTION_SAVED_TO_DRIVE",
                      exercise_id=ex.get("exercise_id"),
                      number=ex.get("number"))
-
 
 
 def retain_only_verified_solved_exercises(
@@ -6288,6 +6715,9 @@ def sanitize_generated_narrative(
             vision_context=vision_context,
             purpose=f"narrative_scope_audit_{concept.get('concept_id')}",
         )
+    except (ProviderDailyQuotaError, ProviderTransientError,
+            ProviderUnavailableError, NeedsAttentionError):
+        raise
     except Exception as exc:
         progress(
             "GENERATED_NARRATIVE_AUDIT_FAILED_CONTENT_REMOVED",
@@ -6406,7 +6836,9 @@ def synthesize_concept_narrative(
         res = execute_llm_completion(
             prompt, json_mode=True, temperature=0.0,
             image_base64=figure_image_base64,
-            vision_context=vision_context)
+            vision_context=vision_context,
+            operation=f"concept_narrative_{concept.get('concept_id')}",
+            unit_id=str(concept.get("concept_id") or "concept"))
         parsed = json.loads(res)
         for k in ["phenomenon", "investigation", "observation", "interpretation", "conclusion", "distractor_1", "distractor_2"]:
             if not parsed.get(k):
@@ -6476,9 +6908,12 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
         "Every proof step MUST contain title,text,formula,target_ids,reveal_marks,evidence_quote; evidence_quote must be an exact SOURCE quote. "
         "In target_ids use ONLY a mark id, point:<point label>, or segment:<segment id>; order target_ids to match the spoken sentences so the teacher arrow follows the sentence meaning. "
         "Never add an equality tick, equal-angle arc, right-angle square, parallel arrow, midpoint mark, congruence implication or symmetry effect merely because the sketch looks that way.\n"
-        "8) EVIDENCE_SEQUENCE: for ANY subject when SOURCE explicitly gives two or more ordered or structurally related evidence-backed ideas, parts, stages, transformations, constructions, grammatical steps, historical developments, geographic relations, or other explainable sequence that can be highlighted or animated without inventing a missing fact. "
+        "8) PROCEDURE_OBSERVATION: prefer this when SOURCE explicitly describes a practical experiment, investigation, hands-on procedure, materials/apparatus, ordered actions, and/or observable outcomes. "
+        "Required: procedure_steps=[{label,evidence_quote}] with 1..8 exact SOURCE-backed steps; observations=[{label,evidence_quote}] with 1..6 exact SOURCE-backed observations; materials=[{label,evidence_quote}] is optional and may contain ONLY materials/apparatus explicitly named by SOURCE. "
+        "Never invent apparatus, quantities, safety instructions, control variables, measurements, outcomes, or procedural steps. If SOURCE does not state them, omit them.\n"
+        "9) EVIDENCE_SEQUENCE: for ANY subject when SOURCE explicitly gives two or more ordered or structurally related evidence-backed ideas, parts, stages, transformations, constructions, grammatical steps, historical developments, geographic relations, or other explainable sequence that can be highlighted or animated without inventing a missing fact. "
         "Required field: steps=[{label:str,evidence_quote:str}] with 2..8 ordered steps; every evidence_quote must be an exact contiguous SOURCE quote.\n"
-        "9) EVIDENCE_REVEAL: universal fallback for ANY subject/concept when no richer lab kind fits. "
+        "10) EVIDENCE_REVEAL: universal fallback for ANY subject/concept when no richer lab kind fits. "
         "Use 1..8 exact SOURCE-backed items and reveal/highlight them interactively. "
         "Required field: items=[{label:str,evidence_quote:str}], each evidence_quote an exact contiguous SOURCE quote. "
         "This means every concept can still have a real interactive lab without inventing science.\n"
@@ -6493,9 +6928,13 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
         "For every domain, animate/reveal a result only after its evidence-backed conditions are established. "
         "All states/actions/constraints come from SOURCE or verified FIGURE; never invent science for animation.\n"
         "Student-facing title/instructions/observation must stay within the scientific meaning of the evidence.\n"
+        "AGE APPROPRIATENESS: Grades 1-3 use one short concrete action/observation at a time and minimal text; Grades 4-9 use a guided prediction/procedure/observation flow; Grades 10-12 may use rigorous variables, relations, and interpretation ONLY when those details are explicitly supported by SOURCE. "
+        "Age adaptation changes wording and interaction pacing only; it must never add scientific content.\n"
         + narrative_language_instruction(lang_code) + "\n\n"
         f"CONCEPT_ID: {concept['concept_id']}\n"
         f"SUBJECT: {profile['subject']}\n"
+        f"GRADE: {profile.get('grade', entry.get('grade', ''))}\n"
+        f"PEDAGOGY_LEVEL: {profile.get('level', '')}\n"
         f"SOURCE: {concept.get('raw_text','')}\n"
         f"MATH_RECORDS: {json.dumps(math_records, ensure_ascii=False)}\n"
         f"GROUNDED_NARRATIVE: {json.dumps(narrative, ensure_ascii=False)}\n\n"
@@ -6506,6 +6945,7 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
         "ORIENTATION_INVARIANT additionally: invariant_orientation ('horizontal'|'vertical'). "
         "SHAPE_RESPONSE additionally: behavior ('fixed'|'conforms'). "
         "GEOMETRY_PROOF additionally uses the exact points/segments/marks/proof_steps schema above. "
+        "PROCEDURE_OBSERVATION additionally: materials=[{label,evidence_quote}] optional, procedure_steps=[{label,evidence_quote}], observations=[{label,evidence_quote}]. "
         "EVIDENCE_SEQUENCE additionally: steps=[{label,evidence_quote}]. "
         "EVIDENCE_REVEAL additionally: items=[{label,evidence_quote}]. "
         "Advanced science kinds must include the exact fields listed above plus evidence_quotes."
@@ -6518,6 +6958,9 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
             purpose=f"lab_spec_{concept.get('concept_id')}",
             max_attempts=3,
         )
+    except (ProviderDailyQuotaError, ProviderTransientError,
+            ProviderUnavailableError, NeedsAttentionError):
+        raise
     except Exception as exc:
         raise RuntimeError(f"LAB_SPEC_JSON_INVALID: {exc}") from exc
 
@@ -6558,6 +7001,12 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
                 {"say": str(concept.get("title") or "Observe the verified evidence."), "target_ids": ["evidence:0"], "action": "point",
                  "state_before": {"revealed_index": -1}, "state_after": {"revealed_index": 0},
                  "scientific_constraints": ["Reveal only verified source evidence."], "evidence_quote": fallback_quote},
+                {"say": str(concept.get("title") or "Focus on the verified evidence."), "target_ids": ["evidence:0"], "action": "highlight",
+                 "state_before": {"revealed_index": 0}, "state_after": {"revealed_index": 0},
+                 "scientific_constraints": ["Highlight only verified source evidence."], "evidence_quote": fallback_quote},
+                {"say": str(narrative.get("observation") or concept.get("title") or "Observe the verified evidence."), "target_ids": ["evidence:0"], "action": "observe",
+                 "state_before": {"revealed_index": 0}, "state_after": {"revealed_index": 0},
+                 "scientific_constraints": ["Do not exceed verified source evidence."], "evidence_quote": fallback_quote},
                 {"say": str(narrative.get("conclusion") or narrative.get("observation") or concept.get("title") or "Conclude from the verified evidence."),
                  "target_ids": ["evidence:0"], "action": "conclude",
                  "state_before": {"revealed_index": 0}, "state_after": {"revealed_index": 0},
@@ -6643,6 +7092,9 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
                     # other scientific field from the repair response.
                     repaired = dict(spec)
                     repaired["teacher_script"] = candidate_script
+        except (ProviderDailyQuotaError, ProviderTransientError,
+                ProviderUnavailableError, NeedsAttentionError):
+            raise
         except Exception as exc:
             progress(
                 "LAB_TEACHER_SCRIPT_REPAIR_PROVIDER_FAILED",
@@ -6812,6 +7264,25 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
                 raise RuntimeError(
                     f"LAB_GEOMETRY_STEP_EVIDENCE_NOT_FOUND:{index}")
 
+    if kind == "PROCEDURE_OBSERVATION":
+        source_norm = _normalized_lab_evidence(concept.get("raw_text", ""))
+        groups = (
+            ("materials", spec.get("materials") or [], 0, 8),
+            ("procedure_steps", spec.get("procedure_steps"), 1, 8),
+            ("observations", spec.get("observations"), 1, 6),
+        )
+        for group_name, group_items, minimum, maximum in groups:
+            if not isinstance(group_items, list) or not minimum <= len(group_items) <= maximum:
+                raise RuntimeError(f"LAB_PROCEDURE_{group_name.upper()}_INVALID")
+            for index, item in enumerate(group_items):
+                if not isinstance(item, dict):
+                    raise RuntimeError(f"LAB_PROCEDURE_{group_name.upper()}_ITEM_INVALID:{index}")
+                label = str(item.get("label") or "").strip()
+                quote = _normalized_lab_evidence(item.get("evidence_quote", ""))
+                if not label or not quote or quote not in source_norm:
+                    raise RuntimeError(
+                        f"LAB_PROCEDURE_{group_name.upper()}_EVIDENCE_NOT_FOUND:{index}")
+
     if kind == "EVIDENCE_SEQUENCE":
         steps = spec.get("steps")
         if not isinstance(steps, list) or not 2 <= len(steps) <= 8:
@@ -6882,6 +7353,15 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
         spec,
         lesson_id=str(entry.get("lesson_id") or ""),
         lab_id=str(concept.get("concept_id") or ""),
+    )
+    # Grades 1-12 science/mathematics coverage contract. This adds no science:
+    # it only certifies that the already R5-passed lab belongs to a covered
+    # curriculum cell and remains source-locked.
+    spec = validate_and_annotate_curriculum_lab(
+        spec,
+        entry=entry,
+        profile=profile,
+        concept=concept,
     )
     return spec
 
@@ -7097,9 +7577,18 @@ def render_whole_lesson_smart_lab(
 </section>'''
 
 
-def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> dict:
+def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict,
+                                  drive_service=None) -> dict:
     title = entry["canonical_title"]
     concepts = ev_map["concepts"]
+
+    theory_checkpoints = None
+    theory_checkpoint_root = None
+    if drive_service is not None:
+        theory_checkpoint_root = str(
+            os.getenv("NABIL_CURRICULUM_ROOT_ID") or "").strip() or None
+        if theory_checkpoint_root:
+            from scripts import nabil_page_checkpoint as theory_checkpoints
 
     activities_theory = []
     worksheet = []
@@ -7141,15 +7630,82 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
             "book_id": entry["book_id"],
             "pdf_page": p_num,
         } if figure_image_base64 else None)
-        narrative = synthesize_concept_narrative(
-            c, profile, figure_image_base64,
-            vision_context=vision_context)
+        concept_source_hash = hashlib.sha256(json.dumps({
+            "raw_text": c.get("raw_text", ""),
+            "figure_refs": list(c.get("figure_refs") or []),
+            "figure_hashes": [
+                f.get("image_sha256")
+                for p in ev_map.get("pages_evidence", [])
+                if p.get("page_num") == p_num
+                for f in p.get("figures", [])
+                if f.get("figure_id") in (c.get("figure_refs") or [])
+            ],
+        }, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
+
+        narrative = None
+        if theory_checkpoints:
+            narrative = theory_checkpoints.load_paid_unit(
+                drive_service, theory_checkpoint_root, entry,
+                operation="concept_narrative",
+                unit_id=c["concept_id"],
+                source_hash=concept_source_hash,
+                prompt_version=CONCEPT_NARRATIVE_PROMPT_VERSION,
+            )
+            if narrative is not None:
+                progress("CONCEPT_NARRATIVE_RESTORED_FROM_DRIVE",
+                         concept_id=c["concept_id"])
+        if narrative is None:
+            narrative = synthesize_concept_narrative(
+                c, profile, figure_image_base64,
+                vision_context=vision_context)
+            if theory_checkpoints:
+                theory_checkpoints.save_paid_unit(
+                    drive_service, theory_checkpoint_root, entry,
+                    operation="concept_narrative",
+                    unit_id=c["concept_id"],
+                    source_hash=concept_source_hash,
+                    prompt_version=CONCEPT_NARRATIVE_PROMPT_VERSION,
+                    payload=narrative,
+                    provenance=get_last_llm_provenance(),
+                )
+                progress("CONCEPT_NARRATIVE_SAVED_TO_DRIVE",
+                         concept_id=c["concept_id"])
+
+        lab_source_hash = hashlib.sha256(json.dumps({
+            "concept_source_hash": concept_source_hash,
+            "narrative": narrative,
+        }, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
+        lab_spec = None
+        if theory_checkpoints:
+            lab_spec = theory_checkpoints.load_paid_unit(
+                drive_service, theory_checkpoint_root, entry,
+                operation="lab_spec",
+                unit_id=c["concept_id"],
+                source_hash=lab_source_hash,
+                prompt_version=LAB_SPEC_PROMPT_VERSION,
+            )
+            if lab_spec is not None:
+                progress("LAB_SPEC_RESTORED_FROM_DRIVE",
+                         concept_id=c["concept_id"])
 
         try:
-            lab_spec = build_verified_lab_spec(
-                entry, c, narrative, profile,
-                figure_image_base64=figure_image_base64,
-                vision_context=vision_context)
+            if lab_spec is None:
+                lab_spec = build_verified_lab_spec(
+                    entry, c, narrative, profile,
+                    figure_image_base64=figure_image_base64,
+                    vision_context=vision_context)
+                if theory_checkpoints:
+                    theory_checkpoints.save_paid_unit(
+                        drive_service, theory_checkpoint_root, entry,
+                        operation="lab_spec",
+                        unit_id=c["concept_id"],
+                        source_hash=lab_source_hash,
+                        prompt_version=LAB_SPEC_PROMPT_VERSION,
+                        payload=lab_spec,
+                        provenance=get_last_llm_provenance(),
+                    )
+                    progress("LAB_SPEC_SAVED_TO_DRIVE",
+                             concept_id=c["concept_id"])
         except RuntimeError as exc:
             reason = str(exc)
             if not reason.startswith("LAB_"):
@@ -7170,14 +7726,45 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
 
         concept_visual = None
         if not concept_has_sim:
-            concept_visual = build_nabil_explanatory_redrawing(
-                source_text=c.get("raw_text", ""),
-                page_num=p_num,
-                figure_paths=fig_images,
-                vision_context=vision_context,
-                purpose=f"concept_{c['concept_id']}",
-                visual_required=bool(c.get("figure_refs")),
-            )
+            visual_source_hash = concept_source_hash
+            if theory_checkpoints:
+                concept_visual = theory_checkpoints.load_paid_unit(
+                    drive_service, theory_checkpoint_root, entry,
+                    operation="concept_explanatory_redrawing",
+                    unit_id=c["concept_id"],
+                    source_hash=visual_source_hash,
+                    prompt_version=REDRAW_PROMPT_VERSION,
+                )
+                if concept_visual is not None:
+                    progress(
+                        "CONCEPT_REDRAW_RESTORED_FROM_DRIVE",
+                        concept_id=c["concept_id"])
+            if concept_visual is None:
+                concept_visual = build_nabil_explanatory_redrawing(
+                    source_text=c.get("raw_text", ""),
+                    page_num=p_num,
+                    figure_paths=fig_images,
+                    vision_context=vision_context,
+                    purpose=f"concept_{c['concept_id']}",
+                    visual_required=bool(c.get("figure_refs")),
+                )
+                if concept_visual is not None and theory_checkpoints:
+                    prov = (
+                        concept_visual.get("ai_provenance", {})
+                        .get("audit", {})
+                    )
+                    theory_checkpoints.save_paid_unit(
+                        drive_service, theory_checkpoint_root, entry,
+                        operation="concept_explanatory_redrawing",
+                        unit_id=c["concept_id"],
+                        source_hash=visual_source_hash,
+                        prompt_version=REDRAW_PROMPT_VERSION,
+                        payload=concept_visual,
+                        provenance=prov,
+                    )
+                    progress(
+                        "CONCEPT_REDRAW_SAVED_TO_DRIVE",
+                        concept_id=c["concept_id"])
         if c.get("figure_refs") and not concept_has_sim and not concept_visual:
             raise RuntimeError(
                 f"NABIL_VISUAL_REQUIRED_BUT_NOT_VERIFIED:{c['concept_id']}:p{p_num}"
@@ -7357,6 +7944,13 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
     whole_lesson_lab_html = render_whole_lesson_smart_lab(
         title, activities_theory, lesson_lang_code)
 
+    # Fail closed if any science/mathematics concept in Grades 1-12 has no
+    # Requirement-5-locked interactive activity. Rich simulations are used
+    # when evidence supports them; evidence sequence/reveal remains the safe
+    # fallback when a physical/mathematical simulation would require invention.
+    scientific_lab_coverage = validate_lesson_scientific_lab_coverage(
+        profile, activities_theory)
+
     # Full-coverage quiz: reuses the exact grounded conclusion/distractor
     # fields already produced per concept above — no new LLM calls, no new
     # invented content, same evidence guarantee as the worksheet.
@@ -7376,6 +7970,7 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
         "reference_card_html": ref_card_html,
         "whole_lesson_lab_html": whole_lesson_lab_html,
         "whole_lesson_lab_active": bool(whole_lesson_lab_html),
+        "scientific_lab_coverage": scientific_lab_coverage,
     }
 
 
@@ -9140,13 +9735,25 @@ def independent_scientific_review(entry: dict, candidate: dict) -> dict:
     )
 
     try:
-        res = execute_llm_completion(prompt, json_mode=True, temperature=0.0)
+        res = execute_llm_completion(
+            prompt, json_mode=True, temperature=0.0,
+            operation=f"scientific_review_{entry.get('lesson_id')}",
+            unit_id=str(entry.get("lesson_id") or "lesson"))
         parsed = json.loads(res)
         if not parsed.get("approved", False):
-            raise RuntimeError(f"SCIENTIFIC_REVIEW_REJECTED: Audit failed -> {parsed.get('issues')}")
+            raise ScientificGateBlocked(
+                f"SCIENTIFIC_REVIEW_REJECTED:{parsed.get('issues')}")
         return parsed
+    except (ProviderDailyQuotaError, ProviderTransientError,
+            ProviderUnavailableError, NeedsAttentionError,
+            ScientificGateBlocked):
+        raise
     except Exception as e:
-        raise RuntimeError(f"SCIENTIFIC_REVIEW_REJECTED: reviewer unavailable or failed: {e}")
+        raise NeedsAttentionError(
+            f"SCIENTIFIC_REVIEW_UNAVAILABLE:{e}",
+            operation="scientific_review",
+            unit_id=str(entry.get("lesson_id") or "lesson"),
+            reason=str(e)) from e
 
 
 # ==============================================================================
@@ -9353,7 +9960,7 @@ def promote_candidate(candidate: dict, entry: dict, drive_service) -> Tuple[str,
 # ==============================================================================
 # PRODUCTION PIPELINE ENTRY (LAZY DRIVE RESOLUTION)
 # ==============================================================================
-def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = False) -> dict:
+def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: bool = False) -> dict:
     lesson_id = entry["lesson_id"]
     book_id = entry["book_id"]
     progress("PRODUCTION_PIPELINE_START", lesson_id=lesson_id)
@@ -9397,13 +10004,14 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
     finally:
         doc.close()
 
-    theory = synthesize_universal_pedagogy(entry, ev_map, profile)
+    theory = synthesize_universal_pedagogy(
+        entry, ev_map, profile, drive_service=drive_service)
 
     # 1) Attempt EVERY verified textbook exercise first.
     textbook_exercises = [dict(ex) for ex in ev_map["exercise_evidence"]]
     prepare_verified_solutions(
         entry, textbook_exercises, profile, ev_map,
-        drive_service=drive_service, persist=publish)
+        drive_service=drive_service, persist=(drive_service is not None))
     verified_textbook = retain_only_verified_solved_exercises(
         textbook_exercises, origin="TEXTBOOK")
     progress(
@@ -9421,7 +10029,7 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
     if generated_practice:
         prepare_verified_solutions(
             entry, generated_practice, profile, ev_map,
-            drive_service=drive_service, persist=publish)
+            drive_service=drive_service, persist=(drive_service is not None))
     verified_ai = retain_only_verified_solved_exercises(
         generated_practice, origin="AI_ADDITIONAL_PRACTICE")
 
@@ -9598,6 +10206,87 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
 # ==============================================================================
 # MAIN ENTRY POINT
 # ==============================================================================
+
+def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = False) -> dict:
+    """Single recovery boundary for every provider-dependent production stage."""
+    try:
+        return _produce_lesson_for_entry_impl(
+            entry, drive_service=drive_service, publish=publish)
+    except (ProviderDailyQuotaError, ProviderTransientError) as exc:
+        retry = max(1, int(getattr(exc, "retry_after_seconds", None) or 60))
+        operation = str(getattr(exc, "operation", None) or "provider_operation")
+        unit_id = str(getattr(exc, "unit_id", None) or operation)
+        checkpoint_drive = drive_service
+        if checkpoint_drive is None:
+            try:
+                checkpoint_drive = get_drive_service()
+            except Exception:
+                checkpoint_drive = None
+        state = _persist_factory_recovery_state(
+            entry, checkpoint_drive,
+            status=STATUS_PAUSED_TRANSIENT,
+            reason=str(getattr(exc, "reason", None) or exc),
+            unit_id=unit_id,
+            operation=operation,
+            retry_seconds=retry,
+        )
+        if state.get("status") == STATUS_NEEDS_ATTENTION:
+            capped = NeedsAttentionError(
+                state.get("reason") or "PAUSE_RESUME_CYCLE_CAP_EXCEEDED",
+                operation=operation,
+                unit_id=unit_id,
+                reason=state.get("reason"),
+            )
+            capped.state = state
+            raise capped from exc
+        exc.state = state
+        raise
+    except ProviderUnavailableError as exc:
+        operation = str(getattr(exc, "operation", None) or "provider_operation")
+        unit_id = str(getattr(exc, "unit_id", None) or operation)
+        checkpoint_drive = drive_service
+        if checkpoint_drive is None:
+            try:
+                checkpoint_drive = get_drive_service()
+            except Exception:
+                checkpoint_drive = None
+        state = _persist_factory_recovery_state(
+            entry, checkpoint_drive,
+            status=STATUS_PROVIDER_UNAVAILABLE,
+            reason=str(getattr(exc, "reason", None) or exc),
+            unit_id=unit_id,
+            operation=operation,
+        )
+        if state.get("status") == STATUS_NEEDS_ATTENTION:
+            capped = NeedsAttentionError(
+                state.get("reason") or "PAUSE_RESUME_CYCLE_CAP_EXCEEDED",
+                operation=operation,
+                unit_id=unit_id,
+                reason=state.get("reason"),
+            )
+            capped.state = state
+            raise capped from exc
+        exc.state = state
+        raise
+    except NeedsAttentionError as exc:
+        operation = str(getattr(exc, "operation", None) or "provider_operation")
+        unit_id = str(getattr(exc, "unit_id", None) or operation)
+        checkpoint_drive = drive_service
+        if checkpoint_drive is None:
+            try:
+                checkpoint_drive = get_drive_service()
+            except Exception:
+                checkpoint_drive = None
+        state = _persist_factory_recovery_state(
+            entry, checkpoint_drive,
+            status=STATUS_NEEDS_ATTENTION,
+            reason=str(getattr(exc, "reason", None) or exc),
+            unit_id=unit_id,
+            operation=operation,
+        )
+        exc.state = state
+        raise
+
 def main():
     global PROGRESS_STARTED
     PROGRESS_STARTED = time.monotonic()
@@ -9635,7 +10324,9 @@ def main():
         progress("AI_VISION_PROBE_START", image="generated_blank_64x64")
         response = execute_llm_completion(
             'Return only valid JSON: {"ok":true}', json_mode=True,
-            image_base64=base64.b64encode(sample.getvalue()).decode("ascii"))
+            image_base64=base64.b64encode(sample.getvalue()).decode("ascii"),
+            operation="ai_vision_probe",
+            unit_id="ai_vision_probe")
         json.loads(response)
         progress("AI_VISION_PROBE_PASS")
         return 0
@@ -9705,5 +10396,55 @@ def main():
     return 0
 
 
+def _cli_entry() -> int:
+    try:
+        return int(main() or 0)
+    except ProviderDailyQuotaError as exc:
+        state = getattr(exc, "state", None) or {
+            "status": STATUS_PAUSED_TRANSIENT,
+            "reason": str(exc),
+            "retry_after_seconds": getattr(exc, "retry_after_seconds", None),
+        }
+        print(json.dumps(state, ensure_ascii=False), flush=True)
+        return EXIT_PAUSED_TRANSIENT
+    except ProviderTransientError as exc:
+        state = getattr(exc, "state", None) or {
+            "status": STATUS_PAUSED_TRANSIENT,
+            "reason": str(exc),
+            "retry_after_seconds": getattr(exc, "retry_after_seconds", None),
+        }
+        print(json.dumps(state, ensure_ascii=False), flush=True)
+        return EXIT_PAUSED_TRANSIENT
+    except ProviderUnavailableError as exc:
+        state = getattr(exc, "state", None) or {
+            "status": STATUS_PROVIDER_UNAVAILABLE,
+            "reason": str(exc),
+        }
+        print(json.dumps(state, ensure_ascii=False), flush=True)
+        return EXIT_PROVIDER_UNAVAILABLE
+    except (NeedsAttentionError, CheckpointWriteError) as exc:
+        state = getattr(exc, "state", None) or {
+            "status": STATUS_NEEDS_ATTENTION,
+            "reason": str(exc),
+        }
+        print(json.dumps(state, ensure_ascii=False), flush=True)
+        return EXIT_NEEDS_ATTENTION
+    except ScientificGateBlocked as exc:
+        state = {
+            "status": "BLOCKED",
+            "reason": str(exc),
+            "blocked": True,
+        }
+        print(json.dumps(state, ensure_ascii=False), flush=True)
+        return 1
+    except Exception as exc:
+        state = {
+            "status": STATUS_NEEDS_ATTENTION,
+            "reason": f"UNEXPECTED_INTERNAL_ERROR:{type(exc).__name__}:{exc}",
+        }
+        print(json.dumps(state, ensure_ascii=False), flush=True)
+        return EXIT_NEEDS_ATTENTION
+
+
 if __name__ == "__main__":
-    main()
+    raise SystemExit(_cli_entry())

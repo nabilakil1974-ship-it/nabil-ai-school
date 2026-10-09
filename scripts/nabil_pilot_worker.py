@@ -139,15 +139,68 @@ def supervise(stop_event=None) -> None:
         try:
             if run_once(cfg):
                 return
-        except Exception as exc:
+        except (factory.ProviderDailyQuotaError,
+                factory.ProviderTransientError) as exc:
+            wait_seconds = max(
+                1, int(getattr(exc, "retry_after_seconds", None)
+                       or retry_seconds))
+            state = getattr(exc, "state", {}) or {}
             announce(
-                "AUTONOMOUS_PILOT_ATTEMPT_BLOCKED",
+                "AUTONOMOUS_PILOT_PAUSED_TRANSIENT",
                 lesson_id=cfg["lesson_id"],
                 attempt=attempts,
                 max_attempts_per_boot=max_attempts,
                 reason=str(exc)[:900],
-                retry_seconds=retry_seconds,
+                retry_seconds=wait_seconds,
+                next_retry_at=state.get("next_retry_at"),
+                unit_id=state.get("unit_id") or getattr(exc, "unit_id", None),
+                operation=state.get("operation")
+                or getattr(exc, "operation", None),
             )
+            if attempts >= max_attempts:
+                announce(
+                    "AUTONOMOUS_PILOT_PAUSED_BUDGET_GUARD",
+                    lesson_id=cfg["lesson_id"],
+                    attempts=attempts,
+                    reason="typed transient pause; resume after next_retry",
+                    next_retry_at=state.get("next_retry_at"),
+                )
+                raise SystemExit(75)
+            if stop_event is None:
+                time.sleep(wait_seconds)
+            elif stop_event.wait(wait_seconds):
+                return
+            continue
+        except factory.ProviderUnavailableError as exc:
+            announce(
+                "AUTONOMOUS_PILOT_PROVIDER_UNAVAILABLE",
+                lesson_id=cfg["lesson_id"],
+                reason=str(exc)[:900],
+            )
+            raise SystemExit(factory.EXIT_PROVIDER_UNAVAILABLE)
+        except factory.NeedsAttentionError as exc:
+            announce(
+                "AUTONOMOUS_PILOT_NEEDS_ATTENTION",
+                lesson_id=cfg["lesson_id"],
+                reason=str(exc)[:900],
+            )
+            raise SystemExit(factory.EXIT_NEEDS_ATTENTION)
+        except factory.ScientificGateBlocked as exc:
+            announce(
+                "AUTONOMOUS_PILOT_SCIENTIFIC_BLOCKED",
+                lesson_id=cfg["lesson_id"],
+                reason=str(exc)[:900],
+            )
+            raise SystemExit(1)
+        except Exception as exc:
+            announce(
+                "AUTONOMOUS_PILOT_NEEDS_ATTENTION",
+                lesson_id=cfg["lesson_id"],
+                attempt=attempts,
+                max_attempts_per_boot=max_attempts,
+                reason=str(exc)[:900],
+            )
+            raise SystemExit(factory.EXIT_NEEDS_ATTENTION)
         if attempts >= max_attempts:
             announce(
                 "AUTONOMOUS_PILOT_PAUSED_BUDGET_GUARD",

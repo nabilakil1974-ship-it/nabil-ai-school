@@ -40,7 +40,7 @@ except Exception:
 LAB_ENGINE_VERSION="NABIL_LAB_ENGINE_V1"
 REFERENCE_RENDERER_CONTRACT="NABIL_REFERENCE_RENDERER_V1"
 
-_ALLOWED_KINDS={"FORMULA_CALCULATOR","ORIENTATION_INVARIANT","SHAPE_RESPONSE","EVIDENCE_SEQUENCE","EVIDENCE_REVEAL","GEOMETRY_PROOF"} | ADVANCED_LAB_KINDS
+_ALLOWED_KINDS={"FORMULA_CALCULATOR","ORIENTATION_INVARIANT","SHAPE_RESPONSE","PROCEDURE_OBSERVATION","EVIDENCE_SEQUENCE","EVIDENCE_REVEAL","GEOMETRY_PROOF"} | ADVANCED_LAB_KINDS
 _ALLOWED_OPS={"+","-","*","/"}
 
 def _safe_id(value:str)->str:
@@ -104,6 +104,21 @@ def validate_lab_spec(spec:Dict[str,Any])->Dict[str,Any]:
 
     if kind=="GEOMETRY_PROOF":
         validate_geometry_proof_spec(spec)
+
+    if kind=="PROCEDURE_OBSERVATION":
+        procedure_steps=spec.get("procedure_steps")
+        observations=spec.get("observations")
+        materials=spec.get("materials") or []
+        if not isinstance(procedure_steps,list) or not 1<=len(procedure_steps)<=8:
+            raise RuntimeError("LAB_PROCEDURE_STEPS_INVALID")
+        if not isinstance(observations,list) or not 1<=len(observations)<=6:
+            raise RuntimeError("LAB_PROCEDURE_OBSERVATIONS_INVALID")
+        if not isinstance(materials,list) or len(materials)>8:
+            raise RuntimeError("LAB_PROCEDURE_MATERIALS_INVALID")
+        for group_name,items in (("MATERIAL",materials),("STEP",procedure_steps),("OBSERVATION",observations)):
+            for i,item in enumerate(items):
+                if not isinstance(item,dict) or not str(item.get("label") or "").strip() or not str(item.get("evidence_quote") or "").strip():
+                    raise RuntimeError(f"LAB_PROCEDURE_{group_name}_INVALID:{i}")
 
     if kind=="EVIDENCE_SEQUENCE":
         steps=spec.get("steps")
@@ -411,6 +426,98 @@ def _render_sequence(spec:Dict[str,Any],lang_code:str,lab_id:str)->str:
 </section>"""
 
 
+def _render_procedure_observation(spec:Dict[str,Any],lang_code:str,lab_id:str)->str:
+    """Source-locked practical procedure: run verified steps, then reveal verified observations."""
+    safe=_safe_id(lab_id)
+    steps=spec["procedure_steps"]
+    observations=spec["observations"]
+    materials=spec.get("materials") or []
+    run_label={"ar":"▶ نفّذ الخطوات","fr":"▶ Exécuter les étapes","en":"▶ Run procedure"}.get(lang_code,"▶ Run procedure")
+    next_label={"ar":"الخطوة التالية","fr":"Étape suivante","en":"Next step"}.get(lang_code,"Next step")
+    reset_label={"ar":"إعادة","fr":"Réinitialiser","en":"Reset"}.get(lang_code,"Reset")
+    obs_label={"ar":"الملاحظات الموثقة","fr":"Observations vérifiées","en":"Verified observations"}.get(lang_code,"Verified observations")
+    mat_label={"ar":"المواد/الأدوات الموثقة","fr":"Matériel vérifié","en":"Verified materials"}.get(lang_code,"Verified materials")
+    material_html=("".join(
+        f'<span id="{safe}_material_{i}" data-teacher-target="material:{i}" '
+        f'style="display:inline-block;margin:3px;padding:6px 9px;border:1px solid #315f82;border-radius:999px;background:#0b2943;">'
+        f'{html.escape(str(item["label"]))}</span>'
+        for i,item in enumerate(materials)
+    ) if materials else "")
+    step_html="".join(
+        f'<div id="{safe}_proc_{i}" data-teacher-target="procedure:{i}" class="nabil-procedure-step" '
+        f'style="padding:10px;border:1px solid #334155;border-radius:10px;background:#fff;color:#0f172a;opacity:{1 if i==0 else .45};">'
+        f'<b>{i+1}. {html.escape(str(item["label"]))}</b>'
+        f'<div style="font-size:12px;color:#475569;margin-top:4px;">{html.escape(str(item["evidence_quote"]))}</div></div>'
+        for i,item in enumerate(steps)
+    )
+    obs_html="".join(
+        f'<div id="{safe}_obs_{i}" data-teacher-target="observation:{i}" class="nabil-procedure-observation" '
+        f'style="display:none;padding:10px;border:1px solid #2f7663;border-radius:10px;background:#0d2d36;color:#eef8ff;">'
+        f'<b>{html.escape(str(item["label"]))}</b>'
+        f'<div style="font-size:12px;color:#c7f9e9;margin-top:4px;">{html.escape(str(item["evidence_quote"]))}</div></div>'
+        for i,item in enumerate(observations)
+    )
+    labels=[str(x["label"]) for x in steps]
+    demo_ms=max(6500,(len(steps)+len(observations))*2200)
+    return f"""
+<section class="interactive-lab nabil-live-lab" id="lab_{safe}"
+ data-lab-kind="PROCEDURE_OBSERVATION" data-teacher-pointer="synced" data-demo-ms="{demo_ms}"
+ style="margin-top:16px;background:#071827;border:1px solid #24506f;border-radius:14px;padding:16px;color:#f8fafc;">
+ <h3 style="margin:0 0 6px;color:#2de1ff;">{html.escape(spec["title"])}</h3>
+ <p style="margin:0 0 12px;color:#dbeafe;">{html.escape(spec["instructions"])}</p>
+ {('<div style="margin-bottom:10px;"><b>'+html.escape(mat_label)+':</b><div>'+material_html+'</div></div>') if material_html else ''}
+ <div id="{safe}_procedure" style="display:grid;gap:8px;">{step_html}</div>
+ <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+  <button type="button" id="{safe}_run" class="nav-btn">{html.escape(run_label)}</button>
+  <button type="button" id="{safe}_next" class="q-opt">{html.escape(next_label)}</button>
+  <button type="button" id="{safe}_reset" class="q-opt">{html.escape(reset_label)}</button>
+ </div>
+ <div style="margin-top:14px;"><b>{html.escape(obs_label)}:</b><div id="{safe}_observations" style="display:grid;gap:8px;margin-top:7px;">{obs_html}</div></div>
+ <p style="font-size:12px;color:#b6c8d8;">{html.escape(spec["observation"])}</p>
+ <script>
+ (()=>{{
+  const root=document.getElementById('lab_{safe}');
+  const labels={json.dumps(labels,ensure_ascii=False)};
+  let index=0,token=0,timers=[];
+  function stopAll(){{token++;timers.forEach(clearTimeout);timers=[];try{{window.NABILLessonE2E?.stopSpeech?.();}}catch(_e){{}}}}
+  function reset(){{
+    stopAll();index=0;
+    document.querySelectorAll('#{safe}_procedure .nabil-procedure-step').forEach((el,i)=>{{el.style.opacity=i===0?'1':'.45';el.style.borderColor=i===0?'#2de1ff':'#334155';}});
+    document.querySelectorAll('#{safe}_observations .nabil-procedure-observation').forEach(el=>el.style.display='none');
+  }}
+  async function showStep(i){{
+    if(i<0||i>=labels.length)return;
+    index=i;
+    document.querySelectorAll('#{safe}_procedure .nabil-procedure-step').forEach((el,j)=>{{el.style.opacity=j<=i?'1':'.45';el.style.borderColor=j===i?'#2de1ff':'#334155';}});
+    try{{await Promise.resolve(window.NABILLessonE2E?.speak?.(labels[i],{json.dumps(lang_code)}));}}catch(_e){{}}
+    if(i===labels.length-1){{
+      document.querySelectorAll('#{safe}_observations .nabil-procedure-observation').forEach((el,j)=>{{el.style.display='block';el.style.opacity='1';}});
+    }}
+  }}
+  async function run(){{
+    reset();const mine=token;
+    for(let i=0;i<labels.length;i++){{
+      if(mine!==token)return;
+      await showStep(i);
+      if(mine!==token)return;
+      await new Promise(resolve=>timers.push(setTimeout(resolve,220)));
+    }}
+  }}
+  document.getElementById('{safe}_run').addEventListener('click',run);
+  document.getElementById('{safe}_next').addEventListener('click',()=>{{stopAll();showStep(Math.min(labels.length-1,index+1));}});
+  document.getElementById('{safe}_reset').addEventListener('click',reset);
+  root.addEventListener('nabil:demo',run);
+  root.addEventListener('nabil:teacher-state',e=>{{
+    const after=e.detail?.state_after||{{}};
+    if(Number.isInteger(after.procedure_index))showStep(Math.max(0,Math.min(labels.length-1,after.procedure_index)));
+    if(after.reveal_observations===true)document.querySelectorAll('#{safe}_observations .nabil-procedure-observation').forEach(el=>el.style.display='block');
+  }});
+  reset();
+ }})();
+ </script>
+</section>"""
+
+
 def _render_evidence_reveal(spec:Dict[str,Any],lang_code:str,lab_id:str)->str:
     """Universal interactive teaching lab for any evidence-backed paragraph/task."""
     safe=_safe_id(lab_id)
@@ -593,7 +700,7 @@ def _reference_contract_wrap(raw_html:str,spec:Dict[str,Any],lang_code:str,lab_i
    function fallbackTargets(){{
      if(!inner)return [];
      const preferred=[...inner.querySelectorAll(
-       '.nabil-seq-step,.nabil-reveal-item,[data-teacher-target],svg g[id],svg path[id],svg line[id],svg circle[id],input,select,[id$="_result"],p'
+       '.nabil-seq-step,.nabil-reveal-item,.nabil-procedure-step,.nabil-procedure-observation,[data-teacher-target],svg g[id],svg path[id],svg line[id],svg circle[id],input,select,[id$="_result"],p'
      )].filter(visible);
      return preferred.length?preferred:[inner];
    }}
@@ -716,6 +823,8 @@ def render_verified_lab(spec:Dict[str,Any],lang_code:str,lab_id:str)->Tuple[str,
         raw=_render_orientation(spec,lang_code,lab_id)
     elif kind=="SHAPE_RESPONSE":
         raw=_render_shape(spec,lang_code,lab_id)
+    elif kind=="PROCEDURE_OBSERVATION":
+        raw=_render_procedure_observation(spec,lang_code,lab_id)
     elif kind=="EVIDENCE_SEQUENCE":
         raw=_render_sequence(spec,lang_code,lab_id)
     elif kind=="EVIDENCE_REVEAL":

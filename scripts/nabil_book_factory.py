@@ -42,6 +42,41 @@ def announce(stage: str, **kwargs):
     print(json.dumps({"time": datetime.now(timezone.utc).isoformat(),
                       "stage": stage, **kwargs}, ensure_ascii=False), flush=True)
 
+def preflight_provider_pool() -> list[str]:
+    """Log provider readiness before expensive source work."""
+    preferred = os.getenv("NABIL_FACTORY_AI_PROVIDER", "auto").strip().lower()
+    keys = factory._provider_keys()
+    configured = [name for name, value in keys.items() if value]
+    try:
+        candidates = factory._provider_order(preferred, keys)
+    except Exception as exc:
+        announce("PREFLIGHT_PROVIDER_POOL", status="NOT_CONFIGURED",
+                 primary=preferred, configured_providers=configured,
+                 reason=str(exc)[:500])
+        raise factory.ProviderUnavailableError(
+            "AI_PROVIDER_POOL_NOT_CONFIGURED",
+            operation="provider_preflight", unit_id="provider_pool",
+            reason=str(exc)) from exc
+
+    now_mono = time.monotonic()
+    quarantined = {
+        name: round(max(0.0, factory._AI_PROVIDER_COOLDOWNS.get(name, 0.0) - now_mono), 2)
+        for name in candidates
+        if factory._AI_PROVIDER_COOLDOWNS.get(name, 0.0) > now_mono
+    }
+    usable = [name for name in candidates if name not in quarantined]
+    announce("PREFLIGHT_PROVIDER_POOL",
+             status="READY" if usable else "QUARANTINED",
+             primary=candidates[0] if candidates else preferred,
+             configured_pool=candidates, usable_pool=usable,
+             quarantined=quarantined)
+    if not usable:
+        raise factory.ProviderUnavailableError(
+            "AI_PROVIDER_POOL_QUARANTINED",
+            operation="provider_preflight", unit_id="provider_pool",
+            reason=json.dumps(quarantined, sort_keys=True))
+    return usable
+
 
 def registered_book(book_id: str, *, drive_service=None, grade: str = "", subject: str = "", language: str = "", branch: str = "") -> dict:
     matches = []
@@ -103,9 +138,14 @@ def grade_number(grade: str) -> int:
 
 
 def subject_name(value: str) -> str:
-    values = {"فيزياء": "physics", "رياضيات": "mathematics", "كيمياء": "chemistry",
-              "علوم الحياة": "biology", "علوم عامة": "general_science"}
-    result = values.get(value.strip(), value.strip().lower().replace(" ", "_"))
+    values = {
+        "فيزياء": "physics", "الفيزياء": "physics",
+        "رياضيات": "mathematics", "الرياضيات": "mathematics",
+        "كيمياء": "chemistry", "الكيمياء": "chemistry",
+        "علوم الحياة": "biology", "علوم عامة": "general_science",
+    }
+    raw = value.strip()
+    result = values.get(raw, raw.lower().replace(" ", "_"))
     if result not in factory.SUBJECT_PROFILES:
         raise RuntimeError(f"BOOK_SUBJECT_UNSUPPORTED: {value}")
     return result
@@ -338,7 +378,41 @@ def verify_openers(doc, rows: list[dict]) -> list[dict]:
 
 
 def build_index(doc, book: dict, *, book_id: str, pdf_hash: str) -> dict:
-    toc = scan_original_toc(doc)
+    # Source-locked adapter for the scanned Grade 7 Mathematics PDF. Its TOC
+    # uses decorative outline numerals (not the word "Chapter"), which the
+    # generic OCR chapter regex cannot read reliably. These titles/start pages
+    # come from the actual TABLE OF CONTENTS on PDF page 14 and are still
+    # independently verified against each physical chapter opener below.
+    if book_id == "1E-nj01QlpvZCa_kHy92qQDlm6ko1ba_D":
+        source_rows = [
+            ("Powers", 13),
+            ("Parallelepiped (Cuboid), cube and prism", 22),
+            ("Prime numbers", 31),
+            ("Triangles - Case of equality (Congruent triangles)", 39),
+            ("Signed numbers: Addition and subtraction", 52),
+            ("Signed numbers: Multiplication and division", 65),
+            ("Angles and lines", 76),
+            ("Reduction of fractions", 85),
+            ("Decimals and fractions", 94),
+            ("Locating a point", 101),
+            ("Algebraic expressions", 109),
+            ("The perpendicular bisector of a segment The bisector of an angle", 117),
+            ("Translation", 125),
+            ("Equations", 132),
+            ("Fixed points. Variable points", 142),
+            ("Proportionality", 150),
+        ]
+        toc = [{
+            "chapter_number": i + 1,
+            "title": title,
+            "printed_start_hint": printed,
+            "toc_pdf_page": 14,
+            "pdf_start_page": printed + 2,
+            "toc_ocr_excerpt": "SOURCE_TOC_PDF_PAGE_14",
+        } for i, (title, printed) in enumerate(source_rows)]
+        announce("SOURCE_TOC_FOUND", count=len(toc), titles=[r["title"] for r in toc])
+    else:
+        toc = scan_original_toc(doc)
     toc = verify_openers(doc, toc)
     subject = subject_name(book["subject"])
     grade = grade_number(book["grade"])
@@ -414,6 +488,8 @@ def run(book_id: str, *, index_only: bool, publish: bool,
                          subject=subject, language=language, branch=branch)
     announce("BOOK_SELECTED", book_id=book_id, title=book["title"], grade=book["grade"])
     factory.execute_preflight_checks(require_drive=publish)
+    if not index_only:
+        preflight_provider_pool()
     if publish:
         root_id = factory.resolve_drive_root_id()
         destination = service.files().get(
@@ -505,7 +581,8 @@ def run(book_id: str, *, index_only: bool, publish: bool,
         try:
             # The owner's full-book command, unlike the single QA-only pilot,
             # authorizes promotion only AFTER all original science/mobile gates.
-            report=factory.produce_lesson_for_entry(entry,drive_service=service,publish=True,allow_pilot_publish=True)
+            report=factory.produce_lesson_for_entry(
+                entry, drive_service=service, publish=True)
             if report.get("status")!="PUBLISHED_VERIFIED":
                 raise RuntimeError("LESSON_NOT_PUBLISHED_VERIFIED")
             ev_file = factory.PERM_EVIDENCE_DIR / f"{lid}.json"
@@ -543,11 +620,73 @@ def run(book_id: str, *, index_only: bool, publish: bool,
                          drive_theory_id=report["drive_theory_id"],
                          drive_exercises_id=report["drive_exercises_id"])
                 return state
-        except Exception as exc:
-            state["lessons"][lid]={"status":"BLOCKED","error":str(exc)[:1200],
-                                  "blocked_at":datetime.now(timezone.utc).isoformat()}
+        except (factory.ProviderDailyQuotaError,
+                factory.ProviderTransientError) as exc:
+            recovery = getattr(exc, "state", {}) or {}
+            state["lessons"][lid] = {
+                "status": "PAUSED_TRANSIENT",
+                "reason": str(exc)[:1200],
+                "unit_id": recovery.get("unit_id") or getattr(exc, "unit_id", None),
+                "operation": recovery.get("operation") or getattr(exc, "operation", None),
+                "next_retry_at": recovery.get("next_retry_at"),
+                "retry_after_seconds": (
+                    recovery.get("retry_after_seconds")
+                    or getattr(exc, "retry_after_seconds", None)),
+                "paused_at": datetime.now(timezone.utc).isoformat(),
+            }
             remote_checkpoint(service,root,book_id,state)
-            announce("BOOK_STOPPED_ON_BLOCKED_LESSON",lesson_id=lid,reason=str(exc)[:800])
+            announce(
+                "BOOK_PAUSED_TRANSIENT",
+                lesson_id=lid,
+                unit_id=state["lessons"][lid].get("unit_id"),
+                operation=state["lessons"][lid].get("operation"),
+                next_retry_at=state["lessons"][lid].get("next_retry_at"),
+                retry_after_seconds=state["lessons"][lid].get("retry_after_seconds"),
+            )
+            raise
+        except factory.ProviderUnavailableError as exc:
+            state["lessons"][lid] = {
+                "status": "PAUSED_PROVIDER_UNAVAILABLE",
+                "reason": str(exc)[:1200],
+                "paused_at": datetime.now(timezone.utc).isoformat(),
+            }
+            remote_checkpoint(service,root,book_id,state)
+            announce(
+                "BOOK_PAUSED_PROVIDER_UNAVAILABLE",
+                lesson_id=lid, reason=str(exc)[:800])
+            raise
+        except factory.NeedsAttentionError as exc:
+            state["lessons"][lid] = {
+                "status": "NEEDS_ATTENTION",
+                "reason": str(exc)[:1200],
+                "paused_at": datetime.now(timezone.utc).isoformat(),
+            }
+            remote_checkpoint(service,root,book_id,state)
+            announce(
+                "BOOK_NEEDS_ATTENTION",
+                lesson_id=lid, reason=str(exc)[:800])
+            raise
+        except factory.ScientificGateBlocked as exc:
+            state["lessons"][lid] = {
+                "status": "BLOCKED",
+                "error": str(exc)[:1200],
+                "blocked_at": datetime.now(timezone.utc).isoformat(),
+            }
+            remote_checkpoint(service,root,book_id,state)
+            announce(
+                "BOOK_STOPPED_ON_BLOCKED_LESSON",
+                lesson_id=lid, reason=str(exc)[:800])
+            raise
+        except Exception as exc:
+            state["lessons"][lid] = {
+                "status": "NEEDS_ATTENTION",
+                "error": str(exc)[:1200],
+                "paused_at": datetime.now(timezone.utc).isoformat(),
+            }
+            remote_checkpoint(service,root,book_id,state)
+            announce(
+                "BOOK_STOPPED_NEEDS_ATTENTION",
+                lesson_id=lid, reason=str(exc)[:800])
             raise
     state["status"]="ALL_CHAPTERS_PUBLISHED_VERIFIED"
     remote_checkpoint(service,root,book_id,state)
@@ -609,13 +748,72 @@ def run_folder(folder_id: str, *, grade: str = "", subject: str = "",
                              subject=subject, language=language, branch=branch)
                 report["books"].append({"book_id": book_id,
                                         "status": result["status"]})
-            except Exception as exc:
-                report["books"].append({"book_id": book_id,
-                                        "status": "BLOCKED", "reason": str(exc)[:600]})
-                announce("BOOK_BLOCKED", book_id=book_id, error=str(exc)[:600])
-                retry_not_before[book_id] = time.monotonic() + 3600
+            except (factory.ProviderDailyQuotaError,
+                    factory.ProviderTransientError) as exc:
+                retry_seconds = max(
+                    1, int(getattr(exc, "retry_after_seconds", None) or 60))
+                report["books"].append({
+                    "book_id": book_id,
+                    "status": "PAUSED_TRANSIENT",
+                    "reason": str(exc)[:600],
+                    "retry_after_seconds": retry_seconds,
+                })
+                announce(
+                    "BOOK_WATCH_PAUSED_TRANSIENT",
+                    book_id=book_id,
+                    retry_after_seconds=retry_seconds,
+                    next_retry_at=(getattr(exc, "state", {}) or {}).get(
+                        "next_retry_at"),
+                )
+                retry_not_before[book_id] = time.monotonic() + retry_seconds
                 if not watch:
-                    # No false success exit code when one-shot production fails.
+                    raise
+            except factory.ProviderUnavailableError as exc:
+                report["books"].append({
+                    "book_id": book_id,
+                    "status": "PAUSED_PROVIDER_UNAVAILABLE",
+                    "reason": str(exc)[:600],
+                })
+                announce(
+                    "BOOK_PROVIDER_UNAVAILABLE",
+                    book_id=book_id, error=str(exc)[:600])
+                # Human action is required; do not spin the provider loop.
+                retry_not_before[book_id] = float("inf")
+                if not watch:
+                    raise
+            except factory.NeedsAttentionError as exc:
+                report["books"].append({
+                    "book_id": book_id,
+                    "status": "NEEDS_ATTENTION",
+                    "reason": str(exc)[:600],
+                })
+                announce(
+                    "BOOK_NEEDS_ATTENTION",
+                    book_id=book_id, error=str(exc)[:600])
+                retry_not_before[book_id] = float("inf")
+                if not watch:
+                    raise
+            except factory.ScientificGateBlocked as exc:
+                report["books"].append({
+                    "book_id": book_id,
+                    "status": "BLOCKED",
+                    "reason": str(exc)[:600],
+                })
+                announce("BOOK_BLOCKED", book_id=book_id, error=str(exc)[:600])
+                retry_not_before[book_id] = float("inf")
+                if not watch:
+                    raise
+            except Exception as exc:
+                report["books"].append({
+                    "book_id": book_id,
+                    "status": "NEEDS_ATTENTION",
+                    "reason": str(exc)[:600],
+                })
+                announce(
+                    "BOOK_NEEDS_ATTENTION",
+                    book_id=book_id, error=str(exc)[:600])
+                retry_not_before[book_id] = float("inf")
+                if not watch:
                     raise
         announce("FOLDER_SCAN_STATUS", **report)
         last_report = report
@@ -624,7 +822,7 @@ def run_folder(folder_id: str, *, grade: str = "", subject: str = "",
         time.sleep(poll_seconds)
 
 
-def main():
+def _main_impl():
     ap=argparse.ArgumentParser(description="NABIL real TOC to final-Drive one-book production")
     source=ap.add_mutually_exclusive_group(required=True)
     source.add_argument("--book-id",help="One original Drive PDF ID")
@@ -658,6 +856,61 @@ def main():
                    language=args.language,branch=args.branch,
                    max_new_lessons=args.max_new_lessons)
     announce("FINAL_STATUS",status=result["status"])
+    return 0
+
+
+def _raise_process_boundary_test_signal():
+    signal = os.getenv("NABIL_FACTORY_TEST_RAISE", "").strip().upper()
+    if not signal:
+        return
+    mapping = {
+        "TRANSIENT": factory.ProviderTransientError,
+        "PROVIDER_UNAVAILABLE": factory.ProviderUnavailableError,
+        "NEEDS_ATTENTION": factory.NeedsAttentionError,
+        "SCIENTIFIC_BLOCKED": factory.ScientificGateBlocked,
+    }
+    exc_type = mapping.get(signal)
+    if exc_type is None:
+        raise RuntimeError("NABIL_FACTORY_TEST_RAISE_INVALID:" + signal)
+    raise exc_type("PROCESS_BOUNDARY_TEST_" + signal)
+
+
+def main() -> int:
+    announce(
+        "PROCESS_START",
+        railway_git_commit_sha=os.getenv("RAILWAY_GIT_COMMIT_SHA", ""),
+        railway_service=os.getenv("RAILWAY_SERVICE_NAME", ""),
+    )
+    try:
+        _raise_process_boundary_test_signal()
+        return int(_main_impl() or 0)
+    except (factory.ProviderDailyQuotaError,
+            factory.ProviderTransientError) as exc:
+        announce("FINAL_STATUS", status="PAUSED_TRANSIENT",
+                 reason=str(exc)[:1000],
+                 exit_code=factory.EXIT_PAUSED_TRANSIENT)
+        return factory.EXIT_PAUSED_TRANSIENT
+    except factory.ProviderUnavailableError as exc:
+        announce("FINAL_STATUS", status="PAUSED_PROVIDER_UNAVAILABLE",
+                 reason=str(exc)[:1000],
+                 exit_code=factory.EXIT_PROVIDER_UNAVAILABLE)
+        return factory.EXIT_PROVIDER_UNAVAILABLE
+    except factory.NeedsAttentionError as exc:
+        announce("FINAL_STATUS", status="NEEDS_ATTENTION",
+                 reason=str(exc)[:1000],
+                 exit_code=factory.EXIT_NEEDS_ATTENTION)
+        return factory.EXIT_NEEDS_ATTENTION
+    except factory.ScientificGateBlocked as exc:
+        announce("FINAL_STATUS", status="BLOCKED",
+                 reason=str(exc)[:1000], exit_code=1)
+        return 1
+    except Exception as exc:
+        announce("FINAL_STATUS", status="NEEDS_ATTENTION",
+                 reason=f"{type(exc).__name__}:{str(exc)[:900]}",
+                 exit_code=factory.EXIT_NEEDS_ATTENTION)
+        return factory.EXIT_NEEDS_ATTENTION
+
 
 if __name__=="__main__":
-    main()
+    raise SystemExit(main())
+
