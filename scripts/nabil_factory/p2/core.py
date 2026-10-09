@@ -4052,25 +4052,69 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
 
 
 def _scientific_review_projection(candidate: dict) -> dict:
-    """Project only student-facing scientific content for final review.
+    """Project only the content a student can actually receive.
 
-    Raw OCR noise, rejected intermediate drafts, provider metadata and internal
-    audit-history strings must not be reviewed as if they were published facts.
-    The final reviewer sees the verified source wording actually used plus the
-    exact displayed solutions/labs/teaching steps.
+    Source identity/completeness and evidence-quote traceability are enforced by
+    earlier dedicated gates. The independent scientific reviewer must not treat
+    noisy OCR, rejected drafts, provider metadata or audit-history strings as if
+    they were published scientific claims.
     """
+    theory = candidate.get("theory") or {}
+
     concepts = []
-    for concept in (candidate.get("evidence_map") or {}).get("concepts") or []:
-        text = str(
-            concept.get("normalized_text")
-            or concept.get("raw_text")
-            or ""
-        ).strip()
+    for act in theory.get("activities") or []:
         concepts.append({
-            "concept_id": concept.get("concept_id"),
-            "title": concept.get("title"),
-            "source_page": concept.get("source_page"),
-            "verified_text": text,
+            "concept_id": act.get("concept_id"),
+            "title": act.get("title"),
+            "source_page": act.get("source_page"),
+            "student_facing_explanation": {
+                "phenomenon": act.get("phenomenon"),
+                "investigation": act.get("investigation"),
+                "observation": act.get("observation"),
+                "interpretation": act.get("interpretation"),
+                "conclusion": act.get("conclusion"),
+            },
+        })
+
+    def visible_lab(spec):
+        if not isinstance(spec, dict):
+            return spec
+        hidden = {
+            "evidence_quote", "evidence_quotes", "evidence_ref",
+            "evidence_basis", "ai_provenance", "source_text",
+            "source_image_ref", "source_bbox", "verification_status",
+        }
+        out = {}
+        for key, value in spec.items():
+            if key in hidden or str(key).startswith("_"):
+                continue
+            if isinstance(value, dict):
+                out[key] = visible_lab(value)
+            elif isinstance(value, list):
+                out[key] = [
+                    visible_lab(v) if isinstance(v, dict) else v
+                    for v in value
+                ]
+            else:
+                out[key] = value
+        return out
+
+    teaching_steps = []
+    for act in theory.get("activities") or []:
+        rows = []
+        for step in act.get("teaching_steps") or []:
+            if not isinstance(step, dict):
+                continue
+            rows.append({
+                "step_id": step.get("step_id"),
+                "kind": step.get("kind"),
+                "label": step.get("label"),
+                "sentence": step.get("sentence"),
+                "formula": step.get("formula"),
+            })
+        teaching_steps.append({
+            "concept_id": act.get("concept_id"),
+            "steps": rows,
         })
 
     exercises = []
@@ -4096,17 +4140,13 @@ def _scientific_review_projection(candidate: dict) -> dict:
     return {
         "concepts": concepts,
         "labs": [
-            a.get("lab_spec")
-            for a in (candidate.get("theory") or {}).get("activities", [])
+            visible_lab(a.get("lab_spec"))
+            for a in theory.get("activities") or []
         ],
-        "teaching_steps": [
-            a.get("teaching_steps")
-            for a in (candidate.get("theory") or {}).get("activities", [])
-        ],
-        "quiz_items": (candidate.get("theory") or {}).get("quiz_items", []),
+        "teaching_steps": teaching_steps,
+        "quiz_items": theory.get("quiz_items", []),
         "exercises": exercises,
     }
-
 
 def independent_scientific_review(entry: dict, candidate: dict) -> dict:
     review_payload = _scientific_review_projection(candidate)
