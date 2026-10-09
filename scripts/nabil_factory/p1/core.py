@@ -2207,7 +2207,8 @@ def _rescue_unverified_exercise(
 
 def extract_scanned_page_exercises(
         doc, page_num: int, lesson_id: str, book_id: str, cache_dir: Path,
-        *, drive_service=None, checkpoint_root=None, entry=None) -> List[dict]:
+        *, drive_service=None, checkpoint_root=None, entry=None,
+        force_refresh: bool = False) -> List[dict]:
     """Read numbered exercise regions from the real page image, not OCR digits.
 
     Scanned textbooks frequently use circled numbers in two columns, which
@@ -2216,7 +2217,8 @@ def extract_scanned_page_exercises(
     """
     assert_authorized_source_vision(lesson_id, book_id, page_num)
     page = doc[page_num - 1]
-    image_bytes = page.get_pixmap(dpi=200).tobytes("png")
+    image_bytes = page.get_pixmap(
+        dpi=320 if force_refresh else 200).tobytes("png")
     page_b64 = base64.b64encode(image_bytes).decode("ascii")
 
     # Durable *stage* checkpoints: a provider pause during the independent
@@ -2229,7 +2231,10 @@ def extract_scanned_page_exercises(
     if drive_service is not None and checkpoint_root and entry is not None:
         from scripts import nabil_page_checkpoint as stage_cp
     instruction = (
-        "Read this school textbook page, paying attention to TWO-COLUMN reading "
+        ("COMPLETENESS RECOVERY: scan the ENTIRE page at high resolution, "
+         "including BOTH columns from top to bottom; do not stop after the first "
+         "column or after the first consecutive exercise sequence. " if force_refresh else "")
+        + "Read this school textbook page, paying attention to TWO-COLUMN reading "
         "order and circled exercise numbers. Return JSON with exercises array. "
         "For every numbered exercise or problem return: number (integer), "
         "section_type (EXERCISE or PROBLEM), exact_source_prompt (all words and "
@@ -2252,7 +2257,7 @@ def extract_scanned_page_exercises(
             unit_id=scan_unit,
             source_hash=source_page_hash,
             prompt_version=EXERCISE_SCAN_PROMPT_VERSION,
-        ) if stage_cp else None
+        ) if stage_cp and not force_refresh else None
     )
     if isinstance(scan_record, dict) and "data" in scan_record:
         extracted = scan_record["data"]
@@ -2367,7 +2372,7 @@ def extract_scanned_page_exercises(
             unit_id=review_unit,
             source_hash=review_source_hash,
             prompt_version=EXERCISE_REVIEW_PROMPT_VERSION,
-        ) if stage_cp else None
+        ) if stage_cp and not force_refresh else None
     )
     if isinstance(review_record, dict) and "data" in review_record:
         review = review_record["data"]
@@ -3536,6 +3541,55 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
     }
 
     # Independent completeness gate runs before the permanent Evidence Map is accepted.
+    # If a two-column scan checkpoint is incomplete, refresh ONLY the source
+    # page(s) that visibly contain missing exercise numbers, then rebuild once.
+    inventory = build_independent_source_inventory(ev_map)
+    accepted_numbers = {
+        str(x.get("number")) for x in ev_map.get("exercise_evidence") or []
+    }
+    missing_numbers = sorted(
+        set(inventory.get("exercise_numbers") or []) - accepted_numbers)
+    if (
+        missing_numbers
+        and not entry.get("_completeness_recovery_attempted")
+        and page_checkpoints
+        and checkpoint_root
+    ):
+        recovery_pages = []
+        for page_item in pages_evidence:
+            page_num = int(page_item["page_num"])
+            page_text = str(page_item.get("text") or "")
+            page_missing = [
+                n for n in missing_numbers
+                if re.search(
+                    rf"(?m)(?:^|\\n)\\s*{re.escape(str(n))}\\s*[.\\-)]",
+                    page_text)
+            ]
+            if not page_missing:
+                continue
+            progress(
+                "SOURCE_COMPLETENESS_TARGETED_RECOVERY_START",
+                page=page_num, missing_numbers=page_missing)
+            refreshed = extract_scanned_page_exercises(
+                doc, page_num, lesson_id, book_id, lesson_cache,
+                drive_service=drive_service,
+                checkpoint_root=checkpoint_root,
+                entry=entry,
+                force_refresh=True)
+            page_checkpoints.save_exercises(
+                drive_service, checkpoint_root, doc, entry,
+                page_num, refreshed, source_provider, source_model)
+            progress(
+                "SOURCE_COMPLETENESS_TARGETED_RECOVERY_SAVED",
+                page=page_num, extracted=len(refreshed))
+            recovery_pages.append(page_num)
+        if recovery_pages:
+            retry_entry = dict(entry)
+            retry_entry["_completeness_recovery_attempted"] = True
+            return build_evidence_map(
+                doc, retry_entry, drive_service=drive_service,
+                persist_pages=persist_pages)
+
     attach_and_verify_source_completeness(ev_map)
     perm_path = PERM_EVIDENCE_DIR / f"{lesson_id}.json"
     perm_path.write_text(json.dumps(ev_map, ensure_ascii=False, indent=2), encoding="utf-8")
