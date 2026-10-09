@@ -3134,6 +3134,16 @@ def _normalize_candidate_before_quality_gates(candidate: dict) -> dict:
   min-width:44px!important;
   padding:9px 10px!important;
 }
+button,.q-opt{
+  min-height:44px!important;
+  min-width:44px!important;
+  box-sizing:border-box!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  padding-top:10px!important;
+  padding-bottom:10px!important;
+}
 html,body,.container{
   max-width:100%!important;
   min-width:0!important;
@@ -3179,9 +3189,20 @@ html,body,.container{
   max-width:100%!important;
 }
 mjx-container{
+  box-sizing:border-box!important;
   max-width:100%!important;
   overflow-x:auto!important;
   overflow-y:hidden!important;
+}
+mjx-container[display="true"]{
+  display:block!important;
+  width:100%!important;
+  max-width:100%!important;
+}
+.nabil-exercise-card mjx-container,
+.card mjx-container,
+.nabil-sci-panel mjx-container{
+  max-width:100%!important;
 }
 </style>
 """
@@ -3231,6 +3252,7 @@ mjx-container{
             theory=changed_a,
             exercises=changed_b,
             touch_target_min_px=44,
+            math_container_max_width="100%",
         )
     return candidate
 
