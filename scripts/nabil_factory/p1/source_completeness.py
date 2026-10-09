@@ -52,12 +52,17 @@ def attach_and_verify_source_completeness(ev_map: dict) -> dict:
             for x in (page.get("required_unverified_figure_labels") or [])
         }
 
-    missing_ex = sorted(set(inventory["exercise_numbers"]) - accepted_ex)
+    disproved_ex = {
+        str(x) for x in (ev_map.get("disproved_exercise_numbers") or [])
+    }
+    missing_ex = sorted(
+        set(inventory["exercise_numbers"]) - accepted_ex - disproved_ex)
     missing_fig = sorted(set(inventory["figure_labels"]) - accounted_figs)
     report = {
         "passed": not missing_ex and not missing_fig,
         "inventory": inventory,
         "missing_exercise_numbers": missing_ex,
+        "disproved_exercise_numbers": sorted(disproved_ex),
         "missing_figure_labels": missing_fig,
     }
     ev_map["source_inventory"] = inventory
