@@ -7,6 +7,7 @@ on:
       - "scripts/nabil_i18n.py"
       - "scripts/nabil_interactive_lab.py"
       - "scripts/nabil_advanced_lab.py"
+      - "scripts/nabil_requirement5_gate.py"
       - "scripts/nabil_scientific_lab_coverage.py"
       - "scripts/test_nabil_scientific_lab_coverage.py"
       - "scripts/nabil_geometry_lab.py"
@@ -39,6 +40,7 @@ jobs:
           python -m py_compile \
             scripts/nabil_i18n.py \
             scripts/nabil_advanced_lab.py \
+            scripts/nabil_requirement5_gate.py \
             scripts/nabil_scientific_lab_coverage.py \
             scripts/test_nabil_scientific_lab_coverage.py \
             scripts/nabil_geometry_lab.py \
