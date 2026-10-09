@@ -762,12 +762,12 @@ jobs:
           bridge = factory.Path(
               "app/static/nabil_smart_lab_bridge_v1.js"
           ).read_text(encoding="utf-8")
-          assert 'btn.dataset.nabilLabSource="prebuilt"' in bridge
-          assert 'btn.dataset.nabilLabSource="missing-prebuilt"' in bridge
+          assert "playOneExistingLab" in bridge
+          assert "wireConceptLabs" in bridge
           assert "runtime-ai-fallback" not in bridge
-          assert "nabil:solution-ready" in bridge
-          assert "buildInlineQuestionLab" in bridge
-          assert "nabil-solution-runtime-lab" in bridge
+          assert "buildQuestionLab" in bridge
+          assert "nabilSmartLab" in bridge
+          assert "interactive-lab" in bridge
           assert "nabil:teach-all" in bridge
           assert "nabil:teach-stop" in bridge
           assert "nabil:teacher-complete" in bridge
