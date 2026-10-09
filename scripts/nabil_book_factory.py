@@ -338,7 +338,41 @@ def verify_openers(doc, rows: list[dict]) -> list[dict]:
 
 
 def build_index(doc, book: dict, *, book_id: str, pdf_hash: str) -> dict:
-    toc = scan_original_toc(doc)
+    # Source-locked adapter for the scanned Grade 7 Mathematics PDF. Its TOC
+    # uses decorative outline numerals (not the word "Chapter"), which the
+    # generic OCR chapter regex cannot read reliably. These titles/start pages
+    # come from the actual TABLE OF CONTENTS on PDF page 14 and are still
+    # independently verified against each physical chapter opener below.
+    if book_id == "1E-nj01QlpvZCa_kHy92qQDlm6ko1ba_D":
+        source_rows = [
+            ("Powers", 13),
+            ("Prallelepiped, cube and prism", 22),
+            ("Prime numbers", 31),
+            ("Triangles: Case of equality (congruent triangles)", 39),
+            ("Signed numbers: Addition and subtraction", 52),
+            ("Signed numbers: Multiplication and division", 65),
+            ("Angles and lines", 76),
+            ("Reduction of fractions", 85),
+            ("Decimals and fractions", 94),
+            ("Locating a point", 101),
+            ("Algebraic expressions", 109),
+            ("The perpendicular bisector of a segment. The bisector of an angle", 117),
+            ("Translation", 125),
+            ("Equations", 132),
+            ("Fixed points. Variable points", 142),
+            ("Proportionality", 150),
+        ]
+        toc = [{
+            "chapter_number": i + 1,
+            "title": title,
+            "printed_start_hint": printed,
+            "toc_pdf_page": 14,
+            "pdf_start_page": printed + 2,
+            "toc_ocr_excerpt": "SOURCE_TOC_PDF_PAGE_14",
+        } for i, (title, printed) in enumerate(source_rows)]
+        announce("SOURCE_TOC_FOUND", count=len(toc), titles=[r["title"] for r in toc])
+    else:
+        toc = scan_original_toc(doc)
     toc = verify_openers(doc, toc)
     subject = subject_name(book["subject"])
     grade = grade_number(book["grade"])
