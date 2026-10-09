@@ -53,6 +53,9 @@ jobs:
             app/api/routes_interactive_lessons.py \
             app/main.py
 
+      - name: Install real-pipeline integration dependencies
+        run: python -m pip install --disable-pip-version-check --quiet PyMuPDF google-api-python-client
+
       - name: Run real produce_lesson 503 integration
         run: python scripts/test_real_produce_lesson_503_integration.py
 
