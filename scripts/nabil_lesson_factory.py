@@ -42,6 +42,21 @@ from scripts.nabil_scientific_lab_coverage import (
     validate_and_annotate_curriculum_lab,
     validate_lesson_scientific_lab_coverage,
 )
+from scripts.nabil_transient_resilience_v1781 import (
+    classify_provider_error,
+    ProviderTransientError,
+    ProviderDailyQuotaError,
+    ProviderUnavailableError,
+    NeedsAttentionError,
+    CheckpointWriteError,
+    save_state as save_resilience_state,
+    STATUS_PAUSED_TRANSIENT,
+    STATUS_PROVIDER_UNAVAILABLE,
+    STATUS_NEEDS_ATTENTION,
+    EXIT_PAUSED_TRANSIENT,
+    EXIT_PROVIDER_UNAVAILABLE,
+    EXIT_NEEDS_ATTENTION,
+)
 
 ROOT = Path(__file__).resolve().parents[1] if len(Path(__file__).resolve().parents) > 1 else Path("/app")
 CATALOG_PATH = ROOT / "data/nabil_canonical_lesson_catalog.json"
@@ -51,8 +66,9 @@ VERSIONS_DIR = ROOT / "data/versions"
 ARTIFACTS_DIR = VERSIONS_DIR / "artifacts"
 OUT_DIR = ROOT / "output"
 GOLDEN_REGISTRY_PATH = ROOT / "data" / "golden_lessons_registry.json"
+RECOVERY_STATE_DIR = ROOT / "data" / "factory_recovery_state"
 
-for d in [PERM_EVIDENCE_DIR, CACHE_DIR, VERSIONS_DIR, ARTIFACTS_DIR, OUT_DIR]:
+for d in [PERM_EVIDENCE_DIR, CACHE_DIR, VERSIONS_DIR, ARTIFACTS_DIR, OUT_DIR, RECOVERY_STATE_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
 PROGRESS_STARTED = None
@@ -65,6 +81,104 @@ def now():
 def progress(stage: str, **details):
     elapsed = round(time.monotonic() - PROGRESS_STARTED, 1) if PROGRESS_STARTED else 0
     print(json.dumps({"time": now(), "elapsed_seconds": elapsed, "stage": stage, **details}, ensure_ascii=False), flush=True)
+
+
+
+def _persist_factory_recovery_state(
+        entry: dict, drive_service, *, status: str, reason: str,
+        unit_id: str, operation: str,
+        retry_seconds: Optional[int] = None) -> dict:
+    """Persist pause/attention state locally and, when available, to Drive."""
+    max_cycles = max(1, int(os.getenv(
+        "NABIL_FACTORY_MAX_PAUSE_RESUME_CYCLES", "12")))
+    state = save_resilience_state(
+        RECOVERY_STATE_DIR,
+        lesson_id=str(entry.get("lesson_id") or "unknown"),
+        status=status,
+        reason=str(reason)[:1200],
+        unit_id=str(unit_id or ""),
+        retry_seconds=retry_seconds,
+        max_pause_cycles=max_cycles,
+    )
+    state["operation"] = str(operation or "")
+    if drive_service is not None:
+        from scripts import nabil_page_checkpoint as page_checkpoints
+        checkpoint_root = resolve_drive_root_id()
+        state = page_checkpoints.save_factory_state(
+            drive_service, checkpoint_root, entry, state)
+    progress(
+        "FACTORY_RECOVERY_STATE_SAVED",
+        lesson_id=entry.get("lesson_id"),
+        status=state.get("status"),
+        unit_id=unit_id,
+        operation=operation,
+        retry_after_seconds=state.get("retry_after_seconds"),
+        next_retry_at=state.get("next_retry_at"),
+    )
+    return state
+
+
+def _raise_if_provider_pause_required(
+        entry: dict, drive_service, *, unit_id: str,
+        operation: str, exc: Exception) -> None:
+    """Convert provider failures into durable clean pause states.
+
+    Unknown/scientific validation failures are left to the caller's existing
+    fail-closed item policy; only provider/prompt classes are intercepted here.
+    """
+    info = classify_provider_error(exc)
+    if info.kind == "daily_quota":
+        retry = info.retry_after_seconds or 21600
+        state = _persist_factory_recovery_state(
+            entry, drive_service,
+            status=STATUS_PAUSED_TRANSIENT,
+            reason=info.message,
+            unit_id=unit_id,
+            operation=operation,
+            retry_seconds=retry,
+        )
+        err = ProviderDailyQuotaError(
+            info.message, retry_after_seconds=retry,
+            status_code=info.status_code)
+        err.state = state
+        raise err from exc
+    if info.kind == "transient":
+        retry = info.retry_after_seconds or 60
+        state = _persist_factory_recovery_state(
+            entry, drive_service,
+            status=STATUS_PAUSED_TRANSIENT,
+            reason=info.message,
+            unit_id=unit_id,
+            operation=operation,
+            retry_seconds=retry,
+        )
+        err = ProviderTransientError(
+            info.message, retry_after_seconds=retry,
+            status_code=info.status_code)
+        err.state = state
+        raise err from exc
+    if info.kind == "auth_billing":
+        state = _persist_factory_recovery_state(
+            entry, drive_service,
+            status=STATUS_PROVIDER_UNAVAILABLE,
+            reason=info.message,
+            unit_id=unit_id,
+            operation=operation,
+        )
+        err = ProviderUnavailableError(info.message)
+        err.state = state
+        raise err from exc
+    if info.kind == "needs_attention":
+        state = _persist_factory_recovery_state(
+            entry, drive_service,
+            status=STATUS_NEEDS_ATTENTION,
+            reason=info.message,
+            unit_id=unit_id,
+            operation=operation,
+        )
+        err = NeedsAttentionError(info.message)
+        err.state = state
+        raise err from exc
 
 
 # ==============================================================================
@@ -6023,7 +6137,12 @@ def prepare_verified_solutions(entry: dict, exercises: list,
                                profile: dict, ev_map: dict,
                                drive_service=None,
                                persist: bool = False) -> None:
-    """Solve once, persist each verified result, and resume independently."""
+    """Solve once, checkpoint each verified exercise, and resume independently.
+
+    Provider/transient failures pause the lesson; they are never converted into
+    OMITTED_UNVERIFIED.  Scientific/source validation failures keep the original
+    item-level fail-closed omission policy.
+    """
     page_checkpoints = None
     checkpoint_root = None
     if persist:
@@ -6035,6 +6154,7 @@ def prepare_verified_solutions(entry: dict, exercises: list,
     for ex in exercises:
         if ex.get("solution_mode") != "PRE_SOLVED":
             continue
+        unit_id = str(ex.get("exercise_id") or ex.get("number") or "exercise")
         cached = None
         if page_checkpoints:
             cached = page_checkpoints.load_solution(
@@ -6052,6 +6172,15 @@ def prepare_verified_solutions(entry: dict, exercises: list,
         except RuntimeError as exc:
             if not str(exc).startswith("PRE_SOLVE_FAILED"):
                 raise
+            _raise_if_provider_pause_required(
+                entry, drive_service,
+                unit_id=unit_id,
+                operation="exercise_solution",
+                exc=exc,
+            )
+            # Reaching here means the failure was not a provider availability,
+            # quota, request-shape, or content-refusal class. Preserve the
+            # scientific/source fail-closed item policy.
             ex["solution_status"] = "OMITTED_UNVERIFIED"
             ex["_pre_solved_solution"] = None
             ex["solution_omission_reason"] = str(exc)[:500]
@@ -6062,14 +6191,16 @@ def prepare_verified_solutions(entry: dict, exercises: list,
                 reason=str(exc)[:240],
             )
             continue
+
         ex["_pre_solved_solution"] = sol
         if page_checkpoints:
             page_checkpoints.save_solution(
                 drive_service, checkpoint_root, entry, ex, sol)
+            # save_solution performs remote read-back verification; failure is
+            # fail-closed and propagates as CheckpointWriteError.
             progress("SOLUTION_SAVED_TO_DRIVE",
                      exercise_id=ex.get("exercise_id"),
                      number=ex.get("number"))
-
 
 
 def retain_only_verified_solved_exercises(
@@ -9457,7 +9588,7 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
     textbook_exercises = [dict(ex) for ex in ev_map["exercise_evidence"]]
     prepare_verified_solutions(
         entry, textbook_exercises, profile, ev_map,
-        drive_service=drive_service, persist=publish)
+        drive_service=drive_service, persist=(drive_service is not None))
     verified_textbook = retain_only_verified_solved_exercises(
         textbook_exercises, origin="TEXTBOOK")
     progress(
@@ -9475,7 +9606,7 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
     if generated_practice:
         prepare_verified_solutions(
             entry, generated_practice, profile, ev_map,
-            drive_service=drive_service, persist=publish)
+            drive_service=drive_service, persist=(drive_service is not None))
     verified_ai = retain_only_verified_solved_exercises(
         generated_practice, origin="AI_ADDITIONAL_PRACTICE")
 
@@ -9759,5 +9890,40 @@ def main():
     return 0
 
 
+def _cli_entry() -> int:
+    try:
+        return int(main() or 0)
+    except ProviderDailyQuotaError as exc:
+        state = getattr(exc, "state", None) or {
+            "status": STATUS_PAUSED_TRANSIENT,
+            "reason": str(exc),
+            "retry_after_seconds": getattr(exc, "retry_after_seconds", None),
+        }
+        print(json.dumps(state, ensure_ascii=False), flush=True)
+        return EXIT_PAUSED_TRANSIENT
+    except ProviderTransientError as exc:
+        state = getattr(exc, "state", None) or {
+            "status": STATUS_PAUSED_TRANSIENT,
+            "reason": str(exc),
+            "retry_after_seconds": getattr(exc, "retry_after_seconds", None),
+        }
+        print(json.dumps(state, ensure_ascii=False), flush=True)
+        return EXIT_PAUSED_TRANSIENT
+    except ProviderUnavailableError as exc:
+        state = getattr(exc, "state", None) or {
+            "status": STATUS_PROVIDER_UNAVAILABLE,
+            "reason": str(exc),
+        }
+        print(json.dumps(state, ensure_ascii=False), flush=True)
+        return EXIT_PROVIDER_UNAVAILABLE
+    except (NeedsAttentionError, CheckpointWriteError) as exc:
+        state = getattr(exc, "state", None) or {
+            "status": STATUS_NEEDS_ATTENTION,
+            "reason": str(exc),
+        }
+        print(json.dumps(state, ensure_ascii=False), flush=True)
+        return EXIT_NEEDS_ATTENTION
+
+
 if __name__ == "__main__":
-    main()
+    raise SystemExit(_cli_entry())
