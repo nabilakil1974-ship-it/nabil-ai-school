@@ -4217,6 +4217,41 @@ def verify_title_double_evidence_strict(doc, entry: dict, opening_txt: str) -> b
             if toc_txt:
                 cache.write_text(toc_txt, encoding="utf-8")
     toc_normalized = re.sub(r"[^\w]+", " ", toc_txt.casefold())
+
+    # Dense page OCR (PSM 3) can miss short first-row titles on graphical TOC
+    # pages even while correctly reading "TABLE OF CONTENTS". Before failing,
+    # re-read the exact same catalogued TOC page locally with sparse modes.
+    # This preserves strict double evidence; it does not infer a title from a
+    # filename, manifest, or model.
+    if title_clean not in toc_normalized and shutil.which("tesseract"):
+        import fitz
+        page = doc[toc_page - 1]
+        with tempfile.TemporaryDirectory(prefix="nabil_toc_title_ocr_") as temp_dir:
+            image_path = Path(temp_dir) / "toc_title.png"
+            page.get_pixmap(dpi=260).save(str(image_path))
+            sparse_parts = []
+            for psm in (11, 12, 6):
+                proc = subprocess.run(
+                    ["tesseract", str(image_path), "stdout", "-l", "eng+fra",
+                     "--psm", str(psm)],
+                    capture_output=True, text=True, timeout=45,
+                )
+                if proc.returncode == 0 and proc.stdout.strip():
+                    sparse_parts.append(proc.stdout)
+                    sparse_normalized = re.sub(
+                        r"[^\w]+", " ", proc.stdout.casefold())
+                    if title_clean in sparse_normalized:
+                        progress(
+                            "TITLE_TOC_SPARSE_OCR_VERIFIED",
+                            page=toc_page,
+                            title=entry["canonical_title"],
+                            psm=psm,
+                        )
+                        toc_txt = toc_txt + "\n" + proc.stdout
+                        toc_normalized = re.sub(
+                            r"[^\w]+", " ", toc_txt.casefold())
+                        break
+
     return title_clean in toc_normalized and (
         "chapter" in toc_normalized or "chapitre" in toc_normalized
         or "contents" in toc_normalized or "فهرس" in toc_normalized
