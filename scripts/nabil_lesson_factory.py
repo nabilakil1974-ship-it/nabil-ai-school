@@ -38,6 +38,10 @@ from scripts.nabil_i18n import (
 from scripts.nabil_interactive_lab import render_verified_lab, validate_lab_spec
 from scripts.nabil_quiz_engine import build_full_quiz_items, render_quiz_html
 from scripts.nabil_requirement5_gate import validate_requirement5_lab, assert_requirement5_publishable
+from scripts.nabil_scientific_lab_coverage import (
+    validate_and_annotate_curriculum_lab,
+    validate_lesson_scientific_lab_coverage,
+)
 
 ROOT = Path(__file__).resolve().parents[1] if len(Path(__file__).resolve().parents) > 1 else Path("/app")
 CATALOG_PATH = ROOT / "data/nabil_canonical_lesson_catalog.json"
@@ -6883,6 +6887,15 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
         lesson_id=str(entry.get("lesson_id") or ""),
         lab_id=str(concept.get("concept_id") or ""),
     )
+    # Grades 1-12 science/mathematics coverage contract. This adds no science:
+    # it only certifies that the already R5-passed lab belongs to a covered
+    # curriculum cell and remains source-locked.
+    spec = validate_and_annotate_curriculum_lab(
+        spec,
+        entry=entry,
+        profile=profile,
+        concept=concept,
+    )
     return spec
 
 
@@ -7357,6 +7370,13 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
     whole_lesson_lab_html = render_whole_lesson_smart_lab(
         title, activities_theory, lesson_lang_code)
 
+    # Fail closed if any science/mathematics concept in Grades 1-12 has no
+    # Requirement-5-locked interactive activity. Rich simulations are used
+    # when evidence supports them; evidence sequence/reveal remains the safe
+    # fallback when a physical/mathematical simulation would require invention.
+    scientific_lab_coverage = validate_lesson_scientific_lab_coverage(
+        profile, activities_theory)
+
     # Full-coverage quiz: reuses the exact grounded conclusion/distractor
     # fields already produced per concept above — no new LLM calls, no new
     # invented content, same evidence guarantee as the worksheet.
@@ -7376,6 +7396,7 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
         "reference_card_html": ref_card_html,
         "whole_lesson_lab_html": whole_lesson_lab_html,
         "whole_lesson_lab_active": bool(whole_lesson_lab_html),
+        "scientific_lab_coverage": scientific_lab_coverage,
     }
 
 
