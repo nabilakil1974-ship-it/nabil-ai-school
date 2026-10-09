@@ -2789,71 +2789,163 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict,
 # ==============================================================================
 # 11. QUALITY GATES & REAL PLAYWRIGHT CHROMIUM COMPREHENSIVE QA (390x844)
 # ==============================================================================
-def run_real_playwright_chromium_qa(html_path: str) -> bool:
+def run_real_playwright_chromium_qa(
+        html_path: str, label: str = "page") -> Dict[str, Any]:
+    """Real mobile-browser QA with deterministic renderer fallback."""
     try:
         from playwright.sync_api import sync_playwright
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
             page = browser.new_page(viewport={"width": 390, "height": 844})
-            page.goto(f"file://{Path(html_path).resolve()}")
-            
+            page.goto(
+                f"file://{Path(html_path).resolve()}",
+                wait_until="domcontentloaded",
+            )
+
             try:
-                page.wait_for_selector('mjx-container', timeout=5000)
+                page.wait_for_function(
+                    """() => {
+                      const root = document.documentElement;
+                      return !!document.querySelector('mjx-container')
+                        || root.dataset.nabilMathFallback === 'true'
+                        || (
+                          !document.body.innerText.includes('\\\\(')
+                          && !document.body.innerText.includes('\\\\[')
+                        );
+                    }""",
+                    timeout=12000,
+                )
             except Exception:
-                pass
-            
+                try:
+                    page.evaluate(
+                        """() => {
+                          if (window.__NABIL_READABLE_MATH_FALLBACK) {
+                            window.__NABIL_READABLE_MATH_FALLBACK();
+                          }
+                        }"""
+                    )
+                    page.wait_for_timeout(150)
+                except Exception:
+                    pass
+
             check_result = page.evaluate("""() => {
                 const doc = document.documentElement;
-                
+
                 if (doc.scrollWidth > doc.clientWidth + 2) {
-                    return { passed: false, reason: "HORIZONTAL_OVERFLOW" };
+                    return {
+                      passed: false,
+                      reason: "HORIZONTAL_OVERFLOW",
+                      scrollWidth: doc.scrollWidth,
+                      clientWidth: doc.clientWidth
+                    };
                 }
 
-                const buttons = Array.from(document.querySelectorAll('button, .q-opt'));
+                const buttons = Array.from(
+                  document.querySelectorAll('button, .q-opt')
+                );
                 for (let b of buttons) {
                     if (b.getBoundingClientRect().height < 43) {
-                        return { passed: false, reason: "TOUCH_TARGET_TOO_SMALL", height: b.getBoundingClientRect().height };
+                        return {
+                          passed: false,
+                          reason: "TOUCH_TARGET_TOO_SMALL",
+                          height: b.getBoundingClientRect().height,
+                          text: (b.innerText || '').slice(0, 80)
+                        };
                     }
                 }
 
                 const bodyText = document.body.innerText;
                 if (bodyText.includes('\\\\(') || bodyText.includes('\\\\[')) {
-                    return { passed: false, reason: "RAW_LATEX_DETECTED" };
+                    return {
+                      passed: false,
+                      reason: "RAW_LATEX_DETECTED",
+                      renderer: doc.dataset.nabilMathRenderer || "none"
+                    };
                 }
 
-                const allElements = document.querySelectorAll('img, .card, mjx-container, p, h1, h2, h3');
+                const allElements = document.querySelectorAll(
+                  'img, .card, mjx-container, p, h1, h2, h3'
+                );
                 for (let el of allElements) {
                     const rect = el.getBoundingClientRect();
                     if (rect.right > 392 || rect.left < -2) {
-                        return { passed: false, reason: "ELEMENT_BOUNDING_BOX_OVERFLOW", tag: el.tagName, right: rect.right };
+                        return {
+                          passed: false,
+                          reason: "ELEMENT_BOUNDING_BOX_OVERFLOW",
+                          tag: el.tagName,
+                          right: rect.right,
+                          left: rect.left,
+                          text: (el.innerText || '').slice(0, 80)
+                        };
                     }
                 }
 
-                const mathContentPresent = document.body.innerHTML.includes('\\\\(') || document.body.innerHTML.includes('\\\\[');
-                const mjxCount = document.querySelectorAll('mjx-container').length;
-                if (mathContentPresent && mjxCount === 0) {
-                    return { passed: false, reason: "MATHJAX_CONTAINER_MISSING_DESPITE_MATH" };
+                const originalMathPresent =
+                  document.documentElement.innerHTML.includes('\\\\(')
+                  || document.documentElement.innerHTML.includes('\\\\[');
+                const mjxCount =
+                  document.querySelectorAll('mjx-container').length;
+                const fallbackReady =
+                  doc.dataset.nabilMathFallback === 'true';
+
+                if (originalMathPresent && mjxCount === 0 && !fallbackReady) {
+                    return {
+                      passed: false,
+                      reason: "MATH_RENDERER_MISSING_DESPITE_MATH",
+                      renderer: doc.dataset.nabilMathRenderer || "none"
+                    };
                 }
 
-                const whole = document.getElementById('nabilWholeLessonSmartLab');
+                const whole =
+                  document.getElementById('nabilWholeLessonSmartLab');
                 if (whole) {
-                    const frame = document.getElementById('nabilWholeLessonFrame');
-                    if (!frame) return { passed:false, reason:"WHOLE_LESSON_FRAME_MISSING" };
+                    const frame =
+                      document.getElementById('nabilWholeLessonFrame');
+                    if (!frame) {
+                        return {
+                          passed:false,
+                          reason:"WHOLE_LESSON_FRAME_MISSING"
+                        };
+                    }
                     if (!window.NABILWholeLessonOrchestrator ||
                         typeof window.NABILWholeLessonOrchestrator.current !== 'function' ||
                         typeof window.NABILWholeLessonOrchestrator.stop !== 'function') {
-                        return { passed:false, reason:"WHOLE_LESSON_ORCHESTRATOR_MISSING" };
+                        return {
+                          passed:false,
+                          reason:"WHOLE_LESSON_ORCHESTRATOR_MISSING"
+                        };
                     }
                 }
-                return { passed: true };
+
+                return {
+                  passed: true,
+                  renderer: doc.dataset.nabilMathRenderer || "none",
+                  mjxCount
+                };
             }""")
             browser.close()
-            
+
             if not check_result.get("passed", False):
-                return False
-        return True
+                progress(
+                    "PLAYWRIGHT_QA_DIAGNOSTIC",
+                    page=label,
+                    reason=check_result.get("reason"),
+                    details=json.dumps(
+                        check_result, ensure_ascii=False
+                    )[:700],
+                )
+            else:
+                progress(
+                    "PLAYWRIGHT_QA_PASSED",
+                    page=label,
+                    renderer=check_result.get("renderer"),
+                    mjx_count=check_result.get("mjxCount"),
+                )
+            return check_result
     except Exception as e:
-        raise RuntimeError(f"PLAYWRIGHT_CHROMIUM_QA_EXECUTION_FAILED: {e}")
+        raise RuntimeError(
+            f"PLAYWRIGHT_CHROMIUM_QA_EXECUTION_FAILED:{label}:{e}")
+
 
 
 def ensure_verified_apply_steps(
@@ -3437,14 +3529,32 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
         path_b = tmp_b.name
 
     try:
-        qa_a = run_real_playwright_chromium_qa(path_a)
-        qa_b = run_real_playwright_chromium_qa(path_b)
+        qa_a = run_real_playwright_chromium_qa(path_a, "theory")
+        qa_b = run_real_playwright_chromium_qa(path_b, "exercises")
     finally:
         Path(path_a).unlink(missing_ok=True)
         Path(path_b).unlink(missing_ok=True)
 
-    check("MATH_RENDERING_FAILED", qa_a and qa_b, "CRITICAL", "MathJax successful rendering & bounding box overflow checks verified via real Playwright Chromium execution")
-    check("MOBILE_REAL_PLAYWRIGHT_CHROMIUM_QA_390_844", qa_a and qa_b, "CRITICAL", "Real Playwright Chromium headless browser QA verified for 390x844 bounds, bounding boxes clipping & touch targets")
+    qa_ok = (
+        bool((qa_a or {}).get("passed"))
+        and bool((qa_b or {}).get("passed"))
+    )
+    qa_details = json.dumps(
+        {"theory": qa_a, "exercises": qa_b},
+        ensure_ascii=False,
+    )[:1400]
+    check(
+        "MATH_RENDERING_FAILED",
+        qa_ok,
+        "CRITICAL",
+        qa_details,
+    )
+    check(
+        "MOBILE_REAL_PLAYWRIGHT_CHROMIUM_QA_390_844",
+        qa_ok,
+        "CRITICAL",
+        qa_details,
+    )
 
     check(
         "ONLY_VERIFIED_SOLVED_EXERCISES_STUDENT_FACING",

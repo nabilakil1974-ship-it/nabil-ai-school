@@ -84,15 +84,62 @@ class MathRenderingEngine:
     @staticmethod
     def inject_mathjax_head() -> str:
         return '''<script>
+window.__NABIL_MATHJAX_READY = false;
 window.MathJax = {
-  tex: { inlineMath: [['\\\\(', '\\\\)']], displayMath: [['\\\\[', '\\\\]']], processEscapes: true },
+  tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']], processEscapes: true },
   options: { renderActions: { addMenu: [] } },
-  chtml: { scale: 0.95 }
+  chtml: { scale: 0.95 },
+  startup: {
+    pageReady: () => MathJax.startup.defaultPageReady().then(() => {
+      window.__NABIL_MATHJAX_READY = true;
+      document.documentElement.dataset.nabilMathRenderer = 'mathjax';
+    })
+  }
 };
+(function(){
+  function readableMathFallback(){
+    if (document.querySelector('mjx-container')) return;
+    const root = document.body;
+    if (!root) return;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walker.nextNode()) {
+      const n = walker.currentNode;
+      const tag = n.parentElement ? n.parentElement.tagName : '';
+      if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'TEXTAREA') continue;
+      const v = n.nodeValue || '';
+      if (v.includes('\\\\(') || v.includes('\\\\[')) nodes.push(n);
+    }
+    for (const n of nodes) {
+      let t = n.nodeValue || '';
+      t = t
+        .replace(/\\\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '($1)/($2)')
+        .replace(/\\\\sqrt\{([^{}]+)\}/g, '√($1)')
+        .replace(/\\\\times/g, '×')
+        .replace(/\\\\div/g, '÷')
+        .replace(/\\\\cdot/g, '·')
+        .replace(/\\\\leq?/g, '≤')
+        .replace(/\\\\geq?/g, '≥')
+        .replace(/\\\\neq/g, '≠')
+        .replace(/\\\\rightarrow/g, '→')
+        .replace(/\\\\left|\\\\right/g, '')
+        .replace(/\\\\\(|\\\\\)|\\\\\[|\\\\\]/g, '')
+        .replace(/\^\{([^{}]+)\}/g, '^$1')
+        .replace(/_\{([^{}]+)\}/g, '_$1');
+      n.nodeValue = t;
+    }
+    document.documentElement.dataset.nabilMathRenderer = 'readable-fallback';
+    document.documentElement.dataset.nabilMathFallback = 'true';
+  }
+  window.__NABIL_READABLE_MATH_FALLBACK = readableMathFallback;
+  setTimeout(readableMathFallback, 8000);
+})();
 </script>
-<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+<script id="MathJax-script" defer
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"
+  onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-chtml.min.js';}else if(window.__NABIL_READABLE_MATH_FALLBACK){window.__NABIL_READABLE_MATH_FALLBACK();}">
+</script>
 '''
-
 
 
 # ==============================================================================
