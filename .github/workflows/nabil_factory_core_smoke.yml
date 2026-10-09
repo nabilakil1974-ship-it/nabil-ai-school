@@ -7,6 +7,8 @@ on:
       - "scripts/nabil_i18n.py"
       - "scripts/nabil_interactive_lab.py"
       - "scripts/nabil_advanced_lab.py"
+      - "scripts/nabil_scientific_lab_coverage.py"
+      - "scripts/test_nabil_scientific_lab_coverage.py"
       - "scripts/nabil_geometry_lab.py"
       - "scripts/nabil_quiz_engine.py"
       - "app/static/nabil_scientific_solution_cards_e2e.js"
@@ -37,6 +39,8 @@ jobs:
           python -m py_compile \
             scripts/nabil_i18n.py \
             scripts/nabil_advanced_lab.py \
+            scripts/nabil_scientific_lab_coverage.py \
+            scripts/test_nabil_scientific_lab_coverage.py \
             scripts/nabil_geometry_lab.py \
             scripts/nabil_interactive_lab.py \
             scripts/nabil_quiz_engine.py \
@@ -44,6 +48,11 @@ jobs:
             app/api/routes_smart_labs.py \
             app/api/routes_interactive_lessons.py \
             app/main.py
+
+      - name: Run grades 1-12 scientific lab coverage matrix
+        run: |
+          python scripts/test_nabil_scientific_lab_coverage.py
+          python scripts/test_v1781_transient_resilience.py
 
       - name: Validate approved E2E JavaScript
         run: |
@@ -780,6 +789,7 @@ jobs:
               scripts/nabil_interactive_lab.py \
               scripts/nabil_advanced_lab.py \
               scripts/nabil_geometry_lab.py \
+              scripts/nabil_scientific_lab_coverage.py \
               scripts/nabil_i18n.py \
               scripts/nabil_quiz_engine.py \
               app/api/routes_smart_labs.py \
