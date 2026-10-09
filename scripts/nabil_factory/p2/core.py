@@ -2832,11 +2832,31 @@ def run_real_playwright_chromium_qa(
                 const doc = document.documentElement;
 
                 if (doc.scrollWidth > doc.clientWidth + 2) {
+                    const offenders = Array.from(
+                      document.querySelectorAll('body *')
+                    ).map(el => {
+                      const r = el.getBoundingClientRect();
+                      return {
+                        tag: el.tagName,
+                        cls: String(el.className || '').slice(0, 120),
+                        right: Math.round(r.right),
+                        left: Math.round(r.left),
+                        width: Math.round(r.width),
+                        text: (el.innerText || '').trim().slice(0, 100)
+                      };
+                    }).filter(x =>
+                      x.right > doc.clientWidth + 2 || x.left < -2
+                    ).sort((a,b) =>
+                      Math.max(b.right - doc.clientWidth, -b.left)
+                      - Math.max(a.right - doc.clientWidth, -a.left)
+                    );
                     return {
                       passed: false,
                       reason: "HORIZONTAL_OVERFLOW",
                       scrollWidth: doc.scrollWidth,
-                      clientWidth: doc.clientWidth
+                      clientWidth: doc.clientWidth,
+                      offender: offenders[0] || null,
+                      renderer: doc.dataset.nabilMathRenderer || "none"
                     };
                 }
 
@@ -2849,7 +2869,8 @@ def run_real_playwright_chromium_qa(
                           passed: false,
                           reason: "TOUCH_TARGET_TOO_SMALL",
                           height: b.getBoundingClientRect().height,
-                          text: (b.innerText || '').slice(0, 80)
+                          text: (b.innerText || '').slice(0, 80),
+                          renderer: doc.dataset.nabilMathRenderer || "none"
                         };
                     }
                 }
@@ -2920,10 +2941,23 @@ def run_real_playwright_chromium_qa(
                 return {
                   passed: true,
                   renderer: doc.dataset.nabilMathRenderer || "none",
-                  mjxCount
+                  mjxCount,
+                  mathPresent: originalMathPresent,
+                  fallbackUsed: fallbackReady
                 };
             }""")
             browser.close()
+
+            if (
+                check_result.get("renderer") == "readable-fallback"
+                or check_result.get("fallbackUsed") is True
+            ):
+                progress(
+                    "MATHJAX_FALLBACK_USED",
+                    page=label,
+                    renderer=check_result.get("renderer"),
+                    mjx_count=check_result.get("mjxCount"),
+                )
 
             if not check_result.get("passed", False):
                 progress(
@@ -2932,7 +2966,7 @@ def run_real_playwright_chromium_qa(
                     reason=check_result.get("reason"),
                     details=json.dumps(
                         check_result, ensure_ascii=False
-                    )[:700],
+                    )[:1000],
                 )
             else:
                 progress(
@@ -3050,27 +3084,29 @@ def ensure_verified_apply_steps(
 def _normalize_candidate_before_quality_gates(candidate: dict) -> dict:
     """Deterministic QA middleware for repairable presentation invariants.
 
-    This stage never changes source evidence, scientific claims, solutions,
-    numbers, formulas or lab behavior. It only repairs renderer metadata that
-    can be reconstructed safely from the already-rendered structure.
+    Never changes source evidence, scientific claims, verified solutions,
+    formulas or numbers. It repairs only renderer metadata/layout that is
+    mechanically reconstructible from the already-rendered lesson.
     """
-    page = str(candidate.get("page_a_html") or "")
+    page_a = str(candidate.get("page_a_html") or "")
+    page_b = str(candidate.get("page_b_html") or "")
     concept_count = len(
         ((candidate.get("evidence_map") or {}).get("concepts") or [])
     )
-    if not page or concept_count <= 0:
+    if not page_a or not page_b:
         return candidate
 
+    # Keep the existing Apply self-heal as a metadata-only repair.
     section_re = re.compile(
         r'(<section\b[^>]*class="[^"]*\bnabil-concept-card\b[^"]*"[^>]*>)'
         r'(.*?)'
         r'(</section>)',
         re.S | re.I,
     )
-    repaired_count = 0
+    repaired_apply = 0
 
     def heal_section(match):
-        nonlocal repaired_count
+        nonlocal repaired_apply
         opener, body, closer = match.groups()
         if 'data-step="application"' in body:
             return match.group(0)
@@ -3082,26 +3118,121 @@ def _normalize_candidate_before_quality_gates(candidate: dict) -> dict:
             '<div class="nabil-sci-final" data-step="application"',
             1,
         )
-        repaired_count += 1
+        repaired_apply += 1
         return opener + body + closer
 
-    healed_page = section_re.sub(heal_section, page)
+    healed_a = section_re.sub(heal_section, page_a)
 
-    if repaired_count:
-        candidate["page_a_html"] = healed_page
-        hashes = candidate.get("hashes")
-        if isinstance(hashes, dict):
+    # QA/mobile self-heal. This is layout-only and costs zero AI calls.
+    mobile_css = r"""
+<style id="nabilQaMobileSelfHealV2">
+#nabilPageLanguage{
+  max-width:calc(100vw - 12px)!important;
+}
+#nabilPageLanguage [data-nabil-lang]{
+  min-height:44px!important;
+  min-width:44px!important;
+  padding:9px 10px!important;
+}
+html,body,.container{
+  max-width:100%!important;
+  min-width:0!important;
+}
+.nabil-exercise-card,
+.nabil-exercise-card>div,
+.nabil-exercise-card p,
+.nabil-exercise-card li,
+.nabil-exercise-card h1,
+.nabil-exercise-card h2,
+.nabil-exercise-card h3,
+[data-nabil-solution-card],
+.nabil-solution-fallback{
+  min-width:0!important;
+  max-width:100%!important;
+  overflow-wrap:anywhere!important;
+  word-break:break-word!important;
+}
+.nabil-exercise-card>div:first-child{
+  flex-wrap:wrap!important;
+  gap:8px!important;
+}
+.nabil-exercise-card pre,
+.nabil-exercise-card code{
+  max-width:100%!important;
+  white-space:pre-wrap!important;
+  overflow-wrap:anywhere!important;
+  word-break:break-word!important;
+}
+.nabil-exercise-card table{
+  display:block!important;
+  width:100%!important;
+  max-width:100%!important;
+  overflow-x:auto!important;
+}
+.nabil-exercise-card svg,
+.nabil-exercise-card canvas,
+.nabil-exercise-card img,
+.nabil-exercise-card iframe,
+.nabil-sci-visual-stage svg,
+.nabil-sci-visual-stage canvas,
+.nabil-sci-visual-stage img{
+  max-width:100%!important;
+}
+mjx-container{
+  max-width:100%!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+}
+</style>
+"""
+
+    def heal_page(markup: str) -> str:
+        fixed = markup.replace(
+            'style="min-height:40px"',
+            'style="min-height:44px"',
+        )
+        if 'id="nabilQaMobileSelfHealV2"' not in fixed:
+            if "</head>" in fixed:
+                fixed = fixed.replace(
+                    "</head>", mobile_css + "\n</head>", 1)
+            else:
+                fixed = mobile_css + fixed
+        return fixed
+
+    healed_a = heal_page(healed_a)
+    healed_b = heal_page(page_b)
+
+    changed_a = healed_a != page_a
+    changed_b = healed_b != page_b
+    if changed_a:
+        candidate["page_a_html"] = healed_a
+    if changed_b:
+        candidate["page_b_html"] = healed_b
+
+    hashes = candidate.get("hashes")
+    if isinstance(hashes, dict):
+        if changed_a:
             hashes["page_a"] = hashlib.sha256(
-                healed_page.encode("utf-8")
-            ).hexdigest()
+                healed_a.encode("utf-8")).hexdigest()
+        if changed_b:
+            hashes["page_b"] = hashlib.sha256(
+                healed_b.encode("utf-8")).hexdigest()
+
+    if repaired_apply:
         progress(
             "QUALITY_GATE_LOCAL_NORMALIZATION_APPLIED",
             gate="TEACHING_FLOW_APPLY_MISSING",
-            repaired_concepts=repaired_count,
+            repaired_concepts=repaired_apply,
             expected_concepts=concept_count,
         )
+    if changed_a or changed_b:
+        progress(
+            "QA_LAYOUT_LOCAL_NORMALIZATION_APPLIED",
+            theory=changed_a,
+            exercises=changed_b,
+            touch_target_min_px=44,
+        )
     return candidate
-
 
 def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
     candidate = _normalize_candidate_before_quality_gates(candidate)
@@ -3535,17 +3666,40 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
         Path(path_a).unlink(missing_ok=True)
         Path(path_b).unlink(missing_ok=True)
 
-    qa_ok = (
-        bool((qa_a or {}).get("passed"))
-        and bool((qa_b or {}).get("passed"))
-    )
+    qa_a_ok = bool((qa_a or {}).get("passed"))
+    qa_b_ok = bool((qa_b or {}).get("passed"))
+    qa_ok = qa_a_ok and qa_b_ok
     qa_details = json.dumps(
         {"theory": qa_a, "exercises": qa_b},
         ensure_ascii=False,
-    )[:1400]
+    )[:1800]
+
+    check(
+        "PLAYWRIGHT_THEORY_QA_FAILED",
+        qa_a_ok,
+        "CRITICAL",
+        json.dumps(qa_a, ensure_ascii=False)[:900],
+    )
+    check(
+        "PLAYWRIGHT_EXERCISES_QA_FAILED",
+        qa_b_ok,
+        "CRITICAL",
+        json.dumps(qa_b, ensure_ascii=False)[:900],
+    )
+
+    # A text fallback is allowed to keep the page readable, but Golden publish
+    # is not counted as math-rendering success when verified math was present.
+    math_renderer_ok = all(
+        not bool((row or {}).get("mathPresent"))
+        or (
+            (row or {}).get("renderer") == "mathjax"
+            and int((row or {}).get("mjxCount") or 0) > 0
+        )
+        for row in (qa_a, qa_b)
+    )
     check(
         "MATH_RENDERING_FAILED",
-        qa_ok,
+        math_renderer_ok,
         "CRITICAL",
         qa_details,
     )

@@ -245,6 +245,12 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
     }
 
     gates_res = run_all_quality_gates(candidate)
+
+    # QA middleware may deterministically repair presentation/layout. Freeze the
+    # exact reviewed HTML for local artifacts and Drive publish.
+    page_a = candidate["page_a_html"]
+    page_b = candidate["page_b_html"]
+
     review_res = independent_scientific_review(entry, candidate)
 
     # QA and independent scientific review have passed. Only now freeze the
