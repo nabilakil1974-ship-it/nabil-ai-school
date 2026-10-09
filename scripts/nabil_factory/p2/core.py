@@ -1955,6 +1955,65 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
                     f"LAB_REVEAL_EVIDENCE_QUOTE_NOT_FOUND:{index}")
 
     teacher_script = spec.get("teacher_script")
+    if kind == "EVIDENCE_REVEAL":
+        actions_now = {
+            str(step.get("action") or "")
+            for step in (teacher_script or [])
+            if isinstance(step, dict)
+        }
+        required_reference_actions = {"point", "highlight", "explain", "conclude"}
+        if not required_reference_actions.issubset(actions_now):
+            verified_quote = str(spec.get("evidence_quote") or "").strip()
+            verified_title = str(
+                spec.get("title")
+                or concept.get("title")
+                or "Verified source evidence"
+            ).strip()
+            constraint = "Use only the verified source evidence."
+            teacher_script = [
+                {
+                    "say": verified_title,
+                    "target_ids": ["evidence:0"],
+                    "action": "point",
+                    "state_before": {"revealed_index": -1},
+                    "state_after": {"revealed_index": 0},
+                    "scientific_constraints": [constraint],
+                    "evidence_quote": verified_quote,
+                },
+                {
+                    "say": "Focus on the verified source evidence.",
+                    "target_ids": ["evidence:0"],
+                    "action": "highlight",
+                    "state_before": {"revealed_index": 0},
+                    "state_after": {"revealed_index": 0},
+                    "scientific_constraints": [constraint],
+                    "evidence_quote": verified_quote,
+                },
+                {
+                    "say": "Read this verified evidence carefully.",
+                    "target_ids": ["evidence:0"],
+                    "action": "explain",
+                    "state_before": {"revealed_index": 0},
+                    "state_after": {"revealed_index": 0},
+                    "scientific_constraints": [constraint],
+                    "evidence_quote": verified_quote,
+                },
+                {
+                    "say": "Keep the conclusion tied to this verified evidence.",
+                    "target_ids": ["evidence:0"],
+                    "action": "conclude",
+                    "state_before": {"revealed_index": 0},
+                    "state_after": {"revealed_index": 0},
+                    "scientific_constraints": [constraint],
+                    "evidence_quote": verified_quote,
+                },
+            ]
+            spec["teacher_script"] = teacher_script
+            progress(
+                "R5_EVIDENCE_REVEAL_REFERENCE_CHOREOGRAPHY_COMPLETED",
+                concept_id=concept.get("concept_id"),
+                source_page=concept.get("source_page"),
+            )
     if not isinstance(teacher_script, list) or not 2 <= len(teacher_script) <= 12:
         raise RuntimeError("LAB_TEACHER_SCRIPT_REQUIRED")
     allowed_teacher_actions = {"point","highlight","set_state","animate","observe","explain","conclude"}
