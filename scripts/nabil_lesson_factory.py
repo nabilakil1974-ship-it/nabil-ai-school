@@ -122,64 +122,45 @@ def _persist_factory_recovery_state(
 def _raise_if_provider_pause_required(
         entry: dict, drive_service, *, unit_id: str,
         operation: str, exc: Exception) -> None:
-    """Convert provider failures into durable clean pause states.
+    """Normalize legacy provider errors to typed signals without persisting.
 
-    Unknown/scientific validation failures are left to the caller's existing
-    fail-closed item policy; only provider/prompt classes are intercepted here.
+    Persistence happens once at the produce_lesson_for_entry boundary.
     """
+    if isinstance(exc, (ProviderDailyQuotaError, ProviderTransientError,
+                        ProviderUnavailableError, NeedsAttentionError)):
+        if not getattr(exc, "operation", None):
+            exc.operation = operation
+        if not getattr(exc, "unit_id", None):
+            exc.unit_id = unit_id
+        raise exc
+
     info = classify_provider_error(exc)
     if info.kind == "daily_quota":
-        retry = info.retry_after_seconds or 21600
-        state = _persist_factory_recovery_state(
-            entry, drive_service,
-            status=STATUS_PAUSED_TRANSIENT,
-            reason=info.message,
-            unit_id=unit_id,
+        raise ProviderDailyQuotaError(
+            info.message,
+            retry_after_seconds=info.retry_after_seconds or 21600,
+            status_code=info.status_code,
             operation=operation,
-            retry_seconds=retry,
-        )
-        err = ProviderDailyQuotaError(
-            info.message, retry_after_seconds=retry,
-            status_code=info.status_code)
-        err.state = state
-        raise err from exc
+            unit_id=unit_id,
+            reason=info.message,
+        ) from exc
     if info.kind == "transient":
-        retry = info.retry_after_seconds or 60
-        state = _persist_factory_recovery_state(
-            entry, drive_service,
-            status=STATUS_PAUSED_TRANSIENT,
-            reason=info.message,
-            unit_id=unit_id,
+        raise ProviderTransientError(
+            info.message,
+            retry_after_seconds=info.retry_after_seconds or 60,
+            status_code=info.status_code,
             operation=operation,
-            retry_seconds=retry,
-        )
-        err = ProviderTransientError(
-            info.message, retry_after_seconds=retry,
-            status_code=info.status_code)
-        err.state = state
-        raise err from exc
+            unit_id=unit_id,
+            reason=info.message,
+        ) from exc
     if info.kind == "auth_billing":
-        state = _persist_factory_recovery_state(
-            entry, drive_service,
-            status=STATUS_PROVIDER_UNAVAILABLE,
-            reason=info.message,
-            unit_id=unit_id,
-            operation=operation,
-        )
-        err = ProviderUnavailableError(info.message)
-        err.state = state
-        raise err from exc
+        raise ProviderUnavailableError(
+            info.message, operation=operation, unit_id=unit_id,
+            reason=info.message) from exc
     if info.kind == "needs_attention":
-        state = _persist_factory_recovery_state(
-            entry, drive_service,
-            status=STATUS_NEEDS_ATTENTION,
-            reason=info.message,
-            unit_id=unit_id,
-            operation=operation,
-        )
-        err = NeedsAttentionError(info.message)
-        err.state = state
-        raise err from exc
+        raise NeedsAttentionError(
+            info.message, operation=operation, unit_id=unit_id,
+            reason=info.message) from exc
 
 
 # ==============================================================================
@@ -5793,6 +5774,9 @@ def generate_ai_practice_for_insufficient_book_exercises(
                 generator_prompt, json_mode=True, temperature=0.2,
                 operation=f"ai_practice_generate_round_{round_no}",
                 unit_id=f"ai_practice:round:{round_no}"))
+        except (ProviderDailyQuotaError, ProviderTransientError,
+                ProviderUnavailableError, NeedsAttentionError):
+            raise
         except Exception as exc:
             rejected_reasons.append(f"AI generator unavailable: {exc}")
             progress(
@@ -5849,6 +5833,9 @@ def generate_ai_practice_for_insufficient_book_exercises(
                     gate_prompt, json_mode=True, temperature=0.0,
                     operation=f"ai_practice_gate_round_{round_no}",
                     unit_id=f"ai_practice_gate:round:{round_no}"))
+            except (ProviderDailyQuotaError, ProviderTransientError,
+                    ProviderUnavailableError, NeedsAttentionError):
+                raise
             except Exception as exc:
                 rejected_reasons.append(f"scientific gate unavailable: {exc}")
                 progress(
@@ -6728,6 +6715,9 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
             purpose=f"lab_spec_{concept.get('concept_id')}",
             max_attempts=3,
         )
+    except (ProviderDailyQuotaError, ProviderTransientError,
+            ProviderUnavailableError, NeedsAttentionError):
+        raise
     except Exception as exc:
         raise RuntimeError(f"LAB_SPEC_JSON_INVALID: {exc}") from exc
 
@@ -6859,6 +6849,9 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
                     # other scientific field from the repair response.
                     repaired = dict(spec)
                     repaired["teacher_script"] = candidate_script
+        except (ProviderDailyQuotaError, ProviderTransientError,
+                ProviderUnavailableError, NeedsAttentionError):
+            raise
         except Exception as exc:
             progress(
                 "LAB_TEACHER_SCRIPT_REPAIR_PROVIDER_FAILED",
@@ -9398,10 +9391,19 @@ def independent_scientific_review(entry: dict, candidate: dict) -> dict:
             unit_id=str(entry.get("lesson_id") or "lesson"))
         parsed = json.loads(res)
         if not parsed.get("approved", False):
-            raise RuntimeError(f"SCIENTIFIC_REVIEW_REJECTED: Audit failed -> {parsed.get('issues')}")
+            raise ScientificGateBlocked(
+                f"SCIENTIFIC_REVIEW_REJECTED:{parsed.get('issues')}")
         return parsed
+    except (ProviderDailyQuotaError, ProviderTransientError,
+            ProviderUnavailableError, NeedsAttentionError,
+            ScientificGateBlocked):
+        raise
     except Exception as e:
-        raise RuntimeError(f"SCIENTIFIC_REVIEW_REJECTED: reviewer unavailable or failed: {e}")
+        raise NeedsAttentionError(
+            f"SCIENTIFIC_REVIEW_UNAVAILABLE:{e}",
+            operation="scientific_review",
+            unit_id=str(entry.get("lesson_id") or "lesson"),
+            reason=str(e)) from e
 
 
 # ==============================================================================
@@ -9608,7 +9610,7 @@ def promote_candidate(candidate: dict, entry: dict, drive_service) -> Tuple[str,
 # ==============================================================================
 # PRODUCTION PIPELINE ENTRY (LAZY DRIVE RESOLUTION)
 # ==============================================================================
-def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = False) -> dict:
+def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: bool = False) -> dict:
     lesson_id = entry["lesson_id"]
     book_id = entry["book_id"]
     progress("PRODUCTION_PIPELINE_START", lesson_id=lesson_id)
@@ -9652,29 +9654,7 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
     finally:
         doc.close()
 
-    try:
-        theory = synthesize_universal_pedagogy(entry, ev_map, profile)
-    except RuntimeError as exc:
-        # Provider/quota failures can be wrapped by the scientific/lab pipeline
-        # (e.g. LAB_PIPELINE_FAILED:C01:...AI_ALL_PROVIDERS_COOLING_DOWN).
-        # Reclassify the complete causal message here so the real factory exits
-        # as a durable pause rather than leaking a traceback.
-        chain=[]
-        cur=exc
-        seen=set()
-        while cur is not None and id(cur) not in seen:
-            seen.add(id(cur)); chain.append(str(cur))
-            cur=getattr(cur,"__cause__",None) or getattr(cur,"__context__",None)
-        wrapped=RuntimeError(" | ".join(chain))
-        concept_match=re.search(r"LAB_PIPELINE_FAILED:([^:|]+)",str(exc))
-        unit=(concept_match.group(1) if concept_match else entry.get("lesson_id"))
-        _raise_if_provider_pause_required(
-            entry, drive_service,
-            unit_id=str(unit or "theory"),
-            operation="theory_lab_synthesis",
-            exc=wrapped,
-        )
-        raise
+    theory = synthesize_universal_pedagogy(entry, ev_map, profile)
 
     # 1) Attempt EVERY verified textbook exercise first.
     textbook_exercises = [dict(ex) for ex in ev_map["exercise_evidence"]]
@@ -9875,6 +9855,69 @@ def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = Fa
 # ==============================================================================
 # MAIN ENTRY POINT
 # ==============================================================================
+
+def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = False) -> dict:
+    """Single recovery boundary for every provider-dependent production stage."""
+    try:
+        return _produce_lesson_for_entry_impl(
+            entry, drive_service=drive_service, publish=publish)
+    except (ProviderDailyQuotaError, ProviderTransientError) as exc:
+        retry = max(1, int(getattr(exc, "retry_after_seconds", None) or 60))
+        operation = str(getattr(exc, "operation", None) or "provider_operation")
+        unit_id = str(getattr(exc, "unit_id", None) or operation)
+        checkpoint_drive = drive_service
+        if checkpoint_drive is None:
+            try:
+                checkpoint_drive = get_drive_service()
+            except Exception:
+                checkpoint_drive = None
+        state = _persist_factory_recovery_state(
+            entry, checkpoint_drive,
+            status=STATUS_PAUSED_TRANSIENT,
+            reason=str(getattr(exc, "reason", None) or exc),
+            unit_id=unit_id,
+            operation=operation,
+            retry_seconds=retry,
+        )
+        exc.state = state
+        raise
+    except ProviderUnavailableError as exc:
+        operation = str(getattr(exc, "operation", None) or "provider_operation")
+        unit_id = str(getattr(exc, "unit_id", None) or operation)
+        checkpoint_drive = drive_service
+        if checkpoint_drive is None:
+            try:
+                checkpoint_drive = get_drive_service()
+            except Exception:
+                checkpoint_drive = None
+        state = _persist_factory_recovery_state(
+            entry, checkpoint_drive,
+            status=STATUS_PROVIDER_UNAVAILABLE,
+            reason=str(getattr(exc, "reason", None) or exc),
+            unit_id=unit_id,
+            operation=operation,
+        )
+        exc.state = state
+        raise
+    except NeedsAttentionError as exc:
+        operation = str(getattr(exc, "operation", None) or "provider_operation")
+        unit_id = str(getattr(exc, "unit_id", None) or operation)
+        checkpoint_drive = drive_service
+        if checkpoint_drive is None:
+            try:
+                checkpoint_drive = get_drive_service()
+            except Exception:
+                checkpoint_drive = None
+        state = _persist_factory_recovery_state(
+            entry, checkpoint_drive,
+            status=STATUS_NEEDS_ATTENTION,
+            reason=str(getattr(exc, "reason", None) or exc),
+            unit_id=unit_id,
+            operation=operation,
+        )
+        exc.state = state
+        raise
+
 def main():
     global PROGRESS_STARTED
     PROGRESS_STARTED = time.monotonic()
@@ -10014,6 +10057,21 @@ def _cli_entry() -> int:
         state = getattr(exc, "state", None) or {
             "status": STATUS_NEEDS_ATTENTION,
             "reason": str(exc),
+        }
+        print(json.dumps(state, ensure_ascii=False), flush=True)
+        return EXIT_NEEDS_ATTENTION
+    except ScientificGateBlocked as exc:
+        state = {
+            "status": "BLOCKED",
+            "reason": str(exc),
+            "blocked": True,
+        }
+        print(json.dumps(state, ensure_ascii=False), flush=True)
+        return 1
+    except Exception as exc:
+        state = {
+            "status": STATUS_NEEDS_ATTENTION,
+            "reason": f"UNEXPECTED_INTERNAL_ERROR:{type(exc).__name__}:{exc}",
         }
         print(json.dumps(state, ensure_ascii=False), flush=True)
         return EXIT_NEEDS_ATTENTION
