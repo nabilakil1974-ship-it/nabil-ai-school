@@ -42,6 +42,41 @@ def announce(stage: str, **kwargs):
     print(json.dumps({"time": datetime.now(timezone.utc).isoformat(),
                       "stage": stage, **kwargs}, ensure_ascii=False), flush=True)
 
+def preflight_provider_pool() -> list[str]:
+    """Log provider readiness before expensive source work."""
+    preferred = os.getenv("NABIL_FACTORY_AI_PROVIDER", "auto").strip().lower()
+    keys = factory._provider_keys()
+    configured = [name for name, value in keys.items() if value]
+    try:
+        candidates = factory._provider_order(preferred, keys)
+    except Exception as exc:
+        announce("PREFLIGHT_PROVIDER_POOL", status="NOT_CONFIGURED",
+                 primary=preferred, configured_providers=configured,
+                 reason=str(exc)[:500])
+        raise factory.ProviderUnavailableError(
+            "AI_PROVIDER_POOL_NOT_CONFIGURED",
+            operation="provider_preflight", unit_id="provider_pool",
+            reason=str(exc)) from exc
+
+    now_mono = time.monotonic()
+    quarantined = {
+        name: round(max(0.0, factory._AI_PROVIDER_COOLDOWNS.get(name, 0.0) - now_mono), 2)
+        for name in candidates
+        if factory._AI_PROVIDER_COOLDOWNS.get(name, 0.0) > now_mono
+    }
+    usable = [name for name in candidates if name not in quarantined]
+    announce("PREFLIGHT_PROVIDER_POOL",
+             status="READY" if usable else "QUARANTINED",
+             primary=candidates[0] if candidates else preferred,
+             configured_pool=candidates, usable_pool=usable,
+             quarantined=quarantined)
+    if not usable:
+        raise factory.ProviderUnavailableError(
+            "AI_PROVIDER_POOL_QUARANTINED",
+            operation="provider_preflight", unit_id="provider_pool",
+            reason=json.dumps(quarantined, sort_keys=True))
+    return usable
+
 
 def registered_book(book_id: str, *, drive_service=None, grade: str = "", subject: str = "", language: str = "", branch: str = "") -> dict:
     matches = []
@@ -453,6 +488,8 @@ def run(book_id: str, *, index_only: bool, publish: bool,
                          subject=subject, language=language, branch=branch)
     announce("BOOK_SELECTED", book_id=book_id, title=book["title"], grade=book["grade"])
     factory.execute_preflight_checks(require_drive=publish)
+    if not index_only:
+        preflight_provider_pool()
     if publish:
         root_id = factory.resolve_drive_root_id()
         destination = service.files().get(
@@ -785,7 +822,7 @@ def run_folder(folder_id: str, *, grade: str = "", subject: str = "",
         time.sleep(poll_seconds)
 
 
-def main():
+def _main_impl():
     ap=argparse.ArgumentParser(description="NABIL real TOC to final-Drive one-book production")
     source=ap.add_mutually_exclusive_group(required=True)
     source.add_argument("--book-id",help="One original Drive PDF ID")
@@ -819,6 +856,61 @@ def main():
                    language=args.language,branch=args.branch,
                    max_new_lessons=args.max_new_lessons)
     announce("FINAL_STATUS",status=result["status"])
+    return 0
+
+
+def _raise_process_boundary_test_signal():
+    signal = os.getenv("NABIL_FACTORY_TEST_RAISE", "").strip().upper()
+    if not signal:
+        return
+    mapping = {
+        "TRANSIENT": factory.ProviderTransientError,
+        "PROVIDER_UNAVAILABLE": factory.ProviderUnavailableError,
+        "NEEDS_ATTENTION": factory.NeedsAttentionError,
+        "SCIENTIFIC_BLOCKED": factory.ScientificGateBlocked,
+    }
+    exc_type = mapping.get(signal)
+    if exc_type is None:
+        raise RuntimeError("NABIL_FACTORY_TEST_RAISE_INVALID:" + signal)
+    raise exc_type("PROCESS_BOUNDARY_TEST_" + signal)
+
+
+def main() -> int:
+    announce(
+        "PROCESS_START",
+        railway_git_commit_sha=os.getenv("RAILWAY_GIT_COMMIT_SHA", ""),
+        railway_service=os.getenv("RAILWAY_SERVICE_NAME", ""),
+    )
+    try:
+        _raise_process_boundary_test_signal()
+        return int(_main_impl() or 0)
+    except (factory.ProviderDailyQuotaError,
+            factory.ProviderTransientError) as exc:
+        announce("FINAL_STATUS", status="PAUSED_TRANSIENT",
+                 reason=str(exc)[:1000],
+                 exit_code=factory.EXIT_PAUSED_TRANSIENT)
+        return factory.EXIT_PAUSED_TRANSIENT
+    except factory.ProviderUnavailableError as exc:
+        announce("FINAL_STATUS", status="PAUSED_PROVIDER_UNAVAILABLE",
+                 reason=str(exc)[:1000],
+                 exit_code=factory.EXIT_PROVIDER_UNAVAILABLE)
+        return factory.EXIT_PROVIDER_UNAVAILABLE
+    except factory.NeedsAttentionError as exc:
+        announce("FINAL_STATUS", status="NEEDS_ATTENTION",
+                 reason=str(exc)[:1000],
+                 exit_code=factory.EXIT_NEEDS_ATTENTION)
+        return factory.EXIT_NEEDS_ATTENTION
+    except factory.ScientificGateBlocked as exc:
+        announce("FINAL_STATUS", status="BLOCKED",
+                 reason=str(exc)[:1000], exit_code=1)
+        return 1
+    except Exception as exc:
+        announce("FINAL_STATUS", status="NEEDS_ATTENTION",
+                 reason=f"{type(exc).__name__}:{str(exc)[:900]}",
+                 exit_code=factory.EXIT_NEEDS_ATTENTION)
+        return factory.EXIT_NEEDS_ATTENTION
+
 
 if __name__=="__main__":
-    main()
+    raise SystemExit(main())
+
