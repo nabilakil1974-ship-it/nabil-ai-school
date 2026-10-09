@@ -21,6 +21,11 @@ _RECOVERABLE_PREFIXES = (
     "FORMAT_",
 )
 
+_RECOVERABLE_QUALITY_GATES = (
+    "TEACHING_FLOW_APPLY_MISSING",
+)
+
+
 _TRUTH_CRITICAL_MARKERS = (
     "SCIENTIFIC",
     "SOURCE_IDENTITY",
@@ -45,6 +50,9 @@ def is_recoverable_factory_error(exc: Exception) -> bool:
     if is_truth_critical_factory_error(exc):
         return False
     reason = str(exc or "")
+    if "QUALITY_GATE_FAILED:" in reason and any(
+            gate in reason for gate in _RECOVERABLE_QUALITY_GATES):
+        return True
     return any(reason.startswith(prefix) or prefix in reason
                for prefix in _RECOVERABLE_PREFIXES)
 
@@ -166,6 +174,8 @@ def self_heal_logic_fingerprint() -> str:
         "scripts/nabil_factory/cards/core.py",
         "scripts/nabil_factory/drive_runtime/core.py",
         "scripts/nabil_factory/factory/guards.py",
+        "scripts/nabil_factory/p2/core.py",
+        "scripts/nabil_factory/factory/pipeline.py",
     )
     h = hashlib.sha256(SELF_HEAL_SUPERVISOR_VERSION.encode("utf-8"))
     for rel in rels:

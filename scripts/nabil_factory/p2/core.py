@@ -2748,6 +2748,105 @@ def run_real_playwright_chromium_qa(html_path: str) -> bool:
         raise RuntimeError(f"PLAYWRIGHT_CHROMIUM_QA_EXECUTION_FAILED: {e}")
 
 
+def ensure_verified_apply_steps(
+        theory: dict, exercises: List[dict], evidence_map: dict,
+        language_code: str) -> dict:
+    """Ensure every concept has a real Apply step before rendering.
+
+    Missing generated quiz/apply content is healed ONLY from verified textbook
+    exercises already accepted into the student set. No new scientific claim is
+    invented. The chosen exercise is the best deterministic lexical/page match.
+    """
+    activities = list(theory.get("activities") or [])
+    verified = [
+        ex for ex in (exercises or [])
+        if ex.get("source_origin", "TEXTBOOK") == "TEXTBOOK"
+        and ex.get("verified_against_source") is True
+        and ex.get("solution_status") == "SOLVED"
+        and str(ex.get("exact_source_prompt") or "").strip()
+    ]
+    if not activities:
+        return theory
+
+    def _tokens(value: str) -> set:
+        return {
+            t.lower() for t in re.findall(r"[\w]+", str(value or ""),
+                                          flags=re.UNICODE)
+            if len(t) >= 2
+        }
+
+    concepts = {
+        str(c.get("concept_id")): c
+        for c in (evidence_map.get("concepts") or [])
+        if c.get("concept_id")
+    }
+    used = set()
+    injected = 0
+
+    for act in activities:
+        if act.get("student_question"):
+            continue
+        cid = str(act.get("concept_id") or "")
+        concept = concepts.get(cid) or {}
+        c_text = " ".join([
+            str(concept.get("title") or act.get("title") or ""),
+            str(concept.get("normalized_text") or concept.get("raw_text") or ""),
+        ])
+        c_tokens = _tokens(c_text)
+        c_page = int(concept.get("source_page") or 0)
+
+        ranked = []
+        for idx, ex in enumerate(verified):
+            ex_id = str(ex.get("exercise_id") or f"EX-{idx}")
+            e_tokens = _tokens(ex.get("exact_source_prompt") or "")
+            overlap = len(c_tokens & e_tokens)
+            e_page = int(ex.get("source_page") or 0)
+            distance = abs(e_page - c_page) if c_page and e_page else 999
+            reuse_penalty = 1 if ex_id in used else 0
+            ranked.append((
+                reuse_penalty,
+                -overlap,
+                distance,
+                idx,
+                ex,
+            ))
+        if not ranked:
+            progress(
+                "APPLY_STEP_DEFERRED_NO_VERIFIED_EXERCISE",
+                concept_id=cid,
+            )
+            continue
+
+        ranked.sort(key=lambda row: row[:4])
+        ex = ranked[0][4]
+        ex_id = str(ex.get("exercise_id") or "")
+        used.add(ex_id)
+        act["student_apply_prompt"] = {
+            "exercise_id": ex_id,
+            "number": ex.get("number"),
+            "source_page": ex.get("source_page"),
+            "prompt": str(ex.get("exact_source_prompt") or "").strip(),
+            "verified_against_source": True,
+        }
+        injected += 1
+        progress(
+            "PEDAGOGICAL_APPLY_SELF_HEALED",
+            concept_id=cid,
+            exercise_id=ex_id,
+            source_page=ex.get("source_page"),
+        )
+
+    if injected:
+        theory["activities"] = activities
+        progress(
+            "PEDAGOGICAL_APPLY_SELF_HEAL_SUMMARY",
+            injected=injected,
+            concepts=len(activities),
+            verified_exercises=len(verified),
+        )
+    return theory
+
+
 def _normalize_candidate_before_quality_gates(candidate: dict) -> dict:
     """Deterministic QA middleware for repairable presentation invariants.
 

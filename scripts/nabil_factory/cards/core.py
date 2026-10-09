@@ -784,7 +784,30 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict, lab_index: Opt
                     '<div class="nabil-flow-row ' + ('nabil-conclude' if field == 'conclusion' else '') + '" data-step="' + html.escape(field) + '">'
                     '<b>' + html.escape(label) + ':</b> ' + html.escape(value) + '</div>'
                 )
-        apply_text = str(act.get("student_question") or "").strip()
+        apply_text = ""
+        if isinstance(q, dict):
+            apply_text = str(q.get("q") or "").strip()
+        apply_source = act.get("student_apply_prompt") or {}
+        if not apply_text and isinstance(apply_source, dict):
+            prompt_text = str(apply_source.get("prompt") or "").strip()
+            if prompt_text:
+                number = apply_source.get("number")
+                page_num = apply_source.get("source_page")
+                prefix = {
+                    "ar": "تمرين موثّق من الكتاب",
+                    "fr": "Exercice vérifié du manuel",
+                    "en": "Verified textbook exercise",
+                }.get(page_a_lang_code, "Verified textbook exercise")
+                meta_bits = []
+                if number is not None:
+                    meta_bits.append("#" + str(number))
+                if page_num is not None:
+                    meta_bits.append("p." + str(page_num))
+                apply_text = (
+                    prefix
+                    + ((" " + " · ".join(meta_bits)) if meta_bits else "")
+                    + ": " + prompt_text
+                )
         if apply_text:
             apply_label = {"ar":"✍️ طبّق","fr":"✍️ Applique","en":"✍️ Apply"}.get(page_a_lang_code,"✍️ Apply")
             generated_rows.append(

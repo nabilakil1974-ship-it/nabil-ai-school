@@ -98,6 +98,14 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
                if ex.get("source_origin") == "AI_ADDITIONAL_PRACTICE"),
         total=len(exercises))
 
+    # Factory-default pedagogical self-healing: if source-scope auditing removed
+    # a generated quiz/apply item, bind that concept to a verified textbook
+    # exercise BEFORE rendering/translation so all languages and caches contain
+    # the repaired Apply step.
+    theory = ensure_verified_apply_steps(
+        theory, exercises, ev_map,
+        resolve_lang_code(entry.get("language", "en")))
+
     lab_index = build_prebuilt_lab_index(entry, theory, exercises)
     page_a_raw = render_lesson_page_a(
         entry, theory, ev_map, lab_index=lab_index)
