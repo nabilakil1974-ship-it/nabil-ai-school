@@ -202,6 +202,33 @@ def main():
         finally:
             factory.main = original_main
         print("PASS cli_transient_exit_75_no_traceback")
+
+        # Real production-stage wrapper: a provider cooldown raised from inside
+        # theory/lab synthesis must become PAUSED_TRANSIENT, not a traceback.
+        original_synthesis = factory.synthesize_universal_pedagogy
+        try:
+            def cooling_synthesis(*args, **kwargs):
+                inner = RuntimeError(
+                    "AI_ALL_PROVIDERS_COOLING_DOWN: shortest_provider=groq "
+                    "wait_seconds=62.0")
+                raise RuntimeError(
+                    "LAB_PIPELINE_FAILED:C01:LAB_SPEC_JSON_INVALID: "
+                    + str(inner)) from inner
+            factory.synthesize_universal_pedagogy = cooling_synthesis
+            try:
+                factory.produce_lesson_for_entry(
+                    copy.deepcopy(entry), drive_service=fake_drive, publish=False)
+                raise AssertionError("theory/lab cooldown must pause")
+            except ProviderTransientError as exc:
+                st = getattr(exc, "state", {})
+                assert st.get("status") == "PAUSED_TRANSIENT", st
+                assert st.get("unit_id") == "C01", st
+                assert st.get("operation") == "theory_lab_synthesis", st
+                assert st.get("retry_after_seconds") == 62, st
+        finally:
+            factory.synthesize_universal_pedagogy = original_synthesis
+        print("PASS real_pipeline_theory_lab_cooldown_paused_no_traceback")
+
         print("NABIL_REAL_PRODUCE_LESSON_503_INTEGRATION_PASS")
 
 
