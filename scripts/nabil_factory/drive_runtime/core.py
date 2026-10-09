@@ -182,19 +182,26 @@ def persist_quality_gated_labs(entry: dict, theory: dict, exercises: list) -> di
 
 _ARABIC_COLLOQUIAL_TOKENS = (
     "هلق", "شو", "بدك", "بدي", "فيك", "هيك", "هيدا", "هيدي",
-    "هني", "ليش", "يلا", "خلينا", "رح ", "عم ", "منشوف", "منعمل",
+    "هني", "ليش", "يلا", "خلينا", "رح", "عم", "منشوف", "منعمل",
 )
 
 
 def _assert_formal_arabic_text(value: str, *, purpose: str) -> None:
-    """Reject generated/translated Arabic dialect in student teaching text.
+    """Reject standalone colloquial Arabic tokens in generated teaching text.
 
-    Never run this against raw textbook evidence; only NABIL-authored teaching
-    or translation output is checked.
+    Match whole Arabic tokens only. Substring matching was wrong: for example,
+    the formal word "شرح" contains the letters "رح" and was falsely rejected.
+    Never run this against raw textbook evidence.
     """
-    text = " " + re.sub(r"\s+", " ", str(value or "")).strip() + " "
-    found = [tok.strip() for tok in _ARABIC_COLLOQUIAL_TOKENS
-             if tok in text]
+    text = re.sub(r"\s+", " ", str(value or "")).strip()
+    found = []
+    for tok in _ARABIC_COLLOQUIAL_TOKENS:
+        if re.search(
+            rf"(?<![\w\u0600-\u06FF]){re.escape(tok)}"
+            rf"(?![\w\u0600-\u06FF])",
+            text,
+        ):
+            found.append(tok)
     if found:
         raise RuntimeError(
             f"FORMAL_ARABIC_REQUIRED:{purpose}:"
