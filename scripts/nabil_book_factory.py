@@ -720,6 +720,20 @@ def run(book_id: str, *, index_only: bool, publish: bool,
                     "LESSON_DEFERRED_REPAIR_CONTINUE_BOOK",
                     lesson_id=lid, reason=str(exc)[:800])
                 continue
+            if factory.is_truth_critical_factory_error(exc):
+                # Truth/source identity failures must never be auto-published,
+                # but one blocked lesson must not kill production of unrelated
+                # lessons in the same book.
+                state["lessons"][lid] = {
+                    "status": "BLOCKED_TRUTH",
+                    "error": str(exc)[:1200],
+                    "blocked_at": datetime.now(timezone.utc).isoformat(),
+                }
+                remote_checkpoint(service,root,book_id,state)
+                announce(
+                    "LESSON_TRUTH_BLOCK_DEFERRED_CONTINUE_BOOK",
+                    lesson_id=lid, reason=str(exc)[:800])
+                continue
             state["lessons"][lid] = {
                 "status": "NEEDS_ATTENTION",
                 "error": str(exc)[:1200],
@@ -733,7 +747,7 @@ def run(book_id: str, *, index_only: bool, publish: bool,
     unresolved = [
         row for row in state.get("lessons", {}).values()
         if row.get("status") in {
-            "DEFERRED_REPAIR", "BLOCKED_SCIENTIFIC",
+            "DEFERRED_REPAIR", "BLOCKED_SCIENTIFIC", "BLOCKED_TRUTH",
             "NEEDS_ATTENTION", "PAUSED_TRANSIENT",
             "PAUSED_PROVIDER_UNAVAILABLE",
         }
