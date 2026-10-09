@@ -187,11 +187,17 @@ def _load_record(service, root_id, doc, entry, page_num, kind,
                               or entry.get("source_book_sha256"),
         "page_num": page_num,
         "source_page_sha256": _source_signature(doc, page_num),
-        **_model_signature(provider, vision_model),
     }
     if not isinstance(record, dict) or any(
         record.get(key) != val for key, val in expected.items()):
         return None
+
+    # Provider/model are provenance, not scientific identity. A verified page
+    # checkpoint is locked to the exact source PDF + exact rendered page hash.
+    # Changing primary/failover provider or model must therefore NOT invalidate
+    # already verified evidence and force paid work to run again. Actual
+    # provider/model provenance remains stored in the record and is re-checked
+    # by the lesson factory against current owner authorization before reuse.
     if not isinstance(record.get("data"), (list, dict)):
         raise RuntimeError(
             "PAGE_CHECKPOINT_CORRUPT: invalid data " + _filename(page_num, kind))
