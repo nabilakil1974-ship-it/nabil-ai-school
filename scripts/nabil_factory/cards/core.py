@@ -200,7 +200,10 @@ def _extract_translation_candidates(markup: str) -> List[str]:
 
 def _translation_integrity_tokens(value: str) -> Tuple[List[str], List[str]]:
     text = str(value or "")
-    numbers = re.findall(r"(?<![\w])[-+]?\d+(?:[.,]\d+)?(?:%|°)?", text)
+    # Every numeric span is a scientific/content invariant, even when attached
+    # to letters (e.g. 10th, x2, G7). The previous left-boundary rule missed
+    # these and caused false PAGE_TRANSLATION_NUMBER_CHANGED failures.
+    numbers = re.findall(r"[-+]?\d+(?:[.,]\d+)?(?:%|°)?", text)
     protected = re.findall(
         r"(?:[A-Z][A-Za-z]?\d{0,3}|[A-Z]{1,4}\d*|"
         r"[A-Za-z]\d*[₀₁₂₃₄₅₆₇₈₉]*|"
@@ -212,8 +215,10 @@ def _translation_integrity_tokens(value: str) -> Tuple[List[str], List[str]]:
 
 
 _TRANSLATION_LOCK_RE = re.compile(
-    r"(?<!\w)(?:[-+]?\d+(?:[.,]\d+)?(?:%|°)?|"
-    r"[A-Z][A-Za-z]?\d{0,3}|[A-Z]{1,4}\d*|"
+    # Lock every number wherever it appears, including ordinal/alphanumeric
+    # forms such as 10th, x2 and G7.
+    r"[-+]?\d+(?:[.,]\d+)?(?:%|°)?"
+    r"|(?<!\w)(?:[A-Z][A-Za-z]?\d{0,3}|[A-Z]{1,4}\d*|"
     r"[A-Za-z]\d*[₀₁₂₃₄₅₆₇₈₉]*|"
     r"Ω|V|A|mA|kΩ|kg|g|m|cm|mm|s|ms|mol|Pa|N|J|W|Hz)"
     r"(?=\b|[^A-Za-zÀ-ÿ])"
