@@ -203,17 +203,18 @@ def main():
             factory.main = original_main
         print("PASS cli_transient_exit_75_no_traceback")
 
-        # Real production-stage wrapper: a provider cooldown raised from inside
-        # theory/lab synthesis must become PAUSED_TRANSIENT, not a traceback.
+        # Real production boundary: typed provider pauses from any paid stage
+        # are persisted once at produce_lesson_for_entry and never traceback.
         original_synthesis = factory.synthesize_universal_pedagogy
         try:
             def cooling_synthesis(*args, **kwargs):
-                inner = RuntimeError(
-                    "AI_ALL_PROVIDERS_COOLING_DOWN: shortest_provider=groq "
-                    "wait_seconds=62.0")
-                raise RuntimeError(
-                    "LAB_PIPELINE_FAILED:C01:LAB_SPEC_JSON_INVALID: "
-                    + str(inner)) from inner
+                raise ProviderTransientError(
+                    "AI_ALL_PROVIDERS_COOLING_DOWN",
+                    retry_after_seconds=62,
+                    operation="theory_lab_synthesis",
+                    unit_id="C01",
+                    reason="shortest_provider=groq wait_seconds=62.0",
+                )
             factory.synthesize_universal_pedagogy = cooling_synthesis
             try:
                 factory.produce_lesson_for_entry(
@@ -228,6 +229,32 @@ def main():
         finally:
             factory.synthesize_universal_pedagogy = original_synthesis
         print("PASS real_pipeline_theory_lab_cooldown_paused_no_traceback")
+
+        original_evidence = factory.build_evidence_map
+        try:
+            def cooling_evidence(*args, **kwargs):
+                raise ProviderTransientError(
+                    "AI_PROVIDER_FAILOVER_EXHAUSTED",
+                    retry_after_seconds=2,
+                    operation="explanatory_redrawing",
+                    unit_id="p1_EXERCISE_7",
+                    reason="requests=9",
+                    remaining={"openrouter": 1.16, "groq": 42.0},
+                )
+            factory.build_evidence_map = cooling_evidence
+            try:
+                factory.produce_lesson_for_entry(
+                    copy.deepcopy(entry), drive_service=fake_drive, publish=False)
+                raise AssertionError("evidence/redraw exhaustion must pause")
+            except ProviderTransientError as exc:
+                st = getattr(exc, "state", {})
+                assert st.get("status") == "PAUSED_TRANSIENT", st
+                assert st.get("unit_id") == "p1_EXERCISE_7", st
+                assert st.get("operation") == "explanatory_redrawing", st
+                assert st.get("retry_after_seconds") == 2, st
+        finally:
+            factory.build_evidence_map = original_evidence
+        print("PASS real_pipeline_evidence_redraw_exhaustion_paused_no_traceback")
 
         print("NABIL_REAL_PRODUCE_LESSON_503_INTEGRATION_PASS")
 
