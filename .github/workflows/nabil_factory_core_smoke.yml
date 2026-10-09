@@ -165,7 +165,13 @@ jobs:
           assert hasattr(factory, "_rescue_unverified_exercise")
           source_text = factory.Path(factory.__file__).read_text(encoding="utf-8")
           assert "excluded_providers=malformed_providers" in source_text
-          assert 'NABIL_FACTORY_MAX_ALL_PROVIDER_WAIT_SECONDS", "60"' in source_text
+          # The legacy hard-coded all-provider wait literal was removed; V17.81
+          # now owns bounded pause/resume semantics explicitly.
+          resilience_source = factory.Path(
+              "scripts/nabil_transient_resilience_v1781.py"
+          ).read_text(encoding="utf-8")
+          assert "PAUSED_TRANSIENT" in resilience_source
+          assert "Retry-After" in resilience_source
           assert "EXERCISE_TARGETED_RESCUE_ACCEPTED" in source_text
           assert "SKIPPED_UNVERIFIED_EXERCISE" in source_text
           assert factory.required_ai_practice_count(0) == 3
