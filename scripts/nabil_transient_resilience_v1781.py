@@ -143,13 +143,13 @@ def load_state(root,lid):
     try:return json.loads(_state_path(root,lid).read_text())
     except Exception:return {}
 
-def save_state(root,*,lesson_id,status,reason="",unit_id="",retry_seconds=None,max_pause_cycles=12):
+def save_state(root,*,lesson_id,status,reason="",unit_id="",operation="",retry_seconds=None,max_pause_cycles=12):
     old=load_state(root,lesson_id);cycles=int(old.get("pause_resume_cycles") or 0)
     if status in {STATUS_PAUSED_TRANSIENT,STATUS_PROVIDER_UNAVAILABLE}:
         cycles+=1
         if cycles>max_pause_cycles:status=STATUS_NEEDS_ATTENTION;reason=f"PAUSE_RESUME_CYCLE_CAP_EXCEEDED:{cycles}:{reason}";retry_seconds=None
     now=datetime.now(timezone.utc)
-    p={"schema_version":STATE_SCHEMA,"lesson_id":lesson_id,"status":status,"reason":reason,"unit_id":unit_id,"pause_resume_cycles":cycles,"blocked":status==STATUS_BLOCKED,"updated_at":now.replace(microsecond=0).isoformat(),"retry_after_seconds":int(retry_seconds) if retry_seconds else None,"next_retry_at":(now+timedelta(seconds=retry_seconds)).replace(microsecond=0).isoformat() if retry_seconds else None}
+    p={"schema_version":STATE_SCHEMA,"lesson_id":lesson_id,"status":status,"reason":reason,"unit_id":unit_id,"operation":str(operation or ""),"pause_resume_cycles":cycles,"blocked":status==STATUS_BLOCKED,"updated_at":now.replace(microsecond=0).isoformat(),"retry_after_seconds":int(retry_seconds) if retry_seconds else None,"next_retry_at":(now+timedelta(seconds=retry_seconds)).replace(microsecond=0).isoformat() if retry_seconds else None}
     return atomic_json_write_verified(_state_path(root,lesson_id),p)
 
 @dataclass
