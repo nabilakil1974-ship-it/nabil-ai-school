@@ -7539,14 +7539,45 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict,
 
         concept_visual = None
         if not concept_has_sim:
-            concept_visual = build_nabil_explanatory_redrawing(
-                source_text=c.get("raw_text", ""),
-                page_num=p_num,
-                figure_paths=fig_images,
-                vision_context=vision_context,
-                purpose=f"concept_{c['concept_id']}",
-                visual_required=bool(c.get("figure_refs")),
-            )
+            visual_source_hash = concept_source_hash
+            if theory_checkpoints:
+                concept_visual = theory_checkpoints.load_paid_unit(
+                    drive_service, theory_checkpoint_root, entry,
+                    operation="concept_explanatory_redrawing",
+                    unit_id=c["concept_id"],
+                    source_hash=visual_source_hash,
+                    prompt_version=REDRAW_PROMPT_VERSION,
+                )
+                if concept_visual is not None:
+                    progress(
+                        "CONCEPT_REDRAW_RESTORED_FROM_DRIVE",
+                        concept_id=c["concept_id"])
+            if concept_visual is None:
+                concept_visual = build_nabil_explanatory_redrawing(
+                    source_text=c.get("raw_text", ""),
+                    page_num=p_num,
+                    figure_paths=fig_images,
+                    vision_context=vision_context,
+                    purpose=f"concept_{c['concept_id']}",
+                    visual_required=bool(c.get("figure_refs")),
+                )
+                if concept_visual is not None and theory_checkpoints:
+                    prov = (
+                        concept_visual.get("ai_provenance", {})
+                        .get("audit", {})
+                    )
+                    theory_checkpoints.save_paid_unit(
+                        drive_service, theory_checkpoint_root, entry,
+                        operation="concept_explanatory_redrawing",
+                        unit_id=c["concept_id"],
+                        source_hash=visual_source_hash,
+                        prompt_version=REDRAW_PROMPT_VERSION,
+                        payload=concept_visual,
+                        provenance=prov,
+                    )
+                    progress(
+                        "CONCEPT_REDRAW_SAVED_TO_DRIVE",
+                        concept_id=c["concept_id"])
         if c.get("figure_refs") and not concept_has_sim and not concept_visual:
             raise RuntimeError(
                 f"NABIL_VISUAL_REQUIRED_BUT_NOT_VERIFIED:{c['concept_id']}:p{p_num}"
