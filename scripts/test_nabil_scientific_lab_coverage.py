@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+# Support both "python scripts/..." and "python -m scripts...." on Railway/CI.
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from scripts.nabil_requirement5_gate import validate_requirement5_lab
 from scripts.nabil_interactive_lab import render_verified_lab
 from scripts.nabil_scientific_lab_coverage import (
