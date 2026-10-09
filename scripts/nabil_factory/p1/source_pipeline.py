@@ -2223,7 +2223,8 @@ def extract_scanned_page_exercises(
         doc, page_num: int, lesson_id: str, book_id: str, cache_dir: Path,
         *, drive_service=None, checkpoint_root=None, entry=None,
         force_refresh: bool = False,
-        target_numbers: Optional[List[int]] = None) -> List[dict]:
+        target_numbers: Optional[List[int]] = None,
+        recovery_outcome: Optional[dict] = None) -> List[dict]:
     """Read numbered exercise regions from the real page image, not OCR digits.
 
     Scanned textbooks frequently use circled numbers in two columns, which
@@ -2427,8 +2428,13 @@ def extract_scanned_page_exercises(
     audit_prompt = (
         "Independently compare these exercise transcriptions to the PROVIDED "
         "original source page image. Return JSON: "
-        "{'checks':[{'number':int,'faithful':bool,'blank_count_visible':int,"
-        "'blank_tokens_match':bool,'reason':str}]}. "
+        + (
+            "{'checks':[{'number':int,'exists_on_page':bool,'faithful':bool,"
+            "'blank_count_visible':int,'blank_tokens_match':bool,'reason':str}]}. "
+            if targeted_recovery else
+            "{'checks':[{'number':int,'faithful':bool,'blank_count_visible':int,"
+            "'blank_tokens_match':bool,'reason':str}]}. "
+        )
         "Mark false for a missing part, wrong figure number, invented words, "
         "wrong item boundaries, incorrect circled-number reading, bad "
         "two-column order, or any missing/misplaced [BLANK] token. Independently "
@@ -2449,7 +2455,7 @@ def extract_scanned_page_exercises(
         "exercise_review_missing" if targeted_recovery else "exercise_review"
     )
     review_prompt_version = (
-        EXERCISE_REVIEW_PROMPT_VERSION + ":TARGETED_V1"
+        EXERCISE_REVIEW_PROMPT_VERSION + ":TARGETED_EXISTENCE_V2"
         if targeted_recovery else EXERCISE_REVIEW_PROMPT_VERSION
     )
     review_record = (
@@ -2516,6 +2522,9 @@ def extract_scanned_page_exercises(
                 return False
             if not isinstance(item.get("reason"), str):
                 return False
+            if targeted_recovery and not isinstance(
+                    item.get("exists_on_page"), bool):
+                return False
         return seen == expected_review_numbers
 
     if not _exercise_review_schema_complete(checks):
@@ -2529,9 +2538,13 @@ def extract_scanned_page_exercises(
             "original textbook page image. Return EXACTLY one strict JSON object "
             "with key checks. checks must contain exactly one object for every "
             "candidate exercise number, no omissions and no extras. Every object "
-            "must contain all fields: number (integer), faithful (boolean), "
-            "blank_count_visible (integer >= 0), blank_tokens_match (boolean), "
-            "reason (string). Count visible answer boxes/blanks independently "
+            "must contain all fields: number (integer), "
+            + ("exists_on_page (boolean), " if targeted_recovery else "")
+            + "faithful (boolean), blank_count_visible (integer >= 0), "
+            "blank_tokens_match (boolean), reason (string). "
+            "For targeted completeness recovery, exists_on_page=false only when "
+            "that printed exercise number truly does not exist anywhere on the "
+            "source page. Count visible answer boxes/blanks independently "
             "from the source image. faithful=false for any missing/invented word, "
             "wrong boundary/number/figure/table entry, or blank mismatch. "
             "Do not repair or reinterpret candidate text. Candidates: "
@@ -2573,6 +2586,30 @@ def extract_scanned_page_exercises(
         )
         progress("EXERCISE_REVIEW_STAGE_SAVED_TO_DRIVE",
                  page=page_num, checks=len(checks))
+
+    if targeted_recovery and recovery_outcome is not None:
+        recovery_outcome["requested"] = list(target_numbers_norm)
+        recovery_outcome["confirmed_absent"] = sorted({
+            int(x["number"])
+            for x in checks
+            if isinstance(x, dict)
+            and "number" in x
+            and x.get("exists_on_page") is False
+        })
+        recovery_outcome["confirmed_present"] = sorted({
+            int(x["number"])
+            for x in checks
+            if isinstance(x, dict)
+            and "number" in x
+            and x.get("exists_on_page") is True
+        })
+        progress(
+            "SOURCE_INVENTORY_TARGETED_EXISTENCE_VERIFIED",
+            page=page_num,
+            requested=recovery_outcome["requested"],
+            confirmed_present=recovery_outcome["confirmed_present"],
+            confirmed_absent=recovery_outcome["confirmed_absent"],
+        )
 
     approved = {
         int(x["number"]): x
@@ -3627,7 +3664,11 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
         "concepts": concepts,
         "exercise_section_start_page": exercise_section_start_page,
         "exercise_evidence": unique_ex,
-        "canonical_title": entry["canonical_title"]
+        "canonical_title": entry["canonical_title"],
+        "disproved_exercise_numbers": sorted({
+            str(x) for x in (
+                entry.get("_completeness_disproved_numbers") or [])
+        })
     }
 
     # Independent completeness gate runs before the permanent Evidence Map is accepted.
@@ -3637,8 +3678,13 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
     accepted_numbers = {
         str(x.get("number")) for x in ev_map.get("exercise_evidence") or []
     }
+    disproved_numbers = {
+        str(x) for x in (ev_map.get("disproved_exercise_numbers") or [])
+    }
     missing_numbers = sorted(
-        set(inventory.get("exercise_numbers") or []) - accepted_numbers)
+        set(inventory.get("exercise_numbers") or [])
+        - accepted_numbers
+        - disproved_numbers)
     if (
         missing_numbers
         and not entry.get("_completeness_recovery_attempted")
@@ -3646,6 +3692,7 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
         and checkpoint_root
     ):
         recovery_pages = []
+        recovery_outcomes = []
         for page_item in pages_evidence:
             page_num = int(page_item["page_num"])
             page_inventory = build_independent_source_inventory({
@@ -3664,12 +3711,14 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
             existing_rows = page_checkpoints.load_exercises(
                 drive_service, checkpoint_root, doc, entry, page_num,
                 lesson_cache, source_provider, source_model) or []
+            recovery_outcome = {}
             recovered_rows = extract_scanned_page_exercises(
                 doc, page_num, lesson_id, book_id, lesson_cache,
                 drive_service=drive_service,
                 checkpoint_root=checkpoint_root,
                 entry=entry,
-                target_numbers=[int(n) for n in page_missing])
+                target_numbers=[int(n) for n in page_missing],
+                recovery_outcome=recovery_outcome)
             merged = {
                 (str(row.get("section_type") or "EXERCISE"), int(row["number"])): row
                 for row in existing_rows
@@ -3688,6 +3737,7 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
             page_checkpoints.save_exercises(
                 drive_service, checkpoint_root, doc, entry,
                 page_num, merged_rows, source_provider, source_model)
+            recovery_outcomes.append(recovery_outcome)
             progress(
                 "SOURCE_COMPLETENESS_TARGETED_RECOVERY_SAVED",
                 page=page_num,
@@ -3699,6 +3749,14 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
         if recovery_pages:
             retry_entry = dict(entry)
             retry_entry["_completeness_recovery_attempted"] = True
+            disproved = set(
+                retry_entry.get("_completeness_disproved_numbers") or [])
+            # Only an explicit independent visual exists_on_page=false decision
+            # may remove an OCR candidate from the completeness inventory.
+            for item in locals().get("recovery_outcomes", []):
+                disproved.update(
+                    str(n) for n in item.get("confirmed_absent", []))
+            retry_entry["_completeness_disproved_numbers"] = sorted(disproved)
             return build_evidence_map(
                 doc, retry_entry, drive_service=drive_service,
                 persist_pages=persist_pages)
