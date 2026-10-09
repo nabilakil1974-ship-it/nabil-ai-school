@@ -42,9 +42,11 @@ _ZW = re.compile(r"[\u200b-\u200f\u202a-\u202e\ufeff]")
 
 
 def normalize_ocr(text: str) -> str:
-    t = unicodedata.normalize("NFKC", text or "")
+    # Superscripts must be expanded BEFORE NFKC; otherwise e.g. "2²"
+    # normalizes to "22" and loses exponent semantics.
+    t = str(text or "").translate(_SUP)
+    t = unicodedata.normalize("NFKC", t)
     t = _ZW.sub("", t).translate(_CHAR_MAP)
-    t = t.translate(_SUP)
     t = re.sub(r"(\d)\s*\^\s*(-?\d)", r"\1^\2", t)
     t = re.sub(r"\s*=\s*", " = ", t)
     t = re.sub(r"[ \t]+", " ", t)
@@ -69,28 +71,31 @@ def normalize_payload_strings(obj):
 
 _NUM = r"\d+(?:/\d+)?"
 _POW = re.compile(
-    rf"(?<![\w.^])(?P<neg>-)?(?P<open>\()?\s*"
-    rf"(?P<sign>-)?(?P<base>{_NUM})\s*(?(open)\))"
+    rf"(?<![\w.])(?P<base_expr>\(-?{_NUM}\)|-?{_NUM})"
     rf"\s*\^\s*\{{?\s*(?P<exp>-?\d+)\s*\}}?\s*=\s*"
     rf"(?P<val>-?{_NUM})(?![\w/^])"
 )
 
 
 def check_power_claims(text: str) -> list[str]:
+    """Verify numeric power equalities with exact rational arithmetic."""
     bad = []
     for m in _POW.finditer(normalize_ocr(text)):
         try:
-            base = Fraction(m["base"])
+            expr = m["base_expr"].strip()
             exp = int(m["exp"])
-            if abs(exp) > 64 or (base == 0 and exp <= 0):
-                continue
-            if m["open"] and m["sign"]:
-                base = -base
+            if expr.startswith("(") and expr.endswith(")"):
+                base = Fraction(expr[1:-1])
                 value = base ** exp
-            elif m["neg"] and not m["open"]:
+            elif expr.startswith("-"):
+                # Conventional precedence: -2^2 == -(2^2).
+                base = Fraction(expr[1:])
                 value = -(base ** exp)
             else:
+                base = Fraction(expr)
                 value = base ** exp
+            if abs(exp) > 64 or (base == 0 and exp <= 0):
+                continue
             claimed = Fraction(m["val"])
         except (ValueError, ZeroDivisionError):
             continue
