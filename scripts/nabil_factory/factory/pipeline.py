@@ -231,7 +231,7 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
             "Lesson concepts", "The final reference card appears LAST.",
         ]
         _quiz = str(theory.get("quiz_html") or "")
-        _quiz = re.sub(r"<script\\b[^>]*>[\\s\\S]*?</script>", "", _quiz, flags=re.I)
+        _quiz = re.sub(r"<script\b[^>]*>[\s\S]*?</script>", "", _quiz, flags=re.I)
         _shell = ('<!doctype html><html><body>'
                   + ''.join('<span>' + _html_escape(t) + '</span>'
                             for t in dict.fromkeys(_texts) if t.strip())
@@ -240,13 +240,13 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
             _shell, "theory_v18_text_only",
             purpose=f"v18_verified_text_translation_{lesson_id}")
         _language = re.search(
-            r'<div id="nabilPageLanguage"\\b[\\s\\S]*?</div>',
+            r'<div id="nabilPageLanguage"\b[\s\S]*?</div>',
             _translated_shell, re.I)
         _bundle = re.search(
-            r'<script id="nabilPageTranslationBundle"[^>]*>[\\s\\S]*?</script>',
+            r'<script id="nabilPageTranslationBundle"[^>]*>[\s\S]*?</script>',
             _translated_shell, re.I)
         _runtime = re.search(
-            r'<script id="nabilPageTranslationRuntime"[^>]*>[\\s\\S]*?</script>',
+            r'<script id="nabilPageTranslationRuntime"[^>]*>[\s\S]*?</script>',
             _translated_shell, re.I)
         if not all((_language, _bundle, _runtime)):
             raise RuntimeError("V18_TRANSLATION_RUNTIME_INCOMPLETE")
