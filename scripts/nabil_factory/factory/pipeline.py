@@ -240,7 +240,7 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
             _shell, "theory_v18_text_only",
             purpose=f"v18_verified_text_translation_{lesson_id}")
         _language = re.search(
-            r'<div id="nabilPageLanguage"\b[\s\S]*?</div>',
+            r'<div id="nabilPageLanguage"[^>]*>[\s\S]*?</div>',
             _translated_shell, re.I)
         _bundle = re.search(
             r'<script id="nabilPageTranslationBundle"[^>]*>[\s\S]*?</script>',
