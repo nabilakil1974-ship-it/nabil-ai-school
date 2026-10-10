@@ -459,59 +459,86 @@ def resolve_drive_root_id() -> str:
 
 
 def resolve_source_book_pdf(book_id: str, drive_service=None) -> Path:
-    cache_dir = Path("/tmp/nabil_source_books")
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    target = cache_dir / f"{book_id}.pdf"
+    """Reuse one verified PDF per Drive book on the mounted Railway volume.
 
-    if target.exists() and target.stat().st_size > 20000:
+    A missing volume must fail closed: silently caching in /tmp would trigger
+    a fresh download on every deployment and conceal a broken configuration.
+    """
+    import hashlib
+    import os
+    import re
+    import uuid
+
+    if not re.fullmatch(r"[A-Za-z0-9_-]{10,128}", str(book_id)):
+        raise RuntimeError("INVALID_SOURCE_BOOK_ID")
+    root = Path(os.getenv("NABIL_SOURCE_BOOK_CACHE_DIR", "/data/nabil/source_books"))
+    if not root.is_absolute() or not root.exists() or not root.is_dir():
+        raise RuntimeError("PERSISTENT_BOOK_VOLUME_MISSING:" + str(root))
+    target = root / f"{book_id}.pdf"
+    digest_file = root / f"{book_id}.sha256"
+
+    def checksum(path):
+        h = hashlib.sha256()
+        with path.open("rb") as fh:
+            for part in iter(lambda: fh.read(1024 * 1024), b""):
+                h.update(part)
+        return h.hexdigest()
+
+    def valid_pdf(path):
+        if not path.is_file() or path.stat().st_size <= 20000:
+            return False
         try:
             import fitz
-            doc = fitz.open(str(target))
-            if len(doc) >= 1:
-                doc.close()
-                return target
-            doc.close()
+            with fitz.open(str(path)) as doc:
+                return len(doc) > 0 and not doc.is_repaired
         except Exception:
-            target.unlink(missing_ok=True)
+            return False
 
-    candidates = [Path(f"/app/data/books/{book_id}.pdf"), Path(f"/app/books/{book_id}.pdf"), Path(f"data/books/{book_id}.pdf"), Path(f"{book_id}.pdf")]
-    for c in candidates:
-        if c.exists() and c.stat().st_size > 20000:
-            try:
-                import fitz
-                doc = fitz.open(str(c))
-                if len(doc) >= 1:
-                    doc.close()
-                    shutil.copy2(c, target)
-                    return target
-                doc.close()
-            except Exception:
-                pass
+    if valid_pdf(target) and digest_file.is_file():
+        expected = digest_file.read_text(encoding="ascii").strip()
+        if expected == checksum(target):
+            progress("SOURCE_PDF_REUSED_FROM_PERSISTENT_VOLUME", file_id=book_id)
+            return target
 
-    if not drive_service:
-        drive_service = get_drive_service()
+    # A corrupt or checksum-mismatched cache must never be reused.
+    target.unlink(missing_ok=True)
+    digest_file.unlink(missing_ok=True)
 
-    progress("DOWNLOADING_SOURCE_PDF", file_id=book_id)
-    from googleapiclient.http import MediaIoBaseDownload
-    with target.open("wb") as fh:
-        loader = MediaIoBaseDownload(fh, drive_service.files().get_media(fileId=book_id))
-        done = False
-        while not done:
-            _, done = loader.next_chunk()
-
+    candidates = [
+        Path(f"/app/data/books/{book_id}.pdf"),
+        Path(f"/app/books/{book_id}.pdf"),
+        Path(f"data/books/{book_id}.pdf"),
+        Path(f"{book_id}.pdf"),
+    ]
+    tmp = root / f".{book_id}.{uuid.uuid4().hex}.part"
     try:
-        import fitz
-        doc = fitz.open(str(target))
-        if len(doc) < 1:
-            doc.close()
-            target.unlink(missing_ok=True)
-            raise ValueError("Zero-page PDF")
-        doc.close()
-    except Exception as e:
-        target.unlink(missing_ok=True)
-        raise RuntimeError(f"SOURCE_PDF_NOT_FOUND: PDF is corrupted or unreadable ({e})")
-
-    return target
+        copied = False
+        for source in candidates:
+            if valid_pdf(source):
+                shutil.copy2(source, tmp)
+                copied = True
+                break
+        if not copied:
+            if drive_service is None:
+                drive_service = get_drive_service()
+            progress("DOWNLOADING_SOURCE_PDF", file_id=book_id)
+            from googleapiclient.http import MediaIoBaseDownload
+            with tmp.open("wb") as fh:
+                loader = MediaIoBaseDownload(
+                    fh, drive_service.files().get_media(fileId=book_id))
+                done = False
+                while not done:
+                    _, done = loader.next_chunk()
+        if not valid_pdf(tmp):
+            raise RuntimeError("SOURCE_PDF_NOT_FOUND: PDF corrupted or unreadable")
+        digest = checksum(tmp)
+        tmp.replace(target)
+        digest_file.write_text(digest + "\n", encoding="ascii")
+        progress("SOURCE_PDF_SAVED_TO_PERSISTENT_VOLUME", file_id=book_id,
+                 bytes=target.stat().st_size, sha256=digest)
+        return target
+    finally:
+        tmp.unlink(missing_ok=True)
 
 
 # ==============================================================================
