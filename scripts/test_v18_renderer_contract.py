@@ -8,7 +8,7 @@ class V18RendererTest(unittest.TestCase):
                "language":"en","grade":7,"subject":"mathematics","book_id":"source"}
         theory={"activities":[{"concept_id":"C01","title":"Powers","teaching_steps":[
             {"label":"See","sentence":"Two multiplied by itself three times equals eight."}],
-            "lab_html":"<div>Verified power sequence</div>"}]}
+            "lab_html":"<div>Verified power sequence</div>","student_apply_prompt":{"prompt":"Calculate 2 cubed","verified_against_source":True}}]}
         out=render_v18_lesson(entry,theory,{})
         for required in ('name="nabil-v18-renderer"','NabilRuntime.TeacherPlaybackController',
                          'GOLDEN-FINAL-CARD','id="boardWriting"','<script>'):
