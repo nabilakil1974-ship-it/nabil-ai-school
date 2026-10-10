@@ -15,6 +15,8 @@ from scripts import nabil_book_factory
 
 if __name__ == "__main__":
     # Explicitly reproduce the one deleted Powers lesson, not five lessons.
+    # Explicit, source-English-only pilot: skip expensive AR/FR translation calls.
+    os.environ["NABIL_POWERS_ENGLISH_ONLY"] = "1"
     os.environ["NABIL_ONLY_LESSON_ID"] = "G07-MATHEMATICS-69B7C840-001"
     os.environ["NABIL_REBUILD_LESSON_ID"] = "G07-MATHEMATICS-69B7C840-001"
     sys.argv = [
