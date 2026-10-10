@@ -90,10 +90,10 @@ if(!window.NabilRuntime?.TeacherPlaybackController)throw Error('V18_RUNTIME_NOT_
 let index=0,voiceEnabled=true;
 const board=document.getElementById('boardWriting'),title=document.getElementById('boardTitle'),visual=document.getElementById('visual'),status=document.getElementById('status'),timeline=document.getElementById('timeline');
 const ctl=new window.NabilRuntime.TeacherPlaybackController({langCode:'__LANG__',rate:0.82,
-onStep:(i)=>show(i),onState:(s)=>{if(s.event==='WRITE_LINE'){board.textContent=s.value;}if(s.event==='WRITE_TITLE')title.textContent=s.value;
+onStep:(i,step)=>show(step.fullIndex??i,true),onState:(s)=>{if(s.event==='WRITE_LINE'){board.textContent=s.value;}if(s.event==='WRITE_TITLE')title.textContent=s.value;
 if(s.finished)status.textContent='Lesson complete · Golden card last';}});
 const safeText=t=>document.createTextNode(t);
-function show(i){index=i;const x=slides[index];ctl.stop();title.textContent=x.title;board.textContent='';visual.replaceChildren();
+function show(i,fromPlayback=false){index=i;const x=slides[index];if(!fromPlayback)ctl.stop();title.textContent=x.title;board.textContent='';visual.replaceChildren();
 if(x.lab){const f=document.createElement('iframe');f.title=x.title+' — verified interactive lab';f.srcdoc='<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#061725;color:white}</style></head><body>'+x.lab+'</body></html>';visual.appendChild(f);}
 else if(x.visual){const holder=document.createElement('div');holder.innerHTML=x.visual;visual.appendChild(holder);}
 else{const p=document.createElement('p');p.textContent=x.lines.join(' · ');visual.appendChild(p);}
@@ -101,8 +101,8 @@ Array.from(timeline.children).forEach((b,j)=>b.classList.toggle('active',j===i))
 status.textContent=(i+1)+' / '+slides.length+' · '+x.title;}
 slides.forEach((x,i)=>{const b=document.createElement('button');b.textContent=i+1;b.onclick=()=>show(i);timeline.appendChild(b);
 const li=document.createElement('li');li.textContent=(i+1)+'. '+x.title;document.getElementById('concepts').appendChild(li);});
-document.getElementById('play').onclick=()=>ctl.play(slides,index);
-document.getElementById('current').onclick=()=>ctl.play([slides[index]],0);
+document.getElementById('play').onclick=()=>{const from=index;ctl.play(slides.slice(from).map((step,k)=>({...step,fullIndex:from+k})),0)};
+document.getElementById('current').onclick=()=>{const selected=index;ctl.stop();show(selected);ctl.play([slides[selected]],0)};
 document.getElementById('next').onclick=()=>show(Math.min(slides.length-1,index+1));
 document.getElementById('prev').onclick=()=>show(Math.max(0,index-1));
 document.getElementById('stop').onclick=()=>ctl.stop();
