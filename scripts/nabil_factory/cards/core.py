@@ -912,7 +912,7 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict, lab_index: Opt
 <meta name="nabil-translation-languages" content="ar,en,fr">
 <title>{clean_title} - NABIL Universal Engine</title>
 {MathRenderingEngine.inject_mathjax_head()}
-<script defer src="/static/nabil_browser_tts_v1.js?v=1"></script>\n<script defer src="/static/nabil_lab_voice_v1.js?v=1"></script>\n<script defer src="/static/nabil_scientific_solution_cards_e2e.js?v=4"></script>
+<script defer src="/static/nabil_browser_tts_v1.js?v=1"></script>\n<script defer src="/static/nabil_lab_voice_v1.js?v=1"></script>\n
 <script defer src="/static/nabil_lesson_e2e_runtime_v1.js?v=4"></script>
 <script defer src="/static/nabil_smart_lab_bridge_v1.js?v=3"></script>
 <style>
@@ -1323,6 +1323,12 @@ def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: di
     network_error_js = ui_t(page_b_lang_code, "network_error")
     final_answer_js = ui_t(page_b_lang_code, "final_answer_label")
 
+    from scripts.nabil_factory.cards.v18_board import render_v18_exercises_board
+    v18_exercises_board = render_v18_exercises_board(
+        html.unescape(clean_title), exercises, page_b_lang_code,
+        subject=str(entry.get("subject") or ""),
+        contract=REFERENCE_RENDERER_CONTRACT)
+
     ex_cards = ""
     for ex in exercises:
         ex_num = ex["number"]
@@ -1447,7 +1453,7 @@ def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: di
 <meta name="nabil-translation-languages" content="ar,en,fr">
 <title>{clean_title} - Official Exercises</title>
 {MathRenderingEngine.inject_mathjax_head()}
-<script defer src="/static/nabil_browser_tts_v1.js?v=1"></script>\n<script defer src="/static/nabil_lab_voice_v1.js?v=1"></script>\n<script defer src="/static/nabil_scientific_solution_cards_e2e.js?v=4"></script>
+<script defer src="/static/nabil_browser_tts_v1.js?v=1"></script>\n<script defer src="/static/nabil_lab_voice_v1.js?v=1"></script>\n
 <script defer src="/static/nabil_lesson_e2e_runtime_v1.js?v=4"></script>
 <script defer src="/static/nabil_smart_lab_bridge_v1.js?v=3"></script>
 <style>
@@ -1463,6 +1469,7 @@ def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: di
     <h1 style="margin:0; font-size:20px;">{html.escape(ui_t(page_b_lang_code, "exercises_page_title", title=html.unescape(clean_title)))}</h1>
     <button onclick="returnToLesson()" class="nav-btn" style="background:#475569;">{html.escape(ui_t(page_b_lang_code, "back_to_lesson"))}</button>
   </div>
+  {v18_exercises_board}
   {ex_cards}
 </div>
 <div id="zoomModal" onclick="this.style.display='none'"><img id="zoomImg" src=""></div>

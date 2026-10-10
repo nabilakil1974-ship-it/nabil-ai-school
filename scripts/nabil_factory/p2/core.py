@@ -3898,10 +3898,11 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
         "NABIL lesson voice must be browser SpeechSynthesis only; male voice is preferred when the device supplies one",
     )
     check("SCIENTIFIC_CARD_RENDERER_NOT_WIRED",
-          all("nabil_scientific_solution_cards_e2e.js" in page for page in
-              (candidate["page_a_html"], candidate["page_b_html"])),
+          all('data-nabil-v18-board="NABIL_V18_SMART_BOARD_V1"' in page
+              and "window.NABILScientificCards={" in page
+              for page in (candidate["page_a_html"], candidate["page_b_html"])),
           "CRITICAL",
-          "Generated pages must use the approved Scientific Solution Card renderer")
+          "Generated pages must embed the V18 Scientific Card engine (no external file)")
     if any(e.get("solution_mode") == "PRE_SOLVED" for e in candidate["exercises"]):
         check("PRE_SOLVED_SCIENTIFIC_CARD_MISSING",
               "data-nabil-solution-card" in candidate["page_b_html"],

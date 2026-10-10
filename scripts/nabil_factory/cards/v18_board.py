@@ -14,6 +14,7 @@ never invents science or numbers.
 """
 from __future__ import annotations
 
+import base64
 import html
 import json
 from pathlib import Path
@@ -64,6 +65,21 @@ _LABELS = {
         "done": "Teaching complete. Here is the final Golden Card.",
         "lang_tag": "en-US",
     },
+}
+
+_EXERCISE_LABELS = {
+    "ar": {"title": "🧠 لوح نبيل الذكي — شرح التمارين",
+           "subtitle": "يحلّ نبيل تمرينًا واحدًا في كل مرة، خطوة بخطوة، ثم تظهر البطاقة الذهبية بنتائج التمارين.",
+           "study": "نتائج التمارين", "goal": "🎯 تظهر البطاقة الذهبية بعد آخر تمرين.",
+           "idea": "التمرين"},
+    "fr": {"title": "🧠 Tableau NABIL — explication des exercices",
+           "subtitle": "NABIL résout un exercice à la fois, étape par étape, puis la carte dorée résume les résultats.",
+           "study": "Résultats des exercices", "goal": "🎯 La carte dorée apparaît après le dernier exercice.",
+           "idea": "Exercice"},
+    "en": {"title": "🧠 NABIL Smart Board — Exercises",
+           "subtitle": "NABIL solves one exercise at a time, step by step, then the Golden Card summarises the results.",
+           "study": "Exercise results", "goal": "🎯 The Golden Card appears after the last exercise.",
+           "idea": "Exercise"},
 }
 
 _CSS = r"""
@@ -122,16 +138,25 @@ _CSS = r"""
 _JS = r"""
 (()=>{
  const DATA=JSON.parse(document.getElementById('nabilV18Data').textContent);
- const L=DATA.labels,slides=DATA.slides,FAST=window.NABIL_V18_FAST===true;
+ const root0=document.getElementById('nabilWholeLessonSmartLab');
+ const LAB=JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(root0.dataset.v18Labels),c=>c.charCodeAt(0))));DATA.all_labels=LAB;
+ let L=LAB[DATA.lang];const slides=DATA.slides,FAST=window.NABIL_V18_FAST===true;
  const root=document.getElementById('nabilWholeLessonSmartLab');
  const $=id=>document.getElementById(id);
  const frame=$('nabilWholeLessonFrame'),bt=$('v18Title'),lines=$('v18Lines'),speech=$('v18Speech'),badge=$('v18Badge'),
        timeline=$('nabilWholeTimeline'),slots=$('v18Slots'),voiceBtn=$('nabilWholeVoice'),finalHost=$('goldenReferenceCard'),
-       labTitle=$('v18LabTitle'),voiceNote=$('v18VoiceNote');
+       labWrap=$('v18LabWrap'),labTitle=$('v18LabTitle'),voiceNote=$('v18VoiceNote');
  let idea=0,stepI=-1,token=0,voiceOn=true,finalShown=false,playing=false;
  const FINAL=slides.length;                       /* index of the golden-card stage */
  const sleep=ms=>new Promise(r=>setTimeout(r,FAST?0:ms));
  const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!==undefined)e.textContent=x;return e};
+ /* language: follows the page translation runtime (NABILPageLanguage) when present */
+ const PL=()=>window.NABILPageLanguage;
+ const cur=()=>{const l=PL()&&PL().get&&PL().get();return DATA.all_labels[l]?l:DATA.lang};
+ const tr=s=>{s=String(s||'');try{return PL()&&PL().translateText?PL().translateText(s,cur()):s}catch(_){return s}};
+ const trDeep=o=>Array.isArray(o)?o.map(trDeep):(o&&typeof o==='object')?Object.fromEntries(Object.entries(o).map(([k,v])=>[k,['language','kind','subject','avatar_src','concept_ids'].includes(k)?v:trDeep(v)])):(typeof o==='string'?tr(o):o);
+ function relabel(){L=DATA.all_labels[cur()];root.querySelectorAll('[data-v18-l]').forEach(n=>{n.textContent=L[n.dataset.v18L]});
+  voiceBtn.textContent=voiceOn?L.voice_on:L.voice_off;$('v18VoiceState').textContent=voiceBtn.textContent;}
 
  /* ---------------- voice (real, with honest fallback) ---------------- */
  function pickVoice(tag){
@@ -171,45 +196,45 @@ _JS = r"""
  }
 
  /* ---------------- structure ---------------- */
- slides.forEach((s,i)=>{const d=el('div','v18-slot');d.id='v18Slot'+i;const l=el('div','l',(i+1)+'. '+s.title);const v=el('div','v','—');d.append(l,v);slots.appendChild(d)});
+ function buildSlots(){slots.innerHTML='';slides.forEach((s,i)=>{const d=el('div','v18-slot');d.id='v18Slot'+i;const l=el('div','l',(i+1)+'. '+tr(s.title));const v=el('div','v','—');d.append(l,v);slots.appendChild(d)})}buildSlots();
  slides.concat([{title:L.final}]).forEach((_,i)=>{const b=el('button','v18-dot',i+1);b.type='button';b.setAttribute('aria-label',(i<slides.length?L.idea+' ':L.final+' ')+(i+1));b.onclick=()=>{halt();goTo(i)};timeline.appendChild(b)});
  function paintTimeline(){const cur=finalShown?FINAL:idea;[...timeline.children].forEach((b,i)=>b.className='v18-dot '+(i<cur?'done':(i===cur?'on':'')))}
- function paintSlots(){slides.forEach((s,i)=>{const d=$('v18Slot'+i);const complete=finalShown||i<idea;d.className='v18-slot'+(complete?' locked':(i===idea?' current':''));d.querySelector('.v');d.querySelector('.v').textContent=complete?(s.conclusion||'✓'):'—'})}
+ function paintSlots(){slides.forEach((s,i)=>{const d=$('v18Slot'+i);const complete=finalShown||i<idea;d.className='v18-slot'+(complete?' locked':(i===idea?' current':''));d.querySelector('.v');d.querySelector('.v').textContent=complete?(tr(s.conclusion)||'✓'):'—'})}
  function showLines(upto,typeLast,tok){
   lines.innerHTML='';const s=slides[idea];let last=null;
   for(let i=0;i<=upto&&i<s.steps.length;i++){
    const st=s.steps[i],row=el('div','v18-line'+(i===upto?' now':''));
-   const k=el('span','k',st.label?st.label+':':'');const t=el('span','t');row.append(k,t);
+   const k=el('span','k',st.label?tr(st.label)+':':'');const t=el('span','t');row.append(k,t);
    if(st.formula){const f=el('div','f',st.formula);row.appendChild(f)}
    lines.appendChild(row);last=(i===upto)?t:last;
-   if(i!==upto)t.textContent=st.text;
+   if(i!==upto)t.textContent=tr(st.text);
   }
-  if(last&&typeLast)return typeInto(last,s.steps[upto].text,tok);
-  if(last)last.textContent=s.steps[upto].text;
+  if(last&&typeLast)return typeInto(last,tr(s.steps[upto].text),tok);
+  if(last)last.textContent=tr(s.steps[upto].text);
   return Promise.resolve(true);
  }
  function loadLab(){
-  const s=slides[idea];labTitle.textContent=L.lab+' — '+s.title;
+  const s=slides[idea];labWrap.style.display=s.srcdoc?'':'none';labTitle.textContent=L.lab+' — '+tr(s.title);
   if(frame.dataset.idx!==String(idea)){frame.dataset.idx=String(idea);frame.srcdoc=s.srcdoc||''}
  }
  function setFinal(on){
   finalShown=on;root.classList.toggle('is-final',on);
   if(on&&!finalHost.dataset.rendered){
    finalHost.dataset.rendered='1';
-   try{window.NABILScientificCards.fromLesson(DATA.golden,finalHost)}
+   try{(window.__NABIL_V18_CARDS||window.NABILScientificCards).fromLesson(trDeep(Object.assign({},DATA.golden,{language:cur()})),finalHost)}
    catch(e){finalHost.textContent='GOLDEN_CARD_RENDER_FAILED: '+e;finalHost.dataset.failed='1'}
   }
  }
  function paintIdea(upto,typeLast,tok){
-  setFinal(false);bt.textContent=slides[idea].title;
+  setFinal(false);bt.textContent=tr(slides[idea].title);
   badge.textContent=L.idea+' '+(idea+1)+' / '+slides.length+' · '+L.step+' '+(Math.max(upto,0)+1)+' / '+slides[idea].steps.length;
   paintSlots();paintTimeline();loadLab();return showLines(Math.max(upto,0),typeLast,tok);
  }
  async function presentStep(i,withVoice){
   stepI=i;const tok=++token;stopSpeech();
   const ok=await paintIdea(i,!FAST,tok);if(!ok||tok!==token)return false;
-  const st=slides[idea].steps[i];speech.textContent=st.text;
-  if(withVoice)await speak(st.text);
+  const st=slides[idea].steps[i];speech.textContent=tr(st.text);
+  if(withVoice)await speak(tr(st.text));
   return tok===token;
  }
  function showFinalStage(){
@@ -252,7 +277,7 @@ _JS = r"""
   }
   if(playing){showFinalStage();await speak(L.done);playing=false}
  }
- async function explainCurrent(){halt();playing=true;if(finalShown){await speak(DATA.golden_speech||L.done);playing=false;return}
+ async function explainCurrent(){halt();playing=true;if(finalShown){await speak([tr(DATA.title)].concat(slides.map(s=>tr(s.title)+'. '+tr(s.conclusion))).join(' ')||L.done);playing=false;return}
   await teachIdea();playing=false}
  function runLab(){
   try{const shell=frame.contentDocument?.querySelector('.nabil-reference-smart-lab');shell?.dispatchEvent(new CustomEvent('nabil:teach-all'))}catch(_){}
@@ -264,15 +289,20 @@ _JS = r"""
  $('nabilWholeCurrent').onclick=explainCurrent;
  $('nabilWholeRunLab').onclick=runLab;
  $('v18Talk').onclick=()=>{halt();speak(speech.textContent||L.hello)};
- voiceBtn.onclick=()=>{voiceOn=!voiceOn;voiceBtn.textContent=voiceOn?L.voice_on:L.voice_off;$('v18VoiceState').textContent=voiceOn?L.voice_on:L.voice_off;if(!voiceOn)stopSpeech()};
+ voiceBtn.onclick=()=>{voiceOn=!voiceOn;relabel();if(!voiceOn)stopSpeech()};
+ window.addEventListener('nabil:page-language-change',()=>{
+  halt();relabel();buildSlots();finalHost.innerHTML='';delete finalHost.dataset.rendered;
+  if(finalShown){setFinal(true);badge.textContent=L.final;speech.textContent=L.done;paintSlots();paintTimeline()}
+  else{paintIdea(Math.max(stepI,0),false,token);speech.textContent=tr(slides[idea].steps[Math.max(stepI,0)].text)}
+ });
  try{speechSynthesis.getVoices();speechSynthesis.onvoiceschanged=()=>{}}catch(_){}
  window.NABILWholeLessonOrchestrator={
   play:playAll,stop:()=>$('nabilWholeStop').click(),current:()=>explainCurrent(),
   goTo:i=>{halt();goTo(Number(i)||0)},next:nextStep,prev:prevStep,
-  state:()=>({idea,step:stepI,final:finalShown,voice:voiceOn,ideas:slides.length}),
+  state:()=>({idea,step:stepI,final:finalShown,voice:voiceOn,ideas:slides.length,lang:cur()}),
   finalIndex:FINAL
  };
- speech.textContent=L.hello;idea=0;stepI=0;paintIdea(0,false,token);
+ relabel();speech.textContent=L.hello;idea=0;stepI=0;paintIdea(0,false,token);
 })();
 """
 
@@ -284,7 +314,7 @@ def _read(name: str) -> str:
 def build_slide(act: dict, lang_code: str) -> dict | None:
     """Convert one verified concept activity into a board slide (or None)."""
     lab_html = str(act.get("lab_html") or "")
-    if not lab_html:
+    if not lab_html and not act.get("allow_no_lab"):
         return None
     steps = []
     for st in (act.get("teaching_steps") or []):
@@ -305,7 +335,7 @@ def build_slide(act: dict, lang_code: str) -> dict | None:
                 steps.append({"label": label, "text": v, "formula": "", "kind": key})
     if not steps:
         return None
-    srcdoc = (
+    srcdoc = "" if not lab_html else (
         '<!doctype html><html><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
         '<style>html,body{margin:0;background:#05172d;color:#eef8ff;overflow-x:hidden}'
@@ -352,9 +382,15 @@ def build_golden_spec(title: str, activities: list, lang_code: str,
 
 def render_v18_smart_board(title: str, activities: list, lang_code: str,
                            golden_spec: dict | None = None,
-                           contract: str = "") -> str:
+                           contract: str = "", mode: str = "lesson") -> str:
     lang = lang_code if lang_code in _LABELS else "en"
-    labels = _LABELS[lang]
+    all_labels = {k: dict(v) for k, v in _LABELS.items()}
+    if mode == "exercises":
+        for k in all_labels:
+            all_labels[k].update(_EXERCISE_LABELS[k])
+    labels = all_labels[lang]
+    labels_b64 = base64.b64encode(
+        json.dumps(all_labels, ensure_ascii=False).encode("utf-8")).decode("ascii")
     slides = [s for s in (build_slide(a, lang) for a in activities) if s]
     if not slides:
         return ""
@@ -366,7 +402,7 @@ def render_v18_smart_board(title: str, activities: list, lang_code: str,
     golden_speech = " ".join(
         [title] + [str(s["title"]) + ". " + str(s["conclusion"]) for s in slides])
     data = json.dumps({
-        "contract": V18_BOARD_CONTRACT, "lang": lang, "labels": labels,
+        "contract": V18_BOARD_CONTRACT, "lang": lang, "title": title, "mode": mode,
         "slides": slides, "golden": golden, "golden_speech": golden_speech,
     }, ensure_ascii=False).replace("</", "<\\/").replace("<!--", "<\\!--")
     engine = _read("v18_golden_cards_engine.js").replace("</script", "<\\/script")
@@ -374,32 +410,101 @@ def render_v18_smart_board(title: str, activities: list, lang_code: str,
     return f'''
 <section id="nabilWholeLessonSmartLab" class="nabil-whole-lesson-smart-lab"
  data-whole-lesson-smart-lab="true" data-renderer-contract="{h(contract)}"
- data-nabil-v18-board="{V18_BOARD_CONTRACT}" data-concept-count="{len(slides)}">
+ data-nabil-v18-board="{V18_BOARD_CONTRACT}" data-v18-labels="{labels_b64}" data-v18-mode="{mode}" data-concept-count="{len(slides)}">
 <style>{_CSS}</style>
-<div class="v18-top"><div><h2>{h(labels["title"])}</h2><p>{h(labels["subtitle"])}</p><p style="font-size:12px;color:#8fb6d6">{h(title)}</p></div>
+<div class="v18-top"><div><h2 data-v18-l="title">{h(labels["title"])}</h2><p data-v18-l="subtitle">{h(labels["subtitle"])}</p><p style="font-size:12px;color:#8fb6d6">{h(title)}</p></div>
  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="v18-badge" id="v18Badge"></span><span class="v18-badge" id="v18VoiceState">{h(labels["voice_on"])}</span></div></div>
 <div class="v18-grid">
- <section class="v18-box"><h3>{h(labels["study"])}</h3><div id="v18Slots"></div><div class="v18-goal">{h(labels["goal"])}</div></section>
+ <section class="v18-box"><h3 data-v18-l="study">{h(labels["study"])}</h3><div id="v18Slots"></div><div class="v18-goal" data-v18-l="goal">{h(labels["goal"])}</div></section>
  <section class="v18-box"><div class="v18-board"><div class="v18-bt" id="v18Title"></div><div id="v18Lines"></div></div>
-  <div class="v18-labwrap"><h4><span id="v18LabTitle"></span><button type="button" id="nabilWholeRunLab" style="min-height:36px">{h(labels["run_lab"])}</button></h4>
+  <div class="v18-labwrap" id="v18LabWrap"><h4><span id="v18LabTitle"></span><button type="button" data-v18-l="run_lab" id="nabilWholeRunLab" style="min-height:36px">{h(labels["run_lab"])}</button></h4>
    <iframe id="nabilWholeLessonFrame" title="{h(labels["lab"])}"></iframe></div>
 </section>
  <aside class="v18-box v18-teacher"><h3>NABIL AI</h3><img src="{avatar}" alt="NABIL AI">
   <div class="v18-speech" id="v18Speech" aria-live="polite"></div>
-  <button type="button" class="talk" id="v18Talk">{h(labels["talk"])}</button></aside>
+  <button type="button" class="talk" data-v18-l="talk" id="v18Talk">{h(labels["talk"])}</button></aside>
 </div>
   <div class="v18-controls">
-   <button type="button" class="primary" id="nabilWholePlay">{h(labels["play"])}</button>
-   <button type="button" id="nabilWholeStop">{h(labels["stop"])}</button>
-   <button type="button" id="nabilWholePrev">{h(labels["prev"])}</button>
-   <button type="button" id="nabilWholeNext">{h(labels["next"])}</button>
-   <button type="button" id="nabilWholeRestart">{h(labels["restart"])}</button>
-   <button type="button" class="voice" id="nabilWholeCurrent">{h(labels["current"])}</button>
+   <button type="button" class="primary" data-v18-l="play" id="nabilWholePlay">{h(labels["play"])}</button>
+   <button type="button" data-v18-l="stop" id="nabilWholeStop">{h(labels["stop"])}</button>
+   <button type="button" data-v18-l="prev" id="nabilWholePrev">{h(labels["prev"])}</button>
+   <button type="button" data-v18-l="next" id="nabilWholeNext">{h(labels["next"])}</button>
+   <button type="button" data-v18-l="restart" id="nabilWholeRestart">{h(labels["restart"])}</button>
+   <button type="button" class="voice" data-v18-l="current" id="nabilWholeCurrent">{h(labels["current"])}</button>
    <button type="button" class="voice" id="nabilWholeVoice">{h(labels["voice_on"])}</button>
   </div>
   <div class="v18-timeline" id="nabilWholeTimeline"></div><div class="v18-note" id="v18VoiceNote"></div>
 <div class="v18-final" data-v18-final-stage="true"><div id="goldenReferenceCard" data-nabil-v18-golden="true"></div></div>
 <script type="application/json" id="nabilV18Data">{data}</script>
 <script>{engine}</script>
+<script>window.__NABIL_V18_CARDS=window.NABILScientificCards;</script>
 <script>{_JS}</script>
 </section>'''
+
+
+_SUP = {"0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵",
+        "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹", "-": "⁻"}
+
+
+def plain_math(text: str) -> str:
+    """Readable board text from LaTeX-ish solver text (no delimiters shown)."""
+    import re
+    s = str(text or "")
+    s = re.sub(r"\\[\(\)\[\]]|\$\$?", "", s)
+    s = s.replace("\\times", "×").replace("\\cdot", "·").replace("\\div", "÷")
+    s = s.replace("\\left", "").replace("\\right", "")
+    s = re.sub(r"\^\{(-?\d+)\}", lambda m: "".join(_SUP.get(c, c) for c in m.group(1)), s)
+    s = re.sub(r"\^(-?\d)", lambda m: "".join(_SUP.get(c, c) for c in m.group(1)), s)
+    s = re.sub(r"\\frac\{([^{}]+)\}\{([^{}]+)\}", r"(\1)/(\2)", s)
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def build_exercise_activities(exercises: list, labels_ui: dict) -> list:
+    """Verified SOLVED exercises -> board activities (one exercise per idea)."""
+    acts = []
+    for ex in exercises:
+        sol = ex.get("_pre_solved_solution")
+        if ex.get("solution_status") != "SOLVED" or not isinstance(sol, dict):
+            continue
+        steps = [{"label": labels_ui.get("problem", ""),
+                  "sentence": plain_math(ex.get("exact_source_prompt") or ""),
+                  "formula": "", "kind": "problem"}]
+        for i, s in enumerate(sol.get("steps") or [], 1):
+            txt = plain_math(s)
+            if txt:
+                steps.append({"label": f"{labels_ui.get('step', '')} {i}",
+                              "sentence": txt, "formula": "", "kind": "step"})
+        final = plain_math(sol.get("final_answer") or "")
+        if not final:
+            continue
+        steps.append({"label": labels_ui.get("final", ""), "sentence": final,
+                      "formula": "", "kind": "final"})
+        acts.append({
+            "concept_id": str(ex.get("exercise_id") or ex.get("number")),
+            "title": f"{labels_ui.get('exercise', '')} {ex.get('number')}".strip(),
+            "conclusion": final, "lab_html": str(ex.get("_prebuilt_lab_html") or ""),
+            "allow_no_lab": True, "teaching_steps": steps,
+        })
+    return acts
+
+
+_EXERCISE_UI = {
+    "ar": {"problem": "المسألة", "step": "الخطوة", "final": "الجواب النهائي", "exercise": "التمرين"},
+    "fr": {"problem": "Énoncé", "step": "Étape", "final": "Réponse finale", "exercise": "Exercice"},
+    "en": {"problem": "Problem", "step": "Step", "final": "Final answer", "exercise": "Exercise"},
+}
+
+
+def render_v18_exercises_board(title: str, exercises: list, lang_code: str,
+                               subject: str = "", contract: str = "") -> str:
+    """V18 board for the exercises page: one verified exercise per stage, with
+    the final stage a Golden Card of the verified final answers. Returns "" when
+    no exercise is SOLVED (nothing unverified is ever shown)."""
+    lang = lang_code if lang_code in _EXERCISE_UI else "en"
+    acts = build_exercise_activities(exercises, _EXERCISE_UI[lang])
+    if not acts:
+        return ""
+    spec = build_golden_spec(title, acts, lang, subject=subject,
+                             verification_note="✓")
+    return render_v18_smart_board(title, acts, lang, golden_spec=spec,
+                                  contract=contract, mode="exercises")
