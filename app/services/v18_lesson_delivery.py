@@ -34,7 +34,7 @@ def catalogue_rows(indexed, prepared_lookup, prepared_entries, *, grade, subject
         if normalize_subject(prepared.get("subject")) != normalize_subject(subject):
             continue
         filename = str(prepared.get("filename", ""))
-        if re.search(r"--EXERCISES\\.html$", filename, re.I):
+        if re.search(r"--EXERCISES\.html$", filename, re.I):
             continue
         title = clean_title(prepared["lesson"])
         key = norm(title)
