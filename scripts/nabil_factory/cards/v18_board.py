@@ -240,6 +240,7 @@ _JS = r"""
    node.textContent='';node.classList.add('cursor');let i=0;
    const tick=()=>{if(tok!==token){node.classList.remove('cursor');return res(false)}
     node.textContent=text.slice(0,++i);
+    if(i%18===0||i===1||i===text.length)followBoardWriting(node);
     if(i<text.length)setTimeout(tick,18);else{node.classList.remove('cursor');res(true)}};
    tick();
   });
