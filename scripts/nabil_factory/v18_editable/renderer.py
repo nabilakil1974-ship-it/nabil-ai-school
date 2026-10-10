@@ -5,6 +5,8 @@ from __future__ import annotations
 import html
 import json
 from pathlib import Path
+from .cards import result_slots, verified_final_card
+from .labs import render_verified_labs
 
 _ROOT = Path(__file__).resolve().parents[3]
 _ENGINE = ("p3_lab_standard_v12.js", "scientific_models.js",
@@ -53,11 +55,8 @@ def render_v18_lesson(entry, theory, ev_map, lab_index=None):
     language=str(entry.get("language") or "en").lower()
     lang="ar" if language.startswith("ar") else ("fr" if language.startswith("fr") else "en")
     content=json.dumps(steps,ensure_ascii=False).replace("<","\\u003c").replace("&","\\u0026")
-    card=theory.get("reference_card_html") or ""
+    card=verified_final_card(theory)
     # Preserve the verified golden card, and put it LAST in the teaching sequence.
-    if not card and theory.get("whole_lesson_lab_html"):
-        # No invented golden card: final frame is explicitly a recap of audited steps.
-        card=""
     result=json.dumps({"title":"Golden Final Card","lines":[s["title"]+": "+s["lines"][-1] for s in steps],
                         "lab":card,"visual":"","concept_id":"GOLDEN-FINAL-CARD"},ensure_ascii=False).replace("<","\\u003c")
     apply_markers = "".join(
@@ -71,6 +70,8 @@ def render_v18_lesson(entry, theory, ev_map, lab_index=None):
     if theory.get("quiz_eligible_count", 0) and "fullQuizBlock" not in quiz_html:
         raise RuntimeError("V18_VERIFIED_FULL_QUIZ_MISSING")
     scripts=_script_bundle()
+    slots_html = result_slots(steps)
+    labs_html = render_verified_labs(theory.get("activities") or [])
     page=r'''<!doctype html><html lang="__LANG__"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="nabil-v18-renderer" content="original-runtime-integrated"><meta name="nabil-renderer-contract" content="NABIL_REFERENCE_RENDERER_V1"><meta name="nabil-lesson-id" content="__ID__">
 <title>__TITLE__ — NABIL V18</title><style>
@@ -86,17 +87,17 @@ button{cursor:pointer;min-height:46px;border:1px solid #267aa9;border-radius:10p
 button.primary{background:#0b766d}button:focus-visible{outline:3px solid #ffd35a}
 #timeline{display:flex;flex-wrap:wrap;gap:7px;margin-top:15px}#timeline button.active{background:#b88c27;color:#051126}
 #concepts{list-style:none;padding:0;margin:0;display:grid;gap:9px}#concepts li{padding:12px;background:#0b2b4c;border-left:4px solid #25d8ff;border-radius:7px}
-.result-slot{padding:11px;margin:9px 0;border:1px solid #1aa9a1;border-radius:10px;background:#063739}.result-slot strong{color:#ffd35a}.result-slot p{white-space:pre-wrap;overflow-wrap:anywhere}#teacherSpeech{font-size:17px;line-height:1.65;white-space:pre-wrap}#status{color:#52e6a4;font-size:14px}.tag{color:#9fc4e5;font-size:12px;letter-spacing:.1em}
+.v18-result-slot{padding:11px;margin:9px 0;border:1px solid #1aa9a1;border-radius:10px;background:#063739}.v18-result-slot strong{color:#ffd35a}.v18-result-slot .v18-result-value{white-space:pre-wrap;overflow-wrap:anywhere}#teacherSpeech{font-size:17px;line-height:1.65;white-space:pre-wrap}#status{color:#52e6a4;font-size:14px}.tag{color:#9fc4e5;font-size:12px;letter-spacing:.1em}
 @media(max-width:1050px){.layout{grid-template-columns:1fr}.wrap{padding:9px}#board{min-height:280px;padding:14px}}
 </style></head><body><header><div><div class="brand">NABIL AI · V18 GOLDEN SMART BOARD</div><h2>__TITLE__</h2></div><div id="status">Ready · Verified textbook material</div></header>
-<main class="wrap" data-whole-lesson-smart-lab="true">__APPLY_MARKERS__<div class="layout"><aside class="panel" id="studyResults"><h3 class="brand">Verified study results</h3><div id="lockedResults"></div></aside><section class="panel"><div class="tag">TEACH · WRITE · SPEAK · VISUALIZE · VERIFY</div>
+<main class="wrap" data-whole-lesson-smart-lab="true">__APPLY_MARKERS__<div class="layout"><aside class="panel" id="studyResults"><h3 class="brand">Verified study results</h3><div id="lockedResults">__RESULT_SLOTS__</div></aside><section class="panel"><div class="tag">TEACH · WRITE · SPEAK · VISUALIZE · VERIFY</div>
 <div id="board"><h2 id="boardTitle"></h2><div id="boardWriting" aria-live="polite"></div></div>
 <div id="visual"></div><div class="controls">
 <button class="primary" id="play">▶ Teach entire lesson</button><button id="current">🔊 Explain this concept</button>
 <button id="prev">◀ Previous</button><button id="next">Next ▶</button><button id="stop">■ Stop</button>
 <button id="restart">↻ Restart</button><button id="voice">🔊 Voice ON</button>
 <button id="exercises">Exercises →</button></div><div id="timeline"></div></section>
-<aside class="panel"><div class="brand">NABIL AI · Teacher</div><p id="teacherSpeech" aria-live="polite">Explanation begins before questions.</p><div class="brand">Lesson concepts</div><ul id="concepts"></ul><p class="tag">The final reference card appears LAST.</p></aside></div><section class="panel" id="v18VerifiedQuiz" style="margin-top:16px" hidden><h3>Check your understanding after the lesson</h3>__VERIFIED_QUIZ__</section></main>
+<aside class="panel"><div class="brand">NABIL AI · Teacher</div><p id="teacherSpeech" aria-live="polite">Explanation begins before questions.</p><div class="brand">Lesson concepts</div><ul id="concepts"></ul><p class="tag">The final reference card appears LAST.</p></aside></div><section class="panel" id="v18VerifiedQuiz" style="margin-top:16px" hidden><h3>Check your understanding after the lesson</h3>__VERIFIED_QUIZ__</section><section id="verifiedLabs" class="panel">__VERIFIED_LABS__</section></main>
 <script type="application/json" id="nabilLabIndex">__LAB_INDEX__</script>
 <script src="/static/nabil_browser_tts_v1.js?v=1"></script>
 <script src="/static/nabil_lesson_e2e_runtime_v1.js?v=1"></script>
@@ -113,7 +114,7 @@ const ctl=new window.NabilRuntime.TeacherPlaybackController({langCode:'__LANG__'
 onStep:(i,step)=>show(step.fullIndex??i,true),onState:(s)=>{if(s.event==='WRITE_LINE'){board.textContent=s.value;}if(s.event==='WRITE_TITLE')title.textContent=s.value;
 if(s.finished)status.textContent='Lesson complete · Golden card last';}});
 const safeText=t=>document.createTextNode(t);const results=document.getElementById('lockedResults'),speech=document.getElementById('teacherSpeech');
-function show(i,fromPlayback=false){index=i;const x=slides[index];if(!fromPlayback)ctl.stop();title.textContent=x.title;board.textContent=x.lines.join('\n\n');visual.replaceChildren();speech.textContent=x.lines.join(' · ');results.replaceChildren();slides.slice(0,index+1).forEach((step,n)=>{const box=document.createElement('div');box.className='result-slot';const b=document.createElement('strong');b.textContent=(n+1)+'. '+step.title;const p=document.createElement('p');p.textContent=step.lines.at(-1)||'';box.append(b,p);results.appendChild(box);});
+function show(i,fromPlayback=false){index=i;const x=slides[index];if(!fromPlayback)ctl.stop();title.textContent=x.title;board.textContent=x.lines.join('\n\n');visual.replaceChildren();speech.textContent=x.lines.join(' · ');Array.from(results.children).forEach((box,n)=>{const value=box.querySelector('.v18-result-value');box.classList.toggle('locked',n<=index);if(value)value.textContent=n<=index?(slides[n].lines.at(-1)||''):'—';});
 if(x.lab){const f=document.createElement('iframe');f.title=x.title+' — verified interactive lab';f.srcdoc='<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#061725;color:white}</style></head><body>'+x.lab+'<\/body><\/html>';visual.appendChild(f);}
 else if(x.visual){const holder=document.createElement('div');holder.innerHTML=x.visual;visual.appendChild(holder);}
 else{const p=document.createElement('p');p.textContent=x.lines.join(' · ');visual.appendChild(p);}
@@ -136,4 +137,5 @@ show(0);
 </script></body></html>'''
     return (page.replace("__LANG__",lang).replace("__ID__",html.escape(str(entry.get("lesson_id") or "")))
             .replace("__TITLE__",title).replace("__SCRIPTS__",scripts)
+            .replace("__RESULT_SLOTS__",slots_html).replace("__VERIFIED_LABS__",labs_html)
             .replace("__STEPS__",content).replace("__FINAL__",result).replace("__APPLY_MARKERS__",apply_markers).replace("__LAB_INDEX__",lab_index_json).replace("__VERIFIED_QUIZ__",quiz_html))
