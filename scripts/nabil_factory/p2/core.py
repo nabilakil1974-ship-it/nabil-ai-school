@@ -2217,6 +2217,7 @@ def render_whole_lesson_smart_lab(
     """
     if not activities:
         return ""
+    from scripts.nabil_factory.v18_editable.pacing import CONFIG as v18_pacing
     labels = {
         "ar": {
             "title": "🧠 مختبر نبيل الشامل للدرس",
@@ -2379,7 +2380,7 @@ def render_whole_lesson_smart_lab(
   async function speakVerified(text,token){{
     const words=String(text||'').trim().split(/\\s+/).filter(Boolean).length;
     if(!words||token!==runToken)return;
-    const minimum=Math.max(4800,Math.min(65000,words*480));
+    const minimum=Math.max({v18_pacing['minimum_speech_ms']},Math.min({v18_pacing['maximum_speech_ms']},words*{v18_pacing['milliseconds_per_word']}));
     if(!('speechSynthesis' in window)){{
       await teachingSleep(minimum);return;
     }}
@@ -2390,7 +2391,7 @@ def render_whole_lesson_smart_lab(
       try{{
         const utt=new SpeechSynthesisUtterance(String(text));
         utt.lang={json.dumps(lang_code)}==='ar'?'ar-LB':({json.dumps(lang_code)}==='fr'?'fr-FR':'en-US');
-        utt.rate=.82;utt.pitch=1;
+        utt.rate={v18_pacing['speech_rate']};utt.pitch=1;
         const voices=window.speechSynthesis.getVoices();
         const chosen=voices.find(v=>v.lang.toLowerCase().startsWith(utt.lang.slice(0,2).toLowerCase()));
         if(chosen)utt.voice=chosen;
@@ -2414,7 +2415,7 @@ def render_whole_lesson_smart_lab(
     for(let i=0;i<text.length;i++){{
       if(token!==runToken)return;
       board.textContent+=text[i];
-      if(i%3===0)await teachingSleep(35);
+      if(i%3===0)await teachingSleep({v18_pacing['letter_delay_ms']});
     }}
   }}
   async function teachCurrent(){{
@@ -2433,7 +2434,7 @@ def render_whole_lesson_smart_lab(
       if(token!==runToken)return;
       await speakVerified(narration,token);
       if(token!==runToken)return;
-      await teachingSleep(1100);
+      await teachingSleep({v18_pacing['gap_between_steps_ms']});
     }}
     // Also run a verified embedded interactive lab if it supplies a listener.
     try{{
@@ -2450,7 +2451,7 @@ def render_whole_lesson_smart_lab(
       if(token!==runToken)return;
       await teachCurrent();
       if(token!==runToken)return;
-      await teachingSleep(1300);
+      await teachingSleep({v18_pacing['gap_between_concepts_ms']});
     }}
   }}
   document.getElementById('nabilWholePrev').onclick=()=>{{stop();idx=(idx+slides.length-1)%slides.length;render()}};
