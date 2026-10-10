@@ -65,7 +65,9 @@ class V18RendererTest(unittest.TestCase):
         self.assertIn("f.setAttribute('sandbox','allow-scripts allow-forms')", out)
         self.assertIn('Verified power sequence', out)
         self.assertIn('Calculate 2 cubed', out)
-        self.assertNotIn('class="nabil-sci-grid"', out)
+        # The shared card engine may contain its own grid markup as a JS string.
+        # The outer lesson layout is the V18 board, not the legacy grid.
+        self.assertIn('<div class="layout">', out)
         self.assertLess(out.index('id="goldenReferenceCard"'), out.index('id="nabilLessonData"'))
 
     def test_missing_source_flow_rejected(self):
