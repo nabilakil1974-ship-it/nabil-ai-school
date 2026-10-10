@@ -33,11 +33,17 @@ def _steps(theory):
                 if value:flow.append(value)
         if not flow:
             raise RuntimeError("V18_UNGROUNDED_CONCEPT:"+str(act.get("concept_id")))
+        apply = act.get("student_apply_prompt") or {}
+        question = act.get("student_question") or {}
+        prompt = str(apply.get("prompt") or question.get("q") or "").strip()
+        if not prompt:
+            raise RuntimeError("V18_VERIFIED_APPLY_MISSING:"+str(act.get("concept_id")))
+        flow.append("Apply: " + prompt)
         results.append({"title":str(act.get("title") or "Concept"),
                         "lines":flow,
                         "lab":str(act.get("lab_html") or ""),
                         "visual":str(act.get("visual_html") or ""),
-                        "concept_id":str(act.get("concept_id") or "")})
+                        "concept_id":str(act.get("concept_id") or ""), "apply_verified":True})
     if not results:raise RuntimeError("V18_NO_VERIFIED_CONCEPTS")
     return results
 
@@ -54,6 +60,11 @@ def render_v18_lesson(entry, theory, ev_map, lab_index=None):
         card=""
     result=json.dumps({"title":"Golden Final Card","lines":[s["title"]+": "+s["lines"][-1] for s in steps],
                         "lab":card,"visual":"","concept_id":"GOLDEN-FINAL-CARD"},ensure_ascii=False).replace("<","\\u003c")
+    apply_markers = "".join(
+        '<template data-step="application" data-concept-id="' +
+        html.escape(row["concept_id"],quote=True) + '"></template>'
+        for row in steps
+    )
     scripts=_script_bundle()
     page=r'''<!doctype html><html lang="__LANG__"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="nabil-v18-renderer" content="original-runtime-integrated"><meta name="nabil-lesson-id" content="__ID__">
@@ -73,7 +84,7 @@ button.primary{background:#0b766d}button:focus-visible{outline:3px solid #ffd35a
 #status{color:#52e6a4;font-size:14px}.tag{color:#9fc4e5;font-size:12px;letter-spacing:.1em}
 @media(max-width:800px){.layout{grid-template-columns:1fr}.wrap{padding:9px}#board{min-height:280px;padding:14px}}
 </style></head><body><header><div><div class="brand">NABIL AI · V18 GOLDEN SMART BOARD</div><h2>__TITLE__</h2></div><div id="status">Ready · Verified textbook material</div></header>
-<main class="wrap"><div class="layout"><section class="panel"><div class="tag">TEACH · WRITE · SPEAK · VISUALIZE · VERIFY</div>
+<main class="wrap">__APPLY_MARKERS__<div class="layout"><section class="panel"><div class="tag">TEACH · WRITE · SPEAK · VISUALIZE · VERIFY</div>
 <div id="board"><h2 id="boardTitle"></h2><div id="boardWriting" aria-live="polite"></div></div>
 <div id="visual"></div><div class="controls">
 <button class="primary" id="play">▶ Teach entire lesson</button><button id="current">🔊 Explain this concept</button>
@@ -114,4 +125,4 @@ show(0);
 </script></body></html>'''
     return (page.replace("__LANG__",lang).replace("__ID__",html.escape(str(entry.get("lesson_id") or "")))
             .replace("__TITLE__",title).replace("__SCRIPTS__",scripts)
-            .replace("__STEPS__",content).replace("__FINAL__",result))
+            .replace("__STEPS__",content).replace("__FINAL__",result).replace("__APPLY_MARKERS__",apply_markers))
