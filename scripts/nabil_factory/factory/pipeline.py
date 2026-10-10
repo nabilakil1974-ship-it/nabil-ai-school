@@ -211,18 +211,19 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
 
     # Zero translation-provider calls for the explicitly approved ONE English
     # textbook pilot. This does not suppress scientific review or other gates.
-    english_only = (
-        os.getenv("NABIL_POWERS_ENGLISH_ONLY") == "1"
-        and lesson_id == "G07-MATHEMATICS-69B7C840-001"
-        and source_lang_code == "en"
-    )
-    if english_only:
-        progress("ENGLISH_ONLY_TRANSLATION_SKIPPED", lesson_id=lesson_id,
+    # Arabic output is disabled across ALL grades and subjects by owner
+    # instruction. Until a verified offline EN<->FR translator is installed,
+    # publish only the textbook's original English or French text; never
+    # call the legacy trilingual provider or fabricate a target language.
+    source_only = os.getenv("NABIL_DISABLE_ARABIC", "1") != "0"
+    if source_only:
+        progress("ARABIC_DISABLED_SOURCE_LANGUAGE_ONLY",
+                 lesson_id=lesson_id, source_language=source_lang_code,
                  saved_provider_calls="theory_and_exercises")
         page_a, page_b = page_a_raw, page_b_raw
         translation_a = translation_b = {
-            "complete": True, "languages": ["en"],
-            "candidate_strings": 0, "translated_counts": {"en": 0},
+            "complete": True, "languages": [source_lang_code],
+            "candidate_strings": 0, "translated_counts": {source_lang_code: 0},
             "mode": "source_language_no_translation",
         }
     else:
@@ -282,7 +283,7 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
             "page_a": translation_a,
             "page_b": translation_b,
         },
-        "source_language_only": english_only,
+        "source_language_only": source_only,
         "hashes": {
             "page_a": hashlib.sha256(page_a.encode("utf-8")).hexdigest(),
             "page_b": hashlib.sha256(page_b.encode("utf-8")).hexdigest(),
