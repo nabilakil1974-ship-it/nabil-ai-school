@@ -139,6 +139,9 @@ _CSS = r"""
 #nabilWholeLessonSmartLab .v18-var td.k{color:var(--gold);font-weight:800}
 #goldenReferenceCard .nabil-sci-table-wrap,#goldenReferenceCard .nabil-sci-table th,#goldenReferenceCard .nabil-sci-table td{direction:ltr;unicode-bidi:isolate}
 #nabilWholeLessonSmartLab .v18-note{font-size:12px;color:var(--muted);margin-top:8px}
+#nabilWholeLessonSmartLab .v18-student-interaction{padding:14px;border:1px solid var(--gold);border-radius:12px;margin-top:12px;background:#092b49}
+#nabilWholeLessonSmartLab .v18-student-interaction input{min-height:44px;background:#fff;color:#122438;border-radius:8px;padding:8px;width:100%;margin:8px 0}
+#nabilWholeLessonSmartLab .v18-student-interaction button{margin:4px}
 #nabilWholeLessonSmartLab .v18-written-section{border-bottom:1px solid #315d79;padding-bottom:12px;margin-bottom:16px}
 #nabilWholeLessonSmartLab .v18-written-heading{color:var(--gold);font-size:19px;margin:12px 0}
 #nabilWholeLessonSmartLab .v18-final{display:none;margin-top:12px}
@@ -159,7 +162,7 @@ _JS = r"""
  const frame=$('nabilWholeLessonFrame'),bt=$('v18Title'),lines=$('v18Lines'),speech=$('v18Speech'),badge=$('v18Badge'),
        timeline=$('nabilWholeTimeline'),slots=$('v18Slots'),voiceBtn=$('nabilWholeVoice'),finalHost=$('goldenReferenceCard'),
        labWrap=$('v18LabWrap'),labTitle=$('v18LabTitle'),voiceNote=$('v18VoiceNote');
- let idea=0,stepI=-1,token=0,voiceOn=true,finalShown=false,playing=false;
+ let idea=0,stepI=-1,token=0,voiceOn=true,finalShown=false,playing=false,awaitingStudent=false;
  const FINAL=slides.length;                       /* index of the golden-card stage */
  let avatarObjectUrl=null;
  function approvedAvatarUrl(){
@@ -274,6 +277,7 @@ _JS = r"""
   }
  }
  function paintIdea(upto,typeLast,tok){
+  if(!awaitingStudent){const interact=$('v18StudentInteraction');interact.hidden=true;interact.replaceChildren()}
   setFinal(false);bt.textContent=tr(slides[idea].title);
   badge.textContent=L.idea+' '+(idea+1)+' / '+slides.length+' · '+L.step+' '+(Math.max(upto,0)+1)+' / '+slides[idea].steps.length;
   paintSlots();paintTimeline();loadLab();paintVar();return showLines(Math.max(upto,0),typeLast,tok);
@@ -284,21 +288,48 @@ _JS = r"""
   // Both remain bound to the same cancellation token.
   const st=slides[idea].steps[i],spoken=tr(st.text);
   speech.textContent=spoken;
+  if(st.check&&st.check.question){awaitingStudent=true;showStudentCheck(st.check)}
   const writing=paintIdea(i,!FAST,tok);
   const narration=withVoice?speak(spoken):Promise.resolve();
   const [ok]=await Promise.all([writing,narration]);
   return Boolean(ok)&&tok===token;
  }
+ function showStudentCheck(check){
+  const host=$('v18StudentInteraction');host.hidden=false;host.replaceChildren();
+  const q=el('p','v18-student-question',tr(check.question));
+  const input=el('input','v18-student-answer');input.setAttribute('aria-label',tr(check.question));input.type='text';
+  const feedback=el('p','v18-student-feedback');feedback.setAttribute('aria-live','polite');
+  const submit=el('button','v18-student-submit',L.submit_answer||'Check answer');
+  const hint=el('button','v18-student-hint',L.hint||'Hint');
+  const expected=String(check.expected||'').trim();
+  // No automatic acceptance of unverified responses or invented solutions.
+  submit.onclick=()=>{
+    const got=input.value.trim();
+    if(!got){feedback.textContent=L.answer_required||'Enter an answer.';return}
+    const norm=x=>x.normalize('NFKC').replace(/\\s+/g,'').toLowerCase();
+    if(expected&&norm(got)===norm(expected)){
+      feedback.textContent=tr(check.correct_feedback||L.correct||'Correct. Explain why.');
+      awaitingStudent=false;input.disabled=true;submit.disabled=true;
+    }else{
+      feedback.textContent=tr(check.wrong_feedback||L.try_again||'Try again. Think through the steps.');
+    }
+  };
+  hint.onclick=()=>{feedback.textContent=tr(check.hint||L.try_again||'Review the preceding explanation.')};
+  host.append(q,input,submit,hint,feedback);
+ }
  function showFinalStage(){
+  if(awaitingStudent)return;
   stepI=slides[Math.min(idea,slides.length-1)].steps.length-1;idea=FINAL;stopSpeech();token++;
   setFinal(true);badge.textContent=L.final;speech.textContent=L.done;paintSlots();paintTimeline();
  }
  function halt(){playing=false;token++;stopSpeech()}
  function goTo(i){
+  if(awaitingStudent&&i>idea)return;
   if(i>=FINAL){showFinalStage();return}
   idea=Math.max(0,i);stepI=0;presentStep(0,false);
  }
  function nextStep(){
+  if(awaitingStudent)return;
   halt();
   if(finalShown)return;
   if(stepI<slides[idea].steps.length-1)presentStep(stepI+1,false);
@@ -316,6 +347,7 @@ _JS = r"""
   for(let i=0;i<slides[mine].steps.length;i++){
    if(!playing)return false;
    if(!(await presentStep(i,true)))return false;
+   if(awaitingStudent){playing=false;return false}
    await sleep(450);
   }
   return playing;
@@ -351,7 +383,7 @@ _JS = r"""
  window.NABILWholeLessonOrchestrator={
   play:playAll,stop:()=>$('nabilWholeStop').click(),current:()=>explainCurrent(),
   goTo:i=>{halt();goTo(Number(i)||0)},next:nextStep,prev:prevStep,
-  state:()=>({idea,step:stepI,final:finalShown,voice:voiceOn,ideas:slides.length,lang:cur()}),
+  state:()=>({idea,step:stepI,final:finalShown,awaitingStudent,voice:voiceOn,ideas:slides.length,lang:cur()}),
   finalIndex:FINAL
  };
  relabel();speech.textContent=L.hello;idea=0;stepI=0;paintIdea(0,false,token);
@@ -404,6 +436,7 @@ def build_slide(act: dict, lang_code: str) -> dict | None:
                 "text": sentence,
                 "formula": str(st.get("formula") or ""),
                 "kind": str(st.get("kind") or ""),
+                "check": st.get("student_check") if isinstance(st.get("student_check"), dict) else None,
             })
     if not steps:
         for label, key in (("", "phenomenon"), ("", "investigation"),
@@ -533,6 +566,7 @@ def render_v18_smart_board(title: str, activities: list, lang_code: str,
   <div class="v18-labwrap" id="v18LabWrap"><h4><span id="v18LabTitle"></span><button type="button" data-v18-l="run_lab" id="nabilWholeRunLab" style="min-height:36px">{h(labels["run_lab"])}</button></h4>
    <iframe id="nabilWholeLessonFrame" title="{h(labels["lab"])}"></iframe></div>
   <div class="v18-var" id="v18VarBox" style="display:none" data-v18-variation="true"></div>
+  <div id="v18StudentInteraction" class="v18-student-interaction" hidden></div>
  </div>
 </section>
  <aside class="v18-box v18-teacher"><h3>NABIL AI</h3><img id="v18TeacherAvatar" alt="NABIL AI">
