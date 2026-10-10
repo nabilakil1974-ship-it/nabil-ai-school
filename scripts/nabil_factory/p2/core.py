@@ -3707,7 +3707,10 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
         and whole_lab.get("active") is True
         and len(whole_lab.get("concept_keys") or []) == len(concept_lab_index)
         and 'data-whole-lesson-smart-lab="true"' in candidate["page_a_html"]
-        and 'id="nabilWholeLessonFrame"' in candidate["page_a_html"],
+        and (('id="visual"' in candidate["page_a_html"]
+              and 'NabilRuntime.TeacherPlaybackController' in candidate["page_a_html"])
+             if is_v18_renderer else
+             'id="nabilWholeLessonFrame"' in candidate["page_a_html"]),
         "CRITICAL",
         "Every lesson must ship one final Smart Board orchestrating all verified concept labs",
     )
