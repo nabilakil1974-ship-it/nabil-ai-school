@@ -2208,7 +2208,7 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
 
 
 def render_whole_lesson_smart_lab(
-        title: str, activities: list, lang_code: str) -> str:
+        title: str, activities: list, lang_code: str, final_card_html: str = "") -> str:
     """One final Smart Board that orchestrates every already-verified concept lab.
 
     It introduces no new science.  Each slide uses the audited narrative and
@@ -2300,6 +2300,16 @@ def render_whole_lesson_smart_lab(
             "next_transition": labels["next_transition"],
             "srcdoc": srcdoc,
             "demo_ms": demo_ms,
+        })
+    if final_card_html.strip():
+        slides.append({
+            "concept_id": "GOLDEN-FINAL-CARD",
+            "title": {"ar": "البطاقة الذهبية النهائية", "en": "Golden Final Card",
+                      "fr": "Carte finale dorée"}.get(lang_code, "Golden Final Card"),
+            "flow": [], "teaching_mode": "reference-card", "teaching_level": "",
+            "first_transition": "", "next_transition": "",
+            "srcdoc": '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;background:#061725;color:#eef8ff;overflow-x:hidden}*{box-sizing:border-box}</style></head><body>' + final_card_html + '</body></html>',
+            "demo_ms": 0,
         })
     if not slides:
         return ""
@@ -2782,7 +2792,7 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict,
     any_active_sim = bool(all_labs_html)
 
     whole_lesson_lab_html = render_whole_lesson_smart_lab(
-        title, activities_theory, lesson_lang_code)
+        title, activities_theory, lesson_lang_code, ref_card_html)
 
     # Fail closed if any science/mathematics concept in Grades 1-12 has no
     # Requirement-5-locked interactive activity. Rich simulations are used
