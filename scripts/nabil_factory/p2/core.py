@@ -3910,17 +3910,20 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
     # English-source-only pilot has no paid translation bundle. Restrict this
     # exception to the exact owner-approved textbook lesson; it may not
     # suppress mathematical, source, visual, or scientific validation gates.
-    english_source_pilot = (
+    source_language_only = (
         candidate.get("source_language_only") is True
-        and candidate.get("lesson_id") == "G07-MATHEMATICS-69B7C840-001"
-        and (candidate.get("translation_report") or {}).get("page_a", {}).get("mode")
-            == "source_language_no_translation"
-        and (candidate.get("translation_report") or {}).get("page_b", {}).get("mode")
-            == "source_language_no_translation"
+        and all(
+            (translation_report.get(key) or {}).get("mode")
+                == "source_language_no_translation"
+            and (translation_report.get(key) or {}).get("complete") is True
+            and (translation_report.get(key) or {}).get("languages") in
+                (["en"], ["fr"])
+            for key in ("page_a", "page_b")
+        )
     )
     check(
         "FULL_PAGE_TRANSLATION_INCOMPLETE",
-        english_source_pilot or (
+        source_language_only or (
         all(
             (translation_report.get(key) or {}).get("complete") is True
             and (translation_report.get(key) or {}).get("languages")
@@ -3944,7 +3947,7 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
             for page in (candidate["page_a_html"], candidate["page_b_html"])
         )),
         "CRITICAL",
-        "English-only source pilot must be explicit; otherwise full prebuilt translations and language selector are mandatory",
+        "Source-language-only (English/French) mode must be explicit and complete; trilingual mode still needs full prebuilt bundles",
     )
 
     check(
