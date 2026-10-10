@@ -14,7 +14,7 @@ class OfflineTranslationTests(unittest.TestCase):
         html='<html><body><p>We observe \\(2^3=8\\).</p><script>const message="The power";</script><math>2^3</math></body></html>'
         output, report=translate_html_offline(html,"en","fr",French())
         self.assertIn("Nous observons",output)
-        self.assertIn(r"\\(2^3=8\\)",output)
+        self.assertIn("\\(2^3=8\\)",output)
         self.assertIn('const message="The power"',output)
         self.assertFalse(report["complete"],"JS-driven boards are not yet translated")
         self.assertEqual(report["mode"],"offline_argos")
