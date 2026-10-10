@@ -36,6 +36,7 @@ _LABELS = {
         "novoice": "لا يوجد صوت عربي مثبّت على هذا الجهاز؛ يستمر الشرح مكتوبًا.",
         "done": "اكتمل الشرح. هذه هي البطاقة الذهبية النهائية.",
         "lang_tag": "ar-SA",
+        "variation": "📊 جدول التغيّرات", "lmax": "قيمة عظمى محلية", "lmin": "قيمة صغرى محلية",
     },
     "fr": {
         "title": "🧠 Tableau intelligent — laboratoire intégral",
@@ -50,6 +51,7 @@ _LABELS = {
         "novoice": "Aucune voix française installée ; l'explication continue par écrit.",
         "done": "Explication terminée. Voici la carte dorée finale.",
         "lang_tag": "fr-FR",
+        "variation": "📊 Tableau de variations", "lmax": "max local", "lmin": "min local",
     },
     "en": {
         "title": "🧠 Smart Board — Whole-Lesson Lab",
@@ -64,6 +66,7 @@ _LABELS = {
         "novoice": "No matching voice is installed on this device; teaching continues in text.",
         "done": "Teaching complete. Here is the final Golden Card.",
         "lang_tag": "en-US",
+        "variation": "📊 Variation Table", "lmax": "local max", "lmin": "local min",
     },
 }
 
@@ -127,6 +130,13 @@ _CSS = r"""
 #nabilWholeLessonSmartLab .v18-dot{width:44px;height:44px;border-radius:50%;padding:0;background:#08213d;border:1px solid #315c7e;font-size:13px}
 #nabilWholeLessonSmartLab .v18-dot.on{background:#0d6276;border-color:var(--cyan)}
 #nabilWholeLessonSmartLab .v18-dot.done{background:#124c3d;border-color:var(--green)}
+#nabilWholeLessonSmartLab .v18-var{margin-top:10px;background:#071c35;border:1px solid var(--line);border-radius:12px;padding:10px;overflow-x:auto}
+#nabilWholeLessonSmartLab .v18-var h4{margin:0 0 8px;color:var(--gold);font-size:15px}
+#nabilWholeLessonSmartLab .v18-var table{border-collapse:collapse;min-width:100%;direction:ltr;text-align:center}
+#nabilWholeLessonSmartLab .v18-var th,#nabilWholeLessonSmartLab .v18-var td{border:1px solid #2a6f9f;padding:7px 9px;font-size:14px;white-space:nowrap}
+#nabilWholeLessonSmartLab .v18-var th{background:#0b3358;color:var(--cyan)}
+#nabilWholeLessonSmartLab .v18-var td.k{color:var(--gold);font-weight:800}
+#goldenReferenceCard .nabil-sci-table-wrap,#goldenReferenceCard .nabil-sci-table th,#goldenReferenceCard .nabil-sci-table td{direction:ltr;unicode-bidi:isolate}
 #nabilWholeLessonSmartLab .v18-note{font-size:12px;color:var(--muted);margin-top:8px}
 #nabilWholeLessonSmartLab .v18-final{display:none;margin-top:12px}
 #nabilWholeLessonSmartLab.is-final .v18-final{display:block}
@@ -155,6 +165,15 @@ _JS = r"""
  const cur=()=>{const l=PL()&&PL().get&&PL().get();return DATA.all_labels[l]?l:DATA.lang};
  const tr=s=>{s=String(s||'');try{return PL()&&PL().translateText?PL().translateText(s,cur()):s}catch(_){return s}};
  const trDeep=o=>Array.isArray(o)?o.map(trDeep):(o&&typeof o==='object')?Object.fromEntries(Object.entries(o).map(([k,v])=>[k,['language','kind','subject','avatar_src','concept_ids'].includes(k)?v:trDeep(v)])):(typeof o==='string'?tr(o):o);
+ /* localise 'local max/min' tokens of the deterministic variation table */
+ const locCell=t=>String(t).replace(/local max/,L.lmax).replace(/local min/,L.lmin);
+ const locVT=vt=>vt?{columns:vt.columns,rows:vt.rows.map(r=>({label:r.label,cells:r.cells.map(locCell)}))}:vt;
+ function paintVar(){const s=slides[Math.min(idea,slides.length-1)],box=$('v18VarBox');const vt=s&&s.variation&&s.variation.table;
+  if(!vt){box.style.display='none';box.innerHTML='';return}
+  const v=locVT(vt),h=document.createElement('h4');h.textContent=L.variation;const tb=document.createElement('table');
+  const r0=tb.insertRow();const th=document.createElement('th');th.textContent='x';r0.appendChild(th);v.columns.forEach(c=>{const e=document.createElement('th');e.textContent=c;r0.appendChild(e)});
+  v.rows.forEach(r=>{const tr_=tb.insertRow();const e=document.createElement('th');e.textContent=r.label;tr_.appendChild(e);r.cells.forEach(c=>{const d=tr_.insertCell();d.textContent=c==="∥"?"∥":c;if(/max|min|\u2248|^0$/.test(c)||c===L.lmax||c===L.lmin||/max|min/.test(c))d.className='k'})});
+  box.innerHTML='';box.append(h,tb);box.style.display=''}
  function relabel(){L=DATA.all_labels[cur()];root.querySelectorAll('[data-v18-l]').forEach(n=>{n.textContent=L[n.dataset.v18L]});
   voiceBtn.textContent=voiceOn?L.voice_on:L.voice_off;$('v18VoiceState').textContent=voiceBtn.textContent;}
 
@@ -221,14 +240,15 @@ _JS = r"""
   finalShown=on;root.classList.toggle('is-final',on);
   if(on&&!finalHost.dataset.rendered){
    finalHost.dataset.rendered='1';
-   try{(window.__NABIL_V18_CARDS||window.NABILScientificCards).fromLesson(trDeep(Object.assign({},DATA.golden,{language:cur()})),finalHost)}
+   try{const g=Object.assign({},DATA.golden,{language:cur()});if(g.function_study&&g.function_study.variation_table)g.function_study={variation_table:locVT(g.function_study.variation_table)};
+    (window.__NABIL_V18_CARDS||window.NABILScientificCards).fromLesson(trDeep(g),finalHost)}
    catch(e){finalHost.textContent='GOLDEN_CARD_RENDER_FAILED: '+e;finalHost.dataset.failed='1'}
   }
  }
  function paintIdea(upto,typeLast,tok){
   setFinal(false);bt.textContent=tr(slides[idea].title);
   badge.textContent=L.idea+' '+(idea+1)+' / '+slides.length+' · '+L.step+' '+(Math.max(upto,0)+1)+' / '+slides[idea].steps.length;
-  paintSlots();paintTimeline();loadLab();return showLines(Math.max(upto,0),typeLast,tok);
+  paintSlots();paintTimeline();loadLab();paintVar();return showLines(Math.max(upto,0),typeLast,tok);
  }
  async function presentStep(i,withVoice){
   stepI=i;const tok=++token;stopSpeech();
@@ -343,7 +363,14 @@ def build_slide(act: dict, lang_code: str) -> dict | None:
         '<script>try{window.NABILLessonE2E=parent.NABILLessonE2E}catch(e){}</script>'
         '</head><body>' + lab_html + '</body></html>'
     )
+    vt = act.get("variation_table")
+    if not isinstance(vt, dict):
+        from scripts.nabil_factory.cards.variation_table import (
+            build_variation_table, extract_function_expr)
+        expr = extract_function_expr(act)
+        vt = build_variation_table(expr) if expr else None
     return {
+        "variation": {"table": vt} if vt else None,
         "concept_id": str(act.get("concept_id") or ""),
         "title": str(act.get("title") or ""),
         "steps": steps,
@@ -359,7 +386,16 @@ def build_golden_spec(title: str, activities: list, lang_code: str,
             "physics": "physics", "chemistry": "chemistry",
             "biology": "biology"}.get(subject.strip().lower(), "general_science")
     sections, key_results, verification = [], [], []
+    var_table = None
+    var_drawing = None
     for act in activities:
+        sl = build_slide(dict(act, allow_no_lab=True), lang_code)
+        if sl and sl.get("variation"):
+            var_table = sl["variation"]["table"]
+            from scripts.nabil_factory.cards.variation_table import (
+                build_function_drawing, extract_function_expr)
+            _e = extract_function_expr(act)
+            var_drawing = build_function_drawing(_e, var_table) if _e else None
         t = str(act.get("title") or "").strip()
         concl = str(act.get("conclusion") or act.get("observation") or "").strip()
         if t and concl:
@@ -367,14 +403,24 @@ def build_golden_spec(title: str, activities: list, lang_code: str,
             key_results.append(concl)
         if t:
             verification.append(t + (": " + verification_note if verification_note else ""))
+    panels = [{"title": {"ar": "نتائج الدرس الموثّقة", "fr": "Résultats vérifiés",
+                         "en": "Verified lesson results"}.get(lang_code, "Verified lesson results"),
+               "icon": "✅", "steps": key_results}] if key_results else []
+    extra = {}
+    if var_table:
+        kind = "function_study"
+        panels.append({"title": {"ar": "الرسم وجدول التغيّرات", "fr": "Graphe et variations",
+                                 "en": "Graph & Variation"}.get(lang_code, "Graph & Variation"),
+                       "icon": "📊", "table": True,
+                       **({"drawings": [var_drawing]} if var_drawing else {})})
+        extra["function_study"] = {"variation_table": var_table}
     return {
+        **extra,
         "concept_ids": [str(a.get("concept_id") or "") for a in activities],
         "language": lang_code, "kind": kind, "subject": subject or kind,
         "title": title, "sections": sections, "key_results": key_results,
         "verification": verification,
-        "panels": [{"title": {"ar": "نتائج الدرس الموثّقة", "fr": "Résultats vérifiés",
-                              "en": "Verified lesson results"}.get(lang_code, "Verified lesson results"),
-                    "icon": "✅", "steps": key_results}] if key_results else [],
+        "panels": panels,
         "rule_summary": " ".join(key_results[-2:]) if key_results else "",
         "avatar_src": "",  # filled by render_v18_smart_board
     }
@@ -419,6 +465,7 @@ def render_v18_smart_board(title: str, activities: list, lang_code: str,
  <section class="v18-box"><div class="v18-board"><div class="v18-bt" id="v18Title"></div><div id="v18Lines"></div></div>
   <div class="v18-labwrap" id="v18LabWrap"><h4><span id="v18LabTitle"></span><button type="button" data-v18-l="run_lab" id="nabilWholeRunLab" style="min-height:36px">{h(labels["run_lab"])}</button></h4>
    <iframe id="nabilWholeLessonFrame" title="{h(labels["lab"])}"></iframe></div>
+  <div class="v18-var" id="v18VarBox" style="display:none" data-v18-variation="true"></div>
 </section>
  <aside class="v18-box v18-teacher"><h3>NABIL AI</h3><img src="{avatar}" alt="NABIL AI">
   <div class="v18-speech" id="v18Speech" aria-live="polite"></div>
@@ -484,6 +531,7 @@ def build_exercise_activities(exercises: list, labels_ui: dict) -> list:
             "title": f"{labels_ui.get('exercise', '')} {ex.get('number')}".strip(),
             "conclusion": final, "lab_html": str(ex.get("_prebuilt_lab_html") or ""),
             "allow_no_lab": True, "teaching_steps": steps,
+            "formulas": [plain_math(ex.get("exact_source_prompt") or "")],
         })
     return acts
 
