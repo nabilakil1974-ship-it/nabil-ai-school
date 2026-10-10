@@ -42,6 +42,7 @@ class OfflineTranslationTests(unittest.TestCase):
         self.assertEqual(data["lang"],"fr")
         self.assertEqual(data["slides"][0]["title"],"La puissance")
         self.assertEqual(data["golden"]["sections"][0]["label"],"La puissance")
+        self.assertIn("Nous observons",data["golden"]["sections"][0]["items"][0])
         self.assertIn("$2^3=8$",data["slides"][0]["steps"][0]["text"])
         self.assertEqual(data["slides"][0]["steps"][0]["formula"],"2^3=8")
     def test_unsupported_pair_fails_closed(self):
