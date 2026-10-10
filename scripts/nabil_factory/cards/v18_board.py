@@ -139,6 +139,8 @@ _CSS = r"""
 #nabilWholeLessonSmartLab .v18-var td.k{color:var(--gold);font-weight:800}
 #goldenReferenceCard .nabil-sci-table-wrap,#goldenReferenceCard .nabil-sci-table th,#goldenReferenceCard .nabil-sci-table td{direction:ltr;unicode-bidi:isolate}
 #nabilWholeLessonSmartLab .v18-note{font-size:12px;color:var(--muted);margin-top:8px}
+#nabilWholeLessonSmartLab .v18-written-section{border-bottom:1px solid #315d79;padding-bottom:12px;margin-bottom:16px}
+#nabilWholeLessonSmartLab .v18-written-heading{color:var(--gold);font-size:19px;margin:12px 0}
 #nabilWholeLessonSmartLab .v18-final{display:none;margin-top:12px}
 #nabilWholeLessonSmartLab.is-final .v18-final{display:block}
 #nabilWholeLessonSmartLab.is-final .v18-grid,#nabilWholeLessonSmartLab.is-final .v18-labwrap{display:none}
@@ -231,7 +233,22 @@ _JS = r"""
  function paintTimeline(){const cur=finalShown?FINAL:idea;[...timeline.children].forEach((b,i)=>b.className='v18-dot '+(i<cur?'done':(i===cur?'on':'')))}
  function paintSlots(){slides.forEach((s,i)=>{const d=$('v18Slot'+i);const complete=finalShown||i<idea;d.className='v18-slot'+(complete?' locked':(i===idea?' current':''));d.querySelector('.v');d.querySelector('.v').textContent=complete?(tr(s.conclusion)||'✓'):'—'})}
  function showLines(upto,typeLast,tok){
-  lines.innerHTML='';const s=slides[idea];let last=null;
+  // P0 universal board: retain all preceding verified teaching on ONE board.
+  // No extra slideshow cards are rendered as the principal explanation.
+  lines.replaceChildren();
+  for(let past=0;past<idea;past++){
+   const section=el('section','v18-written-section');
+   section.appendChild(el('h3','v18-written-heading',tr(slides[past].title)));
+   for(const st of slides[past].steps){
+    const row=el('div','v18-line');
+    if(st.label)row.appendChild(el('span','k',tr(st.label)+': '));
+    row.appendChild(el('span','t',tr(st.text)));
+    if(st.formula)row.appendChild(el('div','f',st.formula));
+    section.appendChild(row);
+   }
+   lines.appendChild(section);
+  }
+  const s=slides[idea];let last=null;
   for(let i=0;i<=upto&&i<s.steps.length;i++){
    const st=s.steps[i],row=el('div','v18-line'+(i===upto?' now':''));
    const k=el('span','k',st.label?tr(st.label)+':':'');const t=el('span','t');row.append(k,t);
@@ -508,10 +525,11 @@ def render_v18_smart_board(title: str, activities: list, lang_code: str,
  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="v18-badge" id="v18Badge"></span><span class="v18-badge" id="v18VoiceState">{h(labels["voice_on"])}</span></div></div>
 <div class="v18-grid">
  <section class="v18-box"><h3 data-v18-l="study">{h(labels["study"])}</h3><div id="v18Slots"></div><div class="v18-goal" data-v18-l="goal">{h(labels["goal"])}</div></section>
- <section class="v18-box"><div class="v18-board"><div class="v18-bt" id="v18Title"></div><div id="v18Lines"></div></div>
+ <section class="v18-box"><div class="v18-board"><div class="v18-bt" id="v18Title"></div><div id="v18Lines"></div>
   <div class="v18-labwrap" id="v18LabWrap"><h4><span id="v18LabTitle"></span><button type="button" data-v18-l="run_lab" id="nabilWholeRunLab" style="min-height:36px">{h(labels["run_lab"])}</button></h4>
    <iframe id="nabilWholeLessonFrame" title="{h(labels["lab"])}"></iframe></div>
   <div class="v18-var" id="v18VarBox" style="display:none" data-v18-variation="true"></div>
+ </div>
 </section>
  <aside class="v18-box v18-teacher"><h3>NABIL AI</h3><img id="v18TeacherAvatar" alt="NABIL AI">
   <div class="v18-speech" id="v18Speech" aria-live="polite"></div>
