@@ -29,11 +29,29 @@ class ReviewerReport(BaseModel):
     issues: list[ReviewerIssue] = Field(default_factory=list)
 
 
-_SUP = str.maketrans({
-    "⁰": "^0", "¹": "^1", "²": "^2", "³": "^3", "⁴": "^4",
-    "⁵": "^5", "⁶": "^6", "⁷": "^7", "⁸": "^8", "⁹": "^9",
-    "⁻": "^-",
-})
+_SUP_DIGIT = {
+    "⁰": "0", "¹": "1", "²": "2", "³": "3", "⁴": "4",
+    "⁵": "5", "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9",
+}
+_SUP_SEQ = re.compile(r"[⁻⁰¹²³⁴⁵⁶⁷⁸⁹]+")
+
+
+def _expand_superscript_sequence(match: re.Match) -> str:
+    raw = match.group(0)
+    sign = "-" if raw.startswith("⁻") else ""
+    digits = "".join(_SUP_DIGIT[ch] for ch in raw if ch in _SUP_DIGIT)
+    return "^" + sign + digits if digits else raw
+
+
+def _collapse_split_exponent_digits(text: str) -> str:
+    """Heal legacy corruption like ^1^8 -> ^18 from old superscript mapping."""
+    pat = re.compile(r"\^(?:-?\d)(?:\^\d)+")
+    def repl(match: re.Match) -> str:
+        raw = match.group(0)
+        sign = "-" if raw.startswith("^-") else ""
+        digits = "".join(re.findall(r"\d", raw))
+        return "^" + sign + digits
+    return pat.sub(repl, text)
 _CHAR_MAP = str.maketrans({
     "−": "-", "–": "-", "—": "-", "×": "×", "∙": "·", "⋅": "·",
     "÷": "÷", "\u00a0": " ", "\u2009": " ", "\u200a": " ",
@@ -42,11 +60,12 @@ _ZW = re.compile(r"[\u200b-\u200f\u202a-\u202e\ufeff]")
 
 
 def normalize_ocr(text: str) -> str:
-    # Superscripts must be expanded BEFORE NFKC; otherwise e.g. "2²"
-    # normalizes to "22" and loses exponent semantics.
-    t = str(text or "").translate(_SUP)
+    # Expand a contiguous superscript RUN once: 10¹⁸ -> 10^18, never
+    # 10^1^8. This also heals old cached ^1^8 artifacts deterministically.
+    t = _SUP_SEQ.sub(_expand_superscript_sequence, str(text or ""))
     t = unicodedata.normalize("NFKC", t)
     t = _ZW.sub("", t).translate(_CHAR_MAP)
+    t = _collapse_split_exponent_digits(t)
     t = re.sub(r"(\d)\s*\^\s*(-?\d)", r"\1^\2", t)
     t = re.sub(r"\s*=\s*", " = ", t)
     t = re.sub(r"[ \t]+", " ", t)
@@ -69,12 +88,16 @@ def normalize_payload_strings(obj):
     return obj
 
 
-_NUM = r"\d+(?:/\d+)?"
+_NUM = r"(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:/\d+)?"
 _POW = re.compile(
     rf"(?<![\w.])(?P<base_expr>\(-?{_NUM}\)|-?{_NUM})"
     rf"\s*\^\s*\{{?\s*(?P<exp>-?\d+)\s*\}}?\s*=\s*"
     rf"(?P<val>-?{_NUM})(?![\w/^])"
 )
+
+
+def _fraction_from_numeric_token(token: str) -> Fraction:
+    return Fraction(str(token).replace(",", ""))
 
 
 def repair_numeric_power_claims(text: str) -> tuple[str, int]:
@@ -98,17 +121,17 @@ def repair_numeric_power_claims(text: str) -> tuple[str, int]:
             if abs(exp) > 64:
                 continue
             if expr.startswith("(") and expr.endswith(")"):
-                base = Fraction(expr[1:-1])
+                base = _fraction_from_numeric_token(expr[1:-1])
                 correct = base ** exp
             elif expr.startswith("-"):
-                base = Fraction(expr[1:])
+                base = _fraction_from_numeric_token(expr[1:])
                 correct = -(base ** exp)
             else:
-                base = Fraction(expr)
+                base = _fraction_from_numeric_token(expr)
                 correct = base ** exp
             if base == 0 and exp <= 0:
                 continue
-            claimed = Fraction(m["val"])
+            claimed = _fraction_from_numeric_token(m["val"])
         except (ValueError, ZeroDivisionError):
             continue
         if correct == claimed:
