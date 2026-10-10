@@ -1175,6 +1175,26 @@ def grounded_subject_solver(exercise: dict, evidence_map: dict, profile: dict) -
 
 
 
+def _apply_math_contract_or_omit(entry: dict, ex: dict, sol):
+    """V18: deterministic math gate. Returns solution (final answer derived from
+    verified steps when needed) or None after marking the exercise unapproved."""
+    try:
+        return enforce_math_solution_contract(
+            ex, sol, str(entry.get("subject") or ""))
+    except RuntimeError as exc:
+        reason = str(exc)
+        if not (reason.startswith("MATH_SOLUTION_CONTRADICTION")
+                or reason.startswith("MATH_EXPRESSION_UNVERIFIED")):
+            raise
+        ex["solution_status"] = "OMITTED_UNVERIFIED"
+        ex["_pre_solved_solution"] = None
+        ex["solution_omission_reason"] = reason[:500]
+        progress("MATH_CONTRACT_EXERCISE_UNAPPROVED",
+                 exercise_id=ex.get("exercise_id"), number=ex.get("number"),
+                 reason=reason[:240])
+        return None
+
+
 def prepare_verified_solutions(entry: dict, exercises: list,
                                profile: dict, ev_map: dict,
                                drive_service=None,
@@ -1218,6 +1238,9 @@ def prepare_verified_solutions(entry: dict, exercises: list,
                 raise RuntimeError(
                     "SOLUTION_NUMERIC_POWER_REPAIR_INCOMPLETE:"
                     + json.dumps(remaining_bad[:8], ensure_ascii=False))
+            cached = _apply_math_contract_or_omit(entry, ex, cached)
+            if cached is None:
+                continue
             ex["solution_status"] = "SOLVED"
             ex["_pre_solved_solution"] = cached
             progress("SOLUTION_RESTORED_FROM_DRIVE",
@@ -1264,6 +1287,9 @@ def prepare_verified_solutions(entry: dict, exercises: list,
             raise RuntimeError(
                 "SOLUTION_NUMERIC_POWER_REPAIR_INCOMPLETE:"
                 + json.dumps(remaining_bad[:8], ensure_ascii=False))
+        sol = _apply_math_contract_or_omit(entry, ex, sol)
+        if sol is None:
+            continue
         ex["_pre_solved_solution"] = sol
         if page_checkpoints:
             page_checkpoints.save_solution(
@@ -2208,269 +2234,20 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
 
 
 def render_whole_lesson_smart_lab(
-        title: str, activities: list, lang_code: str, final_card_html: str = "") -> str:
-    """One final Smart Board that orchestrates every already-verified concept lab.
+        title: str, activities: list, lang_code: str,
+        golden_spec: Optional[dict] = None) -> str:
+    """V18 smart board: one idea at a time, its verified lab beneath it, and the
+    Golden Card as the LAST stage inside the same section.
 
-    It introduces no new science.  Each slide uses the audited narrative and
-    loads that concept's prebuilt lab inside an isolated iframe, so ids/scripts
-    do not collide with the concept lab already embedded beside its paragraph.
+    Pure presentation of already-verified data; introduces no new science.
+    The legacy iframe-orchestrator renderer was removed (V18 replacement).
     """
     if not activities:
         return ""
-    labels = {
-        "ar": {
-            "title": "🧠 مختبر نبيل الشامل للدرس",
-            "subtitle": "سيشرح نبيل الدرس من الفكرة الأولى حتى الأخيرة، مع المختبر المناسب لكل فكرة.",
-            "prev": "◀ الفكرة السابقة",
-            "next": "الفكرة التالية ▶",
-            "current": "🔊 اشرح هذه الفكرة",
-            "all": "▶ اشرح الدرس من البداية",
-            "stop": "■ أوقف الشرح",
-            "teacher": "نبيل يشرح الآن",
-            "first_transition": "نبدأ الآن بالفكرة:",
-            "next_transition": "ننتقل الآن إلى الفكرة التالية:",
-            "see": "انظر", "try": "جرّب", "notice": "لاحظ",
-            "think": "فكّر", "conclude": "استنتج",
-        },
-        "fr": {
-            "title": "🧠 Laboratoire intégral de la leçon",
-            "subtitle": "NABIL enseigne la leçon du premier concept au dernier avec le laboratoire vérifié de chaque idée.",
-            "prev": "◀ Concept précédent", "next": "Concept suivant ▶",
-            "current": "🔊 Expliquer ce concept",
-            "all": "▶ Expliquer toute la leçon",
-            "stop": "■ Arrêter", "teacher": "NABIL explique",
-            "first_transition": "Commençons par l’idée :",
-            "next_transition": "Passons maintenant à l’idée suivante :",
-            "see": "Observe", "try": "Essaie", "notice": "Remarque",
-            "think": "Réfléchis", "conclude": "Conclus",
-        },
-        "en": {
-            "title": "🧠 NABIL Whole-Lesson Smart Lab",
-            "subtitle": "NABIL teaches the lesson from the first concept to the last, using each concept's verified lab.",
-            "prev": "◀ Previous concept", "next": "Next concept ▶",
-            "current": "🔊 Explain this concept",
-            "all": "▶ Explain the whole lesson",
-            "stop": "■ Stop", "teacher": "NABIL is explaining",
-            "first_transition": "We begin with the idea:",
-            "next_transition": "Now we move to the next idea:",
-            "see": "See", "try": "Try", "notice": "Notice",
-            "think": "Think", "conclude": "Conclude",
-        },
-    }[lang_code if lang_code in {"ar", "fr", "en"} else "en"]
-    slides = []
-    for act in activities:
-        lab_html = str(act.get("lab_html") or "")
-        if not lab_html:
-            continue
-        match = re.search(r'data-demo-ms="(\d+)"', lab_html)
-        demo_ms = max(3500, min(30000, int(match.group(1)) if match else 9000))
-        teaching_steps = act.get("teaching_steps") or []
-        if teaching_steps:
-            flow = [{
-                "label": str(step.get("label") or ""),
-                "text": str(step.get("sentence") or ""),
-                "formula": str(step.get("formula") or ""),
-                "kind": str(step.get("kind") or ""),
-            } for step in teaching_steps if str(step.get("sentence") or "").strip()]
-        else:
-            fallback_flow = [
-                [labels["see"], str(act.get("phenomenon") or "")],
-                [labels["try"], str(act.get("investigation") or "")],
-                [labels["notice"], str(act.get("observation") or "")],
-                [labels["think"], str(act.get("interpretation") or "")],
-                [labels["conclude"], str(act.get("conclusion") or "")],
-            ]
-            flow = [{"label": k, "text": v, "formula": "", "kind": ""}
-                    for k, v in fallback_flow if v.strip()]
-        srcdoc = (
-            '<!doctype html><html><head><meta charset="utf-8">'
-            '<meta name="viewport" content="width=device-width,initial-scale=1">'
-            '<style>html,body{margin:0;background:#05172d;color:#eef8ff;overflow-x:hidden}'
-            'body{padding:4px}*{box-sizing:border-box}</style>'
-            '<script>try{window.NABILLessonE2E=parent.NABILLessonE2E}catch(e){}</script>'
-            '</head><body>' + lab_html + '</body></html>'
-        )
-        slides.append({
-            "concept_id": str(act.get("concept_id") or ""),
-            "title": str(act.get("title") or ""),
-            "flow": flow,
-            "teaching_mode": str((act.get("teaching_signature") or {}).get("mode") or "default"),
-            "teaching_level": str((act.get("teaching_signature") or {}).get("level") or ""),
-            "first_transition": labels["first_transition"],
-            "next_transition": labels["next_transition"],
-            "srcdoc": srcdoc,
-            "demo_ms": demo_ms,
-        })
-    if final_card_html.strip():
-        slides.append({
-            "concept_id": "GOLDEN-FINAL-CARD",
-            "title": {"ar": "البطاقة الذهبية النهائية", "en": "Golden Final Card",
-                      "fr": "Carte finale dorée"}.get(lang_code, "Golden Final Card"),
-            "flow": [], "teaching_mode": "reference-card", "teaching_level": "",
-            "first_transition": "", "next_transition": "",
-            "srcdoc": '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;background:#061725;color:#eef8ff;overflow-x:hidden}*{box-sizing:border-box}</style></head><body>' + final_card_html + '</body></html>',
-            "demo_ms": 0,
-        })
-    if not slides:
-        return ""
-    payload = json.dumps(slides, ensure_ascii=False).replace("</", "<\\/")
-    return f'''
-<section id="nabilWholeLessonSmartLab" class="nabil-whole-lesson-smart-lab"
- data-whole-lesson-smart-lab="true" data-renderer-contract="{REFERENCE_RENDERER_CONTRACT}"
- data-concept-count="{len(slides)}" style="margin-top:26px;background:#071827;color:#eef8ff;border:1px solid #24506f;border-radius:18px;padding:13px;box-shadow:0 18px 42px #0006;">
- <style>
- #nabilWholeLessonSmartLab .wl-top{{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}}
- #nabilWholeLessonSmartLab .wl-teacher{{display:flex;align-items:center;gap:7px;background:#061725;border:1px solid #2b6485;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:800}}
- #nabilWholeLessonSmartLab .wl-orb{{width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#2de1ff 35%,#0c5d76 70%);box-shadow:0 0 16px #2de1ff99}}
- #nabilWholeLessonSmartLab .wl-layout{{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(280px,.8fr);gap:11px;margin-top:10px}}
- #nabilWholeLessonSmartLab .wl-stage{{background:#020912;border:1px solid #1c4569;border-radius:14px;overflow:hidden;min-width:0}}
- #nabilWholeLessonSmartLab iframe{{display:block;width:100%;height:590px;border:0;background:#05172d}}
- #nabilWholeLessonSmartLab .wl-panel{{background:#061725;border:1px solid #1a3b55;border-radius:13px;padding:11px;min-width:0}}
- #nabilWholeLessonSmartLab .wl-flow{{display:grid;gap:7px;margin-top:8px}}
- #nabilWholeLessonSmartLab .wl-row{{padding:8px 9px;border-inline-start:3px solid #2de1ff;background:#09243b;border-radius:8px;line-height:1.55}}
- #nabilWholeLessonSmartLab .wl-row b{{color:#65dfff}}
- #nabilWholeLessonSmartLab .wl-controls{{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}}
- #nabilWholeLessonSmartLab button{{min-height:44px;border:1px solid #426d8b;background:#153955;color:#fff;padding:8px 11px;border-radius:9px;font-weight:800}}
- #nabilWholeLessonSmartLab .wl-play{{background:#6047a8;border-color:#a98cff}}
- #nabilWholeLessonSmartLab .wl-stop{{background:#5a2330;border-color:#bd546b}}
- #nabilWholeLessonSmartLab .wl-timeline{{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}}
- #nabilWholeLessonSmartLab .wl-dot{{width:32px;height:32px;min-height:32px;border-radius:50%;padding:0;background:#071725;color:#9fb5c9;border:1px solid #31506b}}
- #nabilWholeLessonSmartLab .wl-dot.on{{background:#0b5d70;border-color:#2de1ff;color:#fff}}
- #nabilWholeLessonSmartLab .wl-dot.done{{background:#0d4c3c;border-color:#55e6a4;color:#fff}}
- @media(max-width:920px){{#nabilWholeLessonSmartLab .wl-layout{{grid-template-columns:1fr}}#nabilWholeLessonSmartLab iframe{{height:520px}}}}
- @media(max-width:430px){{#nabilWholeLessonSmartLab{{padding:7px}}#nabilWholeLessonSmartLab iframe{{height:66vh;min-height:430px}}#nabilWholeLessonSmartLab .wl-controls{{display:grid;grid-template-columns:1fr 1fr}}}}
- </style>
- <div class="wl-top"><div><h2 style="margin:0;color:#65dfff">{html.escape(labels["title"])}</h2><p style="margin:4px 0;color:#b9d7ea">{html.escape(labels["subtitle"])}</p></div>
- <div class="wl-teacher"><span class="wl-orb"></span><span>{html.escape(labels["teacher"])}</span></div></div>
- <div class="wl-layout"><div class="wl-stage"><iframe id="nabilWholeLessonFrame" title="{html.escape(labels["title"])}"></iframe></div>
- <aside class="wl-panel"><div style="font-size:11px;color:#9fb5c9">{html.escape(title)}</div><h3 id="nabilWholeLessonTitle" style="color:#ffd76b;margin:6px 0"></h3><div class="wl-flow" id="nabilWholeLessonFlow"></div></aside></div>
- <div class="wl-controls"><button id="nabilWholePrev">{html.escape(labels["prev"])}</button><button id="nabilWholeNext">{html.escape(labels["next"])}</button><button id="nabilWholeCurrent">{html.escape(labels["current"])}</button><button class="wl-play" id="nabilWholePlay">{html.escape(labels["all"])}</button><button class="wl-stop" id="nabilWholeStop">{html.escape(labels["stop"])}</button></div>
- <div class="wl-timeline" id="nabilWholeTimeline"></div>
- <script>
- (()=>{{
-  const slides={payload};let idx=0,runToken=0,loadingToken=0;
-  const frame=document.getElementById('nabilWholeLessonFrame'),titleEl=document.getElementById('nabilWholeLessonTitle'),flowEl=document.getElementById('nabilWholeLessonFlow'),timeline=document.getElementById('nabilWholeTimeline');
-  function stop(){{runToken++;cancelSpeech();try{{window.NABILLessonE2E?.stopSpeech?.()}}catch(_e){{}}}}
-  function buildTimeline(){{timeline.innerHTML='';slides.forEach((_,i)=>{{const b=document.createElement('button');b.className='wl-dot';b.textContent=i+1;b.onclick=()=>{{stop();idx=i;render()}};timeline.appendChild(b)}})}}
-  function render(){{
-    const s=slides[idx];titleEl.textContent=(idx+1)+'. '+s.title;flowEl.innerHTML='';
-    s.flow.forEach(r=>{{
-      const d=document.createElement('div');d.className='wl-row';
-      const b=document.createElement('b');b.textContent=r.label+': ';
-      const span=document.createElement('span');span.textContent=r.text;d.append(b,span);
-      if(r.formula){{
-        const f=document.createElement('div');f.textContent=r.formula;
-        f.style.cssText='direction:ltr;text-align:center;margin-top:6px;padding:6px;border:1px dashed #315d79;border-radius:7px;font-family:Cambria Math,serif;color:#fff';
-        d.appendChild(f);
-      }}
-      flowEl.appendChild(d);
-    }});
-    loadingToken++;frame.srcdoc=s.srcdoc;
-    [...timeline.children].forEach((b,i)=>b.className='wl-dot '+(i<idx?'done':i===idx?'on':''));
-  }}
-  // Standalone teaching runtime: type verified explanations on the Smart Board,
-  // speak with browser TTS, and never advance in a fraction of a second.
-  let speaking=null;
-  const teachingSleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-  function cancelSpeech(){{
-    try{{window.speechSynthesis?.cancel()}}catch(_e){{}}
-    if(speaking){{speaking();speaking=null}}
-  }}
-  async function speakVerified(text,token){{
-    const words=String(text||'').trim().split(/\\s+/).filter(Boolean).length;
-    if(!words||token!==runToken)return;
-    const minimum=Math.max(4800,Math.min(65000,words*480));
-    if(!('speechSynthesis' in window)){{
-      await teachingSleep(minimum);return;
-    }}
-    await new Promise(resolve=>{{
-      let finished=false;
-      const finish=()=>{{if(finished)return;finished=true;speaking=null;resolve()}};
-      speaking=finish;
-      try{{
-        const utt=new SpeechSynthesisUtterance(String(text));
-        utt.lang={json.dumps(lang_code)}==='ar'?'ar-LB':({json.dumps(lang_code)}==='fr'?'fr-FR':'en-US');
-        utt.rate=.82;utt.pitch=1;
-        const voices=window.speechSynthesis.getVoices();
-        const chosen=voices.find(v=>v.lang.toLowerCase().startsWith(utt.lang.slice(0,2).toLowerCase()));
-        if(chosen)utt.voice=chosen;
-        utt.onend=finish;utt.onerror=finish;
-        window.speechSynthesis.cancel();
-        window.speechSynthesis.speak(utt);
-      }}catch(_e){{}}
-      // Browser voices can fail to start (especially file://). Never hang.
-      setTimeout(finish,Math.max(minimum,words*1050+3000));
-    }});
-  }}
-  async function writeBoard(text,token){{
-    let board=document.getElementById('nabilWholeLessonTeachingBoard');
-    if(!board){{
-      board=document.createElement('div');board.id='nabilWholeLessonTeachingBoard';
-      board.setAttribute('role','status');
-      board.style.cssText='white-space:pre-wrap;line-height:1.8;padding:18px;margin:12px 0;border:2px solid #25d8ff;background:#04172c;color:#fff;border-radius:12px;font-size:clamp(17px,1.9vw,25px);min-height:110px;max-height:45vh;overflow:auto';
-      flowEl.parentElement?.insertBefore(board,flowEl);
-    }}
-    board.textContent='';
-    for(let i=0;i<text.length;i++){{
-      if(token!==runToken)return;
-      board.textContent+=text[i];
-      if(i%3===0)await teachingSleep(35);
-    }}
-  }}
-  async function teachCurrent(){{
-    const token=runToken;
-    const slide=slides[idx];if(!slide)return;
-    const currentRows=slide.flow||[];
-    if(slide.teaching_mode==='reference-card'){{
-      await writeBoard(slide.title,token);
-      await speakVerified(slide.title,token);
-      return;
-    }}
-    for(const row of currentRows){{
-      if(token!==runToken)return;
-      const narration=[row.label,row.text,row.formula].filter(Boolean).join('. ');
-      await writeBoard(narration,token);
-      if(token!==runToken)return;
-      await speakVerified(narration,token);
-      if(token!==runToken)return;
-      await teachingSleep(1100);
-    }}
-    // Also run a verified embedded interactive lab if it supplies a listener.
-    try{{
-      const shell=frame.contentDocument?.querySelector('.nabil-reference-smart-lab');
-      if(shell)shell.dispatchEvent(new CustomEvent('nabil:teach-all'));
-    }}catch(_e){{}}
-  }}
-  async function playAll(){{
-    stop();const token=runToken;
-    for(let stepIndex=0;stepIndex<slides.length;stepIndex++){{
-      if(token!==runToken)return;
-      idx=stepIndex;render();
-      await teachingSleep(400);
-      if(token!==runToken)return;
-      await teachCurrent();
-      if(token!==runToken)return;
-      await teachingSleep(1300);
-    }}
-  }}
-  document.getElementById('nabilWholePrev').onclick=()=>{{stop();idx=(idx+slides.length-1)%slides.length;render()}};
-  document.getElementById('nabilWholeNext').onclick=()=>{{stop();idx=(idx+1)%slides.length;render()}};
-  document.getElementById('nabilWholeCurrent').onclick=()=>{{stop();teachCurrent()}};
-  document.getElementById('nabilWholePlay').onclick=playAll;
-  document.getElementById('nabilWholeStop').onclick=()=>{{
-    stop();
-    try{{frame.contentDocument?.querySelector('.nabil-reference-smart-lab')?.dispatchEvent(new CustomEvent('nabil:teach-stop'))}}catch(_e){{}}
-  }};
-  window.NABILWholeLessonOrchestrator={{
-    play:playAll,
-    stop:()=>document.getElementById('nabilWholeStop')?.click(),
-    current:()=>teachCurrent(),
-    goTo:(i)=>{{stop();idx=Math.max(0,Math.min(slides.length-1,Number(i)||0));render();}}
-  }};
-  buildTimeline();render();
- }})();
- </script>
-</section>'''
+    from scripts.nabil_factory.cards.v18_board import render_v18_smart_board
+    return render_v18_smart_board(
+        title, activities, lang_code, golden_spec=golden_spec,
+        contract=REFERENCE_RENDERER_CONTRACT)
 
 
 def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict,
@@ -2782,54 +2559,14 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict,
             <div style="margin-top:8px; font-size:12px; color:#059669; font-weight:600;">{html.escape(ui_t(lesson_lang_code, "verified_evidence_grounding"))}</div>
         </div>'''
 
-    final_labels = {
-        "ar":{"analysis":"📘 خلاصة الأفكار","visual":"📈 الرسوم والتمثيل","final":"✅ البطاقة النهائية","verify":"التحقق","badge":"ملخص الدرس","read":"🔊 قراءة البطاقة","stop":"⏹ إيقاف الصوت","enlarge":"🔎 تكبير"},
-        "fr":{"analysis":"📘 Synthèse des idées","visual":"📈 Visuels","final":"✅ Carte finale","verify":"Vérification","badge":"Résumé de la leçon","read":"🔊 Lire la carte","stop":"⏹ Arrêter","enlarge":"🔎 Agrandir"},
-        "en":{"analysis":"📘 Concept Summary","visual":"📈 Visuals","final":"✅ Final Card","verify":"Verification","badge":"Lesson Summary","read":"🔊 Read card","stop":"⏹ Stop voice","enlarge":"🔎 Enlarge"},
-    }.get(lesson_lang_code,{})
-    final_results=[str(x.get("conclusion") or "").strip() for x in activities_theory if str(x.get("conclusion") or "").strip()]
-    final_chips="".join('<span class="nabil-sci-chip">'+html.escape(v)+'</span>' for v in final_results)
-    final_analysis="".join(
-        '<div class="nabil-sci-section"><div class="nabil-sci-label">'+html.escape(str(x.get("title") or ""))+
-        '</div><div class="nabil-sci-value">'+html.escape(str(x.get("conclusion") or x.get("observation") or ""))+'</div></div>'
-        for x in activities_theory
-    )
-    final_visuals="".join(
-        '<div class="nabil-reference-concept" data-reference-concept="'+html.escape(str(x.get("concept_id") or ""))+'">'+
-        '<div class="nabil-sci-label">'+html.escape(str(x.get("title") or ""))+'</div>'+str(x.get("visual_html") or "")+'</div>'
-        for x in activities_theory
-    )
-    final_verify="".join('<li>'+html.escape(str(x.get("title") or ""))+': '+html.escape(ui_t(lesson_lang_code,"verified_evidence_grounding"))+'</li>' for x in activities_theory)
-    teacher_note={"ar":"راجع كل فكرة بالترتيب: شاهد، جرّب، لاحظ، فكّر، استنتج، ثم طبّق.","fr":"Revois chaque idée : observe, essaie, remarque, réfléchis, conclus puis applique.","en":"Review each idea: See, Try, Notice, Think, Conclude, then Apply."}.get(lesson_lang_code,"Review each idea.")
-    final_speech=" ".join([str(title)]+[str(x.get("title") or "")+". "+str(x.get("conclusion") or "") for x in activities_theory])
-
-    ref_card_html = f'''
-    <section id="goldenReferenceCard" class="nabil-sci-card lesson-final-card">
-      <div class="nabil-sci-top">
-        <div><div class="nabil-sci-brand">NABIL AI | منصة نبيل التعليمية الذكية</div><h2 class="nabil-sci-title">{html.escape(title)}</h2></div>
-        <div class="nabil-sci-badge">{html.escape(final_labels.get("badge","Lesson Summary"))}</div>
-      </div>
-      <div class="nabil-sci-grid">
-        <div class="nabil-sci-panel nabil-sci-analysis"><h3>{html.escape(final_labels.get("analysis","📘 Concept Summary"))}</h3>{final_analysis}</div>
-        <div class="nabil-sci-panel nabil-sci-visual"><h3>{html.escape(final_labels.get("visual","📈 Visuals"))}</h3><div class="nabil-sci-visual-stage">{final_visuals}</div></div>
-        <div class="nabil-sci-panel nabil-sci-teacher-panel"><div class="nabil-sci-teacher">
-          <img class="nabil-sci-avatar" src="/static/nabil-profile.jpg" alt="NABIL AI" onerror="this.style.display='none'">
-          <div><strong>NABIL AI</strong><p>{html.escape(teacher_note)}</p></div>
-        </div></div>
-      </div>
-      <div class="nabil-sci-final">
-        <h3>{html.escape(final_labels.get("final","✅ Final Card"))}</h3>
-        <div class="nabil-sci-results">{final_chips}</div>
-        <div class="nabil-sci-verify"><b>{html.escape(final_labels.get("verify","Verification"))}:</b><ul class="nabil-sci-list">{final_verify}</ul></div>
-        <div class="nabil-sci-tools">
-          <button type="button" onclick="document.querySelector('#goldenReferenceCard .nabil-sci-visual-stage')?.requestFullscreen?.()">{html.escape(final_labels.get("enlarge","🔎 Enlarge"))}</button>
-          <button type="button" onclick="nabilReadFinalCard()">{html.escape(final_labels.get("read","🔊 Read card"))}</button>
-          <button type="button" onclick="nabilStopFinalCard()">{html.escape(final_labels.get("stop","⏹ Stop voice"))}</button>
-        </div>
-      </div>
-      <script type="application/json" id="nabilFinalCardSpeech">{html.escape(json.dumps({"text":final_speech,"lang":lesson_lang_code},ensure_ascii=False))}</script>
-    </section>'''
-
+    # V18: the Golden Card is data (rendered by the vendored V18 card engine as
+    # the last stage of the whole-lesson lab), never hand-built legacy HTML.
+    from scripts.nabil_factory.cards.v18_board import build_golden_spec
+    golden_spec = build_golden_spec(
+        title, activities_theory, lesson_lang_code,
+        subject=str(entry.get("subject") or ""),
+        verification_note=ui_t(lesson_lang_code, "verified_evidence_grounding"))
+    ref_card_html = ""  # legacy field retained for return-shape compatibility
 
     # Aggregate labs across all concepts that actually produced one.
     all_labs_html = [
@@ -2838,7 +2575,7 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict,
     any_active_sim = bool(all_labs_html)
 
     whole_lesson_lab_html = render_whole_lesson_smart_lab(
-        title, activities_theory, lesson_lang_code, ref_card_html)
+        title, activities_theory, lesson_lang_code, golden_spec)
 
     # Fail closed if any science/mathematics concept in Grades 1-12 has no
     # Requirement-5-locked interactive activity. Rich simulations are used
@@ -2864,6 +2601,7 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict,
         "quiz_eligible_count": sum(
             1 for act in activities_theory if act.get("student_question")),
         "reference_card_html": ref_card_html,
+        "golden_card_spec": golden_spec,
         "whole_lesson_lab_html": whole_lesson_lab_html,
         "whole_lesson_lab_active": bool(whole_lesson_lab_html),
         "scientific_lab_coverage": scientific_lab_coverage,
@@ -3091,6 +2829,31 @@ def run_real_playwright_chromium_qa(
                           passed:false,
                           reason:"WHOLE_LESSON_ORCHESTRATOR_MISSING"
                         };
+                    }
+                    // V18: the Golden Card must be the LAST stage of the
+                    // whole-lesson lab and must really render (never empty).
+                    const orch = window.NABILWholeLessonOrchestrator;
+                    if (typeof orch.goTo !== 'function' ||
+                        !Number.isInteger(orch.finalIndex)) {
+                        return {passed:false, reason:"V18_ORCHESTRATOR_API_MISSING"};
+                    }
+                    orch.goTo(orch.finalIndex);
+                    const host = document.getElementById('goldenReferenceCard');
+                    const card = host && host.querySelector('.nabil-sci-card');
+                    const finalOk = !!card
+                        && !!card.querySelector('.nabil-sci-final')
+                        && !!card.querySelector('.nabil-sci-grid')
+                        && (card.innerText || '').trim().length > 80
+                        && whole.classList.contains('is-final')
+                        && !host.dataset.failed
+                        && card.getBoundingClientRect().height > 120;
+                    const overflow = whole.scrollWidth > whole.clientWidth + 2;
+                    orch.goTo(0);
+                    if (!finalOk) {
+                        return {passed:false, reason:"V18_GOLDEN_CARD_NOT_RENDERED_AS_LAST_STAGE"};
+                    }
+                    if (overflow) {
+                        return {passed:false, reason:"V18_BOARD_HORIZONTAL_OVERFLOW"};
                     }
                 }
 
@@ -3651,30 +3414,29 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
           "goldenReferenceCard" in candidate["page_a_html"],
           "CRITICAL", "Golden reference card missing")
     check("APPROVED_CARD_LAYOUT_MISSING",
-          all(x in candidate["page_a_html"] for x in ("nabil-sci-card","nabil-sci-grid","nabil-sci-analysis","nabil-sci-visual","nabil-sci-teacher-panel","nabil-sci-final")),
-          "CRITICAL", "Approved NABIL card division/colors missing")
+          all(x in candidate["page_a_html"] for x in (
+              'data-nabil-v18-board="NABIL_V18_SMART_BOARD_V1"',
+              'data-nabil-v18-golden="true"',
+              "window.NABILScientificCards",
+              "nabil-sci-final")),
+          "CRITICAL", "V18 smart board + Golden Card engine missing")
     check("TEACHING_FLOW_APPLY_MISSING",
           candidate["page_a_html"].count('data-step="application"') == len(ev_map["concepts"]),
           "CRITICAL", "Every concept must end with Apply")
-    # The approved final card now lives INSIDE the whole-lesson slideshow's
-    # JSON srcdoc, not as a detached sibling of the smart lab. Check the
-    # original verified card AND its actual embedding, fail closed if absent.
-    _final_card_source = str(candidate["theory"].get("reference_card_html") or "")
-    _whole_lab_markup = str(candidate["theory"].get("whole_lesson_lab_html") or "")
-    _reference_concepts = re.findall(
-        r'data-reference-concept="([^"]+)"', _final_card_source)
-    _expected_concepts = [
-        str(c.get("concept_id") or "") for c in ev_map["concepts"]]
+    # V18: the Golden Card is data embedded in the whole-lesson lab; every source
+    # concept must be present in the spec AND the board must embed that spec.
+    _golden = candidate["theory"].get("golden_card_spec") or {}
+    _spec_ids = sorted(str(x) for x in (_golden.get("concept_ids") or []))
+    _expected_concepts = sorted(
+        str(c.get("concept_id") or "") for c in ev_map["concepts"])
     check(
         "REFERENCE_CARD_CONCEPT_COVERAGE_INCOMPLETE",
-        len(_reference_concepts) == len(_expected_concepts)
-        and sorted(_reference_concepts) == sorted(_expected_concepts)
-        and "GOLDEN-FINAL-CARD" in _whole_lab_markup
-        and _whole_lab_markup.count("nabil-reference-concept") >= len(_expected_concepts),
+        _spec_ids == _expected_concepts
+        and 'data-nabil-v18-golden="true"' in str(
+            candidate["theory"].get("whole_lesson_lab_html") or ""),
         "CRITICAL",
-        "reference_concepts=" + str(len(_reference_concepts))
-        + ", concepts=" + str(len(_expected_concepts))
-        + ", embedded=" + str("GOLDEN-FINAL-CARD" in _whole_lab_markup),
+        "golden_concepts=" + str(len(_spec_ids))
+        + ", concepts=" + str(len(_expected_concepts)),
     )
     lab_index = candidate.get("lab_index") or {}
     concept_lab_index = lab_index.get("concept_labs") or []
