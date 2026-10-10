@@ -72,7 +72,7 @@ def render_v18_lesson(entry, theory, ev_map, lab_index=None):
         raise RuntimeError("V18_VERIFIED_FULL_QUIZ_MISSING")
     scripts=_script_bundle()
     page=r'''<!doctype html><html lang="__LANG__"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="nabil-v18-renderer" content="original-runtime-integrated"><meta name="nabil-lesson-id" content="__ID__">
+<meta name="nabil-v18-renderer" content="original-runtime-integrated"><meta name="nabil-renderer-contract" content="NABIL_REFERENCE_RENDERER_V1"><meta name="nabil-lesson-id" content="__ID__">
 <title>__TITLE__ — NABIL V18</title><style>
 :root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#031025;color:#edf9ff;font-family:system-ui,Arial,sans-serif}
 header{background:#071b33;border-bottom:1px solid #1f5c91;padding:15px 22px;display:flex;gap:16px;justify-content:space-between;flex-wrap:wrap;align-items:center}
