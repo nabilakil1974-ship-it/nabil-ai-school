@@ -11,7 +11,8 @@ class PrimaryBoardContract(unittest.TestCase):
           "conclusion":"2³ = 8"}
         for mode in ("lesson","exercises"):
             with self.subTest(mode=mode):
-                html=render_v18_smart_board("Powers",[activity],"en",\n                    golden_spec=build_golden_spec("Powers",[activity],"en",subject="mathematics"),mode=mode)
+                html=render_v18_smart_board("Powers",[activity],"en",
+                    golden_spec=build_golden_spec("Powers",[activity],"en",subject="mathematics"),mode=mode)
                 self.assertIn('id="nabilWholeLessonSmartLab"',html)
                 self.assertIn('id="v18Lines"',html)
                 self.assertIn('grid-template-columns:minmax(0,1fr) minmax(0,1fr)',html)
