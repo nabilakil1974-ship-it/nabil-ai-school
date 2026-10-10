@@ -3610,13 +3610,25 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
     check("TEACHING_FLOW_APPLY_MISSING",
           candidate["page_a_html"].count('data-step="application"') == len(ev_map["concepts"]),
           "CRITICAL", "Every concept must end with Apply")
+    # The approved final card now lives INSIDE the whole-lesson slideshow's
+    # JSON srcdoc, not as a detached sibling of the smart lab. Check the
+    # original verified card AND its actual embedding, fail closed if absent.
+    _final_card_source = str(candidate["theory"].get("reference_card_html") or "")
+    _whole_lab_markup = str(candidate["theory"].get("whole_lesson_lab_html") or "")
+    _reference_concepts = re.findall(
+        r'data-reference-concept="([^"]+)"', _final_card_source)
+    _expected_concepts = [
+        str(c.get("concept_id") or "") for c in ev_map["concepts"]]
     check(
         "REFERENCE_CARD_CONCEPT_COVERAGE_INCOMPLETE",
-        candidate["page_a_html"].count('class="nabil-reference-concept"') == len(ev_map["concepts"]),
+        len(_reference_concepts) == len(_expected_concepts)
+        and sorted(_reference_concepts) == sorted(_expected_concepts)
+        and "GOLDEN-FINAL-CARD" in _whole_lab_markup
+        and _whole_lab_markup.count("nabil-reference-concept") >= len(_expected_concepts),
         "CRITICAL",
-        "reference_concepts="
-        + str(candidate["page_a_html"].count('class="nabil-reference-concept"'))
-        + ", concepts=" + str(len(ev_map["concepts"])),
+        "reference_concepts=" + str(len(_reference_concepts))
+        + ", concepts=" + str(len(_expected_concepts))
+        + ", embedded=" + str("GOLDEN-FINAL-CARD" in _whole_lab_markup),
     )
     lab_index = candidate.get("lab_index") or {}
     concept_lab_index = lab_index.get("concept_labs") or []
