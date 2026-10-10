@@ -119,3 +119,56 @@ def translate_html_offline(html: str, source: str, target: str, translator=None)
     return str(soup), {"mode":"offline_argos", "complete":False,
                        "languages":[source, target], "translated_nodes":count,
                        "reason":"JS_BOARD_AND_ATTRIBUTES_UNTRANSLATED_REQUIRES_QA"}
+
+# NABIL V18 stores its educational board/Golden card text in JSON, not HTML.
+# Translate the educational data payload independently of its executable JS.
+_TEXT_FIELDS = frozenset({
+    "title", "subtitle", "label", "text", "sentence", "conclusion",
+    "description", "prompt", "question", "explanation", "hint",
+    "final_answer", "golden_speech", "verification_note", "summary",
+    "goal", "instruction", "observation", "phenomenon", "investigation",
+    "interpretation", "speech", "content",
+})
+_STRUCTURAL_FIELDS = frozenset({
+    "contract", "mode", "lang", "language", "kind", "subject",
+    "concept_id", "concept_ids", "avatar_base64", "avatar_src",
+    "srcdoc", "formula", "formulas", "source_key", "exercise_id", "id",
+})
+
+def translate_v18_data(data: dict, translator) -> dict:
+    """Translate board and Golden educational prose without corrupting identity.
+
+    All other fields are deliberately kept unchanged. No review pass implied.
+    """
+    def walk(node, field=""):
+        if isinstance(node, dict):
+            return {k: (v if k in _STRUCTURAL_FIELDS else walk(v, k))
+                    for k, v in node.items()}
+        if isinstance(node, list):
+            return [walk(item, field) for item in node]
+        if isinstance(node, str) and field in _TEXT_FIELDS and node.strip():
+            return translate_scientific_text(node, translator)
+        return node
+    result = walk(data)
+    if data.get("lang") == "en":
+        result["lang"] = "fr"
+    return result
+
+
+def translate_v18_embedded_board_html(html_text: str, translator) -> tuple[str, int]:
+    """Translate the JSON V18 board data while leaving code and formulas alone."""
+    import json
+    soup = BeautifulSoup(html_text, "html.parser")
+    total = 0
+    for tag in soup.find_all("script", id="nabilV18Data"):
+        if not tag.string:
+            raise OfflineTranslationUnavailable("V18_BOARD_PAYLOAD_EMPTY")
+        try:
+            data = json.loads(tag.string)
+        except ValueError as exc:
+            raise OfflineTranslationUnavailable("V18_BOARD_PAYLOAD_INVALID") from exc
+        converted = translate_v18_data(data, translator)
+        serialized = json.dumps(converted, ensure_ascii=False).replace("</", "<\\/")
+        tag.string.replace_with(serialized)
+        total += 1
+    return str(soup), total
