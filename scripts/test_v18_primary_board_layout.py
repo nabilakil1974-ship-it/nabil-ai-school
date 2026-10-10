@@ -1,7 +1,7 @@
 """Reject old main layout: one full-width V18 teacher board is the PRIMARY lesson and exercise view."""
 from pathlib import Path
 import unittest
-from scripts.nabil_factory.cards.v18_board import render_v18_smart_board
+from scripts.nabil_factory.cards.v18_board import render_v18_smart_board, build_golden_spec
 
 class PrimaryBoardContract(unittest.TestCase):
     def test_theory_and_exercises_have_same_primary_teacher_board(self):
@@ -11,7 +11,7 @@ class PrimaryBoardContract(unittest.TestCase):
           "conclusion":"2³ = 8"}
         for mode in ("lesson","exercises"):
             with self.subTest(mode=mode):
-                html=render_v18_smart_board("Powers",[activity],"en",mode=mode)
+                html=render_v18_smart_board("Powers",[activity],"en",\n                    golden_spec=build_golden_spec("Powers",[activity],"en",subject="mathematics"),mode=mode)
                 self.assertIn('id="nabilWholeLessonSmartLab"',html)
                 self.assertIn('id="v18Lines"',html)
                 self.assertIn('grid-template-columns:minmax(0,1fr) minmax(0,1fr)',html)
