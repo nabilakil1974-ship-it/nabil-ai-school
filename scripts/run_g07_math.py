@@ -1,14 +1,10 @@
 from __future__ import annotations
 
-"""Railway entrypoint for Grade 7 Mathematics Golden production."""
+"""Single-lesson Grade 7 mathematics acceptance run. No batch production."""
 
 import sys
 from pathlib import Path
 
-# Be robust whether Railway invokes this as a module
-# (`python -m scripts.run_g07_math`) or by file path
-# (`python scripts/run_g07_math.py`).  Direct file execution otherwise puts
-# /app/scripts on sys.path and makes `import scripts` fail.
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
@@ -23,6 +19,6 @@ if __name__ == "__main__":
         "--grade", "7",
         "--subject", "mathematics",
         "--language", "en",
-        "--max-new-lessons", "5",
+        "--max-new-lessons", "1",
     ]
-    nabil_book_factory.main()
+    raise SystemExit(nabil_book_factory.main())
