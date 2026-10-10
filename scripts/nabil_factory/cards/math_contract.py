@@ -206,8 +206,8 @@ from fractions import Fraction as _Fr
 MATH_CONTRACT_VERSION = "NABIL_V18_MATH_CONTRACT_V1"
 
 _AR_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234567890123456789")
-_SUP = str.maketrans("⁰¹²³⁴⁵⁶⁷⁸⁹⁻", "0123456789-")
-_SUP_CHARS = "⁰¹²³⁴⁵⁶⁷⁸⁹⁻"
+_SUP = str.maketrans("⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺", "0123456789-+")
+_SUP_CHARS = "⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺"
 _NUM_RUN_RE = re.compile(
     r"[\-−–]?[0-9٠-٩۰-۹(][0-9٠-٩۰-۹.,٫\s()+\-−–×xX*·÷/^" + _SUP_CHARS + r"=]*"
     r"[0-9٠-٩۰-۹)" + _SUP_CHARS + r"]")
@@ -332,8 +332,22 @@ def _chains_in_step(step: str) -> list[dict]:
     text = str(step or "")
     label_m = _LABEL_RE.match(text)
     label = label_m.group(1) if label_m else ""
-    for m in _NUM_RUN_RE.finditer(text):
-        run = m.group(0)
+    segments = re.split(r"[;؛،\n]|,\s", text)
+    runs = []
+    for seg in segments:
+        for m in _NUM_RUN_RE.finditer(seg):
+            before = seg[:m.start()].rstrip()
+            after = seg[m.end():]
+            after_s = after.lstrip()
+            # never evaluate a fragment glued to context the parser cannot see
+            if before and ((m.start() == len(before) and before[-1].isalpha())
+                           or before[-1] in "+-−–×*·÷/^=√%.,xX("):
+                continue
+            if after_s and (after_s[0] in "+-−–×*·÷/^=√%" + _SUP_CHARS
+                            or (after and after[0].isalpha())):
+                continue
+            runs.append(m.group(0))
+    for run in runs:
         if "=" not in run:
             continue
         sides = [x.strip() for x in run.split("=")]
@@ -354,7 +368,7 @@ def _chains_in_step(step: str) -> list[dict]:
         out.append({
             "label": label, "text": run.strip(), "values": values,
             "end": values[-1],
-            "contradictions": [f"{a} = {b} (but {format_exact_number(va)} != {format_exact_number(vb)})"
+            "contradictions": [f"{a} = {b} (but {format_exact_number(va)} != {format_exact_number(vb)}) in step: {str(step)[:120]}"
                                for a, b, va, vb in contradictions],
         })
     return out
@@ -365,10 +379,12 @@ def verify_math_solution(prompt: str, steps: list, final_answer: str) -> dict:
     chains = [c for s in (steps or []) for c in _chains_in_step(str(s))]
     bad = [x for c in chains for x in c["contradictions"]]
     if bad:
-        return {"status": "CONTRADICTED", "reason": "STEP_ARITHMETIC_FALSE: " + "; ".join(bad[:4]),
+        return {"status": "CONTRADICTED", "kind": "ARITHMETIC_FALSE",
+                "reason": "STEP_ARITHMETIC_FALSE: " + "; ".join(bad[:4]),
                 "chains": len(chains), "derived_final": None, "repairable": False}
     final_text = str(final_answer or "").translate(_AR_DIGITS).replace(",", ".").replace("٫", ".")
     final_text = final_text.replace("−", "-")
+    final_text = re.sub(r"(?<=\d)[ \u00a0\u202f](?=\d{3}(?!\d))", "", final_text)
     final_nums = []
     for tok in _NUMBER_TOKEN_RE.findall(re.sub(r"[" + _SUP_CHARS + "]+", " ", final_text)):
         try:
@@ -377,7 +393,7 @@ def verify_math_solution(prompt: str, steps: list, final_answer: str) -> dict:
             pass
     if not chains:
         if final_nums:
-            return {"status": "UNPROVEN",
+            return {"status": "UNPROVEN", "kind": "VERIFIER_COULD_NOT_PARSE",
                     "reason": "NUMERIC_FINAL_WITHOUT_VERIFIABLE_STEP_EQUALITY",
                     "chains": 0, "derived_final": None, "repairable": False}
         return {"status": "VERIFIED", "reason": "NO_NUMERIC_CLAIMS", "chains": 0,
@@ -386,6 +402,7 @@ def verify_math_solution(prompt: str, steps: list, final_answer: str) -> dict:
     for c in chains:
         allowed.update(c["values"])
     prompt_text = str(prompt or "").translate(_AR_DIGITS).replace(",", ".")
+    prompt_text = re.sub(r"(?<=\d)[ \u00a0\u202f](?=\d{3}(?!\d))", "", prompt_text)
     for tok in _NUMBER_TOKEN_RE.findall(prompt_text):
         allowed.add(_Fr(tok))
     # last chain per label (or last overall) = the stated result of that part
@@ -408,7 +425,7 @@ def verify_math_solution(prompt: str, steps: list, final_answer: str) -> dict:
     for label, c in last_by_label.items():
         val = format_exact_number(c["end"])
         parts.append(f"{label}) {val}" if label else val)
-    return {"status": "CONTRADICTED", "reason": "; ".join(problems[:4]),
+    return {"status": "CONTRADICTED", "kind": "FINAL_MISMATCH", "reason": "; ".join(problems[:4]),
             "chains": len(chains), "derived_final": "; ".join(parts), "repairable": True}
 
 

@@ -1029,6 +1029,17 @@ def grounded_subject_solver(exercise: dict, evidence_map: dict, profile: dict) -
         "from the verified rule and visible source geometry.\n"
         "Return strictly JSON: {'steps': [str], 'final_answer': str}"
     )
+    _feedback = str(exercise.get("_solver_feedback") or "").strip()
+    if _feedback:
+        query = query.replace(
+            "Return strictly JSON: {'steps'",
+            "YOUR PREVIOUS ANSWER WAS REJECTED BY A DETERMINISTIC ARITHMETIC "
+            "VERIFIER: " + _feedback[:600] + "\nRewrite the solution so EVERY "
+            "calculation is a pure numeric equality on its own step (e.g. "
+            "'5^2 × 5^4 = 25 × 625 = 15625'; for several parts start each step "
+            "with its label 'a)', 'b)'...). Check each equality is true. "
+            "final_answer must state ONLY values your steps computed.\n"
+            "Return strictly JSON: {'steps'", 1)
 
     vision_context = ({
         "lesson_id": exercise.get("lesson_id"),
@@ -1175,24 +1186,52 @@ def grounded_subject_solver(exercise: dict, evidence_map: dict, profile: dict) -
 
 
 
-def _apply_math_contract_or_omit(entry: dict, ex: dict, sol):
-    """V18: deterministic math gate. Returns solution (final answer derived from
-    verified steps when needed) or None after marking the exercise unapproved."""
-    try:
-        return enforce_math_solution_contract(
-            ex, sol, str(entry.get("subject") or ""))
-    except RuntimeError as exc:
-        reason = str(exc)
-        if not (reason.startswith("MATH_SOLUTION_CONTRADICTION")
-                or reason.startswith("MATH_EXPRESSION_UNVERIFIED")):
-            raise
-        ex["solution_status"] = "OMITTED_UNVERIFIED"
-        ex["_pre_solved_solution"] = None
-        ex["solution_omission_reason"] = reason[:500]
-        progress("MATH_CONTRACT_EXERCISE_UNAPPROVED",
-                 exercise_id=ex.get("exercise_id"), number=ex.get("number"),
-                 reason=reason[:240])
-        return None
+def _apply_math_contract_or_omit(entry: dict, ex: dict, sol, regen=None):
+    """V18 deterministic math gate with targeted regeneration.
+
+    Returns (solution, regenerated) or (None, False) after marking ONLY this
+    exercise unapproved (kept in the source backlog with its reason). A rejected
+    solution is never reused: it is regenerated alone, up to
+    NABIL_MATH_REGEN_MAX times (default 1), each time with the verifier's reason.
+    """
+    max_regen = max(0, min(3, int(os.getenv("NABIL_MATH_REGEN_MAX", "1"))))
+    regenerated = False
+    attempt = 0
+    while True:
+        try:
+            return enforce_math_solution_contract(
+                ex, sol, str(entry.get("subject") or "")), regenerated
+        except RuntimeError as exc:
+            reason = str(exc)
+            if not (reason.startswith("MATH_SOLUTION_CONTRADICTION")
+                    or reason.startswith("MATH_EXPRESSION_UNVERIFIED")):
+                raise
+            kind = ("CONTRADICTED" if reason.startswith("MATH_SOLUTION_CONTRADICTION")
+                    else "VERIFIER_COULD_NOT_PARSE")
+            if regen is not None and attempt < max_regen:
+                attempt += 1
+                progress("MATH_CONTRACT_REGENERATING_EXERCISE",
+                         exercise_id=ex.get("exercise_id"), number=ex.get("number"),
+                         attempt=attempt, kind=kind, reason=reason[:240])
+                try:
+                    ex["_solver_feedback"] = reason
+                    sol = regen()
+                    regenerated = True
+                    continue
+                except RuntimeError as regen_exc:
+                    if not str(regen_exc).startswith("PRE_SOLVE_FAILED"):
+                        raise
+                    reason = reason + " | REGEN_FAILED:" + str(regen_exc)[:200]
+                finally:
+                    ex.pop("_solver_feedback", None)
+            ex["solution_status"] = "OMITTED_UNVERIFIED"
+            ex["_pre_solved_solution"] = None
+            ex["solution_omission_reason"] = reason[:500]
+            ex["solution_rejection_kind"] = kind
+            progress("MATH_CONTRACT_EXERCISE_UNAPPROVED",
+                     exercise_id=ex.get("exercise_id"), number=ex.get("number"),
+                     kind=kind, reason=reason[:300])
+            return None, False
 
 
 def prepare_verified_solutions(entry: dict, exercises: list,
@@ -1238,9 +1277,17 @@ def prepare_verified_solutions(entry: dict, exercises: list,
                 raise RuntimeError(
                     "SOLUTION_NUMERIC_POWER_REPAIR_INCOMPLETE:"
                     + json.dumps(remaining_bad[:8], ensure_ascii=False))
-            cached = _apply_math_contract_or_omit(entry, ex, cached)
+            def _regen_cached():
+                fresh = grounded_subject_solver(ex, ev_map, profile)
+                fresh, _r = repair_numeric_power_payload(fresh)
+                return fresh
+            cached, _regen = _apply_math_contract_or_omit(
+                entry, ex, cached, regen=_regen_cached)
             if cached is None:
                 continue
+            if _regen and page_checkpoints:
+                page_checkpoints.save_solution(
+                    drive_service, checkpoint_root, entry, ex, cached)
             ex["solution_status"] = "SOLVED"
             ex["_pre_solved_solution"] = cached
             progress("SOLUTION_RESTORED_FROM_DRIVE",
@@ -1287,9 +1334,15 @@ def prepare_verified_solutions(entry: dict, exercises: list,
             raise RuntimeError(
                 "SOLUTION_NUMERIC_POWER_REPAIR_INCOMPLETE:"
                 + json.dumps(remaining_bad[:8], ensure_ascii=False))
-        sol = _apply_math_contract_or_omit(entry, ex, sol)
+        def _regen_fresh():
+            fresh = grounded_subject_solver(ex, ev_map, profile)
+            fresh, _r = repair_numeric_power_payload(fresh)
+            return fresh
+        sol, _regen = _apply_math_contract_or_omit(
+            entry, ex, sol, regen=_regen_fresh)
         if sol is None:
             continue
+        ex["solution_status"] = "SOLVED"
         ex["_pre_solved_solution"] = sol
         if page_checkpoints:
             page_checkpoints.save_solution(

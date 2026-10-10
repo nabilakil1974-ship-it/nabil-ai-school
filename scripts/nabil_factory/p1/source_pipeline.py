@@ -1958,6 +1958,73 @@ def verify_title_double_evidence_strict(
 
     return decision
 
+_LATEX_CMD_RE = re.compile(
+    r"\\(?=(?:times|frac|cdot|div|left|right|sqrt|text|neq|leq|geq|pm|approx|"
+    r"ldots|circ|angle|triangle|parallel|perp|pi|alpha|beta|theta|lambda|mu|"
+    r"Omega|Delta|rightarrow|Rightarrow|infty|degree|overline|vec|bar|sin|cos|tan|"
+    r"log|ln|mathrm|mathbb|in|cup|cap|subset|forall|exists|sum|prod|int|lim)\b)")
+
+
+def salvage_llm_json(raw: str):
+    """Syntax-only repair of an almost-valid LLM JSON reply.
+
+    Never changes words or numbers: it only (1) strips code fences/BOM and
+    surrounding prose, (2) escapes LaTeX backslashes and bare control characters
+    inside strings, (3) removes trailing commas. Returns (value, method) or
+    raises json.JSONDecodeError when the reply is not safely repairable
+    (e.g. truncated) - truncation is never "completed".
+    """
+    text = str(raw or "").lstrip("\ufeff").strip()
+    try:
+        return json.loads(text), "none"
+    except json.JSONDecodeError as first:
+        err = first
+    fence = re.match(r"^```(?:json)?\s*(.*?)\s*```$", text, re.S | re.I)
+    if fence:
+        text = fence.group(1).strip()
+    starts = [i for i in (text.find("{"), text.find("[")) if i >= 0]
+    if starts:
+        s0 = min(starts)
+        closer = "}" if text[s0] == "{" else "]"
+        e0 = text.rfind(closer)
+        if e0 > s0:
+            text = text[s0:e0 + 1]
+    text = _LATEX_CMD_RE.sub(r"\\\\", text)
+    out, in_str, i = [], False, 0
+    while i < len(text):
+        ch = text[i]
+        if in_str:
+            if ch == "\\":
+                nxt = text[i + 1] if i + 1 < len(text) else ""
+                if nxt and nxt in '"\\/bfnrtu':
+                    out.append(ch + nxt)
+                    i += 2
+                    continue
+                out.append("\\\\")
+                i += 1
+                continue
+            if ch == '"':
+                in_str = False
+            elif ch == "\n":
+                out.append("\\n")
+                i += 1
+                continue
+            elif ch in "\r\t":
+                out.append("\\r" if ch == "\r" else "\\t")
+                i += 1
+                continue
+        elif ch == '"':
+            in_str = True
+        out.append(ch)
+        i += 1
+    text = re.sub(r",(\s*[}\]])", r"\1", "".join(out))
+    try:
+        return json.loads(text), "syntax_repair"
+    except json.JSONDecodeError:
+        raise err
+
+
+
 def _execute_llm_json_strict(
         prompt: str,
         *,
@@ -2026,7 +2093,12 @@ def _execute_llm_json_strict(
             unit_id=purpose,
         )
         try:
-            return json.loads(raw)
+            value, method = salvage_llm_json(raw)
+            if method != "none":
+                progress("AI_JSON_SALVAGED", purpose=purpose, attempt=attempt,
+                         method=method,
+                         provider=get_last_llm_provenance().get("provider"))
+            return value
         except json.JSONDecodeError as exc:
             last_error = exc
             actual_bad_provider = get_last_llm_provenance().get("provider")

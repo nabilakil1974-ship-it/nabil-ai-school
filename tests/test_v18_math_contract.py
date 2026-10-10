@@ -45,3 +45,17 @@ def test_decimals_signs_fractions_negative_exponents():
 def test_non_math_subject_untouched():
     sol = {"steps": ["x"], "final_answer": "9"}
     assert mc.enforce_math_solution_contract({}, sol, "Physics") is sol
+
+
+def test_regressions_from_real_powers_run_no_false_rejections():
+    # superscript sum exponent, comma-separated chains, space thousands
+    assert mc.verify_math_solution("", ["5² × 5⁴ = 5²⁺⁴ = 5⁶ = 15625"], "15625")["status"] == "VERIFIED"
+    assert mc.verify_math_solution("", ["5×5=25, 25×5=125, 125×5=625, 625×5=3125, 3125×5=15625"], "15625")["status"] == "VERIFIED"
+    assert mc.verify_math_solution("", ["100 000 × 1,1 = 110 000; 110 000 × 1,1 = 121 000"], "121 000")["status"] == "VERIFIED"
+
+
+def test_real_errors_still_rejected_and_classified():
+    v = mc.verify_math_solution("", ["5⁶ = 15625 × 5"], "15625")
+    assert v["status"] == "CONTRADICTED" and v["kind"] == "ARITHMETIC_FALSE"
+    u = mc.verify_math_solution("", ["نحوّل"], "5")
+    assert u["status"] == "UNPROVEN" and u["kind"] == "VERIFIER_COULD_NOT_PARSE"
