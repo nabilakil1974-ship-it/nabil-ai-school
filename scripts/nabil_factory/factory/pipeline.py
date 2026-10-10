@@ -47,6 +47,23 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
     finally:
         doc.close()
 
+    # Export a grounded ChatGPT handoff BEFORE all AI generation.
+    # Explicit opt-in only. Never claim production or publish at this stage.
+    if os.getenv("NABIL_HANDOFF_EXPORT_ONLY", "0") == "1":
+        from scripts.nabil_factory.assistant_handoff import create_handoff
+        handoff_path = str(
+            OUT_DIR / ("HANDOFF--" + re.sub(r"[^A-Za-z0-9_-]", "_", lesson_id) + ".json"))
+        handoff = create_handoff(entry, ev_map, handoff_path)
+        progress("HANDOFF_WAITING_FOR_ASSISTANT",
+                 lesson_id=lesson_id, path=handoff_path,
+                 source_hash=handoff["input_sha256"])
+        return {
+            "status": "HANDOFF_AWAITING_ASSISTANT",
+            "lesson_id": lesson_id, "handoff_file": handoff_path,
+            "input_sha256": handoff["input_sha256"],
+            "published": False, "paid_ai_called": False,
+        }
+
     theory = synthesize_universal_pedagogy(
         entry, ev_map, profile, drive_service=drive_service)
 
@@ -209,12 +226,30 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
             )
         return translated_html, report
 
-    page_a, translation_a = _translate_page_cached(
-        page_a_raw, "theory",
-        purpose=f"lesson_page_translation_{lesson_id}")
-    page_b, translation_b = _translate_page_cached(
-        page_b_raw, "exercises",
-        purpose=f"exercise_page_translation_{lesson_id}")
+    # Zero translation-provider calls for the explicitly approved ONE English
+    # textbook pilot. This does not suppress scientific review or other gates.
+    # Arabic output is disabled across ALL grades and subjects by owner
+    # instruction. Until a verified offline EN<->FR translator is installed,
+    # publish only the textbook's original English or French text; never
+    # call the legacy trilingual provider or fabricate a target language.
+    source_only = os.getenv("NABIL_DISABLE_ARABIC", "1") != "0"
+    if source_only:
+        progress("ARABIC_DISABLED_SOURCE_LANGUAGE_ONLY",
+                 lesson_id=lesson_id, source_language=source_lang_code,
+                 saved_provider_calls="theory_and_exercises")
+        page_a, page_b = page_a_raw, page_b_raw
+        translation_a = translation_b = {
+            "complete": True, "languages": [source_lang_code],
+            "candidate_strings": 0, "translated_counts": {source_lang_code: 0},
+            "mode": "source_language_no_translation",
+        }
+    else:
+        page_a, translation_a = _translate_page_cached(
+            page_a_raw, "theory",
+            purpose=f"lesson_page_translation_{lesson_id}")
+        page_b, translation_b = _translate_page_cached(
+            page_b_raw, "exercises",
+            purpose=f"exercise_page_translation_{lesson_id}")
 
     # Legacy bridge toward the typed text/math contract. Run AFTER translation
     # cache restore so this costs zero provider calls and also heals cached
@@ -265,6 +300,7 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
             "page_a": translation_a,
             "page_b": translation_b,
         },
+        "source_language_only": source_only,
         "hashes": {
             "page_a": hashlib.sha256(page_a.encode("utf-8")).hexdigest(),
             "page_b": hashlib.sha256(page_b.encode("utf-8")).hexdigest(),
