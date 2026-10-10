@@ -629,6 +629,10 @@ def _attach_source_verified_student_check(steps, question, concept):
     expected = str(options[index] or "").strip()
     if not expected or not str(concept.get("raw_text") or "").strip():
         return steps
+    # The source-scope audit is mandatory. A generated distractor alone never
+    # authorizes publishing an answer or blocking a student's progress.
+    if not question.get("source_scope_verified", False):
+        return steps
     for step in steps:
         if step.get("kind") in ("student_try", "observation", "reasoning"):
             # Do not reveal the answer in the prompt; comparison stays local.
@@ -636,8 +640,8 @@ def _attach_source_verified_student_check(steps, question, concept):
                 "question": prompt,
                 "expected": expected,
                 "hint": str(step.get("label") or ""),
-                "wrong_feedback": str(question.get("feedback") or ""),
-                "correct_feedback": str(question.get("feedback") or ""),
+                "wrong_feedback": str(question.get("wrong_feedback") or ""),
+                "correct_feedback": str(question.get("correct_feedback") or question.get("feedback") or ""),
                 "source_page": concept.get("source_page"),
                 "concept_id": concept.get("concept_id"),
                 "verified_against_source": True,
@@ -2560,6 +2564,8 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict,
                     narrative["distractor_2"],
                 ],
                 "correct_index": 0,
+                "source_scope_verified": bool(narrative.get("_scope_audited", False))
+                    and bool(c.get("raw_text")),
                 "feedback": ui_t(lesson_lang_code, "grounded_feedback"),
             }
         else:
