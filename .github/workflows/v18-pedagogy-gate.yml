@@ -31,6 +31,8 @@ jobs:
         run: python -m scripts.test_v18_virtual_student_gate
       - name: Universal SAME first teacher board for theory and exercises
         run: python -m scripts.test_v18_primary_board_layout
+      - name: Fusha teacher narration same on board and Golden cards
+        run: python -m scripts.test_v18_teacher_narration
       - name: Universal full worked solution on Golden Cards and board
         run: python -m scripts.test_v18_full_solution_golden
       - name: REAL Chromium — Golden Card and exercise boards in en/ar/fr
