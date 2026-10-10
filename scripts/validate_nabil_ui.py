@@ -105,11 +105,17 @@ def main() -> None:
         "100dvh",
         ".nabil-solution-runtime-lab iframe",
     )
+    # V18 delivers shared runtime assets from its isolated delivery service.
     require(
-        "app/api/routes_interactive_lessons.py",
+        "app/services/v18_lesson_delivery.py",
         "/static/nabil_browser_tts_v1.js",
         "/static/nabil_lesson_e2e_runtime_v1.js",
         "/static/nabil_smart_lab_bridge_v1.js",
+        "def ensure_runtime_scripts(",
+    )
+    require(
+        "app/api/routes_interactive_lessons.py",
+        "v18_delivery.ensure_runtime_scripts(html)",
     )
 
     if ".selection-stage{display:none!important}" not in theme.replace(" ", ""):
