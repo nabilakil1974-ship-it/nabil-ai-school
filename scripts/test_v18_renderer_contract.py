@@ -14,7 +14,8 @@ class V18RendererTest(unittest.TestCase):
                          'GOLDEN-FINAL-CARD','id="boardWriting"','fullQuizBlock','<script>'):
             self.assertIn(required,out)
         self.assertNotIn('class="nabil-sci-grid"',out)
-        self.assertNotIn('/static/nabil_browser_tts_v1.js',out)
+        self.assertIn('/static/nabil_browser_tts_v1.js?v=1',out)
+        self.assertIn('navigateToExercises',out)
         self.assertLess(out.index('C01'),out.index('GOLDEN-FINAL-CARD'))
     def test_missing_source_flow_rejected(self):
         with self.assertRaises(RuntimeError):
