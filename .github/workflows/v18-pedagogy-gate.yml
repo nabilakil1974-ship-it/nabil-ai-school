@@ -29,6 +29,8 @@ jobs:
           python -m py_compile scripts/nabil_factory/cards/v18_board.py scripts/nabil_factory/p2/core.py scripts/nabil_factory/factory/pipeline.py scripts/test_v18_virtual_student_gate.py
       - name: REAL Chromium — virtual student wrong → hint → right → board persistence
         run: python -m scripts.test_v18_virtual_student_gate
+      - name: Universal full worked solution on Golden Cards and board
+        run: python -m scripts.test_v18_full_solution_golden
       - name: REAL Chromium — Golden Card and exercise boards in en/ar/fr
         run: python -m scripts.test_v18_golden_card_runtime
       - name: Mathematics and book scope contracts

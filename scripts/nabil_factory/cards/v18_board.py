@@ -490,9 +490,21 @@ def build_golden_spec(title: str, activities: list, lang_code: str,
             var_drawing = build_function_drawing(_e, var_table) if _e else None
         t = str(act.get("title") or "").strip()
         concl = str(act.get("conclusion") or act.get("observation") or "").strip()
-        if t and concl:
-            sections.append({"label": t + ":", "items": [concl]})
-            key_results.append(concl)
+        # Golden exercise cards preserve the verified teacher's worked
+        # reasoning, rather than reducing a solution to a numeric answer.
+        verified_steps = [
+            str(step.get("sentence") or "").strip()
+            for step in (act.get("teaching_steps") or [])
+            if isinstance(step, dict)
+            and step.get("kind") in ("problem", "step", "final")
+            and str(step.get("sentence") or "").strip()
+        ]
+        if t and (concl or verified_steps):
+            sections.append({"label": t + ":", "items": verified_steps or [concl]})
+            if verified_steps:
+                key_results.extend(verified_steps)
+            else:
+                key_results.append(concl)
         if t:
             verification.append(t + (": " + verification_note if verification_note else ""))
     panels = [{"title": {"ar": "نتائج الدرس الموثّقة", "fr": "Résultats vérifiés",
@@ -644,8 +656,10 @@ def build_exercise_activities(exercises: list, labels_ui: dict) -> list:
         acts.append({
             "concept_id": str(ex.get("exercise_id") or ex.get("number")),
             "title": f"{labels_ui.get('exercise', '')} {ex.get('number')}".strip(),
-            "conclusion": final, "lab_html": str(ex.get("_prebuilt_lab_html") or ""),
-            "allow_no_lab": True, "teaching_steps": steps,
+            "conclusion": final,
+            # For exercises, the actual verified derivation is on the board.
+            # A separate lab underneath is not an acceptable substitute.
+            "lab_html": "", "allow_no_lab": True, "teaching_steps": steps,
             "formulas": [plain_math(ex.get("exact_source_prompt") or "")],
         })
     return acts
