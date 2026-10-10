@@ -114,7 +114,7 @@ onStep:(i,step)=>show(step.fullIndex??i,true),onState:(s)=>{if(s.event==='WRITE_
 if(s.finished)status.textContent='Lesson complete · Golden card last';}});
 const safeText=t=>document.createTextNode(t);
 function show(i,fromPlayback=false){index=i;const x=slides[index];if(!fromPlayback)ctl.stop();title.textContent=x.title;board.textContent='';visual.replaceChildren();
-if(x.lab){const f=document.createElement('iframe');f.title=x.title+' — verified interactive lab';f.srcdoc='<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#061725;color:white}</style></head><body>'+x.lab+'<\\/body><\\/html>';visual.appendChild(f);}
+if(x.lab){const f=document.createElement('iframe');f.title=x.title+' — verified interactive lab';f.srcdoc='<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#061725;color:white}</style></head><body>'+x.lab+'<\/body><\/html>';visual.appendChild(f);}
 else if(x.visual){const holder=document.createElement('div');holder.innerHTML=x.visual;visual.appendChild(holder);}
 else{const p=document.createElement('p');p.textContent=x.lines.join(' · ');visual.appendChild(p);}
 Array.from(timeline.children).forEach((b,j)=>b.classList.toggle('active',j===i));
