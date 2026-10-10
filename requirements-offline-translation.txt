@@ -1,3 +1,10 @@
-# Optional offline translation dependency; install language packs separately.
-# This is intentionally NOT included in the production image until resource profiling.
-argostranslate>=1.9,<2
+# Optional OPEN-SOURCE translator, zero paid inference API.
+# Install only in a dedicated production/translation worker once memory is measured.
+# Helsinki-NLP/opus-mt-en-fr: Apache-2.0 (~301 MB weights).
+# Use offline weights persisted locally (model loading strictly local_files_only).
+transformers>=4.45,<5
+sentencepiece>=0.2,<1
+sacremoses>=0.1,<1
+torch>=2.3,<3
+# Argos alternative (optional):
+# argostranslate>=1.9,<2
