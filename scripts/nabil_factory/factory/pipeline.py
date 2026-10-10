@@ -256,9 +256,13 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
                        + '<div data-nabil-translation-complete="true" hidden></div>'
                        + _language.group(0) + _bundle.group(0)),
             page_a_raw, count=1, flags=re.I)
-        page_a = re.sub(
-            r"</body>", lambda m: _runtime.group(0) + m.group(0),
-            page_a, count=1, flags=re.I)
+        # Append before the DOCUMENT footer, not a literal </body> inside
+        # an embedded JS string (iframe.srcdoc). The earlier first-match
+        # replacement broke the outer script and printed JS onto the page.
+        _body_end = page_a.lower().rfind("</body>")
+        if _body_end < 0:
+            raise RuntimeError("V18_DOCUMENT_BODY_END_MISSING")
+        page_a = page_a[:_body_end] + _runtime.group(0) + page_a[_body_end:]
         progress("V18_TRILINGUAL_DATA_ONLY_TRANSLATED",
                  lesson_id=lesson_id,
                  languages=translation_a.get("languages"),
