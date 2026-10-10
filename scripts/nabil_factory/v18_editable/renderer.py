@@ -77,7 +77,7 @@ def render_v18_lesson(entry, theory, ev_map, lab_index=None):
 :root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#031025;color:#edf9ff;font-family:system-ui,Arial,sans-serif}
 header{background:#071b33;border-bottom:1px solid #1f5c91;padding:15px 22px;display:flex;gap:16px;justify-content:space-between;flex-wrap:wrap;align-items:center}
 .brand{color:#25d8ff;font-weight:900;letter-spacing:.06em}.wrap{max-width:1460px;margin:auto;padding:18px}
-.layout{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,.8fr);gap:16px}.panel{background:#071c35;border:1px solid #1f5c91;border-radius:18px;padding:18px}
+.layout{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,.8fr);gap:16px}.layout>*{min-width:0}html,body{width:100%;max-width:100%;overflow-x:clip}.panel{min-width:0;max-width:100%;overflow-wrap:anywhere}#board,#boardWriting,#visual,#timeline,#v18VerifiedQuiz{min-width:0;max-width:100%;overflow-wrap:anywhere}#v18VerifiedQuiz{overflow-x:auto}#v18VerifiedQuiz img,#v18VerifiedQuiz svg,#v18VerifiedQuiz canvas,#v18VerifiedQuiz iframe{max-width:100%;height:auto}#v18VerifiedQuiz table,#v18VerifiedQuiz pre{display:block;max-width:100%;overflow-x:auto}.panel{background:#071c35;border:1px solid #1f5c91;border-radius:18px;padding:18px}
 #board{background:repeating-linear-gradient(0deg,#04172c,#04172c 39px,#0c2340 40px);border:2px solid #2087ad;border-radius:14px;min-height:380px;padding:26px;box-shadow:inset 0 0 28px #010917}
 #boardTitle{color:#ffd35a;font-size:clamp(22px,3vw,35px);margin:0 0 18px}#boardWriting{font-size:clamp(19px,2vw,27px);line-height:1.9;white-space:pre-wrap;min-height:220px}
 #visual{background:#04172c;border-radius:12px;margin-top:14px;min-height:160px;padding:10px;overflow:auto}
