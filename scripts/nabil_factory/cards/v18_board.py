@@ -451,7 +451,11 @@ def render_v18_smart_board(title: str, activities: list, lang_code: str,
         "contract": V18_BOARD_CONTRACT, "lang": lang, "title": title, "mode": mode,
         "slides": slides, "golden": golden, "golden_speech": golden_speech,
     }, ensure_ascii=False).replace("</", "<\\/").replace("<!--", "<\\!--")
-    engine = _read("v18_golden_cards_engine.js").replace("</script", "<\\/script")
+    # Prevent the HTML math/translation normalization from rewriting executable
+    # vendor JavaScript. Decode and execute its original bytes in the browser.
+    engine_b64 = base64.b64encode(
+        _read("v18_golden_cards_engine.js").encode("utf-8")
+    ).decode("ascii")
     h = html.escape
     return f'''
 <section id="nabilWholeLessonSmartLab" class="nabil-whole-lesson-smart-lab"
@@ -483,8 +487,21 @@ def render_v18_smart_board(title: str, activities: list, lang_code: str,
   <div class="v18-timeline" id="nabilWholeTimeline"></div><div class="v18-note" id="v18VoiceNote"></div>
 <div class="v18-final" data-v18-final-stage="true"><div id="goldenReferenceCard" data-nabil-v18-golden="true"></div></div>
 <script type="application/json" id="nabilV18Data">{data}</script>
-<script>{engine}</script>
-<script>window.__NABIL_V18_CARDS=window.NABILScientificCards;</script>
+<script type="text/plain" id="nabilV18CardEnginePayload">{engine_b64}</script>
+<script>
+(() => {{
+ const payload=document.getElementById('nabilV18CardEnginePayload');
+ const bytes=Uint8Array.from(atob(payload.textContent.trim()),c=>c.charCodeAt(0));
+ const source=new TextDecoder().decode(bytes);
+ const script=document.createElement('script');
+ script.textContent=source;
+ payload.after(script);
+ if(typeof window.NABILScientificCards?.fromLesson!=='function'){{
+   throw new Error('V18_GOLDEN_CARD_ENGINE_BOOTSTRAP_FAILED');
+ }}
+ window.__NABIL_V18_CARDS=window.NABILScientificCards;
+}})();
+</script>
 <script>{_JS}</script>
 </section>'''
 
