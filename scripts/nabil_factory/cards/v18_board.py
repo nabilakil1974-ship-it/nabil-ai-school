@@ -306,7 +306,7 @@ _JS = r"""
   submit.onclick=()=>{
     const got=input.value.trim();
     if(!got){feedback.textContent=L.answer_required||'Enter an answer.';return}
-    const norm=x=>x.normalize('NFKC').replace(/\\s+/g,'').toLowerCase();
+    const norm=x=>x.normalize('NFKC').replace(/\s+/g,'').toLowerCase();
     if(expected&&norm(got)===norm(expected)){
       feedback.textContent=tr(check.correct_feedback||L.correct||'Correct. Explain why.');
       awaitingStudent=false;input.disabled=true;submit.disabled=true;
