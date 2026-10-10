@@ -723,6 +723,17 @@ def run(book_id: str, *, index_only: bool, publish: bool,
                 lesson_id=lid, reason=str(exc)[:800])
             continue
         except Exception as exc:
+            if factory.is_truth_critical_factory_error(exc):
+                state["lessons"][lid] = {
+                    "status": "BLOCKED_SOURCE_EVIDENCE",
+                    "error": str(exc)[:1200],
+                    "blocked_at": datetime.now(timezone.utc).isoformat(),
+                }
+                remote_checkpoint(service,root,book_id,state)
+                announce(
+                    "LESSON_SOURCE_BLOCK_DEFERRED_CONTINUE_BOOK",
+                    lesson_id=lid, reason=str(exc)[:800])
+                continue
             if factory.is_recoverable_factory_error(exc):
                 state["lessons"][lid] = {
                     "status": "DEFERRED_REPAIR",

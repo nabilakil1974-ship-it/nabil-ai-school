@@ -3320,14 +3320,24 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
     def _concept_title_key(value: str) -> str:
         return re.sub(r"[^a-z0-9]+", " ", str(value or "").casefold()).strip()
 
+    exercise_heading_re = re.compile(
+        r"(?im)^\s*(?:exercises?|problems?|exercices?|problèmes?|تمارين|مسائل)"
+        r"\s*(?:[:.\-–—]?\s*(?:\d+\b)?)?\s*$"
+    )
+
+    def _exercise_section_heading(page_text: str, page_num: int) -> bool:
+        # A chapter opener can mention the word 'exercises' in objectives,
+        # captions or OCR noise. Never end concept extraction on the opener.
+        if int(page_num) <= int(start_p):
+            return False
+        return bool(exercise_heading_re.search(str(page_text or "")))
+
     next_concept_num = 1
     concept_exercise_section_seen = False
     exercise_section_start_page = None
     for p in pages_evidence:
         page_text = str(p["text"] or "")
-        if re.search(
-                r"(?i)\b(exercises|problems|exercices|problèmes)\b|تمارين|مسائل",
-                page_text):
+        if _exercise_section_heading(page_text, int(p["page_num"])):
             concept_exercise_section_seen = True
             if exercise_section_start_page is None:
                 exercise_section_start_page = int(p["page_num"])
@@ -3441,7 +3451,7 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
     exercise_section_seen = False
     for p in pages_evidence:
         page_num = p["page_num"]
-        if re.search(r"(?i)\b(exercises|problems|exercices|problèmes)\b|تمارين|مسائل", p["text"]):
+        if _exercise_section_heading(p["text"], page_num):
             exercise_section_seen = True
         source_page = doc[page_num - 1]
         scanned = any(

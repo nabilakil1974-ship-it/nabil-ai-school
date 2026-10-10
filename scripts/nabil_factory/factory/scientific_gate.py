@@ -77,6 +77,70 @@ _POW = re.compile(
 )
 
 
+def repair_numeric_power_claims(text: str) -> tuple[str, int]:
+    """Repair exact numeric power equalities deterministically.
+
+    Only the claimed value on expressions like 2^5 = 2 is replaced. The
+    expression/base/exponent and surrounding prose remain source-generated.
+    This never guesses: exact Fraction arithmetic is the authority.
+    """
+    normalized = normalize_ocr(text)
+    matches = list(_POW.finditer(normalized))
+    if not matches:
+        return str(text or ""), 0
+
+    out = normalized
+    repairs = 0
+    for m in reversed(matches):
+        try:
+            expr = m["base_expr"].strip()
+            exp = int(m["exp"])
+            if abs(exp) > 64:
+                continue
+            if expr.startswith("(") and expr.endswith(")"):
+                base = Fraction(expr[1:-1])
+                correct = base ** exp
+            elif expr.startswith("-"):
+                base = Fraction(expr[1:])
+                correct = -(base ** exp)
+            else:
+                base = Fraction(expr)
+                correct = base ** exp
+            if base == 0 and exp <= 0:
+                continue
+            claimed = Fraction(m["val"])
+        except (ValueError, ZeroDivisionError):
+            continue
+        if correct == claimed:
+            continue
+        out = out[:m.start("val")] + str(correct) + out[m.end("val"):]
+        repairs += 1
+    return out, repairs
+
+
+def repair_numeric_power_payload(obj):
+    """Recursively repair generated solution/narrative strings only."""
+    if isinstance(obj, str):
+        return repair_numeric_power_claims(obj)
+    if isinstance(obj, list):
+        total = 0
+        rows = []
+        for item in obj:
+            fixed, count = repair_numeric_power_payload(item)
+            rows.append(fixed)
+            total += count
+        return rows, total
+    if isinstance(obj, dict):
+        total = 0
+        fixed = {}
+        for key, value in obj.items():
+            new_value, count = repair_numeric_power_payload(value)
+            fixed[key] = new_value
+            total += count
+        return fixed, total
+    return obj, 0
+
+
 def check_power_claims(text: str) -> list[str]:
     """Verify numeric power equalities with exact rational arithmetic."""
     bad = []

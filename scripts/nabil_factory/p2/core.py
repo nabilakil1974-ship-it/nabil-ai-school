@@ -1202,6 +1202,22 @@ def prepare_verified_solutions(entry: dict, exercises: list,
             cached = page_checkpoints.load_solution(
                 drive_service, checkpoint_root, entry, ex)
         if cached is not None:
+            cached, repaired_powers = repair_numeric_power_payload(cached)
+            if repaired_powers:
+                page_checkpoints.save_solution(
+                    drive_service, checkpoint_root, entry, ex, cached)
+                progress(
+                    "SOLUTION_NUMERIC_POWER_CACHE_SELF_HEALED",
+                    exercise_id=ex.get("exercise_id"),
+                    number=ex.get("number"),
+                    repaired_claims=repaired_powers,
+                )
+            remaining_bad = check_power_claims(
+                json.dumps(cached, ensure_ascii=False))
+            if remaining_bad:
+                raise RuntimeError(
+                    "SOLUTION_NUMERIC_POWER_REPAIR_INCOMPLETE:"
+                    + json.dumps(remaining_bad[:8], ensure_ascii=False))
             ex["solution_status"] = "SOLVED"
             ex["_pre_solved_solution"] = cached
             progress("SOLUTION_RESTORED_FROM_DRIVE",
@@ -1234,6 +1250,20 @@ def prepare_verified_solutions(entry: dict, exercises: list,
             )
             continue
 
+        sol, repaired_powers = repair_numeric_power_payload(sol)
+        if repaired_powers:
+            progress(
+                "SOLUTION_NUMERIC_POWER_FRESH_SELF_HEALED",
+                exercise_id=ex.get("exercise_id"),
+                number=ex.get("number"),
+                repaired_claims=repaired_powers,
+            )
+        remaining_bad = check_power_claims(
+            json.dumps(sol, ensure_ascii=False))
+        if remaining_bad:
+            raise RuntimeError(
+                "SOLUTION_NUMERIC_POWER_REPAIR_INCOMPLETE:"
+                + json.dumps(remaining_bad[:8], ensure_ascii=False))
         ex["_pre_solved_solution"] = sol
         if page_checkpoints:
             page_checkpoints.save_solution(
