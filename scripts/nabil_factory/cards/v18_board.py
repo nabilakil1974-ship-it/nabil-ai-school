@@ -158,6 +158,15 @@ _JS = r"""
        labWrap=$('v18LabWrap'),labTitle=$('v18LabTitle'),voiceNote=$('v18VoiceNote');
  let idea=0,stepI=-1,token=0,voiceOn=true,finalShown=false,playing=false;
  const FINAL=slides.length;                       /* index of the golden-card stage */
+ let avatarObjectUrl=null;
+ function approvedAvatarUrl(){
+  if(!avatarObjectUrl){
+   const bytes=Uint8Array.from(atob(DATA.avatar_base64),c=>c.charCodeAt(0));
+   avatarObjectUrl=URL.createObjectURL(new Blob([bytes],{type:'image/jpeg'}));
+  }
+  return avatarObjectUrl;
+ }
+ window.addEventListener('pagehide',()=>{if(avatarObjectUrl)URL.revokeObjectURL(avatarObjectUrl)});
  const sleep=ms=>new Promise(r=>setTimeout(r,FAST?0:ms));
  const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!==undefined)e.textContent=x;return e};
  /* language: follows the page translation runtime (NABILPageLanguage) when present */
@@ -240,7 +249,7 @@ _JS = r"""
   finalShown=on;root.classList.toggle('is-final',on);
   if(on&&!finalHost.dataset.rendered){
    finalHost.dataset.rendered='1';
-   try{const g=Object.assign({},DATA.golden,{language:cur()});if(g.function_study&&g.function_study.variation_table)g.function_study={variation_table:locVT(g.function_study.variation_table)};
+   try{const g=Object.assign({},DATA.golden,{language:cur(),avatar_src:approvedAvatarUrl()});if(g.function_study&&g.function_study.variation_table)g.function_study={variation_table:locVT(g.function_study.variation_table)};
     (window.__NABIL_V18_CARDS||window.NABILScientificCards).fromLesson(trDeep(g),finalHost)}
    catch(e){finalHost.textContent='GOLDEN_CARD_RENDER_FAILED: '+e;finalHost.dataset.failed='1'}
   }
@@ -442,14 +451,18 @@ def render_v18_smart_board(title: str, activities: list, lang_code: str,
         return ""
     if not golden_spec or not golden_spec.get("sections"):
         raise RuntimeError("V18_GOLDEN_CARD_SPEC_EMPTY")
-    avatar = "data:image/jpeg;base64," + _read("nabil_avatar_b64.txt").strip()
+    avatar_b64 = _read("nabil_avatar_b64.txt").strip()
     golden = dict(golden_spec)
-    golden["avatar_src"] = avatar
+    # The approved NABIL portrait is not a textbook scan. Keep the original
+    # image bytes but materialize a browser Blob URL only when the card renders.
+    # Thus the strict data:image/ source-raster ban stays fully enforced.
+    golden["avatar_src"] = ""
     golden_speech = " ".join(
         [title] + [str(s["title"]) + ". " + str(s["conclusion"]) for s in slides])
     data = json.dumps({
         "contract": V18_BOARD_CONTRACT, "lang": lang, "title": title, "mode": mode,
         "slides": slides, "golden": golden, "golden_speech": golden_speech,
+        "avatar_base64": avatar_b64,
     }, ensure_ascii=False).replace("</", "<\\/").replace("<!--", "<\\!--")
     # Prevent the HTML math/translation normalization from rewriting executable
     # vendor JavaScript. Decode and execute its original bytes in the browser.

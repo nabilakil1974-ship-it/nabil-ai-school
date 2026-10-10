@@ -24,6 +24,7 @@ def main():
                         "Powers — synthetic Chromium contract", [activity],
                         lang, golden_spec=golden, mode=mode)
                     assert board and "nabilV18CardEnginePayload" in board
+                    assert 'data:image/' not in board, 'Inline raster URL leaked into student HTML'
                     path = Path(temp) / (mode + "_" + lang + ".html")
                     path.write_text('<!doctype html><html><head><meta charset="utf-8">'
                         '<meta name="viewport" content="width=device-width,initial-scale=1">'
@@ -47,13 +48,16 @@ def main():
                                 text:card?.innerText||'',
                                 grid:!!card?.querySelector('.nabil-sci-grid'),
                                 rule:!!card?.querySelector('.nabil-sci-final'),
-                                error:host?.dataset.failed||''
+                                error:host?.dataset.failed||'',
+                                avatar:card?.querySelector('.nabil-sci-avatar')?.getAttribute('src')||''
                             };
                         }""")
                         assert result.get("init"), (mode,lang,result,errors)
                         assert result["finalIndex"] == 1 and result["final"] and result["visible"],(mode,lang,result,errors)
                         assert result["height"] > 120 and result["grid"] and result["rule"],(mode,lang,result,errors)
                         assert "2³ = 8" in result["text"] and not result["error"],(mode,lang,result,errors)
+                        assert result["avatar"].startswith("blob:"),(mode,lang,result,errors)
+                        page.wait_for_function("() => {const img=document.querySelector('#goldenReferenceCard .nabil-sci-avatar');return !!img && img.complete && img.naturalWidth > 0}",timeout=5000)
                         assert not errors,(mode,lang,errors)
                         page.evaluate("() => window.NABILWholeLessonOrchestrator.goTo(0)")
                         assert not page.evaluate("() => window.NABILWholeLessonOrchestrator.state().final")
