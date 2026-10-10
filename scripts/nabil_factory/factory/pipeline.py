@@ -47,6 +47,23 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
     finally:
         doc.close()
 
+    # Export a grounded ChatGPT handoff BEFORE all AI generation.
+    # Explicit opt-in only. Never claim production or publish at this stage.
+    if os.getenv("NABIL_HANDOFF_EXPORT_ONLY", "0") == "1":
+        from scripts.nabil_factory.assistant_handoff import create_handoff
+        handoff_path = str(
+            OUT_DIR / ("HANDOFF--" + re.sub(r"[^A-Za-z0-9_-]", "_", lesson_id) + ".json"))
+        handoff = create_handoff(entry, ev_map, handoff_path)
+        progress("HANDOFF_WAITING_FOR_ASSISTANT",
+                 lesson_id=lesson_id, path=handoff_path,
+                 source_hash=handoff["input_sha256"])
+        return {
+            "status": "HANDOFF_AWAITING_ASSISTANT",
+            "lesson_id": lesson_id, "handoff_file": handoff_path,
+            "input_sha256": handoff["input_sha256"],
+            "published": False, "paid_ai_called": False,
+        }
+
     theory = synthesize_universal_pedagogy(
         entry, ev_map, profile, drive_service=drive_service)
 
