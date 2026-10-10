@@ -215,9 +215,24 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
             )
         return translated_html, report
 
-    page_a, translation_a = _translate_page_cached(
-        page_a_raw, "theory",
-        purpose=f"lesson_page_translation_{lesson_id}")
+    # V18 emits a complete, executable, verified-source Smart Board HTML page.
+    # Never send executable JS/CSS through an LLM translation pass: altering the
+    # program destroys playback and hides the actual renderer behind stale HTML.
+    # The English-only pilot retains the verified source language; a separate
+    # data-only trilingual payload translation must precede V18 render later.
+    if 'name="nabil-v18-renderer"' in page_a_raw:
+        page_a = page_a_raw
+        translation_a = {
+            "status": "V18_SOURCE_LANGUAGE_PRESERVED",
+            "available_languages": [source_lang_code],
+            "needs_trilingual_data_stage": True,
+        }
+        progress("V18_PROGRAM_HTML_TRANSLATION_BYPASSED",
+                 lesson_id=lesson_id, source_language=source_lang_code)
+    else:
+        page_a, translation_a = _translate_page_cached(
+            page_a_raw, "theory",
+            purpose=f"lesson_page_translation_{lesson_id}")
     page_b, translation_b = _translate_page_cached(
         page_b_raw, "exercises",
         purpose=f"exercise_page_translation_{lesson_id}")
