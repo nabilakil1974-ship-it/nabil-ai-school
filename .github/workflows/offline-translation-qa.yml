@@ -22,3 +22,5 @@ jobs:
         run: python -m py_compile scripts/nabil_factory/offline_translation.py scripts/test_offline_translation.py
       - name: Math and language safety tests
         run: python -m scripts.test_offline_translation
+      - name: Grounded handoff integrity tests
+        run: python -m scripts.test_assistant_handoff
