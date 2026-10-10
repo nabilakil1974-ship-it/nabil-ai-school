@@ -7912,7 +7912,7 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict, lab_index: Opt
     <h1 style="margin:0; font-size:22px;">{clean_title}</h1>
     <div class="header-actions" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
       <button type="button" id="nabilExplainWholeLessonLabs" class="nav-btn" style="background:#0f766e;">🧪 {html.escape({"ar":"اشرح الدرس كاملًا بالمختبرات","fr":"Expliquer toute la leçon avec les laboratoires","en":"Explain the whole lesson with labs"}.get(page_a_lang_code,"Explain the whole lesson with labs"))}</button>
-      <button type="button" onclick="document.getElementById('goldenReferenceCard')?.scrollIntoView({behavior:'smooth',block:'start'})" class="nav-btn" style="background:#7c3aed;">📌 {html.escape({"ar":"البطاقة النهائية","fr":"Carte finale","en":"Final reference card"}.get(page_a_lang_code,"Final reference card"))}</button>
+      <button type="button" onclick="window.NABILWholeLessonOrchestrator?.goTo(Number(document.querySelector('#nabilWholeLessonSmartLab')?.dataset.conceptCount || 1)-1);document.getElementById('nabilWholeLessonSmartLab')?.scrollIntoView({behavior:'smooth',block:'start'})" class="nav-btn" style="background:#7c3aed;">📌 {html.escape({"ar":"البطاقة النهائية","fr":"Carte finale","en":"Final reference card"}.get(page_a_lang_code,"Final reference card"))}</button>
       <button onclick="navigateToExercises()" class="nav-btn">{html.escape(ui_t(page_a_lang_code, "view_exercises"))}</button>
     </div>
   </div>
