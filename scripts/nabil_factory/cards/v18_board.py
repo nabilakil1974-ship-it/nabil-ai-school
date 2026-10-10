@@ -446,15 +446,57 @@ def verify_v18_scientific_card_inline_engine(page_html: str) -> bool:
     trusted = _read("v18_golden_cards_engine.js").encode("utf-8")
     return embedded == trusted and b"window.NABILScientificCards={" in embedded
 
+def teaching_sentence(sentence: str, kind: str, lang_code: str, position: int = 0) -> str:
+    """Teacher-led, source-faithful one-line narrative for board AND Golden cards.
+
+    Preserve all verified mathematical content verbatim. Narration is a
+    transition, NOT an invented substitution, fact, numerical result or proof.
+    """
+    import re
+    content = re.sub(r"\\s+", " ", str(sentence or "")).strip()
+    if not content:
+        return ""
+    prompts = {
+        "ar": {
+            "problem": "نقرأ نصّ السؤال ونحدّد المطلوب: ",
+            "first": "نبدأ الحلّ خطوةً خطوة، ونلاحظ ما يأتي: ",
+            "next": "ننتقل الآن إلى الخطوة التالية، ونوضّحها: ",
+            "final": "نستنتج من الخطوات السابقة: ",
+        },
+        "en": {
+            "problem": "Read the question and identify what is required: ",
+            "first": "Let us begin and explain our first step: ",
+            "next": "We now explain the next step: ",
+            "final": "We conclude from the steps above: ",
+        },
+        "fr": {
+            "problem": "Lisons la question et identifions ce qui est demandé : ",
+            "first": "Commençons et expliquons la première étape : ",
+            "next": "Expliquons maintenant l'étape suivante : ",
+            "final": "Nous concluons des étapes précédentes : ",
+        },
+    }
+    locale = prompts.get(lang_code, prompts["en"])
+    if kind == "problem":
+        prefix = locale["problem"]
+    elif kind == "final":
+        prefix = locale["final"]
+    else:
+        prefix = locale["first"] if position <= 1 else locale["next"]
+    return content if content.startswith(tuple(locale.values())) else prefix + content
+
+
 def build_slide(act: dict, lang_code: str) -> dict | None:
     """Convert one verified concept activity into a board slide (or None)."""
     lab_html = str(act.get("lab_html") or "")
     if not lab_html and not act.get("allow_no_lab"):
         return None
     steps = []
-    for st in (act.get("teaching_steps") or []):
+    for position, st in enumerate((act.get("teaching_steps") or [])):
         sentence = str(st.get("sentence") or "").strip()
         if sentence:
+            sentence = teaching_sentence(sentence, str(st.get("kind") or ""),
+                                         lang_code, position)
             steps.append({
                 "label": str(st.get("label") or ""),
                 "text": sentence,
@@ -517,8 +559,9 @@ def build_golden_spec(title: str, activities: list, lang_code: str,
         # Golden exercise cards preserve the verified teacher's worked
         # reasoning, rather than reducing a solution to a numeric answer.
         verified_steps = [
-            str(step.get("sentence") or "").strip()
-            for step in (act.get("teaching_steps") or [])
+            teaching_sentence(str(step.get("sentence") or ""),
+                              str(step.get("kind") or ""), lang_code, position)
+            for position, step in enumerate(act.get("teaching_steps") or [])
             if isinstance(step, dict)
             and step.get("kind") in ("problem", "step", "final")
             and str(step.get("sentence") or "").strip()
