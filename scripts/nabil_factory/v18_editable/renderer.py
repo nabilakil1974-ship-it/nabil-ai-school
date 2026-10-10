@@ -17,6 +17,17 @@ def _json(value):
     return json.dumps(value, ensure_ascii=False, separators=(',', ':')).replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026').replace('\u2028', '\\u2028')
 
 
+def _validated_spec(value, context):
+    """Accept only explicit, factory-supplied scientific card specifications."""
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise RuntimeError('V18_INVALID_SCIENTIFIC_SPEC:' + context)
+    # JSON-compatible and trustworthy source status are the factory's responsibility.
+    json.dumps(value, ensure_ascii=False)
+    return value
+
+
 def _steps(theory):
     rows=[]
     for activity in theory.get('activities') or []:
@@ -36,6 +47,8 @@ def _steps(theory):
         rows.append(dict(concept_id=cid,title=title,lines=lines,prompt=prompt,
                          lab=str(activity.get('lab_html') or ''),
                          visual=str(activity.get('visual_html') or ''),
+                         lab_spec=_validated_spec(activity.get('lab_spec') or activity.get('scientific_lab_spec') or activity.get('verified_lab_spec'), cid),
+                         translations=activity.get('translations') or {},
                          conclusion=str(activity.get('conclusion') or lines[-1])))
     if not rows: raise RuntimeError('V18_NO_VERIFIED_CONCEPTS')
     return rows
@@ -52,9 +65,11 @@ def render_v18_lesson(entry,theory,ev_map,lab_index=None):
         raise RuntimeError('V18_VERIFIED_FULL_QUIZ_MISSING')
     lang=str(entry.get('language') or 'en')[:2].lower()
     if lang not in ('ar','en','fr'): lang='en'
+    # Preserve exact verified final HTML; optional structured card activates scientific engine.
+    card_spec=_validated_spec(theory.get('verified_card_spec') or theory.get('scientific_card_spec') or theory.get('card_spec'), 'FINAL')
     data={'steps':steps,'title':str(entry.get('canonical_title') or theory.get('title') or 'Lesson'),
           'lang':lang,'labIndex':lab_index or {},'lessonId':str(entry.get('lesson_id') or ''),
-          'cardSpec':theory.get('verified_card_spec') or theory.get('scientific_card_spec') or None}
+          'cardSpec':card_spec}
     template=r'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="nabil-v18-renderer" content="single-file-interactive"><meta name="nabil-renderer-contract" content="NABIL_REFERENCE_RENDERER_V1"><meta name="nabil-lesson-id" content="__LESSON_ID__"><title>__TITLE__ | NABIL V18</title>
 <style>
@@ -73,31 +88,36 @@ def render_v18_lesson(entry,theory,ev_map,lab_index=None):
 <script type="application/json" id="nabilLessonData">__DATA__</script>
 <script>
 (()=>{'use strict';
-const data=JSON.parse(document.getElementById('nabilLessonData').textContent),steps=data.steps,el=id=>document.getElementById(id);
+const data=JSON.parse(document.getElementById('nabilLessonData').textContent),steps=data.steps,el=id=>document.getElementById(id);const verifiedCardFallback=document.querySelector('#finalHost .golden').innerHTML;
 const vocab={en:{results:'Verified study results',boardHint:'TEACH · WRITE · LISTEN · EXPERIMENT',teacher:'Teacher NABIL',concepts:'Lesson concepts',final:'Golden final card',quiz:'Check your understanding',play:'▶ Play lesson',stop:'■ Stop',prev:'◀ Previous',next:'Next ▶',restart:'↻ Restart',speakStep:'🔊 Repeat explanation',toggleVoice:'Voice ON',exercises:'Exercises →',language:'Language',apply:'Try it',ready:'Ready',complete:'Lesson complete',unavailable:'Audio is unavailable on this browser/device.',notTranslated:'Verified translation unavailable; original textbook wording shown.'},ar:{results:'النتائج المثبتة',boardHint:'اشرح · اكتب · استمع · جرّب',teacher:'الأستاذ نبيل',concepts:'أفكار الدرس',final:'البطاقة الذهبية النهائية',quiz:'اختبر فهمك',play:'▶ ابدأ الشرح',stop:'■ توقّف',prev:'◀ السابق',next:'التالي ▶',restart:'↻ إعادة',speakStep:'🔊 أعد الشرح',toggleVoice:'الصوت يعمل',exercises:'التمارين ←',language:'اللغة',apply:'جرّب بنفسك',ready:'جاهز',complete:'اكتمل الدرس',unavailable:'الصوت غير متاح في هذا الجهاز أو المتصفح.',notTranslated:'الترجمة العلمية الموثقة غير متوفرة؛ يُعرض النص الأصلي.'},fr:{results:'Résultats vérifiés',boardHint:'EXPLIQUER · ÉCRIRE · ÉCOUTER · EXPÉRIMENTER',teacher:'Professeur NABIL',concepts:'Notions du cours',final:'Fiche finale dorée',quiz:'Vérifiez vos acquis',play:'▶ Démarrer',stop:'■ Arrêter',prev:'◀ Précédent',next:'Suivant ▶',restart:'↻ Recommencer',speakStep:'🔊 Réécouter',toggleVoice:'Voix active',exercises:'Exercices →',language:'Langue',apply:'À vous',ready:'Prêt',complete:'Cours terminé',unavailable:'Synthèse vocale indisponible.',notTranslated:'Traduction vérifiée indisponible ; texte source affiché.'}};
 let lang=data.lang,index=0,token=0,playing=false,voiceEnabled=true,speechAvailable=!!(window.speechSynthesis&&window.SpeechSynthesisUtterance),typingDelay=48;
-const localized=(s)=>{if(typeof s==='string')return s;return (s&&typeof s==='object')?(s[lang]||s[data.lang]||s.en||Object.values(s)[0]||''):''};
+const completed=new Set();let completedLesson=false;
+const localized=(s)=>{if(typeof s==='string')return s;if(!s||typeof s!=='object')return '';return String(s[lang]||s[data.lang]||s.en||Object.values(s).find(v=>typeof v==='string'&&v.trim())||'')};
+const originalOnly=s=>typeof s==='string'||(s&&typeof s==='object'&&!s[lang]);
+function textFor(s,field){const value=s[field];const tr=s.translations?.[lang]?.[field];return typeof tr==='string'&&tr.trim()?tr:localized(value)}
+function lineFor(s,i){const tr=s.translations?.[lang]?.lines;return Array.isArray(tr)&&typeof tr[i]==='string'&&tr[i].trim()?tr[i]:localized((s.lines||[])[i])}
+function checkLocale(){if(lang===data.lang)return true;return steps.every(s=>!originalOnly(s.title)&&!originalOnly(s.prompt)&&Array.isArray(s.translations?.[lang]?.lines)&&s.translations[lang].lines.length===s.lines.length)}
 const t=k=>vocab[lang][k]||vocab.en[k];
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 function cancel(){token++;playing=false;if(speechAvailable){try{speechSynthesis.cancel()}catch(_){}}}
 function notice(msg){el('status').textContent=msg}
-function allLines(step){const v=step.lines||[];return v.map(localized).filter(Boolean)}
+function allLines(step){return (step.lines||[]).map((_,i)=>lineFor(step,i)).filter(Boolean)}
 function renderText(target,text){target.textContent=String(text||'')}
 function fillUI(){document.documentElement.lang=lang;el('language').value=lang;document.querySelectorAll('[data-ui]').forEach(node=>{node.textContent=t(node.dataset.ui)});['play','stop','prev','next','restart','speakStep','exercises'].forEach(id=>el(id).textContent=t(id));el('toggleVoice').textContent=voiceEnabled?t('toggleVoice'):'🔇';el('toggleVoice').setAttribute('aria-pressed',String(voiceEnabled));el('voiceState').textContent=!speechAvailable?t('unavailable'):''}
-function buildSlots(){el('studySlots').replaceChildren();el('timeline').replaceChildren();el('conceptList').replaceChildren();steps.forEach((s,i)=>{let box=document.createElement('div');box.className='slot';let h=document.createElement('strong');h.textContent=(i+1)+'. '+localized(s.title);let p=document.createElement('p');box.append(h,p);el('studySlots').append(box);let b=document.createElement('button');b.textContent=String(i+1);b.setAttribute('aria-label',String(localized(s.title)));b.onclick=()=>show(i);el('timeline').append(b);let c=document.createElement('p');c.textContent=(i+1)+'. '+localized(s.title);el('conceptList').append(c)})}
-function renderLab(s){let v=el('visual');v.replaceChildren();const raw=s.lab||s.visual;if(!raw && s.lab_spec && window.NABILScientificCards){
-const pane=document.createElement('div');v.append(pane);window.NABILScientificCards.renderCard(s.lab_spec,pane);return}
-if(!raw){let p=document.createElement('p');p.textContent=t('apply')+': '+localized(s.prompt);v.append(p);return}let f=document.createElement('iframe');f.title=localized(s.title)+' — interactive lesson visual';f.setAttribute('sandbox','allow-scripts allow-forms');f.setAttribute('loading','lazy');f.srcdoc='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;padding:10px;font-family:Arial,sans-serif}canvas,svg,img{max-width:100%;height:auto}button,input,select{max-width:100%}</style></head><body>'+raw+'</bo'+'dy></ht'+'ml>';v.append(f)}
-function renderFinalCard(){const spec=data.cardSpec,host=el('finalHost');if(!spec||!window.NABILScientificCards)return;let pane=host.querySelector('.golden');if(pane){pane.replaceChildren();window.NABILScientificCards.renderCard(spec,pane)}}
-function syncSlots(){[...el('studySlots').children].forEach((slot,i)=>{slot.classList.toggle('active',i<=index);slot.querySelector('p').textContent=i<=index?localized(steps[i].conclusion):'—'});[...el('timeline').children].forEach((b,i)=>b.classList.toggle('active',i===index))}
-function show(n,keepPlaying=false,blank=false){if(!keepPlaying)cancel();index=Math.max(0,Math.min(steps.length,n));const final=index===steps.length,s=steps[Math.min(index,steps.length-1)];el('boardTitle').textContent=final?t('final'):localized(s.title);el('boardWriting').textContent=blank?'':final?steps.map(x=>localized(x.title)+' — '+localized(x.conclusion)).join('\n\n'):allLines(s).join('\n\n')+'\n\n'+t('apply')+': '+localized(s.prompt);el('teacherSpeech').textContent=final?t('complete'):blank?'':allLines(s).join(' ');if(!final)renderLab(s);else el('visual').replaceChildren();el('finalHost').hidden=!final;if(final)renderFinalCard();el('v18VerifiedQuiz').hidden=!final;syncSlots();notice((index+1)+' / '+(steps.length+1))}
+function buildSlots(){el('studySlots').replaceChildren();el('timeline').replaceChildren();el('conceptList').replaceChildren();steps.forEach((s,i)=>{let box=document.createElement('div');box.className='slot';let h=document.createElement('strong');h.textContent=(i+1)+'. '+textFor(s,'title');let p=document.createElement('p');box.append(h,p);el('studySlots').append(box);let b=document.createElement('button');b.textContent=String(i+1);b.setAttribute('aria-label',String(textFor(s,'title')));b.onclick=()=>show(i);el('timeline').append(b);let c=document.createElement('p');c.textContent=(i+1)+'. '+textFor(s,'title');el('conceptList').append(c)})}
+function renderLab(s){let v=el('visual');v.replaceChildren();const raw=s.lab||s.visual;if(s.lab_spec?.type==='scientific_card' && window.NABILScientificCards){
+const pane=document.createElement('div');v.append(pane);try{window.NABILScientificCards.renderCard(s.lab_spec,pane);return}catch(err){pane.remove();console.error('V18_LAB_RUNTIME_FAILED',err)}}
+if(!raw){let p=document.createElement('p');p.textContent=t('apply')+': '+textFor(s,'prompt');v.append(p);return}let f=document.createElement('iframe');f.title=textFor(s,'title')+' — interactive lesson visual';f.setAttribute('sandbox','allow-scripts allow-forms');f.setAttribute('loading','lazy');f.srcdoc='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;padding:10px;font-family:Arial,sans-serif}canvas,svg,img{max-width:100%;height:auto}button,input,select{max-width:100%}</style></head><body>'+raw+'</bo'+'dy></ht'+'ml>';v.append(f)}
+function renderFinalCard(){const spec=data.cardSpec,host=el('finalHost');if(!spec||!window.NABILScientificCards)return;let pane=host.querySelector('.golden');if(pane){try{pane.replaceChildren();window.NABILScientificCards.renderCard(spec,pane)}catch(err){pane.innerHTML=verifiedCardFallback;console.error('V18_CARD_RUNTIME_FAILED',err)}}}
+function syncSlots(){[...el('studySlots').children].forEach((slot,i)=>{slot.classList.toggle('active',completed.has(i));slot.querySelector('p').textContent=completed.has(i)?textFor(steps[i],'conclusion'):'—'});[...el('timeline').children].forEach((b,i)=>b.classList.toggle('active',i===index))}
+function show(n,keepPlaying=false,blank=false){if(!keepPlaying)cancel();index=Math.max(0,Math.min(steps.length,n));const final=index===steps.length&&completedLesson,s=steps[Math.min(index,steps.length-1)];if(index===steps.length&&!completedLesson){index=steps.length-1;notice(t('ready'));return show(index,true,false)}el('boardTitle').textContent=final?t('final'):textFor(s,'title');el('boardWriting').textContent=blank?'':final?steps.map(x=>textFor(x,'title')+' — '+textFor(x,'conclusion')).join('\n\n'):allLines(s).join('\n\n')+'\n\n'+t('apply')+': '+textFor(s,'prompt');el('teacherSpeech').textContent=final?t('complete'):blank?'':allLines(s).join(' ');if(!final)renderLab(s);else el('visual').replaceChildren();el('finalHost').hidden=!final;if(final)renderFinalCard();el('v18VerifiedQuiz').hidden=!final;syncSlots();notice((index+1)+' / '+(steps.length+1))}
 // True speechSynthesis, not a fake "voice playing" flag. Voice availability depends on browser voices.
 async function speak(text,myToken){if(!voiceEnabled||!speechAvailable||!text)return;await new Promise(resolve=>{if(token!==myToken){resolve();return}const u=new SpeechSynthesisUtterance(text);u.lang=lang==='ar'?'ar-LB':lang==='fr'?'fr-FR':'en-US';u.rate=.82;u.pitch=1;let done=false;const finish=()=>{if(!done){done=true;resolve()}};u.onend=finish;u.onerror=finish;try{speechSynthesis.speak(u)}catch(_){finish()}setTimeout(finish,Math.max(9000,text.length*150))})}
 async function writeLine(line,myToken){let node=el('boardWriting');const prefix=node.textContent?node.textContent+'\n\n':'';for(let k=0;k<=line.length;k++){if(token!==myToken)return false;node.textContent=prefix+line.slice(0,k);await sleep(typingDelay)}return true}
-async function teach(from=index,one=false){cancel();const mine=token;playing=true;const until=one?Math.min(from+1,steps.length):steps.length;for(let i=from;i<until;i++){if(token!==mine)return;show(i,true,true);let parts=allLines(steps[i]);for(let line of parts){if(token!==mine)return;el('teacherSpeech').textContent=line;const ok=await writeLine(line,mine);if(!ok)return;await speak(line,mine);await sleep(180);if(token!==mine)return}const prompt=t('apply')+': '+localized(steps[i].prompt);await writeLine(prompt,mine);if(token!==mine)return;syncSlots();await sleep(470)}if(token===mine){playing=false;if(!one&&until===steps.length)show(steps.length,true);notice(t('complete'))}}
+async function teach(from=index,one=false){cancel();const mine=token;playing=true;const until=one?Math.min(from+1,steps.length):steps.length;for(let i=from;i<until;i++){if(token!==mine)return;show(i,true,true);let parts=allLines(steps[i]);for(let line of parts){if(token!==mine)return;el('teacherSpeech').textContent=line;const ok=await writeLine(line,mine);if(!ok)return;await speak(line,mine);await sleep(180);if(token!==mine)return}const prompt=t('apply')+': '+textFor(steps[i],'prompt');await writeLine(prompt,mine);if(token!==mine)return;completed.add(i);syncSlots();await sleep(470)}if(token===mine){playing=false;if(!one&&until===steps.length){completedLesson=true;show(steps.length,true);notice(t('complete'))}else notice(t('ready'))}}
 function navigateToExercises(){const url=new URL(location.href);url.pathname=url.pathname.replace(/\.html$/i,'--EXERCISES.html');location.href=url.toString()}
-el('play').onclick=()=>teach(index===steps.length?0:index);el('stop').onclick=()=>{cancel();notice(t('ready'))};el('prev').onclick=()=>show(index-1);el('next').onclick=()=>show(index+1);el('restart').onclick=()=>teach(0);el('speakStep').onclick=()=>teach(Math.min(index,steps.length-1),true);el('toggleVoice').onclick=()=>{voiceEnabled=!voiceEnabled;if(!voiceEnabled&&speechAvailable)speechSynthesis.cancel();fillUI()};el('exercises').onclick=navigateToExercises;
-el('language').onchange=e=>{cancel();lang=e.target.value;fillUI();buildSlots();show(index);document.dispatchEvent(new CustomEvent('nabil:page-language-change',{detail:{language:lang}}));if(lang!==data.lang&&!steps.some(x=>typeof x.title==='object'))notice(t('notTranslated'))};
+el('play').onclick=()=>teach(index===steps.length?0:index);el('stop').onclick=()=>{cancel();notice(t('ready'))};el('prev').onclick=()=>show(index-1);el('next').onclick=()=>show(index+1);el('restart').onclick=()=>{completed.clear();completedLesson=false;buildSlots();teach(0)};el('speakStep').onclick=()=>teach(Math.min(index,steps.length-1),true);el('toggleVoice').onclick=()=>{voiceEnabled=!voiceEnabled;if(!voiceEnabled&&speechAvailable)speechSynthesis.cancel();fillUI()};el('exercises').onclick=navigateToExercises;
+el('language').onchange=e=>{cancel();lang=e.target.value;fillUI();buildSlots();show(index);document.dispatchEvent(new CustomEvent('nabil:page-language-change',{detail:{language:lang}}));if(!checkLocale())notice(t('notTranslated'))};
 window.NabilV18={play:()=>teach(0),stop:cancel,setLanguage:l=>{if(vocab[l]){el('language').value=l;el('language').dispatchEvent(new Event('change'))}},go:show};
 fillUI();buildSlots();show(0);
 })();
