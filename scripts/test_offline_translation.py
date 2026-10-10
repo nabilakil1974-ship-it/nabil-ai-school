@@ -27,4 +27,25 @@ class OfflineTranslationTests(unittest.TestCase):
     def test_identity(self):
         html="<p>Original language</p>"
         self.assertEqual(translate_html_offline(html,"fr","fr")[0],html)
+
+    def test_v18_embedded_board_and_golden(self):
+        import json
+        from bs4 import BeautifulSoup
+        from scripts.nabil_factory.offline_translation import translate_v18_embedded_board_html
+        payload={"lang":"en","title":"The power","slides":[
+            {"title":"The power","steps":[{"text":"We observe $2^3=8$","formula":"2^3=8"}]}],
+            "golden":{"sections":[{"label":"The power","items":["We observe $2^3=8$"]}]}}
+        document='<script type="application/json" id="nabilV18Data">'+json.dumps(payload)+'</script>'
+        translated, count=translate_v18_embedded_board_html(document,French())
+        data=json.loads(BeautifulSoup(translated,"html.parser").find("script").string)
+        self.assertEqual(count,1)
+        self.assertEqual(data["lang"],"fr")
+        self.assertEqual(data["slides"][0]["title"],"La puissance")
+        self.assertEqual(data["golden"]["sections"][0]["label"],"La puissance")
+        self.assertIn("$2^3=8$",data["slides"][0]["steps"][0]["text"])
+        self.assertEqual(data["slides"][0]["steps"][0]["formula"],"2^3=8")
+    def test_unsupported_pair_fails_closed(self):
+        from scripts.nabil_factory.offline_translation import get_free_translator
+        with self.assertRaises(OfflineTranslationUnavailable):
+            get_free_translator("en","ar","opus")
 if __name__=="__main__":unittest.main()
