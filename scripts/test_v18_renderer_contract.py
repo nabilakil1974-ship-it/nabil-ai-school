@@ -17,6 +17,10 @@ class V18RendererTest(unittest.TestCase):
         self.assertIn('/static/nabil_browser_tts_v1.js?v=1',out)
         self.assertIn('navigateToExercises',out)
         self.assertLess(out.index('C01'),out.index('GOLDEN-FINAL-CARD'))
+        self.assertLess(out.index("visual.appendChild(f)"), out.rfind("</body>"))
+        self.assertNotIn("+'</body></html>'", out)
+        self.assertIn("<\\/body><\\/html>", out)
+
     def test_missing_source_flow_rejected(self):
         with self.assertRaises(RuntimeError):
             render_v18_lesson({"canonical_title":"Powers"},
