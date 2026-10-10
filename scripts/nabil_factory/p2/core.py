@@ -3651,9 +3651,19 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
     check("REFERENCE_CARD_CONTENT_INCOMPLETE",
           "goldenReferenceCard" in candidate["page_a_html"],
           "CRITICAL", "Golden reference card missing")
-    check("APPROVED_CARD_LAYOUT_MISSING",
-          all(x in candidate["page_a_html"] for x in ("nabil-sci-card","nabil-sci-grid","nabil-sci-analysis","nabil-sci-visual","nabil-sci-teacher-panel","nabil-sci-final")),
-          "CRITICAL", "Approved NABIL card division/colors missing")
+    is_v18_renderer = 'name="nabil-v18-renderer"' in candidate["page_a_html"]
+    approved_layout = (
+        all(x in candidate["page_a_html"] for x in
+            ('id="boardWriting"', 'id="boardTitle"', 'id="visual"',
+             'id="timeline"', 'NabilRuntime.TeacherPlaybackController',
+             'GOLDEN-FINAL-CARD', 'id="concepts"'))
+        if is_v18_renderer else
+        all(x in candidate["page_a_html"] for x in
+            ("nabil-sci-card", "nabil-sci-grid", "nabil-sci-analysis",
+             "nabil-sci-visual", "nabil-sci-teacher-panel", "nabil-sci-final"))
+    )
+    check("APPROVED_CARD_LAYOUT_MISSING", approved_layout, "CRITICAL",
+          "V18 Smart Board and verified Golden last card required")
     check("TEACHING_FLOW_APPLY_MISSING",
           candidate["page_a_html"].count('data-step="application"') == len(ev_map["concepts"]),
           "CRITICAL", "Every concept must end with Apply")
