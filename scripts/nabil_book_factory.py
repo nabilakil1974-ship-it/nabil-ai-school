@@ -571,7 +571,7 @@ def run(book_id: str, *, index_only: bool, publish: bool,
     for entry in index["lessons"]:
         lid=entry["lesson_id"]
         old=state["lessons"].get(lid,{})
-        if old.get("status")=="PUBLISHED_VERIFIED" and old.get("drive_theory_id") and old.get("drive_exercises_id"):
+        if not (os.getenv("NABIL_REBUILD_LESSON_ID") == lid) and old.get("status")=="PUBLISHED_VERIFIED" and old.get("drive_theory_id") and old.get("drive_exercises_id"):
             pending_count = int(old.get("pending_source_count") or 0)
             retry_epoch = float(old.get("pending_source_retry_after_epoch") or 0)
             if pending_count == 0:
