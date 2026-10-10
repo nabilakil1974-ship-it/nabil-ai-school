@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""Single-lesson Grade 7 mathematics acceptance run. No batch production."""
+"""Resumable Grade 7 mathematics verified batch production (five new lessons)."""
 
 import sys
 from pathlib import Path
@@ -19,6 +19,6 @@ if __name__ == "__main__":
         "--grade", "7",
         "--subject", "mathematics",
         "--language", "en",
-        "--max-new-lessons", "1",
+        "--max-new-lessons", "5",
     ]
     raise SystemExit(nabil_book_factory.main())
