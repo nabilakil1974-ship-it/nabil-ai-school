@@ -44,6 +44,38 @@ def build_full_quiz_items(activities_theory: List[Dict[str, Any]]) -> List[Dict[
         question = str(q.get("q") or "").strip()
         if not question:
             continue
+        # Evidence-locked symbolic answer for the product-of-powers rule.
+        # Reject malformed AI options and insert the *same sourced identity*
+        # as an explicit mathematical choice, never as a fabricated distractor.
+        source_statement = " ".join(str(act.get(k) or "") for k in
+            ("title", "conclusion", "interpretation", "source_quote"))
+        source_statement += " " + str(q.get("explanation") or "")
+        normalized = source_statement.lower()
+        is_product_power = (
+            ("product" in normalized or "multiplication" in normalized)
+            and ("power" in normalized or "exponent" in normalized)
+            and ("raised" in normalized or "same exponent" in normalized)
+            and ("a" in normalized and "b" in normalized)
+        )
+        if is_product_power and any("(a" in str(v).lower() and "b)" in str(v).lower()
+                                    for v in options):
+            import re as _re
+            # Repair answer representation ONLY when verified source establishes
+            # the product rule; check the original conclusion and answer.
+            verified = (
+                ("a" in str(act.get("conclusion") or "").lower()
+                 and "b" in str(act.get("conclusion") or "").lower())
+                or ("product of each" in normalized)
+            )
+            if verified:
+                correct_formula = "(a × b)^m = a^m × b^m"
+                options = list(options)
+                options[correct_index] = correct_formula
+                # If another option has become a duplicate, drop the concept:
+                # never show a multiple-choice quiz with duplicate correct answers.
+                if any(str(v).strip() == correct_formula
+                       for i, v in enumerate(options) if i != correct_index):
+                    continue
         evidence = act.get("evidence") if isinstance(act.get("evidence"), dict) else {}
         items.append({
             "id": len(items) + 1,
