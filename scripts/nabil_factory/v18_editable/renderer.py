@@ -47,7 +47,7 @@ def render_v18_lesson(entry, theory, ev_map, lab_index=None):
     language=str(entry.get("language") or "en").lower()
     lang="ar" if language.startswith("ar") else ("fr" if language.startswith("fr") else "en")
     content=json.dumps(steps,ensure_ascii=False).replace("<","\\u003c").replace("&","\\u0026")
-    card=theory.get("final_reference_card_html") or ""
+    card=theory.get("reference_card_html") or ""
     # Preserve the verified golden card, and put it LAST in the teaching sequence.
     if not card and theory.get("whole_lesson_lab_html"):
         # No invented golden card: final frame is explicitly a recap of audited steps.
