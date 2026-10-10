@@ -250,6 +250,13 @@ _JS = r"""
  slides.concat([{title:L.final}]).forEach((_,i)=>{const b=el('button','v18-dot',i+1);b.type='button';b.setAttribute('aria-label',(i<slides.length?L.idea+' ':L.final+' ')+(i+1));b.onclick=()=>{halt();goTo(i)};timeline.appendChild(b)});
  function paintTimeline(){const cur=finalShown?FINAL:idea;[...timeline.children].forEach((b,i)=>b.className='v18-dot '+(i<cur?'done':(i===cur?'on':'')))}
  function paintSlots(){slides.forEach((s,i)=>{const d=$('v18Slot'+i);const complete=finalShown||i<idea;d.className='v18-slot'+(complete?' locked':(i===idea?' current':''));d.querySelector('.v');d.querySelector('.v').textContent=complete?(tr(s.conclusion)||'✓'):'—'})}
+ function followBoardWriting(target){
+  if(!target||!target.isConnected)return;
+  // Follow the current line without changing the student's horizontal position.
+  // Respect reduced motion and avoid stealing focus from answer inputs.
+  const reduce=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+  target.scrollIntoView({behavior:reduce?'instant':'smooth',block:'center',inline:'nearest'});
+ }
  function showLines(upto,typeLast,tok){
   // P0 universal board: retain all preceding verified teaching on ONE board.
   // No extra slideshow cards are rendered as the principal explanation.
@@ -274,6 +281,7 @@ _JS = r"""
    lines.appendChild(row);last=(i===upto)?t:last;
    if(i!==upto)t.textContent=tr(st.text);
   }
+  if(last)followBoardWriting(last);
   if(last&&typeLast)return typeInto(last,tr(s.steps[upto].text),tok);
   if(last)last.textContent=tr(s.steps[upto].text);
   return Promise.resolve(true);
