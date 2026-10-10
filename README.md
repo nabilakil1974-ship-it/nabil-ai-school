@@ -224,3 +224,19 @@ Drive book / source
 - [Separate Claude refactor (not merged into V18)](https://github.com/nabilakil1974-ship-it/nabil-ai-school/tree/refactor/lesson-factory-modular-v1)
 
 **Documentation maintenance:** Update the *status* section on every accepted milestone with exact commit, proof, dates and Drive links. Never silently rewrite historical evidence. All new requirements must say whether they are **required**, **implemented**, **tested**, or **accepted**.
+
+
+## 13. Original visual HTML references / روابط النماذج الأصلية (verified on Drive 2026-10-10)
+
+**These are the real HTML reference artifacts, NOT merely Python source-module links.** Preserve these as visual/functional comparison fixtures. A Drive preview may not execute active JavaScript; download or open with an HTML-capable test environment as needed. Their existence does not prove they match the current V18 page or that its scientific content is approved.
+
+| Original artifact on Google Drive | Actual permanent link | Reference purpose |
+|---|---|---|
+| **G12-MATH-GS-001-FINAL-MASTER-LAB.html** | [Open original full master lab](https://drive.google.com/file/d/1huJPwwPBNnDP4W5huCEf0fX5MvPWLqgG/view) | Full reference interactive lab; sequence, controls, drawings and behavior |
+| **G12-MATH-GS-001-LAB-01.html** | [Open original single lab](https://drive.google.com/file/d/1xelTK0eYdOOrK8u_RAbeg1NwrPK_djD8/view) | Reference activity-level lab |
+| **lesson.html** | [Open original lesson HTML](https://drive.google.com/file/d/1wYWwaL0ZGp_qvUz2K9c6PKlTVfvdMiep/view) | Original teaching/lesson HTML to compare together with lab |
+| **Golden visual card engine source** | [V18 actual embedded shared cards source](scripts/nabil_factory/v18_editable/cards.py) | Verified repository implementation preserving shared visual/card engine |
+
+**Golden Card original screenshot / preview:** the previously discussed artifact name is \`V18_UNIVERSAL_GOLDEN_CARDS_PREVIEW.html\`, but a stable external URL for that specific file was **not found/verified** on Google Drive in this review. It must not be represented by an invented Google Drive link. Its layout reference is the previously approved Golden Card imagery, together with the existing real shared engine [cards.py](scripts/nabil_factory/v18_editable/cards.py) and [renderer.py](scripts/nabil_factory/v18_editable/renderer.py). When the original screenshot or preview is uploaded to the repository or Drive with a stable verified ID, add its URL HERE.
+
+**Acceptance rule:** test reference visual equivalence and actual mobile interactions; linking the files does not automatically mean the V18 renderer/lab/card conforms to them.
