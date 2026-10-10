@@ -121,7 +121,8 @@ Array.from(timeline.children).forEach((b,j)=>b.classList.toggle('active',j===i))
 status.textContent=(i+1)+' / '+slides.length+' · '+x.title;document.getElementById('v18VerifiedQuiz').hidden=index!==slides.length-1;}
 slides.forEach((x,i)=>{const b=document.createElement('button');b.textContent=i+1;b.onclick=()=>show(i);timeline.appendChild(b);
 const li=document.createElement('li');li.textContent=(i+1)+'. '+x.title;document.getElementById('concepts').appendChild(li);});
-document.addEventListener('nabil:page-language-change',e=>{const code=e.detail?.language||'en';ctl.setLanguage(code);});\ndocument.getElementById('play').onclick=()=>{const from=index;ctl.play(slides.slice(from).map((step,k)=>({...step,fullIndex:from+k})),0)};
+document.addEventListener('nabil:page-language-change',e=>{const code=e.detail?.language||'en';ctl.setLanguage(code);});
+document.getElementById('play').onclick=()=>{const from=index;ctl.play(slides.slice(from).map((step,k)=>({...step,fullIndex:from+k})),0)};
 document.getElementById('current').onclick=()=>{const selected=index;ctl.stop();show(selected);ctl.play([slides[selected]],0)};
 document.getElementById('next').onclick=()=>show(Math.min(slides.length-1,index+1));
 document.getElementById('prev').onclick=()=>show(Math.max(0,index-1));
