@@ -3967,9 +3967,12 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
         "CRITICAL",
         "NABIL lesson voice must be browser SpeechSynthesis only; male voice is preferred when the device supplies one",
     )
+    # The audited V18 renderer is delivered as an encoded *inline* payload to
+    # preserve executable JS across page translation and HTML normalization.
+    # Verify its complete source bytes, not a spoofable substring marker.
+    from scripts.nabil_factory.cards.v18_board import verify_v18_scientific_card_inline_engine
     check("SCIENTIFIC_CARD_RENDERER_NOT_WIRED",
-          all('data-nabil-v18-board="NABIL_V18_SMART_BOARD_V1"' in page
-              and "window.NABILScientificCards={" in page
+          all(verify_v18_scientific_card_inline_engine(page)
               for page in (candidate["page_a_html"], candidate["page_b_html"])),
           "CRITICAL",
           "Generated pages must embed the V18 Scientific Card engine (no external file)")

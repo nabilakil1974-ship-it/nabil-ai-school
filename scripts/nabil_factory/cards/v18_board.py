@@ -17,6 +17,7 @@ from __future__ import annotations
 import base64
 import html
 import json
+import re
 from pathlib import Path
 
 V18_BOARD_CONTRACT = "NABIL_V18_SMART_BOARD_V1"
@@ -340,6 +341,33 @@ _JS = r"""
 def _read(name: str) -> str:
     return (_ASSETS / name).read_text(encoding="utf-8")
 
+
+
+def verify_v18_scientific_card_inline_engine(page_html: str) -> bool:
+    """Strict source-authenticated embedded V18 engine validation.
+
+    Unlike text-marker tests, this requires the *entire* inline engine bytes
+    to match the audited repository renderer. The Playwright QA independently
+    verifies execution and visible Golden Card as the final teaching stage.
+    """
+    if (
+        f'data-nabil-v18-board="{V18_BOARD_CONTRACT}"' not in page_html
+        or "V18_GOLDEN_CARD_ENGINE_BOOTSTRAP_FAILED" not in page_html
+    ):
+        return False
+    matches = re.findall(
+        r'<script type="text/plain" id="nabilV18CardEnginePayload">'
+        r'([A-Za-z0-9+/=]+)</script>',
+        page_html,
+    )
+    if len(matches) != 1:
+        return False
+    try:
+        embedded = base64.b64decode(matches[0], validate=True)
+    except (ValueError, base64.binascii.Error):
+        return False
+    trusted = _read("v18_golden_cards_engine.js").encode("utf-8")
+    return embedded == trusted and b"window.NABILScientificCards={" in embedded
 
 def build_slide(act: dict, lang_code: str) -> dict | None:
     """Convert one verified concept activity into a board slide (or None)."""

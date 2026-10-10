@@ -2,7 +2,7 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from playwright.sync_api import sync_playwright
-from scripts.nabil_factory.cards.v18_board import render_v18_smart_board, build_golden_spec
+from scripts.nabil_factory.cards.v18_board import render_v18_smart_board, build_golden_spec, verify_v18_scientific_card_inline_engine
 
 def main():
     activity = {
@@ -24,6 +24,10 @@ def main():
                         "Powers — synthetic Chromium contract", [activity],
                         lang, golden_spec=golden, mode=mode)
                     assert board and "nabilV18CardEnginePayload" in board
+                    assert verify_v18_scientific_card_inline_engine(board), (mode, lang, "embedded source mismatch")
+                    assert not verify_v18_scientific_card_inline_engine(
+                        board.replace('nabilV18CardEnginePayload">', 'nabilV18CardEnginePayload">A', 1)
+                    ), "Tampered payload falsely accepted"
                     assert 'data:image/' not in board, 'Inline raster URL leaked into student HTML'
                     path = Path(temp) / (mode + "_" + lang + ".html")
                     path.write_text('<!doctype html><html><head><meta charset="utf-8">'
