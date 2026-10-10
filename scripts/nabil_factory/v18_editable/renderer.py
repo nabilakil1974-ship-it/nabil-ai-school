@@ -66,6 +66,10 @@ def render_v18_lesson(entry, theory, ev_map, lab_index=None):
         for row in steps
     )
     lab_index_json = json.dumps(lab_index or {}, ensure_ascii=False).replace("<", "\\u003c")
+    # Preserve the source-audited quiz block, with its original interactive markup.
+    quiz_html = str(theory.get("quiz_html") or "")
+    if theory.get("quiz_eligible_count", 0) and "fullQuizBlock" not in quiz_html:
+        raise RuntimeError("V18_VERIFIED_FULL_QUIZ_MISSING")
     scripts=_script_bundle()
     page=r'''<!doctype html><html lang="__LANG__"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="nabil-v18-renderer" content="original-runtime-integrated"><meta name="nabil-lesson-id" content="__ID__">
@@ -92,7 +96,7 @@ button.primary{background:#0b766d}button:focus-visible{outline:3px solid #ffd35a
 <button id="prev">◀ Previous</button><button id="next">Next ▶</button><button id="stop">■ Stop</button>
 <button id="restart">↻ Restart</button><button id="voice">🔊 Voice ON</button>
 <button id="exercises">Exercises →</button></div><div id="timeline"></div></section>
-<aside class="panel"><div class="brand">Lesson concepts</div><ul id="concepts"></ul><p class="tag">The final reference card appears LAST.</p></aside></div></main>
+<aside class="panel"><div class="brand">Lesson concepts</div><ul id="concepts"></ul><p class="tag">The final reference card appears LAST.</p></aside></div><section class="panel" id="v18VerifiedQuiz" style="margin-top:16px">__VERIFIED_QUIZ__</section></main>
 <script type="application/json" id="nabilLabIndex">__LAB_INDEX__</script>
 __SCRIPTS__
 <script>
@@ -127,4 +131,4 @@ show(0);
 </script></body></html>'''
     return (page.replace("__LANG__",lang).replace("__ID__",html.escape(str(entry.get("lesson_id") or "")))
             .replace("__TITLE__",title).replace("__SCRIPTS__",scripts)
-            .replace("__STEPS__",content).replace("__FINAL__",result).replace("__APPLY_MARKERS__",apply_markers).replace("__LAB_INDEX__",lab_index_json))
+            .replace("__STEPS__",content).replace("__FINAL__",result).replace("__APPLY_MARKERS__",apply_markers).replace("__LAB_INDEX__",lab_index_json).replace("__VERIFIED_QUIZ__",quiz_html))
