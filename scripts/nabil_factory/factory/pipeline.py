@@ -209,12 +209,29 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
             )
         return translated_html, report
 
-    page_a, translation_a = _translate_page_cached(
-        page_a_raw, "theory",
-        purpose=f"lesson_page_translation_{lesson_id}")
-    page_b, translation_b = _translate_page_cached(
-        page_b_raw, "exercises",
-        purpose=f"exercise_page_translation_{lesson_id}")
+    # Zero translation-provider calls for the explicitly approved ONE English
+    # textbook pilot. This does not suppress scientific review or other gates.
+    english_only = (
+        os.getenv("NABIL_POWERS_ENGLISH_ONLY") == "1"
+        and lesson_id == "G07-MATHEMATICS-69B7C840-001"
+        and source_lang_code == "en"
+    )
+    if english_only:
+        progress("ENGLISH_ONLY_TRANSLATION_SKIPPED", lesson_id=lesson_id,
+                 saved_provider_calls="theory_and_exercises")
+        page_a, page_b = page_a_raw, page_b_raw
+        translation_a = translation_b = {
+            "complete": True, "languages": ["en"],
+            "candidate_strings": 0, "translated_counts": {"en": 0},
+            "mode": "source_language_no_translation",
+        }
+    else:
+        page_a, translation_a = _translate_page_cached(
+            page_a_raw, "theory",
+            purpose=f"lesson_page_translation_{lesson_id}")
+        page_b, translation_b = _translate_page_cached(
+            page_b_raw, "exercises",
+            purpose=f"exercise_page_translation_{lesson_id}")
 
     # Legacy bridge toward the typed text/math contract. Run AFTER translation
     # cache restore so this costs zero provider calls and also heals cached
@@ -265,6 +282,7 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
             "page_a": translation_a,
             "page_b": translation_b,
         },
+        "source_language_only": english_only,
         "hashes": {
             "page_a": hashlib.sha256(page_a.encode("utf-8")).hexdigest(),
             "page_b": hashlib.sha256(page_b.encode("utf-8")).hexdigest(),
