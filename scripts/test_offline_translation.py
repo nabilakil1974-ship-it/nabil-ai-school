@@ -48,4 +48,22 @@ class OfflineTranslationTests(unittest.TestCase):
         from scripts.nabil_factory.offline_translation import get_free_translator
         with self.assertRaises(OfflineTranslationUnavailable):
             get_free_translator("en","ar","opus")
+
+    def test_whole_lesson_fr_draft_covers_v18_board(self):
+        import json
+        from scripts.translate_nabil_offline import translate_lesson
+        data={"lang":"en","title":"The power","slides":[
+            {"title":"The power","steps":[{"text":"We observe $2^3=8$","formula":"2^3=8"}]}],
+            "golden":{"sections":[{"label":"The power","items":["We observe $2^3=8$"]}]}}
+        html=('<div data-nabil-v18-board="v18"><p>The power</p></div>'
+              '<script type="application/json" id="nabilV18Data">'+json.dumps(data)+'</script>')
+        translated,report=translate_lesson(html,French())
+        self.assertIn("La puissance",translated)
+        self.assertEqual(report["translated_v18_boards"],1)
+        self.assertFalse(report["publish_approved"])
+        self.assertEqual(report["scientific_review"],"NOT_REVIEWED")
+    def test_refuse_fake_full_lesson_without_board_data(self):
+        from scripts.translate_nabil_offline import translate_lesson
+        with self.assertRaises(OfflineTranslationUnavailable):
+            translate_lesson('<div data-nabil-v18-board="v18">The power</div>',French())
 if __name__=="__main__":unittest.main()
