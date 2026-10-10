@@ -8,10 +8,10 @@ class V18RendererTest(unittest.TestCase):
                "language":"en","grade":7,"subject":"mathematics","book_id":"source"}
         theory={"activities":[{"concept_id":"C01","title":"Powers","teaching_steps":[
             {"label":"See","sentence":"Two multiplied by itself three times equals eight."}],
-            "lab_html":"<div>Verified power sequence</div>","student_apply_prompt":{"prompt":"Calculate 2 cubed","verified_against_source":True}}]}
+            "lab_html":"<div>Verified power sequence</div>","student_apply_prompt":{"prompt":"Calculate 2 cubed","verified_against_source":True}}],"quiz_eligible_count":1,"quiz_html":"<section id=\"fullQuizBlock\">Verified quiz</section>"}
         out=render_v18_lesson(entry,theory,{})
         for required in ('name="nabil-v18-renderer"','NabilRuntime.TeacherPlaybackController',
-                         'GOLDEN-FINAL-CARD','id="boardWriting"','<script>'):
+                         'GOLDEN-FINAL-CARD','id="boardWriting"','fullQuizBlock','<script>'):
             self.assertIn(required,out)
         self.assertNotIn('class="nabil-sci-grid"',out)
         self.assertNotIn('/static/nabil_browser_tts_v1.js',out)
