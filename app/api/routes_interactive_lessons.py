@@ -367,7 +367,7 @@ def solve_exercise_on_demand(payload: dict):
 def get_prebuilt_lab_index(
         grade: str, subject: str, lesson: str, language: str = ""):
     """Read the prebuilt lesson/exercise lab directory. No AI call."""
-    item = _resolve(grade, subject, lesson, language)
+    item = v18_delivery.resolve_item(_resolve, grade, subject, lesson, language)
     service = _service()
     payload = None
     source = None
@@ -475,7 +475,7 @@ def diagnose(grade: str, subject: str, lesson: str, language: str = ""):
         if not matches:
             step("NO_PREPARED_LESSON", next="AI_TEXTBOOK_FALLBACK")
             return {"trace": trace, "found": False, "steps": steps}
-        item = _resolve(grade, subject, lesson, language)
+        item = v18_delivery.resolve_item(_resolve, grade, subject, lesson, language)
         step("FILE_SELECTED", filename=item.get("filename", item["lesson"]))
         data = _download(service, item["drive_file_id"])
         step("FILE_DOWNLOADED", bytes=len(data))
@@ -630,6 +630,8 @@ def _prepared_lookup_for_scope(grade: str, subject: str):
 
 
 
+from app.services import v18_lesson_delivery as v18_delivery
+
 @router.get("/available")
 def available(grade: str, subject: str):
     """Real textbook TOC lessons first; prepared Drive HTML is openability state.
@@ -642,61 +644,11 @@ def available(grade: str, subject: str):
         indexed = _indexed_factory_lessons(grade, subject)
         prepared_lookup = _prepared_lookup_for_scope(grade, subject)
 
-        lessons = []
-        seen = set()
-
-        # Primary source: textbook TOC indexes produced by the factory.
-        for row in indexed:
-            key = _norm(row["title"])
-            prepared = prepared_lookup.get(key)
-            item = {
-                **row,
-                "prepared": bool(prepared),
-                "available_to_open": bool(prepared),
-                "filename": str(prepared.get("filename", "")) if prepared else "",
-                "drive_file_id": str(prepared.get("drive_file_id", "")) if prepared else "",
-            }
-            lessons.append(item)
-            seen.add(key)
-
-        # Compatibility fallback: never hide already-published lessons merely
-        # because an older book has not yet been re-indexed by the new factory.
-        for prepared in _entries():
-            if _grade(prepared.get("grade")) != _grade(grade):
-                continue
-            if _subject(prepared.get("subject")) != _subject(subject):
-                continue
-            filename = str(prepared.get("filename", ""))
-            if re.search(r"--EXERCISES\.html$", filename, re.I):
-                continue
-            title = clean_display_title(prepared["lesson"])
-            key = _norm(title)
-            if key in seen:
-                continue
-            seen.add(key)
-            lessons.append({
-                "title": title,
-                "raw_title": prepared["lesson"],
-                "aliases": prepared.get("aliases", []),
-                "filename": filename,
-                "drive_file_id": str(prepared.get("drive_file_id", "")),
-                "prepared": True,
-                "available_to_open": True,
-                "source": "prepared_drive_fallback",
-            })
-
-        source = (
-            "factory_book_index+prepared_drive"
-            if indexed else "prepared_drive_fallback")
-        return {
-            "grade": grade,
-            "subject": subject,
-            "lessons": lessons,
-            "source": source,
-            "indexed_count": len(indexed),
-            "prepared_count": sum(1 for x in lessons if x.get("prepared")),
-            "count": len(lessons),
-        }
+        return v18_delivery.catalogue_rows(
+            indexed, prepared_lookup, _entries(), grade=grade, subject=subject,
+            norm=_norm, normalize_grade=_grade, normalize_subject=_subject,
+            clean_title=clean_display_title,
+        )
     except Exception as exc:
         log.exception("DRIVE_AVAILABLE_FAILED")
         raise HTTPException(
@@ -709,17 +661,15 @@ def resolve(grade: str, subject: str, lesson: str, language: str = ""):
     log.info("DRIVE_LESSON_LOOKUP_START trace=%s grade=%r subject=%r lesson=%r language=%r",
              trace, grade, subject, lesson, language)
     try:
-        item = _resolve(grade, subject, lesson, language)
+        item = v18_delivery.resolve_item(_resolve, grade, subject, lesson, language)
         log.info("DRIVE_LESSON_FOUND trace=%s file=%s name=%r",
                  trace, item["drive_file_id"], item.get("filename", item["lesson"]))
         html_bytes = _download(_service(), item["drive_file_id"])
-        if b"<html" not in html_bytes[:4096].lower() and b"<!doctype html" not in html_bytes[:4096].lower():
+        if not v18_delivery.valid_html_bytes(html_bytes):
             raise ValueError("INVALID_PREPARED_LESSON_HTML")
         log.info("DRIVE_LESSON_READ_OK trace=%s bytes=%d elapsed_ms=%d",
                  trace, len(html_bytes), round((monotonic()-started)*1000))
-        url = ("/api/interactive-lessons/view?grade=" + quote(grade)
-               + "&subject=" + quote(subject) + "&lesson=" + quote(lesson)
-               + "&language=" + quote(language) + "&trace=" + quote(trace))
+        url = v18_delivery.view_url(grade, subject, lesson, language, trace)
         return {"found": True, "title": clean_display_title(item["lesson"]), "url": url, "trace": trace,
                 "source": "google_drive", "bytes": len(html_bytes)}
     except HTTPException as exc:
@@ -739,7 +689,7 @@ def view(grade: str, subject: str, lesson: str, language: str = "", trace: str =
     trace = re.sub(r"[^a-zA-Z0-9]", "", trace)[:24] or uuid.uuid4().hex[:12]
     log.info("DRIVE_LESSON_VIEW_START trace=%s lesson=%r", trace, lesson)
     try:
-        item = _resolve(grade, subject, lesson, language)
+        item = v18_delivery.resolve_item(_resolve, grade, subject, lesson, language)
         service = _service()
         if view not in ("", "exercises"):
             raise HTTPException(400, "INVALID_LESSON_VIEW")
@@ -768,21 +718,7 @@ def view(grade: str, subject: str, lesson: str, language: str = "", trace: str =
             html = re.sub(r'<body([^>]*)class="([^"]*)"', lambda m: '<body' + m.group(1) + 'class="' + re.sub(r"\bfrmode\b", "", m.group(2)).strip() + '"', html, count=1, flags=re.I)
         html = _set_initial_language(html, language)
 
-        # New factory pages already contain evidence-gated labs. Attach only the
-        # shared NABIL runtime/bridge; never inject lesson-specific science.
-        if 'name="nabil-renderer-contract"' in html and "</body>" in html.lower():
-            runtime_tags = []
-            if "/static/nabil_browser_tts_v1.js" not in html:
-                runtime_tags.append('<script src="/static/nabil_browser_tts_v1.js?v=1"></script>')
-            if "/static/nabil_lesson_e2e_runtime_v1.js" not in html:
-                runtime_tags.append('<script src="/static/nabil_lesson_e2e_runtime_v1.js?v=1"></script>')
-            if "/static/nabil_smart_lab_bridge_v1.js" not in html:
-                runtime_tags.append('<script src="/static/nabil_smart_lab_bridge_v1.js?v=1"></script>')
-            if runtime_tags:
-                html = re.sub(
-                    r"</body>", "".join(runtime_tags) + "</body>",
-                    html, count=1, flags=re.I,
-                )
+        html = v18_delivery.ensure_runtime_scripts(html)
 
         if "</head>" in html.lower():
             html = re.sub(r"</head>", '<link rel="stylesheet" href="/static/nabil_lesson_color_cards_v1.css?v=1"></head>', html, count=1, flags=re.I)
