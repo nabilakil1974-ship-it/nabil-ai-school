@@ -215,20 +215,54 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
             )
         return translated_html, report
 
-    # V18 emits a complete, executable, verified-source Smart Board HTML page.
-    # Never send executable JS/CSS through an LLM translation pass: altering the
-    # program destroys playback and hides the actual renderer behind stale HTML.
-    # The English-only pilot retains the verified source language; a separate
-    # data-only trilingual payload translation must precede V18 render later.
+    # Translate ONLY the verified student text, never executable V18 scripts.
+    # The existing trilingual translator supplies real ar/en/fr dictionaries.
     if 'name="nabil-v18-renderer"' in page_a_raw:
-        page_a = page_a_raw
-        translation_a = {
-            "status": "V18_SOURCE_LANGUAGE_PRESERVED",
-            "available_languages": [source_lang_code],
-            "needs_trilingual_data_stage": True,
-        }
-        progress("V18_PROGRAM_HTML_TRANSLATION_BYPASSED",
-                 lesson_id=lesson_id, source_language=source_lang_code)
+        from html import escape as _html_escape
+        from scripts.nabil_factory.v18_editable.renderer import _steps as _v18_steps
+        _texts = []
+        for _step in _v18_steps(theory):
+            _texts.append(str(_step["title"]))
+            _texts.extend(str(line) for line in _step["lines"])
+        _texts += [
+            "Golden Final Card", "Teach entire lesson",
+            "Explain this concept", "Previous", "Next", "Stop",
+            "Restart", "Voice ON", "Exercises",
+            "Lesson concepts", "The final reference card appears LAST.",
+        ]
+        _quiz = str(theory.get("quiz_html") or "")
+        _quiz = re.sub(r"<script\\b[^>]*>[\\s\\S]*?</script>", "", _quiz, flags=re.I)
+        _shell = ('<!doctype html><html><body>'
+                  + ''.join('<span>' + _html_escape(t) + '</span>'
+                            for t in dict.fromkeys(_texts) if t.strip())
+                  + _quiz + '</body></html>')
+        _translated_shell, translation_a = _translate_page_cached(
+            _shell, "theory_v18_text_only",
+            purpose=f"v18_verified_text_translation_{lesson_id}")
+        _language = re.search(
+            r'<div id="nabilPageLanguage"\\b[\\s\\S]*?</div>',
+            _translated_shell, re.I)
+        _bundle = re.search(
+            r'<script id="nabilPageTranslationBundle"[^>]*>[\\s\\S]*?</script>',
+            _translated_shell, re.I)
+        _runtime = re.search(
+            r'<script id="nabilPageTranslationRuntime"[^>]*>[\\s\\S]*?</script>',
+            _translated_shell, re.I)
+        if not all((_language, _bundle, _runtime)):
+            raise RuntimeError("V18_TRANSLATION_RUNTIME_INCOMPLETE")
+        page_a = re.sub(
+            r"(<body[^>]*>)",
+            lambda m: (m.group(1)
+                       + '<div data-nabil-translation-complete="true" hidden></div>'
+                       + _language.group(0) + _bundle.group(0)),
+            page_a_raw, count=1, flags=re.I)
+        page_a = re.sub(
+            r"</body>", lambda m: _runtime.group(0) + m.group(0),
+            page_a, count=1, flags=re.I)
+        progress("V18_TRILINGUAL_DATA_ONLY_TRANSLATED",
+                 lesson_id=lesson_id,
+                 languages=translation_a.get("languages"),
+                 candidate_strings=translation_a.get("candidate_strings"))
     else:
         page_a, translation_a = _translate_page_cached(
             page_a_raw, "theory",
