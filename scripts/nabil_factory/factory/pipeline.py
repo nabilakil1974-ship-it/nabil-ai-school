@@ -4,8 +4,14 @@ from __future__ import annotations
 # PRODUCTION PIPELINE ENTRY (LAZY DRIVE RESOLUTION)
 # ==============================================================================
 def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: bool = False) -> dict:
+    # Protected engineering safety layer; independent of the V18 display engine.
+    from scripts.nabil_factory.factory.locked_v18_safety import (
+        assert_safe_factory_boundaries, assert_source_identity,
+    )
+    assert_safe_factory_boundaries()
     lesson_id = entry["lesson_id"]
     book_id = entry["book_id"]
+    assert_source_identity(entry, book_id)
     progress("PRODUCTION_PIPELINE_START", lesson_id=lesson_id)
     assert_renderer_family_contract()
 
