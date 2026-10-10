@@ -2350,7 +2350,7 @@ def render_whole_lesson_smart_lab(
  (()=>{{
   const slides={payload};let idx=0,runToken=0,loadingToken=0;
   const frame=document.getElementById('nabilWholeLessonFrame'),titleEl=document.getElementById('nabilWholeLessonTitle'),flowEl=document.getElementById('nabilWholeLessonFlow'),timeline=document.getElementById('nabilWholeTimeline');
-  function stop(){{runToken++;try{{window.NABILLessonE2E?.stopSpeech?.()}}catch(_e){{}}}}
+  function stop(){{runToken++;cancelSpeech();try{{window.NABILLessonE2E?.stopSpeech?.()}}catch(_e){{}}}}
   function buildTimeline(){{timeline.innerHTML='';slides.forEach((_,i)=>{{const b=document.createElement('button');b.className='wl-dot';b.textContent=i+1;b.onclick=()=>{{stop();idx=i;render()}};timeline.appendChild(b)}})}}
   function render(){{
     const s=slides[idx];titleEl.textContent=(idx+1)+'. '+s.title;flowEl.innerHTML='';
@@ -2368,43 +2368,89 @@ def render_whole_lesson_smart_lab(
     loadingToken++;frame.srcdoc=s.srcdoc;
     [...timeline.children].forEach((b,i)=>b.className='wl-dot '+(i<idx?'done':i===idx?'on':''));
   }}
-  function teachCurrent(){{
-    const my=++loadingToken;
-    return new Promise(resolve=>{{
-      let settled=false;
-      const finish=()=>{{if(settled)return;settled=true;resolve()}};
-      const launch=()=>{{
-        if(my!==loadingToken){{finish();return}}
-        try{{
-          const doc=frame.contentDocument;
-          const shell=doc?.querySelector('.nabil-reference-smart-lab');
-          if(!shell){{finish();return}}
-          const onComplete=()=>{{shell.removeEventListener('nabil:teacher-complete',onComplete);finish()}};
-          shell.addEventListener('nabil:teacher-complete',onComplete,{{once:true}});
-          shell.dispatchEvent(new CustomEvent('nabil:teach-all'));
-        }}catch(_e){{finish()}}
-      }};
-      if(frame.contentDocument?.readyState==='complete')setTimeout(launch,120);
-      else frame.onload=()=>setTimeout(launch,120);
+  // Standalone teaching runtime: type verified explanations on the Smart Board,
+  // speak with browser TTS, and never advance in a fraction of a second.
+  let speaking=null;
+  const teachingSleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+  function cancelSpeech(){{
+    try{{window.speechSynthesis?.cancel()}}catch(_e){{}}
+    if(speaking){{speaking();speaking=null}}
+  }}
+  async function speakVerified(text,token){{
+    const words=String(text||'').trim().split(/\\s+/).filter(Boolean).length;
+    if(!words||token!==runToken)return;
+    const minimum=Math.max(4800,Math.min(65000,words*480));
+    if(!('speechSynthesis' in window)){{
+      await teachingSleep(minimum);return;
+    }}
+    await new Promise(resolve=>{{
+      let finished=false;
+      const finish=()=>{{if(finished)return;finished=true;speaking=null;resolve()}};
+      speaking=finish;
+      try{{
+        const utt=new SpeechSynthesisUtterance(String(text));
+        utt.lang={json.dumps(lang_code)}==='ar'?'ar-LB':({json.dumps(lang_code)}==='fr'?'fr-FR':'en-US');
+        utt.rate=.82;utt.pitch=1;
+        const voices=window.speechSynthesis.getVoices();
+        const chosen=voices.find(v=>v.lang.toLowerCase().startsWith(utt.lang.slice(0,2).toLowerCase()));
+        if(chosen)utt.voice=chosen;
+        utt.onend=finish;utt.onerror=finish;
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utt);
+      }}catch(_e){{}}
+      // Browser voices can fail to start (especially file://). Never hang.
+      setTimeout(finish,Math.max(minimum,words*1050+3000));
     }});
   }}
-  async function announceConcept(index){{
-    const s=slides[index];
-    const prefix=index===0?s.first_transition:s.next_transition;
-    const message=(prefix+' '+s.title).trim();
-    try{{await Promise.resolve(window.NABILLessonE2E?.speak?.(message,{json.dumps(lang_code)}));}}catch(_e){{}}
+  async function writeBoard(text,token){{
+    let board=document.getElementById('nabilWholeLessonTeachingBoard');
+    if(!board){{
+      board=document.createElement('div');board.id='nabilWholeLessonTeachingBoard';
+      board.setAttribute('role','status');
+      board.style.cssText='white-space:pre-wrap;line-height:1.8;padding:18px;margin:12px 0;border:2px solid #25d8ff;background:#04172c;color:#fff;border-radius:12px;font-size:clamp(17px,1.9vw,25px);min-height:110px;max-height:45vh;overflow:auto';
+      flowEl.parentElement?.insertBefore(board,flowEl);
+    }}
+    board.textContent='';
+    for(let i=0;i<text.length;i++){{
+      if(token!==runToken)return;
+      board.textContent+=text[i];
+      if(i%3===0)await teachingSleep(35);
+    }}
+  }}
+  async function teachCurrent(){{
+    const token=runToken;
+    const slide=slides[idx];if(!slide)return;
+    const currentRows=slide.flow||[];
+    if(slide.teaching_mode==='reference-card'){{
+      await writeBoard(slide.title,token);
+      await speakVerified(slide.title,token);
+      return;
+    }}
+    for(const row of currentRows){{
+      if(token!==runToken)return;
+      const narration=[row.label,row.text,row.formula].filter(Boolean).join('. ');
+      await writeBoard(narration,token);
+      if(token!==runToken)return;
+      await speakVerified(narration,token);
+      if(token!==runToken)return;
+      await teachingSleep(1100);
+    }}
+    // Also run a verified embedded interactive lab if it supplies a listener.
+    try{{
+      const shell=frame.contentDocument?.querySelector('.nabil-reference-smart-lab');
+      if(shell)shell.dispatchEvent(new CustomEvent('nabil:teach-all'));
+    }}catch(_e){{}}
   }}
   async function playAll(){{
-    stop();const token=runToken;idx=0;
-    for(idx=0;idx<slides.length;idx++){{
+    stop();const token=runToken;
+    for(let stepIndex=0;stepIndex<slides.length;stepIndex++){{
       if(token!==runToken)return;
-      render();
-      await announceConcept(idx);
+      idx=stepIndex;render();
+      await teachingSleep(400);
       if(token!==runToken)return;
       await teachCurrent();
       if(token!==runToken)return;
-      [...timeline.children].forEach((b,i)=>b.className='wl-dot '+(i<=idx?'done':''));
-      await new Promise(r=>setTimeout(r,220));
+      await teachingSleep(1300);
     }}
   }}
   document.getElementById('nabilWholePrev').onclick=()=>{{stop();idx=(idx+slides.length-1)%slides.length;render()}};
