@@ -14,6 +14,54 @@ SKIP_TAGS = {"script", "style", "code", "pre", "math", "svg", "textarea", "noscr
 # Preserve MathJax delimiters, numbers and symbols as immutable placeholders.
 MATH = re.compile(r"(\\\\\[.*?\\\\\]|\\\\\(.*?\\\\\)|\\$\\$.*?\\$\\$|\\$[^$\\n]+\\$)", re.S)
 
+class HelsinkiOpusTranslator:
+    """Commercially permissible Apache-2.0 Marian EN<->FR translation.
+    
+    Model weights must be downloaded once into a persistent local HF cache.
+    Loading uses local_files_only=True: NEVER silently make an internet or API
+    call during factory production, and NEVER substitute paid model inference.
+    """
+    MODELS = {
+        ("en", "fr"): "Helsinki-NLP/opus-mt-en-fr",
+        ("fr", "en"): "Helsinki-NLP/opus-mt-fr-en",
+    }
+
+    def __init__(self, source: str, target: str):
+        import os
+        model_name = self.MODELS.get((source, target))
+        if not model_name:
+            raise OfflineTranslationUnavailable("OPUS_UNSUPPORTED_LANGUAGE_PAIR")
+        try:
+            from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+        except ImportError as exc:
+            raise OfflineTranslationUnavailable("OPUS_DEPENDENCIES_MISSING") from exc
+        model_dir = os.getenv("NABIL_OPUS_MODEL_DIR", "").strip()
+        local_name = (model_dir + "/" + source + "-" + target) if model_dir else model_name
+        try:
+            self.tokenizer = AutoTokenizer.from_pretrained(local_name, local_files_only=True)
+            self.model = AutoModelForSeq2SeqLM.from_pretrained(
+                local_name, local_files_only=True)
+        except Exception as exc:
+            raise OfflineTranslationUnavailable("OPUS_MODEL_NOT_PREINSTALLED") from exc
+        self.model.eval()
+
+    def translate(self, text: str) -> str:
+        import torch
+        tokens = self.tokenizer(text, return_tensors="pt", truncation=True, max_length=384)
+        with torch.inference_mode():
+            output = self.model.generate(**tokens, max_new_tokens=512, num_beams=4)
+        return self.tokenizer.decode(output[0], skip_special_tokens=True)
+
+
+def get_free_translator(source: str, target: str, backend: str = "opus"):
+    """Choose explicitly; missing free models never invoke a paid provider."""
+    if backend == "opus":
+        return HelsinkiOpusTranslator(source, target)
+    if backend == "argos":
+        return _installed_translator(source, target)
+    raise OfflineTranslationUnavailable("UNKNOWN_OFFLINE_BACKEND")
+
+
 def _installed_translator(src: str, dst: str):
     if src not in ("en", "fr") or dst not in ("en", "fr") or src == dst:
         raise OfflineTranslationUnavailable("EN_FR_ONLY: unsupported translation pair")
