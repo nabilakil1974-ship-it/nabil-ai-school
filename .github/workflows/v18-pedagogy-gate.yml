@@ -1,0 +1,37 @@
+name: V18 Pedagogical Board Gate
+on:
+  pull_request:
+    branches:
+      - refactor/lesson-factory-modular-v1
+    paths:
+      - 'scripts/nabil_factory/cards/**'
+      - 'scripts/nabil_factory/p2/**'
+      - 'scripts/test_v18_*.py'
+      - '.github/workflows/v18-pedagogy-gate.yml'
+  workflow_dispatch:
+
+jobs:
+  verify-interactive-teaching:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deterministic test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+      - name: Python compile — teacher board and source-scoped pipeline
+        run: |
+          python -m py_compile scripts/nabil_factory/cards/v18_board.py scripts/nabil_factory/p2/core.py scripts/nabil_factory/factory/pipeline.py scripts/test_v18_virtual_student_gate.py
+      - name: REAL Chromium — virtual student wrong → hint → right → board persistence
+        run: python -m scripts.test_v18_virtual_student_gate
+      - name: REAL Chromium — Golden Card and exercise boards in en/ar/fr
+        run: python -m scripts.test_v18_golden_card_runtime
+      - name: Mathematics and book scope contracts
+        run: |
+          python -m scripts.test_book_factory_contracts
+          python -m scripts.test_textbook_scope
