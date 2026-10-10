@@ -570,6 +570,9 @@ def run(book_id: str, *, index_only: bool, publish: bool,
     newly_published=0
     for entry in index["lessons"]:
         lid=entry["lesson_id"]
+        only_lesson = str(os.getenv("NABIL_ONLY_LESSON_ID") or "").strip()
+        if only_lesson and lid != only_lesson:
+            continue
         old=state["lessons"].get(lid,{})
         if not (os.getenv("NABIL_REBUILD_LESSON_ID") == lid) and old.get("status")=="PUBLISHED_VERIFIED" and old.get("drive_theory_id") and old.get("drive_exercises_id"):
             pending_count = int(old.get("pending_source_count") or 0)
