@@ -36,7 +36,7 @@ def main():
             page=browser.new_page()
             errors=[]
             page.on("pageerror",lambda exc:errors.append(str(exc)))
-            page.add_init_script("""() => {
+            page.add_init_script("""(() => {
               window.__spokenEvents = [];
               class FakeUtterance {
                 constructor(text) { this.text = text; this.onend = null; this.onerror = null; }
@@ -54,7 +54,7 @@ def main():
                   Promise.resolve().then(()=>u.onend && u.onend());
                 }
               }});
-            }""")
+            })()""")
             page.goto(file.as_uri())
             page.locator("#nabilWholeCurrent").click()
             page.wait_for_function("window.__spokenEvents.length > 0")
