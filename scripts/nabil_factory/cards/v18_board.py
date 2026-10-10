@@ -167,6 +167,7 @@ _JS = r"""
   return avatarObjectUrl;
  }
  window.addEventListener('pagehide',()=>{if(avatarObjectUrl)URL.revokeObjectURL(avatarObjectUrl)});
+ $('v18TeacherAvatar').src=approvedAvatarUrl();
  const sleep=ms=>new Promise(r=>setTimeout(r,FAST?0:ms));
  const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!==undefined)e.textContent=x;return e};
  /* language: follows the page translation runtime (NABILPageLanguage) when present */
@@ -484,7 +485,7 @@ def render_v18_smart_board(title: str, activities: list, lang_code: str,
    <iframe id="nabilWholeLessonFrame" title="{h(labels["lab"])}"></iframe></div>
   <div class="v18-var" id="v18VarBox" style="display:none" data-v18-variation="true"></div>
 </section>
- <aside class="v18-box v18-teacher"><h3>NABIL AI</h3><img src="{avatar}" alt="NABIL AI">
+ <aside class="v18-box v18-teacher"><h3>NABIL AI</h3><img id="v18TeacherAvatar" alt="NABIL AI">
   <div class="v18-speech" id="v18Speech" aria-live="polite"></div>
   <button type="button" class="talk" data-v18-l="talk" id="v18Talk">{h(labels["talk"])}</button></aside>
 </div>
