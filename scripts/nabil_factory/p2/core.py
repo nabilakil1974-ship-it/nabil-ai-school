@@ -3652,11 +3652,17 @@ def run_all_quality_gates(candidate: dict) -> Dict[str, Any]:
           "goldenReferenceCard" in candidate["page_a_html"],
           "CRITICAL", "Golden reference card missing")
     is_v18_renderer = 'name="nabil-v18-renderer"' in candidate["page_a_html"]
+    # V18 is a standalone board with its own teacher playback and a gated,
+    # verified final card. Do not require the retired V17 controller or
+    # concept container; validate the real emitted runtime instead.
     approved_layout = (
         all(x in candidate["page_a_html"] for x in
             ('id="boardWriting"', 'id="boardTitle"', 'id="visual"',
-             'id="timeline"', 'NabilRuntime.TeacherPlaybackController',
-             'GOLDEN-FINAL-CARD', 'id="concepts"'))
+             'id="timeline"', 'id="studySlots"', 'id="teacherSpeech"',
+             'id="finalHost"', 'id="goldenReferenceCard"',
+             'window.NabilV18=', 'speechSynthesis',
+             "el('finalHost').hidden=!final",
+             "if(final)renderFinalCard()"))
         if is_v18_renderer else
         all(x in candidate["page_a_html"] for x in
             ("nabil-sci-card", "nabil-sci-grid", "nabil-sci-analysis",
