@@ -142,6 +142,21 @@ _CSS = r"""
 #nabilWholeLessonSmartLab .v18-student-interaction{padding:14px;border:1px solid var(--gold);border-radius:12px;margin-top:12px;background:#092b49}
 #nabilWholeLessonSmartLab .v18-student-interaction input{min-height:44px;background:#fff;color:#122438;border-radius:8px;padding:8px;width:100%;margin:8px 0}
 #nabilWholeLessonSmartLab .v18-student-interaction button{margin:4px}
+/* #58: the same full-width cumulative teaching board is the primary view
+   for theory and source-verified worked exercises. Navigation/teacher are
+   supporting controls BELOW it, never competing columns. */
+#nabilWholeLessonSmartLab .v18-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+#nabilWholeLessonSmartLab .v18-grid>.v18-box:nth-child(2){grid-column:1/-1;grid-row:1}
+#nabilWholeLessonSmartLab .v18-grid>.v18-box:nth-child(1){grid-column:1;grid-row:2}
+#nabilWholeLessonSmartLab .v18-grid>.v18-box:nth-child(3){grid-column:2;grid-row:2}
+#nabilWholeLessonSmartLab .v18-board{min-height:60vh;overflow:visible}
+#nabilWholeLessonSmartLab .v18-line{font-size:clamp(20px,2vw,29px);padding:12px 16px}
+@media(max-width:760px){
+ #nabilWholeLessonSmartLab .v18-grid{grid-template-columns:minmax(0,1fr)}
+ #nabilWholeLessonSmartLab .v18-grid>.v18-box:nth-child(2){grid-column:1;grid-row:1}
+ #nabilWholeLessonSmartLab .v18-grid>.v18-box:nth-child(3){grid-column:1;grid-row:2}
+ #nabilWholeLessonSmartLab .v18-grid>.v18-box:nth-child(1){grid-column:1;grid-row:3}
+}
 #nabilWholeLessonSmartLab .v18-written-section{border-bottom:1px solid #315d79;padding-bottom:12px;margin-bottom:16px}
 #nabilWholeLessonSmartLab .v18-written-heading{color:var(--gold);font-size:19px;margin:12px 0}
 #nabilWholeLessonSmartLab .v18-final{display:none;margin-top:12px}

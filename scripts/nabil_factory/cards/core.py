@@ -932,6 +932,8 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict, lab_index: Opt
       <button onclick="navigateToExercises()" class="nav-btn">{html.escape(ui_t(page_a_lang_code, "view_exercises"))}</button>
     </div>
   </div>
+  {theory.get("whole_lesson_lab_html", "")}
+  <details class="nabil-legacy-material" aria-label="Supplementary verified source material"><summary>Supplementary source details and worksheet</summary>
   {acts_html}
   <div class="card" style="margin-top:24px;">
     <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -944,7 +946,7 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict, lab_index: Opt
     {ws_items}
   </div>
   {theory.get("quiz_html", "")}
-  {theory.get("whole_lesson_lab_html", "")}
+  </details>
 </div>
 <div id="zoomModal" onclick="this.style.display='none'"><img id="zoomImg" src=""></div>
 <script>
@@ -1470,7 +1472,9 @@ def render_lesson_page_b(entry: dict, exercises: list, profile: dict, ev_map: di
     <button onclick="returnToLesson()" class="nav-btn" style="background:#475569;">{html.escape(ui_t(page_b_lang_code, "back_to_lesson"))}</button>
   </div>
   {v18_exercises_board}
+  <details class="nabil-legacy-material" aria-label="Supplementary source exercises"><summary>Supplementary textbook source references</summary>
   {ex_cards}
+  </details>
 </div>
 <div id="zoomModal" onclick="this.style.display='none'"><img id="zoomImg" src=""></div>
 <script>
