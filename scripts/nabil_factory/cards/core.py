@@ -1485,6 +1485,34 @@ function returnToLesson() {{
   }}
 }}
 
+// Self-contained exercise-lab controls: work on Drive downloads (file://)
+// as well as on the NABIL platform, independently of external /static scripts.
+document.querySelectorAll('.nabil-explain-lab-btn').forEach(btn=>{{
+  btn.addEventListener('click',()=>{{
+    const card=btn.closest('.nabil-exercise-card');
+    const lab=card?.querySelector('.nabil-prebuilt-exercise-lab');
+    if(!lab){{btn.textContent='Laboratory unavailable';return}}
+    const opening=lab.hidden;
+    lab.hidden=!opening;
+    if(opening){{
+      lab.style.cssText='display:block;margin:12px 0;padding:12px;border:1px solid #22d3ee;border-radius:12px;background:#061e36';
+      btn.setAttribute('aria-expanded','true');
+      lab.scrollIntoView({{behavior:'smooth',block:'nearest'}});
+      const text=(card.querySelector('.nabil-exercise-prompt')?.textContent||'')+
+        '. '+(card.querySelector('.nabil-solution-fallback')?.innerText||'');
+      if('speechSynthesis' in window&&text.trim()){{
+        window.speechSynthesis.cancel();
+        const voice=new SpeechSynthesisUtterance(text);
+        voice.lang=document.documentElement.lang||'en-US';voice.rate=.8;
+        window.speechSynthesis.speak(voice);
+      }}
+    }}else{{
+      lab.style.display='none';
+      btn.setAttribute('aria-expanded','false');
+      try{{window.speechSynthesis?.cancel()}}catch(_e){{}}
+    }}
+  }});
+}});
 async function requestServerSolution(lessonId, secType, exNum) {{
   const ansBox = document.getElementById('demandAns_' + secType + '_' + exNum);
   ansBox.style.display = 'block';
