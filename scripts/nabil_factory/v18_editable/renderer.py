@@ -98,6 +98,9 @@ button.primary{background:#0b766d}button:focus-visible{outline:3px solid #ffd35a
 <button id="exercises">Exercises →</button></div><div id="timeline"></div></section>
 <aside class="panel"><div class="brand">Lesson concepts</div><ul id="concepts"></ul><p class="tag">The final reference card appears LAST.</p></aside></div><section class="panel" id="v18VerifiedQuiz" style="margin-top:16px">__VERIFIED_QUIZ__</section></main>
 <script type="application/json" id="nabilLabIndex">__LAB_INDEX__</script>
+<script src="/static/nabil_browser_tts_v1.js?v=1"></script>
+<script src="/static/nabil_lesson_e2e_runtime_v1.js?v=1"></script>
+<script src="/static/nabil_scientific_solution_cards_e2e.js?v=1"></script>
 __SCRIPTS__
 <script>
 (function(){
