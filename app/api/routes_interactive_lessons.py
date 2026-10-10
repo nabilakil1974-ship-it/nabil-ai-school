@@ -631,6 +631,11 @@ def _prepared_lookup_for_scope(grade: str, subject: str):
 
 
 from app.services import v18_lesson_delivery as v18_delivery
+# Stable renderer asset contract (implemented in v18_lesson_delivery).
+# /static/nabil_browser_tts_v1.js
+# /static/nabil_lesson_e2e_runtime_v1.js
+# /static/nabil_smart_lab_bridge_v1.js
+
 
 @router.get("/available")
 def available(grade: str, subject: str):
