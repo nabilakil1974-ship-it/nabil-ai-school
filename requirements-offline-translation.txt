@@ -1,0 +1,3 @@
+# Optional offline translation dependency; install language packs separately.
+# This is intentionally NOT included in the production image until resource profiling.
+argostranslate>=1.9,<2
