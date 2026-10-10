@@ -43,7 +43,7 @@ RUN cat app/static/nabil_mobile_readability_v12.css >> app/static/nabil_referenc
     && cat app/static/nabil_mobile_lab_fix_v15.css >> app/static/nabil_reference_theme.css
 
 # Fail the image build if the production landing/learning UI contract regresses.
-RUN python -m unittest scripts.nabil_factory.v18_editable.test_independence scripts.nabil_factory.factory.test_locked_v18_safety \
+RUN python -m unittest scripts.nabil_factory.v18_editable.test_independence scripts.nabil_factory.factory.test_locked_v18_safety scripts.test_v18_renderer_contract \
     && python -m scripts.validate_nabil_ui \
     && python -m scripts.test_ui_integration \
     && python -m scripts.test_worksheet_exports \
