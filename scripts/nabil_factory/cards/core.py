@@ -771,6 +771,8 @@ window.NABILPageLanguage={
 # 9. TWIN-PAGE HTML COMPILATION
 # ==============================================================================
 def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict, lab_index: Optional[dict] = None) -> str:
+    from scripts.nabil_factory.v18_editable.renderer import render_v18_lesson
+    return render_v18_lesson(entry, theory, ev_map, lab_index)
     clean_title = html.escape(re.sub(r'^\s*\d{2,3}\s*(?:--|[-_ ]+)\s*', '', entry["canonical_title"]))
     clean_title = html.escape(re.sub(r'\s+\d{2,3}$', '', clean_title).strip())
     lang = entry.get("language", "en")
