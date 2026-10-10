@@ -1,0 +1,28 @@
+name: NABIL #58 Pedagogical Gates
+on:
+  push:
+    branches:
+      - fix/58-voice-board-staging
+  workflow_dispatch:
+jobs:
+  pedagogical:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Dependencies
+        run: |
+          python -m pip install -r requirements.txt
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Syntax and mathematical contract
+        run: |
+          python -m py_compile scripts/nabil_factory/p2/core.py scripts/nabil_factory/cards/v18_board.py scripts/test_v18_virtual_student_gate.py
+          python -m scripts.test_book_factory_contracts
+      - name: Real Chromium Golden Cards en/ar/fr
+        run: python -m scripts.test_v18_golden_card_runtime
+      - name: Virtual student wrong→hint→correct and board progression
+        run: python -m scripts.test_v18_virtual_student_gate
