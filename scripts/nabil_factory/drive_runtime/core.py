@@ -472,8 +472,10 @@ def resolve_source_book_pdf(book_id: str, drive_service=None) -> Path:
     if not re.fullmatch(r"[A-Za-z0-9_-]{10,128}", str(book_id)):
         raise RuntimeError("INVALID_SOURCE_BOOK_ID")
     root = Path(os.getenv("NABIL_SOURCE_BOOK_CACHE_DIR", "/data/nabil/source_books"))
-    if not root.is_absolute() or not root.exists() or not root.is_dir():
-        raise RuntimeError("PERSISTENT_BOOK_VOLUME_MISSING:" + str(root))
+    mount = Path("/data/nabil")
+    if not root.is_absolute() or not mount.is_mount():
+        raise RuntimeError("PERSISTENT_BOOK_VOLUME_MISSING:" + str(mount))
+    root.mkdir(parents=True, exist_ok=True)
     target = root / f"{book_id}.pdf"
     digest_file = root / f"{book_id}.sha256"
 
