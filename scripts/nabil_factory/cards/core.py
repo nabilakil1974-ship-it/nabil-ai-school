@@ -945,7 +945,6 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict, lab_index: Opt
   </div>
   {theory.get("quiz_html", "")}
   {theory.get("whole_lesson_lab_html", "")}
-  {theory.get("reference_card_html", "")}
 </div>
 <div id="zoomModal" onclick="this.style.display='none'"><img id="zoomImg" src=""></div>
 <script>
