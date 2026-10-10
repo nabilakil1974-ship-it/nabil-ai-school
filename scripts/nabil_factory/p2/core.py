@@ -2903,7 +2903,24 @@ def run_real_playwright_chromium_qa(
                     const overflow = whole.scrollWidth > whole.clientWidth + 2;
                     orch.goTo(0);
                     if (!finalOk) {
-                        return {passed:false, reason:"V18_GOLDEN_CARD_NOT_RENDERED_AS_LAST_STAGE"};
+                        // Keep the gate strict, but expose the actual browser
+                        // failure instead of forcing a blind regeneration.
+                        return {
+                          passed:false,
+                          reason:"V18_GOLDEN_CARD_NOT_RENDERED_AS_LAST_STAGE",
+                          finalIndex:orch.finalIndex,
+                          finalState:whole.classList.contains('is-final'),
+                          hostPresent:!!host,
+                          rendered:host?.dataset.rendered || null,
+                          failed:host?.dataset.failed || null,
+                          cardPresent:!!card,
+                          cardHeight:card?.getBoundingClientRect().height || 0,
+                          cardTextLength:(card?.innerText || '').trim().length,
+                          hasFinalSection:!!card?.querySelector('.nabil-sci-final'),
+                          hasGrid:!!card?.querySelector('.nabil-sci-grid'),
+                          engineReady:typeof window.NABILScientificCards?.fromLesson==='function',
+                          hostError:(host?.innerText || '').slice(0,350)
+                        };
                     }
                     if (overflow) {
                         return {passed:false, reason:"V18_BOARD_HORIZONTAL_OVERFLOW"};
