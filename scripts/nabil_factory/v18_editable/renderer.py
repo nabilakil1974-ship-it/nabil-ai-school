@@ -77,7 +77,7 @@ def render_v18_lesson(entry, theory, ev_map, lab_index=None):
 :root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#031025;color:#edf9ff;font-family:system-ui,Arial,sans-serif}
 header{background:#071b33;border-bottom:1px solid #1f5c91;padding:15px 22px;display:flex;gap:16px;justify-content:space-between;flex-wrap:wrap;align-items:center}
 .brand{color:#25d8ff;font-weight:900;letter-spacing:.06em}.wrap{max-width:1460px;margin:auto;padding:18px}
-.layout{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,.8fr);gap:16px}.layout>*{min-width:0}html,body{width:100%;max-width:100%;overflow-x:clip}.panel{min-width:0;max-width:100%;overflow-wrap:anywhere}#board,#boardWriting,#visual,#timeline,#v18VerifiedQuiz{min-width:0;max-width:100%;overflow-wrap:anywhere}#v18VerifiedQuiz{overflow-x:auto}#v18VerifiedQuiz img,#v18VerifiedQuiz svg,#v18VerifiedQuiz canvas,#v18VerifiedQuiz iframe{max-width:100%;height:auto}#v18VerifiedQuiz table,#v18VerifiedQuiz pre{display:block;max-width:100%;overflow-x:auto}.panel{background:#071c35;border:1px solid #1f5c91;border-radius:18px;padding:18px}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2.1fr) minmax(0,.82fr);gap:12px}.layout>*{min-width:0}html,body{width:100%;max-width:100%;overflow-x:clip}.panel{min-width:0;max-width:100%;overflow-wrap:anywhere}#board,#boardWriting,#visual,#timeline,#v18VerifiedQuiz{min-width:0;max-width:100%;overflow-wrap:anywhere}#v18VerifiedQuiz{overflow-x:auto}#v18VerifiedQuiz img,#v18VerifiedQuiz svg,#v18VerifiedQuiz canvas,#v18VerifiedQuiz iframe{max-width:100%;height:auto}#v18VerifiedQuiz table,#v18VerifiedQuiz pre{display:block;max-width:100%;overflow-x:auto}.panel{background:#071c35;border:1px solid #1f5c91;border-radius:18px;padding:18px}
 #board{background:repeating-linear-gradient(0deg,#04172c,#04172c 39px,#0c2340 40px);border:2px solid #2087ad;border-radius:14px;min-height:380px;padding:26px;box-shadow:inset 0 0 28px #010917}
 #boardTitle{color:#ffd35a;font-size:clamp(22px,3vw,35px);margin:0 0 18px}#boardWriting{font-size:clamp(19px,2vw,27px);line-height:1.9;white-space:pre-wrap;min-height:220px}
 #visual{background:#04172c;border-radius:12px;margin-top:14px;min-height:160px;padding:10px;overflow:auto}
@@ -86,17 +86,17 @@ button{cursor:pointer;min-height:46px;border:1px solid #267aa9;border-radius:10p
 button.primary{background:#0b766d}button:focus-visible{outline:3px solid #ffd35a}
 #timeline{display:flex;flex-wrap:wrap;gap:7px;margin-top:15px}#timeline button.active{background:#b88c27;color:#051126}
 #concepts{list-style:none;padding:0;margin:0;display:grid;gap:9px}#concepts li{padding:12px;background:#0b2b4c;border-left:4px solid #25d8ff;border-radius:7px}
-#status{color:#52e6a4;font-size:14px}.tag{color:#9fc4e5;font-size:12px;letter-spacing:.1em}
-@media(max-width:800px){.layout{grid-template-columns:1fr}.wrap{padding:9px}#board{min-height:280px;padding:14px}}
+.result-slot{padding:11px;margin:9px 0;border:1px solid #1aa9a1;border-radius:10px;background:#063739}.result-slot strong{color:#ffd35a}.result-slot p{white-space:pre-wrap;overflow-wrap:anywhere}#teacherSpeech{font-size:17px;line-height:1.65;white-space:pre-wrap}#status{color:#52e6a4;font-size:14px}.tag{color:#9fc4e5;font-size:12px;letter-spacing:.1em}
+@media(max-width:1050px){.layout{grid-template-columns:1fr}.wrap{padding:9px}#board{min-height:280px;padding:14px}}
 </style></head><body><header><div><div class="brand">NABIL AI · V18 GOLDEN SMART BOARD</div><h2>__TITLE__</h2></div><div id="status">Ready · Verified textbook material</div></header>
-<main class="wrap" data-whole-lesson-smart-lab="true">__APPLY_MARKERS__<div class="layout"><section class="panel"><div class="tag">TEACH · WRITE · SPEAK · VISUALIZE · VERIFY</div>
+<main class="wrap" data-whole-lesson-smart-lab="true">__APPLY_MARKERS__<div class="layout"><aside class="panel" id="studyResults"><h3 class="brand">Verified study results</h3><div id="lockedResults"></div></aside><section class="panel"><div class="tag">TEACH · WRITE · SPEAK · VISUALIZE · VERIFY</div>
 <div id="board"><h2 id="boardTitle"></h2><div id="boardWriting" aria-live="polite"></div></div>
 <div id="visual"></div><div class="controls">
 <button class="primary" id="play">▶ Teach entire lesson</button><button id="current">🔊 Explain this concept</button>
 <button id="prev">◀ Previous</button><button id="next">Next ▶</button><button id="stop">■ Stop</button>
 <button id="restart">↻ Restart</button><button id="voice">🔊 Voice ON</button>
 <button id="exercises">Exercises →</button></div><div id="timeline"></div></section>
-<aside class="panel"><div class="brand">Lesson concepts</div><ul id="concepts"></ul><p class="tag">The final reference card appears LAST.</p></aside></div><section class="panel" id="v18VerifiedQuiz" style="margin-top:16px" hidden><h3>Check your understanding after the lesson</h3>__VERIFIED_QUIZ__</section></main>
+<aside class="panel"><div class="brand">NABIL AI · Teacher</div><p id="teacherSpeech" aria-live="polite">Explanation begins before questions.</p><div class="brand">Lesson concepts</div><ul id="concepts"></ul><p class="tag">The final reference card appears LAST.</p></aside></div><section class="panel" id="v18VerifiedQuiz" style="margin-top:16px" hidden><h3>Check your understanding after the lesson</h3>__VERIFIED_QUIZ__</section></main>
 <script type="application/json" id="nabilLabIndex">__LAB_INDEX__</script>
 <script src="/static/nabil_browser_tts_v1.js?v=1"></script>
 <script src="/static/nabil_lesson_e2e_runtime_v1.js?v=1"></script>
@@ -112,8 +112,8 @@ const board=document.getElementById('boardWriting'),title=document.getElementByI
 const ctl=new window.NabilRuntime.TeacherPlaybackController({langCode:'__LANG__',rate:0.82,
 onStep:(i,step)=>show(step.fullIndex??i,true),onState:(s)=>{if(s.event==='WRITE_LINE'){board.textContent=s.value;}if(s.event==='WRITE_TITLE')title.textContent=s.value;
 if(s.finished)status.textContent='Lesson complete · Golden card last';}});
-const safeText=t=>document.createTextNode(t);
-function show(i,fromPlayback=false){index=i;const x=slides[index];if(!fromPlayback)ctl.stop();title.textContent=x.title;board.textContent=x.lines.join('\n\n');visual.replaceChildren();
+const safeText=t=>document.createTextNode(t);const results=document.getElementById('lockedResults'),speech=document.getElementById('teacherSpeech');
+function show(i,fromPlayback=false){index=i;const x=slides[index];if(!fromPlayback)ctl.stop();title.textContent=x.title;board.textContent=x.lines.join('\n\n');visual.replaceChildren();speech.textContent=x.lines.join(' · ');results.replaceChildren();slides.slice(0,index+1).forEach((step,n)=>{const box=document.createElement('div');box.className='result-slot';const b=document.createElement('strong');b.textContent=(n+1)+'. '+step.title;const p=document.createElement('p');p.textContent=step.lines.at(-1)||'';box.append(b,p);results.appendChild(box);});
 if(x.lab){const f=document.createElement('iframe');f.title=x.title+' — verified interactive lab';f.srcdoc='<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#061725;color:white}</style></head><body>'+x.lab+'<\/body><\/html>';visual.appendChild(f);}
 else if(x.visual){const holder=document.createElement('div');holder.innerHTML=x.visual;visual.appendChild(holder);}
 else{const p=document.createElement('p');p.textContent=x.lines.join(' · ');visual.appendChild(p);}
