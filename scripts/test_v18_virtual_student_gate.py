@@ -36,7 +36,34 @@ def main():
             page=browser.new_page()
             errors=[]
             page.on("pageerror",lambda exc:errors.append(str(exc)))
+            page.add_init_script("""() => {
+              window.__spokenEvents = [];
+              class FakeUtterance {
+                constructor(text) { this.text = text; this.onend = null; this.onerror = null; }
+              }
+              Object.defineProperty(window, 'SpeechSynthesisUtterance',
+                {configurable:true,value:FakeUtterance});
+              Object.defineProperty(window, 'speechSynthesis', {configurable:true,value:{
+                cancel(){},
+                getVoices(){ return [{lang:'en-US',name:'QA English'}]; },
+                speak(u){
+                  window.__spokenEvents.push({
+                    sentence:u.text,
+                    boardAtStart:document.getElementById('v18Lines')?.innerText || ''
+                  });
+                  Promise.resolve().then(()=>u.onend && u.onend());
+                }
+              }});
+            }""")
             page.goto(file.as_uri())
+            page.locator("#nabilWholeCurrent").click()
+            page.wait_for_function("window.__spokenEvents.length > 0")
+            speech_event = page.evaluate("window.__spokenEvents[0]")
+            assert speech_event["sentence"] == "Observe repeated multiplication."
+            assert speech_event["boardAtStart"].count("Observe repeated multiplication.") == 0, (
+                "Speech must start before typing finishes, not after the board is complete"
+            )
+            page.locator("#nabilWholeStop").click()
             page.evaluate("window.NABILWholeLessonOrchestrator.goTo(0)")
             page.locator("#nabilWholeNext").click()
             page.wait_for_function("window.NABILWholeLessonOrchestrator.state().awaitingStudent === true")
@@ -58,6 +85,7 @@ def main():
             page.wait_for_function("window.NABILWholeLessonOrchestrator.state().idea === 1")
             assert "Observe repeated multiplication" in page.locator("#v18Lines").inner_text()
             assert not errors, errors
+            print("PASS Chromium voice starts before line is finished writing")
             print("PASS virtual student wrong → feedback → hint → correct → cumulative board")
         finally:
             browser.close()
