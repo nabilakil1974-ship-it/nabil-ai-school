@@ -88,7 +88,7 @@ def normalize_payload_strings(obj):
     return obj
 
 
-_NUM = r"(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:/\d+)?"
+_NUM = r"\d+(?:,\d+)*(?:\.\d+)?(?:/\d+(?:,\d+)*)?"
 _POW = re.compile(
     rf"(?<![\w.])(?P<base_expr>\(-?{_NUM}\)|-?{_NUM})"
     rf"\s*\^\s*\{{?\s*(?P<exp>-?\d+)\s*\}}?\s*=\s*"
@@ -172,18 +172,18 @@ def check_power_claims(text: str) -> list[str]:
             expr = m["base_expr"].strip()
             exp = int(m["exp"])
             if expr.startswith("(") and expr.endswith(")"):
-                base = Fraction(expr[1:-1])
+                base = _fraction_from_numeric_token(expr[1:-1])
                 value = base ** exp
             elif expr.startswith("-"):
                 # Conventional precedence: -2^2 == -(2^2).
-                base = Fraction(expr[1:])
+                base = _fraction_from_numeric_token(expr[1:])
                 value = -(base ** exp)
             else:
-                base = Fraction(expr)
+                base = _fraction_from_numeric_token(expr)
                 value = base ** exp
             if abs(exp) > 64 or (base == 0 and exp <= 0):
                 continue
-            claimed = Fraction(m["val"])
+            claimed = _fraction_from_numeric_token(m["val"])
         except (ValueError, ZeroDivisionError):
             continue
         if value != claimed:
