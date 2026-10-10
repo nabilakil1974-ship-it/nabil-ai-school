@@ -127,6 +127,7 @@ _TEXT_FIELDS = frozenset({
     "description", "prompt", "question", "explanation", "hint",
     "final_answer", "golden_speech", "verification_note", "summary",
     "goal", "instruction", "observation", "phenomenon", "investigation",
+    "items", "steps", "key_results", "verification",
     "interpretation", "speech", "content",
 })
 _STRUCTURAL_FIELDS = frozenset({
