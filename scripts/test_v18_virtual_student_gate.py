@@ -59,7 +59,7 @@ def main():
             page.locator("#nabilWholeCurrent").click()
             page.wait_for_function("window.__spokenEvents.length > 0")
             speech_event = page.evaluate("window.__spokenEvents[0]")
-            assert speech_event["sentence"] == "Observe repeated multiplication."
+            assert "Observe repeated multiplication." in speech_event["sentence"]
             assert speech_event["boardAtStart"].count("Observe repeated multiplication.") == 0, (
                 "Speech must start before typing finishes, not after the board is complete"
             )

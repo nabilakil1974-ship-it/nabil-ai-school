@@ -240,6 +240,7 @@ _JS = r"""
    node.textContent='';node.classList.add('cursor');let i=0;
    const tick=()=>{if(tok!==token){node.classList.remove('cursor');return res(false)}
     node.textContent=text.slice(0,++i);
+    if(i%18===0||i===1||i===text.length)followBoardWriting(node);
     if(i<text.length)setTimeout(tick,18);else{node.classList.remove('cursor');res(true)}};
    tick();
   });
@@ -250,6 +251,13 @@ _JS = r"""
  slides.concat([{title:L.final}]).forEach((_,i)=>{const b=el('button','v18-dot',i+1);b.type='button';b.setAttribute('aria-label',(i<slides.length?L.idea+' ':L.final+' ')+(i+1));b.onclick=()=>{halt();goTo(i)};timeline.appendChild(b)});
  function paintTimeline(){const cur=finalShown?FINAL:idea;[...timeline.children].forEach((b,i)=>b.className='v18-dot '+(i<cur?'done':(i===cur?'on':'')))}
  function paintSlots(){slides.forEach((s,i)=>{const d=$('v18Slot'+i);const complete=finalShown||i<idea;d.className='v18-slot'+(complete?' locked':(i===idea?' current':''));d.querySelector('.v');d.querySelector('.v').textContent=complete?(tr(s.conclusion)||'✓'):'—'})}
+ function followBoardWriting(target){
+  if(!target||!target.isConnected)return;
+  // Follow the current line without changing the student's horizontal position.
+  // Respect reduced motion and avoid stealing focus from answer inputs.
+  const reduce=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+  target.scrollIntoView({behavior:reduce?'instant':'smooth',block:'center',inline:'nearest'});
+ }
  function showLines(upto,typeLast,tok){
   // P0 universal board: retain all preceding verified teaching on ONE board.
   // No extra slideshow cards are rendered as the principal explanation.
@@ -274,6 +282,7 @@ _JS = r"""
    lines.appendChild(row);last=(i===upto)?t:last;
    if(i!==upto)t.textContent=tr(st.text);
   }
+  if(last)followBoardWriting(last);
   if(last&&typeLast)return typeInto(last,tr(s.steps[upto].text),tok);
   if(last)last.textContent=tr(s.steps[upto].text);
   return Promise.resolve(true);
@@ -437,15 +446,57 @@ def verify_v18_scientific_card_inline_engine(page_html: str) -> bool:
     trusted = _read("v18_golden_cards_engine.js").encode("utf-8")
     return embedded == trusted and b"window.NABILScientificCards={" in embedded
 
+def teaching_sentence(sentence: str, kind: str, lang_code: str, position: int = 0) -> str:
+    """Teacher-led, source-faithful one-line narrative for board AND Golden cards.
+
+    Preserve all verified mathematical content verbatim. Narration is a
+    transition, NOT an invented substitution, fact, numerical result or proof.
+    """
+    import re
+    content = re.sub(r"\\s+", " ", str(sentence or "")).strip()
+    if not content:
+        return ""
+    prompts = {
+        "ar": {
+            "problem": "نقرأ نصّ السؤال ونحدّد المطلوب: ",
+            "first": "نبدأ الحلّ خطوةً خطوة، ونلاحظ ما يأتي: ",
+            "next": "ننتقل الآن إلى الخطوة التالية، ونوضّحها: ",
+            "final": "نستنتج من الخطوات السابقة: ",
+        },
+        "en": {
+            "problem": "Read the question and identify what is required: ",
+            "first": "Let us begin and explain our first step: ",
+            "next": "We now explain the next step: ",
+            "final": "We conclude from the steps above: ",
+        },
+        "fr": {
+            "problem": "Lisons la question et identifions ce qui est demandé : ",
+            "first": "Commençons et expliquons la première étape : ",
+            "next": "Expliquons maintenant l'étape suivante : ",
+            "final": "Nous concluons des étapes précédentes : ",
+        },
+    }
+    locale = prompts.get(lang_code, prompts["en"])
+    if kind == "problem":
+        prefix = locale["problem"]
+    elif kind == "final":
+        prefix = locale["final"]
+    else:
+        prefix = locale["first"] if position <= 1 else locale["next"]
+    return content if content.startswith(tuple(locale.values())) else prefix + content
+
+
 def build_slide(act: dict, lang_code: str) -> dict | None:
     """Convert one verified concept activity into a board slide (or None)."""
     lab_html = str(act.get("lab_html") or "")
     if not lab_html and not act.get("allow_no_lab"):
         return None
     steps = []
-    for st in (act.get("teaching_steps") or []):
+    for position, st in enumerate((act.get("teaching_steps") or [])):
         sentence = str(st.get("sentence") or "").strip()
         if sentence:
+            sentence = teaching_sentence(sentence, str(st.get("kind") or ""),
+                                         lang_code, position)
             steps.append({
                 "label": str(st.get("label") or ""),
                 "text": sentence,
@@ -508,8 +559,9 @@ def build_golden_spec(title: str, activities: list, lang_code: str,
         # Golden exercise cards preserve the verified teacher's worked
         # reasoning, rather than reducing a solution to a numeric answer.
         verified_steps = [
-            str(step.get("sentence") or "").strip()
-            for step in (act.get("teaching_steps") or [])
+            teaching_sentence(str(step.get("sentence") or ""),
+                              str(step.get("kind") or ""), lang_code, position)
+            for position, step in enumerate(act.get("teaching_steps") or [])
             if isinstance(step, dict)
             and step.get("kind") in ("problem", "step", "final")
             and str(step.get("sentence") or "").strip()
