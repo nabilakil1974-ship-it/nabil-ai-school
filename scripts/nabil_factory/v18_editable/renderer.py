@@ -128,6 +128,7 @@ document.getElementById('prev').onclick=()=>show(Math.max(0,index-1));
 document.getElementById('stop').onclick=()=>ctl.stop();
 document.getElementById('restart').onclick=()=>{show(0);ctl.play(slides,0)};
 document.getElementById('voice').onclick=()=>{voiceEnabled=!voiceEnabled;ctl.setVoiceEnabled(voiceEnabled);document.getElementById('voice').textContent=voiceEnabled?'🔊 Voice ON':'🔇 Voice OFF'};
+function navigateToExercises(){location.href=location.href.replace(/\\.html(?:\\?.*)?$/i,'--EXERCISES.html')};
 document.getElementById('exercises').onclick=()=>{location.href=location.href.replace(/\.html(?:\?.*)?$/i,'--EXERCISES.html')};
 show(0);
 })();
