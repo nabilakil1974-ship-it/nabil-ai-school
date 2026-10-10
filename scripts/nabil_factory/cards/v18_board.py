@@ -280,10 +280,14 @@ _JS = r"""
  }
  async function presentStep(i,withVoice){
   stepI=i;const tok=++token;stopSpeech();
-  const ok=await paintIdea(i,!FAST,tok);if(!ok||tok!==token)return false;
-  const st=slides[idea].steps[i];speech.textContent=tr(st.text);
-  if(withVoice)await speak(tr(st.text));
-  return tok===token;
+  // Start voice when writing begins, not after the typing animation ends.
+  // Both remain bound to the same cancellation token.
+  const st=slides[idea].steps[i],spoken=tr(st.text);
+  speech.textContent=spoken;
+  const writing=paintIdea(i,!FAST,tok);
+  const narration=withVoice?speak(spoken):Promise.resolve();
+  const [ok]=await Promise.all([writing,narration]);
+  return Boolean(ok)&&tok===token;
  }
  function showFinalStage(){
   stepI=slides[Math.min(idea,slides.length-1)].steps.length-1;idea=FINAL;stopSpeech();token++;
