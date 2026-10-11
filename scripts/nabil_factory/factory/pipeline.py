@@ -109,18 +109,30 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
             )
             receipt_drive_id = _write_json_verified(
                 drive_service, pending_folder, receipt_name, receipt)
+            from scripts.nabil_factory.answer_preview import (
+                render_and_save_answer_preview)
+            preview = render_and_save_answer_preview(
+                handoff, answer, drive_service, pending_folder)
             progress(
                 "HANDOFF_ANSWER_STRUCTURALLY_VERIFIED_AWAITING_INDEPENDENT_REVIEW",
                 lesson_id=lesson_id, answer_drive_id=answer_drive_id,
                 receipt_drive_id=receipt_drive_id,
                 concepts=receipt["concept_count"],
-                exercises=receipt["exercise_count"])
+                exercises=receipt["exercise_count"],
+                theory_preview_drive_id=preview["theory_preview_drive_id"],
+                exercise_preview_drive_id=preview["exercise_preview_drive_id"],
+                preview_qa_drive_id=preview["preview_qa_drive_id"],
+                preview_qa_passed=preview["preview_qa"]["passed"])
             return {
                 "status": "HANDOFF_ANSWER_STRUCTURALLY_VERIFIED_AWAITING_INDEPENDENT_REVIEW",
                 "lesson_id": lesson_id,
                 "handoff_drive_id": handoff_drive_id,
                 "answer_drive_id": answer_drive_id,
                 "receipt_drive_id": receipt_drive_id,
+                "theory_preview_drive_id": preview["theory_preview_drive_id"],
+                "exercise_preview_drive_id": preview["exercise_preview_drive_id"],
+                "preview_qa_drive_id": preview["preview_qa_drive_id"],
+                "preview_qa_passed": preview["preview_qa"]["passed"],
                 "input_sha256": handoff["input_sha256"],
                 "published": False,
                 "paid_ai_called": False,
