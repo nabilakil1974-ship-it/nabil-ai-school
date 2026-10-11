@@ -605,6 +605,8 @@ def run(book_id: str, *, index_only: bool, publish: bool,
             if report_status in {
                 "HANDOFF_AWAITING_ASSISTANT",
                 "HANDOFF_ANSWER_STRUCTURALLY_VERIFIED_AWAITING_INDEPENDENT_REVIEW",
+                "HANDOFF_V18_PREVIEW_QA_PASSED_BLOCKED",
+                "HANDOFF_V18_PREVIEW_QA_FAILED_BLOCKED",
             }:
                 state["lessons"][lid] = dict(report)
                 remote_checkpoint(service, root, book_id, state)
@@ -616,6 +618,14 @@ def run(book_id: str, *, index_only: bool, publish: bool,
                         "handoff_drive_id": report.get("handoff_drive_id"),
                         "answer_drive_id": report.get("answer_drive_id"),
                         "receipt_drive_id": report.get("receipt_drive_id"),
+                        "theory_preview_drive_id": report.get(
+                            "theory_preview_drive_id"),
+                        "exercise_preview_drive_id": report.get(
+                            "exercise_preview_drive_id"),
+                        "preview_qa_drive_id": report.get(
+                            "preview_qa_drive_id"),
+                        "preview_qa_passed": report.get(
+                            "preview_qa_passed"),
                         "published": False}
             if report_status not in {
                     "PUBLISHED_VERIFIED", "PUBLISHED_UNVERIFIED"}:
