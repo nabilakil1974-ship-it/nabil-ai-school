@@ -29,6 +29,16 @@ class HandoffTests(unittest.TestCase):
             result["scientific_review"]="PASS"
             with self.assertRaises(ValueError):
                 verify_return(job,result)
+    def test_pipeline_fails_closed_without_independent_review(self):
+        pipeline = (Path(__file__).parent / "nabil_factory" / "factory" / "pipeline.py").read_text(encoding="utf-8")
+        gate = 'if candidate["needs_review"] or candidate["review_status"] != "REVIEWED":'
+        freeze = "published_labs = persist_quality_gated_labs(entry, theory, exercises)"
+        publish = "if publish:"
+        self.assertIn(gate, pipeline)
+        self.assertIn("INDEPENDENT_SCIENTIFIC_REVIEW_REQUIRED", pipeline)
+        self.assertLess(pipeline.index(gate), pipeline.index(freeze))
+        self.assertLess(pipeline.index(gate), pipeline.index(publish))
+
     def test_stale_source_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             job=create_handoff(self.entry,self.evidence,str(Path(d)/"job.json"))
