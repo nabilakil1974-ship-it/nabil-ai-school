@@ -129,14 +129,47 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
             )
             receipt_drive_id = _write_json_verified(
                 drive_service, pending_folder, receipt_name, receipt)
-            # The verified answer continues to the original V18 engine.
-            # No preview, fake board or early return.
-            # The receipt is audit metadata, not the returned lesson payload.
-            # The actual verified handoff answer contains teaching_steps and
-            # exercise_solutions needed by the downstream V18 pipeline.
-            imported_answer = answer
-            progress("HANDOFF_ANSWER_IMPORTED_TO_FACTORY",
-                     lesson_id=lesson_id, answer_drive_id=answer_drive_id)
+            # The current source-inventory gate still requires an independent
+            # review.  Do not weaken or bypass it.  Build a clearly unapproved
+            # preview with the real V18 renderer and real desktop/mobile
+            # Playwright QA, and keep every artifact in NABIL_PENDING.
+            from scripts.nabil_factory.answer_preview import (
+                render_and_save_answer_preview)
+            preview = render_and_save_answer_preview(
+                handoff, answer, drive_service, pending_folder)
+            preview_passed = bool(preview["preview_qa"].get("passed"))
+            progress(
+                "HANDOFF_V18_EXPERIMENTAL_PREVIEW_CREATED",
+                lesson_id=lesson_id,
+                answer_drive_id=answer_drive_id,
+                receipt_drive_id=receipt_drive_id,
+                theory_preview_drive_id=preview["theory_preview_drive_id"],
+                exercise_preview_drive_id=preview["exercise_preview_drive_id"],
+                preview_qa_drive_id=preview["preview_qa_drive_id"],
+                preview_qa_passed=preview_passed,
+                published=False,
+                independent_scientific_review="NOT_RUN")
+            return {
+                "status": (
+                    "HANDOFF_V18_PREVIEW_QA_PASSED_BLOCKED"
+                    if preview_passed
+                    else "HANDOFF_V18_PREVIEW_QA_FAILED_BLOCKED"
+                ),
+                "lesson_id": lesson_id,
+                "handoff_drive_id": handoff_drive_id,
+                "answer_drive_id": answer_drive_id,
+                "deterministic_audit_drive_id": audit_drive_id,
+                "receipt_drive_id": receipt_drive_id,
+                "theory_preview_drive_id": preview["theory_preview_drive_id"],
+                "exercise_preview_drive_id": preview["exercise_preview_drive_id"],
+                "preview_qa_drive_id": preview["preview_qa_drive_id"],
+                "preview_qa_passed": preview_passed,
+                "input_sha256": handoff["input_sha256"],
+                "published": False,
+                "publication_status": "BLOCKED",
+                "independent_scientific_review": "NOT_RUN",
+                "paid_ai_called": False,
+            }
         else:
             progress("HANDOFF_WAITING_FOR_ASSISTANT",
                      lesson_id=lesson_id, path=handoff_path,
