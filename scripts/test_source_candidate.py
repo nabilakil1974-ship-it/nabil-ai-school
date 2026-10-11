@@ -1,4 +1,5 @@
 import copy
+import hashlib
 import unittest
 
 from scripts.nabil_factory.source_candidate import apply_source_candidate
@@ -27,7 +28,9 @@ class SourceCandidateTests(unittest.TestCase):
                     "source_page": 20,
                     "printed_page": 18,
                     "exact_source_prompt": "Compute 2^3.",
-                    "source_prompt_hash": "prompt-hash",
+                    "source_prompt_hash": hashlib.sha256(
+                        b"Compute 2^3."
+                    ).hexdigest(),
                     "source_origin": "TEXTBOOK",
                     "verified_against_source": True,
                 }],
@@ -64,6 +67,14 @@ class SourceCandidateTests(unittest.TestCase):
             mutate(candidate)
             with self.assertRaisesRegex(ValueError, error):
                 apply_source_candidate(self.entry, {}, candidate)
+
+    def test_rejects_prompt_text_with_stale_hash(self):
+        candidate = copy.deepcopy(self.candidate)
+        candidate["source_evidence"]["exercise_evidence"][0][
+            "exact_source_prompt"
+        ] = "Compute 2^4."
+        with self.assertRaisesRegex(ValueError, "PROMPT_HASH_MISMATCH"):
+            apply_source_candidate(self.entry, {}, candidate)
 
     def test_pipeline_reads_candidate_before_handoff_export(self):
         from pathlib import Path

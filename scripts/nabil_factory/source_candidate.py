@@ -6,6 +6,7 @@ publication approval, and every imported exercise retains that pending state.
 from __future__ import annotations
 
 import copy
+import hashlib
 
 
 def apply_source_candidate(entry: dict, evidence_map: dict, candidate: dict) -> dict:
@@ -42,8 +43,14 @@ def apply_source_candidate(entry: dict, evidence_map: dict, candidate: dict) -> 
             raise ValueError("SOURCE_CANDIDATE_EXERCISE_PAGE_OUT_OF_RANGE")
         if not str(item.get("exact_source_prompt") or "").strip():
             raise ValueError("SOURCE_CANDIDATE_EXERCISE_PROMPT_MISSING")
-        if not str(item.get("source_prompt_hash") or "").strip():
+        supplied_hash = str(item.get("source_prompt_hash") or "").strip()
+        if not supplied_hash:
             raise ValueError("SOURCE_CANDIDATE_EXERCISE_PROMPT_HASH_MISSING")
+        expected_hash = hashlib.sha256(
+            str(item["exact_source_prompt"]).encode("utf-8")
+        ).hexdigest()
+        if supplied_hash != expected_hash:
+            raise ValueError("SOURCE_CANDIDATE_EXERCISE_PROMPT_HASH_MISMATCH")
         if item.get("source_origin") != "TEXTBOOK":
             raise ValueError("SOURCE_CANDIDATE_NON_TEXTBOOK_EXERCISE")
 
