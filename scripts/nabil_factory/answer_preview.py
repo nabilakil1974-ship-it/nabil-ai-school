@@ -165,6 +165,7 @@ def render_and_save_answer_preview(job: dict, answer: dict, service, pending_fol
     import os
     completed_folder = os.getenv("NABIL_COMPLETED_FOLDER_ID", "").strip()
     if os.getenv("NABIL_PUBLISH_HANDOFF_V18", "0") == "1":
+        raise RuntimeError("INDEPENDENT_SCIENTIFIC_REVIEW_REQUIRED_BEFORE_V18_PUBLICATION")
         if not qa["passed"]:
             raise RuntimeError("V18_HANDOFF_BOARD_QA_FAILED: no publication")
         if not completed_folder:
