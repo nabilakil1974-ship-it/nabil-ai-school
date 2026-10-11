@@ -112,7 +112,10 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
                 drive_service, pending_folder, receipt_name, receipt)
             # The verified answer continues to the original V18 engine.
             # No preview, fake board or early return.
-            imported_answer = receipt
+            # The receipt is audit metadata, not the returned lesson payload.
+            # The actual verified handoff answer contains teaching_steps and
+            # exercise_solutions needed by the downstream V18 pipeline.
+            imported_answer = answer
             progress("HANDOFF_ANSWER_IMPORTED_TO_FACTORY",
                      lesson_id=lesson_id, answer_drive_id=answer_drive_id)
         else:
