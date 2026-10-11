@@ -160,6 +160,39 @@ def render_and_save_answer_preview(job: dict, answer: dict, service, pending_fol
     qid,qsha=_upload_verified(service,pending_folder,stem+"--QA.json",
                               json.dumps(qa,ensure_ascii=False,sort_keys=True,separators=(",",":")),
                               "application/json")
+    # Owner-approved publication: only publish V18 boards after real desktop/mobile QA.
+    # Keep the explicit unverified status; this is not an independent science review.
+    import os
+    completed_folder = os.getenv("NABIL_COMPLETED_FOLDER_ID", "").strip()
+    if os.getenv("NABIL_PUBLISH_HANDOFF_V18", "0") == "1":
+        if not qa["passed"]:
+            raise RuntimeError("V18_HANDOFF_BOARD_QA_FAILED: no publication")
+        if not completed_folder:
+            raise RuntimeError("NABIL_COMPLETED_FOLDER_ID_REQUIRED")
+        public_theory = theory.replace(
+            'data-publication-status="BLOCKED" data-review-status="PENDING_INDEPENDENT_REVIEW"',
+            'data-publication-status="PUBLISHED_UNVERIFIED" data-review-status="INDEPENDENT_REVIEW_DISABLED_BY_OWNER"'
+        ).replace(
+            'UNPUBLISHED V18 PREVIEW — independent scientific review required',
+            'NABIL V18 — Source-grounded lesson; independent review disabled'
+        )
+        public_exercises = exercise.replace(
+            'data-publication-status="BLOCKED" data-review-status="PENDING_INDEPENDENT_REVIEW"',
+            'data-publication-status="PUBLISHED_UNVERIFIED" data-review-status="INDEPENDENT_REVIEW_DISABLED_BY_OWNER"'
+        ).replace(
+            'UNPUBLISHED V18 PREVIEW — independent scientific review required',
+            'NABIL V18 — Source-grounded exercises; independent review disabled'
+        )
+        pub_theory_id, _ = _upload_verified(
+            service, completed_folder, stem+"--V18-THEORY.html", public_theory, "text/html")
+        pub_exercises_id, _ = _upload_verified(
+            service, completed_folder, stem+"--V18-EXERCISES.html", public_exercises, "text/html")
+        return {"theory_preview_drive_id":tid,"exercise_preview_drive_id":eid,
+                "preview_qa_drive_id":qid,"preview_qa_sha256":qsha,"preview_qa":qa,
+                "published":True,"scientific_review":"DISABLED_BY_OWNER",
+                "status":"PUBLISHED_UNVERIFIED",
+                "drive_theory_id":pub_theory_id,
+                "drive_exercises_id":pub_exercises_id}
     return {"theory_preview_drive_id":tid,"exercise_preview_drive_id":eid,
             "preview_qa_drive_id":qid,"preview_qa_sha256":qsha,"preview_qa":qa,
             "published":False,"scientific_review":"NOT_RUN"}
