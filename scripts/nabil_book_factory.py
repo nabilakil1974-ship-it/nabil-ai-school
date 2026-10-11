@@ -1015,6 +1015,8 @@ def main() -> int:
                  reason=str(exc)[:1000], exit_code=1)
         return 1
     except Exception as exc:
+        import traceback
+        announce("FACTORY_UNHANDLED_EXCEPTION", exception_type=type(exc).__name__, traceback=traceback.format_exc()[-12000:])
         announce("FINAL_STATUS", status="NEEDS_ATTENTION",
                  reason=f"{type(exc).__name__}:{str(exc)[:900]}",
                  exit_code=factory.EXIT_NEEDS_ATTENTION)
