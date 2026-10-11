@@ -34,12 +34,30 @@ class HandoffTests(unittest.TestCase):
             job=create_handoff(self.entry,self.evidence,str(Path(d)/"job.json"))
             result={"schema":"nabil.lesson.answer.v1",
                     "lesson_id":job["lesson_id"],"input_sha256":job["input_sha256"],
-                    "teaching_steps":[{"text":"2 cubed is eight"}],
-                    "exercise_solutions":[{"exercise_id":"p14-e1","answer":"8"}]}
+                    "teaching_steps":[{"concept_id":"p13-c1","text":"2 cubed is eight"}],
+                    "exercise_solutions":[{"exercise_id":"p14-e1","steps":["2×2×2=8"],"final_answer":"8"}]}
             self.assertEqual(verify_return(job,result)["status"],"PENDING_INDEPENDENT_REVIEW")
             result["scientific_review"]="PASS"
             with self.assertRaises(ValueError):
                 verify_return(job,result)
+    def test_answer_rejects_incomplete_or_unknown_evidence_coverage(self):
+        with tempfile.TemporaryDirectory() as d:
+            job=create_handoff(self.entry,self.evidence,str(Path(d)/"job.json"))
+            base={"schema":"nabil.lesson.answer.v1",
+                  "lesson_id":job["lesson_id"],"input_sha256":job["input_sha256"],
+                  "teaching_steps":[{"concept_id":"p13-c1","text":"grounded"}],
+                  "exercise_solutions":[]}
+            with self.assertRaisesRegex(ValueError,"EXERCISE_COVERAGE_MISMATCH"):
+                verify_return(job,base)
+            base["exercise_solutions"]=[{"exercise_id":"invented","steps":["x"],"final_answer":"x"}]
+            with self.assertRaisesRegex(ValueError,"EXERCISE_COVERAGE_MISMATCH"):
+                verify_return(job,base)
+
+    def test_pipeline_has_drive_answer_readback_and_never_publishes_receipt(self):
+        pipeline = (Path(__file__).parent / "nabil_factory" / "factory" / "pipeline.py").read_text(encoding="utf-8")
+        self.assertIn("NABIL_HANDOFF_ANSWER_DRIVE_ID", pipeline)
+        self.assertIn("HANDOFF_ANSWER_STRUCTURALLY_VERIFIED_AWAITING_INDEPENDENT_REVIEW", pipeline)
+        self.assertIn('"published": False', pipeline)
     def test_pipeline_fails_closed_without_independent_review(self):
         pipeline = (Path(__file__).parent / "nabil_factory" / "factory" / "pipeline.py").read_text(encoding="utf-8")
         gate = 'if candidate["needs_review"] or candidate["review_status"] != "REVIEWED":'

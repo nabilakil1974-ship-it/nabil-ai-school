@@ -66,9 +66,48 @@ def verify_return(job: dict, result: dict) -> dict:
     solutions = result.get("exercise_solutions")
     if not isinstance(steps, list) or not isinstance(solutions, list):
         raise ValueError("HANDOFF_ANSWER_MISSING_CONTENT")
+    expected_concepts = {
+        str(item.get("concept_id") or item.get("id") or "").strip()
+        for item in job.get("source_evidence", {}).get("concept_evidence", [])
+    }
+    expected_concepts.discard("")
+    expected_exercises = {
+        str(item.get("exercise_id") or item.get("id") or "").strip()
+        for item in job.get("source_evidence", {}).get("exercise_evidence", [])
+    }
+    expected_exercises.discard("")
+
+    def _require_exact_ids(items: list, key: str, expected: set, kind: str) -> None:
+        actual = [str(item.get(key) or "").strip()
+                  for item in items if isinstance(item, dict)]
+        if len(actual) != len(items) or any(not value for value in actual):
+            raise ValueError(f"HANDOFF_ANSWER_{kind}_ID_MISSING")
+        if len(actual) != len(set(actual)):
+            raise ValueError(f"HANDOFF_ANSWER_{kind}_ID_DUPLICATE")
+        missing = sorted(expected - set(actual))
+        unknown = sorted(set(actual) - expected)
+        if missing or unknown:
+            raise ValueError(
+                f"HANDOFF_ANSWER_{kind}_COVERAGE_MISMATCH:"
+                + json.dumps({"missing": missing, "unknown": unknown},
+                             ensure_ascii=False, sort_keys=True))
+
+    _require_exact_ids(steps, "concept_id", expected_concepts, "CONCEPT")
+    _require_exact_ids(solutions, "exercise_id", expected_exercises, "EXERCISE")
+    for step in steps:
+        if not str(step.get("text") or step.get("conclusion") or "").strip():
+            raise ValueError("HANDOFF_ANSWER_EMPTY_TEACHING_STEP")
+    for solution in solutions:
+        if (not isinstance(solution.get("steps"), list)
+                or not solution.get("steps")
+                or not str(solution.get("final_answer") or "").strip()):
+            raise ValueError("HANDOFF_ANSWER_INCOMPLETE_EXERCISE_SOLUTION")
     if result.get("scientific_review") == "PASS":
         raise ValueError("SELF_DECLARED_SCIENTIFIC_REVIEW_NOT_ACCEPTED")
     return {
         "lesson_id": job["lesson_id"], "status": "PENDING_INDEPENDENT_REVIEW",
+        "input_sha256": job["input_sha256"],
+        "concept_count": len(steps),
+        "exercise_count": len(solutions),
         "teaching_steps": steps, "exercise_solutions": solutions,
     }

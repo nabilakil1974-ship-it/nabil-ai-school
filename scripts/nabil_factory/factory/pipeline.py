@@ -50,7 +50,7 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
     # Export a grounded ChatGPT handoff BEFORE all AI generation.
     # Explicit opt-in only. Never claim production or publish at this stage.
     if os.getenv("NABIL_HANDOFF_EXPORT_ONLY", "0") == "1":
-        from scripts.nabil_factory.assistant_handoff import create_handoff
+        from scripts.nabil_factory.assistant_handoff import create_handoff, verify_return
         handoff_root = Path(os.getenv("NABIL_HANDOFF_DIR", "/data/nabil/handoff"))
         handoff_name = "HANDOFF--" + re.sub(r"[^A-Za-z0-9_-]", "_", lesson_id) + ".json"
         handoff_path = str(handoff_root / handoff_name)
@@ -61,6 +61,47 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
         from scripts.nabil_page_checkpoint import _write_json_verified
         handoff_drive_id = _write_json_verified(
             drive_service, pending_folder, handoff_name, handoff)
+        answer_drive_id = os.getenv("NABIL_HANDOFF_ANSWER_DRIVE_ID", "").strip()
+        if answer_drive_id:
+            answer_bytes = drive_service.files().get_media(
+                fileId=answer_drive_id).execute()
+            if isinstance(answer_bytes, bytes):
+                answer = json.loads(answer_bytes.decode("utf-8"))
+            elif isinstance(answer_bytes, str):
+                answer = json.loads(answer_bytes)
+            else:
+                raise RuntimeError("HANDOFF_ANSWER_DRIVE_READ_INVALID")
+            receipt = verify_return(handoff, answer)
+            receipt.update({
+                "schema": "nabil.lesson.handoff.receipt.v1",
+                "answer_drive_id": answer_drive_id,
+                "handoff_drive_id": handoff_drive_id,
+                "published": False,
+                "scientific_review": "NOT_RUN",
+            })
+            receipt_name = (
+                "HANDOFF-VERIFIED--"
+                + re.sub(r"[^A-Za-z0-9_-]", "_", lesson_id)
+                + ".json"
+            )
+            receipt_drive_id = _write_json_verified(
+                drive_service, pending_folder, receipt_name, receipt)
+            progress(
+                "HANDOFF_ANSWER_STRUCTURALLY_VERIFIED_AWAITING_INDEPENDENT_REVIEW",
+                lesson_id=lesson_id, answer_drive_id=answer_drive_id,
+                receipt_drive_id=receipt_drive_id,
+                concepts=receipt["concept_count"],
+                exercises=receipt["exercise_count"])
+            return {
+                "status": "HANDOFF_ANSWER_STRUCTURALLY_VERIFIED_AWAITING_INDEPENDENT_REVIEW",
+                "lesson_id": lesson_id,
+                "handoff_drive_id": handoff_drive_id,
+                "answer_drive_id": answer_drive_id,
+                "receipt_drive_id": receipt_drive_id,
+                "input_sha256": handoff["input_sha256"],
+                "published": False,
+                "paid_ai_called": False,
+            }
         progress("HANDOFF_WAITING_FOR_ASSISTANT",
                  lesson_id=lesson_id, path=handoff_path,
                  source_hash=handoff["input_sha256"])
