@@ -80,6 +80,9 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
         verified_solved=len(verified_textbook),
         dropped=len(textbook_exercises) - len(verified_textbook))
 
+    from scripts.nabil_factory.coverage_gate import require_textbook_coverage
+    require_textbook_coverage(textbook_exercises, verified_textbook, "solutions")
+
     # 2) If only 0, 1, or 2 textbook exercises survived, ask AI for >=3
     #    ADDITIONAL exercises. Every candidate must pass the strict lesson-scope
     #    scientific gate; invented/out-of-scope exercises are discarded alone.
@@ -114,6 +117,8 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
         ai=sum(1 for ex in exercises
                if ex.get("source_origin") == "AI_ADDITIONAL_PRACTICE"),
         total=len(exercises))
+
+    require_textbook_coverage(textbook_exercises, exercises, "rendered_labs")
 
     # Factory-default pedagogical self-healing: if source-scope auditing removed
     # a generated quiz/apply item, bind that concept to a verified textbook

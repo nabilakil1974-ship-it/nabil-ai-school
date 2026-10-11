@@ -249,6 +249,10 @@ def execute_llm_completion(
     fail fast so durable checkpoints can be resumed later instead of burning a
     Railway session idling.
     """
+    # Explicit zero-external-inference mode. Enforce before keys, retries or HTTP.
+    if os.getenv("NABIL_NO_EXTERNAL_AI", "0") == "1":
+        raise RuntimeError("EXTERNAL_AI_DISABLED_BY_OWNER: " + str(operation))
+
     global _LAST_LLM_PROVENANCE
 
     preferred = (

@@ -359,6 +359,11 @@ def load_solution(service, root_id, entry, exercise,
     raw = service.files().get_media(fileId=fid).execute()
     record = json.loads(raw.decode("utf-8") if isinstance(raw, bytes)
                         else raw)
+    # Missing fingerprints cannot prove that the cached solution matches input.
+    source_hash = entry.get("source_pdf_sha256") or entry.get("source_book_sha256")
+    prompt_hash = exercise.get("source_prompt_hash")
+    if not source_hash or not prompt_hash:
+        return None
     expected = {
         "schema": CACHE_SCHEMA,
         "book_id": entry["book_id"],
