@@ -1267,6 +1267,12 @@ def _apply_math_contract_or_omit(entry: dict, ex: dict, sol, regen=None):
             ex["_pre_solved_solution"] = None
             ex["solution_omission_reason"] = reason[:500]
             ex["solution_rejection_kind"] = kind
+            try:
+                ex["_rejected_solution"] = {
+                    "steps": [str(x)[:400] for x in (sol.get("steps") or [])][:20],
+                    "final_answer": str(sol.get("final_answer") or "")[:300]}
+            except Exception:
+                ex["_rejected_solution"] = None
             progress("MATH_CONTRACT_EXERCISE_UNAPPROVED",
                      exercise_id=ex.get("exercise_id"), number=ex.get("number"),
                      kind=kind, reason=reason[:300])
@@ -1391,6 +1397,48 @@ def prepare_verified_solutions(entry: dict, exercises: list,
             progress("SOLUTION_SAVED_TO_DRIVE",
                      exercise_id=ex.get("exercise_id"),
                      number=ex.get("number"))
+
+    _persist_math_rejections(entry, exercises, drive_service,
+                             checkpoint_root, page_checkpoints)
+
+
+def math_rejection_records(exercises: list) -> list:
+    """Items the deterministic math gate refused: id, page, number, reason, last attempt."""
+    return [{
+        "exercise_id": str(ex.get("exercise_id") or ""),
+        "number": ex.get("number"),
+        "source_page": ex.get("source_page"),
+        "prompt": str(ex.get("exact_source_prompt") or "")[:1200],
+        "kind": ex.get("solution_rejection_kind"),
+        "reason": str(ex.get("solution_omission_reason") or "")[:500],
+        "last_rejected_attempt": ex.get("_rejected_solution"),
+        "status": "PENDING_MANUAL_OR_RETRY",
+    } for ex in exercises
+        if ex.get("solution_status") == "OMITTED_UNVERIFIED"
+        and ex.get("solution_rejection_kind")]
+
+
+def _persist_math_rejections(entry, exercises, drive_service, root, page_checkpoints):
+    """Persist math-rejected exercises (never silently dropped). Best-effort write:
+    a failure is logged, it never turns a rejected exercise into an approved one."""
+    items = math_rejection_records(exercises)
+    if not items:
+        return
+    progress("MATH_REJECTIONS_RECORDED", count=len(items),
+             items=[{"number": i["number"], "page": i["source_page"], "kind": i["kind"]} for i in items])
+    if not page_checkpoints:
+        return
+    try:
+        import hashlib
+        digest = hashlib.sha256(json.dumps(items, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+        page_checkpoints.save_paid_unit(
+            drive_service, root, entry, operation="math_rejections", unit_id="lesson",
+            source_hash=digest, prompt_version="MATH_REJECTIONS_V1",
+            payload={"lesson_id": entry.get("lesson_id"), "items": items, "count": len(items)},
+            provenance={"policy": "KEEP_FOR_RETRY_NO_REPUBLISH_AS_APPROVED"})
+        progress("MATH_REJECTIONS_SAVED_TO_DRIVE", count=len(items))
+    except Exception as exc:
+        progress("MATH_REJECTIONS_SAVE_FAILED", error=str(exc)[:200])
 
 
 def retain_only_verified_solved_exercises(

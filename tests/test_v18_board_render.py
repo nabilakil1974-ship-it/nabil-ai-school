@@ -36,3 +36,15 @@ def test_exercises_board_only_shows_solved():
 
 def test_plain_math_strips_delimiters():
     assert plain_math(r"\(67 \times 10^{2}\)") == "67 × 10²"
+
+
+def test_translation_candidates_are_data_only():
+    from scripts.nabil_factory.factory import orchestrator as o
+    acts = [{"concept_id": "C1", "title": "Powers of ten", "conclusion": "10² = 100 means a hundred",
+             "lab_html": "<div><p>Move the slider to see how powers grow</p></div>",
+             "teaching_steps": [{"label": "See", "sentence": "10² means 10 × 10.", "formula": "10² = 100"}]}]
+    h = render_v18_smart_board("Powers", acts, "en", build_golden_spec("Powers", acts, "en", subject="Mathematics"), "C")
+    c = o._extract_translation_candidates(h)
+    assert "10² means 10 × 10." in c and "Move the slider to see how powers grow" in c
+    assert len(c) < 40, len(c)  # engine/runtime JS is never sent to the translator
+    assert not any("function" in x or "querySelector" in x for x in c)

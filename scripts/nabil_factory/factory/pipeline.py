@@ -409,7 +409,7 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
 # MAIN ENTRY POINT
 # ==============================================================================
 
-def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = False) -> dict:
+def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: bool = False) -> dict:
     """Single recovery boundary for every provider-dependent production stage."""
     try:
         return _produce_lesson_for_entry_impl(
@@ -652,3 +652,18 @@ def _cli_entry() -> int:
         return EXIT_NEEDS_ATTENTION
 
 
+
+
+
+def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = False) -> dict:
+    """Measured wrapper: per-lesson AI calls / wait / translation time / est. cost,
+    emitted as LESSON_LLM_METRICS on success AND on failure (no behaviour change)."""
+    llm_metrics_reset()
+    try:
+        return _produce_lesson_for_entry_impl(entry, drive_service=drive_service, publish=publish)
+    finally:
+        try:
+            progress("LESSON_LLM_METRICS", lesson_id=entry.get("lesson_id"),
+                     **llm_metrics_snapshot())
+        except Exception:
+            pass

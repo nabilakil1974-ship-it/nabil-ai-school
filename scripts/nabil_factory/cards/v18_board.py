@@ -664,8 +664,8 @@ def render_v18_smart_board(title: str, activities: list, lang_code: str,
   <div class="v18-timeline" id="nabilWholeTimeline"></div><div class="v18-note" id="v18VoiceNote"></div>
 <div class="v18-final" data-v18-final-stage="true"><div id="goldenReferenceCard" data-nabil-v18-golden="true"></div></div>
 <script type="application/json" id="nabilV18Data">{data}</script>
-<script type="text/plain" id="nabilV18CardEnginePayload">{engine_b64}</script>
-<script>
+<script type="text/plain" id="nabilV18CardEnginePayload" data-nabil-no-translate="1">{engine_b64}</script>
+<script data-nabil-no-translate="1">
 (() => {{
  const payload=document.getElementById('nabilV18CardEnginePayload');
  const bytes=Uint8Array.from(atob(payload.textContent.trim()),c=>c.charCodeAt(0));
@@ -679,7 +679,7 @@ def render_v18_smart_board(title: str, activities: list, lang_code: str,
  window.__NABIL_V18_CARDS=window.NABILScientificCards;
 }})();
 </script>
-<script>{_JS}</script>
+<script data-nabil-no-translate="1">{_JS}</script>
 </section>'''
 
 

@@ -184,6 +184,7 @@ def _extract_translation_candidates(markup: str) -> List[str]:
     ordered: List[str] = []
     seen = set()
     script_chunks: List[str] = []
+    v18_chunks: List[str] = []
 
     def add(value):
         text = re.sub(r"\s+", " ", str(value or "")).strip()
@@ -196,11 +197,21 @@ def _extract_translation_candidates(markup: str) -> List[str]:
             super().__init__(convert_charrefs=True)
             self.skip_depth = 0
             self.in_script = False
+            self.script_mode = ""
 
         def handle_starttag(self, tag, attrs):
             lower = tag.lower()
             if lower == "script":
                 self.in_script = True
+                amap = dict(attrs)
+                # V18 board: translate DATA only. Its runtime JS / vendored
+                # engine are code and are never sent to the translator.
+                if amap.get("id") == "nabilV18Data":
+                    self.script_mode = "v18data"
+                elif "data-nabil-no-translate" in amap:
+                    self.script_mode = "skip"
+                else:
+                    self.script_mode = ""
                 return
             if lower in {"style", "noscript"}:
                 self.skip_depth += 1
@@ -219,13 +230,39 @@ def _extract_translation_candidates(markup: str) -> List[str]:
 
         def handle_data(self, data):
             if self.in_script:
-                script_chunks.append(data)
+                if self.script_mode == "v18data":
+                    v18_chunks.append(data)
+                elif self.script_mode != "skip":
+                    script_chunks.append(data)
             elif self.skip_depth == 0:
                 add(data)
 
     parser = Collector()
     parser.feed(markup)
     parser.close()
+
+    if v18_chunks:
+        _V18_SKIP_KEYS = {"language", "lang", "kind", "subject", "avatar_src", "concept_ids",
+                          "contract", "mode", "formula", "golden_speech", "concept_id", "icon"}
+
+        def walk(node, key=""):
+            if isinstance(node, dict):
+                for k, v in node.items():
+                    if k == "srcdoc":
+                        if isinstance(v, str) and v.strip():
+                            for t in _extract_translation_candidates(v):
+                                add(t)
+                    elif k not in _V18_SKIP_KEYS:
+                        walk(v, k)
+            elif isinstance(node, list):
+                for v in node:
+                    walk(v, key)
+            elif isinstance(node, str) and key not in _V18_SKIP_KEYS:
+                add(node)
+        try:
+            walk(json.loads("".join(v18_chunks)))
+        except Exception:
+            pass
 
     # Labs/whole-lesson/proof engines keep some display strings in JS data and
     # reveal them later. Include human-readable literals so the runtime
@@ -585,8 +622,9 @@ def build_trilingual_page_translation(
     for target in REFERENCE_RENDERER_LANGUAGES:
         if target == source_lang:
             continue
-        bundles[target] = _translate_strings_batch(
-            candidates, source_lang, target, purpose)
+        with llm_metrics_scope("translation"):
+            bundles[target] = _translate_strings_batch(
+                candidates, source_lang, target, purpose)
     if any(len(bundles.get(lang, {})) != len(candidates)
            for lang in REFERENCE_RENDERER_LANGUAGES):
         raise RuntimeError("FULL_PAGE_TRANSLATION_COVERAGE_INCOMPLETE")

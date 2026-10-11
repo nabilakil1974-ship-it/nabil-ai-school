@@ -6,6 +6,61 @@ from __future__ import annotations
 _AI_PROVIDER_COOLDOWNS: Dict[str, float] = {}
 _LAST_LLM_PROVENANCE: Dict[str, Any] = {}
 
+# ---- per-lesson AI usage metrics (calls / wait / elapsed / estimated cost) ----
+_LLM_SCOPE: List[str] = ["other"]
+
+
+def llm_metrics_reset() -> None:
+    # mutate in place: the module namespace is shared/exported between parts
+    _LLM_METRICS["started"] = time.monotonic()
+    _LLM_METRICS["scopes"].clear()
+    _LLM_METRICS["providers"].clear()
+
+
+def _llm_bucket(scope: str) -> Dict[str, Any]:
+    return _LLM_METRICS["scopes"].setdefault(scope, {
+        "calls": 0, "failed": 0, "elapsed_s": 0.0, "wait_s": 0.0,
+        "prompt_chars": 0, "response_chars": 0})
+
+
+class llm_metrics_scope:
+    """`with llm_metrics_scope("translation"):` — attribute calls to a stage."""
+    def __init__(self, name: str):
+        self.name = name
+
+    def __enter__(self):
+        _LLM_SCOPE.append(self.name)
+
+    def __exit__(self, *a):
+        _LLM_SCOPE.pop()
+
+
+def llm_metrics_snapshot() -> Dict[str, Any]:
+    """Counters since llm_metrics_reset(). Cost is an ESTIMATE: tokens ~= chars/4
+    times NABIL_LLM_USD_PER_1M_TOKENS (unset -> cost not estimated, never invented)."""
+    rate = os.getenv("NABIL_LLM_USD_PER_1M_TOKENS", "").strip()
+    out = {"wall_s": round(time.monotonic() - _LLM_METRICS["started"], 1),
+           "providers": dict(_LLM_METRICS["providers"]), "scopes": {}, "total": {
+               "calls": 0, "failed": 0, "elapsed_s": 0.0, "wait_s": 0.0, "est_tokens": 0}}
+    for k, b in _LLM_METRICS["scopes"].items():
+        tok = int((b["prompt_chars"] + b["response_chars"]) / 4)
+        out["scopes"][k] = {**{x: (round(v, 1) if isinstance(v, float) else v) for x, v in b.items()}, "est_tokens": tok}
+        t = out["total"]
+        t["calls"] += b["calls"]; t["failed"] += b["failed"]
+        t["elapsed_s"] = round(t["elapsed_s"] + b["elapsed_s"], 1)
+        t["wait_s"] = round(t["wait_s"] + b["wait_s"], 1); t["est_tokens"] += tok
+    try:
+        out["total"]["est_cost_usd"] = (round(out["total"]["est_tokens"] / 1e6 * float(rate), 4)
+                                         if rate else None)
+    except ValueError:
+        out["total"]["est_cost_usd"] = None
+    out["total"]["cost_note"] = ("estimate from NABIL_LLM_USD_PER_1M_TOKENS" if rate
+                                 else "not estimated: NABIL_LLM_USD_PER_1M_TOKENS not set")
+    return out
+
+
+_LLM_METRICS: Dict[str, Any] = {"started": time.monotonic(), "scopes": {}, "providers": {}}
+
 
 def get_last_llm_provenance() -> Dict[str, Any]:
     """Return metadata for the provider/model that actually answered last."""
@@ -231,7 +286,7 @@ def _sanitize_provider_error(exc):
     return detail, code
 
 
-def execute_llm_completion(
+def _execute_llm_completion_impl(
         prompt: str,
         json_mode: bool = True,
         temperature: float = 0.0,
@@ -343,6 +398,7 @@ def execute_llm_completion(
                 wait_seconds=round(wait_seconds, 2),
                 candidates=candidates,
             )
+            _llm_bucket(_LLM_SCOPE[-1])["wait_s"] += wait_seconds + 0.25
             time.sleep(wait_seconds + 0.25)
             continue
 
@@ -652,3 +708,23 @@ def execute_llm_completion(
         reason=f"requests={total_requests}",
         remaining=remaining,
     )
+
+
+
+def execute_llm_completion(prompt, *args, **kwargs):
+    """Metrics wrapper: counts every provider call, its elapsed time and size."""
+    b = _llm_bucket(_LLM_SCOPE[-1])
+    b["calls"] += 1
+    b["prompt_chars"] += len(str(prompt or ""))
+    t0 = time.monotonic()
+    try:
+        out = _execute_llm_completion_impl(prompt, *args, **kwargs)
+        b["response_chars"] += len(str(out or ""))
+        prov = str(_LAST_LLM_PROVENANCE.get("provider") or "unknown")
+        _LLM_METRICS["providers"][prov] = _LLM_METRICS["providers"].get(prov, 0) + 1
+        return out
+    except Exception:
+        b["failed"] += 1
+        raise
+    finally:
+        b["elapsed_s"] += time.monotonic() - t0
