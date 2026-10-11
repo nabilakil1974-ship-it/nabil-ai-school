@@ -113,6 +113,28 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
                 render_and_save_answer_preview)
             preview = render_and_save_answer_preview(
                 handoff, answer, drive_service, pending_folder)
+            if os.getenv("NABIL_PUBLISH_HANDOFF_V18", "0") == "1":
+                if not preview["published"]:
+                    raise RuntimeError("V18_HANDOFF_PUBLICATION_NOT_CONFIRMED")
+                progress("V18_HANDOFF_BOARDS_PUBLISHED_UNVERIFIED",
+                         lesson_id=lesson_id,
+                         theory_id=preview["drive_theory_id"],
+                         exercises_id=preview["drive_exercises_id"],
+                         qa_passed=preview["preview_qa"]["passed"])
+                return {
+                    "status": "PUBLISHED_UNVERIFIED",
+                    "lesson_id": lesson_id,
+                    "drive_theory_id": preview["drive_theory_id"],
+                    "drive_exercises_id": preview["drive_exercises_id"],
+                    "drive_labs_id": None,
+                    "source_pages": f"{entry['pdf_start_page']}..{entry['pdf_end_page']}",
+                    "pending_source_count": len(ev_map.get("source_backlog", {}).get("pending", [])),
+                    "review_status": "INDEPENDENT_REVIEW_DISABLED_BY_OWNER",
+                    "needs_review": True,
+                    "review_reasons": {"scientific_review": "DISABLED_BY_OWNER"},
+                    "published": True,
+                    "paid_ai_called": False,
+                }
             progress(
                 "HANDOFF_ANSWER_STRUCTURALLY_VERIFIED_AWAITING_INDEPENDENT_REVIEW",
                 lesson_id=lesson_id, answer_drive_id=answer_drive_id,
