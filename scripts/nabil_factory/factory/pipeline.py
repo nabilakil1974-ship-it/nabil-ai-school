@@ -393,33 +393,23 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
     page_a = candidate["page_a_html"]
     page_b = candidate["page_b_html"]
 
-    review_res = independent_scientific_review(entry, candidate)
-
+    # Owner-directed policy: do not require an independent scientific reviewer.
+    # All deterministic source, mathematics, rendering and quality gates above
+    # remain mandatory. Never describe this candidate as independently reviewed.
     title_review = dict(ev_map.get("title_verification") or {})
-    candidate["review_status"] = str(
-        review_res.get("review_status") or "UNREVIEWED")
-    candidate["needs_review"] = bool(
-        title_review.get("needs_review")
-        or review_res.get("needs_review")
-        or candidate["review_status"] != "REVIEWED"
-    )
+    candidate["review_status"] = "INDEPENDENT_REVIEW_DISABLED_BY_OWNER"
+    candidate["needs_review"] = bool(title_review.get("needs_review"))
     candidate["review_reasons"] = {
         "title": title_review,
-        "scientific_review": review_res,
+        "scientific_review": {"status": "DISABLED_BY_OWNER", "independent": False},
     }
-
-    # Publication is fail-closed. A deterministic local check is useful
-    # diagnostics, but it is not an independent scientific review. Never
-    # compile or publish a candidate whose reviewer was unavailable, whose
-    # review remained pending, or whose title/source still needs review.
-    if candidate["needs_review"] or candidate["review_status"] != "REVIEWED":
+    if candidate["needs_review"]:
         raise ScientificGateBlocked(
-            "INDEPENDENT_SCIENTIFIC_REVIEW_REQUIRED:"
+            "SOURCE_TITLE_REVIEW_REQUIRED:"
             + json.dumps(candidate["review_reasons"], ensure_ascii=False)
         )
 
-    # QA and independent scientific review have passed. Only now freeze the
-    # already-rendered labs as static reusable artifacts for every student.
+    # The existing deterministic QA gates have run. Persist tested artifacts.
     published_labs = persist_quality_gated_labs(entry, theory, exercises)
 
     path_a = OUT_DIR / filename_a
