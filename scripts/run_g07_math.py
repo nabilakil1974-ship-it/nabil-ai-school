@@ -25,4 +25,11 @@ if __name__ == "__main__":
         "--language", "en",
         "--max-new-lessons", "1",
     ]
-    raise SystemExit(nabil_book_factory.main())
+    result = nabil_book_factory.main()
+    # Produce a truthful DRAFT HTML preview from owner-authored Drive content
+    # only after the source-first one-lesson factory finishes its safe handoff.
+    # This does NOT approve science, bypass V18 QA, or publish to NABIL.
+    if os.getenv("NABIL_HANDOFF_EXPORT_ONLY", "").strip() == "1":
+        from scripts import nabil_powers_preview_factory
+        nabil_powers_preview_factory.main()
+    raise SystemExit(result)
