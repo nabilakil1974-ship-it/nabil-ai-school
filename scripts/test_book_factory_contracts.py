@@ -5,12 +5,19 @@ Run: python -m scripts.test_book_factory_contracts
 """
 import json
 import unittest
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from scripts import nabil_book_factory as book
 
 
 class BookFactoryContracts(unittest.TestCase):
+    def test_blocked_v18_preview_is_a_safe_checkpoint_not_a_crash(self):
+        source = (Path(__file__).parent / "nabil_book_factory.py").read_text(
+            encoding="utf-8")
+        self.assertIn("HANDOFF_V18_PREVIEW_QA_PASSED_BLOCKED", source)
+        self.assertIn('"preview_qa_drive_id": report.get(', source)
+
     def test_unknown_book_requires_classification_not_filename_guess(self):
         with patch.object(book, "MANIFESTS", ()):
             with self.assertRaisesRegex(RuntimeError, "NEW_BOOK_METADATA_REQUIRED"):
