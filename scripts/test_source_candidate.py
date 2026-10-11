@@ -23,6 +23,15 @@ class SourceCandidateTests(unittest.TestCase):
             "input_sha256": "candidate-hash",
             "status": "SOURCE_COMPLETE_CANDIDATE_PENDING_INDEPENDENT_REVIEW",
             "source_evidence": {
+                "concept_evidence": [{
+                    "concept_id": "c-1",
+                    "source_page": 17,
+                    "normalized_text": "A power repeats a factor.",
+                    "sha256": hashlib.sha256(
+                        b"A power repeats a factor."
+                    ).hexdigest(),
+                    "verified_against_source": True,
+                }],
                 "exercise_evidence": [{
                     "exercise_id": "ex-1",
                     "source_page": 20,
@@ -37,6 +46,7 @@ class SourceCandidateTests(unittest.TestCase):
                 "source_backlog": {"pending_count": 0, "pending": []},
                 "source_completeness": {
                     "source_inventory_candidate_complete": True,
+                    "concept_group_count": 1,
                     "exercise_group_count": 1,
                     "independent_review": "NOT_RUN",
                     "passed": False,
@@ -47,8 +57,12 @@ class SourceCandidateTests(unittest.TestCase):
 
     def test_import_replaces_bad_ocr_inventory_but_stays_blocked(self):
         repaired = apply_source_candidate(
-            self.entry, {"exercise_evidence": [{"exercise_id": "wrong"}]},
+            self.entry, {
+                "concept_evidence": [{"concept_id": "ocr-wrong"}],
+                "exercise_evidence": [{"exercise_id": "wrong"}],
+            },
             self.candidate)
+        self.assertEqual([row["concept_id"] for row in repaired["concept_evidence"]], ["c-1"])
         self.assertEqual([row["exercise_id"] for row in repaired["exercise_evidence"]], ["ex-1"])
         self.assertTrue(repaired["source_completeness"]["blocking"])
         self.assertFalse(repaired["source_candidate"]["publication_allowed"])
@@ -74,6 +88,14 @@ class SourceCandidateTests(unittest.TestCase):
             "exact_source_prompt"
         ] = "Compute 2^4."
         with self.assertRaisesRegex(ValueError, "PROMPT_HASH_MISMATCH"):
+            apply_source_candidate(self.entry, {}, candidate)
+
+    def test_rejects_concept_text_with_stale_hash(self):
+        candidate = copy.deepcopy(self.candidate)
+        candidate["source_evidence"]["concept_evidence"][0][
+            "normalized_text"
+        ] = "Changed theory."
+        with self.assertRaisesRegex(ValueError, "CONCEPT_HASH_MISMATCH"):
             apply_source_candidate(self.entry, {}, candidate)
 
     def test_pipeline_reads_candidate_before_handoff_export(self):

@@ -27,15 +27,38 @@ def apply_source_candidate(entry: dict, evidence_map: dict, candidate: dict) -> 
         raise ValueError("SOURCE_CANDIDATE_PAGE_RANGE_MISMATCH")
 
     source = candidate.get("source_evidence") or {}
+    concepts = source.get("concept_evidence")
     exercises = source.get("exercise_evidence")
+    if not isinstance(concepts, list) or not concepts:
+        raise ValueError("SOURCE_CANDIDATE_CONCEPTS_MISSING")
     if not isinstance(exercises, list) or not exercises:
         raise ValueError("SOURCE_CANDIDATE_EXERCISES_MISSING")
+    concept_ids = [str(item.get("concept_id") or "").strip()
+                   for item in concepts if isinstance(item, dict)]
+    if len(concept_ids) != len(concepts) or any(not item for item in concept_ids):
+        raise ValueError("SOURCE_CANDIDATE_CONCEPT_ID_MISSING")
+    if len(concept_ids) != len(set(concept_ids)):
+        raise ValueError("SOURCE_CANDIDATE_CONCEPT_ID_DUPLICATED")
     ids = [str(item.get("exercise_id") or "").strip()
            for item in exercises if isinstance(item, dict)]
     if len(ids) != len(exercises) or any(not item for item in ids):
         raise ValueError("SOURCE_CANDIDATE_EXERCISE_ID_MISSING")
     if len(ids) != len(set(ids)):
         raise ValueError("SOURCE_CANDIDATE_EXERCISE_ID_DUPLICATED")
+
+    for item in concepts:
+        page = item.get("source_page")
+        if not isinstance(page, int) or not expected_range[0] <= page <= expected_range[1]:
+            raise ValueError("SOURCE_CANDIDATE_CONCEPT_PAGE_OUT_OF_RANGE")
+        text = str(item.get("normalized_text") or item.get("raw_text") or "").strip()
+        if not text:
+            raise ValueError("SOURCE_CANDIDATE_CONCEPT_TEXT_MISSING")
+        supplied_hash = str(item.get("sha256") or "").strip()
+        if not supplied_hash:
+            raise ValueError("SOURCE_CANDIDATE_CONCEPT_HASH_MISSING")
+        expected_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
+        if supplied_hash != expected_hash:
+            raise ValueError("SOURCE_CANDIDATE_CONCEPT_HASH_MISMATCH")
 
     for item in exercises:
         page = item.get("source_page")
@@ -59,24 +82,29 @@ def apply_source_candidate(entry: dict, evidence_map: dict, candidate: dict) -> 
         raise ValueError("SOURCE_CANDIDATE_INVENTORY_NOT_COMPLETE")
     if completeness.get("exercise_group_count") != len(exercises):
         raise ValueError("SOURCE_CANDIDATE_COUNT_MISMATCH")
+    if completeness.get("concept_group_count") != len(concepts):
+        raise ValueError("SOURCE_CANDIDATE_CONCEPT_COUNT_MISMATCH")
     if completeness.get("independent_review") != "NOT_RUN":
         raise ValueError("SOURCE_CANDIDATE_REVIEW_STATUS_INVALID")
     if completeness.get("passed") is not False or completeness.get("blocking") is not True:
         raise ValueError("SOURCE_CANDIDATE_MUST_REMAIN_BLOCKING")
 
-    imported = copy.deepcopy(exercises)
-    for item in imported:
+    imported_concepts = copy.deepcopy(concepts)
+    imported_exercises = copy.deepcopy(exercises)
+    for item in imported_concepts + imported_exercises:
         item["source_correction_pending_independent_review"] = True
         item["verified_against_source"] = bool(item.get("verified_against_source"))
 
     repaired = dict(evidence_map)
-    repaired["exercise_evidence"] = imported
+    repaired["concept_evidence"] = imported_concepts
+    repaired["exercise_evidence"] = imported_exercises
     repaired["source_completeness"] = copy.deepcopy(completeness)
     repaired["source_backlog"] = copy.deepcopy(source.get("source_backlog") or {})
     repaired["source_candidate"] = {
         "input_sha256": candidate.get("input_sha256"),
         "status": candidate.get("status"),
-        "exercise_group_count": len(imported),
+        "concept_group_count": len(imported_concepts),
+        "exercise_group_count": len(imported_exercises),
         "independent_review": "NOT_RUN",
         "publication_allowed": False,
     }
