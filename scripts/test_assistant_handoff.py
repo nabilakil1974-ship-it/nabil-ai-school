@@ -18,6 +18,17 @@ class HandoffTests(unittest.TestCase):
             self.assertEqual(job["source_evidence"]["concept_evidence"][0]["id"],"p13-c1")
             self.assertEqual(len(job["input_sha256"]),64)
             self.assertEqual(json.loads((Path(d)/"job.json").read_text())["input_sha256"],job["input_sha256"])
+    def test_real_evidence_map_keeps_pages_concepts_and_backlog(self):
+        evidence = {"pages_evidence": [{"source_page": 13}],
+                    "concepts": [{"concept_id": "C1", "raw_text": "2^3=8"}],
+                    "exercise_evidence": self.evidence["exercise_evidence"],
+                    "source_backlog": {"pending_count": 1}}
+        with tempfile.TemporaryDirectory() as d:
+            job = create_handoff(self.entry, evidence, str(Path(d)/"job.json"))
+            self.assertEqual(job["source_evidence"]["source_pages"], evidence["pages_evidence"])
+            self.assertEqual(job["source_evidence"]["concept_evidence"], evidence["concepts"])
+            self.assertEqual(job["source_evidence"]["source_backlog"]["pending_count"], 1)
+
     def test_answer_pending_review_not_auto_accepted(self):
         with tempfile.TemporaryDirectory() as d:
             job=create_handoff(self.entry,self.evidence,str(Path(d)/"job.json"))

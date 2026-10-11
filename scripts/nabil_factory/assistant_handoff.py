@@ -18,11 +18,12 @@ def create_handoff(entry: dict, evidence_map: dict, destination: str) -> dict:
     if missing:
         raise ValueError("HANDOFF_ENTRY_MISSING: " + ",".join(missing))
     evidence = {
-        "source_pages": evidence_map.get("source_pages") or [],
-        "concept_evidence": evidence_map.get("concept_evidence") or [],
+        "source_pages": evidence_map.get("source_pages") or evidence_map.get("pages_evidence") or [],
+        "concept_evidence": evidence_map.get("concept_evidence") or evidence_map.get("concepts") or [],
         "exercise_evidence": evidence_map.get("exercise_evidence") or [],
         "title_verification": evidence_map.get("title_verification") or {},
         "source_completeness": evidence_map.get("source_completeness") or {},
+        "source_backlog": evidence_map.get("source_backlog") or {},
     }
     core = {
         "schema": SCHEMA,
@@ -31,6 +32,7 @@ def create_handoff(entry: dict, evidence_map: dict, destination: str) -> dict:
         "language": entry.get("language", "en"),
         "canonical_title": entry["canonical_title"],
         "source_pages": [entry["pdf_start_page"], entry["pdf_end_page"]],
+        "source_pdf_sha256": entry.get("source_pdf_sha256") or entry.get("source_book_sha256"),
         "source_evidence": evidence,
         "task": {
             "teacher": "Create progressive NABIL teaching steps from the evidence only.",
