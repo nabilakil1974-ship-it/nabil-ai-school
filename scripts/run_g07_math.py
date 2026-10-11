@@ -10,7 +10,14 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from scripts import nabil_book_factory
+print("NABIL_G07_BOOT: importing book factory", flush=True)
+try:
+    from scripts import nabil_book_factory
+except BaseException:
+    import traceback
+    traceback.print_exc()
+    raise
+print("NABIL_G07_BOOT: book factory imported", flush=True)
 
 
 if __name__ == "__main__":
