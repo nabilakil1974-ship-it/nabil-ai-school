@@ -331,8 +331,17 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
         "scientific_review": review_res,
     }
 
-    # QA and independent scientific review have passed or were explicitly
-    # classified as non-blocking review debt. Only now freeze the
+    # Publication is fail-closed. A deterministic local check is useful
+    # diagnostics, but it is not an independent scientific review. Never
+    # compile or publish a candidate whose reviewer was unavailable, whose
+    # review remained pending, or whose title/source still needs review.
+    if candidate["needs_review"] or candidate["review_status"] != "REVIEWED":
+        raise ScientificGateBlocked(
+            "INDEPENDENT_SCIENTIFIC_REVIEW_REQUIRED:"
+            + json.dumps(candidate["review_reasons"], ensure_ascii=False)
+        )
+
+    # QA and independent scientific review have passed. Only now freeze the
     # already-rendered labs as static reusable artifacts for every student.
     published_labs = persist_quality_gated_labs(entry, theory, exercises)
 
