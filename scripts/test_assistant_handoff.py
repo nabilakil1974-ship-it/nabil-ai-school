@@ -59,7 +59,7 @@ class HandoffTests(unittest.TestCase):
     def test_pipeline_has_drive_answer_readback_and_never_publishes_receipt(self):
         pipeline = (Path(__file__).parent / "nabil_factory" / "factory" / "pipeline.py").read_text(encoding="utf-8")
         self.assertIn("NABIL_HANDOFF_ANSWER_DRIVE_ID", pipeline)
-        self.assertIn("HANDOFF_ANSWER_IMPORTED_TO_FACTORY", pipeline)
+        self.assertIn("HANDOFF_V18_EXPERIMENTAL_PREVIEW_CREATED", pipeline)
         self.assertIn('"published": False', pipeline)
     def test_pipeline_marks_owner_approved_experiment_unverified(self):
         pipeline = (Path(__file__).parent / "nabil_factory" / "factory" / "pipeline.py").read_text(encoding="utf-8")
