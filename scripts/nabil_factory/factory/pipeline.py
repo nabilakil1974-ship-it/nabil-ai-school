@@ -70,6 +70,7 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
             exercise_groups=len(ev_map["exercise_evidence"]),
             published=False)
 
+    imported_answer = None
     # Export a grounded ChatGPT handoff BEFORE all AI generation.
     # Explicit opt-in only. Never claim production or publish at this stage.
     if os.getenv("NABIL_HANDOFF_EXPORT_ONLY", "0") == "1":
@@ -109,67 +110,26 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
             )
             receipt_drive_id = _write_json_verified(
                 drive_service, pending_folder, receipt_name, receipt)
-            from scripts.nabil_factory.answer_preview import (
-                render_and_save_answer_preview)
-            preview = render_and_save_answer_preview(
-                handoff, answer, drive_service, pending_folder)
-            if os.getenv("NABIL_PUBLISH_HANDOFF_V18", "0") == "1":
-                if not preview["published"]:
-                    raise RuntimeError("V18_HANDOFF_PUBLICATION_NOT_CONFIRMED")
-                progress("V18_HANDOFF_BOARDS_PUBLISHED_UNVERIFIED",
-                         lesson_id=lesson_id,
-                         theory_id=preview["drive_theory_id"],
-                         exercises_id=preview["drive_exercises_id"],
-                         qa_passed=preview["preview_qa"]["passed"])
-                return {
-                    "status": "PUBLISHED_UNVERIFIED",
-                    "lesson_id": lesson_id,
-                    "drive_theory_id": preview["drive_theory_id"],
-                    "drive_exercises_id": preview["drive_exercises_id"],
-                    "drive_labs_id": None,
-                    "source_pages": f"{entry['pdf_start_page']}..{entry['pdf_end_page']}",
-                    "pending_source_count": len(ev_map.get("source_backlog", {}).get("pending", [])),
-                    "review_status": "INDEPENDENT_REVIEW_DISABLED_BY_OWNER",
-                    "needs_review": True,
-                    "review_reasons": {"scientific_review": "DISABLED_BY_OWNER"},
-                    "published": True,
-                    "paid_ai_called": False,
-                }
-            progress(
-                "HANDOFF_ANSWER_STRUCTURALLY_VERIFIED_AWAITING_INDEPENDENT_REVIEW",
-                lesson_id=lesson_id, answer_drive_id=answer_drive_id,
-                receipt_drive_id=receipt_drive_id,
-                concepts=receipt["concept_count"],
-                exercises=receipt["exercise_count"],
-                theory_preview_drive_id=preview["theory_preview_drive_id"],
-                exercise_preview_drive_id=preview["exercise_preview_drive_id"],
-                preview_qa_drive_id=preview["preview_qa_drive_id"],
-                preview_qa_passed=preview["preview_qa"]["passed"])
+            # The verified answer continues to the original V18 engine.
+            # No preview, fake board or early return.
+            imported_answer = receipt
+            progress("HANDOFF_ANSWER_IMPORTED_TO_FACTORY",
+                     lesson_id=lesson_id, answer_drive_id=answer_drive_id)
+        else:
+            progress("HANDOFF_WAITING_FOR_ASSISTANT",
+                     lesson_id=lesson_id, path=handoff_path,
+                     source_hash=handoff["input_sha256"])
             return {
-                "status": "HANDOFF_ANSWER_STRUCTURALLY_VERIFIED_AWAITING_INDEPENDENT_REVIEW",
-                "lesson_id": lesson_id,
+                "status": "HANDOFF_AWAITING_ASSISTANT",
+                "lesson_id": lesson_id, "handoff_file": handoff_path,
                 "handoff_drive_id": handoff_drive_id,
-                "answer_drive_id": answer_drive_id,
-                "receipt_drive_id": receipt_drive_id,
-                "theory_preview_drive_id": preview["theory_preview_drive_id"],
-                "exercise_preview_drive_id": preview["exercise_preview_drive_id"],
-                "preview_qa_drive_id": preview["preview_qa_drive_id"],
-                "preview_qa_passed": preview["preview_qa"]["passed"],
                 "input_sha256": handoff["input_sha256"],
-                "published": False,
-                "paid_ai_called": False,
+                "published": False, "paid_ai_called": False,
             }
-        progress("HANDOFF_WAITING_FOR_ASSISTANT",
-                 lesson_id=lesson_id, path=handoff_path,
-                 source_hash=handoff["input_sha256"])
-        return {
-            "status": "HANDOFF_AWAITING_ASSISTANT",
-            "lesson_id": lesson_id, "handoff_file": handoff_path,
-            "handoff_drive_id": handoff_drive_id,
-            "input_sha256": handoff["input_sha256"],
-            "published": False, "paid_ai_called": False,
-        }
 
+    if imported_answer is not None:
+        ev_map["imported_teaching_steps"] = imported_answer["teaching_steps"]
+        ev_map["imported_exercise_solutions"] = imported_answer["exercise_solutions"]
     theory = synthesize_universal_pedagogy(
         entry, ev_map, profile, drive_service=drive_service)
 
