@@ -96,12 +96,31 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
             else:
                 raise RuntimeError("HANDOFF_ANSWER_DRIVE_READ_INVALID")
             receipt = verify_return(handoff, answer)
+            audit_drive_id = os.getenv(
+                "NABIL_HANDOFF_AUDIT_DRIVE_ID", "").strip()
+            if not audit_drive_id:
+                raise RuntimeError("HANDOFF_DETERMINISTIC_AUDIT_REQUIRED")
+            audit_bytes = drive_service.files().get_media(
+                fileId=audit_drive_id).execute()
+            if isinstance(audit_bytes, bytes):
+                audit = json.loads(audit_bytes.decode("utf-8"))
+            elif isinstance(audit_bytes, str):
+                audit = json.loads(audit_bytes)
+            else:
+                raise RuntimeError("HANDOFF_AUDIT_DRIVE_READ_INVALID")
+            from scripts.nabil_factory.assistant_handoff import verify_deterministic_audit
+            answer_raw = (answer_bytes if isinstance(answer_bytes, bytes)
+                          else answer_bytes.encode("utf-8"))
+            audit_receipt = verify_deterministic_audit(
+                answer_raw, answer, audit, answer_drive_id)
             receipt.update({
                 "schema": "nabil.lesson.handoff.receipt.v1",
                 "answer_drive_id": answer_drive_id,
                 "handoff_drive_id": handoff_drive_id,
                 "published": False,
                 "scientific_review": "NOT_RUN",
+                "deterministic_audit_drive_id": audit_drive_id,
+                "deterministic_audit": audit_receipt,
             })
             receipt_name = (
                 "HANDOFF-VERIFIED--"
@@ -138,9 +157,19 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
 
     # 1) Attempt EVERY verified textbook exercise first.
     textbook_exercises = [dict(ex) for ex in ev_map["exercise_evidence"]]
-    prepare_verified_solutions(
-        entry, textbook_exercises, profile, ev_map,
-        drive_service=drive_service, persist=(drive_service is not None))
+    if imported_answer is not None:
+        from scripts.nabil_factory.assistant_handoff import bind_source_verified_solutions
+        bind_source_verified_solutions(
+            textbook_exercises, imported_answer["exercise_solutions"])
+        progress(
+            "HANDOFF_SOLUTIONS_BOUND_TO_VERIFIED_DETERMINISTIC_AUDIT",
+            lesson_id=lesson_id,
+            exercise_count=len(textbook_exercises),
+            independent_scientific_review="NOT_RUN")
+    else:
+        prepare_verified_solutions(
+            entry, textbook_exercises, profile, ev_map,
+            drive_service=drive_service, persist=(drive_service is not None))
     verified_textbook = retain_only_verified_solved_exercises(
         textbook_exercises, origin="TEXTBOOK")
     progress(
@@ -395,6 +424,7 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
     # remain mandatory. Never describe this candidate as independently reviewed.
     title_review = dict(ev_map.get("title_verification") or {})
     candidate["review_status"] = "INDEPENDENT_REVIEW_DISABLED_BY_OWNER"
+    candidate["publication_unverified"] = True
     candidate["needs_review"] = bool(title_review.get("needs_review"))
     candidate["review_reasons"] = {
         "title": title_review,
@@ -405,6 +435,7 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
             "SOURCE_TITLE_REVIEW_REQUIRED:"
             + json.dumps(candidate["review_reasons"], ensure_ascii=False)
         )
+    review_res = dict(candidate["review_reasons"]["scientific_review"])
 
     # The existing deterministic QA gates have run. Persist tested artifacts.
     published_labs = persist_quality_gated_labs(entry, theory, exercises)
@@ -441,7 +472,8 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
         ver_meta["drive_exercises_id"] = drive_exercises_id
         ver_meta["drive_labs_id"] = drive_labs_id
         ver_meta["history"].append({"action": "PUBLISH", "version": candidate_v, "time": now()})
-        if candidate.get("needs_review"):
+        if (candidate.get("needs_review")
+                or candidate.get("publication_unverified")):
             status_str = "PUBLISHED_UNVERIFIED"
             progress(
                 "ATOMIC_PUBLISHED_UNVERIFIED_TO_DRIVE",
@@ -507,6 +539,8 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
         "gates_report": gates_res["gates"],
         "scientific_review": review_res,
         "review_status": candidate.get("review_status"),
+        "publication_unverified": bool(
+            candidate.get("publication_unverified")),
         "needs_review": bool(candidate.get("needs_review")),
         "review_reasons": candidate.get("review_reasons"),
         "local_files": [str(path_a), str(path_b), str(path_labs)]
