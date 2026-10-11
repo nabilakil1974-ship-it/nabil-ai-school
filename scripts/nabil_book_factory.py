@@ -602,6 +602,15 @@ def run(book_id: str, *, index_only: bool, publish: bool,
             report=factory.produce_lesson_for_entry(
                 entry, drive_service=service, publish=True)
             report_status = str(report.get("status") or "")
+            if report_status == "HANDOFF_AWAITING_ASSISTANT":
+                state["lessons"][lid] = dict(report)
+                remote_checkpoint(service, root, book_id, state)
+                announce("BOOK_HANDOFF_AWAITING_ASSISTANT", lesson_id=lid,
+                         handoff_drive_id=report.get("handoff_drive_id"),
+                         input_sha256=report.get("input_sha256"))
+                return {"status": report_status, "lesson_id": lid,
+                        "published": False,
+                        "handoff_drive_id": report.get("handoff_drive_id")}
             if report_status not in {
                     "PUBLISHED_VERIFIED", "PUBLISHED_UNVERIFIED"}:
                 raise RuntimeError(

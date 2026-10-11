@@ -51,15 +51,23 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
     # Explicit opt-in only. Never claim production or publish at this stage.
     if os.getenv("NABIL_HANDOFF_EXPORT_ONLY", "0") == "1":
         from scripts.nabil_factory.assistant_handoff import create_handoff
-        handoff_path = str(
-            OUT_DIR / ("HANDOFF--" + re.sub(r"[^A-Za-z0-9_-]", "_", lesson_id) + ".json"))
+        handoff_root = Path(os.getenv("NABIL_HANDOFF_DIR", "/data/nabil/handoff"))
+        handoff_name = "HANDOFF--" + re.sub(r"[^A-Za-z0-9_-]", "_", lesson_id) + ".json"
+        handoff_path = str(handoff_root / handoff_name)
         handoff = create_handoff(entry, ev_map, handoff_path)
+        pending_folder = os.getenv("NABIL_PENDING_FOLDER_ID", "").strip()
+        if not pending_folder or drive_service is None:
+            raise RuntimeError("HANDOFF_PENDING_DRIVE_DESTINATION_REQUIRED")
+        from scripts.nabil_page_checkpoint import _write_json_verified
+        handoff_drive_id = _write_json_verified(
+            drive_service, pending_folder, handoff_name, handoff)
         progress("HANDOFF_WAITING_FOR_ASSISTANT",
                  lesson_id=lesson_id, path=handoff_path,
                  source_hash=handoff["input_sha256"])
         return {
             "status": "HANDOFF_AWAITING_ASSISTANT",
             "lesson_id": lesson_id, "handoff_file": handoff_path,
+            "handoff_drive_id": handoff_drive_id,
             "input_sha256": handoff["input_sha256"],
             "published": False, "paid_ai_called": False,
         }
