@@ -653,9 +653,11 @@ def promote_candidate(candidate: dict, entry: dict, drive_service) -> Tuple[str,
     }
     subject_fid = get_or_create_folder(subject_folder_names.get(entry['subject'], entry['subject']), grade_fid)
     needs_review = bool(candidate.get("needs_review"))
+    unverified_release = bool(
+        needs_review or candidate.get("publication_unverified"))
     target_fid = (
         get_or_create_folder("Needs Review - مراجعة مطلوبة", subject_fid)
-        if needs_review else subject_fid
+        if unverified_release else subject_fid
     )
 
     def get_existing_file(fname: str) -> Optional[dict]:
@@ -685,12 +687,12 @@ def promote_candidate(candidate: dict, entry: dict, drive_service) -> Tuple[str,
             "nabil_language": resolve_lang_code(entry.get("language") or "en"),
             "nabil_version": str(candidate.get("version") or candidate.get("candidate_version") or "0.01"),
             "nabil_artifact": artifact,
-            "nabil_golden": "false" if needs_review else "true",
+            "nabil_golden": "false" if unverified_release else "true",
             "nabil_review_status": str(
                 candidate.get("review_status") or
-                ("NEEDS_REVIEW" if needs_review else "REVIEWED")
+                ("NEEDS_REVIEW" if unverified_release else "REVIEWED")
             ),
-            "nabil_needs_review": "true" if needs_review else "false",
+            "nabil_needs_review": "true" if unverified_release else "false",
         }
         body={"name": fname, "appProperties": props}
         if existing:
