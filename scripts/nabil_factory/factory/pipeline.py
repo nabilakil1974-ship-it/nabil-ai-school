@@ -47,6 +47,29 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
     finally:
         doc.close()
 
+    source_candidate_drive_id = os.getenv(
+        "NABIL_SOURCE_CANDIDATE_DRIVE_ID", "").strip()
+    if source_candidate_drive_id:
+        if drive_service is None:
+            raise RuntimeError("SOURCE_CANDIDATE_DRIVE_SERVICE_REQUIRED")
+        source_candidate_bytes = drive_service.files().get_media(
+            fileId=source_candidate_drive_id).execute()
+        if isinstance(source_candidate_bytes, bytes):
+            source_candidate = json.loads(source_candidate_bytes.decode("utf-8"))
+        elif isinstance(source_candidate_bytes, str):
+            source_candidate = json.loads(source_candidate_bytes)
+        else:
+            raise RuntimeError("SOURCE_CANDIDATE_DRIVE_READ_INVALID")
+        from scripts.nabil_factory.source_candidate import apply_source_candidate
+        ev_map = apply_source_candidate(entry, ev_map, source_candidate)
+        progress(
+            "SOURCE_CANDIDATE_IMPORTED_PENDING_INDEPENDENT_REVIEW",
+            lesson_id=lesson_id,
+            source_candidate_drive_id=source_candidate_drive_id,
+            source_hash=source_candidate.get("input_sha256"),
+            exercise_groups=len(ev_map["exercise_evidence"]),
+            published=False)
+
     # Export a grounded ChatGPT handoff BEFORE all AI generation.
     # Explicit opt-in only. Never claim production or publish at this stage.
     if os.getenv("NABIL_HANDOFF_EXPORT_ONLY", "0") == "1":
