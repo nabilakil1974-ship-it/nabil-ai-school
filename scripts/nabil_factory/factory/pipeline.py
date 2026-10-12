@@ -409,7 +409,7 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
 # MAIN ENTRY POINT
 # ==============================================================================
 
-def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: bool = False) -> dict:
+def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = False) -> dict:
     """Single recovery boundary for every provider-dependent production stage."""
     try:
         return _produce_lesson_for_entry_impl(
@@ -655,15 +655,20 @@ def _cli_entry() -> int:
 
 
 
-def produce_lesson_for_entry(entry: dict, drive_service=None, publish: bool = False) -> dict:
-    """Measured wrapper: per-lesson AI calls / wait / translation time / est. cost,
-    emitted as LESSON_LLM_METRICS on success AND on failure (no behaviour change)."""
-    llm_metrics_reset()
-    try:
-        return _produce_lesson_for_entry_impl(entry, drive_service=drive_service, publish=publish)
-    finally:
+
+class lesson_metrics_emitter:
+    """`with lesson_metrics_emitter(lesson_id):` — resets the per-lesson AI counters and
+    always emits LESSON_LLM_METRICS (success or failure). No behaviour change."""
+    def __init__(self, lesson_id):
+        self.lesson_id = lesson_id
+
+    def __enter__(self):
+        llm_metrics_reset()
+        return self
+
+    def __exit__(self, *exc):
         try:
-            progress("LESSON_LLM_METRICS", lesson_id=entry.get("lesson_id"),
-                     **llm_metrics_snapshot())
+            progress("LESSON_LLM_METRICS", lesson_id=self.lesson_id, **llm_metrics_snapshot())
         except Exception:
             pass
+        return False

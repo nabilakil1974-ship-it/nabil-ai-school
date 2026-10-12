@@ -599,8 +599,9 @@ def run(book_id: str, *, index_only: bool, publish: bool,
         try:
             # The owner's full-book command, unlike the single QA-only pilot,
             # authorizes promotion only AFTER all original science/mobile gates.
-            report=factory.produce_lesson_for_entry(
-                entry, drive_service=service, publish=True)
+            with factory.lesson_metrics_emitter(lid):
+                report=factory.produce_lesson_for_entry(
+                    entry, drive_service=service, publish=True)
             report_status = str(report.get("status") or "")
             if report_status not in {
                     "PUBLISHED_VERIFIED", "PUBLISHED_UNVERIFIED"}:

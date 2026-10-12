@@ -56,3 +56,18 @@ def test_llm_metrics_counts_scopes_and_never_invents_cost(monkeypatch):
     assert snap["total"]["est_cost_usd"] is None
     monkeypatch.setenv("NABIL_LLM_USD_PER_1M_TOKENS", "2")
     assert o.llm_metrics_snapshot()["total"]["est_cost_usd"] == 0.004
+
+
+def test_pipeline_entry_points_are_not_self_recursive():
+    """Regression: the recovery wrapper and its impl must each be defined exactly once
+    (a rename once made the wrapper call itself -> RecursionError on Railway)."""
+    import ast
+    src = (Path(__file__).resolve().parents[1] / "scripts/nabil_factory/factory/pipeline.py").read_text()
+    tree = ast.parse(src)
+    defs = [n.name for n in tree.body if isinstance(n, ast.FunctionDef)]
+    assert defs.count("produce_lesson_for_entry") == 1
+    assert defs.count("_produce_lesson_for_entry_impl") == 1
+    impl = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "_produce_lesson_for_entry_impl")
+    assert not any(isinstance(c, ast.Call) and getattr(c.func, "id", "") == "_produce_lesson_for_entry_impl"
+                   for c in ast.walk(impl))
+    assert callable(o.lesson_metrics_emitter)
