@@ -610,6 +610,48 @@ def normalize_cached_trilingual_translation_html(
     return rebuilt, changed
 
 
+_AR_LETTERS = re.compile(r"[\u0600-\u06FF]")
+_LATIN_WORDS = re.compile(r"[A-Za-z\u00C0-\u00FF]{2,}")
+_AR_WORDS = re.compile(r"[\u0600-\u06FF]{2,}")
+
+
+def translation_quality_report(
+        candidates: List[str], bundles: Dict[str, Dict[str, str]],
+        source_lang: str, max_untranslated_ratio: float = 0.10,
+        ) -> Dict[str, Any]:
+    """Language-completeness gate: a target bundle must really be in its
+    language, not just have the same number of entries as the source.
+    Counts prose strings (>=3 words) left identical to the source text, and
+    wrong-script outputs (Arabic target without Arabic letters, fr/en target
+    that is mostly Arabic)."""
+    report: Dict[str, Any] = {"ok": True, "languages": {}}
+    for lang, table in bundles.items():
+        if lang == source_lang:
+            continue
+        prose = same = wrong_script = 0
+        for cand in candidates:
+            words = _LATIN_WORDS.findall(cand) + _AR_WORDS.findall(cand)
+            if len(words) < 3:
+                continue
+            prose += 1
+            out = str(table.get(cand, ""))
+            if out.strip() == cand.strip():
+                same += 1
+            elif lang == "ar" and not _AR_LETTERS.search(out):
+                wrong_script += 1
+            elif lang != "ar" and len(_AR_WORDS.findall(out)) > len(
+                    _LATIN_WORDS.findall(out)):
+                wrong_script += 1
+        bad = same + wrong_script
+        ratio = (bad / prose) if prose else 0.0
+        ok = ratio <= max_untranslated_ratio
+        report["languages"][lang] = {
+            "prose_strings": prose, "untranslated": same,
+            "wrong_script": wrong_script, "ratio": round(ratio, 4), "ok": ok}
+        report["ok"] = report["ok"] and ok
+    return report
+
+
 def build_trilingual_page_translation(
         markup: str, source_lang_code: str, purpose: str
         ) -> Tuple[str, Dict[str, Any]]:
@@ -628,6 +670,12 @@ def build_trilingual_page_translation(
     if any(len(bundles.get(lang, {})) != len(candidates)
            for lang in REFERENCE_RENDERER_LANGUAGES):
         raise RuntimeError("FULL_PAGE_TRANSLATION_COVERAGE_INCOMPLETE")
+    quality = translation_quality_report(candidates, bundles, source_lang)
+    progress("TRANSLATION_QUALITY", **{
+        k: v for k, v in quality["languages"].items()})
+    if not quality["ok"]:
+        raise RuntimeError("TRANSLATION_UNTRANSLATED_STRINGS:" + json.dumps(
+            quality["languages"], ensure_ascii=False))
 
     payload = json.dumps(
         {
