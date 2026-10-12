@@ -102,6 +102,8 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
     # a generated quiz/apply item, bind that concept to a verified textbook
     # exercise BEFORE rendering/translation so all languages and caches contain
     # the repaired Apply step.
+    theory = ensure_clean_concept_titles(
+        theory, ev_map, resolve_lang_code(entry.get("language", "en")))
     theory = ensure_verified_apply_steps(
         theory, exercises, ev_map,
         resolve_lang_code(entry.get("language", "en")))

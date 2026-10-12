@@ -3062,6 +3062,87 @@ def run_real_playwright_chromium_qa(
 
 
 
+_BAD_TITLE_TAIL = re.compile(r"[;:,|\[\]*({<>=\-]\s*$")
+_FN_WORDS = {"the", "a", "an", "of", "in", "to", "and", "or", "that", "so",
+             "is", "are", "for", "with", "be", "at", "on", "de", "la", "le",
+             "les", "des", "du", "un", "une", "et", "في", "من", "على"}
+
+
+def concept_title_is_clean(title: str) -> bool:
+    """A student-facing idea title must read as a short phrase, not an OCR
+    fragment: no trailing/embedded punctuation noise, not a lone acronym, not a
+    dangling sentence cut mid-way, and starting like a title."""
+    t = " ".join(str(title or "").split())
+    if len(t) < 5 or len(t) > 70:
+        return False
+    if _BAD_TITLE_TAIL.search(t) or re.search(r"[|*\[\]{}<>_~^]{1}", t):
+        return False
+    letters = re.findall(r"[^\W\d_]", t)
+    if len(letters) < 4:
+        return False
+    words = t.split()
+    if len(words) == 1 and t.isupper():
+        return False
+    if words[-1].lower().strip(".,") in _FN_WORDS:
+        return False
+    if t[0].islower():
+        return False
+    if t.endswith(":") or t.count(".") > 1:
+        return False
+    return True
+
+
+def _fallback_idea_title(n: int, lang: str) -> str:
+    return {"ar": f"الفكرة {n}", "fr": f"Idée {n}"}.get(lang, f"Idea {n}")
+
+
+def ensure_clean_concept_titles(theory: dict, evidence_map: dict,
+                                language_code: str) -> dict:
+    """Replace OCR-fragment idea titles with short clean ones derived ONLY from
+    the concept's own source text. Never raises; evidence records are untouched
+    (only the student-facing activity title changes)."""
+    acts = list(theory.get("activities") or [])
+    concepts = {str(c.get("concept_id")): c
+                for c in (evidence_map.get("concepts") or [])}
+    bad = []
+    for i, act in enumerate(acts, 1):
+        if concept_title_is_clean(act.get("title")):
+            continue
+        c = concepts.get(str(act.get("concept_id") or "")) or {}
+        src = " ".join(str(c.get("normalized_text") or c.get("raw_text")
+                           or act.get("conclusion") or "").split())[:700]
+        bad.append((i, act, src))
+    if not bad:
+        return theory
+    titles = {}
+    try:
+        names = {"ar": "Arabic", "fr": "French"}.get(language_code, "English")
+        prompt = (
+            "Give each numbered source excerpt from a school math textbook a "
+            f"short clear title in {names} (2-6 words, no punctuation at the "
+            "end, no symbols, no sentence fragments). Use only what the "
+            "excerpt itself teaches; do not add facts. Return JSON "
+            '{"titles":{"<n>":"<title>"}}.\n'
+            + "\n".join(f"[{i}] {src}" for i, _a, src in bad))
+        raw = execute_llm_completion(
+            prompt, json_mode=True, temperature=0.0,
+            operation="clean_concept_titles")
+        data = json.loads(raw) if isinstance(raw, str) else raw
+        titles = {str(k): " ".join(str(v).split()).strip(" .;:")
+                  for k, v in (data.get("titles") or {}).items()}
+    except Exception as exc:  # titles must never fail a lesson
+        progress("CONCEPT_TITLE_LLM_SKIPPED", reason=type(exc).__name__)
+    fixed = []
+    for i, act, _src in bad:
+        new = titles.get(str(i), "")
+        if not concept_title_is_clean(new) or len(new.split()) > 8:
+            new = _fallback_idea_title(i, language_code)
+        fixed.append({"n": i, "old": act.get("title"), "new": new})
+        act["title"] = new
+    progress("CONCEPT_TITLES_CLEANED", count=len(fixed), items=fixed)
+    return theory
+
+
 def ensure_verified_apply_steps(
         theory: dict, exercises: List[dict], evidence_map: dict,
         language_code: str) -> dict:
