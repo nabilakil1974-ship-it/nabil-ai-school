@@ -35,3 +35,15 @@ def test_llm_failure_never_raises(monkeypatch):
     monkeypatch.setitem(o.__dict__, "execute_llm_completion", boom)
     out = o.ensure_clean_concept_titles(_theory(), {"concepts": []}, "ar")
     assert [a["title"] for a in out["activities"]][:3] == ["الفكرة 1", "الفكرة 2", "الفكرة 3"]
+
+
+def test_restored_theory_board_is_rebuilt_with_clean_titles(monkeypatch):
+    monkeypatch.setitem(o.__dict__, "execute_llm_completion",
+                        lambda *a, **k: json.dumps({"titles": {"1": "Wheat on the chessboard"}}))
+    acts = [{"concept_id": "C01", "title": "grain in the first box;", "lab_html": "", "allow_no_lab": True,
+             "teaching_steps": [{"sentence": "We place one grain of wheat on the first square"}],
+             "conclusion": "2^n"}]
+    theory = {"title": "Powers", "activities": acts, "whole_lesson_lab_html": "OLD grain in the first box;"}
+    out = o.ensure_clean_concept_titles(theory, {"concepts": []}, "en", subject="Mathematics")
+    assert "grain in the first box;" not in out["whole_lesson_lab_html"]
+    assert "Wheat on the chessboard" in out["whole_lesson_lab_html"]

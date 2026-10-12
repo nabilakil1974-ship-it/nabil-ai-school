@@ -2702,6 +2702,11 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict,
             <div style="margin-top:8px; font-size:12px; color:#059669; font-weight:600;">{html.escape(ui_t(lesson_lang_code, "verified_evidence_grounding"))}</div>
         </div>'''
 
+    # Idea titles are student-facing board headings: replace OCR fragments
+    # BEFORE the board and Golden Card are built (they bake titles in).
+    ensure_clean_concept_titles({"activities": activities_theory}, ev_map,
+                                lesson_lang_code)
+
     # V18: the Golden Card is data (rendered by the vendored V18 card engine as
     # the last stage of the whole-lesson lab), never hand-built legacy HTML.
     from scripts.nabil_factory.cards.v18_board import build_golden_spec
@@ -3097,7 +3102,7 @@ def _fallback_idea_title(n: int, lang: str) -> str:
 
 
 def ensure_clean_concept_titles(theory: dict, evidence_map: dict,
-                                language_code: str) -> dict:
+                                language_code: str, subject: str = "") -> dict:
     """Replace OCR-fragment idea titles with short clean ones derived ONLY from
     the concept's own source text. Never raises; evidence records are untouched
     (only the student-facing activity title changes)."""
@@ -3140,6 +3145,22 @@ def ensure_clean_concept_titles(theory: dict, evidence_map: dict,
         fixed.append({"n": i, "old": act.get("title"), "new": new})
         act["title"] = new
     progress("CONCEPT_TITLES_CLEANED", count=len(fixed), items=fixed)
+    if "whole_lesson_lab_html" in theory:
+        # Theory restored from a checkpoint already has the board baked in with
+        # the old titles: rebuild the board and Golden Card data from the clean ones.
+        try:
+            from scripts.nabil_factory.cards.v18_board import build_golden_spec
+            spec = build_golden_spec(
+                theory.get("title") or "", acts, language_code,
+                subject=str(subject or theory.get("subject") or ""),
+                verification_note=ui_t(language_code, "verified_evidence_grounding"))
+            theory["golden_card_spec"] = spec
+            theory["whole_lesson_lab_html"] = render_whole_lesson_smart_lab(
+                theory.get("title") or "", acts, language_code, spec)
+            progress("CONCEPT_TITLES_BOARD_REBUILT")
+        except Exception as exc:
+            progress("CONCEPT_TITLES_BOARD_REBUILD_FAILED",
+                     reason=type(exc).__name__ + ":" + str(exc)[:200])
     return theory
 
 
