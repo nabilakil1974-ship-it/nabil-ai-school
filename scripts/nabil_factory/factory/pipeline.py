@@ -142,7 +142,7 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
         # verified V7 translation policy; bump it ONLY when translation logic,
         # locking, numeric preservation, or Arabic normalization changes.
         prompt_version = (
-            "TRILINGUAL_PAGE_TRANSLATION_V7_SELFHEAL_6037750d2063fb4f"
+            "TRILINGUAL_PAGE_TRANSLATION_V8_PROSE_LOCKS_20261012"
         )
         checkpoint_root = str(
             os.getenv("NABIL_CURRICULUM_ROOT_ID") or "").strip() or None

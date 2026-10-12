@@ -310,6 +310,35 @@ _TRANSLATION_LOCK_RE = re.compile(
 )
 
 
+_PROSE_WORDS_NOT_SYMBOLS = frozenset({
+    "a", "A", "I", "We", "If", "It", "In", "At", "As", "An", "Be", "By", "Do",
+    "He", "Is", "My", "Me", "No", "Of", "On", "Or", "So", "To", "Up", "Us",
+    "Go", "Oh", "Ok", "Am", "Hi", "À", "Y", "En", "Et", "Ou", "Se", "Si",
+    "Ce", "Ne", "Le", "La", "De", "Du", "Un", "Il", "Je", "Tu",
+})
+_MATH_NEIGHBOUR = set("0123456789=+-×÷*/^(<>≤≥±√∠⊥≅≈≠")
+
+
+def _lockable_alpha_token(text: str, match) -> bool:
+    """Numbers/operators are always locked. A letter token is frozen only when
+    it is really a symbol (variable, point, unit, formula). English/French
+    function words ("a", "We", "If", possessive "'s") that merely match the
+    symbol pattern are left for the translator; otherwise they stay English in
+    the fr/ar pages."""
+    tok = match.group(0)
+    if not any(ch.isalpha() for ch in tok):
+        return True
+    start, end = match.start(), match.end()
+    prev = text[start - 1] if start > 0 else ""
+    if prev in ("'", "\u2019"):
+        return False
+    if tok in _PROSE_WORDS_NOT_SYMBOLS:
+        before = text[:start].rstrip()[-1:]
+        after = text[end:].lstrip()[:1]
+        return before in _MATH_NEIGHBOUR or after in _MATH_NEIGHBOUR
+    return True
+
+
 def _lock_scientific_translation_tokens(value: str, item_id: str):
     text = str(value or "")
     # Lock scientific tokens only when the string is actually mathematical/
@@ -318,9 +347,12 @@ def _lock_scientific_translation_tokens(value: str, item_id: str):
         return text, []
     locks = []
     def repl(match):
-        key = f"__NABIL_LOCK_{item_id}_{len(locks):03d}__"
-        locks.append((key, match.group(0)))
-        return key
+        tok = match.group(0)
+        if _lockable_alpha_token(text, match):
+            key = f"__NABIL_LOCK_{item_id}_{len(locks):03d}__"
+            locks.append((key, tok))
+            return key
+        return tok  # ordinary prose word: must be translated, not frozen
     return _TRANSLATION_LOCK_RE.sub(repl, text), locks
 
 
@@ -610,6 +642,7 @@ def normalize_cached_trilingual_translation_html(
     return rebuilt, changed
 
 
+_STRAY_EN = re.compile(r"(?<![\w'\u2019])(?:We|If|The|Then|Let|You|And|Of|Is|Are|To|In|It)(?![\w'\u2019])")
 _AR_LETTERS = re.compile(r"[\u0600-\u06FF]")
 _LATIN_WORDS = re.compile(r"[A-Za-z\u00C0-\u00FF]{2,}")
 _AR_WORDS = re.compile(r"[\u0600-\u06FF]{2,}")
@@ -642,12 +675,14 @@ def translation_quality_report(
             elif lang != "ar" and len(_AR_WORDS.findall(out)) > len(
                     _LATIN_WORDS.findall(out)):
                 wrong_script += 1
-        bad = same + wrong_script
+        stray = sum(1 for cand in candidates
+                    if lang != "en" and _STRAY_EN.search(str(table.get(cand, ""))))
+        bad = same + wrong_script + stray
         ratio = (bad / prose) if prose else 0.0
         ok = ratio <= max_untranslated_ratio
         report["languages"][lang] = {
             "prose_strings": prose, "untranslated": same,
-            "wrong_script": wrong_script, "ratio": round(ratio, 4), "ok": ok}
+            "wrong_script": wrong_script, "stray_english": stray, "ratio": round(ratio, 4), "ok": ok}
         report["ok"] = report["ok"] and ok
     return report
 
