@@ -56,6 +56,7 @@ def main():
               }});
             })()""")
             page.goto(file.as_uri())
+            page.locator(".v18-more > summary").click()
             page.locator("#nabilWholeCurrent").click()
             page.wait_for_function("window.__spokenEvents.length > 0")
             speech_event = page.evaluate("window.__spokenEvents[0]")

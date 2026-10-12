@@ -31,6 +31,7 @@ _LABELS = {
         "play": "▶ اشرح الدرس من البداية", "stop": "■ أوقف", "prev": "◀ السابق",
         "next": "التالي ▶", "restart": "↻ من جديد", "current": "🔊 اشرح هذه الفكرة",
         "voice_on": "🔊 الصوت يعمل", "voice_off": "🔇 الصوت متوقف",
+        "pause": "⏸ إيقاف مؤقت", "resume": "▶ تابع", "speed_0": "🐢 بطيء", "speed_1": "🙂 عادي", "speed_2": "🐇 سريع", "more": "⋯ المزيد", "toggle_lab": "🧪 التجربة",
         "lab": "🧪 المختبر", "run_lab": "▶ شغّل المختبر", "talk": "🎙 تكلّم معي",
         "step": "الخطوة", "idea": "الفكرة", "hello": "أنا نبيل. اضغط «اشرح الدرس من البداية».",
         "goal": "🎯 تظهر البطاقة الذهبية الكاملة بعد آخر فكرة.",
@@ -46,6 +47,7 @@ _LABELS = {
         "play": "▶ Expliquer depuis le début", "stop": "■ Arrêter", "prev": "◀ Précédent",
         "next": "Suivant ▶", "restart": "↻ Recommencer", "current": "🔊 Expliquer cette idée",
         "voice_on": "🔊 Voix activée", "voice_off": "🔇 Voix coupée",
+        "pause": "⏸ Pause", "resume": "▶ Reprendre", "speed_0": "🐢 Lent", "speed_1": "🙂 Normal", "speed_2": "🐇 Rapide", "more": "⋯ Plus", "toggle_lab": "🧪 Expérience",
         "lab": "🧪 Laboratoire", "run_lab": "▶ Lancer le labo", "talk": "🎙 Parle-moi",
         "step": "Étape", "idea": "Idée", "hello": "Je suis NABIL. Appuie sur « Expliquer depuis le début ».",
         "goal": "🎯 La carte dorée complète apparaît après la dernière idée.",
@@ -61,6 +63,7 @@ _LABELS = {
         "play": "▶ Teach from the beginning", "stop": "■ Stop", "prev": "◀ Previous",
         "next": "Next ▶", "restart": "↻ Restart", "current": "🔊 Explain this idea",
         "voice_on": "🔊 Voice ON", "voice_off": "🔇 Voice OFF",
+        "pause": "⏸ Pause", "resume": "▶ Resume", "speed_0": "🐢 Slow", "speed_1": "🙂 Normal", "speed_2": "🐇 Fast", "more": "⋯ More", "toggle_lab": "🧪 Experiment",
         "lab": "🧪 Lab", "run_lab": "▶ Run the lab", "talk": "🎙 Talk to Me",
         "step": "Step", "idea": "Idea", "hello": "I am NABIL. Press “Teach from the beginning”.",
         "goal": "🎯 The full Golden Card appears after the last idea.",
@@ -162,6 +165,16 @@ _CSS = r"""
 #nabilWholeLessonSmartLab .v18-final{display:none;margin-top:12px}
 #nabilWholeLessonSmartLab.is-final .v18-final{display:block}
 #nabilWholeLessonSmartLab.is-final .v18-grid,#nabilWholeLessonSmartLab.is-final .v18-labwrap{display:none}
+/* calm "video" mode: one board, one play/pause, no side panels or inline lab */
+#nabilWholeLessonSmartLab .v18-grid{grid-template-columns:minmax(0,1fr)}
+#nabilWholeLessonSmartLab .v18-grid>.v18-box:nth-child(1),#nabilWholeLessonSmartLab .v18-grid>.v18-box:nth-child(3){display:none}
+#nabilWholeLessonSmartLab:not(.show-lab) .v18-labwrap{display:none!important}
+#nabilWholeLessonSmartLab .v18-board{min-height:62vh}
+#nabilWholeLessonSmartLab .v18-line{font-size:clamp(21px,2.1vw,30px);line-height:1.7}
+#nabilWholeLessonSmartLab .v18-more{margin-top:8px}
+#nabilWholeLessonSmartLab .v18-more>summary{cursor:pointer;color:var(--muted);font-weight:800;padding:8px 4px;min-height:44px;display:flex;align-items:center}
+#nabilWholeLessonSmartLab .v18-more .v18-controls{margin-top:4px}
+#nabilWholeLessonSmartLab .v18-top p{display:none}
 @media(max-width:1050px){#nabilWholeLessonSmartLab .v18-grid{grid-template-columns:1fr}#nabilWholeLessonSmartLab .v18-teacher{display:grid;grid-template-columns:96px 1fr;gap:10px;text-align:start;align-items:start}#nabilWholeLessonSmartLab .v18-teacher h3{grid-column:1/-1}#nabilWholeLessonSmartLab .v18-teacher img{width:90px}#nabilWholeLessonSmartLab .v18-teacher .v18-speech{margin-top:0}#nabilWholeLessonSmartLab .v18-teacher button.talk{grid-column:1/-1}}
 @media(max-width:560px){#nabilWholeLessonSmartLab{padding:8px;border-radius:14px}#nabilWholeLessonSmartLab .v18-board{min-height:300px;padding:10px}#nabilWholeLessonSmartLab iframe{height:70vh;min-height:420px}#nabilWholeLessonSmartLab .v18-controls{display:grid;grid-template-columns:1fr 1fr}#nabilWholeLessonSmartLab .v18-controls .primary{grid-column:1/-1}}
 """
@@ -178,6 +191,10 @@ _JS = r"""
        timeline=$('nabilWholeTimeline'),slots=$('v18Slots'),voiceBtn=$('nabilWholeVoice'),finalHost=$('goldenReferenceCard'),
        labWrap=$('v18LabWrap'),labTitle=$('v18LabTitle'),voiceNote=$('v18VoiceNote');
  let idea=0,stepI=-1,token=0,voiceOn=true,finalShown=false,playing=false,awaitingStudent=false;
+ /* calm pace: slow by default (students found the first version too fast) */
+ const SPEEDS=[{r:.78,wpm:100},{r:.9,wpm:120},{r:1.0,wpm:140}];let speedIdx=0,paused=false;const resumers=[];
+ const gate=()=>paused?new Promise(r=>resumers.push(r)):Promise.resolve();
+ const wake=()=>{while(resumers.length)resumers.shift()()};
  const FINAL=slides.length;                       /* index of the golden-card stage */
  let avatarObjectUrl=null;
  function approvedAvatarUrl(){
@@ -189,7 +206,7 @@ _JS = r"""
  }
  window.addEventListener('pagehide',()=>{if(avatarObjectUrl)URL.revokeObjectURL(avatarObjectUrl)});
  $('v18TeacherAvatar').src=approvedAvatarUrl();
- const sleep=ms=>new Promise(r=>setTimeout(r,FAST?0:ms));
+ const sleep=async ms=>{await new Promise(r=>setTimeout(r,FAST?0:ms));if(!FAST)await gate()};
  const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!==undefined)e.textContent=x;return e};
  /* language: follows the page translation runtime (NABILPageLanguage) when present */
  const PL=()=>window.NABILPageLanguage;
@@ -206,7 +223,10 @@ _JS = r"""
   v.rows.forEach(r=>{const tr_=tb.insertRow();const e=document.createElement('th');e.textContent=r.label;tr_.appendChild(e);r.cells.forEach(c=>{const d=tr_.insertCell();d.textContent=c==="∥"?"∥":c;if(/max|min|\u2248|^0$/.test(c)||c===L.lmax||c===L.lmin||/max|min/.test(c))d.className='k'})});
   box.innerHTML='';box.append(h,tb);box.style.display=''}
  function relabel(){L=DATA.all_labels[cur()];root.querySelectorAll('[data-v18-l]').forEach(n=>{n.textContent=L[n.dataset.v18L]});
-  voiceBtn.textContent=voiceOn?L.voice_on:L.voice_off;$('v18VoiceState').textContent=voiceBtn.textContent;}
+  voiceBtn.textContent=voiceOn?L.voice_on:L.voice_off;$('v18VoiceState').textContent=voiceBtn.textContent;paintPlay();$('v18Speed').textContent=L['speed_'+speedIdx]}
+ function paintPlay(){const b=$('nabilWholePlay');b.textContent=(playing&&paused)?L.resume:(playing?L.pause:L.play)}
+ function pauseLesson(){if(!playing||paused)return;paused=true;try{speechSynthesis.pause()}catch(_){};try{window.NABILLessonE2E?.pauseSpeech?.()}catch(_){};paintPlay()}
+ function resumeLesson(){if(!paused)return;paused=false;try{speechSynthesis.resume()}catch(_){};try{window.NABILLessonE2E?.resumeSpeech?.()}catch(_){};wake();paintPlay()}
 
  /* ---------------- voice (real, with honest fallback) ---------------- */
  function pickVoice(tag){
@@ -214,34 +234,46 @@ _JS = r"""
    return vs.find(v=>v.lang.toLowerCase().replace('_','-')===tag.toLowerCase())||vs.find(v=>v.lang.toLowerCase().startsWith(p))||null}catch(_){return null}
  }
  function stopSpeech(){try{speechSynthesis.cancel()}catch(_){};try{window.NABILLessonE2E?.stopSpeech?.()}catch(_){}}
- function speak(text){
-  return new Promise(resolve=>{
+ function speak(text,sync){
+  return new Promise(res0=>{
+   const resolve=()=>{if(sync)sync.done=true;res0()};
    if(!voiceOn||!String(text||'').trim()){resolve();return}
    const mine=token;
-   const fallbackMs=Math.min(9000,900+String(text).length*45);
+   const fallbackMs=Math.max(1200,String(text).length*60000/(SPEEDS[speedIdx].wpm*5.6));
    try{
-    if(window.NABILLessonE2E?.speak){Promise.resolve(window.NABILLessonE2E.speak(text,DATA.lang)).then(()=>resolve(),()=>resolve());return}
+    if(window.NABILLessonE2E?.speak){if(sync)sync.real=true;Promise.resolve(window.NABILLessonE2E.speak(text,DATA.lang)).then(()=>resolve(),()=>resolve());return}
     if(!('speechSynthesis' in window)){voiceNote.textContent=L.novoice;setTimeout(resolve,FAST?0:fallbackMs);return}
     speechSynthesis.cancel();
-    const u=new SpeechSynthesisUtterance(text);u.lang=L.lang_tag;u.rate=.92;
+    const u=new SpeechSynthesisUtterance(text);u.lang=L.lang_tag;u.rate=SPEEDS[speedIdx].r;
+    /* real word boundaries when the engine reports them (nothing is claimed otherwise) */
+    u.onboundary=e=>{if(sync&&typeof e.charIndex==='number'){sync.hasB=true;sync.idx=e.charIndex+(e.charLength||String(text).slice(e.charIndex).search(/\s|$/))}};
     const v=pickVoice(L.lang_tag);
-    if(v)u.voice=v;else{voiceNote.textContent=L.novoice}
+    if(v){u.voice=v;if(sync)sync.real=true}else{voiceNote.textContent=L.novoice}
     let done=false;const fin=()=>{if(!done){done=true;resolve()}};
     u.onend=fin;u.onerror=fin;speechSynthesis.speak(u);
     setTimeout(()=>{if(mine!==token)fin()},300);
-    setTimeout(fin,Math.max(fallbackMs*3,15000));
+    {let waited=0;const wd=setInterval(()=>{if(done||mine!==token){clearInterval(wd);return}if(!paused){waited+=1000;if(waited>=Math.max(fallbackMs*4,30000)){clearInterval(wd);fin()}}},1000)}
     if(!v)setTimeout(fin,FAST?0:fallbackMs);
    }catch(_){setTimeout(resolve,FAST?0:fallbackMs)}
   });
  }
- function typeInto(node,text,tok){
+ function typeInto(node,text,tok,sync){
   return new Promise(res=>{
    if(FAST||!text){node.textContent=text;return res(true)}
-   node.textContent='';node.classList.add('cursor');let i=0;
-   const tick=()=>{if(tok!==token){node.classList.remove('cursor');return res(false)}
-    node.textContent=text.slice(0,++i);
-    if(i%18===0||i===1||i===text.length)followBoardWriting(node);
-    if(i<text.length)setTimeout(tick,18);else{node.classList.remove('cursor');res(true)}};
+   node.textContent='';node.classList.add('cursor');
+   /* pace = estimated spoken duration at the chosen speed, corrected by real word boundaries when available */
+   const sp=SPEEDS[speedIdx],est=Math.max(900,text.length*60000/(sp.wpm*5.6))*(sync&&sync.fast?.3:1);
+   let shown=0,elapsed=0,last=performance.now();
+   const tick=async()=>{
+    if(tok!==token){node.classList.remove('cursor');return res(false)}
+    if(paused){await gate();last=performance.now();if(tok!==token){node.classList.remove('cursor');return res(false)}}
+    const now=performance.now();elapsed+=now-last;last=now;
+    let want=(sync&&sync.hasB)?Math.min(text.length,sync.idx):Math.floor(elapsed/est*text.length);
+    if(sync&&sync.done&&sync.real)want=text.length;
+    want=Math.max(want,shown);
+    if(want!==shown){shown=want;node.textContent=text.slice(0,shown);followBoardWriting(node)}
+    if(shown<text.length)setTimeout(tick,40);else{node.classList.remove('cursor');res(true)}
+   };
    tick();
   });
  }
@@ -258,7 +290,7 @@ _JS = r"""
   const reduce=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
   target.scrollIntoView({behavior:reduce?'instant':'smooth',block:'center',inline:'nearest'});
  }
- function showLines(upto,typeLast,tok){
+ function showLines(upto,typeLast,tok,sync){
   // P0 universal board: retain all preceding verified teaching on ONE board.
   // No extra slideshow cards are rendered as the principal explanation.
   lines.replaceChildren();
@@ -283,7 +315,7 @@ _JS = r"""
    if(i!==upto)t.textContent=tr(st.text);
   }
   if(last)followBoardWriting(last);
-  if(last&&typeLast)return typeInto(last,tr(s.steps[upto].text),tok);
+  if(last&&typeLast)return typeInto(last,tr(s.steps[upto].text),tok,sync);
   if(last)last.textContent=tr(s.steps[upto].text);
   return Promise.resolve(true);
  }
@@ -300,11 +332,11 @@ _JS = r"""
    catch(e){finalHost.textContent='GOLDEN_CARD_RENDER_FAILED: '+e;finalHost.dataset.failed='1'}
   }
  }
- function paintIdea(upto,typeLast,tok){
+ function paintIdea(upto,typeLast,tok,sync){
   if(!awaitingStudent){const interact=$('v18StudentInteraction');interact.hidden=true;interact.replaceChildren()}
   setFinal(false);bt.textContent=tr(slides[idea].title);
   badge.textContent=L.idea+' '+(idea+1)+' / '+slides.length+' · '+L.step+' '+(Math.max(upto,0)+1)+' / '+slides[idea].steps.length;
-  paintSlots();paintTimeline();loadLab();paintVar();return showLines(Math.max(upto,0),typeLast,tok);
+  paintSlots();paintTimeline();loadLab();paintVar();return showLines(Math.max(upto,0),typeLast,tok,sync);
  }
  async function presentStep(i,withVoice){
   stepI=i;const tok=++token;stopSpeech();
@@ -313,8 +345,9 @@ _JS = r"""
   const st=slides[idea].steps[i],spoken=tr(st.text);
   speech.textContent=spoken;
   if(st.check&&st.check.question){awaitingStudent=true;showStudentCheck(st.check)}
-  const writing=paintIdea(i,!FAST,tok);
-  const narration=withVoice?speak(spoken):Promise.resolve();
+  const sync={idx:0,hasB:false,done:false,voiced:Boolean(withVoice&&voiceOn),fast:!withVoice};
+  const writing=paintIdea(i,!FAST,tok,sync);
+  const narration=withVoice?speak(spoken,sync):Promise.resolve();
   const [ok]=await Promise.all([writing,narration]);
   return Boolean(ok)&&tok===token;
  }
@@ -346,7 +379,7 @@ _JS = r"""
   stepI=slides[Math.min(idea,slides.length-1)].steps.length-1;idea=FINAL;stopSpeech();token++;
   setFinal(true);badge.textContent=L.final;speech.textContent=L.done;paintSlots();paintTimeline();
  }
- function halt(){playing=false;token++;stopSpeech()}
+ function halt(){playing=false;paused=false;token++;stopSpeech();wake();paintPlay()}
  function goTo(i){
   if(awaitingStudent&&i>idea)return;
   if(i>=FINAL){showFinalStage();return}
@@ -372,25 +405,27 @@ _JS = r"""
    if(!playing)return false;
    if(!(await presentStep(i,true)))return false;
    if(awaitingStudent){playing=false;return false}
-   await sleep(450);
+   await sleep(1100);
   }
   return playing;
  }
  async function playAll(){
-  halt();playing=true;idea=0;
+  halt();playing=true;paintPlay();idea=0;
   for(let a=0;a<slides.length;a++){
    idea=a;if(!playing)return;
    if(!(await teachIdea()))return;
-   await sleep(500);
+   await sleep(1600);
   }
-  if(playing){showFinalStage();await speak(L.done);playing=false}
+  if(playing){showFinalStage();await speak(L.done);playing=false;paintPlay()}
  }
- async function explainCurrent(){halt();playing=true;if(finalShown){await speak([tr(DATA.title)].concat(slides.map(s=>tr(s.title)+'. '+tr(s.conclusion))).join(' ')||L.done);playing=false;return}
+ async function explainCurrent(){halt();playing=true;paintPlay();if(finalShown){await speak([tr(DATA.title)].concat(slides.map(s=>tr(s.title)+'. '+tr(s.conclusion))).join(' ')||L.done);playing=false;return}
   await teachIdea();playing=false}
  function runLab(){
   try{const shell=frame.contentDocument?.querySelector('.nabil-reference-smart-lab');shell?.dispatchEvent(new CustomEvent('nabil:teach-all'))}catch(_){}
  }
- $('nabilWholePlay').onclick=playAll;
+ $('nabilWholePlay').onclick=()=>{if(playing&&!paused)pauseLesson();else if(playing&&paused)resumeLesson();else playAll()};
+ $('v18Speed').onclick=()=>{speedIdx=(speedIdx+1)%SPEEDS.length;$('v18Speed').textContent=L['speed_'+speedIdx]};
+ $('nabilWholeToggleLab').onclick=()=>root.classList.toggle('show-lab');
  $('nabilWholeStop').onclick=()=>{halt();try{frame.contentDocument?.querySelector('.nabil-reference-smart-lab')?.dispatchEvent(new CustomEvent('nabil:teach-stop'))}catch(_){}};
  $('nabilWholePrev').onclick=prevStep;$('nabilWholeNext').onclick=nextStep;
  $('nabilWholeRestart').onclick=()=>{halt();goTo(0)};
@@ -405,9 +440,9 @@ _JS = r"""
  });
  try{speechSynthesis.getVoices();speechSynthesis.onvoiceschanged=()=>{}}catch(_){}
  window.NABILWholeLessonOrchestrator={
-  play:playAll,stop:()=>$('nabilWholeStop').click(),current:()=>explainCurrent(),
+  play:playAll,pause:pauseLesson,resume:resumeLesson,stop:()=>$('nabilWholeStop').click(),current:()=>explainCurrent(),
   goTo:i=>{halt();goTo(Number(i)||0)},next:nextStep,prev:prevStep,
-  state:()=>({idea,step:stepI,final:finalShown,awaitingStudent,voice:voiceOn,ideas:slides.length,lang:cur()}),
+  state:()=>({paused,speed:SPEEDS[speedIdx].r,idea,step:stepI,final:finalShown,awaitingStudent,voice:voiceOn,ideas:slides.length,lang:cur()}),
   finalIndex:FINAL
  };
  relabel();speech.textContent=L.hello;idea=0;stepI=0;paintIdea(0,false,token);
@@ -649,18 +684,24 @@ def render_v18_smart_board(title: str, activities: list, lang_code: str,
  </div>
 </section>
  <aside class="v18-box v18-teacher"><h3>NABIL AI</h3><img id="v18TeacherAvatar" alt="NABIL AI">
-  <div class="v18-speech" id="v18Speech" aria-live="polite"></div>
-  <button type="button" class="talk" data-v18-l="talk" id="v18Talk">{h(labels["talk"])}</button></aside>
+  <div class="v18-speech" id="v18Speech" aria-live="polite"></div></aside>
 </div>
   <div class="v18-controls">
-   <button type="button" class="primary" data-v18-l="play" id="nabilWholePlay">{h(labels["play"])}</button>
+   <button type="button" class="primary" id="nabilWholePlay">{h(labels["play"])}</button>
+   <button type="button" data-v18-l="restart" id="nabilWholeRestart">{h(labels["restart"])}</button>
+   <button type="button" id="v18Speed">{h(labels["speed_0"])}</button>
+   <button type="button" class="voice" id="nabilWholeVoice">{h(labels["voice_on"])}</button>
+  </div>
+  <details class="v18-more"><summary data-v18-l="more">{h(labels["more"])}</summary>
+   <div class="v18-controls">
    <button type="button" data-v18-l="stop" id="nabilWholeStop">{h(labels["stop"])}</button>
    <button type="button" data-v18-l="prev" id="nabilWholePrev">{h(labels["prev"])}</button>
    <button type="button" data-v18-l="next" id="nabilWholeNext">{h(labels["next"])}</button>
-   <button type="button" data-v18-l="restart" id="nabilWholeRestart">{h(labels["restart"])}</button>
    <button type="button" class="voice" data-v18-l="current" id="nabilWholeCurrent">{h(labels["current"])}</button>
-   <button type="button" class="voice" id="nabilWholeVoice">{h(labels["voice_on"])}</button>
-  </div>
+   <button type="button" data-v18-l="toggle_lab" id="nabilWholeToggleLab">{h(labels["toggle_lab"])}</button>
+   <button type="button" class="talk" data-v18-l="talk" id="v18Talk" style="width:auto;margin:0">{h(labels["talk"])}</button>
+   </div>
+  </details>
   <div class="v18-timeline" id="nabilWholeTimeline"></div><div class="v18-note" id="v18VoiceNote"></div>
 <div class="v18-final" data-v18-final-stage="true"><div id="goldenReferenceCard" data-nabil-v18-golden="true"></div></div>
 <script type="application/json" id="nabilV18Data">{data}</script>
