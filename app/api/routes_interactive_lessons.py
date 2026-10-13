@@ -29,7 +29,13 @@ _CACHE = {"at": 0.0, "entries": []}
 _CACHE_LOCK = Lock()
 _CACHE_SECONDS = 10  # New owner-uploaded lessons become visible without redeployment.
 _OWNER_ROOT = "16bcmZMO_dn4FqlGaDtl8Hky6iSBEqZpX"
+# Lessons produced by the Claude lesson factory live in their own Drive folder so
+# they never mix with other authors' lessons. Same layout: Grade N / Subject / *.html
+_CLAUDE_ROOT = "1WHaeyCPgq9AAskOjfUBvC4Ua9v8AUvLq"
 _DEFAULT_FOLDER = "19Y7wVw2hBYG6_aHe6nygXVZmRJXoHvoM"  # Existing Drive lesson collection; configurable.
+
+
+from app.api.lesson_naming import parse_factory_filename  # noqa: E402
 
 
 def clean_display_title(raw_title: str) -> str:
@@ -120,6 +126,13 @@ def _list_children(service, folder_id):
 
 def _entry(file, grade="", subject="", chapter_title=""):
     stem = file["name"].rsplit(".", 1)[0]
+    factory = parse_factory_filename(file["name"])
+    if factory:
+        return {
+            "grade": factory["grade"], "subject": factory["subject"],
+            "lesson": factory["lesson"], "aliases": [],
+            "drive_file_id": file["id"], "filename": file["name"], "language": "",
+        }
     parts = stem.split("--", 1)
     if len(parts) == 2:
         prefix, title = parts
@@ -158,7 +171,15 @@ def _entry(file, grade="", subject="", chapter_title=""):
 
 def _owner_entries(service):
     """Find source HTML in owner root / Grade / Subject / optional Lessons."""
-    root = os.getenv("NABIL_INTERACTIVE_CURRICULUM_ROOT_ID", _OWNER_ROOT).strip()
+    roots = [os.getenv("NABIL_INTERACTIVE_CURRICULUM_ROOT_ID", _OWNER_ROOT).strip(),
+             os.getenv("NABIL_CLAUDE_LESSONS_ROOT_ID", _CLAUDE_ROOT).strip()]
+    entries = []
+    for root in dict.fromkeys(r for r in roots if r):
+        entries.extend(_owner_entries_from_root(service, root))
+    return entries
+
+
+def _owner_entries_from_root(service, root):
     entries = []
     for grade_folder in _list_children(service, root):
         if grade_folder.get("mimeType") != "application/vnd.google-apps.folder":
