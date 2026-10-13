@@ -31,7 +31,7 @@ _LABELS = {
         "play": "▶ اشرح الدرس من البداية", "stop": "■ أوقف", "prev": "◀ السابق",
         "next": "التالي ▶", "restart": "↻ من جديد", "current": "🔊 اشرح هذه الفكرة",
         "voice_on": "🔊 الصوت يعمل", "voice_off": "🔇 الصوت متوقف",
-        "pause": "⏸ إيقاف مؤقت", "resume": "▶ تابع", "speed_0": "🐢 بطيء", "speed_1": "🙂 عادي", "speed_2": "🐇 سريع", "more": "⋯ المزيد", "toggle_lab": "🧪 التجربة",
+        "pause": "⏸ إيقاف مؤقت", "resume": "▶ تابع", "speed_0": "🐢 بطيء", "speed_1": "🙂 عادي", "speed_2": "🐇 سريع", "more": "⋯ المزيد", "toggle_lab": "🧪 التجربة", "answer_is": "الإجابة:",
         "lab": "🧪 المختبر", "run_lab": "▶ شغّل المختبر", "talk": "🎙 تكلّم معي",
         "step": "الخطوة", "idea": "الفكرة", "hello": "أنا نبيل. اضغط «اشرح الدرس من البداية».",
         "goal": "🎯 تظهر البطاقة الذهبية الكاملة بعد آخر فكرة.",
@@ -47,7 +47,7 @@ _LABELS = {
         "play": "▶ Expliquer depuis le début", "stop": "■ Arrêter", "prev": "◀ Précédent",
         "next": "Suivant ▶", "restart": "↻ Recommencer", "current": "🔊 Expliquer cette idée",
         "voice_on": "🔊 Voix activée", "voice_off": "🔇 Voix coupée",
-        "pause": "⏸ Pause", "resume": "▶ Reprendre", "speed_0": "🐢 Lent", "speed_1": "🙂 Normal", "speed_2": "🐇 Rapide", "more": "⋯ Plus", "toggle_lab": "🧪 Expérience",
+        "pause": "⏸ Pause", "resume": "▶ Reprendre", "speed_0": "🐢 Lent", "speed_1": "🙂 Normal", "speed_2": "🐇 Rapide", "more": "⋯ Plus", "toggle_lab": "🧪 Expérience", "answer_is": "Réponse :",
         "lab": "🧪 Laboratoire", "run_lab": "▶ Lancer le labo", "talk": "🎙 Parle-moi",
         "step": "Étape", "idea": "Idée", "hello": "Je suis NABIL. Appuie sur « Expliquer depuis le début ».",
         "goal": "🎯 La carte dorée complète apparaît après la dernière idée.",
@@ -63,7 +63,7 @@ _LABELS = {
         "play": "▶ Teach from the beginning", "stop": "■ Stop", "prev": "◀ Previous",
         "next": "Next ▶", "restart": "↻ Restart", "current": "🔊 Explain this idea",
         "voice_on": "🔊 Voice ON", "voice_off": "🔇 Voice OFF",
-        "pause": "⏸ Pause", "resume": "▶ Resume", "speed_0": "🐢 Slow", "speed_1": "🙂 Normal", "speed_2": "🐇 Fast", "more": "⋯ More", "toggle_lab": "🧪 Experiment",
+        "pause": "⏸ Pause", "resume": "▶ Resume", "speed_0": "🐢 Slow", "speed_1": "🙂 Normal", "speed_2": "🐇 Fast", "more": "⋯ More", "toggle_lab": "🧪 Experiment", "answer_is": "Answer:",
         "lab": "🧪 Lab", "run_lab": "▶ Run the lab", "talk": "🎙 Talk to Me",
         "step": "Step", "idea": "Idea", "hello": "I am NABIL. Press “Teach from the beginning”.",
         "goal": "🎯 The full Golden Card appears after the last idea.",
@@ -165,6 +165,7 @@ _CSS = r"""
 #nabilWholeLessonSmartLab .v18-final{display:none;margin-top:12px}
 #nabilWholeLessonSmartLab.is-final .v18-final{display:block}
 #nabilWholeLessonSmartLab.is-final .v18-grid,#nabilWholeLessonSmartLab.is-final .v18-labwrap{display:none}
+#nabilE2ELiveSpeech{display:none!important} /* platform runtime caption: the board already writes the words */
 /* calm "video" mode: one board, one play/pause, no side panels or inline lab */
 #nabilWholeLessonSmartLab .v18-grid{grid-template-columns:minmax(0,1fr)}
 #nabilWholeLessonSmartLab .v18-grid>.v18-box:nth-child(1),#nabilWholeLessonSmartLab .v18-grid>.v18-box:nth-child(3){display:none}
@@ -190,6 +191,7 @@ _JS = r"""
  const frame=$('nabilWholeLessonFrame'),bt=$('v18Title'),lines=$('v18Lines'),speech=$('v18Speech'),badge=$('v18Badge'),
        timeline=$('nabilWholeTimeline'),slots=$('v18Slots'),voiceBtn=$('nabilWholeVoice'),finalHost=$('goldenReferenceCard'),
        labWrap=$('v18LabWrap'),labTitle=$('v18LabTitle'),voiceNote=$('v18VoiceNote');
+ let lastCheck=null;const THINK_MS=9000;
  let idea=0,stepI=-1,token=0,voiceOn=true,finalShown=false,playing=false,awaitingStudent=false;
  /* calm pace: slow by default (students found the first version too fast) */
  const SPEEDS=[{r:.78,wpm:100},{r:.9,wpm:120},{r:1.0,wpm:140}];let speedIdx=0,paused=false;const resumers=[];
@@ -241,7 +243,7 @@ _JS = r"""
    const mine=token;
    const fallbackMs=Math.max(1200,String(text).length*60000/(SPEEDS[speedIdx].wpm*5.6));
    try{
-    if(window.NABILLessonE2E?.speak){if(sync)sync.real=true;Promise.resolve(window.NABILLessonE2E.speak(text,DATA.lang)).then(()=>resolve(),()=>resolve());return}
+    if(window.NABILLessonE2E?.speak){if(sync)sync.real=true;window.nabilVoicePace=SPEEDS[speedIdx].r;Promise.resolve(window.NABILLessonE2E.speak(text,DATA.lang)).then(()=>resolve(),()=>resolve());return}
     if(!('speechSynthesis' in window)){voiceNote.textContent=L.novoice;setTimeout(resolve,FAST?0:fallbackMs);return}
     speechSynthesis.cancel();
     const u=new SpeechSynthesisUtterance(text);u.lang=L.lang_tag;u.rate=SPEEDS[speedIdx].r;
@@ -359,6 +361,7 @@ _JS = r"""
   const submit=el('button','v18-student-submit',L.submit_answer||'Check answer');
   const hint=el('button','v18-student-hint',L.hint||'Hint');
   const expected=String(check.expected||'').trim();
+  lastCheck={input,submit,feedback,check,expected};
   // No automatic acceptance of unverified responses or invented solutions.
   submit.onclick=()=>{
     const got=input.value.trim();
@@ -373,6 +376,11 @@ _JS = r"""
   };
   hint.onclick=()=>{feedback.textContent=tr(check.hint||L.try_again||'Review the preceding explanation.')};
   host.append(q,input,submit,hint,feedback);
+ }
+ function revealCheck(){
+  if(!lastCheck||!awaitingStudent)return;
+  const c=lastCheck;c.feedback.textContent=(L.answer_is||'')+(c.expected?(' '+c.expected+' — '):' ')+tr(c.check.correct_feedback||'');
+  c.input.disabled=true;c.submit.disabled=true;awaitingStudent=false;
  }
  function showFinalStage(){
   if(awaitingStudent)return;
@@ -404,7 +412,12 @@ _JS = r"""
   for(let i=0;i<slides[mine].steps.length;i++){
    if(!playing)return false;
    if(!(await presentStep(i,true)))return false;
-   if(awaitingStudent){playing=false;return false}
+   if(awaitingStudent){
+    /* video-like flow: the teacher asks, the student gets a thinking pause, then the answer is shown and the lesson goes on */
+    await sleep(THINK_MS);
+    if(!playing||idea!==mine||stepI!==i)return false;
+    revealCheck();await sleep(1800);
+   }
    await sleep(1100);
   }
   return playing;
