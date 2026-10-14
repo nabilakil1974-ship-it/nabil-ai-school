@@ -1,0 +1,436 @@
+{
+  "schema": "nabil.v18.grade7.book_catalog.v1",
+  "language": "en",
+  "grade": 7,
+  "subject": "Mathematics",
+  "student_book": "Building up Mathematics Grade 7.pdf",
+  "teacher_guide": "Building up Mathematics - Guide Grade 7.pdf",
+  "source": "Student textbook table of contents, printed page 12",
+  "chapters": [
+    {
+      "chapter": 1,
+      "title": "Powers",
+      "printed_start_page": 13,
+      "printed_end_page": 21,
+      "lesson_id": "G07-MATHEMATICS-69B7C840-001",
+      "status": "INDEXED_NOT_PRODUCED",
+      "sections": [
+        "Introduction",
+        "Preparatory activities",
+        "Text",
+        "Focus",
+        "Exercises",
+        "Self-evaluation",
+        "Problems",
+        "Just for fun"
+      ],
+      "requires": [
+        "grounded_exercises",
+        "guide_solutions",
+        "interactive_board",
+        "interactive_labs",
+        "golden_card"
+      ]
+    },
+    {
+      "chapter": 2,
+      "title": "Parallelepiped, cube and prism",
+      "printed_start_page": 22,
+      "printed_end_page": 30,
+      "lesson_id": null,
+      "status": "INDEXED_NOT_PRODUCED",
+      "sections": [
+        "Introduction",
+        "Preparatory activities",
+        "Text",
+        "Focus",
+        "Exercises",
+        "Self-evaluation",
+        "Problems",
+        "Just for fun"
+      ],
+      "requires": [
+        "grounded_exercises",
+        "guide_solutions",
+        "interactive_board",
+        "interactive_labs",
+        "golden_card"
+      ]
+    },
+    {
+      "chapter": 3,
+      "title": "Prime numbers",
+      "printed_start_page": 31,
+      "printed_end_page": 38,
+      "lesson_id": null,
+      "status": "INDEXED_NOT_PRODUCED",
+      "sections": [
+        "Introduction",
+        "Preparatory activities",
+        "Text",
+        "Focus",
+        "Exercises",
+        "Self-evaluation",
+        "Problems",
+        "Just for fun"
+      ],
+      "requires": [
+        "grounded_exercises",
+        "guide_solutions",
+        "interactive_board",
+        "interactive_labs",
+        "golden_card"
+      ]
+    },
+    {
+      "chapter": 4,
+      "title": "Triangles: Case of equality (congruent triangles)",
+      "printed_start_page": 39,
+      "printed_end_page": 51,
+      "lesson_id": null,
+      "status": "INDEXED_NOT_PRODUCED",
+      "sections": [
+        "Introduction",
+        "Preparatory activities",
+        "Text",
+        "Focus",
+        "Exercises",
+        "Self-evaluation",
+        "Problems",
+        "Just for fun"
+      ],
+      "requires": [
+        "grounded_exercises",
+        "guide_solutions",
+        "interactive_board",
+        "interactive_labs",
+        "golden_card"
+      ]
+    },
+    {
+      "chapter": 5,
+      "title": "Signed numbers: Addition and subtraction",
+      "printed_start_page": 52,
+      "printed_end_page": 64,
+      "lesson_id": null,
+      "status": "INDEXED_NOT_PRODUCED",
+      "sections": [
+        "Introduction",
+        "Preparatory activities",
+        "Text",
+        "Focus",
+        "Exercises",
+        "Self-evaluation",
+        "Problems",
+        "Just for fun"
+      ],
+      "requires": [
+        "grounded_exercises",
+        "guide_solutions",
+        "interactive_board",
+        "interactive_labs",
+        "golden_card"
+      ]
+    },
+    {
+      "chapter": 6,
+      "title": "Signed numbers: Multiplication and division",
+      "printed_start_page": 65,
+      "printed_end_page": 75,
+      "lesson_id": null,
+      "status": "INDEXED_NOT_PRODUCED",
+      "sections": [
+        "Introduction",
+        "Preparatory activities",
+        "Text",
+        "Focus",
+        "Exercises",
+        "Self-evaluation",
+        "Problems",
+        "Just for fun"
+      ],
+      "requires": [
+        "grounded_exercises",
+        "guide_solutions",
+        "interactive_board",
+        "interactive_labs",
+        "golden_card"
+      ]
+    },
+    {
+      "chapter": 7,
+      "title": "Angles and lines",
+      "printed_start_page": 76,
+      "printed_end_page": 84,
+      "lesson_id": null,
+      "status": "INDEXED_NOT_PRODUCED",
+      "sections": [
+        "Introduction",
+        "Preparatory activities",
+        "Text",
+        "Focus",
+        "Exercises",
+        "Self-evaluation",
+        "Problems",
+        "Just for fun"
+      ],
+      "requires": [
+        "grounded_exercises",
+        "guide_solutions",
+        "interactive_board",
+        "interactive_labs",
+        "golden_card"
+      ]
+    },
+    {
+      "chapter": 8,
+      "title": "Reduction of fractions",
+      "printed_start_page": 85,
+      "printed_end_page": 93,
+      "lesson_id": null,
+      "status": "INDEXED_NOT_PRODUCED",
+      "sections": [
+        "Introduction",
+        "Preparatory activities",
+        "Text",
+        "Focus",
+        "Exercises",
+        "Self-evaluation",
+        "Problems",
+        "Just for fun"
+      ],
+      "requires": [
+        "grounded_exercises",
+        "guide_solutions",
+        "interactive_board",
+        "interactive_labs",
+        "golden_card"
+      ]
+    },
+    {
+      "chapter": 9,
+      "title": "Decimals and fractions",
+      "printed_start_page": 94,
+      "printed_end_page": 100,
+      "lesson_id": null,
+      "status": "INDEXED_NOT_PRODUCED",
+      "sections": [
+        "Introduction",
+        "Preparatory activities",
+        "Text",
+        "Focus",
+        "Exercises",
+        "Self-evaluation",
+        "Problems",
+        "Just for fun"
+      ],
+      "requires": [
+        "grounded_exercises",
+        "guide_solutions",
+        "interactive_board",
+        "interactive_labs",
+        "golden_card"
+      ]
+    },
+    {
+      "chapter": 10,
+      "title": "Locating a point",
+      "printed_start_page": 101,
+      "printed_end_page": 108,
+      "lesson_id": null,
+      "status": "INDEXED_NOT_PRODUCED",
+      "sections": [
+        "Introduction",
+        "Preparatory activities",
+        "Text",
+        "Focus",
+        "Exercises",
+        "Self-evaluation",
+        "Problems",
+        "Just for fun"
+      ],
+      "requires": [
+        "grounded_exercises",
+        "guide_solutions",
+        "interactive_board",
+        "interactive_labs",
+        "golden_card"
+      ]
+    },
+    {
+      "chapter": 11,
+      "title": "Algebraic expressions",
+      "printed_start_page": 109,
+      "printed_end_page": 116,
+      "lesson_id": null,
+      "status": "INDEXED_NOT_PRODUCED",
+      "sections": [
+        "Introduction",
+        "Preparatory activities",
+        "Text",
+        "Focus",
+        "Exercises",
+        "Self-evaluation",
+        "Problems",
+        "Just for fun"
+      ],
+      "requires": [
+        "grounded_exercises",
+        "guide_solutions",
+        "interactive_board",
+        "interactive_labs",
+        "golden_card"
+      ]
+    },
+    {
+      "chapter": 12,
+      "title": "The perpendicular bisector of a segment. The bisector of an angle",
+      "printed_start_page": 117,
+      "printed_end_page": 124,
+      "lesson_id": null,
+      "status": "INDEXED_NOT_PRODUCED",
+      "sections": [
+        "Introduction",
+        "Preparatory activities",
+        "Text",
+        "Focus",
+        "Exercises",
+        "Self-evaluation",
+        "Problems",
+        "Just for fun"
+      ],
+      "requires": [
+        "grounded_exercises",
+        "guide_solutions",
+        "interactive_board",
+        "interactive_labs",
+        "golden_card"
+      ]
+    },
+    {
+      "chapter": 13,
+      "title": "Translation",
+      "printed_start_page": 125,
+      "printed_end_page": 131,
+      "lesson_id": null,
+      "status": "INDEXED_NOT_PRODUCED",
+      "sections": [
+        "Introduction",
+        "Preparatory activities",
+        "Text",
+        "Focus",
+        "Exercises",
+        "Self-evaluation",
+        "Problems",
+        "Just for fun"
+      ],
+      "requires": [
+        "grounded_exercises",
+        "guide_solutions",
+        "interactive_board",
+        "interactive_labs",
+        "golden_card"
+      ]
+    },
+    {
+      "chapter": 14,
+      "title": "Equations",
+      "printed_start_page": 132,
+      "printed_end_page": 141,
+      "lesson_id": null,
+      "status": "INDEXED_NOT_PRODUCED",
+      "sections": [
+        "Introduction",
+        "Preparatory activities",
+        "Text",
+        "Focus",
+        "Exercises",
+        "Self-evaluation",
+        "Problems",
+        "Just for fun"
+      ],
+      "requires": [
+        "grounded_exercises",
+        "guide_solutions",
+        "interactive_board",
+        "interactive_labs",
+        "golden_card"
+      ]
+    },
+    {
+      "chapter": 15,
+      "title": "Fixed points. Variable points",
+      "printed_start_page": 142,
+      "printed_end_page": 149,
+      "lesson_id": null,
+      "status": "INDEXED_NOT_PRODUCED",
+      "sections": [
+        "Introduction",
+        "Preparatory activities",
+        "Text",
+        "Focus",
+        "Exercises",
+        "Self-evaluation",
+        "Problems",
+        "Just for fun"
+      ],
+      "requires": [
+        "grounded_exercises",
+        "guide_solutions",
+        "interactive_board",
+        "interactive_labs",
+        "golden_card"
+      ]
+    },
+    {
+      "chapter": 16,
+      "title": "Proportionality",
+      "printed_start_page": 150,
+      "printed_end_page": 158,
+      "lesson_id": null,
+      "status": "INDEXED_NOT_PRODUCED",
+      "sections": [
+        "Introduction",
+        "Preparatory activities",
+        "Text",
+        "Focus",
+        "Exercises",
+        "Self-evaluation",
+        "Problems",
+        "Just for fun"
+      ],
+      "requires": [
+        "grounded_exercises",
+        "guide_solutions",
+        "interactive_board",
+        "interactive_labs",
+        "golden_card"
+      ]
+    },
+    {
+      "chapter": 17,
+      "title": "Statistical reports",
+      "printed_start_page": 159,
+      "printed_end_page": 167,
+      "lesson_id": null,
+      "status": "INDEXED_NOT_PRODUCED",
+      "sections": [
+        "Introduction",
+        "Preparatory activities",
+        "Text",
+        "Focus",
+        "Exercises",
+        "Self-evaluation",
+        "Problems",
+        "Just for fun"
+      ],
+      "requires": [
+        "grounded_exercises",
+        "guide_solutions",
+        "interactive_board",
+        "interactive_labs",
+        "golden_card"
+      ]
+    }
+  ]
+}

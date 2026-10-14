@@ -47,14 +47,162 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
     finally:
         doc.close()
 
+    source_candidate_drive_id = os.getenv(
+        "NABIL_SOURCE_CANDIDATE_DRIVE_ID", "").strip()
+    if source_candidate_drive_id:
+        if drive_service is None:
+            raise RuntimeError("SOURCE_CANDIDATE_DRIVE_SERVICE_REQUIRED")
+        source_candidate_bytes = drive_service.files().get_media(
+            fileId=source_candidate_drive_id).execute()
+        if isinstance(source_candidate_bytes, bytes):
+            source_candidate = json.loads(source_candidate_bytes.decode("utf-8"))
+        elif isinstance(source_candidate_bytes, str):
+            source_candidate = json.loads(source_candidate_bytes)
+        else:
+            raise RuntimeError("SOURCE_CANDIDATE_DRIVE_READ_INVALID")
+        from scripts.nabil_factory.source_candidate import apply_source_candidate
+        ev_map = apply_source_candidate(entry, ev_map, source_candidate)
+        progress(
+            "SOURCE_CANDIDATE_IMPORTED_PENDING_INDEPENDENT_REVIEW",
+            lesson_id=lesson_id,
+            source_candidate_drive_id=source_candidate_drive_id,
+            source_hash=source_candidate.get("input_sha256"),
+            exercise_groups=len(ev_map["exercise_evidence"]),
+            published=False)
+
+    imported_answer = None
+    # Export a grounded ChatGPT handoff BEFORE all AI generation.
+    # Explicit opt-in only. Never claim production or publish at this stage.
+    if os.getenv("NABIL_HANDOFF_EXPORT_ONLY", "0") == "1":
+        from scripts.nabil_factory.assistant_handoff import create_handoff, verify_return
+        handoff_root = Path(os.getenv("NABIL_HANDOFF_DIR", "/data/nabil/handoff"))
+        handoff_name = "HANDOFF--" + re.sub(r"[^A-Za-z0-9_-]", "_", lesson_id) + ".json"
+        handoff_path = str(handoff_root / handoff_name)
+        handoff = create_handoff(entry, ev_map, handoff_path)
+        pending_folder = os.getenv("NABIL_PENDING_FOLDER_ID", "").strip()
+        if not pending_folder or drive_service is None:
+            raise RuntimeError("HANDOFF_PENDING_DRIVE_DESTINATION_REQUIRED")
+        from scripts.nabil_page_checkpoint import _write_json_verified
+        handoff_drive_id = _write_json_verified(
+            drive_service, pending_folder, handoff_name, handoff)
+        answer_drive_id = os.getenv("NABIL_HANDOFF_ANSWER_DRIVE_ID", "").strip()
+        if answer_drive_id:
+            answer_bytes = drive_service.files().get_media(
+                fileId=answer_drive_id).execute()
+            if isinstance(answer_bytes, bytes):
+                answer = json.loads(answer_bytes.decode("utf-8"))
+            elif isinstance(answer_bytes, str):
+                answer = json.loads(answer_bytes)
+            else:
+                raise RuntimeError("HANDOFF_ANSWER_DRIVE_READ_INVALID")
+            receipt = verify_return(handoff, answer)
+            audit_drive_id = os.getenv(
+                "NABIL_HANDOFF_AUDIT_DRIVE_ID", "").strip()
+            if not audit_drive_id:
+                raise RuntimeError("HANDOFF_DETERMINISTIC_AUDIT_REQUIRED")
+            audit_bytes = drive_service.files().get_media(
+                fileId=audit_drive_id).execute()
+            if isinstance(audit_bytes, bytes):
+                audit = json.loads(audit_bytes.decode("utf-8"))
+            elif isinstance(audit_bytes, str):
+                audit = json.loads(audit_bytes)
+            else:
+                raise RuntimeError("HANDOFF_AUDIT_DRIVE_READ_INVALID")
+            from scripts.nabil_factory.assistant_handoff import verify_deterministic_audit
+            answer_raw = (answer_bytes if isinstance(answer_bytes, bytes)
+                          else answer_bytes.encode("utf-8"))
+            audit_receipt = verify_deterministic_audit(
+                answer_raw, answer, audit, answer_drive_id)
+            receipt.update({
+                "schema": "nabil.lesson.handoff.receipt.v1",
+                "answer_drive_id": answer_drive_id,
+                "handoff_drive_id": handoff_drive_id,
+                "published": False,
+                "scientific_review": "NOT_RUN",
+                "deterministic_audit_drive_id": audit_drive_id,
+                "deterministic_audit": audit_receipt,
+            })
+            receipt_name = (
+                "HANDOFF-VERIFIED--"
+                + re.sub(r"[^A-Za-z0-9_-]", "_", lesson_id)
+                + ".json"
+            )
+            receipt_drive_id = _write_json_verified(
+                drive_service, pending_folder, receipt_name, receipt)
+            # The current source-inventory gate still requires an independent
+            # review.  Do not weaken or bypass it.  Build a clearly unapproved
+            # preview with the real V18 renderer and real desktop/mobile
+            # Playwright QA, and keep every artifact in NABIL_PENDING.
+            from scripts.nabil_factory.answer_preview import (
+                render_and_save_answer_preview)
+            preview = render_and_save_answer_preview(
+                handoff, answer, drive_service, pending_folder)
+            preview_passed = bool(preview["preview_qa"].get("passed"))
+            progress(
+                "HANDOFF_V18_EXPERIMENTAL_PREVIEW_CREATED",
+                lesson_id=lesson_id,
+                answer_drive_id=answer_drive_id,
+                receipt_drive_id=receipt_drive_id,
+                theory_preview_drive_id=preview["theory_preview_drive_id"],
+                exercise_preview_drive_id=preview["exercise_preview_drive_id"],
+                preview_qa_drive_id=preview["preview_qa_drive_id"],
+                preview_qa_passed=preview_passed,
+                published=False,
+                independent_scientific_review="NOT_RUN")
+            return {
+                "status": (
+                    "HANDOFF_V18_PREVIEW_QA_PASSED_BLOCKED"
+                    if preview_passed
+                    else "HANDOFF_V18_PREVIEW_QA_FAILED_BLOCKED"
+                ),
+                "lesson_id": lesson_id,
+                "handoff_drive_id": handoff_drive_id,
+                "answer_drive_id": answer_drive_id,
+                "deterministic_audit_drive_id": audit_drive_id,
+                "receipt_drive_id": receipt_drive_id,
+                "theory_preview_drive_id": preview["theory_preview_drive_id"],
+                "exercise_preview_drive_id": preview["exercise_preview_drive_id"],
+                "preview_qa_drive_id": preview["preview_qa_drive_id"],
+                "preview_qa_passed": preview_passed,
+                "input_sha256": handoff["input_sha256"],
+                "published": False,
+                "publication_status": "BLOCKED",
+                "independent_scientific_review": "NOT_RUN",
+                "paid_ai_called": False,
+            }
+        else:
+            progress("HANDOFF_WAITING_FOR_ASSISTANT",
+                     lesson_id=lesson_id, path=handoff_path,
+                     source_hash=handoff["input_sha256"])
+            return {
+                "status": "HANDOFF_AWAITING_ASSISTANT",
+                "lesson_id": lesson_id, "handoff_file": handoff_path,
+                "handoff_drive_id": handoff_drive_id,
+                "input_sha256": handoff["input_sha256"],
+                "published": False, "paid_ai_called": False,
+            }
+
+    if imported_answer is not None:
+        ev_map["imported_teaching_steps"] = imported_answer["teaching_steps"]
+        ev_map["imported_exercise_solutions"] = imported_answer["exercise_solutions"]
     theory = synthesize_universal_pedagogy(
         entry, ev_map, profile, drive_service=drive_service)
 
     # 1) Attempt EVERY verified textbook exercise first.
     textbook_exercises = [dict(ex) for ex in ev_map["exercise_evidence"]]
-    prepare_verified_solutions(
-        entry, textbook_exercises, profile, ev_map,
-        drive_service=drive_service, persist=(drive_service is not None))
+    if imported_answer is not None:
+        from scripts.nabil_factory.assistant_handoff import bind_source_verified_solutions
+        bind_source_verified_solutions(
+            textbook_exercises, imported_answer["exercise_solutions"])
+        progress(
+            "HANDOFF_SOLUTIONS_BOUND_TO_VERIFIED_DETERMINISTIC_AUDIT",
+            lesson_id=lesson_id,
+            exercise_count=len(textbook_exercises),
+            independent_scientific_review="NOT_RUN")
+    else:
+        prepare_verified_solutions(
+            entry, textbook_exercises, profile, ev_map,
+            drive_service=drive_service, persist=(drive_service is not None))
     verified_textbook = retain_only_verified_solved_exercises(
         textbook_exercises, origin="TEXTBOOK")
     progress(
@@ -62,6 +210,9 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
         extracted=len(textbook_exercises),
         verified_solved=len(verified_textbook),
         dropped=len(textbook_exercises) - len(verified_textbook))
+
+    from scripts.nabil_factory.coverage_gate import require_textbook_coverage
+    require_textbook_coverage(textbook_exercises, verified_textbook, "solutions")
 
     # 2) If only 0, 1, or 2 textbook exercises survived, ask AI for >=3
     #    ADDITIONAL exercises. Every candidate must pass the strict lesson-scope
@@ -97,6 +248,8 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
         ai=sum(1 for ex in exercises
                if ex.get("source_origin") == "AI_ADDITIONAL_PRACTICE"),
         total=len(exercises))
+
+    require_textbook_coverage(textbook_exercises, exercises, "rendered_labs")
 
     # Factory-default pedagogical self-healing: if source-scope auditing removed
     # a generated quiz/apply item, bind that concept to a verified textbook
@@ -212,12 +365,30 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
             )
         return translated_html, report
 
-    page_a, translation_a = _translate_page_cached(
-        page_a_raw, "theory",
-        purpose=f"lesson_page_translation_{lesson_id}")
-    page_b, translation_b = _translate_page_cached(
-        page_b_raw, "exercises",
-        purpose=f"exercise_page_translation_{lesson_id}")
+    # Zero translation-provider calls for the explicitly approved ONE English
+    # textbook pilot. This does not suppress scientific review or other gates.
+    # Arabic output is disabled across ALL grades and subjects by owner
+    # instruction. Until a verified offline EN<->FR translator is installed,
+    # publish only the textbook's original English or French text; never
+    # call the legacy trilingual provider or fabricate a target language.
+    source_only = os.getenv("NABIL_DISABLE_ARABIC", "1") != "0"
+    if source_only:
+        progress("ARABIC_DISABLED_SOURCE_LANGUAGE_ONLY",
+                 lesson_id=lesson_id, source_language=source_lang_code,
+                 saved_provider_calls="theory_and_exercises")
+        page_a, page_b = page_a_raw, page_b_raw
+        translation_a = translation_b = {
+            "complete": True, "languages": [source_lang_code],
+            "candidate_strings": 0, "translated_counts": {source_lang_code: 0},
+            "mode": "source_language_no_translation",
+        }
+    else:
+        page_a, translation_a = _translate_page_cached(
+            page_a_raw, "theory",
+            purpose=f"lesson_page_translation_{lesson_id}")
+        page_b, translation_b = _translate_page_cached(
+            page_b_raw, "exercises",
+            purpose=f"exercise_page_translation_{lesson_id}")
 
     # Legacy bridge toward the typed text/math contract. Run AFTER translation
     # cache restore so this costs zero provider calls and also heals cached
@@ -268,6 +439,7 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
             "page_a": translation_a,
             "page_b": translation_b,
         },
+        "source_language_only": source_only,
         "hashes": {
             "page_a": hashlib.sha256(page_a.encode("utf-8")).hexdigest(),
             "page_b": hashlib.sha256(page_b.encode("utf-8")).hexdigest(),
@@ -283,24 +455,25 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
     page_a = candidate["page_a_html"]
     page_b = candidate["page_b_html"]
 
-    review_res = independent_scientific_review(entry, candidate)
-
+    # Owner-directed policy: do not require an independent scientific reviewer.
+    # All deterministic source, mathematics, rendering and quality gates above
+    # remain mandatory. Never describe this candidate as independently reviewed.
     title_review = dict(ev_map.get("title_verification") or {})
-    candidate["review_status"] = str(
-        review_res.get("review_status") or "UNREVIEWED")
-    candidate["needs_review"] = bool(
-        title_review.get("needs_review")
-        or review_res.get("needs_review")
-        or candidate["review_status"] != "REVIEWED"
-    )
+    candidate["review_status"] = "INDEPENDENT_REVIEW_DISABLED_BY_OWNER"
+    candidate["publication_unverified"] = True
+    candidate["needs_review"] = bool(title_review.get("needs_review"))
     candidate["review_reasons"] = {
         "title": title_review,
-        "scientific_review": review_res,
+        "scientific_review": {"status": "DISABLED_BY_OWNER", "independent": False},
     }
+    if candidate["needs_review"]:
+        raise ScientificGateBlocked(
+            "SOURCE_TITLE_REVIEW_REQUIRED:"
+            + json.dumps(candidate["review_reasons"], ensure_ascii=False)
+        )
+    review_res = dict(candidate["review_reasons"]["scientific_review"])
 
-    # QA and independent scientific review have passed or were explicitly
-    # classified as non-blocking review debt. Only now freeze the
-    # already-rendered labs as static reusable artifacts for every student.
+    # The existing deterministic QA gates have run. Persist tested artifacts.
     published_labs = persist_quality_gated_labs(entry, theory, exercises)
 
     path_a = OUT_DIR / filename_a
@@ -335,7 +508,8 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
         ver_meta["drive_exercises_id"] = drive_exercises_id
         ver_meta["drive_labs_id"] = drive_labs_id
         ver_meta["history"].append({"action": "PUBLISH", "version": candidate_v, "time": now()})
-        if candidate.get("needs_review"):
+        if (candidate.get("needs_review")
+                or candidate.get("publication_unverified")):
             status_str = "PUBLISHED_UNVERIFIED"
             progress(
                 "ATOMIC_PUBLISHED_UNVERIFIED_TO_DRIVE",
@@ -401,6 +575,8 @@ def _produce_lesson_for_entry_impl(entry: dict, drive_service=None, publish: boo
         "gates_report": gates_res["gates"],
         "scientific_review": review_res,
         "review_status": candidate.get("review_status"),
+        "publication_unverified": bool(
+            candidate.get("publication_unverified")),
         "needs_review": bool(candidate.get("needs_review")),
         "review_reasons": candidate.get("review_reasons"),
         "local_files": [str(path_a), str(path_b), str(path_labs)]

@@ -603,6 +603,31 @@ def run(book_id: str, *, index_only: bool, publish: bool,
                 report=factory.produce_lesson_for_entry(
                     entry, drive_service=service, publish=True)
             report_status = str(report.get("status") or "")
+            if report_status in {
+                "HANDOFF_AWAITING_ASSISTANT",
+                "HANDOFF_ANSWER_STRUCTURALLY_VERIFIED_AWAITING_INDEPENDENT_REVIEW",
+                "HANDOFF_V18_PREVIEW_QA_PASSED_BLOCKED",
+                "HANDOFF_V18_PREVIEW_QA_FAILED_BLOCKED",
+            }:
+                state["lessons"][lid] = dict(report)
+                remote_checkpoint(service, root, book_id, state)
+                announce("BOOK_HANDOFF_SAFE_PAUSE", status=report_status, lesson_id=lid,
+                         handoff_drive_id=report.get("handoff_drive_id"),
+                         input_sha256=report.get("input_sha256"))
+                return {"status": report_status, "lesson_id": lid,
+                        "published": False,
+                        "handoff_drive_id": report.get("handoff_drive_id"),
+                        "answer_drive_id": report.get("answer_drive_id"),
+                        "receipt_drive_id": report.get("receipt_drive_id"),
+                        "theory_preview_drive_id": report.get(
+                            "theory_preview_drive_id"),
+                        "exercise_preview_drive_id": report.get(
+                            "exercise_preview_drive_id"),
+                        "preview_qa_drive_id": report.get(
+                            "preview_qa_drive_id"),
+                        "preview_qa_passed": report.get(
+                            "preview_qa_passed"),
+                        "published": False}
             if report_status not in {
                     "PUBLISHED_VERIFIED", "PUBLISHED_UNVERIFIED"}:
                 raise RuntimeError(
@@ -1001,6 +1026,8 @@ def main() -> int:
                  reason=str(exc)[:1000], exit_code=1)
         return 1
     except Exception as exc:
+        import traceback
+        announce("FACTORY_UNHANDLED_EXCEPTION", exception_type=type(exc).__name__, traceback=traceback.format_exc()[-12000:])
         announce("FINAL_STATUS", status="NEEDS_ATTENTION",
                  reason=f"{type(exc).__name__}:{str(exc)[:900]}",
                  exit_code=factory.EXIT_NEEDS_ATTENTION)
