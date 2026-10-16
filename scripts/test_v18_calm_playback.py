@@ -1,3 +1,5 @@
+import os
+os.environ["NABIL_BOARD_ENGINE"] = "legacy"  # this test covers the pre-V6 board; V6 is covered by test_golden_v6_board
 """Real-browser contract for the calm 'video' playback: one continuous lesson,
 slow pace tied to the voice, true pause/resume, minimal visible controls."""
 from pathlib import Path

@@ -31,7 +31,7 @@ _LABELS = {
         "play": "▶ اشرح الدرس من البداية", "stop": "■ أوقف", "prev": "◀ السابق",
         "next": "التالي ▶", "restart": "↻ من جديد", "current": "🔊 اشرح هذه الفكرة",
         "voice_on": "🔊 الصوت يعمل", "voice_off": "🔇 الصوت متوقف",
-        "pause": "⏸ إيقاف مؤقت", "resume": "▶ تابع", "speed_0": "🐢 بطيء", "speed_1": "🙂 عادي", "speed_2": "🐇 سريع", "more": "⋯ المزيد", "toggle_lab": "🧪 التجربة", "answer_is": "الإجابة:",
+        "pause": "⏸ إيقاف مؤقت", "resume": "▶ تابع", "speed_0": "🐢 بطيء", "speed_1": "🙂 عادي", "speed_2": "🐇 سريع", "more": "⋯ المزيد", "toggle_lab": "🧪 التجربة", "answer_is": "الإجابة:", "try_lab": "دورك الآن: غيّر الأعداد بنفسك وراقب الطرفين.",
         "lab": "🧪 المختبر", "run_lab": "▶ شغّل المختبر", "talk": "🎙 تكلّم معي",
         "step": "الخطوة", "idea": "الفكرة", "hello": "أنا نبيل. اضغط «اشرح الدرس من البداية».",
         "goal": "🎯 تظهر البطاقة الذهبية الكاملة بعد آخر فكرة.",
@@ -47,7 +47,7 @@ _LABELS = {
         "play": "▶ Expliquer depuis le début", "stop": "■ Arrêter", "prev": "◀ Précédent",
         "next": "Suivant ▶", "restart": "↻ Recommencer", "current": "🔊 Expliquer cette idée",
         "voice_on": "🔊 Voix activée", "voice_off": "🔇 Voix coupée",
-        "pause": "⏸ Pause", "resume": "▶ Reprendre", "speed_0": "🐢 Lent", "speed_1": "🙂 Normal", "speed_2": "🐇 Rapide", "more": "⋯ Plus", "toggle_lab": "🧪 Expérience", "answer_is": "Réponse :",
+        "pause": "⏸ Pause", "resume": "▶ Reprendre", "speed_0": "🐢 Lent", "speed_1": "🙂 Normal", "speed_2": "🐇 Rapide", "more": "⋯ Plus", "toggle_lab": "🧪 Expérience", "answer_is": "Réponse :", "try_lab": "À toi : change les nombres et observe les deux membres.",
         "lab": "🧪 Laboratoire", "run_lab": "▶ Lancer le labo", "talk": "🎙 Parle-moi",
         "step": "Étape", "idea": "Idée", "hello": "Je suis NABIL. Appuie sur « Expliquer depuis le début ».",
         "goal": "🎯 La carte dorée complète apparaît après la dernière idée.",
@@ -63,7 +63,7 @@ _LABELS = {
         "play": "▶ Teach from the beginning", "stop": "■ Stop", "prev": "◀ Previous",
         "next": "Next ▶", "restart": "↻ Restart", "current": "🔊 Explain this idea",
         "voice_on": "🔊 Voice ON", "voice_off": "🔇 Voice OFF",
-        "pause": "⏸ Pause", "resume": "▶ Resume", "speed_0": "🐢 Slow", "speed_1": "🙂 Normal", "speed_2": "🐇 Fast", "more": "⋯ More", "toggle_lab": "🧪 Experiment", "answer_is": "Answer:",
+        "pause": "⏸ Pause", "resume": "▶ Resume", "speed_0": "🐢 Slow", "speed_1": "🙂 Normal", "speed_2": "🐇 Fast", "more": "⋯ More", "toggle_lab": "🧪 Experiment", "answer_is": "Answer:", "try_lab": "Your turn: change the numbers yourself and watch both sides.",
         "lab": "🧪 Lab", "run_lab": "▶ Run the lab", "talk": "🎙 Talk to Me",
         "step": "Step", "idea": "Idea", "hello": "I am NABIL. Press “Teach from the beginning”.",
         "goal": "🎯 The full Golden Card appears after the last idea.",
@@ -165,7 +165,9 @@ _CSS = r"""
 #nabilWholeLessonSmartLab .v18-final{display:none;margin-top:12px}
 #nabilWholeLessonSmartLab.is-final .v18-final{display:block}
 #nabilWholeLessonSmartLab.is-final .v18-grid,#nabilWholeLessonSmartLab.is-final .v18-labwrap{display:none}
-#nabilE2ELiveSpeech{display:none!important} /* platform runtime caption: the board already writes the words */
+#nabilE2ELiveSpeech{display:none!important}
+#nabilWholeLessonSmartLab sup.v18-sup{font-size:.72em;line-height:0;vertical-align:super;font-weight:700}
+#nabilWholeLessonSmartLab bdi.v18-math{unicode-bidi:isolate;direction:ltr;white-space:normal} /* platform runtime caption: the board already writes the words */
 /* calm "video" mode: one board, one play/pause, no side panels or inline lab */
 #nabilWholeLessonSmartLab .v18-grid{grid-template-columns:minmax(0,1fr)}
 #nabilWholeLessonSmartLab .v18-grid>.v18-box:nth-child(1),#nabilWholeLessonSmartLab .v18-grid>.v18-box:nth-child(3){display:none}
@@ -191,7 +193,7 @@ _JS = r"""
  const frame=$('nabilWholeLessonFrame'),bt=$('v18Title'),lines=$('v18Lines'),speech=$('v18Speech'),badge=$('v18Badge'),
        timeline=$('nabilWholeTimeline'),slots=$('v18Slots'),voiceBtn=$('nabilWholeVoice'),finalHost=$('goldenReferenceCard'),
        labWrap=$('v18LabWrap'),labTitle=$('v18LabTitle'),voiceNote=$('v18VoiceNote');
- let lastCheck=null;const THINK_MS=9000;
+ let lastCheck=null,speechSrc='';const THINK_MS=9000;
  let idea=0,stepI=-1,token=0,voiceOn=true,finalShown=false,playing=false,awaitingStudent=false;
  /* calm pace: slow by default (students found the first version too fast) */
  const SPEEDS=[{r:.78,wpm:100},{r:.9,wpm:120},{r:1.0,wpm:140}];let speedIdx=0,paused=false;const resumers=[];
@@ -230,6 +232,46 @@ _JS = r"""
  function pauseLesson(){if(!playing||paused)return;paused=true;try{speechSynthesis.pause()}catch(_){};try{window.NABILLessonE2E?.pauseSpeech?.()}catch(_){};paintPlay()}
  function resumeLesson(){if(!paused)return;paused=false;try{speechSynthesis.resume()}catch(_){};try{window.NABILLessonE2E?.resumeSpeech?.()}catch(_){};wake();paintPlay()}
 
+ /* ---------------- math text: real superscripts, RTL-safe ---------------- */
+ const MATH_RUN=/(?:[A-Za-z0-9.,]+|[()\[\]]|\^\{[^}]*\}?|\^[^\s]|[=+\-−×÷·\/<>≤≥≠±√])(?:\s*(?:[A-Za-z0-9.,]+|[()\[\]]|\^\{[^}]*\}?|\^[^\s]|[=+\-−×÷·\/<>≤≥≠±√]))*/g;
+ function mathFrag(src){
+  const frag=document.createDocumentFragment();let buf='';
+  const flush=()=>{if(buf){frag.appendChild(document.createTextNode(buf.replace(/\*/g,'×')));buf=''}};
+  for(let i=0;i<src.length;){
+   if(src[i]==='^'){
+    flush();let exp='';
+    if(src[i+1]==='{'){let d=0,k=i+1;for(;k<src.length;k++){if(src[k]==='{')d++;else if(src[k]==='}'){d--;if(d===0)break}}
+     exp=src.slice(i+2,k<src.length?k:src.length);i=k<src.length?k+1:src.length}
+    else{exp=src[i+1]||'';i+=2}
+    const sup=document.createElement('sup');sup.className='v18-sup';sup.textContent=exp.replace(/\*/g,'×');frag.appendChild(sup);continue}
+   buf+=src[i++];
+  }
+  flush();return frag;
+ }
+ function mathNodes(text,rtl){
+  text=String(text==null?'':text);
+  if(!rtl)return mathFrag(text);
+  const frag=document.createDocumentFragment();let last=0,m;MATH_RUN.lastIndex=0;
+  while((m=MATH_RUN.exec(text))){
+   let run=m[0],tail='';const t=run.match(/[\s.,]+$/);if(t){tail=t[0];run=run.slice(0,run.length-tail.length)}
+   if(!run){continue}
+   if(m.index>last)frag.appendChild(document.createTextNode(text.slice(last,m.index)));
+   const bdi=document.createElement('bdi');bdi.dir='ltr';bdi.className='v18-math';bdi.appendChild(mathFrag(run));frag.appendChild(bdi);
+   last=m.index+run.length;MATH_RUN.lastIndex=last;
+  }
+  if(last<text.length)frag.appendChild(document.createTextNode(text.slice(last)));
+  return frag;
+ }
+ function richMath(node,text){node.replaceChildren(mathNodes(text,cur()==='ar'))}
+ /* post-pass for text produced by the Golden-card engine */
+ function enhanceDom(root){
+  if(!root)return;const rtl=cur()==='ar';
+  const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);const todo=[];
+  while(w.nextNode()){const n=w.currentNode;if(/[\^*]/.test(n.nodeValue)&&!n.parentElement.closest('script,style,textarea,.v18-math,sup'))todo.push(n)}
+  todo.forEach(n=>{n.replaceWith(mathNodes(n.nodeValue,rtl))});
+ }
+ const speakable=s=>String(s||'').replace(/\^\{([^{}]*)\}|\^(\S)/g,(m,a,b)=>' '+({ar:'أُسّ',fr:'puissance',en:'to the power of'}[cur()]||'to the power of')+' '+(a||b)+' ').replace(/\*/g,' × ').replace(/\s+/g,' ').trim();
+
  /* ---------------- voice (real, with honest fallback) ---------------- */
  function pickVoice(tag){
   try{const vs=speechSynthesis.getVoices(),p=tag.slice(0,2).toLowerCase();
@@ -248,7 +290,7 @@ _JS = r"""
     speechSynthesis.cancel();
     const u=new SpeechSynthesisUtterance(text);u.lang=L.lang_tag;u.rate=SPEEDS[speedIdx].r;
     /* real word boundaries when the engine reports them (nothing is claimed otherwise) */
-    u.onboundary=e=>{if(sync&&typeof e.charIndex==='number'){sync.hasB=true;sync.idx=e.charIndex+(e.charLength||String(text).slice(e.charIndex).search(/\s|$/))}};
+    u.onboundary=e=>{if(sync&&typeof e.charIndex==='number'){sync.hasB=true;sync.idx=Math.round((e.charIndex+(e.charLength||String(text).slice(e.charIndex).search(/\s|$/)))*(sync.scale||1))}};
     const v=pickVoice(L.lang_tag);
     if(v){u.voice=v;if(sync)sync.real=true}else{voiceNote.textContent=L.novoice}
     let done=false;const fin=()=>{if(!done){done=true;resolve()}};
@@ -261,7 +303,7 @@ _JS = r"""
  }
  function typeInto(node,text,tok,sync){
   return new Promise(res=>{
-   if(FAST||!text){node.textContent=text;return res(true)}
+   if(FAST||!text){richMath(node,text);return res(true)}
    node.textContent='';node.classList.add('cursor');
    /* pace = estimated spoken duration at the chosen speed, corrected by real word boundaries when available */
    const sp=SPEEDS[speedIdx],est=Math.max(900,text.length*60000/(sp.wpm*5.6))*(sync&&sync.fast?.3:1);
@@ -273,7 +315,7 @@ _JS = r"""
     let want=(sync&&sync.hasB)?Math.min(text.length,sync.idx):Math.floor(elapsed/est*text.length);
     if(sync&&sync.done&&sync.real)want=text.length;
     want=Math.max(want,shown);
-    if(want!==shown){shown=want;node.textContent=text.slice(0,shown);followBoardWriting(node)}
+    if(want!==shown){shown=want;richMath(node,text.slice(0,shown));followBoardWriting(node)}
     if(shown<text.length)setTimeout(tick,40);else{node.classList.remove('cursor');res(true)}
    };
    tick();
@@ -284,7 +326,7 @@ _JS = r"""
  function buildSlots(){slots.innerHTML='';slides.forEach((s,i)=>{const d=el('div','v18-slot');d.id='v18Slot'+i;const l=el('div','l',(i+1)+'. '+tr(s.title));const v=el('div','v','—');d.append(l,v);slots.appendChild(d)})}buildSlots();
  slides.concat([{title:L.final}]).forEach((_,i)=>{const b=el('button','v18-dot',i+1);b.type='button';b.setAttribute('aria-label',(i<slides.length?L.idea+' ':L.final+' ')+(i+1));b.onclick=()=>{halt();goTo(i)};timeline.appendChild(b)});
  function paintTimeline(){const cur=finalShown?FINAL:idea;[...timeline.children].forEach((b,i)=>b.className='v18-dot '+(i<cur?'done':(i===cur?'on':'')))}
- function paintSlots(){slides.forEach((s,i)=>{const d=$('v18Slot'+i);const complete=finalShown||i<idea;d.className='v18-slot'+(complete?' locked':(i===idea?' current':''));d.querySelector('.v');d.querySelector('.v').textContent=complete?(tr(s.conclusion)||'✓'):'—'})}
+ function paintSlots(){slides.forEach((s,i)=>{const d=$('v18Slot'+i);const complete=finalShown||i<idea;d.className='v18-slot'+(complete?' locked':(i===idea?' current':''));d.querySelector('.v');richMath(d.querySelector('.v'),complete?(tr(s.conclusion)||'✓'):'—')})}
  function followBoardWriting(target){
   if(!target||!target.isConnected)return;
   // Follow the current line without changing the student's horizontal position.
@@ -302,8 +344,8 @@ _JS = r"""
    for(const st of slides[past].steps){
     const row=el('div','v18-line');
     if(st.label)row.appendChild(el('span','k',tr(st.label)+': '));
-    row.appendChild(el('span','t',tr(st.text)));
-    if(st.formula)row.appendChild(el('div','f',st.formula));
+    {const sp=el('span','t');richMath(sp,tr(st.text));row.appendChild(sp)}
+    if(st.formula){const f=el('div','f');richMath(f,st.formula);row.appendChild(f)}
     section.appendChild(row);
    }
    lines.appendChild(section);
@@ -312,13 +354,13 @@ _JS = r"""
   for(let i=0;i<=upto&&i<s.steps.length;i++){
    const st=s.steps[i],row=el('div','v18-line'+(i===upto?' now':''));
    const k=el('span','k',st.label?tr(st.label)+':':'');const t=el('span','t');row.append(k,t);
-   if(st.formula){const f=el('div','f',st.formula);row.appendChild(f)}
+   if(st.formula){const f=el('div','f');richMath(f,st.formula);row.appendChild(f)}
    lines.appendChild(row);last=(i===upto)?t:last;
-   if(i!==upto)t.textContent=tr(st.text);
+   if(i!==upto)richMath(t,tr(st.text));
   }
   if(last)followBoardWriting(last);
   if(last&&typeLast)return typeInto(last,tr(s.steps[upto].text),tok,sync);
-  if(last)last.textContent=tr(s.steps[upto].text);
+  if(last)richMath(last,tr(s.steps[upto].text));
   return Promise.resolve(true);
  }
  function loadLab(){
@@ -330,13 +372,13 @@ _JS = r"""
   if(on&&!finalHost.dataset.rendered){
    finalHost.dataset.rendered='1';
    try{const g=Object.assign({},DATA.golden,{language:cur(),avatar_src:approvedAvatarUrl()});if(g.function_study&&g.function_study.variation_table)g.function_study={variation_table:locVT(g.function_study.variation_table)};
-    (window.__NABIL_V18_CARDS||window.NABILScientificCards).fromLesson(trDeep(g),finalHost)}
+    (window.__NABIL_V18_CARDS||window.NABILScientificCards).fromLesson(trDeep(g),finalHost);enhanceDom(finalHost)}
    catch(e){finalHost.textContent='GOLDEN_CARD_RENDER_FAILED: '+e;finalHost.dataset.failed='1'}
   }
  }
  function paintIdea(upto,typeLast,tok,sync){
   if(!awaitingStudent){const interact=$('v18StudentInteraction');interact.hidden=true;interact.replaceChildren()}
-  setFinal(false);bt.textContent=tr(slides[idea].title);
+  setFinal(false);richMath(bt,tr(slides[idea].title));
   badge.textContent=L.idea+' '+(idea+1)+' / '+slides.length+' · '+L.step+' '+(Math.max(upto,0)+1)+' / '+slides[idea].steps.length;
   paintSlots();paintTimeline();loadLab();paintVar();return showLines(Math.max(upto,0),typeLast,tok,sync);
  }
@@ -345,17 +387,18 @@ _JS = r"""
   // Start voice when writing begins, not after the typing animation ends.
   // Both remain bound to the same cancellation token.
   const st=slides[idea].steps[i],spoken=tr(st.text);
-  speech.textContent=spoken;
+  speechSrc=spoken;richMath(speech,spoken);
   if(st.check&&st.check.question){awaitingStudent=true;showStudentCheck(st.check)}
   const sync={idx:0,hasB:false,done:false,voiced:Boolean(withVoice&&voiceOn),fast:!withVoice};
   const writing=paintIdea(i,!FAST,tok,sync);
-  const narration=withVoice?speak(spoken,sync):Promise.resolve();
+  const said=speakable(spoken);sync.scale=spoken.length/Math.max(1,said.length);
+  const narration=withVoice?speak(said,sync):Promise.resolve();
   const [ok]=await Promise.all([writing,narration]);
   return Boolean(ok)&&tok===token;
  }
  function showStudentCheck(check){
   const host=$('v18StudentInteraction');host.hidden=false;host.replaceChildren();
-  const q=el('p','v18-student-question',tr(check.question));
+  const q=el('p','v18-student-question');richMath(q,tr(check.question));
   const input=el('input','v18-student-answer');input.setAttribute('aria-label',tr(check.question));input.type='text';
   const feedback=el('p','v18-student-feedback');feedback.setAttribute('aria-live','polite');
   const submit=el('button','v18-student-submit',L.submit_answer||'Check answer');
@@ -368,18 +411,18 @@ _JS = r"""
     if(!got){feedback.textContent=L.answer_required||'Enter an answer.';return}
     const norm=x=>x.normalize('NFKC').replace(/\s+/g,'').toLowerCase();
     if(expected&&norm(got)===norm(expected)){
-      feedback.textContent=tr(check.correct_feedback||L.correct||'Correct. Explain why.');
+      richMath(feedback,tr(check.correct_feedback||L.correct||'Correct. Explain why.'));
       awaitingStudent=false;input.disabled=true;submit.disabled=true;
     }else{
-      feedback.textContent=tr(check.wrong_feedback||L.try_again||'Try again. Think through the steps.');
+      richMath(feedback,tr(check.wrong_feedback||L.try_again||'Try again. Think through the steps.'));
     }
   };
-  hint.onclick=()=>{feedback.textContent=tr(check.hint||L.try_again||'Review the preceding explanation.')};
+  hint.onclick=()=>{richMath(feedback,tr(check.hint||L.try_again||'Review the preceding explanation.'))};
   host.append(q,input,submit,hint,feedback);
  }
  function revealCheck(){
   if(!lastCheck||!awaitingStudent)return;
-  const c=lastCheck;c.feedback.textContent=(L.answer_is||'')+(c.expected?(' '+c.expected+' — '):' ')+tr(c.check.correct_feedback||'');
+  const c=lastCheck;richMath(c.feedback,(L.answer_is||'')+(c.expected?(' '+c.expected+' — '):' ')+tr(c.check.correct_feedback||''));
   c.input.disabled=true;c.submit.disabled=true;awaitingStudent=false;
  }
  function showFinalStage(){
@@ -407,6 +450,20 @@ _JS = r"""
   if(stepI>0)presentStep(stepI-1,false);
   else if(idea>0){idea--;presentStep(slides[idea].steps.length-1,false)}
  }
+ const LAB_MS=16000;
+ async function labStage(mine){
+  if(!playing||idea!==mine)return false;
+  root.classList.add('show-lab');loadLab();
+  await new Promise(r=>{const ok=()=>{try{frame.style.height=Math.min(900,(frame.contentDocument.documentElement.scrollHeight||420)+8)+'px'}catch(_){}r()};
+   if(frame.contentDocument&&frame.contentDocument.readyState==='complete'&&frame.dataset.idx===String(idea)&&frame.contentDocument.querySelector('.interactive-lab'))ok();
+   else{frame.addEventListener('load',ok,{once:true});setTimeout(ok,2500)}});
+  try{frame.contentDocument.querySelector('.interactive-lab').dispatchEvent(new CustomEvent('nabil:demo'))}catch(_){}
+  speechSrc=L.try_lab;richMath(speech,L.try_lab);
+  await speak(L.try_lab,{done:false,fast:false});
+  await sleep(LAB_MS);
+  root.classList.remove('show-lab');
+  return playing&&idea===mine;
+ }
  async function teachIdea(){
   const mine=idea;
   for(let i=0;i<slides[mine].steps.length;i++){
@@ -420,6 +477,7 @@ _JS = r"""
    }
    await sleep(1100);
   }
+  if(slides[mine].lab_kind&&!/^EVIDENCE_/.test(slides[mine].lab_kind)&&slides[mine].srcdoc){if(!(await labStage(mine)))return false}
   return playing;
  }
  async function playAll(){
@@ -444,12 +502,12 @@ _JS = r"""
  $('nabilWholeRestart').onclick=()=>{halt();goTo(0)};
  $('nabilWholeCurrent').onclick=explainCurrent;
  $('nabilWholeRunLab').onclick=runLab;
- $('v18Talk').onclick=()=>{halt();speak(speech.textContent||L.hello)};
+ $('v18Talk').onclick=()=>{halt();speak(speakable(speechSrc)||L.hello)};
  voiceBtn.onclick=()=>{voiceOn=!voiceOn;relabel();if(!voiceOn)stopSpeech()};
  window.addEventListener('nabil:page-language-change',()=>{
   halt();relabel();buildSlots();finalHost.innerHTML='';delete finalHost.dataset.rendered;
   if(finalShown){setFinal(true);badge.textContent=L.final;speech.textContent=L.done;paintSlots();paintTimeline()}
-  else{paintIdea(Math.max(stepI,0),false,token);speech.textContent=tr(slides[idea].steps[Math.max(stepI,0)].text)}
+  else{paintIdea(Math.max(stepI,0),false,token);speechSrc=tr(slides[idea].steps[Math.max(stepI,0)].text);richMath(speech,speechSrc)}
  });
  try{speechSynthesis.getVoices();speechSynthesis.onvoiceschanged=()=>{}}catch(_){}
  window.NABILWholeLessonOrchestrator={
@@ -476,7 +534,8 @@ def verify_v18_scientific_card_inline_engine(page_html: str) -> bool:
     verifies execution and visible Golden Card as the final teaching stage.
     """
     if (
-        f'data-nabil-v18-board="{V18_BOARD_CONTRACT}"' not in page_html
+        (f'data-nabil-v18-board="{V18_BOARD_CONTRACT}"' not in page_html
+         and 'data-nabil-v18-board="NABIL_GOLDEN_V6_BOARD_V1"' not in page_html)
         or "V18_GOLDEN_CARD_ENGINE_BOOTSTRAP_FAILED" not in page_html
     ):
         return False
@@ -494,44 +553,16 @@ def verify_v18_scientific_card_inline_engine(page_html: str) -> bool:
     trusted = _read("v18_golden_cards_engine.js").encode("utf-8")
     return embedded == trusted and b"window.NABILScientificCards={" in embedded
 
-def teaching_sentence(sentence: str, kind: str, lang_code: str, position: int = 0) -> str:
-    """Teacher-led, source-faithful one-line narrative for board AND Golden cards.
+def teaching_sentence(sentence: str, kind: str = "", lang_code: str = "en", position: int = 0) -> str:
+    """One verified teaching sentence, exactly as grounded, in canonical math form.
 
-    Preserve all verified mathematical content verbatim. Narration is a
-    transition, NOT an invented substitution, fact, numerical result or proof.
+    The factory used to prepend a fixed filler phrase ("We now explain the next
+    step: ...") to every step. That is not teaching: it repeats on every line and
+    adds no understanding, so it is gone. The step's role is shown by its
+    ``label`` (Given / Rule / Substitution ...), never by a canned sentence.
     """
-    import re
-    content = re.sub(r"\\s+", " ", str(sentence or "")).strip()
-    if not content:
-        return ""
-    prompts = {
-        "ar": {
-            "problem": "نقرأ نصّ السؤال ونحدّد المطلوب: ",
-            "first": "نبدأ الحلّ خطوةً خطوة، ونلاحظ ما يأتي: ",
-            "next": "ننتقل الآن إلى الخطوة التالية، ونوضّحها: ",
-            "final": "نستنتج من الخطوات السابقة: ",
-        },
-        "en": {
-            "problem": "Read the question and identify what is required: ",
-            "first": "Let us begin and explain our first step: ",
-            "next": "We now explain the next step: ",
-            "final": "We conclude from the steps above: ",
-        },
-        "fr": {
-            "problem": "Lisons la question et identifions ce qui est demandé : ",
-            "first": "Commençons et expliquons la première étape : ",
-            "next": "Expliquons maintenant l'étape suivante : ",
-            "final": "Nous concluons des étapes précédentes : ",
-        },
-    }
-    locale = prompts.get(lang_code, prompts["en"])
-    if kind == "problem":
-        prefix = locale["problem"]
-    elif kind == "final":
-        prefix = locale["final"]
-    else:
-        prefix = locale["first"] if position <= 1 else locale["next"]
-    return content if content.startswith(tuple(locale.values())) else prefix + content
+    from scripts.nabil_factory.cards.mathtext import canonical_math
+    return canonical_math(re.sub(r"\s+", " ", str(sentence or "")).strip())
 
 
 def build_slide(act: dict, lang_code: str) -> dict | None:
@@ -548,7 +579,7 @@ def build_slide(act: dict, lang_code: str) -> dict | None:
             steps.append({
                 "label": str(st.get("label") or ""),
                 "text": sentence,
-                "formula": str(st.get("formula") or ""),
+                "formula": plain_math(str(st.get("formula") or "")),
                 "kind": str(st.get("kind") or ""),
                 "check": st.get("student_check") if isinstance(st.get("student_check"), dict) else None,
             })
@@ -558,7 +589,7 @@ def build_slide(act: dict, lang_code: str) -> dict | None:
                            ("", "conclusion")):
             v = str(act.get(key) or "").strip()
             if v:
-                steps.append({"label": label, "text": v, "formula": "", "kind": key})
+                steps.append({"label": label, "text": plain_math(v), "formula": "", "kind": key})
     if not steps:
         return None
     srcdoc = "" if not lab_html else (
@@ -580,7 +611,8 @@ def build_slide(act: dict, lang_code: str) -> dict | None:
         "concept_id": str(act.get("concept_id") or ""),
         "title": str(act.get("title") or ""),
         "steps": steps,
-        "conclusion": str(act.get("conclusion") or act.get("observation") or "").strip(),
+        "conclusion": plain_math(str(act.get("conclusion") or act.get("observation") or "").strip()),
+        "lab_kind": str((act.get("lab_spec") or {}).get("kind") or "") if isinstance(act.get("lab_spec"), dict) else "",
         "srcdoc": srcdoc,
     }
 
@@ -603,7 +635,7 @@ def build_golden_spec(title: str, activities: list, lang_code: str,
             _e = extract_function_expr(act)
             var_drawing = build_function_drawing(_e, var_table) if _e else None
         t = str(act.get("title") or "").strip()
-        concl = str(act.get("conclusion") or act.get("observation") or "").strip()
+        concl = plain_math(str(act.get("conclusion") or act.get("observation") or "").strip())
         # Golden exercise cards preserve the verified teacher's worked
         # reasoning, rather than reducing a solution to a numeric answer.
         verified_steps = [
@@ -648,6 +680,23 @@ def build_golden_spec(title: str, activities: list, lang_code: str,
 def render_v18_smart_board(title: str, activities: list, lang_code: str,
                            golden_spec: dict | None = None,
                            contract: str = "", mode: str = "lesson") -> str:
+    """Board entry point. Default engine: NABIL Golden V6 (one static engine, lesson
+    data only). Set NABIL_BOARD_ENGINE=legacy to fall back to the pre-V6 board."""
+    import os
+    if os.getenv("NABIL_BOARD_ENGINE", "v6").strip().lower() != "legacy":
+        from scripts.nabil_factory.cards.golden_v6 import build_scenes, render_golden_v6_board
+        lang = lang_code if lang_code in _LABELS else "en"
+        scenes = build_scenes(activities, lang, title)
+        if not scenes:
+            return ""
+        return render_golden_v6_board(title, scenes, lang, golden_spec=golden_spec,
+                                      contract=contract, mode=mode)
+    return render_v18_smart_board_legacy(title, activities, lang_code, golden_spec, contract, mode)
+
+
+def render_v18_smart_board_legacy(title: str, activities: list, lang_code: str,
+                                  golden_spec: dict | None = None,
+                                  contract: str = "", mode: str = "lesson") -> str:
     lang = lang_code if lang_code in _LABELS else "en"
     all_labels = {k: dict(v) for k, v in _LABELS.items()}
     if mode == "exercises":
@@ -742,16 +791,9 @@ _SUP = {"0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵",
 
 
 def plain_math(text: str) -> str:
-    """Readable board text from LaTeX-ish solver text (no delimiters shown)."""
-    import re
-    s = str(text or "")
-    s = re.sub(r"\\[\(\)\[\]]|\$\$?", "", s)
-    s = s.replace("\\times", "×").replace("\\cdot", "·").replace("\\div", "÷")
-    s = s.replace("\\left", "").replace("\\right", "")
-    s = re.sub(r"\^\{(-?\d+)\}", lambda m: "".join(_SUP.get(c, c) for c in m.group(1)), s)
-    s = re.sub(r"\^(-?\d)", lambda m: "".join(_SUP.get(c, c) for c in m.group(1)), s)
-    s = re.sub(r"\\frac\{([^{}]+)\}\{([^{}]+)\}", r"(\1)/(\2)", s)
-    return re.sub(r"\s+", " ", s).strip()
+    """Canonical display math (see cards/mathtext.py)."""
+    from scripts.nabil_factory.cards.mathtext import canonical_math
+    return canonical_math(text)
 
 
 def build_exercise_activities(exercises: list, labels_ui: dict) -> list:

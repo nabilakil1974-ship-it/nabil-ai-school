@@ -535,7 +535,26 @@ def _subject_teaching_mode(concept: dict, subject: str) -> str:
 
 
 def _mathematics_teaching_mode(concept: dict) -> str:
-    text = _concept_teaching_text(concept)
+    """Classify by the concept TITLE first; body text is only a fallback.
+
+    Matching loose substrings in the whole body misfiled "Rules for calculating
+    powers" as statistics_probability (the word "means" contains "mean").
+    """
+    title_only = str(concept.get("title") or "").casefold()
+    mode = _classify_math_text(title_only)
+    if mode != "default":
+        return mode
+    return _classify_math_text(_concept_teaching_text(concept))
+
+
+def _classify_math_text(text: str) -> str:
+    if re.search(
+        r"\bpowers?\b|\bexponents?\b|\bindices\b|\bpuissances?\b|\bexposants?\b|"
+        r"scientific notation|notation scientifique|"
+        r"الأس|أسس|الأسس|القوى|قوى|قوة عدد|الترميز العلمي",
+        text,
+    ):
+        return "algebra"
     if re.search(
         r"triangle|circle|angle|tangent|parallel|perpendicular|"
         r"midpoint|bisector|congruen|similar|polygon|geometry|"
@@ -573,7 +592,7 @@ def _mathematics_teaching_mode(concept: dict) -> str:
     ):
         return "complex_numbers"
     if re.search(
-        r"probability|probabilité|statistics|statistique|mean|median|"
+        r"probabilit|\bstatistic|\bmean\b|\bmedian\b|\bmoyenne\b|\bmédiane\b|"
         r"احتمال|إحصاء|متوسط|وسيط",
         text,
     ):
@@ -1913,6 +1932,24 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
 
     if not isinstance(spec, dict):
         raise RuntimeError("LAB_SPEC_INVALID: expected object")
+    # Powers/exponents in mathematics get the real COMPUTING lab (the student
+    # types the numbers; both sides of the rule are evaluated exactly). The spec
+    # is deterministic and quotes the source verbatim, so nothing is invented.
+    # A text-reveal is never an acceptable lab for such a concept.
+    if str(profile.get("subject") or "").strip().lower() == "mathematics" and not (
+            spec.get("supported") is True
+            and str(spec.get("kind") or "").upper() in {"FORMULA_CALCULATOR", "GEOMETRY_PROOF"}):
+        try:
+            from scripts.nabil_power_lab import build_power_spec as _build_power_spec
+        except Exception:  # pragma: no cover - flat import fallback
+            from nabil_power_lab import build_power_spec as _build_power_spec
+        _power = _build_power_spec(
+            str(concept.get("title") or ""), str(concept.get("raw_text") or ""),
+            lang_code, str(concept["concept_id"]))
+        if _power:
+            spec = _power
+            progress("LAB_POWER_EXPLORER_BUILT", concept_id=concept.get("concept_id"),
+                     law=_power["law"], source_page=concept.get("source_page"))
     if spec.get("supported") is not True:
         # Universal classroom contract: every concept must still have an
         # interactive lab. When no richer simulation is justified, fall back

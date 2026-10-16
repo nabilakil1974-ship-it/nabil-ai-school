@@ -1,3 +1,5 @@
+import os
+os.environ["NABIL_BOARD_ENGINE"] = "legacy"  # this test covers the pre-V6 board; V6 is covered by test_golden_v6_board
 """Autoplay must not stop at a student question: ask, think, reveal answer, continue."""
 from pathlib import Path
 from tempfile import TemporaryDirectory

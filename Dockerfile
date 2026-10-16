@@ -53,6 +53,10 @@ RUN python -m scripts.validate_nabil_ui \
     && python -m scripts.test_v18_golden_card_runtime \
     && python -m scripts.test_v18_calm_playback \
     && python -m scripts.test_v18_question_flow \
+    && python -m scripts.test_golden_v6_board \
+    && python -m scripts.test_pedagogical_gate \
+    && python -m scripts.test_v18_math_render \
+    && python -m scripts.test_power_lab \
     && python -m py_compile app/main.py app/api/routes_chat.py app/api/routes_worksheet.py app/api/routes_interactive_lessons.py app/api/routes_lesson_factory.py scripts/nabil_lesson_factory.py scripts/nabil_book_factory.py scripts/nabil_factory_worker.py scripts/nabil_pilot_worker.py scripts/start_server.py scripts/golden_runtime_bridge.py scripts/start_server_golden.py \
     && python -c "from app.api import routes_interactive_lessons as r; assert hasattr(r, 'router') and len(r.router.routes) >= 5"
 

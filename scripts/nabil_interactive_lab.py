@@ -40,7 +40,7 @@ except Exception:
 LAB_ENGINE_VERSION="NABIL_LAB_ENGINE_V1"
 REFERENCE_RENDERER_CONTRACT="NABIL_REFERENCE_RENDERER_V1"
 
-_ALLOWED_KINDS={"FORMULA_CALCULATOR","ORIENTATION_INVARIANT","SHAPE_RESPONSE","PROCEDURE_OBSERVATION","EVIDENCE_SEQUENCE","EVIDENCE_REVEAL","GEOMETRY_PROOF"} | ADVANCED_LAB_KINDS
+_ALLOWED_KINDS={"FORMULA_CALCULATOR","ORIENTATION_INVARIANT","SHAPE_RESPONSE","PROCEDURE_OBSERVATION","EVIDENCE_SEQUENCE","EVIDENCE_REVEAL","GEOMETRY_PROOF","POWER_EXPLORER"} | ADVANCED_LAB_KINDS
 _ALLOWED_OPS={"+","-","*","/"}
 
 def _safe_id(value:str)->str:
@@ -93,6 +93,13 @@ def validate_lab_spec(spec:Dict[str,Any])->Dict[str,Any]:
         # ممنوع اختراع مجال رقمي. الطالب يدخل القيم بنفسه.
         if any(k in formula for k in ("min","max","default","initial","step")):
             raise RuntimeError("LAB_FORMULA_FAKE_RANGE_FORBIDDEN")
+
+    if kind=="POWER_EXPLORER":
+        try:
+            from scripts.nabil_power_lab import validate_power_spec
+        except Exception:
+            from nabil_power_lab import validate_power_spec
+        validate_power_spec(spec)
 
     if kind=="ORIENTATION_INVARIANT":
         if str(spec.get("invariant_orientation") or "").lower() not in ("horizontal","vertical"):
@@ -829,6 +836,12 @@ def render_verified_lab(spec:Dict[str,Any],lang_code:str,lab_id:str)->Tuple[str,
         raw=_render_sequence(spec,lang_code,lab_id)
     elif kind=="EVIDENCE_REVEAL":
         raw=_render_evidence_reveal(spec,lang_code,lab_id)
+    elif kind=="POWER_EXPLORER":
+        try:
+            from scripts.nabil_power_lab import render_power_lab
+        except Exception:
+            from nabil_power_lab import render_power_lab
+        raw=render_power_lab(spec,lang_code,lab_id,_safe_id(lab_id))
     elif kind=="GEOMETRY_PROOF":
         raw,active=render_geometry_proof_lab(spec,lang_code,lab_id)
         if not active:

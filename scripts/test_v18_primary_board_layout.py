@@ -1,3 +1,5 @@
+import os
+os.environ["NABIL_BOARD_ENGINE"] = "legacy"  # this test covers the pre-V6 board; V6 is covered by test_golden_v6_board
 """Reject old main layout: one full-width V18 teacher board is the PRIMARY lesson and exercise view."""
 from pathlib import Path
 import unittest

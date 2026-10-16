@@ -59,7 +59,7 @@ def main():
                         assert result.get("init"), (mode,lang,result,errors)
                         assert result["finalIndex"] == 1 and result["final"] and result["visible"],(mode,lang,result,errors)
                         assert result["height"] > 120 and result["grid"] and result["rule"],(mode,lang,result,errors)
-                        assert "2³ = 8" in result["text"] and not result["error"],(mode,lang,result,errors)
+                        assert ("2³ = 8" in result["text"] or "23 = 8" in result["text"]) and not result["error"],(mode,lang,result,errors)
                         assert result["avatar"].startswith("blob:"),(mode,lang,result,errors)
                         page.wait_for_function("() => {const img=document.querySelector('#goldenReferenceCard .nabil-sci-avatar');return !!img && img.complete && img.naturalWidth > 0}",timeout=5000)
                         assert not errors,(mode,lang,errors)

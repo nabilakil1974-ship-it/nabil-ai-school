@@ -139,7 +139,7 @@ def validate_requirement5_lab(
     motion_required = {
         "FORMULA_CALCULATOR", "ORIENTATION_INVARIANT", "SHAPE_RESPONSE",
         "DC_SERIES_CIRCUIT", "OPTICS_REFLECTION", "IONIC_COMPOUND",
-        "GEOMETRY_PROOF", "PROCEDURE_OBSERVATION", "EVIDENCE_SEQUENCE",
+        "GEOMETRY_PROOF", "PROCEDURE_OBSERVATION", "EVIDENCE_SEQUENCE", "POWER_EXPLORER",
     }
     if kind in motion_required and not ({"animate", "set_state"} & set(actions)):
         raise RuntimeError("R5_REFERENCE_ANIMATION_MISSING")
