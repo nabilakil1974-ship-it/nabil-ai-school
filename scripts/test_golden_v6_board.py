@@ -284,6 +284,143 @@ def run_browser(browser) -> None:
            waiting and wrong == "Try again." and right == "Yes.", f"{wrong!r} {right!r}")
     pg.context.close()
 
+    # ---------------- exercises: automatic solution on the same board + dropdown + hints + Arabic reading
+    from scripts.nabil_factory.cards.v18_board import render_v18_exercises_board
+    exs = [{"number": "1", "exact_source_prompt": "Write 3^4 × 3^2 as one power.", "solution_status": "SOLVED",
+            "_pre_solved_solution": {"steps": ["Given: 3^4 × 3^2", "Rule: same base, so we add the exponents: 3^(4+2)",
+                                               "Substitution: replace m by 4 and n by 2", "Calculation: 3^6 = 729"],
+                                     "final_answer": "3^6 = 729"}},
+           {"number": "2", "exact_source_prompt": "Compute 2^5 ÷ 2^2.", "solution_status": "SOLVED",
+            "_pre_solved_solution": {"steps": ["Given: 2^5 ÷ 2^2", "Rule: divide powers with the same base: subtract the exponents",
+                                               "Calculation: 2^(5-2) = 2^3 = 8"], "final_answer": "8"}},
+           {"number": "3", "exact_source_prompt": "Compute 7^0.", "solution_status": "PENDING"}]
+    exp = OUT / "exercises.html"
+    exp.write_text('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0">'
+                   + render_v18_exercises_board("Powers", exs, "en", subject="mathematics") + "</body></html>", encoding="utf-8")
+    pg = new_page(browser, exp)
+    opts = pg.evaluate("[...document.querySelectorAll('#nbExercise option')].map(o=>o.textContent)")
+    record("exercise dropdown lists every exercise number (unsolved marked)", opts[1:] == ["1", "2", "3 …"], str(opts))
+    pg.click("#nbStart")
+    pg.wait_for_function("document.querySelectorAll('#nbWriting .nb-step').length>=4", timeout=60000)
+    hints = pg.evaluate("[...document.querySelectorAll('.nb-hintchip')].map(h=>h.textContent)")
+    labels = pg.evaluate("[...document.querySelectorAll('#nbWriting .nb-label')].map(h=>h.textContent)")
+    pg.screenshot(path=str(OUT / "08_exercises_solution_desktop.png"))
+    record("solution runs automatically on the same board with Given/Rule/Substitution labels",
+           "Given" in labels and "Rule" in labels and "Substitution" in labels, str(labels))
+    record("how-to hint words appear (substitute / add exponents)",
+           any("Substitute" in h for h in hints) and any("add the exponents" in h for h in hints), str(hints))
+    pg.select_option("#nbExercise", index=3)
+    pg.wait_for_function("NABILWholeLessonOrchestrator.state().index===2", timeout=10000)
+    pg.wait_for_function("document.getElementById('nbWriting').innerText.includes('not available yet')", timeout=60000)
+    unsolved = pg.inner_text("#nbWriting")
+    record("choosing exercise 3 from the dropdown jumps to it; missing solution is stated, not invented",
+           "not available yet" in unsolved, unsolved[:80])
+    pg.select_option("#nbExercise", index=2)
+    pg.wait_for_function("NABILWholeLessonOrchestrator.state().index===1", timeout=10000)
+    record("dropdown jumps to exercise 2 without reload", state(pg)["index"] == 1 and not pg.errors, str(pg.errors[:2]))
+    pg.context.close()
+    pg = new_page(browser, exp, w=390, h=844, mobile=True)
+    pg.click("#nbStart")
+    pg.wait_for_function("document.querySelectorAll('#nbWriting .nb-step').length>=2", timeout=60000)
+    ok_phone = pg.evaluate("() => { const vw=innerWidth; return document.documentElement.scrollWidth<=vw && [...document.querySelectorAll('.nb-ctl button,.nb-ctl select')].every(b=>{const r=b.getBoundingClientRect();return r.right<=vw+1&&r.left>=-1&&r.bottom<=innerHeight+1})}")
+    record("phone: exercise dropdown and Arabic button fit on screen", ok_phone)
+    pg.screenshot(path=str(OUT / "09_exercises_phone.png"))
+    pg.context.close()
+
+    # Arabic reading button: shows the Arabic line and speaks it after the English
+    ar_sc = [{"id": "A", "title": "Arabic", "start_mode": "single", "steps": [
+        {"t": "text", "text": "First read the statement.", "label": "", "speech": "First read the statement."},
+        {"t": "text", "text": "Add the exponents.", "label": "", "speech": "Add the exponents.", "ar": "نجمع الأسس."},
+        {"t": "text", "text": "No translation here.", "label": "", "speech": "No translation here."}]}]
+    pa = page_html("ar_read", "Arabic", ar_sc, "en")
+    pg = new_page(browser, pa)
+    pg.click("#nbStart")
+    pg.click("#nbArVoice")
+    pressed = pg.get_attribute("#nbArVoice", "aria-pressed")
+    pg.wait_for_selector(".nb-ar", timeout=60000)
+    pg.wait_for_function("window.__spoken.filter(u=>u.lang==='ar-SA').length>=1", timeout=20000)
+    pg.wait_for_function("[...document.querySelectorAll('.nb-ar')].some(e=>e.textContent.includes('الأسس'))", timeout=30000)
+    spoken = [u for u in pg.evaluate("window.__spoken") if u["text"].strip()]
+    langs = [u["lang"] for u in spoken if u["text"] != "First read the statement."][:2]
+    record("«اقرأ بالعربية أيضًا»: Arabic text shown and spoken (ar-SA) after the English (en-US)",
+           pressed == "true" and langs == ["en-US", "ar-SA"] and "نجمع" in pg.inner_text("#nbWriting"), str(langs))
+    pg.context.close()
+
+    # ---------------- lesson plan (تحضير الدرس): button, languages, times, cache, real .docx
+    import re as _re
+    import subprocess
+    import zipfile
+    acts = [dict(a, source_page="12") for a in POWERS_ACTIVITIES]
+    from scripts.nabil_factory.cards.v18_board import render_v18_smart_board, build_golden_spec
+    spec = build_golden_spec("Powers", acts, "en", subject="mathematics")
+    plan_page = OUT / "plan_lesson.html"
+    plan_page.write_text('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0">'
+                         + render_v18_smart_board("Powers", acts, "en", golden_spec=spec) + "</body></html>", encoding="utf-8")
+    pg = new_page(browser, plan_page)
+    btn_txt = pg.evaluate("document.querySelector('#nbOpen [data-nb-plan]').textContent")
+    record("lesson-plan button on the opening screen with the trilingual label",
+           btn_txt == "📄 تحضير الدرس | Lesson Plan | Fiche de préparation", btn_txt)
+    pg.click("#nbStart")
+    pg.wait_for_selector("#nbStage [data-nb-plan]")
+    pg.click("#nbStage [data-nb-plan]")
+    paused_on_open = state(pg)["paused"]
+    pg.select_option("#nbPlanLang", "ar")
+    info = pg.evaluate("""() => { const d=document.getElementById('nbPlanDoc'); const t=[...d.querySelectorAll('table')];
+        const flow=t.find(x=>x.rows[0].cells.length===6);
+        const mins=[...flow.rows].slice(1).map(r=>parseInt(r.cells[0].textContent,10));
+        return {dir:d.dir, h1:d.querySelector('h1').textContent, cols:[...flow.rows[0].cells].map(c=>c.textContent), mins,
+                sum:mins.reduce((a,b)=>a+b,0), sup:d.querySelectorAll('sup').length,
+                has:['الكفايات المستهدفة','الأهداف','المكتسبات السابقة','الواجب المنزلي','ملاحظات الأستاذ بعد الحصة'].every(k=>d.textContent.includes(k)),
+                pages:d.textContent.includes('12'), crdp:document.getElementById('nbPlanNote').textContent.includes('لم يُتحقَّق')} }""")
+    record("opening the plan pauses the lesson; Arabic plan is RTL with the 6-column flow table",
+           paused_on_open and info["dir"] == "rtl" and info["cols"] == ["الزمن", "المرحلة", "نشاط الأستاذ", "نشاط المتعلم", "الوسائل", "التقويم"], str(info["cols"]))
+    record("45-minute model split 5/10/15/10/5 and all mandatory sections present",
+           info["mins"] == [5, 10, 15, 10, 5] and info["has"] and info["pages"], str(info["mins"]))
+    record("plan keeps math as superscripts and states that CRDP conformity is NOT verified", info["sup"] > 0 and info["crdp"])
+    pg.fill("#nbPlanMin", "90"); pg.press("#nbPlanMin", "Enter"); pg.evaluate("document.getElementById('nbPlanMin').dispatchEvent(new Event('change'))")
+    pg.fill("#nbPlanSes", "2"); pg.evaluate("document.getElementById('nbPlanSes').dispatchEvent(new Event('change'))")
+    two = pg.evaluate("""() => { const flows=[...document.querySelectorAll('#nbPlanDoc table')].filter(x=>x.rows[0].cells.length===6);
+        return {n:flows.length, sums:flows.map(f=>[...f.rows].slice(1).reduce((a,r)=>a+parseInt(r.cells[0].textContent,10),0))} }""")
+    record("teacher can change period length and number of periods (90 min x 2 periods)",
+           two["n"] == 2 and two["sums"] == [90, 90], str(two))
+    pg.evaluate("document.getElementById('nbPlanDoc').insertAdjacentHTML('afterbegin','<p id=\"mine\">ملاحظة الأستاذ</p>'); document.getElementById('nbPlanDoc').dispatchEvent(new Event('input'))")
+    time.sleep(0.6)
+    pg.click("#nbPlanClose"); pg.click("#nbStage [data-nb-plan]")
+    again = pg.evaluate("({cached: window.__nbPlanState.fromCache, mine: !!document.getElementById('mine'), key: window.__nbPlanState.key})")
+    record("plan is generated once per lesson+language and reused from the saved copy (edits kept)",
+           again["cached"] and again["mine"], str(again))
+    pg.evaluate("document.getElementById('mine').remove()")
+    pg.select_option("#nbPlanLang", "ar"); pg.fill("#nbPlanMin", "45"); pg.fill("#nbPlanSes", "1")
+    pg.evaluate("['nbPlanMin','nbPlanSes'].forEach(i=>document.getElementById(i).dispatchEvent(new Event('change')))")
+    for lang in ("en", "fr"):
+        pg.select_option("#nbPlanLang", lang)
+        d = pg.evaluate("({dir:document.getElementById('nbPlanDoc').dir, h:document.querySelector('#nbPlanDoc h1').textContent})")
+        record(f"plan language {lang}: direction and headings", d["dir"] == "ltr" and ("Lesson Plan" in d["h"] or "Fiche" in d["h"]), str(d))
+    pg.select_option("#nbPlanLang", "ar")
+    pg.screenshot(path=str(OUT / "10_lesson_plan_ar_desktop.png"))
+    with pg.expect_download() as dl:
+        pg.click("#nbPlanDocx")
+    docx_path = OUT / "lesson_plan_ar.docx"
+    dl.value.save_as(str(docx_path))
+    pg.context.close()
+    import docx as _docx
+    d = _docx.Document(str(docx_path))
+    xml = zipfile.ZipFile(docx_path).read("word/document.xml").decode("utf-8")
+    flow_tables = [t for t in d.tables if len(t.columns) == 6]
+    record("DOCX opens in python-docx: headings, 6-column flow table, RTL, superscripts",
+           len(flow_tables) == 1 and "<w:bidi/>" in xml and "w:val=\"superscript\"" in xml and any("تحضير الدرس" in p.text for p in d.paragraphs),
+           f"tables={len(d.tables)} paragraphs={len(d.paragraphs)}")
+    record("DOCX flow table header and times intact",
+           [c.text for c in flow_tables[0].rows[0].cells][:2] == ["الزمن", "المرحلة"] and flow_tables[0].rows[1].cells[0].text.startswith("5"))
+    conv = subprocess.run(["soffice", "--headless", "--convert-to", "pdf", "--outdir", str(OUT), str(docx_path)],
+                          capture_output=True, text=True, timeout=180)
+    pdf = OUT / "lesson_plan_ar.pdf"
+    txt = subprocess.run(["pdftotext", str(pdf), "-"], capture_output=True, text=True).stdout if pdf.exists() else ""
+    pages = len(_re.findall(r"\f", txt))
+    clean = _re.sub(r"[\u202a-\u202e\u2066-\u2069\u200e\u200f]", "", txt)
+    record("DOCX converts to PDF with LibreOffice (pages and Arabic text intact); NOT tested in Microsoft Word",
+           pdf.exists() and pages >= 1 and "جدول سير الحصة" in clean and "تحضير الدرس" in clean, f"pages={pages} rc={conv.returncode}")
+
     # ---------------- phones: portrait + landscape, no overflow/clipping, drawing stays visible
     for label, (w, h) in {"phone_portrait": (390, 844), "phone_landscape": (844, 390)}.items():
         pg = new_page(browser, cube, w=w, h=h, mobile=True)

@@ -59,3 +59,24 @@
  #teacherHand{width:105px}
 }
 .nb-hbtn{font-size:13px;font-weight:700;padding:6px 10px;min-height:34px;border:0;border-radius:6px;background:#1762aa;color:#fff;cursor:pointer;margin-inline-start:4px}
+.nb-hintchip{display:block;font-size:.55em;font-weight:700;color:#0b6b4f;background:#e6f6ef;border-radius:6px;padding:2px 8px;margin:2px 0 4px;direction:inherit}
+.nb-ar{margin:-10px 0 18px;padding:8px 16px;border-inline-start:4px solid #7a3fb0;background:#f6f0fb;border-radius:6px;font-size:clamp(20px,1.8vw,26px);font-family:Tahoma,Arial,sans-serif;line-height:1.8}
+.nb-exlab{display:inline-flex;align-items:center;gap:4px;font-weight:700;font-size:14px}
+.nb-planbtn{font-size:13px;font-weight:700;padding:8px 12px;min-height:38px;border:2px solid #1762aa;border-radius:8px;background:#fff;color:#1762aa;cursor:pointer;margin-inline-end:4px;max-width:100%;white-space:normal}
+.nb-modal{position:fixed;inset:0;z-index:2147483640;background:rgba(10,30,50,.55);display:flex;align-items:stretch;justify-content:center}
+.nb-modal[hidden]{display:none}
+.nb-modal-box{background:#fff;width:min(980px,100%);margin:0 auto;display:flex;flex-direction:column;min-height:0}
+.nb-modal-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 10px;background:#dceafa;border-bottom:1px solid #bcd2e5;font-size:14px;font-weight:700}
+.nb-modal-bar button,.nb-modal-bar select,.nb-modal-bar input{font-size:14px;padding:8px 10px;min-height:40px;border-radius:8px;border:1px solid #9bb7d0}
+.nb-modal-bar button{background:#1762aa;color:#fff;border:0;font-weight:700;cursor:pointer}
+.nb-plan-note{padding:4px 12px;font-size:12px;color:#7a4b00;background:#fff4de}
+.nb-plan-doc{flex:1;min-height:0;overflow:auto;padding:18px 22px;font-family:Arial,Tahoma,sans-serif;font-size:15px;line-height:1.7;color:#111;outline:none}
+.nb-plan-doc h1{font-size:22px;margin:0 0 10px;color:#0b4f7a}
+.nb-plan-doc h2{font-size:17px;margin:16px 0 6px;color:#0b4f7a;border-bottom:2px solid #d4e3ef}
+.nb-plan-doc table{border-collapse:collapse;width:100%;margin:6px 0 12px;font-size:13.5px}
+.nb-plan-doc th,.nb-plan-doc td{border:1px solid #777;padding:5px 7px;vertical-align:top}
+.nb-plan-doc th{background:#e6f0f8}
+.nb-plan-doc ul{margin:4px 0 8px;padding-inline-start:22px}
+.nb-plan-doc .nb-blank{color:#888}
+@media print{body *{visibility:hidden!important}#nbPlanDoc,#nbPlanDoc *{visibility:visible!important}#nbPlanDoc{position:absolute;left:0;top:0;width:100%;overflow:visible}.nb-modal{position:static;background:none}}
+@media(max-width:760px){.nb-plan-doc{padding:12px}.nb-plan-doc table{font-size:12px}}

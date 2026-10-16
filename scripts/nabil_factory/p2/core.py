@@ -2412,7 +2412,7 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
 
 def render_whole_lesson_smart_lab(
         title: str, activities: list, lang_code: str,
-        golden_spec: Optional[dict] = None) -> str:
+        golden_spec: Optional[dict] = None, meta: Optional[dict] = None) -> str:
     """V18 smart board: one idea at a time, its verified lab beneath it, and the
     Golden Card as the LAST stage inside the same section.
 
@@ -2424,7 +2424,7 @@ def render_whole_lesson_smart_lab(
     from scripts.nabil_factory.cards.v18_board import render_v18_smart_board
     return render_v18_smart_board(
         title, activities, lang_code, golden_spec=golden_spec,
-        contract=REFERENCE_RENDERER_CONTRACT)
+        contract=REFERENCE_RENDERER_CONTRACT, meta=meta)
 
 
 def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict,
@@ -2760,7 +2760,10 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict,
     any_active_sim = bool(all_labs_html)
 
     whole_lesson_lab_html = render_whole_lesson_smart_lab(
-        title, activities_theory, lesson_lang_code, golden_spec)
+        title, activities_theory, lesson_lang_code, golden_spec,
+        meta={"lesson_id": entry.get("lesson_id"), "subject": entry.get("subject"),
+              "grade": entry.get("grade") or entry.get("grade_label"),
+              "language": lesson_lang_code})
 
     # Fail closed if any science/mathematics concept in Grades 1-12 has no
     # Requirement-5-locked interactive activity. Rich simulations are used

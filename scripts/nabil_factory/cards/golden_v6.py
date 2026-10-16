@@ -34,7 +34,9 @@ UI_ALL: Dict[str, Dict[str, str]] = {
            "try_again": "حاول مرة أخرى وراجع الخطوات.", "start": "ابدأ الدرس", "brand": "منصة الأستاذ النبيل",
            "paused": "متوقف مؤقتًا", "playing": "", "fullscreen": "ملء الشاشة", "exit": "خروج",
            "voice_hint": "الصوت إنجليزي. فعّله بنقرة إن منعه المتصفح.", "enable_voice": "فعّل الصوت",
-           "novoice": "لا يوجد صوت إنجليزي مثبّت على هذا الجهاز؛ يستمر الشرح مكتوبًا."},
+           "novoice": "لا يوجد صوت إنجليزي مثبّت على هذا الجهاز؛ يستمر الشرح مكتوبًا.",
+           "ar_voice": "🔈 اقرأ بالعربية أيضًا", "ar_voice_on": "🔊 القراءة بالعربية مفعّلة", "exercise": "التمرين",
+           "pick_exercise": "اختر التمرين", "no_solution": "حلّ هذا التمرين غير متوفر بعد.", "ar_missing": "الترجمة العربية غير متوفرة لهذه الخطوة."},
     "fr": {"play": "▶ Démarrer", "pause": "⏸ Pause", "resume": "▶ Reprendre", "prev": "Précédent",
            "next": "Suivant", "replay": "↻ Rejouer", "voice_on": "🔊 Voix activée", "voice_off": "🔇 Activer la voix",
            "lost": "Je n'ai pas compris", "understood": "J'ai compris, continuer ici", "repeat_scene": "Répéter cette idée",
@@ -42,7 +44,9 @@ UI_ALL: Dict[str, Dict[str, str]] = {
            "try_again": "Réessaie en relisant les étapes.", "start": "Commencer la leçon", "brand": "Plateforme d'Ustaz Nabil",
            "paused": "En pause", "playing": "", "fullscreen": "Plein écran", "exit": "Quitter",
            "voice_hint": "La voix est en anglais. Active-la d'un clic si le navigateur la bloque.", "enable_voice": "Activer la voix",
-           "novoice": "Aucune voix anglaise installée sur cet appareil ; l'explication continue par écrit."},
+           "novoice": "Aucune voix anglaise installée sur cet appareil ; l'explication continue par écrit.",
+           "ar_voice": "🔈 Lire aussi en arabe", "ar_voice_on": "🔊 Lecture arabe activée", "exercise": "Exercice",
+           "pick_exercise": "Choisir l'exercice", "no_solution": "La solution de cet exercice n'est pas encore disponible.", "ar_missing": "Traduction arabe indisponible pour cette étape."},
     "en": {"play": "▶ Start", "pause": "⏸ Pause", "resume": "▶ Resume", "prev": "Previous", "next": "Next",
            "replay": "↻ Replay", "voice_on": "🔊 Voice on", "voice_off": "🔇 Enable voice",
            "lost": "I did not understand", "understood": "I understand, continue here", "repeat_scene": "Repeat this idea",
@@ -50,7 +54,9 @@ UI_ALL: Dict[str, Dict[str, str]] = {
            "try_again": "Try again and review the steps.", "start": "Start lesson", "brand": "Ustaz Nabil Platform",
            "paused": "Paused", "playing": "", "fullscreen": "Fullscreen", "exit": "Exit",
            "voice_hint": "Voice is English. Tap to enable it if the browser blocked it.", "enable_voice": "Enable voice",
-           "novoice": "No English voice is installed on this device; the explanation continues in writing."},
+           "novoice": "No English voice is installed on this device; the explanation continues in writing.",
+           "ar_voice": "🔈 Also read in Arabic", "ar_voice_on": "🔊 Arabic reading on", "exercise": "Exercise",
+           "pick_exercise": "Choose exercise", "no_solution": "The solution for this exercise is not available yet.", "ar_missing": "No Arabic translation for this step."},
 }
 
 # ----------------------------------------------------------------- terminology
@@ -134,6 +140,12 @@ def build_scenes(activities: List[dict], lang: str, lesson_title: str = "") -> L
             entry = {"t": "text", "text": text,
                      "label": apply_terminology(str(st.get("label") or ""), lesson_title),
                      "speech": (text if lang == "en" else speech_en)}
+            ar = str(st.get("speech_ar") or "").strip() or (text if lang == "ar" else "")
+            if ar:
+                entry["ar"] = ar
+            hint = step_hint(text, lang)
+            if hint and str(st.get("kind") or "") in ("step", "final", "problem"):
+                entry["hint"] = hint
             if st.get("student_check") and isinstance(st["student_check"], dict):
                 entry["_check"] = st["student_check"]
             steps.append(entry)
@@ -159,7 +171,8 @@ def build_scenes(activities: List[dict], lang: str, lesson_title: str = "") -> L
             for k, d in enumerate(explicit):
                 if isinstance(d, dict) and d.get("draw"):
                     steps.insert(min(1 + k, len(steps)), {"t": "draw", **d})
-        scenes.append({"id": str(act.get("concept_id") or ""),
+        page = act.get("source_page")
+        scenes.append({"id": str(act.get("concept_id") or ""), "page": str(page or ""),
                        "title": apply_terminology(_clean(act.get("title")), lesson_title),
                        "start_mode": "single", "steps": steps})
     return scenes
@@ -179,6 +192,102 @@ def scene_board_modes(scene: dict) -> List[str]:
     return out
 
 
+# ---------------------------------------------------------- solution hints
+# Short "how to" words that help a student see what the step is doing. They name the
+# operation that is already in the verified step; they never add mathematics.
+_HINT_RULES = [
+    ("substitute", r"substitut|replac|plug|remplac|substitu|عوّ?ض|تعويض|نعوض|بدل", {
+        "en": "Substitute: put the values in place of the letters.",
+        "fr": "Remplace : mets les valeurs à la place des lettres.",
+        "ar": "عوّض: ضع القيم مكان الرموز."}),
+    ("add_exp", r"add the exponents|add exponents|\badd\b.*exponent|additionn\w* les exposants|نجمع الأسس|جمع الأسس|أضف الأسس", {
+        "en": "Same base: keep the base and add the exponents.",
+        "fr": "Même base : garde la base et additionne les exposants.",
+        "ar": "الأساس نفسه: نُبقي الأساس ونجمع الأسس."}),
+    ("sub_exp", r"subtract the exponents|subtract exponents|soustr\w* les exposants|نطرح الأسس|طرح الأسس", {
+        "en": "Same base: keep the base and subtract the exponents.",
+        "fr": "Même base : garde la base et soustrais les exposants.",
+        "ar": "الأساس نفسه: نُبقي الأساس ونطرح الأسس."}),
+    ("mul_exp", r"multiply the exponents|multiply exponents|multipli\w* les exposants|نضرب الأسس|ضرب الأسس", {
+        "en": "Power of a power: multiply the exponents.",
+        "fr": "Puissance d'une puissance : multiplie les exposants.",
+        "ar": "قوة قوة: نضرب الأسس."}),
+    ("divide", r"\bdivid|\bquotient|\bdivis|نقسم|قسمة|اقسم", {
+        "en": "Divide: split the first number by the second.",
+        "fr": "Divise : partage le premier nombre par le second.",
+        "ar": "اقسم: قسّم العدد الأول على الثاني."}),
+    ("multiply", r"\bmultipl|\bproduct\b|\bproduit|نضرب|ضرب|اضرب", {
+        "en": "Multiply the numbers one after another.",
+        "fr": "Multiplie les nombres l'un après l'autre.",
+        "ar": "اضرب الأعداد واحدًا بعد الآخر."}),
+    ("simplify", r"simplif|reduce|calculate|compute|calcul|نبسّ?ط|تبسيط|نحسب|احسب", {
+        "en": "Calculate: do the operations to get one number.",
+        "fr": "Calcule : effectue les opérations pour obtenir un seul nombre.",
+        "ar": "احسب: نفّذ العمليات لنحصل على عدد واحد."}),
+    ("verify", r"verif|check|vérif|نتحقق|تحقق", {
+        "en": "Check: put the answer back and see that it works.",
+        "fr": "Vérifie : remets le résultat et regarde si ça marche.",
+        "ar": "تحقّق: أعد وضع الجواب وتأكد أنه صحيح."}),
+]
+_TAG_LABEL = {
+    "given": {"en": "Given", "fr": "Données", "ar": "المعطيات"},
+    "required": {"en": "Required", "fr": "À trouver", "ar": "المطلوب"},
+    "rule": {"en": "Rule", "fr": "Règle", "ar": "القاعدة"},
+    "substitution": {"en": "Substitution", "fr": "Substitution", "ar": "التعويض"},
+    "calculation": {"en": "Calculation", "fr": "Calcul", "ar": "الحساب"},
+    "verification": {"en": "Verification", "fr": "Vérification", "ar": "التحقق"},
+}
+
+
+def step_hint(text: str, lang: str) -> str:
+    t = str(text or "")
+    for _name, rx, by_lang in _HINT_RULES:
+        if re.search(rx, t, re.I):
+            return by_lang.get(lang) or by_lang["en"]
+    return ""
+
+
+def build_exercise_scenes(exercises: List[dict], lang: str, lesson_title: str = "") -> List[dict]:
+    """Every exercise becomes one scene: the statement, then the worked solution step by
+    step (tag as label + a short how-to hint), then the final answer. An exercise whose
+    verified solution is not available shows its statement and says so — it is never
+    filled with an invented solution."""
+    from scripts.nabil_factory.factory.pedagogical_gate import solution_tags
+    ui = UI_ALL.get(lang, UI_ALL["en"])
+    scenes: List[dict] = []
+    for ex in exercises or []:
+        num = str(ex.get("number") or "").strip()
+        problem = apply_terminology(_clean(ex.get("exact_source_prompt")), lesson_title)
+        if not (num and problem):
+            continue
+        steps: List[dict] = [{"t": "text", "text": problem,
+                              "label": {"ar": "المسألة", "fr": "Énoncé", "en": "Problem"}.get(lang, "Problem"),
+                              "speech": problem if lang == "en" else ""}]
+        sol = ex.get("_pre_solved_solution")
+        if ex.get("solution_status") == "SOLVED" and isinstance(sol, dict):
+            for i, raw in enumerate(sol.get("steps") or [], 1):
+                text = apply_terminology(_clean(raw), lesson_title)
+                if not text:
+                    continue
+                tag = solution_tags(str(raw))
+                label = _TAG_LABEL[tag][lang] if tag in _TAG_LABEL else f"{ {'ar': 'الخطوة', 'fr': 'Étape'}.get(lang, 'Step') } {i}"
+                entry = {"t": "text", "text": text, "label": label, "speech": text if lang == "en" else ""}
+                hint = step_hint(text, lang)
+                if hint:
+                    entry["hint"] = hint
+                steps.append(entry)
+            final = apply_terminology(_clean(sol.get("final_answer")), lesson_title)
+            if final:
+                steps.append({"t": "text", "text": final,
+                              "label": {"ar": "الجواب النهائي", "fr": "Réponse finale", "en": "Final answer"}.get(lang, "Final answer"),
+                              "speech": final if lang == "en" else ""})
+        else:
+            steps.append({"t": "text", "text": ui["no_solution"], "label": "", "speech": ""})
+        scenes.append({"id": f"EX-{num}", "page": str(ex.get("source_page") or ex.get("page") or ""), "title": f"{ui['exercise']} {num}", "exercise": num,
+                       "solved": ex.get("solution_status") == "SOLVED", "start_mode": "single", "steps": steps})
+    return scenes
+
+
 # ------------------------------------------------------------------- rendering
 def _read(name: str) -> str:
     return (_ASSETS / name).read_text(encoding="utf-8")
@@ -193,22 +302,28 @@ def hand_payload() -> str:
 
 def render_golden_v6_board(title: str, scenes: List[dict], lang_code: str,
                            golden_spec: dict | None = None, contract: str = "",
-                           mode: str = "lesson", titles: Dict[str, str] | None = None) -> str:
+                           mode: str = "lesson", titles: Dict[str, str] | None = None,
+                           meta: Dict[str, Any] | None = None) -> str:
     lang = lang_code if lang_code in UI_ALL else "en"
     if not scenes:
         return ""
-    if not golden_spec or not golden_spec.get("sections"):
+    if (not golden_spec or not golden_spec.get("sections")) and mode != "exercises":
         raise RuntimeError("V18_GOLDEN_CARD_SPEC_EMPTY")
+    golden_spec = golden_spec or {}
     titles = dict(titles or {})
     titles.setdefault(lang, title)
     titles.setdefault("en", title)
     ui = UI_ALL[lang]
     data = {
         "contract": V6_BOARD_CONTRACT, "lang": lang, "title": title, "mode": mode,
-        "titles": titles, "scenes": scenes, "default_speed": DEFAULT_SPEED,
+        "titles": titles, "scenes": scenes,
+        "exercises": [{"n": sc["exercise"], "scene": i, "solved": bool(sc.get("solved"))}
+                      for i, sc in enumerate(scenes) if sc.get("exercise")], "default_speed": DEFAULT_SPEED,
         "ui_all": UI_ALL, "golden": dict(golden_spec, avatar_src=""),
         "avatar_base64": _read("nabil_avatar_b64.txt").strip(),
     }
+    from scripts.nabil_factory.cards.lesson_plan import build_plan_data
+    data["plan"] = build_plan_data(title, scenes, golden_spec, mode, meta)
     data_json = json.dumps(data, ensure_ascii=False).replace("</", "<\\/").replace("<!--", "<\\u0021--")
     engine_b64 = base64.b64encode(_read("v18_golden_cards_engine.js").encode("utf-8")).decode("ascii")
     h = html.escape
@@ -226,12 +341,13 @@ def render_golden_v6_board(title: str, scenes: List[dict], lang_code: str,
  <div class="nb-brand" dir="rtl">منصة الأستاذ النبيل</div>
  <div class="nb-title-en" dir="ltr" id="nbOpenTitleEn">{t_en}</div>
  {f'<div class="nb-title-fr" dir="ltr" id="nbOpenTitleFr">{t_fr}</div>' if t_fr and t_fr != t_en else ''}
+ <button type="button" class="nb-planbtn" data-nb-plan="open">📄 تحضير الدرس | Lesson Plan | Fiche de préparation</button>
  <button type="button" class="nb-start" id="nbStart" data-nb-l="start">{h(ui["start"])}</button>
  <div class="nb-hint" data-nb-l="voice_hint">{h(ui["voice_hint"])}</div>
 </div>
 <div class="nb-stage" id="nbStage">
  <div class="nb-head"><h2 id="nbHeadTitle"></h2><span class="nb-prog" id="nbProg"></span>
-  <span><button type="button" id="nbFullscreen" data-nb-l="fullscreen" class="nb-hbtn">{h(ui["fullscreen"])}</button>
+  <span><button type="button" class="nb-planbtn" data-nb-plan="open">📄 تحضير الدرس | Lesson Plan | Fiche de préparation</button><button type="button" id="nbFullscreen" data-nb-l="fullscreen" class="nb-hbtn">{h(ui["fullscreen"])}</button>
   <button type="button" id="nbExit" data-nb-l="exit" class="nb-hbtn">{h(ui["exit"])}</button></span></div>
  <div class="nb-voice-note" id="nbVoiceNote"><span>{h(ui["voice_hint"])}</span><button type="button" data-nb-l="enable_voice">{h(ui["enable_voice"])}</button></div>
  <section class="nb-workspace" id="nbWorkspace" data-board-mode="single">
@@ -246,9 +362,26 @@ def render_golden_v6_board(title: str, scenes: List[dict], lang_code: str,
   <button type="button" id="nabilWholeRestart" data-nb-l="replay">{h(ui["replay"])}</button>
   <button type="button" id="nabilWholeVoice" class="voice" data-nb-l="voice_on" aria-pressed="true">{h(ui["voice_on"])}</button>
   <select id="nbSpeed" aria-label="speed"><option value="0.5">0.5×</option><option value="0.7" selected>0.7×</option><option value="1">1×</option><option value="1.25">1.25×</option></select>
+  <button type="button" id="nbArVoice" data-nb-l="ar_voice" aria-pressed="false">{h(ui["ar_voice"])}</button>
+  {('<label class="nb-exlab"><span data-nb-l="exercise">' + h(ui["exercise"]) + '</span> <select id="nbExercise" aria-label="' + h(ui["pick_exercise"]) + '"><option value="" disabled selected>' + h(ui["pick_exercise"]) + '</option>' + ''.join('<option value="' + str(e["scene"]) + '">' + h(str(e["n"])) + ('' if e["solved"] else ' …') + '</option>' for e in data["exercises"]) + '</select></label>') if data["exercises"] else ''}
   <button type="button" class="nb-lost-btn" id="nbLost" data-nb-l="lost">{h(ui["lost"])}</button>
   <span class="nb-status" id="nbStatus"></span>
  </nav>
+</div>
+<div class="nb-modal" id="nbPlanModal" hidden role="dialog" aria-modal="true" aria-label="Lesson plan">
+ <div class="nb-modal-box">
+  <div class="nb-modal-bar">
+   <label>🌐 <select id="nbPlanLang"><option value="ar">العربية</option><option value="en">English</option><option value="fr">Français</option></select></label>
+   <label><span id="nbPlanMinLab">⏱</span> <input id="nbPlanMin" type="number" min="20" max="180" step="5" value="45" style="width:70px"> min</label>
+   <label><span id="nbPlanSesLab">#</span> <input id="nbPlanSes" type="number" min="1" max="10" step="1" value="1" style="width:56px"></label>
+   <button type="button" id="nbPlanGen">⟳</button>
+   <button type="button" id="nbPlanPrint">🖨</button>
+   <button type="button" id="nbPlanDocx">⬇ Word (.docx)</button>
+   <button type="button" id="nbPlanClose">✕</button>
+  </div>
+  <div class="nb-plan-note" id="nbPlanNote"></div>
+  <div id="nbPlanDoc" class="nb-plan-doc" contenteditable="true" spellcheck="false"></div>
+ </div>
 </div>
 <img id="teacherHand" alt="" aria-hidden="true">
 <script type="application/json" id="nabilV6Data">{data_json}</script>
@@ -268,4 +401,5 @@ def render_golden_v6_board(title: str, scenes: List[dict], lang_code: str,
 }})();
 </script>
 <script data-nabil-no-translate="1">{_read("golden_v6_engine.js")}</script>
+<script data-nabil-no-translate="1">{_read("golden_v6_plan.js")}</script>
 </section>'''

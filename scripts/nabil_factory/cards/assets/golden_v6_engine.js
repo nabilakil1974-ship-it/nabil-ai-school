@@ -25,7 +25,7 @@ const stageEl=$('nbStage'),workspace=$('nbWorkspace'),writing=$('nbWriting'),
   progEl=$('nbProg'),hand=$('teacherHand'),voiceNote=$('nbVoiceNote'),golden=$('nbGolden');
 const playBtn=$('nabilWholePlay'),voiceBtn=$('nabilWholeVoice'),speedSel=$('nbSpeed'),
   prevBtn=$('nabilWholePrev'),nextBtn=$('nabilWholeNext'),replayBtn=$('nabilWholeRestart'),
-  lostBtn=$('nbLost'),fsBtn=$('nbFullscreen'),exitBtn=$('nbExit'),startBtn=$('nbStart'),avatarOpen=$('nbAvatarOpen');
+  lostBtn=$('nbLost'),arBtn=$('nbArVoice'),exSel=$('nbExercise'),fsBtn=$('nbFullscreen'),exitBtn=$('nbExit'),startBtn=$('nbStart'),avatarOpen=$('nbAvatarOpen');
 
 let index=0,run=0,paused=false,voice=true,speed=0.7,started=false,speaking=false,boardMode='single',
     finished=false,activeAnchor=null,studentWait=false,lastText='',curStepNo=0,gotUnderstood=null;
@@ -132,18 +132,30 @@ function enVoice(){
   const vs=(window.speechSynthesis&&speechSynthesis.getVoices())||[];
   return vs.find(v=>/^en[-_]US/i.test(v.lang))||vs.find(v=>/^en/i.test(v.lang))||null}
 function rate(){return Math.min(1.6,0.55+speed*0.45)}
-function speakText(text,id){
-  lastText=text;
-  if(!voice||FAST||!text||!('speechSynthesis' in window))return null;
+let arOn=false,lastAr='';
+function arVoiceObj(){const vs=(window.speechSynthesis&&speechSynthesis.getVoices())||[];return vs.find(v=>/^ar/i.test(v.lang))||null}
+function speakableAr(t){
+  return String(t||'').replace(/\^\{\s*(-?[^{}]+)\s*\}/g,' أُس $1 ').replace(/×/g,' ضرب ').replace(/÷/g,' تقسيم ')
+    .replace(/−/g,' ناقص ').replace(/=/g,' يساوي ').replace(/\s+/g,' ').trim()}
+function arTextOf(step){
+  if(step.t==='formula')return '';
+  if(step.ar)return step.ar;
+  if(cur()==='ar')return tr(step.text);
+  try{const t=PL()&&PL().translateText?PL().translateText(String(step.text||''),'ar'):'';return(t&&t!==step.text&&/[\u0600-\u06FF]/.test(t))?t:''}catch(e){return ''}}
+function speakText(text,id,ar){
+  lastText=text;lastAr=ar||'';
+  const enOk=!!(voice&&text),arOk=!!(arOn&&ar);
+  if(FAST||!('speechSynthesis' in window)||(!enOk&&!arOk))return null;
   try{
     speechSynthesis.cancel();
-    const u=new SpeechSynthesisUtterance(speakable(text));
-    u.lang='en-US';u.rate=rate();const v=enVoice();if(v)u.voice=v;
-    const h={done:false,started:false,t0:Date.now(),text};
-    u.onstart=()=>{h.started=true;speaking=true;voiceNote.classList.remove('on')};
-    u.onend=u.onerror=()=>{h.done=true;speaking=false};
-    speechSynthesis.speak(u);
-    setTimeout(()=>{if(!h.started&&!h.done&&voice&&id===run&&!paused){showVoiceNote()}},1600);
+    const h={done:false,started:false,t0:Date.now(),text:(enOk?text:'')+' '+(arOk?ar:''),pending:0};
+    const add=u=>{h.pending++;
+      u.onstart=()=>{h.started=true;speaking=true;voiceNote.classList.remove('on')};
+      u.onend=u.onerror=()=>{h.pending--;if(h.pending<=0){h.done=true;speaking=false}};
+      speechSynthesis.speak(u)};
+    if(enOk){const u=new SpeechSynthesisUtterance(speakable(text));u.lang='en-US';u.rate=rate();const v=enVoice();if(v)u.voice=v;add(u)}
+    if(arOk){const u=new SpeechSynthesisUtterance(speakableAr(ar));u.lang='ar-SA';u.rate=rate();const v=arVoiceObj();if(v)u.voice=v;add(u)}
+    setTimeout(()=>{if(!h.started&&!h.done&&id===run&&!paused){showVoiceNote()}},1600);
     return h}
   catch(e){return null}}
 function showVoiceNote(){
@@ -161,22 +173,7 @@ function stopSpeech(){speaking=false;try{speechSynthesis.cancel()}catch(e){}}
 
 /* ---------- writing ---------- */
 function clearWriting(){writing.replaceChildren()}
-async function writeStep(step,id){
-  const formula=step.t==='formula';
-  const rtl=!formula&&cur()==='ar';
-  const node=document.createElement('div');
-  node.className='nb-step'+(formula?' nb-formula':'');
-  node.dir=formula?'ltr':(rtl?'rtl':'ltr');
-  if(step.label&&!formula){const lb=document.createElement('span');lb.className='nb-label';lb.textContent=tr(step.label);node.appendChild(lb)}
-  writing.appendChild(node);
-  node.scrollIntoView({block:'nearest',behavior:FAST?'auto':'smooth'});
-  const text=formula?step.text:tr(step.text);
-  const h=formula?null:speakText(step.speech,id);
-  if(!FAST){
-    const r=node.getBoundingClientRect();
-    placeHandAtNode(node,rtl);
-    if(!await wait(300,id))return false}
-  const units=unitsOf(text,rtl,formula);
+async function reveal(node,units,rtl,formula,id){
   let last=null;
   for(const u of units){
     if(id!==run)return false;
@@ -191,6 +188,26 @@ async function writeStep(step,id){
       if(!len){last=p;continue}
       if(!await wait(Math.max(formula?140:170,len*(formula?55:60)),id))return false}
     else u.style.opacity='1'}
+  return true}
+async function writeStep(step,id){
+  const formula=step.t==='formula';
+  const rtl=!formula&&cur()==='ar';
+  const node=document.createElement('div');
+  node.className='nb-step'+(formula?' nb-formula':'');
+  node.dir=formula?'ltr':(rtl?'rtl':'ltr');
+  if(step.label&&!formula){const lb=document.createElement('span');lb.className='nb-label';lb.textContent=tr(step.label);node.appendChild(lb)}
+  if(step.hint&&!formula){const hc=document.createElement('span');hc.className='nb-hintchip';hc.textContent='💡 '+tr(step.hint);node.appendChild(hc)}
+  writing.appendChild(node);
+  node.scrollIntoView({block:'nearest',behavior:FAST?'auto':'smooth'});
+  const text=formula?step.text:tr(step.text);
+  const ar=arOn?arTextOf(step):'';
+  const h=formula?null:speakText(step.speech,id,ar);
+  if(!FAST){placeHandAtNode(node,rtl);if(!await wait(300,id))return false}
+  if(!await reveal(node,unitsOf(text,rtl,formula),rtl,formula,id))return false;
+  if(arOn&&!formula&&cur()!=='ar'){
+    const an=document.createElement('div');an.className='nb-ar';an.dir='rtl';writing.appendChild(an);
+    if(ar){if(!await reveal(an,unitsOf(ar,true,false),true,false,id))return false}
+    else{an.textContent=U().ar_missing||''}}
   if(!await waitVoice(h,id))return false;
   return true}
 
@@ -300,6 +317,7 @@ function iDidNotUnderstand(){
 function relabel(){
   root.querySelectorAll('[data-nb-l]').forEach(n=>{const v=U()[n.dataset.nbL];if(v)n.textContent=v});
   voiceBtn.textContent=voice?(U().voice_on||'🔊'):(U().voice_off||'🔇');
+  arBtn.textContent=arOn?(U().ar_voice_on||'🔊'):(U().ar_voice||'🔈');
   playBtn.textContent=(started&&!paused&&!finished)?(U().pause||'⏸'):(started&&paused?(U().resume||'▶'):(U().play||'▶'))}
 function setStatus(){
   progEl.textContent=index<FINAL?((index+1)+' / '+FINAL):'✓';
@@ -310,6 +328,7 @@ async function playScene(){
   if(index>=FINAL){showFinal();return}
   relabel();
   const sc=SCENES[index];
+  if(exSel)exSel.value=sc.exercise?String(index):'';
   headTitle.textContent=tr(sc.title||DATA.title);setStatus();playBtn.textContent=U().pause||'⏸';
   setBoardMode(sc.start_mode||'single');
   curStepNo=0;
@@ -328,6 +347,8 @@ function showFinal(){
   index=FINAL;finished=true;root.classList.add('is-final');hideHand();stopSpeech();setBoardMode('single');
   headTitle.textContent=DATA.title;progEl.textContent='✓';
   workspace.style.display='none';golden.classList.add('on');golden.replaceChildren();
+  if(exSel)exSel.value='';
+  if(!DATA.golden||!DATA.golden.sections){golden.textContent=U().done||'✓';playBtn.textContent=U().play||'▶';paused=true;return}
   const host=document.createElement('div');host.id='goldenReferenceCard';host.setAttribute('data-nabil-v18-golden','true');golden.appendChild(host);
   try{const g=Object.assign({},DATA.golden,{language:LANG,avatar_src:avatarUrl||''});
     (window.__NABIL_V18_CARDS||window.NABILScientificCards).fromLesson(g,host);enhanceDom(host)}catch(e){host.textContent=String(e)}
@@ -358,6 +379,10 @@ lostBtn.onclick=iDidNotUnderstand;
 voiceBtn.onclick=()=>{voice=!voice;voiceBtn.textContent=voice?(U().voice_on||'🔊'):(U().voice_off||'🔇');
   voiceBtn.setAttribute('aria-pressed',String(voice));
   if(!voice)stopSpeech();else if(lastText&&started&&!paused)speakText(lastText,run)};
+arBtn.onclick=()=>{arOn=!arOn;arBtn.setAttribute('aria-pressed',String(arOn));
+  arBtn.textContent=arOn?(U().ar_voice_on||'🔊'):(U().ar_voice||'🔈');
+  if(!arOn&&!voice)stopSpeech()};
+if(exSel)exSel.onchange=()=>{if(exSel.value!=='')goTo(+exSel.value)};
 speedSel.onchange=()=>{speed=+speedSel.value};
 voiceNote.querySelector('button').onclick=()=>{voiceNote.classList.remove('on');if(lastText)speakText(lastText,run)};
 fsBtn.onclick=()=>{try{if(document.fullscreenElement)document.exitFullscreen();else root.requestFullscreen&&root.requestFullscreen().catch(()=>{})}catch(e){}};
@@ -374,5 +399,5 @@ window.NABILWholeLessonOrchestrator={
   state(){return{index,paused,started,final:finished,boardMode,voice,speed,speaking,scenes:FINAL,studentWait,
     handVisible:hand.classList.contains('is-visible')}},
   finalIndex:FINAL};
-window.NABILGoldenV6={version:'V6',boardMode:()=>boardMode,setBoardMode};
+window.NABILGoldenV6={version:'V6',boardMode:()=>boardMode,setBoardMode,cur,tr};
 })();

@@ -679,7 +679,8 @@ def build_golden_spec(title: str, activities: list, lang_code: str,
 
 def render_v18_smart_board(title: str, activities: list, lang_code: str,
                            golden_spec: dict | None = None,
-                           contract: str = "", mode: str = "lesson") -> str:
+                           contract: str = "", mode: str = "lesson",
+                           meta: dict | None = None) -> str:
     """Board entry point. Default engine: NABIL Golden V6 (one static engine, lesson
     data only). Set NABIL_BOARD_ENGINE=legacy to fall back to the pre-V6 board."""
     import os
@@ -690,7 +691,7 @@ def render_v18_smart_board(title: str, activities: list, lang_code: str,
         if not scenes:
             return ""
         return render_golden_v6_board(title, scenes, lang, golden_spec=golden_spec,
-                                      contract=contract, mode=mode)
+                                      contract=contract, mode=mode, meta=meta)
     return render_v18_smart_board_legacy(title, activities, lang_code, golden_spec, contract, mode)
 
 
@@ -836,15 +837,25 @@ _EXERCISE_UI = {
 
 
 def render_v18_exercises_board(title: str, exercises: list, lang_code: str,
-                               subject: str = "", contract: str = "") -> str:
+                               subject: str = "", contract: str = "", meta: dict | None = None) -> str:
     """V18 board for the exercises page: one verified exercise per stage, with
     the final stage a Golden Card of the verified final answers. Returns "" when
     no exercise is SOLVED (nothing unverified is ever shown)."""
     lang = lang_code if lang_code in _EXERCISE_UI else "en"
+    import os
+    if os.getenv("NABIL_BOARD_ENGINE", "v6").strip().lower() != "legacy":
+        from scripts.nabil_factory.cards.golden_v6 import build_exercise_scenes, render_golden_v6_board
+        scenes = build_exercise_scenes(exercises, lang, title)
+        if not scenes:
+            return ""
+        acts = build_exercise_activities(exercises, _EXERCISE_UI[lang])
+        spec = build_golden_spec(title, acts, lang, subject=subject, verification_note="✓") if acts else None
+        return render_golden_v6_board(title, scenes, lang, golden_spec=spec, contract=contract, mode="exercises",
+                                      meta=dict(meta or {}, subject=subject))
     acts = build_exercise_activities(exercises, _EXERCISE_UI[lang])
     if not acts:
         return ""
     spec = build_golden_spec(title, acts, lang, subject=subject,
                              verification_note="✓")
-    return render_v18_smart_board(title, acts, lang, golden_spec=spec,
-                                  contract=contract, mode="exercises")
+    return render_v18_smart_board_legacy(title, acts, lang, golden_spec=spec,
+                                         contract=contract, mode="exercises")
