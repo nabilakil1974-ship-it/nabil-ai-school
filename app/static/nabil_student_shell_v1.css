@@ -1,0 +1,46 @@
+/* NABIL AI — student lesson-selection card + full-screen classroom shell.
+   Presentation only: every original control stays in the DOM (hidden, not removed). */
+body.nabil-selection-active .header{padding:10px 12px!important;background:transparent!important;border:0!important;box-shadow:none!important}
+body.nabil-selection-active .header-title{text-align:center;font-size:clamp(18px,4.6vw,26px);margin:2px 0 10px}
+body.nabil-selection-active .header .controls{display:flex!important;flex-direction:column!important;gap:10px!important;width:min(460px,100%)!important;margin:0 auto!important;padding:16px!important;border:1px solid rgba(90,200,255,.45)!important;border-radius:18px!important;background:linear-gradient(160deg,rgba(7,31,58,.96),rgba(4,20,40,.96))!important;box-shadow:0 10px 30px rgba(0,0,0,.35)!important;overflow:visible!important}
+body.nabil-selection-active .header .controls>*{width:100%!important;max-width:none!important;margin:0!important}
+body.nabil-selection-active .header .controls .control{display:flex;flex-direction:column;gap:4px}
+body.nabil-selection-active .header .controls label{font-size:13px;font-weight:700;color:#9fdcff}
+body.nabil-selection-active .header .controls select{min-height:44px;font-size:16px;border-radius:12px;padding:8px 12px;width:100%}
+/* order: grade -> branch -> subject -> language -> lesson -> start */
+#gradeSelect{order:0}
+body.nabil-selection-active .header .controls .control:has(#gradeSelect){order:1}
+body.nabil-selection-active #branchControl{order:2}
+body.nabil-selection-active .header .controls .control:has(#subjectSelect){order:3}
+body.nabil-selection-active .header .controls .control:has(#languageSelect){order:4}
+body.nabil-selection-active .header .controls .control:has(#lessonSelect){order:5}
+body.nabil-selection-active #startGoldenLesson{order:9;min-height:54px!important;margin:4px 0 0!important;border-radius:14px!important;border:0!important;background:linear-gradient(135deg,#12b886,#0a8f6e)!important;color:#fff!important;font:800 19px/1.2 inherit!important;box-shadow:0 6px 16px rgba(18,184,134,.35)}
+body.nabil-selection-active #startGoldenLesson[aria-disabled="true"]{opacity:.55}
+/* secondary / teacher / diagnostic items are kept in the DOM but not shown to the student */
+body.nabil-selection-active #nabilGoldenDiagnostic,
+body.nabil-selection-active #generalExercisesBtn,
+body.nabil-selection-active #teacherAssessmentBtn,
+body.nabil-selection-active #nabilWorksheetBtn,
+body.nabil-selection-active #startLesson,
+body.nabil-selection-active #teachingModeSelect,
+body.nabil-selection-active .header .controls .control:has(#teachingModeSelect),
+body.nabil-selection-active .header .controls>*:has(#nabilUniversalLanguageChoice),
+body.nabil-selection-active .header .controls>.nabil-universal-language,
+body.nabil-selection-active #nabilPrintedPagePicker,
+body.nabil-selection-active #nabilUniversalLanguage,
+body.nabil-selection-active main.container,
+body.nabil-selection-active .nabil-action-verbs-btn{display:none!important}
+body.nabil-selection-active .header .controls .control:has(#lessonSelect){display:flex!important}
+/* full-screen classroom */
+#nabilClassroomOverlay{position:fixed;inset:0;z-index:2147483000;display:flex;flex-direction:column;background:#030b14}
+#nabilClassroomOverlay[hidden]{display:none}
+#nabilClassroomBar{flex:0 0 38px;display:flex;align-items:center;gap:8px;padding:0 8px;background:#06182a;border-bottom:1px solid #12395c;direction:rtl}
+#nabilClassroomBar button{min-height:30px;padding:0 10px;border:1px solid #2f7fb3;border-radius:8px;background:#0b2a47;color:#d8f1ff;font:700 13px/1 inherit;cursor:pointer}
+#nabilClassroomBar .t{flex:1;color:#9fdcff;font:700 13px/1.2 inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;direction:auto}
+#nabilClassroomFrame{flex:1 1 auto;width:100%;border:0;background:#030b14;min-height:0}
+html.nabil-in-lesson,html.nabil-in-lesson body{overflow:hidden!important}
+.nabil-shake{animation:nabilShake .35s}
+@keyframes nabilShake{20%{transform:translateX(-6px)}60%{transform:translateX(6px)}}
+body.nabil-selection-active .nabil-live-talk-overlay:not(.is-open):not(.open):not(.active),
+body.nabil-selection-active #nabilHome[hidden]{display:none!important}
+#nabilClassroomOverlay #nabilClassroomFrame{position:static!important;inset:auto!important;flex:1 1 auto!important;width:100%!important;height:auto!important;min-height:0!important;max-width:none!important;z-index:auto!important;transform:none!important}

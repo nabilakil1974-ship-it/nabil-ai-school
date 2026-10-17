@@ -962,8 +962,20 @@ def build_router() -> APIRouter:
             entry
         )
 
+        board = None
+        try:
+            from app.services.golden_v6_bridge import build_v6_page
+            board = build_v6_page(
+                entry,
+                text,
+                _meta(entry["lesson_id"]) or {},
+            )
+        except Exception:
+            board = None
+
         return HTMLResponse(
-            _page(
+            board
+            or _page(
                 entry,
                 text,
                 source,
@@ -973,6 +985,8 @@ def build_router() -> APIRouter:
                     "no-store",
                 "X-NABIL-Lesson-ID":
                     entry["lesson_id"],
+                "X-NABIL-Board":
+                    "golden-v6" if board else "legacy-text",
                 "X-NABIL-Lab-Contract":
                     "factory-quality-gated-multi-lab-v19",
             },
