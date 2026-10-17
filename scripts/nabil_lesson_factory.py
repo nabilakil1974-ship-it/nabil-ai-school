@@ -6888,7 +6888,8 @@ def build_verified_lab_spec(entry: dict, concept: dict, narrative: dict, profile
 
 
 def render_whole_lesson_smart_lab(
-        title: str, activities: list, lang_code: str) -> str:
+        title: str, activities: list, lang_code: str,
+        final_card_html: str = "") -> str:
     """One final Smart Board that orchestrates every already-verified concept lab.
 
     It introduces no new science.  Each slide uses the audited narrative and
@@ -6980,6 +6981,21 @@ def render_whole_lesson_smart_lab(
             "next_transition": labels["next_transition"],
             "srcdoc": srcdoc,
             "demo_ms": demo_ms,
+        })
+    if final_card_html.strip():
+        # V18 contract: the approved Golden Card is the final stage INSIDE
+        # the whole-lesson lab, never a detached second document.
+        slides.append({
+            "concept_id": "GOLDEN-FINAL-CARD",
+            "title": {"ar": "البطاقة الذهبية النهائية", "en": "Golden Final Card",
+                      "fr": "Carte finale dorée"}.get(lang_code, "Golden Final Card"),
+            "flow": [],
+            "teaching_mode": "reference-card",
+            "teaching_level": "",
+            "first_transition": "",
+            "next_transition": "",
+            "srcdoc": '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;background:#061725;color:#eef8ff;overflow-x:hidden}*{box-sizing:border-box}</style></head><body>' + final_card_html + '</body></html>',
+            "demo_ms": 0,
         })
     if not slides:
         return ""
@@ -7355,7 +7371,7 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
     any_active_sim = bool(all_labs_html)
 
     whole_lesson_lab_html = render_whole_lesson_smart_lab(
-        title, activities_theory, lesson_lang_code)
+        title, activities_theory, lesson_lang_code, reference_card_html)
 
     # Full-coverage quiz: reuses the exact grounded conclusion/distractor
     # fields already produced per concept above — no new LLM calls, no new
@@ -7896,7 +7912,7 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict, lab_index: Opt
     <h1 style="margin:0; font-size:22px;">{clean_title}</h1>
     <div class="header-actions" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
       <button type="button" id="nabilExplainWholeLessonLabs" class="nav-btn" style="background:#0f766e;">🧪 {html.escape({"ar":"اشرح الدرس كاملًا بالمختبرات","fr":"Expliquer toute la leçon avec les laboratoires","en":"Explain the whole lesson with labs"}.get(page_a_lang_code,"Explain the whole lesson with labs"))}</button>
-      <button type="button" onclick="document.getElementById('goldenReferenceCard')?.scrollIntoView({behavior:'smooth',block:'start'})" class="nav-btn" style="background:#7c3aed;">📌 {html.escape({"ar":"البطاقة النهائية","fr":"Carte finale","en":"Final reference card"}.get(page_a_lang_code,"Final reference card"))}</button>
+      <button type="button" onclick="window.NABILWholeLessonOrchestrator?.goTo(Number(document.querySelector('#nabilWholeLessonSmartLab')?.dataset.conceptCount || 1)-1);document.getElementById('nabilWholeLessonSmartLab')?.scrollIntoView({behavior:'smooth',block:'start'})" class="nav-btn" style="background:#7c3aed;">📌 {html.escape({"ar":"البطاقة النهائية","fr":"Carte finale","en":"Final reference card"}.get(page_a_lang_code,"Final reference card"))}</button>
       <button onclick="navigateToExercises()" class="nav-btn">{html.escape(ui_t(page_a_lang_code, "view_exercises"))}</button>
     </div>
   </div>
@@ -7913,7 +7929,6 @@ def render_lesson_page_a(entry: dict, theory: dict, ev_map: dict, lab_index: Opt
   </div>
   {theory.get("quiz_html", "")}
   {theory.get("whole_lesson_lab_html", "")}
-  {theory.get("reference_card_html", "")}
 </div>
 <div id="zoomModal" onclick="this.style.display='none'"><img id="zoomImg" src=""></div>
 <script>
