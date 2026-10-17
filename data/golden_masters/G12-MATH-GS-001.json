@@ -1,0 +1,853 @@
+{
+ "lesson_id": "G12-MATH-GS-001",
+ "source": "Drive: G12-MATH-GS-001-FINAL-MASTER-LAB.html (1huJPwwPBNnDP4W5huCEf0fX5MvPWLqgG), extracted LAB_DATA without sliders/JS",
+ "title": {
+  "ar": "Oblique asymptotes ودراسة الدوال الجذرية",
+  "en": "Oblique Asymptotes and Study of Irrational Functions",
+  "fr": "Asymptotes obliques et étude des fonctions irrationnelles"
+ },
+ "vb": [
+  640,
+  450
+ ],
+ "scenes": [
+  {
+   "no": 0,
+   "title": {
+    "ar": "اكتشاف Oblique asymptote بصريًا",
+    "en": "Discovering the oblique asymptote visually",
+    "fr": "Découvrir visuellement l’asymptote oblique"
+   },
+   "svg": "<line id=\"x_axis\" x1=\"54\" y1=\"390\" x2=\"606\" y2=\"390\" stroke=\"#64748b\" stroke-width=\"2\"/><line id=\"y_axis\" x1=\"60\" y1=\"104\" x2=\"60\" y2=\"416\" stroke=\"#64748b\" stroke-width=\"2\"/><text fill=\"#f8fbff\" id=\"x_label\" x=\"584\" y=\"410\" font-size=\"16\">x</text><text fill=\"#f8fbff\" id=\"y_label\" x=\"40\" y=\"122\" font-size=\"16\">y</text><line id=\"asymptote\" x1=\"60\" y1=\"377\" x2=\"600\" y2=\"148.2\" stroke=\"#475569\" stroke-width=\"3\" stroke-dasharray=\"8 6\"/><text fill=\"#f8fbff\" id=\"asymptote_label\" x=\"405\" y=\"122\" font-size=\"17\">d: y = 2x - 1</text><polyline id=\"curve_main\" points=\"60.0,376.3 75.4,369.8 90.9,363.2 106.3,356.7 121.7,350.1 137.1,343.6 152.6,337.0 168.0,330.4 183.4,323.9 198.9,317.3 214.3,310.8 229.7,304.2 245.1,297.6 260.6,291.0 276.0,284.5 291.4,277.9 306.9,271.3 322.3,264.7 337.7,258.1 353.1,251.5 368.6,244.9 384.0,238.3 399.4,231.7 414.9,225.1 430.3,218.4 445.7,211.8 461.1,205.1 476.6,198.4 492.0,191.7 507.4,184.9 522.9,178.1 538.3,171.2 553.7,164.2 569.1,157.1 584.6,149.5 600.0,141.2\" fill=\"none\" stroke=\"#2de1ff\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><text fill=\"#f8fbff\" id=\"curve_label\" x=\"80\" y=\"150\" font-size=\"17\">C: f(x)=x+1-√(x^2-4x+3)</text><circle id=\"M\" cx=\"600\" cy=\"141.2\" r=\"7\" fill=\"#2de1ff\" stroke=\"#ffffff\" stroke-width=\"2\"/><circle id=\"H\" cx=\"600\" cy=\"148.2\" r=\"6\" fill=\"#ffffff\" stroke=\"#ffd76b\" stroke-width=\"2\"/><line id=\"gap\" x1=\"600\" y1=\"141.2\" x2=\"600\" y2=\"148.2\" stroke=\"#ffd76b\" stroke-width=\"4\"/><text fill=\"#f8fbff\" id=\"M_label\" x=\"580\" y=\"131.2\" font-size=\"15\">M</text><text fill=\"#f8fbff\" id=\"H_label\" x=\"580\" y=\"170.2\" font-size=\"15\">H</text><text fill=\"#f8fbff\" id=\"gap_label\" x=\"90\" y=\"205\" font-size=\"16\">lim [f(x)-(2x-1)] = 0 as x -&gt; -∞</text><text fill=\"#f8fbff\" id=\"live_gap\" x=\"90\" y=\"232\" font-size=\"16\">f(x)-(2x-1) =</text>"
+  },
+  {
+   "no": 1,
+   "title": {
+    "ar": "نربط الفكرة بالمصدر، ثم نوضح معناها ونطبّقها خطوةً خطوة",
+    "en": "Oblique Asymptote Definition and Property",
+    "fr": "Oblique Asymptote Definition and Property"
+   },
+   "svg": ""
+  },
+  {
+   "no": 2,
+   "title": {
+    "ar": "نربط الفكرة بالمصدر، ثم نوضح معناها ونطبّقها خطوةً خطوة",
+    "en": "Method for Finding the Asymptote and Parabolic Branches",
+    "fr": "Method for Finding the Asymptote and Parabolic Branches"
+   },
+   "svg": ""
+  },
+  {
+   "no": 3,
+   "title": {
+    "ar": "نربط الفكرة بالمصدر، ثم نوضح معناها ونطبّقها خطوةً خطوة",
+    "en": "Simple Irrational Functions Property and Classification",
+    "fr": "Simple Irrational Functions Property and Classification"
+   },
+   "svg": ""
+  },
+  {
+   "no": 4,
+   "title": {
+    "ar": "نربط الفكرة بالمصدر، ثم نوضح معناها ونطبّقها خطوةً خطوة",
+    "en": "Domain, Endpoints, and Vertical Tangents of Irrational Functions",
+    "fr": "Domain, Endpoints, and Vertical Tangents of Irrational Functions"
+   },
+   "svg": ""
+  }
+ ],
+ "steps": [
+  {
+   "scene_index": 0,
+   "local": -1,
+   "kind": "ask",
+   "show_ids": [],
+   "text": {
+    "ar": "مرحباً بك في هذا الدرس، حيث سنتعلم كيفية استكشاف Oblique asymptote ودراسة الدوال الجذرية خطوة بخطوة.",
+    "en": "Welcome to this lesson where we will explore oblique asymptotes and study irrational functions step by step.",
+    "fr": "Bienvenue dans cette leçon où nous allons explorer les asymptotes obliques et étudier les fonctions irrationnelles étape par étape."
+   },
+   "speech": null,
+   "formula": "",
+   "fact": null
+  },
+  {
+   "scene_index": 0,
+   "local": 0,
+   "kind": "ask",
+   "show_ids": [
+    "x_axis",
+    "y_axis",
+    "curve_main",
+    "asymptote"
+   ],
+   "text": {
+    "ar": "راقب المنحنى والمستقيم: ماذا تتوقع عندما نتحرك بعيدًا نحو اليسار؟",
+    "en": "Watch the curve and line: what happens as we move far left?",
+    "fr": "Observe la courbe et la droite : que se passe-t-il vers la gauche ?"
+   },
+   "speech": {
+    "ar": "توقّع أولًا قبل أن نحرّك النقطة.",
+    "en": "Predict before we move the point.",
+    "fr": "Prédis avant de déplacer le point."
+   },
+   "formula": "",
+   "fact": {
+    "ar": "نبدأ بالملاحظة قبل القاعدة.",
+    "en": "We observe before stating the rule.",
+    "fr": "On observe avant d’énoncer la règle."
+   }
+  },
+  {
+   "scene_index": 0,
+   "local": 1,
+   "kind": "notice",
+   "show_ids": [
+    "M",
+    "H",
+    "gap",
+    "M_label",
+    "H_label"
+   ],
+   "text": {
+    "ar": "M على المنحنى وH على المستقيم عند القيمة نفسها لـ x.",
+    "en": "M lies on the curve and H lies on the line at the same x.",
+    "fr": "M est sur la courbe et H sur la droite pour le même x."
+   },
+   "speech": {
+    "ar": "ركز على القطعة العمودية بين M وH.",
+    "en": "Focus on the vertical gap between M and H.",
+    "fr": "Observe l’écart vertical entre M et H."
+   },
+   "formula": "",
+   "fact": {
+    "ar": "القطعة تمثل فرق القيمتين.",
+    "en": "The segment represents the difference of the two values.",
+    "fr": "Le segment représente la différence des deux valeurs."
+   }
+  },
+  {
+   "scene_index": 0,
+   "local": 2,
+   "kind": "explain",
+   "show_ids": [
+    "curve_label",
+    "asymptote_label"
+   ],
+   "text": {
+    "ar": "نقارن f(x) مع قيمة المستقيم 2x-1 عند x نفسها.",
+    "en": "We compare f(x) with 2x-1 at the same x.",
+    "fr": "On compare f(x) à 2x-1 pour le même x."
+   },
+   "speech": {
+    "ar": "المقارنة الحقيقية هي فرق القيمتين.",
+    "en": "The key comparison is their difference.",
+    "fr": "La comparaison essentielle est leur différence."
+   },
+   "formula": "f(x)-(2x-1)",
+   "fact": {
+    "ar": "إذا اقترب الفرق من الصفر يقترب المنحنى من المستقيم.",
+    "en": "If the difference tends to zero, the curve approaches the line.",
+    "fr": "Si la différence tend vers zéro, la courbe approche la droite."
+   }
+  },
+  {
+   "scene_index": 0,
+   "local": 3,
+   "kind": "why",
+   "show_ids": [
+    "gap_label",
+    "live_gap"
+   ],
+   "text": {
+    "ar": "لماذا نراقب الفرق بدل شكل الرسم وحده؟",
+    "en": "Why track the difference instead of trusting the picture alone?",
+    "fr": "Pourquoi suivre la différence plutôt que l’image seule ?"
+   },
+   "speech": {
+    "ar": "لأن النهاية تعطي شرطًا رياضيًا قابلًا للتحقق.",
+    "en": "Because the limit gives a verifiable mathematical condition.",
+    "fr": "Parce que la limite donne une condition mathématique vérifiable."
+   },
+   "formula": "lim [f(x)-(2x-1)] = 0",
+   "fact": {
+    "ar": "هذا هو شرط Oblique asymptote هنا.",
+    "en": "This is the oblique-asymptote condition here.",
+    "fr": "C’est ici la condition de l’asymptote oblique."
+   }
+  },
+  {
+   "scene_index": 0,
+   "local": 4,
+   "kind": "worked",
+   "show_ids": [
+    "live_gap"
+   ],
+   "text": {
+    "ar": "عند موضع قريب، احسب الفرق ثم قارنه بما يظهر على اللوح.",
+    "en": "At a nearby position, calculate the difference and compare it with the board.",
+    "fr": "À une position proche, calcule l’écart et compare-le au tableau."
+   },
+   "speech": {
+    "ar": "القراءة الحية تؤكد الحساب.",
+    "en": "The live readout checks the calculation.",
+    "fr": "La lecture en direct vérifie le calcul."
+   },
+   "formula": "f(x)-(2x-1)",
+   "fact": {
+    "ar": "الفرق موجب وصغير على هذا الفرع.",
+    "en": "The difference is positive and small on this branch.",
+    "fr": "L’écart est positif et petit sur cette branche."
+   }
+  },
+  {
+   "scene_index": 0,
+   "local": 5,
+   "kind": "live",
+   "show_ids": [
+    "M",
+    "H",
+    "gap",
+    "live_gap"
+   ],
+   "text": {
+    "ar": "حرّك M يسارًا ولاحظ أن القطعة والفرق العددي يصغران معًا.",
+    "en": "Move M left and notice the segment and numerical gap shrink together.",
+    "fr": "Déplace M à gauche et observe l’écart géométrique et numérique diminuer ensemble."
+   },
+   "speech": {
+    "ar": "الرسم والعدد يرويان القصة نفسها.",
+    "en": "The graph and the number tell the same story.",
+    "fr": "Le graphe et le nombre racontent la même histoire."
+   },
+   "formula": "f(x)-(2x-1) -> 0",
+   "fact": {
+    "ar": "الاقتراب ليس تخمينًا بصريًا فقط.",
+    "en": "The approach is not merely a visual guess.",
+    "fr": "L’approche n’est pas une simple impression visuelle."
+   }
+  },
+  {
+   "scene_index": 0,
+   "local": 6,
+   "kind": "notice",
+   "show_ids": [
+    "gap",
+    "asymptote"
+   ],
+   "text": {
+    "ar": "كلما اتجهنا أكثر يسارًا يصبح الفرق أقرب إلى الصفر.",
+    "en": "As we move farther left, the difference becomes closer to zero.",
+    "fr": "Plus on va vers la gauche, plus la différence se rapproche de zéro."
+   },
+   "speech": {
+    "ar": "هنا يظهر معنى Oblique asymptote بصريًا وعدديًا.",
+    "en": "Here the oblique asymptote becomes visible numerically and graphically.",
+    "fr": "Ici l’asymptote oblique apparaît numériquement et graphiquement."
+   },
+   "formula": "d: y=2x-1",
+   "fact": {
+    "ar": "المستقيم d هو Oblique asymptote للفرع الأيسر.",
+    "en": "The line d is an oblique asymptote of the left branch.",
+    "fr": "La droite d est une asymptote oblique de la branche gauche."
+   }
+  },
+  {
+   "scene_index": 0,
+   "local": 7,
+   "kind": "your_turn",
+   "show_ids": [
+    "M",
+    "gap",
+    "live_gap"
+   ],
+   "text": {
+    "ar": "دورك: حرّك M نحو اليسار وفسّر لماذا يدعم ما تراه شرط النهاية.",
+    "en": "Your turn: move M left and explain why the observation supports the limit condition.",
+    "fr": "À toi : déplace M à gauche et explique pourquoi cela confirme la condition de limite."
+   },
+   "speech": {
+    "ar": "لا تبحث عن رقم سحري؛ راقب اتجاه التغيّر وفسّره.",
+    "en": "Do not hunt for a magic number; observe the trend and explain it.",
+    "fr": "Ne cherche pas un nombre magique ; observe la tendance et explique-la."
+   },
+   "formula": "lim [f(x)-(2x-1)] = 0",
+   "fact": {
+    "ar": "المطلوب تفسير الاتجاه لا مطاردة عتبة اعتباطية.",
+    "en": "Explain the trend rather than chasing an arbitrary threshold.",
+    "fr": "Explique la tendance plutôt que de viser un seuil arbitraire."
+   }
+  },
+  {
+   "scene_index": 1,
+   "local": -1,
+   "kind": "ask",
+   "show_ids": [],
+   "text": {
+    "ar": "بعد مراقبة الاقتراب البصري، ننتقل لتعريف Oblique asymptote بدقة وكتابة الدالة بصيغتها التحليلية.",
+    "en": "After visual observation, we move to defining the oblique asymptote precisely and writing the function in its analytical form.",
+    "fr": "Après l'observation visuelle, nous passons à la définition précise de l'asymptote oblique et à l'écriture de la fonction."
+   },
+   "speech": null,
+   "formula": "",
+   "fact": null
+  },
+  {
+   "scene_index": 1,
+   "local": 0,
+   "kind": "why",
+   "show_ids": [],
+   "text": {
+    "ar": "نربط الفكرة بالمصدر، ثم نوضح معناها ونطبّقها خطوةً خطوة.",
+    "en": "Write the difference condition and highlight it in color.",
+    "fr": "Write the difference condition and highlight it in color."
+   },
+   "speech": null,
+   "formula": "lim_{x → +∞} [f(x) - (ax + b)] = 0",
+   "fact": null
+  },
+  {
+   "scene_index": 1,
+   "local": 1,
+   "kind": "check",
+   "show_ids": [],
+   "text": {
+    "ar": "نربط الفكرة بالمصدر، ثم نوضح معناها ونطبّقها خطوةً خطوة.",
+    "en": "Reveal summary table and ask targeted questions.",
+    "fr": "Reveal summary table and ask targeted questions."
+   },
+   "speech": null,
+   "formula": "Summary table: Horizontal (l), Oblique (ax+b), Parabolic branch (direction of slope a).",
+   "fact": null
+  },
+  {
+   "scene_index": 1,
+   "local": 2,
+   "kind": "explain",
+   "show_ids": [],
+   "text": {
+    "ar": "نربط الفكرة بالمصدر، ثم نوضح معناها ونطبّقها خطوةً خطوة.",
+    "en": "Draw final concept map and invite a student to explain it.",
+    "fr": "Draw final concept map and invite a student to explain it."
+   },
+   "speech": null,
+   "formula": "Concept Map: Limits -> Asymptotes (Horizontal, Vertical, Oblique) -> Endpoints -> Variation Table -> Graph",
+   "fact": null
+  },
+  {
+   "scene_index": 2,
+   "local": -1,
+   "kind": "ask",
+   "show_ids": [],
+   "text": {
+    "ar": "بناءً على هذا التعريف، نتعلم الآن الطريقة العملية لحساب المعاملين a و b لتحديد معادلة المقارب.",
+    "en": "Based on this definition, we now learn the practical method to calculate coefficients a and b to find the asymptote equation.",
+    "fr": "Basé sur cette définition, nous apprenons maintenant la méthode pratique pour calculer les coefficients a et b."
+   },
+   "speech": null,
+   "formula": "",
+   "fact": null
+  },
+  {
+   "scene_index": 2,
+   "local": 0,
+   "kind": "worked",
+   "show_ids": [],
+   "text": {
+    "ar": "نربط الفكرة بالمصدر، ثم نوضح معناها ونطبّقها خطوةً خطوة.",
+    "en": "Write algebraic steps for finding a and b, boxing the final formulas.",
+    "fr": "Write algebraic steps for finding a and b, boxing the final formulas."
+   },
+   "speech": null,
+   "formula": "a = lim_{x → ∞} (f(x))/(x), \\quad b = lim_{x → ∞} [f(x) - ax]",
+   "fact": null
+  },
+  {
+   "scene_index": 2,
+   "local": 1,
+   "kind": "check",
+   "show_ids": [],
+   "text": {
+    "ar": "نربط الفكرة بالمصدر، ثم نوضح معناها ونطبّقها خطوةً خطوة.",
+    "en": "Reveal summary table and ask targeted questions.",
+    "fr": "Reveal summary table and ask targeted questions."
+   },
+   "speech": null,
+   "formula": "Summary table: Horizontal (l), Oblique (ax+b), Parabolic branch (direction of slope a).",
+   "fact": null
+  },
+  {
+   "scene_index": 2,
+   "local": 2,
+   "kind": "explain",
+   "show_ids": [],
+   "text": {
+    "ar": "نربط الفكرة بالمصدر، ثم نوضح معناها ونطبّقها خطوةً خطوة.",
+    "en": "Draw final concept map and invite a student to explain it.",
+    "fr": "Draw final concept map and invite a student to explain it."
+   },
+   "speech": null,
+   "formula": "Concept Map: Limits -> Asymptotes (Horizontal, Vertical, Oblique) -> Endpoints -> Variation Table -> Graph",
+   "fact": null
+  },
+  {
+   "scene_index": 3,
+   "local": -1,
+   "kind": "ask",
+   "show_ids": [],
+   "text": {
+    "ar": "مع معرفة طريقة إيجاد المقاربات، ننتقل لدراسة خصائص الدوال الجذرية البسطة ومجموع تعريفها.",
+    "en": "With the method for finding asymptotes known, we move to studying the properties of simple irrational functions and their domains.",
+    "fr": "La méthode des asymptotes étant acquise, nous passons à l'étude des propriétés des fonctions irrationnelles simples."
+   },
+   "speech": null,
+   "formula": "",
+   "fact": null
+  },
+  {
+   "scene_index": 3,
+   "local": 0,
+   "kind": "your_turn",
+   "show_ids": [],
+   "text": {
+    "ar": "نربط الفكرة بالمصدر، ثم نوضح معناها ونطبّقها خطوةً خطوة.",
+    "en": "Write out the steps of function study and solve the example.",
+    "fr": "Write out the steps of function study and solve the example."
+   },
+   "speech": null,
+   "formula": "Domain D, Endpoints g(x)=0, Vertical tangents, Oblique asymptote y = 3x - 1",
+   "fact": null
+  },
+  {
+   "scene_index": 3,
+   "local": 1,
+   "kind": "check",
+   "show_ids": [],
+   "text": {
+    "ar": "نربط الفكرة بالمصدر، ثم نوضح معناها ونطبّقها خطوةً خطوة.",
+    "en": "Reveal summary table and ask targeted questions.",
+    "fr": "Reveal summary table and ask targeted questions."
+   },
+   "speech": null,
+   "formula": "Summary table: Horizontal (l), Oblique (ax+b), Parabolic branch (direction of slope a).",
+   "fact": null
+  },
+  {
+   "scene_index": 3,
+   "local": 2,
+   "kind": "explain",
+   "show_ids": [],
+   "text": {
+    "ar": "نربط الفكرة بالمصدر، ثم نوضح معناها ونطبّقها خطوةً خطوة.",
+    "en": "Draw final concept map and invite a student to explain it.",
+    "fr": "Draw final concept map and invite a student to explain it."
+   },
+   "speech": null,
+   "formula": "Concept Map: Limits -> Asymptotes (Horizontal, Vertical, Oblique) -> Endpoints -> Variation Table -> Graph",
+   "fact": null
+  },
+  {
+   "scene_index": 4,
+   "local": -1,
+   "kind": "ask",
+   "show_ids": [],
+   "text": {
+    "ar": "وأخيراً، نجمع هذه الخطوات كلها في إجراء منهجي شامل لدراسة وتثميل الدوال الجذرية.",
+    "en": "Finally, we combine all these steps into a comprehensive systematic procedure for studying and graphing irrational functions.",
+    "fr": "Enfin, nous combinons toutes ces étapes dans une procédure systématique et complète pour étudier et représenter les fonctions."
+   },
+   "speech": null,
+   "formula": "",
+   "fact": null
+  },
+  {
+   "scene_index": 4,
+   "local": 0,
+   "kind": "your_turn",
+   "show_ids": [],
+   "text": {
+    "ar": "نربط الفكرة بالمصدر، ثم نوضح معناها ونطبّقها خطوةً خطوة.",
+    "en": "Write out the steps of function study and solve the example.",
+    "fr": "Write out the steps of function study and solve the example."
+   },
+   "speech": null,
+   "formula": "Domain D, Endpoints g(x)=0, Vertical tangents, Oblique asymptote y = 3x - 1",
+   "fact": null
+  },
+  {
+   "scene_index": 4,
+   "local": 1,
+   "kind": "check",
+   "show_ids": [],
+   "text": {
+    "ar": "نربط الفكرة بالمصدر، ثم نوضح معناها ونطبّقها خطوةً خطوة.",
+    "en": "Reveal summary table and ask targeted questions.",
+    "fr": "Reveal summary table and ask targeted questions."
+   },
+   "speech": null,
+   "formula": "Summary table: Horizontal (l), Oblique (ax+b), Parabolic branch (direction of slope a).",
+   "fact": null
+  },
+  {
+   "scene_index": 4,
+   "local": 2,
+   "kind": "explain",
+   "show_ids": [],
+   "text": {
+    "ar": "نربط الفكرة بالمصدر، ثم نوضح معناها ونطبّقها خطوةً خطوة.",
+    "en": "Draw final concept map and invite a student to explain it.",
+    "fr": "Draw final concept map and invite a student to explain it."
+   },
+   "speech": null,
+   "formula": "Concept Map: Limits -> Asymptotes (Horizontal, Vertical, Oblique) -> Endpoints -> Variation Table -> Graph",
+   "fact": null
+  },
+  {
+   "scene_index": 4,
+   "local": 2,
+   "kind": "micro_check",
+   "show_ids": [],
+   "text": {
+    "ar": "بهذا نكون قد ربطنا بين التمثيل البصري والتعريف الجبري وطريقة الحساب والخطوات المنهجية الشاملة لدراسة الدوال الجذرية.",
+    "en": "Thus, we have connected the visual representation, algebraic definition, calculation method, and comprehensive procedural steps for irrational functions.",
+    "fr": "Ainsi, nous avons relié la représentation visuelle, la définition algébrique, la méthode de calcul et les étapes méthodologiques."
+   },
+   "speech": null,
+   "formula": "",
+   "fact": null
+  }
+ ],
+ "cross_check": {
+  "prompt": {
+   "ar": "كيف نحدد أن الخط ذو المعادلة y = 2x - 1 هو Oblique asymptote للدالة عندما يسعى x نحو \\(-∞\\)؟",
+   "en": "How do we determine that the line y = 2x - 1 is an oblique asymptote to the function as x approaches \\(-\\infty\\)?",
+   "fr": "Comment déterminer que la droite d'équation y = 2x - 1 est une asymptote oblique à la fonction lorsque x tend vers \\(-\\infty\\) ?"
+  },
+  "options": [
+   {
+    "ar": "بحساب نهاية الفرق \\(f(x) - (2x - 1)\\) وإيجاد أنها تساوي صفر.",
+    "en": "By calculating the limit of the difference \\(f(x) - (2x - 1)\\) and finding it equals zero.",
+    "fr": "En calculant la limite de la différence \\(f(x) - (2x - 1)\\) et en trouvant qu'elle est nulle."
+   },
+   {
+    "ar": "بحساب نهاية \\(f(x) / x\\) فقط.",
+    "en": "By calculating the limit of \\(f(x) / x\\) only.",
+    "fr": "En calculant uniquement la limite de \\(f(x) / x\\)."
+   },
+   {
+    "ar": "بإيجاد Domain \\(D\\) وحدودها.",
+    "en": "By finding the domain of definition \\(D\\) and its endpoints.",
+    "fr": "En trouvant le domaine de définition \\(D\\) et ses bornes."
+   }
+  ],
+  "correct": 0,
+  "why": {
+   "ar": "الشرط الأساسي لكون المستقيم مقاربًا مائلاً هو أن تكون نهاية الفرق بين الدالة والمستقيم تؤول إلى الصفر.",
+   "en": "The fundamental condition for a line to be an oblique asymptote is that the limit of the difference between the function and the line approaches zero.",
+   "fr": "La condition fondamentale pour qu'une droite soit une asymptote oblique est que la limite de la différence tende vers zéro."
+  }
+ },
+ "golden_summary": {
+  "title": {
+   "ar": "بطاقة NABIL المرجعية — Golden Reference",
+   "en": "NABIL Scientific Solution Card — Golden Reference",
+   "fr": "NABIL Scientific Solution Card — Golden Reference"
+  },
+  "flow": {
+   "ar": "الفكرة → القاعدة → التطبيق → التحقق → الرسم → الخلاصة",
+   "en": "Idea → Rule → Apply → Check → Visual → Summary",
+   "fr": "Idée → Règle → Application → Vérification → Visuel → Synthèse"
+  },
+  "takeaway": {
+   "ar": "بهذا نكون قد ربطنا بين التمثيل البصري والتعريف الجبري وطريقة الحساب والخطوات المنهجية الشاملة لدراسة الدوال الجذرية.",
+   "en": "Thus, we have connected the visual representation, algebraic definition, calculation method, and comprehensive procedural steps for irrational functions.",
+   "fr": "Ainsi, nous avons relié la représentation visuelle, la définition algébrique, la méthode de calcul et les étapes méthodologiques."
+  },
+  "verified_examples": [
+   {
+    "exercise_id": "G12-MATH-GS-001-EX12",
+    "source_page": 17,
+    "question": "Discuss the variation and Graph each of the following functions: 1. x ↦ 1 - x + 2√(x^2 + x - 2); 2. x ↦ x - 4√(1 + x^2); 3. x ↦ x - 4√(1 - x^2); 4. x ↦ √(x^2) + 2|x| + 3.",
+    "source_basis": "6 Discuss the variation and Graph each of the following functions: 1. x ↦ 1 - x + 2√(x^2 + x - 2); 2. x ↦ x - 4√(1 + x^2); 3. x ↦ x - 4√(1 - x^2); 4. x ↦ √(x^2) + 2|x| + 3.",
+    "idea": "إيجاد Domain، حساب Derivative f'(x)، دراسة الإشارة، تشكيل Variation table، وتعيين Oblique asymptote أو الأفقي والنقاط الخاصة.",
+    "given": [
+     "1. x ↦ 1 - x + 2√(x^2 + x - 2)",
+     "2. x ↦ x - 4√(1 + x^2)",
+     "3. x ↦ x - 4√(1 - x^2)",
+     "4. x ↦ √(x^2) + 2|x| + 3"
+    ],
+    "steps": [
+     {
+      "work": "تحديد Domain لكل دالة.",
+      "why": "الخطوة الأولى الأساسية لدراسة التغيرات."
+     },
+     {
+      "work": "حساب Derivative الأولى f'(x) وإيجاد إشارتها.",
+      "why": "معرفة مناطق التزايد والتناقص."
+     },
+     {
+      "work": "رسم المنحنى (C) في معلم متجانس.",
+      "why": "تمثيل النتائج هندسياً."
+     }
+    ],
+    "final_answer": "دراسة تغيرات الدوال الأربع ورسم منحنياتها بشكل كامل.",
+    "verification": "التأكد من استمرارية واتصال المنحنيات وقيم النهايات وDerivatives عند النقاط الحرجة.",
+    "visual_type": "function_graph",
+    "visual_caption": "تمثيل المنحنيات البيانية للدوال الجذرية ودالة القيمة المطلقة في معلم متجانس.",
+    "visual_svg": "<rect x=\"0\" y=\"0\" width=\"760\" height=\"500\" rx=\"18\" fill=\"#061827\"/><line x1=\"129.4\" y1=\"26\" x2=\"129.4\" y2=\"446\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"62\" y1=\"68\" x2=\"736\" y2=\"68\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"196.8\" y1=\"26\" x2=\"196.8\" y2=\"446\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"62\" y1=\"110\" x2=\"736\" y2=\"110\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"264.2\" y1=\"26\" x2=\"264.2\" y2=\"446\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"62\" y1=\"152\" x2=\"736\" y2=\"152\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"331.6\" y1=\"26\" x2=\"331.6\" y2=\"446\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"62\" y1=\"194\" x2=\"736\" y2=\"194\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"399\" y1=\"26\" x2=\"399\" y2=\"446\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"62\" y1=\"236\" x2=\"736\" y2=\"236\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"466.4\" y1=\"26\" x2=\"466.4\" y2=\"446\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"62\" y1=\"278\" x2=\"736\" y2=\"278\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"533.8\" y1=\"26\" x2=\"533.8\" y2=\"446\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"62\" y1=\"320\" x2=\"736\" y2=\"320\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"601.2\" y1=\"26\" x2=\"601.2\" y2=\"446\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"62\" y1=\"362\" x2=\"736\" y2=\"362\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"668.6\" y1=\"26\" x2=\"668.6\" y2=\"446\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"62\" y1=\"404\" x2=\"736\" y2=\"404\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"399\" y1=\"26\" x2=\"399\" y2=\"446\" stroke=\"#d8efff\" stroke-width=\"1.8\"/><text x=\"406\" y=\"43\" fill=\"#f8fbff\" font-size=\"14\">y</text><line x1=\"62\" y1=\"207.63\" x2=\"736\" y2=\"207.63\" stroke=\"#d8efff\" stroke-width=\"1.8\"/><text x=\"732\" y=\"199.63\" fill=\"#f8fbff\" font-size=\"14\">x</text><polyline id=\"card_curve_1\" points=\"139.69,100.71 142.89,102.1 146.09,103.49 149.29,104.88 152.49,106.27 155.7,107.66 158.9,109.05 162.1,110.45 165.3,111.84 168.5,113.24 171.7,114.64 174.9,116.04 178.11,117.44 181.31,118.85 184.51,120.25 187.71,121.66 190.91,123.07 194.11,124.48 197.31,125.9 200.52,127.32 203.72,128.74 206.92,130.16 210.12,131.58 213.32,133.01 216.52,134.45 219.72,135.88 222.92,137.32 226.13,138.77 229.33,140.22 232.53,141.67 235.73,143.13 238.93,144.6 242.13,146.07 245.33,147.56 248.54,149.04 251.74,150.54 254.94,152.05 258.14,153.57 261.34,155.1 264.54,156.64 267.74,158.2 270.95,159.78 274.15,161.37 277.35,162.99 280.55,164.64 283.75,166.32 286.95,168.04 290.15,169.81 293.35,171.64 296.56,173.55 299.76,175.57 302.96,177.75 306.16,180.18 309.36,183.13 312.56,189.39\" fill=\"none\" stroke=\"#2de1ff\" stroke-width=\"3.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><circle id=\"card_curve_marker\" cx=\"139.69\" cy=\"100.71\" r=\"6\" fill=\"#ffd76b\" stroke=\"#ffffff\" stroke-width=\"2\"/><polyline id=\"card_curve_2\" points=\"442.22,207.63 446.22,201.69 450.22,199.42 454.22,197.72 458.23,196.29 462.23,195.05 466.23,193.92 470.23,192.87 474.23,191.89 478.23,190.96 482.24,190.07 486.24,189.22 490.24,188.39 494.24,187.59 498.24,186.81 502.24,186.05 506.25,185.3 510.25,184.57 514.25,183.85 518.25,183.14 522.25,182.44 526.25,181.75 530.26,181.06 534.26,180.38 538.26,179.71 542.26,179.05 546.26,178.39 550.26,177.74 554.27,177.09 558.27,176.44 562.27,175.8 566.27,175.16 570.27,174.53 574.27,173.9 578.28,173.27 582.28,172.64 586.28,172.02 590.28,171.4 594.28,170.78 598.28,170.17 602.29,169.55 606.29,168.94 610.29,168.33 614.29,167.72 618.29,167.12 622.3,166.51 626.3,165.91 630.3,165.3 634.3,164.7 638.3,164.1 642.3,163.5 646.31,162.91 650.31,162.31 654.31,161.71 658.31,161.12\" fill=\"none\" stroke=\"#55e6a4\" stroke-width=\"3.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><polyline id=\"card_curve_3\" points=\"139.69,392.06 149.29,385.38 158.9,378.71 168.5,372.04 178.11,365.38 187.71,358.73 197.31,352.09 206.92,345.46 216.52,338.84 226.13,332.24 235.73,325.65 245.33,319.09 254.94,312.55 264.54,306.03 274.15,299.55 283.75,293.12 293.35,286.73 302.96,280.41 312.56,274.18 322.17,268.05 331.77,262.07 341.38,256.28 350.98,250.75 360.58,245.58 370.19,240.92 379.79,236.95 389.4,233.9 399,231.95 408.6,231.2 418.21,231.54 427.81,232.81 437.42,234.77 447.02,237.23 456.62,240.06 466.23,243.15 475.83,246.43 485.44,249.86 495.04,253.39 504.65,257 514.25,260.69 523.85,264.42 533.46,268.2 543.06,272.01 552.67,275.85 562.27,279.71 571.87,283.59 581.48,287.49 591.08,291.41 600.69,295.34 610.29,299.28 619.89,303.22 629.5,307.18 639.1,311.15 648.71,315.12 658.31,319.1\" fill=\"none\" stroke=\"#c891ff\" stroke-width=\"3.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><polyline id=\"card_curve_4\" points=\"355.78,213.71 357.38,220.04 358.98,222.45 360.58,224.18 362.18,225.55 363.78,226.69 365.39,227.65 366.99,228.47 368.59,229.19 370.19,229.81 371.79,230.36 373.39,230.83 374.99,231.23 376.59,231.58 378.19,231.88 379.79,232.12 381.39,232.32 382.99,232.48 384.59,232.59 386.19,232.66 387.8,232.7 389.4,232.7 391,232.66 392.6,232.59 394.2,232.48 395.8,232.34 397.4,232.16 399,231.95 400.6,231.71 402.2,231.44 403.8,231.13 405.4,230.78 407,230.41 408.6,229.99 410.2,229.55 411.81,229.06 413.41,228.54 415.01,227.97 416.61,227.37 418.21,226.72 419.81,226.02 421.41,225.28 423.01,224.48 424.61,223.62 426.21,222.7 427.81,221.71 429.41,220.63 431.01,219.47 432.61,218.19 434.22,216.78 435.82,215.19 437.42,213.37 439.02,211.19 440.62,208.33 442.22,201.55\" fill=\"none\" stroke=\"#ffd76b\" stroke-width=\"3.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><polyline id=\"card_curve_5\" points=\"139.69,79.94 149.29,83.99 158.9,88.04 168.5,92.1 178.11,96.15 187.71,100.2 197.31,104.26 206.92,108.31 216.52,112.37 226.13,116.42 235.73,120.47 245.33,124.53 254.94,128.58 264.54,132.64 274.15,136.69 283.75,140.74 293.35,144.8 302.96,148.85 312.56,152.9 322.17,156.96 331.77,161.01 341.38,165.07 350.98,169.12 360.58,173.17 370.19,177.23 379.79,181.28 389.4,185.33 399,189.39 408.6,185.33 418.21,181.28 427.81,177.23 437.42,173.17 447.02,169.12 456.62,165.07 466.23,161.01 475.83,156.96 485.44,152.9 495.04,148.85 504.65,144.8 514.25,140.74 523.85,136.69 533.46,132.64 543.06,128.58 552.67,124.53 562.27,120.47 571.87,116.42 581.48,112.37 591.08,108.31 600.69,104.26 610.29,100.2 619.89,96.15 629.5,92.1 639.1,88.04 648.71,83.99 658.31,79.94\" fill=\"none\" stroke=\"#ff9ec8\" stroke-width=\"3.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><circle cx=\"312.56\" cy=\"189.39\" r=\"5\" fill=\"#ffd76b\" stroke=\"#ffffff\" stroke-width=\"2\"/><text x=\"320.56\" y=\"179.39\" fill=\"#f8fbff\" font-size=\"13\">Endpoint</text><circle cx=\"442.22\" cy=\"207.63\" r=\"5\" fill=\"#ffd76b\" stroke=\"#ffffff\" stroke-width=\"2\"/><text x=\"450.22\" y=\"197.63\" fill=\"#f8fbff\" font-size=\"13\">Endpoint</text><circle cx=\"399\" cy=\"189.39\" r=\"5\" fill=\"#ffd76b\" stroke=\"#ffffff\" stroke-width=\"2\"/><text x=\"407\" y=\"179.39\" fill=\"#f8fbff\" font-size=\"13\">Vertex</text><text x=\"62\" y=\"484\" fill=\"#9fb5c9\" font-size=\"12\">x: -7.8 → 7.8</text><text x=\"580\" y=\"484\" fill=\"#9fb5c9\" font-size=\"12\">y: -39.2 → 29.87</text>",
+    "variation_rows": [
+     {
+      "item_no": "1",
+      "expression": "f(x) = 1 - x + 2√(x^2 + x - 2)",
+      "domain": "-∞, -2] \\cup [1, +∞",
+      "derivative_or_method": "f'(x) = -1 + 2(2x+1)/(2√(x^2+x-2))",
+      "variation": "تغيير في الاتجاه مع وجود مقاربين مائلين عند الأطراف اللانهائية",
+      "key_features": "Endpoints عند -2 و 1",
+      "final_conclusion": "دراسة التغيرات ورسم (C) بدقة."
+     },
+     {
+      "item_no": "2",
+      "expression": "f(x) = x - 4√(1 + x^2)",
+      "domain": "\\mathbb{R}",
+      "derivative_or_method": "f'(x) = 1 - 4(x)/(√(1+x^2))",
+      "variation": "دالة معرفة على R مع مقاربين مائلين مختلفين عند +∞ و -∞",
+      "key_features": "مقاربين مائلين y = -3x و y = 5x تقريباً",
+      "final_conclusion": "رسم المنحنى مع مقارنيه المائلين."
+     },
+     {
+      "item_no": "3",
+      "expression": "f(x) = x - 4√(1 - x^2)",
+      "domain": "[-1, 1]",
+      "derivative_or_method": "f'(x) = 1 + 4(x)/(√(1-x^2))",
+      "variation": "دالة معرفة على مجال مغلق [-1, 1]",
+      "key_features": "مماسات عمودية عند الأطراف x = -1 و x = 1",
+      "final_conclusion": "رسم القطعة المنحنية المعرفة على [-1, 1]."
+     },
+     {
+      "item_no": "4",
+      "expression": "f(x) = √(x^2) + 2|x| + 3 = 3|x| + 3",
+      "domain": "\\mathbb{R}",
+      "derivative_or_method": "f(x) = 3x + 3 لـ x ≥ 0 و f(x) = -3x + 3 لـ x < 0",
+      "variation": "دالة خطية متشعكة بفرعين على شكل حرف V",
+      "key_features": "نقطة زاوية عند x = 0",
+      "final_conclusion": "رسم الخطين المستقيمين المتقاطعين عند (0, 3)."
+     }
+    ],
+    "motion": {
+     "path_id": "card_curve_1",
+     "marker_id": "card_curve_marker",
+     "duration_ms": 4500
+    }
+   },
+   {
+    "exercise_id": "G12-MATH-GS-001-EX14",
+    "source_page": 17,
+    "question": "Discuss the variation and Graph each of the following functions: 1. x ↦ (2x + 1)/(√(x - 1)); 2. x ↦ 3x - 2 + 3(1 - x)/(√(x + 1)).",
+    "source_basis": "8 Discuss the variation and Graph each of the following functions: 1. x ↦ (2x + 1)/(√(x - 1)); 2. x ↦ 3x - 2 + 3(1 - x)/(√(x + 1)).",
+    "idea": "تحديد Domain، دراسة النهايات عند الأطراف وVertical asymptote، حساب Derivative، وتشكيل Variation table ثم رسم المنحنى.",
+    "given": [
+     "1. x ↦ (2x + 1)/(√(x - 1))",
+     "2. x ↦ 3x - 2 + 3(1 - x)/(√(x + 1))"
+    ],
+    "steps": [
+     {
+      "work": "تحديد Domain: 1) ]1, +∞[، 2) ]-1, +∞[.",
+      "why": "استبعاد القيم التي تجعل المقام صفر أو سالباً تحت الجذر."
+     },
+     {
+      "work": "حساب النهايات عند أطراف Domain وعند اللانهاية.",
+      "why": "تحديد Vertical asymptotes والاتجاهات الأسيليّة."
+     },
+     {
+      "work": "حساب Derivative الأولى وإيجاد Variation table ورسم المنحنى.",
+      "why": "اكمال دراسة الدالة."
+     }
+    ],
+    "final_answer": "تمت دراسة التغيرات ورسم الدوال الكسرية الجذرية بدقة.",
+    "verification": "التحقق من إشارة Derivative وقيم النهايات عند أطراف مجالات التعريف.",
+    "visual_type": "function_graph",
+    "visual_caption": "تمثيل بياني للدوال الكسرية الجذرية مع دراسة Vertical asymptotes والنهايات.",
+    "visual_svg": "<rect x=\"0\" y=\"0\" width=\"760\" height=\"500\" rx=\"18\" fill=\"#061827\"/><line x1=\"129.4\" y1=\"26\" x2=\"129.4\" y2=\"446\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"62\" y1=\"68\" x2=\"736\" y2=\"68\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"196.8\" y1=\"26\" x2=\"196.8\" y2=\"446\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"62\" y1=\"110\" x2=\"736\" y2=\"110\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"264.2\" y1=\"26\" x2=\"264.2\" y2=\"446\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"62\" y1=\"152\" x2=\"736\" y2=\"152\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"331.6\" y1=\"26\" x2=\"331.6\" y2=\"446\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"62\" y1=\"194\" x2=\"736\" y2=\"194\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"399\" y1=\"26\" x2=\"399\" y2=\"446\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"62\" y1=\"236\" x2=\"736\" y2=\"236\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"466.4\" y1=\"26\" x2=\"466.4\" y2=\"446\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"62\" y1=\"278\" x2=\"736\" y2=\"278\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"533.8\" y1=\"26\" x2=\"533.8\" y2=\"446\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"62\" y1=\"320\" x2=\"736\" y2=\"320\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"601.2\" y1=\"26\" x2=\"601.2\" y2=\"446\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"62\" y1=\"362\" x2=\"736\" y2=\"362\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"668.6\" y1=\"26\" x2=\"668.6\" y2=\"446\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"62\" y1=\"404\" x2=\"736\" y2=\"404\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"243.41\" y1=\"26\" x2=\"243.41\" y2=\"446\" stroke=\"#d8efff\" stroke-width=\"1.8\"/><text x=\"250.41\" y=\"43\" fill=\"#f8fbff\" font-size=\"14\">y</text><line x1=\"62\" y1=\"396.26\" x2=\"736\" y2=\"396.26\" stroke=\"#d8efff\" stroke-width=\"1.8\"/><text x=\"732\" y=\"388.26\" fill=\"#f8fbff\" font-size=\"14\">x</text><line x1=\"295.28\" y1=\"26\" x2=\"295.28\" y2=\"446\" stroke=\"#ff667c\" stroke-width=\"2.4\" stroke-dasharray=\"9 7\"/><text x=\"302.28\" y=\"46\" fill=\"#ffb2bb\" font-size=\"13\">x = 1</text><line x1=\"191.55\" y1=\"26\" x2=\"191.55\" y2=\"446\" stroke=\"#ff667c\" stroke-width=\"2.4\" stroke-dasharray=\"9 7\"/><text x=\"198.55\" y=\"46\" fill=\"#ffb2bb\" font-size=\"13\">x = -1</text><polyline id=\"card_curve_1\" points=\"295.79,221.71 302.51,345.51 309.22,356.83 315.93,361.49 322.65,364 329.36,365.5 336.07,366.46 342.79,367.08 349.5,367.48 356.21,367.73 362.93,367.88 369.64,367.94 376.35,367.94 383.07,367.89 389.78,367.81 396.49,367.7 403.21,367.57 409.92,367.41 416.63,367.24 423.35,367.06 430.06,366.87 436.77,366.67 443.49,366.46 450.2,366.25 456.91,366.03 463.63,365.81 470.34,365.58 477.05,365.36 483.77,365.13 490.48,364.9 497.19,364.66 503.91,364.43 510.62,364.2 517.33,363.96 524.05,363.73 530.76,363.49 537.47,363.26 544.19,363.02 550.9,362.79 557.61,362.55 564.32,362.32 571.04,362.09 577.75,361.85 584.46,361.62 591.18,361.39 597.89,361.16 604.6,360.93 611.32,360.7 618.03,360.47 624.74,360.25 631.46,360.02 638.17,359.79 644.88,359.57 651.6,359.35 658.31,359.12\" fill=\"none\" stroke=\"#2de1ff\" stroke-width=\"3.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><circle id=\"card_curve_marker\" cx=\"295.79\" cy=\"221.71\" r=\"6\" fill=\"#ffd76b\" stroke=\"#ffffff\" stroke-width=\"2\"/><polyline id=\"card_curve_2\" points=\"192.07,79.94 200.7,346.83 209.34,370.15 217.97,380.12 226.61,385.51 235.24,388.68 243.87,390.56 252.51,391.59 261.14,392.04 269.78,392.06 278.41,391.76 287.05,391.2 295.68,390.44 304.31,389.51 312.95,388.43 321.58,387.24 330.22,385.94 338.85,384.56 347.48,383.09 356.12,381.56 364.75,379.96 373.39,378.31 382.02,376.61 390.65,374.87 399.29,373.08 407.92,371.26 416.56,369.4 425.19,367.51 433.82,365.59 442.46,363.64 451.09,361.67 459.73,359.68 468.36,357.66 476.99,355.62 485.63,353.57 494.26,351.49 502.9,349.4 511.53,347.29 520.17,345.16 528.8,343.02 537.43,340.87 546.07,338.7 554.7,336.52 563.34,334.33 571.97,332.13 580.6,329.92 589.24,327.69 597.87,325.46 606.51,323.21 615.14,320.96 623.77,318.7 632.41,316.43 641.04,314.15 649.68,311.86 658.31,309.56\" fill=\"none\" stroke=\"#55e6a4\" stroke-width=\"3.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><circle cx=\"295.28\" cy=\"396.26\" r=\"5\" fill=\"#ffd76b\" stroke=\"#ffffff\" stroke-width=\"2\"/><text x=\"303.28\" y=\"386.26\" fill=\"#f8fbff\" font-size=\"13\">Endpoint</text><text x=\"62\" y=\"484\" fill=\"#9fb5c9\" font-size=\"12\">x: -3.5 → 9.5</text><text x=\"580\" y=\"484\" fill=\"#9fb5c9\" font-size=\"12\">y: -8.61 → 64.06</text>",
+    "variation_rows": [
+     {
+      "item_no": "1",
+      "expression": "f(x) = (2x + 1)/(√(x - 1))",
+      "domain": "]1, +∞[",
+      "derivative_or_method": "f'(x) = (2√(x-1) - (2x+1)(1)/(2√(x-1)))/(x-1) = \\frac{2(x-1) - (2x+1)/(2)}{(x-1)^{3/2}} = \\frac{2x - 2 - x - 0.5}{(x-1)^{3/2}}",
+      "variation": "متناقصة ثم متزايدة، لها قيمة صغرى محلية",
+      "key_features": "x = 1 Vertical asymptote، واتجاه أسيلي عند +∞",
+      "final_conclusion": "دراسة التغيرات ورسم المنحنى."
+     },
+     {
+      "item_no": "2",
+      "expression": "f(x) = 3x - 2 + 3(1 - x)/(√(x + 1))",
+      "domain": "]-1, +∞[",
+      "derivative_or_method": "دراسة Derivative وإشارتها على المجال المفتوح",
+      "variation": "تغيرات تتضمن Vertical asymptote عند x = -1 وOblique asymptote أو اتجاه",
+      "key_features": "x = -1 Vertical asymptote",
+      "final_conclusion": "دراسة التغيرات ورسم المنحنى."
+     }
+    ],
+    "motion": {
+     "path_id": "card_curve_1",
+     "marker_id": "card_curve_marker",
+     "duration_ms": 4500
+    }
+   },
+   {
+    "exercise_id": "G12-MATH-GS-001-EX13",
+    "source_page": 17,
+    "question": "Draw the graphs of the equations: 1. y = 2x - 1 + √(x - 4); 2. y = 2x - 3√(x + 1); 3. y = -3 + 2√(2 - x).",
+    "source_basis": "7 Draw the graphs of the equations: 1. y = 2x - 1 + √(x - 4); 2. y = 2x - 3√(x + 1); 3. y = -3 + 2√(2 - x).",
+    "idea": "تحديد Domain، إيجاد Vertical tangent عند نقطة البداية ( Endpoint )، دراسة التغيرات، ثم رسم المنحنى بدقة.",
+    "given": [
+     "1. y = 2x - 1 + √(x - 4)",
+     "2. y = 2x - 3√(x + 1)",
+     "3. y = -3 + 2√(2 - x)"
+    ],
+    "steps": [
+     {
+      "work": "إيجاد Domain لكل معادلة: 1) x ≥ 4, 2) x ≥ -1, 3) x ≤ 2.",
+      "why": "معرفة بداية ونهاية رسوم المنحنيات."
+     },
+     {
+      "work": "إيجاد Derivative وتحديد سلوك المماس عند نقطة البداية (النقطة ذات Vertical tangent أو الأفقي).",
+      "why": "رسم دقيق للمنحنى عند نقطة الانطلاق."
+     }
+    ],
+    "final_answer": "رسوم الدوال الجذرية الثلاثة بناءً على دراسة مجالاتها ونقاط بدايتها.",
+    "verification": "التأكد من توافق إحداثيات نقاط البداية وميل المماسات مع المعادلات المعطاة.",
+    "visual_type": "function_graph",
+    "visual_caption": "تمثيل الدوال الجذرية مع تحديد Domain ونقاط البداية (endpoints) ذات Vertical tangents.",
+    "visual_svg": "<rect x=\"0\" y=\"0\" width=\"760\" height=\"500\" rx=\"18\" fill=\"#061827\"/><line x1=\"129.4\" y1=\"26\" x2=\"129.4\" y2=\"446\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"62\" y1=\"68\" x2=\"736\" y2=\"68\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"196.8\" y1=\"26\" x2=\"196.8\" y2=\"446\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"62\" y1=\"110\" x2=\"736\" y2=\"110\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"264.2\" y1=\"26\" x2=\"264.2\" y2=\"446\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"62\" y1=\"152\" x2=\"736\" y2=\"152\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"331.6\" y1=\"26\" x2=\"331.6\" y2=\"446\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"62\" y1=\"194\" x2=\"736\" y2=\"194\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"399\" y1=\"26\" x2=\"399\" y2=\"446\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"62\" y1=\"236\" x2=\"736\" y2=\"236\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"466.4\" y1=\"26\" x2=\"466.4\" y2=\"446\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"62\" y1=\"278\" x2=\"736\" y2=\"278\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"533.8\" y1=\"26\" x2=\"533.8\" y2=\"446\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"62\" y1=\"320\" x2=\"736\" y2=\"320\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"601.2\" y1=\"26\" x2=\"601.2\" y2=\"446\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"62\" y1=\"362\" x2=\"736\" y2=\"362\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"668.6\" y1=\"26\" x2=\"668.6\" y2=\"446\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"62\" y1=\"404\" x2=\"736\" y2=\"404\" stroke=\"#20425d\" stroke-width=\"1\"/><line x1=\"243.41\" y1=\"26\" x2=\"243.41\" y2=\"446\" stroke=\"#d8efff\" stroke-width=\"1.8\"/><text x=\"250.41\" y=\"43\" fill=\"#f8fbff\" font-size=\"14\">y</text><line x1=\"62\" y1=\"343.65\" x2=\"736\" y2=\"343.65\" stroke=\"#d8efff\" stroke-width=\"1.8\"/><text x=\"732\" y=\"335.65\" fill=\"#f8fbff\" font-size=\"14\">x</text><polyline id=\"card_curve_1\" points=\"450.86,235.06 454.7,228.54 458.55,224.49 462.39,220.85 466.23,217.42 470.07,214.13 473.91,210.93 477.75,207.8 481.6,204.73 485.44,201.71 489.28,198.73 493.12,195.78 496.96,192.86 500.8,189.96 504.65,187.09 508.49,184.24 512.33,181.4 516.17,178.58 520.01,175.78 523.85,172.99 527.69,170.22 531.54,167.45 535.38,164.7 539.22,161.95 543.06,159.22 546.9,156.5 550.74,153.78 554.59,151.07 558.43,148.37 562.27,145.68 566.11,142.99 569.95,140.31 573.79,137.64 577.64,134.97 581.48,132.31 585.32,129.65 589.16,127 593,124.35 596.84,121.7 600.69,119.07 604.53,116.43 608.37,113.8 612.21,111.18 616.05,108.55 619.89,105.94 623.74,103.32 627.58,100.71 631.42,98.1 635.26,95.5 639.1,92.9 642.94,90.3 646.79,87.7 650.63,85.11 654.47,82.52 658.31,79.94\" fill=\"none\" stroke=\"#2de1ff\" stroke-width=\"3.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><circle id=\"card_curve_marker\" cx=\"450.86\" cy=\"235.06\" r=\"6\" fill=\"#ffd76b\" stroke=\"#ffffff\" stroke-width=\"2\"/><polyline id=\"card_curve_2\" points=\"191.55,374.67 200.2,388.5 208.84,391.2 217.48,392.06 226.13,391.98 234.77,391.3 243.41,390.18 252.06,388.74 260.7,387.04 269.34,385.13 277.99,383.04 286.63,380.8 295.28,378.43 303.92,375.95 312.56,373.37 321.21,370.69 329.85,367.93 338.49,365.1 347.14,362.2 355.78,359.24 364.43,356.22 373.07,353.15 381.71,350.02 390.36,346.86 399,343.65 407.64,340.39 416.29,337.1 424.93,333.78 433.57,330.42 442.22,327.03 450.86,323.61 459.51,320.16 468.15,316.68 476.79,313.17 485.44,309.64 494.08,306.09 502.72,302.51 511.37,298.92 520.01,295.3 528.66,291.66 537.3,288 545.94,284.32 554.59,280.62 563.23,276.91 571.87,273.18 580.52,269.43 589.16,265.67 597.8,261.89 606.45,258.1 615.09,254.29 623.74,250.47 632.38,246.64 641.02,242.79 649.67,238.93 658.31,235.06\" fill=\"none\" stroke=\"#55e6a4\" stroke-width=\"3.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><polyline id=\"card_curve_3\" points=\"139.69,328.13 143.53,328.71 147.37,329.29 151.21,329.88 155.06,330.48 158.9,331.08 162.74,331.68 166.58,332.29 170.42,332.91 174.26,333.54 178.11,334.17 181.95,334.81 185.79,335.46 189.63,336.12 193.47,336.78 197.31,337.45 201.16,338.13 205,338.82 208.84,339.52 212.68,340.23 216.52,340.95 220.36,341.68 224.21,342.42 228.05,343.17 231.89,343.93 235.73,344.71 239.57,345.5 243.41,346.31 247.26,347.13 251.1,347.96 254.94,348.82 258.78,349.69 262.62,350.58 266.46,351.49 270.31,352.42 274.15,353.38 277.99,354.36 281.83,355.37 285.67,356.41 289.51,357.48 293.35,358.59 297.2,359.74 301.04,360.93 304.88,362.18 308.72,363.48 312.56,364.85 316.4,366.3 320.25,367.84 324.09,369.5 327.93,371.3 331.77,373.29 335.61,375.56 339.45,378.24 343.3,381.74 347.14,390.18\" fill=\"none\" stroke=\"#c891ff\" stroke-width=\"3.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><circle cx=\"450.86\" cy=\"235.06\" r=\"5\" fill=\"#ffd76b\" stroke=\"#ffffff\" stroke-width=\"2\"/><text x=\"458.86\" y=\"225.06\" fill=\"#f8fbff\" font-size=\"13\">A(4, 7)</text><circle cx=\"191.55\" cy=\"374.67\" r=\"5\" fill=\"#ffd76b\" stroke=\"#ffffff\" stroke-width=\"2\"/><text x=\"199.55\" y=\"364.67\" fill=\"#f8fbff\" font-size=\"13\">B(-1, -2)</text><circle cx=\"347.14\" cy=\"390.18\" r=\"5\" fill=\"#ffd76b\" stroke=\"#ffffff\" stroke-width=\"2\"/><text x=\"355.14\" y=\"380.18\" fill=\"#f8fbff\" font-size=\"13\">C(2, -3)</text><text x=\"62\" y=\"484\" fill=\"#9fb5c9\" font-size=\"12\">x: -3.5 → 9.5</text><text x=\"580\" y=\"484\" fill=\"#9fb5c9\" font-size=\"12\">y: -6.6 → 20.48</text>",
+    "variation_rows": [
+     {
+      "item_no": "1",
+      "expression": "y = 2x - 1 + √(x - 4)",
+      "domain": "[4, +∞[",
+      "derivative_or_method": "y' = 2 + (1)/(2√(x-4)) > 0 دائماً",
+      "variation": "دالة متزايدة تماماً على [4, +∞[",
+      "key_features": "تبدأ النقطة من (4, 7) بVertical tangent",
+      "final_conclusion": "رسم المنحنى المتزايد."
+     },
+     {
+      "item_no": "2",
+      "expression": "y = 2x - 3√(x + 1)",
+      "domain": "[-1, +∞[",
+      "derivative_or_method": "y' = 2 - (3)/(2√(x+1))",
+      "variation": "تنخفض ثم ترتفع بعد النقطة الحرجة",
+      "key_features": "تبدأ من (-1, -2) مع Vertical tangent",
+      "final_conclusion": "رسم المنحنى وتحديد الحد الأدنى."
+     },
+     {
+      "item_no": "3",
+      "expression": "y = -3 + 2√(2 - x)",
+      "domain": "-∞, 2]",
+      "derivative_or_method": "y' = (-2)/(2√(2-x)) = (-1)/(√(2-x)) < 0",
+      "variation": "دالة متناقصة تماماً على المجال",
+      "key_features": "تبدأ من (2, -3) وتتجه نحو اليسار والأعلى",
+      "final_conclusion": "رسم المنحنى المتناقص."
+     }
+    ],
+    "motion": {
+     "path_id": "card_curve_1",
+     "marker_id": "card_curve_marker",
+     "duration_ms": 4500
+    }
+   },
+   {
+    "exercise_id": "G12-MATH-GS-001-EX02",
+    "source_page": 13,
+    "question": "2. Show that f is differentiable at x in D, x != 1, x != 3, and calculate f'(x). Describe the tangents to (C) at the points A(1, 2) and B(3, 4).",
+    "source_basis": "2. Show that f is differentiable at x \\in D, x ≠ 1, x ≠ 3, and calculate f'(x). Describe the tangents to (C) at the points A(1, 2) and B(3, 4).",
+    "idea": "نحدد مجال التحديد D بدراسة إشارة ما تحت الجذر أو المقام، ثم نحسب النهايات عند أطراف المجال لدراسة Horizontal asymptotes، العمودية (Vertical asymptotes)، والمائلة (Oblique asymptotes).",
+    "given": [
+     "1. x ↦ -√(-x^2 + 2x + 3)",
+     "2. x ↦ -√(-x^2 + 2x - 3)",
+     "3. x ↦ 2x - 1 + 2√(2x^2 - 8)",
+     "4. x ↦ -x + 2 - (x)/(√(1 - x))",
+     "5. x ↦ 3x + (1)/(2)(x + 2)/(√(x - 1))",
+     "6. x ↦ 4x - 5 - 3√(2 - x)"
+    ],
+    "steps": [
+     {
+      "work": "دالّة 1: -x^2 + 2x + 3 ≥ 0 \\implies x \\in [-1, 3]. لا توجد نهايات عند ±∞ لأن المجال محدود.",
+      "why": "لتحديد Domain of definition D."
+     },
+     {
+      "work": "دالّة 2: -x^2 + 2x - 3 ≥ 0 \\implies \\Delta = 4 - 12 = -8 < 0. بما أن معامل x^2 سالب، إذن العبارة سالبة دائماً ولا توجد قيمة حقيقية تجعلها أكبر أو تساوي الصفر.",
+      "why": "المجال D مجموعة خالية، لا توجد دالة حقيقية."
+     },
+     {
+      "work": "دالّة 3: 2x^2 - 8 ≥ 0 \\implies x^2 ≥ 4 \\implies x \\in (-∞, -2] \\cup [2, +∞). المقاربان المائلان ينتجان من المعاملات a و c.",
+      "why": "دراسة فروع اللانهاية وOblique asymptotes."
+     }
+    ],
+    "final_answer": "تم تحديد مجالات التحديد D لكل دالة واستنتاج Horizontal asymptotes والعمودية والمائلة حسب الشروط.",
+    "verification": "التحقق من صحة إشارات ما تحت الجذر ومجموعات التعريف والمقاربات بالتفاضل والتنقيط.",
+    "visual_type": "none",
+    "visual_caption": "تمثيل توضيحي لمنحنى دالة جذرية مع Vertical asymptote ومارب مائل.",
+    "visual_svg": "",
+    "variation_rows": [
+     {
+      "item_no": "1",
+      "expression": "f_1(x) = -√(-x^2 + 2x + 3)",
+      "domain": "D = [-1, 3]",
+      "derivative_or_method": "Endpoints at x = -1 and x = 3 with vertical tangents.",
+      "variation": "No asymptotes since Domain is bounded.",
+      "key_features": "Endpoints A(-1, 0) and B(3, 0).",
+      "final_conclusion": "No asymptotes."
+     },
+     {
+      "item_no": "2",
+      "expression": "f_2(x) = -√(-x^2 + 2x - 3)",
+      "domain": "D = \\emptyset",
+      "derivative_or_method": "Discriminant < 0.",
+      "variation": "Not defined in \\mathbb{R}.",
+      "key_features": "None.",
+      "final_conclusion": "Domain is empty."
+     },
+     {
+      "item_no": "3",
+      "expression": "f_3(x) = 2x - 1 + 2√(2x^2 - 8)",
+      "domain": "D = (-∞, -2] \\cup [2, +∞)",
+      "derivative_or_method": "Compute limits at ±∞ using conjugates for oblique asymptotes.",
+      "variation": "Oblique asymptotes as x → ±∞.",
+      "key_features": "y = (2 + 2√(2))x - 1 as x → +∞, and y = (2 - 2√(2))x - 1 as x → -∞.",
+      "final_conclusion": "Two oblique asymptotes."
+     },
+     {
+      "item_no": "4",
+      "expression": "f_4(x) = -x + 2 - (x)/(√(1 - x))",
+      "domain": "D = (-∞, 1)",
+      "derivative_or_method": "Vertical asymptote at x = 1.",
+      "variation": "As x → -∞, Oblique asymptote.",
+      "key_features": "Vertical asymptote x = 1, Asymptote at -∞.",
+      "final_conclusion": "Vertical asymptote x = 1 and asymptotic direction/oblique branch."
+     },
+     {
+      "item_no": "5",
+      "expression": "f_5(x) = 3x + (1)/(2)(x + 2)/(√(x - 1))",
+      "domain": "D = (1, +∞)",
+      "derivative_or_method": "Vertical asymptote at x = 1 (right Limit).",
+      "variation": "As x → +∞, behaves like 3x.",
+      "key_features": "Vertical asymptote x = 1, asymptotic direction y = 3x.",
+      "final_conclusion": "Vertical asymptote x = 1."
+     },
+     {
+      "item_no": "6",
+      "expression": "f_6(x) = 4x - 5 - 3√(2 - x)",
+      "domain": "D = (-∞, 2]",
+      "derivative_or_method": "Endpoint at x = 2.",
+      "variation": "As x → -∞, oblique asymptotic branch.",
+      "key_features": "Endpoint (2, 3), Vertical tangent at x = 2.",
+      "final_conclusion": "Endpoint at x = 2 with Vertical tangent."
+     }
+    ],
+    "motion": {}
+   }
+  ],
+  "reference_status": "SOURCE_GROUNDED_REVIEW_PASS"
+ }
+}

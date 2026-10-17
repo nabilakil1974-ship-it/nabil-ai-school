@@ -66,6 +66,11 @@ def page_html(name: str, title: str, scenes, lang: str, titles=None) -> Path:
     return path
 
 
+def open_tools(pg):
+    if pg.evaluate("document.getElementById('nbTools').hidden"):
+        pg.click('#nbToolsToggle')
+
+
 def new_page(browser, path: Path, w=1280, h=760, fast=False, stub=True, mobile=False):
     ctx = browser.new_context(viewport={"width": w, "height": h}, is_mobile=mobile, has_touch=mobile,
                               device_scale_factor=2 if mobile else 1)
@@ -204,6 +209,7 @@ def run_browser(browser) -> None:
     pg = new_page(browser, mixed, fast=False)
     pg.evaluate("window.__marker='same-page'")
     pg.click("#nbStart")
+    open_tools(pg)
     pg.select_option("#nbSpeed", "1.25")
     pg.wait_for_function("document.querySelectorAll('#nbInk *').length>0", timeout=60000)
     first_text = pg.evaluate("document.querySelector('#nbWriting .nb-step').textContent")
@@ -247,6 +253,7 @@ def run_browser(browser) -> None:
     pg = new_page(browser, powers_single)
     pg.click("#nbStart")
     pg.wait_for_function("document.querySelectorAll('#nbWriting .nb-step span').length>1", timeout=15000)
+    open_tools(pg)
     pg.click("#nbLost")
     time.sleep(0.3)
     p_state = state(pg)
@@ -309,12 +316,14 @@ def run_browser(browser) -> None:
            "Given" in labels and "Rule" in labels and "Substitution" in labels, str(labels))
     record("how-to hint words appear (substitute / add exponents)",
            any("Substitute" in h for h in hints) and any("add the exponents" in h for h in hints), str(hints))
+    open_tools(pg)
     pg.select_option("#nbExercise", index=3)
     pg.wait_for_function("NABILWholeLessonOrchestrator.state().index===2", timeout=10000)
     pg.wait_for_function("document.getElementById('nbWriting').innerText.includes('not available yet')", timeout=60000)
     unsolved = pg.inner_text("#nbWriting")
     record("choosing exercise 3 from the dropdown jumps to it; missing solution is stated, not invented",
            "not available yet" in unsolved, unsolved[:80])
+    open_tools(pg)
     pg.select_option("#nbExercise", index=2)
     pg.wait_for_function("NABILWholeLessonOrchestrator.state().index===1", timeout=10000)
     record("dropdown jumps to exercise 2 without reload", state(pg)["index"] == 1 and not pg.errors, str(pg.errors[:2]))
@@ -335,6 +344,7 @@ def run_browser(browser) -> None:
     pa = page_html("ar_read", "Arabic", ar_sc, "en")
     pg = new_page(browser, pa)
     pg.click("#nbStart")
+    open_tools(pg)
     pg.click("#nbArVoice")
     pressed = pg.get_attribute("#nbArVoice", "aria-pressed")
     pg.wait_for_selector(".nb-ar", timeout=60000)
@@ -357,12 +367,15 @@ def run_browser(browser) -> None:
     plan_page.write_text('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0">'
                          + render_v18_smart_board("Powers", acts, "en", golden_spec=spec) + "</body></html>", encoding="utf-8")
     pg = new_page(browser, plan_page)
-    btn_txt = pg.evaluate("document.querySelector('#nbOpen [data-nb-plan]').textContent")
-    record("lesson-plan button on the opening screen with the trilingual label",
-           btn_txt == "📄 تحضير الدرس | Lesson Plan | Fiche de préparation", btn_txt)
+    no_plan_in_front = pg.evaluate("!document.querySelector('#nbOpen [data-nb-plan]') && !document.querySelector('.nb-head [data-nb-plan]')")
+    record("lesson-plan button is NOT in front of the student (opening screen / header)", no_plan_in_front)
     pg.click("#nbStart")
-    pg.wait_for_selector("#nbStage [data-nb-plan]")
-    pg.click("#nbStage [data-nb-plan]")
+    pg.wait_for_selector("#nbStage #nbTools", state="attached")
+    btn_txt = pg.evaluate("document.querySelector('#nbTools [data-nb-plan]').textContent")
+    record("lesson-plan button lives in the collapsible tools bar with the trilingual label",
+           btn_txt == "📄 تحضير الدرس | Lesson Plan | Fiche de préparation", btn_txt)
+    open_tools(pg)
+    pg.click("#nbTools [data-nb-plan]")
     paused_on_open = state(pg)["paused"]
     pg.select_option("#nbPlanLang", "ar")
     info = pg.evaluate("""() => { const d=document.getElementById('nbPlanDoc'); const t=[...d.querySelectorAll('table')];
@@ -385,7 +398,8 @@ def run_browser(browser) -> None:
            two["n"] == 2 and two["sums"] == [90, 90], str(two))
     pg.evaluate("document.getElementById('nbPlanDoc').insertAdjacentHTML('afterbegin','<p id=\"mine\">ملاحظة الأستاذ</p>'); document.getElementById('nbPlanDoc').dispatchEvent(new Event('input'))")
     time.sleep(0.6)
-    pg.click("#nbPlanClose"); pg.click("#nbStage [data-nb-plan]")
+    pg.click("#nbPlanClose"); open_tools(pg)
+    pg.click("#nbTools [data-nb-plan]")
     again = pg.evaluate("({cached: window.__nbPlanState.fromCache, mine: !!document.getElementById('mine'), key: window.__nbPlanState.key})")
     record("plan is generated once per lesson+language and reused from the saved copy (edits kept)",
            again["cached"] and again["mine"], str(again))

@@ -54,6 +54,8 @@ RUN python -m scripts.validate_nabil_ui \
     && python -m scripts.test_v18_calm_playback \
     && python -m scripts.test_v18_question_flow \
     && python -m scripts.test_golden_v6_board \
+    && python -m scripts.test_golden_v6_bridge \
+    && python -m scripts.test_exercise_solver \
     && python -m scripts.test_pedagogical_gate \
     && python -m scripts.test_v18_math_render \
     && python -m scripts.test_power_lab \

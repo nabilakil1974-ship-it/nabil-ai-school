@@ -36,7 +36,7 @@ UI_ALL: Dict[str, Dict[str, str]] = {
            "voice_hint": "الصوت إنجليزي. فعّله بنقرة إن منعه المتصفح.", "enable_voice": "فعّل الصوت",
            "novoice": "لا يوجد صوت إنجليزي مثبّت على هذا الجهاز؛ يستمر الشرح مكتوبًا.",
            "ar_voice": "🔈 اقرأ بالعربية أيضًا", "ar_voice_on": "🔊 القراءة بالعربية مفعّلة", "exercise": "التمرين",
-           "pick_exercise": "اختر التمرين", "no_solution": "حلّ هذا التمرين غير متوفر بعد.", "ar_missing": "الترجمة العربية غير متوفرة لهذه الخطوة."},
+           "pick_exercise": "اختر التمرين", "tools": "⚙ أدوات", "repeat_step": "↻ كرّر الخطوة", "back_to_lesson": "↩ العودة إلى الدرس", "solve_done": "✓ اكتمل الحل. يمكنك تكرار خطوة أو العودة إلى الدرس.", "no_solution": "حلّ هذا التمرين غير متوفر بعد.", "ar_missing": "الترجمة العربية غير متوفرة لهذه الخطوة."},
     "fr": {"play": "▶ Démarrer", "pause": "⏸ Pause", "resume": "▶ Reprendre", "prev": "Précédent",
            "next": "Suivant", "replay": "↻ Rejouer", "voice_on": "🔊 Voix activée", "voice_off": "🔇 Activer la voix",
            "lost": "Je n'ai pas compris", "understood": "J'ai compris, continuer ici", "repeat_scene": "Répéter cette idée",
@@ -46,7 +46,7 @@ UI_ALL: Dict[str, Dict[str, str]] = {
            "voice_hint": "La voix est en anglais. Active-la d'un clic si le navigateur la bloque.", "enable_voice": "Activer la voix",
            "novoice": "Aucune voix anglaise installée sur cet appareil ; l'explication continue par écrit.",
            "ar_voice": "🔈 Lire aussi en arabe", "ar_voice_on": "🔊 Lecture arabe activée", "exercise": "Exercice",
-           "pick_exercise": "Choisir l'exercice", "no_solution": "La solution de cet exercice n'est pas encore disponible.", "ar_missing": "Traduction arabe indisponible pour cette étape."},
+           "pick_exercise": "Choisir l'exercice", "tools": "⚙ Outils", "repeat_step": "↻ Répéter l'étape", "back_to_lesson": "↩ Retour à la leçon", "solve_done": "✓ Solution terminée. Tu peux répéter une étape ou revenir à la leçon.", "no_solution": "La solution de cet exercice n'est pas encore disponible.", "ar_missing": "Traduction arabe indisponible pour cette étape."},
     "en": {"play": "▶ Start", "pause": "⏸ Pause", "resume": "▶ Resume", "prev": "Previous", "next": "Next",
            "replay": "↻ Replay", "voice_on": "🔊 Voice on", "voice_off": "🔇 Enable voice",
            "lost": "I did not understand", "understood": "I understand, continue here", "repeat_scene": "Repeat this idea",
@@ -56,7 +56,7 @@ UI_ALL: Dict[str, Dict[str, str]] = {
            "voice_hint": "Voice is English. Tap to enable it if the browser blocked it.", "enable_voice": "Enable voice",
            "novoice": "No English voice is installed on this device; the explanation continues in writing.",
            "ar_voice": "🔈 Also read in Arabic", "ar_voice_on": "🔊 Arabic reading on", "exercise": "Exercise",
-           "pick_exercise": "Choose exercise", "no_solution": "The solution for this exercise is not available yet.", "ar_missing": "No Arabic translation for this step."},
+           "pick_exercise": "Choose exercise", "tools": "⚙ Tools", "repeat_step": "↻ Repeat step", "back_to_lesson": "↩ Back to the lesson", "solve_done": "✓ Solution finished. You can repeat a step or go back to the lesson.", "no_solution": "The solution for this exercise is not available yet.", "ar_missing": "No Arabic translation for this step."},
 }
 
 # ----------------------------------------------------------------- terminology
@@ -321,6 +321,8 @@ def render_golden_v6_board(title: str, scenes: List[dict], lang_code: str,
                       for i, sc in enumerate(scenes) if sc.get("exercise")], "default_speed": DEFAULT_SPEED,
         "ui_all": UI_ALL, "golden": dict(golden_spec, avatar_src=""),
         "avatar_base64": _read("nabil_avatar_b64.txt").strip(),
+        "meta": {k: str(v)[:(400 if k == "status_text" else 80)] for k, v in (meta or {}).items()
+                 if k in ("lesson_id", "grade", "subject", "language", "completeness", "status_text")},
     }
     from scripts.nabil_factory.cards.lesson_plan import build_plan_data
     data["plan"] = build_plan_data(title, scenes, golden_spec, mode, meta)
@@ -341,14 +343,14 @@ def render_golden_v6_board(title: str, scenes: List[dict], lang_code: str,
  <div class="nb-brand" dir="rtl">منصة الأستاذ النبيل</div>
  <div class="nb-title-en" dir="ltr" id="nbOpenTitleEn">{t_en}</div>
  {f'<div class="nb-title-fr" dir="ltr" id="nbOpenTitleFr">{t_fr}</div>' if t_fr and t_fr != t_en else ''}
- <button type="button" class="nb-planbtn" data-nb-plan="open">📄 تحضير الدرس | Lesson Plan | Fiche de préparation</button>
  <button type="button" class="nb-start" id="nbStart" data-nb-l="start">{h(ui["start"])}</button>
  <div class="nb-hint" data-nb-l="voice_hint">{h(ui["voice_hint"])}</div>
 </div>
 <div class="nb-stage" id="nbStage">
  <div class="nb-head"><h2 id="nbHeadTitle"></h2><span class="nb-prog" id="nbProg"></span>
-  <span><button type="button" class="nb-planbtn" data-nb-plan="open">📄 تحضير الدرس | Lesson Plan | Fiche de préparation</button><button type="button" id="nbFullscreen" data-nb-l="fullscreen" class="nb-hbtn">{h(ui["fullscreen"])}</button>
+  <span><button type="button" id="nbSolveBtn" class="nb-solvebtn" aria-haspopup="dialog">🧮 حل التمارين | Solve Exercise</button><button type="button" id="nbFullscreen" data-nb-l="fullscreen" class="nb-hbtn">{h(ui["fullscreen"])}</button>
   <button type="button" id="nbExit" data-nb-l="exit" class="nb-hbtn">{h(ui["exit"])}</button></span></div>
+ <div class="nb-badge" id="nbBadge" role="note" hidden></div>
  <div class="nb-voice-note" id="nbVoiceNote"><span>{h(ui["voice_hint"])}</span><button type="button" data-nb-l="enable_voice">{h(ui["enable_voice"])}</button></div>
  <section class="nb-workspace" id="nbWorkspace" data-board-mode="single">
   <aside class="nb-diagram" id="nbDiagram"><svg id="nbBoard" viewBox="170 105 610 540" preserveAspectRatio="xMidYMid meet"><g id="nbInk"></g></svg></aside>
@@ -361,12 +363,18 @@ def render_golden_v6_board(title: str, scenes: List[dict], lang_code: str,
   <button type="button" id="nabilWholeNext" data-nb-l="next">{h(ui["next"])}</button>
   <button type="button" id="nabilWholeRestart" data-nb-l="replay">{h(ui["replay"])}</button>
   <button type="button" id="nabilWholeVoice" class="voice" data-nb-l="voice_on" aria-pressed="true">{h(ui["voice_on"])}</button>
+  <button type="button" id="nbRepeatStep" class="nb-solve-only" data-nb-l="repeat_step">{h(ui["repeat_step"])}</button>
+  <button type="button" id="nbBackToLesson" class="nb-solve-only" data-nb-l="back_to_lesson">{h(ui["back_to_lesson"])}</button>
+  <button type="button" id="nbToolsToggle" aria-expanded="false" aria-controls="nbTools" data-nb-l="tools">{h(ui["tools"])}</button>
+  <span class="nb-status" id="nbStatus"></span>
+ </nav>
+ <div class="nb-ctl nb-tools" id="nbTools" hidden>
   <select id="nbSpeed" aria-label="speed"><option value="0.5">0.5×</option><option value="0.7" selected>0.7×</option><option value="1">1×</option><option value="1.25">1.25×</option></select>
   <button type="button" id="nbArVoice" data-nb-l="ar_voice" aria-pressed="false">{h(ui["ar_voice"])}</button>
   {('<label class="nb-exlab"><span data-nb-l="exercise">' + h(ui["exercise"]) + '</span> <select id="nbExercise" aria-label="' + h(ui["pick_exercise"]) + '"><option value="" disabled selected>' + h(ui["pick_exercise"]) + '</option>' + ''.join('<option value="' + str(e["scene"]) + '">' + h(str(e["n"])) + ('' if e["solved"] else ' …') + '</option>' for e in data["exercises"]) + '</select></label>') if data["exercises"] else ''}
   <button type="button" class="nb-lost-btn" id="nbLost" data-nb-l="lost">{h(ui["lost"])}</button>
-  <span class="nb-status" id="nbStatus"></span>
- </nav>
+  <button type="button" class="nb-planbtn" data-nb-plan="open">📄 تحضير الدرس | Lesson Plan | Fiche de préparation</button>
+ </div>
 </div>
 <div class="nb-modal" id="nbPlanModal" hidden role="dialog" aria-modal="true" aria-label="Lesson plan">
  <div class="nb-modal-box">
@@ -402,4 +410,5 @@ def render_golden_v6_board(title: str, scenes: List[dict], lang_code: str,
 </script>
 <script data-nabil-no-translate="1">{_read("golden_v6_engine.js")}</script>
 <script data-nabil-no-translate="1">{_read("golden_v6_plan.js")}</script>
+<script data-nabil-no-translate="1">{_read("golden_v6_solver.js")}</script>
 </section>'''

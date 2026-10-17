@@ -18,8 +18,9 @@ const tr=s=>{s=String(s||'');try{return PL()&&PL().translateText?PL().translateT
 const U=()=>(DATA.ui_all&&DATA.ui_all[cur()])||{};
 const FAST=!!window.NABIL_V18_FAST;
 const NS='http://www.w3.org/2000/svg';
-const SCENES=DATA.scenes||[];
-const FINAL=SCENES.length;
+let SCENES=DATA.scenes||[];
+let FINAL=SCENES.length;
+let INTER=null,saved=null,marks=[];
 const stageEl=$('nbStage'),workspace=$('nbWorkspace'),writing=$('nbWriting'),
   ink=$('nbInk'),svg=$('nbBoard'),statusEl=$('nbStatus'),headTitle=$('nbHeadTitle'),
   progEl=$('nbProg'),hand=$('teacherHand'),voiceNote=$('nbVoiceNote'),golden=$('nbGolden');
@@ -142,7 +143,9 @@ function arTextOf(step){
   if(step.ar)return step.ar;
   if(cur()==='ar')return tr(step.text);
   try{const t=PL()&&PL().translateText?PL().translateText(String(step.text||''),'ar'):'';return(t&&t!==step.text&&/[\u0600-\u06FF]/.test(t))?t:''}catch(e){return ''}}
-function speakText(text,id,ar){
+function speakFr(t){return String(t||'').replace(/\^\{\s*(-?[^{}]+)\s*\}/g,' puissance $1 ').replace(/×/g,' fois ').replace(/÷/g,' divisé par ').replace(/−/g,' moins ').replace(/=/g,' égale ').replace(/\s+/g,' ').trim()}
+function voiceLang(l){const vs=(window.speechSynthesis&&speechSynthesis.getVoices())||[];return vs.find(v=>new RegExp('^'+l,'i').test(v.lang))||null}
+function speakText(text,id,ar,sl){
   lastText=text;lastAr=ar||'';
   const enOk=!!(voice&&text),arOk=!!(arOn&&ar);
   if(FAST||!('speechSynthesis' in window)||(!enOk&&!arOk))return null;
@@ -153,7 +156,8 @@ function speakText(text,id,ar){
       u.onstart=()=>{h.started=true;speaking=true;voiceNote.classList.remove('on')};
       u.onend=u.onerror=()=>{h.pending--;if(h.pending<=0){h.done=true;speaking=false}};
       speechSynthesis.speak(u)};
-    if(enOk){const u=new SpeechSynthesisUtterance(speakable(text));u.lang='en-US';u.rate=rate();const v=enVoice();if(v)u.voice=v;add(u)}
+    if(enOk&&(sl==='ar'||sl==='fr')){const u=new SpeechSynthesisUtterance(sl==='ar'?speakableAr(text):speakFr(text));u.lang=sl==='ar'?'ar-SA':'fr-FR';u.rate=rate();const v=voiceLang(sl);if(v)u.voice=v;add(u)}
+    else if(enOk){const u=new SpeechSynthesisUtterance(speakable(text));u.lang='en-US';u.rate=rate();const v=enVoice();if(v)u.voice=v;add(u)}
     if(arOk){const u=new SpeechSynthesisUtterance(speakableAr(ar));u.lang='ar-SA';u.rate=rate();const v=arVoiceObj();if(v)u.voice=v;add(u)}
     setTimeout(()=>{if(!h.started&&!h.done&&id===run&&!paused){showVoiceNote()}},1600);
     return h}
@@ -201,7 +205,7 @@ async function writeStep(step,id){
   node.scrollIntoView({block:'nearest',behavior:FAST?'auto':'smooth'});
   const text=formula?step.text:tr(step.text);
   const ar=arOn?arTextOf(step):'';
-  const h=formula?null:speakText(step.speech,id,ar);
+  const h=formula?null:speakText(step.speech,id,ar,step.speech_lang);
   if(!FAST){placeHandAtNode(node,rtl);if(!await wait(300,id))return false}
   if(!await reveal(node,unitsOf(text,rtl,formula),rtl,formula,id))return false;
   if(arOn&&!formula&&cur()!=='ar'){
@@ -279,11 +283,83 @@ async function powerFactors(id,a){
     if(i<n-1&&col<per-1)el('text',{x:x+bw+gap/2,y:y+60,'font-size':34,fill:'#263b50','font-weight':'bold','text-anchor':'middle'},'×');
     if(!await wait(120,id))return}
   if(a.value!=null)label('= '+a.value,x0,Math.min(600,250+Math.ceil(n/per)*150+30),'#16724a')}
-const DRAW={cubeOutline,cubeColor,cubeRotate,cubeUnfold,powerFactors};
+/* Generic figure: points in maths coordinates (y up) are scaled to the board and drawn
+   segment by segment with the pen. Used by the exercise solver for geometry figures. */
+async function figure(id,a){
+  const pts=a.points||{},names=Object.keys(pts).filter(n=>Array.isArray(pts[n])&&pts[n].every(Number.isFinite));
+  if(!names.length)return;
+  let minx=Math.min(...names.map(n=>pts[n][0])),maxx=Math.max(...names.map(n=>pts[n][0])),
+      miny=Math.min(...names.map(n=>pts[n][1])),maxy=Math.max(...names.map(n=>pts[n][1]));
+  const circles=(a.circles||[]).filter(c=>pts[c.center]&&Number.isFinite(c.r)&&c.r>0);
+  circles.forEach(c=>{const p=pts[c.center];minx=Math.min(minx,p[0]-c.r);maxx=Math.max(maxx,p[0]+c.r);miny=Math.min(miny,p[1]-c.r);maxy=Math.max(maxy,p[1]+c.r)});
+  const sx=(maxx-minx)||1,sy=(maxy-miny)||1,k=Math.min(430/sx,360/sy);
+  const X=x=>250+(430-sx*k)/2+(x-minx)*k,Y=y=>190+(360-sy*k)/2+(maxy-y)*k;
+  const P=n=>[X(pts[n][0]),Y(pts[n][1])];
+  const cx=names.reduce((t,n)=>t+X(pts[n][0]),0)/names.length,cy=names.reduce((t,n)=>t+Y(pts[n][1]),0)/names.length;
+  for(const seg of a.segments||[]){
+    if(!pts[seg[0]]||!pts[seg[1]])continue;
+    const [x1,y1]=P(seg[0]),[x2,y2]=P(seg[1]);
+    if(!await drawLine(x1,y1,x2,y2,seg[3]==='dash'?'#8ba5b6':'#156fa9',id,seg[3]==='dash'?'8 7':''))return;
+    if(seg[2])el('text',{x:(x1+x2)/2+8,y:(y1+y2)/2-8,'font-size':24,fill:'#b42350','font-weight':'bold'},String(seg[2]).slice(0,24))}
+  for(const c of circles){
+    const [x,y]=P(c.center),r=c.r*k,e=el('circle',{cx:x,cy:y,r,fill:'none',stroke:'#156fa9','stroke-width':4}),len=2*Math.PI*r,n=FAST?1:36;
+    e.setAttribute('stroke-dasharray',len);
+    for(let i=0;i<=n;i++){if(id!==run)return;e.setAttribute('stroke-dashoffset',len*(1-i/n));svgPoint(x+r*Math.cos(i/n*6.283),y+r*Math.sin(i/n*6.283));if(!await wait(24,id))return}
+    e.removeAttribute('stroke-dasharray')}
+  for(const m of a.marks||[]){
+    if(m.type==='right_angle'&&pts[m.at]&&m.between&&pts[m.between[0]]&&pts[m.between[1]]){
+      const [x,y]=P(m.at),u=P(m.between[0]),v=P(m.between[1]);
+      const nu=Math.hypot(u[0]-x,u[1]-y)||1,nv=Math.hypot(v[0]-x,v[1]-y)||1,d=18;
+      const a1=[x+(u[0]-x)/nu*d,y+(u[1]-y)/nu*d],a2=[x+(v[0]-x)/nv*d,y+(v[1]-y)/nv*d],a3=[a1[0]+a2[0]-x,a1[1]+a2[1]-y];
+      el('path',{d:'M'+a1+' L'+a3+' L'+a2,fill:'none',stroke:'#b42350','stroke-width':3})}}
+  for(const n of names){
+    const [x,y]=P(n),dx=x-cx,dy=y-cy,dn=Math.hypot(dx,dy)||1;
+    el('circle',{cx:x,cy:y,r:4.5,fill:'#263b50'});
+    el('text',{x:x+dx/dn*26-8,y:y+dy/dn*26+8,'font-size':28,fill:'#263b50','font-weight':'bold'},(a.labels&&a.labels[n])||n);
+    if(!FAST&&!await wait(80,id))return}}
+/* A pre-drawn SVG scene (original lab drawings): elements are allow-listed, then revealed by id with the pen. */
+const SVG_OK=new Set(['g','line','polyline','polygon','path','circle','ellipse','rect','text','tspan','defs','marker']);
+function cleanSvg(node){
+  [...node.children].forEach(c=>{
+    if(!SVG_OK.has(c.localName)){c.remove();return}
+    [...c.attributes].forEach(at=>{if(/^on/i.test(at.name)||/javascript:/i.test(at.value))c.removeAttribute(at.name)});
+    cleanSvg(c)})}
+let sceneG=null,sceneK=1,sceneOff=[0,0];
+async function svgScene(id,a){
+  if(a.svg){
+    ink.replaceChildren();
+    const doc=new DOMParser().parseFromString('<svg xmlns="'+NS+'">'+a.svg+'</svg>','image/svg+xml');
+    if(doc.querySelector('parsererror'))return;
+    cleanSvg(doc.documentElement);
+    const vw=(a.vb&&a.vb[0])||660,vh=(a.vb&&a.vb[1])||440;
+    sceneK=Math.min(610/vw,540/vh);sceneOff=[170+(610-vw*sceneK)/2,105+(540-vh*sceneK)/2];
+    sceneG=document.createElementNS(NS,'g');
+    sceneG.setAttribute('transform','translate('+sceneOff[0]+' '+sceneOff[1]+') scale('+sceneK+')');
+    [...doc.documentElement.children].forEach(c=>{const n=document.importNode(c,true);n.style.opacity='0';sceneG.appendChild(n)});
+    ink.appendChild(sceneG)}
+  if(!sceneG)return;
+  for(const sid of a.show||[]){
+    const n=sceneG.querySelector('[id="'+String(sid).replace(/"/g,'')+'"]');
+    if(!n||n.style.opacity==='1')continue;
+    let bb=null;try{bb=n.getBBox()}catch(e){}
+    if(bb)svgPoint(sceneOff[0]+sceneK*(bb.x+bb.width/2),sceneOff[1]+sceneK*(bb.y+bb.height/2));
+    const geo=typeof n.getTotalLength==='function'&&!FAST?n:null;let len=0;
+    try{len=geo?geo.getTotalLength():0}catch(e){len=0}
+    n.style.opacity='1';
+    if(len>0&&len<5000){
+      n.style.strokeDasharray=len;const steps=24;
+      for(let i=0;i<=steps;i++){
+        if(id!==run)return;n.style.strokeDashoffset=String(len*(1-i/steps));
+        try{const q=n.getPointAtLength(len*i/steps);svgPoint(sceneOff[0]+sceneK*q.x,sceneOff[1]+sceneK*q.y)}catch(e){}
+        if(!await wait(22,id))return}
+      n.style.strokeDasharray='';n.style.strokeDashoffset=''}
+    else if(!await wait(FAST?0:260,id))return}}
+const CLEARING=new Set(['cubeOutline','cubeRotate','cubeUnfold','powerFactors','figure']);
+const DRAW={cubeOutline,cubeColor,cubeRotate,cubeUnfold,powerFactors,figure,svgScene};
 async function doDraw(step,id){
   const fn=DRAW[step.draw];
   if(!fn)return true;
-  if(step.clear!==false&&(step.draw==='cubeOutline'||step.draw==='cubeRotate'||step.draw==='cubeUnfold'||step.draw==='powerFactors'))ink.replaceChildren();
+  if(step.clear!==false&&CLEARING.has(step.draw))ink.replaceChildren();
   await fn(id,step.args||{});return id===run}
 
 /* ---------- student checks and «I did not understand» ---------- */
@@ -322,27 +398,69 @@ function relabel(){
 function setStatus(){
   progEl.textContent=index<FINAL?((index+1)+' / '+FINAL):'✓';
   statusEl.textContent=paused?(U().paused||'Paused'):(U().playing||'')}
-async function playScene(){
+async function playScene(startStep){
+  startStep=startStep|0;
   const id=++run;paused=false;studentWait=false;finished=false;golden.classList.remove('on');workspace.style.display='';
-  ink.replaceChildren();clearWriting();hideHand();stopSpeech();
-  if(index>=FINAL){showFinal();return}
+  if(INTER&&index>=FINAL){hideHand();stopSpeech();showInterludeEnd();return}   /* keep the finished solution on the board */
+  if(!startStep){ink.replaceChildren();clearWriting();marks=[]}
+  hideHand();stopSpeech();
+  if(index>=FINAL){if(INTER){showInterludeEnd();return}showFinal();return}
   relabel();
   const sc=SCENES[index];
-  if(exSel)exSel.value=sc.exercise?String(index):'';
+  if(exSel&&!INTER)exSel.value=sc.exercise?String(index):'';
   headTitle.textContent=tr(sc.title||DATA.title);setStatus();playBtn.textContent=U().pause||'⏸';
   setBoardMode(sc.start_mode||'single');
-  curStepNo=0;
-  for(const step of sc.steps){
+  curStepNo=startStep;
+  for(let si=startStep;si<sc.steps.length;si++){
+    const step=sc.steps[si];
     if(id!==run)return;
-    curStepNo++;
+    marks[si]=writing.childNodes.length;
+    curStepNo=si+1;
     if(step.t==='text'||step.t==='formula'){if(!await writeStep(step,id))return}
     else if(step.t==='draw'){setBoardMode('dual',{preserveState:true});await new Promise(r=>requestAnimationFrame(r));if(!await doDraw(step,id))return}
     else if(step.t==='mode'){setBoardMode(step.mode,{preserveState:true})}
     else if(step.t==='check'&&step.check){if(!await showCheck(step.check,id))return}
     if(!await wait(300,id))return}
   hideHand();
-  if(!await wait(FAST?0:1800,id))return;
+  if(!await wait(FAST?0:(INTER?600:1800),id))return;
   if(id===run){index++;playScene()}}
+/* ---------- interlude: run another set of scenes (a solved exercise) on this same board ---------- */
+function showInterludeEnd(){
+  index=FINAL;finished=true;hideHand();stopSpeech();playBtn.textContent=U().play||'▶';paused=true;
+  const box=document.createElement('div');box.className='nb-check';box.id='nbSolveDone';
+  const p=document.createElement('p');p.dir=cur()==='ar'?'rtl':'ltr';p.textContent=U().solve_done||'✓';
+  const back=document.createElement('button');back.type='button';back.textContent=U().back_to_lesson||'Back to the lesson';back.onclick=leaveInterlude;
+  const again=document.createElement('button');again.type='button';again.textContent=U().replay||'Replay';again.onclick=()=>{finished=false;goTo(0)};
+  box.append(p,back,document.createTextNode(' '),again);writing.appendChild(box);box.scrollIntoView({block:'nearest'});setStatus()}
+function enterInterlude(scenes,opts){
+  if(!Array.isArray(scenes)||!scenes.length)return false;
+  if(!INTER){
+    const wf=document.createDocumentFragment(),inkf=document.createDocumentFragment();
+    if(started&&!finished){while(writing.firstChild)wf.appendChild(writing.firstChild);while(ink.firstChild)inkf.appendChild(ink.firstChild)}
+    saved={SC:SCENES,FIN:FINAL,index,started,finished,wf,inkf,step:curStepNo,marks:marks.slice(),mode:boardMode,title:headTitle.textContent}}
+  run++;stopSpeech();hideHand();
+  INTER=opts||{};SCENES=scenes;FINAL=scenes.length;
+  started=true;paused=false;finished=false;root.classList.add('nb-active','nb-solving');root.classList.remove('is-final');
+  golden.classList.remove('on');workspace.style.display='';ink.replaceChildren();clearWriting();marks=[];
+  index=0;playScene();return true}
+function leaveInterlude(){
+  if(!INTER||!saved)return;
+  const s=saved;INTER=null;saved=null;run++;stopSpeech();hideHand();
+  SCENES=s.SC;FINAL=s.FIN;root.classList.remove('nb-solving');golden.classList.remove('on');workspace.style.display='';
+  if(!s.started){started=false;finished=false;root.classList.remove('nb-active');clearWriting();ink.replaceChildren();return}
+  index=s.index;
+  if(s.finished){root.classList.remove('is-final');showFinal();return}
+  clearWriting();ink.replaceChildren();writing.appendChild(s.wf);ink.appendChild(s.inkf);marks=s.marks;
+  setBoardMode(s.mode,{preserveState:true});
+  const k=Math.max(0,s.step-1);
+  while(writing.childNodes.length>(marks[k]!==undefined?marks[k]:writing.childNodes.length))writing.lastChild.remove();
+  headTitle.textContent=s.title;paused=false;playScene(k)}
+function repeatStep(){
+  if(!started)return;
+  const k=Math.max(0,curStepNo-1);
+  run++;stopSpeech();hideHand();finished=false;
+  while(writing.childNodes.length>(marks[k]!==undefined?marks[k]:writing.childNodes.length))writing.lastChild.remove();
+  paused=false;playScene(k)}
 function showFinal(){
   index=FINAL;finished=true;root.classList.add('is-final');hideHand();stopSpeech();setBoardMode('single');
   headTitle.textContent=DATA.title;progEl.textContent='✓';
@@ -389,15 +507,22 @@ fsBtn.onclick=()=>{try{if(document.fullscreenElement)document.exitFullscreen();e
 exitBtn.onclick=()=>{stop();started=false;root.classList.remove('nb-active');try{document.fullscreenElement&&document.exitFullscreen()}catch(e){}};
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&started&&!paused)pause()});
 
+{const bd=$('nbBadge'),st=DATA.meta&&DATA.meta.status_text;if(bd&&st){bd.textContent='⚠ '+st;bd.hidden=false;bd.dir=LANG==='ar'?'rtl':'ltr'}}
+const toolsBtn=$('nbToolsToggle'),toolsBar=$('nbTools'),repBtn=$('nbRepeatStep'),backBtn=$('nbBackToLesson');
+if(toolsBtn&&toolsBar)toolsBtn.onclick=()=>{const open=toolsBar.hidden;toolsBar.hidden=!open;toolsBtn.setAttribute('aria-expanded',String(open))};
+if(repBtn)repBtn.onclick=repeatStep;
+if(backBtn)backBtn.onclick=leaveInterlude;
 window.NABILWholeLessonOrchestrator={
+  enterInterlude,leaveInterlude,repeatStep,inInterlude:()=>!!INTER,
   play(){if(!started)begin();else if(paused)resume();else if(finished)goTo(0)},
   pause,resume,stop,
   current(){return SCENES[index]||null},
+  sceneAt(i){return(saved?saved.SC:SCENES)[i]||null},
   goTo,next(){goTo(Math.min(FINAL,index+1))},prev(){goTo(Math.max(0,index-1))},
   setBoardMode,
   modeLog:()=>modeLog.slice(),
   state(){return{index,paused,started,final:finished,boardMode,voice,speed,speaking,scenes:FINAL,studentWait,
     handVisible:hand.classList.contains('is-visible')}},
   finalIndex:FINAL};
-window.NABILGoldenV6={version:'V6',boardMode:()=>boardMode,setBoardMode,cur,tr};
+window.NABILGoldenV6={version:'V6',context:()=>({lang:LANG,title:DATA.title,exercises:(DATA.exercises||[]).map(e=>({n:e.n,scene:e.scene,solved:e.solved})),meta:DATA.meta||{}}),boardMode:()=>boardMode,setBoardMode,cur,tr};
 })();

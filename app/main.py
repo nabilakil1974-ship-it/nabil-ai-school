@@ -347,6 +347,8 @@ app.include_router(
     tags=["chat"],
 )
 
+from app.api import routes_solver
+app.include_router(routes_solver.router, prefix="/api")
 app.include_router(routes_research.router, prefix="/api")
 app.include_router(routes_worksheet.router, prefix="/api")
 app.include_router(routes_interactive_lessons.router, prefix="/api")

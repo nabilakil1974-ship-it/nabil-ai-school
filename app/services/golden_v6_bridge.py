@@ -7,7 +7,9 @@ the artifact. Any failure returns None so the caller can fall back to the older 
 from __future__ import annotations
 
 import html
+import json
 import re
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 _ARABIC = re.compile(r"[؀-ۿ]")
@@ -107,34 +109,171 @@ def parse_golden_text(text: str, lang: str) -> Dict[str, Any]:
     return {"scenes": scenes, "summary": summary}
 
 
+MASTER_DIR = Path(__file__).resolve().parents[2] / "data" / "golden_masters"
+
+_KIND = {
+    "ask": {"ar": "فكّر", "en": "Think", "fr": "Réfléchis"},
+    "notice": {"ar": "لاحظ", "en": "Notice", "fr": "Observe"},
+    "explain": {"ar": "اشرح", "en": "Explain", "fr": "Explique"},
+    "why": {"ar": "لماذا؟", "en": "Why?", "fr": "Pourquoi ?"},
+    "worked": {"ar": "مثال محلول", "en": "Worked example", "fr": "Exemple résolu"},
+    "live": {"ar": "قراءة حية", "en": "Live reading", "fr": "Lecture en direct"},
+    "your_turn": {"ar": "دورك", "en": "Your turn", "fr": "À toi"},
+    "check": {"ar": "تحقّق", "en": "Check", "fr": "Vérifie"},
+    "micro_check": {"ar": "تحقّق سريع", "en": "Quick check", "fr": "Vérification rapide"},
+}
+_TXT = {
+    "status": {"ar": "حالة المحتوى", "en": "Content status", "fr": "État du contenu"},
+    "problem": {"ar": "المسألة", "en": "Problem", "fr": "Énoncé"},
+    "given": {"ar": "المعطيات", "en": "Given", "fr": "Données"},
+    "answer": {"ar": "الجواب", "en": "Answer", "fr": "Réponse"},
+    "verification": {"ar": "التحقق", "en": "Check", "fr": "Vérification"},
+    "fact": {"ar": "تذكّر", "en": "Remember", "fr": "Retiens"},
+    "ex": {"ar": "تمرين", "en": "Exercise", "fr": "Exercice"},
+}
+_MISSING = {
+    "drawings": {"ar": "رسوم الدرس", "en": "lesson drawings", "fr": "les dessins de la leçon"},
+    "solutions": {"ar": "حلول التمارين المصدّقة", "en": "verified exercise solutions", "fr": "les solutions d'exercices vérifiées"},
+    "labs": {"ar": "المختبرات التفاعلية", "en": "interactive labs", "fr": "les laboratoires interactifs"},
+    "sliders": {"ar": "المنزلقات التفاعلية للمختبر", "en": "the lab's interactive sliders", "fr": "les curseurs interactifs du laboratoire"},
+    "ar_only": {"ar": "حلول التمارين متوفرة بالعربية فقط", "en": "exercise solutions exist in Arabic only", "fr": "les solutions d'exercices n'existent qu'en arabe"},
+}
+
+
+def _status_text(lang: str, missing: List[str], source: str) -> str:
+    items = "، ".join(_MISSING[m][lang] for m in missing) if lang == "ar" else "; ".join(_MISSING[m][lang] for m in missing)
+    head = {"ar": "نسخة جزئية من الدرس الذهبي (المصدر: %s). غير متوفر بعد: %s.",
+            "en": "Partial version of the Golden lesson (source: %s). Not yet available: %s.",
+            "fr": "Version partielle de la leçon Golden (source : %s). Pas encore disponible : %s."}[lang]
+    return head % (source, items)
+
+
+def load_master(lesson_id: str) -> Optional[Dict[str, Any]]:
+    path = MASTER_DIR / f"{lesson_id}.json"
+    if not path.is_file():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        logging_exc = __import__("logging").getLogger(__name__)
+        logging_exc.exception("GOLDEN_MASTER_READ_FAILED %s", lesson_id)
+        return None
+
+
+def _step(text: str, label: str, lang: str, speech: Optional[str] = None, speech_lang: Optional[str] = None) -> Dict[str, Any]:
+    st: Dict[str, Any] = {"t": "text", "text": text, "label": label, "speech": speech if speech is not None else text}
+    sl = speech_lang or (lang if lang != "en" else None)
+    if sl:
+        st["speech_lang"] = sl
+    if lang == "ar" or speech_lang == "ar":
+        st["ar"] = text
+    return st
+
+
+def scenes_from_master(m: Dict[str, Any], lang: str) -> Dict[str, Any]:
+    vb = m.get("vb") or [640, 450]
+    scenes: List[Dict[str, Any]] = []
+    shown_any_svg = False
+    for sc in m.get("scenes", []):
+        n = sc["no"]
+        steps: List[Dict[str, Any]] = []
+        if sc.get("svg"):
+            steps.append({"t": "draw", "draw": "svgScene", "args": {"svg": sc["svg"], "vb": vb, "show": []}})
+            shown_any_svg = True
+        for st in [x for x in m.get("steps", []) if x["scene_index"] == n]:
+            kind = _KIND.get(st.get("kind"), {}).get(lang, "")
+            txt = (st.get("text") or {}).get(lang) or ""
+            spk = (st.get("speech") or {}).get(lang) or txt
+            if sc.get("svg") and st.get("show_ids"):
+                steps.append({"t": "draw", "draw": "svgScene", "clear": False,
+                              "args": {"show": [i for i in st["show_ids"] if i]}})
+            if txt:
+                steps.append(_step(txt, kind, lang, speech=(txt + (". " + spk if spk and spk != txt else ""))))
+            if st.get("formula"):
+                steps.append({"t": "formula", "text": st["formula"]})
+            fact = (st.get("fact") or {}).get(lang) if isinstance(st.get("fact"), dict) else ""
+            if fact:
+                steps.append(_step(fact, _TXT["fact"][lang], lang))
+        if steps:
+            title = (sc.get("title") or {}).get(lang) or ""
+            scenes.append({"id": f"master-{n}", "page": "", "title": title, "start_mode": "single", "steps": steps})
+    cc = m.get("cross_check") or {}
+    if cc.get("prompt"):
+        steps = [_step(cc["prompt"][lang], _KIND["check"][lang], lang)]
+        for i, o in enumerate(cc.get("options") or []):
+            steps.append(_step("%s) %s" % ("ABC"[i] if i < 3 else i + 1, o[lang]), "", lang))
+        ci = int(cc.get("correct") or 0)
+        steps.append(_step("%s) — %s" % ("ABC"[ci] if ci < 3 else ci + 1, (cc.get("why") or {}).get(lang, "")), _TXT["answer"][lang], lang))
+        scenes.append({"id": "cross", "page": "", "title": _KIND["check"][lang], "start_mode": "single", "steps": steps})
+    nex = 0
+    for ve in (m.get("golden_summary") or {}).get("verified_examples") or []:
+        num = str(ve.get("exercise_id", "")).split("-")[-1]
+        steps = [_step(ve.get("question", ""), _TXT["problem"][lang] + " (p.%s)" % ve.get("source_page", "?"), "ar", speech_lang="ar")]
+        for g in ve.get("given") or []:
+            steps.append(_step(g, _TXT["given"][lang] if g is ve["given"][0] else "", "ar", speech_lang="ar"))
+        if ve.get("visual_svg"):
+            steps.append({"t": "draw", "draw": "svgScene", "args": {"svg": ve["visual_svg"], "vb": [760, 500], "show": [
+                i for i in re.findall(r'id="([^"]+)"', ve["visual_svg"])]}})
+        for i, sp in enumerate(ve.get("steps") or []):
+            e = _step(sp.get("work", ""), "%d" % (i + 1), "ar", speech_lang="ar")
+            if sp.get("why"):
+                e["hint"] = sp["why"]
+            steps.append(e)
+        if ve.get("final_answer"):
+            steps.append(_step(ve["final_answer"], _TXT["answer"][lang], "ar", speech_lang="ar"))
+        if ve.get("verification"):
+            steps.append(_step(ve["verification"], _TXT["verification"][lang], "ar", speech_lang="ar"))
+        scenes.append({"id": ve.get("exercise_id", ""), "page": str(ve.get("source_page", "")), "exercise": "%s (p.%s)" % (num, ve.get("source_page", "?")),
+                       "solved": True, "title": "%s %s" % (_TXT["ex"][lang], num), "start_mode": "single", "steps": steps})
+        nex += 1
+    gs = m.get("golden_summary") or {}
+    items = [x for x in ((gs.get("flow") or {}).get(lang), (gs.get("takeaway") or {}).get(lang)) if x]
+    spec = {"sections": [{"label": {"ar": "الخلاصة:", "fr": "Résumé :", "en": "Summary:"}[lang], "items": items or [""]}],
+            "key_results": items[-1:], "title": (m.get("title") or {}).get(lang, "")}
+    missing = ["sliders"] + (["ar_only"] if nex and lang != "ar" else [])
+    return {"scenes": scenes, "spec": spec, "missing": missing, "has_drawings": shown_any_svg, "exercise_solutions": nex}
+
+
 def build_v6_page(entry: Dict[str, Any], text: str, meta: Dict[str, Any]) -> Optional[str]:
     try:
         from scripts.nabil_factory.cards.golden_v6 import render_golden_v6_board
         lang = _lang_code(entry, meta, text)
-        parsed = parse_golden_text(text, lang)
-        scenes: List[Dict[str, Any]] = []
-        for sc in parsed["scenes"]:
-            steps = []
-            for i, ln in enumerate(sc["lines"]):
-                st = {"t": "text", "text": ln, "label": sc["title"] if i == 0 else "",
-                      "speech": ln if lang == "en" else ""}
-                if lang == "ar":
-                    st["ar"] = ln
-                steps.append(st)
-            if not steps and sc["title"]:
-                steps.append({"t": "text", "text": sc["title"], "label": "", "speech": sc["title"] if lang == "en" else ""})
-            if steps:
-                scenes.append({"id": sc["id"], "page": "", "title": sc["title"], "start_mode": "single", "steps": steps})
+        master = load_master(str(entry.get("lesson_id") or ""))
+        title = str(entry.get("title") or "")
+        if master:
+            built = scenes_from_master(master, lang)
+            scenes, spec, missing, source = built["scenes"], built["spec"], built["missing"], "Drive master lab"
+            title = (master.get("title") or {}).get(lang) or title
+        else:
+            parsed = parse_golden_text(text, lang)
+            scenes = []
+            for sc in parsed["scenes"]:
+                steps = []
+                for i, ln in enumerate(sc["lines"]):
+                    st = {"t": "text", "text": ln, "label": sc["title"] if i == 0 else "",
+                          "speech": ln if lang == "en" else ""}
+                    if lang == "ar":
+                        st["ar"] = ln
+                    steps.append(st)
+                if not steps and sc["title"]:
+                    steps.append({"t": "text", "text": sc["title"], "label": "",
+                                  "speech": sc["title"] if lang == "en" else ""})
+                if steps:
+                    scenes.append({"id": sc["id"], "page": "", "title": sc["title"], "start_mode": "single", "steps": steps})
+            label = {"ar": "الخلاصة:", "fr": "Résumé :", "en": "Summary:"}[lang]
+            spec = {"sections": [{"label": label, "items": parsed["summary"] or [title]}],
+                    "key_results": parsed["summary"][:3], "title": title}
+            missing, source = ["drawings", "solutions", "labs"], "Golden text artifact"
         if not scenes:
             return None
-        label = {"ar": "الخلاصة:", "fr": "Résumé :", "en": "Summary:"}[lang]
-        spec = {"sections": [{"label": label, "items": parsed["summary"] or [entry.get("title", "")]}],
-                "key_results": parsed["summary"][:3], "title": entry.get("title", "")}
-        title = str(entry.get("title") or "")
-        page = render_golden_v6_board(title, scenes, lang, golden_spec=spec,
-                                      contract="golden-artifact-v6", mode="lesson", titles={lang: title},
-                                      meta={"lesson_id": entry.get("lesson_id", ""), "source": "golden-artifact"})
-        lang_attr = "ar" if lang == "ar" else lang
+        # honest status: the lesson is never presented as complete when parts are missing (persistent badge)
+        board_meta = {"lesson_id": entry.get("lesson_id", ""), "grade": entry.get("grade", ""),
+                      "subject": entry.get("subject", ""), "language": entry.get("language", ""),
+                      "completeness": "partial:" + ",".join(missing),
+                      "status_text": _status_text(lang, missing, source)}
+        page = render_golden_v6_board(title, scenes, lang, golden_spec=spec, contract="golden-artifact-v6",
+                                      mode="lesson", titles={lang: title}, meta=board_meta)
+        lang_attr = lang
         return (
             '<!doctype html><html lang="' + lang_attr + '" dir="' + ("rtl" if lang == "ar" else "ltr") + '"><head>'
             '<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'

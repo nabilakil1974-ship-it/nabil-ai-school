@@ -36,6 +36,7 @@
 .nb-check button{margin-top:8px}
 .nb-fb{margin-top:8px;font-weight:700}
 .nb-lost{margin:0 0 18px;padding:14px;border:2px solid #d98a28;border-radius:10px;background:#fff8ec;font-size:clamp(18px,1.7vw,24px)}
+.nb-ctl[hidden]{display:none!important}
 .nb-ctl{display:flex;flex-wrap:wrap;gap:7px;padding:8px 10px;background:#dceafa;justify-content:center;align-items:center;border-top:1px solid #bcd2e5}
 .nb-ctl button,.nb-ctl select{font-size:15px;font-weight:700;padding:10px 12px;min-height:44px;border:0;border-radius:8px;background:#1762aa;color:#fff;cursor:pointer}
 .nb-ctl select{background:#fff;color:#12324b;border:1px solid #9bb7d0}
@@ -80,3 +81,32 @@
 .nb-plan-doc .nb-blank{color:#888}
 @media print{body *{visibility:hidden!important}#nbPlanDoc,#nbPlanDoc *{visibility:visible!important}#nbPlanDoc{position:absolute;left:0;top:0;width:100%;overflow:visible}.nb-modal{position:static;background:none}}
 @media(max-width:760px){.nb-plan-doc{padding:12px}.nb-plan-doc table{font-size:12px}}
+/* ---- Solve Exercise, collapsible tools, solving mode ---- */
+.nb-solvebtn{font-size:14px;font-weight:800;padding:8px 12px;min-height:38px;border:0;border-radius:8px;background:#0b7a55;color:#fff;cursor:pointer;margin-inline-start:4px;white-space:nowrap}
+.nb-solvebtn:focus-visible{outline:3px solid #f2a93b}
+.nb-tools{border-top:0;background:#e9f1fb}
+.nb-tools[hidden]{display:none}
+#nbToolsToggle{background:#456}
+.nb-solve-only{display:none}
+.nb-solving .nb-solve-only{display:inline-block}
+.nb-modal.nb-solve{z-index:2147483640;position:absolute;align-items:center;justify-content:center;padding:10px}
+.nb-solve-box{width:min(620px,100%);max-height:100%;border-radius:14px;overflow:auto;background:#fff;padding-bottom:10px}
+.nb-solve-tabs{display:flex;gap:6px;padding:8px 10px;flex-wrap:wrap}
+.nb-solve-tabs button{flex:1 1 30%;min-height:44px;font-size:15px;font-weight:700;border:2px solid #1762aa;border-radius:10px;background:#fff;color:#1762aa;cursor:pointer}
+.nb-solve-tabs button[aria-selected="true"]{background:#1762aa;color:#fff}
+.nb-solve-body{padding:6px 12px;display:flex;flex-direction:column;gap:8px;font-size:16px;color:#12324b}
+.nb-solve-body select,.nb-solve-body input[type=text],.nb-solve-body textarea{font-size:17px;padding:10px;border:2px solid #9bb7d0;border-radius:8px;width:100%;box-sizing:border-box}
+.nb-solve-body textarea{font-family:Arial,Tahoma,sans-serif;resize:vertical}
+.nb-solve-go{min-height:48px;font-size:17px;font-weight:800;border:0;border-radius:10px;background:#1762aa;color:#fff;cursor:pointer;padding:8px 14px}
+.nb-solve-go:disabled{opacity:.5;cursor:not-allowed}
+.nb-solve-row{display:flex;gap:8px}
+.nb-solve-keys{display:flex;flex-wrap:wrap;gap:5px}
+.nb-solve-keys button{min-width:42px;min-height:42px;font-size:18px;border:1px solid #9bb7d0;border-radius:8px;background:#f2f8fc;cursor:pointer}
+.nb-solve-render{padding:8px 10px;background:#f7fbff;border:1px dashed #1762aa;border-radius:8px;font-size:20px;min-height:30px;white-space:pre-wrap;overflow-wrap:anywhere}
+.nb-solve-unclear{padding:8px 10px;background:#fff4de;border:2px solid #d98a28;border-radius:8px}
+.nb-solve-msg{min-height:22px;font-weight:700}.nb-solve-msg.err{color:#b42350}
+.nb-solve-thumb{max-width:100%;max-height:200px;border-radius:8px;border:1px solid #9bb7d0}
+.nb-solve-sure{display:flex;gap:6px;align-items:center}
+@media(max-width:760px){.nb-solvebtn{font-size:12px;padding:6px 8px;min-height:34px}.nb-head{flex-wrap:wrap}}
+
+.nb-badge{padding:5px 12px;background:#fff4de;color:#7a4b00;font-size:13px;line-height:1.4;border-bottom:1px solid #ecd2a2}.nb-badge[hidden]{display:none}
