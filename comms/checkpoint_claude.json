@@ -1,16 +1,25 @@
 {
- "updated": "2026-10-18T14:55Z",
+ "updated": "2026-10-18T17:55Z",
  "audited": [
   "EN-004 REV7",
   "EN-005 REV3-V64",
   "EN-006 REV1-V65",
-  "FR-017 REV6"
+  "FR-017 REV6",
+  "EN-007",
+  "EN-008",
+  "EN-009",
+  "EN-012",
+  "EN-013",
+  "EN-014",
+  "FR-013",
+  "FR-015"
  ],
  "provenance": "UNKNOWN",
  "patch_commit_in_repo": "b77e77a (repo engine, not applied to Drive)",
- "next": "audit remaining Drive HTML artifacts; source-page check needs page images",
+ "next": "longer capture windows for UNVERIFIED items; patch per engine variant only for proven defects",
  "needs_nabil": [
   "phone audio recording",
   "who uploads patched copies / owns generator"
- ]
+ ],
+ "engine_generations": 3
 }

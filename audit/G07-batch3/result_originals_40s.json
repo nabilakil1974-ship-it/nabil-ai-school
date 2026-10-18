@@ -1,0 +1,178 @@
+[
+ {
+  "file": "EN007",
+  "viewport": "1366x768",
+  "overflow_x": false,
+  "has_letter_spelling": true,
+  "has_speech_lang_split": false,
+  "n_speech": 6,
+  "langs": [
+   "None",
+   "en-US"
+  ],
+  "unspelled_caps": [],
+  "mixed_script_utterances": 2,
+  "raw_symbols_spoken": 0,
+  "sample": [
+   "en-US:نبدأ الآن فكرة Angles and lines — أهداف الفصل.",
+   "en-US:سنتعلم اليوم خصائص المستقيمات المتوازية والزوايا، وكيف نستخدمها في البرهان.",
+   "en-US:من أهم المصطلحات: مسلّمة إقليدس، والزوايا المتناظرة، والزوايا المتبادلة داخلياً.",
+   "en-US:نبدأ الآن فكرة Recall activities 1–2."
+  ],
+  "errors": []
+ },
+ {
+  "file": "EN008",
+  "viewport": "1366x768",
+  "overflow_x": false,
+  "has_letter_spelling": false,
+  "has_speech_lang_split": false,
+  "n_speech": 9,
+  "langs": [
+   "None",
+   "ar-LB"
+  ],
+  "unspelled_caps": [],
+  "mixed_script_utterances": 0,
+  "raw_symbols_spoken": 0,
+  "sample": [
+   "ar-LB:هذا الجزء موثّق من صفحة 85 في كتاب الرياضيات للصف السابع.",
+   "ar-LB:في هذا الفصل نتعلم تبسيط الكسور واختزالها إلى أبسط صورة، مع فهم معنى الكسر غير القابل للاختزال.",
+   "ar-LB:سنتذكر القاسم المشترك الأكبر، ونستخدمه لنختزل البسط والمقام بالقيمة نفسها.",
+   "ar-LB:هذا الجزء موثّق من صفحة 86 في كتاب الرياضيات للصف السابع."
+  ],
+  "errors": []
+ },
+ {
+  "file": "EN009",
+  "viewport": "1366x768",
+  "overflow_x": false,
+  "has_letter_spelling": false,
+  "has_speech_lang_split": false,
+  "n_speech": 6,
+  "langs": [
+   "None",
+   "ar-LB"
+  ],
+  "unspelled_caps": [],
+  "mixed_script_utterances": 0,
+  "raw_symbols_spoken": 0,
+  "sample": [
+   "ar-LB:المصدر الموثّق لهذا الجزء صفحة 94 من كتاب الطالب، وصفحة 55 من دليل المعلم.",
+   "ar-LB:عنوان الفصل التاسع: الأعداد العشرية والكسور.",
+   "ar-LB:سنتعلم كيف نميز الكسور ذات الكتابة العشرية المنتهية، وكيف نقرب الكسور ذات الكتابة الدورية، وكيف نكتب",
+   "ar-LB:المصدر الموثّق لهذا الجزء صفحة 95 من كتاب الطالب، وصفحة 55 من دليل المعلم."
+  ],
+  "errors": []
+ },
+ {
+  "file": "EN012",
+  "viewport": "1366x768",
+  "overflow_x": false,
+  "has_letter_spelling": false,
+  "has_speech_lang_split": false,
+  "n_speech": 6,
+  "langs": [
+   "None",
+   "ar-LB"
+  ],
+  "unspelled_caps": [],
+  "mixed_script_utterances": 1,
+  "raw_symbols_spoken": 0,
+  "sample": [
+   "ar-LB:المصدر: كتاب الطالب صفحة 117، ودليل المعلم صفحة 68.",
+   "ar-LB:هدف الدرس: إنشاء العمود المنصف لقطعة مستقيمة، ومنصف الزاوية، واستعمال خصائصهما.",
+   "ar-LB:المصطلحات: Perpendicular bisector — Angle bisector — Equidistant — Circumcenter.",
+   "ar-LB:سنستعمل البرهان الهندسي، ثم نحل تمارين الكتاب بحسب ترتيبها."
+  ],
+  "errors": []
+ },
+ {
+  "file": "EN013",
+  "viewport": "1366x768",
+  "overflow_x": false,
+  "has_letter_spelling": false,
+  "has_speech_lang_split": false,
+  "n_speech": 7,
+  "langs": [
+   "None",
+   "ar-LB"
+  ],
+  "unspelled_caps": [],
+  "mixed_script_utterances": 0,
+  "raw_symbols_spoken": 0,
+  "sample": [
+   "ar-LB:المصدر: كتاب الطالب ص 125، دليل المعلم ص 74.",
+   "ar-LB:هذا الدرس يشرح نقل شكل كامل من موضع إلى آخر دون تدويره أو تغيير قياساته.",
+   "ar-LB:المصطلح: . نحتاج اتجاهًا ومنحى ومسافة ثابتة.",
+   "ar-LB:سنعتمد أنشطة الكتاب وتمارينه ورسوماته؛ كل رسم على السبورة توضيحي ما لم نذكر أنه مطابق للإحداثيات الأ"
+  ],
+  "errors": []
+ },
+ {
+  "file": "EN014",
+  "viewport": "1366x768",
+  "overflow_x": false,
+  "has_letter_spelling": false,
+  "has_speech_lang_split": false,
+  "n_speech": 8,
+  "langs": [
+   "None",
+   "ar-LB"
+  ],
+  "unspelled_caps": [],
+  "mixed_script_utterances": 0,
+  "raw_symbols_spoken": 0,
+  "sample": [
+   "ar-LB:المصدر كتاب الطالب صفحة 132.",
+   "ar-LB:نتعلم كيف نحوّل مسألة إلى معادلة، ثم نحلّها خطوة بخطوة.",
+   "ar-LB:نرسم ميزانًا توضيحيًا لفكرة الحفاظ على المساواة.",
+   "ar-LB:الهدف هو معرفة الحل والتحقق من صحته."
+  ],
+  "errors": []
+ },
+ {
+  "file": "FR013",
+  "viewport": "1366x768",
+  "overflow_x": false,
+  "has_letter_spelling": false,
+  "has_speech_lang_split": false,
+  "n_speech": 7,
+  "langs": [
+   "None",
+   "ar-LB"
+  ],
+  "unspelled_caps": [],
+  "mixed_script_utterances": 0,
+  "raw_symbols_spoken": 0,
+  "sample": [
+   "ar-LB:المصدر: كتاب الطالب ص 125، دليل المعلم ص 72.",
+   "ar-LB:هذا الدرس يشرح نقل شكل كامل من موضع إلى آخر دون تدويره أو تغيير قياساته.",
+   "ar-LB:المصطلح: . نحتاج اتجاهًا ومنحى ومسافة ثابتة.",
+   "ar-LB:سنعتمد أنشطة الكتاب وتمارينه ورسوماته؛ كل رسم على السبورة توضيحي ما لم نذكر أنه مطابق للإحداثيات الأ"
+  ],
+  "errors": []
+ },
+ {
+  "file": "FR015",
+  "viewport": "1366x768",
+  "overflow_x": false,
+  "has_letter_spelling": false,
+  "has_speech_lang_split": false,
+  "n_speech": 7,
+  "langs": [
+   "None",
+   "ar-LB"
+  ],
+  "unspelled_caps": [],
+  "mixed_script_utterances": 2,
+  "raw_symbols_spoken": 0,
+  "sample": [
+   "ar-LB:المصدر: كتاب الطالب صفحة 142، دليل المعلم صفحة 82.",
+   "ar-LB:نميّز أولًا بين point fixe، أي نقطة ثابتة، وpoint variable، أي نقطة يتغيّر موضعها.",
+   "ar-LB:إذا تحرّكت نقطة مع بقائها خاضعة لشرط هندسي، فإن مجموعة مواضعها تسمّى lieu géométrique.",
+   "ar-LB:في هذا الفصل نستخرج مكان النقطة من الشرط المعطى، ثم نبرهن أنّ كل نقطة من المكان تحقق الشرط."
+  ],
+  "errors": []
+ }
+]
