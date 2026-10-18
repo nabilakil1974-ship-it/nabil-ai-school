@@ -1,5 +1,18 @@
-{"updated":"2026-10-18T10:50Z","branch":"refactor/lesson-factory-modular-v1",
- "last_processed_directive":"MOBILE QA FEEDBACK 18/10 (D1,D2) + EXECUTION CONTINUITY 18/10",
- "done":{"D3":".env untracked"},"in_progress":["D1","D2"],"needs_nabil":["D4 keyed environment","D5 Android audio recording"],
- "resume_next":"D1/D2: separate display text from speech text in golden_v6_solver.js toScenes (expand AH,BM,ABC to spelled letters; Arabic narration, English math terms), one justified step per reveal, then local Chromium test, then lesson ch.4",
- "g7_math_lessons_authored":0}
+{
+ "updated": "2026-10-18T11:10Z",
+ "branch": "refactor/lesson-factory-modular-v1",
+ "last_processed_directive": "MOBILE QA FEEDBACK 18/10 (D1,D2) + EXECUTION CONTINUITY 18/10",
+ "done": {
+  "D3": ".env untracked",
+  "D1": "Arabic speech: capital-letter names spelled (AH,BM,ABC), degrees/operators in Arabic, formulas now spoken",
+  "D2": "answer split into one card per result"
+ },
+ "in_progress": [],
+ "needs_nabil": [
+  "D4 keyed environment",
+  "D5 Android audio recording"
+ ],
+ "resume_next": "G7 ch.4 lesson (triangle equality) authoring; D4/D5 need Nabil",
+ "g7_math_lessons_authored": 0,
+ "channel": "CG-0001/0002 read, CL-0002 pushed 13a0f35 on claude/probe-20261018; awaiting ChatGPT confirmation"
+}

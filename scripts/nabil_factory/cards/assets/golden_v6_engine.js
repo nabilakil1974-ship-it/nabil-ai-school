@@ -135,9 +135,15 @@ function enVoice(){
 function rate(){return Math.min(1.6,0.55+speed*0.45)}
 let arOn=false,lastAr='';
 function arVoiceObj(){const vs=(window.speechSynthesis&&speechSynthesis.getVoices())||[];return vs.find(v=>/^ar/i.test(v.lang))||null}
+const AR_LET={A:'إيه',B:'بي',C:'سي',D:'دي',E:'إي',F:'إف',G:'جي',H:'إتش',I:'آي',J:'جيه',K:'كيه',L:'إل',M:'إم',N:'إن',O:'أو',P:'بي',Q:'كيو',R:'آر',S:'إس',T:'تي',U:'يو',V:'في',W:'دبليو',X:'إكس',Y:'واي',Z:'زد'};
+/* spoken form only: the board text is untouched. Capital-letter names (AH, BM, ABC) are spelled letter by letter so the
+   Arabic voice never reads them as a word; degrees/operators are said in Arabic. */
 function speakableAr(t){
-  return String(t||'').replace(/\^\{\s*(-?[^{}]+)\s*\}/g,' أُس $1 ').replace(/×/g,' ضرب ').replace(/÷/g,' تقسيم ')
-    .replace(/−/g,' ناقص ').replace(/=/g,' يساوي ').replace(/\s+/g,' ').trim()}
+  return String(t||'').replace(/\^\{\s*(-?[^{}]+)\s*\}/g,' أُس $1 ')
+    .replace(/(\d+(?:[.,]\d+)?)\s*°/g,'$1 درجة ').replace(/°/g,' درجة ')
+    .replace(/\b[A-Z]{1,4}\b/g,m=>' '+[...m].map(c=>AR_LET[c]||c).join(' ')+' ')
+    .replace(/×/g,' ضرب ').replace(/÷/g,' تقسيم ').replace(/\+/g,' زائد ')
+    .replace(/[−–]/g,' ناقص ').replace(/=/g,' يساوي ').replace(/[|✓✔]/g,' . ').replace(/[\[\]()]/g,' ').replace(/\s+/g,' ').trim()}
 function arTextOf(step){
   if(step.t==='formula')return '';
   if(step.ar)return step.ar;
@@ -205,7 +211,7 @@ async function writeStep(step,id){
   node.scrollIntoView({block:'nearest',behavior:FAST?'auto':'smooth'});
   const text=formula?step.text:tr(step.text);
   const ar=arOn?arTextOf(step):'';
-  const h=formula?null:speakText(step.speech,id,ar,step.speech_lang);
+  const h=(formula&&!step.speech)?null:speakText(step.speech,id,ar,step.speech_lang);
   if(!FAST){placeHandAtNode(node,rtl);if(!await wait(300,id))return false}
   if(!await reveal(node,unitsOf(text,rtl,formula),rtl,formula,id))return false;
   if(arOn&&!formula&&cur()!=='ar'){

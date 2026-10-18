@@ -144,8 +144,8 @@ function toScenes(sol){
     const lead=st.say||(x.step+' '+(i+1));
     if(fsteps&&st.figure_step)steps.push({t:'draw',draw:'figure',clear:false,args:Object.assign({points:sol.figure.points},st.figure_step)});
     steps.push(mk(st.text||st.say,lead,Object.assign({speech:(st.say&&st.text?st.say+'. ':'')+(st.text||'')},st.justification?{hint:x.because+' '+st.justification}:{})));
-    if(st.formula)steps.push({t:'formula',text:pretty(st.formula)})});
-  steps.push(mk(sol.answer,x.answer));
+    if(st.formula)steps.push({t:'formula',text:pretty(st.formula),speech:st.formula,speech_lang:sl})});
+  String(sol.answer||'').split(/\s*\|\s*/).filter(Boolean).forEach((part,i)=>steps.push(mk(part,i?'':x.answer)));
   const v=(sol.verification||{}).status;
   if(v==='verified')steps.push(mk(x.verified,''));else if(v==='mismatch')steps.push(mk(x.mismatch,''));
   return [{id:'solve',title:x.badgeNew,start_mode:'single',steps,solved:true}]}
