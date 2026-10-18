@@ -13,7 +13,7 @@ class NonblockingLessonGenerationTests(unittest.TestCase):
         self.assertIn("image_bytes=None,", chat)
         self.assertIn("BOOK_TEXT_ONLY_LESSON_FALLBACK_SUCCESS", chat)
         for variable in ("repair_reply", "repaired_reply", "_science_repaired", "repaired"):
-            self.assertIn(variable + " = await run_in_threadpool(ai.generate,", chat)
+            self.assertTrue(\n                variable + " = await run_in_threadpool(_ai_gateway().generate," in chat\n                or variable + " = await run_in_threadpool(ai.generate," in chat,\n                msg=f"{variable} must run through the threadpool using the active AI gateway",\n            )
         self.assertNotIn("raw_reply = ai.generate(", chat)
 
     def test_exact_page_and_lesson_route_currently_supported(self):
