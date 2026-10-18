@@ -1,51 +1,25 @@
-/* NABIL AI — TEMPORARY FULL LESSON REVIEW MODE
-   IMPORTANT: card/lab renderer code remains untouched in nabil_reference_classroom_v16.js.
-   This stylesheet only disables the card-by-card VISUAL presentation so every catalogue lesson
-   can be inspected from beginning to end as one continuous lesson page. */
-#nabil-classroom-root{position:fixed!important;inset:0!important;z-index:2147483000!important;overflow-y:auto!important;overflow-x:hidden!important;background:#030b14!important;color:#f7fbff!important}
+/* NABIL classroom readability v2 — restore Golden Reference cards and live lesson controls.
+   This deliberately replaces the temporary continuous-review stylesheet. */
+#nabil-classroom-root{position:relative!important;inset:auto!important;z-index:auto!important;min-height:100vh!important;overflow:visible!important;overflow-x:hidden!important;background:#030b14!important;color:#f7fbff!important}
 #nabil-classroom-root,#nabil-classroom-root *{box-sizing:border-box;min-width:0}
-#nabil-classroom-root .nrc{min-height:100vh!important;width:100%!important;padding:24px 18px 90px!important;overflow:visible!important}
-#nabil-classroom-root .nrc-wrap{width:min(100%,1000px)!important;max-width:1000px!important;margin:0 auto!important}
-
-/* Disable classroom controls during content review. Nothing is deleted from JS. */
-#nabil-classroom-root .nrc-top,
-#nabil-classroom-root .nrc-teacher,
-#nabil-classroom-root .nrc-dots,
-#nabil-classroom-root .nrc-lab-placeholder{display:none!important}
-
-#nabil-classroom-root .nrc-title{display:block!important;width:100%!important;margin:20px auto 42px!important;padding:0 0 24px!important;border-bottom:1px solid #24455e!important;text-align:center!important;font-size:clamp(30px,5vw,48px)!important;line-height:1.25!important;color:#e8fbff!important;overflow-wrap:anywhere!important}
-#nabil-classroom-root .nrc-stage{display:block!important;width:100%!important}
-#nabil-classroom-root .nrc-board{display:block!important;width:100%!important;max-width:940px!important;margin:0 auto!important;padding:34px 42px 48px!important;background:#071827!important;border:1px solid #244c68!important;border-radius:24px!important;box-shadow:0 18px 48px #0005!important;overflow:visible!important}
-
-/* ALL generated cards are visible, but their card shells are visually disabled.
-   The whole lesson is now ONE reading surface. */
-#nabil-classroom-root .nrc-card[hidden]{display:block!important}
-#nabil-classroom-root .nrc-card,
-#nabil-classroom-root .nrc-card[data-role]{display:block!important;width:100%!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;overflow:visible!important}
-
-/* Preserve section headings so the complete lesson reads like the explanation in chat. */
-#nabil-classroom-root .nrc-head{display:flex!important;align-items:center!important;gap:10px!important;margin:36px 0 18px!important;padding:0 0 10px!important;border:0!important;border-bottom:1px solid rgba(103,232,255,.18)!important}
-#nabil-classroom-root .nrc-card:first-child .nrc-head{margin-top:0!important}
-#nabil-classroom-root .nrc-icon{font-size:24px!important;line-height:1!important}
-#nabil-classroom-root .nrc-head h2,
-#nabil-classroom-root .nrc-card[data-role] .nrc-head h2{display:block!important;width:100%!important;margin:0!important;color:#86eaff!important;font-size:clamp(22px,2.8vw,30px)!important;line-height:1.4!important;font-weight:850!important;overflow-wrap:anywhere!important}
-
-/* Natural paragraph rhythm. No sentence is hidden and no active-line decoration. */
-#nabil-classroom-root .nrc-line,
-#nabil-classroom-root .nrc-line.active,
-#nabil-classroom-root .nrc-line.done{display:block!important;width:100%!important;max-width:none!important;margin:0 0 18px!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;color:#f7fbff!important;font-size:clamp(18px,2vw,21px)!important;line-height:1.95!important;white-space:pre-wrap!important;overflow-wrap:anywhere!important;word-break:normal!important;opacity:1!important}
-#nabil-classroom-root .nrc-line+.nrc-line{margin-top:7px!important}
-#nabil-classroom-root .nrc-line strong,#nabil-classroom-root .nrc-line b{color:#fff!important}
-#nabil-classroom-root img,#nabil-classroom-root svg,#nabil-classroom-root canvas,#nabil-classroom-root iframe{display:block!important;max-width:100%!important;height:auto!important;margin:24px auto!important;border-radius:12px}
-#nabil-classroom-root pre,#nabil-classroom-root table{display:block!important;max-width:100%!important;overflow-x:auto!important;margin:22px 0!important}
-
-@media(max-width:700px){
- #nabil-classroom-root .nrc{padding:10px 8px 60px!important}
- #nabil-classroom-root .nrc-wrap{width:100%!important}
- #nabil-classroom-root .nrc-title{margin:16px 10px 28px!important;padding-bottom:18px!important;font-size:28px!important}
- #nabil-classroom-root .nrc-board{width:100%!important;padding:24px 17px 36px!important;border-radius:16px!important}
- #nabil-classroom-root .nrc-head{margin-top:30px!important;margin-bottom:15px!important}
- #nabil-classroom-root .nrc-head h2{font-size:22px!important}
- #nabil-classroom-root .nrc-icon{font-size:21px!important}
- #nabil-classroom-root .nrc-line,#nabil-classroom-root .nrc-line.active,#nabil-classroom-root .nrc-line.done{font-size:18px!important;line-height:1.9!important;margin-bottom:16px!important}
-}
+#nabil-classroom-root .nrc{min-height:100vh!important;width:100%!important;padding:20px 16px 80px!important;overflow:visible!important}
+#nabil-classroom-root .nrc-wrap{width:min(100%,1120px)!important;max-width:1120px!important;margin:0 auto!important}
+#nabil-classroom-root .nrc-title{display:block!important;margin:18px auto 28px!important;padding:0 0 20px!important;border-bottom:1px solid #24455e!important;text-align:center!important;font-size:clamp(28px,4.8vw,46px)!important;line-height:1.3!important;color:#86eaff!important;overflow-wrap:anywhere!important}
+#nabil-classroom-root .nrc-lesson{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:18px!important;width:100%!important}
+#nabil-classroom-root .nrc-section{display:block!important;position:relative!important;width:100%!important;margin:0!important;padding:clamp(18px,3vw,30px)!important;border:1px solid #24618a!important;border-radius:18px!important;background:linear-gradient(180deg,#0b263f,#071a2c)!important;box-shadow:0 12px 28px #0004!important;overflow-wrap:anywhere!important}
+#nabil-classroom-root .nrc-section:before{content:""!important;position:absolute!important;inset:0 auto 0 0!important;width:5px!important;background:#14c8f5!important;box-shadow:0 0 18px #14c8f555!important}
+#nabil-classroom-root .nrc-head{display:flex!important;gap:12px!important;align-items:center!important;margin:0 0 18px!important}
+#nabil-classroom-root .nrc-head h2{font-size:clamp(22px,3vw,31px)!important;line-height:1.4!important;color:#86eaff!important;font-weight:850!important}
+#nabil-classroom-root .nrc-line{display:block!important;width:100%!important;margin:0 0 14px!important;font-size:clamp(19px,2.2vw,24px)!important;font-style:normal!important;font-weight:500!important;line-height:1.95!important;white-space:pre-wrap!important;overflow-wrap:anywhere!important}
+#nabil-classroom-root .nrc-spacer{height:12px!important}
+#nabil-classroom-root .nrc-lab-slot{display:block!important;margin-top:18px!important;padding:12px!important;border:1px solid #24618a!important;border-radius:14px!important;background:#041626!important}
+#nabil-classroom-root .nrc-lab-frame{display:block!important;width:100%!important;min-height:620px!important;border:0!important;border-radius:12px!important;background:#041626!important}
+#nabil-classroom-root .nrc-section[data-role="summary"]{border:2px solid #ffd36a!important;background:linear-gradient(180deg,#10273a,#091a29)!important}
+#nabil-classroom-root .nrc-section[data-role="summary"]:before{background:#ffd36a!important}
+#nabil-classroom-root .nrc-section[data-role="summary"] .nrc-head h2{color:#ffd36a!important}
+.nabil-wb-toolbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;padding:10px 12px;margin:0 auto 16px;background:#06182eef;border:1px solid #17608b;border-radius:14px;box-shadow:0 6px 18px #0004;backdrop-filter:blur(8px);font:700 14px/1.5 Tahoma,Arial,sans-serif;color:#eef8ff}
+.nabil-wb-toolbar strong{color:#6edfff}.nabil-wb-toolbar button{border:1px solid #2786b6;border-radius:10px;background:#0a3555;color:#fff;padding:8px 12px;font:inherit;cursor:pointer;min-height:40px}.nabil-wb-toolbar button:focus-visible{outline:3px solid #ffd36a;outline-offset:2px}.nabil-wb-speed{color:#bad6e9}.nabil-wb-speed b{color:#ffd36a}
+#nabilLivePenHand{position:fixed;display:none;width:66px;height:74px;z-index:2147483647;pointer-events:none;filter:drop-shadow(0 5px 5px #0008);transform:rotate(-7deg);transition:left .045s linear,top .045s linear}
+#nabilLivePenHand svg{display:block;width:100%;height:100%;overflow:visible}
+#nabilLivePenHand.writing{display:block}
+@media(max-width:700px){#nabil-classroom-root .nrc{padding:12px 10px 60px!important}#nabil-classroom-root .nrc-section{padding:18px 14px!important;border-radius:14px!important}#nabil-classroom-root .nrc-line{font-size:20px!important;line-height:1.95!important}#nabil-classroom-root .nrc-head h2{font-size:22px!important}#nabil-classroom-root .nrc-lab-frame{min-height:680px!important}.nabil-wb-toolbar{position:sticky;top:0;gap:7px;padding:8px;font-size:13px}.nabil-wb-toolbar button{flex:1 1 auto;min-height:42px}#nabilLivePenHand{width:54px;height:62px}}

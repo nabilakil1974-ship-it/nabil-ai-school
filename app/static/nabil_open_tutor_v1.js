@@ -94,7 +94,7 @@ syncPace();
 function speakGreetingOnce(){
  if(greetingSpoken||home.style.display==="none")return;
  greetingSpoken=true;
- const greeting="أهلًا وسهلًا. أنا الأستاذ نبيل. اسألني كتابة أو صوت، وبشرحلك وبحل معك خطوة خطوة.";
+ const greeting="أهلًا بكم، أنا الأستاذ نبيل. لنبدأ الدرس.";
  try{
    const spoken=typeof nabilBoardPlainSpeech==="function"?nabilBoardPlainSpeech(greeting):greeting;
    if(typeof nabilSpeakClear==="function")Promise.resolve(nabilSpeakClear(spoken,"العربية",{})).catch(()=>{});
