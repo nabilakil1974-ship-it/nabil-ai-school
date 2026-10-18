@@ -312,7 +312,13 @@ async function figure(id,a){
       const nu=Math.hypot(u[0]-x,u[1]-y)||1,nv=Math.hypot(v[0]-x,v[1]-y)||1,d=18;
       const a1=[x+(u[0]-x)/nu*d,y+(u[1]-y)/nu*d],a2=[x+(v[0]-x)/nv*d,y+(v[1]-y)/nv*d],a3=[a1[0]+a2[0]-x,a1[1]+a2[1]-y];
       el('path',{d:'M'+a1+' L'+a3+' L'+a2,fill:'none',stroke:'#b42350','stroke-width':3})}}
+  for(const m of a.marks||[]){
+    if(m.type==='angle'&&pts[m.at]&&m.text){
+      const [x,y]=P(m.at),dx=cx-x,dy=cy-y,dn=Math.hypot(dx,dy)||1;
+      el('text',{x:x+dx/dn*58-22,y:y+dy/dn*58+8,'font-size':23,fill:'#7a3fb0','font-weight':'bold'},String(m.text).slice(0,8))}}
+  const only=Array.isArray(a.show)?new Set(a.show):null;
   for(const n of names){
+    if(only&&!only.has(n))continue;
     const [x,y]=P(n),dx=x-cx,dy=y-cy,dn=Math.hypot(dx,dy)||1;
     el('circle',{cx:x,cy:y,r:4.5,fill:'#263b50'});
     el('text',{x:x+dx/dn*26-8,y:y+dy/dn*26+8,'font-size':28,fill:'#263b50','font-weight':'bold'},(a.labels&&a.labels[n])||n);

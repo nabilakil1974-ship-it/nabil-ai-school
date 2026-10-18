@@ -136,11 +136,13 @@ function toScenes(sol){
   const x=T[sol.lang]||t(),sl=sol.lang==='en'?undefined:sol.lang;
   const mk=(text,label,extra)=>Object.assign({t:'text',text:pretty(text),label:label||'',speech:String(text),speech_lang:sl},extra||{});
   const steps=[mk(sol.statement,x.problem)];
+  const hasFig=!!(sol.figure&&Object.keys(sol.figure.points||{}).length>=2),fsteps=hasFig&&(sol.steps||[]).some(z=>z.figure_step);
+  if(hasFig)steps.push({t:'draw',draw:'figure',args:sol.figure});
   (sol.given||[]).forEach((g,i)=>steps.push(mk(g,i?'':x.given)));
   (sol.required||[]).forEach((g,i)=>steps.push(mk(g,i?'':x.required)));
-  if(sol.figure&&Object.keys(sol.figure.points||{}).length>=2)steps.push({t:'draw',draw:'figure',args:sol.figure});
   (sol.steps||[]).forEach((st,i)=>{
     const lead=st.say||(x.step+' '+(i+1));
+    if(fsteps&&st.figure_step)steps.push({t:'draw',draw:'figure',clear:false,args:Object.assign({points:sol.figure.points},st.figure_step)});
     steps.push(mk(st.text||st.say,lead,Object.assign({speech:(st.say&&st.text?st.say+'. ':'')+(st.text||'')},st.justification?{hint:x.because+' '+st.justification}:{})));
     if(st.formula)steps.push({t:'formula',text:pretty(st.formula)})});
   steps.push(mk(sol.answer,x.answer));

@@ -215,7 +215,13 @@ def _clean_figure(fig: Any) -> Optional[Dict[str, Any]]:
                 and isinstance(m.get("between"), list) and len(m["between"]) == 2 \
                 and all(_s(b, 4) in pts for b in m["between"]):
             marks.append({"type": "right_angle", "at": _s(m["at"], 4), "between": [_s(b, 4) for b in m["between"]]})
-    return {"points": pts, "segments": segs, "circles": circles, "marks": marks}
+    for m in (fig.get("marks") or [])[:12]:
+        if isinstance(m, dict) and m.get("type") == "angle" and _s(m.get("at"), 4) in pts and _s(m.get("text"), 8):
+            marks.append({"type": "angle", "at": _s(m["at"], 4), "text": _s(m["text"], 8)})
+    out = {"points": pts, "segments": segs, "circles": circles, "marks": marks}
+    if isinstance(fig.get("show"), list):
+        out["show"] = [_s(n, 4) for n in fig["show"] if _s(n, 4) in pts]
+    return out
 
 
 _SAFE_EXPR = re.compile(r"^[0-9a-zA-Z_+\-*/^().,=<>\s]*$")
@@ -262,6 +268,12 @@ def normalise_solution(data: Dict[str, Any]) -> Dict[str, Any]:
             continue
         item = {"say": _s(st.get("say"), 90), "text": _s(st.get("text"), 500),
                 "formula": _s(st.get("formula"), 200), "justification": _s(st.get("justification"), 220)}
+        main_pts = (_clean_figure(data.get("figure")) or {}).get("points") if isinstance(data.get("figure"), dict) else None
+        if main_pts and isinstance(st.get("figure_step"), dict):
+            fs = dict(st["figure_step"]); fs["points"] = main_pts
+            cf = _clean_figure(fs)
+            if cf and (cf["segments"] or cf["marks"] or cf.get("show")):
+                item["figure_step"] = {k: cf[k] for k in ("segments", "marks", "circles", "show") if k in cf}
         if item["text"] or item["formula"]:
             steps.append(item)
     if len(steps) < 2 or not _s(data.get("answer")):
