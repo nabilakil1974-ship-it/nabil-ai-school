@@ -1,0 +1,32 @@
+{
+ "n_speech": 27,
+ "langs": [
+  "None",
+  "ar-LB",
+  "en-US"
+ ],
+ "state": {
+  "index": 2,
+  "paused": false
+ },
+ "n_nodes_T": 2,
+ "n_nodes_F": 0,
+ "spoken_samples": [
+  "None: ",
+  "ar-LB:الفصل الرابع من كتاب ",
+  "en-US:Grade",
+  "ar-LB: 7: ",
+  "en-US:Triangles",
+  "en-US:Case of equality Congruent triangles",
+  "ar-LB:الهدف: فهم الأضلاع والزوايا المتناظرة، وحالات تطابق المثلثات إيه إس إيه و إس إيه إس و إس إس إس ، ثم تطبيقها في",
+  "ar-LB:المصدر: كتاب الطالب الصفحات المطبوعة 39 إلى 51، ودليل المعلم 25 إلى 31. هذه نسخة جزئية كيو إيه ",
+  "en-US:PENDING",
+  "ar-LB: وليست درسًا مكتملًا."
+ ],
+ "caps_unspelled_in_speech": [],
+ "degree_sign_in_speech": 0,
+ "formula_text_spoken": 0,
+ "written_not_spoken_sample": [],
+ "errors": []
+}
+sha256 after True

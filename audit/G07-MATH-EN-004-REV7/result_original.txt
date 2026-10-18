@@ -1,0 +1,37 @@
+{
+ "n_speech": 10,
+ "langs": [
+  "None",
+  "ar-LB"
+ ],
+ "state": {
+  "index": 2,
+  "paused": false
+ },
+ "n_nodes_T": 2,
+ "n_nodes_F": 0,
+ "spoken_samples": [
+  "None: ",
+  "ar-LB:الفصل الرابع من كتاب Grade 7: Triangles: Case of equality (Congruent triangles).",
+  "ar-LB:الهدف: فهم الأضلاع والزوايا المتناظرة، وحالات تطابق المثلثات ASA وSAS وSSS، ثم تطبيقها في الإنشاء والبرهان.",
+  "ar-LB:المصدر: كتاب الطالب الصفحات المطبوعة 39–51، ودليل المعلم 25–31. هذه نسخة جزئية QA_PENDING وليست درسًا مكتملًا.",
+  "ar-LB:النشاط الاستذكاري الأول: ننظر إلى المثلث ABC المرسوم في الكتاب، ونسمي الرؤوس والأضلاع والزوايا.",
+  "ar-LB:الرؤوس Vertices: A وB وC. الأضلاع Sides: [AB] و[AC] و[BC].",
+  "ar-LB:∠A + ∠B + ∠C equals 180°",
+  "ar-LB:مجموع الزوايا الداخلية في أي مثلث يساوي مئة وثمانين درجة.",
+  "ar-LB:النشاط الاستذكاري الثاني يطلب رسم: median، perpendicular bisector، height، angle bisector.",
+  "ar-LB:Median: قطعة من رأس إلى منتصف الضلع المقابل. Perpendicular bisector: مستقيم عمودي على قطعة ويمر بمنتصفها."
+ ],
+ "caps_unspelled_in_speech": [
+  "ASA",
+  "ABC",
+  "AB",
+  "AC",
+  "BC"
+ ],
+ "degree_sign_in_speech": 1,
+ "formula_text_spoken": 1,
+ "written_not_spoken_sample": [],
+ "errors": []
+}
+sha256 after True
