@@ -56,10 +56,10 @@ class FactoryBridgeContractTest(unittest.TestCase):
             bridge.view_local_lesson("G07-PHYSICS-001", "wrong")
         self.assertEqual(404, error.exception.status_code)
 
-    def test_picker_script_is_loaded_before_drive_handler(self):
+    def test_factory_prepare_contract_is_loaded_without_duplicate_golden_launcher(self):
         main = (ROOT / "app/main.py").read_text(encoding="utf-8")
-        self.assertLess(main.index("nabil_factory_prepare_v1.js"),
-                        main.index("nabil_drive_prepared_lesson_v1.js"))
+        self.assertIn("nabil_factory_prepare_v1.js", main)
+        self.assertNotIn("nabil_drive_prepared_lesson_v1.js", main)
         js = (ROOT / "app/static/nabil_factory_prepare_v1.js").read_text(encoding="utf-8")
         self.assertIn("/api/interactive-lessons/factory/prepare", js)
         self.assertIn("X-Nabil-Factory-Token", js)
