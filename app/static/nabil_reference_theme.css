@@ -1971,3 +1971,11 @@ body:not(.nabil-lesson-active) #nabilHome #homeStartShortcut {
  #nabilOpenAnswer{padding:10px!important}
  .nabil-wb-toolbar{position:relative!important;top:auto!important}
 }
+
+
+/* Keep the second interface uncluttered: hide optional whiteboard controls. */
+.nabil-wb-toolbar button,
+#nabilOpenAnswer .nabil-wb-toolbar button,
+#nabilWorksheetPanel .nabil-wb-toolbar button{
+  display:none!important;
+}
