@@ -1,0 +1,134 @@
+[
+ {
+  "lesson": "EN004",
+  "scenes": 60,
+  "text_steps": 190,
+  "formula_steps": 142,
+  "formula_without_speech": 0,
+  "engine_skips_formula_speech": false,
+  "mixed_ar_latin_steps": 89,
+  "steps_with_acronym_caps": 120,
+  "steps_with_raw_symbols": 90
+ },
+ {
+  "lesson": "EN005",
+  "scenes": 59,
+  "text_steps": 176,
+  "formula_steps": 258,
+  "formula_without_speech": 5,
+  "engine_skips_formula_speech": false,
+  "mixed_ar_latin_steps": 56,
+  "steps_with_acronym_caps": 0,
+  "steps_with_raw_symbols": 19
+ },
+ {
+  "lesson": "EN006",
+  "scenes": 21,
+  "text_steps": 34,
+  "formula_steps": 67,
+  "formula_without_speech": 0,
+  "engine_skips_formula_speech": false,
+  "mixed_ar_latin_steps": 1,
+  "steps_with_acronym_caps": 0,
+  "steps_with_raw_symbols": 0
+ },
+ {
+  "lesson": "EN007",
+  "scenes": 15,
+  "text_steps": 51,
+  "formula_steps": 9,
+  "formula_without_speech": 9,
+  "engine_skips_formula_speech": true,
+  "mixed_ar_latin_steps": 15,
+  "steps_with_acronym_caps": 0,
+  "steps_with_raw_symbols": 0
+ },
+ {
+  "lesson": "EN008",
+  "scenes": 37,
+  "text_steps": 59,
+  "formula_steps": 75,
+  "formula_without_speech": 0,
+  "engine_skips_formula_speech": false,
+  "mixed_ar_latin_steps": 0,
+  "steps_with_acronym_caps": 0,
+  "steps_with_raw_symbols": 0
+ },
+ {
+  "lesson": "EN009",
+  "scenes": 38,
+  "text_steps": 50,
+  "formula_steps": 121,
+  "formula_without_speech": 0,
+  "engine_skips_formula_speech": false,
+  "mixed_ar_latin_steps": 0,
+  "steps_with_acronym_caps": 0,
+  "steps_with_raw_symbols": 0
+ },
+ {
+  "lesson": "EN012",
+  "scenes": 38,
+  "text_steps": 142,
+  "formula_steps": 37,
+  "formula_without_speech": 0,
+  "engine_skips_formula_speech": false,
+  "mixed_ar_latin_steps": 33,
+  "steps_with_acronym_caps": 59,
+  "steps_with_raw_symbols": 32
+ },
+ {
+  "lesson": "EN013",
+  "scenes": 25,
+  "text_steps": 112,
+  "formula_steps": 21,
+  "formula_without_speech": 0,
+  "engine_skips_formula_speech": false,
+  "mixed_ar_latin_steps": 0,
+  "steps_with_acronym_caps": 18,
+  "steps_with_raw_symbols": 8
+ },
+ {
+  "lesson": "EN014",
+  "scenes": 55,
+  "text_steps": 439,
+  "formula_steps": 313,
+  "formula_without_speech": 0,
+  "engine_skips_formula_speech": false,
+  "mixed_ar_latin_steps": 0,
+  "steps_with_acronym_caps": 0,
+  "steps_with_raw_symbols": 0
+ },
+ {
+  "lesson": "FR013",
+  "scenes": 25,
+  "text_steps": 122,
+  "formula_steps": 28,
+  "formula_without_speech": 0,
+  "engine_skips_formula_speech": false,
+  "mixed_ar_latin_steps": 0,
+  "steps_with_acronym_caps": 17,
+  "steps_with_raw_symbols": 7
+ },
+ {
+  "lesson": "FR015",
+  "scenes": 37,
+  "text_steps": 179,
+  "formula_steps": 2,
+  "formula_without_speech": 2,
+  "engine_skips_formula_speech": false,
+  "mixed_ar_latin_steps": 31,
+  "steps_with_acronym_caps": 52,
+  "steps_with_raw_symbols": 41
+ },
+ {
+  "lesson": "FR017",
+  "scenes": 31,
+  "text_steps": 75,
+  "formula_steps": 97,
+  "formula_without_speech": 0,
+  "engine_skips_formula_speech": false,
+  "mixed_ar_latin_steps": 19,
+  "steps_with_acronym_caps": 1,
+  "steps_with_raw_symbols": 4
+ }
+]

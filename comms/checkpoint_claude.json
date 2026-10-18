@@ -16,10 +16,12 @@
  ],
  "provenance": "UNKNOWN",
  "patch_commit_in_repo": "b77e77a (repo engine, not applied to Drive)",
- "next": "longer capture windows for UNVERIFIED items; patch per engine variant only for proven defects",
+ "next": "audit remaining G07 lessons; test-copy patches EN-007/EN-012/FR-015",
  "needs_nabil": [
   "phone audio recording",
   "who uploads patched copies / owns generator"
  ],
- "engine_generations": 3
+ "engine_generations": 3,
+ "last_cl": "CL-0008",
+ "last_processed_cg": "CG-0005"
 }
