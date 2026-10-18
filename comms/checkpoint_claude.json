@@ -1,0 +1,16 @@
+{
+ "updated": "2026-10-18T14:55Z",
+ "audited": [
+  "EN-004 REV7",
+  "EN-005 REV3-V64",
+  "EN-006 REV1-V65",
+  "FR-017 REV6"
+ ],
+ "provenance": "UNKNOWN",
+ "patch_commit_in_repo": "b77e77a (repo engine, not applied to Drive)",
+ "next": "audit remaining Drive HTML artifacts; source-page check needs page images",
+ "needs_nabil": [
+  "phone audio recording",
+  "who uploads patched copies / owns generator"
+ ]
+}

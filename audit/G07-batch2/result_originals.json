@@ -1,0 +1,128 @@
+[
+ {
+  "file": "en005",
+  "viewport": "1366x768",
+  "overflow_x": false,
+  "has_letter_spelling": false,
+  "has_speech_lang_split": false,
+  "n_speech": 6,
+  "langs": [
+   "None",
+   "ar-LB"
+  ],
+  "unspelled_caps": [],
+  "mixed_script_utterances": 4,
+  "raw_symbols_spoken": 0,
+  "sample": [
+   "ar-LB:الفصل الخامس من كتاب Building up Mathematics Grade 7: Signed numbers — Addition and subtraction.",
+   "ar-LB:سنتعلم الأعداد الموقعة، المعاكس الجمعي، الجمع والطرح، والعبارات العددية. Signed numbers, Opposite, A",
+   "ar-LB:المصدر الموثق: كتاب الطالب الصفحات المطبوعة 52 إلى 64، ودليل المعلم 32 إلى 37. تغطي هذه النسخة التما",
+   "ar-LB:النشاط التحضيري الأول: نستخدم محور الأعداد لتحديد موقع النقاط بواسطة Abscissa أي الإحداثي الأفقي."
+  ],
+  "errors": []
+ },
+ {
+  "file": "en005",
+  "viewport": "390x844",
+  "overflow_x": false,
+  "has_letter_spelling": false,
+  "has_speech_lang_split": false,
+  "n_speech": 2,
+  "langs": [
+   "None",
+   "ar-LB"
+  ],
+  "unspelled_caps": [],
+  "mixed_script_utterances": 1,
+  "raw_symbols_spoken": 0,
+  "sample": [
+   "ar-LB:الفصل الخامس من كتاب Building up Mathematics Grade 7: Signed numbers — Addition and subtraction."
+  ],
+  "errors": []
+ },
+ {
+  "file": "en006",
+  "viewport": "1366x768",
+  "overflow_x": false,
+  "has_letter_spelling": false,
+  "has_speech_lang_split": false,
+  "n_speech": 12,
+  "langs": [
+   "None",
+   "ar-LB"
+  ],
+  "unspelled_caps": [],
+  "mixed_script_utterances": 1,
+  "raw_symbols_spoken": 0,
+  "sample": [
+   "ar-LB:الفصل السادس: Signed numbers: Multiplication and division. نتابع الأعداد الموقّعة بعد الجمع والطرح.",
+   "ar-LB:المصدر: كتاب الطالب الصفحة 65، ودليل المعلم الصفحة 38. سنشرح أولًا النشاطين التحضيريين والقواعد، ثم ",
+   "ar-LB:هذا إنتاج جزئي قيد الفحص، وليس درسًا معتمدًا أو منشورًا.",
+   "ar-LB:النشاط التحضيري الأول في الصفحة 66 يطلب إكمال جدول حاصل ضرب أربعة أزواج من الأعداد الموقّعة، ثم استن"
+  ],
+  "errors": []
+ },
+ {
+  "file": "en006",
+  "viewport": "390x844",
+  "overflow_x": false,
+  "has_letter_spelling": false,
+  "has_speech_lang_split": false,
+  "n_speech": 2,
+  "langs": [
+   "None",
+   "ar-LB"
+  ],
+  "unspelled_caps": [],
+  "mixed_script_utterances": 1,
+  "raw_symbols_spoken": 0,
+  "sample": [
+   "ar-LB:الفصل السادس: Signed numbers: Multiplication and division. نتابع الأعداد الموقّعة بعد الجمع والطرح."
+  ],
+  "errors": []
+ },
+ {
+  "file": "fr017",
+  "viewport": "1366x768",
+  "overflow_x": false,
+  "has_letter_spelling": false,
+  "has_speech_lang_split": false,
+  "n_speech": 9,
+  "langs": [
+   "None",
+   "ar-LB"
+  ],
+  "unspelled_caps": [
+   "AB",
+   "TB"
+  ],
+  "mixed_script_utterances": 2,
+  "raw_symbols_spoken": 2,
+  "sample": [
+   "ar-LB:الفصل السابع عشر: Relevés statistiques — الإحصاء الوصفي.",
+   "ar-LB:سنرتّب البيانات في جدول، نحسب Effectif وFréquence، ونرسم Diagramme en bâtons وPolygone des effectifs",
+   "ar-LB:المرجع: كتاب الطالب ص 159–167، ودليل المعلم ص 94–97. هذا درس قيد تدقيق الجودة.",
+   "ar-LB:في النشاط الأول لدينا علامات خمسة وعشرين تلميذاً في الرياضيات، وكل علامة على عشرين، كما ورد في كتاب "
+  ],
+  "errors": []
+ },
+ {
+  "file": "fr017",
+  "viewport": "390x844",
+  "overflow_x": false,
+  "has_letter_spelling": false,
+  "has_speech_lang_split": false,
+  "n_speech": 2,
+  "langs": [
+   "None",
+   "ar-LB"
+  ],
+  "unspelled_caps": [],
+  "mixed_script_utterances": 1,
+  "raw_symbols_spoken": 0,
+  "sample": [
+   "ar-LB:الفصل السابع عشر: Relevés statistiques — الإحصاء الوصفي."
+  ],
+  "errors": []
+ }
+]

@@ -1,0 +1,71 @@
+[
+ {
+  "file": "en005_fix",
+  "viewport": "1366x768",
+  "overflow_x": false,
+  "has_letter_spelling": true,
+  "has_speech_lang_split": false,
+  "n_speech": 18,
+  "langs": [
+   "None",
+   "ar-LB",
+   "en-US"
+  ],
+  "unspelled_caps": [],
+  "mixed_script_utterances": 0,
+  "raw_symbols_spoken": 0,
+  "sample": [
+   "ar-LB:الفصل الخامس من كتاب ",
+   "en-US:Building up Mathematics Grade",
+   "ar-LB: 7: ",
+   "en-US:Signed numbers"
+  ],
+  "errors": []
+ },
+ {
+  "file": "en006_fix",
+  "viewport": "1366x768",
+  "overflow_x": false,
+  "has_letter_spelling": true,
+  "has_speech_lang_split": false,
+  "n_speech": 15,
+  "langs": [
+   "None",
+   "ar-LB",
+   "en-US"
+  ],
+  "unspelled_caps": [],
+  "mixed_script_utterances": 0,
+  "raw_symbols_spoken": 0,
+  "sample": [
+   "ar-LB:الفصل السادس: ",
+   "en-US:Signed numbers",
+   "en-US:Multiplication and division",
+   "ar-LB:. نتابع الأعداد الموقّعة بعد الجمع والطرح."
+  ],
+  "errors": []
+ },
+ {
+  "file": "fr017_fix",
+  "viewport": "1366x768",
+  "overflow_x": false,
+  "has_letter_spelling": true,
+  "has_speech_lang_split": false,
+  "n_speech": 24,
+  "langs": [
+   "None",
+   "ar-LB",
+   "fr-FR"
+  ],
+  "unspelled_caps": [],
+  "mixed_script_utterances": 0,
+  "raw_symbols_spoken": 0,
+  "sample": [
+   "ar-LB:الفصل السابع عشر: ",
+   "fr-FR:Relev",
+   "ar-LB:é",
+   "fr-FR:s statistiques"
+  ],
+  "errors": []
+ }
+]
