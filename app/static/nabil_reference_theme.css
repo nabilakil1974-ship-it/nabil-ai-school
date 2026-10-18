@@ -1898,3 +1898,76 @@ body:not(.nabil-lesson-active) #nabilHome #homeStartShortcut {
 #nabilLivePenHand{position:fixed;display:none;width:66px;height:74px;z-index:2147483647;pointer-events:none;filter:drop-shadow(0 5px 5px #0008);transform:rotate(-7deg);transition:left .045s linear,top .045s linear}
 #nabilLivePenHand svg{display:block;width:100%;height:100%;overflow:visible}#nabilLivePenHand.writing{display:block}
 @media(max-width:700px){#nabilWorksheetPanel>header{top:70px!important}.nabil-wb-toolbar{position:sticky;top:0;gap:7px;padding:8px;font-size:13px}.nabil-wb-toolbar button{flex:1 1 auto;min-height:42px}#nabilLivePenHand{width:54px;height:62px}}
+
+
+/* v5: unclutter the lesson and worksheet surfaces; improve mobile legibility. */
+#nabilWorksheetPanel{
+  position:relative!important;isolation:isolate;box-sizing:border-box!important;
+  width:min(100% - 16px,1180px)!important;max-width:1180px!important;
+  margin:16px auto!important;padding:14px!important;
+  background:#05172d!important;color:#eef8ff!important;
+  border:1px solid #176895!important;border-radius:18px!important;
+  box-shadow:0 16px 44px rgba(0,0,0,.32)!important;
+  overflow:visible!important;
+}
+#nabilWorksheetPanel>header{
+  position:relative!important;top:auto!important;z-index:2;
+  display:flex!important;align-items:center!important;justify-content:space-between!important;
+  gap:12px!important;padding:14px!important;margin:0 0 12px!important;
+  background:#082b4b!important;color:#eef8ff!important;
+  border:1px solid #176895!important;border-radius:12px!important;
+}
+#nabilWorksheetPanel>header strong{display:block;color:#65dfff!important;font-size:clamp(1.05rem,3vw,1.35rem)!important}
+#nabilWorksheetPanel #nwContext{margin:6px 0 0!important;color:#c3dced!important;overflow-wrap:anywhere}
+#nabilWorksheetPanel .nw-source{
+  padding:10px 12px!important;margin:10px 0!important;
+  background:#0b263f!important;color:#e9f7ff!important;
+  border:1px solid #176895!important;border-radius:10px!important;line-height:1.6!important;
+}
+#nabilWorksheetPanel .nw-progress{height:8px!important;overflow:hidden;border-radius:99px!important;background:#102f4a!important;margin:12px 0 18px!important}
+#nabilWorksheetPanel #nwProgressBar{display:block;height:100%;background:#14c8f5!important;border-radius:99px!important}
+#nabilWorksheetPanel #nwCards{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:14px!important;min-width:0!important}
+#nabilWorksheetPanel .nw-card{
+  position:relative!important;display:block!important;min-width:0!important;
+  padding:18px!important;margin:0!important;background:linear-gradient(155deg,#0a2944,#061d33)!important;
+  color:#eef8ff!important;border:1px solid #176895!important;border-radius:16px!important;
+  box-shadow:0 8px 22px #0003!important;line-height:1.8!important;overflow-wrap:anywhere!important;
+}
+#nabilWorksheetPanel .nw-card h2{margin:0 0 12px!important;color:#65dfff!important;font-size:clamp(1.1rem,3.5vw,1.45rem)!important;line-height:1.5!important}
+#nabilWorksheetPanel .nw-content{font-size:clamp(16px,2.4vw,19px)!important;line-height:1.95!important;color:#f4fbff!important;overflow-wrap:anywhere!important}
+#nabilWorksheetPanel .nw-content p,#nabilWorksheetPanel .nw-content li{line-height:1.95!important;margin:10px 0!important}
+#nabilWorksheetPanel .nw-figures{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:12px!important;margin-top:14px!important}
+#nabilWorksheetPanel .nw-figure{
+  display:block!important;width:100%!important;min-width:0!important;box-sizing:border-box!important;
+  padding:10px!important;background:#041827!important;border:1px solid #2379a8!important;
+  border-radius:12px!important;overflow:auto!important;
+}
+#nabilWorksheetPanel .nw-figure svg,#nabilWorksheetPanel .nw-figure img,#nabilWorksheetPanel .nw-figure canvas{
+  display:block!important;width:100%!important;max-width:100%!important;height:auto!important;margin:auto!important;
+}
+#nabilWorksheetPanel footer{
+  position:relative!important;bottom:auto!important;display:flex!important;flex-wrap:wrap!important;
+  gap:8px!important;margin:16px 0 0!important;padding:12px!important;
+  background:#08233b!important;border:1px solid #176895!important;border-radius:12px!important;
+}
+#nabilWorksheetPanel button{min-height:42px!important;max-width:100%!important;font:inherit!important;cursor:pointer}
+#nabilWorksheetPanel .nw-solution{margin:12px 0!important;padding:10px!important;background:#06182b!important;border:1px solid #2379a8!important;border-radius:10px!important}
+#nabilWorksheetPanel .nw-solution summary{color:#ffd447!important;font-weight:800!important;cursor:pointer;padding:5px!important}
+#nabilOpenAnswer{
+  box-sizing:border-box!important;width:100%!important;max-width:100%!important;min-width:0!important;
+  padding:clamp(12px,3vw,22px)!important;overflow-wrap:anywhere!important;
+}
+#nabilOpenExplanation,.nabil-open-answer-text{min-width:0!important;max-width:100%!important;color:#eef8ff!important;font-size:clamp(16px,2.3vw,19px)!important;line-height:1.95!important;overflow-wrap:anywhere!important}
+#nabilOpenExplanation p,.nabil-open-answer-text p{margin:12px 0!important;line-height:1.95!important}
+#nabilOpenVisuals{width:100%!important;min-width:0!important;box-sizing:border-box!important}
+.nabil-open-visual{width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important;overflow:auto!important;border:1px solid #176895!important;border-radius:14px!important;background:#041827!important;padding:8px!important}
+.nabil-open-visual svg,.nabil-open-visual canvas,.nabil-open-visual img{display:block!important;width:100%!important;max-width:100%!important;height:auto!important;margin:auto!important}
+.nabil-wb-toolbar{width:100%!important;box-sizing:border-box!important}
+@media(max-width:700px){
+ #nabilWorksheetPanel{width:calc(100% - 12px)!important;margin:8px auto!important;padding:8px!important;border-radius:12px!important}
+ #nabilWorksheetPanel .nw-card{padding:12px!important}
+ #nabilWorksheetPanel .nw-content,#nabilOpenExplanation,.nabil-open-answer-text{font-size:16px!important;line-height:1.85!important}
+ #nabilWorksheetPanel footer>*{flex:1 1 125px!important}
+ #nabilOpenAnswer{padding:10px!important}
+ .nabil-wb-toolbar{position:relative!important;top:auto!important}
+}
