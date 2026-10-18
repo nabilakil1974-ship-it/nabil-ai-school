@@ -519,6 +519,25 @@ def _build_root_html() -> str:
     boundary = html.lower().rfind("</body>")
     if boundary < 0:
         raise RuntimeError("NABIL chat page has no closing body tag")
+    # One clear entry point to the dedicated Golden whiteboard lesson index.
+    whiteboard_entry = (
+        '<style id="nabil-whiteboard-entry-css">'
+        '#nabil-start-whiteboard{position:fixed;z-index:99999;bottom:18px;right:18px;'
+        'display:inline-flex;align-items:center;justify-content:center;gap:8px;'
+        'padding:13px 19px;border-radius:999px;background:#0d9488;color:#fff;'
+        'font:800 16px system-ui,Tahoma,Arial;text-decoration:none;'
+        'border:1px solid #99f6e4;box-shadow:0 8px 28px #0006}'
+        '#nabil-start-whiteboard:focus,#nabil-start-whiteboard:hover{background:#087fbd;outline:2px solid #fff}'
+        '@media(max-width:480px){#nabil-start-whiteboard{right:12px;bottom:12px;left:12px}}'
+        '</style>'
+        '<a id="nabil-start-whiteboard" href="/whiteboard-lessons" '
+        'aria-label="ابدأ الدرس واختر درسًا من السبورة">▶ ابدأ الدرس</a>'
+    )
+    boundary = html.lower().rfind("</body>")
+    if boundary < 0:
+        raise RuntimeError("NABIL chat page has no closing body tag")
+    html = html[:boundary] + whiteboard_entry + html[boundary:]
+
     # Experimental virtual laboratories stay on /labs, not on the main student platform.
     html = html[:boundary] + scripts + html[boundary:]
     return html
@@ -534,6 +553,16 @@ _CACHED_ROOT_HTML = _build_root_html()
 @app.get("/")
 def root():
     return HTMLResponse(_CACHED_ROOT_HTML, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/whiteboard-lessons")
+def nabil_whiteboard_lessons_page():
+    """Student-facing index of Golden lessons rendered in the interactive classroom."""
+    return FileResponse(
+        "app/static/nabil_whiteboard_lessons.html",
+        media_type="text/html",
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @app.get("/dashboard")
