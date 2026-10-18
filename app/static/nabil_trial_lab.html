@@ -67,7 +67,7 @@ function render(){
 const L=lessons[selected],lang=$("language").value;
 $("lessonTitle").textContent=L.title[lang];$("sideIntro").textContent=L.intro[lang];$("question").textContent=L.q[lang];$("drawing").outerHTML=svgFor(L.svg);$("drawing").id="drawing";
 $("lessonCards").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.id===selected)));
-$("steps").innerHTML=L.steps.map((s,i)=>'<div class="step '+(i===stepIndex?'active':'')+'"><b>'+(i+1)+'.</b> '+s[lang]+'</div>').join('');
+$("steps").innerHTML=L.steps.slice(0,stepIndex+1).map((s,i)=>'<div class="step '+(i===stepIndex?'active':'')+'"><b>'+(i+1)+'.</b> '+s[lang]+'</div>').join('');
 $("next").textContent=lang==="en"?"Next step →":lang==="fr"?"Étape suivante →":"الخطوة التالية →";
 $("prev").textContent=lang==="en"?"← Previous":lang==="fr"?"← Précédent":"← السابق";
 $("replay").textContent=lang==="en"?"↻ Replay writing":lang==="fr"?"↻ Rejouer l’écriture":"↻ أعد الكتابة";
