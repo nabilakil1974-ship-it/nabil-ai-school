@@ -26,7 +26,7 @@ NABIL_CATALOGUE_JSON = Path("data/NABIL_GOLDEN_CATALOGUE.json")
 RENDERER_URL = "/static/nabil_reference_classroom_v16.js?v=1"
 INTERRUPT_FIX_URL = "/static/nabil_reference_interrupt_fix_v17.js?v=1"
 VERIFIED_LAB_LOADER_URL = "/static/nabil_verified_lab_loader_v19.js?v=1"
-READABILITY_CSS_URL = "/static/nabil_classroom_readability_v1.css?v=1"
+READABILITY_CSS_URL = "/static/nabil_classroom_readability_v1.css?v=2"
 
 LANG_CODES = {"EN", "FR", "AR"}
 BRANCH_CODES = {"GS", "LS", "SV", "SE", "ES", "LH", "HUM"}
@@ -727,6 +727,7 @@ window.__NABIL_GOLDEN__={payload};
 
 <script src="{INTERRUPT_FIX_URL}"></script>
 <script src="{RENDERER_URL}"></script>
+<script src="/static/nabil_live_whiteboard_v1.js?v=1"></script>
 <script src="{VERIFIED_LAB_LOADER_URL}"></script>
 
 <script>
