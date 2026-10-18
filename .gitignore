@@ -4,3 +4,8 @@ client_secret.json
 credentials.json
 token.json
 *.oauth-token.json
+
+# local secrets never tracked
+.env
+.env.*
+!.env.example
