@@ -289,3 +289,22 @@ window.fetch=async function(input,options){
  }finally{busy=false;}
 };
 })();
+/* Second interface: retain only grade selection, free exercises and lesson preparation.
+   Hide optional monitoring/Golden/full-explanation/interactive entry controls without
+   removing their underlying routes, lesson files, or factory functionality. */
+(function simplifySecondInterface(){
+ "use strict";
+ const keep=/^(?:الصف|اختيار الصف|التمارين الحرة|تمارين حرة|تحضير الدرس|تحضير درس|grade|free exercises|prepare lesson)$/i;
+ const remove=/(?:مراقب(?:ة|ه)\s*(?:الدرس|الدروس)|راقب\s*(?:الدرس|الدرس)|golden|غولدن|غولدن|الشرح\s*(?:الكامل|التفاعلي)|شرح\s*(?:كامل|تفاعلي)|درس\s*(?:كامل|غولدن)|افتح\s*(?:درس|الدرس)|الدرس\s*التفاعلي|التفاعلي(?:ة)?\s*(?:للدرس|درس)?|open\s+(?:golden|full lesson)|full explanation|interactive lesson|lesson monitoring)/i;
+ function clean(){
+  document.querySelectorAll("button,a,[role='button']").forEach(el=>{
+   if(el.closest("#chat,.message,.chat-message,.assistant-message,#nabilDriveInteractiveLesson,#nabilMultiExerciseQueue"))return;
+   const label=(el.innerText||el.textContent||el.getAttribute("aria-label")||el.title||"").replace(/\s+/g," ").trim();
+   if(!label||keep.test(label))return;
+   if(remove.test(label)){el.style.setProperty("display","none","important");el.setAttribute("aria-hidden","true");}
+  });
+ }
+ clean();
+ const observer=new MutationObserver(clean);
+ observer.observe(document.documentElement,{childList:true,subtree:true,characterData:true});
+})();
