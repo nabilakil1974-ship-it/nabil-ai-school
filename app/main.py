@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from starlette.middleware.gzip import GZipMiddleware
@@ -499,6 +499,7 @@ def _build_root_html() -> str:
         '<script src="/static/nabil_worksheet_v1.js?v=5"></script>\n        <script src="/static/nabil_live_whiteboard_v1.js?v=3"></script>\n'
         '<script src="/static/nabil_lesson_worksheet_card_v1.js?v=1"></script>\n'
         '<script src="/static/nabil_factory_prepare_v1.js?v=1"></script>\n'
+        '<script src="/static/nabil_drive_prepared_lesson_v1.js?v=8"></script>\n'
         '<script src="/static/nabil_browser_tts_v1.js?v=1"></script>\n'
         '<script src="/static/nabil_voice_v133.js?v=133"></script>\n'
         '<script src="/static/nabil_scientific_solution_cards_e2e.js?v=4"></script>\n'
@@ -529,6 +530,70 @@ _CACHED_ROOT_HTML = _build_root_html()
 @app.get("/")
 def root():
     return HTMLResponse(_CACHED_ROOT_HTML, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/trial")
+def nabil_trial_lab_page():
+    """Student-facing showcase of the seven NABIL teaching-board trials."""
+    return FileResponse(
+        "app/static/nabil_trial_lab.html",
+        media_type="text/html",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@app.post("/api/trial-feedback")
+async def save_nabil_trial_feedback(request: Request):
+    """Store a minimal student trial rating in the platform database."""
+    try:
+        data = await request.json()
+    except Exception:
+        return HTMLResponse("Invalid JSON", status_code=400)
+
+    lesson_id = str(data.get("lesson_id") or "").strip()
+    language = str(data.get("language") or "ar").strip().lower()
+    clarity = str(data.get("clarity") or "").strip().lower()
+    comment = str(data.get("comment") or "").strip()[:1200]
+    try:
+        rating = int(data.get("rating"))
+    except (TypeError, ValueError):
+        rating = 0
+
+    allowed_lessons = {
+        "functions", "solids", "lines", "physics",
+        "chemistry", "biology", "cloud",
+    }
+    if lesson_id not in allowed_lessons:
+        return HTMLResponse("Invalid lesson", status_code=400)
+    if language not in {"ar", "en", "fr"}:
+        return HTMLResponse("Invalid language", status_code=400)
+    if rating not in {1, 2, 3, 4, 5} or clarity not in {"yes", "partly", "no"}:
+        return HTMLResponse("Invalid feedback", status_code=400)
+
+    # Portable SQL supported by both SQLite and PostgreSQL.
+    with engine.begin() as conn:
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS nabil_trial_feedback (
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                lesson_id VARCHAR(40) NOT NULL,
+                language VARCHAR(8) NOT NULL,
+                rating INTEGER NOT NULL,
+                clarity VARCHAR(20) NOT NULL,
+                comment TEXT NOT NULL DEFAULT ''
+            )
+        """))
+        conn.execute(text("""
+            INSERT INTO nabil_trial_feedback
+                (lesson_id, language, rating, clarity, comment)
+            VALUES (:lesson_id, :language, :rating, :clarity, :comment)
+        """), {
+            "lesson_id": lesson_id,
+            "language": language,
+            "rating": rating,
+            "clarity": clarity,
+            "comment": comment,
+        })
+    return {"ok": True}
 
 
 @app.get("/dashboard")
