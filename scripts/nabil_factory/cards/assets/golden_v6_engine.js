@@ -318,6 +318,26 @@ async function figure(id,a){
       const nu=Math.hypot(u[0]-x,u[1]-y)||1,nv=Math.hypot(v[0]-x,v[1]-y)||1,d=18;
       const a1=[x+(u[0]-x)/nu*d,y+(u[1]-y)/nu*d],a2=[x+(v[0]-x)/nv*d,y+(v[1]-y)/nv*d],a3=[a1[0]+a2[0]-x,a1[1]+a2[1]-y];
       el('path',{d:'M'+a1+' L'+a3+' L'+a2,fill:'none',stroke:'#b42350','stroke-width':3})}}
+  /* Property marks, the textbook convention: equal segments = same number of ticks, equal angles = same number of
+     arcs, parallel = arrow heads. Each group gets its own colour so the student can match them by eye. */
+  const GRP=['#d6336c','#1c7ed6','#2f9e44','#e8590c','#7048e8'];let gi=0;
+  for(const m of a.marks||[]){
+    const col=GRP[(Number.isInteger(m.g)?m.g:gi++)%GRP.length],cnt=Math.max(1,Math.min(4,(m.n|0)||1));
+    if((m.type==='equal'||m.type==='parallel')&&Array.isArray(m.segs)){
+      for(const sg of m.segs){
+        if(!pts[sg[0]]||!pts[sg[1]])continue;
+        const [x1,y1]=P(sg[0]),[x2,y2]=P(sg[1]),mx=(x1+x2)/2,my=(y1+y2)/2,L=Math.hypot(x2-x1,y2-y1)||1,ux=(x2-x1)/L,uy=(y2-y1)/L,nx=-uy,ny=ux;
+        for(let i=0;i<cnt;i++){
+          const o=(i-(cnt-1)/2)*(m.type==='equal'?9:11);
+          if(m.type==='equal'){el('line',{x1:mx+ux*o-nx*11,y1:my+uy*o-ny*11,x2:mx+ux*o+nx*11,y2:my+uy*o+ny*11,stroke:col,'stroke-width':4,'stroke-linecap':'round'})}
+          else{const cx0=mx+ux*o,cy0=my+uy*o;el('path',{d:'M'+(cx0-ux*7+nx*8)+' '+(cy0-uy*7+ny*8)+' L'+(cx0+ux*5)+' '+(cy0+uy*5)+' L'+(cx0-ux*7-nx*8)+' '+(cy0-uy*7-ny*8),fill:'none',stroke:col,'stroke-width':3.5,'stroke-linecap':'round','stroke-linejoin':'round'})}}}
+      if(!FAST&&!await wait(220,id))return}
+    else if(m.type==='equal_angle'&&pts[m.at]&&m.between&&pts[m.between[0]]&&pts[m.between[1]]){
+      const [x,y]=P(m.at),u=P(m.between[0]),v=P(m.between[1]);
+      let a1=Math.atan2(u[1]-y,u[0]-x),a2=Math.atan2(v[1]-y,v[0]-x),d=a2-a1;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;
+      for(let i=0;i<cnt;i++){const r=26+i*8,sw=d>0?1:0;
+        el('path',{d:'M'+(x+r*Math.cos(a1))+' '+(y+r*Math.sin(a1))+' A'+r+' '+r+' 0 0 '+sw+' '+(x+r*Math.cos(a1+d))+' '+(y+r*Math.sin(a1+d)),fill:'none',stroke:col,'stroke-width':3.5,'stroke-linecap':'round'})}
+      if(!FAST&&!await wait(220,id))return}}
   for(const m of a.marks||[]){
     if(m.type==='angle'&&pts[m.at]&&m.text){
       const [x,y]=P(m.at),dx=cx-x,dy=cy-y,dn=Math.hypot(dx,dy)||1;

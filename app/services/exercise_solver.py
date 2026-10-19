@@ -169,7 +169,8 @@ Write EVERYTHING (labels, say, text, justification) in {language}. Reply with ON
   "title": "<short title>",
   "given": ["<datum taken from the statement>"], "required": ["<what must be found/proved>"],
   "figure": null | {{"points": {{"A":[0,0],"B":[4,0],"C":[0,3]}}, "segments": [["A","B","4 cm"],["B","C"],["A","C","dash"]],
-                    "circles": [{{"center":"O","r":2}}], "marks": [{{"type":"right_angle","at":"A","between":["B","C"]}}]}},
+                    "circles": [{{"center":"O","r":2}}], "marks": [{{"type":"right_angle","at":"A","between":["B","C"]}}, {{"type":"equal","segs":[["A","B"],["A","C"]],"n":1}}, {{"type":"equal_angle","at":"B","between":["A","C"],"n":1}}, {{"type":"parallel","segs":[["A","B"],["D","E"]],"n":1}}]}},
+  (mark ONLY properties stated or proved: equal = congruent segments, same n = same length; equal_angle = equal angles; parallel = parallel lines)
   "steps": [{{"say": "<2-5 word spoken lead-in such as: We substitute now>",
              "text": "<one clear sentence explaining the move>", "formula": "<optional, plain text like 2x + 3 = 7>",
              "justification": "<rule/theorem/property used, optional>"}}],
@@ -218,6 +219,19 @@ def _clean_figure(fig: Any) -> Optional[Dict[str, Any]]:
     for m in (fig.get("marks") or [])[:12]:
         if isinstance(m, dict) and m.get("type") == "angle" and _s(m.get("at"), 4) in pts and _s(m.get("text"), 8):
             marks.append({"type": "angle", "at": _s(m["at"], 4), "text": _s(m["text"], 8)})
+    for m in (fig.get("marks") or [])[:12]:
+        if not isinstance(m, dict):
+            continue
+        n = int(m["n"]) if isinstance(m.get("n"), (int, float)) and 1 <= int(m["n"]) <= 4 else 1
+        if m.get("type") in ("equal", "parallel") and isinstance(m.get("segs"), list):
+            segs_ok = [[_s(x, 4) for x in sg] for sg in m["segs"][:6]
+                       if isinstance(sg, list) and len(sg) == 2 and all(_s(x, 4) in pts for x in sg)]
+            if segs_ok:
+                marks.append({"type": m["type"], "segs": segs_ok, "n": n, **({"g": int(m["g"])} if isinstance(m.get("g"), int) and 0 <= m["g"] < 5 else {})})
+        elif m.get("type") == "equal_angle" and _s(m.get("at"), 4) in pts \
+                and isinstance(m.get("between"), list) and len(m["between"]) == 2 \
+                and all(_s(b, 4) in pts for b in m["between"]):
+            marks.append({"type": "equal_angle", "at": _s(m["at"], 4), "between": [_s(b, 4) for b in m["between"]], "n": n, **({"g": int(m["g"])} if isinstance(m.get("g"), int) and 0 <= m["g"] < 5 else {})})
     out = {"points": pts, "segments": segs, "circles": circles, "marks": marks}
     if isinstance(fig.get("show"), list):
         out["show"] = [_s(n, 4) for n in fig["show"] if _s(n, 4) in pts]
