@@ -55,9 +55,10 @@ function unitsOf(text,rtl,formula){
   if(formula){
     (String(text).match(/\S+\s*/g)||[]).forEach(w=>{const sp=document.createElement('span');supNodes(w,sp);units.push(sp)});
     return units}
-  const words=String(text).match(/\S+\s*/g)||[];
-  const isMath=w=>/[0-9^{}=+×÷−<>≤≥≠≈√]/.test(w);
-  const isLatin=w=>/^[A-Za-z][A-Za-z'’-]*[.,;:!?]?\s*$/.test(w);
+  const words=[];(String(text).match(/\S+\s*/g)||[]).forEach(w=>{const m=w.match(/^([\u0600-\u06ff]{1,3})([^\u0600-\u06ff\s][\s\S]*)$/);if(m){words.push(m[1]);words.push(m[2])}else words.push(w)});
+  const isMath=w=>/[0-9^{}=+×÷−<>≤≥≠≈√∠△°≅⟂↔∥]/.test(w)&&!/[\u0600-\u06ff]/.test(w.replace(/[،؛]/g,''));
+  const isLatin=w=>/^[A-Za-z][A-Za-z'’-]*[.,;:!?،؛]?\s*$/.test(w);
+  const endsRun=w=>/[،؛.:!?]\s*$/.test(w);
   let i=0;
   const bdiOf=str=>{const b=document.createElement('bdi');b.dir='ltr';b.className='nb-math';supNodes(str,b);return b};
   while(i<words.length){
@@ -65,8 +66,9 @@ function unitsOf(text,rtl,formula){
     if(rtl&&(isMath(w)||isLatin(w))){
       /* RTL page: keep a Latin/math run together, isolated LTR, so it never flips */
       let j=i,buf='';
-      while(j<words.length&&(isMath(words[j])||isLatin(words[j]))){buf+=words[j];j++}
-      const b=bdiOf(buf.replace(/\s+$/,''));units.push(b);
+      while(j<words.length&&(isMath(words[j])||isLatin(words[j]))){buf+=words[j];j++;if(endsRun(words[j-1]))break}
+      const tailP=(buf.match(/[،؛.:!?]+\s*$/)||[''])[0];buf=buf.slice(0,buf.length-tailP.length);
+      const b=bdiOf(buf.replace(/\s+$/,''));units.push(b);if(tailP){const tp=document.createElement('span');tp.textContent=tailP.trim();units.push(tp)}
       const sp=document.createElement('span');sp.textContent=' ';units.push(sp);i=j}
     else if(isMath(w)){const b=bdiOf(w.replace(/\s+$/,''));units.push(b);
       const sp=document.createElement('span');sp.textContent=' ';units.push(sp);i++}
