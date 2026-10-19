@@ -1,0 +1,183 @@
+{
+ "EN004": {
+  "scenes": 60,
+  "applicable": 49,
+  "fail_no_figure": 13,
+  "unverified_prebaked": 36,
+  "pass_marked": 0,
+  "verdict": "FAIL",
+  "failing_scenes": [
+   "CH04-001-intro",
+   "CH04-008-equal-triangles",
+   "CH04-015-angles",
+   "CH04-016-proof-segments",
+   "CH04-019-ex1",
+   "CH04-020-ex2",
+   "CH04-022-ex4",
+   "CH04-027-ex9",
+   "CH04-028-ex10",
+   "CH04-029-ex11",
+   "CH04-030-ex12",
+   "CH04-041-problem4",
+   "CH04-042-problem5"
+  ]
+ },
+ "EN005": {
+  "scenes": 59,
+  "applicable": 1,
+  "fail_no_figure": 1,
+  "unverified_prebaked": 0,
+  "pass_marked": 0,
+  "verdict": "FAIL",
+  "failing_scenes": [
+   "CH05-V63-034-fun1"
+  ]
+ },
+ "EN006": {
+  "scenes": 21,
+  "applicable": 0,
+  "fail_no_figure": 0,
+  "unverified_prebaked": 0,
+  "pass_marked": 0,
+  "verdict": "PASS",
+  "failing_scenes": []
+ },
+ "EN007": {
+  "scenes": 15,
+  "applicable": 11,
+  "fail_no_figure": 11,
+  "unverified_prebaked": 0,
+  "pass_marked": 0,
+  "verdict": "FAIL",
+  "failing_scenes": [
+   "CH7-01",
+   "CH7-03",
+   "CH7-05",
+   "CH7-06",
+   "CH7-07",
+   "CH7-08",
+   "CH7-09",
+   "CH7-11",
+   "CH7-12",
+   "CH7-13",
+   "CH7-14"
+  ]
+ },
+ "EN008": {
+  "scenes": 37,
+  "applicable": 1,
+  "fail_no_figure": 1,
+  "unverified_prebaked": 0,
+  "pass_marked": 0,
+  "verdict": "FAIL",
+  "failing_scenes": [
+   "CH8-36"
+  ]
+ },
+ "EN009": {
+  "scenes": 38,
+  "applicable": 0,
+  "fail_no_figure": 0,
+  "unverified_prebaked": 0,
+  "pass_marked": 0,
+  "verdict": "PASS",
+  "failing_scenes": []
+ },
+ "EN012": {
+  "scenes": 38,
+  "applicable": 27,
+  "fail_no_figure": 2,
+  "unverified_prebaked": 25,
+  "pass_marked": 0,
+  "verdict": "FAIL",
+  "failing_scenes": [
+   "CH12-001",
+   "CH12-013"
+  ]
+ },
+ "EN013": {
+  "scenes": 25,
+  "applicable": 10,
+  "fail_no_figure": 3,
+  "unverified_prebaked": 7,
+  "pass_marked": 0,
+  "verdict": "FAIL",
+  "failing_scenes": [
+   "CH13-007",
+   "CH13-015",
+   "CH13-025"
+  ]
+ },
+ "EN014": {
+  "scenes": 55,
+  "applicable": 4,
+  "fail_no_figure": 4,
+  "unverified_prebaked": 0,
+  "pass_marked": 0,
+  "verdict": "FAIL",
+  "failing_scenes": [
+   "CH14-033",
+   "CH14-044",
+   "CH14-046",
+   "CH14-049"
+  ]
+ },
+ "FR013": {
+  "scenes": 25,
+  "applicable": 11,
+  "fail_no_figure": 4,
+  "unverified_prebaked": 7,
+  "pass_marked": 0,
+  "verdict": "FAIL",
+  "failing_scenes": [
+   "CH13-007",
+   "CH13-015",
+   "CH13-024",
+   "CH13-025"
+  ]
+ },
+ "FR015": {
+  "scenes": 37,
+  "applicable": 20,
+  "fail_no_figure": 3,
+  "unverified_prebaked": 17,
+  "pass_marked": 0,
+  "verdict": "FAIL",
+  "failing_scenes": [
+   "CH15-008",
+   "CH15-015",
+   "CH15-037"
+  ]
+ },
+ "FR017": {
+  "scenes": 31,
+  "applicable": 3,
+  "fail_no_figure": 0,
+  "unverified_prebaked": 3,
+  "pass_marked": 0,
+  "verdict": "UNVERIFIED",
+  "failing_scenes": []
+ },
+ "lesson_v5": {
+  "scenes": 60,
+  "applicable": 49,
+  "fail_no_figure": 12,
+  "unverified_prebaked": 33,
+  "pass_marked": 4,
+  "verdict": "FAIL",
+  "failing_scenes": [
+   "CH04-001-intro",
+   "CH04-008-equal-triangles",
+   "CH04-015-angles",
+   "CH04-016-proof-segments",
+   "CH04-019-ex1",
+   "CH04-020-ex2",
+   "CH04-022-ex4",
+   "CH04-027-ex9",
+   "CH04-028-ex10",
+   "CH04-029-ex11",
+   "CH04-041-problem4",
+   "CH04-042-problem5"
+  ]
+ }
+}
