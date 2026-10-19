@@ -173,7 +173,8 @@ Write EVERYTHING (labels, say, text, justification) in {language}. Reply with ON
   (mark ONLY properties stated or proved: equal = congruent segments, same n = same length; equal_angle = equal angles; parallel = parallel lines)
   "steps": [{{"say": "<2-5 word spoken lead-in such as: We substitute now>",
              "text": "<one clear sentence explaining the move>", "formula": "<optional, plain text like 2x + 3 = 7>",
-             "justification": "<rule/theorem/property used, optional>"}}],
+             "justification": "<rule/theorem/property used, optional>",
+             "figure_step": null | {{"segments": [["A","K","","dash"]], "marks": [{{"type":"equal","segs":[["A","M"],["A","N"]],"n":1}}, {{"type":"equal_angle","at":"M","between":["A","K"],"n":1}}, {{"type":"right_angle","at":"H","between":["A","B"]}}, {{"type":"angle","at":"B","text":"60°"}}]}}}}],
   "answer": "<final answer sentence>",
   "machine_check": null | {{"equation": "x**2-5*x+6=0", "variable": "x", "solutions": ["2","3"]}}}}
 Rules:
@@ -181,6 +182,10 @@ Rules:
   list precise questions, and leave steps empty. Never invent numbers.
 - 4 to 14 steps. Each step is one school-level move (substitute, simplify, divide both sides, factor, apply a theorem, conclude).
   Show every calculation; never jump to the result. The last step concludes the answer.
+- GEOMETRY METHOD (mandatory whenever a step states a property): the step's figure_step carries the marks it states, so the hand
+  points at them on the figure while it speaks: equal segments (same n = same length), equal angles, right angle, parallel,
+  angle measures, and any extra segment the solution needs but the figure lacks (segments). Never state a property in text
+  without marking it. Mark ONLY what is given or already proved.
 - A figure is optional: only for geometry, with coordinates consistent with the given lengths/angles (maths coordinates, y up).
 - machine_check only for equations/inequalities in one variable that python/sympy can solve (use ** for powers); else null.
 - Plain text only, no markdown, no HTML, no LaTeX commands."""

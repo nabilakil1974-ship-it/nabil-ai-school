@@ -291,6 +291,7 @@ async function powerFactors(id,a){
     if(i<n-1&&col<per-1)el('text',{x:x+bw+gap/2,y:y+60,'font-size':34,fill:'#263b50','font-weight':'bold','text-anchor':'middle'},'×');
     if(!await wait(120,id))return}
   if(a.value!=null)label('= '+a.value,x0,Math.min(600,250+Math.ceil(n/per)*150+30),'#16724a')}
+let curFig=null,srcBox=null;
 /* Generic figure: points in maths coordinates (y up) are scaled to the board and drawn
    segment by segment with the pen. Used by the exercise solver for geometry figures. */
 async function figure(id,a){
@@ -303,6 +304,7 @@ async function figure(id,a){
   const sx=(maxx-minx)||1,sy=(maxy-miny)||1,k=Math.min(430/sx,360/sy);
   const X=x=>250+(430-sx*k)/2+(x-minx)*k,Y=y=>190+(360-sy*k)/2+(maxy-y)*k;
   const P=n=>[X(pts[n][0]),Y(pts[n][1])];
+  curFig={P:n=>pts[n]?P(n):null,kind:'board'};
   const cx=names.reduce((t,n)=>t+X(pts[n][0]),0)/names.length,cy=names.reduce((t,n)=>t+Y(pts[n][1]),0)/names.length;
   for(const seg of a.segments||[]){
     if(!pts[seg[0]]||!pts[seg[1]])continue;
@@ -388,8 +390,65 @@ async function svgScene(id,a){
         if(!await wait(22,id))return}
       n.style.strokeDasharray='';n.style.strokeDashoffset=''}
     else if(!await wait(FAST?0:260,id))return}}
-const CLEARING=new Set(['cubeOutline','cubeRotate','cubeUnfold','powerFactors','figure']);
-const DRAW={cubeOutline,cubeColor,cubeRotate,cubeUnfold,powerFactors,figure,svgScene};
+/*ANNOT*/
+/* ANNOTATE — the shared way every exercise/lesson marks properties on a figure (NABIL rule LL-12/LL-13):
+   the hand points at the element, then draws the textbook mark while the sentence is spoken.
+   Items reference points BY NAME (resolved through the current figure) or give raw board coordinates.
+     equal   {segs:[[A,B],[C,D]], n}        same number of ticks = equal length
+     arc     {at,from,to,n,text}            same number of arcs  = equal angle (text = measure)
+     right   {at,u,v}                       right-angle square
+     parallel{segs:[[A,B],[C,D]], n}        arrow heads
+     seg     {a,b,dash}                     a line the book figure lacks (completing the figure)
+     poly    {pts}                          outline a triangle/polygon
+     ring    {p}                            circle an existing mark; label {p,text} writes text */
+async function annotate(id,a){
+  const base=a.on==='image'&&srcBox?'image':'board';
+  const R=p=>{if(typeof p==='string'){const q=curFig&&curFig.P(p);if(!q)return null;return q}
+    if(base==='image'&&p&&p.length===2&&p[0]<=1.5&&p[1]<=1.5)return[srcBox.x+p[0]*srcBox.w,srcBox.y+p[1]*srcBox.h];return p};
+  const S=base==='image'?0.8:1,GRP=['#d6336c','#1c7ed6','#2f9e44','#e8590c','#7048e8'];let gi=0;
+  const pt=async p=>{if(FAST)return true;svgPoint(p[0],p[1]);return await wait(300,id)};
+  const ang=(o,p)=>Math.atan2(p[1]-o[1],p[0]-o[0]);
+  for(const it of a.items||[]){
+    if(id!==run)return false;
+    const c=it.c||GRP[(Number.isInteger(it.g)?it.g:gi++)%GRP.length];
+    if(it.kind==='equal'||it.kind==='parallel'){
+      const n=Math.max(1,Math.min(4,it.n||1));
+      for(const sg of it.segs||[]){
+        const p=R(sg[0]),q=R(sg[1]);if(!p||!q)continue;
+        const mx=(p[0]+q[0])/2,my=(p[1]+q[1])/2,L=Math.hypot(q[0]-p[0],q[1]-p[1])||1,ux=(q[0]-p[0])/L,uy=(q[1]-p[1])/L,nx=-uy,ny=ux;
+        if(!await pt([mx,my]))return false;
+        for(let i=0;i<n;i++){const o=(i-(n-1)/2)*(it.kind==='equal'?9:11)*S;
+          if(it.kind==='equal')el('line',{x1:mx+ux*o-nx*12*S,y1:my+uy*o-ny*12*S,x2:mx+ux*o+nx*12*S,y2:my+uy*o+ny*12*S,stroke:c,'stroke-width':4,'stroke-linecap':'round'});
+          else{const x0=mx+ux*o,y0=my+uy*o;el('path',{d:'M'+(x0-ux*7*S+nx*8*S)+' '+(y0-uy*7*S+ny*8*S)+' L'+(x0+ux*5*S)+' '+(y0+uy*5*S)+' L'+(x0-ux*7*S-nx*8*S)+' '+(y0-uy*7*S-ny*8*S),fill:'none',stroke:c,'stroke-width':3.5,'stroke-linecap':'round','stroke-linejoin':'round'})}}
+        if(!await wait(FAST?0:250,id))return false}}
+    else if(it.kind==='arc'){
+      const O=R(it.at),P=R(it.from),Q=R(it.to);if(!O||!P||!Q)continue;const n=Math.max(1,Math.min(4,it.n||1));
+      if(!await pt(O))return false;
+      const a1=ang(O,P);let d=ang(O,Q)-a1;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;
+      const r0=(it.r||30)*S;
+      for(let i=0;i<n;i++){const r=r0+i*8*S;el('path',{d:'M'+(O[0]+r*Math.cos(a1))+' '+(O[1]+r*Math.sin(a1))+' A'+r+' '+r+' 0 0 '+(d>0?1:0)+' '+(O[0]+r*Math.cos(a1+d))+' '+(O[1]+r*Math.sin(a1+d)),fill:'none',stroke:c,'stroke-width':3.6,'stroke-linecap':'round'})}
+      if(it.text){const r=r0+(n-1)*8*S+24*S,m=a1+d/2;el('text',{x:O[0]+r*Math.cos(m)-18*S,y:O[1]+r*Math.sin(m)+8*S,'font-size':24*S,fill:c,'font-weight':'bold'},String(it.text).slice(0,8))}
+      if(!await wait(FAST?0:300,id))return false}
+    else if(it.kind==='seg'){const p=R(it.a),q=R(it.b);if(!p||!q)continue;if(!await pt(p))return false;if(!await drawLine(p[0],p[1],q[0],q[1],c,id,it.dash?'8 7':''))return false}
+    else if(it.kind==='poly'){const ps=(it.pts||[]).map(R).filter(Boolean);if(ps.length<3)continue;if(!await pt(ps[0]))return false;for(let i=0;i<ps.length;i++){const p=ps[i],q=ps[(i+1)%ps.length];if(!await drawLine(p[0],p[1],q[0],q[1],c,id,'10 6'))return false}}
+    else if(it.kind==='right'){const O=R(it.at),u=R(it.u),v=R(it.v);if(!O||!u||!v)continue;const d=16*S,nu=Math.hypot(u[0]-O[0],u[1]-O[1])||1,nv=Math.hypot(v[0]-O[0],v[1]-O[1])||1,a1=[O[0]+(u[0]-O[0])/nu*d,O[1]+(u[1]-O[1])/nu*d],a2=[O[0]+(v[0]-O[0])/nv*d,O[1]+(v[1]-O[1])/nv*d];
+      if(!await pt(O))return false;el('path',{d:'M'+a1+' L'+[a1[0]+a2[0]-O[0],a1[1]+a2[1]-O[1]]+' L'+a2,fill:'none',stroke:c,'stroke-width':3.6})}
+    else if(it.kind==='ring'){const p=R(it.p);if(!p)continue;if(!await pt(p))return false;el('circle',{cx:p[0],cy:p[1],r:(it.r||16)*S,fill:'none',stroke:c,'stroke-width':4});if(!await wait(FAST?0:450,id))return false}
+    else if(it.kind==='label'){const p=R(it.p);if(!p)continue;if(!await pt(p))return false;el('text',{x:p[0],y:p[1],'font-size':26*S,fill:c,'font-weight':'bold'},String(it.text||'').slice(0,24))}
+  }
+  return id===run}
+/* A book/student figure shown as an image; annotate{on:'image'} then overlays fractional (0..1) coordinates. */
+async function sourceImage(id,a){
+  if(!a.b64)return;
+  ink.replaceChildren();
+  const w0=a.w||400,h0=a.h||300,maxW=555,maxH=405,w=Math.min(maxW,maxH*w0/h0),h=w*h0/w0,x=170+(610-w)/2,y=125+(500-h)/2;
+  srcBox={x,y,w,h};
+  const im=el('image',{x,y,width:w,height:h,preserveAspectRatio:'xMidYMid meet'});im.setAttribute('href','data:'+(a.mime||'image/jpeg')+';base64,'+a.b64);
+  curFig={P:n=>{const q=a.points&&a.points[n];return q?[x+q[0]*w,y+q[1]*h]:null},kind:'image'};
+  svgPoint(x+w/2,y+h/2);if(!await wait(FAST?0:600,id))return;
+  if(a.caption)label(a.caption,x,y+h+30,'#315574')}
+const CLEARING=new Set(['cubeOutline','cubeRotate','cubeUnfold','powerFactors','figure','sourceImage']);
+const DRAW={annotate,sourceImage,cubeOutline,cubeColor,cubeRotate,cubeUnfold,powerFactors,figure,svgScene};
 async function doDraw(step,id){
   const fn=DRAW[step.draw];
   if(!fn)return true;
@@ -451,7 +510,7 @@ async function playScene(startStep){
     marks[si]=writing.childNodes.length;
     curStepNo=si+1;
     if(step.t==='text'||step.t==='formula'){if(!await writeStep(step,id))return}
-    else if(step.t==='draw'){setBoardMode('dual',{preserveState:true});await new Promise(r=>requestAnimationFrame(r));if(!await doDraw(step,id))return}
+    else if(step.t==='draw'){setBoardMode('dual',{preserveState:true});await new Promise(r=>requestAnimationFrame(r));const hv=step.speech?speakText(step.speech,id,'',step.speech_lang):null;if(!await doDraw(step,id))return;if(hv&&!await waitVoice(hv,id))return}
     else if(step.t==='mode'){setBoardMode(step.mode,{preserveState:true})}
     else if(step.t==='check'&&step.check){if(!await showCheck(step.check,id))return}
     if(!await wait(300,id))return}

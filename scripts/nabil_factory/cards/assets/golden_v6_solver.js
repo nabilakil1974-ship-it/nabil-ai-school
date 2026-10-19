@@ -132,17 +132,31 @@ async function run(body,statement,go){
     const scenes=toScenes(d);close(false);O().enterInterlude(scenes,{kind:'solve'})}
   catch(e){status(body,String(e),'err');go.disabled=false}finally{busy=false}}
 
+/* Property marks (equal ticks, equal-angle arcs, parallel arrows) are drawn by the shared `annotate` action:
+   the hand points at the element and draws the mark while the lead-in sentence is spoken (NABIL rule LL-12). */
+const PROP=new Set(['equal','equal_angle','parallel']);
+function splitMarks(fig){
+  const ms=(fig&&fig.marks)||[];
+  const items=ms.filter(m=>PROP.has(m.type)).map(m=>m.type==='equal_angle'
+    ?{kind:'arc',at:m.at,from:m.between[0],to:m.between[1],n:m.n,g:m.g}
+    :{kind:m.type,segs:m.segs,n:m.n,g:m.g});
+  return{rest:Object.assign({},fig,{marks:ms.filter(m=>!PROP.has(m.type))}),items}}
 function toScenes(sol){
   const x=T[sol.lang]||t(),sl=sol.lang==='en'?undefined:sol.lang;
   const mk=(text,label,extra)=>Object.assign({t:'text',text:pretty(text),label:label||'',speech:String(text),speech_lang:sl},extra||{});
   const steps=[mk(sol.statement,x.problem)];
   const hasFig=!!(sol.figure&&Object.keys(sol.figure.points||{}).length>=2),fsteps=hasFig&&(sol.steps||[]).some(z=>z.figure_step);
-  if(hasFig)steps.push({t:'draw',draw:'figure',args:sol.figure});
+  const baseSplit=hasFig?splitMarks(sol.figure):null;
+  if(hasFig)steps.push({t:'draw',draw:'figure',args:baseSplit.rest});
+  if(hasFig&&baseSplit.items.length)steps.push({t:'draw',draw:'annotate',clear:false,args:{items:baseSplit.items}});
   (sol.given||[]).forEach((g,i)=>steps.push(mk(g,i?'':x.given)));
   (sol.required||[]).forEach((g,i)=>steps.push(mk(g,i?'':x.required)));
   (sol.steps||[]).forEach((st,i)=>{
     const lead=st.say||(x.step+' '+(i+1));
-    if(fsteps&&st.figure_step)steps.push({t:'draw',draw:'figure',clear:false,args:Object.assign({points:sol.figure.points},st.figure_step)});
+    if(fsteps&&st.figure_step){
+      const sp=splitMarks(st.figure_step),fa=Object.assign({points:sol.figure.points},sp.rest);
+      if((fa.segments||[]).length||(fa.marks||[]).length||(fa.show||[]).length)steps.push({t:'draw',draw:'figure',clear:false,args:fa});
+      if(sp.items.length)steps.push({t:'draw',draw:'annotate',clear:false,args:{items:sp.items},speech:st.say||'',speech_lang:sl})}
     steps.push(mk(st.text||st.say,lead,Object.assign({speech:(st.say&&st.text?st.say+'. ':'')+(st.text||'')},st.justification?{hint:x.because+' '+st.justification}:{})));
     if(st.formula)steps.push({t:'formula',text:pretty(st.formula),speech:st.formula,speech_lang:sl})});
   String(sol.answer||'').split(/\s*\|\s*/).filter(Boolean).forEach((part,i)=>steps.push(mk(part,i?'':x.answer)));
