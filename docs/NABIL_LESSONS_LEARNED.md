@@ -27,6 +27,7 @@ confirmed on production), CONFIRMED (user confirmed on device), OPEN.
 | LL-20 | Only Arabic-first explanation; no way to get the whole explanation in the foreign language | Language toggle in the header: foreign = all text AND voice in the foreign language (LTR); Arabic = as before. Every step carries `en` (or `speech_en` for draw steps) | each Arabic step has a foreign twin | IMPLEMENTED in EN-004 test copy (309 steps); repo engine already has foreign-first + Arabic overlay; solver does not yet emit twin text |
 | LL-21 | Teacher's plan only in Arabic/generic | Plan in the foreign language with translation to Arabic, objectives, prior knowledge, timed phases, assessment; honest `crdp_verified` | plan file per lesson | PARTIAL (EN-004 plan) |
 | LL-22 | Overlapping captions in SSS scene ("3 equal corresponding sides" printed twice) | One caption per figure group | visual check | FIXED-TEST |
+| LL-23 | Arabic step starting with a Latin token such as "(c)" rendered with scrambled order (unicode-bidi:plaintext picked LTR from the first strong char) | `.nb-step[dir=rtl]` uses `unicode-bidi:isolate` so the declared direction always wins | render check of an Arabic step starting with "(c)" + Latin run | FIXED (repo CSS + EN-004 test copy) |
 | LL-11 | Drive lessons come from ≥3 engine generations, provenance unknown | Factory must stamp every lesson with generator version + source commit | stamp present | OPEN |
 
 Pending from the user's 17-point spec (not yet implemented): teacher's book + French edition for solutions,
