@@ -498,7 +498,6 @@ def _build_root_html() -> str:
         '<script src="/static/nabil_learning_v132.js?v=139"></script>\n'
         '<script src="/static/nabil_worksheet_v1.js?v=5"></script>\n        <script src="/static/nabil_live_whiteboard_v1.js?v=3"></script>\n'
         '<script src="/static/nabil_lesson_worksheet_card_v1.js?v=1"></script>\n'
-        '<script src="/static/nabil_factory_prepare_v1.js?v=1"></script>\n'
         '<script src="/static/nabil_browser_tts_v1.js?v=1"></script>\n'
         '<script src="/static/nabil_voice_v133.js?v=133"></script>\n'
         '<script src="/static/nabil_scientific_solution_cards_e2e.js?v=4"></script>\n'
@@ -510,28 +509,15 @@ def _build_root_html() -> str:
         '<script src="/static/nabil_drive_home_requests_v1.js?v=8"></script>\n'
         '<script src="/static/nabil_universal_lesson_actions_v1.js?v=2"></script>\n'
         '<script src="/static/nabil_smart_lab_bridge_v1.js?v=3"></script>\n'
+        '<script src="/static/nabil_student_entry_v1.js?v=1"></script>\n'
     )
     boundary = html.lower().rfind("</body>")
     if boundary < 0:
         raise RuntimeError("NABIL chat page has no closing body tag")
-    # One clear entry point to the dedicated Golden whiteboard lesson index.
-    whiteboard_entry = (
-        '<style id="nabil-whiteboard-entry-css">'
-        '#nabil-start-whiteboard{position:fixed;z-index:99999;bottom:18px;right:18px;'
-        'display:inline-flex;align-items:center;justify-content:center;gap:8px;'
-        'padding:13px 19px;border-radius:999px;background:#0d9488;color:#fff;'
-        'font:800 16px system-ui,Tahoma,Arial;text-decoration:none;'
-        'border:1px solid #99f6e4;box-shadow:0 8px 28px #0006}'
-        '#nabil-start-whiteboard:focus,#nabil-start-whiteboard:hover{background:#087fbd;outline:2px solid #fff}'
-        '@media(max-width:480px){#nabil-start-whiteboard{right:12px;bottom:12px;left:12px}}'
-        '</style>'
-        '<a id="nabil-start-whiteboard" href="/whiteboard-lessons" '
-        'aria-label="ابدأ الدرس واختر درسًا من السبورة">▶ ابدأ الدرس</a>'
-    )
+    # Remove the obsolete whiteboard-branded shortcut; student entry is handled by nabil_student_entry_v1.js.
     boundary = html.lower().rfind("</body>")
     if boundary < 0:
         raise RuntimeError("NABIL chat page has no closing body tag")
-    html = html[:boundary] + whiteboard_entry + html[boundary:]
 
     # Experimental virtual laboratories stay on /labs, not on the main student platform.
     html = html[:boundary] + scripts + html[boundary:]
