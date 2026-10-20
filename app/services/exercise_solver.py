@@ -182,6 +182,7 @@ Rules:
   list precise questions, and leave steps empty. Never invent numbers.
 - 4 to 14 steps. Each step is one school-level move (substitute, simplify, divide both sides, factor, apply a theorem, conclude).
   Show every calculation; never jump to the result. The last step concludes the answer.
+- CONSTRUCTION METHOD (mandatory when a step says construct/draw): show the tools — ruler for segments, protractor for angles, compass for arcs — one step per tool action; narrate while drawing. Write angles as a hat over the letter (B̂, AB̂C), never ∠ before letters. Read ≅ as 'is congruent to' and ↔ as 'corresponds to', never as arrows.
 - GEOMETRY METHOD (mandatory whenever a step states a property): the step's figure_step carries the marks it states, so the hand
   points at them on the figure while it speaks: equal segments (same n = same length), equal angles, right angle, parallel,
   angle measures, and any extra segment the solution needs but the figure lacks (segments). Never state a property in text

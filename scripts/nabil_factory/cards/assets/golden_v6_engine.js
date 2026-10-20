@@ -83,7 +83,7 @@ function enhanceDom(host){
 function speakable(t){
   return String(t||'').replace(/\^\{\s*(-?[^{}]+)\s*\}/g,' to the power $1 ')
     .replace(/×/g,' times ').replace(/÷/g,' divided by ').replace(/−/g,' minus ')
-    .replace(/=/g,' equals ').replace(/≠/g,' is not equal to ').replace(/\s+/g,' ').trim()}
+    .replace(/([A-Z])([A-Z])\u0302([A-Z])/g,'angle $1 $2 $3').replace(/([A-Z])\u0302/g,'angle $1').replace(/∠/g,' angle ').replace(/≅/g,' is congruent to ').replace(/↔/g,' corresponds to ').replace(/⟂/g,' is perpendicular to ').replace(/∥/g,' is parallel to ').replace(/△/g,' triangle ').replace(/⇒/g,' therefore ').replace(/(\d+(?:\.\d+)?)\s*°/g,'$1 degrees ').replace(/=/g,' equals ').replace(/≠/g,' is not equal to ').replace(/\s+/g,' ').trim()}
 
 /* ---------- timing: every wait honours pause + speed ---------- */
 async function wait(ms,id){
@@ -142,7 +142,7 @@ const AR_LET={A:'إيه',B:'بي',C:'سي',D:'دي',E:'إي',F:'إف',G:'جي',H
    Arabic voice never reads them as a word; degrees/operators are said in Arabic. */
 function speakableAr(t){
   return String(t||'').replace(/\^\{\s*(-?[^{}]+)\s*\}/g,' أُس $1 ')
-    .replace(/(\d+(?:[.,]\d+)?)\s*°/g,'$1 درجة ').replace(/°/g,' درجة ')
+    .replace(/(\d+(?:[.,]\d+)?)\s*°/g,'$1 درجة ').replace(/°/g,' درجة ').replace(/([A-Z])\u0302/g,' زاوية $1').replace(/∠/g,' زاوية ').replace(/≅/g,' يطابق ').replace(/↔/g,' يناظر ').replace(/△/g,' المثلث ').replace(/∥/g,' يوازي ').replace(/⟂/g,' يعامد ')
     .replace(/\b[A-Z]{1,4}\b/g,m=>' '+[...m].map(c=>AR_LET[c]||c).join(' ')+' ')
     .replace(/×/g,' ضرب ').replace(/÷/g,' تقسيم ').replace(/\+/g,' زائد ')
     .replace(/[−–]/g,' ناقص ').replace(/=/g,' يساوي ').replace(/[|✓✔]/g,' . ').replace(/[\[\]()]/g,' ').replace(/\s+/g,' ').trim()}
@@ -211,9 +211,10 @@ async function writeStep(step,id){
   if(step.hint&&!formula){const hc=document.createElement('span');hc.className='nb-hintchip';hc.textContent='💡 '+tr(step.hint);node.appendChild(hc)}
   writing.appendChild(node);
   node.scrollIntoView({block:'nearest',behavior:FAST?'auto':'smooth'});
-  const text=formula?step.text:tr(step.text);
+  const hat=s=>String(s).replace(/∠([A-Z])([A-Z])([A-Z])/g,'$1$2\u0302$3').replace(/∠([A-Z])/g,'$1\u0302');
+  const text=hat(formula?step.text:tr(step.text));
   const ar=arOn?arTextOf(step):'';
-  const h=(formula&&!step.speech)?null:speakText(step.speech,id,ar,step.speech_lang);
+  const h=(step.silent||(formula&&!step.speech))?null:speakText(step.speech,id,ar,step.speech_lang);
   if(!FAST){placeHandAtNode(node,rtl);if(!await wait(300,id))return false}
   if(!await reveal(node,unitsOf(text,rtl,formula),rtl,formula,id))return false;
   if(arOn&&!formula&&cur()!=='ar'){
@@ -447,8 +448,79 @@ async function sourceImage(id,a){
   curFig={P:n=>{const q=a.points&&a.points[n];return q?[x+q[0]*w,y+q[1]*h]:null},kind:'image'};
   svgPoint(x+w/2,y+h/2);if(!await wait(FAST?0:600,id))return;
   if(a.caption)label(a.caption,x,y+h+30,'#315574')}
+async function constructTools(id,args){
+  const kind=args.kind,stage=args.stage;
+  const A=[300,450],B=[610,450],U=77.5;
+  const rad=d=>d*Math.PI/180;
+  const tools=[];
+  const keep=e=>e;
+  function P(x,y,name,c){label(name,x+9,y-12,c||'#12324b')}
+  function tmp(tag,attrs,txt){const e=el(tag,attrs,txt);e.setAttribute('data-tool','1');return e}
+  function clearTools(){ink.querySelectorAll('[data-tool]').forEach(e=>e.remove())}
+  async function slide(g,dx,dy,n){n=FAST?1:(n||24);for(let i=1;i<=n;i++){if(id!==run)return false;g.setAttribute('transform','translate('+(dx*(1-i/n))+','+(dy*(1-i/n))+')');if(!await wait(20,id))return false}g.removeAttribute('transform');return true}
+  function ruler(x1,x2){ // edge on y=450, body below
+    const g=tmp('g',{});ink.appendChild(g);
+    const mk=(tag,at,tx)=>{const e=document.createElementNS(NS,tag);Object.entries(at).forEach(([k,v])=>e.setAttribute(k,v));if(tx)e.textContent=tx;g.appendChild(e)};
+    mk('rect',{x:x1,y:450,width:x2-x1,height:46,rx:4,fill:'#ffe9a8','fill-opacity':.88,stroke:'#b8860b','stroke-width':2});
+    for(let i=0,x=x1+10;x<x2-6;i++,x+=U/10*2){const c=Math.round((x-x1-10)/U*10)/10;const big=i%5===0;mk('line',{x1:x,y1:450,x2:x,y2:450+(big?18:10),stroke:'#6b4e00','stroke-width':1.6});if(big&&Number.isInteger(Math.round(c))&&Math.abs(c-Math.round(c))<.06)mk('text',{x:x-5,y:490,'font-size':15,fill:'#6b4e00'},String(Math.round(c)))}
+    return g}
+  function protractor(cx,cy,zeroRight,mark){
+    const R=105,g=tmp('g',{});ink.appendChild(g);
+    const mk=(tag,at,tx)=>{const e=document.createElementNS(NS,tag);Object.entries(at).forEach(([k,v])=>e.setAttribute(k,v));if(tx)e.textContent=tx;g.appendChild(e)};
+    mk('path',{d:'M'+(cx-R)+' '+cy+' A'+R+' '+R+' 0 0 1 '+(cx+R)+' '+cy+' Z',fill:'#cfe8ff','fill-opacity':.55,stroke:'#1762aa','stroke-width':2});
+    for(let a=0;a<=180;a+=5){const t=zeroRight?a:180-a;const th=rad(180-a);const L=a%10===0?(a%30===0?18:12):7;
+      mk('line',{x1:cx+R*Math.cos(th),y1:cy-R*Math.sin(th),x2:cx+(R-L)*Math.cos(th),y2:cy-(R-L)*Math.sin(th),stroke:'#1762aa','stroke-width':1.4});
+      if(a%30===0){const lr=R-32;mk('text',{x:cx+lr*Math.cos(th)-9,y:cy-lr*Math.sin(th)+5,'font-size':14,fill:'#1762aa'},String(t))}}
+    mk('circle',{cx,cy,r:4,fill:'#1762aa'});
+    return g}
+  function compass(px,py,tx,ty){
+    const g=tmp('g',{});ink.appendChild(g);
+    const L=230,dx=tx-px,dy=ty-py,d=Math.hypot(dx,dy),h=Math.sqrt(Math.max(L*L-d*d/4,100));
+    const mx=(px+tx)/2,my=(py+ty)/2,nx=dy/d,ny=-dx/d;const sgn=ny<0?1:-1;
+    const hx=mx+sgn*nx*h,hy=my+sgn*ny*h;
+    const mk=(tag,at)=>{const e=document.createElementNS(NS,tag);Object.entries(at).forEach(([k,v])=>e.setAttribute(k,v));g.appendChild(e)};
+    mk('line',{x1:px,y1:py,x2:hx,y2:hy,stroke:'#555','stroke-width':6,'stroke-linecap':'round'});
+    mk('line',{x1:tx,y1:ty,x2:hx,y2:hy,stroke:'#777','stroke-width':6,'stroke-linecap':'round'});
+    mk('circle',{cx:hx,cy:hy,r:8,fill:'#222'});mk('circle',{cx:px,cy:py,r:5,fill:'#c33'});mk('circle',{cx:tx,cy:ty,r:4,fill:'#1762aa'});
+    return g}
+  async function drawAlong(a,b,c,n){const e=el('line',{x1:a[0],y1:a[1],x2:a[0],y2:a[1],stroke:c,'stroke-width':4,'stroke-linecap':'round'});n=FAST?1:(n||32);
+    for(let i=1;i<=n;i++){if(id!==run)return false;const x=a[0]+(b[0]-a[0])*i/n,y=a[1]+(b[1]-a[1])*i/n;e.setAttribute('x2',x);e.setAttribute('y2',y);svgPoint(x,y);if(!await wait(22,id))return false}return true}
+  async function sweepArc(cx,cy,r,a0,a1,c){ // math angles ccw, y up
+    const path=el('path',{fill:'none',stroke:c,'stroke-width':3,'stroke-linecap':'round'});const n=FAST?30:44;let d='',cg=null;
+    for(let i=0;i<=n;i++){if(id!==run)return false;const a=rad(a0+(a1-a0)*i/n),x=cx+r*Math.cos(a),y=cy-r*Math.sin(a);d+=(i?' L':'M')+x.toFixed(1)+' '+y.toFixed(1);path.setAttribute('d',d);
+      if(!FAST){if(cg)cg.remove();cg=compass(cx,cy,x,y);}svgPoint(x,y);if(!await wait(24,id))return false}
+    if(cg)cg.remove();return true}
+  const h4=310*Math.tan(rad(30))*Math.tan(rad(45))/(Math.tan(rad(30))+Math.tan(rad(45)));
+  const Casa=[300+h4/Math.tan(rad(30)),450-h4];
+  const Csss=[300+310*16/25,450-310*12/25];
+  if(stage==='ab'){
+    ink.replaceChildren();
+    const g=ruler(250,690);if(!await slide(g,-250,0))return false;
+    if(!await drawAlong(A,B,'#1762aa'))return false;
+    el('circle',{cx:A[0],cy:A[1],r:5,fill:'#1762aa'});el('circle',{cx:B[0],cy:B[1],r:5,fill:'#1762aa'});
+    P(...A,'A');P(...B,'B');label(kind==='sss'?'AB = 5 cm':'AB = 4 cm',405,540);
+    await wait(500,id);clearTools();return id===run}
+  if(kind==='asa'){
+    if(stage==='angleA'||stage==='angleB'){
+      const isA=stage==='angleA',cx=isA?A[0]:B[0],ang=isA?30:45,col=isA?'#d14c66':'#21a69c';
+      const g=protractor(cx,450,isA);if(!await slide(g,0,-150))return false;
+      const th=rad(isA?ang:180-ang),mx=cx+105*Math.cos(th),my=450-105*Math.sin(th);
+      svgPoint(mx,my);el('circle',{cx:mx,cy:my,r:6,fill:col});label(ang+'°',mx+(isA?8:-60),my-8,col);
+      if(!await wait(900,id))return false;clearTools();
+      const tgt=isA?Casa:Casa;const s=[cx,450];
+      if(!await drawAlong(s,Casa,col,40))return false;return id===run}
+    if(stage==='meet'){P(...Casa,'C');el('circle',{cx:Casa[0],cy:Casa[1],r:6,fill:'#12324b'});return id===run}}
+  if(kind==='sss'){
+    if(stage==='arcA'){if(!await sweepArc(A[0],A[1],248,95,10,'#d14c66'))return false;return id===run}
+    if(stage==='arcB'){if(!await sweepArc(B[0],B[1],186,170,70,'#21a69c'))return false;return id===run}
+    if(stage==='meet'){const C=Csss;el('circle',{cx:C[0],cy:C[1],r:6,fill:'#12324b'});P(...C,'C');
+      const g=ruler(250,690);g.setAttribute('transform','rotate('+(-Math.atan2(450-C[1],C[0]-300)*180/Math.PI)+' 300 450)');
+      if(!await drawAlong(A,C,'#d14c66'))return false;if(!await drawAlong(B,C,'#21a69c'))return false;clearTools();
+      label('AC = 4 cm',318,318);label('BC = 3 cm',545,320);return id===run}}
+  return id===run}
+
 const CLEARING=new Set(['cubeOutline','cubeRotate','cubeUnfold','powerFactors','figure','sourceImage']);
-const DRAW={annotate,sourceImage,cubeOutline,cubeColor,cubeRotate,cubeUnfold,powerFactors,figure,svgScene};
+const DRAW={constructTools,annotate,sourceImage,cubeOutline,cubeColor,cubeRotate,cubeUnfold,powerFactors,figure,svgScene};
 async function doDraw(step,id){
   const fn=DRAW[step.draw];
   if(!fn)return true;
