@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 
-<html lang="ar"><head><meta charset="utf-8"/><meta content="width=device-width,initial-scale=1" name="viewport"/></head><body style="margin:0">
+<html lang="ar"><head><meta charset="utf-8"/><meta content="width=device-width,initial-scale=1" name="viewport"/><title>تطابق المثلثات — الصف السابع</title></head><body style="margin:0">
 <section class="nabil-whole-lesson-smart-lab" data-board-mode="single" data-concept-count="60" data-nabil-golden-v6="true" data-nabil-v18-board="NABIL_GOLDEN_V6_BOARD_V1" data-renderer-contract="" data-v18-mode="lesson" data-v6-revision="REV7" data-whole-lesson-smart-lab="true" id="nabilWholeLessonSmartLab" lang="ar">
 <style>/* NABIL AI Golden V6 board — static engine styles (never regenerated per lesson).
    Derived from the approved NABIL_G07_CUBE_GOLDEN_V6_APPROVED_VOICE_ON_SIDES.html */
@@ -66,11 +66,11 @@
 </style>
 <div class="nb-open" id="nbOpen">
 <img alt="NABIL AI" id="nbAvatarOpen" role="button" tabindex="0"/>
-<div class="nb-brand" dir="rtl">منصة الأستاذ النبيل</div>
+
 <div class="nb-title-en" dir="ltr" id="nbOpenTitleEn">Triangles: Congruent triangles — تطابق المثلثات</div>
 <div class="nb-title-fr" dir="ltr" id="nbOpenTitleFr">Building up Mathematics — Grade 7</div>
 <button class="nb-start" data-nb-l="start" id="nbStart" type="button">ابدأ الدرس</button>
-<div class="nb-hint" data-nb-l="voice_hint">الصوت يعتمد على الأصوات المثبتة في المتصفح؛ لا يوجد تسجيل صوتي مدمج في هذه النسخة.</div>
+
 </div>
 <div class="nb-stage" id="nbStage">
 <div class="nb-head"><h2 id="nbHeadTitle"></h2><span class="nb-prog" id="nbProg"></span>
@@ -260,7 +260,7 @@ function updateVoiceStatus(){
   const available=!!availableVoiceFor(lang);
   voiceBtn.textContent=!voice?'🔇 الصوت متوقف':'🔊 الصوت يعمل';
   voiceBtn.setAttribute('aria-pressed',String(voice&&available));
-  voiceBtn.title=available?'Browser speech synthesis; not certified natural narration':'Install/enable a '+lang+' voice on this device';
+  voiceBtn.title=available?'تشغيل الصوت':'الصوت غير متاح على هذا الجهاز';
 }
 
 function rate(){return Math.min(1.6,0.55+speed*0.45)}
@@ -890,7 +890,7 @@ function renderVerifiedTriangleGolden(host){
   const cite=document.createElement('p');cite.textContent='Source: Building up Mathematics Grade 7, printed p.45 (Focus).';
   cite.style.cssText='color:#d6efff;font-size:12px;text-align:center';stage.appendChild(cite);
   summary.replaceChildren();const rule=document.createElement('div');rule.dir='rtl';
-  rule.textContent='حالة الجودة: مشاهد الفصل تغطي التمارين 1–17 والتقييم الذاتي A–C والمسائل 1–19 والنشاط الختامي، لكن الاعتماد معلّق لحين التدقيق العلمي الشامل، والصوت العربي الطبيعي المتزامن، والتشغيل الكامل بالسرعة الطبيعية.';
+  rule.textContent='تذكّر: يمكن إثبات تطابق المثلثين باستخدام ثلاثة أضلاع متناظرة متساوية (SSS)، أو ضلعين والزاوية المحصورة بينهما (SAS)، أو زاويتين والضلع المحصور بينهما (ASA).';
   rule.style.cssText='font-size:17px;line-height:1.8;padding:12px;color:#fff';summary.appendChild(rule);
 }
 function showFinal(){
