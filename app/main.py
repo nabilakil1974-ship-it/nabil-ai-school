@@ -484,6 +484,7 @@ def _build_root_html() -> str:
     direct_entry_css = (
         "<style id='nabil-direct-lesson-entry'>"
         "#nabilProfessorGateway{display:none!important}"
+        "body> *:not(script):not(style):not(#nabilStudentEntry){display:none!important}"
         "body.nabil-home-lock{overflow:hidden!important}"
         "</style>"
     )
