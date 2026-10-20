@@ -40,30 +40,10 @@ function displayLesson(info,title){
  host.scrollIntoView({behavior:"smooth",block:"start"});
 }
 async function fetchCatalog(){
- if(loadingCatalog)return;
- const select=document.getElementById("lessonSelect"),grade=field("gradeSelect"),subject=field("subjectSelect");
- if(!select||!grade||!subject)return;
- const sig=[grade,subject,[...select.options].filter(o=>!o.dataset.nabilFactory).map(o=>o.value).join("|")].join("::");
- if(sig===signature)return;
- loadingCatalog=true;
- try{
-  const q=new URLSearchParams({grade,subject});
-  const response=await nativeFetch("/api/interactive-lessons/factory/catalog?"+q,{cache:"no-store"});
-  if(!response.ok)return;
-  const data=await response.json();
-  if(grade!==field("gradeSelect")||subject!==field("subjectSelect")||select!==document.getElementById("lessonSelect"))return;
-  const selected=select.value;
-  select.querySelectorAll("option[data-nabil-factory]").forEach(option=>option.remove());
-  for(const lesson of data.lessons||[]){
-   const option=new Option("🧪 حضّر بالسكربت: "+lesson.title,PREFIX+lesson.lesson_id);
-   option.dataset.nabilFactory=lesson.lesson_id;
-   select.add(option);
-  }
-  if(selected.startsWith(PREFIX)&&[...select.options].some(o=>o.value===selected))select.value=selected;
-  signature=sig;
- }catch(err){console.warn("[NABIL_FACTORY] Catalog unavailable",err);}
- finally{loadingCatalog=false;}
+ // Factory lesson discovery is owner-only; never inject unapproved preparation entries into the student selector.
+ return;
 }
+
 async function requestFactory(lessonId,title){
  if(loading)return;
  loading=true;
@@ -123,15 +103,5 @@ document.addEventListener("click",event=>{
  const title=option?.textContent?.replace(/^🧪\s*حضّر بالسكربت:\s*/,"")||lid;
  requestFactory(lid,title);
 },true);
-document.addEventListener("change",event=>{
- if(["gradeSelect","subjectSelect","languageSelect"].includes(event.target?.id)){
-  signature="";
-  setTimeout(fetchCatalog,400);
-  setTimeout(fetchCatalog,1100);
- }
-},true);
-if(document.readyState==="loading")
- document.addEventListener("DOMContentLoaded",()=>setTimeout(fetchCatalog,900));
-else setTimeout(fetchCatalog,900);
-setInterval(fetchCatalog,5500);
+// Owner factory preparation remains callable only for an explicit owner-side lesson ID.
 })();
