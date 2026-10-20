@@ -47,12 +47,46 @@
     card.append(greeting, button("لنبدأ الدرس", showGrade));
   }
 
+  function isGradeSeven() {
+    const value = String(gradeSelect?.value || "");
+    const option = gradeSelect?.options?.[gradeSelect.selectedIndex];
+    const label = String(option?.textContent || "");
+    const combined = (value + " " + label).replace(/[٠-٩]/g, d => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
+    return /(?:^|\\D)7(?:\\D|$)/.test(combined)
+      || /(?:grade|class|eb|g)\\s*0?7/i.test(combined)
+      || /السابع|seventh|septieme/i.test(combined);
+  }
+
+  function showUnavailable() {
+    let status = card.querySelector("[data-no-approved-lesson]");
+    if (!status) {
+      status = document.createElement("p");
+      status.dataset.noApprovedLesson = "1";
+      status.style.cssText = "margin:16px 0 0;color:#ffd44f;font-size:16px;line-height:1.8";
+      card.appendChild(status);
+    }
+    status.textContent = "لا يوجد درس جاهز ومعتمد لهذا الصف حاليًا.";
+  }
+
+  function onGradeChange() {
+    if (!gradeSelect || !String(gradeSelect.value || "").trim()) {
+      card.querySelector("[data-no-approved-lesson]")?.remove();
+      return;
+    }
+    if (isGradeSeven()) {
+      // The only lesson approved for student-facing release is Grade 7 v4.
+      window.location.assign("/static/NABIL_G07_EN004_method14_v4.html");
+      return;
+    }
+    showUnavailable();
+  }
+
   function showGrade() {
     stage = "grade";
     card.replaceChildren();
     const label = document.createElement("label");
     label.textContent = "اختر الصف";
-    label.htmlFor = "nabilStudentGradeSelect";
+    label.htmlFor = "gradeSelect";
     label.style.cssText = "display:block;margin:0 0 16px;font-size:24px;font-weight:700";
     gradeSelect = byId("gradeSelect");
     if (!gradeSelect) {
@@ -65,7 +99,6 @@
       originalParent = gradeSelect.parentNode;
       originalNext = gradeSelect.nextSibling;
     }
-    gradeSelect.id = "nabilStudentGradeSelect";
     gradeSelect.setAttribute("aria-label", "اختر الصف");
     gradeSelect.style.setProperty("display", "block", "important");
     gradeSelect.style.setProperty("width", "100%", "important");
@@ -74,50 +107,11 @@
     gradeSelect.style.setProperty("padding", "10px", "important");
     gradeSelect.style.setProperty("box-sizing", "border-box", "important");
     card.append(label, gradeSelect);
-    const note = document.createElement("p");
-    note.textContent = "اختر صفك للمتابعة.";
-    note.style.cssText = "margin:12px 0 0;color:#bad6e9;font-size:14px";
-    card.append(note, button("متابعة", continueToLessons));
+    if (!gradeSelect.dataset.nabilStudentEntryBound) {
+      gradeSelect.dataset.nabilStudentEntryBound = "1";
+      gradeSelect.addEventListener("change", onGradeChange);
+    }
     gradeSelect.focus();
-  }
-
-  function restoreGradeSelect() {
-    if (!gradeSelect || !originalParent) return;
-    gradeSelect.id = "gradeSelect";
-    if (originalNext && originalNext.parentNode === originalParent) {
-      originalParent.insertBefore(gradeSelect, originalNext);
-    } else {
-      originalParent.appendChild(gradeSelect);
-    }
-    gradeSelect.style.removeProperty("display");
-    gradeSelect.style.removeProperty("width");
-    gradeSelect.style.removeProperty("min-height");
-    gradeSelect.style.removeProperty("font-size");
-    gradeSelect.style.removeProperty("padding");
-    gradeSelect.style.removeProperty("box-sizing");
-    gradeSelect.removeAttribute("aria-label");
-  }
-
-  function continueToLessons() {
-    if (!gradeSelect || !String(gradeSelect.value || "").trim()) {
-      const old = card.querySelector("[data-grade-error]");
-      if (!old) {
-        const error = document.createElement("p");
-        error.dataset.gradeError = "1";
-        error.textContent = "يرجى اختيار الصف أولًا.";
-        error.style.cssText = "margin:12px 0 0;color:#ffd44f";
-        card.appendChild(error);
-      }
-      return;
-    }
-    const chosen = gradeSelect.value;
-    restoreGradeSelect();
-    gradeSelect.value = chosen;
-    overlay.remove();
-    document.body.classList.remove("nabil-home-lock");
-    // Refresh the real curriculum selectors after restoring the original DOM.
-    gradeSelect.dispatchEvent(new Event("change", { bubbles: true }));
-    stage = "lessons";
   }
 
   function init() {
