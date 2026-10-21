@@ -182,6 +182,7 @@ Rules:
   list precise questions, and leave steps empty. Never invent numbers.
 - 4 to 14 steps. Each step is one school-level move (substitute, simplify, divide both sides, factor, apply a theorem, conclude).
   Show every calculation; never jump to the result. The last step concludes the answer.
+- CONSTRUCT FIELD: a step that constructs may carry "construct": {{"points": {{"A":[0,0],"B":[4,0]}}, "ops": [{{"op":"ruler","a":"A","b":"B","label":"4 cm"}}, {{"op":"protractor","at":"A","from":"B","to":"C","deg":45}}, {{"op":"arc","center":"A","r":3,"a0":0,"a1":45}}, {{"op":"mark","p":"C"}}, {{"op":"line","a":"B","b":"C"}}]}} (cm units, y up, keep:true to continue on the same figure). The board then SHOWS the ruler, protractor or compass while it draws.
 - CONSTRUCTION METHOD (mandatory when a step says construct/draw): show the tools — ruler for segments, protractor for angles, compass for arcs — one step per tool action; narrate while drawing. Write angles as a hat over the letter (B̂, AB̂C), never ∠ before letters. Read ≅ as 'is congruent to' and ↔ as 'corresponds to', never as arrows.
 - GEOMETRY METHOD (mandatory whenever a step states a property): the step's figure_step carries the marks it states, so the hand
   points at them on the figure while it speaks: equal segments (same n = same length), equal angles, right angle, parallel,
@@ -190,6 +191,35 @@ Rules:
 - A figure is optional: only for geometry, with coordinates consistent with the given lengths/angles (maths coordinates, y up).
 - machine_check only for equations/inequalities in one variable that python/sympy can solve (use ** for powers); else null.
 - Plain text only, no markdown, no HTML, no LaTeX commands."""
+
+
+_CONSTRUCT_OPS = {"ruler", "protractor", "arc", "mark", "line", "perp"}
+
+
+def _clean_construct(c: Any) -> Optional[dict]:
+    """Validate a step's construction (ruler/protractor/compass) so the board can animate the tools.
+    points: name -> [x_cm, y_cm]; ops reference only known point names. Anything malformed is dropped (never invented)."""
+    if not isinstance(c, dict) or not isinstance(c.get("points"), dict):
+        return None
+    pts = {}
+    for k, v in c["points"].items():
+        try:
+            if isinstance(v, (list, tuple)) and len(v) == 2:
+                pts[str(k)[:3]] = [float(v[0]), float(v[1])]
+        except (TypeError, ValueError):
+            continue
+    if len(pts) < 2:
+        return None
+    ops = []
+    for op in (c.get("ops") or [])[:12]:
+        if not isinstance(op, dict) or op.get("op") not in _CONSTRUCT_OPS:
+            continue
+        refs = [op.get(k) for k in ("a", "b", "at", "from", "to", "center", "p") if op.get(k) is not None]
+        if any(r not in pts for r in refs):
+            continue
+        ops.append({k: v for k, v in op.items() if isinstance(v, (str, int, float, bool))})
+    return {"points": pts, "ops": ops, "keep": bool(c.get("keep"))} if ops else None
+
 
 
 def _num(v: Any) -> Optional[float]:
@@ -294,6 +324,9 @@ def normalise_solution(data: Dict[str, Any]) -> Dict[str, Any]:
             cf = _clean_figure(fs)
             if cf and (cf["segments"] or cf["marks"] or cf.get("show")):
                 item["figure_step"] = {k: cf[k] for k in ("segments", "marks", "circles", "show") if k in cf}
+        cons = _clean_construct(st.get("construct"))
+        if cons:
+            item["construct"] = cons
         if item["text"] or item["formula"]:
             steps.append(item)
     if len(steps) < 2 or not _s(data.get("answer")):

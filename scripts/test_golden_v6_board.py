@@ -351,7 +351,7 @@ def run_browser(browser) -> None:
     pg.wait_for_function("window.__spoken.filter(u=>u.lang==='ar-SA').length>=1", timeout=20000)
     pg.wait_for_function("[...document.querySelectorAll('.nb-ar')].some(e=>e.textContent.includes('الأسس'))", timeout=30000)
     spoken = [u for u in pg.evaluate("window.__spoken") if u["text"].strip()]
-    langs = [u["lang"] for u in spoken if u["text"] != "First read the statement."][:2]
+    langs = [u["lang"] for u in spoken if u["text"] != "First read the statement." and "Ustaz Nabil" not in u["text"]][:2]  # the opening greeting is not lesson speech
     record("«اقرأ بالعربية أيضًا»: Arabic text shown and spoken (ar-SA) after the English (en-US)",
            pressed == "true" and langs == ["en-US", "ar-SA"] and "نجمع" in pg.inner_text("#nbWriting"), str(langs))
     pg.context.close()

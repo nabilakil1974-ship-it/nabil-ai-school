@@ -307,6 +307,10 @@ def render_golden_v6_board(title: str, scenes: List[dict], lang_code: str,
     lang = lang_code if lang_code in UI_ALL else "en"
     if not scenes:
         return ""
+    from scripts.nabil_factory.factory.student_clean_gate import audit_student_text
+    _sc = audit_student_text(scenes)
+    if _sc["verdict"] != "PASS":
+        raise RuntimeError("STUDENT_TEXT_DIRTY: " + repr(_sc["hits"][:3]))
     if (not golden_spec or not golden_spec.get("sections")) and mode != "exercises":
         raise RuntimeError("V18_GOLDEN_CARD_SPEC_EMPTY")
     golden_spec = golden_spec or {}
@@ -348,7 +352,7 @@ def render_golden_v6_board(title: str, scenes: List[dict], lang_code: str,
 </div>
 <div class="nb-stage" id="nbStage">
  <div class="nb-head"><h2 id="nbHeadTitle"></h2><span class="nb-prog" id="nbProg"></span>
-  <span><button type="button" id="nbSolveBtn" class="nb-solvebtn" aria-haspopup="dialog">🧮 حل التمارين | Solve Exercise</button><button type="button" id="nbFullscreen" data-nb-l="fullscreen" class="nb-hbtn">{h(ui["fullscreen"])}</button>
+  <span><span id="nbLangs"><button type="button" class="nb-hbtn nb-lg" data-l="ar">عربي</button><button type="button" class="nb-hbtn nb-lg" data-l="en">English</button><button type="button" class="nb-hbtn nb-lg" data-l="fr">Français</button></span> <button type="button" id="nbSolveBtn" class="nb-solvebtn" aria-haspopup="dialog">🧮 حل التمارين | Solve Exercise</button><button type="button" id="nbFullscreen" data-nb-l="fullscreen" class="nb-hbtn">{h(ui["fullscreen"])}</button>
   <button type="button" id="nbExit" data-nb-l="exit" class="nb-hbtn">{h(ui["exit"])}</button></span></div>
  <div class="nb-badge" id="nbBadge" role="note" hidden></div>
  <div class="nb-voice-note" id="nbVoiceNote"><span>{h(ui["voice_hint"])}</span><button type="button" data-nb-l="enable_voice">{h(ui["enable_voice"])}</button></div>

@@ -157,6 +157,7 @@ function toScenes(sol){
       const sp=splitMarks(st.figure_step),fa=Object.assign({points:sol.figure.points},sp.rest);
       if((fa.segments||[]).length||(fa.marks||[]).length||(fa.show||[]).length)steps.push({t:'draw',draw:'figure',clear:false,args:fa});
       if(sp.items.length)steps.push({t:'draw',draw:'annotate',clear:false,args:{items:sp.items},speech:st.say||'',speech_lang:sl})}
+    if(st.construct&&st.construct.ops&&st.construct.ops.length)steps.push({t:'draw',draw:'construct',args:Object.assign({keep:true},st.construct),speech:st.say||st.text||'',speech_lang:sl});
     steps.push(mk(st.text||st.say,lead,Object.assign({speech:(st.say&&st.text?st.say+'. ':'')+(st.text||'')},st.justification?{hint:x.because+' '+st.justification}:{})));
     if(st.formula)steps.push({t:'formula',text:pretty(st.formula),speech:st.formula,speech_lang:sl})});
   String(sol.answer||'').split(/\s*\|\s*/).filter(Boolean).forEach((part,i)=>steps.push(mk(part,i?'':x.answer)));

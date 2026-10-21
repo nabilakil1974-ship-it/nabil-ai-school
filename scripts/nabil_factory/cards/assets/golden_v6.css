@@ -110,3 +110,5 @@
 @media(max-width:760px){.nb-solvebtn{font-size:12px;padding:6px 8px;min-height:34px}.nb-head{flex-wrap:wrap}}
 
 .nb-badge{padding:5px 12px;background:#fff4de;color:#7a4b00;font-size:13px;line-height:1.4;border-bottom:1px solid #ecd2a2}.nb-badge[hidden]{display:none}
+
+.nb-lg{opacity:.55}.nb-lg.on{opacity:1;outline:2px solid #ffd54a}

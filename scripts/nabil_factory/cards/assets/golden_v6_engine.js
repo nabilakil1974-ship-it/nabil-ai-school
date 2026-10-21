@@ -13,7 +13,10 @@ const DATA=JSON.parse(raw);
 const LANG=DATA.lang||'en';
 /* language follows the page translation runtime (NABILPageLanguage) when present */
 const PL=()=>window.NABILPageLanguage;
-const cur=()=>{const l=PL()&&PL().get&&PL().get();return(DATA.ui_all&&DATA.ui_all[l])?l:LANG};
+/* view language (button): lesson text twins step.ar / step.en / step.fr, draw speech speech_ar/_en/_fr, scene title_ar/_en/_fr */
+let VL=null;
+const VLANGS=()=>['ar','en','fr'].filter(l=>l===LANG||(DATA.ui_all&&DATA.ui_all[l]));
+const cur=()=>{if(VL&&DATA.ui_all&&DATA.ui_all[VL])return VL;const l=PL()&&PL().get&&PL().get();return(DATA.ui_all&&DATA.ui_all[l])?l:LANG};
 const tr=s=>{s=String(s||'');try{return PL()&&PL().translateText?PL().translateText(s,cur()):s}catch(_){return s}};
 const U=()=>(DATA.ui_all&&DATA.ui_all[cur()])||{};
 const FAST=!!window.NABIL_V18_FAST;
@@ -151,7 +154,7 @@ function arTextOf(step){
   if(step.ar)return step.ar;
   if(cur()==='ar')return tr(step.text);
   try{const t=PL()&&PL().translateText?PL().translateText(String(step.text||''),'ar'):'';return(t&&t!==step.text&&/[\u0600-\u06FF]/.test(t))?t:''}catch(e){return ''}}
-function speakFr(t){return String(t||'').replace(/\^\{\s*(-?[^{}]+)\s*\}/g,' puissance $1 ').replace(/×/g,' fois ').replace(/÷/g,' divisé par ').replace(/−/g,' moins ').replace(/=/g,' égale ').replace(/\s+/g,' ').trim()}
+function speakFr(t){let s=String(t||'').normalize('NFD').replace(/([A-Z])([A-Z])\u0302([A-Z])/g,'angle $1 $2 $3').replace(/([A-Z])\u0302/g,'angle $1').normalize('NFC');return s.replace(/∠/g,' angle ').replace(/≅/g,' est isométrique à ').replace(/↔/g,' correspond à ').replace(/⟂/g,' est perpendiculaire à ').replace(/∥/g,' est parallèle à ').replace(/△/g,' triangle ').replace(/⇒/g,' donc ').replace(/(\d+(?:[.,]\d+)?)\s*°/g,'$1 degrés ').replace(/≠/g,' n\'est pas égal à ').replace(/\+/g,' plus ').replace(/\bcm\b/g,'centimètres').replace(/\b[A-Z]{2,4}\b/g,m=>[...m].join(' ')).replace(/\^\{\s*(-?[^{}]+)\s*\}/g,' puissance $1 ').replace(/×/g,' fois ').replace(/÷/g,' divisé par ').replace(/−/g,' moins ').replace(/=/g,' égale ').replace(/\s+/g,' ').trim()}
 function voiceLang(l){const vs=(window.speechSynthesis&&speechSynthesis.getVoices())||[];return vs.find(v=>new RegExp('^'+l,'i').test(v.lang))||null}
 function speakText(text,id,ar,sl){
   lastText=text;lastAr=ar||'';
@@ -212,9 +215,12 @@ async function writeStep(step,id){
   writing.appendChild(node);
   node.scrollIntoView({block:'nearest',behavior:FAST?'auto':'smooth'});
   const hat=s=>String(s).replace(/∠([A-Z])([A-Z])([A-Z])/g,'$1$2\u0302$3').replace(/∠([A-Z])/g,'$1\u0302');
-  const text=hat(formula?step.text:tr(step.text));
+  const tw=(!formula&&VL&&VL!==LANG&&step[VL])||null;
+  const text=hat(formula?step.text:(tw||tr(step.text)));
   const ar=arOn?arTextOf(step):'';
-  const h=(step.silent||(formula&&!step.speech))?null:speakText(step.speech,id,ar,step.speech_lang);
+  const sp=(VL&&VL!==LANG&&(step['speech_'+VL]||tw))||step.speech;
+  const sl=(VL&&VL!==LANG&&(step['speech_'+VL]||tw))?VL:step.speech_lang;
+  const h=(step.silent||(formula&&!step.speech))?null:speakText(sp,id,ar,sl);
   if(!FAST){placeHandAtNode(node,rtl);if(!await wait(300,id))return false}
   if(!await reveal(node,unitsOf(text,rtl,formula),rtl,formula,id))return false;
   if(arOn&&!formula&&cur()!=='ar'){
@@ -448,6 +454,76 @@ async function sourceImage(id,a){
   curFig={P:n=>{const q=a.points&&a.points[n];return q?[x+q[0]*w,y+q[1]*h]:null},kind:'image'};
   svgPoint(x+w/2,y+h/2);if(!await wait(FAST?0:600,id))return;
   if(a.caption)label(a.caption,x,y+h+30,'#315574')}
+let FP={};
+async function construct(id,args){
+  const pts=args.points||{},ops=args.ops||[],names=Object.keys(pts);
+  const col=args.colors||['#1762aa','#d14c66','#21a69c','#d98a28'];
+  let minx=Math.min(...names.map(n=>pts[n][0])),maxx=Math.max(...names.map(n=>pts[n][0])),miny=Math.min(...names.map(n=>pts[n][1])),maxy=Math.max(...names.map(n=>pts[n][1]));
+  const ext=args.extra||1;minx-=ext;maxx+=ext;miny-=ext;maxy+=ext;
+  const sx=(maxx-minx)||1,sy=(maxy-miny)||1,k=Math.min(520/sx,420/sy);
+  const X=x=>250+(520-sx*k)/2+(x-minx)*k,Y=y=>170+(420-sy*k)/2+(maxy-y)*k;
+  const G={};names.forEach(n=>{G[n]=[X(pts[n][0]),Y(pts[n][1])]});
+  if(!args.keep){ink.replaceChildren();FP={}}
+  srcBox=null;curFig={P:n=>FP[n]||null,kind:'board'};
+  const mkTool=()=>{const g=document.createElementNS(NS,'g');g.setAttribute('data-tool','1');ink.appendChild(g);return g};
+  const add=(g,tag,at,tx)=>{const e=document.createElementNS(NS,tag);Object.entries(at).forEach(([a,v])=>e.setAttribute(a,v));if(tx)e.textContent=tx;g.appendChild(e);return e};
+  const clearTools=()=>ink.querySelectorAll('[data-tool]').forEach(e=>e.remove());
+  const rad=d=>d*Math.PI/180;
+  async function slide(g,dx,dy){const n=FAST?1:22;for(let i=1;i<=n;i++){if(id!==run)return false;g.setAttribute('transform','translate('+dx*(1-i/n)+','+dy*(1-i/n)+')');if(!await wait(20,id))return false}g.removeAttribute('transform');return true}
+  async function line(a,b,c,dash){const e=el('line',{x1:a[0],y1:a[1],x2:a[0],y2:a[1],stroke:c,'stroke-width':4,'stroke-linecap':'round','stroke-dasharray':dash||''});const n=FAST?1:30;
+    for(let i=1;i<=n;i++){if(id!==run)return false;const x=a[0]+(b[0]-a[0])*i/n,y=a[1]+(b[1]-a[1])*i/n;e.setAttribute('x2',x);e.setAttribute('y2',y);svgPoint(x,y);if(!await wait(22,id))return false}return true}
+  function dot(n,c){const p=G[n];FP[n]=p;el('circle',{cx:p[0],cy:p[1],r:5,fill:c||'#12324b'});el('text',{x:p[0]+10,y:p[1]-12,'font-size':26,fill:'#12324b','font-weight':'bold'},n)}
+  function compass(px,py,tx,ty){const g=mkTool(),L=260,dx=tx-px,dy=ty-py,d=Math.hypot(dx,dy)||1,h=Math.sqrt(Math.max(L*L-d*d/4,100));
+    const mx=(px+tx)/2,my=(py+ty)/2;let nx=dy/d,ny=-dx/d;if(ny>0){nx=-nx;ny=-ny}const hx=mx+nx*h,hy=my+ny*h;
+    add(g,'line',{x1:px,y1:py,x2:hx,y2:hy,stroke:'#555','stroke-width':6,'stroke-linecap':'round'});add(g,'line',{x1:tx,y1:ty,x2:hx,y2:hy,stroke:'#777','stroke-width':6,'stroke-linecap':'round'});
+    add(g,'circle',{cx:hx,cy:hy,r:8,fill:'#222'});add(g,'circle',{cx:px,cy:py,r:5,fill:'#c33'});add(g,'circle',{cx:tx,cy:ty,r:4,fill:'#1762aa'});return g}
+  let ci=0;
+  for(const op of ops){
+    if(id!==run)return false;
+    const c=op.c||col[(ci++)%col.length];
+    if(op.op==='ruler'){
+      const a=G[op.a],b=G[op.b],dx=b[0]-a[0],dy=b[1]-a[1],d=Math.hypot(dx,dy),ux=dx/d,uy=dy/d;
+      let vx=-uy,vy=ux;if(op.side==='up'||(!op.side&&vy<0)){vx=-vx;vy=-vy}
+      const g=mkTool(),pad=60,w=44,sx0=a[0]-ux*pad,sy0=a[1]-uy*pad,len=d+2*pad;
+      const P=(s,t)=>[sx0+ux*s+vx*t,sy0+uy*s+vy*t];
+      const q=[P(0,0),P(len,0),P(len,w),P(0,w)];
+      add(g,'polygon',{points:q.map(p=>p.join(',')).join(' '),fill:'#ffe9a8','fill-opacity':.88,stroke:'#b8860b','stroke-width':2});
+      const cm=k;for(let i=0;i*cm/2<=d+pad;i++){const s=pad+i*cm/2,big=i%2===0,p0=P(s,0),p1=P(s,big?20:11);add(g,'line',{x1:p0[0],y1:p0[1],x2:p1[0],y2:p1[1],stroke:'#6b4e00','stroke-width':1.5});
+        if(big&&i/2<=pts[op.b]&&false){}}
+      if(!await slide(g,-vx*160,-vy*160))return false;
+      if(!await line(a,b,c))return false;dot(op.a,c);dot(op.b,c);
+      if(op.label){const m=[(a[0]+b[0])/2-vx*30,(a[1]+b[1])/2-vy*30];el('text',{x:m[0]-30,y:m[1]+8,'font-size':24,fill:c,'font-weight':'bold'},op.label)}
+      await wait(350,id);clearTools()}
+    else if(op.op==='protractor'){
+      const at=G[op.at],f=G[op.from],t=G[op.to],R=110;
+      let ux=f[0]-at[0],uy=f[1]-at[1];const ul=Math.hypot(ux,uy);ux/=ul;uy/=ul;
+      const cross=ux*(t[1]-at[1])-uy*(t[0]-at[0]);let vx=-uy,vy=ux;if((t[0]-at[0])*vx+(t[1]-at[1])*vy<0){vx=-vx;vy=-vy}
+      const P=(r,deg)=>[at[0]+r*(Math.cos(rad(deg))*ux+Math.sin(rad(deg))*vx),at[1]+r*(Math.cos(rad(deg))*uy+Math.sin(rad(deg))*vy)];
+      const g=mkTool();let d='M'+P(R,0).join(' ');for(let a=0;a<=180;a+=6){const p=P(R,a);d+=' L'+p.join(' ')}d+=' Z';
+      add(g,'path',{d,fill:'#cfe8ff','fill-opacity':.55,stroke:'#1762aa','stroke-width':2});
+      for(let a=0;a<=180;a+=5){const L=a%30===0?18:a%10===0?12:7,p0=P(R,a),p1=P(R-L,a);add(g,'line',{x1:p0[0],y1:p0[1],x2:p1[0],y2:p1[1],stroke:'#1762aa','stroke-width':1.3});
+        if(a%30===0){const tp=P(R-32,a);add(g,'text',{x:tp[0]-9,y:tp[1]+5,'font-size':13,fill:'#1762aa'},String(a))}}
+      add(g,'circle',{cx:at[0],cy:at[1],r:4,fill:'#1762aa'});
+      if(!await slide(g,vx*-150,vy*-150))return false;
+      const m=P(R,op.deg);svgPoint(m[0],m[1]);el('circle',{cx:m[0],cy:m[1],r:6,fill:c});
+      const lp=P(R+26,op.deg);el('text',{x:lp[0]-14,y:lp[1]+6,'font-size':24,fill:c,'font-weight':'bold'},op.deg+'°');
+      if(!await wait(800,id))return false;clearTools();
+      if(!await line(at,t,c))return false}
+    else if(op.op==='arc'){
+      const cc=G[op.center],r=op.r*k,a0=op.a0,a1=op.a1;
+      const path=el('path',{fill:'none',stroke:c,'stroke-width':3,'stroke-linecap':'round'});const n=FAST?30:44;let d='',cg=null;
+      for(let i=0;i<=n;i++){if(id!==run)return false;const a=rad(a0+(a1-a0)*i/n),x=cc[0]+r*Math.cos(a),y=cc[1]-r*Math.sin(a);
+        d+=(i?' L':'M')+x.toFixed(1)+' '+y.toFixed(1);path.setAttribute('d',d);if(!FAST){if(cg)cg.remove();cg=compass(cc[0],cc[1],x,y)}svgPoint(x,y);if(!await wait(24,id))return false}
+      if(cg)cg.remove()}
+    else if(op.op==='mark'){dot(op.p,c)}
+    else if(op.op==='line'){if(!await line(G[op.a],G[op.b],c,op.dash?'8 7':''))return false}
+    else if(op.op==='perp'){ // set-square: draw perpendicular at point on line a-b
+      const a=G[op.a],b=G[op.b],p=G[op.at],t=G[op.to];
+      if(!await line(p,t,c))return false;const dx=b[0]-a[0],dy=b[1]-a[1],d=Math.hypot(dx,dy),ux=dx/d,uy=dy/d;
+      let vx=t[0]-p[0],vy=t[1]-p[1];const vl=Math.hypot(vx,vy);vx/=vl;vy/=vl;const s=22;
+      el('path',{d:`M${p[0]+ux*s} ${p[1]+uy*s} L${p[0]+ux*s+vx*s} ${p[1]+uy*s+vy*s} L${p[0]+vx*s} ${p[1]+vy*s}`,fill:'none',stroke:'#d6336c','stroke-width':3})}
+  }
+  return id===run}
 async function constructTools(id,args){
   const kind=args.kind,stage=args.stage;
   const A=[300,450],B=[610,450],U=77.5;
@@ -520,7 +596,7 @@ async function constructTools(id,args){
   return id===run}
 
 const CLEARING=new Set(['cubeOutline','cubeRotate','cubeUnfold','powerFactors','figure','sourceImage']);
-const DRAW={constructTools,annotate,sourceImage,cubeOutline,cubeColor,cubeRotate,cubeUnfold,powerFactors,figure,svgScene};
+const DRAW={construct,constructTools,annotate,sourceImage,cubeOutline,cubeColor,cubeRotate,cubeUnfold,powerFactors,figure,svgScene};
 async function doDraw(step,id){
   const fn=DRAW[step.draw];
   if(!fn)return true;
@@ -559,7 +635,7 @@ function relabel(){
   root.querySelectorAll('[data-nb-l]').forEach(n=>{const v=U()[n.dataset.nbL];if(v)n.textContent=v});
   voiceBtn.textContent=voice?(U().voice_on||'🔊'):(U().voice_off||'🔇');
   arBtn.textContent=arOn?(U().ar_voice_on||'🔊'):(U().ar_voice||'🔈');
-  playBtn.textContent=(started&&!paused&&!finished)?(U().pause||'⏸'):(started&&paused?(U().resume||'▶'):(U().play||'▶'))}
+  playBtn.textContent=(started&&!paused&&!finished)?(U().pause||'⏸'):(started&&paused?(U().resume||'▶'):(U().play||'▶')) }
 function setStatus(){
   progEl.textContent=index<FINAL?((index+1)+' / '+FINAL):'✓';
   statusEl.textContent=paused?(U().paused||'Paused'):(U().playing||'')}
@@ -573,7 +649,7 @@ async function playScene(startStep){
   relabel();
   const sc=SCENES[index];
   if(exSel&&!INTER)exSel.value=sc.exercise?String(index):'';
-  headTitle.textContent=tr(sc.title||DATA.title);setStatus();playBtn.textContent=U().pause||'⏸';
+  headTitle.textContent=(VL&&VL!==LANG&&sc['title_'+VL])||tr(sc.title||DATA.title);setStatus();playBtn.textContent=U().pause||'⏸';
   setBoardMode(sc.start_mode||'single');
   curStepNo=startStep;
   for(let si=startStep;si<sc.steps.length;si++){
@@ -582,7 +658,7 @@ async function playScene(startStep){
     marks[si]=writing.childNodes.length;
     curStepNo=si+1;
     if(step.t==='text'||step.t==='formula'){if(!await writeStep(step,id))return}
-    else if(step.t==='draw'){setBoardMode('dual',{preserveState:true});await new Promise(r=>requestAnimationFrame(r));const hv=step.speech?speakText(step.speech,id,'',step.speech_lang):null;if(!await doDraw(step,id))return;if(hv&&!await waitVoice(hv,id))return}
+    else if(step.t==='draw'){setBoardMode('dual',{preserveState:true});await new Promise(r=>requestAnimationFrame(r));const dsp=(VL&&VL!==LANG&&step['speech_'+VL])||step.speech;const dsl=(VL&&VL!==LANG&&step['speech_'+VL])?VL:step.speech_lang;const hv=dsp?speakText(dsp,id,'',dsl):null;if(!await doDraw(step,id))return;if(hv&&!await waitVoice(hv,id))return}
     else if(step.t==='mode'){setBoardMode(step.mode,{preserveState:true})}
     else if(step.t==='check'&&step.check){if(!await showCheck(step.check,id))return}
     if(!await wait(300,id))return}
@@ -647,12 +723,21 @@ function resume(){
     else if(voice&&lastText&&!speechSynthesis.speaking&&speaking){/* engine dropped the utterance: re-speak current step */ speakText(lastText,run)}
   }catch(e){}
   playBtn.textContent=U().pause||'⏸';setStatus()}
-function begin(){
+const GREET={ar:'أنا الأستاذ نبيل، أهلًا بكم، لنبدأ الدرس.',en:'I am Ustaz Nabil. Welcome. Let us begin the lesson.',fr:'Je suis l\'Ustaz Nabil. Bienvenue. Commençons la leçon.'};
+function markLang(){const c=VL||LANG;document.querySelectorAll('#nbLangs .nb-lg').forEach(b=>b.classList.toggle('on',b.dataset.l===c))}
+function setLang(l){if(!VLANGS().includes(l))return;VL=(l===LANG)?null:l;
+  document.documentElement.setAttribute('data-nb-lang',l);relabel();markLang();
+  if(started&&!finished)goTo(Math.min(index,FINAL-1))}
+async function begin(){
   started=true;root.classList.add('nb-active');
   try{const r=root.requestFullscreen&&root.requestFullscreen();if(r&&r.catch)r.catch(()=>{})}catch(e){}
   /* the click is the user gesture that also unlocks speech on mobile browsers */
   try{if(voice&&!FAST){const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u)}}catch(e){}
-  index=0;playScene()}
+  index=0;
+  /* spoken greeting first (student sees only the lesson afterwards) */
+  if(!FAST&&voice&&DATA.greet!==false){const l=VL||LANG,g=GREET[l]||GREET.en,gid=++run;const hv=speakText(g,gid,'',l);if(hv)await waitVoice(hv,gid)}
+  playScene()}
+document.querySelectorAll('#nbLangs .nb-lg').forEach(b=>{if(!VLANGS().includes(b.dataset.l))b.style.display='none';b.onclick=()=>setLang(b.dataset.l)});markLang();
 startBtn.onclick=begin;avatarOpen.onclick=begin;
 playBtn.onclick=()=>{if(!started){begin();return}if(finished){goTo(0);return}paused?resume():pause()};
 prevBtn.onclick=()=>goTo(Math.max(0,index-1));
