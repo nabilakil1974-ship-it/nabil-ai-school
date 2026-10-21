@@ -32,3 +32,12 @@ confirmed on production), CONFIRMED (user confirmed on device), OPEN.
 
 Pending from the user's 17-point spec (not yet implemented): teacher's book + French edition for solutions,
 reuse existing Golden lessons before generating, CRDP verification of the teacher plan, terminology glossary.
+
+## LL-24 — Construction tools on EVERY construction step
+Any step that constructs (segment of given length, angle of given measure, arc of given radius) must show the ruler, protractor or compass on screen while it draws, then remove the tool. Use the generic `construct` draw function (ops: ruler, protractor, arc, mark, line, perp) rather than a static figure. Reference implementation currently lives in the published lesson `app/static/NABIL_G07_EN004_method14_v4.html`; it still has to be ported into `golden_v6_engine.js`. Not yet applied to construction scenes with unspecified data (23–25) or on book images (58).
+
+## LL-25 — Student-facing pages carry no internal text
+No QA, source-page, guide, Golden/V6, teacher-note or developer wording in anything the student sees (DOM text, SVG text, captions). Audit all scenes in every language before publishing (visible-text scan).
+
+## LL-26 — Three languages: Arabic / English / French
+Every step has `en` and `fr` (twins of `text`), draw steps `speech_en` and `speech_fr`, scenes `title_fr`. The language button cycles ar → en → fr. French speech normaliser reads ≅ "est isométrique à", ↔ "correspond à", angle hat as "angle X". Greeting and closing message exist in all three. Still to port into the factory engine and the solver prompt.
