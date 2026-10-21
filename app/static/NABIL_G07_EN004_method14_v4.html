@@ -62,7 +62,7 @@
  .nb-ctl{padding:6px;gap:5px}.nb-ctl button,.nb-ctl select{font-size:13px;padding:8px;min-height:42px}
  #teacherHand{width:105px}
 }
-.nb-hbtn{font-size:13px;font-weight:700;padding:6px 10px;min-height:34px;border:0;border-radius:6px;background:#1762aa;color:#fff;cursor:pointer;margin-inline-start:4px}
+.nb-lg{opacity:.55}.nb-lg.on{opacity:1;outline:2px solid #ffd54a}.nb-hbtn{font-size:13px;font-weight:700;padding:6px 10px;min-height:34px;border:0;border-radius:6px;background:#1762aa;color:#fff;cursor:pointer;margin-inline-start:4px}
 </style>
 <div class="nb-open" id="nbOpen">
 <img alt="NABIL AI" id="nbAvatarOpen" role="button" tabindex="0"/>
@@ -74,7 +74,7 @@
 </div>
 <div class="nb-stage" id="nbStage">
 <div class="nb-head"><h2 id="nbHeadTitle"></h2><span class="nb-prog" id="nbProg"></span>
-<span><button class="nb-hbtn" id="nbLangBtn" type="button">English</button> <button class="nb-hbtn" data-nb-l="fullscreen" id="nbFullscreen" type="button">ملء الشاشة</button>
+<span><span class="nb-langs" id="nbLangs"><button class="nb-hbtn nb-lg" data-l="ar" type="button">عربي</button><button class="nb-hbtn nb-lg" data-l="en" type="button">English</button><button class="nb-hbtn nb-lg" data-l="fr" type="button">Français</button></span> <button class="nb-hbtn" data-nb-l="fullscreen" id="nbFullscreen" type="button">ملء الشاشة</button>
 <button class="nb-hbtn" data-nb-l="exit" id="nbExit" type="button">خروج</button></span></div>
 <div class="nb-voice-note" id="nbVoiceNote"><span>لم يعمل الصوت؟ اضغط الزر.</span><button data-nb-l="enable_voice" type="button">فعّل الصوت</button></div>
 <section class="nb-workspace" data-board-mode="single" id="nbWorkspace">
@@ -999,7 +999,7 @@ playBtn.onclick=()=>{if(!started){begin();return}if(finished){goTo(0);return}pau
 prevBtn.onclick=()=>goTo(Math.max(0,index-1));
 nextBtn.onclick=()=>goTo(Math.min(FINAL,index+1));
 replayBtn.onclick=()=>goTo(0);
-{const lb=document.getElementById('nbLangBtn');if(lb){lb.textContent='English';lb.onclick=()=>{const st=window.NB_FR?'fr':window.NB_EN?'en':'ar';const nx=st==='ar'?'en':st==='en'?'fr':'ar';window.NB_EN=nx!=='ar';window.NB_FR=nx==='fr';lb.textContent=nx==='ar'?'English':nx==='en'?'Français':'عربي';document.documentElement.setAttribute('data-nb-lang',nx);try{relabel()}catch(e){}if(started)goTo(Math.min(index,FINAL-1))}}}
+{const mark=l=>document.querySelectorAll('.nb-lg').forEach(b=>b.classList.toggle('on',b.dataset.l===l));mark('ar');document.querySelectorAll('.nb-lg').forEach(b=>b.onclick=()=>{const nx=b.dataset.l;window.NB_EN=nx!=='ar';window.NB_FR=nx==='fr';mark(nx);document.documentElement.setAttribute('data-nb-lang',nx);try{relabel()}catch(e){}if(started)goTo(Math.min(index,FINAL-1))})}
 lostBtn.onclick=iDidNotUnderstand;
 voiceBtn.onclick=()=>{voice=!voice;voiceBtn.textContent=voice?(U().voice_on||'🔊'):(U().voice_off||'🔇');
   voiceBtn.setAttribute('aria-pressed',String(voice));
