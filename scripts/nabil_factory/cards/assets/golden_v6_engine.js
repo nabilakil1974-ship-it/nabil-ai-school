@@ -726,7 +726,7 @@ function resume(){
 const GREET={ar:'أنا الأستاذ نبيل، أهلًا بكم، لنبدأ الدرس.',en:'I am Ustaz Nabil. Welcome. Let us begin the lesson.',fr:'Je suis l\'Ustaz Nabil. Bienvenue. Commençons la leçon.'};
 function markLang(){const c=VL||LANG;document.querySelectorAll('#nbLangs .nb-lg').forEach(b=>b.classList.toggle('on',b.dataset.l===c))}
 function setLang(l){if(!VLANGS().includes(l))return;VL=(l===LANG)?null:l;
-  document.documentElement.setAttribute('data-nb-lang',l);relabel();markLang();
+  document.documentElement.setAttribute('data-nb-lang',l);relabel();markLang();try{window.dispatchEvent(new CustomEvent('nb-lang',{detail:l}))}catch(_){}
   if(started&&!finished)goTo(Math.min(index,FINAL-1))}
 async function begin(){
   started=true;root.classList.add('nb-active');
@@ -774,5 +774,5 @@ window.NABILWholeLessonOrchestrator={
   state(){return{index,paused,started,final:finished,boardMode,voice,speed,speaking,scenes:FINAL,studentWait,
     handVisible:hand.classList.contains('is-visible')}},
   finalIndex:FINAL};
-window.NABILGoldenV6={version:'V6',context:()=>({lang:LANG,title:DATA.title,exercises:(DATA.exercises||[]).map(e=>({n:e.n,scene:e.scene,solved:e.solved})),meta:DATA.meta||{}}),boardMode:()=>boardMode,setBoardMode,cur,tr};
+window.NABILGoldenV6={version:'V6',viewLang:()=>VL||LANG,context:()=>({lang:LANG,title:DATA.title,exercises:(DATA.exercises||[]).map(e=>({n:e.n,scene:e.scene,solved:e.solved})),meta:DATA.meta||{}}),boardMode:()=>boardMode,setBoardMode,cur,tr};
 })();

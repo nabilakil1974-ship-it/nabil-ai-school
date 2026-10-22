@@ -42,8 +42,20 @@ def build_plan_data(title: str, scenes: List[dict], golden: dict | None, mode: s
         ideas.append({"title": str(sc.get("title") or ""), "page": str(sc.get("page") or ""),
                       "steps": steps[:8], "formulas": formulas[:6],
                       "has_drawing": any(s.get("t") == "draw" for s in sc.get("steps", []))})
+    # twins: primary text -> same text in ar/en/fr, so the plan follows the language chosen on the board
+    tw: Dict[str, Dict[str, str]] = {"ar": {}, "en": {}, "fr": {}}
+    for sc in scenes:
+        for lg in tw:
+            if sc.get("title") and sc.get("title_" + lg):
+                tw[lg][str(sc["title"])] = str(sc["title_" + lg])
+        for st in sc.get("steps", []):
+            if st.get("t") in ("text", "formula") and st.get("text"):
+                for lg in tw:
+                    if isinstance(st.get(lg), str) and st[lg]:
+                        tw[lg][str(st["text"])] = st[lg]
     golden = golden or {}
     return {
+        "tw": tw,
         "lesson_id": lesson_id_for(title, meta), "title": title, "mode": mode,
         "subject": str(meta.get("subject") or ""), "grade": str(meta.get("grade") or ""),
         "source_lang": str(meta.get("language") or ""),

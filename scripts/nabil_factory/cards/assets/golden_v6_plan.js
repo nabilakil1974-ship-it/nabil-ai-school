@@ -75,6 +75,7 @@ fr:{dir:'ltr',plan:'Fiche de préparation',school:'Établissement',teacher:'Nom 
 
 const PL=()=>window.NABILPageLanguage;
 function trTo(s,lang){s=String(s||'');
+  {const m=PLAN&&PLAN.tw&&PLAN.tw[lang];if(m&&m[s])return m[s]}
   if(lang===(DATA.lang||'en'))return s;
   try{const t=PL()&&PL().translateText?PL().translateText(s,lang):s;return t||s}catch(e){return s}}
 const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -98,7 +99,7 @@ function buildHtml(lang,minutes,sessions){
    +'<tr><th>'+esc(T.subject)+'</th><td>'+(esc(P.subject)||blank(lang))+'</td><th>'+esc(T.lesson)+'</th><td>'+mathHtml(tr(P.title))+'</td></tr>'
    +'<tr><th>'+esc(T.ref)+'</th><td colspan="3">'+esc(T.book)+(pages?' — '+esc(T.pages)+': '+esc(pages):' — '+esc(T.pages)+': ')+(pages?'':blank(lang))+'</td></tr></table>';
   h+='<h2>'+esc(T.comp)+'</h2><p>'+blank(lang)+' <small>'+esc(T.compHint)+'</small></p>';
-  h+='<h2>'+esc(T.obj)+'</h2><ul>'+ideas.map(i=>'<li>'+esc(T.objItem)+mathHtml(i.title)+'</li>').join('')+'</ul>';
+  h+='<h2>'+esc(T.obj)+'</h2><ul>'+ideas.map(i=>'<li>'+esc(T.objItem)+mathHtml(tr(i.title))+'</li>').join('')+'</ul>';
   h+='<h2>'+esc(T.prior)+'</h2><p>'+blank(lang)+' <small>'+esc(T.priorHint)+'</small></p>';
   h+='<h2>'+esc(T.means)+'</h2><ul>'+T.meansItems.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>';
   h+='<h2>'+esc(T.time)+'</h2><p>'+esc(T.periods)+': '+sessions+' — '+esc(T.duration)+': '+minutes+' '+esc(T.min)+'</p>';
@@ -106,14 +107,14 @@ function buildHtml(lang,minutes,sessions){
   h+='<h2>'+esc(T.flow)+'</h2>';
   for(let s=0;s<sessions;s++){
     const idea=parts[s]||[],ex=exParts[s]||[];
-    const titles=idea.map(i=>mathHtml(i.title)).join('; ')||blank(lang);
-    const stepsTxt=idea.map(i=>mathHtml(i.title)+(i.formulas&&i.formulas.length?' ('+i.formulas.slice(0,2).map(mathHtml).join('، ')+')':'')).join('; ')||blank(lang);
+    const titles=idea.map(i=>mathHtml(tr(i.title))).join('; ')||blank(lang);
+    const stepsTxt=idea.map(i=>mathHtml(tr(i.title))+(i.formulas&&i.formulas.length?' ('+i.formulas.slice(0,2).map(f=>mathHtml(tr(f))).join('، ')+')':'')).join('; ')||blank(lang);
     const exTxt=ex.length?ex.map(e=>esc(e.n)+(e.page?' ('+esc(T.pages)+' '+esc(e.page)+')':'')).join('، '):esc(T.noEx);
     const chk=(P.checks||[]).slice(0,2).map(mathHtml).join(' / ');
     if(sessions>1)h+='<h3>'+esc(T.session)+' '+(s+1)+'</h3>';
     const rows=[
      [T.tIntro,T.lIntro,esc(T.meansItems[1]),T.eIntro],
-     [T.tExp+(idea[0]?idea[0].title:''),T.lExp,esc(T.meansItems[1]),T.eExp],
+     [T.tExp+(idea[0]?tr(idea[0].title):''),T.lExp,esc(T.meansItems[1]),T.eExp],
      [T.tBuild+stepsTxt,T.lBuild,esc(T.meansItems[1]),T.eBuild+(chk?' — '+chk:'')],
      [T.tApply+exTxt,T.lApply,esc(T.meansItems[0]),T.eApply],
      [T.tEnd,T.lEnd,esc(T.meansItems[0]),T.eEnd]];
@@ -125,9 +126,9 @@ function buildHtml(lang,minutes,sessions){
         +'<td>'+esc(r[1])+'</td><td>'+r[2]+'</td><td>'+(i===2?esc(T.eBuild)+(chk?' — '+chk:''):esc(r[3]))+'</td></tr>'});
     h+='</table>'}
   h+='<h2>'+esc(T.intro)+'</h2><p>'+esc(T.tIntro)+'</p>';
-  h+='<h2>'+esc(T.explore)+'</h2><ul>'+ideas.map(i=>'<li>'+mathHtml(i.title)+(i.has_drawing?' ✎':'')+'</li>').join('')+'</ul>';
-  h+='<h2>'+esc(T.build)+'</h2>'+ideas.map(i=>'<p><b>'+mathHtml(i.title)+'</b></p><ul>'+i.steps.map(x=>'<li>'+mathHtml(x)+'</li>').join('')
-     +(i.formulas&&i.formulas.length?'<li>'+i.formulas.map(mathHtml).join(' ; ')+'</li>':'')+'</ul>').join('');
+  h+='<h2>'+esc(T.explore)+'</h2><ul>'+ideas.map(i=>'<li>'+mathHtml(tr(i.title))+(i.has_drawing?' ✎':'')+'</li>').join('')+'</ul>';
+  h+='<h2>'+esc(T.build)+'</h2>'+ideas.map(i=>'<p><b>'+mathHtml(tr(i.title))+'</b></p><ul>'+i.steps.map(x=>'<li>'+mathHtml(tr(x))+'</li>').join('')
+     +(i.formulas&&i.formulas.length?'<li>'+i.formulas.map(f=>mathHtml(tr(f))).join(' ; ')+'</li>':'')+'</ul>').join('');
   h+='<h2>'+esc(T.apply)+'</h2>'+(exs.length?'<ul>'+exs.map(e=>'<li>'+esc(e.n)+(e.page?' — '+esc(T.pages)+' '+esc(e.page):'')+(e.statement?': '+mathHtml(tr(e.statement)):'')+'</li>').join('')+'</ul>':'<p>'+esc(T.noEx)+'</p>');
   h+='<h2>'+esc(T.eval)+'</h2><ul><li><b>'+esc(T.diag)+':</b> '+esc(T.eIntro)+'</li><li><b>'+esc(T.form)+':</b> '+((P.checks||[]).length?(P.checks||[]).map(c=>mathHtml(tr(c))).join(' / '):esc(T.eBuild))+'</li><li><b>'+esc(T.summ)+':</b> '+esc(T.eEnd)+'</li></ul>';
   h+='<h2>'+esc(T.remed)+'</h2><p>'+esc(T.remedHint)+'</p>';
@@ -229,10 +230,11 @@ function open(){
   try{window.NABILWholeLessonOrchestrator.pause()}catch(e){}
   const hand=document.getElementById('teacherHand');if(hand)hand.classList.remove('is-visible');
   const ui=(DATA.lang&&L[DATA.lang])?DATA.lang:'en';
-  if(!modal.dataset.init){langSel.value=ui==='ar'||ui==='fr'||ui==='en'?ui:'en';modal.dataset.init='1'}
+  {const vl=(window.NABILGoldenV6&&window.NABILGoldenV6.viewLang&&window.NABILGoldenV6.viewLang())||ui;langSel.value=L[vl]?vl:'en';modal.dataset.init='1'}
   $('nbPlanMinLab').textContent='⏱';$('nbPlanSesLab').textContent='#';
   modal.hidden=false;render(false)}
 root.querySelectorAll('[data-nb-plan="open"]').forEach(b=>b.addEventListener('click',open));
+window.addEventListener('nb-lang',e=>{if(!modal.hidden&&L[e.detail]){langSel.value=e.detail;window.__nbPlanTouched=false;render(false)}});
 $('nbPlanClose').onclick=()=>{modal.hidden=true};
 $('nbPlanGen').onclick=()=>{if(!window.__nbPlanTouched||confirm(L[langSel.value].dir==='rtl'?'سيُستبدل النص المعدّل. متابعة؟':'Edited text will be replaced. Continue?'))render(true)};
 doc.addEventListener('input',()=>{window.__nbPlanTouched=true});

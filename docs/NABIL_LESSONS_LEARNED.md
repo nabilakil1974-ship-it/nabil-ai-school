@@ -44,3 +44,6 @@ Every step has `en` and `fr` (twins of `text`), draw steps `speech_en` and `spee
 
 ## LL-27 — Factory now produces all of this itself (ported 2026-10-21)
 Engine `golden_v6_engine.js`: `construct` draw (ruler/protractor/compass ops), 3 language buttons (`setLang`, `step.ar/en/fr`, `speech_*`, `title_*`), French speech normaliser, spoken greeting before the lesson. Solver: `app/services/exercise_solver.py` asks for `construct` per construction step and validates it (`_clean_construct`); `golden_v6_solver.js` turns it into a draw step. Gate: `factory/student_clean_gate.py` is enforced inside `render_golden_v6_board` (raises `STUDENT_TEXT_DIRTY`). Guard: `scripts/test_factory_requirements.py`. UNVERIFIED: no live provider run (no keys/egress); only synthetic scenes were rendered.
+
+## LL-28 — Teacher plan follows the language chosen on the board
+The plan (تحضير) opens in the language of the active button (ar/en/fr) and re-renders when the button changes while it is open. Idea titles, steps and formulas come from the step twins (`PLAN.tw`, built in `lesson_plan.py` from `title_*`/`ar`/`en`/`fr`), not from machine translation. CRDP structure is still UNVERIFIED against an official template.
