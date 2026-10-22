@@ -112,3 +112,12 @@
 .nb-badge{padding:5px 12px;background:#fff4de;color:#7a4b00;font-size:13px;line-height:1.4;border-bottom:1px solid #ecd2a2}.nb-badge[hidden]{display:none}
 
 .nb-lg{opacity:.55}.nb-lg.on{opacity:1;outline:2px solid #ffd54a}
+
+.nb-plan-doc.hand{font-family:'Playpen Sans Arabic','Segoe Print','Comic Sans MS',cursive;font-size:15px;line-height:34px;background-color:#fffef9;background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 33px,#bcd6ee 33px,#bcd6ee 34px);border-inline-start:3px solid #e9a3a3;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.nb-plan-doc.hand h1,.nb-plan-doc.hand h2,.nb-plan-doc.hand h3{color:#1f4fb4;border:0;margin:0;line-height:34px}
+.nb-plan-doc.hand h1{font-size:22px}.nb-plan-doc.hand h2{font-size:17px;margin-top:34px}
+.nb-plan-doc.hand p,.nb-plan-doc.hand ul{margin:0}
+.nb-plan-doc.hand th{background:#e8f0fb;color:#1f4fb4}
+.nb-plan-doc.hand th,.nb-plan-doc.hand td{border-color:#8fb2e0;line-height:1.6}
+.nb-plan-doc tr{page-break-inside:avoid;break-inside:avoid}
+@page{size:A4;margin:14mm}

@@ -386,12 +386,14 @@ def render_golden_v6_board(title: str, scenes: List[dict], lang_code: str,
    <label>🌐 <select id="nbPlanLang"><option value="ar">العربية</option><option value="en">English</option><option value="fr">Français</option></select></label>
    <label><span id="nbPlanMinLab">⏱</span> <input id="nbPlanMin" type="number" min="20" max="180" step="5" value="45" style="width:70px"> min</label>
    <label><span id="nbPlanSesLab">#</span> <input id="nbPlanSes" type="number" min="1" max="10" step="1" value="1" style="width:56px"></label>
+   <label><span id="nbPlanStyleLab"></span> <select id="nbPlanStyle"><option value="typed"></option><option value="hand"></option></select></label>
    <button type="button" id="nbPlanGen">⟳</button>
    <button type="button" id="nbPlanPrint">🖨</button>
    <button type="button" id="nbPlanDocx">⬇ Word (.docx)</button>
    <button type="button" id="nbPlanClose">✕</button>
   </div>
   <div class="nb-plan-note" id="nbPlanNote"></div>
+  <div class="nb-plan-note" id="nbPlanFontNote" hidden></div>
   <div id="nbPlanDoc" class="nb-plan-doc" contenteditable="true" spellcheck="false"></div>
  </div>
 </div>

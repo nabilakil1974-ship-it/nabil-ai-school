@@ -14,7 +14,7 @@ assert audit_student_text([{"steps":[{"t":"text","text":"Draw AB."}]}])["verdict
 from app.services.exercise_solver import _clean_construct
 assert _clean_construct({"points":{"A":[0,0],"B":[1,0]},"ops":[{"op":"ruler","a":"A","b":"B"}]})
 pl=(A/'golden_v6_plan.js').read_text(encoding='utf8')
-for k,v in {'LL-28 plan follows board language':'viewLang','LL-28 plan twins':'PLAN.tw','LL-29 13-section CRDP-based plan':'const S13=','LL-29 plan disclaimer':'not an official unified template'}.items():
+for k,v in {'LL-28 plan follows board language':'viewLang','LL-28 plan twins':'PLAN.tw','LL-29 13-section CRDP-based plan':'const S13=','LL-29 plan disclaimer':'not an official unified template','LL-30 print style':'nabilPlanStyle','LL-30 no split rows':'cantSplit'}.items():
     if v not in pl: bad.append(k)
 print('missing:',bad)
 sys.exit(1 if bad else 0)

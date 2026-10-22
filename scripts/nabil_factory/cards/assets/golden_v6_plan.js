@@ -161,7 +161,24 @@ function render(force){
   fromCache=!!cached;doc.innerHTML=cached||buildHtml(lang,m,s);if(!cached)cacheSet(curKey,doc.innerHTML);
   doc.dir=L[lang].dir;doc.lang=lang;
   note.textContent=X13[lang].note;
-  window.__nbPlanState={lang,minutes:m,sessions:s,fromCache,key:curKey}}
+  window.__nbPlanState={lang,minutes:m,sessions:s,fromCache,key:curKey,style:planStyle};applyStyle()}
+/* ---------- print style: typed (formal Word) / hand (ruled notebook look). Content is identical; only presentation changes. ---------- */
+const SK='nabilPlanStyle';let planStyle='typed';
+try{const v=localStorage.getItem(SK);if(v==='hand'||v==='typed')planStyle=v}catch(e){}
+const PS={
+ ar:{lab:'تنسيق التحضير والطباعة',typed:'الخط الطباعي العادي — Word رسمي',hand:'الخط اليدوي — دفتر تحضير مسطّر',word:'⬇ تنزيل Word',print:'🖨 طباعة التحضير',font:'الخط اليدوي هنا خط طباعي بمظهر يدوي، وليس كتابة يدوية فعلية، ولا يحقق أي شرط إداري يفرض الكتابة باليد. لعرضه في Word ثبّت الخط المجاني «Playpen Sans Arabic» من Google Fonts، وإلا يُستبدل بخط افتراضي.'},
+ en:{lab:'Plan format and printing',typed:'Standard typed font — formal Word',hand:'Handwriting look — ruled planning notebook',word:'⬇ Download Word',print:'🖨 Print plan',font:'The handwriting style is a typeface that looks handwritten; it is not real handwriting and does not satisfy any administrative rule that requires handwriting. To see it in Word, install the free font “Playpen Sans Arabic” from Google Fonts, otherwise a default font is used.'},
+ fr:{lab:'Format de la fiche et impression',typed:'Police typographique standard — Word officiel',hand:'Aspect manuscrit — cahier de préparation réglé',word:'⬇ Télécharger Word',print:'🖨 Imprimer la fiche',font:'Le style manuscrit est une police d\'aspect manuscrit ; ce n\'est pas de l\'écriture à la main et il ne remplace aucune exigence administrative d\'écriture manuscrite. Pour l\'afficher dans Word, installez la police gratuite « Playpen Sans Arabic » (Google Fonts), sinon une police par défaut est utilisée.'}};
+const styleSel=$('nbPlanStyle'),styleLab=$('nbPlanStyleLab'),fontNote=$('nbPlanFontNote');
+function loadHandFont(){try{if(document.getElementById('nbHandFont'))return;const l=document.createElement('link');l.id='nbHandFont';l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family=Playpen+Sans+Arabic:wght@400;700&display=swap';document.head.appendChild(l)}catch(e){}}
+function applyStyle(){
+  const lang=langSel.value,T=PS[lang]||PS.en;
+  if(planStyle==='hand')loadHandFont();
+  doc.classList.toggle('hand',planStyle==='hand');
+  if(styleSel){styleSel.options[0].textContent=T.typed;styleSel.options[1].textContent=T.hand;styleSel.value=planStyle}
+  if(styleLab)styleLab.textContent=T.lab;
+  const w=$('nbPlanDocx'),p=$('nbPlanPrint');if(w)w.textContent=T.word;if(p)p.textContent=T.print;
+  if(fontNote){fontNote.textContent=planStyle==='hand'?T.font:'';fontNote.hidden=planStyle!=='hand'}}
 let saveT=null;
 doc.addEventListener('input',()=>{clearTimeout(saveT);saveT=setTimeout(()=>cacheSet(curKey,doc.innerHTML),300)});
 
@@ -187,14 +204,14 @@ function runs(node,rtl,base){
   let out='';
   const walk=(n,st)=>{
     if(n.nodeType===3){const t=n.nodeValue.replace(/\s+/g,' ');if(!t.trim()&&!t)return;
-      out+='<w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/>'+(st.b?'<w:b/><w:bCs/>':'')+(st.sup?'<w:vertAlign w:val="superscript"/>':'')+(rtl?'<w:rtl/>':'')+'<w:sz w:val="'+(st.sz||22)+'"/><w:szCs w:val="'+(st.sz||22)+'"/></w:rPr><w:t xml:space="preserve">'+xe(t)+'</w:t></w:r>';return}
+      out+='<w:r><w:rPr>'+(planStyle==='hand'?'<w:rFonts w:ascii="Playpen Sans Arabic" w:hAnsi="Playpen Sans Arabic" w:cs="Playpen Sans Arabic"/>':'<w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/>')+''+(st.b?'<w:b/><w:bCs/>':'')+(st.sup?'<w:vertAlign w:val="superscript"/>':'')+(rtl?'<w:rtl/>':'')+'<w:sz w:val="'+(st.sz||22)+'"/><w:szCs w:val="'+(st.sz||22)+'"/></w:rPr><w:t xml:space="preserve">'+xe(t)+'</w:t></w:r>';return}
     if(n.nodeType!==1)return;const tag=n.tagName;
     if(tag==='BR'){out+='<w:r><w:br/></w:r>';return}
     if(tag==='UL'||tag==='TABLE')return;
     const ns={...st};if(tag==='B'||tag==='STRONG'||tag==='TH')ns.b=true;if(tag==='SUP')ns.sup=true;if(tag==='SMALL')ns.sz=18;
     n.childNodes.forEach(c=>walk(c,ns))};
   node.childNodes.forEach(c=>walk(c,{b:base&&base.b,sz:base&&base.sz}));return out}
-const para=(inner,rtl,o)=>{o=o||{};return '<w:p><w:pPr>'+(o.style?'<w:pStyle w:val="'+o.style+'"/>':'')+(o.bullet?'<w:ind w:'+(rtl?'right':'left')+'="540" w:hanging="270"/>':'')+(rtl?'<w:bidi/>':'')+(o.jc?'<w:jc w:val="'+o.jc+'"/>':'')+'</w:pPr>'+(o.bullet?'<w:r><w:t xml:space="preserve">• </w:t></w:r>':'')+inner+'</w:p>'};
+const para=(inner,rtl,o)=>{o=o||{};return '<w:p><w:pPr>'+(o.style?'<w:pStyle w:val="'+o.style+'"/>':'')+(planStyle==='hand'&&!o.style?'<w:pBdr><w:bottom w:val="single" w:sz="4" w:space="1" w:color="9FC3E8"/></w:pBdr>':'')+(rtl?'<w:bidi/>':'')+(o.bullet?'<w:ind w:'+(rtl?'right':'left')+'="540" w:hanging="270"/>':'')+(o.jc?'<w:jc w:val="'+o.jc+'"/>':'')+'</w:pPr>'+(o.bullet?'<w:r><w:t xml:space="preserve">• </w:t></w:r>':'')+inner+'</w:p>'};
 function cellXml(td,rtl,w,hdr){
   const lines=[];let cur=document.createElement('div');
   /* split on <br> and nested block lines into paragraphs */
@@ -207,7 +224,7 @@ function tableXml(t,rtl){
   const rows=[...t.rows];const ncols=Math.max(...rows.map(r=>[...r.cells].reduce((a,c)=>a+(parseInt(c.getAttribute('colspan')||'1',10)),0)));
   const total=9600,w=Math.floor(total/ncols);
   let x='<w:tbl><w:tblPr><w:tblW w:w="'+total+'" w:type="dxa"/>'+(rtl?'<w:bidiVisual/>':'')+'<w:tblBorders>'+['top','left','bottom','right','insideH','insideV'].map(b=>'<w:'+b+' w:val="single" w:sz="4" w:space="0" w:color="777777"/>').join('')+'</w:tblBorders><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid>'+Array.from({length:ncols},()=>'<w:gridCol w:w="'+w+'"/>').join('')+'</w:tblGrid>';
-  rows.forEach(r=>{x+='<w:tr>'+[...r.cells].map(c=>cellXml(c,rtl,w*(parseInt(c.getAttribute('colspan')||'1',10)),c.tagName==='TH')).join('')+'</w:tr>'});
+  rows.forEach(r=>{x+='<w:tr><w:trPr><w:cantSplit/></w:trPr>'+[...r.cells].map(c=>cellXml(c,rtl,w*(parseInt(c.getAttribute('colspan')||'1',10)),c.tagName==='TH')).join('')+'</w:tr>'});
   return x+'</w:tbl>'+para('',rtl)}
 function bodyXml(rtl){
   let b='';
@@ -226,7 +243,7 @@ function buildDocx(){
   const document_='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document '+W+'><w:body>'+bodyXml(rtl)+'<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1000" w:right="1100" w:bottom="1000" w:left="1100" w:header="500" w:footer="500" w:gutter="0"/>'+(rtl?'<w:bidi/>':'')+'</w:sectPr></w:body></w:document>';
   const styles='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles '+W+'><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:sz w:val="22"/><w:szCs w:val="22"/><w:lang w:val="'+lang+'" w:bidi="ar-SA"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="80"/></w:pPr></w:pPrDefault></w:docDefaults>'
     +'<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style>'
-    +['Heading1','Heading2','Heading3'].map((s,i)=>'<w:style w:type="paragraph" w:styleId="'+s+'"><w:name w:val="heading '+(i+1)+'"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:pPr><w:keepNext/><w:spacing w:before="'+(i?200:0)+'" w:after="80"/><w:outlineLvl w:val="'+i+'"/></w:pPr><w:rPr><w:b/><w:color w:val="0B4F7A"/></w:rPr></w:style>').join('')+'</w:styles>';
+    +['Heading1','Heading2','Heading3'].map((s,i)=>'<w:style w:type="paragraph" w:styleId="'+s+'"><w:name w:val="heading '+(i+1)+'"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:pPr><w:keepNext/><w:spacing w:before="'+(i?200:0)+'" w:after="80"/><w:outlineLvl w:val="'+i+'"/></w:pPr><w:rPr><w:b/><w:color w:val="'+(planStyle==='hand'?'1F4FB4':'0B4F7A')+'"/></w:rPr></w:style>').join('')+'</w:styles>';
   return zip([
    ['[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>'],
    ['_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'],
@@ -235,7 +252,7 @@ function buildDocx(){
 function download(){
   const lang=langSel.value,blob=buildDocx(),a=document.createElement('a');
   const safe=String(PLAN.lesson_id).replace(/[^A-Za-z0-9_-]+/g,'_');
-  a.href=URL.createObjectURL(blob);a.download='lesson-plan_'+safe+'_'+lang+'.docx';
+  a.href=URL.createObjectURL(blob);a.download='lesson-plan_'+safe+'_'+lang+'_'+planStyle+'.docx';
   document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500)}
 
 /* ---------- wiring ---------- */
@@ -248,6 +265,7 @@ function open(){
   modal.hidden=false;render(false)}
 root.querySelectorAll('[data-nb-plan="open"]').forEach(b=>b.addEventListener('click',open));
 window.addEventListener('nb-lang',e=>{if(!modal.hidden&&L[e.detail]){langSel.value=e.detail;window.__nbPlanTouched=false;render(false)}});
+if(styleSel)styleSel.addEventListener('change',()=>{planStyle=styleSel.value==='hand'?'hand':'typed';try{localStorage.setItem(SK,planStyle)}catch(e){}applyStyle()});
 $('nbPlanClose').onclick=()=>{modal.hidden=true};
 $('nbPlanGen').onclick=()=>{if(!window.__nbPlanTouched||confirm(L[langSel.value].dir==='rtl'?'سيُستبدل النص المعدّل. متابعة؟':'Edited text will be replaced. Continue?'))render(true)};
 doc.addEventListener('input',()=>{window.__nbPlanTouched=true});
