@@ -47,3 +47,6 @@ Engine `golden_v6_engine.js`: `construct` draw (ruler/protractor/compass ops), 3
 
 ## LL-28 — Teacher plan follows the language chosen on the board
 The plan (تحضير) opens in the language of the active button (ar/en/fr) and re-renders when the button changes while it is open. Idea titles, steps and formulas come from the step twins (`PLAN.tw`, built in `lesson_plan.py` from `title_*`/`ar`/`en`/`fr`), not from machine translation. CRDP structure is still UNVERIFIED against an official template.
+
+## LL-29 — Teacher plan = the owner-approved 13-section daily model, CRDP-based
+Sections: prior learning, competencies, operational objectives, concepts/terms/skills, aids, introduction, learning & exploration, building learning (roles + timed 5-phase table), application, formative assessment + evidence, remediation, homework, teacher notes — in ar/en/fr. Adds CRDP planning principles (cognitive levels, diagnostic/formative/summative, five classroom phases; source: crdp.org planning article, read 2026-10-22). The page itself lists no mandatory sections, so the plan states plainly that it is a practical model, NOT an official unified template. Official CRDP form: not found; the owner will send it if it exists.

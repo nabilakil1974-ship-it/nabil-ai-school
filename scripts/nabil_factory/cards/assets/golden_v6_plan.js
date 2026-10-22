@@ -88,55 +88,68 @@ function splitMinutes(total){
   const diff=total-m.reduce((a,b)=>a+b,0);m[2]+=diff;return m}
 function chunk(arr,n){const out=Array.from({length:n},()=>[]);arr.forEach((x,i)=>out[Math.min(n-1,Math.floor(i*n/arr.length))].push(x));return out}
 
+/* 13-section daily plan (user-approved model, 2026-10-22) enriched with the CRDP planning principles:
+   cognitive levels (comprehension, application, analysis, inference, evaluation), diagnostic / formative / summative evaluation,
+   and the five classroom phases (sensitisation + brainstorming, groups, tasks, presentation + explanation, closing questions). */
+const S13={
+ ar:['المكتسبات القبلية','الكفايات المستهدفة','الأهداف التعليمية الإجرائية','المفاهيم والمصطلحات والمهارات','الوسائل والموارد التعليمية','التمهيد واستثارة التعلم السابق','أنشطة التعلم والاستكشاف','بناء التعلمات ودور المعلم والمتعلمين','التطبيق والتمارين','التقويم التكويني وأدلة تحقق الأهداف','المعالجة والدعم للمتعلمين الذين لم يحققوا الأهداف','الواجب المنزلي أو امتداد التعلم','ملاحظات المعلم بعد تنفيذ الدرس'],
+ en:['Prior learning','Targeted competencies','Operational learning objectives','Concepts, terminology and skills','Teaching aids and resources','Introduction and activation of prior learning','Learning and exploration activities','Building learning: roles of the teacher and the learners','Application and exercises','Formative assessment and evidence that objectives are met','Remediation and support for learners who did not meet the objectives','Homework or extension of learning','Teacher notes after the lesson'],
+ fr:['Acquis antérieurs','Compétences visées','Objectifs d\'apprentissage opérationnels','Notions, termes et habiletés','Moyens et ressources didactiques','Mise en situation et activation des acquis','Activités d\'apprentissage et d\'exploration','Construction des apprentissages : rôles de l\'enseignant et des apprenants','Application et exercices','Évaluation formative et preuves d\'atteinte des objectifs','Remédiation et soutien aux apprenants n\'ayant pas atteint les objectifs','Devoir à la maison ou prolongement','Remarques de l\'enseignant après la séance']};
+const X13={
+ ar:{cog:'المستويات المعرفية المستهدفة: الاستيعاب، التطبيق، التحليل، الاستنتاج، التقويم.',types:'أنواع التقويم: تشخيصي في التمهيد، تكويني أثناء الشرح، ختامي في نهاية الدرس.',phases:'مراحل الحصة: التحسيس بالموضوع وعصف ذهني، تشكيل فرق العمل، تحديد المهام وتوزيع أوراق العمل، عرض الإجابات وشرح الدرس، أسئلة ختامية.',dur:'المدة الزمنية',note:'ملاحظة: هذا نموذج عملي مستند إلى مبادئ التخطيط التربوي المنشورة لدى المركز التربوي للبحوث والإنماء (CRDP)، وليس نموذجًا رسميًا موحّدًا يُلزم المركز جميع المعلمين باستخدامه. المرجع: crdp.org (باب التحضير).'},
+ en:{cog:'Targeted cognitive levels: comprehension, application, analysis, inference, evaluation.',types:'Types of assessment: diagnostic at the start, formative during the explanation, summative at the end.',phases:'Classroom phases: sensitisation and brainstorming, forming work groups, assigning tasks and worksheets, presenting answers and explaining the lesson, closing questions.',dur:'Duration',note:'Note: this is a practical model based on the lesson-planning principles published by the Centre for Educational Research and Development (CRDP); it is not an official unified template that the CRDP requires all teachers to use. Reference: crdp.org (planning section).'},
+ fr:{cog:'Niveaux cognitifs visés : compréhension, application, analyse, déduction, évaluation.',types:'Types d\'évaluation : diagnostique au début, formative pendant l\'explication, sommative à la fin.',phases:'Phases de la séance : sensibilisation et remue-méninges, constitution des groupes, répartition des tâches et fiches de travail, présentation des réponses et explication de la leçon, questions de clôture.',dur:'Durée',note:'Remarque : ce modèle pratique s\'appuie sur les principes de planification pédagogique publiés par le CRDP (Centre de recherche et de développement pédagogiques) ; ce n\'est pas un modèle officiel unifié que le CRDP imposerait à tous les enseignants. Référence : crdp.org (rubrique préparation).'}};
 function buildHtml(lang,minutes,sessions){
-  const T=L[lang],P=PLAN,tr=s=>trTo(s,lang);
+  const T=L[lang],P=PLAN,tr=s=>trTo(s,lang),H=S13[lang],X=X13[lang];
   const ideas=P.ideas.map(i=>({...i,title:tr(i.title),steps:i.steps.map(tr)}));
   const exs=P.exercises||[];
   const pages=P.pages&&P.pages.length?P.pages.join(', '):'';
+  const sec=(n,body)=>'<h2>'+n+'. '+esc(H[n-1])+'</h2>'+body;
   let h='<h1>'+esc(T.plan)+' — '+mathHtml(tr(P.title))+'</h1>';
-  h+='<table><tr><th>'+esc(T.school)+'</th><td>'+blank(lang)+'</td><th>'+esc(T.teacher)+'</th><td>'+blank(lang)+'</td></tr>'
-   +'<tr><th>'+esc(T.date)+'</th><td>'+blank(lang)+'</td><th>'+esc(T.klass)+'</th><td>'+(P.grade?esc(P.grade)+' — ':'')+blank(lang)+'</td></tr>'
-   +'<tr><th>'+esc(T.subject)+'</th><td>'+(esc(P.subject)||blank(lang))+'</td><th>'+esc(T.lesson)+'</th><td>'+mathHtml(tr(P.title))+'</td></tr>'
-   +'<tr><th>'+esc(T.ref)+'</th><td colspan="3">'+esc(T.book)+(pages?' — '+esc(T.pages)+': '+esc(pages):' — '+esc(T.pages)+': ')+(pages?'':blank(lang))+'</td></tr></table>';
-  h+='<h2>'+esc(T.comp)+'</h2><p>'+blank(lang)+' <small>'+esc(T.compHint)+'</small></p>';
-  h+='<h2>'+esc(T.obj)+'</h2><ul>'+ideas.map(i=>'<li>'+esc(T.objItem)+mathHtml(tr(i.title))+'</li>').join('')+'</ul>';
-  h+='<h2>'+esc(T.prior)+'</h2><p>'+blank(lang)+' <small>'+esc(T.priorHint)+'</small></p>';
-  h+='<h2>'+esc(T.means)+'</h2><ul>'+T.meansItems.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>';
-  h+='<h2>'+esc(T.time)+'</h2><p>'+esc(T.periods)+': '+sessions+' — '+esc(T.duration)+': '+minutes+' '+esc(T.min)+'</p>';
+  h+='<table><tr><th>'+esc(T.subject)+'</th><td>'+(esc(P.subject)||blank(lang))+'</td><th>'+esc(T.klass)+'</th><td>'+(P.grade?esc(P.grade)+' — ':'')+blank(lang)+'</td></tr>'
+   +'<tr><th>'+esc(T.date)+'</th><td>'+blank(lang)+'</td><th>'+esc(T.lesson)+'</th><td>'+mathHtml(tr(P.title))+'</td></tr>'
+   +'<tr><th>'+esc(X.dur)+'</th><td colspan="3">'+sessions+' × '+minutes+' '+esc(T.min)+(pages?' — '+esc(T.pages)+': '+esc(pages):'')+'</td></tr></table>';
+  h+=sec(1,'<p>'+blank(lang)+' <small>'+esc(T.priorHint)+'</small></p>');
+  h+=sec(2,'<p>'+blank(lang)+' <small>'+esc(T.compHint)+'</small></p><p>'+esc(X.cog)+'</p>');
+  h+=sec(3,'<ul>'+ideas.map(i=>'<li>'+esc(T.objItem)+mathHtml(i.title)+'</li>').join('')+'</ul>');
+  h+=sec(4,'<ul>'+ideas.map(i=>'<li>'+mathHtml(i.title)+'</li>').join('')+'</ul>'+((P.key_results||[]).length?'<ul>'+P.key_results.map(x=>'<li>'+mathHtml(tr(x))+'</li>').join('')+'</ul>':''));
+  h+=sec(5,'<ul>'+T.meansItems.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>');
+  h+=sec(6,'<p>'+esc(T.tIntro)+'</p><p>'+esc(T.eIntro)+'</p>');
+  h+=sec(7,'<ul>'+ideas.map(i=>'<li>'+mathHtml(i.title)+(i.has_drawing?' ✎':'')+'</li>').join('')+'</ul><p><small>'+esc(X.phases)+'</small></p>');
+  let b='';
   const m=splitMinutes(minutes),parts=chunk(ideas,sessions),exParts=chunk(exs,sessions);
-  h+='<h2>'+esc(T.flow)+'</h2>';
+  b+='<h3>'+esc(T.flow)+'</h3>';
   for(let s=0;s<sessions;s++){
     const idea=parts[s]||[],ex=exParts[s]||[];
     const titles=idea.map(i=>mathHtml(tr(i.title))).join('; ')||blank(lang);
     const stepsTxt=idea.map(i=>mathHtml(tr(i.title))+(i.formulas&&i.formulas.length?' ('+i.formulas.slice(0,2).map(f=>mathHtml(tr(f))).join('، ')+')':'')).join('; ')||blank(lang);
     const exTxt=ex.length?ex.map(e=>esc(e.n)+(e.page?' ('+esc(T.pages)+' '+esc(e.page)+')':'')).join('، '):esc(T.noEx);
     const chk=(P.checks||[]).slice(0,2).map(mathHtml).join(' / ');
-    if(sessions>1)h+='<h3>'+esc(T.session)+' '+(s+1)+'</h3>';
+    if(sessions>1)b+='<h3>'+esc(T.session)+' '+(s+1)+'</h3>';
     const rows=[
      [T.tIntro,T.lIntro,esc(T.meansItems[1]),T.eIntro],
      [T.tExp+(idea[0]?tr(idea[0].title):''),T.lExp,esc(T.meansItems[1]),T.eExp],
      [T.tBuild+stepsTxt,T.lBuild,esc(T.meansItems[1]),T.eBuild+(chk?' — '+chk:'')],
      [T.tApply+exTxt,T.lApply,esc(T.meansItems[0]),T.eApply],
      [T.tEnd,T.lEnd,esc(T.meansItems[0]),T.eEnd]];
-    h+='<table><tr>'+T.cols.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr>';
+    b+='<table><tr>'+T.cols.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr>';
     rows.forEach((r,i)=>{
       const cell=(x,raw)=>'<td>'+(i===1||i===2||i===3?x:esc(x))+'</td>';
-      h+='<tr><td>'+m[i]+' '+esc(T.min)+'</td><td>'+esc(T.phases[i])+'</td>'
+      b+='<tr><td>'+m[i]+' '+esc(T.min)+'</td><td>'+esc(T.phases[i])+'</td>'
         +'<td>'+(i===1?esc(T.tExp)+(idea[0]?mathHtml(idea[0].title):''):i===2?esc(T.tBuild)+stepsTxt:i===3?esc(T.tApply)+exTxt:esc(r[0]))+'</td>'
         +'<td>'+esc(r[1])+'</td><td>'+r[2]+'</td><td>'+(i===2?esc(T.eBuild)+(chk?' — '+chk:''):esc(r[3]))+'</td></tr>'});
-    h+='</table>'}
-  h+='<h2>'+esc(T.intro)+'</h2><p>'+esc(T.tIntro)+'</p>';
-  h+='<h2>'+esc(T.explore)+'</h2><ul>'+ideas.map(i=>'<li>'+mathHtml(tr(i.title))+(i.has_drawing?' ✎':'')+'</li>').join('')+'</ul>';
-  h+='<h2>'+esc(T.build)+'</h2>'+ideas.map(i=>'<p><b>'+mathHtml(tr(i.title))+'</b></p><ul>'+i.steps.map(x=>'<li>'+mathHtml(tr(x))+'</li>').join('')
-     +(i.formulas&&i.formulas.length?'<li>'+i.formulas.map(f=>mathHtml(tr(f))).join(' ; ')+'</li>':'')+'</ul>').join('');
-  h+='<h2>'+esc(T.apply)+'</h2>'+(exs.length?'<ul>'+exs.map(e=>'<li>'+esc(e.n)+(e.page?' — '+esc(T.pages)+' '+esc(e.page):'')+(e.statement?': '+mathHtml(tr(e.statement)):'')+'</li>').join('')+'</ul>':'<p>'+esc(T.noEx)+'</p>');
-  h+='<h2>'+esc(T.eval)+'</h2><ul><li><b>'+esc(T.diag)+':</b> '+esc(T.eIntro)+'</li><li><b>'+esc(T.form)+':</b> '+((P.checks||[]).length?(P.checks||[]).map(c=>mathHtml(tr(c))).join(' / '):esc(T.eBuild))+'</li><li><b>'+esc(T.summ)+':</b> '+esc(T.eEnd)+'</li></ul>';
-  h+='<h2>'+esc(T.remed)+'</h2><p>'+esc(T.remedHint)+'</p>';
-  h+='<h2>'+esc(T.hw)+'</h2><p>'+esc(T.hwHint)+blank(lang)+'</p>';
-  h+='<h2>'+esc(T.concl)+'</h2>'+((P.key_results||[]).length?'<ul>'+P.key_results.map(x=>'<li>'+mathHtml(tr(x))+'</li>').join('')+'</ul>':'<p>'+blank(lang)+'</p>');
-  h+='<h2>'+esc(T.notes)+'</h2><p>'+blank(lang)+'</p><p>'+blank(lang)+'</p>';
-  return h}
+    b+='</table>'}
 
+  b+=ideas.map(i=>'<p><b>'+mathHtml(i.title)+'</b></p><ul>'+i.steps.map(x=>'<li>'+mathHtml(x)+'</li>').join('')
+     +(i.formulas&&i.formulas.length?'<li>'+i.formulas.map(f=>mathHtml(tr(f))).join(' ; ')+'</li>':'')+'</ul>').join('');
+  h+=sec(8,b);
+  h+=sec(9,exs.length?'<ul>'+exs.map(e=>'<li>'+esc(e.n)+(e.page?' — '+esc(T.pages)+' '+esc(e.page):'')+(e.statement?': '+mathHtml(tr(e.statement)):'')+'</li>').join('')+'</ul>':'<p>'+esc(T.noEx)+'</p>');
+  h+=sec(10,'<p>'+esc(X.types)+'</p><ul><li><b>'+esc(T.diag)+':</b> '+esc(T.eIntro)+'</li><li><b>'+esc(T.form)+':</b> '+((P.checks||[]).length?(P.checks||[]).map(c=>mathHtml(tr(c))).join(' / '):esc(T.eBuild))+'</li><li><b>'+esc(T.summ)+':</b> '+esc(T.eEnd)+'</li></ul>');
+  h+=sec(11,'<p>'+esc(T.remedHint)+'</p>');
+  h+=sec(12,'<p>'+esc(T.hwHint)+blank(lang)+'</p>');
+  h+=sec(13,'<p>'+blank(lang)+'</p><p>'+blank(lang)+'</p>');
+  h+='<p><small>'+esc(X.note)+'</small></p>';
+  return h}
 /* ---------- cache: one plan per lesson_id + language (+ period settings) ---------- */
 const key=(lang,m,s)=>'nabilPlan:'+PLAN.lesson_id+':'+lang+':'+m+'x'+s;
 function cacheGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
@@ -147,7 +160,7 @@ function render(force){
   curKey=key(lang,m,s);const cached=force?null:cacheGet(curKey);
   fromCache=!!cached;doc.innerHTML=cached||buildHtml(lang,m,s);if(!cached)cacheSet(curKey,doc.innerHTML);
   doc.dir=L[lang].dir;doc.lang=lang;
-  note.textContent=L[lang].crdp+' '+(lang!==(DATA.lang||'en')?L[lang].translated:'');
+  note.textContent=X13[lang].note;
   window.__nbPlanState={lang,minutes:m,sessions:s,fromCache,key:curKey}}
 let saveT=null;
 doc.addEventListener('input',()=>{clearTimeout(saveT);saveT=setTimeout(()=>cacheSet(curKey,doc.innerHTML),300)});
