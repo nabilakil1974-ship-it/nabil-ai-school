@@ -275,9 +275,12 @@ def load_page(service, root_id, doc, entry, page_num, cache_dir,
     for figure in data["figures"]:
         original = _source_crop(doc, page_num, figure, "PAGE")
         if hashlib.sha256(original).hexdigest() != figure.get("image_sha256"):
-            raise RuntimeError(
-                "PAGE_CHECKPOINT_IMAGE_MISMATCH: do not reuse page %d"
-                % page_num)
+            # Never reuse a crop that differs from the original PDF; treat the
+            # checkpoint as a miss so the page is re-extracted from the source
+            # (renderer/library versions can change pixel output).
+            print("PAGE_CHECKPOINT_IMAGE_MISMATCH_RECOMPUTE page=%d" % page_num,
+                  flush=True)
+            return None
         restored = dict(figure)
         path = Path(cache_dir) / (
             "cached_%s.png" % re.sub(
@@ -318,8 +321,9 @@ def load_exercises(service, root_id, doc, entry, page_num, cache_dir,
             original = _source_crop(doc, page_num, row, "EXERCISES")
             if (hashlib.sha256(original).hexdigest() !=
                     row["source_region_sha256"]):
-                raise RuntimeError(
-                    "EXERCISE_CHECKPOINT_REGION_MISMATCH: page %d" % page_num)
+                print("EXERCISE_CHECKPOINT_REGION_MISMATCH_RECOMPUTE page=%d"
+                      % page_num, flush=True)
+                return None
             path = Path(cache_dir) / (
                 "cached_exercise_p%d_%d.png"
                 % (page_num, int(row["number"])))
