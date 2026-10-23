@@ -426,14 +426,18 @@ def run_browser(browser) -> None:
            f"tables={len(d.tables)} paragraphs={len(d.paragraphs)}")
     record("DOCX flow table header and times intact",
            [c.text for c in flow_tables[0].rows[0].cells][:2] == ["الزمن", "المرحلة"] and flow_tables[0].rows[1].cells[0].text.startswith("5"))
-    conv = subprocess.run(["soffice", "--headless", "--convert-to", "pdf", "--outdir", str(OUT), str(docx_path)],
-                          capture_output=True, text=True, timeout=180)
-    pdf = OUT / "lesson_plan_ar.pdf"
-    txt = subprocess.run(["pdftotext", str(pdf), "-"], capture_output=True, text=True).stdout if pdf.exists() else ""
-    pages = len(_re.findall(r"\f", txt))
-    clean = _re.sub(r"[\u202a-\u202e\u2066-\u2069\u200e\u200f]", "", txt)
-    record("DOCX converts to PDF with LibreOffice (pages and Arabic text intact); NOT tested in Microsoft Word",
-           pdf.exists() and pages >= 1 and "جدول سير الحصة" in clean and "تحضير الدرس" in clean, f"pages={pages} rc={conv.returncode}")
+    import shutil as _sh
+    if _sh.which('soffice') and _sh.which('pdftotext'):
+        conv = subprocess.run(["soffice", "--headless", "--convert-to", "pdf", "--outdir", str(OUT), str(docx_path)],
+                              capture_output=True, text=True, timeout=180)
+        pdf = OUT / "lesson_plan_ar.pdf"
+        txt = subprocess.run(["pdftotext", str(pdf), "-"], capture_output=True, text=True).stdout if pdf.exists() else ""
+        pages = len(_re.findall(r"\f", txt))
+        clean = _re.sub(r"[\u202a-\u202e\u2066-\u2069\u200e\u200f]", "", txt)
+        record("DOCX converts to PDF with LibreOffice (pages and Arabic text intact); NOT tested in Microsoft Word",
+               pdf.exists() and pages >= 1 and "جدول سير الحصة" in clean and "تحضير الدرس" in clean, f"pages={pages} rc={conv.returncode}")
+    else:
+        print('SKIP  DOCX->PDF LibreOffice render (soffice/pdftotext not installed in this image; verified only in the dev sandbox)')
 
     # ---------------- phones: portrait + landscape, no overflow/clipping, drawing stays visible
     for label, (w, h) in {"phone_portrait": (390, 844), "phone_landscape": (844, 390)}.items():
