@@ -260,11 +260,11 @@ function open(){
   try{window.NABILWholeLessonOrchestrator.pause()}catch(e){}
   const hand=document.getElementById('teacherHand');if(hand)hand.classList.remove('is-visible');
   const ui=(DATA.lang&&L[DATA.lang])?DATA.lang:'en';
-  {const vl=(window.NABILGoldenV6&&window.NABILGoldenV6.viewLang&&window.NABILGoldenV6.viewLang())||ui;langSel.value=L[vl]?vl:'en';modal.dataset.init='1'}
+  {const vl=(window.NABILGoldenV6&&window.NABILGoldenV6.viewLang&&window.NABILGoldenV6.viewLang())||ui;if(!modal.dataset.init||modal.dataset.vl!==vl){langSel.value=L[vl]?vl:'en'}modal.dataset.vl=vl;modal.dataset.init='1'}
   $('nbPlanMinLab').textContent='⏱';$('nbPlanSesLab').textContent='#';
   modal.hidden=false;render(false)}
 root.querySelectorAll('[data-nb-plan="open"]').forEach(b=>b.addEventListener('click',open));
-window.addEventListener('nb-lang',e=>{if(!modal.hidden&&L[e.detail]){langSel.value=e.detail;window.__nbPlanTouched=false;render(false)}});
+window.addEventListener('nb-lang',e=>{if(!modal.hidden&&L[e.detail]){modal.dataset.vl=e.detail;langSel.value=e.detail;window.__nbPlanTouched=false;render(false)}});
 if(styleSel)styleSel.addEventListener('change',()=>{planStyle=styleSel.value==='hand'?'hand':'typed';try{localStorage.setItem(SK,planStyle)}catch(e){}applyStyle()});
 $('nbPlanClose').onclick=()=>{modal.hidden=true};
 $('nbPlanGen').onclick=()=>{if(!window.__nbPlanTouched||confirm(L[langSel.value].dir==='rtl'?'سيُستبدل النص المعدّل. متابعة؟':'Edited text will be replaced. Continue?'))render(true)};

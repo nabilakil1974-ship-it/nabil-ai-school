@@ -383,13 +383,13 @@ def run_browser(browser) -> None:
         const mins=[...flow.rows].slice(1).map(r=>parseInt(r.cells[0].textContent,10));
         return {dir:d.dir, h1:d.querySelector('h1').textContent, cols:[...flow.rows[0].cells].map(c=>c.textContent), mins,
                 sum:mins.reduce((a,b)=>a+b,0), sup:d.querySelectorAll('sup').length,
-                has:['الكفايات المستهدفة','الأهداف','المكتسبات السابقة','الواجب المنزلي','ملاحظات الأستاذ بعد الحصة'].every(k=>d.textContent.includes(k)),
-                pages:d.textContent.includes('12'), crdp:document.getElementById('nbPlanNote').textContent.includes('لم يُتحقَّق')} }""")
+                has:['الكفايات المستهدفة','الأهداف','المكتسبات القبلية','الواجب المنزلي','ملاحظات المعلم بعد تنفيذ الدرس'].every(k=>d.textContent.includes(k)),
+                pages:d.textContent.includes('12'), crdp:document.getElementById('nbPlanNote').textContent.includes('ليس نموذجًا رسميًا')} }""")
     record("opening the plan pauses the lesson; Arabic plan is RTL with the 6-column flow table",
            paused_on_open and info["dir"] == "rtl" and info["cols"] == ["الزمن", "المرحلة", "نشاط الأستاذ", "نشاط المتعلم", "الوسائل", "التقويم"], str(info["cols"]))
     record("45-minute model split 5/10/15/10/5 and all mandatory sections present",
            info["mins"] == [5, 10, 15, 10, 5] and info["has"] and info["pages"], str(info["mins"]))
-    record("plan keeps math as superscripts and states that CRDP conformity is NOT verified", info["sup"] > 0 and info["crdp"])
+    record("plan keeps math as superscripts and states it is not an official unified CRDP template", info["sup"] > 0 and info["crdp"])
     pg.fill("#nbPlanMin", "90"); pg.press("#nbPlanMin", "Enter"); pg.evaluate("document.getElementById('nbPlanMin').dispatchEvent(new Event('change'))")
     pg.fill("#nbPlanSes", "2"); pg.evaluate("document.getElementById('nbPlanSes').dispatchEvent(new Event('change'))")
     two = pg.evaluate("""() => { const flows=[...document.querySelectorAll('#nbPlanDoc table')].filter(x=>x.rows[0].cells.length===6);
