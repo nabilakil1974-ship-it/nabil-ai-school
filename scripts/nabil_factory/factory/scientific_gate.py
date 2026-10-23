@@ -1,0 +1,284 @@
+from __future__ import annotations
+
+"""Pragmatic scientific gate: block only deterministic or located contradictions."""
+
+import json
+import re
+import unicodedata
+from dataclasses import dataclass, field
+from fractions import Fraction
+from typing import Literal
+
+from pydantic import BaseModel, Field
+
+Category = Literal[
+    "ocr_typo", "spacing", "symbol", "formatting",
+    "formula_error", "wrong_concept", "false_statement", "unclear_evidence",
+]
+
+
+class ReviewerIssue(BaseModel):
+    category: Category
+    quote: str = Field(
+        description="VERBATIM excerpt from the student-facing lesson text")
+    message: str
+    confidence: float = Field(ge=0, le=1)
+
+
+class ReviewerReport(BaseModel):
+    issues: list[ReviewerIssue] = Field(default_factory=list)
+
+
+_SUP_DIGIT = {
+    "⁰": "0", "¹": "1", "²": "2", "³": "3", "⁴": "4",
+    "⁵": "5", "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9",
+}
+_SUP_SEQ = re.compile(r"[⁻⁰¹²³⁴⁵⁶⁷⁸⁹]+")
+
+
+def _expand_superscript_sequence(match: re.Match) -> str:
+    raw = match.group(0)
+    sign = "-" if raw.startswith("⁻") else ""
+    digits = "".join(_SUP_DIGIT[ch] for ch in raw if ch in _SUP_DIGIT)
+    return "^" + sign + digits if digits else raw
+
+
+def _collapse_split_exponent_digits(text: str) -> str:
+    """Heal legacy corruption like ^1^8 -> ^18 from old superscript mapping."""
+    pat = re.compile(r"\^(?:-?\d)(?:\^\d)+")
+    def repl(match: re.Match) -> str:
+        raw = match.group(0)
+        sign = "-" if raw.startswith("^-") else ""
+        digits = "".join(re.findall(r"\d", raw))
+        return "^" + sign + digits
+    return pat.sub(repl, text)
+_CHAR_MAP = str.maketrans({
+    "−": "-", "–": "-", "—": "-", "×": "×", "∙": "·", "⋅": "·",
+    "÷": "÷", "\u00a0": " ", "\u2009": " ", "\u200a": " ",
+})
+_ZW = re.compile(r"[\u200b-\u200f\u202a-\u202e\ufeff]")
+
+
+def normalize_ocr(text: str) -> str:
+    # Expand a contiguous superscript RUN once: 10¹⁸ -> 10^18, never
+    # 10^1^8. This also heals old cached ^1^8 artifacts deterministically.
+    t = _SUP_SEQ.sub(_expand_superscript_sequence, str(text or ""))
+    t = unicodedata.normalize("NFKC", t)
+    t = _ZW.sub("", t).translate(_CHAR_MAP)
+    t = _collapse_split_exponent_digits(t)
+    t = re.sub(r"(\d)\s*\^\s*(-?\d)", r"\1^\2", t)
+    t = re.sub(r"\s*=\s*", " = ", t)
+    t = re.sub(r"[ \t]+", " ", t)
+    return t.strip()
+
+
+def normalize_payload_strings(obj):
+    if isinstance(obj, str):
+        return normalize_ocr(obj)
+    if isinstance(obj, list):
+        return [normalize_payload_strings(x) for x in obj]
+    if isinstance(obj, dict):
+        return {
+            k: (
+                normalize_payload_strings(v)
+                if k not in {"kind", "lang"} else v
+            )
+            for k, v in obj.items()
+        }
+    return obj
+
+
+_NUM = r"\d+(?:,\d+)*(?:\.\d+)?(?:/\d+(?:,\d+)*)?"
+_POW = re.compile(
+    rf"(?<![\w.])(?P<base_expr>\(-?{_NUM}\)|-?{_NUM})"
+    rf"\s*\^\s*\{{?\s*(?P<exp>-?\d+)\s*\}}?\s*=\s*"
+    rf"(?P<val>-?{_NUM})(?![\w/^])"
+)
+
+
+def _fraction_from_numeric_token(token: str) -> Fraction:
+    return Fraction(str(token).replace(",", ""))
+
+
+def repair_numeric_power_claims(text: str) -> tuple[str, int]:
+    """Repair exact numeric power equalities deterministically.
+
+    Only the claimed value on expressions like 2^5 = 2 is replaced. The
+    expression/base/exponent and surrounding prose remain source-generated.
+    This never guesses: exact Fraction arithmetic is the authority.
+    """
+    normalized = normalize_ocr(text)
+    matches = list(_POW.finditer(normalized))
+    if not matches:
+        return str(text or ""), 0
+
+    out = normalized
+    repairs = 0
+    for m in reversed(matches):
+        try:
+            expr = m["base_expr"].strip()
+            exp = int(m["exp"])
+            if abs(exp) > 64:
+                continue
+            if expr.startswith("(") and expr.endswith(")"):
+                base = _fraction_from_numeric_token(expr[1:-1])
+                correct = base ** exp
+            elif expr.startswith("-"):
+                base = _fraction_from_numeric_token(expr[1:])
+                correct = -(base ** exp)
+            else:
+                base = _fraction_from_numeric_token(expr)
+                correct = base ** exp
+            if base == 0 and exp <= 0:
+                continue
+            claimed = _fraction_from_numeric_token(m["val"])
+        except (ValueError, ZeroDivisionError):
+            continue
+        if correct == claimed:
+            continue
+        out = out[:m.start("val")] + str(correct) + out[m.end("val"):]
+        repairs += 1
+    return out, repairs
+
+
+def repair_numeric_power_payload(obj):
+    """Recursively repair generated solution/narrative strings only."""
+    if isinstance(obj, str):
+        return repair_numeric_power_claims(obj)
+    if isinstance(obj, list):
+        total = 0
+        rows = []
+        for item in obj:
+            fixed, count = repair_numeric_power_payload(item)
+            rows.append(fixed)
+            total += count
+        return rows, total
+    if isinstance(obj, dict):
+        total = 0
+        fixed = {}
+        for key, value in obj.items():
+            new_value, count = repair_numeric_power_payload(value)
+            fixed[key] = new_value
+            total += count
+        return fixed, total
+    return obj, 0
+
+
+def check_power_claims(text: str) -> list[str]:
+    """Verify numeric power equalities with exact rational arithmetic."""
+    bad = []
+    for m in _POW.finditer(normalize_ocr(text)):
+        try:
+            expr = m["base_expr"].strip()
+            exp = int(m["exp"])
+            if expr.startswith("(") and expr.endswith(")"):
+                base = _fraction_from_numeric_token(expr[1:-1])
+                value = base ** exp
+            elif expr.startswith("-"):
+                # Conventional precedence: -2^2 == -(2^2).
+                base = _fraction_from_numeric_token(expr[1:])
+                value = -(base ** exp)
+            else:
+                base = _fraction_from_numeric_token(expr)
+                value = base ** exp
+            if abs(exp) > 64 or (base == 0 and exp <= 0):
+                continue
+            claimed = _fraction_from_numeric_token(m["val"])
+        except (ValueError, ZeroDivisionError):
+            continue
+        if value != claimed:
+            bad.append(
+                f"{m.group(0).strip()}  (correct value: {value})")
+    return bad
+
+
+NOISE = {"ocr_typo", "spacing", "symbol", "formatting"}
+SERIOUS = {"formula_error", "wrong_concept", "false_statement"}
+
+
+def _squash(s: str) -> str:
+    return re.sub(r"\s+", "", normalize_ocr(s)).casefold()
+
+
+@dataclass
+class GateResult:
+    verdict: Literal[
+        "PASS", "PASS_NORMALIZED", "PASS_FLAGGED", "BLOCK"]
+    text: str
+    needs_review: bool = False
+    block_reasons: list[str] = field(default_factory=list)
+    flagged: list[str] = field(default_factory=list)
+    noise_count: int = 0
+
+
+def scientific_gate(
+        lesson_text: str,
+        report: ReviewerReport,
+        *,
+        block_confidence: float = 0.8,
+        emit=None,
+) -> GateResult:
+    text = normalize_ocr(lesson_text)
+    squashed = _squash(text)
+    changed = text != lesson_text
+
+    reasons = [
+        f"NUMERIC_POWER_MISMATCH: {m}"
+        for m in check_power_claims(text)
+    ]
+
+    noise, flagged = 0, []
+    for it in report.issues:
+        located = (
+            bool(it.quote.strip())
+            and _squash(it.quote) in squashed
+        )
+        if it.category in NOISE:
+            noise += 1
+        elif (
+            it.category in SERIOUS
+            and located
+            and it.confidence >= block_confidence
+        ):
+            reasons.append(
+                f"REVIEWER_CONTRADICTION[{it.category}@"
+                f"{it.confidence:.2f}]: {it.quote[:100]} -> "
+                f"{it.message[:160]}")
+        else:
+            why = (
+                "quote not found in lesson"
+                if not located
+                else "low confidence / unclear evidence"
+            )
+            flagged.append(
+                f"{it.category}: {it.message[:140]} ({why})")
+
+    if reasons:
+        if emit is not None:
+            emit("SCIENTIFIC_REVIEW_BLOCKED", reasons=reasons[:8])
+        return GateResult(
+            "BLOCK", text, True, reasons, flagged, noise)
+
+    verdict = (
+        "PASS_FLAGGED"
+        if flagged
+        else (
+            "PASS_NORMALIZED"
+            if (noise or changed)
+            else "PASS"
+        )
+    )
+    if verdict != "PASS" and emit is not None:
+        emit(
+            "SCIENTIFIC_REVIEW_TOLERATED",
+            verdict=verdict,
+            ocr_noise_ignored=noise,
+            flagged=flagged[:8],
+            text_normalized=changed,
+        )
+    return GateResult(
+        verdict, text, bool(flagged), [], flagged, noise)
+
+
+def report_from_json(raw: str) -> ReviewerReport:
+    return ReviewerReport.model_validate_json(raw)

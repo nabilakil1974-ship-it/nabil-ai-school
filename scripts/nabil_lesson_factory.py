@@ -7354,8 +7354,23 @@ def synthesize_universal_pedagogy(entry: dict, ev_map: dict, profile: dict) -> d
     ]
     any_active_sim = bool(all_labs_html)
 
-    whole_lesson_lab_html = render_whole_lesson_smart_lab(
-        title, activities_theory, lesson_lang_code)
+    whole_lesson_lab_html = ""
+    if os.getenv("NABIL_BOARD_ENGINE", "v6").strip().lower() != "legacy":
+        # Golden V6 board: hand-written board, ruler/protractor/compass construction,
+        # Arabic/English/French buttons, teacher plan in the chosen language,
+        # student-clean gate (scripts/nabil_factory/cards/golden_v6.py).
+        try:
+            from scripts.nabil_factory.cards.v18_board import render_v18_smart_board
+            whole_lesson_lab_html = render_v18_smart_board(
+                title, activities_theory, lesson_lang_code,
+                meta={"subject": entry.get("subject", ""), "grade": str(entry.get("grade", "")),
+                      "language": entry.get("language", ""), "lesson_id": entry.get("lesson_id", "")})
+        except Exception as exc:  # never ship a half-built board: fall back and say so in the log
+            progress("V6_BOARD_FALLBACK_TO_LEGACY", error=f"{type(exc).__name__}: {str(exc)[:300]}")
+            whole_lesson_lab_html = ""
+    if not whole_lesson_lab_html:
+        whole_lesson_lab_html = render_whole_lesson_smart_lab(
+            title, activities_theory, lesson_lang_code)
 
     # Full-coverage quiz: reuses the exact grounded conclusion/distractor
     # fields already produced per concept above — no new LLM calls, no new

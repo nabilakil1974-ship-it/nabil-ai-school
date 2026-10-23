@@ -1,0 +1,211 @@
+<!doctype html><html lang="ar"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NABIL AI | Cube — Golden V6 Dual Board</title><style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,"Noto Naskh Arabic",sans-serif;background:#eaf0f6;color:#12324b}.shell{max-width:1550px;margin:auto;background:white;min-height:100vh}.heading{padding:17px 22px;font-size:clamp(21px,2.6vw,32px);font-weight:750;color:#075987;border-bottom:2px solid #e1edf4}.workspace{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);align-items:start;gap:0;min-height:calc(100vh - 130px)}.diagram-pane{position:sticky;top:0;align-self:start;height:calc(100vh - 78px);min-height:480px;padding:18px;border-right:2px solid #d4e3ef;background:#fff;display:flex;align-items:center;justify-content:center}.diagram-pane svg{width:100%;max-height:100%;height:auto;display:block}.writing-pane{min-width:0;padding:24px 28px 140px;background:#fff;min-height:calc(100vh - 80px)}.step{margin:0 0 20px;padding:13px 17px;border-left:4px solid #0d77aa;border-radius:6px;background:#f2f8fc;font-size:clamp(21px,1.8vw,28px);line-height:1.85;overflow-wrap:anywhere}.arabic{direction:rtl;text-align:right;unicode-bidi:plaintext;font-family:Tahoma,Arial,sans-serif;font-weight:600}.math{direction:ltr;text-align:left;font-family:Arial,sans-serif;font-weight:700;font-size:clamp(23px,2vw,32px);background:#fff;border-left-color:#d98a28;white-space:normal}.math .sqrt{display:inline-flex;align-items:flex-start;direction:ltr;white-space:nowrap}.radical{font-size:1.4em;line-height:1.05}.radicand{border-top:2.5px solid currentColor;padding:2px 4px 0;margin-top:4px}.controls{position:sticky;bottom:0;z-index:10;display:flex;flex-wrap:wrap;gap:7px;padding:10px;background:#dceafa;justify-content:center;border-top:1px solid #bcd2e5}button,select{font-size:15px;font-weight:700;padding:10px;border:0;border-radius:8px;background:#1762aa;color:white;cursor:pointer}select{background:white;color:#12324b}#status{padding:9px;color:#234} @media(max-width:760px){.workspace{grid-template-columns:1fr}.diagram-pane{position:sticky;top:0;height:39vh;min-height:240px;z-index:2;border-right:0;border-bottom:2px solid #d4e3ef;padding:6px;background:#fff}.diagram-pane svg{max-height:100%}.writing-pane{min-height:65vh;padding:20px 15px 125px}.heading{padding:10px 14px}.step{font-size:22px;margin-bottom:15px}.controls{padding:6px}button,select{font-size:13px;padding:8px}}
+
+/* One real visual hand travels across the two synchronized panes. */
+#teacherHand{position:fixed;z-index:9;width:clamp(100px,13vw,155px);height:auto;pointer-events:none;opacity:0;transform:translate(-18%,-16%);transition:left .38s ease,top .38s ease,opacity .16s ease;will-change:left,top}
+#teacherHand.is-visible{opacity:1}
+.step{position:relative;scroll-margin-bottom:110px}
+@media(max-width:760px){#teacherHand{width:105px}}
+</style></head><body><main class="shell"><header id="heading" class="heading">Lines and Circles</header><section class="workspace"><aside class="diagram-pane"><svg id="board" viewBox="170 105 610 540" preserveAspectRatio="xMidYMid meet"><g id="ink"></g><g id="hand" visibility="hidden" transform="translate(0 0)"><image href="DATAURI_0" x="-26" y="-22" width="115" height="90"/></g></svg></aside><article id="writing" class="writing-pane" aria-live="polite"></article></section><nav class="controls"><button id="play">▶ تشغيل</button><button id="pause">⏸ إيقاف</button><button id="prev">السابق</button><button id="next">التالي</button><button id="repeat">↻ إعادة</button><button id="voice">🔊 الصوت مفعّل</button><select id="speed"><option value="0.5">0.5×</option><option value="0.7" selected>0.7×</option><option value="1">1×</option><option value="1.25">1.25×</option></select><span id="status"></span></nav></main><img id="teacherHand" alt="" aria-hidden="true"><script>
+const SCENES=[["Cube — Faces, Sides and Vertices", [["t", "We draw a cube with six square faces.", "نرسم مكعبًا، ونميّز الوجوه والأضلاع والرؤوس."], ["cubeOutline"], ["t", "A cube has six faces, twelve sides and eight vertices.", "للمكعب ستة وجوه مربعة، واثنا عشر ضلعًا، وثمانية رؤوس."], ["formula", "F = 6     E = 12     V = 8"], ["t", "All twelve sides have the same length a.", "جميع أضلاع المكعب متساوية في الطول، ونرمز لطول الضلع بالضلع a."]]], ["Color the Cube", [["t", "Now the pen colors the visible faces, one by one.", "نلوّن الوجوه الظاهرة واحدًا بعد الآخر، مع الحفاظ على حدود المكعب."], ["cubeOutline"], ["cubeColor"], ["t", "Opposite faces are parallel and equal.", "كل وجهين متقابلين متوازيان ومتساويان في المساحة."]]], ["Rotate the Cube", [["t", "We rotate the cube to observe its different faces.", "ندير المكعب تدريجيًا لنشاهد وجوهه المختلفة."], ["cubeOutline"], ["cubeColor"], ["cubeRotate"], ["t", "Rotation does not change the side length or volume.", "الدوران لا يغيّر طول الضلع ولا حجم المكعب."]]], ["Unfold — Net of a Cube", [["t", "The six square faces can open into a flat net.", "نفتح وجوه المكعب الستة تدريجيًا لتصبح شبكة مستوية."], ["cubeOutline"], ["cubeColor"], ["cubeUnfold"], ["t", "Every square in the net has the same side length.", "كل مربع في الشبكة له طول الضلع نفسه a."], ["formula", "Total surface area = 6a²"]]], ["Worked Example — Volume and Area", [["t", "Suppose the side length of the cube is four centimeters.", "مثال: مكعب طول ضلعه أربعة سنتيمترات، أوجد حجمه ومساحته الكلية."], ["cubeOutline"], ["cubeColor"], ["formula", "a = 4 cm"], ["t", "The volume is the cube of the side length.", "حجم المكعب يساوي مكعب طول ضلعه."], ["formula", "V = a³"], ["formula", "V = 4³ = 4 × 4 × 4"], ["formula", "V = 64 cm³"], ["t", "The total area is the area of one face multiplied by six.", "المساحة الكلية تساوي مساحة الوجه الواحد مضروبة بستة."], ["formula", "A = 6a²"], ["formula", "A = 6 × 4² = 6 × 16"], ["formula", "A = 96 cm²"]]]];
+let activeDrawingGroup=null,diagramShiftGlobal=0;
+const ns='http://www.w3.org/2000/svg',ink=document.getElementById('ink'),hand=document.getElementById('hand'),status=document.getElementById('status');let index=0,run=0,paused=false,voice=true,speed=.7,started=false;
+function el(tag,attrs={},txt=''){const e=document.createElementNS(ns,tag);Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v));if(txt)e.textContent=txt;(activeDrawingGroup||ink).appendChild(e);return e}
+const teacherHand=document.getElementById('teacherHand');
+const svgHandImage=hand.querySelector('image');
+teacherHand.src=svgHandImage.getAttribute('href');
+hand.setAttribute('visibility','hidden');
+function handAtClient(x,y){teacherHand.style.left=x+'px';teacherHand.style.top=y+'px';teacherHand.classList.add('is-visible')}
+function hideTeacherHand(){teacherHand.classList.remove('is-visible')}
+function point(x,y){
+ const svg=document.getElementById('board');
+ const p=svg.createSVGPoint();p.x=x;p.y=y+(activeDrawingGroup?diagramShiftGlobal:0);
+ const matrix=svg.getScreenCTM();
+ if(matrix){const pos=p.matrixTransform(matrix);handAtClient(pos.x,pos.y)}
+}
+async function travelTo(element,id){
+ if(id!==run)return false;
+ const rect=element.getBoundingClientRect();
+ handAtClient(Math.max(24,rect.left+Math.min(rect.width*.64,rect.width-35)),rect.top+Math.min(32,rect.height*.45));
+ return await wait(450,id);
+}
+async function wait(ms,id){let t=0;while(t<ms){if(id!==run)return false;if(paused){await new Promise(r=>setTimeout(r,60));continue}await new Promise(r=>setTimeout(r,25));t+=25*speed}return id===run}
+async function drawLine(x1,y1,x2,y2,color,id,dash=''){const e=el('line',{x1,y1,x2,y2,stroke:color,'stroke-width':4,'stroke-linecap':'round','stroke-dasharray':dash});let n=32;for(let i=0;i<=n;i++){if(id!==run)return;e.setAttribute('x2',x1+(x2-x1)*i/n);e.setAttribute('y2',y1+(y2-y1)*i/n);point(x1+(x2-x1)*i/n,y1+(y2-y1)*i/n);if(!await wait(22,id))return}}
+async function circle(cx,cy,r,id){let e=el('path',{fill:'none',stroke:'#1571ae','stroke-width':4});for(let i=0;i<=100;i++){if(id!==run)return;let a=i/100*2*Math.PI;let x=cx+r*Math.cos(a),y=cy+r*Math.sin(a);e.setAttribute('d',`${e.getAttribute('d')||''}${i?' L':'M'}${x} ${y}`);point(x,y);if(!await wait(12,id))return}}
+function label(text,x,y,color='#263b50'){el('text',{x,y,'font-size':27,fill:color,'font-weight':'bold'},text)}
+async function diagram(type,id){if(type==='circle'||type==='radius'||type==='line'||type==='perp'||type==='lineSec'||type==='pointsSec'||type==='tangent'||type==='exterior'){if(type==='circle'){await circle(440,360,155,id);label('O',420,370);return}if(type==='radius'){await drawLine(440,360,595,360,'#e56a39',id);label('r',515,344);return}if(type==='line'||type==='lineSec'){await drawLine(240,type==='line'?515:410,650,type==='line'?515:410,'#2b9e86',id);return}if(type==='perp'){await drawLine(440,360,440,515,'#ed8a35',id,'7 5');label('H',448,544);await drawLine(440,499,455,499,'#c23d55',id);await drawLine(455,499,455,515,'#c23d55',id);return}if(type==='pointsSec'){label('A',295,402);label('B',568,402);return}if(type==='tangent'){await drawLine(600,160,600,560,'#e46c38',id);label('T',610,358);return}if(type==='exterior'){await drawLine(650,150,650,560,'#e46c38',id);return}}
+if(type==='chord'){await circle(440,350,130,id);await drawLine(340,270,340,430,'#dc663c',id);await drawLine(440,350,340,270,'#1580bc',id);await drawLine(440,350,340,350,'#269c8d',id);label('O',448,345);label('H',342,345);label('A',317,266);label('B',315,450);return}
+if(type==='axisHighlight'){
+ const ox=395,oy=365,px=675,r=125,dx=px-ox,tx=ox+r*r/dx,dy=Math.sqrt(r*r-(r*r/dx)**2),ty=oy-dy,sy=oy+dy;
+ await drawLine(ox-175,oy,px+80,oy,'#129e81',id,'12 7');
+ const a=el('path',{d:`M ${tx} ${ty} Q ${px-20} ${oy} ${tx} ${sy}`,stroke:'#b665bb','stroke-width':3,'stroke-dasharray':'8 7',fill:'none'});
+ label('Axis of Symmetry: OP',320,570,'#16866e');return;
+}
+if(type==='tangents'){
+ const ox=395,oy=365,px=675,r=125,dx=px-ox;
+ const tx=ox+r*r/dx, dy=Math.sqrt(r*r-(r*r/dx)**2);
+ const ty=oy-dy,sy=oy+dy;
+ await circle(ox,oy,r,id);
+ await drawLine(tx,ty,px,oy,'#e36d37',id);
+ await drawLine(tx,sy,px,oy,'#e36d37',id);
+ await drawLine(ox,oy,tx,ty,'#1571ae',id);
+ await drawLine(ox,oy,tx,sy,'#1571ae',id);
+ await drawLine(ox,oy,px,oy,'#359b83',id,'8 6');
+ // The two radii and tangents are mathematically perpendicular at T and S.
+ async function rightAngle(x,y,ax,ay,bx,by){
+   const L=20,ua=Math.hypot(ax,ay),ub=Math.hypot(bx,by);
+   let u=[ax/ua*L,ay/ua*L],v=[bx/ub*L,by/ub*L];
+   await drawLine(x+u[0],y+u[1],x+u[0]+v[0],y+u[1]+v[1],'#c23d55',id);
+   await drawLine(x+u[0]+v[0],y+u[1]+v[1],x+v[0],y+v[1],'#c23d55',id);
+ }
+ async function tick(x1,y1,x2,y2,count){
+   let vx=x2-x1,vy=y2-y1,len=Math.hypot(vx,vy),nx=-vy/len,ny=vx/len;
+   for(let j=0;j<count;j++){
+     let shift=(j-(count-1)/2)*11,mx=(x1+x2)/2+vx/len*shift,my=(y1+y2)/2+vy/len*shift;
+     await drawLine(mx-nx*10,my-ny*10,mx+nx*10,my+ny*10,'#c23d55',id);
+   }
+ }
+ await rightAngle(tx,ty,ox-tx,oy-ty,px-tx,oy-ty);
+ await rightAngle(tx,sy,ox-tx,oy-sy,px-tx,oy-sy);
+ await tick(ox,oy,tx,ty,1);await tick(ox,oy,tx,sy,1);
+ await tick(tx,ty,px,oy,2);await tick(tx,sy,px,oy,2);
+ label('O',374,360);label('P',684,368);label('T',tx+6,ty-12);label('S',tx+6,sy+28);
+ label('90°',tx+29,ty+42,'#c23d55');label('90°',tx+29,sy-26,'#c23d55');
+ return}}
+
+function formulaHtml(s){const esc=x=>x.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');let m=s.match(/^(.*?)√\(([^)]*)\)(.*)$/);if(!m)return esc(s);return esc(m[1])+'<span class="sqrt"><span class="radical">√</span><span class="radicand">'+esc(m[2])+'</span></span>'+esc(m[3])}
+async function glideHand(fromX,fromY,toX,toY,id,ms=160){
+  const n=8;
+  for(let k=1;k<=n;k++){
+    if(id!==run)return false;
+    const t=k/n, ease=t*t*(3-2*t);
+    handAtClient(fromX+(toX-fromX)*ease,fromY+(toY-fromY)*ease);
+    if(!await wait(ms/n,id))return false;
+  }
+  return true;
+}
+function handTipFor(node,rtl){
+  const r=node.getBoundingClientRect();
+  // The pen nib follows the newest visible word, rather than the container's centre.
+  return {x:rtl?r.left+4:r.right-4,y:r.top+Math.min(r.height*.7,30)};
+}
+async function addStep(step,id){
+ const node=document.createElement('div');node.className='step '+(step[0]==='formula'?'math':'arabic');
+ const writing=document.getElementById('writing');writing.appendChild(node);
+ node.scrollIntoView({block:'nearest',behavior:'smooth'});
+ if(!await travelTo(node,id))return;
+ if(step[0]==='formula'){
+   // Keep radicals and superscripts together: the hand follows a measured RTL-safe LTR reveal.
+   node.dir='ltr';node.innerHTML=formulaHtml(step[1]);
+   node.style.overflow='hidden';node.style.whiteSpace='nowrap';
+   node.style.clipPath='inset(0 100% 0 0)';
+   const rect=node.getBoundingClientRect();
+   const textWidth=Math.min(node.scrollWidth,rect.width);
+   const startX=rect.left+5, endX=rect.left+textWidth;
+   for(let k=0;k<=Math.max(30,Math.round(textWidth/8));k++){
+     if(id!==run)return;
+     const n=Math.max(30,Math.round(textWidth/8)), t=k/n;
+     node.style.clipPath=`inset(0 ${100*(1-t)}% 0 0)`;
+     handAtClient(startX+(endX-startX)*t,rect.top+Math.min(30,rect.height*.7));
+     if(!await wait(46,id))return;
+   }
+   node.style.clipPath='none';node.style.overflow='visible';
+ }else{
+   // Render whole Arabic words to preserve glyph shaping and bidi ordering.
+   // Every word is individually measured AFTER layout; the nib tracks its real position.
+   node.dir='rtl';node.style.textAlign='right';
+   const tokens=step[2].match(/\S+\s*/g)||[];
+   let last=null;
+   for(const token of tokens){
+     if(id!==run)return;
+     const span=document.createElement('span');span.textContent=token;
+     span.style.opacity='0';span.style.display='inline';node.appendChild(span);
+     node.scrollIntoView({block:'nearest',behavior:'smooth'});
+     const p=handTipFor(span,true);
+     if(last&&!await glideHand(last.x,last.y,p.x,p.y,id,120))return;
+     // Reveal the complete shaped word, synchronized with the nib at that word.
+     span.style.opacity='1';handAtClient(p.x,p.y);
+     last=p;
+     if(!await wait(Math.max(180,token.trim().length*65),id))return;
+   }
+ }
+ if(voice&&step[0]==='t'&&'speechSynthesis' in window){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(step[1]);u.lang='en-US';u.rate=.85;speechSynthesis.speak(u)}
+}
+
+
+const CUBE_GEO={
+ A:[285,330],B:[455,330],C:[455,500],D:[285,500],
+ E:[385,240],F:[555,240],G:[555,410],H:[385,410]
+};
+async function cubePath(points,color,id,fill='none'){
+ const d='M'+points.map(p=>p.join(',')).join(' L')+' Z';
+ const poly=el('path',{d,fill,stroke:color,'stroke-width':3.4,'stroke-linejoin':'round'});
+ if(fill!=='none'){poly.setAttribute('fill-opacity','0');for(let i=0;i<=25;i++){poly.setAttribute('fill-opacity',String(i/25*.85));if(!await wait(26,id))return}}
+ return poly;
+}
+async function cubeEdges(id){
+ const p=CUBE_GEO;
+ for(const [a,b] of [['A','B'],['B','C'],['C','D'],['D','A'],['A','E'],['E','F'],['F','B'],['F','G'],['G','C'],['D','H']]){
+  await drawLine(...p[a],...p[b],'#156fa9',id);
+ }
+ await drawLine(...p.E,...p.H,'#8ba5b6',id,'8 7');
+ await drawLine(...p.H,...p.G,'#8ba5b6',id,'8 7');
+ label('a',365,520,'#156fa9');
+}
+async function colorCube(id){
+ const p=CUBE_GEO;
+ await cubePath([p.A,p.B,p.C,p.D],'#d85870',id,'#e8798c');
+ await cubePath([p.E,p.F,p.B,p.A],'#246fa8',id,'#8cc8f5');
+ await cubePath([p.B,p.F,p.G,p.C],'#2b9979',id,'#75d9ad');
+}
+async function rotateCube(id){
+ const p=CUBE_GEO;
+ const g=el('g',{'transform':'translate(420 375)'});
+ // Animated 2D projection of a cube rotation; no claim of full 3D physics.
+ const points=[[-85,-65],[85,-65],[85,105],[-85,105],[-5,-145],[165,-145],[165,25]];
+ const shapes=[
+ {ix:[0,1,2,3],c:'#e8798c'},
+ {ix:[4,5,1,0],c:'#8cc8f5'},
+ {ix:[1,5,6,2],c:'#75d9ad'}];
+ for(const sh of shapes){let d='M'+sh.ix.map(i=>points[i].join(',')).join(' L')+' Z';const e=document.createElementNS(ns,'path');e.setAttribute('d',d);e.setAttribute('fill',sh.c);e.setAttribute('stroke','#156fa9');e.setAttribute('stroke-width','3');g.appendChild(e)}
+ for(let i=0;i<=75;i++){
+  if(id!==run)return;
+  const a=i/75*42;
+  g.setAttribute('transform',`translate(420 375) rotate(${a}) scale(${1-.07*Math.sin(i/75*Math.PI)})`);
+  point(420+110*Math.cos(a*Math.PI/180),375+110*Math.sin(a*Math.PI/180));
+  if(!await wait(32,id))return;
+ }
+}
+async function unfoldCube(id){
+ const colors=['#e8798c','#8cc8f5','#75d9ad','#f6c66a','#b49cf0','#9dd6e5'];
+ const squares=[[345,340],[445,340],[245,340],[145,340],[345,240],[345,440]];
+ const nodes=[];
+ for(let k=0;k<squares.length;k++){
+  const [x,y]=squares[k];const e=el('rect',{x:420,y:375,width:5,height:5,rx:2,fill:colors[k],stroke:'#156fa9','stroke-width':3,'fill-opacity':'.78'});nodes.push(e);
+ }
+ for(let i=0;i<=75;i++){
+  if(id!==run)return;
+  const t=i/75,e=t*t*(3-2*t);
+  for(let k=0;k<nodes.length;k++){
+   const [x,y]=squares[k];nodes[k].setAttribute('x',420+(x-420)*e);
+   nodes[k].setAttribute('y',375+(y-375)*e);
+   nodes[k].setAttribute('width',5+95*e);nodes[k].setAttribute('height',5+95*e);
+  }
+  point(420+(squares[0][0]-420)*e,375+(squares[0][1]-375)*e);
+  if(!await wait(35,id))return;
+ }
+ label('Net of a Cube',295,205);
+}
+const originalDiagram=diagram;
+diagram=async function(type,id){
+ if(type==='cubeOutline'){ink.replaceChildren();await cubeEdges(id);return}
+ if(type==='cubeColor'){await colorCube(id);return}
+ if(type==='cubeRotate'){ink.replaceChildren();await rotateCube(id);return}
+ if(type==='cubeUnfold'){ink.replaceChildren();await unfoldCube(id);return}
+ return originalDiagram(type,id)
+};
+
+async function scene(){const id=++run;paused=false;started=true;ink.replaceChildren();hideTeacherHand();document.getElementById('writing').replaceChildren();const [title,steps]=SCENES[index];document.getElementById('heading').textContent=title;status.textContent=(index+1)+' / '+SCENES.length;for(const step of steps){if(id!==run)return;if(step[0]==='t'||step[0]==='formula'){await addStep(step,id)}else{await diagram(step[0],id)}if(!await wait(300,id))return}hideTeacherHand();if(!await wait(2600,id))return;if(id===run&&index<SCENES.length-1){index++;scene()}}
+function stop(){run++;if('speechSynthesis' in window)speechSynthesis.cancel();hideTeacherHand()}
+document.getElementById('play').onclick=()=>{if(paused){paused=false;speechSynthesis?.resume()}else{stop();scene()}};document.getElementById('pause').onclick=()=>{paused=!paused;if('speechSynthesis' in window){if(paused)speechSynthesis.pause();else speechSynthesis.resume()}};document.getElementById('prev').onclick=()=>{stop();index=Math.max(0,index-1);scene()};document.getElementById('next').onclick=()=>{stop();index=Math.min(index+1,SCENES.length-1);scene()};document.getElementById('repeat').onclick=()=>{stop();index=0;scene()};document.getElementById('speed').onchange=e=>speed=+e.target.value;document.getElementById('voice').onclick=()=>{voice=!voice;document.getElementById('voice').textContent=voice?'🔊 الصوت مفعّل':'🔇 تفعيل الصوت';if(!voice&&'speechSynthesis'in window)speechSynthesis.cancel()};window.addEventListener('load',()=>setTimeout(scene,300));document.addEventListener('pointerdown',()=>{if(voice&&'speechSynthesis' in window&&speechSynthesis.paused)speechSynthesis.resume()},{once:true});
+</script></body></html>
