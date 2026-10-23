@@ -397,7 +397,7 @@ def run_browser(browser) -> None:
     record("teacher can change period length and number of periods (90 min x 2 periods)",
            two["n"] == 2 and two["sums"] == [90, 90], str(two))
     pg.evaluate("document.getElementById('nbPlanDoc').insertAdjacentHTML('afterbegin','<p id=\"mine\">ملاحظة الأستاذ</p>'); document.getElementById('nbPlanDoc').dispatchEvent(new Event('input'))")
-    time.sleep(0.6)
+    pg.wait_for_function("() => Object.keys(localStorage).some(k => k.startsWith('nabilPlan:') && (localStorage.getItem(k)||'').includes('id=\"mine\"'))", timeout=15000)
     pg.click("#nbPlanClose"); open_tools(pg)
     pg.click("#nbTools [data-nb-plan]")
     again = pg.evaluate("({cached: window.__nbPlanState.fromCache, mine: !!document.getElementById('mine'), key: window.__nbPlanState.key})")
