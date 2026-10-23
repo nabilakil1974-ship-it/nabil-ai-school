@@ -369,6 +369,7 @@ def render_golden_v6_board(title: str, scenes: List[dict], lang_code: str,
   <button type="button" id="nabilWholeVoice" class="voice" data-nb-l="voice_on" aria-pressed="true">{h(ui["voice_on"])}</button>
   <button type="button" id="nbRepeatStep" class="nb-solve-only" data-nb-l="repeat_step">{h(ui["repeat_step"])}</button>
   <button type="button" id="nbBackToLesson" class="nb-solve-only" data-nb-l="back_to_lesson">{h(ui["back_to_lesson"])}</button>
+  <button type="button" class="nb-planbtn nb-plan-quick" data-nb-plan="open" title="Lesson Plan | Fiche de préparation">📄 تحضير المعلم</button>
   <button type="button" id="nbToolsToggle" aria-expanded="false" aria-controls="nbTools" data-nb-l="tools">{h(ui["tools"])}</button>
   <span class="nb-status" id="nbStatus"></span>
  </nav>
