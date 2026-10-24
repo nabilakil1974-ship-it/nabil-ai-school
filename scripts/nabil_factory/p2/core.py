@@ -1799,16 +1799,43 @@ def synthesize_concept_narrative(
         "} — every field must be traceable to the TEXT above."
     )
     try:
-        res = execute_llm_completion(
-            prompt, json_mode=True, temperature=0.0,
-            image_base64=figure_image_base64,
-            vision_context=vision_context,
-            operation=f"concept_narrative_{concept.get('concept_id')}",
-            unit_id=str(concept.get("concept_id") or "concept"))
-        parsed = json.loads(res)
-        for k in ["phenomenon", "investigation", "observation", "interpretation", "conclusion", "distractor_1", "distractor_2"]:
-            if not parsed.get(k):
-                raise ValueError(f"Missing field {k}")
+        _req = ["phenomenon", "investigation", "observation", "interpretation", "conclusion", "distractor_1", "distractor_2"]
+        parsed = None
+        _last_err = None
+        for _attempt in range(4):
+            try:
+                res = execute_llm_completion(
+                    prompt + ("" if _attempt == 0 else
+                              "\n\nIMPORTANT: your previous answer was invalid. Return ONE flat JSON object with ALL these non-empty string keys exactly: "
+                              + ", ".join(_req) + ", formulas, units."),
+                    json_mode=True, temperature=0.0 if _attempt == 0 else 0.3,
+                    image_base64=figure_image_base64,
+                    vision_context=vision_context,
+                    operation=f"concept_narrative_{concept.get('concept_id')}",
+                    unit_id=str(concept.get("concept_id") or "concept"))
+                cand = json.loads(res)
+                if isinstance(cand, list) and cand and isinstance(cand[0], dict):
+                    cand = cand[0]
+                if isinstance(cand, dict) and not cand.get("phenomenon"):
+                    for _v in cand.values():
+                        if isinstance(_v, dict) and _v.get("phenomenon"):
+                            cand = _v
+                            break
+                for k in _req:
+                    v = cand.get(k) if isinstance(cand, dict) else None
+                    if isinstance(v, (list, tuple)):
+                        v = " ".join(str(x) for x in v)
+                        cand[k] = v
+                    if not v or not str(v).strip():
+                        raise ValueError(f"Missing field {k}")
+                parsed = cand
+                break
+            except Exception as _e:
+                _last_err = _e
+                progress("NARRATIVE_RETRY", concept_id=concept.get("concept_id"),
+                         attempt=_attempt + 1, reason=str(_e)[:160])
+        if parsed is None:
+            raise ValueError(str(_last_err))
         cleaned = sanitize_generated_narrative(
             concept, parsed, profile,
             figure_image_base64=figure_image_base64,
