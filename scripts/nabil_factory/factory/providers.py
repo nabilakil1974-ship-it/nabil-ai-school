@@ -263,6 +263,8 @@ def _sanitize_provider_error(exc):
     if raw_body:
         try:
             upstream = json.loads(raw_body)
+            if isinstance(upstream, list) and upstream:
+                upstream = upstream[0]  # Gemini wraps errors in an array
             error = (
                 upstream.get("error", upstream)
                 if isinstance(upstream, dict) else {}
@@ -271,7 +273,8 @@ def _sanitize_provider_error(exc):
                 detail = str(
                     error.get("message") or error.get("detail") or "")
                 code = str(
-                    error.get("code") or error.get("type") or "")
+                    error.get("code") or error.get("type")
+                    or error.get("status") or "")
             elif isinstance(error, str):
                 detail = error
         except ValueError:
@@ -577,6 +580,7 @@ def _execute_llm_completion_impl(
                     cooldown_seconds=round(cooldown, 2),
                     ready_alternatives=ready_alternatives,
                     provider_code=code[:80],
+                    provider_detail=detail[:240],
                 )
                 continue
 
