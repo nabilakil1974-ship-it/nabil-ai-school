@@ -67,6 +67,9 @@ def get_last_llm_provenance() -> Dict[str, Any]:
     return dict(_LAST_LLM_PROVENANCE)
 
 
+_LAST_PROVIDER_CALL: Dict[str, float] = {}
+
+
 def _provider_keys() -> Dict[str, Optional[str]]:
     return {
         "openrouter": os.getenv("OPENROUTER_API_KEY"),
@@ -411,6 +414,21 @@ def _execute_llm_completion_impl(
             _llm_bucket(_LLM_SCOPE[-1])["wait_s"] += wait_seconds + 0.25
             time.sleep(wait_seconds + 0.25)
             continue
+
+        # Free tiers allow only a few requests per minute. Pace calls instead
+        # of firing, getting 429, and backing off (which also burns the
+        # per-operation request budget).
+        try:
+            gap = float(os.getenv(
+                "NABIL_FACTORY_MIN_INTERVAL_" + provider.upper(), "0"))
+        except ValueError:
+            gap = 0.0
+        if gap > 0:
+            idle = time.monotonic() - _LAST_PROVIDER_CALL.get(provider, 0.0)
+            if idle < gap:
+                _llm_bucket(_LLM_SCOPE[-1])["wait_s"] += gap - idle
+                time.sleep(gap - idle)
+        _LAST_PROVIDER_CALL[provider] = time.monotonic()
 
         provider_attempts[provider] += 1
         total_requests += 1
