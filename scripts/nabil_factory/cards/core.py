@@ -706,6 +706,36 @@ def build_trilingual_page_translation(
            for lang in REFERENCE_RENDERER_LANGUAGES):
         raise RuntimeError("FULL_PAGE_TRANSLATION_COVERAGE_INCOMPLETE")
     quality = translation_quality_report(candidates, bundles, source_lang)
+    for _round in range(3):
+        if quality["ok"]:
+            break
+        for lang, info in quality["languages"].items():
+            if info.get("ok"):
+                continue
+            offenders = []
+            for cand in candidates:
+                words = _LATIN_WORDS.findall(cand) + _AR_WORDS.findall(cand)
+                if len(words) < 3:
+                    continue
+                out = str(bundles[lang].get(cand, ""))
+                if (out.strip() == cand.strip()
+                        or (lang == "ar" and not _AR_LETTERS.search(out))
+                        or (lang != "ar" and len(_AR_WORDS.findall(out)) > len(_LATIN_WORDS.findall(out)))
+                        or (lang != "en" and _STRAY_EN.search(out))):
+                    offenders.append(cand)
+            if not offenders:
+                continue
+            progress("TRANSLATION_REQUALITY_ROUND", lang=lang, round=_round + 1, offenders=len(offenders))
+            try:
+                with llm_metrics_scope("translation"):
+                    fixed = _translate_strings_batch(
+                        offenders, source_lang, lang, purpose + "_requality")
+                for k, v in fixed.items():
+                    if str(v).strip():
+                        bundles[lang][k] = v
+            except Exception as _e:
+                progress("TRANSLATION_REQUALITY_FAILED", lang=lang, reason=str(_e)[:200])
+        quality = translation_quality_report(candidates, bundles, source_lang)
     progress("TRANSLATION_QUALITY", **{
         k: v for k, v in quality["languages"].items()})
     if not quality["ok"]:
