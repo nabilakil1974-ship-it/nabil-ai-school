@@ -64,6 +64,15 @@
       "provider": "groq",
       "purpose": "Owner-approved source-page vision for all pages of all curriculum books in NABIL AI; explicit approval granted in chat.",
       "owner_approval_date": "2026-10-09"
+    },
+    {
+      "lesson_id_prefix": "G07-MATHEMATICS-",
+      "book_id": "1E-nj01QlpvZCa_kHy92qQDlm6ko1ba_D",
+      "pdf_start_page": 1,
+      "pdf_end_page": 400,
+      "provider": "gemini",
+      "purpose": "Owner asked in chat (2026-10-24) to use the free Gemini tier to finish Grade 7 Mathematics production; scope is only this book.",
+      "owner_approval_date": "2026-10-24"
     }
   ]
 }
