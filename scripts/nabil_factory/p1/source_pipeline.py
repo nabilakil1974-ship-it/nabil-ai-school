@@ -3259,6 +3259,7 @@ def build_evidence_map(doc, entry: dict, drive_service=None, persist_pages=False
                                os.getenv("OPENROUTER_TEXT_MODEL",
                                          "google/gemini-3.6-flash")),
         "openai": os.getenv("OPENAI_VISION_MODEL", "gpt-4o-mini"),
+        "gemini": os.getenv("GEMINI_VISION_MODEL", "gemini-flash-latest"),
     }.get(source_provider, "none")
     # Page checkpoints are recovery infrastructure, not scientific evidence.
     # Missing Drive/root must never abort lesson generation.  When configured,

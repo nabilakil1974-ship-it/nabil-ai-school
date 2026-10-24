@@ -72,12 +72,13 @@ def _provider_keys() -> Dict[str, Optional[str]]:
         "openrouter": os.getenv("OPENROUTER_API_KEY"),
         "groq": os.getenv("GROQ_API_KEY"),
         "openai": os.getenv("OPENAI_API_KEY"),
+        "gemini": os.getenv("GEMINI_API_KEY"),
     }
 
 
 def _provider_order(preferred: str, keys: Dict[str, Optional[str]]) -> List[str]:
     """Primary provider first, then configured failover providers, no duplicates."""
-    valid = ("groq", "openrouter", "openai")
+    valid = ("groq", "openrouter", "openai", "gemini")
     if preferred not in ("auto", *valid):
         raise RuntimeError(f"AI_PROVIDER_INVALID: {preferred}")
 
@@ -176,6 +177,15 @@ def _provider_request_config(provider: str, image_base64: Optional[str]):
             if image_base64
             else os.getenv(
                 "GROQ_TEXT_MODEL", "llama-3.3-70b-versatile")
+        )
+    elif provider == "gemini":
+        # Google AI Studio free tier through its OpenAI-compatible endpoint.
+        url = ("https://generativelanguage.googleapis.com/v1beta/openai/"
+               "chat/completions")
+        model = (
+            os.getenv("GEMINI_VISION_MODEL", "gemini-flash-latest")
+            if image_base64
+            else os.getenv("GEMINI_TEXT_MODEL", "gemini-flash-latest")
         )
     elif provider == "openai":
         url = "https://api.openai.com/v1/chat/completions"
