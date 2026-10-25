@@ -50,3 +50,140 @@ def make_scenes(THEORY, EXERCISES):
                     "title_ar": f"التمرين {e['n']}", "title_fr": f"Exercice {e['n']}",
                     "start_mode": "single", "steps": steps})
     return out
+
+
+# ------------------------------------------------------------ drawing helpers
+def _shape(kind, cx, cy, r, color, sid):
+    if kind == "star":
+        import math
+        pts = []
+        for i in range(10):
+            a = -math.pi / 2 + i * math.pi / 5
+            rr = r if i % 2 == 0 else r * 0.45
+            pts.append(f"{cx + rr * math.cos(a):.1f},{cy + rr * math.sin(a):.1f}")
+        return f'<polygon id="{sid}" points="{" ".join(pts)}" fill="{color}" stroke="#0b3d5c" stroke-width="3"/>'
+    if kind == "square":
+        return f'<rect id="{sid}" x="{cx - r}" y="{cy - r}" width="{2 * r}" height="{2 * r}" fill="{color}" stroke="#0b3d5c" stroke-width="3"/>'
+    if kind == "tri":
+        return (f'<polygon id="{sid}" points="{cx},{cy - r} {cx - r},{cy + r} {cx + r},{cy + r}" fill="{color}" '
+                f'stroke="#0b3d5c" stroke-width="3"/>')
+    return f'<circle id="{sid}" cx="{cx}" cy="{cy}" r="{r}" fill="{color}" stroke="#0b3d5c" stroke-width="3"/>'
+
+
+def row(n, kind="circle", color="#e53935", y=200, prefix="o", r=34, vbw=660, gap=None, x0=None):
+    """n identical objects on a line. returns (svg, ids)."""
+    gap = gap or (2 * r + 30)
+    total = gap * (n - 1)
+    x0 = x0 if x0 is not None else (vbw - total) / 2
+    ids = [f"{prefix}{i}" for i in range(n)]
+    svg = "".join(_shape(kind, x0 + i * gap, y, r, color, ids[i]) for i in range(n))
+    return svg, ids
+
+
+def numeral(txt, x=330, y=330, size=90, sid="num", color="#0b3d5c"):
+    return (f'<text id="{sid}" x="{x}" y="{y}" font-size="{size}" font-weight="700" text-anchor="middle" '
+            f'fill="{color}" font-family="sans-serif">{txt}</text>')
+
+
+def scene(svg, ids):
+    return D("svgScene", svg=svg, vb=[660, 440], show=ids)
+
+
+def objects(n, kind="circle", color="#e53935", number=None, y=170, prefix="o", r=34):
+    svg, ids = row(n, kind, color, y, prefix, r)
+    if number is not None:
+        svg += numeral(number, y=y + 170, sid=prefix + "n")
+        ids = ids + [prefix + "n"]
+    return scene(svg, ids)
+
+
+def join(a, b, ka="star", kb="star", ca="#fbc02d", cb="#43a047", y=150, total=True):
+    """two groups side by side with a plus sign; optional equals + total."""
+    r = 26
+    svg1, ids1 = row(a, ka, ca, y, "A", r, gap=64, x0=40)
+    svg2, ids2 = row(b, kb, cb, y, "B", r, gap=64, x0=40 + 64 * a + 70)
+    plus = numeral("+", 40 + 64 * (a - 1) + 55, y + 22, 60, "plus")
+    svg, ids = svg1 + plus + svg2, ids1 + ["plus"] + ids2
+    if total:
+        svg += numeral(f"{a} + {b} = {a + b}", 330, 340, 90, "eqn")
+        ids.append("eqn")
+    return scene(svg, ids)
+
+
+def pairs(a, b, ka="star", kb="circle", ca="#fbc02d", cb="#1e63d6", lines=True, gap=70, tag="P", r=24, ya=90, yb=300):
+    """two rows (a above, b below); one-to-one lines for min(a,b). returns scene."""
+    def xs(n):
+        return [(660 - gap * (n - 1)) / 2 + i * gap for i in range(n)]
+    xa, xb = xs(a), xs(b)
+    svg, ids = "", []
+    for i, x in enumerate(xa):
+        sid = f"{tag}a{i}"
+        svg += _shape(ka, x, ya, r, ca, sid); ids.append(sid)
+    for i, x in enumerate(xb):
+        sid = f"{tag}b{i}"
+        svg += _shape(kb, x, yb, r, cb, sid); ids.append(sid)
+    if lines:
+        for i in range(min(a, b)):
+            sid = f"{tag}l{i}"
+            svg += (f'<line id="{sid}" x1="{xa[i]}" y1="{ya + r}" x2="{xb[i]}" y2="{yb - r}" '
+                    f'stroke="#0b3d5c" stroke-width="4"/>')
+            ids.append(sid)
+    return scene(svg, ids)
+
+
+def spread(n, gap, kind="circle", color="#e53935", y=200, tag="S", r=24):
+    svg, ids = row(n, kind, color, y, tag, r, gap=gap)
+    return scene(svg, ids)
+
+
+def numpath(items, hi=None, tag="N", y=200, size=64):
+    """a row of numeral boxes. items: list of str ('' or '?' = blank). hi: index to highlight."""
+    n = len(items)
+    gap = min(80, 620 / max(n, 1))
+    x0 = (660 - gap * (n - 1)) / 2
+    svg, ids = "", []
+    for i, v in enumerate(items):
+        x = x0 + i * gap
+        sid = f"{tag}{i}"
+        fill = "#ffe082" if hi == i else ("#ffffff" if v not in ("", "?") else "#e0e0e0")
+        txt = v if v not in ("", "?") else "?"
+        svg += (f'<g id="{sid}"><rect x="{x - gap / 2 + 4}" y="{y - 44}" width="{gap - 8}" height="88" rx="10" '
+                f'fill="{fill}" stroke="#0b3d5c" stroke-width="3"/>'
+                f'<text x="{x}" y="{y + 22}" font-size="{size * 0.8:.0f}" font-weight="700" text-anchor="middle" '
+                f'fill="#0b3d5c" font-family="sans-serif">{txt}</text></g>')
+        ids.append(sid)
+    return scene(svg, ids)
+
+
+def tens(t, o, bundled=True, tag="T", color="#1e63d6", ocolor="#e53935", label=True):
+    """t bundles of ten (boxed, 2 rows of 5) + o loose ones. bundled=False: open tens drawn loose in a row."""
+    r = 13
+    svg, ids = "", []
+    bw, bh = 5 * 2 * r + 30, 2 * 2 * r + 30
+    gap = 26
+    items = t + (1 if o else 0)
+    loose_w = (min(o, 5) * (2 * r + 8)) if o else 0
+    total_w = t * bw + max(t - 1, 0) * gap + (gap + loose_w if o and t else loose_w)
+    x = (660 - total_w) / 2
+    y = 120
+    for b in range(t):
+        bid = f"{tag}b{b}"
+        if bundled:
+            svg += f'<rect id="{bid}" x="{x}" y="{y}" width="{bw}" height="{bh}" rx="12" fill="#e3f2fd" stroke="#0b3d5c" stroke-width="3"/>'
+            ids.append(bid)
+        for k in range(10):
+            cx = x + 15 + r + (k % 5) * (2 * r + 0)
+            cy = y + 15 + r + (k // 5) * (2 * r)
+            sid = f"{tag}c{b}_{k}"
+            svg += _shape("circle", cx, cy, r - 1, color, sid); ids.append(sid)
+        x += bw + gap
+    for k in range(o):
+        cx = x + r + (k % 5) * (2 * r + 8)
+        cy = y + 30 + (k // 5) * (2 * r + 8) + r
+        sid = f"{tag}o{k}"
+        svg += _shape("circle", cx, cy, r - 1, ocolor, sid); ids.append(sid)
+    if label:
+        txt = f"{t} ten" + ("s" if t != 1 else "") + (f" + {o} one" + ("s" if o != 1 else "") if o else "")
+        svg += numeral(txt, 330, 340, 54, tag + "lab")
+        ids.append(tag + "lab")
+    return scene(svg, ids)
