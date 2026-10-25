@@ -7,19 +7,12 @@ No per-string machine translation: every text step carries its own ar/en/fr twin
 from __future__ import annotations
 
 LESSON_ID = "G07-MATHEMATICS-69B7C840-001"
+GRADE = 7
+SUBJECT = "math"
 TITLES = {"en": "Powers", "ar": "القوى (الأسس)", "fr": "Les puissances"}
 
 
-def T(en, ar, fr, label=None):
-    return {"k": "t", "en": en, "ar": ar, "fr": fr, "label": label}
-
-
-def F(f):
-    return {"k": "f", "f": f}
-
-
-def D(name, **args):
-    return {"k": "d", "draw": name, "args": args}
+from scripts.direct_lessons.common import T, F, D, EX, st, S, make_scenes
 
 
 # ---------------------------------------------------------------- theory
@@ -132,18 +125,6 @@ THEORY = [
 
 
 # ------------------------------------------------------------- exercises
-def S(en, ar, fr):
-    return T(en, ar, fr)
-
-
-def EX(n, page, stmt, steps):
-    return {"n": n, "page": page, "stmt": stmt, "steps": steps}
-
-
-def st(en, ar, fr):
-    return (en, ar, fr)
-
-
 EXERCISES = [
     EX("1", "18", st("Compute each power.", "احسب كل قوة.", "Calcule chaque puissance."), [
         F("2^{3} = 8      3^{2} = 9      2^{4} = 16      4^{2} = 16"),
@@ -346,28 +327,7 @@ GOLDEN = {
 }
 
 
-def _step(x):
-    if x["k"] == "t":
-        d = {"t": "text", "text": x["en"], "label": x.get("label") or "", "speech": x["en"],
-             "ar": x["ar"], "en": x["en"], "fr": x["fr"]}
-        return d
-    if x["k"] == "f":
-        return {"t": "formula", "text": x["f"]}
-    return {"t": "draw", "draw": x["draw"], "args": x.get("args", {})}
 
 
 def scenes():
-    out = []
-    for i, (te, ta, tf, page, steps) in enumerate(THEORY, 1):
-        out.append({"id": f"P{i}", "page": page, "title": te, "title_en": te, "title_ar": ta, "title_fr": tf,
-                    "start_mode": "single", "steps": [_step(s) for s in steps]})
-    for e in EXERCISES:
-        en, ar, fr = e["stmt"]
-        label = {"en": "Exercise", "ar": "التمرين", "fr": "Exercice"}
-        steps = [{"t": "text", "text": en, "label": "Problem", "speech": en, "ar": ar, "en": en, "fr": fr}]
-        steps += [_step(s) for s in e["steps"]]
-        out.append({"id": f"EX-{e['n']}", "page": e["page"], "exercise": e["n"], "solved": True,
-                    "title": f"Exercise {e['n']}", "title_en": f"Exercise {e['n']}",
-                    "title_ar": f"التمرين {e['n']}", "title_fr": f"Exercice {e['n']}",
-                    "start_mode": "single", "steps": steps})
-    return out
+    return make_scenes(THEORY, EXERCISES)
