@@ -62,6 +62,7 @@ from app.api import (
     routes_student,
     routes_platform_admin,
     routes_parent,
+    routes_content_registry,
 )
 
 
@@ -332,6 +333,8 @@ app.add_middleware(GZipMiddleware, minimum_size=4096, compresslevel=4)
 # ==========================================================
 
 app.include_router(golden_catalogue.build_router(), prefix="/api", tags=["golden-catalogue"])
+
+app.include_router(routes_content_registry.router, prefix="/api")
 
 app.include_router(
     routes_health.router,
