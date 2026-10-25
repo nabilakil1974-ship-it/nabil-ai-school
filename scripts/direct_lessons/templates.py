@@ -105,3 +105,114 @@ def counting_lesson(lo, hi, p0):
         F(f"{hi - 1} objects → {hi - 1}"),
     ]))
     return th, ex
+
+
+# ---------------------------------------------------------------- teens (11-19)
+TEEN = {
+    11: ("eleven", "أحد عشر", "onze"), 12: ("twelve", "اثنا عشر", "douze"), 13: ("thirteen", "ثلاثة عشر", "treize"),
+    14: ("fourteen", "أربعة عشر", "quatorze"), 15: ("fifteen", "خمسة عشر", "quinze"), 16: ("sixteen", "ستة عشر", "seize"),
+    17: ("seventeen", "سبعة عشر", "dix-sept"), 18: ("eighteen", "ثمانية عشر", "dix-huit"), 19: ("nineteen", "تسعة عشر", "dix-neuf"),
+}
+
+
+def teens_lesson(lo, hi, p0):
+    """numbers lo..hi (11..19): one ten + extra ones. returns (THEORY, EXERCISES)."""
+    from scripts.direct_lessons.common import T, F, EX, st, tens, numpath
+    W = lambda n: TEEN[n] if n in TEEN else WORD[n]
+    ones = {1: ("one", "واحد", "un"), 2: ("two", "اثنان", "deux"), 3: ("three", "ثلاثة", "trois"), 4: ("four", "أربعة", "quatre"),
+            5: ("five", "خمسة", "cinq"), 6: ("six", "ستة", "six"), 7: ("seven", "سبعة", "sept"), 8: ("eight", "ثمانية", "huit"), 9: ("nine", "تسعة", "neuf")}
+    nums = list(range(lo, hi + 1))
+    seq = [str(x) for x in range(10, hi + 1)]
+    theory = []
+    theory.append(("Ten and more", "عشرة وأكثر", "Dix et plus", str(p0), [
+        T(f"Hello! Do you remember 10? It is one ten, or ten ones. Today we walk after 10 step by step and discover {', '.join(str(n) for n in nums[:-1])} and {nums[-1]}.",
+          f"مرحبًا! هل تذكر 10؟ إنها عشرة واحدة أو عشرة آحاد. اليوم نمشي بعد 10 خطوة خطوة ونكتشف {'، '.join(str(n) for n in nums[:-1])} و{nums[-1]}.",
+          f"Bonjour ! Tu te souviens de 10 ? C'est une dizaine, ou dix unités. Aujourd'hui on avance après 10 pas à pas et on découvre {', '.join(str(n) for n in nums[:-1])} et {nums[-1]}."),
+        tens(1, 0),
+        T("This is one ten. We start counting from ten, not from one: we do not count the bundle again.",
+          "هذه عشرة واحدة. نبدأ العدّ من العشرة لا من الواحد: لا نعيد عدّ الحزمة.",
+          "Voici une dizaine. On compte à partir de dix, pas à partir de un : on ne recompte pas le paquet."),
+    ]))
+    for n in nums:
+        e, a, f = W(n)
+        o = n - 10
+        oe, oa, of_ = ones[o]
+        prev = W(n - 1)[0] if n - 1 > 10 else "ten"
+        prev_f = W(n - 1)[2] if n - 1 > 10 else "dix"
+        prev_a = W(n - 1)[1] if n - 1 > 10 else "عشرة"
+        theory.append((f"{n} = one ten and {oe} {'one' if o == 1 else 'ones'}", f"{n} = عشرة واحدة و{oa}", f"{n} = une dizaine et {of_} unité" + ("s" if o > 1 else ""), str(p0), [
+            tens(1, o),
+            T(f"We have one ten, which is 10, and {o} loose {'one' if o == 1 else 'ones'}. We count from ten: {', '.join(['ten'] + [W(k)[0] for k in range(11, n + 1)])}. This is {n}, {e}.",
+              f"عندنا عشرة واحدة أي 10، ومعها {o} {'واحد' if o == 1 else 'آحاد'} منفردة. نعدّ من العشرة: {'، '.join(['عشرة'] + [W(k)[1] for k in range(11, n + 1)])}. هذا {n}، {a}.",
+              f"On a une dizaine, soit 10, et {o} unité{'s' if o > 1 else ''} seule{'s' if o > 1 else ''}. On compte à partir de dix : {', '.join(['dix'] + [W(k)[2] for k in range(11, n + 1)])}. C'est {n}, {f}."),
+            F(f"one ten + {o} = {n}"),
+            T(f"Look at the numeral {n}: the first 1 stands for the ten, and the {str(n)[1]} stands for the {o} loose ones.",
+              f"انظر إلى العدد {n}: الـ1 الأول يمثّل العشرة، والـ{str(n)[1]} يمثّل الآحاد المنفردة وعددها {o}.",
+              f"Regarde le nombre {n} : le premier 1 représente la dizaine et le {str(n)[1]} représente les {o} unités seules."),
+        ])) 
+    theory.append(("The number path", "مسار الأعداد", "La droite des nombres", str(p0), [
+        numpath(seq),
+        T("Each time we add one, we move one step forward. And when we remove one, we go one step back.",
+          "كلما أضفنا واحدًا نتحرك خطوة إلى الأمام، وكلما أزلنا واحدًا نعود خطوة إلى الخلف.",
+          "Chaque fois qu'on ajoute un, on avance d'un pas. Quand on enlève un, on recule d'un pas."),
+    ]))
+    theory.append(("Summary", "الخلاصة", "Résumé", "", [
+        T(f"Today we walked after 10 and reached {hi}. Every number here is one ten and some extra ones. Each extra one moves us one step forward on the number path.",
+          f"اليوم مشينا بعد 10 ووصلنا إلى {hi}. كل عدد هنا هو عشرة واحدة وبعض الآحاد الإضافية. كل واحد إضافي يحرّكنا خطوة إلى الأمام على مسار الأعداد.",
+          f"Aujourd'hui on a avancé après 10 jusqu'à {hi}. Chaque nombre ici est une dizaine et quelques unités en plus. Chaque unité en plus nous fait avancer d'un pas."),
+        F("SEE THE TEN → COUNT THE EXTRA ONES → SAY THE NUMBER → MATCH THE NUMERAL → CHECK"),
+    ]))
+    ex = []
+    a, b, c = nums[0], nums[len(nums) // 2], nums[-1]
+    ex.append(EX("1", str(p0), st(f"Build {a}: one ten and the loose ones.", f"ابنِ {a}: عشرة واحدة والآحاد المنفردة.", f"Construis {a} : une dizaine et les unités seules."), [
+        tens(1, a - 10),
+        T(f"One ten and {a - 10} loose: {a}.", f"عشرة واحدة و{a - 10} منفردة: {a}.", f"Une dizaine et {a - 10} seules : {a}."),
+        F(f"10 + {a - 10} = {a}"),
+    ]))
+    ex.append(EX("2", str(p0), st(f"Match {b}: which card has one ten and {b - 10} ones?", f"طابق {b}: أي بطاقة فيها عشرة واحدة و{b - 10} آحاد؟", f"Associe {b} : quelle carte a une dizaine et {b - 10} unités ?"), [
+        tens(1, b - 10),
+        T(f"First look for the one ten, then count the loose ones: {b - 10}. So {b}.",
+          f"نبحث أولًا عن العشرة الواحدة ثم نعدّ المنفردة: {b - 10}. إذن {b}.",
+          f"On cherche d'abord la dizaine, puis on compte les unités seules : {b - 10}. Donc {b}."),
+    ]))
+    ex.append(EX("3", str(p0), st(f"Build {c} using one ten and loose ones.", f"ابنِ {c} بعشرة واحدة وآحاد منفردة.", f"Construis {c} avec une dizaine et des unités seules."), [
+        tens(1, c - 10),
+        T(f"Count from ten: {', '.join(['ten'] + [W(k)[0] for k in range(11, c + 1)])}. There are {c - 10} loose ones.",
+          f"نعدّ من العشرة: {'، '.join(['عشرة'] + [W(k)[1] for k in range(11, c + 1)])}. المنفردة {c - 10}.",
+          f"On compte à partir de dix : {', '.join(['dix'] + [W(k)[2] for k in range(11, c + 1)])}. Il y a {c - 10} unités seules."),
+    ]))
+    miss = seq[:]
+    mi = len(miss) // 2
+    shown = miss[:]; shown[mi] = "?"
+    ex.append(EX("4", str(p0), st("Find the missing number.", "أوجد العدد الناقص.", "Trouve le nombre manquant."), [
+        numpath(shown),
+        T(f"Count step by step from 10. After {miss[mi - 1]} comes {miss[mi]}.",
+          f"نعدّ خطوة خطوة من 10. بعد {miss[mi - 1]} يأتي {miss[mi]}.",
+          f"On compte pas à pas depuis 10. Après {miss[mi - 1]} vient {miss[mi]}."),
+        F(miss[mi]),
+    ]))
+    wrong = a if a != c else a + 1
+    ex.append(EX("5", str(p0), st(f"Error detective: one ten and {c - 10} ones, but the numeral says {wrong}.", f"المحقق: عشرة واحدة و{c - 10} آحاد لكن العدد المكتوب {wrong}.", f"Détective : une dizaine et {c - 10} unités, mais le nombre écrit est {wrong}."), [
+        tens(1, c - 10),
+        T(f"One ten is 10, and {c - 10} more ones reach {c}. We do not accept a numeral that does not match the quantity.",
+          f"العشرة 10 ومعها {c - 10} آحاد تصل إلى {c}. لا نقبل عددًا لا يطابق الكمية.",
+          f"Une dizaine fait 10 et {c - 10} unités de plus arrivent à {c}. On n'accepte pas un nombre qui ne correspond pas à la quantité."),
+        F(str(c)),
+    ]))
+    ex.append(EX("6", str(p0), st(f"Mixed practice: read the number, how many ones are outside the ten, and what comes just before {c}.", f"تدريب مختلط: اقرأ العدد، وكم آحادًا خارج العشرة، وماذا يأتي قبل {c}.", f"Exercice mixte : lis le nombre, combien d'unités hors de la dizaine, et qu'est-ce qui vient avant {c}."), [
+        tens(1, b - 10),
+        F(f"{b}      {b - 10} ones      before {c} comes {c - 1}"),
+    ]))
+    ex.append(EX("7", str(p0), st(f"Challenge: I have {c} counters and I make one ten bundle. How many stay loose?", f"تحدٍّ: عندي {c} عدّادًا وأصنع حزمة عشرة. كم يبقى منفردًا؟", f"Défi : j'ai {c} jetons et je fais un paquet de dix. Combien restent seuls ?"), [
+        tens(1, c - 10),
+        T(f"{c} is one ten and {c - 10} ones. So {c - 10} stay loose.",
+          f"{c} هي عشرة واحدة و{c - 10} آحاد. إذن يبقى {c - 10} منفردًا.",
+          f"{c}, c'est une dizaine et {c - 10} unités. Il en reste donc {c - 10} seules."),
+    ]))
+    ex.append(EX("8", str(p0), st(f"Final check: build {a}, {b} and {c}, and say what comes just before {c}.", f"تقييم أخير: ابنِ {a} و{b} و{c}، وقل ماذا يأتي قبل {c}.", f"Évaluation : construis {a}, {b} et {c}, et dis ce qui vient avant {c}."), [
+        tens(1, a - 10), tens(1, b - 10), tens(1, c - 10),
+        T(f"{c} is one ten and {c - 10} ones, because ten plus {c - 10} more objects gives {c}. Just before {c} comes {c - 1}.",
+          f"{c} هي عشرة واحدة و{c - 10} آحاد، لأن عشرة و{c - 10} أشياء أخرى تعطي {c}. وقبل {c} يأتي {c - 1}.",
+          f"{c} est une dizaine et {c - 10} unités, car dix plus {c - 10} objets de plus font {c}. Juste avant {c} vient {c - 1}."),
+    ]))
+    return theory, ex

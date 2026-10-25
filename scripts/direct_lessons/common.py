@@ -187,3 +187,54 @@ def tens(t, o, bundled=True, tag="T", color="#1e63d6", ocolor="#e53935", label=T
         svg += numeral(txt, 330, 340, 54, tag + "lab")
         ids.append(tag + "lab")
     return scene(svg, ids)
+
+
+def jumps(start, k, hi=10, back=False, tag="J", label=True):
+    """number line 0..hi, k unit jumps from start (arcs drawn in order)."""
+    x0, x1, y = 40, 620, 270
+    step = (x1 - x0) / hi
+    X = lambda n: x0 + n * step
+    svg = f'<line id="{tag}ln" x1="{x0 - 10}" y1="{y}" x2="{x1 + 10}" y2="{y}" stroke="#0b3d5c" stroke-width="5"/>'
+    ids = [tag + "ln"]
+    for n in range(hi + 1):
+        svg += (f'<line x1="{X(n)}" y1="{y - 10}" x2="{X(n)}" y2="{y + 10}" stroke="#0b3d5c" stroke-width="3"/>'
+                f'<text x="{X(n)}" y="{y + 42}" font-size="26" font-weight="700" text-anchor="middle" fill="#0b3d5c" font-family="sans-serif">{n}</text>')
+    svg += f'<circle id="{tag}st" cx="{X(start)}" cy="{y}" r="12" fill="#e53935" stroke="#0b3d5c" stroke-width="3"/>'
+    ids.append(tag + "st")
+    d = -1 if back else 1
+    for i in range(k):
+        a, b = start + d * i, start + d * (i + 1)
+        mid = (X(a) + X(b)) / 2
+        sid = f"{tag}j{i}"
+        svg += (f'<path id="{sid}" d="M {X(a)} {y - 14} Q {mid} {y - 95} {X(b)} {y - 14}" fill="none" stroke="#1e63d6" stroke-width="5"/>')
+        ids.append(sid)
+    end = start + d * k
+    svg += f'<circle id="{tag}en" cx="{X(end)}" cy="{y}" r="14" fill="#43a047" stroke="#0b3d5c" stroke-width="3"/>'
+    ids.append(tag + "en")
+    if label:
+        op = "-" if back else "+"
+        svg += numeral(f"{start} {op} {k} = {end}", 330, 130, 64, tag + "eq")
+        ids.append(tag + "eq")
+    return scene(svg, ids)
+
+
+def strips(items, tag="L", x_min=40, unit=50, gap=70, ref=None, rot=None):
+    """items: list of (label, start, length, color). draws horizontal strips; optional start guide line."""
+    svg, ids = "", []
+    y = 80
+    for i, (lab, s, ln, col) in enumerate(items):
+        sid = f"{tag}{i}"
+        x = x_min + s * unit
+        r = ""
+        if rot and rot.get(i):
+            cx, cy = x + ln * unit / 2, y + 18
+            r = f' transform="rotate({rot[i]} {cx} {cy})"'
+        svg += (f'<g id="{sid}"{r}><rect x="{x}" y="{y}" width="{ln * unit}" height="36" rx="6" fill="{col}" stroke="#0b3d5c" stroke-width="3"/>'
+                f'<text x="{x - 22}" y="{y + 27}" font-size="28" font-weight="700" text-anchor="end" fill="#0b3d5c" font-family="sans-serif">{lab}</text></g>')
+        ids.append(sid)
+        y += gap
+    if ref is not None:
+        gx = x_min + ref * unit
+        svg += f'<line id="{tag}g" x1="{gx}" y1="40" x2="{gx}" y2="{y}" stroke="#e53935" stroke-width="3" stroke-dasharray="8 6"/>'
+        ids.append(tag + "g")
+    return scene(svg, ids)
