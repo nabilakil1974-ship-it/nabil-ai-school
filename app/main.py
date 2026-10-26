@@ -540,6 +540,16 @@ def root():
     return HTMLResponse(_CACHED_ROOT_HTML, headers={"Cache-Control": "no-store"})
 
 
+@app.get("/digital-teacher")
+def nabil_live_digital_teacher_page():
+    """Live digital teacher using NABIL AI answers and synchronized avatar speech."""
+    return FileResponse(
+        "app/static/live_digital_teacher.html",
+        media_type="text/html",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 @app.get("/trial")
 def nabil_trial_lab_page():
     """Student-facing showcase of the seven NABIL teaching-board trials."""
