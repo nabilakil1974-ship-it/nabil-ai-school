@@ -8,6 +8,7 @@ import importlib, json, pkgutil, sys, traceback
 from pathlib import Path
 from scripts.nabil_factory.cards import golden_v6 as g6
 from scripts.direct_lessons.common import make_scenes
+from scripts.direct_lessons.engage import layer
 import scripts.direct_lessons.lessons as pkg
 
 POWERS = "scripts.direct_lessons.g07_powers"
@@ -34,7 +35,7 @@ def page(m, lang="en"):
                                                             "subject": "mathematics", "language": "en"})
     return (f'<!doctype html><html lang="en"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
-            f'<title>{m.TITLES["en"]}</title></head><body style="margin:0">{body}</body></html>')
+            f'<title>{m.TITLES["en"]}</title></head><body style="margin:0">{body}{layer(m)}</body></html>')
 
 
 def main(out):
