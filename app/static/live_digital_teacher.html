@@ -35,8 +35,7 @@ async function speakThroughAvatar(text,language){
  const blob=await r.blob();const ctx=new (window.AudioContext||window.webkitAudioContext)();try{
   const buf=await ctx.decodeAudioData(await blob.arrayBuffer());const base64=pcm16Base64(buf);
   // SDK expects 24 kHz mono PCM16 base64; keep audio in bounded chunks to avoid oversized websocket frames.
-  const chunkChars=96000;for(let i=0;i<base64.length;i+=chunkChars){session.repeatAudio(base64.slice(i,i+chunkChars))}
-  session.repeatAudioEnd?.();
+  session.repeatAudio(base64);
  }finally{await ctx.close()}
 }
 async function ask(){
