@@ -35,7 +35,7 @@ async function speakThroughAvatar(text,language){
  const blob=await r.blob();const ctx=new (window.AudioContext||window.webkitAudioContext)();try{
   const buf=await ctx.decodeAudioData(await blob.arrayBuffer());const base64=pcm16Base64(buf);
   // LiveAvatar Lite receives the same fresh NABIL TTS audio as PCM16/24kHz mono.
-  session.repeatAudio(base64);return buf.duration;
+  await session.repeatAudio(base64);return buf.duration;
  }finally{await ctx.close()}
 }
 async function ask(){
