@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NABIL AI — المعلّم الرقمي الحي</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,Tahoma,Arial,sans-serif;background:#071523;color:#eef7ff}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% 0,#17475b,#071523 65%);min-height:100vh}.wrap{max-width:960px;margin:auto;padding:18px}.panel{background:#0b2437;border:1px solid #28516a;border-radius:20px;padding:18px;margin-bottom:14px}h1{margin:0 0 8px;font-size:clamp(24px,5vw,36px)}p{color:#bed5e3;line-height:1.7}.video{width:100%;max-height:60vh;aspect-ratio:16/9;object-fit:contain;background:#02080d;border-radius:14px}label{display:block;margin:12px 0 6px}input,select,textarea,button{font:inherit;border-radius:11px;padding:12px;border:1px solid #3a637a;background:#071b2a;color:#fff;width:100%}textarea{min-height:90px;resize:vertical}.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}button{background:#0d9488;border:0;font-weight:700;cursor:pointer}button:disabled{opacity:.5}#status{padding:10px;color:#a5e8dd;white-space:pre-wrap}.answer{white-space:pre-wrap;line-height:1.8;font-size:1.05rem}.board{min-height:120px;background:#f8fbff;color:#142536;border-radius:12px;padding:18px;white-space:pre-wrap;line-height:1.8;font-size:1.15rem}.small{font-size:.85rem;color:#9bb6c8}@media(max-width:560px){.wrap{padding:10px}.panel{padding:13px}.actions{grid-template-columns:1fr}}
+</style></head><body><main class="wrap">
+<section class="panel"><h1>الأستاذ نبيل — المعلّم الرقمي الحي</h1><p>يسمع سؤالك أو يقرأه، يحصل على جواب جديد من NABIL AI، ثم يرسل الصوت إلى الصورة الرقمية لتحريك الشفاه. تظهر خطوات الجواب على السبورة.</p><video id="avatarVideo" class="video" autoplay playsinline></video><div id="status" role="status">جاهز للبدء. يحتاج تشغيل الصورة الحية إلى إعداد LiveAvatar في الخادم.</div><div class="actions"><button id="start">تشغيل المعلّم الحي</button><button id="stop" disabled>إنهاء الجلسة</button></div><p class="small">تُستخدم جلسة LiveAvatar مدفوعة بحسب خطة المزوّد. لا تضع مفاتيح API في هذه الصفحة.</p></section>
+<section class="panel"><label for="grade">الصف (اختياري)</label><input id="grade" placeholder="مثلاً: التاسع"><label for="language">لغة الجواب والصوت</label><select id="language"><option>English</option><option>العربية</option><option>Français</option></select><label for="question">اكتب سؤالك</label><textarea id="question" placeholder="اكتب سؤالك التعليمي هنا..."></textarea><button id="ask">أجبني بصوت المعلّم الرقمي</button><div id="answer" class="answer"></div></section>
+<section class="panel"><h2>السبورة التفاعلية</h2><div id="board" class="board">ستظهر هنا خطوات جواب المعلّم بالترتيب.</div></section>
+</main>
+<script type="module">
+import { LiveAvatarSession } from "https://esm.sh/@heygen/liveavatar-web-sdk";
+const $=id=>document.getElementById(id);let session=null,busy=false;
+function status(s){$('status').textContent=s}
+function plain(s){return String(s||'').replace(/<DRAWINGS?_JSON>[\\s\\S]*?<\\/DRAWINGS?_JSON>/gi,'').replace(/<PROGRESS_JSON>[\\s\\S]*?<\\/PROGRESS_JSON>/gi,'').replace(/\`\`\`[\\s\\S]*?\`\`\`/g,'').trim()}
+async function start(){
+ if(session)return; $('start').disabled=true;status('جارٍ إنشاء جلسة المعلّم الرقمي...');
+ try{
+  const r=await fetch('/api/live-avatar/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});
+  const d=await r.json();if(!r.ok)throw Error(d.detail||'تعذّر إنشاء الجلسة');
+  session=new LiveAvatarSession(d.session_token,{autoKeepAlive:true,voiceChat:{defaultMuted:true}});
+  await session.start();session.attach($('avatarVideo'));$('stop').disabled=false;status('المعلّم الرقمي متصل. اكتب سؤالك ثم اضغط زر الإجابة.');
+ }catch(e){session=null;status('تعذّر تشغيل الصورة الحية: '+(e.message||e)+'\nتحقّق من إعداد LIVEAVATAR_API_KEY وLIVEAVATAR_AVATAR_ID ومن صلاحية الخطة.');}
+ finally{$('start').disabled=false}
+}
+async function stop(){try{if(session)await session.stop()}catch(e){console.warn(e)}session=null;$('avatarVideo').srcObject=null;$('stop').disabled=true;status('انتهت الجلسة.')}
+function splitSentences(text){return text.split(/(?<=[.!?؟。])\s+/).map(s=>s.trim()).filter(Boolean)}
+function pcm16Base64(audioBuffer){
+ const src=audioBuffer.getChannelData(0), fromRate=audioBuffer.sampleRate, toRate=24000, length=Math.floor(src.length*toRate/fromRate), pcm=new Int16Array(length);
+ for(let i=0;i<length;i++){const pos=i*fromRate/toRate, left=Math.floor(pos), frac=pos-left, a=src[left]||0,b=src[Math.min(left+1,src.length-1)]||0,v=Math.max(-1,Math.min(1,a+(b-a)*frac));pcm[i]=v<0?v*32768:v*32767}
+ const bytes=new Uint8Array(pcm.buffer);let binary='';const step=0x8000;for(let i=0;i<bytes.length;i+=step)binary+=String.fromCharCode(...bytes.subarray(i,Math.min(i+step,bytes.length)));return btoa(binary)
+}
+async function speakThroughAvatar(text,language){
+ const f=new FormData();f.append('text',text);f.append('language',language);
+ const r=await fetch('/api/tts',{method:'POST',body:f});if(!r.ok)throw Error('تعذّر توليد الصوت من NABIL AI');
+ const blob=await r.blob();const ctx=new (window.AudioContext||window.webkitAudioContext)();try{
+  const buf=await ctx.decodeAudioData(await blob.arrayBuffer());const base64=pcm16Base64(buf);
+  // SDK expects 24 kHz mono PCM16 base64; keep audio in bounded chunks to avoid oversized websocket frames.
+  const chunkChars=96000;for(let i=0;i<base64.length;i+=chunkChars){session.repeatAudio(base64.slice(i,i+chunkChars))}
+  session.repeatAudioEnd?.();
+ }finally{await ctx.close()}
+}
+async function ask(){
+ if(busy)return;const q=$('question').value.trim();if(!q){status('اكتب السؤال أولاً.');return}
+ if(!session){status('شغّل المعلّم الرقمي أولاً.');return}
+ busy=true;$('ask').disabled=true;status('NABIL AI يعالج السؤال...');$('answer').textContent='';$('board').textContent='جارٍ إعداد خطوات الشرح...';
+ try{
+  const f=new FormData();f.append('message',q);f.append('student_id',localStorage.getItem('nabil_student_id')||'digital_teacher');f.append('grade',$('grade').value);f.append('language',$('language').value);
+  const r=await fetch('/api/avatar-chat',{method:'POST',body:f});const d=await r.json();if(!r.ok)throw Error(d.detail||'فشل محرّك الإجابة');
+  const answer=plain(d.reply);$('answer').textContent=answer;$('board').textContent=splitSentences(answer).map((s,i)=>(i+1)+'. '+s).join('\n\n');
+  status('تم توليد جواب جديد. جارٍ إرساله إلى المعلّم الرقمي لتحريك الشفاه...');
+  await speakThroughAvatar(answer,$('language').value);status('اكتمل إرسال جواب جديد إلى جلسة المعلّم الرقمي.');
+ }catch(e){status('لم يكتمل الجواب الحي: '+(e.message||e));}
+ finally{busy=false;$('ask').disabled=false}
+}
+$('start').addEventListener('click',start);$('stop').addEventListener('click',stop);$('ask').addEventListener('click',ask);
+window.addEventListener('beforeunload',()=>{try{session?.stop()}catch(e){}});
+</script></body></html>
