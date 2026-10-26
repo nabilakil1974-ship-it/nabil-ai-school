@@ -367,7 +367,7 @@ function speakText(text,id,ar,sl){
     const h={done:false,started:false,t0:Date.now(),text:(enOk?text:'')+' '+(arOk?ar:''),pending:0};
     const add=u=>{h.pending++;
       u.onstart=()=>{h.started=true;speaking=true;voiceNote.classList.remove('on');try{parent.postMessage({type:'NABIL_VOICE_STATE',state:'playing'},'*')}catch(e){}};
-      u.onend=u.onerror=()=>{h.pending--;if(h.pending<=0){h.done=true;speaking=false;try{parent.postMessage({type:'NABIL_VOICE_STATE',state:'paused'},'*')}catch(e){}}};
+      u.onend=u.onerror=()=>{try{parent.postMessage({type:'NABIL_VOICE_STATE',state:'paused'},'*')}catch(e){};h.pending--;if(h.pending<=0){h.done=true;speaking=false}};
       speechSynthesis.speak(u)};
     if(enOk&&(sl==='ar'||sl==='fr')){const u=new SpeechSynthesisUtterance(sl==='ar'?speakableAr(text):speakFr(text));u.lang=sl==='ar'?'ar-SA':'fr-FR';u.rate=rate();const v=voiceLang(sl);if(v)u.voice=v;add(u)}
     else if(enOk){const u=new SpeechSynthesisUtterance(speakable(text));u.lang='en-US';u.rate=rate();const v=enVoice();if(v)u.voice=v;add(u)}
