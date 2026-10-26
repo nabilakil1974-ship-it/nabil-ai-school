@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#071827">
+<title>الأستاذ نبيل | NABIL AI</title>
+<style>
+:root{color-scheme:dark;--bg:#071827;--panel:#10283a;--gold:#f0c674;--text:#f4f7fa;--muted:#b9c8d4}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at top,#173c52 0,#071827 58%);font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;color:var(--text);display:flex;align-items:center;justify-content:center;padding:22px}
+main{width:min(920px,100%);text-align:center}.brand{letter-spacing:.18em;color:var(--gold);font-weight:800;font-size:.9rem}.eyebrow{color:var(--muted);margin:12px 0 4px}h1{font-size:clamp(2rem,6vw,3.5rem);margin:4px 0 8px}p{color:var(--muted);line-height:1.8}.stage{margin:24px auto 16px;background:#020a11;border:1px solid #35546a;border-radius:22px;padding:10px;box-shadow:0 24px 70px #0008;max-width:760px}video{display:block;width:100%;max-height:72vh;aspect-ratio:16/9;object-fit:contain;background:#000;border-radius:14px}.actions{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin:18px 0}a.button,button{border:0;border-radius:999px;padding:13px 22px;font-size:1rem;font-weight:750;text-decoration:none;cursor:pointer}button{background:var(--gold);color:#15202a}a.button{border:1px solid #607b8d;color:var(--text)}.note{font-size:.88rem;margin-top:22px}.status{min-height:1.5em;color:var(--gold);font-size:.9rem}
+</style>
+</head>
+<body><main>
+<div class="brand">NABIL AI</div>
+<div class="eyebrow">المعلّم الرقمي</div>
+<h1>الأستاذ نبيل عقيل</h1>
+<p>أهلًا بكم. شاهدوا المقطع التعريفي للأستاذ نبيل.</p>
+<div class="stage">
+<video id="avatar" controls playsinline preload="metadata" poster="../app/static/nabil-profile.jpg">
+<source src="videos/freelipsync-59679992-2314-4498-992f-0b40bc42fc9f-low.mp4" type="video/mp4">
+متصفحك لا يدعم تشغيل الفيديو.
+</video>
+</div>
+<div class="actions">
+<button id="play" type="button">▶ شاهد الأستاذ نبيل</button>
+<a class="button" href="videos/freelipsync-59679992-2314-4498-992f-0b40bc42fc9f-low.mp4" target="_blank" rel="noopener">فتح الفيديو مباشرةً</a>
+</div>
+<div class="status" id="status" role="status" aria-live="polite"></div>
+<p class="note">هذا مقطع ناطق مسجّل؛ التفاعل الحواري المباشر مع الطلاب يحتاج إلى ربط إضافي بمحرك صوت وذكاء اصطناعي.</p>
+</main>
+<script>
+const video=document.getElementById('avatar'),button=document.getElementById('play'),status=document.getElementById('status');
+button.addEventListener('click',async()=>{try{if(video.paused){await video.play();button.textContent='❚❚ إيقاف مؤقت';status.textContent='';}else{video.pause();button.textContent='▶ متابعة المشاهدة';}}catch(e){status.textContent='اضغط زر التشغيل داخل الفيديو للسماح بالتشغيل.';}});
+video.addEventListener('play',()=>button.textContent='❚❚ إيقاف مؤقت');video.addEventListener('pause',()=>button.textContent='▶ متابعة المشاهدة');video.addEventListener('error',()=>status.textContent='تعذّر تحميل الفيديو. افتح رابط الفيديو مباشرةً للتأكد من توفره.');
+</script></body></html>
