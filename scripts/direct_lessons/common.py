@@ -155,15 +155,16 @@ def numpath(items, hi=None, tag="N", y=200, size=64):
     return scene(svg, ids)
 
 
-def tens(t, o, bundled=True, tag="T", color="#1e63d6", ocolor="#e53935", label=True):
+def tens(t, o, bundled=True, tag="T", color="#1e63d6", ocolor="#e53935", label=True, eq=False):
     """t bundles of ten (boxed, 2 rows of 5) + o loose ones. bundled=False: open tens drawn loose in a row."""
-    r = 13
     svg, ids = "", []
-    bw, bh = 5 * 2 * r + 30, 2 * 2 * r + 30
-    gap = 26
-    items = t + (1 if o else 0)
-    loose_w = (min(o, 5) * (2 * r + 8)) if o else 0
-    total_w = t * bw + max(t - 1, 0) * gap + (gap + loose_w if o and t else loose_w)
+    for r in (13, 11, 9, 7, 6):
+        bw, bh = 5 * 2 * r + 30, 2 * 2 * r + 30
+        gap = 26
+        loose_w = (min(o, 5) * (2 * r + 8)) if o else 0
+        total_w = t * bw + max(t - 1, 0) * gap + (gap + loose_w if o and t else loose_w)
+        if total_w <= 620:
+            break
     x = (660 - total_w) / 2
     y = 120
     for b in range(t):
@@ -184,6 +185,8 @@ def tens(t, o, bundled=True, tag="T", color="#1e63d6", ocolor="#e53935", label=T
         svg += _shape("circle", cx, cy, r - 1, ocolor, sid); ids.append(sid)
     if label:
         txt = f"{t} ten" + ("s" if t != 1 else "") + (f" + {o} one" + ("s" if o != 1 else "") if o else "")
+        if eq:
+            txt += f" = {t * 10 + o}"
         svg += numeral(txt, 330, 340, 54, tag + "lab")
         ids.append(tag + "lab")
     return scene(svg, ids)
