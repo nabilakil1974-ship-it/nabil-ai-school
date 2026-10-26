@@ -2,7 +2,7 @@
 from scripts.direct_lessons.common import T, F, EX, st, tens, scene
 
 
-def vert(nums, total=None, tag="V", hi=None):
+def vert(nums, total=None, tag="V", hi=None, op="+"):
     """Vertical addition: numbers right-aligned in tens/ones columns, plus sign, line, optional total."""
     cx_t, cx_o, y0, dy = 300, 360, 70, 62
     svg, ids = "", []
@@ -13,7 +13,7 @@ def vert(nums, total=None, tag="V", hi=None):
         txt = lambda x, v: f'<text x="{x}" y="{y0 + i*dy}" font-size="56" font-weight="700" text-anchor="middle" fill="#0b3d5c" font-family="sans-serif">{v}</text>'
         svg += f'<g id="{sid}">{txt(cx_t, t) if t else ""}{txt(cx_o, o)}'
         if i == len(nums) - 1:
-            svg += f'<text x="{cx_t-90}" y="{y0 + i*dy}" font-size="56" font-weight="700" text-anchor="middle" fill="#e53935" font-family="sans-serif">+</text>'
+            svg += f'<text x="{cx_t-90}" y="{y0 + i*dy}" font-size="56" font-weight="700" text-anchor="middle" fill="#e53935" font-family="sans-serif">{op}</text>'
         svg += "</g>"
         ids.append(sid)
     yl = y0 + (len(nums) - 1) * dy + 22
