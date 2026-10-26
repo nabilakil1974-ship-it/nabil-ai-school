@@ -48,7 +48,8 @@ async function ask(){
   const answer=plain(d.reply);$('answer').textContent=answer;$('board').textContent=splitSentences(answer).map((s,i)=>(i+1)+'. '+s).join('\n\n');
   status('تم توليد جواب جديد. جارٍ مزامنة الصوت والشفاه وخطوات السبورة...');
   const sentences=splitSentences(answer);const duration=await speakThroughAvatar(answer,$('language').value);
-  $('board').textContent='';let elapsed=0;const totalWeight=sentences.reduce((n,s)=>n+Math.max(1,s.length),0);\n  sentences.forEach((sentence,index)=>{const delay=duration*1000*sentences.slice(0,index).reduce((n,s)=>n+Math.max(1,s.length),0)/totalWeight;setTimeout(()=>{$('board').textContent+=( $('board').textContent?'\\n\\n':'')+(index+1)+'. '+sentence;},delay)});
+  $('board').textContent='';let elapsed=0;const totalWeight=sentences.reduce((n,s)=>n+Math.max(1,s.length),0);
+  sentences.forEach((sentence,index)=>{const delay=duration*1000*sentences.slice(0,index).reduce((n,s)=>n+Math.max(1,s.length),0)/totalWeight;setTimeout(()=>{$('board').textContent+=( $('board').textContent?'\\n\\n':'')+(index+1)+'. '+sentence;},delay)});
   status('أُرسل الصوت الجديد إلى الصورة الرقمية، وتُعرض خطوات السبورة تدريجيًا وفق مدة الصوت.');
  }catch(e){status('لم يكتمل الجواب الحي: '+(e.message||e));}
  finally{busy=false;$('ask').disabled=false}
