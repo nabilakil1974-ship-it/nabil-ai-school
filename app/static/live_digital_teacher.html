@@ -11,7 +11,7 @@
 import { LiveAvatarSession } from "https://esm.sh/@heygen/liveavatar-web-sdk";
 const $=id=>document.getElementById(id);let session=null,busy=false;
 function status(s){$('status').textContent=s}
-function plain(s){return String(s||'').replace(/<DRAWINGS?_JSON>[\\s\\S]*?<\\/DRAWINGS?_JSON>/gi,'').replace(/<PROGRESS_JSON>[\\s\\S]*?<\\/PROGRESS_JSON>/gi,'').replace(/\`\`\`[\\s\\S]*?\`\`\`/g,'').trim()}
+function plain(s){return String(s||'').replace(/<DRAWINGS?_JSON>[\s\S]*?<\/DRAWINGS?_JSON>/gi,'').replace(/<PROGRESS_JSON>[\s\S]*?<\/PROGRESS_JSON>/gi,'').replace(/```[\s\S]*?```/g,'').trim()}
 async function start(){
  if(session)return; $('start').disabled=true;status('جارٍ إنشاء جلسة المعلّم الرقمي...');
  try{
