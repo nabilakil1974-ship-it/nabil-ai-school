@@ -33,7 +33,9 @@ async function speakThroughAvatar(text,language){
  const f=new FormData();f.append('text',text);f.append('language',language);
  const r=await fetch('/api/tts',{method:'POST',body:f});if(!r.ok)throw Error('تعذّر توليد الصوت من NABIL AI');
  const blob=await r.blob();const ctx=new (window.AudioContext||window.webkitAudioContext)();try{
-  const buf=await ctx.decodeAudioData(await blob.arrayBuffer());const base64=pcm16Base64(buf);\n  // LiveAvatar Lite receives the same fresh NABIL TTS audio as PCM16/24kHz mono.\n  session.repeatAudio(base64);return buf.duration;
+  const buf=await ctx.decodeAudioData(await blob.arrayBuffer());const base64=pcm16Base64(buf);
+  // LiveAvatar Lite receives the same fresh NABIL TTS audio as PCM16/24kHz mono.
+  session.repeatAudio(base64);return buf.duration;
  }finally{await ctx.close()}
 }
 async function ask(){
@@ -44,7 +46,10 @@ async function ask(){
   const f=new FormData();f.append('message',q);f.append('student_id',localStorage.getItem('nabil_student_id')||'digital_teacher');f.append('grade',$('grade').value);f.append('language',$('language').value);
   const r=await fetch('/api/avatar-chat',{method:'POST',body:f});const d=await r.json();if(!r.ok)throw Error(d.detail||'فشل محرّك الإجابة');
   const answer=plain(d.reply);$('answer').textContent=answer;$('board').textContent=splitSentences(answer).map((s,i)=>(i+1)+'. '+s).join('\n\n');
-  status('تم توليد جواب جديد. جارٍ مزامنة الصوت والشفاه وخطوات السبورة...');\n  const sentences=splitSentences(answer);const duration=await speakThroughAvatar(answer,$('language').value);\n  $('board').textContent='';let elapsed=0;const totalWeight=sentences.reduce((n,s)=>n+Math.max(1,s.length),0);\n  sentences.forEach((sentence,index)=>{const delay=duration*1000*sentences.slice(0,index).reduce((n,s)=>n+Math.max(1,s.length),0)/totalWeight;setTimeout(()=>{$('board').textContent+=( $('board').textContent?'\\n\\n':'')+(index+1)+'. '+sentence;},delay)});\n  status('أُرسل الصوت الجديد إلى الصورة الرقمية، وتُعرض خطوات السبورة تدريجيًا وفق مدة الصوت.');
+  status('تم توليد جواب جديد. جارٍ مزامنة الصوت والشفاه وخطوات السبورة...');
+  const sentences=splitSentences(answer);const duration=await speakThroughAvatar(answer,$('language').value);
+  $('board').textContent='';let elapsed=0;const totalWeight=sentences.reduce((n,s)=>n+Math.max(1,s.length),0);\n  sentences.forEach((sentence,index)=>{const delay=duration*1000*sentences.slice(0,index).reduce((n,s)=>n+Math.max(1,s.length),0)/totalWeight;setTimeout(()=>{$('board').textContent+=( $('board').textContent?'\\n\\n':'')+(index+1)+'. '+sentence;},delay)});
+  status('أُرسل الصوت الجديد إلى الصورة الرقمية، وتُعرض خطوات السبورة تدريجيًا وفق مدة الصوت.');
  }catch(e){status('لم يكتمل الجواب الحي: '+(e.message||e));}
  finally{busy=false;$('ask').disabled=false}
 }
