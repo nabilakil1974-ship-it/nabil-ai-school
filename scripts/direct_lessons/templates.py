@@ -216,3 +216,75 @@ def teens_lesson(lo, hi, p0):
           f"{c} est une dizaine et {c - 10} unités, car dix plus {c - 10} objets de plus font {c}. Juste avant {c} vient {c - 1}."),
     ]))
     return theory, ex
+
+
+def decade_lesson(d, word_en, word_ar, word_fr, page):
+    """Lesson content for the numbers d0..d9 (d tens + 0..9 ones). Returns (THEORY, EXERCISES)."""
+    from scripts.direct_lessons.common import T, F, EX, st, tens, numpath
+    v = d * 10
+    pg = str(page)
+    theory = [
+        (f"{d} tens make {v}", f"{d} عشرات تساوي {v}", f"{d} dizaines font {v}", pg, [
+            tens(d, 0, eq=True),
+            T(f"Hello, champion! We know the numbers up to {v-1}. Today we go to the {v}s. {d} bundles of ten make {v}. Count the tens one by one: {d} tens = {v}.",
+              f"مرحبًا يا بطل! نعرف الأعداد حتى {v-1}. اليوم نصل إلى الـ{v}. {d} حزم من العشرة تساوي {v}. نعدّ العشرات واحدة واحدة: {d} عشرات = {v}.",
+              f"Bonjour champion ! On connaît les nombres jusqu'à {v-1}. Aujourd'hui, les {v}. {d} paquets de dix font {v}. On compte les dizaines : {d} dizaines = {v}."),
+            F(f"{d} tens = {v}"),
+        ]),
+        (f"Add the ones: {v+1} to {v+9}", f"نضيف الآحاد: من {v+1} إلى {v+9}", f"Ajouter les unités : de {v+1} à {v+9}", pg, [
+            tens(d, 1, eq=True),
+            tens(d, 5, eq=True),
+            tens(d, 9, eq=True),
+            T(f"We keep the {d} tens and add loose ones: 1 one makes {v+1}, 5 ones make {v+5}, 9 ones make {v+9}. Numbers from {v} to {v+9} always have {d} tens and from 0 to 9 ones. The tens digit {d} says how many complete tens; the ones digit says how many loose ones.",
+              f"نحتفظ بالعشرات الـ{d} ونضيف آحادًا منفردة: واحد يعطي {v+1} وخمسة آحاد تعطي {v+5} وتسعة آحاد تعطي {v+9}. الأعداد من {v} إلى {v+9} فيها دائمًا {d} عشرات ومن 0 إلى 9 آحاد. رقم العشرات {d} يبيّن كم عشرة كاملة ورقم الآحاد يبيّن كم واحدًا منفردًا.",
+              f"On garde les {d} dizaines et on ajoute des unités seules : 1 unité donne {v+1}, 5 donnent {v+5}, 9 donnent {v+9}. Les nombres de {v} à {v+9} ont toujours {d} dizaines et de 0 à 9 unités. Le chiffre des dizaines {d} dit combien de dizaines entières, celui des unités combien d'unités seules."),
+            F(f"{v+1} = {v} + 1      {v+5} = {v} + 5      {v+9} = {v} + 9"),
+        ]),
+        ("On the number path", "على مسار الأعداد", "Sur la droite numérique", pg, [
+            numpath([str(v - 1), str(v), str(v + 1), str(v + 2), str(v + 3)], hi=1, size=52),
+            T(f"After {v-1} comes {v}: the ones make a new ten, so we have {d} tens. Then {v+1}, {v+2}, {v+3} and so on.",
+              f"بعد {v-1} يأتي {v}: تكوّن الآحاد عشرة جديدة فيصير عندنا {d} عشرات. ثم {v+1} و{v+2} و{v+3} وهكذا.",
+              f"Après {v-1} vient {v} : les unités forment une nouvelle dizaine, donc {d} dizaines. Puis {v+1}, {v+2}, {v+3}…"),
+        ]),
+        ("Summary", "الخلاصة", "Résumé", "", [
+            T(f"Numbers in the {v}s are {d} tens plus zero to nine ones. For example {v+3} = {d} tens + 3 ones = {v} + 3.",
+              f"الأعداد في الـ{v} هي {d} عشرات مع صفر إلى تسعة آحاد. مثلًا {v+3} = {d} عشرات + 3 آحاد = {v} + 3.",
+              f"Les nombres des {v} sont {d} dizaines plus de zéro à neuf unités. Par exemple {v+3} = {d} dizaines + 3 unités = {v} + 3."),
+            F("SEE THE TENS → COUNT THE ONES → BUILD OR READ THE NUMBER"),
+        ]),
+    ]
+    a, b, c = v + 2, v + 7, v + 4
+    ex = [
+        EX("1", pg, st(f"Read the model: {d} tens and 5 ones.", f"اقرأ النموذج: {d} عشرات و5 آحاد.", f"Lis le modèle : {d} dizaines et 5 unités."), [
+            tens(d, 5, eq=True),
+            T(f"{v} + 5 = {v+5}.", f"{v} + 5 = {v+5}.", f"{v} + 5 = {v+5}."),
+        ]),
+        EX("2", pg, st(f"Build {b}.", f"ابنِ العدد {b}.", f"Construis {b}."), [
+            tens(d, 7, eq=True),
+            T(f"{d} tens and 7 ones.", f"{d} عشرات و7 آحاد.", f"{d} dizaines et 7 unités."),
+        ]),
+        EX("3", pg, st(f"Decompose {a}.", f"حلّل العدد {a}.", f"Décompose {a}."), [
+            tens(d, 2, eq=True),
+            F(f"{a} = {d} tens + 2 ones = {v} + 2"),
+        ]),
+        EX("4", pg, st(f"What comes after {v+9}? Before {v}?", f"ماذا بعد {v+9}؟ وقبل {v}؟", f"Que vient-il après {v+9} ? Avant {v} ?"), [
+            F(f"{v-1} → {v}      {v+9} → {v+10}"),
+        ]),
+        EX("5", pg, st(f"Which is greater, {v+3} or {v-2}? Why?", f"أيهما أكبر {v+3} أم {v-2}؟ لماذا؟", f"Lequel est plus grand, {v+3} ou {v-2} ? Pourquoi ?"), [
+            tens(d, 3, eq=True),
+            tens(d - 1, 8, eq=True),
+            T(f"{d} tens are more than {d-1} tens, so {v+3} is greater.", f"{d} عشرات أكثر من {d-1} عشرات إذن {v+3} أكبر.", f"{d} dizaines > {d-1} dizaines : {v+3} est plus grand."),
+        ]),
+        EX("6", pg, st(f"Error check: a child reads {a} as 2 tens and {d} ones. What is wrong?", f"تحقّق من الخطأ: قرأ طفل {a} على أنها عشرتان و{d} آحاد. ما الخطأ؟", f"Vérifie l'erreur : un enfant lit {a} comme 2 dizaines et {d} unités. Où est l'erreur ?"), [
+            tens(d, 2, eq=True),
+            T(f"He swapped the digits. {d} is in the tens place, so {a} = {d} tens + 2 ones.", f"بدّل الرقمين. الرقم {d} في خانة العشرات إذن {a} = {d} عشرات + واحدان.", f"Il a inversé les chiffres. Le {d} est aux dizaines : {a} = {d} dizaines + 2 unités."),
+        ]),
+        EX("7", pg, st(f"Challenge: put in order {v+7}, {v}, {v+4}, {v+9}.", f"تحدٍّ: رتّب {v+7} و{v} و{v+4} و{v+9}.", f"Défi : range {v+7}, {v}, {v+4}, {v+9}."), [
+            numpath([str(v), str(v + 4), str(v + 7), str(v + 9)], hi=None, size=56),
+        ]),
+        EX("8", pg, st(f"Final check: represent and decompose {c}.", f"تقييم أخير: مثّل العدد {c} وحلّله.", f"Évaluation : représente et décompose {c}."), [
+            tens(d, 4, eq=True),
+            F(f"{c} = {d} tens + 4 ones = {v} + 4"),
+        ]),
+    ]
+    return theory, ex
