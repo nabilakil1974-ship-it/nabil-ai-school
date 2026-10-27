@@ -72,7 +72,7 @@ def questions(m, cap=8):
 
 
 CSS = """
-#nbEng{position:fixed;top:8px;left:8px;z-index:2147483000;display:flex;gap:8px;font:700 15px sans-serif;direction:ltr}
+#nbEng{position:fixed;top:64px;left:8px;z-index:2147483000;display:flex;gap:8px;font:700 15px sans-serif;direction:ltr}
 #nbEng span{background:#fff;border:2px solid #0b3d5c;border-radius:999px;padding:4px 12px;color:#0b3d5c;box-shadow:0 2px 6px #0003}
 #nbEngBar{position:fixed;top:0;left:0;height:5px;background:linear-gradient(90deg,#fbc02d,#43a047);width:0;z-index:2147483000;transition:width .4s}
 #nbQz{position:fixed;inset:0;background:#0b3d5ccc;z-index:2147483600;display:none;align-items:center;justify-content:center;font-family:sans-serif}
