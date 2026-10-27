@@ -63,8 +63,8 @@ THEORY = [
         F("(x + 3)(x − 2) = x² − 2x + 3x − 6 = x² + x − 6"),
     ]),
     ("Summary", "الخلاصة", "Résumé", "", [
-        T("Polynomial → non-negative integer powers. Degree → highest power with nonzero coefficient. Equivalent forms → same polynomial, different usefulness. Golden habit: transform, then verify.",
-          "كثير الحدود ← قوى صحيحة غير سالبة. الدرجة ← أعلى قوة بمعامل غير معدوم. الأشكال المتكافئة ← الكثير نفسه بفائدة مختلفة. العادة الذهبية: نحوّل ثم نتحقق.",
+        T("Polynomial → non-negative integer powers. Degree → highest power with nonzero coefficient. Equivalent forms → same polynomial, different usefulness. Best habit: transform, then verify.",
+          "كثير الحدود ← قوى صحيحة غير سالبة. الدرجة ← أعلى قوة بمعامل غير معدوم. الأشكال المتكافئة ← الكثير نفسه بفائدة مختلفة. العادة الأفضل: نحوّل ثم نتحقق.",
           "Transformer puis vérifier."),
     ]),
 ]
