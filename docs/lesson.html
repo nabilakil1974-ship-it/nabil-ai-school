@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#071522"><title>NABIL AI | Grade 7 Powers</title>
+<style>
+:root{color-scheme:dark;--bg:#071522;--panel:#10273a;--line:#28475d;--ink:#f4f8fc;--muted:#a9c0d1;--gold:#ffd479;--cyan:#67dded;--green:#a9f0ca}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font:16px/1.5 Inter,system-ui,Arial,sans-serif}
+#layout{height:100dvh;display:grid;grid-template-columns:minmax(220px,.8fr) minmax(0,2fr);gap:10px;padding:10px}
+#teacher,#classroom{min-width:0;min-height:0;border:1px solid var(--line);border-radius:16px;overflow:hidden}
+#teacher{background:#02070b;display:flex;align-items:center;justify-content:center}
+video{width:100%;height:100%;object-fit:contain;background:#02070b}
+#classroom{display:flex;flex-direction:column;background:#f8fbff;color:#12283a}
+.top{height:54px;flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 18px;background:#0e2638;color:#fff}
+.brand{font-weight:800;letter-spacing:.08em}.grade{font-size:12px;color:var(--cyan)}
+#board{overflow:auto;flex:1;padding:clamp(18px,3vw,42px);color:#12283a}
+.kicker{color:#147b91;font-size:13px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+h1{font-size:clamp(30px,4vw,52px);line-height:1.08;margin:8px 0 10px;letter-spacing:-.04em}
+.lead{font-size:clamp(15px,1.5vw,19px);color:#496174;margin:0 0 22px}
+.rule{border:1px solid #d7e5ee;border-radius:14px;padding:18px 20px;background:#fff;margin:16px 0}
+.rule strong{display:block;color:#0d6279;font-size:13px;letter-spacing:.08em;margin-bottom:8px}
+.math{font-family:Cambria,"Times New Roman",serif;font-size:clamp(25px,3vw,38px);font-weight:700;letter-spacing:.01em}
+sup{font-size:.62em;color:#087b96}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.example{border-radius:13px;background:#edf5fa;padding:15px 17px;border:1px solid #dce9f1}
+.example small{display:block;color:#567184;font-weight:700;margin-bottom:8px}
+.answer{font-size:clamp(20px,2.3vw,29px);font-family:Cambria,serif;font-weight:bold}
+.note{background:#e8f8f5;border-left:4px solid #159b8a;border-radius:10px;padding:14px 16px;margin-top:16px;color:#164c4d}
+#status{font-size:12px;color:#b6c7d6}
+@media(max-width:680px){#layout{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(100px,24dvh) minmax(0,1fr);gap:6px;padding:6px}#teacher,#classroom{border-radius:11px}video{object-fit:contain}.top{height:42px;padding:0 12px}.brand{font-size:13px}#board{padding:18px 15px}.grid{grid-template-columns:1fr 1fr;gap:8px}.example{padding:12px}.rule{padding:15px;margin:12px 0}.lead{margin-bottom:12px}}
+</style></head>
+<body>
+<main id="layout">
+<aside id="teacher" aria-label="Silent teacher video"><video id="teacherVideo" muted autoplay loop playsinline preload="metadata"><source src="https://raw.githubusercontent.com/nabilakil1974-ship-it/nabil-ai-school/main/public/videos/freelipsync-59679992-2314-4498-992f-0b40bc42fc9f-low.mp4" type="video/mp4"></video></aside>
+<section id="classroom" aria-label="Interactive lesson board">
+<header class="top"><div class="brand">NABIL <span style="color:var(--gold)">AI</span> · LEARNING BOARD</div><div class="grade">GRADE 7 · MATHEMATICS</div></header>
+<article id="board">
+<div class="kicker">Lesson 01 · Number sense</div>
+<h1>Powers</h1>
+<p class="lead">A shorter way to write repeated multiplication of the same number.</p>
+<div class="rule"><strong>THE IDEA</strong><div class="math">2 × 2 × 2 × 2 = 2<sup>4</sup> = 16</div><p style="margin:8px 0 0;color:#496174">The base is 2. The exponent is 4: it tells us how many times the base is used as a factor.</p></div>
+<div class="grid">
+<div class="example"><small>EXAMPLE A</small><div class="answer">3<sup>2</sup> = 3 × 3 = 9</div></div>
+<div class="example"><small>EXAMPLE B</small><div class="answer">5<sup>3</sup> = 5 × 5 × 5 = 125</div></div>
+<div class="example"><small>EXAMPLE C</small><div class="answer">10<sup>2</sup> = 100</div></div>
+<div class="example"><small>EXAMPLE D</small><div class="answer">7<sup>1</sup> = 7</div></div>
+</div>
+<div class="rule"><strong>IMPORTANT RULES</strong><p style="margin:7px 0">For any non-zero number <b>a</b>:</p><div class="math">a<sup>1</sup> = a &nbsp;&nbsp; · &nbsp;&nbsp; a<sup>0</sup> = 1</div><p style="margin:8px 0 0;color:#496174">A power with exponent zero equals 1, provided the base is not zero.</p></div>
+<div class="note"><b>Think like a mathematician:</b> in 4<sup>3</sup>, how many factors of 4 do you multiply? Read the exponent, then expand the power.</div>
+</article></section></main>
+<script>
+(()=>{const v=document.getElementById('teacherVideo');v.muted=true;v.volume=0;v.play().catch(()=>{});})();
+</script></body></html>
