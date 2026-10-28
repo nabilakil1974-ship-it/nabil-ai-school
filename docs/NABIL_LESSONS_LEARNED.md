@@ -53,3 +53,7 @@ Sections: prior learning, competencies, operational objectives, concepts/terms/s
 
 ## LL-30 — Plan print format chosen after generation (typed / handwriting look)
 One plan, two presentations: formal typed Word, or a ruled-notebook look (blue headings, black body, handwriting-style font «Playpen Sans Arabic»). Switching only changes presentation (no regeneration); the choice is saved (`nabilPlanStyle`). DOCX: A4, RTL, rows never split (`cantSplit`), ruled paragraph borders in the hand style. Buttons: تنزيل Word / طباعة التحضير. The UI states that the handwriting style is a font, NOT real handwriting, and satisfies no administrative handwriting rule; Word needs the font installed or falls back. Tested: Chromium phone+desktop preview, DOCX opened and converted to PDF with LibreOffice (2 pages, RTL, A4). UNVERIFIED: real Word, real printer, the font on the teacher's device.
+
+## Rule (owner, 2026-10-28): no rework, one download per book
+- Never regenerate a lesson that is already built and published (check catalog.json / public/lessons first; skip any id already present).
+- Download each textbook from Drive exactly once, keep it locally, and reuse it for every lesson of that book.
