@@ -41,7 +41,7 @@ function draw(){
  if(!s){v.innerHTML='<h2>الصف '+g+' — اختر المادة</h2><div class="grid">'+SUBJ.map(([k,ar,en])=>{const[r,t]=cnt(g,k);return'<button class="tile" '+(t?'':'disabled ')+'onclick="go('+g+',\''+k+'\')">'+ar+'<small>'+en+(t?' · '+(r?r+' جاهز':'قريباً'):' · قريباً')+'</small></button>'}).join("")+'</div>';return}
  const a=lessons.filter(l=>l.g===g&&l.s===s).sort((x,y)=>(y.ready-x.ready));
  const nm=SUBJ.find(z=>z[0]===s)[1];
- v.innerHTML='<h2>الصف '+g+' — '+nm+'</h2>'+(a.length?a.map(l=>'<div class="les"><div><b>'+esc(l.t)+'</b>'</div>'+(l.ready?'<a class="go" href="'+l.u+'">ابدأ الدرس ←</a>':'<span class="soon">قيد الإنتاج</span>')+'</div>').join(""):'<p class="sub">لا توجد دروس بعد.</p>');
+ v.innerHTML='<h2>الصف '+g+' — '+nm+'</h2>'+(a.length?a.map(l=>'<div class="les"><div><b>'+esc(l.t)+'</b><div class="id">'+esc(l.id)+'</div></div>'+(l.ready?'<a class="go" href="'+l.u+'">ابدأ الدرس ←</a>':'<span class="soon">قيد الإنتاج</span>')+'</div>').join(""):'<p class="sub">لا توجد دروس بعد.</p>');
 }
 draw();
 </script></body></html>
