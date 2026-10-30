@@ -56,3 +56,11 @@ def fn_graph(f, xr=(-5, 5), yr=(-5, 5), pts=None, vlines=(), hlines=(), curves=(
               f'<text x="{X(x)+12:.1f}" y="{Y(y)-10:.1f}" font-size="19" font-weight="700" fill="#0b3d5c" font-family="sans-serif">{k}({x:g},{y:g})</text></g>')
         ids.append(f"{tag}p{k}")
     return scene(s, ids)
+
+
+def section(m, en_title):
+    """Return the step list of the THEORY section whose English title matches (for upgrades)."""
+    for s in m.THEORY:
+        if s[0] == en_title:
+            return s[-1]
+    raise KeyError(en_title)

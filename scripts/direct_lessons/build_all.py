@@ -4,7 +4,7 @@ usage: python -m scripts.direct_lessons.build_all OUT_DIR
 A module needs: LESSON_ID, TITLES{en,ar,fr}, GRADE(int), SUBJECT('math'|'physics'|'chem'|'bio'),
 THEORY, EXERCISES (see common.py); optional GOLDEN, LANG ('en' default).
 """
-import importlib, json, pkgutil, sys, traceback
+import importlib, importlib.util, json, os, pkgutil, re, sys, traceback
 from pathlib import Path
 from scripts.nabil_factory.cards import golden_v6 as g6
 from scripts.direct_lessons.common import make_scenes
@@ -44,7 +44,12 @@ def main(out):
     cat, bad = [], []
     for name in mods:
         try:
+            if os.environ.get("ONLY") and not re.search(os.environ["ONLY"], name):
+                continue
             m = importlib.import_module(name)
+            up = f"scripts.direct_lessons.upgrades.{name.rsplit('.', 1)[-1]}"
+            if importlib.util.find_spec(up):
+                importlib.import_module(up).upgrade(m)  # enrich: extra graphs, explanations, exercises
             html = page(m)
             fn = f"{m.LESSON_ID.lower()}.html"
             (out / fn).write_text(html, encoding="utf-8")
@@ -52,7 +57,8 @@ def main(out):
                         "t": f'{m.TITLES["ar"]} — {m.TITLES["en"]}', "id": m.LESSON_ID, "u": f"/static/lessons/{fn}"})
         except Exception as e:
             bad.append((name, repr(e)[:200])); traceback.print_exc()
-    (out / "catalog.json").write_text(json.dumps(cat, ensure_ascii=False), encoding="utf-8")
+    if not os.environ.get("ONLY"):
+        (out / "catalog.json").write_text(json.dumps(cat, ensure_ascii=False), encoding="utf-8")
     print("built", len(cat), "failed", len(bad))
     for b in bad: print("FAIL", b)
     return 1 if bad else 0
