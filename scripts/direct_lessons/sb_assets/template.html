@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>%%TITLE%% — NABIL AI Smart Board</title>
+<style>
+%%CSS%%
+</style>
+</head>
+<body>
+<div id="wrap">
+<div id="stage">
+  <div id="logo" class="abs">
+    <svg width="76" height="56" viewBox="0 0 76 56" aria-hidden="true">
+      <defs><linearGradient id="gc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#9ac9ff"/></linearGradient></defs>
+      <polygon points="38,4 74,20 38,36 2,20" fill="url(#gc)" stroke="#6fb4ff" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M16 28 V42 C16 47 27 52 38 52 C49 52 60 47 60 42 V28 L38 37 Z" fill="#cfe4ff" stroke="#6fb4ff" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M68 22 V40" stroke="#ffd34d" stroke-width="3" stroke-linecap="round"/><circle cx="68" cy="43" r="3.5" fill="#ffd34d"/>
+    </svg>
+    <div><div class="t1">NABIL AI</div><div class="t2">Smart Learning Platform</div></div>
+  </div>
+  <div id="title" class="abs"></div>
+  <div id="topic" class="abs"></div>
+  <div id="pager" class="abs"></div>
+
+  <div id="draw" class="abs"></div>
+  <div id="fm" class="abs"></div>
+  <div id="steps" class="abs"></div>
+  <div id="panelline" class="abs"></div>
+  <div id="side" class="abs"><span id="sideh"></span><div id="map"></div></div>
+
+  <svg id="teacher" viewBox="0 0 1672 941" aria-label="Teacher"></svg>
+  <canvas id="ink" width="1672" height="941"></canvas>
+
+  <div id="bar" class="abs">
+    <button class="tb" id="bMenu"><svg viewBox="0 0 32 32"><rect x="4" y="6" width="24" height="20" rx="2"/><path d="M4 12h24M12 12v14"/></svg>Menu</button>
+    <button class="tb" id="bTools"><svg viewBox="0 0 32 32"><rect x="4" y="5" width="9" height="9" rx="1"/><rect x="17" y="5" width="9" height="9" rx="1"/><rect x="4" y="18" width="9" height="9" rx="1"/><rect x="17" y="18" width="9" height="9" rx="1"/></svg>Tools</button>
+    <div class="sp"></div>
+    <button class="tb" data-tool="select" id="tSelect"><svg viewBox="0 0 32 32"><path d="M8 24l1-5L21 7l4 4-12 12z"/><path d="M19 9l4 4"/></svg>Select</button>
+    <button class="tb" data-tool="pen" id="tPen"><svg viewBox="0 0 32 32"><path d="M6 26l2-7L22 5l5 5L13 24z"/><path d="M19 8l5 5"/></svg>Pen</button>
+    <button class="tb" data-tool="eraser" id="tEraser"><svg viewBox="0 0 32 32"><path d="M13 25H27M5 18l9-10 10 9-6 8H10z"/><path d="M12 14l10 9"/></svg>Eraser</button>
+    <button class="tb" id="tShape"><svg viewBox="0 0 32 32"><path d="M6 14l7-9 7 9z"/><circle cx="22" cy="22" r="6"/><rect x="5" y="19" width="9" height="9"/></svg>Shape</button>
+    <button class="tb" id="tUndo"><svg viewBox="0 0 32 32"><path d="M10 9L5 14l5 5"/><path d="M5 14h13a7 7 0 010 14h-5"/></svg>Undo</button>
+    <button class="tb" id="tRedo"><svg viewBox="0 0 32 32"><path d="M22 9l5 5-5 5"/><path d="M27 14H14a7 7 0 000 14h5"/></svg>Redo</button>
+    <div class="sp"></div>
+    <button class="tb" id="bBg"><svg viewBox="0 0 32 32"><rect x="4" y="5" width="24" height="20" rx="2"/><circle cx="12" cy="13" r="2.5"/><path d="M5 23l8-7 5 4 4-4 5 5"/></svg>Background</button>
+    <div id="nav"><button id="prev" aria-label="Previous">‹</button><span id="navtxt">1 / 1</span><button id="next" aria-label="Next">›</button></div>
+  </div>
+
+  <div class="pop" id="popMenu">
+    <button class="item" id="mPlay">▶  Play the lesson</button>
+    <button class="item" id="mRestart">↺  Restart this page</button>
+    <button class="item" id="mAll">☰  Show whole page</button>
+    <button class="item" id="mVoice">🔊  Voice: on</button>
+    <div style="margin:6px 0 2px;color:#9bbcf2;font-size:15px">Language</div>
+    <button class="item" data-lang="en">English</button>
+    <button class="item" data-lang="ar">العربية</button>
+    <button class="item" data-lang="fr">Français</button>
+    <button class="item" id="mFull">⛶  Full screen</button>
+  </div>
+  <div class="pop" id="popTools" style="left:440px">
+    <div>Pen colour</div><div id="sws"></div>
+    <div style="margin-top:6px">Pen size <input type="range" id="size" min="2" max="14" value="5" style="vertical-align:middle;width:130px"></div>
+    <button class="item" id="clearInk" style="margin-top:10px">🗑  Clear my writing</button>
+  </div>
+  <div class="pop" id="popShapes" style="left:900px;min-width:200px">
+    <button class="item" data-shape="line">╱  Line</button>
+    <button class="item" data-shape="arrow">➜  Arrow</button>
+    <button class="item" data-shape="rect">▭  Rectangle</button>
+    <button class="item" data-shape="circle">◯  Circle</button>
+    <button class="item" data-shape="tri">△  Triangle</button>
+  </div>
+  <div id="bgmsg"></div>
+</div>
+</div>
+<div id="rot">Rotate your phone to landscape for a bigger board.</div>
+
+<script>
+(function(){
+"use strict";
+var DATA=%%DATA%%;
+var $=function(s,r){return (r||document).querySelector(s)};
+var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+var NS="http://www.w3.org/2000/svg";
+var stage=$("#stage"),scale=1;
+function fit(){
+  var w=window.innerWidth,h=window.innerHeight;
+  scale=Math.min(w/1672,h/941);
+  stage.style.left="0";stage.style.top="0";
+  stage.style.transform="translate("+(w-1672*scale)/2+"px,"+(h-941*scale)/2+"px) scale("+scale+")";
+  $("#rot").style.display=(h>w*1.1)?"block":"none";
+}
+window.addEventListener("resize",fit);fit();
+
+var LANG=DATA.lang||"en",pi=0,ii=-1,voiceOn=true,playing=false,playTimer=null,target=[585,330],revealTimers=[];
+var UI={en:{page:"Lesson map:",ex:"Problem",play:"Play the lesson",pause:"Pause the lesson"},ar:{page:"خريطة الدرس:",ex:"المسألة",play:"تشغيل الدرس",pause:"إيقاف مؤقت"},fr:{page:"Plan de la leçon :",ex:"Problème",play:"Lancer la leçon",pause:"Pause"}};
+var VOICES={en:"en-US",ar:"ar-SA",fr:"fr-FR"};
+function L(o){return (o&&(o[LANG]||o.en))||""}
+function page(){return DATA.pages[pi]}
+
+/* ---- build pieces ---- */
+function buildMap(){
+  var m=$("#map");m.innerHTML="";m.className=LANG==="ar"?"rtl":"";
+  DATA.pages.forEach(function(p,i){
+    var d=document.createElement("div");d.className="mi";d.dataset.i=i;
+    d.innerHTML="<i>"+(i+1)+"</i><span></span>";d.lastChild.textContent=L(p.title);
+    d.onclick=function(){stopPlay();gotoPage(i,true)};m.appendChild(d);
+  });
+}
+function renderPage(showAll,animateLast){
+  var p=page();
+  $("#title").textContent=L(p.title);
+  $("#topic").innerHTML="";var tp=L(DATA.title);$("#topic").textContent=tp.length>34?tp.slice(0,32)+"…":tp;
+  $("#pager").textContent=(pi+1)+" / "+DATA.pages.length;
+  $("#sideh").textContent=UI[LANG].page;
+  $$(".mi").forEach(function(e,i){e.classList.toggle("cur",i===pi)});
+  var cur=$(".mi.cur");if(cur&&cur.scrollIntoView){try{var mp=$("#map");mp.scrollTop=Math.max(0,cur.offsetTop-mp.offsetTop-90)}catch(e){}}
+  var steps=$("#steps"),fm=$("#fm"),dr=$("#draw");
+  steps.innerHTML="";fm.innerHTML="";dr.innerHTML="";dr.classList.remove("on");
+  steps.className="abs"+(LANG==="ar"?" rtl":"");
+  var hasDraw=p.items.some(function(x){return x.k==="d"}),hasF=p.items.some(function(x){return x.k==="f"});
+  fm.classList.toggle("tall",!hasDraw);
+  var tn=0;
+  p.items.forEach(function(x,idx){
+    if(x.k==="t"){tn++;
+      var d=document.createElement("div");d.className="st";d.dataset.idx=idx;d.style.display="none";
+      d.innerHTML='<div class="n">'+tn+'</div><div class="tx"></div>';
+      var tx=d.lastChild;
+      if(x.label){var lb=document.createElement("span");lb.className="lab";lb.textContent=x.label;tx.appendChild(lb)}
+      var hw=document.createElement("span");hw.className="hw";hw.textContent=L(x);tx.appendChild(hw);
+      d.onclick=function(){stopPlay();go(idx)};
+      steps.appendChild(d);
+    }else if(x.k==="f"){
+      var f=document.createElement("div");f.className="f";f.dataset.idx=idx;f.style.display="none";f.textContent=x.f;fm.appendChild(f);
+    }
+  });
+  if(showAll)ii=p.items.length-1;
+  applyUpTo(ii,animateLast);
+}
+function revealDraw(x,animate){
+  var dr=$("#draw");dr.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+x.vb[0]+" "+x.vb[1]+'">'+x.svg+"</svg>";dr.classList.add("on");
+  var svg=dr.querySelector("svg");if(svg){svg.setAttribute("viewBox","0 0 "+x.vb[0]+" "+x.vb[1]);svg.setAttribute("preserveAspectRatio","xMidYMid meet");svg.removeAttribute("width");svg.removeAttribute("height")}
+  revealTimers.forEach(clearTimeout);revealTimers=[];
+  var ids=x.show||[];
+  ids.forEach(function(id){var e=dr.querySelector("#"+id);if(e){e.style.opacity=animate?0:1;e.style.transition="opacity .45s"}});
+  function point(id){
+    var e=dr.querySelector("#"+id);if(!e)return;
+    var r=e.getBoundingClientRect(),sr=stage.getBoundingClientRect();
+    target=[Math.min(790,(r.left+r.width/2-sr.left)/scale),(r.top+r.height/2-sr.top)/scale];
+  }
+  ids.forEach(function(id,k){
+    var t=animate?k*480:0;
+    revealTimers.push(setTimeout(function(){var e=dr.querySelector("#"+id);if(e){e.style.opacity=1;if(animate)point(id)}},t));
+  });
+}
+function applyUpTo(k,animateLast){
+  var p=page(),steps=$("#steps"),fm=$("#fm");
+  var lastT=null,lastD=null;
+  p.items.forEach(function(x,idx){
+    if(idx>k)return;
+    if(x.k==="t"){var e=steps.querySelector('[data-idx="'+idx+'"]');if(e){e.style.display="flex";e.classList.remove("cur","done");lastT=e}}
+    if(x.k==="f"){var f=fm.querySelector('[data-idx="'+idx+'"]');if(f){f.style.display="block";f.classList.add("on")}}
+    if(x.k==="d")lastD={x:x,idx:idx};
+  });
+  var last=k>=0?p.items[k]:null;
+  $$(".st",steps).forEach(function(e){e.classList.remove("cur");if(e.style.display!=="none")e.classList.add("done")});
+  if(lastT&&!(last&&last.k==="t")){lastT.classList.add("cur");steps.scrollTop=lastT.offsetTop-20}
+  if(last&&last.k==="t"&&lastT){
+    lastT.classList.add("cur");lastT.classList.remove("done");
+    var hw=lastT.querySelector(".hw");
+    if(animateLast){hw.style.animation="none";void hw.offsetWidth;hw.style.animation="write "+Math.min(3.5,.9+L(last).length/60)+"s steps(40,end) forwards";lastT.classList.remove("done")}
+    else{lastT.classList.add("done")}
+    steps.scrollTop=lastT.offsetTop-20;
+    target=[585,470];
+  }
+  if(last&&last.k==="f"){target=[770,655]}
+  if(lastD)revealDraw(lastD.x,animateLast&&last===lastD.x);
+  $("#navtxt").textContent=Math.max(k+1,0)+" / "+p.items.length;
+}
+function go(k,speak){
+  var p=page();ii=Math.max(-1,Math.min(p.items.length-1,k));
+  var animate=true;
+  /* rebuild up to ii without animation for earlier ones, animate the newest */
+  renderPageKeep(animate);
+  var it=ii>=0?p.items[ii]:null;
+  if(it&&it.k==="t"&&speak!==false)say(L(it));
+}
+function renderPageKeep(animate){renderPage(false,animate)}
+function gotoPage(i,speak){
+  pi=Math.max(0,Math.min(DATA.pages.length-1,i));ii=-1;renderPage(false,false);
+  go(0,speak!==false);
+}
+function next(){
+  var p=page();
+  if(ii<p.items.length-1)go(ii+1);
+  else if(pi<DATA.pages.length-1)gotoPage(pi+1);
+  else stopPlay();
+}
+function prev(){
+  if(ii>0)go(ii-1,false);
+  else if(pi>0){pi--;ii=-1;renderPage(true,false);var p=page();go(p.items.length-1,false)}
+}
+$("#next").onclick=function(){stopPlay();next()};
+$("#prev").onclick=function(){stopPlay();prev()};
+document.addEventListener("keydown",function(e){
+  if(e.key==="ArrowRight"||e.key==="ArrowDown"||e.key===" "){e.preventDefault();stopPlay();next()}
+  else if(e.key==="ArrowLeft"||e.key==="ArrowUp"){stopPlay();prev()}
+});
+
+/* voice + play */
+function say(t){
+  try{
+    if(!voiceOn||!window.speechSynthesis)return;
+    window.speechSynthesis.cancel();
+    var u=new SpeechSynthesisUtterance(t);u.lang=VOICES[LANG];u.rate=.95;
+    u.onend=function(){if(playing)schedule(600)};
+    u.onerror=function(){if(playing)schedule(2500)};
+    window.speechSynthesis.speak(u);
+  }catch(e){}
+}
+function hasVoice(){try{return voiceOn&&!!window.speechSynthesis}catch(e){return false}}
+function schedule(ms){
+  clearTimeout(playTimer);
+  playTimer=setTimeout(function(){
+    if(!playing)return;
+    var p=page();
+    if(pi>=DATA.pages.length-1&&ii>=p.items.length-1){stopPlay();return}
+    next();
+    var it=page().items[ii];
+    if(!it||it.k!=="t"||!hasVoice())schedule(it&&it.k==="t"?Math.max(3500,L(it).length*70):(it&&it.k==="d"?3500:2200));
+  },ms);
+}
+function startPlay(){playing=true;closePops();$("#mPlay").textContent="❚❚  "+UI[LANG].pause;if(ii<0||ii>=page().items.length-1)gotoPage(pi);schedule(hasVoice()?100:3500)}
+function stopPlay(){playing=false;clearTimeout(playTimer);try{window.speechSynthesis&&window.speechSynthesis.cancel()}catch(e){}$("#mPlay").textContent="▶  "+UI[LANG].play}
+
+/* ---- teacher ---- */
+var T=$("#teacher");
+%%TEACHER%%
+/* ---- ink ---- */
+%%INK%%
+/* ---- popups ---- */
+function closePops(){$$(".pop").forEach(function(p){p.classList.remove("show")})}
+function togglePop(id){var p=$("#"+id),was=p.classList.contains("show");closePops();if(!was)p.classList.add("show")}
+$("#bMenu").onclick=function(){togglePop("popMenu")};
+$("#bTools").onclick=function(){togglePop("popTools")};
+$("#mPlay").onclick=function(){if(playing)stopPlay();else startPlay()};
+$("#mRestart").onclick=function(){stopPlay();closePops();gotoPage(pi,false)};
+$("#mAll").onclick=function(){stopPlay();closePops();ii=page().items.length-1;renderPage(false,false)};
+$("#mVoice").onclick=function(){voiceOn=!voiceOn;this.textContent=voiceOn?"🔊  Voice: on":"🔇  Voice: off";if(!voiceOn){try{window.speechSynthesis&&window.speechSynthesis.cancel()}catch(e){}}};
+$$("[data-lang]").forEach(function(b){b.onclick=function(){stopPlay();LANG=b.dataset.lang;closePops();buildMap();renderPage(false,false);$("#mPlay").textContent="▶  "+UI[LANG].play}});
+$("#mFull").onclick=function(){closePops();try{var d=document.documentElement;if(document.fullscreenElement)document.exitFullscreen();else if(d.requestFullscreen)d.requestFullscreen()}catch(e){}};
+var bgs=[["","Navy"],["bg-grid","Grid"],["bg-black","Black"],["bg-green","Chalkboard"]],bi=0;
+$("#bBg").onclick=function(){
+  closePops();stage.classList.remove(bgs[bi][0]||"x");bi=(bi+1)%bgs.length;if(bgs[bi][0])stage.classList.add(bgs[bi][0]);
+  var m=$("#bgmsg");m.textContent="Background: "+bgs[bi][1];m.style.opacity=1;setTimeout(function(){m.style.opacity=0},1200);
+};
+buildMap();
+gotoPage(0,false);
+})();
+</script>
+</body>
+</html>

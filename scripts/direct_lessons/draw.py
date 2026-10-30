@@ -255,3 +255,53 @@ def bar_model(total, a, b, tag="BM"):
          f'<text x="{30+wA/2:.1f}" y="235" font-size="38" font-weight="700" text-anchor="middle" fill="{INK}" {FF}>{a}</text>'
          f'<text x="{30+wA+(600-wA)/2:.1f}" y="235" font-size="38" font-weight="700" text-anchor="middle" fill="{INK}" {FF}>{b}</text></g>')
     return scene(s, [tag + "w", tag + "p"])
+
+
+def vsub(a, b, tag="VS", op="−"):
+    """Column subtraction (or addition with op='+') with H-T-O headers; shows regrouping notes then the result."""
+    da = [int(c) for c in f"{a:03d}"]; db = [int(c) for c in f"{b:03d}"]
+    xs = [300, 390, 480]
+    cur = da[:]; notes = {}; res = [0, 0, 0]
+    if op == "−":
+        for i in (2, 1, 0):
+            if cur[i] < db[i]:
+                j = i - 1
+                while cur[j] == 0: j -= 1
+                cur[j] -= 1
+                for k in range(j + 1, i): cur[k] = 9
+                cur[i] += 10
+                for k in range(j, i + 1): notes[k] = cur[k]
+            res[i] = cur[i] - db[i]
+        r = a - b
+    else:
+        r = a + b
+        carry = 0
+        for i in (2, 1, 0):
+            t = da[i] + db[i] + carry
+            res[i] = t % 10; carry = t // 10
+            if carry and i > 0: notes[i - 1] = f"+1"
+        if r >= 1000: res = [int(c) for c in f"{r:04d}"][1:]
+    s = f'<g id="{tag}a">'
+    for i, h in enumerate("HTO"):
+        s += f'<rect x="{xs[i]-40}" y="30" width="80" height="34" rx="6" fill="{INK}"/><text x="{xs[i]}" y="55" font-size="22" font-weight="700" text-anchor="middle" fill="#fff" {FF}>{h}</text>'
+    for i in range(3):
+        s += f'<text x="{xs[i]}" y="190" font-size="60" font-weight="700" text-anchor="middle" fill="{INK}" {FF}>{da[i]}</text>'
+        s += f'<text x="{xs[i]}" y="270" font-size="60" font-weight="700" text-anchor="middle" fill="{BLUE}" {FF}>{db[i]}</text>'
+    s += f'<text x="215" y="270" font-size="60" font-weight="700" text-anchor="middle" fill="{INK}" {FF}>{op}</text>'
+    s += f'<line x1="200" y1="292" x2="525" y2="292" stroke="{INK}" stroke-width="6"/></g>'
+    ids = [tag + "a"]
+    if notes:
+        g = f'<g id="{tag}n">'
+        for i, v in notes.items():
+            if op == "−":
+                g += (f'<line x1="{xs[i]-22}" y1="150" x2="{xs[i]+22}" y2="190" stroke="{RED}" stroke-width="5"/>'
+                      f'<text x="{xs[i]-4}" y="120" font-size="36" font-weight="700" text-anchor="middle" fill="{RED}" {FF}>{v}</text>')
+            else:
+                g += f'<text x="{xs[i]}" y="120" font-size="34" font-weight="700" text-anchor="middle" fill="{RED}" {FF}>{v}</text>'
+        s += g + '</g>'; ids.append(tag + "n")
+    rs = f'<g id="{tag}r">'
+    if op == "+" and r >= 1000: rs += f'<text x="{xs[0]-90}" y="365" font-size="60" font-weight="700" text-anchor="middle" fill="{GREEN}" {FF}>1</text>'
+    for i in range(3):
+        rs += f'<text x="{xs[i]}" y="365" font-size="60" font-weight="700" text-anchor="middle" fill="{GREEN}" {FF}>{res[i]}</text>'
+    s += rs + '</g>'; ids.append(tag + "r")
+    return scene(s, ids)

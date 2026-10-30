@@ -1,0 +1,26 @@
+#draw{left:372px;top:330px;width:430px;height:300px;border-radius:14px;background:#f4f9ff;border:3px solid var(--line);box-shadow:0 0 18px rgba(30,144,255,.7);z-index:2;overflow:hidden;display:none}
+#draw svg{width:100%;height:100%}
+#draw.on{display:block}
+#fm{left:380px;top:646px;width:420px;height:152px;overflow:hidden;z-index:3;display:flex;flex-direction:column;justify-content:flex-end;gap:8px;font-size:27px;color:var(--yellow);font-family:var(--hand);text-shadow:0 0 8px rgba(255,225,77,.4)}
+#fm.tall{top:128px;height:664px;justify-content:flex-start;font-size:30px}
+#fm .f{border:3px solid var(--yellow);border-radius:12px;padding:8px 12px;direction:ltr;text-align:center;box-shadow:0 0 12px rgba(255,225,77,.35);overflow-wrap:anywhere;opacity:0;transition:opacity .4s;line-height:32px}
+#fm .f.on{opacity:1}
+#steps{left:830px;top:128px;width:415px;height:664px;overflow-y:auto;scrollbar-width:none;font-size:25px;line-height:33px;gap:14px}
+#steps::-webkit-scrollbar{display:none}
+#steps .st{opacity:.55}
+#steps .st.cur{opacity:1}
+#steps .st .n{flex:0 0 38px;height:38px;font-size:22px}
+#steps .st .tx{font-family:var(--hand)}
+#steps .st .lab{display:block;color:var(--cyan);font-size:19px;line-height:22px}
+#steps.rtl{direction:rtl;text-align:right}
+#side{width:350px}
+#map{border:3px solid var(--green);border-radius:16px;padding:8px 12px;box-shadow:0 0 12px rgba(57,217,138,.4);height:610px;overflow-y:auto;scrollbar-width:none;margin-top:14px}
+#map::-webkit-scrollbar{display:none}
+#map .mi{display:flex;gap:10px;align-items:flex-start;margin-top:8px;font-size:21px;line-height:26px;cursor:pointer;opacity:.75;font-family:system-ui,Arial,sans-serif}
+#map .mi i{font-style:normal;flex:0 0 28px;height:28px;border:2px solid var(--cyan);border-radius:50%;font-size:14px;display:flex;align-items:center;justify-content:center;color:var(--cyan);margin-top:0}
+#map .mi.cur{opacity:1;color:var(--yellow);font-weight:700}
+#map .mi.cur i{border-color:var(--yellow);color:var(--yellow);background:rgba(255,225,77,.15)}
+#map.rtl{direction:rtl}
+#sideh{font-family:var(--hand);font-size:31px;color:var(--yellow);border-bottom:3px solid var(--yellow);display:inline-block;line-height:34px}
+#title{font-size:36px;padding:0 20px;text-align:center;white-space:normal;line-height:40px}
+.pop button.item.sel{background:#1f8cff}
