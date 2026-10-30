@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Triangles — Interactive Board | NABIL AI</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#eef3f8;color:#132b43;font:17px/1.55 Arial,Tahoma,sans-serif}
+header{background:#102b46;color:white;padding:12px 18px}header h1{margin:0;font-size:22px}header p{margin:2px 0 0;color:#d5e5f4}
+main{max-width:1100px;margin:auto;padding:12px;display:grid;grid-template-columns:1.1fr .9fr;gap:12px}
+.panel{background:white;border:1px solid #d5e0ea;border-radius:12px;padding:14px;box-shadow:0 2px 8px #17334d0d}
+h2{margin:0 0 8px;font-size:20px;color:#174d78}.board{width:100%;height:auto;display:block;background:#fbfdff;border:1px solid #dce6ef;border-radius:9px}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.tabs button,button{border:0;border-radius:8px;padding:9px 12px;background:#e4edf6;color:#173d5e;font-weight:700;cursor:pointer}.tabs button.active,button.primary{background:#1769aa;color:white}
+p{margin:7px 0}.rule{padding:9px;background:#f0f6fb;border-left:4px solid #2582c4;border-radius:6px;margin:8px 0}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}.controls label{display:flex;gap:6px;align-items:center}.controls input{width:115px}
+.quiz{background:#f7f9fc;border-radius:9px;padding:10px;margin-top:10px}.answer{margin:6px 0;padding:8px;border-radius:7px;background:#eaf1f8;cursor:pointer}.answer:hover{background:#d7e9f8}
+#feedback{font-weight:bold;min-height:28px}
+@media(max-width:760px){main{grid-template-columns:1fr;padding:8px}.panel{padding:10px}header h1{font-size:19px}}
+</style></head><body>
+<header><h1>Triangles — Interactive Mathematics Board</h1><p>Grade 7 · Congruent Triangles | السبورة التفاعلية</p></header>
+<main>
+<section class="panel">
+<h2>Explore the triangles</h2>
+<div class="tabs" id="tabs"><button class="active" data-mode="sss">SSS</button><button data-mode="sas">SAS</button><button data-mode="asa">ASA</button><button data-mode="rhs">RHS</button></div>
+<svg class="board" viewBox="0 0 620 340" role="img" aria-label="Two congruent triangles">
+<g id="tri1" stroke="#1769aa" stroke-width="4" fill="#d9efff"><polygon points="80,270 250,270 170,90"/></g>
+<g id="tri2" stroke="#d06b27" stroke-width="4" fill="#ffead9"><polygon points="360,270 530,270 450,90"/></g>
+<g fill="#16344f" stroke="none" font-size="18" font-weight="bold"><text x="65" y="294">A</text><text x="250" y="294">B</text><text x="164" y="76">C</text><text x="345" y="294">D</text><text x="532" y="294">E</text><text x="444" y="76">F</text></g>
+<g id="marks" stroke="#16344f" stroke-width="2" fill="none"></g>
+<text x="310" y="28" text-anchor="middle" fill="#183d5b" font-size="17" font-weight="bold">△ABC ≅ △DEF</text>
+</svg>
+<div class="controls"><label>Base <input id="base" type="range" min="130" max="210" value="170"></label><label>Height <input id="height" type="range" min="100" max="210" value="180"></label><button class="primary" id="reset">Reset</button></div>
+<div class="rule" id="rule"><b>SSS — Side Side Side:</b> If the three sides of one triangle are equal to the three corresponding sides of another triangle, the triangles are congruent.</div>
+<p id="detail">Corresponding vertices: A ↔ D, B ↔ E, C ↔ F.</p>
+</section>
+<section class="panel">
+<h2>What does congruent mean?</h2>
+<p>Two triangles are <b>congruent</b> when they have exactly the same shape and the same size. Their corresponding sides and angles are equal.</p>
+<div class="rule"><b>Symbol:</b> △ABC ≅ △DEF</div>
+<h2>Congruence tests</h2>
+<ul><li><b>SSS:</b> three corresponding sides are equal.</li><li><b>SAS:</b> two sides and the included angle are equal.</li><li><b>ASA:</b> two angles and the included side are equal.</li><li><b>RHS:</b> right angle, hypotenuse and one corresponding side are equal (right triangles).</li></ul>
+<div class="quiz"><h2>Check your understanding</h2><p>If two triangles have three pairs of equal corresponding sides, which test proves congruence?</p>
+<div class="answer" data-answer="wrong">A. ASA</div><div class="answer" data-answer="correct">B. SSS</div><div class="answer" data-answer="wrong">C. RHS</div><div id="feedback"></div>
+</div>
+</section></main>
+<script>
+const rules={
+sss:'<b>SSS — Side Side Side:</b> If the three sides of one triangle are equal to the three corresponding sides of another triangle, the triangles are congruent.',
+sas:'<b>SAS — Side Angle Side:</b> If two corresponding sides and the angle included between them are equal, the triangles are congruent.',
+asa:'<b>ASA — Angle Side Angle:</b> If two corresponding angles and the included side are equal, the triangles are congruent.',
+rhs:'<b>RHS — Right angle Hypotenuse Side:</b> In two right triangles, if the hypotenuse and one corresponding side are equal, the triangles are congruent.'
+};
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#tabs button').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.getElementById('rule').innerHTML=rules[b.dataset.mode]});
+const base=document.getElementById('base'),height=document.getElementById('height');
+function draw(){const b=+base.value,h=+height.value;document.querySelector('#tri1 polygon').setAttribute('points',`80,270 ${80+b},270 ${80+b/2},${270-h}`);document.querySelector('#tri2 polygon').setAttribute('points',`360,270 ${360+b},270 ${360+b/2},${270-h}`)}
+base.oninput=height.oninput=draw;document.getElementById('reset').onclick=()=>{base.value=170;height.value=180;draw()};
+document.querySelectorAll('.answer').forEach(a=>a.onclick=()=>{const f=document.getElementById('feedback');f.textContent=a.dataset.answer==='correct'?'Correct! SSS proves the triangles are congruent.':'Try again. Think about the three pairs of sides.';f.style.color=a.dataset.answer==='correct'?'#16723a':'#b43b2d'});
+</script></body></html>
