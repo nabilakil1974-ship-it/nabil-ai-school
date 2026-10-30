@@ -149,3 +149,50 @@ def cube(section=None, label_vertices=True, extra_lines=None, tag="CB", sec_colo
             s += f'<text x="{x+dx}" y="{y+dy}" font-size="24" font-weight="700" fill="{BLUE}" {FF}>{n}</text>'
     s += '</g>'
     return scene(s, [tag + "a"])
+
+
+def hops(start, steps, tag="HP", width=600):
+    """Number-line hops: start value then labelled jumps (e.g. [100, 50, 2]); shows each intermediate value."""
+    vals = [start]
+    for d in steps: vals.append(vals[-1] + d)
+    n = len(vals)
+    X = lambda i: 70 + i * (width - 40) / max(n - 1, 1)
+    y = 250
+    s = f'<g id="{tag}a"><line x1="40" y1="{y}" x2="630" y2="{y}" stroke="{INK}" stroke-width="5"/></g>'
+    ids = [tag + "a"]
+    for i, v in enumerate(vals):
+        s += (f'<g id="{tag}n{i}"><line x1="{X(i)}" y1="{y-12}" x2="{X(i)}" y2="{y+12}" stroke="{INK}" stroke-width="4"/>'
+              f'<circle cx="{X(i)}" cy="{y}" r="9" fill="{GREEN if i==n-1 else (RED if i==0 else BLUE)}" stroke="{INK}" stroke-width="3"/>'
+              f'<text x="{X(i)}" y="{y+52}" font-size="30" font-weight="700" text-anchor="middle" fill="{INK}" {FF}>{v}</text></g>')
+        ids.append(f"{tag}n{i}")
+        if i < len(steps):
+            mid = (X(i) + X(i + 1)) / 2
+            sign = "+" if steps[i] >= 0 else "−"
+            s += (f'<g id="{tag}h{i}"><path d="M {X(i)} {y-14} Q {mid} {y-110} {X(i+1)} {y-14}" fill="none" stroke="{BLUE}" stroke-width="5"/>'
+                  f'<text x="{mid}" y="{y-100}" font-size="30" font-weight="700" text-anchor="middle" fill="{BLUE}" {FF}>{sign}{abs(steps[i])}</text></g>')
+            ids.append(f"{tag}h{i}")
+    return scene(s, ids)
+
+
+def blocks(h, t, o, tag="PV", label=True):
+    """Place-value blocks: h hundred-squares, t ten-rods, o unit-dots."""
+    s = ""; ids = []
+    total = h * 100 + (12 if h and (t or o) else 0) + t * 30 + (14 if t and o else 0) + (72 if o else 0)
+    x = max(10, (660 - total) / 2)
+    for i in range(h):
+        s += f'<g id="{tag}h{i}"><rect x="{x}" y="150" width="90" height="90" rx="6" fill="#bbdefb" stroke="{INK}" stroke-width="3"/>' + "".join(
+            f'<line x1="{x+9*k}" y1="150" x2="{x+9*k}" y2="240" stroke="#90caf9" stroke-width="1.5"/><line x1="{x}" y1="{150+9*k}" x2="{x+90}" y2="{150+9*k}" stroke="#90caf9" stroke-width="1.5"/>' for k in range(1, 10)) + '</g>'
+        ids.append(f"{tag}h{i}"); x += 100
+    x += 12
+    for i in range(t):
+        s += f'<g id="{tag}t{i}"><rect x="{x}" y="150" width="22" height="90" rx="4" fill="#c8e6c9" stroke="{INK}" stroke-width="3"/>' + "".join(
+            f'<line x1="{x}" y1="{150+9*k}" x2="{x+22}" y2="{150+9*k}" stroke="#81c784" stroke-width="1.5"/>' for k in range(1, 10)) + '</g>'
+        ids.append(f"{tag}t{i}"); x += 30
+    x += 14
+    for i in range(o):
+        s += f'<g id="{tag}o{i}"><rect x="{x+(i%3)*24}" y="{216-(i//3)*24}" width="20" height="20" rx="3" fill="#ffcdd2" stroke="{INK}" stroke-width="2.5"/></g>'
+        ids.append(f"{tag}o{i}")
+    if label:
+        s += f'<g id="{tag}l"><text x="330" y="330" font-size="34" font-weight="700" text-anchor="middle" fill="{INK}" {FF}>{h} hundreds + {t} tens + {o} ones = {h*100+t*10+o}</text></g>'
+        ids.append(tag + "l")
+    return scene(s, ids)
