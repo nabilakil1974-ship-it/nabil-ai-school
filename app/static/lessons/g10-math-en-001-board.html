@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Statistical vocabulary and distribution — NABIL AI Smart Board</title>
+<style>
+
+:root{
+  --bg1:#05102a;--bg2:#0a2050;--line:#1e90ff;--cyan:#6fd3ff;--yellow:#ffe14d;--orange:#ff9f1c;--green:#39d98a;--ink:#eaf3ff;
+  --hand:"Segoe Print","Bradley Hand","Chalkboard SE","Marker Felt","Ink Free","Comic Sans MS","Comic Neue",cursive;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:#020812;overflow:hidden;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink)}
+#wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+#stage{position:absolute;left:50%;top:50%;width:1672px;height:941px;transform-origin:0 0;border-radius:18px;overflow:hidden;
+  background:radial-gradient(1200px 700px at 55% 40%,#0c2a63 0%,var(--bg2) 38%,var(--bg1) 100%);
+  box-shadow:0 0 0 10px #0b0f18,0 0 0 13px #1b2433,0 30px 80px rgba(0,0,0,.7)}
+#stage.bg-black{background:#000}
+#stage.bg-grid{background:linear-gradient(rgba(60,130,255,.14) 1px,transparent 1px) 0 0/44px 44px,linear-gradient(90deg,rgba(60,130,255,.14) 1px,transparent 1px) 0 0/44px 44px,radial-gradient(1200px 700px at 55% 40%,#0c2a63,var(--bg1))}
+#stage.bg-green{background:radial-gradient(1200px 700px at 55% 40%,#1d5a45,#0d2c22)}
+#stage::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(900px 500px at 20% 0%,rgba(80,160,255,.18),transparent 70%);z-index:0}
+.abs{position:absolute}
+/* top bar */
+#logo{left:214px;top:30px;display:flex;align-items:center;gap:12px}
+#logo .t1{font-weight:800;font-size:33px;letter-spacing:1px;line-height:1;text-shadow:0 0 10px rgba(110,190,255,.8)}
+#logo .t2{font-size:14.5px;color:#bcd7ff;margin-top:6px}
+#title{left:497px;top:36px;width:686px;height:68px;border:3px solid var(--line);border-radius:14px;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(#0b2a66,#08205a);box-shadow:0 0 18px rgba(30,144,255,.85),inset 0 0 18px rgba(30,144,255,.45);
+  font-size:41px;font-weight:600;letter-spacing:1px;white-space:pre;text-shadow:0 0 12px rgba(150,210,255,.8)}
+#topic{left:1337px;top:33px;width:175px;height:66px;border:2px solid var(--line);border-radius:12px;padding:9px 14px;font-size:17px;line-height:22px;
+  box-shadow:0 0 12px rgba(30,144,255,.7),inset 0 0 10px rgba(30,144,255,.35);background:rgba(8,32,90,.7)}
+#pager{left:1543px;top:44px;font-size:25px;font-weight:600;text-shadow:0 0 8px rgba(130,200,255,.7)}
+/* text column */
+#steps{left:757px;top:128px;width:500px;display:flex;flex-direction:column;gap:12px;font-family:var(--hand);font-size:29px;line-height:36px;z-index:3}
+.st{display:flex;gap:16px;align-items:flex-start;cursor:pointer;opacity:0;transition:opacity .25s}
+.st.on{opacity:1}
+.st .n{flex:0 0 42px;height:42px;border:3px solid var(--yellow);border-radius:50%;color:var(--yellow);display:flex;align-items:center;justify-content:center;font-size:25px;line-height:1;margin-top:0;font-family:system-ui,Arial,sans-serif;font-weight:700;box-shadow:0 0 10px rgba(255,225,77,.45)}
+.st .tx{flex:1;text-shadow:0 0 6px rgba(160,210,255,.35)}
+.st .tx .hw{display:inline-block;clip-path:inset(0 100% 0 0)}
+.st.on .hw{animation:write 1.5s steps(28,end) forwards}
+.st.done .hw{animation:none;clip-path:inset(0 0 0 0)}
+.st.cur .n{background:rgba(255,225,77,.18)}
+@keyframes write{to{clip-path:inset(0 0 0 0)}}
+.st.s5 .tx{font-size:30px}
+#final{left:737px;top:722px;width:510px;height:66px;border:3px solid var(--yellow);border-radius:12px;display:flex;align-items:center;justify-content:center;
+  font-family:var(--hand);font-size:30px;color:var(--yellow);font-weight:700;box-shadow:0 0 18px rgba(255,225,77,.55),inset 0 0 14px rgba(255,225,77,.18);opacity:0;transition:opacity .4s;z-index:3;white-space:pre}
+#final.on{opacity:1;animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 30px rgba(255,225,77,.9),inset 0 0 18px rgba(255,225,77,.3)}}
+/* right panel */
+#panelline{left:1259px;top:128px;width:3px;height:680px;background:linear-gradient(#1e90ff,rgba(30,144,255,.3));box-shadow:0 0 10px #1e90ff}
+#side{left:1283px;top:126px;width:350px;font-family:var(--hand);font-size:28px;line-height:36px;z-index:3}
+.hd{color:var(--yellow);font-size:31px;display:inline-block;border-bottom:3px solid var(--yellow);padding-bottom:0;line-height:34px;text-shadow:0 0 8px rgba(255,225,77,.5)}
+.blk{opacity:0;transition:opacity .35s;margin-bottom:18px}
+.blk.on{opacity:1}
+.blk .ln{margin:6px 0 0 30px}
+#steps2{border:3px solid var(--green);border-radius:16px 16px 12px 12px;padding:6px 14px 12px;box-shadow:0 0 12px rgba(57,217,138,.4);margin-top:20px}
+#steps2 .hd{border:0;color:var(--yellow)}
+.ms{display:flex;gap:10px;align-items:flex-start;opacity:0;transition:opacity .35s;margin-top:8px;font-size:27px;line-height:32px}
+.ms.on{opacity:1}
+.ms i{font-style:normal;flex:0 0 28px;height:28px;margin-top:3px;border:2px solid var(--cyan);border-radius:50%;font-size:17px;display:flex;align-items:center;justify-content:center;color:var(--cyan);font-family:system-ui,Arial,sans-serif}
+/* svg layers */
+#diagram,#teacher,#ink{position:absolute;left:0;top:0;width:1672px;height:941px}
+#diagram{z-index:2;pointer-events:none}
+#teacher{z-index:4;pointer-events:none}
+#ink{z-index:6;touch-action:none}
+.fx{opacity:0;transition:opacity .5s}
+.fx.on{opacity:1}
+.lbl{font-family:var(--hand);font-style:italic;font-size:38px;fill:#fff}
+/* toolbar */
+#bar{left:364px;top:812px;width:1284px;height:84px;display:flex;align-items:center;border-top:2px solid rgba(30,144,255,.8);background:linear-gradient(rgba(5,20,50,.2),rgba(5,20,50,.85));z-index:8}
+.tb{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;width:80px;height:68px;border-radius:10px;color:#cfe4ff;font-size:15px;cursor:pointer;user-select:none;border:0;background:none;font-family:inherit;transition:background .15s}
+.tb svg{width:32px;height:32px;stroke:#cfe4ff;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tb:hover{background:rgba(60,130,255,.2)}
+.tb.act{background:#1f8cff;color:#fff;box-shadow:0 0 14px rgba(31,140,255,.85)}
+.tb.act svg{stroke:#fff}
+.sp{flex:1}
+#nav{display:flex;align-items:center;gap:6px;height:56px;padding:0 10px;border-radius:14px;background:rgba(18,50,120,.65);margin-left:12px;border:1px solid rgba(30,144,255,.5)}
+#nav button{width:44px;height:44px;border:0;background:none;cursor:pointer;color:#2e9bff;font-size:30px;font-weight:700;border-radius:8px}
+#nav button:hover{background:rgba(60,130,255,.25)}
+#nav span{min-width:90px;text-align:center;font-size:20px;font-weight:600}
+#dots{position:absolute;left:1456px;top:802px;display:flex;gap:6px;z-index:9}
+#dots b{width:9px;height:9px;border-radius:50%;background:#2a4a85}
+#dots b.on{background:var(--yellow);box-shadow:0 0 8px var(--yellow)}
+/* popups */
+.pop{position:absolute;left:372px;bottom:150px;min-width:250px;padding:14px;border-radius:14px;background:rgba(6,22,56,.97);border:2px solid var(--line);box-shadow:0 0 20px rgba(30,144,255,.6);display:none;z-index:12;font-size:19px}
+.pop.show{display:block}
+.pop button.item{display:block;width:100%;text-align:left;padding:10px 12px;margin:3px 0;border-radius:8px;border:0;background:rgba(40,100,220,.25);color:#fff;font-size:19px;cursor:pointer}
+.pop button.item:hover{background:rgba(40,100,220,.55)}
+.sw{display:inline-block;width:34px;height:34px;border-radius:50%;margin:4px;border:3px solid transparent;cursor:pointer}
+.sw.sel{border-color:#fff;box-shadow:0 0 10px #fff}
+#shapes{left:915px}
+#bgmsg{position:absolute;right:20px;top:120px;font-size:15px;color:#9bbcf2;opacity:0;transition:opacity .3s;z-index:20}
+#rot{position:fixed;left:0;right:0;bottom:0;padding:8px 14px;background:#0b2a66;color:#fff;font-size:14px;text-align:center;z-index:50;display:none}
+#draw{left:372px;top:330px;width:430px;height:300px;border-radius:14px;background:#f4f9ff;border:3px solid var(--line);box-shadow:0 0 18px rgba(30,144,255,.7);z-index:2;overflow:hidden;display:none}
+#draw svg{width:100%;height:100%}
+#draw.on{display:block}
+#fm{left:380px;top:646px;width:420px;height:152px;overflow:hidden;z-index:3;display:flex;flex-direction:column;justify-content:flex-end;gap:8px;font-size:27px;color:var(--yellow);font-family:var(--hand);text-shadow:0 0 8px rgba(255,225,77,.4)}
+#fm.tall{top:128px;height:664px;justify-content:flex-start;font-size:30px}
+#fm .f{border:3px solid var(--yellow);border-radius:12px;padding:8px 12px;direction:ltr;text-align:center;box-shadow:0 0 12px rgba(255,225,77,.35);overflow-wrap:anywhere;opacity:0;transition:opacity .4s;line-height:32px}
+#fm .f.on{opacity:1}
+#steps{left:830px;top:128px;width:415px;height:664px;overflow-y:auto;scrollbar-width:none;font-size:25px;line-height:33px;gap:14px}
+#steps::-webkit-scrollbar{display:none}
+#steps .st{opacity:.55}
+#steps .st.cur{opacity:1}
+#steps .st .n{flex:0 0 38px;height:38px;font-size:22px}
+#steps .st .tx{font-family:var(--hand)}
+#steps .st .lab{display:block;color:var(--cyan);font-size:19px;line-height:22px}
+#steps.rtl{direction:rtl;text-align:right}
+#side{width:350px}
+#map{border:3px solid var(--green);border-radius:16px;padding:8px 12px;box-shadow:0 0 12px rgba(57,217,138,.4);height:610px;overflow-y:auto;scrollbar-width:none;margin-top:14px}
+#map::-webkit-scrollbar{display:none}
+#map .mi{display:flex;gap:10px;align-items:flex-start;margin-top:8px;font-size:21px;line-height:26px;cursor:pointer;opacity:.75;font-family:system-ui,Arial,sans-serif}
+#map .mi i{font-style:normal;flex:0 0 28px;height:28px;border:2px solid var(--cyan);border-radius:50%;font-size:14px;display:flex;align-items:center;justify-content:center;color:var(--cyan);margin-top:0}
+#map .mi.cur{opacity:1;color:var(--yellow);font-weight:700}
+#map .mi.cur i{border-color:var(--yellow);color:var(--yellow);background:rgba(255,225,77,.15)}
+#map.rtl{direction:rtl}
+#sideh{font-family:var(--hand);font-size:31px;color:var(--yellow);border-bottom:3px solid var(--yellow);display:inline-block;line-height:34px}
+#title{font-size:36px;padding:0 20px;text-align:center;white-space:normal;line-height:40px}
+.pop button.item.sel{background:#1f8cff}
+
+</style>
+</head>
+<body>
+<div id="wrap">
+<div id="stage">
+  <div id="logo" class="abs">
+    <svg width="76" height="56" viewBox="0 0 76 56" aria-hidden="true">
+      <defs><linearGradient id="gc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#9ac9ff"/></linearGradient></defs>
+      <polygon points="38,4 74,20 38,36 2,20" fill="url(#gc)" stroke="#6fb4ff" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M16 28 V42 C16 47 27 52 38 52 C49 52 60 47 60 42 V28 L38 37 Z" fill="#cfe4ff" stroke="#6fb4ff" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M68 22 V40" stroke="#ffd34d" stroke-width="3" stroke-linecap="round"/><circle cx="68" cy="43" r="3.5" fill="#ffd34d"/>
+    </svg>
+    <div><div class="t1">NABIL AI</div><div class="t2">Smart Learning Platform</div></div>
+  </div>
+  <div id="title" class="abs"></div>
+  <div id="topic" class="abs"></div>
+  <div id="pager" class="abs"></div>
+
+  <div id="draw" class="abs"></div>
+  <div id="fm" class="abs"></div>
+  <div id="steps" class="abs"></div>
+  <div id="panelline" class="abs"></div>
+  <div id="side" class="abs"><span id="sideh"></span><div id="map"></div></div>
+
+  <svg id="teacher" viewBox="0 0 1672 941" aria-label="Teacher"></svg>
+  <canvas id="ink" width="1672" height="941"></canvas>
+
+  <div id="bar" class="abs">
+    <button class="tb" id="bMenu"><svg viewBox="0 0 32 32"><rect x="4" y="6" width="24" height="20" rx="2"/><path d="M4 12h24M12 12v14"/></svg>Menu</button>
+    <button class="tb" id="bTools"><svg viewBox="0 0 32 32"><rect x="4" y="5" width="9" height="9" rx="1"/><rect x="17" y="5" width="9" height="9" rx="1"/><rect x="4" y="18" width="9" height="9" rx="1"/><rect x="17" y="18" width="9" height="9" rx="1"/></svg>Tools</button>
+    <div class="sp"></div>
+    <button class="tb" data-tool="select" id="tSelect"><svg viewBox="0 0 32 32"><path d="M8 24l1-5L21 7l4 4-12 12z"/><path d="M19 9l4 4"/></svg>Select</button>
+    <button class="tb" data-tool="pen" id="tPen"><svg viewBox="0 0 32 32"><path d="M6 26l2-7L22 5l5 5L13 24z"/><path d="M19 8l5 5"/></svg>Pen</button>
+    <button class="tb" data-tool="eraser" id="tEraser"><svg viewBox="0 0 32 32"><path d="M13 25H27M5 18l9-10 10 9-6 8H10z"/><path d="M12 14l10 9"/></svg>Eraser</button>
+    <button class="tb" id="tShape"><svg viewBox="0 0 32 32"><path d="M6 14l7-9 7 9z"/><circle cx="22" cy="22" r="6"/><rect x="5" y="19" width="9" height="9"/></svg>Shape</button>
+    <button class="tb" id="tUndo"><svg viewBox="0 0 32 32"><path d="M10 9L5 14l5 5"/><path d="M5 14h13a7 7 0 010 14h-5"/></svg>Undo</button>
+    <button class="tb" id="tRedo"><svg viewBox="0 0 32 32"><path d="M22 9l5 5-5 5"/><path d="M27 14H14a7 7 0 000 14h5"/></svg>Redo</button>
+    <div class="sp"></div>
+    <button class="tb" id="bBg"><svg viewBox="0 0 32 32"><rect x="4" y="5" width="24" height="20" rx="2"/><circle cx="12" cy="13" r="2.5"/><path d="M5 23l8-7 5 4 4-4 5 5"/></svg>Background</button>
+    <div id="nav"><button id="prev" aria-label="Previous">‹</button><span id="navtxt">1 / 1</span><button id="next" aria-label="Next">›</button></div>
+  </div>
+
+  <div class="pop" id="popMenu">
+    <button class="item" id="mPlay">▶  Play the lesson</button>
+    <button class="item" id="mRestart">↺  Restart this page</button>
+    <button class="item" id="mAll">☰  Show whole page</button>
+    <button class="item" id="mVoice">🔊  Voice: on</button>
+    <div style="margin:6px 0 2px;color:#9bbcf2;font-size:15px">Language</div>
+    <button class="item" data-lang="en">English</button>
+    <button class="item" data-lang="ar">العربية</button>
+    <button class="item" data-lang="fr">Français</button>
+    <button class="item" id="mFull">⛶  Full screen</button>
+  </div>
+  <div class="pop" id="popTools" style="left:440px">
+    <div>Pen colour</div><div id="sws"></div>
+    <div style="margin-top:6px">Pen size <input type="range" id="size" min="2" max="14" value="5" style="vertical-align:middle;width:130px"></div>
+    <button class="item" id="clearInk" style="margin-top:10px">🗑  Clear my writing</button>
+  </div>
+  <div class="pop" id="popShapes" style="left:900px;min-width:200px">
+    <button class="item" data-shape="line">╱  Line</button>
+    <button class="item" data-shape="arrow">➜  Arrow</button>
+    <button class="item" data-shape="rect">▭  Rectangle</button>
+    <button class="item" data-shape="circle">◯  Circle</button>
+    <button class="item" data-shape="tri">△  Triangle</button>
+  </div>
+  <div id="bgmsg"></div>
+</div>
+</div>
+<div id="rot">Rotate your phone to landscape for a bigger board.</div>
+
+<script>
+(function(){
+"use strict";
+var DATA={"title": {"en": "Statistical vocabulary and distribution", "ar": "مفردات الإحصاء والتوزيع الإحصائي", "fr": "Vocabulaire statistique et distribution"}, "lang": "en", "pages": [{"title": {"en": "Population, individual, variable", "ar": "المجتمع والفرد والمتغيّر", "fr": "Population, individu, caractère"}, "items": [{"k": "t", "en": "Hello! A statistical study begins by naming the population (the whole group studied), the individual (one member), and the variable, also called the character (what we observe on each individual). Example: we ask 20 students in a class how many siblings each has. Population: the 20 students. Individual: one student. Variable: number of siblings.", "ar": "مرحبًا! تبدأ الدراسة الإحصائية بتحديد المجتمع الإحصائي (المجموعة كلها)، والفرد (عضو واحد منها)، والمتغيّر أو الصفة (ما نلاحظه عند كل فرد). مثال: نسأل 20 تلميذًا في صف عن عدد إخوة كلٍّ منهم. المجتمع: التلاميذ العشرون. الفرد: تلميذ واحد. المتغيّر: عدد الإخوة.", "fr": "Une étude statistique commence par la population, l'individu et le caractère. Exemple : 20 élèves, nombre de frères et sœurs.", "label": ""}]}, {"title": {"en": "Values and frequencies", "ar": "القيم والتكرارات", "fr": "Valeurs et effectifs"}, "items": [{"k": "t", "en": "The values the variable takes are its modalities. The frequency of a value is the number of individuals having it. Siblings: 0 → 3 students, 1 → 7, 2 → 6, 3 → 3, 4 → 1.", "ar": "القيم التي يأخذها المتغيّر هي نماذجه. وتكرار القيمة هو عدد الأفراد الذين لهم هذه القيمة. عدد الإخوة: 0 عند 3 تلاميذ و1 عند 7 و2 عند 6 و3 عند 3 و4 عند تلميذ واحد.", "fr": "Les valeurs prises sont les modalités ; l'effectif est le nombre d'individus.", "label": ""}, {"k": "f", "f": "value:  0   1   2   3   4"}, {"k": "f", "f": "frequency:  3   7   6   3   1"}, {"k": "d", "svg": "<g id=\"S1a\"><line x1=\"60\" y1=\"380\" x2=\"630\" y2=\"380\" stroke=\"#0b3d5c\" stroke-width=\"4\"/><line x1=\"60\" y1=\"380\" x2=\"60\" y2=\"50\" stroke=\"#0b3d5c\" stroke-width=\"4\"/><line x1=\"56\" y1=\"380.0\" x2=\"64\" y2=\"380.0\" stroke=\"#0b3d5c\" stroke-width=\"3\"/><text x=\"50\" y=\"386.0\" font-size=\"16\" text-anchor=\"end\" fill=\"#0b3d5c\" font-family=\"sans-serif\">0<\/text><line x1=\"56\" y1=\"316.2\" x2=\"64\" y2=\"316.2\" stroke=\"#0b3d5c\" stroke-width=\"3\"/><text x=\"50\" y=\"322.2\" font-size=\"16\" text-anchor=\"end\" fill=\"#0b3d5c\" font-family=\"sans-serif\">11<\/text><line x1=\"56\" y1=\"252.5\" x2=\"64\" y2=\"252.5\" stroke=\"#0b3d5c\" stroke-width=\"3\"/><text x=\"50\" y=\"258.5\" font-size=\"16\" text-anchor=\"end\" fill=\"#0b3d5c\" font-family=\"sans-serif\">22<\/text><line x1=\"56\" y1=\"188.7\" x2=\"64\" y2=\"188.7\" stroke=\"#0b3d5c\" stroke-width=\"3\"/><text x=\"50\" y=\"194.7\" font-size=\"16\" text-anchor=\"end\" fill=\"#0b3d5c\" font-family=\"sans-serif\">33<\/text><line x1=\"56\" y1=\"124.9\" x2=\"64\" y2=\"124.9\" stroke=\"#0b3d5c\" stroke-width=\"3\"/><text x=\"50\" y=\"130.9\" font-size=\"16\" text-anchor=\"end\" fill=\"#0b3d5c\" font-family=\"sans-serif\">44<\/text><line x1=\"56\" y1=\"61.2\" x2=\"64\" y2=\"61.2\" stroke=\"#0b3d5c\" stroke-width=\"3\"/><text x=\"50\" y=\"67.2\" font-size=\"16\" text-anchor=\"end\" fill=\"#0b3d5c\" font-family=\"sans-serif\">55<\/text><text x=\"340\" y=\"36\" font-size=\"22\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#0b3d5c\" font-family=\"sans-serif\">Favourite sport, 120 pupils<\/text><\/g><g id=\"S1b0\"><rect x=\"76.0\" y=\"101.7\" width=\"118.0\" height=\"278.3\" fill=\"#1e88e5\" stroke=\"#0b3d5c\" stroke-width=\"2\"/><text x=\"135.0\" y=\"93.7\" font-size=\"18\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#0b3d5c\" font-family=\"sans-serif\">48<\/text><text x=\"135.0\" y=\"404\" font-size=\"16\" text-anchor=\"middle\" fill=\"#0b3d5c\" font-family=\"sans-serif\">Football<\/text><\/g><g id=\"S1b1\"><rect x=\"206.0\" y=\"206.1\" width=\"118.0\" height=\"173.9\" fill=\"#1e88e5\" stroke=\"#0b3d5c\" stroke-width=\"2\"/><text x=\"265.0\" y=\"198.1\" font-size=\"18\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#0b3d5c\" font-family=\"sans-serif\">30<\/text><text x=\"265.0\" y=\"404\" font-size=\"16\" text-anchor=\"middle\" fill=\"#0b3d5c\" font-family=\"sans-serif\">Basketball<\/text><\/g><g id=\"S1b2\"><rect x=\"336.0\" y=\"240.9\" width=\"118.0\" height=\"139.1\" fill=\"#1e88e5\" stroke=\"#0b3d5c\" stroke-width=\"2\"/><text x=\"395.0\" y=\"232.9\" font-size=\"18\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#0b3d5c\" font-family=\"sans-serif\">24<\/text><text x=\"395.0\" y=\"404\" font-size=\"16\" text-anchor=\"middle\" fill=\"#0b3d5c\" font-family=\"sans-serif\">Swimming<\/text><\/g><g id=\"S1b3\"><rect x=\"466.0\" y=\"275.7\" width=\"118.0\" height=\"104.3\" fill=\"#1e88e5\" stroke=\"#0b3d5c\" stroke-width=\"2\"/><text x=\"525.0\" y=\"267.7\" font-size=\"18\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#0b3d5c\" font-family=\"sans-serif\">18<\/text><text x=\"525.0\" y=\"404\" font-size=\"16\" text-anchor=\"middle\" fill=\"#0b3d5c\" font-family=\"sans-serif\">Tennis<\/text><\/g>", "vb": [660, 440], "show": ["S1a", "S1b0", "S1b1", "S1b2", "S1b3"]}, {"k": "t", "en": "This bar chart is a picture of a distribution: each bar is the frequency of one value. Football 48, basketball 30, swimming 24, tennis 18. Add the heights: 48 + 30 + 24 + 18 = 120, the whole population. If the total does not match, something is missing.", "ar": "هذا المخطط بالأعمدة صورة للتوزيع: كل عمود هو تكرار قيمة واحدة. كرة القدم 48 وكرة السلة 30 والسباحة 24 والتنس 18. نجمع الارتفاعات: 48 + 30 + 24 + 18 = 120 أي كل المجتمع. إن لم يطابق المجموع فهناك نقص.", "fr": "Chaque barre est l'effectif d'une valeur : 48 + 30 + 24 + 18 = 120, la population entière.", "label": ""}]}, {"title": {"en": "Check the total", "ar": "نتحقق من المجموع", "fr": "Vérifier le total"}, "items": [{"k": "t", "en": "The sum of all frequencies must equal the number of individuals.", "ar": "يجب أن يساوي مجموع التكرارات عدد الأفراد.", "fr": "La somme des effectifs égale le nombre d'individus.", "label": ""}, {"k": "f", "f": "3 + 7 + 6 + 3 + 1 = 20"}]}, {"title": {"en": "Raw data and a distribution", "ar": "المعطيات الخام والتوزيع", "fr": "Données brutes et distribution"}, "items": [{"k": "t", "en": "Raw data is the list as collected: 2, 1, 0, 3, 1, 2, ... A distribution organizes it in a table of value and frequency, so it can be read at a glance. We then read only what the data support: for example, 7 students out of 20 have exactly 1 sibling. We cannot conclude anything about other classes.", "ar": "المعطيات الخام هي القائمة كما جُمعت: 2، 1، 0، 3، 1، 2 … والتوزيع ينظّمها في جدول قيمة/تكرار فيسهل قراءتها. ثم نقرأ ما تدعمه المعطيات فقط: مثلًا 7 تلاميذ من 20 لهم أخ واحد بالضبط. ولا نستنتج شيئًا عن صفوف أخرى.", "fr": "Données brutes puis tableau ; on conclut seulement ce que les données permettent.", "label": ""}]}, {"title": {"en": "Relative frequency", "ar": "التكرار النسبي", "fr": "Fréquence relative"}, "items": [{"k": "t", "en": "The relative frequency of a value is its frequency divided by the total. Football: 48/120 = 0.40 = 40%. Basketball: 30/120 = 25%. Swimming: 24/120 = 20%. Tennis: 18/120 = 15%. The percentages always add up to 100%: 40 + 25 + 20 + 15 = 100.", "ar": "التكرار النسبي لقيمة هو تكرارها مقسومًا على المجموع. كرة القدم: 48/120 = 0.40 = 40%. كرة السلة: 30/120 = 25%. السباحة: 24/120 = 20%. التنس: 18/120 = 15%. ومجموع النسب دائمًا 100%: 40 + 25 + 20 + 15 = 100.", "fr": "Fréquence relative = effectif / total : 40 %, 25 %, 20 %, 15 %, somme 100 %.", "label": ""}, {"k": "d", "svg": "<g id=\"S2a\"><line x1=\"60\" y1=\"380\" x2=\"630\" y2=\"380\" stroke=\"#0b3d5c\" stroke-width=\"4\"/><line x1=\"60\" y1=\"380\" x2=\"60\" y2=\"50\" stroke=\"#0b3d5c\" stroke-width=\"4\"/><line x1=\"56\" y1=\"380.0\" x2=\"64\" y2=\"380.0\" stroke=\"#0b3d5c\" stroke-width=\"3\"/><text x=\"50\" y=\"386.0\" font-size=\"16\" text-anchor=\"end\" fill=\"#0b3d5c\" font-family=\"sans-serif\">0<\/text><line x1=\"56\" y1=\"317.4\" x2=\"64\" y2=\"317.4\" stroke=\"#0b3d5c\" stroke-width=\"3\"/><text x=\"50\" y=\"323.4\" font-size=\"16\" text-anchor=\"end\" fill=\"#0b3d5c\" font-family=\"sans-serif\">9<\/text><line x1=\"56\" y1=\"254.8\" x2=\"64\" y2=\"254.8\" stroke=\"#0b3d5c\" stroke-width=\"3\"/><text x=\"50\" y=\"260.8\" font-size=\"16\" text-anchor=\"end\" fill=\"#0b3d5c\" font-family=\"sans-serif\">18<\/text><line x1=\"56\" y1=\"192.2\" x2=\"64\" y2=\"192.2\" stroke=\"#0b3d5c\" stroke-width=\"3\"/><text x=\"50\" y=\"198.2\" font-size=\"16\" text-anchor=\"end\" fill=\"#0b3d5c\" font-family=\"sans-serif\">27<\/text><line x1=\"56\" y1=\"129.6\" x2=\"64\" y2=\"129.6\" stroke=\"#0b3d5c\" stroke-width=\"3\"/><text x=\"50\" y=\"135.6\" font-size=\"16\" text-anchor=\"end\" fill=\"#0b3d5c\" font-family=\"sans-serif\">36<\/text><line x1=\"56\" y1=\"67.0\" x2=\"64\" y2=\"67.0\" stroke=\"#0b3d5c\" stroke-width=\"3\"/><text x=\"50\" y=\"73.0\" font-size=\"16\" text-anchor=\"end\" fill=\"#0b3d5c\" font-family=\"sans-serif\">45<\/text><text x=\"340\" y=\"36\" font-size=\"22\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#0b3d5c\" font-family=\"sans-serif\">Percentage of pupils (%)<\/text><\/g><g id=\"S2b0\"><rect x=\"76.0\" y=\"101.7\" width=\"118.0\" height=\"278.3\" fill=\"#43a047\" stroke=\"#0b3d5c\" stroke-width=\"2\"/><text x=\"135.0\" y=\"93.7\" font-size=\"18\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#0b3d5c\" font-family=\"sans-serif\">40<\/text><text x=\"135.0\" y=\"404\" font-size=\"16\" text-anchor=\"middle\" fill=\"#0b3d5c\" font-family=\"sans-serif\">Football<\/text><\/g><g id=\"S2b1\"><rect x=\"206.0\" y=\"206.1\" width=\"118.0\" height=\"173.9\" fill=\"#43a047\" stroke=\"#0b3d5c\" stroke-width=\"2\"/><text x=\"265.0\" y=\"198.1\" font-size=\"18\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#0b3d5c\" font-family=\"sans-serif\">25<\/text><text x=\"265.0\" y=\"404\" font-size=\"16\" text-anchor=\"middle\" fill=\"#0b3d5c\" font-family=\"sans-serif\">Basketball<\/text><\/g><g id=\"S2b2\"><rect x=\"336.0\" y=\"240.9\" width=\"118.0\" height=\"139.1\" fill=\"#43a047\" stroke=\"#0b3d5c\" stroke-width=\"2\"/><text x=\"395.0\" y=\"232.9\" font-size=\"18\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#0b3d5c\" font-family=\"sans-serif\">20<\/text><text x=\"395.0\" y=\"404\" font-size=\"16\" text-anchor=\"middle\" fill=\"#0b3d5c\" font-family=\"sans-serif\">Swimming<\/text><\/g><g id=\"S2b3\"><rect x=\"466.0\" y=\"275.7\" width=\"118.0\" height=\"104.3\" fill=\"#43a047\" stroke=\"#0b3d5c\" stroke-width=\"2\"/><text x=\"525.0\" y=\"267.7\" font-size=\"18\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#0b3d5c\" font-family=\"sans-serif\">15<\/text><text x=\"525.0\" y=\"404\" font-size=\"16\" text-anchor=\"middle\" fill=\"#0b3d5c\" font-family=\"sans-serif\">Tennis<\/text><\/g>", "vb": [660, 440], "show": ["S2a", "S2b0", "S2b1", "S2b2", "S2b3"]}, {"k": "f", "f": "relative frequency = frequency / total"}]}, {"title": {"en": "Summary", "ar": "الخلاصة", "fr": "Résumé"}, "items": [{"k": "t", "en": "Population → variable → values → frequencies → check the total → interpret carefully.", "ar": "المجتمع ثم المتغيّر ثم القيم ثم التكرارات ثم التحقق من المجموع ثم التفسير بحذر.", "fr": "Population, caractère, valeurs, effectifs, total, interprétation.", "label": ""}, {"k": "f", "f": "POPULATION → VARIABLE → VALUES → FREQUENCIES → TOTAL → INTERPRET"}]}, {"title": {"en": "Exercise 1", "ar": "التمرين 1", "fr": "Exercice 1"}, "items": [{"k": "t", "en": "Survey: a school asks 120 pupils which sport they prefer. Give the population, individual and variable.", "ar": "في استبيان سألت مدرسة 120 تلميذًا عن رياضتهم المفضلة. حدّد المجتمع والفرد والمتغيّر.", "fr": "Enquête : 120 élèves, sport préféré. Population, individu, caractère ?", "label": "Problem"}, {"k": "t", "en": "Population: the 120 pupils. Individual: one pupil. Variable: preferred sport (qualitative).", "ar": "المجتمع: التلاميذ الـ120. الفرد: تلميذ. المتغيّر: الرياضة المفضلة (وصفي).", "fr": "Population : 120 élèves ; caractère : sport (qualitatif).", "label": ""}]}, {"title": {"en": "Exercise 2", "ar": "التمرين 2", "fr": "Exercice 2"}, "items": [{"k": "t", "en": "Values 1, 2, 2, 3, 1, 2, 3, 2: build the distribution.", "ar": "القيم 1، 2، 2، 3، 1، 2، 3، 2: كوّن التوزيع.", "fr": "Valeurs 1, 2, 2, 3, 1, 2, 3, 2 : distribution.", "label": "Problem"}, {"k": "f", "f": "1 → 2    2 → 4    3 → 2"}, {"k": "f", "f": "2 + 4 + 2 = 8"}]}, {"title": {"en": "Exercise 3", "ar": "التمرين 3", "fr": "Exercice 3"}, "items": [{"k": "t", "en": "A table shows frequencies 4, 9, 7 for a class of 21. Is it consistent?", "ar": "جدول فيه التكرارات 4 و9 و7 لصف عدده 21. هل هو متسق؟", "fr": "Effectifs 4, 9, 7 pour 21 élèves : cohérent ?", "label": "Problem"}, {"k": "f", "f": "4 + 9 + 7 = 20"}, {"k": "t", "en": "No: 20 is not 21, one observation is missing.", "ar": "لا: 20 لا تساوي 21، ينقص ملاحظة واحدة.", "fr": "Non : il manque 1.", "label": ""}]}, {"title": {"en": "Exercise 4", "ar": "التمرين 4", "fr": "Exercice 4"}, "items": [{"k": "t", "en": "Which conclusion is supported: \"7 of the 20 students have 1 sibling\" or \"most students in the country have 1 sibling\"?", "ar": "أيّ الاستنتاجين تدعمه المعطيات: «7 من 20 تلميذًا لهم أخ واحد» أم «معظم تلاميذ البلد لهم أخ واحد»؟", "fr": "Quelle conclusion est justifiée ?", "label": "Problem"}, {"k": "t", "en": "Only the first one. The data concern these 20 students.", "ar": "الأول فقط. المعطيات تخصّ هؤلاء العشرين.", "fr": "Seulement la première.", "label": ""}]}, {"title": {"en": "Exercise 5", "ar": "التمرين 5", "fr": "Exercice 5"}, "items": [{"k": "t", "en": "Complete: marks 5, 6, 6, 7, 7, 7, 8, 8, 9, 10. Make the distribution table and the relative frequencies.", "ar": "أكمل: العلامات 5, 6, 6, 7, 7, 7, 8, 8, 9, 10. كوّن جدول التوزيع والتكرارات النسبية.", "fr": "Notes 5, 6, 6, 7, 7, 7, 8, 8, 9, 10 : tableau et fréquences relatives.", "label": "Problem"}, {"k": "t", "en": "Count each mark: 5→1, 6→2, 7→3, 8→2, 9→1, 10→1. Total 10.", "ar": "نعدّ كل علامة: 5→1 و6→2 و7→3 و8→2 و9→1 و10→1. المجموع 10.", "fr": "5→1 ; 6→2 ; 7→3 ; 8→2 ; 9→1 ; 10→1.", "label": ""}, {"k": "d", "svg": "<g id=\"X1a\"><line x1=\"60\" y1=\"380\" x2=\"630\" y2=\"380\" stroke=\"#0b3d5c\" stroke-width=\"4\"/><line x1=\"60\" y1=\"380\" x2=\"60\" y2=\"50\" stroke=\"#0b3d5c\" stroke-width=\"4\"/><line x1=\"56\" y1=\"380.0\" x2=\"64\" y2=\"380.0\" stroke=\"#0b3d5c\" stroke-width=\"3\"/><text x=\"50\" y=\"386.0\" font-size=\"16\" text-anchor=\"end\" fill=\"#0b3d5c\" font-family=\"sans-serif\">0<\/text><line x1=\"56\" y1=\"287.2\" x2=\"64\" y2=\"287.2\" stroke=\"#0b3d5c\" stroke-width=\"3\"/><text x=\"50\" y=\"293.2\" font-size=\"16\" text-anchor=\"end\" fill=\"#0b3d5c\" font-family=\"sans-serif\">1<\/text><line x1=\"56\" y1=\"194.5\" x2=\"64\" y2=\"194.5\" stroke=\"#0b3d5c\" stroke-width=\"3\"/><text x=\"50\" y=\"200.5\" font-size=\"16\" text-anchor=\"end\" fill=\"#0b3d5c\" font-family=\"sans-serif\">2<\/text><line x1=\"56\" y1=\"101.7\" x2=\"64\" y2=\"101.7\" stroke=\"#0b3d5c\" stroke-width=\"3\"/><text x=\"50\" y=\"107.7\" font-size=\"16\" text-anchor=\"end\" fill=\"#0b3d5c\" font-family=\"sans-serif\">3<\/text><text x=\"340\" y=\"36\" font-size=\"22\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#0b3d5c\" font-family=\"sans-serif\">Distribution of marks<\/text><\/g><g id=\"X1b0\"><rect x=\"76.0\" y=\"287.2\" width=\"74.7\" height=\"92.8\" fill=\"#1e88e5\" stroke=\"#0b3d5c\" stroke-width=\"2\"/><text x=\"113.3\" y=\"279.2\" font-size=\"18\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#0b3d5c\" font-family=\"sans-serif\">1<\/text><text x=\"113.3\" y=\"404\" font-size=\"16\" text-anchor=\"middle\" fill=\"#0b3d5c\" font-family=\"sans-serif\">5<\/text><\/g><g id=\"X1b1\"><rect x=\"162.7\" y=\"194.5\" width=\"74.7\" height=\"185.5\" fill=\"#1e88e5\" stroke=\"#0b3d5c\" stroke-width=\"2\"/><text x=\"200.0\" y=\"186.5\" font-size=\"18\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#0b3d5c\" font-family=\"sans-serif\">2<\/text><text x=\"200.0\" y=\"404\" font-size=\"16\" text-anchor=\"middle\" fill=\"#0b3d5c\" font-family=\"sans-serif\">6<\/text><\/g><g id=\"X1b2\"><rect x=\"249.3\" y=\"101.7\" width=\"74.7\" height=\"278.3\" fill=\"#1e88e5\" stroke=\"#0b3d5c\" stroke-width=\"2\"/><text x=\"286.7\" y=\"93.7\" font-size=\"18\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#0b3d5c\" font-family=\"sans-serif\">3<\/text><text x=\"286.7\" y=\"404\" font-size=\"16\" text-anchor=\"middle\" fill=\"#0b3d5c\" font-family=\"sans-serif\">7<\/text><\/g><g id=\"X1b3\"><rect x=\"336.0\" y=\"194.5\" width=\"74.7\" height=\"185.5\" fill=\"#1e88e5\" stroke=\"#0b3d5c\" stroke-width=\"2\"/><text x=\"373.3\" y=\"186.5\" font-size=\"18\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#0b3d5c\" font-family=\"sans-serif\">2<\/text><text x=\"373.3\" y=\"404\" font-size=\"16\" text-anchor=\"middle\" fill=\"#0b3d5c\" font-family=\"sans-serif\">8<\/text><\/g><g id=\"X1b4\"><rect x=\"422.7\" y=\"287.2\" width=\"74.7\" height=\"92.8\" fill=\"#1e88e5\" stroke=\"#0b3d5c\" stroke-width=\"2\"/><text x=\"460.0\" y=\"279.2\" font-size=\"18\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#0b3d5c\" font-family=\"sans-serif\">1<\/text><text x=\"460.0\" y=\"404\" font-size=\"16\" text-anchor=\"middle\" fill=\"#0b3d5c\" font-family=\"sans-serif\">9<\/text><\/g><g id=\"X1b5\"><rect x=\"509.3\" y=\"287.2\" width=\"74.7\" height=\"92.8\" fill=\"#1e88e5\" stroke=\"#0b3d5c\" stroke-width=\"2\"/><text x=\"546.7\" y=\"279.2\" font-size=\"18\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#0b3d5c\" font-family=\"sans-serif\">1<\/text><text x=\"546.7\" y=\"404\" font-size=\"16\" text-anchor=\"middle\" fill=\"#0b3d5c\" font-family=\"sans-serif\">10<\/text><\/g>", "vb": [660, 440], "show": ["X1a", "X1b0", "X1b1", "X1b2", "X1b3", "X1b4", "X1b5"]}, {"k": "f", "f": "relative frequencies: 10%, 20%, 30%, 20%, 10%, 10%  (sum 100%)"}]}, {"title": {"en": "Exercise 6", "ar": "التمرين 6", "fr": "Exercice 6"}, "items": [{"k": "t", "en": "In a survey of 80 people, 32 prefer tea, 28 coffee and the rest juice. How many prefer juice and what percentage?", "ar": "في استطلاع لـ 80 شخصًا فضّل 32 الشاي و28 القهوة والباقي العصير. كم يفضل العصير وما نسبتهم؟", "fr": "Sur 80 personnes, 32 thé, 28 café, le reste jus : combien et quel pourcentage ?", "label": "Problem"}, {"k": "t", "en": "Juice = 80 − 32 − 28 = 20 people. Percentage = 20/80 = 25%.", "ar": "العصير = 80 − 32 − 28 = 20 شخصًا. النسبة = 20/80 = 25%.", "fr": "80 − 60 = 20 ; 20/80 = 25 %.", "label": ""}, {"k": "f", "f": "20 people, 25%"}, {"k": "f", "f": "Check: 40% + 35% + 25% = 100% ✓"}]}, {"title": {"en": "Exercise 7", "ar": "التمرين 7", "fr": "Exercice 7"}, "items": [{"k": "t", "en": "What is wrong with the claim: 'Frequencies 12, 15, 9 for a class of 40'?", "ar": "ما الخطأ في العبارة: «التكرارات 12 و15 و9 لصف عدد تلاميذه 40»؟", "fr": "Que dire de : « effectifs 12, 15, 9 pour une classe de 40 » ?", "label": "Problem"}, {"k": "t", "en": "The frequencies must add up to the class size: 12 + 15 + 9 = 36, not 40. Four pupils are missing from the table.", "ar": "يجب أن يساوي مجموع التكرارات عدد تلاميذ الصف: 12 + 15 + 9 = 36 لا 40. هناك أربعة تلاميذ غير ممثّلين.", "fr": "12 + 15 + 9 = 36 ≠ 40 : il manque 4 élèves.", "label": ""}, {"k": "f", "f": "total check fails: 36 ≠ 40"}]}]};
+var $=function(s,r){return (r||document).querySelector(s)};
+var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+var NS="http://www.w3.org/2000/svg";
+var stage=$("#stage"),scale=1;
+function fit(){
+  var w=window.innerWidth,h=window.innerHeight;
+  scale=Math.min(w/1672,h/941);
+  stage.style.left="0";stage.style.top="0";
+  stage.style.transform="translate("+(w-1672*scale)/2+"px,"+(h-941*scale)/2+"px) scale("+scale+")";
+  $("#rot").style.display=(h>w*1.1)?"block":"none";
+}
+window.addEventListener("resize",fit);fit();
+
+var LANG=DATA.lang||"en",pi=0,ii=-1,voiceOn=true,playing=false,playTimer=null,target=[585,330],revealTimers=[];
+var UI={en:{page:"Lesson map:",ex:"Problem",play:"Play the lesson",pause:"Pause the lesson"},ar:{page:"خريطة الدرس:",ex:"المسألة",play:"تشغيل الدرس",pause:"إيقاف مؤقت"},fr:{page:"Plan de la leçon :",ex:"Problème",play:"Lancer la leçon",pause:"Pause"}};
+var VOICES={en:"en-US",ar:"ar-SA",fr:"fr-FR"};
+function L(o){return (o&&(o[LANG]||o.en))||""}
+function page(){return DATA.pages[pi]}
+
+/* ---- build pieces ---- */
+function buildMap(){
+  var m=$("#map");m.innerHTML="";m.className=LANG==="ar"?"rtl":"";
+  DATA.pages.forEach(function(p,i){
+    var d=document.createElement("div");d.className="mi";d.dataset.i=i;
+    d.innerHTML="<i>"+(i+1)+"</i><span></span>";d.lastChild.textContent=L(p.title);
+    d.onclick=function(){stopPlay();gotoPage(i,true)};m.appendChild(d);
+  });
+}
+function renderPage(showAll,animateLast){
+  var p=page();
+  $("#title").textContent=L(p.title);
+  $("#topic").innerHTML="";var tp=L(DATA.title);$("#topic").textContent=tp.length>34?tp.slice(0,32)+"…":tp;
+  $("#pager").textContent=(pi+1)+" / "+DATA.pages.length;
+  $("#sideh").textContent=UI[LANG].page;
+  $$(".mi").forEach(function(e,i){e.classList.toggle("cur",i===pi)});
+  var cur=$(".mi.cur");if(cur&&cur.scrollIntoView){try{var mp=$("#map");mp.scrollTop=Math.max(0,cur.offsetTop-mp.offsetTop-90)}catch(e){}}
+  var steps=$("#steps"),fm=$("#fm"),dr=$("#draw");
+  steps.innerHTML="";fm.innerHTML="";dr.innerHTML="";dr.classList.remove("on");
+  steps.className="abs"+(LANG==="ar"?" rtl":"");
+  var hasDraw=p.items.some(function(x){return x.k==="d"}),hasF=p.items.some(function(x){return x.k==="f"});
+  fm.classList.toggle("tall",!hasDraw);
+  var tn=0;
+  p.items.forEach(function(x,idx){
+    if(x.k==="t"){tn++;
+      var d=document.createElement("div");d.className="st";d.dataset.idx=idx;d.style.display="none";
+      d.innerHTML='<div class="n">'+tn+'</div><div class="tx"></div>';
+      var tx=d.lastChild;
+      if(x.label){var lb=document.createElement("span");lb.className="lab";lb.textContent=x.label;tx.appendChild(lb)}
+      var hw=document.createElement("span");hw.className="hw";hw.textContent=L(x);tx.appendChild(hw);
+      d.onclick=function(){stopPlay();go(idx)};
+      steps.appendChild(d);
+    }else if(x.k==="f"){
+      var f=document.createElement("div");f.className="f";f.dataset.idx=idx;f.style.display="none";f.textContent=x.f;fm.appendChild(f);
+    }
+  });
+  if(showAll)ii=p.items.length-1;
+  applyUpTo(ii,animateLast);
+}
+function revealDraw(x,animate){
+  var dr=$("#draw");dr.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+x.vb[0]+" "+x.vb[1]+'">'+x.svg+"</svg>";dr.classList.add("on");
+  var svg=dr.querySelector("svg");if(svg){svg.setAttribute("viewBox","0 0 "+x.vb[0]+" "+x.vb[1]);svg.setAttribute("preserveAspectRatio","xMidYMid meet");svg.removeAttribute("width");svg.removeAttribute("height")}
+  revealTimers.forEach(clearTimeout);revealTimers=[];
+  var ids=x.show||[];
+  ids.forEach(function(id){var e=dr.querySelector("#"+id);if(e){e.style.opacity=animate?0:1;e.style.transition="opacity .45s"}});
+  function point(id){
+    var e=dr.querySelector("#"+id);if(!e)return;
+    var r=e.getBoundingClientRect(),sr=stage.getBoundingClientRect();
+    target=[Math.min(790,(r.left+r.width/2-sr.left)/scale),(r.top+r.height/2-sr.top)/scale];
+  }
+  ids.forEach(function(id,k){
+    var t=animate?k*480:0;
+    revealTimers.push(setTimeout(function(){var e=dr.querySelector("#"+id);if(e){e.style.opacity=1;if(animate)point(id)}},t));
+  });
+}
+function applyUpTo(k,animateLast){
+  var p=page(),steps=$("#steps"),fm=$("#fm");
+  var lastT=null,lastD=null;
+  p.items.forEach(function(x,idx){
+    if(idx>k)return;
+    if(x.k==="t"){var e=steps.querySelector('[data-idx="'+idx+'"]');if(e){e.style.display="flex";e.classList.remove("cur","done");lastT=e}}
+    if(x.k==="f"){var f=fm.querySelector('[data-idx="'+idx+'"]');if(f){f.style.display="block";f.classList.add("on")}}
+    if(x.k==="d")lastD={x:x,idx:idx};
+  });
+  var last=k>=0?p.items[k]:null;
+  $$(".st",steps).forEach(function(e){e.classList.remove("cur");if(e.style.display!=="none")e.classList.add("done")});
+  if(lastT&&!(last&&last.k==="t")){lastT.classList.add("cur");steps.scrollTop=lastT.offsetTop-20}
+  if(last&&last.k==="t"&&lastT){
+    lastT.classList.add("cur");lastT.classList.remove("done");
+    var hw=lastT.querySelector(".hw");
+    if(animateLast){hw.style.animation="none";void hw.offsetWidth;hw.style.animation="write "+Math.min(3.5,.9+L(last).length/60)+"s steps(40,end) forwards";lastT.classList.remove("done")}
+    else{lastT.classList.add("done")}
+    steps.scrollTop=lastT.offsetTop-20;
+    target=[585,470];
+  }
+  if(last&&last.k==="f"){target=[770,655]}
+  if(lastD)revealDraw(lastD.x,animateLast&&last===lastD.x);
+  $("#navtxt").textContent=Math.max(k+1,0)+" / "+p.items.length;
+}
+function go(k,speak){
+  var p=page();ii=Math.max(-1,Math.min(p.items.length-1,k));
+  var animate=true;
+  /* rebuild up to ii without animation for earlier ones, animate the newest */
+  renderPageKeep(animate);
+  var it=ii>=0?p.items[ii]:null;
+  if(it&&it.k==="t"&&speak!==false)say(L(it));
+}
+function renderPageKeep(animate){renderPage(false,animate)}
+function gotoPage(i,speak){
+  pi=Math.max(0,Math.min(DATA.pages.length-1,i));ii=-1;renderPage(false,false);
+  go(0,speak!==false);
+}
+function next(){
+  var p=page();
+  if(ii<p.items.length-1)go(ii+1);
+  else if(pi<DATA.pages.length-1)gotoPage(pi+1);
+  else stopPlay();
+}
+function prev(){
+  if(ii>0)go(ii-1,false);
+  else if(pi>0){pi--;ii=-1;renderPage(true,false);var p=page();go(p.items.length-1,false)}
+}
+$("#next").onclick=function(){stopPlay();next()};
+$("#prev").onclick=function(){stopPlay();prev()};
+document.addEventListener("keydown",function(e){
+  if(e.key==="ArrowRight"||e.key==="ArrowDown"||e.key===" "){e.preventDefault();stopPlay();next()}
+  else if(e.key==="ArrowLeft"||e.key==="ArrowUp"){stopPlay();prev()}
+});
+
+/* voice + play */
+function say(t){
+  try{
+    if(!voiceOn||!window.speechSynthesis)return;
+    window.speechSynthesis.cancel();
+    var u=new SpeechSynthesisUtterance(t);u.lang=VOICES[LANG];u.rate=.95;
+    u.onend=function(){if(playing)schedule(600)};
+    u.onerror=function(){if(playing)schedule(2500)};
+    window.speechSynthesis.speak(u);
+  }catch(e){}
+}
+function hasVoice(){try{return voiceOn&&!!window.speechSynthesis}catch(e){return false}}
+function schedule(ms){
+  clearTimeout(playTimer);
+  playTimer=setTimeout(function(){
+    if(!playing)return;
+    var p=page();
+    if(pi>=DATA.pages.length-1&&ii>=p.items.length-1){stopPlay();return}
+    next();
+    var it=page().items[ii];
+    if(!it||it.k!=="t"||!hasVoice())schedule(it&&it.k==="t"?Math.max(3500,L(it).length*70):(it&&it.k==="d"?3500:2200));
+  },ms);
+}
+function startPlay(){playing=true;closePops();$("#mPlay").textContent="❚❚  "+UI[LANG].pause;if(ii<0||ii>=page().items.length-1)gotoPage(pi);schedule(hasVoice()?100:3500)}
+function stopPlay(){playing=false;clearTimeout(playTimer);try{window.speechSynthesis&&window.speechSynthesis.cancel()}catch(e){}$("#mPlay").textContent="▶  "+UI[LANG].play}
+
+/* ---- teacher ---- */
+var T=$("#teacher");
+
+var T=$("#teacher");
+function tel(tag,attrs,txt){var e=document.createElementNS(NS,tag);for(var k in attrs)e.setAttribute(k,attrs[k]);if(txt!=null)e.textContent=txt;T.appendChild(e);return e}
+var SK="#c98a64",SKd="#a96e4b",HAIR="#17110d",SH="#14171d",SHl="#232832";
+var td=tel("defs",{});
+var sg=document.createElementNS(NS,"linearGradient");sg.setAttribute("id","shirt");sg.setAttribute("x1","0");sg.setAttribute("y1","0");sg.setAttribute("x2","1");sg.setAttribute("y2","0");
+sg.innerHTML='<stop offset="0" stop-color="#0d0f14"/><stop offset=".7" stop-color="#1a1e27"/><stop offset="1" stop-color="#232937"/>';
+td.appendChild(sg);
+/* back arm (resting) */
+tel("path",{d:"M95 480 C60 560 70 700 110 790 L170 780 C150 700 150 590 190 500Z",fill:"#10131a"});
+/* torso */
+tel("path",{d:"M40 941 C28 760 36 560 92 420 C120 372 190 346 262 352 C330 360 366 410 372 480 C380 620 390 800 388 941Z",fill:"url(#shirt)"});
+tel("path",{d:"M150 380 C190 360 250 352 300 372 C250 380 205 392 170 420Z",fill:SHl,opacity:.7});
+tel("path",{d:"M120 430 C150 600 160 780 150 941",fill:"none",stroke:"#262c38","stroke-width":3,opacity:.7});
+/* neck */
+tel("path",{d:"M196 300 L196 372 C210 392 250 394 272 372 L272 296Z",fill:SKd});
+/* collar */
+tel("path",{d:"M178 364 L226 410 L270 364 L292 380 L230 440 L160 388Z",fill:"#1d222c"});
+/* head (facing right) */
+tel("path",{d:"M178 214 C176 150 220 112 266 118 C312 124 336 168 336 214 C338 250 330 288 298 312 C268 330 214 322 196 292 C182 270 178 242 178 214Z",fill:SK});
+tel("path",{d:"M334 214 L352 236 L334 244Z",fill:SK});            /* nose */
+tel("path",{d:"M184 188 C184 120 232 92 276 98 C316 104 338 140 338 178 C320 150 290 140 262 144 C228 148 200 168 192 206Z",fill:HAIR});
+tel("path",{d:"M172 190 C170 160 180 140 196 126 C204 150 200 176 204 206Z",fill:HAIR});
+/* beard */
+tel("path",{d:"M196 246 C200 296 226 332 276 330 C316 326 336 296 338 262 C328 276 312 284 296 280 C282 268 256 266 238 276 C220 272 208 262 202 240Z",fill:HAIR});
+tel("path",{d:"M270 272 C290 266 312 268 326 262",fill:"none",stroke:"#3a2a22","stroke-width":3,"stroke-linecap":"round"});
+tel("path",{d:"M306 274 q12 4 22 -2",fill:"none",stroke:"#7a4a3a","stroke-width":3,"stroke-linecap":"round"}); /* mouth */
+/* ear and eye */
+tel("ellipse",{cx:206,cy:232,rx:12,ry:22,fill:SKd});
+tel("ellipse",{cx:300,cy:206,rx:8,ry:5,fill:"#fff"});
+tel("circle",{cx:304,cy:206,r:3.4,fill:"#1b1411"});
+tel("path",{d:"M284 190 Q302 180 322 190",fill:"none",stroke:HAIR,"stroke-width":6,"stroke-linecap":"round"});
+/* arm group */
+var arm=tel("path",{d:"",fill:"none",stroke:"#171b23","stroke-width":58,"stroke-linecap":"round","stroke-linejoin":"round"});
+var armHl=tel("path",{d:"",fill:"none",stroke:"#262d3a","stroke-width":14,"stroke-linecap":"round","stroke-linejoin":"round",opacity:.7});
+var hand=tel("ellipse",{cx:0,cy:0,rx:25,ry:21,fill:SK});
+var pen=tel("line",{x1:0,y1:0,x2:0,y2:0,stroke:"#f5f7ff","stroke-width":9,"stroke-linecap":"round"});
+var penTip=tel("circle",{cx:0,cy:0,r:6,fill:"#ffe14d",filter:""});
+var SHD={x:310,y:410},L1=215,L2=215;
+var cur={x:560,y:330},target=[585,330],t0=0;
+function solve(tx,ty){
+  var dx=tx-SHD.x,dy=ty-SHD.y,d=Math.hypot(dx,dy),max=L1+L2-6;
+  if(d>max){dx*=max/d;dy*=max/d;d=max}
+  if(d<110){dx*=110/d;dy*=110/d;d=110}
+  var a=Math.atan2(dy,dx),c=(L1*L1+d*d-L2*L2)/(2*L1*d);
+  var ang=Math.acos(Math.max(-1,Math.min(1,c)));
+  var ea=a+ang; /* elbow below the line (positive y) */
+  var ex=SHD.x+L1*Math.cos(ea),ey=SHD.y+L1*Math.sin(ea);
+  return {ex:ex,ey:ey,wx:SHD.x+dx,wy:SHD.y+dy};
+}
+function frame(ts){
+  cur.x+=(target[0]-cur.x)*.07;cur.y+=(target[1]-cur.y)*.07;
+  var wob=Math.sin(ts/380)*2.2;
+  var s=solve(cur.x-67+wob,cur.y+57+wob*.4);
+  var d="M"+SHD.x+" "+SHD.y+" Q"+(SHD.x+10)+" "+(SHD.y+60)+" "+s.ex+" "+s.ey+" L"+s.wx+" "+s.wy;
+  arm.setAttribute("d",d);armHl.setAttribute("d",d);
+  var fa=Math.atan2(s.wy-s.ey,s.wx-s.ex);
+  hand.setAttribute("cx",s.wx);hand.setAttribute("cy",s.wy);
+  var px=cur.x+wob,py=cur.y+wob*.4;
+  pen.setAttribute("x1",s.wx);pen.setAttribute("y1",s.wy);pen.setAttribute("x2",px);pen.setAttribute("y2",py);
+  penTip.setAttribute("cx",px);penTip.setAttribute("cy",py);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+/* shoulder cap drawn above the arm start */
+tel("circle",{cx:SHD.x,cy:SHD.y,r:30,fill:"#171b23"});
+
+
+/* ---- ink ---- */
+
+var cv=$("#ink"),cx=cv.getContext("2d");
+var tool="pen",color="#ffffff",size=5,shapeKind=null,ops=[],redo=[],drawing=null;
+var COLORS=["#ffffff","#ffe14d","#ff5252","#39d98a","#6fd3ff","#ff9f1c","#d58cff"];
+var swBox=$("#sws");
+COLORS.forEach(function(c,i){var s=document.createElement("span");s.className="sw"+(i===0?" sel":"");s.style.background=c;s.onclick=function(){color=c;$$(".sw").forEach(function(x){x.classList.remove("sel")});s.classList.add("sel");if(tool==="eraser")setTool("pen")};swBox.appendChild(s)});
+$("#size").oninput=function(){size=+this.value};
+function pos(e){var r=stage.getBoundingClientRect();return {x:(e.clientX-r.left)/scale,y:(e.clientY-r.top)/scale}}
+function drawOp(o,c){
+  c.save();c.lineCap="round";c.lineJoin="round";c.lineWidth=o.w;c.strokeStyle=o.c;
+  if(o.k==="erase"){c.globalCompositeOperation="destination-out";c.lineWidth=o.w*4}
+  if(o.k==="pen"||o.k==="erase"){
+    c.beginPath();c.moveTo(o.p[0].x,o.p[0].y);
+    if(o.p.length===1)c.lineTo(o.p[0].x+.1,o.p[0].y);
+    for(var i=1;i<o.p.length;i++)c.lineTo(o.p[i].x,o.p[i].y);
+    c.stroke();
+  }else{
+    var a=o.a,b=o.b;c.beginPath();
+    if(o.k==="line"||o.k==="arrow"){c.moveTo(a.x,a.y);c.lineTo(b.x,b.y);
+      if(o.k==="arrow"){var an=Math.atan2(b.y-a.y,b.x-a.x),h=14+o.w*2;
+        c.moveTo(b.x,b.y);c.lineTo(b.x-h*Math.cos(an-.45),b.y-h*Math.sin(an-.45));
+        c.moveTo(b.x,b.y);c.lineTo(b.x-h*Math.cos(an+.45),b.y-h*Math.sin(an+.45))}}
+    else if(o.k==="rect"){c.rect(Math.min(a.x,b.x),Math.min(a.y,b.y),Math.abs(b.x-a.x),Math.abs(b.y-a.y))}
+    else if(o.k==="circle"){c.ellipse((a.x+b.x)/2,(a.y+b.y)/2,Math.abs(b.x-a.x)/2,Math.abs(b.y-a.y)/2,0,0,7)}
+    else if(o.k==="tri"){c.moveTo((a.x+b.x)/2,a.y);c.lineTo(b.x,b.y);c.lineTo(a.x,b.y);c.closePath()}
+    c.stroke();
+  }
+  c.restore();
+}
+function repaint(extra){cx.clearRect(0,0,1672,941);ops.forEach(function(o){drawOp(o,cx)});if(extra)drawOp(extra,cx)}
+cv.addEventListener("pointerdown",function(e){
+  if(tool==="select")return;
+  cv.setPointerCapture(e.pointerId);closePops();
+  var p=pos(e);redo=[];
+  if(tool==="shape")drawing={k:shapeKind||"line",c:color,w:size,a:p,b:p};
+  else drawing={k:tool==="eraser"?"erase":"pen",c:color,w:size,p:[p]};
+  repaint(drawing);
+});
+cv.addEventListener("pointermove",function(e){
+  if(!drawing)return;var p=pos(e);
+  if(drawing.p)drawing.p.push(p);else drawing.b=p;
+  repaint(drawing);
+});
+function endDraw(){if(!drawing)return;ops.push(drawing);drawing=null;repaint()}
+cv.addEventListener("pointerup",endDraw);cv.addEventListener("pointercancel",endDraw);
+function setTool(t){
+  tool=t;
+  $$("[data-tool]").forEach(function(b){b.classList.toggle("act",b.dataset.tool===t)});
+  $("#tShape").classList.toggle("act",t==="shape");
+  cv.style.pointerEvents=(t==="select")?"none":"auto";
+  cv.style.cursor=t==="eraser"?"cell":"crosshair";
+}
+$$("[data-tool]").forEach(function(b){b.onclick=function(){closePops();setTool(b.dataset.tool)}});
+$("#tShape").onclick=function(){togglePop("popShapes")};
+$$("[data-shape]").forEach(function(b){b.onclick=function(){shapeKind=b.dataset.shape;setTool("shape");closePops()}});
+$("#tUndo").onclick=function(){if(ops.length){redo.push(ops.pop());repaint()}};
+$("#tRedo").onclick=function(){if(redo.length){ops.push(redo.pop());repaint()}};
+$("#clearInk").onclick=function(){ops=[];redo=[];repaint()};
+setTool("pen");
+
+
+/* ---- popups ---- */
+function closePops(){$$(".pop").forEach(function(p){p.classList.remove("show")})}
+function togglePop(id){var p=$("#"+id),was=p.classList.contains("show");closePops();if(!was)p.classList.add("show")}
+$("#bMenu").onclick=function(){togglePop("popMenu")};
+$("#bTools").onclick=function(){togglePop("popTools")};
+$("#mPlay").onclick=function(){if(playing)stopPlay();else startPlay()};
+$("#mRestart").onclick=function(){stopPlay();closePops();gotoPage(pi,false)};
+$("#mAll").onclick=function(){stopPlay();closePops();ii=page().items.length-1;renderPage(false,false)};
+$("#mVoice").onclick=function(){voiceOn=!voiceOn;this.textContent=voiceOn?"🔊  Voice: on":"🔇  Voice: off";if(!voiceOn){try{window.speechSynthesis&&window.speechSynthesis.cancel()}catch(e){}}};
+$$("[data-lang]").forEach(function(b){b.onclick=function(){stopPlay();LANG=b.dataset.lang;closePops();buildMap();renderPage(false,false);$("#mPlay").textContent="▶  "+UI[LANG].play}});
+$("#mFull").onclick=function(){closePops();try{var d=document.documentElement;if(document.fullscreenElement)document.exitFullscreen();else if(d.requestFullscreen)d.requestFullscreen()}catch(e){}};
+var bgs=[["","Navy"],["bg-grid","Grid"],["bg-black","Black"],["bg-green","Chalkboard"]],bi=0;
+$("#bBg").onclick=function(){
+  closePops();stage.classList.remove(bgs[bi][0]||"x");bi=(bi+1)%bgs.length;if(bgs[bi][0])stage.classList.add(bgs[bi][0]);
+  var m=$("#bgmsg");m.textContent="Background: "+bgs[bi][1];m.style.opacity=1;setTimeout(function(){m.style.opacity=0},1200);
+};
+buildMap();
+gotoPage(0,false);
+})();
+</script>
+</body>
+</html>
