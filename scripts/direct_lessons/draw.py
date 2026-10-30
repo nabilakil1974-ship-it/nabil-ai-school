@@ -196,3 +196,62 @@ def blocks(h, t, o, tag="PV", label=True):
         s += f'<g id="{tag}l"><text x="330" y="330" font-size="34" font-weight="700" text-anchor="middle" fill="{INK}" {FF}>{h} hundreds + {t} tens + {o} ones = {h*100+t*10+o}</text></g>'
         ids.append(tag + "l")
     return scene(s, ids)
+
+
+WD = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+
+def calendar(start_col, ndays, hi=None, tag="CAL", title="April"):
+    """Month grid, Monday first. start_col: column (0=Mon) of day 1. hi: {day: colour} highlighted one by one."""
+    cw, ch, x0, y0 = 90, 44, 15, 62
+    s = f'<g id="{tag}a"><text x="330" y="32" font-size="28" font-weight="700" text-anchor="middle" fill="{INK}" {FF}>{title}</text>'
+    for c, w in enumerate(WD):
+        s += (f'<rect x="{x0+c*cw}" y="{y0-26}" width="{cw}" height="26" fill="{INK}" stroke="#fff" stroke-width="2"/>'
+              f'<text x="{x0+c*cw+cw/2}" y="{y0-7}" font-size="16" font-weight="700" text-anchor="middle" fill="#fff" {FF}>{w}</text>')
+    for d in range(1, ndays + 1):
+        c = (d - 1 + start_col) % 7; r = (d - 1 + start_col) // 7
+        s += (f'<rect x="{x0+c*cw}" y="{y0+r*ch}" width="{cw}" height="{ch}" fill="{"#fff8e1" if c>=5 else "#fff"}" stroke="#90a4ae" stroke-width="1.5"/>'
+              f'<text x="{x0+c*cw+cw/2}" y="{y0+r*ch+30}" font-size="22" text-anchor="middle" fill="{INK}" {FF}>{d}</text>')
+    s += '</g>'
+    ids = [tag + "a"]
+    for k, (d, col) in enumerate((hi or {}).items()):
+        c = (d - 1 + start_col) % 7; r = (d - 1 + start_col) // 7
+        s += (f'<g id="{tag}h{k}"><rect x="{x0+c*cw+3}" y="{y0+r*ch+3}" width="{cw-6}" height="{ch-6}" rx="8" fill="{col}" stroke="{INK}" stroke-width="3"/>'
+              f'<text x="{x0+c*cw+cw/2}" y="{y0+r*ch+30}" font-size="24" font-weight="700" text-anchor="middle" fill="#fff" {FF}>{d}</text></g>')
+        ids.append(f"{tag}h{k}")
+    return scene(s, ids)
+
+
+def table(headers, rows, hi=None, tag="TB", col_w=None):
+    """Data table. hi: list of (row, col) cells to highlight, revealed one by one."""
+    n = len(headers); cw = col_w or int(600 / n); x0 = (660 - cw * n) / 2; rh = 46; y0 = 40
+    s = f'<g id="{tag}a">'
+    for c, h in enumerate(headers):
+        s += (f'<rect x="{x0+c*cw}" y="{y0}" width="{cw}" height="{rh}" fill="{INK}" stroke="#fff" stroke-width="2"/>'
+              f'<text x="{x0+c*cw+cw/2}" y="{y0+31}" font-size="22" font-weight="700" text-anchor="middle" fill="#fff" {FF}>{h}</text>')
+    for r, row in enumerate(rows):
+        for c, v in enumerate(row):
+            s += (f'<rect x="{x0+c*cw}" y="{y0+(r+1)*rh}" width="{cw}" height="{rh}" fill="{"#e3f2fd" if r%2 else "#fff"}" stroke="#90a4ae" stroke-width="1.5"/>'
+                  f'<text x="{x0+c*cw+cw/2}" y="{y0+(r+1)*rh+31}" font-size="24" text-anchor="middle" fill="{INK}" {FF}>{v}</text>')
+    s += '</g>'
+    ids = [tag + "a"]
+    for k, (r, c) in enumerate(hi or []):
+        s += (f'<g id="{tag}h{k}"><rect x="{x0+c*cw+3}" y="{y0+(r+1)*rh+3}" width="{cw-6}" height="{rh-6}" rx="8" fill="none" stroke="{RED}" stroke-width="5"/></g>')
+        ids.append(f"{tag}h{k}")
+    return scene(s, ids)
+
+
+def bar_model(total, a, b, tag="BM"):
+    """Part-whole bar. total, a, b may be numbers or '?'. Whole on top, two parts below."""
+    def num(v): return None if v == "?" else v
+    ta, tb, tt = num(a), num(b), num(total)
+    whole = tt if tt is not None else (ta or 0) + (tb or 0)
+    pa = ta if ta is not None else (whole - (tb or 0))
+    wA = 600 * pa / whole if whole else 300
+    s = (f'<g id="{tag}w"><rect x="30" y="80" width="600" height="70" rx="6" fill="#fff3e0" stroke="{INK}" stroke-width="4"/>'
+         f'<text x="330" y="125" font-size="38" font-weight="700" text-anchor="middle" fill="{INK}" {FF}>{total}</text></g>'
+         f'<g id="{tag}p"><rect x="30" y="190" width="{wA:.1f}" height="70" rx="6" fill="#bbdefb" stroke="{INK}" stroke-width="4"/>'
+         f'<rect x="{30+wA:.1f}" y="190" width="{600-wA:.1f}" height="70" rx="6" fill="#c8e6c9" stroke="{INK}" stroke-width="4"/>'
+         f'<text x="{30+wA/2:.1f}" y="235" font-size="38" font-weight="700" text-anchor="middle" fill="{INK}" {FF}>{a}</text>'
+         f'<text x="{30+wA+(600-wA)/2:.1f}" y="235" font-size="38" font-weight="700" text-anchor="middle" fill="{INK}" {FF}>{b}</text></g>')
+    return scene(s, [tag + "w", tag + "p"])
