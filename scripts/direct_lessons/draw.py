@@ -103,3 +103,49 @@ def unit_circle(angles_deg=(30, 45, 60), tag="UC"):
               f'<text x="410" y="{60+k*44}" font-size="21" font-weight="700" fill="{col}" {FF}>{a}°: cos {math.cos(t):.2f}, sin {math.sin(t):.2f}</text></g>')
         ids.append(f"{tag}p{k}")
     return scene(s, ids)
+
+
+def mapping(src, tgt, pairs, tag="MP", rule=None):
+    """Arrow diagram from source set to target set. pairs: list of (src_value, tgt_value)."""
+    ys = lambda n, i: 90 + (i + 0.5) * (300 / max(n, 1))
+    s = (f'<g id="{tag}a"><ellipse cx="160" cy="240" rx="90" ry="170" fill="{BLUE}" fill-opacity=".18" stroke="{BLUE}" stroke-width="4"/>'
+         f'<ellipse cx="500" cy="240" rx="90" ry="170" fill="{RED}" fill-opacity=".15" stroke="{RED}" stroke-width="4"/>'
+         f'<text x="160" y="50" font-size="24" font-weight="700" text-anchor="middle" fill="{BLUE}" {FF}>Source</text><text x="500" y="50" font-size="24" font-weight="700" text-anchor="middle" fill="{RED}" {FF}>Target</text>')
+    if rule: s += f'<text x="330" y="430" font-size="22" font-weight="700" text-anchor="middle" fill="{INK}" {FF}>{rule}</text>'
+    for i, v in enumerate(src): s += f'<text x="160" y="{ys(len(src), i)+8:.1f}" font-size="26" font-weight="700" text-anchor="middle" fill="{INK}" {FF}>{v}</text>'
+    for i, v in enumerate(tgt): s += f'<text x="500" y="{ys(len(tgt), i)+8:.1f}" font-size="26" font-weight="700" text-anchor="middle" fill="{INK}" {FF}>{v}</text>'
+    s += '</g>'
+    ids = [tag + "a"]
+    for k, (a, b) in enumerate(pairs):
+        y1 = ys(len(src), src.index(a)); y2 = ys(len(tgt), tgt.index(b))
+        s += (f'<g id="{tag}r{k}"><line x1="200" y1="{y1:.1f}" x2="455" y2="{y2:.1f}" stroke="{GREEN}" stroke-width="5"/>'
+              f'<polygon points="460,{y2:.1f} 440,{y2-9:.1f} 440,{y2+9:.1f}" fill="{GREEN}" transform="rotate(0)"/></g>')
+        ids.append(f"{tag}r{k}")
+    return scene(s, ids)
+
+
+def cube(section=None, label_vertices=True, extra_lines=None, tag="CB", sec_color="#fb8c00", parallel=None):
+    """Oblique cube ABCD (front) / EFGH (back). section: list of vertex names or (x,y) points to fill. extra_lines: [(P,Q,color)]."""
+    s0, ox, oy, d = 210, 150, 330, 110
+    P = {"A": (ox, oy), "B": (ox + s0, oy), "C": (ox + s0, oy - s0), "D": (ox, oy - s0)}
+    for k, n in zip("ABCD", "EFGH"):
+        P[n] = (P[k][0] + d, P[k][1] - d * 0.7)
+    edges_vis = [("A", "B"), ("B", "C"), ("C", "D"), ("D", "A"), ("B", "F"), ("C", "G"), ("D", "H"), ("F", "G"), ("G", "H")]
+    edges_hid = [("A", "E"), ("E", "F"), ("E", "H")]
+    s = f'<g id="{tag}a">'
+    if section:
+        pts = " ".join(f"{(P[p] if isinstance(p, str) else p)[0]},{(P[p] if isinstance(p, str) else p)[1]}" for p in section)
+        s += f'<polygon points="{pts}" fill="{sec_color}" fill-opacity=".35" stroke="{sec_color}" stroke-width="4"/>'
+    for a, b in edges_hid:
+        s += f'<line x1="{P[a][0]}" y1="{P[a][1]}" x2="{P[b][0]}" y2="{P[b][1]}" stroke="{INK}" stroke-width="3" stroke-dasharray="9 7"/>'
+    for a, b in edges_vis:
+        s += f'<line x1="{P[a][0]}" y1="{P[a][1]}" x2="{P[b][0]}" y2="{P[b][1]}" stroke="{INK}" stroke-width="5" stroke-linecap="round"/>'
+    for a, b, col in (extra_lines or []):
+        s += f'<line x1="{P[a][0]}" y1="{P[a][1]}" x2="{P[b][0]}" y2="{P[b][1]}" stroke="{col}" stroke-width="6" stroke-linecap="round"/>'
+    if label_vertices:
+        for n, (x, y) in P.items():
+            dx = -22 if n in "ADE" else 10
+            dy = 22 if n in "AB" else -10
+            s += f'<text x="{x+dx}" y="{y+dy}" font-size="24" font-weight="700" fill="{BLUE}" {FF}>{n}</text>'
+    s += '</g>'
+    return scene(s, [tag + "a"])
