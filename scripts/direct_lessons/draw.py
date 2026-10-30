@@ -88,7 +88,7 @@ def vectors(vecs, lo=(-1, -1), hi=(7, 6), tag="VC", labels=True):
 
 
 def unit_circle(angles_deg=(30, 45, 60), tag="UC"):
-    cx, cy, r = 330, 220, 170
+    cx, cy, r = 215, 220, 160
     s = (f'<g id="{tag}a"><circle cx="{cx}" cy="{cy}" r="{r}" fill="none" stroke="{INK}" stroke-width="4"/>'
          f'<line x1="{cx-r-25}" y1="{cy}" x2="{cx+r+25}" y2="{cy}" stroke="{INK}" stroke-width="3"/><line x1="{cx}" y1="{cy-r-25}" x2="{cx}" y2="{cy+r+25}" stroke="{INK}" stroke-width="3"/>'
          f'<text x="{cx+r+6}" y="{cy+22}" font-size="18" fill="{INK}" {FF}>1</text><text x="{cx+6}" y="{cy-r-6}" font-size="18" fill="{INK}" {FF}>1</text></g>')
@@ -99,6 +99,7 @@ def unit_circle(angles_deg=(30, 45, 60), tag="UC"):
         s += (f'<g id="{tag}p{k}"><line x1="{cx}" y1="{cy}" x2="{px:.1f}" y2="{py:.1f}" stroke="{col}" stroke-width="5"/>'
               f'<line x1="{px:.1f}" y1="{py:.1f}" x2="{px:.1f}" y2="{cy}" stroke="{col}" stroke-width="3" stroke-dasharray="8 6"/>'
               f'<line x1="{px:.1f}" y1="{cy}" x2="{cx}" y2="{cy}" stroke="{col}" stroke-width="3" stroke-dasharray="8 6"/>'
-              f'<circle cx="{px:.1f}" cy="{py:.1f}" r="9" fill="{col}"/><text x="{px+12:.1f}" y="{py-10:.1f}" font-size="20" font-weight="700" fill="{col}" {FF}>{a}°  (cos {math.cos(t):.2f}, sin {math.sin(t):.2f})</text></g>')
+              f'<circle cx="{px:.1f}" cy="{py:.1f}" r="9" fill="{col}"/><text x="{px+10:.1f}" y="{py-8:.1f}" font-size="18" font-weight="700" fill="{col}" {FF}>{a}°</text>'
+              f'<text x="410" y="{60+k*44}" font-size="21" font-weight="700" fill="{col}" {FF}>{a}°: cos {math.cos(t):.2f}, sin {math.sin(t):.2f}</text></g>')
         ids.append(f"{tag}p{k}")
     return scene(s, ids)
