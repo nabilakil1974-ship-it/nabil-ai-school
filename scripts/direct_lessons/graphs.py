@@ -64,3 +64,21 @@ def section(m, en_title):
         if s[0] == en_title:
             return s[-1]
     raise KeyError(en_title)
+
+
+def add_ex(m, exs):
+    """Append extra exercises, renumbering them after the existing ones."""
+    from scripts.direct_lessons.common import EX
+    n = len(m.EXERCISES)
+    for i, e in enumerate(exs, 1):
+        e["n"] = str(n + i)
+        m.EXERCISES.append(e)
+
+
+def add_sec(m, title3, steps, before_summary=True):
+    """Insert a new THEORY section (en,ar,fr) before the last (summary) section."""
+    sec = (title3[0], title3[1], title3[2], "", steps)
+    if before_summary and len(m.THEORY) > 1:
+        m.THEORY.insert(len(m.THEORY) - 1, sec)
+    else:
+        m.THEORY.append(sec)
