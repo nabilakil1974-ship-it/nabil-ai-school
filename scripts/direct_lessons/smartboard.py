@@ -31,12 +31,17 @@ def data(m, lang="ar"):
     return {"title": m.TITLES, "lang": lang, "pages": pages}
 
 
+def _photo():
+    import base64
+    return "data:image/jpeg;base64," + base64.b64encode((A / "ustaz.jpg").read_bytes()).decode()
+
+
 def render(m, lang="ar"):
     html = (A / "template.html").read_text(encoding="utf-8")
     css = (A / "base.css").read_text() + (A / "extra.css").read_text()
     js = json.dumps(data(m, lang), ensure_ascii=False).replace("</", "<\\/")
     return (html.replace("%%CSS%%", css).replace("%%TEACHER%%", (A / "teacher.js").read_text())
-            .replace("%%INK%%", (A / "ink.js").read_text()).replace("%%DATA%%", js)
+            .replace("%%INK%%", (A / "ink.js").read_text()).replace("%%DATA%%", js).replace("%%PHOTO%%", _photo())
             .replace("%%TITLE%%", m.TITLES["en"]))
 
 

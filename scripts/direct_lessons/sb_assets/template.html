@@ -31,7 +31,8 @@
   <div id="panelline" class="abs"></div>
   <div id="side" class="abs"><span id="sideh"></span><div id="map"></div></div>
 
-  <svg id="teacher" viewBox="0 0 1672 941" aria-label="Teacher"></svg>
+  <div id="ustaz" class="abs"><img alt="Ustaz Nabil" src="%%PHOTO%%"><div id="nametag"><span id="ntxt"></span><b class="eq"><i></i><i></i><i></i><i></i><i></i></b></div></div>
+  <svg id="teacher" viewBox="0 0 1672 941" aria-label="Pointer"></svg>
   <canvas id="ink" width="1672" height="941"></canvas>
 
   <div id="bar" class="abs">
@@ -83,6 +84,7 @@
 (function(){
 "use strict";
 var DATA=%%DATA%%;
+var NAMES={ar:"الأستاذ نبيل عقيل",en:"Ustaz Nabil Aqeel",fr:"Ustaz Nabil Aqeel"};
 var $=function(s,r){return (r||document).querySelector(s)};
 var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
 var NS="http://www.w3.org/2000/svg";
@@ -122,7 +124,7 @@ function renderPage(showAll,animateLast){
   $("#title").textContent=L(p.title);
   $("#topic").innerHTML="";var tp=L(DATA.title);$("#topic").textContent=tp.length>34?tp.slice(0,32)+"…":tp;
   $("#pager").textContent=(pi+1)+" / "+DATA.pages.length;
-  $("#sideh").textContent=UI[LANG].page;
+  $("#sideh").textContent=UI[LANG].page;$("#ntxt").textContent=NAMES[LANG];
   $$(".mi").forEach(function(e,i){e.classList.toggle("cur",i===pi)});
   var cur=$(".mi.cur");if(cur&&cur.scrollIntoView){try{var mp=$("#map");mp.scrollTop=Math.max(0,cur.offsetTop-mp.offsetTop-90)}catch(e){}}
   var steps=$("#steps"),fm=$("#fm"),dr=$("#draw");
@@ -178,7 +180,7 @@ function applyUpTo(k,animateLast){
   if(last&&last.k==="t"&&lastT){
     lastT.classList.add("cur");lastT.classList.remove("done");
     var hw=lastT.querySelector(".hw");
-    if(animateLast){hw.style.animation="none";void hw.offsetWidth;hw.style.animation=(LANG==="ar"?"writeR ":"write ")+Math.min(3.5,.9+L(last).length/60)+"s steps(40,end) forwards";lastT.classList.remove("done")}
+    if(animateLast){hw.style.animation="none";void hw.offsetWidth;hw.style.animation=(LANG==="ar"?"writeR ":"write ")+Math.min(3.5,.9+L(last).length/60)+"s steps(40,end) forwards";lastT.classList.remove("done");speaking=true;var dd=Math.min(3.5,.9+L(last).length/60)*1000+600;setTimeout(function(){try{if(!(window.speechSynthesis&&window.speechSynthesis.speaking))speaking=false}catch(e){speaking=false}},dd)}
     else{lastT.classList.add("done")}
     steps.scrollTop=lastT.offsetTop-20;
     target=[585,470];

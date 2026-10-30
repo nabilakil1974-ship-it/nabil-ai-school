@@ -30,7 +30,7 @@
 #steps.rtl .st.done .hw{clip-path:inset(0)}
 #steps.rtl .st .tx{font-family:"Noto Naskh Arabic","Droid Arabic Naskh","Segoe UI",Tahoma,system-ui,sans-serif;font-size:27px;line-height:38px}
 #fm .f{font-family:var(--hand)}
-#bigplay{display:none;border:3px solid var(--yellow);border-radius:16px;background:rgba(255,225,77,.14);color:var(--yellow);font-size:38px;cursor:pointer;z-index:10}
+#bigplay{display:block;left:14px;top:524px;width:346px;height:72px;border:3px solid var(--yellow);border-radius:16px;background:rgba(255,225,77,.14);color:var(--yellow);font-size:38px;cursor:pointer;z-index:10}
 #start{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(2,8,20,.82);z-index:30}
 #startbox{width:760px;max-width:90%;text-align:center;padding:40px;border:3px solid var(--line);border-radius:24px;background:rgba(6,22,56,.97);box-shadow:0 0 40px rgba(30,144,255,.6)}
 #startt{font-size:40px;font-weight:700;margin-bottom:26px;line-height:50px}
@@ -43,8 +43,9 @@
 #stage.portrait #title{left:20px;top:16px;width:860px;height:92px;font-size:38px;line-height:44px}
 #stage.portrait #topic{left:440px;top:132px;width:440px;height:92px;font-size:28px;line-height:34px;padding:10px 16px;display:flex;align-items:center}
 #stage.portrait #pager{left:440px;top:240px;font-size:34px}
-#stage.portrait #bigplay{display:block;left:440px;top:300px;width:440px;height:84px}
-#stage.portrait #teacher{transform-origin:0 0;transform:translate(-10px,112px) scale(.62);clip-path:inset(0 1000px 520px 0)}
+#stage.portrait #bigplay{left:440px;top:300px;width:440px;height:84px}
+#stage.portrait #ustaz{left:20px;top:122px;width:400px;height:262px}
+#stage.portrait #bigplay{left:440px;top:300px}
 #stage.portrait #draw{left:20px;top:400px;width:860px;height:573px}
 #stage.portrait #fm{left:20px;top:988px;width:860px;height:232px;font-size:34px}
 #stage.portrait #fm.tall{top:400px;height:820px;font-size:38px}
@@ -69,3 +70,15 @@
 #stage.portrait .pop{left:20px!important;bottom:190px;min-width:420px;font-size:28px}
 #stage.portrait .pop button.item{font-size:30px;padding:16px}
 #stage.portrait #startbox{width:820px}
+
+#ustaz{left:14px;top:134px;width:346px;height:372px;border-radius:22px;overflow:hidden;border:3px solid var(--line);box-shadow:0 0 22px rgba(30,144,255,.75);z-index:4;background:#1a1d24;transition:box-shadow .3s}
+#ustaz img{width:100%;height:100%;object-fit:cover;object-position:38% 20%;display:block}
+#ustaz.talk{box-shadow:0 0 30px rgba(57,217,138,.95);animation:breathe 1.6s ease-in-out infinite}
+@keyframes breathe{50%{transform:scale(1.012)}}
+#nametag{position:absolute;left:0;right:0;bottom:0;padding:34px 14px 10px;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(transparent,rgba(3,12,32,.92));font-size:25px;font-weight:700;color:#fff}
+#nametag .eq{display:flex;gap:4px;align-items:flex-end;height:26px}
+#nametag .eq i{width:6px;height:6px;background:#39d98a;border-radius:3px;display:block}
+#ustaz.talk .eq i{animation:eq .5s ease-in-out infinite alternate}
+#ustaz.talk .eq i:nth-child(2){animation-delay:.1s}#ustaz.talk .eq i:nth-child(3){animation-delay:.2s}#ustaz.talk .eq i:nth-child(4){animation-delay:.15s}#ustaz.talk .eq i:nth-child(5){animation-delay:.05s}
+@keyframes eq{to{height:26px}}
+#stage.portrait #nametag{font-size:26px}
