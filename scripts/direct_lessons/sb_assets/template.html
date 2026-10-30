@@ -24,6 +24,7 @@
   <div id="topic" class="abs"></div>
   <div id="pager" class="abs"></div>
 
+  <button id="bigplay" class="abs">▶</button>
   <div id="draw" class="abs"></div>
   <div id="fm" class="abs"></div>
   <div id="steps" class="abs"></div>
@@ -37,7 +38,7 @@
     <button class="tb" id="bMenu"><svg viewBox="0 0 32 32"><rect x="4" y="6" width="24" height="20" rx="2"/><path d="M4 12h24M12 12v14"/></svg>Menu</button>
     <button class="tb" id="bTools"><svg viewBox="0 0 32 32"><rect x="4" y="5" width="9" height="9" rx="1"/><rect x="17" y="5" width="9" height="9" rx="1"/><rect x="4" y="18" width="9" height="9" rx="1"/><rect x="17" y="18" width="9" height="9" rx="1"/></svg>Tools</button>
     <div class="sp"></div>
-    <button class="tb" data-tool="select" id="tSelect"><svg viewBox="0 0 32 32"><path d="M8 24l1-5L21 7l4 4-12 12z"/><path d="M19 9l4 4"/></svg>Select</button>
+    <button class="tb act" data-tool="select" id="tSelect"><svg viewBox="0 0 32 32"><path d="M8 24l1-5L21 7l4 4-12 12z"/><path d="M19 9l4 4"/></svg>Select</button>
     <button class="tb" data-tool="pen" id="tPen"><svg viewBox="0 0 32 32"><path d="M6 26l2-7L22 5l5 5L13 24z"/><path d="M19 8l5 5"/></svg>Pen</button>
     <button class="tb" data-tool="eraser" id="tEraser"><svg viewBox="0 0 32 32"><path d="M13 25H27M5 18l9-10 10 9-6 8H10z"/><path d="M12 14l10 9"/></svg>Eraser</button>
     <button class="tb" id="tShape"><svg viewBox="0 0 32 32"><path d="M6 14l7-9 7 9z"/><circle cx="22" cy="22" r="6"/><rect x="5" y="19" width="9" height="9"/></svg>Shape</button>
@@ -57,6 +58,7 @@
     <button class="item" data-lang="en">English</button>
     <button class="item" data-lang="ar">العربية</button>
     <button class="item" data-lang="fr">Français</button>
+    <button class="item" id="mMap">☰  Lesson map</button>
     <button class="item" id="mFull">⛶  Full screen</button>
   </div>
   <div class="pop" id="popTools" style="left:440px">
@@ -72,6 +74,7 @@
     <button class="item" data-shape="tri">△  Triangle</button>
   </div>
   <div id="bgmsg"></div>
+  <div id="start"><div id="startbox"><div id="startt"></div><button id="startb"></button><div id="startn"></div></div></div>
 </div>
 </div>
 <div id="rot">Rotate your phone to landscape for a bigger board.</div>
@@ -84,16 +87,22 @@ var $=function(s,r){return (r||document).querySelector(s)};
 var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
 var NS="http://www.w3.org/2000/svg";
 var stage=$("#stage"),scale=1;
+var PORTRAIT=false,SW=1672,SH=941;
 function fit(){
-  var w=window.innerWidth,h=window.innerHeight;
-  scale=Math.min(w/1672,h/941);
+  var w=window.innerWidth,h=window.innerHeight,pt=h>w*1.05;
+  if(pt!==PORTRAIT||!stage.style.width){
+    PORTRAIT=pt;SW=pt?900:1672;SH=pt?1800:941;
+    stage.style.width=SW+"px";stage.style.height=SH+"px";stage.classList.toggle("portrait",pt);
+    var cvs=$("#ink");if(cvs&&(cvs.width!==SW||cvs.height!==SH)){cvs.width=SW;cvs.height=SH;cvs.style.width=SW+"px";cvs.style.height=SH+"px";if(window.__repaint)window.__repaint()}
+  }
+  scale=Math.min(w/SW,h/SH);
   stage.style.left="0";stage.style.top="0";
-  stage.style.transform="translate("+(w-1672*scale)/2+"px,"+(h-941*scale)/2+"px) scale("+scale+")";
-  $("#rot").style.display=(h>w*1.1)?"block":"none";
+  stage.style.transform="translate("+(w-SW*scale)/2+"px,"+(h-SH*scale)/2+"px) scale("+scale+")";
 }
 window.addEventListener("resize",fit);fit();
+var QL=(location.search.match(/lang=(ar|en|fr)/)||[])[1];
 
-var LANG=DATA.lang||"en",pi=0,ii=-1,voiceOn=true,playing=false,playTimer=null,target=[585,330],revealTimers=[];
+var LANG=QL||DATA.lang||"ar",pi=0,ii=-1,voiceOn=true,playing=false,playTimer=null,target=[585,330],revealTimers=[];
 var UI={en:{page:"Lesson map:",ex:"Problem",play:"Play the lesson",pause:"Pause the lesson"},ar:{page:"خريطة الدرس:",ex:"المسألة",play:"تشغيل الدرس",pause:"إيقاف مؤقت"},fr:{page:"Plan de la leçon :",ex:"Problème",play:"Lancer la leçon",pause:"Pause"}};
 var VOICES={en:"en-US",ar:"ar-SA",fr:"fr-FR"};
 function L(o){return (o&&(o[LANG]||o.en))||""}
@@ -169,7 +178,7 @@ function applyUpTo(k,animateLast){
   if(last&&last.k==="t"&&lastT){
     lastT.classList.add("cur");lastT.classList.remove("done");
     var hw=lastT.querySelector(".hw");
-    if(animateLast){hw.style.animation="none";void hw.offsetWidth;hw.style.animation="write "+Math.min(3.5,.9+L(last).length/60)+"s steps(40,end) forwards";lastT.classList.remove("done")}
+    if(animateLast){hw.style.animation="none";void hw.offsetWidth;hw.style.animation=(LANG==="ar"?"writeR ":"write ")+Math.min(3.5,.9+L(last).length/60)+"s steps(40,end) forwards";lastT.classList.remove("done")}
     else{lastT.classList.add("done")}
     steps.scrollTop=lastT.offsetTop-20;
     target=[585,470];
@@ -214,8 +223,9 @@ function say(t){
     if(!voiceOn||!window.speechSynthesis)return;
     window.speechSynthesis.cancel();
     var u=new SpeechSynthesisUtterance(t);u.lang=VOICES[LANG];u.rate=.95;
-    u.onend=function(){if(playing)schedule(600)};
-    u.onerror=function(){if(playing)schedule(2500)};
+    u.onstart=function(){speaking=true};
+    u.onend=function(){speaking=false;if(playing)schedule(600)};
+    u.onerror=function(){speaking=false;if(playing)schedule(2500)};
     window.speechSynthesis.speak(u);
   }catch(e){}
 }
@@ -231,8 +241,8 @@ function schedule(ms){
     if(!it||it.k!=="t"||!hasVoice())schedule(it&&it.k==="t"?Math.max(3500,L(it).length*70):(it&&it.k==="d"?3500:2200));
   },ms);
 }
-function startPlay(){playing=true;closePops();$("#mPlay").textContent="❚❚  "+UI[LANG].pause;if(ii<0||ii>=page().items.length-1)gotoPage(pi);schedule(hasVoice()?100:3500)}
-function stopPlay(){playing=false;clearTimeout(playTimer);try{window.speechSynthesis&&window.speechSynthesis.cancel()}catch(e){}$("#mPlay").textContent="▶  "+UI[LANG].play}
+function startPlay(){playing=true;closePops();$("#side").classList.remove("show");$("#bigplay").textContent="❚❚";$("#mPlay").textContent="❚❚  "+UI[LANG].pause;if(ii<0||ii>=page().items.length-1)gotoPage(pi);schedule(hasVoice()?100:3500)}
+function stopPlay(){$("#bigplay").textContent="▶";playing=false;speaking=false;clearTimeout(playTimer);try{window.speechSynthesis&&window.speechSynthesis.cancel()}catch(e){}$("#mPlay").textContent="▶  "+UI[LANG].play}
 
 /* ---- teacher ---- */
 var T=$("#teacher");
@@ -245,6 +255,8 @@ function togglePop(id){var p=$("#"+id),was=p.classList.contains("show");closePop
 $("#bMenu").onclick=function(){togglePop("popMenu")};
 $("#bTools").onclick=function(){togglePop("popTools")};
 $("#mPlay").onclick=function(){if(playing)stopPlay();else startPlay()};
+$("#bigplay").onclick=function(){if(playing)stopPlay();else startPlay()};
+$("#mMap").onclick=function(){closePops();$("#side").classList.toggle("show")};
 $("#mRestart").onclick=function(){stopPlay();closePops();gotoPage(pi,false)};
 $("#mAll").onclick=function(){stopPlay();closePops();ii=page().items.length-1;renderPage(false,false)};
 $("#mVoice").onclick=function(){voiceOn=!voiceOn;this.textContent=voiceOn?"🔊  Voice: on":"🔇  Voice: off";if(!voiceOn){try{window.speechSynthesis&&window.speechSynthesis.cancel()}catch(e){}}};
@@ -257,6 +269,18 @@ $("#bBg").onclick=function(){
 };
 buildMap();
 gotoPage(0,false);
+var SUPPORT=false;try{SUPPORT=!!window.speechSynthesis&&typeof SpeechSynthesisUtterance!=="undefined"}catch(e){}
+var SS={ar:["ابدأ الدرس","اضغط للبدء: يشرح لك الأستاذ نبيل الدرس بالصوت والرسم خطوة خطوة.","الصوت غير مدعوم في هذا العارض. افتح الرابط في متصفح Chrome ليعمل الصوت."],
+        en:["Start the lesson","Tap to begin: Ustaz Nabil explains the lesson with voice and drawings, step by step.","Voice is not supported in this viewer. Open the link in Chrome for sound."],
+        fr:["Commencer la leçon","Touchez pour commencer : l'explication est lue et dessinée pas à pas.","La voix n'est pas prise en charge ici. Ouvrez le lien dans Chrome."]};
+function showStart(){
+  var s=SS[LANG];$("#startt").textContent=L(DATA.title);$("#startb").textContent="▶  "+s[0];$("#startn").textContent=SUPPORT?s[1]:s[2];
+  $("#start").style.display="flex";
+}
+$("#startb").onclick=function(){$("#start").style.display="none";try{if(window.speechSynthesis){var u=new SpeechSynthesisUtterance(" ");u.volume=0;window.speechSynthesis.speak(u)}}catch(e){}gotoPage(0,false);startPlay()};
+$$("[data-lang]").forEach(function(b){b.addEventListener("click",function(){showStartIfIdle()})});
+function showStartIfIdle(){}
+showStart();
 })();
 </script>
 </body>

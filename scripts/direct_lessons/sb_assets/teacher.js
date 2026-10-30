@@ -24,7 +24,8 @@ tel("path",{d:"M172 190 C170 160 180 140 196 126 C204 150 200 176 204 206Z",fill
 /* beard */
 tel("path",{d:"M196 246 C200 296 226 332 276 330 C316 326 336 296 338 262 C328 276 312 284 296 280 C282 268 256 266 238 276 C220 272 208 262 202 240Z",fill:HAIR});
 tel("path",{d:"M270 272 C290 266 312 268 326 262",fill:"none",stroke:"#3a2a22","stroke-width":3,"stroke-linecap":"round"});
-tel("path",{d:"M306 274 q12 4 22 -2",fill:"none",stroke:"#7a4a3a","stroke-width":3,"stroke-linecap":"round"}); /* mouth */
+var mouth=tel("path",{d:"M306 274 q12 4 22 -2",fill:"none",stroke:"#7a4a3a","stroke-width":3,"stroke-linecap":"round"}); /* mouth */
+var speaking=false,mouthT=0,armHidden=false;
 /* ear and eye */
 tel("ellipse",{cx:206,cy:232,rx:12,ry:22,fill:SKd});
 tel("ellipse",{cx:300,cy:206,rx:8,ry:5,fill:"#fff"});
@@ -49,6 +50,8 @@ function solve(tx,ty){
   return {ex:ex,ey:ey,wx:SHD.x+dx,wy:SHD.y+dy};
 }
 function frame(ts){
+  if(speaking){if(ts-mouthT>130){mouthT=ts;var o=Math.random()>.35;mouth.setAttribute("d",o?"M304 272 q12 16 24 -2 q-12 -6 -24 2z":"M306 274 q12 4 22 -2");mouth.setAttribute("fill",o?"#5a1f1f":"none")}}else if(mouthT){mouthT=0;mouth.setAttribute("d","M306 274 q12 4 22 -2");mouth.setAttribute("fill","none")}
+  if(PORTRAIT!==armHidden){armHidden=PORTRAIT;[arm,armHl,hand,pen,penTip].forEach(function(e){e.style.display=armHidden?"none":""})}
   cur.x+=(target[0]-cur.x)*.07;cur.y+=(target[1]-cur.y)*.07;
   var wob=Math.sin(ts/380)*2.2;
   var s=solve(cur.x-67+wob,cur.y+57+wob*.4);

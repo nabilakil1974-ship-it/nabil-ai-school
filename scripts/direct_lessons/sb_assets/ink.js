@@ -27,7 +27,8 @@ function drawOp(o,c){
   }
   c.restore();
 }
-function repaint(extra){cx.clearRect(0,0,1672,941);ops.forEach(function(o){drawOp(o,cx)});if(extra)drawOp(extra,cx)}
+window.__repaint=function(){repaint()};
+function repaint(extra){cx.clearRect(0,0,cv.width,cv.height);ops.forEach(function(o){drawOp(o,cx)});if(extra)drawOp(extra,cx)}
 cv.addEventListener("pointerdown",function(e){
   if(tool==="select")return;
   cv.setPointerCapture(e.pointerId);closePops();
@@ -56,5 +57,5 @@ $$("[data-shape]").forEach(function(b){b.onclick=function(){shapeKind=b.dataset.
 $("#tUndo").onclick=function(){if(ops.length){redo.push(ops.pop());repaint()}};
 $("#tRedo").onclick=function(){if(redo.length){ops.push(redo.pop());repaint()}};
 $("#clearInk").onclick=function(){ops=[];redo=[];repaint()};
-setTool("pen");
+setTool("select");
 

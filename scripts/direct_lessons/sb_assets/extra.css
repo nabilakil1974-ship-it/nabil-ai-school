@@ -24,3 +24,48 @@
 #sideh{font-family:var(--hand);font-size:31px;color:var(--yellow);border-bottom:3px solid var(--yellow);display:inline-block;line-height:34px}
 #title{font-size:36px;padding:0 20px;text-align:center;white-space:normal;line-height:40px}
 .pop button.item.sel{background:#1f8cff}
+
+@keyframes writeR{from{clip-path:inset(0 0 0 100%)}to{clip-path:inset(0 0 0 0)}}
+#steps.rtl .st .hw{clip-path:inset(0 0 0 100%)}
+#steps.rtl .st.done .hw{clip-path:inset(0)}
+#steps.rtl .st .tx{font-family:"Noto Naskh Arabic","Droid Arabic Naskh","Segoe UI",Tahoma,system-ui,sans-serif;font-size:27px;line-height:38px}
+#fm .f{font-family:var(--hand)}
+#bigplay{display:none;border:3px solid var(--yellow);border-radius:16px;background:rgba(255,225,77,.14);color:var(--yellow);font-size:38px;cursor:pointer;z-index:10}
+#start{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(2,8,20,.82);z-index:30}
+#startbox{width:760px;max-width:90%;text-align:center;padding:40px;border:3px solid var(--line);border-radius:24px;background:rgba(6,22,56,.97);box-shadow:0 0 40px rgba(30,144,255,.6)}
+#startt{font-size:40px;font-weight:700;margin-bottom:26px;line-height:50px}
+#startb{font-size:44px;padding:22px 54px;border-radius:20px;border:0;background:#1f8cff;color:#fff;font-weight:700;cursor:pointer;box-shadow:0 0 30px rgba(31,140,255,.8)}
+#startn{margin-top:26px;font-size:26px;line-height:36px;color:#bcd7ff}
+#rot{display:none!important}
+#side.show{display:block}
+/* ---------- portrait (phones) ---------- */
+#stage.portrait #logo,#stage.portrait #panelline,#stage.portrait #dots{display:none}
+#stage.portrait #title{left:20px;top:16px;width:860px;height:92px;font-size:38px;line-height:44px}
+#stage.portrait #topic{left:440px;top:132px;width:440px;height:92px;font-size:28px;line-height:34px;padding:10px 16px;display:flex;align-items:center}
+#stage.portrait #pager{left:440px;top:240px;font-size:34px}
+#stage.portrait #bigplay{display:block;left:440px;top:300px;width:440px;height:84px}
+#stage.portrait #teacher{transform-origin:0 0;transform:translate(-10px,112px) scale(.62);clip-path:inset(0 1000px 520px 0)}
+#stage.portrait #draw{left:20px;top:400px;width:860px;height:573px}
+#stage.portrait #fm{left:20px;top:988px;width:860px;height:232px;font-size:34px}
+#stage.portrait #fm.tall{top:400px;height:820px;font-size:38px}
+#stage.portrait #fm .f{line-height:42px;padding:10px 16px}
+#stage.portrait #steps{left:20px;top:1232px;width:860px;height:392px;font-size:34px;line-height:46px}
+#stage.portrait #steps .st .n{flex:0 0 52px;height:52px;font-size:30px}
+#stage.portrait #steps.rtl .st .tx{font-size:36px;line-height:50px}
+#stage.portrait #steps .st{opacity:.5}
+#stage.portrait #steps .st.cur{opacity:1}
+#stage.portrait #bar{left:0;top:1636px;width:900px;height:164px;flex-wrap:wrap;align-content:flex-start;border-top:2px solid rgba(30,144,255,.8);padding:6px 6px}
+#stage.portrait #bar .sp{display:none}
+#stage.portrait #nav{order:-1;flex:0 0 100%;height:84px;justify-content:space-between;margin:0 0 6px;border-radius:18px}
+#stage.portrait #nav button{width:120px;height:68px;font-size:50px}
+#stage.portrait #nav span{font-size:34px}
+#stage.portrait .tb{width:98px;height:70px;font-size:15px}
+#stage.portrait .tb svg{width:30px;height:30px}
+#stage.portrait #side{display:none;left:20px;top:122px;width:860px;height:1500px;padding:14px;background:rgba(6,22,56,.98);border:3px solid var(--line);border-radius:18px;z-index:15}
+#stage.portrait #side.show{display:block}
+#stage.portrait #map{height:1400px}
+#stage.portrait #map .mi{font-size:32px;line-height:40px}
+#stage.portrait #map .mi i{flex:0 0 42px;height:42px;font-size:22px}
+#stage.portrait .pop{left:20px!important;bottom:190px;min-width:420px;font-size:28px}
+#stage.portrait .pop button.item{font-size:30px;padding:16px}
+#stage.portrait #startbox{width:820px}

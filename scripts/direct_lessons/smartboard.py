@@ -18,7 +18,7 @@ def _items(steps):
     return out
 
 
-def data(m, lang="en"):
+def data(m, lang="ar"):
     pages = []
     for te, ta, tf, page, steps in m.THEORY:
         pages.append({"title": {"en": te, "ar": ta, "fr": tf}, "items": _items(steps)})
@@ -31,7 +31,7 @@ def data(m, lang="en"):
     return {"title": m.TITLES, "lang": lang, "pages": pages}
 
 
-def render(m, lang="en"):
+def render(m, lang="ar"):
     html = (A / "template.html").read_text(encoding="utf-8")
     css = (A / "base.css").read_text() + (A / "extra.css").read_text()
     js = json.dumps(data(m, lang), ensure_ascii=False).replace("</", "<\\/")
