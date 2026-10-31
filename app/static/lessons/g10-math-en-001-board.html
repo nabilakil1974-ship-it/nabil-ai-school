@@ -361,10 +361,21 @@ function setDraw(x,hidden){
   }
   dr.classList.add("on");
 }
+var wtActive=false;
+function ptPos(L){var c=$('#draw [data-pt="'+L+'"]');if(!c)return null;var r=c.getBoundingClientRect(),sr=stage.getBoundingClientRect();return [(r.left+r.width/2-sr.left)/scale,(r.top+r.height/2-sr.top)/scale]}
+function wordPoint(prev,txt){ /* the pointer follows the letters the teacher is saying: A, AB, ABC, angle A ... */
+  var m=txt.match(/(?:^|[^A-Za-z])([A-Z]{1,4})(?![A-Za-z])/);if(!m)return null;
+  var s=m[1],P=s.split("").map(ptPos);if(P.some(function(x){return !x}))return null;
+  var isAng=/الزاوية|الزاويتين|الزوايا|angle|angles/i.test(prev||"");
+  if(s.length===1)return P[0];
+  if(s.length===2)return [(P[0][0]+P[1][0])/2,(P[0][1]+P[1][1])/2];
+  if(isAng&&s.length===3)return P[1];
+  var x=0,y=0;P.forEach(function(q){x+=q[0];y+=q[1]});return [x/P.length,y/P.length];
+}
 function showIds(x,n){
   var dr=$("#draw"),ids=x.show||[];
   for(var k=0;k<ids.length;k++){var e=dr.querySelector("#"+ids[k]);if(e)e.style.opacity=k<n?1:0}
-  if(n>0){var e2=dr.querySelector("#"+ids[Math.min(n,ids.length)-1]);
+  if(n>0&&!wtActive){var e2=dr.querySelector("#"+ids[Math.min(n,ids.length)-1]);
     if(e2){var r=e2.getBoundingClientRect(),sr=stage.getBoundingClientRect();target=[Math.min(790,(r.left+r.width/2-sr.left)/scale),(r.top+r.height/2-sr.top)/scale]}}
 }
 function clearDraw(){var dr=$("#draw");dr.innerHTML="";dr.classList.remove("on");shownDraw=null}
@@ -398,7 +409,7 @@ function applyUpTo(k,animateLast){
   target=[585,470];
   $("#navtxt").textContent=Math.max(k+1,0)+" / "+bs.length;
 }
-function go(k,speak){
+function go(k,speak){wtActive=false;
   var p=page(),bs=bundlesOf(p);ii=Math.max(-1,Math.min(bs.length-1,k));
   renderPage(false,speak!==false);
   var B=ii>=0?bs[ii]:null;if(!B)return;
@@ -448,7 +459,8 @@ function narrate(text,el,onDone,onProg,estO){
   narStop();var tok=narTok;
   var words=el?$$(".w",el):[],starts=[],pos=0;
   words.forEach(function(w){var i=text.indexOf(w.textContent,pos);if(i<0)i=pos;starts.push(i);pos=i+w.textContent.length});
-  function reveal(n,f){for(var i=0;i<words.length;i++)words[i].classList.toggle("on",i<n);if(onProg)onProg(f!=null?f:(words.length?n/words.length:0))}
+  function reveal(n,f){for(var i=0;i<words.length;i++)words[i].classList.toggle("on",i<n);if(onProg)onProg(f!=null?f:(words.length?n/words.length:0));
+    if(n>0&&n<=words.length){var wp=wordPoint(n>1?words[n-2].textContent:"",words[n-1].textContent);if(wp){target=wp;wtActive=true}}}
   var done=false;
   function finish(){if(tok!==narTok||done)return;done=true;clearInterval(narTimer);reveal(words.length,1);speaking=false;if(onDone){try{onDone()}catch(e){}}}
   reveal(0,0);speaking=true;
