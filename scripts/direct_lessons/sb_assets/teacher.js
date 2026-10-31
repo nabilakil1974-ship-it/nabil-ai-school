@@ -7,7 +7,8 @@ var beam=tel("path",{d:"",fill:"none",stroke:"#ffe14d","stroke-width":4,"stroke-
 var ring=tel("circle",{cx:0,cy:0,r:26,fill:"none",stroke:"#ffe14d","stroke-width":4,filter:"url(#pg)"});
 var dot=tel("circle",{cx:0,cy:0,r:9,fill:"#ffe14d",filter:"url(#pg)"});
 var head=tel("path",{d:"M0 0 L-30 -14 L-24 0 L-30 14 Z",fill:"#ffe14d",stroke:"#7a5b00","stroke-width":2,filter:"url(#pg)"});
-var speaking=false;
+var speaking=false,lastSp=null,uv=$("#uv");
+if(uv){uv.addEventListener("playing",function(){$("#ustaz").classList.add("vid")});uv.addEventListener("error",function(){})}
 var cur={x:585,y:330},target=[585,330];
 function frame(ts){
   cur.x+=(target[0]-cur.x)*.08;cur.y+=(target[1]-cur.y)*.08;
@@ -20,6 +21,7 @@ function frame(ts){
   var ang=Math.atan2(ty-my,tx-mx)*180/Math.PI;
   head.setAttribute("transform","translate("+(tx-4)+","+(ty-4)+") rotate("+ang+") translate(-18,0)");
   var u=$("#ustaz");if(u)u.classList.toggle("talk",speaking);
+  if(speaking!==lastSp){lastSp=speaking;if(uv){try{if(speaking){var pr=uv.play();if(pr&&pr.catch)pr.catch(function(){})}else uv.pause()}catch(e){}}}
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

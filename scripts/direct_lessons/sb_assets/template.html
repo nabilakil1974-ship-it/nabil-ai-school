@@ -31,7 +31,7 @@
   <div id="panelline" class="abs"></div>
   <div id="side" class="abs"><span id="sideh"></span><div id="map"></div></div>
 
-  <div id="ustaz" class="abs"><img alt="Ustaz Nabil" src="%%PHOTO%%"><div id="nametag"><span id="ntxt"></span><b class="eq"><i></i><i></i><i></i><i></i><i></i></b></div></div>
+  <div id="ustaz" class="abs"><img alt="Ustaz Nabil" src="%%PHOTO%%"><video id="uv" muted loop playsinline preload="auto" src="ustaz-talking.mp4"></video><div id="nametag"><span id="ntxt"></span><b class="eq"><i></i><i></i><i></i><i></i><i></i></b></div></div>
   <svg id="teacher" viewBox="0 0 1672 941" aria-label="Pointer"></svg>
   <canvas id="ink" width="1672" height="941"></canvas>
 
@@ -139,7 +139,7 @@ function renderPage(showAll,animateLast){
       d.innerHTML='<div class="n">'+tn+'</div><div class="tx"></div>';
       var tx=d.lastChild;
       if(x.label){var lb=document.createElement("span");lb.className="lab";lb.textContent=x.label;tx.appendChild(lb)}
-      var hw=document.createElement("span");hw.className="hw";hw.textContent=L(x);tx.appendChild(hw);
+      var hw=document.createElement("span");hw.className="hw";L(x).split(/\s+/).filter(Boolean).forEach(function(w){var sp=document.createElement("span");sp.className="w";sp.textContent=w;hw.appendChild(sp);hw.appendChild(document.createTextNode(" "))});tx.appendChild(hw);
       d.onclick=function(){stopPlay();go(idx)};
       steps.appendChild(d);
     }else if(x.k==="f"){
@@ -179,9 +179,7 @@ function applyUpTo(k,animateLast){
   if(lastT&&!(last&&last.k==="t")){lastT.classList.add("cur");steps.scrollTop=lastT.offsetTop-20}
   if(last&&last.k==="t"&&lastT){
     lastT.classList.add("cur");lastT.classList.remove("done");
-    var hw=lastT.querySelector(".hw");
-    if(animateLast){hw.style.animation="none";void hw.offsetWidth;hw.style.animation=(LANG==="ar"?"writeR ":"write ")+Math.min(3.5,.9+L(last).length/60)+"s steps(40,end) forwards";lastT.classList.remove("done");speaking=true;var dd=Math.min(3.5,.9+L(last).length/60)*1000+600;setTimeout(function(){try{if(!(window.speechSynthesis&&window.speechSynthesis.speaking))speaking=false}catch(e){speaking=false}},dd)}
-    else{lastT.classList.add("done")}
+    if(animateLast){lastT.classList.remove("done")}else{lastT.classList.add("done")}
     steps.scrollTop=lastT.offsetTop-20;
     target=[585,470];
   }
@@ -191,11 +189,13 @@ function applyUpTo(k,animateLast){
 }
 function go(k,speak){
   var p=page();ii=Math.max(-1,Math.min(p.items.length-1,k));
-  var animate=true;
-  /* rebuild up to ii without animation for earlier ones, animate the newest */
-  renderPageKeep(animate);
-  var it=ii>=0?p.items[ii]:null;
-  if(it&&it.k==="t"&&speak!==false)say(L(it));
+  renderPage(false,speak!==false);
+  var it=ii>=0?p.items[ii]:null;if(!it)return;
+  var cb=function(){if(playing)schedule(500)};
+  if(speak===false){return}
+  if(it.k==="t"){narrate(L(it),$('#steps [data-idx="'+ii+'"]'),cb)}
+  else if(it.k==="f"){narrate(mathSpeech(it.f),null,cb)}
+  else{narStop();if(playing)schedule(Math.max(1500,(it.show||[]).length*480+1000))}
 }
 function renderPageKeep(animate){renderPage(false,animate)}
 function gotoPage(i,speak){
@@ -219,19 +219,53 @@ document.addEventListener("keydown",function(e){
   else if(e.key==="ArrowLeft"||e.key==="ArrowUp"){stopPlay();prev()}
 });
 
-/* voice + play */
-function say(t){
-  try{
-    if(!voiceOn||!window.speechSynthesis)return;
-    window.speechSynthesis.cancel();
-    var u=new SpeechSynthesisUtterance(t);u.lang=VOICES[LANG];u.rate=.95;
-    u.onstart=function(){speaking=true};
-    u.onend=function(){speaking=false;if(playing)schedule(600)};
-    u.onerror=function(){speaking=false;if(playing)schedule(2500)};
-    window.speechSynthesis.speak(u);
-  }catch(e){}
+/* voice + play : the writing is revealed word by word while the voice speaks it */
+var narTok=0,narTimer=null,SUPPORT=false;
+try{SUPPORT=!!window.speechSynthesis&&typeof SpeechSynthesisUtterance!=="undefined"}catch(e){}
+var MW={en:{"−":" minus ","+":" plus ","×":" times ","·":" times ","÷":" divided by ","=":" equals ","→":" gives ","✓":" correct ","≈":" approximately "},
+        ar:{"−":" ناقص ","+":" زائد ","×":" ضرب ","·":" ضرب ","÷":" تقسيم ","=":" يساوي ","→":" يعطي ","✓":" صحيح ","≈":" يساوي تقريبًا "},
+        fr:{"−":" moins ","+":" plus ","×":" fois ","·":" fois ","÷":" divisé par ","=":" égale ","→":" donne ","✓":" juste ","≈":" environ "}};
+function mathSpeech(f){var m=MW[LANG];return f.replace(/[−+×·÷=→✓≈]/g,function(c){return m[c]||c}).replace(/\s+/g," ")}
+function chunksOf(text){
+  var parts=text.match(/[^.!?؟؛:]+[.!?؟؛:]*\s*/g)||[text],out=[],cur="";
+  parts.forEach(function(p){if(cur&&(cur+p).length>170){out.push(cur);cur=p}else cur+=p});
+  if(cur)out.push(cur);
+  return out.join("")===text?out:[text];
 }
-function hasVoice(){try{return voiceOn&&!!window.speechSynthesis}catch(e){return false}}
+function narStop(){narTok++;clearInterval(narTimer);speaking=false;try{window.speechSynthesis&&window.speechSynthesis.cancel()}catch(e){}}
+function narrate(text,el,onDone){
+  narStop();var tok=narTok;
+  var words=el?$$(".w",el):[],starts=[],pos=0;
+  words.forEach(function(w){var i=text.indexOf(w.textContent,pos);if(i<0)i=pos;starts.push(i);pos=i+w.textContent.length});
+  function reveal(n){for(var i=0;i<words.length;i++)words[i].classList.toggle("on",i<n)}
+  var done=false;
+  function finish(){if(tok!==narTok||done)return;done=true;clearInterval(narTimer);reveal(words.length);speaking=false;if(onDone)onDone()}
+  reveal(0);speaking=true;
+  var est=Math.max(1400,text.length*(LANG==="ar"?80:68)),t0=Date.now(),gotB=false,started=false;
+  narTimer=setInterval(function(){if(tok!==narTok||gotB)return;reveal(Math.ceil(Math.min(1,(Date.now()-t0)/est)*words.length))},100);
+  if(!(voiceOn&&SUPPORT)){setTimeout(finish,est+400);return}
+  var ch=chunksOf(text),ci=0,base=0;
+  function speakNext(){
+    if(tok!==narTok)return;
+    if(ci>=ch.length){finish();return}
+    var u=new SpeechSynthesisUtterance(ch[ci]),off=base,len=ch[ci].length;
+    u.lang=VOICES[LANG];u.rate=.95;
+    u.onstart=function(){started=true};
+    u.onboundary=function(e){
+      if(tok!==narTok)return;gotB=true;var c=off+(e.charIndex||0),n=0;
+      for(var i=0;i<starts.length;i++){if(starts[i]<=c+1)n=i+1}
+      reveal(n);
+    };
+    u.onend=function(){if(tok!==narTok)return;ci++;base+=len;speakNext()};
+    u.onerror=function(e){if(tok!==narTok)return;setTimeout(finish,300)};
+    try{window.speechSynthesis.speak(u)}catch(e){setTimeout(finish,est)}
+  }
+  try{window.speechSynthesis.cancel()}catch(e){}
+  setTimeout(speakNext,60);
+  setTimeout(function(){ /* voice never started: keep the timed writing and move on */
+    if(tok===narTok&&!started&&!done){try{window.speechSynthesis.cancel()}catch(e){}tok=++narTok;var t1=Date.now();narTimer=setInterval(function(){var f=Math.min(1,(Date.now()-t1)/est);reveal(Math.ceil(f*words.length));if(f>=1){clearInterval(narTimer);reveal(words.length);speaking=false;if(!done){done=true;if(onDone)onDone()}}},100)}
+  },3500);
+}
 function schedule(ms){
   clearTimeout(playTimer);
   playTimer=setTimeout(function(){
@@ -239,12 +273,13 @@ function schedule(ms){
     var p=page();
     if(pi>=DATA.pages.length-1&&ii>=p.items.length-1){stopPlay();return}
     next();
-    var it=page().items[ii];
-    if(!it||it.k!=="t"||!hasVoice())schedule(it&&it.k==="t"?Math.max(3500,L(it).length*70):(it&&it.k==="d"?3500:2200));
   },ms);
 }
-function startPlay(){playing=true;closePops();$("#side").classList.remove("show");$("#bigplay").textContent="❚❚";$("#mPlay").textContent="❚❚  "+UI[LANG].pause;if(ii<0||ii>=page().items.length-1)gotoPage(pi);schedule(hasVoice()?100:3500)}
-function stopPlay(){$("#bigplay").textContent="▶";playing=false;speaking=false;clearTimeout(playTimer);try{window.speechSynthesis&&window.speechSynthesis.cancel()}catch(e){}$("#mPlay").textContent="▶  "+UI[LANG].play}
+function startPlay(){
+  playing=true;closePops();$("#side").classList.remove("show");$("#bigplay").textContent="❚❚";$("#mPlay").textContent="❚❚  "+UI[LANG].pause;
+  go(Math.max(ii,0),true);
+}
+function stopPlay(){$("#bigplay").textContent="▶";playing=false;clearTimeout(playTimer);narStop();$("#mPlay").textContent="▶  "+UI[LANG].play}
 
 /* ---- teacher ---- */
 var T=$("#teacher");
@@ -271,7 +306,6 @@ $("#bBg").onclick=function(){
 };
 buildMap();
 gotoPage(0,false);
-var SUPPORT=false;try{SUPPORT=!!window.speechSynthesis&&typeof SpeechSynthesisUtterance!=="undefined"}catch(e){}
 var SS={ar:["ابدأ الدرس","اضغط للبدء: يشرح لك الأستاذ نبيل الدرس بالصوت والرسم خطوة خطوة.","الصوت غير مدعوم في هذا العارض. افتح الرابط في متصفح Chrome ليعمل الصوت."],
         en:["Start the lesson","Tap to begin: Ustaz Nabil explains the lesson with voice and drawings, step by step.","Voice is not supported in this viewer. Open the link in Chrome for sound."],
         fr:["Commencer la leçon","Touchez pour commencer : l'explication est lue et dessinée pas à pas.","La voix n'est pas prise en charge ici. Ouvrez le lien dans Chrome."]};
