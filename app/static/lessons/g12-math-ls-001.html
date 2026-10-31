@@ -398,7 +398,7 @@ function renderPage(showAll,animateLast){
       var tx=d.lastChild;
       if(x.label){var lb=document.createElement("span");lb.className="lab";lb.textContent=x.label;tx.appendChild(lb)}
       var hw=document.createElement("span");hw.className="hw";L(x).split(/\s+/).filter(Boolean).forEach(function(w){var sp=document.createElement("span");sp.className="w";sp.dataset.o=w;if(/[A-Za-z0-9\u2212)\u00b2]\^|[A-Za-z0-9)]\/[A-Za-z0-9(\u221a]/.test(w)){try{sp.innerHTML=mathFmt(w);sp.classList.add("mw")}catch(e){sp.textContent=w}}else sp.textContent=w;hw.appendChild(sp);hw.appendChild(document.createTextNode(" "))});tx.appendChild(hw);
-      d.onclick=function(){stopPlay();go(x._b)};
+      d.onclick=function(){resumeAuto();go(x._b)};
       steps.appendChild(d);
     }else if(x.k==="f"){
       var f=document.createElement("div");f.className="f";f.dataset.idx=idx;f.style.display="none";try{if(/[\/^\u221a_]/.test(x.f))f.innerHTML=mathFmt(x.f);else f.textContent=x.f}catch(e){f.textContent=x.f}fm.appendChild(f);
@@ -497,8 +497,8 @@ function prev(){
   if(ii>0)go(ii-1,false);
   else if(pi>0){pi--;ii=-1;renderPage(true,false);go(bundlesOf(page()).length-1,false)}
 }
-$("#next").onclick=function(){stopPlay();next()};
-$("#prev").onclick=function(){stopPlay();prev()};
+$("#next").onclick=function(){resumeAuto();next()};
+$("#prev").onclick=function(){resumeAuto();if(ii>0)go(ii-1,true);else prev()};
 document.addEventListener("keydown",function(e){
   if(e.key==="ArrowRight"||e.key==="ArrowDown"||e.key===" "){e.preventDefault();stopPlay();next()}
   else if(e.key==="ArrowLeft"||e.key==="ArrowUp"){stopPlay();prev()}
@@ -530,30 +530,41 @@ function narrate(text,el,onDone,onProg,estO){
   var est=estO||Math.max(1400,text.length*(LANG==="ar"?100:82)),t0=Date.now(),gotB=false,started=false;
   narTimer=setInterval(function(){if(tok!==narTok||gotB)return;var f0=Math.min(1,(Date.now()-t0)/est);reveal(Math.ceil(f0*words.length),f0)},100);
   if(!text||!(voiceOn&&SUPPORT)){setTimeout(finish,est+400);return}
-  var ch=chunksOf(text),ci=0,base=0,lastAct=Date.now();
-  var wd=setInterval(function(){if(tok!==narTok||done){clearInterval(wd);return}
-    try{var ss=window.speechSynthesis;if(ss&&ss.paused)ss.resume()}catch(e){}
-    if(started&&Date.now()-lastAct>6000){clearInterval(wd);try{window.speechSynthesis.cancel()}catch(e){}finish()}},1000);
+  var ch=chunksOf(text),ci=0,base=0,lastAct=Date.now(),reqT=0,tries=0,cur=null,dead=false;
+  function runTimed(){ /* the voice is not available right now: keep writing/drawing on a timer and move on */
+    dead=true;clearInterval(narTimer);var t1=Date.now(),w0=starts.length?Math.max(0,words.filter(function(w){return w.classList.contains("on")}).length):0;
+    narTimer=setInterval(function(){if(tok!==narTok){clearInterval(narTimer);return}var f=Math.min(1,(Date.now()-t1)/est);reveal(Math.max(w0,Math.ceil(f*words.length)),f);if(f>=1)finish()},100)}
   function speakNext(){
-    if(tok!==narTok)return;
+    if(tok!==narTok||dead)return;
     if(ci>=ch.length){finish();return}
-    var u=new SpeechSynthesisUtterance(ch[ci]),off=base,len=ch[ci].length;
+    var u=new SpeechSynthesisUtterance(ch[ci]),off=base,len=ch[ci].length,mine=ci;
+    cur={u:u,len:len,mine:mine};tries=0;
     u.lang=VOICES[LANG];u.rate=LANG==="ar"?.8:.86;
-    u.onstart=function(){started=true;lastAct=Date.now()};
+    u.onstart=function(){if(cur&&cur.u===u){started=true;lastAct=Date.now()}};
     u.onboundary=function(e){
-      if(tok!==narTok)return;gotB=true;started=true;lastAct=Date.now();var c=off+(e.charIndex||0),n=0;
+      if(tok!==narTok||!cur||cur.u!==u)return;gotB=true;started=true;lastAct=Date.now();var c=off+(e.charIndex||0),n=0;
       for(var i=0;i<starts.length;i++){if(starts[i]<=c+1)n=i+1}
       reveal(n,words.length?n/words.length:0);
     };
-    u.onend=function(){if(tok!==narTok)return;lastAct=Date.now();ci++;base+=len;speakNext()};
-    u.onerror=function(e){if(tok!==narTok)return;setTimeout(finish,300)};
-    try{window.speechSynthesis.speak(u)}catch(e){setTimeout(finish,est)}
+    u.onend=function(){if(tok!==narTok||!cur||cur.u!==u)return;lastAct=Date.now();ci=mine+1;base=off+len;speakNext()};
+    u.onerror=function(e){if(tok!==narTok||!cur||cur.u!==u)return;if(e&&(e.error==="interrupted"||e.error==="canceled"))return;lastAct=Date.now();ci=mine+1;base=off+len;speakNext()};
+    reqT=Date.now();started=false;
+    try{window.speechSynthesis.speak(u)}catch(e){runTimed()}
   }
+  var wd=setInterval(function(){
+    if(tok!==narTok||done){clearInterval(wd);return}
+    try{var ss=window.speechSynthesis;if(ss&&ss.paused)ss.resume()}catch(e){}
+    if(dead||!cur)return;
+    var now=Date.now(),allow=4500+cur.len*260;
+    if(!started&&now-reqT>3500){ /* the phone dropped the request: ask again, then give up politely */
+      if(tries<2){tries++;try{window.speechSynthesis.cancel()}catch(e){}var c0=cur;setTimeout(function(){if(tok===narTok&&cur===c0&&!dead){reqT=Date.now();try{window.speechSynthesis.speak(c0.u)}catch(e){runTimed()}}},350)}
+      else{try{window.speechSynthesis.cancel()}catch(e){}runTimed()}
+    }else if(started&&now-lastAct>allow){ /* stalled in the middle of a sentence: skip to the next one */
+      var m=cur.mine,l=cur.len,o=base;cur=null;try{window.speechSynthesis.cancel()}catch(e){}
+      ci=m+1;base=o+l;setTimeout(speakNext,300)}
+  },500);
   try{window.speechSynthesis.cancel()}catch(e){}
-  setTimeout(speakNext,60);
-  setTimeout(function(){ /* voice never started: keep the timed writing and move on */
-    if(tok===narTok&&!started&&!done){try{window.speechSynthesis.cancel()}catch(e){}tok=++narTok;var t1=Date.now();narTimer=setInterval(function(){var f=Math.min(1,(Date.now()-t1)/est);reveal(Math.ceil(f*words.length),f);if(f>=1){clearInterval(narTimer);reveal(words.length,1);speaking=false;if(!done){done=true;if(onDone)onDone()}}},100)}
-  },3500);
+  setTimeout(speakNext,300);
 }
 function schedule(ms){
   clearTimeout(playTimer);
@@ -568,6 +579,7 @@ function startPlay(){
   playing=true;try{if(navigator.wakeLock)navigator.wakeLock.request("screen").catch(function(){})}catch(e){}closePops();$("#side").classList.remove("show");$("#bigplay").textContent="❚❚";$("#mPlay").textContent="❚❚  "+UI[LANG].pause;
   go(Math.max(ii,0),true);
 }
+function resumeAuto(){playing=true;$("#bigplay").textContent="❚❚";$("#mPlay").textContent="❚❚  "+UI[LANG].pause;try{if(navigator.wakeLock)navigator.wakeLock.request("screen").catch(function(){})}catch(e){}}
 function stopPlay(){$("#bigplay").textContent="▶";playing=false;clearTimeout(playTimer);narStop();$("#mPlay").textContent="▶  "+UI[LANG].play}
 
 /* ---- teacher ---- */
