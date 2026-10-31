@@ -167,7 +167,8 @@ var shownDraw=null;
 function setDraw(x,hidden){
   var dr=$("#draw");
   if(shownDraw!==x||dr.innerHTML===""){
-    dr.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+x.vb[0]+" "+x.vb[1]+'">'+x.svg+"</svg>";
+    var sv=x.svg;if(DATA.imgs)sv=sv.replace(/@@IMG:(\w+)@@/g,function(m,k){return DATA.imgs[k]||""});
+    dr.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+x.vb[0]+" "+x.vb[1]+'">'+sv+"</svg>";
     var svg=dr.querySelector("svg");if(svg){svg.setAttribute("preserveAspectRatio","xMidYMid meet");svg.removeAttribute("width");svg.removeAttribute("height")}
     shownDraw=x;
     (x.show||[]).forEach(function(id){var e=dr.querySelector("#"+id);if(e){e.style.opacity=hidden?0:1;e.style.transition="opacity .45s"}});

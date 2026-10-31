@@ -19,6 +19,8 @@ def _items(steps):
 
 
 def data(m, lang="ar"):
+    if hasattr(m, "BOARD_DATA"):
+        return dict(m.BOARD_DATA, lang=lang)
     pages = []
     for te, ta, tf, page, steps in m.THEORY:
         pages.append({"title": {"en": te, "ar": ta, "fr": tf}, "items": _items(steps)})

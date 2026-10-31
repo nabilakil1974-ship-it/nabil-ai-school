@@ -364,6 +364,8 @@ def _prim(p):
     if k == "text":
         _, xy, t, size, col = p
         return f'<text x="{xy[0]:.1f}" y="{xy[1]:.1f}" font-size="{size}" font-weight="700" text-anchor="middle" fill="{col}" {FF}>{t}</text>'
+    if k == "raw":
+        return p[1]
     raise ValueError(k)
 
 
