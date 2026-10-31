@@ -74,17 +74,17 @@ def two(ticks, arcs, tag, extra_a=None):
 
 
 def d_asa():
-    t1, t2 = two({(1, 2): 1}, {1: 1, 2: 2}, "Angle-Side-Angle (Angle-Side-Angle)")
+    t1, t2 = two({(1, 2): 1}, {1: 1, 2: 2}, "Angle-Side-Angle")
     return geo([[t for t in t1 + t2 if t[0] in ("poly", "pt")], [t for t in t1 + t2 if t[0] == "tick"], [t for t in t1 + t2 if t[0] == "arc"]], "AS")
 
 
 def d_sas():
-    t1, t2 = two({(1, 0): 1, (0, 2): 2}, {0: 1}, "Side-Angle-Side (Side-Angle-Side)")
+    t1, t2 = two({(1, 0): 1, (0, 2): 2}, {0: 1}, "Side-Angle-Side")
     return geo([[t for t in t1 + t2 if t[0] in ("poly", "pt")], [t for t in t1 + t2 if t[0] == "tick"], [t for t in t1 + t2 if t[0] == "arc"]], "SA")
 
 
 def d_sss():
-    t1, t2 = two({(1, 0): 1, (0, 2): 2, (1, 2): 3}, {}, "Side-Side-Side (Side-Side-Side)")
+    t1, t2 = two({(1, 0): 1, (0, 2): 2, (1, 2): 3}, {}, "Side-Side-Side")
     return geo([[t for t in t1 + t2 if t[0] in ("poly", "pt")], [t for t in t1 + t2 if t[0] == "tick"]], "SS")
 
 
@@ -204,10 +204,10 @@ def d_cross():
 
 # ---------------------------------------------------------------- quiz
 QUIZ = [
-    {"q": "Triangle ABC has AB = DE, AC = DF and angle A = angle D (the angle between the two sides). Which case proves triangle ABC is congruent to triangle DEF?", "opts": ["Side-Angle-Side (Side-Angle-Side)", "Angle-Side-Angle (Angle-Side-Angle)", "Side-Side-Side (Side-Side-Side)", "Angle-Angle-Angle (AAA)"], "a": 0,
-     "why": {"Angle-Side-Angle (Angle-Side-Angle)": _w("Angle-Side-Angle (ASA) needs one side between two equal angles.", "زاوية – ضلع – زاوية يحتاج ضلعًا بين زاويتين متساويتين.", "angle-côté-angle (ASA) : un côté entre deux angles."),
-             "Side-Side-Side (Side-Side-Side)": _w("Side-Side-Side (SSS) needs all three pairs of sides.", "ضلع – ضلع – ضلع يحتاج الأضلاع الثلاثة.", "côté-côté-côté (SSS) : trois côtés."),
-             "Angle-Angle-Angle (AAA)": _w("Equal angles alone never prove equal triangles.", "الزوايا وحدها لا تثبت التطابق.", "Pas un cas d'égalité.")}, "ok": "Side-Angle-Side (Side-Angle-Side)"},
+    {"q": "Triangle ABC has AB = DE, AC = DF and angle A = angle D (the angle between the two sides). Which case proves triangle ABC is congruent to triangle DEF?", "opts": ["Side-Angle-Side", "Angle-Side-Angle", "Side-Side-Side", "Angle-Angle-Angle"], "a": 0,
+     "why": {"Angle-Side-Angle": _w("Angle-Side-Angle (ASA) needs one side between two equal angles.", "زاوية – ضلع – زاوية يحتاج ضلعًا بين زاويتين متساويتين.", "angle-côté-angle (ASA) : un côté entre deux angles."),
+             "Side-Side-Side": _w("Side-Side-Side (SSS) needs all three pairs of sides.", "ضلع – ضلع – ضلع يحتاج الأضلاع الثلاثة.", "côté-côté-côté (SSS) : trois côtés."),
+             "Angle-Angle-Angle": _w("Equal angles alone never prove equal triangles.", "الزوايا وحدها لا تثبت التطابق.", "Pas un cas d'égalité.")}, "ok": "Side-Angle-Side"},
     {"q": "In an isosceles triangle the base angles are 70°. What is the vertex angle?", "opts": ["40°", "70°", "110°", "20°"], "a": 0,
      "why": {"70°": _w("70 + 70 = 140, the third angle is 180 − 140.", "70 + 70 = 140 والثالثة 180 − 140.", "180 − 140."),
              "110°": _w("110° would give a sum of 250°.", "110° تعطي مجموعًا 250°.", "Somme 250°."),
@@ -251,21 +251,21 @@ THEORY = [
         F("AB = DE      BC = EF      AC = DF"),
         F("∠A = ∠D      ∠B = ∠E      ∠C = ∠F"),
     ]),
-    ("Case 1: Angle-Side-Angle (Angle-Side-Angle)", "الحالة الأولى: زاوية – ضلع – زاوية", "Cas 1 : angle-côté-angle (Angle-Side-Angle)", "42", [
+    ("Case 1: Angle-Side-Angle", "الحالة الأولى: زاوية – ضلع – زاوية", "Cas 1 : angle-côté-angle (Angle-Side-Angle)", "42", [
         T("Case one, Angle-Side-Angle (ASA): angle, side, angle. If a side and the two angles touching it are equal in both triangles, the triangles are equal. Here BC and DE... look at BC and EF with the angles at B, C and E, F.",
           "الحالة الأولى زاوية – ضلع – زاوية: زاوية وضلع وزاوية. إذا تساوى ضلع والزاويتان المجاورتان له في المثلثين فالمثلثان متساويان. هنا الضلع BC مع الزاويتين عند B وC يساويان EF مع الزاويتين عند E وF.",
           "angle-côté-angle (ASA) : un côté égal et les deux angles adjacents égaux."),
         d_asa(),
         F("BC = EF   ,   ∠B = ∠E   ,   ∠C = ∠F   ⇒   △ABC ≅ △DEF  (Angle-Side-Angle)"),
     ]),
-    ("Case 2: Side-Angle-Side (Side-Angle-Side)", "الحالة الثانية: ضلع – زاوية – ضلع", "Cas 2 : côté-angle-côté (Side-Angle-Side)", "42", [
+    ("Case 2: Side-Angle-Side", "الحالة الثانية: ضلع – زاوية – ضلع", "Cas 2 : côté-angle-côté (Side-Angle-Side)", "42", [
         T("Case two, Side-Angle-Side (SAS): side, angle, side. Two sides and the angle between them are equal. Here AB = DE, AC = DF, and the angle at A equals the angle at D. The angle must be between the two sides.",
           "الحالة الثانية ضلع – زاوية – ضلع: ضلع وزاوية وضلع. ضلعان والزاوية المحصورة بينهما متساوية. هنا AB = DE وAC = DF والزاوية عند A تساوي الزاوية عند D. يجب أن تكون الزاوية محصورة بين الضلعين.",
           "côté-angle-côté (SAS) : deux côtés et l'angle compris entre eux."),
         d_sas(),
         F("AB = DE   ,   ∠A = ∠D   ,   AC = DF   ⇒   △ABC ≅ △DEF  (Side-Angle-Side)"),
     ]),
-    ("Case 3: Side-Side-Side (Side-Side-Side)", "الحالة الثالثة: ضلع – ضلع – ضلع", "Cas 3 : côté-côté-côté (Side-Side-Side)", "42", [
+    ("Case 3: Side-Side-Side", "الحالة الثالثة: ضلع – ضلع – ضلع", "Cas 3 : côté-côté-côté (Side-Side-Side)", "42", [
         T("Case three, Side-Side-Side (SSS): three pairs of equal sides are enough. We do not even need the angles: the three sides decide the whole triangle.",
           "الحالة الثالثة ضلع – ضلع – ضلع: تكفي ثلاثة أزواج من الأضلاع المتساوية. لا نحتاج إلى الزوايا فالأضلاع الثلاثة تحدد المثلث كله.",
           "côté-côté-côté (SSS) : trois côtés égaux suffisent."),
@@ -279,21 +279,21 @@ THEORY = [
         d_aaa(),
         F("equal angles  ⇏  equal triangles"),
     ]),
-    ("Construct a triangle with Angle-Side-Angle (Angle-Side-Angle)", "ارسم مثلثًا بحالة زاوية – ضلع – زاوية", "Construire avec angle-côté-angle (Angle-Side-Angle)", "43", [
+    ("Construct a triangle with Angle-Side-Angle", "ارسم مثلثًا بحالة زاوية – ضلع – زاوية", "Construire avec angle-côté-angle (Angle-Side-Angle)", "43", [
         T("Construct a triangle with AB = 4 cm, angle A = 30 degrees and angle B = 45 degrees. First draw AB. Then draw a ray from A at 30 degrees and a ray from B at 45 degrees. Where they cross is C.",
           "ارسم مثلثًا فيه AB = 4 سم والزاوية A = 30° والزاوية B = 45°. نرسم أولًا AB ثم نصف مستقيم من A بزاوية 30° ونصف مستقيم من B بزاوية 45°. نقطة تقاطعهما هي C.",
           "On trace AB = 4 cm, puis deux demi-droites à 30° et 45° : leur intersection est C."),
         d_constr_asa(),
         F("C = 180° − (30° + 45°) = 105°"),
     ]),
-    ("Construct a triangle with Side-Angle-Side (Side-Angle-Side)", "ارسم مثلثًا بحالة ضلع – زاوية – ضلع", "Construire avec côté-angle-côté (Side-Angle-Side)", "43", [
+    ("Construct a triangle with Side-Angle-Side", "ارسم مثلثًا بحالة ضلع – زاوية – ضلع", "Construire avec côté-angle-côté (Side-Angle-Side)", "43", [
         T("Now sides 4 cm and 3 cm with the angle 45 degrees between them. Draw AB = 4 cm. At A draw a ray at 45 degrees. Measure 3 cm along it to find C. Join B to C.",
           "الآن ضلعان 4 سم و3 سم والزاوية 45° بينهما. نرسم AB = 4 سم وعند A نصف مستقيم بزاوية 45° ونقيس 3 سم عليه فنجد C ثم نصل B بـ C.",
           "AB = 4 cm, angle 45° en A, AC = 3 cm : on joint B et C."),
         d_constr_sas(),
         F("AB = 4 cm   ∠A = 45°   AC = 3 cm"),
     ]),
-    ("Construct a triangle with Side-Side-Side (Side-Side-Side)", "ارسم مثلثًا بحالة ضلع – ضلع – ضلع", "Construire avec côté-côté-côté (Side-Side-Side)", "43", [
+    ("Construct a triangle with Side-Side-Side", "ارسم مثلثًا بحالة ضلع – ضلع – ضلع", "Construire avec côté-côté-côté (Side-Side-Side)", "43", [
         T("A triangle with sides 3, 4 and 5 centimetres. Draw AB = 4 cm. With the compass make an arc of radius 3 cm from A and an arc of radius 5 cm from B. They meet at C. This triangle has a right angle at A.",
           "مثلث أضلاعه 3 و4 و5 سنتيمترات. نرسم AB = 4 سم ثم بالفرجار قوسًا نصف قطره 3 سم من A وقوسًا نصف قطره 5 سم من B فيلتقيان في C. في هذا المثلث زاوية قائمة عند A.",
           "Avec le compas : arc de 3 cm depuis A et arc de 5 cm depuis B."),
