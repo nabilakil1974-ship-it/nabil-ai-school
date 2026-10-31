@@ -12,7 +12,7 @@ if(uv){uv.addEventListener("playing",function(){$("#ustaz").classList.add("vid")
 var cur={x:585,y:330},target=[585,330];
 function frame(ts){
   cur.x+=(target[0]-cur.x)*.08;cur.y+=(target[1]-cur.y)*.08;
-  var ox=262,oy=470;
+  var ox=322,oy=432;
   var wob=Math.sin(ts/330)*3,tx=cur.x+wob,ty=cur.y+wob*.6;
   var mx=(ox+tx)/2,my=Math.min(oy,ty)-70;
   var dx=tx-ox,dy=ty-oy,dl=Math.hypot(dx,dy)||1,ex=tx-dx/dl*16,ey=ty-dy/dl*16;beam.setAttribute("d","M"+ox+" "+oy+" L"+ex+" "+ey);

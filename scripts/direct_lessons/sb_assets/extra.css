@@ -107,3 +107,10 @@
 @keyframes sway{50%{transform:rotate(.7deg) translateY(-3px)}}
 #nametag{left:6px;right:auto;bottom:6px;width:240px;padding:8px 12px;border-radius:12px;background:rgba(3,12,32,.78);border:2px solid var(--line);font-size:22px}
 #bigplay{left:272px;top:140px;width:84px;height:84px;border-radius:50%;font-size:34px;padding:0}
+
+/* robot avatar */
+#ustaz{left:14px;top:250px;width:346px;height:344px}
+#ustaz img{left:0;bottom:0;width:346px;height:344px;filter:drop-shadow(0 8px 16px rgba(0,0,0,.55))}
+#ustaz.talk img{filter:drop-shadow(0 0 18px rgba(57,217,138,.8))}
+#nametag{left:0;bottom:-58px;width:346px;font-size:24px;justify-content:space-between}
+#bigplay{left:14px;top:672px;width:346px;height:72px;border-radius:16px;font-size:38px}

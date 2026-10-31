@@ -33,7 +33,7 @@ def data(m, lang="ar"):
 
 def _photo():
     import base64
-    return "data:image/webp;base64," + base64.b64encode((A / "ustaz_full.webp").read_bytes()).decode()
+    return "data:image/webp;base64," + base64.b64encode((A / "robot.webp").read_bytes()).decode()
 
 
 def render(m, lang="ar"):
