@@ -8,7 +8,7 @@
 
 :root{
   --bg1:#05102a;--bg2:#0a2050;--line:#1e90ff;--cyan:#6fd3ff;--yellow:#ffe14d;--orange:#ff9f1c;--green:#39d98a;--ink:#eaf3ff;
-  --hand:"Segoe Print","Bradley Hand","Chalkboard SE","Marker Felt","Ink Free","Comic Sans MS","Comic Neue",cursive;
+  --hand:"Segoe UI",Roboto,"Noto Sans","Helvetica Neue",Arial,system-ui,sans-serif;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;background:#020812;overflow:hidden;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink)}
@@ -130,7 +130,7 @@ html,body{margin:0;height:100%;background:#020812;overflow:hidden;font-family:sy
 #startt{font-size:40px;font-weight:700;margin-bottom:26px;line-height:50px}
 #startb{font-size:44px;padding:22px 54px;border-radius:20px;border:0;background:#1f8cff;color:#fff;font-weight:700;cursor:pointer;box-shadow:0 0 30px rgba(31,140,255,.8)}
 #startn{margin-top:26px;font-size:26px;line-height:36px;color:#bcd7ff}
-#rot{display:none!important}
+
 #side.show{display:block}
 /* ---------- portrait (phones) ---------- */
 #stage.portrait #logo,#stage.portrait #panelline,#stage.portrait #dots{display:none}
@@ -182,6 +182,12 @@ html,body{margin:0;height:100%;background:#020812;overflow:hidden;font-family:sy
 #steps .w.on,#steps .st.done .w{opacity:1}
 #ustaz video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 25%;opacity:0;transition:opacity .25s}
 #ustaz.vid video{opacity:1}
+
+#rot{background:#ffe14d;color:#10203f;font-weight:700;font-size:18px;padding:12px;z-index:60}
+#stage.nodraw #steps{left:380px;top:128px;width:865px;height:480px;font-size:30px;line-height:42px}
+#stage.nodraw #steps.rtl .st .tx{font-size:32px;line-height:46px}
+#stage.nodraw #steps .st .n{flex:0 0 44px;height:44px;font-size:25px}
+#stage.nodraw #fm.tall{left:380px;top:620px;width:865px;height:176px;justify-content:flex-end;font-size:30px}
 
 </style>
 </head>
@@ -255,7 +261,7 @@ html,body{margin:0;height:100%;background:#020812;overflow:hidden;font-family:sy
   <div id="start"><div id="startbox"><div id="startt"></div><button id="startb"></button><div id="startn"></div></div></div>
 </div>
 </div>
-<div id="rot">Rotate your phone to landscape for a bigger board.</div>
+<div id="rot">↻ دوّر الهاتف أفقيًا لتظهر السبورة كاملة · Rotate your phone</div>
 
 <script>
 (function(){
@@ -268,7 +274,8 @@ var NS="http://www.w3.org/2000/svg";
 var stage=$("#stage"),scale=1;
 var PORTRAIT=false,SW=1672,SH=941;
 function fit(){
-  var w=window.innerWidth,h=window.innerHeight,pt=h>w*1.05;
+  var w=window.innerWidth,h=window.innerHeight,pt=false;
+  var rt=document.getElementById("rot");if(rt)rt.style.display=(h>w*1.05)?"block":"none";
   if(pt!==PORTRAIT||!stage.style.width){
     PORTRAIT=pt;SW=pt?900:1672;SH=pt?1800:941;
     stage.style.width=SW+"px";stage.style.height=SH+"px";stage.classList.toggle("portrait",pt);
@@ -320,7 +327,7 @@ function renderPage(showAll,animateLast){
   steps.innerHTML="";fm.innerHTML="";dr.innerHTML="";dr.classList.remove("on");
   steps.className="abs"+(LANG==="ar"?" rtl":"");
   var hasDraw=p.items.some(function(x){return x.k==="d"}),hasF=p.items.some(function(x){return x.k==="f"});
-  fm.classList.toggle("tall",!hasDraw);
+  fm.classList.toggle("tall",!hasDraw);stage.classList.toggle("nodraw",!hasDraw);
   var tn=0;
   p.items.forEach(function(x,idx){
     if(x.k==="t"){tn++;
@@ -439,24 +446,27 @@ function narrate(text,el,onDone,onProg,estO){
   words.forEach(function(w){var i=text.indexOf(w.textContent,pos);if(i<0)i=pos;starts.push(i);pos=i+w.textContent.length});
   function reveal(n,f){for(var i=0;i<words.length;i++)words[i].classList.toggle("on",i<n);if(onProg)onProg(f!=null?f:(words.length?n/words.length:0))}
   var done=false;
-  function finish(){if(tok!==narTok||done)return;done=true;clearInterval(narTimer);reveal(words.length,1);speaking=false;if(onDone)onDone()}
+  function finish(){if(tok!==narTok||done)return;done=true;clearInterval(narTimer);reveal(words.length,1);speaking=false;if(onDone){try{onDone()}catch(e){}}}
   reveal(0,0);speaking=true;
   var est=estO||Math.max(1400,text.length*(LANG==="ar"?80:68)),t0=Date.now(),gotB=false,started=false;
   narTimer=setInterval(function(){if(tok!==narTok||gotB)return;var f0=Math.min(1,(Date.now()-t0)/est);reveal(Math.ceil(f0*words.length),f0)},100);
   if(!text||!(voiceOn&&SUPPORT)){setTimeout(finish,est+400);return}
-  var ch=chunksOf(text),ci=0,base=0;
+  var ch=chunksOf(text),ci=0,base=0,lastAct=Date.now();
+  var wd=setInterval(function(){if(tok!==narTok||done){clearInterval(wd);return}
+    try{var ss=window.speechSynthesis;if(ss&&ss.paused)ss.resume()}catch(e){}
+    if(started&&Date.now()-lastAct>6000){clearInterval(wd);try{window.speechSynthesis.cancel()}catch(e){}finish()}},1000);
   function speakNext(){
     if(tok!==narTok)return;
     if(ci>=ch.length){finish();return}
     var u=new SpeechSynthesisUtterance(ch[ci]),off=base,len=ch[ci].length;
     u.lang=VOICES[LANG];u.rate=.95;
-    u.onstart=function(){started=true};
+    u.onstart=function(){started=true;lastAct=Date.now()};
     u.onboundary=function(e){
-      if(tok!==narTok)return;gotB=true;var c=off+(e.charIndex||0),n=0;
+      if(tok!==narTok)return;gotB=true;started=true;lastAct=Date.now();var c=off+(e.charIndex||0),n=0;
       for(var i=0;i<starts.length;i++){if(starts[i]<=c+1)n=i+1}
       reveal(n,words.length?n/words.length:0);
     };
-    u.onend=function(){if(tok!==narTok)return;ci++;base+=len;speakNext()};
+    u.onend=function(){if(tok!==narTok)return;lastAct=Date.now();ci++;base+=len;speakNext()};
     u.onerror=function(e){if(tok!==narTok)return;setTimeout(finish,300)};
     try{window.speechSynthesis.speak(u)}catch(e){setTimeout(finish,est)}
   }
@@ -476,7 +486,7 @@ function schedule(ms){
   },ms);
 }
 function startPlay(){
-  playing=true;closePops();$("#side").classList.remove("show");$("#bigplay").textContent="❚❚";$("#mPlay").textContent="❚❚  "+UI[LANG].pause;
+  playing=true;try{if(navigator.wakeLock)navigator.wakeLock.request("screen").catch(function(){})}catch(e){}closePops();$("#side").classList.remove("show");$("#bigplay").textContent="❚❚";$("#mPlay").textContent="❚❚  "+UI[LANG].pause;
   go(Math.max(ii,0),true);
 }
 function stopPlay(){$("#bigplay").textContent="▶";playing=false;clearTimeout(playTimer);narStop();$("#mPlay").textContent="▶  "+UI[LANG].play}
