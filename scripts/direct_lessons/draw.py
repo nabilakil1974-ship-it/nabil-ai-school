@@ -318,7 +318,8 @@ def _prim(p):
         return f'<line x1="{a[0]:.1f}" y1="{a[1]:.1f}" x2="{b[0]:.1f}" y2="{b[1]:.1f}" stroke="{col}" stroke-width="{w}" stroke-linecap="round"{d}/>'
     if k == "pt":
         _, xy, lab, dx, dy, col = p
-        s = f'<circle cx="{xy[0]:.1f}" cy="{xy[1]:.1f}" r="5" fill="{col}"/>'
+        dp = f' data-pt="{lab}"' if lab and lab.isalpha() and lab.isupper() and len(lab) == 1 else ""
+        s = f'<circle{dp} cx="{xy[0]:.1f}" cy="{xy[1]:.1f}" r="5" fill="{col}"/>'
         if lab:
             s += f'<text x="{xy[0]+dx:.1f}" y="{xy[1]+dy:.1f}" font-size="26" font-weight="700" font-style="italic" text-anchor="middle" fill="{INK}" {FF}>{lab}</text>'
         return s
