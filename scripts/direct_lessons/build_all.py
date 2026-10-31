@@ -41,7 +41,7 @@ def page(m, lang="en"):
 def main(out):
     out = Path(out); out.mkdir(parents=True, exist_ok=True)
     mods = [POWERS] + [f"scripts.direct_lessons.lessons.{n.name}" for n in pkgutil.iter_modules(pkg.__path__)]
-    cat, bad = [], []
+    cat, bad, stats = [], [], []
     for name in mods:
         try:
             if os.environ.get("ONLY") and not re.search(os.environ["ONLY"], name):
@@ -53,13 +53,19 @@ def main(out):
             html = page(m)
             fn = f"{m.LESSON_ID.lower()}.html"
             (out / fn).write_text(html, encoding="utf-8")
+            from scripts.direct_lessons import smartboard
+            (out / fn.replace(".html", "-board.html")).write_text(smartboard.render(m), encoding="utf-8")
+            skipped = sum(1 for _, _, _, _, st in m.THEORY for x in st if x["k"] == "d" and x["draw"] != "svgScene")
+            skipped += sum(1 for e in m.EXERCISES for x in e["steps"] if x["k"] == "d" and x["draw"] != "svgScene")
+            stats.append((m.LESSON_ID, skipped))
             cat.append({"g": int(getattr(m, "GRADE", 7)), "s": getattr(m, "SUBJECT", "math"),
-                        "t": f'{m.TITLES["ar"]} — {m.TITLES["en"]}', "id": m.LESSON_ID, "u": f"/static/lessons/{fn}"})
+                        "t": f'{m.TITLES["ar"]} — {m.TITLES["en"]}', "id": m.LESSON_ID, "u": f"/static/lessons/{fn}", "b": f"/static/lessons/{fn.replace('.html', '-board.html')}"})
         except Exception as e:
             bad.append((name, repr(e)[:200])); traceback.print_exc()
     if not os.environ.get("ONLY"):
         (out / "catalog.json").write_text(json.dumps(cat, ensure_ascii=False), encoding="utf-8")
     print("built", len(cat), "failed", len(bad))
+    print("lessons with non-svg drawings skipped on board:", [(a, n) for a, n in stats if n])
     for b in bad: print("FAIL", b)
     return 1 if bad else 0
 
