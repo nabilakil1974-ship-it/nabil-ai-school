@@ -266,6 +266,7 @@ sup,sub{font-size:.62em;line-height:0}
     <button class="item" id="mPlay">▶  Play the lesson</button>
     <button class="item" id="mRestart">↺  Restart this page</button>
     <button class="item" id="mAll">☰  Show whole page</button>
+    <button class="item" id="mSpeed">🐢  Speed: slow</button>
     <button class="item" id="mVoice">🔊  Voice: on</button>
     <div style="margin:6px 0 2px;color:#9bbcf2;font-size:15px">Language</div>
     <button class="item" data-lang="en">English</button>
@@ -317,7 +318,7 @@ function fit(){
 window.addEventListener("resize",fit);fit();
 var QL=(location.search.match(/lang=(ar|en|fr)/)||[])[1];
 
-var LANG=QL||DATA.lang||"ar",pi=0,ii=-1,voiceOn=true,playing=false,playTimer=null,target=[585,330],revealTimers=[];
+var SPD=0.8,LANG=QL||DATA.lang||"ar",pi=0,ii=-1,voiceOn=true,playing=false,playTimer=null,target=[585,330],revealTimers=[];
 var UI={en:{page:"Lesson map:",ex:"Problem",play:"Play the lesson",pause:"Pause the lesson"},ar:{page:"خريطة الدرس:",ex:"المسألة",play:"تشغيل الدرس",pause:"إيقاف مؤقت"},fr:{page:"Plan de la leçon :",ex:"Problème",play:"Lancer la leçon",pause:"Pause"}};
 var VOICES={en:"en-US",ar:"ar-SA",fr:"fr-FR"};
 function L(o){return (o&&(o[LANG]||o.en))||""}
@@ -478,8 +479,8 @@ function go(k,speak){wtActive=false;
   var B=ii>=0?bs[ii]:null;if(!B)return;
   if(speak===false)return;
   var el=B.t?$('#steps [data-idx="'+B.t._i+'"]'):null;
-  var cb=function(){if(playing)schedule(1100)};
-  var est=B.t?0:Math.max(1800,B.draws.reduce(function(a,d){return a+(d.show||[]).length*480+600},0));
+  var cb=function(){if(playing)schedule(1800/SPD*.8+B.draws.reduce(function(a,d){return a+(d.show||[]).length*500+900},0)+(B.fs.length?1800:0))};
+  var est=B.t?0:Math.max(1800,B.draws.reduce(function(a,d){return a+(d.show||[]).length*900+1200},0));
   narrate(B.t?L(B.t):"",el,cb,function(f){progress(B,f)},est);
 }
 function renderPageKeep(animate){renderPage(false,animate)}
@@ -527,7 +528,7 @@ function narrate(text,el,onDone,onProg,estO){
   var done=false;
   function finish(){if(tok!==narTok||done)return;done=true;clearInterval(narTimer);reveal(words.length,1);speaking=false;if(onDone){try{onDone()}catch(e){}}}
   reveal(0,0);speaking=true;
-  var est=estO||Math.max(1400,text.length*(LANG==="ar"?100:82)),t0=Date.now(),gotB=false,started=false;
+  var est=estO||Math.max(1400,text.length*(LANG==="ar"?100:82)/SPD*.8),t0=Date.now(),gotB=false,started=false;
   narTimer=setInterval(function(){if(tok!==narTok||gotB)return;var f0=Math.min(1,(Date.now()-t0)/est);reveal(Math.ceil(f0*words.length),f0)},100);
   if(!text||!(voiceOn&&SUPPORT)){setTimeout(finish,est+400);return}
   var ch=chunksOf(text),ci=0,base=0,lastAct=Date.now(),reqT=0,tries=0,cur=null,dead=false;
@@ -539,7 +540,7 @@ function narrate(text,el,onDone,onProg,estO){
     if(ci>=ch.length){finish();return}
     var u=new SpeechSynthesisUtterance(ch[ci]),off=base,len=ch[ci].length,mine=ci;
     cur={u:u,len:len,mine:mine};tries=0;
-    u.lang=VOICES[LANG];u.rate=LANG==="ar"?.8:.86;
+    u.lang=VOICES[LANG];u.rate=(LANG==="ar"?.9:1)*SPD;
     u.onstart=function(){if(cur&&cur.u===u){started=true;lastAct=Date.now()}};
     u.onboundary=function(e){
       if(tok!==narTok||!cur||cur.u!==u)return;gotB=true;started=true;lastAct=Date.now();var c=off+(e.charIndex||0),n=0;
@@ -685,6 +686,9 @@ $("#bigplay").onclick=function(){if(playing)stopPlay();else startPlay()};
 $("#mMap").onclick=function(){closePops();$("#side").classList.toggle("show")};
 $("#mRestart").onclick=function(){stopPlay();closePops();gotoPage(pi,false)};
 $("#mAll").onclick=function(){stopPlay();closePops();ii=bundlesOf(page()).length-1;renderPage(false,false)};
+var SPDS=[[.62,"very slow","بطيء جدًا","très lent"],[.8,"slow","بطيء","lent"],[1,"normal","عادي","normal"]],spi=1;
+function spdLabel(){var s=SPDS[spi];return "🐢  "+({en:"Speed: ",ar:"السرعة: ",fr:"Vitesse : "}[LANG])+s[{en:1,ar:2,fr:3}[LANG]]}
+$("#mSpeed").onclick=function(){spi=(spi+1)%SPDS.length;SPD=SPDS[spi][0];this.textContent=spdLabel()};
 $("#mVoice").onclick=function(){voiceOn=!voiceOn;this.textContent=voiceOn?"🔊  Voice: on":"🔇  Voice: off";if(!voiceOn){try{window.speechSynthesis&&window.speechSynthesis.cancel()}catch(e){}}};
 $$("[data-lang]").forEach(function(b){b.onclick=function(){stopPlay();LANG=b.dataset.lang;closePops();buildMap();renderPage(false,false);$("#mPlay").textContent="▶  "+UI[LANG].play}});
 $("#mFull").onclick=function(){closePops();try{var d=document.documentElement;if(document.fullscreenElement)document.exitFullscreen();else if(d.requestFullscreen)d.requestFullscreen()}catch(e){}};
