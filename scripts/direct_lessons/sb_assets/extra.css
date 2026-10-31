@@ -98,3 +98,12 @@
 #ustaz{top:128px;height:480px}
 #ustaz img{object-position:40% 18%}
 #bigplay{top:622px;height:66px}
+
+/* standing teacher (full-body photo) */
+#ustaz{left:14px;top:128px;width:340px;height:800px;border:0;border-radius:0;background:none;box-shadow:none;overflow:visible;transition:none}
+#ustaz img{position:absolute;left:30px;bottom:0;width:252px;height:800px;object-fit:contain;object-position:center bottom;filter:drop-shadow(0 6px 14px rgba(0,0,0,.65))}
+#ustaz.talk{box-shadow:none;animation:none}
+#ustaz.talk img{animation:sway 2.2s ease-in-out infinite;transform-origin:50% 100%;filter:drop-shadow(0 0 16px rgba(57,217,138,.7))}
+@keyframes sway{50%{transform:rotate(.7deg) translateY(-3px)}}
+#nametag{left:6px;right:auto;bottom:6px;width:240px;padding:8px 12px;border-radius:12px;background:rgba(3,12,32,.78);border:2px solid var(--line);font-size:22px}
+#bigplay{left:272px;top:140px;width:84px;height:84px;border-radius:50%;font-size:34px;padding:0}
