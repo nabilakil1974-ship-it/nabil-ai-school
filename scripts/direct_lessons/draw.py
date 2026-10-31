@@ -305,3 +305,71 @@ def vsub(a, b, tag="VS", op="−"):
         rs += f'<text x="{xs[i]}" y="365" font-size="60" font-weight="700" text-anchor="middle" fill="{GREEN}" {FF}>{res[i]}</text>'
     s += rs + '</g>'; ids.append(tag + "r")
     return scene(s, ids)
+
+
+def _prim(p):
+    k = p[0]
+    if k == "poly":
+        _, pts, fill, stroke, w = p
+        return f'<polygon points="{" ".join(f"{x:.1f},{y:.1f}" for x, y in pts)}" fill="{fill}" stroke="{stroke}" stroke-width="{w}" stroke-linejoin="round"/>'
+    if k == "seg":
+        _, a, b, col, w, dash = p
+        d = f' stroke-dasharray="{dash}"' if dash else ""
+        return f'<line x1="{a[0]:.1f}" y1="{a[1]:.1f}" x2="{b[0]:.1f}" y2="{b[1]:.1f}" stroke="{col}" stroke-width="{w}" stroke-linecap="round"{d}/>'
+    if k == "pt":
+        _, xy, lab, dx, dy, col = p
+        s = f'<circle cx="{xy[0]:.1f}" cy="{xy[1]:.1f}" r="5" fill="{col}"/>'
+        if lab:
+            s += f'<text x="{xy[0]+dx:.1f}" y="{xy[1]+dy:.1f}" font-size="26" font-weight="700" font-style="italic" text-anchor="middle" fill="{INK}" {FF}>{lab}</text>'
+        return s
+    if k == "tick":
+        _, a, b, n, col = p
+        mx, my = (a[0] + b[0]) / 2, (a[1] + b[1]) / 2
+        L = math.hypot(b[0] - a[0], b[1] - a[1]) or 1
+        ux, uy = (b[0] - a[0]) / L, (b[1] - a[1]) / L
+        s = ""
+        for i in range(n):
+            o = (i - (n - 1) / 2) * 8
+            cx, cy = mx + ux * o, my + uy * o
+            s += f'<line x1="{cx-uy*9:.1f}" y1="{cy+ux*9:.1f}" x2="{cx+uy*9:.1f}" y2="{cy-ux*9:.1f}" stroke="{col}" stroke-width="3.5" stroke-linecap="round"/>'
+        return s
+    if k == "arc":
+        _, v, p1, p2, r, n, col = p
+        a1 = math.atan2(p1[1] - v[1], p1[0] - v[0]); a2 = math.atan2(p2[1] - v[1], p2[0] - v[0])
+        d = (a2 - a1 + math.pi) % (2 * math.pi) - math.pi
+        sweep = 1 if d > 0 else 0
+        s = ""
+        for i in range(n):
+            rr = r + 7 * i
+            s += (f'<path d="M {v[0]+rr*math.cos(a1):.1f} {v[1]+rr*math.sin(a1):.1f} A {rr} {rr} 0 0 {sweep} '
+                  f'{v[0]+rr*math.cos(a2):.1f} {v[1]+rr*math.sin(a2):.1f}" fill="none" stroke="{col}" stroke-width="3.5"/>')
+        return s
+    if k == "carc":  # compass arc: centre, radius, start deg, end deg (screen angles, clockwise positive)
+        _, c, r, d1, d2, col, dash = p
+        a1, a2 = math.radians(d1), math.radians(d2)
+        sweep = 1 if d2 > d1 else 0
+        dd = f' stroke-dasharray="{dash}"' if dash else ""
+        return (f'<path d="M {c[0]+r*math.cos(a1):.1f} {c[1]+r*math.sin(a1):.1f} A {r} {r} 0 0 {sweep} '
+                f'{c[0]+r*math.cos(a2):.1f} {c[1]+r*math.sin(a2):.1f}" fill="none" stroke="{col}" stroke-width="2.5"{dd}/>')
+    if k == "right":
+        _, v, p1, p2, sz, col = p
+        def un(q):
+            L = math.hypot(q[0] - v[0], q[1] - v[1]) or 1
+            return (q[0] - v[0]) / L, (q[1] - v[1]) / L
+        u1, u2 = un(p1), un(p2)
+        a = (v[0] + u1[0] * sz, v[1] + u1[1] * sz); c = (v[0] + u2[0] * sz, v[1] + u2[1] * sz)
+        b = (a[0] + u2[0] * sz, a[1] + u2[1] * sz)
+        return f'<polyline points="{a[0]:.1f},{a[1]:.1f} {b[0]:.1f},{b[1]:.1f} {c[0]:.1f},{c[1]:.1f}" fill="none" stroke="{col}" stroke-width="3"/>'
+    if k == "text":
+        _, xy, t, size, col = p
+        return f'<text x="{xy[0]:.1f}" y="{xy[1]:.1f}" font-size="{size}" font-weight="700" text-anchor="middle" fill="{col}" {FF}>{t}</text>'
+    raise ValueError(k)
+
+
+def geo(groups, tag="G"):
+    """Geometry scene. groups = list of lists of primitives; each group is revealed as one step."""
+    s = ""; ids = []
+    for gi, grp in enumerate(groups):
+        s += f'<g id="{tag}{gi}">' + "".join(_prim(p) for p in grp) + "</g>"
+        ids.append(f"{tag}{gi}")
+    return scene(s, ids)
