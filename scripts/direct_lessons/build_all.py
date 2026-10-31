@@ -52,14 +52,17 @@ def main(out):
                 importlib.import_module(up).upgrade(m)  # enrich: extra graphs, explanations, exercises
             html = page(m)
             fn = f"{m.LESSON_ID.lower()}.html"
-            (out / fn).write_text(html, encoding="utf-8")
             from scripts.direct_lessons import smartboard
-            (out / fn.replace(".html", "-board.html")).write_text(smartboard.render(m), encoding="utf-8")
+            board = smartboard.render(m)
+            keep_classic = m.LESSON_ID == "G07-MATHEMATICS-69B7C840-001"  # has drawings the board cannot show yet
+            (out / fn).write_text(html if keep_classic else board, encoding="utf-8")  # the lesson page is now the smart board
+            (out / fn.replace(".html", "-board.html")).write_text(f'<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url={fn}"><a href="{fn}">{fn}</a>', encoding="utf-8")
+            (out / fn.replace(".html", "-classic.html")).write_text(html, encoding="utf-8")
             skipped = sum(1 for _, _, _, _, st in m.THEORY for x in st if x["k"] == "d" and x["draw"] != "svgScene")
             skipped += sum(1 for e in m.EXERCISES for x in e["steps"] if x["k"] == "d" and x["draw"] != "svgScene")
             stats.append((m.LESSON_ID, skipped))
             cat.append({"g": int(getattr(m, "GRADE", 7)), "s": getattr(m, "SUBJECT", "math"),
-                        "t": f'{m.TITLES["ar"]} — {m.TITLES["en"]}', "id": m.LESSON_ID, "u": f"/static/lessons/{fn}", "b": f"/static/lessons/{fn.replace('.html', '-board.html')}"})
+                        "t": f'{m.TITLES["ar"]} — {m.TITLES["en"]}', "id": m.LESSON_ID, "u": f"/static/lessons/{fn}"})
         except Exception as e:
             bad.append((name, repr(e)[:200])); traceback.print_exc()
     if not os.environ.get("ONLY"):

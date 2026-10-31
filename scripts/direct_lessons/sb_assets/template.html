@@ -111,6 +111,39 @@ var VOICES={en:"en-US",ar:"ar-SA",fr:"fr-FR"};
 function L(o){return (o&&(o[LANG]||o.en))||""}
 function page(){return DATA.pages[pi]}
 
+
+/* ---- math typesetting: a / b -> stacked fraction, x^n -> power, sqrt -> root ---- */
+function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+var CH=/[A-Za-z0-9.′'°²³¹⁰-₟ᴬ-ᶿα-ωΑ-Ω∞ℝ]/;
+function mathFmt(s){
+  function matchP(str,i){var d=0;for(var k=i;k<str.length;k++){if(str[k]==="(")d++;else if(str[k]===")"){d--;if(d===0)return k}}return -1}
+  function atomAt(str,i){ /* returns [html,next,isGroup,innerHtml] or null */
+    var c=str[i],h,j,inner;
+    if(c==="("){j=matchP(str,i);if(j<0)return null;inner=mathFmt(str.slice(i+1,j));h=["(",inner,")"].join("");return post(str,[h,j+1,true,inner])}
+    if(c==="√"){var a=atomAt(str,i+1);if(!a)return null;var ih=a[2]?a[3]:a[0];return post(str,['<span class="rad">√<span class="rc">'+ih+'</span></span>',a[1],false,null],true)}
+    if(CH.test(c)){j=i;while(j<str.length&&CH.test(str[j]))j++;
+      if(str[j]==="("&&/[A-Za-z]/.test(str[j-1])){var e=matchP(str,j);if(e>0){inner=mathFmt(str.slice(j+1,e));return post(str,[esc(str.slice(i,j))+"("+inner+")",e+1,false,null])}}
+      return post(str,[esc(str.slice(i,j)),j,false,null])}
+    return null}
+  function post(str,r,noPost){ /* ^ exponent and _ subscript */
+    var i=r[1],h=r[0];
+    while(str[i]==="^"||str[i]==="_"){var tag=str[i]==="^"?"sup":"sub",b;
+      if(str[i+1]==="("){var e=matchP(str,i+1);if(e<0)break;b=[mathFmt(str.slice(i+2,e)),e+1]}
+      else{var j=i+1;if(str[j]==="-"||str[j]==="−")j++;var k=j;while(k<str.length&&/[A-Za-z0-9.]/.test(str[k]))k++;if(k===j)break;b=[esc(str.slice(i+1,k)),k]}
+      h+="<"+tag+">"+b[0]+"</"+tag+">";i=b[1]}
+    return [h,i,r[2],r[3]]}
+  var toks=[],i=0;
+  while(i<s.length){var a=atomAt(s,i);if(a){toks.push({a:1,h:a[0],g:a[2],ih:a[3]});i=a[1]}else{toks.push({a:0,s:s[i]});i++}}
+  for(var q=0;q<toks.length;q++){
+    var t=toks[q];if(t.a||t.s!=="/")continue;
+    var l=q-1;while(l>=0&&!toks[l].a&&toks[l].s===" ")l--;
+    var r=q+1;while(r<toks.length&&!toks[r].a&&toks[r].s===" ")r++;
+    if(l<0||r>=toks.length||!toks[l].a||!toks[r].a)continue;
+    var nu=toks[l].g?toks[l].ih:toks[l].h,de=toks[r].g?toks[r].ih:toks[r].h;
+    toks.splice(l,r-l+1,{a:1,h:'<span class="frac"><span class="nu">'+nu+'</span><span class="de">'+de+'</span></span>',g:false});
+    q=l}
+  return toks.map(function(t){return t.a?t.h:esc(t.s)}).join("")}
+
 /* ---- build pieces ---- */
 function buildMap(){
   var m=$("#map");m.innerHTML="";m.className=LANG==="ar"?"rtl":"";
@@ -152,11 +185,11 @@ function renderPage(showAll,animateLast){
       d.innerHTML='<div class="n">'+tn+'</div><div class="tx"></div>';
       var tx=d.lastChild;
       if(x.label){var lb=document.createElement("span");lb.className="lab";lb.textContent=x.label;tx.appendChild(lb)}
-      var hw=document.createElement("span");hw.className="hw";L(x).split(/\s+/).filter(Boolean).forEach(function(w){var sp=document.createElement("span");sp.className="w";sp.textContent=w;hw.appendChild(sp);hw.appendChild(document.createTextNode(" "))});tx.appendChild(hw);
+      var hw=document.createElement("span");hw.className="hw";L(x).split(/\s+/).filter(Boolean).forEach(function(w){var sp=document.createElement("span");sp.className="w";sp.dataset.o=w;if(/[A-Za-z0-9\u2212)\u00b2]\^|[A-Za-z0-9)]\/[A-Za-z0-9(\u221a]/.test(w)){try{sp.innerHTML=mathFmt(w);sp.classList.add("mw")}catch(e){sp.textContent=w}}else sp.textContent=w;hw.appendChild(sp);hw.appendChild(document.createTextNode(" "))});tx.appendChild(hw);
       d.onclick=function(){stopPlay();go(x._b)};
       steps.appendChild(d);
     }else if(x.k==="f"){
-      var f=document.createElement("div");f.className="f";f.dataset.idx=idx;f.style.display="none";f.textContent=x.f;fm.appendChild(f);
+      var f=document.createElement("div");f.className="f";f.dataset.idx=idx;f.style.display="none";try{if(/[\/^\u221a_]/.test(x.f))f.innerHTML=mathFmt(x.f);else f.textContent=x.f}catch(e){f.textContent=x.f}fm.appendChild(f);
     }
   });
   bundlesOf(p);
@@ -229,7 +262,7 @@ function go(k,speak){wtActive=false;
   var B=ii>=0?bs[ii]:null;if(!B)return;
   if(speak===false)return;
   var el=B.t?$('#steps [data-idx="'+B.t._i+'"]'):null;
-  var cb=function(){if(playing)schedule(500)};
+  var cb=function(){if(playing)schedule(1100)};
   var est=B.t?0:Math.max(1800,B.draws.reduce(function(a,d){return a+(d.show||[]).length*480+600},0));
   narrate(B.t?L(B.t):"",el,cb,function(f){progress(B,f)},est);
 }
@@ -272,13 +305,13 @@ function narStop(){narTok++;clearInterval(narTimer);speaking=false;try{window.sp
 function narrate(text,el,onDone,onProg,estO){
   narStop();var tok=narTok;
   var words=el?$$(".w",el):[],starts=[],pos=0;
-  words.forEach(function(w){var i=text.indexOf(w.textContent,pos);if(i<0)i=pos;starts.push(i);pos=i+w.textContent.length});
+  words.forEach(function(w){var wo=w.dataset.o||w.textContent;var i=text.indexOf(wo,pos);if(i<0)i=pos;starts.push(i);pos=i+wo.length});
   function reveal(n,f){for(var i=0;i<words.length;i++)words[i].classList.toggle("on",i<n);if(onProg)onProg(f!=null?f:(words.length?n/words.length:0));
-    if(n>0&&n<=words.length){var wp=wordPoint(n>1?words[n-2].textContent:"",words[n-1].textContent);if(wp){target=wp;wtActive=true}}}
+    if(n>0&&n<=words.length){var wp=wordPoint(n>1?(words[n-2].dataset.o||words[n-2].textContent):"",words[n-1].dataset.o||words[n-1].textContent);if(wp){target=wp;wtActive=true}}}
   var done=false;
   function finish(){if(tok!==narTok||done)return;done=true;clearInterval(narTimer);reveal(words.length,1);speaking=false;if(onDone){try{onDone()}catch(e){}}}
   reveal(0,0);speaking=true;
-  var est=estO||Math.max(1400,text.length*(LANG==="ar"?80:68)),t0=Date.now(),gotB=false,started=false;
+  var est=estO||Math.max(1400,text.length*(LANG==="ar"?100:82)),t0=Date.now(),gotB=false,started=false;
   narTimer=setInterval(function(){if(tok!==narTok||gotB)return;var f0=Math.min(1,(Date.now()-t0)/est);reveal(Math.ceil(f0*words.length),f0)},100);
   if(!text||!(voiceOn&&SUPPORT)){setTimeout(finish,est+400);return}
   var ch=chunksOf(text),ci=0,base=0,lastAct=Date.now();
@@ -289,7 +322,7 @@ function narrate(text,el,onDone,onProg,estO){
     if(tok!==narTok)return;
     if(ci>=ch.length){finish();return}
     var u=new SpeechSynthesisUtterance(ch[ci]),off=base,len=ch[ci].length;
-    u.lang=VOICES[LANG];u.rate=.95;
+    u.lang=VOICES[LANG];u.rate=LANG==="ar"?.8:.86;
     u.onstart=function(){started=true;lastAct=Date.now()};
     u.onboundary=function(e){
       if(tok!==narTok)return;gotB=true;started=true;lastAct=Date.now();var c=off+(e.charIndex||0),n=0;

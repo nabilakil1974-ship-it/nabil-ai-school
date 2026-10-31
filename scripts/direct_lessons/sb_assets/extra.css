@@ -114,3 +114,12 @@
 #ustaz.talk img{filter:drop-shadow(0 0 18px rgba(57,217,138,.8))}
 #nametag{left:0;bottom:-58px;width:346px;font-size:24px;justify-content:space-between}
 #bigplay{left:14px;top:672px;width:346px;height:72px;border-radius:16px;font-size:38px}
+
+.frac{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;margin:0 .15em;line-height:1.15}
+.frac .nu{border-bottom:.08em solid currentColor;padding:0 .2em .05em}
+.frac .de{padding:.05em .2em 0}
+.frac .nu,.frac .de{font-size:.92em}
+.rad{display:inline-flex;align-items:flex-end}
+.rad .rc{border-top:.08em solid currentColor;padding:0 .12em;margin-left:.05em}
+sup,sub{font-size:.62em;line-height:0}
+.mw{display:inline-block;direction:ltr;unicode-bidi:isolate}
