@@ -1,7 +1,7 @@
 
 :root{
   --bg1:#05102a;--bg2:#0a2050;--line:#1e90ff;--cyan:#6fd3ff;--yellow:#ffe14d;--orange:#ff9f1c;--green:#39d98a;--ink:#eaf3ff;
-  --hand:"Segoe Print","Bradley Hand","Chalkboard SE","Marker Felt","Ink Free","Comic Sans MS","Comic Neue",cursive;
+  --hand:"Segoe UI",Roboto,"Noto Sans","Helvetica Neue",Arial,system-ui,sans-serif;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;background:#020812;overflow:hidden;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink)}
