@@ -10,7 +10,7 @@
 @media print{header,.notice,.tabs,.panel:not(#results),.actions,.footer{display:none!important}body{background:white}main{margin:0;max-width:none}.panel#results{display:block;border:0;box-shadow:none}.timetable table{min-width:0}.timetable td{height:55px}}
 </style></head>
 <body>
-<header><h1>نبيل | منظّم البرنامج المدرسي الذكي</h1><p>NABIL School Timetable AI · النسخة التجريبية الأولى</p></header>
+<header><h1>نبيل | منظّم البرنامج المدرسي الذكي</h1><p>NABIL School Timetable AI · نسخة تجريبية قيد الاختبار · <span id="apiStatus" aria-live="polite">جارٍ فحص اتصال نبيل...</span></p></header>
 <main>
 <div class="notice"><b>لأي مدرسة:</b> ارفع صورة الجدول أو ملف Word، أو أدخل البيانات يدوياً. راجع البيانات المستخرجة قبل إنشاء البرنامج وفحص التعارضات.</div>
 <section class="panel active" id="importPanel"><h2>ابدأ برفع جدول المدرسة</h2><div class="grid"><div class="field"><label>صورة الجدول المخطوط (JPG أو PNG)</label><input id="imageFile" type="file" accept="image/png,image/jpeg,image/webp"></div><div class="field"><label>ملف Word أو Excel (DOCX / XLSX)</label><input id="wordFile" type="file" accept=".docx,.xlsx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></div></div><div class="actions"><button class="primary" id="readUpload">قراءة الملف</button><button class="secondary" id="clearUpload">إلغاء الملف</button></div><div id="uploadStatus" class="status warn">ارفع صورة واضحة أو ملف Word DOCX أو Excel XLSX.</div><div id="uploadPreview"></div><p class="small">يرسل نبيل الملف إلى محرك التحليل لاستخراج الحصص وفحص التعارضات واقتراح بدائل.</p></section>
@@ -88,8 +88,12 @@ $('audit').onclick=auditSchedule;
 
 
 $('readUpload').onclick=async()=>{
- const img=$('imageFile').files[0],doc=$('wordFile').files[0],file=img||doc;
- if(!file){$('uploadStatus').className='status err';$('uploadStatus').textContent='اختر صورة أو ملف Word أولاً.';return}
+ const img=$('imageFile').files[0],doc=$('wordFile').files[0];
+ if(img&&doc){$('uploadStatus').className='status err';$('uploadStatus').textContent='اختر ملفاً واحداً في كل مرة، ثم ارفع الملف الآخر بعد انتهاء التحليل.';return}
+ const file=img||doc;
+ if(!file){$('uploadStatus').className='status err';$('uploadStatus').textContent='اختر صورة أو ملف Word أو Excel أولاً.';return}
+ const allowed=/\\.(png|jpe?g|webp|docx|xlsx)$/i;
+ if(!allowed.test(file.name)){$('uploadStatus').className='status err';$('uploadStatus').textContent='صيغة الملف غير مدعومة. استخدم JPG أو PNG أو WEBP أو DOCX أو XLSX.';return}
  const form=new FormData();form.append('file',file);
  $('readUpload').disabled=true;$('uploadStatus').className='status warn';$('uploadStatus').textContent='نبيل يقرأ الملف ويستخرج الحصص ويفحص التعارضات...';
  $('analysisOutput').innerHTML='';
@@ -173,5 +177,18 @@ let html='';for(const entity of entities){let entries=data.schedule.filter(x=>vi
 $('timetable').innerHTML=html}
 $('generate').onclick=generate;$('print').onclick=()=>{if(!data.schedule.length)return alert('أنشئ البرنامج أولاً');window.print()};
 $('export').onclick=()=>{if(!data.schedule.length)return alert('أنشئ البرنامج أولاً');let rows=[['اليوم','الحصة','الصف','المادة','المعلم'],...data.schedule.map(x=>[DAYS[x.day],x.period,x.class,x.subject,x.teacher])];let csv='\ufeff'+rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='NABIL-school-timetable.csv';a.click();URL.revokeObjectURL(a.href)};
-render();if(data.schedule.length){show('يوجد برنامج محفوظ سابقاً.','ok');drawSchedule()}
+async function checkNabilHealth(){
+ const badge=$('apiStatus');
+ try{
+  const response=await fetch('https://nabil-school-timetable.onrender.com/api/health',{method:'GET',cache:'no-store'});
+  const health=await response.json();
+  if(!response.ok||health.status!=='ok')throw new Error('health check failed');
+  badge.textContent='خدمة نبيل متصلة';
+  badge.style.color='#b9f5d5';
+ }catch(error){
+  badge.textContent='خدمة التحليل غير متاحة حالياً';
+  badge.style.color='#ffe0a6';
+ }
+}
+render();checkNabilHealth();if(data.schedule.length){show('يوجد برنامج محفوظ سابقاً.','ok');drawSchedule()}
 </script></body></html>
