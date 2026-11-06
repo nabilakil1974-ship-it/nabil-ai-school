@@ -119,7 +119,7 @@ $('clearTeacherSubjects').onclick=()=>{
 $('saveTeacherProfile').onclick=()=>{
  const teacher=$('teacherName').value.trim();if(!teacher)return alert('اكتب اسم المعلم أولاً');
  const rows=[...$('teacherSubjectRows').querySelectorAll('[data-subject-row]')].map(card=>({subject:card.querySelector('[data-subject]').value.trim(),classes:[...card.querySelector('[data-classes]').selectedOptions].map(o=>o.value),count:+card.querySelector('[data-count]').value,language:card.querySelector('[data-language]').value}));
- if(rows.some(r=>!r.subject||!r.classes.length||!r.count||!r.language))return alert('أكمل لكل مادة: اسم المادة، الصفوف، عدد الحصص، ولغة التدريس.');
+ if(rows.some(r=>!r.subject||!r.classes.length||!Number.isFinite(r.count)||r.count<1))return alert('أكمل لكل مادة: اسم المادة، الصفوف، وعدد الحصص الأسبوعية. لغة التدريس اختيارية ويمكن تركها «غير محددة».');
  if(!rows.length&&!editingTeacherName)return alert('أضف مادة واحدة على الأقل للمعلم الجديد.');
  const oldName=editingTeacherName;
  if(oldName&&oldName!==teacher&&data.teachers.some(t=>t===teacher))return alert('يوجد معلم آخر بهذا الاسم.');

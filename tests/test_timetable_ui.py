@@ -80,6 +80,15 @@ def main():
             assert 'لم تُسند مواد أو شعب بعد' in khaled_row.inner_text()
             assert 'مطابق' not in khaled_row.inner_text()
             assert 'بلا نصاب محدد' in page.inner_text('#loadStats')
+            # Manual teacher edit must save even when the original imported row has no language.
+            page.evaluate("data.classes.push('السابع أ'); data.requirements.push({teacher:'خالد',subject:'رياضيات',class:'السابع أ',count:3,language:''}); persist(); render()")
+            page.locator('#teacherList button').filter(has_text='تعديل').last.click()
+            count_input = page.locator('#teacherSubjectRows [data-count]').first
+            count_input.fill('5')
+            page.click('#saveTeacherProfile')
+            saved = page.evaluate("data.requirements.find(r=>r.teacher==='خالد' && r.subject==='رياضيات')")
+            assert saved and saved['count'] == 5 and saved['language'] == '', saved
+            assert page.evaluate("JSON.parse(localStorage.getItem('nabil-timetable-v3')).requirements.find(r=>r.teacher==='خالد').count") == 5
             assert not errs, errs
             b.close()
         print('PASS full conversation through the real UI + refresh + undo + subject delete + add day + confirmation + Excel/Word export')
