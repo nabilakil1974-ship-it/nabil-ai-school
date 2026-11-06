@@ -13,7 +13,7 @@
 <header><h1>نبيل | منظّم البرنامج المدرسي الذكي</h1><p>NABIL School Timetable AI · نسخة تجريبية قيد الاختبار · <span id="apiStatus" aria-live="polite">جارٍ فحص اتصال نبيل...</span></p></header>
 <main>
 <div class="notice"><b>لأي مدرسة:</b> ارفع صورة الجدول أو ملف Word، أو أدخل البيانات يدوياً. راجع البيانات المستخرجة قبل إنشاء البرنامج وفحص التعارضات.</div>
-<section class="panel active" id="importPanel"><h2>ابدأ برفع جدول المدرسة</h2><div class="grid"><div class="field"><label>صورة الجدول المخطوط (JPG أو PNG)</label><input id="imageFile" type="file" accept="image/png,image/jpeg,image/webp"></div><div class="field"><label>ملف Word أو Excel (DOCX / XLSX)</label><input id="wordFile" type="file" accept=".docx,.xlsx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></div></div><div class="actions"><button class="primary" id="readUpload">قراءة الملف</button><button class="secondary" id="clearUpload">إلغاء الملف</button></div><div id="uploadStatus" class="status warn">ارفع صورة واضحة أو ملف Word DOCX أو Excel XLSX.</div><div id="uploadPreview"></div><p class="small">يعالج نبيل الملف محلياً على الخادم لاستخراج الحصص وفحص التعارضات؛ لا تُرسل الملفات إلى Gemini أو خدمة ذكاء اصطناعي خارجية.</p></section>
+<section class="panel active" id="importPanel"><h2>ابدأ برفع جدول المدرسة</h2><div class="field" style="margin:12px 0"><label for="pastedTimetable">أو الصق جدول المدرسة مباشرة من Excel</label><textarea id="pastedTimetable" rows="9" style="width:100%;direction:auto;font:inherit;line-height:1.7" placeholder="انسخ خلايا الجدول من Excel والصقها هنا كما هي، مع الحفاظ على الأعمدة."></textarea><div class="actions"><button class="primary" id="analyzePasted">تحليل النص الملصق</button><button class="secondary" id="clearPasted">مسح النص</button></div><p class="small">عند النسخ من Excel، استخدم نسخ الخلايا ولصقها مباشرة هنا؛ لا تحوّل الجدول إلى صورة. تتم المعالجة محلياً على خادم NABIL.</p></div><div class="grid"><div class="field"><label>صورة الجدول المخطوط (JPG أو PNG)</label><input id="imageFile" type="file" accept="image/png,image/jpeg,image/webp"></div><div class="field"><label>ملف Word أو Excel (DOCX / XLSX)</label><input id="wordFile" type="file" accept=".docx,.xlsx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></div></div><div class="actions"><button class="primary" id="readUpload">قراءة الملف</button><button class="secondary" id="clearUpload">إلغاء الملف</button></div><div id="uploadStatus" class="status warn">ارفع صورة واضحة أو ملف Word DOCX أو Excel XLSX.</div><div id="uploadPreview"></div><p class="small">يعالج نبيل الملف محلياً على الخادم لاستخراج الحصص وفحص التعارضات؛ لا تُرسل الملفات إلى Gemini أو خدمة ذكاء اصطناعي خارجية.</p></section>
 <div class="tabs"><button class="tab active" data-tab="settings">إعداد الدوام</button><button class="tab" data-tab="teachers">المعلمون</button><button class="tab" data-tab="classes">الصفوف والشعب</button><button class="tab" data-tab="subjects">المواد والحصص</button><button class="tab" data-tab="results">البرنامج الناتج</button></div>
 <section class="panel active" id="settings"><h2>إعداد أيام الدوام والحصص</h2><div class="field"><label>أيام الدوام</label><div class="checkgrid" id="days"></div></div><div class="grid" style="margin-top:14px"><div class="field"><label>عدد الحصص في اليوم</label><input id="periods" type="number" min="1" max="12" value="6"></div><div class="field"><label>اسم المدرسة</label><input id="school" value="المدرسة الرسمية"></div></div><div class="actions"><button class="secondary" id="saveSettings">حفظ إعدادات الدوام</button></div><p class="small">أدخل بيانات مدرستك أو ارفع جدولها. لا توجد بيانات تجريبية محمّلة مسبقاً.</p></section>
 <section class="panel" id="teachers"><h2>إضافة المعلمين</h2><div class="grid"><div class="field"><label>اسم المعلم</label><input id="teacherName" placeholder="مثلاً: نبيل عقيل"></div></div><div class="actions"><button class="primary" id="addTeacher">إضافة المعلم</button></div><div class="list" id="teacherList"></div></section>
@@ -86,6 +86,39 @@ function applyConflictSwap(a,b){
 $('audit').onclick=auditSchedule;
 
 
+
+
+$('clearPasted').onclick=()=>{$('pastedTimetable').value='';$('uploadStatus').className='status warn';$('uploadStatus').textContent='تم مسح النص.'};
+$('analyzePasted').onclick=async()=>{
+ const text=$('pastedTimetable').value;
+ if(!text.trim()){$('uploadStatus').className='status err';$('uploadStatus').textContent='الصق الجدول أولاً.';return}
+ const button=$('analyzePasted');button.disabled=true;$('uploadStatus').className='status warn';$('uploadStatus').textContent='نبيل يحلل الجدول الملصق محلياً...';$('analysisOutput').innerHTML='';
+ try{
+  const response=await fetch('/api/timetable/analyze-text',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
+  const result=await response.json();
+  if(!response.ok)throw new Error(typeof result.detail==='string'?result.detail:'تعذر تحليل النص الملصق.');
+  const dayIndex=name=>{
+   const n=String(name||'').replace(/[أإآ]/g,'ا').replace(/\s+/g,'').toLowerCase();
+   const aliases=['الاثنين','الثلاثاء','الاربعاء','الخميس','الجمعة','السبت','الاحد'];
+   let i=aliases.indexOf(n);if(i<0){const en=['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];i=en.indexOf(n)}
+   if(i<0){DAYS.push(String(name));i=DAYS.length-1}return i;
+  };
+  const entries=(result.entries||[]).map(x=>({day:dayIndex(x.day),period:+x.period,class:x.class,subject:x.subject,teacher:x.teacher}));
+  const classes=[...new Set([...(result.classes||[]),...entries.map(x=>x.class)].filter(Boolean))];
+  const teachers=[...new Set([...(result.teachers||[]),...entries.map(x=>x.teacher)].filter(Boolean))];
+  const reqMap=new Map();entries.forEach(x=>{const k=[x.class,x.teacher,x.subject].join('|');const v=reqMap.get(k)||{class:x.class,teacher:x.teacher,subject:x.subject,count:0};v.count++;reqMap.set(k,v)});
+  const declared=(result.weekly_loads||[]).filter(x=>x&&x.class&&x.teacher&&x.subject&&Number(x.count)>0);
+  data={school:result.school_name||'مدرسة جديدة',days:[...new Set(entries.map(x=>x.day))].sort((a,b)=>a-b),periods:Math.max(1,+result.periods_per_day||Math.max(...entries.map(x=>x.period))),teachers,classes,requirements:declared.length?declared.map(x=>({class:String(x.class),teacher:String(x.teacher),subject:String(x.subject),count:Number(x.count)})):[...reqMap.values()],requirementsSource:declared.length?'weekly_loads':'inferred_from_extracted_entries',blocked:[],schedule:entries};
+  persist();render();drawSchedule();
+  $('uploadStatus').className=result.conflict_count?'status err':'status ok';
+  $('uploadStatus').textContent='اكتمل تحليل النص: '+entries.length+' حصة، '+teachers.length+' معلماً، '+classes.length+' شعب، '+result.conflict_count+' تعارضاً.';
+  let out='<div class="status '+(result.conflict_count?'err':'ok')+'"><b>نتيجة تحليل نبيل:</b> '+(result.conflict_count?'عثر على '+result.conflict_count+' تعارض.':'لم يظهر تعارض ضمن البيانات المقروءة.')+'</div>';
+  if(result.unreadable?.length)out+='<h3>بيانات تحتاج مراجعة</h3><ul>'+result.unreadable.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>';
+  if(result.notes?.length)out+='<ul>'+result.notes.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>';
+  $('analysisOutput').innerHTML=out;document.querySelector('[data-tab="results"]').click();
+ }catch(e){$('uploadStatus').className='status err';$('uploadStatus').textContent='فشل التحليل: '+e.message}
+ finally{button.disabled=false}
+};
 
 $('readUpload').onclick=async()=>{
  const img=$('imageFile').files[0],doc=$('wordFile').files[0];
