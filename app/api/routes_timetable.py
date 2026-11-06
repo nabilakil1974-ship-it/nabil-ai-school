@@ -9,6 +9,7 @@ from collections import Counter, defaultdict
 from typing import Any
 
 from fastapi import APIRouter, Body, File, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 from starlette.concurrency import run_in_threadpool
 
 from app.local_timetable_reader import read_timetable, read_pasted_timetable
@@ -218,7 +219,7 @@ def _audit(parsed: dict[str, Any]) -> dict[str, Any]:
         "subject_balance": subject_balance,
         "conflict_count": len(conflicts),
         "status": "conflicts_found" if conflicts else "no_conflicts_detected",
-        "solutions_note": "البدائل تُحسب من الخانات المستخرجة فقط. راجع دقة قراءة الصورة والقيود قبل اعتماد أي نقل.",
+        "solutions_note": "البدائل تُحسب من الخانات المستخرجة فقط. راجع دقة البيانات والقيود قبل اعتماد أي نقل.",
     }
 
 def _docx_to_text(data: bytes) -> str:
@@ -262,14 +263,12 @@ async def analyze_timetable(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="الملف فارغ.")
     if len(data) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="حجم الملف أكبر من 15 ميغابايت.")
-    if filename.endswith((".png", ".jpg", ".jpeg", ".webp")):
-        kind = "image"
-    elif filename.endswith(".docx"):
+    if filename.endswith(".docx"):
         kind = "docx"
     elif filename.endswith(".xlsx"):
         kind = "xlsx"
     else:
-        raise HTTPException(status_code=415, detail="الملفات المدعومة: JPG أو PNG أو WEBP أو Word DOCX أو Excel XLSX.")
+        raise HTTPException(status_code=415, detail="الملفات المدعومة حالياً: Word DOCX وExcel XLSX. رفع الصور غير متاح.")
     try:
         parsed = await run_in_threadpool(read_timetable, data, kind)
         result = _audit(parsed)
@@ -416,6 +415,57 @@ async def diagnose_timetable_file(file: UploadFile = File(...)):
         logger.exception("TIMETABLE_DIAGNOSTIC_FAILED")
         raise HTTPException(status_code=422, detail="تعذر إعداد تقرير Excel: " + str(exc)) from exc
 
+
+@router.post("/export-xlsx")
+async def export_timetable_xlsx(payload: dict[str, Any] = Body(...)):
+    """Create an actual XLSX workbook from the reviewed timetable."""
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment
+        from openpyxl.utils import get_column_letter
+        schedule = payload.get("schedule") or []
+        if not isinstance(schedule, list) or not schedule:
+            raise HTTPException(status_code=400, detail="لا يوجد جدول لتصديره.")
+        day_names = ["الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"]
+        def safe_text(value: Any) -> str:
+            text = str(value or "").strip()
+            return "'" + text if text.startswith(("=", "+", "-", "@")) else text
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = "البرنامج العام"
+        sheet.append(["المدرسة", safe_text(payload.get("school") or "البرنامج المدرسي")])
+        sheet.append(["اليوم", "الحصة", "الشعبة", "المادة", "المعلم"])
+        for cell in sheet[2]:
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = PatternFill("solid", fgColor="123B59")
+            cell.alignment = Alignment(horizontal="center")
+        for item in schedule:
+            if not isinstance(item, dict):
+                continue
+            try:
+                day_id = int(item.get("day"))
+                period = int(item.get("period"))
+            except (TypeError, ValueError):
+                continue
+            day = day_names[day_id] if 0 <= day_id < len(day_names) else safe_text(item.get("day"))
+            sheet.append([day, period, safe_text(item.get("class")), safe_text(item.get("subject")), safe_text(item.get("teacher"))])
+        sheet.freeze_panes = "A3"
+        sheet.auto_filter.ref = "A2:E" + str(sheet.max_row)
+        for col, width in enumerate([18, 12, 22, 22, 24], 1):
+            sheet.column_dimensions[get_column_letter(col)].width = width
+        for row in sheet.iter_rows():
+            for cell in row:
+                cell.alignment = Alignment(horizontal="right", vertical="center")
+        output = io.BytesIO()
+        workbook.save(output)
+        output.seek(0)
+        return StreamingResponse(output, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment; filename=\"NABIL-school-timetable.xlsx\""})
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("TIMETABLE_XLSX_EXPORT_FAILED")
+        raise HTTPException(status_code=500, detail="تعذر إنشاء ملف Excel: " + str(exc)) from exc
 
 @router.post("/generate")
 async def generate_timetable(payload: dict[str, Any] = Body(...)):
