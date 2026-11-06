@@ -14,6 +14,7 @@ from starlette.concurrency import run_in_threadpool
 
 from app.local_timetable_reader import read_timetable, read_pasted_timetable
 from app.local_timetable_intake import parse_spoken_school_intake
+from app import timetable_ops
 from app.timetable_solver import solve_timetable
 
 router = APIRouter(prefix="/timetable", tags=["timetable"])
@@ -308,6 +309,24 @@ async def analyze_timetable_text(payload: dict[str, Any] = Body(...)):
     except Exception as exc:
         logger.exception("PASTED_TIMETABLE_ANALYSIS_FAILED")
         raise HTTPException(status_code=422, detail="تعذر تحليل النص الملصق: " + str(exc)) from exc
+
+
+@router.post("/converse")
+async def converse(payload: dict[str, Any] = Body(...)):
+    """One principal utterance -> validated operations on the school state (stateless: the client keeps and resends `state`).
+    Local rule-based engine; no external AI. Returns the new state, what changed, questions to ask and answers to queries."""
+    text = str(payload.get("text") or "")[:4000]
+    state = payload.get("state") if isinstance(payload.get("state"), dict) else None
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="النص فارغ.")
+    result = await run_in_threadpool(timetable_ops.apply, state or timetable_ops.new_state(), text)
+    st = result["state"]
+    return {
+        "ok": True, "state": st, "changes": result["changes"], "questions": result["questions"], "answers": result["answers"],
+        "missing": timetable_ops.missing(st),
+        "loads": {t: timetable_ops.load_of(st, t) for t in st["teachers"]},
+        "engine": "local-rules", "external_ai": False,
+    }
 
 
 @router.post("/intake-text")
