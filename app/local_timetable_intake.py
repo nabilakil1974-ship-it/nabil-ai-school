@@ -138,41 +138,54 @@ def _extract_teacher_segments(text: str) -> list[tuple[str, str]]:
     return out
 
 def _subject(segment: str) -> str:
-    # Extract only a known subject immediately following a teaching verb.
-    # This prevents speech-recognition noise from becoming a gigantic subject.
+    # Accept both teaching verbs and spoken teacher-profile shorthand.
     subjects = (
-        "رياضيات", "عربي", "لغة عربية", "انكليزي", "إنكليزي", "انجليزي",
+        "رياضيات", "لغة عربية", "عربي", "انكليزي", "إنكليزي", "انجليزي",
         "لغة انكليزية", "بيولوجي", "علوم", "فيزياء", "كيمياء", "تاريخ",
         "جغرافيا", "دين", "تربية", "رياضة", "فرنسي", "لغة فرنسية",
         "اجتماعيات", "فلسفة", "اقتصاد", "معلوماتية", "فنون", "موسيقى"
     )
     verbs = r"(?:حيعطي|بيعطي|يعطي|بتعطي|تعطي|بتعلم|بيعلم|بعلم|يعلم|يدرّس|يدرس)"
     for subject in sorted(subjects, key=len, reverse=True):
-        if re.search(verbs + r"\s+" + re.escape(subject) + r"(?=\s|$|،|,)", segment, re.I):
+        subject_rx = re.escape(subject)
+        if re.search(verbs + r"\s+" + subject_rx + r"(?=\s|$|،|,)", segment, re.I):
+            return subject
+        if re.search(r"(?:معلم|معلمة|مدرس|مدرسة|مادة|اختصاصه|اختصاصها)\s+" + subject_rx + r"(?=\s|$|،|,)", segment, re.I):
             return subject
     return ""
 
 def _explicit_classes(segment: str) -> list[str]:
-    # Explicit grade + section labels such as "السابع A والسابع B والثامن B".
+    """Extract explicit class sections, including spoken Arabic letter names."""
     grade_pattern = r"(الثاني\s+عشر|الثالث\s+الثانوي|الثالث\s+ثانوي|الحادي\s+عشر|الثاني\s+الثانوي|الثاني\s+ثانوي|الأول\s+ثانوي|الاول\s+ثانوي|الأول\s+الأساسي|الاول\s+الاساسي|الثاني\s+الأساسي|الثاني\s+الاساسي|الثالث\s+الأساسي|الثالث\s+الاساسي|الرابع\s+الأساسي|الرابع\s+الاساسي|الخامس\s+الأساسي|الخامس\s+الاساسي|السادس\s+الأساسي|السادس\s+الاساسي|العاشر|التاسع|التاسعة|الثامن|الثامنة|السابع|السابعة|الخامس|الخامسة|الرابع|الرابعة|الثالث|الثالثة|الثاني|الثانية|الأول|الاول)"
-    # Accept Latin A-G, or a short Arabic section letter only when explicitly
-    # introduced by "الشعبة". Never consume the first letter of the next word.
-    pattern = re.compile(
-        r"(" + grade_pattern + r")\s*(?:الشعبة\s*([A-Ga-g]|[أابتثجحدر]))?"
-        r"|(" + grade_pattern + r")\s+([A-Ga-g])(?=\s|$|،|,)",
-        re.I
-    )
-    found = []
-    for match in pattern.finditer(segment):
-        grade = match.group(1) or match.group(3)
-        section = match.group(2) or match.group(4)
-        if not grade or not section:
-            continue
+    found: list[str] = []
+    section_aliases = {
+        "الف": "أ", "ألف": "أ", "الالف": "أ", "الألف": "أ",
+        "باء": "ب", "با": "ب", "جيم": "ج", "جم": "ج",
+        "دال": "د", "هاء": "هـ", "واو": "و", "زاي": "ز",
+    }
+    grade_rx = re.compile(r"(?<![\w])(" + grade_pattern + r")(?![\w])", re.I)
+    matches = list(grade_rx.finditer(segment))
+    for index, match in enumerate(matches):
+        grade = match.group(1)
+        tail_end = matches[index + 1].start() if index + 1 < len(matches) else len(segment)
+        tail = _norm(segment[match.end():tail_end])
         grade_name = GRADE_WORDS.get(grade, GRADE_WORDS.get(_norm(grade), grade))
-        sec = section.upper() if section.isascii() else section
-        label = f"{grade_name} {sec}"
-        if label not in found:
-            found.append(label)
+        tail = re.split(r"[.؛;!?\n]", tail, maxsplit=1)[0]
+        tokens = re.findall(r"[\u0621-\u064a]+|[a-g]", tail)
+        sections = []
+        for token in tokens:
+            key = _norm(token)
+            if key in section_aliases:
+                section = section_aliases[key]
+                if section not in sections:
+                    sections.append(section)
+            elif len(token) == 1 and token.lower() in "abcdefg":
+                if token.upper() not in sections:
+                    sections.append(token.upper())
+        for section in sections:
+            label = f"{grade_name} {section}"
+            if label not in found:
+                found.append(label)
     return found
 
 def _grade_scope(segment: str) -> list[str]:
