@@ -4,6 +4,10 @@ from __future__ import annotations
 import io
 import json
 import logging
+import base64
+import os
+import urllib.request
+import urllib.error
 import re
 from collections import defaultdict
 from typing import Any
@@ -180,6 +184,35 @@ def _audit(parsed: dict[str, Any]) -> dict[str, Any]:
         "solutions_note": "البدائل تُحسب من الخانات المستخرجة فقط. راجع دقة قراءة الصورة والقيود قبل اعتماد أي نقل.",
     }
 
+def _call_nabil_engine(*, image_bytes: bytes | None, mime: str, text: str = "") -> str:
+    """Send school data to the authenticated NABIL Executive AI vision/text endpoint."""
+    base = os.getenv("NABIL_EXECUTIVE_API_URL", "").rstrip("/")
+    secret = os.getenv("NABIL_EXECUTIVE_API_KEY", "")
+    if not base or not secret:
+        raise RuntimeError("NABIL_EXECUTIVE_API_URL / NABIL_EXECUTIVE_API_KEY are not configured")
+    payload = {
+        "instructions": TIMETABLE_INSTRUCTIONS,
+        "text": text,
+        "mimeType": mime,
+        "imageBase64": base64.b64encode(image_bytes).decode("ascii") if image_bytes else "",
+    }
+    request = urllib.request.Request(
+        base + "/api/internal/timetable/analyze",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json", "X-NABIL-Internal-Key": secret},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=100) as response:
+            result = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", "replace")[:500]
+        raise RuntimeError(f"NABIL engine returned HTTP {exc.code}: {detail}") from exc
+    if not result.get("ok") or not result.get("output"):
+        raise RuntimeError(str(result.get("error") or "NABIL returned no analysis"))
+    return str(result["output"])
+
+
 def _docx_to_text(data: bytes) -> str:
     try:
         from docx import Document
@@ -214,24 +247,24 @@ async def analyze_timetable(file: UploadFile = File(...)):
         raise HTTPException(status_code=415, detail="الملفات المدعومة: صورة JPG أو PNG أو WEBP أو ملف Word بصيغة DOCX.")
 
     try:
+        doc_text = _docx_to_text(data) if not image_bytes else ""
         raw = await run_in_threadpool(
-            get_ai_gateway().generate,
-            instructions=TIMETABLE_INSTRUCTIONS,
-            messages=[{"role": "user", "content": prompt}],
+            _call_nabil_engine,
             image_bytes=image_bytes,
-            image_mime_type=mime,
-            max_output_tokens=7000,
+            mime=mime,
+            text=doc_text,
         )
         parsed = _extract_json(raw)
         result = _audit(parsed)
         if not result["entries"]:
             raise HTTPException(status_code=422, detail={
-                "message": "لم أتمكن من استخراج حصص واضحة. جرّب صورة أوضح أو ملف Word.",
+                "message": "لم يتمكن نبيل من استخراج حصص واضحة. جرّب صورة أوضح أو ملف Word.",
                 "unreadable": result["unreadable"], "notes": result["notes"],
             })
+        result["engine"] = "NABIL Executive AI"
         return result
     except HTTPException:
         raise
     except Exception as exc:
         logger.exception("TIMETABLE_ANALYSIS_FAILED")
-        raise HTTPException(status_code=503, detail="تعذّر تحليل الجدول حالياً. تحقق من مزود الذكاء الاصطناعي وحاول مجدداً.") from exc
+        raise HTTPException(status_code=503, detail="نبيل غير قادر على تحليل الجدول حالياً. أعد المحاولة لاحقاً.") from exc
