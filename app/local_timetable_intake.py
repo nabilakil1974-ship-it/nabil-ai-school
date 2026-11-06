@@ -270,13 +270,11 @@ def parse_spoken_school_intake(text: str) -> dict[str, Any]:
     days.sort()
     if not days:
         days = []
-    day_limits = _extract_day_limits(source, days)
-    # Day counts in colloquial lists: اثنين عندي ثمان حصص، ثلاثة وأربعة وخميس سبع.
-    for token, day_id in (("اثنين", 0), ("ثلاثة", 1), ("اربعة", 2), ("خميس", 3)):
-        if day_id in days:
-            match = re.search(rf"(?<![\w])و?{token}.{{0,45}}?(ثمانية|ثماني|ثمان|سبعة|سبع|ستة|ست|خمسة|خمس|اربعة|اربع|ثلاثة|ثلاث|اثنتين|اثنين|واحد|واحدة|[1-9])\s*(?:حصص|حصة)", n)
-            if match:
-                day_limits[DAY_CANON[day_id]] = _number(match.group(1))
+    # Only read day-period totals from the school-schedule part, before teacher details.
+    # Otherwise "فراغ الاثنين أول ثلاث حصص" can be misread as a three-period school day.
+    teacher_matches = _extract_teacher_segments(source)
+    config_text = source[:teacher_matches[0][0]] if teacher_matches else source
+    day_limits = _extract_day_limits(config_text, days)
     periods = max(day_limits.values()) if day_limits else None
 
     duration_match = re.search(r"(?:مدة الحصة|الحصة مدتها|كل حصة)\s*(?:هي\s*)?(\d+)\s*دقيقة", n)
