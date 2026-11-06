@@ -35,14 +35,14 @@
 </main>
 <script>
 const $=id=>document.getElementById(id), DAYS=['الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت','الأحد'];
-let data={school:'',days:[0,1,2,3,4],periods:6,periodDurationMinutes:null,breakStart:'',breakDurationMinutes:null,breakAfterPeriod:null,teachers:[],classes:[],requirements:[],blocked:[],schedule:[],dayPeriodLimits:{}}, view='school';
+let data={school:'',days:[0,1,2,3,4],periods:6,periodDurationMinutes:null,breakStart:'',breakDurationMinutes:null,breakAfterPeriod:null,teachers:[],teacherProfiles:[],classes:[],requirements:[],blocked:[],schedule:[],dayPeriodLimits:{}}, view='school';
 // Start with a clean timetable store: never resurrect the previous school's saved schedule.
 try{localStorage.removeItem('nabil-timetable-v2');}catch(e){}
-try{const saved=JSON.parse(localStorage.getItem('nabil-timetable-v3'));if(saved)data={...data,...saved}}catch(e){}
+try{const saved=JSON.parse(localStorage.getItem('nabil-timetable-v3'));if(saved)data={...data,...saved};data.teacherProfiles=data.teacherProfiles||[]}catch(e){}
 function persist(){localStorage.setItem('nabil-timetable-v3',JSON.stringify(data))}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function render(){ $('school').value=data.school;$('periods').value=data.periods;$('periodDuration').value=data.periodDurationMinutes||'';$('breakStart').value=data.breakStart||'';$('breakDuration').value=data.breakDurationMinutes||'';$('breakAfterPeriod').innerHTML='<option value="">لا توجد فرصة محددة</option>'+Array.from({length:Math.max(0,data.periods-1)},(_,i)=>'<option value="'+(i+1)+'">بعد الحصة '+(i+1)+'</option>').join('');$('breakAfterPeriod').value=data.breakAfterPeriod||'';$('days').innerHTML=DAYS.map((d,i)=>'<label><input type="checkbox" value="'+i+'" '+(data.days.includes(i)?'checked':'')+'>'+d+'</label>').join('');
-$('teacherList').innerHTML=table(data.teachers.map((x,i)=>{const reqs=data.requirements.filter(r=>r.teacher===x);const weekly=reqs.reduce((n,r)=>n+(Number(r.count)||0),0);return [x,weekly+' حصة أسبوعياً ('+reqs.length+' توزيع)','<button class="secondary" onclick="editTeacher('+i+')">تعديل</button> <button class="danger" onclick="removeItem(\'teachers\','+i+')">حذف المعلم</button>']}),['المعلم','مجموع النصاب الأسبوعي','إجراء']);
+$('teacherList').innerHTML=table(data.teachers.map((x,i)=>{const reqs=data.requirements.filter(r=>r.teacher===x);const weekly=reqs.reduce((n,r)=>n+(Number(r.count)||0),0);const profile=(data.teacherProfiles||[]).find(p=>p.teacher===x);const detail=profile?'<br><span class="small">'+esc(profile.subject?'المادة: '+profile.subject:'المادة غير محددة')+(profile.explicit_classes?.length?' — الشعب: '+profile.explicit_classes.map(esc).join('، '):'')+(!reqs.length?' — عدد الحصص الأسبوعية لم يُحدد بعد':'')+'</span>':'';return [x,weekly+' حصة أسبوعياً ('+reqs.length+' توزيع)'+detail,'<button class="secondary" onclick="editTeacher('+i+')">تعديل</button> <button class="danger" onclick="removeItem(\'teachers\','+i+')">حذف المعلم</button>']}),['المعلم','مجموع النصاب الأسبوعي','إجراء']);
 const schoolWeeklyTotal=data.requirements.reduce((n,r)=>n+(Number(r.count)||0),0);
 $('teacherLoadSummary').innerHTML='<b>ملخص الأنصبة الأسبوعية:</b> مجموع حصص جميع المعلمين = <b>'+schoolWeeklyTotal+' حصة أسبوعياً</b>.'+(data.teachers.length?' — يظهر نصاب كل معلم بجانب اسمه.':'');
 $('classList').innerHTML=table(data.classes.map((x,i)=>[x,'<button class="secondary" onclick="editClass('+i+')">تعديل</button> <button class="danger" onclick="removeItem(\'classes\','+i+')">حذف</button>']),['الصف / الشعبة','إجراء']);
@@ -311,6 +311,8 @@ $('analyzeSpoken').onclick=async()=>{
   if(result.break_duration_minutes)data.breakDurationMinutes=result.break_duration_minutes;
   (result.teachers||[]).forEach(t=>{if(t&&!data.teachers.includes(t))data.teachers.push(t)});
   (result.classes||[]).forEach(c=>{if(c&&!data.classes.includes(c))data.classes.push(c)});
+  data.teacherProfiles=data.teacherProfiles||[];
+  (result.teacher_profiles||[]).forEach(p=>{const old=data.teacherProfiles.find(x=>x.teacher===p.teacher);if(old){old.subject=p.subject||old.subject||'';old.explicit_classes=unique([...(old.explicit_classes||[]),...(p.explicit_classes||[])],x=>x);old.grades=unique([...(old.grades||[]),...(p.grades||[])],x=>x);old.unavailable=unique([...(old.unavailable||[]),...(p.unavailable||[])],x=>[x.day,x.period].join('|'));}else data.teacherProfiles.push({...p})});
   (result.requirements||[]).forEach(r=>{
    const key=x=>[x.teacher,x.subject,x.class].join('|');
    const found=data.requirements.find(x=>key(x)===key(r));
