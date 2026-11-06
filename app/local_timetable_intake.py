@@ -134,9 +134,19 @@ def _subject(segment: str) -> str:
 def _explicit_classes(segment: str) -> list[str]:
     # Explicit grade + section labels such as "السابع A والسابع B والثامن B".
     grade_pattern = r"(الثاني\s+عشر|الثالث\s+الثانوي|الثالث\s+ثانوي|الحادي\s+عشر|الثاني\s+الثانوي|الثاني\s+ثانوي|الأول\s+ثانوي|الاول\s+ثانوي|الأول\s+الأساسي|الاول\s+الاساسي|الثاني\s+الأساسي|الثاني\s+الاساسي|الثالث\s+الأساسي|الثالث\s+الاساسي|الرابع\s+الأساسي|الرابع\s+الاساسي|الخامس\s+الأساسي|الخامس\s+الاساسي|السادس\s+الأساسي|السادس\s+الاساسي|العاشر|التاسع|التاسعة|الثامن|الثامنة|السابع|السابعة|الخامس|الخامسة|الرابع|الرابعة|الثالث|الثالثة|الثاني|الثانية|الأول|الاول)"
-    pattern = re.compile(grade_pattern + r"\s*(?:الشعبة\s*)?([A-Ga-g]|[أ-ي])", re.I)
+    # Accept Latin A-G, or a short Arabic section letter only when explicitly
+    # introduced by "الشعبة". Never consume the first letter of the next word.
+    pattern = re.compile(
+        r"(" + grade_pattern + r")\s*(?:الشعبة\s*([A-Ga-g]|[أابتثجحدر]))?"
+        r"|(" + grade_pattern + r")\s+([A-Ga-g])(?=\s|$|،|,)",
+        re.I
+    )
     found = []
-    for grade, section in pattern.findall(segment):
+    for match in pattern.finditer(segment):
+        grade = match.group(1) or match.group(3)
+        section = match.group(2) or match.group(4)
+        if not grade or not section:
+            continue
         grade_name = GRADE_WORDS.get(grade, GRADE_WORDS.get(_norm(grade), grade))
         sec = section.upper() if section.isascii() else section
         label = f"{grade_name} {sec}"
