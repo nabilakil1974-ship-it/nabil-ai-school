@@ -8,7 +8,7 @@
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Tahoma,Arial,sans-serif}header{background:linear-gradient(120deg,#102f49,#176b87);color:white;padding:18px max(18px,calc((100% - 1180px)/2))}.header-inner{display:flex;align-items:center;gap:16px}.profile-photo{width:86px;height:86px;flex:0 0 86px;object-fit:cover;object-position:center;border-radius:50%;border:3px solid #e4bd45;box-shadow:0 3px 14px #071d2d66;background:#fff}.header-copy{min-width:0}header h1{margin:0 0 7px;font-size:clamp(22px,4vw,32px)}header p{margin:0;color:#d9edf5}main{max-width:1180px;margin:22px auto;padding:0 14px}.notice{background:#e8f3f8;border:1px solid #c9e0eb;padding:13px 15px;border-radius:12px;margin-bottom:16px;line-height:1.8}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}.tab,button{border:0;border-radius:9px;padding:10px 14px;font:inherit;cursor:pointer}.tab{background:#e2e9ed;color:var(--ink)}.tab.active,button.primary{background:var(--navy);color:white}.panel{display:none;background:white;border:1px solid var(--line);border-radius:14px;padding:17px;margin-bottom:16px;box-shadow:0 3px 12px #16344a0a}.panel.active{display:block}.panel h2{font-size:19px;margin:0 0 14px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}.field{display:flex;flex-direction:column;gap:6px}.field label{font-size:13px;color:var(--muted)}input,select{width:100%;border:1px solid #cbd6dd;border-radius:8px;padding:10px;font:inherit;background:white;color:var(--ink)}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px}button.secondary{background:#e8eef2;color:var(--ink)}button.danger{background:#fbe9e8;color:#982d29}button:disabled{opacity:.5;cursor:not-allowed}.list{margin-top:14px;overflow:auto}table{width:100%;border-collapse:collapse;min-width:540px}th,td{padding:10px;border-bottom:1px solid var(--line);text-align:right;font-size:14px}th{background:#f4f7f9;color:#405563}.small{font-size:12px;color:var(--muted)}.checkgrid{display:grid;grid-template-columns:repeat(5,minmax(45px,1fr));gap:6px;margin-top:8px}.checkgrid label{background:#f1f5f7;padding:7px;border-radius:7px;font-size:12px;display:flex;gap:5px;align-items:center}.checkgrid input{width:auto}.status{padding:12px;border-radius:9px;margin:12px 0;line-height:1.7}.ok{background:#e5f5ed;color:#145c40}.err{background:#fff0ee;color:#922f29}.warn{background:#fff6df;color:#76520d}.timetable{overflow:auto}.timetable table{border-collapse:separate;border-spacing:0 3px;background:#f7fafc;border:1px solid #d8e3ea;border-radius:12px;overflow:hidden}.timetable thead th{background:linear-gradient(135deg,#123b59,#176b87);color:#fff;text-align:center;font-weight:700;padding:13px 9px;border-bottom:3px solid #e4bd45}.timetable tbody td,.timetable tbody th{border-bottom:1px solid #dce5eb;text-align:center;vertical-align:middle}.timetable tbody tr.day-start td,.timetable tbody tr.day-start th{border-top:4px solid #edc84a}.timetable tbody th.day-label{font-weight:700;color:#173b52;min-width:108px;box-shadow:inset -4px 0 0 var(--day-accent);background:var(--day-tint)}.timetable tbody tr.day-tone td{background:var(--day-tint)}.timetable tbody tr.day-tone td .lesson{background:linear-gradient(145deg,#fff,#f3f8fb);border:1px solid #d7e6ee;border-right:4px solid var(--day-accent);box-shadow:0 2px 7px #173b5210;border-radius:9px;padding:8px 7px}.timetable tbody tr.day-tone td .lesson b{color:#123b59;font-size:13px}.timetable tbody tr.day-tone td .lesson.conflict{background:#fff0ef;border-color:#efc5c2;border-right-color:#c62828;color:#8f1717}.timetable tbody tr.day-tone td .lesson.unavailable{background:#eef6ff;border-color:#c9def5;border-right-color:#1976d2;color:#124d91}.timetable tbody tr.break-row td,.timetable tbody tr.break-row th{background:#fff5cf!important;color:#76520d;font-weight:700;border-top:2px solid #edc84a;border-bottom:2px solid #edc84a}.timetable tbody tr:hover td{filter:brightness(.985)}.timetable td{padding:8px 6px}.timetable table{min-width:700px}.timetable td{min-width:100px;height:65px;vertical-align:top}.lesson{background:#e8f3f8;border-right:3px solid var(--blue);border-radius:6px;padding:6px;font-size:12px;line-height:1.6}.lesson b{display:block}.lesson.conflict{background:#fde8e7;border-right:4px solid #c62828;color:#8f1717}.lesson.unavailable{background:#e5f1ff;border-right:4px solid #1976d2;color:#124d91}.lesson.conflict.unavailable{background:#fde8e7;border-right-color:#c62828;color:#8f1717}.legend{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0 14px;font-size:12px}.legend span{padding:6px 9px;border-radius:6px}.legend .red{background:#fde8e7;color:#8f1717}.legend .blue{background:#e5f1ff;color:#124d91}.empty{color:#a0acb4;text-align:center}.footer{color:var(--muted);font-size:12px;text-align:center;padding:22px}
 @media(max-width:600px){header{padding:16px 14px}.header-inner{gap:11px}.profile-photo{width:66px;height:66px;flex-basis:66px}.panel{padding:13px}.checkgrid{grid-template-columns:repeat(3,1fr)}}
 @media print{header,.notice,.tabs,.panel:not(#results),.actions,.footer{display:none!important}body{background:white}main{margin:0;max-width:none}.panel#results{display:block;border:0;box-shadow:none}.timetable table{min-width:0}.timetable td{height:55px}}
-</style></head>
+ .voice-panel{margin-top:12px;padding:13px;border:1px solid #cbdde7;border-radius:12px;background:linear-gradient(135deg,#f4f9fc,#fff)}.voice-title{font-weight:700;color:#123b59}.voice-panel .actions{margin:9px 0}.voice-panel button{min-height:42px}.voice-panel button#voiceStart{background:#176b87}.voice-panel button#voiceStop{background:#fbe9e8;color:#982d29}.voice-panel button:disabled{opacity:.45}.voice-panel.listening{border-color:#1b9a69;box-shadow:0 0 0 2px #1b9a691c}.voice-panel.listening #voiceStart{background:#147d55}</style></head>
 <body>
 <header><div class="header-inner"><img class="profile-photo" src="/static/nabil-profile.jpg" alt="الأستاذ نبيل عقيل" loading="eager"><div class="header-copy"><h1>نبيل | منظّم البرنامج المدرسي الذكي</h1><p>NABIL School Timetable AI · نسخة تجريبية قيد الاختبار · <span id="apiStatus" aria-live="polite">جارٍ فحص اتصال نبيل...</span></p></div></div></header>
 <main>
@@ -17,10 +17,11 @@
 <h2>أرسل بيانات المدرسة إلى نبيل</h2>
 <p class="small">يمكنك إدخال بيانات المدرسة تدريجياً من الأقسام أدناه. هذا الحقل اختياري لاستيراد وصف مكتوب دفعة واحدة، وليس شرطاً لإنشاء المعاينة.</p>
 <div class="field">
-<label for="pastedTimetable">وصف المدرسة</label>
+<label for="pastedTimetable">وصف المدرسة — يمكنك الكتابة أو التحدث على دفعات</label>
 <textarea id="pastedTimetable" rows="13" style="width:100%;direction:rtl;font:inherit;line-height:1.9" placeholder="مثال: الدوام من الاثنين إلى الخميس، سبع حصص يومياً... ثم اذكر الشعب والمعلمين والمواد والأنصبة والقيود."></textarea>
 </div>
-<div class="actions"><button class="primary" id="analyzeSpoken" type="button">إرسال</button><button class="secondary" id="clearPasted" type="button">مسح النص</button></div>
+<div class="voice-panel" aria-label="الإدخال الصوتي"><div class="voice-title">الإدخال الصوتي المتتابع</div><div class="actions"><button class="primary" id="voiceStart" type="button">🎙️ ابدأ الكلام</button><button class="secondary" id="voiceStop" type="button" disabled>إيقاف التسجيل</button><button class="secondary" id="voiceClear" type="button">مسح الكلام المضاف</button></div><div id="voiceStatus" class="small" role="status" aria-live="polite">اضغط «ابدأ الكلام»، وتحدث براحتك. يمكنك إيقافه ثم بدء تسجيل آخر؛ لن يُرسل النص قبل ضغط «إرسال».</div></div>
+<div class="actions"><button class="primary" id="analyzeSpoken" type="button">إرسال إلى نبيل للتحليل</button><button class="secondary" id="clearPasted" type="button">مسح النص كله</button></div>
 <div id="uploadStatus" class="status warn" aria-live="polite">اكتب وصف المدرسة ثم اضغط «إرسال».</div>
 <div id="analysisOutput"></div>
 </section>
@@ -183,7 +184,73 @@ $('audit').onclick=auditSchedule;
 
 
 
-$('clearPasted').onclick=()=>{$('pastedTimetable').value='';$('uploadStatus').className='status warn';$('uploadStatus').textContent='تم مسح النص.'};
+// Browser speech recognition: keep finalized words, survive short silence/disconnects,
+ // and let the user append multiple separate speaking sessions before sending.
+let nabilSpeech=null, nabilVoiceActive=false, nabilVoiceRestart=null, nabilVoiceFinal='';
+const voicePanel=document.querySelector('.voice-panel');
+function voiceStatus(message){$('voiceStatus').textContent=message}
+function appendVoiceText(value){
+ const clean=String(value||'').trim(); if(!clean)return;
+ const box=$('pastedTimetable'), current=box.value.trim();
+ box.value=(current?current+'\\n':'')+clean;
+ box.dispatchEvent(new Event('input',{bubbles:true}));
+}
+function stopNabilVoice(manual=true){
+ nabilVoiceActive=false;
+ if(nabilVoiceRestart){clearTimeout(nabilVoiceRestart);nabilVoiceRestart=null}
+ $('voiceStart').disabled=false;$('voiceStop').disabled=true;
+ voicePanel.classList.remove('listening');
+ if(nabilSpeech){try{nabilSpeech.stop()}catch(e){}}
+ if(manual)voiceStatus('توقف التسجيل. النص محفوظ في المربع؛ يمكنك بدء تسجيل آخر أو إرسال النص إلى نبيل.');
+}
+function startNabilVoice(){
+ const Speech=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!Speech){voiceStatus('المتصفح لا يدعم تحويل الكلام إلى نص. جرّب Chrome على الهاتف أو اكتب النص يدوياً.');return}
+ if(nabilVoiceActive)return;
+ if(!nabilSpeech){
+  nabilSpeech=new Speech();
+  nabilSpeech.lang='ar-LB';nabilSpeech.continuous=true;nabilSpeech.interimResults=true; nabilSpeech.maxAlternatives=1;
+  nabilSpeech.onresult=(event)=>{
+   let finalPart='', interim='';
+   for(let i=event.resultIndex;i<event.results.length;i++){
+    const phrase=event.results[i][0]?.transcript||'';
+    if(event.results[i].isFinal)finalPart+=phrase+' ';else interim+=phrase;
+   }
+   if(finalPart){appendVoiceText(finalPart);nabilVoiceFinal+ = finalPart;}
+   voiceStatus((nabilVoiceActive?'🎙️ أستمع إليك الآن. ':'')+(interim?'الكلام الجاري: '+interim:'تم حفظ الكلام النهائي. يمكنك المتابعة أو إيقاف التسجيل.'));
+  };
+  nabilSpeech.onerror=(event)=>{
+   if(event.error==='not-allowed'||event.error==='service-not-allowed'){stopNabilVoice(false);voiceStatus('لم يُسمح باستخدام الميكروفون. اسمح للمتصفح بالوصول إلى الميكروفون ثم أعد المحاولة.')}
+   else if(event.error!=='no-speech'&&event.error!=='aborted'){voiceStatus('انقطع التعرف الصوتي مؤقتاً ('+event.error+'). سأحاول المتابعة ما دام التسجيل مفعّلاً.')}
+  };
+  nabilSpeech.onend=()=>{
+   if(nabilVoiceActive){
+    if(nabilVoiceRestart)clearTimeout(nabilVoiceRestart);
+    nabilVoiceRestart=setTimeout(()=>{if(nabilVoiceActive){try{nabilSpeech.start()}catch(e){}}},350);
+   }else{
+    $('voiceStart').disabled=false;$('voiceStop').disabled=true;voicePanel.classList.remove('listening');
+   }
+  };
+  nabilSpeech.onstart=()=>{voiceStatus('🎙️ التسجيل يعمل. تابع الكلام براحتك؛ سيُعاد الاتصال تلقائياً إذا توقف المتصفح مؤقتاً.')};
+ }
+ nabilVoiceActive=true;$('voiceStart').disabled=true;$('voiceStop').disabled=false;voicePanel.classList.add('listening');
+ voiceStatus('جارٍ تشغيل الميكروفون...');
+ try{nabilSpeech.start()}catch(e){nabilVoiceActive=false;$('voiceStart').disabled=false;$('voiceStop').disabled=true;voicePanel.classList.remove('listening');voiceStatus('تعذر تشغيل الميكروفون. انتظر لحظة ثم أعد المحاولة.')}
+}
+$('voiceStart').onclick=startNabilVoice;
+$('voiceStop').onclick=()=>stopNabilVoice(true);
+$('voiceClear').onclick=()=>{
+ stopNabilVoice(false);
+ $('pastedTimetable').value='';nabilVoiceFinal='';
+ voiceStatus('تم مسح النص الصوتي والمكتوب. يمكنك البدء من جديد.');
+};
+$('clearPasted').onclick=()=>{
+ stopNabilVoice(false);
+ $('pastedTimetable').value='';nabilVoiceFinal='';
+ $('uploadStatus').className='status warn';$('uploadStatus').textContent='تم مسح النص.';
+ voiceStatus('تم مسح النص. ابدأ تسجيلاً جديداً متى شئت.');
+};
+window.addEventListener('pagehide',()=>stopNabilVoice(false));
 
 $('analyzeSpoken').onclick=async()=>{
  const text=$('pastedTimetable').value.trim();
