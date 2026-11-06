@@ -184,15 +184,21 @@ $('audit').onclick=auditSchedule;
 
 
 
-// Browser speech recognition: keep finalized words, survive short silence/disconnects,
- // and let the user append multiple separate speaking sessions before sending.
-let nabilSpeech=null, nabilVoiceActive=false, nabilVoiceRestart=null, nabilVoiceFinal='';
+// Browser speech recognition: use a fresh recognizer for every restart.
+// This prevents cumulative results from a previous recognition session being appended again.
+let nabilSpeech=null, nabilVoiceActive=false, nabilVoiceRestart=null;
+let nabilLastFinalText='', nabilLastFinalAt=0, nabilVoiceSession=0;
 const voicePanel=document.querySelector('.voice-panel');
 function voiceStatus(message){$('voiceStatus').textContent=message}
 function appendVoiceText(value){
- const clean=String(value||'').trim(); if(!clean)return;
+ const clean=String(value||'').replace(/\\s+/g,' ').trim(); if(!clean)return;
+ const normalized=clean.toLocaleLowerCase('ar');
+ const now=Date.now();
+ // Some mobile speech engines resend the same final phrase on reconnect.
+ if(normalized===nabilLastFinalText && now-nabilLastFinalAt<7000)return;
+ nabilLastFinalText=normalized;nabilLastFinalAt=now;
  const box=$('pastedTimetable'), current=box.value.trim();
- box.value=(current?current+'\n':'')+clean;
+ box.value=(current?current+'\\n':'')+clean;
  box.dispatchEvent(new Event('input',{bubbles:true}));
 }
 function stopNabilVoice(manual=true){
@@ -200,53 +206,83 @@ function stopNabilVoice(manual=true){
  if(nabilVoiceRestart){clearTimeout(nabilVoiceRestart);nabilVoiceRestart=null}
  $('voiceStart').disabled=false;$('voiceStop').disabled=true;
  voicePanel.classList.remove('listening');
- if(nabilSpeech){try{nabilSpeech.stop()}catch(e){}}
+ const active=nabilSpeech;nabilSpeech=null;
+ if(active){try{active.onend=null;active.stop()}catch(e){}}
  if(manual)voiceStatus('توقف التسجيل. النص محفوظ في المربع؛ يمكنك بدء تسجيل آخر أو إرسال النص إلى نبيل.');
+}
+function createNabilRecognizer(){
+ const Speech=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!Speech)return null;
+ const recognizer=new Speech();
+ const session=++nabilVoiceSession;
+ recognizer.lang='ar-LB';recognizer.continuous=true;recognizer.interimResults=true;recognizer.maxAlternatives=1;
+ recognizer.onresult=(event)=>{
+  if(session!==nabilVoiceSession || !nabilVoiceActive)return;
+  let finalParts=[], interim=[];
+  for(let i=event.resultIndex;i<event.results.length;i++){
+   const phrase=event.results[i][0]?.transcript||'';
+   if(event.results[i].isFinal){if(phrase.trim())finalParts.push(phrase.trim())}
+   else if(phrase.trim())interim.push(phrase.trim());
+  }
+  finalParts.forEach(appendVoiceText);
+  voiceStatus('🎙️ أستمع إليك الآن.'+(interim.length?' الكلام الجاري: '+interim.join(' '):' تم حفظ الكلام النهائي.'));
+ };
+ recognizer.onerror=(event)=>{
+  if(session!==nabilVoiceSession)return;
+  if(event.error==='not-allowed'||event.error==='service-not-allowed'){
+   stopNabilVoice(false);
+   voiceStatus('لم يُسمح باستخدام الميكروفون. اسمح للمتصفح بالوصول إلى الميكروفون ثم أعد المحاولة.');
+  }else if(event.error!=='no-speech'&&event.error!=='aborted'){
+   voiceStatus('انقطع التعرف الصوتي مؤقتاً ('+event.error+'). سأحاول المتابعة ما دام التسجيل مفعّلاً.');
+  }
+ };
+ recognizer.onend=()=>{
+  if(session!==nabilVoiceSession)return;
+  if(nabilSpeech===recognizer)nabilSpeech=null;
+  if(nabilVoiceActive){
+   if(nabilVoiceRestart)clearTimeout(nabilVoiceRestart);
+   nabilVoiceRestart=setTimeout(()=>{
+    nabilVoiceRestart=null;
+    if(nabilVoiceActive)startRecognitionSession();
+   },500);
+  }else{
+   $('voiceStart').disabled=false;$('voiceStop').disabled=true;voicePanel.classList.remove('listening');
+  }
+ };
+ recognizer.onstart=()=>{if(session===nabilVoiceSession)voiceStatus('🎙️ التسجيل يعمل. تابع الكلام براحتك؛ سيُعاد الاتصال بجلسة جديدة عند توقف المتصفح.')};
+ return recognizer;
+}
+function startRecognitionSession(){
+ if(!nabilVoiceActive)return;
+ const recognizer=createNabilRecognizer();
+ if(!recognizer){stopNabilVoice(false);voiceStatus('المتصفح لا يدعم تحويل الكلام إلى نص. جرّب Chrome على الهاتف أو اكتب النص يدوياً.');return}
+ nabilSpeech=recognizer;
+ try{recognizer.start()}catch(e){
+  if(nabilSpeech===recognizer)nabilSpeech=null;
+  if(nabilVoiceActive){
+   if(nabilVoiceRestart)clearTimeout(nabilVoiceRestart);
+   nabilVoiceRestart=setTimeout(()=>{nabilVoiceRestart=null;if(nabilVoiceActive)startRecognitionSession()},900);
+  }
+ }
 }
 function startNabilVoice(){
  const Speech=window.SpeechRecognition||window.webkitSpeechRecognition;
  if(!Speech){voiceStatus('المتصفح لا يدعم تحويل الكلام إلى نص. جرّب Chrome على الهاتف أو اكتب النص يدوياً.');return}
  if(nabilVoiceActive)return;
- if(!nabilSpeech){
-  nabilSpeech=new Speech();
-  nabilSpeech.lang='ar-LB';nabilSpeech.continuous=true;nabilSpeech.interimResults=true; nabilSpeech.maxAlternatives=1;
-  nabilSpeech.onresult=(event)=>{
-   let finalPart='', interim='';
-   for(let i=event.resultIndex;i<event.results.length;i++){
-    const phrase=event.results[i][0]?.transcript||'';
-    if(event.results[i].isFinal)finalPart+=phrase+' ';else interim+=phrase;
-   }
-   if(finalPart){appendVoiceText(finalPart);nabilVoiceFinal+=finalPart;}
-   voiceStatus((nabilVoiceActive?'🎙️ أستمع إليك الآن. ':'')+(interim?'الكلام الجاري: '+interim:'تم حفظ الكلام النهائي. يمكنك المتابعة أو إيقاف التسجيل.'));
-  };
-  nabilSpeech.onerror=(event)=>{
-   if(event.error==='not-allowed'||event.error==='service-not-allowed'){stopNabilVoice(false);voiceStatus('لم يُسمح باستخدام الميكروفون. اسمح للمتصفح بالوصول إلى الميكروفون ثم أعد المحاولة.')}
-   else if(event.error!=='no-speech'&&event.error!=='aborted'){voiceStatus('انقطع التعرف الصوتي مؤقتاً ('+event.error+'). سأحاول المتابعة ما دام التسجيل مفعّلاً.')}
-  };
-  nabilSpeech.onend=()=>{
-   if(nabilVoiceActive){
-    if(nabilVoiceRestart)clearTimeout(nabilVoiceRestart);
-    nabilVoiceRestart=setTimeout(()=>{if(nabilVoiceActive){try{nabilSpeech.start()}catch(e){}}},350);
-   }else{
-    $('voiceStart').disabled=false;$('voiceStop').disabled=true;voicePanel.classList.remove('listening');
-   }
-  };
-  nabilSpeech.onstart=()=>{voiceStatus('🎙️ التسجيل يعمل. تابع الكلام براحتك؛ سيُعاد الاتصال تلقائياً إذا توقف المتصفح مؤقتاً.')};
- }
  nabilVoiceActive=true;$('voiceStart').disabled=true;$('voiceStop').disabled=false;voicePanel.classList.add('listening');
  voiceStatus('جارٍ تشغيل الميكروفون...');
- try{nabilSpeech.start()}catch(e){nabilVoiceActive=false;$('voiceStart').disabled=false;$('voiceStop').disabled=true;voicePanel.classList.remove('listening');voiceStatus('تعذر تشغيل الميكروفون. انتظر لحظة ثم أعد المحاولة.')}
+ startRecognitionSession();
 }
 $('voiceStart').onclick=startNabilVoice;
 $('voiceStop').onclick=()=>stopNabilVoice(true);
 $('voiceClear').onclick=()=>{
  stopNabilVoice(false);
- $('pastedTimetable').value='';nabilVoiceFinal='';
+ $('pastedTimetable').value='';nabilLastFinalText='';nabilLastFinalAt=0;
  voiceStatus('تم مسح النص الصوتي والمكتوب. يمكنك البدء من جديد.');
 };
 $('clearPasted').onclick=()=>{
  stopNabilVoice(false);
- $('pastedTimetable').value='';nabilVoiceFinal='';
+ $('pastedTimetable').value='';nabilLastFinalText='';nabilLastFinalAt=0;
  $('uploadStatus').className='status warn';$('uploadStatus').textContent='تم مسح النص.';
  voiceStatus('تم مسح النص. ابدأ تسجيلاً جديداً متى شئت.');
 };
