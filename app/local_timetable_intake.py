@@ -231,6 +231,10 @@ def parse_spoken_school_intake(text: str) -> dict[str, Any]:
             if cm:
                 count = _number(cm.group(1))
         if count is None:
+            cm = re.search(r"عدد حصص كل مادة\s+(ثمانية|ثماني|سبعة|ستة|خمسة|اربعة|ثلاثة|ثلاث|اثنين|واحد|[1-9])", _norm(segment))
+            if cm:
+                count = _number(cm.group(1))
+        if count is None:
             cm = re.search(r"(ثمانية|ثماني|سبعة|ستة|خمسة|اربعة|ثلاثة|ثلاث|اثنين|واحد|[1-9])\s*(?:حصص|حصة)", _norm(segment))
             if cm:
                 count = _number(cm.group(1))
