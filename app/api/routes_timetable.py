@@ -456,7 +456,7 @@ async def export_timetable_xlsx(payload: dict[str, Any] = Body(...)):
         sheet.title = "البرنامج العام"
         sheet.sheet_view.rightToLeft = True
         sheet.sheet_view.showGridLines = False
-        sheet.sheet_view.zoomScale = 70
+        sheet.sheet_view.zoomScale = 50
         # Print the entire school timetable as one clear page, not a tiled set of pages.
         sheet.sheet_properties.pageSetUpPr.fitToPage = True
         sheet.page_setup.orientation = "landscape"
@@ -479,7 +479,7 @@ async def export_timetable_xlsx(payload: dict[str, Any] = Body(...)):
         sheet["A1"].font = Font(name="Arial", bold=True, size=16, color="FFFFFF")
         sheet["A1"].fill = PatternFill("solid", fgColor="123B59")
         sheet["A1"].alignment = Alignment(horizontal="center", vertical="center")
-        sheet.row_dimensions[1].height = 30
+        sheet.row_dimensions[1].height = 22
 
         sheet.append(["معاينة أولية غير معتمدة — الخانات الفارغة لم تُوزّع بعد."
                        if payload.get("is_partial") else "جدول مدرسي مُصدّر"])
@@ -487,7 +487,7 @@ async def export_timetable_xlsx(payload: dict[str, Any] = Body(...)):
         sheet["A2"].font = Font(name="Arial", bold=True, size=11, color="8A4B08" if payload.get("is_partial") else "176B87")
         sheet["A2"].fill = PatternFill("solid", fgColor="FFF2CC" if payload.get("is_partial") else "E8F3F8")
         sheet["A2"].alignment = Alignment(horizontal="center", vertical="center")
-        sheet.row_dimensions[2].height = 24
+        sheet.row_dimensions[2].height = 18
 
         sheet.append(["اليوم / الحصة"] + [safe_text(c) for c in classes])
         for cell in sheet[3]:
@@ -495,16 +495,20 @@ async def export_timetable_xlsx(payload: dict[str, Any] = Body(...)):
             cell.fill = PatternFill("solid", fgColor="176B87")
             cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
             cell.border = Border(left=thin, right=thin, top=thin, bottom=thin)
-        sheet.row_dimensions[3].height = 32
+        sheet.row_dimensions[3].height = 24
 
         day_limits = payload.get("day_period_limits") or {}
-        for day_id in days:
+        day_fills = ["F2F7FC", "F2F8F3", "FFF8E8", "F5F1FA", "FCEFF1", "EDF7F7", "F4F4F4"]
+        yellow_day_edge = Side(style="medium", color="F2C94C")
+        for day_index, day_id in enumerate(days):
             try:
                 day_id = int(day_id)
             except (TypeError, ValueError):
                 continue
             day = day_names[day_id] if 0 <= day_id < len(day_names) else safe_text(day_id)
             day_limit = int(day_limits.get(str(day_id), day_limits.get(day_names[day_id], periods))) if isinstance(day_limits, dict) else periods
+            day_fill = PatternFill("solid", fgColor=day_fills[day_index % len(day_fills)])
+            first_period_row = sheet.max_row + 1
             for period in range(1, min(periods, day_limit) + 1):
                 row = [f"{day} – الحصة {period}"]
                 for cls in classes:
@@ -519,11 +523,12 @@ async def export_timetable_xlsx(payload: dict[str, Any] = Body(...)):
                     ))
                 sheet.append(row)
                 current = sheet.max_row
-                sheet.row_dimensions[current].height = 24
+                sheet.row_dimensions[current].height = 20
                 for cell in sheet[current]:
                     cell.font = workbook_font
+                    cell.fill = day_fill
                     cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-                    cell.border = Border(left=thin, right=thin, top=thin, bottom=thin)
+                    cell.border = Border(left=thin, right=thin, top=yellow_day_edge if current == first_period_row else thin, bottom=thin)
                 sheet.cell(current, 1).font = Font(name="Arial", size=11, bold=True, color="123B59")
                 if break_after == period and period < periods:
                     sheet.append(["الفرصة"] + ["استراحة"] + [""] * max(0, len(classes) - 1))
@@ -536,10 +541,10 @@ async def export_timetable_xlsx(payload: dict[str, Any] = Body(...)):
                         cell.font = Font(name="Arial", size=11, bold=True, color="76520D")
                         cell.alignment = Alignment(horizontal="center", vertical="center")
                         cell.border = Border(left=thin, right=thin, top=thin, bottom=thin)
-                    sheet.row_dimensions[break_row].height = 18
+                    sheet.row_dimensions[break_row].height = 16
 
-        sheet.freeze_panes = "B4"
-        sheet.column_dimensions["A"].width = 18
+        sheet.freeze_panes = "B2"
+        sheet.column_dimensions["A"].width = 14
         for col in range(2, len(classes) + 2):
             sheet.column_dimensions[get_column_letter(col)].width = 16 if len(classes) > 8 else 19
         sheet.sheet_view.selection[0].activeCell = "B4"
