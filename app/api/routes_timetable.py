@@ -331,10 +331,10 @@ async def intake_spoken_school_text(payload: dict[str, Any] = Body(...)):
             if not targets:
                 grades = profile.get("grades") or []
                 segment = str(profile.get("source_excerpt", ""))
-                if grades:
-                    targets = [cls for cls in classes if any(matches_grade(cls, grade) for grade in grades)]
-                elif re.search(r"كل الصفوف|جميع الصفوف|كل الصف|جميع الشعب", segment):
+                if re.search(r"كل الصفوف|جميع الصفوف|كل الصف|جميع الشعب", segment):
                     targets = classes
+                elif grades:
+                    targets = [cls for cls in classes if any(matches_grade(cls, grade) for grade in grades)]
             if not targets and (profile.get("grades") or re.search(r"كل الصفوف|جميع الصفوف|كل الصف|جميع الشعب", str(profile.get("source_excerpt", "")))):
                 unresolved.append({"teacher": profile["teacher"], "grades": profile.get("grades", []),
                                    "reason": "لم أجد أسماء الشعب المطابقة لهذا النطاق. اذكر الشعب الموجودة في المدرسة أو أضفها إلى قائمة الشعب."})
