@@ -114,7 +114,8 @@ $('readUpload').onclick=async()=>{
   if(!data.days.length)data.days=[0,1,2,3,4];
   persist();render();drawSchedule();
   $('uploadStatus').className=result.conflict_count?'status err':'status ok';
-  $('uploadStatus').textContent='اكتمل تحليل الملف: '+entries.length+' حصة، '+teachers.length+' معلماً، '+classes.length+' شعبة، '+result.conflict_count+' تعارضاً.';\n  $('resultStatus').className=result.conflict_count?'status err':'status ok';$('resultStatus').textContent='تحليل الملف: '+entries.length+' حصة · '+result.conflict_count+' تعارض.';
+  $('uploadStatus').textContent='اكتمل تحليل الملف: '+entries.length+' حصة، '+teachers.length+' معلماً، '+classes.length+' شعبة، '+result.conflict_count+' تعارضاً.';
+  $('resultStatus').className=result.conflict_count?'status err':'status ok';$('resultStatus').textContent='تحليل الملف: '+entries.length+' حصة · '+result.conflict_count+' تعارض.';
   let out='<div class="status '+(result.conflict_count?'err':'ok')+'"><b>نتيجة تحليل نبيل:</b> '+(result.conflict_count?'تم العثور على '+result.conflict_count+' تعارض.':'لم يظهر تعارض ضمن البيانات المقروءة.')+'</div>';
   if(result.unreadable?.length)out+='<h3>بيانات تحتاج مراجعة</h3><ul>'+result.unreadable.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>';
   if(result.notes?.length)out+='<ul>'+result.notes.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>';
