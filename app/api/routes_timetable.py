@@ -6,6 +6,7 @@ import json
 import logging
 import base64
 import os
+import time
 import urllib.request
 import urllib.error
 import re
@@ -197,18 +198,45 @@ def _call_nabil_engine(*, image_bytes: bytes | None, mime: str, text: str = "") 
         "mimeType": mime,
         "imageBase64": base64.b64encode(image_bytes).decode("ascii") if image_bytes else "",
     }
-    request = urllib.request.Request(
-        base + "/api/internal/timetable/analyze",
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json", "X-NABIL-Internal-Key": secret},
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=100) as response:
-            result = json.loads(response.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", "replace")[:500]
-        raise RuntimeError(f"NABIL engine returned HTTP {exc.code}: {detail}") from exc
+    last_error = None
+    for attempt in range(3):
+        request = urllib.request.Request(
+            base + "/api/internal/timetable/analyze",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json", "X-NABIL-Internal-Key": secret},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=100) as response:
+                result = json.loads(response.read().decode("utf-8"))
+            break
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", "replace")[:500]
+            if exc.code == 429 and attempt < 2:
+                retry_header = exc.headers.get("Retry-After", "") if exc.headers else ""
+                try:
+                    wait_seconds = max(1, min(10, int(retry_header)))
+                except (TypeError, ValueError):
+                    wait_seconds = 2 ** (attempt + 1)
+                logger.warning("NABIL engine rate limited request; retry %s/2 after %ss", attempt + 1, wait_seconds)
+                time.sleep(wait_seconds)
+                last_error = exc
+                continue
+            if exc.code == 429:
+                raise RuntimeError("NABIL engine HTTP 429: الخدمة مشغولة حالياً بعد عدة محاولات.") from exc
+            if exc.code == 401:
+                raise RuntimeError("NABIL engine HTTP 401: تعذر التحقق من الاتصال الداخلي بين الخادمين.") from exc
+            raise RuntimeError(f"NABIL engine returned HTTP {exc.code}: {detail}") from exc
+        except (urllib.error.URLError, TimeoutError) as exc:
+            if attempt < 2:
+                wait_seconds = 2 ** (attempt + 1)
+                logger.warning("NABIL engine network error; retry %s/2 after %ss", attempt + 1, wait_seconds)
+                time.sleep(wait_seconds)
+                last_error = exc
+                continue
+            raise RuntimeError("تعذر الاتصال بمحرك نبيل بعد عدة محاولات.") from exc
+    else:
+        raise RuntimeError("تعذر الاتصال بمحرك نبيل.") from last_error
     if not result.get("ok") or not result.get("output"):
         raise RuntimeError(str(result.get("error") or "NABIL returned no analysis"))
     return str(result["output"])
@@ -289,7 +317,12 @@ async def analyze_timetable(file: UploadFile = File(...)):
         raise
     except Exception as exc:
         logger.exception("TIMETABLE_ANALYSIS_FAILED")
-        raise HTTPException(status_code=503, detail="نبيل غير قادر على تحليل الجدول حالياً. أعد المحاولة لاحقاً.") from exc
+        message = str(exc)
+        if "HTTP 429" in message:
+            raise HTTPException(status_code=503, detail="محرك نبيل مشغول مؤقتاً. انتظر دقيقة ثم أعد المحاولة؛ لم يتم حذف الملف أو اعتماد نتيجة ناقصة.") from exc
+        if "HTTP 401" in message:
+            raise HTTPException(status_code=503, detail="تعذر الاتصال الآمن بين خادمي نبيل. يجري التحقق من إعدادات الربط.") from exc
+        raise HTTPException(status_code=503, detail="تعذر على نبيل إكمال تحليل الملف. أعد المحاولة لاحقاً.") from exc
 
 
 @router.post("/generate")
