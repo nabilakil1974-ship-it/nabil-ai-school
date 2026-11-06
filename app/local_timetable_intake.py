@@ -329,7 +329,17 @@ def parse_spoken_school_intake(text: str) -> dict[str, Any]:
     unresolved = []
     warnings = []
 
-    for name, segment in _extract_teacher_segments(source):
+    # Speech recognition appends many partial phrases. Merge repeated mentions
+    # of the same teacher before extracting their teaching assignments.
+    grouped_segments = {}
+    for spoken_name, spoken_segment in _extract_teacher_segments(source):
+        key = _norm(spoken_name)
+        if key not in grouped_segments:
+            grouped_segments[key] = [spoken_name.strip(), []]
+        grouped_segments[key][1].append(spoken_segment)
+
+    for teacher, pieces in grouped_segments.values():
+        segment = " ".join(piece for piece in pieces if piece)
         subject = _subject(segment)
         explicit = _explicit_classes(segment)
         grades = _grade_scope(segment)
@@ -337,47 +347,69 @@ def parse_spoken_school_intake(text: str) -> dict[str, Any]:
         cm = re.search(r"(?:لكل صف|كل صف|بكل صف|لكل شعبة|كل شعبة|كل شعبي|كل الشعب|عدد حصص كل مادة|عدد الحصص).{0,20}?(ثمانية|ثماني|سبعة|ستة|خمسة|اربعة|ثلاثة|ثلاث|اثنين|واحد|[1-9])\s*(?:حصص|حصة)", _norm(segment))
         if cm:
             count = _number(cm.group(1))
-        else:
-            # Common compact wording: "كل صف عندها أربع حصص" / "كل صف ست حصص".
-            cm = re.search(r"(?:كل صف|كل شعبة|بكل صف).{0,20}?(اربع|اربعة|ثلاث|ثلاثة|ست|ستة|خمس|خمسة|[1-9])\s*(?:حصص|حصة)", _norm(segment))
-            if cm:
-                count = _number(cm.group(1))
-        if count is None:
-            cm = re.search(r"عدد حصص كل مادة\s+(ثمانية|ثماني|سبعة|ستة|خمسة|اربعة|ثلاثة|ثلاث|اثنين|واحد|[1-9])", _norm(segment))
-            if cm:
-                count = _number(cm.group(1))
         if count is None:
             cm = re.search(r"(ثمانية|ثماني|ثمان|سبعة|سبع|ستة|ست|خمسة|خمس|اربعة|اربع|ثلاثة|ثلاث|اثنتين|اثنين|واحد|واحدة|[1-9])\s*(?:حصص|حصة)", _norm(segment))
             if cm:
                 count = _number(cm.group(1))
         if count is None and re.search(r"(?:ساعة\s+ساعة|حصة\s+واحدة|ساعة\s+واحدة|حصة\s+كل\s+اسبوع|حصة\s+اسبوعية)", _norm(segment)):
             count = 1
-
         declared_weekly = None
         weekly_match = re.search(r"(?:نصابه|نصابها|نصاب)\s*(?:لازم\s+يكون|هو)?\s*(\d+)\s*(?:ساعة|حصة)", _norm(segment))
         if weekly_match:
             declared_weekly = int(weekly_match.group(1))
-        teacher = name.strip()
         if teacher not in teachers:
             teachers.append(teacher)
-        profiles.append({"teacher": teacher, "subject": subject, "explicit_classes": explicit,
-                         "grades": grades, "lessons_per_class": count,
-                         "declared_weekly_load": declared_weekly,
-                         "unavailable": _availability(segment, days, day_limits, teacher),
-                         "source_excerpt": segment[:240]})
-        blocked.extend(profiles[-1]["unavailable"])
-        for cls in explicit:
-            if cls not in classes:
-                classes.append(cls)
-            if subject and count:
-                requirements.append({"class": cls, "teacher": teacher, "subject": subject, "count": count})
-        if not explicit and (grades or re.search(r"كل الصفوف|جميع الصفوف|كل الصف|جميع الشعب", _norm(segment))):
-            unresolved.append({"teacher": teacher, "subject": subject, "grades": grades,
+
+        # Separate clauses such as "للصف الأول تربية حصة أسبوعياً" and
+        # "وبيدرس رياضيات للصف الرابع أ" to avoid cross-assigning subjects.
+        clauses = re.split(r"(?=(?:وبيدرس|بيدرس|وبدرس|بدرس|ويدرس|يدرس|وبعلم|بيعلم|يعلم)\s*)", segment)
+        assignments = []
+        for clause in clauses:
+            clause_subject = _subject(clause)
+            clause_classes = _explicit_classes(clause)
+            clause_count = None
+            if re.search(r"(?:حصة\s+كل\s+اسبوع|حصة\s+اسبوعية|حصة\s+واحدة)", _norm(clause)):
+                clause_count = 1
+            else:
+                cm_clause = re.search(r"(?:لكل صف|كل صف|بكل صف|لكل شعبة|كل شعبة|كل شعبي|كل الشعب).{0,20}?(ثمانية|ثماني|سبعة|ستة|خمسة|اربعة|ثلاثة|ثلاث|اثنين|واحد|[1-9])\s*(?:حصص|حصة)", _norm(clause))
+                if cm_clause:
+                    clause_count = _number(cm_clause.group(1))
+            if clause_subject and clause_classes:
+                assignments.append((clause_subject, clause_classes, clause_count))
+        if not assignments and subject and explicit:
+            assignments.append((subject, explicit, count))
+
+        subjects = []
+        all_explicit = []
+        for clause_subject, clause_classes, clause_count in assignments:
+            if clause_subject not in subjects:
+                subjects.append(clause_subject)
+            for cls in clause_classes:
+                if cls not in all_explicit:
+                    all_explicit.append(cls)
+                if cls not in classes:
+                    classes.append(cls)
+                if clause_count:
+                    item = {"class": cls, "teacher": teacher, "subject": clause_subject, "count": clause_count}
+                    if not any(x["class"] == cls and x["teacher"] == teacher and x["subject"] == clause_subject for x in requirements):
+                        requirements.append(item)
+        if not all_explicit:
+            all_explicit = explicit
+        profile_subject = " / ".join(subjects) if subjects else subject
+        profile = {"teacher": teacher, "subject": profile_subject, "explicit_classes": all_explicit,
+                   "grades": grades, "lessons_per_class": count,
+                   "declared_weekly_load": declared_weekly,
+                   "unavailable": _availability(segment, days, day_limits, teacher),
+                   "source_excerpt": segment[:500]}
+        profiles.append(profile)
+        blocked.extend(profile["unavailable"])
+        if not all_explicit and (grades or re.search(r"كل الصفوف|جميع الصفوف|كل الصف|جميع الشعب", _norm(segment))):
+            unresolved.append({"teacher": teacher, "subject": profile_subject, "grades": grades,
                                "lessons_per_class": count,
                                "reason": "لم تُذكر أسماء الشعب صراحة؛ يلزم تحديد الشعب الموجودة في المدرسة."})
-        if not subject:
+        if not subject and not subjects:
             warnings.append(f"لم أتمكن من تحديد مادة {teacher} بثقة.")
-        if not count:
+        if not count and not any(x[2] for x in assignments):
             warnings.append(f"لم يُحدد عدد حصص {teacher} لكل شعبة بوضوح.")
 
     if not teachers:
