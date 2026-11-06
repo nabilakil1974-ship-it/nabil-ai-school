@@ -41,19 +41,45 @@ def _rows_from_ocr(data: bytes):
     try:
         from PIL import Image
         import pytesseract
+        from pytesseract import Output
     except Exception as exc:
         raise RuntimeError("ميزة OCR المحلي غير مثبّتة على الخادم.") from exc
     image=Image.open(io.BytesIO(data)).convert("RGB")
-    # OCR runs on this server; no image is sent to an external AI service.
-    raw=pytesseract.image_to_string(image, lang="ara+eng+fra", config="--psm 6")
-    rows=[]
-    for line in raw.splitlines():
-        line=line.strip()
-        if not line: continue
-        cells=[x.strip() for x in re.split(r"\s*\|\s*|\t+|\s*;\s*",line) if x.strip()]
-        if len(cells)>=5: rows.append(cells)
+    # All OCR is performed on this server; no image is sent to an external AI service.
+    info=pytesseract.image_to_data(image, lang="ara+eng+fra", config="--psm 6", output_type=Output.DICT)
+    words=[]
+    for i,word in enumerate(info["text"]):
+        word=str(word or "").strip()
+        if not word or int(info["conf"][i])<15: continue
+        x=int(info["left"][i]); y=int(info["top"][i]); w=int(info["width"][i]); h=int(info["height"][i])
+        words.append((y+h/2,x+w/2,word))
+    if len(words)<10:
+        raise ValueError("لم يتمكن OCR المحلي من قراءة عدد كافٍ من الكلمات. استخدم صورة أوضح.")
+    # Group tokens into visual text rows.
+    words.sort(key=lambda z:z[0]); lines=[]
+    for item in words:
+        if not lines or abs(item[0]-lines[-1][0])>max(12,image.height*0.012):
+            lines.append([item[0],[item]])
+        else:
+            lines[-1][1].append(item)
+    # Estimate five table columns from token x-coordinates using 1-D k-means.
+    xs=[z[1] for line in lines for z in line[1]]
+    lo,hi=min(xs),max(xs)
+    centers=[lo+(hi-lo)*(j+0.5)/5 for j in range(5)]
+    for _ in range(18):
+        buckets=[[] for _ in centers]
+        for x in xs: buckets[min(range(5),key=lambda j:abs(x-centers[j]))].append(x)
+        centers=[sum(v)/len(v) if v else centers[j] for j,v in enumerate(buckets)]
+    order=sorted(range(5),key=lambda j:centers[j]); rows=[]
+    for _,line in lines:
+        cells=[]
+        for j in order:
+            tokens=[z for z in line if min(range(5),key=lambda k:abs(z[1]-centers[k]))==j]
+            tokens.sort(key=lambda z:z[1])
+            cells.append(" ".join(z[2] for z in tokens).strip())
+        if sum(bool(x) for x in cells)>=3: rows.append(cells)
     if not rows:
-        raise ValueError("قرأ OCR النص محلياً، لكنه لم يجد صفوفاً واضحة بصيغة أعمدة مفصولة. لا يمكن تخمين مواقع الحصص من صورة غير مفهومة.")
+        raise ValueError("قرأ OCR الصورة محلياً، لكنه لم يستطع إعادة بناء أعمدة الجدول بثقة.")
     return rows
 def read_timetable(data: bytes, kind: str) -> dict[str, Any]:
     if kind=="docx": rows=_rows_from_docx(data)
