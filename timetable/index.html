@@ -281,7 +281,7 @@ async function exportExcel(){
  const exportEntries=isPartial?buildPartialPreview():data.schedule;
  const button=$('exportExcel');button.disabled=true;
  try{
-  const response=await fetch('/api/timetable/export-xlsx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({school:data.school,days:data.days,periods:data.periods,day_period_limits:Object.fromEntries(data.days.map(d=>[String(d),+(data.dayPeriodLimits?.[DAYS[d]]??data.periods)])),classes:data.classes,break_after_period:data.breakAfterPeriod,is_partial:isPartial,schedule:exportEntries})});
+  const response=await fetch('/api/timetable/export-xlsx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({school:data.school,days:data.days,periods:data.periods,day_period_limits:Object.fromEntries(data.days.map(d=>[String(d),+(data.dayPeriodLimits?.[DAYS[d]]??data.periods)])),classes:data.classes,requirements:data.requirements,break_after_period:data.breakAfterPeriod,is_partial:isPartial,schedule:exportEntries})});
   if(!response.ok){let msg='تعذر إنشاء ملف Excel.';try{const e=await response.json();msg=e.detail||msg}catch(_){}throw new Error(msg)}
   const blob=await response.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');
   a.href=url;a.download='NABIL-school-timetable.xlsx';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);
