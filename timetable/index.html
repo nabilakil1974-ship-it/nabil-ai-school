@@ -114,7 +114,9 @@ $('readUpload').onclick=async()=>{
   const teachers=[...new Set([...(result.teachers||[]),...entries.map(x=>x.teacher)].filter(Boolean))];
   const reqMap=new Map();
   entries.forEach(x=>{const k=[x.class,x.teacher,x.subject].join('|');const v=reqMap.get(k)||{class:x.class,teacher:x.teacher,subject:x.subject,count:0};v.count++;reqMap.set(k,v)});
-  data={school:result.school_name||'مدرسة جديدة',days:[...new Set(entries.map(x=>x.day))].sort((a,b)=>a-b),periods:Math.max(1,+result.periods_per_day||Math.max(...entries.map(x=>x.period))),teachers,classes,requirements:[...reqMap.values()],blocked:(result.teacher_unavailable||[]).map(x=>({teacher:x.teacher,day:dayIndex(x.day),period:+x.period})),schedule:entries};
+  const declaredLoads=(result.weekly_loads||[]).filter(x=>x&&x.class&&x.teacher&&x.subject&&Number(x.count)>0);
+  const requirements=declaredLoads.length?declaredLoads.map(x=>({class:String(x.class),teacher:String(x.teacher),subject:String(x.subject),count:Number(x.count)})):[...reqMap.values()];
+  data={school:result.school_name||'مدرسة جديدة',days:[...new Set(entries.map(x=>x.day))].sort((a,b)=>a-b),periods:Math.max(1,+result.periods_per_day||Math.max(...entries.map(x=>x.period))),teachers,classes,requirements,requirementsSource:declaredLoads.length?'weekly_loads':'inferred_from_extracted_entries',blocked:(result.teacher_unavailable||[]).map(x=>({teacher:x.teacher,day:dayIndex(x.day),period:+x.period})),schedule:entries};
   if(!data.days.length)data.days=[0,1,2,3,4];
   persist();render();drawSchedule();
   $('uploadStatus').className=result.conflict_count?'status err':'status ok';
@@ -123,6 +125,7 @@ $('readUpload').onclick=async()=>{
   let out='<div class="status '+(result.conflict_count?'err':'ok')+'"><b>نتيجة تحليل نبيل:</b> '+(result.conflict_count?'تم العثور على '+result.conflict_count+' تعارض.':'لم يظهر تعارض ضمن البيانات المقروءة.')+'</div>';
   if(result.unreadable?.length)out+='<h3>بيانات تحتاج مراجعة</h3><ul>'+result.unreadable.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>';
   if(result.notes?.length)out+='<ul>'+result.notes.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>';
+  if(data.requirementsSource==='inferred_from_extracted_entries')out+='<div class="status warn"><b>تنبيه مهم:</b> لم يتضمن الملف أنصبة أسبوعية صريحة. استُخدمت أعداد الحصص المقروءة فقط؛ لذلك لا يمكن اعتبار الجدول المولّد مكتملاً من حيث الأنصبة غير الظاهرة. راجع وأكمل الأنصبة من تبويب إدخال البيانات قبل الاعتماد.</div>';
   if(result.conflicts?.length){
    out+='<h3>التعارضات والحلول المقترحة</h3>';
    result.conflicts.forEach((conf,i)=>{
