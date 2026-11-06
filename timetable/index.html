@@ -217,13 +217,16 @@ function exportWord(){
 $('exportWord').onclick=exportWord;
 
 async function exportExcel(){
- if(!data.schedule.length)return alert('أنشئ البرنامج أولاً');
+ if(!data.days.length)return alert('حدد أيام الدوام أولاً حتى ينشئ نبيل قالب Excel.');
+ const isPartial=!data.schedule.length;
+ const exportEntries=isPartial?buildPartialPreview():data.schedule;
  const button=$('exportExcel');button.disabled=true;
  try{
-  const response=await fetch('/api/timetable/export-xlsx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({school:data.school,days:data.days,periods:data.periods,classes:data.classes,break_after_period:data.breakAfterPeriod,schedule:data.schedule})});
+  const response=await fetch('/api/timetable/export-xlsx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({school:data.school,days:data.days,periods:data.periods,day_period_limits:Object.fromEntries(data.days.map(d=>[String(d),+(data.dayPeriodLimits?.[DAYS[d]]??data.periods)])),classes:data.classes,break_after_period:data.breakAfterPeriod,is_partial:isPartial,schedule:exportEntries})});
   if(!response.ok){let msg='تعذر إنشاء ملف Excel.';try{const e=await response.json();msg=e.detail||msg}catch(_){}throw new Error(msg)}
   const blob=await response.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');
   a.href=url;a.download='NABIL-school-timetable.xlsx';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);
+  if(isPartial)alert('تم تصدير المعاينة الأولية إلى Excel. الملف غير معتمد، والخانات الفارغة لم تُوزّع بعد.');
  }catch(e){alert(e.message)}finally{button.disabled=false}
 }
 $('exportExcel').onclick=exportExcel;
