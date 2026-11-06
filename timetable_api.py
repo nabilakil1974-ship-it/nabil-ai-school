@@ -15,7 +15,7 @@ app.add_middleware(
 )
 app.include_router(routes_timetable.router, prefix="/api")
 
-@app.get("/", include_in_schema=False)
+@app.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
 def school_app():
     index = Path(__file__).parent / "timetable" / "index.html"
     if not index.is_file():
