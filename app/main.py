@@ -63,6 +63,7 @@ from app.api import (
     routes_platform_admin,
     routes_parent,
     routes_live_avatar,
+    routes_timetable,
 )
 
 
@@ -355,6 +356,7 @@ app.include_router(routes_lesson_factory.router, prefix="/api")
 app.include_router(routes_lesson_export.router, prefix="/api")
 app.include_router(routes_smart_labs.router, prefix="/api")
 app.include_router(routes_live_avatar.router, prefix="/api", tags=["live-avatar"])
+app.include_router(routes_timetable.router, prefix="/api")
 
 # routes_admin already contains:
 # /admin
