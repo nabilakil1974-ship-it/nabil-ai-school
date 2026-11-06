@@ -12,10 +12,11 @@ import re
 from collections import defaultdict
 from typing import Any
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, Body, File, HTTPException, UploadFile
 from starlette.concurrency import run_in_threadpool
 
 from app.services.ai_gateway import get_ai_gateway
+from app.timetable_solver import solve_timetable
 
 router = APIRouter(prefix="/timetable", tags=["timetable"])
 logger = logging.getLogger("nabil_ai.timetable")
@@ -289,3 +290,18 @@ async def analyze_timetable(file: UploadFile = File(...)):
     except Exception as exc:
         logger.exception("TIMETABLE_ANALYSIS_FAILED")
         raise HTTPException(status_code=503, detail="نبيل غير قادر على تحليل الجدول حالياً. أعد المحاولة لاحقاً.") from exc
+
+
+@router.post("/generate")
+async def generate_timetable(payload: dict[str, Any] = Body(...)):
+    """Generate a complete timetable from explicit school requirements."""
+    try:
+        result = await run_in_threadpool(solve_timetable, payload)
+        if not result.get("ok"):
+            raise HTTPException(status_code=422, detail=result)
+        return result
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("TIMETABLE_GENERATION_FAILED")
+        raise HTTPException(status_code=500, detail="تعذر إنشاء الجدول بسبب خطأ داخلي.") from exc
