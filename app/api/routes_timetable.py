@@ -166,6 +166,34 @@ def _audit(parsed: dict[str, Any]) -> dict[str, Any]:
                 "solutions": [{"move": e, "alternatives": alternatives(i, "unavailable")}],
             })
 
+    # Compare explicitly declared weekly loads with the lessons actually extracted.
+    actual_loads: dict[tuple[str, str, str], int] = defaultdict(int)
+    for entry in entries:
+        if entry["teacher"] and entry["subject"]:
+            actual_loads[(entry["teacher"], entry["class"], entry["subject"])] += 1
+    for load in parsed.get("weekly_loads", []) or []:
+        if not isinstance(load, dict):
+            continue
+        teacher = str(load.get("teacher") or "").strip()
+        cls = str(load.get("class") or "").strip()
+        subject = str(load.get("subject") or "").strip()
+        try:
+            expected = int(load.get("count"))
+        except (TypeError, ValueError):
+            continue
+        if not teacher or not cls or not subject or expected < 0:
+            continue
+        actual = actual_loads.get((teacher, cls, subject), 0)
+        if actual != expected:
+            conflicts.append({
+                "type": "weekly_load_mismatch", "severity": "medium",
+                "teacher": teacher, "class": cls, "subject": subject,
+                "expected_count": expected, "actual_count": actual,
+                "entries": [e for e in entries if e["teacher"] == teacher
+                            and e["class"] == cls and e["subject"] == subject],
+                "solutions": [],
+            })
+
     return {
         "school_name": parsed.get("school_name") or "",
         "days": days,
