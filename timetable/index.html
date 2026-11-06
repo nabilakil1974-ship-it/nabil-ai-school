@@ -99,7 +99,7 @@ function addTeacherSubjectRow(seed={}){
  card.innerHTML='<div class="grid"><div class="field"><label>المادة</label><input data-subject placeholder="مثلاً: رياضيات" value="'+esc(seed.subject||'')+'"></div><div class="field"><label>الصفوف والشعب لهذه المادة</label><select data-classes multiple size="4" style="min-height:105px">'+opts+'</select><span class="small">اختر أكثر من شعبة إذا كانت المادة تُدرّس لها.</span></div><div class="field"><label>عدد الحصص أسبوعياً لكل شعبة</label><input data-count type="number" min="1" max="40" value="'+esc(seed.count||4)+'"></div><div class="field"><label>لغة تدريس هذه المادة</label><select data-language><option value="">اختر اللغة</option><option value="العربية">العربية</option><option value="الإنكليزية">الإنكليزية</option><option value="الفرنسية">الفرنسية</option><option value="أخرى">أخرى</option></select></div></div><div class="actions"><button type="button" class="danger" data-remove-row>حذف هذه المادة</button></div>';
  if(seed.classes)[...card.querySelector('[data-classes]').options].forEach(o=>o.selected=seed.classes.includes(o.value));
  if(seed.language)card.querySelector('[data-language]').value=seed.language;
- card.querySelector('[data-remove-row]').onclick=()=>{if(host.children.length===1){card.querySelector('[data-subject]').value='';card.querySelector('[data-classes]').selectedIndex=-1;card.querySelector('[data-count]').value=4;card.querySelector('[data-language]').value=''}else card.remove()};
+ card.querySelector('[data-remove-row]').onclick=()=>{card.remove();if(!host.children.length){const note=document.createElement('p');note.className='small';note.dataset.emptySubjects='1';note.textContent='لم تُضف أي مادة لهذا المعلم. اضغط «إضافة مادة أخرى» لإضافة مادة.';host.appendChild(note)}};
  host.appendChild(card);
 }
 $('addTeacherSubject').onclick=()=>addTeacherSubjectRow();
@@ -107,6 +107,7 @@ $('saveTeacherProfile').onclick=()=>{
  const teacher=$('teacherName').value.trim();if(!teacher)return alert('اكتب اسم المعلم أولاً');
  const rows=[...$('teacherSubjectRows').querySelectorAll('[data-subject-row]')].map(card=>({subject:card.querySelector('[data-subject]').value.trim(),classes:[...card.querySelector('[data-classes]').selectedOptions].map(o=>o.value),count:+card.querySelector('[data-count]').value,language:card.querySelector('[data-language]').value}));
  if(rows.some(r=>!r.subject||!r.classes.length||!r.count||!r.language))return alert('أكمل لكل مادة: اسم المادة، الصفوف، عدد الحصص، ولغة التدريس.');
+ if(!rows.length&&!editingTeacherName)return alert('أضف مادة واحدة على الأقل للمعلم الجديد.');
  const oldName=editingTeacherName;
  if(oldName&&oldName!==teacher&&data.teachers.some(t=>t===teacher))return alert('يوجد معلم آخر بهذا الاسم.');
  if(oldName){
@@ -115,7 +116,7 @@ $('saveTeacherProfile').onclick=()=>{
   data.blocked.forEach(b=>{if(b.teacher===oldName)b.teacher=teacher});
  }else if(!data.teachers.includes(teacher))data.teachers.push(teacher);
  rows.forEach(r=>r.classes.forEach(cls=>{if(!data.classes.includes(cls))data.classes.push(cls);data.requirements.push({teacher,subject:r.subject,class:cls,count:r.count,language:r.language})}));
- editingTeacherName=null;data.schedule=[];persist();render();$('blockedTeacher').value=teacher;syncBlockedSelection();$('teacherName').value='';$('teacherSubjectRows').innerHTML='';addTeacherSubjectRow();$('saveTeacherProfile').textContent='حفظ بيانات المعلم وتوزيعاته';alert('تم حفظ بيانات '+teacher+' بنجاح. يمكنك تعديل أوقات فراغه من القسم أدناه.');
+ editingTeacherName=null;data.schedule=[];persist();render();$('blockedTeacher').value=teacher;syncBlockedSelection();$('teacherName').value='';$('teacherSubjectRows').innerHTML='';addTeacherSubjectRow();$('saveTeacherProfile').textContent='حفظ بيانات المعلم وتوزيعاته';alert('تم حفظ بيانات '+teacher+' بنجاح. '+(rows.length?'تم تحديث المواد والأنصبة.':'تم حذف جميع مواد المعلم وأصبح نصابه 0 حصة أسبوعياً.')+' يمكنك تعديل أوقات فراغه من القسم أدناه.');
 };
 function table(rows,heads){if(!rows.length)return '<p class="small">لا توجد بيانات بعد.</p>';return '<table><thead><tr>'+heads.map(h=>'<th>'+h+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(v=>'<td>'+v+'</td>').join('')+'</tr>').join('')+'</tbody></table>'}
 window.removeItem=(key,i)=>{data[key].splice(i,1);data.schedule=[];persist();render()};
