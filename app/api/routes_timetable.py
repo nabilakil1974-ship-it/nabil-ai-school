@@ -271,6 +271,56 @@ async def analyze_timetable_text(payload: dict[str, Any] = Body(...)):
         raise HTTPException(status_code=422, detail="تعذر تحليل النص الملصق: " + str(exc)) from exc
 
 
+@router.post("/diagnose")
+async def diagnose_timetable_file(file: UploadFile = File(...)):
+    """Return a temporary, bounded workbook structure report; never persist uploaded data."""
+    filename = (file.filename or "").lower()
+    if not filename.endswith(".xlsx"):
+        raise HTTPException(status_code=415, detail="تقرير التشخيص متاح حالياً لملفات Excel XLSX فقط.")
+    data = await file.read(MAX_UPLOAD_BYTES + 1)
+    if not data:
+        raise HTTPException(status_code=400, detail="الملف فارغ.")
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="حجم الملف أكبر من 15 ميغابايت.")
+    try:
+        from openpyxl import load_workbook
+        workbook = load_workbook(io.BytesIO(data), read_only=False, data_only=True)
+        report = {
+            "title": "NABIL Excel Diagnostic Report",
+            "filename": file.filename or "workbook.xlsx",
+            "file_size_bytes": len(data),
+            "storage": "memory_only_not_saved",
+            "external_ai_used": False,
+            "sheets": []
+        }
+        for sheet in workbook.worksheets:
+            max_rows = min(sheet.max_row or 0, 120)
+            max_cols = min(sheet.max_column or 0, 40)
+            rows = []
+            for row in sheet.iter_rows(min_row=1, max_row=max_rows, min_col=1, max_col=max_cols):
+                vals = [str(cell.value).replace("\\n", " / ").strip() if cell.value is not None else "" for cell in row]
+                while vals and not vals[-1]:
+                    vals.pop()
+                if any(vals):
+                    rows.append(vals)
+            report["sheets"].append({
+                "name": sheet.title,
+                "state": sheet.sheet_state,
+                "max_row": sheet.max_row,
+                "max_column": sheet.max_column,
+                "merged_ranges": [str(rng) for rng in list(sheet.merged_cells.ranges)[:80]],
+                "preview_rows": rows,
+                "preview_truncated": (sheet.max_row or 0) > 120 or (sheet.max_column or 0) > 40
+            })
+        workbook.close()
+        return report
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("TIMETABLE_DIAGNOSTIC_FAILED")
+        raise HTTPException(status_code=422, detail="تعذر إعداد تقرير Excel: " + str(exc)) from exc
+
+
 @router.post("/generate")
 async def generate_timetable(payload: dict[str, Any] = Body(...)):
     """Generate a complete timetable from explicit school requirements."""
