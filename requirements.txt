@@ -31,3 +31,4 @@ Pillow==11.1.0
 
 CairoSVG==2.7.1
 playwright==1.55.0
+pytesseract==0.3.13
