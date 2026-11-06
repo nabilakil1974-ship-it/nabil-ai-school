@@ -66,7 +66,7 @@ def _extract_day_limits(text: str, days: list[int]) -> dict[str, int]:
             continue
         for day_match in re.finditer(day_word, normalized):
             tail = normalized[day_match.end():day_match.end() + 65]
-            count_match = re.search(r"(?:عندي|فيه|في|عددها)?\\s*" + number_pattern + r"\\s*(?:حصص|حصة)", tail)
+            count_match = re.search(r"(?:عندي|فيه|في|عددها)?\s*" + number_pattern + r"\s*(?:حصص|حصة)", tail)
             if not count_match:
                 continue
             context = normalized[max(0, day_match.start() - 35):day_match.end()] + tail[:count_match.start()]
@@ -100,13 +100,13 @@ def _parse_clock(text: str) -> str | None:
 def _extract_teacher_segments(text: str) -> list[tuple[str, str]]:
     # Accept conversational introductions and clear name labels such as "نبيل عقيل:".
     explicit = re.compile(
-        r"(?:عنا\\s+(?:(?:الأستاذة?|الاستاذة?|المدام|المعلم)\\s+)?|"
-        r"(?:الأستاذة?|الاستاذة?|المدام|المعلم)\\s+)"
-        r"([\\u0621-\\u064a]+(?:\\s+[\\u0621-\\u064a]+)?)"
+        r"(?:عنا\s+(?:(?:الأستاذة?|الاستاذة?|المدام|المعلم)\s+)?|"
+        r"(?:الأستاذة?|الاستاذة?|المدام|المعلم)\s+)"
+        r"([\u0621-\u064a]+(?:\s+[\u0621-\u064a]+)?)"
     )
     labeled = re.compile(
-        r"(?:^|[\\n؛;,]\\s*)(?:المعلم\\s+)?"
-        r"([\\u0621-\\u064a]+(?:\\s+[\\u0621-\\u064a]+)?)\\s*[:：]",
+        r"(?:^|[\n؛;,]\s*)(?:المعلم\s+)?"
+        r"([\u0621-\u064a]+(?:\s+[\u0621-\u064a]+)?)\s*[:：]",
         re.M
     )
     stop = {"سبع", "سبعة", "ست", "ستة", "خمس", "خمسة", "أربع", "اربعة",
