@@ -64,6 +64,10 @@ def _parse_clock(text: str) -> str | None:
     m = re.search(r"([01]?\d|2[0-3])\s*[:٫.]\s*([0-5]\d)", s)
     if m:
         return f"{int(m.group(1)):02d}:{int(m.group(2)):02d}"
+    spoken_quarter = re.search(r"(عشرة|عشره|احد عشر|اثنا عشر)\s+و?ربع", s)
+    if spoken_quarter:
+        hour = {"عشرة": 10, "عشره": 10, "احد عشر": 11, "اثنا عشر": 12}[spoken_quarter.group(1)]
+        return f"{hour:02d}:15"
     hours = {"واحدة": 1, "واحد": 1, "اثنين": 2, "ثلاثة": 3, "اربعة": 4,
              "خمسة": 5, "ستة": 6, "سبعة": 7, "ثمانية": 8, "تسعة": 9,
              "عشرة": 10, "احد عشر": 11, "اثنا عشر": 12}
@@ -133,9 +137,9 @@ def _availability(segment: str, work_days: list[int], day_limits: dict[str, int]
             continue
         pos = n.find(day_word)
         tail = n[pos:pos + 90]
-        m = re.search(r"(اول|اخر|آخر)\s+(?:ال)?(ثمانية|ثماني|سبعة|ستة|خمسة|اربعة|ثلاثة|ثلاث|اثنين|واحد|[1-9])\s*(?:ساعات|حصص|حصة)", tail)
+        m = re.search(r"(اول|اخر|آخر)\s+(?:ال)?(ثمانية|ثماني|سبعة|ستة|خمسة|اربعة|ثلاثة|ثلاث|ساعتين|اثنتين|اثنين|واحد|[1-9])\s*(?:ساعات|حصص|حصة)?", tail)
         if m:
-            count = _number(m.group(2), 1) or 1
+            count = 2 if _norm(m.group(2)) == "ساعتين" else (_number(m.group(2), 1) or 1)
             limit = day_limits.get(DAY_CANON[day_id], max(day_limits.values() or [7]))
             if _norm(m.group(1)) == "اخر":
                 periods = range(max(1, limit - count + 1), limit + 1)
@@ -162,14 +166,27 @@ def parse_spoken_school_intake(text: str) -> dict[str, Any]:
     for word, day_id in DAY_NAMES.items():
         if re.search(rf"(?<![\w]){_norm(word)}(?![\w])", n) and day_id not in days:
             days.append(day_id)
+    # Lebanese spoken weekday shorthand.
+    list_match = re.search(r"(?:ايام|أيام)\s+(?:بالاسبوع|بالأسبوع)\s*[:：]?\s*([^.!؟]+)", n)
+    if list_match:
+        spoken_days = list_match.group(1)
+        for token, day_id in (("اثنين", 0), ("ثلاثة", 1), ("اربعة", 2), ("خميس", 3)):
+            if re.search(rf"(?<![\w]){token}(?![\w])", spoken_days) and day_id not in days:
+                days.append(day_id)
     days.sort()
     if not days:
         days = []
     day_limits = _extract_day_limits(source, days)
+    # Day counts in colloquial lists: اثنين عندي ثمان حصص، ثلاثة وأربعة وخميس سبع.
+    for token, day_id in (("اثنين", 0), ("ثلاثة", 1), ("اربعة", 2), ("خميس", 3)):
+        if day_id in days:
+            match = re.search(rf"(?<![\w]){token}.{{0,30}}?(ثمانية|ثماني|ثمان|سبعة|سبع|ستة|ست|خمسة|خمس|اربعة|اربع|ثلاثة|ثلاث|اثنتين|اثنين|واحد|واحدة|[1-9])\s*(?:حصص|حصة)", n)
+            if match:
+                day_limits[DAY_CANON[day_id]] = _number(match.group(1))
     periods = max(day_limits.values()) if day_limits else None
 
     duration_match = re.search(r"(?:مدة الحصة|الحصة مدتها|كل حصة)\s*(?:هي\s*)?(\d+)\s*دقيقة", n)
-    period_duration = int(duration_match.group(1)) if duration_match else None
+    period_duration = int(duration_match.group(1)) if duration_match else (45 if re.search(r"(خمسة واربعين|خمس واربعين)\s*دقيقة", n) else None)
     break_start = None
     break_match = re.search(r"(?:فرصة|استراحة|استراحه).{0,35}", n)
     if break_match:
