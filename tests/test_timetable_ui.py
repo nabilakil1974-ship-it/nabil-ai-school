@@ -73,6 +73,13 @@ def main():
             with page.expect_download() as dl2: page.click('#exportWord')
             wp = Path(tmp) / 'out.doc'; dl2.value.save_as(wp); word = wp.read_text(encoding='utf-8', errors='ignore')
             assert 'نبيل' in word and 'معاينة أولية غير معتمدة' in word, 'word export'
+            # A teacher with no assigned subjects must not be falsely reported as 0/0 matched.
+            page.evaluate("data.teachers.push('خالد'); persist(); render(); drawStats()")
+            khaled_row = page.locator('#loadStats table tbody tr').filter(has_text='خالد')
+            assert khaled_row.count() == 1
+            assert 'لم تُسند مواد أو شعب بعد' in khaled_row.inner_text()
+            assert 'مطابق' not in khaled_row.inner_text()
+            assert 'بلا نصاب محدد' in page.inner_text('#loadStats')
             assert not errs, errs
             b.close()
         print('PASS full conversation through the real UI + refresh + undo + subject delete + add day + confirmation + Excel/Word export')

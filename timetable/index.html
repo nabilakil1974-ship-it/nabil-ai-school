@@ -42,9 +42,10 @@ try{const saved=JSON.parse(localStorage.getItem('nabil-timetable-v3'));if(saved)
 function persist(){localStorage.setItem('nabil-timetable-v3',JSON.stringify(data))}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function render(){ $('school').value=data.school;$('periods').value=data.periods;$('periodDuration').value=data.periodDurationMinutes||'';$('breakStart').value=data.breakStart||'';$('breakDuration').value=data.breakDurationMinutes||'';$('breakAfterPeriod').innerHTML='<option value="">لا توجد فرصة محددة</option>'+Array.from({length:Math.max(0,data.periods-1)},(_,i)=>'<option value="'+(i+1)+'">بعد الحصة '+(i+1)+'</option>').join('');$('breakAfterPeriod').value=data.breakAfterPeriod||'';$('days').innerHTML=DAYS.map((d,i)=>'<label><input type="checkbox" value="'+i+'" '+(data.days.includes(i)?'checked':'')+'>'+d+'</label>').join('');
-$('teacherList').innerHTML=table(data.teachers.map((x,i)=>{const reqs=data.requirements.filter(r=>r.teacher===x);const weekly=reqs.reduce((n,r)=>n+(Number(r.count)||0),0);const profile=(data.teacherProfiles||[]).find(p=>p.teacher===x);const detail=profile?'<br><span class="small">'+esc(profile.subject?'المادة: '+profile.subject:'المادة غير محددة')+(profile.explicit_classes?.length?' — الشعب: '+profile.explicit_classes.map(esc).join('، '):'')+(!reqs.length?' — عدد الحصص الأسبوعية لم يُحدد بعد':'')+'</span>':'';return ['<span class="teacher-swatch" style="background:'+teacherColor(x).bg+';border-color:'+teacherColor(x).border+'"></span> '+esc(x),'<b>'+weekly+'</b> حصة أسبوعياً ('+reqs.length+' توزيع)'+detail,'<button class="secondary" onclick="editTeacher('+i+')">تعديل</button> <button class="danger" onclick="removeItem(\'teachers\','+i+')">حذف المعلم</button>']}),['المعلم / اللون','النصاب الأسبوعي المطلوب','إجراء']);
+$('teacherList').innerHTML=table(data.teachers.map((x,i)=>{const reqs=data.requirements.filter(r=>r.teacher===x);const weekly=reqs.reduce((n,r)=>n+(Number(r.count)||0),0);const hasLoad=reqs.some(r=>Number(r.count)>0);const profile=(data.teacherProfiles||[]).find(p=>p.teacher===x);const detail=profile?'<br><span class="small">'+esc(profile.subject?'المادة: '+profile.subject:'المادة غير محددة')+(profile.explicit_classes?.length?' — الشعب: '+profile.explicit_classes.map(esc).join('، '):'')+'</span>':'';const loadText=hasLoad?'<b>'+weekly+'</b> حصة أسبوعياً ('+reqs.length+' توزيع)':('<b>غير محدد</b> — '+(reqs.length?'عدد الحصص الأسبوعية غير محدد':'لم تُسند مواد أو شعب بعد'));return ['<span class="teacher-swatch" style="background:'+teacherColor(x).bg+';border-color:'+teacherColor(x).border+'"></span> '+esc(x),loadText+detail,'<button class="secondary" onclick="editTeacher('+i+')">تعديل</button> <button class="danger" onclick="removeItem(\'teachers\','+i+')">حذف المعلم</button>']}),['المعلم / اللون','النصاب الأسبوعي المطلوب','إجراء']);
 const schoolWeeklyTotal=data.requirements.reduce((n,r)=>n+(Number(r.count)||0),0);
-$('teacherLoadSummary').innerHTML='<b>ملخص الأنصبة الأسبوعية:</b> مجموع حصص جميع المعلمين = <b>'+schoolWeeklyTotal+' حصة أسبوعياً</b>.'+(data.teachers.length?' — يظهر نصاب كل معلم بجانب اسمه.':'');
+const teachersWithoutLoad=data.teachers.filter(t=>!data.requirements.some(r=>r.teacher===t&&Number(r.count)>0));
+$('teacherLoadSummary').innerHTML='<b>ملخص الأنصبة الأسبوعية:</b> مجموع الحصص المسجلة = <b>'+schoolWeeklyTotal+' حصة أسبوعياً</b>.'+(teachersWithoutLoad.length?' <br><b>تنبيه:</b> النصاب غير محدد لـ '+teachersWithoutLoad.length+' معلم/ين: '+teachersWithoutLoad.map(esc).join('، ')+'. لا تُعدّ هذه الحالات مطابقة.':'');
 $('classList').innerHTML=table(data.classes.map((x,i)=>[x,'<button class="secondary" onclick="editClass('+i+')">تعديل</button> <button class="danger" onclick="removeItem(\'classes\','+i+')">حذف</button>']),['الصف / الشعبة','إجراء']);
 const opts=(arr,placeholder)=>'<option value="">'+placeholder+'</option>'+arr.map(x=>'<option>'+esc(x)+'</option>').join('');
 $('blockedTeacher').innerHTML=opts(data.teachers,'اختر المعلم');
@@ -468,11 +469,14 @@ function drawStats(){
  const box=$('loadStats');if(!box)return;
  const entries=data.schedule.length?data.schedule:buildPartialPreview();
  const teacherLoads=data.teachers.map(t=>{
-  const requested=data.requirements.filter(r=>r.teacher===t).reduce((n,r)=>n+(Number(r.count)||0),0);
+  const assigned=data.requirements.filter(r=>r.teacher===t);
+  const requested=assigned.reduce((n,r)=>n+(Number(r.count)||0),0);
+  const hasLoad=assigned.some(r=>Number(r.count)>0);
   const distributed=entries.filter(x=>x.teacher===t).length;
   const delta=requested-distributed;
-  return {name:t,requested,distributed,delta};
+  return {name:t,requested,distributed,delta,hasLoad,hasAssignments:assigned.length>0};
  }).sort((a,b)=>b.requested-a.requested||a.name.localeCompare(b.name,'ar'));
+ const teachersWithoutLoad=teacherLoads.filter(x=>!x.hasLoad);
  const classLoads=data.classes.map(c=>({name:c,count:entries.filter(x=>x.class===c).length})).sort((a,b)=>b.count-a.count);
  const requestedTotal=data.requirements.reduce((n,r)=>n+(Number(r.count)||0),0);
  const distributedTotal=entries.length;
@@ -480,11 +484,13 @@ function drawStats(){
  let report='<div class="panel" style="display:block;margin-top:12px"><h3>مقارنة النصاب الأسبوعي لكل أستاذ</h3><p class="small">لكل أستاذ لون ثابت يظهر في الجدول. «المطلوب» هو مجموع حصص مواده وشعبه المدخلة، و«الموزّع» هو ما ظهر في المعاينة أو الجدول.</p>';
  report+=table(teacherLoads.map(x=>{
   const c=teacherColor(x.name);
-  const status=x.delta>0?'<span class="load-short">ناقص '+x.delta+'</span>':x.delta<0?'<span class="load-over">زائد '+Math.abs(x.delta)+'</span>':'<span class="load-ok">مطابق</span>';
-  return ['<span class="teacher-swatch" style="background:'+c.bg+';border-color:'+c.border+'"></span> <b>'+esc(x.name)+'</b>','<b>'+x.requested+'</b>','<b>'+x.distributed+'</b>',status];
+  const status=!x.hasAssignments?'<span class="load-short">لم تُسند مواد أو شعب بعد</span>':!x.hasLoad?'<span class="load-short">عدد الحصص غير محدد</span>':x.delta>0?'<span class="load-short">ناقص '+x.delta+'</span>':x.delta<0?'<span class="load-over">زائد '+Math.abs(x.delta)+'</span>':'<span class="load-ok">مطابق</span>';
+  const requestedLabel=x.hasLoad?'<b>'+x.requested+'</b>':'<b>غير محدد</b>';
+  return ['<span class="teacher-swatch" style="background:'+c.bg+';border-color:'+c.border+'"></span> <b>'+esc(x.name)+'</b>',requestedLabel,'<b>'+x.distributed+'</b>',status];
  }),['الأستاذ / اللون','النصاب المطلوب أسبوعياً','الحصص الموزّعة','الفرق']);
  report+='<h3>عدد الحصص حسب الشعبة</h3>'+table(classLoads.map(x=>[esc(x.name),x.count]),['الشعبة','الحصص الموزّعة'])+'</div>';
- box.innerHTML=card('إجمالي النصاب المطلوب',requestedTotal,'حصة أسبوعياً لجميع المعلمين')+card('إجمالي الحصص الموزعة',distributedTotal,'حصة في '+(data.schedule.length?'الجدول الحالي':'المعاينة الأولية'))+card('عدد المعلمين',data.teachers.length,'ضمن البرنامج')+report;
+ if(teachersWithoutLoad.length)report+='<p class="status warn"><b>تنبيه:</b> لا يمكن اعتبار مطابقة النصاب مكتملة؛ لم يُحدّد نصاب '+teachersWithoutLoad.length+' معلم/ين ('+teachersWithoutLoad.map(x=>esc(x.name)).join('، ')+'). أدخل موادهم وشعبهم وحصصهم أو اتركهم خارج قائمة المعلمين.</p>';
+ box.innerHTML=card('إجمالي النصاب المطلوب',requestedTotal,'حصة مسجلة أسبوعياً'+(teachersWithoutLoad.length?' — نصاب '+teachersWithoutLoad.length+' معلم/ين غير محدد':''))+card('إجمالي الحصص الموزعة',distributedTotal,'حصة في '+(data.schedule.length?'الجدول الحالي':'المعاينة الأولية'))+card('عدد المعلمين',data.teachers.length,teachersWithoutLoad.length+' بلا نصاب محدد')+report;
 }
 function exportWord(){
  const isPartial=!data.schedule.length;if(isPartial&&!(data.requirements||[]).length)return alert('أدخل التعيينات أولاً أو أنشئ البرنامج');const entries=isPartial?buildPartialPreview():data.schedule;

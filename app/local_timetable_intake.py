@@ -112,7 +112,7 @@ def _extract_teacher_segments(text: str) -> list[tuple[str, str]]:
     explicit = re.compile(
         r"(?:عنا\s+(?:(?:الأستاذة?|الاستاذة?|استاذة?|استاذ|السيس|السيد|السيدة|المدام|المعلم)\s+)?|"
         r"(?:الأستاذة?|الاستاذة?|استاذة?|استاذ|السيس|السيد|السيدة|المدام|المعلم)\s+)"
-        r"([\u0621-\u064a]+(?:\s+(?!للصف\b|الصف\b|بدرس\b|بيدرس\b|يدرس\b|رياضيات\b|تربية\b)[\u0621-\u064a]+)?)"
+        r"([\u0621-\u064a]+(?:\s+(?!للصف\b|الصف\b|بدرس\b|بيدرس\b|يدرس\b|رياضيات\b|تربية\b|إلى\b|الى\b|لدى\b|عند\b)[\u0621-\u064a]+)?)"
     )
     labeled = re.compile(
         r"(?:^|[\n؛;,]\s*)(?:المعلم\s+)?"
@@ -123,13 +123,20 @@ def _extract_teacher_segments(text: str) -> list[tuple[str, str]]:
             "ثلاث", "ثلاثة", "حصص", "حصة", "أيام", "ايام", "الدوام",
             "بعلمهم", "بيعطي", "يعطي", "يعلموا", "الاستاذ", "الأستاذ",
             "الأستاذة", "المدام", "المعلم", "كل", "لكل", "عندهم", "عنده",
-            "للصف", "الصف", "بدرس", "بيدرس", "يدرس", "رياضيات", "تربية"}
+            "للصف", "الصف", "بدرس", "بيدرس", "يدرس", "رياضيات", "تربية", "الى", "لدي", "عند", "عنده", "عندها"}
     matches: list[tuple[int, int, str]] = []
     for pattern in (explicit, labeled):
         for m in pattern.finditer(text):
             name = m.group(1).strip()
-            words = _norm(name).split()
-            if not words or any(w in stop for w in words):
+            words = name.split()
+            # A speech transcript may attach a trailing preposition to the
+            # teacher name (e.g. "الأستاذ خالد إلى ..."). Keep the real name,
+            # but never register "خالد إلى" as a separate teacher.
+            while len(words) > 1 and _norm(words[-1]) in {"الى", "لدي", "عند", "عنده", "عندها"}:
+                words.pop()
+            name = " ".join(words)
+            normalized_words = _norm(name).split()
+            if not normalized_words or any(w in stop for w in normalized_words):
                 continue
             matches.append((m.start(), m.end(), name))
     matches.sort(key=lambda item: item[0])
