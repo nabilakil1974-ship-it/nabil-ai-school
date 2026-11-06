@@ -35,8 +35,10 @@
 <script>
 const $=id=>document.getElementById(id), DAYS=['الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت','الأحد'];
 let data={school:'',days:[0,1,2,3,4],periods:6,periodDurationMinutes:null,breakStart:'',breakDurationMinutes:null,teachers:[],classes:[],requirements:[],blocked:[],schedule:[],dayPeriodLimits:{}}, view='school';
-try{const saved=JSON.parse(localStorage.getItem('nabil-timetable-v2'));if(saved)data={...data,...saved}}catch(e){}
-function persist(){localStorage.setItem('nabil-timetable-v2',JSON.stringify(data))}
+// Start with a clean timetable store: never resurrect the previous school's saved schedule.
+try{localStorage.removeItem('nabil-timetable-v2');}catch(e){}
+try{const saved=JSON.parse(localStorage.getItem('nabil-timetable-v3'));if(saved)data={...data,...saved}}catch(e){}
+function persist(){localStorage.setItem('nabil-timetable-v3',JSON.stringify(data))}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function render(){ $('school').value=data.school;$('periods').value=data.periods;$('periodDuration').value=data.periodDurationMinutes||'';$('breakStart').value=data.breakStart||'';$('breakDuration').value=data.breakDurationMinutes||'';$('days').innerHTML=DAYS.map((d,i)=>'<label><input type="checkbox" value="'+i+'" '+(data.days.includes(i)?'checked':'')+'>'+d+'</label>').join('');
 $('teacherList').innerHTML=table(data.teachers.map((x,i)=>[x,'<button class="danger" onclick="removeItem(\'teachers\','+i+')">حذف</button>']),['المعلم','إجراء']);
