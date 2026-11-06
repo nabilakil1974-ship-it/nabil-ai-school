@@ -34,6 +34,7 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
         return {"ok": False, "status": "invalid_input", "message": "أيام الدوام غير صالحة."}
 
     tasks = []
+    group_counts: Counter[tuple[str, str, str]] = Counter()
     for req in requirements:
         cls = str(req.get("class", "")).strip()
         teacher = str(req.get("teacher", "")).strip()
@@ -44,8 +45,11 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
             count = 0
         if cls not in classes or teacher not in teachers or not subject or count < 1 or count > 60:
             return {"ok": False, "status": "invalid_input", "message": "يوجد نصاب غير صحيح أو مرتبط بمعلم/شعبة غير مسجلين."}
-        tasks.extend({"class": cls, "teacher": teacher, "subject": subject, "lesson": n + 1}
-                     for n in range(count))
+        group = (cls, teacher, subject)
+        for _ in range(count):
+            group_counts[group] += 1
+            tasks.append({"class": cls, "teacher": teacher, "subject": subject,
+                          "lesson": group_counts[group]})
 
     per_class = Counter(t["class"] for t in tasks)
     capacity = sum(day_period_limits.get(day, periods) for day in days)
@@ -70,6 +74,22 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
     deadline = time.monotonic() + max(1.0, min(float(payload.get("time_limit_seconds", 8)), 15.0))
     timed_out = False
 
+    def ordered_identical_slot(i: int, day: int, period: int) -> bool:
+        task = tasks[i]
+        slot = (day, period)
+        identity = (task["class"], task["teacher"], task["subject"])
+        for j, other in enumerate(tasks):
+            if j == i or (other["class"], other["teacher"], other["subject"]) != identity:
+                continue
+            if assigned[j] is None:
+                continue
+            other_slot = (assigned[j]["day"], assigned[j]["period"])
+            if other["lesson"] < task["lesson"] and other_slot >= slot:
+                return False
+            if other["lesson"] > task["lesson"] and slot >= other_slot:
+                return False
+        return True
+
     def search() -> bool:
         nonlocal nodes, timed_out
         if not remaining:
@@ -84,7 +104,8 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
             t = tasks[i]
             opts = [(d, p) for d, p in candidates[i]
                     if (t["teacher"], d, p) not in teacher_busy
-                    and (t["class"], d, p) not in class_busy]
+                    and (t["class"], d, p) not in class_busy
+                    and ordered_identical_slot(i, d, p)]
             if not opts:
                 return False
             if best_options is None or len(opts) < len(best_options):
@@ -113,6 +134,7 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
                 u = tasks[j]
                 if not any((u["teacher"], sd, sp) not in teacher_busy
                            and (u["class"], sd, sp) not in class_busy
+                           and ordered_identical_slot(j, sd, sp)
                            for sd, sp in candidates[j]):
                     viable = False
                     break
