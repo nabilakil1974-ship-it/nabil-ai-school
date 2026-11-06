@@ -74,7 +74,7 @@ def _parse_clock(text: str) -> str | None:
     return None
 
 def _extract_teacher_segments(text: str) -> list[tuple[str, str]]:
-    pattern = re.compile(r"(?=(?:عنا\s+(?:(?:الاستاذة?|المدام)\s+)?|الاستاذة?\s+|المدام\s+)([\u0621-\u064a]+(?:\s+[\u0621-\u064a]+)?))")
+    pattern = re.compile(r"(?=(?:عنا\s+(?:(?:الأستاذة?|الاستاذة?|المدام)\s+)?|الاستاذة?\s+|المدام\s+)([\u0621-\u064a]+(?:\s+[\u0621-\u064a]+)?))")
     matches = list(pattern.finditer(text))
     out = []
     for i, match in enumerate(matches):
@@ -93,7 +93,7 @@ def _extract_teacher_segments(text: str) -> list[tuple[str, str]]:
     return out
 
 def _subject(segment: str) -> str:
-    m = re.search(r"(?:حيعطي|يعطي|بتعطي|تعطي|بتعلم|بعلم|يعلم|يدرّس|يدرس)\s+(.+?)\s+(?=لصف|للصف|لـ|لكل|كل الصفوف|كل صف)", segment)
+    m = re.search(r"(?:حيعطي|يعطي|بتعطي|تعطي|بتعلم|بعلم|يعلم|يدرّس|يدرس)\s+(.+?)\s+(?=لصف|للصف|لل|لكل|كل الصفوف|كل صف|،|,)", segment)
     if not m:
         return ""
     value = re.sub(r"^(?:مادة\s+)", "", m.group(1).strip())
