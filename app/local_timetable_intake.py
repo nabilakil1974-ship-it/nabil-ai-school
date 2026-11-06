@@ -273,7 +273,8 @@ def parse_spoken_school_intake(text: str) -> dict[str, Any]:
     # Only read day-period totals from the school-schedule part, before teacher details.
     # Otherwise "فراغ الاثنين أول ثلاث حصص" can be misread as a three-period school day.
     teacher_matches = _extract_teacher_segments(source)
-    config_text = source[:teacher_matches[0][0]] if teacher_matches else source
+    first_teacher_pos = source.find(teacher_matches[0][0]) if teacher_matches else -1
+    config_text = source[:first_teacher_pos] if first_teacher_pos >= 0 else source
     day_limits = _extract_day_limits(config_text, days)
     periods = max(day_limits.values()) if day_limits else None
 
