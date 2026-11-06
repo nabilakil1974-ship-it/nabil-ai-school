@@ -137,9 +137,9 @@ def _availability(segment: str, work_days: list[int], day_limits: dict[str, int]
             continue
         pos = n.find(day_word)
         tail = n[pos:pos + 90]
-        m = re.search(r"(اول|اخر|آخر)\s+(?:ال)?(ثمانية|ثماني|سبعة|ستة|خمسة|اربعة|ثلاثة|ثلاث|ساعتين|اثنتين|اثنين|واحد|[1-9])\s*(?:ساعات|حصص|حصة)?", tail)
+        m = re.search(r"(اول|اخر|آخر)\s+(?:ال)?(ثمانية|ثماني|سبعة|ستة|خمسة|اربعة|ثلاثة|ثلاث|ساعتين|حصتين|اثنتين|اثنين|واحد|[1-9])\s*(?:ساعات|حصص|حصة)?", tail)
         if m:
-            count = 2 if _norm(m.group(2)) == "ساعتين" else (_number(m.group(2), 1) or 1)
+            count = 2 if _norm(m.group(2)) in ("ساعتين", "حصتين") else (_number(m.group(2), 1) or 1)
             limit = day_limits.get(DAY_CANON[day_id], max(day_limits.values() or [7]))
             if _norm(m.group(1)) == "اخر":
                 periods = range(max(1, limit - count + 1), limit + 1)
