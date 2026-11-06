@@ -473,7 +473,7 @@ async def export_timetable_xlsx(payload: dict[str, Any] = Body(...)):
         sheet.print_options.horizontalCentered = True
 
         thin = Side(style="thin", color="B8C7D0")
-        workbook_font = Font(name="Arial", size=11, color="202830")
+        workbook_font = Font(name="Arial", size=9 if len(classes) > 8 else 10, color="202830")
         sheet.append([safe_text(payload.get("school") or "البرنامج المدرسي")])
         sheet.merge_cells(start_row=1, start_column=1, end_row=1, end_column=max(1, len(classes) + 1))
         sheet["A1"].font = Font(name="Arial", bold=True, size=16, color="FFFFFF")
@@ -519,7 +519,7 @@ async def export_timetable_xlsx(payload: dict[str, Any] = Body(...)):
                     ))
                 sheet.append(row)
                 current = sheet.max_row
-                sheet.row_dimensions[current].height = 42
+                sheet.row_dimensions[current].height = 24
                 for cell in sheet[current]:
                     cell.font = workbook_font
                     cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
@@ -536,12 +536,12 @@ async def export_timetable_xlsx(payload: dict[str, Any] = Body(...)):
                         cell.font = Font(name="Arial", size=11, bold=True, color="76520D")
                         cell.alignment = Alignment(horizontal="center", vertical="center")
                         cell.border = Border(left=thin, right=thin, top=thin, bottom=thin)
-                    sheet.row_dimensions[break_row].height = 25
+                    sheet.row_dimensions[break_row].height = 18
 
         sheet.freeze_panes = "B4"
         sheet.column_dimensions["A"].width = 18
         for col in range(2, len(classes) + 2):
-            sheet.column_dimensions[get_column_letter(col)].width = 19
+            sheet.column_dimensions[get_column_letter(col)].width = 16 if len(classes) > 8 else 19
         sheet.sheet_view.selection[0].activeCell = "B4"
         sheet.sheet_view.selection[0].sqref = "B4"
         sheet.sheet_format.defaultRowHeight = 30
