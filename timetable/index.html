@@ -49,6 +49,7 @@ renderTeacherSubjectRows();
 $('blockedDayPeriods').innerHTML=data.days.map(day=>'<div style="border:1px solid var(--line);border-radius:9px;padding:10px"><b>'+DAYS[day]+'</b><div class="checkgrid">'+Array.from({length:+(data.dayPeriodLimits?.[DAYS[day]]??data.periods)},(_,i)=>'<label><input type="checkbox" data-block-day="'+day+'" value="'+(i+1)+'">الحصة '+(i+1)+'</label>').join('')+'</div></div>').join('');
 $('reqList').innerHTML=table(data.requirements.map((r,i)=>[r.teacher,r.subject,r.class,r.count,r.language||'غير محددة','<button class="danger" onclick="removeItem(\'requirements\','+i+')">حذف</button>']),['المعلم','المادة','الصف / الشعبة','الحصص أسبوعياً','لغة التدريس','إجراء']);
 const blockGroups=new Map();data.blocked.forEach((b,i)=>{const key=b.teacher+'|'+b.day;if(!blockGroups.has(key))blockGroups.set(key,{teacher:b.teacher,day:b.day,periods:[],indices:[]});const g=blockGroups.get(key);g.periods.push(b.period);g.indices.push(i)});$('blockList').innerHTML=table([...blockGroups.values()].map(g=>[g.teacher,DAYS[g.day],g.periods.sort((a,b)=>a-b).map(p=>'الحصة '+p).join('، '),'<button class="danger" onclick="removeBlockGroup('+JSON.stringify(g.indices)+')">حذف</button>']),['المعلم','اليوم','الأوقات غير المتاحة','إجراء']);
+drawSchedule();
 }
 let teacherSubjectRowCount=0;
 function renderTeacherSubjectRows(){if(!$('teacherSubjectRows').children.length)addTeacherSubjectRow()}
@@ -228,10 +229,55 @@ async function exportExcel(){
 }
 $('exportExcel').onclick=exportExcel;
 
-function drawSchedule(){if(!data.schedule.length){$('timetable').innerHTML='<p class="small">لم يتم إنشاء البرنامج بعد.</p>';return}
-let entities=view==='teacher'?data.teachers:view==='class'?data.classes:[data.school+' — البرنامج العام'];
-let html='';for(const entity of entities){let entries=data.schedule.filter(x=>view==='teacher'?x.teacher===entity:view==='class'?x.class===entity:true);html+='<h3>'+esc(entity)+'</h3><table><thead><tr><th>اليوم</th>'+Array.from({length:data.periods},(_,i)=>'<th>الحصة '+(i+1)+'</th>').join('')+'</tr></thead><tbody>';for(const d of data.days){html+='<tr><th>'+DAYS[d]+'</th>';for(let p=1;p<=data.periods;p++){const dayLimit=+(data.dayPeriodLimits?.[DAYS[d]]??data.periods);let a=entries.filter(x=>x.day===d&&x.period===p);html+='<td>'+(p>dayLimit?'<span class="empty" title="لا يوجد دوام في هذه الحصة">خارج الدوام</span>':(a.length?a.map(x=>'<div class="lesson"><b>'+esc(x.subject)+'</b>'+esc(x.class)+'<br>'+esc(x.teacher)+'</div>').join(''):'<span class="empty">—</span>'))+'</td>'}html+='</tr>'}html+='</tbody></table><br>'}
-$('timetable').innerHTML=html;drawStats()}
+function buildPartialPreview(){
+ const placed=[],teacherBusy=new Set(),classBusy=new Set();
+ const slots=data.days.flatMap(day=>Array.from({length:Math.max(0,Math.min(data.periods,+((data.dayPeriodLimits||{})[DAYS[day]]??data.periods)||data.periods))},(_,i)=>({day,period:i+1})));
+ const reqs=[...(data.requirements||[])].sort((a,b)=>(+b.count||0)-(+a.count||0));
+ for(const req of reqs){
+  const count=Math.max(0,Math.min(60,+req.count||0));
+  for(let n=0;n<count;n++){
+   const candidates=slots.filter(s=>!teacherBusy.has(req.teacher+'|'+s.day+'|'+s.period)&&!classBusy.has(req.class+'|'+s.day+'|'+s.period)&&!data.blocked.some(b=>b.teacher===req.teacher&&+b.day===s.day&&+b.period===s.period));
+   if(!candidates.length)break;
+   candidates.sort((a,b)=>{
+    const ad=placed.filter(x=>x.class===req.class&&x.subject===req.subject&&x.day===a.day).length;
+    const bd=placed.filter(x=>x.class===req.class&&x.subject===req.subject&&x.day===b.day).length;
+    return ad-bd||a.period-b.period||a.day-b.day;
+   });
+   const s=candidates[0];placed.push({...req,day:s.day,period:s.period,provisional:true});
+   teacherBusy.add(req.teacher+'|'+s.day+'|'+s.period);classBusy.add(req.class+'|'+s.day+'|'+s.period);
+  }
+ }
+ return placed;
+}
+function drawSchedule(){
+ const entries=data.schedule.length?data.schedule:buildPartialPreview();
+ const isFinal=data.schedule.length>0;
+ const hasFrame=data.days.length>0&&data.periods>0;
+ if(!hasFrame){$('timetable').innerHTML='<p class="small">اختر يوم دوام واحداً على الأقل ليظهر هيكل البرنامج هنا.</p>';drawStats();return}
+ let entities=view==='teacher'?data.teachers:view==='class'?data.classes:[data.school+' — البرنامج العام'];
+ if(view==='teacher'&&!entities.length)entities=['تُعرض جداول المعلمين هنا بعد إضافتهم'];
+ if(view==='class'&&!entities.length)entities=['تُعرض جداول الصفوف هنا بعد إضافتها'];
+ let html='<div class="status '+(isFinal?'ok':'warn')+'">'+(isFinal?'جدول مكتمل اجتاز التدقيق.':'معاينة حيّة تتحدث مع كل إدخال. الحصص المعروضة توزيع أولي قابل لإعادة الترتيب؛ الخانات الفارغة تعني أن بياناتها لم تكتمل بعد.')+'</div>';
+ for(const entity of entities){
+  const entriesForEntity=entries.filter(x=>view==='teacher'?x.teacher===entity:view==='class'?x.class===entity:true);
+  html+='<h3>'+esc(entity)+'</h3><table><thead><tr><th>اليوم</th>'+Array.from({length:data.periods},(_,i)=>'<th>الحصة '+(i+1)+'</th>').join('')+'</tr></thead><tbody>';
+  for(const d of data.days){
+   html+='<tr><th>'+DAYS[d]+'</th>';
+   for(let p=1;p<=data.periods;p++){
+    const dayLimit=+(data.dayPeriodLimits?.[DAYS[d]]??data.periods);
+    const a=entriesForEntity.filter(x=>x.day===d&&x.period===p);
+    html+='<td>'+(p>dayLimit?'<span class="empty" title="لا يوجد دوام في هذه الحصة">خارج الدوام</span>':(a.length?a.map(x=>'<div class="lesson"><b>'+esc(x.subject)+'</b>'+esc(x.class)+'<br>'+esc(x.teacher)+'</div>').join(''):'<span class="empty">شاغرة / لم تُحدد بعد</span>'))+'</td>';
+   }
+   html+='</tr>';
+  }
+  html+='</tbody></table><br>';
+ }
+ if(!isFinal){
+  const requested=(data.requirements||[]).reduce((n,x)=>n+(+x.count||0),0);
+  html+='<p class="small">الحصص التي أمكن وضعها مبدئياً: '+entries.length+' من '+requested+'. لا يُعتمد هذا التوزيع كجدول نهائي.</p>';
+ }
+ $('timetable').innerHTML=html;drawStats();
+}
 $('generate').onclick=generate;$('print').onclick=()=>{if(!data.schedule.length)return alert('أنشئ البرنامج أولاً');window.print()};
 $('export').onclick=()=>{if(!data.schedule.length)return alert('أنشئ البرنامج أولاً');let rows=[['اليوم','الحصة','الصف','المادة','المعلم'],...data.schedule.map(x=>[DAYS[x.day],x.period,x.class,x.subject,x.teacher])];let csv='\ufeff'+rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='NABIL-school-timetable.csv';a.click();URL.revokeObjectURL(a.href)};
 async function checkNabilHealth(){
