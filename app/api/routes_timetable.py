@@ -450,7 +450,7 @@ async def export_timetable_xlsx(payload: dict[str, Any] = Body(...)):
                 subject = str(req.get("subject") or subject).strip()
                 language = str(req.get("language") or lesson.get("language") or "").strip()
                 if language and subject:
-                    subject = re.sub(r"\\s*[-–—,/|]?\\s*" + re.escape(language) + r"\\s*$", "", subject, flags=re.I).strip()
+                    subject = re.sub(r"\s*[-–—,/|]?\s*" + re.escape(language) + r"\s*$", "", subject, flags=re.I).strip()
             return subject
         if not payload.get("days"):
             raise HTTPException(status_code=400, detail="حدد أيام الدوام أولاً.")
