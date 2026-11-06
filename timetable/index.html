@@ -181,7 +181,7 @@ $('analyzeSpoken').onclick=async()=>{
  $('uploadStatus').className='status warn';$('uploadStatus').textContent='نبيل ينظم وصف المدير بمحركه المحلي...';
  $('analysisOutput').innerHTML='';
  try{
-  const response=await fetch('/api/timetable/intake-text',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,known_classes:$('knownClasses').value.split(/[،,]/).map(x=>x.trim()).filter(Boolean)})});
+  const response=await fetch('/api/timetable/intake-text',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,known_classes:$('knownClasses').value.split(/[،,;؛\\n]+/).map(x=>x.trim()).filter(Boolean)})});
   const result=await response.json();
   if(!response.ok)throw new Error(typeof result.detail==='string'?result.detail:'تعذر تنظيم وصف المدير.');
   const escText=s=>String(s??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
