@@ -92,7 +92,7 @@ $('readUpload').onclick=async()=>{
  if(img&&doc){$('uploadStatus').className='status err';$('uploadStatus').textContent='اختر ملفاً واحداً في كل مرة، ثم ارفع الملف الآخر بعد انتهاء التحليل.';return}
  const file=img||doc;
  if(!file){$('uploadStatus').className='status err';$('uploadStatus').textContent='اختر صورة أو ملف Word أو Excel أولاً.';return}
- const allowed=/\\.(png|jpe?g|webp|docx|xlsx)$/i;
+ const allowed=/\.(png|jpe?g|webp|docx|xlsx)$/i;
  if(!allowed.test(file.name)){$('uploadStatus').className='status err';$('uploadStatus').textContent='صيغة الملف غير مدعومة. استخدم JPG أو PNG أو WEBP أو DOCX أو XLSX.';return}
  const form=new FormData();form.append('file',file);
  $('readUpload').disabled=true;$('uploadStatus').className='status warn';$('uploadStatus').textContent='نبيل يقرأ الملف ويستخرج الحصص ويفحص التعارضات...';
