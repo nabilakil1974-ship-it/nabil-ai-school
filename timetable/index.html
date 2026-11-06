@@ -8,11 +8,22 @@
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Tahoma,Arial,sans-serif}header{background:linear-gradient(120deg,#102f49,#176b87);color:white;padding:18px max(18px,calc((100% - 1180px)/2))}.header-inner{display:flex;align-items:center;gap:16px}.profile-photo{width:86px;height:86px;flex:0 0 86px;object-fit:cover;object-position:center;border-radius:50%;border:3px solid #e4bd45;box-shadow:0 3px 14px #071d2d66;background:#fff}.header-copy{min-width:0}header h1{margin:0 0 7px;font-size:clamp(22px,4vw,32px)}header p{margin:0;color:#d9edf5}main{max-width:1180px;margin:22px auto;padding:0 14px}.notice{background:#e8f3f8;border:1px solid #c9e0eb;padding:13px 15px;border-radius:12px;margin-bottom:16px;line-height:1.8}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}.tab,button{border:0;border-radius:9px;padding:10px 14px;font:inherit;cursor:pointer}.tab{background:#e2e9ed;color:var(--ink)}.tab.active,button.primary{background:var(--navy);color:white}.panel{display:none;background:white;border:1px solid var(--line);border-radius:14px;padding:17px;margin-bottom:16px;box-shadow:0 3px 12px #16344a0a}.panel.active{display:block}.understood{background:#f4f9fc;border:1px solid var(--line);border-radius:14px;padding:13px;margin:12px 0}.understood[hidden]{display:none}.understood h3,.understood h4{margin:6px 0}.panel h2{font-size:19px;margin:0 0 14px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}.field{display:flex;flex-direction:column;gap:6px}.field label{font-size:13px;color:var(--muted)}input,select{width:100%;border:1px solid #cbd6dd;border-radius:8px;padding:10px;font:inherit;background:white;color:var(--ink)}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px}button.secondary{background:#e8eef2;color:var(--ink)}button.danger{background:#fbe9e8;color:#982d29}button:disabled{opacity:.5;cursor:not-allowed}.list{margin-top:14px;overflow:auto}table{width:100%;border-collapse:collapse;min-width:540px}th,td{padding:10px;border-bottom:1px solid var(--line);text-align:right;font-size:14px}th{background:#f4f7f9;color:#405563}.small{font-size:12px;color:var(--muted)}.checkgrid{display:grid;grid-template-columns:repeat(5,minmax(45px,1fr));gap:6px;margin-top:8px}.checkgrid label{background:#f1f5f7;padding:7px;border-radius:7px;font-size:12px;display:flex;gap:5px;align-items:center}.checkgrid input{width:auto}.status{padding:12px;border-radius:9px;margin:12px 0;line-height:1.7}.ok{background:#e5f5ed;color:#145c40}.err{background:#fff0ee;color:#922f29}.warn{background:#fff6df;color:#76520d}.timetable{overflow:auto}.timetable table{border-collapse:separate;border-spacing:0 3px;background:#f7fafc;border:1px solid #d8e3ea;border-radius:12px;overflow:hidden}.timetable thead th{background:linear-gradient(135deg,#123b59,#176b87);color:#fff;text-align:center;font-weight:700;padding:13px 9px;border-bottom:3px solid #e4bd45}.timetable tbody td,.timetable tbody th{border-bottom:1px solid #dce5eb;text-align:center;vertical-align:middle}.timetable tbody tr.day-start td,.timetable tbody tr.day-start th{border-top:4px solid #edc84a}.timetable tbody th.day-label{font-weight:700;color:#173b52;min-width:108px;box-shadow:inset -4px 0 0 var(--day-accent);background:var(--day-tint)}.timetable tbody tr.day-tone td{background:var(--day-tint)}.timetable tbody tr.day-tone td .lesson{background:linear-gradient(145deg,#fff,#f3f8fb);border:1px solid #d7e6ee;border-right:4px solid var(--day-accent);box-shadow:0 2px 7px #173b5210;border-radius:9px;padding:8px 7px}.timetable tbody tr.day-tone td .lesson b{color:#123b59;font-size:13px}.timetable tbody tr.day-tone td .lesson.conflict{background:#fff0ef;border-color:#efc5c2;border-right-color:#c62828;color:#8f1717}.timetable tbody tr.day-tone td .lesson.unavailable{background:#eef6ff;border-color:#c9def5;border-right-color:#1976d2;color:#124d91}.timetable tbody tr.break-row td,.timetable tbody tr.break-row th{background:#fff5cf!important;color:#76520d;font-weight:700;border-top:2px solid #edc84a;border-bottom:2px solid #edc84a}.timetable tbody tr:hover td{filter:brightness(.985)}.timetable td{padding:8px 6px}.timetable table{min-width:700px}.timetable td{min-width:100px;height:65px;vertical-align:top}.lesson{background:#e8f3f8;border-right:3px solid var(--blue);border-radius:6px;padding:6px;font-size:12px;line-height:1.6}.lesson b{display:block}.lesson.conflict{background:#fde8e7;border-right:4px solid #c62828;color:#8f1717}.lesson.unavailable{background:#e5f1ff;border-right:4px solid #1976d2;color:#124d91}.lesson.conflict.unavailable{background:#fde8e7;border-right-color:#c62828;color:#8f1717}.legend{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0 14px;font-size:12px}.legend span{padding:6px 9px;border-radius:6px}.legend .red{background:#fde8e7;color:#8f1717}.legend .blue{background:#e5f1ff;color:#124d91}.legend .teacher-key{display:inline-flex;align-items:center;gap:6px;background:#f5f7fa;color:#243746;border:1px solid #d8e0e7}.teacher-swatch{display:inline-block;width:13px;height:13px;border-radius:4px;border:1px solid #607080;vertical-align:middle;flex:0 0 13px}.load-ok{color:#17633e;font-weight:700}.load-short{color:#9a5a00;font-weight:700}.load-over{color:#a51d1d;font-weight:700}.empty{color:#a0acb4;text-align:center}.footer{color:var(--muted);font-size:12px;text-align:center;padding:22px}
 @media(max-width:600px){header{padding:16px 14px}.header-inner{gap:11px}.profile-photo{width:66px;height:66px;flex-basis:66px}.panel{padding:13px}.checkgrid{grid-template-columns:repeat(3,1fr)}}
 @media print{header,.notice,.tabs,.panel:not(#results),.actions,.footer{display:none!important}body{background:white}main{margin:0;max-width:none}.panel#results{display:block;border:0;box-shadow:none}.timetable table{min-width:0}.timetable td{height:55px}}
- .voice-panel{margin-top:12px;padding:13px;border:1px solid #cbdde7;border-radius:12px;background:linear-gradient(135deg,#f4f9fc,#fff)}.voice-title{font-weight:700;color:#123b59}.voice-panel .actions{margin:9px 0}.voice-panel button{min-height:42px}.voice-panel button#voiceStart{background:#176b87}.voice-panel button#voiceStop{background:#fbe9e8;color:#982d29}.voice-panel button:disabled{opacity:.45}.voice-panel.listening{border-color:#1b9a69;box-shadow:0 0 0 2px #1b9a691c}.voice-panel.listening #voiceStart{background:#147d55}</style></head>
+ .voice-panel{margin-top:12px;padding:13px;border:1px solid #cbdde7;border-radius:12px;background:linear-gradient(135deg,#f4f9fc,#fff)}.voice-title{font-weight:700;color:#123b59}.voice-panel .actions{margin:9px 0}.voice-panel button{min-height:42px}.voice-panel button#voiceStart{background:#176b87}.voice-panel button#voiceStop{background:#fbe9e8;color:#982d29}.voice-panel button:disabled{opacity:.45}.voice-panel.listening{border-color:#1b9a69;box-shadow:0 0 0 2px #1b9a691c}.voice-panel.listening #voiceStart{background:#147d55}.usage-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}.usage-stat{background:#f2f7fa;border:1px solid #dce8ef;border-radius:10px;padding:11px;display:flex;flex-direction:column;gap:5px}.usage-stat span{font-size:12px;color:#627482}.usage-stat strong{font-size:25px;color:#123b59}@media(max-width:600px){.usage-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.usage-stat strong{font-size:22px}}</style></head>
 <body>
 <header><div class="header-inner"><img class="profile-photo" src="/static/nabil-profile.jpg" alt="الأستاذ نبيل عقيل" loading="eager"><div class="header-copy"><h1>نبيل | منظّم البرنامج المدرسي الذكي</h1><p>NABIL School Timetable AI · نسخة تجريبية قيد الاختبار · <span id="apiStatus" aria-live="polite">جارٍ فحص اتصال نبيل...</span></p></div></div></header>
 <main>
 <div class="notice"><b>طريقة الاستخدام:</b> أدخل المعلومات خطوةً خطوة. يظهر هيكل الجدول فور تحديد أيام الدوام، ثم تتحدث المعاينة تلقائياً مع إضافة الحصص والصفوف والمعلمين والمواد. الخانات الناقصة تبقى فارغة حتى تكتمل بياناتها.</div>
+<section id="usageStatsPanel" aria-label="إحصاءات استخدام البرنامج" style="background:#fff;border:1px solid #dbe3e8;border-radius:14px;padding:15px;margin:0 0 16px;box-shadow:0 3px 12px #16344a0a">
+<h2 style="font-size:18px;margin:0 0 10px;color:#123b59">📊 إحصاءات استخدام نبيل</h2>
+<div class="usage-grid">
+<div class="usage-stat"><span>الزوار الفريدون</span><strong id="usageVisitors">—</strong></div>
+<div class="usage-stat"><span>الزيارات</span><strong id="usageVisits">—</strong></div>
+<div class="usage-stat"><span>الجداول المنشأة</span><strong id="usageSchedules">—</strong></div>
+<div class="usage-stat"><span>المدارس المستخدمة</span><strong id="usageSchools">—</strong></div>
+</div>
+<p id="usageUpdated" class="small" style="margin:10px 0 0">جارٍ تحميل الإحصاءات...</p>
+<p class="small" style="margin:5px 0 0">يُحتسب الزائر الفريد كمتصفح/جهاز بمعرّف مجهول، وليس كشخص مؤكد. لا نخزّن أسماء المدارس؛ نستخدم بصمة مشفّرة لعدّها فقط.</p>
+</section>
 <section class="panel active" id="importPanel">
 <h2>أرسل بيانات المدرسة إلى نبيل</h2>
 <p class="small">يمكنك إدخال بيانات المدرسة تدريجياً من الأقسام أدناه. هذا الحقل اختياري لاستيراد وصف مكتوب دفعة واحدة، وليس شرطاً لإنشاء المعاينة.</p>
@@ -607,5 +618,35 @@ async function checkNabilHealth(){
   badge.style.color='#ffe0a6';
  }
 }
+
+async function trackNabilUsage(eventType, schoolName=''){
+ try{
+  let visitorId=localStorage.getItem('nabil-analytics-visitor');
+  if(!visitorId){
+   visitorId=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():('nabil-'+Date.now()+'-'+Math.random().toString(36).slice(2));
+   localStorage.setItem('nabil-analytics-visitor',visitorId);
+  }
+  const endpoint=eventType==='page_view'?'/api/analytics/visit':'/api/analytics/event';
+  const payload=eventType==='page_view'?{visitor_id:visitorId}:{visitor_id:visitorId,event_type:eventType,school_name:schoolName};
+  const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),keepalive:true});
+  if(!response.ok)throw new Error('analytics request failed');
+ }catch(_){}
+}
+async function refreshNabilUsageStats(){
+ try{
+  const response=await fetch('/api/analytics/summary',{cache:'no-store'});
+  if(!response.ok)throw new Error('summary unavailable');
+  const stats=await response.json();
+  $('usageVisitors').textContent=Number(stats.unique_visitors||0).toLocaleString('ar');
+  $('usageVisits').textContent=Number(stats.visits||0).toLocaleString('ar');
+  $('usageSchedules').textContent=Number(stats.schedules_created||0).toLocaleString('ar');
+  $('usageSchools').textContent=Number(stats.schools_used||0).toLocaleString('ar');
+  $('usageUpdated').textContent='آخر تحديث: '+(stats.updated_at?new Date(stats.updated_at).toLocaleString('ar'):'لا توجد عمليات إنشاء بعد')+' · '+stats.storage_note;
+ }catch(_){$('usageUpdated').textContent='تعذّر تحميل الإحصاءات حالياً.'}
+}
+
+const generateButton=$('generate');
+generateButton.addEventListener('click',()=>{setTimeout(()=>{if(data.schedule.length)trackNabilUsage('schedule_created',data.school).then(refreshNabilUsageStats)},0)});
+trackNabilUsage('page_view').then(refreshNabilUsageStats);
 render();checkNabilHealth();if(data.schedule.length){show('يوجد برنامج محفوظ سابقاً.','ok');drawSchedule()}else drawStats()
 </script></body></html>
