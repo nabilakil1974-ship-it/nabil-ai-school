@@ -144,7 +144,10 @@ def _grade_scope(segment: str) -> list[str]:
         (("الثامن", "التوامن", "الثوامن"), "الثامن"),
         (("التاسع", "التواسع"), "التاسع"),
     ]
+    secondary_present = any(x in n for x in ("الاول ثانوي", "العاشر", "الثاني ثانوي", "الثاني الثانوي", "الحادي عشر", "الثالث ثانوي", "الثالث الثانوي", "الثاني عشر"))
     for keys, grade in aliases:
+        if secondary_present and grade in ("الأول", "الثاني", "الثالث"):
+            continue
         if any(key in n for key in keys) and grade not in grades:
             grades.append(grade)
     return grades
