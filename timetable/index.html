@@ -14,11 +14,11 @@
 <main>
 <div class="notice"><b>كيف تبدأ؟</b> أضف المعلمين والصفوف، ثم أدخل مواد كل صف وعدد حصصها الأسبوعية واسم معلمها. حدّد أيام الدوام والحصص، ثم اضغط «أنشئ البرنامج». يحاول النظام توزيع الحصص من دون وضع المعلم أو الصف في حصتين في الوقت نفسه.</div>
 <div class="tabs"><button class="tab active" data-tab="settings">إعداد الدوام</button><button class="tab" data-tab="teachers">المعلمون</button><button class="tab" data-tab="classes">الصفوف والشعب</button><button class="tab" data-tab="subjects">المواد والحصص</button><button class="tab" data-tab="results">البرنامج الناتج</button></div>
-<section class="panel active" id="settings"><h2>إعداد أيام الدوام والحصص</h2><div class="field"><label>أيام الدوام</label><div class="checkgrid" id="days"></div></div><div class="grid" style="margin-top:14px"><div class="field"><label>عدد الحصص في اليوم</label><input id="periods" type="number" min="1" max="12" value="6"></div><div class="field"><label>اسم المدرسة</label><input id="school" value="المدرسة الرسمية"></div></div><div class="actions"><button class="primary" id="loadDemo">تحميل نموذج مدرسة من الأول إلى التاسع</button><button class="secondary" id="saveSettings">حفظ إعدادات الدوام</button></div><p class="small">النموذج يضيف صفوف الأول الأساسي حتى التاسع، ومواداً وحصصاً أسبوعية ومعلمين افتراضيين. يمكنك تعديله أو حذفه بعد التحميل.</p></section>
+<section class="panel active" id="settings"><h2>إعداد أيام الدوام والحصص</h2><div class="field"><label>أيام الدوام</label><div class="checkgrid" id="days"></div></div><div class="grid" style="margin-top:14px"><div class="field"><label>عدد الحصص في اليوم</label><input id="periods" type="number" min="1" max="12" value="6"></div><div class="field"><label>اسم المدرسة</label><input id="school" value="المدرسة الرسمية"></div></div><div class="actions"><button class="primary" id="loadDemo">تحميل نموذج مدرسة من الأول إلى التاسع</button><button class="secondary" id="loadBalbeek">تحميل جدول بعلبك 2026–2027 وفحصه</button><button class="secondary" id="saveSettings">حفظ إعدادات الدوام</button></div><p class="small">النموذج يضيف صفوف الأول الأساسي حتى التاسع، ومواداً وحصصاً أسبوعية ومعلمين افتراضيين. يمكنك تعديله أو حذفه بعد التحميل.</p></section>
 <section class="panel" id="teachers"><h2>إضافة المعلمين</h2><div class="grid"><div class="field"><label>اسم المعلم</label><input id="teacherName" placeholder="مثلاً: نبيل عقيل"></div></div><div class="actions"><button class="primary" id="addTeacher">إضافة المعلم</button></div><div class="list" id="teacherList"></div></section>
 <section class="panel" id="classes"><h2>إضافة الصفوف والشعب</h2><div class="grid"><div class="field"><label>اسم الصف أو الشعبة</label><input id="className" placeholder="مثلاً: السابع أ"></div></div><div class="actions"><button class="primary" id="addClass">إضافة الصف</button></div><div class="list" id="classList"></div></section>
 <section class="panel" id="subjects"><h2>توزيع المواد والحصص الأسبوعية</h2><div class="grid"><div class="field"><label>الصف / الشعبة</label><select id="reqClass"></select></div><div class="field"><label>المادة</label><input id="subjectName" placeholder="الرياضيات"></div><div class="field"><label>المعلم</label><select id="reqTeacher"></select></div><div class="field"><label>عدد الحصص أسبوعياً</label><input id="weekly" type="number" min="1" max="30" value="4"></div></div><div class="actions"><button class="primary" id="addReq">إضافة التوزيع</button></div><div class="list" id="reqList"></div><h2 style="margin-top:22px">أوقات عدم توافر المعلم (اختياري)</h2><div class="grid"><div class="field"><label>المعلم</label><select id="blockedTeacher"></select></div><div class="field"><label>اليوم</label><select id="blockedDay"></select></div><div class="field"><label>رقم الحصة</label><select id="blockedPeriod"></select></div></div><div class="actions"><button class="secondary" id="addBlock">إضافة وقت غير متاح</button></div><div class="list" id="blockList"></div></section>
-<section class="panel" id="results"><h2>البرنامج المدرسي</h2><div id="resultStatus" class="status warn">أدخل البيانات أولاً ثم أنشئ البرنامج.</div><div class="actions"><button class="primary" id="generate">أنشئ البرنامج تلقائياً</button><button class="secondary" id="print">طباعة / حفظ PDF</button><button class="secondary" id="export">تنزيل البيانات CSV</button></div><div class="tabs" id="viewTabs"><button class="tab active" data-view="school">جدول المدرسة</button><button class="tab" data-view="teacher">جداول المعلمين</button><button class="tab" data-view="class">جداول الصفوف</button></div><div id="timetable" class="timetable"></div></section>
+<section class="panel" id="results"><h2>البرنامج المدرسي</h2><div id="resultStatus" class="status warn">أدخل البيانات أولاً ثم أنشئ البرنامج.</div><div class="actions"><button class="primary" id="generate">أنشئ البرنامج تلقائياً</button><button class="secondary" id="audit">فحص تضارب المدرسين</button><button class="secondary" id="print">طباعة / حفظ PDF</button><button class="secondary" id="export">تنزيل البيانات CSV</button></div><div class="tabs" id="viewTabs"><button class="tab active" data-view="school">جدول المدرسة</button><button class="tab" data-view="teacher">جداول المعلمين</button><button class="tab" data-view="class">جداول الصفوف</button></div><div id="timetable" class="timetable"></div></section>
 <div class="footer">NABIL School Timetable AI · تُحفظ البيانات محلياً في هذا المتصفح على هذا الجهاز. هذه نسخة أولية ولا تستبدل مراجعة الإدارة للبرنامج قبل اعتماده.</div>
 </main>
 <script>
@@ -60,6 +60,74 @@ function loadDemo(){
  persist();render();show('تم تحميل نموذج تجريبي لـ 9 صفوف: '+classes.length+' صفوف، '+teachers.length+' معلماً افتراضياً، '+requirements.length+' توزيعاً للمواد. اضغط «أنشئ البرنامج تلقائياً» لاختبار الجدولة.','ok');
  document.querySelector('[data-tab="teachers"]').click();
 }
+
+const balbeekClasses=['السابع ج','السابع ب','السابع أ','الثامن ب','الثامن أ','التاسع أ'];
+const balbeekRows=[
+[0,1,['بارعة|انكليزي','بتول|عربي','باسم|كيمياء','كارولين|علوم','ناهد|فيزياء','احمد|تربية']],
+[0,2,['بتول|عربي','احمد|تاريخ','كارولين|علوم','دلال|عربي','باسم|كيمياء','ناهد|فيزياء']],
+[0,3,['احمد|تاريخ','ناهد|فيزياء','بتول|عربي','دلال|عربي','كارولين|علوم','باسم|كيمياء']],
+[0,4,['ناهد|فيزياء','باسم|كيمياء','بتول|عربي','نبيل|رياضيات','دلال|عربي','مروة|انكليزي']],
+[0,5,['نبيل|رياضيات','كارولين|علوم','طه|انكليزي','ناهد|فيزياء','دلال|عربي','مروة|انكليزي']],
+[0,6,['مايا|رياضة','بتول|عربي','طه|انكليزي','نبيل|رياضيات','مروة|انكليزي','الرفاعي|رياضيات']],
+[0,7,['بتول|عربي','طه|انكليزي','نبيل|رياضيات','مروة|انكليزي','الرفاعي|رياضيات','دلال|عربي']],
+[0,8,['كارولين|علوم','طه|انكليزي','نبيل|رياضيات','مروة|انكليزي','الرفاعي|رياضيات','دلال|عربي']],
+[1,1,['بارعة|انكليزي','نبيل|رياضيات','بتول|عربي','باسم|كيمياء','مروة|انكليزي','ناهد|فيزياء']],
+[1,2,['بارعة|انكليزي','باسم|كيمياء','بتول|عربي','ناهد|فيزياء','مروة|انكليزي','هدى|جغرافيا']],
+[1,3,['باسم|كيمياء','بتول|عربي','ناهد|فيزياء','دلال|عربي','هدى|جغرافيا','مروة|انكليزي']],
+[1,4,['نبيل|رياضيات','طه|انكليزي','هدى|جغرافيا','مايا|رياضة','دلال|عربي','الرفاعي|رياضيات']],
+[1,5,['نبيل|رياضيات','طه|انكليزي','كارولين|علوم','هدى|جغرافيا','دلال|عربي','الرفاعي|رياضيات']],
+[1,6,['كارولين|علوم','هدى|جغرافيا','طه|انكليزي','نبيل|رياضيات','الرفاعي|رياضيات','دلال|عربي']],
+[1,7,['هدى|جغرافيا','نبيل|رياضيات','طه|انكليزي','دلال|عربي','الرفاعي|رياضيات','كارولين|علوم']],
+[2,1,['بارعة|انكليزي','مايا|رياضة','بتول|عربي','مروة|انكليزي','الشل|تاريخ','دلال|عربي']],
+[2,2,['بارعة|انكليزي','بتول|عربي','مايا|رياضة','مروة|انكليزي','دلال|عربي','الشل|تاريخ']],
+[2,3,['بتول|عربي','الشل|تاريخ','نبيل|رياضيات','دلال|عربي','مايا|رياضة','باسم|كيمياء']],
+[2,4,['الشل|تربية','نبيل|رياضيات','ناهد|فيزياء','دلال|عربي','باسم|كيمياء','مروة|انكليزي']],
+[2,5,['ناهد|فيزياء','بتول|عربي','باسم|كيمياء','نبيل|رياضيات','الرفاعي|رياضيات','كارولين|علوم']],
+[2,6,['بتول|عربي','نبيل|رياضيات','الشل|تاريخ','باسم|كيمياء','ناهد|فيزياء','الرفاعي|رياضيات']],
+[2,7,['باسم|كيمياء','ناهد|فيزياء','نبيل|رياضيات','الشل|تربية','مروة|انكليزي','الرفاعي|رياضيات']],
+[3,1,['بارعة|انكليزي','عبد الساتر|دين','بتول|عربي','كارولين|علوم','الشل|تربية','دلال|عربي']],
+[3,2,['عبد الساتر|دين','كارولين|علوم','هدى|جغرافيا','الشل|تاريخ','مروة|انكليزي','دلال|عربي']],
+[3,3,['نبيل|رياضيات','هدى|جغرافيا','الشل|تربية','مروة|انكليزي','دلال|عربي','كارولين|علوم']],
+[3,4,['هدى|جغرافيا','طه|انكليزي','عبد الساتر|دين','نبيل|رياضيات','كارولين|علوم','مروة|انكليزي']],
+[3,5,['بتول|عربي','نبيل|رياضيات','طه|انكليزي','هدى|جغرافيا','عبد الساتر|دين','مروة|انكليزي']],
+[3,6,['نبيل|رياضيات','بتول|عربي','طه|انكليزي','عبد الساتر|دين','مروة|انكليزي','هدى|جغرافيا']],
+[3,7,['بتول|عربي','طه|انكليزي','نبيل|رياضيات','مروة|انكليزي','هدى|جغرافيا','عبد الساتر|دين']]
+];
+function loadBalbeek(){
+ if(!confirm('سيتم استبدال البيانات المحفوظة بجدول بعلبك الرسمي الذي أرسلته. متابعة؟'))return;
+ const schedule=[],teachers=new Set(),requirements={};
+ for(const [day,period,cells] of balbeekRows) cells.forEach((cell,i)=>{
+  const [teacher,subject]=cell.split('|');teachers.add(teacher);
+  schedule.push({day,period,class:balbeekClasses[i],teacher,subject});
+  const k=[balbeekClasses[i],teacher,subject].join('|');
+  requirements[k]=(requirements[k]||0)+1;
+ });
+ data={school:'مدرسة بعلبك المتوسطة المختلطة الرسمية — 2026–2027',days:[0,1,2,3],periods:8,teachers:[...teachers],classes:balbeekClasses,requirements:Object.entries(requirements).map(([k,count])=>{const [cls,teacher,subject]=k.split('|');return {class:cls,teacher,subject,count}}),blocked:[],schedule};
+ view='school';persist();render();drawSchedule();
+ show('تم تحميل الجدول الأصلي: '+schedule.length+' حصة في 4 أيام و6 شعب. اضغط «فحص تضارب المدرسين» لعرض نتيجة الفحص من داخل البرنامج.','ok');
+ document.querySelector('[data-tab="results"]').click();
+ auditSchedule();
+}
+function auditSchedule(){
+ const teacherSlots=new Map(),classSlots=new Map();
+ for(const x of data.schedule){
+  const key=x.day+'|'+x.period;
+  const tk=x.teacher+'|'+key,ck=x.class+'|'+key;
+  if(!teacherSlots.has(tk))teacherSlots.set(tk,[]);
+  teacherSlots.get(tk).push(x);
+  if(!classSlots.has(ck))classSlots.set(ck,[]);
+  classSlots.get(ck).push(x);
+ }
+ const teacherConflicts=[...teacherSlots.entries()].filter(([,v])=>v.length>1);
+ const classConflicts=[...classSlots.entries()].filter(([,v])=>v.length>1);
+ const details=teacherConflicts.map(([k,v])=>{const [teacher,day,period]=k.split('|');return DAYS[+day]+' — الحصة '+period+' — '+teacher+': '+v.map(x=>x.class+' ('+x.subject+')').join(' / ')});
+ if(!data.schedule.length){show('لا يوجد جدول محمّل لفحصه.','warn');return}
+ if(!teacherConflicts.length&&!classConflicts.length)show('نتيجة الفحص: لا يوجد أي تضارب. تم فحص '+data.schedule.length+' حصة في '+data.classes.length+' شعب. لا يوجد مدرس في شعبتين في الوقت نفسه، ولا يوجد أكثر من درس للشعبة في الحصة نفسها.','ok');
+ else show('نتيجة الفحص: '+teacherConflicts.length+' تضارباً للمدرسين و'+classConflicts.length+' تضارباً للشعب.\\n'+details.join('\\n'),'err');
+}
+$('loadBalbeek').onclick=loadBalbeek;
+$('audit').onclick=auditSchedule;
+
 $('loadDemo').onclick=loadDemo;
 $('saveSettings').onclick=()=>{data.school=$('school').value.trim()||'المدرسة الرسمية';data.periods=Math.max(1,Math.min(12,+$('periods').value||6));data.days=[...$('days').querySelectorAll('input:checked')].map(x=>+x.value);if(!data.days.length)return alert('اختر يوم دوام واحداً على الأقل');data.schedule=[];persist();render();alert('تم حفظ إعدادات الدوام')};
 $('addTeacher').onclick=()=>{let v=$('teacherName').value.trim();if(!v)return alert('اكتب اسم المعلم');if(data.teachers.includes(v))return alert('المعلم موجود');data.teachers.push(v);$('teacherName').value='';persist();render()};
