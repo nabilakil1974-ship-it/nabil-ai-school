@@ -24,7 +24,7 @@
 </main>
 <script>
 const $=id=>document.getElementById(id), DAYS=['الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت','الأحد'];
-let data={school:'',days:[0,1,2,3,4],periods:6,teachers:[],classes:[],requirements:[],blocked:[],schedule:[]}, view='school';
+let data={school:'',days:[0,1,2,3,4],periods:6,teachers:[],classes:[],requirements:[],blocked:[],schedule:[],dayPeriodLimits:{}}, view='school';
 try{const saved=JSON.parse(localStorage.getItem('nabil-timetable-v2'));if(saved)data={...data,...saved}}catch(e){}
 function persist(){localStorage.setItem('nabil-timetable-v2',JSON.stringify(data))}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -108,12 +108,14 @@ $('analyzePasted').onclick=async()=>{
   const teachers=[...new Set([...(result.teachers||[]),...entries.map(x=>x.teacher)].filter(Boolean))];
   const reqMap=new Map();entries.forEach(x=>{const k=[x.class,x.teacher,x.subject].join('|');const v=reqMap.get(k)||{class:x.class,teacher:x.teacher,subject:x.subject,count:0};v.count++;reqMap.set(k,v)});
   const declared=(result.weekly_loads||[]).filter(x=>x&&x.class&&x.teacher&&x.subject&&Number(x.count)>0);
-  data={school:result.school_name||'مدرسة جديدة',days:[...new Set(entries.map(x=>x.day))].sort((a,b)=>a-b),periods:Math.max(1,+result.periods_per_day||Math.max(...entries.map(x=>x.period))),teachers,classes,requirements:declared.length?declared.map(x=>({class:String(x.class),teacher:String(x.teacher),subject:String(x.subject),count:Number(x.count)})):[...reqMap.values()],requirementsSource:declared.length?'weekly_loads':'inferred_from_extracted_entries',blocked:[],schedule:entries};
+  data={school:result.school_name||'مدرسة جديدة',days:[...new Set(entries.map(x=>x.day))].sort((a,b)=>a-b),periods:Math.max(1,+result.periods_per_day||Math.max(...entries.map(x=>x.period))),teachers,classes,requirements:declared.length?declared.map(x=>({class:String(x.class),teacher:String(x.teacher),subject:String(x.subject),count:Number(x.count)})):[...reqMap.values()],requirementsSource:declared.length?'weekly_loads':'inferred_from_extracted_entries',blocked:[],schedule:entries,dayPeriodLimits:result.day_period_limits||{}};
   persist();render();drawSchedule();
   $('uploadStatus').className=result.conflict_count?'status err':'status ok';
   $('uploadStatus').textContent='اكتمل تحليل النص: '+entries.length+' حصة، '+teachers.length+' معلماً، '+classes.length+' شعب، '+result.conflict_count+' تعارضاً.';
   let out='<div class="status '+(result.conflict_count?'err':'ok')+'"><b>نتيجة تحليل نبيل:</b> '+(result.conflict_count?'عثر على '+result.conflict_count+' تعارض.':'لم يظهر تعارض ضمن البيانات المقروءة.')+'</div>';
   if(result.unreadable?.length)out+='<h3>بيانات تحتاج مراجعة</h3><ul>'+result.unreadable.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>';
+  if(result.subject_balance?.length){out+='<h3>مراجعة توازن حصص المواد بين الشعب المتوازية</h3><div class="status warn">هذه مؤشرات مقارنة بين شعب الصف نفسه، وليست بديلاً عن جدول الأنصبة الرسمي.</div><ul>'+result.subject_balance.map(x=>'<li><b>'+esc(x.grade)+' — '+esc(x.subject)+'</b>: '+Object.entries(x.counts_by_class).map(([k,v])=>esc(k)+' ('+v+')').join('، ')+' — فرق '+x.difference+' حصة</li>').join('')+'</ul>';}
+  if(result.day_period_limits)out+='<p><b>عدد الحصص الفعلي حسب اليوم:</b> '+Object.entries(result.day_period_limits).map(([k,v])=>esc(k)+' ('+v+')').join('، ')+'</p>';
   if(result.notes?.length)out+='<ul>'+result.notes.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>';
   $('analysisOutput').innerHTML=out;document.querySelector('[data-tab="results"]').click();
  }catch(e){$('uploadStatus').className='status err';$('uploadStatus').textContent='فشل التحليل: '+e.message}
@@ -248,7 +250,7 @@ function exportWord(){
 $('exportWord').onclick=exportWord;
 function drawSchedule(){if(!data.schedule.length){$('timetable').innerHTML='<p class="small">لم يتم إنشاء البرنامج بعد.</p>';return}
 let entities=view==='teacher'?data.teachers:view==='class'?data.classes:[data.school+' — البرنامج العام'];
-let html='';for(const entity of entities){let entries=data.schedule.filter(x=>view==='teacher'?x.teacher===entity:view==='class'?x.class===entity:true);html+='<h3>'+esc(entity)+'</h3><table><thead><tr><th>اليوم</th>'+Array.from({length:data.periods},(_,i)=>'<th>الحصة '+(i+1)+'</th>').join('')+'</tr></thead><tbody>';for(const d of data.days){html+='<tr><th>'+DAYS[d]+'</th>';for(let p=1;p<=data.periods;p++){let a=entries.filter(x=>x.day===d&&x.period===p);html+='<td>'+(a.length?a.map(x=>'<div class="lesson"><b>'+esc(x.subject)+'</b>'+esc(x.class)+'<br>'+esc(x.teacher)+'</div>').join(''):'<span class="empty">—</span>')+'</td>'}html+='</tr>'}html+='</tbody></table><br>'}
+let html='';for(const entity of entities){let entries=data.schedule.filter(x=>view==='teacher'?x.teacher===entity:view==='class'?x.class===entity:true);html+='<h3>'+esc(entity)+'</h3><table><thead><tr><th>اليوم</th>'+Array.from({length:data.periods},(_,i)=>'<th>الحصة '+(i+1)+'</th>').join('')+'</tr></thead><tbody>';for(const d of data.days){html+='<tr><th>'+DAYS[d]+'</th>';for(let p=1;p<=data.periods;p++){const dayLimit=+(data.dayPeriodLimits?.[DAYS[d]]??data.periods);let a=entries.filter(x=>x.day===d&&x.period===p);html+='<td>'+(p>dayLimit?'<span class="empty" title="لا يوجد دوام في هذه الحصة">خارج الدوام</span>':(a.length?a.map(x=>'<div class="lesson"><b>'+esc(x.subject)+'</b>'+esc(x.class)+'<br>'+esc(x.teacher)+'</div>').join(''):'<span class="empty">—</span>'))+'</td>'}html+='</tr>'}html+='</tbody></table><br>'}
 $('timetable').innerHTML=html;drawStats()}
 $('generate').onclick=generate;$('print').onclick=()=>{if(!data.schedule.length)return alert('أنشئ البرنامج أولاً');window.print()};
 $('export').onclick=()=>{if(!data.schedule.length)return alert('أنشئ البرنامج أولاً');let rows=[['اليوم','الحصة','الصف','المادة','المعلم'],...data.schedule.map(x=>[DAYS[x.day],x.period,x.class,x.subject,x.teacher])];let csv='\ufeff'+rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='NABIL-school-timetable.csv';a.click();URL.revokeObjectURL(a.href)};
