@@ -97,7 +97,7 @@ def _extract_teacher_segments(text: str) -> list[tuple[str, str]]:
     return out
 
 def _subject(segment: str) -> str:
-    m = re.search(r"(?:حيعطي|يعطي|بتعطي|تعطي|بتعلم|بعلم|يعلم|يدرّس|يدرس)\s+(.+?)\s+(?=لصف|للصف|لل|لكل|كل الصفوف|كل صف|،|,)", segment)
+    m = re.search(r"(?:حيعطي|بيعطي|يعطي|بتعطي|تعطي|بتعلم|بيعلم|بعلم|يعلم|يدرّس|يدرس)\s+(.+?)\s+(?=لصف|للصف|لل|لكل|كل الصفوف|كل صف|،|,)", segment)
     if not m:
         return ""
     value = re.sub(r"^(?:مادة\s+)", "", m.group(1).strip())
@@ -154,6 +154,22 @@ def _availability(segment: str, work_days: list[int], day_limits: dict[str, int]
             limit = day_limits.get(DAY_CANON[day_id], max(day_limits.values() or [7]))
             blocked.extend({"teacher": teacher, "day": day_id, "period": p}
                            for p in range(1, min(count, limit) + 1))
+    # Explicit numbered periods such as "السابعة والثامنة فراغ".
+    ordinal = {"الاولى": 1, "الاول": 1, "الثانية": 2, "الثاني": 2,
+               "الثالثة": 3, "الثالث": 3, "الرابعة": 4, "الرابع": 4,
+               "الخامسة": 5, "الخامس": 5, "السادسة": 6, "السادس": 6,
+               "السابعة": 7, "السابع": 7, "الثامنة": 8, "الثامن": 8}
+    for day_word, day_id in DAY_NAMES.items():
+        if day_id not in work_days or day_word not in n:
+            continue
+        tail = n[n.find(day_word):n.find(day_word) + 100]
+        if "فراغ" not in tail:
+            continue
+        for word, period in ordinal.items():
+            if re.search(rf"{word}", tail):
+                limit = day_limits.get(DAY_CANON[day_id], max(day_limits.values() or [8]))
+                if period <= limit:
+                    blocked.append({"teacher": teacher, "day": day_id, "period": period})
     unique = {(x["teacher"], x["day"], x["period"]): x for x in blocked}
     return list(unique.values())
 
@@ -221,11 +237,16 @@ def parse_spoken_school_intake(text: str) -> dict[str, Any]:
         if count is None and re.search(r"ساعة\s+ساعة", _norm(segment)):
             count = 1
 
+        declared_weekly = None
+        weekly_match = re.search(r"(?:نصابه|نصابها|نصاب)\s*(?:لازم\s+يكون|هو)?\s*(\d+)\s*(?:ساعة|حصة)", _norm(segment))
+        if weekly_match:
+            declared_weekly = int(weekly_match.group(1))
         teacher = name.strip()
         if teacher not in teachers:
             teachers.append(teacher)
         profiles.append({"teacher": teacher, "subject": subject, "explicit_classes": explicit,
                          "grades": grades, "lessons_per_class": count,
+                         "declared_weekly_load": declared_weekly,
                          "unavailable": _availability(segment, days, day_limits, teacher),
                          "source_excerpt": segment[:240]})
         blocked.extend(profiles[-1]["unavailable"])
