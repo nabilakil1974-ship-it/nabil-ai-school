@@ -422,7 +422,7 @@ async def diagnose_timetable_file(file: UploadFile = File(...)):
 
 @router.post("/export-xlsx")
 async def export_timetable_xlsx(payload: dict[str, Any] = Body(...)):
-    """Create an XLSX school matrix: periods as rows and classes as columns."""
+    """Create a readable, print-ready XLSX school matrix."""
     try:
         from openpyxl import Workbook
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -440,7 +440,7 @@ async def export_timetable_xlsx(payload: dict[str, Any] = Body(...)):
             return "'" + text if text.startswith(("=", "+", "-", "@")) else text
 
         days = payload.get("days") or sorted({int(x.get("day")) for x in schedule if isinstance(x, dict) and str(x.get("day", "")).isdigit()})
-        periods = max(1, int(payload.get("periods") or max(int(x.get("period", 1)) for x in schedule if isinstance(x, dict))))
+        periods = max(1, int(payload.get("periods") or max([int(x.get("period", 1)) for x in schedule if isinstance(x, dict)] or [1])))
         classes = [str(x).strip() for x in (payload.get("classes") or []) if str(x).strip()]
         if not classes:
             classes = list(dict.fromkeys(str(x.get("class") or "").strip() for x in schedule
@@ -455,9 +455,23 @@ async def export_timetable_xlsx(payload: dict[str, Any] = Body(...)):
         sheet = workbook.active
         sheet.title = "البرنامج العام"
         sheet.sheet_view.rightToLeft = True
+        sheet.sheet_view.showGridLines = False
+        sheet.sheet_view.zoomScale = 70
+        sheet.sheet_properties.pageSetUpPr.fitToPage = True
+        sheet.page_setup.orientation = "landscape"
+        sheet.page_setup.paperSize = sheet.PAPERSIZE_A3
+        sheet.page_setup.fitToWidth = 1
+        sheet.page_setup.fitToHeight = 0
+        sheet.page_margins.left = 0.2
+        sheet.page_margins.right = 0.2
+        sheet.page_margins.top = 0.35
+        sheet.page_margins.bottom = 0.35
+
+        thin = Side(style="thin", color="B8C7D0")
+        workbook_font = Font(name="Arial", size=11, color="202830")
         sheet.append([safe_text(payload.get("school") or "البرنامج المدرسي")])
         sheet.merge_cells(start_row=1, start_column=1, end_row=1, end_column=max(1, len(classes) + 1))
-        sheet["A1"].font = Font(bold=True, size=16, color="FFFFFF")
+        sheet["A1"].font = Font(name="Arial", bold=True, size=16, color="FFFFFF")
         sheet["A1"].fill = PatternFill("solid", fgColor="123B59")
         sheet["A1"].alignment = Alignment(horizontal="center", vertical="center")
         sheet.row_dimensions[1].height = 30
@@ -465,18 +479,19 @@ async def export_timetable_xlsx(payload: dict[str, Any] = Body(...)):
         sheet.append(["معاينة أولية غير معتمدة — الخانات الفارغة لم تُوزّع بعد."
                        if payload.get("is_partial") else "جدول مدرسي مُصدّر"])
         sheet.merge_cells(start_row=2, start_column=1, end_row=2, end_column=max(1, len(classes) + 1))
-        sheet["A2"].font = Font(bold=True, size=11, color="8A4B08" if payload.get("is_partial") else "176B87")
+        sheet["A2"].font = Font(name="Arial", bold=True, size=11, color="8A4B08" if payload.get("is_partial") else "176B87")
         sheet["A2"].fill = PatternFill("solid", fgColor="FFF2CC" if payload.get("is_partial") else "E8F3F8")
         sheet["A2"].alignment = Alignment(horizontal="center", vertical="center")
         sheet.row_dimensions[2].height = 24
 
         sheet.append(["اليوم / الحصة"] + [safe_text(c) for c in classes])
         for cell in sheet[3]:
-            cell.font = Font(bold=True, color="FFFFFF")
+            cell.font = Font(name="Arial", size=11, bold=True, color="FFFFFF")
             cell.fill = PatternFill("solid", fgColor="176B87")
             cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+            cell.border = Border(left=thin, right=thin, top=thin, bottom=thin)
+        sheet.row_dimensions[3].height = 32
 
-        thin = Side(style="thin", color="B8C7D0")
         day_limits = payload.get("day_period_limits") or {}
         for day_id in days:
             try:
@@ -501,10 +516,10 @@ async def export_timetable_xlsx(payload: dict[str, Any] = Body(...)):
                 current = sheet.max_row
                 sheet.row_dimensions[current].height = 42
                 for cell in sheet[current]:
+                    cell.font = workbook_font
                     cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                     cell.border = Border(left=thin, right=thin, top=thin, bottom=thin)
-                sheet.cell(current, 1).font = Font(bold=True, color="123B59")
-
+                sheet.cell(current, 1).font = Font(name="Arial", size=11, bold=True, color="123B59")
                 if break_after == period and period < periods:
                     sheet.append(["الفرصة"] + ["استراحة"] + [""] * max(0, len(classes) - 1))
                     break_row = sheet.max_row
@@ -513,15 +528,22 @@ async def export_timetable_xlsx(payload: dict[str, Any] = Body(...)):
                                           end_row=break_row, end_column=len(classes) + 1)
                     for cell in sheet[break_row]:
                         cell.fill = PatternFill("solid", fgColor="FFF2CC")
-                        cell.font = Font(bold=True, color="76520D")
+                        cell.font = Font(name="Arial", size=11, bold=True, color="76520D")
                         cell.alignment = Alignment(horizontal="center", vertical="center")
                         cell.border = Border(left=thin, right=thin, top=thin, bottom=thin)
                     sheet.row_dimensions[break_row].height = 25
 
         sheet.freeze_panes = "B4"
-        sheet.column_dimensions["A"].width = 23
+        sheet.column_dimensions["A"].width = 18
         for col in range(2, len(classes) + 2):
-            sheet.column_dimensions[get_column_letter(col)].width = 24
+            sheet.column_dimensions[get_column_letter(col)].width = 19
+        sheet.sheet_view.selection[0].activeCell = "B4"
+        sheet.sheet_view.selection[0].sqref = "B4"
+        sheet.sheet_format.defaultRowHeight = 30
+        sheet.sheet_format.defaultColWidth = 19
+        sheet.print_title_rows = "1:3"
+        sheet.print_area = f"A1:{get_column_letter(len(classes) + 1)}{sheet.max_row}"
+
         output = io.BytesIO()
         workbook.save(output)
         output.seek(0)
