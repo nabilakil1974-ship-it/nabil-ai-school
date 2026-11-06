@@ -150,7 +150,7 @@ def _read_matrix_xlsx(data: bytes) -> dict[str, Any]:
                     current_day = _day(dtext)
                     if current_day not in all_days:
                         all_days.append(current_day)
-                match = re.fullmatch(r"\\s*(\\d+)\\s*", ptxt)
+                match = re.fullmatch(r"\s*(\d+)\s*", ptxt)
                 if not match or not current_day:
                     continue
                 period = int(match.group(1))
@@ -186,8 +186,8 @@ def _read_matrix_xlsx(data: bytes) -> dict[str, Any]:
 
 
 def read_timetable(data: bytes, kind: str) -> dict[str, Any]:
+    if kind=="xlsx": return _read_matrix_xlsx(data)
     if kind=="docx": rows=_rows_from_docx(data)
-    elif kind=="xlsx": rows=_rows_from_xlsx(data)
     elif kind=="image": rows=_rows_from_ocr(data)
     else: raise ValueError("صيغة غير مدعومة")
     rows=[[str(c or "").strip() for c in row] for row in rows if any(str(c or "").strip() for c in row)]
