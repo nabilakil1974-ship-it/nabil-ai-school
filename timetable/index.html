@@ -98,7 +98,7 @@ $('clearPasted').onclick=()=>{$('pastedTimetable').value='';$('uploadStatus').cl
 
 // Browser-provided speech dictation. Recognition may use the device/browser speech service.
 const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
-let voiceRecognition=null,voiceFinalText='',voiceBaseText='',voiceSessionCount=0;
+let voiceRecognition=null,voiceFinalText='',voiceBaseText='',voiceSessionCount=0,voiceKeepAlive=false,voiceFatalError=false;
 function voiceUi(active,message){
  $('startVoice').disabled=active||!SpeechRecognition;
  $('startVoice').textContent=active?'جارٍ تسجيل المقطع...':(voiceSessionCount?'🎙️ إضافة مقطع صوتي آخر':'🎙️ ابدأ مقطعاً صوتياً');
@@ -113,6 +113,7 @@ if(!SpeechRecognition){
 $('startVoice').onclick=()=>{
  if(!SpeechRecognition){voiceUi(false,'الإملاء الصوتي غير مدعوم في هذا المتصفح.');return}
  try{
+  voiceKeepAlive=true;voiceFatalError=false;
   voiceRecognition=new SpeechRecognition();
   voiceRecognition.lang=$('voiceLanguage').value;
   voiceRecognition.continuous=true;
@@ -131,14 +132,20 @@ $('startVoice').onclick=()=>{
    $('voiceStatus').textContent='تم التقاط الكلام. راجع النص؛ '+(interim?'جارٍ سماع: '+interim:'يمكنك متابعة الحديث أو إيقاف الميكروفون.');
   };
   voiceRecognition.onerror=event=>{
-   const messages={ 'not-allowed':'لم يُسمح بالميكروفون. فعّل إذن الميكروفون للموقع من إعدادات المتصفح.','audio-capture':'لم يُعثر على ميكروفون متاح.','no-speech':'لم نسمع كلاماً؛ حاول مجدداً.','network':'خدمة التعرّف الصوتي في المتصفح غير متاحة حالياً أو تحتاج إلى اتصال.'};
-   voiceUi(false,messages[event.error]||('تعذر الإملاء الصوتي: '+event.error));
+   const messages={ 'not-allowed':'لم يُسمح بالميكروفون. فعّل إذن الميكروفون للموقع من إعدادات المتصفح.','audio-capture':'لم يُعثر على ميكروفون متاح.','no-speech':'لم نسمع كلاماً للحظات؛ سيواصل نبيل الاستماع.','network':'خدمة التعرّف الصوتي في المتصفح غير متاحة حالياً أو تحتاج إلى اتصال.'};
+   if(event.error==='no-speech'){$('voiceStatus').textContent=messages[event.error];}
+   else{voiceFatalError=true;voiceKeepAlive=false;voiceUi(false,messages[event.error]||('تعذر الإملاء الصوتي: '+event.error));}
   };
-  voiceRecognition.onend=()=>{voiceUi(false,'انتهى المقطع وأُضيف نصه. يمكنك إملاء مقطع آخر؛ لن يبدأ التحليل حتى تضغط زر إرسال جميع المقاطع.');};
+  voiceRecognition.onend=()=>{
+   if(voiceKeepAlive&&!voiceFatalError){
+    $('voiceStatus').textContent='توقف الاستماع لحظياً؛ يعاود نبيل فتح الميكروفون تلقائياً...';
+    setTimeout(()=>{if(!voiceKeepAlive||voiceFatalError)return;try{voiceRecognition.start();}catch(e){voiceUi(false,'توقف الإملاء الصوتي. اضغط بدء الإملاء للمتابعة: '+e.message);}},350);
+   }else{voiceUi(false,'أوقفت الاستماع. النص الذي جُمع محفوظ في المربع؛ يمكنك متابعة مقطع جديد أو إرسال النص للتحليل.');}
+  };
   voiceRecognition.start();
  }catch(error){voiceUi(false,'تعذر تشغيل الميكروفون: '+error.message)}
 };
-$('stopVoice').onclick=()=>{if(voiceRecognition){voiceRecognition.stop();voiceRecognition=null}};
+$('stopVoice').onclick=()=>{voiceKeepAlive=false;if(voiceRecognition){try{voiceRecognition.stop()}catch(e){}voiceRecognition=null}};
 
 $('analyzePasted').onclick=async()=>{
  const text=$('pastedTimetable').value;
