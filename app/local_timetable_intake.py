@@ -180,14 +180,14 @@ def parse_spoken_school_intake(text: str) -> dict[str, Any]:
     n = _norm(source)
     days = []
     for word, day_id in DAY_NAMES.items():
-        if re.search(rf"(?<![\w]){_norm(word)}(?![\w])", n) and day_id not in days:
+        if re.search(rf"(?<![\w])و?{_norm(word)}(?![\w])", n) and day_id not in days:
             days.append(day_id)
     # Lebanese spoken weekday shorthand.
     list_match = re.search(r"(?:ايام|أيام)\s+(?:بالاسبوع|بالأسبوع)\s*[:：]?\s*([^.!؟]+)", n)
     if list_match:
         spoken_days = list_match.group(1)
         for token, day_id in (("اثنين", 0), ("ثلاثة", 1), ("اربعة", 2), ("خميس", 3)):
-            if re.search(rf"(?<![\w]){token}(?![\w])", spoken_days) and day_id not in days:
+            if re.search(rf"(?<![\w])و?{token}(?![\w])", spoken_days) and day_id not in days:
                 days.append(day_id)
     days.sort()
     if not days:
@@ -196,7 +196,7 @@ def parse_spoken_school_intake(text: str) -> dict[str, Any]:
     # Day counts in colloquial lists: اثنين عندي ثمان حصص، ثلاثة وأربعة وخميس سبع.
     for token, day_id in (("اثنين", 0), ("ثلاثة", 1), ("اربعة", 2), ("خميس", 3)):
         if day_id in days:
-            match = re.search(rf"(?<![\w]){token}.{{0,30}}?(ثمانية|ثماني|ثمان|سبعة|سبع|ستة|ست|خمسة|خمس|اربعة|اربع|ثلاثة|ثلاث|اثنتين|اثنين|واحد|واحدة|[1-9])\s*(?:حصص|حصة)", n)
+            match = re.search(rf"(?<![\w])و?{token}.{{0,45}}?(ثمانية|ثماني|ثمان|سبعة|سبع|ستة|ست|خمسة|خمس|اربعة|اربع|ثلاثة|ثلاث|اثنتين|اثنين|واحد|واحدة|[1-9])\s*(?:حصص|حصة)", n)
             if match:
                 day_limits[DAY_CANON[day_id]] = _number(match.group(1))
     periods = max(day_limits.values()) if day_limits else None
