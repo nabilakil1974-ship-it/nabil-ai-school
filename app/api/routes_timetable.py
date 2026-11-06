@@ -451,6 +451,11 @@ async def export_timetable_xlsx(payload: dict[str, Any] = Body(...)):
                 language = str(req.get("language") or lesson.get("language") or "").strip()
                 if language and subject:
                     subject = re.sub(r"\s*[-–—,/|]?\s*" + re.escape(language) + r"\s*$", "", subject, flags=re.I).strip()
+            if subject:
+                subject = re.sub(
+                    r"\s*[-–—,/|]?\s*(?:إنكليزي|انكليزي|إنجليزية|انجليزية|إنجليزي|انجليزي|فرنسي|فرنسية|عربي|عربية|English|French|Arabic)\s*$",
+                    "", subject, flags=re.I
+                ).strip()
             return subject
         if not payload.get("days"):
             raise HTTPException(status_code=400, detail="حدد أيام الدوام أولاً.")
@@ -537,8 +542,8 @@ async def export_timetable_xlsx(payload: dict[str, Any] = Body(...)):
                                and str(x.get("class") or "").strip() == cls
                                and int(x.get("day", -1)) == day_id
                                and int(x.get("period", -1)) == period]
-                    row.append("\n".join(
-                        safe_text(lesson_subject(x)) + ("\\n" if lesson_subject(x) and x.get("teacher") else "")
+                    row.append(" / ".join(
+                        safe_text(lesson_subject(x)) + (" - " if lesson_subject(x) and x.get("teacher") else "")
                         + safe_text(x.get("teacher"))
                         for x in lessons
                     ))
