@@ -1,5 +1,5 @@
 """Lightweight standalone API for school timetable analysis."""
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -33,34 +33,40 @@ def health():
 import hashlib
 import re
 import sqlite3
+from contextlib import contextmanager
 from datetime import datetime, timezone
 
 ANALYTICS_DB = os.getenv("NABIL_ANALYTICS_DB", "/tmp/nabil_timetable_analytics.sqlite3")
 
+@contextmanager
 def _analytics_connection():
     conn = sqlite3.connect(ANALYTICS_DB, timeout=10)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA busy_timeout=10000")
-    conn.executescript("""
-        CREATE TABLE IF NOT EXISTS analytics_visitors (
-            visitor_hash TEXT PRIMARY KEY,
-            first_seen TEXT NOT NULL,
-            last_seen TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS analytics_visits (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            visitor_hash TEXT NOT NULL,
-            visited_at TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS analytics_events (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            visitor_hash TEXT NOT NULL,
-            event_type TEXT NOT NULL,
-            school_hash TEXT,
-            created_at TEXT NOT NULL
-        );
-    """)
-    return conn
+    try:
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA busy_timeout=10000")
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS analytics_visitors (
+                visitor_hash TEXT PRIMARY KEY,
+                first_seen TEXT NOT NULL,
+                last_seen TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS analytics_visits (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                visitor_hash TEXT NOT NULL,
+                visited_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS analytics_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                visitor_hash TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                school_hash TEXT,
+                created_at TEXT NOT NULL
+            );
+        """)
+        yield conn
+        conn.commit()
+    finally:
+        conn.close()
 
 def _visitor_hash(visitor_id: str) -> str:
     value = str(visitor_id or "").strip()

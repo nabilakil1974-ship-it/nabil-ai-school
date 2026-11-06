@@ -446,7 +446,7 @@ async function generate(){
   const result=await response.json();
   if(!response.ok||!result.ok){const detail=result.detail||result;throw new Error(detail.message||'تعذر إيجاد جدول يحقق القيود.')}
   if(!result.audit?.passed||result.scheduled_lessons!==result.requested_lessons)throw new Error('لم يجتز الجدول التدقيق النهائي؛ لم يتم اعتماده.');
-  data.schedule=result.schedule;persist();drawSchedule();
+  data.schedule=result.schedule;persist();drawSchedule();await trackNabilUsage('schedule_created',data.school);refreshNabilUsageStats();
   show('نجح إنشاء الجدول: '+result.scheduled_lessons+' من '+result.requested_lessons+' حصة. اجتاز فحص تعارض المعلمين والشعب وأوقات عدم التوافر. عدد خطوات البحث: '+result.search_nodes+'.','ok');
   document.querySelector('[data-tab="results"]').click();
  }catch(e){show('لم يُعتمد أي جدول: '+e.message,'err')}
@@ -645,8 +645,6 @@ async function refreshNabilUsageStats(){
  }catch(_){$('usageUpdated').textContent='تعذّر تحميل الإحصاءات حالياً.'}
 }
 
-const generateButton=$('generate');
-generateButton.addEventListener('click',()=>{setTimeout(()=>{if(data.schedule.length)trackNabilUsage('schedule_created',data.school).then(refreshNabilUsageStats)},0)});
 trackNabilUsage('page_view').then(refreshNabilUsageStats);
 render();checkNabilHealth();if(data.schedule.length){show('يوجد برنامج محفوظ سابقاً.','ok');drawSchedule()}else drawStats()
 </script></body></html>
