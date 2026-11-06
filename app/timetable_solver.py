@@ -69,6 +69,16 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
     teacher_busy: set[tuple[str, int, int]] = set()
     class_busy: set[tuple[str, int, int]] = set()
     remaining = set(range(len(tasks)))
+
+    # Index identical lessons once. The previous symmetry check scanned every
+    # task for every candidate slot, which made forward checking needlessly
+    # expensive on schools with many repeated weekly lessons.
+    identical_groups: dict[tuple[str, str, str], list[int]] = {}
+    teacher_task_counts = Counter(t["teacher"] for t in tasks)
+    class_task_counts = Counter(t["class"] for t in tasks)
+    for index, task in enumerate(tasks):
+        identity = (task["class"], task["teacher"], task["subject"])
+        identical_groups.setdefault(identity, []).append(index)
     nodes = 0
     node_limit = max(10000, min(int(payload.get("node_limit", 180000)), 500000))
     deadline = time.monotonic() + max(1.0, min(float(payload.get("time_limit_seconds", 8)), 15.0))
@@ -78,15 +88,13 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
         task = tasks[i]
         slot = (day, period)
         identity = (task["class"], task["teacher"], task["subject"])
-        for j, other in enumerate(tasks):
-            if j == i or (other["class"], other["teacher"], other["subject"]) != identity:
-                continue
-            if assigned[j] is None:
+        for j in identical_groups[identity]:
+            if j == i or assigned[j] is None:
                 continue
             other_slot = (assigned[j]["day"], assigned[j]["period"])
-            if other["lesson"] < task["lesson"] and other_slot >= slot:
+            if tasks[j]["lesson"] < task["lesson"] and other_slot >= slot:
                 return False
-            if other["lesson"] > task["lesson"] and slot >= other_slot:
+            if tasks[j]["lesson"] > task["lesson"] and slot >= other_slot:
                 return False
         return True
 
@@ -100,7 +108,11 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
         best_i = -1
         best_options = None
         # Dynamic MRV: select the unassigned lesson with the fewest currently legal slots.
-        for i in remaining:
+        best_priority = None
+        # Stable MRV tie-breaking: when two lessons have the same domain size,
+        # schedule the lesson attached to the most constrained teacher/class
+        # first. This avoids relying on set iteration order between runs.
+        for i in sorted(remaining):
             t = tasks[i]
             opts = [(d, p) for d, p in candidates[i]
                     if (t["teacher"], d, p) not in teacher_busy
@@ -108,8 +120,9 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
                     and ordered_identical_slot(i, d, p)]
             if not opts:
                 return False
-            if best_options is None or len(opts) < len(best_options):
-                best_i, best_options = i, opts
+            priority = (len(opts), -(teacher_task_counts[t["teacher"]] + class_task_counts[t["class"]]), i)
+            if best_priority is None or priority < best_priority:
+                best_i, best_options, best_priority = i, opts, priority
                 if len(opts) == 1:
                     break
         t = tasks[best_i]
