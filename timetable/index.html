@@ -92,7 +92,7 @@ $('clearPasted').onclick=()=>{$('pastedTimetable').value='';$('uploadStatus').cl
 
 // Browser-provided speech dictation. Recognition may use the device/browser speech service.
 const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
-let voiceRecognition=null,voiceFinalText='';
+let voiceRecognition=null,voiceFinalText='',voiceBaseText='';
 function voiceUi(active,message){
  $('startVoice').disabled=active||!SpeechRecognition;
  $('stopVoice').disabled=!active;
@@ -110,7 +110,7 @@ $('startVoice').onclick=()=>{
   voiceRecognition.lang=$('voiceLanguage').value;
   voiceRecognition.continuous=true;
   voiceRecognition.interimResults=true;
-  voiceFinalText='';
+  voiceFinalText='';voiceBaseText=$('pastedTimetable').value.trimEnd();
   voiceRecognition.onstart=()=>voiceUi(true,'الميكروفون يعمل الآن. تحدث بوضوح؛ سيظهر النص هنا لتراجعه.');
   voiceRecognition.onresult=event=>{
    let interim='';
@@ -120,16 +120,14 @@ $('startVoice').onclick=()=>{
     else interim+=phrase;
    }
    const area=$('pastedTimetable');
-   const base=area.dataset.voiceBase||area.value;
-   area.value=base+(base&&voiceFinalText?' ':'')+voiceFinalText+(interim?' '+interim:'');
-   if(voiceFinalText)area.dataset.voiceBase=base+(base?' ':'')+voiceFinalText.trim();
+   area.value=voiceBaseText+(voiceBaseText&&voiceFinalText?' ':'')+voiceFinalText+(interim?' '+interim:'');
    $('voiceStatus').textContent='تم التقاط الكلام. راجع النص؛ '+(interim?'جارٍ سماع: '+interim:'يمكنك متابعة الحديث أو إيقاف الميكروفون.');
   };
   voiceRecognition.onerror=event=>{
    const messages={ 'not-allowed':'لم يُسمح بالميكروفون. فعّل إذن الميكروفون للموقع من إعدادات المتصفح.','audio-capture':'لم يُعثر على ميكروفون متاح.','no-speech':'لم نسمع كلاماً؛ حاول مجدداً.','network':'خدمة التعرّف الصوتي في المتصفح غير متاحة حالياً أو تحتاج إلى اتصال.'};
    voiceUi(false,messages[event.error]||('تعذر الإملاء الصوتي: '+event.error));
   };
-  voiceRecognition.onend=()=>{voiceUi(false,'توقف الميكروفون. النص محفوظ في مربع الإدخال ويمكنك تعديله.');delete $('pastedTimetable').dataset.voiceBase;};
+  voiceRecognition.onend=()=>{voiceUi(false,'توقف الميكروفون. النص محفوظ في مربع الإدخال ويمكنك تعديله.');};
   voiceRecognition.start();
  }catch(error){voiceUi(false,'تعذر تشغيل الميكروفون: '+error.message)}
 };
