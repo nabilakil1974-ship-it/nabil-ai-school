@@ -41,13 +41,13 @@ try{const saved=JSON.parse(localStorage.getItem('nabil-timetable-v3'));if(saved)
 function persist(){localStorage.setItem('nabil-timetable-v3',JSON.stringify(data))}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function render(){ $('school').value=data.school;$('periods').value=data.periods;$('periodDuration').value=data.periodDurationMinutes||'';$('breakStart').value=data.breakStart||'';$('breakDuration').value=data.breakDurationMinutes||'';$('days').innerHTML=DAYS.map((d,i)=>'<label><input type="checkbox" value="'+i+'" '+(data.days.includes(i)?'checked':'')+'>'+d+'</label>').join('');
-$('teacherList').innerHTML=table(data.teachers.map((x,i)=>[x,data.requirements.filter(r=>r.teacher===x).length+' توزيع/توزيعات','<button class="danger" onclick="removeItem(\\'teachers\\','+i+')">حذف المعلم</button>']),['المعلم','التوزيعات','إجراء']);
-$('classList').innerHTML=table(data.classes.map((x,i)=>[x,'<button class="danger" onclick="removeItem(\\'classes\\','+i+')">حذف</button>']),['الصف / الشعبة','إجراء']);
+$('teacherList').innerHTML=table(data.teachers.map((x,i)=>[x,data.requirements.filter(r=>r.teacher===x).length+' توزيع/توزيعات','<button class="danger" onclick="removeItem(\'teachers\','+i+')">حذف المعلم</button>']),['المعلم','التوزيعات','إجراء']);
+$('classList').innerHTML=table(data.classes.map((x,i)=>[x,'<button class="danger" onclick="removeItem(\'classes\','+i+')">حذف</button>']),['الصف / الشعبة','إجراء']);
 const opts=(arr,placeholder)=>'<option value="">'+placeholder+'</option>'+arr.map(x=>'<option>'+esc(x)+'</option>').join('');
 $('blockedTeacher').innerHTML=opts(data.teachers,'اختر المعلم');
 renderTeacherSubjectRows();
 $('blockedDayPeriods').innerHTML=data.days.map(day=>'<div style="border:1px solid var(--line);border-radius:9px;padding:10px"><b>'+DAYS[day]+'</b><div class="checkgrid">'+Array.from({length:+(data.dayPeriodLimits?.[DAYS[day]]??data.periods)},(_,i)=>'<label><input type="checkbox" data-block-day="'+day+'" value="'+(i+1)+'">الحصة '+(i+1)+'</label>').join('')+'</div></div>').join('');
-$('reqList').innerHTML=table(data.requirements.map((r,i)=>[r.teacher,r.subject,r.class,r.count,r.language||'غير محددة','<button class="danger" onclick="removeItem(\\'requirements\\','+i+')">حذف</button>']),['المعلم','المادة','الصف / الشعبة','الحصص أسبوعياً','لغة التدريس','إجراء']);
+$('reqList').innerHTML=table(data.requirements.map((r,i)=>[r.teacher,r.subject,r.class,r.count,r.language||'غير محددة','<button class="danger" onclick="removeItem(\'requirements\','+i+')">حذف</button>']),['المعلم','المادة','الصف / الشعبة','الحصص أسبوعياً','لغة التدريس','إجراء']);
 const blockGroups=new Map();data.blocked.forEach((b,i)=>{const key=b.teacher+'|'+b.day;if(!blockGroups.has(key))blockGroups.set(key,{teacher:b.teacher,day:b.day,periods:[],indices:[]});const g=blockGroups.get(key);g.periods.push(b.period);g.indices.push(i)});$('blockList').innerHTML=table([...blockGroups.values()].map(g=>[g.teacher,DAYS[g.day],g.periods.sort((a,b)=>a-b).map(p=>'الحصة '+p).join('، '),'<button class="danger" onclick="removeBlockGroup('+JSON.stringify(g.indices)+')">حذف</button>']),['المعلم','اليوم','الأوقات غير المتاحة','إجراء']);
 }
 let teacherSubjectRowCount=0;
