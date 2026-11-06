@@ -11,7 +11,7 @@ from typing import Any
 from fastapi import APIRouter, Body, File, HTTPException, UploadFile
 from starlette.concurrency import run_in_threadpool
 
-from app.local_timetable_reader import read_timetable
+from app.local_timetable_reader import read_timetable, read_pasted_timetable
 from app.timetable_solver import solve_timetable
 
 router = APIRouter(prefix="/timetable", tags=["timetable"])
