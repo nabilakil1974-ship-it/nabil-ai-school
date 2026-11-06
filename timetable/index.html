@@ -288,6 +288,9 @@ $('clearPasted').onclick=()=>{
 };
 window.addEventListener('pagehide',()=>stopNabilVoice(false));
 
+function saveIntakeText(){try{localStorage.setItem('nabil-timetable-intake-draft',$('pastedTimetable').value)}catch(e){}}
+$('pastedTimetable').addEventListener('input',saveIntakeText);
+try{const draft=localStorage.getItem('nabil-timetable-intake-draft');if(draft&&!$('pastedTimetable').value)$('pastedTimetable').value=draft}catch(e){}
 $('analyzeSpoken').onclick=async()=>{
  const spoken=$('pastedTimetable').value.trim();
  if(!spoken){$('uploadStatus').className='status err';$('uploadStatus').textContent='تحدث بالميكروفون أو اكتب معلومة أولاً.';return}
