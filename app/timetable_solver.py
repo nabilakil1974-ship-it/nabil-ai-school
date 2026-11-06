@@ -13,6 +13,14 @@ from typing import Any
 def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
     days = list(dict.fromkeys(int(x) for x in payload.get("days", [])))
     periods = int(payload.get("periods", 0))
+    raw_limits = payload.get("day_period_limits") or {}
+    day_period_limits = {}
+    for day in days:
+        value = raw_limits.get(str(day), raw_limits.get(day, periods))
+        try:
+            day_period_limits[day] = max(1, min(periods, int(value)))
+        except (TypeError, ValueError):
+            day_period_limits[day] = periods
     teachers = {str(x).strip() for x in payload.get("teachers", []) if str(x).strip()}
     classes = {str(x).strip() for x in payload.get("classes", []) if str(x).strip()}
     requirements = payload.get("requirements") or []
@@ -40,12 +48,12 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
                      for n in range(count))
 
     per_class = Counter(t["class"] for t in tasks)
-    capacity = len(days) * periods
+    capacity = sum(day_period_limits.get(day, periods) for day in days)
     over = {c: n for c, n in per_class.items() if n > capacity}
     if over:
         return {"ok": False, "status": "infeasible", "message": "نصاب إحدى الشعب يتجاوز عدد خانات الدوام المتاحة.", "details": over}
 
-    slots = [(d, p) for d in days for p in range(1, periods + 1)]
+    slots = [(d, p) for d in days for p in range(1, day_period_limits.get(d, periods) + 1)]
     candidates = []
     for task in tasks:
         valid = [(d, p) for d, p in slots if (task["teacher"], d, p) not in blocked]
@@ -139,6 +147,8 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
         violations.append("class_double_booking")
     if any((x["teacher"], x["day"], x["period"]) in blocked for x in schedule):
         violations.append("teacher_unavailable")
+    if any(x["period"] > day_period_limits.get(x["day"], periods) for x in schedule):
+        violations.append("outside_daily_period_limit")
     if len(schedule) != len(tasks):
         violations.append("missing_lessons")
     if violations:
