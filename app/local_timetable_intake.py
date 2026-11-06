@@ -265,7 +265,7 @@ def parse_spoken_school_intake(text: str) -> dict[str, Any]:
             cm = re.search(r"(ثمانية|ثماني|ثمان|سبعة|سبع|ستة|ست|خمسة|خمس|اربعة|اربع|ثلاثة|ثلاث|اثنتين|اثنين|واحد|واحدة|[1-9])\s*(?:حصص|حصة)", _norm(segment))
             if cm:
                 count = _number(cm.group(1))
-        if count is None and re.search(r"ساعة\s+ساعة", _norm(segment)):
+        if count is None and re.search(r"(?:ساعة\s+ساعة|حصة\s+واحدة|ساعة\s+واحدة)", _norm(segment)):
             count = 1
 
         declared_weekly = None
