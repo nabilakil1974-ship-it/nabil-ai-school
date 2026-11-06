@@ -2,9 +2,6 @@ name: Deploy NABIL School Timetable
 on:
   push:
     branches: [main]
-    paths:
-      - "timetable/**"
-      - ".github/workflows/pages.yml"
   workflow_dispatch:
 permissions:
   contents: read
