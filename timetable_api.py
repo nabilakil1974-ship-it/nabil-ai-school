@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pathlib import Path
+import os
 from app.api import routes_timetable
 
 app = FastAPI(title="NABIL School Timetable Analyzer")
@@ -24,7 +25,7 @@ def school_app():
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "service": "NABIL timetable analyzer"}
+    return {"status": "ok", "service": "NABIL timetable analyzer", "nabil_engine_configured": bool(os.getenv("NABIL_EXECUTIVE_API_URL") and os.getenv("NABIL_EXECUTIVE_API_KEY"))}
 
 # Serve the school-facing web app from the same public Render URL.
 # Keep this mount last so it cannot shadow the /api routes above.
