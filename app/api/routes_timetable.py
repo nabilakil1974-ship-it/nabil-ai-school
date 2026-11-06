@@ -4,11 +4,6 @@ from __future__ import annotations
 import io
 import json
 import logging
-import base64
-import os
-import time
-import urllib.request
-import urllib.error
 import re
 from collections import defaultdict
 from typing import Any
@@ -16,7 +11,7 @@ from typing import Any
 from fastapi import APIRouter, Body, File, HTTPException, UploadFile
 from starlette.concurrency import run_in_threadpool
 
-from app.services.ai_gateway import get_ai_gateway
+from app.local_timetable_reader import read_timetable
 from app.timetable_solver import solve_timetable
 
 router = APIRouter(prefix="/timetable", tags=["timetable"])
@@ -186,62 +181,6 @@ def _audit(parsed: dict[str, Any]) -> dict[str, Any]:
         "solutions_note": "البدائل تُحسب من الخانات المستخرجة فقط. راجع دقة قراءة الصورة والقيود قبل اعتماد أي نقل.",
     }
 
-def _call_nabil_engine(*, image_bytes: bytes | None, mime: str, text: str = "") -> str:
-    """Send school data to the authenticated NABIL Executive AI vision/text endpoint."""
-    base = os.getenv("NABIL_EXECUTIVE_API_URL", "").rstrip("/")
-    secret = os.getenv("NABIL_EXECUTIVE_API_KEY", "")
-    if not base or not secret:
-        raise RuntimeError("NABIL_EXECUTIVE_API_URL / NABIL_EXECUTIVE_API_KEY are not configured")
-    payload = {
-        "instructions": TIMETABLE_INSTRUCTIONS,
-        "text": text,
-        "mimeType": mime,
-        "imageBase64": base64.b64encode(image_bytes).decode("ascii") if image_bytes else "",
-    }
-    last_error = None
-    for attempt in range(3):
-        request = urllib.request.Request(
-            base + "/api/internal/timetable/analyze",
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json", "X-NABIL-Internal-Key": secret},
-            method="POST",
-        )
-        try:
-            with urllib.request.urlopen(request, timeout=100) as response:
-                result = json.loads(response.read().decode("utf-8"))
-            break
-        except urllib.error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", "replace")[:500]
-            if exc.code == 429 and attempt < 2:
-                retry_header = exc.headers.get("Retry-After", "") if exc.headers else ""
-                try:
-                    wait_seconds = max(1, min(10, int(retry_header)))
-                except (TypeError, ValueError):
-                    wait_seconds = 2 ** (attempt + 1)
-                logger.warning("NABIL engine rate limited request; retry %s/2 after %ss", attempt + 1, wait_seconds)
-                time.sleep(wait_seconds)
-                last_error = exc
-                continue
-            if exc.code == 429:
-                raise RuntimeError("NABIL engine HTTP 429: الخدمة مشغولة حالياً بعد عدة محاولات.") from exc
-            if exc.code == 401:
-                raise RuntimeError("NABIL engine HTTP 401: تعذر التحقق من الاتصال الداخلي بين الخادمين.") from exc
-            raise RuntimeError(f"NABIL engine returned HTTP {exc.code}: {detail}") from exc
-        except (urllib.error.URLError, TimeoutError) as exc:
-            if attempt < 2:
-                wait_seconds = 2 ** (attempt + 1)
-                logger.warning("NABIL engine network error; retry %s/2 after %ss", attempt + 1, wait_seconds)
-                time.sleep(wait_seconds)
-                last_error = exc
-                continue
-            raise RuntimeError("تعذر الاتصال بمحرك نبيل بعد عدة محاولات.") from exc
-    else:
-        raise RuntimeError("تعذر الاتصال بمحرك نبيل.") from last_error
-    if not result.get("ok") or not result.get("output"):
-        raise RuntimeError(str(result.get("error") or "NABIL returned no analysis"))
-    return str(result["output"])
-
-
 def _docx_to_text(data: bytes) -> str:
     try:
         from docx import Document
@@ -276,53 +215,39 @@ def _xlsx_to_text(data: bytes) -> str:
 
 @router.post("/analyze")
 async def analyze_timetable(file: UploadFile = File(...)):
+    """Read supported timetable files locally; this endpoint never calls a hosted LLM."""
     filename = (file.filename or "").lower()
     data = await file.read(MAX_UPLOAD_BYTES + 1)
     if not data:
         raise HTTPException(status_code=400, detail="الملف فارغ.")
     if len(data) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="حجم الملف أكبر من 15 ميغابايت.")
-    image_bytes = None
-    mime = file.content_type or "application/octet-stream"
-    prompt = "حلّل ملف جدول الدوام المرفق واستخرج JSON المطلوب بدقة. أعطني جميع الحصص، لا تكتفِ بملخص."
-    if filename.endswith((".png", ".jpg", ".jpeg", ".webp")) or mime in {"image/png", "image/jpeg", "image/webp"}:
-        if mime not in {"image/png", "image/jpeg", "image/webp"}:
-            mime = "image/jpeg" if filename.endswith((".jpg", ".jpeg")) else "image/png"
-        image_bytes = data
-    elif filename.endswith(".docx") or mime == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-        prompt += "\n\nنص ملف Word وجدوله كما استُخرج: \n" + _docx_to_text(data)
-    elif filename.endswith(".xlsx") or mime == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
-        prompt += "\n\nبيانات جميع أوراق ملف Excel كما استُخرجت: \n" + _xlsx_to_text(data)
+    if filename.endswith((".png", ".jpg", ".jpeg", ".webp")):
+        kind = "image"
+    elif filename.endswith(".docx"):
+        kind = "docx"
+    elif filename.endswith(".xlsx"):
+        kind = "xlsx"
     else:
         raise HTTPException(status_code=415, detail="الملفات المدعومة: JPG أو PNG أو WEBP أو Word DOCX أو Excel XLSX.")
-
     try:
-        doc_text = (_docx_to_text(data) if filename.endswith(".docx") or mime == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" else _xlsx_to_text(data) if filename.endswith(".xlsx") or mime == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" else "")
-        raw = await run_in_threadpool(
-            _call_nabil_engine,
-            image_bytes=image_bytes,
-            mime=mime,
-            text=doc_text,
-        )
-        parsed = _extract_json(raw)
+        parsed = await run_in_threadpool(read_timetable, data, kind)
         result = _audit(parsed)
         if not result["entries"]:
             raise HTTPException(status_code=422, detail={
-                "message": "لم يتمكن نبيل من استخراج حصص واضحة. جرّب صورة أوضح أو ملف Word.",
+                "message": "لم يستخرج نبيل حصصاً مكتملة. راجع تنسيق الملف وعناوين أعمدته.",
                 "unreadable": result["unreadable"], "notes": result["notes"],
             })
-        result["engine"] = "NABIL Executive AI"
+        result["engine"] = "NABIL Local Engine"
+        result["external_ai_used"] = False
         return result
     except HTTPException:
         raise
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:
-        logger.exception("TIMETABLE_ANALYSIS_FAILED")
-        message = str(exc)
-        if "HTTP 429" in message:
-            raise HTTPException(status_code=503, detail="محرك نبيل مشغول مؤقتاً. انتظر دقيقة ثم أعد المحاولة؛ لم يتم حذف الملف أو اعتماد نتيجة ناقصة.") from exc
-        if "HTTP 401" in message:
-            raise HTTPException(status_code=503, detail="تعذر الاتصال الآمن بين خادمي نبيل. يجري التحقق من إعدادات الربط.") from exc
-        raise HTTPException(status_code=503, detail="تعذر على نبيل إكمال تحليل الملف. أعد المحاولة لاحقاً.") from exc
+        logger.exception("LOCAL_TIMETABLE_ANALYSIS_FAILED")
+        raise HTTPException(status_code=422, detail="تعذرت القراءة المحلية للملف: " + str(exc)) from exc
 
 
 @router.post("/generate")
