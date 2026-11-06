@@ -191,6 +191,10 @@ $('analyzeSpoken').onclick=async()=>{
   const response=await fetch('/api/timetable/intake-text',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,known_classes:$('knownClasses').value.split(/[،,;؛\r\n]+/).map(x=>x.trim()).filter(Boolean)})});
   const result=await response.json();
   if(!response.ok)throw new Error(typeof result.detail==='string'?result.detail:'تعذر تنظيم وصف المدير.');
+  // A new intake is a new school draft: never leave a previously saved timetable
+  // visible as if it had been generated from the newly dictated information.
+  data={school:$('school').value.trim()||'مدرسة جديدة',days:[],periods:1,periodDurationMinutes:null,breakStart:'',breakDurationMinutes:null,teachers:[],classes:[],requirements:[],blocked:[],schedule:[],dayPeriodLimits:{}};
+  persist();render();drawSchedule();
   const escText=s=>String(s??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   const dayNames=['الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت','الأحد'];
   let out='<div class="status '+(result.ready_for_generation?'ok':'warn')+'"><b>مسودة بيانات المدرسة — تحليل محلي</b><br>لم يتم إنشاء جدول نهائي بعد؛ راجع المعلومات والنواقص.</div>';
@@ -209,10 +213,12 @@ $('analyzeSpoken').onclick=async()=>{
   if(result.unresolved_scopes?.length){out+='<h3>شعب تحتاج إلى تحديد</h3><ul>'+result.unresolved_scopes.map(x=>'<li>'+escText(x.teacher)+': '+escText(x.grades.join('، '))+' — '+escText(x.reason)+'</li>').join('')+'</ul>';}
   if(result.warnings?.length){out+='<h3>أسئلة ونواقص قبل إنشاء الجدول</h3><ul>'+result.warnings.map(x=>'<li>'+escText(x)+'</li>').join('')+'</ul>';}
   out+='<p class="small">المحرك: '+escText(result.engine)+' — استخدام ذكاء اصطناعي خارجي: لا.</p>';
-  out+='<div class="actions"><button class="primary" id="applySpokenDraft">اعتماد هذه المسودة وإدخالها إلى البرنامج</button></div>';
+  out+='<div class="actions"><button class="primary" id="applySpokenDraft" '+(result.ready_for_generation?'':'disabled title="لا يمكن الاعتماد قبل تصحيح البيانات الناقصة أو الملتبسة"')+'>اعتماد هذه المسودة وإدخالها إلى البرنامج</button></div>';
+  if(!result.ready_for_generation)out+='<p class="status err">أوقف نبيل الاعتماد الآلي: توجد بيانات غير مؤكدة. صحّح النص وأعد التحليل؛ لن يُستخدم الجدول المحفوظ سابقاً بديلاً عن هذه المسودة.</p>';
   $('analysisOutput').innerHTML=out;
   $('applySpokenDraft').onclick=()=>{
-   data={...data,school:$('school').value.trim()||'مدرسة جديدة',days:result.days||[],periods:Math.max(1,...Object.values(result.day_period_limits||{}).map(Number)),dayPeriodLimits:result.day_period_limits||{},periodDurationMinutes:result.period_duration_minutes||null,breakStart:result.break_start||'',breakDurationMinutes:result.break_duration_minutes||null,teachers:result.teachers||[],classes:result.classes||[],requirements:result.requirements||[],blocked:result.blocked||[],schedule:[]};
+   if(!result.ready_for_generation){show('لم يعتمد نبيل المسودة لأن البيانات غير مكتملة أو ملتبسة.','err');return}
+   data={school:$('school').value.trim()||'مدرسة جديدة',days:result.days||[],periods:Math.max(1,...Object.values(result.day_period_limits||{}).map(Number)),dayPeriodLimits:result.day_period_limits||{},periodDurationMinutes:result.period_duration_minutes||null,breakStart:result.break_start||'',breakDurationMinutes:result.break_duration_minutes||null,teachers:result.teachers||[],classes:result.classes||[],requirements:result.requirements||[],blocked:result.blocked||[],schedule:[]};
    persist();render();drawSchedule();show('تم اعتماد البيانات المستخرجة كمسودة. راجع إعداد الدوام والشعب والأنصبة، ثم اضغط «أنشئ البرنامج تلقائياً».','ok');document.querySelector('[data-tab="results"]').click();
   };
   $('uploadStatus').className=result.ready_for_generation?'status ok':'status warn';
