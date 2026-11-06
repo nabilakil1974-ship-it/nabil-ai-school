@@ -429,8 +429,29 @@ async def export_timetable_xlsx(payload: dict[str, Any] = Body(...)):
         from openpyxl.utils import get_column_letter
 
         schedule = payload.get("schedule") or []
+        requirements = payload.get("requirements") or []
         if not isinstance(schedule, list):
             raise HTTPException(status_code=400, detail="بيانات الجدول غير صالحة.")
+
+        def lesson_subject(lesson: dict[str, Any]) -> str:
+            subject = str(lesson.get("subject") or "").strip()
+            teacher = str(lesson.get("teacher") or "").strip()
+            cls = str(lesson.get("class") or "").strip()
+            matching = [r for r in requirements if isinstance(r, dict)
+                        and str(r.get("teacher") or "").strip() == teacher
+                        and str(r.get("class") or "").strip() == cls
+                        and (not subject or str(r.get("subject") or "").strip() == subject)]
+            if not matching:
+                matching = [r for r in requirements if isinstance(r, dict)
+                            and str(r.get("teacher") or "").strip() == teacher
+                            and str(r.get("class") or "").strip() == cls]
+            if matching:
+                req = matching[0]
+                subject = str(req.get("subject") or subject).strip()
+                language = str(req.get("language") or lesson.get("language") or "").strip()
+                if language and subject:
+                    subject = re.sub(r"\\s*[-–—,/|]?\\s*" + re.escape(language) + r"\\s*$", "", subject, flags=re.I).strip()
+            return subject
         if not payload.get("days"):
             raise HTTPException(status_code=400, detail="حدد أيام الدوام أولاً.")
         day_names = ["الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"]
@@ -517,7 +538,7 @@ async def export_timetable_xlsx(payload: dict[str, Any] = Body(...)):
                                and int(x.get("day", -1)) == day_id
                                and int(x.get("period", -1)) == period]
                     row.append("\n".join(
-                        safe_text(x.get("subject")) + ("\n" if x.get("subject") and x.get("teacher") else "")
+                        safe_text(lesson_subject(x)) + ("\\n" if lesson_subject(x) and x.get("teacher") else "")
                         + safe_text(x.get("teacher"))
                         for x in lessons
                     ))
