@@ -175,6 +175,8 @@ def _explicit_classes(segment: str) -> list[str]:
         sections = []
         for token in tokens:
             key = _norm(token)
+            if key.startswith("و") and key[1:] in section_aliases:
+                key = key[1:]
             if key in section_aliases:
                 section = section_aliases[key]
                 if section not in sections:
