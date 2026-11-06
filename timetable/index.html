@@ -14,7 +14,7 @@
 <main>
 <div class="notice"><b>كيف تبدأ؟</b> أضف المعلمين والصفوف، ثم أدخل مواد كل صف وعدد حصصها الأسبوعية واسم معلمها. حدّد أيام الدوام والحصص، ثم اضغط «أنشئ البرنامج». يحاول النظام توزيع الحصص من دون وضع المعلم أو الصف في حصتين في الوقت نفسه.</div>
 <div class="tabs"><button class="tab active" data-tab="settings">إعداد الدوام</button><button class="tab" data-tab="teachers">المعلمون</button><button class="tab" data-tab="classes">الصفوف والشعب</button><button class="tab" data-tab="subjects">المواد والحصص</button><button class="tab" data-tab="results">البرنامج الناتج</button></div>
-<section class="panel active" id="settings"><h2>إعداد أيام الدوام والحصص</h2><div class="field"><label>أيام الدوام</label><div class="checkgrid" id="days"></div></div><div class="grid" style="margin-top:14px"><div class="field"><label>عدد الحصص في اليوم</label><input id="periods" type="number" min="1" max="12" value="6"></div><div class="field"><label>اسم المدرسة</label><input id="school" value="المدرسة الرسمية"></div></div><div class="actions"><button class="primary" id="saveSettings">حفظ إعدادات الدوام</button></div></section>
+<section class="panel active" id="settings"><h2>إعداد أيام الدوام والحصص</h2><div class="field"><label>أيام الدوام</label><div class="checkgrid" id="days"></div></div><div class="grid" style="margin-top:14px"><div class="field"><label>عدد الحصص في اليوم</label><input id="periods" type="number" min="1" max="12" value="6"></div><div class="field"><label>اسم المدرسة</label><input id="school" value="المدرسة الرسمية"></div></div><div class="actions"><button class="primary" id="loadDemo">تحميل نموذج مدرسة من الأول إلى التاسع</button><button class="secondary" id="saveSettings">حفظ إعدادات الدوام</button></div><p class="small">النموذج يضيف صفوف الأول الأساسي حتى التاسع، ومواداً وحصصاً أسبوعية ومعلمين افتراضيين. يمكنك تعديله أو حذفه بعد التحميل.</p></section>
 <section class="panel" id="teachers"><h2>إضافة المعلمين</h2><div class="grid"><div class="field"><label>اسم المعلم</label><input id="teacherName" placeholder="مثلاً: نبيل عقيل"></div></div><div class="actions"><button class="primary" id="addTeacher">إضافة المعلم</button></div><div class="list" id="teacherList"></div></section>
 <section class="panel" id="classes"><h2>إضافة الصفوف والشعب</h2><div class="grid"><div class="field"><label>اسم الصف أو الشعبة</label><input id="className" placeholder="مثلاً: السابع أ"></div></div><div class="actions"><button class="primary" id="addClass">إضافة الصف</button></div><div class="list" id="classList"></div></section>
 <section class="panel" id="subjects"><h2>توزيع المواد والحصص الأسبوعية</h2><div class="grid"><div class="field"><label>الصف / الشعبة</label><select id="reqClass"></select></div><div class="field"><label>المادة</label><input id="subjectName" placeholder="الرياضيات"></div><div class="field"><label>المعلم</label><select id="reqTeacher"></select></div><div class="field"><label>عدد الحصص أسبوعياً</label><input id="weekly" type="number" min="1" max="30" value="4"></div></div><div class="actions"><button class="primary" id="addReq">إضافة التوزيع</button></div><div class="list" id="reqList"></div><h2 style="margin-top:22px">أوقات عدم توافر المعلم (اختياري)</h2><div class="grid"><div class="field"><label>المعلم</label><select id="blockedTeacher"></select></div><div class="field"><label>اليوم</label><select id="blockedDay"></select></div><div class="field"><label>رقم الحصة</label><select id="blockedPeriod"></select></div></div><div class="actions"><button class="secondary" id="addBlock">إضافة وقت غير متاح</button></div><div class="list" id="blockList"></div></section>
@@ -39,6 +39,28 @@ function table(rows,heads){if(!rows.length)return '<p class="small">لا توج�
 window.removeItem=(key,i)=>{data[key].splice(i,1);data.schedule=[];persist();render()};
 document.querySelectorAll('.tab[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab[data-tab]').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.panel').forEach(x=>x.classList.toggle('active',x.id===b.dataset.tab))});
 document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{view=b.dataset.view;document.querySelectorAll('[data-view]').forEach(x=>x.classList.toggle('active',x===b));drawSchedule()});
+const demoStages=[
+ {grades:[1,2,3],subjects:[['اللغة العربية',7],['اللغة الفرنسية',5],['اللغة الإنجليزية',3],['الرياضيات',6],['العلوم',2],['الاجتماعيات',2],['التربية الفنية',1],['الموسيقى',1],['التربية البدنية',2],['التربية والقيم',1]],teachers:['سمر الخطيب','رنا مراد','جاد سليم','مازن حمود','هبة ناصر','فادي خليل','ليلى حيدر','ندى منصور','طارق شهاب','منى درويش']},
+ {grades:[4,5,6],subjects:[['اللغة العربية',6],['اللغة الفرنسية',5],['اللغة الإنجليزية',4],['الرياضيات',6],['العلوم',3],['الاجتماعيات',2],['التربية الفنية',1],['الموسيقى',1],['التربية البدنية',1],['التربية والقيم',1]],teachers:['ميساء يونس','كارلا عون','رامي شرف','وسام عيسى','دلال حيدر','جورج نصر','يارا صعب','هاني ديب','باسل شاهين','منى شمس']},
+ {grades:[7,8,9],subjects:[['اللغة العربية',5],['اللغة الفرنسية',5],['اللغة الإنجليزية',5],['الرياضيات',6],['الفيزياء',2],['الكيمياء',1],['علوم الحياة',1],['التاريخ',1],['الجغرافيا',1],['التربية الوطنية',1],['التربية الفنية',1],['التربية البدنية',1]],teachers:['نبيل عاقل','نادين خوري','شادي منصور','فؤاد حمود','هلا سليم','بيار رزق','رولا ناصر','جمال حيدر','سوزان مراد','إيلي فارس','ميساء دياب','كريم شهاب']}
+];
+function loadDemo(){
+ const yes=confirm('سيتم استبدال البيانات الحالية بهذا النموذج التجريبي. هل تريد المتابعة؟');if(!yes)return;
+ const classes=Array.from({length:9},(_,i)=>['الأول','الثاني','الثالث','الرابع','الخامس','السادس','السابع','الثامن','التاسع'][i]+' الأساسي');
+ const teachers=[],requirements=[];
+ for(let si=0;si<demoStages.length;si++){
+  const stage=demoStages[si];
+  stage.teachers.forEach(t=>{if(!teachers.includes(t))teachers.push(t)});
+  for(const grade of stage.grades){
+   const cls=classes[grade-1];
+   stage.subjects.forEach((item,i)=>requirements.push({class:cls,subject:item[0],count:item[1],teacher:stage.teachers[i]}));
+  }
+ }
+ data={school:'المدرسة الرسمية المختلطة – نموذج تجريبي',days:[0,1,2,3,4],periods:6,teachers,classes,requirements,blocked:[],schedule:[]};
+ persist();render();show('تم تحميل نموذج تجريبي لـ 9 صفوف: '+classes.length+' صفوف، '+teachers.length+' معلماً افتراضياً، '+requirements.length+' توزيعاً للمواد. اضغط «أنشئ البرنامج تلقائياً» لاختبار الجدولة.','ok');
+ document.querySelector('[data-tab="teachers"]').click();
+}
+$('loadDemo').onclick=loadDemo;
 $('saveSettings').onclick=()=>{data.school=$('school').value.trim()||'المدرسة الرسمية';data.periods=Math.max(1,Math.min(12,+$('periods').value||6));data.days=[...$('days').querySelectorAll('input:checked')].map(x=>+x.value);if(!data.days.length)return alert('اختر يوم دوام واحداً على الأقل');data.schedule=[];persist();render();alert('تم حفظ إعدادات الدوام')};
 $('addTeacher').onclick=()=>{let v=$('teacherName').value.trim();if(!v)return alert('اكتب اسم المعلم');if(data.teachers.includes(v))return alert('المعلم موجود');data.teachers.push(v);$('teacherName').value='';persist();render()};
 $('addClass').onclick=()=>{let v=$('className').value.trim();if(!v)return alert('اكتب اسم الصف');if(data.classes.includes(v))return alert('الصف موجود');data.classes.push(v);$('className').value='';persist();render()};
