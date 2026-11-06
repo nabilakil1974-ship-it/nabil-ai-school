@@ -150,11 +150,11 @@ def _free_clause(st, teacher, text, log, mode):
     return True
 
 
-def apply(state: dict[str, Any], text: str) -> dict[str, Any]:
+def apply(state: dict[str, Any], text: str, confirm: bool = False) -> dict[str, Any]:
     """Apply one utterance (may hold several clauses). Returns {state, changes, questions, answer}."""
     st = copy.deepcopy(state or new_state())
     st.setdefault("undo", []); st.setdefault("log", []); st.setdefault("context", {"teacher": None})
-    changes: list[dict] = []; questions: list[str] = []; answers: list[str] = []
+    changes: list[dict] = []; questions: list[str] = []; answers: list[str] = []; wide: list[str] = []
     snapshot = _clone(st)
     clauses = [c.strip(" ،") for c in re.split(r"[.\n]+|\s*،\s*(?=و?(?:خلي|ضيف|شيل|احذف|الغ|عدل|غير|رجع|ارجع|فرجيني|قديش|شو)\b)|\s+و(?=(?:خلي|ضيف|شيل|احذف|الغ|عدل|غير|رجع|فرجيني|قديش|شو)\b)", norm(text).replace("،", "،")) if c and c.strip(" ،")]
     for clause in clauses:
@@ -191,6 +191,30 @@ def apply(state: dict[str, Any], text: str) -> dict[str, Any]:
                 old = st["periods_per_day"]; st["periods_per_day"] = _num(m.group(1))
                 changes.append({"type": "periods_per_day", "target": "periods_per_day", "old": old, "new": st["periods_per_day"], "reason": "عدد الحصص اليومية", "clarity": "clear", "valid": True})
             if ds or m: continue
+        # ---- WIDE deletions need an explicit confirmation (impact is shown first; nothing changes until confirmed)
+        mt = re.search(r"^(?:احذف|شيل|الغ|امسح)\s+(?:ال)?(?:استاذه|استاذ|معلمه|معلم)\s+(\S+)\s*$", c)
+        ma = re.search(r"^(?:احذف|شيل|الغ|امسح)\s+(?:كل|جميع)\s+(?:ال)?(مواد|ايام|معلمين|شعب)(?:\s+عن\s+(\S+))?\s*$", c)
+        if mt or ma:
+            if mt:
+                t = _teacher_key(st, mt.group(1))
+                if not t: questions.append(f"لا أجد معلماً باسم «{mt.group(1)}»."); continue
+                tv = st["teachers"][t]; impact = f"حذف المعلم {t} نهائياً مع {len(tv['assignments'])} مادة وأوقات فراغه."
+                if not confirm: wide.append(impact); continue
+                old = copy.deepcopy(tv); del st["teachers"][t]; ctx["teacher"] = None if ctx.get("teacher") == t else ctx.get("teacher")
+                changes.append({"type": "teacher_remove", "target": t, "old": old, "new": None, "reason": "حذف معلم بتأكيد المدير", "clarity": "confirmed", "valid": True}); continue
+            kind = ma.group(1)
+            if kind == "ايام":
+                impact = f"حذف كل أيام الدوام ({len(st['days'])} يوم)."
+                if not confirm: wide.append(impact); continue
+                old = list(st["days"]); st["days"] = []; changes.append({"type": "days_clear", "target": "days", "old": old, "new": [], "reason": "حذف واسع بتأكيد المدير", "clarity": "confirmed", "valid": True}); continue
+            if kind == "مواد":
+                t = _teacher_key(st, ma.group(2)) if ma.group(2) else None
+                if not t: questions.append("حذف كل المواد عن أي معلم؟ اذكر اسمه."); continue
+                n = len(st["teachers"][t]["assignments"]); impact = f"حذف كل مواد {t} ({n} مادة) مع بقاء المعلم وأوقات فراغه."
+                if not confirm: wide.append(impact); continue
+                old = copy.deepcopy(st["teachers"][t]["assignments"]); st["teachers"][t]["assignments"] = []
+                changes.append({"type": "subjects_clear", "target": t, "old": old, "new": [], "reason": "حذف مواد المعلم بتأكيد المدير؛ المعلم باقٍ", "clarity": "confirmed", "valid": True}); continue
+            questions.append("حدّد بدقة ما تريد حذفه."); continue
         # ---- delete subject / section
         m = re.search(r"(?:احذف|شيل|الغ|امسح)\s+(?:ال?)?(\S+(?:\s+\S+)?)\s+عن\s+(.+)", c)
         if m:
@@ -274,15 +298,17 @@ def apply(state: dict[str, Any], text: str) -> dict[str, Any]:
             continue
         # ---- unknown clause: never guess
         questions.append(f"لم أفهم: «{clause}». أعد الصياغة أو اكتبها بأسماء الأيام/المعلم/المادة.")
+    if wide:
+        return {"state": state, "changes": [], "questions": questions, "answers": answers, "confirm_needed": {"text": text, "impact": wide}}
     # validation layer: refuse to commit an invalid state
     problems = _validate(st)
     if problems:
-        return {"state": state, "changes": [], "questions": questions + ["رُفض التعديل لأن البيانات صارت غير صالحة: " + "؛ ".join(problems)], "answers": answers}
+        return {"state": state, "changes": [], "questions": questions + ["رُفض التعديل لأن البيانات صارت غير صالحة: " + "؛ ".join(problems)], "answers": answers, "confirm_needed": None}
     effective = [ch for ch in changes if ch.get("type") != "undo" or True]
     if changes and not any(ch["type"] == "undo" for ch in changes):
         st["undo"].append(snapshot); st["undo"] = st["undo"][-30:]
     st["log"].extend(changes); st["log"] = st["log"][-200:]
-    return {"state": st, "changes": effective, "questions": questions, "answers": answers}
+    return {"state": st, "changes": effective, "questions": questions, "answers": answers, "confirm_needed": ({"text": text, "impact": wide} if wide else None)}
 
 
 def _validate(st) -> list[str]:

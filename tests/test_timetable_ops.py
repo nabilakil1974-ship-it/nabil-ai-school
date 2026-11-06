@@ -43,6 +43,13 @@ class Ops(unittest.TestCase):
     def test_ambiguity_asks_and_changes_nothing(self):
         s, rs = run(["الأستاذ سمر بيدرس علوم للثامن"]); self.assertTrue(any('الشعب' in q for q in rs[0]['questions']))
         s, rs = run(["بلا بلا بلا"], new_state()); self.assertTrue(rs[0]['questions']); self.assertEqual(rs[0]['state']['teachers'], {})
+    def test_wide_delete_needs_confirmation(self):
+        s, _ = run(DIALOGUE)
+        r = apply(s, "احذف الأستاذ نبيل"); self.assertTrue(r['confirm_needed']); self.assertIn('نبيل', r['state']['teachers'])
+        r2 = apply(s, "احذف الأستاذ نبيل", confirm=True); self.assertNotIn('نبيل', r2['state']['teachers'])
+        r3 = apply(s, "احذف كل المواد عن نبيل"); self.assertTrue(r3['confirm_needed']); self.assertEqual(len(r3['state']['teachers']['نبيل']['assignments']), 1)
+        r4 = apply(s, "احذف كل المواد عن نبيل", confirm=True); self.assertIn('نبيل', r4['state']['teachers']); self.assertEqual(r4['state']['teachers']['نبيل']['assignments'], [])
+        self.assertEqual(r4['state']['teachers']['نبيل']['free']['الاثنين'], [1, 2, 3])      # teacher + free times survive
     def test_remove_day(self):
         s, _ = run(["عنا دوام الاثنين والثلاثاء والخميس", "شيل الثلاثاء"]); self.assertEqual(s['days'], ['الاثنين', 'الخميس'])
     def test_http_endpoint_roundtrip(self):

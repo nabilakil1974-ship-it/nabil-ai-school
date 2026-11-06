@@ -319,10 +319,10 @@ async def converse(payload: dict[str, Any] = Body(...)):
     state = payload.get("state") if isinstance(payload.get("state"), dict) else None
     if not text.strip():
         raise HTTPException(status_code=400, detail="النص فارغ.")
-    result = await run_in_threadpool(timetable_ops.apply, state or timetable_ops.new_state(), text)
+    result = await run_in_threadpool(timetable_ops.apply, state or timetable_ops.new_state(), text, bool(payload.get("confirm")))
     st = result["state"]
     return {
-        "ok": True, "state": st, "changes": result["changes"], "questions": result["questions"], "answers": result["answers"],
+        "ok": True, "state": st, "changes": result["changes"], "questions": result["questions"], "answers": result["answers"], "confirm_needed": result.get("confirm_needed"),
         "missing": timetable_ops.missing(st),
         "loads": {t: timetable_ops.load_of(st, t) for t in st["teachers"]},
         "engine": "local-rules", "external_ai": False,
