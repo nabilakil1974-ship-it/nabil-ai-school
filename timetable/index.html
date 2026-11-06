@@ -150,25 +150,20 @@ $('addTeacher').onclick=()=>{let v=$('teacherName').value.trim();if(!v)return al
 $('addClass').onclick=()=>{let v=$('className').value.trim();if(!v)return alert('اكتب اسم الصف');if(data.classes.includes(v))return alert('الصف موجود');data.classes.push(v);$('className').value='';persist();render()};
 $('addReq').onclick=()=>{let c=$('reqClass').value,t=$('reqTeacher').value,s=$('subjectName').value.trim(),n=+$('weekly').value;if(!c||!t||!s||n<1)return alert('أكمل بيانات الصف والمادة والمعلم وعدد الحصص');data.requirements.push({class:c,teacher:t,subject:s,count:n});data.schedule=[];$('subjectName').value='';persist();render()};
 $('addBlock').onclick=()=>{let teacher=$('blockedTeacher').value;if(!teacher)return alert('اختر المعلم');let b={teacher,day:+$('blockedDay').value,period:+$('blockedPeriod').value};if(!data.blocked.some(x=>x.teacher===b.teacher&&x.day===b.day&&x.period===b.period))data.blocked.push(b);data.schedule=[];persist();render()};
-function generate(){if(!data.days.length||!data.periods||!data.teachers.length||!data.classes.length||!data.requirements.length){show('أكمل إعداد الدوام وأضف معلماً وصفاً وتوزيعات المواد أولاً.','err');return}
-let tasks=[];for(const r of data.requirements){if(!data.teachers.includes(r.teacher)||!data.classes.includes(r.class)){show('يوجد توزيع مرتبط بمعلم أو صف محذوف. راجع البيانات.','err');return}for(let i=0;i<r.count;i++)tasks.push({...r,lesson:i+1})}
-const slots=[];for(const d of data.days)for(let p=1;p<=data.periods;p++)slots.push({day:d,period:p});
-if(tasks.length>slots.length*data.classes.length){show('عدد الحصص المطلوبة يتجاوز القدرة الزمنية للصفوف.','err');return}
-const blocked=new Set(data.blocked.map(b=>b.teacher+'|'+b.day+'|'+b.period));
-let best=null;
-for(let attempt=0;attempt<180;attempt++){
- let assigned=[],teacherBusy=new Set(),classBusy=new Set(),remaining=tasks.slice().sort((a,b)=>{const ca=slots.filter(s=>!blocked.has(a.teacher+'|'+s.day+'|'+s.period)).length,cb=slots.filter(s=>!blocked.has(b.teacher+'|'+s.day+'|'+s.period)).length;return ca-cb||Math.random()-.5});
- let failed=false;
- for(const task of remaining){let candidates=slots.filter(s=>!blocked.has(task.teacher+'|'+s.day+'|'+s.period)&&!teacherBusy.has(task.teacher+'|'+s.day+'|'+s.period)&&!classBusy.has(task.class+'|'+s.day+'|'+s.period));
- // Prefer spreading a subject across days and avoid excessive gaps
- candidates.sort((a,b)=>score(task,a,assigned)-score(task,b,assigned));
- if(!candidates.length){failed=true;break}
- let chosen=candidates[Math.floor(Math.random()*Math.min(3,candidates.length))];assigned.push({...task,...chosen});teacherBusy.add(task.teacher+'|'+chosen.day+'|'+chosen.period);classBusy.add(task.class+'|'+chosen.day+'|'+chosen.period);
- }
- if(!failed){best=assigned;break}
+async function generate(){
+ if(!data.days.length||!data.periods||!data.teachers.length||!data.classes.length||!data.requirements.length){show('أكمل إعداد الدوام وأضف معلماً وصفاً وتوزيعات المواد أولاً.','err');return}
+ const button=$('generate');button.disabled=true;show('نبيل يبني الجدول بمحرك القيود ويفحص جميع الحصص...','warn');
+ try{
+  const response=await fetch('/api/timetable/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({school:data.school,days:data.days,periods:data.periods,teachers:data.teachers,classes:data.classes,requirements:data.requirements,blocked:data.blocked})});
+  const result=await response.json();
+  if(!response.ok||!result.ok){const detail=result.detail||result;throw new Error(detail.message||'تعذر إيجاد جدول يحقق القيود.')}
+  if(!result.audit?.passed||result.scheduled_lessons!==result.requested_lessons)throw new Error('لم يجتز الجدول التدقيق النهائي؛ لم يتم اعتماده.');
+  data.schedule=result.schedule;persist();drawSchedule();
+  show('نجح إنشاء الجدول: '+result.scheduled_lessons+' من '+result.requested_lessons+' حصة. اجتاز فحص تعارض المعلمين والشعب وأوقات عدم التوافر. عدد خطوات البحث: '+result.search_nodes+'.','ok');
+  document.querySelector('[data-tab="results"]').click();
+ }catch(e){show('لم يُعتمد أي جدول: '+e.message,'err')}
+ finally{button.disabled=false}
 }
-if(!best){show('تعذّر إيجاد جدول يحقق جميع القيود. جرّب زيادة أيام الدوام أو عدد الحصص، أو راجع أوقات عدم توافر المعلمين وتوزيع الحصص. لم يتم اعتماد جدول جزئي.','err');return}
-data.schedule=best;persist();show('تم إنشاء برنامج كامل بنجاح: '+best.length+' حصة موزّعة، من دون تعارض للمعلم أو الصف. راجع الجداول قبل اعتمادها.','ok');drawSchedule();document.querySelector('[data-tab="results"]').click()}
 function score(task,s,assigned){let sameDay=assigned.filter(x=>x.class===task.class&&x.subject===task.subject&&x.day===s.day).length;let classDay=assigned.filter(x=>x.class===task.class&&x.day===s.day).map(x=>x.period);let teacherDay=assigned.filter(x=>x.teacher===task.teacher&&x.day===s.day).map(x=>x.period);let gaps=arr=>arr.length?Math.max(0,Math.max(...arr,s.period)-Math.min(...arr,s.period)+1-arr.length-1):0;return sameDay*12+gaps(classDay)*3+gaps(teacherDay)*2+Math.random()*2}
 function show(msg,type){$('resultStatus').className='status '+type;$('resultStatus').textContent=msg}
 function drawStats(){
