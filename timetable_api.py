@@ -2,6 +2,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pathlib import Path
 from app.api import routes_timetable
 
@@ -13,6 +14,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(routes_timetable.router, prefix="/api")
+
+@app.get("/", include_in_schema=False)
+def school_app():
+    index = Path(__file__).parent / "timetable" / "index.html"
+    if not index.is_file():
+        return {"error": "NABIL school interface is not installed"}
+    return FileResponse(index, media_type="text/html; charset=utf-8")
 
 @app.get("/api/health")
 def health():
