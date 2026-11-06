@@ -61,6 +61,16 @@ def _extract_day_limits(text: str, days: list[int]) -> dict[str, int]:
     aliases = [("الاثنين", 0), ("الاربعاء", 2), ("الثلاثاء", 1),
                ("الخميس", 3), ("الجمعة", 4), ("السبت", 5), ("الاحد", 6)]
     number_pattern = r"(ثمانية|ثماني|ثمان|سبعة|سبع|ستة|ست|خمسة|خمس|اربعة|اربع|ثلاثة|ثلاث|اثنين|اثنتين|واحد|واحدة|[1-9])"
+    # A clearly stated global daily total applies to every explicitly selected workday.
+    global_total = re.search(
+        r"(?:عدد\s+الحصص\s+اليومية|الحصص\s+اليومية|كل\s+يوم)\s*(?:هو|هي)?\s*"
+        + number_pattern + r"\s*(?:حصص|حصة)", normalized
+    )
+    if global_total:
+        total = _number(global_total.group(1))
+        if total:
+            for day_id in days:
+                limits[DAY_CANON[day_id]] = total
     for day_word, day_id in aliases:
         if day_id not in days:
             continue
@@ -100,9 +110,9 @@ def _parse_clock(text: str) -> str | None:
 def _extract_teacher_segments(text: str) -> list[tuple[str, str]]:
     # Accept conversational introductions and clear name labels such as "نبيل عقيل:".
     explicit = re.compile(
-        r"(?:عنا\s+(?:(?:الأستاذة?|الاستاذة?|المدام|المعلم)\s+)?|"
-        r"(?:الأستاذة?|الاستاذة?|المدام|المعلم)\s+)"
-        r"([\u0621-\u064a]+(?:\s+[\u0621-\u064a]+)?)"
+        r"(?:عنا\s+(?:(?:الأستاذة?|الاستاذة?|استاذة?|استاذ|السيس|السيد|السيدة|المدام|المعلم)\s+)?|"
+        r"(?:الأستاذة?|الاستاذة?|استاذة?|استاذ|السيس|السيد|السيدة|المدام|المعلم)\s+)"
+        r"([\u0621-\u064a]+(?:\s+(?!للصف\b|الصف\b|بدرس\b|بيدرس\b|يدرس\b|رياضيات\b|تربية\b)[\u0621-\u064a]+)?)"
     )
     labeled = re.compile(
         r"(?:^|[\n؛;,]\s*)(?:المعلم\s+)?"
@@ -112,7 +122,8 @@ def _extract_teacher_segments(text: str) -> list[tuple[str, str]]:
     stop = {"سبع", "سبعة", "ست", "ستة", "خمس", "خمسة", "أربع", "اربعة",
             "ثلاث", "ثلاثة", "حصص", "حصة", "أيام", "ايام", "الدوام",
             "بعلمهم", "بيعطي", "يعطي", "يعلموا", "الاستاذ", "الأستاذ",
-            "الأستاذة", "المدام", "المعلم", "كل", "لكل", "عندهم", "عنده"}
+            "الأستاذة", "المدام", "المعلم", "كل", "لكل", "عندهم", "عنده",
+            "للصف", "الصف", "بدرس", "بيدرس", "يدرس", "رياضيات", "تربية"}
     matches: list[tuple[int, int, str]] = []
     for pattern in (explicit, labeled):
         for m in pattern.finditer(text):
@@ -145,10 +156,12 @@ def _subject(segment: str) -> str:
         "جغرافيا", "دين", "تربية", "رياضة", "فرنسي", "لغة فرنسية",
         "اجتماعيات", "فلسفة", "اقتصاد", "معلوماتية", "فنون", "موسيقى"
     )
-    verbs = r"(?:حيعطي|بيعطي|يعطي|بتعطي|تعطي|بتعلم|بيعلم|بعلم|يعلم|يدرّس|يدرس)"
+    verbs = r"(?:حيعطي|بيعطي|يعطي|بتعطي|تعطي|بتعلم|بيعلم|بعلم|يعلم|يدرّس|بيدرس|بدرس|يدرس)"
     for subject in sorted(subjects, key=len, reverse=True):
         subject_rx = re.escape(subject)
         if re.search(verbs + r"\s+" + subject_rx + r"(?=\s|$|،|,)", segment, re.I):
+            return subject
+        if re.search(r"(?:بدرس|بيدرس|يدرّس|يدرس).{0,45}?" + subject_rx + r"(?=\s|$|،|,)", segment, re.I):
             return subject
         if re.search(r"(?:معلم|معلمة|مدرس|مدرسة|مادة|اختصاصه|اختصاصها)\s+" + subject_rx + r"(?=\s|$|،|,)", segment, re.I):
             return subject
@@ -159,9 +172,10 @@ def _explicit_classes(segment: str) -> list[str]:
     grade_pattern = r"(الثاني\s+عشر|الثالث\s+الثانوي|الثالث\s+ثانوي|الحادي\s+عشر|الثاني\s+الثانوي|الثاني\s+ثانوي|الأول\s+ثانوي|الاول\s+ثانوي|الأول\s+الأساسي|الاول\s+الاساسي|الثاني\s+الأساسي|الثاني\s+الاساسي|الثالث\s+الأساسي|الثالث\s+الاساسي|الرابع\s+الأساسي|الرابع\s+الاساسي|الخامس\s+الأساسي|الخامس\s+الاساسي|السادس\s+الأساسي|السادس\s+الاساسي|العاشر|التاسع|التاسعة|الثامن|الثامنة|السابع|السابعة|الخامس|الخامسة|الرابع|الرابعة|الثالث|الثالثة|الثاني|الثانية|الأول|الاول)"
     found: list[str] = []
     section_aliases = {
-        "الف": "أ", "ألف": "أ", "الالف": "أ", "الألف": "أ",
-        "باء": "ب", "با": "ب", "جيم": "ج", "جم": "ج",
-        "دال": "د", "هاء": "هـ", "واو": "و", "زاي": "ز",
+        "الف": "أ", "ألف": "أ", "الالف": "أ", "الألف": "أ", "ا": "أ",
+        "باء": "ب", "با": "ب", "ب": "ب", "جيم": "ج", "جم": "ج", "ج": "ج",
+        "دال": "د", "د": "د", "هاء": "هـ", "ه": "هـ", "واو": "و",
+        "و": "و", "زاي": "ز", "ز": "ز",
     }
     grade_rx = re.compile(r"(?<![\w])(" + grade_pattern + r")(?![\w])", re.I)
     matches = list(grade_rx.finditer(segment))
@@ -282,6 +296,12 @@ def parse_spoken_school_intake(text: str) -> dict[str, Any]:
         for token, day_id in (("اثنين", 0), ("ثلاثة", 1), ("اربعة", 2), ("خميس", 3)):
             if re.search(rf"(?<![\w])و?{token}(?![\w])", spoken_days) and day_id not in days:
                 days.append(day_id)
+    # "كل الأيام دوام" means the regular school week (Monday-Friday);
+    # explicit weekends are still added only when spoken by name.
+    if re.search(r"كل\s+(?:ال)?ايام\s+(?:دوام|دوامنا|عمل)", n):
+        for day_id in range(5):
+            if day_id not in days:
+                days.append(day_id)
     days.sort()
     if not days:
         days = []
@@ -314,7 +334,7 @@ def parse_spoken_school_intake(text: str) -> dict[str, Any]:
         explicit = _explicit_classes(segment)
         grades = _grade_scope(segment)
         count = None
-        cm = re.search(r"(?:لكل صف|كل صف|بكل صف|لكل شعبة|كل شعبة|عدد حصص كل مادة|عدد الحصص).{0,20}?(ثمانية|ثماني|سبعة|ستة|خمسة|اربعة|ثلاثة|ثلاث|اثنين|واحد|[1-9])\s*(?:حصص|حصة)", _norm(segment))
+        cm = re.search(r"(?:لكل صف|كل صف|بكل صف|لكل شعبة|كل شعبة|كل شعبي|كل الشعب|عدد حصص كل مادة|عدد الحصص).{0,20}?(ثمانية|ثماني|سبعة|ستة|خمسة|اربعة|ثلاثة|ثلاث|اثنين|واحد|[1-9])\s*(?:حصص|حصة)", _norm(segment))
         if cm:
             count = _number(cm.group(1))
         else:
@@ -330,7 +350,7 @@ def parse_spoken_school_intake(text: str) -> dict[str, Any]:
             cm = re.search(r"(ثمانية|ثماني|ثمان|سبعة|سبع|ستة|ست|خمسة|خمس|اربعة|اربع|ثلاثة|ثلاث|اثنتين|اثنين|واحد|واحدة|[1-9])\s*(?:حصص|حصة)", _norm(segment))
             if cm:
                 count = _number(cm.group(1))
-        if count is None and re.search(r"(?:ساعة\s+ساعة|حصة\s+واحدة|ساعة\s+واحدة)", _norm(segment)):
+        if count is None and re.search(r"(?:ساعة\s+ساعة|حصة\s+واحدة|ساعة\s+واحدة|حصة\s+كل\s+اسبوع|حصة\s+اسبوعية)", _norm(segment)):
             count = 1
 
         declared_weekly = None
