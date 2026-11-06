@@ -109,21 +109,46 @@ function loadBalbeek(){
  auditSchedule();
 }
 function auditSchedule(){
- const teacherSlots=new Map(),classSlots=new Map();
- for(const x of data.schedule){
-  const key=x.day+'|'+x.period;
-  const tk=x.teacher+'|'+key,ck=x.class+'|'+key;
-  if(!teacherSlots.has(tk))teacherSlots.set(tk,[]);
-  teacherSlots.get(tk).push(x);
-  if(!classSlots.has(ck))classSlots.set(ck,[]);
-  classSlots.get(ck).push(x);
- }
- const teacherConflicts=[...teacherSlots.entries()].filter(([,v])=>v.length>1);
+ const slots=new Map(),classSlots=new Map();
+ data.schedule.forEach((x,i)=>{
+  const key=x.day+'|'+x.period,tk=x.teacher+'|'+key,ck=x.class+'|'+key;
+  if(!slots.has(tk))slots.set(tk,[]);slots.get(tk).push(i);
+  if(!classSlots.has(ck))classSlots.set(ck,[]);classSlots.get(ck).push(i);
+ });
+ const teacherConflicts=[...slots.entries()].filter(([,v])=>v.length>1);
  const classConflicts=[...classSlots.entries()].filter(([,v])=>v.length>1);
- const details=teacherConflicts.map(([k,v])=>{const [teacher,day,period]=k.split('|');return DAYS[+day]+' — الحصة '+period+' — '+teacher+': '+v.map(x=>x.class+' ('+x.subject+')').join(' / ')});
  if(!data.schedule.length){show('لا يوجد جدول محمّل لفحصه.','warn');return}
- if(!teacherConflicts.length&&!classConflicts.length)show('نتيجة الفحص: لا يوجد أي تضارب. تم فحص '+data.schedule.length+' حصة في '+data.classes.length+' شعب. لا يوجد مدرس في شعبتين في الوقت نفسه، ولا يوجد أكثر من درس للشعبة في الحصة نفسها.','ok');
- else show('نتيجة الفحص: '+teacherConflicts.length+' تضارباً للمدرسين و'+classConflicts.length+' تضارباً للشعب.\\n'+details.join('\\n'),'err');
+ if(!teacherConflicts.length&&!classConflicts.length){
+  show('نتيجة الفحص: لا يوجد أي تضارب. تم فحص '+data.schedule.length+' حصة في '+data.classes.length+' شعب.','ok');
+  $('conflictSolutions')?.remove();return;
+ }
+ const busy=(teacher,day,period,except=-1)=>data.schedule.some((x,i)=>i!==except&&x.teacher===teacher&&x.day===day&&x.period===period);
+ const candidates=[];
+ teacherConflicts.forEach(([key,indices])=>{
+  indices.forEach(idx=>{
+   const lesson=data.schedule[idx];
+   data.schedule.forEach((other,j)=>{
+    if(j===idx||other.class!==lesson.class)return;
+    if(busy(lesson.teacher,other.day,other.period,idx))return;
+    if(busy(other.teacher,lesson.day,lesson.period,j))return;
+    candidates.push({a:idx,b:j,teacher:lesson.teacher,cls:lesson.class,from:DAYS[lesson.day]+' / حصة '+lesson.period,to:DAYS[other.day]+' / حصة '+other.period,swap:other.subject+' مع '+other.teacher});
+   });
+  });
+ });
+ let html='<div id="conflictSolutions" class="status err" style="margin-top:12px"><b>التضارب المكتشف: '+teacherConflicts.length+' للمدرسين، و'+classConflicts.length+' للشعب.</b>';
+ teacherConflicts.forEach(([key,ids])=>{const [teacher,day,period]=key.split('|');html+='<p>'+esc(teacher)+' — '+DAYS[+day]+'، الحصة '+period+': '+ids.map(i=>esc(data.schedule[i].class)).join(' / ')+'</p>'});
+ if(candidates.length){
+  html+='<h3>حلول مقترحة قابلة للتطبيق</h3><p>اقترح البرنامج تبديل حصتين داخل الشعبة نفسها، بعد التأكد من عدم إشغال المدرسين في الموعد البديل. اختر الحل المناسب لتطبيقه.</p>';
+  candidates.slice(0,12).forEach((s,i)=>{html+='<div style="padding:8px;border-top:1px solid #ddd"><b>اقتراح '+(i+1)+':</b> '+esc(s.teacher)+' في '+esc(s.cls)+' — نقل الحصة من '+esc(s.from)+' إلى '+esc(s.to)+'، مقابل تبديل '+esc(s.swap)+' <button class="secondary" onclick="applyConflictSwap('+s.a+','+s.b+')">تطبيق هذا الحل</button></div>'});
+ }else html+='<p><b>لم يعثر البرنامج على تبديل مباشر آمن.</b> جرّب نقل حصة يدوياً أو تغيير توزيع الحصص الأسبوعية ثم أعد الفحص.</p>';
+ html+='</div>';
+ $('conflictSolutions')?.remove();$('timetable').insertAdjacentHTML('afterbegin',html);
+ show('اكتمل الفحص. عثر البرنامج على تضارب ويعرض '+candidates.length+' تبديلات مقترحة؛ لم يغيّر الجدول تلقائياً.','err');
+}
+function applyConflictSwap(a,b){
+ const x=data.schedule[a],y=data.schedule[b];if(!x||!y||x.class!==y.class)return;
+ const dx=x.day,px=x.period;x.day=y.day;x.period=y.period;y.day=dx;y.period=px;
+ persist();drawSchedule();auditSchedule();
 }
 $('loadBalbeek').onclick=loadBalbeek;
 $('audit').onclick=auditSchedule;
