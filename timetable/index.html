@@ -20,7 +20,7 @@
 <label for="pastedTimetable">وصف المدرسة — يمكنك الكتابة أو التحدث على دفعات</label>
 <textarea id="pastedTimetable" rows="13" style="width:100%;direction:rtl;font:inherit;line-height:1.9" placeholder="مثال: الدوام من الاثنين إلى الخميس، سبع حصص يومياً... ثم اذكر الشعب والمعلمين والمواد والأنصبة والقيود."></textarea>
 </div>
-<div class="voice-panel" aria-label="الإدخال الصوتي"><div class="voice-title">الإدخال الصوتي المتتابع</div><div class="actions"><button class="primary" id="voiceStart" type="button">🎙️ ابدأ الكلام</button><button class="secondary" id="voiceStop" type="button" disabled>إيقاف التسجيل</button><button class="secondary" id="voiceClear" type="button">مسح الكلام المضاف</button></div><div id="voiceStatus" class="small" role="status" aria-live="polite">اضغط «ابدأ الكلام»، وتحدث براحتك. يمكنك إيقافه ثم بدء تسجيل آخر؛ لن يُرسل النص قبل ضغط «إرسال».</div></div>
+<div class="voice-panel" aria-label="الإدخال الصوتي"><div class="voice-title">الإدخال الصوتي المتتابع</div><div class="actions"><button class="primary" id="voiceStart" type="button">🎙️ ابدأ الكلام</button><button class="secondary" id="voiceStop" type="button" disabled>إيقاف التسجيل</button><button class="secondary" id="voiceClear" type="button">مسح الكلام المضاف</button></div><div id="voiceStatus" class="small" role="status" aria-live="polite">اضغط «ابدأ الكلام»، وتحدث براحتك. يمكنك إيقافه ثم بدء تسجيل آخر؛ لن يُرسل النص قبل ضغط «إرسال». يعتمد تحويل الصوت على دعم المتصفح وقد يحتاج اتصالاً بالإنترنت.</div></div>
 <div class="actions"><button class="primary" id="analyzeSpoken" type="button">إرسال إلى نبيل للتحليل</button><button class="secondary" id="clearPasted" type="button">مسح النص كله</button></div>
 <div id="uploadStatus" class="status warn" aria-live="polite">اكتب وصف المدرسة ثم اضغط «إرسال».</div>
 <div id="analysisOutput"></div>
@@ -216,7 +216,7 @@ function startNabilVoice(){
     const phrase=event.results[i][0]?.transcript||'';
     if(event.results[i].isFinal)finalPart+=phrase+' ';else interim+=phrase;
    }
-   if(finalPart){appendVoiceText(finalPart);nabilVoiceFinal+ = finalPart;}
+   if(finalPart){appendVoiceText(finalPart);nabilVoiceFinal+=finalPart;}
    voiceStatus((nabilVoiceActive?'🎙️ أستمع إليك الآن. ':'')+(interim?'الكلام الجاري: '+interim:'تم حفظ الكلام النهائي. يمكنك المتابعة أو إيقاف التسجيل.'));
   };
   nabilSpeech.onerror=(event)=>{
