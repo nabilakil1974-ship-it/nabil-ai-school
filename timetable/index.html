@@ -68,7 +68,7 @@ $('saveTeacherProfile').onclick=()=>{
  if(rows.some(r=>!r.subject||!r.classes.length||!r.count||!r.language))return alert('أكمل لكل مادة: اسم المادة، الصفوف، عدد الحصص، ولغة التدريس.');
  if(!data.teachers.includes(teacher))data.teachers.push(teacher);
  rows.forEach(r=>r.classes.forEach(cls=>{if(!data.classes.includes(cls))data.classes.push(cls);const existing=data.requirements.find(x=>x.teacher===teacher&&x.subject===r.subject&&x.class===cls);const item={teacher,subject:r.subject,class:cls,count:r.count,language:r.language};if(existing)Object.assign(existing,item);else data.requirements.push(item)}));
- data.schedule=[];persist();render();$('teacherName').value='';$('teacherSubjectRows').innerHTML='';addTeacherSubjectRow();alert('تم حفظ بطاقة '+teacher+' مع '+rows.length+' مادة وتوزيعاتها. أوقات الفراغ تُسجّل أدناه للمعلم نفسه.');
+ data.schedule=[];persist();render();$('blockedTeacher').value=teacher;$('teacherName').value='';$('teacherSubjectRows').innerHTML='';addTeacherSubjectRow();alert('تم حفظ بطاقة '+teacher+' مع '+rows.length+' مادة وتوزيعاتها. اختر أوقات فراغه تحت الأيام ثم احفظها.');
 };
 function table(rows,heads){if(!rows.length)return '<p class="small">لا توجد بيانات بعد.</p>';return '<table><thead><tr>'+heads.map(h=>'<th>'+h+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(v=>'<td>'+v+'</td>').join('')+'</tr>').join('')+'</tbody></table>'}
 window.removeItem=(key,i)=>{data[key].splice(i,1);data.schedule=[];persist();render()};
