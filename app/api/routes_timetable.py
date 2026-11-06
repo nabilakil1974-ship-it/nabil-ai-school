@@ -422,44 +422,94 @@ async def diagnose_timetable_file(file: UploadFile = File(...)):
 
 @router.post("/export-xlsx")
 async def export_timetable_xlsx(payload: dict[str, Any] = Body(...)):
-    """Create an actual XLSX workbook from the reviewed timetable."""
+    """Create an XLSX school matrix: periods as rows and classes as columns."""
     try:
         from openpyxl import Workbook
-        from openpyxl.styles import Font, PatternFill, Alignment
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
         from openpyxl.utils import get_column_letter
+
         schedule = payload.get("schedule") or []
         if not isinstance(schedule, list) or not schedule:
             raise HTTPException(status_code=400, detail="لا يوجد جدول لتصديره.")
         day_names = ["الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"]
+
         def safe_text(value: Any) -> str:
             text = str(value or "").strip()
             return "'" + text if text.startswith(("=", "+", "-", "@")) else text
+
+        days = payload.get("days") or sorted({int(x.get("day")) for x in schedule if isinstance(x, dict) and str(x.get("day", "")).isdigit()})
+        periods = max(1, int(payload.get("periods") or max(int(x.get("period", 1)) for x in schedule if isinstance(x, dict))))
+        classes = [str(x).strip() for x in (payload.get("classes") or []) if str(x).strip()]
+        if not classes:
+            classes = list(dict.fromkeys(str(x.get("class") or "").strip() for x in schedule
+                                         if isinstance(x, dict) and str(x.get("class") or "").strip()))
+        break_after = payload.get("break_after_period")
+        try:
+            break_after = int(break_after) if break_after not in (None, "", 0, "0") else None
+        except (TypeError, ValueError):
+            break_after = None
+
         workbook = Workbook()
         sheet = workbook.active
         sheet.title = "البرنامج العام"
-        sheet.append(["المدرسة", safe_text(payload.get("school") or "البرنامج المدرسي")])
-        sheet.append(["اليوم", "الحصة", "الشعبة", "المادة", "المعلم"])
+        sheet.sheet_view.rightToLeft = True
+        sheet.append([safe_text(payload.get("school") or "البرنامج المدرسي")])
+        sheet.merge_cells(start_row=1, start_column=1, end_row=1, end_column=max(1, len(classes) + 1))
+        sheet["A1"].font = Font(bold=True, size=16, color="FFFFFF")
+        sheet["A1"].fill = PatternFill("solid", fgColor="123B59")
+        sheet["A1"].alignment = Alignment(horizontal="center", vertical="center")
+        sheet.row_dimensions[1].height = 30
+
+        sheet.append(["اليوم / الحصة"] + [safe_text(c) for c in classes])
         for cell in sheet[2]:
             cell.font = Font(bold=True, color="FFFFFF")
-            cell.fill = PatternFill("solid", fgColor="123B59")
-            cell.alignment = Alignment(horizontal="center")
-        for item in schedule:
-            if not isinstance(item, dict):
-                continue
+            cell.fill = PatternFill("solid", fgColor="176B87")
+            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+        thin = Side(style="thin", color="B8C7D0")
+        for day_id in days:
             try:
-                day_id = int(item.get("day"))
-                period = int(item.get("period"))
+                day_id = int(day_id)
             except (TypeError, ValueError):
                 continue
-            day = day_names[day_id] if 0 <= day_id < len(day_names) else safe_text(item.get("day"))
-            sheet.append([day, period, safe_text(item.get("class")), safe_text(item.get("subject")), safe_text(item.get("teacher"))])
-        sheet.freeze_panes = "A3"
-        sheet.auto_filter.ref = "A2:E" + str(sheet.max_row)
-        for col, width in enumerate([18, 12, 22, 22, 24], 1):
-            sheet.column_dimensions[get_column_letter(col)].width = width
-        for row in sheet.iter_rows():
-            for cell in row:
-                cell.alignment = Alignment(horizontal="right", vertical="center")
+            day = day_names[day_id] if 0 <= day_id < len(day_names) else safe_text(day_id)
+            for period in range(1, periods + 1):
+                row = [f"{day} – الحصة {period}"]
+                for cls in classes:
+                    lessons = [x for x in schedule if isinstance(x, dict)
+                               and str(x.get("class") or "").strip() == cls
+                               and int(x.get("day", -1)) == day_id
+                               and int(x.get("period", -1)) == period]
+                    row.append("\n".join(
+                        safe_text(x.get("subject")) + ("\n" if x.get("subject") and x.get("teacher") else "")
+                        + safe_text(x.get("teacher"))
+                        for x in lessons
+                    ))
+                sheet.append(row)
+                current = sheet.max_row
+                sheet.row_dimensions[current].height = 42
+                for cell in sheet[current]:
+                    cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                    cell.border = Border(left=thin, right=thin, top=thin, bottom=thin)
+                sheet.cell(current, 1).font = Font(bold=True, color="123B59")
+
+                if break_after == period and period < periods:
+                    sheet.append(["الفرصة"] + ["استراحة"] + [""] * max(0, len(classes) - 1))
+                    break_row = sheet.max_row
+                    if len(classes) > 1:
+                        sheet.merge_cells(start_row=break_row, start_column=2,
+                                          end_row=break_row, end_column=len(classes) + 1)
+                    for cell in sheet[break_row]:
+                        cell.fill = PatternFill("solid", fgColor="FFF2CC")
+                        cell.font = Font(bold=True, color="76520D")
+                        cell.alignment = Alignment(horizontal="center", vertical="center")
+                        cell.border = Border(left=thin, right=thin, top=thin, bottom=thin)
+                    sheet.row_dimensions[break_row].height = 25
+
+        sheet.freeze_panes = "B3"
+        sheet.column_dimensions["A"].width = 23
+        for col in range(2, len(classes) + 2):
+            sheet.column_dimensions[get_column_letter(col)].width = 24
         output = io.BytesIO()
         workbook.save(output)
         output.seek(0)
