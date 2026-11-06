@@ -25,7 +25,7 @@
 <div id="analysisOutput"></div>
 </section>
 <div class="tabs"><button class="tab active" data-tab="settings">إعداد الدوام</button><button class="tab" data-tab="teachers">المعلمون</button><button class="tab" data-tab="classes">الصفوف والشعب</button><button class="tab" data-tab="subjects">المواد والحصص</button><button class="tab" data-tab="results">البرنامج الناتج</button></div>
-<section class="panel active" id="settings"><h2>إعداد أيام الدوام والحصص</h2><div class="field"><label>أيام الدوام</label><div class="checkgrid" id="days"></div></div><div class="grid" style="margin-top:14px"><div class="field"><label>أقصى عدد حصص في اليوم</label><input id="periods" type="number" min="1" max="14" value="6"></div><div class="field"><label>اسم المدرسة</label><input id="school" value="المدرسة الرسمية"></div><div class="field"><label>مدة الحصة بالدقائق</label><input id="periodDuration" type="number" min="1" max="120" placeholder="مثلاً 45"></div><div class="field"><label>بداية الاستراحة</label><input id="breakStart" type="time"></div><div class="field"><label>مدة الاستراحة بالدقائق</label><input id="breakDuration" type="number" min="1" max="180" placeholder="مثلاً 30"></div></div><div class="actions"><button class="secondary" id="saveSettings">حفظ إعدادات الدوام</button></div><p class="small">أدخل بيانات مدرستك أو ارفع جدولها. لا توجد بيانات تجريبية محمّلة مسبقاً.</p></section>
+<section class="panel active" id="settings"><h2>إعداد أيام الدوام والحصص</h2><div class="field"><label>أيام الدوام</label><div class="checkgrid" id="days"></div></div><div class="grid" style="margin-top:14px"><div class="field"><label>أقصى عدد حصص في اليوم</label><input id="periods" type="number" min="1" max="14" value="6"></div><div class="field"><label>اسم المدرسة</label><input id="school" value="المدرسة الرسمية"></div><div class="field"><label>مدة الحصة بالدقائق</label><input id="periodDuration" type="number" min="1" max="120" placeholder="مثلاً 45"></div><div class="field"><label>بداية الاستراحة</label><input id="breakStart" type="time"></div><div class="field"><label>مدة الاستراحة بالدقائق</label><input id="breakDuration" type="number" min="1" max="180" placeholder="مثلاً 30"></div><div class="field"><label>موعد الفرصة</label><select id="breakAfterPeriod"><option value="">لا توجد فرصة محددة</option></select><span class="small">تظهر كسطر مستقل بعد الحصة التي تختارها.</span></div></div><div class="actions"><button class="secondary" id="saveSettings">حفظ إعدادات الدوام</button></div><p class="small">أدخل بيانات مدرستك أو ارفع جدولها. لا توجد بيانات تجريبية محمّلة مسبقاً.</p></section>
 <section class="panel" id="teachers"><h2>بطاقة بيانات المعلم</h2><p class="small">أدخل اسم المعلم مرة واحدة، ثم أضف مادة بعد مادة. لكل مادة اختر الصفوف والشعب، وعدد الحصص الأسبوعية، ولغة التدريس.</p><div class="grid"><div class="field"><label>اسم المعلم</label><input id="teacherName" placeholder="مثلاً: نبيل عقيل"></div></div><h3 style="margin:18px 0 8px">المواد التي يدرّسها</h3><div id="teacherSubjectRows" style="display:grid;gap:12px"></div><div class="actions"><button class="secondary" id="addTeacherSubject" type="button">＋ إضافة مادة أخرى</button><button class="primary" id="saveTeacherProfile" type="button">حفظ بيانات المعلم وتوزيعاته</button></div><div class="list" id="teacherList"></div><div style="height:1px;background:var(--line);margin:22px 0"></div><h3>أوقات فراغ المعلم</h3><div class="field"><label>اختر المعلم</label><select id="blockedTeacher"></select></div><div class="field" style="margin-top:12px"><label>حدد الحصص غير المتاحة تحت كل يوم على حدة</label><div id="blockedDayPeriods" style="display:grid;gap:10px;margin-top:8px"></div></div><p class="small">مثال: الاثنين الحصص 1 و2 و3، والثلاثاء الحصة 1 فقط.</p><div class="actions"><button class="secondary" id="addBlock">حفظ أوقات الفراغ لهذا المعلم</button></div><div class="list" id="blockList"></div></section>
 <section class="panel" id="classes"><h2>إضافة الصفوف والشعب</h2><div class="grid"><div class="field"><label>اسم الصف أو الشعبة</label><input id="className" placeholder="مثلاً: السابع أ"></div></div><div class="actions"><button class="primary" id="addClass">إضافة الصف</button></div><div class="list" id="classList"></div></section>
 <section class="panel" id="subjects"><h2>ملخص المواد والأنصبة</h2><p class="small">تظهر هنا جميع المواد والصفوف والأنصبة التي أُدخلت من بطاقات المعلمين. لإضافة مادة أو تعديل توزيعها، افتح تبويب «المعلمون» وعدّل بطاقة المعلم.</p><div class="list" id="reqList"></div></section>
@@ -34,13 +34,13 @@
 </main>
 <script>
 const $=id=>document.getElementById(id), DAYS=['الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت','الأحد'];
-let data={school:'',days:[0,1,2,3,4],periods:6,periodDurationMinutes:null,breakStart:'',breakDurationMinutes:null,teachers:[],classes:[],requirements:[],blocked:[],schedule:[],dayPeriodLimits:{}}, view='school';
+let data={school:'',days:[0,1,2,3,4],periods:6,periodDurationMinutes:null,breakStart:'',breakDurationMinutes:null,breakAfterPeriod:null,teachers:[],classes:[],requirements:[],blocked:[],schedule:[],dayPeriodLimits:{}}, view='school';
 // Start with a clean timetable store: never resurrect the previous school's saved schedule.
 try{localStorage.removeItem('nabil-timetable-v2');}catch(e){}
 try{const saved=JSON.parse(localStorage.getItem('nabil-timetable-v3'));if(saved)data={...data,...saved}}catch(e){}
 function persist(){localStorage.setItem('nabil-timetable-v3',JSON.stringify(data))}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function render(){ $('school').value=data.school;$('periods').value=data.periods;$('periodDuration').value=data.periodDurationMinutes||'';$('breakStart').value=data.breakStart||'';$('breakDuration').value=data.breakDurationMinutes||'';$('days').innerHTML=DAYS.map((d,i)=>'<label><input type="checkbox" value="'+i+'" '+(data.days.includes(i)?'checked':'')+'>'+d+'</label>').join('');
+function render(){ $('school').value=data.school;$('periods').value=data.periods;$('periodDuration').value=data.periodDurationMinutes||'';$('breakStart').value=data.breakStart||'';$('breakDuration').value=data.breakDurationMinutes||'';$('breakAfterPeriod').innerHTML='<option value="">لا توجد فرصة محددة</option>'+Array.from({length:Math.max(0,data.periods-1)},(_,i)=>'<option value="'+(i+1)+'">بعد الحصة '+(i+1)+'</option>').join('');$('breakAfterPeriod').value=data.breakAfterPeriod||'';$('days').innerHTML=DAYS.map((d,i)=>'<label><input type="checkbox" value="'+i+'" '+(data.days.includes(i)?'checked':'')+'>'+d+'</label>').join('');
 $('teacherList').innerHTML=table(data.teachers.map((x,i)=>[x,data.requirements.filter(r=>r.teacher===x).length+' توزيع/توزيعات','<button class="danger" onclick="removeItem(\'teachers\','+i+')">حذف المعلم</button>']),['المعلم','التوزيعات','إجراء']);
 $('classList').innerHTML=table(data.classes.map((x,i)=>[x,'<button class="danger" onclick="removeItem(\'classes\','+i+')">حذف</button>']),['الصف / الشعبة','إجراء']);
 const opts=(arr,placeholder)=>'<option value="">'+placeholder+'</option>'+arr.map(x=>'<option>'+esc(x)+'</option>').join('');
@@ -175,7 +175,7 @@ $('analyzeSpoken').onclick=async()=>{
  finally{button.disabled=false}
 };
 
-$('saveSettings').onclick=()=>{data.school=$('school').value.trim()||'المدرسة الرسمية';data.periods=Math.max(1,Math.min(14,+$('periods').value||6));data.periodDurationMinutes=+$('periodDuration').value||null;data.breakStart=$('breakStart').value||'';data.breakDurationMinutes=+$('breakDuration').value||null;data.days=[...$('days').querySelectorAll('input:checked')].map(x=>+x.value);if(!data.days.length)return alert('اختر يوم دوام واحداً على الأقل');data.schedule=[];persist();render();alert('تم حفظ إعدادات الدوام')};
+$('saveSettings').onclick=()=>{data.school=$('school').value.trim()||'المدرسة الرسمية';data.periods=Math.max(1,Math.min(14,+$('periods').value||6));data.periodDurationMinutes=+$('periodDuration').value||null;data.breakStart=$('breakStart').value||'';data.breakDurationMinutes=+$('breakDuration').value||null;data.breakAfterPeriod=+$('breakAfterPeriod').value||null;data.days=[...$('days').querySelectorAll('input:checked')].map(x=>+x.value);if(!data.days.length)return alert('اختر يوم دوام واحداً على الأقل');data.schedule=[];persist();render();alert('تم حفظ إعدادات الدوام')};
 
 $('addClass').onclick=()=>{let v=$('className').value.trim();if(!v)return alert('اكتب اسم الصف');if(data.classes.includes(v))return alert('الصف موجود');data.classes.push(v);$('className').value='';persist();render()};
 window.removeBlockGroup=indices=>{const remove=new Set(indices);data.blocked=data.blocked.filter((_,i)=>!remove.has(i));data.schedule=[];persist();render()};
@@ -208,10 +208,9 @@ function drawStats(){
 }
 function exportWord(){
  if(!data.schedule.length)return alert('أنشئ البرنامج أولاً');
- const days=data.days.map(d=>({id:d,name:DAYS[d]}));
- let html='<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><style>body{font-family:Tahoma,Arial;direction:rtl}h1,h2{text-align:center;color:#123b59}table{border-collapse:collapse;width:100%;margin:12px 0}th,td{border:1px solid #8798a3;padding:8px;text-align:center}th{background:#e8f3f8}small{color:#526777}</style></head><body><h1>'+esc(data.school||'البرنامج المدرسي')+'</h1><h2>الجدول الأسبوعي</h2>';
- html+='<table><tr><th>اليوم</th>'+Array.from({length:data.periods},(_,i)=>'<th>الحصة '+(i+1)+'</th>').join('')+'</tr>';
- for(const d of days){html+='<tr><th>'+esc(d.name)+'</th>';for(let p=1;p<=data.periods;p++){const cell=data.schedule.filter(x=>x.day===d.id&&x.period===p);html+='<td>'+cell.map(x=>'<b>'+esc(x.subject)+'</b><br>'+esc(x.class)+'<br>'+esc(x.teacher)).join('<hr>')+'</td>'}html+='</tr>'}
+ const classes=data.classes.length?data.classes:[...new Set(data.schedule.map(x=>x.class))];
+ let html='<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><style>body{font-family:Tahoma,Arial;direction:rtl}h1,h2{text-align:center;color:#123b59}table{border-collapse:collapse;width:100%;margin:12px 0}th,td{border:1px solid #8798a3;padding:8px;text-align:center;vertical-align:middle}th{background:#e8f3f8}small{color:#526777}</style></head><body><h1>'+esc(data.school||'البرنامج المدرسي')+'</h1><h2>الجدول الأسبوعي الشامل</h2><table><tr><th>اليوم / الحصة</th>'+classes.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr>';
+ for(const d of data.days){const limit=+(data.dayPeriodLimits?.[DAYS[d]]??data.periods);for(let p=1;p<=limit;p++){html+='<tr><th>'+DAYS[d]+' – '+p+'</th>';for(const cls of classes){const cell=data.schedule.filter(x=>x.class===cls&&x.day===d&&x.period===p);html+='<td>'+cell.map(x=>'<b>'+esc(x.subject)+'</b><br>'+esc(x.teacher)).join('<hr>')+'</td>'}html+='</tr>';if(data.breakAfterPeriod===p&&p<limit)html+='<tr><th>الفرصة</th><td colspan="'+classes.length+'">استراحة</td></tr>'}}
  html+='</table><p><small>تم إعداد الجدول بواسطة NABIL School Timetable AI — يرجى مراجعة الإدارة قبل الاعتماد.</small></p></body></html>';
  const blob=new Blob(['\ufeff',html],{type:'application/msword;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='NABIL-school-timetable.doc';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
@@ -221,7 +220,7 @@ async function exportExcel(){
  if(!data.schedule.length)return alert('أنشئ البرنامج أولاً');
  const button=$('exportExcel');button.disabled=true;
  try{
-  const response=await fetch('/api/timetable/export-xlsx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({school:data.school,days:data.days,periods:data.periods,schedule:data.schedule})});
+  const response=await fetch('/api/timetable/export-xlsx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({school:data.school,days:data.days,periods:data.periods,classes:data.classes,break_after_period:data.breakAfterPeriod,schedule:data.schedule})});
   if(!response.ok){let msg='تعذر إنشاء ملف Excel.';try{const e=await response.json();msg=e.detail||msg}catch(_){}throw new Error(msg)}
   const blob=await response.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');
   a.href=url;a.download='NABIL-school-timetable.xlsx';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);
@@ -254,29 +253,46 @@ function drawSchedule(){
  const isFinal=data.schedule.length>0;
  const hasFrame=data.days.length>0&&data.periods>0;
  if(!hasFrame){$('timetable').innerHTML='<p class="small">اختر يوم دوام واحداً على الأقل ليظهر هيكل البرنامج هنا.</p>';drawStats();return}
- let entities=view==='teacher'?data.teachers:view==='class'?data.classes:[data.school+' — البرنامج العام'];
- if(view==='teacher'&&!entities.length)entities=['تُعرض جداول المعلمين هنا بعد إضافتهم'];
- if(view==='class'&&!entities.length)entities=['تُعرض جداول الصفوف هنا بعد إضافتها'];
- let html='<div class="status '+(isFinal?'ok':'warn')+'">'+(isFinal?'جدول مكتمل اجتاز التدقيق.':'معاينة حيّة تتحدث مع كل إدخال. الحصص المعروضة توزيع أولي قابل لإعادة الترتيب؛ الخانات الفارغة تعني أن بياناتها لم تكتمل بعد.')+'</div><div class="legend"><span class="red">الأحمر: الأستاذ نفسه في أكثر من صف في الوقت نفسه</span><span class="blue">الأزرق: حصة ضمن وقت فراغ الأستاذ</span></div>';
- for(const entity of entities){
-  const entriesForEntity=entries.filter(x=>view==='teacher'?x.teacher===entity:view==='class'?x.class===entity:true);
-  html+='<h3>'+esc(entity)+'</h3><table><thead><tr><th>اليوم</th>'+Array.from({length:data.periods},(_,i)=>'<th>الحصة '+(i+1)+'</th>').join('')+'</tr></thead><tbody>';
+ const status='<div class="status '+(isFinal?'ok':'warn')+'">'+(isFinal?'جدول مكتمل اجتاز التدقيق.':'معاينة حيّة تتحدث مع كل إدخال. الحصص المعروضة توزيع أولي قابل لإعادة الترتيب؛ الخانات الفارغة تعني أن بياناتها لم تكتمل بعد.')+'</div><div class="legend"><span class="red">الأحمر: الأستاذ نفسه في أكثر من شعبة في الوقت نفسه</span><span class="blue">الأزرق: حصة ضمن وقت فراغ الأستاذ</span></div>';
+ let html=status;
+ if(view==='school'){
+  const classes=data.classes.length?data.classes:['تُضاف الشعب لعرض أعمدتها'];
+  html+='<h3>'+esc(data.school||'البرنامج المدرسي')+' — الجدول الأسبوعي الشامل</h3><table><thead><tr><th>اليوم / الحصة</th>'+classes.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead><tbody>';
   for(const d of data.days){
-   html+='<tr><th>'+DAYS[d]+'</th>';
+   const limit=+(data.dayPeriodLimits?.[DAYS[d]]??data.periods);
    for(let p=1;p<=data.periods;p++){
-    const dayLimit=+(data.dayPeriodLimits?.[DAYS[d]]??data.periods);
-    const a=entriesForEntity.filter(x=>x.day===d&&x.period===p);
-    html+='<td>'+(p>dayLimit?'<span class="empty" title="لا يوجد دوام في هذه الحصة">خارج الدوام</span>':(a.length?a.map(x=>{
-     const teacherConflict=entries.filter(y=>y.teacher===x.teacher&&y.day===x.day&&y.period===x.period&&y.class!==x.class).length>0;
-     const unavailable=data.blocked.some(b=>b.teacher===x.teacher&&+b.day===x.day&&+b.period===x.period);
-     const cls=(teacherConflict?' conflict':'')+(unavailable?' unavailable':'');
-     const flags=(teacherConflict?'<strong>تعارض: الأستاذ في أكثر من صف</strong><br>':'')+(unavailable?'<strong>دوام ضمن وقت فراغ الأستاذ</strong><br>':'');
-     return '<div class="lesson'+cls+'">'+flags+'<b>'+esc(x.subject)+'</b>'+esc(x.class)+'<br>'+esc(x.teacher)+'</div>';
-    }).join(''):'<span class="empty">شاغرة / لم تُحدد بعد</span>'))+'</td>';
+    html+='<tr><th>'+DAYS[d]+'<br>الحصة '+p+'</th>';
+    for(const clsName of classes){
+     if(p>limit){html+='<td><span class="empty">خارج الدوام</span></td>';continue}
+     const cell=entries.filter(x=>x.class===clsName&&x.day===d&&x.period===p);
+     if(!cell.length){html+='<td><span class="empty">شاغرة / لم تُحدد بعد</span></td>';continue}
+     html+='<td>'+cell.map(x=>{
+      const teacherConflict=entries.some(y=>y!==x&&y.teacher===x.teacher&&y.day===x.day&&y.period===x.period&&y.class!==x.class);
+      const unavailable=data.blocked.some(b=>b.teacher===x.teacher&&+b.day===x.day&&+b.period===x.period);
+      const cls=(teacherConflict?' conflict':'')+(unavailable?' unavailable':'');
+      const flags=(teacherConflict?'<strong>تعارض: الأستاذ في أكثر من شعبة</strong><br>':'')+(unavailable?'<strong>دوام ضمن وقت فراغ الأستاذ</strong><br>':'');
+      return '<div class="lesson'+cls+'">'+flags+'<b>'+esc(x.subject)+'</b>'+esc(x.teacher)+'</div>';
+     }).join('')+'</td>';
+    }
+    html+='</tr>';
+    if(data.breakAfterPeriod===p&&p<limit){
+     html+='<tr><th>الفرصة</th><td colspan="'+classes.length+'" style="text-align:center;background:#fff6df;color:#76520d;font-weight:bold">استراحة</td></tr>';
+    }
    }
-   html+='</tr>';
   }
-  html+='</tbody></table><br>';
+  html+='</tbody></table>';
+ }else{
+  const entities=view==='teacher'?data.teachers:data.classes;
+  if(!entities.length)html+='<p class="small">أضف '+(view==='teacher'?'المعلمين':'الصفوف والشعب')+' لعرض الجداول هنا.</p>';
+  for(const entity of entities){
+   const entriesForEntity=entries.filter(x=>view==='teacher'?x.teacher===entity:x.class===entity);
+   html+='<h3>'+esc(entity)+'</h3><table><thead><tr><th>اليوم / الحصة</th><th>المادة</th><th>الشعبة</th><th>الأستاذ</th></tr></thead><tbody>';
+   for(const d of data.days)for(let p=1;p<=data.periods;p++){
+    const a=entriesForEntity.filter(x=>x.day===d&&x.period===p);
+    html+='<tr><th>'+DAYS[d]+' – '+p+'</th><td>'+(a.map(x=>esc(x.subject)).join('<br>')||'<span class="empty">شاغرة</span>')+'</td><td>'+a.map(x=>esc(x.class)).join('<br>')+'</td><td>'+a.map(x=>esc(x.teacher)).join('<br>')+'</td></tr>';
+   }
+   html+='</tbody></table><br>';
+  }
  }
  if(!isFinal){
   const requested=(data.requirements||[]).reduce((n,x)=>n+(+x.count||0),0);
