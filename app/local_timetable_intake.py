@@ -55,19 +55,28 @@ def _number(text: str, default: int | None = None) -> int | None:
     return default
 
 def _extract_day_limits(text: str, days: list[int]) -> dict[str, int]:
+    """Read daily lesson totals, never mistake a teacher's free periods for totals."""
     normalized = _norm(text)
     limits: dict[str, int] = {}
-    aliases = [("الاثنين", 0), ("الثلاثاء", 1), ("الاربعاء", 2),
+    aliases = [("الاثنين", 0), ("الاربعاء", 2), ("الثلاثاء", 1),
                ("الخميس", 3), ("الجمعة", 4), ("السبت", 5), ("الاحد", 6)]
+    number_pattern = r"(ثمانية|ثماني|ثمان|سبعة|سبع|ستة|ست|خمسة|خمس|اربعة|اربع|ثلاثة|ثلاث|اثنين|اثنتين|واحد|واحدة|[1-9])"
     for day_word, day_id in aliases:
         if day_id not in days:
             continue
-        pattern = rf"{day_word}.{{0,28}}?(?:عندي|فيه|في|عددها)?\s*(ثمانية|ثماني|ثمان|سبعة|سبع|ستة|ست|خمسة|خمس|اربعة|اربع|ثلاثة|ثلاث|اثنين|اثنتين|واحد|واحدة|[1-9])\s*(?:حصص|حصة)"
-        match = re.search(pattern, normalized)
-        if match:
-            count = _number(match.group(1))
+        for day_match in re.finditer(day_word, normalized):
+            tail = normalized[day_match.end():day_match.end() + 65]
+            count_match = re.search(r"(?:عندي|فيه|في|عددها)?\\s*" + number_pattern + r"\\s*(?:حصص|حصة)", tail)
+            if not count_match:
+                continue
+            context = normalized[max(0, day_match.start() - 35):day_match.end()] + tail[:count_match.start()]
+            # "فراغ الاثنين أول ثلاث حصص" is teacher availability, not a 3-period day.
+            if re.search(r"فراغ|غير متاح|عدم توافر|اول|اخر|آخر", context):
+                continue
+            count = _number(count_match.group(1))
             if count:
                 limits[DAY_CANON[day_id]] = count
+                break
     return limits
 
 def _parse_clock(text: str) -> str | None:
@@ -89,29 +98,41 @@ def _parse_clock(text: str) -> str | None:
     return None
 
 def _extract_teacher_segments(text: str) -> list[tuple[str, str]]:
-    # A teacher must follow an explicit teacher-introduction phrase. Do not treat
-    # arbitrary words after "عنا" (e.g. "سبع حصص") as a person's name.
-    marker = re.compile(
-        r"(?:عنا\s+(?:(?:الأستاذة?|الاستاذة?|المدام)\s+)?|(?:الأستاذة?|الاستاذة?|المدام)\s+)"
-        r"([\u0621-\u064a]+(?:\s+[\u0621-\u064a]+)?)"
+    # Accept conversational introductions and clear name labels such as "نبيل عقيل:".
+    explicit = re.compile(
+        r"(?:عنا\\s+(?:(?:الأستاذة?|الاستاذة?|المدام|المعلم)\\s+)?|"
+        r"(?:الأستاذة?|الاستاذة?|المدام|المعلم)\\s+)"
+        r"([\\u0621-\\u064a]+(?:\\s+[\\u0621-\\u064a]+)?)"
+    )
+    labeled = re.compile(
+        r"(?:^|[\\n؛;,]\\s*)(?:المعلم\\s+)?"
+        r"([\\u0621-\\u064a]+(?:\\s+[\\u0621-\\u064a]+)?)\\s*[:：]",
+        re.M
     )
     stop = {"سبع", "سبعة", "ست", "ستة", "خمس", "خمسة", "أربع", "اربعة",
             "ثلاث", "ثلاثة", "حصص", "حصة", "أيام", "ايام", "الدوام",
             "بعلمهم", "بيعطي", "يعطي", "يعلموا", "الاستاذ", "الأستاذ",
-            "الأستاذة", "المدام", "كل", "لكل", "عندهم", "عنده"}
-    matches = []
-    for m in marker.finditer(text):
-        name = m.group(1).strip()
-        words = _norm(name).split()
-        if not words or any(w in stop for w in words):
-            continue
-        if re.fullmatch(r"[0-9٠-٩]+", name):
-            continue
-        matches.append((m.start(), m.end(), name))
+            "الأستاذة", "المدام", "المعلم", "كل", "لكل", "عندهم", "عنده"}
+    matches: list[tuple[int, int, str]] = []
+    for pattern in (explicit, labeled):
+        for m in pattern.finditer(text):
+            name = m.group(1).strip()
+            words = _norm(name).split()
+            if not words or any(w in stop for w in words):
+                continue
+            matches.append((m.start(), m.end(), name))
+    matches.sort(key=lambda item: item[0])
+    deduped: list[tuple[int, int, str]] = []
+    seen = set()
+    for item in matches:
+        key = (_norm(item[2]), item[0])
+        if key not in seen:
+            seen.add(key)
+            deduped.append(item)
     out = []
-    for i, (start, end, name) in enumerate(matches):
-        segment_end = matches[i + 1][0] if i + 1 < len(matches) else len(text)
-        segment = text[start:segment_end].strip(" ،,؛;")
+    for i, (start, end, name) in enumerate(deduped):
+        segment_end = deduped[i + 1][0] if i + 1 < len(deduped) else len(text)
+        segment = text[end:segment_end].strip(" ،,؛;:")
         if segment:
             out.append((name, segment))
     return out
