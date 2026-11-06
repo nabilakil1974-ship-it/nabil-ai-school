@@ -29,10 +29,11 @@ COPY timetable_api.py /app/timetable_api.py
 COPY app/__init__.py /app/app/__init__.py
 COPY app/api /app/app/api
 COPY app/local_timetable_reader.py /app/app/local_timetable_reader.py
+COPY app/local_timetable_intake.py /app/app/local_timetable_intake.py
 COPY app/timetable_solver.py /app/app/timetable_solver.py
 COPY timetable /app/timetable
 
-RUN python -m py_compile /app/timetable_api.py /app/app/api/routes_timetable.py /app/app/local_timetable_reader.py /app/app/timetable_solver.py \
+RUN python -m py_compile /app/timetable_api.py /app/app/api/routes_timetable.py /app/app/local_timetable_reader.py /app/app/local_timetable_intake.py /app/app/timetable_solver.py \
     && python -c "import pytesseract; print(pytesseract.get_tesseract_version())" \
     && useradd --create-home --shell /usr/sbin/nologin nabil \
     && chown -R nabil:nabil /app
