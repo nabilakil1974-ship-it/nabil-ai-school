@@ -94,7 +94,7 @@ $('readUpload').onclick=async()=>{
  $('readUpload').disabled=true;$('uploadStatus').className='status warn';$('uploadStatus').textContent='نبيل يقرأ الجدول ويستخرج الحصص ويفحص التعارضات...';
  $('analysisOutput').innerHTML='';
  try{
-  const response=await fetch('https://nabil-ai-school-production.up.railway.app/api/timetable/analyze',{method:'POST',body:form});
+  const response=await fetch('https://nabil-school-timetable-api.onrender.com/api/timetable/analyze',{method:'POST',body:form});
   const result=await response.json();
   if(!response.ok)throw new Error(typeof result.detail==='string'?result.detail:(result.detail?.message||'تعذر تحليل الملف.'));
   const dayIndex=name=>{
