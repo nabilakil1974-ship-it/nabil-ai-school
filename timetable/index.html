@@ -202,8 +202,8 @@ async function checkNabilHealth(){
  try{
   const response=await fetch('/api/health',{method:'GET',cache:'no-store'});
   const health=await response.json();
-  if(!response.ok||health.status!=='ok')throw new Error('health check failed');
-  badge.textContent='خدمة نبيل متصلة';
+  if(!response.ok||health.status!=='ok'||!health.nabil_engine_configured)throw new Error('NABIL engine is not configured');
+  badge.textContent='محرك نبيل متصل';
   badge.style.color='#b9f5d5';
  }catch(error){
   badge.textContent='خدمة التحليل غير متاحة حالياً';
