@@ -457,15 +457,20 @@ async def export_timetable_xlsx(payload: dict[str, Any] = Body(...)):
         sheet.sheet_view.rightToLeft = True
         sheet.sheet_view.showGridLines = False
         sheet.sheet_view.zoomScale = 70
+        # Print the entire school timetable as one clear page, not a tiled set of pages.
         sheet.sheet_properties.pageSetUpPr.fitToPage = True
         sheet.page_setup.orientation = "landscape"
         sheet.page_setup.paperSize = sheet.PAPERSIZE_A3
         sheet.page_setup.fitToWidth = 1
-        sheet.page_setup.fitToHeight = 0
-        sheet.page_margins.left = 0.2
-        sheet.page_margins.right = 0.2
-        sheet.page_margins.top = 0.35
-        sheet.page_margins.bottom = 0.35
+        sheet.page_setup.fitToHeight = 1
+        sheet.page_setup.pageOrder = "overThenDown"
+        sheet.page_margins.left = 0.15
+        sheet.page_margins.right = 0.15
+        sheet.page_margins.top = 0.2
+        sheet.page_margins.bottom = 0.2
+        sheet.page_margins.header = 0.1
+        sheet.page_margins.footer = 0.1
+        sheet.print_options.horizontalCentered = True
 
         thin = Side(style="thin", color="B8C7D0")
         workbook_font = Font(name="Arial", size=11, color="202830")
