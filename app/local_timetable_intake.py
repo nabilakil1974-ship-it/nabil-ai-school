@@ -89,30 +89,47 @@ def _parse_clock(text: str) -> str | None:
     return None
 
 def _extract_teacher_segments(text: str) -> list[tuple[str, str]]:
-    pattern = re.compile(r"(?=(?:عنا\s+(?:(?:الأستاذة?|الاستاذة?|المدام)\s+)?|الاستاذة?\s+|المدام\s+)([\u0621-\u064a]+(?:\s+[\u0621-\u064a]+)?))")
-    matches = list(pattern.finditer(text))
-    out = []
-    for i, match in enumerate(matches):
-        start = match.start()
-        end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
-        raw = text[start:end].strip(" ،,؛;")
-        name_match = pattern.match(text[start:])
-        if not name_match:
+    # A teacher must follow an explicit teacher-introduction phrase. Do not treat
+    # arbitrary words after "عنا" (e.g. "سبع حصص") as a person's name.
+    marker = re.compile(
+        r"(?:عنا\s+(?:(?:الأستاذة?|الاستاذة?|المدام)\s+)?|(?:الأستاذة?|الاستاذة?|المدام)\s+)"
+        r"([\u0621-\u064a]+(?:\s+[\u0621-\u064a]+)?)"
+    )
+    stop = {"سبع", "سبعة", "ست", "ستة", "خمس", "خمسة", "أربع", "اربعة",
+            "ثلاث", "ثلاثة", "حصص", "حصة", "أيام", "ايام", "الدوام",
+            "بعلمهم", "بيعطي", "يعطي", "يعلموا", "الاستاذ", "الأستاذ",
+            "الأستاذة", "المدام", "كل", "لكل", "عندهم", "عنده"}
+    matches = []
+    for m in marker.finditer(text):
+        name = m.group(1).strip()
+        words = _norm(name).split()
+        if not words or any(w in stop for w in words):
             continue
-        name = name_match.group(1).strip()
-        prefix = _norm(raw[:raw.find(name)])
-        if "المدام" in prefix and not name.startswith("ال"):
-            name = name
-        out.append((name, raw))
-    # Fallback for common "عنا أحمد" / "عنا كارولين" forms already matched above.
+        if re.fullmatch(r"[0-9٠-٩]+", name):
+            continue
+        matches.append((m.start(), m.end(), name))
+    out = []
+    for i, (start, end, name) in enumerate(matches):
+        segment_end = matches[i + 1][0] if i + 1 < len(matches) else len(text)
+        segment = text[start:segment_end].strip(" ،,؛;")
+        if segment:
+            out.append((name, segment))
     return out
 
 def _subject(segment: str) -> str:
-    m = re.search(r"(?:حيعطي|بيعطي|يعطي|بتعطي|تعطي|بتعلم|بيعلم|بعلم|يعلم|يدرّس|يدرس)\s+(.+?)\s+(?=لصف|للصف|لل|لكل|كل الصفوف|كل صف|،|,)", segment)
-    if not m:
-        return ""
-    value = re.sub(r"^(?:مادة\s+)", "", m.group(1).strip())
-    return value.strip(" ،،.")
+    # Extract only a known subject immediately following a teaching verb.
+    # This prevents speech-recognition noise from becoming a gigantic subject.
+    subjects = (
+        "رياضيات", "عربي", "لغة عربية", "انكليزي", "إنكليزي", "انجليزي",
+        "لغة انكليزية", "بيولوجي", "علوم", "فيزياء", "كيمياء", "تاريخ",
+        "جغرافيا", "دين", "تربية", "رياضة", "فرنسي", "لغة فرنسية",
+        "اجتماعيات", "فلسفة", "اقتصاد", "معلوماتية", "فنون", "موسيقى"
+    )
+    verbs = r"(?:حيعطي|بيعطي|يعطي|بتعطي|تعطي|بتعلم|بيعلم|بعلم|يعلم|يدرّس|يدرس)"
+    for subject in sorted(subjects, key=len, reverse=True):
+        if re.search(verbs + r"\s+" + re.escape(subject) + r"(?=\s|$|،|,)", segment, re.I):
+            return subject
+    return ""
 
 def _explicit_classes(segment: str) -> list[str]:
     # Explicit grade + section labels such as "السابع A والسابع B والثامن B".
