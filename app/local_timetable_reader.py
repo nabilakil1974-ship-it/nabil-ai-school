@@ -119,3 +119,67 @@ def read_timetable(data: bytes, kind: str) -> dict[str, Any]:
       "weekly_loads":weekly,"unreadable":unreadable,
       "notes":["تمت القراءة محلياً داخل NABIL دون Gemini أو أي API خارجي.",
                "الأنصبة الأسبوعية المستنتجة هي عدد الحصص الظاهرة في الملف فقط؛ لا تثبت اكتمال النصاب."]}
+
+
+def read_pasted_timetable(raw: str) -> dict[str, Any]:
+    """Parse an Excel-copied timetable matrix locally (tab-separated cells)."""
+    if not isinstance(raw, str) or not raw.strip():
+        raise ValueError("ألصق الجدول أولاً.")
+    lines = [line.rstrip("\r") for line in raw.splitlines()]
+    rows = [line.split("\t") for line in lines if line.strip()]
+    if not rows:
+        raise ValueError("النص الملصق لا يحتوي على صفوف.")
+    classes = ["السابع ج", "السابع ب", "السابع أ", "الثامن ب", "الثامن أ", "التاسع أ"]
+    day_names = { _norm(k): v for k, v in DAY_ALIASES.items() }
+    entries, unreadable, days = [], [], []
+    current_day = ""
+    period_times = []
+    for row_no, row in enumerate(rows, 1):
+        cells = [str(x or "").strip() for x in row]
+        # Identify the lesson number and day at the right edge of the pasted matrix.
+        period_idx = next((i for i, v in enumerate(cells) if re.fullmatch(r"[1-8]", v)), -1)
+        if period_idx < 0:
+            continue
+        day_idx = next((i for i in range(period_idx + 1, len(cells))
+                        if _norm(cells[i]) in day_names), -1)
+        if day_idx >= 0:
+            current_day = day_names[_norm(cells[day_idx])]
+        if not current_day:
+            continue
+        period = int(cells[period_idx])
+        # Six classes, each represented by adjacent teacher/subject cells.
+        # Time columns and day/period columns are outside this 12-cell block.
+        pairs = cells[:12]
+        if len(pairs) < 12:
+            pairs += [""] * (12 - len(pairs))
+        added = 0
+        for class_name, offset in zip(classes, range(0, 12, 2)):
+            teacher, subject = pairs[offset].strip(), pairs[offset + 1].strip()
+            if not teacher and not subject:
+                continue
+            if not teacher or not subject:
+                unreadable.append(f"السطر {row_no}، {class_name}، الحصة {period}: اسم المدرس أو المادة ناقص")
+                continue
+            entries.append({"day": current_day, "period": period, "class": class_name,
+                            "subject": subject, "teacher": teacher})
+            added += 1
+        if added == 0:
+            continue
+        if current_day not in days:
+            days.append(current_day)
+        # Capture time-looking cells without assuming their left/right orientation.
+        times = [v for v in cells if re.fullmatch(r"(?:[01]?\d|2[0-3]):[0-5]\d", v)]
+        if len(times) >= 2:
+            period_times.append({"period": period, "start": times[-1], "end": times[-2]})
+    if not entries:
+        raise ValueError("لم أستطع استخراج حصص من النص. انسخ الجدول مباشرة من خلايا Excel كي تبقى فواصل الأعمدة (Tabs).")
+    teachers = list(dict.fromkeys(e["teacher"] for e in entries))
+    loads = Counter((e["teacher"], e["class"], e["subject"]) for e in entries)
+    weekly = [{"teacher": t, "class": c, "subject": s, "count": n}
+              for (t, c, s), n in loads.items()]
+    return {"school_name": "", "days": days, "periods_per_day": max(e["period"] for e in entries),
+            "period_times": period_times, "teachers": teachers, "classes": classes,
+            "entries": entries, "teacher_unavailable": [], "weekly_loads": weekly,
+            "unreadable": unreadable,
+            "notes": ["تم تحليل النص الملصق محلياً دون أي خدمة ذكاء اصطناعي خارجية.",
+                      "يجب مراجعة أسماء المعلمين والمواد والأنصبة قبل اعتماد الجدول."]}
