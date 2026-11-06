@@ -13,9 +13,9 @@
 <header><h1>نبيل | منظّم البرنامج المدرسي الذكي</h1><p>NABIL School Timetable AI · النسخة التجريبية الأولى</p></header>
 <main>
 <div class="notice"><b>لأي مدرسة:</b> ارفع صورة الجدول أو ملف Word، أو أدخل البيانات يدوياً. راجع البيانات المستخرجة قبل إنشاء البرنامج وفحص التعارضات.</div>
-<section class="panel active" id="importPanel"><h2>ابدأ برفع جدول المدرسة</h2><div class="grid"><div class="field"><label>صورة الجدول المخطوط (JPG أو PNG)</label><input id="imageFile" type="file" accept="image/png,image/jpeg,image/webp"></div><div class="field"><label>ملف Word (DOCX)</label><input id="wordFile" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"></div></div><div class="actions"><button class="primary" id="readUpload">قراءة الملف</button><button class="secondary" id="clearUpload">إلغاء الملف</button></div><div id="uploadStatus" class="status warn">ارفع صورة واضحة أو ملف Word بصيغة DOCX.</div><div id="uploadPreview"></div><p class="small">تنبيه: واجهة الرفع ومعاينة الملفات وقراءة نص DOCX متاحة؛ أما تحويل الصورة أو المستند تلقائياً إلى جدول حصص وتحليله واقتراح حلول فيحتاج إلى ربط محرك NABIL الخلفي واختباره.</p></section>
+<section class="panel active" id="importPanel"><h2>ابدأ برفع جدول المدرسة</h2><div class="grid"><div class="field"><label>صورة الجدول المخطوط (JPG أو PNG)</label><input id="imageFile" type="file" accept="image/png,image/jpeg,image/webp"></div><div class="field"><label>ملف Word (DOCX)</label><input id="wordFile" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"></div></div><div class="actions"><button class="primary" id="readUpload">قراءة الملف</button><button class="secondary" id="clearUpload">إلغاء الملف</button></div><div id="uploadStatus" class="status warn">ارفع صورة واضحة أو ملف Word بصيغة DOCX.</div><div id="uploadPreview"></div><div id="analysisOutput"></div><p class="small">يرسل نبيل الملف إلى محرك التحليل لاستخراج الحصص وفحص التعارضات واقتراح بدائل.</p></section>
 <div class="tabs"><button class="tab active" data-tab="settings">إعداد الدوام</button><button class="tab" data-tab="teachers">المعلمون</button><button class="tab" data-tab="classes">الصفوف والشعب</button><button class="tab" data-tab="subjects">المواد والحصص</button><button class="tab" data-tab="results">البرنامج الناتج</button></div>
-<section class="panel active" id="settings"><h2>إعداد أيام الدوام والحصص</h2><div class="field"><label>أيام الدوام</label><div class="checkgrid" id="days"></div></div><div class="grid" style="margin-top:14px"><div class="field"><label>عدد الحصص في اليوم</label><input id="periods" type="number" min="1" max="12" value="6"></div><div class="field"><label>اسم المدرسة</label><input id="school" value="المدرسة الرسمية"></div></div><div class="actions"><button class="secondary" id="saveSettings">حفظ إعدادات الدوام</button></div><p class="small">النموذج يضيف صفوف الأول الأساسي حتى التاسع، ومواداً وحصصاً أسبوعية ومعلمين افتراضيين. يمكنك تعديله أو حذفه بعد التحميل.</p></section>
+<section class="panel active" id="settings"><h2>إعداد أيام الدوام والحصص</h2><div class="field"><label>أيام الدوام</label><div class="checkgrid" id="days"></div></div><div class="grid" style="margin-top:14px"><div class="field"><label>عدد الحصص في اليوم</label><input id="periods" type="number" min="1" max="12" value="6"></div><div class="field"><label>اسم المدرسة</label><input id="school" value="المدرسة الرسمية"></div></div><div class="actions"><button class="secondary" id="saveSettings">حفظ إعدادات الدوام</button></div><p class="small">أدخل بيانات مدرستك أو ارفع جدولها. لا توجد بيانات تجريبية محمّلة مسبقاً.</p></section>
 <section class="panel" id="teachers"><h2>إضافة المعلمين</h2><div class="grid"><div class="field"><label>اسم المعلم</label><input id="teacherName" placeholder="مثلاً: نبيل عقيل"></div></div><div class="actions"><button class="primary" id="addTeacher">إضافة المعلم</button></div><div class="list" id="teacherList"></div></section>
 <section class="panel" id="classes"><h2>إضافة الصفوف والشعب</h2><div class="grid"><div class="field"><label>اسم الصف أو الشعبة</label><input id="className" placeholder="مثلاً: السابع أ"></div></div><div class="actions"><button class="primary" id="addClass">إضافة الصف</button></div><div class="list" id="classList"></div></section>
 <section class="panel" id="subjects"><h2>توزيع المواد والحصص الأسبوعية</h2><div class="grid"><div class="field"><label>الصف / الشعبة</label><select id="reqClass"></select></div><div class="field"><label>المادة</label><input id="subjectName" placeholder="الرياضيات"></div><div class="field"><label>المعلم</label><select id="reqTeacher"></select></div><div class="field"><label>عدد الحصص أسبوعياً</label><input id="weekly" type="number" min="1" max="30" value="4"></div></div><div class="actions"><button class="primary" id="addReq">إضافة التوزيع</button></div><div class="list" id="reqList"></div><h2 style="margin-top:22px">أوقات عدم توافر المعلم (اختياري)</h2><div class="grid"><div class="field"><label>المعلم</label><select id="blockedTeacher"></select></div><div class="field"><label>اليوم</label><select id="blockedDay"></select></div><div class="field"><label>رقم الحصة</label><select id="blockedPeriod"></select></div></div><div class="actions"><button class="secondary" id="addBlock">إضافة وقت غير متاح</button></div><div class="list" id="blockList"></div></section>
@@ -24,7 +24,7 @@
 </main>
 <script>
 const $=id=>document.getElementById(id), DAYS=['الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت','الأحد'];
-let data={school:'المدرسة الرسمية',days:[0,1,2,3,4],periods:6,teachers:[],classes:[],requirements:[],blocked:[],schedule:[]}, view='school';
+let data={school:'',days:[0,1,2,3,4],periods:6,teachers:[],classes:[],requirements:[],blocked:[],schedule:[]}, view='school';
 try{const saved=JSON.parse(localStorage.getItem('nabil-timetable-v2'));if(saved)data={...data,...saved}}catch(e){}
 function persist(){localStorage.setItem('nabil-timetable-v2',JSON.stringify(data))}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -90,20 +90,54 @@ $('loadDemo').onclick=loadDemo;
 $('readUpload').onclick=async()=>{
  const img=$('imageFile').files[0],doc=$('wordFile').files[0],file=img||doc;
  if(!file){$('uploadStatus').className='status err';$('uploadStatus').textContent='اختر صورة أو ملف Word أولاً.';return}
- if(img){
-  $('uploadPreview').innerHTML='<img alt="معاينة صورة الجدول" style="max-width:100%;max-height:420px;border:1px solid #dbe3e8;border-radius:10px" src="'+URL.createObjectURL(img)+'">';
-  $('uploadStatus').className='status warn';$('uploadStatus').textContent='تم استلام الصورة ومعاينتها. استخراج جدول الحصص آلياً وتحليله لم يُفعّل بعد.';
- }else{
-  if(!/\\.docx$/i.test(doc.name)){$('uploadStatus').className='status err';$('uploadStatus').textContent='ارفع ملف Word بصيغة DOCX.';return}
-  $('uploadStatus').className='status warn';$('uploadStatus').textContent='جارٍ قراءة ملف Word...';
-  try{
-   if(!window.mammoth){await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js';s.onload=resolve;s.onerror=reject;document.head.appendChild(s)})}
-   const result=await window.mammoth.extractRawText({arrayBuffer:await doc.arrayBuffer()});
-   $('uploadPreview').innerHTML='<pre style="white-space:pre-wrap;direction:rtl;text-align:right;background:#f5f7f8;padding:12px;border-radius:8px;max-height:360px;overflow:auto"></pre>';
-   $('uploadPreview').querySelector('pre').textContent=result.value||'لم يتم العثور على نص قابل للقراءة.';
-   $('uploadStatus').className='status ok';$('uploadStatus').textContent='تم استخراج نص ملف Word للمعاينة. لم يتحول تلقائياً إلى جدول ولم يُفحص التعارض.';
-  }catch(e){$('uploadStatus').className='status err';$('uploadStatus').textContent='تعذرت قراءة ملف Word. تحقق من الإنترنت وصيغة DOCX.'}
- }
+ const form=new FormData();form.append('file',file);
+ $('readUpload').disabled=true;$('uploadStatus').className='status warn';$('uploadStatus').textContent='نبيل يقرأ الجدول ويستخرج الحصص ويفحص التعارضات...';
+ $('analysisOutput').innerHTML='';
+ try{
+  const response=await fetch('https://NABIL_TIMETABLE_API_HOST/api/timetable/analyze',{method:'POST',body:form});
+  const result=await response.json();
+  if(!response.ok)throw new Error(typeof result.detail==='string'?result.detail:(result.detail?.message||'تعذر تحليل الملف.'));
+  const dayIndex=name=>{
+   const n=String(name||'').replace(/[أإآ]/g,'ا').replace(/\s+/g,'').toLowerCase();
+   const aliases=['الاثنين','الثلاثاء','الاربعاء','الخميس','الجمعة','السبت','الاحد'];
+   let i=aliases.indexOf(n);
+   if(i<0){const en=['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];i=en.indexOf(n)}
+   if(i<0){DAYS.push(String(name));i=DAYS.length-1}
+   return i;
+  };
+  const entries=(result.entries||[]).map(x=>({day:dayIndex(x.day),period:+x.period,class:x.class,subject:x.subject,teacher:x.teacher}));
+  const classes=[...new Set([...(result.classes||[]),...entries.map(x=>x.class)].filter(Boolean))];
+  const teachers=[...new Set([...(result.teachers||[]),...entries.map(x=>x.teacher)].filter(Boolean))];
+  const reqMap=new Map();
+  entries.forEach(x=>{const k=[x.class,x.teacher,x.subject].join('|');const v=reqMap.get(k)||{class:x.class,teacher:x.teacher,subject:x.subject,count:0};v.count++;reqMap.set(k,v)});
+  data={school:result.school_name||'مدرسة جديدة',days:[...new Set(entries.map(x=>x.day))].sort((a,b)=>a-b),periods:Math.max(1,+result.periods_per_day||Math.max(...entries.map(x=>x.period))),teachers,classes,requirements:[...reqMap.values()],blocked:(result.teacher_unavailable||[]).map(x=>({teacher:x.teacher,day:dayIndex(x.day),period:+x.period})),schedule:entries};
+  if(!data.days.length)data.days=[0,1,2,3,4];
+  persist();render();drawSchedule();
+  $('uploadStatus').className=result.conflict_count?'status err':'status ok';
+  $('uploadStatus').textContent='اكتمل تحليل الملف: '+entries.length+' حصة، '+teachers.length+' معلماً، '+classes.length+' شعبة، '+result.conflict_count+' تعارضاً.';
+  let out='<div class="status '+(result.conflict_count?'err':'ok')+'"><b>نتيجة تحليل نبيل:</b> '+(result.conflict_count?'تم العثور على '+result.conflict_count+' تعارض.':'لم يظهر تعارض ضمن البيانات المقروءة.')+'</div>';
+  if(result.unreadable?.length)out+='<h3>بيانات تحتاج مراجعة</h3><ul>'+result.unreadable.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>';
+  if(result.notes?.length)out+='<ul>'+result.notes.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>';
+  if(result.conflicts?.length){
+   out+='<h3>التعارضات والحلول المقترحة</h3>';
+   result.conflicts.forEach((conf,i)=>{
+    const who=conf.teacher?'الأستاذ: '+conf.teacher:'الشعبة: '+(conf.class||'');
+    out+='<div class="status err"><b>'+(i+1)+'. '+esc(who)+'</b><br>'+esc(conf.day)+' — الحصة '+conf.period+'<br>';
+    (conf.entries||[]).forEach(e=>{out+='<div>'+esc(e.class)+' · '+esc(e.subject)+' · '+esc(e.teacher)+'</div>'});
+    (conf.solutions||[]).forEach(sol=>{
+     out+='<p><b>نقل '+esc(sol.move?.class||'الحصة')+' / '+esc(sol.move?.subject||'')+':</b></p>';
+     if(sol.alternatives?.length)out+='<ul>'+sol.alternatives.map(a=>'<li>'+esc(a.day)+'، الحصة '+a.period+' — '+esc(a.reason)+'</li>').join('')+'</ul>';
+     else out+='<p>لم يظهر موعد بديل آمن ضمن الخانات المستخرجة؛ يلزم تعديل قيود الجدول.</p>';
+    });
+    out+='</div>';
+   });
+  }
+  out+='<p class="small">'+esc(result.solutions_note||'راجع البيانات المستخرجة قبل اعتماد أي تعديل.')+'</p>';
+  $('analysisOutput').innerHTML=out;
+  document.querySelector('[data-tab="results"]').click();
+ }catch(e){
+  $('uploadStatus').className='status err';$('uploadStatus').textContent='فشل التحليل: '+e.message;
+ }finally{$('readUpload').disabled=false}
 };
 $('clearUpload').onclick=()=>{$('imageFile').value='';$('wordFile').value='';$('uploadPreview').innerHTML='';$('uploadStatus').className='status warn';$('uploadStatus').textContent='تم إلغاء الملف.'};
 \n$('saveSettings').onclick=()=>{data.school=$('school').value.trim()||'المدرسة الرسمية';data.periods=Math.max(1,Math.min(12,+$('periods').value||6));data.days=[...$('days').querySelectorAll('input:checked')].map(x=>+x.value);if(!data.days.length)return alert('اختر يوم دوام واحداً على الأقل');data.schedule=[];persist();render();alert('تم حفظ إعدادات الدوام')};
