@@ -192,7 +192,7 @@ function voiceStatus(message){$('voiceStatus').textContent=message}
 function appendVoiceText(value){
  const clean=String(value||'').trim(); if(!clean)return;
  const box=$('pastedTimetable'), current=box.value.trim();
- box.value=(current?current+'\\n':'')+clean;
+ box.value=(current?current+'\n':'')+clean;
  box.dispatchEvent(new Event('input',{bubbles:true}));
 }
 function stopNabilVoice(manual=true){
