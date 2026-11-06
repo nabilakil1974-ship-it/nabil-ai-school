@@ -99,8 +99,13 @@ $('readUpload').onclick=async()=>{
  $('analysisOutput').innerHTML='';
  try{
   const response=await fetch('/api/timetable/analyze',{method:'POST',body:form});
-  const result=await response.json();
-  if(!response.ok)throw new Error(typeof result.detail==='string'?result.detail:(result.detail?.message||'تعذر تحليل الملف.'));
+  const responseText=await response.text();
+  let result={};
+  try{result=JSON.parse(responseText)}catch(parseError){
+   const preview=responseText.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,180);
+   throw new Error('الخادم لم يُرجع JSON (HTTP '+response.status+'). '+(preview||'تحقق من اتصال الخدمة ثم أعد المحاولة.'));
+  }
+  if(!response.ok)throw new Error(typeof result.detail==='string'?result.detail:(result.detail?.message||'تعذر تحليل الملف (HTTP '+response.status+').'));
   const dayIndex=name=>{
    const n=String(name||'').replace(/[أإآ]/g,'ا').replace(/\s+/g,'').toLowerCase();
    const aliases=['الاثنين','الثلاثاء','الاربعاء','الخميس','الجمعة','السبت','الاحد'];
@@ -200,8 +205,8 @@ async function checkNabilHealth(){
  try{
   const response=await fetch('/api/health',{method:'GET',cache:'no-store'});
   const health=await response.json();
-  if(!response.ok||health.status!=='ok'||!health.nabil_engine_configured)throw new Error('NABIL engine is not configured');
-  badge.textContent='محرك نبيل متصل';
+  if(!response.ok||health.status!=='ok')throw new Error('NABIL local service is not available');
+  badge.textContent='محرك نبيل المحلي متصل';
   badge.style.color='#b9f5d5';
  }catch(error){
   badge.textContent='خدمة التحليل غير متاحة حالياً';
