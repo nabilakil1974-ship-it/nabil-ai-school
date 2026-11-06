@@ -250,6 +250,27 @@ async def analyze_timetable(file: UploadFile = File(...)):
         raise HTTPException(status_code=422, detail="تعذرت القراءة المحلية للملف: " + str(exc)) from exc
 
 
+@router.post("/analyze-text")
+async def analyze_timetable_text(payload: dict[str, Any] = Body(...)):
+    """Analyze an Excel-copied timetable text locally; no external AI."""
+    raw = payload.get("text", "")
+    try:
+        parsed = await run_in_threadpool(read_pasted_timetable, raw)
+        result = _audit(parsed)
+        if not result["entries"]:
+            raise HTTPException(status_code=422, detail="لم يستخرج نبيل حصصاً من النص الملصق.")
+        result["engine"] = "NABIL Local Engine"
+        result["external_ai_used"] = False
+        return result
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("PASTED_TIMETABLE_ANALYSIS_FAILED")
+        raise HTTPException(status_code=422, detail="تعذر تحليل النص الملصق: " + str(exc)) from exc
+
+
 @router.post("/generate")
 async def generate_timetable(payload: dict[str, Any] = Body(...)):
     """Generate a complete timetable from explicit school requirements."""
