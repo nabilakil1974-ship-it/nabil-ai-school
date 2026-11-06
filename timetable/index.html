@@ -289,54 +289,55 @@ $('clearPasted').onclick=()=>{
 window.addEventListener('pagehide',()=>stopNabilVoice(false));
 
 $('analyzeSpoken').onclick=async()=>{
- const text=$('pastedTimetable').value.trim();
- if(!text){$('uploadStatus').className='status err';$('uploadStatus').textContent='تحدث بالميكروفون أو اكتب وصف المدرسة أولاً.';return}
+ const spoken=$('pastedTimetable').value.trim();
+ if(!spoken){$('uploadStatus').className='status err';$('uploadStatus').textContent='تحدث بالميكروفون أو اكتب معلومة أولاً.';return}
  const button=$('analyzeSpoken');button.disabled=true;
- $('uploadStatus').className='status warn';$('uploadStatus').textContent='نبيل ينظم وصف المدير بمحركه المحلي...';
- $('analysisOutput').innerHTML='';
+ $('uploadStatus').className='status warn';$('uploadStatus').textContent='نبيل يحلل الإضافة ويحدّث البرنامج مباشرة...';
  try{
-  const response=await fetch('/api/timetable/intake-text',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,known_classes:[]})});
+  const response=await fetch('/api/timetable/intake-text',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:spoken,known_classes:data.classes})});
   const result=await response.json();
-  if(!response.ok)throw new Error(typeof result.detail==='string'?result.detail:'تعذر تنظيم وصف المدير.');
-  // A new intake is a new school draft: never leave a previously saved timetable
-  // visible as if it had been generated from the newly dictated information.
-  data={school:$('school').value.trim()||'مدرسة جديدة',days:[],periods:1,periodDurationMinutes:null,breakStart:'',breakDurationMinutes:null,teachers:[],classes:[],requirements:[],blocked:[],schedule:[],dayPeriodLimits:{}};
-  persist();render();drawSchedule();
-  const escText=s=>String(s??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-  const dayNames=['الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت','الأحد'];
-  let out='<div class="status '+(result.ready_for_generation?'ok':'warn')+'"><b>مسودة بيانات المدرسة — تحليل محلي</b><br>لم يتم إنشاء جدول نهائي بعد؛ راجع المعلومات والنواقص.</div>';
-  out+='<h3>إعداد الدوام</h3><p>الأيام: '+(result.days||[]).map(d=>dayNames[d]).join('، ')+'</p>';
-  out+='<p>الحصص اليومية: '+Object.entries(result.day_period_limits||{}).map(([d,n])=>escText(d)+' '+n).join('، ')+'</p>';
-  out+='<p>مدة الحصة: '+escText(result.period_duration_minutes||'غير محددة')+' دقيقة — الاستراحة: '+escText(result.break_start||'غير محددة')+'، '+escText(result.break_duration_minutes||'غير محددة')+' دقيقة</p>';
-  out+='<h3>المعلمون والأنصبة والقيود المستخرجة</h3><table><thead><tr><th>المعلم</th><th>المادة</th><th>الصفوف/الشعب</th><th>الحصص لكل شعبة</th><th>الفراغ</th></tr></thead><tbody>';
-  (result.teacher_profiles||[]).forEach(t=>{
-   const free=(t.unavailable||[]).map(x=>dayNames[x.day]+' '+x.period).join('، ')||'لم يحدد';
-   const reqClasses=(result.requirements||[]).filter(x=>x.teacher===t.teacher).map(x=>x.class);
-   const scope=[...new Set([...(t.explicit_classes||[]),...reqClasses,...(t.grades||[]).map(x=>'كل شعب '+x)])].join('، ')||'غير محدد';
-   out+='<tr><td>'+escText(t.teacher)+'</td><td>'+escText(t.subject||'غير واضح')+'</td><td>'+escText(scope)+'</td><td>'+escText(t.lessons_per_class||'غير محدد')+'</td><td>'+escText(free)+'</td></tr>';
+  if(!response.ok)throw new Error(typeof result.detail==='string'?result.detail:'تعذر تحليل المعلومات.');
+  const unique=(arr,key)=>{const seen=new Set();return arr.filter(x=>{const k=key(x);if(seen.has(k))return false;seen.add(k);return true})};
+  // Incremental merge: preserve everything already entered in the live school draft.
+  data.days=unique([...(data.days||[]),...(result.days||[])],x=>String(x)).sort((a,b)=>a-b);
+  data.dayPeriodLimits={...(data.dayPeriodLimits||{}),...(result.day_period_limits||{})};
+  const observed=Object.values(data.dayPeriodLimits).map(Number).filter(Number.isFinite);
+  if(observed.length)data.periods=Math.max(Number(data.periods)||1,...observed);
+  if(result.period_duration_minutes)data.periodDurationMinutes=result.period_duration_minutes;
+  if(result.break_start)data.breakStart=result.break_start;
+  if(result.break_duration_minutes)data.breakDurationMinutes=result.break_duration_minutes;
+  (result.teachers||[]).forEach(t=>{if(t&&!data.teachers.includes(t))data.teachers.push(t)});
+  (result.classes||[]).forEach(c=>{if(c&&!data.classes.includes(c))data.classes.push(c)});
+  (result.requirements||[]).forEach(r=>{
+   const key=x=>[x.teacher,x.subject,x.class].join('|');
+   const found=data.requirements.find(x=>key(x)===key(r));
+   if(found)found.count=Number(r.count)||found.count;
+   else data.requirements.push({...r});
   });
-  out+='</tbody></table>';
-  out+='<h3>الأنصبة الأسبوعية التي فهمها نبيل</h3><p>إجمالي الحصص المطلوبة: '+(result.requirements||[]).reduce((s,x)=>s+(+x.count||0),0)+'</p><ul>'+(result.requirements||[]).map(x=>'<li>'+escText(x.teacher)+' — '+escText(x.subject)+' — '+escText(x.class)+': '+x.count+' حصص</li>').join('')+'</ul>';
-  if(result.unresolved_scopes?.length){out+='<h3>شعب تحتاج إلى تحديد</h3><ul>'+result.unresolved_scopes.map(x=>'<li>'+escText(x.teacher)+': '+escText(x.grades.join('، '))+' — '+escText(x.reason)+'</li>').join('')+'</ul>';}
-  if(result.warnings?.length){out+='<h3>أسئلة ونواقص قبل إنشاء الجدول</h3><ul>'+result.warnings.map(x=>'<li>'+escText(x)+'</li>').join('')+'</ul>';}
-  out+='<p class="small">المحرك: '+escText(result.engine)+' — استخدام ذكاء اصطناعي خارجي: لا.</p>';
-  out+='<div class="actions"><button class="primary" id="applySpokenDraft" '+(result.ready_for_generation?'':'disabled title="لا يمكن الاعتماد قبل تصحيح البيانات الناقصة أو الملتبسة"')+'>اعتماد هذه المسودة وإدخالها إلى البرنامج</button></div>';
-  if(!result.ready_for_generation)out+='<p class="status err">أوقف نبيل الاعتماد الآلي: توجد بيانات غير مؤكدة. صحّح النص وأعد التحليل؛ لن يُستخدم الجدول المحفوظ سابقاً بديلاً عن هذه المسودة.</p>';
-  $('analysisOutput').innerHTML=out;
-  if(result.ready_for_generation){
-   data={school:$('school').value.trim()||'مدرسة جديدة',days:result.days||[],periods:Math.max(1,...Object.values(result.day_period_limits||{}).map(Number)),dayPeriodLimits:result.day_period_limits||{},periodDurationMinutes:result.period_duration_minutes||null,breakStart:result.break_start||'',breakDurationMinutes:result.break_duration_minutes||null,teachers:result.teachers||[],classes:result.classes||[],requirements:result.requirements||[],blocked:result.blocked||[],schedule:[]};
-   persist();render();drawSchedule();document.querySelector('[data-tab="results"]').click();
-   await generate();
-  }else{
-   show('حلّل نبيل البيانات، لكن توجد معلومات ناقصة أو ملتبسة. راجع الملاحظات الظاهرة وأضفها إلى النص ثم أعد الإرسال.','warn');
+  (result.blocked||[]).forEach(b=>{
+   if(!data.blocked.some(x=>x.teacher===b.teacher&&Number(x.day)===Number(b.day)&&Number(x.period)===Number(b.period)))data.blocked.push({...b});
+  });
+  // Any new constraint invalidates a previously generated final schedule.
+  data.schedule=[];
+  persist();render();drawSchedule();saveIntakeText();
+  const escText=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const addedTeachers=result.teachers||[], addedClasses=result.classes||[], addedReqs=result.requirements||[];
+  let message='<div class="status ok"><b>أضيفت المعلومات إلى البرنامج مباشرةً</b><br>لم تُحذف أي معلومة محفوظة سابقاً. الجدول والمعاينة تحدّثا الآن.</div>';
+  message+='<p><b>الصفوف والشعب:</b> '+(data.classes.map(escText).join('، ')||'لم تُحدد بعد')+'</p>';
+  message+='<p><b>المعلمون:</b> '+(data.teachers.map(escText).join('، ')||'لم يُحددوا بعد')+'</p>';
+  message+='<p><b>التوزيعات المسجلة:</b> '+data.requirements.length+' — <b>مجموع الحصص:</b> '+data.requirements.reduce((n,x)=>n+(Number(x.count)||0),0)+'</p>';
+  if(result.teacher_profiles?.length){
+   message+='<h3>ما فهمه نبيل من الإضافة</h3><ul>'+result.teacher_profiles.map(t=>'<li>'+escText(t.teacher)+': '+escText(t.subject||'المادة لم تُحدد بعد')+' — '+escText((t.explicit_classes||[]).join('، ')||'الشعب لم تُحدد بعد')+' — '+((t.unavailable||[]).length)+' أوقات فراغ جديدة</li>').join('')+'</ul>';
   }
-  $('uploadStatus').className=result.ready_for_generation?'status ok':'status warn';
-  $('uploadStatus').textContent=result.ready_for_generation?'اكتمل التحليل؛ يجري إنشاء البرنامج تلقائياً.':'اكتمل التحليل الأولي، لكن توجد معلومات ناقصة.';
+  if(result.unresolved_scopes?.length)message+='<p class="status warn">بعض الصفوف ذُكرت دون تحديد الشعب: '+result.unresolved_scopes.map(x=>escText(x.teacher+' ('+(x.grades||[]).join('، ')+')')).join('؛ ')+'</p>';
+  if(result.warnings?.length)message+='<p class="small">ملاحظات: '+result.warnings.map(escText).join(' — ')+'</p>';
+  message+='<p class="small">أكمل بإضافة معلومة أخرى في المربع نفسه ثم أرسلها. ستبقى المعلومات السابقة محفوظة. نبيل لا ينشئ الجدول النهائي تلقائياً؛ اضغط زر إنشاء البرنامج عندما تنتهي من الإدخال.</p>';
+  $('analysisOutput').innerHTML=message;
+  $('uploadStatus').className='status ok';$('uploadStatus').textContent='تم تحديث بيانات البرنامج. يمكنك الانتقال إلى تبويبات المعلمين والصفوف والمواد لرؤية ما أُضيف، أو متابعة الإدخال الصوتي.';
   document.querySelector('[data-tab="results"]').click();
- }catch(e){$('uploadStatus').className='status err';$('uploadStatus').textContent='تعذر تنظيم الوصف: '+e.message}
+ }catch(e){$('uploadStatus').className='status err';$('uploadStatus').textContent='تعذر تحديث البرنامج: '+e.message}
  finally{button.disabled=false}
 };
-
 $('saveSettings').onclick=()=>{data.school=$('school').value.trim()||'المدرسة الرسمية';data.periods=Math.max(1,Math.min(14,+$('periods').value||6));data.periodDurationMinutes=+$('periodDuration').value||null;data.breakStart=$('breakStart').value||'';data.breakDurationMinutes=+$('breakDuration').value||null;data.breakAfterPeriod=+$('breakAfterPeriod').value||null;data.days=[...$('days').querySelectorAll('input:checked')].map(x=>+x.value);if(!data.days.length)return alert('اختر يوم دوام واحداً على الأقل');data.schedule=[];persist();render();alert('تم حفظ إعدادات الدوام')};
 
 $('addClass').onclick=()=>{let v=$('className').value.trim();if(!v)return alert('اكتب اسم الصف');if(data.classes.includes(v))return alert('الصف موجود');data.classes.push(v);$('className').value='';persist();render()};
