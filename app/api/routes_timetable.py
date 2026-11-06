@@ -12,6 +12,7 @@ from fastapi import APIRouter, Body, File, HTTPException, UploadFile
 from starlette.concurrency import run_in_threadpool
 
 from app.local_timetable_reader import read_timetable, read_pasted_timetable
+from app.local_timetable_intake import parse_spoken_school_intake
 from app.timetable_solver import solve_timetable
 
 router = APIRouter(prefix="/timetable", tags=["timetable"])
@@ -308,6 +309,20 @@ async def analyze_timetable_text(payload: dict[str, Any] = Body(...)):
     except Exception as exc:
         logger.exception("PASTED_TIMETABLE_ANALYSIS_FAILED")
         raise HTTPException(status_code=422, detail="تعذر تحليل النص الملصق: " + str(exc)) from exc
+
+
+@router.post("/intake-text")
+async def intake_spoken_school_text(payload: dict[str, Any] = Body(...)):
+    """Convert spoken Arabic school setup notes into a reviewable local draft."""
+    raw = payload.get("text", "")
+    try:
+        result = await run_in_threadpool(parse_spoken_school_intake, raw)
+        return result
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("SPOKEN_TIMETABLE_INTAKE_FAILED")
+        raise HTTPException(status_code=422, detail="تعذر تنظيم الوصف الصوتي محلياً: " + str(exc)) from exc
 
 
 @router.post("/diagnose")
