@@ -82,10 +82,10 @@ function applyConflictSwap(a,b){
  const dx=x.day,px=x.period;x.day=y.day;x.period=y.period;y.day=dx;y.period=px;
  persist();drawSchedule();auditSchedule();
 }
-$('loadBalbeek').onclick=loadBalbeek;
+
 $('audit').onclick=auditSchedule;
 
-$('loadDemo').onclick=loadDemo;
+
 
 $('readUpload').onclick=async()=>{
  const img=$('imageFile').files[0],doc=$('wordFile').files[0],file=img||doc;
