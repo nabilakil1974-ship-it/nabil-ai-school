@@ -235,7 +235,7 @@ def _xlsx_to_text(data: bytes) -> str:
         raise HTTPException(status_code=400, detail="تعذرت قراءة ملف Excel. ارفع ملف XLSX صالحاً.") from exc
     parts = []
     for sheet in workbook.worksheets:
-        parts.append(f"\\n[ورقة العمل: {sheet.title}]")
+        parts.append(f"\n[ورقة العمل: {sheet.title}]")
         for row in sheet.iter_rows(values_only=True):
             values = [str(value).strip() if value is not None else "" for value in row]
             while values and not values[-1]:
@@ -243,7 +243,7 @@ def _xlsx_to_text(data: bytes) -> str:
             if any(values):
                 parts.append(" | ".join(values))
     workbook.close()
-    return "\\n".join(parts).strip()
+    return "\n".join(parts).strip()
 
 @router.post("/analyze")
 async def analyze_timetable(file: UploadFile = File(...)):
@@ -261,9 +261,9 @@ async def analyze_timetable(file: UploadFile = File(...)):
             mime = "image/jpeg" if filename.endswith((".jpg", ".jpeg")) else "image/png"
         image_bytes = data
     elif filename.endswith(".docx") or mime == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-        prompt += "\\n\\nنص ملف Word وجدوله كما استُخرج: \\n" + _docx_to_text(data)
+        prompt += "\n\nنص ملف Word وجدوله كما استُخرج: \n" + _docx_to_text(data)
     elif filename.endswith(".xlsx") or mime == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
-        prompt += "\\n\\nبيانات جميع أوراق ملف Excel كما استُخرجت: \\n" + _xlsx_to_text(data)
+        prompt += "\n\nبيانات جميع أوراق ملف Excel كما استُخرجت: \n" + _xlsx_to_text(data)
     else:
         raise HTTPException(status_code=415, detail="الملفات المدعومة: JPG أو PNG أو WEBP أو Word DOCX أو Excel XLSX.")
 
