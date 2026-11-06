@@ -345,6 +345,14 @@ async def intake_spoken_school_text(payload: dict[str, Any] = Body(...)):
             result["requirements"] = requirements
             result["unresolved_scopes"] = unresolved
             result["known_classes"] = known
+            for profile in result.get("teacher_profiles", []):
+                declared = profile.get("declared_weekly_load")
+                if declared is not None:
+                    extracted = sum(x["count"] for x in requirements if x["teacher"] == profile["teacher"])
+                    if extracted != declared:
+                        result.setdefault("warnings", []).append(
+                            f"نصاب {profile['teacher']} المعلن {declared}، بينما مجموع الحصص المستخرج {extracted}. راجع الشعب والأنصبة."
+                        )
             # Surface sections mentioned by a teacher but absent from the manager's declared list.
             for cls in classes:
                 if cls not in known and cls not in result.get("warnings", []):
