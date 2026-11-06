@@ -237,7 +237,7 @@ def parse_spoken_school_intake(text: str) -> dict[str, Any]:
     break_duration = 30 if re.search(r"(نص ساعة|نصف ساعة|نص ساعه|نصف ساعه)", n) else None
 
     teachers = []
-    classes = []
+    classes = _explicit_classes(source)
     requirements = []
     blocked = []
     profiles = []
