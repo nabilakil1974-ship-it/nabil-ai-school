@@ -459,7 +459,8 @@ function drawSchedule(){
  const isFinal=data.schedule.length>0;
  const hasFrame=data.days.length>0&&data.periods>0;
  if(!hasFrame){$('timetable').innerHTML='<p class="small">اختر يوم دوام واحداً على الأقل ليظهر هيكل البرنامج هنا.</p>';drawStats();return}
- const teacherLegend=data.teachers.map(t=>{const c=teacherColor(t);return '<span class="teacher-key"><i class="teacher-swatch" style="background:'+c.bg+';border-color:'+c.border+'"></i>'+esc(t)+'</span>'}).join('');\n const status='<div class="status '+(isFinal?'ok':'warn')+'">'+(isFinal?'جدول مكتمل اجتاز التدقيق.':'معاينة حيّة تتحدث مع كل إدخال. الحصص المعروضة توزيع أولي قابل لإعادة الترتيب؛ الخانات الفارغة تعني أن بياناتها لم تكتمل بعد.')+'</div><div class="legend"><span class="red">الأحمر: تعارض الأستاذ في أكثر من شعبة (له الأولوية)</span><span class="blue">الأزرق: حصة ضمن وقت فراغ الأستاذ</span>'+teacherLegend+'</div>';
+ const teacherLegend=data.teachers.map(t=>{const c=teacherColor(t);return '<span class="teacher-key"><i class="teacher-swatch" style="background:'+c.bg+';border-color:'+c.border+'"></i>'+esc(t)+'</span>'}).join('');
+ const status='<div class="status '+(isFinal?'ok':'warn')+'">'+(isFinal?'جدول مكتمل اجتاز التدقيق.':'معاينة حيّة تتحدث مع كل إدخال. الحصص المعروضة توزيع أولي قابل لإعادة الترتيب؛ الخانات الفارغة تعني أن بياناتها لم تكتمل بعد.')+'</div><div class="legend"><span class="red">الأحمر: تعارض الأستاذ في أكثر من شعبة (له الأولوية)</span><span class="blue">الأزرق: حصة ضمن وقت فراغ الأستاذ</span>'+teacherLegend+'</div>';
  let html=status;
  if(view==='school'){
   const classes=data.classes.length?data.classes:['تُضاف الشعب لعرض أعمدتها'];
