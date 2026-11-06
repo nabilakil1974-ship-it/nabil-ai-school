@@ -183,7 +183,7 @@ async function generate(){
  if(!data.days.length||!data.periods||!data.teachers.length||!data.classes.length||!data.requirements.length){show('أكمل إعداد الدوام وأضف معلماً وصفاً وتوزيعات المواد أولاً.','err');return}
  const button=$('generate');button.disabled=true;show('نبيل يبني الجدول بمحرك القيود ويفحص جميع الحصص...','warn');
  try{
-  const response=await fetch('/api/timetable/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({school:data.school,days:data.days,periods:data.periods,day_period_limits:Object.fromEntries(data.days.map(d=>[String(d),+(data.dayPeriodLimits?.[DAYS[d]]??data.periods)])),teachers:data.teachers,classes:data.classes,requirements:data.requirements.map(({teacher,subject,class:cls,count})=>({teacher,subject,class:cls,count})),blocked:data.blocked})});
+  const response=await fetch('/api/timetable/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({school:data.school,days:data.days,periods:data.periods,day_period_limits:Object.fromEntries(data.days.map(d=>[String(d),+(data.dayPeriodLimits?.[DAYS[d]]??data.periods)])),teachers:data.teachers,classes:data.classes,requirements:data.requirements.map(({teacher,subject,class:cls,count,language})=>({teacher,subject:language?subject+' ('+language+')':subject,class:cls,count})),blocked:data.blocked})});
   const result=await response.json();
   if(!response.ok||!result.ok){const detail=result.detail||result;throw new Error(detail.message||'تعذر إيجاد جدول يحقق القيود.')}
   if(!result.audit?.passed||result.scheduled_lessons!==result.requested_lessons)throw new Error('لم يجتز الجدول التدقيق النهائي؛ لم يتم اعتماده.');
