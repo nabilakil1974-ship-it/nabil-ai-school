@@ -41,8 +41,8 @@ try{const saved=JSON.parse(localStorage.getItem('nabil-timetable-v3'));if(saved)
 function persist(){localStorage.setItem('nabil-timetable-v3',JSON.stringify(data))}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function render(){ $('school').value=data.school;$('periods').value=data.periods;$('periodDuration').value=data.periodDurationMinutes||'';$('breakStart').value=data.breakStart||'';$('breakDuration').value=data.breakDurationMinutes||'';$('breakAfterPeriod').innerHTML='<option value="">لا توجد فرصة محددة</option>'+Array.from({length:Math.max(0,data.periods-1)},(_,i)=>'<option value="'+(i+1)+'">بعد الحصة '+(i+1)+'</option>').join('');$('breakAfterPeriod').value=data.breakAfterPeriod||'';$('days').innerHTML=DAYS.map((d,i)=>'<label><input type="checkbox" value="'+i+'" '+(data.days.includes(i)?'checked':'')+'>'+d+'</label>').join('');
-$('teacherList').innerHTML=table(data.teachers.map((x,i)=>[x,data.requirements.filter(r=>r.teacher===x).length+' توزيع/توزيعات','<button class="danger" onclick="removeItem(\'teachers\','+i+')">حذف المعلم</button>']),['المعلم','التوزيعات','إجراء']);
-$('classList').innerHTML=table(data.classes.map((x,i)=>[x,'<button class="danger" onclick="removeItem(\'classes\','+i+')">حذف</button>']),['الصف / الشعبة','إجراء']);
+$('teacherList').innerHTML=table(data.teachers.map((x,i)=>[x,data.requirements.filter(r=>r.teacher===x).length+' توزيع/توزيعات','<button class="secondary" onclick="editTeacher('+i+')">تعديل</button> <button class="danger" onclick="removeItem(\'teachers\','+i+')">حذف المعلم</button>']),['المعلم','التوزيعات','إجراء']);
+$('classList').innerHTML=table(data.classes.map((x,i)=>[x,'<button class="secondary" onclick="editClass('+i+')">تعديل</button> <button class="danger" onclick="removeItem(\'classes\','+i+')">حذف</button>']),['الصف / الشعبة','إجراء']);
 const opts=(arr,placeholder)=>'<option value="">'+placeholder+'</option>'+arr.map(x=>'<option>'+esc(x)+'</option>').join('');
 $('blockedTeacher').innerHTML=opts(data.teachers,'اختر المعلم');
 renderTeacherSubjectRows();
@@ -53,6 +53,44 @@ drawSchedule();
 }
 let teacherSubjectRowCount=0;
 function renderTeacherSubjectRows(){if(!$('teacherSubjectRows').children.length)addTeacherSubjectRow()}
+let editingTeacherName=null;
+function editTeacher(index){
+ const teacher=data.teachers[index];if(!teacher)return;
+ editingTeacherName=teacher;
+ $('teacherName').value=teacher;
+ const grouped=new Map();
+ data.requirements.filter(r=>r.teacher===teacher).forEach(r=>{
+  const key=[r.subject,r.count,r.language||''].join('|');
+  if(!grouped.has(key))grouped.set(key,{subject:r.subject,count:r.count,language:r.language||'',classes:[]});
+  if(!grouped.get(key).classes.includes(r.class))grouped.get(key).classes.push(r.class);
+ });
+ $('teacherSubjectRows').innerHTML='';
+ [...grouped.values()].forEach(seed=>addTeacherSubjectRow(seed));
+ if(!grouped.size)addTeacherSubjectRow();
+ $('blockedTeacher').value=teacher;
+ syncBlockedSelection();
+ $('saveTeacherProfile').textContent='حفظ تعديلات المعلم';
+ document.querySelector('[data-tab="teachers"]')?.click();
+ $('teacherName').scrollIntoView({behavior:'smooth',block:'center'});
+}
+window.editTeacher=editTeacher;
+function editClass(index){
+ const oldName=data.classes[index];if(!oldName)return;
+ const next=prompt('عدّل اسم الصف أو الشعبة:',oldName);
+ if(next===null)return;
+ const name=next.trim();if(!name)return alert('لا يمكن ترك اسم الشعبة فارغاً.');
+ if(name!==oldName&&data.classes.includes(name))return alert('هذا الصف أو الشعبة موجود مسبقاً.');
+ data.classes[index]=name;
+ data.requirements.forEach(r=>{if(r.class===oldName)r.class=name});
+ data.schedule=[];persist();render();
+}
+window.editClass=editClass;
+function syncBlockedSelection(){
+ const teacher=$('blockedTeacher').value;
+ const selected=new Set(data.blocked.filter(b=>b.teacher===teacher).map(b=>b.day+'|'+b.period));
+ $('blockedDayPeriods').querySelectorAll('input[data-block-day]').forEach(input=>input.checked=selected.has(input.dataset.blockDay+'|'+input.value));
+}
+$('blockedTeacher').addEventListener('change',syncBlockedSelection);
 function addTeacherSubjectRow(seed={}){
  const host=$('teacherSubjectRows'),card=document.createElement('div');card.className='panel';card.style.cssText='display:block;margin:0;padding:12px;background:#f8fafb';card.dataset.subjectRow='1';
  const opts=data.classes.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join('');
@@ -67,9 +105,15 @@ $('saveTeacherProfile').onclick=()=>{
  const teacher=$('teacherName').value.trim();if(!teacher)return alert('اكتب اسم المعلم أولاً');
  const rows=[...$('teacherSubjectRows').querySelectorAll('[data-subject-row]')].map(card=>({subject:card.querySelector('[data-subject]').value.trim(),classes:[...card.querySelector('[data-classes]').selectedOptions].map(o=>o.value),count:+card.querySelector('[data-count]').value,language:card.querySelector('[data-language]').value}));
  if(rows.some(r=>!r.subject||!r.classes.length||!r.count||!r.language))return alert('أكمل لكل مادة: اسم المادة، الصفوف، عدد الحصص، ولغة التدريس.');
- if(!data.teachers.includes(teacher))data.teachers.push(teacher);
- rows.forEach(r=>r.classes.forEach(cls=>{if(!data.classes.includes(cls))data.classes.push(cls);const existing=data.requirements.find(x=>x.teacher===teacher&&x.subject===r.subject&&x.class===cls);const item={teacher,subject:r.subject,class:cls,count:r.count,language:r.language};if(existing)Object.assign(existing,item);else data.requirements.push(item)}));
- data.schedule=[];persist();render();$('blockedTeacher').value=teacher;$('teacherName').value='';$('teacherSubjectRows').innerHTML='';addTeacherSubjectRow();alert('تم حفظ بطاقة '+teacher+' مع '+rows.length+' مادة وتوزيعاتها. اختر أوقات فراغه تحت الأيام ثم احفظها.');
+ const oldName=editingTeacherName;
+ if(oldName&&oldName!==teacher&&data.teachers.some(t=>t===teacher))return alert('يوجد معلم آخر بهذا الاسم.');
+ if(oldName){
+  const idx=data.teachers.indexOf(oldName);if(idx>=0)data.teachers[idx]=teacher;
+  data.requirements=data.requirements.filter(r=>r.teacher!==oldName);
+  data.blocked.forEach(b=>{if(b.teacher===oldName)b.teacher=teacher});
+ }else if(!data.teachers.includes(teacher))data.teachers.push(teacher);
+ rows.forEach(r=>r.classes.forEach(cls=>{if(!data.classes.includes(cls))data.classes.push(cls);data.requirements.push({teacher,subject:r.subject,class:cls,count:r.count,language:r.language})}));
+ editingTeacherName=null;data.schedule=[];persist();render();$('blockedTeacher').value=teacher;syncBlockedSelection();$('teacherName').value='';$('teacherSubjectRows').innerHTML='';addTeacherSubjectRow();$('saveTeacherProfile').textContent='حفظ بيانات المعلم وتوزيعاته';alert('تم حفظ بيانات '+teacher+' بنجاح. يمكنك تعديل أوقات فراغه من القسم أدناه.');
 };
 function table(rows,heads){if(!rows.length)return '<p class="small">لا توجد بيانات بعد.</p>';return '<table><thead><tr>'+heads.map(h=>'<th>'+h+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(v=>'<td>'+v+'</td>').join('')+'</tr>').join('')+'</tbody></table>'}
 window.removeItem=(key,i)=>{data[key].splice(i,1);data.schedule=[];persist();render()};
@@ -179,7 +223,7 @@ $('saveSettings').onclick=()=>{data.school=$('school').value.trim()||'المدر
 
 $('addClass').onclick=()=>{let v=$('className').value.trim();if(!v)return alert('اكتب اسم الصف');if(data.classes.includes(v))return alert('الصف موجود');data.classes.push(v);$('className').value='';persist();render()};
 window.removeBlockGroup=indices=>{const remove=new Set(indices);data.blocked=data.blocked.filter((_,i)=>!remove.has(i));data.schedule=[];persist();render()};
-$('addBlock').onclick=()=>{const teacher=$('blockedTeacher').value;const selected=[...$('blockedDayPeriods').querySelectorAll('input[data-block-day]:checked')].map(x=>({day:+x.dataset.blockDay,period:+x.value}));if(!teacher)return alert('اختر المعلم');if(!selected.length)return alert('اختر حصة واحدة على الأقل تحت أحد الأيام');let added=0;selected.forEach(({day,period})=>{if(!data.blocked.some(x=>x.teacher===teacher&&x.day===day&&x.period===period)){data.blocked.push({teacher,day,period});added++}});data.schedule=[];persist();render();alert('تم تسجيل '+selected.length+' وقت فراغ للمعلم '+teacher+'، منها '+added+' جديدة.')};
+$('addBlock').onclick=()=>{const teacher=$('blockedTeacher').value;if(!teacher)return alert('اختر المعلم');const selected=[...$('blockedDayPeriods').querySelectorAll('input[data-block-day]:checked')].map(x=>({day:+x.dataset.blockDay,period:+x.value}));data.blocked=data.blocked.filter(x=>x.teacher!==teacher);selected.forEach(({day,period})=>data.blocked.push({teacher,day,period}));data.schedule=[];persist();render();$('blockedTeacher').value=teacher;syncBlockedSelection();alert('تم تحديث أوقات فراغ '+teacher+'؛ عدد الأوقات المحفوظة: '+selected.length+'.')};
 async function generate(){
  if(!data.days.length||!data.periods||!data.teachers.length||!data.classes.length||!data.requirements.length){show('أكمل إعداد الدوام وأضف معلماً وصفاً وتوزيعات المواد أولاً.','err');return}
  const button=$('generate');button.disabled=true;show('نبيل يبني الجدول بمحرك القيود ويفحص جميع الحصص...','warn');
