@@ -104,6 +104,11 @@ def _audit(parsed: dict[str, Any]) -> dict[str, Any]:
     max_period = max([e["period"] for e in entries] + [int(parsed.get("periods_per_day") or 0)])
     days = [str(x).strip() for x in (parsed.get("days") or []) if str(x).strip()]
     days = list(dict.fromkeys(days + [e["day"] for e in entries]))
+    day_period_limits = {str(k).strip(): int(v) for k, v in (parsed.get("day_period_limits") or {}).items()
+                         if str(k).strip() and str(v).isdigit()}
+    for day in days:
+        observed = max([e["period"] for e in entries if e["day"] == day] or [0])
+        day_period_limits.setdefault(day, observed)
 
     def alternatives(index: int, reason: str) -> list[dict[str, Any]]:
         target = entries[index]
@@ -111,7 +116,7 @@ def _audit(parsed: dict[str, Any]) -> dict[str, Any]:
         # Prefer another period on the same day, then other school days.
         ordered_days = [target["day"]] + [d for d in days if d != target["day"]]
         for day in ordered_days:
-            for period in range(1, max_period + 1):
+            for period in range(1, day_period_limits.get(day, 0) + 1):
                 if day == target["day"] and period == target["period"]:
                     continue
                 if any(j != index and e["class"] == target["class"]
@@ -163,10 +168,43 @@ def _audit(parsed: dict[str, Any]) -> dict[str, Any]:
                 "solutions": [{"move": e, "alternatives": alternatives(i, "unavailable")}],
             })
 
+    # Compare subject lesson counts between parallel sections of the same grade.
+    # This is a diagnostic signal, not an assumed official curriculum requirement.
+    def grade_group(class_name: str) -> str:
+        return re.sub(r"\\s+[اأإآء-ي]$", "", str(class_name).strip())
+
+    def subject_key(subject: str) -> str:
+        value = re.sub(r"\\s+", " ", str(subject).strip())
+        folded = value.replace("أ", "ا").replace("إ", "ا").replace("آ", "ا")
+        aliases = {"انكايزي": "انكليزي", "الانكليزي": "انكليزي", "انجليزي": "انكليزي",
+                   "الانجليزي": "انكليزي"}
+        return aliases.get(folded, folded)
+
+    counts_by_class_subject = Counter((e["class"], subject_key(e["subject"]))
+                                      for e in entries if e["subject"])
+    grade_classes: dict[str, list[str]] = defaultdict(list)
+    for cls in dict.fromkeys(e["class"] for e in entries):
+        grade_classes[grade_group(cls)].append(cls)
+    subject_balance = []
+    for grade, parallel_classes in grade_classes.items():
+        if len(parallel_classes) < 2:
+            continue
+        subjects = set(subj for (cls, subj) in counts_by_class_subject if cls in parallel_classes)
+        for subj in sorted(subjects):
+            distribution = {cls: counts_by_class_subject.get((cls, subj), 0)
+                            for cls in parallel_classes}
+            values = set(distribution.values())
+            if len(values) > 1:
+                subject_balance.append({"grade": grade, "subject": subj,
+                                         "counts_by_class": distribution,
+                                         "difference": max(values) - min(values),
+                                         "note": "اختلاف بين الشعب المتوازية؛ راجع النصاب المعتمد لهذه المادة قبل تعديل الجدول."})
+
     return {
         "school_name": parsed.get("school_name") or "",
         "days": days,
         "periods_per_day": max_period,
+        "day_period_limits": day_period_limits,
         "period_times": parsed.get("period_times") or [],
         "teachers": parsed.get("teachers") or [],
         "classes": parsed.get("classes") or [],
@@ -176,6 +214,7 @@ def _audit(parsed: dict[str, Any]) -> dict[str, Any]:
         "unreadable": parsed.get("unreadable") or [],
         "notes": parsed.get("notes") or [],
         "conflicts": conflicts,
+        "subject_balance": subject_balance,
         "conflict_count": len(conflicts),
         "status": "conflicts_found" if conflicts else "no_conflicts_detected",
         "solutions_note": "البدائل تُحسب من الخانات المستخرجة فقط. راجع دقة قراءة الصورة والقيود قبل اعتماد أي نقل.",
