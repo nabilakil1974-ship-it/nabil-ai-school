@@ -1,0 +1,42 @@
+# Dedicated cloud image for NABIL School Timetable AI.
+# Installs the native OCR engine and Arabic/English/French trained data.
+FROM python:3.11-slim-bookworm
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       tesseract-ocr \
+       tesseract-ocr-ara \
+       tesseract-ocr-eng \
+       tesseract-ocr-fra \
+       libglib2.0-0 \
+       libgl1 \
+       ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && tesseract --version \
+    && tesseract --list-langs
+
+COPY requirements.txt /app/requirements.txt
+RUN python -m pip install --no-cache-dir -r /app/requirements.txt
+
+COPY timetable_api.py /app/timetable_api.py
+COPY app/__init__.py /app/app/__init__.py
+COPY app/api /app/app/api
+COPY app/local_timetable_reader.py /app/app/local_timetable_reader.py
+COPY app/timetable_solver.py /app/app/timetable_solver.py
+COPY timetable /app/timetable
+
+RUN python -m py_compile /app/timetable_api.py /app/app/api/routes_timetable.py /app/app/local_timetable_reader.py /app/app/timetable_solver.py \
+    && python -c "import pytesseract; print(pytesseract.get_tesseract_version())" \
+    && useradd --create-home --shell /usr/sbin/nologin nabil \
+    && chown -R nabil:nabil /app
+
+USER nabil
+EXPOSE 10000
+CMD ["sh", "-c", "uvicorn timetable_api:app --host 0.0.0.0 --port ${PORT:-10000}"]
