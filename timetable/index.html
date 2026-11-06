@@ -135,7 +135,7 @@ $('saveTeacherProfile').onclick=()=>{
 function table(rows,heads){if(!rows.length)return '<p class="small">لا توجد بيانات بعد.</p>';return '<table><thead><tr>'+heads.map(h=>'<th>'+h+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(v=>'<td>'+v+'</td>').join('')+'</tr>').join('')+'</tbody></table>'}
 window.removeItem=(key,i)=>{data[key].splice(i,1);data.schedule=[];persist();render()};
 document.querySelectorAll('.tab[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab[data-tab]').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.panel').forEach(x=>x.classList.toggle('active',x.id===b.dataset.tab))});
-$('backToIntake').onclick=()=>{const target=$('importPanel');target.scrollIntoView({behavior:'smooth',block:'start'});$('pastedTimetable').focus({preventScroll:true});};
+$('backToIntake').onclick=()=>{document.querySelectorAll('.panel').forEach(x=>x.classList.toggle('active',x.id==='importPanel'));document.querySelectorAll('.tab[data-tab]').forEach(x=>x.classList.remove('active'));window.scrollTo({top:0,behavior:'smooth'});$('importPanel').scrollIntoView({behavior:'smooth',block:'start'});$('pastedTimetable').focus({preventScroll:true});};
 document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{view=b.dataset.view;document.querySelectorAll('[data-view]').forEach(x=>x.classList.toggle('active',x===b));drawSchedule()});
 function auditSchedule(){
  const slots=new Map(),classSlots=new Map();
