@@ -429,8 +429,10 @@ async def export_timetable_xlsx(payload: dict[str, Any] = Body(...)):
         from openpyxl.utils import get_column_letter
 
         schedule = payload.get("schedule") or []
-        if not isinstance(schedule, list) or not schedule:
-            raise HTTPException(status_code=400, detail="لا يوجد جدول لتصديره.")
+        if not isinstance(schedule, list):
+            raise HTTPException(status_code=400, detail="بيانات الجدول غير صالحة.")
+        if not payload.get("days"):
+            raise HTTPException(status_code=400, detail="حدد أيام الدوام أولاً.")
         day_names = ["الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"]
 
         def safe_text(value: Any) -> str:
@@ -460,20 +462,30 @@ async def export_timetable_xlsx(payload: dict[str, Any] = Body(...)):
         sheet["A1"].alignment = Alignment(horizontal="center", vertical="center")
         sheet.row_dimensions[1].height = 30
 
+        sheet.append(["معاينة أولية غير معتمدة — الخانات الفارغة لم تُوزّع بعد."
+                       if payload.get("is_partial") else "جدول مدرسي مُصدّر"])
+        sheet.merge_cells(start_row=2, start_column=1, end_row=2, end_column=max(1, len(classes) + 1))
+        sheet["A2"].font = Font(bold=True, size=11, color="8A4B08" if payload.get("is_partial") else "176B87")
+        sheet["A2"].fill = PatternFill("solid", fgColor="FFF2CC" if payload.get("is_partial") else "E8F3F8")
+        sheet["A2"].alignment = Alignment(horizontal="center", vertical="center")
+        sheet.row_dimensions[2].height = 24
+
         sheet.append(["اليوم / الحصة"] + [safe_text(c) for c in classes])
-        for cell in sheet[2]:
+        for cell in sheet[3]:
             cell.font = Font(bold=True, color="FFFFFF")
             cell.fill = PatternFill("solid", fgColor="176B87")
             cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
         thin = Side(style="thin", color="B8C7D0")
+        day_limits = payload.get("day_period_limits") or {}
         for day_id in days:
             try:
                 day_id = int(day_id)
             except (TypeError, ValueError):
                 continue
             day = day_names[day_id] if 0 <= day_id < len(day_names) else safe_text(day_id)
-            for period in range(1, periods + 1):
+            day_limit = int(day_limits.get(str(day_id), day_limits.get(day_names[day_id], periods))) if isinstance(day_limits, dict) else periods
+            for period in range(1, min(periods, day_limit) + 1):
                 row = [f"{day} – الحصة {period}"]
                 for cls in classes:
                     lessons = [x for x in schedule if isinstance(x, dict)
@@ -506,7 +518,7 @@ async def export_timetable_xlsx(payload: dict[str, Any] = Body(...)):
                         cell.border = Border(left=thin, right=thin, top=thin, bottom=thin)
                     sheet.row_dimensions[break_row].height = 25
 
-        sheet.freeze_panes = "B3"
+        sheet.freeze_panes = "B4"
         sheet.column_dimensions["A"].width = 23
         for col in range(2, len(classes) + 2):
             sheet.column_dimensions[get_column_letter(col)].width = 24
