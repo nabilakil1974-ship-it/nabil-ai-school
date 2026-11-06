@@ -81,6 +81,110 @@ def _rows_from_ocr(data: bytes):
     if not rows:
         raise ValueError("قرأ OCR الصورة محلياً، لكنه لم يستطع إعادة بناء أعمدة الجدول بثقة.")
     return rows
+def _read_matrix_xlsx(data: bytes) -> dict[str, Any]:
+    """Read a school timetable arranged as class columns with teacher/subject pairs."""
+    from openpyxl import load_workbook
+
+    wb = load_workbook(io.BytesIO(data), read_only=False, data_only=True)
+    try:
+        all_entries = []
+        all_classes = []
+        all_days = []
+        all_unreadable = []
+        for ws in wb.worksheets:
+            if ws.sheet_state != "visible" or not ws.max_row or not ws.max_column:
+                continue
+            def cell_text(r: int, c: int) -> str:
+                value = ws.cell(r, c).value
+                return str(value).strip() if value is not None else ""
+
+            # Locate the row naming periods/days and the row naming teachers/subjects.
+            period_col = day_col = pair_header_row = class_header_row = None
+            for r in range(1, min(ws.max_row, 25) + 1):
+                vals = [_norm(cell_text(r, c)) for c in range(1, ws.max_column + 1)]
+                for c, val in enumerate(vals, 1):
+                    if val in {"الحصة", "رقم الحصة", "period"}:
+                        period_col = c
+                    if val in {"اليوم", "day"}:
+                        day_col = c
+            # Teacher/subject labels occur together on one row.
+            for r in range(1, min(ws.max_row, 25) + 1):
+                vals = [_norm(cell_text(r, c)) for c in range(1, ws.max_column + 1)]
+                teacher_cols = [c for c, v in enumerate(vals, 1) if v in {"المدرس", "المعلم", "الأستاذ", "teacher"}]
+                subject_cols = [c for c, v in enumerate(vals, 1) if v in {"المادة", "subject"}]
+                if teacher_cols and subject_cols:
+                    pair_header_row = r
+                    break
+            if not period_col or not day_col or not pair_header_row:
+                continue
+            # Class names are directly above the teacher/subject labels; merged cells
+            # leave the second cell of each pair blank, so retain each detected heading.
+            class_header_row = pair_header_row - 1
+            pairs = []
+            c = 1
+            while c <= ws.max_column:
+                teacher_label = _norm(cell_text(pair_header_row, c))
+                if teacher_label in {"المدرس", "المعلم", "الأستاذ", "teacher"}:
+                    subject_c = c + 1
+                    if subject_c <= ws.max_column and _norm(cell_text(pair_header_row, subject_c)) in {"المادة", "subject"}:
+                        class_name = cell_text(class_header_row, c)
+                        if not class_name:
+                            # Some workbooks place a merged class title over the pair.
+                            for back in range(c - 1, 0, -1):
+                                class_name = cell_text(class_header_row, back)
+                                if class_name:
+                                    break
+                        if class_name:
+                            pairs.append((c, subject_c, class_name))
+                            all_classes.append(class_name)
+                        c = subject_c + 1
+                        continue
+                c += 1
+            if not pairs:
+                continue
+            current_day = ""
+            for r in range(pair_header_row + 1, ws.max_row + 1):
+                ptxt = cell_text(r, period_col)
+                dtext = cell_text(r, day_col)
+                if _norm(dtext) in {_norm(x) for x in DAY_ALIASES}:
+                    current_day = _day(dtext)
+                    if current_day not in all_days:
+                        all_days.append(current_day)
+                match = re.fullmatch(r"\\s*(\\d+)\\s*", ptxt)
+                if not match or not current_day:
+                    continue
+                period = int(match.group(1))
+                for teacher_c, subject_c, class_name in pairs:
+                    teacher = cell_text(r, teacher_c)
+                    subject = cell_text(r, subject_c)
+                    if not teacher and not subject:
+                        continue
+                    if not teacher or not subject:
+                        all_unreadable.append(
+                            f"{ws.title}، السطر {r}، {class_name}، الحصة {period}: المدرس أو المادة ناقص"
+                        )
+                        continue
+                    all_entries.append({"day": current_day, "period": period,
+                                        "class": class_name, "subject": subject,
+                                        "teacher": teacher})
+        if not all_entries:
+            raise ValueError("لم أتمكن من تحديد بنية جدول الحصص المصفوفي في ملف Excel.")
+        teachers = list(dict.fromkeys(e["teacher"] for e in all_entries))
+        classes = list(dict.fromkeys(all_classes))
+        loads = Counter((e["teacher"], e["class"], e["subject"]) for e in all_entries)
+        weekly = [{"teacher": t, "class": c, "subject": s, "count": n}
+                  for (t, c, s), n in loads.items()]
+        return {"school_name": "", "days": all_days,
+                "periods_per_day": max(e["period"] for e in all_entries),
+                "teachers": teachers, "classes": classes, "entries": all_entries,
+                "teacher_unavailable": [], "weekly_loads": weekly,
+                "unreadable": all_unreadable,
+                "notes": ["تمت قراءة جدول Excel المصفوفي محلياً مع الحفاظ على أزواج المدرس/المادة والشعب.",
+                          "لم تُدمج أسماء المعلمين المتشابهة تلقائياً؛ يجب مراجعة اختلافات الإملاء قبل اعتماد التعارضات والأنصبة."]}
+    finally:
+        wb.close()
+
+
 def read_timetable(data: bytes, kind: str) -> dict[str, Any]:
     if kind=="docx": rows=_rows_from_docx(data)
     elif kind=="xlsx": rows=_rows_from_xlsx(data)
