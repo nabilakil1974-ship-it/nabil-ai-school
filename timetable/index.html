@@ -19,7 +19,7 @@
 <section class="panel" id="teachers"><h2>إضافة المعلمين</h2><div class="grid"><div class="field"><label>اسم المعلم</label><input id="teacherName" placeholder="مثلاً: نبيل عقيل"></div></div><div class="actions"><button class="primary" id="addTeacher">إضافة المعلم</button></div><div class="list" id="teacherList"></div></section>
 <section class="panel" id="classes"><h2>إضافة الصفوف والشعب</h2><div class="grid"><div class="field"><label>اسم الصف أو الشعبة</label><input id="className" placeholder="مثلاً: السابع أ"></div></div><div class="actions"><button class="primary" id="addClass">إضافة الصف</button></div><div class="list" id="classList"></div></section>
 <section class="panel" id="subjects"><h2>توزيع المواد والحصص الأسبوعية</h2><div class="grid"><div class="field"><label>الصف / الشعبة</label><select id="reqClass"></select></div><div class="field"><label>المادة</label><input id="subjectName" placeholder="الرياضيات"></div><div class="field"><label>المعلم</label><select id="reqTeacher"></select></div><div class="field"><label>عدد الحصص أسبوعياً</label><input id="weekly" type="number" min="1" max="30" value="4"></div></div><div class="actions"><button class="primary" id="addReq">إضافة التوزيع</button></div><div class="list" id="reqList"></div><h2 style="margin-top:22px">أوقات عدم توافر المعلم (اختياري)</h2><div class="grid"><div class="field"><label>المعلم</label><select id="blockedTeacher"></select></div><div class="field"><label>اليوم</label><select id="blockedDay"></select></div><div class="field"><label>رقم الحصة</label><select id="blockedPeriod"></select></div></div><div class="actions"><button class="secondary" id="addBlock">إضافة وقت غير متاح</button></div><div class="list" id="blockList"></div></section>
-<section class="panel" id="results"><h2>البرنامج المدرسي</h2><div id="resultStatus" class="status warn">أدخل البيانات أولاً ثم أنشئ البرنامج.</div><div id="analysisOutput"></div><div class="actions"><button class="primary" id="generate">أنشئ البرنامج تلقائياً</button><button class="secondary" id="audit">فحص تضارب المدرسين</button><button class="secondary" id="print">طباعة / حفظ PDF</button><button class="secondary" id="export">تنزيل البيانات CSV</button></div><div class="tabs" id="viewTabs"><button class="tab active" data-view="school">جدول المدرسة</button><button class="tab" data-view="teacher">جداول المعلمين</button><button class="tab" data-view="class">جداول الصفوف</button></div><div id="timetable" class="timetable"></div></section>
+<section class="panel" id="results"><h2>البرنامج المدرسي</h2><div id="resultStatus" class="status warn">أدخل البيانات أولاً ثم أنشئ البرنامج.</div><div id="loadStats" class="grid" aria-live="polite"></div><div id="analysisOutput"></div><div class="actions"><button class="primary" id="generate">أنشئ البرنامج تلقائياً</button><button class="secondary" id="audit">فحص تضارب المدرسين</button><button class="secondary" id="print">طباعة / حفظ PDF</button><button class="secondary" id="export">تنزيل البيانات CSV</button><button class="secondary" id="exportWord">تصدير جدول Word</button></div><div class="tabs" id="viewTabs"><button class="tab active" data-view="school">جدول المدرسة</button><button class="tab" data-view="teacher">جداول المعلمين</button><button class="tab" data-view="class">جداول الصفوف</button></div><div id="timetable" class="timetable"></div></section>
 <div class="footer">NABIL School Timetable AI · تُحفظ البيانات محلياً في هذا المتصفح على هذا الجهاز. هذه نسخة أولية ولا تستبدل مراجعة الإدارة للبرنامج قبل اعتماده.</div>
 </main>
 <script>
@@ -171,10 +171,30 @@ if(!best){show('تعذّر إيجاد جدول يحقق جميع القيود. �
 data.schedule=best;persist();show('تم إنشاء برنامج كامل بنجاح: '+best.length+' حصة موزّعة، من دون تعارض للمعلم أو الصف. راجع الجداول قبل اعتمادها.','ok');drawSchedule();document.querySelector('[data-tab="results"]').click()}
 function score(task,s,assigned){let sameDay=assigned.filter(x=>x.class===task.class&&x.subject===task.subject&&x.day===s.day).length;let classDay=assigned.filter(x=>x.class===task.class&&x.day===s.day).map(x=>x.period);let teacherDay=assigned.filter(x=>x.teacher===task.teacher&&x.day===s.day).map(x=>x.period);let gaps=arr=>arr.length?Math.max(0,Math.max(...arr,s.period)-Math.min(...arr,s.period)+1-arr.length-1):0;return sameDay*12+gaps(classDay)*3+gaps(teacherDay)*2+Math.random()*2}
 function show(msg,type){$('resultStatus').className='status '+type;$('resultStatus').textContent=msg}
+function drawStats(){
+ const box=$('loadStats');if(!box)return;
+ if(!data.schedule.length){box.innerHTML='';return}
+ const teacherLoads=data.teachers.map(t=>({name:t,count:data.schedule.filter(x=>x.teacher===t).length})).sort((a,b)=>b.count-a.count);
+ const classLoads=data.classes.map(c=>({name:c,count:data.schedule.filter(x=>x.class===c).length})).sort((a,b)=>b.count-a.count);
+ const card=(label,value,detail)=>'<div class="panel" style="display:block;margin:0;padding:12px"><div class="small">'+label+'</div><div style="font-size:25px;font-weight:bold;color:var(--navy)">'+value+'</div><div class="small">'+detail+'</div></div>';
+ box.innerHTML=card('إجمالي الحصص',data.schedule.length,'حصة موزعة')+card('عدد المعلمين',data.teachers.length,'ضمن البرنامج')+card('عدد الشعب',data.classes.length,'ضمن البرنامج')+card('متوسط حصص المعلم',teacherLoads.length?(data.schedule.length/teacherLoads.length).toFixed(1):'—','حصة أسبوعياً');
+ let report='<div class="panel" style="display:block;margin-top:12px"><h3>توزيع الأنصبة حسب المعلم</h3>'+table(teacherLoads.map(x=>[esc(x.name),x.count]),['المعلم','الحصص الموزعة'])+'<h3>عدد الحصص حسب الشعبة</h3>'+table(classLoads.map(x=>[esc(x.name),x.count]),['الشعبة','الحصص'])+'</div>';
+ box.insertAdjacentHTML('beforeend',report);
+}
+function exportWord(){
+ if(!data.schedule.length)return alert('أنشئ البرنامج أولاً');
+ const days=data.days.map(d=>({id:d,name:DAYS[d]}));
+ let html='<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><style>body{font-family:Tahoma,Arial;direction:rtl}h1,h2{text-align:center;color:#123b59}table{border-collapse:collapse;width:100%;margin:12px 0}th,td{border:1px solid #8798a3;padding:8px;text-align:center}th{background:#e8f3f8}small{color:#526777}</style></head><body><h1>'+esc(data.school||'البرنامج المدرسي')+'</h1><h2>الجدول الأسبوعي</h2>';
+ html+='<table><tr><th>اليوم</th>'+Array.from({length:data.periods},(_,i)=>'<th>الحصة '+(i+1)+'</th>').join('')+'</tr>';
+ for(const d of days){html+='<tr><th>'+esc(d.name)+'</th>';for(let p=1;p<=data.periods;p++){const cell=data.schedule.filter(x=>x.day===d.id&&x.period===p);html+='<td>'+cell.map(x=>'<b>'+esc(x.subject)+'</b><br>'+esc(x.class)+'<br>'+esc(x.teacher)).join('<hr>')+'</td>'}html+='</tr>'}
+ html+='</table><p><small>تم إعداد الجدول بواسطة NABIL School Timetable AI — يرجى مراجعة الإدارة قبل الاعتماد.</small></p></body></html>';
+ const blob=new Blob(['\ufeff',html],{type:'application/msword;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='NABIL-school-timetable.doc';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+$('exportWord').onclick=exportWord;
 function drawSchedule(){if(!data.schedule.length){$('timetable').innerHTML='<p class="small">لم يتم إنشاء البرنامج بعد.</p>';return}
 let entities=view==='teacher'?data.teachers:view==='class'?data.classes:[data.school+' — البرنامج العام'];
 let html='';for(const entity of entities){let entries=data.schedule.filter(x=>view==='teacher'?x.teacher===entity:view==='class'?x.class===entity:true);html+='<h3>'+esc(entity)+'</h3><table><thead><tr><th>اليوم</th>'+Array.from({length:data.periods},(_,i)=>'<th>الحصة '+(i+1)+'</th>').join('')+'</tr></thead><tbody>';for(const d of data.days){html+='<tr><th>'+DAYS[d]+'</th>';for(let p=1;p<=data.periods;p++){let a=entries.filter(x=>x.day===d&&x.period===p);html+='<td>'+(a.length?a.map(x=>'<div class="lesson"><b>'+esc(x.subject)+'</b>'+esc(x.class)+'<br>'+esc(x.teacher)+'</div>').join(''):'<span class="empty">—</span>')+'</td>'}html+='</tr>'}html+='</tbody></table><br>'}
-$('timetable').innerHTML=html}
+$('timetable').innerHTML=html;drawStats()}
 $('generate').onclick=generate;$('print').onclick=()=>{if(!data.schedule.length)return alert('أنشئ البرنامج أولاً');window.print()};
 $('export').onclick=()=>{if(!data.schedule.length)return alert('أنشئ البرنامج أولاً');let rows=[['اليوم','الحصة','الصف','المادة','المعلم'],...data.schedule.map(x=>[DAYS[x.day],x.period,x.class,x.subject,x.teacher])];let csv='\ufeff'+rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='NABIL-school-timetable.csv';a.click();URL.revokeObjectURL(a.href)};
 async function checkNabilHealth(){
@@ -190,5 +210,5 @@ async function checkNabilHealth(){
   badge.style.color='#ffe0a6';
  }
 }
-render();checkNabilHealth();if(data.schedule.length){show('يوجد برنامج محفوظ سابقاً.','ok');drawSchedule()}
+render();checkNabilHealth();if(data.schedule.length){show('يوجد برنامج محفوظ سابقاً.','ok');drawSchedule()}else drawStats()
 </script></body></html>
