@@ -317,6 +317,40 @@ async def intake_spoken_school_text(payload: dict[str, Any] = Body(...)):
     raw = payload.get("text", "")
     try:
         result = await run_in_threadpool(parse_spoken_school_intake, raw)
+        known = payload.get("known_classes") or []
+        known = [str(x).strip() for x in known if str(x).strip()]
+        if known:
+            classes = list(dict.fromkeys(known + result.get("classes", [])))
+            requirements = []
+            unresolved = []
+            for profile in result.get("teacher_profiles", []):
+                targets = profile.get("explicit_classes") or []
+                if not targets:
+                    grades = profile.get("grades") or []
+                    segment = str(profile.get("source_excerpt", ""))
+                    if grades:
+                        targets = [cls for cls in classes if any(cls.startswith(g + " ") or cls == g for g in grades)]
+                    elif re.search(r"كل الصفوف|جميع الصفوف|كل الصف|جميع الشعب", segment):
+                        targets = classes
+                if not targets and (profile.get("grades") or not profile.get("explicit_classes")):
+                    unresolved.append({"teacher": profile["teacher"], "grades": profile.get("grades", []),
+                                        "reason": "لم أتمكن من مطابقة نطاق المعلم مع الشعب التي أدخلتها."})
+                for cls in targets:
+                    if cls not in classes:
+                        classes.append(cls)
+                    if profile.get("subject") and profile.get("lessons_per_class"):
+                        requirements.append({"class": cls, "teacher": profile["teacher"],
+                                             "subject": profile["subject"], "count": profile["lessons_per_class"]})
+            result["classes"] = classes
+            result["requirements"] = requirements
+            result["unresolved_scopes"] = unresolved
+            result["known_classes"] = known
+            # Surface sections mentioned by a teacher but absent from the manager's declared list.
+            for cls in classes:
+                if cls not in known and cls not in result.get("warnings", []):
+                    result.setdefault("warnings", []).append("الشعبة " + cls + " وردت في كلام أحد المعلمين ولم تكن ضمن قائمة الشعب المعتمدة؛ يرجى تأكيدها.")
+            result["ready_for_generation"] = bool(result.get("days") and result.get("day_period_limits") and
+                result.get("teachers") and classes and requirements and not unresolved and not result.get("warnings"))
         return result
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
