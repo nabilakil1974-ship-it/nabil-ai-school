@@ -34,6 +34,7 @@ jobs:
           assert '/competitions/archive/sync' in paths
           assert exam_archive._classify('رياضيات انكليزي - علوم عامة - دورة 2 - 2019')['grade'] == 'Terminale GS'
           assert exam_archive._classify('رياضيات انكليزي - علوم عامة - دورة 2 - 2019')['subject'] == 'Mathematics'
+          assert exam_archive._classify('رياضيات انكليزي - علوم عامة - دورة 2 - 2019')['session'] == 'Session 2'
           assert exam_archive._classify('الشهادة المتوسطة - رياضيات فرنسي - 2022 - العادية')['grade'] == 'Brevet'
           assert exam_archive._safe_url('https://www.crdp.org/sites/default/files/sample.pdf')
           assert not exam_archive._safe_url('https://example.com/sample.pdf')
