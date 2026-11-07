@@ -23,6 +23,9 @@ REQUEST_TIMEOUT = (12, 45)
 HEADERS = {"User-Agent": "NABIL-AI-Educational-Archive/2.0 (public CRDP exam catalogue)"}
 _records: dict[str, dict] = {}
 _texts: dict[str, str] = {}
+_text_bytes = 0
+MAX_TEXT_CACHE_BYTES = 32 * 1024 * 1024
+MAX_TEXT_PER_DOCUMENT = 24000
 _state: dict = {"status": "not_synced", "note": "The in-memory catalogue is empty. Run a CRDP sync."}
 _lock = threading.RLock()
 _job_lock = threading.Lock()
@@ -129,7 +132,7 @@ def get_status() -> dict:
 
 def sync_archive(max_pages: int = 300, mathematics_only: bool = True) -> dict:
     """Scan CRDP archive pages; fetch PDFs transiently and retain only metadata/text in RAM."""
-    global _state
+    global _state, _text_bytes
     if max_pages < 1 or max_pages > 400:
         raise ValueError("max_pages must be between 1 and 400.")
     session = requests.Session()
@@ -189,7 +192,16 @@ def sync_archive(max_pages: int = 300, mathematics_only: bool = True) -> dict:
                     added += 1
                 _records[digest] = metadata
                 if extracted:
-                    _texts[digest] = extracted
+                    compact_text = extracted[:MAX_TEXT_PER_DOCUMENT]
+                    if digest in _texts:
+                        _text_bytes -= len(_texts[digest].encode("utf-8"))
+                    compact_size = len(compact_text.encode("utf-8"))
+                    if _text_bytes + compact_size <= MAX_TEXT_CACHE_BYTES:
+                        _texts[digest] = compact_text
+                        _text_bytes += compact_size
+                    else:
+                        metadata["text_status"] = "extracted_not_cached_memory_limit"
+                        _records[digest] = metadata
         except Exception:
             failed += 1
 
