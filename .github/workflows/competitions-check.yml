@@ -55,9 +55,12 @@ jobs:
           else:
               raise AssertionError('Grade 9 probability must be rejected')
           # Offline coverage is explicit: do not invent generic questions for unsupported Terminale GS topics.
-          gs_supported = ['Quadratic Equations', 'Signs of Quadratic Functions', 'Derivatives',
-                          'Probability I', 'Probability II', 'Vectors and Coordinate Systems',
-                          'Antiderivatives', 'Complex Numbers', 'Statistics']
+          gs_supported = ['Quadratic Equations', 'Signs of Quadratic Functions',
+                          'Limits of Functions at Infinity', 'Limits of a Function at a Point',
+                          'Derivatives', 'Functions', 'Permutations', 'Probability I', 'Probability II',
+                          'Orthogonality', 'Vectors and Coordinate Systems', 'Sequences',
+                          'Trigonometric Equations', 'Trigonometric Formulas', 'Circle',
+                          'Scalar Product', 'Antiderivatives', 'Complex Numbers', 'Statistics']
           for grade, topics in GRADE_TOPICS.items():
               if grade == 'terminal_gs':
                   for topic in gs_supported:
