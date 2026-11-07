@@ -140,7 +140,7 @@ def _anchor_exam_title(anchor) -> tuple[str, bool]:
     anchor_title = _normalise(anchor.get("title", ""))
     title = row_text or anchor_title or anchor_text
     is_math = bool(re.search(
-        r"رياضيات|الرياضيات|math[ée]matiques|mathematics|\\bmath\\b",
+        r"رياضيات|الرياضيات|math[ée]matiques|mathematics|\bmath\b",
         title + " " + anchor_title + " " + anchor_text, re.I))
     if title.lower() in {"pdf", "download", "تحميل"}:
         title = anchor_title or "CRDP PDF"
