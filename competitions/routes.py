@@ -271,16 +271,18 @@ def official_archive_document(document_id: str):
 def official_archive_sync(background: bool = True, max_pages: int = 300,
                           x_archive_admin_token: str | None = Header(default=None, alias="X-Archive-Admin-Token")):
     expected = os.getenv("NABIL_ARCHIVE_ADMIN_TOKEN", "").strip()
-    if not expected:
-        raise HTTPException(503, "Set NABIL_ARCHIVE_ADMIN_TOKEN before starting an archive sync.")
-    if not x_archive_admin_token or not __import__("hmac").compare_digest(x_archive_admin_token, expected):
+    # If an administrator configured a secret, enforce it. Otherwise allow a
+    # public, tightly rate-limited scan of CRDP's openly published archive.
+    if expected and (not x_archive_admin_token or not __import__("hmac").compare_digest(x_archive_admin_token, expected)):
         raise HTTPException(403, "Archive administrator token is missing or invalid.")
-    if max_pages < 1 or max_pages > 400:
-        raise HTTPException(422, "max_pages must be between 1 and 400.")
+    if max_pages < 1 or max_pages > 300:
+        raise HTTPException(422, "max_pages must be between 1 and 300.")
     if background:
-        return exam_archive.start_sync(max_pages=max_pages)
-    return exam_archive.sync_archive(max_pages=max_pages, mathematics_only=True)
-
+        result = exam_archive.start_sync(max_pages=max_pages)
+        if not result.get("started") and result.get("cooldown_seconds_remaining"):
+            raise HTTPException(429, result)
+        return result
+    raise HTTPException(400, "Use background=true for the protected, rate-limited CRDP scan.")
 
 @router.post("/generate")
 def generate(req: GenerateRequest):
