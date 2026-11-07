@@ -246,7 +246,7 @@ def build_offline_assessment(req):
             criteria = [{"criterion":label,"marks":round(float(points) * scale, 2)} for label,points in specialized["criteria"]]
             if criteria:
                 criteria[-1]["marks"] = round(mark - sum(float(x["marks"]) for x in criteria[:-1]), 2)
-            questions.append({"number":i,"lesson":topic,"title":(f"Question {i}: {topic}" if en else f"Question {i} : {topic}"),"statement":specialized["statement"],"marks":mark,"parts":parts,"diagram":specialized["diagram"]})
+            questions.append({"number":i,"lesson":topic,"title":(f"Question {i}: {topic}" if en else f"Question {i} : {topic}"),"statement":specialized["statement"],"marks":mark,"parts":parts,"diagram":specialized["diagram"],"table":specialized.get("table")})
             solution_steps=list(specialized["steps"])
             if solution_steps and solution_steps[-1].lower().startswith(("we conclude:", "on conclut :")):
                 solution_steps.pop()
