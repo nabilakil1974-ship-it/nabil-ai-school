@@ -5,7 +5,7 @@ This phase indexes public Lebanese official mathematics certificate examinations
 - https://www.crdp.org/official-exams-corrections-lebanon
 - https://www.crdp.org/guideline-official-exams
 
-The scanner checks archive pagination (default 300 pages), discovers direct PDF links hosted only on `crdp.org` / `www.crdp.org`, fetches each PDF transiently, extracts its text, and keeps a compact metadata catalogue plus extracted text **in process memory only**. It does not write PDFs, OCR output, or an index to Render's filesystem. SHA-256 identifies each source file and detects if it changes before a later download.
+The scanner checks archive pagination (default 300 pages), discovers direct PDF links hosted only on `crdp.org` / `www.crdp.org`, and reads the surrounding CRDP table row because the visible link itself is often labelled only “PDF”. It fetches each PDF transiently, extracts its text, and keeps a compact metadata catalogue plus extracted text **in process memory only**. It does not write PDFs, OCR output, or an index to Render's filesystem. SHA-256 identifies each source file and detects if it changes before a later download.
 
 ## Storage and cost
 - No Render persistent disk is required.
@@ -33,15 +33,17 @@ Never commit the archive admin token or provider API key to Git. No storage buck
 
 API:
 - `GET /api/competitions/archive/status`
-- `GET /api/competitions/archive/search?q=derivatives&grade=Terminale%20GS`
-- `GET /api/competitions/archive/documents/{id}` fetches the matching original PDF from CRDP on demand.
+- `GET /api/competitions/archive/documents?grade=Terminale%20GS&year=2024&limit=50&offset=0` browses the mathematics PDF catalogue.
+- `GET /api/competitions/archive/search?q=derivatives&grade=Terminale%20GS` searches extracted text and returns matching excerpts.
+- `GET /api/competitions/archive/documents/{id}` fetches and downloads the matching original PDF from CRDP on demand.
+- The public page provides branch/year filters, text search, and direct PDF download links. The sync token is needed only to start a fresh scan, not to browse or download already-indexed records.
 - `POST /api/competitions/archive/sync` with `X-Archive-Admin-Token` header.
 
 ## Extraction and classification
 Embedded PDF text is extracted in memory. If a PDF is scanned and Tesseract with Arabic, English, and French language data is available on the host, OCR is attempted in memory; otherwise it is marked `needs_ocr`. OCR failure is visible and is never represented as successful learning. Branch, year, session, language, and correction indicators are inferred from document titles/content and must be treated as catalogue hints, not guaranteed official metadata.
 
 ## Generation and quality policy
-When an AI model key is configured, matching archive excerpts are supplied as **historical examination-style evidence**, not as proof of the current curriculum. Generated questions must match the selected lessons exactly; each question must have a corresponding solution and rubric; question parts, rubric criteria, and total marks must reconcile. Failed checks stop generation.
+When an AI model key is configured, matching archive excerpts are supplied as **historical examination-style evidence**, not as proof of the current curriculum. Without an AI model key, NABIL can still catalogue, search, display and download original CRDP PDFs and attach local mathematics teaching blueprints to its question drafts; it cannot honestly claim to have semantically read, understood or learned the archive. The local blueprint is a transparent rule-based guide, not a substitute for an AI researcher or a teacher's mathematical review. Generated questions must match the selected lessons exactly; each question must have a corresponding solution and rubric; question parts, rubric criteria, and total marks must reconcile. Failed checks stop generation.
 
 If no model key is configured, the service uses the deterministic offline generator and marks that official archive records were **not used to generate** the paper. It must not describe this fallback as AI or claim it learned from the archive.
 
