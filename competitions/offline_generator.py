@@ -229,8 +229,14 @@ def build_offline_assessment(req):
     allocations[-1]=round(total-sum(allocations[:-1]),2)
     questions=[]; solutions=[]; rubric=[]
     for i,topic in enumerate(selected,1):
-        statement,steps,answer=_make(topic,req.language,i)
         mark=allocations[i-1]
+        specialized = terminal_gs_item(topic, req.language) if req.grade == "terminal_gs" else None
+        if specialized:
+            questions.append({"number":i,"lesson":topic,"title":(f"Question {i}: {topic}" if en else f"Question {i} : {topic}"),"statement":specialized["statement"],"marks":mark,"parts":specialized["parts"],"diagram":specialized["diagram"]})
+            solutions.append({"number":i,"steps":specialized["steps"],"final_answer":specialized["answer"]})
+            rubric.append({"number":i,"total":mark,"criteria":[{"criterion":label,"marks":points} for label,points in specialized["criteria"]]})
+            continue
+        statement,steps,answer=_make(topic,req.language,i)
         questions.append({"number":i,"lesson":topic,"title":(f"Question {i}: {topic}" if en else f"Question {i} : {topic}"),"statement":statement,"marks":mark,"parts":[],"diagram":_diagram_for(topic)})
         solutions.append({"number":i,"steps":steps,"final_answer":answer})
         criteria=[]
