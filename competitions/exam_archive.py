@@ -278,3 +278,22 @@ def search_archive(query: str, grade: str | None = None, limit: int = 8) -> list
             results.append({**item, "score": score, "excerpt": _normalise(excerpt)[:1400]})
     results.sort(key=lambda x: (x["score"], x.get("year") or 0), reverse=True)
     return results[:max(1, min(limit, 20))]
+
+
+def get_document_path(document_id: str) -> tuple[Path, dict] | None:
+    """Resolve a previously indexed PDF by its SHA-256 identifier."""
+    if not re.fullmatch(r"[a-f0-9]{64}", document_id or "") or not INDEX_FILE.exists():
+        return None
+    for line in INDEX_FILE.read_text(encoding="utf-8").splitlines():
+        try:
+            item = json.loads(line)
+        except Exception:
+            continue
+        if item.get("id") != document_id:
+            continue
+        candidate = Path(item.get("local_pdf", "")).resolve()
+        root = ARCHIVE_DIR.resolve()
+        if root not in candidate.parents or not candidate.is_file():
+            return None
+        return candidate, item
+    return None
