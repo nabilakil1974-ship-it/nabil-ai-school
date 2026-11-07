@@ -100,6 +100,11 @@ jobs:
                   assert q['parts'] and round(sum(float(p['marks']) for p in q['parts']), 2) == float(q['marks'])
                   assert round(sum(float(c['marks']) for c in rubric['criteria']), 2) == float(rubric['total'])
               assert len(result['solutions']) == 4
+          stats = build_offline_assessment(GenerateRequest(grade='terminal_gs', lessons=['Statistics'], language='en'))
+          assert stats['questions'][0]['table']['headers'] == ['Number of books (x)', 'Frequency (n)']
+          assert len(stats['questions'][0]['table']['rows']) == 4
+          vectors = build_offline_assessment(GenerateRequest(grade='terminal_gs', lessons=['Vectors and Coordinate Systems'], language='en'))
+          assert vectors['questions'][0]['diagram']['points'] == [{'label':'A','x':-1,'y':2},{'label':'B','x':3,'y':5}]
           # One-lesson selection must scale its parts and rubric to the requested 20 marks.
           one = build_offline_assessment(GenerateRequest(grade='terminal_gs', lessons=['Derivatives'], language='en', total_marks=20))
           assert round(sum(float(p['marks']) for p in one['questions'][0]['parts']), 2) == 20
