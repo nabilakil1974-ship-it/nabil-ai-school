@@ -75,7 +75,7 @@ async function refreshArchiveStatus(){
   $('archiveMath').textContent=Number(s.mathematics_documents||0).toLocaleString('ar');
   $('archiveText').textContent=Number(s.text_searchable||0).toLocaleString('ar');
   const state=s.last_state||{};
-  $('archiveStatus').textContent=(s.job_running?'المزامنة قيد التنفيذ... ':('آخر مزامنة: '+(s.last_sync||'لم تبدأ بعد')+' · '))+'تحتاج OCR: '+Number(s.needs_ocr||0)+' · موزع حسب الفروع: '+JSON.stringify(s.by_grade||{});
+  $('archiveStatus').textContent=(s.job_running?'المزامنة قيد التنفيذ... ':('آخر مزامنة: '+(s.last_sync||'لم تبدأ بعد')+' · '))+'تحتاج OCR: '+Number(s.needs_ocr||0)+' · محرك OCR: '+(s.ocr_available?'متاح':'غير متاح')+' · موزع حسب الفروع: '+JSON.stringify(s.by_grade||{});
  }catch(e){$('archiveStatus').textContent='تعذر قراءة حالة الأرشيف: '+e.message;}
 }
 $('archiveSearch').onclick=async()=>{
