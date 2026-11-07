@@ -23,7 +23,11 @@ jobs:
       - run: |
           python - <<'PY'
           from competitions.routes import GRADE_TOPICS, GenerateRequest, _validate_selection
-          from competitions.routes import router\n          paths = {route.path for route in router.routes}\n          assert '/competitions/analytics/visit' in paths\n          assert '/competitions/analytics/summary' in paths\n          assert len(GRADE_TOPICS) == 9
+          from competitions.routes import router
+          paths = {route.path for route in router.routes}
+          assert '/competitions/analytics/visit' in paths
+          assert '/competitions/analytics/summary' in paths
+          assert len(GRADE_TOPICS) == 9
           _validate_selection(GenerateRequest(grade='g7', lessons=['Powers'], language='en'))
           try:
               _validate_selection(GenerateRequest(grade='g7', lessons=['Complex Numbers'], language='en'))
