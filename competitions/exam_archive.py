@@ -130,6 +130,21 @@ def get_status() -> dict:
         }
 
 
+def _anchor_exam_title(anchor) -> tuple[str, bool]:
+    """Read exam title from the containing CRDP table row; links often say only PDF."""
+    row = anchor.find_parent(["tr", "li", "article", "div"])
+    row_text = _normalise(row.get_text(" ", strip=True)) if row else ""
+    anchor_text = _normalise(anchor.get_text(" ", strip=True))
+    anchor_title = _normalise(anchor.get("title", ""))
+    title = row_text or anchor_title or anchor_text
+    is_math = bool(re.search(
+        r"رياضيات|الرياضيات|math[ée]matiques|mathematics|\\bmath\\b",
+        title + " " + anchor_title + " " + anchor_text, re.I))
+    if title.lower() in {"pdf", "download", "تحميل"}:
+        title = anchor_title or "CRDP PDF"
+    return title, is_math
+
+
 def sync_archive(max_pages: int = 300, mathematics_only: bool = True) -> dict:
     """Scan CRDP archive pages; fetch PDFs transiently and retain only metadata/text in RAM."""
     global _state, _text_bytes
@@ -155,22 +170,11 @@ def sync_archive(max_pages: int = 300, mathematics_only: bool = True) -> dict:
                 if not _safe_url(url):
                     continue
                 path = urlparse(url).path.lower()
-                # CRDP often labels the PDF link only "PDF"; the exam title is in its table row.
-                row = anchor.find_parent(["tr", "li", "article", "div"])
-                row_text = _normalise(row.get_text(" ", strip=True)) if row else ""
-                anchor_text = _normalise(anchor.get_text(" ", strip=True))
-                anchor_title = _normalise(anchor.get("title", ""))
-                title = row_text or anchor_title or anchor_text
+                title, is_math = _anchor_exam_title(anchor)
                 if not path.endswith(".pdf"):
                     continue
-                is_math = bool(re.search(
-                    r"رياضيات|الرياضيات|math[ée]matiques|mathematics|\\bmath\\b",
-                    title + " " + anchor_title + " " + anchor_text, re.I))
                 if mathematics_only and not is_math:
                     continue
-                if title.lower() in {"pdf", "download", "تحميل"}:
-                    title = anchor_title or urlparse(url).path.rsplit("/", 1)[-1]
-                discovered[url] = title or urlparse(url).path.rsplit("/", 1)[-1]
         except requests.RequestException:
             page_failures += 1
 
