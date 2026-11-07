@@ -11,7 +11,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel, Field
 
 from competitions.offline_generator import build_offline_assessment
@@ -220,7 +220,25 @@ def official_archive_status():
 
 @router.get("/archive/search")
 def official_archive_search(q: str, grade: str | None = None, limit: int = 8):
-    return {"query": q, "results": exam_archive.search_archive(q, grade=grade, limit=limit)}
+    results = exam_archive.search_archive(q, grade=grade, limit=limit)
+    public_results = []
+    for item in results:
+        item = dict(item)
+        item.pop("local_pdf", None)
+        item.pop("local_text", None)
+        item["download_url"] = f"/api/competitions/archive/documents/{item['id']}"
+        public_results.append(item)
+    return {"query": q, "results": public_results}
+
+
+@router.get("/archive/documents/{document_id}")
+def official_archive_document(document_id: str):
+    found = exam_archive.get_document_path(document_id)
+    if not found:
+        raise HTTPException(404, "The requested official exam PDF is not present in the local archive.")
+    path, metadata = found
+    filename = re.sub(r"[^A-Za-z0-9._-]+", "_", metadata.get("title", "official-exam"))[:100] + ".pdf"
+    return FileResponse(path, media_type="application/pdf", filename=filename)
 
 
 @router.post("/archive/sync")
