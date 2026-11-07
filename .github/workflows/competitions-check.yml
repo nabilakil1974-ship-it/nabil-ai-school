@@ -23,6 +23,7 @@ jobs:
       - run: |
           python - <<'PY'
           from competitions.routes import GRADE_TOPICS, GenerateRequest, _validate_selection
+          from competitions.offline_generator import build_offline_assessment, _family
           from competitions.routes import router
           paths = {route.path for route in router.routes}
           assert '/competitions/analytics/visit' in paths
@@ -41,5 +42,18 @@ jobs:
               pass
           else:
               raise AssertionError('Grade 9 probability must be rejected')
+          # Every listed lesson must be accepted and receive a question, solution and rubric offline.
+          for grade, topics in GRADE_TOPICS.items():
+              req = GenerateRequest(grade=grade, lessons=topics, language='en', total_marks=20)
+              result = build_offline_assessment(req)
+              assert len(result['questions']) == len(topics), (grade, len(result['questions']), len(topics))
+              assert len(result['solutions']) == len(topics)
+              assert len(result['rubric']) == len(topics)
+              assert round(sum(float(q['marks']) for q in result['questions']), 2) == 20
+              for topic in topics:
+                  one = build_offline_assessment(GenerateRequest(grade=grade, lessons=[topic], language='fr'))
+                  assert one['questions'][0]['lesson'] == topic
+                  assert one['solutions'][0]['final_answer']
+          print('offline generator covers all catalogue lessons; totals and answer keys validated')
           print('competition contract checks passed')
           PY
