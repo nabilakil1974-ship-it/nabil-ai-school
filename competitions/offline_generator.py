@@ -232,9 +232,16 @@ def build_offline_assessment(req):
         mark=allocations[i-1]
         specialized = terminal_gs_item(topic, req.language) if req.grade == "terminal_gs" else None
         if specialized:
-            questions.append({"number":i,"lesson":topic,"title":(f"Question {i}: {topic}" if en else f"Question {i} : {topic}"),"statement":specialized["statement"],"marks":mark,"parts":specialized["parts"],"diagram":specialized["diagram"]})
+            scale = mark / 5.0
+            parts = [dict(part, marks=round(float(part["marks"]) * scale, 2)) for part in specialized["parts"]]
+            if parts:
+                parts[-1]["marks"] = round(mark - sum(float(p["marks"]) for p in parts[:-1]), 2)
+            criteria = [{"criterion":label,"marks":round(float(points) * scale, 2)} for label,points in specialized["criteria"]]
+            if criteria:
+                criteria[-1]["marks"] = round(mark - sum(float(x["marks"]) for x in criteria[:-1]), 2)
+            questions.append({"number":i,"lesson":topic,"title":(f"Question {i}: {topic}" if en else f"Question {i} : {topic}"),"statement":specialized["statement"],"marks":mark,"parts":parts,"diagram":specialized["diagram"]})
             solutions.append({"number":i,"steps":specialized["steps"],"final_answer":specialized["answer"]})
-            rubric.append({"number":i,"total":mark,"criteria":[{"criterion":label,"marks":points} for label,points in specialized["criteria"]]})
+            rubric.append({"number":i,"total":mark,"criteria":criteria})
             continue
         statement,steps,answer=_make(topic,req.language,i)
         questions.append({"number":i,"lesson":topic,"title":(f"Question {i}: {topic}" if en else f"Question {i} : {topic}"),"statement":statement,"marks":mark,"parts":[],"diagram":_diagram_for(topic)})
