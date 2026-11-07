@@ -36,7 +36,7 @@ jobs:
           assert exam_archive._classify('رياضيات انكليزي - علوم عامة - دورة 2 - 2019')['subject'] == 'Mathematics'
           assert exam_archive._classify('الشهادة المتوسطة - رياضيات فرنسي - 2022 - العادية')['grade'] == 'Brevet'
           assert exam_archive._safe_url('https://www.crdp.org/sites/default/files/sample.pdf')
-assert not exam_archive._safe_url('https://example.com/sample.pdf')
+          assert not exam_archive._safe_url('https://example.com/sample.pdf')
           assert len(GRADE_TOPICS) == 9
           _validate_selection(GenerateRequest(grade='g7', lessons=['Powers'], language='en'))
           try:
