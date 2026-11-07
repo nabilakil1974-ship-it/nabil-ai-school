@@ -6,7 +6,7 @@ import os
 import re
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Header
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -225,7 +225,7 @@ def official_archive_search(q: str, grade: str | None = None, limit: int = 8):
 
 @router.post("/archive/sync")
 def official_archive_sync(background: bool = True, max_pages: int = 300,
-                          x_archive_admin_token: str | None = None):
+                          x_archive_admin_token: str | None = Header(default=None, alias="X-Archive-Admin-Token")):
     expected = os.getenv("NABIL_ARCHIVE_ADMIN_TOKEN", "").strip()
     if not expected:
         raise HTTPException(503, "Set NABIL_ARCHIVE_ADMIN_TOKEN before starting an archive sync.")
