@@ -18,12 +18,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: python -m pip install -r requirements.txt
+      - run: python -m pip install -r requirements.txt sqlalchemy pydantic-settings openai
       - run: python -m py_compile competitions/routes.py competitions/server.py app/main.py
       - run: |
           python - <<'PY'
           from competitions.routes import GRADE_TOPICS, GenerateRequest, _validate_selection
-          assert len(GRADE_TOPICS) == 9
+          from competitions.routes import router\n          paths = {route.path for route in router.routes}\n          assert '/competitions/analytics/visit' in paths\n          assert '/competitions/analytics/summary' in paths\n          assert len(GRADE_TOPICS) == 9
           _validate_selection(GenerateRequest(grade='g7', lessons=['Powers'], language='en'))
           try:
               _validate_selection(GenerateRequest(grade='g7', lessons=['Complex Numbers'], language='en'))
