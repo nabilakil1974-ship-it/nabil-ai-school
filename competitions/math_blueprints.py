@@ -173,18 +173,61 @@ TOPIC_DOMAIN_OVERRIDES = {
 
 def get_blueprint(topic: str):
     """Return a stable local teaching profile, or None for an untrained topic."""
-    domain = TOPIC_DOMAIN_OVERRIDES.get(topic)
-    if domain is None:
+    domain = TOPIC_DOMAIN_OVERRIDES.get(topic) or LESSON_DOMAIN.get(topic)
+    aliases = {
+        "algebraic_expressions": "algebra", "decimal_fractions": "decimals",
+        "literal_fractions": "algebra", "rational_fractions": "algebra",
+        "real_numbers": "algebra", "order": "algebra", "absolute_value": "algebra",
+        "linear_equations": "algebra", "linear_inequalities": "algebra",
+        "equations_inequalities": "algebra", "inequalities": "algebra",
+        "sets": "sets", "powers10": "powers", "real_powers": "powers",
+        "square": "geometry3d", "rectangle": "geometry3d", "rhombus": "geometry3d",
+        "parallelogram": "geometry3d", "plane_geometry": "geometry3d",
+        "right_triangle": "pythagoras", "lines_circles": "circle",
+        "arcs": "circle", "circle_advanced": "circle",
+        "line_coordinates": "coordinates", "analytic_geometry": "coordinates",
+        "coordinate_systems": "coordinates", "coordinate_lines": "coordinates",
+        "plotting": "coordinates", "graphical_solution": "functions",
+        "basic_functions": "functions", "inverse_function": "functions",
+        "rational_functions": "functions", "economic_functions": "finance",
+        "quadratic_equations": "quadratic", "quadratic_functions": "quadratic",
+        "quadratic_signs": "quadratic",
+        "limit_concept": "limits", "limit_operations": "limits",
+        "limits_infinity": "limits", "limits_point": "limits",
+        "continuity": "limits", "continuous_interval": "limits",
+        "derivative_applications": "derivatives", "function_variation": "derivatives",
+        "higher_derivatives": "derivatives",
+        "permutations": "probability", "events": "probability",
+        "probability_i": "probability", "probability_ii": "probability",
+        "conditional_probability": "probability", "total_probability": "probability",
+        "combinations": "probability", "random_variable": "probability",
+        "random_variables": "probability",
+        "arithmetic_sequences": "sequences", "geometric_sequences": "sequences",
+        "vectors_coordinates": "vectors", "vector_product": "vectors",
+        "orthogonality": "scalar_product", "trig_equations": "trigonometry",
+        "trig_formulas": "trigonometry",
+        "logarithm": "logexp", "exponential": "logexp",
+        "integral": "integrals", "integration_methods": "integrals",
+        "integral_applications": "integrals",
+        "two_variable_distribution": "statistics", "statistics_vocab": "statistics",
+        "statistics_indicators": "statistics", "position_statistics": "statistics",
+        "dispersion": "statistics", "graphical_interpretation": "statistics",
+        "simple_interest": "finance", "compound_interest": "finance",
+        "annuity": "finance", "sets": "sets",
+    }
+    domain = aliases.get(domain, domain)
+    guide = DOMAIN_GUIDES.get(domain)
+    if not guide:
         t = topic.lower()
         if "statistic" in t or "dispersion" in t or "position measure" in t or "distribution of two" in t:
             domain = "statistics"
-        elif "equation" in t or "inequalit" in t or "system" in t:
+        elif "equation" in t or "inequalit" in t or "system" in t or "expression" in t:
             domain = "algebra"
         elif "fraction" in t:
             domain = "algebra"
         elif "function" in t or "inverse" in t:
             domain = "functions"
-        elif "coordinate" in t or "graph" in t:
+        elif "coordinate" in t or "graph" in t or "point" in t:
             domain = "coordinates"
         elif "triangle" in t or "geometry" in t or "line" in t or "plane" in t:
             domain = "geometry3d"
@@ -192,7 +235,13 @@ def get_blueprint(topic: str):
             domain = "probability"
         elif "sequence" in t:
             domain = "sequences"
-    guide = DOMAIN_GUIDES.get(domain)
+        elif "trigon" in t:
+            domain = "trigonometry"
+        elif "proportion" in t:
+            domain = "proportion"
+        elif "power" in t:
+            domain = "powers"
+        guide = DOMAIN_GUIDES.get(domain)
     if not guide:
         return None
     concept, skills, protocol, errors = guide
