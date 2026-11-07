@@ -31,6 +31,7 @@ jobs:
           assert '/competitions/analytics/summary' in paths
           assert '/competitions/archive/status' in paths
           assert '/competitions/archive/search' in paths
+          assert '/competitions/archive/documents/{document_id}' in paths
           assert '/competitions/archive/sync' in paths
           assert exam_archive._classify('رياضيات انكليزي - علوم عامة - دورة 2 - 2019')['grade'] == 'Terminale GS'
           assert exam_archive._classify('رياضيات انكليزي - علوم عامة - دورة 2 - 2019')['subject'] == 'Mathematics'
