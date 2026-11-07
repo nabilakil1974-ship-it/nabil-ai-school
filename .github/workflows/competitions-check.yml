@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: '3.11'
       - run: python -m pip install -r requirements.txt -r competitions/requirements.txt
-      - run: python -m py_compile competitions/routes.py competitions/server.py competitions/offline_generator.py competitions/gs_benchmark.py competitions/exam_archive.py app/main.py
+      - run: python -m py_compile competitions/routes.py competitions/server.py competitions/offline_generator.py competitions/gs_benchmark.py competitions/exam_archive.py competitions/math_blueprints.py app/main.py
       - run: |
           python - <<'PY'
           from competitions.routes import GRADE_TOPICS, GenerateRequest, _validate_selection
@@ -33,12 +33,20 @@ jobs:
           assert '/competitions/analytics/summary' in paths
           assert '/competitions/archive/status' in paths
           assert '/competitions/archive/search' in paths
+          assert '/competitions/archive/documents' in paths
           assert '/competitions/archive/documents/{document_id}' in paths
+          assert '/competitions/archive/documents' in paths
+          assert exam_archive.list_archive(limit=10)['total'] == 0
           assert '/competitions/archive/sync' in paths
           assert exam_archive._classify('رياضيات انكليزي - علوم عامة - دورة 2 - 2019')['grade'] == 'Terminale GS'
           assert exam_archive._classify('رياضيات انكليزي - علوم عامة - دورة 2 - 2019')['subject'] == 'Mathematics'
           assert exam_archive._classify('رياضيات انكليزي - علوم عامة - دورة 2 - 2019')['session'] == 'Session 2'
           assert exam_archive._classify('الشهادة المتوسطة - رياضيات فرنسي - 2022 - العادية')['grade'] == 'Brevet'
+          from bs4 import BeautifulSoup
+          anchor = BeautifulSoup('<table><tr><td>رياضيات - انكليزي - علوم عامة - دورة 2 - 2019</td><td><a href="/files/exam.pdf">PDF</a></td></tr></table>', 'html.parser').find('a')
+          row_title, is_math = exam_archive._anchor_exam_title(anchor)
+          assert is_math and 'علوم عامة' in row_title and row_title != 'PDF'
+          assert exam_archive._classify('أسس التصحيح - رياضيات - علوم عامة - 2024')['subject'] == 'Mathematics'
           assert exam_archive._safe_url('https://www.crdp.org/sites/default/files/sample.pdf')
           assert not exam_archive._safe_url('https://example.com/sample.pdf')
           assert len(GRADE_TOPICS) == 9
