@@ -11,7 +11,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from competitions.offline_generator import build_offline_assessment
@@ -236,12 +236,19 @@ def official_archive_search(q: str, grade: str | None = None, limit: int = 8):
 
 @router.get("/archive/documents/{document_id}")
 def official_archive_document(document_id: str):
-    found = exam_archive.get_document_path(document_id)
+    try:
+        found = exam_archive.get_document(document_id)
+    except Exception as exc:
+        raise HTTPException(502, f"Could not retrieve the original CRDP PDF: {str(exc)[:180]}")
     if not found:
-        raise HTTPException(404, "The requested official exam PDF is not present in the local archive.")
-    path, metadata = found
+        raise HTTPException(404, "The requested PDF is not in the current in-memory catalogue. Run CRDP archive sync first.")
+    content, metadata = found
     filename = re.sub(r"[^A-Za-z0-9._-]+", "_", metadata.get("title", "official-exam"))[:100] + ".pdf"
-    return FileResponse(path, media_type="application/pdf", filename=filename)
+    return StreamingResponse(
+        io.BytesIO(content),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
 
 
 @router.post("/archive/sync")
