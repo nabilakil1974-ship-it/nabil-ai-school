@@ -54,8 +54,25 @@ jobs:
               pass
           else:
               raise AssertionError('Grade 9 probability must be rejected')
-          # Every listed lesson must be accepted and receive a question, solution and rubric offline.
+          # Offline coverage is explicit: do not invent generic questions for unsupported Terminale GS topics.
+          gs_supported = ['Quadratic Equations', 'Signs of Quadratic Functions', 'Derivatives',
+                          'Probability I', 'Probability II', 'Vectors and Coordinate Systems',
+                          'Antiderivatives', 'Complex Numbers', 'Statistics']
           for grade, topics in GRADE_TOPICS.items():
+              if grade == 'terminal_gs':
+                  for topic in gs_supported:
+                      for language in ('en', 'fr'):
+                          one = build_offline_assessment(GenerateRequest(grade=grade, lessons=[topic], language=language))
+                          assert one['questions'][0]['lesson'] == topic
+                          assert one['solutions'][0]['final_answer']
+                  for topic in set(topics) - set(gs_supported):
+                      try:
+                          build_offline_assessment(GenerateRequest(grade=grade, lessons=[topic], language='en'))
+                      except ValueError as exc:
+                          assert 'No validated offline Terminale GS question template' in str(exc)
+                      else:
+                          raise AssertionError(f'Unsupported Terminale GS topic was not blocked: {topic}')
+                  continue
               req = GenerateRequest(grade=grade, lessons=topics, language='en', total_marks=20)
               result = build_offline_assessment(req)
               assert len(result['questions']) == len(topics), (grade, len(result['questions']), len(topics))
@@ -66,6 +83,10 @@ jobs:
                   one = build_offline_assessment(GenerateRequest(grade=grade, lessons=[topic], language='fr'))
                   assert one['questions'][0]['lesson'] == topic
                   assert one['solutions'][0]['final_answer']
+          assert _family('Antiderivatives') == 'antiderivative'
+          anti = build_offline_assessment(GenerateRequest(grade='terminal_gs', lessons=['Antiderivatives'], language='en'))
+          assert 'antiderivative' in anti['questions'][0]['statement'].lower()
+          assert "f′(x)" not in anti['questions'][0]['statement']
           # Benchmark: identical four Terminale GS lessons, language and 20-mark scale.
           benchmark = ['Derivatives', 'Probability I', 'Vectors and Coordinate Systems', 'Statistics']
           for language in ('en', 'fr'):
