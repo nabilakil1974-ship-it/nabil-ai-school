@@ -20,6 +20,17 @@ jobs:
           python-version: '3.11'
       - run: python -m pip install -r requirements.txt -r competitions/requirements.txt
       - run: python -m py_compile competitions/routes.py competitions/server.py competitions/offline_generator.py competitions/gs_benchmark.py competitions/exam_archive.py competitions/math_blueprints.py app/main.py
+      - name: Validate competition page JavaScript syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path('competitions/index.html').read_text(encoding='utf-8')
+          scripts = re.findall(r'<script>(.*?)</script>', html, flags=re.S)
+          assert scripts, 'No inline JavaScript found'
+          Path('/tmp/nabil-competitions.js').write_text(scripts[-1], encoding='utf-8')
+          PY
+          node --check /tmp/nabil-competitions.js
       - run: |
           python - <<'PY'
           from competitions.routes import GRADE_TOPICS, GenerateRequest, _validate_selection
@@ -133,6 +144,19 @@ jobs:
           from fastapi.testclient import TestClient
           from competitions.server import app
           client = TestClient(app)
+          catalogue_response = client.get('/api/competitions/catalogue')
+          assert catalogue_response.status_code == 200, catalogue_response.text
+          catalogue_data = catalogue_response.json()
+          assert len(catalogue_data['grades']) == 9
+          assert 'Powers' in catalogue_data['grades']['g7']
+          visit_response = client.post('/api/competitions/analytics/visit', json={'visitor_id':'workflow-test-browser'})
+          assert visit_response.status_code == 200, visit_response.text
+          stats_response = client.get('/api/competitions/analytics/summary')
+          assert stats_response.status_code == 200, stats_response.text
+          assert stats_response.json()['unique_visitors'] >= 1
+          archive_response = client.get('/api/competitions/archive/status')
+          assert archive_response.status_code == 200, archive_response.text
+          print('catalogue, anonymous analytics and archive status endpoints passed')
           payload = {'grade':'terminal_gs',
                      'lessons':['Quadratic Equations','Derivatives','Probability II','Antiderivatives','Complex Numbers'],
                      'language':'en','exam_type':'Training competition',
