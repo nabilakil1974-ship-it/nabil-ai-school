@@ -159,14 +159,7 @@ def sync_archive(max_pages: int = 300, mathematics_only: bool = True) -> dict:
                     continue
                 discovered[url] = title
                 found_on_page += 1
-            # Stop after a long empty tail; archive pages are sequential.
-            if page_no > 20 and found_on_page == 0:
-                empty_tail = empty_tail + 1 if "empty_tail" in locals() else 1
-                if empty_tail >= 12:
-                    break
-            else:
-                empty_tail = 0
-        except requests.RequestException:
+            # Scan every requested page: older mathematics papers may be separated by long runs of other subjects.\n        except requests.RequestException:
             continue
 
     added, skipped, failed = 0, 0, 0
