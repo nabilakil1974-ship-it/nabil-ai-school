@@ -7,7 +7,7 @@ Official source:
 - https://www.crdp.org/official-exams-corrections-lebanon
 - https://www.crdp.org/guideline-official-exams
 
-The indexer downloads only HTTPS PDF links hosted on `crdp.org` / `www.crdp.org`. It preserves original PDFs, computes SHA-256 hashes, extracts embedded PDF text, and stores metadata for branch, year, session, and language. If a PDF has no usable text layer, it is marked `needs_ocr`; it is not silently treated as searchable or fully learned. Some CRDP PDFs contain both the question paper and correction/barème in one file; this is recorded when detected in extracted text.
+The indexer downloads only HTTPS PDF links hosted on `crdp.org` / `www.crdp.org`. It preserves original PDFs, computes SHA-256 hashes, extracts embedded PDF text, and stores metadata for branch, year, session, and language. If a PDF has no usable text layer, the indexer attempts Tesseract OCR in Arabic, English and French (the repository root `apt.txt` installs the required language packs). If OCR is unavailable or still yields too little text, it is marked `needs_ocr`; it is not silently treated as searchable or fully learned. Some CRDP PDFs contain both the question paper and correction/barème in one file; this is recorded when detected in extracted text.
 
 ## Required Render environment configuration
 Set these environment variables on the **nabil-competitions-preview** service:
