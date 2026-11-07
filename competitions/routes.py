@@ -19,6 +19,14 @@ from competitions import exam_archive
 
 router = APIRouter(prefix="/competitions", tags=["competitions"])
 
+# Anonymous, process-local analytics. This preview runs without a paid database.
+# Counts are intentionally reset when the free Render instance restarts.
+import threading
+_ANALYTICS_LOCK = threading.Lock()
+_ANALYTICS_VISITORS: dict[str, dict] = {}
+_ANALYTICS_TOTAL_VISITS = 0
+
+
 GRADE_TOPICS = {
     "g7": ["Powers", "Prime Numbers", "Congruent Triangles", "Signed Numbers (+ and -)", "Signed Numbers (× and ÷)", "Angles and Lines", "Reduce Fractions", "Decimal Fractions", "Locating a Point", "Algebraic Expressions", "Perpendicular Bisectors", "Locus", "Proportion", "Statistics", "Equations"],
     "g8": ["Powers", "The Circle", "The Square", "Powers of 10", "The Rectangle", "Literal Fractions", "The Rhombus", "Square Roots", "The Parallelogram", "Remarkable Identities", "Midpoint Theorem", "Arcs and Angles", "Pythagoras' Theorem", "Equations", "Rational Fractions", "Right Triangle", "Inequalities", "Plotting in a System", "Statistics"],
@@ -221,6 +229,251 @@ QUALITY REQUIREMENTS:
                                if req.language == "en" else "Des sujets officiels antérieurs ont été consultés pour guider le style d'examen. Ils ne certifient pas le programme actuel ; vérifier le programme CRDP/Ministère en vigueur.")
     data["request"] = req.model_dump()
     return data
+
+
+@router.get("/archive/status")
+def official_archive_status():
+    return exam_archive.get_status()
+
+
+@router.get("/archive/documents")
+def official_archive_catalogue(grade: str | None = None, year: int | None = None,
+                               session_name: str | None = None,
+                               limit: int = 30, offset: int = 0):
+    """Browse the public mathematics archive and download original CRDP PDFs."""
+    return exam_archive.list_archive(grade=grade, year=year,
+                                     session_name=session_name, limit=limit, offset=offset)
+
+
+@router.get("/archive/search")
+def official_archive_search(q: str, grade: str | None = None, limit: int = 8):
+    results = exam_archive.search_archive(q, grade=grade, limit=limit)
+    public_results = []
+    for item in results:
+        item = dict(item)
+        item.pop("local_pdf", None)
+        item.pop("local_text", None)
+        item["download_url"] = f"/api/competitions/archive/documents/{item['id']}"
+        public_results.append(item)
+    return {"query": q, "results": public_results}
+
+
+@router.get("/archive/documents/{document_id}")
+def official_archive_document(document_id: str):
+    try:
+        found = exam_archive.get_document(document_id)
+    except Exception as exc:
+        raise HTTPException(502, f"Could not retrieve the original CRDP PDF: {str(exc)[:180]}")
+    if not found:
+        raise HTTPException(404, "The requested PDF is not in the current in-memory catalogue. Run CRDP archive sync first.")
+    content, metadata = found
+    filename = re.sub(r"[^A-Za-z0-9._-]+", "_", metadata.get("title", "official-exam"))[:100] + ".pdf"
+    return StreamingResponse(
+        io.BytesIO(content),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+
+
+@router.post("/archive/sync")
+def official_archive_sync(background: bool = True, max_pages: int = 300,
+                          x_archive_admin_token: str | None = Header(default=None, alias="X-Archive-Admin-Token")):
+    expected = os.getenv("NABIL_ARCHIVE_ADMIN_TOKEN", "").strip()
+    # If an administrator configured a secret, enforce it. Otherwise allow a
+    # public, tightly rate-limited scan of CRDP's openly published archive.
+    if expected and (not x_archive_admin_token or not __import__("hmac").compare_digest(x_archive_admin_token, expected)):
+        raise HTTPException(403, "Archive administrator token is missing or invalid.")
+    if max_pages < 1 or max_pages > 300:
+        raise HTTPException(422, "max_pages must be between 1 and 300.")
+    if background:
+        result = exam_archive.start_sync(max_pages=max_pages)
+        if not result.get("started") and result.get("cooldown_seconds_remaining"):
+            raise HTTPException(429, result)
+        return result
+    raise HTTPException(400, "Use background=true for the protected, rate-limited CRDP scan.")
+
+@router.post("/generate")
+def generate(req: GenerateRequest):
+    _validate_selection(req)
+    try:
+        archive_hits = _archive_context(req)
+        data = _generate_with_ai(req, archive_hits)
+        if data is None:
+            data = build_offline_assessment(req)
+            data["quality_gate"]["generator"] = "offline-deterministic-no-llm-configured"
+            data["quality_gate"]["official_archive_records_available"] = len(archive_hits)
+            data["quality_gate"]["archive_used_for_generation"] = False
+            data["curriculum_note"] = (
+                "Offline fallback only: no AI model key is configured, so official archive material was NOT used to generate these questions. Configure NABIL_LLM_API_KEY or GEMINI_API_KEY to enable retrieval-augmented generation. Teacher review is required."
+                if req.language == "en" else
+                "Mode hors ligne uniquement : aucune clé de modèle IA n'est configurée ; les archives officielles n'ont donc PAS été utilisées pour générer ces questions. Configurez NABIL_LLM_API_KEY ou GEMINI_API_KEY. Validation par l'enseignant requise."
+            )
+            data["sources"] = [{"label": h.get("title"), "url": h.get("source_url"),
+                                "year": h.get("year"), "grade": h.get("grade")}
+                               for h in archive_hits]
+            _validate_generated(data, req)
+        return data
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(422, f"Assessment rejected by the lesson/quality gate: {str(exc)[:300]}")
+    except Exception as exc:
+        raise HTTPException(500, f"Competition quality gate failed: {str(exc)[:300]}")
+
+@router.post("/export/docx")
+def export_docx(req: ExportRequest):
+    from docx import Document
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.shared import Cm, Pt
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+
+    doc = Document()
+    sec = doc.sections[0]
+    sec.page_width, sec.page_height = Cm(21), Cm(29.7)
+    sec.top_margin = sec.bottom_margin = Cm(2.0)
+    sec.left_margin = sec.right_margin = Cm(2.2)
+    normal = doc.styles["Normal"]
+    normal.font.name = "Arial"
+    normal.font.size = Pt(12)
+    normal.paragraph_format.space_after = Pt(6)
+    normal.paragraph_format.line_spacing = 1.25
+
+    def para(text, style=None, bold=False):
+        p = doc.add_paragraph(style=style)
+        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        r = p.add_run(str(text))
+        r.bold = bold
+        return p
+
+    para("NABIL AI | MATHEMATICS COMPETITION", "Title")
+    para(req.title, "Heading 1")
+    para(f"{req.grade_label}   |   Duration: {req.duration_minutes} min   |   Total: {req.total_marks} marks")
+    para("Prepared by NABIL AI — Training paper; teacher review required.")
+    para("PART I — QUESTION PAPER", "Heading 1")
+    for q in req.questions:
+        para(f"Question {q.get('number')}: {q.get('title','')} ({q.get('marks',0)} marks)", "Heading 2")
+        para(q.get("statement", ""))
+        table_data = q.get("table") or {}
+        headers = table_data.get("headers") or []
+        rows = table_data.get("rows") or []
+        if headers and rows:
+            data_table = doc.add_table(rows=1, cols=len(headers))
+            data_table.style = "Table Grid"
+            for index, heading in enumerate(headers):
+                data_table.rows[0].cells[index].text = str(heading)
+            for row in rows:
+                cells = data_table.add_row().cells
+                for index, value in enumerate(row[:len(headers)]):
+                    cells[index].text = str(value)
+        diagram = q.get("diagram")
+        if diagram:
+            from PIL import Image, ImageDraw
+            image = Image.new("RGB", (720, 300), "white")
+            draw = ImageDraw.Draw(image)
+            navy = (24, 55, 78)
+            if diagram.get("type") == "triangle":
+                draw.line([(180, 245), (360, 35), (550, 245), (180, 245)], fill=navy, width=5)
+                draw.text((160, 250), "A", fill=navy); draw.text((350, 12), "B", fill=navy); draw.text((555, 250), "C", fill=navy)
+            elif diagram.get("type") == "circle":
+                draw.ellipse((240, 25, 480, 265), outline=navy, width=5)
+                draw.line((360, 145, 480, 145), fill=navy, width=4)
+                draw.ellipse((354, 139, 366, 151), fill=navy)
+                draw.text((340, 150), "O", fill=navy); draw.text((485, 135), "A", fill=navy)
+            elif diagram.get("type") == "coordinate_plane":
+                xmin=float(diagram.get("x_min",-5)); xmax=float(diagram.get("x_max",5))
+                ymin=float(diagram.get("y_min",-5)); ymax=float(diagram.get("y_max",5))
+                def plot_xy(x,y):
+                    return (70+(float(x)-xmin)/(xmax-xmin)*580, 245-(float(y)-ymin)/(ymax-ymin)*220)
+                ox,oy=plot_xy(0,0)
+                draw.line((70, oy, 650, oy), fill=navy, width=3)
+                draw.line((ox, 265, ox, 25), fill=navy, width=3)
+                draw.polygon([(650,oy),(635,oy-8),(635,oy+8)], fill=navy)
+                draw.polygon([(ox,25),(ox-8,40),(ox+8,40)], fill=navy)
+                draw.text((660,oy-10), "x", fill=navy); draw.text((ox+8,12), "y", fill=navy); draw.text((ox+7,oy+5), "O", fill=navy)
+                points=diagram.get("points") or []
+                plotted=[plot_xy(point.get("x",0),point.get("y",0)) for point in points]
+                if len(plotted)>1:
+                    draw.line((plotted[0][0],plotted[0][1],plotted[1][0],plotted[1][1]), fill=(190,80,45), width=4)
+                for point, (px,py) in zip(points,plotted):
+                    draw.ellipse((px-7,py-7,px+7,py+7), fill=(190,80,45))
+                    draw.text((px+10,py-18), f"{point.get('label','P')}({point.get('x')},{point.get('y')})", fill=navy)
+            else:
+                draw.line((100,150,620,150), fill=navy, width=4)
+                draw.line((360,150,520,45), fill=navy, width=4)
+                draw.arc((300,90,430,220), start=0, end=35, fill=(190,80,45), width=5)
+                draw.text((350,165), "O", fill=navy); draw.text((80,125), "A", fill=navy); draw.text((625,125), "B", fill=navy)
+            picture = io.BytesIO()
+            image.save(picture, format="PNG")
+            picture.seek(0)
+            doc.add_picture(picture, width=Cm(13.5))
+            para(diagram.get("caption", "Schematic diagram"))
+        for part in q.get("parts", []):
+            para(f"{part.get('label','')} ) {part.get('statement','')} [{part.get('marks',0)} marks]")
+        para("________________________________________________________________________")
+    doc.add_page_break()
+    para("PART II — MODEL SOLUTIONS", "Heading 1")
+    solmap = {str(x.get("number")): x for x in req.solutions}
+    for q in req.questions:
+        sol = solmap.get(str(q.get("number")), {})
+        para(f"Question {q.get('number')}", "Heading 2")
+        for step in sol.get("steps", []):
+            para(step)
+        para(f"Final answer: {sol.get('final_answer','')}", bold=True)
+    doc.add_page_break()
+    para("PART III — DETAILED MARKING SCHEME", "Heading 1")
+    rubmap = {str(x.get("number")): x for x in req.rubric}
+    for q in req.questions:
+        rub = rubmap.get(str(q.get("number")), {})
+        para(f"Question {q.get('number')} — {rub.get('total', q.get('marks',0))} marks", "Heading 2")
+        for c in rub.get("criteria", []):
+            para(f"• {c.get('criterion','')} — {c.get('marks',0)} marks")
+    if req.curriculum_note:
+        doc.add_page_break()
+        para("CURRICULUM AND SOURCE NOTE", "Heading 1")
+        para(req.curriculum_note)
+    stream = io.BytesIO()
+    doc.save(stream)
+    return StreamingResponse(io.BytesIO(stream.getvalue()),
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": 'attachment; filename="NABIL-mathematics-competition.docx"',
+                 "Cache-Control": "no-store"})
+
+
+@router.post("/analytics/visit")
+def record_visit(payload: dict):
+    """Count anonymous browser visits in memory; no database or personal data."""
+    global _ANALYTICS_TOTAL_VISITS
+    visitor_id = str(payload.get("visitor_id", "")).strip()
+    if not visitor_id or len(visitor_id) > 100:
+        raise HTTPException(422, "Invalid anonymous visitor identifier.")
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).isoformat()
+    with _ANALYTICS_LOCK:
+        entry = _ANALYTICS_VISITORS.get(visitor_id)
+        if entry is None:
+            _ANALYTICS_VISITORS[visitor_id] = {"visits": 1, "first_seen": now, "last_seen": now}
+        else:
+            entry["visits"] += 1
+            entry["last_seen"] = now
+        _ANALYTICS_TOTAL_VISITS += 1
+        unique_visitors = len(_ANALYTICS_VISITORS)
+        visits = _ANALYTICS_TOTAL_VISITS
+    return {"ok": True, "unique_visitors": unique_visitors, "visits": visits}
+
+
+@router.get("/analytics/summary")
+def competition_analytics_summary():
+    with _ANALYTICS_LOCK:
+        unique_visitors = len(_ANALYTICS_VISITORS)
+        visits = _ANALYTICS_TOTAL_VISITS
+        updated_at = max((x["last_seen"] for x in _ANALYTICS_VISITORS.values()), default=None)
+    return {
+        "unique_visitors": unique_visitors,
+        "visits": visits,
+        "updated_at": updated_at,
+        "storage_note": "عداد مجهول مؤقت في ذاكرة الخدمة المجانية؛ يُصفّر عند إعادة تشغيل الخدمة."
+    }
 
 
 @router.get("/archive/status")
