@@ -38,6 +38,7 @@ jobs:
           assert '/competitions/archive/documents' in paths
           assert exam_archive.list_archive(limit=10)['total'] == 0
           assert '/competitions/archive/sync' in paths
+          assert '/competitions/archive/documents' in paths
           assert exam_archive._classify('رياضيات انكليزي - علوم عامة - دورة 2 - 2019')['grade'] == 'Terminale GS'
           assert exam_archive._classify('رياضيات انكليزي - علوم عامة - دورة 2 - 2019')['subject'] == 'Mathematics'
           assert exam_archive._classify('رياضيات انكليزي - علوم عامة - دورة 2 - 2019')['session'] == 'Session 2'
@@ -48,6 +49,7 @@ jobs:
           assert is_math and 'علوم عامة' in row_title and row_title != 'PDF'
           assert exam_archive._classify('أسس التصحيح - رياضيات - علوم عامة - 2024')['subject'] == 'Mathematics'
           assert exam_archive._safe_url('https://www.crdp.org/sites/default/files/sample.pdf')
+          assert exam_archive.list_archive(limit=5)['total'] == 0
           assert not exam_archive._safe_url('https://example.com/sample.pdf')
           assert len(GRADE_TOPICS) == 9
           missing_blueprints = [(grade, topic) for grade, topics in GRADE_TOPICS.items() for topic in topics if get_blueprint(topic) is None]
