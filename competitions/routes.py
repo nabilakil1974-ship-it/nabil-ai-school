@@ -7,10 +7,7 @@ import re
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Depends, Header
-from sqlalchemy import text
-from sqlalchemy.orm import Session
 
-from app.db.session import get_db
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -683,53 +680,3 @@ def export_docx(req: ExportRequest):
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers={"Content-Disposition": 'attachment; filename="NABIL-mathematics-competition.docx"',
                  "Cache-Control": "no-store"})
-
-
-@router.post("/analytics/visit")
-def record_visit(payload: dict, db: Session = Depends(get_db)):
-    """Count one page view per browser load and retain anonymous unique visitors."""
-    visitor_id = str(payload.get("visitor_id", "")).strip()
-    if not visitor_id or len(visitor_id) > 100:
-        raise HTTPException(422, "Invalid anonymous visitor identifier.")
-    db.execute(text("""
-        CREATE TABLE IF NOT EXISTS nabil_competition_analytics (
-            visitor_id VARCHAR(100) PRIMARY KEY,
-            visits INTEGER NOT NULL DEFAULT 0,
-            first_seen VARCHAR(40) NOT NULL,
-            last_seen VARCHAR(40) NOT NULL
-        )
-    """))
-    from datetime import datetime, timezone
-    now = datetime.now(timezone.utc).isoformat()
-    db.execute(text("""
-        INSERT INTO nabil_competition_analytics (visitor_id, visits, first_seen, last_seen)
-        VALUES (:visitor_id, 1, :now, :now)
-        ON CONFLICT (visitor_id) DO UPDATE SET
-            visits = nabil_competition_analytics.visits + 1,
-            last_seen = :now
-    """), {"visitor_id": visitor_id, "now": now})
-    db.commit()
-    return {"ok": True}
-
-
-@router.get("/analytics/summary")
-def competition_analytics_summary(db: Session = Depends(get_db)):
-    db.execute(text("""
-        CREATE TABLE IF NOT EXISTS nabil_competition_analytics (
-            visitor_id VARCHAR(100) PRIMARY KEY,
-            visits INTEGER NOT NULL DEFAULT 0,
-            first_seen VARCHAR(40) NOT NULL,
-            last_seen VARCHAR(40) NOT NULL
-        )
-    """))
-    row = db.execute(text("""
-        SELECT COUNT(*) AS unique_visitors, COALESCE(SUM(visits), 0) AS visits,
-               MAX(last_seen) AS updated_at
-        FROM nabil_competition_analytics
-    """)).mappings().one()
-    return {
-        "unique_visitors": int(row["unique_visitors"] or 0),
-        "visits": int(row["visits"] or 0),
-        "updated_at": row["updated_at"],
-        "storage_note": "Anonymous browser IDs only; no names or personal details are collected."
-    }
