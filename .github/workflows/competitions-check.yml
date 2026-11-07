@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: '3.11'
       - run: python -m pip install -r requirements.txt sqlalchemy pydantic-settings openai
-      - run: python -m py_compile competitions/routes.py competitions/server.py app/main.py
+      - run: python -m py_compile competitions/routes.py competitions/server.py competitions/offline_generator.py competitions/gs_benchmark.py app/main.py
       - run: |
           python - <<'PY'
           from competitions.routes import GRADE_TOPICS, GenerateRequest, _validate_selection
@@ -54,6 +54,20 @@ jobs:
                   one = build_offline_assessment(GenerateRequest(grade=grade, lessons=[topic], language='fr'))
                   assert one['questions'][0]['lesson'] == topic
                   assert one['solutions'][0]['final_answer']
+          # Benchmark: identical four Terminale GS lessons, language and 20-mark scale.
+          benchmark = ['Derivatives', 'Probability I', 'Vectors and Coordinate Systems', 'Statistics']
+          for language in ('en', 'fr'):
+              result = build_offline_assessment(GenerateRequest(grade='terminal_gs', lessons=benchmark, language=language, total_marks=20))
+              assert [q['lesson'] for q in result['questions']] == benchmark
+              assert round(sum(float(q['marks']) for q in result['questions']), 2) == 20
+              for q, rubric in zip(result['questions'], result['rubric']):
+                  assert q['parts'] and round(sum(float(p['marks']) for p in q['parts']), 2) == float(q['marks'])
+                  assert round(sum(float(c['marks']) for c in rubric['criteria']), 2) == float(rubric['total'])
+              assert len(result['solutions']) == 4
+          # One-lesson selection must scale its parts and rubric to the requested 20 marks.
+          one = build_offline_assessment(GenerateRequest(grade='terminal_gs', lessons=['Derivatives'], language='en', total_marks=20))
+          assert round(sum(float(p['marks']) for p in one['questions'][0]['parts']), 2) == 20
+          assert round(sum(float(c['marks']) for c in one['rubric'][0]['criteria']), 2) == 20
           print('offline generator covers all catalogue lessons; totals and answer keys validated')
           print('competition contract checks passed')
           PY
