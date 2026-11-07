@@ -30,6 +30,8 @@ _state: dict = {"status": "not_synced", "note": "The in-memory catalogue is empt
 _lock = threading.RLock()
 _job_lock = threading.Lock()
 _job_running = False
+_last_sync_started = 0.0
+SYNC_COOLDOWN_SECONDS = 6 * 60 * 60
 
 
 def _safe_url(url: str) -> bool:
@@ -234,10 +236,15 @@ def sync_archive(max_pages: int = 300, mathematics_only: bool = True) -> dict:
 
 
 def start_sync(max_pages: int = 300) -> dict:
-    global _job_running, _state
+    global _job_running, _state, _last_sync_started
     with _job_lock:
         if _job_running:
             return {"started": False, "reason": "A sync job is already running."}
+        remaining = SYNC_COOLDOWN_SECONDS - (time.time() - _last_sync_started)
+        if remaining > 0:
+            return {"started": False, "reason": "A public archive scan was already started recently.",
+                    "cooldown_seconds_remaining": int(remaining)}
+        _last_sync_started = time.time()
         _job_running = True
 
     def worker():
