@@ -84,6 +84,21 @@ Make questions varied and progressively harder. Include enough working space ind
 def catalogue():
     return {"grades": GRADE_TOPICS}
 
+@router.get("/benchmark/terminal-gs")
+def terminal_gs_benchmark(language: Literal["en", "fr"] = "en"):
+    """Reproducible public QA fixture: same lessons, time and mark total for NABIL comparison."""
+    req = GenerateRequest(
+        grade="terminal_gs",
+        lessons=["Derivatives", "Probability I", "Vectors and Coordinate Systems", "Statistics"],
+        language=language,
+        exam_type="Training competition",
+        duration_minutes=90,
+        total_marks=20,
+        difficulty="balanced",
+        curriculum_evidence=""
+    )
+    return generate(req)
+
 @router.post("/generate")
 def generate(req: GenerateRequest):
     _validate_selection(req)
