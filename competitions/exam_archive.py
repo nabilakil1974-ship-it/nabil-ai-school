@@ -35,7 +35,7 @@ def _safe_url(url: str) -> bool:
 
 
 def _normalise(value: str) -> str:
-    return re.sub(r"\\s+", " ", value or "").strip()
+    return re.sub(r"\s+", " ", value or "").strip()
 
 
 def _classify(title: str) -> dict:
@@ -52,14 +52,14 @@ def _classify(title: str) -> dict:
         grade = "Terminale LH"
     else:
         grade = "Secondary certificate / branch unspecified"
-    subject = "Mathematics" if re.search(r"رياضيات|math[ée]matiques|mathematics|\\bmath\\b", value, re.I) else "Other"
-    year_match = re.search(r"(?:19|20)\\d{2}", title)
+    subject = "Mathematics" if re.search(r"رياضيات|math[ée]matiques|mathematics|\bmath\b", value, re.I) else "Other"
+    year_match = re.search(r"(?:19|20)\d{2}", title)
     year = int(year_match.group(0)) if year_match else None
     if "استثنائية" in value or "exceptionnelle" in value or "exceptional" in value:
         session = "Exceptional"
-    elif re.search(r"دورة\\s*2|session\\s*2|2e\\s*session|\\bsecond\\b", value) or "الثانية" in value:
+    elif re.search(r"دورة\s*2|session\s*2|2e\s*session|\bsecond\b", value) or "الثانية" in value:
         session = "Session 2"
-    elif re.search(r"دورة\\s*1|session\\s*1|1re\\s*session|\\bfirst\\b", value) or "الأولى" in value or "الاولى" in value:
+    elif re.search(r"دورة\s*1|session\s*1|1re\s*session|\bfirst\b", value) or "الأولى" in value or "الاولى" in value:
         session = "Session 1"
     elif "العادية" in value or "normal" in value or "regular" in value:
         session = "Regular"
@@ -77,7 +77,7 @@ def _extract_pdf_text(content: bytes) -> tuple[str, int, str]:
         import fitz
         doc = fitz.open(stream=content, filetype="pdf")
         pages = [page.get_text("text") for page in doc]
-        extracted = "\\n".join(pages).strip()
+        extracted = "\n".join(pages).strip()
         page_count = len(doc)
         status = "extracted" if len(extracted) >= 80 else "needs_ocr"
         if status == "needs_ocr" and shutil.which("tesseract"):
@@ -89,7 +89,7 @@ def _extract_pdf_text(content: bytes) -> tuple[str, int, str]:
                     pix = doc.load_page(page_number).get_pixmap(matrix=fitz.Matrix(1.6, 1.6), alpha=False)
                     image = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
                     ocr_pages.append(pytesseract.image_to_string(image, lang="ara+eng+fra"))
-                ocr_text = "\\n".join(ocr_pages).strip()
+                ocr_text = "\n".join(ocr_pages).strip()
                 if len(ocr_text) > len(extracted):
                     extracted = ocr_text
                     status = "extracted_ocr" if len(extracted) >= 80 else "needs_ocr"
@@ -156,7 +156,7 @@ def sync_archive(max_pages: int = 300, mathematics_only: bool = True) -> dict:
                 # Accept only direct PDF-looking links from the official CRDP host.
                 if not path.endswith(".pdf"):
                     continue
-                if mathematics_only and not re.search(r"رياضيات|math[ée]matiques|mathematics|\\bmath\\b", title, re.I):
+                if mathematics_only and not re.search(r"رياضيات|math[ée]matiques|mathematics|\bmath\b", title, re.I):
                     continue
                 discovered[url] = title or urlparse(url).path.rsplit("/", 1)[-1]
         except requests.RequestException:
@@ -232,7 +232,7 @@ def start_sync(max_pages: int = 300) -> dict:
 
 
 def search_archive(query: str, grade: str | None = None, limit: int = 8) -> list[dict]:
-    terms = [x.lower() for x in re.findall(r"[\\w\\u0600-\\u06ff]+", query) if len(x) > 1]
+    terms = [x.lower() for x in re.findall(r"[\w\u0600-\u06ff]+", query) if len(x) > 1]
     if not terms:
         return []
     results = []
