@@ -34,7 +34,7 @@ def _safe_url(url: str) -> bool:
 
 
 def _normalise(text: str) -> str:
-    return re.sub(r"\\s+", " ", text or "").strip()
+    return re.sub(r"\s+", " ", text or "").strip()
 
 
 def _classify(title: str) -> dict:
@@ -55,13 +55,13 @@ def _classify(title: str) -> dict:
         subject = "Mathematics"
     else:
         subject = "Other"
-    year_match = re.search(r"(?:19|20)\\d{2}", title)
+    year_match = re.search(r"(?:19|20)\d{2}", title)
     year = int(year_match.group(0)) if year_match else None
     if "استثنائية" in value or "exceptionnelle" in value or "exceptional" in value:
         session = "Exceptional"
-    elif re.search(r"دورة\\s*2|session\\s*2|2e\\s*session|\\bsecond\\b", value):
+    elif re.search(r"دورة\s*2|session\s*2|2e\s*session|\bsecond\b", value):
         session = "Session 2"
-    elif re.search(r"دورة\\s*1|session\\s*1|1re\\s*session|\\bfirst\\b", value):
+    elif re.search(r"دورة\s*1|session\s*1|1re\s*session|\bfirst\b", value):
         session = "Session 1"
     elif "العادية" in value or "normal" in value or "regular" in value:
         session = "Regular"
@@ -78,7 +78,7 @@ def _extract_pdf_text(path: Path) -> tuple[str, int]:
         pages = []
         for page in doc:
             pages.append(page.get_text("text"))
-        return "\\n".join(pages).strip(), len(doc)
+        return "\n".join(pages).strip(), len(doc)
     except Exception:
         return "", 0
 
@@ -155,7 +155,7 @@ def sync_archive(max_pages: int = 300, mathematics_only: bool = True) -> dict:
                 url = urljoin(page_url, anchor["href"])
                 if not title or not _safe_url(url) or not url.lower().split("?")[0].endswith(".pdf"):
                     continue
-                if mathematics_only and not re.search(r"رياضيات|math[ée]matiques|mathematics|\\bmath\\b", title, re.I):
+                if mathematics_only and not re.search(r"رياضيات|math[ée]matiques|mathematics|\bmath\b", title, re.I):
                     continue
                 discovered[url] = title
                 found_on_page += 1
@@ -206,7 +206,7 @@ def sync_archive(max_pages: int = 300, mathematics_only: bool = True) -> dict:
                     **_classify(title),
                     "downloaded_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
                 }
-                index.write(json.dumps(record, ensure_ascii=False) + "\\n")
+                index.write(json.dumps(record, ensure_ascii=False) + "\n")
                 index.flush()
                 known.add(url)
                 added += 1
