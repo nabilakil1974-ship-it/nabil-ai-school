@@ -47,7 +47,7 @@ def _normalise(value: str) -> str:
 def _search_normalise(value: str) -> str:
     value = unicodedata.normalize("NFKD", value or "")
     value = "".join(ch for ch in value if not unicodedata.combining(ch))
-    return re.sub(r"\\s+", " ", value).casefold()
+    return re.sub(r"\s+", " ", value).casefold()
 
 
 SEARCH_SYNONYMS = {
@@ -320,7 +320,7 @@ def list_archive(grade: str | None = None, year: int | None = None,
 
 
 def search_archive(query: str, grade: str | None = None, limit: int = 8) -> list[dict]:
-    raw_terms = [x for x in re.findall(r"[\\w\\u0600-\\u06ff]+", _search_normalise(query)) if len(x) > 1]
+    raw_terms = [x for x in re.findall(r"[\w\u0600-\u06ff]+", _search_normalise(query)) if len(x) > 1]
     terms = set(raw_terms)
     for term in raw_terms:
         terms.update(SEARCH_SYNONYMS.get(term, []))
