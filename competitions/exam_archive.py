@@ -78,7 +78,25 @@ def _extract_pdf_text(path: Path) -> tuple[str, int]:
         pages = []
         for page in doc:
             pages.append(page.get_text("text"))
-        return "\n".join(pages).strip(), len(doc)
+        extracted = "\n".join(pages).strip()
+        if len(extracted) >= 80:
+            return extracted, len(doc)
+        # Scanned/image-only exam papers: attempt local OCR in Arabic, English and French.
+        try:
+            import pytesseract
+            from PIL import Image
+            ocr_pages = []
+            for page_number in range(min(len(doc), 40)):
+                page = doc.load_page(page_number)
+                pix = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
+                image = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                ocr_pages.append(pytesseract.image_to_string(image, lang="ara+eng+fra"))
+            ocr_text = "\n".join(ocr_pages).strip()
+            if len(ocr_text) > len(extracted):
+                extracted = ocr_text
+        except Exception:
+            pass
+        return extracted, len(doc)
     except Exception:
         return "", 0
 
