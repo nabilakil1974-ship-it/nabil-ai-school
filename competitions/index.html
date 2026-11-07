@@ -80,31 +80,54 @@ function renderResult(){const d=current;$('resultTitle').textContent=d.title||'C
 $('download').onclick=async()=>{if(!current)return;const payload={title:current.title||'Mathematics Competition',grade_label:current.grade_label||current.request.grade,language:current.request.language,duration_minutes:current.request.duration_minutes,total_marks:current.request.total_marks,questions:current.questions,solutions:current.solutions,rubric:current.rubric,curriculum_note:current.curriculum_note||''};$('download').disabled=true;try{const r=await fetch('/api/competitions/export/docx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});if(!r.ok)throw new Error('فشل إنشاء ملف Word');const blob=await r.blob();if(!blob.size)throw new Error('ملف Word فارغ');const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='NABIL-mathematics-competition.docx';a.click();URL.revokeObjectURL(url);}catch(e){$('status').textContent=e.message;}finally{$('download').disabled=false;}};
 $('new').onclick=()=>{$('result').style.display='none';$('status').textContent='يمكنك تعديل الاختيارات وإنشاء مسابقة جديدة.';window.scrollTo({top:0,behavior:'smooth'});};
 
+async function fetchJsonWithTimeout(url, options={}, timeoutMs=12000){
+ const controller=new AbortController();
+ const timer=setTimeout(()=>controller.abort(),timeoutMs);
+ try{
+  const response=await fetch(url,{...options,signal:controller.signal,cache:'no-store'});
+  if(!response.ok){let detail='HTTP '+response.status;try{const body=await response.json();detail=body.detail||detail;}catch(_){}throw new Error(detail);}
+  return await response.json();
+ }finally{clearTimeout(timer);}
+}
 async function trackCompetitionVisit(){
  try{
   let visitorId=localStorage.getItem('nabil-competition-analytics-visitor');
   if(!visitorId){visitorId=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():('nabil-comp-'+Date.now()+'-'+Math.random().toString(36).slice(2));localStorage.setItem('nabil-competition-analytics-visitor',visitorId);}
-  const r=await fetch('/api/competitions/analytics/visit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({visitor_id:visitorId}),keepalive:true});
-  if(!r.ok)throw new Error('visit count failed');
- }catch(_){}
+  await fetchJsonWithTimeout('/api/competitions/analytics/visit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({visitor_id:visitorId})},10000);
+  return true;
+ }catch(e){$('usageUpdated').textContent='تعذّر تسجيل الزيارة: '+e.message;return false;}
 }
 async function refreshCompetitionStats(){
  try{
-  const r=await fetch('/api/competitions/analytics/summary',{cache:'no-store'});if(!r.ok)throw new Error('summary unavailable');
-  const s=await r.json();$('usageVisitors').textContent=Number(s.unique_visitors||0).toLocaleString('ar');$('usageVisits').textContent=Number(s.visits||0).toLocaleString('ar');
-  $('usageUpdated').textContent='آخر تحديث: '+(s.updated_at?new Date(s.updated_at).toLocaleString('ar'):'بانتظار أول زيارة')+' · '+s.storage_note;
- }catch(_){$('usageUpdated').textContent='تعذّر تحميل الإحصاءات حالياً.'}
+  const s=await fetchJsonWithTimeout('/api/competitions/analytics/summary');
+  $('usageVisitors').textContent=Number(s.unique_visitors||0).toLocaleString('ar');
+  $('usageVisits').textContent=Number(s.visits||0).toLocaleString('ar');
+  $('usageUpdated').textContent=(s.updated_at?'آخر تحديث: '+new Date(s.updated_at).toLocaleString('ar')+' · ':'')+(s.storage_note||'');
+ }catch(e){$('usageUpdated').textContent='تعذّر تحميل الإحصاءات: '+e.message;}
 }
 async function refreshArchiveStatus(){
  try{
-  const r=await fetch('/api/competitions/archive/status',{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);
-  const s=await r.json();
+  const s=await fetchJsonWithTimeout('/api/competitions/archive/status');
   $('archiveDocs').textContent=Number(s.documents||0).toLocaleString('ar');
   $('archiveMath').textContent=Number(s.mathematics_documents||0).toLocaleString('ar');
   $('archiveText').textContent=Number(s.text_searchable||0).toLocaleString('ar');
   const state=s.last_state||{};
-  $('archiveStatus').textContent=(s.job_running?'المزامنة قيد التنفيذ... ':('آخر مزامنة: '+(s.last_sync||'لم تبدأ بعد')+' · '))+'تحتاج OCR: '+Number(s.needs_ocr||0)+' · محرك OCR: '+(s.ocr_available?'متاح':'غير متاح')+' · موزع حسب الفروع: '+JSON.stringify(s.by_grade||{})+' · '+(s.note||'');
- }catch(e){$('archiveStatus').textContent='تعذر قراءة حالة الأرشيف: '+e.message;}
+  let message=s.job_running?'المزامنة قيد التنفيذ... ':'آخر فحص: '+(state.finished_at||state.started_at||'لم تبدأ بعد')+' · ';
+  if(state.error)message+='خطأ: '+state.error+' · ';
+  if(state.status)message+='الحالة: '+state.status+' · ';
+  if(state.pages_checked!==undefined)message+='صفحات مفحوصة: '+state.pages_checked+' · ملفات مكتشفة: '+(state.pdfs_discovered||0)+' · أضيف: '+(state.added||0)+' · فشل: '+(state.failed||0)+' · ';
+  message+='تحتاج OCR: '+Number(s.needs_ocr||0)+' · محرك OCR: '+(s.ocr_available?'متاح':'غير متاح')+' · موزع حسب الفروع: '+JSON.stringify(s.by_grade||{})+' · '+(s.note||'');
+  $('archiveStatus').textContent=message;
+  return !!s.job_running;
+ }catch(e){$('archiveStatus').textContent='تعذّر تحميل حالة الأرشيف: '+e.message;return false;}
+}
+async function pollArchiveStatus(){
+ for(let i=0;i<180;i++){
+  const running=await refreshArchiveStatus();
+  if(!running)return;
+  await new Promise(resolve=>setTimeout(resolve,3000));
+ }
+ $('archiveStatus').textContent+=' · ما زال الفحص جارياً؛ اضغط «تحديث الحالة» لاحقاً.';
 }
 $('archiveSearch').onclick=async()=>{
  const query=$('archiveQuery').value.trim();if(!query){$('archiveResults').textContent='اكتب اسم الدرس أو المفهوم للبحث.';return;}
@@ -132,16 +155,20 @@ function renderArchiveItems(items,total){
 }
 $('archiveRefresh').onclick=refreshArchiveStatus;
 $('archiveSync').onclick=async()=>{
- $('archiveSync').disabled=true;$('archiveStatus').textContent='جارٍ فحص CRDP وجلب ملفات الامتحانات مؤقتاً لاستخراج النصوص...';
+ $('archiveSync').disabled=true;$('archiveStatus').textContent='جارٍ بدء فحص CRDP...';
  try{
-  const r=await fetch('/api/competitions/archive/sync?background=true&max_pages=300',{method:'POST'});
-  const data=await r.json();if(!r.ok)throw new Error(data.detail||'تعذر بدء المزامنة');
-  $('archiveStatus').textContent=data.message|| (data.started?'بدأت مزامنة أرشيف CRDP.':'لم تبدأ المزامنة: '+(data.reason||'حاول لاحقاً.'));
-  setTimeout(refreshArchiveStatus,2500);
- }catch(e){$('archiveStatus').textContent='فشلت المزامنة: '+e.message;}
+  const data=await fetchJsonWithTimeout('/api/competitions/archive/sync?background=true&max_pages=300',{method:'POST'},20000);
+  if(!data.started){
+   $('archiveStatus').textContent=data.reason||'لم تبدأ المزامنة.';
+   if(data.cooldown_seconds_remaining)$('archiveStatus').textContent+=' · انتظر '+Math.ceil(data.cooldown_seconds_remaining/60)+' دقيقة تقريباً قبل إعادة المحاولة.';
+   await refreshArchiveStatus();return;
+  }
+  $('archiveStatus').textContent=data.message||'بدأت مزامنة أرشيف CRDP.';
+  await pollArchiveStatus();
+ }catch(e){$('archiveStatus').textContent='فشلت المزامنة: '+e.message;await refreshArchiveStatus();}
  finally{$('archiveSync').disabled=false;}
 };
 init();
 refreshArchiveStatus();
-trackCompetitionVisit().then(refreshCompetitionStats);
+trackCompetitionVisit().finally(refreshCompetitionStats);
 </script></body></html>
