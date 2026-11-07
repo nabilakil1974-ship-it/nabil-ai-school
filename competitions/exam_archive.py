@@ -175,6 +175,7 @@ def sync_archive(max_pages: int = 300, mathematics_only: bool = True) -> dict:
                     continue
                 if mathematics_only and not is_math:
                     continue
+                discovered[url] = title or urlparse(url).path.rsplit("/", 1)[-1]
         except requests.RequestException:
             page_failures += 1
 
