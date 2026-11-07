@@ -168,3 +168,231 @@
 - **مطابقة رسمية موثقة:** لا توصف كذلك إلا بعد التحقق من مرجع رسمي محدد.
 
 **اسم القسم المقترح في المنصة:** NABIL AI – Official Exams & Competition Generator.
+
+
+## 12. وضع إنشاء مسابقة بحسب الصف والدرس واللغة (Teacher-Selected Lesson Mode)
+
+يجب أن يتيح قسم الرياضيات للأستاذ إنشاء مسابقة مخصصة انطلاقاً من اختيار مباشر، دون أن يضطر إلى كتابة طلب طويل. يكون التسلسل الإلزامي لواجهة الاستخدام:
+
+1. **Select Grade / اختر الصف:** يعرض النظام الصفوف والفروع المتاحة.
+2. **Select Lesson / اختر الدرس:** بعد اختيار الصف، يعرض النظام دروس الرياضيات المرتبطة بهذا الصف فقط، ولا يعرض دروس صفوف أخرى.
+3. **Select Language / اختر اللغة:** English أو Français. تُكتب المسابقة والحلول وأسـس التصحيح باللغة المختارة، مع الحفاظ على المصطلحات الرياضية المعتمدة في تلك اللغة.
+4. **Competition Settings / إعدادات المسابقة (اختيارية):** عدد التمارين، المدة، العلامة الإجمالية، مستوى الصعوبة، ونوع التدريب (مراجعة درس واحد أو اختبار شامل).
+5. **Generate Competition / أنشئ المسابقة:** ينشئ NABIL AI ورقة أسئلة مستقلة، ثم نموذج إجابة مفصلاً، وأسـس تصحيح موزعة العلامات، وشرحاً تربوياً، مع إمكانية التصدير إلى Word وPDF عند توفر التصدير.
+
+### 12.1 سلوك الاختيار الذكي
+
+- تتغير قائمة الدروس تلقائياً بحسب الصف المختار (dependent dropdowns).
+- لا يسمح النظام باختيار درس غير مرتبط بالصف المحدد، إلا إذا أضافه مدير المنصة صراحةً إلى خريطة المنهج.
+- يمكن اختيار درس واحد لإنشاء مسابقة مركزة، أو اختيار «كل دروس الصف» لإنشاء مسابقة شاملة.
+- يمكن إضافة أكثر من درس لإنشاء مسابقة مركبة.
+- يجب أن تتوزع الأسئلة والعلامات على الدروس المختارة بصورة متوازنة، مع بيان توزيع العلامات لكل درس.
+- يراعي النظام مستوى الصف، المتطلبات السابقة، تسلسل المهارات، وطبيعة أسئلة الشهادات.
+- لا يُدخل موضوعاً من صف أعلى لمجرد أنه شائع في الرياضيات؛ المرجع هو خريطة الدروس الخاصة بالصف.
+- عند نقص بيانات المنهج أو وجود اختلاف بين طبعات/سنوات المنهاج، يظهر تنبيه واضح ويطلب اعتماد القائمة أو تزويده بالمرجع، ولا يخترع النظام درساً أو ينسبه إلى المنهج الرسمي.
+- يجب أن تكون اللغة المختارة لغة جميع عناصر المسابقة: العنوان، التعليمات، نصوص الأسئلة، الجداول والرسوم وتسمياتها، الحلول، وأسـس التصحيح. لا يمزج الإنجليزية والفرنسية داخل السؤال الواحد إلا إذا طلب الأستاذ ذلك.
+- تظل ترويسة **Prepared by NABIL AI | إعداد NABIL AI** إلزامية في كل لغة.
+
+### 12.2 خريطة دروس الرياضيات الأولية بحسب الصف
+
+القائمة التالية هي **خريطة عمل أولية مقدمة من الأستاذ نبيل** لتغذية قوائم الاختيار في المنصة. يجب حفظها كبيانات قابلة للتعديل، والتحقق منها مقابل توزيع المنهج/الكتاب المعتمد قبل وصفها بأنها القائمة الرسمية النهائية. تُحفظ أسماء الدروس بالإنجليزية كما وردت، ويمكن إضافة المقابل الفرنسي والعربي لاحقاً.
+
+#### Grade 7
+1. Powers
+2. Prime numbers
+3. Congruent triangles
+4. Signed numbers (+ and -)
+5. Signed numbers (× and ÷)
+6. Angles and lines
+7. Reduce fractions
+8. Decimal fraction
+9. Locating point
+10. Algebraic Expressions
+11. Perpendicular bisectors
+12. Locus
+13. Proportion
+14. Statistics
+15. Equations
+
+#### Grade 8
+1. Powers
+2. The circle
+3. The square
+4. Powers of 10
+5. The rectangle
+6. Literal fractions
+7. The rhombus
+8. Square roots
+9. The parallelogram
+10. Remarkable Identities
+11. Midpoint theorem
+12. Arcs and angles
+13. Pythagoras theorem
+14. Equations
+15. Rational fractions
+16. Right triangle
+17. Inequalities
+18. Plotting in a system
+19. Statistics
+
+#### Grade 9 / EB9 / Brevet
+1. Real numbers
+2. Algebraic Expressions
+3. Lines and circles
+4. Proportion
+5. Lines and coordinate system
+6. Thales theorem
+7. Analytic geometry
+8. Trigonometry
+9. System of equations
+10. Vectors
+11. Statistics
+12. Similar triangles
+
+#### Grade 10
+1. Statistical vocabulary
+2. Statistical indicators
+3. Sets
+4. Powers of a real numbers
+5. Order
+6. Absolute value
+7. Trigonometry
+8. Vectors
+9. Coordinate systems
+10. Lines in the Coordinate planes
+11. Scalar product
+12. Analytic form of scalar product
+13. Linear equations
+14. Linear inequalities
+15. Functions
+16. Basic functions
+17. Plane (all)
+18. Graphical solution
+
+#### Grade 11 – Literature (LH)
+1. Quadratic equations
+2. Quadratic functions
+3. Limit concept
+4. Operations on limits
+5. Continuity
+6. Derivatives
+7. Applications of the derivatives
+8. Variation of functions
+9. Permutations
+10. Events
+11. Notion on probability
+12. Rules of probability
+13. Arithmetic seq
+14. Geometric seq
+15. Anti derivative
+16. Statistics
+
+#### Terminale – General Sciences (GS)
+1. Quadratic eqs
+2. Signs of quadratic functions
+3. Limit of functions at infinity
+4. Limit of a function at a point
+5. Derivatives
+6. Functions
+7. Permutations
+8. Probability I
+9. Probability II
+10. Orthogonality
+11. Vector and coordinate system
+12. Sequence
+13. Trigonometric equations
+14. Trigonometric formulas
+15. Circle
+16. Scalar product
+17. Antiderivatives
+18. Complex
+19. Statistics
+
+#### Terminale – Literature & Humanities (LH)
+1. Position measure of statistical data
+2. Rational functions
+3. Conditional probability
+4. Dispersion
+5. Graphical interpretation
+6. Equations and Inequalities
+
+#### Terminale – Economics & Sociology (SE)
+1. Distribution of two variables
+2. Rational Functions
+3. Derivatives
+4. Functions of economics
+5. Logarithm
+6. Exponential functions
+7. Combinations
+8. Conditional probability and total probability
+9. Sequence
+10. Interest
+11. Compound interest
+12. Annuity
+13. Random variables
+
+#### Terminale – Life Sciences (LS)
+1. Continuous functions on an interval
+2. Inverse function
+3. Second and higher order derivatives
+4. Logarithm
+5. Exponential
+6. Combinations
+7. Conditional probability
+8. Random variable
+9. Integral
+10. Methods of integration
+11. Applications of the integral calculus
+12. Components of the vector product
+13. Planes and lines
+14. Parallelism and orthogonality
+15. Differential equations
+
+### 12.3 متطلبات تخزين خريطة الدروس وإدارتها
+
+ينبغي تخزين الخريطة في بنية بيانات مستقلة (JSON أو قاعدة بيانات) بدلاً من كتابتها يدوياً داخل واجهة المستخدم. ويُستحسن أن يحتوي كل سجل درس على:
+- grade_id: الصف.
+- branch_id: الفرع عند وجوده.
+- subject_id: المادة.
+- lesson_id: معرف ثابت للدرس.
+- lesson_title_en: اسم الدرس بالإنجليزية.
+- lesson_title_fr: الاسم الفرنسي عند اعتماده.
+- lesson_title_ar: الاسم العربي عند اعتماده.
+- curriculum_version: سنة/نسخة المنهج أو المرجع.
+- status: draft / reviewed / approved.
+- source_reference: مرجع الكتاب أو توزيع المنهج عند توفره.
+
+يجب توفير واجهة إدارية تسمح بإضافة درس أو تعديله أو حذفه أو إعادة ترتيبه، من دون تعديل الشيفرة البرمجية. ولا تُعرض الدروس ذات الحالة draft على أنها موثقة رسمياً.
+
+### 12.4 مواصفات توليد مسابقة الرياضيات
+
+عند اختيار الصف والدرس واللغة، يجب أن يقوم محرك التوليد بما يلي:
+- استرجاع أهداف الدرس ومفاهيمه ومهاراته من خريطة المنهج والمواد المرجعية المتاحة.
+- إنشاء أسئلة متنوعة تناسب الدرس: تبسيط، حساب، برهان، حل معادلات، تمثيل بياني، مسائل تطبيقية، قراءة أشكال وجداول، بحسب طبيعة الدرس.
+- عدم إدخال مفاهيم أو قوانين لم تدرس بعد في الصف المحدد.
+- تضمين أسئلة متدرجة: أساسية، متوسطة، وتحدٍّ/تفكير أعلى.
+- إرفاق رسم هندسي أو محور أو جدول عند الحاجة الفعلية، مع تسميات دقيقة.
+- وضع علامة لكل سؤال وفرع، ثم التحقق آلياً من أن مجموع العلامات يساوي العلامة الإجمالية.
+- إنشاء حل كامل مستقل عن ورقة الأسئلة، مع خطوات الحل وليس الإجابات النهائية فقط.
+- تطبيق قالب الحل الإلزامي في المسائل الحسابية: **We write → We substitute → We calculate → We conclude** باللغة الإنجليزية، أو **On écrit → On remplace → On calcule → On conclut** باللغة الفرنسية.
+- إظهار التصحيح التفصيلي وتوزيع العلامات الجزئية، وقبول الطرق الرياضية المكافئة الصحيحة.
+- إجراء تدقيق حسابي مستقل على الأسئلة والأجوبة، والتحقق من أن كل سؤال له حل صحيح وحيد أو تحديد جميع الحلول عند الاقتضاء.
+- عند اختيار «مسابقة شاملة»، يغطي الاختبار جميع الدروس المعتمدة للصف مع توزيع متوازن للعلامات، لا درساً واحداً فقط.
+
+### 12.5 مثال واجهة الاستخدام
+
+**Mathematics Competition Generator**
+
+- Grade: [Grade 7 ▼]
+- Lesson: [Powers ▼] — تتغير الخيارات بحسب الصف
+- Language: [English ▼ / Français]
+- Competition type: [One lesson / Multiple lessons / Full-grade exam]
+- Difficulty: [Basic / Intermediate / Advanced / Mixed]
+- Duration and total marks: [Optional]
+- [Generate Competition]
+
+الناتج: Question Paper + Detailed Correction + Marking Scheme + Pedagogical Explanation + DOCX/PDF export.
+
+## 13. قاعدة اعتماد المنهج
+
+قوائم الدروس في هذا المرجع نقطة انطلاق تشغيلية مصدرها الأستاذ، وليست بحد ذاتها إثباتاً رسمياً للمنهج. على NABIL AI أن يفصل بين «قائمة دروس أدخلها الأستاذ» و«قائمة تم التحقق منها من مرجع رسمي». يجب حفظ مصدر كل تحديث وتاريخه، وإتاحة تصحيح أسماء الدروس وترتيبها وربطها بالصف والفرع واللغة.
