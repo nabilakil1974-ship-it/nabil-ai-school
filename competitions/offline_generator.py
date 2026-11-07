@@ -215,6 +215,9 @@ def _diagram_for(topic: str):
     return None
 
 
+from competitions.gs_benchmark import terminal_gs_item
+
+
 def build_offline_assessment(req):
     en=req.language=="en"
     selected=list(req.lessons)
