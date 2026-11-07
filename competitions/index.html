@@ -91,6 +91,7 @@ $('archiveSync').onclick=async()=>{
  }catch(e){$('archiveStatus').textContent='فشلت المزامنة: '+e.message;}
  finally{$('archiveSync').disabled=false;}
 };
-init();\nrefreshArchiveStatus();
+init();
+refreshArchiveStatus();
 trackCompetitionVisit().then(refreshCompetitionStats);
 </script></body></html>
