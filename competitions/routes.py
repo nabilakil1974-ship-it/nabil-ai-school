@@ -148,6 +148,13 @@ def _validate_generated(data: dict, req: GenerateRequest):
             raise ValueError(f"Question {number}: the model solution is incomplete.")
         if not q.get("statement") or not q.get("title"):
             raise ValueError(f"Question {number}: statement or title is missing.")
+        lesson_name = str(q.get("lesson", "")).strip().lower()
+        statement_text = str(q.get("statement", "")).strip().lower()
+        if "antiderivative" in lesson_name or "primitive" in lesson_name:
+            if not any(term in statement_text for term in ("antiderivative", "primitive", "find a function f", "déterminer une primitive")):
+                raise ValueError(f"Question {number}: the selected antiderivatives lesson is not actually assessed.")
+            if "f′(x)" in statement_text and "antiderivative" not in statement_text and "primitive" not in statement_text:
+                raise ValueError(f"Question {number}: derivative calculation was incorrectly substituted for antiderivatives.")
 
 
 def _generate_with_ai(req: GenerateRequest, archive_hits: list[dict]):
@@ -289,6 +296,8 @@ def generate(req: GenerateRequest):
         return data
     except HTTPException:
         raise
+    except ValueError as exc:
+        raise HTTPException(422, f"Assessment rejected by the lesson/quality gate: {str(exc)[:300]}")
     except Exception as exc:
         raise HTTPException(500, f"Competition quality gate failed: {str(exc)[:300]}")
 
