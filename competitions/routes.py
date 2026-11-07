@@ -228,6 +228,15 @@ def official_archive_status():
     return exam_archive.get_status()
 
 
+@router.get("/archive/documents")
+def official_archive_catalogue(grade: str | None = None, year: int | None = None,
+                               session_name: str | None = None,
+                               limit: int = 30, offset: int = 0):
+    """Browse the public mathematics archive and download original CRDP PDFs."""
+    return exam_archive.list_archive(grade=grade, year=year,
+                                     session_name=session_name, limit=limit, offset=offset)
+
+
 @router.get("/archive/search")
 def official_archive_search(q: str, grade: str | None = None, limit: int = 8):
     results = exam_archive.search_archive(q, grade=grade, limit=limit)
