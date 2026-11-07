@@ -144,6 +144,22 @@ def _make(topic: str, lang: str, n: int):
             statement=("Two adjacent angles on a straight line are x and 68°. Find x." if en else "Deux angles adjacents sur une droite mesurent x et 68°. Déterminer x.")
             ans="x=112°"
             steps=(["Angles on a straight line sum to 180°.","x+68=180 ⇒ x=112°.","We conclude: x=112°."] if en else ["Les angles adjacents sur une droite sont supplémentaires.","x+68=180 ⇒ x=112°.","On conclut : x=112°."])
+        elif "thales" in t:
+            statement=("In triangle ABC, M lies on AB and N on AC, with MN ∥ BC. If AM=3 cm, AB=9 cm and AC=12 cm, find AN." if en else "Dans le triangle ABC, M appartient à AB et N à AC, avec MN ∥ BC. Si AM=3 cm, AB=9 cm et AC=12 cm, calculer AN.")
+            ans="AN=4 cm"
+            steps=(["By Thales' theorem: AM/AB = AN/AC.","3/9 = AN/12, hence AN=12×3/9=4 cm.","We conclude: AN=4 cm."] if en else ["D'après le théorème de Thalès : AM/AB = AN/AC.","3/9 = AN/12, donc AN=12×3/9=4 cm.","On conclut : AN=4 cm."])
+        elif "midpoint" in t:
+            statement=("In triangle ABC, M and N are the midpoints of AB and AC. If BC=10 cm, find MN." if en else "Dans le triangle ABC, M et N sont les milieux de AB et AC. Si BC=10 cm, calculer MN.")
+            ans="MN=5 cm"
+            steps=(["By the midpoint theorem, MN is parallel to BC and MN=BC/2.","MN=10/2=5 cm.","We conclude: MN=5 cm."] if en else ["D'après le théorème des milieux, MN est parallèle à BC et MN=BC/2.","MN=10/2=5 cm.","On conclut : MN=5 cm."])
+        elif "congruent" in t:
+            statement=("Triangles ABC and DEF have AB=DE=5 cm, AC=DF=7 cm and BC=EF=8 cm. Which congruence criterion applies?" if en else "Les triangles ABC et DEF vérifient AB=DE=5 cm, AC=DF=7 cm et BC=EF=8 cm. Quel critère de congruence s'applique ?")
+            ans="SSS (three corresponding sides); the triangles are congruent."
+            steps=(["The three pairs of corresponding sides are equal: 5, 7 and 8 cm.","The Side-Side-Side (SSS) criterion applies.","We conclude: the triangles are congruent."] if en else ["Les trois paires de côtés correspondants sont égales : 5, 7 et 8 cm.","Le critère côté-côté-côté (CCC) s'applique.","On conclut : les triangles sont isométriques."])
+        elif "similar triangle" in t:
+            statement=("Two similar triangles have corresponding sides 4 cm and 10 cm. A second side of the smaller triangle is 6 cm. Find the corresponding side of the larger triangle." if en else "Deux triangles semblables ont des côtés correspondants de 4 cm et 10 cm. Un deuxième côté du petit triangle mesure 6 cm. Calculer le côté correspondant du grand triangle.")
+            ans="15 cm"
+            steps=(["Scale factor = 10/4 = 2.5.","Corresponding side = 6×2.5=15 cm.","We conclude: 15 cm."] if en else ["Rapport de similitude = 10/4 = 2,5.","Côté correspondant = 6×2,5=15 cm.","On conclut : 15 cm."])
         elif "locus" in t or "perpendicular" in t:
             statement=("Describe the locus of points equidistant from two fixed points A and B." if en else "Décrire le lieu des points équidistants de deux points fixes A et B.")
             ans="The perpendicular bisector of segment [AB]."
