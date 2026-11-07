@@ -221,6 +221,7 @@ def _diagram_for(topic: str):
 
 
 from competitions.gs_benchmark import terminal_gs_item
+from competitions.math_blueprints import get_blueprint
 
 
 def build_offline_assessment(req):
@@ -235,6 +236,9 @@ def build_offline_assessment(req):
     questions=[]; solutions=[]; rubric=[]
     for i,topic in enumerate(selected,1):
         mark=allocations[i-1]
+        blueprint = get_blueprint(topic)
+        if blueprint is None:
+            raise ValueError(f"No local mathematics teaching blueprint exists yet for: {topic}. This lesson is blocked rather than generating a misleading question.")
         specialized = terminal_gs_item(topic, req.language) if req.grade == "terminal_gs" else None
         if req.grade == "terminal_gs" and specialized is None:
             raise ValueError(f"No validated offline Terminale GS question template exists yet for: {topic}. This lesson is blocked rather than generating a generic or misleading question.")
@@ -246,7 +250,7 @@ def build_offline_assessment(req):
             criteria = [{"criterion":label,"marks":round(float(points) * scale, 2)} for label,points in specialized["criteria"]]
             if criteria:
                 criteria[-1]["marks"] = round(mark - sum(float(x["marks"]) for x in criteria[:-1]), 2)
-            questions.append({"number":i,"lesson":topic,"title":(f"Question {i}: {topic}" if en else f"Question {i} : {topic}"),"statement":specialized["statement"],"marks":mark,"parts":parts,"diagram":specialized["diagram"],"table":specialized.get("table")})
+            questions.append({"number":i,"lesson":topic,"title":(f"Question {i}: {topic}" if en else f"Question {i} : {topic}"),"statement":specialized["statement"],"marks":mark,"parts":parts,"diagram":specialized["diagram"],"table":specialized.get("table"),"pedagogical_blueprint":blueprint})
             solution_steps=list(specialized["steps"])
             if solution_steps and solution_steps[-1].lower().startswith(("we conclude:", "on conclut :")):
                 solution_steps.pop()
@@ -254,7 +258,7 @@ def build_offline_assessment(req):
             rubric.append({"number":i,"total":mark,"criteria":criteria})
             continue
         statement,steps,answer=_make(topic,req.language,i)
-        questions.append({"number":i,"lesson":topic,"title":(f"Question {i}: {topic}" if en else f"Question {i} : {topic}"),"statement":statement,"marks":mark,"parts":[],"diagram":_diagram_for(topic)})
+        questions.append({"number":i,"lesson":topic,"title":(f"Question {i}: {topic}" if en else f"Question {i} : {topic}"),"statement":statement,"marks":mark,"parts":[],"diagram":_diagram_for(topic),"pedagogical_blueprint":blueprint})
         solution_steps=list(steps)
         if solution_steps and solution_steps[-1].lower().startswith(("we conclude:", "on conclut :")):
             solution_steps.pop()
@@ -269,4 +273,4 @@ def build_offline_assessment(req):
     title=("Mathematics Training Competition" if en else "Épreuve d'entraînement de mathématiques")
     grade_labels={"g7":"Grade 7","g8":"Grade 8","g9":"Grade 9 / EB9","g10":"Grade 10","g11_lh":"Grade 11 — Literary","terminal_gs":"Terminale — General Sciences","terminal_ls":"Terminale — Life Sciences","terminal_se":"Terminale — Economics & Sociology","terminal_lh":"Terminale — Literature & Humanities"}
     note=("Training draft generated locally from deterministic question templates. The preliminary lesson map is not official curriculum evidence; teacher review is required." if en else "Sujet d'entraînement généré localement à partir de modèles déterministes. La liste préliminaire des leçons ne constitue pas une preuve du programme officiel ; validation par l'enseignant requise.")
-    return {"title":title,"grade_label":grade_labels.get(req.grade,req.grade),"curriculum_status":"teacher_review_required","curriculum_note":note,"sources":[],"questions":questions,"solutions":solutions,"rubric":rubric,"request":req.model_dump(),"quality_gate":{"question_solution_rubric_alignment":True,"marks_total":total,"curriculum_verified":False,"generator":"offline-deterministic","status":"limited_offline_template","semantic_review":"No AI model is configured; this is a deterministic, lesson-specific template and has not received independent AI review."}}
+    return {"title":title,"grade_label":grade_labels.get(req.grade,req.grade),"curriculum_status":"teacher_review_required","curriculum_note":note,"sources":[],"questions":questions,"solutions":solutions,"rubric":rubric,"request":req.model_dump(),"quality_gate":{"question_solution_rubric_alignment":True,"marks_total":total,"curriculum_verified":False,"generator":"offline-deterministic","status":"limited_offline_template","semantic_review":"No AI model is configured; this is a deterministic local question template guided by a lesson-domain teaching blueprint. It has not received independent mathematical review.","local_blueprints_attached":len(questions),"local_blueprint_status":"instructional guidance only; not official curriculum evidence"}}
