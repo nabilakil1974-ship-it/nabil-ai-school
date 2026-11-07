@@ -137,6 +137,37 @@ def export_docx(req: ExportRequest):
     for q in req.questions:
         para(f"Question {q.get('number')}: {q.get('title','')} ({q.get('marks',0)} marks)", "Heading 2")
         para(q.get("statement", ""))
+        diagram = q.get("diagram")
+        if diagram:
+            from PIL import Image, ImageDraw
+            image = Image.new("RGB", (720, 300), "white")
+            draw = ImageDraw.Draw(image)
+            navy = (24, 55, 78)
+            if diagram.get("type") == "triangle":
+                draw.line([(180, 245), (360, 35), (550, 245), (180, 245)], fill=navy, width=5)
+                draw.text((160, 250), "A", fill=navy); draw.text((350, 12), "B", fill=navy); draw.text((555, 250), "C", fill=navy)
+            elif diagram.get("type") == "circle":
+                draw.ellipse((240, 25, 480, 265), outline=navy, width=5)
+                draw.line((360, 145, 480, 145), fill=navy, width=4)
+                draw.ellipse((354, 139, 366, 151), fill=navy)
+                draw.text((340, 150), "O", fill=navy); draw.text((485, 135), "A", fill=navy)
+            elif diagram.get("type") == "coordinate_plane":
+                draw.line((70, 245, 650, 245), fill=navy, width=3)
+                draw.line((360, 275, 360, 20), fill=navy, width=3)
+                draw.polygon([(650,245),(635,237),(635,253)], fill=navy)
+                draw.polygon([(360,20),(352,35),(368,35)], fill=navy)
+                draw.text((660,235), "x", fill=navy); draw.text((370,12), "y", fill=navy); draw.text((370,250), "O", fill=navy)
+                draw.line((180,205,560,65), fill=(190,80,45), width=4)
+            else:
+                draw.line((100,150,620,150), fill=navy, width=4)
+                draw.line((360,150,520,45), fill=navy, width=4)
+                draw.arc((300,90,430,220), start=0, end=35, fill=(190,80,45), width=5)
+                draw.text((350,165), "O", fill=navy); draw.text((80,125), "A", fill=navy); draw.text((625,125), "B", fill=navy)
+            picture = io.BytesIO()
+            image.save(picture, format="PNG")
+            picture.seek(0)
+            doc.add_picture(picture, width=Cm(13.5))
+            para(diagram.get("caption", "Schematic diagram"))
         for part in q.get("parts", []):
             para(f"{part.get('label','')} ) {part.get('statement','')} [{part.get('marks',0)} marks]")
         para("________________________________________________________________________")
