@@ -59,9 +59,9 @@ def _classify(title: str) -> dict:
     year = int(year_match.group(0)) if year_match else None
     if "استثنائية" in value or "exceptionnelle" in value or "exceptional" in value:
         session = "Exceptional"
-    elif re.search(r"دورة\s*2|session\s*2|2e\s*session|\bsecond\b", value):
+    elif re.search(r"دورة\s*2|session\s*2|2e\s*session|\bsecond\b", value) or "الثانية" in value:
         session = "Session 2"
-    elif re.search(r"دورة\s*1|session\s*1|1re\s*session|\bfirst\b", value):
+    elif re.search(r"دورة\s*1|session\s*1|1re\s*session|\bfirst\b", value) or "الأولى" in value or "الاولى" in value:
         session = "Session 1"
     elif "العادية" in value or "normal" in value or "regular" in value:
         session = "Regular"
