@@ -155,12 +155,21 @@ def sync_archive(max_pages: int = 300, mathematics_only: bool = True) -> dict:
                 if not _safe_url(url):
                     continue
                 path = urlparse(url).path.lower()
-                title = _normalise(anchor.get_text(" ", strip=True)) or _normalise(anchor.get("title", ""))
-                # Accept only direct PDF-looking links from the official CRDP host.
+                # CRDP often labels the PDF link only "PDF"; the exam title is in its table row.
+                row = anchor.find_parent(["tr", "li", "article", "div"])
+                row_text = _normalise(row.get_text(" ", strip=True)) if row else ""
+                anchor_text = _normalise(anchor.get_text(" ", strip=True))
+                anchor_title = _normalise(anchor.get("title", ""))
+                title = row_text or anchor_title or anchor_text
                 if not path.endswith(".pdf"):
                     continue
-                if mathematics_only and not re.search(r"رياضيات|math[ée]matiques|mathematics|\bmath\b", title, re.I):
+                is_math = bool(re.search(
+                    r"رياضيات|الرياضيات|math[ée]matiques|mathematics|\\bmath\\b",
+                    title + " " + anchor_title + " " + anchor_text, re.I))
+                if mathematics_only and not is_math:
                     continue
+                if title.lower() in {"pdf", "download", "تحميل"}:
+                    title = anchor_title or urlparse(url).path.rsplit("/", 1)[-1]
                 discovered[url] = title or urlparse(url).path.rsplit("/", 1)[-1]
         except requests.RequestException:
             page_failures += 1
@@ -181,7 +190,7 @@ def sync_archive(max_pages: int = 300, mathematics_only: bool = True) -> dict:
                 "bytes": len(response.content), "pages": page_count,
                 "text_status": text_status,
                 "correction_in_same_pdf": bool(re.search(
-                    r"corrig[eé]|bar[eè]me|éléments? de réponse|elements? de reponse|أسس التصحيح|التصحيح",
+                    r"corrig[eé]|bar[eè]me|éléments? de réponse|elements? de reponse|أسس التصحيح|التصحيح|حلول|إجابات|اجابات",
                     title + " " + extracted, re.I)),
                 **_classify(title), "indexed_at": now
             }
@@ -241,6 +250,27 @@ def start_sync(max_pages: int = 300) -> dict:
 
     threading.Thread(target=worker, name="nabil-crdp-memory-index", daemon=True).start()
     return {"started": True, "message": "CRDP catalogue scan started. Files are processed in memory; no paid disk is used."}
+
+
+def list_archive(grade: str | None = None, year: int | None = None,
+                 session_name: str | None = None, limit: int = 20,
+                 offset: int = 0) -> dict:
+    """Return a paginated public catalogue of indexed mathematics PDFs."""
+    with _lock:
+        records = [dict(x) for x in _records.values() if x.get("subject") == "Mathematics"]
+    if grade:
+        records = [x for x in records if grade.lower() in x.get("grade", "").lower()]
+    if year:
+        records = [x for x in records if x.get("year") == year]
+    if session_name:
+        records = [x for x in records if session_name.lower() in x.get("session", "").lower()]
+    records.sort(key=lambda x: (x.get("year") or 0, x.get("title", "")), reverse=True)
+    total = len(records)
+    start = max(0, offset)
+    page = records[start:start + max(1, min(limit, 100))]
+    for item in page:
+        item["download_url"] = f"/api/competitions/archive/documents/{item['id']}"
+    return {"total": total, "offset": start, "limit": max(1, min(limit, 100)), "results": page}
 
 
 def search_archive(query: str, grade: str | None = None, limit: int = 8) -> list[dict]:
