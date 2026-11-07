@@ -159,7 +159,8 @@ def sync_archive(max_pages: int = 300, mathematics_only: bool = True) -> dict:
                     continue
                 discovered[url] = title
                 found_on_page += 1
-            # Scan every requested page: older mathematics papers may be separated by long runs of other subjects.\n        except requests.RequestException:
+            # Scan every requested page: older mathematics papers may be separated by long runs of other subjects.
+        except requests.RequestException:
             continue
 
     added, skipped, failed = 0, 0, 0
