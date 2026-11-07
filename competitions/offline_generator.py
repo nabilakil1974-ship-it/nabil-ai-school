@@ -23,7 +23,9 @@ def _family(topic: str) -> str:
         (("coordinate", "plotting", "graph", "line in", "analytic geometry"), "coordinate"),
         (("circle", "arc", "angle", "line", "perpendicular", "locus", "midpoint", "thales", "similar triangle", "congruent", "square", "rectangle", "rhombus", "parallelogram", "plane geometry", "planes and lines", "parallelism"), "geometry"),
         (("function", "inverse"), "function"), (("set",), "sets"),
-        (("complex",), "complex"), (("real number",), "real"),
+        (("complex",), "complex"), (("real number", "square root"), "real"),
+        (("signed number", "absolute value", "order"), "signed"),
+        (("locating a point",), "coordinate"),
         (("economics", "compound", "interest"), "finance"),
     ]
     for needles, family in rules:
@@ -57,6 +59,11 @@ def _make(topic: str, lang: str, n: int):
         statement=(f"Solve the equation x + {c} = {k}. Verify your result." if en else f"Résoudre l'équation x + {c} = {k}. Vérifier le résultat.")
         ans=f"x = {x}"
         steps=([f"We write: x + {c} = {k}",f"We subtract {c} from both sides: x = {k} − {c}",f"We calculate: x = {x}",f"We conclude: x = {x}; verification: {x}+{c}={k}."] if en else [f"On écrit : x + {c} = {k}",f"On soustrait {c} des deux membres : x = {k} − {c}",f"On calcule : x = {x}",f"On conclut : x = {x} ; vérification : {x}+{c}={k}."])
+    elif family == "signed":
+        x=3+seed%8; y=2+seed%7
+        statement=(f"Calculate (−{x}) + {y} and (−{x}) × (−{y})." if en else f"Calculer (−{x}) + {y} et (−{x}) × (−{y}).")
+        ans=f"{y-x} and {x*y}"
+        steps=([f"Additive calculation: −{x}+{y}={y-x}.",f"Product of two negative numbers is positive: (−{x})×(−{y})={x*y}.",f"We conclude: {ans}."] if en else [f"Somme : −{x}+{y}={y-x}.",f"Le produit de deux nombres négatifs est positif : (−{x})×(−{y})={x*y}.",f"On conclut : {ans}."])
     elif family in ("fraction","decimal"):
         den=4+seed%6; num=den*(2+seed%4)
         statement=(f"Reduce the fraction {num}/{den*2} to its simplest form." if en else f"Réduire la fraction {num}/{den*2} à sa forme irréductible.")
@@ -111,6 +118,40 @@ def _make(topic: str, lang: str, n: int):
         statement=("Let u=(2,3) and v=(4,−1). Calculate the scalar product u·v." if en else "Soient u=(2,3) et v=(4,−1). Calculer le produit scalaire u·v.")
         ans="u·v = 2×4 + 3×(−1) = 5"
         steps=(["We write: u·v = x₁x₂ + y₁y₂.","We substitute: 2×4 + 3×(−1).","We calculate: 8−3=5.","We conclude: u·v=5."] if en else ["On écrit : u·v = x₁x₂ + y₁y₂.","On remplace : 2×4 + 3×(−1).","On calcule : 8−3=5.","On conclut : u·v=5."])
+    elif family == "geometry":
+        t=topic.lower()
+        if "circle" in t or "arc" in t:
+            statement=("A circle has radius 4 cm. Calculate its diameter and circumference (use π=3.14)." if en else "Un cercle a un rayon de 4 cm. Calculer son diamètre et sa circonférence (π=3,14).")
+            ans="diameter = 8 cm; circumference = 25.12 cm"
+            steps=(["d=2r=8 cm.","C=2πr=2×3.14×4=25.12 cm.","We conclude: 8 cm and 25.12 cm."] if en else ["d=2r=8 cm.","C=2πr=2×3,14×4=25,12 cm.","On conclut : 8 cm et 25,12 cm."])
+        elif "square" in t:
+            statement=("A square has side 6 cm. Find its perimeter and area." if en else "Un carré a un côté de 6 cm. Calculer son périmètre et son aire.")
+            ans="perimeter = 24 cm; area = 36 cm²"
+            steps=(["P=4×6=24 cm.","A=6²=36 cm².","We conclude: P=24 cm and A=36 cm²."] if en else ["P=4×6=24 cm.","A=6²=36 cm².","On conclut : P=24 cm et A=36 cm²."])
+        elif "rectangle" in t:
+            statement=("A rectangle has length 8 cm and width 3 cm. Find its perimeter and area." if en else "Un rectangle a une longueur de 8 cm et une largeur de 3 cm. Calculer son périmètre et son aire.")
+            ans="perimeter = 22 cm; area = 24 cm²"
+            steps=(["P=2(8+3)=22 cm.","A=8×3=24 cm².","We conclude: P=22 cm and A=24 cm²."] if en else ["P=2(8+3)=22 cm.","A=8×3=24 cm².","On conclut : P=22 cm et A=24 cm²."])
+        elif "rhombus" in t:
+            statement=("A rhombus has diagonals 6 cm and 8 cm. Find its area." if en else "Un losange a des diagonales de 6 cm et 8 cm. Calculer son aire.")
+            ans="24 cm²"
+            steps=(["A=(d₁×d₂)/2.","A=(6×8)/2=24 cm².","We conclude: 24 cm²."] if en else ["A=(d₁×d₂)/2.","A=(6×8)/2=24 cm².","On conclut : 24 cm²."])
+        elif "parallelogram" in t:
+            statement=("A parallelogram has base 9 cm and corresponding height 4 cm. Find its area." if en else "Un parallélogramme a une base de 9 cm et une hauteur correspondante de 4 cm. Calculer son aire.")
+            ans="36 cm²"
+            steps=(["A=base×height.","A=9×4=36 cm².","We conclude: 36 cm²."] if en else ["A=base×hauteur.","A=9×4=36 cm².","On conclut : 36 cm²."])
+        elif "angle" in t or "line" in t:
+            statement=("Two adjacent angles on a straight line are x and 68°. Find x." if en else "Deux angles adjacents sur une droite mesurent x et 68°. Déterminer x.")
+            ans="x=112°"
+            steps=(["Angles on a straight line sum to 180°.","x+68=180 ⇒ x=112°.","We conclude: x=112°."] if en else ["Les angles adjacents sur une droite sont supplémentaires.","x+68=180 ⇒ x=112°.","On conclut : x=112°."])
+        elif "locus" in t or "perpendicular" in t:
+            statement=("Describe the locus of points equidistant from two fixed points A and B." if en else "Décrire le lieu des points équidistants de deux points fixes A et B.")
+            ans="The perpendicular bisector of segment [AB]."
+            steps=(["By definition, every point on the locus has equal distances to A and B.","The set of such points forms the perpendicular bisector of [AB].","We conclude: the perpendicular bisector of [AB]."] if en else ["Par définition, chaque point du lieu est à égale distance de A et B.","L'ensemble de ces points forme la médiatrice de [AB].","On conclut : la médiatrice de [AB]."])
+        else:
+            statement=("State and apply one defining property of the geometric figure or theorem named in this lesson, using a labelled sketch." if en else "Énoncer et appliquer une propriété caractéristique de la figure ou du théorème de cette leçon, avec une figure légendée.")
+            ans=("The exact property depends on the construction and theorem studied; teacher validation is required." if en else "La propriété exacte dépend de la construction et du théorème étudiés ; validation par l'enseignant requise.")
+            steps=([f"Identify the figure/theorem: {topic}.","State its defining property and conditions.","Apply the property to the labelled figure.","Teacher validation is required for the lesson-specific theorem."] if en else [f"Identifier la figure/le théorème : {topic}.","Énoncer sa propriété caractéristique et ses conditions.","Appliquer la propriété à la figure légendée.","La validation de l'enseignant est requise pour ce théorème spécifique."])
     elif family == "function":
         statement=("Let f(x)=2x+3. Calculate f(0), f(2), and solve f(x)=9." if en else "Soit f(x)=2x+3. Calculer f(0), f(2), puis résoudre f(x)=9.")
         ans="f(0)=3; f(2)=7; x=3"
