@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import threading
 import time
 from pathlib import Path
@@ -133,6 +134,7 @@ def get_status() -> dict:
         "mathematics_documents": sum(1 for x in records if x.get("subject") == "Mathematics"),
         "text_searchable": sum(1 for x in records if x.get("text_status") == "extracted"),
         "needs_ocr": sum(1 for x in records if x.get("text_status") == "needs_ocr"),
+        "ocr_available": bool(shutil.which("tesseract")),
         "by_grade": by_grade,
         "job_running": _job_running,
         "last_sync": state.get("finished_at"),
