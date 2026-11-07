@@ -64,11 +64,11 @@ from app.api import (
     routes_parent,
     routes_live_avatar,
     routes_timetable,
-    routes_competitions,
 )
 
 
 from app.services import golden_catalogue
+from competitions import routes as routes_competitions
 
 
 # ==========================================================
