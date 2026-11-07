@@ -335,6 +335,18 @@ def export_docx(req: ExportRequest):
     for q in req.questions:
         para(f"Question {q.get('number')}: {q.get('title','')} ({q.get('marks',0)} marks)", "Heading 2")
         para(q.get("statement", ""))
+        table_data = q.get("table") or {}
+        headers = table_data.get("headers") or []
+        rows = table_data.get("rows") or []
+        if headers and rows:
+            data_table = doc.add_table(rows=1, cols=len(headers))
+            data_table.style = "Table Grid"
+            for index, heading in enumerate(headers):
+                data_table.rows[0].cells[index].text = str(heading)
+            for row in rows:
+                cells = data_table.add_row().cells
+                for index, value in enumerate(row[:len(headers)]):
+                    cells[index].text = str(value)
         diagram = q.get("diagram")
         if diagram:
             from PIL import Image, ImageDraw
@@ -350,12 +362,23 @@ def export_docx(req: ExportRequest):
                 draw.ellipse((354, 139, 366, 151), fill=navy)
                 draw.text((340, 150), "O", fill=navy); draw.text((485, 135), "A", fill=navy)
             elif diagram.get("type") == "coordinate_plane":
-                draw.line((70, 245, 650, 245), fill=navy, width=3)
-                draw.line((360, 275, 360, 20), fill=navy, width=3)
-                draw.polygon([(650,245),(635,237),(635,253)], fill=navy)
-                draw.polygon([(360,20),(352,35),(368,35)], fill=navy)
-                draw.text((660,235), "x", fill=navy); draw.text((370,12), "y", fill=navy); draw.text((370,250), "O", fill=navy)
-                draw.line((180,205,560,65), fill=(190,80,45), width=4)
+                xmin=float(diagram.get("x_min",-5)); xmax=float(diagram.get("x_max",5))
+                ymin=float(diagram.get("y_min",-5)); ymax=float(diagram.get("y_max",5))
+                def plot_xy(x,y):
+                    return (70+(float(x)-xmin)/(xmax-xmin)*580, 245-(float(y)-ymin)/(ymax-ymin)*220)
+                ox,oy=plot_xy(0,0)
+                draw.line((70, oy, 650, oy), fill=navy, width=3)
+                draw.line((ox, 265, ox, 25), fill=navy, width=3)
+                draw.polygon([(650,oy),(635,oy-8),(635,oy+8)], fill=navy)
+                draw.polygon([(ox,25),(ox-8,40),(ox+8,40)], fill=navy)
+                draw.text((660,oy-10), "x", fill=navy); draw.text((ox+8,12), "y", fill=navy); draw.text((ox+7,oy+5), "O", fill=navy)
+                points=diagram.get("points") or []
+                plotted=[plot_xy(point.get("x",0),point.get("y",0)) for point in points]
+                if len(plotted)>1:
+                    draw.line((plotted[0][0],plotted[0][1],plotted[1][0],plotted[1][1]), fill=(190,80,45), width=4)
+                for point, (px,py) in zip(points,plotted):
+                    draw.ellipse((px-7,py-7,px+7,py+7), fill=(190,80,45))
+                    draw.text((px+10,py-18), f"{point.get('label','P')}({point.get('x')},{point.get('y')})", fill=navy)
             else:
                 draw.line((100,150,620,150), fill=navy, width=4)
                 draw.line((360,150,520,45), fill=navy, width=4)
