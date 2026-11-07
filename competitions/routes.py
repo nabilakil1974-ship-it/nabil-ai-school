@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import re
 from typing import Literal
 
@@ -14,6 +15,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from competitions.offline_generator import build_offline_assessment
+from competitions import exam_archive
 
 router = APIRouter(prefix="/competitions", tags=["competitions"])
 
@@ -99,24 +101,168 @@ def terminal_gs_benchmark(language: Literal["en", "fr"] = "en"):
     )
     return generate(req)
 
+def _archive_context(req: GenerateRequest):
+    query = " ".join(req.lessons)
+    grade_alias = {"terminal_gs": "Terminale GS", "terminal_ls": "Terminale LS",
+                   "terminal_se": "Terminale SE", "terminal_lh": "Terminale LH",
+                   "g9": "Brevet"}
+    grade = grade_alias.get(req.grade)
+    hits = exam_archive.search_archive(query, grade=grade, limit=10)
+    return hits
+
+
+def _validate_generated(data: dict, req: GenerateRequest):
+    questions = data.get("questions") or []
+    solutions = data.get("solutions") or []
+    rubrics = data.get("rubric") or []
+    if len(questions) != len(req.lessons):
+        raise ValueError("The AI did not create exactly one question for each selected lesson.")
+    if len(solutions) != len(questions) or len(rubrics) != len(questions):
+        raise ValueError("Question, solution and marking-scheme counts do not match.")
+    if [q.get("lesson") for q in questions] != req.lessons:
+        raise ValueError("The AI changed, omitted or added a selected lesson.")
+    total = round(sum(float(q.get("marks", 0)) for q in questions), 2)
+    if total != float(req.total_marks):
+        raise ValueError(f"Question marks total {total}, expected {req.total_marks}.")
+    solution_numbers = {str(x.get("number")) for x in solutions}
+    rubric_numbers = {str(x.get("number")) for x in rubrics}
+    question_numbers = {str(x.get("number")) for x in questions}
+    if solution_numbers != question_numbers or rubric_numbers != question_numbers:
+        raise ValueError("Every question must have exactly one matching solution and rubric.")
+    for q in questions:
+        number = str(q.get("number"))
+        mark = round(float(q.get("marks", 0)), 2)
+        parts = q.get("parts") or []
+        if parts and round(sum(float(p.get("marks", 0)) for p in parts), 2) != mark:
+            raise ValueError(f"Question {number}: part marks do not add to the question total.")
+        rubric = next(x for x in rubrics if str(x.get("number")) == number)
+        if round(sum(float(x.get("marks", 0)) for x in rubric.get("criteria", [])), 2) != round(float(rubric.get("total", -1)), 2):
+            raise ValueError(f"Question {number}: marking criteria do not add to the rubric total.")
+        if round(float(rubric.get("total", -1)), 2) != mark:
+            raise ValueError(f"Question {number}: rubric total does not match question marks.")
+        solution = next(x for x in solutions if str(x.get("number")) == number)
+        if len(solution.get("steps") or []) < 2 or not solution.get("final_answer"):
+            raise ValueError(f"Question {number}: the model solution is incomplete.")
+        if not q.get("statement") or not q.get("title"):
+            raise ValueError(f"Question {number}: statement or title is missing.")
+
+
+def _generate_with_ai(req: GenerateRequest, archive_hits: list[dict]):
+    api_key = (os.getenv("NABIL_LLM_API_KEY") or os.getenv("GEMINI_API_KEY")
+               or os.getenv("OPENAI_API_KEY") or "").strip()
+    if not api_key:
+        return None
+    from openai import OpenAI
+    base_url = os.getenv("NABIL_LLM_BASE_URL", "").strip()
+    if not base_url and os.getenv("GEMINI_API_KEY") and not os.getenv("NABIL_LLM_API_KEY"):
+        base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
+    model = os.getenv("NABIL_LLM_MODEL") or os.getenv("GEMINI_MODEL") or "gemini-2.5-flash"
+    client = OpenAI(api_key=api_key, base_url=base_url or None, timeout=90.0, max_retries=1)
+    archive_excerpt = []
+    for hit in archive_hits:
+        archive_excerpt.append({
+            "title": hit.get("title"), "year": hit.get("year"),
+            "session": hit.get("session"), "branch": hit.get("grade"),
+            "language": hit.get("language"), "source_url": hit.get("source_url"),
+            "official_exam_excerpt": hit.get("excerpt", "")[:1200]
+        })
+    evidence = json.dumps(archive_excerpt, ensure_ascii=False)
+    prompt = _instructions(req) + """
+OFFICIAL EXAM KNOWLEDGE RETRIEVAL:
+Use the following excerpts only to learn the official Lebanese examination style, question sequencing,
+expected reasoning depth and marking approach. Do not copy any full question. Create original questions.
+An archive item is evidence of past exam style, NOT proof that its topic is in the current curriculum.
+If the archive has no relevant excerpt, say so honestly and use only the teacher-selected lesson names.
+Retrieved official archive records:
+""" + evidence + """
+QUALITY REQUIREMENTS:
+- Produce genuinely progressive, multi-part questions appropriate to this branch and certificate level.
+- Each question must test the named selected lesson, not merely mention its name.
+- Show full derivations and calculations in the model solution; do not repeat the final answer as filler.
+- Marking criteria must describe observable mathematical steps and allocate partial credit.
+- Use a real data table structure in the JSON when statistics data are required: add a table object with headers and rows.
+- For coordinate geometry, provide exact plotted points, axes range and scale in a diagram object.
+- Do not invent diagrams or claim a visual is to scale unless coordinates and scale are supplied.
+- Return JSON only, with no markdown.
+"""
+    response = client.chat.completions.create(
+        model=model,
+        messages=[{"role": "system", "content": "You are a rigorous Lebanese official-exam assessment designer and independent mathematics checker. Return valid JSON only."},
+                  {"role": "user", "content": prompt}],
+        temperature=0.25,
+        response_format={"type": "json_object"}
+    )
+    data = json.loads(response.choices[0].message.content or "{}")
+    _validate_generated(data, req)
+    source_records = [{"label": h.get("title", "CRDP official exam"), "url": h.get("source_url"),
+                       "year": h.get("year"), "grade": h.get("grade"),
+                       "evidence": h.get("excerpt", "")[:900]} for h in archive_hits]
+    data["sources"] = source_records
+    data["quality_gate"] = {
+        "question_solution_rubric_alignment": True,
+        "marks_total": float(req.total_marks),
+        "selected_lessons_exact_match": True,
+        "official_archive_records_retrieved": len(archive_hits),
+        "generator": "retrieval-augmented-ai",
+        "curriculum_verified": False
+    }
+    data["curriculum_status"] = "teacher_review_required"
+    data["curriculum_note"] = ("Past official exam papers were retrieved to inform examination style. They do not certify the current curriculum; verify against the latest CRDP/Ministry scope before use."
+                               if req.language == "en" else "Des sujets officiels antérieurs ont été consultés pour guider le style d'examen. Ils ne certifient pas le programme actuel ; vérifier le programme CRDP/Ministère en vigueur.")
+    data["request"] = req.model_dump()
+    return data
+
+
+@router.get("/archive/status")
+def official_archive_status():
+    return exam_archive.get_status()
+
+
+@router.get("/archive/search")
+def official_archive_search(q: str, grade: str | None = None, limit: int = 8):
+    return {"query": q, "results": exam_archive.search_archive(q, grade=grade, limit=limit)}
+
+
+@router.post("/archive/sync")
+def official_archive_sync(background: bool = True, max_pages: int = 300,
+                          x_archive_admin_token: str | None = None):
+    expected = os.getenv("NABIL_ARCHIVE_ADMIN_TOKEN", "").strip()
+    if not expected:
+        raise HTTPException(503, "Set NABIL_ARCHIVE_ADMIN_TOKEN before starting an archive sync.")
+    if not x_archive_admin_token or not __import__("hmac").compare_digest(x_archive_admin_token, expected):
+        raise HTTPException(403, "Archive administrator token is missing or invalid.")
+    if max_pages < 1 or max_pages > 400:
+        raise HTTPException(422, "max_pages must be between 1 and 400.")
+    if background:
+        return exam_archive.start_sync(max_pages=max_pages)
+    return exam_archive.sync_archive(max_pages=max_pages, mathematics_only=True)
+
+
 @router.post("/generate")
 def generate(req: GenerateRequest):
     _validate_selection(req)
     try:
-        data = build_offline_assessment(req)
-        # Hard quality gate: every selected lesson gets a question, solution and rubric.
-        if len(data["questions"]) != len(req.lessons):
-            raise ValueError("Not every selected lesson received a question.")
-        if len(data["questions"]) != len(data["solutions"]) or len(data["questions"]) != len(data["rubric"]):
-            raise ValueError("Question, solution and rubric counts do not match.")
-        marks = round(sum(float(q.get("marks", 0)) for q in data["questions"]), 2)
-        if marks != float(req.total_marks):
-            raise ValueError(f"Question marks total {marks}, expected {req.total_marks}.")
+        archive_hits = _archive_context(req)
+        data = _generate_with_ai(req, archive_hits)
+        if data is None:
+            data = build_offline_assessment(req)
+            data["quality_gate"]["generator"] = "offline-deterministic-no-llm-configured"
+            data["quality_gate"]["official_archive_records_available"] = len(archive_hits)
+            data["quality_gate"]["archive_used_for_generation"] = False
+            data["curriculum_note"] = (
+                "Offline fallback only: no AI model key is configured, so official archive material was NOT used to generate these questions. Configure NABIL_LLM_API_KEY or GEMINI_API_KEY to enable retrieval-augmented generation. Teacher review is required."
+                if req.language == "en" else
+                "Mode hors ligne uniquement : aucune clé de modèle IA n'est configurée ; les archives officielles n'ont donc PAS été utilisées pour générer ces questions. Configurez NABIL_LLM_API_KEY ou GEMINI_API_KEY. Validation par l'enseignant requise."
+            )
+            data["sources"] = [{"label": h.get("title"), "url": h.get("source_url"),
+                                "year": h.get("year"), "grade": h.get("grade")}
+                               for h in archive_hits]
+            _validate_generated(data, req)
         return data
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(500, f"Offline competition generation failed: {str(exc)[:240]}")
+        raise HTTPException(500, f"Competition quality gate failed: {str(exc)[:300]}")
 
 @router.post("/export/docx")
 def export_docx(req: ExportRequest):
