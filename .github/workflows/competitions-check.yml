@@ -132,6 +132,22 @@ jobs:
           assert len(generated['solutions']) == len(generated['rubric']) == 5
           assert not any(step.lower().startswith(('we conclude:', 'on conclut :'))
                          for sol in generated['solutions'] for step in sol['steps'][-1:])
+          visual_response = client.post('/api/competitions/generate', json={
+              'grade':'terminal_gs','lessons':['Vectors and Coordinate Systems','Statistics'],
+              'language':'en','exam_type':'Training competition',
+              'duration_minutes':90,'total_marks':20,'difficulty':'balanced'})
+          assert visual_response.status_code == 200, visual_response.text
+          visual = visual_response.json()
+          assert visual['questions'][0]['diagram']['points'][0] == {'label':'A','x':-1,'y':2}
+          assert len(visual['questions'][1]['table']['rows']) == 4
+          docx_response = client.post('/api/competitions/export/docx', json={
+              'title':visual['title'],'grade_label':visual['grade_label'],'language':'en',
+              'duration_minutes':90,'total_marks':20,'questions':visual['questions'],
+              'solutions':visual['solutions'],'rubric':visual['rubric'],
+              'curriculum_note':visual['curriculum_note']})
+          assert docx_response.status_code == 200, docx_response.text[:500]
+          assert docx_response.content[:2] == b'PK'
+          print('DOCX export passed with real coordinate plot and statistics table')
           print('FastAPI generation route passed the five-lesson Terminale GS regression test')
           print('competition contract checks passed')
           PY
