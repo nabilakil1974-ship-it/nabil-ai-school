@@ -38,10 +38,37 @@ select:focus,input:focus,textarea:focus{outline:2px solid #9bc8e8;border-color:v
 </main>
 <script>
 const $=id=>document.getElementById(id);let catalogue={},current=null;
-async function init(){try{const r=await fetch('/api/competitions/catalogue',{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);const data=await r.json();if(!data||!data.grades||typeof data.grades!=='object')throw new Error('Invalid catalogue');catalogue=data;$('grade').disabled=false;renderLessons();}catch(e){catalogue={};$('lessons').innerHTML='<span class="note">تعذر تحميل الدروس. أعد تحميل الصفحة، وإذا استمرت المشكلة أبلغ نبيل.</span>';$('status').textContent='تعذر تحميل قائمة الدروس من الخادم: '+e.message;}}
-function renderLessons(){const g=$('grade').value;const arr=catalogue.grades?.[g]||[];$('lessons').innerHTML=arr.length?arr.map((x,i)=>'<label class="lesson"><input type="checkbox" value="'+escapeHtml(x)+'"><span>'+escapeHtml(x)+'</span></label>').join(''):'<span class="note">اختر الصف أولاً.</span>';}
+async function loadCatalogue(){
+ const r=await fetch('/api/competitions/catalogue?ts='+Date.now(),{cache:'no-store',headers:{'Accept':'application/json'}});
+ if(!r.ok)throw new Error('HTTP '+r.status);
+ const data=await r.json();
+ const grades=(data&&data.grades&&typeof data.grades==='object')?data.grades:data;
+ if(!grades||typeof grades!=='object'||Array.isArray(grades))throw new Error('صيغة قائمة الدروس غير صحيحة');
+ catalogue={grades};
+ return Object.keys(grades);
+}
+async function init(){
+ try{const keys=await loadCatalogue();$('grade').disabled=false;renderLessons();$('status').textContent='تم تحميل قائمة الصفوف والدروس بنجاح ('+keys.length+' صفوف).';}
+ catch(e){catalogue={grades:{}};$('lessons').innerHTML='<span class="note">تعذر تحميل الدروس من الخادم. '+escapeHtml(e.message)+'</span>';$('status').textContent='تعذر تحميل قائمة الدروس: '+e.message;}
+}
+function renderLessons(){
+ const g=String($('grade').value||'').trim().toLowerCase();
+ let arr=catalogue.grades?.[g]||[];
+ if(!Array.isArray(arr))arr=[];
+ if(!arr.length&&g){
+  const match=Object.keys(catalogue.grades||{}).find(k=>String(k).trim().toLowerCase()===g);
+  if(match)arr=catalogue.grades[match]||[];
+ }
+ $('lessons').innerHTML=arr.length?arr.map(x=>'<label class="lesson"><input type="checkbox" value="'+escapeHtml(x)+'"><span>'+escapeHtml(x)+'</span></label>').join(''):(g?'<span class="note">لم تصل دروس هذا الصف من الخادم. اضغط على الصف مجدداً أو حدّث الصفحة.</span>':'<span class="note">اختر الصف أولاً.</span>');
+}
+async function handleGradeChange(){
+ renderLessons();
+ if($('grade').value&&!document.querySelector('#lessons input')){
+  try{await loadCatalogue();renderLessons();}catch(e){$('lessons').innerHTML='<span class="note">تعذر جلب دروس الصف: '+escapeHtml(e.message)+'</span>';}
+ }
+}
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-$('grade').addEventListener('change',renderLessons);
+$('grade').addEventListener('change',handleGradeChange);$('grade').addEventListener('input',handleGradeChange);
 $('all').onclick=()=>document.querySelectorAll('#lessons input').forEach(x=>x.checked=true);
 $('none').onclick=()=>document.querySelectorAll('#lessons input').forEach(x=>x.checked=false);
 $('generate').onclick=async()=>{const lessons=[...document.querySelectorAll('#lessons input:checked')].map(x=>x.value);if(!$('grade').value||!lessons.length){$('status').textContent='اختر الصف ودرساً واحداً على الأقل.';return;}
