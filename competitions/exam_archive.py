@@ -67,7 +67,7 @@ def _classify(title: str) -> dict:
         session = "Regular"
     else:
         session = "Unspecified"
-    language = "French" if any(x in value for x in ("فرنسي", "فرنسية", "français", "francais", "french")) else ("English" if any(x in value for x in ("انكليزي", "إنكليزي", "انجليزية", "إنجليزية", "anglais", "english")) else "Arabic / unspecified")
+    language = "French" if any(x in value for x in ("فرنسي", "فرنسية", "français", "francais", "french")) else ("English" if any(x in value for x in ("انكليزي", "إنكليزي", "انجليزية", "إنجليزية", "anglais", "english")) else ("Arabic" if any(x in value for x in ("عربي", "العربية", "arabic")) else "Arabic / unspecified"))
     return {"grade": grade, "subject": subject, "year": year, "session": session, "language": language}
 
 
@@ -196,7 +196,7 @@ def sync_archive(max_pages: int = 300, mathematics_only: bool = True) -> dict:
                     "bytes": len(response.content),
                     "pages": page_count,
                     "text_status": text_status,
-                    "correction_in_same_pdf": bool(re.search(r"corrig[eé]|bar[eè]me|éléments? de réponse|elements? de reponse", extracted, re.I)),
+                    "correction_in_same_pdf": bool(re.search(r"corrig[eé]|bar[eè]me|éléments? de réponse|elements? de reponse|أسس التصحيح|التصحيح", title + " " + extracted, re.I)),
                     **_classify(title),
                     "downloaded_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
                 }
