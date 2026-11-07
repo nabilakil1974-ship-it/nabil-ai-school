@@ -24,9 +24,10 @@ jobs:
           python - <<'PY'
           from competitions.routes import GRADE_TOPICS, GenerateRequest, _validate_selection
           from competitions.offline_generator import build_offline_assessment, _family
-          from competitions.routes import router
+          from competitions.routes import router, _archive_context
           from competitions import exam_archive
           paths = {route.path for route in router.routes}
+          assert _archive_context(GenerateRequest(grade='g7', lessons=['Powers'], language='en')) == []
           assert '/competitions/analytics/visit' in paths
           assert '/competitions/analytics/summary' in paths
           assert '/competitions/archive/status' in paths
