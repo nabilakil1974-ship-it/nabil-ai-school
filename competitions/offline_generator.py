@@ -13,9 +13,9 @@ def _family(topic: str) -> str:
         (("proportion", "interest", "annuity", "distribution of two variables"), "proportion"),
         (("statistic", "dispersion", "position measures", "graphical interpretation"), "statistics"),
         (("probab", "event", "random variable", "combination", "permutation"), "probability"),
-        (("sequence",), "sequence"), (("derivative",), "derivative"),
+        (("sequence",), "sequence"), (("antiderivative",), "antiderivative"), (("derivative",), "derivative"),
         (("limit", "continuity", "continuous"), "limit"),
-        (("integral", "antiderivative", "integration"), "integral"),
+        (("integral", "integration"), "integral"),
         (("logarithm", "exponential"), "logexp"),
         (("quadratic",), "quadratic"), (("equation", "inequalit", "system"), "equation"),
         (("trigon",), "trig"), (("pythagoras", "right triangle"), "pythagoras"),
@@ -90,6 +90,11 @@ def _make(topic: str, lang: str, n: int):
         statement=(f"An arithmetic sequence has first term u₁ = {u1} and common difference r = {r}. Find u₅ and give the general term uₙ." if en else f"Une suite arithmétique a pour premier terme u₁ = {u1} et raison r = {r}. Calculer u₅ et donner le terme général uₙ.")
         ans=f"uₙ = {u1} + (n−1)×{r}; u₅ = {u1+4*r}"
         steps=([f"uₙ = u₁ + (n−1)r = {u1} + (n−1)×{r}.",f"u₅ = {u1} + 4×{r} = {u1+4*r}.",f"We conclude: {ans}."] if en else [f"uₙ = u₁ + (n−1)r = {u1} + (n−1)×{r}.",f"u₅ = {u1} + 4×{r} = {u1+4*r}.",f"On conclut : {ans}."])
+    elif family == "antiderivative":
+        m=2+seed%5; c=1+seed%6; value=2+seed%5
+        statement=(f"Find an antiderivative F of f(x)={m}x+{c} such that F(0)={value}." if en else f"Déterminer une primitive F de f(x)={m}x+{c} telle que F(0)={value}.")
+        ans=f"F(x)=({m}/2)x²+{c}x+{value}"
+        steps=([f"Integrate term by term: F(x)=({m}/2)x²+{c}x+C.",f"Use F(0)={value}: C={value}.",f"Differentiate to verify: F′(x)={m}x+{c}=f(x).",f"We conclude: {ans}."] if en else [f"On intègre terme à terme : F(x)=({m}/2)x²+{c}x+C.",f"On utilise F(0)={value} : C={value}.",f"Vérification : F′(x)={m}x+{c}=f(x).",f"On conclut : {ans}."])
     elif family == "derivative":
         m=2+seed%5; c=1+seed%7
         statement=(f"Let f(x) = {m}x² + {c}x. Find f′(x) and f′(1)." if en else f"Soit f(x) = {m}x² + {c}x. Déterminer f′(x) et f′(1).")
@@ -231,6 +236,8 @@ def build_offline_assessment(req):
     for i,topic in enumerate(selected,1):
         mark=allocations[i-1]
         specialized = terminal_gs_item(topic, req.language) if req.grade == "terminal_gs" else None
+        if req.grade == "terminal_gs" and specialized is None:
+            raise ValueError(f"No validated offline Terminale GS question template exists yet for: {topic}. This lesson is blocked rather than generating a generic or misleading question.")
         if specialized:
             scale = mark / 5.0
             parts = [dict(part, marks=round(float(part["marks"]) * scale, 2)) for part in specialized["parts"]]
@@ -256,4 +263,4 @@ def build_offline_assessment(req):
     title=("Mathematics Training Competition" if en else "Épreuve d'entraînement de mathématiques")
     grade_labels={"g7":"Grade 7","g8":"Grade 8","g9":"Grade 9 / EB9","g10":"Grade 10","g11_lh":"Grade 11 — Literary","terminal_gs":"Terminale — General Sciences","terminal_ls":"Terminale — Life Sciences","terminal_se":"Terminale — Economics & Sociology","terminal_lh":"Terminale — Literature & Humanities"}
     note=("Training draft generated locally from deterministic question templates. The preliminary lesson map is not official curriculum evidence; teacher review is required." if en else "Sujet d'entraînement généré localement à partir de modèles déterministes. La liste préliminaire des leçons ne constitue pas une preuve du programme officiel ; validation par l'enseignant requise.")
-    return {"title":title,"grade_label":grade_labels.get(req.grade,req.grade),"curriculum_status":"teacher_review_required","curriculum_note":note,"sources":[],"questions":questions,"solutions":solutions,"rubric":rubric,"request":req.model_dump(),"quality_gate":{"question_solution_rubric_alignment":True,"marks_total":total,"curriculum_verified":False,"generator":"offline-deterministic"}}
+    return {"title":title,"grade_label":grade_labels.get(req.grade,req.grade),"curriculum_status":"teacher_review_required","curriculum_note":note,"sources":[],"questions":questions,"solutions":solutions,"rubric":rubric,"request":req.model_dump(),"quality_gate":{"question_solution_rubric_alignment":True,"marks_total":total,"curriculum_verified":False,"generator":"offline-deterministic","status":"limited_offline_template","semantic_review":"No AI model is configured; this is a deterministic, lesson-specific template and has not received independent AI review."}}
