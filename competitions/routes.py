@@ -13,7 +13,7 @@ from app.db.session import get_db
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from app.services.ai_gateway import get_ai_gateway
+from competitions.offline_generator import build_offline_assessment
 
 router = APIRouter(prefix="/competitions", tags=["competitions"])
 
@@ -87,37 +87,21 @@ def catalogue():
 @router.post("/generate")
 def generate(req: GenerateRequest):
     _validate_selection(req)
-    prompt = (
-        f"Create an assessment with questions, complete worked solutions, and detailed partial-credit marking scheme.\n"
-        f"Grade: {req.grade}\nLessons: {', '.join(req.lessons)}\n"
-        f"Teacher-supplied curriculum excerpts:\n{req.curriculum_evidence or 'No source supplied.'}"
-    )
     try:
-        raw = get_ai_gateway().generate(
-            instructions=_instructions(req),
-            messages=[{"role": "user", "content": prompt}],
-            max_output_tokens=10000,
-        )
-        match = re.search(r"\{[\s\S]*\}", raw)
-        if not match:
-            raise ValueError("AI did not return JSON")
-        data = json.loads(match.group(0))
-        for key in ("questions", "solutions", "rubric"):
-            if not isinstance(data.get(key), list) or not data[key]:
-                raise ValueError(f"Missing {key}")
+        data = build_offline_assessment(req)
+        # Hard quality gate: every selected lesson gets a question, solution and rubric.
+        if len(data["questions"]) != len(req.lessons):
+            raise ValueError("Not every selected lesson received a question.")
         if len(data["questions"]) != len(data["solutions"]) or len(data["questions"]) != len(data["rubric"]):
-            raise ValueError("Question, solution and rubric counts do not match")
-        marks = sum(int(q.get("marks", 0)) for q in data["questions"])
-        if marks != req.total_marks:
-            raise ValueError(f"Question marks total {marks}, expected {req.total_marks}")
-        data["request"] = req.model_dump()
-        data["quality_gate"] = {"question_solution_rubric_alignment": True, "marks_total": marks,
-                                "curriculum_verified": bool(req.curriculum_evidence.strip())}
+            raise ValueError("Question, solution and rubric counts do not match.")
+        marks = round(sum(float(q.get("marks", 0)) for q in data["questions"]), 2)
+        if marks != float(req.total_marks):
+            raise ValueError(f"Question marks total {marks}, expected {req.total_marks}.")
         return data
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(503, f"Competition generation or validation failed: {str(exc)[:240]}")
+        raise HTTPException(500, f"Offline competition generation failed: {str(exc)[:240]}")
 
 @router.post("/export/docx")
 def export_docx(req: ExportRequest):
