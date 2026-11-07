@@ -83,7 +83,7 @@ $('archiveSearch').onclick=async()=>{
  const query=$('archiveQuery').value.trim();if(!query){$('archiveResults').textContent='اكتب اسم الدرس أو المفهوم للبحث.';return;}
  $('archiveResults').textContent='جارٍ البحث في الفهرس المؤقت...';
  try{
-  const r=await fetch('/api/competitions/archive/search?q='+encodeURIComponent(query)+'&limit=12',{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);
+  const params=new URLSearchParams({q:query,limit:'20'});if($('archiveGrade').value)params.set('grade',$('archiveGrade').value);const r=await fetch('/api/competitions/archive/search?'+params.toString(),{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);
   const data=await r.json();const items=data.results||[];
   $('archiveResults').innerHTML=items.length?items.map(x=>'<article class="q"><b>'+escapeHtml(x.title||'Official exam')+'</b><p>'+escapeHtml([x.grade,x.year||'',x.session,x.language,'Text: '+x.text_status].filter(Boolean).join(' · '))+'</p><a href="'+escapeHtml(x.download_url)+'" target="_blank" rel="noopener">فتح ملف الامتحان / التصحيح PDF</a></article>').join(''):'لا توجد نتائج في الفهرس المؤقت. ابدأ المزامنة أولاً.';
  }catch(e){$('archiveResults').textContent='تعذر البحث: '+e.message;}
