@@ -202,6 +202,19 @@ def _make(topic: str, lang: str, n: int):
         steps=([f"Identify the central definition/theorem of {topic}.","State all required conditions.","Give a labelled example and justify each step.","Teacher validation is required for this lesson-specific item."] if en else [f"Identifier la définition/le théorème central de {topic}.","Énoncer toutes les conditions nécessaires.","Donner un exemple légendé et justifier chaque étape.","La validation de l'enseignant est requise pour cet élément spécifique."])
     return statement, steps, ans
 
+def _diagram_for(topic: str):
+    t = topic.lower()
+    if any(x in t for x in ("triangle", "thales", "midpoint", "pythagoras", "congruent", "similar")):
+        return {"type": "triangle", "caption": "Schematic triangle; not to scale"}
+    if any(x in t for x in ("circle", "arc")):
+        return {"type": "circle", "caption": "Schematic circle; not to scale"}
+    if any(x in t for x in ("coordinate", "plotting", "graph", "analytic geometry", "line in")):
+        return {"type": "coordinate_plane", "caption": "Coordinate plane; schematic"}
+    if any(x in t for x in ("angle", "perpendicular bisector", "locus", "lines")):
+        return {"type": "angle", "caption": "Geometric sketch; not to scale"}
+    return None
+
+
 def build_offline_assessment(req):
     en=req.language=="en"
     selected=list(req.lessons)
@@ -215,9 +228,15 @@ def build_offline_assessment(req):
     for i,topic in enumerate(selected,1):
         statement,steps,answer=_make(topic,req.language,i)
         mark=allocations[i-1]
-        questions.append({"number":i,"lesson":topic,"title":(f"Question {i}: {topic}" if en else f"Question {i} : {topic}"),"statement":statement,"marks":mark,"parts":[]})
+        questions.append({"number":i,"lesson":topic,"title":(f"Question {i}: {topic}" if en else f"Question {i} : {topic}"),"statement":statement,"marks":mark,"parts":[],"diagram":_diagram_for(topic)})
         solutions.append({"number":i,"steps":steps,"final_answer":answer})
-        rubric.append({"number":i,"total":mark,"criteria":[{"criterion":("Correct method and reasoning" if en else "Méthode et raisonnement corrects"),"marks":round(mark*.6,2)},{"criterion":("Correct calculation and conclusion" if en else "Calcul et conclusion corrects"),"marks":round(mark-round(mark*.6,2),2)}]})
+        criteria=[]
+        allocated=0.0
+        for j,step in enumerate(steps):
+            points=round(mark/len(steps),2) if j<len(steps)-1 else round(mark-allocated,2)
+            allocated=round(allocated+points,2)
+            criteria.append({"criterion":step,"marks":points})
+        rubric.append({"number":i,"total":mark,"criteria":criteria})
     title=("Mathematics Training Competition" if en else "Épreuve d'entraînement de mathématiques")
     grade_labels={"g7":"Grade 7","g8":"Grade 8","g9":"Grade 9 / EB9","g10":"Grade 10","g11_lh":"Grade 11 — Literary","terminal_gs":"Terminale — General Sciences","terminal_ls":"Terminale — Life Sciences","terminal_se":"Terminale — Economics & Sociology","terminal_lh":"Terminale — Literature & Humanities"}
     note=("Training draft generated locally from deterministic question templates. The preliminary lesson map is not official curriculum evidence; teacher review is required." if en else "Sujet d'entraînement généré localement à partir de modèles déterministes. La liste préliminaire des leçons ne constitue pas une preuve du programme officiel ; validation par l'enseignant requise.")
