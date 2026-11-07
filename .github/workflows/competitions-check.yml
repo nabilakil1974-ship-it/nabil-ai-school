@@ -48,6 +48,8 @@ jobs:
           row_title, is_math = exam_archive._anchor_exam_title(anchor)
           assert is_math and 'علوم عامة' in row_title and row_title != 'PDF'
           assert exam_archive._classify('أسس التصحيح - رياضيات - علوم عامة - 2024')['subject'] == 'Mathematics'
+          assert exam_archive._search_normalise('Dérivées') == 'derivees'
+          assert 'derivees' in exam_archive.SEARCH_SYNONYMS['derivatives']
           assert exam_archive._safe_url('https://www.crdp.org/sites/default/files/sample.pdf')
           assert exam_archive.list_archive(limit=5)['total'] == 0
           assert not exam_archive._safe_url('https://example.com/sample.pdf')
