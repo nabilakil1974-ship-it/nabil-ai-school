@@ -140,11 +140,14 @@ def sync_archive(max_pages: int = 300, mathematics_only: bool = True) -> dict:
                 pass
     discovered = {}
     pages_ok = 0
+    page_failures = 0
+    reached_end = False
     for page_no in range(max_pages):
         page_url = ARCHIVE_URL if page_no == 0 else f"{ARCHIVE_URL}?page={page_no}"
         try:
             response = session.get(page_url, timeout=REQUEST_TIMEOUT)
             if response.status_code == 404:
+                reached_end = True
                 break
             response.raise_for_status()
             soup = BeautifulSoup(response.text, "html.parser")
@@ -161,6 +164,7 @@ def sync_archive(max_pages: int = 300, mathematics_only: bool = True) -> dict:
                 found_on_page += 1
             # Scan every requested page: older mathematics papers may be separated by long runs of other subjects.
         except requests.RequestException:
+            page_failures += 1
             continue
 
     added, skipped, failed = 0, 0, 0
@@ -209,6 +213,8 @@ def sync_archive(max_pages: int = 300, mathematics_only: bool = True) -> dict:
     result = {
         "finished_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "pages_checked": pages_ok,
+        "pages_failed": page_failures,
+        "archive_scan_complete": page_failures == 0 and (reached_end or pages_ok == max_pages),
         "pdfs_discovered": len(discovered),
         "added": added,
         "already_indexed": skipped,
@@ -265,7 +271,7 @@ def search_archive(query: str, grade: str | None = None, limit: int = 8) -> list
         if score:
             excerpt = ""
             for term in query_terms:
-                pos = haystack.find(term)
+                pos = text_content.lower().find(term)
                 if pos >= 0:
                     excerpt = text_content[max(0, pos - 350):pos + 1000].replace("\\n", " ")
                     break
