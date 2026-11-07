@@ -7,7 +7,7 @@
 :root{--navy:#102a43;--blue:#1769aa;--gold:#e6ad35;--ink:#183247;--muted:#64788a;--paper:#f4f7fa;--line:#dce5ed}
 *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:Tahoma,Arial,sans-serif}
 main{max-width:920px;margin:28px auto;padding:0 16px}.hero{background:linear-gradient(125deg,#102a43,#1c5278);color:white;border-radius:22px;padding:26px;display:flex;align-items:center;gap:20px;box-shadow:0 12px 32px #15354a22}
-.avatar{width:94px;height:94px;border:3px solid #e6ad35;border-radius:50%;display:grid;place-items:center;background:#f3f7fa;color:#102a43;font-weight:bold;font-size:22px;flex:none}
+.avatar{width:94px;height:94px;border:3px solid #e6ad35;border-radius:50%;overflow:hidden;background:#f3f7fa;flex:none}.avatar img{width:100%;height:100%;object-fit:cover;display:block}
 h1{font-size:27px;margin:0 0 9px}.lead{line-height:1.9;margin:0;color:#e6eff6;font-size:15px}
 .card{background:white;border:1px solid var(--line);border-radius:18px;padding:22px;margin-top:18px;box-shadow:0 5px 20px #17354a0b}
 h2{font-size:18px;margin:0 0 17px;color:var(--navy)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
@@ -19,11 +19,11 @@ select:focus,input:focus,textarea:focus{outline:2px solid #9bc8e8;border-color:v
 .primary{background:var(--gold);color:#182d3c}.secondary{background:#eaf1f6;color:var(--navy)}button:disabled{opacity:.5;cursor:not-allowed}
 .note{font-size:13px;color:var(--muted);line-height:1.8}.status{margin-top:14px;padding:12px;border-radius:10px;background:#f2f6fa;white-space:pre-wrap}
 .result{display:none}.result h3{margin:18px 0 8px}.q{border:1px solid var(--line);padding:13px;border-radius:12px;margin:10px 0}.q p{white-space:pre-wrap;line-height:1.8}.tag{font-size:12px;color:var(--blue);font-weight:bold}
-@media(max-width:640px){main{margin:12px auto}.hero{padding:18px;gap:12px}.avatar{width:65px;height:65px;font-size:17px}h1{font-size:21px}.grid,.lessons{grid-template-columns:1fr}.card{padding:16px}}
+@media(max-width:640px){main{margin:12px auto}.hero{padding:18px;gap:12px}.avatar{width:65px;height:65px}h1{font-size:21px}.grid,.lessons{grid-template-columns:1fr}.card{padding:16px}}
 </style></head>
 <body><main>
-<header class="hero"><div class="avatar" aria-label="صورة الأستاذ نبيل غير متوفرة في ملفات هذا الفرع">نبيل</div><div><h1>NABIL AI | منشئ المسابقات</h1><p class="lead">أنشئ مسابقتك مع نبيل بسهولة. ستحصل على ورقة أسئلة متكاملة، تتضمن الحلول النموذجية خطوة بخطوة وأسس التصحيح التفصيلية وتوزيع العلامات، لتكون جاهزة للمراجعة والطباعة.</p></div></header>
-<section class="card"><h2>إعداد المسابقة</h2><div class="grid">
+<header class="hero"><div class="avatar"><img src="https://raw.githubusercontent.com/nabilakil1974-ship-it/nabil-ai-school/main/app/static/nabil-lesson-avatar.png" alt="الأستاذ نبيل عقيل"></div><div><h1>NABIL AI | منشئ المسابقات</h1><p class="lead">أنشئ مسابقتك مع نبيل بسهولة. ستحصل على ورقة أسئلة متكاملة، تتضمن الحلول النموذجية خطوة بخطوة وأسس التصحيح التفصيلية وتوزيع العلامات، لتكون جاهزة للمراجعة والطباعة.</p></div></header>
+<section class="card" aria-label="إحصاءات استخدام منصة المسابقات"><h2>📊 إحصاءات استخدام نبيل</h2><div class="grid"><div class="q"><span>الزوار الفريدون</span><strong id="usageVisitors">—</strong></div><div class="q"><span>الزيارات</span><strong id="usageVisits">—</strong></div></div><p class="note" id="usageUpdated">جارٍ تحميل الإحصاءات...</p><p class="note">يُحتسب الزائر الفريد كمتصفح أو جهاز بمعرّف مجهول، وليس كشخص مؤكد. لا نجمع أسماء أو بيانات شخصية.</p></section>\n<section class="card"><h2>إعداد المسابقة</h2><div class="grid">
 <div><label for="grade">الصف / الفرع</label><select id="grade"><option value="">اختر الصف أو الفرع</option><option value="g7">Grade 7 — الصف السابع</option><option value="g8">Grade 8 — الصف الثامن</option><option value="g9">Grade 9 / EB9 — الصف التاسع</option><option value="g10">Grade 10 — الصف العاشر</option><option value="g11_lh">Grade 11 — Literary (LH)</option><option value="terminal_gs">Terminale — General Sciences (GS)</option><option value="terminal_ls">Terminale — Life Sciences (LS)</option><option value="terminal_se">Terminale — Economics & Sociology (SE)</option><option value="terminal_lh">Terminale — Literature & Humanities (LH)</option></select></div>
 <div><label for="language">لغة المسابقة</label><select id="language"><option value="en">English</option><option value="fr">Français</option></select></div>
 <div class="full"><label>الدروس (اختر درساً أو عدة دروس)</label><div class="actions" style="margin:0 0 9px"><button class="secondary" type="button" id="all">اختيار كل الدروس</button><button class="secondary" type="button" id="none">إلغاء الاختيار</button></div><div class="lessons" id="lessons"><span class="note">اختر الصف أولاً.</span></div></div>
@@ -49,5 +49,21 @@ try{const r=await fetch('/api/competitions/generate',{method:'POST',headers:{'Co
 function renderResult(){const d=current;$('resultTitle').textContent=d.title||'Competition Preview';$('curriculumNote').textContent=(d.curriculum_status==='verified_from_supplied_evidence'?'مرجع الأستاذ المرفق: ':'تنبيه المنهج: ')+(d.curriculum_note||'المراجعة التربوية مطلوبة قبل اعتماد المسابقة.');$('questions').innerHTML='<h3>Question Paper</h3>'+d.questions.map(q=>'<article class="q"><div class="tag">Question '+q.number+' · '+escapeHtml(q.lesson)+' · '+q.marks+' marks</div><h3>'+escapeHtml(q.title||'')+'</h3><p>'+escapeHtml(q.statement||'')+'</p>'+(q.parts||[]).map(p=>'<p>'+escapeHtml(p.label+') '+p.statement)+' ['+p.marks+' marks]</p>').join('')+'</article>').join('')+'<h3>Model Solutions</h3>'+d.solutions.map(s=>'<article class="q"><b>Question '+s.number+'</b><p>'+escapeHtml((s.steps||[]).join('\n'))+'\n'+escapeHtml(s.final_answer||'')+'</p></article>').join('')+'<h3>Detailed Marking Scheme</h3>'+d.rubric.map(x=>'<article class="q"><b>Question '+x.number+' · '+x.total+' marks</b><p>'+escapeHtml((x.criteria||[]).map(c=>c.criterion+' — '+c.marks).join('\n'))+'</p></article>').join('');$('result').style.display='block';}
 $('download').onclick=async()=>{if(!current)return;const payload={title:current.title||'Mathematics Competition',grade_label:current.grade_label||current.request.grade,language:current.request.language,duration_minutes:current.request.duration_minutes,total_marks:current.request.total_marks,questions:current.questions,solutions:current.solutions,rubric:current.rubric,curriculum_note:current.curriculum_note||''};$('download').disabled=true;try{const r=await fetch('/api/competitions/export/docx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});if(!r.ok)throw new Error('فشل إنشاء ملف Word');const blob=await r.blob();if(!blob.size)throw new Error('ملف Word فارغ');const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='NABIL-mathematics-competition.docx';a.click();URL.revokeObjectURL(url);}catch(e){$('status').textContent=e.message;}finally{$('download').disabled=false;}};
 $('new').onclick=()=>{$('result').style.display='none';$('status').textContent='يمكنك تعديل الاختيارات وإنشاء مسابقة جديدة.';window.scrollTo({top:0,behavior:'smooth'});};
-init();
+
+async function trackCompetitionVisit(){
+ try{
+  let visitorId=localStorage.getItem('nabil-competition-analytics-visitor');
+  if(!visitorId){visitorId=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():('nabil-comp-'+Date.now()+'-'+Math.random().toString(36).slice(2));localStorage.setItem('nabil-competition-analytics-visitor',visitorId);}
+  const r=await fetch('/api/competitions/analytics/visit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({visitor_id:visitorId}),keepalive:true});
+  if(!r.ok)throw new Error('visit count failed');
+ }catch(_){}
+}
+async function refreshCompetitionStats(){
+ try{
+  const r=await fetch('/api/competitions/analytics/summary',{cache:'no-store'});if(!r.ok)throw new Error('summary unavailable');
+  const s=await r.json();$('usageVisitors').textContent=Number(s.unique_visitors||0).toLocaleString('ar');$('usageVisits').textContent=Number(s.visits||0).toLocaleString('ar');
+  $('usageUpdated').textContent='آخر تحديث: '+(s.updated_at?new Date(s.updated_at).toLocaleString('ar'):'بانتظار أول زيارة')+' · '+s.storage_note;
+ }catch(_){$('usageUpdated').textContent='تعذّر تحميل الإحصاءات حالياً.'}
+}
+\ntrackCompetitionVisit().then(refreshCompetitionStats);
 </script></body></html>
