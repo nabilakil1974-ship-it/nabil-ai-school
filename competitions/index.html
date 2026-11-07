@@ -37,7 +37,7 @@ select:focus,input:focus,textarea:focus{outline:2px solid #9bc8e8;border-color:v
 </main>
 <script>
 const $=id=>document.getElementById(id);let catalogue={},current=null;
-async function init(){try{const r=await fetch('/api/competitions/catalogue');if(!r.ok)throw 0;catalogue=await r.json();}catch(e){$('status').textContent='تعذر تحميل قائمة الدروس من الخادم.';}}
+async function init(){try{const r=await fetch('/api/competitions/catalogue',{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);const data=await r.json();if(!data||!data.grades||typeof data.grades!=='object')throw new Error('Invalid catalogue');catalogue=data;$('grade').disabled=false;renderLessons();}catch(e){catalogue={};$('lessons').innerHTML='<span class="note">تعذر تحميل الدروس. أعد تحميل الصفحة، وإذا استمرت المشكلة أبلغ نبيل.</span>';$('status').textContent='تعذر تحميل قائمة الدروس من الخادم: '+e.message;}}
 function renderLessons(){const g=$('grade').value;const arr=catalogue.grades?.[g]||[];$('lessons').innerHTML=arr.length?arr.map((x,i)=>'<label class="lesson"><input type="checkbox" value="'+escapeHtml(x)+'"><span>'+escapeHtml(x)+'</span></label>').join(''):'<span class="note">اختر الصف أولاً.</span>';}
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 $('grade').addEventListener('change',renderLessons);
@@ -65,5 +65,6 @@ async function refreshCompetitionStats(){
   $('usageUpdated').textContent='آخر تحديث: '+(s.updated_at?new Date(s.updated_at).toLocaleString('ar'):'بانتظار أول زيارة')+' · '+s.storage_note;
  }catch(_){$('usageUpdated').textContent='تعذّر تحميل الإحصاءات حالياً.'}
 }
+init();
 trackCompetitionVisit().then(refreshCompetitionStats);
 </script></body></html>
