@@ -24,7 +24,8 @@ def terminal_gs_item(topic, lang):
         "criteria": (["Correct vector formula",0.75,"Correct substitution",0.5,"Correct vector coordinates",0.75,"Correct midpoint formula",0.5,"Correct midpoint",0.5,"Correct distance formula",0.75,"Correct distance calculation",1.25] if en else ["Formule correcte du vecteur",0.75,"Remplacement correct",0.5,"Coordonnées correctes du vecteur",0.75,"Formule correcte du milieu",0.5,"Milieu correct",0.5,"Formule correcte de la distance",0.75,"Calcul correct de la distance",1.25])
       },
       "Statistics": {
-        "statement": ("The table gives the number of books read by students.\nNumber x: 10 | 12 | 14 | 16\nFrequency n: 2 | 3 | 4 | 1" if en else "Le tableau donne le nombre de livres lus par les élèves.\nNombre x : 10 | 12 | 14 | 16\nEffectif n : 2 | 3 | 4 | 1"),
+        "statement": ("The table below gives the number of books read by students. Calculate the total number of students, the mean, the median and the mode." if en else "Le tableau ci-dessous donne le nombre de livres lus par les élèves. Calculer l’effectif total, la moyenne, la médiane et le mode."),
+        "table": {"headers": (["Number of books (x)", "Frequency (n)"] if en else ["Nombre de livres (x)", "Effectif (n)"]), "rows": [["10","2"],["12","3"],["14","4"],["16","1"]]},
         "parts": ([{"label":"a","statement":"Find the total number of students.","marks":1},{"label":"b","statement":"Calculate the mean.","marks":1.5},{"label":"c","statement":"Determine the median.","marks":1.5},{"label":"d","statement":"State the mode.","marks":1}] if en else [{"label":"a","statement":"Déterminer l'effectif total.","marks":1},{"label":"b","statement":"Calculer la moyenne.","marks":1.5},{"label":"c","statement":"Déterminer la médiane.","marks":1.5},{"label":"d","statement":"Donner le mode.","marks":1}]),
         "steps": (["N=2+3+4+1=10.","Weighted sum=10*2+12*3+14*4+16*1=128.","Mean=128/10=12.8.","The 5th and 6th ordered values are 12 and 14; median=(12+14)/2=13.","The greatest frequency is 4, corresponding to 14; mode=14."] if en else ["N=2+3+4+1=10.","Somme pondérée=10*2+12*3+14*4+16*1=128.","Moyenne=128/10=12,8.","Les 5e et 6e valeurs ordonnées sont 12 et 14 ; médiane=(12+14)/2=13.","L'effectif maximal est 4, associé à 14 ; mode=14."]),
         "answer": ("N=10; mean=12.8; median=13; mode=14." if en else "N=10 ; moyenne=12,8 ; médiane=13 ; mode=14."),
@@ -145,5 +146,5 @@ def terminal_gs_item(topic, lang):
     flat = item["criteria"]
     criteria = [(flat[i], flat[i+1]) for i in range(0,len(flat),2)]
     return {"statement":statement,"parts":item["parts"],"steps":item["steps"],
-            "answer":item["answer"],"criteria":criteria,
-            "diagram":({"type":"coordinate_plane","caption":"Coordinate plane; schematic"} if topic=="Vectors and Coordinate Systems" else None)}
+            "answer":item["answer"],"criteria":criteria,"table":item.get("table"),
+            "diagram":({"type":"coordinate_plane","caption":"Points A(-1,2) and B(3,5) joined by segment AB","points":[{"label":"A","x":-1,"y":2},{"label":"B","x":3,"y":5}],"x_min":-2,"x_max":4,"y_min":0,"y_max":6} if topic=="Vectors and Coordinate Systems" else None)}
