@@ -12,6 +12,7 @@ import re
 import shutil
 import threading
 import time
+import unicodedata
 from urllib.parse import urljoin, urlparse
 
 import requests
@@ -41,6 +42,39 @@ def _safe_url(url: str) -> bool:
 
 def _normalise(value: str) -> str:
     return re.sub(r"\s+", " ", value or "").strip()
+
+
+def _search_normalise(value: str) -> str:
+    value = unicodedata.normalize("NFKD", value or "")
+    value = "".join(ch for ch in value if not unicodedata.combining(ch))
+    return re.sub(r"\\s+", " ", value).casefold()
+
+
+SEARCH_SYNONYMS = {
+    "derivative": ["derivatives", "derivee", "derivees", "مشتقات"],
+    "derivatives": ["derivative", "derivee", "derivees", "مشتقات"],
+    "function": ["functions", "fonction", "fonctions", "دوال"],
+    "functions": ["function", "fonction", "fonctions", "دوال"],
+    "probability": ["probabilite", "probabilites", "احتمال", "احتمالات"],
+    "probabilite": ["probability", "احتمال", "احتمالات"],
+    "sequence": ["sequences", "suite", "suites", "متتاليات"],
+    "sequences": ["sequence", "suite", "suites", "متتاليات"],
+    "limit": ["limits", "limite", "limites", "نهايات"],
+    "limits": ["limit", "limite", "limites", "نهايات"],
+    "integral": ["integrals", "integrale", "integrales", "تكامل"],
+    "integrals": ["integral", "integrale", "integrales", "تكامل"],
+    "statistics": ["statistique", "statistiques", "احصاء", "إحصاء"],
+    "statistique": ["statistics", "احصاء", "إحصاء"],
+    "vector": ["vectors", "vecteur", "vecteurs", "متجهات"],
+    "vectors": ["vector", "vecteur", "vecteurs", "متجهات"],
+    "trigonometry": ["trigonometrie", "trigonometric", "مثلثات"],
+    "trigonometrie": ["trigonometry", "مثلثات"],
+    "quadratic": ["second degree", "second degre", "دالة تربيعية"],
+    "equation": ["equations", "معادلات"],
+    "equations": ["equation", "معادلات"],
+    "complex": ["complexes", "complex numbers", "اعداد مركبة"],
+    "complexes": ["complex", "complex numbers", "اعداد مركبة"],
+}
 
 
 def _classify(title: str) -> dict:
@@ -286,7 +320,11 @@ def list_archive(grade: str | None = None, year: int | None = None,
 
 
 def search_archive(query: str, grade: str | None = None, limit: int = 8) -> list[dict]:
-    terms = [x.lower() for x in re.findall(r"[\w\u0600-\u06ff]+", query) if len(x) > 1]
+    raw_terms = [x for x in re.findall(r"[\\w\\u0600-\\u06ff]+", _search_normalise(query)) if len(x) > 1]
+    terms = set(raw_terms)
+    for term in raw_terms:
+        terms.update(SEARCH_SYNONYMS.get(term, []))
+    terms = {x for x in (_search_normalise(t) for t in terms) if len(x) > 1}
     if not terms:
         return []
     results = []
@@ -299,13 +337,15 @@ def search_archive(query: str, grade: str | None = None, limit: int = 8) -> list
         if grade and grade.lower() not in item.get("grade", "").lower():
             continue
         body = texts.get(item["id"], "")
-        haystack = (item.get("title", "") + " " + body).lower()
+        normal_body = _search_normalise(body)
+        haystack = _search_normalise(item.get("title", "") + " " + body)
         score = sum(haystack.count(term) for term in terms)
         if score:
             excerpt = ""
             for term in terms:
-                pos = body.lower().find(term)
+                pos = normal_body.find(term)
                 if pos >= 0:
+                    # The returned excerpt remains the original extracted text.
                     excerpt = body[max(0, pos - 350):pos + 1000]
                     break
             results.append({**item, "score": score, "excerpt": _normalise(excerpt)[:1400]})
