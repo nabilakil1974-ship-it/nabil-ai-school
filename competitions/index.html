@@ -65,5 +65,5 @@ async function refreshCompetitionStats(){
   $('usageUpdated').textContent='آخر تحديث: '+(s.updated_at?new Date(s.updated_at).toLocaleString('ar'):'بانتظار أول زيارة')+' · '+s.storage_note;
  }catch(_){$('usageUpdated').textContent='تعذّر تحميل الإحصاءات حالياً.'}
 }
-\ntrackCompetitionVisit().then(refreshCompetitionStats);
+trackCompetitionVisit().then(refreshCompetitionStats);
 </script></body></html>
