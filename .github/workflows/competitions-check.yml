@@ -24,6 +24,7 @@ jobs:
           python - <<'PY'
           from competitions.routes import GRADE_TOPICS, GenerateRequest, _validate_selection
           from competitions.offline_generator import build_offline_assessment, _family
+          from competitions.math_blueprints import get_blueprint
           from competitions.routes import router, _archive_context
           from competitions import exam_archive
           paths = {route.path for route in router.routes}
@@ -41,6 +42,8 @@ jobs:
           assert exam_archive._safe_url('https://www.crdp.org/sites/default/files/sample.pdf')
           assert not exam_archive._safe_url('https://example.com/sample.pdf')
           assert len(GRADE_TOPICS) == 9
+          missing_blueprints = [(grade, topic) for grade, topics in GRADE_TOPICS.items() for topic in topics if get_blueprint(topic) is None]
+          assert not missing_blueprints, f"Missing local math teaching blueprints: {missing_blueprints}"
           _validate_selection(GenerateRequest(grade='g7', lessons=['Powers'], language='en'))
           try:
               _validate_selection(GenerateRequest(grade='g7', lessons=['Complex Numbers'], language='en'))
@@ -81,6 +84,7 @@ jobs:
               assert len(result['questions']) == len(topics), (grade, len(result['questions']), len(topics))
               assert len(result['solutions']) == len(topics)
               assert len(result['rubric']) == len(topics)
+              assert all(q.get('pedagogical_blueprint', {}).get('observable_skills') for q in result['questions'])
               assert round(sum(float(q['marks']) for q in result['questions']), 2) == 20
               for topic in topics:
                   one = build_offline_assessment(GenerateRequest(grade=grade, lessons=[topic], language='fr'))
@@ -109,7 +113,7 @@ jobs:
           one = build_offline_assessment(GenerateRequest(grade='terminal_gs', lessons=['Derivatives'], language='en', total_marks=20))
           assert round(sum(float(p['marks']) for p in one['questions'][0]['parts']), 2) == 20
           assert round(sum(float(c['marks']) for c in one['rubric'][0]['criteria']), 2) == 20
-          print('offline generator covers all catalogue lessons; totals and answer keys validated')
+          print('offline generator covers all catalogue lessons; local pedagogy blueprints, totals and answer keys validated')
           # Exercise the real FastAPI generation route using the exact weak-paper lesson mix.
           import os
           for key in ('NABIL_LLM_API_KEY', 'GEMINI_API_KEY', 'OPENAI_API_KEY'):
@@ -128,6 +132,8 @@ jobs:
           assert 'antiderivative' in generated['questions'][3]['statement'].lower()
           assert 'f′(x)' not in generated['questions'][3]['statement']
           assert generated['quality_gate']['status'] == 'limited_offline_template'
+          assert generated['quality_gate']['local_blueprints_attached'] == len(payload['lessons'])
+          assert all(q.get('pedagogical_blueprint') for q in generated['questions'])
           assert round(sum(float(q['marks']) for q in generated['questions']), 2) == 20
           assert len(generated['solutions']) == len(generated['rubric']) == 5
           assert not any(step.lower().startswith(('we conclude:', 'on conclut :'))
