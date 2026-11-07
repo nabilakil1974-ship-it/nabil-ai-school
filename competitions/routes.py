@@ -106,7 +106,10 @@ def _archive_context(req: GenerateRequest):
     grade_alias = {"terminal_gs": "Terminale GS", "terminal_ls": "Terminale LS",
                    "terminal_se": "Terminale SE", "terminal_lh": "Terminale LH",
                    "g9": "Brevet"}
-    grade = grade_alias.get(req.grade)
+    # Never feed a certificate exam from another grade into a non-certificate assessment.
+    if req.grade not in grade_alias:
+        return []
+    grade = grade_alias[req.grade]
     hits = exam_archive.search_archive(query, grade=grade, limit=10)
     return hits
 
