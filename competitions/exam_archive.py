@@ -194,7 +194,7 @@ def sync_archive(max_pages: int = 300, mathematics_only: bool = True) -> dict:
                 if extracted:
                     compact_text = extracted[:MAX_TEXT_PER_DOCUMENT]
                     if digest in _texts:
-                        _text_bytes -= len(_texts[digest].encode("utf-8"))
+                        _text_bytes -= len(_texts.pop(digest).encode("utf-8"))
                     compact_size = len(compact_text.encode("utf-8"))
                     if _text_bytes + compact_size <= MAX_TEXT_CACHE_BYTES:
                         _texts[digest] = compact_text
