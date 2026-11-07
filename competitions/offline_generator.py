@@ -247,12 +247,18 @@ def build_offline_assessment(req):
             if criteria:
                 criteria[-1]["marks"] = round(mark - sum(float(x["marks"]) for x in criteria[:-1]), 2)
             questions.append({"number":i,"lesson":topic,"title":(f"Question {i}: {topic}" if en else f"Question {i} : {topic}"),"statement":specialized["statement"],"marks":mark,"parts":parts,"diagram":specialized["diagram"]})
-            solutions.append({"number":i,"steps":specialized["steps"],"final_answer":specialized["answer"]})
+            solution_steps=list(specialized["steps"])
+            if solution_steps and solution_steps[-1].lower().startswith(("we conclude:", "on conclut :")):
+                solution_steps.pop()
+            solutions.append({"number":i,"steps":solution_steps,"final_answer":specialized["answer"]})
             rubric.append({"number":i,"total":mark,"criteria":criteria})
             continue
         statement,steps,answer=_make(topic,req.language,i)
         questions.append({"number":i,"lesson":topic,"title":(f"Question {i}: {topic}" if en else f"Question {i} : {topic}"),"statement":statement,"marks":mark,"parts":[],"diagram":_diagram_for(topic)})
-        solutions.append({"number":i,"steps":steps,"final_answer":answer})
+        solution_steps=list(steps)
+        if solution_steps and solution_steps[-1].lower().startswith(("we conclude:", "on conclut :")):
+            solution_steps.pop()
+        solutions.append({"number":i,"steps":solution_steps,"final_answer":answer})
         criteria=[]
         allocated=0.0
         for j,step in enumerate(steps):
