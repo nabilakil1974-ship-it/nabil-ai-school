@@ -243,7 +243,7 @@ def start_sync(max_pages: int = 300) -> dict:
 
 def search_archive(query: str, grade: str | None = None, limit: int = 8) -> list[dict]:
     """Simple transparent local full-text retrieval over indexed official PDFs."""
-    query_terms = [x.lower() for x in re.findall(r"[\\w\u0600-\u06ff]+", query) if len(x) > 1]
+    query_terms = [x.lower() for x in re.findall(r"[\w\u0600-\u06ff]+", query) if len(x) > 1]
     if not query_terms or not INDEX_FILE.exists():
         return []
     results = []
