@@ -29,7 +29,7 @@ def terminal_gs_item(topic, lang):
         "steps": (["N=2+3+4+1=10.","Weighted sum=10*2+12*3+14*4+16*1=128.","Mean=128/10=12.8.","The 5th and 6th ordered values are 12 and 14; median=(12+14)/2=13.","The greatest frequency is 4, corresponding to 14; mode=14."] if en else ["N=2+3+4+1=10.","Somme pondérée=10*2+12*3+14*4+16*1=128.","Moyenne=128/10=12,8.","Les 5e et 6e valeurs ordonnées sont 12 et 14 ; médiane=(12+14)/2=13.","L'effectif maximal est 4, associé à 14 ; mode=14."]),
         "answer": ("N=10; mean=12.8; median=13; mode=14." if en else "N=10 ; moyenne=12,8 ; médiane=13 ; mode=14."),
         "criteria": (["Correct total frequency",1,"Correct weighted sum",0.75,"Correct mean",0.75,"Correct central values",0.75,"Correct median",0.75,"Correct mode",1] if en else ["Effectif total correct",1,"Somme pondérée correcte",0.75,"Moyenne correcte",0.75,"Valeurs centrales correctes",0.75,"Médiane correcte",0.75,"Mode correct",1])
-      }
+      },
       "Quadratic Equations": {
         "statement": ("Consider the equation x^2 - 5x + 6 = 0." if en else "On considère l'équation x^2 - 5x + 6 = 0."),
         "parts": ([{"label":"a","statement":"Calculate the discriminant.","marks":1.5},{"label":"b","statement":"Solve the equation in R.","marks":2},{"label":"c","statement":"Verify both solutions by substitution.","marks":1.5}] if en else [{"label":"a","statement":"Calculer le discriminant.","marks":1.5},{"label":"b","statement":"Résoudre l'équation dans R.","marks":2},{"label":"c","statement":"Vérifier les deux solutions par substitution.","marks":1.5}]),
