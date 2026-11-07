@@ -17,7 +17,7 @@ The scanner checks archive pagination (default 300 pages), discovers direct PDF 
 
 ## Render environment
 Set:
-- `NABIL_ARCHIVE_ADMIN_TOKEN`: a long random secret used by the archive-sync API/UI.
+- `NABIL_ARCHIVE_ADMIN_TOKEN`: optional. If configured, the archive sync endpoint requires this secret; if omitted, the public UI can start a scan subject to a six-hour in-memory cooldown and one active scan at a time.
 - `GEMINI_API_KEY` (or `NABIL_LLM_API_KEY`): enables retrieval-augmented AI question generation.
 - `NABIL_LLM_MODEL`: optional model override.
 - `NABIL_LLM_BASE_URL`: optional OpenAI-compatible API base URL.
@@ -26,10 +26,11 @@ Never commit the archive admin token or provider API key to Git. No storage buck
 
 ## How to run
 1. Open the competitions site.
-2. In “Official Lebanese exam archive”, enter the archive admin token.
-3. Start the CRDP mathematics archive sync.
+2. Open “Official Lebanese exam archive”.
+3. Start the CRDP mathematics archive sync; no token is required in the default configuration.
 4. Wait for the scan to finish, then refresh status.
-5. Review counts by branch, searchable text, and records needing OCR.
+5. Browse by branch/year, search the extracted text, and download original PDFs.
+6. The public scan endpoint enforces one active scan and a six-hour cooldown to reduce abuse.
 
 API:
 - `GET /api/competitions/archive/status`
@@ -37,7 +38,7 @@ API:
 - `GET /api/competitions/archive/search?q=derivatives&grade=Terminale%20GS` searches extracted text and returns matching excerpts.
 - `GET /api/competitions/archive/documents/{id}` fetches and downloads the matching original PDF from CRDP on demand.
 - The public page provides branch/year filters, text search, and direct PDF download links. The sync token is needed only to start a fresh scan, not to browse or download already-indexed records.
-- `POST /api/competitions/archive/sync` with `X-Archive-Admin-Token` header.
+- `POST /api/competitions/archive/sync` starts a background scan. If `NABIL_ARCHIVE_ADMIN_TOKEN` is configured, send it in `X-Archive-Admin-Token`; otherwise the endpoint applies a six-hour cooldown.
 
 ## Extraction and classification
 Embedded PDF text is extracted in memory. If a PDF is scanned and Tesseract with Arabic, English, and French language data is available on the host, OCR is attempted in memory; otherwise it is marked `needs_ocr`. OCR failure is visible and is never represented as successful learning. Branch, year, session, language, and correction indicators are inferred from document titles/content and must be treated as catalogue hints, not guaranteed official metadata.
