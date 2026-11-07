@@ -64,6 +64,7 @@ from app.api import (
     routes_parent,
     routes_live_avatar,
     routes_timetable,
+    routes_competitions,
 )
 
 
@@ -357,6 +358,7 @@ app.include_router(routes_lesson_export.router, prefix="/api")
 app.include_router(routes_smart_labs.router, prefix="/api")
 app.include_router(routes_live_avatar.router, prefix="/api", tags=["live-avatar"])
 app.include_router(routes_timetable.router, prefix="/api")
+app.include_router(routes_competitions.router, prefix="/api")
 
 # routes_admin already contains:
 # /admin
@@ -540,6 +542,16 @@ _CACHED_ROOT_HTML = _build_root_html()
 @app.get("/")
 def root():
     return HTMLResponse(_CACHED_ROOT_HTML, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/competitions")
+def nabil_competitions_page():
+    """Standalone NABIL mathematics competition generator."""
+    return FileResponse(
+        "competitions/index.html",
+        media_type="text/html",
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @app.get("/digital-teacher")
