@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://nabilakil1974-ship-it.github.io/nabil-ai-school/sitemap.xml
