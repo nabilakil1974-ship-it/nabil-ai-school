@@ -10,7 +10,7 @@
 @media print{header,.notice,.tabs,.panel:not(#results),.actions,.footer{display:none!important}body{background:white}main{margin:0;max-width:none}.panel#results{display:block;border:0;box-shadow:none}.timetable table{min-width:0}.timetable td{height:55px}}
  .voice-panel{margin-top:12px;padding:13px;border:1px solid #cbdde7;border-radius:12px;background:linear-gradient(135deg,#f4f9fc,#fff)}.voice-title{font-weight:700;color:#123b59}.voice-panel .actions{margin:9px 0}.voice-panel button{min-height:42px}.voice-panel button#voiceStart{background:#176b87}.voice-panel button#voiceStop{background:#fbe9e8;color:#982d29}.voice-panel button:disabled{opacity:.45}.voice-panel.listening{border-color:#1b9a69;box-shadow:0 0 0 2px #1b9a691c}.voice-panel.listening #voiceStart{background:#147d55}.usage-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}.usage-stat{background:#f2f7fa;border:1px solid #dce8ef;border-radius:10px;padding:11px;display:flex;flex-direction:column;gap:5px}.usage-stat span{font-size:12px;color:#627482}.usage-stat strong{font-size:25px;color:#123b59}@media(max-width:600px){.usage-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.usage-stat strong{font-size:22px}}</style></head>
 <body>
-<header><div class="header-inner"><img class="profile-photo" src="/static/nabil-profile.jpg" alt="الأستاذ نبيل عقيل" loading="eager"><div class="header-copy"><h1>نبيل | منظّم البرنامج المدرسي الذكي</h1><p>NABIL School Timetable AI · نسخة تجريبية قيد الاختبار · <span id="apiStatus" aria-live="polite">جارٍ فحص اتصال نبيل...</span></p></div></div><div id="buildTag" style="font-size:11px;opacity:.75;text-align:center;padding:2px 0;color:#fff;background:#102f49">نسخة الصفحة: 8-11-2026 / 22:35 — التراجع عن التعديلات</div></header>
+<header><div class="header-inner"><img class="profile-photo" src="/static/nabil-profile.jpg" alt="الأستاذ نبيل عقيل" loading="eager"><div class="header-copy"><h1>نبيل | منظّم البرنامج المدرسي الذكي</h1><p>NABIL School Timetable AI · نسخة تجريبية قيد الاختبار · <span id="apiStatus" aria-live="polite">جارٍ فحص اتصال نبيل...</span></p></div></div><div id="buildTag" style="font-size:11px;opacity:.75;text-align:center;padding:2px 0;color:#fff;background:#102f49">نسخة الصفحة: 8-11-2026 / 22:45 — موافق وبجانبه تراجع</div></header>
 <main>
 <div class="notice"><b>طريقة الاستخدام:</b> أدخل المعلومات خطوةً خطوة. يظهر هيكل الجدول فور تحديد أيام الدوام، ثم تتحدث المعاينة تلقائياً مع إضافة الحصص والصفوف والمعلمين والمواد. الخانات الناقصة تبقى فارغة حتى تكتمل بياناتها.</div>
 <section id="usageStatsPanel" aria-label="إحصاءات استخدام البرنامج" style="background:#fff;border:1px solid #dbe3e8;border-radius:14px;padding:15px;margin:0 0 16px;box-shadow:0 3px 12px #16344a0a">
@@ -596,7 +596,9 @@ function curriculumTable(){
 
 let _gf=null,_gfDone=false;
 function gfixOnce(){if(!_gfDone){_gfDone=true;const sp=solverPreview.sig===previewSig()?solverPreview:null;_gf=(data.schedule.length||(sp&&sp.status==='infeasible'))?findNabilFix():null}return _gf}
-function teacherBreakdown(teacherLoads,entries){_gfDone=false;_gf=null;
+function appliedPanel(){const h=FH();if(!h.length)return '';return '<div class="panel" style="display:block;margin-top:12px;border-color:#2e8b57"><h3>تعديلات طُبّقت بموافقتك</h3>'+h.map(f=>'<div style="padding:5px 0;border-top:1px solid #e3efe7">✓ '+esc(f.label)+' <button class="secondary" style="padding:3px 12px" onclick="undoFix('+f.id+')">تراجع</button></div>').join('')+'</div>'}
+function teacherBreakdown(teacherLoads,entries){const ap=appliedPanel();return ap+teacherBreakdown0(teacherLoads,entries)}
+function teacherBreakdown0(teacherLoads,entries){_gfDone=false;_gf=null;
  const reqs=data.requirements||[];let html='',n=0;
  const clsHave=(c,k,g)=>reqs.filter(r=>r.class===c&&curSubject(r.subject,g)===k).reduce((a,r)=>a+Math.max(0,+r.count||0),0);
  teacherLoads.filter(t=>t.hasAssignments).forEach(t=>{
@@ -605,7 +607,7 @@ function teacherBreakdown(teacherLoads,entries){_gfDone=false;_gf=null;
    const want=Math.max(0,+r.count||0);const got=entries.filter(x=>x.teacher===t.name&&x.subject===r.subject&&x.class===r.class).length;
    const g=curGrade(r.class),k=g?curSubject(r.subject,g):'',norm=k?(CURR_NORMS[k].g[g-1]||0):0,have=k&&norm?clsHave(r.class,k,g):null;
    const why=[];
-   if(got<want){const fx=[];for(let i=0;i<want-got;i++){const o=suggestFixObj(t.name,r.class,r.subject,entries);let btn='';if(o.alts&&o.alts.length){fx.push('\u0001<br>\u0002'+o.alts.map((a,k)=>(o.alts.length>1?'اقتراح '+(k+1)+': ':'')+a.text+'\u0001'+actionBtn(a.action)+'<br>\u0002').join(''));continue}else{const g=gfixOnce();if(g)btn=' — اقتراح: إضافة حصة في يوم '+g.days.map(d=>DAYS[d]).join(' و')+'\u0001 <button class="primary" style="padding:3px 12px" onclick="applyNabilFix(\''+encodeURIComponent(JSON.stringify(g))+'\')">موافق</button>\u0002'}fx.push(o.text+btn)}why.push('الموزّع '+got+' من '+want+': '+(data.schedule.length?'لم تُوزّع كل الحصص في الجدول المحفوظ. ':shortageReason(t.name)+' ')+[...new Set(fx)].join(' / '))}
+   if(got<want){const fx=[];for(let i=0;i<want-got;i++){const o=suggestFixObj(t.name,r.class,r.subject,entries);let btn='';if(o.alts&&o.alts.length){fx.push('\u0001<br>\u0002'+o.alts.map((a,k)=>(o.alts.length>1?'اقتراح '+(k+1)+': ':'')+a.text+'\u0001'+actionBtn(a.action)+'<br>\u0002').join(''));continue}else{const g=gfixOnce();if(g)btn=' — اقتراح: إضافة حصة في يوم '+g.days.map(d=>DAYS[d]).join(' و')+'\u0001 <button class="primary" style="padding:3px 12px" onclick="applyNabilFix(\''+encodeURIComponent(JSON.stringify(g))+'\')">موافق</button>'+undoPh()+'\u0002'}fx.push(o.text+btn)}why.push('الموزّع '+got+' من '+want+': '+(data.schedule.length?'لم تُوزّع كل الحصص في الجدول المحفوظ. ':shortageReason(t.name)+' ')+[...new Set(fx)].join(' / '))}
    if(got>want)why.push('الموزّع '+got+' أكثر من المطلوب '+want+': '+surplusReason('teacher',t.name,entries));
    if(why.length)rows.push('<tr style="background:#fdecea"><td>'+esc(r.subject)+'</td><td>'+esc(clName(r.class))+'</td><td>'+want+'</td><td>'+got+'</td><td>'+why.map(escMix).join('<br>')+'</td></tr>')});
   if(!rows.length&&t.delta===0)return;n++;
@@ -692,7 +694,8 @@ function undoFix(id){const tt=document.getElementById('fixToast');if(tt)tt.remov
 function escMix(str){return String(str).split(/(\u0001[^\u0002]*\u0002)/).map(p=>p.charAt(0)==='\u0001'?p.slice(1,-1):esc(p)).join('')}
 function totalMissing(entries){return (data.requirements||[]).reduce((n,r)=>n+Math.max(0,Math.max(0,+r.count||0)-entries.filter(x=>x.teacher===r.teacher&&x.subject===r.subject&&x.class===r.class).length),0)}
 function canApplyAction(entries){return true}
-function actionBtn(a){return ' <button class="primary" style="padding:3px 12px" onclick="applyAction(\''+encodeURIComponent(JSON.stringify(a))+'\')">موافق</button>'}
+function undoPh(){return ' <button class="secondary" disabled title="يُفعَّل بعد الضغط على موافق" style="padding:3px 12px;opacity:.5">تراجع</button>'}
+function actionBtn(a){return ' <button class="primary" style="padding:3px 12px" onclick="applyAction(\''+encodeURIComponent(JSON.stringify(a))+'\')">موافق</button>'+undoPh()}
 function applyAction(encoded){
  const a=JSON.parse(decodeURIComponent(encoded));
  const base=(data.schedule.length?data.schedule:buildPartialPreview()).map(x=>({teacher:x.teacher,subject:x.subject,class:x.class,day:x.day,period:x.period}));
@@ -713,7 +716,7 @@ function whyFreeSlots(t,entries){
  }});return out.slice(0,3)}
 function opts0(mv,entries){return mv&&mv.action&&canApplyAction(entries)}
 function nabilProposal(entries){
- let undo=FH().length?'<div class="panel" style="display:block;margin:0 0 12px;border-color:#2e8b57"><b>تعديلات طُبّقت بموافقتك:</b>'+FH().map(f=>'<div style="padding:4px 0">'+esc(f.label)+' <button class="secondary" style="padding:3px 12px" onclick="undoFix('+f.id+')">تراجع</button></div>').join('')+'</div>':'';
+ let undo='';
  if(data.schedule.length)return undo;
  if(!previewUnplaced.length)return undo;
  const sp=solverPreview.sig===previewSig()?solverPreview:null;
@@ -726,7 +729,7 @@ function nabilProposal(entries){
  if(mv&&mv.alts&&mv.alts.length)mv.alts.forEach(al=>opts.push({txt:esc(al.text),fix:null,act:al.action,btn:'موافق'}));
  if(ub)opts.push({txt:'فك حجب وقت فراغ المعلم <b>'+esc(ub.teacher)+'</b> يوم <b>'+DAYS[ub.day]+'</b> الحصة <b>'+ub.period+'</b>: هذا الوقت وحده هو الذي يمنع توزيع '+left+' حصة، وبفكّه تتوزع كل الحصص. (هذا الوقت أنت أدخلته، فلن يُفك إلا بموافقتك، ويمكنك التراجع).',fix:ub,btn:'موافق، فُكّ هذا الحجب'});
  if(fix)opts.push({txt:fix.days.map(d=>'إضافة حصة في يوم <b>'+DAYS[d]+'</b> (من '+cur[d]+' إلى '+fix.limits[d]+')').join(' و')+': فتتوزع كل الحصص بدون تعارض، دون المساس بأوقات فراغ أحد.',fix:fix,btn:'موافق، أضف الحصة'});
- return undo+'<div class="panel" style="display:block;margin:0 0 12px;border:2px solid #c0392b"><h3>اقتراح نبيل لضبط البرنامج</h3><p style="line-height:1.9">معلوماتك المدخلة صحيحة، لكن '+left+' حصة لم تجد مكاناً مناسباً. '+(why.length?'<br><span class="small">لماذا لا تكفي الخانات الفارغة؟ '+why.map(esc).join('؛ ')+'.</span>':'')+' اختر أحد الاقتراحات وسأطبّقه بموافقتك، ولن يُحذف شيء آخر:</p>'+opts.map((o,k)=>'<div style="padding:8px 0;border-top:1px solid #eee"><p style="line-height:1.9;margin:0 0 6px"><b>'+(opts.length>1?'الخيار '+(k+1)+': ':'')+'</b>'+o.txt+'</p><button class="primary" onclick="'+(o.act?'applyAction':'applyNabilFix')+'(\''+encodeURIComponent(JSON.stringify(o.act||o.fix))+'\')">'+o.btn+'</button></div>').join('')+'</div>'}
+ return undo+'<div class="panel" style="display:block;margin:0 0 12px;border:2px solid #c0392b"><h3>اقتراح نبيل لضبط البرنامج</h3><p style="line-height:1.9">معلوماتك المدخلة صحيحة، لكن '+left+' حصة لم تجد مكاناً مناسباً. '+(why.length?'<br><span class="small">لماذا لا تكفي الخانات الفارغة؟ '+why.map(esc).join('؛ ')+'.</span>':'')+' اختر أحد الاقتراحات وسأطبّقه بموافقتك، ولن يُحذف شيء آخر:</p>'+opts.map((o,k)=>'<div style="padding:8px 0;border-top:1px solid #eee"><p style="line-height:1.9;margin:0 0 6px"><b>'+(opts.length>1?'الخيار '+(k+1)+': ':'')+'</b>'+o.txt+'</p><button class="primary" onclick="'+(o.act?'applyAction':'applyNabilFix')+'(\''+encodeURIComponent(JSON.stringify(o.act||o.fix))+'\')">'+o.btn+'</button>'+undoPh()+'</div>').join('')+'</div>'}
 function drawStats(){
  const box=$('loadStats');if(!box)return;
  const entries=data.schedule.length?data.schedule:buildPartialPreview();
