@@ -792,6 +792,16 @@ function buildPartialPreview(){
  return placed;
 }
 let previewUnplaced=[];
+
+function missingFor(cls,d,p,entries){
+ // Lessons still owed to this class (entered count minus placed) whose teacher is free at this day/period.
+ const blocked=(data.blocked||[]);const out=[];
+ (data.requirements||[]).filter(r=>r.class===cls).forEach(r=>{
+  const got=entries.filter(x=>x.teacher===r.teacher&&x.subject===r.subject&&x.class===cls).length;
+  if(got>=Math.max(0,+r.count||0))return;
+  const busy=entries.some(x=>x.teacher===r.teacher&&x.day===d&&x.period===p)||blocked.some(b=>b.teacher===r.teacher&&+b.day===d&&+b.period===p);
+  if(!busy)out.push({subject:r.subject,teacher:r.teacher})});
+ return out}
 function drawSchedule(){
  const entries=data.schedule.length?data.schedule:buildPartialPreview();
  const isFinal=data.schedule.length>0;
@@ -812,7 +822,9 @@ function drawSchedule(){
     for(const clsName of classes){
      if(p>limit){html+='<td><span class="empty">خارج الدوام</span></td>';continue}
      const cell=entries.filter(x=>x.class===clsName&&x.day===d&&x.period===p);
-     if(!cell.length){html+='<td><span class="empty">شاغرة / لم تُحدد بعد</span></td>';continue}
+     if(!cell.length){
+      const sug=missingFor(clsName,d,p,entries);
+      html+='<td><span class="empty">شاغرة / لم تُحدد بعد</span>'+(sug.length?'<div class="small" style="margin-top:4px;color:#9a5b00">يمكن وضع: '+sug.slice(0,2).map(m=>'<b>'+esc(m.subject)+'</b> ('+esc(m.teacher)+')').join(' أو ')+'</div>':'')+'</td>';continue}
      html+='<td>'+cell.map(x=>{
       const teacherConflict=entries.some(y=>y!==x&&y.teacher===x.teacher&&y.day===x.day&&y.period===x.period&&y.class!==x.class);
       const unavailable=data.blocked.some(b=>b.teacher===x.teacher&&+b.day===x.day&&+b.period===x.period);
