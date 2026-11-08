@@ -633,9 +633,9 @@ function suggestFix(teacher,cls,subject,entries){
 
 let lastFix=null;
 function dayCaps(){const o={};(data.days||[]).forEach(d=>{o[d]=Math.max(0,Math.min(data.periods,+((data.dayPeriodLimits||{})[DAYS[d]]??data.periods)||data.periods))});return o}
-function greedyUnplaced(lim){
+function greedyUnplaced(lim,blk){
  const slots=data.days.flatMap(d=>Array.from({length:lim[d]},(_,i)=>({d,p:i+1})));
- const blocked=new Set((data.blocked||[]).map(b=>b.teacher+'|'+(+b.day)+'|'+(+b.period)));
+ const blocked=new Set((blk||data.blocked||[]).map(b=>b.teacher+'|'+(+b.day)+'|'+(+b.period)));
  let left=[];(data.requirements||[]).forEach(r=>{const n=Math.max(0,Math.min(60,+r.count||0));for(let i=0;i<n;i++)left.push(r)});
  const tl={},cl={};left.forEach(t=>{tl[t.teacher]=(tl[t.teacher]||0)+1;cl[t.class]=(cl[t.class]||0)+1});
  const tb=new Set(),cb=new Set();let miss=0;
@@ -653,20 +653,30 @@ function findNabilFix(){
  for(const d of days){if(base[d]>=14)continue;if(performance.now()-t0>2500)break;if(greedyUnplaced(mk([d]))===0)return {days:[d],limits:mk([d])}}
  for(let i=0;i<days.length;i++)for(let j=i+1;j<days.length;j++){if(performance.now()-t0>2500)return null;if(greedyUnplaced(mk([days[i],days[j]]))===0)return {days:[days[i],days[j]],limits:mk([days[i],days[j]])}}
  return null}
+function findUnblockFix(){
+ const base=dayCaps();const t0=performance.now();const bl=data.blocked||[];
+ const involved=new Set(previewUnplaced.flatMap(t=>[t.teacher]));
+ const cands=bl.filter(b=>involved.has(b.teacher)&&(+b.period)<=(base[+b.day]||0));
+ for(const b of cands){if(performance.now()-t0>2500)break;
+  const rest=bl.filter(x=>x!==b);if(greedyUnplaced(base,rest)===0)return {kind:'unblock',teacher:b.teacher,day:+b.day,period:+b.period}}
+ return null}
 function applyNabilFix(encoded){
- const fix=JSON.parse(decodeURIComponent(encoded));lastFix={periods:data.periods,limits:JSON.parse(JSON.stringify(data.dayPeriodLimits||{}))};
+ const fix=JSON.parse(decodeURIComponent(encoded));lastFix={periods:data.periods,limits:JSON.parse(JSON.stringify(data.dayPeriodLimits||{})),blocked:JSON.parse(JSON.stringify(data.blocked||[]))};
+ if(fix.kind==='unblock'){data.blocked=(data.blocked||[]).filter(b=>!(b.teacher===fix.teacher&&+b.day===fix.day&&+b.period===fix.period));data.schedule=[];solverPreview={sig:'',entries:null,status:'',message:'',pending:false};persist();render();drawSchedule();return}
  const lim=fix.limits;const mx=Math.max(...Object.values(lim));data.periods=Math.max(data.periods,mx);
  data.dayPeriodLimits=data.dayPeriodLimits||{};Object.keys(lim).forEach(d=>{data.dayPeriodLimits[DAYS[d]]=lim[d]});
  data.schedule=[];solverPreview={sig:'',entries:null,status:'',message:'',pending:false};persist();render();drawSchedule()}
-function undoNabilFix(){if(!lastFix)return;data.periods=lastFix.periods;data.dayPeriodLimits=lastFix.limits;lastFix=null;data.schedule=[];solverPreview={sig:'',entries:null,status:'',message:'',pending:false};persist();render();drawSchedule()}
+function undoNabilFix(){if(!lastFix)return;data.periods=lastFix.periods;data.dayPeriodLimits=lastFix.limits;if(lastFix.blocked)data.blocked=lastFix.blocked;lastFix=null;data.schedule=[];solverPreview={sig:'',entries:null,status:'',message:'',pending:false};persist();render();drawSchedule()}
 function nabilProposal(){
  if(data.schedule.length)return '';
  let undo=lastFix?'<div class="panel" style="display:block;margin:0 0 12px;border-color:#2e8b57"><b>طُبّق التعديل.</b> <button class="secondary" onclick="undoNabilFix()">تراجع عن التعديل</button></div>':'';
  if(!previewUnplaced.length)return undo;
- const fix=findNabilFix();const left=previewUnplaced.length;
- if(!fix)return undo+'<div class="panel" style="display:block;margin:0 0 12px;border:2px solid #c0392b"><h3>نبيل: بياناتك صحيحة لكن '+left+' حصة لم تجد مكاناً</h3><p>لم أجد تعديلاً بسيطاً يحلّها وحده. الأسباب والحلول المقترحة في لوحة «الخلل» أدناه (فك حجب وقت، تقليل نصاب، أو زيادة الحصص اليومية).</p></div>';
- const days=fix.days.map(d=>DAYS[d]);const cur=dayCaps();
- return undo+'<div class="panel" style="display:block;margin:0 0 12px;border:2px solid #c0392b"><h3>اقتراح نبيل لضبط البرنامج</h3><p style="line-height:1.9">معلوماتك المدخلة صحيحة، لكن الدوام الحالي لا يتسع لـ <b>'+left+'</b> حصة. اقترح <b>'+fix.days.map(d=>'إضافة حصة في يوم '+DAYS[d]+' (من '+cur[d]+' إلى '+fix.limits[d]+')').join(' و')+'</b>، فتتوزع كل الحصص بدون تعارض. لن يُحذف أو يتغير أي شيء أدخلته.</p><div class="actions"><button class="primary" onclick="applyNabilFix(\''+encodeURIComponent(JSON.stringify(fix))+'\')">موافق، طبّق الاقتراح</button><span class="small">يمكنك التراجع بعدها بزر واحد.</span></div></div>'}
+ const fix=findNabilFix(),ub=findUnblockFix();const left=previewUnplaced.length;
+ if(!fix&&!ub)return undo+'<div class="panel" style="display:block;margin:0 0 12px;border:2px solid #c0392b"><h3>نبيل: بياناتك صحيحة لكن '+left+' حصة لم تجد مكاناً</h3><p>لم أجد تعديلاً بسيطاً يحلّها وحده. الأسباب والحلول المقترحة في لوحة «الخلل» أدناه (تقليل نصاب أو زيادة الحصص اليومية أو إعادة النظر بأوقات الفراغ).</p></div>';
+ const cur=dayCaps();const opts=[];
+ if(ub)opts.push({txt:'فك حجب وقت فراغ المعلم <b>'+esc(ub.teacher)+'</b> يوم <b>'+DAYS[ub.day]+'</b> الحصة <b>'+ub.period+'</b>: هذا الوقت وحده هو الذي يمنع توزيع '+left+' حصة، وبفكّه تتوزع كل الحصص. (هذا الوقت أنت أدخلته، فلن يُفك إلا بموافقتك، ويمكنك التراجع).',fix:ub,btn:'موافق، فُكّ هذا الحجب'});
+ if(fix)opts.push({txt:fix.days.map(d=>'إضافة حصة في يوم <b>'+DAYS[d]+'</b> (من '+cur[d]+' إلى '+fix.limits[d]+')').join(' و')+': فتتوزع كل الحصص بدون تعارض، دون المساس بأوقات فراغ أحد.',fix:fix,btn:'موافق، أضف الحصة'});
+ return undo+'<div class="panel" style="display:block;margin:0 0 12px;border:2px solid #c0392b"><h3>اقتراح نبيل لضبط البرنامج</h3><p style="line-height:1.9">معلوماتك المدخلة صحيحة، لكن '+left+' حصة لم تجد مكاناً مناسباً. اختر أحد الاقتراحين وسأطبّقه بموافقتك، ولن يُحذف شيء آخر:</p>'+opts.map((o,k)=>'<div style="padding:8px 0;border-top:1px solid #eee"><p style="line-height:1.9;margin:0 0 6px"><b>'+(opts.length>1?'الخيار '+(k+1)+': ':'')+'</b>'+o.txt+'</p><button class="primary" onclick="applyNabilFix(\''+encodeURIComponent(JSON.stringify(o.fix))+'\')">'+o.btn+'</button></div>').join('')+'</div>'}
 function drawStats(){
  const box=$('loadStats');if(!box)return;
  const entries=data.schedule.length?data.schedule:buildPartialPreview();
