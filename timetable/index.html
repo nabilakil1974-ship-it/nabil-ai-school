@@ -495,7 +495,7 @@ function drawStats(){
  let report='<div class="panel" style="display:block;margin-top:12px"><h3>مقارنة النصاب الأسبوعي لكل أستاذ</h3><p class="small">لكل أستاذ لون ثابت يظهر في الجدول. «المطلوب» هو مجموع حصص مواده وشعبه المدخلة، و«الموزّع» هو ما ظهر في المعاينة أو الجدول.</p>';
  report+=table(teacherLoads.map(x=>{
   const c=teacherColor(x.name);
-  const status=!x.hasAssignments?'<span class="load-short">لم تُسند مواد أو شعب بعد</span>':!x.hasLoad?'<span class="load-short">عدد الحصص غير محدد</span>':x.delta>0?'<span class="load-short">ناقص '+x.delta+'</span>':x.delta<0?'<span class="load-over">زائد '+Math.abs(x.delta)+'</span>':'<span class="load-ok">مطابق</span>';
+  const status=!x.hasAssignments?'<span class="load-short">لم تُسند مواد أو شعب بعد</span>':!x.hasLoad?'<span class="load-short">عدد الحصص غير محدد</span>':x.delta>0?'<span class="load-short">ناقص '+x.delta+'</span>'+(data.schedule.length?'':'<br><span class="small">السبب: '+esc(shortageReason(x.name))+'</span>'):x.delta<0?'<span class="load-over">زائد '+Math.abs(x.delta)+'</span>':'<span class="load-ok">مطابق</span>';
   const requestedLabel=x.hasLoad?'<b>'+x.requested+'</b>':'<b>غير محدد</b>';
   return ['<span class="teacher-swatch" style="background:'+c.bg+';border-color:'+c.border+'"></span> <b>'+esc(x.name)+'</b>',requestedLabel,'<b>'+x.distributed+'</b>',status];
  }),['الأستاذ / اللون','النصاب المطلوب أسبوعياً','الحصص الموزّعة','الفرق']);
@@ -555,6 +555,22 @@ function shortageDetails(){
  for(const [t,k] of Object.entries(miss)){const b=new Set((data.blocked||[]).filter(x=>x.teacher===t&&days.includes(+x.day)&&+x.period<=cap(+x.day)).map(x=>x.day+'|'+x.period)).size;const free=total-b;out.push('الأستاذ '+t+': ناقص '+k+' — نصابه '+tl[t]+' وخاناته المتاحة '+free+(b?' (محجوب '+b+')':'')+' → الهامش '+(free-tl[t]))}
  for(const [c,k] of Object.entries(cmiss)){out.push('الشعبة '+c+': فيها '+k+' حصة غير موزعة — حصصها '+cl[c]+' من '+total+' خانة → الهامش '+(total-cl[c]))}
  return out}
+function shortageReason(teacher){
+ // A plain-language reason shown next to every "ناقص" row; uses only entered data and the engine verdict.
+ const days=data.days||[];const cap=d=>Math.max(0,Math.min(data.periods,+((data.dayPeriodLimits||{})[DAYS[d]]??data.periods)||data.periods));
+ const total=days.reduce((a,d)=>a+cap(d),0);
+ const mine=(data.requirements||[]).filter(r=>r.teacher===teacher);const load=mine.reduce((a,r)=>a+Math.max(0,+r.count||0),0);
+ const b=new Set((data.blocked||[]).filter(x=>x.teacher===teacher&&days.includes(+x.day)&&+x.period<=cap(+x.day)).map(x=>x.day+'|'+x.period)).size;const free=total-b;
+ if(load>free)return 'نصابه '+load+' أكبر من خاناته المتاحة '+free+(b?' بعد حجب '+b+' خانة':'')+'.';
+ const cl={};(data.requirements||[]).forEach(r=>{cl[r.class]=(cl[r.class]||0)+Math.max(0,+r.count||0)});
+ const full=[...new Set(mine.map(r=>r.class))].filter(c=>cl[c]>=total);
+ if(full.length)return 'الشعبة '+full.join('، ')+' ممتلئة بكل خانات الدوام ('+total+') فلا مجال للتبديل.';
+ const sp=solverPreview.sig===previewSig()?solverPreview:null;
+ if(!sp||sp.pending)return 'نبيل يفحص بالمحرك الكامل الآن...';
+ if(sp.status==='infeasible')return 'تعارض أوقات: خانات المعلم المتاحة تتقاطع مع خانات شعبه وزملائه بحيث لا يوجد توزيع كامل (هامشه '+(free-load)+' خانة).';
+ if(sp.status==='search_limit')return 'لم يكمل المحرك البحث ضمن المهلة؛ اضغط «إنشاء البرنامج».';
+ return 'تعذّر الفحص الكامل؛ اضغط «إنشاء البرنامج».';
+}
 async function requestSolverPreview(sig){
  if(solverPreview.pending||solverPreview.sig===sig)return;
  solverPreview={sig,entries:null,status:'',message:'',pending:true};
