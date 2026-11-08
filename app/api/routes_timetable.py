@@ -599,6 +599,107 @@ async def export_timetable_xlsx(payload: dict[str, Any] = Body(...)):
         sheet.print_title_rows = "1:3"
         sheet.print_area = f"A1:{get_column_letter(len(classes) + 1)}{sheet.max_row}"
 
+        # Individual timetables: one stacked, separately printable block per teacher and per class.
+        valid_days = []
+        for d in days:
+            try:
+                di = int(d)
+            except (TypeError, ValueError):
+                continue
+            if 0 <= di < len(day_names):
+                valid_days.append(di)
+        teacher_names = [str(x).strip() for x in (payload.get("teachers") or []) if str(x).strip()]
+        for x in schedule:
+            if isinstance(x, dict):
+                t = str(x.get("teacher") or "").strip()
+                if t and t not in teacher_names:
+                    teacher_names.append(t)
+
+        def day_cap(day_id: int) -> int:
+            try:
+                return max(1, min(periods, int(day_limits.get(str(day_id), day_limits.get(day_names[day_id], periods)))))
+            except (TypeError, ValueError, AttributeError):
+                return periods
+
+        def build_individual_sheet(title: str, owners: list[str], owner_key: str, other_key: str, owner_label: str) -> None:
+            ws = workbook.create_sheet(title)
+            ws.sheet_view.rightToLeft = True
+            ws.sheet_view.showGridLines = False
+            ws.sheet_properties.pageSetUpPr.fitToPage = True
+            ws.page_setup.orientation = "landscape"
+            ws.page_setup.paperSize = ws.PAPERSIZE_A4
+            ws.page_setup.fitToWidth = 1
+            ws.page_setup.fitToHeight = 0
+            ws.column_dimensions["A"].width = 12
+            for ci in range(2, len(valid_days) + 2):
+                ws.column_dimensions[get_column_letter(ci)].width = 24
+            row_no = 1
+            ncols = max(2, len(valid_days) + 1)
+            from openpyxl.worksheet.pagebreak import Break
+            for index, owner in enumerate(owners):
+                mine = [x for x in schedule if isinstance(x, dict) and str(x.get(owner_key) or "").strip() == owner]
+                total = len(mine)
+                ws.cell(row_no, 1, safe_text(f"{owner_label}: {owner}  —  {total} حصة أسبوعياً"))
+                ws.merge_cells(start_row=row_no, start_column=1, end_row=row_no, end_column=ncols)
+                c = ws.cell(row_no, 1)
+                c.font = Font(name="Arial", bold=True, size=13, color="FFFFFF")
+                c.fill = PatternFill("solid", fgColor="123B59")
+                c.alignment = Alignment(horizontal="center", vertical="center")
+                ws.row_dimensions[row_no].height = 22
+                row_no += 1
+                ws.cell(row_no, 1, safe_text(payload.get("school") or "البرنامج المدرسي"))
+                ws.merge_cells(start_row=row_no, start_column=1, end_row=row_no, end_column=ncols)
+                ws.cell(row_no, 1).font = Font(name="Arial", size=10, color="176B87", bold=True)
+                ws.cell(row_no, 1).alignment = Alignment(horizontal="center")
+                row_no += 1
+                ws.cell(row_no, 1, "الحصة / اليوم")
+                for ci, di in enumerate(valid_days, start=2):
+                    ws.cell(row_no, ci, day_names[di])
+                for ci in range(1, ncols + 1):
+                    hc = ws.cell(row_no, ci)
+                    hc.font = Font(name="Arial", size=11, bold=True, color="FFFFFF")
+                    hc.fill = PatternFill("solid", fgColor="176B87")
+                    hc.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                    hc.border = Border(left=thin, right=thin, top=thin, bottom=thin)
+                row_no += 1
+                for period in range(1, periods + 1):
+                    ws.cell(row_no, 1, f"الحصة {period}")
+                    ws.cell(row_no, 1).font = Font(name="Arial", size=11, bold=True, color="123B59")
+                    for ci, di in enumerate(valid_days, start=2):
+                        cell = ws.cell(row_no, ci)
+                        if period > day_cap(di):
+                            cell.fill = PatternFill("solid", fgColor="EEEEEE")
+                        else:
+                            hits = [x for x in mine if int(x.get("day", -1)) == di and int(x.get("period", -1)) == period]
+                            text = " / ".join(
+                                (safe_text(lesson_subject(x)) + (" — " if lesson_subject(x) and x.get(other_key) else "") + safe_text(x.get(other_key)))
+                                for x in hits)
+                            cell.value = text or None
+                            cell.fill = PatternFill("solid", fgColor="E8F3F8" if text else "FFFFFF")
+                        cell.font = Font(name="Arial", size=10, color="202830")
+                        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                        cell.border = Border(left=thin, right=thin, top=thin, bottom=thin)
+                    ws.cell(row_no, 1).alignment = Alignment(horizontal="center", vertical="center")
+                    ws.cell(row_no, 1).border = Border(left=thin, right=thin, top=thin, bottom=thin)
+                    ws.row_dimensions[row_no].height = 28
+                    row_no += 1
+                    if break_after == period and period < periods:
+                        ws.cell(row_no, 1, "الفرصة")
+                        ws.merge_cells(start_row=row_no, start_column=1, end_row=row_no, end_column=ncols)
+                        ws.cell(row_no, 1).fill = PatternFill("solid", fgColor="FFF2CC")
+                        ws.cell(row_no, 1).font = Font(name="Arial", size=10, bold=True, color="76520D")
+                        ws.cell(row_no, 1).alignment = Alignment(horizontal="center")
+                        row_no += 1
+                row_no += 1
+                if index < len(owners) - 1:
+                    ws.row_breaks.append(Break(id=row_no - 1))
+                    row_no += 1
+
+        if valid_days and teacher_names:
+            build_individual_sheet("جداول المعلمين", teacher_names, "teacher", "class", "الأستاذ/ة")
+        if valid_days and classes:
+            build_individual_sheet("جداول الصفوف", classes, "class", "teacher", "الشعبة")
+
         output = io.BytesIO()
         workbook.save(output)
         output.seek(0)
