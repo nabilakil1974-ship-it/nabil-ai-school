@@ -584,6 +584,24 @@ function curriculumTable(){
  if(!out.length)return '<p class="status ok">كل المواد والحصص مطابقة للمنهج.</p>';
  out.sort((a,b)=>a.good-b.good);
  return '<div class="panel" style="display:block;margin-top:12px"><h3>مواد وحصص لا تطابق المنهج</h3><p class="small">'+bad+' حالة تحتاج تعديلاً (المواد المطابقة، '+ok+'، غير معروضة).</p><div style="overflow-x:auto"><table><thead><tr><th>الصف</th><th>المادة</th><th>المنهج</th><th>المدخل</th><th>الحالة</th><th>المعلم</th><th>السبب والإجراء</th></tr></thead><tbody>'+out.map(o=>o.html).join('')+'</tbody></table></div></div>'}
+
+function teacherBreakdown(teacherLoads,entries){
+ const reqs=data.requirements||[];let html='',n=0;
+ const clsHave=(c,k,g)=>reqs.filter(r=>r.class===c&&curSubject(r.subject,g)===k).reduce((a,r)=>a+Math.max(0,+r.count||0),0);
+ teacherLoads.filter(t=>t.hasAssignments).forEach(t=>{
+  const rows=[];
+  reqs.filter(r=>r.teacher===t.name).forEach(r=>{
+   const want=Math.max(0,+r.count||0);const got=entries.filter(x=>x.teacher===t.name&&x.subject===r.subject&&x.class===r.class).length;
+   const g=curGrade(r.class),k=g?curSubject(r.subject,g):'',norm=k?(CURR_NORMS[k].g[g-1]||0):0,have=k&&norm?clsHave(r.class,k,g):null;
+   const why=[];
+   if(got<want)why.push('الموزّع '+got+' من '+want+(data.schedule.length?': لم تُوزّع كل الحصص في الجدول المحفوظ، أعد إنشاء البرنامج':': '+shortageReason(t.name)));
+   if(got>want)why.push('الموزّع '+got+' أكثر من المطلوب '+want+': '+surplusReason('teacher',t.name,entries));
+   if(have!==null&&Math.abs(have-norm)>1e-9)why.push('المنهج لهذه المادة في '+clName(r.class)+' '+fmtN(norm)+' والمدخل '+fmtN(have)+' ← '+(have<norm?'زِد '+fmtN(norm-have):'أنقص '+fmtN(have-norm))+' حصة');
+   if(why.length)rows.push('<tr style="background:#fdecea"><td>'+esc(r.subject)+'</td><td>'+esc(clName(r.class))+'</td><td>'+want+'</td><td>'+got+'</td><td>'+(have!==null?fmtN(norm):'—')+'</td><td>'+why.map(esc).join('<br>')+'</td></tr>')});
+  if(!rows.length&&t.delta===0)return;n++;
+  html+='<h4 style="margin:12px 0 4px">'+esc(t.name)+' — نصابه الأسبوعي '+t.requested+'، الموزّع '+t.distributed+(t.delta?' ('+(t.delta>0?'ناقص '+t.delta:'زائد '+(-t.delta))+')':' (مطابق)')+'</h4>'+
+   (rows.length?'<div style="overflow-x:auto"><table><thead><tr><th>المادة</th><th>الشعبة</th><th>المطلوب</th><th>الموزّع</th><th>المنهج</th><th>أين الخلل</th></tr></thead><tbody>'+rows.join('')+'</tbody></table></div>':'<p class="small">'+esc(t.delta>0?shortageReason(t.name):surplusReason('teacher',t.name,entries))+'</p>')});
+ return n?'<div class="panel" style="display:block;margin-top:12px;border-color:#c0392b"><h3>أين الخلل عند كل أستاذ ('+n+')</h3><p class="small">يعرض فقط الأساتذة الذين نصابهم لا يطابق الموزّع أو المنهج، وبجانب كل مادة وشعبة السبب.</p>'+html+'</div>':'<p class="status ok">لا أستاذ عنده خلل بين النصاب والموزّع والمنهج.</p>'}
 function drawStats(){
  const box=$('loadStats');if(!box)return;
  const entries=data.schedule.length?data.schedule:buildPartialPreview();
@@ -613,7 +631,7 @@ function drawStats(){
  {const lines=[];teacherLoads.filter(x=>x.hasLoad&&x.delta!==0).forEach(x=>lines.push('الأستاذ '+x.name+': '+(x.delta>0?'ناقص '+x.delta:'زائد '+Math.abs(x.delta))+' (المطلوب '+x.requested+'، الموزّع '+x.distributed+') — '+(x.delta>0?(data.schedule.length?'لم تُوزّع كل حصصه في الجدول المحفوظ؛ أعد إنشاء البرنامج.':shortageReason(x.name)):surplusReason('teacher',x.name,entries))));
   classLoads.filter(x=>x.delta!==0).forEach(x=>lines.push('الشعبة '+x.name+': '+(x.delta>0?'ناقص '+x.delta:'زائد '+Math.abs(x.delta))+' (المطلوب '+x.requested+'، الموزّع '+x.count+') — '+classReason(x.name,entries,x.delta)));
   report=(lines.length?'<div class="panel" style="display:block;margin-top:12px;border-color:#d99a2b"><h3>ملاحظة نبيل الكاملة: كل ما لا يطابق النصاب</h3><p class="small">'+lines.map(esc).join('<br>')+'</p></div>':'<p class="status ok">كل الأنصبة وحصص الشعب مطابقة للمطلوب.</p>')+report}
- {report=curriculumTable()+schoolSummary(entries)+report}
+ {report=teacherBreakdown(teacherLoads,entries)+curriculumTable()+schoolSummary(entries)+report}
  if(teachersWithoutLoad.length)report+='<p class="status warn"><b>تنبيه:</b> لا يمكن اعتبار مطابقة النصاب مكتملة؛ لم يُحدّد نصاب '+teachersWithoutLoad.length+' معلم/ين ('+teachersWithoutLoad.map(x=>esc(x.name)).join('، ')+'). أدخل موادهم وشعبهم وحصصهم أو اتركهم خارج قائمة المعلمين.</p>';
  if(!data.schedule.length&&previewUnplaced.length){const by={};previewUnplaced.forEach(t=>{by[t.teacher]=(by[t.teacher]||0)+1});const issues=feasibilityIssues();const sp=solverPreview.sig===previewSig()?solverPreview:null;const verdict=!sp||sp.pending?'نبيل يفحص الآن بالمحرك الكامل هل يوجد توزيع يحقق كل الأنصبة...':sp.status==='infeasible'?'فحص المحرك الكامل: لا يوجد توزيع يحقق جميع الأنصبة مع القيود الحالية.':sp.status==='search_limit'?'لم يثبت المحرك الكامل حلاً خلال المهلة؛ جرّب «إنشاء البرنامج» أو خفّف بعض القيود.':'تعذّر فحص المحرك الكامل الآن؛ جرّب «إنشاء البرنامج».';report='<p class="status warn">لم تتسع '+previewUnplaced.length+' حصة في المعاينة ('+Object.entries(by).map(([t,n])=>esc(t)+': '+n).join('، ')+'). '+verdict+(issues.length?'<br><b>أسباب مؤكدة:</b><br>'+issues.map(esc).join('<br>'):'')+'<br><b>أين الاختناق:</b> (الهامش صفر أو سالب يعني لا مجال للتبديل)<br>'+shortageDetails().map(esc).join('<br>')+(()=>{const n=suggestedPeriods();return n>data.periods&&n<=14?'<br><b>اقتراح ليتسع كل شيء:</b> رفع أقصى عدد حصص في اليوم من '+data.periods+' إلى '+n+' <button type="button" onclick="applyPeriodSuggestion('+n+')">طبّق الاقتراح</button> (يمكنك إعادته لاحقاً من إعداد الدوام)':''})()+'<br>بياناتك محفوظة كما أدخلتها ولم يُحذف منها شيء.</p>'+report}
  box.innerHTML=card('إجمالي النصاب المطلوب',requestedTotal,'حصة مسجلة أسبوعياً'+(teachersWithoutLoad.length?' — نصاب '+teachersWithoutLoad.length+' معلم/ين غير محدد':''))+card('إجمالي الحصص الموزعة',distributedTotal,'حصة في '+(data.schedule.length?'الجدول الحالي':'المعاينة الأولية'))+card('عدد المعلمين',data.teachers.length,teachersWithoutLoad.length+' بلا نصاب محدد')+'<div style="grid-column:1/-1;min-width:0;overflow-x:auto">'+report+'</div>';
