@@ -500,8 +500,11 @@ const CURR_NORMS={
  pe:{label:'التربية الرياضية',g:[2,2,2,2,2,2,2,2,2]}
 };
 function curNorm(t){return String(t||'').replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/[ًٌٍَُِّْـ]/g,'')}
-function curGrade(name){const t=curNorm(name);const m=t.match(/(?:^|\D)([1-9])(?!\d)/);if(m)return +m[1];
- const w=[['اول',1],['ثاني',2],['ثالث',3],['رابع',4],['خامس',5],['سادس',6],['سابع',7],['ثامن',8],['تاسع',9]];for(const [k,v] of w)if(t.includes(k))return v;return 0}
+function curGrade(name){const t=curNorm(name);
+ if(/روضه|تمهيد|حضانه|(^|[^a-z])kg|(^|\s)رو\s*\d/.test(t))return 0; // رياض الأطفال خارج جدول المنهج
+ const found=new Set();for(const m of t.matchAll(/(?:^|\D)([1-9])(?!\d)/g))found.add(+m[1]);
+ const w=[['اول',1],['ثاني',2],['ثالث',3],['رابع',4],['خامس',5],['سادس',6],['سابع',7],['ثامن',8],['تاسع',9]];w.forEach(([k,v])=>{if(t.includes(k))found.add(v)});
+ return found.size===1?[...found][0]:0} // صف مدمج أو غير واضح: لا مقارنة
 function curSubject(subj,grade){const t=curNorm(subj);
  if(/تربيه رياضي|رياضه|بدني/.test(t))return 'pe';
  if(/رياضيات/.test(t))return 'math';
@@ -530,12 +533,12 @@ function curriculumNotes(tmap){
    if(Math.abs(have-norm)<1e-9)return;
    const lab=CURR_NORMS[k].label;const teachers=[...new Set(rows.map(r=>r.teacher))];
    if(have<norm){const d=norm-have;
-    if(teachers.length)teachers.forEach(t=>{if(tmap)(tmap[t]=tmap[t]||[]).push('نقص '+fmtN(d)+' '+lab+' في '+CL)});
+    if(teachers.length)teachers.forEach(t=>{if(tmap)(tmap[t]=tmap[t]||[]).push('زِد '+fmtN(d)+' حصة '+lab+' في '+CL)});
     if(teachers.length)lines.push(CL+' — '+lab+': المنهج '+fmtN(norm)+' والمدخل '+fmtN(have)+' ← نقص '+fmtN(d)+' حصة: زِد '+fmtN(d)+' حصة للمعلم '+teachers.join(' أو ')+'.');
     else{const others=[...new Set(reqs.filter(r=>curSubject(r.subject,curGrade(r.class)||g)===k).map(r=>r.teacher))];
      {if(others.length)lines.push(CL+' — '+lab+': المنهج '+fmtN(norm)+' ولا حصص مدخلة ← نقص '+fmtN(d)+' حصة: أسندها لأحد معلمي المادة ('+others.join('، ')+').');else noTeacher.push(lab+' '+fmtN(norm))}}
    }else{const d=have-norm;
-    teachers.forEach(t=>{if(tmap)(tmap[t]=tmap[t]||[]).push('زيادة '+fmtN(d)+' '+lab+' في '+CL)});
+    teachers.forEach(t=>{if(tmap)(tmap[t]=tmap[t]||[]).push('أنقص '+fmtN(d)+' حصة '+lab+' في '+CL)});
     lines.push(CL+' — '+lab+': المنهج '+fmtN(norm)+' والمدخل '+fmtN(have)+' ← زيادة '+fmtN(d)+' حصة: أنقص '+fmtN(d)+' حصة من المعلم '+teachers.join(' أو ')+'.')}
   });if(noTeacher.length)lines.push(CL+' — مواد بلا معلم مسند (المنهج): '+noTeacher.join('، ')+'.')});
  return lines}
@@ -591,7 +594,7 @@ function drawStats(){
   const c=teacherColor(x.name);
   const status=!x.hasAssignments?'<span class="load-short">لم تُسند مواد أو شعب بعد</span>':!x.hasLoad?'<span class="load-short">عدد الحصص غير محدد</span>':x.delta>0?'<span class="load-short">ناقص '+x.delta+'</span>'+(data.schedule.length?'':'<br><span class="small">السبب: '+esc(shortageReason(x.name))+'</span>'):x.delta<0?'<span class="load-over">زائد '+Math.abs(x.delta)+'</span><br><span class="small">السبب: '+esc(surplusReason('teacher',x.name,entries))+'</span>':'<span class="load-ok">مطابق</span>';
   const requestedLabel=x.hasLoad?'<b>'+x.requested+'</b>':'<b>غير محدد</b>';
-  const cur=(tmap[x.name]||[]).length?'<br><span class="small" style="color:#9a5b00"><b>حسب المنهج:</b> '+tmap[x.name].map(esc).join('، ')+'</span>':'';
+  const cur=(tmap[x.name]||[]).length?'<br><span class="small" style="color:#9a5b00"><b>للمطابقة مع المنهج:</b> '+tmap[x.name].map(esc).join('، ')+'</span>':'';
   return ['<span class="teacher-swatch" style="background:'+c.bg+';border-color:'+c.border+'"></span> <b>'+esc(x.name)+'</b>'+cur,requestedLabel,'<b>'+x.distributed+'</b>',status];
  }),['الأستاذ / اللون','النصاب المطلوب أسبوعياً','الحصص الموزّعة','الفرق']);
  report+='<h3>عدد الحصص حسب الشعبة</h3>'+table(classLoads.map(x=>[esc(x.name),x.requested,x.count,x.delta===0?'<span class="load-ok">مطابق</span>':(x.delta>0?'<span class="load-short">ناقص '+x.delta+'</span>':'<span class="load-over">زائد '+Math.abs(x.delta)+'</span>')+'<br><span class="small">السبب: '+esc(classReason(x.name,entries,x.delta))+'</span>']),['الشعبة','المطلوب','الحصص الموزّعة','الفرق'])+'</div>';
