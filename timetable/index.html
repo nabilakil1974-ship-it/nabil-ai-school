@@ -630,6 +630,43 @@ function suggestFix(teacher,cls,subject,entries){
  const fullDays=days.filter(d=>slots.filter(s=>s.d===d).every(s=>tBusy(teacher,s))).map(d=>DAYS[d]);
  const freeT=tFree.map(nm).slice(0,4);
  return (freeT.length?'المعلم '+teacher+' فارغ في: '+freeT.join('، ')+' لكن الشعبة '+cls+' مشغولة فيها بحصص لا يمكن نقلها دون تعارض. ':'المعلم '+teacher+' ليس عنده أي وقت فارغ'+(fullDays.length?' (أيامه ممتلئة: '+fullDays.join('، ')+')':'')+'. ')+'الحل: زِد عدد الحصص اليومية أو فك حجب أوقاته أو أنقص من نصابه.'}
+
+let lastFix=null;
+function dayCaps(){const o={};(data.days||[]).forEach(d=>{o[d]=Math.max(0,Math.min(data.periods,+((data.dayPeriodLimits||{})[DAYS[d]]??data.periods)||data.periods))});return o}
+function greedyUnplaced(lim){
+ const slots=data.days.flatMap(d=>Array.from({length:lim[d]},(_,i)=>({d,p:i+1})));
+ const blocked=new Set((data.blocked||[]).map(b=>b.teacher+'|'+(+b.day)+'|'+(+b.period)));
+ let left=[];(data.requirements||[]).forEach(r=>{const n=Math.max(0,Math.min(60,+r.count||0));for(let i=0;i<n;i++)left.push(r)});
+ const tl={},cl={};left.forEach(t=>{tl[t.teacher]=(tl[t.teacher]||0)+1;cl[t.class]=(cl[t.class]||0)+1});
+ const tb=new Set(),cb=new Set();let miss=0;
+ const opts=t=>slots.filter(s=>!tb.has(t.teacher+'|'+s.d+'|'+s.p)&&!cb.has(t.class+'|'+s.d+'|'+s.p)&&!blocked.has(t.teacher+'|'+s.d+'|'+s.p));
+ while(left.length){let bi=-1,bo=null,bk=null;
+  for(let i=0;i<left.length;i++){const o=opts(left[i]);if(!o.length){bi=i;bo=o;break}
+   const k=[o.length,-(tl[left[i].teacher]+cl[left[i].class])];if(!bk||k[0]<bk[0]||(k[0]===bk[0]&&k[1]<bk[1])){bi=i;bo=o;bk=k}}
+  const t=left.splice(bi,1)[0];if(!bo.length){miss++;continue}
+  const s=bo[0];tb.add(t.teacher+'|'+s.d+'|'+s.p);cb.add(t.class+'|'+s.d+'|'+s.p)}
+ return miss}
+function findNabilFix(){
+ // Try the smallest approved-able change: add one (then two) periods on specific days; never touches entered data.
+ const base=dayCaps();const days=data.days||[];const t0=performance.now();
+ const mk=ds=>{const l={...base};ds.forEach(d=>l[d]=Math.min(14,l[d]+1));return l};
+ for(const d of days){if(base[d]>=14)continue;if(performance.now()-t0>2500)break;if(greedyUnplaced(mk([d]))===0)return {days:[d],limits:mk([d])}}
+ for(let i=0;i<days.length;i++)for(let j=i+1;j<days.length;j++){if(performance.now()-t0>2500)return null;if(greedyUnplaced(mk([days[i],days[j]]))===0)return {days:[days[i],days[j]],limits:mk([days[i],days[j]])}}
+ return null}
+function applyNabilFix(encoded){
+ const fix=JSON.parse(decodeURIComponent(encoded));lastFix={periods:data.periods,limits:JSON.parse(JSON.stringify(data.dayPeriodLimits||{}))};
+ const lim=fix.limits;const mx=Math.max(...Object.values(lim));data.periods=Math.max(data.periods,mx);
+ data.dayPeriodLimits=data.dayPeriodLimits||{};Object.keys(lim).forEach(d=>{data.dayPeriodLimits[DAYS[d]]=lim[d]});
+ data.schedule=[];solverPreview={sig:'',entries:null,status:'',message:'',pending:false};persist();render();drawSchedule()}
+function undoNabilFix(){if(!lastFix)return;data.periods=lastFix.periods;data.dayPeriodLimits=lastFix.limits;lastFix=null;data.schedule=[];solverPreview={sig:'',entries:null,status:'',message:'',pending:false};persist();render();drawSchedule()}
+function nabilProposal(){
+ if(data.schedule.length)return '';
+ let undo=lastFix?'<div class="panel" style="display:block;margin:0 0 12px;border-color:#2e8b57"><b>طُبّق التعديل.</b> <button class="secondary" onclick="undoNabilFix()">تراجع عن التعديل</button></div>':'';
+ if(!previewUnplaced.length)return undo;
+ const fix=findNabilFix();const left=previewUnplaced.length;
+ if(!fix)return undo+'<div class="panel" style="display:block;margin:0 0 12px;border:2px solid #c0392b"><h3>نبيل: بياناتك صحيحة لكن '+left+' حصة لم تجد مكاناً</h3><p>لم أجد تعديلاً بسيطاً يحلّها وحده. الأسباب والحلول المقترحة في لوحة «الخلل» أدناه (فك حجب وقت، تقليل نصاب، أو زيادة الحصص اليومية).</p></div>';
+ const days=fix.days.map(d=>DAYS[d]);const cur=dayCaps();
+ return undo+'<div class="panel" style="display:block;margin:0 0 12px;border:2px solid #c0392b"><h3>اقتراح نبيل لضبط البرنامج</h3><p style="line-height:1.9">معلوماتك المدخلة صحيحة، لكن الدوام الحالي لا يتسع لـ <b>'+left+'</b> حصة. اقترح <b>'+fix.days.map(d=>'إضافة حصة في يوم '+DAYS[d]+' (من '+cur[d]+' إلى '+fix.limits[d]+')').join(' و')+'</b>، فتتوزع كل الحصص بدون تعارض. لن يُحذف أو يتغير أي شيء أدخلته.</p><div class="actions"><button class="primary" onclick="applyNabilFix(\''+encodeURIComponent(JSON.stringify(fix))+'\')">موافق، طبّق الاقتراح</button><span class="small">يمكنك التراجع بعدها بزر واحد.</span></div></div>'}
 function drawStats(){
  const box=$('loadStats');if(!box)return;
  const entries=data.schedule.length?data.schedule:buildPartialPreview();
@@ -664,7 +701,7 @@ function drawStats(){
   report=teacherBreakdown(teacherLoads,entries)+cons+schoolSummary(entries)+report}
  if(teachersWithoutLoad.length)report+='<p class="status warn"><b>تنبيه:</b> لا يمكن اعتبار مطابقة النصاب مكتملة؛ لم يُحدّد نصاب '+teachersWithoutLoad.length+' معلم/ين ('+teachersWithoutLoad.map(x=>esc(x.name)).join('، ')+'). أدخل موادهم وشعبهم وحصصهم أو اتركهم خارج قائمة المعلمين.</p>';
  if(!data.schedule.length&&previewUnplaced.length){const by={};previewUnplaced.forEach(t=>{by[t.teacher]=(by[t.teacher]||0)+1});const issues=feasibilityIssues();const sp=solverPreview.sig===previewSig()?solverPreview:null;const verdict=!sp||sp.pending?'نبيل يفحص الآن بالمحرك الكامل هل يوجد توزيع يحقق كل الأنصبة...':sp.status==='infeasible'?'فحص المحرك الكامل: لا يوجد توزيع يحقق جميع الأنصبة مع القيود الحالية.':sp.status==='search_limit'?'لم يثبت المحرك الكامل حلاً خلال المهلة؛ جرّب «إنشاء البرنامج» أو خفّف بعض القيود.':'تعذّر فحص المحرك الكامل الآن؛ جرّب «إنشاء البرنامج».';report='<p class="status warn">لم تتسع '+previewUnplaced.length+' حصة في المعاينة ('+Object.entries(by).map(([t,n])=>esc(t)+': '+n).join('، ')+'). '+verdict+(issues.length?'<br><b>أسباب مؤكدة:</b><br>'+issues.map(esc).join('<br>'):'')+'<br><b>أين الاختناق:</b> (الهامش صفر أو سالب يعني لا مجال للتبديل)<br>'+shortageDetails().map(esc).join('<br>')+(()=>{const n=suggestedPeriods();return n>data.periods&&n<=14?'<br><b>اقتراح ليتسع كل شيء:</b> رفع أقصى عدد حصص في اليوم من '+data.periods+' إلى '+n+' <button type="button" onclick="applyPeriodSuggestion('+n+')">طبّق الاقتراح</button> (يمكنك إعادته لاحقاً من إعداد الدوام)':''})()+'<br>بياناتك محفوظة كما أدخلتها ولم يُحذف منها شيء.</p>'+report}
- box.innerHTML=card('إجمالي النصاب المطلوب',requestedTotal,'حصة مسجلة أسبوعياً'+(teachersWithoutLoad.length?' — نصاب '+teachersWithoutLoad.length+' معلم/ين غير محدد':''))+card('إجمالي الحصص الموزعة',distributedTotal,'حصة في '+(data.schedule.length?'الجدول الحالي':'المعاينة الأولية'))+card('عدد المعلمين',data.teachers.length,teachersWithoutLoad.length+' بلا نصاب محدد')+'<div style="grid-column:1/-1;min-width:0;overflow-x:auto">'+report+'</div>';
+ box.innerHTML='<div style="grid-column:1/-1;min-width:0">'+nabilProposal()+'</div>'+card('إجمالي النصاب المطلوب',requestedTotal,'حصة مسجلة أسبوعياً'+(teachersWithoutLoad.length?' — نصاب '+teachersWithoutLoad.length+' معلم/ين غير محدد':''))+card('إجمالي الحصص الموزعة',distributedTotal,'حصة في '+(data.schedule.length?'الجدول الحالي':'المعاينة الأولية'))+card('عدد المعلمين',data.teachers.length,teachersWithoutLoad.length+' بلا نصاب محدد')+'<div style="grid-column:1/-1;min-width:0;overflow-x:auto">'+report+'</div>';
 }
 function exportWord(){
  const isPartial=!data.schedule.length;if(isPartial&&!(data.requirements||[]).length)return alert('أدخل التعيينات أولاً أو أنشئ البرنامج');const entries=isPartial?buildPartialPreview():data.schedule;
