@@ -41,7 +41,7 @@ def _norm(value: str) -> str:
     value = str(value or "").strip()
     value = re.sub(r"[\u064b-\u065f\u0670]", "", value)
     value = value.replace("أ", "ا").replace("إ", "ا").replace("آ", "ا")
-    value = value.replace("ى", "ي")
+    value = value.replace("ى", "ي").replace("ـ", "")
     return re.sub(r"\s+", " ", value).lower()
 
 def _number(text: str, default: int | None = None) -> int | None:
@@ -112,7 +112,7 @@ def _extract_teacher_segments(text: str) -> list[tuple[str, str]]:
     explicit = re.compile(
         r"(?:عنا\s+(?:(?:الأستاذة?|الاستاذة?|استاذة?|استاذ|السيس|السيد|السيدة|المدام|المعلم)\s+)?|"
         r"(?:الأستاذة?|الاستاذة?|استاذة?|استاذ|السيس|السيد|السيدة|المدام|المعلم)\s+)"
-        r"([\u0621-\u064a]+(?:\s+(?!للصف\b|الصف\b|بدرس\b|بيدرس\b|يدرس\b|رياضيات\b|تربية\b|إلى\b|الى\b|لدى\b|عند\b)[\u0621-\u064a]+)?)"
+        r"([\u0621-\u064a]+(?:\s+(?!للصف\b|الصف\b|بدرس\b|بيدرس\b|يدرس\b|رياضيات\b|تربية\b|إلى\b|الى\b|ألى\b|إلي\b|الي\b|لدى\b|لدي\b|عند\b)[\u0621-\u064a]+)?)"
     )
     labeled = re.compile(
         r"(?:^|[\n؛;,]\s*)(?:المعلم\s+)?"
@@ -132,11 +132,11 @@ def _extract_teacher_segments(text: str) -> list[tuple[str, str]]:
             # A speech transcript may attach a trailing preposition to the
             # teacher name (e.g. "الأستاذ خالد إلى ..."). Keep the real name,
             # but never register "خالد إلى" as a separate teacher.
-            while len(words) > 1 and _norm(words[-1]) in {"الى", "لدي", "عند", "عنده", "عندها"}:
+            while len(words) > 1 and _norm(words[-1]) in {"الي", "الى", "لدي", "عند", "عنده", "عندها"}:
                 words.pop()
             name = " ".join(words)
             normalized_words = _norm(name).split()
-            if not normalized_words or any(w in stop for w in normalized_words):
+            if not normalized_words or any(w in stop or w in {'الي','لدي'} for w in normalized_words):
                 continue
             matches.append((m.start(), m.end(), name))
     matches.sort(key=lambda item: item[0])

@@ -501,6 +501,7 @@ function drawStats(){
  }),['الأستاذ / اللون','النصاب المطلوب أسبوعياً','الحصص الموزّعة','الفرق']);
  report+='<h3>عدد الحصص حسب الشعبة</h3>'+table(classLoads.map(x=>[esc(x.name),x.count]),['الشعبة','الحصص الموزّعة'])+'</div>';
  if(teachersWithoutLoad.length)report+='<p class="status warn"><b>تنبيه:</b> لا يمكن اعتبار مطابقة النصاب مكتملة؛ لم يُحدّد نصاب '+teachersWithoutLoad.length+' معلم/ين ('+teachersWithoutLoad.map(x=>esc(x.name)).join('، ')+'). أدخل موادهم وشعبهم وحصصهم أو اتركهم خارج قائمة المعلمين.</p>';
+ if(!data.schedule.length&&previewUnplaced.length){const by={};previewUnplaced.forEach(t=>{by[t.teacher]=(by[t.teacher]||0)+1});report='<p class="status warn">لم تتسع '+previewUnplaced.length+' حصة في المعاينة الأولية ('+Object.entries(by).map(([t,n])=>esc(t)+': '+n).join('، ')+'). بياناتك كما أدخلتها ولم يُحذف منها شيء؛ المعاينة تقريبية. اضغط «إنشاء البرنامج» ليبحث المحرك الكامل عن توزيع يحقق كل الأنصبة.</p>'+report}
  box.innerHTML=card('إجمالي النصاب المطلوب',requestedTotal,'حصة مسجلة أسبوعياً'+(teachersWithoutLoad.length?' — نصاب '+teachersWithoutLoad.length+' معلم/ين غير محدد':''))+card('إجمالي الحصص الموزعة',distributedTotal,'حصة في '+(data.schedule.length?'الجدول الحالي':'المعاينة الأولية'))+card('عدد المعلمين',data.teachers.length,teachersWithoutLoad.length+' بلا نصاب محدد')+report;
 }
 function exportWord(){
@@ -529,25 +530,32 @@ async function exportExcel(){
 $('exportExcel').onclick=exportExcel;
 
 function buildPartialPreview(){
- const placed=[],teacherBusy=new Set(),classBusy=new Set();
+ // Dynamic most-constrained-first placement (same idea as the server engine, without backtracking).
+ // Never edits or deletes entered data; lessons that really cannot fit are counted in previewUnplaced.
  const slots=data.days.flatMap(day=>Array.from({length:Math.max(0,Math.min(data.periods,+((data.dayPeriodLimits||{})[DAYS[day]]??data.periods)||data.periods))},(_,i)=>({day,period:i+1})));
- const reqs=[...(data.requirements||[])].sort((a,b)=>(+b.count||0)-(+a.count||0));
- for(const req of reqs){
-  const count=Math.max(0,Math.min(60,+req.count||0));
-  for(let n=0;n<count;n++){
-   const candidates=slots.filter(s=>!teacherBusy.has(req.teacher+'|'+s.day+'|'+s.period)&&!classBusy.has(req.class+'|'+s.day+'|'+s.period)&&!data.blocked.some(b=>b.teacher===req.teacher&&+b.day===s.day&&+b.period===s.period));
-   if(!candidates.length)break;
-   candidates.sort((a,b)=>{
-    const ad=placed.filter(x=>x.class===req.class&&x.subject===req.subject&&x.day===a.day).length;
-    const bd=placed.filter(x=>x.class===req.class&&x.subject===req.subject&&x.day===b.day).length;
-    return ad-bd||a.period-b.period||a.day-b.day;
-   });
-   const s=candidates[0];placed.push({...req,day:s.day,period:s.period,provisional:true});
-   teacherBusy.add(req.teacher+'|'+s.day+'|'+s.period);classBusy.add(req.class+'|'+s.day+'|'+s.period);
+ const blocked=new Set((data.blocked||[]).map(b=>b.teacher+'|'+(+b.day)+'|'+(+b.period)));
+ const tasks=[];(data.requirements||[]).forEach(r=>{const n=Math.max(0,Math.min(60,+r.count||0));for(let i=0;i<n;i++)tasks.push({...r})});
+ const tl={},cl={};tasks.forEach(t=>{tl[t.teacher]=(tl[t.teacher]||0)+1;cl[t.class]=(cl[t.class]||0)+1});
+ const placed=[],tb=new Set(),cb=new Set();let left=tasks.slice();previewUnplaced=[];
+ const options=t=>slots.filter(s=>!tb.has(t.teacher+'|'+s.day+'|'+s.period)&&!cb.has(t.class+'|'+s.day+'|'+s.period)&&!blocked.has(t.teacher+'|'+s.day+'|'+s.period));
+ while(left.length){
+  let bi=-1,bo=null,bk=null;
+  for(let i=0;i<left.length;i++){
+   const o=options(left[i]);
+   if(!o.length){bi=i;bo=o;break}
+   const k=[o.length,-(tl[left[i].teacher]+cl[left[i].class])];
+   if(!bk||k[0]<bk[0]||(k[0]===bk[0]&&k[1]<bk[1])){bi=i;bo=o;bk=k}
   }
+  const t=left.splice(bi,1)[0];
+  if(!bo.length){previewUnplaced.push(t);continue}
+  const spread=sl=>placed.filter(x=>x.class===t.class&&x.subject===t.subject&&x.day===sl.day).length;
+  bo.sort((a,b)=>spread(a)-spread(b)||a.period-b.period||a.day-b.day);
+  const s=bo[0];placed.push({...t,day:s.day,period:s.period,provisional:true});
+  tb.add(t.teacher+'|'+s.day+'|'+s.period);cb.add(t.class+'|'+s.day+'|'+s.period);
  }
  return placed;
 }
+let previewUnplaced=[];
 function drawSchedule(){
  const entries=data.schedule.length?data.schedule:buildPartialPreview();
  const isFinal=data.schedule.length>0;
