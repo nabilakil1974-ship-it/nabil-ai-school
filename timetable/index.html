@@ -663,13 +663,28 @@ function findUnblockFix(){
  for(const b of cands){if(performance.now()-t0>2500)break;
   const rest=bl.filter(x=>x!==b);if(greedyUnplaced(base,rest)===0)return {kind:'unblock',teacher:b.teacher,day:+b.day,period:+b.period}}
  return null}
+let fixHistory=[],fixSeq=0;
+function pushFix(label,inv){fixHistory.push({id:++fixSeq,label,inv})}
+function resetPreviewState(){solverPreview={sig:'',entries:null,status:'',message:'',pending:false}}
 function applyNabilFix(encoded){
- const fix=JSON.parse(decodeURIComponent(encoded));lastFix={periods:data.periods,limits:JSON.parse(JSON.stringify(data.dayPeriodLimits||{})),blocked:JSON.parse(JSON.stringify(data.blocked||[]))};
- if(fix.kind==='unblock'){data.blocked=(data.blocked||[]).filter(b=>!(b.teacher===fix.teacher&&+b.day===fix.day&&+b.period===fix.period));data.schedule=[];solverPreview={sig:'',entries:null,status:'',message:'',pending:false};persist();render();drawSchedule();return}
- const lim=fix.limits;const mx=Math.max(...Object.values(lim));data.periods=Math.max(data.periods,mx);
+ const fix=JSON.parse(decodeURIComponent(encoded));
+ if(fix.kind==='unblock'){const old=(data.blocked||[]).filter(b=>b.teacher===fix.teacher&&+b.day===fix.day&&+b.period===fix.period).map(b=>({...b}));
+  data.blocked=(data.blocked||[]).filter(b=>!(b.teacher===fix.teacher&&+b.day===fix.day&&+b.period===fix.period));
+  pushFix('فُكّ حجب '+fix.teacher+' يوم '+DAYS[fix.day]+' الحصة '+fix.period,{kind:'reblock',old});
+  data.schedule=[];resetPreviewState();persist();render();drawSchedule();return}
+ const caps=dayCaps();const prevPeriods=data.periods;const prev=fix.days.map(d=>({d,v:caps[d]}));const prevHad=JSON.parse(JSON.stringify(data.dayPeriodLimits||{}));
+ const lim=fix.limits;data.periods=Math.max(data.periods,Math.max(...Object.values(lim)));
  data.dayPeriodLimits=data.dayPeriodLimits||{};Object.keys(lim).forEach(d=>{data.dayPeriodLimits[DAYS[d]]=lim[d]});
- data.schedule=[];solverPreview={sig:'',entries:null,status:'',message:'',pending:false};persist();render();drawSchedule()}
-function undoNabilFix(){if(!lastFix)return;data.periods=lastFix.periods;data.dayPeriodLimits=lastFix.limits;if(lastFix.blocked)data.blocked=lastFix.blocked;const bs=lastFix.schedule;lastFix=null;data.schedule=bs||[];solverPreview={sig:'',entries:null,status:'',message:'',pending:false};persist();render();drawSchedule()}
+ pushFix('أُضيفت حصة في يوم '+fix.days.map(d=>DAYS[d]).join(' و'),{kind:'limits',prevPeriods,prevHad});
+ data.schedule=[];resetPreviewState();persist();render();drawSchedule()}
+function undoFix(id){
+ const i=fixHistory.findIndex(f=>f.id===id);if(i<0)return;const f=fixHistory[i];const v=f.inv;fixHistory.splice(i,1);
+ if(v.kind==='reblock'){data.blocked=(data.blocked||[]).concat(v.old);data.schedule=[]}
+ else if(v.kind==='limits'){data.periods=v.prevPeriods;data.dayPeriodLimits=v.prevHad;data.schedule=[]}
+ else if(v.kind==='unplace'){const j=data.schedule.findIndex(x=>x.teacher===v.e.teacher&&x.subject===v.e.subject&&x.class===v.e.class&&x.day===v.e.day&&x.period===v.e.period);if(j>=0)data.schedule.splice(j,1);
+  if(v.move){const m=data.schedule.find(x=>x.class===v.e.class&&x.teacher===v.move.teacher&&x.subject===v.move.subject&&x.day===v.move.toDay&&x.period===v.move.toPeriod);if(m){m.day=v.move.day;m.period=v.move.period}}
+  if(v.fromPreview&&!fixHistory.some(h=>h.inv.kind==='unplace'))data.schedule=[]}
+ resetPreviewState();persist();render();drawSchedule()}
 
 function escMix(str){return String(str).split(/(\u0001[^\u0002]*\u0002)/).map(p=>p.charAt(0)==='\u0001'?p.slice(1,-1):esc(p)).join('')}
 function totalMissing(entries){return (data.requirements||[]).reduce((n,r)=>n+Math.max(0,Math.max(0,+r.count||0)-entries.filter(x=>x.teacher===r.teacher&&x.subject===r.subject&&x.class===r.class).length),0)}
@@ -681,7 +696,7 @@ function applyAction(encoded){
  const prev=data.schedule.map(x=>({...x}));
  if(a.kind==='move'){const L=base.find(x=>x.class===a.class&&x.teacher===a.L.teacher&&x.subject===a.L.subject&&x.day===a.L.day&&x.period===a.L.period);if(!L)return alert('تغيّر الجدول؛ أعد المحاولة.');L.day=a.L.toDay;L.period=a.L.toPeriod}
  base.push({teacher:a.teacher,subject:a.subject,class:a.class,day:a.day,period:a.period});
- lastFix={periods:data.periods,limits:JSON.parse(JSON.stringify(data.dayPeriodLimits||{})),blocked:JSON.parse(JSON.stringify(data.blocked||[])),schedule:prev};
+ pushFix((a.kind==='move'?'نُقلت حصة '+a.L.subject+' ('+a.L.teacher+') ووُضعت حصة '+a.subject+' للمعلم '+a.teacher:'وُضعت حصة '+a.subject+' للمعلم '+a.teacher)+' في الصف '+a.class+' '+DAYS[a.day]+' الحصة '+a.period,{kind:'unplace',e:{teacher:a.teacher,subject:a.subject,class:a.class,day:a.day,period:a.period},move:a.kind==='move'?{teacher:a.L.teacher,subject:a.L.subject,day:a.L.day,period:a.L.period,toDay:a.L.toDay,toPeriod:a.L.toPeriod}:null,fromPreview:prev.length===0});
  data.schedule=base;persist();render();drawSchedule()}
 function whyFreeSlots(t,entries){
  // Explains why an apparently empty slot of the class cannot take this teacher's lesson.
@@ -695,7 +710,7 @@ function whyFreeSlots(t,entries){
  }});return out.slice(0,3)}
 function opts0(mv,entries){return mv&&mv.action&&canApplyAction(entries)}
 function nabilProposal(entries){
- let undo=lastFix?'<div class="panel" style="display:block;margin:0 0 12px;border-color:#2e8b57"><b>طُبّق التعديل.</b> <button class="secondary" onclick="undoNabilFix()">تراجع عن التعديل</button></div>':'';
+ let undo=fixHistory.length?'<div class="panel" style="display:block;margin:0 0 12px;border-color:#2e8b57"><b>تعديلات طُبّقت بموافقتك:</b>'+fixHistory.map(f=>'<div style="padding:4px 0">'+esc(f.label)+' <button class="secondary" style="padding:3px 12px" onclick="undoFix('+f.id+')">تراجع</button></div>').join('')+'</div>':'';
  if(data.schedule.length)return undo;
  if(!previewUnplaced.length)return undo;
  const sp=solverPreview.sig===previewSig()?solverPreview:null;
