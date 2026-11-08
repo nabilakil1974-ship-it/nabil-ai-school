@@ -458,7 +458,7 @@ async function generate(){
   const result=await response.json();
   if(!response.ok||!result.ok){const detail=result.detail||result;throw new Error(detail.message||'تعذر إيجاد جدول يحقق القيود.')}
   if(!result.audit?.passed||result.scheduled_lessons!==result.requested_lessons)throw new Error('لم يجتز الجدول التدقيق النهائي؛ لم يتم اعتماده.');
-  data.schedule=result.schedule;persist();drawSchedule();await trackNabilUsage('schedule_created',data.school);refreshNabilUsageStats();
+  data.schedule=result.schedule;data.fixHistory=[];persist();drawSchedule();await trackNabilUsage('schedule_created',data.school);refreshNabilUsageStats();
   show('نجح إنشاء الجدول: '+result.scheduled_lessons+' من '+result.requested_lessons+' حصة. اجتاز فحص تعارض المعلمين والشعب وأوقات عدم التوافر. عدد خطوات البحث: '+result.search_nodes+'.','ok');
   document.querySelector('[data-tab="results"]').click();
  }catch(e){show('لم يُعتمد أي جدول: '+e.message,'err')}
@@ -663,8 +663,9 @@ function findUnblockFix(){
  for(const b of cands){if(performance.now()-t0>2500)break;
   const rest=bl.filter(x=>x!==b);if(greedyUnplaced(base,rest)===0)return {kind:'unblock',teacher:b.teacher,day:+b.day,period:+b.period}}
  return null}
-let fixHistory=[],fixSeq=0;
-function pushFix(label,inv){const f={id:++fixSeq,label,inv};fixHistory.push(f);setTimeout(()=>showFixToast(f),50)}
+function FH(){return data.fixHistory||(data.fixHistory=[])}
+let fixSeq=0;
+function pushFix(label,inv){fixSeq=Math.max(fixSeq,...FH().map(h=>h.id),0);const f={id:++fixSeq,label,inv};FH().push(f);setTimeout(()=>showFixToast(f),50)}
 function showFixToast(f){let t=document.getElementById('fixToast');if(!t){t=document.createElement('div');t.id='fixToast';t.style.cssText='position:fixed;bottom:14px;right:14px;left:14px;z-index:9999;background:#103a2b;color:#fff;padding:12px 14px;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.3);display:flex;gap:10px;align-items:center;flex-wrap:wrap;direction:rtl';document.body.appendChild(t)}
  t.innerHTML='<span style="flex:1;min-width:200px">✓ طُبّق: '+esc(f.label)+'</span><button class="secondary" style="padding:6px 16px" onclick="undoFix('+f.id+');this.parentNode.remove()">تراجع</button><button class="secondary" style="padding:6px 12px" onclick="this.parentNode.remove()">إغلاق</button>'}
 function resetPreviewState(){solverPreview={sig:'',entries:null,status:'',message:'',pending:false}}
@@ -680,12 +681,12 @@ function applyNabilFix(encoded){
  pushFix('أُضيفت حصة في يوم '+fix.days.map(d=>DAYS[d]).join(' و'),{kind:'limits',prevPeriods,prevHad});
  data.schedule=[];resetPreviewState();persist();render();drawSchedule()}
 function undoFix(id){const tt=document.getElementById('fixToast');if(tt)tt.remove();
- const i=fixHistory.findIndex(f=>f.id===id);if(i<0)return;const f=fixHistory[i];const v=f.inv;fixHistory.splice(i,1);
+ const i=FH().findIndex(f=>f.id===id);if(i<0)return;const f=FH()[i];const v=f.inv;FH().splice(i,1);
  if(v.kind==='reblock'){data.blocked=(data.blocked||[]).concat(v.old);data.schedule=[]}
  else if(v.kind==='limits'){data.periods=v.prevPeriods;data.dayPeriodLimits=v.prevHad;data.schedule=[]}
  else if(v.kind==='unplace'){const j=data.schedule.findIndex(x=>x.teacher===v.e.teacher&&x.subject===v.e.subject&&x.class===v.e.class&&x.day===v.e.day&&x.period===v.e.period);if(j>=0)data.schedule.splice(j,1);
   if(v.move){const m=data.schedule.find(x=>x.class===v.e.class&&x.teacher===v.move.teacher&&x.subject===v.move.subject&&x.day===v.move.toDay&&x.period===v.move.toPeriod);if(m){m.day=v.move.day;m.period=v.move.period}}
-  if(v.fromPreview&&!fixHistory.some(h=>h.inv.kind==='unplace'))data.schedule=[]}
+  if(v.fromPreview&&!FH().some(h=>h.inv.kind==='unplace'))data.schedule=[]}
  resetPreviewState();persist();render();drawSchedule()}
 
 function escMix(str){return String(str).split(/(\u0001[^\u0002]*\u0002)/).map(p=>p.charAt(0)==='\u0001'?p.slice(1,-1):esc(p)).join('')}
@@ -712,7 +713,7 @@ function whyFreeSlots(t,entries){
  }});return out.slice(0,3)}
 function opts0(mv,entries){return mv&&mv.action&&canApplyAction(entries)}
 function nabilProposal(entries){
- let undo=fixHistory.length?'<div class="panel" style="display:block;margin:0 0 12px;border-color:#2e8b57"><b>تعديلات طُبّقت بموافقتك:</b>'+fixHistory.map(f=>'<div style="padding:4px 0">'+esc(f.label)+' <button class="secondary" style="padding:3px 12px" onclick="undoFix('+f.id+')">تراجع</button></div>').join('')+'</div>':'';
+ let undo=FH().length?'<div class="panel" style="display:block;margin:0 0 12px;border-color:#2e8b57"><b>تعديلات طُبّقت بموافقتك:</b>'+FH().map(f=>'<div style="padding:4px 0">'+esc(f.label)+' <button class="secondary" style="padding:3px 12px" onclick="undoFix('+f.id+')">تراجع</button></div>').join('')+'</div>':'';
  if(data.schedule.length)return undo;
  if(!previewUnplaced.length)return undo;
  const sp=solverPreview.sig===previewSig()?solverPreview:null;
@@ -926,7 +927,7 @@ function drawSchedule(){
       const unavailable=data.blocked.some(b=>b.teacher===x.teacher&&+b.day===x.day&&+b.period===x.period);
       const cls=(teacherConflict?' conflict':'')+(unavailable?' unavailable':'');
       const flags=(teacherConflict?'<strong>تعارض: الأستاذ في أكثر من شعبة</strong><br>':'')+(unavailable?'<strong>دوام ضمن وقت فراغ الأستاذ</strong><br>':'');
-      const fxh=fixHistory.find(h=>h.inv.kind==='unplace'&&((h.inv.e.teacher===x.teacher&&h.inv.e.subject===x.subject&&h.inv.e.class===x.class&&h.inv.e.day===x.day&&h.inv.e.period===x.period)||(h.inv.move&&h.inv.move.teacher===x.teacher&&h.inv.move.subject===x.subject&&h.inv.e.class===x.class&&h.inv.move.toDay===x.day&&h.inv.move.toPeriod===x.period)));
+      const fxh=FH().find(h=>h.inv.kind==='unplace'&&((h.inv.e.teacher===x.teacher&&h.inv.e.subject===x.subject&&h.inv.e.class===x.class&&h.inv.e.day===x.day&&h.inv.e.period===x.period)||(h.inv.move&&h.inv.move.teacher===x.teacher&&h.inv.move.subject===x.subject&&h.inv.e.class===x.class&&h.inv.move.toDay===x.day&&h.inv.move.toPeriod===x.period)));
       const fxb=fxh?'<br><span class="small" style="color:#0b6b3a">✓ تعديل بموافقتك</span> <button class="secondary" style="padding:1px 8px" onclick="undoFix('+fxh.id+')">تراجع</button>':'';
       return '<div class="lesson'+cls+'" '+(teacherConflict||unavailable?'':'style="'+teacherStyle(x.teacher)+'"')+'>'+flags+'<b>'+esc(x.subject)+'</b>'+esc(x.teacher)+fxb+'</div>';
      }).join('')+'</td>';
