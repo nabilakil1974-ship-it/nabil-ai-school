@@ -20,6 +20,7 @@ NABIL AI is an independent educational technology initiative. It is not an offic
 ## Project
 - Repository: https://github.com/nabilakil1974-ship-it/nabil-ai-school
 - Project website: https://nabilakil1974-ship-it.github.io/nabil-ai-school/
+- Project profile (Arabic/English): https://github.com/nabilakil1974-ship-it/nabil-ai-school/blob/main/about.html
 
 ## About NABIL AI (العربية)
 **منصة النبيل التعليمية الذكية — NABIL AI** مشروع في تكنولوجيا التعليم أسسه ويطوره الأستاذ نبيل عقيل في لبنان، ويهدف إلى توظيف الذكاء الاصطناعي لدعم المعلّمين والمتعلّمين من مرحلة الروضة حتى المرحلة الثانوية، مع الاهتمام بالمناهج اللبنانية والسياق التعليمي العربي.
