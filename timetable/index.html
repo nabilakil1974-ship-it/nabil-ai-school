@@ -664,7 +664,9 @@ function findUnblockFix(){
   const rest=bl.filter(x=>x!==b);if(greedyUnplaced(base,rest)===0)return {kind:'unblock',teacher:b.teacher,day:+b.day,period:+b.period}}
  return null}
 let fixHistory=[],fixSeq=0;
-function pushFix(label,inv){fixHistory.push({id:++fixSeq,label,inv})}
+function pushFix(label,inv){const f={id:++fixSeq,label,inv};fixHistory.push(f);setTimeout(()=>showFixToast(f),50)}
+function showFixToast(f){let t=document.getElementById('fixToast');if(!t){t=document.createElement('div');t.id='fixToast';t.style.cssText='position:fixed;bottom:14px;right:14px;left:14px;z-index:9999;background:#103a2b;color:#fff;padding:12px 14px;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.3);display:flex;gap:10px;align-items:center;flex-wrap:wrap;direction:rtl';document.body.appendChild(t)}
+ t.innerHTML='<span style="flex:1;min-width:200px">✓ طُبّق: '+esc(f.label)+'</span><button class="secondary" style="padding:6px 16px" onclick="undoFix('+f.id+');this.parentNode.remove()">تراجع</button><button class="secondary" style="padding:6px 12px" onclick="this.parentNode.remove()">إغلاق</button>'}
 function resetPreviewState(){solverPreview={sig:'',entries:null,status:'',message:'',pending:false}}
 function applyNabilFix(encoded){
  const fix=JSON.parse(decodeURIComponent(encoded));
@@ -677,7 +679,7 @@ function applyNabilFix(encoded){
  data.dayPeriodLimits=data.dayPeriodLimits||{};Object.keys(lim).forEach(d=>{data.dayPeriodLimits[DAYS[d]]=lim[d]});
  pushFix('أُضيفت حصة في يوم '+fix.days.map(d=>DAYS[d]).join(' و'),{kind:'limits',prevPeriods,prevHad});
  data.schedule=[];resetPreviewState();persist();render();drawSchedule()}
-function undoFix(id){
+function undoFix(id){const tt=document.getElementById('fixToast');if(tt)tt.remove();
  const i=fixHistory.findIndex(f=>f.id===id);if(i<0)return;const f=fixHistory[i];const v=f.inv;fixHistory.splice(i,1);
  if(v.kind==='reblock'){data.blocked=(data.blocked||[]).concat(v.old);data.schedule=[]}
  else if(v.kind==='limits'){data.periods=v.prevPeriods;data.dayPeriodLimits=v.prevHad;data.schedule=[]}
@@ -924,7 +926,9 @@ function drawSchedule(){
       const unavailable=data.blocked.some(b=>b.teacher===x.teacher&&+b.day===x.day&&+b.period===x.period);
       const cls=(teacherConflict?' conflict':'')+(unavailable?' unavailable':'');
       const flags=(teacherConflict?'<strong>تعارض: الأستاذ في أكثر من شعبة</strong><br>':'')+(unavailable?'<strong>دوام ضمن وقت فراغ الأستاذ</strong><br>':'');
-      return '<div class="lesson'+cls+'" '+(teacherConflict||unavailable?'':'style="'+teacherStyle(x.teacher)+'"')+'>'+flags+'<b>'+esc(x.subject)+'</b>'+esc(x.teacher)+'</div>';
+      const fxh=fixHistory.find(h=>h.inv.kind==='unplace'&&((h.inv.e.teacher===x.teacher&&h.inv.e.subject===x.subject&&h.inv.e.class===x.class&&h.inv.e.day===x.day&&h.inv.e.period===x.period)||(h.inv.move&&h.inv.move.teacher===x.teacher&&h.inv.move.subject===x.subject&&h.inv.e.class===x.class&&h.inv.move.toDay===x.day&&h.inv.move.toPeriod===x.period)));
+      const fxb=fxh?'<br><span class="small" style="color:#0b6b3a">✓ تعديل بموافقتك</span> <button class="secondary" style="padding:1px 8px" onclick="undoFix('+fxh.id+')">تراجع</button>':'';
+      return '<div class="lesson'+cls+'" '+(teacherConflict||unavailable?'':'style="'+teacherStyle(x.teacher)+'"')+'>'+flags+'<b>'+esc(x.subject)+'</b>'+esc(x.teacher)+fxb+'</div>';
      }).join('')+'</td>';
     }
     html+='</tr>';
