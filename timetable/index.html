@@ -479,6 +479,64 @@ function teacherStyle(name){
  const c=teacherColor(name);
  return 'background:'+c.bg+';border-right-color:'+c.border+';color:'+c.text+';';
 }
+
+const CURR_NORMS={
+ // نصاب المنهج الرسمي (حصص أسبوعياً) لكل صف 1..9 — للتنبيه فقط ولا يغيّر أي بيانات
+ arabic:{label:'اللغة العربية',g:[7,7,7,6,6,6,6,6,6]},
+ foreign:{label:'اللغات الأجنبية',g:[7,7,7,6,6,6,8,8,8]},
+ civics:{label:'التربية الوطنية والتنشئة',g:[1,1,1,1,1,1,1,1,1]},
+ history:{label:'التاريخ',g:[0,0,0,0,0,0,1,1,1]},
+ geography:{label:'الجغرافيا',g:[2,2,2,2,2,2,2,2,2]},
+ science:{label:'العلوم',g:[2,2,3,4,4,5,0,0,0]},
+ life:{label:'علوم الحياة والأرض',g:[0,0,0,0,0,0,3,2,3]},
+ physics:{label:'الفيزياء',g:[0,0,0,0,0,0,1.5,2,2]},
+ chemistry:{label:'الكيمياء',g:[0,0,0,0,0,0,1.5,2,2]},
+ math:{label:'الرياضيات',g:[5,5,5,5,5,5,5,5,5]},
+ informatics:{label:'المعلوماتية',g:[0,0,0,0,0,0,1,1,1]},
+ art:{label:'فن تشكيلي/رسم',g:[1,1,1,1,1,1,0,0,0]},
+ theatre:{label:'مسرح',g:[1,1,1,1,1,1,0,0,0]},
+ music:{label:'موسيقى',g:[1,1,1,1,1,1,0,0,0]},
+ crafts:{label:'أشغال يدوية ونشاطات',g:[1,1,0,1,1,0,0,0,0]},
+ pe:{label:'التربية الرياضية',g:[2,2,2,2,2,2,2,2,2]}
+};
+function curNorm(t){return String(t||'').replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/[ًٌٍَُِّْـ]/g,'')}
+function curGrade(name){const t=curNorm(name);const m=t.match(/(?:^|\D)([1-9])(?!\d)/);if(m)return +m[1];
+ const w=[['اول',1],['ثاني',2],['ثالث',3],['رابع',4],['خامس',5],['سادس',6],['سابع',7],['ثامن',8],['تاسع',9]];for(const [k,v] of w)if(t.includes(k))return v;return 0}
+function curSubject(subj,grade){const t=curNorm(subj);
+ if(/تربيه رياضي|رياضه|بدني/.test(t))return 'pe';
+ if(/رياضيات/.test(t))return 'math';
+ if(/عرب/.test(t))return 'arabic';
+ if(/انجليز|فرنس|اجنبي|english|french|الماني|لغه ثانيه/.test(t))return 'foreign';
+ if(/وطني|تنشئ|مدني/.test(t))return 'civics';
+ if(/تاريخ/.test(t))return 'history';
+ if(/جغراف/.test(t))return 'geography';
+ if(/فيزياء/.test(t))return 'physics';
+ if(/كيمياء/.test(t))return 'chemistry';
+ if(/علوم الحياه|احياء|حياه/.test(t))return 'life';
+ if(/علوم/.test(t))return grade>=7?'life':'science';
+ if(/معلوماتي|حاسوب|كمبيوتر/.test(t))return 'informatics';
+ if(/تشكيل|رسم|فنون|فن/.test(t))return 'art';
+ if(/مسرح/.test(t))return 'theatre';
+ if(/موسيق/.test(t))return 'music';
+ if(/اشغال|يدوي/.test(t))return 'crafts';
+ return '';}
+function fmtN(n){return String(Math.round(n*10)/10)}
+function curriculumNotes(){
+ const lines=[];const reqs=data.requirements||[];
+ (data.classes||[]).forEach(c=>{const g=curGrade(c);if(!g)return;const CL=/صف/.test(c)?c:'الصف '+c;const noTeacher=[];
+  const mine=reqs.filter(r=>r.class===c);
+  Object.keys(CURR_NORMS).forEach(k=>{const norm=CURR_NORMS[k].g[g-1];if(!norm)return;
+   const rows=mine.filter(r=>curSubject(r.subject,g)===k);const have=rows.reduce((n,r)=>n+Math.max(0,+r.count||0),0);
+   if(Math.abs(have-norm)<1e-9)return;
+   const lab=CURR_NORMS[k].label;const teachers=[...new Set(rows.map(r=>r.teacher))];
+   if(have<norm){const d=norm-have;
+    if(teachers.length)lines.push(CL+' — '+lab+': المنهج '+fmtN(norm)+' والمدخل '+fmtN(have)+' ← نقص '+fmtN(d)+' حصة: زِد '+fmtN(d)+' حصة للمعلم '+teachers.join(' أو ')+'.');
+    else{const others=[...new Set(reqs.filter(r=>curSubject(r.subject,curGrade(r.class)||g)===k).map(r=>r.teacher))];
+     {if(others.length)lines.push(CL+' — '+lab+': المنهج '+fmtN(norm)+' ولا حصص مدخلة ← نقص '+fmtN(d)+' حصة: أسندها لأحد معلمي المادة ('+others.join('، ')+').');else noTeacher.push(lab+' '+fmtN(norm))}}
+   }else{const d=have-norm;
+    lines.push(CL+' — '+lab+': المنهج '+fmtN(norm)+' والمدخل '+fmtN(have)+' ← زيادة '+fmtN(d)+' حصة: أنقص '+fmtN(d)+' حصة من المعلم '+teachers.join(' أو ')+'.')}
+  });if(noTeacher.length)lines.push(CL+' — مواد بلا معلم مسند (المنهج): '+noTeacher.join('، ')+'.')});
+ return lines}
 function drawStats(){
  const box=$('loadStats');if(!box)return;
  const entries=data.schedule.length?data.schedule:buildPartialPreview();
@@ -506,6 +564,7 @@ function drawStats(){
  {const lines=[];teacherLoads.filter(x=>x.hasLoad&&x.delta!==0).forEach(x=>lines.push('الأستاذ '+x.name+': '+(x.delta>0?'ناقص '+x.delta:'زائد '+Math.abs(x.delta))+' (المطلوب '+x.requested+'، الموزّع '+x.distributed+') — '+(x.delta>0?(data.schedule.length?'لم تُوزّع كل حصصه في الجدول المحفوظ؛ أعد إنشاء البرنامج.':shortageReason(x.name)):surplusReason('teacher',x.name,entries))));
   classLoads.filter(x=>x.delta!==0).forEach(x=>lines.push('الشعبة '+x.name+': '+(x.delta>0?'ناقص '+x.delta:'زائد '+Math.abs(x.delta))+' (المطلوب '+x.requested+'، الموزّع '+x.count+') — '+classReason(x.name,entries,x.delta)));
   report=(lines.length?'<div class="panel" style="display:block;margin-top:12px;border-color:#d99a2b"><h3>ملاحظة نبيل الكاملة: كل ما لا يطابق النصاب</h3><p class="small">'+lines.map(esc).join('<br>')+'</p></div>':'<p class="status ok">كل الأنصبة وحصص الشعب مطابقة للمطلوب.</p>')+report}
+ {const cn=curriculumNotes();report=(cn.length?'<div class="panel" style="display:block;margin-top:12px;border-color:#2b7bd9"><h3>مطابقة المنهج الرسمي (للتنبيه فقط، لا يغيّر بياناتك)</h3><p class="small">'+cn.map(esc).join('<br>')+'</p></div>':'')+report}
  if(teachersWithoutLoad.length)report+='<p class="status warn"><b>تنبيه:</b> لا يمكن اعتبار مطابقة النصاب مكتملة؛ لم يُحدّد نصاب '+teachersWithoutLoad.length+' معلم/ين ('+teachersWithoutLoad.map(x=>esc(x.name)).join('، ')+'). أدخل موادهم وشعبهم وحصصهم أو اتركهم خارج قائمة المعلمين.</p>';
  if(!data.schedule.length&&previewUnplaced.length){const by={};previewUnplaced.forEach(t=>{by[t.teacher]=(by[t.teacher]||0)+1});const issues=feasibilityIssues();const sp=solverPreview.sig===previewSig()?solverPreview:null;const verdict=!sp||sp.pending?'نبيل يفحص الآن بالمحرك الكامل هل يوجد توزيع يحقق كل الأنصبة...':sp.status==='infeasible'?'فحص المحرك الكامل: لا يوجد توزيع يحقق جميع الأنصبة مع القيود الحالية.':sp.status==='search_limit'?'لم يثبت المحرك الكامل حلاً خلال المهلة؛ جرّب «إنشاء البرنامج» أو خفّف بعض القيود.':'تعذّر فحص المحرك الكامل الآن؛ جرّب «إنشاء البرنامج».';report='<p class="status warn">لم تتسع '+previewUnplaced.length+' حصة في المعاينة ('+Object.entries(by).map(([t,n])=>esc(t)+': '+n).join('، ')+'). '+verdict+(issues.length?'<br><b>أسباب مؤكدة:</b><br>'+issues.map(esc).join('<br>'):'')+'<br><b>أين الاختناق:</b> (الهامش صفر أو سالب يعني لا مجال للتبديل)<br>'+shortageDetails().map(esc).join('<br>')+(()=>{const n=suggestedPeriods();return n>data.periods&&n<=14?'<br><b>اقتراح ليتسع كل شيء:</b> رفع أقصى عدد حصص في اليوم من '+data.periods+' إلى '+n+' <button type="button" onclick="applyPeriodSuggestion('+n+')">طبّق الاقتراح</button> (يمكنك إعادته لاحقاً من إعداد الدوام)':''})()+'<br>بياناتك محفوظة كما أدخلتها ولم يُحذف منها شيء.</p>'+report}
  box.innerHTML=card('إجمالي النصاب المطلوب',requestedTotal,'حصة مسجلة أسبوعياً'+(teachersWithoutLoad.length?' — نصاب '+teachersWithoutLoad.length+' معلم/ين غير محدد':''))+card('إجمالي الحصص الموزعة',distributedTotal,'حصة في '+(data.schedule.length?'الجدول الحالي':'المعاينة الأولية'))+card('عدد المعلمين',data.teachers.length,teachersWithoutLoad.length+' بلا نصاب محدد')+report;
