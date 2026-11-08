@@ -488,18 +488,21 @@ function drawStats(){
   return {name:t,requested,distributed,delta,hasLoad,hasAssignments:assigned.length>0};
  }).sort((a,b)=>b.requested-a.requested||a.name.localeCompare(b.name,'ar'));
  const teachersWithoutLoad=teacherLoads.filter(x=>!x.hasLoad);
- const classLoads=data.classes.map(c=>({name:c,count:entries.filter(x=>x.class===c).length})).sort((a,b)=>b.count-a.count);
+ const classLoads=data.classes.map(c=>{const count=entries.filter(x=>x.class===c).length;const requested=(data.requirements||[]).filter(r=>r.class===c).reduce((a,r)=>a+Math.max(0,+r.count||0),0);return {name:c,count,requested,delta:requested-count}}).sort((a,b)=>b.count-a.count);
  const requestedTotal=data.requirements.reduce((n,r)=>n+(Number(r.count)||0),0);
  const distributedTotal=entries.length;
  const card=(label,value,detail)=>'<div class="panel" style="display:block;margin:0;padding:12px"><div class="small">'+label+'</div><div style="font-size:25px;font-weight:bold;color:var(--navy)">'+value+'</div><div class="small">'+detail+'</div></div>';
  let report='<div class="panel" style="display:block;margin-top:12px"><h3>مقارنة النصاب الأسبوعي لكل أستاذ</h3><p class="small">لكل أستاذ لون ثابت يظهر في الجدول. «المطلوب» هو مجموع حصص مواده وشعبه المدخلة، و«الموزّع» هو ما ظهر في المعاينة أو الجدول.</p>';
  report+=table(teacherLoads.map(x=>{
   const c=teacherColor(x.name);
-  const status=!x.hasAssignments?'<span class="load-short">لم تُسند مواد أو شعب بعد</span>':!x.hasLoad?'<span class="load-short">عدد الحصص غير محدد</span>':x.delta>0?'<span class="load-short">ناقص '+x.delta+'</span>'+(data.schedule.length?'':'<br><span class="small">السبب: '+esc(shortageReason(x.name))+'</span>'):x.delta<0?'<span class="load-over">زائد '+Math.abs(x.delta)+'</span>':'<span class="load-ok">مطابق</span>';
+  const status=!x.hasAssignments?'<span class="load-short">لم تُسند مواد أو شعب بعد</span>':!x.hasLoad?'<span class="load-short">عدد الحصص غير محدد</span>':x.delta>0?'<span class="load-short">ناقص '+x.delta+'</span>'+(data.schedule.length?'':'<br><span class="small">السبب: '+esc(shortageReason(x.name))+'</span>'):x.delta<0?'<span class="load-over">زائد '+Math.abs(x.delta)+'</span><br><span class="small">السبب: '+esc(surplusReason('teacher',x.name,entries))+'</span>':'<span class="load-ok">مطابق</span>';
   const requestedLabel=x.hasLoad?'<b>'+x.requested+'</b>':'<b>غير محدد</b>';
   return ['<span class="teacher-swatch" style="background:'+c.bg+';border-color:'+c.border+'"></span> <b>'+esc(x.name)+'</b>',requestedLabel,'<b>'+x.distributed+'</b>',status];
  }),['الأستاذ / اللون','النصاب المطلوب أسبوعياً','الحصص الموزّعة','الفرق']);
- report+='<h3>عدد الحصص حسب الشعبة</h3>'+table(classLoads.map(x=>[esc(x.name),x.count]),['الشعبة','الحصص الموزّعة'])+'</div>';
+ report+='<h3>عدد الحصص حسب الشعبة</h3>'+table(classLoads.map(x=>[esc(x.name),x.requested,x.count,x.delta===0?'<span class="load-ok">مطابق</span>':(x.delta>0?'<span class="load-short">ناقص '+x.delta+'</span>':'<span class="load-over">زائد '+Math.abs(x.delta)+'</span>')+'<br><span class="small">السبب: '+esc(classReason(x.name,entries,x.delta))+'</span>']),['الشعبة','المطلوب','الحصص الموزّعة','الفرق'])+'</div>';
+ {const lines=[];teacherLoads.filter(x=>x.hasLoad&&x.delta!==0).forEach(x=>lines.push('الأستاذ '+x.name+': '+(x.delta>0?'ناقص '+x.delta:'زائد '+Math.abs(x.delta))+' (المطلوب '+x.requested+'، الموزّع '+x.distributed+') — '+(x.delta>0?(data.schedule.length?'لم تُوزّع كل حصصه في الجدول المحفوظ؛ أعد إنشاء البرنامج.':shortageReason(x.name)):surplusReason('teacher',x.name,entries))));
+  classLoads.filter(x=>x.delta!==0).forEach(x=>lines.push('الشعبة '+x.name+': '+(x.delta>0?'ناقص '+x.delta:'زائد '+Math.abs(x.delta))+' (المطلوب '+x.requested+'، الموزّع '+x.count+') — '+classReason(x.name,entries,x.delta)));
+  report=(lines.length?'<div class="panel" style="display:block;margin-top:12px;border-color:#d99a2b"><h3>ملاحظة نبيل الكاملة: كل ما لا يطابق النصاب</h3><p class="small">'+lines.map(esc).join('<br>')+'</p></div>':'<p class="status ok">كل الأنصبة وحصص الشعب مطابقة للمطلوب.</p>')+report}
  if(teachersWithoutLoad.length)report+='<p class="status warn"><b>تنبيه:</b> لا يمكن اعتبار مطابقة النصاب مكتملة؛ لم يُحدّد نصاب '+teachersWithoutLoad.length+' معلم/ين ('+teachersWithoutLoad.map(x=>esc(x.name)).join('، ')+'). أدخل موادهم وشعبهم وحصصهم أو اتركهم خارج قائمة المعلمين.</p>';
  if(!data.schedule.length&&previewUnplaced.length){const by={};previewUnplaced.forEach(t=>{by[t.teacher]=(by[t.teacher]||0)+1});const issues=feasibilityIssues();const sp=solverPreview.sig===previewSig()?solverPreview:null;const verdict=!sp||sp.pending?'نبيل يفحص الآن بالمحرك الكامل هل يوجد توزيع يحقق كل الأنصبة...':sp.status==='infeasible'?'فحص المحرك الكامل: لا يوجد توزيع يحقق جميع الأنصبة مع القيود الحالية.':sp.status==='search_limit'?'لم يثبت المحرك الكامل حلاً خلال المهلة؛ جرّب «إنشاء البرنامج» أو خفّف بعض القيود.':'تعذّر فحص المحرك الكامل الآن؛ جرّب «إنشاء البرنامج».';report='<p class="status warn">لم تتسع '+previewUnplaced.length+' حصة في المعاينة ('+Object.entries(by).map(([t,n])=>esc(t)+': '+n).join('، ')+'). '+verdict+(issues.length?'<br><b>أسباب مؤكدة:</b><br>'+issues.map(esc).join('<br>'):'')+'<br><b>أين الاختناق:</b> (الهامش صفر أو سالب يعني لا مجال للتبديل)<br>'+shortageDetails().map(esc).join('<br>')+(()=>{const n=suggestedPeriods();return n>data.periods&&n<=14?'<br><b>اقتراح ليتسع كل شيء:</b> رفع أقصى عدد حصص في اليوم من '+data.periods+' إلى '+n+' <button type="button" onclick="applyPeriodSuggestion('+n+')">طبّق الاقتراح</button> (يمكنك إعادته لاحقاً من إعداد الدوام)':''})()+'<br>بياناتك محفوظة كما أدخلتها ولم يُحذف منها شيء.</p>'+report}
  box.innerHTML=card('إجمالي النصاب المطلوب',requestedTotal,'حصة مسجلة أسبوعياً'+(teachersWithoutLoad.length?' — نصاب '+teachersWithoutLoad.length+' معلم/ين غير محدد':''))+card('إجمالي الحصص الموزعة',distributedTotal,'حصة في '+(data.schedule.length?'الجدول الحالي':'المعاينة الأولية'))+card('عدد المعلمين',data.teachers.length,teachersWithoutLoad.length+' بلا نصاب محدد')+report;
@@ -571,6 +574,22 @@ function shortageReason(teacher){
  if(sp.status==='search_limit')return 'لم يكمل المحرك البحث ضمن المهلة؛ اضغط «إنشاء البرنامج».';
  return 'تعذّر الفحص الكامل؛ اضغط «إنشاء البرنامج».';
 }
+function pairCounts(entries){const m={};entries.forEach(x=>{const k=x.teacher+'|'+x.class;m[k]=(m[k]||0)+1});return m}
+function reqPairCounts(){const m={};(data.requirements||[]).forEach(r=>{const k=r.teacher+'|'+r.class;m[k]=(m[k]||0)+Math.max(0,+r.count||0)});return m}
+function surplusReason(kind,name,entries){
+ // Which teacher/class pairs carry more lessons than requested.
+ const have=pairCounts(entries),want=reqPairCounts();const parts=[];
+ for(const k of Object.keys(have)){const [t,c]=k.split('|');if((kind==='teacher'?t:c)!==name)continue;const w=want[k]||0;if(have[k]>w)parts.push((kind==='teacher'?'شعبة '+c:'الأستاذ '+t)+': موزّع '+have[k]+' والمطلوب '+w)}
+ return (parts.length?parts.join('؛ ')+'. ':'')+(data.schedule.length?'الجدول المحفوظ أقدم من النصاب الحالي أو عُدّل النصاب بعد إنشائه؛ اضغط «إنشاء البرنامج» ليُعاد بناؤه على النصاب الحالي.':'تكرار في المعاينة؛ راجع تعييناته.')}
+function classReason(c,entries,delta){
+ const days=data.days||[];const cap=d=>Math.max(0,Math.min(data.periods,+((data.dayPeriodLimits||{})[DAYS[d]]??data.periods)||data.periods));
+ const total=days.reduce((a,d)=>a+cap(d),0);const req=(data.requirements||[]).filter(r=>r.class===c).reduce((a,r)=>a+Math.max(0,+r.count||0),0);
+ if(delta<0)return surplusReason('class',c,entries);
+ if(req>total)return 'مجموع حصص الشعبة '+req+' أكبر من خانات الدوام '+total+'.';
+ const stuck=[...new Set(previewUnplaced.filter(t=>t.class===c).map(t=>t.teacher))];
+ if(stuck.length)return 'حصص المعلم/ين '+stuck.join('، ')+' لم تجد خانة مشتركة مع هذه الشعبة (حصصها '+req+' من '+total+' خانة).';
+ const sp=solverPreview.sig===previewSig()?solverPreview:null;
+ return sp&&sp.status==='infeasible'?'لا يوجد توزيع كامل مع القيود الحالية (حصصها '+req+' من '+total+' خانة).':'غير مكتمل؛ اضغط «إنشاء البرنامج» للفحص الكامل.'}
 async function requestSolverPreview(sig){
  if(solverPreview.pending||solverPreview.sig===sig)return;
  solverPreview={sig,entries:null,status:'',message:'',pending:true};
