@@ -594,7 +594,9 @@ function curriculumTable(){
  out.sort((a,b)=>a.good-b.good);
  return '<div class="panel" style="display:block;margin-top:12px"><h3>مواد وحصص لا تطابق المنهج</h3><p class="small">'+bad+' حالة تحتاج تعديلاً (المواد المطابقة، '+ok+'، غير معروضة).</p><div style="overflow-x:auto"><table><thead><tr><th>الصف</th><th>المادة</th><th>المنهج</th><th>المدخل</th><th>الحالة</th><th>المعلم</th><th>السبب والإجراء</th></tr></thead><tbody>'+out.map(o=>o.html).join('')+'</tbody></table></div></div>'}
 
-function teacherBreakdown(teacherLoads,entries){
+let _gf=null,_gfDone=false;
+function gfixOnce(){if(!_gfDone){_gfDone=true;const sp=solverPreview.sig===previewSig()?solverPreview:null;_gf=(data.schedule.length||(sp&&sp.status==='infeasible'))?findNabilFix():null}return _gf}
+function teacherBreakdown(teacherLoads,entries){_gfDone=false;_gf=null;
  const reqs=data.requirements||[];let html='',n=0;
  const clsHave=(c,k,g)=>reqs.filter(r=>r.class===c&&curSubject(r.subject,g)===k).reduce((a,r)=>a+Math.max(0,+r.count||0),0);
  teacherLoads.filter(t=>t.hasAssignments).forEach(t=>{
@@ -603,7 +605,7 @@ function teacherBreakdown(teacherLoads,entries){
    const want=Math.max(0,+r.count||0);const got=entries.filter(x=>x.teacher===t.name&&x.subject===r.subject&&x.class===r.class).length;
    const g=curGrade(r.class),k=g?curSubject(r.subject,g):'',norm=k?(CURR_NORMS[k].g[g-1]||0):0,have=k&&norm?clsHave(r.class,k,g):null;
    const why=[];
-   if(got<want){const fx=[];for(let i=0;i<want-got;i++){const o=suggestFixObj(t.name,r.class,r.subject,entries);fx.push(o.text+(o.action&&canApplyAction(entries)?'\u0001'+actionBtn(o.action)+'\u0002':''))}why.push('الموزّع '+got+' من '+want+': '+(data.schedule.length?'لم تُوزّع كل الحصص في الجدول المحفوظ. ':shortageReason(t.name)+' ')+[...new Set(fx)].join(' / '))}
+   if(got<want){const fx=[];for(let i=0;i<want-got;i++){const o=suggestFixObj(t.name,r.class,r.subject,entries);let btn='';if(o.action)btn='\u0001'+actionBtn(o.action)+'\u0002';else{const g=gfixOnce();if(g)btn=' — اقتراح: إضافة حصة في يوم '+g.days.map(d=>DAYS[d]).join(' و')+'\u0001 <button class="primary" style="padding:3px 12px" onclick="applyNabilFix(\''+encodeURIComponent(JSON.stringify(g))+'\')">موافق</button>\u0002'}fx.push(o.text+btn)}why.push('الموزّع '+got+' من '+want+': '+(data.schedule.length?'لم تُوزّع كل الحصص في الجدول المحفوظ. ':shortageReason(t.name)+' ')+[...new Set(fx)].join(' / '))}
    if(got>want)why.push('الموزّع '+got+' أكثر من المطلوب '+want+': '+surplusReason('teacher',t.name,entries));
    if(why.length)rows.push('<tr style="background:#fdecea"><td>'+esc(r.subject)+'</td><td>'+esc(clName(r.class))+'</td><td>'+want+'</td><td>'+got+'</td><td>'+why.map(escMix).join('<br>')+'</td></tr>')});
   if(!rows.length&&t.delta===0)return;n++;
@@ -671,7 +673,7 @@ function undoNabilFix(){if(!lastFix)return;data.periods=lastFix.periods;data.day
 
 function escMix(str){return String(str).split(/(\u0001[^\u0002]*\u0002)/).map(p=>p.charAt(0)==='\u0001'?p.slice(1,-1):esc(p)).join('')}
 function totalMissing(entries){return (data.requirements||[]).reduce((n,r)=>n+Math.max(0,Math.max(0,+r.count||0)-entries.filter(x=>x.teacher===r.teacher&&x.subject===r.subject&&x.class===r.class).length),0)}
-function canApplyAction(entries){return data.schedule.length>0||totalMissing(entries)===1}
+function canApplyAction(entries){return true}
 function actionBtn(a){return ' <button class="primary" style="padding:3px 12px" onclick="applyAction(\''+encodeURIComponent(JSON.stringify(a))+'\')">موافق</button>'}
 function applyAction(encoded){
  const a=JSON.parse(decodeURIComponent(encoded));
@@ -881,11 +883,11 @@ function missingFor(cls,d,p,entries){
  return out}
 function drawSchedule(){
  const entries=data.schedule.length?data.schedule:buildPartialPreview();
- const isFinal=data.schedule.length>0;
+ const reqTotal=(data.requirements||[]).reduce((n,r)=>n+Math.max(0,+r.count||0),0);const partialSaved=data.schedule.length>0&&data.schedule.length<reqTotal;const isFinal=data.schedule.length>0&&!partialSaved;
  const hasFrame=data.days.length>0&&data.periods>0;
  if(!hasFrame){$('timetable').innerHTML='<p class="small">اختر يوم دوام واحداً على الأقل ليظهر هيكل البرنامج هنا.</p>';drawStats();return}
  const teacherLegend=data.teachers.map(t=>{const c=teacherColor(t);return '<span class="teacher-key"><i class="teacher-swatch" style="background:'+c.bg+';border-color:'+c.border+'"></i>'+esc(t)+'</span>'}).join('');
- const status='<div class="status '+(isFinal?'ok':'warn')+'">'+(isFinal?'جدول مكتمل اجتاز التدقيق.':'معاينة حيّة تتحدث مع كل إدخال. الحصص المعروضة توزيع أولي قابل لإعادة الترتيب؛ الخانات الفارغة تعني أن بياناتها لم تكتمل بعد.')+'</div><div class="legend"><span class="red">الأحمر: تعارض الأستاذ في أكثر من شعبة (له الأولوية)</span><span class="blue">الأزرق: حصة ضمن وقت فراغ الأستاذ</span>'+teacherLegend+'</div>';
+ const status='<div class="status '+(isFinal?'ok':'warn')+'">'+(partialSaved?'جدول جزئي: ينقصه '+(reqTotal-data.schedule.length)+' حصة لم تُوزّع بعد. راجع لوحة «الخلل» ووافق على الاقتراحات أو اضغط «أنشئ البرنامج».':isFinal?'جدول مكتمل اجتاز التدقيق.':'معاينة حيّة تتحدث مع كل إدخال. الحصص المعروضة توزيع أولي قابل لإعادة الترتيب؛ الخانات الفارغة تعني أن بياناتها لم تكتمل بعد.')+'</div><div class="legend"><span class="red">الأحمر: تعارض الأستاذ في أكثر من شعبة (له الأولوية)</span><span class="blue">الأزرق: حصة ضمن وقت فراغ الأستاذ</span>'+teacherLegend+'</div>';
  let html=status;
  if(view==='school'){
   const classes=data.classes.length?data.classes:['تُضاف الشعب لعرض أعمدتها'];
