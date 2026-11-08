@@ -482,26 +482,26 @@ function teacherStyle(name){
 
 const CURR_NORMS={
  // نصاب المنهج الرسمي (حصص أسبوعياً) لكل صف 1..9 — للتنبيه فقط ولا يغيّر أي بيانات
- arabic:{label:'اللغة العربية',g:[7,7,7,6,6,6,6,6,6]},
- foreign:{label:'اللغات الأجنبية',g:[7,7,7,6,6,6,8,8,8]},
- civics:{label:'التربية الوطنية والتنشئة',g:[1,1,1,1,1,1,1,1,1]},
- history:{label:'التاريخ',g:[0,0,0,0,0,0,1,1,1]},
- geography:{label:'الجغرافيا',g:[2,2,2,2,2,2,2,2,2]},
- science:{label:'العلوم',g:[2,2,3,4,4,5,0,0,0]},
- life:{label:'علوم الحياة والأرض',g:[0,0,0,0,0,0,3,2,3]},
- physics:{label:'الفيزياء',g:[0,0,0,0,0,0,1.5,2,2]},
- chemistry:{label:'الكيمياء',g:[0,0,0,0,0,0,1.5,2,2]},
- math:{label:'الرياضيات',g:[5,5,5,5,5,5,5,5,5]},
- informatics:{label:'المعلوماتية',g:[0,0,0,0,0,0,1,1,1]},
- art:{label:'فن تشكيلي/رسم',g:[1,1,1,1,1,1,0,0,0]},
- theatre:{label:'مسرح',g:[1,1,1,1,1,1,0,0,0]},
- music:{label:'موسيقى',g:[1,1,1,1,1,1,0,0,0]},
- crafts:{label:'أشغال يدوية ونشاطات',g:[1,1,0,1,1,0,0,0,0]},
- pe:{label:'التربية الرياضية',g:[2,2,2,2,2,2,2,2,2]}
+ arabic:{label:'اللغة العربية',g:[7,7,7,6,6,6,6,6,6,12]},
+ foreign:{label:'اللغات الأجنبية',g:[7,7,7,6,6,6,8,8,8,13]},
+ civics:{label:'التربية الوطنية والتنشئة',g:[1,1,1,1,1,1,1,1,1,0]},
+ history:{label:'التاريخ',g:[0,0,0,0,0,0,1,1,1,0]},
+ geography:{label:'الجغرافيا',g:[2,2,2,2,2,2,2,2,2,0]},
+ science:{label:'العلوم',g:[2,2,3,4,4,5,0,0,0,0]},
+ life:{label:'علوم الحياة والأرض',g:[0,0,0,0,0,0,3,2,3,0]},
+ physics:{label:'الفيزياء',g:[0,0,0,0,0,0,1.5,2,2,0]},
+ chemistry:{label:'الكيمياء',g:[0,0,0,0,0,0,1.5,2,2,0]},
+ math:{label:'الرياضيات',g:[5,5,5,5,5,5,5,5,5,0]},
+ informatics:{label:'المعلوماتية',g:[0,0,0,0,0,0,1,1,1,0]},
+ art:{label:'فن تشكيلي/رسم',g:[1,1,1,1,1,1,0,0,0,0]},
+ theatre:{label:'مسرح',g:[1,1,1,1,1,1,0,0,0,0]},
+ music:{label:'موسيقى',g:[1,1,1,1,1,1,0,0,0,0]},
+ crafts:{label:'أشغال يدوية ونشاطات',g:[1,1,0,1,1,0,0,0,0,0]},
+ pe:{label:'التربية الرياضية',g:[2,2,2,2,2,2,2,2,2,0]}
 };
 function curNorm(t){return String(t||'').replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/[ًٌٍَُِّْـ]/g,'')}
 function curGrade(name){const t=curNorm(name);
- if(/روضه|تمهيد|حضانه|(^|[^a-z])kg|(^|\s)رو\s*\d/.test(t))return 0; // رياض الأطفال خارج جدول المنهج
+ if(/روضه|تمهيد|حضانه|(^|[^a-z])kg|(^|\s)رو\s*\d/.test(t))return 10; // رياض الأطفال: صف 10 داخلياً
  const found=new Set();for(const m of t.matchAll(/(?:^|\D)([1-9])(?!\d)/g))found.add(+m[1]);
  const w=[['اول',1],['ثاني',2],['ثالث',3],['رابع',4],['خامس',5],['سادس',6],['سابع',7],['ثامن',8],['تاسع',9]];w.forEach(([k,v])=>{if(t.includes(k))found.add(v)});
  return found.size===1?[...found][0]:0} // صف مدمج أو غير واضح: لا مقارنة
@@ -509,7 +509,7 @@ function curSubject(subj,grade){const t=curNorm(subj);
  if(/تربيه رياضي|رياضه|بدني/.test(t))return 'pe';
  if(/رياضيات/.test(t))return 'math';
  if(/عرب/.test(t))return 'arabic';
- if(/انجليز|فرنس|اجنبي|english|french|الماني|لغه ثانيه/.test(t))return 'foreign';
+ if(/انجليز|انكليز|انغليز|فرنس|فرنج|اجنبي|english|french|الماني|لغه ثانيه/.test(t))return 'foreign';
  if(/وطني|تنشئ|مدني/.test(t))return 'civics';
  if(/تاريخ/.test(t))return 'history';
  if(/جغراف/.test(t))return 'geography';
@@ -564,7 +564,7 @@ function quickDiagnosis(teacherLoads,classLoads,cnLines,entries){
  classLoads.forEach(x=>{
   if(slots&&x.requested>slots)L.push(clName(x.name)+': المطلوب '+x.requested+' حصة والمتاح في الأسبوع '+slots+' فقط ← زيادة '+(x.requested-slots)+' عن سعة الدوام.');
   else if(x.delta!==0)L.push(clName(x.name)+': '+(x.delta>0?'ناقص '+x.delta:'زائد '+Math.abs(x.delta))+' حصة (المطلوب '+x.requested+'، الموزّع '+x.count+') — السبب: '+classReason(x.name,entries,x.delta));
-  const g=curGrade(x.name);if(g){const norm=Object.values(CURR_NORMS).reduce((n,o)=>n+(o.g[g-1]||0),0);const d=x.requested-norm;
+  const g=curGrade(x.name);if(g&&g<10){const norm=Object.values(CURR_NORMS).reduce((n,o)=>n+(o.g[g-1]||0),0);const d=x.requested-norm;
    if(Math.abs(d)>1e-9)L.push(clName(x.name)+': مجموع حصصه '+x.requested+' والمنهج '+fmtN(norm)+' ← '+(d<0?'ناقص '+fmtN(-d):'زائد '+fmtN(d))+' حصة (التفصيل بالمواد في مطابقة المنهج).')}
  });
  cnLines.filter(t=>t.indexOf('بلا معلم مسند')<0).forEach(t=>L.push(t));
