@@ -65,3 +65,17 @@ class Ops(unittest.TestCase):
         import re; src = (Path(__file__).resolve().parent.parent / 'app' / 'timetable_ops.py').read_text(encoding='utf-8')
         self.assertIsNone(re.search(r'requests|urllib|httpx|openai|anthropic|gemini|http://|https://', src))
 if __name__ == '__main__': unittest.main(verbosity=1)
+
+
+def test_different_periods_per_day_and_day_ranges():
+    from app import timetable_ops as t
+    s = t.new_state()
+    s = t.apply(s, "الدوام من الاثنين الى الجمعة وكل يوم ست حصص")["state"]
+    assert s["days"] == ["الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة"] and s["periods_per_day"] == 6
+    s = t.apply(s, "الاثنين 8 حصص والثلاثاء 7 حصص")["state"]
+    assert s["day_periods"] == {"الاثنين": 8, "الثلاثاء": 7}
+    s = t.apply(s, "تراجع عن آخر تعديل")["state"]
+    assert s["day_periods"] == {}
+    s = t.apply(s, "الاثنين 8 حصص")["state"]
+    s = t.apply(s, "كل يوم سبع حصص")["state"]
+    assert s["day_periods"] == {} and s["periods_per_day"] == 7

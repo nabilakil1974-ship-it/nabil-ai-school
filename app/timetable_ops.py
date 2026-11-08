@@ -32,7 +32,7 @@ def norm(t: str) -> str:
 
 
 def new_state() -> dict[str, Any]:
-    return {"days": [], "periods_per_day": None, "teachers": {}, "context": {"teacher": None}, "log": [], "undo": []}
+    return {"days": [], "periods_per_day": None, "day_periods": {}, "teachers": {}, "context": {"teacher": None}, "log": [], "undo": []}
 
 
 AR = "\u0621-\u064a"
@@ -42,7 +42,27 @@ def _days_in(text: str) -> list[str]:
     out = []
     for k, v in DAY_KEYS.items():
         if re.search(r"(?<![" + AR + r"])(?:ال|لل|و|ب|ل|وال|ولل)?" + k + r"(?![" + AR + r"])", text) and v not in out: out.append(v)
+    # "من الاثنين الى الجمعة" means every day between them (wrapping around the week if needed).
+    rng = re.search(r"من\s+(?:ال)?(\S+)\s+(?:الي|لحد|حتي|حتى|ل)\s*(?:ال)?(\S+)", text)
+    if rng:
+        a = next((v for k, v in DAY_KEYS.items() if rng.group(1).startswith(k)), None)
+        b = next((v for k, v in DAY_KEYS.items() if rng.group(2).startswith(k)), None)
+        if a and b:
+            i, j = DAY_ORDER.index(a), DAY_ORDER.index(b)
+            span = DAY_ORDER[i:j + 1] if i <= j else DAY_ORDER[i:] + DAY_ORDER[:j + 1]
+            for d in span:
+                if d not in out: out.append(d)
     return [d for d in DAY_ORDER if d in out]
+
+
+def _day_period_pairs(text: str) -> list[tuple[str, int]]:
+    """"الاثنين 8 حصص والثلاثاء 7 حصص" -> [("الاثنين", 8), ("الثلاثاء", 7)]. Each number belongs to the day right before it."""
+    out: list[tuple[str, int]] = []
+    for k, v in DAY_KEYS.items():
+        for m in re.finditer(r"(?<![" + AR + r"])(?:ال|لل|و|ب|ل|وال|ولل)?" + k + r"(?![" + AR + r"])\s+(\S+)\s+(?:حصص|حصه|حصتين)", text):
+            n = _num(m.group(1))
+            if n and 1 <= n <= 14 and (v, n) not in out and v not in [d for d, _ in out]: out.append((v, n))
+    return [x for x in sorted(out, key=lambda t: DAY_ORDER.index(t[0]))]
 
 
 def _num(tok: str) -> int | None:
@@ -153,7 +173,7 @@ def _free_clause(st, teacher, text, log, mode):
 def apply(state: dict[str, Any], text: str, confirm: bool = False) -> dict[str, Any]:
     """Apply one utterance (may hold several clauses). Returns {state, changes, questions, answer}."""
     st = copy.deepcopy(state or new_state())
-    st.setdefault("undo", []); st.setdefault("log", []); st.setdefault("context", {"teacher": None})
+    st.setdefault("undo", []); st.setdefault("day_periods", {}); st.setdefault("log", []); st.setdefault("context", {"teacher": None})
     changes: list[dict] = []; questions: list[str] = []; answers: list[str] = []; wide: list[str] = []
     snapshot = _clone(st)
     clauses = [c.strip(" ،") for c in re.split(r"[.\n]+|\s*،\s*(?=و?(?:خلي|ضيف|شيل|احذف|الغ|عدل|غير|رجع|ارجع|فرجيني|قديش|شو)\b)|\s+و(?=(?:خلي|ضيف|شيل|احذف|الغ|عدل|غير|رجع|فرجيني|قديش|شو)\b)", norm(text).replace("،", "،")) if c and c.strip(" ،")]
@@ -173,6 +193,23 @@ def apply(state: dict[str, Any], text: str, confirm: bool = False) -> dict[str, 
             continue
         ctx = st["context"]
         if not re.search(r"فراغ|فاضي", c) and not (_days_in(c) and re.search(r"اول", c)): ctx["last"] = None
+        mg = re.search(r"(?:كل يوم|يوميا|في اليوم)\s+(\w+)\s+(?:حصص|حصه)", c)
+        if mg and _num(mg.group(1)) and not _canon_subject(c) and not _days_in(c) and not re.search(r"فراغ|فاضي|عند|لكل شعبه|دوام", c):
+            old = st["periods_per_day"]; st["periods_per_day"] = _num(mg.group(1)); st["day_periods"] = {}
+            changes.append({"type": "periods_per_day", "target": "periods_per_day", "old": old, "new": st["periods_per_day"], "reason": "عدد الحصص اليومية لكل الأيام", "clarity": "clear", "valid": True})
+            continue
+        # ---- different number of periods on specific days ("الاثنين 8 حصص والثلاثاء 7 حصص")
+        if re.search(r"حصص|حصه|حصتين", c) and not re.search(r"فراغ|فاضي|غير متاح|عند|اول|اخر|لكل شعبه", c) and not _canon_subject(c):
+            pairs = _day_period_pairs(c)
+            if pairs:
+                for dname, n in pairs:
+                    if dname not in st["days"]:
+                        old = list(st["days"]); st["days"] = [d for d in DAY_ORDER if d in set(st["days"]) | {dname}]
+                        changes.append({"type": "days_add", "target": "days", "old": old, "new": st["days"], "reason": "إضافة يوم ذُكر عدد حصصه", "clarity": "clear", "valid": True})
+                    oldn = st["day_periods"].get(dname, st["periods_per_day"])
+                    st["day_periods"][dname] = n
+                    changes.append({"type": "day_periods", "target": dname, "old": oldn, "new": n, "reason": "عدد حصص هذا اليوم", "clarity": "clear", "valid": True})
+                continue
         # ---- days of work / periods per day
         if re.search(r"دوام|ضيف .*(?:ال?(?:احد|اثنين|ثلاثاء|اربعاء|خميس|جمعه|سبت))|شيل .*(?:ال?(?:احد|اثنين|ثلاثاء|اربعاء|خميس|جمعه|سبت))", c) and not re.search(r"فراغ|عن\s+\w+|للاستاذ|لاستاذ", c):
             ds = _days_in(c)
@@ -189,6 +226,7 @@ def apply(state: dict[str, Any], text: str, confirm: bool = False) -> dict[str, 
             m = re.search(r"(?:كل يوم|يوميا|في اليوم)\s+(\w+)\s+حصص?", c)
             if m and _num(m.group(1)):
                 old = st["periods_per_day"]; st["periods_per_day"] = _num(m.group(1))
+                st["day_periods"] = {}
                 changes.append({"type": "periods_per_day", "target": "periods_per_day", "old": old, "new": st["periods_per_day"], "reason": "عدد الحصص اليومية", "clarity": "clear", "valid": True})
             if ds or m: continue
         # ---- WIDE deletions need an explicit confirmation (impact is shown first; nothing changes until confirmed)
@@ -321,5 +359,6 @@ def _validate(st) -> list[str]:
             if a["per_section"] is not None and not (1 <= a["per_section"] <= 20): p.append(f"{n}: عدد حصص غير معقول")
         if st["periods_per_day"]:
             for d, ps in t["free"].items():
-                if any(x > st["periods_per_day"] for x in ps): p.append(f"{n}: فراغ يتجاوز عدد حصص اليوم")
+                limit = (st.get("day_periods") or {}).get(d, st["periods_per_day"])
+                if any(x > limit for x in ps): p.append(f"{n}: فراغ يتجاوز عدد حصص اليوم")
     return p

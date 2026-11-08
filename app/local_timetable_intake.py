@@ -76,10 +76,16 @@ def _extract_day_limits(text: str, days: list[int]) -> dict[str, int]:
             continue
         for day_match in re.finditer(day_word, normalized):
             tail = normalized[day_match.end():day_match.end() + 65]
+            # The count must belong to THIS day: stop at the next sentence or the next day name.
+            cut = re.search(r"[.\n؛;]|الاثنين|الثلاثاء|الاربعاء|الخميس|الجمعة|السبت|الاحد", tail)
+            if cut:
+                tail = tail[:cut.start()]
             count_match = re.search(r"(?:عندي|فيه|في|عددها)?\s*" + number_pattern + r"\s*(?:حصص|حصة)", tail)
             if not count_match:
                 continue
-            context = normalized[max(0, day_match.start() - 35):day_match.end()] + tail[:count_match.start()]
+            prefix = normalized[max(0, day_match.start() - 35):day_match.start()]
+            prefix = re.split(r"[.\n؛;،,]|حصص|حصة", prefix)[-1]  # only the words of this clause
+            context = prefix + day_word + tail[:count_match.start()]
             # "فراغ الاثنين أول ثلاث حصص" is teacher availability, not a 3-period day.
             if re.search(r"فراغ|غير متاح|عدم توافر|اول|اخر|آخر", context):
                 continue
