@@ -501,7 +501,7 @@ function drawStats(){
  }),['الأستاذ / اللون','النصاب المطلوب أسبوعياً','الحصص الموزّعة','الفرق']);
  report+='<h3>عدد الحصص حسب الشعبة</h3>'+table(classLoads.map(x=>[esc(x.name),x.count]),['الشعبة','الحصص الموزّعة'])+'</div>';
  if(teachersWithoutLoad.length)report+='<p class="status warn"><b>تنبيه:</b> لا يمكن اعتبار مطابقة النصاب مكتملة؛ لم يُحدّد نصاب '+teachersWithoutLoad.length+' معلم/ين ('+teachersWithoutLoad.map(x=>esc(x.name)).join('، ')+'). أدخل موادهم وشعبهم وحصصهم أو اتركهم خارج قائمة المعلمين.</p>';
- if(!data.schedule.length&&previewUnplaced.length){const by={};previewUnplaced.forEach(t=>{by[t.teacher]=(by[t.teacher]||0)+1});report='<p class="status warn">لم تتسع '+previewUnplaced.length+' حصة في المعاينة الأولية ('+Object.entries(by).map(([t,n])=>esc(t)+': '+n).join('، ')+'). بياناتك كما أدخلتها ولم يُحذف منها شيء؛ المعاينة تقريبية. اضغط «إنشاء البرنامج» ليبحث المحرك الكامل عن توزيع يحقق كل الأنصبة.</p>'+report}
+ if(!data.schedule.length&&previewUnplaced.length){const by={};previewUnplaced.forEach(t=>{by[t.teacher]=(by[t.teacher]||0)+1});const issues=feasibilityIssues();const sp=solverPreview.sig===previewSig()?solverPreview:null;const verdict=!sp||sp.pending?'نبيل يفحص الآن بالمحرك الكامل هل يوجد توزيع يحقق كل الأنصبة...':sp.status==='infeasible'?'فحص المحرك الكامل: لا يوجد توزيع يحقق جميع الأنصبة مع القيود الحالية.':sp.status==='search_limit'?'لم يثبت المحرك الكامل حلاً خلال المهلة؛ جرّب «إنشاء البرنامج» أو خفّف بعض القيود.':'تعذّر فحص المحرك الكامل الآن؛ جرّب «إنشاء البرنامج».';report='<p class="status warn">لم تتسع '+previewUnplaced.length+' حصة في المعاينة ('+Object.entries(by).map(([t,n])=>esc(t)+': '+n).join('، ')+'). '+verdict+(issues.length?'<br><b>أسباب مؤكدة:</b><br>'+issues.map(esc).join('<br>'):'')+(()=>{const n=suggestedPeriods();return n>data.periods&&n<=14?'<br><b>اقتراح ليتسع كل شيء:</b> رفع أقصى عدد حصص في اليوم من '+data.periods+' إلى '+n+' <button type="button" onclick="applyPeriodSuggestion('+n+')">طبّق الاقتراح</button> (يمكنك إعادته لاحقاً من إعداد الدوام)':''})()+'<br>بياناتك محفوظة كما أدخلتها ولم يُحذف منها شيء.</p>'+report}
  box.innerHTML=card('إجمالي النصاب المطلوب',requestedTotal,'حصة مسجلة أسبوعياً'+(teachersWithoutLoad.length?' — نصاب '+teachersWithoutLoad.length+' معلم/ين غير محدد':''))+card('إجمالي الحصص الموزعة',distributedTotal,'حصة في '+(data.schedule.length?'الجدول الحالي':'المعاينة الأولية'))+card('عدد المعلمين',data.teachers.length,teachersWithoutLoad.length+' بلا نصاب محدد')+report;
 }
 function exportWord(){
@@ -529,6 +529,34 @@ async function exportExcel(){
 }
 $('exportExcel').onclick=exportExcel;
 
+let solverPreview={sig:'',entries:null,status:'',message:'',pending:false};
+function previewSig(){return JSON.stringify([data.days,data.periods,data.dayPeriodLimits||{},data.teachers,data.classes,(data.requirements||[]).map(r=>[r.teacher,r.class,r.subject,r.count,r.language||'']),data.blocked||[]])}
+function feasibilityIssues(){
+ // General hard-limit checks (any school): a teacher/class cannot have more lessons than free slots.
+ const days=data.days||[];const cap=d=>Math.max(0,Math.min(data.periods,+((data.dayPeriodLimits||{})[DAYS[d]]??data.periods)||data.periods));
+ const total=days.reduce((a,d)=>a+cap(d),0);const out=[];
+ const tl={},cl={};(data.requirements||[]).forEach(r=>{const n=Math.max(0,+r.count||0);tl[r.teacher]=(tl[r.teacher]||0)+n;cl[r.class]=(cl[r.class]||0)+n});
+ for(const [t,n] of Object.entries(tl)){const blockedN=new Set((data.blocked||[]).filter(b=>b.teacher===t&&days.includes(+b.day)&&+b.period<=cap(+b.day)).map(b=>b.day+'|'+b.period)).size;const free=total-blockedN;if(n>free)out.push('الأستاذ '+t+': نصابه '+n+' حصة بينما خاناته المتاحة '+free+' فقط (بعد استبعاد أوقات عدم التوافر)')}
+ for(const [c,n] of Object.entries(cl)){if(n>total)out.push('الشعبة '+c+': مجموع حصصها '+n+' بينما خانات الدوام '+total+' فقط')}
+ return out}
+function suggestedPeriods(){
+ const nd=(data.days||[]).length||1;let need=data.periods;
+ const tl={},cl={};(data.requirements||[]).forEach(r=>{const n=Math.max(0,+r.count||0);tl[r.teacher]=(tl[r.teacher]||0)+n;cl[r.class]=(cl[r.class]||0)+n});
+ for(const n of Object.values(cl))need=Math.max(need,Math.ceil(n/nd));
+ for(const [t,n] of Object.entries(tl)){const b=new Set((data.blocked||[]).filter(x=>x.teacher===t).map(x=>x.day+'|'+x.period)).size;need=Math.max(need,Math.ceil((n+b)/nd))}
+ return need}
+function applyPeriodSuggestion(n){if(n>14||n<1)return;data.periods=n;persist();solverPreview={sig:'',entries:null,status:'',message:'',pending:false};drawSchedule()}
+async function requestSolverPreview(sig){
+ if(solverPreview.pending||solverPreview.sig===sig)return;
+ solverPreview={sig,entries:null,status:'',message:'',pending:true};
+ try{
+  const response=await fetch('/api/timetable/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({school:data.school,days:data.days,periods:data.periods,time_limit_seconds:6,day_period_limits:Object.fromEntries(data.days.map(d=>[String(d),+(data.dayPeriodLimits?.[DAYS[d]]??data.periods)])),teachers:data.teachers,classes:data.classes,requirements:data.requirements.map(({teacher,subject,class:cls,count,language})=>({teacher,subject:language?subject+' ('+language+')':subject,class:cls,count})),blocked:data.blocked})});
+  const result=await response.json();const r=result.detail||result;
+  if(response.ok&&r.ok&&r.audit?.passed&&r.scheduled_lessons===r.requested_lessons)solverPreview={sig,entries:r.schedule.map(x=>({...x,provisional:true})),status:'success',message:'',pending:false};
+  else solverPreview={sig,entries:null,status:r.status||'failed',message:r.message||'',pending:false};
+ }catch(e){solverPreview={sig,entries:null,status:'error',message:'',pending:false}}
+ if(previewSig()===sig&&!data.schedule.length)drawSchedule();
+}
 function buildPartialPreview(){
  // Dynamic most-constrained-first placement (same idea as the server engine, without backtracking).
  // Never edits or deletes entered data; lessons that really cannot fit are counted in previewUnplaced.
@@ -552,6 +580,11 @@ function buildPartialPreview(){
   bo.sort((a,b)=>spread(a)-spread(b)||a.period-b.period||a.day-b.day);
   const s=bo[0];placed.push({...t,day:s.day,period:s.period,provisional:true});
   tb.add(t.teacher+'|'+s.day+'|'+s.period);cb.add(t.class+'|'+s.day+'|'+s.period);
+ }
+ if(previewUnplaced.length){
+  const sig=previewSig();
+  if(solverPreview.sig===sig&&solverPreview.entries){previewUnplaced=[];return solverPreview.entries}
+  if(solverPreview.sig!==sig&&data.requirements.length)requestSolverPreview(sig);
  }
  return placed;
 }
