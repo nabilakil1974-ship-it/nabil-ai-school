@@ -594,13 +594,33 @@ function teacherBreakdown(teacherLoads,entries){
    const want=Math.max(0,+r.count||0);const got=entries.filter(x=>x.teacher===t.name&&x.subject===r.subject&&x.class===r.class).length;
    const g=curGrade(r.class),k=g?curSubject(r.subject,g):'',norm=k?(CURR_NORMS[k].g[g-1]||0):0,have=k&&norm?clsHave(r.class,k,g):null;
    const why=[];
-   if(got<want)why.push('الموزّع '+got+' من '+want+(data.schedule.length?': لم تُوزّع كل الحصص في الجدول المحفوظ، أعد إنشاء البرنامج':': '+shortageReason(t.name)));
+   if(got<want){const fx=[];for(let i=0;i<want-got;i++)fx.push(suggestFix(t.name,r.class,r.subject,entries));why.push('الموزّع '+got+' من '+want+': '+(data.schedule.length?'لم تُوزّع كل الحصص في الجدول المحفوظ. ':shortageReason(t.name)+' ')+[...new Set(fx)].join(' / '))}
    if(got>want)why.push('الموزّع '+got+' أكثر من المطلوب '+want+': '+surplusReason('teacher',t.name,entries));
    if(why.length)rows.push('<tr style="background:#fdecea"><td>'+esc(r.subject)+'</td><td>'+esc(clName(r.class))+'</td><td>'+want+'</td><td>'+got+'</td><td>'+why.map(esc).join('<br>')+'</td></tr>')});
   if(!rows.length&&t.delta===0)return;n++;
   html+='<h4 style="margin:12px 0 4px">'+esc(t.name)+' — نصابه الأسبوعي '+t.requested+'، الموزّع '+t.distributed+(t.delta?' ('+(t.delta>0?'ناقص '+t.delta:'زائد '+(-t.delta))+')':' (مطابق)')+'</h4>'+
    (rows.length?'<div style="overflow-x:auto"><table><thead><tr><th>المادة</th><th>الشعبة</th><th>المطلوب</th><th>الموزّع</th><th>أين الخلل</th></tr></thead><tbody>'+rows.join('')+'</tbody></table></div>':'<p class="small">'+esc(t.delta>0?shortageReason(t.name):surplusReason('teacher',t.name,entries))+'</p>')});
  return n?'<div class="panel" style="display:block;margin-top:12px;border-color:#c0392b"><h3>الخلل: أين يجب التعديل ('+n+' أستاذ)</h3><p class="small">لكل أستاذ لا يطابق نصابه الموزّع: المادة والشعبة والسبب. أرقام هذه اللوحة هي نفسها في جدول الأساتذة وجدول الشعب.</p>'+html+'</div>':'<p class="status ok">لا خلل: نصاب كل أستاذ يطابق الموزّع.</p>'}
+
+function suggestFix(teacher,cls,subject,entries){
+ // Concrete, plain-language fix for ONE lesson that could not be placed (uses only entered data; never changes it).
+ const days=data.days||[];const cap=d=>Math.max(0,Math.min(data.periods,+((data.dayPeriodLimits||{})[DAYS[d]]??data.periods)||data.periods));
+ const slots=days.flatMap(d=>Array.from({length:cap(d)},(_,i)=>({d,p:i+1})));
+ const blocked=new Set((data.blocked||[]).map(b=>b.teacher+'|'+(+b.day)+'|'+(+b.period)));
+ const tBusy=(t,s)=>entries.some(x=>x.teacher===t&&x.day===s.d&&x.period===s.p)||blocked.has(t+'|'+s.d+'|'+s.p);
+ const cBusy=(c,s)=>entries.some(x=>x.class===c&&x.day===s.d&&x.period===s.p);
+ const nm=s=>DAYS[s.d]+' الحصة '+s.p;
+ const direct=slots.filter(s=>!tBusy(teacher,s)&&!cBusy(cls,s));
+ if(direct.length)return 'يوجد وقت مشترك فارغ: ضع حصة '+subject+' في '+nm(direct[0])+(direct.length>1?' (أو '+direct.slice(1,3).map(nm).join('، ')+')':'')+' ثم أعد إنشاء البرنامج.';
+ const tFree=slots.filter(s=>!tBusy(teacher,s)),cFree=slots.filter(s=>!cBusy(cls,s));
+ const moves=[];
+ for(const s1 of tFree){const L=entries.find(x=>x.class===cls&&x.day===s1.d&&x.period===s1.p);if(!L)continue;
+  for(const s2 of cFree){if(!tBusy(L.teacher,s2)&&!(L.teacher===teacher)){moves.push({s1,s2,L});break}}
+  if(moves.length>=2)break}
+ if(moves.length)return 'الحل: '+moves.map(m=>'انقل حصة '+m.L.subject+' ('+m.L.teacher+') في الصف '+cls+' من '+nm(m.s1)+' إلى '+nm(m.s2)+'، ثم ضع حصة '+subject+' للمعلم '+teacher+' في '+nm(m.s1)).join(' — أو: ');
+ const fullDays=days.filter(d=>slots.filter(s=>s.d===d).every(s=>tBusy(teacher,s))).map(d=>DAYS[d]);
+ const freeT=tFree.map(nm).slice(0,4);
+ return (freeT.length?'المعلم '+teacher+' فارغ في: '+freeT.join('، ')+' لكن الشعبة '+cls+' مشغولة فيها بحصص لا يمكن نقلها دون تعارض. ':'المعلم '+teacher+' ليس عنده أي وقت فارغ'+(fullDays.length?' (أيامه ممتلئة: '+fullDays.join('، ')+')':'')+'. ')+'الحل: زِد عدد الحصص اليومية أو فك حجب أوقاته أو أنقص من نصابه.'}
 function drawStats(){
  const box=$('loadStats');if(!box)return;
  const entries=data.schedule.length?data.schedule:buildPartialPreview();
