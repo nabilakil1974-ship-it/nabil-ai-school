@@ -33,8 +33,13 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
     if len(days) > 7 or any(d < 0 or d > 6 for d in days):
         return {"ok": False, "status": "invalid_input", "message": "أيام الدوام غير صالحة."}
 
+    try:
+        break_after = int(payload.get("break_after_period") or 0)
+    except (TypeError, ValueError):
+        break_after = 0
     tasks = []
     group_counts: Counter[tuple[str, str, str]] = Counter()
+    order_counts: Counter[tuple[str, str, str, int]] = Counter()
     for req in requirements:
         cls = str(req.get("class", "")).strip()
         teacher = str(req.get("teacher", "")).strip()
@@ -46,12 +51,26 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
         if cls not in classes or teacher not in teachers or not subject or count < 1 or count > 60:
             return {"ok": False, "status": "invalid_input", "message": "يوجد نصاب غير صحيح أو مرتبط بمعلم/شعبة غير مسجلين."}
         group = (cls, teacher, subject)
-        for _ in range(count):
-            group_counts[group] += 1
+        # Optional "double" lessons: N blocks of two consecutive periods in the
+        # same day. Omitted/0 keeps the original behaviour exactly.
+        try:
+            doubles = int(req.get("double", 0) or 0)
+        except (TypeError, ValueError):
+            doubles = 0
+        doubles = max(0, min(doubles, count // 2))
+        spans = [2] * doubles + [1] * (count - 2 * doubles)
+        for span in spans:
+            first = group_counts[group] + 1
+            group_counts[group] += span
+            order_counts[group + (span,)] += 1
             tasks.append({"class": cls, "teacher": teacher, "subject": subject,
-                          "lesson": group_counts[group]})
+                          "lesson": first, "span": span,
+                          "order": order_counts[group + (span,)]})
 
-    per_class = Counter(t["class"] for t in tasks)
+    total_lessons = sum(t["span"] for t in tasks)
+    per_class = Counter()
+    for t in tasks:
+        per_class[t["class"]] += t["span"]
     capacity = sum(day_period_limits.get(day, periods) for day in days)
     over = {c: n for c, n in per_class.items() if n > capacity}
     if over:
@@ -60,8 +79,22 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
     slots = [(d, p) for d in days for p in range(1, day_period_limits.get(d, periods) + 1)]
     candidates = []
     for task in tasks:
-        valid = [(d, p) for d, p in slots if (task["teacher"], d, p) not in blocked]
+        span = task["span"]
+        valid = []
+        for d, p in slots:
+            cells = [(d, p + k) for k in range(span)]
+            if any(c[1] > day_period_limits.get(d, periods) for c in cells):
+                continue
+            if span == 2 and break_after and p == break_after:
+                continue  # never join two periods across the break
+            if any((task["teacher"], dd, pp) in blocked for dd, pp in cells):
+                continue
+            valid.append((d, p))
         if not valid:
+            if span == 2:
+                return {"ok": False, "status": "infeasible",
+                        "message": "لا توجد حصتان متتاليتان متاحتان للمعلم " + task["teacher"] +
+                                   " في الشعبة " + task["class"] + " (مادة " + task["subject"] + ")؛ قلّل الحصص المتتالية أو غيّر أوقات التفرغ."}
             return {"ok": False, "status": "infeasible", "message": "أحد المعلمين غير متاح في جميع الخانات المحددة."}
         candidates.append(valid)
 
@@ -77,7 +110,7 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
     teacher_task_counts = Counter(t["teacher"] for t in tasks)
     class_task_counts = Counter(t["class"] for t in tasks)
     for index, task in enumerate(tasks):
-        identity = (task["class"], task["teacher"], task["subject"])
+        identity = (task["class"], task["teacher"], task["subject"], task["span"])
         identical_groups.setdefault(identity, []).append(index)
     nodes = 0
     node_limit = max(10000, min(int(payload.get("node_limit", 180000)), 500000))
@@ -87,14 +120,20 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
     def ordered_identical_slot(i: int, day: int, period: int) -> bool:
         task = tasks[i]
         slot = (day, period)
-        identity = (task["class"], task["teacher"], task["subject"])
+        identity = (task["class"], task["teacher"], task["subject"], task["span"])
         for j in identical_groups[identity]:
             if j == i or assigned[j] is None:
                 continue
             other_slot = (assigned[j]["day"], assigned[j]["period"])
-            if tasks[j]["lesson"] < task["lesson"] and other_slot >= slot:
+            if tasks[j]["order"] < task["order"] and other_slot >= slot:
                 return False
-            if tasks[j]["lesson"] > task["lesson"] and slot >= other_slot:
+            if tasks[j]["order"] > task["order"] and slot >= other_slot:
+                return False
+        return True
+
+    def cells_free(task: dict[str, Any], day: int, period: int) -> bool:
+        for k in range(task["span"]):
+            if (task["teacher"], day, period + k) in teacher_busy or (task["class"], day, period + k) in class_busy:
                 return False
         return True
 
@@ -115,8 +154,7 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
         for i in sorted(remaining):
             t = tasks[i]
             opts = [(d, p) for d, p in candidates[i]
-                    if (t["teacher"], d, p) not in teacher_busy
-                    and (t["class"], d, p) not in class_busy
+                    if cells_free(t, d, p)
                     and ordered_identical_slot(i, d, p)]
             if not opts:
                 return False
@@ -136,17 +174,16 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
         remaining.remove(best_i)
         for d, p in best_options:
             nodes += 1
-            teacher_key = (t["teacher"], d, p)
-            class_key = (t["class"], d, p)
-            teacher_busy.add(teacher_key)
-            class_busy.add(class_key)
+            teacher_keys = [(t["teacher"], d, p + k) for k in range(t["span"])]
+            class_keys = [(t["class"], d, p + k) for k in range(t["span"])]
+            teacher_busy.update(teacher_keys)
+            class_busy.update(class_keys)
             assigned[best_i] = {**t, "day": d, "period": p}
             # Forward check: every remaining lesson must retain at least one legal slot.
             viable = True
             for j in remaining:
                 u = tasks[j]
-                if not any((u["teacher"], sd, sp) not in teacher_busy
-                           and (u["class"], sd, sp) not in class_busy
+                if not any(cells_free(u, sd, sp)
                            and ordered_identical_slot(j, sd, sp)
                            for sd, sp in candidates[j]):
                     viable = False
@@ -154,8 +191,8 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
             if viable and search():
                 return True
             assigned[best_i] = None
-            teacher_busy.remove(teacher_key)
-            class_busy.remove(class_key)
+            teacher_busy.difference_update(teacher_keys)
+            class_busy.difference_update(class_keys)
             if timed_out:
                 break
         remaining.add(best_i)
@@ -168,10 +205,19 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
             "status": "search_limit" if timed_out else "infeasible",
             "message": ("بلغ البحث الحد الزمني/الحسابي دون إثبات حل؛ خفّف القيود أو أعد المحاولة."
                         if timed_out else "لم يوجد توزيع يحقق جميع الأنصبة والقيود المحددة."),
-            "requested_lessons": len(tasks), "search_nodes": nodes,
+            "requested_lessons": total_lessons, "search_nodes": nodes,
         }
 
-    schedule = [x for x in assigned if x is not None]
+    schedule = []
+    for x in assigned:
+        if x is None:
+            continue
+        for k in range(x["span"]):
+            entry = {"class": x["class"], "teacher": x["teacher"], "subject": x["subject"],
+                     "lesson": x["lesson"] + k, "day": x["day"], "period": x["period"] + k}
+            if x["span"] == 2:
+                entry["double"] = True
+            schedule.append(entry)
     # Independent final audit; never report success if a hard constraint is violated.
     teacher_slots = [(x["teacher"], x["day"], x["period"]) for x in schedule]
     class_slots = [(x["class"], x["day"], x["period"]) for x in schedule]
@@ -184,14 +230,25 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
         violations.append("teacher_unavailable")
     if any(x["period"] > day_period_limits.get(x["day"], periods) for x in schedule):
         violations.append("outside_daily_period_limit")
-    if len(schedule) != len(tasks):
+    if len(schedule) != total_lessons:
         violations.append("missing_lessons")
+    # Every requested double must really be two consecutive periods of one class on one day.
+    for x in assigned:
+        if x is not None and x["span"] == 2:
+            pair = [(s["day"], s["period"]) for s in schedule
+                    if s["class"] == x["class"] and s["teacher"] == x["teacher"]
+                    and s["subject"] == x["subject"] and s.get("double")
+                    and s["lesson"] in (x["lesson"], x["lesson"] + 1)]
+            if len(pair) != 2 or pair[0][0] != pair[1][0] or abs(pair[0][1] - pair[1][1]) != 1:
+                violations.append("double_not_consecutive")
+            elif break_after and min(pair[0][1], pair[1][1]) == break_after:
+                violations.append("double_across_break")
     if violations:
         return {"ok": False, "status": "audit_failed", "message": "فشل التدقيق النهائي؛ لم يعتمد الجدول.", "violations": violations}
 
     return {
         "ok": True, "status": "success", "schedule": schedule,
-        "requested_lessons": len(tasks), "scheduled_lessons": len(schedule),
+        "requested_lessons": total_lessons, "scheduled_lessons": len(schedule),
         "search_nodes": nodes, "audit": {"passed": True, "violations": []},
         "message": "اكتمل توزيع جميع الحصص واجتاز التدقيق المستقل للقيود الصارمة.",
     }
