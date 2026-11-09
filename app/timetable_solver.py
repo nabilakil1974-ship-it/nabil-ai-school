@@ -21,6 +21,24 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
             day_period_limits[day] = max(1, min(periods, int(value)))
         except (TypeError, ValueError):
             day_period_limits[day] = periods
+    raw_class_limits = payload.get("class_day_limits") or {}
+    class_limits: dict[tuple[str, int], int] = {}
+    if isinstance(raw_class_limits, dict):
+        for cname, per_day in raw_class_limits.items():
+            if not isinstance(per_day, dict):
+                continue
+            for day in days:
+                value = per_day.get(str(day), per_day.get(day))
+                if value in (None, ""):
+                    continue
+                try:
+                    class_limits[(str(cname).strip(), day)] = max(0, min(day_period_limits[day], int(value)))
+                except (TypeError, ValueError):
+                    pass
+
+    def cls_limit(cname: str, day: int) -> int:
+        return class_limits.get((cname, day), day_period_limits.get(day, periods))
+
     teachers = {str(x).strip() for x in payload.get("teachers", []) if str(x).strip()}
     classes = {str(x).strip() for x in payload.get("classes", []) if str(x).strip()}
     requirements = payload.get("requirements") or []
@@ -71,8 +89,7 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
     per_class = Counter()
     for t in tasks:
         per_class[t["class"]] += t["span"]
-    capacity = sum(day_period_limits.get(day, periods) for day in days)
-    over = {c: n for c, n in per_class.items() if n > capacity}
+    over = {c: n for c, n in per_class.items() if n > sum(cls_limit(c, day) for day in days)}
     if over:
         return {"ok": False, "status": "infeasible", "message": "نصاب إحدى الشعب يتجاوز عدد خانات الدوام المتاحة.", "details": over}
 
@@ -83,7 +100,7 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
         valid = []
         for d, p in slots:
             cells = [(d, p + k) for k in range(span)]
-            if any(c[1] > day_period_limits.get(d, periods) for c in cells):
+            if any(c[1] > cls_limit(task["class"], d) for c in cells):
                 continue
             if span == 2 and break_after and p == break_after:
                 continue  # never join two periods across the break
@@ -228,7 +245,7 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
         violations.append("class_double_booking")
     if any((x["teacher"], x["day"], x["period"]) in blocked for x in schedule):
         violations.append("teacher_unavailable")
-    if any(x["period"] > day_period_limits.get(x["day"], periods) for x in schedule):
+    if any(x["period"] > cls_limit(x["class"], x["day"]) for x in schedule):
         violations.append("outside_daily_period_limit")
     if len(schedule) != total_lessons:
         violations.append("missing_lessons")
