@@ -55,9 +55,17 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
         break_after = int(payload.get("break_after_period") or 0)
     except (TypeError, ValueError):
         break_after = 0
-    tasks = []
-    group_counts: Counter[tuple[str, str, str]] = Counter()
-    order_counts: Counter[tuple[str, str, str, int]] = Counter()
+    # Optional merged classes: some subjects are taught to several classes together
+    # (one teacher, one slot, all those classes busy), while other subjects stay separate.
+    merge_lookup: dict[tuple[str, str], int] = {}
+    for mi, m in enumerate(payload.get("merges") or []):
+        if not isinstance(m, dict):
+            continue
+        for mc in m.get("classes") or []:
+            for ms in m.get("subjects") or []:
+                merge_lookup[(str(mc).strip(), str(ms).strip())] = mi
+    norm: list[dict[str, Any]] = []
+    joint: dict[tuple[int, str, str], dict[str, Any]] = {}
     for req in requirements:
         cls = str(req.get("class", "")).strip()
         teacher = str(req.get("teacher", "")).strip()
@@ -68,27 +76,47 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
             count = 0
         if cls not in classes or teacher not in teachers or not subject or count < 1 or count > 60:
             return {"ok": False, "status": "invalid_input", "message": "يوجد نصاب غير صحيح أو مرتبط بمعلم/شعبة غير مسجلين."}
-        group = (cls, teacher, subject)
-        # Optional "double" lessons: N blocks of two consecutive periods in the
-        # same day. Omitted/0 keeps the original behaviour exactly.
         try:
             doubles = int(req.get("double", 0) or 0)
         except (TypeError, ValueError):
             doubles = 0
-        doubles = max(0, min(doubles, count // 2))
+        key = (merge_lookup[(cls, subject)], teacher, subject) if (cls, subject) in merge_lookup else None
+        if key is None:
+            norm.append({"classes": [cls], "teacher": teacher, "subject": subject, "count": count, "double": doubles})
+        elif key in joint:
+            j = joint[key]
+            if j["count"] != count:
+                return {"ok": False, "status": "invalid_input",
+                        "message": "حصص مادة «" + subject + "» المدمجة للمعلم " + teacher + " يجب أن تكون متساوية في الصفوف المدمجة."}
+            if cls not in j["classes"]:
+                j["classes"].append(cls)
+        else:
+            joint[key] = {"classes": [cls], "teacher": teacher, "subject": subject, "count": count, "double": doubles}
+            norm.append(joint[key])
+
+    tasks = []
+    group_counts: Counter[tuple[str, str, str]] = Counter()
+    order_counts: Counter[tuple[str, str, str, int]] = Counter()
+    for req in norm:
+        cls_list = req["classes"]
+        cls = " + ".join(cls_list)
+        teacher, subject, count = req["teacher"], req["subject"], req["count"]
+        group = (cls, teacher, subject)
+        doubles = max(0, min(req["double"], count // 2))
         spans = [2] * doubles + [1] * (count - 2 * doubles)
         for span in spans:
             first = group_counts[group] + 1
             group_counts[group] += span
             order_counts[group + (span,)] += 1
-            tasks.append({"class": cls, "teacher": teacher, "subject": subject,
+            tasks.append({"class": cls, "classes": cls_list, "teacher": teacher, "subject": subject,
                           "lesson": first, "span": span,
                           "order": order_counts[group + (span,)]})
 
-    total_lessons = sum(t["span"] for t in tasks)
+    total_lessons = sum(t["span"] * len(t["classes"]) for t in tasks)
     per_class = Counter()
     for t in tasks:
-        per_class[t["class"]] += t["span"]
+        for c in t["classes"]:
+            per_class[c] += t["span"]
     over = {c: n for c, n in per_class.items() if n > sum(cls_limit(c, day) for day in days)}
     if over:
         return {"ok": False, "status": "infeasible", "message": "نصاب إحدى الشعب يتجاوز عدد خانات الدوام المتاحة.", "details": over}
@@ -100,7 +128,7 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
         valid = []
         for d, p in slots:
             cells = [(d, p + k) for k in range(span)]
-            if any(c[1] > cls_limit(task["class"], d) for c in cells):
+            if any(c[1] > cls_limit(cn, d) for c in cells for cn in task["classes"]):
                 continue
             if span == 2 and break_after and p == break_after:
                 continue  # never join two periods across the break
@@ -125,7 +153,10 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
     # expensive on schools with many repeated weekly lessons.
     identical_groups: dict[tuple[str, str, str], list[int]] = {}
     teacher_task_counts = Counter(t["teacher"] for t in tasks)
-    class_task_counts = Counter(t["class"] for t in tasks)
+    class_task_counts: Counter[str] = Counter()
+    for t in tasks:
+        for cn in t["classes"]:
+            class_task_counts[cn] += 1
     for index, task in enumerate(tasks):
         identity = (task["class"], task["teacher"], task["subject"], task["span"])
         identical_groups.setdefault(identity, []).append(index)
@@ -150,7 +181,7 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
 
     def cells_free(task: dict[str, Any], day: int, period: int) -> bool:
         for k in range(task["span"]):
-            if (task["teacher"], day, period + k) in teacher_busy or (task["class"], day, period + k) in class_busy:
+            if (task["teacher"], day, period + k) in teacher_busy or any((cn, day, period + k) in class_busy for cn in task["classes"]):
                 return False
         return True
 
@@ -175,7 +206,7 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
                     and ordered_identical_slot(i, d, p)]
             if not opts:
                 return False
-            priority = (len(opts), -(teacher_task_counts[t["teacher"]] + class_task_counts[t["class"]]), i)
+            priority = (len(opts), -(teacher_task_counts[t["teacher"]] + max(class_task_counts[cn] for cn in t["classes"])), i)
             if best_priority is None or priority < best_priority:
                 best_i, best_options, best_priority = i, opts, priority
                 if len(opts) == 1:
@@ -184,7 +215,7 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
         # Prefer spreading the same class/subject over days, then earlier periods.
         def preference(slot):
             d, p = slot
-            same_day = sum(1 for x in assigned if x and x["class"] == t["class"]
+            same_day = sum(1 for x in assigned if x and x["classes"][0] == t["classes"][0]
                            and x["subject"] == t["subject"] and x["day"] == d)
             return (same_day, p, d)
         best_options.sort(key=preference)
@@ -192,7 +223,7 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
         for d, p in best_options:
             nodes += 1
             teacher_keys = [(t["teacher"], d, p + k) for k in range(t["span"])]
-            class_keys = [(t["class"], d, p + k) for k in range(t["span"])]
+            class_keys = [(cn, d, p + k) for k in range(t["span"]) for cn in t["classes"]]
             teacher_busy.update(teacher_keys)
             class_busy.update(class_keys)
             assigned[best_i] = {**t, "day": d, "period": p}
@@ -230,20 +261,23 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
         if x is None:
             continue
         for k in range(x["span"]):
-            entry = {"class": x["class"], "teacher": x["teacher"], "subject": x["subject"],
-                     "lesson": x["lesson"] + k, "day": x["day"], "period": x["period"] + k}
-            if x["span"] == 2:
-                entry["double"] = True
-            schedule.append(entry)
+            for cn in x["classes"]:
+                entry = {"class": cn, "teacher": x["teacher"], "subject": x["subject"],
+                         "lesson": x["lesson"] + k, "day": x["day"], "period": x["period"] + k}
+                if x["span"] == 2:
+                    entry["double"] = True
+                if len(x["classes"]) > 1:
+                    entry["merged_with"] = [c for c in x["classes"] if c != cn]
+                schedule.append(entry)
     # Independent final audit; never report success if a hard constraint is violated.
-    teacher_slots = [(x["teacher"], x["day"], x["period"]) for x in schedule]
+    teacher_slots = [(x["teacher"], x["day"], x["period"] + k) for x in assigned if x is not None for k in range(x["span"])]
     class_slots = [(x["class"], x["day"], x["period"]) for x in schedule]
     violations = []
     if len(teacher_slots) != len(set(teacher_slots)):
         violations.append("teacher_double_booking")
     if len(class_slots) != len(set(class_slots)):
         violations.append("class_double_booking")
-    if any((x["teacher"], x["day"], x["period"]) in blocked for x in schedule):
+    if any(slot in blocked for slot in teacher_slots):
         violations.append("teacher_unavailable")
     if any(x["period"] > cls_limit(x["class"], x["day"]) for x in schedule):
         violations.append("outside_daily_period_limit")
@@ -253,7 +287,7 @@ def solve_timetable(payload: dict[str, Any]) -> dict[str, Any]:
     for x in assigned:
         if x is not None and x["span"] == 2:
             pair = [(s["day"], s["period"]) for s in schedule
-                    if s["class"] == x["class"] and s["teacher"] == x["teacher"]
+                    if s["class"] == x["classes"][0] and s["teacher"] == x["teacher"]
                     and s["subject"] == x["subject"] and s.get("double")
                     and s["lesson"] in (x["lesson"], x["lesson"] + 1)]
             if len(pair) != 2 or pair[0][0] != pair[1][0] or abs(pair[0][1] - pair[1][1]) != 1:
