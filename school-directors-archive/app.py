@@ -95,8 +95,19 @@ def restore_index_from_drive(service=None, folder_id=None):
  if isinstance(restored,dict):
   restored=restored.get("documents",restored.get("items",[]))
  if isinstance(restored,list):
-  save(restored)
-  return restored
+  # Merge durable Drive records with the current runtime index; never let a
+  # partial/local index hide or overwrite older archived documents.
+  merged={str(x.get("id")):x for x in restored if isinstance(x,dict) and x.get("id")}
+  for item in rows():
+   if isinstance(item,dict) and item.get("id"):
+    key=str(item["id"])
+    if key in merged:
+     combined=dict(merged[key]); combined.update(item); merged[key]=combined
+    else: merged[key]=item
+  result=list(merged.values())
+  result.sort(key=lambda x:str(x.get("uploaded_at") or ""),reverse=True)
+  save(result)
+  return result
  return rows()
 
 def sync_index_to_drive(items, folder_id):
@@ -130,17 +141,22 @@ def ocr(path):
  return ocr_image(Image.open(path))
 
 def fallback_ocr_images(images):
- texts=[]
+ texts=[]; errors=[]
  for index,image in enumerate(images,1):
   data=image.get("bytes")
-  if not data: continue
+  if not data:
+   errors.append("صفحة "+str(index)+": لا توجد بيانات")
+   continue
   try:
    page_text=ocr_image(Image.open(io.BytesIO(data))).strip()
+   if page_text: texts.append("[صفحة "+str(index)+"]\\n"+page_text)
+   else: errors.append("صفحة "+str(index)+": لم يُعثر على نص مقروء")
   except Exception as exc:
    logger.exception("local OCR failed page=%s",index)
-   page_text="[تعذر OCR لهذه الصفحة: "+str(exc)[:160]+"]"
-  texts.append("[صفحة "+str(index)+"]\\n"+page_text)
+   errors.append("صفحة "+str(index)+": "+str(exc)[:160])
  full_text="\\n\\n".join(texts).strip()
+ if not full_text:
+  raise RuntimeError("فشل OCR المحلي في قراءة جميع الصفحات: "+"؛ ".join(errors)[:500])
  meta=detect_metadata(full_text,"مستند")
  return {
   "document_type":meta.get("category",""),
@@ -218,11 +234,11 @@ def google_callback(request:Request):
  except Exception as e: return HTMLResponse("<html lang='ar' dir='rtl'><meta charset='utf-8'><body style='font-family:Tahoma;padding:40px'><h2>تعذر ربط Google Drive</h2><p>"+str(e)+"</p><a href='/'>العودة</a></body></html>",status_code=400)
 @app.get("/api/documents")
 def documents():
- items=rows()
- if not items:
-  try: items=restore_index_from_drive()
-  except Exception: pass
- return items
+ try:
+  return restore_index_from_drive()
+ except Exception:
+  logger.exception("Drive index merge failed; serving local archive index")
+  return rows()
 def normalize_key(value):
  value=str(value or "").strip().lower()
  value=value.translate(str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹","01234567890123456789"))
@@ -232,10 +248,8 @@ def normalize_key(value):
  return value
 
 def search_documents(q="", category=""):
- items=rows()
- if not items:
-  try: items=restore_index_from_drive()
-  except Exception: pass
+ try: items=restore_index_from_drive()
+ except Exception: items=rows()
  wanted=normalize_key(category)
  query=normalize_key(q)
  terms=[normalize_key(part) for part in str(q or "").split() if normalize_key(part)]
@@ -279,10 +293,9 @@ def category_from_type(value):
  return "غير مصنّف"
 
 def retry_pending_documents():
- if not os.getenv("GEMINI_API_KEY"):
-  logger.error("retry skipped: GEMINI_API_KEY is not configured")
-  return
- logger.info("retry cycle started")
+ # Local OCR is independent of Gemini and must still process queued
+ # documents when the Gemini free quota is exhausted or no key is configured.
+ logger.info("retry cycle started (local OCR enabled)")
  service=drive_service()
  if not service:
   logger.error("retry skipped: Google Drive credentials unavailable")
@@ -317,11 +330,14 @@ def retry_pending_documents():
     mime=mimetypes.guess_type(remote.get("name",""))[0] or "image/jpeg"
     logger.info("downloaded document=%s page=%s bytes=%s mime=%s",d.get("id"),remote.get("page"),len(payload),mime)
     images.append({"bytes":payload,"mime_type":mime})
-   try:
-    extracted=analyze_document_images(images)
-   except Exception as gemini_error:
-    logger.warning("Gemini unavailable; using local OCR document=%s error=%s",d.get("id"),str(gemini_error)[:300])
-    extracted=fallback_ocr_images(images)
+   # First persist a local OCR result. This prevents a Gemini 429 or
+   # outage from keeping an otherwise readable document in pending_ai forever.
+   extracted=fallback_ocr_images(images)
+   if len(str(extracted.get("full_text") or "").strip())<40 and os.getenv("GEMINI_API_KEY"):
+    try:
+     extracted=analyze_document_images(images)
+    except Exception as gemini_error:
+     logger.warning("Gemini enrichment unavailable; keeping local OCR document=%s error=%s",d.get("id"),str(gemini_error)[:300])
    full_text=str(extracted.get("full_text") or "").strip()
    number=str(extracted.get("document_number") or "").strip()
    date=str(extracted.get("document_date") or "").strip()
@@ -427,7 +443,9 @@ async def upload(files: list[UploadFile] = File(...)):
      "download":"/api/file/"+ident+"?download=1","review_required":True,
      "processing_status":"saving_to_drive","drive_status":"pending",
      "referenced_decisions":[],"schools":[],"upload_sources":[]}
-  items=rows(); items.insert(0,d); save(items)
+  try: items=restore_index_from_drive()
+  except Exception: items=rows()
+  items.insert(0,d); save(items)
 
   # The original images must reach Drive before any AI call.
   service=drive_service()
