@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>أرشيف مديري المدارس في لبنان</title>
+<style>
+:root{font-family:Tahoma,Arial,sans-serif;color:#17243a;background:#f3f6fa}*{box-sizing:border-box}body{margin:0}header{background:#102b4e;color:white;padding:22px max(18px,calc((100% - 1050px)/2))}header h1{margin:0 0 7px;font-size:25px}header p{margin:0;color:#d8e5f4}.wrap{max-width:1050px;margin:22px auto;padding:0 16px}.toolbar,.panel{background:white;border:1px solid #dce4ed;border-radius:14px;padding:16px;margin-bottom:15px;box-shadow:0 3px 14px #17395a0a}.toolbar{display:flex;gap:10px;flex-wrap:wrap}.toolbar input{flex:1;min-width:210px}input,select,textarea{font:inherit;border:1px solid #cbd6e2;border-radius:9px;padding:12px;background:white;width:100%}button,.filebtn{border:0;border-radius:9px;padding:12px 17px;font:inherit;font-weight:bold;cursor:pointer;background:#145da0;color:white}button.secondary{background:#e8eff7;color:#17395a}button.danger{background:#a83b3b}.actions{display:flex;gap:8px;flex-wrap:wrap}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin:12px 0}.field label{display:block;font-size:13px;margin:0 0 6px;color:#52657a}.hidden{display:none}.doc{border:1px solid #dce4ed;border-radius:12px;padding:14px;margin:10px 0;background:#fff}.doc h3{margin:0 0 7px;font-size:17px}.muted{color:#687b90;font-size:13px}.tag{display:inline-block;background:#edf4fb;color:#245783;padding:4px 8px;border-radius:20px;font-size:12px;margin:3px}.empty{text-align:center;padding:35px;color:#6b7c8d}.note{font-size:13px;color:#6b7c8d;line-height:1.7}.status{font-size:13px;color:#256344;margin-top:8px}footer{text-align:center;color:#718096;padding:18px;font-size:12px}@media(max-width:600px){header h1{font-size:20px}.toolbar>*{width:100%}}
+</style></head>
+<body>
+<header><h1>أرشيف مديري المدارس في لبنان</h1><p>قرارات • تعاميم • مراسلات • أنظمة • بحث سريع</p></header>
+<main class="wrap">
+<section class="toolbar"><input id="q" placeholder="ابحث برقم القرار أو التاريخ أو الموضوع أو الكلمات المفتاحية…"><button id="search">بحث</button><button class="secondary" id="all">عرض الأرشيف</button></section>
+<section class="panel"><div class="actions"><button id="addToggle">＋ إضافة وثيقة</button><button class="secondary" id="export">تصدير فهرس الأرشيف</button><label class="filebtn secondary" for="importFile">استيراد فهرس</label><input class="hidden" id="importFile" type="file" accept=".json,application/json"></div>
+<div id="addBox" class="hidden"><h2>إضافة إلى الأرشيف</h2><div class="grid">
+<div class="field"><label>نوع الوثيقة</label><select id="kind"><option>قرار</option><option>تعميم</option><option>كتاب</option><option>طلب نقل</option><option>نظام داخلي</option><option>مرسوم / قانون</option><option>أخرى</option></select></div>
+<div class="field"><label>رقم الوثيقة</label><input id="number" placeholder="مثال: 123/م/2026"></div>
+<div class="field"><label>تاريخ الوثيقة</label><input id="date" type="date"></div>
+<div class="field"><label>الجهة المصدرة</label><input id="issuer" placeholder="وزارة التربية والتعليم العالي"></div>
+<div class="field"><label>الموضوع</label><input id="subject" placeholder="عنوان واضح للوثيقة"></div>
+<div class="field"><label>الكلمات المفتاحية</label><input id="keywords" placeholder="تعاقد، تلامذة، دوام…"></div>
+<div class="field"><label>الملف الأصلي (PDF أو صورة)</label><input id="file" type="file" accept=".pdf,image/*"></div>
+</div><div class="field"><label>النص أو البنود المستخرجة (أضف النص كما ورد حرفياً لتصبح قابلة للبحث)</label><textarea id="body" rows="4" placeholder="النص الأصلي، المواد، البنود، أرقام الصفحات…"></textarea></div><div class="actions"><button id="save">حفظ الوثيقة</button><button class="secondary" id="cancel">إلغاء</button></div><div id="status" class="status"></div><p class="note">تنبيه: هذه النسخة تحفظ الملفات والفهرس داخل هذا المتصفح فقط. لم يتم تفعيل حسابات المديرين أو قاعدة بيانات مشتركة بعد.</p></div></section>
+<section class="panel"><div class="actions"><h2 style="margin:0">نتائج الأرشيف</h2><span class="muted" id="count"></span></div><div id="results"><div class="empty">الأرشيف فارغ. أضف أول وثيقة للبدء.</div></div></section>
+</main><footer>أرشيف إداري تجريبي — لا تعتمد أي معلومة إدارية إلا بالرجوع إلى الوثيقة الأصلية.</footer>
+<script>
+const DB='school-directors-archive-v1';let docs=[];
+const $=id=>document.getElementById(id);
+function load(){try{docs=JSON.parse(localStorage.getItem(DB)||'[]')}catch{docs=[]}render(docs)}
+function persist(){localStorage.setItem(DB,JSON.stringify(docs))}
+function esc(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function render(list){$('count').textContent='('+list.length+')';$('results').innerHTML=list.length?list.slice().reverse().map(d=>'<article class="doc"><h3>'+esc(d.subject||'وثيقة بلا عنوان')+'</h3><div><span class="tag">'+esc(d.kind)+'</span><span class="tag">رقم: '+esc(d.number||'غير محدد')+'</span><span class="tag">'+esc(d.date||'بلا تاريخ')+'</span></div><p class="muted">'+esc(d.issuer||'')+' • '+esc(d.filename||'لا يوجد ملف مرفق')+'</p><p>'+esc(d.body||'لا يوجد نص مفهرس')+'</p><p class="muted">الكلمات المفتاحية: '+esc(d.keywords||'—')+'</p><div class="actions">'+(d.data?'<button class="secondary" onclick="downloadDoc(\''+d.id+'\')">فتح / تنزيل الأصل</button>':'')+'<button class="danger" onclick="removeDoc(\''+d.id+'\')">حذف</button></div></article>').join(''):'<div class="empty">لا توجد نتائج مطابقة.</div>'}
+window.downloadDoc=id=>{let d=docs.find(x=>x.id===id);if(!d||!d.data)return;let a=document.createElement('a');a.href=d.data;a.download=d.filename||'document';a.click()};
+window.removeDoc=id=>{if(confirm('حذف الوثيقة من هذا المتصفح؟')){docs=docs.filter(x=>x.id!==id);persist();render(docs)}};
+$('addToggle').onclick=()=>$('addBox').classList.toggle('hidden');$('cancel').onclick=()=>$('addBox').classList.add('hidden');
+$('save').onclick=async()=>{let f=$('file').files[0];let data=f?await new Promise((ok,no)=>{let r=new FileReader;r.onload=()=>ok(r.result);r.onerror=no;r.readAsDataURL(f)}):null;let d={id:crypto.randomUUID(),kind:$('kind').value,number:$('number').value.trim(),date:$('date').value,issuer:$('issuer').value.trim(),subject:$('subject').value.trim(),keywords:$('keywords').value.trim(),body:$('body').value.trim(),filename:f?.name||'',data};docs.push(d);try{persist();$('status').textContent='تم الحفظ في هذا المتصفح.';render(docs);['number','date','issuer','subject','keywords','body','file'].forEach(x=>$(x).value='')}catch(e){docs.pop();$('status').textContent='تعذر الحفظ: قد يكون حجم الملفات أكبر من سعة المتصفح. جرّب ملفاً أصغر.'}};
+function search(){let q=$('q').value.trim().toLowerCase();render(docs.filter(d=>[d.kind,d.number,d.date,d.issuer,d.subject,d.keywords,d.body].join(' ').toLowerCase().includes(q)))}$('search').onclick=search;$('q').addEventListener('keydown',e=>{if(e.key==='Enter')search()});$('all').onclick=()=>{ $('q').value='';render(docs)};
+$('export').onclick=()=>{let blob=new Blob([JSON.stringify(docs.map(({data,...d})=>({...d,originalFileIncluded:false})),null,2)],{type:'application/json'});let a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='school-archive-index.json';a.click();URL.revokeObjectURL(a.href)};
+$('importFile').onchange=async e=>{try{let arr=JSON.parse(await e.target.files[0].text());if(!Array.isArray(arr))throw Error();docs=[...docs,...arr.map(d=>({...d,id:crypto.randomUUID(),data:null}))];persist();render(docs);alert('تم استيراد الفهرس. الملفات الأصلية لا تنتقل ضمن ملف الفهرس.')}catch{alert('ملف الفهرس غير صالح')}};
+load();
+</script></body></html>
