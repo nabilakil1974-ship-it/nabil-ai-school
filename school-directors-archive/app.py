@@ -69,7 +69,10 @@ def restore_index_from_drive(service=None, folder_id=None):
  if not found: return rows()
  raw=service.files().get(fileId=found[0]["id"],alt="media").execute()
  if isinstance(raw,bytes): raw=raw.decode("utf-8")
- restored=json.loads(raw)
+ # Drive may return parsed JSON data as a dict/list instead of raw text.
+ restored=raw if isinstance(raw,(dict,list)) else json.loads(raw)
+ if isinstance(restored,dict):
+  restored=restored.get("documents",restored.get("items",[]))
  if isinstance(restored,list):
   save(restored)
   return restored
