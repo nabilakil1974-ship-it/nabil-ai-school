@@ -135,7 +135,7 @@ def ocr_image(img):
  img=ImageOps.grayscale(img)
  img=ImageOps.autocontrast(img)
  # Tesseract Arabic + English is installed in the archive Docker image.
- return pytesseract.image_to_string(img,lang="ara+eng",config="--oem 1 --psm 6 -c preserve_interword_spaces=1",timeout=22)
+ return pytesseract.image_to_string(img,lang="ara+eng+fra",config="--oem 1 --psm 6 -c preserve_interword_spaces=1",timeout=22)
 
 def ocr(path):
  return ocr_image(Image.open(path))
@@ -220,7 +220,7 @@ def detect_metadata(text, filename):
  return {"number":number,"date":date,"subject":subject[:220],"category":category,"issuer":issuer}
 
 @app.get("/api/health")
-def health(): return {"status":"ok","document_reader":"Gemini Vision with local Tesseract Arabic/English OCR fallback","local_ocr_available":True,"gemini_configured":bool(os.getenv("GEMINI_API_KEY")),"gemini_model":os.getenv("GEMINI_MODEL","gemini-3.8-flash"),"google_drive_connected":google_credentials() is not None,"google_token_persistence_configured":bool(os.getenv("RENDER_API_KEY")),"google_token_persisted":bool(os.getenv("GOOGLE_TOKEN_JSON"))}
+def health(): return {"status":"ok","document_reader":"Gemini Vision with local Tesseract Arabic/English OCR fallback","local_ocr_available":bool(shutil.which("tesseract")) and "ara" in (pytesseract.get_languages(config="") if shutil.which("tesseract") else []),"gemini_configured":bool(os.getenv("GEMINI_API_KEY")),"gemini_model":os.getenv("GEMINI_MODEL","gemini-3.8-flash"),"google_drive_connected":google_credentials() is not None,"google_token_persistence_configured":bool(os.getenv("RENDER_API_KEY")),"google_token_persisted":bool(os.getenv("GOOGLE_TOKEN_JSON"))}
 @app.get("/auth/google")
 def google_auth():
  flow=Flow.from_client_config(google_client_config(),scopes=DRIVE_SCOPE,redirect_uri=REDIRECT_URI); url,state=flow.authorization_url(access_type="offline",include_granted_scopes="true",prompt="consent"); return RedirectResponse(url)
