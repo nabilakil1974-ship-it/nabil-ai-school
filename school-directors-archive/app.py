@@ -522,13 +522,13 @@ def document_page(ident:str):
                          "webViewLink":remote.get("webViewLink"),"page":1}],
          "drive_folder_id":folder_id,"referenced_decisions":[],"schools":[],"upload_sources":[],
          "recovered_from_drive":True}
-        items.insert(0,d); save(items); sync_index_to_drive(items,folder_id)
-        logger.info("recovered orphaned image from Drive id=%s file_id=%s",ident,remote["id"])
-        # Run Gemini against the recovered original immediately, then reload its
-        # indexed metadata before rendering the document page.
-        retry_pending_documents()
-        items=rows()
-        d=next((x for x in items if x.get("id")==ident),d)
+      items.insert(0,d); save(items); sync_index_to_drive(items,folder_id)
+      logger.info("recovered orphaned image from Drive id=%s file_id=%s",ident,remote["id"])
+      # Run Gemini against the recovered original immediately, then reload its
+      # indexed metadata before rendering the document page.
+      retry_pending_documents()
+      items=rows()
+      d=next((x for x in items if x.get("id")==ident),d)
   except Exception:
    logger.exception("document lookup recovery failed id=%s",ident)
  if not d: raise HTTPException(404,"المستند غير موجود في الأرشيف أو لم يُسترجع من فهرس Google Drive")
