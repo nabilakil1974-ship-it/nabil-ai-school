@@ -154,11 +154,11 @@ def detect_metadata(text, filename):
 def health(): return {"status":"ok","document_reader":"Gemini Vision","gemini_configured":bool(os.getenv("GEMINI_API_KEY")),"gemini_model":os.getenv("GEMINI_MODEL","gemini-3.8-flash"),"google_drive_connected":google_credentials() is not None}
 @app.get("/auth/google")
 def google_auth():
- flow=Flow.from_client_config(json.dumps(google_client_config()),scopes=DRIVE_SCOPE,redirect_uri=REDIRECT_URI); url,state=flow.authorization_url(access_type="offline",include_granted_scopes="true",prompt="consent"); return RedirectResponse(url)
+ flow=Flow.from_client_config(google_client_config(),scopes=DRIVE_SCOPE,redirect_uri=REDIRECT_URI); url,state=flow.authorization_url(access_type="offline",include_granted_scopes="true",prompt="consent"); return RedirectResponse(url)
 @app.get("/auth/google/callback")
 def google_callback(request:Request):
  try:
-  flow=Flow.from_client_config(json.dumps(google_client_config()),scopes=DRIVE_SCOPE,state=request.query_params.get("state"),redirect_uri=REDIRECT_URI); flow.fetch_token(authorization_response=str(request.url)); TOKEN_FILE.write_text(flow.credentials.to_json(),encoding="utf-8"); service=drive_service(); folder_id=ensure_drive_folder(service)
+  flow=Flow.from_client_config(google_client_config(),scopes=DRIVE_SCOPE,state=request.query_params.get("state"),redirect_uri=REDIRECT_URI); flow.fetch_token(authorization_response=str(request.url)); TOKEN_FILE.write_text(flow.credentials.to_json(),encoding="utf-8"); service=drive_service(); folder_id=ensure_drive_folder(service)
   if not rows(): restore_index_from_drive(service,folder_id)
   sync_index_to_drive(rows(),folder_id)
   return HTMLResponse("<html lang='ar' dir='rtl'><meta charset='utf-8'><body style='font-family:Tahoma;padding:40px'><h2>تم ربط Google Drive بنجاح</h2><p>تم إنشاء مجلد NABIL - School Directors Archive وبدء مزامنة فهرس الأرشيف.</p><p>يمكنك العودة إلى الموقع.</p><a href='/'>العودة إلى الأرشيف</a></body></html>")
