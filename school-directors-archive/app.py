@@ -1,4 +1,4 @@
-import os, json, uuid, shutil, re, zipfile
+import os, json, uuid, shutil, re, zipfile, hashlib, unicodedata, mimetypes
 from pathlib import Path
 from datetime import datetime, timezone
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request
@@ -12,6 +12,7 @@ from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
+from gemini_service import analyze_document_images, GeminiError, GeminiNotConfigured
 
 BASE=Path(os.getenv("DATA_DIR","/tmp/school-archive-data"))
 FILES=BASE/"files"; INDEX=BASE/"documents.json"
@@ -28,6 +29,8 @@ def google_client_config():
  return {"web":{"client_id":cid,"client_secret":secret,"auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","redirect_uris":[REDIRECT_URI]}}
 
 def google_credentials():
+ if not TOKEN_FILE.exists() and os.getenv("GOOGLE_TOKEN_JSON"):
+  TOKEN_FILE.write_text(os.environ["GOOGLE_TOKEN_JSON"],encoding="utf-8")
  if not TOKEN_FILE.exists(): return None
  try: return Credentials.from_authorized_user_file(str(TOKEN_FILE),DRIVE_SCOPE)
  except Exception: return None
@@ -145,42 +148,159 @@ def google_callback(request:Request):
  except Exception as e: return HTMLResponse("<html lang='ar' dir='rtl'><meta charset='utf-8'><body style='font-family:Tahoma;padding:40px'><h2>تعذر ربط Google Drive</h2><p>"+str(e)+"</p><a href='/'>العودة</a></body></html>",status_code=400)
 @app.get("/api/documents")
 def documents(): return rows()
+def normalize_key(value):
+ value=str(value or "").strip().lower()
+ value=value.translate(str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹","01234567890123456789"))
+ value=unicodedata.normalize("NFKD",value)
+ value="".join(ch for ch in value if not unicodedata.combining(ch))
+ value=re.sub(r"[\\s\\W_]+","",value,flags=re.UNICODE)
+ return value
+
+def find_duplicate(items, number, date, subject, exclude_id=None):
+ n,d,sub=normalize_key(number),normalize_key(date),normalize_key(subject)
+ if not (n and d and sub): return None
+ for item in items:
+  if item.get("id")==exclude_id: continue
+  if (normalize_key(item.get("number") or item.get("document_number"))==n
+      and normalize_key(item.get("date") or item.get("document_date"))==d
+      and normalize_key(item.get("subject"))==sub):
+   return item
+ return None
+
+def category_from_type(value):
+ v=str(value or "").lower()
+ if "قانون" in v or "law" in v: return "قانون"
+ if "مرسوم" in v or "decree" in v: return "مرسوم"
+ if "قرار" in v or "decision" in v: return "قرار"
+ if "تعميم" in v or "circulaire" in v: return "تعميم"
+ if any(x in v for x in ("كتاب","مذكرة","مراسلة","بلاغ","note")): return "كتاب"
+ return "غير مصنّف"
+
+def upload_result(d, text="", message=None, duplicate=False):
+ public={k:v for k,v in d.items() if k not in {"text","ocr_errors"}}
+ return {"ok":True,"message":message or "تم حفظ الصور وتسجيل حالة المعالجة.","document":public,
+         "extracted_characters":len(text),"extracted_text":text,
+         "ocr_status":d.get("processing_status","pending"),
+         "processing_status":d.get("processing_status","pending"),
+         "storage_status":d.get("drive_status","not_connected"),"duplicate":duplicate}
+
 @app.post("/api/upload")
 async def upload(files: list[UploadFile] = File(...)):
  if not files: raise HTTPException(400,"اختر صورة واحدة على الأقل")
  if len(files)>25: raise HTTPException(400,"يمكن رفع 25 صورة كحد أقصى للمستند الواحد")
- ident=uuid.uuid4().hex; saved=[]; texts=[]; ocr_errors=[]
+ ident=uuid.uuid4().hex; saved=[]; image_payloads=[]; total_bytes=0
+ allowed={".png":"image/png",".jpg":"image/jpeg",".jpeg":"image/jpeg",".webp":"image/webp",".tif":"image/tiff",".tiff":"image/tiff"}
  try:
   for i,up in enumerate(files,1):
    name=Path(up.filename or f"page-{i}.jpg").name; ext=Path(name).suffix.lower()
-   if ext not in {".png",".jpg",".jpeg",".webp",".tif",".tiff"}: raise HTTPException(415,"ارفع صوراً فقط، ويمكن اختيار عدة صور للمستند نفسه")
+   if ext not in allowed: raise HTTPException(415,"ارفع صوراً فقط، ويمكن اختيار عدة صور للمستند نفسه")
+   content=await up.read()
+   if not content: raise HTTPException(400,"إحدى الصور فارغة")
+   if len(content)>12*1024*1024: raise HTTPException(413,"حجم الصورة الواحدة يتجاوز 12 ميغابايت")
+   total_bytes+=len(content)
+   if total_bytes>18*1024*1024: raise HTTPException(413,"الحجم الإجمالي للصور يتجاوز 18 ميغابايت؛ قسّم المستند إلى دفعتين")
    target=FILES/(ident+"-"+str(i)+ext)
-   with target.open("wb") as out: shutil.copyfileobj(up.file,out)
+   target.write_bytes(content)
    saved.append({"filename":name,"stored":target.name,"page":i})
-   try: page_text=extract(target,ext)
-   except Exception as ocr_error: page_text=""; ocr_errors.append({"page":i,"error":str(ocr_error)[:240]})
-   texts.append("[الصورة / الصفحة "+str(i)+"]\n"+page_text)
-  text="\n\n".join(texts); recognized=re.sub(r"\[الصورة\s*/\sالصفحة\s*\d+\]","",text).strip()
-  if len(recognized)<30:
-   details="؛ ".join("الصفحة "+str(x["page"])+": "+x["error"] for x in ocr_errors)
-   raise HTTPException(422,"لم يتمكن النظام من استخراج نص موثوق من الصور؛ لذلك لم نضف مستنداً وهمياً إلى الأرشيف. احتفظنا بالصور على الخادم. "+(details or "النص المستخرج أقل من الحد الأدنى المطلوب."))
-  meta=detect_metadata(text," ".join(x["filename"] for x in saved))
- except HTTPException: raise
- except Exception as e: raise HTTPException(422,"تعذرت معالجة المستند: "+str(e)+". الصور الأصلية محفوظة على الخادم إن اكتمل نسخها.")
- d={"id":ident,"title":meta["subject"] or saved[0]["filename"],"filename":saved[0]["filename"],"files":saved,"page_count":len(saved),**meta,"text":text,"uploaded_at":datetime.now(timezone.utc).isoformat(),"url":"/api/file/"+ident,"download":"/api/file/"+ident+"?download=1","review_required":not bool(text.strip()) or bool(ocr_errors),"ocr_status":"partial" if ocr_errors and text.strip() else ("failed" if ocr_errors else "complete"),"ocr_errors":ocr_errors}
- items=rows(); items.insert(0,d); save(items)
- try:
+   image_payloads.append({"bytes":content,"mime_type":allowed[ext]})
+  d={"id":ident,"title":saved[0]["filename"],"filename":saved[0]["filename"],"files":saved,
+     "page_count":len(saved),"number":"","document_number":"","date":"","document_date":"",
+     "subject":"","category":"قيد المعالجة","issuer":"","text":"",
+     "uploaded_at":datetime.now(timezone.utc).isoformat(),"url":"/api/file/"+ident,
+     "download":"/api/file/"+ident+"?download=1","review_required":True,
+     "processing_status":"saving_to_drive","drive_status":"pending",
+     "referenced_decisions":[],"schools":[],"upload_sources":[]}
+  items=rows(); items.insert(0,d); save(items)
+
+  # The original images must reach Drive before any AI call.
   service=drive_service()
-  if service:
+  if not service:
+   d["drive_status"]="not_connected"; d["processing_status"]="pending_storage"
+   d["processing_message"]="الصور محفوظة مؤقتاً على الخادم، لكن لم يتم تأكيد حفظها في Google Drive. أعد ربط Drive."
+   items[0]=d; save(items)
+   return upload_result(d,message=d["processing_message"])
+
+  try:
    folder_id=ensure_drive_folder(service); drive_files=[]
    for entry in saved:
     uploaded=drive_upload(FILES/entry["stored"],entry["filename"],folder_id)
-    if uploaded: drive_files.append({"id":uploaded["id"],"name":uploaded["name"],"webViewLink":uploaded.get("webViewLink")})
-   d["drive_files"]=drive_files; d["drive_folder_id"]=folder_id; d["drive_status"]="saved" if len(drive_files)==len(saved) else "partial"; items[0]=d; save(items); sync_index_to_drive(items,folder_id)
-  else: d["drive_status"]="not_connected"
- except Exception as drive_error:
-  d["drive_status"]="error"; d["drive_error"]=str(drive_error)[:300]; items[0]=d; save(items)
- return {"ok":True,"document":{k:v for k,v in d.items() if k!="text"},"extracted_characters":len(text),"extracted_text":text,"ocr_status":d.get("ocr_status","complete"),"ocr_errors":ocr_errors,"storage_status":d.get("drive_status","not_connected")}
+    if not uploaded or not uploaded.get("id"): raise RuntimeError("لم يؤكد Google Drive حفظ إحدى الصفحات")
+    drive_files.append({"id":uploaded["id"],"name":uploaded["name"],
+                        "webViewLink":uploaded.get("webViewLink"),"page":entry["page"]})
+   d["drive_files"]=drive_files; d["drive_folder_id"]=folder_id
+   d["drive_status"]="saved"; d["processing_status"]="queued"
+   items[0]=d; save(items)
+   sync_index_to_drive(items,folder_id)
+  except Exception as drive_error:
+   d["drive_status"]="partial"; d["processing_status"]="pending_storage"
+   d["drive_error"]=str(drive_error)[:300]
+   items[0]=d; save(items)
+   return upload_result(d,message="لم يكتمل تأكيد حفظ كل الصور في Google Drive؛ لم نبدأ التحليل حتى لا نفقد صفحات المستند.")
+
+  # Gemini reads the original image bytes in their upload order. No Tesseract call is made.
+  try:
+   extracted=analyze_document_images(image_payloads)
+   full_text=str(extracted.get("full_text") or "").strip()
+   number=str(extracted.get("document_number") or "").strip()
+   date=str(extracted.get("document_date") or "").strip()
+   subject=str(extracted.get("subject") or "").strip()
+   issuer=str(extracted.get("issuer") or "").strip()
+   doc_type=str(extracted.get("document_type") or "").strip()
+   confidence=extracted.get("field_confidence") if isinstance(extracted.get("field_confidence"),dict) else {}
+   verified=bool(extracted.get("data_verified")) and bool(number and date and subject)
+   d.update({"title":subject or saved[0]["filename"],"number":number,"document_number":number,
+             "date":date,"document_date":date,"subject":subject,"issuer":issuer,
+             "category":category_from_type(doc_type),"document_type":doc_type,
+             "text":full_text,"referenced_decisions":extracted.get("referenced_decisions") or [],
+             "field_confidence":confidence,"review_notes":str(extracted.get("review_notes") or ""),
+             "data_verified":verified,"review_required":not verified,
+             "gemini_status":"complete" if full_text else "needs_review",
+             "processing_status":"complete" if verified and full_text else "needs_review",
+             "processed_at":datetime.now(timezone.utc).isoformat()})
+   if not full_text:
+    d["processing_message"]="حُفظت الصور، لكن Gemini لم يستخرج نصاً كافياً. المستند بانتظار التحقق."
+   elif not verified:
+    d["processing_message"]="تم استخراج النص، وبعض البيانات غير مؤكدة؛ المستند محفوظ وقيد التحقق."
+   else:
+    d["processing_message"]="تمت قراءة المستند وفهرسته بواسطة Gemini."
+   duplicate=find_duplicate(items,number,date,subject,exclude_id=ident)
+   if duplicate:
+    duplicate.setdefault("duplicate_uploads",[]).append({
+      "uploaded_at":d["uploaded_at"],"drive_files":drive_files,"page_count":len(saved),
+      "source_school":None,"upload_id":ident})
+    duplicate["last_uploaded_at"]=d["uploaded_at"]
+    items=[x for x in items if x.get("id")!=ident]
+    d=duplicate
+    duplicate_flag=True
+    message="المستند موجود مسبقاً؛ احتفظنا بصور الرفع الجديد وربطناها بالسجل نفسه."
+   else:
+    items[0]=d; duplicate_flag=False; message=d["processing_message"]
+   save(items)
+   try: sync_index_to_drive(items,folder_id)
+   except Exception as sync_error: d["index_sync_warning"]=str(sync_error)[:240]
+   return upload_result(d,full_text,message,duplicate_flag)
+  except GeminiNotConfigured as ai_error:
+   d["gemini_status"]="not_configured"; d["processing_status"]="pending_ai"
+   d["processing_message"]="تم حفظ الصور الأصلية في Google Drive. يلزم ضبط GEMINI_API_KEY في Render لبدء القراءة."
+  except Exception as ai_error:
+   d["gemini_status"]="failed"; d["processing_status"]="pending_ai"
+   d["gemini_error"]=str(ai_error)[:500]
+   d["processing_message"]="تم حفظ الصور الأصلية في Google Drive، لكن تعذرت قراءة Gemini مؤقتاً. المستند محفوظ بانتظار إعادة المعالجة."
+  items=rows()
+  current=next((x for x in items if x.get("id")==ident),d)
+  current.update(d); save(items)
+  try: sync_index_to_drive(items,folder_id)
+  except Exception: pass
+  return upload_result(d,message=d.get("processing_message"))
+ except HTTPException: raise
+ except Exception as e:
+  # Never report successful archiving when storage was not confirmed.
+  try:
+   items=rows(); current=next((x for x in items if x.get("id")==ident),None)
+   if current:
+    current["processing_status"]="error"; current["processing_error"]=str(e)[:300]; save(items)
+  except Exception: pass
+  raise HTTPException(500,"تعذرت معالجة الرفع: "+str(e)[:240]+". احتفظ بالصور الأصلية إلى أن تتأكد من ظهورها في الأرشيف وGoogle Drive.")
 @app.get("/api/file/{ident}")
 def get_file(ident:str,download:int=0,page:int=1):
  d=next((x for x in rows() if x["id"]==ident),None)
