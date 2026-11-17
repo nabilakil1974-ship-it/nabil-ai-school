@@ -388,25 +388,40 @@ def upload_result(d, text="", message=None, duplicate=False):
 
 @app.post("/api/upload")
 async def upload(files: list[UploadFile] = File(...)):
- if not files: raise HTTPException(400,"اختر صورة واحدة على الأقل")
+ if not files: raise HTTPException(400,"اختر صوراً أو ملف PDF أو Word")
  if len(files)>25: raise HTTPException(400,"يمكن رفع 25 صورة كحد أقصى للمستند الواحد")
  ident=uuid.uuid4().hex; saved=[]; image_payloads=[]; total_bytes=0
- allowed={".png":"image/png",".jpg":"image/jpeg",".jpeg":"image/jpeg",".webp":"image/webp",".tif":"image/tiff",".tiff":"image/tiff"}
+ allowed={".png":"image/png",".jpg":"image/jpeg",".jpeg":"image/jpeg",".webp":"image/webp",".tif":"image/tiff",".tiff":"image/tiff",".pdf":"application/pdf",".docx":"application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
  try:
+  extensions=[Path(up.filename or "").suffix.lower() for up in files]
+  if any(ext not in allowed for ext in extensions):
+   raise HTTPException(415,"الصيغ المدعومة: PDF وWord DOCX وصور JPG وPNG وWEBP وTIFF")
+  if any(ext in {".pdf",".docx"} for ext in extensions) and len(files)!=1:
+   raise HTTPException(400,"ارفع ملف PDF أو Word منفرداً، أو اختر عدة صور للمستند نفسه")
   for i,up in enumerate(files,1):
    name=Path(up.filename or f"page-{i}.jpg").name; ext=Path(name).suffix.lower()
-   if ext not in allowed: raise HTTPException(415,"ارفع صوراً فقط، ويمكن اختيار عدة صور للمستند نفسه")
    content=await up.read()
-   if not content: raise HTTPException(400,"إحدى الصور فارغة")
-   if len(content)>12*1024*1024: raise HTTPException(413,"حجم الصورة الواحدة يتجاوز 12 ميغابايت")
+   if not content: raise HTTPException(400,"الملف فارغ")
+   if len(content)>18*1024*1024: raise HTTPException(413,"حجم الملف الواحد يتجاوز 18 ميغابايت")
    total_bytes+=len(content)
-   if total_bytes>18*1024*1024: raise HTTPException(413,"الحجم الإجمالي للصور يتجاوز 18 ميغابايت؛ قسّم المستند إلى دفعتين")
+   if total_bytes>18*1024*1024: raise HTTPException(413,"الحجم الإجمالي يتجاوز 18 ميغابايت")
    target=FILES/(ident+"-"+str(i)+ext)
    target.write_bytes(content)
    saved.append({"filename":name,"stored":target.name,"page":i})
-   image_payloads.append({"bytes":content,"mime_type":allowed[ext]})
+   if ext in {".png",".jpg",".jpeg",".webp",".tif",".tiff"}:
+    image_payloads.append({"bytes":content,"mime_type":allowed[ext]})
+   elif ext==".pdf":
+    try:
+     pdf=fitz.open(stream=content,filetype="pdf")
+     if len(pdf)>25: raise HTTPException(413,"ملف PDF يتجاوز 25 صفحة")
+     for page_no,page in enumerate(pdf,1):
+      pix=page.get_pixmap(matrix=fitz.Matrix(1.6,1.6),alpha=False)
+      image_payloads.append({"bytes":pix.tobytes("jpeg"),"mime_type":"image/jpeg"})
+    except HTTPException: raise
+    except Exception as exc: raise HTTPException(415,"تعذر فتح ملف PDF: "+str(exc)[:120])
+  page_count=len(image_payloads) if image_payloads else 1
   d={"id":ident,"title":saved[0]["filename"],"filename":saved[0]["filename"],"files":saved,
-     "page_count":len(saved),"number":"","document_number":"","date":"","document_date":"",
+     "page_count":page_count,"number":"","document_number":"","date":"","document_date":"",
      "subject":"","category":"قيد المعالجة","issuer":"","text":"",
      "uploaded_at":datetime.now(timezone.utc).isoformat(),"url":"/api/file/"+ident,
      "download":"/api/file/"+ident+"?download=1","review_required":True,
@@ -440,13 +455,31 @@ async def upload(files: list[UploadFile] = File(...)):
    items[0]=d; save(items)
    return upload_result(d,message="لم يكتمل تأكيد حفظ كل الصور في Google Drive؛ لم نبدأ التحليل حتى لا نفقد صفحات المستند.")
 
-  # Try Gemini first, then fall back to the already-installed local Arabic/English OCR.
+  # Read images/PDF with Gemini Vision and local OCR fallback; extract DOCX text locally.
   try:
-   try:
-    extracted=analyze_document_images(image_payloads)
-   except Exception as gemini_error:
-    logger.warning("Gemini unavailable; using local OCR upload=%s error=%s",ident,str(gemini_error)[:300])
-    extracted=fallback_ocr_images(image_payloads)
+   if Path(saved[0]["filename"]).suffix.lower()==".docx":
+    full_text=extract(FILES/saved[0]["stored"],".docx").strip()
+    meta=detect_metadata(full_text,saved[0]["filename"])
+    extracted={"document_number":meta.get("number",""),"document_date":meta.get("date",""),
+      "subject":meta.get("subject",""),"issuer":meta.get("issuer",""),
+      "document_type":meta.get("category",""),"full_text":full_text,
+      "data_verified":False,"reader":"docx","field_confidence":{},
+      "review_notes":"تم استخراج نص ملف Word محلياً؛ راجع البيانات الوصفية قبل اعتمادها."}
+   else:
+    try:
+     extracted=analyze_document_images(image_payloads)
+    except Exception as gemini_error:
+     logger.warning("Gemini unavailable; using local OCR upload=%s error=%s",ident,str(gemini_error)[:300])
+     if Path(saved[0]["filename"]).suffix.lower()==".pdf":
+      local_text=extract(FILES/saved[0]["stored"],".pdf").strip()
+      meta=detect_metadata(local_text,saved[0]["filename"])
+      extracted={"document_number":meta.get("number",""),"document_date":meta.get("date",""),
+       "subject":meta.get("subject",""),"issuer":meta.get("issuer",""),
+       "document_type":meta.get("category",""),"full_text":local_text,
+       "data_verified":False,"reader":"tesseract","field_confidence":{},
+       "review_notes":"تم استخراج نص PDF محلياً؛ راجع البيانات الوصفية قبل اعتمادها."}
+     else:
+      extracted=fallback_ocr_images(image_payloads)
    full_text=str(extracted.get("full_text") or "").strip()
    number=str(extracted.get("document_number") or "").strip()
    date=str(extracted.get("document_date") or "").strip()
