@@ -1,9 +1,59 @@
-<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NABIL AI | أرشيف مديري المدارس</title><style>
-*{box-sizing:border-box}body{margin:0;background:#f3f6fa;color:#203246;font-family:Tahoma,Arial,sans-serif}header{background:linear-gradient(120deg,#102a43,#1769aa);color:#fff;padding:22px 5%;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}.brand{display:flex;align-items:center;gap:14px}.avatar{width:58px;height:58px;border-radius:50%;background:#fff;color:#1769aa;display:grid;place-items:center;font-size:23px;font-weight:bold;border:3px solid #d7a94b}h1{font-size:25px;margin:0}header p{margin:6px 0 0;color:#dceaf7}.top{display:flex;gap:9px;flex-wrap:wrap}button{border:0;border-radius:10px;padding:12px 17px;background:#d7a94b;color:#142c42;font-weight:bold;cursor:pointer}.ghost{background:transparent;color:white;border:1px solid #ffffff88}.wrap{max-width:1150px;margin:26px auto;padding:0 16px}.hero,.panel{background:white;border-radius:18px;padding:24px;box-shadow:0 5px 24px #18334b10;margin-bottom:18px}.hero h2{margin:0 0 8px;font-size:24px}.hero p,.muted{color:#718195}.search{display:flex;gap:8px}.search input{flex:1;min-width:0;border:1px solid #d5dee8;border-radius:10px;padding:14px;font-size:16px}.search button{background:#1769aa;color:white}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(195px,1fr));gap:14px;margin:20px 0}.tile{background:white;border:1px solid #e3eaf1;border-radius:15px;padding:19px;cursor:pointer}.tile:hover{box-shadow:0 7px 20px #1232;transform:translateY(-2px)}.ico{font-size:28px}.tile h3{margin:10px 0 5px}.tile p{margin:0;color:#718195;font-size:14px}.notice{background:#fff8e8;border:1px solid #f1d99f;border-radius:12px;padding:13px;color:#70551a;font-size:14px}dialog{border:0;border-radius:16px;padding:24px;max-width:420px;width:calc(100% - 30px);box-shadow:0 15px 60px #0004}dialog::backdrop{background:#0b1c2b99}form{display:grid;gap:10px}form input{padding:12px;border:1px solid #ccd7e2;border-radius:9px}footer{text-align:center;color:#7b8b9c;padding:25px}@media(max-width:600px){h1{font-size:19px}.search{flex-direction:column}}</style></head><body>
-<header><div class="brand"><div class="avatar">N</div><div><h1>NABIL AI</h1><p>أرشيف مديري المدارس في لبنان</p></div></div><div class="top"><button class="ghost" onclick="document.getElementById('login').showModal()">دخول المديرين</button><button onclick="document.getElementById('register').showModal()">تسجيل مدرسة</button></div></header>
-<main class="wrap"><section class="hero"><h2>ابحث في الذاكرة الإدارية والتربوية</h2><p>منصة مفتوحة للجميع للبحث والاطلاع وتنزيل المستندات.</p><div class="search"><input id="q" placeholder="رقم قرار أو تعميم أو سؤال إداري..."><button onclick="searchDocs()">بحث</button></div></section>
-<section class="grid"><div class="tile" onclick="filter('تعميم')"><div class="ico">📣</div><h3>أرشيف التعاميم</h3><p>التعاميم الوزارية والإدارية</p></div><div class="tile" onclick="filter('قرار')"><div class="ico">📑</div><h3>أرشيف القرارات</h3><p>القرارات الرسمية وأرقامها</p></div><div class="tile" onclick="filter('قانون')"><div class="ico">⚖️</div><h3>أرشيف القوانين</h3><p>القوانين والمواد التشريعية</p></div><div class="tile" onclick="filter('مرسوم')"><div class="ico">🏛️</div><h3>المراسيم والأنظمة</h3><p>المراسيم والأنظمة الداخلية</p></div><div class="tile" onclick="filter('كتاب')"><div class="ico">🗂️</div><h3>الكتب والمراسلات</h3><p>الكتب الإدارية والمراسلات</p></div></section>
-<section class="panel"><h3>نتائج البحث</h3><div id="results" class="muted">اكتب كلمة أو رقم مستند لبدء البحث. ستظهر النتائج مع المرجع والصفحة والبند بعد فهرسة الوثائق.</div></section><section class="notice">تنبيه: هذه واجهة أولية منشورة فقط. لم يُفعّل بعد تخزين مشترك أو تسجيل موثّق أو رفع ملفات أو سجل تدقيق؛ لا تُدخل بيانات حقيقية أو مستندات حساسة في هذه النسخة.</section></main><footer>NABIL AI · أرشيف إداري مفتوح للبحث العام</footer>
-<dialog id="login"><h3>دخول المديرين</h3><form onsubmit="event.preventDefault();alert('تسجيل الدخول غير مفعّل بعد.');"><input type="email" placeholder="البريد الإلكتروني" required><input type="password" placeholder="كلمة المرور" required><button>دخول</button><button type="button" onclick="this.closest('dialog').close()">إغلاق</button></form></dialog>
-<dialog id="register"><h3>تسجيل مدرسة</h3><form onsubmit="event.preventDefault();alert('التسجيل والتحقق من رقم المدرسة غير مفعّلين بعد.');"><input placeholder="اسم المدير الكامل" required><input type="email" placeholder="البريد الإلكتروني" required><input placeholder="اسم المدرسة الرسمي" required><input placeholder="رقم المدرسة الرسمي" required><input type="password" placeholder="كلمة المرور" required><button>إنشاء حساب</button><button type="button" onclick="this.closest('dialog').close()">إغلاق</button></form></dialog>
-<script>function searchDocs(){let q=document.getElementById('q').value.trim();document.getElementById('results').textContent=q?'لا توجد وثائق مفهرسة بعد. ستظهر النتائج هنا بعد ربط قاعدة الأرشيف.':'اكتب عبارة البحث أولاً.'}function filter(t){document.getElementById('q').value=t;searchDocs()}</script></body></html>
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#102a43"><title>NABIL AI | أرشيف مديري المدارس في لبنان</title>
+<style>
+:root{--navy:#102a43;--blue:#1769aa;--gold:#d7a94b;--ink:#203246;--muted:#718195;--line:#e2eaf1}
+*{box-sizing:border-box}body{margin:0;background:#f3f6fa;color:var(--ink);font-family:Tahoma,Arial,sans-serif}
+header{background:linear-gradient(120deg,#102a43,#1769aa);color:#fff;padding:20px max(5%,calc((100% - 1160px)/2));display:flex;align-items:center;gap:14px}
+.brand{display:flex;align-items:center;gap:13px}.avatar{width:54px;height:54px;border-radius:50%;background:#fff;color:var(--blue);display:grid;place-items:center;font-size:22px;font-weight:bold;border:3px solid var(--gold);flex:none}
+h1{font-size:23px;margin:0}header p{margin:6px 0 0;color:#dceaf7;font-size:14px}
+.open{margin-right:auto;border:1px solid #ffffff70;border-radius:999px;padding:8px 13px;font-size:13px}
+.wrap{max-width:1160px;margin:27px auto;padding:0 16px}.hero,.panel{background:#fff;border-radius:18px;padding:23px;box-shadow:0 5px 24px #18334b0d;margin-bottom:18px}
+.hero h2{margin:0 0 8px;font-size:24px}.muted{color:var(--muted)}.search{display:flex;gap:9px;margin-top:17px}
+.search input{flex:1;min-width:0;border:1px solid #d5dee8;border-radius:11px;padding:14px;font-size:16px}
+button{border:0;border-radius:10px;padding:12px 18px;background:var(--blue);color:#fff;font-weight:bold;cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:13px;margin:19px 0}
+.tile{background:#fff;border:1px solid var(--line);border-radius:15px;padding:17px;cursor:pointer;text-align:right;color:var(--ink)}
+.tile:hover,.tile.active{border-color:var(--blue);box-shadow:0 5px 18px #1769aa18}.ico{font-size:26px}.tile h3{margin:9px 0 5px;font-size:16px}.tile p{margin:0;color:var(--muted);font-size:13px}
+.panel-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.panel h3{margin:0}
+#count{font-size:13px;color:var(--muted)}.results{display:grid;gap:11px;margin-top:16px}
+.doc{border:1px solid var(--line);border-radius:13px;padding:15px;display:flex;gap:15px;align-items:center;justify-content:space-between}
+.doc h4{margin:0 0 7px;font-size:16px}.meta{font-size:13px;color:var(--muted);line-height:1.8}.doc-actions{display:flex;gap:8px;flex:none}.doc-actions a{display:inline-block;text-decoration:none;background:#edf4fa;color:#14588d;padding:9px 12px;border-radius:9px;font-size:13px;font-weight:bold}
+.empty{text-align:center;padding:35px 12px;color:var(--muted);line-height:1.9}
+footer{text-align:center;color:#8795a4;padding:22px;font-size:13px}
+@media(max-width:600px){h1{font-size:18px}.search{flex-direction:column}.doc{align-items:flex-start;flex-direction:column}.doc-actions{width:100%}.doc-actions a{flex:1;text-align:center}}
+</style></head>
+<body>
+<header><div class="brand"><div class="avatar">N</div><div><h1>NABIL AI</h1><p>أرشيف مديري المدارس في لبنان</p></div></div><div class="open">منصة مفتوحة للجميع</div></header>
+<main class="wrap">
+<section class="hero"><h2>الأرشيف الإداري والتربوي</h2><div class="muted">ابحث في التعاميم والقرارات والقوانين والمراسيم والكتب الإدارية.</div>
+<div class="search"><input id="q" type="search" placeholder="اكتب رقم المستند أو عنوانه أو موضوعه أو كلمة من مضمونه..." autocomplete="off"><button id="searchBtn">بحث في الأرشيف</button></div></section>
+<section class="grid" id="categories">
+<button class="tile active" data-cat=""><div class="ico">📚</div><h3>كل الوثائق</h3><p>عرض جميع فئات الأرشيف</p></button>
+<button class="tile" data-cat="تعميم"><div class="ico">📣</div><h3>التعاميم</h3><p>التعاميم الوزارية والإدارية</p></button>
+<button class="tile" data-cat="قرار"><div class="ico">📑</div><h3>القرارات</h3><p>القرارات الرسمية وأرقامها</p></button>
+<button class="tile" data-cat="قانون"><div class="ico">⚖️</div><h3>القوانين</h3><p>القوانين والمواد التشريعية</p></button>
+<button class="tile" data-cat="مرسوم"><div class="ico">🏛️</div><h3>المراسيم والأنظمة</h3><p>المراسيم والأنظمة</p></button>
+<button class="tile" data-cat="كتاب"><div class="ico">🗂️</div><h3>الكتب والمراسلات</h3><p>الكتب الإدارية والمراسلات</p></button>
+</section>
+<section class="panel"><div class="panel-head"><h3>وثائق الأرشيف</h3><span id="count">جارٍ تحميل فهرس الوثائق...</span></div><div id="results" class="results"><div class="empty">يتم تحميل فهرس الأرشيف...</div></div></section>
+</main><footer>NABIL AI · أرشيف مديري المدارس في لبنان</footer>
+<script>
+let docs=[],category='';
+const $=id=>document.getElementById(id);
+function norm(v){return String(v??'').toLocaleLowerCase('ar').normalize('NFKC')}
+function render(){
+ const q=norm($('q').value.trim());
+ const found=docs.filter(d=>(!category||norm(d.category).includes(norm(category)))&&(!q||norm([d.title,d.number,d.date,d.issuer,d.subject,d.text,d.category].join(' ')).includes(q)));
+ $('count').textContent='عدد النتائج: '+found.length;
+ if(!found.length){$('results').innerHTML='<div class="empty">'+(docs.length?'لا توجد وثائق تطابق البحث.':'لا توجد وثائق منشورة في الفهرس حالياً.')+'</div>';return}
+ $('results').innerHTML=found.map(d=>'<article class="doc"><div><h4>'+esc(d.title||'مستند إداري')+'</h4><div class="meta">'+[d.category&&'الفئة: '+d.category,d.number&&'الرقم: '+d.number,d.date&&'التاريخ: '+d.date,d.issuer&&'الجهة: '+d.issuer,d.subject&&'الموضوع: '+d.subject].filter(Boolean).map(esc).join(' · ')+'</div></div><div class="doc-actions">'+(d.url?'<a href="'+attr(d.url)+'" target="_blank" rel="noopener">عرض المستند</a>':'')+(d.download?'<a href="'+attr(d.download)+'" download>تنزيل</a>':'')+'</div></article>').join('');
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function attr(s){return esc(s)}
+$('searchBtn').addEventListener('click',render);$('q').addEventListener('input',render);
+document.querySelectorAll('[data-cat]').forEach(b=>b.addEventListener('click',()=>{category=b.dataset.cat;document.querySelectorAll('[data-cat]').forEach(x=>x.classList.toggle('active',x===b));render()}));
+fetch('./documents.json',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error('index');return r.json()}).then(data=>{docs=Array.isArray(data)?data:[];render()}).catch(()=>{$('count').textContent='تعذر تحميل الفهرس';$('results').innerHTML='<div class="empty">تعذر تحميل فهرس الوثائق حالياً.</div>'});
+</script></body></html>
