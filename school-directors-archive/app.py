@@ -76,8 +76,15 @@ def rows():
  except: return []
 def save(items): INDEX.write_text(json.dumps(items,ensure_ascii=False,indent=2),encoding="utf-8")
 def ocr(path):
- img=Image.open(path); img=ImageOps.exif_transpose(img); img.thumbnail((2000,2000)); img=ImageOps.grayscale(img); img=ImageOps.autocontrast(img)
- return pytesseract.image_to_string(img,lang="ara+fra+eng",config="--oem 1 --psm 3 -c preserve_interword_spaces=1",timeout=40)
+ img=Image.open(path)
+ img=ImageOps.exif_transpose(img)
+ # Keep OCR workload small enough for the current low-memory CPU instance.
+ img.thumbnail((1100,1500))
+ img=ImageOps.grayscale(img)
+ img=ImageOps.autocontrast(img)
+ # Arabic and English cover the common official-document text; avoid the slower three-language pass.
+ return pytesseract.image_to_string(img,lang="ara+eng",config="--oem 1 --psm 6 -c preserve_interword_spaces=1",timeout=22)
+
 def extract(path,ext):
  if ext in {".png",".jpg",".jpeg",".webp",".tif",".tiff"}: return ocr(path)
  if ext==".pdf":
