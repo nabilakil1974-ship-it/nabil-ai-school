@@ -174,8 +174,8 @@ async def upload(files: list[UploadFile] = File(...)):
    with target.open("wb") as out: shutil.copyfileobj(up.file,out)
    saved.append({"filename":name,"stored":target.name,"page":i})
    page_text=extract(target,ext)
-   texts.append("[الصورة / الصفحة "+str(i)+"]\\n"+page_text)
-  text="\\n\\n".join(texts)
+   texts.append("[الصورة / الصفحة "+str(i)+"]\n"+page_text)
+  text="\n\n".join(texts)
   meta=detect_metadata(text," ".join(x["filename"] for x in saved))
  except HTTPException:
   for x in saved: (FILES/x["stored"]).unlink(missing_ok=True)
@@ -197,7 +197,7 @@ async def upload(files: list[UploadFile] = File(...)):
   else: d["drive_status"]="not_connected"
  except Exception as drive_error:
   d["drive_status"]="error"; d["drive_error"]=str(drive_error)[:300]; items[0]=d; save(items)
- return {"ok":True,"document":{k:v for k,v in d.items() if k!="text"},"extracted_characters":len(text)}
+ return {"ok":True,"document":{k:v for k,v in d.items() if k!="text"},"extracted_characters":len(text),"storage_status":d.get("drive_status","not_connected")}
 
 @app.get("/api/file/{ident}")
 def get_file(ident:str,download:int=0,page:int=1):
