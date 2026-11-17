@@ -300,8 +300,7 @@ def retry_pending_documents():
  if not service:
   logger.error("retry skipped: Google Drive credentials unavailable")
   return
- items=rows()
- if not items: items=restore_index_from_drive(service)
+ items=restore_index_from_drive(service)
  logger.info("retry queue inspected count=%s pending=%s",len(items),sum(1 for x in items if x.get("processing_status")=="pending_ai" and x.get("drive_status")=="saved"))
  changed=False
  now=datetime.now(timezone.utc)
