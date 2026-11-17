@@ -80,10 +80,10 @@ def save(items): INDEX.write_text(json.dumps(items,ensure_ascii=False,indent=2),
 def ocr(path):
  img=Image.open(path)
  img=ImageOps.exif_transpose(img)
- img.thumbnail((1600,1600))
+ img.thumbnail((1400,1400))
  img=ImageOps.grayscale(img)
  img=ImageOps.autocontrast(img)
- return pytesseract.image_to_string(img,lang="ara+fra+eng",config="--psm 3",timeout=18)
+ return pytesseract.image_to_string(img,lang="ara+fra+eng",config="--oem 1 --psm 6",timeout=30)
 def extract(path,ext):
  if ext in {".png",".jpg",".jpeg",".webp",".tif",".tiff"}: return ocr(path)
  if ext==".pdf":
