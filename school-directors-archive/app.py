@@ -80,10 +80,10 @@ def save(items): INDEX.write_text(json.dumps(items,ensure_ascii=False,indent=2),
 def ocr(path):
  img=Image.open(path)
  img=ImageOps.exif_transpose(img)
- img.thumbnail((2200,2200))
+ img.thumbnail((1600,1600))
  img=ImageOps.grayscale(img)
  img=ImageOps.autocontrast(img)
- return pytesseract.image_to_string(img,lang="ara+fra+eng",config="--psm 3",timeout=40)
+ return pytesseract.image_to_string(img,lang="ara+fra+eng",config="--psm 3",timeout=18)
 def extract(path,ext):
  if ext in {".png",".jpg",".jpeg",".webp",".tif",".tiff"}: return ocr(path)
  if ext==".pdf":
@@ -170,7 +170,7 @@ def documents(): return rows()
 async def upload(files: list[UploadFile] = File(...)):
  if not files: raise HTTPException(400,"اختر صورة واحدة على الأقل")
  if len(files)>25: raise HTTPException(400,"يمكن رفع 25 صورة كحد أقصى للمستند الواحد")
- ident=uuid.uuid4().hex; saved=[]; texts=[]
+ ident=uuid.uuid4().hex; saved=[]; texts=[]; ocr_errors=[]
  try:
   for i,up in enumerate(files,1):
    name=Path(up.filename or f"page-{i}.jpg").name; ext=Path(name).suffix.lower()
@@ -179,7 +179,11 @@ async def upload(files: list[UploadFile] = File(...)):
    target=FILES/(ident+"-"+str(i)+ext)
    with target.open("wb") as out: shutil.copyfileobj(up.file,out)
    saved.append({"filename":name,"stored":target.name,"page":i})
-   page_text=extract(target,ext)
+   try:
+    page_text=extract(target,ext)
+   except Exception as ocr_error:
+    page_text=""
+    ocr_errors.append({"page":i,"error":str(ocr_error)[:240]})
    texts.append("[الصورة / الصفحة "+str(i)+"]\n"+page_text)
   text="\n\n".join(texts)
   meta=detect_metadata(text," ".join(x["filename"] for x in saved))
@@ -187,9 +191,9 @@ async def upload(files: list[UploadFile] = File(...)):
   for x in saved: (FILES/x["stored"]).unlink(missing_ok=True)
   raise
  except Exception as e:
-  for x in saved: (FILES/x["stored"]).unlink(missing_ok=True)
-  raise HTTPException(422,"تعذرت قراءة الصور: "+str(e))
- d={"id":ident,"title":meta["subject"] or saved[0]["filename"],"filename":saved[0]["filename"],"files":saved,"page_count":len(saved),**meta,"text":text,"uploaded_at":datetime.now(timezone.utc).isoformat(),"url":"/api/file/"+ident,"download":"/api/file/"+ident+"?download=1","review_required":not bool(text.strip())}
+  # Keep uploaded originals even when document processing fails.
+  raise HTTPException(422,"تعذرت معالجة المستند: "+str(e)+". الصور الأصلية محفوظة على الخادم إن اكتمل نسخها.")
+ d={"id":ident,"title":meta["subject"] or saved[0]["filename"],"filename":saved[0]["filename"],"files":saved,"page_count":len(saved),**meta,"text":text,"uploaded_at":datetime.now(timezone.utc).isoformat(),"url":"/api/file/"+ident,"download":"/api/file/"+ident+"?download=1","review_required":not bool(text.strip()) or bool(ocr_errors),"ocr_status":"partial" if ocr_errors and text.strip() else ("failed" if ocr_errors else "complete"),"ocr_errors":ocr_errors}
  items=rows(); items.insert(0,d); save(items)
  try:
   service=drive_service()
@@ -203,7 +207,7 @@ async def upload(files: list[UploadFile] = File(...)):
   else: d["drive_status"]="not_connected"
  except Exception as drive_error:
   d["drive_status"]="error"; d["drive_error"]=str(drive_error)[:300]; items[0]=d; save(items)
- return {"ok":True,"document":{k:v for k,v in d.items() if k!="text"},"extracted_characters":len(text),"extracted_text":text[:1800],"storage_status":d.get("drive_status","not_connected") }
+ return {"ok":True,"document":{k:v for k,v in d.items() if k!="text"},"extracted_characters":len(text),"extracted_text":text[:1800],"ocr_status":d.get("ocr_status","complete"),"ocr_errors":ocr_errors,"storage_status":d.get("drive_status","not_connected") }
 
 @app.get("/api/file/{ident}")
 def get_file(ident:str,download:int=0,page:int=1):
