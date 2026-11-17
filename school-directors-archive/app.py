@@ -1,4 +1,4 @@
-import os, json, uuid, shutil, re, zipfile, hashlib, unicodedata, mimetypes, io
+import os, json, uuid, shutil, re, zipfile, hashlib, unicodedata, mimetypes, io, asyncio
 from pathlib import Path
 from datetime import datetime, timezone
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request
@@ -198,6 +198,79 @@ def category_from_type(value):
  if any(x in v for x in ("كتاب","مذكرة","مراسلة","بلاغ","note")): return "كتاب"
  return "غير مصنّف"
 
+def retry_pending_documents():
+ if not os.getenv("GEMINI_API_KEY"): return
+ service=drive_service()
+ if not service: return
+ items=rows()
+ if not items: items=restore_index_from_drive(service)
+ changed=False
+ now=datetime.now(timezone.utc)
+ for d in list(items):
+  if d.get("processing_status")!="pending_ai" or d.get("drive_status")!="saved": continue
+  retry_at=d.get("next_retry_at")
+  if retry_at:
+   try:
+    if datetime.fromisoformat(retry_at.replace("Z","+00:00"))>now: continue
+   except Exception: pass
+  try:
+   images=[]
+   remote_files=sorted(d.get("drive_files") or [],key=lambda x:x.get("page",0))
+   if not remote_files: continue
+   for remote in remote_files:
+    buffer=io.BytesIO()
+    downloader=MediaIoBaseDownload(buffer,service.files().get_media(fileId=remote["id"]))
+    done=False
+    while not done: _,done=downloader.next_chunk()
+    mime=mimetypes.guess_type(remote.get("name",""))[0] or "image/jpeg"
+    images.append({"bytes":buffer.getvalue(),"mime_type":mime})
+   extracted=analyze_document_images(images)
+   full_text=str(extracted.get("full_text") or "").strip()
+   number=str(extracted.get("document_number") or "").strip()
+   date=str(extracted.get("document_date") or "").strip()
+   subject=str(extracted.get("subject") or "").strip()
+   doc_type=str(extracted.get("document_type") or "").strip()
+   verified=bool(extracted.get("data_verified")) and bool(number and date and subject)
+   d.update({"title":subject or d.get("title"),"number":number,"document_number":number,
+             "date":date,"document_date":date,"subject":subject,
+             "issuer":str(extracted.get("issuer") or ""),"category":category_from_type(doc_type),
+             "document_type":doc_type,"text":full_text,
+             "referenced_decisions":extracted.get("referenced_decisions") or [],
+             "field_confidence":extracted.get("field_confidence") or {},
+             "review_notes":str(extracted.get("review_notes") or ""),
+             "data_verified":verified,"review_required":not verified,
+             "gemini_status":"complete" if full_text else "needs_review",
+             "processing_status":"complete" if verified and full_text else "needs_review",
+             "processed_at":datetime.now(timezone.utc).isoformat()})
+   duplicate=find_duplicate(items,number,date,subject,exclude_id=d.get("id"))
+   if duplicate:
+    duplicate.setdefault("duplicate_uploads",[]).append({
+      "uploaded_at":d.get("uploaded_at"),"drive_files":d.get("drive_files") or [],
+      "page_count":d.get("page_count",0),"source_school":None,"upload_id":d.get("id")})
+    items=[x for x in items if x.get("id")!=d.get("id")]
+   changed=True
+  except Exception as exc:
+   count=int(d.get("retry_count",0))+1
+   delay=min(21600,60*(2**min(count,8)))
+   d["retry_count"]=count
+   d["next_retry_at"]=(datetime.now(timezone.utc)+__import__("datetime").timedelta(seconds=delay)).isoformat()
+   d["gemini_error"]=str(exc)[:500]
+   changed=True
+ if changed:
+  save(items)
+  try: sync_index_to_drive(items,ensure_drive_folder(service))
+  except Exception: pass
+
+async def retry_worker():
+ while True:
+  await asyncio.sleep(60)
+  try: await asyncio.to_thread(retry_pending_documents)
+  except Exception: pass
+
+@app.on_event("startup")
+async def start_retry_worker():
+ asyncio.create_task(retry_worker())
+
 def upload_result(d, text="", message=None, duplicate=False):
  public={k:v for k,v in d.items() if k not in {"text","ocr_errors"}}
  return {"ok":True,"message":message or "تم حفظ الصور وتسجيل حالة المعالجة.","document":public,
@@ -306,6 +379,7 @@ async def upload(files: list[UploadFile] = File(...)):
    d["processing_message"]="تم حفظ الصور الأصلية في Google Drive. يلزم ضبط GEMINI_API_KEY في Render لبدء القراءة."
   except Exception as ai_error:
    d["gemini_status"]="failed"; d["processing_status"]="pending_ai"
+   d["retry_count"]=0; d["next_retry_at"]=(datetime.now(timezone.utc)+__import__("datetime").timedelta(seconds=60)).isoformat()
    d["gemini_error"]=str(ai_error)[:500]
    d["processing_message"]="تم حفظ الصور الأصلية في Google Drive، لكن تعذرت قراءة Gemini مؤقتاً. المستند محفوظ بانتظار إعادة المعالجة."
   items=rows()
