@@ -1,18 +1,74 @@
 import os, json, uuid, shutil, re, zipfile
 from pathlib import Path
 from datetime import datetime, timezone
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request
+from fastapi.responses import FileResponse, RedirectResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 import fitz
 from PIL import Image
 import pytesseract
 from docx import Document
+from google_auth_oauthlib.flow import Flow
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
 
 BASE=Path(os.getenv("DATA_DIR","/tmp/school-archive-data"))
 FILES=BASE/"files"; INDEX=BASE/"documents.json"
 FILES.mkdir(parents=True,exist_ok=True)
 if not INDEX.exists(): INDEX.write_text("[]",encoding="utf-8")
+TOKEN_FILE=BASE/"google-token.json"
+DRIVE_FOLDER_FILE=BASE/"google-drive-folder.json"
+DRIVE_SCOPE=["https://www.googleapis.com/auth/drive.file"]
+REDIRECT_URI=os.getenv("GOOGLE_REDIRECT_URI","https://nabil-school-directors-archive-api.onrender.com/auth/google/callback")
+
+def google_client_config():
+ cid=os.getenv("GOOGLE_CLIENT_ID"); secret=os.getenv("GOOGLE_CLIENT_SECRET")
+ if not cid or not secret: raise HTTPException(503,"إعدادات Google OAuth غير مكتملة")
+ return {"web":{"client_id":cid,"client_secret":secret,"auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","redirect_uris":[REDIRECT_URI]}}
+
+def google_credentials():
+ if not TOKEN_FILE.exists(): return None
+ try:
+  return Credentials.from_authorized_user_file(str(TOKEN_FILE),DRIVE_SCOPE)
+ except Exception: return None
+
+def drive_service():
+ creds=google_credentials()
+ if not creds: return None
+ if creds.expired and creds.refresh_token:
+  from google.auth.transport.requests import Request as GoogleRequest
+  creds.refresh(GoogleRequest()); TOKEN_FILE.write_text(creds.to_json(),encoding="utf-8")
+ return build("drive","v3",credentials=creds,cache_discovery=False)
+
+def ensure_drive_folder(service):
+ if DRIVE_FOLDER_FILE.exists():
+  try: return json.loads(DRIVE_FOLDER_FILE.read_text(encoding="utf-8"))["id"]
+  except Exception: pass
+ found=service.files().list(q="mimeType='application/vnd.google-apps.folder' and name='NABIL - School Directors Archive' and trashed=false",spaces="drive",fields="files(id,name)",pageSize=10).execute().get("files",[])
+ if found: folder_id=found[0]["id"]
+ else:
+  folder=service.files().create(body={"name":"NABIL - School Directors Archive","mimeType":"application/vnd.google-apps.folder"},fields="id").execute(); folder_id=folder["id"]
+ DRIVE_FOLDER_FILE.write_text(json.dumps({"id":folder_id}),encoding="utf-8")
+ return folder_id
+
+def drive_upload(path, filename, folder_id):
+ service=drive_service()
+ if not service: return None
+ media=MediaFileUpload(str(path),resumable=True)
+ result=service.files().create(body={"name":filename,"parents":[folder_id]},media_body=media,fields="id,name,webViewLink,mimeType").execute()
+ return result
+
+def sync_index_to_drive(items, folder_id):
+ service=drive_service()
+ if not service: return
+ payload=json.dumps(items,ensure_ascii=False,indent=2).encode("utf-8")
+ from googleapiclient.http import MediaInMemoryUpload
+ query="name='archive-index.json' and '"+folder_id+"' in parents and trashed=false"
+ found=service.files().list(q=query,spaces="drive",fields="files(id)",pageSize=1).execute().get("files",[])
+ media=MediaInMemoryUpload(payload,mimetype="application/json",resumable=False)
+ if found: service.files().update(fileId=found[0]["id"],media_body=media).execute()
+ else: service.files().create(body={"name":"archive-index.json","parents":[folder_id]},media_body=media,fields="id").execute()
 app=FastAPI(title="NABIL AI School Directors Archive")
 app.add_middleware(CORSMiddleware,allow_origins=["*"],allow_methods=["*"],allow_headers=["*"])
 ALLOWED={".pdf",".docx",".png",".jpg",".jpeg",".webp",".tif",".tiff"}
@@ -83,7 +139,25 @@ def detect_metadata(text, filename):
  return {"number":number,"date":date,"subject":subject[:220],"category":category,"issuer":issuer}
 
 @app.get("/api/health")
-def health(): return {"status":"ok","ocr_languages":"ara+fra+eng"}
+def health(): return {"status":"ok","ocr_languages":"ara+fra+eng","google_drive_connected":google_credentials() is not None}
+
+@app.get("/auth/google")
+def google_auth():
+ flow=Flow.from_client_config(google_client_config(),scopes=DRIVE_SCOPE,redirect_uri=REDIRECT_URI)
+ url,state=flow.authorization_url(access_type="offline",include_granted_scopes="true",prompt="consent")
+ return RedirectResponse(url)
+
+@app.get("/auth/google/callback")
+def google_callback(request:Request):
+ try:
+  flow=Flow.from_client_config(google_client_config(),scopes=DRIVE_SCOPE,state=request.query_params.get("state"),redirect_uri=REDIRECT_URI)
+  flow.fetch_token(authorization_response=str(request.url))
+  TOKEN_FILE.write_text(flow.credentials.to_json(),encoding="utf-8")
+  service=drive_service(); folder_id=ensure_drive_folder(service)
+  sync_index_to_drive(rows(),folder_id)
+  return HTMLResponse("<html lang='ar' dir='rtl'><meta charset='utf-8'><body style='font-family:Tahoma;padding:40px'><h2>تم ربط Google Drive بنجاح</h2><p>تم إنشاء مجلد NABIL - School Directors Archive وبدء مزامنة فهرس الأرشيف.</p><p>يمكنك العودة إلى الموقع.</p><a href='/'>العودة إلى الأرشيف</a></body></html>")
+ except Exception as e:
+  return HTMLResponse("<html lang='ar' dir='rtl'><meta charset='utf-8'><body style='font-family:Tahoma;padding:40px'><h2>تعذر ربط Google Drive</h2><p>"+str(e)+"</p><a href='/'>العودة</a></body></html>",status_code=400)
 @app.get("/api/documents")
 def documents(): return rows()
 @app.post("/api/upload")
@@ -111,6 +185,18 @@ async def upload(files: list[UploadFile] = File(...)):
   raise HTTPException(422,"تعذرت قراءة الصور: "+str(e))
  d={"id":ident,"title":meta["subject"] or saved[0]["filename"],"filename":saved[0]["filename"],"files":saved,"page_count":len(saved),**meta,"text":text,"uploaded_at":datetime.now(timezone.utc).isoformat(),"url":"/api/file/"+ident,"download":"/api/file/"+ident+"?download=1","review_required":not bool(text.strip())}
  items=rows(); items.insert(0,d); save(items)
+ try:
+  service=drive_service()
+  if service:
+   folder_id=ensure_drive_folder(service); drive_files=[]
+   for entry in saved:
+    uploaded=drive_upload(FILES/entry["stored"],entry["filename"],folder_id)
+    if uploaded: drive_files.append({"id":uploaded["id"],"name":uploaded["name"],"webViewLink":uploaded.get("webViewLink")})
+   d["drive_files"]=drive_files; d["drive_folder_id"]=folder_id; d["drive_status"]="saved" if len(drive_files)==len(saved) else "partial"
+   items[0]=d; save(items); sync_index_to_drive(items,folder_id)
+  else: d["drive_status"]="not_connected"
+ except Exception as drive_error:
+  d["drive_status"]="error"; d["drive_error"]=str(drive_error)[:300]; items[0]=d; save(items)
  return {"ok":True,"document":{k:v for k,v in d.items() if k!="text"},"extracted_characters":len(text)}
 
 @app.get("/api/file/{ident}")
