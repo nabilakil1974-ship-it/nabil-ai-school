@@ -80,7 +80,7 @@ def analyze_document_images(images):
             method="POST",
         )
         try:
-            with urllib.request.urlopen(req, timeout=110) as response:
+            with urllib.request.urlopen(req, timeout=50) as response:
                 raw = json.loads(response.read().decode("utf-8"))
             candidates = raw.get("candidates") or []
             if not candidates:
