@@ -486,16 +486,49 @@ def document_page(ident:str):
  # Local Render storage may be recreated on deploy. If the requested ID is
  # absent locally, recover the durable Drive index before returning 404.
  if not d:
+  service=None
   try:
    service=drive_service()
    if service:
-    restored=restore_index_from_drive(service)
-    merged={x.get("id"):x for x in restored if x.get("id")}
-    for item in items:
-     if item.get("id"): merged[item["id"]]=item
-    items=list(merged.values())
-    save(items)
-    d=next((x for x in items if x.get("id")==ident),None)
+    try:
+     restored=restore_index_from_drive(service)
+     merged={x.get("id"):x for x in restored if x.get("id")}
+     for item in items:
+      if item.get("id"): merged[item["id"]]=item
+     items=list(merged.values())
+     save(items)
+     d=next((x for x in items if x.get("id")==ident),None)
+    except Exception:
+     logger.exception("Drive index restore failed during document lookup id=%s",ident)
+    # Recover this known orphaned upload directly from its original Drive image,
+    # even when the JSON index was lost with Render's ephemeral filesystem.
+    if not d and ident=="1f435403e4134123a4581e17e95ca170":
+     folder_id=ensure_drive_folder(service)
+     found=service.files().list(
+      q="name='1001679933.jpg' and '"+folder_id+"' in parents and trashed=false",
+      spaces="drive",fields="files(id,name,mimeType,createdTime,webViewLink)",pageSize=10
+     ).execute().get("files",[])
+     if found:
+      remote=found[0]
+      d={"id":ident,"title":remote.get("name","1001679933.jpg"),
+         "filename":remote.get("name","1001679933.jpg"),
+         "files":[{"filename":remote.get("name","1001679933.jpg"),"page":1}],
+         "page_count":1,"number":"","document_number":"","date":"","document_date":"",
+         "subject":"","category":"قيد المعالجة","issuer":"","text":"",
+         "uploaded_at":remote.get("createdTime") or datetime.now(timezone.utc).isoformat(),
+         "url":"/api/file/"+ident,"download":"/api/file/"+ident+"?download=1",
+         "review_required":True,"processing_status":"pending_ai","drive_status":"saved",
+         "drive_files":[{"id":remote["id"],"name":remote.get("name","1001679933.jpg"),
+                         "webViewLink":remote.get("webViewLink"),"page":1}],
+         "drive_folder_id":folder_id,"referenced_decisions":[],"schools":[],"upload_sources":[],
+         "recovered_from_drive":True}
+        items.insert(0,d); save(items); sync_index_to_drive(items,folder_id)
+        logger.info("recovered orphaned image from Drive id=%s file_id=%s",ident,remote["id"])
+        # Run Gemini against the recovered original immediately, then reload its
+        # indexed metadata before rendering the document page.
+        retry_pending_documents()
+        items=rows()
+        d=next((x for x in items if x.get("id")==ident),d)
   except Exception:
    logger.exception("document lookup recovery failed id=%s",ident)
  if not d: raise HTTPException(404,"المستند غير موجود في الأرشيف أو لم يُسترجع من فهرس Google Drive")
