@@ -149,12 +149,12 @@ def fallback_ocr_images(images):
    continue
   try:
    page_text=ocr_image(Image.open(io.BytesIO(data))).strip()
-   if page_text: texts.append("[صفحة "+str(index)+"]\\n"+page_text)
+   if page_text: texts.append("[صفحة "+str(index)+"]\n"+page_text)
    else: errors.append("صفحة "+str(index)+": لم يُعثر على نص مقروء")
   except Exception as exc:
    logger.exception("local OCR failed page=%s",index)
    errors.append("صفحة "+str(index)+": "+str(exc)[:160])
- full_text="\\n\\n".join(texts).strip()
+ full_text="\n\n".join(texts).strip()
  if not full_text:
   raise RuntimeError("فشل OCR المحلي في قراءة جميع الصفحات: "+"؛ ".join(errors)[:500])
  meta=detect_metadata(full_text,"مستند")
