@@ -1,4 +1,4 @@
-import os, json, uuid, shutil, re, zipfile, hashlib, unicodedata, mimetypes, io, asyncio
+import os, json, uuid, shutil, re, zipfile, hashlib, unicodedata, mimetypes, io, asyncio, logging
 from pathlib import Path
 from datetime import datetime, timezone
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request
@@ -13,6 +13,9 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from gemini_service import analyze_document_images, GeminiError, GeminiNotConfigured
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("nabil.archive")
 
 BASE=Path(os.getenv("DATA_DIR","/tmp/school-archive-data"))
 FILES=BASE/"files"; INDEX=BASE/"documents.json"
@@ -220,9 +223,14 @@ def category_from_type(value):
  return "غير مصنّف"
 
 def retry_pending_documents():
- if not os.getenv("GEMINI_API_KEY"): return
+ if not os.getenv("GEMINI_API_KEY"):
+  logger.error("retry skipped: GEMINI_API_KEY is not configured")
+  return
+ logger.info("retry cycle started")
  service=drive_service()
- if not service: return
+ if not service:
+  logger.error("retry skipped: Google Drive credentials unavailable")
+  return
  items=rows()
  if not items: items=restore_index_from_drive(service)
  changed=False
@@ -232,19 +240,26 @@ def retry_pending_documents():
   retry_at=d.get("next_retry_at")
   if retry_at:
    try:
-    if datetime.fromisoformat(retry_at.replace("Z","+00:00"))>now: continue
+    retry_time=datetime.fromisoformat(retry_at.replace("Z","+00:00"))
+    uploaded_at=datetime.fromisoformat(str(d.get("uploaded_at") or "").replace("Z","+00:00"))
+    # Do not leave old pending uploads stranded behind an exponential-backoff timestamp.
+    if retry_time>now and (now-uploaded_at).total_seconds()<600: continue
    except Exception: pass
   try:
    images=[]
    remote_files=sorted(d.get("drive_files") or [],key=lambda x:x.get("page",0))
-   if not remote_files: continue
+   logger.info("retry document=%s attempt=%s drive_pages=%s",d.get("id"),int(d.get("retry_count",0))+1,len(remote_files))
+   if not remote_files: raise RuntimeError("لا توجد ملفات صور مرتبطة بالمستند في Google Drive")
    for remote in remote_files:
     buffer=io.BytesIO()
     downloader=MediaIoBaseDownload(buffer,service.files().get_media(fileId=remote["id"]))
     done=False
     while not done: _,done=downloader.next_chunk()
+    payload=buffer.getvalue()
+    if not payload: raise RuntimeError("Google Drive أعاد ملف صورة فارغاً: "+str(remote.get("name","unknown")))
     mime=mimetypes.guess_type(remote.get("name",""))[0] or "image/jpeg"
-    images.append({"bytes":buffer.getvalue(),"mime_type":mime})
+    logger.info("downloaded document=%s page=%s bytes=%s mime=%s",d.get("id"),remote.get("page"),len(payload),mime)
+    images.append({"bytes":payload,"mime_type":mime})
    extracted=analyze_document_images(images)
    full_text=str(extracted.get("full_text") or "").strip()
    number=str(extracted.get("document_number") or "").strip()
@@ -269,27 +284,36 @@ def retry_pending_documents():
       "uploaded_at":d.get("uploaded_at"),"drive_files":d.get("drive_files") or [],
       "page_count":d.get("page_count",0),"source_school":None,"upload_id":d.get("id")})
     items=[x for x in items if x.get("id")!=d.get("id")]
+   logger.info("retry result document=%s chars=%s status=%s",d.get("id"),len(full_text),d.get("processing_status"))
    changed=True
   except Exception as exc:
+   logger.exception("retry failed document=%s",d.get("id"))
    count=int(d.get("retry_count",0))+1
-   delay=min(21600,60*(2**min(count,8)))
+   delay=min(600,60*(2**min(count,4)))
    d["retry_count"]=count
    d["next_retry_at"]=(datetime.now(timezone.utc)+__import__("datetime").timedelta(seconds=delay)).isoformat()
    d["gemini_error"]=str(exc)[:500]
    changed=True
  if changed:
   save(items)
-  try: sync_index_to_drive(items,ensure_drive_folder(service))
-  except Exception: pass
+  try:
+   sync_index_to_drive(items,ensure_drive_folder(service))
+   logger.info("retry index synchronized to Drive")
+  except Exception:
+   logger.exception("retry index synchronization failed")
 
 async def retry_worker():
+ logger.info("retry worker started")
  while True:
   await asyncio.sleep(60)
-  try: await asyncio.to_thread(retry_pending_documents)
-  except Exception: pass
+  try:
+   await asyncio.to_thread(retry_pending_documents)
+  except Exception:
+   logger.exception("retry worker cycle crashed")
 
 @app.on_event("startup")
 async def start_retry_worker():
+ logger.info("starting archive retry worker")
  asyncio.create_task(retry_worker())
 
 def upload_result(d, text="", message=None, duplicate=False):
