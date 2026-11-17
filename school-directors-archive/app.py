@@ -203,7 +203,7 @@ async def upload(files: list[UploadFile] = File(...)):
   else: d["drive_status"]="not_connected"
  except Exception as drive_error:
   d["drive_status"]="error"; d["drive_error"]=str(drive_error)[:300]; items[0]=d; save(items)
- return {"ok":True,"document":{k:v for k,v in d.items() if k!="text"},"extracted_characters":len(text),"storage_status":d.get("drive_status","not_connected")}
+ return {"ok":True,"document":{k:v for k,v in d.items() if k!="text"},"extracted_characters":len(text),"extracted_text":text[:1800],"storage_status":d.get("drive_status","not_connected") }
 
 @app.get("/api/file/{ident}")
 def get_file(ident:str,download:int=0,page:int=1):
