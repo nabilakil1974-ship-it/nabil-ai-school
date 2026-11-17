@@ -481,8 +481,24 @@ def get_file(ident:str,download:int=0,page:int=1):
  return FileResponse(p,filename=entry["filename"],content_disposition_type="inline")
 @app.get("/document/{ident}",response_class=HTMLResponse)
 def document_page(ident:str):
- d=next((x for x in documents() if x.get("id")==ident),None)
- if not d: raise HTTPException(404,"المستند غير موجود في الأرشيف")
+ items=documents()
+ d=next((x for x in items if x.get("id")==ident),None)
+ # Local Render storage may be recreated on deploy. If the requested ID is
+ # absent locally, recover the durable Drive index before returning 404.
+ if not d:
+  try:
+   service=drive_service()
+   if service:
+    restored=restore_index_from_drive(service)
+    merged={x.get("id"):x for x in restored if x.get("id")}
+    for item in items:
+     if item.get("id"): merged[item["id"]]=item
+    items=list(merged.values())
+    save(items)
+    d=next((x for x in items if x.get("id")==ident),None)
+  except Exception:
+   logger.exception("document lookup recovery failed id=%s",ident)
+ if not d: raise HTTPException(404,"المستند غير موجود في الأرشيف أو لم يُسترجع من فهرس Google Drive")
  esc=__import__("html").escape
  title=esc(str(d.get("title") or d.get("subject") or "مستند إداري"))
  meta=[]
